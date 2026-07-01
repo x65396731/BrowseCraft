@@ -1,9 +1,9 @@
 import Foundation
 
-/// AppContainer is not a screen.
-///
-/// It is the one place where we build concrete dependencies:
-/// GRDB repositories, Alamofire HTTP client, SwiftSoup parser, and use cases.
+// 中文注释：AppContainer.swift 属于应用装配和根导航，用于说明本文件承载的核心职责。
+
+/// 中文注释：AppContainer 不是界面，而是应用依赖装配中心。
+/// 中文注释：这里统一创建 GRDB 仓储、Alamofire 客户端、SwiftSoup 解析器和各个用例。
 final class AppContainer {
     private let database: AppDatabase
     private let sourceRepository: SourceRepository
@@ -28,17 +28,23 @@ final class AppContainer {
             self.urlResolver = urlResolver
             self.ruleParser = SwiftSoupRuleParser(urlResolver: urlResolver)
         } catch {
-            // If the database cannot be opened at launch, the app cannot operate.
-            // Later we can replace this with a user-facing recovery screen.
+            // 中文注释：数据库启动失败时应用无法继续运行，后续可以替换为用户可见的恢复页面。
             fatalError("Failed to build AppContainer: \(error)")
         }
     }
 
+    /// 中文注释：makeSourcesViewModel 方法封装当前类型的一段业务或界面行为。
     func makeSourcesViewModel() -> SourcesViewModel {
+        let loadBuiltInSourcesUseCase: LoadBuiltInSourcesUseCase = LoadBuiltInSourcesUseCase(
+            sourceRepository: self.sourceRepository
+        )
         let loadSourcesUseCase: LoadSourcesUseCase = LoadSourcesUseCase(
             sourceRepository: self.sourceRepository
         )
         let addSourceUseCase: AddSourceUseCase = AddSourceUseCase(
+            sourceRepository: self.sourceRepository
+        )
+        let deleteSourceUseCase: DeleteSourceUseCase = DeleteSourceUseCase(
             sourceRepository: self.sourceRepository
         )
         let refreshSourceUseCase: RefreshSourceUseCase = RefreshSourceUseCase(
@@ -49,12 +55,15 @@ final class AppContainer {
         )
 
         return SourcesViewModel(
+            loadBuiltInSourcesUseCase: loadBuiltInSourcesUseCase,
             loadSourcesUseCase: loadSourcesUseCase,
             addSourceUseCase: addSourceUseCase,
+            deleteSourceUseCase: deleteSourceUseCase,
             refreshSourceUseCase: refreshSourceUseCase
         )
     }
 
+    /// 中文注释：makeLibraryViewModel 方法封装当前类型的一段业务或界面行为。
     func makeLibraryViewModel() -> LibraryViewModel {
         let loadLibraryUseCase: LoadLibraryUseCase = LoadLibraryUseCase(
             contentRepository: self.contentRepository
@@ -77,6 +86,40 @@ final class AppContainer {
         )
     }
 
+    /// 中文注释：makeChapterListViewModel 方法封装当前类型的一段业务或界面行为。
+    func makeChapterListViewModel(item: ContentItem, source: Source) -> ChapterListViewModel {
+        let loadChaptersUseCase: LoadChaptersUseCase = LoadChaptersUseCase(
+            httpClient: self.httpClient,
+            ruleParser: self.ruleParser
+        )
+
+        return ChapterListViewModel(
+            item: item,
+            source: source,
+            loadChaptersUseCase: loadChaptersUseCase
+        )
+    }
+
+    /// 中文注释：makeReaderViewModel 方法封装当前类型的一段业务或界面行为。
+    func makeReaderViewModel(
+        item: ContentItem,
+        source: Source,
+        selectedChapter: ChapterLink? = nil
+    ) -> ReaderViewModel {
+        let loadReaderChapterUseCase: LoadReaderChapterUseCase = LoadReaderChapterUseCase(
+            httpClient: self.httpClient,
+            ruleParser: self.ruleParser
+        )
+
+        return ReaderViewModel(
+            item: item,
+            source: source,
+            selectedChapter: selectedChapter,
+            loadReaderChapterUseCase: loadReaderChapterUseCase
+        )
+    }
+
+    /// 中文注释：makeHistoryViewModel 方法封装当前类型的一段业务或界面行为。
     func makeHistoryViewModel() -> HistoryViewModel {
         let loadHistoryUseCase: LoadHistoryUseCase = LoadHistoryUseCase(
             historyRepository: self.historyRepository,
@@ -96,4 +139,3 @@ final class AppContainer {
         )
     }
 }
-

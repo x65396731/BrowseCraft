@@ -1,18 +1,23 @@
 import SwiftUI
 
-struct ContentCardView: View {
+// 中文注释：ContentCardView.swift 属于界面功能层，用于说明本文件承载的核心职责。
+
+/// 中文注释：ContentCardView 是 struct，负责本模块中的对应职责。
+struct ContentCardView<ReaderDestination: View>: View {
     let item: ContentItem
     let sourceName: String
     let isFavorite: Bool
     let favoriteAction: () -> Void
-    let openAction: () -> Void
-
-    @Environment(\.openURL) private var openURL
+    let readAction: () -> Void
+    let readerDestination: ReaderDestination
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack(alignment: .topTrailing) {
-                CoverImageView(urlString: self.item.coverURL)
+                CoverImageView(
+                    urlString: self.item.coverURL,
+                    refererURLString: self.item.detailURL
+                )
                     .aspectRatio(0.72, contentMode: .fit)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
 
@@ -69,25 +74,24 @@ struct ContentCardView: View {
                     .lineLimit(1)
             }
 
-            Button(
-                action: {
-                    self.openAction()
-
-                    if let url: URL = URL(string: self.item.detailURL) {
-                        self.openURL(url)
-                    }
-                },
+            NavigationLink(
+                destination: self.readerDestination,
                 label: {
                     Label(
                         title: {
-                            Text("Open")
+                            Text("Chapters")
                         },
                         icon: {
-                            Image(systemName: "safari")
+                            Image(systemName: "list.bullet")
                         }
                     )
                     .font(.callout.weight(.semibold))
                     .frame(maxWidth: .infinity)
+                }
+            )
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    self.readAction()
                 }
             )
         }
@@ -100,6 +104,7 @@ struct ContentCardView: View {
         )
     }
 
+    /// 中文注释：iconName 方法封装当前类型的一段业务或界面行为。
     private func iconName(for contentType: ContentType) -> String {
         switch contentType {
         case .comic:

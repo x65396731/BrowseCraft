@@ -1,6 +1,8 @@
 import Foundation
 
-/// The raw source format before BrowseCraft parses it into normalized models.
+// 中文注释：SourceType.swift 属于领域模型层，用于说明本文件承载的核心职责。
+
+/// 中文注释：源站原始数据格式，用于描述解析前的站点类型。
 enum SourceType: String, Codable, CaseIterable, Identifiable, Hashable {
     case rss
     case html

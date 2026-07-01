@@ -1,10 +1,10 @@
 import Foundation
 import GRDB
 
-/// Owns the SQLite connection and migrations.
-///
-/// This type is Infrastructure because it directly depends on GRDB. Other layers
-/// should use repository protocols instead of talking to AppDatabase directly.
+// 中文注释：AppDatabase.swift 属于应用源码，用于说明本文件承载的核心职责。
+
+/// 中文注释：持有 SQLite 连接并负责数据库迁移。
+/// 中文注释：它直接依赖 GRDB，其他层应该通过仓储协议访问数据。
 final class AppDatabase {
     let queue: DatabaseQueue
 

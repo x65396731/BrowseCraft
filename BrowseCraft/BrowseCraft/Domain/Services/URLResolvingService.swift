@@ -1,5 +1,8 @@
 import Foundation
 
+// 中文注释：URLResolvingService.swift 属于领域服务协议层，用于说明本文件承载的核心职责。
+
+/// 中文注释：URLResolvingError 是 enum，负责本模块中的对应职责。
 enum URLResolvingError: LocalizedError {
     case invalidURL(String)
 
@@ -11,11 +14,10 @@ enum URLResolvingError: LocalizedError {
     }
 }
 
-/// Small URL helper kept out of SwiftUI and out of the parser.
-///
-/// Site rules often contain relative URLs. This service centralizes how we turn
-/// them into absolute URLs.
+/// 中文注释：URL 辅助服务，集中处理相对地址转绝对地址的逻辑。
+/// 中文注释：这样 SwiftUI 和解析器不需要各自重复拼接 URL。
 struct URLResolvingService {
+    /// 中文注释：listURL 方法封装当前类型的一段业务或界面行为。
     func listURL(for source: Source, page: Int) throws -> URL {
         let rawURL: String = source.rule.list.url.replacingOccurrences(of: "{page}", with: String(page))
         let absoluteURLString: String = self.absoluteString(rawURL, baseURLString: source.baseURL)
@@ -27,6 +29,7 @@ struct URLResolvingService {
         return url
     }
 
+    /// 中文注释：absoluteString 方法封装当前类型的一段业务或界面行为。
     func absoluteString(_ rawURLString: String, baseURLString: String) -> String {
         if let url: URL = URL(string: rawURLString), url.scheme != nil {
             return rawURLString

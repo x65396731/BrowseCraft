@@ -1,5 +1,8 @@
 import SwiftUI
 
+// 中文注释：SourcesView.swift 属于界面功能层，用于说明本文件承载的核心职责。
+
+/// 中文注释：SourcesView 是 struct，负责本模块中的对应职责。
 struct SourcesView: View {
     @ObservedObject var viewModel: SourcesViewModel
     @State private var isShowingAddSourceView: Bool = false
@@ -15,6 +18,9 @@ struct SourcesView: View {
                             self.viewModel.selectedSourceID = source.id
                         }
                     )
+                }
+                .onDelete { offsets in
+                    self.viewModel.deleteSources(at: offsets)
                 }
             }
             .overlay(

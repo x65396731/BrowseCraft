@@ -1,16 +1,32 @@
 import SwiftUI
 
+// 中文注释：AddSourceView.swift 属于界面功能层，用于说明本文件承载的核心职责。
+
+/// 中文注释：AddSourceView 是 struct，负责本模块中的对应职责。
 struct AddSourceView: View {
     @ObservedObject var viewModel: SourcesViewModel
     @Environment(\.dismiss) private var dismiss
 
-    @State private var name: String = ""
-    @State private var baseURL: String = ""
-    @State private var ruleJSON: String = SiteRule.exampleJSON
+    @State private var selectedTemplate: RuleTemplate = .myComic
+    @State private var name: String = RuleTemplate.myComic.sourceName
+    @State private var baseURL: String = RuleTemplate.myComic.baseURL
+    @State private var ruleJSON: String = RuleTemplate.myComic.ruleJSON
 
     var body: some View {
         NavigationView {
             Form {
+                Section("Template") {
+                    Picker(
+                        "Rule",
+                        selection: self.$selectedTemplate
+                    ) {
+                        ForEach(RuleTemplate.allCases) { template in
+                            Text(template.title)
+                                .tag(template)
+                        }
+                    }
+                }
+
                 Section("Source") {
                     TextField(
                         "Name",
@@ -33,6 +49,9 @@ struct AddSourceView: View {
                 }
             }
             .navigationTitle("Add Source")
+            .onChange(of: self.selectedTemplate) { _, newTemplate in
+                self.applyTemplate(newTemplate)
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(
@@ -60,6 +79,58 @@ struct AddSourceView: View {
                     )
                 }
             }
+        }
+    }
+
+    /// 中文注释：applyTemplate 方法封装当前类型的一段业务或界面行为。
+    private func applyTemplate(_ template: RuleTemplate) {
+        self.name = template.sourceName
+        self.baseURL = template.baseURL
+        self.ruleJSON = template.ruleJSON
+    }
+}
+
+private enum RuleTemplate: String, CaseIterable, Identifiable {
+    case example
+    case myComic
+
+    var id: String {
+        return self.rawValue
+    }
+
+    var title: String {
+        switch self {
+        case .example:
+            return "Example"
+        case .myComic:
+            return "MYCOMIC"
+        }
+    }
+
+    var sourceName: String {
+        switch self {
+        case .example:
+            return ""
+        case .myComic:
+            return BuiltInSource.myComic().name
+        }
+    }
+
+    var baseURL: String {
+        switch self {
+        case .example:
+            return ""
+        case .myComic:
+            return BuiltInSource.myComic().baseURL
+        }
+    }
+
+    var ruleJSON: String {
+        switch self {
+        case .example:
+            return SiteRule.exampleJSON
+        case .myComic:
+            return SiteRule.myComicJSON
         }
     }
 }

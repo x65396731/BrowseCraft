@@ -1,6 +1,9 @@
 import Foundation
 import GRDB
 
+// 中文注释：GRDBFavoriteRepository.swift 属于数据库仓储实现层，用于说明本文件承载的核心职责。
+
+/// 中文注释：GRDBFavoriteRepository 是 final class，负责本模块中的对应职责。
 final class GRDBFavoriteRepository: FavoriteRepository {
     private let database: AppDatabase
 
@@ -8,6 +11,7 @@ final class GRDBFavoriteRepository: FavoriteRepository {
         self.database = database
     }
 
+    /// 中文注释：fetchFavoriteItemIDs 方法封装当前类型的一段业务或界面行为。
     func fetchFavoriteItemIDs() throws -> Set<String> {
         return try self.database.queue.read { database in
             let records: [FavoriteRecord] = try FavoriteRecord.fetchAll(database)
@@ -19,6 +23,7 @@ final class GRDBFavoriteRepository: FavoriteRepository {
         }
     }
 
+    /// 中文注释：setFavorite 方法封装当前类型的一段业务或界面行为。
     func setFavorite(itemId: String, isFavorite: Bool) throws {
         try self.database.queue.write { database in
             if isFavorite {

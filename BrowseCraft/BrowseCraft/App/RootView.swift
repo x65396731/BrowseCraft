@@ -1,15 +1,17 @@
 import SwiftUI
 
-/// RootView owns the main tab navigation.
-///
-/// It creates one ViewModel per tab through AppContainer. We keep those
-/// ViewModels in @StateObject so SwiftUI preserves them while the view refreshes.
+// 中文注释：RootView.swift 属于应用装配和根导航，用于说明本文件承载的核心职责。
+
+/// 中文注释：RootView 持有应用主 Tab 导航。
+/// 中文注释：每个 Tab 的 ViewModel 都通过 AppContainer 创建，并用 @StateObject 保持生命周期。
 struct RootView: View {
+    private let container: AppContainer
     @StateObject private var sourcesViewModel: SourcesViewModel
     @StateObject private var libraryViewModel: LibraryViewModel
     @StateObject private var historyViewModel: HistoryViewModel
 
     init(container: AppContainer) {
+        self.container = container
         _sourcesViewModel = StateObject(wrappedValue: container.makeSourcesViewModel())
         _libraryViewModel = StateObject(wrappedValue: container.makeLibraryViewModel())
         _historyViewModel = StateObject(wrappedValue: container.makeHistoryViewModel())
@@ -23,7 +25,19 @@ struct RootView: View {
                     Text("Sources")
                 }
 
-            LibraryView(viewModel: self.libraryViewModel)
+            LibraryView(
+                viewModel: self.libraryViewModel,
+                chapterListViewModelFactory: { item, source in
+                    return self.container.makeChapterListViewModel(item: item, source: source)
+                },
+                readerViewModelFactory: { item, source, chapter in
+                    return self.container.makeReaderViewModel(
+                        item: item,
+                        source: source,
+                        selectedChapter: chapter
+                    )
+                }
+            )
                 .tabItem {
                     Image(systemName: "square.grid.2x2")
                     Text("Library")

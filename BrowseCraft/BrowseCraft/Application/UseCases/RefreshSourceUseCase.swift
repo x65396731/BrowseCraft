@@ -1,10 +1,9 @@
 import Foundation
 
-/// Fetches a source list page, parses it, saves the normalized items, and returns them.
-///
-/// This is the core MVP pipeline:
-///
-/// Source + Rule -> Fetch -> Parse -> Normalize -> Store -> Display
+// 中文注释：RefreshSourceUseCase.swift 属于应用用例层，用于说明本文件承载的核心职责。
+
+/// 中文注释：抓取源站列表页，解析为标准条目，保存后返回结果。
+/// 中文注释：核心流程是 Source + Rule -> Fetch -> Parse -> Normalize -> Store -> Display。
 struct RefreshSourceUseCase {
     private let httpClient: HTTPClient
     private let ruleParser: RuleParsingService
@@ -23,6 +22,7 @@ struct RefreshSourceUseCase {
         self.contentRepository = contentRepository
     }
 
+    /// 中文注释：execute 方法封装当前类型的一段业务或界面行为。
     func execute(source: Source, page: Int = 1) async throws -> [ContentItem] {
         let url: URL = try self.urlResolver.listURL(for: source, page: page)
         let html: String = try await self.httpClient.getString(from: url)

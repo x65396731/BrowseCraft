@@ -1,9 +1,9 @@
 import Foundation
 
-/// A user-added content source.
-///
-/// A Source owns a SiteRule. The rule tells the parser how to find list items,
-/// titles, covers, chapters, images, and videos for this source.
+// 中文注释：Source.swift 属于领域模型层，用于说明本文件承载的核心职责。
+
+/// 中文注释：用户添加的内容源模型。
+/// 中文注释：Source 持有 SiteRule，规则告诉解析器如何查找列表、标题、封面、章节、图片和视频。
 struct Source: Identifiable, Hashable {
     var id: String
     var name: String

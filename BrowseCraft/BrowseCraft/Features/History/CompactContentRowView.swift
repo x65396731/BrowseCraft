@@ -1,5 +1,8 @@
 import SwiftUI
 
+// 中文注释：CompactContentRowView.swift 属于界面功能层，用于说明本文件承载的核心职责。
+
+/// 中文注释：CompactContentRowView 是 struct，负责本模块中的对应职责。
 struct CompactContentRowView: View {
     let item: ContentItem
     let subtitle: String

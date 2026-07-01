@@ -1,7 +1,12 @@
 import SwiftUI
 
+// 中文注释：LibraryView.swift 属于界面功能层，用于说明本文件承载的核心职责。
+
+/// 中文注释：LibraryView 是 struct，负责本模块中的对应职责。
 struct LibraryView: View {
     @ObservedObject var viewModel: LibraryViewModel
+    let chapterListViewModelFactory: (ContentItem, Source) -> ChapterListViewModel
+    let readerViewModelFactory: (ContentItem, Source, ChapterLink?) -> ReaderViewModel
 
     private let gridColumns: [GridItem] = [
         GridItem(.adaptive(minimum: 150), spacing: 14)
@@ -12,17 +17,23 @@ struct LibraryView: View {
             ScrollView {
                 LazyVGrid(columns: self.gridColumns, spacing: 16) {
                     ForEach(self.viewModel.items, id: \.id) { item in
-                        ContentCardView(
-                            item: item,
-                            sourceName: self.viewModel.sourceName(for: item.sourceId),
-                            isFavorite: self.viewModel.favoriteItemIDs.contains(item.id),
-                            favoriteAction: {
-                                self.viewModel.toggleFavorite(item: item)
-                            },
-                            openAction: {
-                                self.viewModel.recordOpened(item: item)
-                            }
-                        )
+                        if let source: Source = self.viewModel.source(for: item.sourceId) {
+                            ContentCardView(
+                                item: item,
+                                sourceName: source.name,
+                                isFavorite: self.viewModel.favoriteItemIDs.contains(item.id),
+                                favoriteAction: {
+                                    self.viewModel.toggleFavorite(item: item)
+                                },
+                                readAction: {
+                                    self.viewModel.recordOpened(item: item)
+                                },
+                                readerDestination: ChapterListView(
+                                    viewModel: self.chapterListViewModelFactory(item, source),
+                                    readerViewModelFactory: self.readerViewModelFactory
+                                )
+                            )
+                        }
                     }
                 }
                 .padding(16)

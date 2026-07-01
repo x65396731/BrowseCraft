@@ -1,10 +1,10 @@
 import Foundation
 import GRDB
 
-/// GRDB representation of Source.
-///
-/// Records stay in Infrastructure. Domain models stay clean and do not conform
-/// to GRDB protocols.
+// 中文注释：SourceRecord.swift 属于数据库记录映射层，用于说明本文件承载的核心职责。
+
+/// 中文注释：Source 在 GRDB 中的数据库记录表示。
+/// 中文注释：数据库记录留在基础设施层，领域模型不直接遵循 GRDB 协议。
 struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
     static let databaseTableName: String = "sources"
 
@@ -30,6 +30,7 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
         self.updatedAt = source.updatedAt
     }
 
+    /// 中文注释：domainModel 方法封装当前类型的一段业务或界面行为。
     func domainModel() throws -> Source {
         let ruleData: Data = Data(self.ruleJSON.utf8)
         let rule: SiteRule = try JSONDecoder().decode(SiteRule.self, from: ruleData)

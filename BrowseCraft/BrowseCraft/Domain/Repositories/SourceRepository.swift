@@ -1,11 +1,14 @@
 import Foundation
 
-/// Domain-facing storage API for sources.
-///
-/// The protocol hides GRDB from the rest of the app. Tests can replace it with
-/// a fake repository without creating a real SQLite database.
-protocol SourceRepository {
-    func fetchSources() throws -> [Source]
-    func saveSource(_ source: Source) throws
-}
+// 中文注释：SourceRepository.swift 属于仓储协议层，用于说明本文件承载的核心职责。
 
+/// 中文注释：面向领域层的源仓储协议，负责源规则的读取、保存和删除。
+/// 中文注释：协议把 GRDB 隔离在基础设施层，测试时可以换成内存实现。
+protocol SourceRepository {
+    /// 中文注释：fetchSources 方法封装当前类型的一段业务或界面行为。
+    func fetchSources() throws -> [Source]
+    /// 中文注释：saveSource 方法封装当前类型的一段业务或界面行为。
+    func saveSource(_ source: Source) throws
+    /// 中文注释：deleteSource 方法封装当前类型的一段业务或界面行为。
+    func deleteSource(id: String) throws
+}
