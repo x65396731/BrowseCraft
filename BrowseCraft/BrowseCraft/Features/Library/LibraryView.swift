@@ -7,6 +7,7 @@ struct LibraryView: View {
     @ObservedObject var viewModel: LibraryViewModel
     let chapterListViewModelFactory: (ContentItem, Source) -> ChapterListViewModel
     let readerViewModelFactory: (ContentItem, Source, ChapterLink?) -> ReaderViewModel
+    @State private var didLoadInitialData: Bool = false
     @State private var didStartInitialRefresh: Bool = false
 
     private let gridColumns: [GridItem] = [
@@ -76,7 +77,10 @@ struct LibraryView: View {
                 }
             }
             .onAppear {
-                self.viewModel.load()
+                if self.didLoadInitialData == false {
+                    self.didLoadInitialData = true
+                    self.viewModel.load()
+                }
 
                 if self.didStartInitialRefresh == false {
                     self.didStartInitialRefresh = true

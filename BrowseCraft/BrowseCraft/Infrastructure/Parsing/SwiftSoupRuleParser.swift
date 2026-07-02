@@ -6,6 +6,11 @@ import SwiftSoup
 /// 中文注释：基于 SwiftSoup 的 HTML 规则解析器。
 /// 中文注释：SwiftSoup 只出现在这里，应用其他部分都通过 RuleParsingService 使用解析能力。
 final class SwiftSoupRuleParser: RuleParsingService {
+    private struct DataChapter: Decodable {
+        let id: Int
+        let title: String
+    }
+
     private let urlResolver: URLResolvingService
 
     init(urlResolver: URLResolvingService) {
@@ -65,14 +70,54 @@ final class SwiftSoupRuleParser: RuleParsingService {
 
     /// 中文注释：parseDetailChapters 方法封装当前类型的一段业务或界面行为。
     func parseDetailChapters(html: String, source: Source, pageURL: String) throws -> [ChapterLink] {
-        guard let detailRule: DetailRule = source.rule.detail,
-              let chapterItemSelector: String = detailRule.chapterItem,
+        guard let detailRule: DetailRule = source.rule.detail else {
+            return []
+        }
+
+        let document: Document = try SwiftSoup.parse(html, pageURL)
+
+        if let chapterRule: ChapterRule = detailRule.chapterRule {
+            // 中文注释：优先读取页面内的结构化章节数据。部分站点会把真实章节放在 x-data/JSON 中，
+            // 中文注释：原始 HTML 里的普通 a 标签可能只是排行或推荐区，不能作为主章节列表。
+            let dataChapters: [ChapterLink] = try self.dataChapterLinks(
+                in: document,
+                source: source,
+                detailRule: detailRule,
+                chapterRule: chapterRule,
+                pageURL: pageURL
+            )
+
+            if dataChapters.isEmpty == false {
+                return dataChapters
+            }
+
+            let elements: [Element] = try self.chapterElements(
+                in: document,
+                detailRule: detailRule,
+                chapterRule: chapterRule
+            )
+
+            #if DEBUG
+            print(
+                "[BrowseCraftRule] Parse detail chapters V2 source=\(source.id) page=\(pageURL) " +
+                "elementCount=\(elements.count)"
+            )
+            #endif
+
+            return try self.chapterLinks(
+                from: elements,
+                titleRule: chapterRule.title,
+                urlRule: chapterRule.url,
+                pageURL: pageURL
+            )
+        }
+
+        guard let chapterItemSelector: String = detailRule.chapterItem,
               let chapterTitleExpression: String = detailRule.chapterTitle,
               let chapterLinkExpression: String = detailRule.chapterLink else {
             return []
         }
 
-        let document: Document = try SwiftSoup.parse(html, pageURL)
         let elements: [Element] = try self.chapterElements(
             in: document,
             source: source,
@@ -92,14 +137,37 @@ final class SwiftSoupRuleParser: RuleParsingService {
         )
         #endif
 
+        let titleRule: ExtractRule = ExtractRule(
+            selector: chapterTitleExpression,
+            function: .text,
+            param: nil,
+            regex: nil,
+            replacement: nil,
+            fallback: nil
+        )
+        let urlRule: ExtractRule = self.extractRule(fromLegacyExpression: chapterLinkExpression)
+
+        return try self.chapterLinks(
+            from: elements,
+            titleRule: titleRule,
+            urlRule: urlRule,
+            pageURL: pageURL
+        )
+    }
+
+    private func chapterLinks(
+        from elements: [Element],
+        titleRule: ExtractRule,
+        urlRule: ExtractRule,
+        pageURL: String
+    ) throws -> [ChapterLink] {
         var chapters: [ChapterLink] = []
         var seenURLs: Set<String> = Set<String>()
-        var seenTitles: Set<String> = Set<String>()
 
         for element: Element in elements {
-            let title: String = try self.extract(element: element, expression: chapterTitleExpression)
+            let title: String = try self.extract(element: element, rule: titleRule)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            let rawURL: String = try self.extract(element: element, expression: chapterLinkExpression)
+            let rawURL: String = try self.extract(element: element, rule: urlRule)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
 
             if title.isEmpty || rawURL.isEmpty {
@@ -112,12 +180,8 @@ final class SwiftSoupRuleParser: RuleParsingService {
                 continue
             }
 
-            if seenTitles.contains(title) {
-                continue
-            }
-
+            // 中文注释：只按 URL 去重。标题可能在不同分组里重复，例如“第01话”和番外/卷册并存。
             seenURLs.insert(chapterURL)
-            seenTitles.insert(title)
             chapters.append(
                 ChapterLink(
                     title: title,
@@ -128,9 +192,303 @@ final class SwiftSoupRuleParser: RuleParsingService {
 
         #if DEBUG
         print("[BrowseCraftRule] Parsed chapterCount=\(chapters.count) page=\(pageURL)")
+
+        for (index, chapter) in chapters.enumerated() {
+            print(
+                "[BrowseCraftRule] Parsed chapter " +
+                "page=\(pageURL) " +
+                "index=\(index) " +
+                "title=\(chapter.title) " +
+                "url=\(chapter.url)"
+            )
+        }
         #endif
 
         return chapters
+    }
+
+    private func dataChapterLinks(
+        in document: Document,
+        source: Source,
+        detailRule: DetailRule,
+        chapterRule: ChapterRule,
+        pageURL: String
+    ) throws -> [ChapterLink] {
+        guard let idCodeRule: ExtractRule = chapterRule.idCode else {
+            return []
+        }
+
+        let scope: Element = try self.scopedElement(
+            in: document,
+            scopeRule: detailRule.mainScope
+        ) ?? document
+
+        let containers: [Element]
+
+        if let section: SectionRule = chapterRule.section {
+            containers = try self.selectedElements(
+                element: scope,
+                rule: section.container,
+                includesSelf: true
+            )
+        } else {
+            containers = [scope]
+        }
+
+        var chapters: [ChapterLink] = []
+        var seenIDs: Set<Int> = Set<Int>()
+        let chapterURLPrefix: String = self.chapterURLPrefix(source: source, pageURL: pageURL)
+
+        for container: Element in containers {
+            // 中文注释：每个 container 对应一个源站章节分组，例如单话、单行本、番外篇。
+            // 中文注释：遍历顺序即源站展示顺序，后续 UI 先保持这个顺序，避免跨分组自然排序导致混排。
+            let rawData: String = try self.extract(element: container, rule: idCodeRule)
+            let dataChapters: [DataChapter]?
+
+            do {
+                dataChapters = try self.dataChapters(from: rawData)
+            } catch {
+                #if DEBUG
+                print(
+                    "[BrowseCraftRule] Parse data chapters failed " +
+                    "page=\(pageURL) " +
+                    "error=\(error)"
+                )
+                #endif
+
+                continue
+            }
+
+            guard let dataChapters: [DataChapter] = dataChapters else {
+                continue
+            }
+
+            #if DEBUG
+            let sectionTitle: String = try self.dataChapterSectionTitle(from: container)
+            let countBeforeSection: Int = chapters.count
+            #endif
+
+            for dataChapter: DataChapter in dataChapters {
+                if seenIDs.contains(dataChapter.id) {
+                    continue
+                }
+
+                // 中文注释：结构化章节里 id 是比标题更稳定的唯一键。
+                seenIDs.insert(dataChapter.id)
+                chapters.append(
+                    ChapterLink(
+                        title: dataChapter.title,
+                        url: "\(chapterURLPrefix)/\(dataChapter.id)"
+                    )
+                )
+            }
+
+            #if DEBUG
+            let addedCount: Int = chapters.count - countBeforeSection
+            print(
+                "[BrowseCraftRule] Parsed data chapter section " +
+                "page=\(pageURL) " +
+                "section=\(sectionTitle) " +
+                "rawCount=\(dataChapters.count) " +
+                "addedCount=\(addedCount) " +
+                "firstTitle=\(dataChapters.first?.title ?? "nil") " +
+                "lastTitle=\(dataChapters.last?.title ?? "nil")"
+            )
+            #endif
+        }
+
+        #if DEBUG
+        print(
+            "[BrowseCraftRule] Parsed data chapters " +
+            "page=\(pageURL) " +
+            "containerCount=\(containers.count) " +
+            "chapterCount=\(chapters.count) " +
+            "firstURL=\(chapters.first?.url ?? "nil")"
+        )
+        #endif
+
+        return chapters
+    }
+
+    private func dataChapterSectionTitle(from element: Element) throws -> String {
+        let rawText: String = try element.text()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard rawText.isEmpty == false else {
+            return "unknown"
+        }
+
+        // 中文注释：当前用于 DEBUG 对账。标题通常位于“倒序排列/升序排列”控件之前。
+        let markers: [String] = ["倒序排列", "升序排列"]
+
+        for marker: String in markers {
+            if let markerRange: Range<String.Index> = rawText.range(of: marker) {
+                let title: String = String(rawText[..<markerRange.lowerBound])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+
+                if title.isEmpty == false {
+                    return title
+                }
+            }
+        }
+
+        return String(rawText.prefix(24))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func dataChapters(from rawData: String) throws -> [DataChapter]? {
+        guard let arrayString: String = self.bracketedArray(
+            in: rawData,
+            after: "chapters"
+        ) else {
+            return nil
+        }
+
+        let data: Data = Data(arrayString.utf8)
+
+        return try JSONDecoder().decode([DataChapter].self, from: data)
+    }
+
+    private func bracketedArray(in value: String, after marker: String) -> String? {
+        // 中文注释：x-data 是 JavaScript 对象片段，不是完整 JSON；这里只截取 marker 后的数组部分再交给 JSONDecoder。
+        guard let markerRange: Range<String.Index> = value.range(of: marker),
+              let startIndex: String.Index = value[markerRange.upperBound...].firstIndex(of: "[") else {
+            return nil
+        }
+
+        var depth: Int = 0
+        var isInsideString: Bool = false
+        var isEscaped: Bool = false
+        var currentIndex: String.Index = startIndex
+
+        while currentIndex < value.endIndex {
+            let character: Character = value[currentIndex]
+
+            if isInsideString {
+                if isEscaped {
+                    isEscaped = false
+                } else if character == "\\" {
+                    isEscaped = true
+                } else if character == "\"" {
+                    isInsideString = false
+                }
+            } else if character == "\"" {
+                isInsideString = true
+            } else if character == "[" {
+                depth += 1
+            } else if character == "]" {
+                depth -= 1
+
+                if depth == 0 {
+                    return String(value[startIndex...currentIndex])
+                }
+            }
+
+            currentIndex = value.index(after: currentIndex)
+        }
+
+        return nil
+    }
+
+    private func chapterURLPrefix(source: Source, pageURL: String) -> String {
+        if let comicsRange: Range<String.Index> = pageURL.range(of: "/comics/") {
+            return "\(pageURL[..<comicsRange.lowerBound])/chapters"
+        }
+
+        return "\(source.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/chapters"
+    }
+
+    private func chapterElements(
+        in document: Document,
+        detailRule: DetailRule,
+        chapterRule: ChapterRule
+    ) throws -> [Element] {
+        #if DEBUG
+        let debugChapterSelector: String = "a[href*=\"/cn/chapters/\"]"
+        let globalChapterLinkCount: Int = try document.select(debugChapterSelector).array().count
+        #endif
+
+        let scope: Element = try self.scopedElement(
+            in: document,
+            scopeRule: detailRule.mainScope
+        ) ?? document
+
+        #if DEBUG
+        let scopeChapterLinkCount: Int = try scope.select(debugChapterSelector).array().count
+        print(
+            "[BrowseCraftRule] V2 chapter scope " +
+            "mainScope=\(detailRule.mainScope?.selector ?? "nil") " +
+            "scopeTag=\(try scope.tagName()) " +
+            "globalChapterLinkCount=\(globalChapterLinkCount) " +
+            "scopeChapterLinkCount=\(scopeChapterLinkCount)"
+        )
+        #endif
+
+        let containerScopes: [Element]
+
+        if let section: SectionRule = chapterRule.section {
+            containerScopes = try self.selectedElements(
+                element: scope,
+                rule: section.container,
+                includesSelf: true
+            )
+        } else {
+            containerScopes = [scope]
+        }
+
+        #if DEBUG
+        print(
+            "[BrowseCraftRule] V2 chapter containers " +
+            "sectionContainer=\(chapterRule.section?.container.selector ?? "nil") " +
+            "containerCount=\(containerScopes.count)"
+        )
+
+        for (index, containerScope) in containerScopes.enumerated() {
+            let containerChapterLinks: [Element] = try containerScope.select(debugChapterSelector).array()
+            print(
+                "[BrowseCraftRule] V2 chapter container " +
+                "index=\(index) " +
+                "tag=\(try containerScope.tagName()) " +
+                "chapterLinkCount=\(containerChapterLinks.count)"
+            )
+
+            for previewElement: Element in containerChapterLinks.prefix(5) {
+                print(
+                    "[BrowseCraftRule] V2 chapter container preview " +
+                    "index=\(index) " +
+                    "title=\(try previewElement.text()) " +
+                    "href=\(try previewElement.attr("href"))"
+                )
+            }
+        }
+        #endif
+
+        var elements: [Element] = []
+
+        for containerScope: Element in containerScopes {
+            elements.append(
+                contentsOf: try self.selectedElements(
+                    element: containerScope,
+                    rule: chapterRule.item
+                )
+            )
+        }
+
+        let filteredElements: [Element] = try self.filteredElements(
+            elements,
+            excluding: detailRule.exclude ?? [],
+            in: scope
+        )
+
+        #if DEBUG
+        print(
+            "[BrowseCraftRule] V2 chapter candidates " +
+            "beforeFilter=\(elements.count) " +
+            "afterFilter=\(filteredElements.count)"
+        )
+        #endif
+
+        return filteredElements
     }
 
     /// 中文注释：chapterElements 方法封装当前类型的一段业务或界面行为。
@@ -151,10 +509,14 @@ final class SwiftSoupRuleParser: RuleParsingService {
                 }
             }
 
-            return try self.fallbackChapterElements(
-                in: document,
-                chapterItemSelector: chapterItemSelector
+            #if DEBUG
+            print(
+                "[BrowseCraftRule] Chapter container matched no chapter items; skip global fallback " +
+                "chapterContainer=\(chapterContainerSelector) chapterItem=\(chapterItemSelector)"
             )
+            #endif
+
+            return []
         }
 
         return try document.select(chapterItemSelector).array()
@@ -313,7 +675,183 @@ final class SwiftSoupRuleParser: RuleParsingService {
         return rawValue
     }
 
+    private func scopedElement(in document: Document, scopeRule: ExtractRule?) throws -> Element? {
+        guard let scopeRule: ExtractRule = scopeRule else {
+            return document
+        }
+
+        return try self.selectedElements(element: document, rule: scopeRule).first
+    }
+
+    private func selectedElements(
+        element: Element,
+        rule: ExtractRule,
+        includesSelf: Bool = false
+    ) throws -> [Element] {
+        guard let selector: String = rule.selector,
+              selector.isEmpty == false,
+              selector != "this" else {
+            return [element]
+        }
+
+        if selector == "parent" {
+            return try element.parent().map { parent in
+                return [parent]
+            } ?? []
+        }
+
+        if selector.hasPrefix("parent ") {
+            let nestedSelector: String = String(selector.dropFirst("parent ".count))
+            return try element.parent()?.select(nestedSelector).array() ?? []
+        }
+
+        var elements: [Element] = []
+
+        if includesSelf,
+           try element.iS(selector) {
+            elements.append(element)
+        }
+
+        for selectedElement: Element in try element.select(selector).array() {
+            let selectedHTML: String = try selectedElement.outerHtml()
+            let alreadyIncluded: Bool = try elements.contains { element in
+                return try element.outerHtml() == selectedHTML
+            }
+
+            if alreadyIncluded == false {
+                elements.append(selectedElement)
+            }
+        }
+
+        return elements
+    }
+
+    private func filteredElements(
+        _ elements: [Element],
+        excluding excludeRules: [ExtractRule],
+        in scope: Element
+    ) throws -> [Element] {
+        guard excludeRules.isEmpty == false else {
+            return elements
+        }
+
+        var excludedHTML: Set<String> = Set<String>()
+
+        for excludeRule: ExtractRule in excludeRules {
+            for element: Element in try self.selectedElements(element: scope, rule: excludeRule) {
+                excludedHTML.insert(try element.outerHtml())
+            }
+        }
+
+        return try elements.filter { element in
+            return excludedHTML.contains(try element.outerHtml()) == false
+        }
+    }
+
     /// 中文注释：extract 方法封装当前类型的一段业务或界面行为。
+    private func extract(element: Element, rule: ExtractRule) throws -> String {
+        let selectedElement: Element? = try self.selectedElements(element: element, rule: rule).first
+        let rawValue: String
+
+        switch rule.function {
+        case .text:
+            rawValue = try selectedElement?.text() ?? ""
+        case .html:
+            rawValue = try selectedElement?.html() ?? ""
+        case .attr:
+            rawValue = try self.extractAttribute(
+                element: selectedElement,
+                attributeExpression: rule.param ?? ""
+            )
+        case .raw:
+            rawValue = try selectedElement?.outerHtml() ?? ""
+        case .url:
+            rawValue = try self.extractAttribute(
+                element: selectedElement,
+                attributeExpression: rule.param ?? "href"
+            )
+        }
+
+        let transformedValue: String = try self.applyRegex(
+            to: rawValue,
+            regex: rule.regex,
+            replacement: rule.replacement
+        )
+
+        if transformedValue.isEmpty,
+           let fallbackRules: [ExtractRule] = rule.fallback {
+            for fallbackRule: ExtractRule in fallbackRules {
+                let fallbackValue: String = try self.extract(element: element, rule: fallbackRule)
+
+                if fallbackValue.isEmpty == false {
+                    return fallbackValue
+                }
+            }
+        }
+
+        return transformedValue
+    }
+
+    private func applyRegex(to value: String, regex: String?, replacement: String?) throws -> String {
+        guard let regex: String = regex, regex.isEmpty == false else {
+            return value
+        }
+
+        let regularExpression: NSRegularExpression = try NSRegularExpression(pattern: regex)
+        let range: NSRange = NSRange(value.startIndex..<value.endIndex, in: value)
+
+        if let replacement: String = replacement {
+            return regularExpression.stringByReplacingMatches(
+                in: value,
+                range: range,
+                withTemplate: replacement
+            )
+        }
+
+        guard let match: NSTextCheckingResult = regularExpression.firstMatch(in: value, range: range),
+              let matchRange: Range<String.Index> = Range(match.range(at: match.numberOfRanges > 1 ? 1 : 0), in: value) else {
+            return ""
+        }
+
+        return String(value[matchRange])
+    }
+
+    private func extractRule(fromLegacyExpression expression: String) -> ExtractRule {
+        if expression == "this" {
+            return ExtractRule(
+                selector: "this",
+                function: .text,
+                param: nil,
+                regex: nil,
+                replacement: nil,
+                fallback: nil
+            )
+        }
+
+        if let separatorIndex: String.Index = expression.lastIndex(of: "@") {
+            let selector: String = String(expression[..<separatorIndex])
+            let attributeExpression: String = String(expression[expression.index(after: separatorIndex)...])
+
+            return ExtractRule(
+                selector: selector.isEmpty ? "this" : selector,
+                function: .attr,
+                param: attributeExpression,
+                regex: nil,
+                replacement: nil,
+                fallback: nil
+            )
+        }
+
+        return ExtractRule(
+            selector: expression,
+            function: .text,
+            param: nil,
+            regex: nil,
+            replacement: nil,
+            fallback: nil
+        )
+    }
+
     private func extract(element: Element, expression: String) throws -> String {
         if expression == "this" {
             return try element.text()

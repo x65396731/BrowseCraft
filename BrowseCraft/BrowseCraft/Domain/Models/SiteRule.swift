@@ -50,10 +50,77 @@ struct ListTabRule: Codable, Hashable, Identifiable {
 struct DetailRule: Codable, Hashable {
     var title: String?
     var cover: String?
+    /// 中文注释：详情页主内容作用域，用于把章节解析限制在作品正文附近。
+    var mainScope: ExtractRule?
+    /// 中文注释：从主作用域中排除排行、推荐、广告等公共区域。
+    var exclude: [ExtractRule]?
+    /// 中文注释：V2 章节子规则；存在时优先于下方旧版 chapterContainer/chapterItem 字段。
+    var chapterRule: ChapterRule?
     var chapterContainer: String?
     var chapterItem: String?
     var chapterTitle: String?
     var chapterLink: String?
+}
+
+/// 中文注释：ExtractRule 表示一次结构化抽取，替代旧版 selector@attr 字符串。
+struct ExtractRule: Codable, Hashable {
+    var selector: String?
+    var function: ExtractFunction
+    var param: String?
+    var regex: String?
+    var replacement: String?
+    var fallback: [ExtractRule]?
+}
+
+enum ExtractFunction: String, Codable, Hashable {
+    case text
+    case html
+    case attr
+    case raw
+    case url
+}
+
+struct SectionRule: Codable, Hashable {
+    var id: String?
+    var title: ExtractRule?
+    var role: SectionRole?
+    var itemLayout: ItemLayout?
+    /// 中文注释：Section 的容器节点。章节解析会按容器顺序保留源站分组顺序。
+    var container: ExtractRule
+    var itemRuleRef: String?
+    var listRuleRef: String?
+    var exclude: [ExtractRule]?
+}
+
+enum SectionRole: String, Codable, Hashable {
+    case main
+    case ranking
+    case recommendation
+    case category
+}
+
+enum ItemLayout: String, Codable, Hashable {
+    case horizontalRow
+    case verticalGrid
+}
+
+struct ChapterRule: Codable, Hashable {
+    var section: SectionRule?
+    var item: ExtractRule
+    /// 中文注释：章节稳定标识抽取规则；可从结构化数据中读取 id 并拼出章节 URL。
+    var idCode: ExtractRule?
+    var title: ExtractRule
+    var url: ExtractRule
+    var datetime: ExtractRule?
+    var sort: ChapterSort?
+    /// 中文注释：预留字段，用于要求章节组必须包含列表卡片上的 latestText，避免匹配到推荐区。
+    var mustMatchLatestText: Bool?
+}
+
+enum ChapterSort: String, Codable, Hashable {
+    case ascending
+    case descending
+    case none
 }
 
 /// 中文注释：GalleryRule 是 struct，负责本模块中的对应职责。

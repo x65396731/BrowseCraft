@@ -156,15 +156,29 @@ final class ChapterListViewModel: ObservableObject {
                 source: self.source,
                 item: self.item
             )
-            self.chapters = self.sortedChapters(loadedChapters)
+            // 中文注释：章节解析器已经按源站分组顺序返回结果；这里不再按标题全局排序，避免单话/单行本/番外篇混排。
+            self.chapters = loadedChapters
 
             #if DEBUG
             print(
                 "[BrowseCraftNavigation] Loaded chapters " +
                 "itemId=\(self.item.id) " +
+                "title=\(self.item.title) " +
+                "detailURL=\(self.item.detailURL) " +
                 "count=\(self.chapters.count) " +
                 "firstURL=\(self.chapters.first?.url ?? "nil")"
             )
+
+            for (index, chapter) in self.chapters.enumerated() {
+                print(
+                    "[BrowseCraftNavigation] Chapter item " +
+                    "itemId=\(self.item.id) " +
+                    "itemTitle=\(self.item.title) " +
+                    "index=\(index) " +
+                    "chapterTitle=\(chapter.title) " +
+                    "chapterURL=\(chapter.url)"
+                )
+            }
             #endif
         } catch {
             self.errorMessage = error.localizedDescription
@@ -182,70 +196,4 @@ final class ChapterListViewModel: ObservableObject {
         self.isLoading = false
     }
 
-    /// 中文注释：sortedChapters 方法封装当前类型的一段业务或界面行为。
-    private func sortedChapters(_ chapters: [ChapterLink]) -> [ChapterLink] {
-        return chapters.sorted { lhs, rhs in
-            let lhsKey: ChapterSortKey = self.sortKey(for: lhs.title)
-            let rhsKey: ChapterSortKey = self.sortKey(for: rhs.title)
-
-            return lhsKey < rhsKey
-        }
-    }
-
-    /// 中文注释：sortKey 方法封装当前类型的一段业务或界面行为。
-    private func sortKey(for title: String) -> ChapterSortKey {
-        if let number: Int = self.firstNumber(in: title) {
-            return ChapterSortKey(
-                hasNumber: true,
-                number: number,
-                length: title.count,
-                title: title
-            )
-        }
-
-        return ChapterSortKey(
-            hasNumber: false,
-            number: Int.max,
-            length: title.count,
-            title: title
-        )
-    }
-
-    /// 中文注释：firstNumber 方法封装当前类型的一段业务或界面行为。
-    private func firstNumber(in text: String) -> Int? {
-        var digits: String = ""
-
-        for character: Character in text {
-            if character.isNumber {
-                digits.append(character)
-            } else if digits.isEmpty == false {
-                break
-            }
-        }
-
-        return Int(digits)
-    }
-}
-
-private struct ChapterSortKey: Comparable {
-    var hasNumber: Bool
-    var number: Int
-    var length: Int
-    var title: String
-
-    static func < (lhs: ChapterSortKey, rhs: ChapterSortKey) -> Bool {
-        if lhs.hasNumber != rhs.hasNumber {
-            return lhs.hasNumber && rhs.hasNumber == false
-        }
-
-        if lhs.hasNumber && rhs.hasNumber && lhs.number != rhs.number {
-            return lhs.number < rhs.number
-        }
-
-        if lhs.length != rhs.length {
-            return lhs.length < rhs.length
-        }
-
-        return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
-    }
 }
