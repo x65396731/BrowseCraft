@@ -14,8 +14,12 @@ struct SourcesView: View {
                     SourceRowView(
                         source: source,
                         isSelected: source.id == self.viewModel.selectedSourceID,
+                        isLoading: source.id == self.viewModel.refreshingSourceID,
+                        isDisabled: self.viewModel.isRefreshing,
                         selectAction: {
-                            self.viewModel.selectedSourceID = source.id
+                            Task {
+                                await self.viewModel.selectSourceAfterRefresh(source)
+                            }
                         }
                     )
                 }
@@ -77,10 +81,18 @@ struct SourcesView: View {
                 Alert(
                     title: Text("Sources"),
                     message: Text(self.viewModel.errorMessage ?? ""),
-                    dismissButton: .default(
-                        Text("OK"),
+                    primaryButton: .default(
+                        Text("Retry"),
                         action: {
-                            self.viewModel.errorMessage = nil
+                            Task {
+                                await self.viewModel.retryFailedRefresh()
+                            }
+                        }
+                    ),
+                    secondaryButton: .cancel(
+                        Text("Cancel"),
+                        action: {
+                            self.viewModel.clearError()
                         }
                     )
                 )
@@ -95,7 +107,7 @@ struct SourcesView: View {
             },
             set: { newValue in
                 if newValue == false {
-                    self.viewModel.errorMessage = nil
+                    self.viewModel.clearError()
                 }
             }
         )

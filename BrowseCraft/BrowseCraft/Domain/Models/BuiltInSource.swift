@@ -10,22 +10,40 @@ enum BuiltInSource {
     static let primaryBuiltInID: String = BrowseCraftPrivateRuleCatalog.primaryBuiltInID
     static let primaryBuiltInRuleJSON: String = BrowseCraftPrivateRuleCatalog.primaryBuiltInRuleJSON
 
+    static func allBuiltIns(now: Date = Date()) -> [Source] {
+        return BrowseCraftPrivateRuleCatalog.builtInRules.map { builtInRule in
+            return Self.source(from: builtInRule, now: now)
+        }
+    }
+
     /// 中文注释：primaryBuiltIn 方法封装当前类型的一段业务或界面行为。
     static func primaryBuiltIn(now: Date = Date()) -> Source {
+        return Self.source(
+            from: BrowseCraftBuiltInRule(
+                id: Self.primaryBuiltInID,
+                name: BrowseCraftPrivateRuleCatalog.primaryBuiltInName,
+                baseURL: BrowseCraftPrivateRuleCatalog.primaryBuiltInBaseURL,
+                ruleJSON: Self.primaryBuiltInRuleJSON
+            ),
+            now: now
+        )
+    }
+
+    private static func source(from builtInRule: BrowseCraftBuiltInRule, now: Date) -> Source {
         return Source(
-            id: Self.primaryBuiltInID,
-            name: BrowseCraftPrivateRuleCatalog.primaryBuiltInName,
-            baseURL: BrowseCraftPrivateRuleCatalog.primaryBuiltInBaseURL,
+            id: builtInRule.id,
+            name: builtInRule.name,
+            baseURL: builtInRule.baseURL,
             type: .html,
-            rule: Self.primaryBuiltInRule(),
+            rule: Self.rule(from: builtInRule.ruleJSON),
             enabled: true,
             createdAt: now,
             updatedAt: now
         )
     }
 
-    private static func primaryBuiltInRule() -> SiteRule {
-        let ruleData: Data = Data(Self.primaryBuiltInRuleJSON.utf8)
+    private static func rule(from ruleJSON: String) -> SiteRule {
+        let ruleData: Data = Data(ruleJSON.utf8)
 
         do {
             return try JSONDecoder().decode(SiteRule.self, from: ruleData)

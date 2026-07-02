@@ -55,7 +55,7 @@ struct LoadChaptersUseCase {
         )
         #endif
 
-        if item.detailURL.contains("/chapters/") {
+        if shouldTreatDetailURLAsChapter(source: source, item: item) {
             return [
                 ChapterLink(
                     title: item.latestText ?? item.title,
@@ -182,7 +182,7 @@ struct LoadReaderChapterUseCase {
             return preferredChapterURLString
         }
 
-        if item.detailURL.contains("/chapters/") {
+        if shouldTreatDetailURLAsChapter(source: source, item: item) {
             #if DEBUG
             print(
                 "[BrowseCraftRequest] ResolveChapter use item detail as chapter " +
@@ -266,4 +266,13 @@ struct LoadReaderChapterUseCase {
 
         return normalizedText
     }
+
+}
+
+private func shouldTreatDetailURLAsChapter(source: Source, item: ContentItem) -> Bool {
+    if item.detailURL.contains("/chapters/") {
+        return true
+    }
+
+    return source.rule.detail?.treatDetailURLAsChapter == true
 }

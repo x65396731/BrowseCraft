@@ -13,6 +13,7 @@ final class AppContainer {
     private let httpClient: HTTPClient
     private let urlResolver: URLResolvingService
     private let ruleParser: RuleParsingService
+    private let sourceSelectionStore: SourceSelectionStore
 
     init() {
         do {
@@ -27,6 +28,7 @@ final class AppContainer {
             self.httpClient = AlamofireHTTPClient()
             self.urlResolver = urlResolver
             self.ruleParser = SwiftSoupRuleParser(urlResolver: urlResolver)
+            self.sourceSelectionStore = SourceSelectionStore()
         } catch {
             // 中文注释：数据库启动失败时应用无法继续运行，后续可以替换为用户可见的恢复页面。
             fatalError("Failed to build AppContainer: \(error)")
@@ -59,7 +61,8 @@ final class AppContainer {
             loadSourcesUseCase: loadSourcesUseCase,
             addSourceUseCase: addSourceUseCase,
             deleteSourceUseCase: deleteSourceUseCase,
-            refreshSourceUseCase: refreshSourceUseCase
+            refreshSourceUseCase: refreshSourceUseCase,
+            sourceSelectionStore: self.sourceSelectionStore
         )
     }
 
@@ -89,7 +92,8 @@ final class AppContainer {
             loadSourcesUseCase: loadSourcesUseCase,
             toggleFavoriteUseCase: toggleFavoriteUseCase,
             recordOpenItemUseCase: recordOpenItemUseCase,
-            refreshSourceUseCase: refreshSourceUseCase
+            refreshSourceUseCase: refreshSourceUseCase,
+            sourceSelectionStore: self.sourceSelectionStore
         )
     }
 

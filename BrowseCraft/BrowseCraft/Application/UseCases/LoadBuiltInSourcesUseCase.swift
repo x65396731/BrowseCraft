@@ -14,7 +14,11 @@ struct LoadBuiltInSourcesUseCase {
     /// 中文注释：execute 方法封装当前类型的一段业务或界面行为。
     func execute() throws {
         let existingSources: [Source] = try self.sourceRepository.fetchSources()
-        try self.updateExistingPrimaryBuiltInSources(existingSources)
+        let latestBuiltInSources: [Source] = BuiltInSource.allBuiltIns()
+        try self.updateExistingBuiltInSources(
+            existingSources,
+            latestBuiltInSources: latestBuiltInSources
+        )
 
         let refreshedSources: [Source] = try self.sourceRepository.fetchSources()
         let existingIDs: Set<String> = Set(
@@ -23,27 +27,21 @@ struct LoadBuiltInSourcesUseCase {
             }
         )
 
-        if existingIDs.contains(BuiltInSource.primaryBuiltInID) == false {
-            let source: Source = BuiltInSource.primaryBuiltIn()
+        for source: Source in latestBuiltInSources where existingIDs.contains(source.id) == false {
             try self.sourceRepository.saveSource(source)
         }
     }
 
-    /// 中文注释：updateExistingPrimaryBuiltInSources 方法封装当前类型的一段业务或界面行为。
-    private func updateExistingPrimaryBuiltInSources(_ existingSources: [Source]) throws {
-        let latestBuiltInSource: Source = BuiltInSource.primaryBuiltIn()
-        let latestName: String = latestBuiltInSource.name.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        let latestBaseURL: String = latestBuiltInSource.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-
+    /// 中文注释：同步所有内置源。规则源在 BrowseCraftRulesKit，数据库只保存当前运行副本。
+    private func updateExistingBuiltInSources(
+        _ existingSources: [Source],
+        latestBuiltInSources: [Source]
+    ) throws {
         for existingSource: Source in existingSources {
-            let normalizedName: String = existingSource.name.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-            let normalizedBaseURL: String = existingSource.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-            let isStablePrimaryBuiltInSource: Bool = existingSource.id == BuiltInSource.primaryBuiltInID
-            let isLegacyPrimaryBuiltInSource: Bool = normalizedName == latestName
-                && normalizedBaseURL == latestBaseURL
-            let isPrimaryBuiltInSource: Bool = isStablePrimaryBuiltInSource || isLegacyPrimaryBuiltInSource
-
-            if isPrimaryBuiltInSource == false {
+            guard let latestBuiltInSource: Source = self.latestBuiltInSource(
+                matching: existingSource,
+                in: latestBuiltInSources
+            ) else {
                 continue
             }
 
@@ -65,10 +63,38 @@ struct LoadBuiltInSourcesUseCase {
             #if DEBUG
             print(
                 "[BrowseCraftRule] Synced built-in source id=\(updatedSource.id) " +
+                "name=\(updatedSource.name) " +
                 "chapterContainer=\(updatedSource.rule.detail?.chapterContainer ?? "nil") " +
                 "chapterItem=\(updatedSource.rule.detail?.chapterItem ?? "nil")"
             )
             #endif
         }
+    }
+
+    private func latestBuiltInSource(
+        matching existingSource: Source,
+        in latestBuiltInSources: [Source]
+    ) -> Source? {
+        if let stableMatch: Source = latestBuiltInSources.first(where: { source in
+            return source.id == existingSource.id
+        }) {
+            return stableMatch
+        }
+
+        let normalizedExistingName: String = self.normalizedName(existingSource.name)
+        let normalizedExistingBaseURL: String = self.normalizedBaseURL(existingSource.baseURL)
+
+        return latestBuiltInSources.first { source in
+            return self.normalizedName(source.name) == normalizedExistingName
+                && self.normalizedBaseURL(source.baseURL) == normalizedExistingBaseURL
+        }
+    }
+
+    private func normalizedName(_ name: String) -> String {
+        return name.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+    }
+
+    private func normalizedBaseURL(_ baseURL: String) -> String {
+        return baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

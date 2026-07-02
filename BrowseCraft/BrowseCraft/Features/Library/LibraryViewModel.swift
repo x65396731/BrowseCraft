@@ -8,7 +8,7 @@ final class LibraryViewModel: ObservableObject {
     @Published private(set) var items: [ContentItem] = []
     @Published private(set) var sources: [Source] = []
     @Published private(set) var favoriteItemIDs: Set<String> = []
-    @Published var selectedSourceID: String?
+    @Published private(set) var selectedSourceID: String?
     @Published var selectedListTabID: String?
     @Published var errorMessage: String?
     @Published private(set) var isRefreshing: Bool = false
@@ -18,33 +18,41 @@ final class LibraryViewModel: ObservableObject {
     private let toggleFavoriteUseCase: ToggleFavoriteUseCase
     private let recordOpenItemUseCase: RecordOpenItemUseCase
     private let refreshSourceUseCase: RefreshSourceUseCase
+    private let sourceSelectionStore: SourceSelectionStore
+    private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
 
     init(
         loadLibraryUseCase: LoadLibraryUseCase,
         loadSourcesUseCase: LoadSourcesUseCase,
         toggleFavoriteUseCase: ToggleFavoriteUseCase,
         recordOpenItemUseCase: RecordOpenItemUseCase,
-        refreshSourceUseCase: RefreshSourceUseCase
+        refreshSourceUseCase: RefreshSourceUseCase,
+        sourceSelectionStore: SourceSelectionStore
     ) {
         self.loadLibraryUseCase = loadLibraryUseCase
         self.loadSourcesUseCase = loadSourcesUseCase
         self.toggleFavoriteUseCase = toggleFavoriteUseCase
         self.recordOpenItemUseCase = recordOpenItemUseCase
         self.refreshSourceUseCase = refreshSourceUseCase
+        self.sourceSelectionStore = sourceSelectionStore
+        self.selectedSourceID = sourceSelectionStore.selectedSourceID
+        self.bindSourceSelection()
     }
 
     @MainActor
     /// 中文注释：load 方法封装当前类型的一段业务或界面行为。
     func load() {
         do {
-            self.items = try self.loadLibraryUseCase.execute()
             self.sources = try self.loadSourcesUseCase.execute()
             self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs()
 
             if self.selectedSourceID == nil {
-                self.selectedSourceID = self.sources.first?.id
+                let defaultSourceID: String? = self.sources.first?.id
+                self.selectedSourceID = defaultSourceID
+                self.sourceSelectionStore.selectedSourceID = defaultSourceID
             }
 
+            self.items = try self.loadLibraryUseCase.execute(sourceId: self.selectedSourceID)
             self.ensureSelectedListTab()
         } catch {
             self.errorMessage = error.localizedDescription
@@ -136,7 +144,6 @@ final class LibraryViewModel: ObservableObject {
         } ?? self.listTabs.first
     }
 
-    @MainActor
     private func ensureSelectedListTab() {
         let tabs: [ListTabRule] = self.listTabs
 
@@ -146,5 +153,30 @@ final class LibraryViewModel: ObservableObject {
         }
 
         self.selectedListTabID = tabs.first?.id
+    }
+
+    private func bindSourceSelection() {
+        self.sourceSelectionStore.$selectedSourceID
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] selectedSourceID in
+                self?.applySelectedSourceID(selectedSourceID)
+            }
+            .store(in: &self.cancellables)
+    }
+
+    private func applySelectedSourceID(_ selectedSourceID: String?) {
+        if self.selectedSourceID == selectedSourceID {
+            return
+        }
+
+        self.selectedSourceID = selectedSourceID
+        self.selectedListTabID = nil
+
+        do {
+            self.items = try self.loadLibraryUseCase.execute(sourceId: selectedSourceID)
+            self.ensureSelectedListTab()
+        } catch {
+            self.errorMessage = error.localizedDescription
+        }
     }
 }

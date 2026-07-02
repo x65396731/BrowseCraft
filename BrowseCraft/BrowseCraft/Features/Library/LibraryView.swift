@@ -8,7 +8,6 @@ struct LibraryView: View {
     let chapterListViewModelFactory: (ContentItem, Source) -> ChapterListViewModel
     let readerViewModelFactory: (ContentItem, Source, ChapterLink?) -> ReaderViewModel
     @State private var didLoadInitialData: Bool = false
-    @State private var didStartInitialRefresh: Bool = false
 
     private let gridColumns: [GridItem] = [
         GridItem(.adaptive(minimum: 150), spacing: 14)
@@ -26,6 +25,8 @@ struct LibraryView: View {
                                 ContentCardView(
                                     item: item,
                                     sourceName: source.name,
+                                    primaryActionTitle: self.primaryActionTitle(for: source),
+                                    primaryActionSystemImage: self.primaryActionSystemImage(for: source),
                                     isFavorite: self.viewModel.favoriteItemIDs.contains(item.id),
                                     favoriteAction: {
                                         self.viewModel.toggleFavorite(item: item)
@@ -33,9 +34,9 @@ struct LibraryView: View {
                                     readAction: {
                                         self.viewModel.recordOpened(item: item)
                                     },
-                                    readerDestination: ChapterListView(
-                                        viewModel: self.chapterListViewModelFactory(item, source),
-                                        readerViewModelFactory: self.readerViewModelFactory
+                                    readerDestination: self.readerDestination(
+                                        for: item,
+                                        source: source
                                     )
                                 )
                             }
@@ -80,13 +81,6 @@ struct LibraryView: View {
                 if self.didLoadInitialData == false {
                     self.didLoadInitialData = true
                     self.viewModel.load()
-                }
-
-                if self.didStartInitialRefresh == false {
-                    self.didStartInitialRefresh = true
-                    Task {
-                        await self.viewModel.refreshSelectedListTab()
-                    }
                 }
             }
             .alert(isPresented: self.errorAlertBinding) {
@@ -144,6 +138,40 @@ struct LibraryView: View {
             .padding(.horizontal, 16)
         }
         .background(Color(.systemBackground))
+    }
+
+    @ViewBuilder
+    private func readerDestination(for item: ContentItem, source: Source) -> some View {
+        if self.shouldOpenReaderDirectly(for: source) {
+            ReaderView(
+                viewModel: self.readerViewModelFactory(item, source, nil)
+            )
+        } else {
+            ChapterListView(
+                viewModel: self.chapterListViewModelFactory(item, source),
+                readerViewModelFactory: self.readerViewModelFactory
+            )
+        }
+    }
+
+    private func primaryActionTitle(for source: Source) -> String {
+        if self.shouldOpenReaderDirectly(for: source) {
+            return "Read"
+        }
+
+        return "Chapters"
+    }
+
+    private func primaryActionSystemImage(for source: Source) -> String {
+        if self.shouldOpenReaderDirectly(for: source) {
+            return "book"
+        }
+
+        return "list.bullet"
+    }
+
+    private func shouldOpenReaderDirectly(for source: Source) -> Bool {
+        return source.rule.detail?.treatDetailURLAsChapter == true
     }
 
     private var errorAlertBinding: Binding<Bool> {

@@ -1,0 +1,25 @@
+# BrowseCraft local files
+BrowseCraft/.DS_Store
+
+# BrowseCraft Xcode local user state
+BrowseCraft/xcuserdata/
+BrowseCraft/*.xcuserstate
+
+# BrowseCraft Xcode build outputs
+BrowseCraft/build/
+BrowseCraft/DerivedData/
+BrowseCraft/.derivedData/
+
+# BrowseCraft XcodeGen generated project
+BrowseCraft/*.xcodeproj/
+
+# BrowseCraft CocoaPods installed dependencies
+BrowseCraft/Pods/
+BrowseCraft/Podfile.lock
+
+# BrowseCraft CocoaPods generated workspace
+BrowseCraft/*.xcworkspace/
+BrowseCraft/web-analysis/
+
+# Local sibling private rules repo
+BrowseCraftRulesKit/

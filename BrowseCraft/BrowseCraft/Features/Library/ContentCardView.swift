@@ -6,6 +6,8 @@ import SwiftUI
 struct ContentCardView<ReaderDestination: View>: View {
     let item: ContentItem
     let sourceName: String
+    let primaryActionTitle: String
+    let primaryActionSystemImage: String
     let isFavorite: Bool
     let favoriteAction: () -> Void
     let readAction: () -> Void
@@ -79,10 +81,10 @@ struct ContentCardView<ReaderDestination: View>: View {
                 label: {
                     Label(
                         title: {
-                            Text("Chapters")
+                            Text(self.primaryActionTitle)
                         },
                         icon: {
-                            Image(systemName: "list.bullet")
+                            Image(systemName: self.primaryActionSystemImage)
                         }
                     )
                     .font(.callout.weight(.semibold))
@@ -93,7 +95,7 @@ struct ContentCardView<ReaderDestination: View>: View {
                 TapGesture().onEnded {
                     #if DEBUG
                     print(
-                        "[BrowseCraftNavigation] Tap chapters " +
+                        "[BrowseCraftNavigation] Tap \(self.primaryActionTitle) " +
                         "itemId=\(self.item.id) " +
                         "title=\(self.item.title) " +
                         "detailURL=\(self.item.detailURL) " +

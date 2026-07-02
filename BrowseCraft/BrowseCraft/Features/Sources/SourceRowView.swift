@@ -6,6 +6,8 @@ import SwiftUI
 struct SourceRowView: View {
     let source: Source
     let isSelected: Bool
+    let isLoading: Bool
+    let isDisabled: Bool
     let selectAction: () -> Void
 
     var body: some View {
@@ -15,9 +17,14 @@ struct SourceRowView: View {
             },
             label: {
                 HStack(spacing: 12) {
-                    Image(systemName: self.isSelected ? "checkmark.circle.fill" : "circle")
-                        .foregroundColor(self.isSelected ? .green : .secondary)
-                        .frame(width: 24, height: 24)
+                    if self.isLoading {
+                        ProgressView()
+                            .frame(width: 24, height: 24)
+                    } else {
+                        Image(systemName: self.isSelected ? "checkmark.circle.fill" : "circle")
+                            .foregroundColor(self.isSelected ? .green : .secondary)
+                            .frame(width: 24, height: 24)
+                    }
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(self.source.name)
@@ -37,5 +44,7 @@ struct SourceRowView: View {
             }
         )
         .buttonStyle(.plain)
+        .disabled(self.isDisabled)
+        .opacity(self.isDisabled && self.isLoading == false ? 0.55 : 1)
     }
 }

@@ -6,29 +6,42 @@ import Foundation
 /// 中文注释：Sources 标签页的视图模型，管理源列表、选中源、刷新状态和错误信息。
 /// 中文注释：SwiftUI 会观察这里的 @Published 属性，并在变化时刷新对应界面。
 final class SourcesViewModel: ObservableObject {
+    private enum FailedRefreshAction {
+        case select(sourceID: String)
+        case refresh(sourceID: String)
+    }
+
     @Published private(set) var sources: [Source] = []
-    @Published var selectedSourceID: String?
+    @Published private(set) var selectedSourceID: String?
     @Published var errorMessage: String?
     @Published private(set) var isRefreshing: Bool = false
+    @Published private(set) var refreshingSourceID: String?
 
     private let loadBuiltInSourcesUseCase: LoadBuiltInSourcesUseCase
     private let loadSourcesUseCase: LoadSourcesUseCase
     private let addSourceUseCase: AddSourceUseCase
     private let deleteSourceUseCase: DeleteSourceUseCase
     private let refreshSourceUseCase: RefreshSourceUseCase
+    private let sourceSelectionStore: SourceSelectionStore
+    private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
+    private var failedRefreshAction: FailedRefreshAction?
 
     init(
         loadBuiltInSourcesUseCase: LoadBuiltInSourcesUseCase,
         loadSourcesUseCase: LoadSourcesUseCase,
         addSourceUseCase: AddSourceUseCase,
         deleteSourceUseCase: DeleteSourceUseCase,
-        refreshSourceUseCase: RefreshSourceUseCase
+        refreshSourceUseCase: RefreshSourceUseCase,
+        sourceSelectionStore: SourceSelectionStore
     ) {
         self.loadBuiltInSourcesUseCase = loadBuiltInSourcesUseCase
         self.loadSourcesUseCase = loadSourcesUseCase
         self.addSourceUseCase = addSourceUseCase
         self.deleteSourceUseCase = deleteSourceUseCase
         self.refreshSourceUseCase = refreshSourceUseCase
+        self.sourceSelectionStore = sourceSelectionStore
+        self.selectedSourceID = sourceSelectionStore.selectedSourceID
+        self.bindSourceSelection()
     }
 
     @MainActor
@@ -40,7 +53,7 @@ final class SourcesViewModel: ObservableObject {
             self.sources = loadedSources
 
             if self.selectedSourceID == nil {
-                self.selectedSourceID = loadedSources.first?.id
+                self.selectSource(id: loadedSources.first?.id)
             }
         } catch {
             self.errorMessage = error.localizedDescription
@@ -58,7 +71,7 @@ final class SourcesViewModel: ObservableObject {
             )
 
             self.load()
-            self.selectedSourceID = source.id
+            self.selectSource(id: source.id)
             return true
         } catch {
             self.errorMessage = error.localizedDescription
@@ -83,11 +96,38 @@ final class SourcesViewModel: ObservableObject {
 
             if let selectedSourceID: String = self.selectedSourceID,
                loadedSources.contains(where: { source in source.id == selectedSourceID }) == false {
-                self.selectedSourceID = loadedSources.first?.id
+                self.selectSource(id: loadedSources.first?.id)
             }
         } catch {
             self.errorMessage = error.localizedDescription
         }
+    }
+
+    func selectSource(id: String?) {
+        self.selectedSourceID = id
+        self.sourceSelectionStore.selectedSourceID = id
+    }
+
+    @MainActor
+    func selectSourceAfterRefresh(_ source: Source) async {
+        if self.selectedSourceID == source.id || self.isRefreshing {
+            return
+        }
+
+        self.isRefreshing = true
+        self.refreshingSourceID = source.id
+
+        do {
+            _ = try await self.refreshSourceUseCase.execute(source: source)
+            self.failedRefreshAction = nil
+            self.selectSource(id: source.id)
+        } catch {
+            self.failedRefreshAction = .select(sourceID: source.id)
+            self.errorMessage = error.localizedDescription
+        }
+
+        self.refreshingSourceID = nil
+        self.isRefreshing = false
     }
 
     @MainActor
@@ -97,20 +137,79 @@ final class SourcesViewModel: ObservableObject {
             return
         }
 
-        self.isRefreshing = true
+        await self.refreshSource(selectedSource)
+    }
 
-        do {
-            _ = try await self.refreshSourceUseCase.execute(source: selectedSource)
-        } catch {
-            self.errorMessage = error.localizedDescription
+    @MainActor
+    func retryFailedRefresh() async {
+        let failedRefreshAction: FailedRefreshAction? = self.failedRefreshAction
+        self.errorMessage = nil
+
+        guard let failedRefreshAction: FailedRefreshAction = failedRefreshAction else {
+            return
         }
 
-        self.isRefreshing = false
+        switch failedRefreshAction {
+        case .select(let sourceID):
+            guard let source: Source = self.source(id: sourceID) else {
+                return
+            }
+
+            await self.selectSourceAfterRefresh(source)
+        case .refresh(let sourceID):
+            guard let source: Source = self.source(id: sourceID) else {
+                return
+            }
+
+            await self.refreshSource(source)
+        }
+    }
+
+    func clearError() {
+        self.errorMessage = nil
     }
 
     var selectedSource: Source? {
-        return self.sources.first { source in
-            return source.id == self.selectedSourceID
+        return self.source(id: self.selectedSourceID)
+    }
+
+    private func source(id: String?) -> Source? {
+        guard let id: String = id else {
+            return nil
         }
+
+        return self.sources.first { source in
+            return source.id == id
+        }
+    }
+
+    @MainActor
+    private func refreshSource(_ source: Source) async {
+        if self.isRefreshing {
+            return
+        }
+
+        self.isRefreshing = true
+        self.refreshingSourceID = source.id
+
+        do {
+            _ = try await self.refreshSourceUseCase.execute(source: source)
+            self.failedRefreshAction = nil
+        } catch {
+            self.failedRefreshAction = .refresh(sourceID: source.id)
+            self.errorMessage = error.localizedDescription
+        }
+
+        self.refreshingSourceID = nil
+        self.isRefreshing = false
+    }
+
+    private func bindSourceSelection() {
+        self.sourceSelectionStore.$selectedSourceID
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] selectedSourceID in
+                self?.selectedSourceID = selectedSourceID
+            }
+            .store(in: &self.cancellables)
     }
 }
