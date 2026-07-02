@@ -1,4 +1,0 @@
-interface:
-  display_name: "BrowseCraft Rule Workflow"
-  short_description: "BrowseCraft规则设计与文档工作流规范"
-  default_prompt: "Use $browsecraft-rule-workflow to design or review BrowseCraft custom rule models, Yealico comparisons, drawio docs, and workflow guardrails."
