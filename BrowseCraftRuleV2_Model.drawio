@@ -1,0 +1,117 @@
+<mxfile host="app.diagrams.net" modified="2026-07-02T00:00:00.000Z" agent="Codex" version="26.0.0" type="device">
+  <diagram id="phase1" name="第一阶段">
+    <mxGraphModel dx="3400" dy="2600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="2300" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="p1_sec_core" value="Site Core / 站点基础" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f9ff;strokeColor=#6c8ebf;fontSize=18;fontStyle=1;align=left;verticalAlign=top;spacingLeft=14;spacingTop=10;dashed=1;" vertex="1" parent="1"><mxGeometry x="40" y="120" width="2180" height="330" as="geometry" /></mxCell><mxCell id="p1_sec_nav" value="Page Routing / 页面入口、Tab、Section 和规则引用" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fbf7ff;strokeColor=#9673a6;fontSize=18;fontStyle=1;align=left;verticalAlign=top;spacingLeft=14;spacingTop=10;dashed=1;" vertex="1" parent="1"><mxGeometry x="40" y="500" width="2180" height="560" as="geometry" /></mxCell><mxCell id="p1_sec_rule" value="Rule Execution / 第一阶段规则执行结构" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffaf2;strokeColor=#d79b00;fontSize=18;fontStyle=1;align=left;verticalAlign=top;spacingLeft=14;spacingTop=10;dashed=1;" vertex="1" parent="1"><mxGeometry x="40" y="1120" width="2180" height="900" as="geometry" /></mxCell><mxCell id="p1_note_legend" value="阅读方式：从上到下三层。第一层定义站点，第二层定义入口页面 / tab / section 上下文，第三层定义具体解析规则。字段类型均收敛到 ExtractRule。" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=14;fontColor=#666666;whiteSpace=wrap;rounded=0;" vertex="1" parent="1"><mxGeometry x="80" y="90" width="1400" height="30" as="geometry" /></mxCell><mxCell id="p1_note_req" value="请求配置继承：Rule request &gt; Page request &gt; Site sharedRequest" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=14;fontColor=#666666;whiteSpace=wrap;rounded=0;" vertex="1" parent="1"><mxGeometry x="1520" y="90" width="620" height="30" as="geometry" /></mxCell><mxCell id="title1" value="BrowseCraft Rule V2 - 第一阶段&#10;目标：替换扁平 SiteRule，先支持真实可用的多入口 / 多 Tab / 多 Section / 多规则抽取模型" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=22;fontStyle=1;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40" y="30" width="1800" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="site" value="BrowseCraftRule&#10;- version: Int&#10;- site: SiteConfig&#10;- urlPatterns: URLPatterns&#10;- pages: [PageRule]&#10;- ruleSets: RuleSets&#10;- sharedRequest: RequestConfig?&#10;- flags: [SiteFlag]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="170" width="390" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="siteConfig" value="SiteConfig&#10;- name: String&#10;- domain: String&#10;- baseURL: String&#10;- iconURL: String?&#10;- displayMode: DisplayMode&#10;- loginURL: String?&#10;- language: String?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="570" y="170" width="390" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="urlPatterns" value="URLPatterns&#10;- series: String?&#10;- list: String?&#10;- detail: String?&#10;- gallery: String?&#10;- search: String?&#10;&#10;Placeholders&#10;- {page:start:step}&#10;- {idCode:}&#10;- {cidCode:}&#10;- {keyword:}&#10;- {url}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="155" width="430" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="request" value="RequestConfig&#10;- method: HTTPMethod&#10;- headers: [String: String]&#10;- body: RequestBody?&#10;- cookiePolicy: CookiePolicy&#10;- charset: Charset&#10;- needsWebView: Bool&#10;- autoScroll: Bool&#10;- imageHeaders: [String: String]?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="1600" y="155" width="450" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="page" value="PageRule&#10;- id: String&#10;- title: String&#10;- type: PageType&#10;- url: String?&#10;- displayMode: DisplayMode?&#10;- presentation: PagePresentation?&#10;- request: RequestConfig?&#10;- tabGroup: TabGroupRule?&#10;- sections: [SectionRule]&#10;- ruleRefs: RuleRefs&#10;- flags: [PageFlag]&#10;&#10;说明：一个站点可有多个入口页面" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="550" width="430" height="330" as="geometry" />
+        </mxCell>
+        <mxCell id="ruleRefs" value="RuleRefs&#10;- series: String?&#10;- list: String?&#10;- detail: String?&#10;- gallery: String?&#10;- search: String?&#10;&#10;说明：Page 通过 id 绑定不同规则" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="570" y="570" width="390" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="ruleSets" value="RuleSets&#10;- seriesRules: [ListRule]&#10;- listRules: [ListRule]&#10;- detailRules: [DetailRule]&#10;- galleryRules: [GalleryRule]&#10;&#10;第一阶段先不独立实现 searchRules，搜索可复用 ListRule" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="570" width="430" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="extract" value="ExtractRule&#10;- selector: String?&#10;- function: ExtractFunction&#10;- param: String?&#10;- regex: String?&#10;- replacement: String?&#10;- fallback: [ExtractRule]&#10;&#10;说明：替代旧版 selector@attr 字符串" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="1600" y="550" width="470" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="tabGroupRule" value="TabGroupRule&#10;- id: String&#10;- tabs: [TabRule]&#10;- selectedTabId: String?&#10;- layout: TabLayout.horizontalScroll&#10;&#10;用途：发现 / 更新 / 全新上架 / 热门 / 日漫 / 韩漫 / 连载中 等入口&#10;第一版：不做 More，超出宽度横向滚动" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="900" width="430" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="tabRule" value="TabRule&#10;- id: String&#10;- title: String&#10;- pageRef: String?&#10;- url: String?&#10;- listRuleRef: String?&#10;- request: RequestConfig?&#10;- context: ListContext" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="570" y="820" width="390" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="sectionRule" value="SectionRule&#10;- id: String&#10;- title: ExtractRule?&#10;- role: SectionRole&#10;- itemLayout: ItemLayout&#10;- container: ExtractRule&#10;- itemRuleRef: String?&#10;- listRuleRef: String?&#10;- exclude: [ExtractRule]&#10;&#10;role: main / ranking / recommendation / category&#10;itemLayout: horizontalRow / verticalGrid" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="830" width="430" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="listContext" value="ListContext&#10;- pageId: String&#10;- tabId: String?&#10;- sectionId: String?&#10;- listURL: String?&#10;- sectionRole: SectionRole&#10;&#10;说明：Item 必须携带来源上下文，Detail 解析时用于限定主内容区" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="1600" y="850" width="470" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="pagePresentation" value="PagePresentation&#10;- tabBar: horizontalScroll&#10;- contentScroll: vertical&#10;- sectionItemScroll: horizontalRow?&#10;- resetContentOnTabChange: Bool&#10;- nestedVerticalScroll: forbidden&#10;- moreTab: disabledInPhase1&#10;&#10;第一版稳定方案：Tab 横滑，点击切换；内容纵向滚；Section 内 item 可横向滚" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="1600" y="620" width="470" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="listRule" value="ListRule&#10;- id: String&#10;- text: ExtractRule?&#10;- item: ExtractRule&#10;- fields: ListFields&#10;- pagination: PaginationRule?&#10;- ready: ExtractRule?&#10;- request: RequestConfig?&#10;- js: String?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1190" width="430" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="listFields" value="ListFields&#10;- idCode: ExtractRule?&#10;- title: ExtractRule&#10;- cover: ExtractRule?&#10;- detailURL: ExtractRule&#10;- latestText: ExtractRule?&#10;- coverWidth: ExtractRule?&#10;- coverHeight: ExtractRule?&#10;- category: ExtractRule?&#10;- author: ExtractRule?&#10;- publishedAt: ExtractRule?&#10;- rating: ExtractRule?&#10;- totalImages: ExtractRule?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="570" y="1180" width="420" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="detailRule" value="DetailRule&#10;- id: String&#10;- mainScope: ExtractRule?&#10;- exclude: [ExtractRule]&#10;- fields: DetailFields&#10;- tagRule: NestedItemRule?&#10;- chapterRule: ChapterRule?&#10;- pictureRule: PictureRule?&#10;- commentRule: NestedItemRule?&#10;- videoRule: PictureRule?&#10;- ready: ExtractRule?&#10;- request: RequestConfig?&#10;- js: String?&#10;&#10;说明：mainScope + exclude 用于排除排行 / 推荐公共区" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="1180" width="450" height="380" as="geometry" />
+        </mxCell>
+        <mxCell id="galleryRule" value="GalleryRule&#10;- id: String&#10;- secondLevelPageURL: ExtractRule?&#10;- totalPages: ExtractRule?&#10;- item: ExtractRule?&#10;- image: ExtractRule&#10;- thumbnail: ExtractRule?&#10;- link: ExtractRule?&#10;- pagination: PaginationRule?&#10;- request: RequestConfig?&#10;- js: String?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="1600" y="1180" width="470" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="chapterRule" value="ChapterRule&#10;- section: SectionRule?&#10;- item: ExtractRule&#10;- idCode: ExtractRule?&#10;- title: ExtractRule&#10;- url: ExtractRule&#10;- datetime: ExtractRule?&#10;- sort: ChapterSort&#10;- mustMatchLatestText: Bool&#10;&#10;说明：章节组必须能和当前 item latestText / context 对上" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="1630" width="450" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="pagination" value="PaginationRule&#10;- nextPage: ExtractRule?&#10;- pagePlaceholder: String?&#10;- maxPages: Int?&#10;- stopWhenEmpty: Bool&#10;&#10;说明：支持 URL 占位分页和下一页链接分页" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="1600" y="1630" width="470" height="220" as="geometry" />
+        </mxCell>
+        </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="phase2" name="第二阶段">
+    <mxGraphModel dx="3200" dy="2200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2300" pageHeight="1800" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="p2_sec_extract" value="Advanced Extraction / 高级抽取能力" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f9ff;strokeColor=#6c8ebf;fontSize=18;fontStyle=1;align=left;verticalAlign=top;spacingLeft=14;spacingTop=10;dashed=1;" vertex="1" parent="1"><mxGeometry x="40" y="120" width="2100" height="390" as="geometry" /></mxCell><mxCell id="p2_sec_context" value="Advanced Page Context / 搜索、子规则、编码和请求体" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffaf2;strokeColor=#d79b00;fontSize=18;fontStyle=1;align=left;verticalAlign=top;spacingLeft=14;spacingTop=10;dashed=1;" vertex="1" parent="1"><mxGeometry x="40" y="550" width="2100" height="410" as="geometry" /></mxCell><mxCell id="p2_sec_ops" value="Distribution And Debugging / 规则分发、更新和调试" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fbf7ff;strokeColor=#9673a6;fontSize=18;fontStyle=1;align=left;verticalAlign=top;spacingLeft=14;spacingTop=10;dashed=1;" vertex="1" parent="1"><mxGeometry x="40" y="1030" width="2100" height="500" as="geometry" /></mxCell><mxCell id="p2_note_legend" value="第二阶段只补高级能力，不阻塞第一阶段落地。重点是 WebView、XPath/JSONPath、Cookie、二维码更新、调试器和 tab/section 候选节点推荐。" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=14;fontColor=#666666;whiteSpace=wrap;rounded=0;" vertex="1" parent="1"><mxGeometry x="80" y="90" width="1600" height="30" as="geometry" /></mxCell><mxCell id="title2" value="BrowseCraft Rule V2 - 第二阶段&#10;目标：补齐 Yealico 高级能力：JSONPath / XPath / WebView / Cookie / QR 更新 / 候选节点推荐" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=22;fontStyle=1;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40" y="30" width="1700" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="selectorEngine" value="SelectorEngine&#10;- kind: SelectorKind&#10;- css: SwiftSoupEngine&#10;- xpath: KannaEngine?&#10;- jsonPath: JSONPathEngine?&#10;- currentElement: NodeRef&#10;&#10;SelectorKind&#10;- css&#10;- xpath&#10;- jsonPath&#10;- this" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="170" width="420" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="functionChain" value="FunctionChain&#10;- functions: [ExtractFunction]&#10;- input: String&#10;- output: String&#10;&#10;ExtractFunction&#10;- html&#10;- text&#10;- attr(param)&#10;- decodeBase64&#10;- removingPercentEncoding&#10;- addingPercentEncoding&#10;- replace&#10;- decompressFromBase64&#10;- reversed&#10;- regexReplacement" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="570" y="150" width="430" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="webview" value="WebViewFetchRule&#10;- enabled: Bool&#10;- readySelector: ExtractRule?&#10;- autoScroll: Bool&#10;- timeoutSeconds: Double&#10;- waitStrategy: WaitStrategy&#10;- injectJavaScript: String?&#10;- outputMode: WebViewOutputMode&#10;&#10;用途：处理 JS 渲染页面" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="170" width="420" height="270" as="geometry" />
+        </mxCell>
+        <mxCell id="cookie" value="CookieStore&#10;- browserCookie: String&#10;- customCookie: String&#10;- mergedCookie: String&#10;- priority: CookiePriority&#10;- storageScope: CookieScope&#10;&#10;优先级：Custom Cookie &gt; Browser Cookie" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="1560" y="180" width="420" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="postBody" value="RequestBodyConfig&#10;- methodOverride: HTTPMethod?&#10;- contentType: String&#10;- jsonBody: String?&#10;- formBody: [String: String]?&#10;- bodyPlaceholders: [String]&#10;&#10;支持 Yealico {json:...} 类能力" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="630" width="420" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="searchRule" value="SearchRule&#10;- id: String&#10;- keywordEncoding: KeywordEncoding&#10;- url: String&#10;- method: HTTPMethod&#10;- request: RequestConfig?&#10;- listRuleRef: String?&#10;- item: ExtractRule&#10;- fields: ListFields&#10;- pagination: PaginationRule?&#10;&#10;说明：第二阶段独立于 ListRule" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="570" y="610" width="430" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="nestedRules" value="NestedItemRules&#10;- TagRule&#10;  - item/name/url&#10;- CommentRule&#10;  - item/avatar/username/content/datetime&#10;- VideoRule&#10;  - item/url/thumbnail/link&#10;- PictureRule&#10;  - item/url/thumbnail/link&#10;&#10;说明：Detail/Gallery 下的子树规则" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="610" width="420" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="charset" value="CharsetConfig&#10;- pageType: PageType&#10;- charset: Charset&#10;- urlEncoding: URLEncodingMode&#10;&#10;Charset&#10;- utf8&#10;- gbk&#10;- big5&#10;- auto&#10;&#10;URLEncodingMode&#10;- default&#10;- gbkPercentEncoded" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="1560" y="610" width="420" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="qr" value="RulePackageQR&#10;- format: String&#10;- version: Int&#10;- compression: CompressionKind&#10;- payload: BrowseCraftRule&#10;- signature: String?&#10;- remoteURL: String?&#10;- checksum: String?&#10;&#10;建议格式：BrowseCraft Rule:v1:base64(gzip(json))" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1110" width="430" height="270" as="geometry" />
+        </mxCell>
+        <mxCell id="updater" value="RuleUpdater&#10;- sourceURL: String?&#10;- schedule: UpdateSchedule&#10;- currentVersion: String&#10;- latestVersion: String?&#10;- verifyChecksum: Bool&#10;- importPolicy: ImportPolicy&#10;&#10;用途：定时更新我们自己的规则包" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="570" y="1110" width="430" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="candidate" value="CandidateAnalyzer&#10;- inputURL: String&#10;- renderedHTML: String?&#10;- domSnapshot: String&#10;- candidateTabs: [NodeCandidate]&#10;- candidateSections: [NodeCandidate]&#10;- candidateMainScopes: [NodeCandidate]&#10;- candidateExcludeScopes: [NodeCandidate]&#10;- candidateItems: [NodeCandidate]&#10;- candidateTitles: [NodeCandidate]&#10;- candidateCovers: [NodeCandidate]&#10;- candidateLinks: [NodeCandidate]&#10;- confidence: Double&#10;&#10;说明：半自动推荐规则，不做全自动承诺" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="1090" width="470" height="360" as="geometry" />
+        </mxCell>
+        <mxCell id="debugger" value="RuleDebugger&#10;- pageURL: String&#10;- selectedRuleID: String&#10;- requestLog: [RequestLog]&#10;- extractionLog: [ExtractionStep]&#10;- previewItems: [PreviewItem]&#10;- errors: [RuleError]&#10;&#10;用途：让用户看到每个 Selector 实际抽到了什么" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="1600" y="1110" width="430" height="300" as="geometry" />
+        </mxCell>
+        </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

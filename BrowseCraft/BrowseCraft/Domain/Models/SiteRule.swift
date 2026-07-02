@@ -8,9 +8,24 @@ struct SiteRule: Codable, Hashable {
     var name: String
     var baseUrl: String
     var list: ListRule
+    var listTabs: [ListTabRule]?
     var detail: DetailRule?
     var gallery: GalleryRule?
     var video: VideoRule?
+
+    var availableListTabs: [ListTabRule] {
+        if let listTabs: [ListTabRule] = self.listTabs, listTabs.isEmpty == false {
+            return listTabs
+        }
+
+        return [
+            ListTabRule(
+                id: "default",
+                title: "发现",
+                list: self.list
+            )
+        ]
+    }
 }
 
 /// 中文注释：ListRule 是 struct，负责本模块中的对应职责。
@@ -22,6 +37,13 @@ struct ListRule: Codable, Hashable {
     var cover: String?
     var type: ContentType
     var latestText: String?
+}
+
+/// 中文注释：ListTabRule 表示首页或列表页顶部的分类入口。
+struct ListTabRule: Codable, Hashable, Identifiable {
+    var id: String
+    var title: String
+    var list: ListRule
 }
 
 /// 中文注释：DetailRule 是 struct，负责本模块中的对应职责。
@@ -83,38 +105,6 @@ extension SiteRule {
     }
     """
 
-    /// 中文注释：MyComic 内置规则，来源于 https://mycomic.com/cn。
-    /// 中文注释：阅读页里可能先出现随机漫画链接，因此必须用面包屑或目录链接判断真实作品关系。
-    static let myComicJSON: String = """
-    {
-      "name": "MYCOMIC",
-      "baseUrl": "https://mycomic.com/cn",
-      "list": {
-        "url": "https://mycomic.com/cn/comics?sort=-update&page={page}",
-        "item": "a[href*=\\\"/cn/comics/\\\"]:has(img)",
-        "title": "img@alt",
-        "link": "this@href",
-        "cover": "img@data-src|src",
-        "type": "comic",
-        "latestText": "parent a[href*=\\\"/cn/chapters/\\\"]"
-      },
-      "detail": {
-        "title": "h1",
-        "cover": "img[src*=\\\"/comics/\\\"], img[data-src*=\\\"/comics/\\\"]@data-src|src",
-        "chapterContainer": "section:contains(章节), section:contains(章節), div:has(> h2:contains(章节)), div:has(> h2:contains(章節)), div:has(> h3:contains(章节)), div:has(> h3:contains(章節))",
-        "chapterItem": "a[href*=\\\"/cn/chapters/\\\"]",
-        "chapterTitle": "this",
-        "chapterLink": "this@href"
-      },
-      "gallery": {
-        "imageItem": "img.page, img[src*=\\\"/chapters/\\\"], img[data-src*=\\\"/chapters/\\\"]",
-        "imageUrl": "this@data-src|src",
-        "comicTitle": "[data-flux-breadcrumbs-item] a[href*=\\\"/cn/comics/\\\"]",
-        "chapterTitle": "[data-flux-breadcrumbs-item] .truncate",
-        "catalogLink": "a:contains(返回目录)@href",
-        "previousLink": "a:contains(上一话)@href",
-        "nextLink": "a:contains(下一话)@href"
-      }
-    }
-    """
+    /// Built-in production rules live in the private BrowseCraftRulesKit package.
+    /// Keep this public example generic so the app shell can be published safely.
 }

@@ -77,12 +77,19 @@ final class AppContainer {
         let recordOpenItemUseCase: RecordOpenItemUseCase = RecordOpenItemUseCase(
             historyRepository: self.historyRepository
         )
+        let refreshSourceUseCase: RefreshSourceUseCase = RefreshSourceUseCase(
+            httpClient: self.httpClient,
+            ruleParser: self.ruleParser,
+            urlResolver: self.urlResolver,
+            contentRepository: self.contentRepository
+        )
 
         return LibraryViewModel(
             loadLibraryUseCase: loadLibraryUseCase,
             loadSourcesUseCase: loadSourcesUseCase,
             toggleFavoriteUseCase: toggleFavoriteUseCase,
-            recordOpenItemUseCase: recordOpenItemUseCase
+            recordOpenItemUseCase: recordOpenItemUseCase,
+            refreshSourceUseCase: refreshSourceUseCase
         )
     }
 

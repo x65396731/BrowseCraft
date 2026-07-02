@@ -7,10 +7,10 @@ struct AddSourceView: View {
     @ObservedObject var viewModel: SourcesViewModel
     @Environment(\.dismiss) private var dismiss
 
-    @State private var selectedTemplate: RuleTemplate = .myComic
-    @State private var name: String = RuleTemplate.myComic.sourceName
-    @State private var baseURL: String = RuleTemplate.myComic.baseURL
-    @State private var ruleJSON: String = RuleTemplate.myComic.ruleJSON
+    @State private var selectedTemplate: RuleTemplate = .primaryBuiltIn
+    @State private var name: String = RuleTemplate.primaryBuiltIn.sourceName
+    @State private var baseURL: String = RuleTemplate.primaryBuiltIn.baseURL
+    @State private var ruleJSON: String = RuleTemplate.primaryBuiltIn.ruleJSON
 
     var body: some View {
         NavigationView {
@@ -92,7 +92,7 @@ struct AddSourceView: View {
 
 private enum RuleTemplate: String, CaseIterable, Identifiable {
     case example
-    case myComic
+    case primaryBuiltIn
 
     var id: String {
         return self.rawValue
@@ -102,8 +102,8 @@ private enum RuleTemplate: String, CaseIterable, Identifiable {
         switch self {
         case .example:
             return "Example"
-        case .myComic:
-            return "MYCOMIC"
+        case .primaryBuiltIn:
+            return BuiltInSource.primaryBuiltIn().name
         }
     }
 
@@ -111,8 +111,8 @@ private enum RuleTemplate: String, CaseIterable, Identifiable {
         switch self {
         case .example:
             return ""
-        case .myComic:
-            return BuiltInSource.myComic().name
+        case .primaryBuiltIn:
+            return BuiltInSource.primaryBuiltIn().name
         }
     }
 
@@ -120,8 +120,8 @@ private enum RuleTemplate: String, CaseIterable, Identifiable {
         switch self {
         case .example:
             return ""
-        case .myComic:
-            return BuiltInSource.myComic().baseURL
+        case .primaryBuiltIn:
+            return BuiltInSource.primaryBuiltIn().baseURL
         }
     }
 
@@ -129,8 +129,8 @@ private enum RuleTemplate: String, CaseIterable, Identifiable {
         switch self {
         case .example:
             return SiteRule.exampleJSON
-        case .myComic:
-            return SiteRule.myComicJSON
+        case .primaryBuiltIn:
+            return BuiltInSource.primaryBuiltInRuleJSON
         }
     }
 }

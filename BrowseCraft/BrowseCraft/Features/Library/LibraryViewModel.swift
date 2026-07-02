@@ -8,23 +8,29 @@ final class LibraryViewModel: ObservableObject {
     @Published private(set) var items: [ContentItem] = []
     @Published private(set) var sources: [Source] = []
     @Published private(set) var favoriteItemIDs: Set<String> = []
+    @Published var selectedSourceID: String?
+    @Published var selectedListTabID: String?
     @Published var errorMessage: String?
+    @Published private(set) var isRefreshing: Bool = false
 
     private let loadLibraryUseCase: LoadLibraryUseCase
     private let loadSourcesUseCase: LoadSourcesUseCase
     private let toggleFavoriteUseCase: ToggleFavoriteUseCase
     private let recordOpenItemUseCase: RecordOpenItemUseCase
+    private let refreshSourceUseCase: RefreshSourceUseCase
 
     init(
         loadLibraryUseCase: LoadLibraryUseCase,
         loadSourcesUseCase: LoadSourcesUseCase,
         toggleFavoriteUseCase: ToggleFavoriteUseCase,
-        recordOpenItemUseCase: RecordOpenItemUseCase
+        recordOpenItemUseCase: RecordOpenItemUseCase,
+        refreshSourceUseCase: RefreshSourceUseCase
     ) {
         self.loadLibraryUseCase = loadLibraryUseCase
         self.loadSourcesUseCase = loadSourcesUseCase
         self.toggleFavoriteUseCase = toggleFavoriteUseCase
         self.recordOpenItemUseCase = recordOpenItemUseCase
+        self.refreshSourceUseCase = refreshSourceUseCase
     }
 
     @MainActor
@@ -34,9 +40,48 @@ final class LibraryViewModel: ObservableObject {
             self.items = try self.loadLibraryUseCase.execute()
             self.sources = try self.loadSourcesUseCase.execute()
             self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs()
+
+            if self.selectedSourceID == nil {
+                self.selectedSourceID = self.sources.first?.id
+            }
+
+            self.ensureSelectedListTab()
         } catch {
             self.errorMessage = error.localizedDescription
         }
+    }
+
+    @MainActor
+    func selectListTab(_ tab: ListTabRule) async {
+        if self.selectedListTabID != tab.id {
+            self.selectedListTabID = tab.id
+            self.items = []
+        }
+
+        await self.refreshSelectedListTab()
+    }
+
+    @MainActor
+    func refreshSelectedListTab() async {
+        guard let selectedSource: Source = self.selectedSource else {
+            return
+        }
+
+        self.ensureSelectedListTab()
+        self.isRefreshing = true
+
+        do {
+            let refreshedItems: [ContentItem] = try await self.refreshSourceUseCase.execute(
+                source: selectedSource,
+                listTab: self.selectedListTab
+            )
+            self.items = refreshedItems
+            self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs()
+        } catch {
+            self.errorMessage = error.localizedDescription
+        }
+
+        self.isRefreshing = false
     }
 
     @MainActor
@@ -69,5 +114,37 @@ final class LibraryViewModel: ObservableObject {
         return self.sources.first { source in
             return source.id == sourceId
         }
+    }
+
+    var selectedSource: Source? {
+        return self.sources.first { source in
+            return source.id == self.selectedSourceID
+        }
+    }
+
+    var listTabs: [ListTabRule] {
+        return self.selectedSource?.rule.availableListTabs ?? []
+    }
+
+    var selectedListTab: ListTabRule? {
+        guard let selectedListTabID: String = self.selectedListTabID else {
+            return self.listTabs.first
+        }
+
+        return self.listTabs.first { tab in
+            return tab.id == selectedListTabID
+        } ?? self.listTabs.first
+    }
+
+    @MainActor
+    private func ensureSelectedListTab() {
+        let tabs: [ListTabRule] = self.listTabs
+
+        if let selectedListTabID: String = self.selectedListTabID,
+           tabs.contains(where: { tab in tab.id == selectedListTabID }) {
+            return
+        }
+
+        self.selectedListTabID = tabs.first?.id
     }
 }

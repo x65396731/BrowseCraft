@@ -7,6 +7,7 @@ struct LibraryView: View {
     @ObservedObject var viewModel: LibraryViewModel
     let chapterListViewModelFactory: (ContentItem, Source) -> ChapterListViewModel
     let readerViewModelFactory: (ContentItem, Source, ChapterLink?) -> ReaderViewModel
+    @State private var didStartInitialRefresh: Bool = false
 
     private let gridColumns: [GridItem] = [
         GridItem(.adaptive(minimum: 150), spacing: 14)
@@ -14,44 +15,75 @@ struct LibraryView: View {
 
     var body: some View {
         NavigationView {
-            ScrollView {
-                LazyVGrid(columns: self.gridColumns, spacing: 16) {
-                    ForEach(self.viewModel.items, id: \.id) { item in
-                        if let source: Source = self.viewModel.source(for: item.sourceId) {
-                            ContentCardView(
-                                item: item,
-                                sourceName: source.name,
-                                isFavorite: self.viewModel.favoriteItemIDs.contains(item.id),
-                                favoriteAction: {
-                                    self.viewModel.toggleFavorite(item: item)
-                                },
-                                readAction: {
-                                    self.viewModel.recordOpened(item: item)
-                                },
-                                readerDestination: ChapterListView(
-                                    viewModel: self.chapterListViewModelFactory(item, source),
-                                    readerViewModelFactory: self.readerViewModelFactory
+            VStack(spacing: 0) {
+                self.listTabBar
+
+                ScrollView {
+                    LazyVGrid(columns: self.gridColumns, spacing: 16) {
+                        ForEach(self.viewModel.items, id: \.id) { item in
+                            if let source: Source = self.viewModel.source(for: item.sourceId) {
+                                ContentCardView(
+                                    item: item,
+                                    sourceName: source.name,
+                                    isFavorite: self.viewModel.favoriteItemIDs.contains(item.id),
+                                    favoriteAction: {
+                                        self.viewModel.toggleFavorite(item: item)
+                                    },
+                                    readAction: {
+                                        self.viewModel.recordOpened(item: item)
+                                    },
+                                    readerDestination: ChapterListView(
+                                        viewModel: self.chapterListViewModelFactory(item, source),
+                                        readerViewModelFactory: self.readerViewModelFactory
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
+                    .padding(16)
                 }
-                .padding(16)
             }
             .overlay(
                 Group {
-                if self.viewModel.items.isEmpty {
+                if self.viewModel.items.isEmpty && self.viewModel.isRefreshing == false {
                     EmptyStateView(
                         systemImage: "square.grid.2x2",
                         title: "No Items",
-                        message: "Refresh a source to fill your library."
+                        message: "Refresh the selected tab to fill your library."
                     )
                 }
                 }
             )
             .navigationTitle("Library")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(
+                        action: {
+                            Task {
+                                await self.viewModel.refreshSelectedListTab()
+                            }
+                        },
+                        label: {
+                            if self.viewModel.isRefreshing {
+                                ProgressView()
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                            }
+                        }
+                    )
+                    .disabled(self.viewModel.selectedSource == nil || self.viewModel.isRefreshing)
+                    .accessibilityLabel("Refresh Selected Tab")
+                }
+            }
             .onAppear {
                 self.viewModel.load()
+
+                if self.didStartInitialRefresh == false {
+                    self.didStartInitialRefresh = true
+                    Task {
+                        await self.viewModel.refreshSelectedListTab()
+                    }
+                }
             }
             .alert(isPresented: self.errorAlertBinding) {
                 Alert(
@@ -66,6 +98,48 @@ struct LibraryView: View {
                 )
             }
         }
+    }
+
+    private var listTabBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 20) {
+                ForEach(self.viewModel.listTabs) { tab in
+                    Button(
+                        action: {
+                            Task {
+                                await self.viewModel.selectListTab(tab)
+                            }
+                        },
+                        label: {
+                            VStack(spacing: 6) {
+                                Text(tab.title)
+                                    .font(.headline)
+                                    .foregroundColor(
+                                        self.viewModel.selectedListTabID == tab.id
+                                        ? .primary
+                                        : .secondary
+                                    )
+                                    .lineLimit(1)
+
+                                Capsule()
+                                    .fill(
+                                        self.viewModel.selectedListTabID == tab.id
+                                        ? Color.primary
+                                        : Color.clear
+                                    )
+                                    .frame(height: 3)
+                            }
+                            .frame(minWidth: 52)
+                            .padding(.vertical, 10)
+                        }
+                    )
+                    .buttonStyle(.plain)
+                    .disabled(self.viewModel.isRefreshing)
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+        .background(Color(.systemBackground))
     }
 
     private var errorAlertBinding: Binding<Bool> {

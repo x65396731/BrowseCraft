@@ -16,6 +16,10 @@ settings:
     TARGETED_DEVICE_FAMILY: "1,2"
     ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
 
+packages:
+  BrowseCraftRulesKit:
+    path: ../BrowseCraftRulesKit
+
 targets:
   BrowseCraft:
     type: application
@@ -23,6 +27,8 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: BrowseCraft
+    dependencies:
+      - package: BrowseCraftRulesKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: xiefei.BrowseCraft

@@ -7,7 +7,24 @@ import Foundation
 final class AlamofireHTTPClient: HTTPClient {
     /// 中文注释：getString 方法封装当前类型的一段业务或界面行为。
     func getString(from url: URL) async throws -> String {
-        return try await AF.request(url).serializingString().value
+        let headers: HTTPHeaders = [
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "zh-CN,zh-Hans;q=0.9,zh;q=0.8,en;q=0.5",
+            "Referer": "\(url.scheme ?? "https")://\(url.host ?? "")/"
+        ]
+
+        let html: String = try await AF.request(url, headers: headers).serializingString().value
+
+        #if DEBUG
+        print(
+            "[BrowseCraftNetwork] url=\(url.absoluteString) " +
+            "bytes=\(html.utf8.count) " +
+            "cloudflareBlocked=\(html.contains("Attention Required") || html.contains("cf-error-details")) " +
+            "hasChapterLinks=\(html.contains("/cn/chapters/"))"
+        )
+        #endif
+
+        return html
     }
 }
-

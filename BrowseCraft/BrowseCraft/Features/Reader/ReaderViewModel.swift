@@ -24,14 +24,40 @@ final class ReaderViewModel: ObservableObject {
         self.source = source
         self.selectedChapter = selectedChapter
         self.loadReaderChapterUseCase = loadReaderChapterUseCase
+
+        #if DEBUG
+        print(
+            "[BrowseCraftNavigation] Init ReaderViewModel " +
+            "itemId=\(item.id) " +
+            "title=\(item.title) " +
+            "detailURL=\(item.detailURL) " +
+            "selectedChapterURL=\(selectedChapter?.url ?? "nil")"
+        )
+        #endif
     }
 
     @MainActor
     /// 中文注释：load 方法封装当前类型的一段业务或界面行为。
     func load() async {
         if self.chapter != nil {
+            #if DEBUG
+            print(
+                "[BrowseCraftNavigation] Skip ReaderViewModel load because chapter already exists " +
+                "itemId=\(self.item.id) chapterURL=\(self.chapter?.chapterURL ?? "nil")"
+            )
+            #endif
             return
         }
+
+        #if DEBUG
+        print(
+            "[BrowseCraftNavigation] Load reader " +
+            "itemId=\(self.item.id) " +
+            "title=\(self.item.title) " +
+            "detailURL=\(self.item.detailURL) " +
+            "selectedChapterURL=\(self.selectedChapter?.url ?? "nil")"
+        )
+        #endif
 
         self.isLoading = true
         self.errorMessage = nil
@@ -43,8 +69,27 @@ final class ReaderViewModel: ObservableObject {
                 chapterURLString: self.selectedChapter?.url
             )
             self.chapter = loadedChapter
+
+            #if DEBUG
+            print(
+                "[BrowseCraftNavigation] Loaded reader " +
+                "itemId=\(self.item.id) " +
+                "chapterURL=\(loadedChapter.chapterURL) " +
+                "pageCount=\(loadedChapter.pageImageURLs.count)"
+            )
+            #endif
         } catch {
             self.errorMessage = error.localizedDescription
+
+            #if DEBUG
+            print(
+                "[BrowseCraftNavigation] Reader error " +
+                "itemId=\(self.item.id) " +
+                "detailURL=\(self.item.detailURL) " +
+                "selectedChapterURL=\(self.selectedChapter?.url ?? "nil") " +
+                "error=\(error.localizedDescription)"
+            )
+            #endif
         }
 
         self.isLoading = false
@@ -69,14 +114,39 @@ final class ChapterListViewModel: ObservableObject {
         self.item = item
         self.source = source
         self.loadChaptersUseCase = loadChaptersUseCase
+
+        #if DEBUG
+        print(
+            "[BrowseCraftNavigation] Init ChapterListViewModel " +
+            "itemId=\(item.id) " +
+            "title=\(item.title) " +
+            "detailURL=\(item.detailURL) " +
+            "sourceId=\(source.id)"
+        )
+        #endif
     }
 
     @MainActor
     /// 中文注释：load 方法封装当前类型的一段业务或界面行为。
     func load() async {
         if self.chapters.isEmpty == false {
+            #if DEBUG
+            print(
+                "[BrowseCraftNavigation] Skip ChapterListViewModel load because chapters already exist " +
+                "itemId=\(self.item.id) firstChapterURL=\(self.chapters.first?.url ?? "nil")"
+            )
+            #endif
             return
         }
+
+        #if DEBUG
+        print(
+            "[BrowseCraftNavigation] Load chapters " +
+            "itemId=\(self.item.id) " +
+            "title=\(self.item.title) " +
+            "detailURL=\(self.item.detailURL)"
+        )
+        #endif
 
         self.isLoading = true
         self.errorMessage = nil
@@ -87,8 +157,26 @@ final class ChapterListViewModel: ObservableObject {
                 item: self.item
             )
             self.chapters = self.sortedChapters(loadedChapters)
+
+            #if DEBUG
+            print(
+                "[BrowseCraftNavigation] Loaded chapters " +
+                "itemId=\(self.item.id) " +
+                "count=\(self.chapters.count) " +
+                "firstURL=\(self.chapters.first?.url ?? "nil")"
+            )
+            #endif
         } catch {
             self.errorMessage = error.localizedDescription
+
+            #if DEBUG
+            print(
+                "[BrowseCraftNavigation] Chapters error " +
+                "itemId=\(self.item.id) " +
+                "detailURL=\(self.item.detailURL) " +
+                "error=\(error.localizedDescription)"
+            )
+            #endif
         }
 
         self.isLoading = false

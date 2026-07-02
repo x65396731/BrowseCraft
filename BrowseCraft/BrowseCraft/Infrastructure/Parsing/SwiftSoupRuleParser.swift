@@ -14,15 +14,19 @@ final class SwiftSoupRuleParser: RuleParsingService {
 
     /// 中文注释：parseList 方法封装当前类型的一段业务或界面行为。
     func parseList(html: String, source: Source) throws -> [ContentItem] {
+        return try self.parseList(html: html, source: source, listRule: source.rule.list)
+    }
+
+    func parseList(html: String, source: Source, listRule: ListRule) throws -> [ContentItem] {
         let document: Document = try SwiftSoup.parse(html, source.baseURL)
-        let elements: [Element] = try document.select(source.rule.list.item).array()
+        let elements: [Element] = try document.select(listRule.item).array()
 
         var items: [ContentItem] = []
 
         for element: Element in elements {
-            let title: String = try self.extract(element: element, expression: source.rule.list.title)
+            let title: String = try self.extract(element: element, expression: listRule.title)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            let link: String = try self.extract(element: element, expression: source.rule.list.link)
+            let link: String = try self.extract(element: element, expression: listRule.link)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
 
             // 中文注释：缺少标题或链接的列表项无法在应用中有效展示，直接跳过。
@@ -33,12 +37,12 @@ final class SwiftSoupRuleParser: RuleParsingService {
             let detailURL: String = self.urlResolver.absoluteString(link, baseURLString: source.baseURL)
             let coverURL: String? = try self.optionalExtract(
                 element: element,
-                expression: source.rule.list.cover,
+                expression: listRule.cover,
                 baseURLString: source.baseURL
             )
             let latestText: String? = try self.optionalExtract(
                 element: element,
-                expression: source.rule.list.latestText,
+                expression: listRule.latestText,
                 baseURLString: nil
             )
 
@@ -48,7 +52,7 @@ final class SwiftSoupRuleParser: RuleParsingService {
                 title: title,
                 detailURL: detailURL,
                 coverURL: coverURL,
-                type: source.rule.list.type,
+                type: listRule.type,
                 latestText: latestText,
                 updatedAt: Date()
             )
@@ -75,6 +79,19 @@ final class SwiftSoupRuleParser: RuleParsingService {
             detailRule: detailRule,
             chapterItemSelector: chapterItemSelector
         )
+
+        #if DEBUG
+        let globalChapterLinkCount: Int = try document.select(chapterItemSelector).array().count
+        print(
+            "[BrowseCraftRule] Parse detail chapters source=\(source.id) page=\(pageURL) " +
+            "chapterContainer=\(detailRule.chapterContainer ?? "nil") " +
+            "chapterItem=\(chapterItemSelector) " +
+            "htmlHasChapterLinks=\(html.contains("/cn/chapters/")) " +
+            "globalChapterLinkCount=\(globalChapterLinkCount) " +
+            "elementCount=\(elements.count)"
+        )
+        #endif
+
         var chapters: [ChapterLink] = []
         var seenURLs: Set<String> = Set<String>()
         var seenTitles: Set<String> = Set<String>()
@@ -109,6 +126,10 @@ final class SwiftSoupRuleParser: RuleParsingService {
             )
         }
 
+        #if DEBUG
+        print("[BrowseCraftRule] Parsed chapterCount=\(chapters.count) page=\(pageURL)")
+        #endif
+
         return chapters
     }
 
@@ -130,9 +151,76 @@ final class SwiftSoupRuleParser: RuleParsingService {
                 }
             }
 
+            return try self.fallbackChapterElements(
+                in: document,
+                chapterItemSelector: chapterItemSelector
+            )
         }
 
         return try document.select(chapterItemSelector).array()
+    }
+
+    private func fallbackChapterElements(
+        in document: Document,
+        chapterItemSelector: String
+    ) throws -> [Element] {
+        let allChapterElements: [Element] = try document.select(chapterItemSelector).array()
+
+        for element: Element in allChapterElements {
+            let title: String = try element.text().trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if self.looksLikeChapterTitle(title) == false {
+                continue
+            }
+
+            var currentElement: Element? = try element.parent()
+
+            while let ancestor: Element = currentElement {
+                let scopedElements: [Element] = try ancestor.select(chapterItemSelector).array()
+                let chapterLikeElements: [Element] = try scopedElements.filter { scopedElement in
+                    let scopedTitle: String = try scopedElement.text()
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+
+                    return self.looksLikeChapterTitle(scopedTitle)
+                }
+
+                if chapterLikeElements.count >= 2 {
+                    #if DEBUG
+                    print(
+                        "[BrowseCraftRule] Fallback chapter group " +
+                        "ancestor=\(try ancestor.tagName()) " +
+                        "count=\(chapterLikeElements.count) " +
+                        "firstTitle=\(try chapterLikeElements.first?.text() ?? "nil")"
+                    )
+                    #endif
+
+                    return chapterLikeElements
+                }
+
+                currentElement = try ancestor.parent()
+            }
+        }
+
+        #if DEBUG
+        print("[BrowseCraftRule] Fallback chapter group not found")
+        #endif
+
+        return []
+    }
+
+    private func looksLikeChapterTitle(_ title: String) -> Bool {
+        let normalizedTitle: String = title.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if normalizedTitle.isEmpty {
+            return false
+        }
+
+        if normalizedTitle.contains("开始阅读") || normalizedTitle.contains("開始閱讀") {
+            return false
+        }
+
+        return normalizedTitle.contains("第")
+            && (normalizedTitle.contains("话") || normalizedTitle.contains("話"))
     }
 
     /// 中文注释：parseReader 方法封装当前类型的一段业务或界面行为。

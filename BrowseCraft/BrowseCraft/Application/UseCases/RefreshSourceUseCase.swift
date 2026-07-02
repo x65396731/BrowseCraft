@@ -24,12 +24,27 @@ struct RefreshSourceUseCase {
 
     /// 中文注释：execute 方法封装当前类型的一段业务或界面行为。
     func execute(source: Source, page: Int = 1) async throws -> [ContentItem] {
-        let url: URL = try self.urlResolver.listURL(for: source, page: page)
+        return try await self.execute(source: source, listTab: source.rule.availableListTabs.first, page: page)
+    }
+
+    func execute(source: Source, listTab: ListTabRule?, page: Int = 1) async throws -> [ContentItem] {
+        let listRule: ListRule = listTab?.list ?? source.rule.list
+        let url: URL = try self.urlResolver.listURL(for: source, listRule: listRule, page: page)
+
+        #if DEBUG
+        print(
+            "[BrowseCraftNavigation] Refresh list " +
+            "source=\(source.id) " +
+            "tab=\(listTab?.id ?? "default") " +
+            "title=\(listTab?.title ?? "default") " +
+            "url=\(url.absoluteString)"
+        )
+        #endif
+
         let html: String = try await self.httpClient.getString(from: url)
-        let items: [ContentItem] = try self.ruleParser.parseList(html: html, source: source)
+        let items: [ContentItem] = try self.ruleParser.parseList(html: html, source: source, listRule: listRule)
 
         try self.contentRepository.saveItems(items)
         return items
     }
 }
-

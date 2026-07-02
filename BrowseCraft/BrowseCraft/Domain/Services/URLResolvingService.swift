@@ -19,7 +19,11 @@ enum URLResolvingError: LocalizedError {
 struct URLResolvingService {
     /// 中文注释：listURL 方法封装当前类型的一段业务或界面行为。
     func listURL(for source: Source, page: Int) throws -> URL {
-        let rawURL: String = source.rule.list.url.replacingOccurrences(of: "{page}", with: String(page))
+        return try self.listURL(for: source, listRule: source.rule.list, page: page)
+    }
+
+    func listURL(for source: Source, listRule: ListRule, page: Int) throws -> URL {
+        let rawURL: String = listRule.url.replacingOccurrences(of: "{page}", with: String(page))
         let absoluteURLString: String = self.absoluteString(rawURL, baseURLString: source.baseURL)
 
         guard let url: URL = URL(string: absoluteURLString) else {
@@ -46,4 +50,3 @@ struct URLResolvingService {
         return resolvedURL.absoluteURL.absoluteString
     }
 }
-

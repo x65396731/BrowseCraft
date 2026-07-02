@@ -91,6 +91,16 @@ struct ContentCardView<ReaderDestination: View>: View {
             )
             .simultaneousGesture(
                 TapGesture().onEnded {
+                    #if DEBUG
+                    print(
+                        "[BrowseCraftNavigation] Tap chapters " +
+                        "itemId=\(self.item.id) " +
+                        "title=\(self.item.title) " +
+                        "detailURL=\(self.item.detailURL) " +
+                        "latestText=\(self.item.latestText ?? "nil")"
+                    )
+                    #endif
+
                     self.readAction()
                 }
             )

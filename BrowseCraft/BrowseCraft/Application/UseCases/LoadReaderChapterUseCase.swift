@@ -44,6 +44,17 @@ struct LoadChaptersUseCase {
 
     /// 中文注释：execute 方法封装当前类型的一段业务或界面行为。
     func execute(source: Source, item: ContentItem) async throws -> [ChapterLink] {
+        #if DEBUG
+        print(
+            "[BrowseCraftRequest] LoadChapters execute " +
+            "sourceId=\(source.id) " +
+            "itemId=\(item.id) " +
+            "title=\(item.title) " +
+            "detailURL=\(item.detailURL) " +
+            "latestText=\(item.latestText ?? "nil")"
+        )
+        #endif
+
         if item.detailURL.contains("/chapters/") {
             return [
                 ChapterLink(
@@ -63,6 +74,16 @@ struct LoadChaptersUseCase {
             source: source,
             pageURL: item.detailURL
         )
+
+        #if DEBUG
+        print(
+            "[BrowseCraftRequest] LoadChapters parsed " +
+            "itemId=\(item.id) " +
+            "detailURL=\(item.detailURL) " +
+            "count=\(chapters.count) " +
+            "firstURL=\(chapters.first?.url ?? "nil")"
+        )
+        #endif
 
         if chapters.isEmpty {
             throw LoadChaptersError.noChaptersFound(detailURLString: item.detailURL)
@@ -92,11 +113,30 @@ struct LoadReaderChapterUseCase {
         item: ContentItem,
         chapterURLString: String? = nil
     ) async throws -> ReaderChapter {
+        #if DEBUG
+        print(
+            "[BrowseCraftRequest] LoadReader execute " +
+            "sourceId=\(source.id) " +
+            "itemId=\(item.id) " +
+            "title=\(item.title) " +
+            "detailURL=\(item.detailURL) " +
+            "preferredChapterURL=\(chapterURLString ?? "nil")"
+        )
+        #endif
+
         let chapterURLString: String = try await self.resolveChapterURLString(
             source: source,
             item: item,
             preferredChapterURLString: chapterURLString
         )
+
+        #if DEBUG
+        print(
+            "[BrowseCraftRequest] LoadReader resolved chapter " +
+            "itemId=\(item.id) " +
+            "chapterURL=\(chapterURLString)"
+        )
+        #endif
 
         guard let chapterURL: URL = URL(string: chapterURLString) else {
             throw URLResolvingError.invalidURL(chapterURLString)
@@ -109,6 +149,15 @@ struct LoadReaderChapterUseCase {
             source: source,
             pageURL: chapterURLString
         )
+
+        #if DEBUG
+        print(
+            "[BrowseCraftRequest] LoadReader parsed " +
+            "itemId=\(item.id) " +
+            "chapterURL=\(chapter.chapterURL) " +
+            "pageCount=\(chapter.pageImageURLs.count)"
+        )
+        #endif
 
         if chapter.pageImageURLs.isEmpty {
             throw LoadReaderChapterError.noPageImagesFound(chapterURLString: chapterURLString)
@@ -124,10 +173,22 @@ struct LoadReaderChapterUseCase {
         preferredChapterURLString: String?
     ) async throws -> String {
         if let preferredChapterURLString: String = preferredChapterURLString {
+            #if DEBUG
+            print(
+                "[BrowseCraftRequest] ResolveChapter use preferred " +
+                "itemId=\(item.id) preferredChapterURL=\(preferredChapterURLString)"
+            )
+            #endif
             return preferredChapterURLString
         }
 
         if item.detailURL.contains("/chapters/") {
+            #if DEBUG
+            print(
+                "[BrowseCraftRequest] ResolveChapter use item detail as chapter " +
+                "itemId=\(item.id) detailURL=\(item.detailURL)"
+            )
+            #endif
             return item.detailURL
         }
 
@@ -142,15 +203,38 @@ struct LoadReaderChapterUseCase {
             pageURL: item.detailURL
         )
 
+        #if DEBUG
+        print(
+            "[BrowseCraftRequest] ResolveChapter parsed candidates " +
+            "itemId=\(item.id) " +
+            "detailURL=\(item.detailURL) " +
+            "latestText=\(item.latestText ?? "nil") " +
+            "count=\(chapters.count) " +
+            "firstURL=\(chapters.first?.url ?? "nil")"
+        )
+        #endif
+
         if let latestText: String = item.latestText,
            let matchedChapter: ChapterLink = self.chapter(
             matchingLatestText: latestText,
             chapters: chapters
            ) {
+            #if DEBUG
+            print(
+                "[BrowseCraftRequest] ResolveChapter matched latest " +
+                "itemId=\(item.id) latestText=\(latestText) matchedURL=\(matchedChapter.url)"
+            )
+            #endif
             return matchedChapter.url
         }
 
         if let firstChapter: ChapterLink = chapters.first {
+            #if DEBUG
+            print(
+                "[BrowseCraftRequest] ResolveChapter fallback first " +
+                "itemId=\(item.id) firstURL=\(firstChapter.url)"
+            )
+            #endif
             return firstChapter.url
         }
 

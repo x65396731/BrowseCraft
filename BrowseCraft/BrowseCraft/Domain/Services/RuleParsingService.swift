@@ -7,6 +7,7 @@ import Foundation
 protocol RuleParsingService {
     /// 中文注释：parseList 方法封装当前类型的一段业务或界面行为。
     func parseList(html: String, source: Source) throws -> [ContentItem]
+    func parseList(html: String, source: Source, listRule: ListRule) throws -> [ContentItem]
     /// 中文注释：parseDetailChapters 方法封装当前类型的一段业务或界面行为。
     func parseDetailChapters(html: String, source: Source, pageURL: String) throws -> [ChapterLink]
     /// 中文注释：parseReader 方法封装当前类型的一段业务或界面行为。
