@@ -70,6 +70,11 @@ final class AppContainer {
             urlResolver: self.urlResolver,
             contentRepository: self.contentRepository
         )
+        let listDebugUseCase: ListDebugUseCase = ListDebugUseCase(
+            pageContentLoader: self.pageContentLoader,
+            ruleParser: self.ruleParser,
+            urlResolver: self.urlResolver
+        )
 
         return SourcesViewModel(
             loadBuiltInSourcesUseCase: loadBuiltInSourcesUseCase,
@@ -81,6 +86,7 @@ final class AppContainer {
             exportSourceRulePackageUseCase: exportSourceRulePackageUseCase,
             importSourceRulePackageUseCase: importSourceRulePackageUseCase,
             refreshSourceUseCase: refreshSourceUseCase,
+            listDebugUseCase: listDebugUseCase,
             sourceSelectionStore: self.sourceSelectionStore
         )
     }

@@ -28,6 +28,7 @@ final class SourcesViewModel: ObservableObject {
     private let ruleValidator: RuleValidator
     private let jsonEncoder: JSONEncoder
     private let refreshSourceUseCase: RefreshSourceUseCase
+    private let listDebugUseCase: ListDebugUseCase
     private let sourceSelectionStore: SourceSelectionStore
     private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
     private var failedRefreshAction: FailedRefreshAction?
@@ -44,6 +45,7 @@ final class SourcesViewModel: ObservableObject {
         ruleValidator: RuleValidator = RuleValidator(),
         jsonEncoder: JSONEncoder = JSONEncoder(),
         refreshSourceUseCase: RefreshSourceUseCase,
+        listDebugUseCase: ListDebugUseCase,
         sourceSelectionStore: SourceSelectionStore
     ) {
         self.loadBuiltInSourcesUseCase = loadBuiltInSourcesUseCase
@@ -57,6 +59,7 @@ final class SourcesViewModel: ObservableObject {
         self.ruleValidator = ruleValidator
         self.jsonEncoder = jsonEncoder
         self.refreshSourceUseCase = refreshSourceUseCase
+        self.listDebugUseCase = listDebugUseCase
         self.sourceSelectionStore = sourceSelectionStore
         self.jsonEncoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         self.selectedSourceID = sourceSelectionStore.selectedSourceID
@@ -265,6 +268,15 @@ final class SourcesViewModel: ObservableObject {
             self.errorMessage = error.localizedDescription
             return nil
         }
+    }
+
+    @MainActor
+    func debugListRule(source: Source, listTab: ListTabRule?, page: Int = 1) async -> RuleDebugSession {
+        return await self.listDebugUseCase.execute(
+            source: source,
+            listTab: listTab,
+            page: page
+        )
     }
 
     var selectedSource: Source? {

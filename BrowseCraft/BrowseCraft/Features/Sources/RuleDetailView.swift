@@ -17,6 +17,9 @@ struct RuleDetailView: View {
     @State private var exportedPackage: RulePackageExport?
     @State private var isShowingExportSheet: Bool = false
     @State private var didCopyExport: Bool = false
+    @State private var debugSession: RuleDebugSession?
+    @State private var isShowingDebugSheet: Bool = false
+    @State private var isRunningListDebug: Bool = false
 
     var body: some View {
         Group {
@@ -43,6 +46,9 @@ struct RuleDetailView: View {
         .sheet(isPresented: self.$isShowingExportSheet) {
             self.exportSheet()
         }
+        .sheet(isPresented: self.$isShowingDebugSheet) {
+            self.debugSheet()
+        }
     }
 
     private func content(source: Source) -> some View {
@@ -60,6 +66,7 @@ struct RuleDetailView: View {
             self.requestSection(rule: source.rule)
             self.jsonPreviewSection(rule: source.rule)
             self.rulePackageSection(source: source)
+            self.debugSection(source: source)
 
             Section {
                 if source.isBuiltIn {
@@ -106,6 +113,30 @@ struct RuleDetailView: View {
                     Label("Export Rule Package", systemImage: "square.and.arrow.up")
                 }
             )
+        }
+    }
+
+    private func debugSection(source: Source) -> some View {
+        Section("Rule Debug") {
+            ForEach(source.rule.availableListTabs) { listTab in
+                Button(
+                    action: {
+                        self.runListDebug(source: source, listTab: listTab)
+                    },
+                    label: {
+                        Label("Debug \(listTab.title)", systemImage: "ladybug")
+                    }
+                )
+                .disabled(self.isRunningListDebug)
+            }
+
+            if self.isRunningListDebug {
+                HStack {
+                    ProgressView()
+                    Text("Debugging list rule...")
+                        .foregroundColor(.secondary)
+                }
+            }
         }
     }
 
@@ -314,6 +345,20 @@ struct RuleDetailView: View {
         }
     }
 
+    private func debugSheet() -> some View {
+        NavigationView {
+            RuleDebugSessionView(session: self.debugSession)
+                .navigationTitle("List Debug")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Close") {
+                            self.isShowingDebugSheet = false
+                        }
+                    }
+                }
+        }
+    }
+
     private func resetDraftIfNeeded() {
         if self.draftRuleJSON.isEmpty, let source: Source = self.viewModel.source(id: self.sourceID) {
             self.resetDraft(source: source)
@@ -413,6 +458,27 @@ struct RuleDetailView: View {
 
         UIPasteboard.general.string = exportedPackage.packageJSON
         self.didCopyExport = true
+    }
+
+    private func runListDebug(source: Source, listTab: ListTabRule) {
+        if self.isRunningListDebug {
+            return
+        }
+
+        self.isRunningListDebug = true
+
+        Task {
+            let session: RuleDebugSession = await self.viewModel.debugListRule(
+                source: source,
+                listTab: listTab
+            )
+
+            await MainActor.run {
+                self.debugSession = session
+                self.isRunningListDebug = false
+                self.isShowingDebugSheet = true
+            }
+        }
     }
 
     private func ruleSetLine(_ title: String, ids: [String]) -> some View {
@@ -536,5 +602,178 @@ struct RuleDetailView: View {
         }
 
         return trimmedValue
+    }
+}
+
+private struct RuleDebugSessionView: View {
+    let session: RuleDebugSession?
+
+    var body: some View {
+        Form {
+            if let session: RuleDebugSession = self.session {
+                self.summarySection(session: session)
+                self.requestSection(session.requestLogs)
+                self.extractionSection(session.extractionLogs)
+                self.previewSection(session.previewItems)
+                self.issuesSection(session.issues)
+            } else {
+                EmptyStateView(
+                    systemImage: "ladybug",
+                    title: "No Debug Session",
+                    message: "Run a list rule debug first."
+                )
+            }
+        }
+    }
+
+    private func summarySection(session: RuleDebugSession) -> some View {
+        Section("Summary") {
+            LabeledContent("Status", value: session.status.rawValue)
+            LabeledContent("Source", value: session.input.sourceName)
+            LabeledContent("Rule", value: session.input.ruleID ?? "Default")
+
+            if let tabID: String = session.input.tabID {
+                LabeledContent("Tab", value: tabID)
+            }
+
+            if let page: Int = session.input.page {
+                LabeledContent("Page", value: "\(page)")
+            }
+        }
+    }
+
+    private func requestSection(_ logs: [RuleDebugRequestLog]) -> some View {
+        Section("Request") {
+            if logs.isEmpty {
+                self.secondaryText("No request was sent.")
+            } else {
+                ForEach(logs) { log in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(log.url)
+                            .font(.caption)
+                            .textSelection(.enabled)
+                        self.keyValueLine("Method", log.method)
+                        self.keyValueLine("Headers", "\(log.requestSummary.headerCount)")
+                        self.keyValueLine("WebView", log.requestSummary.needsWebView ? "Yes" : "No")
+                        self.keyValueLine("Auto Scroll", log.requestSummary.autoScroll ? "Yes" : "No")
+
+                        if let contentLength: Int = log.responseSummary?.contentLength {
+                            self.keyValueLine("Content Length", "\(contentLength)")
+                        }
+
+                        if let errorMessage: String = log.errorMessage {
+                            self.keyValueLine("Error", errorMessage)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func extractionSection(_ logs: [RuleDebugExtractionLog]) -> some View {
+        Section("Extraction") {
+            if logs.isEmpty {
+                self.secondaryText("No extraction logs.")
+            } else {
+                ForEach(logs) { log in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(log.field?.rawValue ?? "unknown")
+                            .font(.headline)
+                        self.secondaryText(log.selector ?? "No selector")
+                        self.keyValueLine("Candidates", log.candidateCount.map { count in "\(count)" } ?? "Unknown")
+                        self.keyValueLine("Output", log.outputCount.map { count in "\(count)" } ?? "Unknown")
+
+                        if log.samples.isEmpty == false {
+                            self.keyValueLine("Samples", log.samples.joined(separator: " · "))
+                        }
+
+                        if let message: String = log.message {
+                            self.secondaryText(message)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func previewSection(_ items: [RuleDebugPreviewItem]) -> some View {
+        Section("Preview") {
+            if items.isEmpty {
+                self.secondaryText("No preview items.")
+            } else {
+                ForEach(items) { item in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(item.title)
+                            .font(.headline)
+
+                        if let detailURL: String = item.detailURL {
+                            self.keyValueLine("Detail", detailURL)
+                        }
+
+                        if let coverURL: String = item.coverURL {
+                            self.keyValueLine("Cover", coverURL)
+                        }
+
+                        if let latestText: String = item.latestText {
+                            self.keyValueLine("Latest", latestText)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func issuesSection(_ issues: [RuleDebugIssue]) -> some View {
+        Section("Issues") {
+            if issues.isEmpty {
+                self.secondaryText("No issues.")
+            } else {
+                ForEach(issues) { issue in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("\(issue.severity.rawValue) · \(issue.category.rawValue)")
+                            .font(.headline)
+                            .foregroundColor(self.issueColor(issue.severity))
+
+                        if let field: RuleDebugField = issue.field {
+                            self.keyValueLine("Field", field.rawValue)
+                        }
+
+                        Text(issue.message)
+                            .font(.caption)
+                            .textSelection(.enabled)
+                    }
+                }
+            }
+        }
+    }
+
+    private func keyValueLine(_ key: String, _ value: String) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Text(key)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .textSelection(.enabled)
+        }
+    }
+
+    private func secondaryText(_ value: String) -> some View {
+        Text(value)
+            .font(.caption)
+            .foregroundColor(.secondary)
+            .textSelection(.enabled)
+    }
+
+    private func issueColor(_ severity: RuleDebugIssueSeverity) -> Color {
+        switch severity {
+        case .info:
+            return .secondary
+        case .warning:
+            return .orange
+        case .error:
+            return .red
+        }
     }
 }
