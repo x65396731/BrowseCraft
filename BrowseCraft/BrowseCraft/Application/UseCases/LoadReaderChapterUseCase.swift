@@ -55,6 +55,8 @@ struct LoadChaptersUseCase {
 
     /// 中文注释：execute 方法封装当前类型的一段业务或界面行为。
     func execute(source: Source, item: ContentItem) async throws -> [ChapterLink] {
+        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(source.rule)
+
         RuleExecutionLogger.log(
             stage: .detail,
             event: "request",
@@ -69,7 +71,7 @@ struct LoadChaptersUseCase {
             ]
         )
 
-        if shouldTreatDetailURLAsChapter(source: source, item: item) {
+        if shouldTreatDetailURLAsChapter(resolvedRule: resolvedRule, item: item) {
             RuleExecutionLogger.log(
                 stage: .detail,
                 event: "direct-chapter",
@@ -98,14 +100,20 @@ struct LoadChaptersUseCase {
 
         let detailHTML: String = try await self.pageContentLoader.getString(
             from: detailURL,
-            request: source.rule.primaryDetailRequest
+            request: resolvedRule.primaryDetailRequest
         )
-        let chapters: [ChapterLink] = try self.ruleParser.parseDetailChapters(
-            html: detailHTML,
-            source: source,
-            pageURL: item.detailURL,
-            context: item.listContext
-        )
+        let chapters: [ChapterLink]
+        if let detailRule: DetailRule = resolvedRule.primaryDetailRule {
+            chapters = try self.ruleParser.parseDetailChapters(
+                html: detailHTML,
+                source: source,
+                detailRule: detailRule,
+                pageURL: item.detailURL,
+                context: item.listContext
+            )
+        } else {
+            chapters = []
+        }
 
         RuleExecutionLogger.log(
             stage: .detail,
@@ -124,7 +132,7 @@ struct LoadChaptersUseCase {
                 stage: .detail,
                 sourceID: source.id,
                 url: item.detailURL,
-                ruleID: source.rule.primaryDetailRule?.id
+                ruleID: resolvedRule.detailEntry?.ruleID
             )
         }
 
@@ -163,6 +171,8 @@ struct LoadReaderChapterUseCase {
         item: ContentItem,
         chapterURLString: String? = nil
     ) async throws -> ReaderChapter {
+        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(source.rule)
+
         RuleExecutionLogger.log(
             stage: .reader,
             event: "request",
@@ -179,6 +189,7 @@ struct LoadReaderChapterUseCase {
 
         let chapterURLString: String = try await self.resolveChapterURLString(
             source: source,
+            resolvedRule: resolvedRule,
             item: item,
             preferredChapterURLString: chapterURLString
         )
@@ -203,15 +214,21 @@ struct LoadReaderChapterUseCase {
 
         let html: String = try await self.pageContentLoader.getString(
             from: chapterURL,
-            request: source.rule.primaryGalleryRequest
+            request: resolvedRule.primaryGalleryRequest
         )
 
-        let chapter: ReaderChapter = try self.ruleParser.parseReader(
-            html: html,
-            source: source,
-            pageURL: chapterURLString,
-            context: item.listContext
-        )
+        let chapter: ReaderChapter
+        if let galleryRule: GalleryRule = resolvedRule.primaryGalleryRule {
+            chapter = try self.ruleParser.parseReader(
+                html: html,
+                source: source,
+                galleryRule: galleryRule,
+                pageURL: chapterURLString,
+                context: item.listContext
+            )
+        } else {
+            chapter = emptyReaderChapter(source: source, pageURL: chapterURLString)
+        }
 
         RuleExecutionLogger.log(
             stage: .reader,
@@ -230,7 +247,7 @@ struct LoadReaderChapterUseCase {
                 stage: .reader,
                 sourceID: source.id,
                 url: chapterURLString,
-                ruleID: source.rule.primaryGalleryRule?.id
+                ruleID: resolvedRule.galleryEntry?.ruleID
             )
         }
 
@@ -240,6 +257,7 @@ struct LoadReaderChapterUseCase {
     /// 中文注释：resolveChapterURLString 方法封装当前类型的一段业务或界面行为。
     private func resolveChapterURLString(
         source: Source,
+        resolvedRule: ResolvedSiteRule,
         item: ContentItem,
         preferredChapterURLString: String?
     ) async throws -> String {
@@ -256,7 +274,7 @@ struct LoadReaderChapterUseCase {
             return preferredChapterURLString
         }
 
-        if shouldTreatDetailURLAsChapter(source: source, item: item) {
+        if shouldTreatDetailURLAsChapter(resolvedRule: resolvedRule, item: item) {
             RuleExecutionLogger.log(
                 stage: .reader,
                 event: "resolve-direct-chapter",
@@ -279,14 +297,20 @@ struct LoadReaderChapterUseCase {
 
         let detailHTML: String = try await self.pageContentLoader.getString(
             from: detailURL,
-            request: source.rule.primaryDetailRequest
+            request: resolvedRule.primaryDetailRequest
         )
-        let chapters: [ChapterLink] = try self.ruleParser.parseDetailChapters(
-            html: detailHTML,
-            source: source,
-            pageURL: item.detailURL,
-            context: item.listContext
-        )
+        let chapters: [ChapterLink]
+        if let detailRule: DetailRule = resolvedRule.primaryDetailRule {
+            chapters = try self.ruleParser.parseDetailChapters(
+                html: detailHTML,
+                source: source,
+                detailRule: detailRule,
+                pageURL: item.detailURL,
+                context: item.listContext
+            )
+        } else {
+            chapters = []
+        }
 
         RuleExecutionLogger.log(
             stage: .detail,
@@ -336,7 +360,7 @@ struct LoadReaderChapterUseCase {
             stage: .detail,
             sourceID: source.id,
             url: item.detailURL,
-            ruleID: source.rule.primaryDetailRule?.id
+            ruleID: resolvedRule.detailEntry?.ruleID
         )
     }
 
@@ -368,10 +392,23 @@ struct LoadReaderChapterUseCase {
 
 }
 
-private func shouldTreatDetailURLAsChapter(source: Source, item: ContentItem) -> Bool {
+private func shouldTreatDetailURLAsChapter(resolvedRule: ResolvedSiteRule, item: ContentItem) -> Bool {
     if item.detailURL.contains("/chapters/") {
         return true
     }
 
-    return source.rule.primaryDetailRule?.treatDetailURLAsChapter == true
+    return resolvedRule.treatsDetailURLAsChapter
+}
+
+private func emptyReaderChapter(source: Source, pageURL: String) -> ReaderChapter {
+    return ReaderChapter(
+        sourceId: source.id,
+        comicTitle: nil,
+        chapterTitle: nil,
+        chapterURL: pageURL,
+        catalogURL: nil,
+        previousChapterURL: nil,
+        nextChapterURL: nil,
+        pageImageURLs: []
+    )
 }

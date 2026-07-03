@@ -202,6 +202,56 @@ struct SiteRuleV2CompletenessTests {
         #expect(resolvedRule.galleryEntry?.effectiveRequest?.scope == .page)
     }
 
+    @Test func resolvedRuleFallsBackToLegacyDetailAndGalleryRules() throws {
+        var rule: SiteRule = try JSONDecoder().decode(
+            SiteRule.self,
+            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
+        )
+
+        // 中文注释：P2-5 迁移后仍要保留旧规则兼容；没有 V2 pages/ruleSets 时 resolved graph 应走 legacy 字段。
+        rule.pages = nil
+        rule.ruleSets = nil
+        rule.detail?.request = RequestConfig(
+            scope: .page,
+            mergePolicy: .mergeHeaders,
+            method: .get,
+            headers: ["X-Legacy-Detail": "1"],
+            body: nil,
+            cookiePolicy: nil,
+            cookiePriority: nil,
+            cookieScope: nil,
+            charset: nil,
+            needsWebView: nil,
+            autoScroll: nil,
+            imageHeaders: nil,
+            imageRequest: nil
+        )
+        rule.gallery?.request = RequestConfig(
+            scope: .image,
+            mergePolicy: .mergeHeadersAndCookies,
+            method: .get,
+            headers: ["X-Legacy-Gallery": "1"],
+            body: nil,
+            cookiePolicy: nil,
+            cookiePriority: nil,
+            cookieScope: nil,
+            charset: nil,
+            needsWebView: nil,
+            autoScroll: nil,
+            imageHeaders: nil,
+            imageRequest: nil
+        )
+
+        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(rule)
+
+        #expect(resolvedRule.detailEntry?.usesLegacyRule == true)
+        #expect(resolvedRule.galleryEntry?.usesLegacyRule == true)
+        #expect(resolvedRule.primaryDetailRule?.chapterContainer == rule.detail?.chapterContainer)
+        #expect(resolvedRule.primaryGalleryRule?.imageItem == rule.gallery?.imageItem)
+        #expect(resolvedRule.primaryDetailRequest?.headers?["X-Legacy-Detail"] == "1")
+        #expect(resolvedRule.primaryGalleryRequest?.headers?["X-Legacy-Gallery"] == "1")
+    }
+
     @Test func v2DetailPageSelectsPrimaryDetailRule() throws {
         let rule: SiteRule = try JSONDecoder().decode(
             SiteRule.self,

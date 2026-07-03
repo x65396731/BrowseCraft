@@ -48,6 +48,18 @@ final class ResolvedSiteRule {
         return self.raw.ruleSets?.galleryRules?[ruleIndex]
     }
 
+    var primaryDetailRequest: RequestConfig? {
+        return self.detailEntry?.effectiveRequest
+    }
+
+    var primaryGalleryRequest: RequestConfig? {
+        return self.galleryEntry?.effectiveRequest
+    }
+
+    var treatsDetailURLAsChapter: Bool {
+        return self.primaryDetailRule?.treatDetailURLAsChapter == true
+    }
+
     private func resolveDetailEntry() -> ResolvedDetailEntry? {
         if let pages: [PageRule] = self.raw.pages,
            let detailRules: [DetailRule] = self.raw.ruleSets?.detailRules {

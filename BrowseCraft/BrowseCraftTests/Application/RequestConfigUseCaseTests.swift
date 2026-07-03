@@ -60,6 +60,8 @@ struct RequestConfigUseCaseTests {
         #expect(httpClient.requests.first?.request?.scope == .page)
         #expect(httpClient.requests.first?.request?.headers?["X-Detail-Page"] == "1")
         #expect(ruleParser.parsedDetailPageURLs == ["https://example.test/comics/100"])
+        // 中文注释：P2-5.3 后 UseCase 应把同一份 resolved graph 中的 DetailRule 显式传给 parser。
+        #expect(ruleParser.parsedDetailRuleIDs == ["detail"])
         // 中文注释：P1-5.3 详情解析必须收到列表来源上下文，才能按来源 section 缩小章节作用域。
         #expect(ruleParser.parsedDetailContexts.first.flatMap { $0 }?.sectionId == "main-grid")
     }
@@ -83,6 +85,8 @@ struct RequestConfigUseCaseTests {
         #expect(httpClient.requests.first?.request?.scope == .image)
         #expect(httpClient.requests.first?.request?.imageRequest?.headers?["Referer"] == "https://example.test/reader")
         #expect(ruleParser.parsedReaderPageURLs == ["https://example.test/chapters/100-1"])
+        // 中文注释：P2-5.3 后 UseCase 应把同一份 resolved graph 中的 GalleryRule 显式传给 parser。
+        #expect(ruleParser.parsedGalleryRuleIDs == ["reader-gallery"])
         // 中文注释：P1-5.3 阅读页解析必须收到列表来源上下文，避免推荐区图片混入正文。
         #expect(ruleParser.parsedReaderContexts.first.flatMap { $0 }?.sectionId == "main-grid")
     }
@@ -355,8 +359,10 @@ private final class RecordingHTTPClient: HTTPClient {
 private final class RecordingRuleParser: RuleParsingService {
     var listItemsByRuleID: [String: [ContentItem]] = [:]
     private(set) var parsedListRuleIDs: [String?] = []
+    private(set) var parsedDetailRuleIDs: [String?] = []
     private(set) var parsedDetailPageURLs: [String] = []
     private(set) var parsedDetailContexts: [ListContext?] = []
+    private(set) var parsedGalleryRuleIDs: [String?] = []
     private(set) var parsedReaderPageURLs: [String] = []
     private(set) var parsedReaderContexts: [ListContext?] = []
 
@@ -404,6 +410,23 @@ private final class RecordingRuleParser: RuleParsingService {
     func parseDetailChapters(
         html: String,
         source: Source,
+        detailRule: DetailRule,
+        pageURL: String,
+        context: ListContext?
+    ) throws -> [ChapterLink] {
+        self.parsedDetailRuleIDs.append(detailRule.id)
+        self.parsedDetailContexts.append(context)
+
+        return try self.parseDetailChapters(
+            html: html,
+            source: source,
+            pageURL: pageURL
+        )
+    }
+
+    func parseDetailChapters(
+        html: String,
+        source: Source,
         pageURL: String,
         context: ListContext?
     ) throws -> [ChapterLink] {
@@ -428,6 +451,23 @@ private final class RecordingRuleParser: RuleParsingService {
             previousChapterURL: nil,
             nextChapterURL: nil,
             pageImageURLs: ["https://example.test/images/1.jpg"]
+        )
+    }
+
+    func parseReader(
+        html: String,
+        source: Source,
+        galleryRule: GalleryRule,
+        pageURL: String,
+        context: ListContext?
+    ) throws -> ReaderChapter {
+        self.parsedGalleryRuleIDs.append(galleryRule.id)
+        self.parsedReaderContexts.append(context)
+
+        return try self.parseReader(
+            html: html,
+            source: source,
+            pageURL: pageURL
         )
     }
 

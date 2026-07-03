@@ -513,10 +513,27 @@ final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService
         pageURL: String,
         context: ListContext?
     ) throws -> [ChapterLink] {
-        guard let detailRule: DetailRule = source.rule.primaryDetailRule else {
+        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(source.rule)
+        guard let detailRule: DetailRule = resolvedRule.primaryDetailRule else {
             return []
         }
 
+        return try self.parseDetailChapters(
+            html: html,
+            source: source,
+            detailRule: detailRule,
+            pageURL: pageURL,
+            context: context
+        )
+    }
+
+    func parseDetailChapters(
+        html: String,
+        source: Source,
+        detailRule: DetailRule,
+        pageURL: String,
+        context: ListContext?
+    ) throws -> [ChapterLink] {
         let document: Document = try SwiftSoup.parse(html, pageURL)
 
         if let chapterRule: ChapterRule = detailRule.chapterRule {
@@ -1059,7 +1076,8 @@ final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService
         pageURL: String,
         context: ListContext?
     ) throws -> ReaderChapter {
-        guard let galleryRule: GalleryRule = source.rule.primaryGalleryRule else {
+        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(source.rule)
+        guard let galleryRule: GalleryRule = resolvedRule.primaryGalleryRule else {
             return ReaderChapter(
                 sourceId: source.id,
                 comicTitle: nil,
@@ -1072,6 +1090,22 @@ final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService
             )
         }
 
+        return try self.parseReader(
+            html: html,
+            source: source,
+            galleryRule: galleryRule,
+            pageURL: pageURL,
+            context: context
+        )
+    }
+
+    func parseReader(
+        html: String,
+        source: Source,
+        galleryRule: GalleryRule,
+        pageURL: String,
+        context: ListContext?
+    ) throws -> ReaderChapter {
         let document: Document = try SwiftSoup.parse(html, pageURL)
         let scope: Element = try self.contextualScope(
             in: document,

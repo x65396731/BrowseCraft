@@ -23,11 +23,25 @@ protocol RuleParsingService {
         pageURL: String,
         context: ListContext?
     ) throws -> [ChapterLink]
+    func parseDetailChapters(
+        html: String,
+        source: Source,
+        detailRule: DetailRule,
+        pageURL: String,
+        context: ListContext?
+    ) throws -> [ChapterLink]
     /// 中文注释：parseReader 方法封装当前类型的一段业务或界面行为。
     func parseReader(html: String, source: Source, pageURL: String) throws -> ReaderChapter
     func parseReader(
         html: String,
         source: Source,
+        pageURL: String,
+        context: ListContext?
+    ) throws -> ReaderChapter
+    func parseReader(
+        html: String,
+        source: Source,
+        galleryRule: GalleryRule,
         pageURL: String,
         context: ListContext?
     ) throws -> ReaderChapter
@@ -80,6 +94,22 @@ extension RuleParsingService {
         )
     }
 
+    /// 中文注释：P2-5.3 新增显式规则入口；默认回落到旧入口，避免一次性改动所有测试替身。
+    func parseDetailChapters(
+        html: String,
+        source: Source,
+        detailRule: DetailRule,
+        pageURL: String,
+        context: ListContext?
+    ) throws -> [ChapterLink] {
+        return try self.parseDetailChapters(
+            html: html,
+            source: source,
+            pageURL: pageURL,
+            context: context
+        )
+    }
+
     /// 中文注释：P1-5.3 默认保持旧解析行为；支持上下文的解析器可覆盖并按来源区块缩小 Reader 作用域。
     func parseReader(
         html: String,
@@ -91,6 +121,22 @@ extension RuleParsingService {
             html: html,
             source: source,
             pageURL: pageURL
+        )
+    }
+
+    /// 中文注释：P2-5.3 新增显式规则入口；默认回落到旧入口，避免一次性改动所有测试替身。
+    func parseReader(
+        html: String,
+        source: Source,
+        galleryRule: GalleryRule,
+        pageURL: String,
+        context: ListContext?
+    ) throws -> ReaderChapter {
+        return try self.parseReader(
+            html: html,
+            source: source,
+            pageURL: pageURL,
+            context: context
         )
     }
 }

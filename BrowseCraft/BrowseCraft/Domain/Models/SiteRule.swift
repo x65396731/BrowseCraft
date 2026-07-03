@@ -43,11 +43,11 @@ struct SiteRule: Codable, Hashable {
     }
 
     var primaryDetailRequest: RequestConfig? {
-        return RuleResolver().resolve(self).detailEntry?.effectiveRequest
+        return RuleResolver().resolve(self).primaryDetailRequest
     }
 
     var primaryGalleryRequest: RequestConfig? {
-        return RuleResolver().resolve(self).galleryEntry?.effectiveRequest
+        return RuleResolver().resolve(self).primaryGalleryRequest
     }
 
     var availableListTabs: [ListTabRule] {
