@@ -100,6 +100,13 @@ final class AppDatabase {
             }
         }
 
+        migrator.registerMigration("addContentItemListOrder") { database in
+            try database.alter(table: ContentItemRecord.databaseTableName) { table in
+                // 中文注释：列表刷新以网页解析顺序为准，缓存读取时不能再用更新时间打乱列表。
+                table.add(column: "listOrder", .integer)
+            }
+        }
+
         return migrator
     }
 }

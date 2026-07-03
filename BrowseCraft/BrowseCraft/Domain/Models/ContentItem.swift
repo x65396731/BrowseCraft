@@ -13,6 +13,8 @@ struct ContentItem: Identifiable, Hashable {
     var type: ContentType
     var latestText: String?
     var updatedAt: Date?
+    /// 中文注释：记录当前列表快照内的展示顺序，缓存读取时用它恢复规则解析出的网页顺序。
+    var listOrder: Int? = nil
     /// 中文注释：记录列表项来自哪个页面、Tab 或 Section，后续详情/阅读页可用它缩小解析范围。
     var listContext: ListContext? = nil
 }

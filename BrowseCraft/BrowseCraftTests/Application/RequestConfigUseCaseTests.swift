@@ -177,6 +177,59 @@ struct RequestConfigUseCaseTests {
         #expect(latestItems.map(\.id) == ["latest-old"])
     }
 
+    @Test func contentCachePreservesListOrderWhenLoadingSelectedTab() throws {
+        let databaseDirectory: URL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BrowseCraftTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: databaseDirectory, withIntermediateDirectories: true)
+        let databaseURL: URL = databaseDirectory.appendingPathComponent("BrowseCraft.sqlite")
+        defer {
+            // 中文注释：该测试只需要临时数据库目录，结束后连同 SQLite 辅助文件一起清理。
+            try? FileManager.default.removeItem(at: databaseDirectory)
+        }
+
+        let database: AppDatabase = try AppDatabase(path: databaseURL.path)
+        let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
+        let contentRepository: GRDBContentRepository = GRDBContentRepository(database: database)
+        let source: Source = try Self.source()
+        let discoverTab: ListTabRule = try #require(source.rule.availableListTabs.first { tab in
+            return tab.id == "discover"
+        })
+        let context: ListContext = Self.listContext(tab: discoverTab)
+
+        try sourceRepository.saveSource(source)
+        try contentRepository.replaceItems([
+            Self.cachedItem(
+                id: "order-1",
+                sourceID: source.id,
+                tab: discoverTab,
+                updatedAt: Date(timeIntervalSince1970: 300),
+                listOrder: 1
+            ),
+            Self.cachedItem(
+                id: "order-0",
+                sourceID: source.id,
+                tab: discoverTab,
+                updatedAt: Date(timeIntervalSince1970: 100),
+                listOrder: 0
+            ),
+            Self.cachedItem(
+                id: "order-2",
+                sourceID: source.id,
+                tab: discoverTab,
+                updatedAt: Date(timeIntervalSince1970: 200),
+                listOrder: 2
+            )
+        ], sourceId: source.id, context: context)
+
+        let loadedItems: [ContentItem] = try contentRepository.fetchItems(
+            sourceId: source.id,
+            context: context
+        )
+
+        // 中文注释：列表缓存读取应保持网页解析顺序，不能被每条记录的 updatedAt 重新排序。
+        #expect(loadedItems.map(\.id) == ["order-0", "order-1", "order-2"])
+    }
+
     private static func source() throws -> Source {
         let rule: SiteRule = try JSONDecoder().decode(
             SiteRule.self,
@@ -234,7 +287,13 @@ struct RequestConfigUseCaseTests {
         return item
     }
 
-    private static func cachedItem(id: String, sourceID: String, tab: ListTabRule) -> ContentItem {
+    private static func cachedItem(
+        id: String,
+        sourceID: String,
+        tab: ListTabRule,
+        updatedAt: Date = Date(timeIntervalSince1970: 0),
+        listOrder: Int? = nil
+    ) -> ContentItem {
         return ContentItem(
             id: id,
             sourceId: sourceID,
@@ -243,7 +302,8 @@ struct RequestConfigUseCaseTests {
             coverURL: nil,
             type: .comic,
             latestText: nil,
-            updatedAt: Date(timeIntervalSince1970: 0),
+            updatedAt: updatedAt,
+            listOrder: listOrder,
             listContext: Self.listContext(tab: tab)
         )
     }

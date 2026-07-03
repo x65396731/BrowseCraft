@@ -159,6 +159,7 @@ final class SwiftSoupRuleParser: RuleParsingService {
                 type: listRule.type,
                 latestText: latestText,
                 updatedAt: Date(),
+                listOrder: items.count,
                 listContext: context
             )
 

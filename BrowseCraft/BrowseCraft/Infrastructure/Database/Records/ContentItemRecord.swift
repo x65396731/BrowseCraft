@@ -15,6 +15,8 @@ struct ContentItemRecord: Codable, FetchableRecord, MutablePersistableRecord {
     var type: String
     var latestText: String?
     var updatedAt: Date?
+    /// 中文注释：列表快照内的展示顺序，优先级高于 updatedAt。
+    var listOrder: Int?
     var contextPageId: String?
     var contextTabId: String?
     var contextSectionId: String?
@@ -30,6 +32,7 @@ struct ContentItemRecord: Codable, FetchableRecord, MutablePersistableRecord {
         self.type = item.type.rawValue
         self.latestText = item.latestText
         self.updatedAt = item.updatedAt
+        self.listOrder = item.listOrder
         self.contextPageId = item.listContext?.pageId
         self.contextTabId = item.listContext?.tabId
         self.contextSectionId = item.listContext?.sectionId
@@ -48,6 +51,7 @@ struct ContentItemRecord: Codable, FetchableRecord, MutablePersistableRecord {
             type: ContentType(rawValue: self.type) ?? .article,
             latestText: self.latestText,
             updatedAt: self.updatedAt,
+            listOrder: self.listOrder,
             listContext: self.domainListContext()
         )
     }

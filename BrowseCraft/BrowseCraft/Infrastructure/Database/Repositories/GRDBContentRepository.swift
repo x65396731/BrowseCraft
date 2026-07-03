@@ -31,9 +31,16 @@ final class GRDBContentRepository: ContentRepository {
             }
 
             request = self.request(request, filteredBy: context)
-            records = try request
-                .order(Column("updatedAt").desc)
-                .fetchAll(database)
+            if context == nil {
+                records = try request
+                    .order(Column("updatedAt").desc)
+                    .fetchAll(database)
+            } else {
+                // 中文注释：列表缓存必须按刷新时的网页顺序展示；旧数据没有 listOrder 时再退回更新时间。
+                records = try request
+                    .order(sql: "listOrder IS NULL, listOrder ASC, updatedAt DESC")
+                    .fetchAll(database)
+            }
 
             return records.map { record in
                 return record.domainModel()
