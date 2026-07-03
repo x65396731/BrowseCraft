@@ -18,7 +18,8 @@ settings:
 
 packages:
   BrowseCraftRulesKit:
-    path: ../BrowseCraftRulesKit
+    url: git@github.com:x65396731/BrowseCraftRulesKit.git
+    branch: main
 
 targets:
   BrowseCraft:
