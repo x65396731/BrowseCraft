@@ -79,7 +79,9 @@ final class ReaderViewModel: ObservableObject {
             )
             #endif
         } catch {
-            self.errorMessage = error.localizedDescription
+            RuleExecutionErrorClassifier.log(error: error, stage: .reader, event: "reader-load-error")
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+            let classifiedMessage: String = RuleExecutionErrorClassifier.userMessage(for: error)
 
             #if DEBUG
             print(
@@ -87,7 +89,7 @@ final class ReaderViewModel: ObservableObject {
                 "itemId=\(self.item.id) " +
                 "detailURL=\(self.item.detailURL) " +
                 "selectedChapterURL=\(self.selectedChapter?.url ?? "nil") " +
-                "error=\(error.localizedDescription)"
+                "error=\(classifiedMessage)"
             )
             #endif
         }
@@ -186,14 +188,16 @@ final class ChapterListViewModel: ObservableObject {
             }
             #endif
         } catch {
-            self.errorMessage = error.localizedDescription
+            RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "chapters-load-error")
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+            let classifiedMessage: String = RuleExecutionErrorClassifier.userMessage(for: error)
 
             #if DEBUG
             print(
                 "[BrowseCraftNavigation] Chapters error " +
                 "itemId=\(self.item.id) " +
                 "detailURL=\(self.item.detailURL) " +
-                "error=\(error.localizedDescription)"
+                "error=\(classifiedMessage)"
             )
             #endif
         }

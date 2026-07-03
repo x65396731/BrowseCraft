@@ -54,10 +54,14 @@ final class LibraryViewModel: ObservableObject {
                 self.sourceSelectionStore.selectedSourceID = defaultSourceID
             }
 
-            self.items = try self.loadLibraryUseCase.execute(sourceId: self.selectedSourceID)
             self.ensureSelectedListTab()
+            self.items = try self.loadLibraryUseCase.execute(
+                sourceId: self.selectedSourceID,
+                listTab: self.selectedListTab
+            )
         } catch {
-            self.errorMessage = error.localizedDescription
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "library-load-error")
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
     }
 
@@ -69,7 +73,7 @@ final class LibraryViewModel: ObservableObject {
 
         if self.selectedListTabID != tab.id {
             self.selectedListTabID = tab.id
-            self.items = []
+            self.loadCachedItemsForSelectedTab()
         }
 
         await self.refreshSelectedListTab()
@@ -107,7 +111,8 @@ final class LibraryViewModel: ObservableObject {
             if self.refreshToken == currentRefreshToken,
                self.selectedSourceID == expectedSourceID,
                self.selectedListTab?.id == expectedTabID {
-                self.errorMessage = error.localizedDescription
+                RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "library-refresh-error")
+                self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
             }
         }
 
@@ -122,7 +127,8 @@ final class LibraryViewModel: ObservableObject {
         do {
             self.favoriteItemIDs = try self.toggleFavoriteUseCase.execute(itemId: item.id)
         } catch {
-            self.errorMessage = error.localizedDescription
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "favorite-error")
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
     }
 
@@ -132,7 +138,8 @@ final class LibraryViewModel: ObservableObject {
         do {
             try self.recordOpenItemUseCase.execute(itemId: item.id)
         } catch {
-            self.errorMessage = error.localizedDescription
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "record-open-error")
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
     }
 
@@ -208,10 +215,26 @@ final class LibraryViewModel: ObservableObject {
 
         do {
             // 中文注释：Sources 页已经在遮盖状态下刷新并保存数据；Library 切换时只读取新 source 的已保存结果。
-            self.items = try self.loadLibraryUseCase.execute(sourceId: selectedSourceID)
+            self.items = try self.loadLibraryUseCase.execute(
+                sourceId: selectedSourceID,
+                listTab: self.selectedListTab
+            )
             self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs()
         } catch {
-            self.errorMessage = error.localizedDescription
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "switch-source-error")
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+        }
+    }
+
+    private func loadCachedItemsForSelectedTab() {
+        do {
+            self.items = try self.loadLibraryUseCase.execute(
+                sourceId: self.selectedSourceID,
+                listTab: self.selectedListTab
+            )
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "tab-cache-load-error")
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
     }
 }

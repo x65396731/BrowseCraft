@@ -134,6 +134,49 @@ struct RequestConfigUseCaseTests {
         #expect(chapter.pageImageURLs == ["https://example.test/images/1.jpg"])
     }
 
+    @Test func refreshSourceReplacesOnlySelectedTabCache() async throws {
+        let source: Source = try Self.source()
+        let tabs: [ListTabRule] = source.rule.availableListTabs
+        let discoverTab: ListTabRule = try #require(tabs.first { tab in tab.id == "discover" })
+        let latestTab: ListTabRule = try #require(tabs.first { tab in tab.id == "latest" })
+        let contentRepository: InMemoryContentRepository = InMemoryContentRepository()
+        contentRepository.seed([
+            Self.cachedItem(id: "discover-old", sourceID: source.id, tab: discoverTab),
+            Self.cachedItem(id: "latest-old", sourceID: source.id, tab: latestTab)
+        ])
+
+        let ruleParser: RecordingRuleParser = RecordingRuleParser()
+        ruleParser.listItemsByRuleID = [
+            "home-list": [
+                Self.cachedItem(id: "discover-new", sourceID: source.id, tab: discoverTab)
+            ]
+        ]
+        let refreshUseCase: RefreshSourceUseCase = RefreshSourceUseCase(
+            httpClient: RecordingHTTPClient(html: "<html></html>"),
+            ruleParser: ruleParser,
+            urlResolver: URLResolvingService(),
+            contentRepository: contentRepository
+        )
+        let loadLibraryUseCase: LoadLibraryUseCase = LoadLibraryUseCase(
+            contentRepository: contentRepository
+        )
+
+        _ = try await refreshUseCase.execute(source: source, listTab: discoverTab)
+
+        let discoverItems: [ContentItem] = try loadLibraryUseCase.execute(
+            sourceId: source.id,
+            listTab: discoverTab
+        )
+        let latestItems: [ContentItem] = try loadLibraryUseCase.execute(
+            sourceId: source.id,
+            listTab: latestTab
+        )
+
+        // 中文注释：P1-7.3 的缓存边界是 source + tab + listRule；刷新 discover 不能删掉 latest 的缓存。
+        #expect(discoverItems.map(\.id) == ["discover-new"])
+        #expect(latestItems.map(\.id) == ["latest-old"])
+    }
+
     private static func source() throws -> Source {
         let rule: SiteRule = try JSONDecoder().decode(
             SiteRule.self,
@@ -190,6 +233,38 @@ struct RequestConfigUseCaseTests {
         item.latestText = "第17集：新的开始"
         return item
     }
+
+    private static func cachedItem(id: String, sourceID: String, tab: ListTabRule) -> ContentItem {
+        return ContentItem(
+            id: id,
+            sourceId: sourceID,
+            title: id,
+            detailURL: "https://example.test/comics/\(id)",
+            coverURL: nil,
+            type: .comic,
+            latestText: nil,
+            updatedAt: Date(timeIntervalSince1970: 0),
+            listContext: Self.listContext(tab: tab)
+        )
+    }
+
+    private static func listContext(tab: ListTabRule) -> ListContext {
+        if var context: ListContext = tab.context {
+            if context.listRuleId == nil {
+                context.listRuleId = tab.list.id
+            }
+
+            return context
+        }
+
+        return ListContext(
+            pageId: tab.id,
+            tabId: tab.id,
+            sectionId: nil,
+            listRuleId: tab.list.id,
+            sectionRole: .main
+        )
+    }
 }
 
 private final class RecordingHTTPClient: HTTPClient {
@@ -218,6 +293,7 @@ private final class RecordingHTTPClient: HTTPClient {
 }
 
 private final class RecordingRuleParser: RuleParsingService {
+    var listItemsByRuleID: [String: [ContentItem]] = [:]
     private(set) var parsedListRuleIDs: [String?] = []
     private(set) var parsedDetailPageURLs: [String] = []
     private(set) var parsedDetailContexts: [ListContext?] = []
@@ -234,6 +310,11 @@ private final class RecordingRuleParser: RuleParsingService {
 
     func parseList(html: String, source: Source, listRule: ListRule) throws -> [ContentItem] {
         self.parsedListRuleIDs.append(listRule.id)
+
+        if let listRuleID: String = listRule.id,
+           let items: [ContentItem] = self.listItemsByRuleID[listRuleID] {
+            return items
+        }
 
         return [
             ContentItem(
@@ -309,6 +390,10 @@ private final class RecordingRuleParser: RuleParsingService {
 private final class InMemoryContentRepository: ContentRepository {
     private(set) var items: [ContentItem] = []
 
+    func seed(_ items: [ContentItem]) {
+        self.items = items
+    }
+
     func fetchItems() throws -> [ContentItem] {
         return self.items
     }
@@ -323,7 +408,47 @@ private final class InMemoryContentRepository: ContentRepository {
         }
     }
 
+    func fetchItems(sourceId: String?, context: ListContext?) throws -> [ContentItem] {
+        let sourceItems: [ContentItem] = try self.fetchItems(sourceId: sourceId)
+        guard let context: ListContext = context else {
+            return sourceItems
+        }
+
+        return sourceItems.filter { item in
+            return self.matches(item: item, context: context)
+        }
+    }
+
     func saveItems(_ items: [ContentItem]) throws {
         self.items = items
+    }
+
+    func replaceItems(_ items: [ContentItem], sourceId: String, context: ListContext?) throws {
+        self.items.removeAll { item in
+            guard item.sourceId == sourceId else {
+                return false
+            }
+
+            guard let context: ListContext = context else {
+                return true
+            }
+
+            return self.matches(item: item, context: context)
+        }
+        self.items.append(contentsOf: items)
+    }
+
+    private func matches(item: ContentItem, context: ListContext) -> Bool {
+        if let tabId: String = context.tabId,
+           item.listContext?.tabId != tabId {
+            return false
+        }
+
+        if let listRuleId: String = context.listRuleId,
+           item.listContext?.listRuleId != listRuleId {
+            return false
+        }
+
+        return true
     }
 }

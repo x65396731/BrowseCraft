@@ -55,18 +55,31 @@ struct LoadChaptersUseCase {
 
     /// 中文注释：execute 方法封装当前类型的一段业务或界面行为。
     func execute(source: Source, item: ContentItem) async throws -> [ChapterLink] {
-        #if DEBUG
-        print(
-            "[BrowseCraftRequest] LoadChapters execute " +
-            "sourceId=\(source.id) " +
-            "itemId=\(item.id) " +
-            "title=\(item.title) " +
-            "detailURL=\(item.detailURL) " +
-            "latestText=\(item.latestText ?? "nil")"
+        RuleExecutionLogger.log(
+            stage: .detail,
+            event: "request",
+            fields: [
+                "source": source.id,
+                "item": item.id,
+                "tab": item.listContext?.tabId ?? "nil",
+                "section": item.listContext?.sectionId ?? "nil",
+                "listRule": item.listContext?.listRuleId ?? "nil",
+                "detailURL": item.detailURL,
+                "latestText": item.latestText ?? "nil"
+            ]
         )
-        #endif
 
         if shouldTreatDetailURLAsChapter(source: source, item: item) {
+            RuleExecutionLogger.log(
+                stage: .detail,
+                event: "direct-chapter",
+                fields: [
+                    "source": source.id,
+                    "item": item.id,
+                    "detailURL": item.detailURL
+                ]
+            )
+
             return [
                 ChapterLink(
                     title: item.latestText ?? item.title,
@@ -76,7 +89,11 @@ struct LoadChaptersUseCase {
         }
 
         guard let detailURL: URL = URL(string: item.detailURL) else {
-            throw URLResolvingError.invalidURL(item.detailURL)
+            throw RuleExecutionError.ruleConfiguration(
+                stage: .detail,
+                sourceID: source.id,
+                reason: "Invalid detail URL: \(item.detailURL)"
+            )
         }
 
         let detailHTML: String = try await self.pageContentLoader.getString(
@@ -90,18 +107,25 @@ struct LoadChaptersUseCase {
             context: item.listContext
         )
 
-        #if DEBUG
-        print(
-            "[BrowseCraftRequest] LoadChapters parsed " +
-            "itemId=\(item.id) " +
-            "detailURL=\(item.detailURL) " +
-            "count=\(chapters.count) " +
-            "firstURL=\(chapters.first?.url ?? "nil")"
+        RuleExecutionLogger.log(
+            stage: .detail,
+            event: "parsed",
+            fields: [
+                "source": source.id,
+                "item": item.id,
+                "detailURL": item.detailURL,
+                "count": chapters.count,
+                "firstURL": chapters.first?.url ?? "nil"
+            ]
         )
-        #endif
 
         if chapters.isEmpty {
-            throw LoadChaptersError.noChaptersFound(detailURLString: item.detailURL)
+            throw RuleExecutionError.selectorEmpty(
+                stage: .detail,
+                sourceID: source.id,
+                url: item.detailURL,
+                ruleID: source.rule.primaryDetailRule?.id
+            )
         }
 
         return chapters
@@ -139,16 +163,19 @@ struct LoadReaderChapterUseCase {
         item: ContentItem,
         chapterURLString: String? = nil
     ) async throws -> ReaderChapter {
-        #if DEBUG
-        print(
-            "[BrowseCraftRequest] LoadReader execute " +
-            "sourceId=\(source.id) " +
-            "itemId=\(item.id) " +
-            "title=\(item.title) " +
-            "detailURL=\(item.detailURL) " +
-            "preferredChapterURL=\(chapterURLString ?? "nil")"
+        RuleExecutionLogger.log(
+            stage: .reader,
+            event: "request",
+            fields: [
+                "source": source.id,
+                "item": item.id,
+                "tab": item.listContext?.tabId ?? "nil",
+                "section": item.listContext?.sectionId ?? "nil",
+                "listRule": item.listContext?.listRuleId ?? "nil",
+                "detailURL": item.detailURL,
+                "preferredChapterURL": chapterURLString ?? "nil"
+            ]
         )
-        #endif
 
         let chapterURLString: String = try await self.resolveChapterURLString(
             source: source,
@@ -156,16 +183,22 @@ struct LoadReaderChapterUseCase {
             preferredChapterURLString: chapterURLString
         )
 
-        #if DEBUG
-        print(
-            "[BrowseCraftRequest] LoadReader resolved chapter " +
-            "itemId=\(item.id) " +
-            "chapterURL=\(chapterURLString)"
+        RuleExecutionLogger.log(
+            stage: .reader,
+            event: "resolved-chapter",
+            fields: [
+                "source": source.id,
+                "item": item.id,
+                "chapterURL": chapterURLString
+            ]
         )
-        #endif
 
         guard let chapterURL: URL = URL(string: chapterURLString) else {
-            throw URLResolvingError.invalidURL(chapterURLString)
+            throw RuleExecutionError.ruleConfiguration(
+                stage: .reader,
+                sourceID: source.id,
+                reason: "Invalid chapter URL: \(chapterURLString)"
+            )
         }
 
         let html: String = try await self.pageContentLoader.getString(
@@ -180,17 +213,25 @@ struct LoadReaderChapterUseCase {
             context: item.listContext
         )
 
-        #if DEBUG
-        print(
-            "[BrowseCraftRequest] LoadReader parsed " +
-            "itemId=\(item.id) " +
-            "chapterURL=\(chapter.chapterURL) " +
-            "pageCount=\(chapter.pageImageURLs.count)"
+        RuleExecutionLogger.log(
+            stage: .reader,
+            event: "parsed",
+            fields: [
+                "source": source.id,
+                "item": item.id,
+                "chapterURL": chapter.chapterURL,
+                "pageCount": chapter.pageImageURLs.count,
+                "firstImage": chapter.pageImageURLs.first ?? "nil"
+            ]
         )
-        #endif
 
         if chapter.pageImageURLs.isEmpty {
-            throw LoadReaderChapterError.noPageImagesFound(chapterURLString: chapterURLString)
+            throw RuleExecutionError.selectorEmpty(
+                stage: .reader,
+                sourceID: source.id,
+                url: chapterURLString,
+                ruleID: source.rule.primaryGalleryRule?.id
+            )
         }
 
         return chapter
@@ -203,27 +244,37 @@ struct LoadReaderChapterUseCase {
         preferredChapterURLString: String?
     ) async throws -> String {
         if let preferredChapterURLString: String = preferredChapterURLString {
-            #if DEBUG
-            print(
-                "[BrowseCraftRequest] ResolveChapter use preferred " +
-                "itemId=\(item.id) preferredChapterURL=\(preferredChapterURLString)"
+            RuleExecutionLogger.log(
+                stage: .reader,
+                event: "resolve-preferred",
+                fields: [
+                    "source": source.id,
+                    "item": item.id,
+                    "preferredChapterURL": preferredChapterURLString
+                ]
             )
-            #endif
             return preferredChapterURLString
         }
 
         if shouldTreatDetailURLAsChapter(source: source, item: item) {
-            #if DEBUG
-            print(
-                "[BrowseCraftRequest] ResolveChapter use item detail as chapter " +
-                "itemId=\(item.id) detailURL=\(item.detailURL)"
+            RuleExecutionLogger.log(
+                stage: .reader,
+                event: "resolve-direct-chapter",
+                fields: [
+                    "source": source.id,
+                    "item": item.id,
+                    "detailURL": item.detailURL
+                ]
             )
-            #endif
             return item.detailURL
         }
 
         guard let detailURL: URL = URL(string: item.detailURL) else {
-            throw URLResolvingError.invalidURL(item.detailURL)
+            throw RuleExecutionError.ruleConfiguration(
+                stage: .detail,
+                sourceID: source.id,
+                reason: "Invalid detail URL: \(item.detailURL)"
+            )
         }
 
         let detailHTML: String = try await self.pageContentLoader.getString(
@@ -237,42 +288,56 @@ struct LoadReaderChapterUseCase {
             context: item.listContext
         )
 
-        #if DEBUG
-        print(
-            "[BrowseCraftRequest] ResolveChapter parsed candidates " +
-            "itemId=\(item.id) " +
-            "detailURL=\(item.detailURL) " +
-            "latestText=\(item.latestText ?? "nil") " +
-            "count=\(chapters.count) " +
-            "firstURL=\(chapters.first?.url ?? "nil")"
+        RuleExecutionLogger.log(
+            stage: .detail,
+            event: "resolve-candidates",
+            fields: [
+                "source": source.id,
+                "item": item.id,
+                "detailURL": item.detailURL,
+                "latestText": item.latestText ?? "nil",
+                "count": chapters.count,
+                "firstURL": chapters.first?.url ?? "nil"
+            ]
         )
-        #endif
 
         if let latestText: String = item.latestText,
            let matchedChapter: ChapterLink = self.chapter(
             matchingLatestText: latestText,
             chapters: chapters
            ) {
-            #if DEBUG
-            print(
-                "[BrowseCraftRequest] ResolveChapter matched latest " +
-                "itemId=\(item.id) latestText=\(latestText) matchedURL=\(matchedChapter.url)"
+            RuleExecutionLogger.log(
+                stage: .reader,
+                event: "resolve-latest",
+                fields: [
+                    "source": source.id,
+                    "item": item.id,
+                    "latestText": latestText,
+                    "matchedURL": matchedChapter.url
+                ]
             )
-            #endif
             return matchedChapter.url
         }
 
         if let firstChapter: ChapterLink = chapters.first {
-            #if DEBUG
-            print(
-                "[BrowseCraftRequest] ResolveChapter fallback first " +
-                "itemId=\(item.id) firstURL=\(firstChapter.url)"
+            RuleExecutionLogger.log(
+                stage: .reader,
+                event: "resolve-first",
+                fields: [
+                    "source": source.id,
+                    "item": item.id,
+                    "firstURL": firstChapter.url
+                ]
             )
-            #endif
             return firstChapter.url
         }
 
-        throw LoadReaderChapterError.noChapterFound(detailURLString: item.detailURL)
+        throw RuleExecutionError.selectorEmpty(
+            stage: .detail,
+            sourceID: source.id,
+            url: item.detailURL,
+            ruleID: source.rule.primaryDetailRule?.id
+        )
     }
 
     /// 中文注释：chapter 方法封装当前类型的一段业务或界面行为。

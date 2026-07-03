@@ -8,7 +8,17 @@ final class AlamofireHTTPClient: HTTPClient {
     /// 中文注释：getString 方法把 V2 RequestConfig 合入默认 HTML 请求头，并通过 CookieHeaderResolver 应用 Cookie 策略。
     func getString(from url: URL, request: RequestConfig?) async throws -> String {
         let urlRequest: URLRequest = self.urlRequest(for: url, request: request)
-        let html: String = try await AF.request(urlRequest).serializingString().value
+        let html: String
+        do {
+            html = try await AF.request(urlRequest).serializingString().value
+        } catch {
+            throw RuleExecutionError.network(
+                url: url.absoluteString,
+                underlyingDescription: error.localizedDescription
+            )
+        }
+
+        let cloudflareBlocked: Bool = html.contains("Attention Required") || html.contains("cf-error-details")
 
         #if DEBUG
         print(
@@ -16,10 +26,14 @@ final class AlamofireHTTPClient: HTTPClient {
             "requestScope=\(request?.scope?.rawValue ?? "default") " +
             "needsWebView=\(request?.needsWebView?.description ?? "nil") " +
             "bytes=\(html.utf8.count) " +
-            "cloudflareBlocked=\(html.contains("Attention Required") || html.contains("cf-error-details")) " +
+            "cloudflareBlocked=\(cloudflareBlocked) " +
             "hasChapterLinks=\(html.contains("/cn/chapters/"))"
         )
         #endif
+
+        if cloudflareBlocked {
+            throw RuleExecutionError.antiBot(url: url.absoluteString)
+        }
 
         return html
     }

@@ -46,13 +46,26 @@ final class SwiftSoupRuleParser: RuleParsingService {
     func parseList(html: String, source: Source, listRule: ListRule) throws -> [ContentItem] {
         let document: Document = try SwiftSoup.parse(html, source.baseURL)
         let elements: [Element] = try document.select(listRule.item).array()
-
-        return try self.contentItems(
+        let items: [ContentItem] = try self.contentItems(
             from: elements,
             source: source,
             listRule: listRule,
             context: nil
         )
+
+        RuleExecutionLogger.log(
+            stage: .list,
+            event: "selector",
+            fields: [
+                "source": source.id,
+                "listRule": listRule.id ?? "nil",
+                "itemSelector": listRule.item,
+                "candidateCount": elements.count,
+                "count": items.count
+            ]
+        )
+
+        return items
     }
 
     func parseList(
@@ -210,12 +223,16 @@ final class SwiftSoupRuleParser: RuleParsingService {
                 context: context
             )
 
-            #if DEBUG
-            print(
-                "[BrowseCraftRule] Parse detail chapters V2 source=\(source.id) page=\(pageURL) " +
-                "elementCount=\(elements.count)"
+            RuleExecutionLogger.log(
+                stage: .detail,
+                event: "selector-v2",
+                fields: [
+                    "source": source.id,
+                    "pageURL": pageURL,
+                    "section": context?.sectionId ?? "nil",
+                    "elementCount": elements.count
+                ]
             )
-            #endif
 
             return try self.chapterLinks(
                 from: elements,
@@ -238,17 +255,20 @@ final class SwiftSoupRuleParser: RuleParsingService {
             chapterItemSelector: chapterItemSelector
         )
 
-        #if DEBUG
         let globalChapterLinkCount: Int = try document.select(chapterItemSelector).array().count
-        print(
-            "[BrowseCraftRule] Parse detail chapters source=\(source.id) page=\(pageURL) " +
-            "chapterContainer=\(detailRule.chapterContainer ?? "nil") " +
-            "chapterItem=\(chapterItemSelector) " +
-            "htmlHasChapterLinks=\(html.contains("/cn/chapters/")) " +
-            "globalChapterLinkCount=\(globalChapterLinkCount) " +
-            "elementCount=\(elements.count)"
+        RuleExecutionLogger.log(
+            stage: .detail,
+            event: "selector-legacy",
+            fields: [
+                "source": source.id,
+                "pageURL": pageURL,
+                "chapterContainer": detailRule.chapterContainer ?? "nil",
+                "chapterItem": chapterItemSelector,
+                "htmlHasChapterLinks": html.contains("/cn/chapters/"),
+                "globalChapterLinkCount": globalChapterLinkCount,
+                "elementCount": elements.count
+            ]
         )
-        #endif
 
         let titleRule: ExtractRule = ExtractRule(
             selector: chapterTitleExpression,
@@ -756,6 +776,20 @@ final class SwiftSoupRuleParser: RuleParsingService {
             let imageURL: String = self.urlResolver.absoluteString(rawImageURL, baseURLString: pageURL)
             pageImageURLs.append(imageURL)
         }
+
+        RuleExecutionLogger.log(
+            stage: .reader,
+            event: "selector",
+            fields: [
+                "source": source.id,
+                "pageURL": pageURL,
+                "section": context?.sectionId ?? "nil",
+                "imageItem": galleryRule.imageItem,
+                "candidateCount": imageElements.count,
+                "count": pageImageURLs.count,
+                "firstImage": pageImageURLs.first ?? "nil"
+            ]
+        )
 
         return ReaderChapter(
             sourceId: source.id,

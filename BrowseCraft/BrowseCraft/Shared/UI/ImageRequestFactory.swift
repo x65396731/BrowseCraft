@@ -39,6 +39,19 @@ enum ImageRequestFactory {
             urlRequest.setValue(value, forHTTPHeaderField: key)
         }
 
+        RuleExecutionLogger.log(
+            stage: .image,
+            event: "request",
+            fields: [
+                "url": url.absoluteString,
+                "referer": refererURLString ?? "nil",
+                "requestScope": requestConfig?.scope?.rawValue ?? "default",
+                "headerCount": headers.count,
+                "hasReferer": headers["Referer"] != nil,
+                "hasCookie": headers["Cookie"] != nil
+            ]
+        )
+
         return ImageRequest(urlRequest: urlRequest)
     }
 

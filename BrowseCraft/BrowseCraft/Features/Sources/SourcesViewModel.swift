@@ -56,7 +56,8 @@ final class SourcesViewModel: ObservableObject {
                 self.selectSource(id: loadedSources.first?.id)
             }
         } catch {
-            self.errorMessage = error.localizedDescription
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-load-error")
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
     }
 
@@ -74,7 +75,8 @@ final class SourcesViewModel: ObservableObject {
             self.selectSource(id: source.id)
             return true
         } catch {
-            self.errorMessage = error.localizedDescription
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-add-error")
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
             return false
         }
     }
@@ -99,7 +101,8 @@ final class SourcesViewModel: ObservableObject {
                 self.selectSource(id: loadedSources.first?.id)
             }
         } catch {
-            self.errorMessage = error.localizedDescription
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-delete-error")
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
     }
 
@@ -123,7 +126,8 @@ final class SourcesViewModel: ObservableObject {
             self.selectSource(id: source.id)
         } catch {
             self.failedRefreshAction = .select(sourceID: source.id)
-            self.errorMessage = error.localizedDescription
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-select-refresh-error")
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
 
         self.refreshingSourceID = nil
@@ -197,7 +201,8 @@ final class SourcesViewModel: ObservableObject {
             self.failedRefreshAction = nil
         } catch {
             self.failedRefreshAction = .refresh(sourceID: source.id)
-            self.errorMessage = error.localizedDescription
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-refresh-error")
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
 
         self.refreshingSourceID = nil

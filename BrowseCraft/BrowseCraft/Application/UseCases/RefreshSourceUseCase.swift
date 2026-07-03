@@ -44,21 +44,35 @@ struct RefreshSourceUseCase {
 
     func execute(source: Source, listTab: ListTabRule?, page: Int = 1) async throws -> [ContentItem] {
         let listRule: ListRule = listTab?.list ?? source.rule.list
-        let url: URL = try self.urlResolver.listURL(for: source, listRule: listRule, page: page)
+        let url: URL
+        do {
+            url = try self.urlResolver.listURL(for: source, listRule: listRule, page: page)
+        } catch {
+            throw RuleExecutionError.ruleConfiguration(
+                stage: .list,
+                sourceID: source.id,
+                reason: error.localizedDescription
+            )
+        }
+
         let listContext: ListContext = self.listContext(
             listTab: listTab,
             listRule: listRule
         )
 
-        #if DEBUG
-        print(
-            "[BrowseCraftNavigation] Refresh list " +
-            "source=\(source.id) " +
-            "tab=\(listTab?.id ?? "default") " +
-            "title=\(listTab?.title ?? "default") " +
-            "url=\(url.absoluteString)"
+        RuleExecutionLogger.log(
+            stage: .list,
+            event: "request",
+            fields: [
+                "source": source.id,
+                "tab": listTab?.id ?? "default",
+                "title": listTab?.title ?? "default",
+                "listRule": listRule.id ?? "nil",
+                "section": listContext.sectionId ?? "nil",
+                "page": page,
+                "url": url.absoluteString
+            ]
         )
-        #endif
 
         let html: String = try await self.pageContentLoader.getString(
             from: url,
@@ -72,7 +86,44 @@ struct RefreshSourceUseCase {
             sections: listTab?.sections
         )
 
-        try self.contentRepository.saveItems(items)
+        RuleExecutionLogger.log(
+            stage: .list,
+            event: "parsed",
+            fields: [
+                "source": source.id,
+                "tab": listTab?.id ?? "default",
+                "listRule": listRule.id ?? "nil",
+                "section": listContext.sectionId ?? "nil",
+                "count": items.count,
+                "firstItem": items.first?.id ?? "nil"
+            ]
+        )
+
+        if items.isEmpty {
+            throw RuleExecutionError.selectorEmpty(
+                stage: .list,
+                sourceID: source.id,
+                url: url.absoluteString,
+                ruleID: listRule.id
+            )
+        }
+
+        RuleExecutionLogger.log(
+            stage: .list,
+            event: "cache-replace",
+            fields: [
+                "source": source.id,
+                "tab": listContext.tabId ?? "nil",
+                "listRule": listContext.listRuleId ?? "nil",
+                "count": items.count
+            ]
+        )
+
+        try self.contentRepository.replaceItems(
+            items,
+            sourceId: source.id,
+            context: listContext
+        )
         return items
     }
 
