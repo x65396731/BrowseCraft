@@ -97,6 +97,81 @@ struct RuleDebugUseCaseTests {
         #expect(parser.parsedListRuleIDs.isEmpty)
     }
 
+    @Test func listDebugUseCaseAttachesCandidateReport() async throws {
+        let source: Source = try Self.source()
+        let loader: RuleDebugRecordingPageContentLoader = RuleDebugRecordingPageContentLoader(
+            result: .success("<main><article class=\"card\"><a href=\"/one\">One</a></article><a class=\"next\" href=\"/home?page=2\">Next</a></main>")
+        )
+        let parser: RuleDebugRecordingRuleParser = RuleDebugRecordingRuleParser(
+            items: [
+                Self.item(id: "item-1", title: "First Item")
+            ]
+        )
+        let candidateAnalyzer: RuleDebugRecordingCandidateAnalyzer = RuleDebugRecordingCandidateAnalyzer()
+        let useCase: ListDebugUseCase = ListDebugUseCase(
+            pageContentLoader: loader,
+            ruleParser: parser,
+            urlResolver: URLResolvingService(),
+            candidateAnalyzer: candidateAnalyzer,
+            now: Self.fixedDate,
+            idGenerator: Self.idGenerator(prefix: "candidate-debug")
+        )
+
+        let session: RuleDebugSession = await useCase.execute(
+            source: source,
+            listTab: source.rule.availableListTabs.first,
+            page: 1
+        )
+
+        let candidateReport: RuleCandidateReport = try #require(session.candidateReport)
+        #expect(candidateAnalyzer.listInputs.map(\.ruleID) == ["home-list"])
+        #expect(candidateAnalyzer.paginationInputs.map(\.stage) == [.list])
+        #expect(candidateAnalyzer.paginationInputs.map(\.urlTemplate) == ["https://example.test/home?page={page}"])
+        #expect(candidateReport.stage == .list)
+        #expect(candidateReport.candidates.map(\.field) == [.item, .nextPage])
+        #expect(candidateReport.summary.candidateCount == 2)
+        #expect(candidateReport.summary.coveredFields.contains(.item))
+        #expect(candidateReport.summary.coveredFields.contains(.nextPage))
+        #expect(session.issues.isEmpty)
+    }
+
+    @Test func searchDebugUseCaseAttachesCandidateReport() async throws {
+        let source: Source = try Self.searchSource()
+        let loader: RuleDebugRecordingPageContentLoader = RuleDebugRecordingPageContentLoader(
+            result: .success("<main><article class=\"card\"><a href=\"/search-1\">One</a></article><a class=\"next\" href=\"/search?q=cat&page=2\">Next</a></main>")
+        )
+        let parser: RuleDebugRecordingRuleParser = RuleDebugRecordingRuleParser(
+            items: [
+                Self.item(id: "search-1", title: "Search First")
+            ]
+        )
+        let candidateAnalyzer: RuleDebugRecordingCandidateAnalyzer = RuleDebugRecordingCandidateAnalyzer()
+        let useCase: SearchDebugUseCase = SearchDebugUseCase(
+            pageContentLoader: loader,
+            ruleParser: parser,
+            urlResolver: URLResolvingService(),
+            candidateAnalyzer: candidateAnalyzer,
+            now: Self.fixedDate,
+            idGenerator: Self.idGenerator(prefix: "search-candidate-debug")
+        )
+
+        let session: RuleDebugSession = await useCase.execute(
+            source: source,
+            keyword: "cat",
+            page: 1
+        )
+
+        let candidateReport: RuleCandidateReport = try #require(session.candidateReport)
+        #expect(candidateAnalyzer.listInputs.map(\.ruleID) == ["home-list"])
+        #expect(candidateAnalyzer.paginationInputs.map(\.stage) == [.search])
+        #expect(candidateAnalyzer.paginationInputs.map(\.ruleID) == ["search"])
+        #expect(candidateAnalyzer.paginationInputs.map(\.urlTemplate) == ["/search?q={keyword:}&page={page}"])
+        #expect(candidateReport.stage == .search)
+        #expect(candidateReport.candidates.map(\.field) == [.item, .nextPage])
+        #expect(candidateReport.summary.candidateCount == 2)
+        #expect(session.issues.isEmpty)
+    }
+
     private static func source() throws -> Source {
         var rule: SiteRule = try JSONDecoder().decode(
             SiteRule.self,
@@ -350,6 +425,188 @@ private final class RuleDebugRecordingRuleParser: RuleParsingService, RulePagina
             previousChapterURL: nil,
             nextChapterURL: nil,
             pageImageURLs: []
+        )
+    }
+}
+
+private final class RuleDebugRecordingCandidateAnalyzer: RuleCandidateAnalyzingService {
+    struct ListInput: Hashable {
+        var ruleID: String?
+        var pageID: String?
+        var url: String?
+    }
+
+    struct PaginationInput: Hashable {
+        var stage: RuleDebugStage
+        var pageID: String?
+        var ruleID: String?
+        var currentURL: String?
+        var urlTemplate: String?
+    }
+
+    private(set) var listInputs: [ListInput] = []
+    private(set) var paginationInputs: [PaginationInput] = []
+
+    func analyzeList(
+        html: String,
+        source: Source,
+        listRule: ListRule?,
+        pageID: String?,
+        url: String?
+    ) throws -> RuleCandidateReport {
+        self.listInputs.append(
+            ListInput(
+                ruleID: listRule?.id,
+                pageID: pageID,
+                url: url
+            )
+        )
+
+        return RuleCandidateReport(
+            id: "list-report",
+            sourceID: source.id,
+            sourceName: source.name,
+            stage: pageID == "search" ? .search : .list,
+            pageID: pageID,
+            ruleID: listRule?.id,
+            url: url,
+            generatedAt: Date(timeIntervalSince1970: 7_600),
+            candidates: [
+                self.candidate(
+                    id: "candidate-item",
+                    field: .item,
+                    stage: pageID == "search" ? .search : .list,
+                    selector: "article.card",
+                    source: .repeatedDOMStructure
+                )
+            ],
+            summary: RuleCandidateSummary(
+                candidateCount: 1,
+                highConfidenceCount: 1,
+                warningCount: 0,
+                coveredFields: [.item]
+            )
+        )
+    }
+
+    func analyzeDetail(
+        html: String,
+        source: Source,
+        detailRule: DetailRule?,
+        pageID: String?,
+        url: String?
+    ) throws -> RuleCandidateReport {
+        return self.emptyReport(source: source, stage: .detail, pageID: pageID, ruleID: detailRule?.id, url: url)
+    }
+
+    func analyzeReader(
+        html: String,
+        source: Source,
+        galleryRule: GalleryRule?,
+        pageID: String?,
+        url: String?
+    ) throws -> RuleCandidateReport {
+        return self.emptyReport(source: source, stage: .reader, pageID: pageID, ruleID: galleryRule?.id, url: url)
+    }
+
+    func analyzePagination(
+        html: String,
+        source: Source,
+        pagination: PaginationRule?,
+        stage: RuleDebugStage,
+        pageID: String?,
+        ruleID: String?,
+        currentURL: String?,
+        urlTemplate: String?
+    ) throws -> RuleCandidateReport {
+        self.paginationInputs.append(
+            PaginationInput(
+                stage: stage,
+                pageID: pageID,
+                ruleID: ruleID,
+                currentURL: currentURL,
+                urlTemplate: urlTemplate
+            )
+        )
+
+        return RuleCandidateReport(
+            id: "pagination-report",
+            sourceID: source.id,
+            sourceName: source.name,
+            stage: stage,
+            pageID: pageID,
+            ruleID: ruleID,
+            url: currentURL,
+            generatedAt: Date(timeIntervalSince1970: 7_601),
+            candidates: [
+                self.candidate(
+                    id: "candidate-next-page",
+                    field: .nextPage,
+                    stage: stage,
+                    selector: "a.next",
+                    source: .paginationLink
+                )
+            ],
+            summary: RuleCandidateSummary(
+                candidateCount: 1,
+                highConfidenceCount: 1,
+                warningCount: 0,
+                coveredFields: [.nextPage]
+            )
+        )
+    }
+
+    private func candidate(
+        id: String,
+        field: RuleCandidateField,
+        stage: RuleDebugStage,
+        selector: String,
+        source: RuleCandidateSource
+    ) -> RuleCandidate {
+        return RuleCandidate(
+            id: id,
+            field: field,
+            stage: stage,
+            selector: selector,
+            selectorKind: .css,
+            function: field == .nextPage ? .url : .raw,
+            param: field == .nextPage ? "href" : nil,
+            score: RuleCandidateScore(value: 0.9, confidence: .high, reasons: ["test"]),
+            evidence: RuleCandidateEvidence(
+                candidateCount: 1,
+                matchedCount: 1,
+                sampleValues: [selector],
+                sampleAttributes: [:],
+                ancestorHints: []
+            ),
+            warnings: [],
+            source: source
+        )
+    }
+
+    private func emptyReport(
+        source: Source,
+        stage: RuleDebugStage,
+        pageID: String?,
+        ruleID: String?,
+        url: String?
+    ) -> RuleCandidateReport {
+        return RuleCandidateReport(
+            id: "empty-report",
+            sourceID: source.id,
+            sourceName: source.name,
+            stage: stage,
+            pageID: pageID,
+            ruleID: ruleID,
+            url: url,
+            generatedAt: Date(timeIntervalSince1970: 7_602),
+            candidates: [],
+            summary: RuleCandidateSummary(
+                candidateCount: 0,
+                highConfidenceCount: 0,
+                warningCount: 0,
+                coveredFields: []
+            )
         )
     }
 }

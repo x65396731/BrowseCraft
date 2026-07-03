@@ -25,6 +25,7 @@ struct RuleDetailView: View {
     @State private var debugPageText: String = "1"
     @State private var debugURLOverride: String = ""
     @State private var didCopyDebugSummary: Bool = false
+    @State private var didApplyCandidateDraft: Bool = false
 
     var body: some View {
         Group {
@@ -382,7 +383,12 @@ struct RuleDetailView: View {
 
     private func debugSheet() -> some View {
         NavigationView {
-            RuleDebugSessionView(session: self.debugSession)
+            RuleDebugSessionView(
+                session: self.debugSession,
+                applyCandidate: { candidate in
+                    self.applyCandidateToDraft(candidate)
+                }
+            )
                 .navigationTitle(self.debugSheetTitle)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
@@ -530,6 +536,7 @@ struct RuleDetailView: View {
             await MainActor.run {
                 self.debugSession = session
                 self.didCopyDebugSummary = false
+                self.didApplyCandidateDraft = false
                 self.isRunningListDebug = false
                 self.isShowingDebugSheet = true
             }
@@ -560,6 +567,7 @@ struct RuleDetailView: View {
             await MainActor.run {
                 self.debugSession = session
                 self.didCopyDebugSummary = false
+                self.didApplyCandidateDraft = false
                 self.isRunningSearchDebug = false
                 self.isShowingDebugSheet = true
             }
@@ -671,6 +679,25 @@ struct RuleDetailView: View {
         }
 
         lines.append("")
+        lines.append("## Candidate Recommendations")
+
+        if let report: RuleCandidateReport = session.candidateReport,
+           report.candidates.isEmpty == false {
+            for candidate: RuleCandidate in report.candidates.prefix(10) {
+                lines.append("- \(candidate.field.rawValue): \(candidate.selector)")
+                lines.append("  - Function: \(candidate.function.rawValue)")
+                lines.append("  - Param: \(candidate.param ?? "None")")
+                lines.append("  - Confidence: \(candidate.score.confidence.rawValue)")
+
+                if candidate.evidence.sampleValues.isEmpty == false {
+                    lines.append("  - Samples: \(candidate.evidence.sampleValues.prefix(3).joined(separator: " | "))")
+                }
+            }
+        } else {
+            lines.append("- None")
+        }
+
+        lines.append("")
         lines.append("## Preview")
 
         if session.previewItems.isEmpty {
@@ -694,6 +721,185 @@ struct RuleDetailView: View {
         }
 
         return lines.joined(separator: "\n")
+    }
+
+    private func applyCandidateToDraft(_ candidate: RuleCandidate) {
+        guard let source: Source = self.viewModel.source(id: self.sourceID),
+              source.isBuiltIn == false else {
+            UIPasteboard.general.string = self.candidateRuleSnippet(candidate)
+            return
+        }
+
+        self.resetDraft(source: source)
+
+        guard var rule: SiteRule = self.draftBasicRule else {
+            return
+        }
+
+        let ruleID: String? = self.debugSession?.input.ruleID
+        let didApply: Bool
+
+        switch self.debugSession?.input.stage {
+        case .list:
+            didApply = self.applyListCandidate(candidate, ruleID: ruleID, rule: &rule)
+        case .search:
+            didApply = self.applySearchCandidate(candidate, ruleID: ruleID, rule: &rule)
+        case .detail, .reader, nil:
+            didApply = false
+        }
+
+        guard didApply else {
+            UIPasteboard.general.string = self.candidateRuleSnippet(candidate)
+            self.didApplyCandidateDraft = false
+            return
+        }
+
+        self.draftBasicRule = rule
+        self.draftRuleJSON = self.viewModel.formattedRuleJSON(for: rule)
+        self.validationResult = self.viewModel.validateRuleJSON(self.draftRuleJSON)
+        UIPasteboard.general.string = self.candidateRuleSnippet(candidate)
+        self.didApplyCandidateDraft = true
+        self.isShowingDebugSheet = false
+        self.isShowingJSONEditor = true
+    }
+
+    private func applyListCandidate(_ candidate: RuleCandidate, ruleID: String?, rule: inout SiteRule) -> Bool {
+        var didApply: Bool = self.applyListCandidate(candidate, listRule: &rule.list)
+
+        guard var ruleSets: RuleSets = rule.ruleSets,
+              var listRules: [ListRule] = ruleSets.listRules else {
+            return didApply
+        }
+
+        let targetIndex: Array<ListRule>.Index?
+        if let ruleID: String = ruleID {
+            targetIndex = listRules.firstIndex { listRule in
+                return listRule.id == ruleID
+            }
+        } else {
+            targetIndex = listRules.indices.first
+        }
+
+        if let targetIndex: Array<ListRule>.Index = targetIndex {
+            didApply = self.applyListCandidate(candidate, listRule: &listRules[targetIndex]) || didApply
+            ruleSets.listRules = listRules
+            rule.ruleSets = ruleSets
+        }
+
+        return didApply
+    }
+
+    private func applyListCandidate(_ candidate: RuleCandidate, listRule: inout ListRule) -> Bool {
+        switch candidate.field {
+        case .item:
+            listRule.item = candidate.selector
+        case .title:
+            listRule.title = self.legacyRuleExpression(candidate)
+        case .link:
+            listRule.link = self.legacyRuleExpression(candidate)
+        case .cover:
+            listRule.cover = self.legacyRuleExpression(candidate)
+        case .latestText:
+            listRule.latestText = self.legacyRuleExpression(candidate)
+        case .nextPage:
+            listRule.pagination = self.updatedPagination(candidate, existing: listRule.pagination)
+        default:
+            return false
+        }
+
+        return true
+    }
+
+    private func applySearchCandidate(_ candidate: RuleCandidate, ruleID: String?, rule: inout SiteRule) -> Bool {
+        guard candidate.field == .nextPage,
+              var ruleSets: RuleSets = rule.ruleSets,
+              var searchRules: [SearchRule] = ruleSets.searchRules else {
+            return false
+        }
+
+        let targetIndex: Array<SearchRule>.Index?
+        if let ruleID: String = ruleID {
+            targetIndex = searchRules.firstIndex { searchRule in
+                return searchRule.id == ruleID
+            }
+        } else {
+            targetIndex = searchRules.indices.first
+        }
+
+        guard let targetIndex: Array<SearchRule>.Index = targetIndex else {
+            return false
+        }
+
+        searchRules[targetIndex].pagination = self.updatedPagination(
+            candidate,
+            existing: searchRules[targetIndex].pagination
+        )
+        ruleSets.searchRules = searchRules
+        rule.ruleSets = ruleSets
+        return true
+    }
+
+    private func updatedPagination(_ candidate: RuleCandidate, existing: PaginationRule?) -> PaginationRule {
+        var pagination: PaginationRule = existing ?? PaginationRule(
+            nextPage: nil,
+            pagePlaceholder: nil,
+            maxPages: nil,
+            stopWhenEmpty: true
+        )
+
+        if candidate.source == .paginationLink {
+            pagination.nextPage = self.extractRule(candidate)
+        } else if candidate.source == .manualSeed {
+            pagination.pagePlaceholder = candidate.param
+        }
+
+        return pagination
+    }
+
+    private func extractRule(_ candidate: RuleCandidate) -> ExtractRule {
+        return ExtractRule(
+            selector: candidate.selector,
+            selectorKind: candidate.selectorKind,
+            function: candidate.function,
+            functions: nil,
+            param: candidate.param,
+            regex: nil,
+            replacement: nil,
+            fallback: nil
+        )
+    }
+
+    private func legacyRuleExpression(_ candidate: RuleCandidate) -> String {
+        if let param: String = candidate.param,
+           param.contains("|") == false {
+            return "\(candidate.selector)@\(param)"
+        }
+
+        return candidate.selector
+    }
+
+    private func candidateRuleSnippet(_ candidate: RuleCandidate) -> String {
+        var lines: [String] = [
+            "{",
+            "  \"field\": \"\(candidate.field.rawValue)\",",
+            "  \"selector\": \"\(self.escapeJSON(candidate.selector))\",",
+            "  \"selectorKind\": \"\(candidate.selectorKind.rawValue)\",",
+            "  \"function\": \"\(candidate.function.rawValue)\""
+        ]
+
+        if let param: String = candidate.param {
+            lines[lines.count - 1] += ","
+            lines.append("  \"param\": \"\(self.escapeJSON(param))\"")
+        }
+
+        lines.append("}")
+        return lines.joined(separator: "\n")
+    }
+
+    private func escapeJSON(_ value: String) -> String {
+        return value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
     }
 
     private var isRunningDebug: Bool {
@@ -865,6 +1071,7 @@ struct RuleDetailView: View {
 
 private struct RuleDebugSessionView: View {
     let session: RuleDebugSession?
+    let applyCandidate: (RuleCandidate) -> Void
 
     var body: some View {
         Form {
@@ -873,6 +1080,7 @@ private struct RuleDebugSessionView: View {
                 self.requestSection(session.requestLogs)
                 self.extractionSection(session.extractionLogs)
                 self.paginationSection(session.pagination)
+                self.candidateSection(session.candidateReport)
                 self.previewSection(session.previewItems)
             } else {
                 EmptyStateView(
@@ -880,6 +1088,76 @@ private struct RuleDebugSessionView: View {
                     title: "No Debug Session",
                     message: "Run a rule debug first."
                 )
+            }
+        }
+    }
+
+    private func candidateSection(_ report: RuleCandidateReport?) -> some View {
+        Section("Candidate Recommendations") {
+            if let report: RuleCandidateReport = report,
+               report.candidates.isEmpty == false {
+                LabeledContent("Candidates", value: "\(report.summary.candidateCount)")
+                LabeledContent("High Confidence", value: "\(report.summary.highConfidenceCount)")
+                LabeledContent("Warnings", value: "\(report.summary.warningCount)")
+
+                ForEach(report.candidates) { candidate in
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(candidate.field.rawValue)
+                                .font(.headline)
+                            Spacer()
+                            Text(candidate.score.confidence.rawValue)
+                                .font(.caption)
+                                .foregroundColor(self.confidenceColor(candidate.score.confidence))
+                        }
+
+                        self.keyValueLine("Selector", candidate.selector)
+                        self.keyValueLine("Function", candidate.function.rawValue)
+
+                        if let param: String = candidate.param {
+                            self.keyValueLine("Param", param)
+                        }
+
+                        if candidate.evidence.sampleValues.isEmpty == false {
+                            self.keyValueLine("Samples", candidate.evidence.sampleValues.prefix(3).joined(separator: " · "))
+                        }
+
+                        if candidate.score.reasons.isEmpty == false {
+                            self.secondaryText(candidate.score.reasons.joined(separator: " · "))
+                        }
+
+                        if candidate.warnings.isEmpty == false {
+                            ForEach(candidate.warnings) { warning in
+                                Text("\(warning.severity.rawValue) · \(warning.message)")
+                                    .font(.caption)
+                                    .foregroundColor(warning.severity == .error ? .red : .orange)
+                            }
+                        }
+
+                        HStack {
+                            Button {
+                                UIPasteboard.general.string = candidate.selector
+                            } label: {
+                                Label("Copy Selector", systemImage: "doc.on.doc")
+                            }
+
+                            Button {
+                                UIPasteboard.general.string = self.candidateSnippet(candidate)
+                            } label: {
+                                Label("Copy Snippet", systemImage: "curlybraces")
+                            }
+
+                            Button {
+                                self.applyCandidate(candidate)
+                            } label: {
+                                Label("Apply to Draft", systemImage: "square.and.pencil")
+                            }
+                        }
+                        .font(.caption)
+                    }
+                }
+            } else {
+                self.secondaryText("No candidate recommendations.")
             }
         }
     }
@@ -1065,5 +1343,45 @@ private struct RuleDebugSessionView: View {
         case .error:
             return .red
         }
+    }
+
+    private func confidenceColor(_ confidence: RuleCandidateConfidence) -> Color {
+        switch confidence {
+        case .high:
+            return .green
+        case .medium:
+            return .orange
+        case .low:
+            return .secondary
+        case .rejected:
+            return .red
+        }
+    }
+
+    private func candidateSnippet(_ candidate: RuleCandidate) -> String {
+        let escapedSelector: String = self.escape(candidate.selector)
+        let escapedParam: String? = candidate.param.map { param in
+            return self.escape(param)
+        }
+        var lines: [String] = [
+            "{",
+            "  \"selector\": \"\(escapedSelector)\",",
+            "  \"selectorKind\": \"\(candidate.selectorKind.rawValue)\",",
+            "  \"function\": \"\(candidate.function.rawValue)\""
+        ]
+
+        if let escapedParam: String = escapedParam {
+            lines[lines.count - 1] += ","
+            lines.append("  \"param\": \"\(escapedParam)\"")
+        }
+
+        lines.append("}")
+        return lines.joined(separator: "\n")
+    }
+
+    private func escape(_ value: String) -> String {
+        return value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
     }
 }

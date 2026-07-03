@@ -70,15 +70,18 @@ final class AppContainer {
             urlResolver: self.urlResolver,
             contentRepository: self.contentRepository
         )
+        let ruleCandidateAnalyzer: RuleCandidateAnalyzingService = SwiftSoupRuleCandidateAnalyzer()
         let listDebugUseCase: ListDebugUseCase = ListDebugUseCase(
             pageContentLoader: self.pageContentLoader,
             ruleParser: self.ruleParser,
-            urlResolver: self.urlResolver
+            urlResolver: self.urlResolver,
+            candidateAnalyzer: ruleCandidateAnalyzer
         )
         let searchDebugUseCase: SearchDebugUseCase = SearchDebugUseCase(
             pageContentLoader: self.pageContentLoader,
             ruleParser: self.ruleParser,
-            urlResolver: self.urlResolver
+            urlResolver: self.urlResolver,
+            candidateAnalyzer: ruleCandidateAnalyzer
         )
 
         return SourcesViewModel(

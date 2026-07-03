@@ -7,6 +7,7 @@ struct ListDebugUseCase {
     private let pageContentLoader: PageContentLoader
     private let ruleParser: RuleParsingService
     private let paginationParser: RulePaginationParsingService?
+    private let candidateAnalyzer: RuleCandidateAnalyzingService?
     private let urlResolver: URLResolvingService
     private let now: () -> Date
     private let idGenerator: () -> String
@@ -15,6 +16,7 @@ struct ListDebugUseCase {
         pageContentLoader: PageContentLoader,
         ruleParser: RuleParsingService,
         urlResolver: URLResolvingService,
+        candidateAnalyzer: RuleCandidateAnalyzingService? = nil,
         now: @escaping () -> Date = Date.init,
         idGenerator: @escaping () -> String = {
             return UUID().uuidString
@@ -23,6 +25,7 @@ struct ListDebugUseCase {
         self.pageContentLoader = pageContentLoader
         self.ruleParser = ruleParser
         self.paginationParser = ruleParser as? RulePaginationParsingService
+        self.candidateAnalyzer = candidateAnalyzer
         self.urlResolver = urlResolver
         self.now = now
         self.idGenerator = idGenerator
@@ -33,6 +36,7 @@ struct ListDebugUseCase {
         httpClient: HTTPClient,
         ruleParser: RuleParsingService,
         urlResolver: URLResolvingService,
+        candidateAnalyzer: RuleCandidateAnalyzingService? = nil,
         now: @escaping () -> Date = Date.init,
         idGenerator: @escaping () -> String = {
             return UUID().uuidString
@@ -42,6 +46,7 @@ struct ListDebugUseCase {
             pageContentLoader: httpClient,
             ruleParser: ruleParser,
             urlResolver: urlResolver,
+            candidateAnalyzer: candidateAnalyzer,
             now: now,
             idGenerator: idGenerator
         )
@@ -77,6 +82,7 @@ struct ListDebugUseCase {
             extractionLogs: [],
             previewItems: [],
             pagination: nil,
+            candidateReport: nil,
             issues: []
         )
 
@@ -170,6 +176,14 @@ struct ListDebugUseCase {
                 currentURL: url,
                 urlOverride: urlOverride
             )
+            self.attachListCandidates(
+                html: html,
+                source: source,
+                listRule: listRule,
+                listTab: listTab,
+                currentURL: url,
+                session: &session
+            )
 
             if items.isEmpty,
                session.issues.contains(where: { issue in
@@ -206,6 +220,53 @@ struct ListDebugUseCase {
 
         session.completedAt = self.now()
         return session
+    }
+
+    private func attachListCandidates(
+        html: String,
+        source: Source,
+        listRule: ListRule,
+        listTab: ListTabRule?,
+        currentURL: URL,
+        session: inout RuleDebugSession
+    ) {
+        guard let candidateAnalyzer: RuleCandidateAnalyzingService = self.candidateAnalyzer else {
+            return
+        }
+
+        do {
+            let listReport: RuleCandidateReport = try candidateAnalyzer.analyzeList(
+                html: html,
+                source: source,
+                listRule: listRule,
+                pageID: session.input.pageID,
+                url: currentURL.absoluteString
+            )
+            let paginationReport: RuleCandidateReport = try candidateAnalyzer.analyzePagination(
+                html: html,
+                source: source,
+                pagination: listRule.pagination,
+                stage: .list,
+                pageID: session.input.pageID,
+                ruleID: listRule.id,
+                currentURL: currentURL.absoluteString,
+                urlTemplate: listTab?.list.url ?? listRule.url
+            )
+            session.candidateReport = mergedCandidateReport(
+                primary: listReport,
+                secondary: paginationReport
+            )
+        } catch {
+            session.issues.append(
+                self.issue(
+                    severity: .warning,
+                    category: .unknown,
+                    ruleID: listRule.id,
+                    field: nil,
+                    message: "Candidate recommendations failed: \(error.localizedDescription)"
+                )
+            )
+        }
     }
 
     private func pagination(
@@ -427,6 +488,7 @@ struct SearchDebugUseCase {
     private let pageContentLoader: PageContentLoader
     private let ruleParser: RuleParsingService
     private let paginationParser: RulePaginationParsingService?
+    private let candidateAnalyzer: RuleCandidateAnalyzingService?
     private let urlResolver: URLResolvingService
     private let now: () -> Date
     private let idGenerator: () -> String
@@ -435,6 +497,7 @@ struct SearchDebugUseCase {
         pageContentLoader: PageContentLoader,
         ruleParser: RuleParsingService,
         urlResolver: URLResolvingService,
+        candidateAnalyzer: RuleCandidateAnalyzingService? = nil,
         now: @escaping () -> Date = Date.init,
         idGenerator: @escaping () -> String = {
             return UUID().uuidString
@@ -443,6 +506,7 @@ struct SearchDebugUseCase {
         self.pageContentLoader = pageContentLoader
         self.ruleParser = ruleParser
         self.paginationParser = ruleParser as? RulePaginationParsingService
+        self.candidateAnalyzer = candidateAnalyzer
         self.urlResolver = urlResolver
         self.now = now
         self.idGenerator = idGenerator
@@ -494,6 +558,7 @@ struct SearchDebugUseCase {
             extractionLogs: [],
             previewItems: [],
             pagination: nil,
+            candidateReport: nil,
             issues: []
         )
 
@@ -592,6 +657,14 @@ struct SearchDebugUseCase {
                 currentURL: url,
                 urlOverride: urlOverride
             )
+            self.attachSearchCandidates(
+                html: html,
+                source: source,
+                entry: entry,
+                currentURL: url,
+                urlOverride: urlOverride,
+                session: &session
+            )
 
             if items.isEmpty {
                 session.issues.append(
@@ -625,6 +698,60 @@ struct SearchDebugUseCase {
 
         session.completedAt = self.now()
         return session
+    }
+
+    private func attachSearchCandidates(
+        html: String,
+        source: Source,
+        entry: SearchDebugRuleEntry,
+        currentURL: URL,
+        urlOverride: String?,
+        session: inout RuleDebugSession
+    ) {
+        guard let candidateAnalyzer: RuleCandidateAnalyzingService = self.candidateAnalyzer else {
+            return
+        }
+
+        do {
+            let listRule: ListRule? = entry.rule.listRuleRef.flatMap { listRuleID in
+                return source.rule.ruleSets?.listRule(id: listRuleID)
+            }
+            let listReport: RuleCandidateReport = try candidateAnalyzer.analyzeList(
+                html: html,
+                source: source,
+                listRule: listRule,
+                pageID: session.input.pageID,
+                url: currentURL.absoluteString
+            )
+            let paginationReport: RuleCandidateReport = try candidateAnalyzer.analyzePagination(
+                html: html,
+                source: source,
+                pagination: entry.rule.pagination,
+                stage: .search,
+                pageID: session.input.pageID,
+                ruleID: entry.rule.id,
+                currentURL: currentURL.absoluteString,
+                urlTemplate: self.searchURLTemplate(
+                    source: source,
+                    searchRule: entry.rule,
+                    urlOverride: urlOverride
+                )
+            )
+            session.candidateReport = mergedCandidateReport(
+                primary: listReport,
+                secondary: paginationReport
+            )
+        } catch {
+            session.issues.append(
+                self.issue(
+                    severity: .warning,
+                    category: .unknown,
+                    ruleID: entry.rule.id,
+                    field: nil,
+                    message: "Candidate recommendations failed: \(error.localizedDescription)"
+                )
+            )
+        }
     }
 
     private func searchRuleEntry(source: Source) throws -> SearchDebugRuleEntry {
@@ -692,6 +819,22 @@ struct SearchDebugUseCase {
             keyword: keyword,
             page: page
         )
+    }
+
+    private func searchURLTemplate(
+        source: Source,
+        searchRule: SearchRule,
+        urlOverride: String?
+    ) -> String {
+        if let urlOverride: String = self.nonEmpty(urlOverride) {
+            return urlOverride
+        }
+
+        if let searchTemplate: URLTemplateRule = source.rule.urlPatterns?.searchTemplate {
+            return searchTemplate.template
+        }
+
+        return searchRule.url
     }
 
     private func pagination(
@@ -866,4 +1009,34 @@ private struct SearchDebugRuleEntry {
     func effectiveRequest(sharedRequest: RequestConfig?) -> RequestConfig? {
         return self.rule.request ?? self.page?.request ?? sharedRequest
     }
+}
+
+private func mergedCandidateReport(
+    primary: RuleCandidateReport,
+    secondary: RuleCandidateReport
+) -> RuleCandidateReport {
+    let candidates: [RuleCandidate] = primary.candidates + secondary.candidates
+    return RuleCandidateReport(
+        id: primary.id,
+        sourceID: primary.sourceID,
+        sourceName: primary.sourceName,
+        stage: primary.stage,
+        pageID: primary.pageID,
+        ruleID: primary.ruleID,
+        url: primary.url,
+        generatedAt: primary.generatedAt,
+        candidates: candidates,
+        summary: RuleCandidateSummary(
+            candidateCount: candidates.count,
+            highConfidenceCount: candidates.filter { candidate in
+                return candidate.score.confidence == .high
+            }.count,
+            warningCount: candidates.reduce(0) { count, candidate in
+                return count + candidate.warnings.count
+            },
+            coveredFields: Array(Set(candidates.map(\.field))).sorted { lhs, rhs in
+                return lhs.rawValue < rhs.rawValue
+            }
+        )
+    )
 }

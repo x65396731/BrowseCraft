@@ -12,6 +12,7 @@ struct RuleDebugSession: Identifiable, Hashable {
     var extractionLogs: [RuleDebugExtractionLog]
     var previewItems: [RuleDebugPreviewItem]
     var pagination: PaginationResolution?
+    var candidateReport: RuleCandidateReport?
     var issues: [RuleDebugIssue]
 
     var status: RuleDebugSessionStatus {
