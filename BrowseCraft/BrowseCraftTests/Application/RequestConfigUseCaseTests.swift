@@ -87,6 +87,53 @@ struct RequestConfigUseCaseTests {
         #expect(ruleParser.parsedReaderContexts.first.flatMap { $0 }?.sectionId == "main-grid")
     }
 
+    @Test func loadChaptersTreatsDetailURLAsSingleChapterWhenRuleRequestsIt() async throws {
+        let source: Source = try Self.oneLayerReaderSource()
+        let httpClient: RecordingHTTPClient = RecordingHTTPClient(html: "<html></html>")
+        let ruleParser: RecordingRuleParser = RecordingRuleParser()
+        let useCase: LoadChaptersUseCase = LoadChaptersUseCase(
+            httpClient: httpClient,
+            ruleParser: ruleParser
+        )
+        let item: ContentItem = Self.oneLayerReaderItem()
+
+        let chapters: [ChapterLink] = try await useCase.execute(source: source, item: item)
+
+        // 中文注释：Pepper&Carrot 这类一层源的列表项已经是阅读页，章节目录应直接由 detailURL 构成，不能再请求详情页。
+        #expect(chapters == [
+            ChapterLink(
+                title: "第17集：新的开始",
+                url: "https://www.peppercarrot.com/cn/webcomic/ep17_A-Fresh-Start.html"
+            )
+        ])
+        #expect(httpClient.requests.isEmpty)
+        #expect(ruleParser.parsedDetailPageURLs.isEmpty)
+    }
+
+    @Test func loadReaderTreatsDetailURLAsChapterAndSkipsDetailParsingWhenRuleRequestsIt() async throws {
+        let source: Source = try Self.oneLayerReaderSource()
+        let httpClient: RecordingHTTPClient = RecordingHTTPClient(html: "<html></html>")
+        let ruleParser: RecordingRuleParser = RecordingRuleParser()
+        let useCase: LoadReaderChapterUseCase = LoadReaderChapterUseCase(
+            httpClient: httpClient,
+            ruleParser: ruleParser
+        )
+        let item: ContentItem = Self.oneLayerReaderItem()
+
+        let chapter: ReaderChapter = try await useCase.execute(source: source, item: item)
+
+        // 中文注释：未指定 preferredChapterURL 时，一层源 reader 应直接请求 item.detailURL，避免退回二层详情页章节抽取。
+        #expect(httpClient.requests.map(\.url.absoluteString) == [
+            "https://www.peppercarrot.com/cn/webcomic/ep17_A-Fresh-Start.html"
+        ])
+        #expect(httpClient.requests.first?.request?.scope == .image)
+        #expect(ruleParser.parsedDetailPageURLs.isEmpty)
+        #expect(ruleParser.parsedReaderPageURLs == [
+            "https://www.peppercarrot.com/cn/webcomic/ep17_A-Fresh-Start.html"
+        ])
+        #expect(chapter.pageImageURLs == ["https://example.test/images/1.jpg"])
+    }
+
     private static func source() throws -> Source {
         let rule: SiteRule = try JSONDecoder().decode(
             SiteRule.self,
@@ -103,6 +150,15 @@ struct RequestConfigUseCaseTests {
             createdAt: Date(timeIntervalSince1970: 0),
             updatedAt: Date(timeIntervalSince1970: 0)
         )
+    }
+
+    private static func oneLayerReaderSource() throws -> Source {
+        var source: Source = try Self.source()
+        source.id = "peppercarrot-one-layer-source"
+        source.name = "Pepper&Carrot One Layer Source"
+        source.baseURL = "https://www.peppercarrot.com/cn"
+        source.rule.ruleSets?.detailRules?[0].treatDetailURLAsChapter = true
+        return source
     }
 
     private static func item() -> ContentItem {
@@ -123,6 +179,16 @@ struct RequestConfigUseCaseTests {
                 sectionRole: .main
             )
         )
+    }
+
+    private static func oneLayerReaderItem() -> ContentItem {
+        var item: ContentItem = Self.item()
+        item.id = "peppercarrot-ep17"
+        item.sourceId = "peppercarrot-one-layer-source"
+        item.title = "第17集：新的开始"
+        item.detailURL = "https://www.peppercarrot.com/cn/webcomic/ep17_A-Fresh-Start.html"
+        item.latestText = "第17集：新的开始"
+        return item
     }
 }
 
