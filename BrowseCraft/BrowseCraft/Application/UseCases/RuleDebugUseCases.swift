@@ -434,7 +434,9 @@ struct ListDebugUseCase {
                 id: item.id,
                 title: item.title,
                 detailURL: item.detailURL,
+                chapterURL: nil,
                 coverURL: item.coverURL,
+                imageURL: nil,
                 latestText: item.latestText,
                 sourceIndex: index,
                 issues: []
@@ -953,7 +955,9 @@ struct SearchDebugUseCase {
                 id: item.id,
                 title: item.title,
                 detailURL: item.detailURL,
+                chapterURL: nil,
                 coverURL: item.coverURL,
+                imageURL: nil,
                 latestText: item.latestText,
                 sourceIndex: index,
                 issues: []
@@ -1008,6 +1012,574 @@ private struct SearchDebugRuleEntry {
 
     func effectiveRequest(sharedRequest: RequestConfig?) -> RequestConfig? {
         return self.rule.request ?? self.page?.request ?? sharedRequest
+    }
+}
+
+/// 中文注释：详情调试用例只读取详情页并解析章节预览，不写缓存、不刷新书库、不修改 Source。
+struct DetailDebugUseCase {
+    private let pageContentLoader: PageContentLoader
+    private let ruleParser: RuleParsingService
+    private let candidateAnalyzer: RuleCandidateAnalyzingService?
+    private let urlResolver: URLResolvingService
+    private let now: () -> Date
+    private let idGenerator: () -> String
+
+    init(
+        pageContentLoader: PageContentLoader,
+        ruleParser: RuleParsingService,
+        urlResolver: URLResolvingService,
+        candidateAnalyzer: RuleCandidateAnalyzingService? = nil,
+        now: @escaping () -> Date = Date.init,
+        idGenerator: @escaping () -> String = {
+            return UUID().uuidString
+        }
+    ) {
+        self.pageContentLoader = pageContentLoader
+        self.ruleParser = ruleParser
+        self.candidateAnalyzer = candidateAnalyzer
+        self.urlResolver = urlResolver
+        self.now = now
+        self.idGenerator = idGenerator
+    }
+
+    func execute(
+        source: Source,
+        detailURL: String,
+        context: ListContext? = nil
+    ) async -> RuleDebugSession {
+        let startedAt: Date = self.now()
+        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(source.rule)
+        let detailContext: ResolvedDetailContext? = resolvedRule.primaryDetailContext
+        let detailRule: DetailRule? = detailContext.flatMap { context in
+            return resolvedRule.detailRule(for: context)
+        }
+        let input: RuleDebugInput = RuleDebugInput(
+            sourceID: source.id,
+            sourceName: source.name,
+            stage: .detail,
+            pageID: detailContext?.pageID,
+            tabID: context?.tabId,
+            ruleID: detailContext?.ruleID,
+            keyword: nil,
+            page: nil,
+            url: detailURL,
+            context: context
+        )
+        var session: RuleDebugSession = RuleDebugSession(
+            id: self.idGenerator(),
+            startedAt: startedAt,
+            completedAt: nil,
+            input: input,
+            requestLogs: [],
+            extractionLogs: [],
+            previewItems: [],
+            pagination: nil,
+            candidateReport: nil,
+            issues: []
+        )
+
+        guard let detailContext: ResolvedDetailContext = detailContext,
+              let detailRule: DetailRule = detailRule else {
+            session.issues.append(
+                self.issue(
+                    severity: .error,
+                    category: .ruleConfiguration,
+                    ruleID: nil,
+                    field: .chapter,
+                    message: "Missing detail rule."
+                )
+            )
+            session.completedAt = self.now()
+            return session
+        }
+
+        let url: URL
+        do {
+            url = try self.debugURL(source: source, detailURL: detailURL)
+        } catch {
+            session.issues.append(
+                self.issue(
+                    severity: .error,
+                    category: .invalidURL,
+                    ruleID: detailContext.ruleID,
+                    field: nil,
+                    message: error.localizedDescription
+                )
+            )
+            session.completedAt = self.now()
+            return session
+        }
+
+        let request: RequestConfig? = detailContext.request
+        let requestStartedAt: Date = self.now()
+        var requestLog: RuleDebugRequestLog = RuleDebugRequestLog(
+            id: self.idGenerator(),
+            stage: .detail,
+            url: url.absoluteString,
+            method: request?.method?.rawValue ?? HTTPMethod.get.rawValue,
+            requestSummary: RuleDebugRequestSummary(request: request),
+            startedAt: requestStartedAt,
+            completedAt: nil,
+            responseSummary: nil,
+            errorMessage: nil
+        )
+
+        do {
+            let html: String = try await self.pageContentLoader.getString(from: url, request: request)
+            requestLog.completedAt = self.now()
+            requestLog.responseSummary = RuleDebugResponseSummary(
+                statusCode: nil,
+                contentLength: html.count,
+                finalURL: url.absoluteString
+            )
+            session.requestLogs.append(requestLog)
+
+            let chapters: [ChapterLink] = try self.ruleParser.parseDetailChapters(
+                html: html,
+                source: source,
+                detailRule: detailRule,
+                pageURL: url.absoluteString,
+                context: context
+            )
+            session.previewItems = self.previewItems(from: chapters)
+            session.extractionLogs.append(
+                RuleDebugExtractionLog(
+                    id: self.idGenerator(),
+                    stage: .detail,
+                    ruleID: detailContext.ruleID,
+                    selector: self.chapterSelector(detailRule),
+                    field: .chapter,
+                    candidateCount: nil,
+                    outputCount: chapters.count,
+                    samples: Array(chapters.prefix(3).map(\.title)),
+                    message: "Parsed chapter preview items."
+                )
+            )
+            self.attachDetailCandidates(
+                html: html,
+                source: source,
+                detailRule: detailRule,
+                currentURL: url,
+                session: &session
+            )
+
+            if chapters.isEmpty {
+                session.issues.append(
+                    self.issue(
+                        severity: .warning,
+                        category: .selectorEmpty,
+                        ruleID: detailContext.ruleID,
+                        field: .chapter,
+                        message: "Detail rule produced no chapter preview items."
+                    )
+                )
+            }
+        } catch {
+            requestLog.completedAt = requestLog.completedAt ?? self.now()
+            requestLog.errorMessage = error.localizedDescription
+            if session.requestLogs.contains(where: { log in log.id == requestLog.id }) == false {
+                session.requestLogs.append(requestLog)
+            }
+
+            let classifiedError: RuleExecutionError = RuleExecutionErrorClassifier.classified(error)
+            session.issues.append(
+                self.issue(
+                    severity: .error,
+                    category: self.issueCategory(for: classifiedError),
+                    ruleID: detailContext.ruleID,
+                    field: .chapter,
+                    message: classifiedError.localizedDescription
+                )
+            )
+        }
+
+        session.completedAt = self.now()
+        return session
+    }
+
+    private func attachDetailCandidates(
+        html: String,
+        source: Source,
+        detailRule: DetailRule,
+        currentURL: URL,
+        session: inout RuleDebugSession
+    ) {
+        guard let candidateAnalyzer: RuleCandidateAnalyzingService = self.candidateAnalyzer else {
+            return
+        }
+
+        do {
+            session.candidateReport = try candidateAnalyzer.analyzeDetail(
+                html: html,
+                source: source,
+                detailRule: detailRule,
+                pageID: session.input.pageID,
+                url: currentURL.absoluteString
+            )
+        } catch {
+            session.issues.append(
+                self.issue(
+                    severity: .warning,
+                    category: .unknown,
+                    ruleID: detailRule.id,
+                    field: nil,
+                    message: "Candidate recommendations failed: \(error.localizedDescription)"
+                )
+            )
+        }
+    }
+
+    private func debugURL(source: Source, detailURL: String) throws -> URL {
+        let absoluteURLString: String = self.urlResolver.absoluteString(
+            detailURL,
+            baseURLString: source.baseURL
+        )
+
+        guard let url: URL = URL(string: absoluteURLString),
+              url.scheme != nil else {
+            throw URLResolvingError.invalidURL(detailURL)
+        }
+
+        return url
+    }
+
+    private func previewItems(from chapters: [ChapterLink]) -> [RuleDebugPreviewItem] {
+        return chapters.enumerated().map { index, chapter in
+            return RuleDebugPreviewItem(
+                id: "\(chapter.url)#\(index)",
+                title: chapter.title,
+                detailURL: nil,
+                chapterURL: chapter.url,
+                coverURL: nil,
+                imageURL: nil,
+                latestText: nil,
+                sourceIndex: index,
+                issues: []
+            )
+        }
+    }
+
+    private func chapterSelector(_ detailRule: DetailRule) -> String? {
+        if let selector: String = detailRule.chapterRule?.item.selector {
+            return selector
+        }
+
+        return detailRule.chapterItem
+    }
+
+    private func issue(
+        severity: RuleDebugIssueSeverity,
+        category: RuleDebugIssueCategory,
+        ruleID: String?,
+        field: RuleDebugField?,
+        message: String
+    ) -> RuleDebugIssue {
+        return RuleDebugIssue(
+            id: self.idGenerator(),
+            severity: severity,
+            category: category,
+            stage: .detail,
+            ruleID: ruleID,
+            field: field,
+            message: message
+        )
+    }
+
+    private func issueCategory(for error: RuleExecutionError) -> RuleDebugIssueCategory {
+        switch error {
+        case .network, .antiBot:
+            return .requestFailed
+        case .selectorEmpty:
+            return .selectorEmpty
+        case .ruleConfiguration:
+            return .ruleConfiguration
+        case .unknown:
+            return .unknown
+        }
+    }
+}
+
+/// 中文注释：阅读调试用例只读取章节页并解析图片预览，不写缓存、不刷新书库、不修改 Source。
+struct ReaderDebugUseCase {
+    private let pageContentLoader: PageContentLoader
+    private let ruleParser: RuleParsingService
+    private let candidateAnalyzer: RuleCandidateAnalyzingService?
+    private let urlResolver: URLResolvingService
+    private let now: () -> Date
+    private let idGenerator: () -> String
+
+    init(
+        pageContentLoader: PageContentLoader,
+        ruleParser: RuleParsingService,
+        urlResolver: URLResolvingService,
+        candidateAnalyzer: RuleCandidateAnalyzingService? = nil,
+        now: @escaping () -> Date = Date.init,
+        idGenerator: @escaping () -> String = {
+            return UUID().uuidString
+        }
+    ) {
+        self.pageContentLoader = pageContentLoader
+        self.ruleParser = ruleParser
+        self.candidateAnalyzer = candidateAnalyzer
+        self.urlResolver = urlResolver
+        self.now = now
+        self.idGenerator = idGenerator
+    }
+
+    func execute(
+        source: Source,
+        chapterURL: String,
+        context: ListContext? = nil
+    ) async -> RuleDebugSession {
+        let startedAt: Date = self.now()
+        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(source.rule)
+        let readerContext: ResolvedReaderContext? = resolvedRule.primaryReaderContext
+        let galleryRule: GalleryRule? = readerContext.flatMap { context in
+            return resolvedRule.galleryRule(for: context)
+        }
+        let input: RuleDebugInput = RuleDebugInput(
+            sourceID: source.id,
+            sourceName: source.name,
+            stage: .reader,
+            pageID: readerContext?.pageID,
+            tabID: context?.tabId,
+            ruleID: readerContext?.ruleID,
+            keyword: nil,
+            page: nil,
+            url: chapterURL,
+            context: context
+        )
+        var session: RuleDebugSession = RuleDebugSession(
+            id: self.idGenerator(),
+            startedAt: startedAt,
+            completedAt: nil,
+            input: input,
+            requestLogs: [],
+            extractionLogs: [],
+            previewItems: [],
+            pagination: nil,
+            candidateReport: nil,
+            issues: []
+        )
+
+        guard let readerContext: ResolvedReaderContext = readerContext,
+              let galleryRule: GalleryRule = galleryRule else {
+            session.issues.append(
+                self.issue(
+                    severity: .error,
+                    category: .ruleConfiguration,
+                    ruleID: nil,
+                    field: .image,
+                    message: "Missing reader rule."
+                )
+            )
+            session.completedAt = self.now()
+            return session
+        }
+
+        let url: URL
+        do {
+            url = try self.debugURL(source: source, chapterURL: chapterURL)
+        } catch {
+            session.issues.append(
+                self.issue(
+                    severity: .error,
+                    category: .invalidURL,
+                    ruleID: readerContext.ruleID,
+                    field: nil,
+                    message: error.localizedDescription
+                )
+            )
+            session.completedAt = self.now()
+            return session
+        }
+
+        let request: RequestConfig? = readerContext.request
+        let requestStartedAt: Date = self.now()
+        var requestLog: RuleDebugRequestLog = RuleDebugRequestLog(
+            id: self.idGenerator(),
+            stage: .reader,
+            url: url.absoluteString,
+            method: request?.method?.rawValue ?? HTTPMethod.get.rawValue,
+            requestSummary: RuleDebugRequestSummary(request: request),
+            startedAt: requestStartedAt,
+            completedAt: nil,
+            responseSummary: nil,
+            errorMessage: nil
+        )
+
+        do {
+            let html: String = try await self.pageContentLoader.getString(from: url, request: request)
+            requestLog.completedAt = self.now()
+            requestLog.responseSummary = RuleDebugResponseSummary(
+                statusCode: nil,
+                contentLength: html.count,
+                finalURL: url.absoluteString
+            )
+            session.requestLogs.append(requestLog)
+
+            let chapter: ReaderChapter = try self.ruleParser.parseReader(
+                html: html,
+                source: source,
+                galleryRule: galleryRule,
+                pageURL: url.absoluteString,
+                context: context
+            )
+            session.previewItems = self.previewItems(from: chapter.pageImageURLs)
+            session.extractionLogs.append(
+                RuleDebugExtractionLog(
+                    id: self.idGenerator(),
+                    stage: .reader,
+                    ruleID: readerContext.ruleID,
+                    selector: self.imageSelector(galleryRule),
+                    field: .image,
+                    candidateCount: nil,
+                    outputCount: chapter.pageImageURLs.count,
+                    samples: Array(chapter.pageImageURLs.prefix(3)),
+                    message: "Parsed reader image preview items."
+                )
+            )
+            self.attachReaderCandidates(
+                html: html,
+                source: source,
+                galleryRule: galleryRule,
+                currentURL: url,
+                session: &session
+            )
+
+            if chapter.pageImageURLs.isEmpty {
+                session.issues.append(
+                    self.issue(
+                        severity: .warning,
+                        category: .selectorEmpty,
+                        ruleID: readerContext.ruleID,
+                        field: .image,
+                        message: "Reader rule produced no image preview items."
+                    )
+                )
+            }
+        } catch {
+            requestLog.completedAt = requestLog.completedAt ?? self.now()
+            requestLog.errorMessage = error.localizedDescription
+            if session.requestLogs.contains(where: { log in log.id == requestLog.id }) == false {
+                session.requestLogs.append(requestLog)
+            }
+
+            let classifiedError: RuleExecutionError = RuleExecutionErrorClassifier.classified(error)
+            session.issues.append(
+                self.issue(
+                    severity: .error,
+                    category: self.issueCategory(for: classifiedError),
+                    ruleID: readerContext.ruleID,
+                    field: .image,
+                    message: classifiedError.localizedDescription
+                )
+            )
+        }
+
+        session.completedAt = self.now()
+        return session
+    }
+
+    private func attachReaderCandidates(
+        html: String,
+        source: Source,
+        galleryRule: GalleryRule,
+        currentURL: URL,
+        session: inout RuleDebugSession
+    ) {
+        guard let candidateAnalyzer: RuleCandidateAnalyzingService = self.candidateAnalyzer else {
+            return
+        }
+
+        do {
+            session.candidateReport = try candidateAnalyzer.analyzeReader(
+                html: html,
+                source: source,
+                galleryRule: galleryRule,
+                pageID: session.input.pageID,
+                url: currentURL.absoluteString
+            )
+        } catch {
+            session.issues.append(
+                self.issue(
+                    severity: .warning,
+                    category: .unknown,
+                    ruleID: galleryRule.id,
+                    field: nil,
+                    message: "Candidate recommendations failed: \(error.localizedDescription)"
+                )
+            )
+        }
+    }
+
+    private func debugURL(source: Source, chapterURL: String) throws -> URL {
+        let absoluteURLString: String = self.urlResolver.absoluteString(
+            chapterURL,
+            baseURLString: source.baseURL
+        )
+
+        guard let url: URL = URL(string: absoluteURLString),
+              url.scheme != nil else {
+            throw URLResolvingError.invalidURL(chapterURL)
+        }
+
+        return url
+    }
+
+    private func previewItems(from imageURLs: [String]) -> [RuleDebugPreviewItem] {
+        return imageURLs.enumerated().map { index, imageURL in
+            return RuleDebugPreviewItem(
+                id: "\(imageURL)#\(index)",
+                title: "Image \(index + 1)",
+                detailURL: nil,
+                chapterURL: nil,
+                coverURL: nil,
+                imageURL: imageURL,
+                latestText: nil,
+                sourceIndex: index,
+                issues: []
+            )
+        }
+    }
+
+    private func imageSelector(_ galleryRule: GalleryRule) -> String? {
+        if let selector: String = galleryRule.item?.selector {
+            return selector
+        }
+
+        return galleryRule.imageItem
+    }
+
+    private func issue(
+        severity: RuleDebugIssueSeverity,
+        category: RuleDebugIssueCategory,
+        ruleID: String?,
+        field: RuleDebugField?,
+        message: String
+    ) -> RuleDebugIssue {
+        return RuleDebugIssue(
+            id: self.idGenerator(),
+            severity: severity,
+            category: category,
+            stage: .reader,
+            ruleID: ruleID,
+            field: field,
+            message: message
+        )
+    }
+
+    private func issueCategory(for error: RuleExecutionError) -> RuleDebugIssueCategory {
+        switch error {
+        case .network, .antiBot:
+            return .requestFailed
+        case .selectorEmpty:
+            return .selectorEmpty
+        case .ruleConfiguration:
+            return .ruleConfiguration
+        case .unknown:
+            return .unknown
+        }
     }
 }
 

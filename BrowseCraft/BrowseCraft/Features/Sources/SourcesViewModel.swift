@@ -30,6 +30,8 @@ final class SourcesViewModel: ObservableObject {
     private let refreshSourceUseCase: RefreshSourceUseCase
     private let listDebugUseCase: ListDebugUseCase
     private let searchDebugUseCase: SearchDebugUseCase
+    private let detailDebugUseCase: DetailDebugUseCase
+    private let readerDebugUseCase: ReaderDebugUseCase
     private let sourceSelectionStore: SourceSelectionStore
     private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
     private var failedRefreshAction: FailedRefreshAction?
@@ -48,6 +50,8 @@ final class SourcesViewModel: ObservableObject {
         refreshSourceUseCase: RefreshSourceUseCase,
         listDebugUseCase: ListDebugUseCase,
         searchDebugUseCase: SearchDebugUseCase,
+        detailDebugUseCase: DetailDebugUseCase,
+        readerDebugUseCase: ReaderDebugUseCase,
         sourceSelectionStore: SourceSelectionStore
     ) {
         self.loadBuiltInSourcesUseCase = loadBuiltInSourcesUseCase
@@ -63,6 +67,8 @@ final class SourcesViewModel: ObservableObject {
         self.refreshSourceUseCase = refreshSourceUseCase
         self.listDebugUseCase = listDebugUseCase
         self.searchDebugUseCase = searchDebugUseCase
+        self.detailDebugUseCase = detailDebugUseCase
+        self.readerDebugUseCase = readerDebugUseCase
         self.sourceSelectionStore = sourceSelectionStore
         self.jsonEncoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         self.selectedSourceID = sourceSelectionStore.selectedSourceID
@@ -300,6 +306,32 @@ final class SourcesViewModel: ObservableObject {
             keyword: keyword,
             page: page,
             urlOverride: urlOverride
+        )
+    }
+
+    @MainActor
+    func debugDetailRule(
+        source: Source,
+        detailURL: String,
+        context: ListContext?
+    ) async -> RuleDebugSession {
+        return await self.detailDebugUseCase.execute(
+            source: source,
+            detailURL: detailURL,
+            context: context
+        )
+    }
+
+    @MainActor
+    func debugReaderRule(
+        source: Source,
+        chapterURL: String,
+        context: ListContext?
+    ) async -> RuleDebugSession {
+        return await self.readerDebugUseCase.execute(
+            source: source,
+            chapterURL: chapterURL,
+            context: context
         )
     }
 

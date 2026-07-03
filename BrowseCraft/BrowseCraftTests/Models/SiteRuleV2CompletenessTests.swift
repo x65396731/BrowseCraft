@@ -202,6 +202,47 @@ struct SiteRuleV2CompletenessTests {
         #expect(resolvedRule.galleryEntry?.effectiveRequest?.scope == .page)
     }
 
+    @Test func resolvedDetailAndReaderContextsExposeDebugInputsWithoutRuleTuples() throws {
+        var rule: SiteRule = try JSONDecoder().decode(
+            SiteRule.self,
+            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
+        )
+
+        rule.ruleSets?.detailRules?[0].request = nil
+        rule.ruleSets?.galleryRules?[0].request = RequestConfig(
+            scope: .reader,
+            mergePolicy: .override,
+            method: .post,
+            headers: ["X-Reader-Rule": "1"],
+            body: nil,
+            cookiePolicy: nil,
+            cookiePriority: nil,
+            cookieScope: nil,
+            charset: nil,
+            needsWebView: true,
+            autoScroll: true,
+            imageHeaders: nil,
+            imageRequest: nil
+        )
+
+        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(rule)
+        let detailContext: ResolvedDetailContext = try #require(resolvedRule.primaryDetailContext)
+        let readerContext: ResolvedReaderContext = try #require(resolvedRule.primaryReaderContext)
+
+        #expect(detailContext.pageID == "detail")
+        #expect(detailContext.ruleID == "detail")
+        #expect(detailContext.request?.scope == .site)
+        #expect(detailContext.usesLegacyRule == false)
+        #expect(resolvedRule.detailRule(for: detailContext)?.id == "detail")
+
+        #expect(readerContext.pageID == "reader")
+        #expect(readerContext.ruleID == "reader-gallery")
+        #expect(readerContext.request?.scope == .reader)
+        #expect(readerContext.request?.headers?["X-Reader-Rule"] == "1")
+        #expect(readerContext.usesLegacyRule == false)
+        #expect(resolvedRule.galleryRule(for: readerContext)?.id == "reader-gallery")
+    }
+
     @Test func resolvedRuleFallsBackToLegacyDetailAndGalleryRules() throws {
         var rule: SiteRule = try JSONDecoder().decode(
             SiteRule.self,
@@ -243,6 +284,8 @@ struct SiteRuleV2CompletenessTests {
         )
 
         let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(rule)
+        let detailContext: ResolvedDetailContext = try #require(resolvedRule.primaryDetailContext)
+        let readerContext: ResolvedReaderContext = try #require(resolvedRule.primaryReaderContext)
 
         #expect(resolvedRule.detailEntry?.usesLegacyRule == true)
         #expect(resolvedRule.galleryEntry?.usesLegacyRule == true)
@@ -250,6 +293,10 @@ struct SiteRuleV2CompletenessTests {
         #expect(resolvedRule.primaryGalleryRule?.imageItem == rule.gallery?.imageItem)
         #expect(resolvedRule.primaryDetailRequest?.headers?["X-Legacy-Detail"] == "1")
         #expect(resolvedRule.primaryGalleryRequest?.headers?["X-Legacy-Gallery"] == "1")
+        #expect(detailContext.usesLegacyRule == true)
+        #expect(readerContext.usesLegacyRule == true)
+        #expect(resolvedRule.detailRule(for: detailContext)?.id == rule.detail?.id)
+        #expect(resolvedRule.galleryRule(for: readerContext)?.id == rule.gallery?.id)
     }
 
     @Test func v2DetailPageSelectsPrimaryDetailRule() throws {

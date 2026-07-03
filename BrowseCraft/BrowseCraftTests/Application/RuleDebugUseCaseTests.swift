@@ -172,6 +172,277 @@ struct RuleDebugUseCaseTests {
         #expect(session.issues.isEmpty)
     }
 
+    @Test func detailDebugUseCaseReturnsChapterPreviewSession() async throws {
+        var source: Source = try Self.source()
+        source.rule.ruleSets?.detailRules?[0].request = RequestConfig(
+            scope: .rule,
+            mergePolicy: .override,
+            method: .get,
+            headers: ["X-Detail-Rule": "1"],
+            body: nil,
+            cookiePolicy: nil,
+            cookiePriority: nil,
+            cookieScope: nil,
+            charset: nil,
+            needsWebView: nil,
+            autoScroll: nil,
+            imageHeaders: nil,
+            imageRequest: nil
+        )
+        let loader: RuleDebugRecordingPageContentLoader = RuleDebugRecordingPageContentLoader(
+            result: .success("<html><a href=\"/chapters/1\">Chapter 1</a></html>")
+        )
+        let parser: RuleDebugRecordingRuleParser = RuleDebugRecordingRuleParser(
+            items: [],
+            chapters: [
+                ChapterLink(title: "Chapter 1", url: "https://example.test/chapters/1"),
+                ChapterLink(title: "Chapter 2", url: "https://example.test/chapters/2")
+            ]
+        )
+        let candidateAnalyzer: RuleDebugRecordingCandidateAnalyzer = RuleDebugRecordingCandidateAnalyzer()
+        let useCase: DetailDebugUseCase = DetailDebugUseCase(
+            pageContentLoader: loader,
+            ruleParser: parser,
+            urlResolver: URLResolvingService(),
+            candidateAnalyzer: candidateAnalyzer,
+            now: Self.fixedDate,
+            idGenerator: Self.idGenerator(prefix: "detail-debug")
+        )
+
+        let session: RuleDebugSession = await useCase.execute(
+            source: source,
+            detailURL: "/comics/item-1",
+            context: ListContext(
+                pageId: "home",
+                tabId: "discover",
+                sectionId: nil,
+                listRuleId: "home-list",
+                sectionRole: .main
+            )
+        )
+
+        #expect(session.status == .succeeded)
+        #expect(session.input.stage == .detail)
+        #expect(session.input.pageID == "detail")
+        #expect(session.input.tabID == "discover")
+        #expect(session.input.ruleID == "detail")
+        #expect(session.input.url == "/comics/item-1")
+        #expect(loader.requests.map(\.url.absoluteString) == ["https://example.test/comics/item-1"])
+        #expect(loader.requests.first?.request?.scope == .rule)
+        #expect(loader.requests.first?.request?.headers?["X-Detail-Rule"] == "1")
+        #expect(parser.parsedDetailRuleIDs == ["detail"])
+        #expect(parser.parsedDetailPageURLs == ["https://example.test/comics/item-1"])
+        #expect(parser.parsedDetailContexts.first.flatMap { $0 }?.tabId == "discover")
+        #expect(session.requestLogs.first?.stage == .detail)
+        #expect(session.requestLogs.first?.requestSummary.headerCount == 1)
+        #expect(session.extractionLogs.first?.stage == .detail)
+        #expect(session.extractionLogs.first?.field == .chapter)
+        #expect(session.extractionLogs.first?.outputCount == 2)
+        #expect(session.previewItems.map(\.title) == ["Chapter 1", "Chapter 2"])
+        #expect(session.previewItems.map(\.chapterURL) == [
+            "https://example.test/chapters/1",
+            "https://example.test/chapters/2"
+        ] as [String?])
+        let candidateReport: RuleCandidateReport = try #require(session.candidateReport)
+        #expect(candidateAnalyzer.detailInputs.map(\.ruleID) == ["detail"])
+        #expect(candidateAnalyzer.detailInputs.map(\.pageID) == ["detail"])
+        #expect(candidateAnalyzer.detailInputs.map(\.url) == ["https://example.test/comics/item-1"])
+        #expect(candidateReport.stage == .detail)
+        #expect(candidateReport.candidates.map(\.field) == [.chapterItem])
+        #expect(session.issues.isEmpty)
+    }
+
+    @Test func readerDebugUseCaseReturnsImagePreviewSession() async throws {
+        var source: Source = try Self.source()
+        source.rule.ruleSets?.galleryRules?[0].request = RequestConfig(
+            scope: .reader,
+            mergePolicy: .override,
+            method: .get,
+            headers: ["X-Reader-Rule": "1"],
+            body: nil,
+            cookiePolicy: nil,
+            cookiePriority: nil,
+            cookieScope: nil,
+            charset: nil,
+            needsWebView: true,
+            autoScroll: true,
+            imageHeaders: nil,
+            imageRequest: nil
+        )
+        let loader: RuleDebugRecordingPageContentLoader = RuleDebugRecordingPageContentLoader(
+            result: .success("<html><img src=\"/images/1.jpg\"></html>")
+        )
+        let readerChapter: ReaderChapter = ReaderChapter(
+            sourceId: source.id,
+            comicTitle: "Comic",
+            chapterTitle: "Chapter 1",
+            chapterURL: "https://example.test/chapters/1",
+            catalogURL: nil,
+            previousChapterURL: nil,
+            nextChapterURL: nil,
+            pageImageURLs: [
+                "https://example.test/images/1.jpg",
+                "https://example.test/images/2.jpg"
+            ]
+        )
+        let parser: RuleDebugRecordingRuleParser = RuleDebugRecordingRuleParser(
+            items: [],
+            readerChapter: readerChapter
+        )
+        let candidateAnalyzer: RuleDebugRecordingCandidateAnalyzer = RuleDebugRecordingCandidateAnalyzer()
+        let useCase: ReaderDebugUseCase = ReaderDebugUseCase(
+            pageContentLoader: loader,
+            ruleParser: parser,
+            urlResolver: URLResolvingService(),
+            candidateAnalyzer: candidateAnalyzer,
+            now: Self.fixedDate,
+            idGenerator: Self.idGenerator(prefix: "reader-debug")
+        )
+
+        let session: RuleDebugSession = await useCase.execute(
+            source: source,
+            chapterURL: "/chapters/1",
+            context: ListContext(
+                pageId: "home",
+                tabId: "discover",
+                sectionId: nil,
+                listRuleId: "home-list",
+                sectionRole: .main
+            )
+        )
+
+        #expect(session.status == .succeeded)
+        #expect(session.input.stage == .reader)
+        #expect(session.input.pageID == "reader")
+        #expect(session.input.tabID == "discover")
+        #expect(session.input.ruleID == "reader-gallery")
+        #expect(session.input.url == "/chapters/1")
+        #expect(loader.requests.map(\.url.absoluteString) == ["https://example.test/chapters/1"])
+        #expect(loader.requests.first?.request?.scope == .reader)
+        #expect(loader.requests.first?.request?.headers?["X-Reader-Rule"] == "1")
+        #expect(loader.requests.first?.request?.needsWebView == true)
+        #expect(parser.parsedReaderRuleIDs == ["reader-gallery"])
+        #expect(parser.parsedReaderPageURLs == ["https://example.test/chapters/1"])
+        #expect(parser.parsedReaderContexts.first.flatMap { $0 }?.tabId == "discover")
+        #expect(session.requestLogs.first?.stage == .reader)
+        #expect(session.requestLogs.first?.requestSummary.headerCount == 1)
+        #expect(session.requestLogs.first?.requestSummary.needsWebView == true)
+        #expect(session.requestLogs.first?.requestSummary.autoScroll == true)
+        #expect(session.extractionLogs.first?.stage == .reader)
+        #expect(session.extractionLogs.first?.field == .image)
+        #expect(session.extractionLogs.first?.outputCount == 2)
+        #expect(session.previewItems.map(\.title) == ["Image 1", "Image 2"])
+        #expect(session.previewItems.map(\.imageURL) == [
+            "https://example.test/images/1.jpg",
+            "https://example.test/images/2.jpg"
+        ] as [String?])
+        let candidateReport: RuleCandidateReport = try #require(session.candidateReport)
+        #expect(candidateAnalyzer.readerInputs.map(\.ruleID) == ["reader-gallery"])
+        #expect(candidateAnalyzer.readerInputs.map(\.pageID) == ["reader"])
+        #expect(candidateAnalyzer.readerInputs.map(\.url) == ["https://example.test/chapters/1"])
+        #expect(candidateReport.stage == .reader)
+        #expect(candidateReport.candidates.map(\.field) == [.image])
+        #expect(session.issues.isEmpty)
+    }
+
+    @Test func debugUseCasesPreserveListDetailReaderPreviewHandoff() async throws {
+        let source: Source = try Self.source()
+        let listLoader: RuleDebugRecordingPageContentLoader = RuleDebugRecordingPageContentLoader(
+            result: .success("<html><article>List</article></html>")
+        )
+        let listParser: RuleDebugRecordingRuleParser = RuleDebugRecordingRuleParser(
+            items: [
+                Self.item(id: "item-1", title: "First Item")
+            ]
+        )
+        let listUseCase: ListDebugUseCase = ListDebugUseCase(
+            pageContentLoader: listLoader,
+            ruleParser: listParser,
+            urlResolver: URLResolvingService(),
+            now: Self.fixedDate,
+            idGenerator: Self.idGenerator(prefix: "handoff-list")
+        )
+
+        let listSession: RuleDebugSession = await listUseCase.execute(
+            source: source,
+            listTab: source.rule.availableListTabs.first,
+            page: 1
+        )
+        let detailURL: String = try #require(listSession.previewItems.first?.detailURL)
+
+        let detailLoader: RuleDebugRecordingPageContentLoader = RuleDebugRecordingPageContentLoader(
+            result: .success("<html><a href=\"/chapters/1\">Chapter 1</a></html>")
+        )
+        let detailParser: RuleDebugRecordingRuleParser = RuleDebugRecordingRuleParser(
+            items: [],
+            chapters: [
+                ChapterLink(title: "Chapter 1", url: "https://example.test/chapters/1")
+            ]
+        )
+        let detailUseCase: DetailDebugUseCase = DetailDebugUseCase(
+            pageContentLoader: detailLoader,
+            ruleParser: detailParser,
+            urlResolver: URLResolvingService(),
+            now: Self.fixedDate,
+            idGenerator: Self.idGenerator(prefix: "handoff-detail")
+        )
+
+        let detailSession: RuleDebugSession = await detailUseCase.execute(
+            source: source,
+            detailURL: detailURL,
+            context: listSession.input.context
+        )
+        let chapterURL: String = try #require(detailSession.previewItems.first?.chapterURL)
+
+        let readerLoader: RuleDebugRecordingPageContentLoader = RuleDebugRecordingPageContentLoader(
+            result: .success("<html><img src=\"/images/1.jpg\"></html>")
+        )
+        let readerParser: RuleDebugRecordingRuleParser = RuleDebugRecordingRuleParser(
+            items: [],
+            readerChapter: ReaderChapter(
+                sourceId: source.id,
+                comicTitle: "Comic",
+                chapterTitle: "Chapter 1",
+                chapterURL: chapterURL,
+                catalogURL: nil,
+                previousChapterURL: nil,
+                nextChapterURL: nil,
+                pageImageURLs: [
+                    "https://example.test/images/1.jpg"
+                ]
+            )
+        )
+        let readerUseCase: ReaderDebugUseCase = ReaderDebugUseCase(
+            pageContentLoader: readerLoader,
+            ruleParser: readerParser,
+            urlResolver: URLResolvingService(),
+            now: Self.fixedDate,
+            idGenerator: Self.idGenerator(prefix: "handoff-reader")
+        )
+
+        let readerSession: RuleDebugSession = await readerUseCase.execute(
+            source: source,
+            chapterURL: chapterURL,
+            context: detailSession.input.context
+        )
+
+        #expect(listSession.status == .succeeded)
+        #expect(detailSession.status == .succeeded)
+        #expect(readerSession.status == .succeeded)
+        #expect(listSession.input.context?.tabId == "discover")
+        #expect(detailSession.input.context?.tabId == "discover")
+        #expect(readerSession.input.context?.tabId == "discover")
+        #expect(detailLoader.requests.map(\.url.absoluteString) == ["https://example.test/comics/item-1"])
+        #expect(readerLoader.requests.map(\.url.absoluteString) == ["https://example.test/chapters/1"])
+        #expect(detailParser.parsedDetailContexts.first.flatMap { $0 }?.listRuleId == "home-list")
+        #expect(readerParser.parsedReaderContexts.first.flatMap { $0 }?.listRuleId == "home-list")
+        #expect(detailSession.previewItems.map(\.chapterURL) == ["https://example.test/chapters/1"] as [String?])
+        #expect(readerSession.previewItems.map(\.imageURL) == ["https://example.test/images/1.jpg"] as [String?])
+        #expect(listSession.issues.isEmpty)
+        #expect(detailSession.issues.isEmpty)
+        #expect(readerSession.issues.isEmpty)
+    }
+
     private static func source() throws -> Source {
         var rule: SiteRule = try JSONDecoder().decode(
             SiteRule.self,
@@ -368,13 +639,23 @@ private final class RuleDebugRecordingPageContentLoader: PageContentLoader {
 
 private final class RuleDebugRecordingRuleParser: RuleParsingService, RulePaginationParsingService {
     let items: [ContentItem]
+    let chapters: [ChapterLink]
+    let readerChapter: ReaderChapter?
     private(set) var parsedListRuleIDs: [String?] = []
     private(set) var parsedSearchRuleIDs: [String?] = []
     private(set) var parsedSearchContexts: [ListContext?] = []
+    private(set) var parsedDetailRuleIDs: [String?] = []
+    private(set) var parsedDetailPageURLs: [String] = []
+    private(set) var parsedDetailContexts: [ListContext?] = []
+    private(set) var parsedReaderRuleIDs: [String?] = []
+    private(set) var parsedReaderPageURLs: [String] = []
+    private(set) var parsedReaderContexts: [ListContext?] = []
     var nextPageURL: String?
 
-    init(items: [ContentItem]) {
+    init(items: [ContentItem], chapters: [ChapterLink] = [], readerChapter: ReaderChapter? = nil) {
         self.items = items
+        self.chapters = chapters
+        self.readerChapter = readerChapter
     }
 
     func parseList(html: String, source: Source) throws -> [ContentItem] {
@@ -415,8 +696,45 @@ private final class RuleDebugRecordingRuleParser: RuleParsingService, RulePagina
         return []
     }
 
+    func parseDetailChapters(
+        html: String,
+        source: Source,
+        detailRule: DetailRule,
+        pageURL: String,
+        context: ListContext?
+    ) throws -> [ChapterLink] {
+        self.parsedDetailRuleIDs.append(detailRule.id)
+        self.parsedDetailPageURLs.append(pageURL)
+        self.parsedDetailContexts.append(context)
+
+        return self.chapters
+    }
+
     func parseReader(html: String, source: Source, pageURL: String) throws -> ReaderChapter {
         return ReaderChapter(
+            sourceId: source.id,
+            comicTitle: nil,
+            chapterTitle: nil,
+            chapterURL: pageURL,
+            catalogURL: nil,
+            previousChapterURL: nil,
+            nextChapterURL: nil,
+            pageImageURLs: []
+        )
+    }
+
+    func parseReader(
+        html: String,
+        source: Source,
+        galleryRule: GalleryRule,
+        pageURL: String,
+        context: ListContext?
+    ) throws -> ReaderChapter {
+        self.parsedReaderRuleIDs.append(galleryRule.id)
+        self.parsedReaderPageURLs.append(pageURL)
+        self.parsedReaderContexts.append(context)
+
+        return self.readerChapter ?? ReaderChapter(
             sourceId: source.id,
             comicTitle: nil,
             chapterTitle: nil,
@@ -444,7 +762,21 @@ private final class RuleDebugRecordingCandidateAnalyzer: RuleCandidateAnalyzingS
         var urlTemplate: String?
     }
 
+    struct DetailInput: Hashable {
+        var ruleID: String?
+        var pageID: String?
+        var url: String?
+    }
+
+    struct ReaderInput: Hashable {
+        var ruleID: String?
+        var pageID: String?
+        var url: String?
+    }
+
     private(set) var listInputs: [ListInput] = []
+    private(set) var detailInputs: [DetailInput] = []
+    private(set) var readerInputs: [ReaderInput] = []
     private(set) var paginationInputs: [PaginationInput] = []
 
     func analyzeList(
@@ -496,7 +828,39 @@ private final class RuleDebugRecordingCandidateAnalyzer: RuleCandidateAnalyzingS
         pageID: String?,
         url: String?
     ) throws -> RuleCandidateReport {
-        return self.emptyReport(source: source, stage: .detail, pageID: pageID, ruleID: detailRule?.id, url: url)
+        self.detailInputs.append(
+            DetailInput(
+                ruleID: detailRule?.id,
+                pageID: pageID,
+                url: url
+            )
+        )
+
+        return RuleCandidateReport(
+            id: "detail-report",
+            sourceID: source.id,
+            sourceName: source.name,
+            stage: .detail,
+            pageID: pageID,
+            ruleID: detailRule?.id,
+            url: url,
+            generatedAt: Date(timeIntervalSince1970: 7_600),
+            candidates: [
+                self.candidate(
+                    id: "candidate-chapter-item",
+                    field: .chapterItem,
+                    stage: .detail,
+                    selector: "a.chapter",
+                    source: .repeatedDOMStructure
+                )
+            ],
+            summary: RuleCandidateSummary(
+                candidateCount: 1,
+                highConfidenceCount: 1,
+                warningCount: 0,
+                coveredFields: [.chapterItem]
+            )
+        )
     }
 
     func analyzeReader(
@@ -506,7 +870,39 @@ private final class RuleDebugRecordingCandidateAnalyzer: RuleCandidateAnalyzingS
         pageID: String?,
         url: String?
     ) throws -> RuleCandidateReport {
-        return self.emptyReport(source: source, stage: .reader, pageID: pageID, ruleID: galleryRule?.id, url: url)
+        self.readerInputs.append(
+            ReaderInput(
+                ruleID: galleryRule?.id,
+                pageID: pageID,
+                url: url
+            )
+        )
+
+        return RuleCandidateReport(
+            id: "reader-report",
+            sourceID: source.id,
+            sourceName: source.name,
+            stage: .reader,
+            pageID: pageID,
+            ruleID: galleryRule?.id,
+            url: url,
+            generatedAt: Date(timeIntervalSince1970: 7_600),
+            candidates: [
+                self.candidate(
+                    id: "candidate-image",
+                    field: .image,
+                    stage: .reader,
+                    selector: "main img",
+                    source: .attributePattern
+                )
+            ],
+            summary: RuleCandidateSummary(
+                candidateCount: 1,
+                highConfidenceCount: 1,
+                warningCount: 0,
+                coveredFields: [.image]
+            )
+        )
     }
 
     func analyzePagination(

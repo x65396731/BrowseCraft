@@ -21,15 +21,7 @@ final class ResolvedSiteRule {
             return nil
         }
 
-        if detailEntry.usesLegacyRule {
-            return self.raw.detail
-        }
-
-        guard let ruleIndex: Int = detailEntry.ruleIndex else {
-            return nil
-        }
-
-        return self.raw.ruleSets?.detailRules?[ruleIndex]
+        return self.detailRule(for: detailEntry)
     }
 
     var primaryGalleryRule: GalleryRule? {
@@ -37,15 +29,7 @@ final class ResolvedSiteRule {
             return nil
         }
 
-        if galleryEntry.usesLegacyRule {
-            return self.raw.gallery
-        }
-
-        guard let ruleIndex: Int = galleryEntry.ruleIndex else {
-            return nil
-        }
-
-        return self.raw.ruleSets?.galleryRules?[ruleIndex]
+        return self.galleryRule(for: galleryEntry)
     }
 
     var primaryDetailRequest: RequestConfig? {
@@ -56,8 +40,58 @@ final class ResolvedSiteRule {
         return self.galleryEntry?.effectiveRequest
     }
 
+    var primaryDetailContext: ResolvedDetailContext? {
+        guard let detailEntry: ResolvedDetailEntry = self.detailEntry,
+              self.detailRule(for: detailEntry) != nil else {
+            return nil
+        }
+
+        return ResolvedDetailContext(entry: detailEntry)
+    }
+
+    var primaryReaderContext: ResolvedReaderContext? {
+        guard let galleryEntry: ResolvedGalleryEntry = self.galleryEntry,
+              self.galleryRule(for: galleryEntry) != nil else {
+            return nil
+        }
+
+        return ResolvedReaderContext(entry: galleryEntry)
+    }
+
     var treatsDetailURLAsChapter: Bool {
         return self.primaryDetailRule?.treatDetailURLAsChapter == true
+    }
+
+    func detailRule(for context: ResolvedDetailContext) -> DetailRule? {
+        return self.detailRule(for: context.entry)
+    }
+
+    func galleryRule(for context: ResolvedReaderContext) -> GalleryRule? {
+        return self.galleryRule(for: context.entry)
+    }
+
+    private func detailRule(for entry: ResolvedDetailEntry) -> DetailRule? {
+        if entry.usesLegacyRule {
+            return self.raw.detail
+        }
+
+        guard let ruleIndex: Int = entry.ruleIndex else {
+            return nil
+        }
+
+        return self.raw.ruleSets?.detailRules?[ruleIndex]
+    }
+
+    private func galleryRule(for entry: ResolvedGalleryEntry) -> GalleryRule? {
+        if entry.usesLegacyRule {
+            return self.raw.gallery
+        }
+
+        guard let ruleIndex: Int = entry.ruleIndex else {
+            return nil
+        }
+
+        return self.raw.ruleSets?.galleryRules?[ruleIndex]
     }
 
     private func resolveDetailEntry() -> ResolvedDetailEntry? {
@@ -207,6 +241,48 @@ struct ResolvedGalleryEntry: Hashable {
     let pageRequest: RequestConfig?
     let effectiveRequest: RequestConfig?
     let usesLegacyRule: Bool
+}
+
+/// 中文注释：Detail Debug 只持有 resolved entry，不复制 DetailRule；实际规则由 ResolvedSiteRule 按索引读取。
+struct ResolvedDetailContext: Hashable {
+    let entry: ResolvedDetailEntry
+
+    var pageID: String? {
+        return self.entry.pageID
+    }
+
+    var ruleID: String? {
+        return self.entry.ruleID
+    }
+
+    var request: RequestConfig? {
+        return self.entry.effectiveRequest
+    }
+
+    var usesLegacyRule: Bool {
+        return self.entry.usesLegacyRule
+    }
+}
+
+/// 中文注释：Reader Debug 只持有 resolved entry，不复制 GalleryRule；实际规则由 ResolvedSiteRule 按索引读取。
+struct ResolvedReaderContext: Hashable {
+    let entry: ResolvedGalleryEntry
+
+    var pageID: String? {
+        return self.entry.pageID
+    }
+
+    var ruleID: String? {
+        return self.entry.ruleID
+    }
+
+    var request: RequestConfig? {
+        return self.entry.effectiveRequest
+    }
+
+    var usesLegacyRule: Bool {
+        return self.entry.usesLegacyRule
+    }
 }
 
 /// 中文注释：RuleResolver 负责创建运行时 graph，避免业务层反复拼接 page + rule tuple。

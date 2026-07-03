@@ -83,6 +83,18 @@ final class AppContainer {
             urlResolver: self.urlResolver,
             candidateAnalyzer: ruleCandidateAnalyzer
         )
+        let detailDebugUseCase: DetailDebugUseCase = DetailDebugUseCase(
+            pageContentLoader: self.pageContentLoader,
+            ruleParser: self.ruleParser,
+            urlResolver: self.urlResolver,
+            candidateAnalyzer: ruleCandidateAnalyzer
+        )
+        let readerDebugUseCase: ReaderDebugUseCase = ReaderDebugUseCase(
+            pageContentLoader: self.pageContentLoader,
+            ruleParser: self.ruleParser,
+            urlResolver: self.urlResolver,
+            candidateAnalyzer: ruleCandidateAnalyzer
+        )
 
         return SourcesViewModel(
             loadBuiltInSourcesUseCase: loadBuiltInSourcesUseCase,
@@ -96,6 +108,8 @@ final class AppContainer {
             refreshSourceUseCase: refreshSourceUseCase,
             listDebugUseCase: listDebugUseCase,
             searchDebugUseCase: searchDebugUseCase,
+            detailDebugUseCase: detailDebugUseCase,
+            readerDebugUseCase: readerDebugUseCase,
             sourceSelectionStore: self.sourceSelectionStore
         )
     }

@@ -148,7 +148,9 @@ struct RuleDebugPreviewItem: Identifiable, Hashable {
     var id: String
     var title: String
     var detailURL: String?
+    var chapterURL: String?
     var coverURL: String?
+    var imageURL: String?
     var latestText: String?
     var sourceIndex: Int
     var issues: [RuleDebugIssue]

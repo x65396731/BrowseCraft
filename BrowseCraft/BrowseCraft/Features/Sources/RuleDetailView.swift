@@ -21,6 +21,8 @@ struct RuleDetailView: View {
     @State private var isShowingDebugSheet: Bool = false
     @State private var isRunningListDebug: Bool = false
     @State private var isRunningSearchDebug: Bool = false
+    @State private var isRunningDetailDebug: Bool = false
+    @State private var isRunningReaderDebug: Bool = false
     @State private var debugKeywordText: String = ""
     @State private var debugPageText: String = "1"
     @State private var debugURLOverride: String = ""
@@ -167,7 +169,7 @@ struct RuleDetailView: View {
             if self.isRunningDebug {
                 HStack {
                     ProgressView()
-                    Text(self.isRunningSearchDebug ? "Debugging search rule..." : "Debugging list rule...")
+                    Text(self.debugProgressText)
                         .foregroundColor(.secondary)
                 }
             }
@@ -387,6 +389,20 @@ struct RuleDetailView: View {
                 session: self.debugSession,
                 applyCandidate: { candidate in
                     self.applyCandidateToDraft(candidate)
+                },
+                debugDetail: { item, context in
+                    guard let source: Source = self.viewModel.source(id: self.sourceID) else {
+                        return
+                    }
+
+                    self.runDetailDebug(source: source, item: item, context: context)
+                },
+                debugReader: { item, context in
+                    guard let source: Source = self.viewModel.source(id: self.sourceID) else {
+                        return
+                    }
+
+                    self.runReaderDebug(source: source, item: item, context: context)
                 }
             )
                 .navigationTitle(self.debugSheetTitle)
@@ -569,6 +585,62 @@ struct RuleDetailView: View {
                 self.didCopyDebugSummary = false
                 self.didApplyCandidateDraft = false
                 self.isRunningSearchDebug = false
+                self.isShowingDebugSheet = true
+            }
+        }
+    }
+
+    private func runDetailDebug(source: Source, item: RuleDebugPreviewItem, context: ListContext?) {
+        if self.isRunningDebug {
+            return
+        }
+
+        guard let detailURL: String = self.nonEmpty(item.detailURL) else {
+            return
+        }
+
+        self.isRunningDetailDebug = true
+
+        Task {
+            let session: RuleDebugSession = await self.viewModel.debugDetailRule(
+                source: source,
+                detailURL: detailURL,
+                context: context
+            )
+
+            await MainActor.run {
+                self.debugSession = session
+                self.didCopyDebugSummary = false
+                self.didApplyCandidateDraft = false
+                self.isRunningDetailDebug = false
+                self.isShowingDebugSheet = true
+            }
+        }
+    }
+
+    private func runReaderDebug(source: Source, item: RuleDebugPreviewItem, context: ListContext?) {
+        if self.isRunningDebug {
+            return
+        }
+
+        guard let chapterURL: String = self.nonEmpty(item.chapterURL) else {
+            return
+        }
+
+        self.isRunningReaderDebug = true
+
+        Task {
+            let session: RuleDebugSession = await self.viewModel.debugReaderRule(
+                source: source,
+                chapterURL: chapterURL,
+                context: context
+            )
+
+            await MainActor.run {
+                self.debugSession = session
+                self.didCopyDebugSummary = false
+                self.didApplyCandidateDraft = false
+                self.isRunningReaderDebug = false
                 self.isShowingDebugSheet = true
             }
         }
@@ -903,7 +975,26 @@ struct RuleDetailView: View {
     }
 
     private var isRunningDebug: Bool {
-        return self.isRunningListDebug || self.isRunningSearchDebug
+        return self.isRunningListDebug ||
+            self.isRunningSearchDebug ||
+            self.isRunningDetailDebug ||
+            self.isRunningReaderDebug
+    }
+
+    private var debugProgressText: String {
+        if self.isRunningSearchDebug {
+            return "Debugging search rule..."
+        }
+
+        if self.isRunningDetailDebug {
+            return "Debugging detail rule..."
+        }
+
+        if self.isRunningReaderDebug {
+            return "Debugging reader rule..."
+        }
+
+        return "Debugging list rule..."
     }
 
     private var debugSheetTitle: String {
@@ -1072,6 +1163,8 @@ struct RuleDetailView: View {
 private struct RuleDebugSessionView: View {
     let session: RuleDebugSession?
     let applyCandidate: (RuleCandidate) -> Void
+    let debugDetail: (RuleDebugPreviewItem, ListContext?) -> Void
+    let debugReader: (RuleDebugPreviewItem, ListContext?) -> Void
 
     var body: some View {
         Form {
@@ -1081,7 +1174,7 @@ private struct RuleDebugSessionView: View {
                 self.extractionSection(session.extractionLogs)
                 self.paginationSection(session.pagination)
                 self.candidateSection(session.candidateReport)
-                self.previewSection(session.previewItems)
+                self.previewSection(session: session)
             } else {
                 EmptyStateView(
                     systemImage: "ladybug",
@@ -1275,8 +1368,9 @@ private struct RuleDebugSessionView: View {
         }
     }
 
-    private func previewSection(_ items: [RuleDebugPreviewItem]) -> some View {
+    private func previewSection(session: RuleDebugSession) -> some View {
         Section("Preview") {
+            let items: [RuleDebugPreviewItem] = session.previewItems
             if items.isEmpty {
                 self.secondaryText("No preview items.")
             } else {
@@ -1289,6 +1383,14 @@ private struct RuleDebugSessionView: View {
                             self.keyValueLine("Detail", detailURL)
                         }
 
+                        if let chapterURL: String = item.chapterURL {
+                            self.keyValueLine("Chapter", chapterURL)
+                        }
+
+                        if let imageURL: String = item.imageURL {
+                            self.keyValueLine("Image", imageURL)
+                        }
+
                         if let coverURL: String = item.coverURL {
                             self.keyValueLine("Cover", coverURL)
                         }
@@ -1296,10 +1398,49 @@ private struct RuleDebugSessionView: View {
                         if let latestText: String = item.latestText {
                             self.keyValueLine("Latest", latestText)
                         }
+
+                        if self.canDebugDetail(item: item, session: session) {
+                            Button {
+                                self.debugDetail(item, session.input.context)
+                            } label: {
+                                Label("Debug Detail", systemImage: "doc.text.magnifyingglass")
+                            }
+                            .font(.caption)
+                        }
+
+                        if self.canDebugReader(item: item, session: session) {
+                            Button {
+                                self.debugReader(item, session.input.context)
+                            } label: {
+                                Label("Debug Reader", systemImage: "photo.on.rectangle.angled")
+                            }
+                            .font(.caption)
+                        }
                     }
                 }
             }
         }
+    }
+
+    private func canDebugDetail(item: RuleDebugPreviewItem, session: RuleDebugSession) -> Bool {
+        guard item.detailURL != nil else {
+            return false
+        }
+
+        switch session.input.stage {
+        case .list, .search:
+            return true
+        case .detail, .reader:
+            return false
+        }
+    }
+
+    private func canDebugReader(item: RuleDebugPreviewItem, session: RuleDebugSession) -> Bool {
+        guard item.chapterURL != nil else {
+            return false
+        }
+
+        return session.input.stage == .detail
     }
 
     private func keyValueLine(_ key: String, _ value: String) -> some View {
