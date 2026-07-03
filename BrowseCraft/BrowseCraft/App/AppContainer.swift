@@ -58,6 +58,12 @@ final class AppContainer {
         let duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase = DuplicateSourceRuleUseCase(
             sourceRepository: self.sourceRepository
         )
+        let exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase = ExportSourceRulePackageUseCase(
+            sourceRepository: self.sourceRepository
+        )
+        let importSourceRulePackageUseCase: ImportSourceRulePackageUseCase = ImportSourceRulePackageUseCase(
+            sourceRepository: self.sourceRepository
+        )
         let refreshSourceUseCase: RefreshSourceUseCase = RefreshSourceUseCase(
             pageContentLoader: self.pageContentLoader,
             ruleParser: self.ruleParser,
@@ -72,6 +78,8 @@ final class AppContainer {
             deleteSourceUseCase: deleteSourceUseCase,
             updateSourceRuleUseCase: updateSourceRuleUseCase,
             duplicateSourceRuleUseCase: duplicateSourceRuleUseCase,
+            exportSourceRulePackageUseCase: exportSourceRulePackageUseCase,
+            importSourceRulePackageUseCase: importSourceRulePackageUseCase,
             refreshSourceUseCase: refreshSourceUseCase,
             sourceSelectionStore: self.sourceSelectionStore
         )

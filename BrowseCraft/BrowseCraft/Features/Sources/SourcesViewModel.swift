@@ -23,6 +23,8 @@ final class SourcesViewModel: ObservableObject {
     private let deleteSourceUseCase: DeleteSourceUseCase
     private let updateSourceRuleUseCase: UpdateSourceRuleUseCase
     private let duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase
+    private let exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase
+    private let importSourceRulePackageUseCase: ImportSourceRulePackageUseCase
     private let ruleValidator: RuleValidator
     private let jsonEncoder: JSONEncoder
     private let refreshSourceUseCase: RefreshSourceUseCase
@@ -37,6 +39,8 @@ final class SourcesViewModel: ObservableObject {
         deleteSourceUseCase: DeleteSourceUseCase,
         updateSourceRuleUseCase: UpdateSourceRuleUseCase,
         duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase,
+        exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase,
+        importSourceRulePackageUseCase: ImportSourceRulePackageUseCase,
         ruleValidator: RuleValidator = RuleValidator(),
         jsonEncoder: JSONEncoder = JSONEncoder(),
         refreshSourceUseCase: RefreshSourceUseCase,
@@ -48,6 +52,8 @@ final class SourcesViewModel: ObservableObject {
         self.deleteSourceUseCase = deleteSourceUseCase
         self.updateSourceRuleUseCase = updateSourceRuleUseCase
         self.duplicateSourceRuleUseCase = duplicateSourceRuleUseCase
+        self.exportSourceRulePackageUseCase = exportSourceRulePackageUseCase
+        self.importSourceRulePackageUseCase = importSourceRulePackageUseCase
         self.ruleValidator = ruleValidator
         self.jsonEncoder = jsonEncoder
         self.refreshSourceUseCase = refreshSourceUseCase
@@ -238,8 +244,35 @@ final class SourcesViewModel: ObservableObject {
         }
     }
 
+    @MainActor
+    func exportRulePackage(sourceID: String) -> RulePackageExport? {
+        do {
+            return try self.exportSourceRulePackageUseCase.execute(sourceID: sourceID)
+        } catch {
+            self.errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    @MainActor
+    func importRulePackage(packageJSON: String) -> Source? {
+        do {
+            let importedSource: Source = try self.importSourceRulePackageUseCase.execute(packageJSON: packageJSON)
+            self.load()
+            self.selectSource(id: importedSource.id)
+            return importedSource
+        } catch {
+            self.errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
     var selectedSource: Source? {
         return self.source(id: self.selectedSourceID)
+    }
+
+    var canRetryFailedRefresh: Bool {
+        return self.failedRefreshAction != nil
     }
 
     func source(id: String?) -> Source? {

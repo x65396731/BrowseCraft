@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // 中文注释：RuleDetailView.swift 是 P2-1 的规则详情入口，用于查看、校验和编辑用户规则。
 
@@ -13,6 +14,9 @@ struct RuleDetailView: View {
     @State private var validationResult: RuleValidationResult = RuleValidationResult(rule: nil, issues: [])
     @State private var isShowingJSONEditor: Bool = false
     @State private var isShowingBasicEditor: Bool = false
+    @State private var exportedPackage: RulePackageExport?
+    @State private var isShowingExportSheet: Bool = false
+    @State private var didCopyExport: Bool = false
 
     var body: some View {
         Group {
@@ -36,6 +40,9 @@ struct RuleDetailView: View {
         .sheet(isPresented: self.$isShowingBasicEditor) {
             self.basicEditorSheet()
         }
+        .sheet(isPresented: self.$isShowingExportSheet) {
+            self.exportSheet()
+        }
     }
 
     private func content(source: Source) -> some View {
@@ -52,6 +59,7 @@ struct RuleDetailView: View {
             self.ruleSetsSection(rule: source.rule)
             self.requestSection(rule: source.rule)
             self.jsonPreviewSection(rule: source.rule)
+            self.rulePackageSection(source: source)
 
             Section {
                 if source.isBuiltIn {
@@ -85,6 +93,19 @@ struct RuleDetailView: View {
                     )
                 }
             }
+        }
+    }
+
+    private func rulePackageSection(source: Source) -> some View {
+        Section("Rule Package") {
+            Button(
+                action: {
+                    self.exportRulePackage(sourceID: source.id)
+                },
+                label: {
+                    Label("Export Rule Package", systemImage: "square.and.arrow.up")
+                }
+            )
         }
     }
 
@@ -243,6 +264,56 @@ struct RuleDetailView: View {
         }
     }
 
+    private func exportSheet() -> some View {
+        NavigationView {
+            Form {
+                if let exportedPackage: RulePackageExport = self.exportedPackage {
+                    Section("File") {
+                        LabeledContent("Name", value: exportedPackage.suggestedFileName)
+                        ShareLink(item: exportedPackage.packageJSON) {
+                            Label("Share Package JSON", systemImage: "square.and.arrow.up")
+                        }
+                    }
+
+                    Section("Package JSON") {
+                        Text(exportedPackage.packageJSON)
+                            .font(.system(.caption, design: .monospaced))
+                            .textSelection(.enabled)
+                    }
+                } else {
+                    EmptyStateView(
+                        systemImage: "exclamationmark.triangle",
+                        title: "Export Failed",
+                        message: "The rule package could not be generated."
+                    )
+                }
+            }
+            .navigationTitle("Export Rule")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") {
+                        self.isShowingExportSheet = false
+                    }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(
+                        action: {
+                            self.copyExportedPackage()
+                        },
+                        label: {
+                            Label(
+                                self.didCopyExport ? "Copied" : "Copy",
+                                systemImage: self.didCopyExport ? "checkmark" : "doc.on.doc"
+                            )
+                        }
+                    )
+                    .disabled(self.exportedPackage == nil)
+                }
+            }
+        }
+    }
+
     private func resetDraftIfNeeded() {
         if self.draftRuleJSON.isEmpty, let source: Source = self.viewModel.source(id: self.sourceID) {
             self.resetDraft(source: source)
@@ -322,6 +393,26 @@ struct RuleDetailView: View {
             ruleJSON: ruleJSON,
             expectedUpdatedAt: self.draftSourceUpdatedAt
         )
+    }
+
+    private func exportRulePackage(sourceID: String) {
+        self.didCopyExport = false
+
+        guard let exportedPackage: RulePackageExport = self.viewModel.exportRulePackage(sourceID: sourceID) else {
+            return
+        }
+
+        self.exportedPackage = exportedPackage
+        self.isShowingExportSheet = true
+    }
+
+    private func copyExportedPackage() {
+        guard let exportedPackage: RulePackageExport = self.exportedPackage else {
+            return
+        }
+
+        UIPasteboard.general.string = exportedPackage.packageJSON
+        self.didCopyExport = true
     }
 
     private func ruleSetLine(_ title: String, ids: [String]) -> some View {

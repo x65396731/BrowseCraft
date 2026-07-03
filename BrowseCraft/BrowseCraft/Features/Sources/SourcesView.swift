@@ -6,6 +6,7 @@ import SwiftUI
 struct SourcesView: View {
     @ObservedObject var viewModel: SourcesViewModel
     @State private var isShowingAddSourceView: Bool = false
+    @State private var isShowingImportRulePackageView: Bool = false
 
     var body: some View {
         NavigationView {
@@ -62,7 +63,7 @@ struct SourcesView: View {
             )
             .navigationTitle("Sources")
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItemGroup(placement: .navigationBarLeading) {
                     Button(
                         action: {
                             self.isShowingAddSourceView = true
@@ -72,6 +73,16 @@ struct SourcesView: View {
                         }
                     )
                     .accessibilityLabel("Add Source")
+
+                    Button(
+                        action: {
+                            self.isShowingImportRulePackageView = true
+                        },
+                        label: {
+                            Image(systemName: "square.and.arrow.down")
+                        }
+                    )
+                    .accessibilityLabel("Import Rule Package")
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -99,27 +110,47 @@ struct SourcesView: View {
             .sheet(isPresented: self.$isShowingAddSourceView) {
                 AddSourceView(viewModel: self.viewModel)
             }
+            .sheet(isPresented: self.$isShowingImportRulePackageView) {
+                ImportRulePackageView(viewModel: self.viewModel)
+            }
             .alert(isPresented: self.errorAlertBinding) {
-                Alert(
-                    title: Text("Sources"),
-                    message: Text(self.viewModel.errorMessage ?? ""),
-                    primaryButton: .default(
-                        Text("Retry"),
-                        action: {
-                            Task {
-                                await self.viewModel.retryFailedRefresh()
-                            }
-                        }
-                    ),
-                    secondaryButton: .cancel(
-                        Text("Cancel"),
-                        action: {
-                            self.viewModel.clearError()
-                        }
-                    )
-                )
+                self.errorAlert()
             }
         }
+    }
+
+    private func errorAlert() -> Alert {
+        if self.viewModel.canRetryFailedRefresh {
+            return Alert(
+                title: Text("Sources"),
+                message: Text(self.viewModel.errorMessage ?? ""),
+                primaryButton: .default(
+                    Text("Retry"),
+                    action: {
+                        Task {
+                            await self.viewModel.retryFailedRefresh()
+                        }
+                    }
+                ),
+                secondaryButton: .cancel(
+                    Text("Cancel"),
+                    action: {
+                        self.viewModel.clearError()
+                    }
+                )
+            )
+        }
+
+        return Alert(
+            title: Text("Sources"),
+            message: Text(self.viewModel.errorMessage ?? ""),
+            dismissButton: .default(
+                Text("OK"),
+                action: {
+                    self.viewModel.clearError()
+                }
+            )
+        )
     }
 
     private var errorAlertBinding: Binding<Bool> {
@@ -133,5 +164,43 @@ struct SourcesView: View {
                 }
             }
         )
+    }
+}
+
+private struct ImportRulePackageView: View {
+    @ObservedObject var viewModel: SourcesViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var packageJSON: String = ""
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("Rule Package JSON") {
+                    TextEditor(text: self.$packageJSON)
+                        .font(.system(.caption, design: .monospaced))
+                        .frame(minHeight: 260)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                }
+            }
+            .navigationTitle("Import Rule")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        self.dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Import") {
+                        if self.viewModel.importRulePackage(packageJSON: self.packageJSON) != nil {
+                            self.dismiss()
+                        }
+                    }
+                    .disabled(self.packageJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
     }
 }
