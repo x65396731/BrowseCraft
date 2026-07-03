@@ -177,6 +177,31 @@ struct SiteRuleV2CompletenessTests {
         #expect(rule.primaryListRequest?.scope == .site)
     }
 
+    @Test func resolvedDetailAndGalleryEntriesKeepPageRulePairing() throws {
+        var rule: SiteRule = try JSONDecoder().decode(
+            SiteRule.self,
+            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
+        )
+
+        // 中文注释：ResolvedSiteRule 应一次性固定 page 与 rule 的绑定，避免 request 和 rule 来自不同入口。
+        rule.ruleSets?.detailRules?[0].request = nil
+        rule.ruleSets?.galleryRules?[0].request = nil
+        let pageRequest: RequestConfig? = rule.pages?[0].request
+        rule.pages?[1].request = pageRequest
+        rule.pages?[2].request = pageRequest
+
+        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(rule)
+
+        #expect(resolvedRule.detailEntry?.pageID == "detail")
+        #expect(resolvedRule.detailEntry?.ruleID == "detail")
+        #expect(resolvedRule.primaryDetailRule?.id == "detail")
+        #expect(resolvedRule.detailEntry?.effectiveRequest?.scope == .page)
+        #expect(resolvedRule.galleryEntry?.pageID == "reader")
+        #expect(resolvedRule.galleryEntry?.ruleID == "reader-gallery")
+        #expect(resolvedRule.primaryGalleryRule?.id == "reader-gallery")
+        #expect(resolvedRule.galleryEntry?.effectiveRequest?.scope == .page)
+    }
+
     @Test func v2DetailPageSelectsPrimaryDetailRule() throws {
         let rule: SiteRule = try JSONDecoder().decode(
             SiteRule.self,

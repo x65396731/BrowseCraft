@@ -21,6 +21,10 @@ final class SourcesViewModel: ObservableObject {
     private let loadSourcesUseCase: LoadSourcesUseCase
     private let addSourceUseCase: AddSourceUseCase
     private let deleteSourceUseCase: DeleteSourceUseCase
+    private let updateSourceRuleUseCase: UpdateSourceRuleUseCase
+    private let duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase
+    private let ruleValidator: RuleValidator
+    private let jsonEncoder: JSONEncoder
     private let refreshSourceUseCase: RefreshSourceUseCase
     private let sourceSelectionStore: SourceSelectionStore
     private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
@@ -31,6 +35,10 @@ final class SourcesViewModel: ObservableObject {
         loadSourcesUseCase: LoadSourcesUseCase,
         addSourceUseCase: AddSourceUseCase,
         deleteSourceUseCase: DeleteSourceUseCase,
+        updateSourceRuleUseCase: UpdateSourceRuleUseCase,
+        duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase,
+        ruleValidator: RuleValidator = RuleValidator(),
+        jsonEncoder: JSONEncoder = JSONEncoder(),
         refreshSourceUseCase: RefreshSourceUseCase,
         sourceSelectionStore: SourceSelectionStore
     ) {
@@ -38,8 +46,13 @@ final class SourcesViewModel: ObservableObject {
         self.loadSourcesUseCase = loadSourcesUseCase
         self.addSourceUseCase = addSourceUseCase
         self.deleteSourceUseCase = deleteSourceUseCase
+        self.updateSourceRuleUseCase = updateSourceRuleUseCase
+        self.duplicateSourceRuleUseCase = duplicateSourceRuleUseCase
+        self.ruleValidator = ruleValidator
+        self.jsonEncoder = jsonEncoder
         self.refreshSourceUseCase = refreshSourceUseCase
         self.sourceSelectionStore = sourceSelectionStore
+        self.jsonEncoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         self.selectedSourceID = sourceSelectionStore.selectedSourceID
         self.bindSourceSelection()
     }
@@ -173,11 +186,63 @@ final class SourcesViewModel: ObservableObject {
         self.errorMessage = nil
     }
 
+    func validateRuleJSON(_ ruleJSON: String) -> RuleValidationResult {
+        return self.ruleValidator.validate(ruleJSON: ruleJSON)
+    }
+
+    func formattedRuleJSON(for rule: SiteRule) -> String {
+        do {
+            let encodedRule: Data = try self.jsonEncoder.encode(rule)
+            return String(data: encodedRule, encoding: .utf8) ?? "{}"
+        } catch {
+            return "{}"
+        }
+    }
+
+    @MainActor
+    func updateSourceRule(sourceID: String, ruleJSON: String, expectedUpdatedAt: Date? = nil) -> Bool {
+        guard let source: Source = self.source(id: sourceID) else {
+            self.errorMessage = "Source was not found."
+            return false
+        }
+
+        do {
+            let updatedSource: Source = try self.updateSourceRuleUseCase.execute(
+                source: source,
+                ruleJSON: ruleJSON,
+                expectedUpdatedAt: expectedUpdatedAt
+            )
+            self.replaceSource(updatedSource)
+            return true
+        } catch {
+            self.errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    @MainActor
+    func duplicateSource(sourceID: String) -> Source? {
+        guard let source: Source = self.source(id: sourceID) else {
+            self.errorMessage = "Source was not found."
+            return nil
+        }
+
+        do {
+            let duplicatedSource: Source = try self.duplicateSourceRuleUseCase.execute(source: source)
+            self.load()
+            self.selectSource(id: duplicatedSource.id)
+            return duplicatedSource
+        } catch {
+            self.errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
     var selectedSource: Source? {
         return self.source(id: self.selectedSourceID)
     }
 
-    private func source(id: String?) -> Source? {
+    func source(id: String?) -> Source? {
         guard let id: String = id else {
             return nil
         }
@@ -185,6 +250,18 @@ final class SourcesViewModel: ObservableObject {
         return self.sources.first { source in
             return source.id == id
         }
+    }
+
+    @MainActor
+    private func replaceSource(_ source: Source) {
+        guard let index: Array<Source>.Index = self.sources.firstIndex(where: { existingSource in
+            return existingSource.id == source.id
+        }) else {
+            self.load()
+            return
+        }
+
+        self.sources[index] = source
     }
 
     @MainActor

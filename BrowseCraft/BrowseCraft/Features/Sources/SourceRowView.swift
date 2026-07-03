@@ -36,6 +36,10 @@ struct SourceRowView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .lineLimit(1)
+
+                        Text(self.source.isBuiltIn ? "Built-in rule" : "User rule")
+                            .font(.caption2)
+                            .foregroundColor(self.source.isBuiltIn ? .blue : .secondary)
                     }
 
                     Spacer()

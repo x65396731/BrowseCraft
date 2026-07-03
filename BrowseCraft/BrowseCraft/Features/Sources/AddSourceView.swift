@@ -11,6 +11,7 @@ struct AddSourceView: View {
     @State private var name: String = RuleTemplate.primaryBuiltIn.sourceName
     @State private var baseURL: String = RuleTemplate.primaryBuiltIn.baseURL
     @State private var ruleJSON: String = RuleTemplate.primaryBuiltIn.ruleJSON
+    @State private var validationResult: RuleValidationResult = RuleValidationResult(rule: nil, issues: [])
 
     var body: some View {
         NavigationView {
@@ -41,16 +42,24 @@ struct AddSourceView: View {
                     .keyboardType(.URL)
                 }
 
-                Section("Rule JSON") {
-                    TextEditor(text: self.$ruleJSON)
-                        .font(.system(.body, design: .monospaced))
-                        .frame(minHeight: 320)
-                        .autocapitalization(.none)
-                }
+                RuleJSONEditorView(
+                    ruleJSON: self.$ruleJSON,
+                    validationResult: self.validationResult,
+                    isEditable: true,
+                    formatAction: {
+                        self.formatRuleJSON()
+                    }
+                )
             }
             .navigationTitle("Add Source")
+            .onAppear {
+                self.validationResult = self.viewModel.validateRuleJSON(self.ruleJSON)
+            }
             .onChange(of: self.selectedTemplate) { _, newTemplate in
                 self.applyTemplate(newTemplate)
+            }
+            .onChange(of: self.ruleJSON) { _, newValue in
+                self.validationResult = self.viewModel.validateRuleJSON(newValue)
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -77,6 +86,7 @@ struct AddSourceView: View {
                             }
                         }
                     )
+                    .disabled(self.validationResult.canSave == false)
                 }
             }
         }
@@ -87,6 +97,16 @@ struct AddSourceView: View {
         self.name = template.sourceName
         self.baseURL = template.baseURL
         self.ruleJSON = template.ruleJSON
+        self.validationResult = self.viewModel.validateRuleJSON(template.ruleJSON)
+    }
+
+    private func formatRuleJSON() {
+        guard let rule: SiteRule = self.validationResult.rule else {
+            return
+        }
+
+        self.ruleJSON = self.viewModel.formattedRuleJSON(for: rule)
+        self.validationResult = self.viewModel.validateRuleJSON(self.ruleJSON)
     }
 }
 

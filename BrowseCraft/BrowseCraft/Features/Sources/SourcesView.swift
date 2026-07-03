@@ -11,16 +11,38 @@ struct SourcesView: View {
         NavigationView {
             List {
                 ForEach(self.viewModel.sources, id: \.id) { source in
-                    SourceRowView(
-                        source: source,
-                        isSelected: source.id == self.viewModel.selectedSourceID,
-                        isLoading: source.id == self.viewModel.refreshingSourceID,
-                        isDisabled: self.viewModel.isRefreshing,
-                        selectAction: {
-                            Task {
-                                await self.viewModel.selectSourceAfterRefresh(source)
+                    HStack(spacing: 8) {
+                        SourceRowView(
+                            source: source,
+                            isSelected: source.id == self.viewModel.selectedSourceID,
+                            isLoading: source.id == self.viewModel.refreshingSourceID,
+                            isDisabled: self.viewModel.isRefreshing,
+                            selectAction: {
+                                Task {
+                                    await self.viewModel.selectSourceAfterRefresh(source)
+                                }
                             }
+                        )
+                        .layoutPriority(1)
+
+                        NavigationLink(
+                            destination: RuleDetailView(
+                                viewModel: self.viewModel,
+                                sourceID: source.id
+                            )
+                        ) {
+                            Image(systemName: "info.circle")
+                                .foregroundColor(.secondary)
                         }
+                        .accessibilityLabel("Rule Details")
+                    }
+                    .listRowInsets(
+                        EdgeInsets(
+                            top: 8,
+                            leading: 16,
+                            bottom: 8,
+                            trailing: 16
+                        )
                     )
                 }
                 .onDelete { offsets in

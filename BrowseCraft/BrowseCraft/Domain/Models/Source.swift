@@ -15,3 +15,9 @@ struct Source: Identifiable, Hashable {
     var updatedAt: Date
 }
 
+extension Source {
+    /// 中文注释：内置规则由 BrowseCraftRulesKit 同步，编辑器只能复制后修改，避免刷新时覆盖用户改动。
+    var isBuiltIn: Bool {
+        return self.id.hasPrefix("built-in.")
+    }
+}
