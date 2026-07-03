@@ -89,9 +89,10 @@ struct DetailRule: Codable, Hashable {
     var chapterLink: String?
     /// 中文注释：列表项本身就是阅读页时，跳过详情页章节抽取，直接把 detailURL 当作章节 URL。
     var treatDetailURLAsChapter: Bool?
-    var tagRule: NestedItemRule?
+    var tagRule: TagRule?
     var pictureRule: PictureRule?
-    var commentRule: NestedItemRule?
+    var commentRule: CommentRule?
+    var videoRule: VideoRule?
     var ready: ExtractRule?
     var request: RequestConfig?
     var js: String?
@@ -100,11 +101,22 @@ struct DetailRule: Codable, Hashable {
 /// 中文注释：ExtractRule 表示一次结构化抽取，替代旧版 selector@attr 字符串。
 struct ExtractRule: Codable, Hashable {
     var selector: String?
+    /// 中文注释：选择器语法类型；未指定时沿用当前 CSS/SwiftSoup 解析链路。
+    var selectorKind: SelectorKind? = nil
     var function: ExtractFunction
+    /// 中文注释：Yealico 风格函数链预留字段；当前解析器仍使用 function 保持兼容。
+    var functions: [ExtractFunction]? = nil
     var param: String?
     var regex: String?
     var replacement: String?
     var fallback: [ExtractRule]?
+}
+
+enum SelectorKind: String, Codable, Hashable {
+    case css
+    case jsonPath
+    case xpath
+    case current
 }
 
 enum ExtractFunction: String, Codable, Hashable {
@@ -113,6 +125,13 @@ enum ExtractFunction: String, Codable, Hashable {
     case attr
     case raw
     case url
+    case decodeBase64
+    case removingPercentEncoding
+    case addingPercentEncoding
+    case replace
+    case decompressFromBase64
+    case reversed
+    case regexReplacement
 }
 
 struct SectionRule: Codable, Hashable {
@@ -141,10 +160,52 @@ struct SiteConfig: Codable, Hashable {
 /// 中文注释：站点 URL 模式集合，用于路由识别和规则调试。
 struct URLPatterns: Codable, Hashable {
     var series: String?
+    /// 中文注释：结构化 URL 模板；未提供时继续使用上方旧版字符串字段。
+    var seriesTemplate: URLTemplateRule? = nil
     var list: String?
+    var listTemplate: URLTemplateRule? = nil
     var detail: String?
+    var detailTemplate: URLTemplateRule? = nil
     var gallery: String?
+    var galleryTemplate: URLTemplateRule? = nil
     var search: String?
+    var searchTemplate: URLTemplateRule? = nil
+}
+
+/// 中文注释：URLTemplateRule 描述由占位符拼接出的 URL，用于承载分页、搜索和详情跳转模板。
+struct URLTemplateRule: Codable, Hashable {
+    var template: String
+    /// 中文注释：显式列出模板中的占位符，便于调试器和后续执行器知道每个值的来源。
+    var placeholders: [URLPlaceholderRule]?
+}
+
+struct URLPlaceholderRule: Codable, Hashable {
+    var kind: URLPlaceholderKind
+    /// 中文注释：自定义占位符名或查询参数名，例如 {urlQuery:chapter} 中的 chapter。
+    var name: String?
+    /// 中文注释：{page:start:step} 的起始页码。
+    var start: Int?
+    /// 中文注释：{page:start:step} 的页码步长。
+    var step: Int?
+    /// 中文注释：{urlPath:n} 的路径段索引。
+    var index: Int?
+    /// 中文注释：占位符值为空时的兜底值。
+    var defaultValue: String?
+    var encoding: KeywordEncoding?
+}
+
+enum URLPlaceholderKind: String, Codable, Hashable {
+    case page
+    case idCode
+    case cidCode
+    case keyword
+    case url
+    case urlPath
+    case urlQuery
+    case urlScheme
+    case urlHost
+    case urlPort
+    case custom
 }
 
 struct PageRule: Codable, Hashable, Identifiable {
@@ -211,6 +272,8 @@ struct ListFields: Codable, Hashable {
     var idCode: ExtractRule?
     var title: ExtractRule
     var cover: ExtractRule?
+    var largeImage: ExtractRule?
+    var video: ExtractRule?
     var detailURL: ExtractRule
     var latestText: ExtractRule?
     var description: ExtractRule?
@@ -218,7 +281,9 @@ struct ListFields: Codable, Hashable {
     var coverHeight: ExtractRule?
     var category: ExtractRule?
     var author: ExtractRule?
+    var uploader: ExtractRule?
     var publishedAt: ExtractRule?
+    var datetime: ExtractRule?
     var rating: ExtractRule?
     var totalImages: ExtractRule?
     var language: ExtractRule?
@@ -238,6 +303,11 @@ struct DetailFields: Codable, Hashable {
     var publishedAt: ExtractRule?
     var updatedAt: ExtractRule?
     var license: ExtractRule?
+    var totalImages: ExtractRule?
+    /// 中文注释：指向相册或阅读页的二级页面链接，兼容 Yealico 的 photoAlbumLink 语义。
+    var photoAlbumLink: ExtractRule?
+    /// 中文注释：二级页面 URL 的通用命名；和 photoAlbumLink 并存，便于非相册站点表达跳转。
+    var secondLevelPageURL: ExtractRule?
 }
 
 /// 中文注释：通用嵌套列表规则，可用于标签、评论、相关链接等重复结构。
@@ -249,6 +319,31 @@ struct NestedItemRule: Codable, Hashable {
     var url: ExtractRule?
     var text: ExtractRule?
     var datetime: ExtractRule?
+}
+
+/// 中文注释：标签规则使用语义化字段表达分类、标签页 URL 和展示文本，兼容旧 NestedItemRule 形状。
+struct TagRule: Codable, Hashable {
+    var section: SectionRule?
+    var item: ExtractRule
+    var idCode: ExtractRule?
+    var title: ExtractRule?
+    var url: ExtractRule?
+    var text: ExtractRule?
+    var name: ExtractRule?
+}
+
+/// 中文注释：评论规则保留头像、用户名、时间和正文等语义字段，用于区别普通嵌套列表。
+struct CommentRule: Codable, Hashable {
+    var section: SectionRule?
+    var item: ExtractRule
+    var idCode: ExtractRule?
+    var avatar: ExtractRule?
+    var username: ExtractRule?
+    var datetime: ExtractRule?
+    var content: ExtractRule?
+    var url: ExtractRule?
+    var title: ExtractRule?
+    var text: ExtractRule?
 }
 
 /// 中文注释：图片或媒体资源规则；详情页插图、相关图、视频封面可复用。
@@ -280,6 +375,8 @@ struct ChapterRule: Codable, Hashable {
     var item: ExtractRule
     /// 中文注释：章节稳定标识抽取规则；可从结构化数据中读取 id 并拼出章节 URL。
     var idCode: ExtractRule?
+    /// 中文注释：cidCode 是章节级 idCode 的显式别名，用于填充 {cidCode:} URL 占位符。
+    var cidCode: ExtractRule?
     var title: ExtractRule
     var url: ExtractRule
     var datetime: ExtractRule?
@@ -366,14 +463,48 @@ struct PaginationRule: Codable, Hashable {
 }
 
 struct RequestConfig: Codable, Hashable {
+    /// 中文注释：请求配置所在层级，用于调试 Rule > Page > Site sharedRequest 的继承来源。
+    var scope: RequestScope?
+    /// 中文注释：声明当前请求配置如何与父级配置合并；未指定时由旧执行流保持原行为。
+    var mergePolicy: RequestMergePolicy?
     var method: HTTPMethod?
     var headers: [String: String]?
     var body: RequestBody?
     var cookiePolicy: CookiePolicy?
+    /// 中文注释：当浏览器 Cookie、自定义 Cookie 和规则 Cookie 同时存在时，明确优先使用哪一类。
+    var cookiePriority: CookiePriority?
+    /// 中文注释：限制 Cookie 的保存或复用范围，避免站点、页面、图片请求之间互相污染。
+    var cookieScope: CookieScope?
     var charset: Charset?
     var needsWebView: Bool?
     var autoScroll: Bool?
     var imageHeaders: [String: String]?
+    /// 中文注释：图片加载可拥有独立请求配置，例如 referer、accept、cookie 优先级。
+    var imageRequest: ImageRequestConfig?
+}
+
+enum RequestScope: String, Codable, Hashable {
+    case site
+    case page
+    case rule
+    case image
+    case search
+    case reader
+}
+
+enum RequestMergePolicy: String, Codable, Hashable {
+    case inherit
+    case override
+    case mergeHeaders
+    case mergeHeadersAndCookies
+}
+
+struct ImageRequestConfig: Codable, Hashable {
+    var headers: [String: String]?
+    var cookiePolicy: CookiePolicy?
+    var cookiePriority: CookiePriority?
+    var cookieScope: CookieScope?
+    var mergePolicy: RequestMergePolicy?
 }
 
 enum HTTPMethod: String, Codable, Hashable {
@@ -393,6 +524,24 @@ enum CookiePolicy: String, Codable, Hashable {
     case browserThenCustom
 }
 
+enum CookiePriority: String, Codable, Hashable {
+    case none
+    case browser
+    case custom
+    case request
+    case image
+}
+
+enum CookieScope: String, Codable, Hashable {
+    case none
+    case session
+    case persistent
+    case site
+    case page
+    case rule
+    case image
+}
+
 enum Charset: String, Codable, Hashable {
     case utf8
     case gb18030
@@ -400,9 +549,18 @@ enum Charset: String, Codable, Hashable {
     case auto
 }
 
-/// 中文注释：VideoRule 是 struct，负责本模块中的对应职责。
+/// 中文注释：VideoRule 兼容旧版 videoUrl，并支持 Yealico 风格 item/thumbnail/url/link 视频字段。
 struct VideoRule: Codable, Hashable {
-    var videoUrl: String
+    var videoUrl: String? = nil
+    var section: SectionRule? = nil
+    var item: ExtractRule? = nil
+    var url: ExtractRule? = nil
+    var thumbnail: ExtractRule? = nil
+    var link: ExtractRule? = nil
+    var title: ExtractRule? = nil
+    var duration: ExtractRule? = nil
+    var width: ExtractRule? = nil
+    var height: ExtractRule? = nil
 }
 
 extension SiteRule {

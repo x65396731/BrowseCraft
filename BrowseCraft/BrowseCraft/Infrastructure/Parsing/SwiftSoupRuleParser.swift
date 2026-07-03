@@ -11,6 +11,17 @@ final class SwiftSoupRuleParser: RuleParsingService {
         let title: String
     }
 
+    private enum ExtractError: LocalizedError {
+        case unsupportedFunction(ExtractFunction)
+
+        var errorDescription: String? {
+            switch self {
+            case .unsupportedFunction(let function):
+                return "Unsupported extract function: \(function.rawValue)"
+            }
+        }
+    }
+
     private let urlResolver: URLResolvingService
 
     init(urlResolver: URLResolvingService) {
@@ -770,6 +781,14 @@ final class SwiftSoupRuleParser: RuleParsingService {
                 element: selectedElement,
                 attributeExpression: rule.param ?? "href"
             )
+        case .decodeBase64,
+             .removingPercentEncoding,
+             .addingPercentEncoding,
+             .replace,
+             .decompressFromBase64,
+             .reversed,
+             .regexReplacement:
+            throw ExtractError.unsupportedFunction(rule.function)
         }
 
         let transformedValue: String = try self.applyRegex(
