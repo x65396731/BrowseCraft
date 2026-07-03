@@ -61,7 +61,7 @@ struct RuleSourceRuntimeAdapter: SourceRuntime {
 
         return self.outputBridge.listOutput(
             items: items,
-            diagnostics: self.outputBridge.diagnostics(status: .succeeded)
+            diagnostics: SourceRuntimeDiagnostics.succeeded()
         )
     }
 
@@ -79,7 +79,7 @@ struct RuleSourceRuntimeAdapter: SourceRuntime {
         return self.outputBridge.listOutput(
             items: result.items,
             pagination: self.sourcePagination(from: result.pagination),
-            diagnostics: self.outputBridge.diagnostics(status: .succeeded)
+            diagnostics: SourceRuntimeDiagnostics.succeeded()
         )
     }
 
@@ -97,7 +97,7 @@ struct RuleSourceRuntimeAdapter: SourceRuntime {
 
         return self.outputBridge.detailOutput(
             chapters: chapters,
-            diagnostics: self.outputBridge.diagnostics(status: .succeeded)
+            diagnostics: SourceRuntimeDiagnostics.succeeded()
         )
     }
 
@@ -116,7 +116,7 @@ struct RuleSourceRuntimeAdapter: SourceRuntime {
 
         return self.outputBridge.readerOutput(
             chapter: chapter,
-            diagnostics: self.outputBridge.diagnostics(status: .succeeded)
+            diagnostics: SourceRuntimeDiagnostics.succeeded()
         )
     }
 
@@ -124,7 +124,9 @@ struct RuleSourceRuntimeAdapter: SourceRuntime {
         try self.validateSource(input)
 
         return SourceDebugOutput(
-            diagnostics: self.skippedDiagnostics("Debug runtime is reserved by P3-2.5 and will be connected after runtime call sites are introduced.")
+            diagnostics: SourceRuntimeDiagnostics.skipped(
+                message: "Debug runtime is reserved by P3-2.5 and will be connected after runtime call sites are introduced."
+            )
         )
     }
 
@@ -195,7 +197,7 @@ struct RuleSourceRuntimeAdapter: SourceRuntime {
 
     private func validateSource(_ context: SourceRuntimeContext) throws {
         guard context.sourceID == self.source.id else {
-            throw RuleSourceRuntimeAdapterError.sourceMismatch(
+            throw SourceRuntimeError.sourceMismatch(
                 expected: self.source.id,
                 actual: context.sourceID
             )
@@ -204,13 +206,13 @@ struct RuleSourceRuntimeAdapter: SourceRuntime {
 
     private func validateNoURLOverride(_ input: SourceListInput) throws {
         if input.urlOverride != nil || input.context.requestOverride?.url != nil {
-            throw RuleSourceRuntimeAdapterError.unsupported("List URL override is not connected until a runtime URL loader replaces RefreshSourceUseCase.")
+            throw SourceRuntimeError.unsupported(.listURLOverride)
         }
     }
 
     private func validateSearchOverride(_ input: SourceSearchInput) throws {
         if input.context.requestOverride?.headers.isEmpty == false {
-            throw RuleSourceRuntimeAdapterError.unsupported("Search request header override is not connected until a runtime URL loader replaces SearchSourceUseCase.")
+            throw SourceRuntimeError.unsupported(.requestHeaderOverride)
         }
     }
 
@@ -219,47 +221,10 @@ struct RuleSourceRuntimeAdapter: SourceRuntime {
             return nil
         }
 
-        return SourcePagination(
-            nextPageURL: self.url(from: pagination.nextURL),
+        return SourcePagination.next(
+            nextPageURLString: pagination.nextURL,
             nextPage: pagination.nextPage
         )
     }
 
-    private func url(from string: String?) -> URL? {
-        guard let string: String = string,
-              string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
-            return nil
-        }
-
-        return URL(string: string)
-    }
-
-    private func skippedDiagnostics(_ message: String) -> SourceRuntimeDiagnostics {
-        return SourceRuntimeDiagnostics(
-            status: .skipped,
-            requestLogs: [],
-            extractionLogs: [],
-            issues: [
-                SourceRuntimeIssue(
-                    id: "runtime.skipped",
-                    severity: .info,
-                    message: message
-                )
-            ]
-        )
-    }
-}
-
-enum RuleSourceRuntimeAdapterError: LocalizedError {
-    case sourceMismatch(expected: String, actual: String)
-    case unsupported(String)
-
-    var errorDescription: String? {
-        switch self {
-        case .sourceMismatch(let expected, let actual):
-            return "SourceRuntime input source mismatch: expected \(expected), actual \(actual)"
-        case .unsupported(let message):
-            return message
-        }
-    }
 }

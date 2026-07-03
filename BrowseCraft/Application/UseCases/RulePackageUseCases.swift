@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import CryptoKit
 import Foundation
 
@@ -37,10 +38,8 @@ struct RulePackageCodec {
         now: @escaping () -> Date = Date.init
     ) {
         self.jsonDecoder = jsonDecoder
-        self.packageEncoder = JSONEncoder()
-        self.packageEncoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        self.checksumEncoder = JSONEncoder()
-        self.checksumEncoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        self.packageEncoder = StableJSONCoding.makePrettyPrintedEncoder()
+        self.checksumEncoder = StableJSONCoding.makeCanonicalEncoder()
         self.now = now
     }
 

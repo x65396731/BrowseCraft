@@ -74,15 +74,6 @@ struct SourceRuntimeOutputBridge {
         )
     }
 
-    func diagnostics(status: SourceRuntimeStatus, issues: [SourceRuntimeIssue] = []) -> SourceRuntimeDiagnostics {
-        return SourceRuntimeDiagnostics(
-            status: status,
-            requestLogs: [],
-            extractionLogs: [],
-            issues: issues
-        )
-    }
-
     private func url(from string: String?) -> URL? {
         guard let string: String = string,
               string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
