@@ -293,6 +293,8 @@ struct RuleValidator {
     }
 
     private func appendPrimaryFlowIssues(rule: SiteRule, issues: inout [RuleValidationResult.Issue]) {
+        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(rule)
+
         if rule.availableListTabs.isEmpty {
             issues.append(
                 RuleValidationResult.Issue(
@@ -303,7 +305,7 @@ struct RuleValidator {
             )
         }
 
-        if rule.primaryDetailRule == nil {
+        if resolvedRule.primaryDetailRule == nil {
             issues.append(
                 RuleValidationResult.Issue(
                     id: "detail-rule-missing",
@@ -313,7 +315,7 @@ struct RuleValidator {
             )
         }
 
-        if rule.primaryGalleryRule == nil {
+        if resolvedRule.primaryGalleryRule == nil {
             issues.append(
                 RuleValidationResult.Issue(
                     id: "gallery-rule-missing",

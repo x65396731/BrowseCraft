@@ -224,11 +224,13 @@ struct RuleDetailView: View {
     }
 
     private func requestSection(rule: SiteRule) -> some View {
-        Section("Request") {
+        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(rule)
+
+        return Section("Request") {
             self.requestLine("Shared", request: rule.sharedRequest)
             self.requestLine("List", request: rule.primaryListRequest)
-            self.requestLine("Detail", request: rule.primaryDetailRequest)
-            self.requestLine("Reader", request: rule.primaryGalleryRequest)
+            self.requestLine("Detail", request: resolvedRule.primaryDetailRequest)
+            self.requestLine("Reader", request: resolvedRule.primaryGalleryRequest)
         }
     }
 

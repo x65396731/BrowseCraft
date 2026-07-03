@@ -14,7 +14,7 @@ struct ChapterListView: View {
                     CoverImageView(
                         urlString: self.viewModel.item.coverURL,
                         refererURLString: self.viewModel.item.detailURL,
-                        requestConfig: self.viewModel.source.rule.primaryDetailRequest
+                        requestConfig: RuleResolver().resolve(self.viewModel.source.rule).primaryDetailRequest
                     )
                         .frame(width: 86, height: 120)
                         .clipShape(RoundedRectangle(cornerRadius: 8))

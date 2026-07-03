@@ -99,7 +99,7 @@ final class ReaderViewModel: ObservableObject {
 
     /// 中文注释：阅读页图片加载使用 GalleryRule 的图片请求配置，避免 UI 直接理解规则选择细节。
     var readerImageRequestConfig: RequestConfig? {
-        return self.source.rule.primaryGalleryRequest
+        return RuleResolver().resolve(self.source.rule).primaryGalleryRequest
     }
 }
 

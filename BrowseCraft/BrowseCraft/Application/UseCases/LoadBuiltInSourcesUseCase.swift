@@ -61,11 +61,12 @@ struct LoadBuiltInSourcesUseCase {
             try self.sourceRepository.saveSource(updatedSource)
 
             #if DEBUG
+            let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(updatedSource.rule)
             print(
                 "[BrowseCraftRule] Synced built-in source id=\(updatedSource.id) " +
                 "name=\(updatedSource.name) " +
-                "chapterContainer=\(updatedSource.rule.primaryDetailRule?.chapterContainer ?? "nil") " +
-                "chapterItem=\(updatedSource.rule.primaryDetailRule?.chapterItem ?? "nil")"
+                "chapterContainer=\(resolvedRule.primaryDetailRule?.chapterContainer ?? "nil") " +
+                "chapterItem=\(resolvedRule.primaryDetailRule?.chapterItem ?? "nil")"
             )
             #endif
         }
