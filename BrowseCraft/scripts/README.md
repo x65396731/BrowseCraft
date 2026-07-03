@@ -1,5 +1,24 @@
 # BrowseCraft Scripts
 
+## regenerate-project.sh
+
+Regenerate the Xcode project and restore CocoaPods integration in one command.
+
+中文注释：不要手动拆开执行 `xcodegen generate` 和裸 `pod install`。本项目里 `pod install` 必须清掉 RVM 注入的 `GEM_HOME/GEM_PATH`，否则 Homebrew CocoaPods 可能混用 Ruby/Gem 环境并报 `rexml` 缺失。
+
+```sh
+./scripts/regenerate-project.sh
+```
+
+The script runs:
+
+```sh
+xcodegen generate
+env -u GEM_HOME -u GEM_PATH pod install
+```
+
+It does not build the app.
+
 ## update-rules-package.sh
 
 Use this script after `BrowseCraftRulesKit` has been committed and pushed to `main`.

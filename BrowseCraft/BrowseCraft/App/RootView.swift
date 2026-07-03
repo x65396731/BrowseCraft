@@ -48,6 +48,12 @@ struct RootView: View {
                     Image(systemName: "clock")
                     Text("History")
                 }
+
+            SettingsView()
+                .tabItem {
+                    Image(systemName: "gearshape")
+                    Text("Settings")
+                }
         }
     }
 }
