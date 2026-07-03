@@ -7,6 +7,7 @@ struct SourceRuntimeInputBridge {
         source: Source,
         listContext: ListContext? = nil,
         ruleID: String? = nil,
+        operation: SourceRuntimeOperation? = nil,
         urlOverride: URL? = nil,
         headers: [String: String] = [:],
         debugMode: Bool = false
@@ -15,9 +16,12 @@ struct SourceRuntimeInputBridge {
             sourceID: source.id,
             pageID: listContext?.pageId,
             tabID: listContext?.tabId,
+            sectionID: listContext?.sectionId,
+            sectionRole: listContext?.sectionRole?.rawValue,
             ruleID: ruleID ?? listContext?.listRuleId,
             requestOverride: self.requestOverride(url: urlOverride, headers: headers),
-            debugMode: debugMode
+            debugMode: debugMode,
+            operation: operation
         )
     }
 
@@ -36,6 +40,7 @@ struct SourceRuntimeInputBridge {
                 source: source,
                 listContext: listContext,
                 ruleID: listContext?.listRuleId,
+                operation: .list,
                 urlOverride: urlOverride,
                 headers: headers,
                 debugMode: debugMode
@@ -61,6 +66,7 @@ struct SourceRuntimeInputBridge {
                 source: source,
                 listContext: listContext,
                 ruleID: ruleID,
+                operation: .search,
                 urlOverride: urlOverride,
                 headers: headers,
                 debugMode: debugMode
@@ -85,6 +91,7 @@ struct SourceRuntimeInputBridge {
                 source: source,
                 listContext: listContext,
                 ruleID: ruleID,
+                operation: .detail,
                 debugMode: debugMode
             )
         )
@@ -107,6 +114,7 @@ struct SourceRuntimeInputBridge {
                 source: source,
                 listContext: listContext,
                 ruleID: ruleID,
+                operation: .reader,
                 debugMode: debugMode
             )
         )

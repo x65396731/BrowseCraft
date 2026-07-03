@@ -44,7 +44,19 @@ struct RuleSourceRuntimeAdapter: SourceRuntime {
             supportsCandidateAnalysis: false,
             requiresWebView: self.requiresWebView,
             requiresCookieStore: self.requiresCookieStore,
-            requiresAccount: false
+            requiresAccount: false,
+            limitations: [
+                SourceRuntimeCapabilityLimitation(
+                    capability: .debug,
+                    reason: .notConnected,
+                    message: "Rule debug runtime is reserved and not connected to the App RuleDebugUseCases yet."
+                ),
+                SourceRuntimeCapabilityLimitation(
+                    capability: .candidateAnalysis,
+                    reason: .notConnected,
+                    message: "Rule candidate analysis remains in the App debug flow until Core candidate models move in P3-5."
+                )
+            ]
         )
     }
 
@@ -125,7 +137,8 @@ struct RuleSourceRuntimeAdapter: SourceRuntime {
 
         return SourceDebugOutput(
             diagnostics: SourceRuntimeDiagnostics.skipped(
-                message: "Debug runtime is reserved by P3-2.5 and will be connected after runtime call sites are introduced."
+                message: "Debug runtime is reserved by P3-2.5 and will be connected after runtime call sites are introduced.",
+                context: self.diagnosticContext(from: input)
             )
         )
     }
@@ -182,16 +195,25 @@ struct RuleSourceRuntimeAdapter: SourceRuntime {
     }
 
     private func listContext(from context: SourceRuntimeContext) -> ListContext? {
-        guard context.pageID != nil || context.tabID != nil || context.ruleID != nil else {
+        guard context.pageID != nil || context.tabID != nil || context.sectionID != nil || context.ruleID != nil else {
             return nil
         }
 
         return ListContext(
             pageId: context.pageID,
             tabId: context.tabID,
-            sectionId: nil,
+            sectionId: context.sectionID,
             listRuleId: context.ruleID,
-            sectionRole: nil
+            sectionRole: context.sectionRole.flatMap { role in
+                return SectionRole(rawValue: role)
+            }
+        )
+    }
+
+    private func diagnosticContext(from context: SourceRuntimeContext) -> SourceRuntimeDiagnosticContext {
+        return SourceRuntimeDiagnosticContext(
+            runtimeContext: context,
+            requestURL: context.requestOverride?.url
         )
     }
 

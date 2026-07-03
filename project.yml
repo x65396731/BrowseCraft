@@ -53,6 +53,7 @@ targets:
       - path: BrowseCraftTests
     dependencies:
       - target: BrowseCraft
+      - package: BrowseCraftCore
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: xiefei.BrowseCraftTests

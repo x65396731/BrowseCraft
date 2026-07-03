@@ -23,7 +23,9 @@ struct SourceDefinitionBridge {
     }
 
     private func baseURL(from string: String) -> URL {
-        if let url: URL = URL(string: string) {
+        let normalizedString: String = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        if normalizedString.isEmpty == false,
+           let url: URL = URL(string: normalizedString) {
             return url
         }
 
