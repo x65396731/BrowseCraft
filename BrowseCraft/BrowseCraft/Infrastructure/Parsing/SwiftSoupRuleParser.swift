@@ -47,6 +47,71 @@ final class SwiftSoupRuleParser: RuleParsingService {
         let document: Document = try SwiftSoup.parse(html, source.baseURL)
         let elements: [Element] = try document.select(listRule.item).array()
 
+        return try self.contentItems(
+            from: elements,
+            source: source,
+            listRule: listRule,
+            context: nil
+        )
+    }
+
+    func parseList(
+        html: String,
+        source: Source,
+        listRule: ListRule,
+        context: ListContext?,
+        sections: [SectionRule]?
+    ) throws -> [ContentItem] {
+        guard let sections: [SectionRule] = sections,
+              sections.isEmpty == false else {
+            return try self.parseList(html: html, source: source, listRule: listRule).map { item in
+                var contextualItem: ContentItem = item
+                contextualItem.listContext = context
+                return contextualItem
+            }
+        }
+
+        let document: Document = try SwiftSoup.parse(html, source.baseURL)
+        var items: [ContentItem] = []
+        var seenItemIDs: Set<String> = Set<String>()
+
+        for section: SectionRule in sections {
+            let containers: [Element] = try self.selectedElements(
+                element: document,
+                rule: section.container,
+                includesSelf: true
+            )
+            let sectionContext: ListContext = self.listContext(
+                base: context,
+                section: section,
+                listRule: listRule
+            )
+
+            for container: Element in containers {
+                let elements: [Element] = try container.select(listRule.item).array()
+                let sectionItems: [ContentItem] = try self.contentItems(
+                    from: elements,
+                    source: source,
+                    listRule: listRule,
+                    context: sectionContext
+                )
+
+                for item: ContentItem in sectionItems where seenItemIDs.contains(item.id) == false {
+                    seenItemIDs.insert(item.id)
+                    items.append(item)
+                }
+            }
+        }
+
+        return items
+    }
+
+    private func contentItems(
+        from elements: [Element],
+        source: Source,
+        listRule: ListRule,
+        context: ListContext?
+    ) throws -> [ContentItem] {
         var items: [ContentItem] = []
 
         for element: Element in elements {
@@ -80,7 +145,8 @@ final class SwiftSoupRuleParser: RuleParsingService {
                 coverURL: coverURL,
                 type: listRule.type,
                 latestText: latestText,
-                updatedAt: Date()
+                updatedAt: Date(),
+                listContext: context
             )
 
             items.append(item)
@@ -89,8 +155,32 @@ final class SwiftSoupRuleParser: RuleParsingService {
         return items
     }
 
+    private func listContext(base: ListContext?, section: SectionRule, listRule: ListRule) -> ListContext {
+        return ListContext(
+            pageId: base?.pageId,
+            tabId: base?.tabId,
+            sectionId: section.id,
+            listRuleId: section.listRuleRef ?? base?.listRuleId ?? listRule.id,
+            sectionRole: section.role ?? base?.sectionRole ?? .main
+        )
+    }
+
     /// 中文注释：parseDetailChapters 方法封装当前类型的一段业务或界面行为。
     func parseDetailChapters(html: String, source: Source, pageURL: String) throws -> [ChapterLink] {
+        return try self.parseDetailChapters(
+            html: html,
+            source: source,
+            pageURL: pageURL,
+            context: nil
+        )
+    }
+
+    func parseDetailChapters(
+        html: String,
+        source: Source,
+        pageURL: String,
+        context: ListContext?
+    ) throws -> [ChapterLink] {
         guard let detailRule: DetailRule = source.rule.primaryDetailRule else {
             return []
         }
@@ -105,6 +195,7 @@ final class SwiftSoupRuleParser: RuleParsingService {
                 source: source,
                 detailRule: detailRule,
                 chapterRule: chapterRule,
+                context: context,
                 pageURL: pageURL
             )
 
@@ -115,7 +206,8 @@ final class SwiftSoupRuleParser: RuleParsingService {
             let elements: [Element] = try self.chapterElements(
                 in: document,
                 detailRule: detailRule,
-                chapterRule: chapterRule
+                chapterRule: chapterRule,
+                context: context
             )
 
             #if DEBUG
@@ -233,15 +325,17 @@ final class SwiftSoupRuleParser: RuleParsingService {
         source: Source,
         detailRule: DetailRule,
         chapterRule: ChapterRule,
+        context: ListContext?,
         pageURL: String
     ) throws -> [ChapterLink] {
         guard let idCodeRule: ExtractRule = chapterRule.idCode else {
             return []
         }
 
-        let scope: Element = try self.scopedElement(
+        let scope: Element = try self.contextualScope(
             in: document,
-            scopeRule: detailRule.mainScope
+            mainScopeRule: detailRule.mainScope,
+            context: context
         ) ?? document
 
         let containers: [Element]
@@ -422,16 +516,18 @@ final class SwiftSoupRuleParser: RuleParsingService {
     private func chapterElements(
         in document: Document,
         detailRule: DetailRule,
-        chapterRule: ChapterRule
+        chapterRule: ChapterRule,
+        context: ListContext?
     ) throws -> [Element] {
         #if DEBUG
         let debugChapterSelector: String = "a[href*=\"/cn/chapters/\"]"
         let globalChapterLinkCount: Int = try document.select(debugChapterSelector).array().count
         #endif
 
-        let scope: Element = try self.scopedElement(
+        let scope: Element = try self.contextualScope(
             in: document,
-            scopeRule: detailRule.mainScope
+            mainScopeRule: detailRule.mainScope,
+            context: context
         ) ?? document
 
         #if DEBUG
@@ -439,6 +535,8 @@ final class SwiftSoupRuleParser: RuleParsingService {
         print(
             "[BrowseCraftRule] V2 chapter scope " +
             "mainScope=\(detailRule.mainScope?.selector ?? "nil") " +
+            "contextSectionId=\(context?.sectionId ?? "nil") " +
+            "contextSectionRole=\(context?.sectionRole?.rawValue ?? "nil") " +
             "scopeTag=\(try scope.tagName()) " +
             "globalChapterLinkCount=\(globalChapterLinkCount) " +
             "scopeChapterLinkCount=\(scopeChapterLinkCount)"
@@ -608,6 +706,20 @@ final class SwiftSoupRuleParser: RuleParsingService {
 
     /// 中文注释：parseReader 方法封装当前类型的一段业务或界面行为。
     func parseReader(html: String, source: Source, pageURL: String) throws -> ReaderChapter {
+        return try self.parseReader(
+            html: html,
+            source: source,
+            pageURL: pageURL,
+            context: nil
+        )
+    }
+
+    func parseReader(
+        html: String,
+        source: Source,
+        pageURL: String,
+        context: ListContext?
+    ) throws -> ReaderChapter {
         guard let galleryRule: GalleryRule = source.rule.primaryGalleryRule else {
             return ReaderChapter(
                 sourceId: source.id,
@@ -622,7 +734,12 @@ final class SwiftSoupRuleParser: RuleParsingService {
         }
 
         let document: Document = try SwiftSoup.parse(html, pageURL)
-        let imageElements: [Element] = try document.select(galleryRule.imageItem).array()
+        let scope: Element = try self.contextualScope(
+            in: document,
+            mainScopeRule: galleryRule.mainScope,
+            context: context
+        ) ?? document
+        let imageElements: [Element] = try scope.select(galleryRule.imageItem).array()
         var pageImageURLs: [String] = []
 
         for imageElement: Element in imageElements {
@@ -702,6 +819,75 @@ final class SwiftSoupRuleParser: RuleParsingService {
         }
 
         return try self.selectedElements(element: document, rule: scopeRule).first
+    }
+
+    private func contextualScope(
+        in document: Document,
+        mainScopeRule: ExtractRule?,
+        context: ListContext?
+    ) throws -> Element? {
+        let baseScope: Element = try self.scopedElement(
+            in: document,
+            scopeRule: mainScopeRule
+        ) ?? document
+
+        // 中文注释：P1-5.3 只在 mainScope 内根据来源 context 继续缩小范围；匹配不到时保留旧规则行为。
+        guard let context: ListContext = context else {
+            return baseScope
+        }
+
+        for selector: String in self.contextScopeSelectors(context: context) {
+            if let scopedElement: Element = try baseScope.select(selector).array().first {
+                return scopedElement
+            }
+        }
+
+        return baseScope
+    }
+
+    private func contextScopeSelectors(context: ListContext) -> [String] {
+        var selectors: [String] = []
+
+        if let sectionId: String = context.sectionId,
+           sectionId.isEmpty == false {
+            let quotedSectionId: String = self.cssQuotedValue(sectionId)
+            selectors.append("[data-section-id=\"\(quotedSectionId)\"]")
+            selectors.append("[data-section=\"\(quotedSectionId)\"]")
+
+            if self.isSimpleCSSIdentifier(sectionId) {
+                selectors.append("#\(sectionId)")
+                selectors.append(".\(sectionId)")
+            }
+        }
+
+        if let sectionRole: SectionRole = context.sectionRole {
+            let roleValue: String = sectionRole.rawValue
+            selectors.append("[data-section-role=\"\(roleValue)\"]")
+            selectors.append("[data-role=\"\(roleValue)\"]")
+
+            if self.isSimpleCSSIdentifier(roleValue) {
+                selectors.append("section.\(roleValue)")
+                selectors.append(".\(roleValue)")
+            }
+        }
+
+        return selectors
+    }
+
+    private func cssQuotedValue(_ value: String) -> String {
+        return value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+    }
+
+    private func isSimpleCSSIdentifier(_ value: String) -> Bool {
+        guard value.isEmpty == false else {
+            return false
+        }
+
+        return value.allSatisfy { character in
+            return character.isLetter || character.isNumber || character == "-" || character == "_"
+        }
     }
 
     private func selectedElements(

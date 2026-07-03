@@ -66,6 +66,53 @@ enum RuleJSONFixtures {
               "Referer": "https://example.test/"
             }
           },
+          "tabGroup": {
+            "id": "home-tabs",
+            "selectedTabId": "discover",
+            "layout": "horizontalScroll",
+            "tabs": [
+              {
+                "id": "discover",
+                "title": "发现",
+                "listRuleRef": "home-list"
+              },
+              {
+                "id": "latest",
+                "title": "更新",
+                "url": "https://example.test/latest/1",
+                "listRuleRef": "latest-list",
+                "request": {
+                  "scope": "page",
+                  "headers": {
+                    "X-Tab": "latest"
+                  }
+                },
+                "context": {
+                  "sectionRole": "category"
+                }
+              }
+            ]
+          },
+          "sections": [
+            {
+              "id": "main-grid",
+              "role": "main",
+              "itemLayout": "verticalGrid",
+              "container": {
+                "selector": "section.main-grid",
+                "function": "raw"
+              }
+            },
+            {
+              "id": "recommendations",
+              "role": "recommendation",
+              "itemLayout": "horizontalRow",
+              "container": {
+                "selector": "section.recommendations",
+                "function": "raw"
+              }
+            }
+          ],
           "flags": [
             "lazyImages"
           ]
@@ -187,6 +234,25 @@ enum RuleJSONFixtures {
               "cookiePriority": "custom",
               "cookieScope": "rule"
             }
+          },
+          {
+            "id": "latest-list",
+            "url": "https://example.test/list/latest",
+            "item": ".card",
+            "fields": {
+              "title": {
+                "selector": ".title",
+                "function": "text"
+              },
+              "detailURL": {
+                "selector": "a.title",
+                "function": "url"
+              }
+            },
+            "title": ".title",
+            "link": "a.title@href",
+            "cover": "img.cover@src",
+            "type": "comic"
           }
         ],
         "detailRules": [

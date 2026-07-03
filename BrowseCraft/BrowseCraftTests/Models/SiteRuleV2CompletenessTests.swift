@@ -22,6 +22,10 @@ struct SiteRuleV2CompletenessTests {
         #expect(rule.urlPatterns?.searchTemplate?.placeholders?.last?.kind == .urlQuery)
         #expect(rule.pages?.count == 3)
         #expect(rule.pages?.first?.ruleRefs?.list == "home-list")
+        #expect(rule.pages?.first?.tabGroup?.tabs.count == 2)
+        #expect(rule.pages?.first?.tabGroup?.layout == .horizontalScroll)
+        #expect(rule.pages?.first?.sections?.count == 2)
+        #expect(rule.pages?.first?.sections?.last?.role == .recommendation)
         #expect(rule.pages?.last?.displayMode == .verticalReader)
         // 中文注释：共享请求、页面请求、规则请求、图片请求都要能 decode 出优先级字段。
         #expect(rule.sharedRequest?.scope == .site)
@@ -79,12 +83,37 @@ struct SiteRuleV2CompletenessTests {
 
         // 中文注释：列表入口要从 PageRule.ruleRefs.list 接到 RuleSets.listRules，UI 和刷新用例才能共用 V2 页面定义。
         let tabs: [ListTabRule] = rule.availableListTabs
-        #expect(tabs.count == 1)
-        #expect(tabs.first?.id == "home")
-        #expect(tabs.first?.title == "Home")
+        #expect(tabs.count == 2)
+        #expect(tabs.map(\.id) == ["discover", "latest"])
+        #expect(tabs.first?.title == "发现")
         #expect(tabs.first?.list.id == "home-list")
         #expect(tabs.first?.request?.scope == .page)
+        #expect(tabs.first?.sections?.count == 2)
+        #expect(tabs.first?.sections?.first?.id == "main-grid")
+        #expect(tabs.first?.context?.pageId == "home")
+        #expect(tabs.first?.context?.tabId == "discover")
+        #expect(tabs[1].list.id == "latest-list")
+        #expect(tabs[1].list.url == "https://example.test/latest/1")
+        #expect(tabs[1].request?.headers?["X-Tab"] == "latest")
+        #expect(tabs[1].context?.pageId == "home")
+        #expect(tabs[1].context?.tabId == "latest")
+        #expect(tabs[1].context?.sectionRole == .category)
         #expect(rule.primaryListRule.id == "home-list")
+    }
+
+    @Test func v2TabGroupSelectedTabBecomesDefaultListTab() throws {
+        var rule: SiteRule = try JSONDecoder().decode(
+            SiteRule.self,
+            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
+        )
+
+        rule.pages?[0].tabGroup?.selectedTabId = "latest"
+
+        let tabs: [ListTabRule] = rule.availableListTabs
+
+        // 中文注释：App 现阶段把第一个 ListTab 当默认入口；selectedTabId 要能把指定 tab 提到默认位置。
+        #expect(tabs.map(\.id) == ["latest", "discover"])
+        #expect(rule.primaryListRule.id == "latest-list")
     }
 
     @Test func v2ListPagesMergeAdditionalLegacyListTabs() throws {
@@ -126,8 +155,8 @@ struct SiteRuleV2CompletenessTests {
         let tabs: [ListTabRule] = rule.availableListTabs
 
         // 中文注释：V2 PageRule 仍是主入口，但旧 listTabs 中不同的分类入口不能被整个丢弃。
-        #expect(tabs.map(\.id) == ["home", "updated"])
-        #expect(tabs.map { tab in tab.list.id } == ["home-list", "updated-list"])
+        #expect(tabs.map(\.id) == ["discover", "latest", "updated"])
+        #expect(tabs.map { tab in tab.list.id } == ["home-list", "latest-list", "updated-list"])
     }
 
     @Test func v2RequestsResolveByRulePageAndSharedPriority() throws {

@@ -86,7 +86,8 @@ struct LoadChaptersUseCase {
         let chapters: [ChapterLink] = try self.ruleParser.parseDetailChapters(
             html: detailHTML,
             source: source,
-            pageURL: item.detailURL
+            pageURL: item.detailURL,
+            context: item.listContext
         )
 
         #if DEBUG
@@ -175,7 +176,8 @@ struct LoadReaderChapterUseCase {
         let chapter: ReaderChapter = try self.ruleParser.parseReader(
             html: html,
             source: source,
-            pageURL: chapterURLString
+            pageURL: chapterURLString,
+            context: item.listContext
         )
 
         #if DEBUG
@@ -231,7 +233,8 @@ struct LoadReaderChapterUseCase {
         let chapters: [ChapterLink] = try self.ruleParser.parseDetailChapters(
             html: detailHTML,
             source: source,
-            pageURL: item.detailURL
+            pageURL: item.detailURL,
+            context: item.listContext
         )
 
         #if DEBUG

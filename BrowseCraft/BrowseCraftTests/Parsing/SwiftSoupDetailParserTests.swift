@@ -191,6 +191,45 @@ struct SwiftSoupDetailParserTests {
         #expect(chapters[1].url == "https://example.test/chapters/v2-2")
     }
 
+    @Test func v2DetailChaptersUseListContextScope() throws {
+        let source: Source = try Self.v2DetailRuleSourceWithLegacyDetailDisabled()
+        let parser: SwiftSoupRuleParser = SwiftSoupRuleParser(
+            urlResolver: URLResolvingService()
+        )
+
+        let chapters: [ChapterLink] = try parser.parseDetailChapters(
+            html: """
+            <main>
+              <section data-section-id="main-grid" data-section-role="main">
+                <div class="chapter" data-id="101" data-cid="201">
+                  <span class="chapter-title">主内容 第01话</span>
+                  <a class="chapter-link" href="/chapters/main-1">Read</a>
+                </div>
+              </section>
+              <section data-section-id="recommendations" data-section-role="recommendation">
+                <div class="chapter" data-id="999" data-cid="999">
+                  <span class="chapter-title">推荐区 第99话</span>
+                  <a class="chapter-link" href="/chapters/recommend-99">Read</a>
+                </div>
+              </section>
+            </main>
+            """,
+            source: source,
+            pageURL: "https://example.test/comics/v2",
+            context: ListContext(
+                pageId: "home",
+                tabId: "home",
+                sectionId: "main-grid",
+                listRuleId: "home-list",
+                sectionRole: .main
+            )
+        )
+
+        // 中文注释：P1-5.3 详情解析应优先使用列表项来源 section，只解析主内容区章节。
+        #expect(chapters.map(\.title) == ["主内容 第01话"])
+        #expect(chapters.map(\.url) == ["https://example.test/chapters/main-1"])
+    }
+
     private static func v2FunctionChainSource() throws -> Source {
         let ruleJSON: String = """
         {

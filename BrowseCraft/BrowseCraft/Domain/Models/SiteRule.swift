@@ -113,19 +113,151 @@ struct SiteRule: Codable, Hashable {
         }
 
         // 中文注释：V2 的 Pages 是界面入口，ruleRefs.list 指向 RuleSets.listRules 中真正执行的列表规则。
-        return pages.compactMap { page in
-            guard page.isListEntryPage,
-                  let listRule: ListRule = ruleSets.listRule(id: page.ruleRefs?.list) else {
+        var listTabs: [ListTabRule] = []
+
+        for page: PageRule in pages where page.isListEntryPage {
+            listTabs.append(
+                contentsOf: self.pageListTabs(
+                    page: page,
+                    pages: pages,
+                    ruleSets: ruleSets
+                )
+            )
+        }
+
+        return listTabs
+    }
+
+    private func pageListTabs(page: PageRule, pages: [PageRule], ruleSets: RuleSets) -> [ListTabRule] {
+        if let tabGroup: TabGroupRule = page.tabGroup,
+           tabGroup.tabs.isEmpty == false {
+            return self.orderedTabs(
+                self.tabGroupListTabs(
+                    page: page,
+                    pages: pages,
+                    tabGroup: tabGroup,
+                    ruleSets: ruleSets
+                ),
+                selectedTabId: tabGroup.selectedTabId
+            )
+        }
+
+        guard let listRule: ListRule = ruleSets.listRule(id: page.ruleRefs?.list) else {
+            return []
+        }
+
+        return [
+            self.listTab(
+                id: page.id,
+                title: page.title,
+                page: page,
+                tabRequest: nil,
+                tabContext: nil,
+                listRule: listRule
+            )
+        ]
+    }
+
+    private func tabGroupListTabs(
+        page: PageRule,
+        pages: [PageRule],
+        tabGroup: TabGroupRule,
+        ruleSets: RuleSets
+    ) -> [ListTabRule] {
+        return tabGroup.tabs.compactMap { tab in
+            let tabPage: PageRule = pages.first { page in
+                return page.id == tab.pageRef
+            } ?? page
+            let listRuleID: String? = tab.listRuleRef ?? tabPage.ruleRefs?.list
+
+            guard var listRule: ListRule = ruleSets.listRule(id: listRuleID) else {
                 return nil
             }
 
-            return ListTabRule(
-                id: page.id,
-                title: page.title,
-                list: listRule,
-                request: page.request
+            if let tabURL: String = tab.url,
+               tabURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+                listRule.url = tabURL
+            }
+
+            return self.listTab(
+                id: tab.id,
+                title: tab.title,
+                page: tabPage,
+                tabRequest: tab.request,
+                tabContext: tab.context,
+                listRule: listRule
             )
         }
+    }
+
+    private func listTab(
+        id: String,
+        title: String,
+        page: PageRule,
+        tabRequest: RequestConfig?,
+        tabContext: ListContext?,
+        listRule: ListRule
+    ) -> ListTabRule {
+        return ListTabRule(
+            id: id,
+            title: title,
+            list: listRule,
+            request: tabRequest ?? page.request,
+            context: self.listContext(
+                page: page,
+                tabId: id,
+                tabContext: tabContext,
+                listRule: listRule
+            ),
+            sections: page.sections
+        )
+    }
+
+    private func listContext(
+        page: PageRule,
+        tabId: String,
+        tabContext: ListContext?,
+        listRule: ListRule
+    ) -> ListContext {
+        var context: ListContext = tabContext ?? ListContext(
+            pageId: page.id,
+            tabId: tabId,
+            sectionId: nil,
+            listRuleId: listRule.id,
+            sectionRole: .main
+        )
+
+        if context.pageId == nil {
+            context.pageId = page.id
+        }
+
+        if context.tabId == nil {
+            context.tabId = tabId
+        }
+
+        if context.listRuleId == nil {
+            context.listRuleId = listRule.id
+        }
+
+        if context.sectionRole == nil {
+            context.sectionRole = .main
+        }
+
+        return context
+    }
+
+    private func orderedTabs(_ tabs: [ListTabRule], selectedTabId: String?) -> [ListTabRule] {
+        guard let selectedTabId: String = selectedTabId,
+              let selectedIndex: Array<ListTabRule>.Index = tabs.firstIndex(where: { tab in
+                  return tab.id == selectedTabId
+              }) else {
+            return tabs
+        }
+
+        var orderedTabs: [ListTabRule] = tabs
+        let selectedTab: ListTabRule = orderedTabs.remove(at: selectedIndex)
+        orderedTabs.insert(selectedTab, at: 0)
+        return orderedTabs
     }
 
     private var pageDetailRule: DetailRule? {
@@ -215,6 +347,34 @@ struct ListTabRule: Codable, Hashable, Identifiable {
     var list: ListRule
     /// 中文注释：V2 PageRule.request 会附着在列表 tab 上，让刷新列表时知道当前页面应使用哪套请求配置。
     var request: RequestConfig? = nil
+    /// 中文注释：列表 tab 的来源上下文会传给解析出的 ContentItem，P1-5.1 先记录入口，不解析 Section DOM。
+    var context: ListContext? = nil
+    /// 中文注释：V2 PageRule.sections 附着到 tab 上，让列表解析可以按页面区块保存来源上下文。
+    var sections: [SectionRule]? = nil
+}
+
+/// 中文注释：TabGroupRule 描述同一个 V2 Page 下的多个列表入口，例如发现、更新、热门和分类。
+struct TabGroupRule: Codable, Hashable {
+    var id: String
+    var tabs: [TabRule]
+    /// 中文注释：当前 App 用第一个 ListTab 作为默认入口；这里会把 selectedTabId 对应 tab 移到默认位置。
+    var selectedTabId: String?
+    var layout: TabLayout?
+}
+
+/// 中文注释：TabRule 是 V2 页面内的轻量入口定义，最终会被转换成 App 既有的 ListTabRule。
+struct TabRule: Codable, Hashable, Identifiable {
+    var id: String
+    var title: String
+    var pageRef: String?
+    var url: String?
+    var listRuleRef: String?
+    var request: RequestConfig?
+    var context: ListContext?
+}
+
+enum TabLayout: String, Codable, Hashable {
+    case horizontalScroll
 }
 
 /// 中文注释：DetailRule 是 struct，负责本模块中的对应职责。
@@ -362,6 +522,10 @@ struct PageRule: Codable, Hashable, Identifiable {
     var url: String?
     var displayMode: DisplayMode?
     var request: RequestConfig?
+    /// 中文注释：页面内 tab 组用于表达同一页面下的多个列表入口，最终会展开成 ListTabRule。
+    var tabGroup: TabGroupRule?
+    /// 中文注释：页面内的内容区块，例如主列表、排行、推荐；P1-5.2 先用于给列表项标记来源。
+    var sections: [SectionRule]? = nil
     var ruleRefs: RuleRefs?
     var flags: [PageFlag]?
 }

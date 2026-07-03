@@ -89,7 +89,17 @@ final class AppDatabase {
             }
         }
 
+        migrator.registerMigration("addContentItemListContext") { database in
+            try database.alter(table: ContentItemRecord.databaseTableName) { table in
+                // 中文注释：P1-5.1 保存列表来源上下文，为后续 Detail/Gallery 按来源区域解析做准备。
+                table.add(column: "contextPageId", .text)
+                table.add(column: "contextTabId", .text)
+                table.add(column: "contextSectionId", .text)
+                table.add(column: "contextListRuleId", .text)
+                table.add(column: "contextSectionRole", .text)
+            }
+        }
+
         return migrator
     }
 }
-

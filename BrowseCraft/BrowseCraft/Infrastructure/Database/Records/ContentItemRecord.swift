@@ -15,6 +15,11 @@ struct ContentItemRecord: Codable, FetchableRecord, MutablePersistableRecord {
     var type: String
     var latestText: String?
     var updatedAt: Date?
+    var contextPageId: String?
+    var contextTabId: String?
+    var contextSectionId: String?
+    var contextListRuleId: String?
+    var contextSectionRole: String?
 
     init(item: ContentItem) {
         self.id = item.id
@@ -25,6 +30,11 @@ struct ContentItemRecord: Codable, FetchableRecord, MutablePersistableRecord {
         self.type = item.type.rawValue
         self.latestText = item.latestText
         self.updatedAt = item.updatedAt
+        self.contextPageId = item.listContext?.pageId
+        self.contextTabId = item.listContext?.tabId
+        self.contextSectionId = item.listContext?.sectionId
+        self.contextListRuleId = item.listContext?.listRuleId
+        self.contextSectionRole = item.listContext?.sectionRole?.rawValue
     }
 
     /// 中文注释：domainModel 方法封装当前类型的一段业务或界面行为。
@@ -37,8 +47,29 @@ struct ContentItemRecord: Codable, FetchableRecord, MutablePersistableRecord {
             coverURL: self.coverURL,
             type: ContentType(rawValue: self.type) ?? .article,
             latestText: self.latestText,
-            updatedAt: self.updatedAt
+            updatedAt: self.updatedAt,
+            listContext: self.domainListContext()
+        )
+    }
+
+    private func domainListContext() -> ListContext? {
+        if self.contextPageId == nil,
+           self.contextTabId == nil,
+           self.contextSectionId == nil,
+           self.contextListRuleId == nil,
+           self.contextSectionRole == nil {
+            return nil
+        }
+
+        // 中文注释：数据库里保存的是字符串，读取时恢复为领域层 ListContext，未知 role 保持为空以兼容旧数据。
+        return ListContext(
+            pageId: self.contextPageId,
+            tabId: self.contextTabId,
+            sectionId: self.contextSectionId,
+            listRuleId: self.contextListRuleId,
+            sectionRole: self.contextSectionRole.flatMap { role in
+                return SectionRole(rawValue: role)
+            }
         )
     }
 }
-

@@ -51,6 +51,38 @@ struct SwiftSoupReaderParserTests {
         #expect(chapter.pageImageURLs[1] == "https://example.test/images/v2-page-2.jpg")
     }
 
+    @Test func v2ReaderImagesUseListContextScope() throws {
+        let source: Source = try Self.v2GalleryRuleSourceWithLegacyGalleryDisabled()
+        let parser: SwiftSoupRuleParser = SwiftSoupRuleParser(
+            urlResolver: URLResolvingService()
+        )
+
+        let chapter: ReaderChapter = try parser.parseReader(
+            html: """
+            <main class="reader">
+              <section data-section-id="main-grid" data-section-role="main">
+                <img class="page" data-src="/images/main-page-1.jpg" src="/placeholder.gif">
+              </section>
+              <section data-section-id="recommendations" data-section-role="recommendation">
+                <img class="page" data-src="/images/recommend-page-1.jpg" src="/placeholder.gif">
+              </section>
+            </main>
+            """,
+            source: source,
+            pageURL: "https://example.test/chapters/v2",
+            context: ListContext(
+                pageId: "home",
+                tabId: "home",
+                sectionId: "main-grid",
+                listRuleId: "home-list",
+                sectionRole: .main
+            )
+        )
+
+        // 中文注释：P1-5.3 阅读页图片解析应沿用列表来源 section，避免推荐区图片混入正文。
+        #expect(chapter.pageImageURLs == ["https://example.test/images/main-page-1.jpg"])
+    }
+
     @Test func v2PageRuleRefsDriveListDetailAndReaderParsing() throws {
         let source: Source = try Self.v2RuleSourceWithLegacyEntrypointsDisabled()
         let parser: SwiftSoupRuleParser = SwiftSoupRuleParser(

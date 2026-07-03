@@ -45,6 +45,32 @@ struct SwiftSoupListParserTests {
         #expect(items[1].detailURL == "https://example.test/comics/v2-2")
     }
 
+    @Test func v2PageSectionsAttachSectionContextToListItems() throws {
+        let source: Source = try Self.v2ListRuleSourceWithLegacyListDisabled()
+        let parser: SwiftSoupRuleParser = SwiftSoupRuleParser(
+            urlResolver: URLResolvingService()
+        )
+        let tab: ListTabRule = try #require(source.rule.availableListTabs.first)
+
+        let items: [ContentItem] = try parser.parseList(
+            html: Self.v2SectionListHTML,
+            source: source,
+            listRule: tab.list,
+            context: tab.context,
+            sections: tab.sections
+        )
+
+        // 中文注释：P1-5.2 要把 PageRule.sections 的来源区块写入 item context，后续详情页可排除推荐区误匹配。
+        #expect(items.map(\.title) == ["主列表作品", "推荐作品"])
+        #expect(items[0].listContext?.sectionId == "main-grid")
+        #expect(items[0].listContext?.sectionRole == .main)
+        #expect(items[1].listContext?.sectionId == "recommendations")
+        #expect(items[1].listContext?.sectionRole == .recommendation)
+        #expect(items[1].listContext?.pageId == "home")
+        #expect(items[1].listContext?.tabId == "discover")
+        #expect(items[1].listContext?.listRuleId == "home-list")
+    }
+
     private static let v2ListHTML: String = """
     <main>
       <article class="card" data-id="v2-1">
@@ -55,6 +81,23 @@ struct SwiftSoupListParserTests {
         <a class="title" href="/comics/v2-2">V2 第二话</a>
         <img class="cover" src="/images/v2-2.jpg">
       </article>
+    </main>
+    """
+
+    private static let v2SectionListHTML: String = """
+    <main>
+      <section class="main-grid">
+        <article class="card" data-id="main-1">
+          <a class="title" href="/comics/main-1">主列表作品</a>
+          <img class="cover" src="/images/main-1.jpg">
+        </article>
+      </section>
+      <section class="recommendations">
+        <article class="card" data-id="recommend-1">
+          <a class="title" href="/comics/recommend-1">推荐作品</a>
+          <img class="cover" src="/images/recommend-1.jpg">
+        </article>
+      </section>
     </main>
     """
 

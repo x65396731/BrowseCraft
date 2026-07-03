@@ -45,6 +45,10 @@ struct RefreshSourceUseCase {
     func execute(source: Source, listTab: ListTabRule?, page: Int = 1) async throws -> [ContentItem] {
         let listRule: ListRule = listTab?.list ?? source.rule.list
         let url: URL = try self.urlResolver.listURL(for: source, listRule: listRule, page: page)
+        let listContext: ListContext = self.listContext(
+            listTab: listTab,
+            listRule: listRule
+        )
 
         #if DEBUG
         print(
@@ -60,9 +64,34 @@ struct RefreshSourceUseCase {
             from: url,
             request: source.rule.request(for: listTab)
         )
-        let items: [ContentItem] = try self.ruleParser.parseList(html: html, source: source, listRule: listRule)
+        let items: [ContentItem] = try self.ruleParser.parseList(
+            html: html,
+            source: source,
+            listRule: listRule,
+            context: listContext,
+            sections: listTab?.sections
+        )
 
         try self.contentRepository.saveItems(items)
         return items
+    }
+
+    private func listContext(listTab: ListTabRule?, listRule: ListRule) -> ListContext {
+        if var context: ListContext = listTab?.context {
+            if context.listRuleId == nil {
+                context.listRuleId = listRule.id
+            }
+
+            return context
+        }
+
+        // 中文注释：旧 listTabs 没有 PageRule 上下文时，先把 tab id 作为最小入口标识保存下来。
+        return ListContext(
+            pageId: listTab?.id,
+            tabId: listTab?.id,
+            sectionId: nil,
+            listRuleId: listRule.id,
+            sectionRole: .main
+        )
     }
 }
