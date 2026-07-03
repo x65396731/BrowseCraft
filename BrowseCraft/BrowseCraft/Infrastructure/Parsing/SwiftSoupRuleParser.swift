@@ -1,3 +1,4 @@
+import Compression
 import Foundation
 import SwiftSoup
 
@@ -13,11 +14,20 @@ final class SwiftSoupRuleParser: RuleParsingService {
 
     private enum ExtractError: LocalizedError {
         case unsupportedFunction(ExtractFunction)
+        case unsupportedSelectorKind(SelectorKind)
+        case missingRegexReplacementPattern
+        case missingReplaceTarget
 
         var errorDescription: String? {
             switch self {
             case .unsupportedFunction(let function):
                 return "Unsupported extract function: \(function.rawValue)"
+            case .unsupportedSelectorKind(let selectorKind):
+                return "Unsupported selector kind: \(selectorKind.rawValue)"
+            case .missingRegexReplacementPattern:
+                return "regexReplacement requires a non-empty regex pattern"
+            case .missingReplaceTarget:
+                return "replace requires a non-empty param target"
             }
         }
     }
@@ -699,6 +709,18 @@ final class SwiftSoupRuleParser: RuleParsingService {
         rule: ExtractRule,
         includesSelf: Bool = false
     ) throws -> [Element] {
+        switch rule.selectorKind {
+        case .current:
+            return [element]
+        case .jsonPath:
+            throw ExtractError.unsupportedSelectorKind(.jsonPath)
+        case .xpath:
+            throw ExtractError.unsupportedSelectorKind(.xpath)
+        case .css,
+             .none:
+            break
+        }
+
         guard let selector: String = rule.selector,
               selector.isEmpty == false,
               selector != "this" else {
@@ -759,56 +781,183 @@ final class SwiftSoupRuleParser: RuleParsingService {
         }
     }
 
-    /// 中文注释：extract 方法封装当前类型的一段业务或界面行为。
+    /// 中文注释：按 ExtractRule 从当前节点抽取字符串。旧规则使用 function，V2 规则可使用 functions 串联转换。
     private func extract(element: Element, rule: ExtractRule) throws -> String {
         let selectedElement: Element? = try self.selectedElements(element: element, rule: rule).first
-        let rawValue: String
-
-        switch rule.function {
-        case .text:
-            rawValue = try selectedElement?.text() ?? ""
-        case .html:
-            rawValue = try selectedElement?.html() ?? ""
-        case .attr:
-            rawValue = try self.extractAttribute(
-                element: selectedElement,
-                attributeExpression: rule.param ?? ""
-            )
-        case .raw:
-            rawValue = try selectedElement?.outerHtml() ?? ""
-        case .url:
-            rawValue = try self.extractAttribute(
-                element: selectedElement,
-                attributeExpression: rule.param ?? "href"
-            )
-        case .decodeBase64,
-             .removingPercentEncoding,
-             .addingPercentEncoding,
-             .replace,
-             .decompressFromBase64,
-             .reversed,
-             .regexReplacement:
-            throw ExtractError.unsupportedFunction(rule.function)
-        }
-
-        let transformedValue: String = try self.applyRegex(
-            to: rawValue,
-            regex: rule.regex,
-            replacement: rule.replacement
+        let rawValue: String = try self.rawExtractValue(
+            selectedElement: selectedElement,
+            rule: rule
         )
 
-        if transformedValue.isEmpty,
+        let transformedValue: String = try self.applyLegacyRegexIfNeeded(
+            to: rawValue,
+            rule: rule
+        )
+
+        if self.isEffectivelyEmpty(transformedValue),
            let fallbackRules: [ExtractRule] = rule.fallback {
             for fallbackRule: ExtractRule in fallbackRules {
                 let fallbackValue: String = try self.extract(element: element, rule: fallbackRule)
 
-                if fallbackValue.isEmpty == false {
+                if self.isEffectivelyEmpty(fallbackValue) == false {
                     return fallbackValue
                 }
             }
         }
 
         return transformedValue
+    }
+
+    /// 中文注释：执行单步或多步抽取。functions 存在时按数组顺序处理，不存在时保持旧版 function 行为。
+    private func rawExtractValue(selectedElement: Element?, rule: ExtractRule) throws -> String {
+        guard let functions: [ExtractFunction] = rule.functions,
+              functions.isEmpty == false else {
+            return try self.applyExtractFunction(
+                rule.function,
+                selectedElement: selectedElement,
+                currentValue: "",
+                rule: rule
+            )
+        }
+
+        var currentValue: String = ""
+
+        for function: ExtractFunction in functions {
+            currentValue = try self.applyExtractFunction(
+                function,
+                selectedElement: selectedElement,
+                currentValue: currentValue,
+                rule: rule
+            )
+        }
+
+        return currentValue
+    }
+
+    /// 中文注释：source 类函数从 DOM 取值，transform 类函数只处理上一步字符串结果。
+    private func applyExtractFunction(
+        _ function: ExtractFunction,
+        selectedElement: Element?,
+        currentValue: String,
+        rule: ExtractRule
+    ) throws -> String {
+        switch function {
+        case .text:
+            return try selectedElement?.text() ?? ""
+        case .html:
+            return try selectedElement?.html() ?? ""
+        case .attr:
+            return try self.extractAttribute(
+                element: selectedElement,
+                attributeExpression: rule.param ?? ""
+            )
+        case .raw:
+            return try selectedElement?.outerHtml() ?? ""
+        case .url:
+            return try self.extractAttribute(
+                element: selectedElement,
+                attributeExpression: rule.param ?? "href"
+            )
+        case .decodeBase64:
+            return self.decodeBase64(currentValue)
+        case .removingPercentEncoding:
+            return currentValue.removingPercentEncoding ?? currentValue
+        case .addingPercentEncoding:
+            return currentValue.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? currentValue
+        case .reversed:
+            return String(currentValue.reversed())
+        case .regexReplacement:
+            return try self.applyRegexReplacement(to: currentValue, rule: rule)
+        case .replace:
+            return try self.applyReplace(to: currentValue, rule: rule)
+        case .decompressFromBase64:
+            return self.decompressZlibFromBase64(currentValue)
+        }
+    }
+
+    private func decodeBase64(_ value: String) -> String {
+        guard let data: Data = Data(base64Encoded: value),
+              let decodedValue: String = String(data: data, encoding: .utf8) else {
+            return ""
+        }
+
+        return decodedValue
+    }
+
+    /// 中文注释：decompressFromBase64 当前限定为 Base64 包裹的 zlib 数据，避免在没有算法字段时误猜其它压缩格式。
+    private func decompressZlibFromBase64(_ value: String) -> String {
+        guard let compressedData: Data = Data(base64Encoded: value.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+            return ""
+        }
+
+        let compressedBytes: [UInt8] = Array(compressedData)
+        var outputSize: Int = max(compressedBytes.count * 4, 64)
+        let maxOutputSize: Int = 1024 * 1024
+
+        while outputSize <= maxOutputSize {
+            var outputBytes: [UInt8] = Array(repeating: 0, count: outputSize)
+            let decodedSize: Int = compressedBytes.withUnsafeBufferPointer { compressedBuffer in
+                return outputBytes.withUnsafeMutableBufferPointer { outputBuffer in
+                    return compression_decode_buffer(
+                        outputBuffer.baseAddress!,
+                        outputBuffer.count,
+                        compressedBuffer.baseAddress!,
+                        compressedBuffer.count,
+                        nil,
+                        COMPRESSION_ZLIB
+                    )
+                }
+            }
+
+            if decodedSize > 0 {
+                return String(data: Data(outputBytes.prefix(decodedSize)), encoding: .utf8) ?? ""
+            }
+
+            outputSize *= 2
+        }
+
+        return ""
+    }
+
+    /// 中文注释：replace 使用 param 表示被替换文本，replacement 表示替换后的文本，适合函数链里的轻量清洗。
+    private func applyReplace(to value: String, rule: ExtractRule) throws -> String {
+        guard let target: String = rule.param, target.isEmpty == false else {
+            throw ExtractError.missingReplaceTarget
+        }
+
+        return value.replacingOccurrences(
+            of: target,
+            with: rule.replacement ?? ""
+        )
+    }
+
+    private func applyRegexReplacement(to value: String, rule: ExtractRule) throws -> String {
+        guard let regex: String = rule.regex, regex.isEmpty == false else {
+            throw ExtractError.missingRegexReplacementPattern
+        }
+
+        return try self.applyRegex(
+            to: value,
+            regex: regex,
+            replacement: rule.replacement
+        )
+    }
+
+    private func applyLegacyRegexIfNeeded(to value: String, rule: ExtractRule) throws -> String {
+        if rule.functions?.contains(.regexReplacement) == true {
+            return value
+        }
+
+        return try self.applyRegex(
+            to: value,
+            regex: rule.regex,
+            replacement: rule.replacement
+        )
+    }
+
+    /// 中文注释：fallback 判定使用“实际可展示内容”而非字节长度，避免空白节点阻断备用规则。
+    private func isEffectivelyEmpty(_ value: String) -> Bool {
+        return value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private func applyRegex(to value: String, regex: String?, replacement: String?) throws -> String {

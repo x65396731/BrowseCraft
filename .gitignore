@@ -9,6 +9,7 @@ BrowseCraft/*.xcuserstate
 BrowseCraft/build/
 BrowseCraft/DerivedData/
 BrowseCraft/.derivedData/
+BrowseCraft/TestResults/*.xcresult/
 
 # BrowseCraft XcodeGen generated project
 BrowseCraft/*.xcodeproj/
