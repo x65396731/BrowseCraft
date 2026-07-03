@@ -20,6 +20,9 @@ struct RuleDetailView: View {
     @State private var debugSession: RuleDebugSession?
     @State private var isShowingDebugSheet: Bool = false
     @State private var isRunningListDebug: Bool = false
+    @State private var debugPageText: String = "1"
+    @State private var debugURLOverride: String = ""
+    @State private var didCopyDebugSummary: Bool = false
 
     var body: some View {
         Group {
@@ -118,6 +121,18 @@ struct RuleDetailView: View {
 
     private func debugSection(source: Source) -> some View {
         Section("Rule Debug") {
+            Stepper(
+                value: self.debugPageBinding,
+                in: 1...999
+            ) {
+                LabeledContent("Page", value: "\(self.debugPage)")
+            }
+
+            TextField("URL override", text: self.$debugURLOverride)
+                .keyboardType(.URL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+
             ForEach(source.rule.availableListTabs) { listTab in
                 Button(
                     action: {
@@ -355,6 +370,21 @@ struct RuleDetailView: View {
                             self.isShowingDebugSheet = false
                         }
                     }
+
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(
+                            action: {
+                                self.copyDebugSummary()
+                            },
+                            label: {
+                                Label(
+                                    self.didCopyDebugSummary ? "Copied" : "Copy Summary",
+                                    systemImage: self.didCopyDebugSummary ? "checkmark" : "doc.on.doc"
+                                )
+                            }
+                        )
+                        .disabled(self.debugSession == nil)
+                    }
                 }
         }
     }
@@ -466,19 +496,157 @@ struct RuleDetailView: View {
         }
 
         self.isRunningListDebug = true
+        let page: Int = self.debugPage
+        let urlOverride: String? = self.nonEmpty(self.debugURLOverride)
 
         Task {
             let session: RuleDebugSession = await self.viewModel.debugListRule(
                 source: source,
-                listTab: listTab
+                listTab: listTab,
+                page: page,
+                urlOverride: urlOverride
             )
 
             await MainActor.run {
                 self.debugSession = session
+                self.didCopyDebugSummary = false
                 self.isRunningListDebug = false
                 self.isShowingDebugSheet = true
             }
         }
+    }
+
+    private func copyDebugSummary() {
+        guard let debugSession: RuleDebugSession = self.debugSession else {
+            return
+        }
+
+        UIPasteboard.general.string = self.debugSummaryMarkdown(session: debugSession)
+        self.didCopyDebugSummary = true
+    }
+
+    private func debugSummaryMarkdown(session: RuleDebugSession) -> String {
+        var lines: [String] = [
+            "# Rule Debug Summary",
+            "",
+            "## Diagnosis",
+            "- Status: \(session.status.rawValue)",
+            "- Source: \(session.input.sourceName)",
+            "- Source ID: \(session.input.sourceID)",
+            "- Rule ID: \(session.input.ruleID ?? "Default")"
+        ]
+
+        if let tabID: String = session.input.tabID {
+            lines.append("- Tab ID: \(tabID)")
+        }
+
+        if let page: Int = session.input.page {
+            lines.append("- Page: \(page)")
+        }
+
+        if let urlOverride: String = session.input.url {
+            lines.append("- URL Override: \(urlOverride)")
+        }
+
+        lines.append("")
+        lines.append("## Issues")
+
+        if session.issues.isEmpty {
+            lines.append("- None")
+        } else {
+            for issue: RuleDebugIssue in session.issues {
+                let fieldText: String = issue.field.map { field in " field=\(field.rawValue)" } ?? ""
+                lines.append(
+                    "- \(issue.severity.rawValue) \(issue.category.rawValue)\(fieldText): \(issue.message)"
+                )
+            }
+        }
+
+        lines.append("")
+        lines.append("## Request")
+
+        if session.requestLogs.isEmpty {
+            lines.append("- No request was sent.")
+        } else {
+            for log: RuleDebugRequestLog in session.requestLogs {
+                lines.append("- URL: \(log.url)")
+                lines.append("  - Method: \(log.method)")
+                lines.append("  - Headers: \(log.requestSummary.headerCount)")
+                lines.append("  - WebView: \(log.requestSummary.needsWebView ? "yes" : "no")")
+                lines.append("  - Auto Scroll: \(log.requestSummary.autoScroll ? "yes" : "no")")
+
+                if let contentLength: Int = log.responseSummary?.contentLength {
+                    lines.append("  - Content Length: \(contentLength)")
+                }
+
+                if let errorMessage: String = log.errorMessage {
+                    lines.append("  - Error: \(errorMessage)")
+                }
+            }
+        }
+
+        lines.append("")
+        lines.append("## Extraction")
+
+        if session.extractionLogs.isEmpty {
+            lines.append("- No extraction logs.")
+        } else {
+            for log: RuleDebugExtractionLog in session.extractionLogs {
+                lines.append("- Field: \(log.field?.rawValue ?? "unknown")")
+                lines.append("  - Selector: \(log.selector ?? "none")")
+                lines.append("  - Candidates: \(log.candidateCount.map { count in "\(count)" } ?? "unknown")")
+                lines.append("  - Output: \(log.outputCount.map { count in "\(count)" } ?? "unknown")")
+
+                if log.samples.isEmpty == false {
+                    lines.append("  - Samples: \(log.samples.prefix(3).joined(separator: " | "))")
+                }
+            }
+        }
+
+        lines.append("")
+        lines.append("## Preview")
+
+        if session.previewItems.isEmpty {
+            lines.append("- No preview items.")
+        } else {
+            for item: RuleDebugPreviewItem in session.previewItems.prefix(10) {
+                lines.append("- \(item.title)")
+
+                if let detailURL: String = item.detailURL {
+                    lines.append("  - Detail: \(detailURL)")
+                }
+
+                if let coverURL: String = item.coverURL {
+                    lines.append("  - Cover: \(coverURL)")
+                }
+
+                if let latestText: String = item.latestText {
+                    lines.append("  - Latest: \(latestText)")
+                }
+            }
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    private var debugPage: Int {
+        guard let page: Int = Int(self.debugPageText),
+              page > 0 else {
+            return 1
+        }
+
+        return page
+    }
+
+    private var debugPageBinding: Binding<Int> {
+        return Binding<Int>(
+            get: {
+                return self.debugPage
+            },
+            set: { newValue in
+                self.debugPageText = "\(max(1, newValue))"
+            }
+        )
     }
 
     private func ruleSetLine(_ title: String, ids: [String]) -> some View {
@@ -611,11 +779,10 @@ private struct RuleDebugSessionView: View {
     var body: some View {
         Form {
             if let session: RuleDebugSession = self.session {
-                self.summarySection(session: session)
+                self.diagnosisSection(session: session)
                 self.requestSection(session.requestLogs)
                 self.extractionSection(session.extractionLogs)
                 self.previewSection(session.previewItems)
-                self.issuesSection(session.issues)
             } else {
                 EmptyStateView(
                     systemImage: "ladybug",
@@ -626,9 +793,12 @@ private struct RuleDebugSessionView: View {
         }
     }
 
-    private func summarySection(session: RuleDebugSession) -> some View {
-        Section("Summary") {
-            LabeledContent("Status", value: session.status.rawValue)
+    private func diagnosisSection(session: RuleDebugSession) -> some View {
+        Section("Diagnosis") {
+            LabeledContent("Status") {
+                Text(session.status.rawValue)
+                    .foregroundColor(self.statusColor(session.status))
+            }
             LabeledContent("Source", value: session.input.sourceName)
             LabeledContent("Rule", value: session.input.ruleID ?? "Default")
 
@@ -638,6 +808,30 @@ private struct RuleDebugSessionView: View {
 
             if let page: Int = session.input.page {
                 LabeledContent("Page", value: "\(page)")
+            }
+
+            if let urlOverride: String = session.input.url {
+                LabeledContent("URL Override", value: urlOverride)
+            }
+
+            if session.issues.isEmpty {
+                self.secondaryText("No issues.")
+            } else {
+                ForEach(session.issues) { issue in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("\(issue.severity.rawValue) · \(issue.category.rawValue)")
+                            .font(.headline)
+                            .foregroundColor(self.issueColor(issue.severity))
+
+                        if let field: RuleDebugField = issue.field {
+                            self.keyValueLine("Field", field.rawValue)
+                        }
+
+                        Text(issue.message)
+                            .font(.caption)
+                            .textSelection(.enabled)
+                    }
+                }
             }
         }
     }
@@ -649,9 +843,7 @@ private struct RuleDebugSessionView: View {
             } else {
                 ForEach(logs) { log in
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(log.url)
-                            .font(.caption)
-                            .textSelection(.enabled)
+                        self.keyValueLine("URL", log.url)
                         self.keyValueLine("Method", log.method)
                         self.keyValueLine("Headers", "\(log.requestSummary.headerCount)")
                         self.keyValueLine("WebView", log.requestSummary.needsWebView ? "Yes" : "No")
@@ -723,30 +915,6 @@ private struct RuleDebugSessionView: View {
         }
     }
 
-    private func issuesSection(_ issues: [RuleDebugIssue]) -> some View {
-        Section("Issues") {
-            if issues.isEmpty {
-                self.secondaryText("No issues.")
-            } else {
-                ForEach(issues) { issue in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("\(issue.severity.rawValue) · \(issue.category.rawValue)")
-                            .font(.headline)
-                            .foregroundColor(self.issueColor(issue.severity))
-
-                        if let field: RuleDebugField = issue.field {
-                            self.keyValueLine("Field", field.rawValue)
-                        }
-
-                        Text(issue.message)
-                            .font(.caption)
-                            .textSelection(.enabled)
-                    }
-                }
-            }
-        }
-    }
-
     private func keyValueLine(_ key: String, _ value: String) -> some View {
         HStack(alignment: .top, spacing: 6) {
             Text(key)
@@ -764,6 +932,19 @@ private struct RuleDebugSessionView: View {
             .font(.caption)
             .foregroundColor(.secondary)
             .textSelection(.enabled)
+    }
+
+    private func statusColor(_ status: RuleDebugSessionStatus) -> Color {
+        switch status {
+        case .running:
+            return .secondary
+        case .succeeded:
+            return .green
+        case .empty:
+            return .orange
+        case .failed:
+            return .red
+        }
     }
 
     private func issueColor(_ severity: RuleDebugIssueSeverity) -> Color {

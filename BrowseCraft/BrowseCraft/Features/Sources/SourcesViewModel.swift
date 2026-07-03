@@ -271,11 +271,17 @@ final class SourcesViewModel: ObservableObject {
     }
 
     @MainActor
-    func debugListRule(source: Source, listTab: ListTabRule?, page: Int = 1) async -> RuleDebugSession {
+    func debugListRule(
+        source: Source,
+        listTab: ListTabRule?,
+        page: Int = 1,
+        urlOverride: String? = nil
+    ) async -> RuleDebugSession {
         return await self.listDebugUseCase.execute(
             source: source,
             listTab: listTab,
-            page: page
+            page: page,
+            urlOverride: urlOverride
         )
     }
 
