@@ -64,8 +64,8 @@ struct LoadBuiltInSourcesUseCase {
             print(
                 "[BrowseCraftRule] Synced built-in source id=\(updatedSource.id) " +
                 "name=\(updatedSource.name) " +
-                "chapterContainer=\(updatedSource.rule.detail?.chapterContainer ?? "nil") " +
-                "chapterItem=\(updatedSource.rule.detail?.chapterItem ?? "nil")"
+                "chapterContainer=\(updatedSource.rule.primaryDetailRule?.chapterContainer ?? "nil") " +
+                "chapterItem=\(updatedSource.rule.primaryDetailRule?.chapterItem ?? "nil")"
             )
             #endif
         }

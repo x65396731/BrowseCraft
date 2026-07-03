@@ -171,7 +171,7 @@ struct LibraryView: View {
     }
 
     private func shouldOpenReaderDirectly(for source: Source) -> Bool {
-        return source.rule.detail?.treatDetailURLAsChapter == true
+        return source.rule.primaryDetailRule?.treatDetailURLAsChapter == true
     }
 
     private var errorAlertBinding: Binding<Bool> {

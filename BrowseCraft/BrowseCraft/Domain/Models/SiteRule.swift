@@ -26,7 +26,24 @@ struct SiteRule: Codable, Hashable {
     var gallery: GalleryRule?
     var video: VideoRule?
 
+    var primaryListRule: ListRule {
+        return self.availableListTabs.first?.list ?? self.list
+    }
+
+    var primaryDetailRule: DetailRule? {
+        return self.pageDetailRule ?? self.detail
+    }
+
+    var primaryGalleryRule: GalleryRule? {
+        return self.pageGalleryRule ?? self.gallery
+    }
+
     var availableListTabs: [ListTabRule] {
+        let pageListTabs: [ListTabRule] = self.pageListTabs
+        if pageListTabs.isEmpty == false {
+            return pageListTabs
+        }
+
         if let listTabs: [ListTabRule] = self.listTabs, listTabs.isEmpty == false {
             return listTabs
         }
@@ -38,6 +55,59 @@ struct SiteRule: Codable, Hashable {
                 list: self.list
             )
         ]
+    }
+
+    private var pageListTabs: [ListTabRule] {
+        guard let pages: [PageRule] = self.pages,
+              let ruleSets: RuleSets = self.ruleSets else {
+            return []
+        }
+
+        // 中文注释：V2 的 Pages 是界面入口，ruleRefs.list 指向 RuleSets.listRules 中真正执行的列表规则。
+        return pages.compactMap { page in
+            guard page.isListEntryPage,
+                  let listRule: ListRule = ruleSets.listRule(id: page.ruleRefs?.list) else {
+                return nil
+            }
+
+            return ListTabRule(
+                id: page.id,
+                title: page.title,
+                list: listRule
+            )
+        }
+    }
+
+    private var pageDetailRule: DetailRule? {
+        guard let pages: [PageRule] = self.pages,
+              let ruleSets: RuleSets = self.ruleSets else {
+            return nil
+        }
+
+        // 中文注释：详情页解析使用 PageRule.ruleRefs.detail 指向 RuleSets.detailRules，旧 detail 字段只作为兼容兜底。
+        return pages.lazy.compactMap { page in
+            guard page.isDetailEntryPage else {
+                return nil
+            }
+
+            return ruleSets.detailRule(id: page.ruleRefs?.detail)
+        }.first
+    }
+
+    private var pageGalleryRule: GalleryRule? {
+        guard let pages: [PageRule] = self.pages,
+              let ruleSets: RuleSets = self.ruleSets else {
+            return nil
+        }
+
+        // 中文注释：阅读页图片解析使用 PageRule.ruleRefs.gallery 指向 RuleSets.galleryRules，旧 gallery 字段只作为兼容兜底。
+        return pages.lazy.compactMap { page in
+            guard page.isGalleryEntryPage else {
+                return nil
+            }
+
+            return ruleSets.galleryRule(id: page.ruleRefs?.gallery)
+        }.first
     }
 }
 
@@ -230,6 +300,33 @@ enum PageType: String, Codable, Hashable {
     case reader
 }
 
+extension PageRule {
+    /// 中文注释：只有这些页面类型会作为列表入口展示；详情、阅读和搜索页先留给后续 P1-3 子任务接线。
+    var isListEntryPage: Bool {
+        switch self.type {
+        case .home, .series, .list, .category:
+            return true
+        case .detail, .gallery, .search, .reader:
+            return false
+        }
+    }
+
+    /// 中文注释：详情入口只负责作品详情页规则，阅读页和搜索页会在后续子任务分别接入。
+    var isDetailEntryPage: Bool {
+        return self.type == .detail
+    }
+
+    /// 中文注释：reader/gallery 都代表可加载图片页的入口；二者共享 GalleryRule 解析正文图片。
+    var isGalleryEntryPage: Bool {
+        switch self.type {
+        case .gallery, .reader:
+            return true
+        case .home, .series, .list, .category, .detail, .search:
+            return false
+        }
+    }
+}
+
 enum DisplayMode: String, Codable, Hashable {
     case list
     case grid
@@ -252,6 +349,59 @@ struct RuleSets: Codable, Hashable {
     var detailRules: [DetailRule]?
     var galleryRules: [GalleryRule]?
     var searchRules: [SearchRule]?
+}
+
+extension RuleSets {
+    /// 中文注释：按 rule id 查找系列页规则，后续 PageRule.ruleRefs.series 会通过这里接入 RuleSets。
+    func seriesRule(id: String?) -> ListRule? {
+        return Self.rule(in: self.seriesRules, id: id) { rule in
+            return rule.id
+        }
+    }
+
+    /// 中文注释：按 rule id 查找列表页规则，后续 PageRule.ruleRefs.list 会通过这里接入 RuleSets。
+    func listRule(id: String?) -> ListRule? {
+        return Self.rule(in: self.listRules, id: id) { rule in
+            return rule.id
+        }
+    }
+
+    /// 中文注释：按 rule id 查找详情页规则，后续 PageRule.ruleRefs.detail 会通过这里接入 RuleSets。
+    func detailRule(id: String?) -> DetailRule? {
+        return Self.rule(in: self.detailRules, id: id) { rule in
+            return rule.id
+        }
+    }
+
+    /// 中文注释：按 rule id 查找阅读页规则，后续 PageRule.ruleRefs.gallery 会通过这里接入 RuleSets。
+    func galleryRule(id: String?) -> GalleryRule? {
+        return Self.rule(in: self.galleryRules, id: id) { rule in
+            return rule.id
+        }
+    }
+
+    /// 中文注释：按 rule id 查找搜索页规则，后续 PageRule.ruleRefs.search 会通过这里接入 RuleSets。
+    func searchRule(id: String?) -> SearchRule? {
+        return Self.rule(in: self.searchRules, id: id) { rule in
+            return rule.id
+        }
+    }
+
+    /// 中文注释：统一处理空白引用和精确 id 匹配，避免各入口接线时重复写查找逻辑。
+    private static func rule<T>(
+        in rules: [T]?,
+        id: String?,
+        ruleID: (T) -> String?
+    ) -> T? {
+        guard let normalizedID: String = id?.trimmingCharacters(in: .whitespacesAndNewlines),
+              normalizedID.isEmpty == false else {
+            return nil
+        }
+
+        return rules?.first { rule in
+            return ruleID(rule) == normalizedID
+        }
+    }
 }
 
 enum SiteFlag: String, Codable, Hashable {

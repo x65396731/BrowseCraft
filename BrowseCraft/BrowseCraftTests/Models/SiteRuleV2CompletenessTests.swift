@@ -20,7 +20,7 @@ struct SiteRuleV2CompletenessTests {
         #expect(rule.urlPatterns?.detailTemplate?.placeholders?.first?.kind == .idCode)
         #expect(rule.urlPatterns?.galleryTemplate?.placeholders?.first?.kind == .cidCode)
         #expect(rule.urlPatterns?.searchTemplate?.placeholders?.last?.kind == .urlQuery)
-        #expect(rule.pages?.count == 2)
+        #expect(rule.pages?.count == 3)
         #expect(rule.pages?.first?.ruleRefs?.list == "home-list")
         #expect(rule.pages?.last?.displayMode == .verticalReader)
         // 中文注释：共享请求、页面请求、规则请求、图片请求都要能 decode 出优先级字段。
@@ -40,5 +40,71 @@ struct SiteRuleV2CompletenessTests {
         #expect(rule.ruleSets?.detailRules?.first?.videoRule?.thumbnail?.param == "poster")
         #expect(rule.ruleSets?.galleryRules?.first?.image?.functions == [.attr, .removingPercentEncoding])
         #expect(rule.ruleSets?.searchRules?.first?.fields.detailURL.function == .url)
+    }
+
+    @Test func ruleSetsFindRulesByStableID() throws {
+        let rule: SiteRule = try JSONDecoder().decode(
+            SiteRule.self,
+            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
+        )
+
+        // 中文注释：PageRule.ruleRefs 后续会以稳定 id 接到 RuleSets，这里先锁定模型层查找行为。
+        let ruleSets: RuleSets = try #require(rule.ruleSets)
+        #expect(ruleSets.listRule(id: "home-list")?.id == "home-list")
+        #expect(ruleSets.detailRule(id: "detail")?.id == "detail")
+        #expect(ruleSets.galleryRule(id: "reader-gallery")?.id == "reader-gallery")
+        #expect(ruleSets.searchRule(id: "search")?.id == "search")
+    }
+
+    @Test func ruleSetsIgnoreBlankOrMissingIDs() throws {
+        let rule: SiteRule = try JSONDecoder().decode(
+            SiteRule.self,
+            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
+        )
+
+        // 中文注释：空白引用不能误命中第一条规则；带空格的有效 id 允许被规范化后命中。
+        let ruleSets: RuleSets = try #require(rule.ruleSets)
+        #expect(ruleSets.listRule(id: " home-list ")?.id == "home-list")
+        #expect(ruleSets.listRule(id: nil) == nil)
+        #expect(ruleSets.detailRule(id: "") == nil)
+        #expect(ruleSets.galleryRule(id: "   ") == nil)
+        #expect(ruleSets.searchRule(id: "missing") == nil)
+    }
+
+    @Test func v2ListPagesBecomeAvailableListTabs() throws {
+        let rule: SiteRule = try JSONDecoder().decode(
+            SiteRule.self,
+            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
+        )
+
+        // 中文注释：列表入口要从 PageRule.ruleRefs.list 接到 RuleSets.listRules，UI 和刷新用例才能共用 V2 页面定义。
+        let tabs: [ListTabRule] = rule.availableListTabs
+        #expect(tabs.count == 1)
+        #expect(tabs.first?.id == "home")
+        #expect(tabs.first?.title == "Home")
+        #expect(tabs.first?.list.id == "home-list")
+        #expect(rule.primaryListRule.id == "home-list")
+    }
+
+    @Test func v2DetailPageSelectsPrimaryDetailRule() throws {
+        let rule: SiteRule = try JSONDecoder().decode(
+            SiteRule.self,
+            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
+        )
+
+        // 中文注释：详情解析入口要从 PageRule.ruleRefs.detail 接到 RuleSets.detailRules，旧 detail 字段只作为兼容兜底。
+        #expect(rule.primaryDetailRule?.id == "detail")
+        #expect(rule.primaryDetailRule?.chapterRule?.title.selector == ".chapter-title")
+    }
+
+    @Test func v2ReaderPageSelectsPrimaryGalleryRule() throws {
+        let rule: SiteRule = try JSONDecoder().decode(
+            SiteRule.self,
+            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
+        )
+
+        // 中文注释：阅读页图片解析入口要从 PageRule.ruleRefs.gallery 接到 RuleSets.galleryRules，旧 gallery 字段只作为兼容兜底。
+        #expect(rule.primaryGalleryRule?.id == "reader-gallery")
+        #expect(rule.primaryGalleryRule?.imageItem == "img.page")
     }
 }

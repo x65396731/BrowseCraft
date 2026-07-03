@@ -40,7 +40,7 @@ final class SwiftSoupRuleParser: RuleParsingService {
 
     /// 中文注释：parseList 方法封装当前类型的一段业务或界面行为。
     func parseList(html: String, source: Source) throws -> [ContentItem] {
-        return try self.parseList(html: html, source: source, listRule: source.rule.list)
+        return try self.parseList(html: html, source: source, listRule: source.rule.primaryListRule)
     }
 
     func parseList(html: String, source: Source, listRule: ListRule) throws -> [ContentItem] {
@@ -91,7 +91,7 @@ final class SwiftSoupRuleParser: RuleParsingService {
 
     /// 中文注释：parseDetailChapters 方法封装当前类型的一段业务或界面行为。
     func parseDetailChapters(html: String, source: Source, pageURL: String) throws -> [ChapterLink] {
-        guard let detailRule: DetailRule = source.rule.detail else {
+        guard let detailRule: DetailRule = source.rule.primaryDetailRule else {
             return []
         }
 
@@ -608,7 +608,7 @@ final class SwiftSoupRuleParser: RuleParsingService {
 
     /// 中文注释：parseReader 方法封装当前类型的一段业务或界面行为。
     func parseReader(html: String, source: Source, pageURL: String) throws -> ReaderChapter {
-        guard let galleryRule: GalleryRule = source.rule.gallery else {
+        guard let galleryRule: GalleryRule = source.rule.primaryGalleryRule else {
             return ReaderChapter(
                 sourceId: source.id,
                 comicTitle: nil,

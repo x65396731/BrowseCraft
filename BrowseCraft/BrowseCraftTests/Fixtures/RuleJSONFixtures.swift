@@ -71,6 +71,15 @@ enum RuleJSONFixtures {
           ]
         },
         {
+          "id": "detail",
+          "title": "Detail",
+          "type": "detail",
+          "url": "https://example.test/comics/{idCode:}",
+          "ruleRefs": {
+            "detail": "detail"
+          }
+        },
+        {
           "id": "reader",
           "title": "Reader",
           "type": "reader",

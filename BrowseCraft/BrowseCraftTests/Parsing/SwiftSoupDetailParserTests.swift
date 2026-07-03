@@ -160,6 +160,37 @@ struct SwiftSoupDetailParserTests {
         #expect(chapters.first?.url == "https://example.test/reader/five")
     }
 
+    @Test func v2PageRuleRefsSelectRuleSetsDetailRule() throws {
+        let source: Source = try Self.v2DetailRuleSourceWithLegacyDetailDisabled()
+        let parser: SwiftSoupRuleParser = SwiftSoupRuleParser(
+            urlResolver: URLResolvingService()
+        )
+
+        let chapters: [ChapterLink] = try parser.parseDetailChapters(
+            html: """
+            <main>
+              <div class="chapter" data-id="101" data-cid="201">
+                <span class="chapter-title">V2 第01话</span>
+                <a class="chapter-link" href="/chapters/v2-1">Read</a>
+              </div>
+              <div class="chapter" data-id="102" data-cid="202">
+                <span class="chapter-title">V2 第02话</span>
+                <a class="chapter-link" href="/chapters/v2-2">Read</a>
+              </div>
+            </main>
+            """,
+            source: source,
+            pageURL: "https://example.test/comics/v2"
+        )
+
+        // 中文注释：旧版 detail 已置空；能解析出章节说明默认入口确实走了 V2 Page -> RuleSets.detailRules。
+        #expect(chapters.count == 2)
+        #expect(chapters[0].title == "V2 第01话")
+        #expect(chapters[0].url == "https://example.test/chapters/v2-1")
+        #expect(chapters[1].title == "V2 第02话")
+        #expect(chapters[1].url == "https://example.test/chapters/v2-2")
+    }
+
     private static func v2FunctionChainSource() throws -> Source {
         let ruleJSON: String = """
         {
@@ -449,6 +480,27 @@ struct SwiftSoupDetailParserTests {
         return Source(
             id: "current-selector-kind-test",
             name: "Current Selector Kind Test",
+            baseURL: "https://example.test",
+            type: .html,
+            rule: rule,
+            enabled: true,
+            createdAt: Date(timeIntervalSince1970: 0),
+            updatedAt: Date(timeIntervalSince1970: 0)
+        )
+    }
+
+    private static func v2DetailRuleSourceWithLegacyDetailDisabled() throws -> Source {
+        var rule: SiteRule = try JSONDecoder().decode(
+            SiteRule.self,
+            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
+        )
+
+        // 中文注释：禁用旧版 detail 字段，让测试只能通过 PageRule.ruleRefs.detail 指向的 V2 detailRules 成功。
+        rule.detail = nil
+
+        return Source(
+            id: "v2-detail-source",
+            name: "V2 Detail Source",
             baseURL: "https://example.test",
             type: .html,
             rule: rule,

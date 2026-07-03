@@ -274,5 +274,5 @@ private func shouldTreatDetailURLAsChapter(source: Source, item: ContentItem) ->
         return true
     }
 
-    return source.rule.detail?.treatDetailURLAsChapter == true
+    return source.rule.primaryDetailRule?.treatDetailURLAsChapter == true
 }
