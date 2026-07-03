@@ -178,6 +178,37 @@ final class AppContainer {
         )
     }
 
+    /// 中文注释：P3 runtime 并行入口；当前不替换任何 ViewModel 调用链。
+    func makeRuleSourceRuntimeAdapter(source: Source) -> RuleSourceRuntimeAdapter {
+        let refreshSourceUseCase: RefreshSourceUseCase = RefreshSourceUseCase(
+            pageContentLoader: self.pageContentLoader,
+            ruleParser: self.ruleParser,
+            urlResolver: self.urlResolver,
+            contentRepository: self.contentRepository
+        )
+        let searchSourceUseCase: SearchSourceUseCase = SearchSourceUseCase(
+            pageContentLoader: self.pageContentLoader,
+            ruleParser: self.ruleParser,
+            urlResolver: self.urlResolver
+        )
+        let loadChaptersUseCase: LoadChaptersUseCase = LoadChaptersUseCase(
+            pageContentLoader: self.pageContentLoader,
+            ruleParser: self.ruleParser
+        )
+        let loadReaderChapterUseCase: LoadReaderChapterUseCase = LoadReaderChapterUseCase(
+            pageContentLoader: self.pageContentLoader,
+            ruleParser: self.ruleParser
+        )
+
+        return RuleSourceRuntimeAdapter(
+            source: source,
+            refreshSourceUseCase: refreshSourceUseCase,
+            searchSourceUseCase: searchSourceUseCase,
+            loadChaptersUseCase: loadChaptersUseCase,
+            loadReaderChapterUseCase: loadReaderChapterUseCase
+        )
+    }
+
     /// 中文注释：makeHistoryViewModel 方法封装当前类型的一段业务或界面行为。
     func makeHistoryViewModel() -> HistoryViewModel {
         let loadHistoryUseCase: LoadHistoryUseCase = LoadHistoryUseCase(
