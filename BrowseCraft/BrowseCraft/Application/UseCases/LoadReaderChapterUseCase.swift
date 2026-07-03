@@ -31,15 +31,26 @@ enum LoadChaptersError: LocalizedError {
 
 /// 中文注释：加载单个 Library 条目的章节目录。
 struct LoadChaptersUseCase {
-    private let httpClient: HTTPClient
+    private let pageContentLoader: PageContentLoader
     private let ruleParser: RuleParsingService
 
+    init(
+        pageContentLoader: PageContentLoader,
+        ruleParser: RuleParsingService
+    ) {
+        self.pageContentLoader = pageContentLoader
+        self.ruleParser = ruleParser
+    }
+
+    /// 中文注释：兼容旧测试和旧装配入口；普通 HTTP 客户端继续可直接作为页面内容加载器使用。
     init(
         httpClient: HTTPClient,
         ruleParser: RuleParsingService
     ) {
-        self.httpClient = httpClient
-        self.ruleParser = ruleParser
+        self.init(
+            pageContentLoader: httpClient,
+            ruleParser: ruleParser
+        )
     }
 
     /// 中文注释：execute 方法封装当前类型的一段业务或界面行为。
@@ -68,7 +79,10 @@ struct LoadChaptersUseCase {
             throw URLResolvingError.invalidURL(item.detailURL)
         }
 
-        let detailHTML: String = try await self.httpClient.getString(from: detailURL)
+        let detailHTML: String = try await self.pageContentLoader.getString(
+            from: detailURL,
+            request: source.rule.primaryDetailRequest
+        )
         let chapters: [ChapterLink] = try self.ruleParser.parseDetailChapters(
             html: detailHTML,
             source: source,
@@ -96,15 +110,26 @@ struct LoadChaptersUseCase {
 /// 中文注释：加载一个阅读章节页面，并解析出所有分页图片地址。
 /// 中文注释：网络请求留在应用层，具体 HTML 解析通过 RuleParsingService 隔离。
 struct LoadReaderChapterUseCase {
-    private let httpClient: HTTPClient
+    private let pageContentLoader: PageContentLoader
     private let ruleParser: RuleParsingService
 
+    init(
+        pageContentLoader: PageContentLoader,
+        ruleParser: RuleParsingService
+    ) {
+        self.pageContentLoader = pageContentLoader
+        self.ruleParser = ruleParser
+    }
+
+    /// 中文注释：兼容旧测试和旧装配入口；后续新增 WebView 测试可改用 pageContentLoader 注入。
     init(
         httpClient: HTTPClient,
         ruleParser: RuleParsingService
     ) {
-        self.httpClient = httpClient
-        self.ruleParser = ruleParser
+        self.init(
+            pageContentLoader: httpClient,
+            ruleParser: ruleParser
+        )
     }
 
     /// 中文注释：execute 方法封装当前类型的一段业务或界面行为。
@@ -142,7 +167,10 @@ struct LoadReaderChapterUseCase {
             throw URLResolvingError.invalidURL(chapterURLString)
         }
 
-        let html: String = try await self.httpClient.getString(from: chapterURL)
+        let html: String = try await self.pageContentLoader.getString(
+            from: chapterURL,
+            request: source.rule.primaryGalleryRequest
+        )
 
         let chapter: ReaderChapter = try self.ruleParser.parseReader(
             html: html,
@@ -196,7 +224,10 @@ struct LoadReaderChapterUseCase {
             throw URLResolvingError.invalidURL(item.detailURL)
         }
 
-        let detailHTML: String = try await self.httpClient.getString(from: detailURL)
+        let detailHTML: String = try await self.pageContentLoader.getString(
+            from: detailURL,
+            request: source.rule.primaryDetailRequest
+        )
         let chapters: [ChapterLink] = try self.ruleParser.parseDetailChapters(
             html: detailHTML,
             source: source,

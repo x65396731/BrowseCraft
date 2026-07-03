@@ -12,13 +12,15 @@ struct ContentCardView<ReaderDestination: View>: View {
     let favoriteAction: () -> Void
     let readAction: () -> Void
     let readerDestination: ReaderDestination
+    let imageRequestConfig: RequestConfig?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack(alignment: .topTrailing) {
                 CoverImageView(
                     urlString: self.item.coverURL,
-                    refererURLString: self.item.detailURL
+                    refererURLString: self.item.detailURL,
+                    requestConfig: self.imageRequestConfig
                 )
                     .aspectRatio(0.72, contentMode: .fit)
                     .clipShape(RoundedRectangle(cornerRadius: 8))

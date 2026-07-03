@@ -11,6 +11,7 @@ final class AppContainer {
     private let favoriteRepository: FavoriteRepository
     private let historyRepository: HistoryRepository
     private let httpClient: HTTPClient
+    private let pageContentLoader: PageContentLoader
     private let urlResolver: URLResolvingService
     private let ruleParser: RuleParsingService
     private let sourceSelectionStore: SourceSelectionStore
@@ -19,13 +20,15 @@ final class AppContainer {
         do {
             let database: AppDatabase = try AppDatabase()
             let urlResolver: URLResolvingService = URLResolvingService()
+            let httpClient: HTTPClient = AlamofireHTTPClient()
 
             self.database = database
             self.sourceRepository = GRDBSourceRepository(database: database)
             self.contentRepository = GRDBContentRepository(database: database)
             self.favoriteRepository = GRDBFavoriteRepository(database: database)
             self.historyRepository = GRDBHistoryRepository(database: database)
-            self.httpClient = AlamofireHTTPClient()
+            self.httpClient = httpClient
+            self.pageContentLoader = DefaultPageContentLoader(httpClient: httpClient)
             self.urlResolver = urlResolver
             self.ruleParser = SwiftSoupRuleParser(urlResolver: urlResolver)
             self.sourceSelectionStore = SourceSelectionStore()
@@ -50,7 +53,7 @@ final class AppContainer {
             sourceRepository: self.sourceRepository
         )
         let refreshSourceUseCase: RefreshSourceUseCase = RefreshSourceUseCase(
-            httpClient: self.httpClient,
+            pageContentLoader: self.pageContentLoader,
             ruleParser: self.ruleParser,
             urlResolver: self.urlResolver,
             contentRepository: self.contentRepository
@@ -81,7 +84,7 @@ final class AppContainer {
             historyRepository: self.historyRepository
         )
         let refreshSourceUseCase: RefreshSourceUseCase = RefreshSourceUseCase(
-            httpClient: self.httpClient,
+            pageContentLoader: self.pageContentLoader,
             ruleParser: self.ruleParser,
             urlResolver: self.urlResolver,
             contentRepository: self.contentRepository
@@ -100,7 +103,7 @@ final class AppContainer {
     /// 中文注释：makeChapterListViewModel 方法封装当前类型的一段业务或界面行为。
     func makeChapterListViewModel(item: ContentItem, source: Source) -> ChapterListViewModel {
         let loadChaptersUseCase: LoadChaptersUseCase = LoadChaptersUseCase(
-            httpClient: self.httpClient,
+            pageContentLoader: self.pageContentLoader,
             ruleParser: self.ruleParser
         )
 
@@ -118,7 +121,7 @@ final class AppContainer {
         selectedChapter: ChapterLink? = nil
     ) -> ReaderViewModel {
         let loadReaderChapterUseCase: LoadReaderChapterUseCase = LoadReaderChapterUseCase(
-            httpClient: self.httpClient,
+            pageContentLoader: self.pageContentLoader,
             ruleParser: self.ruleParser
         )
 

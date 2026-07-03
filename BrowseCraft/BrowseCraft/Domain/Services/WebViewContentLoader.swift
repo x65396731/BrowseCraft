@@ -1,0 +1,10 @@
+import Foundation
+
+// 中文注释：WebViewContentLoader.swift 定义 WebView 渲染 HTML 的抽象，避免应用用例直接依赖 WebKit。
+
+/// 中文注释：只在规则声明 needsWebView 时使用，用来取得 JavaScript 执行后的最终 DOM。
+protocol WebViewContentLoader: AnyObject {
+    /// 中文注释：返回渲染完成后的 HTML 字符串；调用方仍使用既有 RuleParsingService 解析。
+    @MainActor
+    func getRenderedString(from url: URL, request: RequestConfig?) async throws -> String
+}

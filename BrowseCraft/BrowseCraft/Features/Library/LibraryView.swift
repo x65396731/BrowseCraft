@@ -37,7 +37,8 @@ struct LibraryView: View {
                                     readerDestination: self.readerDestination(
                                         for: item,
                                         source: source
-                                    )
+                                    ),
+                                    imageRequestConfig: source.rule.request(for: self.viewModel.selectedListTab)
                                 )
                             }
                         }
@@ -45,15 +46,18 @@ struct LibraryView: View {
                     .padding(16)
                 }
             }
+            .disabled(self.viewModel.isRefreshing)
             .overlay(
                 Group {
-                if self.viewModel.items.isEmpty && self.viewModel.isRefreshing == false {
-                    EmptyStateView(
-                        systemImage: "square.grid.2x2",
-                        title: "No Items",
-                        message: "Refresh the selected tab to fill your library."
-                    )
-                }
+                    if self.viewModel.isRefreshing {
+                        self.loadingOverlay
+                    } else if self.viewModel.items.isEmpty {
+                        EmptyStateView(
+                            systemImage: "square.grid.2x2",
+                            title: "No Items",
+                            message: "Refresh the selected tab to fill your library."
+                        )
+                    }
                 }
             )
             .navigationTitle("Library")
@@ -95,6 +99,27 @@ struct LibraryView: View {
                     )
                 )
             }
+        }
+    }
+
+    private var loadingOverlay: some View {
+        ZStack {
+            Color(.systemBackground)
+                .opacity(0.82)
+                .ignoresSafeArea()
+
+            VStack(spacing: 12) {
+                ProgressView()
+                    .controlSize(.large)
+
+                // 中文注释：source 切换期间遮盖旧列表，避免用户在半切换状态下操作上一站点的数据。
+                Text("Loading Source")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+            }
+            .padding(24)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
     }
 

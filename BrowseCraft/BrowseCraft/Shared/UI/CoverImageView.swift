@@ -8,17 +8,24 @@ import SwiftUI
 struct CoverImageView: View {
     let urlString: String?
     let refererURLString: String?
+    let requestConfig: RequestConfig?
 
-    init(urlString: String?, refererURLString: String? = nil) {
+    init(
+        urlString: String?,
+        refererURLString: String? = nil,
+        requestConfig: RequestConfig? = nil
+    ) {
         self.urlString = urlString
         self.refererURLString = refererURLString
+        self.requestConfig = requestConfig
     }
 
     var body: some View {
         if let urlString: String = self.urlString,
            let request: ImageRequest = ImageRequestFactory.makeRequest(
             urlString: urlString,
-            refererURLString: self.refererURLString
+            refererURLString: self.refererURLString,
+            requestConfig: self.requestConfig
            ) {
             LazyImage(source: request) { state in
                 if let image = state.image {

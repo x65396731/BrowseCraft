@@ -38,10 +38,31 @@ struct SiteRule: Codable, Hashable {
         return self.pageGalleryRule ?? self.gallery
     }
 
+    var primaryListRequest: RequestConfig? {
+        return self.request(for: self.availableListTabs.first)
+    }
+
+    var primaryDetailRequest: RequestConfig? {
+        return self.effectiveRequest(
+            pageRequest: self.pageDetailEntry?.page.request,
+            ruleRequest: self.primaryDetailRule?.request
+        )
+    }
+
+    var primaryGalleryRequest: RequestConfig? {
+        return self.effectiveRequest(
+            pageRequest: self.pageGalleryEntry?.page.request,
+            ruleRequest: self.primaryGalleryRule?.request
+        )
+    }
+
     var availableListTabs: [ListTabRule] {
         let pageListTabs: [ListTabRule] = self.pageListTabs
         if pageListTabs.isEmpty == false {
-            return pageListTabs
+            return self.mergedListTabs(
+                pageListTabs: pageListTabs,
+                legacyListTabs: self.listTabs ?? []
+            )
         }
 
         if let listTabs: [ListTabRule] = self.listTabs, listTabs.isEmpty == false {
@@ -55,6 +76,34 @@ struct SiteRule: Codable, Hashable {
                 list: self.list
             )
         ]
+    }
+
+    /// 中文注释：V2 Pages 是主入口，但旧 listTabs 里可能还有分类入口；按 tab id 和 list rule id 去重后保留它们。
+    private func mergedListTabs(pageListTabs: [ListTabRule], legacyListTabs: [ListTabRule]) -> [ListTabRule] {
+        guard legacyListTabs.isEmpty == false else {
+            return pageListTabs
+        }
+
+        let pageTabIDs: Set<String> = Set(pageListTabs.map { tab in tab.id })
+        let pageListRuleIDs: Set<String> = Set(
+            pageListTabs.compactMap { tab in
+                return tab.list.id
+            }
+        )
+        let additionalLegacyTabs: [ListTabRule] = legacyListTabs.filter { tab in
+            if pageTabIDs.contains(tab.id) {
+                return false
+            }
+
+            if let listRuleID: String = tab.list.id,
+               pageListRuleIDs.contains(listRuleID) {
+                return false
+            }
+
+            return true
+        }
+
+        return pageListTabs + additionalLegacyTabs
     }
 
     private var pageListTabs: [ListTabRule] {
@@ -73,41 +122,67 @@ struct SiteRule: Codable, Hashable {
             return ListTabRule(
                 id: page.id,
                 title: page.title,
-                list: listRule
+                list: listRule,
+                request: page.request
             )
         }
     }
 
     private var pageDetailRule: DetailRule? {
-        guard let pages: [PageRule] = self.pages,
-              let ruleSets: RuleSets = self.ruleSets else {
-            return nil
-        }
-
         // 中文注释：详情页解析使用 PageRule.ruleRefs.detail 指向 RuleSets.detailRules，旧 detail 字段只作为兼容兜底。
-        return pages.lazy.compactMap { page in
-            guard page.isDetailEntryPage else {
-                return nil
-            }
-
-            return ruleSets.detailRule(id: page.ruleRefs?.detail)
-        }.first
+        return self.pageDetailEntry?.rule
     }
 
     private var pageGalleryRule: GalleryRule? {
+        // 中文注释：阅读页图片解析使用 PageRule.ruleRefs.gallery 指向 RuleSets.galleryRules，旧 gallery 字段只作为兼容兜底。
+        return self.pageGalleryEntry?.rule
+    }
+
+    private var pageDetailEntry: (page: PageRule, rule: DetailRule)? {
         guard let pages: [PageRule] = self.pages,
               let ruleSets: RuleSets = self.ruleSets else {
             return nil
         }
 
-        // 中文注释：阅读页图片解析使用 PageRule.ruleRefs.gallery 指向 RuleSets.galleryRules，旧 gallery 字段只作为兼容兜底。
         return pages.lazy.compactMap { page in
-            guard page.isGalleryEntryPage else {
+            guard page.isDetailEntryPage,
+                  let detailRule: DetailRule = ruleSets.detailRule(id: page.ruleRefs?.detail) else {
                 return nil
             }
 
-            return ruleSets.galleryRule(id: page.ruleRefs?.gallery)
+            return (page: page, rule: detailRule)
         }.first
+    }
+
+    private var pageGalleryEntry: (page: PageRule, rule: GalleryRule)? {
+        guard let pages: [PageRule] = self.pages,
+              let ruleSets: RuleSets = self.ruleSets else {
+            return nil
+        }
+
+        return pages.lazy.compactMap { page in
+            guard page.isGalleryEntryPage,
+                  let galleryRule: GalleryRule = ruleSets.galleryRule(id: page.ruleRefs?.gallery) else {
+                return nil
+            }
+
+            return (page: page, rule: galleryRule)
+        }.first
+    }
+
+    /// 中文注释：列表刷新需要保留具体 tab 的页面请求配置；规则请求优先级高于页面请求，页面请求再覆盖站点共享配置。
+    func request(for listTab: ListTabRule?) -> RequestConfig? {
+        let listRule: ListRule = listTab?.list ?? self.primaryListRule
+
+        return self.effectiveRequest(
+            pageRequest: listTab?.request,
+            ruleRequest: listRule.request
+        )
+    }
+
+    /// 中文注释：P1-4.1 先完成 RequestConfig 的选择和传递，不在这里展开 headers/cookie 的深度合并。
+    private func effectiveRequest(pageRequest: RequestConfig?, ruleRequest: RequestConfig?) -> RequestConfig? {
+        return ruleRequest ?? pageRequest ?? self.sharedRequest
     }
 }
 
@@ -138,6 +213,8 @@ struct ListTabRule: Codable, Hashable, Identifiable {
     var id: String
     var title: String
     var list: ListRule
+    /// 中文注释：V2 PageRule.request 会附着在列表 tab 上，让刷新列表时知道当前页面应使用哪套请求配置。
+    var request: RequestConfig? = nil
 }
 
 /// 中文注释：DetailRule 是 struct，负责本模块中的对应职责。

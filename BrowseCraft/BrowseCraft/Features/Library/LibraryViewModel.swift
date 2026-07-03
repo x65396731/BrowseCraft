@@ -20,6 +20,8 @@ final class LibraryViewModel: ObservableObject {
     private let refreshSourceUseCase: RefreshSourceUseCase
     private let sourceSelectionStore: SourceSelectionStore
     private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
+    /// 中文注释：刷新令牌用于避免旧 source 的慢请求回写或提前关闭当前 source 的 loading。
+    private var refreshToken: Int = 0
 
     init(
         loadLibraryUseCase: LoadLibraryUseCase,
@@ -61,6 +63,10 @@ final class LibraryViewModel: ObservableObject {
 
     @MainActor
     func selectListTab(_ tab: ListTabRule) async {
+        if self.isRefreshing {
+            return
+        }
+
         if self.selectedListTabID != tab.id {
             self.selectedListTabID = tab.id
             self.items = []
@@ -76,20 +82,38 @@ final class LibraryViewModel: ObservableObject {
         }
 
         self.ensureSelectedListTab()
+        let expectedSourceID: String = selectedSource.id
+        let expectedTabID: String? = self.selectedListTab?.id
+        let expectedListTab: ListTabRule? = self.selectedListTab
+        self.refreshToken += 1
+        let currentRefreshToken: Int = self.refreshToken
         self.isRefreshing = true
 
         do {
             let refreshedItems: [ContentItem] = try await self.refreshSourceUseCase.execute(
                 source: selectedSource,
-                listTab: self.selectedListTab
+                listTab: expectedListTab
             )
-            self.items = refreshedItems
-            self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs()
+            if Task.isCancelled == false,
+               self.refreshToken == currentRefreshToken,
+               self.selectedSourceID == expectedSourceID,
+               self.selectedListTab?.id == expectedTabID {
+                self.items = refreshedItems
+                self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs()
+            }
+        } catch is CancellationError {
+            // 中文注释：快速切换 source 时取消旧请求；取消结果不能显示为用户错误。
         } catch {
-            self.errorMessage = error.localizedDescription
+            if self.refreshToken == currentRefreshToken,
+               self.selectedSourceID == expectedSourceID,
+               self.selectedListTab?.id == expectedTabID {
+                self.errorMessage = error.localizedDescription
+            }
         }
 
-        self.isRefreshing = false
+        if self.refreshToken == currentRefreshToken {
+            self.isRefreshing = false
+        }
     }
 
     @MainActor
@@ -169,12 +193,23 @@ final class LibraryViewModel: ObservableObject {
             return
         }
 
+        self.switchToSource(selectedSourceID)
+    }
+
+    private func switchToSource(_ selectedSourceID: String?) {
+        // 中文注释：切换 source 时先清除旧 source 的画面状态，避免旧列表在新网站加载期间继续可见。
+        self.refreshToken += 1
+        self.isRefreshing = false
         self.selectedSourceID = selectedSourceID
         self.selectedListTabID = nil
+        self.errorMessage = nil
+        self.items = []
+        self.ensureSelectedListTab()
 
         do {
+            // 中文注释：Sources 页已经在遮盖状态下刷新并保存数据；Library 切换时只读取新 source 的已保存结果。
             self.items = try self.loadLibraryUseCase.execute(sourceId: selectedSourceID)
-            self.ensureSelectedListTab()
+            self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs()
         } catch {
             self.errorMessage = error.localizedDescription
         }

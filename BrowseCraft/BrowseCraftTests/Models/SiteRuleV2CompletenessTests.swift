@@ -83,7 +83,69 @@ struct SiteRuleV2CompletenessTests {
         #expect(tabs.first?.id == "home")
         #expect(tabs.first?.title == "Home")
         #expect(tabs.first?.list.id == "home-list")
+        #expect(tabs.first?.request?.scope == .page)
         #expect(rule.primaryListRule.id == "home-list")
+    }
+
+    @Test func v2ListPagesMergeAdditionalLegacyListTabs() throws {
+        var rule: SiteRule = try JSONDecoder().decode(
+            SiteRule.self,
+            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
+        )
+        let duplicateHomeListTab: ListTabRule = ListTabRule(
+            id: "legacy-home",
+            title: "Duplicate Home",
+            list: rule.primaryListRule
+        )
+        let updatedListTab: ListTabRule = ListTabRule(
+            id: "updated",
+            title: "Updated",
+            list: ListRule(
+                id: "updated-list",
+                url: "https://example.test/updated/{page}",
+                text: nil,
+                item: ".comic-card",
+                itemRule: nil,
+                fields: nil,
+                title: ".title",
+                link: "a@href",
+                cover: nil,
+                type: .comic,
+                latestText: nil,
+                pagination: nil,
+                ready: nil,
+                request: nil,
+                js: nil
+            )
+        )
+        rule.listTabs = [
+            duplicateHomeListTab,
+            updatedListTab
+        ]
+
+        let tabs: [ListTabRule] = rule.availableListTabs
+
+        // 中文注释：V2 PageRule 仍是主入口，但旧 listTabs 中不同的分类入口不能被整个丢弃。
+        #expect(tabs.map(\.id) == ["home", "updated"])
+        #expect(tabs.map { tab in tab.list.id } == ["home-list", "updated-list"])
+    }
+
+    @Test func v2RequestsResolveByRulePageAndSharedPriority() throws {
+        var rule: SiteRule = try JSONDecoder().decode(
+            SiteRule.self,
+            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
+        )
+
+        // 中文注释：请求配置按 Rule > Page > Site sharedRequest 选择，P1-4.1 先锁定选择结果，不在模型层做深度合并。
+        #expect(rule.primaryListRequest?.scope == .rule)
+        #expect(rule.primaryGalleryRequest?.scope == .image)
+        #expect(rule.primaryDetailRequest?.scope == .site)
+
+        rule.ruleSets?.listRules?[0].request = nil
+        #expect(rule.primaryListRequest?.scope == .page)
+
+        rule.pages?[0].request = nil
+        #expect(rule.primaryListRequest?.scope == .site)
     }
 
     @Test func v2DetailPageSelectsPrimaryDetailRule() throws {

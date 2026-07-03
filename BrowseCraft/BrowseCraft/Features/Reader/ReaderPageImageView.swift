@@ -8,11 +8,13 @@ struct ReaderPageImageView: View {
     let pageURLString: String
     let pageNumber: Int
     let refererURLString: String?
+    let requestConfig: RequestConfig?
 
     var body: some View {
         if let request: ImageRequest = ImageRequestFactory.makeRequest(
             urlString: self.pageURLString,
-            refererURLString: self.refererURLString
+            refererURLString: self.refererURLString,
+            requestConfig: self.requestConfig
         ) {
             LazyImage(source: request) { state in
                 if let image = state.image {

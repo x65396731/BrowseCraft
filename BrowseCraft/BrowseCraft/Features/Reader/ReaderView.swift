@@ -13,7 +13,8 @@ struct ChapterListView: View {
                 HStack(alignment: .top, spacing: 14) {
                     CoverImageView(
                         urlString: self.viewModel.item.coverURL,
-                        refererURLString: self.viewModel.item.detailURL
+                        refererURLString: self.viewModel.item.detailURL,
+                        requestConfig: self.viewModel.source.rule.primaryDetailRequest
                     )
                         .frame(width: 86, height: 120)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -122,7 +123,8 @@ struct ReaderView: View {
                         ReaderPageImageView(
                             pageURLString: pageURLString,
                             pageNumber: pageIndex + 1,
-                            refererURLString: chapter.chapterURL
+                            refererURLString: chapter.chapterURL,
+                            requestConfig: self.viewModel.readerImageRequestConfig
                         )
                     }
                 }

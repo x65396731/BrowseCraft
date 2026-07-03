@@ -94,6 +94,11 @@ final class ReaderViewModel: ObservableObject {
 
         self.isLoading = false
     }
+
+    /// 中文注释：阅读页图片加载使用 GalleryRule 的图片请求配置，避免 UI 直接理解规则选择细节。
+    var readerImageRequestConfig: RequestConfig? {
+        return self.source.rule.primaryGalleryRequest
+    }
 }
 
 /// 中文注释：ChapterListViewModel 是 final class，负责本模块中的对应职责。
