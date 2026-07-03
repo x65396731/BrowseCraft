@@ -179,7 +179,7 @@ log "Verified Package.resolved revision: ${target_revision}"
 
 (
   cd "$APP_ROOT"
-  pod install
+  env -u GEM_HOME -u GEM_PATH pod install
 )
 
 log "Done. Package updated and pods installed. No build was run."
