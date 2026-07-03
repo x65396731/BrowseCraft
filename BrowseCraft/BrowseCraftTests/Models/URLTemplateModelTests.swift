@@ -32,6 +32,7 @@ struct URLTemplateModelTests {
         #expect(patterns.detailTemplate == nil)
         #expect(patterns.galleryTemplate == nil)
         #expect(patterns.searchTemplate == nil)
+        try Self.assertLegacySearchURLRendering()
     }
 
     @Test func structuredURLTemplatesDecodePlaceholders() throws {
@@ -87,5 +88,237 @@ struct URLTemplateModelTests {
         #expect(searchPlaceholders[1].kind == .urlQuery)
         #expect(searchPlaceholders[1].name == "from")
         #expect(searchPlaceholders[1].defaultValue == "home")
+        try Self.assertStructuredSearchURLRendering()
+        try Self.assertListPagePlaceholderRendering()
+        try Self.assertDefaultQueryPlaceholderRendering()
+        try Self.assertRawKeywordSearchURLRendering()
+    }
+
+    private static func assertLegacySearchURLRendering() throws {
+        let source: Source = Self.source(baseURL: "https://example.test/root")
+        let searchRule: SearchRule = Self.searchRule(url: "/search?q={keyword:}&page={page}")
+        let url: URL = try URLResolvingService().searchURL(
+            for: source,
+            searchRule: searchRule,
+            keyword: "钢炼 & test",
+            page: 2
+        )
+
+        #expect(url.absoluteString == "https://example.test/search?q=%E9%92%A2%E7%82%BC%20%26%20test&page=2")
+    }
+
+    private static func assertStructuredSearchURLRendering() throws {
+        let template: URLTemplateRule = URLTemplateRule(
+            template: "/search?q={keyword:}&from={urlQuery:from}&offset={page:1:20}",
+            placeholders: [
+                URLPlaceholderRule(
+                    kind: .keyword,
+                    name: nil,
+                    start: nil,
+                    step: nil,
+                    index: nil,
+                    defaultValue: nil,
+                    encoding: .urlQueryAllowed
+                ),
+                URLPlaceholderRule(
+                    kind: .urlQuery,
+                    name: "from",
+                    start: nil,
+                    step: nil,
+                    index: nil,
+                    defaultValue: "home",
+                    encoding: nil
+                ),
+                URLPlaceholderRule(
+                    kind: .page,
+                    name: nil,
+                    start: 1,
+                    step: 20,
+                    index: nil,
+                    defaultValue: nil,
+                    encoding: nil
+                )
+            ]
+        )
+        let source: Source = Self.source(
+            baseURL: "https://example.test/root?from=library",
+            urlPatterns: URLPatterns(
+                series: nil,
+                seriesTemplate: nil,
+                list: nil,
+                listTemplate: nil,
+                detail: nil,
+                detailTemplate: nil,
+                gallery: nil,
+                galleryTemplate: nil,
+                search: nil,
+                searchTemplate: template
+            )
+        )
+        let searchRule: SearchRule = Self.searchRule(url: "/legacy?q={keyword:}")
+
+        let url: URL = try URLResolvingService().searchURL(
+            for: source,
+            searchRule: searchRule,
+            keyword: "猫",
+            page: 3
+        )
+
+        #expect(url.absoluteString == "https://example.test/search?q=%E7%8C%AB&from=library&offset=41")
+    }
+
+    private static func assertListPagePlaceholderRendering() throws {
+        var source: Source = Self.source(baseURL: "https://example.test")
+        source.rule.list.url = "/list/{page:0:30}"
+
+        let url: URL = try URLResolvingService().listURL(for: source, page: 3)
+
+        #expect(url.absoluteString == "https://example.test/list/60")
+    }
+
+    private static func assertDefaultQueryPlaceholderRendering() throws {
+        let source: Source = Self.source(baseURL: "https://example.test")
+        let template: URLTemplateRule = URLTemplateRule(
+            template: "/search?from={urlQuery:from}",
+            placeholders: [
+                URLPlaceholderRule(
+                    kind: .urlQuery,
+                    name: "from",
+                    start: nil,
+                    step: nil,
+                    index: nil,
+                    defaultValue: "home",
+                    encoding: nil
+                )
+            ]
+        )
+
+        let url: URL = try URLResolvingService().templateURL(for: source, template: template)
+
+        #expect(url.absoluteString == "https://example.test/search?from=home")
+    }
+
+    private static func assertRawKeywordSearchURLRendering() throws {
+        let source: Source = Self.source(baseURL: "https://example.test")
+        let searchRule: SearchRule = Self.searchRule(url: "/search?q={keyword:}", keywordEncoding: .raw)
+
+        let url: URL = try URLResolvingService().searchURL(
+            for: source,
+            searchRule: searchRule,
+            keyword: "raw+keyword",
+            page: 1
+        )
+
+        #expect(url.absoluteString == "https://example.test/search?q=raw+keyword")
+    }
+
+    private static func source(baseURL: String, urlPatterns: URLPatterns? = nil) -> Source {
+        let listRule: ListRule = ListRule(
+            id: "list",
+            url: "/list/{page}",
+            text: nil,
+            item: ".item",
+            itemRule: nil,
+            fields: nil,
+            title: ".title",
+            link: "a@href",
+            cover: nil,
+            type: .comic,
+            latestText: nil,
+            pagination: nil,
+            ready: nil,
+            request: nil,
+            js: nil
+        )
+        let rule: SiteRule = SiteRule(
+            version: 2,
+            site: nil,
+            urlPatterns: urlPatterns,
+            pages: nil,
+            ruleSets: nil,
+            sharedRequest: nil,
+            flags: nil,
+            name: "Example",
+            baseUrl: baseURL,
+            list: listRule,
+            listTabs: nil,
+            detail: nil,
+            gallery: nil,
+            video: nil
+        )
+
+        return Source(
+            id: "source.example",
+            name: "Example",
+            baseURL: baseURL,
+            type: .html,
+            rule: rule,
+            enabled: true,
+            createdAt: Date(timeIntervalSince1970: 0),
+            updatedAt: Date(timeIntervalSince1970: 0)
+        )
+    }
+
+    private static func searchRule(
+        url: String,
+        keywordEncoding: KeywordEncoding = .urlQueryAllowed
+    ) -> SearchRule {
+        return SearchRule(
+            id: "search",
+            keywordEncoding: keywordEncoding,
+            url: url,
+            method: .get,
+            request: nil,
+            listRuleRef: nil,
+            item: ExtractRule(
+                selector: ".result",
+                selectorKind: nil,
+                function: .raw,
+                functions: nil,
+                param: nil,
+                regex: nil,
+                replacement: nil,
+                fallback: nil
+            ),
+            fields: ListFields(
+                idCode: nil,
+                title: ExtractRule(
+                    selector: ".title",
+                    selectorKind: nil,
+                    function: .text,
+                    functions: nil,
+                    param: nil,
+                    regex: nil,
+                    replacement: nil,
+                    fallback: nil
+                ),
+                cover: nil,
+                largeImage: nil,
+                video: nil,
+                detailURL: ExtractRule(
+                    selector: "a",
+                    selectorKind: nil,
+                    function: .url,
+                    functions: nil,
+                    param: nil,
+                    regex: nil,
+                    replacement: nil,
+                    fallback: nil
+                ),
+                latestText: nil,
+                description: nil,
+                coverWidth: nil,
+                coverHeight: nil,
+                category: nil,
+                author: nil,
+                uploader: nil,
+                publishedAt: nil,
+                datetime: nil,
+                rating: nil,
+                totalImages: nil,
+                language: nil
+            ),
+            pagination: nil
+        )
     }
 }

@@ -11,6 +11,7 @@ struct RuleDebugSession: Identifiable, Hashable {
     var requestLogs: [RuleDebugRequestLog]
     var extractionLogs: [RuleDebugExtractionLog]
     var previewItems: [RuleDebugPreviewItem]
+    var pagination: PaginationResolution?
     var issues: [RuleDebugIssue]
 
     var status: RuleDebugSessionStatus {
@@ -45,6 +46,7 @@ struct RuleDebugInput: Hashable {
     var pageID: String?
     var tabID: String?
     var ruleID: String?
+    var keyword: String?
     var page: Int?
     var url: String?
     var context: ListContext?
@@ -52,6 +54,7 @@ struct RuleDebugInput: Hashable {
 
 enum RuleDebugStage: String, Hashable {
     case list
+    case search
     case detail
     case reader
 }

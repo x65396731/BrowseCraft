@@ -29,6 +29,7 @@ final class SourcesViewModel: ObservableObject {
     private let jsonEncoder: JSONEncoder
     private let refreshSourceUseCase: RefreshSourceUseCase
     private let listDebugUseCase: ListDebugUseCase
+    private let searchDebugUseCase: SearchDebugUseCase
     private let sourceSelectionStore: SourceSelectionStore
     private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
     private var failedRefreshAction: FailedRefreshAction?
@@ -46,6 +47,7 @@ final class SourcesViewModel: ObservableObject {
         jsonEncoder: JSONEncoder = JSONEncoder(),
         refreshSourceUseCase: RefreshSourceUseCase,
         listDebugUseCase: ListDebugUseCase,
+        searchDebugUseCase: SearchDebugUseCase,
         sourceSelectionStore: SourceSelectionStore
     ) {
         self.loadBuiltInSourcesUseCase = loadBuiltInSourcesUseCase
@@ -60,6 +62,7 @@ final class SourcesViewModel: ObservableObject {
         self.jsonEncoder = jsonEncoder
         self.refreshSourceUseCase = refreshSourceUseCase
         self.listDebugUseCase = listDebugUseCase
+        self.searchDebugUseCase = searchDebugUseCase
         self.sourceSelectionStore = sourceSelectionStore
         self.jsonEncoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         self.selectedSourceID = sourceSelectionStore.selectedSourceID
@@ -280,6 +283,21 @@ final class SourcesViewModel: ObservableObject {
         return await self.listDebugUseCase.execute(
             source: source,
             listTab: listTab,
+            page: page,
+            urlOverride: urlOverride
+        )
+    }
+
+    @MainActor
+    func debugSearchRule(
+        source: Source,
+        keyword: String,
+        page: Int = 1,
+        urlOverride: String? = nil
+    ) async -> RuleDebugSession {
+        return await self.searchDebugUseCase.execute(
+            source: source,
+            keyword: keyword,
             page: page,
             urlOverride: urlOverride
         )

@@ -6,6 +6,7 @@ import Foundation
 enum RuleExecutionLogger {
     enum Stage: String {
         case list
+        case search
         case detail
         case reader
         case image

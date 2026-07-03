@@ -75,6 +75,11 @@ final class AppContainer {
             ruleParser: self.ruleParser,
             urlResolver: self.urlResolver
         )
+        let searchDebugUseCase: SearchDebugUseCase = SearchDebugUseCase(
+            pageContentLoader: self.pageContentLoader,
+            ruleParser: self.ruleParser,
+            urlResolver: self.urlResolver
+        )
 
         return SourcesViewModel(
             loadBuiltInSourcesUseCase: loadBuiltInSourcesUseCase,
@@ -87,6 +92,7 @@ final class AppContainer {
             importSourceRulePackageUseCase: importSourceRulePackageUseCase,
             refreshSourceUseCase: refreshSourceUseCase,
             listDebugUseCase: listDebugUseCase,
+            searchDebugUseCase: searchDebugUseCase,
             sourceSelectionStore: self.sourceSelectionStore
         )
     }

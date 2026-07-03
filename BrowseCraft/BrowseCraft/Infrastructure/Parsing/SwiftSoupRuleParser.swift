@@ -6,7 +6,7 @@ import SwiftSoup
 
 /// 中文注释：基于 SwiftSoup 的 HTML 规则解析器。
 /// 中文注释：SwiftSoup 只出现在这里，应用其他部分都通过 RuleParsingService 使用解析能力。
-final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService {
+final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService, RulePaginationParsingService {
     private struct DataChapter: Decodable {
         let id: Int
         let title: String
@@ -117,6 +117,57 @@ final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService
         }
 
         return items
+    }
+
+    func parseSearch(
+        html: String,
+        source: Source,
+        searchRule: SearchRule,
+        context: ListContext?
+    ) throws -> [ContentItem] {
+        let document: Document = try SwiftSoup.parse(html, source.baseURL)
+        let elements: [Element] = try self.selectedElements(
+            element: document,
+            rule: searchRule.item,
+            includesSelf: false
+        )
+        let items: [ContentItem] = try self.searchContentItems(
+            from: elements,
+            source: source,
+            searchRule: searchRule,
+            context: context
+        )
+
+        RuleExecutionLogger.log(
+            stage: .search,
+            event: "search-selector",
+            fields: [
+                "source": source.id,
+                "searchRule": searchRule.id ?? "nil",
+                "candidateCount": elements.count,
+                "count": items.count
+            ]
+        )
+
+        return items
+    }
+
+    func parseNextPageURL(
+        html: String,
+        source: Source,
+        pagination: PaginationRule,
+        currentURL: URL
+    ) throws -> String? {
+        guard let nextPageRule: ExtractRule = pagination.nextPage else {
+            return nil
+        }
+
+        let document: Document = try SwiftSoup.parse(html, currentURL.absoluteString)
+        return try self.optionalExtract(
+            element: document,
+            rule: nextPageRule,
+            baseURLString: currentURL.absoluteString
+        )
     }
 
     func debugParseList(
@@ -240,6 +291,65 @@ final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService
         }
 
         return items
+    }
+
+    private func searchContentItems(
+        from elements: [Element],
+        source: Source,
+        searchRule: SearchRule,
+        context: ListContext?
+    ) throws -> [ContentItem] {
+        var items: [ContentItem] = []
+        let contentType: ContentType = self.searchContentType(source: source, searchRule: searchRule)
+
+        for element: Element in elements {
+            let title: String = try self.extract(element: element, rule: searchRule.fields.title)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let rawDetailURL: String = try self.extract(element: element, rule: searchRule.fields.detailURL)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+
+            // 中文注释：搜索结果和列表项一样，缺少标题或详情链接时无法进入后续详情/阅读流程。
+            if title.isEmpty || rawDetailURL.isEmpty {
+                continue
+            }
+
+            let detailURL: String = self.urlResolver.absoluteString(rawDetailURL, baseURLString: source.baseURL)
+            let coverURL: String? = try self.optionalExtract(
+                element: element,
+                rule: searchRule.fields.cover,
+                baseURLString: source.baseURL
+            )
+            let latestText: String? = try self.optionalExtract(
+                element: element,
+                rule: searchRule.fields.latestText,
+                baseURLString: nil
+            )
+
+            items.append(
+                ContentItem(
+                    id: self.stableID(sourceId: source.id, urlString: detailURL),
+                    sourceId: source.id,
+                    title: title,
+                    detailURL: detailURL,
+                    coverURL: coverURL,
+                    type: contentType,
+                    latestText: latestText,
+                    updatedAt: Date(),
+                    listOrder: items.count,
+                    listContext: context
+                )
+            )
+        }
+
+        return items
+    }
+
+    private func searchContentType(source: Source, searchRule: SearchRule) -> ContentType {
+        if let listRule: ListRule = source.rule.ruleSets?.listRule(id: searchRule.listRuleRef) {
+            return listRule.type
+        }
+
+        return source.rule.primaryListRule.type
     }
 
     private func debugContentItems(
@@ -1187,6 +1297,29 @@ final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService
         }
 
         let rawValue: String = try self.extract(element: element, expression: expression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if rawValue.isEmpty {
+            return nil
+        }
+
+        if let baseURLString: String = baseURLString {
+            return self.urlResolver.absoluteString(rawValue, baseURLString: baseURLString)
+        }
+
+        return rawValue
+    }
+
+    private func optionalExtract(
+        element: Element,
+        rule: ExtractRule?,
+        baseURLString: String?
+    ) throws -> String? {
+        guard let rule: ExtractRule = rule else {
+            return nil
+        }
+
+        let rawValue: String = try self.extract(element: element, rule: rule)
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
         if rawValue.isEmpty {

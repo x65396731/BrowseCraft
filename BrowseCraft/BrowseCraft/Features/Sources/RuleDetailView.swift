@@ -20,6 +20,8 @@ struct RuleDetailView: View {
     @State private var debugSession: RuleDebugSession?
     @State private var isShowingDebugSheet: Bool = false
     @State private var isRunningListDebug: Bool = false
+    @State private var isRunningSearchDebug: Bool = false
+    @State private var debugKeywordText: String = ""
     @State private var debugPageText: String = "1"
     @State private var debugURLOverride: String = ""
     @State private var didCopyDebugSummary: Bool = false
@@ -121,6 +123,10 @@ struct RuleDetailView: View {
 
     private func debugSection(source: Source) -> some View {
         Section("Rule Debug") {
+            TextField("Keyword", text: self.$debugKeywordText)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+
             Stepper(
                 value: self.debugPageBinding,
                 in: 1...999
@@ -133,6 +139,18 @@ struct RuleDetailView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
 
+            if self.hasSearchRule(source: source) {
+                Button(
+                    action: {
+                        self.runSearchDebug(source: source)
+                    },
+                    label: {
+                        Label("Debug Search", systemImage: "magnifyingglass")
+                    }
+                )
+                .disabled(self.isRunningDebug || self.nonEmpty(self.debugKeywordText) == nil)
+            }
+
             ForEach(source.rule.availableListTabs) { listTab in
                 Button(
                     action: {
@@ -142,13 +160,13 @@ struct RuleDetailView: View {
                         Label("Debug \(listTab.title)", systemImage: "ladybug")
                     }
                 )
-                .disabled(self.isRunningListDebug)
+                .disabled(self.isRunningDebug)
             }
 
-            if self.isRunningListDebug {
+            if self.isRunningDebug {
                 HStack {
                     ProgressView()
-                    Text("Debugging list rule...")
+                    Text(self.isRunningSearchDebug ? "Debugging search rule..." : "Debugging list rule...")
                         .foregroundColor(.secondary)
                 }
             }
@@ -365,7 +383,7 @@ struct RuleDetailView: View {
     private func debugSheet() -> some View {
         NavigationView {
             RuleDebugSessionView(session: self.debugSession)
-                .navigationTitle("List Debug")
+                .navigationTitle(self.debugSheetTitle)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Close") {
@@ -493,7 +511,7 @@ struct RuleDetailView: View {
     }
 
     private func runListDebug(source: Source, listTab: ListTabRule) {
-        if self.isRunningListDebug {
+        if self.isRunningDebug {
             return
         }
 
@@ -518,6 +536,36 @@ struct RuleDetailView: View {
         }
     }
 
+    private func runSearchDebug(source: Source) {
+        if self.isRunningDebug {
+            return
+        }
+
+        guard let keyword: String = self.nonEmpty(self.debugKeywordText) else {
+            return
+        }
+
+        self.isRunningSearchDebug = true
+        let page: Int = self.debugPage
+        let urlOverride: String? = self.nonEmpty(self.debugURLOverride)
+
+        Task {
+            let session: RuleDebugSession = await self.viewModel.debugSearchRule(
+                source: source,
+                keyword: keyword,
+                page: page,
+                urlOverride: urlOverride
+            )
+
+            await MainActor.run {
+                self.debugSession = session
+                self.didCopyDebugSummary = false
+                self.isRunningSearchDebug = false
+                self.isShowingDebugSheet = true
+            }
+        }
+    }
+
     private func copyDebugSummary() {
         guard let debugSession: RuleDebugSession = self.debugSession else {
             return
@@ -533,10 +581,15 @@ struct RuleDetailView: View {
             "",
             "## Diagnosis",
             "- Status: \(session.status.rawValue)",
+            "- Stage: \(session.input.stage.rawValue)",
             "- Source: \(session.input.sourceName)",
             "- Source ID: \(session.input.sourceID)",
             "- Rule ID: \(session.input.ruleID ?? "Default")"
         ]
+
+        if let keyword: String = session.input.keyword {
+            lines.append("- Keyword: \(keyword)")
+        }
 
         if let tabID: String = session.input.tabID {
             lines.append("- Tab ID: \(tabID)")
@@ -606,6 +659,18 @@ struct RuleDetailView: View {
         }
 
         lines.append("")
+        lines.append("## Pagination")
+
+        if let pagination: PaginationResolution = session.pagination {
+            lines.append("- Current Page: \(pagination.currentPage)")
+            lines.append("- Next Page: \(pagination.nextPage.map { page in "\(page)" } ?? "None")")
+            lines.append("- Next URL: \(pagination.nextURL ?? "None")")
+            lines.append("- Source: \(pagination.source?.rawValue ?? "None")")
+        } else {
+            lines.append("- None")
+        }
+
+        lines.append("")
         lines.append("## Preview")
 
         if session.previewItems.isEmpty {
@@ -629,6 +694,29 @@ struct RuleDetailView: View {
         }
 
         return lines.joined(separator: "\n")
+    }
+
+    private var isRunningDebug: Bool {
+        return self.isRunningListDebug || self.isRunningSearchDebug
+    }
+
+    private var debugSheetTitle: String {
+        switch self.debugSession?.input.stage {
+        case .search:
+            return "Search Debug"
+        case .list:
+            return "List Debug"
+        case .detail:
+            return "Detail Debug"
+        case .reader:
+            return "Reader Debug"
+        case nil:
+            return "Rule Debug"
+        }
+    }
+
+    private func hasSearchRule(source: Source) -> Bool {
+        return source.rule.ruleSets?.searchRules?.isEmpty == false
     }
 
     private var debugPage: Int {
@@ -784,12 +872,13 @@ private struct RuleDebugSessionView: View {
                 self.diagnosisSection(session: session)
                 self.requestSection(session.requestLogs)
                 self.extractionSection(session.extractionLogs)
+                self.paginationSection(session.pagination)
                 self.previewSection(session.previewItems)
             } else {
                 EmptyStateView(
                     systemImage: "ladybug",
                     title: "No Debug Session",
-                    message: "Run a list rule debug first."
+                    message: "Run a rule debug first."
                 )
             }
         }
@@ -802,7 +891,12 @@ private struct RuleDebugSessionView: View {
                     .foregroundColor(self.statusColor(session.status))
             }
             LabeledContent("Source", value: session.input.sourceName)
+            LabeledContent("Stage", value: session.input.stage.rawValue)
             LabeledContent("Rule", value: session.input.ruleID ?? "Default")
+
+            if let keyword: String = session.input.keyword {
+                LabeledContent("Keyword", value: keyword)
+            }
 
             if let tabID: String = session.input.tabID {
                 LabeledContent("Tab", value: tabID)
@@ -886,6 +980,19 @@ private struct RuleDebugSessionView: View {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private func paginationSection(_ pagination: PaginationResolution?) -> some View {
+        Section("Pagination") {
+            if let pagination: PaginationResolution = pagination {
+                self.keyValueLine("Current Page", "\(pagination.currentPage)")
+                self.keyValueLine("Next Page", pagination.nextPage.map { page in "\(page)" } ?? "None")
+                self.keyValueLine("Next URL", pagination.nextURL ?? "None")
+                self.keyValueLine("Source", pagination.source?.rawValue ?? "None")
+            } else {
+                self.secondaryText("No pagination result.")
             }
         }
     }

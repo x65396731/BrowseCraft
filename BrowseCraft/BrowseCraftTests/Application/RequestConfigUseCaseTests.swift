@@ -27,6 +27,8 @@ struct RequestConfigUseCaseTests {
         #expect(contentRepository.items.first?.listContext?.tabId == "discover")
         #expect(contentRepository.items.first?.listContext?.listRuleId == "home-list")
         #expect(contentRepository.items.first?.listContext?.sectionRole == .main)
+
+        try await Self.assertSearchSourceUseCaseUsesSearchRuleWithoutMutatingCache()
     }
 
     @Test func loadChaptersPassesDetailRequestToHTTPClient() async throws {
@@ -252,6 +254,145 @@ struct RequestConfigUseCaseTests {
         )
     }
 
+    private static func assertSearchSourceUseCaseUsesSearchRuleWithoutMutatingCache() async throws {
+        var source: Source = try Self.source()
+        source.baseURL = "https://example.test/root?from=library"
+        source.rule.pages?.append(
+            PageRule(
+                id: "search",
+                title: "Search",
+                type: .search,
+                url: nil,
+                displayMode: nil,
+                request: RequestConfig(
+                    scope: .page,
+                    mergePolicy: .mergeHeaders,
+                    method: .get,
+                    headers: ["X-Search-Page": "1"],
+                    body: nil,
+                    cookiePolicy: nil,
+                    cookiePriority: nil,
+                    cookieScope: nil,
+                    charset: nil,
+                    needsWebView: nil,
+                    autoScroll: nil,
+                    imageHeaders: nil,
+                    imageRequest: nil
+                ),
+                tabGroup: nil,
+                sections: nil,
+                ruleRefs: RuleRefs(
+                    series: nil,
+                    list: nil,
+                    detail: nil,
+                    gallery: nil,
+                    search: "search"
+                ),
+                flags: nil
+            )
+        )
+        source.rule.ruleSets?.searchRules?[0].request = RequestConfig(
+            scope: .search,
+            mergePolicy: .override,
+            method: .get,
+            headers: ["X-Search-Rule": "1"],
+            body: nil,
+            cookiePolicy: nil,
+            cookiePriority: nil,
+            cookieScope: nil,
+            charset: nil,
+            needsWebView: nil,
+            autoScroll: nil,
+            imageHeaders: nil,
+            imageRequest: nil
+        )
+        source.rule.ruleSets?.searchRules?[0].pagination = PaginationRule(
+            nextPage: nil,
+            pagePlaceholder: "{page}",
+            maxPages: 3,
+            stopWhenEmpty: true
+        )
+        let httpClient: RecordingHTTPClient = RecordingHTTPClient(html: "<html></html>")
+        let ruleParser: RecordingRuleParser = RecordingRuleParser()
+        let contentRepository: InMemoryContentRepository = InMemoryContentRepository()
+        contentRepository.seed([
+            Self.cachedItem(
+                id: "cached",
+                sourceID: source.id,
+                tab: try #require(source.rule.availableListTabs.first)
+            )
+        ])
+        let useCase: SearchSourceUseCase = SearchSourceUseCase(
+            httpClient: httpClient,
+            ruleParser: ruleParser,
+            urlResolver: URLResolvingService()
+        )
+
+        let result: SearchSourceResult = try await useCase.executeWithPagination(
+            source: source,
+            keyword: "猫 & dog",
+            page: 2
+        )
+        let items: [ContentItem] = result.items
+
+        #expect(httpClient.requests.first?.url.absoluteString == "https://example.test/search?q=%E7%8C%AB%20%26%20dog&from=library")
+        #expect(httpClient.requests.first?.request?.scope == .search)
+        #expect(httpClient.requests.first?.request?.headers?["X-Search-Rule"] == "1")
+        #expect(ruleParser.parsedSearchRuleIDs == ["search"])
+        #expect(ruleParser.parsedSearchContexts.first.flatMap { $0 }?.pageId == "search")
+        #expect(ruleParser.parsedSearchContexts.first.flatMap { $0 }?.listRuleId == "home-list")
+        #expect(items.map(\.id) == ["search-item"])
+        #expect(result.pagination?.currentPage == 2)
+        #expect(result.pagination?.nextPage == 3)
+        #expect(result.pagination?.nextURL == "https://example.test/search?q=%E7%8C%AB%20%26%20dog&from=library&page=3")
+        #expect(result.pagination?.source == .nextPageLink)
+        #expect(ruleParser.parsedPaginationRuleCount == 1)
+        #expect(ruleParser.parsedPaginationCurrentURLs == ["https://example.test/search?q=%E7%8C%AB%20%26%20dog&from=library"])
+        #expect(contentRepository.items.map(\.id) == ["cached"])
+
+        try await Self.assertSearchSourceUseCaseFallsBackToLegacySearchRule()
+    }
+
+    private static func assertSearchSourceUseCaseFallsBackToLegacySearchRule() async throws {
+        var source: Source = try Self.source()
+        source.rule.pages?.removeAll { page in
+            return page.type == .search
+        }
+        source.rule.urlPatterns?.searchTemplate = nil
+        source.rule.ruleSets?.searchRules?[0].url = "/legacy-search?q={keyword:}&page={page}"
+        source.rule.ruleSets?.searchRules?[0].pagination = PaginationRule(
+            nextPage: nil,
+            pagePlaceholder: "{page}",
+            maxPages: 2,
+            stopWhenEmpty: true
+        )
+
+        let httpClient: RecordingHTTPClient = RecordingHTTPClient(html: "<html></html>")
+        let ruleParser: RecordingRuleParser = RecordingRuleParser()
+        ruleParser.nextPageURL = nil
+        let useCase: SearchSourceUseCase = SearchSourceUseCase(
+            httpClient: httpClient,
+            ruleParser: ruleParser,
+            urlResolver: URLResolvingService()
+        )
+
+        let result: SearchSourceResult = try await useCase.executeWithPagination(
+            source: source,
+            keyword: "猫",
+            page: 1
+        )
+
+        #expect(httpClient.requests.first?.url.absoluteString == "https://example.test/legacy-search?q=%E7%8C%AB&page=1")
+        #expect(ruleParser.parsedSearchRuleIDs == ["search"])
+        #expect(ruleParser.parsedSearchContexts.first.flatMap { $0 }?.pageId == nil)
+        #expect(ruleParser.parsedSearchContexts.first.flatMap { $0 }?.listRuleId == "home-list")
+        #expect(result.items.map(\.id) == ["search-item"])
+        #expect(result.pagination?.currentPage == 1)
+        #expect(result.pagination?.nextPage == 2)
+        #expect(result.pagination?.nextURL == "https://example.test/legacy-search?q=%E7%8C%AB&page=2")
+        #expect(result.pagination?.source == .pagePlaceholder)
+    }
+
     private static func oneLayerReaderSource() throws -> Source {
         var source: Source = try Self.source()
         source.id = "peppercarrot-one-layer-source"
@@ -356,8 +497,9 @@ private final class RecordingHTTPClient: HTTPClient {
     }
 }
 
-private final class RecordingRuleParser: RuleParsingService {
+private final class RecordingRuleParser: RuleParsingService, RulePaginationParsingService {
     var listItemsByRuleID: [String: [ContentItem]] = [:]
+    var nextPageURL: String? = "/search?q=%E7%8C%AB%20%26%20dog&from=library&page=3"
     private(set) var parsedListRuleIDs: [String?] = []
     private(set) var parsedDetailRuleIDs: [String?] = []
     private(set) var parsedDetailPageURLs: [String] = []
@@ -365,6 +507,10 @@ private final class RecordingRuleParser: RuleParsingService {
     private(set) var parsedGalleryRuleIDs: [String?] = []
     private(set) var parsedReaderPageURLs: [String] = []
     private(set) var parsedReaderContexts: [ListContext?] = []
+    private(set) var parsedSearchRuleIDs: [String?] = []
+    private(set) var parsedSearchContexts: [ListContext?] = []
+    private(set) var parsedPaginationRuleCount: Int = 0
+    private(set) var parsedPaginationCurrentURLs: [String] = []
 
     func parseList(html: String, source: Source) throws -> [ContentItem] {
         return try self.parseList(
@@ -394,6 +540,42 @@ private final class RecordingRuleParser: RuleParsingService {
                 updatedAt: nil
             )
         ]
+    }
+
+    func parseSearch(
+        html: String,
+        source: Source,
+        searchRule: SearchRule,
+        context: ListContext?
+    ) throws -> [ContentItem] {
+        self.parsedSearchRuleIDs.append(searchRule.id)
+        self.parsedSearchContexts.append(context)
+
+        return [
+            ContentItem(
+                id: "search-item",
+                sourceId: source.id,
+                title: "Search Item",
+                detailURL: "https://example.test/comics/search-item",
+                coverURL: nil,
+                type: .comic,
+                latestText: nil,
+                updatedAt: nil,
+                listContext: context
+            )
+        ]
+    }
+
+    func parseNextPageURL(
+        html: String,
+        source: Source,
+        pagination: PaginationRule,
+        currentURL: URL
+    ) throws -> String? {
+        self.parsedPaginationRuleCount += 1
+        self.parsedPaginationCurrentURLs.append(currentURL.absoluteString)
+
+        return self.nextPageURL
     }
 
     func parseDetailChapters(html: String, source: Source, pageURL: String) throws -> [ChapterLink] {
