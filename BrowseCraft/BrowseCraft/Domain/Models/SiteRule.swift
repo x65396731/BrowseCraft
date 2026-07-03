@@ -31,11 +31,11 @@ struct SiteRule: Codable, Hashable {
     }
 
     var primaryDetailRule: DetailRule? {
-        return self.pageDetailRule ?? self.detail
+        return RuleResolver().resolve(self).primaryDetailRule
     }
 
     var primaryGalleryRule: GalleryRule? {
-        return self.pageGalleryRule ?? self.gallery
+        return RuleResolver().resolve(self).primaryGalleryRule
     }
 
     var primaryListRequest: RequestConfig? {
@@ -43,17 +43,11 @@ struct SiteRule: Codable, Hashable {
     }
 
     var primaryDetailRequest: RequestConfig? {
-        return self.effectiveRequest(
-            pageRequest: self.pageDetailEntry?.page.request,
-            ruleRequest: self.primaryDetailRule?.request
-        )
+        return RuleResolver().resolve(self).detailEntry?.effectiveRequest
     }
 
     var primaryGalleryRequest: RequestConfig? {
-        return self.effectiveRequest(
-            pageRequest: self.pageGalleryEntry?.page.request,
-            ruleRequest: self.primaryGalleryRule?.request
-        )
+        return RuleResolver().resolve(self).galleryEntry?.effectiveRequest
     }
 
     var availableListTabs: [ListTabRule] {
@@ -258,48 +252,6 @@ struct SiteRule: Codable, Hashable {
         let selectedTab: ListTabRule = orderedTabs.remove(at: selectedIndex)
         orderedTabs.insert(selectedTab, at: 0)
         return orderedTabs
-    }
-
-    private var pageDetailRule: DetailRule? {
-        // 中文注释：详情页解析使用 PageRule.ruleRefs.detail 指向 RuleSets.detailRules，旧 detail 字段只作为兼容兜底。
-        return self.pageDetailEntry?.rule
-    }
-
-    private var pageGalleryRule: GalleryRule? {
-        // 中文注释：阅读页图片解析使用 PageRule.ruleRefs.gallery 指向 RuleSets.galleryRules，旧 gallery 字段只作为兼容兜底。
-        return self.pageGalleryEntry?.rule
-    }
-
-    private var pageDetailEntry: (page: PageRule, rule: DetailRule)? {
-        guard let pages: [PageRule] = self.pages,
-              let ruleSets: RuleSets = self.ruleSets else {
-            return nil
-        }
-
-        return pages.lazy.compactMap { page in
-            guard page.isDetailEntryPage,
-                  let detailRule: DetailRule = ruleSets.detailRule(id: page.ruleRefs?.detail) else {
-                return nil
-            }
-
-            return (page: page, rule: detailRule)
-        }.first
-    }
-
-    private var pageGalleryEntry: (page: PageRule, rule: GalleryRule)? {
-        guard let pages: [PageRule] = self.pages,
-              let ruleSets: RuleSets = self.ruleSets else {
-            return nil
-        }
-
-        return pages.lazy.compactMap { page in
-            guard page.isGalleryEntryPage,
-                  let galleryRule: GalleryRule = ruleSets.galleryRule(id: page.ruleRefs?.gallery) else {
-                return nil
-            }
-
-            return (page: page, rule: galleryRule)
-        }.first
     }
 
     /// 中文注释：列表刷新需要保留具体 tab 的页面请求配置；规则请求优先级高于页面请求，页面请求再覆盖站点共享配置。
