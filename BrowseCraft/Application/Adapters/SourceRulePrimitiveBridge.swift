@@ -1,14 +1,6 @@
 import BrowseCraftCore
 import Foundation
 
-// 中文注释：P3-5.6 后 SiteRule 主模型已在 Core；这里暂留 Core SiteRule 到 Core schema 的 App 侧适配。
-extension BrowseCraftCore.SiteRule {
-    func browseCraftRuleSchema() throws -> BrowseCraftRuleSchema {
-        let data: Data = try JSONEncoder().encode(self)
-        return try JSONDecoder().decode(BrowseCraftRuleSchema.self, from: data)
-    }
-}
-
 extension RuleDebugStage {
     var sourceRuntimeOperation: SourceRuntimeOperation {
         switch self {
@@ -66,34 +58,7 @@ extension RuleDebugField {
 
 extension RuleCandidateField {
     var sourceRuleField: SourceRuleField {
-        switch self {
-        case .section:
-            return .section
-        case .item:
-            return .item
-        case .title:
-            return .title
-        case .link:
-            return .link
-        case .cover:
-            return .cover
-        case .latestText:
-            return .latestText
-        case .chapterContainer:
-            return .chapterContainer
-        case .chapterItem:
-            return .chapterItem
-        case .chapterTitle:
-            return .chapterTitle
-        case .chapterLink:
-            return .chapterLink
-        case .image:
-            return .image
-        case .nextPage:
-            return .nextPage
-        case .unknown:
-            return .unknown
-        }
+        self
     }
 }
 
@@ -359,151 +324,60 @@ extension RuleDebugSession {
 
 extension RuleCandidateScore {
     var sourceRuleCandidateScore: SourceRuleCandidateScore {
-        SourceRuleCandidateScore(
-            value: self.value,
-            confidence: self.confidence.sourceRuleCandidateConfidence,
-            reasons: self.reasons
-        )
+        self
     }
 }
 
 extension RuleCandidateConfidence {
     var sourceRuleCandidateConfidence: SourceRuleCandidateConfidence {
-        switch self {
-        case .high:
-            return .high
-        case .medium:
-            return .medium
-        case .low:
-            return .low
-        case .rejected:
-            return .rejected
-        }
+        self
     }
 }
 
 extension RuleCandidateEvidence {
     var sourceRuleCandidateEvidence: SourceRuleCandidateEvidence {
-        SourceRuleCandidateEvidence(
-            candidateCount: self.candidateCount,
-            matchedCount: self.matchedCount,
-            sampleValues: self.sampleValues,
-            sampleAttributes: self.sampleAttributes,
-            ancestorHints: self.ancestorHints
-        )
+        self
     }
 }
 
 extension RuleCandidateWarningSeverity {
     var sourceRuleCandidateWarningSeverity: SourceRuleCandidateWarningSeverity {
-        switch self {
-        case .info:
-            return .info
-        case .warning:
-            return .warning
-        case .error:
-            return .error
-        }
+        self
     }
 }
 
 extension RuleCandidateWarningCategory {
     var sourceRuleCandidateWarningCategory: SourceRuleCandidateWarningCategory {
-        switch self {
-        case .overbroadContainer:
-            return .overbroadContainer
-        case .tooFewMatches:
-            return .tooFewMatches
-        case .missingRequiredField:
-            return .missingRequiredField
-        case .navigationNoise:
-            return .navigationNoise
-        case .recommendationNoise:
-            return .recommendationNoise
-        case .mixedContent:
-            return .mixedContent
-        case .sensitiveSample:
-            return .sensitiveSample
-        case .unknown:
-            return .unknown
-        }
+        self
     }
 }
 
 extension RuleCandidateWarning {
     var sourceRuleCandidateWarning: SourceRuleCandidateWarning {
-        SourceRuleCandidateWarning(
-            id: self.id,
-            severity: self.severity.sourceRuleCandidateWarningSeverity,
-            category: self.category.sourceRuleCandidateWarningCategory,
-            message: self.message
-        )
+        self
     }
 }
 
 extension RuleCandidateSource {
     var sourceRuleCandidateSource: SourceRuleCandidateSource {
-        switch self {
-        case .repeatedDOMStructure:
-            return .repeatedDOMStructure
-        case .semanticElement:
-            return .semanticElement
-        case .attributePattern:
-            return .attributePattern
-        case .existingRule:
-            return .existingRule
-        case .debugFailure:
-            return .debugFailure
-        case .paginationLink:
-            return .paginationLink
-        case .manualSeed:
-            return .manualSeed
-        }
+        self
     }
 }
 
 extension RuleCandidate {
     var sourceRuleCandidate: SourceRuleCandidate {
-        SourceRuleCandidate(
-            id: self.id,
-            field: self.field.sourceRuleField,
-            operation: self.stage.sourceRuntimeOperation,
-            selector: self.selector,
-            selectorKind: self.selectorKind.sourceRuleSelectorKind,
-            function: self.function.sourceRuleExtractFunction,
-            param: self.param,
-            score: self.score.sourceRuleCandidateScore,
-            evidence: self.evidence.sourceRuleCandidateEvidence,
-            warnings: self.warnings.map { warning in warning.sourceRuleCandidateWarning },
-            source: self.source.sourceRuleCandidateSource
-        )
+        self
     }
 }
 
 extension RuleCandidateSummary {
     var sourceRuleCandidateSummary: SourceRuleCandidateSummary {
-        SourceRuleCandidateSummary(
-            candidateCount: self.candidateCount,
-            highConfidenceCount: self.highConfidenceCount,
-            warningCount: self.warningCount,
-            coveredFields: self.coveredFields.map { field in field.sourceRuleField }
-        )
+        self
     }
 }
 
 extension RuleCandidateReport {
     var sourceRuleCandidateReport: SourceRuleCandidateReport {
-        SourceRuleCandidateReport(
-            id: self.id,
-            sourceID: self.sourceID,
-            sourceName: self.sourceName,
-            operation: self.stage.sourceRuntimeOperation,
-            pageID: self.pageID,
-            ruleID: self.ruleID,
-            url: self.url,
-            generatedAt: self.generatedAt,
-            candidates: self.candidates.map { candidate in candidate.sourceRuleCandidate },
-            summary: self.summary.sourceRuleCandidateSummary
-        )
+        self
     }
 }

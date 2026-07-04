@@ -1081,6 +1081,7 @@ final class SwiftSoupRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
              .item,
              .cover,
              .latestText,
+             .chapter,
              .chapterContainer,
              .chapterItem,
              .nextPage,

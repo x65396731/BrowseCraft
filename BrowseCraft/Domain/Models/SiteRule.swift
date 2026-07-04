@@ -57,24 +57,6 @@ typealias VideoRule = BrowseCraftCore.VideoRule
 typealias ContentType = BrowseCraftCore.ContentType
 
 extension BrowseCraftCore.SiteRule {
-    var primaryDetailRule: DetailRule? {
-        return RuleResolver().resolve(self).primaryDetailRule
-    }
-
-    var primaryGalleryRule: GalleryRule? {
-        return RuleResolver().resolve(self).primaryGalleryRule
-    }
-
-    var primaryDetailRequest: RequestConfig? {
-        return RuleResolver().resolve(self).primaryDetailRequest
-    }
-
-    var primaryGalleryRequest: RequestConfig? {
-        return RuleResolver().resolve(self).primaryGalleryRequest
-    }
-}
-
-extension BrowseCraftCore.SiteRule {
     /// 中文注释：AddSourceView 展示给用户参考的规则 JSON 示例。
     static let exampleJSON: String = """
     {
