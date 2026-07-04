@@ -180,3 +180,171 @@ extension SourceRuleExtractFunction {
         }
     }
 }
+
+extension RuleDebugSessionStatus {
+    var sourceDebugStatus: SourceDebugStatus {
+        switch self {
+        case .running:
+            return .running
+        case .succeeded:
+            return .succeeded
+        case .empty:
+            return .empty
+        case .failed:
+            return .failed
+        }
+    }
+}
+
+extension RuleDebugInput {
+    var sourceDebugInputSummary: SourceDebugInputSummary {
+        SourceDebugInputSummary(
+            sourceID: self.sourceID,
+            sourceName: self.sourceName,
+            operation: self.stage.sourceRuntimeOperation,
+            pageID: self.pageID,
+            tabID: self.tabID,
+            ruleID: self.ruleID,
+            keyword: self.keyword,
+            page: self.page,
+            url: self.url
+        )
+    }
+}
+
+extension RuleDebugRequestSummary {
+    var sourceDebugRequestSummary: SourceDebugRequestSummary {
+        SourceDebugRequestSummary(
+            needsWebView: self.needsWebView,
+            autoScroll: self.autoScroll,
+            scope: self.scope,
+            mergePolicy: self.mergePolicy,
+            cookiePolicy: self.cookiePolicy,
+            charset: self.charset,
+            headerCount: self.headerCount,
+            hasBody: self.hasBody
+        )
+    }
+}
+
+extension RuleDebugResponseSummary {
+    var sourceDebugResponseSummary: SourceDebugResponseSummary {
+        SourceDebugResponseSummary(
+            statusCode: self.statusCode,
+            contentLength: self.contentLength,
+            finalURL: self.finalURL
+        )
+    }
+}
+
+extension RuleDebugRequestLog {
+    var sourceDebugRequestLog: SourceDebugRequestLog {
+        SourceDebugRequestLog(
+            id: self.id,
+            operation: self.stage.sourceRuntimeOperation,
+            url: self.url,
+            method: self.method,
+            requestSummary: self.requestSummary.sourceDebugRequestSummary,
+            startedAt: self.startedAt,
+            completedAt: self.completedAt,
+            responseSummary: self.responseSummary?.sourceDebugResponseSummary,
+            errorMessage: self.errorMessage
+        )
+    }
+}
+
+extension RuleDebugExtractionLog {
+    var sourceDebugExtractionLog: SourceDebugExtractionLog {
+        SourceDebugExtractionLog(
+            id: self.id,
+            operation: self.stage.sourceRuntimeOperation,
+            ruleID: self.ruleID,
+            selector: self.selector,
+            field: self.field?.sourceRuleField,
+            candidateCount: self.candidateCount,
+            outputCount: self.outputCount,
+            samples: self.samples,
+            message: self.message
+        )
+    }
+}
+
+extension RuleDebugIssueSeverity {
+    var sourceRuntimeIssueSeverity: SourceRuntimeIssueSeverity {
+        switch self {
+        case .info:
+            return .info
+        case .warning:
+            return .warning
+        case .error:
+            return .error
+        }
+    }
+}
+
+extension RuleDebugIssueCategory {
+    var sourceDebugIssueCategory: SourceDebugIssueCategory {
+        switch self {
+        case .requestFailed:
+            return .requestFailed
+        case .selectorEmpty:
+            return .selectorEmpty
+        case .fieldMissing:
+            return .fieldMissing
+        case .invalidURL:
+            return .invalidURL
+        case .ruleConfiguration:
+            return .ruleConfiguration
+        case .parserError:
+            return .parserError
+        case .unknown:
+            return .unknown
+        }
+    }
+}
+
+extension RuleDebugIssue {
+    var sourceDebugIssue: SourceDebugIssue {
+        SourceDebugIssue(
+            id: self.id,
+            severity: self.severity.sourceRuntimeIssueSeverity,
+            category: self.category.sourceDebugIssueCategory,
+            operation: self.stage.sourceRuntimeOperation,
+            ruleID: self.ruleID,
+            field: self.field?.sourceRuleField,
+            message: self.message
+        )
+    }
+}
+
+extension RuleDebugPreviewItem {
+    var sourceDebugPreviewItem: SourceDebugPreviewItem {
+        SourceDebugPreviewItem(
+            id: self.id,
+            title: self.title,
+            detailURL: self.detailURL,
+            chapterURL: self.chapterURL,
+            coverURL: self.coverURL,
+            imageURL: self.imageURL,
+            latestText: self.latestText,
+            sourceIndex: self.sourceIndex,
+            issues: self.issues.map { issue in issue.sourceDebugIssue }
+        )
+    }
+}
+
+extension RuleDebugSession {
+    var sourceDebugSnapshot: SourceDebugSnapshot {
+        SourceDebugSnapshot(
+            id: self.id,
+            startedAt: self.startedAt,
+            completedAt: self.completedAt,
+            input: self.input.sourceDebugInputSummary,
+            requestLogs: self.requestLogs.map { log in log.sourceDebugRequestLog },
+            extractionLogs: self.extractionLogs.map { log in log.sourceDebugExtractionLog },
+            previewItems: self.previewItems.map { item in item.sourceDebugPreviewItem },
+            issues: self.issues.map { issue in issue.sourceDebugIssue },
+            status: self.status.sourceDebugStatus
+        )
+    }
+}

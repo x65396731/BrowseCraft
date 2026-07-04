@@ -1,4 +1,5 @@
 import BrowseCraftCore
+import Foundation
 import Testing
 @testable import BrowseCraft
 
@@ -61,5 +62,101 @@ struct SourceRulePrimitiveBridgeTests {
 
         #expect(selectorKinds.map { kind in kind.sourceRuleSelectorKind.selectorKind } == selectorKinds)
         #expect(functions.map { function in function.sourceRuleExtractFunction.extractFunction } == functions)
+    }
+
+    @Test func debugSessionMapsToSourceDebugSnapshot() {
+        let issue = RuleDebugIssue(
+            id: "issue-1",
+            severity: .warning,
+            category: .fieldMissing,
+            stage: .list,
+            ruleID: "discover",
+            field: .cover,
+            message: "Cover is missing."
+        )
+        let session = RuleDebugSession(
+            id: "debug-1",
+            startedAt: Date(timeIntervalSince1970: 1_800_000_000),
+            completedAt: Date(timeIntervalSince1970: 1_800_000_002),
+            input: RuleDebugInput(
+                sourceID: "source",
+                sourceName: "Example",
+                stage: .list,
+                pageID: "home",
+                tabID: "latest",
+                ruleID: "discover",
+                keyword: nil,
+                page: 1,
+                url: "https://example.com/list",
+                context: nil
+            ),
+            requestLogs: [
+                RuleDebugRequestLog(
+                    id: "request-1",
+                    stage: .list,
+                    url: "https://example.com/list",
+                    method: "GET",
+                    requestSummary: RuleDebugRequestSummary(
+                        needsWebView: false,
+                        autoScroll: false,
+                        scope: "page",
+                        mergePolicy: "override",
+                        cookiePolicy: "read",
+                        charset: "utf8",
+                        headerCount: 2,
+                        hasBody: false
+                    ),
+                    startedAt: Date(timeIntervalSince1970: 1_800_000_000),
+                    completedAt: Date(timeIntervalSince1970: 1_800_000_001),
+                    responseSummary: RuleDebugResponseSummary(
+                        statusCode: 200,
+                        contentLength: 512,
+                        finalURL: "https://example.com/list"
+                    ),
+                    errorMessage: nil
+                )
+            ],
+            extractionLogs: [
+                RuleDebugExtractionLog(
+                    id: "extract-1",
+                    stage: .list,
+                    ruleID: "discover",
+                    selector: "a.item",
+                    field: .item,
+                    candidateCount: 4,
+                    outputCount: 3,
+                    samples: ["One", "Two"],
+                    message: "Selected list item candidates."
+                )
+            ],
+            previewItems: [
+                RuleDebugPreviewItem(
+                    id: "preview-1",
+                    title: "One",
+                    detailURL: "https://example.com/comics/1",
+                    chapterURL: nil,
+                    coverURL: "https://example.com/cover.jpg",
+                    imageURL: nil,
+                    latestText: "第01话",
+                    sourceIndex: 0,
+                    issues: [issue]
+                )
+            ],
+            pagination: nil,
+            candidateReport: nil,
+            issues: [issue]
+        )
+
+        let snapshot = session.sourceDebugSnapshot
+
+        #expect(snapshot.id == "debug-1")
+        #expect(snapshot.status == .succeeded)
+        #expect(snapshot.input.operation == .list)
+        #expect(snapshot.input.pageID == "home")
+        #expect(snapshot.requestLogs.first?.requestSummary.headerCount == 2)
+        #expect(snapshot.requestLogs.first?.responseSummary?.statusCode == 200)
+        #expect(snapshot.extractionLogs.first?.field == .item)
+        #expect(snapshot.previewItems.first?.issues.first?.category == .fieldMissing)
+        #expect(snapshot.issues.first?.severity == .warning)
     }
 }
