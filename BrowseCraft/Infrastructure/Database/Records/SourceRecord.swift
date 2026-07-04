@@ -38,15 +38,16 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
 
     /// 中文注释：domainModel 方法封装当前类型的一段业务或界面行为。
     func domainModel() throws -> Source {
-        let decoder: JSONDecoder = JSONDecoder()
-        let sourceKind: SourceDefinitionKind = SourceDefinitionKind(rawValue: self.kind ?? "") ?? .rule
+        let configuration: SourceConfiguration = try self.sourceConfiguration()
         let rule: SiteRule
 
-        switch sourceKind {
-        case .rule:
-            rule = try self.decodeRuleConfiguration(using: decoder).rule
-        case .rss, .plugin:
-            throw SourceRecordDecodingError.unsupportedPersistedSourceKind(sourceKind.rawValue)
+        switch configuration {
+        case .rule(let ruleConfiguration):
+            rule = ruleConfiguration.rule
+        case .rss:
+            throw SourceRecordDecodingError.unsupportedPersistedSourceKind(SourceDefinitionKind.rss.rawValue)
+        case .plugin:
+            throw SourceRecordDecodingError.unsupportedPersistedSourceKind(SourceDefinitionKind.plugin.rawValue)
         }
 
         return Source(
@@ -61,28 +62,36 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
         )
     }
 
-    private func decodeRuleConfiguration(using decoder: JSONDecoder) throws -> RuleSourceConfiguration {
+    func sourceConfiguration() throws -> SourceConfiguration {
+        let decoder: JSONDecoder = JSONDecoder()
+        let sourceKind: SourceDefinitionKind = SourceDefinitionKind(rawValue: self.kind ?? "") ?? .rule
+
         if let configJSON: String = self.configJSON, configJSON.isEmpty == false {
             let configData: Data = Data(configJSON.utf8)
             if let configuration: SourceConfiguration = try? decoder.decode(SourceConfiguration.self, from: configData) {
-                if case .rule(let ruleConfiguration) = configuration {
-                    return ruleConfiguration
+                guard configuration.kind == sourceKind else {
+                    throw SourceRecordDecodingError.mismatchedConfigurationKind
                 }
 
-                throw SourceRecordDecodingError.mismatchedConfigurationKind
+                return configuration
             }
 
-            let rule: SiteRule = try decoder.decode(SiteRule.self, from: configData)
-            return RuleSourceConfiguration(
-                rule: rule,
-                schemaVersion: rule.version ?? 1,
-                packageMetadata: nil,
-                isEditable: self.id.hasPrefix("built-in.") == false
-            )
+            if sourceKind == .rule {
+                return .rule(try self.decodeRuleConfiguration(using: decoder, data: configData))
+            }
+
+            throw SourceRecordDecodingError.mismatchedConfigurationKind
         }
 
-        let ruleData: Data = Data(self.ruleJSON.utf8)
-        let rule: SiteRule = try decoder.decode(SiteRule.self, from: ruleData)
+        guard sourceKind == .rule else {
+            throw SourceRecordDecodingError.missingConfiguration(sourceKind.rawValue)
+        }
+
+        return .rule(try self.decodeLegacyRuleConfiguration(using: decoder))
+    }
+
+    private func decodeRuleConfiguration(using decoder: JSONDecoder, data: Data) throws -> RuleSourceConfiguration {
+        let rule: SiteRule = try decoder.decode(SiteRule.self, from: data)
         return RuleSourceConfiguration(
             rule: rule,
             schemaVersion: rule.version ?? 1,
@@ -90,9 +99,15 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
             isEditable: self.id.hasPrefix("built-in.") == false
         )
     }
+
+    private func decodeLegacyRuleConfiguration(using decoder: JSONDecoder) throws -> RuleSourceConfiguration {
+        let ruleData: Data = Data(self.ruleJSON.utf8)
+        return try self.decodeRuleConfiguration(using: decoder, data: ruleData)
+    }
 }
 
 enum SourceRecordDecodingError: Error {
     case unsupportedPersistedSourceKind(String)
     case mismatchedConfigurationKind
+    case missingConfiguration(String)
 }

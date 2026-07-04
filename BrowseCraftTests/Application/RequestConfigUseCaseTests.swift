@@ -592,6 +592,44 @@ struct RequestConfigUseCaseTests {
         #expect(loadedSource.configuration.kind == .rule)
     }
 
+    @Test func sourceRecordDecodesRSSConfigurationWithoutCreatingRuleSource() throws {
+        var rssRecord: SourceRecord = try SourceRecord(source: Self.source())
+        let rssConfiguration = SourceConfiguration.rss(
+            RSSSourceConfiguration(
+                definition: RSSSourceDefinition(
+                    feedURL: try #require(URL(string: "https://example.test/feed.xml")),
+                    requiresAccount: false,
+                    refreshPolicy: .manual
+                )
+            )
+        )
+        rssRecord.id = "rss.example"
+        rssRecord.type = SourceType.rss.rawValue
+        rssRecord.kind = SourceDefinitionKind.rss.rawValue
+        rssRecord.configJSON = String(
+            data: try JSONEncoder().encode(rssConfiguration),
+            encoding: .utf8
+        )
+
+        let decodedConfiguration: SourceConfiguration = try rssRecord.sourceConfiguration()
+
+        if case .rss(let rssSourceConfiguration) = decodedConfiguration {
+            #expect(rssSourceConfiguration.definition.feedURL.absoluteString == "https://example.test/feed.xml")
+            #expect(rssSourceConfiguration.definition.requiresAccount == false)
+        } else {
+            Issue.record("Expected RSS source configuration.")
+        }
+
+        do {
+            _ = try rssRecord.domainModel()
+            Issue.record("Expected RSS source record to avoid creating a rule-backed Source.")
+        } catch SourceRecordDecodingError.unsupportedPersistedSourceKind(let kind) {
+            #expect(kind == SourceDefinitionKind.rss.rawValue)
+        } catch {
+            Issue.record("Unexpected error: \(error.localizedDescription)")
+        }
+    }
+
     private static func source() throws -> Source {
         let rule: SiteRule = try JSONDecoder().decode(
             SiteRule.self,
