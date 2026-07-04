@@ -159,4 +159,65 @@ struct SourceRulePrimitiveBridgeTests {
         #expect(snapshot.previewItems.first?.issues.first?.category == .fieldMissing)
         #expect(snapshot.issues.first?.severity == .warning)
     }
+
+    @Test func candidateReportMapsToSourceRuleCandidateReport() {
+        let warning = RuleCandidateWarning(
+            id: "warning-1",
+            severity: .warning,
+            category: .tooFewMatches,
+            message: "Only one next-page candidate matched."
+        )
+        let candidate = RuleCandidate(
+            id: "candidate-1",
+            field: .nextPage,
+            stage: .list,
+            selector: "a.next",
+            selectorKind: .css,
+            function: .url,
+            param: "href",
+            score: RuleCandidateScore(
+                value: 2,
+                confidence: .high,
+                reasons: ["rel=next"]
+            ),
+            evidence: RuleCandidateEvidence(
+                candidateCount: 3,
+                matchedCount: 1,
+                sampleValues: ["/list?page=2"],
+                sampleAttributes: ["rel": ["next"]],
+                ancestorHints: ["nav.pagination"]
+            ),
+            warnings: [warning],
+            source: .paginationLink
+        )
+        let report = RuleCandidateReport(
+            id: "report-1",
+            sourceID: "source",
+            sourceName: "Example",
+            stage: .list,
+            pageID: "home",
+            ruleID: "discover",
+            url: "https://example.com/list",
+            generatedAt: Date(timeIntervalSince1970: 1_800_000_000),
+            candidates: [candidate],
+            summary: RuleCandidateSummary(
+                candidateCount: 1,
+                highConfidenceCount: 1,
+                warningCount: 1,
+                coveredFields: [.nextPage]
+            )
+        )
+
+        let sourceReport = report.sourceRuleCandidateReport
+
+        #expect(sourceReport.id == "report-1")
+        #expect(sourceReport.operation == .list)
+        #expect(sourceReport.candidates.first?.field == .nextPage)
+        #expect(sourceReport.candidates.first?.selectorKind == .css)
+        #expect(sourceReport.candidates.first?.function == .url)
+        #expect(sourceReport.candidates.first?.score.value == 1)
+        #expect(sourceReport.candidates.first?.warnings.first?.category == .tooFewMatches)
+        #expect(sourceReport.candidates.first?.source == .paginationLink)
+        #expect(sourceReport.summary.coveredFields == [.nextPage])
+    }
 }
