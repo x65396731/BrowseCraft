@@ -3,6 +3,12 @@ import Foundation
 
 // 中文注释：LibraryViewModel.swift 属于界面功能层，用于说明本文件承载的核心职责。
 
+struct LibraryListTabState: Identifiable, Hashable {
+    let id: String
+    let title: String
+    let isSelected: Bool
+}
+
 /// 中文注释：LibraryViewModel 是 final class，负责本模块中的对应职责。
 final class LibraryViewModel: ObservableObject {
     @Published private(set) var items: [ContentItem] = []
@@ -66,13 +72,18 @@ final class LibraryViewModel: ObservableObject {
     }
 
     @MainActor
-    func selectListTab(_ tab: ListTabRule) async {
+    func selectListTab(id tabID: String) async {
         if self.isRefreshing {
             return
         }
 
-        if self.selectedListTabID != tab.id {
-            self.selectedListTabID = tab.id
+        guard self.listTabs.contains(where: { tab in tab.id == tabID }) else {
+            self.ensureSelectedListTab()
+            return
+        }
+
+        if self.selectedListTabID != tabID {
+            self.selectedListTabID = tabID
             self.loadCachedItemsForSelectedTab()
         }
 
@@ -161,11 +172,45 @@ final class LibraryViewModel: ObservableObject {
         }
     }
 
-    var listTabs: [ListTabRule] {
+    var listTabStates: [LibraryListTabState] {
+        return self.listTabs.map { tab in
+            return LibraryListTabState(
+                id: tab.id,
+                title: tab.title,
+                isSelected: self.selectedListTabID == tab.id
+            )
+        }
+    }
+
+    func imageRequestConfig(for source: Source) -> RequestConfig? {
+        return source.rule.request(for: self.selectedListTab)
+    }
+
+    func primaryActionTitle(for source: Source) -> String {
+        if self.shouldOpenReaderDirectly(for: source) {
+            return "Read"
+        }
+
+        return "Chapters"
+    }
+
+    func primaryActionSystemImage(for source: Source) -> String {
+        if self.shouldOpenReaderDirectly(for: source) {
+            return "book"
+        }
+
+        return "list.bullet"
+    }
+
+    func shouldOpenReaderDirectly(for source: Source) -> Bool {
+        return RuleResolver().resolve(source.rule).treatsDetailURLAsChapter
+    }
+
+    private var listTabs: [ListTabRule] {
         return self.selectedSource?.rule.availableListTabs ?? []
     }
 
-    var selectedListTab: ListTabRule? {
+    private var selectedListTab: ListTabRule? {
         guard let selectedListTabID: String = self.selectedListTabID else {
             return self.listTabs.first
         }

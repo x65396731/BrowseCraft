@@ -205,4 +205,9 @@ final class ChapterListViewModel: ObservableObject {
         self.isLoading = false
     }
 
+    /// 中文注释：章节列表封面使用 DetailRule 的页面请求配置，避免 View 直接解析规则图。
+    var detailCoverRequestConfig: RequestConfig? {
+        return RuleResolver().resolve(self.source.rule).primaryDetailRequest
+    }
+
 }

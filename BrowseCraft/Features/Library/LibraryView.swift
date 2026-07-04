@@ -25,8 +25,8 @@ struct LibraryView: View {
                                 ContentCardView(
                                     item: item,
                                     sourceName: source.name,
-                                    primaryActionTitle: self.primaryActionTitle(for: source),
-                                    primaryActionSystemImage: self.primaryActionSystemImage(for: source),
+                                    primaryActionTitle: self.viewModel.primaryActionTitle(for: source),
+                                    primaryActionSystemImage: self.viewModel.primaryActionSystemImage(for: source),
                                     isFavorite: self.viewModel.favoriteItemIDs.contains(item.id),
                                     favoriteAction: {
                                         self.viewModel.toggleFavorite(item: item)
@@ -38,7 +38,7 @@ struct LibraryView: View {
                                         for: item,
                                         source: source
                                     ),
-                                    imageRequestConfig: source.rule.request(for: self.viewModel.selectedListTab)
+                                    imageRequestConfig: self.viewModel.imageRequestConfig(for: source)
                                 )
                             }
                         }
@@ -126,11 +126,11 @@ struct LibraryView: View {
     private var listTabBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 20) {
-                ForEach(self.viewModel.listTabs) { tab in
+                ForEach(self.viewModel.listTabStates) { tab in
                     Button(
                         action: {
                             Task {
-                                await self.viewModel.selectListTab(tab)
+                                await self.viewModel.selectListTab(id: tab.id)
                             }
                         },
                         label: {
@@ -138,7 +138,7 @@ struct LibraryView: View {
                                 Text(tab.title)
                                     .font(.headline)
                                     .foregroundColor(
-                                        self.viewModel.selectedListTabID == tab.id
+                                        tab.isSelected
                                         ? .primary
                                         : .secondary
                                     )
@@ -146,7 +146,7 @@ struct LibraryView: View {
 
                                 Capsule()
                                     .fill(
-                                        self.viewModel.selectedListTabID == tab.id
+                                        tab.isSelected
                                         ? Color.primary
                                         : Color.clear
                                     )
@@ -167,7 +167,7 @@ struct LibraryView: View {
 
     @ViewBuilder
     private func readerDestination(for item: ContentItem, source: Source) -> some View {
-        if self.shouldOpenReaderDirectly(for: source) {
+        if self.viewModel.shouldOpenReaderDirectly(for: source) {
             ReaderView(
                 viewModel: self.readerViewModelFactory(item, source, nil)
             )
@@ -177,26 +177,6 @@ struct LibraryView: View {
                 readerViewModelFactory: self.readerViewModelFactory
             )
         }
-    }
-
-    private func primaryActionTitle(for source: Source) -> String {
-        if self.shouldOpenReaderDirectly(for: source) {
-            return "Read"
-        }
-
-        return "Chapters"
-    }
-
-    private func primaryActionSystemImage(for source: Source) -> String {
-        if self.shouldOpenReaderDirectly(for: source) {
-            return "book"
-        }
-
-        return "list.bullet"
-    }
-
-    private func shouldOpenReaderDirectly(for source: Source) -> Bool {
-        return RuleResolver().resolve(source.rule).treatsDetailURLAsChapter
     }
 
     private var errorAlertBinding: Binding<Bool> {

@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import BrowseCraftCore
 @testable import BrowseCraft
 
 // 中文注释：应用层请求配置测试，确认 P1-4.1 已把 V2 RequestConfig 从规则模型传到网络请求入口。
@@ -181,6 +182,72 @@ struct RequestConfigUseCaseTests {
         // 中文注释：P1-7.3 的缓存边界是 source + tab + listRule；刷新 discover 不能删掉 latest 的缓存。
         #expect(discoverItems.map(\.id) == ["discover-new"])
         #expect(latestItems.map(\.id) == ["latest-old"])
+    }
+
+    @Test func ruleSourceRuntimeAdapterLoadListUsesRuntimeContextTab() async throws {
+        let source: Source = try Self.source()
+        let latestTab: ListTabRule = try #require(source.rule.availableListTabs.first { tab in
+            return tab.id == "latest"
+        })
+        let httpClient: RecordingHTTPClient = RecordingHTTPClient(html: "<html></html>")
+        let ruleParser: RecordingRuleParser = RecordingRuleParser()
+        let contentRepository: InMemoryContentRepository = InMemoryContentRepository()
+        ruleParser.listItemsByRuleID = [
+            "latest-list": [
+                Self.cachedItem(id: "runtime-latest", sourceID: source.id, tab: latestTab)
+            ]
+        ]
+        let refreshUseCase = RefreshSourceUseCase(
+            httpClient: httpClient,
+            ruleParser: ruleParser,
+            urlResolver: URLResolvingService(),
+            contentRepository: contentRepository
+        )
+        let searchUseCase = SearchSourceUseCase(
+            httpClient: httpClient,
+            ruleParser: ruleParser,
+            urlResolver: URLResolvingService()
+        )
+        let adapter = RuleSourceRuntimeAdapter(
+            source: source,
+            refreshSourceUseCase: refreshUseCase,
+            searchSourceUseCase: searchUseCase,
+            loadChaptersUseCase: LoadChaptersUseCase(
+                httpClient: httpClient,
+                ruleParser: ruleParser
+            ),
+            loadReaderChapterUseCase: LoadReaderChapterUseCase(
+                httpClient: httpClient,
+                ruleParser: ruleParser
+            )
+        )
+        let input = SourceListInput(
+            page: 2,
+            urlOverride: nil,
+            context: SourceRuntimeContext(
+                sourceID: source.id,
+                pageID: "home",
+                tabID: "latest",
+                sectionID: nil,
+                sectionRole: nil,
+                ruleID: nil,
+                requestOverride: nil,
+                debugMode: false,
+                operation: .list
+            )
+        )
+
+        let output: SourceListOutput = try await adapter.loadList(input)
+
+        #expect(ruleParser.parsedListRuleIDs == ["latest-list"])
+        #expect(httpClient.requests.first?.url.absoluteString == "https://example.test/latest/1")
+        #expect(httpClient.requests.first?.request?.headers?["X-Tab"] == "latest")
+        #expect(contentRepository.items.map(\.id) == ["runtime-latest"])
+        #expect(contentRepository.items.first?.listContext?.tabId == "latest")
+        #expect(contentRepository.items.first?.listContext?.listRuleId == "latest-list")
+        #expect(contentRepository.items.first?.listContext?.sectionRole == .category)
+        #expect(output.items.map(\.id) == ["runtime-latest"])
+        #expect(output.diagnostics.status == .succeeded)
     }
 
     @Test func contentCachePreservesListOrderWhenLoadingSelectedTab() throws {
