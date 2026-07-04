@@ -1,110 +1,12 @@
 import BrowseCraftCore
-import CryptoKit
 import Foundation
 
 // 中文注释：RulePackageUseCases.swift 承载 P2-2 规则导入/导出的自有包格式与编解码边界。
 
-/// 中文注释：BrowseCraft 自有规则包 envelope；只描述可移植规则，不复用 Yealico 私有 QR 编码。
-struct BrowseCraftRulePackage: Codable, Hashable {
-    var formatVersion: Int
-    var kind: String
-    var metadata: RulePackageMetadata
-    var rule: SiteRule
-    var checksum: String
-}
-
-/// 中文注释：规则包元数据只放导入/导出辅助信息，真正执行仍以 `rule` 为准。
-struct RulePackageMetadata: Codable, Hashable {
-    var exportedAt: Date
-    var sourceID: String?
-    var sourceName: String
-    var sourceBaseURL: String
-    var ruleName: String
-    var appVersion: String?
-}
-
-/// 中文注释：RulePackageCodec 负责将 SiteRule 包装成稳定 JSON，并在导入时校验 checksum。
-struct RulePackageCodec {
-    static let currentFormatVersion: Int = 1
-    static let packageKind: String = "browsecraft.rule.package"
-
-    private let jsonDecoder: JSONDecoder
-    private let packageEncoder: JSONEncoder
-    private let checksumEncoder: JSONEncoder
-    private let now: () -> Date
-
-    init(
-        jsonDecoder: JSONDecoder = JSONDecoder(),
-        now: @escaping () -> Date = Date.init
-    ) {
-        self.jsonDecoder = jsonDecoder
-        self.packageEncoder = StableJSONCoding.makePrettyPrintedEncoder()
-        self.checksumEncoder = StableJSONCoding.makeCanonicalEncoder()
-        self.now = now
-    }
-
-    func encodePackage(
-        rule: SiteRule,
-        sourceID: String? = nil,
-        sourceName: String? = nil,
-        sourceBaseURL: String? = nil,
-        appVersion: String? = nil
-    ) throws -> String {
-        let metadata: RulePackageMetadata = RulePackageMetadata(
-            exportedAt: self.now(),
-            sourceID: sourceID,
-            sourceName: sourceName ?? rule.name,
-            sourceBaseURL: sourceBaseURL ?? rule.baseUrl,
-            ruleName: rule.name,
-            appVersion: appVersion
-        )
-
-        let package: BrowseCraftRulePackage = BrowseCraftRulePackage(
-            formatVersion: Self.currentFormatVersion,
-            kind: Self.packageKind,
-            metadata: metadata,
-            rule: rule,
-            checksum: try self.checksum(for: rule)
-        )
-        let data: Data = try self.packageEncoder.encode(package)
-
-        guard let packageJSON: String = String(data: data, encoding: .utf8) else {
-            throw RulePackageError.encodingFailed
-        }
-
-        return packageJSON
-    }
-
-    func decodePackage(packageJSON: String) throws -> BrowseCraftRulePackage {
-        let data: Data = Data(packageJSON.utf8)
-        let package: BrowseCraftRulePackage = try self.jsonDecoder.decode(BrowseCraftRulePackage.self, from: data)
-
-        guard package.kind == Self.packageKind else {
-            throw RulePackageError.unsupportedKind(package.kind)
-        }
-
-        guard package.formatVersion == Self.currentFormatVersion else {
-            throw RulePackageError.unsupportedFormatVersion(package.formatVersion)
-        }
-
-        let expectedChecksum: String = try self.checksum(for: package.rule)
-        guard package.checksum == expectedChecksum else {
-            throw RulePackageError.checksumMismatch
-        }
-
-        return package
-    }
-
-    func checksum(for rule: SiteRule) throws -> String {
-        let data: Data = try self.checksumEncoder.encode(rule)
-        let digest: SHA256.Digest = SHA256.hash(data: data)
-        let hex: String = digest.map { byte in
-            return String(format: "%02x", byte)
-        }
-        .joined()
-        return "sha256:\(hex)"
-    }
-}
+typealias BrowseCraftRulePackage = BrowseCraftCore.BrowseCraftRulePackage
+typealias RulePackageMetadata = BrowseCraftCore.BrowseCraftRulePackageMetadata
+typealias RulePackageCodec = BrowseCraftCore.RulePackageCodec
+typealias RulePackageError = BrowseCraftCore.RulePackageError
 
 /// 中文注释：导出结果同时携带包内容和建议文件名，UI 层只负责分享或保存。
 struct RulePackageExport: Hashable {
@@ -243,28 +145,5 @@ struct ImportSourceRulePackageUseCase {
         }
 
         return trimmedValue
-    }
-}
-
-enum RulePackageError: LocalizedError, Equatable {
-    case encodingFailed
-    case unsupportedKind(String)
-    case unsupportedFormatVersion(Int)
-    case checksumMismatch
-    case sourceNotFound
-
-    var errorDescription: String? {
-        switch self {
-        case .encodingFailed:
-            return "Rule package could not be encoded as UTF-8 JSON."
-        case .unsupportedKind(let kind):
-            return "Unsupported rule package kind: \(kind)."
-        case .unsupportedFormatVersion(let version):
-            return "Unsupported rule package format version: \(version)."
-        case .checksumMismatch:
-            return "Rule package checksum does not match its rule content."
-        case .sourceNotFound:
-            return "Source was not found."
-        }
     }
 }
