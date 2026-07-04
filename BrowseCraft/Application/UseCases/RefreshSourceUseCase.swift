@@ -1,8 +1,8 @@
 import Foundation
 
-// 中文注释：RefreshSourceUseCase 是 Sources 页面使用的 App facade；真实 rule-only 实现在 RuleSourceRefreshUseCase。
+// 中文注释：RefreshSourceUseCase 是 Sources 页面使用的 App facade；真实 rule-only 实现在 RuleSourceListLoader。
 struct RefreshSourceUseCase {
-    private let ruleSourceUseCase: RuleSourceRefreshUseCase
+    private let ruleSourceLoader: RuleSourceListLoader
 
     init(
         pageContentLoader: PageContentLoader,
@@ -10,7 +10,7 @@ struct RefreshSourceUseCase {
         urlResolver: URLResolvingService,
         contentRepository: ContentRepository
     ) {
-        self.ruleSourceUseCase = RuleSourceRefreshUseCase(
+        self.ruleSourceLoader = RuleSourceListLoader(
             pageContentLoader: pageContentLoader,
             ruleParser: ruleParser,
             urlResolver: urlResolver,
@@ -33,11 +33,11 @@ struct RefreshSourceUseCase {
     }
 
     func execute(source: Source, page: Int = 1) async throws -> [ContentItem] {
-        return try await self.ruleSourceUseCase.execute(source: source, page: page)
+        return try await self.ruleSourceLoader.execute(source: source, page: page)
     }
 
     func execute(source: Source, listTab: ListTabRule?, page: Int = 1) async throws -> [ContentItem] {
-        return try await self.ruleSourceUseCase.execute(
+        return try await self.ruleSourceLoader.execute(
             source: source,
             listTab: listTab,
             page: page

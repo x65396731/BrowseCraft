@@ -1,7 +1,7 @@
 import Foundation
 
-// 中文注释：RuleSourceRefreshUseCase 是 RuleSourceRuntime 内部列表刷新实现，只处理 SiteRule-backed source。
-struct RuleSourceRefreshUseCase {
+// 中文注释：RuleSourceListLoader 是 RuleSourceRuntime 内部列表刷新实现，只处理 SiteRule-backed source。
+struct RuleSourceListLoader {
     private let pageContentLoader: PageContentLoader
     private let ruleParser: RuleParsingService
     private let urlResolver: URLResolvingService

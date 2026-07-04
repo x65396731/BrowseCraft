@@ -1,6 +1,6 @@
 import Foundation
 
-// 中文注释：RuleSourceReaderUseCases 是 RuleSourceRuntime 内部执行边界，只处理 SiteRule-backed source。
+// 中文注释：RuleSourceReaderLoaders 是 RuleSourceRuntime 内部执行边界，只处理 SiteRule-backed source。
 
 /// 中文注释：LoadReaderChapterError 是 enum，负责本模块中的对应职责。
 enum LoadReaderChapterError: LocalizedError {
@@ -30,7 +30,7 @@ enum LoadChaptersError: LocalizedError {
 }
 
 /// 中文注释：加载单个 Library 条目的章节目录。
-struct RuleSourceLoadChaptersUseCase {
+struct RuleSourceChapterLoader {
     private let pageContentLoader: PageContentLoader
     private let ruleParser: RuleParsingService
 
@@ -142,7 +142,7 @@ struct RuleSourceLoadChaptersUseCase {
 
 /// 中文注释：加载一个阅读章节页面，并解析出所有分页图片地址。
 /// 中文注释：网络请求留在应用层，具体 HTML 解析通过 RuleParsingService 隔离。
-struct RuleSourceLoadReaderChapterUseCase {
+struct RuleSourceReaderLoader {
     private let pageContentLoader: PageContentLoader
     private let ruleParser: RuleParsingService
 

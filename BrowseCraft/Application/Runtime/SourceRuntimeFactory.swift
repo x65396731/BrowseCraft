@@ -28,15 +28,15 @@ struct SourceRuntimeFactory {
     func makeRuleSourceRuntime(source: Source) -> RuleSourceRuntime {
         return RuleSourceRuntime(
             source: source,
-            refreshSourceUseCase: self.makeRefreshSourceUseCase(),
-            searchSourceUseCase: self.makeSearchSourceUseCase(),
-            loadChaptersUseCase: self.makeLoadChaptersUseCase(),
-            loadReaderChapterUseCase: self.makeLoadReaderChapterUseCase()
+            listLoader: self.makeRuleSourceListLoader(),
+            searchLoader: self.makeRuleSourceSearchLoader(),
+            chapterLoader: self.makeRuleSourceChapterLoader(),
+            readerLoader: self.makeRuleSourceReaderLoader()
         )
     }
 
-    private func makeRefreshSourceUseCase() -> RuleSourceRefreshUseCase {
-        return RuleSourceRefreshUseCase(
+    private func makeRuleSourceListLoader() -> RuleSourceListLoader {
+        return RuleSourceListLoader(
             pageContentLoader: self.pageContentLoader,
             ruleParser: self.ruleParser,
             urlResolver: self.urlResolver,
@@ -44,23 +44,23 @@ struct SourceRuntimeFactory {
         )
     }
 
-    private func makeSearchSourceUseCase() -> SearchSourceUseCase {
-        return SearchSourceUseCase(
+    private func makeRuleSourceSearchLoader() -> RuleSourceSearchLoader {
+        return RuleSourceSearchLoader(
             pageContentLoader: self.pageContentLoader,
             ruleParser: self.ruleParser,
             urlResolver: self.urlResolver
         )
     }
 
-    private func makeLoadChaptersUseCase() -> RuleSourceLoadChaptersUseCase {
-        return RuleSourceLoadChaptersUseCase(
+    private func makeRuleSourceChapterLoader() -> RuleSourceChapterLoader {
+        return RuleSourceChapterLoader(
             pageContentLoader: self.pageContentLoader,
             ruleParser: self.ruleParser
         )
     }
 
-    private func makeLoadReaderChapterUseCase() -> RuleSourceLoadReaderChapterUseCase {
-        return RuleSourceLoadReaderChapterUseCase(
+    private func makeRuleSourceReaderLoader() -> RuleSourceReaderLoader {
+        return RuleSourceReaderLoader(
             pageContentLoader: self.pageContentLoader,
             ruleParser: self.ruleParser
         )

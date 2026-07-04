@@ -493,6 +493,51 @@ extension Source {
 
 - P3-9.7d 完成后需要更新当前工作记录，把 P3-9 标记为可冻结。
 
+### P3-9.8 Runtime/Rule 内部命名边界修正
+
+目标：把 `Application/Runtime/Rule/` 里的 rule-only 内部实现从 `UseCase` 命名改为 `Loader` 命名，避免它们看起来像 App 层通用用例。
+
+当前问题：
+
+- `RuleSourceRuntime` 内部确实还有部分实现类型使用 `UseCase` 命名。
+- 这些实现强依赖 `SiteRule` / `RuleParsingService`，不应该被 RSS / Plugin / 后续视频 runtime 当成共享 App use case。
+- App 层 `RefreshSourceUseCase` / `LoadChaptersUseCase` / `LoadReaderChapterUseCase` 可以保留 facade 命名，但 Runtime/Rule 内部不应继续叫 UseCase。
+
+预计改动：
+
+- `RuleSourceRefreshUseCase.swift` 改为 `RuleSourceListLoader.swift`。
+- `SearchSourceUseCase.swift` 改为 `RuleSourceSearchLoader.swift`。
+- `RuleSourceReaderUseCases.swift` 改为 `RuleSourceReaderLoaders.swift`。
+- `RuleSourceRefreshUseCase` 改为 `RuleSourceListLoader`。
+- `SearchSourceUseCase` 改为 `RuleSourceSearchLoader`。
+- `RuleSourceLoadChaptersUseCase` 改为 `RuleSourceChapterLoader`。
+- `RuleSourceLoadReaderChapterUseCase` 改为 `RuleSourceReaderLoader`。
+- `RuleSourceRuntime` / `SourceRuntimeFactory` 的装配参数同步改成 `listLoader/searchLoader/chapterLoader/readerLoader`。
+
+不做：
+
+- 不改 App facade 名称。
+- 不改业务行为。
+- 不把 Loader 抽象成跨 runtime 共享接口。
+- 不新增 RSS / Plugin / 视频解析能力。
+
+建议验证：
+
+- `rg -n "UseCase|UseCases" BrowseCraft/Application/Runtime`
+- `./scripts/regenerate-project.sh`
+- `xcodebuild test -workspace BrowseCraft.xcworkspace -scheme BrowseCraft -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:BrowseCraftTests/SourceRuntimeMappingTests -only-testing:BrowseCraftTests/RequestConfigUseCaseTests`
+- `rg -n "Bridge|Adapter|unsupportedPersistedSourceKind" BrowseCraft BrowseCraftTests /Users/xiefei/Desktop/BrowseCraftCore/Sources /Users/xiefei/Desktop/BrowseCraftCore/Tests`
+- `git diff --check`
+
+完成后下一节：
+
+- `P3-9 final re-freeze check`：重新确认 P3-9 架构是否可以冻结，然后再进入 `P3-10 PluginSourceRuntime MVP` 或用户指定的新阶段。
+
+计划是否需要更新：
+
+- 如果 P3-9.8 只做命名边界修正，不需要扩展功能计划。
+- 如果测试暴露 App facade 与 Runtime 装配还有职责混淆，需要补一个 `P3-9.9 App facade call-site cleanup`。
+
 ## 非目标总表
 
 P3-9 不做这些事情：

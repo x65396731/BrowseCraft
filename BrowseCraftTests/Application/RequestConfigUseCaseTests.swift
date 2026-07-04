@@ -30,7 +30,7 @@ struct RequestConfigUseCaseTests {
         #expect(contentRepository.items.first?.listContext?.listRuleId == "home-list")
         #expect(contentRepository.items.first?.listContext?.sectionRole == .main)
 
-        try await Self.assertSearchSourceUseCaseUsesSearchRuleWithoutMutatingCache()
+        try await Self.assertRuleSourceSearchLoaderUsesSearchRuleWithoutMutatingCache()
     }
 
     @Test func loadChaptersPassesDetailRequestToHTTPClient() async throws {
@@ -198,26 +198,26 @@ struct RequestConfigUseCaseTests {
                 Self.cachedItem(id: "runtime-latest", sourceID: source.id, tab: latestTab)
             ]
         ]
-        let refreshUseCase = RuleSourceRefreshUseCase(
+        let refreshUseCase = RuleSourceListLoader(
             httpClient: httpClient,
             ruleParser: ruleParser,
             urlResolver: URLResolvingService(),
             contentRepository: contentRepository
         )
-        let searchUseCase = SearchSourceUseCase(
+        let searchUseCase = RuleSourceSearchLoader(
             httpClient: httpClient,
             ruleParser: ruleParser,
             urlResolver: URLResolvingService()
         )
         let runtime = RuleSourceRuntime(
             source: source,
-            refreshSourceUseCase: refreshUseCase,
-            searchSourceUseCase: searchUseCase,
-            loadChaptersUseCase: RuleSourceLoadChaptersUseCase(
+            listLoader: refreshUseCase,
+            searchLoader: searchUseCase,
+            chapterLoader: RuleSourceChapterLoader(
                 httpClient: httpClient,
                 ruleParser: ruleParser
             ),
-            loadReaderChapterUseCase: RuleSourceLoadReaderChapterUseCase(
+            readerLoader: RuleSourceReaderLoader(
                 httpClient: httpClient,
                 ruleParser: ruleParser
             )
@@ -422,13 +422,13 @@ struct RequestConfigUseCaseTests {
                 Self.cachedItem(id: "discover-runtime", sourceID: source.id, tab: discoverTab)
             ]
         ]
-        let refreshUseCase: RuleSourceRefreshUseCase = RuleSourceRefreshUseCase(
+        let refreshUseCase: RuleSourceListLoader = RuleSourceListLoader(
             httpClient: httpClient,
             ruleParser: ruleParser,
             urlResolver: URLResolvingService(),
             contentRepository: contentRepository
         )
-        let searchUseCase: SearchSourceUseCase = SearchSourceUseCase(
+        let searchUseCase: RuleSourceSearchLoader = RuleSourceSearchLoader(
             httpClient: httpClient,
             ruleParser: ruleParser,
             urlResolver: URLResolvingService()
@@ -436,13 +436,13 @@ struct RequestConfigUseCaseTests {
         let runtimeResolver = SourceRuntimeResolver { source in
             return RuleSourceRuntime(
                 source: source,
-                refreshSourceUseCase: refreshUseCase,
-                searchSourceUseCase: searchUseCase,
-                loadChaptersUseCase: RuleSourceLoadChaptersUseCase(
+                listLoader: refreshUseCase,
+                searchLoader: searchUseCase,
+                chapterLoader: RuleSourceChapterLoader(
                     httpClient: httpClient,
                     ruleParser: ruleParser
                 ),
-                loadReaderChapterUseCase: RuleSourceLoadReaderChapterUseCase(
+                readerLoader: RuleSourceReaderLoader(
                     httpClient: httpClient,
                     ruleParser: ruleParser
                 )
@@ -803,22 +803,22 @@ struct RequestConfigUseCaseTests {
     ) -> RuleSourceRuntime {
         return RuleSourceRuntime(
             source: source,
-            refreshSourceUseCase: RuleSourceRefreshUseCase(
+            listLoader: RuleSourceListLoader(
                 httpClient: httpClient,
                 ruleParser: ruleParser,
                 urlResolver: URLResolvingService(),
                 contentRepository: contentRepository
             ),
-            searchSourceUseCase: SearchSourceUseCase(
+            searchLoader: RuleSourceSearchLoader(
                 httpClient: httpClient,
                 ruleParser: ruleParser,
                 urlResolver: URLResolvingService()
             ),
-            loadChaptersUseCase: RuleSourceLoadChaptersUseCase(
+            chapterLoader: RuleSourceChapterLoader(
                 httpClient: httpClient,
                 ruleParser: ruleParser
             ),
-            loadReaderChapterUseCase: RuleSourceLoadReaderChapterUseCase(
+            readerLoader: RuleSourceReaderLoader(
                 httpClient: httpClient,
                 ruleParser: ruleParser
             )
@@ -849,7 +849,7 @@ struct RequestConfigUseCaseTests {
         )
     }
 
-    private static func assertSearchSourceUseCaseUsesSearchRuleWithoutMutatingCache() async throws {
+    private static func assertRuleSourceSearchLoaderUsesSearchRuleWithoutMutatingCache() async throws {
         var source: Source = try Self.source()
         source.baseURL = "https://example.test/root?from=library"
         source.rule.pages?.append(
@@ -917,7 +917,7 @@ struct RequestConfigUseCaseTests {
                 tab: try #require(source.rule.availableListTabs.first)
             )
         ])
-        let useCase: SearchSourceUseCase = SearchSourceUseCase(
+        let useCase: RuleSourceSearchLoader = RuleSourceSearchLoader(
             httpClient: httpClient,
             ruleParser: ruleParser,
             urlResolver: URLResolvingService()
@@ -945,10 +945,10 @@ struct RequestConfigUseCaseTests {
         #expect(ruleParser.parsedPaginationCurrentURLs == ["https://example.test/search?q=%E7%8C%AB%20%26%20dog&from=library"])
         #expect(contentRepository.items.map(\.id) == ["cached"])
 
-        try await Self.assertSearchSourceUseCaseFallsBackToLegacySearchRule()
+        try await Self.assertRuleSourceSearchLoaderFallsBackToLegacySearchRule()
     }
 
-    private static func assertSearchSourceUseCaseFallsBackToLegacySearchRule() async throws {
+    private static func assertRuleSourceSearchLoaderFallsBackToLegacySearchRule() async throws {
         var source: Source = try Self.source()
         source.rule.pages?.removeAll { page in
             return page.type == .search
@@ -965,7 +965,7 @@ struct RequestConfigUseCaseTests {
         let httpClient: RecordingHTTPClient = RecordingHTTPClient(html: "<html></html>")
         let ruleParser: RecordingRuleParser = RecordingRuleParser()
         ruleParser.nextPageURL = nil
-        let useCase: SearchSourceUseCase = SearchSourceUseCase(
+        let useCase: RuleSourceSearchLoader = RuleSourceSearchLoader(
             httpClient: httpClient,
             ruleParser: ruleParser,
             urlResolver: URLResolvingService()

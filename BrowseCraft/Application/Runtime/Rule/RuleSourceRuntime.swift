@@ -6,27 +6,27 @@ import BrowseCraftCore
 struct RuleSourceRuntime: SourceRuntime {
     let source: Source
 
-    private let refreshSourceUseCase: RuleSourceRefreshUseCase
-    private let searchSourceUseCase: SearchSourceUseCase
-    private let loadChaptersUseCase: RuleSourceLoadChaptersUseCase
-    private let loadReaderChapterUseCase: RuleSourceLoadReaderChapterUseCase
+    private let listLoader: RuleSourceListLoader
+    private let searchLoader: RuleSourceSearchLoader
+    private let chapterLoader: RuleSourceChapterLoader
+    private let readerLoader: RuleSourceReaderLoader
     private let definitionMapper: SourceDefinitionMapper
     private let outputMapper: SourceRuntimeOutputMapper
 
     init(
         source: Source,
-        refreshSourceUseCase: RuleSourceRefreshUseCase,
-        searchSourceUseCase: SearchSourceUseCase,
-        loadChaptersUseCase: RuleSourceLoadChaptersUseCase,
-        loadReaderChapterUseCase: RuleSourceLoadReaderChapterUseCase,
+        listLoader: RuleSourceListLoader,
+        searchLoader: RuleSourceSearchLoader,
+        chapterLoader: RuleSourceChapterLoader,
+        readerLoader: RuleSourceReaderLoader,
         definitionMapper: SourceDefinitionMapper = SourceDefinitionMapper(),
         outputMapper: SourceRuntimeOutputMapper = SourceRuntimeOutputMapper()
     ) {
         self.source = source
-        self.refreshSourceUseCase = refreshSourceUseCase
-        self.searchSourceUseCase = searchSourceUseCase
-        self.loadChaptersUseCase = loadChaptersUseCase
-        self.loadReaderChapterUseCase = loadReaderChapterUseCase
+        self.listLoader = listLoader
+        self.searchLoader = searchLoader
+        self.chapterLoader = chapterLoader
+        self.readerLoader = readerLoader
         self.definitionMapper = definitionMapper
         self.outputMapper = outputMapper
     }
@@ -50,7 +50,7 @@ struct RuleSourceRuntime: SourceRuntime {
                 SourceRuntimeCapabilityLimitation(
                     capability: .debug,
                     reason: .notConnected,
-                    message: "Rule debug runtime is reserved and not connected to the App RuleDebugUseCases yet."
+                    message: "Rule debug runtime is reserved and not connected to the App rule debug flow yet."
                 ),
                 SourceRuntimeCapabilityLimitation(
                     capability: .candidateAnalysis,
@@ -66,7 +66,7 @@ struct RuleSourceRuntime: SourceRuntime {
         try self.validateNoURLOverride(input)
 
         let listTab: ListTabRule? = self.listTab(for: input.context)
-        let items: [ContentItem] = try await self.refreshSourceUseCase.execute(
+        let items: [ContentItem] = try await self.listLoader.execute(
             source: self.source,
             listTab: listTab,
             page: max(input.page, 1)
@@ -82,7 +82,7 @@ struct RuleSourceRuntime: SourceRuntime {
         try self.validateSource(input.context)
         try self.validateSearchOverride(input)
 
-        let result: SearchSourceResult = try await self.searchSourceUseCase.executeWithPagination(
+        let result: SearchSourceResult = try await self.searchLoader.executeWithPagination(
             source: self.source,
             keyword: input.keyword,
             page: max(input.page, 1),
@@ -103,7 +103,7 @@ struct RuleSourceRuntime: SourceRuntime {
             url: input.detailURL,
             context: input.context
         )
-        let chapters: [ChapterLink] = try await self.loadChaptersUseCase.execute(
+        let chapters: [ChapterLink] = try await self.chapterLoader.execute(
             source: self.source,
             item: item
         )
@@ -121,7 +121,7 @@ struct RuleSourceRuntime: SourceRuntime {
             url: input.chapterURL,
             context: input.context
         )
-        let chapter: ReaderChapter = try await self.loadReaderChapterUseCase.execute(
+        let chapter: ReaderChapter = try await self.readerLoader.execute(
             source: self.source,
             item: item,
             chapterURLString: input.chapterURL.absoluteString
