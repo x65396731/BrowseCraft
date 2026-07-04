@@ -1,6 +1,14 @@
 import BrowseCraftCore
+import Foundation
 
 // 中文注释：P3-5.1 只建立 App 规则模型到 Core 轻量 primitive 的映射，不迁移 SiteRule 大模型。
+extension SiteRule {
+    func browseCraftRuleSchema() throws -> BrowseCraftRuleSchema {
+        let data: Data = try JSONEncoder().encode(self)
+        return try JSONDecoder().decode(BrowseCraftRuleSchema.self, from: data)
+    }
+}
+
 extension RuleDebugStage {
     var sourceRuntimeOperation: SourceRuntimeOperation {
         switch self {

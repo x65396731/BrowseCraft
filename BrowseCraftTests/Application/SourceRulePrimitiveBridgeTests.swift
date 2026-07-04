@@ -220,4 +220,75 @@ struct SourceRulePrimitiveBridgeTests {
         #expect(sourceReport.candidates.first?.source == .paginationLink)
         #expect(sourceReport.summary.coveredFields == [.nextPage])
     }
+
+    @Test func siteRuleMapsToBrowseCraftRuleSchemaThroughJSONShape() throws {
+        let json = """
+        {
+          "version": 2,
+          "name": "Example",
+          "baseUrl": "https://example.com",
+          "site": {
+            "name": "Example",
+            "domain": "example.com",
+            "baseURL": "https://example.com",
+            "displayMode": "grid"
+          },
+          "pages": [
+            {
+              "id": "home",
+              "title": "Home",
+              "type": "home",
+              "ruleRefs": { "list": "discover" }
+            },
+            {
+              "id": "reader",
+              "title": "Reader",
+              "type": "reader",
+              "ruleRefs": { "gallery": "reader" }
+            }
+          ],
+          "ruleSets": {
+            "listRules": [
+              {
+                "id": "discover",
+                "url": "https://example.com/list/{page}",
+                "item": ".card",
+                "title": ".title",
+                "link": ".title@href",
+                "type": "comic",
+                "fields": {
+                  "title": { "selector": ".title", "function": "text" },
+                  "detailURL": { "selector": ".title", "function": "url", "param": "href" }
+                }
+              }
+            ],
+            "galleryRules": [
+              {
+                "id": "reader",
+                "imageItem": "img.page",
+                "imageUrl": "this@src",
+                "image": { "selector": "img.page", "function": "url", "param": "src" }
+              }
+            ]
+          },
+          "list": {
+            "url": "https://example.com/list/{page}",
+            "item": ".card",
+            "title": ".title",
+            "link": ".title@href",
+            "type": "comic"
+          }
+        }
+        """
+        let data = try #require(json.data(using: .utf8))
+        let rule = try JSONDecoder().decode(SiteRule.self, from: data)
+        let schema = try rule.browseCraftRuleSchema()
+
+        #expect(schema.name == "Example")
+        #expect(schema.pages?.first?.isListEntryPage == true)
+        #expect(schema.pages?.last?.isGalleryEntryPage == true)
+        #expect(schema.ruleSets?.listRule(id: "discover")?.fields?.title.function == .text)
+        #expect(schema.ruleSets?.galleryRule(id: "reader")?.image?.function == .url)
+        #expect(schema.ruleSets?.listRule(id: " ") == nil)
+    }
 }
