@@ -3,7 +3,8 @@ import Foundation
 // 中文注释：Source.swift 属于领域模型层，用于说明本文件承载的核心职责。
 
 /// 中文注释：用户添加的内容源模型。
-/// 中文注释：Source 持有 SiteRule，规则告诉解析器如何查找列表、标题、封面、章节、图片和视频。
+/// 中文注释：Source 是 App 持久化实体；执行语义由 SourceRuntime 决定。
+/// 现阶段 rule-backed source 仍持有 SiteRule JSON，RSS/Plugin 后续应进入各自 runtime config。
 struct Source: Identifiable, Hashable {
     var id: String
     var name: String

@@ -250,6 +250,157 @@ struct RequestConfigUseCaseTests {
         #expect(output.diagnostics.status == .succeeded)
     }
 
+    @Test func ruleSourceRuntimeAdapterLoadListCanSelectTabByRuleID() async throws {
+        let source: Source = try Self.source()
+        let latestTab: ListTabRule = try #require(source.rule.availableListTabs.first { tab in
+            return tab.id == "latest"
+        })
+        let httpClient: RecordingHTTPClient = RecordingHTTPClient(html: "<html></html>")
+        let ruleParser: RecordingRuleParser = RecordingRuleParser()
+        let contentRepository: InMemoryContentRepository = InMemoryContentRepository()
+        ruleParser.listItemsByRuleID = [
+            "latest-list": [
+                Self.cachedItem(id: "runtime-rule-id", sourceID: source.id, tab: latestTab)
+            ]
+        ]
+        let adapter: RuleSourceRuntimeAdapter = Self.runtimeAdapter(
+            source: source,
+            httpClient: httpClient,
+            ruleParser: ruleParser,
+            contentRepository: contentRepository
+        )
+        let input = SourceListInput(
+            page: 1,
+            urlOverride: nil,
+            context: Self.runtimeContext(
+                sourceID: source.id,
+                pageID: "home",
+                tabID: nil,
+                ruleID: "latest-list"
+            )
+        )
+
+        let output: SourceListOutput = try await adapter.loadList(input)
+
+        #expect(ruleParser.parsedListRuleIDs == ["latest-list"])
+        #expect(httpClient.requests.first?.request?.headers?["X-Tab"] == "latest")
+        #expect(output.items.map(\.id) == ["runtime-rule-id"])
+    }
+
+    @Test func ruleSourceRuntimeAdapterRejectsSourceMismatchAndListURLOverrides() async throws {
+        let source: Source = try Self.source()
+        let adapter: RuleSourceRuntimeAdapter = Self.runtimeAdapter(source: source)
+
+        do {
+            _ = try await adapter.loadList(
+                SourceListInput(
+                    page: 1,
+                    urlOverride: nil,
+                    context: Self.runtimeContext(sourceID: "other-source")
+                )
+            )
+            Issue.record("Expected source mismatch to fail.")
+        } catch SourceRuntimeError.sourceMismatch(let expected, let actual) {
+            #expect(expected == source.id)
+            #expect(actual == "other-source")
+        } catch {
+            Issue.record("Unexpected source mismatch error: \(error.localizedDescription)")
+        }
+
+        do {
+            _ = try await adapter.loadList(
+                SourceListInput(
+                    page: 1,
+                    urlOverride: URL(string: "https://example.test/override")!,
+                    context: Self.runtimeContext(sourceID: source.id)
+                )
+            )
+            Issue.record("Expected list URL override to fail.")
+        } catch SourceRuntimeError.unsupported(.listURLOverride) {
+        } catch {
+            Issue.record("Unexpected list URL override error: \(error.localizedDescription)")
+        }
+
+        do {
+            _ = try await adapter.loadList(
+                SourceListInput(
+                    page: 1,
+                    urlOverride: nil,
+                    context: Self.runtimeContext(
+                        sourceID: source.id,
+                        requestOverride: SourceRequestOverride(
+                            url: URL(string: "https://example.test/context-override")!,
+                            headers: [:]
+                        )
+                    )
+                )
+            )
+            Issue.record("Expected context URL override to fail.")
+        } catch SourceRuntimeError.unsupported(.listURLOverride) {
+        } catch {
+            Issue.record("Unexpected context URL override error: \(error.localizedDescription)")
+        }
+    }
+
+    @Test func ruleSourceRuntimeAdapterSearchRejectsHeaderOverride() async throws {
+        let source: Source = try Self.source()
+        let adapter: RuleSourceRuntimeAdapter = Self.runtimeAdapter(source: source)
+        let input = SourceSearchInput(
+            keyword: "猫",
+            page: 1,
+            urlOverride: nil,
+            context: Self.runtimeContext(
+                sourceID: source.id,
+                requestOverride: SourceRequestOverride(
+                    url: nil,
+                    headers: ["X-Runtime": "1"]
+                ),
+                operation: .search
+            )
+        )
+
+        do {
+            _ = try await adapter.search(input)
+            Issue.record("Expected search header override to fail.")
+        } catch SourceRuntimeError.unsupported(.requestHeaderOverride) {
+        } catch {
+            Issue.record("Unexpected search header override error: \(error.localizedDescription)")
+        }
+    }
+
+    @Test func ruleSourceRuntimeAdapterDebugReturnsSkippedDiagnosticsWithContext() async throws {
+        let source: Source = try Self.source()
+        let adapter: RuleSourceRuntimeAdapter = Self.runtimeAdapter(source: source)
+        let requestURL: URL = try #require(URL(string: "https://example.test/debug"))
+
+        let output: SourceDebugOutput = try await adapter.debug(
+            Self.runtimeContext(
+                sourceID: source.id,
+                pageID: "home",
+                tabID: "discover",
+                sectionID: "main-grid",
+                sectionRole: "main",
+                ruleID: "home-list",
+                requestOverride: SourceRequestOverride(
+                    url: requestURL,
+                    headers: [:]
+                ),
+                debugMode: true,
+                operation: .debug
+            )
+        )
+
+        #expect(output.diagnostics.status == .skipped)
+        #expect(output.diagnostics.context?.sourceID == source.id)
+        #expect(output.diagnostics.context?.operation == .debug)
+        #expect(output.diagnostics.context?.pageID == "home")
+        #expect(output.diagnostics.context?.tabID == "discover")
+        #expect(output.diagnostics.context?.sectionID == "main-grid")
+        #expect(output.diagnostics.context?.sectionRole == "main")
+        #expect(output.diagnostics.context?.ruleID == "home-list")
+        #expect(output.diagnostics.context?.requestURL == requestURL)
+    }
+
     @Test @MainActor func libraryRefreshUsesRuntimeAndReloadsSelectedTabCache() async throws {
         let source: Source = try Self.source()
         let discoverTab: ListTabRule = try #require(source.rule.availableListTabs.first { tab in
@@ -393,6 +544,60 @@ struct RequestConfigUseCaseTests {
             enabled: true,
             createdAt: Date(timeIntervalSince1970: 0),
             updatedAt: Date(timeIntervalSince1970: 0)
+        )
+    }
+
+    private static func runtimeAdapter(
+        source: Source,
+        httpClient: RecordingHTTPClient = RecordingHTTPClient(html: "<html></html>"),
+        ruleParser: RecordingRuleParser = RecordingRuleParser(),
+        contentRepository: InMemoryContentRepository = InMemoryContentRepository()
+    ) -> RuleSourceRuntimeAdapter {
+        return RuleSourceRuntimeAdapter(
+            source: source,
+            refreshSourceUseCase: RefreshSourceUseCase(
+                httpClient: httpClient,
+                ruleParser: ruleParser,
+                urlResolver: URLResolvingService(),
+                contentRepository: contentRepository
+            ),
+            searchSourceUseCase: SearchSourceUseCase(
+                httpClient: httpClient,
+                ruleParser: ruleParser,
+                urlResolver: URLResolvingService()
+            ),
+            loadChaptersUseCase: LoadChaptersUseCase(
+                httpClient: httpClient,
+                ruleParser: ruleParser
+            ),
+            loadReaderChapterUseCase: LoadReaderChapterUseCase(
+                httpClient: httpClient,
+                ruleParser: ruleParser
+            )
+        )
+    }
+
+    private static func runtimeContext(
+        sourceID: String,
+        pageID: String? = nil,
+        tabID: String? = nil,
+        sectionID: String? = nil,
+        sectionRole: String? = nil,
+        ruleID: String? = nil,
+        requestOverride: SourceRequestOverride? = nil,
+        debugMode: Bool = false,
+        operation: SourceRuntimeOperation = .list
+    ) -> SourceRuntimeContext {
+        return SourceRuntimeContext(
+            sourceID: sourceID,
+            pageID: pageID,
+            tabID: tabID,
+            sectionID: sectionID,
+            sectionRole: sectionRole,
+            ruleID: ruleID,
+            requestOverride: requestOverride,
+            debugMode: debugMode,
+            operation: operation
         )
     }
 

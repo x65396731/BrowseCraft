@@ -35,6 +35,42 @@ struct SourceRuntimeMappingTests {
         }
     }
 
+    @Test func refreshSourceRuntimeUseCaseBuildsListInputFromListContext() async throws {
+        let source: Source = try Self.source(id: "user.example")
+        let runtime = RecordingSourceRuntime(definition: SourceDefinitionMapper().definition(from: source))
+        let useCase = RefreshSourceRuntimeUseCase(
+            runtimeResolver: SourceRuntimeResolver { _ in
+                return runtime
+            }
+        )
+        let context = ListContext(
+            pageId: "home",
+            tabId: "latest",
+            sectionId: "main-grid",
+            listRuleId: "latest-list",
+            sectionRole: .category
+        )
+
+        _ = try await useCase.execute(
+            source: source,
+            listContext: context,
+            page: 3,
+            debugMode: true
+        )
+
+        let input: SourceListInput = try #require(runtime.listInputs.first)
+        #expect(input.page == 3)
+        #expect(input.urlOverride == nil)
+        #expect(input.context.sourceID == "user.example")
+        #expect(input.context.operation == .list)
+        #expect(input.context.pageID == "home")
+        #expect(input.context.tabID == "latest")
+        #expect(input.context.sectionID == "main-grid")
+        #expect(input.context.sectionRole == "category")
+        #expect(input.context.ruleID == "latest-list")
+        #expect(input.context.debugMode == true)
+    }
+
     @Test func sourceDefinitionMapperMapsOwnershipRuleMetadataAndBaseURLFallback() throws {
         let mapper: SourceDefinitionMapper = SourceDefinitionMapper()
         let builtInSource: Source = try Self.source(id: "built-in.example")
@@ -207,6 +243,67 @@ private struct StubSourceRuntime: SourceRuntime {
             items: [],
             pagination: nil,
             diagnostics: SourceRuntimeDiagnostics.skipped(message: "Stub runtime.")
+        )
+    }
+
+    func search(_ input: SourceSearchInput) async throws -> SourceListOutput {
+        return SourceListOutput(
+            items: [],
+            pagination: nil,
+            diagnostics: SourceRuntimeDiagnostics.skipped(message: "Stub runtime.")
+        )
+    }
+
+    func loadDetail(_ input: SourceDetailInput) async throws -> SourceDetailOutput {
+        return SourceDetailOutput(
+            chapters: [],
+            diagnostics: SourceRuntimeDiagnostics.skipped(message: "Stub runtime.")
+        )
+    }
+
+    func loadReader(_ input: SourceReaderInput) async throws -> SourceReaderOutput {
+        return SourceReaderOutput(
+            chapter: SourceReaderChapter(title: nil, imageURLs: []),
+            diagnostics: SourceRuntimeDiagnostics.skipped(message: "Stub runtime.")
+        )
+    }
+
+    func debug(_ input: SourceRuntimeContext) async throws -> SourceDebugOutput {
+        return SourceDebugOutput(
+            diagnostics: SourceRuntimeDiagnostics.skipped(message: "Stub runtime.")
+        )
+    }
+}
+
+private final class RecordingSourceRuntime: SourceRuntime {
+    let definition: SourceDefinition
+    private(set) var listInputs: [SourceListInput] = []
+
+    init(definition: SourceDefinition) {
+        self.definition = definition
+    }
+
+    var capabilities: SourceRuntimeCapabilities {
+        return SourceRuntimeCapabilities(
+            supportsSearch: false,
+            supportsPagination: false,
+            supportsDetail: false,
+            supportsReader: false,
+            supportsDebug: false,
+            supportsCandidateAnalysis: false,
+            requiresWebView: false,
+            requiresCookieStore: false,
+            requiresAccount: false
+        )
+    }
+
+    func loadList(_ input: SourceListInput) async throws -> SourceListOutput {
+        self.listInputs.append(input)
+
+        return SourceListOutput(
+            items: [],
+            pagination: nil,
+            diagnostics: SourceRuntimeDiagnostics.succeeded()
         )
     }
 

@@ -15,6 +15,8 @@ struct SourceRuntimeResolver: SourceRuntimeResolving {
     func runtime(for source: Source) throws -> any SourceRuntime {
         switch source.type {
         case .html, .json, .xml:
+            // 中文注释：这些旧 SourceType 目前仍映射到 rule-backed runtime；
+            // 后续 RSS/Plugin 应注册独立 runtime，而不是塞进 SiteRule JSON。
             return self.ruleRuntimeFactory(source)
         case .rss:
             throw SourceRuntimeError.unsupported(

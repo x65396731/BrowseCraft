@@ -1,7 +1,8 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：RuleSourceRuntimeAdapter 是 P3 的 App 层 runtime 适配器，先包装现有 UseCase，不迁移解析实现。
+// 中文注释：RuleSourceRuntimeAdapter 只解释 SiteRule JSON 这种 rule-backed source；
+// App 总主轴是 SourceRuntime，RSS/Plugin 后续应走各自 runtime，不继续扩张 SiteRule。
 struct RuleSourceRuntimeAdapter: SourceRuntime {
     let source: Source
 
