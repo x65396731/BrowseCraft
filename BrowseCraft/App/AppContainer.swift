@@ -14,6 +14,7 @@ final class AppContainer {
     private let pageContentLoader: PageContentLoader
     private let urlResolver: URLResolvingService
     private let ruleParser: RuleParsingService
+    private let sourceRuntimeFactory: SourceRuntimeFactory
     private let sourceSelectionStore: SourceSelectionStore
 
     init() {
@@ -21,16 +22,25 @@ final class AppContainer {
             let database: AppDatabase = try AppDatabase()
             let urlResolver: URLResolvingService = URLResolvingService()
             let httpClient: HTTPClient = AlamofireHTTPClient()
+            let pageContentLoader: PageContentLoader = DefaultPageContentLoader(httpClient: httpClient)
+            let ruleParser: RuleParsingService = SwiftSoupRuleParser(urlResolver: urlResolver)
+            let contentRepository: ContentRepository = GRDBContentRepository(database: database)
 
             self.database = database
             self.sourceRepository = GRDBSourceRepository(database: database)
-            self.contentRepository = GRDBContentRepository(database: database)
+            self.contentRepository = contentRepository
             self.favoriteRepository = GRDBFavoriteRepository(database: database)
             self.historyRepository = GRDBHistoryRepository(database: database)
             self.httpClient = httpClient
-            self.pageContentLoader = DefaultPageContentLoader(httpClient: httpClient)
+            self.pageContentLoader = pageContentLoader
             self.urlResolver = urlResolver
-            self.ruleParser = SwiftSoupRuleParser(urlResolver: urlResolver)
+            self.ruleParser = ruleParser
+            self.sourceRuntimeFactory = SourceRuntimeFactory(
+                pageContentLoader: pageContentLoader,
+                ruleParser: ruleParser,
+                urlResolver: urlResolver,
+                contentRepository: contentRepository
+            )
             self.sourceSelectionStore = SourceSelectionStore()
         } catch {
             // 中文注释：数据库启动失败时应用无法继续运行，后续可以替换为用户可见的恢复页面。
@@ -128,11 +138,8 @@ final class AppContainer {
         let recordOpenItemUseCase: RecordOpenItemUseCase = RecordOpenItemUseCase(
             historyRepository: self.historyRepository
         )
-        let refreshSourceUseCase: RefreshSourceUseCase = RefreshSourceUseCase(
-            pageContentLoader: self.pageContentLoader,
-            ruleParser: self.ruleParser,
-            urlResolver: self.urlResolver,
-            contentRepository: self.contentRepository
+        let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = RefreshSourceRuntimeUseCase(
+            runtimeResolver: self.makeSourceRuntimeResolver()
         )
 
         return LibraryViewModel(
@@ -140,7 +147,7 @@ final class AppContainer {
             loadSourcesUseCase: loadSourcesUseCase,
             toggleFavoriteUseCase: toggleFavoriteUseCase,
             recordOpenItemUseCase: recordOpenItemUseCase,
-            refreshSourceUseCase: refreshSourceUseCase,
+            refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
             sourceSelectionStore: self.sourceSelectionStore
         )
     }
@@ -178,35 +185,13 @@ final class AppContainer {
         )
     }
 
-    /// 中文注释：P3 runtime 并行入口；当前不替换任何 ViewModel 调用链。
+    /// 中文注释：P3 runtime 工厂入口；Library list refresh 已通过 resolver 试点接入。
     func makeRuleSourceRuntimeAdapter(source: Source) -> RuleSourceRuntimeAdapter {
-        let refreshSourceUseCase: RefreshSourceUseCase = RefreshSourceUseCase(
-            pageContentLoader: self.pageContentLoader,
-            ruleParser: self.ruleParser,
-            urlResolver: self.urlResolver,
-            contentRepository: self.contentRepository
-        )
-        let searchSourceUseCase: SearchSourceUseCase = SearchSourceUseCase(
-            pageContentLoader: self.pageContentLoader,
-            ruleParser: self.ruleParser,
-            urlResolver: self.urlResolver
-        )
-        let loadChaptersUseCase: LoadChaptersUseCase = LoadChaptersUseCase(
-            pageContentLoader: self.pageContentLoader,
-            ruleParser: self.ruleParser
-        )
-        let loadReaderChapterUseCase: LoadReaderChapterUseCase = LoadReaderChapterUseCase(
-            pageContentLoader: self.pageContentLoader,
-            ruleParser: self.ruleParser
-        )
+        return self.sourceRuntimeFactory.makeRuleSourceRuntimeAdapter(source: source)
+    }
 
-        return RuleSourceRuntimeAdapter(
-            source: source,
-            refreshSourceUseCase: refreshSourceUseCase,
-            searchSourceUseCase: searchSourceUseCase,
-            loadChaptersUseCase: loadChaptersUseCase,
-            loadReaderChapterUseCase: loadReaderChapterUseCase
-        )
+    func makeSourceRuntimeResolver() -> any SourceRuntimeResolving {
+        return self.sourceRuntimeFactory.makeRuntimeResolver()
     }
 
     /// 中文注释：makeHistoryViewModel 方法封装当前类型的一段业务或界面行为。

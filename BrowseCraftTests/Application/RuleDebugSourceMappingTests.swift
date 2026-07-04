@@ -3,8 +3,8 @@ import Foundation
 import Testing
 @testable import BrowseCraft
 
-// 中文注释：P3-5.1 公共 primitive bridge 测试，锁定 App 现有枚举到 Core 枚举的映射。
-struct SourceRulePrimitiveBridgeTests {
+// 中文注释：P3-5.1 debug/source mapping 测试，锁定 App 现有枚举到 Core 枚举的映射。
+struct RuleDebugSourceMappingTests {
     @Test func debugStagesMapToRuntimeOperations() {
         #expect(RuleDebugStage.list.sourceRuntimeOperation == .list)
         #expect(RuleDebugStage.search.sourceRuntimeOperation == .search)

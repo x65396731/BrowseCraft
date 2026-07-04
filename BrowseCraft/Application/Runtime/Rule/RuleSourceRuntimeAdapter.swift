@@ -9,8 +9,8 @@ struct RuleSourceRuntimeAdapter: SourceRuntime {
     private let searchSourceUseCase: SearchSourceUseCase
     private let loadChaptersUseCase: LoadChaptersUseCase
     private let loadReaderChapterUseCase: LoadReaderChapterUseCase
-    private let definitionBridge: SourceDefinitionBridge
-    private let outputBridge: SourceRuntimeOutputBridge
+    private let definitionMapper: SourceDefinitionMapper
+    private let outputMapper: SourceRuntimeOutputMapper
 
     init(
         source: Source,
@@ -18,20 +18,20 @@ struct RuleSourceRuntimeAdapter: SourceRuntime {
         searchSourceUseCase: SearchSourceUseCase,
         loadChaptersUseCase: LoadChaptersUseCase,
         loadReaderChapterUseCase: LoadReaderChapterUseCase,
-        definitionBridge: SourceDefinitionBridge = SourceDefinitionBridge(),
-        outputBridge: SourceRuntimeOutputBridge = SourceRuntimeOutputBridge()
+        definitionMapper: SourceDefinitionMapper = SourceDefinitionMapper(),
+        outputMapper: SourceRuntimeOutputMapper = SourceRuntimeOutputMapper()
     ) {
         self.source = source
         self.refreshSourceUseCase = refreshSourceUseCase
         self.searchSourceUseCase = searchSourceUseCase
         self.loadChaptersUseCase = loadChaptersUseCase
         self.loadReaderChapterUseCase = loadReaderChapterUseCase
-        self.definitionBridge = definitionBridge
-        self.outputBridge = outputBridge
+        self.definitionMapper = definitionMapper
+        self.outputMapper = outputMapper
     }
 
     var definition: SourceDefinition {
-        return self.definitionBridge.definition(from: self.source)
+        return self.definitionMapper.definition(from: self.source)
     }
 
     var capabilities: SourceRuntimeCapabilities {
@@ -71,7 +71,7 @@ struct RuleSourceRuntimeAdapter: SourceRuntime {
             page: max(input.page, 1)
         )
 
-        return self.outputBridge.listOutput(
+        return self.outputMapper.listOutput(
             items: items,
             diagnostics: SourceRuntimeDiagnostics.succeeded()
         )
@@ -88,7 +88,7 @@ struct RuleSourceRuntimeAdapter: SourceRuntime {
             urlOverride: input.urlOverride?.absoluteString ?? input.context.requestOverride?.url?.absoluteString
         )
 
-        return self.outputBridge.listOutput(
+        return self.outputMapper.listOutput(
             items: result.items,
             pagination: self.sourcePagination(from: result.pagination),
             diagnostics: SourceRuntimeDiagnostics.succeeded()
@@ -107,7 +107,7 @@ struct RuleSourceRuntimeAdapter: SourceRuntime {
             item: item
         )
 
-        return self.outputBridge.detailOutput(
+        return self.outputMapper.detailOutput(
             chapters: chapters,
             diagnostics: SourceRuntimeDiagnostics.succeeded()
         )
@@ -126,7 +126,7 @@ struct RuleSourceRuntimeAdapter: SourceRuntime {
             chapterURLString: input.chapterURL.absoluteString
         )
 
-        return self.outputBridge.readerOutput(
+        return self.outputMapper.readerOutput(
             chapter: chapter,
             diagnostics: SourceRuntimeDiagnostics.succeeded()
         )

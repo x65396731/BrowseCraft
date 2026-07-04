@@ -17,9 +17,17 @@ struct LoadLibraryUseCase {
 
     /// 中文注释：Library 的可见缓存以当前 tab/listRule 为边界，避免同一 source 的其它 tab 条目混入。
     func execute(sourceId: String?, listTab: ListTabRule?) throws -> [ContentItem] {
-        return try self.contentRepository.fetchItems(
+        return try self.execute(
             sourceId: sourceId,
             context: self.listContext(listTab: listTab)
+        )
+    }
+
+    /// 中文注释：Runtime-first 入口；调用方可直接用 ListContext 读取当前列表缓存。
+    func execute(sourceId: String?, context: ListContext?) throws -> [ContentItem] {
+        return try self.contentRepository.fetchItems(
+            sourceId: sourceId,
+            context: context
         )
     }
 

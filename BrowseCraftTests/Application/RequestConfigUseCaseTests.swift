@@ -250,6 +250,81 @@ struct RequestConfigUseCaseTests {
         #expect(output.diagnostics.status == .succeeded)
     }
 
+    @Test @MainActor func libraryRefreshUsesRuntimeAndReloadsSelectedTabCache() async throws {
+        let source: Source = try Self.source()
+        let discoverTab: ListTabRule = try #require(source.rule.availableListTabs.first { tab in
+            return tab.id == "discover"
+        })
+        let latestTab: ListTabRule = try #require(source.rule.availableListTabs.first { tab in
+            return tab.id == "latest"
+        })
+        let httpClient: RecordingHTTPClient = RecordingHTTPClient(html: "<html></html>")
+        let ruleParser: RecordingRuleParser = RecordingRuleParser()
+        let contentRepository: InMemoryContentRepository = InMemoryContentRepository()
+        contentRepository.seed([
+            Self.cachedItem(id: "discover-old", sourceID: source.id, tab: discoverTab),
+            Self.cachedItem(id: "latest-old", sourceID: source.id, tab: latestTab)
+        ])
+        ruleParser.listItemsByRuleID = [
+            "home-list": [
+                Self.cachedItem(id: "discover-runtime", sourceID: source.id, tab: discoverTab)
+            ]
+        ]
+        let refreshUseCase: RefreshSourceUseCase = RefreshSourceUseCase(
+            httpClient: httpClient,
+            ruleParser: ruleParser,
+            urlResolver: URLResolvingService(),
+            contentRepository: contentRepository
+        )
+        let searchUseCase: SearchSourceUseCase = SearchSourceUseCase(
+            httpClient: httpClient,
+            ruleParser: ruleParser,
+            urlResolver: URLResolvingService()
+        )
+        let runtimeResolver = SourceRuntimeResolver { source in
+            return RuleSourceRuntimeAdapter(
+                source: source,
+                refreshSourceUseCase: refreshUseCase,
+                searchSourceUseCase: searchUseCase,
+                loadChaptersUseCase: LoadChaptersUseCase(
+                    httpClient: httpClient,
+                    ruleParser: ruleParser
+                ),
+                loadReaderChapterUseCase: LoadReaderChapterUseCase(
+                    httpClient: httpClient,
+                    ruleParser: ruleParser
+                )
+            )
+        }
+        let sourceSelectionStore: SourceSelectionStore = SourceSelectionStore()
+        sourceSelectionStore.selectedSourceID = source.id
+        let viewModel: LibraryViewModel = LibraryViewModel(
+            loadLibraryUseCase: LoadLibraryUseCase(contentRepository: contentRepository),
+            loadSourcesUseCase: LoadSourcesUseCase(
+                sourceRepository: InMemorySourceRepository(sources: [source])
+            ),
+            toggleFavoriteUseCase: ToggleFavoriteUseCase(
+                favoriteRepository: InMemoryFavoriteRepository()
+            ),
+            recordOpenItemUseCase: RecordOpenItemUseCase(
+                historyRepository: InMemoryHistoryRepository()
+            ),
+            refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase(
+                runtimeResolver: runtimeResolver
+            ),
+            sourceSelectionStore: sourceSelectionStore
+        )
+
+        viewModel.load()
+        #expect(viewModel.items.map(\.id) == ["discover-old"])
+
+        await viewModel.refreshSelectedListTab()
+
+        #expect(ruleParser.parsedListRuleIDs == ["home-list"])
+        #expect(contentRepository.items.map(\.id).sorted() == ["discover-runtime", "latest-old"])
+        #expect(viewModel.items.map(\.id) == ["discover-runtime"])
+    }
+
     @Test func contentCachePreservesListOrderWhenLoadingSelectedTab() throws {
         let databaseDirectory: URL = FileManager.default.temporaryDirectory
             .appendingPathComponent("BrowseCraftTests-\(UUID().uuidString)", isDirectory: true)
@@ -799,5 +874,58 @@ private final class InMemoryContentRepository: ContentRepository {
         }
 
         return true
+    }
+}
+
+private final class InMemorySourceRepository: SourceRepository {
+    private var sources: [Source]
+
+    init(sources: [Source]) {
+        self.sources = sources
+    }
+
+    func fetchSources() throws -> [Source] {
+        return self.sources
+    }
+
+    func saveSource(_ source: Source) throws {
+        self.sources.removeAll { existingSource in
+            return existingSource.id == source.id
+        }
+        self.sources.append(source)
+    }
+
+    func deleteSource(id: String) throws {
+        self.sources.removeAll { source in
+            return source.id == id
+        }
+    }
+}
+
+private final class InMemoryFavoriteRepository: FavoriteRepository {
+    private var favoriteItemIDs: Set<String> = []
+
+    func fetchFavoriteItemIDs() throws -> Set<String> {
+        return self.favoriteItemIDs
+    }
+
+    func setFavorite(itemId: String, isFavorite: Bool) throws {
+        if isFavorite {
+            self.favoriteItemIDs.insert(itemId)
+        } else {
+            self.favoriteItemIDs.remove(itemId)
+        }
+    }
+}
+
+private final class InMemoryHistoryRepository: HistoryRepository {
+    private var history: [ReadingHistory] = []
+
+    func fetchReadingHistory() throws -> [ReadingHistory] {
+        return self.history
+    }
+
+    func saveReadingHistory(_ history: ReadingHistory) throws {
+        self.history.append(history)
     }
 }

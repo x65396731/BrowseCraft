@@ -23,7 +23,7 @@ final class LibraryViewModel: ObservableObject {
     private let loadSourcesUseCase: LoadSourcesUseCase
     private let toggleFavoriteUseCase: ToggleFavoriteUseCase
     private let recordOpenItemUseCase: RecordOpenItemUseCase
-    private let refreshSourceUseCase: RefreshSourceUseCase
+    private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
     private let sourceSelectionStore: SourceSelectionStore
     private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
     /// 中文注释：刷新令牌用于避免旧 source 的慢请求回写或提前关闭当前 source 的 loading。
@@ -34,14 +34,14 @@ final class LibraryViewModel: ObservableObject {
         loadSourcesUseCase: LoadSourcesUseCase,
         toggleFavoriteUseCase: ToggleFavoriteUseCase,
         recordOpenItemUseCase: RecordOpenItemUseCase,
-        refreshSourceUseCase: RefreshSourceUseCase,
+        refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
         sourceSelectionStore: SourceSelectionStore
     ) {
         self.loadLibraryUseCase = loadLibraryUseCase
         self.loadSourcesUseCase = loadSourcesUseCase
         self.toggleFavoriteUseCase = toggleFavoriteUseCase
         self.recordOpenItemUseCase = recordOpenItemUseCase
-        self.refreshSourceUseCase = refreshSourceUseCase
+        self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
         self.sourceSelectionStore = sourceSelectionStore
         self.selectedSourceID = sourceSelectionStore.selectedSourceID
         self.bindSourceSelection()
@@ -61,9 +61,10 @@ final class LibraryViewModel: ObservableObject {
             }
 
             self.ensureSelectedListTab()
+            let selectedListContext: ListContext? = self.selectedListContext
             self.items = try self.loadLibraryUseCase.execute(
                 sourceId: self.selectedSourceID,
-                listTab: self.selectedListTab
+                context: selectedListContext
             )
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "library-load-error")
@@ -99,21 +100,21 @@ final class LibraryViewModel: ObservableObject {
         self.ensureSelectedListTab()
         let expectedSourceID: String = selectedSource.id
         let expectedTabID: String? = self.selectedListTab?.id
-        let expectedListTab: ListTabRule? = self.selectedListTab
+        let expectedListContext: ListContext? = self.selectedListContext
         self.refreshToken += 1
         let currentRefreshToken: Int = self.refreshToken
         self.isRefreshing = true
 
         do {
-            let refreshedItems: [ContentItem] = try await self.refreshSourceUseCase.execute(
+            _ = try await self.refreshSourceRuntimeUseCase.execute(
                 source: selectedSource,
-                listTab: expectedListTab
+                listContext: expectedListContext
             )
             if Task.isCancelled == false,
                self.refreshToken == currentRefreshToken,
                self.selectedSourceID == expectedSourceID,
                self.selectedListTab?.id == expectedTabID {
-                self.items = refreshedItems
+                self.loadCachedItems(context: expectedListContext)
                 self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs()
             }
         } catch is CancellationError {
@@ -260,9 +261,10 @@ final class LibraryViewModel: ObservableObject {
 
         do {
             // 中文注释：Sources 页已经在遮盖状态下刷新并保存数据；Library 切换时只读取新 source 的已保存结果。
+            let selectedListContext: ListContext? = self.selectedListContext
             self.items = try self.loadLibraryUseCase.execute(
                 sourceId: selectedSourceID,
-                listTab: self.selectedListTab
+                context: selectedListContext
             )
             self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs()
         } catch {
@@ -272,14 +274,44 @@ final class LibraryViewModel: ObservableObject {
     }
 
     private func loadCachedItemsForSelectedTab() {
+        self.loadCachedItems(context: self.selectedListContext)
+    }
+
+    private func loadCachedItems(context: ListContext?) {
         do {
             self.items = try self.loadLibraryUseCase.execute(
                 sourceId: self.selectedSourceID,
-                listTab: self.selectedListTab
+                context: context
             )
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "tab-cache-load-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
+    }
+
+    private var selectedListContext: ListContext? {
+        return self.listContext(from: self.selectedListTab)
+    }
+
+    private func listContext(from listTab: ListTabRule?) -> ListContext? {
+        guard let listTab: ListTabRule = listTab else {
+            return nil
+        }
+
+        if var context: ListContext = listTab.context {
+            if context.listRuleId == nil {
+                context.listRuleId = listTab.list.id
+            }
+
+            return context
+        }
+
+        return ListContext(
+            pageId: listTab.id,
+            tabId: listTab.id,
+            sectionId: nil,
+            listRuleId: listTab.list.id,
+            sectionRole: .main
+        )
     }
 }

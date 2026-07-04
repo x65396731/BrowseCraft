@@ -3,18 +3,48 @@ import Testing
 import BrowseCraftCore
 @testable import BrowseCraft
 
-// 中文注释：P3-4 App/Core bridge 合同测试，防止 Core runtime 字段扩展后 App 侧桥接静默丢字段。
-struct SourceRuntimeBridgeTests {
-    @Test func sourceDefinitionBridgeMapsOwnershipRuleMetadataAndBaseURLFallback() throws {
-        let bridge: SourceDefinitionBridge = SourceDefinitionBridge()
+// 中文注释：P3 runtime 本地映射合同测试，防止 Core runtime 字段扩展后 App 侧映射静默丢字段。
+struct SourceRuntimeMappingTests {
+    @Test func sourceRuntimeResolverReturnsRuleRuntimeForRuleBackedSourceTypes() throws {
+        let source: Source = try Self.source(id: "user.example")
+        let resolver = SourceRuntimeResolver { source in
+            return StubSourceRuntime(definition: SourceDefinitionMapper().definition(from: source))
+        }
+
+        let runtime: any SourceRuntime = try resolver.runtime(for: source)
+
+        #expect(runtime.definition.id == "user.example")
+        #expect(runtime.definition.kind == .rule)
+        #expect(runtime.capabilities.supportsReader)
+    }
+
+    @Test func sourceRuntimeResolverRejectsRSSUntilRuntimeIsConnected() throws {
+        var source: Source = try Self.source(id: "rss.example")
+        source.type = .rss
+        let resolver = SourceRuntimeResolver { source in
+            return StubSourceRuntime(definition: SourceDefinitionMapper().definition(from: source))
+        }
+
+        do {
+            _ = try resolver.runtime(for: source)
+            Issue.record("Expected RSS runtime resolution to fail until P3-8.")
+        } catch SourceRuntimeError.unsupported(.custom(let message)) {
+            #expect(message.contains("P3-8"))
+        } catch {
+            Issue.record("Unexpected error: \(error.localizedDescription)")
+        }
+    }
+
+    @Test func sourceDefinitionMapperMapsOwnershipRuleMetadataAndBaseURLFallback() throws {
+        let mapper: SourceDefinitionMapper = SourceDefinitionMapper()
         let builtInSource: Source = try Self.source(id: "built-in.example")
         let userSource: Source = try Self.source(id: "user.example")
         var invalidBaseURLSource: Source = userSource
         invalidBaseURLSource.baseURL = "   "
 
-        let builtInDefinition: SourceDefinition = bridge.definition(from: builtInSource)
-        let userDefinition: SourceDefinition = bridge.definition(from: userSource)
-        let fallbackDefinition: SourceDefinition = bridge.definition(from: invalidBaseURLSource)
+        let builtInDefinition: SourceDefinition = mapper.definition(from: builtInSource)
+        let userDefinition: SourceDefinition = mapper.definition(from: userSource)
+        let fallbackDefinition: SourceDefinition = mapper.definition(from: invalidBaseURLSource)
 
         #expect(builtInDefinition.id == "built-in.example")
         #expect(builtInDefinition.kind == .rule)
@@ -33,105 +63,8 @@ struct SourceRuntimeBridgeTests {
         #expect(fallbackDefinition.baseURL.absoluteString == "about:blank")
     }
 
-    @Test func inputBridgeKeepsListSearchContextAndRequestOverride() throws {
-        let bridge: SourceRuntimeInputBridge = SourceRuntimeInputBridge()
-        let source: Source = try Self.source(id: "user.example")
-        let listContext = ListContext(
-            pageId: "home",
-            tabId: "discover",
-            sectionId: "main-grid",
-            listRuleId: "home-list",
-            sectionRole: .main
-        )
-        let overrideURL: URL = try #require(URL(string: "https://example.test/list?page=2"))
-
-        let listInput: SourceListInput = bridge.listInput(
-            source: source,
-            page: 2,
-            listContext: listContext,
-            urlOverride: overrideURL,
-            headers: ["User-Agent": "BrowseCraft"],
-            debugMode: true
-        )
-        let searchInput: SourceSearchInput = bridge.searchInput(
-            source: source,
-            keyword: "one piece",
-            page: 3,
-            listContext: listContext,
-            ruleID: "search",
-            urlOverride: overrideURL,
-            headers: ["Accept-Language": "zh-Hans"],
-            debugMode: false
-        )
-
-        #expect(listInput.page == 2)
-        #expect(listInput.urlOverride == overrideURL)
-        #expect(listInput.context.sourceID == "user.example")
-        #expect(listInput.context.operation == .list)
-        #expect(listInput.context.pageID == "home")
-        #expect(listInput.context.tabID == "discover")
-        #expect(listInput.context.sectionID == "main-grid")
-        #expect(listInput.context.sectionRole == "main")
-        #expect(listInput.context.ruleID == "home-list")
-        #expect(listInput.context.requestOverride?.url == overrideURL)
-        #expect(listInput.context.requestOverride?.headers["User-Agent"] == "BrowseCraft")
-        #expect(listInput.context.debugMode)
-
-        #expect(searchInput.keyword == "one piece")
-        #expect(searchInput.page == 3)
-        #expect(searchInput.urlOverride == overrideURL)
-        #expect(searchInput.context.operation == .search)
-        #expect(searchInput.context.ruleID == "search")
-        #expect(searchInput.context.requestOverride?.headers["Accept-Language"] == "zh-Hans")
-        #expect(searchInput.context.debugMode == false)
-    }
-
-    @Test func inputBridgeKeepsDetailReaderOperationAndRejectsBlankURLs() throws {
-        let bridge: SourceRuntimeInputBridge = SourceRuntimeInputBridge()
-        let source: Source = try Self.source(id: "user.example")
-        let listContext = ListContext(
-            pageId: "home",
-            tabId: "latest",
-            sectionId: "main-grid",
-            listRuleId: "latest-list",
-            sectionRole: .category
-        )
-
-        let detailInput: SourceDetailInput = try #require(
-            bridge.detailInput(
-                source: source,
-                detailURLString: "  https://example.test/comics/1  ",
-                listContext: listContext,
-                ruleID: "detail",
-                debugMode: true
-            )
-        )
-        let readerInput: SourceReaderInput = try #require(
-            bridge.readerInput(
-                source: source,
-                chapterURLString: "https://example.test/chapters/1",
-                listContext: listContext,
-                ruleID: "reader-gallery",
-                debugMode: false
-            )
-        )
-
-        #expect(detailInput.detailURL.absoluteString == "https://example.test/comics/1")
-        #expect(detailInput.context.operation == .detail)
-        #expect(detailInput.context.ruleID == "detail")
-        #expect(detailInput.context.sectionRole == "category")
-        #expect(detailInput.context.debugMode)
-        #expect(bridge.detailInput(source: source, detailURLString: "   ", listContext: nil, ruleID: nil) == nil)
-
-        #expect(readerInput.chapterURL.absoluteString == "https://example.test/chapters/1")
-        #expect(readerInput.context.operation == .reader)
-        #expect(readerInput.context.ruleID == "reader-gallery")
-        #expect(readerInput.context.debugMode == false)
-        #expect(bridge.readerInput(source: source, chapterURLString: "\n", listContext: nil, ruleID: nil) == nil)
-    }
-
-    @Test func outputBridgeMapsItemsChaptersReaderAndPassesDiagnosticsThrough() throws {
-        let bridge: SourceRuntimeOutputBridge = SourceRuntimeOutputBridge()
+    @Test func outputMapperMapsItemsChaptersReaderAndPassesDiagnosticsThrough() throws {
+        let mapper: SourceRuntimeOutputMapper = SourceRuntimeOutputMapper()
         let diagnostics: SourceRuntimeDiagnostics = SourceRuntimeDiagnostics.partial(
             requestLogs: [
                 SourceRequestLog(
@@ -179,19 +112,19 @@ struct SourceRuntimeBridgeTests {
             type: .comic,
             latestText: "第01话"
         )
-        let listOutput: SourceListOutput = bridge.listOutput(
+        let listOutput: SourceListOutput = mapper.listOutput(
             items: [item],
             pagination: pagination,
             diagnostics: diagnostics
         )
-        let detailOutput: SourceDetailOutput = bridge.detailOutput(
+        let detailOutput: SourceDetailOutput = mapper.detailOutput(
             chapters: [
                 ChapterLink(title: "第01话", url: "https://example.test/chapters/1"),
                 ChapterLink(title: "invalid", url: "   ")
             ],
             diagnostics: diagnostics
         )
-        let readerOutput: SourceReaderOutput = bridge.readerOutput(
+        let readerOutput: SourceReaderOutput = mapper.readerOutput(
             chapter: ReaderChapter(
                 sourceId: "user.example",
                 comicTitle: "Comic",
@@ -248,6 +181,60 @@ struct SourceRuntimeBridgeTests {
             enabled: true,
             createdAt: now,
             updatedAt: now
+        )
+    }
+}
+
+private struct StubSourceRuntime: SourceRuntime {
+    let definition: SourceDefinition
+
+    var capabilities: SourceRuntimeCapabilities {
+        return SourceRuntimeCapabilities(
+            supportsSearch: true,
+            supportsPagination: true,
+            supportsDetail: true,
+            supportsReader: true,
+            supportsDebug: false,
+            supportsCandidateAnalysis: false,
+            requiresWebView: false,
+            requiresCookieStore: false,
+            requiresAccount: false
+        )
+    }
+
+    func loadList(_ input: SourceListInput) async throws -> SourceListOutput {
+        return SourceListOutput(
+            items: [],
+            pagination: nil,
+            diagnostics: SourceRuntimeDiagnostics.skipped(message: "Stub runtime.")
+        )
+    }
+
+    func search(_ input: SourceSearchInput) async throws -> SourceListOutput {
+        return SourceListOutput(
+            items: [],
+            pagination: nil,
+            diagnostics: SourceRuntimeDiagnostics.skipped(message: "Stub runtime.")
+        )
+    }
+
+    func loadDetail(_ input: SourceDetailInput) async throws -> SourceDetailOutput {
+        return SourceDetailOutput(
+            chapters: [],
+            diagnostics: SourceRuntimeDiagnostics.skipped(message: "Stub runtime.")
+        )
+    }
+
+    func loadReader(_ input: SourceReaderInput) async throws -> SourceReaderOutput {
+        return SourceReaderOutput(
+            chapter: SourceReaderChapter(title: nil, imageURLs: []),
+            diagnostics: SourceRuntimeDiagnostics.skipped(message: "Stub runtime.")
+        )
+    }
+
+    func debug(_ input: SourceRuntimeContext) async throws -> SourceDebugOutput {
+        return SourceDebugOutput(
+            diagnostics: SourceRuntimeDiagnostics.skipped(message: "Stub runtime.")
         )
     }
 }
