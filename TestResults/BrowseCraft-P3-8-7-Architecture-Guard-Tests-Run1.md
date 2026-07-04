@@ -1,0 +1,25 @@
+# BrowseCraft P3-8.7 Architecture Guard Tests Run 1
+
+- Date: 2026-07-04
+- Scope: P3-8.7 architecture guard tests for runtime-first source boundaries.
+- Command:
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test -workspace /Users/xiefei/BrowseCraft/BrowseCraft.xcworkspace -scheme BrowseCraft -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:BrowseCraftTests/SourceRuntimeMappingTests -derivedDataPath /private/tmp/BrowseCraft-P3-8-7-Test-DerivedData -resultBundlePath /private/tmp/BrowseCraft-P3-8-7-Run2.xcresult`
+- Result: passed.
+- Test summary:
+  - Total: 9
+  - Passed: 9
+  - Failed: 0
+  - Skipped: 0
+- Verified by:
+  - `xcrun xcresulttool get test-results summary --path /private/tmp/BrowseCraft-P3-8-7-Run2.xcresult`
+- Key coverage:
+  - `SourceRuntimeResolver` can route RSS and Plugin definitions through dedicated runtime slots when factories are present.
+  - RSS and Plugin definitions remain independent from `SiteRule` payloads.
+  - Rule definitions without the App `Source` payload are rejected by the rule runtime path instead of silently inventing a placeholder rule source.
+  - Existing runtime mapping and handoff mapping tests still pass.
+- Static checks:
+  - `git diff --check` passed.
+  - `rg -n "Bridge|bridge|Adapter|RuleSourceRuntimeAdapter|runtimeAdapter|makeRuleSourceRuntimeAdapter" BrowseCraft BrowseCraftTests /Users/xiefei/Desktop/BrowseCraftCore/Sources /Users/xiefei/Desktop/BrowseCraftCore/Tests` returned no matches.
+- Notes:
+  - No Swift files were added or moved in P3-8.7, so `./scripts/regenerate-project.sh` was not required.
+  - No Core source files were changed in this node, so Core `swift test` was not rerun.

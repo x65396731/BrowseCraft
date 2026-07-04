@@ -23,8 +23,10 @@ SourceRuntime
 
 Planned responsibilities:
 
-- Resolve a `Source` to the correct concrete runtime.
-- Keep `Rule/RuleSourceRuntimeAdapter` as the rule-backed runtime implementation.
+- Resolve a `Source` through `SourceDefinition.kind` to the correct concrete runtime.
+- Keep `SourceDefinitionMapping` as the runtime-neutral Source-to-Core metadata
+  mapping boundary.
+- Keep `Rule/RuleSourceRuntime` as the rule-backed runtime implementation.
 - Keep rule-only mapping in `Rule/RuleSourceRuntimeMapping`; it is not a shared
   App/Core adapter layer.
 - Keep debug/source summary mapping in `Debug/RuleDebugSourceMapping`.
@@ -39,6 +41,7 @@ Non-goals:
 - Do not move SwiftSoup, GRDB, WebView, Nuke, or network implementations into
   `BrowseCraftCore`.
 - Do not treat `SiteRule` as the App-wide source axis. It is the configuration
-  format used by `RuleSourceRuntimeAdapter`.
+  format used by `RuleSourceRuntime`.
 - Do not add RSS or plugin behavior as more `SiteRule` fields.
-- Do not execute plugin code in P3-7.
+- Do not implement RSS parsing before P3-9.
+- Do not execute plugin code in P3-8.

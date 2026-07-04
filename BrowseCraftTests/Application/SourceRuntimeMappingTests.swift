@@ -5,8 +5,9 @@ import BrowseCraftCore
 
 // 中文注释：P3 runtime 本地映射合同测试，防止 Core runtime 字段扩展后 App 侧映射静默丢字段。
 struct SourceRuntimeMappingTests {
-    @Test func sourceRuntimeResolverReturnsRuleRuntimeForRuleBackedSourceTypes() throws {
-        let source: Source = try Self.source(id: "user.example")
+    @Test func sourceRuntimeResolverReturnsRuleRuntimeFromSourceDefinitionKind() throws {
+        var source: Source = try Self.source(id: "user.example")
+        source.type = .rss
         let resolver = SourceRuntimeResolver { source in
             return StubSourceRuntime(definition: SourceDefinitionMapper().definition(from: source))
         }
@@ -18,18 +19,136 @@ struct SourceRuntimeMappingTests {
         #expect(runtime.capabilities.supportsReader)
     }
 
-    @Test func sourceRuntimeResolverRejectsRSSUntilRuntimeIsConnected() throws {
-        var source: Source = try Self.source(id: "rss.example")
-        source.type = .rss
+    @Test func sourceRuntimeResolverRejectsRSSAndPluginDefinitionsUntilRuntimesAreConnected() throws {
         let resolver = SourceRuntimeResolver { source in
             return StubSourceRuntime(definition: SourceDefinitionMapper().definition(from: source))
         }
+        let rssDefinition: SourceDefinition = SourceDefinitionMapper().definition(
+            id: "rss.example",
+            name: "RSS Example",
+            baseURL: "https://example.test",
+            version: nil,
+            ownership: .user,
+            configuration: .rss(
+                RSSSourceConfiguration(
+                    definition: RSSSourceDefinition(
+                        feedURL: try #require(URL(string: "https://example.test/feed.xml")),
+                        requiresAccount: false,
+                        refreshPolicy: .manual
+                    )
+                )
+            )
+        )
+        let pluginDefinition: SourceDefinition = SourceDefinitionMapper().definition(
+            id: "plugin.example",
+            name: "Plugin Example",
+            baseURL: "https://plugin.example",
+            version: 1,
+            ownership: .imported,
+            configuration: .plugin(
+                PluginSourceConfiguration(
+                    definition: PluginSourceDefinition(
+                        id: "plugin.example",
+                        manifestVersion: 1,
+                        displayName: "Plugin Example",
+                        runtime: .javaScript,
+                        entrypoint: "index.js",
+                        permissions: [.network],
+                        checksum: "checksum",
+                        isExecutable: false,
+                        disabledReason: "P3-8 does not execute plugins."
+                    )
+                )
+            )
+        )
 
         do {
-            _ = try resolver.runtime(for: source)
-            Issue.record("Expected RSS runtime resolution to fail until P3-8.")
+            _ = try resolver.runtime(for: rssDefinition)
+            Issue.record("Expected RSS runtime resolution to fail until P3-9.")
         } catch SourceRuntimeError.unsupported(.custom(let message)) {
-            #expect(message.contains("P3-8"))
+            #expect(message.contains("P3-9"))
+        } catch {
+            Issue.record("Unexpected error: \(error.localizedDescription)")
+        }
+
+        do {
+            _ = try resolver.runtime(for: pluginDefinition)
+            Issue.record("Expected plugin runtime resolution to fail until P3-10.")
+        } catch SourceRuntimeError.unsupported(.custom(let message)) {
+            #expect(message.contains("P3-10"))
+        } catch {
+            Issue.record("Unexpected error: \(error.localizedDescription)")
+        }
+    }
+
+    @Test func architectureGuardKeepsRuntimeSlotsIndependentFromSiteRulePayload() throws {
+        let resolver = SourceRuntimeResolver(
+            rssRuntimeFactory: { definition in
+                return StubSourceRuntime(definition: definition)
+            },
+            pluginRuntimeFactory: { definition in
+                return StubSourceRuntime(definition: definition)
+            },
+            ruleRuntimeFactory: { source in
+                return StubSourceRuntime(definition: SourceDefinitionMapper().definition(from: source))
+            }
+        )
+        let mapper = SourceDefinitionMapper()
+        let rssDefinition = mapper.definition(
+            id: "rss.example",
+            name: "RSS Example",
+            baseURL: "https://example.test",
+            version: nil,
+            ownership: .user,
+            configuration: .rss(
+                RSSSourceConfiguration(
+                    definition: RSSSourceDefinition(
+                        feedURL: try #require(URL(string: "https://example.test/feed.xml")),
+                        requiresAccount: false,
+                        refreshPolicy: .manual
+                    )
+                )
+            )
+        )
+        let pluginDefinition = mapper.definition(
+            id: "plugin.example",
+            name: "Plugin Example",
+            baseURL: "https://plugin.example",
+            version: 1,
+            ownership: .imported,
+            configuration: .plugin(
+                PluginSourceConfiguration(
+                    definition: PluginSourceDefinition(
+                        id: "plugin.example",
+                        manifestVersion: 1,
+                        displayName: "Plugin Example",
+                        runtime: .javaScript,
+                        entrypoint: "index.js",
+                        permissions: [.network],
+                        checksum: "checksum",
+                        isExecutable: false,
+                        disabledReason: "P3-8 does not execute plugins."
+                    )
+                )
+            )
+        )
+        let ruleDefinition = mapper.definition(from: try Self.source(id: "rule.example"))
+
+        let rssRuntime: any SourceRuntime = try resolver.runtime(for: rssDefinition)
+        let pluginRuntime: any SourceRuntime = try resolver.runtime(for: pluginDefinition)
+
+        #expect(rssRuntime.definition.kind == .rss)
+        #expect(rssRuntime.definition.rule == nil)
+        #expect(rssRuntime.definition.rss?.feedURL.absoluteString == "https://example.test/feed.xml")
+        #expect(pluginRuntime.definition.kind == .plugin)
+        #expect(pluginRuntime.definition.rule == nil)
+        #expect(pluginRuntime.definition.plugin?.entrypoint == "index.js")
+
+        do {
+            _ = try resolver.runtime(for: ruleDefinition)
+            Issue.record("Expected rule definition without App Source payload to fail.")
+        } catch SourceRuntimeError.invalidInput(let message) {
+            #expect(message.contains("App Source payload"))
         } catch {
             Issue.record("Unexpected error: \(error.localizedDescription)")
         }
@@ -97,6 +216,62 @@ struct SourceRuntimeMappingTests {
         #expect(userDefinition.ownership == .user)
         #expect(userDefinition.rule?.isEditable == true)
         #expect(fallbackDefinition.baseURL.absoluteString == "about:blank")
+    }
+
+    @Test func sourceDefinitionMapperMapsRuntimeSpecificConfigurationsWithoutRuleFallback() throws {
+        let mapper: SourceDefinitionMapper = SourceDefinitionMapper()
+        let rssDefinition: SourceDefinition = mapper.definition(
+            id: "rss.example",
+            name: "RSS Example",
+            baseURL: "https://example.test",
+            version: nil,
+            ownership: .user,
+            configuration: .rss(
+                RSSSourceConfiguration(
+                    definition: RSSSourceDefinition(
+                        feedURL: try #require(URL(string: "https://example.test/feed.xml")),
+                        requiresAccount: false,
+                        refreshPolicy: .manual
+                    )
+                )
+            )
+        )
+        let pluginDefinition: SourceDefinition = mapper.definition(
+            id: "plugin.example",
+            name: "Plugin Example",
+            baseURL: "https://plugin.example",
+            version: 1,
+            ownership: .imported,
+            configuration: .plugin(
+                PluginSourceConfiguration(
+                    definition: PluginSourceDefinition(
+                        id: "plugin.example",
+                        manifestVersion: 1,
+                        displayName: "Plugin Example",
+                        runtime: .javaScript,
+                        entrypoint: "index.js",
+                        permissions: [.network],
+                        checksum: "checksum",
+                        isExecutable: false,
+                        disabledReason: "P3-8 does not execute plugins."
+                    )
+                )
+            )
+        )
+
+        #expect(rssDefinition.kind == .rss)
+        #expect(rssDefinition.rule == nil)
+        #expect(rssDefinition.rss?.feedURL.absoluteString == "https://example.test/feed.xml")
+        #expect(rssDefinition.rss?.requiresAccount == false)
+        #expect(rssDefinition.rss?.refreshPolicy == .manual)
+        #expect(rssDefinition.plugin == nil)
+
+        #expect(pluginDefinition.kind == .plugin)
+        #expect(pluginDefinition.rule == nil)
+        #expect(pluginDefinition.rss == nil)
+        #expect(pluginDefinition.plugin?.id == "plugin.example")
+        #expect(pluginDefinition.plugin?.entrypoint == "index.js")
+        #expect(pluginDefinition.plugin?.isExecutable == false)
     }
 
     @Test func outputMapperMapsItemsChaptersReaderAndPassesDiagnosticsThrough() throws {
@@ -199,6 +374,94 @@ struct SourceRuntimeMappingTests {
             "https://example.test/images/2.jpg"
         ])
         #expect(readerOutput.diagnostics == diagnostics)
+    }
+
+    @Test func ruleSourceItemReferenceMapperMapsDetailHandoffWithoutReaderReplacement() throws {
+        let mapper = RuleSourceItemReferenceMapper()
+        let runtimeContext = SourceRuntimeContext(
+            sourceID: "user.example",
+            pageID: "home",
+            tabID: "latest",
+            sectionID: "main-grid",
+            sectionRole: "main",
+            ruleID: "latest-list",
+            requestOverride: nil,
+            debugMode: false,
+            operation: .detail
+        )
+        let item = ContentItem(
+            id: "item-1",
+            sourceId: "user.example",
+            title: "Title",
+            detailURL: "https://example.test/comics/1",
+            coverURL: "   ",
+            type: .comic,
+            latestText: "第01话",
+            listContext: ListContext(
+                pageId: "home",
+                tabId: "latest",
+                sectionId: "main-grid",
+                listRuleId: "latest-list",
+                sectionRole: .main
+            )
+        )
+
+        let reference: SourceItemReference = mapper.reference(
+            from: item,
+            runtimeContext: runtimeContext
+        )
+
+        #expect(reference.id == "item-1")
+        #expect(reference.sourceID == "user.example")
+        #expect(reference.title == "Title")
+        #expect(reference.contentType == .comic)
+        #expect(reference.detailURL?.absoluteString == "https://example.test/comics/1")
+        #expect(reference.chapterURL == nil)
+        #expect(reference.coverURL == nil)
+        #expect(reference.latestText == "第01话")
+        #expect(reference.listContext?.pageID == "home")
+        #expect(reference.listContext?.tabID == "latest")
+        #expect(reference.listContext?.sectionID == "main-grid")
+        #expect(reference.listContext?.sectionRole == "main")
+        #expect(reference.listContext?.ruleID == "latest-list")
+        #expect(reference.handoffIntent == .detail)
+        #expect(reference.runtimeContext == runtimeContext)
+    }
+
+    @Test func ruleSourceItemReferenceMapperMapsDirectReaderChapterHandoff() throws {
+        let mapper = RuleSourceItemReferenceMapper()
+        let requestOverride = SourceRequestOverride(
+            url: URL(string: "https://example.test/read/1")!,
+            headers: ["Referer": "https://example.test"],
+            method: "GET"
+        )
+        let item = ContentItem(
+            id: "item-1",
+            sourceId: "user.example",
+            title: "Title",
+            detailURL: "https://example.test/comics/1",
+            coverURL: "https://example.test/covers/1.jpg",
+            type: .comic,
+            latestText: nil
+        )
+        let chapter = ChapterLink(
+            title: "第01话",
+            url: "https://example.test/chapters/1"
+        )
+
+        let reference: SourceItemReference = mapper.reference(
+            from: item,
+            handoffIntent: .directReader,
+            chapter: chapter,
+            requestOverride: requestOverride
+        )
+
+        #expect(reference.handoffIntent == .directReader)
+        #expect(reference.detailURL?.absoluteString == "https://example.test/comics/1")
+        #expect(reference.chapterURL?.absoluteString == "https://example.test/chapters/1")
+        #expect(reference.coverURL?.absoluteString == "https://example.test/covers/1.jpg")
+        #expect(reference.requestOverride == requestOverride)
+        #expect(reference.runtimeContext == nil)
     }
 
     private static func source(id: String) throws -> Source {

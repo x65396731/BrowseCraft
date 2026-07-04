@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import GRDB
 import BrowseCraftCore
 @testable import BrowseCraft
 
@@ -184,7 +185,7 @@ struct RequestConfigUseCaseTests {
         #expect(latestItems.map(\.id) == ["latest-old"])
     }
 
-    @Test func ruleSourceRuntimeAdapterLoadListUsesRuntimeContextTab() async throws {
+    @Test func ruleSourceRuntimeLoadListUsesRuntimeContextTab() async throws {
         let source: Source = try Self.source()
         let latestTab: ListTabRule = try #require(source.rule.availableListTabs.first { tab in
             return tab.id == "latest"
@@ -208,7 +209,7 @@ struct RequestConfigUseCaseTests {
             ruleParser: ruleParser,
             urlResolver: URLResolvingService()
         )
-        let adapter = RuleSourceRuntimeAdapter(
+        let runtime = RuleSourceRuntime(
             source: source,
             refreshSourceUseCase: refreshUseCase,
             searchSourceUseCase: searchUseCase,
@@ -237,7 +238,7 @@ struct RequestConfigUseCaseTests {
             )
         )
 
-        let output: SourceListOutput = try await adapter.loadList(input)
+        let output: SourceListOutput = try await runtime.loadList(input)
 
         #expect(ruleParser.parsedListRuleIDs == ["latest-list"])
         #expect(httpClient.requests.first?.url.absoluteString == "https://example.test/latest/1")
@@ -250,7 +251,7 @@ struct RequestConfigUseCaseTests {
         #expect(output.diagnostics.status == .succeeded)
     }
 
-    @Test func ruleSourceRuntimeAdapterLoadListCanSelectTabByRuleID() async throws {
+    @Test func ruleSourceRuntimeLoadListCanSelectTabByRuleID() async throws {
         let source: Source = try Self.source()
         let latestTab: ListTabRule = try #require(source.rule.availableListTabs.first { tab in
             return tab.id == "latest"
@@ -263,7 +264,7 @@ struct RequestConfigUseCaseTests {
                 Self.cachedItem(id: "runtime-rule-id", sourceID: source.id, tab: latestTab)
             ]
         ]
-        let adapter: RuleSourceRuntimeAdapter = Self.runtimeAdapter(
+        let runtime: RuleSourceRuntime = Self.ruleRuntime(
             source: source,
             httpClient: httpClient,
             ruleParser: ruleParser,
@@ -280,19 +281,19 @@ struct RequestConfigUseCaseTests {
             )
         )
 
-        let output: SourceListOutput = try await adapter.loadList(input)
+        let output: SourceListOutput = try await runtime.loadList(input)
 
         #expect(ruleParser.parsedListRuleIDs == ["latest-list"])
         #expect(httpClient.requests.first?.request?.headers?["X-Tab"] == "latest")
         #expect(output.items.map(\.id) == ["runtime-rule-id"])
     }
 
-    @Test func ruleSourceRuntimeAdapterRejectsSourceMismatchAndListURLOverrides() async throws {
+    @Test func ruleSourceRuntimeRejectsSourceMismatchAndListURLOverrides() async throws {
         let source: Source = try Self.source()
-        let adapter: RuleSourceRuntimeAdapter = Self.runtimeAdapter(source: source)
+        let runtime: RuleSourceRuntime = Self.ruleRuntime(source: source)
 
         do {
-            _ = try await adapter.loadList(
+            _ = try await runtime.loadList(
                 SourceListInput(
                     page: 1,
                     urlOverride: nil,
@@ -308,7 +309,7 @@ struct RequestConfigUseCaseTests {
         }
 
         do {
-            _ = try await adapter.loadList(
+            _ = try await runtime.loadList(
                 SourceListInput(
                     page: 1,
                     urlOverride: URL(string: "https://example.test/override")!,
@@ -322,7 +323,7 @@ struct RequestConfigUseCaseTests {
         }
 
         do {
-            _ = try await adapter.loadList(
+            _ = try await runtime.loadList(
                 SourceListInput(
                     page: 1,
                     urlOverride: nil,
@@ -342,9 +343,9 @@ struct RequestConfigUseCaseTests {
         }
     }
 
-    @Test func ruleSourceRuntimeAdapterSearchRejectsHeaderOverride() async throws {
+    @Test func ruleSourceRuntimeSearchRejectsHeaderOverride() async throws {
         let source: Source = try Self.source()
-        let adapter: RuleSourceRuntimeAdapter = Self.runtimeAdapter(source: source)
+        let runtime: RuleSourceRuntime = Self.ruleRuntime(source: source)
         let input = SourceSearchInput(
             keyword: "猫",
             page: 1,
@@ -360,7 +361,7 @@ struct RequestConfigUseCaseTests {
         )
 
         do {
-            _ = try await adapter.search(input)
+            _ = try await runtime.search(input)
             Issue.record("Expected search header override to fail.")
         } catch SourceRuntimeError.unsupported(.requestHeaderOverride) {
         } catch {
@@ -368,12 +369,12 @@ struct RequestConfigUseCaseTests {
         }
     }
 
-    @Test func ruleSourceRuntimeAdapterDebugReturnsSkippedDiagnosticsWithContext() async throws {
+    @Test func ruleSourceRuntimeDebugReturnsSkippedDiagnosticsWithContext() async throws {
         let source: Source = try Self.source()
-        let adapter: RuleSourceRuntimeAdapter = Self.runtimeAdapter(source: source)
+        let runtime: RuleSourceRuntime = Self.ruleRuntime(source: source)
         let requestURL: URL = try #require(URL(string: "https://example.test/debug"))
 
-        let output: SourceDebugOutput = try await adapter.debug(
+        let output: SourceDebugOutput = try await runtime.debug(
             Self.runtimeContext(
                 sourceID: source.id,
                 pageID: "home",
@@ -433,7 +434,7 @@ struct RequestConfigUseCaseTests {
             urlResolver: URLResolvingService()
         )
         let runtimeResolver = SourceRuntimeResolver { source in
-            return RuleSourceRuntimeAdapter(
+            return RuleSourceRuntime(
                 source: source,
                 refreshSourceUseCase: refreshUseCase,
                 searchSourceUseCase: searchUseCase,
@@ -529,6 +530,68 @@ struct RequestConfigUseCaseTests {
         #expect(loadedItems.map(\.id) == ["order-0", "order-1", "order-2"])
     }
 
+    @Test func sourceRepositoryWritesRuntimeNeutralConfiguration() throws {
+        let databaseDirectory: URL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BrowseCraftTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: databaseDirectory, withIntermediateDirectories: true)
+        let databaseURL: URL = databaseDirectory.appendingPathComponent("BrowseCraft.sqlite")
+        defer {
+            try? FileManager.default.removeItem(at: databaseDirectory)
+        }
+
+        let database: AppDatabase = try AppDatabase(path: databaseURL.path)
+        let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
+        let source: Source = try Self.source()
+
+        try sourceRepository.saveSource(source)
+
+        let storedRecord: SourceRecord = try database.queue.read { database in
+            let record: SourceRecord? = try SourceRecord.fetchOne(database, key: source.id)
+            return try #require(record)
+        }
+        let configJSON: String = try #require(storedRecord.configJSON)
+        let configuration: SourceConfiguration = try JSONDecoder().decode(
+            SourceConfiguration.self,
+            from: Data(configJSON.utf8)
+        )
+
+        #expect(storedRecord.kind == SourceDefinitionKind.rule.rawValue)
+        #expect(storedRecord.ruleJSON.isEmpty == false)
+        if case .rule(let ruleConfiguration) = configuration {
+            #expect(ruleConfiguration.rule.name == source.rule.name)
+            #expect(ruleConfiguration.schemaVersion == source.rule.version)
+        } else {
+            Issue.record("Expected persisted source configuration to be rule-backed.")
+        }
+    }
+
+    @Test func sourceRepositoryReadsLegacyRuleJSONWhenRuntimeConfigurationIsMissing() throws {
+        let databaseDirectory: URL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BrowseCraftTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: databaseDirectory, withIntermediateDirectories: true)
+        let databaseURL: URL = databaseDirectory.appendingPathComponent("BrowseCraft.sqlite")
+        defer {
+            try? FileManager.default.removeItem(at: databaseDirectory)
+        }
+
+        let database: AppDatabase = try AppDatabase(path: databaseURL.path)
+        let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
+        var legacyRecord: SourceRecord = try SourceRecord(source: Self.source())
+        legacyRecord.kind = nil
+        legacyRecord.configJSON = nil
+
+        try database.queue.write { database in
+            try legacyRecord.insert(database)
+        }
+
+        let loadedSources: [Source] = try sourceRepository.fetchSources()
+
+        let loadedSource: Source = try #require(loadedSources.first)
+        #expect(loadedSource.id == legacyRecord.id)
+        #expect(loadedSource.rule.name == "Complete V2 Site")
+        #expect(loadedSource.configuration.kind == .rule)
+    }
+
     private static func source() throws -> Source {
         let rule: SiteRule = try JSONDecoder().decode(
             SiteRule.self,
@@ -547,13 +610,13 @@ struct RequestConfigUseCaseTests {
         )
     }
 
-    private static func runtimeAdapter(
+    private static func ruleRuntime(
         source: Source,
         httpClient: RecordingHTTPClient = RecordingHTTPClient(html: "<html></html>"),
         ruleParser: RecordingRuleParser = RecordingRuleParser(),
         contentRepository: InMemoryContentRepository = InMemoryContentRepository()
-    ) -> RuleSourceRuntimeAdapter {
-        return RuleSourceRuntimeAdapter(
+    ) -> RuleSourceRuntime {
+        return RuleSourceRuntime(
             source: source,
             refreshSourceUseCase: RefreshSourceUseCase(
                 httpClient: httpClient,

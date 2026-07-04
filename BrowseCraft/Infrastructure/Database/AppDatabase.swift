@@ -107,6 +107,26 @@ final class AppDatabase {
             }
         }
 
+        migrator.registerMigration("addRuntimeNeutralSourceConfiguration") { database in
+            try database.alter(table: SourceRecord.databaseTableName) { table in
+                // 中文注释：P3-8.8 将 source 持久化轴从 ruleJSON 推进到 runtime-neutral kind/configJSON。
+                table.add(column: "kind", .text)
+                table.add(column: "configJSON", .text)
+            }
+
+            try database.execute(
+                sql: """
+                UPDATE \(SourceRecord.databaseTableName)
+                SET kind = 'rule',
+                    configJSON = ruleJSON
+                WHERE kind IS NULL
+                   OR kind = ''
+                   OR configJSON IS NULL
+                   OR configJSON = ''
+                """
+            )
+        }
+
         return migrator
     }
 }

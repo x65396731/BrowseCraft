@@ -17,6 +17,17 @@ struct Source: Identifiable, Hashable {
 }
 
 extension Source {
+    var configuration: SourceConfiguration {
+        return .rule(
+            RuleSourceConfiguration(
+                rule: self.rule,
+                schemaVersion: self.rule.version ?? 1,
+                packageMetadata: nil,
+                isEditable: self.isBuiltIn == false
+            )
+        )
+    }
+
     /// 中文注释：内置规则由 BrowseCraftRulesKit 同步，编辑器只能复制后修改，避免刷新时覆盖用户改动。
     var isBuiltIn: Bool {
         return self.id.hasPrefix("built-in.")

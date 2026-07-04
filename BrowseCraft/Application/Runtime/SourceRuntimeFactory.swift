@@ -21,12 +21,12 @@ struct SourceRuntimeFactory {
 
     func makeRuntimeResolver() -> SourceRuntimeResolver {
         return SourceRuntimeResolver { source in
-            return self.makeRuleSourceRuntimeAdapter(source: source)
+            return self.makeRuleSourceRuntime(source: source)
         }
     }
 
-    func makeRuleSourceRuntimeAdapter(source: Source) -> RuleSourceRuntimeAdapter {
-        return RuleSourceRuntimeAdapter(
+    func makeRuleSourceRuntime(source: Source) -> RuleSourceRuntime {
+        return RuleSourceRuntime(
             source: source,
             refreshSourceUseCase: self.makeRefreshSourceUseCase(),
             searchSourceUseCase: self.makeSearchSourceUseCase(),

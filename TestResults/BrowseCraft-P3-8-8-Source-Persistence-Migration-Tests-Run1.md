@@ -1,0 +1,21 @@
+# BrowseCraft P3-8.8 Source Persistence Migration Tests Run 1
+
+- Date: 2026-07-04
+- Scope: P3-8.8 source persistence migration toward runtime-neutral `kind + configJSON`.
+- Command:
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test -workspace /Users/xiefei/BrowseCraft/BrowseCraft.xcworkspace -scheme BrowseCraft -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:BrowseCraftTests/RequestConfigUseCaseTests -derivedDataPath /private/tmp/BrowseCraft-P3-8-8-Test-DerivedData -resultBundlePath /private/tmp/BrowseCraft-P3-8-8-Run2.xcresult`
+- Result: passed.
+- Test summary:
+  - Total: 15
+  - Passed: 15
+  - Failed: 0
+  - Skipped: 0
+- Key coverage:
+  - `GRDBSourceRepository.saveSource(_:)` writes runtime-neutral `kind` and `configJSON`.
+  - Saved rule-backed sources persist `configJSON` as `SourceConfiguration.rule(...)`.
+  - Legacy rows with missing `kind/configJSON` still read from `ruleJSON`.
+  - Existing request config, runtime list, cache boundary, direct-reader, and list-order tests still pass.
+- Notes:
+  - Run 1 failed at compile time because a throwing `SourceRecord.fetchOne` call was nested directly inside `#require`; the test was fixed and rerun as Run 2.
+  - No Swift files were added or moved in P3-8.8, so `./scripts/regenerate-project.sh` was not required.
+  - No Core source files were changed in this node, so Core `swift test` was not rerun.

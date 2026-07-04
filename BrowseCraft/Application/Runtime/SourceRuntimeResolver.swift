@@ -6,21 +6,57 @@ protocol SourceRuntimeResolving {
 }
 
 struct SourceRuntimeResolver: SourceRuntimeResolving {
+    private let definitionMapper: SourceDefinitionMapper
     private let ruleRuntimeFactory: (Source) -> any SourceRuntime
+    private let rssRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)?
+    private let pluginRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)?
 
-    init(ruleRuntimeFactory: @escaping (Source) -> any SourceRuntime) {
+    init(
+        definitionMapper: SourceDefinitionMapper = SourceDefinitionMapper(),
+        rssRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)? = nil,
+        pluginRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)? = nil,
+        ruleRuntimeFactory: @escaping (Source) -> any SourceRuntime
+    ) {
+        self.definitionMapper = definitionMapper
         self.ruleRuntimeFactory = ruleRuntimeFactory
+        self.rssRuntimeFactory = rssRuntimeFactory
+        self.pluginRuntimeFactory = pluginRuntimeFactory
     }
 
     func runtime(for source: Source) throws -> any SourceRuntime {
-        switch source.type {
-        case .html, .json, .xml:
-            // 中文注释：这些旧 SourceType 目前仍映射到 rule-backed runtime；
-            // 后续 RSS/Plugin 应注册独立 runtime，而不是塞进 SiteRule JSON。
+        let definition: SourceDefinition = self.definitionMapper.definition(from: source)
+        return try self.runtime(for: definition, source: source)
+    }
+
+    func runtime(for definition: SourceDefinition) throws -> any SourceRuntime {
+        return try self.runtime(for: definition, source: nil)
+    }
+
+    private func runtime(
+        for definition: SourceDefinition,
+        source: Source?
+    ) throws -> any SourceRuntime {
+        switch definition.kind {
+        case .rule:
+            guard let source: Source = source else {
+                throw SourceRuntimeError.invalidInput("Rule runtime resolution requires an App Source payload.")
+            }
             return self.ruleRuntimeFactory(source)
         case .rss:
+            if let rssRuntimeFactory: (SourceDefinition) -> any SourceRuntime = self.rssRuntimeFactory {
+                return rssRuntimeFactory(definition)
+            }
+
             throw SourceRuntimeError.unsupported(
-                .custom("RSS source runtime is reserved for P3-8 and is not connected yet.")
+                .custom("RSS source runtime is reserved for P3-9 and is not connected yet.")
+            )
+        case .plugin:
+            if let pluginRuntimeFactory: (SourceDefinition) -> any SourceRuntime = self.pluginRuntimeFactory {
+                return pluginRuntimeFactory(definition)
+            }
+
+            throw SourceRuntimeError.unsupported(
+                .custom("Plugin source runtime is reserved for P3-10 and is not connected yet.")
             )
         }
     }

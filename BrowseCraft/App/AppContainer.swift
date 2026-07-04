@@ -186,8 +186,8 @@ final class AppContainer {
     }
 
     /// 中文注释：P3 runtime 工厂入口；Library list refresh 已通过 resolver 试点接入。
-    func makeRuleSourceRuntimeAdapter(source: Source) -> RuleSourceRuntimeAdapter {
-        return self.sourceRuntimeFactory.makeRuleSourceRuntimeAdapter(source: source)
+    func makeRuleSourceRuntime(source: Source) -> RuleSourceRuntime {
+        return self.sourceRuntimeFactory.makeRuleSourceRuntime(source: source)
     }
 
     func makeSourceRuntimeResolver() -> any SourceRuntimeResolving {
