@@ -1,6 +1,7 @@
 import Foundation
 
-// 中文注释：SearchSourceUseCase 提供只读搜索执行链路，不写入 Library 列表缓存。
+// 中文注释：SearchSourceUseCase 是 RuleSourceRuntime 内部搜索执行链路，只解释 SiteRule-backed source。
+// 中文注释：它不写入 Library 列表缓存，RSS/Plugin 后续应走各自 runtime。
 
 struct SearchSourceResult: Hashable {
     var items: [ContentItem]

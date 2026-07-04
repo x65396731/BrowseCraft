@@ -4,6 +4,7 @@ import Foundation
 
 /// 中文注释：抓取源站列表页，解析为标准条目，保存后返回结果。
 /// 中文注释：核心流程是 Source + Rule -> Fetch -> Parse -> Normalize -> Store -> Display。
+/// 中文注释：该用例仍被 Sources 页面直接调用，暂留在 App UseCases；runtime 内部调用后续应继续收口。
 struct RefreshSourceUseCase {
     private let pageContentLoader: PageContentLoader
     private let ruleParser: RuleParsingService

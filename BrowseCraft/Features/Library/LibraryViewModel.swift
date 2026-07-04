@@ -24,6 +24,7 @@ final class LibraryViewModel: ObservableObject {
     private let toggleFavoriteUseCase: ToggleFavoriteUseCase
     private let recordOpenItemUseCase: RecordOpenItemUseCase
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
+    private let resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase
     private let sourceSelectionStore: SourceSelectionStore
     private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
     /// 中文注释：刷新令牌用于避免旧 source 的慢请求回写或提前关闭当前 source 的 loading。
@@ -35,6 +36,7 @@ final class LibraryViewModel: ObservableObject {
         toggleFavoriteUseCase: ToggleFavoriteUseCase,
         recordOpenItemUseCase: RecordOpenItemUseCase,
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
+        resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase,
         sourceSelectionStore: SourceSelectionStore
     ) {
         self.loadLibraryUseCase = loadLibraryUseCase
@@ -42,6 +44,7 @@ final class LibraryViewModel: ObservableObject {
         self.toggleFavoriteUseCase = toggleFavoriteUseCase
         self.recordOpenItemUseCase = recordOpenItemUseCase
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
+        self.resolveLibrarySourcePresentationUseCase = resolveLibrarySourcePresentationUseCase
         self.sourceSelectionStore = sourceSelectionStore
         self.selectedSourceID = sourceSelectionStore.selectedSourceID
         self.bindSourceSelection()
@@ -184,7 +187,10 @@ final class LibraryViewModel: ObservableObject {
     }
 
     func imageRequestConfig(for source: Source) -> RequestConfig? {
-        return source.rule.request(for: self.selectedListTab)
+        return self.resolveLibrarySourcePresentationUseCase.imageRequestConfig(
+            for: source,
+            listTab: self.selectedListTab
+        )
     }
 
     func primaryActionTitle(for source: Source) -> String {
@@ -204,11 +210,11 @@ final class LibraryViewModel: ObservableObject {
     }
 
     func shouldOpenReaderDirectly(for source: Source) -> Bool {
-        return RuleResolver().resolve(source.rule).treatsDetailURLAsChapter
+        return self.resolveLibrarySourcePresentationUseCase.shouldOpenReaderDirectly(for: source)
     }
 
     private var listTabs: [ListTabRule] {
-        return self.selectedSource?.rule.availableListTabs ?? []
+        return self.resolveLibrarySourcePresentationUseCase.listTabs(for: self.selectedSource)
     }
 
     private var selectedListTab: ListTabRule? {
@@ -290,28 +296,6 @@ final class LibraryViewModel: ObservableObject {
     }
 
     private var selectedListContext: ListContext? {
-        return self.listContext(from: self.selectedListTab)
-    }
-
-    private func listContext(from listTab: ListTabRule?) -> ListContext? {
-        guard let listTab: ListTabRule = listTab else {
-            return nil
-        }
-
-        if var context: ListContext = listTab.context {
-            if context.listRuleId == nil {
-                context.listRuleId = listTab.list.id
-            }
-
-            return context
-        }
-
-        return ListContext(
-            pageId: listTab.id,
-            tabId: listTab.id,
-            sectionId: nil,
-            listRuleId: listTab.list.id,
-            sectionRole: .main
-        )
+        return self.resolveLibrarySourcePresentationUseCase.listContext(from: self.selectedListTab)
     }
 }

@@ -213,11 +213,11 @@ struct RequestConfigUseCaseTests {
             source: source,
             refreshSourceUseCase: refreshUseCase,
             searchSourceUseCase: searchUseCase,
-            loadChaptersUseCase: LoadChaptersUseCase(
+            loadChaptersUseCase: RuleSourceLoadChaptersUseCase(
                 httpClient: httpClient,
                 ruleParser: ruleParser
             ),
-            loadReaderChapterUseCase: LoadReaderChapterUseCase(
+            loadReaderChapterUseCase: RuleSourceLoadReaderChapterUseCase(
                 httpClient: httpClient,
                 ruleParser: ruleParser
             )
@@ -438,11 +438,11 @@ struct RequestConfigUseCaseTests {
                 source: source,
                 refreshSourceUseCase: refreshUseCase,
                 searchSourceUseCase: searchUseCase,
-                loadChaptersUseCase: LoadChaptersUseCase(
+                loadChaptersUseCase: RuleSourceLoadChaptersUseCase(
                     httpClient: httpClient,
                     ruleParser: ruleParser
                 ),
-                loadReaderChapterUseCase: LoadReaderChapterUseCase(
+                loadReaderChapterUseCase: RuleSourceLoadReaderChapterUseCase(
                     httpClient: httpClient,
                     ruleParser: ruleParser
                 )
@@ -464,6 +464,7 @@ struct RequestConfigUseCaseTests {
             refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase(
                 runtimeResolver: runtimeResolver
             ),
+            resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase(),
             sourceSelectionStore: sourceSelectionStore
         )
 
@@ -475,6 +476,94 @@ struct RequestConfigUseCaseTests {
         #expect(ruleParser.parsedListRuleIDs == ["home-list"])
         #expect(contentRepository.items.map(\.id).sorted() == ["discover-runtime", "latest-old"])
         #expect(viewModel.items.map(\.id) == ["discover-runtime"])
+    }
+
+    @Test @MainActor func libraryPresentationDoesNotRequireRuleForRSSSource() throws {
+        let source: Source = try Self.rssSource()
+        let contentRepository: InMemoryContentRepository = InMemoryContentRepository()
+        contentRepository.seed([
+            ContentItem(
+                id: "rss-item",
+                sourceId: source.id,
+                title: "RSS Item",
+                detailURL: "https://example.test/item",
+                coverURL: nil,
+                type: .comic,
+                latestText: nil,
+                updatedAt: Date(timeIntervalSince1970: 0),
+                listOrder: 0,
+                listContext: nil
+            )
+        ])
+        let sourceSelectionStore: SourceSelectionStore = SourceSelectionStore()
+        sourceSelectionStore.selectedSourceID = source.id
+        let viewModel: LibraryViewModel = LibraryViewModel(
+            loadLibraryUseCase: LoadLibraryUseCase(contentRepository: contentRepository),
+            loadSourcesUseCase: LoadSourcesUseCase(
+                sourceRepository: InMemorySourceRepository(sources: [source])
+            ),
+            toggleFavoriteUseCase: ToggleFavoriteUseCase(
+                favoriteRepository: InMemoryFavoriteRepository()
+            ),
+            recordOpenItemUseCase: RecordOpenItemUseCase(
+                historyRepository: InMemoryHistoryRepository()
+            ),
+            refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase(
+                runtimeResolver: SourceRuntimeResolver { _ in
+                    fatalError("RSS library presentation should not resolve rule runtime.")
+                }
+            ),
+            resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase(),
+            sourceSelectionStore: sourceSelectionStore
+        )
+
+        viewModel.load()
+
+        #expect(viewModel.listTabStates.isEmpty)
+        #expect(viewModel.items.map(\.id) == ["rss-item"])
+        #expect(viewModel.imageRequestConfig(for: source) == nil)
+        #expect(viewModel.primaryActionTitle(for: source) == "Chapters")
+        #expect(viewModel.primaryActionSystemImage(for: source) == "list.bullet")
+    }
+
+    @Test @MainActor func readerPresentationDoesNotRequireRuleForRSSSource() throws {
+        let source: Source = try Self.rssSource()
+        let item: ContentItem = ContentItem(
+            id: "rss-item",
+            sourceId: source.id,
+            title: "RSS Item",
+            detailURL: "https://example.test/item",
+            coverURL: nil,
+            type: .comic,
+            latestText: nil,
+            updatedAt: Date(timeIntervalSince1970: 0),
+            listOrder: 0,
+            listContext: nil
+        )
+        let httpClient: RecordingHTTPClient = RecordingHTTPClient(html: "<html></html>")
+        let ruleParser: RecordingRuleParser = RecordingRuleParser()
+        let presentationUseCase: ResolveReaderSourcePresentationUseCase = ResolveReaderSourcePresentationUseCase()
+        let readerViewModel: ReaderViewModel = ReaderViewModel(
+            item: item,
+            source: source,
+            loadReaderChapterUseCase: LoadReaderChapterUseCase(
+                httpClient: httpClient,
+                ruleParser: ruleParser
+            ),
+            resolveReaderSourcePresentationUseCase: presentationUseCase
+        )
+        let chapterListViewModel: ChapterListViewModel = ChapterListViewModel(
+            item: item,
+            source: source,
+            loadChaptersUseCase: LoadChaptersUseCase(
+                httpClient: httpClient,
+                ruleParser: ruleParser
+            ),
+            resolveReaderSourcePresentationUseCase: presentationUseCase
+        )
+
+        #expect(readerViewModel.readerImageRequestConfig == nil)
+        #expect(chapterListViewModel.detailCoverRequestConfig == nil)
     }
 
     @Test func contentCachePreservesListOrderWhenLoadingSelectedTab() throws {
@@ -592,7 +681,42 @@ struct RequestConfigUseCaseTests {
         #expect(loadedSource.configuration.kind == .rule)
     }
 
-    @Test func sourceRecordDecodesRSSConfigurationWithoutCreatingRuleSource() throws {
+    @Test func sourceRepositoryRoundTripsRSSConfigurationAsRuntimeNeutralSource() throws {
+        let databaseDirectory: URL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BrowseCraftTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: databaseDirectory, withIntermediateDirectories: true)
+        let databaseURL: URL = databaseDirectory.appendingPathComponent("BrowseCraft.sqlite")
+        defer {
+            try? FileManager.default.removeItem(at: databaseDirectory)
+        }
+
+        let database: AppDatabase = try AppDatabase(path: databaseURL.path)
+        let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
+        let source: Source = try Self.rssSource()
+
+        try sourceRepository.saveSource(source)
+
+        let loadedSource: Source = try #require(try sourceRepository.fetchSources().first)
+
+        #expect(loadedSource.id == "rss.example")
+        #expect(loadedSource.type == .rss)
+        #expect(loadedSource.configuration.kind == .rss)
+        if case .rss(let rssConfiguration) = loadedSource.configuration {
+            #expect(rssConfiguration.definition.feedURL.absoluteString == "https://example.test/feed.xml")
+            #expect(rssConfiguration.definition.refreshPolicy == .manual)
+        } else {
+            Issue.record("Expected loaded source configuration to remain RSS-backed.")
+        }
+
+        let storedRecord: SourceRecord = try database.queue.read { database in
+            let record: SourceRecord? = try SourceRecord.fetchOne(database, key: source.id)
+            return try #require(record)
+        }
+        #expect(storedRecord.kind == SourceDefinitionKind.rss.rawValue)
+        #expect(storedRecord.ruleJSON == "{}")
+    }
+
+    @Test func sourceRecordDecodesRSSConfigurationAsRuntimeNeutralSource() throws {
         var rssRecord: SourceRecord = try SourceRecord(source: Self.source())
         let rssConfiguration = SourceConfiguration.rss(
             RSSSourceConfiguration(
@@ -612,6 +736,7 @@ struct RequestConfigUseCaseTests {
         )
 
         let decodedConfiguration: SourceConfiguration = try rssRecord.sourceConfiguration()
+        let decodedSource: Source = try rssRecord.domainModel()
 
         if case .rss(let rssSourceConfiguration) = decodedConfiguration {
             #expect(rssSourceConfiguration.definition.feedURL.absoluteString == "https://example.test/feed.xml")
@@ -620,13 +745,14 @@ struct RequestConfigUseCaseTests {
             Issue.record("Expected RSS source configuration.")
         }
 
-        do {
-            _ = try rssRecord.domainModel()
-            Issue.record("Expected RSS source record to avoid creating a rule-backed Source.")
-        } catch SourceRecordDecodingError.unsupportedPersistedSourceKind(let kind) {
-            #expect(kind == SourceDefinitionKind.rss.rawValue)
-        } catch {
-            Issue.record("Unexpected error: \(error.localizedDescription)")
+        #expect(decodedSource.id == "rss.example")
+        #expect(decodedSource.type == .rss)
+        #expect(decodedSource.configuration.kind == .rss)
+        if case .rss(let rssSourceConfiguration) = decodedSource.configuration {
+            #expect(rssSourceConfiguration.definition.feedURL.absoluteString == "https://example.test/feed.xml")
+            #expect(rssSourceConfiguration.definition.requiresAccount == false)
+        } else {
+            Issue.record("Expected decoded Source to remain RSS-backed.")
         }
     }
 
@@ -642,6 +768,27 @@ struct RequestConfigUseCaseTests {
             baseURL: "https://example.test",
             type: .html,
             rule: rule,
+            enabled: true,
+            createdAt: Date(timeIntervalSince1970: 0),
+            updatedAt: Date(timeIntervalSince1970: 0)
+        )
+    }
+
+    private static func rssSource() throws -> Source {
+        return Source(
+            id: "rss.example",
+            name: "RSS Example",
+            baseURL: "https://example.test",
+            type: .rss,
+            configuration: .rss(
+                RSSSourceConfiguration(
+                    definition: RSSSourceDefinition(
+                        feedURL: try #require(URL(string: "https://example.test/feed.xml")),
+                        requiresAccount: false,
+                        refreshPolicy: .manual
+                    )
+                )
+            ),
             enabled: true,
             createdAt: Date(timeIntervalSince1970: 0),
             updatedAt: Date(timeIntervalSince1970: 0)
@@ -667,11 +814,11 @@ struct RequestConfigUseCaseTests {
                 ruleParser: ruleParser,
                 urlResolver: URLResolvingService()
             ),
-            loadChaptersUseCase: LoadChaptersUseCase(
+            loadChaptersUseCase: RuleSourceLoadChaptersUseCase(
                 httpClient: httpClient,
                 ruleParser: ruleParser
             ),
-            loadReaderChapterUseCase: LoadReaderChapterUseCase(
+            loadReaderChapterUseCase: RuleSourceLoadReaderChapterUseCase(
                 httpClient: httpClient,
                 ruleParser: ruleParser
             )

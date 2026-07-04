@@ -21,7 +21,12 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
     var updatedAt: Date
 
     init(source: Source) throws {
-        let encodedRule: Data = try JSONEncoder().encode(source.rule)
+        let encodedRule: Data
+        if let rule: SiteRule = source.ruleConfiguration?.rule {
+            encodedRule = try JSONEncoder().encode(rule)
+        } else {
+            encodedRule = Data("{}".utf8)
+        }
         let encodedConfiguration: Data = try JSONEncoder().encode(source.configuration)
 
         self.id = source.id
@@ -39,23 +44,12 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
     /// 中文注释：domainModel 方法封装当前类型的一段业务或界面行为。
     func domainModel() throws -> Source {
         let configuration: SourceConfiguration = try self.sourceConfiguration()
-        let rule: SiteRule
-
-        switch configuration {
-        case .rule(let ruleConfiguration):
-            rule = ruleConfiguration.rule
-        case .rss:
-            throw SourceRecordDecodingError.unsupportedPersistedSourceKind(SourceDefinitionKind.rss.rawValue)
-        case .plugin:
-            throw SourceRecordDecodingError.unsupportedPersistedSourceKind(SourceDefinitionKind.plugin.rawValue)
-        }
-
         return Source(
             id: self.id,
             name: self.name,
             baseURL: self.baseURL,
             type: SourceType(rawValue: self.type) ?? .html,
-            rule: rule,
+            configuration: configuration,
             enabled: self.enabled,
             createdAt: self.createdAt,
             updatedAt: self.updatedAt
@@ -107,7 +101,6 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
 }
 
 enum SourceRecordDecodingError: Error {
-    case unsupportedPersistedSourceKind(String)
     case mismatchedConfigurationKind
     case missingConfiguration(String)
 }

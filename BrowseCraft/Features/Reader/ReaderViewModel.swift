@@ -13,17 +13,20 @@ final class ReaderViewModel: ObservableObject {
     private let source: Source
     private let selectedChapter: ChapterLink?
     private let loadReaderChapterUseCase: LoadReaderChapterUseCase
+    private let resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
 
     init(
         item: ContentItem,
         source: Source,
         selectedChapter: ChapterLink? = nil,
-        loadReaderChapterUseCase: LoadReaderChapterUseCase
+        loadReaderChapterUseCase: LoadReaderChapterUseCase,
+        resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
     ) {
         self.item = item
         self.source = source
         self.selectedChapter = selectedChapter
         self.loadReaderChapterUseCase = loadReaderChapterUseCase
+        self.resolveReaderSourcePresentationUseCase = resolveReaderSourcePresentationUseCase
 
         #if DEBUG
         print(
@@ -99,7 +102,7 @@ final class ReaderViewModel: ObservableObject {
 
     /// 中文注释：阅读页图片加载使用 GalleryRule 的图片请求配置，避免 UI 直接理解规则选择细节。
     var readerImageRequestConfig: RequestConfig? {
-        return RuleResolver().resolve(self.source.rule).primaryGalleryRequest
+        return self.resolveReaderSourcePresentationUseCase.readerImageRequestConfig(for: self.source)
     }
 }
 
@@ -112,15 +115,18 @@ final class ChapterListViewModel: ObservableObject {
     let item: ContentItem
     let source: Source
     private let loadChaptersUseCase: LoadChaptersUseCase
+    private let resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
 
     init(
         item: ContentItem,
         source: Source,
-        loadChaptersUseCase: LoadChaptersUseCase
+        loadChaptersUseCase: LoadChaptersUseCase,
+        resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
     ) {
         self.item = item
         self.source = source
         self.loadChaptersUseCase = loadChaptersUseCase
+        self.resolveReaderSourcePresentationUseCase = resolveReaderSourcePresentationUseCase
 
         #if DEBUG
         print(
@@ -207,7 +213,7 @@ final class ChapterListViewModel: ObservableObject {
 
     /// 中文注释：章节列表封面使用 DetailRule 的页面请求配置，避免 View 直接解析规则图。
     var detailCoverRequestConfig: RequestConfig? {
-        return RuleResolver().resolve(self.source.rule).primaryDetailRequest
+        return self.resolveReaderSourcePresentationUseCase.detailCoverRequestConfig(for: self.source)
     }
 
 }

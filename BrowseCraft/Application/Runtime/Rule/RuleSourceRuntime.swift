@@ -8,8 +8,8 @@ struct RuleSourceRuntime: SourceRuntime {
 
     private let refreshSourceUseCase: RefreshSourceUseCase
     private let searchSourceUseCase: SearchSourceUseCase
-    private let loadChaptersUseCase: LoadChaptersUseCase
-    private let loadReaderChapterUseCase: LoadReaderChapterUseCase
+    private let loadChaptersUseCase: RuleSourceLoadChaptersUseCase
+    private let loadReaderChapterUseCase: RuleSourceLoadReaderChapterUseCase
     private let definitionMapper: SourceDefinitionMapper
     private let outputMapper: SourceRuntimeOutputMapper
 
@@ -17,8 +17,8 @@ struct RuleSourceRuntime: SourceRuntime {
         source: Source,
         refreshSourceUseCase: RefreshSourceUseCase,
         searchSourceUseCase: SearchSourceUseCase,
-        loadChaptersUseCase: LoadChaptersUseCase,
-        loadReaderChapterUseCase: LoadReaderChapterUseCase,
+        loadChaptersUseCase: RuleSourceLoadChaptersUseCase,
+        loadReaderChapterUseCase: RuleSourceLoadReaderChapterUseCase,
         definitionMapper: SourceDefinitionMapper = SourceDefinitionMapper(),
         outputMapper: SourceRuntimeOutputMapper = SourceRuntimeOutputMapper()
     ) {

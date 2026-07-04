@@ -52,15 +52,15 @@ struct SourceRuntimeFactory {
         )
     }
 
-    private func makeLoadChaptersUseCase() -> LoadChaptersUseCase {
-        return LoadChaptersUseCase(
+    private func makeLoadChaptersUseCase() -> RuleSourceLoadChaptersUseCase {
+        return RuleSourceLoadChaptersUseCase(
             pageContentLoader: self.pageContentLoader,
             ruleParser: self.ruleParser
         )
     }
 
-    private func makeLoadReaderChapterUseCase() -> LoadReaderChapterUseCase {
-        return LoadReaderChapterUseCase(
+    private func makeLoadReaderChapterUseCase() -> RuleSourceLoadReaderChapterUseCase {
+        return RuleSourceLoadReaderChapterUseCase(
             pageContentLoader: self.pageContentLoader,
             ruleParser: self.ruleParser
         )

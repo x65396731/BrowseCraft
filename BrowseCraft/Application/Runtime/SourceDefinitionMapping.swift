@@ -8,7 +8,7 @@ struct SourceDefinitionMapper {
             id: source.id,
             name: source.name,
             baseURL: source.baseURL,
-            version: source.rule.version,
+            version: source.ruleConfiguration?.rule.version,
             ownership: self.ownership(for: source),
             configuration: source.configuration
         )
@@ -85,4 +85,3 @@ struct SourceDefinitionMapper {
         return .user
     }
 }
-

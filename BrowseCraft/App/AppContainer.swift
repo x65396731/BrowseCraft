@@ -148,6 +148,7 @@ final class AppContainer {
             toggleFavoriteUseCase: toggleFavoriteUseCase,
             recordOpenItemUseCase: recordOpenItemUseCase,
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
+            resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase(),
             sourceSelectionStore: self.sourceSelectionStore
         )
     }
@@ -162,7 +163,8 @@ final class AppContainer {
         return ChapterListViewModel(
             item: item,
             source: source,
-            loadChaptersUseCase: loadChaptersUseCase
+            loadChaptersUseCase: loadChaptersUseCase,
+            resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase()
         )
     }
 
@@ -181,7 +183,8 @@ final class AppContainer {
             item: item,
             source: source,
             selectedChapter: selectedChapter,
-            loadReaderChapterUseCase: loadReaderChapterUseCase
+            loadReaderChapterUseCase: loadReaderChapterUseCase,
+            resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase()
         )
     }
 
