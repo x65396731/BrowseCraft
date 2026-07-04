@@ -263,6 +263,236 @@ extension Source {
   - PluginSourceRuntime MVP，适合 JS 签名、动态 token、多接口、反爬等规则难以表达的网站；
   - RSS optional runtime，低优先级。
 
+## P3-9.7 Architecture Hygiene（可选）
+
+目标：在进入新 runtime 或视频能力前，清理 P3-9 收口后暴露出的轻量结构残留，避免后续开发继续沿着旧边界扩张。
+
+触发原因：
+
+- P3-9.6 已确认 Source Config Neutralization 达到当前目标。
+- 但物理结构里仍有 `Application/Adapters/` 空目录残留。
+- `RefreshSourceUseCase` 仍留在 `Application/UseCases`，并且名字看起来像通用 source 刷新入口，但实现仍是 rule-list 刷新逻辑。
+- 这些问题不阻塞当前架构，但如果马上进入视频 / Plugin / RSS，容易让后续代码误用旧入口。
+
+预计改动：
+
+- 删除或处理 `BrowseCraft/Application/Adapters/` 空目录残留。
+- 审计 `RefreshSourceUseCase` 的调用点，判断它是否应：
+  - 暂时保留并加更明确注释；
+  - 改名为 rule-specific 名称；
+  - 或迁入 `Application/Runtime/Rule` 并保留 App 层 facade。
+- 如果移动 Swift 文件，必须执行 `./scripts/regenerate-project.sh`，并确认 CocoaPods 集成。
+- 更新架构记录，明确 P3-9 后 App 物理层最终形态。
+
+不做：
+
+- 不实现 RSS runtime。
+- 不实现视频网站解析。
+- 不执行 Plugin。
+- 不重写 Sources / Library / Reader UI。
+- 不删除 `source.rule` 兼容访问器。
+- 不把 rule parser 抽象成所有 runtime 共享 parser。
+
+验收：
+
+- `Application/Adapters/` 不再造成误导，或有明确保留理由。
+- `RefreshSourceUseCase` 的命名/位置/注释不会再被误解为通用 runtime 入口。
+- `Bridge|Adapter|unsupportedPersistedSourceKind` 无命名复发。
+- `BrowseCraft.xcodeproj/project.pbxproj` 不被提交。
+- 若改动 Swift 文件，通过 `SourceRuntimeMappingTests` + `RequestConfigUseCaseTests`；必要时补跑 P3-9.6 的 38-test 回归。
+
+建议测试：
+
+- 如果只改文档或删除空目录：静态检查即可。
+- 如果移动/改名 Swift 文件：
+  - `./scripts/regenerate-project.sh`
+  - `xcodebuild test -workspace BrowseCraft.xcworkspace -scheme BrowseCraft -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:BrowseCraftTests/SourceRuntimeMappingTests -only-testing:BrowseCraftTests/RequestConfigUseCaseTests`
+
+完成后选择：
+
+- 若 P3-9.7 无新增架构债：冻结 P3-9，进入下一阶段能力。
+- 下一阶段推荐优先级：
+  - PluginSourceRuntime MVP：更符合“替换强依赖、处理复杂站点”的长期目标。
+  - RuleSourceRuntime video capability：适合作为 Yealico 风格规则能力扩展。
+  - RSS optional runtime：可作为低优先级补充验证，不再作为主线。
+
+### P3-9.7a 物理结构卫生判定
+
+目标：先处理最容易误导后续架构判断的物理目录残留，不碰业务逻辑。
+
+当前已知：
+
+- `BrowseCraft/Application/Adapters/` 目前是空目录。
+- 项目已经不走 Bridge / Adapter 方案。
+- 用户明确不喜欢 Bridge 方案，因此目录命名也不应继续暗示这条路线。
+
+预计动作：
+
+- 确认 `Application/Adapters/` 是否真的为空。
+- 如果为空，删除该空目录或让它不再出现在项目物理结构中。
+- 扫描 `Bridge|Adapter` 命名，确认没有复发。
+- 输出新的 `Application` 物理结构快照。
+
+不做：
+
+- 不移动 Swift 文件。
+- 不改 XcodeGen。
+- 不改 runtime / use case 代码。
+
+建议验证：
+
+- `find BrowseCraft/Application -maxdepth 3 -type d | sort`
+- `rg -n "Bridge|Adapter" BrowseCraft BrowseCraftTests`
+- `git status --short`
+
+是否需要测试：
+
+- 不需要跑 xcodebuild。只删除空目录或确认物理结构时，静态检查足够。
+
+完成后下一节：
+
+- `P3-9.7b RefreshSourceUseCase 边界审计`。
+- 计划是否需要更新：通常不需要，除非 9.7a 发现 `Application/Adapters/` 并非空目录。
+
+### P3-9.7b RefreshSourceUseCase 边界审计
+
+目标：先判断 `RefreshSourceUseCase` 的正确归属，不急着改名或迁移。
+
+当前已知调用点：
+
+- `SourcesViewModel` 直接调用 `RefreshSourceUseCase.execute(source:)`。
+- `RuleSourceRuntime` 内部也通过 `RefreshSourceUseCase` 执行 rule list 刷新。
+- `SourceRuntimeFactory` 为 `RuleSourceRuntime` 构造 `RefreshSourceUseCase`。
+- `LibraryViewModel` 已经走 `RefreshSourceRuntimeUseCase`，不是这个旧入口。
+
+需要回答的问题：
+
+- `RefreshSourceUseCase` 是否应该变成 `RuleSourceRefreshUseCase` 并迁入 `Application/Runtime/Rule`？
+- `SourcesViewModel` 是否应改为走 `RefreshSourceRuntimeUseCase`，从而不再直接调用 rule-only 刷新？
+- 如果现在改动，会不会牵动 Sources 页面规则测试、规则编辑入口或 built-in source 行为？
+
+推荐判定：
+
+- 如果调用点和测试范围可控：进入 9.7c，做轻量迁移或 facade。
+- 如果迁移会明显扩大范围：保留当前位置，但强化命名注释，并把真正迁移放到下一阶段 Sources 页面 runtime 化。
+
+不做：
+
+- 不在 9.7b 写业务代码。
+- 不改 `SourcesViewModel` 行为。
+- 不新增 runtime。
+
+建议验证：
+
+- `rg -n "RefreshSourceUseCase|refreshSourceUseCase|RefreshSourceRuntimeUseCase|refreshSourceRuntimeUseCase" BrowseCraft BrowseCraftTests`
+- 阅读 `SourcesViewModel`、`RuleSourceRuntime`、`SourceRuntimeFactory` 中相关片段。
+
+是否需要测试：
+
+- 不需要。9.7b 是审计节点，只需要静态检查和结论记录。
+
+完成后下一节：
+
+- `P3-9.7c RefreshSourceUseCase 边界收口`。
+- 计划是否需要更新：取决于 9.7b 结论。如果选择“暂留注释”，9.7c 范围很小；如果选择“迁移/改名”，9.7c 需要 XcodeGen + tests。
+
+### P3-9.7c RefreshSourceUseCase 边界收口
+
+目标：根据 9.7b 的判定，让 `RefreshSourceUseCase` 不再被误解为所有 runtime 都能复用的通用 source 刷新入口。
+
+可选路径 A：保守注释收口
+
+- 保留文件位置：`Application/UseCases/RefreshSourceUseCase.swift`。
+- 强化类型注释，明确它是 legacy / rule-backed source list refresh。
+- 在 `SourceRuntimeFactory` 或 `RuleSourceRuntime` 装配处补一句边界说明。
+- 优点：改动小，不影响 Sources 页面。
+- 缺点：物理位置仍在 App UseCases，下阶段仍要记得迁移。
+
+可选路径 B：runtime 内部实现 + App facade
+
+- 将真正实现迁入 `Application/Runtime/Rule/RuleSourceRefreshUseCase.swift`。
+- 在 `Application/UseCases/RefreshSourceUseCase.swift` 保留 App facade 给 `SourcesViewModel` 用。
+- `RuleSourceRuntime` 内部改用 `RuleSourceRefreshUseCase`。
+- 优点：与 9.5 的 reader/search 收口方式一致。
+- 缺点：新增/移动 Swift 文件，需要 XcodeGen、pod install、targeted tests。
+
+可选路径 C：Sources 页面改走 runtime facade
+
+- 让 `SourcesViewModel` 改用 `RefreshSourceRuntimeUseCase`。
+- `RefreshSourceUseCase` 完全收进 `RuleSourceRuntime`。
+- 优点：更接近最终 runtime-first。
+- 缺点：可能牵动 Sources 页面行为，风险最大；不建议在 9.7 做。
+
+推荐：
+
+- 优先选择路径 B。
+- 如果实施中发现 `SourcesViewModel` 牵动过多，则退回路径 A。
+- 暂不选择路径 C，留给后续 Sources 页面 runtime 化节点。
+
+不做：
+
+- 不改变刷新行为。
+- 不改缓存策略。
+- 不改 Sources 页面 UI。
+- 不把 `RefreshSourceUseCase` 抽象成 RSS / Plugin 共享用例。
+
+建议验证：
+
+- 若路径 A：`git diff --check` + 命名扫描。
+- 若路径 B：
+  - `./scripts/regenerate-project.sh`
+  - `xcodebuild test -workspace BrowseCraft.xcworkspace -scheme BrowseCraft -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:BrowseCraftTests/SourceRuntimeMappingTests -only-testing:BrowseCraftTests/RequestConfigUseCaseTests`
+- 若路径 C：不建议在 9.7 执行；如果执行，至少补跑 P3-9.6 的 38-test 回归。
+
+完成后下一节：
+
+- `P3-9.7d P3-9 final structure regression`。
+- 计划是否需要更新：如果 9.7c 选择路径 A 或 B，不需要；如果选择路径 C，需要更新计划并扩大测试范围。
+
+### P3-9.7d P3-9 最终结构回归
+
+目标：冻结 P3-9 最终物理结构，为下一阶段能力开发提供清晰基线。
+
+检查项：
+
+- `Application` 物理目录是否仍只有合理分层：
+  - `Runtime/`
+  - `Runtime/Rule/`
+  - `Runtime/Debug/`
+  - `UseCases/`
+- 是否仍存在误导性 `Adapters/` 或 Bridge 命名。
+- `RefreshSourceUseCase` 是否已按 9.7c 结论处理。
+- `Source` / `SourceRecord` / Library / Reader 的 P3-9 目标是否未回退。
+- `BrowseCraft.xcodeproj/project.pbxproj` 是否未被提交。
+- Core 是否仍干净或测试通过。
+
+建议验证：
+
+- `find BrowseCraft/Application -maxdepth 3 -type d | sort`
+- `rg -n "Bridge|Adapter|unsupportedPersistedSourceKind" BrowseCraft BrowseCraftTests /Users/xiefei/Desktop/BrowseCraftCore/Sources /Users/xiefei/Desktop/BrowseCraftCore/Tests`
+- `git diff --check`
+- 如果 9.7c 改了 Swift 文件，跑 targeted App tests。
+- 如 Core 未改，可只检查 Core status；如 Core 有改动，跑 `swift test`。
+
+输出要求：
+
+- 新增 `TestResults/BrowseCraft-P3-9-7-Architecture-Hygiene-Run1.md`。
+- 记录最终物理结构快照。
+- 记录选择了 9.7c 的哪条路径和原因。
+- 明确下一阶段推荐：
+  - PluginSourceRuntime MVP；
+  - 或 RuleSourceRuntime video capability；
+  - RSS optional runtime 低优先级。
+
+完成后下一节：
+
+- 如果用户同意冻结 P3-9：进入下一阶段计划细化。
+- 建议下一阶段先细化 `P3-10 PluginSourceRuntime MVP`，除非用户明确要先做视频规则能力。
+
+计划是否需要更新：
+
+- P3-9.7d 完成后需要更新当前工作记录，把 P3-9 标记为可冻结。
+
 ## 非目标总表
 
 P3-9 不做这些事情：

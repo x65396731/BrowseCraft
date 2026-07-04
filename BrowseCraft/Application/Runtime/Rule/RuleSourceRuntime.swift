@@ -6,7 +6,7 @@ import BrowseCraftCore
 struct RuleSourceRuntime: SourceRuntime {
     let source: Source
 
-    private let refreshSourceUseCase: RefreshSourceUseCase
+    private let refreshSourceUseCase: RuleSourceRefreshUseCase
     private let searchSourceUseCase: SearchSourceUseCase
     private let loadChaptersUseCase: RuleSourceLoadChaptersUseCase
     private let loadReaderChapterUseCase: RuleSourceLoadReaderChapterUseCase
@@ -15,7 +15,7 @@ struct RuleSourceRuntime: SourceRuntime {
 
     init(
         source: Source,
-        refreshSourceUseCase: RefreshSourceUseCase,
+        refreshSourceUseCase: RuleSourceRefreshUseCase,
         searchSourceUseCase: SearchSourceUseCase,
         loadChaptersUseCase: RuleSourceLoadChaptersUseCase,
         loadReaderChapterUseCase: RuleSourceLoadReaderChapterUseCase,

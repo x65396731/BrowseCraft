@@ -35,8 +35,8 @@ struct SourceRuntimeFactory {
         )
     }
 
-    private func makeRefreshSourceUseCase() -> RefreshSourceUseCase {
-        return RefreshSourceUseCase(
+    private func makeRefreshSourceUseCase() -> RuleSourceRefreshUseCase {
+        return RuleSourceRefreshUseCase(
             pageContentLoader: self.pageContentLoader,
             ruleParser: self.ruleParser,
             urlResolver: self.urlResolver,

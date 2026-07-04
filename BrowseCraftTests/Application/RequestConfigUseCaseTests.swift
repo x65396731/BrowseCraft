@@ -198,7 +198,7 @@ struct RequestConfigUseCaseTests {
                 Self.cachedItem(id: "runtime-latest", sourceID: source.id, tab: latestTab)
             ]
         ]
-        let refreshUseCase = RefreshSourceUseCase(
+        let refreshUseCase = RuleSourceRefreshUseCase(
             httpClient: httpClient,
             ruleParser: ruleParser,
             urlResolver: URLResolvingService(),
@@ -422,7 +422,7 @@ struct RequestConfigUseCaseTests {
                 Self.cachedItem(id: "discover-runtime", sourceID: source.id, tab: discoverTab)
             ]
         ]
-        let refreshUseCase: RefreshSourceUseCase = RefreshSourceUseCase(
+        let refreshUseCase: RuleSourceRefreshUseCase = RuleSourceRefreshUseCase(
             httpClient: httpClient,
             ruleParser: ruleParser,
             urlResolver: URLResolvingService(),
@@ -803,7 +803,7 @@ struct RequestConfigUseCaseTests {
     ) -> RuleSourceRuntime {
         return RuleSourceRuntime(
             source: source,
-            refreshSourceUseCase: RefreshSourceUseCase(
+            refreshSourceUseCase: RuleSourceRefreshUseCase(
                 httpClient: httpClient,
                 ruleParser: ruleParser,
                 urlResolver: URLResolvingService(),
