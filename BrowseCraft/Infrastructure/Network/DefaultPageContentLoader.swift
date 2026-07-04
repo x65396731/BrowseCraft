@@ -5,14 +5,14 @@ import Foundation
 /// 中文注释：默认页面加载器；没有 needsWebView 时保持 Alamofire 抓取，只有规则显式要求时才走 WebView。
 final class DefaultPageContentLoader: PageContentLoader {
     private let httpClient: HTTPClient
-    private let webViewContentLoader: WebViewContentLoader
+    private let renderedPageContentLoader: RenderedPageContentLoader
 
     init(
         httpClient: HTTPClient,
-        webViewContentLoader: WebViewContentLoader = WKWebViewHTMLLoader()
+        renderedPageContentLoader: RenderedPageContentLoader = WKWebViewHTMLLoader()
     ) {
         self.httpClient = httpClient
-        self.webViewContentLoader = webViewContentLoader
+        self.renderedPageContentLoader = renderedPageContentLoader
     }
 
     /// 中文注释：P1-4.3 的核心分流点；WebView 只作为页面获取能力，不改变原生列表和阅读 UI。
@@ -30,7 +30,7 @@ final class DefaultPageContentLoader: PageContentLoader {
         )
         #endif
 
-        return try await self.webViewContentLoader.getRenderedString(
+        return try await self.renderedPageContentLoader.getRenderedString(
             from: url,
             request: request
         )

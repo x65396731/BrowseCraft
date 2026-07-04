@@ -19,7 +19,7 @@ enum WKWebViewHTMLLoaderError: LocalizedError {
 }
 
 /// 中文注释：真实 WKWebView 实现；仅用于规则标记 needsWebView 的页面内容获取。
-final class WKWebViewHTMLLoader: WebViewContentLoader {
+final class WKWebViewHTMLLoader: RenderedPageContentLoader {
     @MainActor
     func getRenderedString(from url: URL, request: RequestConfig?) async throws -> String {
         let operation: WKWebViewHTMLLoadOperation = WKWebViewHTMLLoadOperation(

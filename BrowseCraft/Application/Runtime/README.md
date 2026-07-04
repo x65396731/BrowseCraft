@@ -27,8 +27,10 @@ Planned responsibilities:
 - Keep `SourceDefinitionMapping` as the runtime-neutral Source-to-Core metadata
   mapping boundary.
 - Keep `Rule/RuleSourceRuntime` as the rule-backed runtime implementation.
-- Keep rule-only mapping in `Rule/RuleSourceRuntimeMapping`; it is not a shared
-  App/Core adapter layer.
+- Keep rule-only loading in `Rule/Loading/`; list/search/chapter/reader loaders
+  are runtime internals, not shared App use cases.
+- Keep rule-only mapping in `Rule/Mapping/RuleSourceRuntimeMapping`; it is not a
+  shared App/Core compatibility layer.
 - Keep debug/source summary mapping in `Debug/RuleDebugSourceMapping`.
 - Add runtime-facing use cases before wiring Library and Reader features to them.
 - Return unsupported diagnostics for RSS and plugin runtimes until those runtime

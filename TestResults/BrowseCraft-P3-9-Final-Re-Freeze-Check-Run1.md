@@ -33,12 +33,13 @@ BrowseCraft/Application/UseCases
 App Runtime/Rule：
 
 ```text
-BrowseCraft/Application/Runtime/Rule/RuleSourceItemReferenceMapping.swift
-BrowseCraft/Application/Runtime/Rule/RuleSourceListLoader.swift
-BrowseCraft/Application/Runtime/Rule/RuleSourceReaderLoaders.swift
+BrowseCraft/Application/Runtime/Rule/Loading/RuleSourceChapterLoader.swift
+BrowseCraft/Application/Runtime/Rule/Loading/RuleSourceListLoader.swift
+BrowseCraft/Application/Runtime/Rule/Loading/RuleSourceReaderLoader.swift
+BrowseCraft/Application/Runtime/Rule/Loading/RuleSourceSearchLoader.swift
+BrowseCraft/Application/Runtime/Rule/Mapping/RuleSourceItemReferenceMapping.swift
+BrowseCraft/Application/Runtime/Rule/Mapping/RuleSourceRuntimeMapping.swift
 BrowseCraft/Application/Runtime/Rule/RuleSourceRuntime.swift
-BrowseCraft/Application/Runtime/Rule/RuleSourceRuntimeMapping.swift
-BrowseCraft/Application/Runtime/Rule/RuleSourceSearchLoader.swift
 ```
 
 Core：
@@ -121,17 +122,29 @@ Core App-only 依赖扫描结果：
 - `BrowseCraft/Domain/Models/RuleCandidateModels.swift` -> `BrowseCraft/Domain/Models/CoreRuleCandidateCompatibility.swift`
 - 删除空壳 `BrowseCraft/Domain/Models/ContentType.swift`；`ContentType` 已由 `CoreRuleTypealiases.swift` 暴露。
 - `BrowseCraft/Domain/Services/RuleCandidateDraftApplier.swift` -> `BrowseCraft/Domain/Services/CoreRuleCandidateDraftApplierCompatibility.swift`
+- 追加物理层归位：上述 4 个 App 侧 Core 兼容入口已集中到 `BrowseCraft/Domain/CoreCompatibility/`。
+- `BrowseCraft/Domain/Services/WebViewContentLoader.swift` -> `BrowseCraft/Domain/Services/RenderedPageContentLoader.swift`
+- Runtime/Rule 物理层补充归位：
+  - loading internals 迁入 `BrowseCraft/Application/Runtime/Rule/Loading/`。
+  - mapping internals 迁入 `BrowseCraft/Application/Runtime/Rule/Mapping/`。
+  - `RuleSourceReaderLoaders.swift` 拆分为 `RuleSourceChapterLoader.swift` 和 `RuleSourceReaderLoader.swift`。
 
 该补充不改变业务逻辑，只消除 Xcode 物理结构中的误导性文件名。摘要见：
 
 - `TestResults/BrowseCraft-P3-9-Core-Rule-Typealias-Rename-Run1.md`
 - `TestResults/BrowseCraft-P3-9-Core-Candidate-Applier-Compatibility-Run1.md`
+- `TestResults/BrowseCraft-P3-9-Core-Compatibility-Placement-Run1.md`
+- `TestResults/BrowseCraft-P3-9-Rendered-Page-Content-Loader-Naming-Run1.md`
+- `TestResults/BrowseCraft-P3-9-Rule-Runtime-Physical-Layer-Run1.md`
 
 补充验证：
 
 - `./scripts/regenerate-project.sh` 通过。
 - App targeted tests 45 passed，0 failures。
 - App candidate compatibility targeted tests 22 passed，0 failures。
+- App CoreCompatibility placement targeted tests 41 passed，0 failures。
+- App rendered page loader naming targeted tests 30 passed，0 failures。
+- App rule runtime physical layer targeted tests 33 passed，0 failures。
 
 ## 测试状态
 

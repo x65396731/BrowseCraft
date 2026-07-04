@@ -1,7 +1,7 @@
 import BrowseCraftCore
 import Foundation
 
-// 中文注释：App 侧 Core rule candidate 兼容入口；稳定 candidate 合同定义在 BrowseCraftCore。
+// 中文注释：Domain/CoreCompatibility 集中承载 App 侧 Core rule candidate 兼容入口；稳定 candidate 合同定义在 BrowseCraftCore。
 
 typealias RuleCandidateReport = SourceRuleCandidateReport
 typealias RuleCandidateSummary = SourceRuleCandidateSummary
