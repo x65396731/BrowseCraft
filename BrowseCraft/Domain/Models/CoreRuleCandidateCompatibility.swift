@@ -1,8 +1,7 @@
 import BrowseCraftCore
 import Foundation
 
-// RuleCandidateModels keeps the App-facing P2-7 names as aliases while the
-// stable candidate contract lives in BrowseCraftCore.
+// 中文注释：App 侧 Core rule candidate 兼容入口；稳定 candidate 合同定义在 BrowseCraftCore。
 
 typealias RuleCandidateReport = SourceRuleCandidateReport
 typealias RuleCandidateSummary = SourceRuleCandidateSummary

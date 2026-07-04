@@ -1,6 +1,8 @@
 import Foundation
 import BrowseCraftCore
 
+// 中文注释：App 侧 Core rule candidate draft applier 兼容入口；真实实现定义在 BrowseCraftCore。
+
 typealias RuleCandidateDraftApplier = SourceRuleCandidateDraftApplier
 
 extension SourceRuleCandidateDraftApplier {

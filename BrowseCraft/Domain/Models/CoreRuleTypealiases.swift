@@ -1,7 +1,7 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：SiteRule 主模型已迁移到 BrowseCraftCore；这里保留 App 侧兼容入口和依赖 RuleResolver 的扩展。
+// 中文注释：App 侧 Core rule typealias 入口；真实规则模型定义在 BrowseCraftCore。
 
 typealias SiteRule = BrowseCraftCore.SiteRule
 typealias ListRule = BrowseCraftCore.ListRule
