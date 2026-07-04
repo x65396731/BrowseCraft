@@ -293,8 +293,6 @@ struct RuleValidator {
     }
 
     private func appendPrimaryFlowIssues(rule: SiteRule, issues: inout [RuleValidationResult.Issue]) {
-        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(rule)
-
         if rule.availableListTabs.isEmpty {
             issues.append(
                 RuleValidationResult.Issue(
@@ -305,7 +303,7 @@ struct RuleValidator {
             )
         }
 
-        if resolvedRule.primaryDetailRule == nil {
+        if self.hasPrimaryDetailRule(rule) == false {
             issues.append(
                 RuleValidationResult.Issue(
                     id: "detail-rule-missing",
@@ -315,7 +313,7 @@ struct RuleValidator {
             )
         }
 
-        if resolvedRule.primaryGalleryRule == nil {
+        if self.hasPrimaryGalleryRule(rule) == false {
             issues.append(
                 RuleValidationResult.Issue(
                     id: "gallery-rule-missing",
@@ -323,6 +321,36 @@ struct RuleValidator {
                     message: "No gallery/reader rule is configured."
                 )
             )
+        }
+    }
+
+    private func hasPrimaryDetailRule(_ rule: SiteRule) -> Bool {
+        if rule.detail != nil {
+            return true
+        }
+
+        guard let pages: [PageRule] = rule.pages,
+              let ruleSets: RuleSets = rule.ruleSets else {
+            return false
+        }
+
+        return pages.contains { page in
+            page.isDetailEntryPage && ruleSets.detailRule(id: page.ruleRefs?.detail) != nil
+        }
+    }
+
+    private func hasPrimaryGalleryRule(_ rule: SiteRule) -> Bool {
+        if rule.gallery != nil {
+            return true
+        }
+
+        guard let pages: [PageRule] = rule.pages,
+              let ruleSets: RuleSets = rule.ruleSets else {
+            return false
+        }
+
+        return pages.contains { page in
+            page.isGalleryEntryPage && ruleSets.galleryRule(id: page.ruleRefs?.gallery) != nil
         }
     }
 }

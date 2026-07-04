@@ -1,8 +1,8 @@
 import BrowseCraftCore
 import Foundation
 
-// 中文注释：P3-5.1 只建立 App 规则模型到 Core 轻量 primitive 的映射，不迁移 SiteRule 大模型。
-extension SiteRule {
+// 中文注释：P3-5.6 后 SiteRule 主模型已在 Core；这里暂留 Core SiteRule 到 Core schema 的 App 侧适配。
+extension BrowseCraftCore.SiteRule {
     func browseCraftRuleSchema() throws -> BrowseCraftRuleSchema {
         let data: Data = try JSONEncoder().encode(self)
         return try JSONDecoder().decode(BrowseCraftRuleSchema.self, from: data)
@@ -97,7 +97,7 @@ extension RuleCandidateField {
     }
 }
 
-extension SelectorKind {
+extension BrowseCraftCore.SelectorKind {
     var sourceRuleSelectorKind: SourceRuleSelectorKind {
         switch self {
         case .css:
@@ -127,7 +127,7 @@ extension SourceRuleSelectorKind {
     }
 }
 
-extension ExtractFunction {
+extension BrowseCraftCore.ExtractFunction {
     var sourceRuleExtractFunction: SourceRuleExtractFunction {
         switch self {
         case .text:

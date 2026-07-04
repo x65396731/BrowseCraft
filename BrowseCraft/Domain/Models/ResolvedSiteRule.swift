@@ -12,8 +12,10 @@ final class ResolvedSiteRule {
         self.raw = raw
         self.detailEntry = nil
         self.galleryEntry = nil
-        self.detailEntry = self.resolveDetailEntry()
-        self.galleryEntry = self.resolveGalleryEntry()
+        withUnsafePointer(to: self.raw) { rawPointer in
+            self.detailEntry = Self.resolveDetailEntry(raw: rawPointer)
+            self.galleryEntry = Self.resolveGalleryEntry(raw: rawPointer)
+        }
     }
 
     var primaryDetailRule: DetailRule? {
@@ -94,27 +96,36 @@ final class ResolvedSiteRule {
         return self.raw.ruleSets?.galleryRules?[ruleIndex]
     }
 
-    private func resolveDetailEntry() -> ResolvedDetailEntry? {
-        if let pages: [PageRule] = self.raw.pages,
-           let detailRules: [DetailRule] = self.raw.ruleSets?.detailRules {
+    private static func resolveDetailEntry(raw: UnsafePointer<SiteRule>) -> ResolvedDetailEntry? {
+        if let pages: [PageRule] = raw.pointee.pages,
+           let detailRules: [DetailRule] = raw.pointee.ruleSets?.detailRules {
             for pageIndex: Array<PageRule>.Index in pages.indices {
-                let page: PageRule = pages[pageIndex]
-                guard page.isDetailEntryPage,
-                      let ruleIndex: Array<DetailRule>.Index = self.detailRuleIndex(
-                          id: page.ruleRefs?.detail,
-                          in: detailRules
-                      ) else {
+                guard pages[pageIndex].isDetailEntryPage,
+                      let normalizedRuleID: String = Self.normalizedRuleID(pages[pageIndex].ruleRefs?.detail) else {
+                    continue
+                }
+
+                var matchedRuleIndex: Array<DetailRule>.Index?
+                for ruleIndex: Array<DetailRule>.Index in detailRules.indices {
+                    if detailRules[ruleIndex].id == normalizedRuleID {
+                        matchedRuleIndex = ruleIndex
+                        break
+                    }
+                }
+
+                guard let ruleIndex: Array<DetailRule>.Index = matchedRuleIndex else {
                     continue
                 }
 
                 return ResolvedDetailEntry(
                     pageIndex: pageIndex,
                     ruleIndex: ruleIndex,
-                    pageID: page.id,
+                    pageID: pages[pageIndex].id,
                     ruleID: detailRules[ruleIndex].id,
-                    pageRequest: page.request,
-                    effectiveRequest: self.effectiveRequest(
-                        pageRequest: page.request,
+                    pageRequest: pages[pageIndex].request,
+                    effectiveRequest: Self.effectiveRequest(
+                        sharedRequest: raw.pointee.sharedRequest,
+                        pageRequest: pages[pageIndex].request,
                         ruleRequest: detailRules[ruleIndex].request
                     ),
                     usesLegacyRule: false
@@ -122,7 +133,7 @@ final class ResolvedSiteRule {
             }
         }
 
-        guard let detailRule: DetailRule = self.raw.detail else {
+        guard raw.pointee.detail != nil else {
             return nil
         }
 
@@ -130,37 +141,47 @@ final class ResolvedSiteRule {
             pageIndex: nil,
             ruleIndex: nil,
             pageID: nil,
-            ruleID: detailRule.id,
+            ruleID: raw.pointee.detail?.id,
             pageRequest: nil,
-            effectiveRequest: self.effectiveRequest(
+            effectiveRequest: Self.effectiveRequest(
+                sharedRequest: raw.pointee.sharedRequest,
                 pageRequest: nil,
-                ruleRequest: detailRule.request
+                ruleRequest: raw.pointee.detail?.request
             ),
             usesLegacyRule: true
         )
     }
 
-    private func resolveGalleryEntry() -> ResolvedGalleryEntry? {
-        if let pages: [PageRule] = self.raw.pages,
-           let galleryRules: [GalleryRule] = self.raw.ruleSets?.galleryRules {
+    private static func resolveGalleryEntry(raw: UnsafePointer<SiteRule>) -> ResolvedGalleryEntry? {
+        if let pages: [PageRule] = raw.pointee.pages,
+           let galleryRules: [GalleryRule] = raw.pointee.ruleSets?.galleryRules {
             for pageIndex: Array<PageRule>.Index in pages.indices {
-                let page: PageRule = pages[pageIndex]
-                guard page.isGalleryEntryPage,
-                      let ruleIndex: Array<GalleryRule>.Index = self.galleryRuleIndex(
-                          id: page.ruleRefs?.gallery,
-                          in: galleryRules
-                      ) else {
+                guard pages[pageIndex].isGalleryEntryPage,
+                      let normalizedRuleID: String = Self.normalizedRuleID(pages[pageIndex].ruleRefs?.gallery) else {
+                    continue
+                }
+
+                var matchedRuleIndex: Array<GalleryRule>.Index?
+                for ruleIndex: Array<GalleryRule>.Index in galleryRules.indices {
+                    if galleryRules[ruleIndex].id == normalizedRuleID {
+                        matchedRuleIndex = ruleIndex
+                        break
+                    }
+                }
+
+                guard let ruleIndex: Array<GalleryRule>.Index = matchedRuleIndex else {
                     continue
                 }
 
                 return ResolvedGalleryEntry(
                     pageIndex: pageIndex,
                     ruleIndex: ruleIndex,
-                    pageID: page.id,
+                    pageID: pages[pageIndex].id,
                     ruleID: galleryRules[ruleIndex].id,
-                    pageRequest: page.request,
-                    effectiveRequest: self.effectiveRequest(
-                        pageRequest: page.request,
+                    pageRequest: pages[pageIndex].request,
+                    effectiveRequest: Self.effectiveRequest(
+                        sharedRequest: raw.pointee.sharedRequest,
+                        pageRequest: pages[pageIndex].request,
                         ruleRequest: galleryRules[ruleIndex].request
                     ),
                     usesLegacyRule: false
@@ -168,7 +189,7 @@ final class ResolvedSiteRule {
             }
         }
 
-        guard let galleryRule: GalleryRule = self.raw.gallery else {
+        guard raw.pointee.gallery != nil else {
             return nil
         }
 
@@ -176,37 +197,18 @@ final class ResolvedSiteRule {
             pageIndex: nil,
             ruleIndex: nil,
             pageID: nil,
-            ruleID: galleryRule.id,
+            ruleID: raw.pointee.gallery?.id,
             pageRequest: nil,
-            effectiveRequest: self.effectiveRequest(
+            effectiveRequest: Self.effectiveRequest(
+                sharedRequest: raw.pointee.sharedRequest,
                 pageRequest: nil,
-                ruleRequest: galleryRule.request
+                ruleRequest: raw.pointee.gallery?.request
             ),
             usesLegacyRule: true
         )
     }
 
-    private func detailRuleIndex(id: String?, in rules: [DetailRule]) -> Array<DetailRule>.Index? {
-        guard let normalizedID: String = self.normalizedRuleID(id) else {
-            return nil
-        }
-
-        return rules.firstIndex { rule in
-            return rule.id == normalizedID
-        }
-    }
-
-    private func galleryRuleIndex(id: String?, in rules: [GalleryRule]) -> Array<GalleryRule>.Index? {
-        guard let normalizedID: String = self.normalizedRuleID(id) else {
-            return nil
-        }
-
-        return rules.firstIndex { rule in
-            return rule.id == normalizedID
-        }
-    }
-
-    private func normalizedRuleID(_ id: String?) -> String? {
+    private static func normalizedRuleID(_ id: String?) -> String? {
         guard let normalizedID: String = id?.trimmingCharacters(in: .whitespacesAndNewlines),
               normalizedID.isEmpty == false else {
             return nil
@@ -216,8 +218,12 @@ final class ResolvedSiteRule {
     }
 
     /// 中文注释：P1-4.1 的选择策略保持 Rule > Page > Site，不在 resolved graph 中做深度合并。
-    private func effectiveRequest(pageRequest: RequestConfig?, ruleRequest: RequestConfig?) -> RequestConfig? {
-        return ruleRequest ?? pageRequest ?? self.raw.sharedRequest
+    private static func effectiveRequest(
+        sharedRequest: RequestConfig?,
+        pageRequest: RequestConfig?,
+        ruleRequest: RequestConfig?
+    ) -> RequestConfig? {
+        return ruleRequest ?? pageRequest ?? sharedRequest
     }
 }
 

@@ -18,12 +18,3 @@ struct ContentItem: Identifiable, Hashable {
     /// 中文注释：记录列表项来自哪个页面、Tab 或 Section，后续详情/阅读页可用它缩小解析范围。
     var listContext: ListContext? = nil
 }
-
-/// 中文注释：ListContext 是列表项的来源上下文，不描述内容本身，只描述它从哪个规则入口被解析出来。
-struct ListContext: Codable, Hashable {
-    var pageId: String?
-    var tabId: String?
-    var sectionId: String?
-    var listRuleId: String?
-    var sectionRole: SectionRole?
-}
