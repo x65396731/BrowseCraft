@@ -3,11 +3,11 @@ import Testing
 @testable import BrowseCraft
 
 // P2-7.2 covers the list candidate MVP without connecting it to UI or rule saving.
-struct SwiftSoupRuleCandidateAnalyzerTests {
-    @Test func listAnalyzerRecommendsItemAndFieldCandidates() throws {
+struct SwiftSoupRuleSelectorFinderTests {
+    @Test func listSelectorFinderRecommendsItemAndFieldCandidates() throws {
         let source: Source = try Self.source()
         var nextID: Int = 0
-        let analyzer: SwiftSoupRuleCandidateAnalyzer = SwiftSoupRuleCandidateAnalyzer(
+        let selectorFinder: SwiftSoupRuleSelectorFinder = SwiftSoupRuleSelectorFinder(
             now: {
                 return Date(timeIntervalSince1970: 7_200)
             },
@@ -17,7 +17,7 @@ struct SwiftSoupRuleCandidateAnalyzerTests {
             }
         )
 
-        let report: RuleCandidateReport = try analyzer.analyzeList(
+        let report: RuleCandidateReport = try selectorFinder.analyzeList(
             html: Self.listHTML,
             source: source,
             listRule: source.rule.ruleSets?.listRule(id: "home-list"),
@@ -61,10 +61,10 @@ struct SwiftSoupRuleCandidateAnalyzerTests {
         #expect(latestCandidate.selector == ".badge")
     }
 
-    @Test func detailAnalyzerRecommendsChapterCandidatesWithoutRecommendationNoise() throws {
+    @Test func detailSelectorFinderRecommendsChapterCandidatesWithoutRecommendationNoise() throws {
         let source: Source = try Self.source()
         var nextID: Int = 0
-        let analyzer: SwiftSoupRuleCandidateAnalyzer = SwiftSoupRuleCandidateAnalyzer(
+        let selectorFinder: SwiftSoupRuleSelectorFinder = SwiftSoupRuleSelectorFinder(
             now: {
                 return Date(timeIntervalSince1970: 7_300)
             },
@@ -74,7 +74,7 @@ struct SwiftSoupRuleCandidateAnalyzerTests {
             }
         )
 
-        let report: RuleCandidateReport = try analyzer.analyzeDetail(
+        let report: RuleCandidateReport = try selectorFinder.analyzeDetail(
             html: Self.detailHTML,
             source: source,
             detailRule: source.rule.ruleSets?.detailRule(id: "detail"),
@@ -109,10 +109,10 @@ struct SwiftSoupRuleCandidateAnalyzerTests {
         })
     }
 
-    @Test func readerAnalyzerRecommendsPageImagesWithoutAdOrAvatarNoise() throws {
+    @Test func readerSelectorFinderRecommendsPageImagesWithoutAdOrAvatarNoise() throws {
         let source: Source = try Self.source()
         var nextID: Int = 0
-        let analyzer: SwiftSoupRuleCandidateAnalyzer = SwiftSoupRuleCandidateAnalyzer(
+        let selectorFinder: SwiftSoupRuleSelectorFinder = SwiftSoupRuleSelectorFinder(
             now: {
                 return Date(timeIntervalSince1970: 7_400)
             },
@@ -122,7 +122,7 @@ struct SwiftSoupRuleCandidateAnalyzerTests {
             }
         )
 
-        let report: RuleCandidateReport = try analyzer.analyzeReader(
+        let report: RuleCandidateReport = try selectorFinder.analyzeReader(
             html: Self.readerHTML,
             source: source,
             galleryRule: source.rule.ruleSets?.galleryRule(id: "reader-gallery"),
@@ -158,7 +158,7 @@ struct SwiftSoupRuleCandidateAnalyzerTests {
     @Test func paginationAnalyzerRecommendsNextLinkAndPagePlaceholder() throws {
         let source: Source = try Self.source()
         var nextID: Int = 0
-        let analyzer: SwiftSoupRuleCandidateAnalyzer = SwiftSoupRuleCandidateAnalyzer(
+        let selectorFinder: SwiftSoupRuleSelectorFinder = SwiftSoupRuleSelectorFinder(
             now: {
                 return Date(timeIntervalSince1970: 7_500)
             },
@@ -168,7 +168,7 @@ struct SwiftSoupRuleCandidateAnalyzerTests {
             }
         )
 
-        let report: RuleCandidateReport = try analyzer.analyzePagination(
+        let report: RuleCandidateReport = try selectorFinder.analyzePagination(
             html: Self.paginationHTML,
             source: source,
             pagination: PaginationRule(

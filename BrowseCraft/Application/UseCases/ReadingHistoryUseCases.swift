@@ -1,6 +1,6 @@
 import Foundation
 
-// 中文注释：ReadingHistoryUseCases 承接新的 RSS/漫画历史保存与读取用例。
+// 中文注释：ReadingHistoryUseCases 承接 RSS、漫画和视频历史保存与读取用例。
 
 /// 中文注释：保存 RSS 详情页历史；具体触发点会在 RSS 详情页接入小节处理。
 struct SaveRSSReadingHistoryUseCase {
@@ -28,17 +28,71 @@ struct SaveComicChapterHistoryUseCase {
     }
 }
 
-/// 中文注释：聚合 RSS 和漫画历史，供 History 页面按访问时间倒序展示。
+/// 中文注释：保存视频观看历史；播放器接入后会在进入播放、离开播放和自动保存时调用。
+struct SaveVideoWatchHistoryUseCase {
+    private let repository: VideoWatchHistoryRepository
+
+    init(repository: VideoWatchHistoryRepository) {
+        self.repository = repository
+    }
+
+    func execute(history: VideoWatchHistory) throws {
+        try self.repository.save(history)
+    }
+
+    func execute(
+        userID: String,
+        source: Source,
+        reference: SourceVideoPlaybackReference,
+        videoTitle: String,
+        detailURL: URL?,
+        coverURL: URL?,
+        lastPlaybackTime: TimeInterval,
+        duration: TimeInterval?,
+        visitedAt: Date = Date()
+    ) throws {
+        let history: VideoWatchHistory = VideoWatchHistory(
+            userID: userID,
+            sourceID: source.id,
+            vodID: reference.vodID,
+            videoTitle: videoTitle,
+            episodeTitle: reference.episodeTitle,
+            episodeKey: reference.episodeKey,
+            sourceIndex: reference.sourceIndex,
+            episodeIndex: reference.episodeIndex,
+            detailURL: detailURL,
+            playPageURL: reference.playPageURL,
+            candidateMediaURL: reference.candidateMediaURL,
+            candidateMediaKind: reference.candidateMediaKind,
+            playbackRequestConfig: reference.playbackRequestConfig,
+            coverURL: coverURL,
+            sourceName: reference.sourceName ?? source.name,
+            lastPlaybackTime: lastPlaybackTime,
+            duration: duration,
+            visitedAt: visitedAt,
+            updatedAt: visitedAt,
+            previousEpisodeURL: reference.previousEpisodeURL,
+            nextEpisodeURL: reference.nextEpisodeURL
+        )
+
+        try self.execute(history: history)
+    }
+}
+
+/// 中文注释：聚合 RSS、漫画和视频历史，供 History 页面按访问时间倒序展示。
 struct LoadReadingHistoryEntriesUseCase {
     private let rssRepository: RSSReadingHistoryRepository
     private let comicRepository: ComicChapterHistoryRepository
+    private let videoRepository: VideoWatchHistoryRepository
 
     init(
         rssRepository: RSSReadingHistoryRepository,
-        comicRepository: ComicChapterHistoryRepository
+        comicRepository: ComicChapterHistoryRepository,
+        videoRepository: VideoWatchHistoryRepository
     ) {
         self.rssRepository = rssRepository
         self.comicRepository = comicRepository
+        self.videoRepository = videoRepository
     }
 
     func execute(userID: String) throws -> [ReadingHistoryEntry] {
@@ -53,8 +107,13 @@ struct LoadReadingHistoryEntriesUseCase {
             .map { history in
                 return ReadingHistoryEntry(comicHistory: history)
             }
+        let videoEntries: [ReadingHistoryEntry] = try self.videoRepository
+            .fetchHistory(userID: userID)
+            .map { history in
+                return ReadingHistoryEntry(videoHistory: history)
+            }
 
-        return (rssEntries + comicEntries).sorted { lhs, rhs in
+        return (rssEntries + comicEntries + videoEntries).sorted { lhs, rhs in
             return lhs.visitedAt > rhs.visitedAt
         }
     }

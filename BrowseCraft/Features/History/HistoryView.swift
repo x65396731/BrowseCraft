@@ -68,6 +68,12 @@ struct HistoryView: View {
             } else {
                 HistoryUnavailableView(message: "Missing comic source or chapter URL.")
             }
+        case .video:
+            if entry.videoHistory != nil {
+                HistoryUnavailableView(message: "Video player is not connected yet.")
+            } else {
+                HistoryUnavailableView(message: "Missing video history.")
+            }
         }
     }
 
@@ -203,6 +209,8 @@ private struct HistoryEntryRowView: View {
             return "dot.radiowaves.left.and.right"
         case .comic:
             return "book.pages"
+        case .video:
+            return "play.rectangle"
         }
     }
 
@@ -212,6 +220,8 @@ private struct HistoryEntryRowView: View {
             return self.entry.rssHistory?.dataContent
         case .comic:
             return self.entry.comicHistory?.chapterURL?.absoluteString
+        case .video:
+            return self.entry.videoHistory?.playPageURL.absoluteString
         }
     }
 }

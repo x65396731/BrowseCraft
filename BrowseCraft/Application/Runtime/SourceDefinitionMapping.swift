@@ -54,6 +54,19 @@ struct SourceDefinitionMapper {
                 video: nil,
                 plugin: nil
             )
+        case .video(let videoConfiguration):
+            return SourceDefinition(
+                id: id,
+                runtimeKind: .video,
+                name: name,
+                baseURL: self.baseURL(from: baseURL),
+                version: version,
+                ownership: ownership,
+                comic: nil,
+                rss: nil,
+                video: videoConfiguration.definition,
+                plugin: nil
+            )
         case .plugin(let pluginConfiguration):
             return SourceDefinition(
                 id: id,

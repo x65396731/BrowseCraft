@@ -161,6 +161,42 @@ final class AppDatabase {
             }
         }
 
+        migrator.registerMigration("createVideoWatchHistoryTable") { database in
+            try database.create(table: VideoWatchHistoryRecord.databaseTableName, ifNotExists: true) { table in
+                table.column("userID", .text)
+                    .notNull()
+                    .references(AppUserRecord.databaseTableName, column: "id", onDelete: .cascade)
+                table.column("sourceID", .text).notNull()
+                table.column("vodID", .text).notNull()
+                table.column("videoTitle", .text).notNull()
+                table.column("episodeTitle", .text)
+                table.column("episodeKey", .text).notNull()
+                table.column("sourceIndex", .integer).notNull()
+                table.column("episodeIndex", .integer).notNull()
+                table.column("detailURL", .text)
+                table.column("playPageURL", .text).notNull()
+                table.column("candidateMediaURL", .text)
+                table.column("candidateMediaKind", .text).notNull()
+                table.column("playbackRequestConfigJSON", .text)
+                table.column("coverURL", .text)
+                table.column("sourceName", .text)
+                table.column("lastPlaybackTime", .real).notNull().defaults(to: 0)
+                table.column("duration", .real)
+                table.column("visitedAt", .datetime).notNull()
+                table.column("updatedAt", .datetime).notNull()
+                table.column("previousEpisodeURL", .text)
+                table.column("nextEpisodeURL", .text)
+                table.uniqueKey(["userID", "sourceID", "vodID", "sourceIndex", "episodeIndex"])
+            }
+
+            try database.execute(
+                sql: """
+                CREATE INDEX IF NOT EXISTS idx_video_watch_history_user_updated_at
+                ON \(VideoWatchHistoryRecord.databaseTableName)(userID, updatedAt DESC)
+                """
+            )
+        }
+
         return migrator
     }
 

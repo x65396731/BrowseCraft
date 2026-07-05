@@ -2,11 +2,11 @@ import Foundation
 import Testing
 @testable import BrowseCraft
 
-// 中文注释：RSSFeedParserTests 固定 P4.9.1 RSS 解析器的最小字段映射。
-struct RSSFeedParserTests {
+// 中文注释：RSSFeedMapperTests 固定 P4.9.1 RSS 映射器的最小字段映射。
+struct RSSFeedMapperTests {
     @Test func parsesRSSChannelAndItems() throws {
-        let parser: RSSFeedParser = RSSFeedParser()
-        let feed: RSSFeed = try parser.parse(Self.solidotLikeRSS)
+        let mapper: RSSFeedMapper = RSSFeedMapper()
+        let feed: RSSFeed = try mapper.map(Self.solidotLikeRSS)
 
         #expect(feed.title == "Solidot")
         #expect(feed.items.count == 2)
@@ -20,8 +20,8 @@ struct RSSFeedParserTests {
     }
 
     @Test func keepsMissingOptionalItemFieldsNil() throws {
-        let parser: RSSFeedParser = RSSFeedParser()
-        let feed: RSSFeed = try parser.parse(Self.minimalRSS)
+        let mapper: RSSFeedMapper = RSSFeedMapper()
+        let feed: RSSFeed = try mapper.map(Self.minimalRSS)
         let item: RSSFeedItem = try #require(feed.items.first)
 
         #expect(feed.title == nil)

@@ -1,18 +1,18 @@
 import Foundation
 
-// 中文注释：RSSFeedParser 只负责把 RSS XML 转成 RSS runtime 内部模型。
-struct RSSFeedParser {
-    func parse(_ xml: String) throws -> RSSFeed {
+// 中文注释：RSSFeedMapper 只负责把 RSS XML 转成 RSS runtime 内部模型。
+struct RSSFeedMapper {
+    func map(_ xml: String) throws -> RSSFeed {
         guard let data: Data = xml.data(using: .utf8) else {
-            throw RSSFeedParserError.invalidEncoding
+            throw RSSFeedMapperError.invalidEncoding
         }
 
-        let delegate: RSSFeedParserDelegate = RSSFeedParserDelegate()
+        let delegate: RSSFeedMapperDelegate = RSSFeedMapperDelegate()
         let parser: XMLParser = XMLParser(data: data)
         parser.delegate = delegate
 
         guard parser.parse() else {
-            throw parser.parserError ?? RSSFeedParserError.invalidXML
+            throw parser.parserError ?? RSSFeedMapperError.invalidXML
         }
 
         return RSSFeed(
@@ -22,12 +22,12 @@ struct RSSFeedParser {
     }
 }
 
-enum RSSFeedParserError: Error, Equatable {
+enum RSSFeedMapperError: Error, Equatable {
     case invalidEncoding
     case invalidXML
 }
 
-private final class RSSFeedParserDelegate: NSObject, XMLParserDelegate {
+private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
     private enum Context {
         case channel
         case item

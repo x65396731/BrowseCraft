@@ -1,10 +1,10 @@
 import Foundation
 import SwiftSoup
 
-// SwiftSoupRuleCandidateAnalyzer implements the P2-7.2 list candidate MVP.
+// SwiftSoupRuleSelectorFinder finds selector suggestions for rule draft fields.
 // It recommends selectors with evidence only; it never mutates or saves a rule.
 
-final class SwiftSoupRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
+final class SwiftSoupRuleSelectorFinder: RuleCandidateAnalyzingService {
     private struct ItemGroup {
         var selector: String
         var elements: [Element]
@@ -918,7 +918,7 @@ final class SwiftSoupRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
     }
 
     private func nextPageSelector(for link: Element) throws -> String? {
-        let tagName: String = try link.tagName().lowercased()
+        let tagName: String = link.tagName().lowercased()
         let classNames: [String] = try link.attr("class")
             .split(separator: " ")
             .map(String.init)
@@ -977,7 +977,7 @@ final class SwiftSoupRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
         var currentElement: Element? = element
 
         while let current: Element = currentElement {
-            let tagName: String = try current.tagName().lowercased()
+            let tagName: String = current.tagName().lowercased()
             let id: String = try current.attr("id").lowercased()
             let className: String = try current.attr("class").lowercased()
             let marker: String = "\(tagName) \(id) \(className)"
@@ -995,7 +995,7 @@ final class SwiftSoupRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
                 return true
             }
 
-            currentElement = try current.parent()
+            currentElement = current.parent()
         }
 
         return false
@@ -1130,11 +1130,11 @@ final class SwiftSoupRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
     }
 
     private func chapterItemElement(for link: Element) throws -> Element? {
-        guard let parent: Element = try link.parent() else {
+        guard let parent: Element = link.parent() else {
             return link
         }
 
-        let parentTagName: String = try parent.tagName().lowercased()
+        let parentTagName: String = parent.tagName().lowercased()
         let parentLinkCount: Int = try parent.select("a[href]").array().count
 
         if ["li", "article", "div", "section"].contains(parentTagName),
@@ -1267,7 +1267,7 @@ final class SwiftSoupRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
         var currentElement: Element? = element
 
         while let current: Element = currentElement {
-            let tagName: String = try current.tagName().lowercased()
+            let tagName: String = current.tagName().lowercased()
             let idValue: String = try current.attr("id")
             let classValue: String = try current.attr("class")
             let id: String = idValue.lowercased()
@@ -1287,7 +1287,7 @@ final class SwiftSoupRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
                 return true
             }
 
-            currentElement = try current.parent()
+            currentElement = current.parent()
         }
 
         return false
@@ -1297,7 +1297,7 @@ final class SwiftSoupRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
         var currentElement: Element? = element
 
         while let current: Element = currentElement {
-            let tagName: String = try current.tagName().lowercased()
+            let tagName: String = current.tagName().lowercased()
             let idValue: String = try current.attr("id")
             let classValue: String = try current.attr("class")
             let id: String = idValue.lowercased()
@@ -1323,7 +1323,7 @@ final class SwiftSoupRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
                 return true
             }
 
-            currentElement = try current.parent()
+            currentElement = current.parent()
         }
 
         return false
@@ -1341,7 +1341,7 @@ final class SwiftSoupRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
             return nil
         }
 
-        var currentElement: Element? = try firstElement.parent()
+        var currentElement: Element? = firstElement.parent()
 
         while let current: Element = currentElement {
             if try self.isInsideDetailNoiseContainer(current) {
@@ -1353,14 +1353,14 @@ final class SwiftSoupRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
                 return current
             }
 
-            currentElement = try current.parent()
+            currentElement = current.parent()
         }
 
-        return try firstElement.parent()
+        return firstElement.parent()
     }
 
     private func containerSelector(for element: Element) throws -> String? {
-        let tagName: String = try element.tagName().lowercased()
+        let tagName: String = element.tagName().lowercased()
         let classNames: [String] = try element.attr("class")
             .split(separator: " ")
             .map(String.init)
@@ -1387,7 +1387,7 @@ final class SwiftSoupRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
     }
 
     private func imageSelector(for element: Element) throws -> String? {
-        let tagName: String = try element.tagName().lowercased()
+        let tagName: String = element.tagName().lowercased()
         guard tagName == "img" else {
             return nil
         }
@@ -1404,19 +1404,19 @@ final class SwiftSoupRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
             return ([tagName] + usefulClasses.map { className in ".\(className)" }).joined()
         }
 
-        if try element.hasAttr("data-src") {
+        if element.hasAttr("data-src") {
             return "img[data-src]"
         }
 
-        if try element.hasAttr("data-original") {
+        if element.hasAttr("data-original") {
             return "img[data-original]"
         }
 
-        if try element.hasAttr("data-lazy-src") {
+        if element.hasAttr("data-lazy-src") {
             return "img[data-lazy-src]"
         }
 
-        if try element.hasAttr("src") {
+        if element.hasAttr("src") {
             return "img[src]"
         }
 
@@ -1446,7 +1446,7 @@ final class SwiftSoupRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
     }
 
     private func isPotentialItemElement(_ element: Element) throws -> Bool {
-        let tagName: String = try element.tagName().lowercased()
+        let tagName: String = element.tagName().lowercased()
         guard ["article", "li", "figure", "div", "section", "a"].contains(tagName) else {
             return false
         }
@@ -1466,19 +1466,19 @@ final class SwiftSoupRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
         var currentElement: Element? = element
 
         while let current: Element = currentElement {
-            let tagName: String = try current.tagName().lowercased()
+            let tagName: String = current.tagName().lowercased()
             if ["nav", "header", "footer", "script", "style"].contains(tagName) {
                 return true
             }
 
-            currentElement = try current.parent()
+            currentElement = current.parent()
         }
 
         return false
     }
 
     private func selector(for element: Element) throws -> String? {
-        let tagName: String = try element.tagName().lowercased()
+        let tagName: String = element.tagName().lowercased()
         let classNames: [String] = try element.attr("class")
             .split(separator: " ")
             .map(String.init)
@@ -1541,10 +1541,10 @@ final class SwiftSoupRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
 
     private func ancestorHints(for element: Element?) throws -> [String] {
         var hints: [String] = []
-        var currentElement: Element? = try element?.parent()
+        var currentElement: Element? = element?.parent()
 
         while let current: Element = currentElement, hints.count < 3 {
-            let tagName: String = try current.tagName().lowercased()
+            let tagName: String = current.tagName().lowercased()
             let id: String = try current.attr("id")
             let className: String = try current.attr("class")
             var hint: String = tagName
@@ -1556,7 +1556,7 @@ final class SwiftSoupRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
             }
 
             hints.append(hint)
-            currentElement = try current.parent()
+            currentElement = current.parent()
         }
 
         return hints

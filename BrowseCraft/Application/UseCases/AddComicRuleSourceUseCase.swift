@@ -1,10 +1,10 @@
 import Foundation
 
-// 中文注释：AddRuleSourceUseCase 是网站规则导入路径；保存结果是 comic runtime 入口。
+// 中文注释：AddComicRuleSourceUseCase 是漫画网站规则导入路径；保存结果是 comic runtime 入口。
 
 /// 中文注释：根据网站规则 JSON 新增一个由规则驱动的漫画 Source。
 /// 中文注释：该用例是网站规则导入路径，不代表通用添加来源流程。
-struct AddRuleSourceUseCase {
+struct AddComicRuleSourceUseCase {
     private let sourceRepository: SourceRepository
     private let jsonDecoder: JSONDecoder
 

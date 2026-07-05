@@ -78,18 +78,21 @@ final class AppContainer {
         let userLibraryStateRepository: UserLibraryStateRepository = GRDBUserLibraryStateRepository(
             database: self.database
         )
-        let loadBuiltInSourcesUseCase: LoadBuiltInSourcesUseCase = LoadBuiltInSourcesUseCase(
+        let syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase = SyncBuiltInSourcesUseCase(
             sourceRepository: self.sourceRepository
         )
         let loadSourcesUseCase: LoadSourcesUseCase = LoadSourcesUseCase(
             sourceRepository: self.sourceRepository
         )
-        let addRuleSourceUseCase: AddRuleSourceUseCase = AddRuleSourceUseCase(
+        let addComicRuleSourceUseCase: AddComicRuleSourceUseCase = AddComicRuleSourceUseCase(
             sourceRepository: self.sourceRepository
         )
         let addRSSSourceUseCase: AddRSSSourceUseCase = AddRSSSourceUseCase(
             sourceRepository: self.sourceRepository,
             feedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader)
+        )
+        let addVideoSourceUseCase: AddVideoSourceUseCase = AddVideoSourceUseCase(
+            sourceRepository: self.sourceRepository
         )
         let deleteSourceUseCase: DeleteSourceUseCase = DeleteSourceUseCase(
             sourceRepository: self.sourceRepository
@@ -107,18 +110,13 @@ final class AppContainer {
             sourceRepository: self.sourceRepository
         )
         let sourceImportRecommendationUseCase: SourceImportRecommendationUseCase = SourceImportRecommendationUseCase()
-        let refreshSourceUseCase: RefreshSourceUseCase = RefreshSourceUseCase(
-            pageContentLoader: self.pageContentLoader,
-            ruleParser: self.ruleParser,
-            urlResolver: self.urlResolver
-        )
         let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = RefreshSourceRuntimeUseCase(
             runtimeResolver: self.makeSourceRuntimeResolver()
         )
         let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase = SaveUserLibraryStateUseCase(
             repository: userLibraryStateRepository
         )
-        let ruleCandidateAnalyzer: RuleCandidateAnalyzingService = SwiftSoupRuleCandidateAnalyzer()
+        let ruleCandidateAnalyzer: RuleCandidateAnalyzingService = SwiftSoupRuleSelectorFinder()
         let listDebugUseCase: ListDebugUseCase = ListDebugUseCase(
             pageContentLoader: self.pageContentLoader,
             ruleParser: self.ruleParser,
@@ -145,17 +143,17 @@ final class AppContainer {
         )
 
         return SourcesViewModel(
-            loadBuiltInSourcesUseCase: loadBuiltInSourcesUseCase,
+            syncBuiltInSourcesUseCase: syncBuiltInSourcesUseCase,
             loadSourcesUseCase: loadSourcesUseCase,
-            addRuleSourceUseCase: addRuleSourceUseCase,
+            addComicRuleSourceUseCase: addComicRuleSourceUseCase,
             addRSSSourceUseCase: addRSSSourceUseCase,
+            addVideoSourceUseCase: addVideoSourceUseCase,
             deleteSourceUseCase: deleteSourceUseCase,
             updateSourceRuleUseCase: updateSourceRuleUseCase,
             duplicateSourceRuleUseCase: duplicateSourceRuleUseCase,
             exportSourceRulePackageUseCase: exportSourceRulePackageUseCase,
             importSourceRulePackageUseCase: importSourceRulePackageUseCase,
             sourceImportRecommendationUseCase: sourceImportRecommendationUseCase,
-            refreshSourceUseCase: refreshSourceUseCase,
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
             saveUserLibraryStateUseCase: saveUserLibraryStateUseCase,
             listDebugUseCase: listDebugUseCase,
@@ -171,7 +169,7 @@ final class AppContainer {
         let userLibraryStateRepository: UserLibraryStateRepository = GRDBUserLibraryStateRepository(
             database: self.database
         )
-        let loadBuiltInSourcesUseCase: LoadBuiltInSourcesUseCase = LoadBuiltInSourcesUseCase(
+        let syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase = SyncBuiltInSourcesUseCase(
             sourceRepository: self.sourceRepository
         )
         let loadSourcesUseCase: LoadSourcesUseCase = LoadSourcesUseCase(
@@ -191,7 +189,7 @@ final class AppContainer {
         )
 
         return LibraryViewModel(
-            loadBuiltInSourcesUseCase: loadBuiltInSourcesUseCase,
+            syncBuiltInSourcesUseCase: syncBuiltInSourcesUseCase,
             loadSourcesUseCase: loadSourcesUseCase,
             toggleFavoriteUseCase: toggleFavoriteUseCase,
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
@@ -307,9 +305,13 @@ final class AppContainer {
         let comicRepository: ComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(
             database: self.database
         )
+        let videoRepository: VideoWatchHistoryRepository = GRDBVideoWatchHistoryRepository(
+            database: self.database
+        )
         let loadReadingHistoryEntriesUseCase: LoadReadingHistoryEntriesUseCase = LoadReadingHistoryEntriesUseCase(
             rssRepository: rssRepository,
-            comicRepository: comicRepository
+            comicRepository: comicRepository,
+            videoRepository: videoRepository
         )
         let loadSourcesUseCase: LoadSourcesUseCase = LoadSourcesUseCase(
             sourceRepository: self.sourceRepository

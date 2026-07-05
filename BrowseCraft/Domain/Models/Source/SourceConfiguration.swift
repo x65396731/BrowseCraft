@@ -5,6 +5,7 @@ import BrowseCraftCore
 enum SourceConfiguration: Codable, Hashable {
     case comic(ComicSourceConfiguration)
     case rss(RSSSourceConfiguration)
+    case video(VideoSourceConfiguration)
     case plugin(PluginSourceConfiguration)
 
     var kind: SourceRuntimeKind {
@@ -13,6 +14,8 @@ enum SourceConfiguration: Codable, Hashable {
             return .comic
         case .rss:
             return .rss
+        case .video:
+            return .video
         case .plugin:
             return .plugin
         }
@@ -22,6 +25,7 @@ enum SourceConfiguration: Codable, Hashable {
         case comic
         case legacyRule = "rule"
         case rss
+        case video
         case plugin
     }
 
@@ -55,6 +59,15 @@ enum SourceConfiguration: Codable, Hashable {
             return
         }
 
+        if let configuration: VideoSourceConfiguration = try Self.decodeAssociatedValue(
+            VideoSourceConfiguration.self,
+            from: container,
+            forKey: .video
+        ) {
+            self = .video(configuration)
+            return
+        }
+
         if let configuration: PluginSourceConfiguration = try Self.decodeAssociatedValue(
             PluginSourceConfiguration.self,
             from: container,
@@ -80,6 +93,8 @@ enum SourceConfiguration: Codable, Hashable {
             try container.encode(configuration, forKey: .comic)
         case .rss(let configuration):
             try container.encode(configuration, forKey: .rss)
+        case .video(let configuration):
+            try container.encode(configuration, forKey: .video)
         case .plugin(let configuration):
             try container.encode(configuration, forKey: .plugin)
         }
@@ -129,6 +144,10 @@ struct ComicSourceConfiguration: Codable, Hashable {
 
 struct RSSSourceConfiguration: Codable, Hashable {
     var definition: RSSSourceDefinition
+}
+
+struct VideoSourceConfiguration: Codable, Hashable {
+    var definition: VideoSourceDefinition
 }
 
 struct PluginSourceConfiguration: Codable, Hashable {

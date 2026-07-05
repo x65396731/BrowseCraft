@@ -18,10 +18,11 @@ final class SourcesViewModel: ObservableObject {
     @Published private(set) var isRefreshing: Bool = false
     @Published private(set) var refreshingSourceID: String?
 
-    private let loadBuiltInSourcesUseCase: LoadBuiltInSourcesUseCase
+    private let syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase
     private let loadSourcesUseCase: LoadSourcesUseCase
-    private let addRuleSourceUseCase: AddRuleSourceUseCase
+    private let addComicRuleSourceUseCase: AddComicRuleSourceUseCase
     private let addRSSSourceUseCase: AddRSSSourceUseCase
+    private let addVideoSourceUseCase: AddVideoSourceUseCase
     private let deleteSourceUseCase: DeleteSourceUseCase
     private let updateSourceRuleUseCase: UpdateSourceRuleUseCase
     private let duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase
@@ -30,7 +31,6 @@ final class SourcesViewModel: ObservableObject {
     private let sourceImportRecommendationUseCase: SourceImportRecommendationUseCase
     private let ruleValidator: SiteRuleValidator
     private let jsonEncoder: JSONEncoder
-    private let refreshSourceUseCase: RefreshSourceUseCase
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
     private let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase
     private let listDebugUseCase: ListDebugUseCase
@@ -44,10 +44,11 @@ final class SourcesViewModel: ObservableObject {
     private var failedRefreshAction: FailedRefreshAction?
 
     init(
-        loadBuiltInSourcesUseCase: LoadBuiltInSourcesUseCase,
+        syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase,
         loadSourcesUseCase: LoadSourcesUseCase,
-        addRuleSourceUseCase: AddRuleSourceUseCase,
+        addComicRuleSourceUseCase: AddComicRuleSourceUseCase,
         addRSSSourceUseCase: AddRSSSourceUseCase,
+        addVideoSourceUseCase: AddVideoSourceUseCase,
         deleteSourceUseCase: DeleteSourceUseCase,
         updateSourceRuleUseCase: UpdateSourceRuleUseCase,
         duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase,
@@ -56,7 +57,6 @@ final class SourcesViewModel: ObservableObject {
         sourceImportRecommendationUseCase: SourceImportRecommendationUseCase,
         ruleValidator: SiteRuleValidator = SiteRuleValidator(),
         jsonEncoder: JSONEncoder = JSONEncoder(),
-        refreshSourceUseCase: RefreshSourceUseCase,
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
         saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase,
         listDebugUseCase: ListDebugUseCase,
@@ -67,10 +67,11 @@ final class SourcesViewModel: ObservableObject {
         userID: String = AppUser.localDefaultID,
         now: @escaping () -> Date = Date.init
     ) {
-        self.loadBuiltInSourcesUseCase = loadBuiltInSourcesUseCase
+        self.syncBuiltInSourcesUseCase = syncBuiltInSourcesUseCase
         self.loadSourcesUseCase = loadSourcesUseCase
-        self.addRuleSourceUseCase = addRuleSourceUseCase
+        self.addComicRuleSourceUseCase = addComicRuleSourceUseCase
         self.addRSSSourceUseCase = addRSSSourceUseCase
+        self.addVideoSourceUseCase = addVideoSourceUseCase
         self.deleteSourceUseCase = deleteSourceUseCase
         self.updateSourceRuleUseCase = updateSourceRuleUseCase
         self.duplicateSourceRuleUseCase = duplicateSourceRuleUseCase
@@ -79,7 +80,6 @@ final class SourcesViewModel: ObservableObject {
         self.sourceImportRecommendationUseCase = sourceImportRecommendationUseCase
         self.ruleValidator = ruleValidator
         self.jsonEncoder = jsonEncoder
-        self.refreshSourceUseCase = refreshSourceUseCase
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
         self.saveUserLibraryStateUseCase = saveUserLibraryStateUseCase
         self.listDebugUseCase = listDebugUseCase
@@ -98,7 +98,7 @@ final class SourcesViewModel: ObservableObject {
     /// 中文注释：load 方法封装当前类型的一段业务或界面行为。
     func load() {
         do {
-            try self.loadBuiltInSourcesUseCase.execute()
+            try self.syncBuiltInSourcesUseCase.execute()
             let loadedSources: [Source] = try self.loadSourcesUseCase.execute()
             self.sources = loadedSources
 
@@ -115,7 +115,7 @@ final class SourcesViewModel: ObservableObject {
     /// 中文注释：addRuleSource 方法封装网站规则导入路径。
     func addRuleSource(name: String, baseURL: String, ruleJSON: String) -> Bool {
         do {
-            let source: Source = try self.addRuleSourceUseCase.execute(
+            let source: Source = try self.addComicRuleSourceUseCase.execute(
                 name: name,
                 baseURL: baseURL,
                 ruleJSON: ruleJSON
@@ -145,6 +145,25 @@ final class SourcesViewModel: ObservableObject {
             return source
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "rss-source-add-error")
+            self.errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    @MainActor
+    /// 中文注释：addVideoSource 方法保存 MacCMS video source，播放链路由后续 P4.13 小节接入。
+    func addVideoSource(entryURLString: String, name: String? = nil) -> Source? {
+        do {
+            let source: Source = try self.addVideoSourceUseCase.execute(
+                entryURLString: entryURLString,
+                name: name
+            )
+
+            self.load()
+            self.selectSource(id: source.id)
+            return source
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "video-source-add-error")
             self.errorMessage = error.localizedDescription
             return nil
         }
@@ -456,10 +475,6 @@ final class SourcesViewModel: ObservableObject {
 
 
     private func refreshSourceForSelection(_ source: Source) async throws -> [ContentItem] {
-        if source.ruleConfiguration != nil {
-            return try await self.refreshSourceUseCase.execute(source: source)
-        }
-
         let output: SourceListOutput = try await self.refreshSourceRuntimeUseCase.execute(
             source: source,
             listContext: nil
@@ -520,6 +535,8 @@ final class SourcesViewModel: ObservableObject {
             return .article
         case .comic:
             return .comic
+        case .video:
+            return .video
         case .plugin:
             return .article
         }

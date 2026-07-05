@@ -10,17 +10,20 @@ struct SourceRuntimeResolver: SourceRuntimeResolving {
     private let definitionMapper: SourceDefinitionMapper
     private let comicRuntimeFactory: (Source) -> any SourceRuntime
     private let rssRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)?
+    private let videoRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)?
     private let pluginRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)?
 
     init(
         definitionMapper: SourceDefinitionMapper = SourceDefinitionMapper(),
         rssRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)? = nil,
+        videoRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)? = nil,
         pluginRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)? = nil,
         comicRuntimeFactory: @escaping (Source) -> any SourceRuntime
     ) {
         self.definitionMapper = definitionMapper
         self.comicRuntimeFactory = comicRuntimeFactory
         self.rssRuntimeFactory = rssRuntimeFactory
+        self.videoRuntimeFactory = videoRuntimeFactory
         self.pluginRuntimeFactory = pluginRuntimeFactory
     }
 
@@ -52,6 +55,10 @@ struct SourceRuntimeResolver: SourceRuntimeResolving {
                 .custom("RSS source runtime is not connected in this resolver.")
             )
         case .video:
+            if let videoRuntimeFactory: (SourceDefinition) -> any SourceRuntime = self.videoRuntimeFactory {
+                return videoRuntimeFactory(definition)
+            }
+
             throw SourceRuntimeError.unsupported(
                 .custom("Video source runtime is not connected in this resolver.")
             )

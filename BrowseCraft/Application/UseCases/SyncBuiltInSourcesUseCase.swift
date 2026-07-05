@@ -1,10 +1,10 @@
 import Foundation
 
-// 中文注释：LoadBuiltInSourcesUseCase.swift 属于应用用例层，用于说明本文件承载的核心职责。
+// 中文注释：SyncBuiltInSourcesUseCase.swift 属于应用用例层，用于说明本文件承载的核心职责。
 
 /// 中文注释：确保内置源存在于本地数据库中。
 /// 中文注释：该用例不访问网络，只在缺失时写入内置 Source 记录。
-struct LoadBuiltInSourcesUseCase {
+struct SyncBuiltInSourcesUseCase {
     private let sourceRepository: SourceRepository
 
     init(sourceRepository: SourceRepository) {
@@ -77,7 +77,7 @@ struct LoadBuiltInSourcesUseCase {
                 "chapterContainer=\(resolvedRule.primaryDetailRule?.chapterContainer ?? "nil") " +
                 "chapterItem=\(resolvedRule.primaryDetailRule?.chapterItem ?? "nil")"
             )
-        case .rss, .plugin:
+        case .rss, .video, .plugin:
             print(
                 "[BrowseCraftSource] Synced built-in source id=\(source.id) " +
                 "name=\(source.name) " +

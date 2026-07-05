@@ -33,7 +33,7 @@ Responsibilities:
   shared App/Core compatibility layer.
 - Keep `RSS/RSSSourceRuntime` as the RSS-backed runtime implementation for
   public feed list loading.
-- Keep RSS parsing/loading in `RSS/Parsing/` and `RSS/Loading/`; RSS does not
+- Keep RSS mapping/loading in `RSS/Mapping/` and `RSS/Loading/`; RSS does not
   extend `SiteRule` or the rule editor.
 - Keep debug/source summary mapping in `Debug/RuleDebugSourceMapping`.
 - Add runtime-facing use cases before wiring Library and Reader features to them.

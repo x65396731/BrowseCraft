@@ -5,17 +5,17 @@ protocol RSSFeedLoading {
     func load(feedURL: URL) async throws -> RSSFeed
 }
 
-// 中文注释：RSSFeedLoader 负责公开 RSS feed 的字符串加载与解析，不处理登录、Cookie 或 Token。
+// 中文注释：RSSFeedLoader 负责公开 RSS feed 的字符串加载与映射，不处理登录、Cookie 或 Token。
 struct RSSFeedLoader: RSSFeedLoading {
     private let pageContentLoader: PageContentLoader
-    private let parser: RSSFeedParser
+    private let mapper: RSSFeedMapper
 
     init(
         pageContentLoader: PageContentLoader,
-        parser: RSSFeedParser = RSSFeedParser()
+        mapper: RSSFeedMapper = RSSFeedMapper()
     ) {
         self.pageContentLoader = pageContentLoader
-        self.parser = parser
+        self.mapper = mapper
     }
 
     func load(feedURL: URL) async throws -> RSSFeed {
@@ -23,6 +23,6 @@ struct RSSFeedLoader: RSSFeedLoading {
             from: feedURL,
             request: nil
         )
-        return try self.parser.parse(xml)
+        return try self.mapper.map(xml)
     }
 }

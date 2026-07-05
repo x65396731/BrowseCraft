@@ -22,7 +22,7 @@ final class LibraryViewModel: ObservableObject {
     @Published private(set) var preparingSource: SourceLoadingState?
     @Published private(set) var preparedLibrarySnapshot: SourceLibrarySnapshot?
 
-    private let loadBuiltInSourcesUseCase: LoadBuiltInSourcesUseCase
+    private let syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase
     private let loadSourcesUseCase: LoadSourcesUseCase
     private let toggleFavoriteUseCase: ToggleFavoriteUseCase
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
@@ -37,7 +37,7 @@ final class LibraryViewModel: ObservableObject {
     private var refreshToken: Int = 0
 
     init(
-        loadBuiltInSourcesUseCase: LoadBuiltInSourcesUseCase,
+        syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase,
         loadSourcesUseCase: LoadSourcesUseCase,
         toggleFavoriteUseCase: ToggleFavoriteUseCase,
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
@@ -48,7 +48,7 @@ final class LibraryViewModel: ObservableObject {
         userID: String = AppUser.localDefaultID,
         now: @escaping () -> Date = Date.init
     ) {
-        self.loadBuiltInSourcesUseCase = loadBuiltInSourcesUseCase
+        self.syncBuiltInSourcesUseCase = syncBuiltInSourcesUseCase
         self.loadSourcesUseCase = loadSourcesUseCase
         self.toggleFavoriteUseCase = toggleFavoriteUseCase
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
@@ -66,7 +66,7 @@ final class LibraryViewModel: ObservableObject {
     /// 中文注释：load 方法封装当前类型的一段业务或界面行为。
     func load() async {
         do {
-            try self.loadBuiltInSourcesUseCase.execute()
+            try self.syncBuiltInSourcesUseCase.execute()
             self.sources = try self.loadSourcesUseCase.execute()
             self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs()
 
@@ -513,6 +513,8 @@ final class LibraryViewModel: ObservableObject {
             return .article
         case .comic:
             return .comic
+        case .video:
+            return .video
         case .plugin:
             return .article
         }

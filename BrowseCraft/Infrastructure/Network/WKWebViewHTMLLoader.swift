@@ -140,7 +140,7 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
 
     /// 中文注释：读取 documentElement.outerHTML，确保解析器拿到的是 JS 执行后的整页 DOM。
     private func renderedHTML() async throws -> String {
-        let result: Any = try await self.webView.evaluateJavaScript(
+        let result: Any? = try await self.webView.evaluateJavaScript(
             "document.documentElement.outerHTML"
         )
 

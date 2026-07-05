@@ -22,6 +22,9 @@ struct SourceRuntimeFactory {
             rssRuntimeFactory: { definition in
                 return self.makeRSSSourceRuntime(definition: definition)
             },
+            videoRuntimeFactory: { definition in
+                return self.makeVideoSourceRuntime(definition: definition)
+            },
             comicRuntimeFactory: { source in
                 return self.makeComicSourceRuntime(source: source)
             }
@@ -33,6 +36,21 @@ struct SourceRuntimeFactory {
             definition: definition,
             feedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader)
         )
+    }
+
+    func makeVideoSourceRuntime(definition: SourceDefinition) -> VideoSourceRuntime {
+        return VideoSourceRuntime(
+            definition: definition,
+            pageContentLoader: self.pageContentLoader,
+            parser: self.makeVideoHTMLParser(definition: definition)
+        )
+    }
+
+    private func makeVideoHTMLParser(definition: SourceDefinition) -> any VideoHTMLParsing {
+        switch definition.video?.siteKind {
+        case .macCMS, nil:
+            return MacCMSVideoHTMLParser()
+        }
     }
 
     func makeComicSourceRuntime(source: Source) -> RuleSourceRuntime {

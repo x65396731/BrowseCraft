@@ -10,6 +10,7 @@ struct AddSourceView: View {
     @State private var addRuleSourcePresentation: AddRuleSourcePresentation = .comics
     @State private var isShowingImportWebsiteRulePackageView: Bool = false
     @State private var isShowingRSSFeedImportView: Bool = false
+    @State private var isShowingVideoSourceImportView: Bool = false
     @State private var unavailableOption: SourceImportOptionKind?
 
     private let options: [SourceImportOption] = SourceImportOption.defaultOptions
@@ -62,6 +63,14 @@ struct AddSourceView: View {
                     }
                 )
             }
+            .sheet(isPresented: self.$isShowingVideoSourceImportView) {
+                VideoSourceImportView(
+                    viewModel: self.viewModel,
+                    completion: {
+                        self.dismiss()
+                    }
+                )
+            }
             .alert(
                 "Source Type Unavailable",
                 isPresented: self.unavailableOptionBinding,
@@ -98,7 +107,7 @@ struct AddSourceView: View {
             self.addRuleSourcePresentation = .comics
             self.isShowingAddRuleSourceView = true
         case .videoSource:
-            self.unavailableOption = option.kind
+            self.isShowingVideoSourceImportView = true
         case .websiteRuleJSON:
             self.addRuleSourcePresentation = .websiteRule
             self.isShowingAddRuleSourceView = true
@@ -129,12 +138,154 @@ struct AddSourceView: View {
         case .comicSource:
             return "Comic sources can be added from the Comics source form."
         case .videoSource:
-            return "Video sources will be available after the video runtime is connected."
+            return "Video sources can be added from the Video source form."
         case .scriptSource:
             return "Script Source is not available yet."
         case .websiteRuleJSON, .rulePackageJSON, .rssFeedURL, nil:
             return "This source type is not available yet."
         }
+    }
+}
+
+private struct VideoSourceImportView: View {
+    private enum ImportState: Equatable {
+        case idle
+        case saving
+        case saved
+        case error(String)
+
+        var isWorking: Bool {
+            switch self {
+            case .saving:
+                return true
+            case .idle, .saved, .error:
+                return false
+            }
+        }
+    }
+
+    @ObservedObject var viewModel: SourcesViewModel
+    let completion: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var entryURL: String = ""
+    @State private var sourceName: String = ""
+    @State private var importState: ImportState = .idle
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("Video Source") {
+                    TextField(
+                        "Website, detail, or play URL",
+                        text: self.$entryURL
+                    )
+                    .autocapitalization(.none)
+                    .keyboardType(.URL)
+                    .disabled(self.importState.isWorking)
+
+                    TextField(
+                        "Name (Optional)",
+                        text: self.$sourceName
+                    )
+                    .disabled(self.importState.isWorking)
+
+                    Button(self.primaryButtonTitle) {
+                        self.save()
+                    }
+                    .disabled(self.canSubmit == false)
+                }
+
+                Section("Runtime") {
+                    LabeledContent("Type", value: "Video")
+                    LabeledContent("Template", value: "MacCMS")
+                    Text("RSS URLs should be added from RSS Feed.")
+                        .foregroundStyle(.secondary)
+                }
+
+                if let message: String = self.statusMessage {
+                    Section("Status") {
+                        Text(message)
+                            .foregroundStyle(self.statusForegroundStyle)
+                    }
+                }
+            }
+            .navigationTitle("Video Source")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") {
+                        self.dismiss()
+                    }
+                    .disabled(self.importState.isWorking)
+                }
+            }
+        }
+    }
+
+    private var trimmedEntryURL: String {
+        return self.entryURL.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var trimmedSourceName: String? {
+        let trimmed: String = self.sourceName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private var canSubmit: Bool {
+        return self.trimmedEntryURL.isEmpty == false && self.importState.isWorking == false
+    }
+
+    private var primaryButtonTitle: String {
+        switch self.importState {
+        case .saving:
+            return "Saving..."
+        case .saved:
+            return "Saved"
+        case .idle, .error:
+            return "Add Video Source"
+        }
+    }
+
+    private var statusMessage: String? {
+        switch self.importState {
+        case .idle:
+            return nil
+        case .saving:
+            return "Saving video source..."
+        case .saved:
+            return "Video source saved."
+        case .error(let message):
+            return message
+        }
+    }
+
+    private var statusForegroundStyle: Color {
+        switch self.importState {
+        case .error:
+            return .red
+        case .saved:
+            return .green
+        case .idle, .saving:
+            return .secondary
+        }
+    }
+
+    @MainActor
+    private func save() {
+        self.importState = .saving
+        let source: Source? = self.viewModel.addVideoSource(
+            entryURLString: self.entryURL,
+            name: self.trimmedSourceName
+        )
+
+        guard source != nil else {
+            self.importState = .error(self.viewModel.errorMessage ?? "Failed to save video source.")
+            return
+        }
+
+        self.importState = .saved
+        self.completion()
+        self.dismiss()
     }
 }
 

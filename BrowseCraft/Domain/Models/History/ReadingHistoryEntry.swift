@@ -7,6 +7,7 @@ struct ReadingHistoryEntry: Identifiable, Hashable {
     enum Kind: String, Hashable {
         case rss
         case comic
+        case video
     }
 
     var id: String
@@ -18,6 +19,7 @@ struct ReadingHistoryEntry: Identifiable, Hashable {
     var visitedAt: Date
     var rssHistory: RSSReadingHistory?
     var comicHistory: ComicChapterHistory?
+    var videoHistory: VideoWatchHistory?
 
     init(rssHistory: RSSReadingHistory) {
         self.id = "rss::\(rssHistory.id)"
@@ -29,6 +31,7 @@ struct ReadingHistoryEntry: Identifiable, Hashable {
         self.visitedAt = rssHistory.visitedAt
         self.rssHistory = rssHistory
         self.comicHistory = nil
+        self.videoHistory = nil
     }
 
     init(comicHistory: ComicChapterHistory) {
@@ -41,5 +44,19 @@ struct ReadingHistoryEntry: Identifiable, Hashable {
         self.visitedAt = comicHistory.visitedAt
         self.rssHistory = nil
         self.comicHistory = comicHistory
+        self.videoHistory = nil
+    }
+
+    init(videoHistory: VideoWatchHistory) {
+        self.id = "video::\(videoHistory.id)"
+        self.kind = .video
+        self.userID = videoHistory.userID
+        self.sourceID = videoHistory.sourceID
+        self.title = videoHistory.videoTitle
+        self.subtitle = videoHistory.episodeTitle
+        self.visitedAt = videoHistory.updatedAt
+        self.rssHistory = nil
+        self.comicHistory = nil
+        self.videoHistory = videoHistory
     }
 }

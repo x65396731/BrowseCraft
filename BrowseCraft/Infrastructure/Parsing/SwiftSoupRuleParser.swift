@@ -1003,7 +1003,7 @@ final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService
             "mainScope=\(detailRule.mainScope?.selector ?? "nil") " +
             "contextSectionId=\(context?.sectionId ?? "nil") " +
             "contextSectionRole=\(context?.sectionRole?.rawValue ?? "nil") " +
-            "scopeTag=\(try scope.tagName()) " +
+            "scopeTag=\(scope.tagName()) " +
             "globalChapterLinkCount=\(globalChapterLinkCount) " +
             "scopeChapterLinkCount=\(scopeChapterLinkCount)"
         )
@@ -1033,7 +1033,7 @@ final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService
             print(
                 "[BrowseCraftRule] V2 chapter container " +
                 "index=\(index) " +
-                "tag=\(try containerScope.tagName()) " +
+                "tag=\(containerScope.tagName()) " +
                 "chapterLinkCount=\(containerChapterLinks.count)"
             )
 
@@ -1120,7 +1120,7 @@ final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService
                 continue
             }
 
-            var currentElement: Element? = try element.parent()
+            var currentElement: Element? = element.parent()
 
             while let ancestor: Element = currentElement {
                 let scopedElements: [Element] = try ancestor.select(chapterItemSelector).array()
@@ -1135,7 +1135,7 @@ final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService
                     #if DEBUG
                     print(
                         "[BrowseCraftRule] Fallback chapter group " +
-                        "ancestor=\(try ancestor.tagName()) " +
+                        "ancestor=\(ancestor.tagName()) " +
                         "count=\(chapterLikeElements.count) " +
                         "firstTitle=\(try chapterLikeElements.first?.text() ?? "nil")"
                     )
@@ -1144,7 +1144,7 @@ final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService
                     return chapterLikeElements
                 }
 
-                currentElement = try ancestor.parent()
+                currentElement = ancestor.parent()
             }
         }
 
@@ -1434,14 +1434,18 @@ final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService
         }
 
         if selector == "parent" {
-            return try element.parent().map { parent in
+            return element.parent().map { parent in
                 return [parent]
             } ?? []
         }
 
         if selector.hasPrefix("parent ") {
             let nestedSelector: String = String(selector.dropFirst("parent ".count))
-            return try element.parent()?.select(nestedSelector).array() ?? []
+            guard let parent: Element = element.parent() else {
+                return []
+            }
+
+            return try parent.select(nestedSelector).array()
         }
 
         var elements: [Element] = []
@@ -1754,7 +1758,11 @@ final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService
 
         if selector.hasPrefix("parent ") {
             let nestedSelector: String = String(selector.dropFirst("parent ".count))
-            return try element.parent()?.select(nestedSelector).first()
+            guard let parent: Element = element.parent() else {
+                return nil
+            }
+
+            return try parent.select(nestedSelector).first()
         }
 
         return try element.select(selector).first()
