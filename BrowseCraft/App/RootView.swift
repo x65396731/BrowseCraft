@@ -5,10 +5,18 @@ import SwiftUI
 /// 中文注释：RootView 持有应用主 Tab 导航。
 /// 中文注释：每个 Tab 的 ViewModel 都通过 AppContainer 创建，并用 @StateObject 保持生命周期。
 struct RootView: View {
+    private enum RootTab: Hashable {
+        case sources
+        case library
+        case history
+        case settings
+    }
+
     private let container: AppContainer
     @StateObject private var sourcesViewModel: SourcesViewModel
     @StateObject private var libraryViewModel: LibraryViewModel
     @StateObject private var historyViewModel: HistoryViewModel
+    @State private var selectedTab: RootTab = .library
 
     init(container: AppContainer) {
         self.container = container
@@ -18,12 +26,13 @@ struct RootView: View {
     }
 
     var body: some View {
-        TabView {
+        TabView(selection: self.$selectedTab) {
             SourcesView(viewModel: self.sourcesViewModel)
                 .tabItem {
                     Image(systemName: "tray.full")
                     Text("Sources")
                 }
+                .tag(RootTab.sources)
 
             LibraryView(
                 viewModel: self.libraryViewModel,
@@ -48,18 +57,26 @@ struct RootView: View {
                     Image(systemName: "square.grid.2x2")
                     Text("Library")
                 }
+                .tag(RootTab.library)
 
-            HistoryView(viewModel: self.historyViewModel)
+            HistoryView(
+                viewModel: self.historyViewModel,
+                readerViewModelFactory: { history, source in
+                    return self.container.makeReaderViewModel(history: history, source: source)
+                }
+            )
                 .tabItem {
                     Image(systemName: "clock")
                     Text("History")
                 }
+                .tag(RootTab.history)
 
             SettingsView()
                 .tabItem {
                     Image(systemName: "gearshape")
                     Text("Settings")
                 }
+                .tag(RootTab.settings)
         }
     }
 }

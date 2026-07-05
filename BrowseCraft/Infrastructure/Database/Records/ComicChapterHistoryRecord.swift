@@ -17,9 +17,12 @@ struct ComicChapterHistoryRecord: Codable, FetchableRecord, MutablePersistableRe
     var chapterTitle: String
     var visitedAt: Date
     var coverURL: String?
+    var lastReaderPageURL: String?
     var lastPageImageURL: String?
     var lastPageImageCacheKey: String?
     var lastPageIndex: Int?
+    var previousChapterURL: String?
+    var nextChapterURL: String?
 
     init(history: ComicChapterHistory) {
         self.userID = history.userID
@@ -32,9 +35,12 @@ struct ComicChapterHistoryRecord: Codable, FetchableRecord, MutablePersistableRe
         self.chapterTitle = history.chapterTitle
         self.visitedAt = history.visitedAt
         self.coverURL = history.coverURL?.absoluteString
+        self.lastReaderPageURL = history.lastReaderPageURL?.absoluteString
         self.lastPageImageURL = history.lastPageImageURL?.absoluteString
         self.lastPageImageCacheKey = history.lastPageImageCacheKey
         self.lastPageIndex = history.lastPageIndex
+        self.previousChapterURL = history.previousChapterURL?.absoluteString
+        self.nextChapterURL = history.nextChapterURL?.absoluteString
     }
 
     func domainModel() -> ComicChapterHistory {
@@ -49,9 +55,12 @@ struct ComicChapterHistoryRecord: Codable, FetchableRecord, MutablePersistableRe
             chapterTitle: self.chapterTitle,
             visitedAt: self.visitedAt,
             coverURL: self.coverURL.flatMap(URL.init(string:)),
+            lastReaderPageURL: self.lastReaderPageURL.flatMap(URL.init(string:)),
             lastPageImageURL: self.lastPageImageURL.flatMap(URL.init(string:)),
             lastPageImageCacheKey: self.lastPageImageCacheKey,
-            lastPageIndex: self.lastPageIndex
+            lastPageIndex: self.lastPageIndex,
+            previousChapterURL: self.previousChapterURL.flatMap(URL.init(string:)),
+            nextChapterURL: self.nextChapterURL.flatMap(URL.init(string:))
         )
     }
 }

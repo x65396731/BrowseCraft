@@ -102,14 +102,63 @@ final class AppDatabase {
                 table.column("chapterTitle", .text).notNull()
                 table.column("visitedAt", .datetime).notNull()
                 table.column("coverURL", .text)
+                table.column("lastReaderPageURL", .text)
                 table.column("lastPageImageURL", .text)
                 table.column("lastPageImageCacheKey", .text)
                 table.column("lastPageIndex", .integer)
+                table.column("previousChapterURL", .text)
+                table.column("nextChapterURL", .text)
                 table.uniqueKey(["userID", "sourceID", "comicItemID", "chapterKey"])
             }
 
             try Self.insertLocalDefaultUser(in: database)
             try Self.createReadingHistoryIndexes(in: database)
+        }
+
+        migrator.registerMigration("addComicHistoryLastReaderPageURL") { database in
+            if try Self.table(
+                ComicChapterHistoryRecord.databaseTableName,
+                hasColumn: "lastReaderPageURL",
+                in: database
+            ) == false {
+                try database.alter(table: ComicChapterHistoryRecord.databaseTableName) { table in
+                    table.add(column: "lastReaderPageURL", .text)
+                }
+            }
+        }
+
+        migrator.registerMigration("addComicHistoryChapterNavigationURLs") { database in
+            if try Self.table(
+                ComicChapterHistoryRecord.databaseTableName,
+                hasColumn: "previousChapterURL",
+                in: database
+            ) == false {
+                try database.alter(table: ComicChapterHistoryRecord.databaseTableName) { table in
+                    table.add(column: "previousChapterURL", .text)
+                }
+            }
+
+            if try Self.table(
+                ComicChapterHistoryRecord.databaseTableName,
+                hasColumn: "nextChapterURL",
+                in: database
+            ) == false {
+                try database.alter(table: ComicChapterHistoryRecord.databaseTableName) { table in
+                    table.add(column: "nextChapterURL", .text)
+                }
+            }
+        }
+
+        migrator.registerMigration("createUserLibraryStateTable") { database in
+            try database.create(table: UserLibraryStateRecord.databaseTableName, ifNotExists: true) { table in
+                table.column("userID", .text)
+                    .primaryKey()
+                    .references(AppUserRecord.databaseTableName, column: "id", onDelete: .cascade)
+                table.column("selectedSourceID", .text).notNull()
+                table.column("listContextJSON", .text)
+                table.column("lastRefreshAt", .datetime)
+                table.column("updatedAt", .datetime).notNull()
+            }
         }
 
         return migrator
@@ -146,5 +195,13 @@ final class AppDatabase {
             ON \(ComicChapterHistoryRecord.databaseTableName)(userID, visitedAt DESC)
             """
         )
+    }
+
+    private static func table(_ tableName: String, hasColumn columnName: String, in database: Database) throws -> Bool {
+        let rows: [Row] = try Row.fetchAll(database, sql: "PRAGMA table_info(\(tableName))")
+        return rows.contains { row in
+            let name: String = row["name"]
+            return name == columnName
+        }
     }
 }

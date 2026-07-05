@@ -3,7 +3,7 @@ import GRDB
 
 // 中文注释：GRDBSourceRepository 通过 SQLite 保存和读取 Source。
 
-/// 中文注释：该实现先作为 DB 基础设施恢复入口，AppContainer 暂时仍使用内存仓储。
+/// 中文注释：这是 App 正式 source 仓储实现，用于支撑启动状态恢复和 source 配置持久化。
 final class GRDBSourceRepository: SourceRepository {
     private let database: AppDatabase
 

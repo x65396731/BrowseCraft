@@ -68,7 +68,9 @@ struct LibraryView: View {
             .onAppear {
                 if self.didLoadInitialData == false {
                     self.didLoadInitialData = true
-                    self.viewModel.load()
+                    Task {
+                        await self.viewModel.load()
+                    }
                 }
             }
             .alert(isPresented: self.errorAlertBinding) {
@@ -101,9 +103,7 @@ struct LibraryView: View {
                 favoriteAction: { item in
                     self.viewModel.toggleFavorite(item: item)
                 },
-                readAction: { item in
-                    self.viewModel.recordOpened(item: item)
-                },
+                readAction: { _ in },
                 detailViewModelFactory: { item, source in
                     return self.feedContentDetailViewModelFactory(item, source)
                 }
@@ -121,9 +121,7 @@ struct LibraryView: View {
                             favoriteAction: {
                                 self.viewModel.toggleFavorite(item: item)
                             },
-                            readAction: {
-                                self.viewModel.recordOpened(item: item)
-                            },
+                            readAction: {},
                             readerDestination: self.readerDestination(
                                 for: item,
                                 source: source

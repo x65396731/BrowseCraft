@@ -5,16 +5,19 @@ import SwiftUI
 /// 中文注释：HistoryView 是 struct，负责本模块中的对应职责。
 struct HistoryView: View {
     @ObservedObject var viewModel: HistoryViewModel
+    let readerViewModelFactory: (ComicChapterHistory, Source) -> ReaderViewModel
 
     var body: some View {
         NavigationView {
             List {
                 Section("Reading") {
                     ForEach(self.viewModel.readingHistoryEntries, id: \.id) { entry in
-                        HistoryEntryRowView(
-                            entry: entry,
-                            dateText: Self.historyDateFormatter.string(from: entry.visitedAt)
-                        )
+                        NavigationLink(destination: self.destination(for: entry)) {
+                            HistoryEntryRowView(
+                                entry: entry,
+                                dateText: Self.historyDateFormatter.string(from: entry.visitedAt)
+                            )
+                        }
                     }
                 }
             }
@@ -48,6 +51,26 @@ struct HistoryView: View {
         }
     }
 
+    @ViewBuilder
+    private func destination(for entry: ReadingHistoryEntry) -> some View {
+        switch entry.kind {
+        case .rss:
+            if let history: RSSReadingHistory = entry.rssHistory {
+                RSSHistoryDetailView(history: history)
+            } else {
+                HistoryUnavailableView(message: "Missing feed history.")
+            }
+        case .comic:
+            if let history: ComicChapterHistory = entry.comicHistory,
+               let source: Source = self.viewModel.source(for: history.sourceID),
+               history.lastReaderPageURL != nil || history.chapterURL != nil {
+                ReaderView(viewModel: self.readerViewModelFactory(history, source))
+            } else {
+                HistoryUnavailableView(message: "Missing comic source or chapter URL.")
+            }
+        }
+    }
+
     private static let historyDateFormatter: DateFormatter = {
         let formatter: DateFormatter = DateFormatter()
         formatter.dateStyle = .medium
@@ -66,6 +89,73 @@ struct HistoryView: View {
                 }
             }
         )
+    }
+}
+
+private struct RSSHistoryDetailView: View {
+    let history: RSSReadingHistory
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                Text(self.history.title)
+                    .font(.largeTitle.weight(.bold))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    if let sourceName: String = self.history.sourceName {
+                        Label(sourceName, systemImage: "dot.radiowaves.left.and.right")
+                    }
+
+                    Label(Self.dateFormatter.string(from: self.history.dataTime), systemImage: "calendar")
+                    Label(Self.dateFormatter.string(from: self.history.visitedAt), systemImage: "clock")
+                }
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+
+                if let content: String = FeedContentTextFormatter.sanitized(self.history.dataContent) {
+                    Text(content)
+                        .font(.body)
+                        .lineSpacing(5)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                if let detailURL: URL = self.history.detailURL {
+                    Link(destination: detailURL) {
+                        Label("Open Original", systemImage: "safari")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .padding(.top, 4)
+                }
+            }
+            .padding(20)
+        }
+        .navigationTitle("RSS")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter: DateFormatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.timeZone = TimeZone.current
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        return formatter
+    }()
+}
+
+private struct HistoryUnavailableView: View {
+    let message: String
+
+    var body: some View {
+        EmptyStateView(
+            systemImage: "exclamationmark.triangle",
+            title: "Unavailable",
+            message: self.message
+        )
+        .navigationTitle("History")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

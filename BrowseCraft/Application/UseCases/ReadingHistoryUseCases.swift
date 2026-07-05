@@ -28,7 +28,7 @@ struct SaveComicChapterHistoryUseCase {
     }
 }
 
-/// 中文注释：聚合 RSS 和漫画历史，供未来 History 页面按访问时间倒序展示。
+/// 中文注释：聚合 RSS 和漫画历史，供 History 页面按访问时间倒序展示。
 struct LoadReadingHistoryEntriesUseCase {
     private let rssRepository: RSSReadingHistoryRepository
     private let comicRepository: ComicChapterHistoryRepository
@@ -47,8 +47,9 @@ struct LoadReadingHistoryEntriesUseCase {
             .map { history in
                 return ReadingHistoryEntry(rssHistory: history)
             }
-        let comicEntries: [ReadingHistoryEntry] = try self.comicRepository
-            .fetchHistory(userID: userID)
+        let comicEntries: [ReadingHistoryEntry] = self.latestComicHistoriesByComic(
+            try self.comicRepository.fetchHistory(userID: userID)
+        )
             .map { history in
                 return ReadingHistoryEntry(comicHistory: history)
             }
@@ -56,5 +57,31 @@ struct LoadReadingHistoryEntriesUseCase {
         return (rssEntries + comicEntries).sorted { lhs, rhs in
             return lhs.visitedAt > rhs.visitedAt
         }
+    }
+
+    private func latestComicHistoriesByComic(_ histories: [ComicChapterHistory]) -> [ComicChapterHistory] {
+        var latestByComicID: [String: ComicChapterHistory] = [:]
+
+        for history: ComicChapterHistory in histories {
+            let comicID: String = self.comicHistoryGroupID(history)
+            if let existingHistory: ComicChapterHistory = latestByComicID[comicID],
+               existingHistory.visitedAt >= history.visitedAt {
+                continue
+            }
+
+            latestByComicID[comicID] = history
+        }
+
+        return latestByComicID.values.sorted { lhs, rhs in
+            return lhs.visitedAt > rhs.visitedAt
+        }
+    }
+
+    private func comicHistoryGroupID(_ history: ComicChapterHistory) -> String {
+        return [
+            history.userID,
+            history.sourceID,
+            history.comicItemID
+        ].joined(separator: "::")
     }
 }

@@ -32,11 +32,14 @@ final class SourcesViewModel: ObservableObject {
     private let jsonEncoder: JSONEncoder
     private let refreshSourceUseCase: RefreshSourceUseCase
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
+    private let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase
     private let listDebugUseCase: ListDebugUseCase
     private let searchDebugUseCase: SearchDebugUseCase
     private let detailDebugUseCase: DetailDebugUseCase
     private let readerDebugUseCase: ReaderDebugUseCase
     private let sourceSelectionStore: SourceSelectionStore
+    private let userID: String
+    private let now: () -> Date
     private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
     private var failedRefreshAction: FailedRefreshAction?
 
@@ -55,11 +58,14 @@ final class SourcesViewModel: ObservableObject {
         jsonEncoder: JSONEncoder = JSONEncoder(),
         refreshSourceUseCase: RefreshSourceUseCase,
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
+        saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase,
         listDebugUseCase: ListDebugUseCase,
         searchDebugUseCase: SearchDebugUseCase,
         detailDebugUseCase: DetailDebugUseCase,
         readerDebugUseCase: ReaderDebugUseCase,
-        sourceSelectionStore: SourceSelectionStore
+        sourceSelectionStore: SourceSelectionStore,
+        userID: String = AppUser.localDefaultID,
+        now: @escaping () -> Date = Date.init
     ) {
         self.loadBuiltInSourcesUseCase = loadBuiltInSourcesUseCase
         self.loadSourcesUseCase = loadSourcesUseCase
@@ -75,11 +81,14 @@ final class SourcesViewModel: ObservableObject {
         self.jsonEncoder = jsonEncoder
         self.refreshSourceUseCase = refreshSourceUseCase
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
+        self.saveUserLibraryStateUseCase = saveUserLibraryStateUseCase
         self.listDebugUseCase = listDebugUseCase
         self.searchDebugUseCase = searchDebugUseCase
         self.detailDebugUseCase = detailDebugUseCase
         self.readerDebugUseCase = readerDebugUseCase
         self.sourceSelectionStore = sourceSelectionStore
+        self.userID = userID
+        self.now = now
         self.jsonEncoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         self.selectedSourceID = sourceSelectionStore.selectedSourceID
         self.bindSourceSelection()
@@ -169,6 +178,7 @@ final class SourcesViewModel: ObservableObject {
     func selectSource(id: String?) {
         self.selectedSourceID = id
         self.sourceSelectionStore.selectedSourceID = id
+        self.saveLibraryStateForSelectedSource(lastRefreshAt: nil)
     }
 
     @MainActor
@@ -190,6 +200,7 @@ final class SourcesViewModel: ObservableObject {
             self.logPublishedLibrarySnapshot(source: source, items: items, origin: "select-source-refresh")
             self.failedRefreshAction = nil
             self.selectSource(id: source.id)
+            self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
         } catch {
             self.failedRefreshAction = .select(sourceID: source.id)
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-select-refresh-error")
@@ -431,6 +442,7 @@ final class SourcesViewModel: ObservableObject {
             let items: [ContentItem] = try await self.refreshSourceForSelection(source)
             self.sourceSelectionStore.publishLibrarySnapshot(source: source, items: items)
             self.logPublishedLibrarySnapshot(source: source, items: items, origin: "manual-refresh")
+            self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
             self.failedRefreshAction = nil
         } catch {
             self.failedRefreshAction = .refresh(sourceID: source.id)
@@ -469,6 +481,36 @@ final class SourcesViewModel: ObservableObject {
                 listOrder: index,
                 listContext: nil
             )
+        }
+    }
+
+    private func saveLibraryStateForSelectedSource(lastRefreshAt: Date?) {
+        guard let selectedSourceID: String = self.selectedSourceID else {
+            return
+        }
+
+        self.saveLibraryState(sourceID: selectedSourceID, lastRefreshAt: lastRefreshAt)
+    }
+
+    private func saveLibraryState(sourceID: String, lastRefreshAt: Date?) {
+        let state: UserLibraryState = UserLibraryState(
+            userID: self.userID,
+            selectedSourceID: sourceID,
+            listContext: nil,
+            lastRefreshAt: lastRefreshAt,
+            updatedAt: self.now()
+        )
+
+        do {
+            try self.saveUserLibraryStateUseCase.execute(state: state)
+        } catch {
+            #if DEBUG
+            print(
+                "[BrowseCraftUserLibraryState] source save failed " +
+                "sourceID=\(sourceID) " +
+                "error=\(error)"
+            )
+            #endif
         }
     }
 

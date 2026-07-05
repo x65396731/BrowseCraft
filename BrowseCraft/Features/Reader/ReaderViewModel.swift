@@ -3,15 +3,25 @@ import Foundation
 
 // 中文注释：ReaderViewModel.swift 属于界面功能层，用于说明本文件承载的核心职责。
 
+/// 中文注释：从历史页恢复 Reader 时携带最近阅读到的页码；具体图片仍由 Reader 按章节 URL 加载。
+struct ReaderHistoryRestoreContext: Hashable {
+    var lastPageIndex: Int?
+    var lastPageImageURLString: String?
+}
+
 /// 中文注释：ReaderViewModel 是 final class，负责本模块中的对应职责。
 final class ReaderViewModel: ObservableObject {
     @Published private(set) var chapter: ReaderChapter?
     @Published private(set) var isLoading: Bool = false
+    @Published private(set) var currentPageIndex: Int?
+    @Published private(set) var currentPageImageURL: URL?
+    @Published private(set) var pendingRestorePageIndex: Int?
     @Published var errorMessage: String?
 
     let item: ContentItem
     private let source: Source
     private let selectedChapter: ChapterLink?
+    private let restoreContext: ReaderHistoryRestoreContext?
     private let loadReaderChapterUseCase: LoadReaderChapterUseCase
     private let resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
     private let saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase?
@@ -22,6 +32,7 @@ final class ReaderViewModel: ObservableObject {
         item: ContentItem,
         source: Source,
         selectedChapter: ChapterLink? = nil,
+        restoreContext: ReaderHistoryRestoreContext? = nil,
         loadReaderChapterUseCase: LoadReaderChapterUseCase,
         resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase,
         saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase? = nil,
@@ -30,10 +41,14 @@ final class ReaderViewModel: ObservableObject {
         self.item = item
         self.source = source
         self.selectedChapter = selectedChapter
+        self.restoreContext = restoreContext
         self.loadReaderChapterUseCase = loadReaderChapterUseCase
         self.resolveReaderSourcePresentationUseCase = resolveReaderSourcePresentationUseCase
         self.saveComicChapterHistoryUseCase = saveComicChapterHistoryUseCase
         self.now = now
+        self.currentPageIndex = restoreContext?.lastPageIndex
+        self.currentPageImageURL = restoreContext?.lastPageImageURLString.flatMap(URL.init(string:))
+        self.pendingRestorePageIndex = restoreContext?.lastPageIndex
 
         #if DEBUG
         print(
@@ -72,11 +87,97 @@ final class ReaderViewModel: ObservableObject {
         self.isLoading = true
         self.errorMessage = nil
 
+        await self.loadChapter(
+            chapterURLString: self.selectedChapter?.url,
+            shouldRestoreInitialPage: true
+        )
+    }
+
+    @MainActor
+    func loadPreviousChapter() async {
+        guard let previousChapterURL: String = self.nonEmptyURLString(self.chapter?.previousChapterURL) else {
+            return
+        }
+
+        self.saveCurrentChapterProgress(reason: "before-previous-chapter")
+        await self.loadChapter(
+            chapterURLString: previousChapterURL,
+            shouldRestoreInitialPage: false
+        )
+    }
+
+    @MainActor
+    func loadNextChapter() async {
+        guard let nextChapterURL: String = self.nonEmptyURLString(self.chapter?.nextChapterURL) else {
+            return
+        }
+
+        self.saveCurrentChapterProgress(reason: "before-next-chapter")
+        await self.loadChapter(
+            chapterURLString: nextChapterURL,
+            shouldRestoreInitialPage: false
+        )
+    }
+
+    @MainActor
+    func updateVisiblePage(index: Int, imageURLString: String) {
+        guard index >= 0,
+              self.currentPageIndex != index else {
+            return
+        }
+
+        self.currentPageIndex = index
+        self.currentPageImageURL = URL(string: imageURLString)
+
+        #if DEBUG
+        print(
+            "[BrowseCraftComicHistory] visible page " +
+            "sourceID=\(self.source.id) " +
+            "comicItemID=\(self.item.id) " +
+            "pageIndex=\(index)"
+        )
+        #endif
+    }
+
+    func saveCurrentChapterProgress(reason: String) {
+        guard let chapter: ReaderChapter = self.chapter else {
+            return
+        }
+
+        self.saveComicChapterHistory(
+            chapter: chapter,
+            chapterKey: self.chapterKey(for: chapter),
+            reason: reason,
+            shouldSkipIfSaved: false
+        )
+    }
+
+    @MainActor
+    func markRestorePageApplied() {
+        self.pendingRestorePageIndex = nil
+    }
+
+    @MainActor
+    private func loadChapter(
+        chapterURLString: String?,
+        shouldRestoreInitialPage: Bool
+    ) async {
+        self.isLoading = true
+        self.errorMessage = nil
+        if shouldRestoreInitialPage {
+            self.currentPageIndex = self.restoreContext?.lastPageIndex
+            self.currentPageImageURL = self.restoreContext?.lastPageImageURLString.flatMap(URL.init(string:))
+        } else {
+            self.currentPageIndex = nil
+            self.currentPageImageURL = nil
+            self.pendingRestorePageIndex = nil
+        }
+
         do {
             let loadedChapter: ReaderChapter = try await self.loadReaderChapterUseCase.execute(
                 source: self.source,
                 item: self.item,
-                chapterURLString: self.selectedChapter?.url
+                chapterURLString: chapterURLString
             )
             self.chapter = loadedChapter
             self.saveComicChapterHistoryIfNeeded(chapter: loadedChapter)
@@ -114,12 +215,26 @@ final class ReaderViewModel: ObservableObject {
     }
 
     private func saveComicChapterHistoryIfNeeded(chapter: ReaderChapter) {
+        self.saveComicChapterHistory(
+            chapter: chapter,
+            chapterKey: self.chapterKey(for: chapter),
+            reason: "initial-chapter-load",
+            shouldSkipIfSaved: false
+        )
+    }
+
+    private func saveComicChapterHistory(
+        chapter: ReaderChapter,
+        chapterKey: String,
+        reason: String,
+        shouldSkipIfSaved: Bool
+    ) {
         guard let saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase = self.saveComicChapterHistoryUseCase else {
             return
         }
 
-        let chapterKey: String = self.chapterKey(for: chapter)
-        if self.savedChapterHistoryKeys.contains(chapterKey) {
+        if shouldSkipIfSaved,
+           self.savedChapterHistoryKeys.contains(chapterKey) {
             return
         }
 
@@ -132,6 +247,7 @@ final class ReaderViewModel: ObservableObject {
             #if DEBUG
             print(
                 "[BrowseCraftComicHistory] saved " +
+                "reason=\(reason) " +
                 "userID=\(AppUser.localDefaultID) " +
                 "sourceID=\(self.source.id) " +
                 "comicItemID=\(self.item.id) " +
@@ -142,6 +258,7 @@ final class ReaderViewModel: ObservableObject {
             #if DEBUG
             print(
                 "[BrowseCraftComicHistory] save failed " +
+                "reason=\(reason) " +
                 "sourceID=\(self.source.id) " +
                 "comicItemID=\(self.item.id) " +
                 "chapterKey=\(chapterKey) " +
@@ -166,9 +283,12 @@ final class ReaderViewModel: ObservableObject {
             chapterTitle: self.chapterTitle(for: chapter),
             visitedAt: self.now(),
             coverURL: self.item.coverURL.flatMap(URL.init(string:)),
-            lastPageImageURL: chapter.pageImageURLs.first.flatMap(URL.init(string:)),
+            lastReaderPageURL: URL(string: chapter.chapterURL),
+            lastPageImageURL: self.currentPageImageURL ?? chapter.pageImageURLs.first.flatMap(URL.init(string:)),
             lastPageImageCacheKey: nil,
-            lastPageIndex: chapter.pageImageURLs.isEmpty ? nil : 0
+            lastPageIndex: self.currentPageIndex ?? (chapter.pageImageURLs.isEmpty ? nil : 0),
+            previousChapterURL: chapter.previousChapterURL.flatMap(URL.init(string:)),
+            nextChapterURL: chapter.nextChapterURL.flatMap(URL.init(string:))
         )
     }
 
@@ -197,6 +317,15 @@ final class ReaderViewModel: ObservableObject {
         }
 
         return self.item.latestText ?? self.item.title
+    }
+
+    private func nonEmptyURLString(_ urlString: String?) -> String? {
+        guard let urlString: String = urlString,
+              urlString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
+            return nil
+        }
+
+        return urlString
     }
 }
 

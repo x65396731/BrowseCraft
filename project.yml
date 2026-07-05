@@ -33,7 +33,11 @@ targets:
         excludes:
           - "**/*.md"
           - "Domain/Repositories/ContentRepository.swift"
+          - "Domain/Repositories/HistoryRepository.swift"
+          - "Domain/Models/ReadingHistory.swift"
           - "Application/UseCases/LoadLibraryUseCase.swift"
+          - "Application/UseCases/LoadHistoryUseCase.swift"
+          - "Application/UseCases/RecordOpenItemUseCase.swift"
     dependencies:
       - package: BrowseCraftCore
       - package: BrowseCraftRulesKit

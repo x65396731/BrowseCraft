@@ -106,36 +106,74 @@ struct ChapterListView: View {
 /// 中文注释：ReaderView 是 struct，负责本模块中的对应职责。
 struct ReaderView: View {
     @ObservedObject var viewModel: ReaderViewModel
+    @State private var didApplyRestorePage: Bool = false
 
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 12) {
-                if self.viewModel.isLoading {
-                    ProgressView()
-                        .padding(.top, 80)
-                }
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 12) {
+                    if self.viewModel.isLoading {
+                        ProgressView()
+                            .padding(.top, 80)
+                    }
 
-                if let chapter: ReaderChapter = self.viewModel.chapter {
-                    ForEach(
-                        Array(chapter.pageImageURLs.enumerated()),
-                        id: \.offset
-                    ) { pageIndex, pageURLString in
-                        ReaderPageImageView(
-                            pageURLString: pageURLString,
-                            pageNumber: pageIndex + 1,
-                            refererURLString: chapter.chapterURL,
-                            requestConfig: self.viewModel.readerImageRequestConfig
+                    if let chapter: ReaderChapter = self.viewModel.chapter {
+                        ForEach(
+                            Array(chapter.pageImageURLs.enumerated()),
+                            id: \.offset
+                        ) { pageIndex, pageURLString in
+                            ReaderPageImageView(
+                                pageURLString: pageURLString,
+                                pageNumber: pageIndex + 1,
+                                refererURLString: chapter.chapterURL,
+                                requestConfig: self.viewModel.readerImageRequestConfig
+                            )
+                            .id(pageIndex)
+                            .background(
+                                ReaderPageVisibilityReporter(
+                                    pageIndex: pageIndex,
+                                    pageURLString: pageURLString
+                                )
+                            )
+                        }
+
+                        ReaderChapterNavigationBar(
+                            previousChapterURL: chapter.previousChapterURL,
+                            nextChapterURL: chapter.nextChapterURL,
+                            loadPrevious: {
+                                await self.viewModel.loadPreviousChapter()
+                            },
+                            loadNext: {
+                                await self.viewModel.loadNextChapter()
+                            }
                         )
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .disabled(self.viewModel.isLoading)
                     }
                 }
+                .padding(.vertical, 12)
             }
-            .padding(.vertical, 12)
-        }
-        .background(Color(.systemBackground))
-        .navigationTitle(self.navigationTitle)
-        .navigationBarTitleDisplayMode(.inline)
-        .task {
-            await self.viewModel.load()
+            .onPreferenceChange(ReaderPageVisibilityPreferenceKey.self) { pages in
+                if let visiblePage: ReaderPageVisibility = pages.min(by: { lhs, rhs in
+                    return lhs.distanceToScreenCenter < rhs.distanceToScreenCenter
+                }) {
+                    self.viewModel.updateVisiblePage(
+                        index: visiblePage.pageIndex,
+                        imageURLString: visiblePage.pageURLString
+                    )
+                }
+            }
+            .onDisappear {
+                self.viewModel.saveCurrentChapterProgress(reason: "reader-disappear")
+            }
+            .background(Color(.systemBackground))
+            .navigationTitle(self.navigationTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .task {
+                await self.viewModel.load()
+                await self.restoreInitialPageIfNeeded(proxy: proxy)
+            }
         }
         .alert(isPresented: self.errorAlertBinding) {
             Alert(
@@ -149,6 +187,24 @@ struct ReaderView: View {
                 )
             )
         }
+    }
+
+    @MainActor
+    private func restoreInitialPageIfNeeded(proxy: ScrollViewProxy) async {
+        guard self.didApplyRestorePage == false,
+              let pageIndex: Int = self.viewModel.pendingRestorePageIndex,
+              let pageCount: Int = self.viewModel.chapter?.pageImageURLs.count,
+              pageIndex >= 0,
+              pageIndex < pageCount else {
+            return
+        }
+
+        self.didApplyRestorePage = true
+        try? await Task.sleep(nanoseconds: 120_000_000)
+        withAnimation(.easeInOut(duration: 0.2)) {
+            proxy.scrollTo(pageIndex, anchor: .top)
+        }
+        self.viewModel.markRestorePageApplied()
     }
 
     private var navigationTitle: String {
@@ -170,5 +226,83 @@ struct ReaderView: View {
                 }
             }
         )
+    }
+}
+
+private struct ReaderPageVisibility: Equatable {
+    let pageIndex: Int
+    let pageURLString: String
+    let distanceToScreenCenter: CGFloat
+}
+
+private struct ReaderPageVisibilityPreferenceKey: PreferenceKey {
+    static var defaultValue: [ReaderPageVisibility] = []
+
+    static func reduce(value: inout [ReaderPageVisibility], nextValue: () -> [ReaderPageVisibility]) {
+        value.append(contentsOf: nextValue())
+    }
+}
+
+private struct ReaderPageVisibilityReporter: View {
+    let pageIndex: Int
+    let pageURLString: String
+
+    var body: some View {
+        GeometryReader { proxy in
+            let frame: CGRect = proxy.frame(in: .global)
+            let screenCenterY: CGFloat = UIScreen.main.bounds.midY
+            let pageCenterY: CGFloat = frame.midY
+            Color.clear.preference(
+                key: ReaderPageVisibilityPreferenceKey.self,
+                value: [
+                    ReaderPageVisibility(
+                        pageIndex: self.pageIndex,
+                        pageURLString: self.pageURLString,
+                        distanceToScreenCenter: abs(pageCenterY - screenCenterY)
+                    )
+                ]
+            )
+        }
+    }
+}
+
+private struct ReaderChapterNavigationBar: View {
+    let previousChapterURL: String?
+    let nextChapterURL: String?
+    let loadPrevious: () async -> Void
+    let loadNext: () async -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button {
+                Task {
+                    await self.loadPrevious()
+                }
+            } label: {
+                Label("Previous", systemImage: "chevron.left")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .disabled(self.isBlank(self.previousChapterURL))
+
+            Button {
+                Task {
+                    await self.loadNext()
+                }
+            } label: {
+                Label("Next", systemImage: "chevron.right")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(self.isBlank(self.nextChapterURL))
+        }
+    }
+
+    private func isBlank(_ value: String?) -> Bool {
+        guard let value: String = value else {
+            return true
+        }
+
+        return value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }

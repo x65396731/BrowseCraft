@@ -8,7 +8,6 @@ final class AppContainer {
     private let database: AppDatabase
     private let sourceRepository: SourceRepository
     private let favoriteRepository: FavoriteRepository
-    private let historyRepository: HistoryRepository
     private let httpClient: HTTPClient
     private let pageContentLoader: PageContentLoader
     private let urlResolver: URLResolvingService
@@ -25,9 +24,8 @@ final class AppContainer {
             let ruleParser: RuleParsingService = SwiftSoupRuleParser(urlResolver: urlResolver)
 
             self.database = database
-            self.sourceRepository = InMemorySourceRepository()
-            self.favoriteRepository = InMemoryFavoriteRepository()
-            self.historyRepository = InMemoryHistoryRepository()
+            self.sourceRepository = GRDBSourceRepository(database: database)
+            self.favoriteRepository = GRDBFavoriteRepository(database: database)
             self.httpClient = httpClient
             self.pageContentLoader = pageContentLoader
             self.urlResolver = urlResolver
@@ -46,6 +44,9 @@ final class AppContainer {
 
     /// 中文注释：makeSourcesViewModel 方法封装当前类型的一段业务或界面行为。
     func makeSourcesViewModel() -> SourcesViewModel {
+        let userLibraryStateRepository: UserLibraryStateRepository = GRDBUserLibraryStateRepository(
+            database: self.database
+        )
         let loadBuiltInSourcesUseCase: LoadBuiltInSourcesUseCase = LoadBuiltInSourcesUseCase(
             sourceRepository: self.sourceRepository
         )
@@ -82,6 +83,9 @@ final class AppContainer {
         )
         let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = RefreshSourceRuntimeUseCase(
             runtimeResolver: self.makeSourceRuntimeResolver()
+        )
+        let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase = SaveUserLibraryStateUseCase(
+            repository: userLibraryStateRepository
         )
         let ruleCandidateAnalyzer: RuleCandidateAnalyzingService = SwiftSoupRuleCandidateAnalyzer()
         let listDebugUseCase: ListDebugUseCase = ListDebugUseCase(
@@ -122,6 +126,7 @@ final class AppContainer {
             sourceImportRecommendationUseCase: sourceImportRecommendationUseCase,
             refreshSourceUseCase: refreshSourceUseCase,
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
+            saveUserLibraryStateUseCase: saveUserLibraryStateUseCase,
             listDebugUseCase: listDebugUseCase,
             searchDebugUseCase: searchDebugUseCase,
             detailDebugUseCase: detailDebugUseCase,
@@ -132,24 +137,35 @@ final class AppContainer {
 
     /// 中文注释：makeLibraryViewModel 方法封装当前类型的一段业务或界面行为。
     func makeLibraryViewModel() -> LibraryViewModel {
+        let userLibraryStateRepository: UserLibraryStateRepository = GRDBUserLibraryStateRepository(
+            database: self.database
+        )
+        let loadBuiltInSourcesUseCase: LoadBuiltInSourcesUseCase = LoadBuiltInSourcesUseCase(
+            sourceRepository: self.sourceRepository
+        )
         let loadSourcesUseCase: LoadSourcesUseCase = LoadSourcesUseCase(
             sourceRepository: self.sourceRepository
         )
         let toggleFavoriteUseCase: ToggleFavoriteUseCase = ToggleFavoriteUseCase(
             favoriteRepository: self.favoriteRepository
         )
-        let recordOpenItemUseCase: RecordOpenItemUseCase = RecordOpenItemUseCase(
-            historyRepository: self.historyRepository
-        )
         let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = RefreshSourceRuntimeUseCase(
             runtimeResolver: self.makeSourceRuntimeResolver()
         )
+        let loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase = LoadUserLibraryStateUseCase(
+            repository: userLibraryStateRepository
+        )
+        let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase = SaveUserLibraryStateUseCase(
+            repository: userLibraryStateRepository
+        )
 
         return LibraryViewModel(
+            loadBuiltInSourcesUseCase: loadBuiltInSourcesUseCase,
             loadSourcesUseCase: loadSourcesUseCase,
             toggleFavoriteUseCase: toggleFavoriteUseCase,
-            recordOpenItemUseCase: recordOpenItemUseCase,
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
+            loadUserLibraryStateUseCase: loadUserLibraryStateUseCase,
+            saveUserLibraryStateUseCase: saveUserLibraryStateUseCase,
             resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase(),
             sourceSelectionStore: self.sourceSelectionStore
         )
@@ -174,7 +190,8 @@ final class AppContainer {
     func makeReaderViewModel(
         item: ContentItem,
         source: Source,
-        selectedChapter: ChapterLink? = nil
+        selectedChapter: ChapterLink? = nil,
+        restoreContext: ReaderHistoryRestoreContext? = nil
     ) -> ReaderViewModel {
         let loadReaderChapterUseCase: LoadReaderChapterUseCase = LoadReaderChapterUseCase(
             pageContentLoader: self.pageContentLoader,
@@ -191,9 +208,38 @@ final class AppContainer {
             item: item,
             source: source,
             selectedChapter: selectedChapter,
+            restoreContext: restoreContext,
             loadReaderChapterUseCase: loadReaderChapterUseCase,
             resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase(),
             saveComicChapterHistoryUseCase: saveComicChapterHistoryUseCase
+        )
+    }
+
+    func makeReaderViewModel(history: ComicChapterHistory, source: Source) -> ReaderViewModel {
+        let readerURL: URL? = history.lastReaderPageURL ?? history.chapterURL
+        let item: ContentItem = ContentItem(
+            id: history.comicItemID,
+            sourceId: history.sourceID,
+            title: history.comicTitle,
+            detailURL: readerURL?.absoluteString ?? history.comicItemID,
+            coverURL: history.coverURL?.absoluteString,
+            type: .comic,
+            latestText: history.chapterTitle,
+            updatedAt: history.visitedAt
+        )
+        let selectedChapter: ChapterLink? = readerURL.map { url in
+            return ChapterLink(title: history.chapterTitle, url: url.absoluteString)
+        }
+        let restoreContext: ReaderHistoryRestoreContext = ReaderHistoryRestoreContext(
+            lastPageIndex: history.lastPageIndex,
+            lastPageImageURLString: history.lastPageImageURL?.absoluteString
+        )
+
+        return self.makeReaderViewModel(
+            item: item,
+            source: source,
+            selectedChapter: selectedChapter,
+            restoreContext: restoreContext
         )
     }
 
@@ -234,9 +280,13 @@ final class AppContainer {
             rssRepository: rssRepository,
             comicRepository: comicRepository
         )
+        let loadSourcesUseCase: LoadSourcesUseCase = LoadSourcesUseCase(
+            sourceRepository: self.sourceRepository
+        )
 
         return HistoryViewModel(
-            loadReadingHistoryEntriesUseCase: loadReadingHistoryEntriesUseCase
+            loadReadingHistoryEntriesUseCase: loadReadingHistoryEntriesUseCase,
+            loadSourcesUseCase: loadSourcesUseCase
         )
     }
 }

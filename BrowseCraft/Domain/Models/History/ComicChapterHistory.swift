@@ -25,7 +25,12 @@ struct ComicChapterHistory: Identifiable, Hashable {
     var chapterTitle: String
     var visitedAt: Date
     var coverURL: URL?
+    /// 中文注释：lastReaderPageURL 用于从历史恢复 Reader 的网页解析上下文，不等同于图片 URL。
+    var lastReaderPageURL: URL?
     var lastPageImageURL: URL?
     var lastPageImageCacheKey: String?
     var lastPageIndex: Int?
+    /// 中文注释：上一话/下一话 URL 是上次阅读时已知的导航状态，重新解析章节后应以最新结果为准。
+    var previousChapterURL: URL?
+    var nextChapterURL: URL?
 }

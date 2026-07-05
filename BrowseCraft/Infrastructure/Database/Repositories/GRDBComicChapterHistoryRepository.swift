@@ -36,8 +36,8 @@ final class GRDBComicChapterHistoryRepository: ComicChapterHistoryRepository {
         try database.execute(
             sql: """
             INSERT INTO \(ComicChapterHistoryRecord.databaseTableName)
-                (userID, sourceID, comicItemID, comicTitle, chapterID, chapterKey, chapterURL, chapterTitle, visitedAt, coverURL, lastPageImageURL, lastPageImageCacheKey, lastPageIndex)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (userID, sourceID, comicItemID, comicTitle, chapterID, chapterKey, chapterURL, chapterTitle, visitedAt, coverURL, lastReaderPageURL, lastPageImageURL, lastPageImageCacheKey, lastPageIndex, previousChapterURL, nextChapterURL)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(userID, sourceID, comicItemID, chapterKey) DO UPDATE SET
                 comicTitle = excluded.comicTitle,
                 chapterID = excluded.chapterID,
@@ -45,9 +45,12 @@ final class GRDBComicChapterHistoryRepository: ComicChapterHistoryRepository {
                 chapterTitle = excluded.chapterTitle,
                 visitedAt = excluded.visitedAt,
                 coverURL = excluded.coverURL,
+                lastReaderPageURL = excluded.lastReaderPageURL,
                 lastPageImageURL = excluded.lastPageImageURL,
                 lastPageImageCacheKey = excluded.lastPageImageCacheKey,
-                lastPageIndex = excluded.lastPageIndex
+                lastPageIndex = excluded.lastPageIndex,
+                previousChapterURL = excluded.previousChapterURL,
+                nextChapterURL = excluded.nextChapterURL
             """,
             arguments: [
                 record.userID,
@@ -60,9 +63,12 @@ final class GRDBComicChapterHistoryRepository: ComicChapterHistoryRepository {
                 record.chapterTitle,
                 record.visitedAt,
                 record.coverURL,
+                record.lastReaderPageURL,
                 record.lastPageImageURL,
                 record.lastPageImageCacheKey,
-                record.lastPageIndex
+                record.lastPageIndex,
+                record.previousChapterURL,
+                record.nextChapterURL
             ]
         )
     }
