@@ -174,6 +174,11 @@ struct ReaderView: View {
                 await self.viewModel.load()
                 await self.restoreInitialPageIfNeeded(proxy: proxy)
             }
+            .onChange(of: self.viewModel.chapter?.chapterURL) { _, _ in
+                Task {
+                    await self.scrollToTopForLoadedChapter(proxy: proxy)
+                }
+            }
         }
         .alert(isPresented: self.errorAlertBinding) {
             Alert(
@@ -187,6 +192,20 @@ struct ReaderView: View {
                 )
             )
         }
+    }
+
+    @MainActor
+    private func scrollToTopForLoadedChapter(proxy: ScrollViewProxy) async {
+        // 中文注释：只有“下一章”需要回到新章节顶部；历史恢复页码和上一章都不走这里。
+        guard self.viewModel.chapter?.pageImageURLs.isEmpty == false,
+              self.viewModel.pendingRestorePageIndex == nil,
+              self.viewModel.pendingChapterNavigationDirection == .next else {
+            return
+        }
+
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        proxy.scrollTo(0, anchor: .top)
+        self.viewModel.markChapterNavigationScrollHandled()
     }
 
     @MainActor

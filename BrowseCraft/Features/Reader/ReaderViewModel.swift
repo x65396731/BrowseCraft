@@ -9,6 +9,12 @@ struct ReaderHistoryRestoreContext: Hashable {
     var lastPageImageURLString: String?
 }
 
+/// 中文注释：章节切换方向只用于阅读器滚动策略；下一章回顶部，上一章保留当前默认行为。
+enum ReaderChapterNavigationDirection {
+    case previous
+    case next
+}
+
 /// 中文注释：ReaderViewModel 是 final class，负责本模块中的对应职责。
 final class ReaderViewModel: ObservableObject {
     @Published private(set) var chapter: ReaderChapter?
@@ -16,6 +22,8 @@ final class ReaderViewModel: ObservableObject {
     @Published private(set) var currentPageIndex: Int?
     @Published private(set) var currentPageImageURL: URL?
     @Published private(set) var pendingRestorePageIndex: Int?
+    /// 中文注释：记录最近一次章节切换方向，让 View 在新章节加载完成后决定是否需要调整滚动位置。
+    @Published private(set) var pendingChapterNavigationDirection: ReaderChapterNavigationDirection?
     @Published var errorMessage: String?
 
     let item: ContentItem
@@ -100,6 +108,7 @@ final class ReaderViewModel: ObservableObject {
         }
 
         self.saveCurrentChapterProgress(reason: "before-previous-chapter")
+        self.pendingChapterNavigationDirection = .previous
         await self.loadChapter(
             chapterURLString: previousChapterURL,
             shouldRestoreInitialPage: false
@@ -113,6 +122,7 @@ final class ReaderViewModel: ObservableObject {
         }
 
         self.saveCurrentChapterProgress(reason: "before-next-chapter")
+        self.pendingChapterNavigationDirection = .next
         await self.loadChapter(
             chapterURLString: nextChapterURL,
             shouldRestoreInitialPage: false
@@ -155,6 +165,11 @@ final class ReaderViewModel: ObservableObject {
     @MainActor
     func markRestorePageApplied() {
         self.pendingRestorePageIndex = nil
+    }
+
+    @MainActor
+    func markChapterNavigationScrollHandled() {
+        self.pendingChapterNavigationDirection = nil
     }
 
     @MainActor

@@ -16,6 +16,7 @@ struct RootView: View {
     @StateObject private var sourcesViewModel: SourcesViewModel
     @StateObject private var libraryViewModel: LibraryViewModel
     @StateObject private var historyViewModel: HistoryViewModel
+    @StateObject private var settingsViewModel: SettingsViewModel
     @State private var selectedTab: RootTab = .library
 
     init(container: AppContainer) {
@@ -23,6 +24,7 @@ struct RootView: View {
         _sourcesViewModel = StateObject(wrappedValue: container.makeSourcesViewModel())
         _libraryViewModel = StateObject(wrappedValue: container.makeLibraryViewModel())
         _historyViewModel = StateObject(wrappedValue: container.makeHistoryViewModel())
+        _settingsViewModel = StateObject(wrappedValue: container.makeSettingsViewModel())
     }
 
     var body: some View {
@@ -71,7 +73,7 @@ struct RootView: View {
                 }
                 .tag(RootTab.history)
 
-            SettingsView()
+            SettingsView(viewModel: self.settingsViewModel)
                 .tabItem {
                     Image(systemName: "gearshape")
                     Text("Settings")

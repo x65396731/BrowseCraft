@@ -14,8 +14,13 @@ final class AppContainer {
     private let ruleParser: RuleParsingService
     private let sourceRuntimeFactory: SourceRuntimeFactory
     private let sourceSelectionStore: SourceSelectionStore
+    /// 中文注释：图片缓存配置器需要和 App 生命周期一致，Settings 变更与启动配置共享同一份 DataCache 实例。
+    let imageCacheConfigurator: ImageCacheConfigurator
 
     init() {
+        let imageCacheConfigurator: ImageCacheConfigurator = ImageCacheConfigurator()
+        self.imageCacheConfigurator = imageCacheConfigurator
+
         do {
             let database: AppDatabase = try AppDatabase()
             let urlResolver: URLResolvingService = URLResolvingService()
@@ -40,6 +45,32 @@ final class AppContainer {
             // 中文注释：DB 初始化失败时历史功能无法工作，当前阶段先保持启动期快速暴露错误。
             fatalError("Failed to build AppContainer: \(error)")
         }
+
+        self.configureImageCache()
+    }
+
+    private func configureImageCache() {
+        do {
+            let settings: ImageCacheSettings = try self.imageCacheConfigurator.configureSharedPipeline()
+            // 中文注释：启动时主动检查一次旧缓存，避免用户调小上限后旧数据长期留在磁盘。
+            self.imageCacheConfigurator.trimConfiguredDataCacheIfNeeded(settings: settings)
+            #if DEBUG
+            print(
+                "[BrowseCraftImageCache] configured " +
+                "limit=\(settings.displayTitle) " +
+                "limitBytes=\(settings.limitBytes) " +
+                "trimTargetBytes=\(settings.trimTargetBytes)"
+            )
+            #endif
+        } catch {
+            #if DEBUG
+            print("[BrowseCraftImageCache] configuration failed error=\(error)")
+            #endif
+        }
+    }
+
+    func makeSettingsViewModel() -> SettingsViewModel {
+        return SettingsViewModel(imageCacheConfigurator: self.imageCacheConfigurator)
     }
 
     /// 中文注释：makeSourcesViewModel 方法封装当前类型的一段业务或界面行为。

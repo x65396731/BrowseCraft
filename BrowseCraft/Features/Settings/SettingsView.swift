@@ -4,16 +4,18 @@ import SwiftUI
 
 /// 中文注释：SettingsView 是应用的用户设置页。
 struct SettingsView: View {
+    @ObservedObject var viewModel: SettingsViewModel
     @AppStorage("settings.displayName") private var displayName: String = "Reader"
     @AppStorage("settings.email") private var email: String = ""
     @AppStorage("settings.cloudSyncEnabled") private var isCloudSyncEnabled: Bool = false
     @AppStorage("settings.syncBookmarks") private var shouldSyncBookmarks: Bool = true
     @AppStorage("settings.syncReadingProgress") private var shouldSyncReadingProgress: Bool = true
-    @AppStorage("settings.cacheOverCellular") private var allowsCacheOverCellular: Bool = false
-    @AppStorage("settings.imageCacheLimit") private var imageCacheLimit: Int = 512
 
-    @State private var isShowingClearCacheAlert: Bool = false
     @State private var isShowingRatingAlert: Bool = false
+
+    init(viewModel: SettingsViewModel) {
+        self.viewModel = viewModel
+    }
 
     var body: some View {
         NavigationView {
@@ -76,16 +78,15 @@ struct SettingsView: View {
 
                 Section("Storage") {
                     NavigationLink(destination: CacheSettingsView(
-                        allowsCacheOverCellular: self.$allowsCacheOverCellular,
-                        imageCacheLimit: self.$imageCacheLimit,
+                        selectedImageCacheLimit: self.imageCacheLimitBinding,
                         clearCacheAction: {
-                            self.isShowingClearCacheAlert = true
+                            self.viewModel.clearImageCache()
                         }
                     )) {
                         SettingsRow(
                             systemImage: "externaldrive",
                             title: "Cache",
-                            detail: "\(self.imageCacheLimit) MB"
+                            detail: self.viewModel.imageCacheSettings.displayTitle
                         )
                     }
                 }
@@ -113,17 +114,63 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
-            .alert("Cache", isPresented: self.$isShowingClearCacheAlert) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("Cache clearing is ready for wiring to the cache service.")
-            }
             .alert("Rate BrowseCraft", isPresented: self.$isShowingRatingAlert) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text("App Store rating will be available after the App Store product ID is configured.")
             }
+            .alert("Cache", isPresented: self.cacheStatusAlertBinding) {
+                Button("OK", role: .cancel) {
+                    self.viewModel.cacheStatusMessage = nil
+                }
+            } message: {
+                Text(self.viewModel.cacheStatusMessage ?? "")
+            }
+            .alert("Cache Settings", isPresented: self.cacheErrorAlertBinding) {
+                Button("OK", role: .cancel) {
+                    self.viewModel.cacheErrorMessage = nil
+                }
+            } message: {
+                Text(self.viewModel.cacheErrorMessage ?? "")
+            }
         }
+    }
+
+    private var imageCacheLimitBinding: Binding<ImageCacheLimitOption> {
+        return Binding<ImageCacheLimitOption>(
+            get: {
+                return self.viewModel.imageCacheSettings.limit
+            },
+            set: { newLimit in
+                self.viewModel.selectImageCacheLimit(newLimit)
+            }
+        )
+    }
+
+    private var cacheErrorAlertBinding: Binding<Bool> {
+        return Binding<Bool>(
+            get: {
+                return self.viewModel.cacheErrorMessage != nil
+            },
+            set: { newValue in
+                if newValue == false {
+                    self.viewModel.cacheErrorMessage = nil
+                }
+            }
+        )
+    }
+
+    private var cacheStatusAlertBinding: Binding<Bool> {
+        return Binding<Bool>(
+            get: {
+                return self.viewModel.cacheStatusMessage != nil
+            },
+            set: { newValue in
+                if newValue == false {
+                    self.viewModel.cacheStatusMessage = nil
+                }
+            }
+        )
     }
 
     private static var versionText: String {
@@ -237,26 +284,21 @@ private struct PremiumSettingsView: View {
 }
 
 private struct CacheSettingsView: View {
-    @Binding var allowsCacheOverCellular: Bool
-    @Binding var imageCacheLimit: Int
+    @Binding var selectedImageCacheLimit: ImageCacheLimitOption
     let clearCacheAction: () -> Void
 
     var body: some View {
         Form {
-            Section("Cache Policy") {
-                Stepper(
-                    value: self.$imageCacheLimit,
-                    in: 128...4096,
-                    step: 128
-                ) {
-                    SettingsRow(
-                        systemImage: "photo.stack",
-                        title: "Image Cache Limit",
-                        detail: "\(self.imageCacheLimit) MB"
-                    )
+            Section {
+                Picker("Image Cache Limit", selection: self.$selectedImageCacheLimit) {
+                    ForEach(ImageCacheSettings.availableLimits) { option in
+                        Text(option.displayTitle)
+                            .tag(option)
+                    }
                 }
-
-                Toggle("Cache Over Cellular", isOn: self.$allowsCacheOverCellular)
+                .pickerStyle(.inline)
+            } footer: {
+                Text("When the cache exceeds the selected limit, older image cache will be removed automatically. Recently used images are kept first.")
             }
 
             Section {
@@ -274,5 +316,5 @@ private struct CacheSettingsView: View {
 }
 
 #Preview {
-    SettingsView()
+    SettingsView(viewModel: SettingsViewModel(imageCacheConfigurator: ImageCacheConfigurator()))
 }
