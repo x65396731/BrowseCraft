@@ -12,7 +12,7 @@ struct AddRuleSourceView: View {
     @State private var name: String = RuleTemplate.primaryBuiltIn.sourceName
     @State private var baseURL: String = RuleTemplate.primaryBuiltIn.baseURL
     @State private var ruleJSON: String = RuleTemplate.primaryBuiltIn.ruleJSON
-    @State private var validationResult: RuleValidationResult = RuleValidationResult(rule: nil, issues: [])
+    @State private var validationResult: SiteRuleValidationResult = SiteRuleValidationResult(rule: nil, issues: [])
 
     var body: some View {
         NavigationView {

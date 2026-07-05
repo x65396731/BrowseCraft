@@ -12,7 +12,7 @@ struct RuleDetailView: View {
     @State private var draftRuleJSON: String = ""
     @State private var draftBasicRule: SiteRule?
     @State private var draftSourceUpdatedAt: Date?
-    @State private var validationResult: RuleValidationResult = RuleValidationResult(rule: nil, issues: [])
+    @State private var validationResult: SiteRuleValidationResult = SiteRuleValidationResult(rule: nil, issues: [])
     @State private var isShowingJSONEditor: Bool = false
     @State private var isShowingBasicEditor: Bool = false
     @State private var exportedPackage: RulePackageExport?

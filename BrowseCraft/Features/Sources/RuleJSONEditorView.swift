@@ -5,7 +5,7 @@ import SwiftUI
 /// 中文注释：RuleJSONEditorView 负责展示规则 JSON 文本、格式化入口和结构校验结果。
 struct RuleJSONEditorView: View {
     @Binding var ruleJSON: String
-    let validationResult: RuleValidationResult
+    let validationResult: SiteRuleValidationResult
     let isEditable: Bool
     let formatAction: () -> Void
 
@@ -96,7 +96,7 @@ struct RuleJSONEditorView: View {
         return .green
     }
 
-    private func issueGroup(title: String, issues: [RuleValidationResult.Issue]) -> some View {
+    private func issueGroup(title: String, issues: [SiteRuleValidationResult.Issue]) -> some View {
         Group {
             if issues.isEmpty == false {
                 Text(title)

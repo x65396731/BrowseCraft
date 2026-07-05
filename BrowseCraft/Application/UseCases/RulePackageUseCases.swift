@@ -5,7 +5,7 @@ import Foundation
 
 typealias BrowseCraftRulePackage = BrowseCraftCore.BrowseCraftRulePackage
 typealias RulePackageMetadata = BrowseCraftCore.BrowseCraftRulePackageMetadata
-typealias RulePackageCodec = BrowseCraftCore.RulePackageCodec
+typealias RulePackageCoder = BrowseCraftCore.RulePackageCoder
 typealias RulePackageError = BrowseCraftCore.RulePackageError
 
 /// 中文注释：导出结果同时携带包内容和建议文件名，UI 层只负责分享或保存。
@@ -17,16 +17,16 @@ struct RulePackageExport: Hashable {
 /// 中文注释：导出当前 Source 的规则包；允许导出内置规则，但不会修改任何 Source。
 struct ExportSourceRulePackageUseCase {
     private let sourceRepository: SourceRepository
-    private let codec: RulePackageCodec
+    private let coder: RulePackageCoder
     private let appVersion: String?
 
     init(
         sourceRepository: SourceRepository,
-        codec: RulePackageCodec = RulePackageCodec(),
+        coder: RulePackageCoder = RulePackageCoder(),
         appVersion: String? = nil
     ) {
         self.sourceRepository = sourceRepository
-        self.codec = codec
+        self.coder = coder
         self.appVersion = appVersion
     }
 
@@ -41,7 +41,7 @@ struct ExportSourceRulePackageUseCase {
     }
 
     func execute(source: Source) throws -> RulePackageExport {
-        let packageJSON: String = try self.codec.encodePackage(
+        let packageJSON: String = try self.coder.encodePackage(
             rule: source.rule,
             sourceID: source.id,
             sourceName: source.name,
@@ -79,26 +79,26 @@ struct ExportSourceRulePackageUseCase {
 /// 中文注释：从规则包导入为用户 Source；不会覆盖本机已有 Source。
 struct ImportSourceRulePackageUseCase {
     private let sourceRepository: SourceRepository
-    private let codec: RulePackageCodec
+    private let coder: RulePackageCoder
     private let now: () -> Date
     private let idGenerator: () -> String
 
     init(
         sourceRepository: SourceRepository,
-        codec: RulePackageCodec = RulePackageCodec(),
+        coder: RulePackageCoder = RulePackageCoder(),
         now: @escaping () -> Date = Date.init,
         idGenerator: @escaping () -> String = {
             return UUID().uuidString
         }
     ) {
         self.sourceRepository = sourceRepository
-        self.codec = codec
+        self.coder = coder
         self.now = now
         self.idGenerator = idGenerator
     }
 
     func execute(packageJSON: String) throws -> Source {
-        let package: BrowseCraftRulePackage = try self.codec.decodePackage(packageJSON: packageJSON)
+        let package: BrowseCraftRulePackage = try self.coder.decodePackage(packageJSON: packageJSON)
         let existingSources: [Source] = try self.sourceRepository.fetchSources()
         let sourceID: String = self.importedSourceID(
             preferredID: package.metadata.sourceID,

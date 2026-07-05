@@ -26,7 +26,7 @@ final class SourcesViewModel: ObservableObject {
     private let exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase
     private let importSourceRulePackageUseCase: ImportSourceRulePackageUseCase
     private let sourceImportRecommendationUseCase: SourceImportRecommendationUseCase
-    private let ruleValidator: RuleValidator
+    private let ruleValidator: SiteRuleValidator
     private let jsonEncoder: JSONEncoder
     private let refreshSourceUseCase: RefreshSourceUseCase
     private let listDebugUseCase: ListDebugUseCase
@@ -47,7 +47,7 @@ final class SourcesViewModel: ObservableObject {
         exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase,
         importSourceRulePackageUseCase: ImportSourceRulePackageUseCase,
         sourceImportRecommendationUseCase: SourceImportRecommendationUseCase,
-        ruleValidator: RuleValidator = RuleValidator(),
+        ruleValidator: SiteRuleValidator = SiteRuleValidator(),
         jsonEncoder: JSONEncoder = JSONEncoder(),
         refreshSourceUseCase: RefreshSourceUseCase,
         listDebugUseCase: ListDebugUseCase,
@@ -221,7 +221,7 @@ final class SourcesViewModel: ObservableObject {
         )
     }
 
-    func validateRuleJSON(_ ruleJSON: String) -> RuleValidationResult {
+    func validateRuleJSON(_ ruleJSON: String) -> SiteRuleValidationResult {
         return self.ruleValidator.validate(ruleJSON: ruleJSON)
     }
 
