@@ -93,17 +93,18 @@ struct RSSSourceRuntimeTests {
     private static func rssDefinition() throws -> SourceDefinition {
         return SourceDefinition(
             id: "rss.solidot",
-            kind: .rss,
+            runtimeKind: .rss,
             name: "Solidot",
             baseURL: try #require(URL(string: "https://www.solidot.org")),
             version: nil,
             ownership: .user,
-            rule: nil,
+            comic: nil,
             rss: RSSSourceDefinition(
                 feedURL: try #require(URL(string: "https://www.solidot.org/index.rss")),
                 requiresAccount: false,
                 refreshPolicy: .manual
             ),
+            video: nil,
             plugin: nil
         )
     }

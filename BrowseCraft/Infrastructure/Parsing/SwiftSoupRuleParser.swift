@@ -300,7 +300,7 @@ final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService
         context: ListContext?
     ) throws -> [ContentItem] {
         var items: [ContentItem] = []
-        let contentType: ContentType = self.searchContentType(source: source, searchRule: searchRule)
+        let contentType: SourceContentKind = self.searchContentType(source: source, searchRule: searchRule)
 
         for element: Element in elements {
             let title: String = try self.extract(element: element, rule: searchRule.fields.title)
@@ -344,7 +344,7 @@ final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService
         return items
     }
 
-    private func searchContentType(source: Source, searchRule: SearchRule) -> ContentType {
+    private func searchContentType(source: Source, searchRule: SearchRule) -> SourceContentKind {
         if let listRule: ListRule = source.rule.ruleSets?.listRule(id: searchRule.listRuleRef) {
             return listRule.type
         }

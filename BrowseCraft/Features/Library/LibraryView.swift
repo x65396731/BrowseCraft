@@ -1,8 +1,8 @@
 import SwiftUI
 
-// 中文注释：LibraryView.swift 属于界面功能层，用于说明本文件承载的核心职责。
+// 中文注释：LibraryView 根据当前 SourceRuntimeKind 选择 Feed 列表或漫画网格展示。
 
-/// 中文注释：LibraryView 是 struct，负责本模块中的对应职责。
+/// 中文注释：LibraryView 只负责展示 Library 状态，数据加载与切源逻辑在 LibraryViewModel。
 struct LibraryView: View {
     @ObservedObject var viewModel: LibraryViewModel
     let chapterListViewModelFactory: (ContentItem, Source) -> ChapterListViewModel
@@ -95,7 +95,7 @@ struct LibraryView: View {
     @ViewBuilder
     private var libraryContent: some View {
         if let selectedSource: Source = self.viewModel.selectedSource,
-           selectedSource.type == .rss {
+           selectedSource.configuration.kind == .rss {
             FeedContentListView(
                 items: self.viewModel.items,
                 source: selectedSource,

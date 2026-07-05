@@ -1,27 +1,24 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：SourceImportRecommendation 记录系统对添加来源草稿的推荐，不代表用户最终选择。
+// 中文注释：SourceImportRecommendation 记录系统对添加来源草稿的推荐；推荐结果以 SourceRuntimeKind 为入口轴。
 struct SourceImportRecommendation: Codable, Hashable {
     var optionKind: SourceImportOptionKind?
-    var contentType: ContentType?
     var sourceType: SourceType?
-    var configurationKind: SourceDefinitionKind
+    var configurationKind: SourceRuntimeKind
     var confidence: SourceImportRecommendationConfidence
     var reasons: [SourceImportRecommendationReason]
     var warnings: [String]
 
     init(
         optionKind: SourceImportOptionKind? = nil,
-        contentType: ContentType? = nil,
         sourceType: SourceType? = nil,
-        configurationKind: SourceDefinitionKind,
+        configurationKind: SourceRuntimeKind,
         confidence: SourceImportRecommendationConfidence,
         reasons: [SourceImportRecommendationReason] = [],
         warnings: [String] = []
     ) {
         self.optionKind = optionKind
-        self.contentType = contentType
         self.sourceType = sourceType
         self.configurationKind = configurationKind
         self.confidence = confidence
@@ -61,7 +58,6 @@ extension SourceImportRecommendation {
         return SourceImportDraft(
             name: draft.name,
             entryURL: draft.entryURL,
-            contentType: self.contentType ?? draft.contentType,
             sourceType: self.sourceType ?? draft.sourceType,
             configurationKind: self.configurationKind,
             ruleJSON: draft.ruleJSON

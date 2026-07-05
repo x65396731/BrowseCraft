@@ -119,7 +119,7 @@ struct ComicLibraryCardView<ReaderDestination: View>: View {
     }
 
     /// 中文注释：iconName 方法封装当前类型的一段业务或界面行为。
-    private func iconName(for contentType: ContentType) -> String {
+    private func iconName(for contentType: SourceContentKind) -> String {
         switch contentType {
         case .comic:
             return "photo.on.rectangle"

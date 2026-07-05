@@ -4,17 +4,17 @@ import Foundation
 struct SourceLoadingState: Equatable {
     let sourceID: String
     let sourceName: String
-    let sourceType: SourceType
+    let runtimeKind: SourceRuntimeKind
 }
 
 struct SourceLibrarySnapshot: Equatable {
     let sourceID: String
     let sourceName: String
-    let sourceType: SourceType
+    let runtimeKind: SourceRuntimeKind
     let items: [ContentItem]
 }
 
-// 中文注释：SourceSelectionStore 是应用级状态服务，只负责记录当前选中的内容源。
+// 中文注释：SourceSelectionStore 保存 Sources 与 Library 之间共享的当前 source 和当前 runtime 快照。
 final class SourceSelectionStore: ObservableObject {
     @Published var selectedSourceID: String?
     @Published var preparingSource: SourceLoadingState?
@@ -24,7 +24,7 @@ final class SourceSelectionStore: ObservableObject {
         self.preparingSource = SourceLoadingState(
             sourceID: source.id,
             sourceName: source.name,
-            sourceType: source.type
+            runtimeKind: source.configuration.kind
         )
     }
 
@@ -38,7 +38,7 @@ final class SourceSelectionStore: ObservableObject {
         self.preparedLibrarySnapshot = SourceLibrarySnapshot(
             sourceID: source.id,
             sourceName: source.name,
-            sourceType: source.type,
+            runtimeKind: source.configuration.kind,
             items: items
         )
     }

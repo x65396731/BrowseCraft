@@ -1,6 +1,7 @@
 import Foundation
 import BrowseCraftCore
 
+// 中文注释：SourceRuntimeFactory 集中装配各 runtime；comic 入口当前复用 RuleSourceRuntime 实现。
 struct SourceRuntimeFactory {
     private let pageContentLoader: PageContentLoader
     private let ruleParser: RuleParsingService
@@ -21,8 +22,8 @@ struct SourceRuntimeFactory {
             rssRuntimeFactory: { definition in
                 return self.makeRSSSourceRuntime(definition: definition)
             },
-            ruleRuntimeFactory: { source in
-                return self.makeRuleSourceRuntime(source: source)
+            comicRuntimeFactory: { source in
+                return self.makeComicSourceRuntime(source: source)
             }
         )
     }
@@ -34,7 +35,7 @@ struct SourceRuntimeFactory {
         )
     }
 
-    func makeRuleSourceRuntime(source: Source) -> RuleSourceRuntime {
+    func makeComicSourceRuntime(source: Source) -> RuleSourceRuntime {
         return RuleSourceRuntime(
             source: source,
             listLoader: self.makeRuleSourceListLoader(),

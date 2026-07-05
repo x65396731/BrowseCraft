@@ -2,7 +2,7 @@ import Combine
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：LibraryViewModel.swift 属于界面功能层，用于说明本文件承载的核心职责。
+// 中文注释：LibraryViewModel 负责 Library 当前 source、runtime 刷新、当前快照和列表状态。
 
 struct LibraryListTabState: Identifiable, Hashable {
     let id: String
@@ -10,7 +10,7 @@ struct LibraryListTabState: Identifiable, Hashable {
     let isSelected: Bool
 }
 
-/// 中文注释：LibraryViewModel 是 final class，负责本模块中的对应职责。
+/// 中文注释：LibraryViewModel 以 SourceRuntimeKind 作为 Library 展示和刷新入口。
 final class LibraryViewModel: ObservableObject {
     @Published private(set) var items: [ContentItem] = []
     @Published private(set) var sources: [Source] = []
@@ -211,7 +211,7 @@ final class LibraryViewModel: ObservableObject {
     }
 
     var loadingTitle: String {
-        if self.preparingSource?.sourceType == .rss || self.selectedSource?.type == .rss {
+        if self.preparingSource?.runtimeKind == .rss || self.selectedSource?.configuration.kind == .rss {
             return "Loading RSS"
         }
 
@@ -507,11 +507,11 @@ final class LibraryViewModel: ObservableObject {
         }
     }
 
-    private func contentType(for source: Source) -> ContentType {
+    private func contentType(for source: Source) -> SourceContentKind {
         switch source.configuration {
         case .rss:
             return .article
-        case .rule:
+        case .comic:
             return .comic
         case .plugin:
             return .article

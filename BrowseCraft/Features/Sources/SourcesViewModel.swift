@@ -514,11 +514,11 @@ final class SourcesViewModel: ObservableObject {
         }
     }
 
-    private func contentType(for source: Source) -> ContentType {
+    private func contentType(for source: Source) -> SourceContentKind {
         switch source.configuration {
         case .rss:
             return .article
-        case .rule:
+        case .comic:
             return .comic
         case .plugin:
             return .article

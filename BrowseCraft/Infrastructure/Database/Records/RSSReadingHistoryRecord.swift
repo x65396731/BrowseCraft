@@ -38,7 +38,7 @@ struct RSSReadingHistoryRecord: Codable, FetchableRecord, MutablePersistableReco
             userID: self.userID,
             sourceID: self.sourceID,
             itemID: self.itemID,
-            dataType: ContentType(rawValue: self.dataType) ?? .article,
+            dataType: SourceContentKind(rawValue: self.dataType) ?? .article,
             title: self.title,
             dataContent: self.dataContent,
             dataTime: self.dataTime,

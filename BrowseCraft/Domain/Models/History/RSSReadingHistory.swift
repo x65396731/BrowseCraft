@@ -15,7 +15,7 @@ struct RSSReadingHistory: Identifiable, Hashable {
     var userID: String
     var sourceID: String
     var itemID: String
-    var dataType: ContentType
+    var dataType: SourceContentKind
     var title: String
     var dataContent: String
     /// 中文注释：RSS 条目自身的发布时间或更新时间；缺失时保存层应使用访问时间兜底。

@@ -1,13 +1,14 @@
 import Foundation
 import BrowseCraftCore
 
+// 中文注释：SourceRuntimeResolver 只按 SourceDefinition.runtimeKind 分发 runtime，不再按 SourceType 分流。
 protocol SourceRuntimeResolving {
     func runtime(for source: Source) throws -> any SourceRuntime
 }
 
 struct SourceRuntimeResolver: SourceRuntimeResolving {
     private let definitionMapper: SourceDefinitionMapper
-    private let ruleRuntimeFactory: (Source) -> any SourceRuntime
+    private let comicRuntimeFactory: (Source) -> any SourceRuntime
     private let rssRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)?
     private let pluginRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)?
 
@@ -15,10 +16,10 @@ struct SourceRuntimeResolver: SourceRuntimeResolving {
         definitionMapper: SourceDefinitionMapper = SourceDefinitionMapper(),
         rssRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)? = nil,
         pluginRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)? = nil,
-        ruleRuntimeFactory: @escaping (Source) -> any SourceRuntime
+        comicRuntimeFactory: @escaping (Source) -> any SourceRuntime
     ) {
         self.definitionMapper = definitionMapper
-        self.ruleRuntimeFactory = ruleRuntimeFactory
+        self.comicRuntimeFactory = comicRuntimeFactory
         self.rssRuntimeFactory = rssRuntimeFactory
         self.pluginRuntimeFactory = pluginRuntimeFactory
     }
@@ -36,12 +37,12 @@ struct SourceRuntimeResolver: SourceRuntimeResolving {
         for definition: SourceDefinition,
         source: Source?
     ) throws -> any SourceRuntime {
-        switch definition.kind {
-        case .rule:
+        switch definition.runtimeKind {
+        case .comic:
             guard let source: Source = source else {
-                throw SourceRuntimeError.invalidInput("Rule runtime resolution requires an App Source payload.")
+                throw SourceRuntimeError.invalidInput("Comic runtime resolution requires an App Source payload.")
             }
-            return self.ruleRuntimeFactory(source)
+            return self.comicRuntimeFactory(source)
         case .rss:
             if let rssRuntimeFactory: (SourceDefinition) -> any SourceRuntime = self.rssRuntimeFactory {
                 return rssRuntimeFactory(definition)
@@ -49,6 +50,10 @@ struct SourceRuntimeResolver: SourceRuntimeResolving {
 
             throw SourceRuntimeError.unsupported(
                 .custom("RSS source runtime is not connected in this resolver.")
+            )
+        case .video:
+            throw SourceRuntimeError.unsupported(
+                .custom("Video source runtime is not connected in this resolver.")
             )
         case .plugin:
             if let pluginRuntimeFactory: (SourceDefinition) -> any SourceRuntime = self.pluginRuntimeFactory {

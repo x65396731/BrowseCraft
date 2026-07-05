@@ -44,15 +44,23 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
         )
     }
 
-    private func sourceConfiguration() throws -> SourceConfiguration {
+    func sourceConfiguration() throws -> SourceConfiguration {
         let data: Data = Data(self.configJSON.utf8)
         let configuration: SourceConfiguration = try JSONDecoder().decode(SourceConfiguration.self, from: data)
 
-        guard configuration.kind.rawValue == self.kind else {
+        guard self.matchesStoredKind(configuration.kind) else {
             throw SourceRecordDecodingError.mismatchedConfigurationKind
         }
 
         return configuration
+    }
+
+    private func matchesStoredKind(_ runtimeKind: SourceRuntimeKind) -> Bool {
+        if runtimeKind.rawValue == self.kind {
+            return true
+        }
+
+        return runtimeKind == .comic && self.kind == "rule"
     }
 }
 

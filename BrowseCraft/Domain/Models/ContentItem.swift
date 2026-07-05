@@ -10,7 +10,7 @@ struct ContentItem: Identifiable, Hashable {
     var title: String
     var detailURL: String
     var coverURL: String?
-    var type: ContentType
+    var type: SourceContentKind
     var latestText: String?
     var updatedAt: Date?
     /// 中文注释：记录当前列表快照内的展示顺序，缓存读取时用它恢复规则解析出的网页顺序。

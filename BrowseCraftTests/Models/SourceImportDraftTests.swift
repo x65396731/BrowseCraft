@@ -10,7 +10,6 @@ struct SourceImportDraftTests {
 
         #expect(draft.name == "")
         #expect(draft.entryURL == "")
-        #expect(draft.contentType == nil)
         #expect(draft.sourceType == nil)
         #expect(draft.configurationKind == nil)
         #expect(draft.ruleJSON == nil)
@@ -18,32 +17,29 @@ struct SourceImportDraftTests {
         #expect(draft.usesRuleConfiguration == false)
     }
 
-    @Test func draftSeparatesContentTypeSourceTypeAndConfigurationKind() {
+    @Test func draftSeparatesSourceTypeAndRuntimeKind() {
         let draft: SourceImportDraft = SourceImportDraft(
             name: " Video Source ",
             entryURL: " https://example.test/video ",
-            contentType: .video,
             sourceType: .html,
-            configurationKind: .rule
+            configurationKind: .video
         )
 
-        // 中文注释：用户理解的是内容形态；源站格式和内部 runtime config 是不同轴。
+        // 中文注释：源站格式和内部 runtime config 是不同轴。
         #expect(draft.trimmedName == "Video Source")
         #expect(draft.trimmedEntryURL == "https://example.test/video")
-        #expect(draft.contentType == .video)
         #expect(draft.sourceType == .html)
-        #expect(draft.configurationKind == .rule)
+        #expect(draft.configurationKind == .video)
         #expect(draft.hasMinimumEntryInput == true)
-        #expect(draft.usesRuleConfiguration == true)
+        #expect(draft.usesRuleConfiguration == false)
     }
 
-    @Test func ruleJSONCanBeEntryInputWithoutForcingContentType() {
+    @Test func ruleJSONCanBeEntryInputWithoutForcingRuntimeKind() {
         let draft: SourceImportDraft = SourceImportDraft(
             ruleJSON: "  { \"name\": \"Example\" }  "
         )
 
         #expect(draft.trimmedRuleJSON == "{ \"name\": \"Example\" }")
-        #expect(draft.contentType == nil)
         #expect(draft.sourceType == nil)
         #expect(draft.configurationKind == nil)
         #expect(draft.hasMinimumEntryInput == true)
@@ -54,7 +50,6 @@ struct SourceImportDraftTests {
         let draft: SourceImportDraft = SourceImportDraft(
             name: "Feed",
             entryURL: "https://example.test/rss.xml",
-            contentType: .article,
             sourceType: .rss,
             configurationKind: .rss,
             ruleJSON: nil

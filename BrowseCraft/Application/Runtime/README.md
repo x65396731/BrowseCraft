@@ -23,7 +23,7 @@ SourceRuntime
 
 Responsibilities:
 
-- Resolve a `Source` through `SourceDefinition.kind` to the correct concrete runtime.
+- Resolve a `Source` through `SourceDefinition.runtimeKind` to the correct concrete runtime.
 - Keep `SourceDefinitionMapping` as the runtime-neutral Source-to-Core metadata
   mapping boundary.
 - Keep `Rule/RuleSourceRuntime` as the rule-backed runtime implementation.

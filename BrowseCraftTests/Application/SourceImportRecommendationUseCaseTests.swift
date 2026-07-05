@@ -15,7 +15,6 @@ struct SourceImportRecommendationUseCaseTests {
         )
 
         #expect(recommendation.optionKind == .rssFeedURL)
-        #expect(recommendation.contentType == .article)
         #expect(recommendation.sourceType == .rss)
         #expect(recommendation.configurationKind == .rss)
         #expect(recommendation.confidence == .high)
@@ -70,7 +69,7 @@ struct SourceImportRecommendationUseCaseTests {
         #expect(recommendation.warnings.isEmpty == false)
     }
 
-    @Test func videoHTMLRecommendsWebsiteRuleWithoutForcingVideoRuntime() {
+    @Test func videoHTMLRecommendsVideoRuntimeWithoutRuleFallback() {
         let useCase: SourceImportRecommendationUseCase = SourceImportRecommendationUseCase()
         let draft: SourceImportDraft = SourceImportDraft(entryURL: "https://video.example.test")
         let html: String = "<html><body><video src=\"movie.mp4\"></video></body></html>"
@@ -78,27 +77,26 @@ struct SourceImportRecommendationUseCaseTests {
         let recommendation: SourceImportRecommendation = useCase.execute(draft: draft, html: html)
 
         #expect(recommendation.optionKind == .videoSource)
-        #expect(recommendation.contentType == .video)
         #expect(recommendation.sourceType == .html)
-        #expect(recommendation.configurationKind == .rule)
+        #expect(recommendation.configurationKind == .video)
         #expect(recommendation.reasons == [.htmlContainsVideoElement])
-        #expect(recommendation.warnings == ["Video sites can still be parsed by a website rule."])
+        #expect(recommendation.warnings == ["Video sources are routed through the video runtime entry."])
     }
 
-    @Test func knownRuleTemplateURLRecommendsRuleBackedComicSource() {
+    @Test func knownRuleTemplateURLRecommendsComicRuntimeSource() {
         let useCase: SourceImportRecommendationUseCase = SourceImportRecommendationUseCase()
         let draft: SourceImportDraft = SourceImportDraft(entryURL: "https://mycomic.com/cn")
 
         let recommendation: SourceImportRecommendation = useCase.execute(draft: draft)
 
         #expect(recommendation.optionKind == .comicSource)
-        #expect(recommendation.contentType == .comic)
-        #expect(recommendation.configurationKind == .rule)
+        #expect(recommendation.sourceType == .html)
+        #expect(recommendation.configurationKind == .comic)
         #expect(recommendation.confidence == .high)
         #expect(recommendation.reasons == [.knownRuleTemplate])
     }
 
-    @Test func unknownWebsiteFallsBackToLowConfidenceRuleRecommendation() {
+    @Test func unknownWebsiteFallsBackToLowConfidenceComicRecommendation() {
         let useCase: SourceImportRecommendationUseCase = SourceImportRecommendationUseCase()
         let draft: SourceImportDraft = SourceImportDraft(entryURL: "https://unknown.example.test")
 
@@ -106,7 +104,7 @@ struct SourceImportRecommendationUseCaseTests {
 
         #expect(recommendation.optionKind == .comicSource)
         #expect(recommendation.sourceType == .html)
-        #expect(recommendation.configurationKind == .rule)
+        #expect(recommendation.configurationKind == .comic)
         #expect(recommendation.confidence == .low)
         #expect(recommendation.reasons == [.userSelectedOption])
     }

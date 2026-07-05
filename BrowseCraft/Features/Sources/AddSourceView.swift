@@ -7,6 +7,7 @@ struct AddSourceView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var isShowingAddRuleSourceView: Bool = false
+    @State private var addRuleSourcePresentation: AddRuleSourcePresentation = .comics
     @State private var isShowingImportWebsiteRulePackageView: Bool = false
     @State private var isShowingRSSFeedImportView: Bool = false
     @State private var unavailableOption: SourceImportOptionKind?
@@ -39,6 +40,7 @@ struct AddSourceView: View {
             .sheet(isPresented: self.$isShowingAddRuleSourceView) {
                 AddRuleSourceView(
                     viewModel: self.viewModel,
+                    presentation: self.addRuleSourcePresentation,
                     completion: {
                         self.dismiss()
                     }
@@ -92,9 +94,13 @@ struct AddSourceView: View {
 
     private func select(_ option: SourceImportOption) {
         switch option.kind {
-        case .comicSource, .videoSource:
+        case .comicSource:
+            self.addRuleSourcePresentation = .comics
+            self.isShowingAddRuleSourceView = true
+        case .videoSource:
             self.unavailableOption = option.kind
         case .websiteRuleJSON:
+            self.addRuleSourcePresentation = .websiteRule
             self.isShowingAddRuleSourceView = true
         case .rulePackageJSON:
             self.isShowingImportWebsiteRulePackageView = true
@@ -121,9 +127,9 @@ struct AddSourceView: View {
     private var unavailableOptionMessage: String {
         switch self.unavailableOption {
         case .comicSource:
-            return "Comic sources currently use Website Rule JSON from Advanced."
+            return "Comic sources can be added from the Comics source form."
         case .videoSource:
-            return "Video sources currently use Website Rule JSON from Advanced."
+            return "Video sources will be available after the video runtime is connected."
         case .scriptSource:
             return "Script Source is not available yet."
         case .websiteRuleJSON, .rulePackageJSON, .rssFeedURL, nil:
@@ -309,7 +315,6 @@ private struct RSSFeedSourceImportView: View {
     private func validate() -> SourceImportRecommendation {
         let draft: SourceImportDraft = SourceImportDraft(
             entryURL: self.entryURL,
-            contentType: .article,
             sourceType: .rss,
             configurationKind: .rss
         )

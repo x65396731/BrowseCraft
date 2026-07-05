@@ -23,7 +23,7 @@ struct SourceImportRecommendationUseCase {
             return SourceImportRecommendation(
                 optionKind: .websiteRuleJSON,
                 sourceType: .json,
-                configurationKind: .rule,
+                configurationKind: .comic,
                 confidence: .high,
                 reasons: [.ruleJSONDetected]
             )
@@ -36,7 +36,6 @@ struct SourceImportRecommendationUseCase {
         if Self.looksLikeRSSURL(normalizedURL) {
             return SourceImportRecommendation(
                 optionKind: .rssFeedURL,
-                contentType: .article,
                 sourceType: .rss,
                 configurationKind: .rss,
                 confidence: .high,
@@ -47,7 +46,6 @@ struct SourceImportRecommendationUseCase {
         if Self.headersLookLikeRSS(normalizedHeaders) {
             return SourceImportRecommendation(
                 optionKind: .rssFeedURL,
-                contentType: .article,
                 sourceType: .rss,
                 configurationKind: .rss,
                 confidence: .high,
@@ -58,7 +56,6 @@ struct SourceImportRecommendationUseCase {
         if Self.htmlContainsRSSLink(normalizedHTML) {
             return SourceImportRecommendation(
                 optionKind: .rssFeedURL,
-                contentType: .article,
                 sourceType: .rss,
                 configurationKind: .rss,
                 confidence: .medium,
@@ -70,21 +67,19 @@ struct SourceImportRecommendationUseCase {
         if Self.htmlContainsVideoElement(normalizedHTML) {
             return SourceImportRecommendation(
                 optionKind: .videoSource,
-                contentType: .video,
                 sourceType: .html,
-                configurationKind: .rule,
+                configurationKind: .video,
                 confidence: .medium,
                 reasons: [.htmlContainsVideoElement],
-                warnings: ["Video sites can still be parsed by a website rule."]
+                warnings: ["Video sources are routed through the video runtime entry."]
             )
         }
 
         if Self.isKnownRuleTemplateURL(normalizedURL) {
             return SourceImportRecommendation(
                 optionKind: .comicSource,
-                contentType: .comic,
                 sourceType: .html,
-                configurationKind: .rule,
+                configurationKind: .comic,
                 confidence: .high,
                 reasons: [.knownRuleTemplate]
             )
@@ -93,7 +88,7 @@ struct SourceImportRecommendationUseCase {
         return SourceImportRecommendation(
             optionKind: .comicSource,
             sourceType: .html,
-            configurationKind: .rule,
+            configurationKind: .comic,
             confidence: .low,
             reasons: [.userSelectedOption],
             warnings: ["No specific source format was detected yet."]
@@ -117,7 +112,6 @@ struct SourceImportRecommendationUseCase {
                 let formatReason: SourceImportRecommendationReason = urlLooksLikeRSS ? .urlLooksLikeRSS : .headerLooksLikeRSS
                 return SourceImportRecommendation(
                     optionKind: .rssFeedURL,
-                    contentType: .article,
                     sourceType: .rss,
                     configurationKind: .rss,
                     confidence: .high,
@@ -127,7 +121,6 @@ struct SourceImportRecommendationUseCase {
 
             return SourceImportRecommendation(
                 optionKind: .rssFeedURL,
-                contentType: .article,
                 sourceType: .rss,
                 configurationKind: .rss,
                 confidence: .low,
@@ -137,22 +130,20 @@ struct SourceImportRecommendationUseCase {
         case .comicSource:
             return SourceImportRecommendation(
                 optionKind: .comicSource,
-                contentType: .comic,
                 sourceType: .html,
-                configurationKind: .rule,
+                configurationKind: .comic,
                 confidence: .medium,
                 reasons: [.userSelectedOption],
-                warnings: ["Comic sources currently use Website Rule JSON from Advanced."]
+                warnings: ["Comic sources use Website Rule JSON under the hood."]
             )
         case .videoSource:
             return SourceImportRecommendation(
                 optionKind: .videoSource,
-                contentType: .video,
                 sourceType: .html,
-                configurationKind: .rule,
+                configurationKind: .video,
                 confidence: .medium,
                 reasons: [.userSelectedOption],
-                warnings: ["Video sources currently use Website Rule JSON from Advanced."]
+                warnings: ["Video sources will be completed after the video runtime is connected."]
             )
         case .websiteRuleJSON, .rulePackageJSON, .scriptSource:
             return self.execute(draft: draft, html: html, headers: headers)

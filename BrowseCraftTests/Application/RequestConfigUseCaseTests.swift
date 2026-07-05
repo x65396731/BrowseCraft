@@ -644,9 +644,9 @@ struct RequestConfigUseCaseTests {
             from: Data(configJSON.utf8)
         )
 
-        #expect(storedRecord.kind == SourceDefinitionKind.rule.rawValue)
+        #expect(storedRecord.kind == SourceRuntimeKind.comic.rawValue)
         #expect(storedRecord.ruleJSON.isEmpty == false)
-        if case .rule(let ruleConfiguration) = configuration {
+        if case .comic(let ruleConfiguration) = configuration {
             #expect(ruleConfiguration.rule.name == source.rule.name)
             #expect(ruleConfiguration.schemaVersion == source.rule.version)
         } else {
@@ -678,7 +678,35 @@ struct RequestConfigUseCaseTests {
         let loadedSource: Source = try #require(loadedSources.first)
         #expect(loadedSource.id == legacyRecord.id)
         #expect(loadedSource.rule.name == "Complete V2 Site")
-        #expect(loadedSource.configuration.kind == .rule)
+        #expect(loadedSource.configuration.kind == .comic)
+    }
+
+    @Test func sourceRecordDecodesLegacyRuleConfigurationAsComicConfiguration() throws {
+        let source: Source = try Self.source()
+        let comicConfiguration: ComicSourceConfiguration = try #require(source.comicConfiguration)
+        let comicConfigurationJSON: String = try #require(
+            String(
+                data: try JSONEncoder().encode(comicConfiguration),
+                encoding: .utf8
+            )
+        )
+        var legacyRecord: SourceRecord = try SourceRecord(source: source)
+        legacyRecord.kind = "rule"
+        legacyRecord.configJSON = "{\"rule\":{\"_0\":\(comicConfigurationJSON)}}"
+
+        let decodedConfiguration: SourceConfiguration = try legacyRecord.sourceConfiguration()
+        let decodedSource: Source = try legacyRecord.domainModel()
+
+        #expect(decodedConfiguration.kind == .comic)
+        if case .comic(let decodedComicConfiguration) = decodedConfiguration {
+            #expect(decodedComicConfiguration.rule.name == source.rule.name)
+            #expect(decodedComicConfiguration.schemaVersion == source.rule.version)
+        } else {
+            Issue.record("Expected legacy rule configuration to decode as comic configuration.")
+        }
+
+        #expect(decodedSource.configuration.kind == .comic)
+        #expect(decodedSource.rule.name == source.rule.name)
     }
 
     @Test func sourceRepositoryRoundTripsRSSConfigurationAsRuntimeNeutralSource() throws {
@@ -712,7 +740,7 @@ struct RequestConfigUseCaseTests {
             let record: SourceRecord? = try SourceRecord.fetchOne(database, key: source.id)
             return try #require(record)
         }
-        #expect(storedRecord.kind == SourceDefinitionKind.rss.rawValue)
+        #expect(storedRecord.kind == SourceRuntimeKind.rss.rawValue)
         #expect(storedRecord.ruleJSON == "{}")
     }
 
@@ -729,7 +757,7 @@ struct RequestConfigUseCaseTests {
         )
         rssRecord.id = "rss.example"
         rssRecord.type = SourceType.rss.rawValue
-        rssRecord.kind = SourceDefinitionKind.rss.rawValue
+        rssRecord.kind = SourceRuntimeKind.rss.rawValue
         rssRecord.configJSON = String(
             data: try JSONEncoder().encode(rssConfiguration),
             encoding: .utf8

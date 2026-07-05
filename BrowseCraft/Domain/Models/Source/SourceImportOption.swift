@@ -1,12 +1,11 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：SourceImportOption 表达添加来源流程中用户可选择的入口方式。
+// 中文注释：SourceImportOption 表达添加来源流程中用户可选择的入口方式，并给出默认 runtime kind。
 struct SourceImportOption: Identifiable, Codable, Hashable {
     var kind: SourceImportOptionKind
-    var defaultContentType: ContentType?
     var defaultSourceType: SourceType?
-    var defaultConfigurationKind: SourceDefinitionKind?
+    var defaultConfigurationKind: SourceRuntimeKind?
 
     var id: SourceImportOptionKind {
         return self.kind
@@ -14,12 +13,10 @@ struct SourceImportOption: Identifiable, Codable, Hashable {
 
     init(
         kind: SourceImportOptionKind,
-        defaultContentType: ContentType? = nil,
         defaultSourceType: SourceType? = nil,
-        defaultConfigurationKind: SourceDefinitionKind? = nil
+        defaultConfigurationKind: SourceRuntimeKind? = nil
     ) {
         self.kind = kind
-        self.defaultContentType = defaultContentType
         self.defaultSourceType = defaultSourceType
         self.defaultConfigurationKind = defaultConfigurationKind
     }
@@ -42,37 +39,31 @@ extension SourceImportOption {
     static let defaultOptions: [SourceImportOption] = [
         SourceImportOption(
             kind: .comicSource,
-            defaultContentType: .comic,
             defaultSourceType: .html,
-            defaultConfigurationKind: .rule
+            defaultConfigurationKind: .comic
         ),
         SourceImportOption(
             kind: .videoSource,
-            defaultContentType: .video,
             defaultSourceType: .html,
-            defaultConfigurationKind: .rule
+            defaultConfigurationKind: .video
         ),
         SourceImportOption(
             kind: .websiteRuleJSON,
-            defaultContentType: nil,
             defaultSourceType: .json,
-            defaultConfigurationKind: .rule
+            defaultConfigurationKind: .comic
         ),
         SourceImportOption(
             kind: .rulePackageJSON,
-            defaultContentType: nil,
             defaultSourceType: .json,
-            defaultConfigurationKind: .rule
+            defaultConfigurationKind: .comic
         ),
         SourceImportOption(
             kind: .rssFeedURL,
-            defaultContentType: .article,
             defaultSourceType: .rss,
             defaultConfigurationKind: .rss
         ),
         SourceImportOption(
             kind: .scriptSource,
-            defaultContentType: nil,
             defaultSourceType: .json,
             defaultConfigurationKind: .plugin
         )

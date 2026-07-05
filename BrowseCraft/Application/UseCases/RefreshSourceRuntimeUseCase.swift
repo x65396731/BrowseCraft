@@ -1,7 +1,7 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：Runtime-facing 列表刷新入口；P3-7.4 先作为并行 use case，不替换 Library 调用链。
+// 中文注释：RefreshSourceRuntimeUseCase 是按 SourceRuntimeKind 刷新列表的统一入口。
 struct RefreshSourceRuntimeUseCase {
     private let runtimeResolver: any SourceRuntimeResolving
 

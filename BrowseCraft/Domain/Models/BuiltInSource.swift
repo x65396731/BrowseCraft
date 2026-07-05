@@ -2,7 +2,7 @@ import Foundation
 import BrowseCraftCore
 import BrowseCraftRulesKit
 
-// 中文注释：BuiltInSource.swift 属于领域模型层，用于说明本文件承载的核心职责。
+// 中文注释：BuiltInSource 声明应用随包来源，并为每个来源提供明确 runtime 配置。
 
 /// 中文注释：应用随包提供的内置源。
 /// 中文注释：内置源和用户源存放在同一个仓储中，稳定 ID 用于避免每次启动重复插入。
@@ -20,7 +20,7 @@ enum BuiltInSource {
         return sources
     }
 
-    /// 中文注释：primaryBuiltIn 方法返回默认 rule-backed 内置源。
+    /// 中文注释：primaryBuiltIn 方法返回默认漫画内置源；内部短期仍由 SiteRule 驱动。
     static func primaryBuiltIn(now: Date = Date()) -> Source {
         return Self.source(
             from: BrowseCraftBuiltInRule(

@@ -5,7 +5,7 @@ import BrowseCraftCore
 
 // 中文注释：P3 runtime 本地映射合同测试，防止 Core runtime 字段扩展后 App 侧映射静默丢字段。
 struct SourceRuntimeMappingTests {
-    @Test func sourceRuntimeResolverReturnsRuleRuntimeFromSourceDefinitionKind() throws {
+    @Test func sourceRuntimeResolverReturnsComicRuntimeFromSourceRuntimeKind() throws {
         var source: Source = try Self.source(id: "user.example")
         source.type = .rss
         let resolver = SourceRuntimeResolver { source in
@@ -15,7 +15,7 @@ struct SourceRuntimeMappingTests {
         let runtime: any SourceRuntime = try resolver.runtime(for: source)
 
         #expect(runtime.definition.id == "user.example")
-        #expect(runtime.definition.kind == .rule)
+        #expect(runtime.definition.runtimeKind == .comic)
         #expect(runtime.capabilities.supportsReader)
     }
 
@@ -24,7 +24,7 @@ struct SourceRuntimeMappingTests {
             rssRuntimeFactory: { definition in
                 return StubSourceRuntime(definition: definition)
             },
-            ruleRuntimeFactory: { source in
+            comicRuntimeFactory: { source in
                 return StubSourceRuntime(definition: SourceDefinitionMapper().definition(from: source))
             }
         )
@@ -68,7 +68,7 @@ struct SourceRuntimeMappingTests {
         )
 
         let rssRuntime: any SourceRuntime = try resolver.runtime(for: rssDefinition)
-        #expect(rssRuntime.definition.kind == .rss)
+        #expect(rssRuntime.definition.runtimeKind == .rss)
         #expect(rssRuntime.definition.rss?.feedURL.absoluteString == "https://example.test/feed.xml")
 
         do {
@@ -89,7 +89,7 @@ struct SourceRuntimeMappingTests {
             pluginRuntimeFactory: { definition in
                 return StubSourceRuntime(definition: definition)
             },
-            ruleRuntimeFactory: { source in
+            comicRuntimeFactory: { source in
                 return StubSourceRuntime(definition: SourceDefinitionMapper().definition(from: source))
             }
         )
@@ -132,21 +132,21 @@ struct SourceRuntimeMappingTests {
                 )
             )
         )
-        let ruleDefinition = mapper.definition(from: try Self.source(id: "rule.example"))
+        let comicDefinition = mapper.definition(from: try Self.source(id: "comic.example"))
 
         let rssRuntime: any SourceRuntime = try resolver.runtime(for: rssDefinition)
         let pluginRuntime: any SourceRuntime = try resolver.runtime(for: pluginDefinition)
 
-        #expect(rssRuntime.definition.kind == .rss)
-        #expect(rssRuntime.definition.rule == nil)
+        #expect(rssRuntime.definition.runtimeKind == .rss)
+        #expect(rssRuntime.definition.comic == nil)
         #expect(rssRuntime.definition.rss?.feedURL.absoluteString == "https://example.test/feed.xml")
-        #expect(pluginRuntime.definition.kind == .plugin)
-        #expect(pluginRuntime.definition.rule == nil)
+        #expect(pluginRuntime.definition.runtimeKind == .plugin)
+        #expect(pluginRuntime.definition.comic == nil)
         #expect(pluginRuntime.definition.plugin?.entrypoint == "index.js")
 
         do {
-            _ = try resolver.runtime(for: ruleDefinition)
-            Issue.record("Expected rule definition without App Source payload to fail.")
+            _ = try resolver.runtime(for: comicDefinition)
+            Issue.record("Expected comic definition without App Source payload to fail.")
         } catch SourceRuntimeError.invalidInput(let message) {
             #expect(message.contains("App Source payload"))
         } catch {
@@ -202,19 +202,19 @@ struct SourceRuntimeMappingTests {
         let fallbackDefinition: SourceDefinition = mapper.definition(from: invalidBaseURLSource)
 
         #expect(builtInDefinition.id == "built-in.example")
-        #expect(builtInDefinition.kind == .rule)
+        #expect(builtInDefinition.runtimeKind == .comic)
         #expect(builtInDefinition.name == "Complete V2 Site")
         #expect(builtInDefinition.baseURL.absoluteString == "https://example.test")
         #expect(builtInDefinition.version == 2)
         #expect(builtInDefinition.ownership == .builtIn)
-        #expect(builtInDefinition.rule?.ruleID == "built-in.example")
-        #expect(builtInDefinition.rule?.schemaVersion == 2)
-        #expect(builtInDefinition.rule?.isEditable == false)
+        #expect(builtInDefinition.comic?.ruleID == "built-in.example")
+        #expect(builtInDefinition.comic?.schemaVersion == 2)
+        #expect(builtInDefinition.comic?.isEditable == false)
         #expect(builtInDefinition.rss == nil)
         #expect(builtInDefinition.plugin == nil)
 
         #expect(userDefinition.ownership == .user)
-        #expect(userDefinition.rule?.isEditable == true)
+        #expect(userDefinition.comic?.isEditable == true)
         #expect(fallbackDefinition.baseURL.absoluteString == "about:blank")
     }
 
@@ -259,15 +259,15 @@ struct SourceRuntimeMappingTests {
             )
         )
 
-        #expect(rssDefinition.kind == .rss)
-        #expect(rssDefinition.rule == nil)
+        #expect(rssDefinition.runtimeKind == .rss)
+        #expect(rssDefinition.comic == nil)
         #expect(rssDefinition.rss?.feedURL.absoluteString == "https://example.test/feed.xml")
         #expect(rssDefinition.rss?.requiresAccount == false)
         #expect(rssDefinition.rss?.refreshPolicy == .manual)
         #expect(rssDefinition.plugin == nil)
 
-        #expect(pluginDefinition.kind == .plugin)
-        #expect(pluginDefinition.rule == nil)
+        #expect(pluginDefinition.runtimeKind == .plugin)
+        #expect(pluginDefinition.comic == nil)
         #expect(pluginDefinition.rss == nil)
         #expect(pluginDefinition.plugin?.id == "plugin.example")
         #expect(pluginDefinition.plugin?.entrypoint == "index.js")

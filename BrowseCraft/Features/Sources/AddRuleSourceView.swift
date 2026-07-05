@@ -1,10 +1,52 @@
 import SwiftUI
 
-// 中文注释：AddRuleSourceView.swift 属于界面功能层，用于说明本文件承载的核心职责。
+// 中文注释：AddRuleSourceView 承载漫画来源导入表单；底层保存为 comic runtime source。
 
-/// 中文注释：AddRuleSourceView 是网站规则导入入口，不代表通用添加来源流程。
+enum AddRuleSourcePresentation {
+    case comics
+    case websiteRule
+
+    var navigationTitle: String {
+        switch self {
+        case .comics:
+            return "Add Comics"
+        case .websiteRule:
+            return "Add Website Rule"
+        }
+    }
+
+    var templateSectionTitle: String {
+        switch self {
+        case .comics:
+            return "Comic Source Template"
+        case .websiteRule:
+            return "Website Rule Template"
+        }
+    }
+
+    var templatePickerTitle: String {
+        switch self {
+        case .comics:
+            return "Comic Source"
+        case .websiteRule:
+            return "Website Rule"
+        }
+    }
+
+    var sourceSectionTitle: String {
+        switch self {
+        case .comics:
+            return "Comic Source"
+        case .websiteRule:
+            return "Rule-backed Source"
+        }
+    }
+}
+
+/// 中文注释：AddRuleSourceView 复用网站规则保存能力，为 Comics 普通入口和 Advanced 规则入口提供不同展示文案。
 struct AddRuleSourceView: View {
     @ObservedObject var viewModel: SourcesViewModel
+    let presentation: AddRuleSourcePresentation
     @Environment(\.dismiss) private var dismiss
     var completion: (() -> Void)?
 
@@ -17,9 +59,9 @@ struct AddRuleSourceView: View {
     var body: some View {
         NavigationView {
             Form {
-                Section("Website Rule Template") {
+                Section(self.presentation.templateSectionTitle) {
                     Picker(
-                        "Website Rule",
+                        self.presentation.templatePickerTitle,
                         selection: self.$selectedTemplate
                     ) {
                         ForEach(RuleTemplate.allCases) { template in
@@ -29,7 +71,7 @@ struct AddRuleSourceView: View {
                     }
                 }
 
-                Section("Rule-backed Source") {
+                Section(self.presentation.sourceSectionTitle) {
                     TextField(
                         "Name",
                         text: self.$name
@@ -52,7 +94,7 @@ struct AddRuleSourceView: View {
                     }
                 )
             }
-            .navigationTitle("Add Website Rule")
+            .navigationTitle(self.presentation.navigationTitle)
             .onAppear {
                 self.validationResult = self.viewModel.validateRuleJSON(self.ruleJSON)
             }

@@ -290,9 +290,9 @@ final class AppContainer {
         )
     }
 
-    /// 中文注释：P3 runtime 工厂入口；Library list refresh 已通过 resolver 试点接入。
-    func makeRuleSourceRuntime(source: Source) -> RuleSourceRuntime {
-        return self.sourceRuntimeFactory.makeRuleSourceRuntime(source: source)
+    /// 中文注释：漫画 source 当前复用 RuleSourceRuntime 实现；对外入口保持 comic runtime 语义。
+    func makeComicSourceRuntime(source: Source) -> RuleSourceRuntime {
+        return self.sourceRuntimeFactory.makeComicSourceRuntime(source: source)
     }
 
     func makeSourceRuntimeResolver() -> any SourceRuntimeResolving {

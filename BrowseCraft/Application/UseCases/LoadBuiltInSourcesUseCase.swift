@@ -69,7 +69,7 @@ struct LoadBuiltInSourcesUseCase {
     #if DEBUG
     private func logSyncedBuiltInSource(_ source: Source) {
         switch source.configuration {
-        case .rule(let configuration):
+        case .comic(let configuration):
             let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(configuration.rule)
             print(
                 "[BrowseCraftRule] Synced built-in source id=\(source.id) " +

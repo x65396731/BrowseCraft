@@ -23,45 +23,48 @@ struct SourceDefinitionMapper {
         configuration: SourceConfiguration
     ) -> SourceDefinition {
         switch configuration {
-        case .rule(let ruleConfiguration):
+        case .comic(let ruleConfiguration):
             return SourceDefinition(
                 id: id,
-                kind: .rule,
+                runtimeKind: .comic,
                 name: name,
                 baseURL: self.baseURL(from: baseURL),
                 version: version ?? ruleConfiguration.rule.version,
                 ownership: ownership,
-                rule: RuleSourceDefinition(
+                comic: RuleBackedSourceDefinition(
                     ruleID: id,
                     schemaVersion: ruleConfiguration.schemaVersion,
                     packageMetadata: ruleConfiguration.packageMetadata,
                     isEditable: ruleConfiguration.isEditable
                 ),
                 rss: nil,
+                video: nil,
                 plugin: nil
             )
         case .rss(let rssConfiguration):
             return SourceDefinition(
                 id: id,
-                kind: .rss,
+                runtimeKind: .rss,
                 name: name,
                 baseURL: self.baseURL(from: baseURL),
                 version: version,
                 ownership: ownership,
-                rule: nil,
+                comic: nil,
                 rss: rssConfiguration.definition,
+                video: nil,
                 plugin: nil
             )
         case .plugin(let pluginConfiguration):
             return SourceDefinition(
                 id: id,
-                kind: .plugin,
+                runtimeKind: .plugin,
                 name: name,
                 baseURL: self.baseURL(from: baseURL),
                 version: version,
                 ownership: ownership,
-                rule: nil,
+                comic: nil,
                 rss: nil,
+                video: nil,
                 plugin: pluginConfiguration.definition
             )
         }
