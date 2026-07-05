@@ -1,7 +1,7 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：Domain/CoreCompatibility 集中承载 App 侧 Core rule typealias 入口；真实规则模型定义在 BrowseCraftCore。
+// 中文注释：BrowseCraftCoreCompatibility 是 App 侧唯一 Core 兼容入口；真实规则模型、resolved graph、candidate 合同与 draft applier 实现均定义在 BrowseCraftCore。
 
 typealias SiteRule = BrowseCraftCore.SiteRule
 typealias ListRule = BrowseCraftCore.ListRule
@@ -91,4 +91,107 @@ extension BrowseCraftCore.SiteRule {
 
     /// Built-in production rules live in the private BrowseCraftRulesKit package.
     /// Keep this public example generic so the app shell can be published safely.
+}
+
+// MARK: - Resolved Rule Compatibility
+
+typealias ResolvedSiteRule = BrowseCraftCore.ResolvedSiteRule
+typealias ResolvedDetailEntry = BrowseCraftCore.ResolvedDetailEntry
+typealias ResolvedGalleryEntry = BrowseCraftCore.ResolvedGalleryEntry
+typealias ResolvedDetailContext = BrowseCraftCore.ResolvedDetailContext
+typealias ResolvedReaderContext = BrowseCraftCore.ResolvedReaderContext
+typealias RuleResolver = BrowseCraftCore.RuleResolver
+
+// MARK: - Rule Candidate Compatibility
+
+typealias RuleCandidateReport = SourceRuleCandidateReport
+typealias RuleCandidateSummary = SourceRuleCandidateSummary
+typealias RuleCandidate = SourceRuleCandidate
+typealias RuleCandidateField = SourceRuleField
+typealias RuleCandidateScore = SourceRuleCandidateScore
+typealias RuleCandidateConfidence = SourceRuleCandidateConfidence
+typealias RuleCandidateEvidence = SourceRuleCandidateEvidence
+typealias RuleCandidateWarning = SourceRuleCandidateWarning
+typealias RuleCandidateWarningSeverity = SourceRuleCandidateWarningSeverity
+typealias RuleCandidateWarningCategory = SourceRuleCandidateWarningCategory
+typealias RuleCandidateSource = SourceRuleCandidateSource
+
+extension SourceRuleCandidateReport {
+    init(
+        id: String,
+        sourceID: String,
+        sourceName: String,
+        stage: RuleDebugStage,
+        pageID: String?,
+        ruleID: String?,
+        url: String?,
+        generatedAt: Date,
+        candidates: [RuleCandidate],
+        summary: RuleCandidateSummary
+    ) {
+        self.init(
+            id: id,
+            sourceID: sourceID,
+            sourceName: sourceName,
+            operation: stage.sourceRuntimeOperation,
+            pageID: pageID,
+            ruleID: ruleID,
+            url: url,
+            generatedAt: generatedAt,
+            candidates: candidates,
+            summary: summary
+        )
+    }
+
+    var stage: RuleDebugStage {
+        self.operation.ruleDebugStage ?? .list
+    }
+}
+
+extension SourceRuleCandidate {
+    init(
+        id: String,
+        field: RuleCandidateField,
+        stage: RuleDebugStage,
+        selector: String,
+        selectorKind: SelectorKind,
+        function: ExtractFunction,
+        param: String?,
+        score: RuleCandidateScore,
+        evidence: RuleCandidateEvidence,
+        warnings: [RuleCandidateWarning],
+        source: RuleCandidateSource
+    ) {
+        self.init(
+            id: id,
+            field: field,
+            operation: stage.sourceRuntimeOperation,
+            selector: selector,
+            selectorKind: selectorKind.sourceRuleSelectorKind,
+            function: function.sourceRuleExtractFunction,
+            param: param,
+            score: score,
+            evidence: evidence,
+            warnings: warnings,
+            source: source
+        )
+    }
+
+    var stage: RuleDebugStage {
+        self.operation.ruleDebugStage ?? .list
+    }
+}
+
+// MARK: - Rule Candidate Draft Applier Compatibility
+
+typealias RuleCandidateDraftApplier = SourceRuleCandidateDraftApplier
+
+extension SourceRuleCandidateDraftApplier {
+    func canApply(candidate: RuleCandidate, stage: RuleDebugStage?) -> Bool {
+        self.canApply(candidate: candidate, operation: stage?.sourceRuntimeOperation)
+    }
+
+    func apply(candidate: RuleCandidate, stage: RuleDebugStage?, ruleID: String?, rule: inout SiteRule) -> Bool {
+        self.apply(candidate: candidate, operation: stage?.sourceRuntimeOperation, ruleID: ruleID, rule: &rule)
+    }
 }
