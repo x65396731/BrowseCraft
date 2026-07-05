@@ -14,19 +14,26 @@ final class ReaderViewModel: ObservableObject {
     private let selectedChapter: ChapterLink?
     private let loadReaderChapterUseCase: LoadReaderChapterUseCase
     private let resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
+    private let saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase?
+    private let now: () -> Date
+    private var savedChapterHistoryKeys: Set<String> = []
 
     init(
         item: ContentItem,
         source: Source,
         selectedChapter: ChapterLink? = nil,
         loadReaderChapterUseCase: LoadReaderChapterUseCase,
-        resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
+        resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase,
+        saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase? = nil,
+        now: @escaping () -> Date = Date.init
     ) {
         self.item = item
         self.source = source
         self.selectedChapter = selectedChapter
         self.loadReaderChapterUseCase = loadReaderChapterUseCase
         self.resolveReaderSourcePresentationUseCase = resolveReaderSourcePresentationUseCase
+        self.saveComicChapterHistoryUseCase = saveComicChapterHistoryUseCase
+        self.now = now
 
         #if DEBUG
         print(
@@ -72,6 +79,7 @@ final class ReaderViewModel: ObservableObject {
                 chapterURLString: self.selectedChapter?.url
             )
             self.chapter = loadedChapter
+            self.saveComicChapterHistoryIfNeeded(chapter: loadedChapter)
 
             #if DEBUG
             print(
@@ -103,6 +111,92 @@ final class ReaderViewModel: ObservableObject {
     /// 中文注释：阅读页图片加载使用 GalleryRule 的图片请求配置，避免 UI 直接理解规则选择细节。
     var readerImageRequestConfig: RequestConfig? {
         return self.resolveReaderSourcePresentationUseCase.readerImageRequestConfig(for: self.source)
+    }
+
+    private func saveComicChapterHistoryIfNeeded(chapter: ReaderChapter) {
+        guard let saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase = self.saveComicChapterHistoryUseCase else {
+            return
+        }
+
+        let chapterKey: String = self.chapterKey(for: chapter)
+        if self.savedChapterHistoryKeys.contains(chapterKey) {
+            return
+        }
+
+        self.savedChapterHistoryKeys.insert(chapterKey)
+
+        do {
+            try saveComicChapterHistoryUseCase.execute(
+                history: self.comicChapterHistory(chapter: chapter, chapterKey: chapterKey)
+            )
+            #if DEBUG
+            print(
+                "[BrowseCraftComicHistory] saved " +
+                "userID=\(AppUser.localDefaultID) " +
+                "sourceID=\(self.source.id) " +
+                "comicItemID=\(self.item.id) " +
+                "chapterKey=\(chapterKey)"
+            )
+            #endif
+        } catch {
+            #if DEBUG
+            print(
+                "[BrowseCraftComicHistory] save failed " +
+                "sourceID=\(self.source.id) " +
+                "comicItemID=\(self.item.id) " +
+                "chapterKey=\(chapterKey) " +
+                "error=\(error)"
+            )
+            #endif
+        }
+    }
+
+    private func comicChapterHistory(
+        chapter: ReaderChapter,
+        chapterKey: String
+    ) -> ComicChapterHistory {
+        return ComicChapterHistory(
+            userID: AppUser.localDefaultID,
+            sourceID: self.source.id,
+            comicItemID: self.item.id,
+            comicTitle: chapter.comicTitle ?? self.item.title,
+            chapterID: nil,
+            chapterKey: chapterKey,
+            chapterURL: URL(string: chapter.chapterURL),
+            chapterTitle: self.chapterTitle(for: chapter),
+            visitedAt: self.now(),
+            coverURL: self.item.coverURL.flatMap(URL.init(string:)),
+            lastPageImageURL: chapter.pageImageURLs.first.flatMap(URL.init(string:)),
+            lastPageImageCacheKey: nil,
+            lastPageIndex: chapter.pageImageURLs.isEmpty ? nil : 0
+        )
+    }
+
+    private func chapterKey(for chapter: ReaderChapter) -> String {
+        if chapter.chapterURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            return chapter.chapterURL
+        }
+
+        if let selectedChapterURL: String = self.selectedChapter?.url,
+           selectedChapterURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            return selectedChapterURL
+        }
+
+        return self.chapterTitle(for: chapter)
+    }
+
+    private func chapterTitle(for chapter: ReaderChapter) -> String {
+        if let chapterTitle: String = chapter.chapterTitle,
+           chapterTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            return chapterTitle
+        }
+
+        if let selectedChapterTitle: String = self.selectedChapter?.title,
+           selectedChapterTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            return selectedChapterTitle
+        }
+
+        return self.item.latestText ?? self.item.title
     }
 }
 

@@ -32,7 +32,6 @@ targets:
       - path: BrowseCraft
         excludes:
           - "**/*.md"
-          - "Infrastructure/Database/**"
           - "Domain/Repositories/ContentRepository.swift"
           - "Application/UseCases/LoadLibraryUseCase.swift"
     dependencies:

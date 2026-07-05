@@ -3,8 +3,9 @@ import Foundation
 // 中文注释：AppContainer.swift 属于应用装配和根导航，用于说明本文件承载的核心职责。
 
 /// 中文注释：AppContainer 不是界面，而是应用依赖装配中心。
-/// 中文注释：这里统一创建内存仓储、Alamofire 客户端、SwiftSoup 解析器和各个用例。
+/// 中文注释：这里统一创建仓储、Alamofire 客户端、SwiftSoup 解析器和各个用例。
 final class AppContainer {
+    private let database: AppDatabase
     private let sourceRepository: SourceRepository
     private let favoriteRepository: FavoriteRepository
     private let historyRepository: HistoryRepository
@@ -16,24 +17,31 @@ final class AppContainer {
     private let sourceSelectionStore: SourceSelectionStore
 
     init() {
-        let urlResolver: URLResolvingService = URLResolvingService()
-        let httpClient: HTTPClient = AlamofireHTTPClient()
-        let pageContentLoader: PageContentLoader = DefaultPageContentLoader(httpClient: httpClient)
-        let ruleParser: RuleParsingService = SwiftSoupRuleParser(urlResolver: urlResolver)
+        do {
+            let database: AppDatabase = try AppDatabase()
+            let urlResolver: URLResolvingService = URLResolvingService()
+            let httpClient: HTTPClient = AlamofireHTTPClient()
+            let pageContentLoader: PageContentLoader = DefaultPageContentLoader(httpClient: httpClient)
+            let ruleParser: RuleParsingService = SwiftSoupRuleParser(urlResolver: urlResolver)
 
-        self.sourceRepository = InMemorySourceRepository()
-        self.favoriteRepository = InMemoryFavoriteRepository()
-        self.historyRepository = InMemoryHistoryRepository()
-        self.httpClient = httpClient
-        self.pageContentLoader = pageContentLoader
-        self.urlResolver = urlResolver
-        self.ruleParser = ruleParser
-        self.sourceRuntimeFactory = SourceRuntimeFactory(
-            pageContentLoader: pageContentLoader,
-            ruleParser: ruleParser,
-            urlResolver: urlResolver
-        )
-        self.sourceSelectionStore = SourceSelectionStore()
+            self.database = database
+            self.sourceRepository = InMemorySourceRepository()
+            self.favoriteRepository = InMemoryFavoriteRepository()
+            self.historyRepository = InMemoryHistoryRepository()
+            self.httpClient = httpClient
+            self.pageContentLoader = pageContentLoader
+            self.urlResolver = urlResolver
+            self.ruleParser = ruleParser
+            self.sourceRuntimeFactory = SourceRuntimeFactory(
+                pageContentLoader: pageContentLoader,
+                ruleParser: ruleParser,
+                urlResolver: urlResolver
+            )
+            self.sourceSelectionStore = SourceSelectionStore()
+        } catch {
+            // 中文注释：DB 初始化失败时历史功能无法工作，当前阶段先保持启动期快速暴露错误。
+            fatalError("Failed to build AppContainer: \(error)")
+        }
     }
 
     /// 中文注释：makeSourcesViewModel 方法封装当前类型的一段业务或界面行为。
@@ -172,13 +180,36 @@ final class AppContainer {
             pageContentLoader: self.pageContentLoader,
             ruleParser: self.ruleParser
         )
+        let repository: ComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(
+            database: self.database
+        )
+        let saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase = SaveComicChapterHistoryUseCase(
+            repository: repository
+        )
 
         return ReaderViewModel(
             item: item,
             source: source,
             selectedChapter: selectedChapter,
             loadReaderChapterUseCase: loadReaderChapterUseCase,
-            resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase()
+            resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase(),
+            saveComicChapterHistoryUseCase: saveComicChapterHistoryUseCase
+        )
+    }
+
+    @MainActor
+    func makeFeedContentDetailViewModel(item: ContentItem, source: Source) -> FeedContentDetailViewModel {
+        let repository: RSSReadingHistoryRepository = GRDBRSSReadingHistoryRepository(
+            database: self.database
+        )
+        let saveRSSReadingHistoryUseCase: SaveRSSReadingHistoryUseCase = SaveRSSReadingHistoryUseCase(
+            repository: repository
+        )
+
+        return FeedContentDetailViewModel(
+            item: item,
+            source: source,
+            saveRSSReadingHistoryUseCase: saveRSSReadingHistoryUseCase
         )
     }
 
@@ -193,18 +224,19 @@ final class AppContainer {
 
     /// 中文注释：makeHistoryViewModel 方法封装当前类型的一段业务或界面行为。
     func makeHistoryViewModel() -> HistoryViewModel {
-        let loadHistoryUseCase: LoadHistoryUseCase = LoadHistoryUseCase(
-            historyRepository: self.historyRepository,
-            favoriteRepository: self.favoriteRepository
+        let rssRepository: RSSReadingHistoryRepository = GRDBRSSReadingHistoryRepository(
+            database: self.database
         )
-        let loadSourcesUseCase: LoadSourcesUseCase = LoadSourcesUseCase(
-            sourceRepository: self.sourceRepository
+        let comicRepository: ComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(
+            database: self.database
+        )
+        let loadReadingHistoryEntriesUseCase: LoadReadingHistoryEntriesUseCase = LoadReadingHistoryEntriesUseCase(
+            rssRepository: rssRepository,
+            comicRepository: comicRepository
         )
 
         return HistoryViewModel(
-            loadHistoryUseCase: loadHistoryUseCase,
-            loadSourcesUseCase: loadSourcesUseCase,
-            sourceSelectionStore: self.sourceSelectionStore
+            loadReadingHistoryEntriesUseCase: loadReadingHistoryEntriesUseCase
         )
     }
 }

@@ -1,0 +1,45 @@
+import Foundation
+
+// 中文注释：ReadingHistoryEntry 是 History 页面未来展示 RSS/漫画历史的聚合行模型。
+
+/// 中文注释：该模型只聚合 DB 历史记录，不反查 Library 当前快照，也不触发网络请求。
+struct ReadingHistoryEntry: Identifiable, Hashable {
+    enum Kind: String, Hashable {
+        case rss
+        case comic
+    }
+
+    var id: String
+    var kind: Kind
+    var userID: String
+    var sourceID: String
+    var title: String
+    var subtitle: String?
+    var visitedAt: Date
+    var rssHistory: RSSReadingHistory?
+    var comicHistory: ComicChapterHistory?
+
+    init(rssHistory: RSSReadingHistory) {
+        self.id = "rss::\(rssHistory.id)"
+        self.kind = .rss
+        self.userID = rssHistory.userID
+        self.sourceID = rssHistory.sourceID
+        self.title = rssHistory.title
+        self.subtitle = rssHistory.sourceName
+        self.visitedAt = rssHistory.visitedAt
+        self.rssHistory = rssHistory
+        self.comicHistory = nil
+    }
+
+    init(comicHistory: ComicChapterHistory) {
+        self.id = "comic::\(comicHistory.id)"
+        self.kind = .comic
+        self.userID = comicHistory.userID
+        self.sourceID = comicHistory.sourceID
+        self.title = comicHistory.comicTitle
+        self.subtitle = comicHistory.chapterTitle
+        self.visitedAt = comicHistory.visitedAt
+        self.rssHistory = nil
+        self.comicHistory = comicHistory
+    }
+}

@@ -7,6 +7,7 @@ struct LibraryView: View {
     @ObservedObject var viewModel: LibraryViewModel
     let chapterListViewModelFactory: (ContentItem, Source) -> ChapterListViewModel
     let readerViewModelFactory: (ContentItem, Source, ChapterLink?) -> ReaderViewModel
+    let feedContentDetailViewModelFactory: (ContentItem, Source) -> FeedContentDetailViewModel
     @State private var didLoadInitialData: Bool = false
 
     private let gridColumns: [GridItem] = [
@@ -91,16 +92,20 @@ struct LibraryView: View {
 
     @ViewBuilder
     private var libraryContent: some View {
-        if self.viewModel.selectedSource?.type == .rss {
+        if let selectedSource: Source = self.viewModel.selectedSource,
+           selectedSource.type == .rss {
             FeedContentListView(
                 items: self.viewModel.items,
-                sourceName: self.viewModel.selectedSource?.name ?? "RSS",
+                source: selectedSource,
                 favoriteItemIDs: self.viewModel.favoriteItemIDs,
                 favoriteAction: { item in
                     self.viewModel.toggleFavorite(item: item)
                 },
                 readAction: { item in
                     self.viewModel.recordOpened(item: item)
+                },
+                detailViewModelFactory: { item, source in
+                    return self.feedContentDetailViewModelFactory(item, source)
                 }
             )
         } else {
@@ -225,23 +230,23 @@ struct LibraryView: View {
 
 private struct FeedContentListView: View {
     let items: [ContentItem]
-    let sourceName: String
+    let source: Source
     let favoriteItemIDs: Set<String>
     let favoriteAction: (ContentItem) -> Void
     let readAction: (ContentItem) -> Void
+    let detailViewModelFactory: (ContentItem, Source) -> FeedContentDetailViewModel
 
     var body: some View {
         LazyVStack(spacing: 12) {
             ForEach(self.items, id: \.id) { item in
                 NavigationLink(
                     destination: FeedContentDetailView(
-                        item: item,
-                        sourceName: self.sourceName
+                        viewModel: self.detailViewModelFactory(item, self.source)
                     ),
                     label: {
                         FeedContentRowView(
                             item: item,
-                            sourceName: self.sourceName,
+                            sourceName: self.source.name,
                             isFavorite: self.favoriteItemIDs.contains(item.id),
                             favoriteAction: {
                                 self.favoriteAction(item)
@@ -354,20 +359,23 @@ private struct FeedContentRowView: View {
 }
 
 private struct FeedContentDetailView: View {
-    let item: ContentItem
-    let sourceName: String
+    @StateObject private var viewModel: FeedContentDetailViewModel
+
+    init(viewModel: FeedContentDetailViewModel) {
+        _viewModel = StateObject(wrappedValue: viewModel)
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                Text(self.item.title)
+                Text(self.viewModel.item.title)
                     .font(.largeTitle.weight(.bold))
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: 8) {
                     Label(
                         title: {
-                            Text(self.sourceName)
+                            Text(self.viewModel.sourceName)
                         },
                         icon: {
                             Image(systemName: "dot.radiowaves.left.and.right")
@@ -376,21 +384,21 @@ private struct FeedContentDetailView: View {
 
                     Text("Feed")
 
-                    if let updatedAt: Date = self.item.updatedAt {
+                    if let updatedAt: Date = self.viewModel.item.updatedAt {
                         Text(FeedContentDateFormatter.string(from: updatedAt))
                     }
                 }
                 .font(.subheadline)
                 .foregroundColor(.secondary)
 
-                if let summary: String = FeedContentTextFormatter.sanitized(self.item.latestText) {
+                if let summary: String = FeedContentTextFormatter.sanitized(self.viewModel.item.latestText) {
                     Text(summary)
                         .font(.body)
                         .lineSpacing(5)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                if let url: URL = URL(string: self.item.detailURL) {
+                if let url: URL = URL(string: self.viewModel.item.detailURL) {
                     Link(destination: url) {
                         Label("Open Original", systemImage: "safari")
                             .font(.headline)
@@ -404,10 +412,13 @@ private struct FeedContentDetailView: View {
         }
         .navigationTitle("Feed")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            self.viewModel.saveReadingHistoryIfNeeded()
+        }
     }
 }
 
-private enum FeedContentTextFormatter {
+enum FeedContentTextFormatter {
     static func sanitized(_ text: String?) -> String? {
         guard let text: String = text else {
             return nil

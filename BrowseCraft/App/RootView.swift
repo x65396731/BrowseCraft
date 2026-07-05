@@ -36,6 +36,12 @@ struct RootView: View {
                         source: source,
                         selectedChapter: chapter
                     )
+                },
+                feedContentDetailViewModelFactory: { item, source in
+                    return self.container.makeFeedContentDetailViewModel(
+                        item: item,
+                        source: source
+                    )
                 }
             )
                 .tabItem {

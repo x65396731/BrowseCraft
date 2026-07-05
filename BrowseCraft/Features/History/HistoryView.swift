@@ -9,33 +9,22 @@ struct HistoryView: View {
     var body: some View {
         NavigationView {
             List {
-                Section("Favorites") {
-                    ForEach(self.viewModel.favoriteItems, id: \.id) { item in
-                        CompactContentRowView(
-                            item: item,
-                            subtitle: self.viewModel.sourceName(for: item.sourceId)
-                        )
-                    }
-                }
-
                 Section("Reading") {
-                    ForEach(self.viewModel.readingHistory, id: \.id) { history in
-                        if let item: ContentItem = self.viewModel.item(for: history) {
-                            CompactContentRowView(
-                                item: item,
-                                subtitle: Self.historyDateFormatter.string(from: history.updatedAt)
-                            )
-                        }
+                    ForEach(self.viewModel.readingHistoryEntries, id: \.id) { entry in
+                        HistoryEntryRowView(
+                            entry: entry,
+                            dateText: Self.historyDateFormatter.string(from: entry.visitedAt)
+                        )
                     }
                 }
             }
             .overlay(
                 Group {
-                if self.viewModel.favoriteItems.isEmpty && self.viewModel.readingHistory.isEmpty {
+                if self.viewModel.readingHistoryEntries.isEmpty {
                     EmptyStateView(
                         systemImage: "clock",
                         title: "No History",
-                        message: "Opened and favorited items will appear here."
+                        message: "Opened feed items and read chapters will appear here."
                     )
                 }
                 }
@@ -77,5 +66,62 @@ struct HistoryView: View {
                 }
             }
         )
+    }
+}
+
+private struct HistoryEntryRowView: View {
+    let entry: ReadingHistoryEntry
+    let dateText: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Image(systemName: self.iconName)
+                    .foregroundColor(.secondary)
+                    .frame(width: 18)
+
+                Text(self.entry.title)
+                    .font(.body.weight(.semibold))
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+            }
+
+            if let subtitle: String = self.entry.subtitle {
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+            }
+
+            if let detail: String = self.detailText {
+                Text(detail)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(3)
+            }
+
+            Text(self.dateText)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var iconName: String {
+        switch self.entry.kind {
+        case .rss:
+            return "dot.radiowaves.left.and.right"
+        case .comic:
+            return "book.pages"
+        }
+    }
+
+    private var detailText: String? {
+        switch self.entry.kind {
+        case .rss:
+            return self.entry.rssHistory?.dataContent
+        case .comic:
+            return self.entry.comicHistory?.chapterURL?.absoluteString
+        }
     }
 }
