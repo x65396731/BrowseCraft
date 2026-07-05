@@ -19,12 +19,13 @@ final class SourcesViewModel: ObservableObject {
 
     private let loadBuiltInSourcesUseCase: LoadBuiltInSourcesUseCase
     private let loadSourcesUseCase: LoadSourcesUseCase
-    private let addSourceUseCase: AddSourceUseCase
+    private let addRuleSourceUseCase: AddRuleSourceUseCase
     private let deleteSourceUseCase: DeleteSourceUseCase
     private let updateSourceRuleUseCase: UpdateSourceRuleUseCase
     private let duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase
     private let exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase
     private let importSourceRulePackageUseCase: ImportSourceRulePackageUseCase
+    private let sourceImportRecommendationUseCase: SourceImportRecommendationUseCase
     private let ruleValidator: RuleValidator
     private let jsonEncoder: JSONEncoder
     private let refreshSourceUseCase: RefreshSourceUseCase
@@ -39,12 +40,13 @@ final class SourcesViewModel: ObservableObject {
     init(
         loadBuiltInSourcesUseCase: LoadBuiltInSourcesUseCase,
         loadSourcesUseCase: LoadSourcesUseCase,
-        addSourceUseCase: AddSourceUseCase,
+        addRuleSourceUseCase: AddRuleSourceUseCase,
         deleteSourceUseCase: DeleteSourceUseCase,
         updateSourceRuleUseCase: UpdateSourceRuleUseCase,
         duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase,
         exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase,
         importSourceRulePackageUseCase: ImportSourceRulePackageUseCase,
+        sourceImportRecommendationUseCase: SourceImportRecommendationUseCase,
         ruleValidator: RuleValidator = RuleValidator(),
         jsonEncoder: JSONEncoder = JSONEncoder(),
         refreshSourceUseCase: RefreshSourceUseCase,
@@ -56,12 +58,13 @@ final class SourcesViewModel: ObservableObject {
     ) {
         self.loadBuiltInSourcesUseCase = loadBuiltInSourcesUseCase
         self.loadSourcesUseCase = loadSourcesUseCase
-        self.addSourceUseCase = addSourceUseCase
+        self.addRuleSourceUseCase = addRuleSourceUseCase
         self.deleteSourceUseCase = deleteSourceUseCase
         self.updateSourceRuleUseCase = updateSourceRuleUseCase
         self.duplicateSourceRuleUseCase = duplicateSourceRuleUseCase
         self.exportSourceRulePackageUseCase = exportSourceRulePackageUseCase
         self.importSourceRulePackageUseCase = importSourceRulePackageUseCase
+        self.sourceImportRecommendationUseCase = sourceImportRecommendationUseCase
         self.ruleValidator = ruleValidator
         self.jsonEncoder = jsonEncoder
         self.refreshSourceUseCase = refreshSourceUseCase
@@ -93,10 +96,10 @@ final class SourcesViewModel: ObservableObject {
     }
 
     @MainActor
-    /// 中文注释：addSource 方法封装当前类型的一段业务或界面行为。
-    func addSource(name: String, baseURL: String, ruleJSON: String) -> Bool {
+    /// 中文注释：addRuleSource 方法封装网站规则导入路径。
+    func addRuleSource(name: String, baseURL: String, ruleJSON: String) -> Bool {
         do {
-            let source: Source = try self.addSourceUseCase.execute(
+            let source: Source = try self.addRuleSourceUseCase.execute(
                 name: name,
                 baseURL: baseURL,
                 ruleJSON: ruleJSON
@@ -106,7 +109,7 @@ final class SourcesViewModel: ObservableObject {
             self.selectSource(id: source.id)
             return true
         } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-add-error")
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "rule-source-add-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
             return false
         }
@@ -202,6 +205,18 @@ final class SourcesViewModel: ObservableObject {
 
     func clearError() {
         self.errorMessage = nil
+    }
+
+    func recommendSourceImport(
+        draft: SourceImportDraft,
+        html: String? = nil,
+        headers: [String: String] = [:]
+    ) -> SourceImportRecommendation {
+        return self.sourceImportRecommendationUseCase.execute(
+            draft: draft,
+            html: html,
+            headers: headers
+        )
     }
 
     func validateRuleJSON(_ ruleJSON: String) -> RuleValidationResult {

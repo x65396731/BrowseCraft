@@ -1,10 +1,10 @@
 import Foundation
 
-// 中文注释：AddSourceUseCase.swift 属于应用用例层，用于说明本文件承载的核心职责。
+// 中文注释：AddRuleSourceUseCase.swift 属于应用用例层，用于说明本文件承载的核心职责。
 
-/// 中文注释：根据 JSON 规则新增一个内容源。
-/// 中文注释：该用例只负责创建 Source 的业务动作，不关心底层如何存储。
-struct AddSourceUseCase {
+/// 中文注释：根据网站规则 JSON 新增一个 rule-backed Source。
+/// 中文注释：该用例是网站规则导入路径，不代表通用添加来源流程。
+struct AddRuleSourceUseCase {
     private let sourceRepository: SourceRepository
     private let jsonDecoder: JSONDecoder
 
@@ -13,7 +13,7 @@ struct AddSourceUseCase {
         self.jsonDecoder = jsonDecoder
     }
 
-    /// 中文注释：execute 方法封装当前类型的一段业务或界面行为。
+    /// 中文注释：execute 方法执行网站规则导入，并保存为 rule-backed Source。
     func execute(name: String, baseURL: String, ruleJSON: String) throws -> Source {
         let ruleData: Data = Data(ruleJSON.utf8)
         let rule: SiteRule = try self.jsonDecoder.decode(SiteRule.self, from: ruleData)
@@ -48,4 +48,3 @@ struct AddSourceUseCase {
         return source
     }
 }
-

@@ -56,7 +56,7 @@ final class AppContainer {
         let loadSourcesUseCase: LoadSourcesUseCase = LoadSourcesUseCase(
             sourceRepository: self.sourceRepository
         )
-        let addSourceUseCase: AddSourceUseCase = AddSourceUseCase(
+        let addRuleSourceUseCase: AddRuleSourceUseCase = AddRuleSourceUseCase(
             sourceRepository: self.sourceRepository
         )
         let deleteSourceUseCase: DeleteSourceUseCase = DeleteSourceUseCase(
@@ -74,6 +74,7 @@ final class AppContainer {
         let importSourceRulePackageUseCase: ImportSourceRulePackageUseCase = ImportSourceRulePackageUseCase(
             sourceRepository: self.sourceRepository
         )
+        let sourceImportRecommendationUseCase: SourceImportRecommendationUseCase = SourceImportRecommendationUseCase()
         let refreshSourceUseCase: RefreshSourceUseCase = RefreshSourceUseCase(
             pageContentLoader: self.pageContentLoader,
             ruleParser: self.ruleParser,
@@ -109,12 +110,13 @@ final class AppContainer {
         return SourcesViewModel(
             loadBuiltInSourcesUseCase: loadBuiltInSourcesUseCase,
             loadSourcesUseCase: loadSourcesUseCase,
-            addSourceUseCase: addSourceUseCase,
+            addRuleSourceUseCase: addRuleSourceUseCase,
             deleteSourceUseCase: deleteSourceUseCase,
             updateSourceRuleUseCase: updateSourceRuleUseCase,
             duplicateSourceRuleUseCase: duplicateSourceRuleUseCase,
             exportSourceRulePackageUseCase: exportSourceRulePackageUseCase,
             importSourceRulePackageUseCase: importSourceRulePackageUseCase,
+            sourceImportRecommendationUseCase: sourceImportRecommendationUseCase,
             refreshSourceUseCase: refreshSourceUseCase,
             listDebugUseCase: listDebugUseCase,
             searchDebugUseCase: searchDebugUseCase,

@@ -1,156 +1,234 @@
 import SwiftUI
 
-// 中文注释：AddSourceView.swift 属于界面功能层，用于说明本文件承载的核心职责。
+// 中文注释：AddSourceView.swift 是中性的添加来源入口，具体导入能力由 SourceImportOption 决定。
 
-/// 中文注释：AddSourceView 是 struct，负责本模块中的对应职责。
 struct AddSourceView: View {
     @ObservedObject var viewModel: SourcesViewModel
     @Environment(\.dismiss) private var dismiss
 
-    @State private var selectedTemplate: RuleTemplate = .primaryBuiltIn
-    @State private var name: String = RuleTemplate.primaryBuiltIn.sourceName
-    @State private var baseURL: String = RuleTemplate.primaryBuiltIn.baseURL
-    @State private var ruleJSON: String = RuleTemplate.primaryBuiltIn.ruleJSON
-    @State private var validationResult: RuleValidationResult = RuleValidationResult(rule: nil, issues: [])
+    @State private var isShowingAddRuleSourceView: Bool = false
+    @State private var isShowingImportWebsiteRulePackageView: Bool = false
+    @State private var isShowingWebsiteURLImportView: Bool = false
+    @State private var unavailableOption: SourceImportOptionKind?
+
+    private let options: [SourceImportOption] = SourceImportOption.defaultOptions
 
     var body: some View {
         NavigationView {
             Form {
-                Section("Template") {
-                    Picker(
-                        "Rule",
-                        selection: self.$selectedTemplate
-                    ) {
-                        ForEach(RuleTemplate.allCases) { template in
-                            Text(template.title)
-                                .tag(template)
-                        }
+                Section("Source") {
+                    self.optionButton(for: .websiteURL)
+                    self.optionButton(for: .rssFeedURL)
+                }
+
+                Section("Advanced") {
+                    self.optionButton(for: .websiteRuleJSON)
+                    self.optionButton(for: .rulePackageJSON)
+                    self.optionButton(for: .scriptSource)
+                }
+            }
+            .navigationTitle("Add Source")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        self.dismiss()
                     }
                 }
-
-                Section("Source") {
-                    TextField(
-                        "Name",
-                        text: self.$name
-                    )
-
-                    TextField(
-                        "Base URL",
-                        text: self.$baseURL
-                    )
-                    .autocapitalization(.none)
-                    .keyboardType(.URL)
-                }
-
-                RuleJSONEditorView(
-                    ruleJSON: self.$ruleJSON,
-                    validationResult: self.validationResult,
-                    isEditable: true,
-                    formatAction: {
-                        self.formatRuleJSON()
+            }
+            .sheet(isPresented: self.$isShowingAddRuleSourceView) {
+                AddRuleSourceView(
+                    viewModel: self.viewModel,
+                    completion: {
+                        self.dismiss()
                     }
                 )
             }
-            .navigationTitle("Add Source")
-            .onAppear {
-                self.validationResult = self.viewModel.validateRuleJSON(self.ruleJSON)
+            .sheet(isPresented: self.$isShowingWebsiteURLImportView) {
+                WebsiteURLSourceImportView(viewModel: self.viewModel)
             }
-            .onChange(of: self.selectedTemplate) { _, newTemplate in
-                self.applyTemplate(newTemplate)
+            .sheet(isPresented: self.$isShowingImportWebsiteRulePackageView) {
+                ImportWebsiteRulePackageView(
+                    viewModel: self.viewModel,
+                    completion: {
+                        self.dismiss()
+                    }
+                )
             }
-            .onChange(of: self.ruleJSON) { _, newValue in
-                self.validationResult = self.viewModel.validateRuleJSON(newValue)
-            }
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(
-                        "Cancel",
-                        action: {
-                            self.dismiss()
-                        }
-                    )
+            .alert(
+                "Source Type Unavailable",
+                isPresented: self.unavailableOptionBinding,
+                actions: {
+                    Button("OK", role: .cancel) {}
+                },
+                message: {
+                    Text("This source type is not available yet.")
                 }
-
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(
-                        "Save",
-                        action: {
-                            let didSave: Bool = self.viewModel.addSource(
-                                name: self.name,
-                                baseURL: self.baseURL,
-                                ruleJSON: self.ruleJSON
-                            )
-
-                            if didSave {
-                                self.dismiss()
-                            }
-                        }
-                    )
-                    .disabled(self.validationResult.canSave == false)
-                }
-            }
+            )
         }
     }
 
-    /// 中文注释：applyTemplate 方法封装当前类型的一段业务或界面行为。
-    private func applyTemplate(_ template: RuleTemplate) {
-        self.name = template.sourceName
-        self.baseURL = template.baseURL
-        self.ruleJSON = template.ruleJSON
-        self.validationResult = self.viewModel.validateRuleJSON(template.ruleJSON)
+    @ViewBuilder
+    private func optionButton(for kind: SourceImportOptionKind) -> some View {
+        if let option: SourceImportOption = self.options.first(where: { item in item.kind == kind }) {
+            Button(
+                action: {
+                    self.select(option)
+                },
+                label: {
+                    Label(
+                        option.kind.displayTitle,
+                        systemImage: option.kind.systemImageName
+                    )
+                }
+            )
+        }
     }
 
-    private func formatRuleJSON() {
-        guard let rule: SiteRule = self.validationResult.rule else {
-            return
+    private func select(_ option: SourceImportOption) {
+        switch option.kind {
+        case .websiteURL:
+            self.isShowingWebsiteURLImportView = true
+        case .websiteRuleJSON:
+            self.isShowingAddRuleSourceView = true
+        case .rulePackageJSON:
+            self.isShowingImportWebsiteRulePackageView = true
+        case .rssFeedURL, .scriptSource:
+            self.unavailableOption = option.kind
         }
+    }
 
-        self.ruleJSON = self.viewModel.formattedRuleJSON(for: rule)
-        self.validationResult = self.viewModel.validateRuleJSON(self.ruleJSON)
+    private var unavailableOptionBinding: Binding<Bool> {
+        return Binding<Bool>(
+            get: {
+                return self.unavailableOption != nil
+            },
+            set: { newValue in
+                if newValue == false {
+                    self.unavailableOption = nil
+                }
+            }
+        )
     }
 }
 
-private enum RuleTemplate: String, CaseIterable, Identifiable {
-    case example
-    case primaryBuiltIn
+private struct WebsiteURLSourceImportView: View {
+    @ObservedObject var viewModel: SourcesViewModel
+    @Environment(\.dismiss) private var dismiss
 
-    var id: String {
-        return self.rawValue
-    }
+    @State private var entryURL: String = ""
+    @State private var recommendation: SourceImportRecommendation?
 
-    var title: String {
-        switch self {
-        case .example:
-            return "Example"
-        case .primaryBuiltIn:
-            return BuiltInSource.primaryBuiltIn().name
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("Website") {
+                    TextField(
+                        "URL",
+                        text: self.$entryURL
+                    )
+                    .autocapitalization(.none)
+                    .keyboardType(.URL)
+
+                    Button("Analyze") {
+                        self.analyze()
+                    }
+                    .disabled(self.entryURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+
+                if let recommendation: SourceImportRecommendation = self.recommendation {
+                    Section("Recommendation") {
+                        LabeledContent(
+                            "Type",
+                            value: recommendation.userFacingTitle
+                        )
+                        LabeledContent(
+                            "Confidence",
+                            value: recommendation.confidence.displayTitle
+                        )
+
+                        ForEach(recommendation.warnings, id: \.self) { warning in
+                            Text(warning)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Website URL")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") {
+                        self.dismiss()
+                    }
+                }
+            }
         }
     }
 
-    var sourceName: String {
+    private func analyze() {
+        let draft: SourceImportDraft = SourceImportDraft(
+            entryURL: self.entryURL,
+            sourceType: .html
+        )
+        self.recommendation = self.viewModel.recommendSourceImport(draft: draft)
+    }
+}
+
+private extension SourceImportOptionKind {
+    var displayTitle: String {
         switch self {
-        case .example:
-            return ""
-        case .primaryBuiltIn:
-            return BuiltInSource.primaryBuiltIn().name
+        case .websiteURL:
+            return "Website URL"
+        case .websiteRuleJSON:
+            return "Website Rule JSON"
+        case .rulePackageJSON:
+            return "Website Rule Package"
+        case .rssFeedURL:
+            return "RSS Feed"
+        case .scriptSource:
+            return "Script Source"
         }
     }
 
-    var baseURL: String {
+    var systemImageName: String {
         switch self {
-        case .example:
-            return ""
-        case .primaryBuiltIn:
-            return BuiltInSource.primaryBuiltIn().baseURL
+        case .websiteURL:
+            return "link"
+        case .websiteRuleJSON:
+            return "curlybraces"
+        case .rulePackageJSON:
+            return "shippingbox"
+        case .rssFeedURL:
+            return "dot.radiowaves.left.and.right"
+        case .scriptSource:
+            return "terminal"
         }
     }
+}
 
-    var ruleJSON: String {
+private extension SourceImportRecommendation {
+    var userFacingTitle: String {
+        switch self.optionKind {
+        case .rssFeedURL:
+            return "RSS Feed"
+        case .websiteRuleJSON, .rulePackageJSON, .websiteURL:
+            return "Website Rule"
+        case .scriptSource:
+            return "Script Source"
+        case nil:
+            return "Source"
+        }
+    }
+}
+
+private extension SourceImportRecommendationConfidence {
+    var displayTitle: String {
         switch self {
-        case .example:
-            return SiteRule.exampleJSON
-        case .primaryBuiltIn:
-            return BuiltInSource.primaryBuiltInRuleJSON
+        case .low:
+            return "Low"
+        case .medium:
+            return "Medium"
+        case .high:
+            return "High"
         }
     }
 }
