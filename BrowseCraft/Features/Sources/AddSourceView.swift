@@ -8,7 +8,7 @@ struct AddSourceView: View {
 
     @State private var isShowingAddRuleSourceView: Bool = false
     @State private var isShowingImportWebsiteRulePackageView: Bool = false
-    @State private var isShowingWebsiteURLImportView: Bool = false
+    @State private var isShowingRSSFeedImportView: Bool = false
     @State private var unavailableOption: SourceImportOptionKind?
 
     private let options: [SourceImportOption] = SourceImportOption.defaultOptions
@@ -17,7 +17,8 @@ struct AddSourceView: View {
         NavigationView {
             Form {
                 Section("Source") {
-                    self.optionButton(for: .websiteURL)
+                    self.optionButton(for: .comicSource)
+                    self.optionButton(for: .videoSource)
                     self.optionButton(for: .rssFeedURL)
                 }
 
@@ -43,8 +44,8 @@ struct AddSourceView: View {
                     }
                 )
             }
-            .sheet(isPresented: self.$isShowingWebsiteURLImportView) {
-                WebsiteURLSourceImportView(viewModel: self.viewModel)
+            .sheet(isPresented: self.$isShowingRSSFeedImportView) {
+                RSSFeedSourceImportView(viewModel: self.viewModel)
             }
             .sheet(isPresented: self.$isShowingImportWebsiteRulePackageView) {
                 ImportWebsiteRulePackageView(
@@ -61,7 +62,7 @@ struct AddSourceView: View {
                     Button("OK", role: .cancel) {}
                 },
                 message: {
-                    Text("This source type is not available yet.")
+                    Text(self.unavailableOptionMessage)
                 }
             )
         }
@@ -86,13 +87,15 @@ struct AddSourceView: View {
 
     private func select(_ option: SourceImportOption) {
         switch option.kind {
-        case .websiteURL:
-            self.isShowingWebsiteURLImportView = true
+        case .comicSource, .videoSource:
+            self.unavailableOption = option.kind
         case .websiteRuleJSON:
             self.isShowingAddRuleSourceView = true
         case .rulePackageJSON:
             self.isShowingImportWebsiteRulePackageView = true
-        case .rssFeedURL, .scriptSource:
+        case .rssFeedURL:
+            self.isShowingRSSFeedImportView = true
+        case .scriptSource:
             self.unavailableOption = option.kind
         }
     }
@@ -109,34 +112,48 @@ struct AddSourceView: View {
             }
         )
     }
+
+    private var unavailableOptionMessage: String {
+        switch self.unavailableOption {
+        case .comicSource:
+            return "Comic sources currently use Website Rule JSON from Advanced."
+        case .videoSource:
+            return "Video sources currently use Website Rule JSON from Advanced."
+        case .scriptSource:
+            return "Script Source is not available yet."
+        case .websiteRuleJSON, .rulePackageJSON, .rssFeedURL, nil:
+            return "This source type is not available yet."
+        }
+    }
 }
 
-private struct WebsiteURLSourceImportView: View {
+private struct RSSFeedSourceImportView: View {
     @ObservedObject var viewModel: SourcesViewModel
     @Environment(\.dismiss) private var dismiss
 
     @State private var entryURL: String = ""
     @State private var recommendation: SourceImportRecommendation?
+    @State private var isShowingInvalidRSSAlert: Bool = false
 
     var body: some View {
         NavigationView {
             Form {
-                Section("Website") {
+                Section("RSS Feed") {
                     TextField(
-                        "URL",
+                        "Feed URL",
                         text: self.$entryURL
                     )
                     .autocapitalization(.none)
                     .keyboardType(.URL)
 
-                    Button("Analyze") {
-                        self.analyze()
+                    Button("Validate") {
+                        self.validate()
                     }
                     .disabled(self.entryURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
 
                 if let recommendation: SourceImportRecommendation = self.recommendation {
-                    Section("Recommendation") {
+                    Section("Result") {
                         LabeledContent(
                             "Type",
                             value: recommendation.userFacingTitle
@@ -153,7 +170,7 @@ private struct WebsiteURLSourceImportView: View {
                     }
                 }
             }
-            .navigationTitle("Website URL")
+            .navigationTitle("RSS Feed")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") {
@@ -161,23 +178,42 @@ private struct WebsiteURLSourceImportView: View {
                     }
                 }
             }
+            .alert(
+                "Invalid RSS Feed",
+                isPresented: self.$isShowingInvalidRSSAlert,
+                actions: {
+                    Button("OK", role: .cancel) {}
+                },
+                message: {
+                    Text("This URL does not look like an RSS feed. Use a direct .rss, .xml, /rss, or /feed URL.")
+                }
+            )
         }
     }
 
-    private func analyze() {
+    private func validate() {
         let draft: SourceImportDraft = SourceImportDraft(
             entryURL: self.entryURL,
-            sourceType: .html
+            contentType: .article,
+            sourceType: .rss,
+            configurationKind: .rss
         )
-        self.recommendation = self.viewModel.recommendSourceImport(draft: draft)
+        let recommendation: SourceImportRecommendation = self.viewModel.recommendSourceImport(
+            draft: draft,
+            selectedOptionKind: .rssFeedURL
+        )
+        self.recommendation = recommendation
+        self.isShowingInvalidRSSAlert = recommendation.isStrongRecommendation == false
     }
 }
 
 private extension SourceImportOptionKind {
     var displayTitle: String {
         switch self {
-        case .websiteURL:
-            return "Website URL"
+        case .comicSource:
+            return "Comics"
+        case .videoSource:
+            return "Video"
         case .websiteRuleJSON:
             return "Website Rule JSON"
         case .rulePackageJSON:
@@ -191,8 +227,10 @@ private extension SourceImportOptionKind {
 
     var systemImageName: String {
         switch self {
-        case .websiteURL:
-            return "link"
+        case .comicSource:
+            return "book.pages"
+        case .videoSource:
+            return "play.rectangle"
         case .websiteRuleJSON:
             return "curlybraces"
         case .rulePackageJSON:
@@ -208,9 +246,13 @@ private extension SourceImportOptionKind {
 private extension SourceImportRecommendation {
     var userFacingTitle: String {
         switch self.optionKind {
+        case .comicSource:
+            return "Comics"
+        case .videoSource:
+            return "Video"
         case .rssFeedURL:
             return "RSS Feed"
-        case .websiteRuleJSON, .rulePackageJSON, .websiteURL:
+        case .websiteRuleJSON, .rulePackageJSON:
             return "Website Rule"
         case .scriptSource:
             return "Script Source"

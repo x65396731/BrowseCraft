@@ -6,9 +6,19 @@ import BrowseCraftCore
 struct SourceImportRecommendationUseCase {
     func execute(
         draft: SourceImportDraft,
+        selectedOptionKind: SourceImportOptionKind? = nil,
         html: String? = nil,
         headers: [String: String] = [:]
     ) -> SourceImportRecommendation {
+        if let selectedOptionKind: SourceImportOptionKind {
+            return self.executeSelectedOption(
+                selectedOptionKind,
+                draft: draft,
+                html: html,
+                headers: headers
+            )
+        }
+
         if draft.trimmedRuleJSON != nil {
             return SourceImportRecommendation(
                 optionKind: .websiteRuleJSON,
@@ -59,7 +69,7 @@ struct SourceImportRecommendationUseCase {
 
         if Self.htmlContainsVideoElement(normalizedHTML) {
             return SourceImportRecommendation(
-                optionKind: .websiteURL,
+                optionKind: .videoSource,
                 contentType: .video,
                 sourceType: .html,
                 configurationKind: .rule,
@@ -71,7 +81,7 @@ struct SourceImportRecommendationUseCase {
 
         if Self.isKnownRuleTemplateURL(normalizedURL) {
             return SourceImportRecommendation(
-                optionKind: .websiteURL,
+                optionKind: .comicSource,
                 contentType: .comic,
                 sourceType: .html,
                 configurationKind: .rule,
@@ -81,13 +91,72 @@ struct SourceImportRecommendationUseCase {
         }
 
         return SourceImportRecommendation(
-            optionKind: .websiteURL,
+            optionKind: .comicSource,
             sourceType: .html,
             configurationKind: .rule,
             confidence: .low,
             reasons: [.userSelectedOption],
             warnings: ["No specific source format was detected yet."]
         )
+    }
+
+    private func executeSelectedOption(
+        _ selectedOptionKind: SourceImportOptionKind,
+        draft: SourceImportDraft,
+        html: String?,
+        headers: [String: String]
+    ) -> SourceImportRecommendation {
+        let normalizedURL: String = draft.trimmedEntryURL.lowercased()
+        let normalizedHeaders: [String: String] = Self.normalized(headers)
+
+        switch selectedOptionKind {
+        case .rssFeedURL:
+            let urlLooksLikeRSS: Bool = Self.looksLikeRSSURL(normalizedURL)
+            let headersLookLikeRSS: Bool = Self.headersLookLikeRSS(normalizedHeaders)
+            if urlLooksLikeRSS || headersLookLikeRSS {
+                let formatReason: SourceImportRecommendationReason = urlLooksLikeRSS ? .urlLooksLikeRSS : .headerLooksLikeRSS
+                return SourceImportRecommendation(
+                    optionKind: .rssFeedURL,
+                    contentType: .article,
+                    sourceType: .rss,
+                    configurationKind: .rss,
+                    confidence: .high,
+                    reasons: [.userSelectedOption, formatReason]
+                )
+            }
+
+            return SourceImportRecommendation(
+                optionKind: .rssFeedURL,
+                contentType: .article,
+                sourceType: .rss,
+                configurationKind: .rss,
+                confidence: .low,
+                reasons: [.userSelectedOption],
+                warnings: ["This URL does not look like an RSS feed."]
+            )
+        case .comicSource:
+            return SourceImportRecommendation(
+                optionKind: .comicSource,
+                contentType: .comic,
+                sourceType: .html,
+                configurationKind: .rule,
+                confidence: .medium,
+                reasons: [.userSelectedOption],
+                warnings: ["Comic sources currently use Website Rule JSON from Advanced."]
+            )
+        case .videoSource:
+            return SourceImportRecommendation(
+                optionKind: .videoSource,
+                contentType: .video,
+                sourceType: .html,
+                configurationKind: .rule,
+                confidence: .medium,
+                reasons: [.userSelectedOption],
+                warnings: ["Video sources currently use Website Rule JSON from Advanced."]
+            )
+        case .websiteRuleJSON, .rulePackageJSON, .scriptSource:
+            return self.execute(draft: draft, html: html, headers: headers)
+        }
     }
 
     private static func normalized(_ headers: [String: String]) -> [String: String] {

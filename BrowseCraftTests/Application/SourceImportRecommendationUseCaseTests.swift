@@ -9,14 +9,32 @@ struct SourceImportRecommendationUseCaseTests {
         let useCase: SourceImportRecommendationUseCase = SourceImportRecommendationUseCase()
         let draft: SourceImportDraft = SourceImportDraft(entryURL: "https://example.test/feed.xml")
 
-        let recommendation: SourceImportRecommendation = useCase.execute(draft: draft)
+        let recommendation: SourceImportRecommendation = useCase.execute(
+            draft: draft,
+            selectedOptionKind: .rssFeedURL
+        )
 
         #expect(recommendation.optionKind == .rssFeedURL)
         #expect(recommendation.contentType == .article)
         #expect(recommendation.sourceType == .rss)
         #expect(recommendation.configurationKind == .rss)
         #expect(recommendation.confidence == .high)
-        #expect(recommendation.reasons == [.urlLooksLikeRSS])
+        #expect(recommendation.reasons == [.userSelectedOption, .urlLooksLikeRSS])
+    }
+
+    @Test func rssEntryRejectsNonRSSLookingURL() {
+        let useCase: SourceImportRecommendationUseCase = SourceImportRecommendationUseCase()
+        let draft: SourceImportDraft = SourceImportDraft(entryURL: "https://example.test/watch/123")
+
+        let recommendation: SourceImportRecommendation = useCase.execute(
+            draft: draft,
+            selectedOptionKind: .rssFeedURL
+        )
+
+        #expect(recommendation.optionKind == .rssFeedURL)
+        #expect(recommendation.configurationKind == .rss)
+        #expect(recommendation.confidence == .low)
+        #expect(recommendation.warnings == ["This URL does not look like an RSS feed."])
     }
 
     @Test func rssContentTypeHeaderRecommendsRSSFeed() {
@@ -59,7 +77,7 @@ struct SourceImportRecommendationUseCaseTests {
 
         let recommendation: SourceImportRecommendation = useCase.execute(draft: draft, html: html)
 
-        #expect(recommendation.optionKind == .websiteURL)
+        #expect(recommendation.optionKind == .videoSource)
         #expect(recommendation.contentType == .video)
         #expect(recommendation.sourceType == .html)
         #expect(recommendation.configurationKind == .rule)
@@ -73,7 +91,7 @@ struct SourceImportRecommendationUseCaseTests {
 
         let recommendation: SourceImportRecommendation = useCase.execute(draft: draft)
 
-        #expect(recommendation.optionKind == .websiteURL)
+        #expect(recommendation.optionKind == .comicSource)
         #expect(recommendation.contentType == .comic)
         #expect(recommendation.configurationKind == .rule)
         #expect(recommendation.confidence == .high)
@@ -86,7 +104,7 @@ struct SourceImportRecommendationUseCaseTests {
 
         let recommendation: SourceImportRecommendation = useCase.execute(draft: draft)
 
-        #expect(recommendation.optionKind == .websiteURL)
+        #expect(recommendation.optionKind == .comicSource)
         #expect(recommendation.sourceType == .html)
         #expect(recommendation.configurationKind == .rule)
         #expect(recommendation.confidence == .low)

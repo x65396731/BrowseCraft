@@ -9,21 +9,24 @@ struct SourceImportRecommendationTests {
         let options: [SourceImportOption] = SourceImportOption.defaultOptions
 
         #expect(options.map(\.kind) == [
-            .websiteURL,
+            .comicSource,
+            .videoSource,
             .websiteRuleJSON,
             .rulePackageJSON,
             .rssFeedURL,
             .scriptSource
         ])
 
-        #expect(options[0].defaultSourceType == .html)
-        #expect(options[0].defaultConfigurationKind == nil)
-        #expect(options[1].acceptsRuleJSONInput == true)
+        #expect(options[0].defaultContentType == .comic)
+        #expect(options[0].defaultConfigurationKind == .rule)
+        #expect(options[1].defaultContentType == .video)
         #expect(options[1].defaultConfigurationKind == .rule)
-        #expect(options[3].requiresURLInput == true)
-        #expect(options[3].defaultContentType == .article)
-        #expect(options[3].defaultConfigurationKind == .rss)
-        #expect(options[4].defaultConfigurationKind == .plugin)
+        #expect(options[2].acceptsRuleJSONInput == true)
+        #expect(options[2].defaultConfigurationKind == .rule)
+        #expect(options[4].requiresURLInput == true)
+        #expect(options[4].defaultContentType == .article)
+        #expect(options[4].defaultConfigurationKind == .rss)
+        #expect(options[5].defaultConfigurationKind == .plugin)
     }
 
     @Test func recommendationAppliesInternalAxesWithoutOverwritingDraftText() {
@@ -57,7 +60,7 @@ struct SourceImportRecommendationTests {
 
     @Test func weakRecommendationCanStillRepresentWarnings() throws {
         let recommendation: SourceImportRecommendation = SourceImportRecommendation(
-            optionKind: .websiteURL,
+            optionKind: .videoSource,
             contentType: .video,
             sourceType: .html,
             configurationKind: .rule,

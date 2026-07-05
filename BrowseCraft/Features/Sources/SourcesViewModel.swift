@@ -209,11 +209,13 @@ final class SourcesViewModel: ObservableObject {
 
     func recommendSourceImport(
         draft: SourceImportDraft,
+        selectedOptionKind: SourceImportOptionKind? = nil,
         html: String? = nil,
         headers: [String: String] = [:]
     ) -> SourceImportRecommendation {
         return self.sourceImportRecommendationUseCase.execute(
             draft: draft,
+            selectedOptionKind: selectedOptionKind,
             html: html,
             headers: headers
         )
