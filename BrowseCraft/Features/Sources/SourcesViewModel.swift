@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import BrowseCraftCore
 
 // 中文注释：SourcesViewModel.swift 属于界面功能层，用于说明本文件承载的核心职责。
 
@@ -20,6 +21,7 @@ final class SourcesViewModel: ObservableObject {
     private let loadBuiltInSourcesUseCase: LoadBuiltInSourcesUseCase
     private let loadSourcesUseCase: LoadSourcesUseCase
     private let addRuleSourceUseCase: AddRuleSourceUseCase
+    private let addRSSSourceUseCase: AddRSSSourceUseCase
     private let deleteSourceUseCase: DeleteSourceUseCase
     private let updateSourceRuleUseCase: UpdateSourceRuleUseCase
     private let duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase
@@ -29,6 +31,7 @@ final class SourcesViewModel: ObservableObject {
     private let ruleValidator: SiteRuleValidator
     private let jsonEncoder: JSONEncoder
     private let refreshSourceUseCase: RefreshSourceUseCase
+    private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
     private let listDebugUseCase: ListDebugUseCase
     private let searchDebugUseCase: SearchDebugUseCase
     private let detailDebugUseCase: DetailDebugUseCase
@@ -41,6 +44,7 @@ final class SourcesViewModel: ObservableObject {
         loadBuiltInSourcesUseCase: LoadBuiltInSourcesUseCase,
         loadSourcesUseCase: LoadSourcesUseCase,
         addRuleSourceUseCase: AddRuleSourceUseCase,
+        addRSSSourceUseCase: AddRSSSourceUseCase,
         deleteSourceUseCase: DeleteSourceUseCase,
         updateSourceRuleUseCase: UpdateSourceRuleUseCase,
         duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase,
@@ -50,6 +54,7 @@ final class SourcesViewModel: ObservableObject {
         ruleValidator: SiteRuleValidator = SiteRuleValidator(),
         jsonEncoder: JSONEncoder = JSONEncoder(),
         refreshSourceUseCase: RefreshSourceUseCase,
+        refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
         listDebugUseCase: ListDebugUseCase,
         searchDebugUseCase: SearchDebugUseCase,
         detailDebugUseCase: DetailDebugUseCase,
@@ -59,6 +64,7 @@ final class SourcesViewModel: ObservableObject {
         self.loadBuiltInSourcesUseCase = loadBuiltInSourcesUseCase
         self.loadSourcesUseCase = loadSourcesUseCase
         self.addRuleSourceUseCase = addRuleSourceUseCase
+        self.addRSSSourceUseCase = addRSSSourceUseCase
         self.deleteSourceUseCase = deleteSourceUseCase
         self.updateSourceRuleUseCase = updateSourceRuleUseCase
         self.duplicateSourceRuleUseCase = duplicateSourceRuleUseCase
@@ -68,6 +74,7 @@ final class SourcesViewModel: ObservableObject {
         self.ruleValidator = ruleValidator
         self.jsonEncoder = jsonEncoder
         self.refreshSourceUseCase = refreshSourceUseCase
+        self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
         self.listDebugUseCase = listDebugUseCase
         self.searchDebugUseCase = searchDebugUseCase
         self.detailDebugUseCase = detailDebugUseCase
@@ -116,6 +123,25 @@ final class SourcesViewModel: ObservableObject {
     }
 
     @MainActor
+    /// 中文注释：addRSSSource 方法封装公开 RSS Feed 导入路径。
+    func addRSSSource(feedURLString: String, name: String? = nil) async -> Source? {
+        do {
+            let source: Source = try await self.addRSSSourceUseCase.execute(
+                feedURLString: feedURLString,
+                name: name
+            )
+
+            self.load()
+            self.selectSource(id: source.id)
+            return source
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "rss-source-add-error")
+            self.errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    @MainActor
     /// 中文注释：deleteSources 方法封装当前类型的一段业务或界面行为。
     func deleteSources(at offsets: IndexSet) {
         do {
@@ -153,9 +179,15 @@ final class SourcesViewModel: ObservableObject {
 
         self.isRefreshing = true
         self.refreshingSourceID = source.id
+        self.sourceSelectionStore.beginPreparingSource(source)
+        defer {
+            self.sourceSelectionStore.endPreparingSource(id: source.id)
+        }
 
         do {
-            _ = try await self.refreshSourceUseCase.execute(source: source)
+            let items: [ContentItem] = try await self.refreshSourceForSelection(source)
+            self.sourceSelectionStore.publishLibrarySnapshot(source: source, items: items)
+            self.logPublishedLibrarySnapshot(source: source, items: items, origin: "select-source-refresh")
             self.failedRefreshAction = nil
             self.selectSource(id: source.id)
         } catch {
@@ -390,9 +422,15 @@ final class SourcesViewModel: ObservableObject {
 
         self.isRefreshing = true
         self.refreshingSourceID = source.id
+        self.sourceSelectionStore.beginPreparingSource(source)
+        defer {
+            self.sourceSelectionStore.endPreparingSource(id: source.id)
+        }
 
         do {
-            _ = try await self.refreshSourceUseCase.execute(source: source)
+            let items: [ContentItem] = try await self.refreshSourceForSelection(source)
+            self.sourceSelectionStore.publishLibrarySnapshot(source: source, items: items)
+            self.logPublishedLibrarySnapshot(source: source, items: items, origin: "manual-refresh")
             self.failedRefreshAction = nil
         } catch {
             self.failedRefreshAction = .refresh(sourceID: source.id)
@@ -402,6 +440,63 @@ final class SourcesViewModel: ObservableObject {
 
         self.refreshingSourceID = nil
         self.isRefreshing = false
+    }
+
+
+    private func refreshSourceForSelection(_ source: Source) async throws -> [ContentItem] {
+        if source.ruleConfiguration != nil {
+            return try await self.refreshSourceUseCase.execute(source: source)
+        }
+
+        let output: SourceListOutput = try await self.refreshSourceRuntimeUseCase.execute(
+            source: source,
+            listContext: nil
+        )
+        return self.contentItems(from: output, source: source)
+    }
+
+    private func contentItems(from output: SourceListOutput, source: Source) -> [ContentItem] {
+        return output.items.enumerated().map { index, item in
+            return ContentItem(
+                id: item.id,
+                sourceId: source.id,
+                title: item.title,
+                detailURL: item.detailURL?.absoluteString ?? item.id,
+                coverURL: item.coverURL?.absoluteString,
+                type: self.contentType(for: source),
+                latestText: item.latestText,
+                updatedAt: item.updatedAt,
+                listOrder: index,
+                listContext: nil
+            )
+        }
+    }
+
+    private func contentType(for source: Source) -> ContentType {
+        switch source.configuration {
+        case .rss:
+            return .article
+        case .rule:
+            return .comic
+        case .plugin:
+            return .article
+        }
+    }
+
+    private func logPublishedLibrarySnapshot(
+        source: Source,
+        items: [ContentItem],
+        origin: String
+    ) {
+        #if DEBUG
+        print(
+            "[BrowseCraftLibraryData] origin=\(origin) " +
+            "source=\(source.id) " +
+            "kind=\(source.configuration.kind.rawValue) " +
+            "items=\(items.count) " +
+            "firstItem=\(items.first?.id ?? "nil")"
+        )
+        #endif
     }
 
     private func bindSourceSelection() {

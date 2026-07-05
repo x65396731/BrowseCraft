@@ -48,7 +48,7 @@ struct SourceRuntimeResolver: SourceRuntimeResolving {
             }
 
             throw SourceRuntimeError.unsupported(
-                .custom("RSS source runtime is reserved for P3-9 and is not connected yet.")
+                .custom("RSS source runtime is not connected in this resolver.")
             )
         case .plugin:
             if let pluginRuntimeFactory: (SourceDefinition) -> any SourceRuntime = self.pluginRuntimeFactory {
@@ -56,7 +56,7 @@ struct SourceRuntimeResolver: SourceRuntimeResolving {
             }
 
             throw SourceRuntimeError.unsupported(
-                .custom("Plugin source runtime is reserved for P3-10 and is not connected yet.")
+                .custom("Plugin source runtime is not connected in this resolver.")
             )
         }
     }

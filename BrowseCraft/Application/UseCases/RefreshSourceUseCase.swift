@@ -7,28 +7,24 @@ struct RefreshSourceUseCase {
     init(
         pageContentLoader: PageContentLoader,
         ruleParser: RuleParsingService,
-        urlResolver: URLResolvingService,
-        contentRepository: ContentRepository
+        urlResolver: URLResolvingService
     ) {
         self.ruleSourceLoader = RuleSourceListLoader(
             pageContentLoader: pageContentLoader,
             ruleParser: ruleParser,
-            urlResolver: urlResolver,
-            contentRepository: contentRepository
+            urlResolver: urlResolver
         )
     }
 
     init(
         httpClient: HTTPClient,
         ruleParser: RuleParsingService,
-        urlResolver: URLResolvingService,
-        contentRepository: ContentRepository
+        urlResolver: URLResolvingService
     ) {
         self.init(
             pageContentLoader: httpClient,
             ruleParser: ruleParser,
-            urlResolver: urlResolver,
-            contentRepository: contentRepository
+            urlResolver: urlResolver
         )
     }
 

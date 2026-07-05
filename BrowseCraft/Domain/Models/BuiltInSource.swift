@@ -1,22 +1,26 @@
 import Foundation
+import BrowseCraftCore
 import BrowseCraftRulesKit
 
 // 中文注释：BuiltInSource.swift 属于领域模型层，用于说明本文件承载的核心职责。
 
 /// 中文注释：应用随包提供的内置源。
 /// 中文注释：内置源和用户源存放在同一个仓储中，稳定 ID 用于避免每次启动重复插入。
-/// 中文注释：这里只负责加载内置规则，真正执行规则的是刷新源时的解析器。
+/// 中文注释：这里只负责声明内置来源；具体执行由对应 SourceRuntime 负责。
 enum BuiltInSource {
     static let primaryBuiltInID: String = BrowseCraftPrivateRuleCatalog.primaryBuiltInID
     static let primaryBuiltInRuleJSON: String = BrowseCraftPrivateRuleCatalog.primaryBuiltInRuleJSON
+    static let solidotRSSID: String = "built-in.rss.solidot"
 
     static func allBuiltIns(now: Date = Date()) -> [Source] {
-        return BrowseCraftPrivateRuleCatalog.builtInRules.map { builtInRule in
+        var sources: [Source] = BrowseCraftPrivateRuleCatalog.builtInRules.map { builtInRule in
             return Self.source(from: builtInRule, now: now)
         }
+        sources.append(Self.solidotRSS(now: now))
+        return sources
     }
 
-    /// 中文注释：primaryBuiltIn 方法封装当前类型的一段业务或界面行为。
+    /// 中文注释：primaryBuiltIn 方法返回默认 rule-backed 内置源。
     static func primaryBuiltIn(now: Date = Date()) -> Source {
         return Self.source(
             from: BrowseCraftBuiltInRule(
@@ -26,6 +30,28 @@ enum BuiltInSource {
                 ruleJSON: Self.primaryBuiltInRuleJSON
             ),
             now: now
+        )
+    }
+
+    /// 中文注释：solidotRSS 方法返回公开 RSS feed 内置源。
+    static func solidotRSS(now: Date = Date()) -> Source {
+        return Source(
+            id: Self.solidotRSSID,
+            name: "Solidot 奇客",
+            baseURL: "https://www.solidot.org",
+            type: .rss,
+            configuration: .rss(
+                RSSSourceConfiguration(
+                    definition: RSSSourceDefinition(
+                        feedURL: URL(string: "https://www.solidot.org/index.rss")!,
+                        requiresAccount: false,
+                        refreshPolicy: .manual
+                    )
+                )
+            ),
+            enabled: true,
+            createdAt: now,
+            updatedAt: now
         )
     }
 

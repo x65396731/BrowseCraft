@@ -19,37 +19,20 @@ struct LibraryView: View {
                 self.listTabBar
 
                 ScrollView {
-                    LazyVGrid(columns: self.gridColumns, spacing: 16) {
-                        ForEach(self.viewModel.items, id: \.id) { item in
-                            if let source: Source = self.viewModel.source(for: item.sourceId) {
-                                ContentCardView(
-                                    item: item,
-                                    sourceName: source.name,
-                                    primaryActionTitle: self.viewModel.primaryActionTitle(for: source),
-                                    primaryActionSystemImage: self.viewModel.primaryActionSystemImage(for: source),
-                                    isFavorite: self.viewModel.favoriteItemIDs.contains(item.id),
-                                    favoriteAction: {
-                                        self.viewModel.toggleFavorite(item: item)
-                                    },
-                                    readAction: {
-                                        self.viewModel.recordOpened(item: item)
-                                    },
-                                    readerDestination: self.readerDestination(
-                                        for: item,
-                                        source: source
-                                    ),
-                                    imageRequestConfig: self.viewModel.imageRequestConfig(for: source)
-                                )
-                            }
-                        }
+                    if self.shouldShowLoadingView {
+                        LibraryLoadingView(
+                            title: self.viewModel.loadingTitle,
+                            message: self.viewModel.loadingMessage
+                        )
+                    } else {
+                        self.libraryContent
                     }
-                    .padding(16)
                 }
             }
-            .disabled(self.viewModel.isRefreshing)
+            .allowsHitTesting(self.viewModel.isRefreshing == false)
             .overlay(
                 Group {
-                    if self.viewModel.isRefreshing {
+                    if self.viewModel.isRefreshing && self.shouldShowLoadingView == false {
                         self.loadingOverlay
                     } else if self.viewModel.items.isEmpty {
                         EmptyStateView(
@@ -99,6 +82,53 @@ struct LibraryView: View {
                     )
                 )
             }
+        }
+    }
+
+    private var shouldShowLoadingView: Bool {
+        return self.viewModel.isShowingSourceLoading
+    }
+
+    @ViewBuilder
+    private var libraryContent: some View {
+        if self.viewModel.selectedSource?.type == .rss {
+            FeedContentListView(
+                items: self.viewModel.items,
+                sourceName: self.viewModel.selectedSource?.name ?? "RSS",
+                favoriteItemIDs: self.viewModel.favoriteItemIDs,
+                favoriteAction: { item in
+                    self.viewModel.toggleFavorite(item: item)
+                },
+                readAction: { item in
+                    self.viewModel.recordOpened(item: item)
+                }
+            )
+        } else {
+            LazyVGrid(columns: self.gridColumns, spacing: 16) {
+                ForEach(self.viewModel.items, id: \.id) { item in
+                    if let source: Source = self.viewModel.source(for: item.sourceId) {
+                        ComicLibraryCardView(
+                            item: item,
+                            sourceName: source.name,
+                            primaryActionTitle: self.viewModel.primaryActionTitle(for: source),
+                            primaryActionSystemImage: self.viewModel.primaryActionSystemImage(for: source),
+                            isFavorite: self.viewModel.favoriteItemIDs.contains(item.id),
+                            favoriteAction: {
+                                self.viewModel.toggleFavorite(item: item)
+                            },
+                            readAction: {
+                                self.viewModel.recordOpened(item: item)
+                            },
+                            readerDestination: self.readerDestination(
+                                for: item,
+                                source: source
+                            ),
+                            imageRequestConfig: self.viewModel.imageRequestConfig(for: source)
+                        )
+                    }
+                }
+            }
+            .padding(16)
         }
     }
 
@@ -190,5 +220,254 @@ struct LibraryView: View {
                 }
             }
         )
+    }
+}
+
+private struct FeedContentListView: View {
+    let items: [ContentItem]
+    let sourceName: String
+    let favoriteItemIDs: Set<String>
+    let favoriteAction: (ContentItem) -> Void
+    let readAction: (ContentItem) -> Void
+
+    var body: some View {
+        LazyVStack(spacing: 12) {
+            ForEach(self.items, id: \.id) { item in
+                NavigationLink(
+                    destination: FeedContentDetailView(
+                        item: item,
+                        sourceName: self.sourceName
+                    ),
+                    label: {
+                        FeedContentRowView(
+                            item: item,
+                            sourceName: self.sourceName,
+                            isFavorite: self.favoriteItemIDs.contains(item.id),
+                            favoriteAction: {
+                                self.favoriteAction(item)
+                            }
+                        )
+                    }
+                )
+                .buttonStyle(.plain)
+                .simultaneousGesture(
+                    TapGesture().onEnded {
+                        #if DEBUG
+                        print(
+                            "[BrowseCraftNavigation] Tap RSS article " +
+                            "itemId=\(item.id) " +
+                            "title=\(item.title) " +
+                            "detailURL=\(item.detailURL)"
+                        )
+                        #endif
+
+                        self.readAction(item)
+                    }
+                )
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+}
+
+private struct FeedContentRowView: View {
+    let item: ContentItem
+    let sourceName: String
+    let isFavorite: Bool
+    let favoriteAction: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(self.item.title)
+                        .font(.title3.weight(.semibold))
+                        .foregroundColor(.primary)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 8) {
+                        Label(
+                            title: {
+                                Text("Feed")
+                            },
+                            icon: {
+                                Image(systemName: "doc.text")
+                            }
+                        )
+
+                        Text(self.sourceName)
+
+                        if let updatedAt: Date = self.item.updatedAt {
+                            Text(FeedContentDateFormatter.string(from: updatedAt))
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                }
+
+                Button(
+                    action: {
+                        self.favoriteAction()
+                    },
+                    label: {
+                        Image(systemName: self.isFavorite ? "star.fill" : "star")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(self.isFavorite ? .yellow : .secondary)
+                            .frame(width: 32, height: 32)
+                    }
+                )
+                .buttonStyle(.plain)
+                .accessibilityLabel(self.isFavorite ? "Remove Favorite" : "Add Favorite")
+            }
+
+            if let summary: String = self.summaryText {
+                Text(summary)
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .lineLimit(5)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack(spacing: 6) {
+                Text("Read")
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+            }
+            .font(.callout.weight(.semibold))
+            .foregroundColor(.blue)
+        }
+        .padding(16)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color(.separator), lineWidth: 1)
+        )
+    }
+
+    private var summaryText: String? {
+        return FeedContentTextFormatter.sanitized(self.item.latestText)
+    }
+}
+
+private struct FeedContentDetailView: View {
+    let item: ContentItem
+    let sourceName: String
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                Text(self.item.title)
+                    .font(.largeTitle.weight(.bold))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 8) {
+                    Label(
+                        title: {
+                            Text(self.sourceName)
+                        },
+                        icon: {
+                            Image(systemName: "dot.radiowaves.left.and.right")
+                        }
+                    )
+
+                    Text("Feed")
+
+                    if let updatedAt: Date = self.item.updatedAt {
+                        Text(FeedContentDateFormatter.string(from: updatedAt))
+                    }
+                }
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+
+                if let summary: String = FeedContentTextFormatter.sanitized(self.item.latestText) {
+                    Text(summary)
+                        .font(.body)
+                        .lineSpacing(5)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                if let url: URL = URL(string: self.item.detailURL) {
+                    Link(destination: url) {
+                        Label("Open Original", systemImage: "safari")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .padding(.top, 4)
+                }
+            }
+            .padding(20)
+        }
+        .navigationTitle("Feed")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private enum FeedContentTextFormatter {
+    static func sanitized(_ text: String?) -> String? {
+        guard let text: String = text else {
+            return nil
+        }
+
+        let withoutTags: String = text.replacingOccurrences(
+            of: "<[^>]+>",
+            with: " ",
+            options: .regularExpression
+        )
+        let decoded: String = withoutTags
+            .replacingOccurrences(of: "&nbsp;", with: " ")
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#39;", with: "'")
+        let collapsed: String = decoded
+            .split(whereSeparator: { character in
+                return character.isWhitespace
+            })
+            .joined(separator: " ")
+
+        return collapsed.isEmpty ? nil : collapsed
+    }
+}
+
+private enum FeedContentDateFormatter {
+    static func string(from date: Date) -> String {
+        return Self.formatter.string(from: date)
+    }
+
+    private static let formatter: DateFormatter = {
+        let formatter: DateFormatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.timeZone = TimeZone.current
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        return formatter
+    }()
+}
+
+private struct LibraryLoadingView: View {
+    let title: String
+    let message: String
+
+    var body: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+                .controlSize(.large)
+
+            Text(self.title)
+                .font(.headline)
+
+            Text(self.message)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 48)
     }
 }

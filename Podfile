@@ -3,8 +3,7 @@ platform :ios, '17.0'
 use_frameworks!
 
 target 'BrowseCraft' do
-  # Core MVP pipeline: fetch -> parse -> persist -> display.
-  pod 'GRDB.swift', '6.24.1'
+  # Core MVP pipeline: fetch -> parse -> publish current snapshot -> display.
   pod 'Alamofire', '5.11.2'
   pod 'Nuke', '10.7.1'
   pod 'NukeUI', '0.8.0'

@@ -3,11 +3,6 @@ import Foundation
 
 // 中文注释：RulePackageUseCases.swift 承载 P2-2 规则导入/导出的自有包格式与编解码边界。
 
-typealias BrowseCraftRulePackage = BrowseCraftCore.BrowseCraftRulePackage
-typealias RulePackageMetadata = BrowseCraftCore.BrowseCraftRulePackageMetadata
-typealias RulePackageCoder = BrowseCraftCore.RulePackageCoder
-typealias RulePackageError = BrowseCraftCore.RulePackageError
-
 /// 中文注释：导出结果同时携带包内容和建议文件名，UI 层只负责分享或保存。
 struct RulePackageExport: Hashable {
     let packageJSON: String

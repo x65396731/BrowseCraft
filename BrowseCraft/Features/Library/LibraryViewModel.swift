@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import BrowseCraftCore
 
 // 中文注释：LibraryViewModel.swift 属于界面功能层，用于说明本文件承载的核心职责。
 
@@ -18,8 +19,9 @@ final class LibraryViewModel: ObservableObject {
     @Published var selectedListTabID: String?
     @Published var errorMessage: String?
     @Published private(set) var isRefreshing: Bool = false
+    @Published private(set) var preparingSource: SourceLoadingState?
+    @Published private(set) var preparedLibrarySnapshot: SourceLibrarySnapshot?
 
-    private let loadLibraryUseCase: LoadLibraryUseCase
     private let loadSourcesUseCase: LoadSourcesUseCase
     private let toggleFavoriteUseCase: ToggleFavoriteUseCase
     private let recordOpenItemUseCase: RecordOpenItemUseCase
@@ -31,7 +33,6 @@ final class LibraryViewModel: ObservableObject {
     private var refreshToken: Int = 0
 
     init(
-        loadLibraryUseCase: LoadLibraryUseCase,
         loadSourcesUseCase: LoadSourcesUseCase,
         toggleFavoriteUseCase: ToggleFavoriteUseCase,
         recordOpenItemUseCase: RecordOpenItemUseCase,
@@ -39,7 +40,6 @@ final class LibraryViewModel: ObservableObject {
         resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase,
         sourceSelectionStore: SourceSelectionStore
     ) {
-        self.loadLibraryUseCase = loadLibraryUseCase
         self.loadSourcesUseCase = loadSourcesUseCase
         self.toggleFavoriteUseCase = toggleFavoriteUseCase
         self.recordOpenItemUseCase = recordOpenItemUseCase
@@ -64,11 +64,21 @@ final class LibraryViewModel: ObservableObject {
             }
 
             self.ensureSelectedListTab()
-            let selectedListContext: ListContext? = self.selectedListContext
-            self.items = try self.loadLibraryUseCase.execute(
-                sourceId: self.selectedSourceID,
-                context: selectedListContext
+            if self.applyPreparedSnapshotIfAvailable() == false {
+                self.items = []
+                self.logLibraryItems(
+                    origin: "empty-no-current-snapshot",
+                    sourceID: self.selectedSourceID,
+                    context: self.selectedListContext
+                )
+            }
+            #if DEBUG
+            print(
+                "[BrowseCraftLibrary] load source=\(self.selectedSourceID ?? "nil") " +
+                "items=\(self.items.count) " +
+                "context=\(self.contextDescription(self.selectedListContext))"
             )
+            #endif
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "library-load-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
@@ -109,7 +119,7 @@ final class LibraryViewModel: ObservableObject {
         self.isRefreshing = true
 
         do {
-            _ = try await self.refreshSourceRuntimeUseCase.execute(
+            let output: SourceListOutput = try await self.refreshSourceRuntimeUseCase.execute(
                 source: selectedSource,
                 listContext: expectedListContext
             )
@@ -117,7 +127,27 @@ final class LibraryViewModel: ObservableObject {
                self.refreshToken == currentRefreshToken,
                self.selectedSourceID == expectedSourceID,
                self.selectedListTab?.id == expectedTabID {
-                self.loadCachedItems(context: expectedListContext)
+                self.items = self.contentItems(
+                    from: output,
+                    source: selectedSource,
+                    context: expectedListContext
+                )
+                self.sourceSelectionStore.publishLibrarySnapshot(
+                    source: selectedSource,
+                    items: self.items
+                )
+                self.logLibraryItems(
+                    origin: "runtime-refresh-result",
+                    sourceID: expectedSourceID,
+                    context: expectedListContext
+                )
+                #if DEBUG
+                print(
+                    "[BrowseCraftLibrary] reload after refresh source=\(expectedSourceID) " +
+                    "items=\(self.items.count) " +
+                    "context=\(self.contextDescription(expectedListContext))"
+                )
+                #endif
                 self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs()
             }
         } catch is CancellationError {
@@ -174,6 +204,26 @@ final class LibraryViewModel: ObservableObject {
         return self.sources.first { source in
             return source.id == self.selectedSourceID
         }
+    }
+
+    var isShowingSourceLoading: Bool {
+        return self.isRefreshing || self.preparingSource != nil
+    }
+
+    var loadingTitle: String {
+        if self.preparingSource?.sourceType == .rss || self.selectedSource?.type == .rss {
+            return "Loading RSS"
+        }
+
+        return "Loading Source"
+    }
+
+    var loadingMessage: String {
+        if let preparingSource: SourceLoadingState = self.preparingSource {
+            return "Fetching the latest items from \(preparingSource.sourceName)."
+        }
+
+        return "Fetching the latest items from this source."
     }
 
     var listTabStates: [LibraryListTabState] {
@@ -238,11 +288,36 @@ final class LibraryViewModel: ObservableObject {
         self.selectedListTabID = tabs.first?.id
     }
 
+
+    private func contextDescription(_ context: ListContext?) -> String {
+        guard let context: ListContext = context else {
+            return "nil"
+        }
+
+        return [
+            "page=\(context.pageId ?? "nil")",
+            "tab=\(context.tabId ?? "nil")",
+            "section=\(context.sectionId ?? "nil")",
+            "rule=\(context.listRuleId ?? "nil")"
+        ].joined(separator: ",")
+    }
+
     private func bindSourceSelection() {
         self.sourceSelectionStore.$selectedSourceID
             .receive(on: DispatchQueue.main)
             .sink { [weak self] selectedSourceID in
                 self?.applySelectedSourceID(selectedSourceID)
+            }
+            .store(in: &self.cancellables)
+
+        self.sourceSelectionStore.$preparingSource
+            .receive(on: DispatchQueue.main)
+            .assign(to: &self.$preparingSource)
+
+        self.sourceSelectionStore.$preparedLibrarySnapshot
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] snapshot in
+                self?.applyPreparedLibrarySnapshot(snapshot)
             }
             .store(in: &self.cancellables)
     }
@@ -266,12 +341,15 @@ final class LibraryViewModel: ObservableObject {
         self.ensureSelectedListTab()
 
         do {
-            // 中文注释：Sources 页已经在遮盖状态下刷新并保存数据；Library 切换时只读取新 source 的已保存结果。
-            let selectedListContext: ListContext? = self.selectedListContext
-            self.items = try self.loadLibraryUseCase.execute(
-                sourceId: selectedSourceID,
-                context: selectedListContext
-            )
+            // 中文注释：优先展示 Sources 入口刚请求到的当前结果；没有当前快照时保持空态，不从持久化缓存补数据。
+            if self.applyPreparedSnapshotIfAvailable() == false {
+                self.items = []
+                self.logLibraryItems(
+                    origin: "empty-after-source-switch-no-snapshot",
+                    sourceID: selectedSourceID,
+                    context: self.selectedListContext
+                )
+            }
             self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs()
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "switch-source-error")
@@ -279,23 +357,105 @@ final class LibraryViewModel: ObservableObject {
         }
     }
 
-    private func loadCachedItemsForSelectedTab() {
-        self.loadCachedItems(context: self.selectedListContext)
-    }
+    private func applyPreparedLibrarySnapshot(_ snapshot: SourceLibrarySnapshot?) {
+        self.preparedLibrarySnapshot = snapshot
 
-    private func loadCachedItems(context: ListContext?) {
+        guard self.applyPreparedSnapshotIfAvailable() else {
+            return
+        }
+
         do {
-            self.items = try self.loadLibraryUseCase.execute(
-                sourceId: self.selectedSourceID,
-                context: context
-            )
+            self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs()
         } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "tab-cache-load-error")
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "snapshot-favorite-load-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
     }
 
+    private func applyPreparedSnapshotIfAvailable() -> Bool {
+        guard let snapshot: SourceLibrarySnapshot = self.preparedLibrarySnapshot,
+              snapshot.sourceID == self.selectedSourceID else {
+            return false
+        }
+
+        self.items = snapshot.items
+        self.logLibraryItems(
+            origin: "current-snapshot",
+            sourceID: snapshot.sourceID,
+            context: self.selectedListContext
+        )
+        return true
+    }
+
+    private func loadCachedItemsForSelectedTab() {
+        if self.applyPreparedSnapshotIfAvailable() == false {
+            self.items = []
+            self.logLibraryItems(
+                origin: "empty-tab-switch-no-snapshot",
+                sourceID: self.selectedSourceID,
+                context: self.selectedListContext
+            )
+        }
+    }
+
+    private func loadCachedItems(context: ListContext?) {
+        self.items = []
+        self.logLibraryItems(
+            origin: "disabled-cache-load",
+            sourceID: self.selectedSourceID,
+            context: context
+        )
+    }
+
     private var selectedListContext: ListContext? {
         return self.resolveLibrarySourcePresentationUseCase.listContext(from: self.selectedListTab)
+    }
+
+    private func contentItems(
+        from output: SourceListOutput,
+        source: Source,
+        context: ListContext?
+    ) -> [ContentItem] {
+        return output.items.enumerated().map { index, item in
+            return ContentItem(
+                id: item.id,
+                sourceId: source.id,
+                title: item.title,
+                detailURL: item.detailURL?.absoluteString ?? item.id,
+                coverURL: item.coverURL?.absoluteString,
+                type: self.contentType(for: source),
+                latestText: item.latestText,
+                updatedAt: item.updatedAt,
+                listOrder: index,
+                listContext: context
+            )
+        }
+    }
+
+    private func contentType(for source: Source) -> ContentType {
+        switch source.configuration {
+        case .rss:
+            return .article
+        case .rule:
+            return .comic
+        case .plugin:
+            return .article
+        }
+    }
+
+    private func logLibraryItems(
+        origin: String,
+        sourceID: String?,
+        context: ListContext?
+    ) {
+        #if DEBUG
+        print(
+            "[BrowseCraftLibraryData] origin=\(origin) " +
+            "source=\(sourceID ?? "nil") " +
+            "items=\(self.items.count) " +
+            "firstItem=\(self.items.first?.id ?? "nil") " +
+            "context=\(self.contextDescription(context))"
+        )
+        #endif
     }
 }

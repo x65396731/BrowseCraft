@@ -19,10 +19,15 @@ struct SourceRuntimeMappingTests {
         #expect(runtime.capabilities.supportsReader)
     }
 
-    @Test func sourceRuntimeResolverRejectsRSSAndPluginDefinitionsUntilRuntimesAreConnected() throws {
-        let resolver = SourceRuntimeResolver { source in
-            return StubSourceRuntime(definition: SourceDefinitionMapper().definition(from: source))
-        }
+    @Test func sourceRuntimeResolverConnectsRSSFactoryAndKeepsPluginDisconnected() throws {
+        let resolver = SourceRuntimeResolver(
+            rssRuntimeFactory: { definition in
+                return StubSourceRuntime(definition: definition)
+            },
+            ruleRuntimeFactory: { source in
+                return StubSourceRuntime(definition: SourceDefinitionMapper().definition(from: source))
+            }
+        )
         let rssDefinition: SourceDefinition = SourceDefinitionMapper().definition(
             id: "rss.example",
             name: "RSS Example",
@@ -62,14 +67,9 @@ struct SourceRuntimeMappingTests {
             )
         )
 
-        do {
-            _ = try resolver.runtime(for: rssDefinition)
-            Issue.record("Expected RSS runtime resolution to fail until P3-9.")
-        } catch SourceRuntimeError.unsupported(.custom(let message)) {
-            #expect(message.contains("P3-9"))
-        } catch {
-            Issue.record("Unexpected error: \(error.localizedDescription)")
-        }
+        let rssRuntime: any SourceRuntime = try resolver.runtime(for: rssDefinition)
+        #expect(rssRuntime.definition.kind == .rss)
+        #expect(rssRuntime.definition.rss?.feedURL.absoluteString == "https://example.test/feed.xml")
 
         do {
             _ = try resolver.runtime(for: pluginDefinition)

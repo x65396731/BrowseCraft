@@ -5,32 +5,27 @@ struct RuleSourceListLoader {
     private let pageContentLoader: PageContentLoader
     private let ruleParser: RuleParsingService
     private let urlResolver: URLResolvingService
-    private let contentRepository: ContentRepository
 
     init(
         pageContentLoader: PageContentLoader,
         ruleParser: RuleParsingService,
-        urlResolver: URLResolvingService,
-        contentRepository: ContentRepository
+        urlResolver: URLResolvingService
     ) {
         self.pageContentLoader = pageContentLoader
         self.ruleParser = ruleParser
         self.urlResolver = urlResolver
-        self.contentRepository = contentRepository
     }
 
     /// 中文注释：兼容旧测试和旧装配入口；HTTPClient 本身也是 PageContentLoader 的一种实现。
     init(
         httpClient: HTTPClient,
         ruleParser: RuleParsingService,
-        urlResolver: URLResolvingService,
-        contentRepository: ContentRepository
+        urlResolver: URLResolvingService
     ) {
         self.init(
             pageContentLoader: httpClient,
             ruleParser: ruleParser,
-            urlResolver: urlResolver,
-            contentRepository: contentRepository
+            urlResolver: urlResolver
         )
     }
 
@@ -106,19 +101,13 @@ struct RuleSourceListLoader {
 
         RuleExecutionLogger.log(
             stage: .list,
-            event: "cache-replace",
+            event: "list-output",
             fields: [
                 "source": source.id,
                 "tab": listContext.tabId ?? "nil",
                 "listRule": listContext.listRuleId ?? "nil",
                 "count": items.count
             ]
-        )
-
-        try self.contentRepository.replaceItems(
-            items,
-            sourceId: source.id,
-            context: listContext
         )
         return items
     }

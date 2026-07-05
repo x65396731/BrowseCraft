@@ -5,7 +5,9 @@ import BrowseCraftCore
 struct RefreshSourceRuntimeUseCase {
     private let runtimeResolver: any SourceRuntimeResolving
 
-    init(runtimeResolver: any SourceRuntimeResolving) {
+    init(
+        runtimeResolver: any SourceRuntimeResolving
+    ) {
         self.runtimeResolver = runtimeResolver
     }
 
@@ -22,7 +24,29 @@ struct RefreshSourceRuntimeUseCase {
             page: page,
             debugMode: debugMode
         )
-        return try await runtime.loadList(input)
+        let output: SourceListOutput = try await runtime.loadList(input)
+        #if DEBUG
+        print(
+            "[BrowseCraftRuntime] refresh output source=\(source.id) " +
+            "kind=\(source.configuration.kind.rawValue) " +
+            "items=\(output.items.count) " +
+            "context=\(self.contextDescription(listContext))"
+        )
+        #endif
+        return output
+    }
+
+    private func contextDescription(_ context: ListContext?) -> String {
+        guard let context: ListContext = context else {
+            return "nil"
+        }
+
+        return [
+            "page=\(context.pageId ?? "nil")",
+            "tab=\(context.tabId ?? "nil")",
+            "section=\(context.sectionId ?? "nil")",
+            "rule=\(context.listRuleId ?? "nil")"
+        ].joined(separator: ",")
     }
 
     private func listInput(

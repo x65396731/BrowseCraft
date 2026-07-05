@@ -5,24 +5,33 @@ struct SourceRuntimeFactory {
     private let pageContentLoader: PageContentLoader
     private let ruleParser: RuleParsingService
     private let urlResolver: URLResolvingService
-    private let contentRepository: ContentRepository
 
     init(
         pageContentLoader: PageContentLoader,
         ruleParser: RuleParsingService,
-        urlResolver: URLResolvingService,
-        contentRepository: ContentRepository
+        urlResolver: URLResolvingService
     ) {
         self.pageContentLoader = pageContentLoader
         self.ruleParser = ruleParser
         self.urlResolver = urlResolver
-        self.contentRepository = contentRepository
     }
 
     func makeRuntimeResolver() -> SourceRuntimeResolver {
-        return SourceRuntimeResolver { source in
-            return self.makeRuleSourceRuntime(source: source)
-        }
+        return SourceRuntimeResolver(
+            rssRuntimeFactory: { definition in
+                return self.makeRSSSourceRuntime(definition: definition)
+            },
+            ruleRuntimeFactory: { source in
+                return self.makeRuleSourceRuntime(source: source)
+            }
+        )
+    }
+
+    func makeRSSSourceRuntime(definition: SourceDefinition) -> RSSSourceRuntime {
+        return RSSSourceRuntime(
+            definition: definition,
+            feedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader)
+        )
     }
 
     func makeRuleSourceRuntime(source: Source) -> RuleSourceRuntime {
@@ -39,8 +48,7 @@ struct SourceRuntimeFactory {
         return RuleSourceListLoader(
             pageContentLoader: self.pageContentLoader,
             ruleParser: self.ruleParser,
-            urlResolver: self.urlResolver,
-            contentRepository: self.contentRepository
+            urlResolver: self.urlResolver
         )
     }
 

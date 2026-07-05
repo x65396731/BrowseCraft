@@ -3,9 +3,6 @@ import Foundation
 
 // 中文注释：RuleManagementUseCases.swift 承载 P2-1 规则管理的校验、更新和复制用例。
 
-typealias SiteRuleValidationResult = BrowseCraftCore.SiteRuleValidationResult
-typealias SiteRuleValidator = BrowseCraftCore.SiteRuleValidator
-
 /// 中文注释：更新用户规则；内置规则由 RulesKit 同步，不能被直接覆盖。
 struct UpdateSourceRuleUseCase {
     private let sourceRepository: SourceRepository

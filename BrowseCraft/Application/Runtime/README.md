@@ -21,7 +21,7 @@ SourceRuntime
     config: plugin manifest / package
 ```
 
-Planned responsibilities:
+Responsibilities:
 
 - Resolve a `Source` through `SourceDefinition.kind` to the correct concrete runtime.
 - Keep `SourceDefinitionMapping` as the runtime-neutral Source-to-Core metadata
@@ -31,19 +31,21 @@ Planned responsibilities:
   are runtime internals, not shared App use cases.
 - Keep rule-only mapping in `Rule/Mapping/RuleSourceRuntimeMapping`; it is not a
   shared App/Core compatibility layer.
+- Keep `RSS/RSSSourceRuntime` as the RSS-backed runtime implementation for
+  public feed list loading.
+- Keep RSS parsing/loading in `RSS/Parsing/` and `RSS/Loading/`; RSS does not
+  extend `SiteRule` or the rule editor.
 - Keep debug/source summary mapping in `Debug/RuleDebugSourceMapping`.
 - Add runtime-facing use cases before wiring Library and Reader features to them.
-- Return unsupported diagnostics for RSS and plugin runtimes until those runtime
-  implementations are introduced.
-- Keep RSS and plugin runtime slots explicit in the resolver/factory plan, while
-  deferring their implementation to later phases.
+- Keep the plugin runtime slot explicit in the resolver/factory plan, while
+  deferring plugin execution to a later phase.
 
 Non-goals:
 
-- Do not move SwiftSoup, GRDB, WebView, Nuke, or network implementations into
+- Do not move SwiftSoup, WebView, Nuke, or network implementations into
   `BrowseCraftCore`.
 - Do not treat `SiteRule` as the App-wide source axis. It is the configuration
   format used by `RuleSourceRuntime`.
 - Do not add RSS or plugin behavior as more `SiteRule` fields.
-- Do not implement RSS parsing before P3-9.
-- Do not execute plugin code in P3-8.
+- Do not route RSS through `RuleSourceRuntime`; RSS uses `RSSSourceRuntime`.
+- Do not execute plugin code until the plugin runtime phase explicitly starts.

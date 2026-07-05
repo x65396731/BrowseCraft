@@ -1,9 +1,9 @@
 import SwiftUI
 
-// 中文注释：ContentCardView.swift 属于界面功能层，用于说明本文件承载的核心职责。
+// 中文注释：ComicLibraryCardView.swift 属于 Library 漫画展示层，用于展示漫画封面和章节入口。
 
-/// 中文注释：ContentCardView 是 struct，负责本模块中的对应职责。
-struct ContentCardView<ReaderDestination: View>: View {
+/// 中文注释：ComicLibraryCardView 是漫画源在 Library 中使用的封面卡片。
+struct ComicLibraryCardView<ReaderDestination: View>: View {
     let item: ContentItem
     let sourceName: String
     let primaryActionTitle: String

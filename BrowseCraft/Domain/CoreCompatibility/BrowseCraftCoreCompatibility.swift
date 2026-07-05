@@ -55,6 +55,12 @@ typealias CookieScope = BrowseCraftCore.CookieScope
 typealias Charset = BrowseCraftCore.Charset
 typealias VideoRule = BrowseCraftCore.VideoRule
 typealias ContentType = BrowseCraftCore.ContentType
+typealias SiteRuleValidationResult = BrowseCraftCore.SiteRuleValidationResult
+typealias SiteRuleValidator = BrowseCraftCore.SiteRuleValidator
+typealias BrowseCraftRulePackage = BrowseCraftCore.BrowseCraftRulePackage
+typealias RulePackageMetadata = BrowseCraftCore.BrowseCraftRulePackageMetadata
+typealias RulePackageCoder = BrowseCraftCore.RulePackageCoder
+typealias RulePackageError = BrowseCraftCore.RulePackageError
 
 extension BrowseCraftCore.SiteRule {
     /// 中文注释：AddRuleSourceView 展示给用户参考的网站规则 JSON 示例。

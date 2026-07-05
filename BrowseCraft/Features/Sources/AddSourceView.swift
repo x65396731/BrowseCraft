@@ -45,7 +45,12 @@ struct AddSourceView: View {
                 )
             }
             .sheet(isPresented: self.$isShowingRSSFeedImportView) {
-                RSSFeedSourceImportView(viewModel: self.viewModel)
+                RSSFeedSourceImportView(
+                    viewModel: self.viewModel,
+                    completion: {
+                        self.dismiss()
+                    }
+                )
             }
             .sheet(isPresented: self.$isShowingImportWebsiteRulePackageView) {
                 ImportWebsiteRulePackageView(
@@ -128,12 +133,33 @@ struct AddSourceView: View {
 }
 
 private struct RSSFeedSourceImportView: View {
+    private enum ImportState: Equatable {
+        case idle
+        case loading
+        case valid
+        case invalid(String)
+        case saving
+        case saved
+        case error(String)
+
+        var isWorking: Bool {
+            switch self {
+            case .loading, .saving:
+                return true
+            case .idle, .valid, .invalid, .saved, .error:
+                return false
+            }
+        }
+    }
+
     @ObservedObject var viewModel: SourcesViewModel
+    let completion: () -> Void
     @Environment(\.dismiss) private var dismiss
 
     @State private var entryURL: String = ""
+    @State private var sourceName: String = ""
     @State private var recommendation: SourceImportRecommendation?
-    @State private var isShowingInvalidRSSAlert: Bool = false
+    @State private var importState: ImportState = .idle
 
     var body: some View {
         NavigationView {
@@ -145,11 +171,20 @@ private struct RSSFeedSourceImportView: View {
                     )
                     .autocapitalization(.none)
                     .keyboardType(.URL)
+                    .disabled(self.importState.isWorking)
 
-                    Button("Validate") {
-                        self.validate()
+                    TextField(
+                        "Name (Optional)",
+                        text: self.$sourceName
+                    )
+                    .disabled(self.importState.isWorking)
+
+                    Button(self.primaryButtonTitle) {
+                        Task {
+                            await self.save()
+                        }
                     }
-                    .disabled(self.entryURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(self.canSubmit == false)
                 }
 
                 if let recommendation: SourceImportRecommendation = self.recommendation {
@@ -169,6 +204,13 @@ private struct RSSFeedSourceImportView: View {
                         }
                     }
                 }
+
+                if let message: String = self.statusMessage {
+                    Section("Status") {
+                        Text(message)
+                            .foregroundStyle(self.statusForegroundStyle)
+                    }
+                }
             }
             .navigationTitle("RSS Feed")
             .toolbar {
@@ -176,22 +218,95 @@ private struct RSSFeedSourceImportView: View {
                     Button("Close") {
                         self.dismiss()
                     }
+                    .disabled(self.importState.isWorking)
                 }
             }
-            .alert(
-                "Invalid RSS Feed",
-                isPresented: self.$isShowingInvalidRSSAlert,
-                actions: {
-                    Button("OK", role: .cancel) {}
-                },
-                message: {
-                    Text("This URL does not look like an RSS feed. Use a direct .rss, .xml, /rss, or /feed URL.")
-                }
-            )
         }
     }
 
-    private func validate() {
+    private var trimmedEntryURL: String {
+        return self.entryURL.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var trimmedSourceName: String? {
+        let trimmed: String = self.sourceName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private var canSubmit: Bool {
+        return self.trimmedEntryURL.isEmpty == false && self.importState.isWorking == false
+    }
+
+    private var primaryButtonTitle: String {
+        switch self.importState {
+        case .loading:
+            return "Validating..."
+        case .saving:
+            return "Saving..."
+        case .saved:
+            return "Saved"
+        case .idle, .valid, .invalid, .error:
+            return "Add RSS Feed"
+        }
+    }
+
+    private var statusMessage: String? {
+        switch self.importState {
+        case .idle:
+            return nil
+        case .loading:
+            return "Validating RSS feed..."
+        case .valid:
+            return "This looks like an RSS feed."
+        case .invalid(let message):
+            return message
+        case .saving:
+            return "Saving RSS source..."
+        case .saved:
+            return "RSS source saved."
+        case .error(let message):
+            return message
+        }
+    }
+
+    private var statusForegroundStyle: Color {
+        switch self.importState {
+        case .invalid, .error:
+            return .red
+        case .valid, .saved:
+            return .green
+        case .idle, .loading, .saving:
+            return .secondary
+        }
+    }
+
+    @MainActor
+    private func save() async {
+        self.importState = .loading
+
+        let recommendation: SourceImportRecommendation = self.validate()
+        guard recommendation.isStrongRecommendation else {
+            self.importState = .invalid("This URL does not look like an RSS feed. Use a direct .rss, .xml, /rss, or /feed URL.")
+            return
+        }
+
+        self.importState = .saving
+        let source: Source? = await self.viewModel.addRSSSource(
+            feedURLString: self.entryURL,
+            name: self.trimmedSourceName
+        )
+
+        guard source != nil else {
+            self.importState = .error(self.viewModel.errorMessage ?? "Failed to save RSS source.")
+            return
+        }
+
+        self.importState = .saved
+        self.completion()
+        self.dismiss()
+    }
+
+    private func validate() -> SourceImportRecommendation {
         let draft: SourceImportDraft = SourceImportDraft(
             entryURL: self.entryURL,
             contentType: .article,
@@ -203,7 +318,7 @@ private struct RSSFeedSourceImportView: View {
             selectedOptionKind: .rssFeedURL
         )
         self.recommendation = recommendation
-        self.isShowingInvalidRSSAlert = recommendation.isStrongRecommendation == false
+        return recommendation
     }
 }
 

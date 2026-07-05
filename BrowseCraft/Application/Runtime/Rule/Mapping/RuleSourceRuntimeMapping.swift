@@ -8,7 +8,8 @@ struct SourceRuntimeOutputMapper {
             title: item.title,
             detailURL: self.url(from: item.detailURL),
             coverURL: self.url(from: item.coverURL),
-            latestText: item.latestText
+            latestText: item.latestText,
+            updatedAt: item.updatedAt
         )
     }
 

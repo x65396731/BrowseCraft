@@ -12,17 +12,19 @@ final class HistoryViewModel: ObservableObject {
     @Published var errorMessage: String?
 
     private let loadHistoryUseCase: LoadHistoryUseCase
-    private let loadLibraryUseCase: LoadLibraryUseCase
     private let loadSourcesUseCase: LoadSourcesUseCase
+    private let sourceSelectionStore: SourceSelectionStore
+    private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
 
     init(
         loadHistoryUseCase: LoadHistoryUseCase,
-        loadLibraryUseCase: LoadLibraryUseCase,
-        loadSourcesUseCase: LoadSourcesUseCase
+        loadSourcesUseCase: LoadSourcesUseCase,
+        sourceSelectionStore: SourceSelectionStore
     ) {
         self.loadHistoryUseCase = loadHistoryUseCase
-        self.loadLibraryUseCase = loadLibraryUseCase
         self.loadSourcesUseCase = loadSourcesUseCase
+        self.sourceSelectionStore = sourceSelectionStore
+        self.bindLibrarySnapshot()
     }
 
     @MainActor
@@ -31,7 +33,7 @@ final class HistoryViewModel: ObservableObject {
         do {
             self.readingHistory = try self.loadHistoryUseCase.loadReadingHistory()
             self.favoriteItemIDs = try self.loadHistoryUseCase.loadFavoriteItemIDs()
-            self.items = try self.loadLibraryUseCase.execute()
+            self.items = self.sourceSelectionStore.preparedLibrarySnapshot?.items ?? []
             self.sources = try self.loadSourcesUseCase.execute()
         } catch {
             self.errorMessage = error.localizedDescription
@@ -58,5 +60,14 @@ final class HistoryViewModel: ObservableObject {
         }
 
         return source?.name ?? "Unknown Source"
+    }
+
+    private func bindLibrarySnapshot() {
+        self.sourceSelectionStore.$preparedLibrarySnapshot
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] snapshot in
+                self?.items = snapshot?.items ?? []
+            }
+            .store(in: &self.cancellables)
     }
 }

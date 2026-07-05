@@ -2,7 +2,7 @@ import Foundation
 
 // 中文注释：LoadBuiltInSourcesUseCase.swift 属于应用用例层，用于说明本文件承载的核心职责。
 
-/// 中文注释：确保内置源规则存在于本地数据库中。
+/// 中文注释：确保内置源存在于本地数据库中。
 /// 中文注释：该用例不访问网络，只在缺失时写入内置 Source 记录。
 struct LoadBuiltInSourcesUseCase {
     private let sourceRepository: SourceRepository
@@ -32,7 +32,7 @@ struct LoadBuiltInSourcesUseCase {
         }
     }
 
-    /// 中文注释：同步所有内置源。规则源在 BrowseCraftRulesKit，数据库只保存当前运行副本。
+    /// 中文注释：同步所有内置源。数据库只保存当前运行副本。
     private func updateExistingBuiltInSources(
         _ existingSources: [Source],
         latestBuiltInSources: [Source]
@@ -48,7 +48,7 @@ struct LoadBuiltInSourcesUseCase {
             if existingSource.name == latestBuiltInSource.name
                 && existingSource.baseURL == latestBuiltInSource.baseURL
                 && existingSource.type == latestBuiltInSource.type
-                && existingSource.rule == latestBuiltInSource.rule {
+                && existingSource.configuration == latestBuiltInSource.configuration {
                 continue
             }
 
@@ -56,21 +56,36 @@ struct LoadBuiltInSourcesUseCase {
             updatedSource.name = latestBuiltInSource.name
             updatedSource.baseURL = latestBuiltInSource.baseURL
             updatedSource.type = latestBuiltInSource.type
-            updatedSource.rule = latestBuiltInSource.rule
+            updatedSource.configuration = latestBuiltInSource.configuration
             updatedSource.updatedAt = Date()
             try self.sourceRepository.saveSource(updatedSource)
 
             #if DEBUG
-            let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(updatedSource.rule)
-            print(
-                "[BrowseCraftRule] Synced built-in source id=\(updatedSource.id) " +
-                "name=\(updatedSource.name) " +
-                "chapterContainer=\(resolvedRule.primaryDetailRule?.chapterContainer ?? "nil") " +
-                "chapterItem=\(resolvedRule.primaryDetailRule?.chapterItem ?? "nil")"
-            )
+            self.logSyncedBuiltInSource(updatedSource)
             #endif
         }
     }
+
+    #if DEBUG
+    private func logSyncedBuiltInSource(_ source: Source) {
+        switch source.configuration {
+        case .rule(let configuration):
+            let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(configuration.rule)
+            print(
+                "[BrowseCraftRule] Synced built-in source id=\(source.id) " +
+                "name=\(source.name) " +
+                "chapterContainer=\(resolvedRule.primaryDetailRule?.chapterContainer ?? "nil") " +
+                "chapterItem=\(resolvedRule.primaryDetailRule?.chapterItem ?? "nil")"
+            )
+        case .rss, .plugin:
+            print(
+                "[BrowseCraftSource] Synced built-in source id=\(source.id) " +
+                "name=\(source.name) " +
+                "kind=\(source.configuration.kind.rawValue)"
+            )
+        }
+    }
+    #endif
 
     private func latestBuiltInSource(
         matching existingSource: Source,

@@ -25,16 +25,18 @@ struct SourcesView: View {
                         )
                         .layoutPriority(1)
 
-                        NavigationLink(
-                            destination: RuleDetailView(
-                                viewModel: self.viewModel,
-                                sourceID: source.id
-                            )
-                        ) {
-                            Image(systemName: "info.circle")
-                                .foregroundColor(.secondary)
+                        if source.ruleConfiguration != nil {
+                            NavigationLink(
+                                destination: RuleDetailView(
+                                    viewModel: self.viewModel,
+                                    sourceID: source.id
+                                )
+                            ) {
+                                Image(systemName: "info.circle")
+                                    .foregroundColor(.secondary)
+                            }
+                            .accessibilityLabel("Website Rule Details")
                         }
-                        .accessibilityLabel("Website Rule Details")
                     }
                     .listRowInsets(
                         EdgeInsets(

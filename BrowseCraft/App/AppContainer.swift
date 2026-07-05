@@ -3,11 +3,9 @@ import Foundation
 // 中文注释：AppContainer.swift 属于应用装配和根导航，用于说明本文件承载的核心职责。
 
 /// 中文注释：AppContainer 不是界面，而是应用依赖装配中心。
-/// 中文注释：这里统一创建 GRDB 仓储、Alamofire 客户端、SwiftSoup 解析器和各个用例。
+/// 中文注释：这里统一创建内存仓储、Alamofire 客户端、SwiftSoup 解析器和各个用例。
 final class AppContainer {
-    private let database: AppDatabase
     private let sourceRepository: SourceRepository
-    private let contentRepository: ContentRepository
     private let favoriteRepository: FavoriteRepository
     private let historyRepository: HistoryRepository
     private let httpClient: HTTPClient
@@ -18,34 +16,24 @@ final class AppContainer {
     private let sourceSelectionStore: SourceSelectionStore
 
     init() {
-        do {
-            let database: AppDatabase = try AppDatabase()
-            let urlResolver: URLResolvingService = URLResolvingService()
-            let httpClient: HTTPClient = AlamofireHTTPClient()
-            let pageContentLoader: PageContentLoader = DefaultPageContentLoader(httpClient: httpClient)
-            let ruleParser: RuleParsingService = SwiftSoupRuleParser(urlResolver: urlResolver)
-            let contentRepository: ContentRepository = GRDBContentRepository(database: database)
+        let urlResolver: URLResolvingService = URLResolvingService()
+        let httpClient: HTTPClient = AlamofireHTTPClient()
+        let pageContentLoader: PageContentLoader = DefaultPageContentLoader(httpClient: httpClient)
+        let ruleParser: RuleParsingService = SwiftSoupRuleParser(urlResolver: urlResolver)
 
-            self.database = database
-            self.sourceRepository = GRDBSourceRepository(database: database)
-            self.contentRepository = contentRepository
-            self.favoriteRepository = GRDBFavoriteRepository(database: database)
-            self.historyRepository = GRDBHistoryRepository(database: database)
-            self.httpClient = httpClient
-            self.pageContentLoader = pageContentLoader
-            self.urlResolver = urlResolver
-            self.ruleParser = ruleParser
-            self.sourceRuntimeFactory = SourceRuntimeFactory(
-                pageContentLoader: pageContentLoader,
-                ruleParser: ruleParser,
-                urlResolver: urlResolver,
-                contentRepository: contentRepository
-            )
-            self.sourceSelectionStore = SourceSelectionStore()
-        } catch {
-            // 中文注释：数据库启动失败时应用无法继续运行，后续可以替换为用户可见的恢复页面。
-            fatalError("Failed to build AppContainer: \(error)")
-        }
+        self.sourceRepository = InMemorySourceRepository()
+        self.favoriteRepository = InMemoryFavoriteRepository()
+        self.historyRepository = InMemoryHistoryRepository()
+        self.httpClient = httpClient
+        self.pageContentLoader = pageContentLoader
+        self.urlResolver = urlResolver
+        self.ruleParser = ruleParser
+        self.sourceRuntimeFactory = SourceRuntimeFactory(
+            pageContentLoader: pageContentLoader,
+            ruleParser: ruleParser,
+            urlResolver: urlResolver
+        )
+        self.sourceSelectionStore = SourceSelectionStore()
     }
 
     /// 中文注释：makeSourcesViewModel 方法封装当前类型的一段业务或界面行为。
@@ -58,6 +46,10 @@ final class AppContainer {
         )
         let addRuleSourceUseCase: AddRuleSourceUseCase = AddRuleSourceUseCase(
             sourceRepository: self.sourceRepository
+        )
+        let addRSSSourceUseCase: AddRSSSourceUseCase = AddRSSSourceUseCase(
+            sourceRepository: self.sourceRepository,
+            feedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader)
         )
         let deleteSourceUseCase: DeleteSourceUseCase = DeleteSourceUseCase(
             sourceRepository: self.sourceRepository
@@ -78,8 +70,10 @@ final class AppContainer {
         let refreshSourceUseCase: RefreshSourceUseCase = RefreshSourceUseCase(
             pageContentLoader: self.pageContentLoader,
             ruleParser: self.ruleParser,
-            urlResolver: self.urlResolver,
-            contentRepository: self.contentRepository
+            urlResolver: self.urlResolver
+        )
+        let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = RefreshSourceRuntimeUseCase(
+            runtimeResolver: self.makeSourceRuntimeResolver()
         )
         let ruleCandidateAnalyzer: RuleCandidateAnalyzingService = SwiftSoupRuleCandidateAnalyzer()
         let listDebugUseCase: ListDebugUseCase = ListDebugUseCase(
@@ -111,6 +105,7 @@ final class AppContainer {
             loadBuiltInSourcesUseCase: loadBuiltInSourcesUseCase,
             loadSourcesUseCase: loadSourcesUseCase,
             addRuleSourceUseCase: addRuleSourceUseCase,
+            addRSSSourceUseCase: addRSSSourceUseCase,
             deleteSourceUseCase: deleteSourceUseCase,
             updateSourceRuleUseCase: updateSourceRuleUseCase,
             duplicateSourceRuleUseCase: duplicateSourceRuleUseCase,
@@ -118,6 +113,7 @@ final class AppContainer {
             importSourceRulePackageUseCase: importSourceRulePackageUseCase,
             sourceImportRecommendationUseCase: sourceImportRecommendationUseCase,
             refreshSourceUseCase: refreshSourceUseCase,
+            refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
             listDebugUseCase: listDebugUseCase,
             searchDebugUseCase: searchDebugUseCase,
             detailDebugUseCase: detailDebugUseCase,
@@ -128,9 +124,6 @@ final class AppContainer {
 
     /// 中文注释：makeLibraryViewModel 方法封装当前类型的一段业务或界面行为。
     func makeLibraryViewModel() -> LibraryViewModel {
-        let loadLibraryUseCase: LoadLibraryUseCase = LoadLibraryUseCase(
-            contentRepository: self.contentRepository
-        )
         let loadSourcesUseCase: LoadSourcesUseCase = LoadSourcesUseCase(
             sourceRepository: self.sourceRepository
         )
@@ -145,7 +138,6 @@ final class AppContainer {
         )
 
         return LibraryViewModel(
-            loadLibraryUseCase: loadLibraryUseCase,
             loadSourcesUseCase: loadSourcesUseCase,
             toggleFavoriteUseCase: toggleFavoriteUseCase,
             recordOpenItemUseCase: recordOpenItemUseCase,
@@ -205,17 +197,14 @@ final class AppContainer {
             historyRepository: self.historyRepository,
             favoriteRepository: self.favoriteRepository
         )
-        let loadLibraryUseCase: LoadLibraryUseCase = LoadLibraryUseCase(
-            contentRepository: self.contentRepository
-        )
         let loadSourcesUseCase: LoadSourcesUseCase = LoadSourcesUseCase(
             sourceRepository: self.sourceRepository
         )
 
         return HistoryViewModel(
             loadHistoryUseCase: loadHistoryUseCase,
-            loadLibraryUseCase: loadLibraryUseCase,
-            loadSourcesUseCase: loadSourcesUseCase
+            loadSourcesUseCase: loadSourcesUseCase,
+            sourceSelectionStore: self.sourceSelectionStore
         )
     }
 }

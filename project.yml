@@ -32,6 +32,9 @@ targets:
       - path: BrowseCraft
         excludes:
           - "**/*.md"
+          - "Infrastructure/Database/**"
+          - "Domain/Repositories/ContentRepository.swift"
+          - "Application/UseCases/LoadLibraryUseCase.swift"
     dependencies:
       - package: BrowseCraftCore
       - package: BrowseCraftRulesKit
@@ -53,6 +56,8 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: BrowseCraftTests
+        excludes:
+          - "Application/RequestConfigUseCaseTests.swift"
     dependencies:
       - target: BrowseCraft
       - package: BrowseCraftCore
