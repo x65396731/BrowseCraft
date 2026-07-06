@@ -288,6 +288,27 @@ final class AppContainer {
         )
     }
 
+    @MainActor
+    func makeVideoDetailViewModel(item: ContentItem, source: Source) -> VideoDetailViewModel {
+        let repository: VideoWatchHistoryRepository = GRDBVideoWatchHistoryRepository(
+            database: self.database
+        )
+        let saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase = SaveVideoWatchHistoryUseCase(
+            repository: repository
+        )
+        let loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase = LoadVideoWatchHistoryUseCase(
+            repository: repository
+        )
+
+        return VideoDetailViewModel(
+            item: item,
+            source: source,
+            runtimeResolver: self.makeSourceRuntimeResolver(),
+            saveVideoWatchHistoryUseCase: saveVideoWatchHistoryUseCase,
+            loadVideoWatchHistoryUseCase: loadVideoWatchHistoryUseCase
+        )
+    }
+
     /// 中文注释：漫画 source 当前复用 RuleSourceRuntime 实现；对外入口保持 comic runtime 语义。
     func makeComicSourceRuntime(source: Source) -> RuleSourceRuntime {
         return self.sourceRuntimeFactory.makeComicSourceRuntime(source: source)

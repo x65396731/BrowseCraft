@@ -11,12 +11,14 @@ enum BuiltInSource {
     static let primaryBuiltInID: String = BrowseCraftPrivateRuleCatalog.primaryBuiltInID
     static let primaryBuiltInRuleJSON: String = BrowseCraftPrivateRuleCatalog.primaryBuiltInRuleJSON
     static let solidotRSSID: String = "built-in.rss.solidot"
+    static let tiantianVideoID: String = "built-in.video.baixiaotangtop"
 
     static func allBuiltIns(now: Date = Date()) -> [Source] {
         var sources: [Source] = BrowseCraftPrivateRuleCatalog.builtInRules.map { builtInRule in
             return Self.source(from: builtInRule, now: now)
         }
         sources.append(Self.solidotRSS(now: now))
+        sources.append(Self.tiantianVideo(now: now))
         return sources
     }
 
@@ -48,6 +50,39 @@ enum BuiltInSource {
                         refreshPolicy: .manual
                     )
                 )
+            ),
+            enabled: true,
+            createdAt: now,
+            updatedAt: now
+        )
+    }
+
+
+    /// 中文注释：tiantianVideo 方法返回开发验证用 MacCMS 视频源；站点来自 P4.13.1 调研记录。
+    static func tiantianVideo(now: Date = Date()) -> Source {
+        let entryURL: URL = URL(string: "https://www.baixiaotangtop.com/")!
+        let definition: VideoSourceDefinition = VideoSourceDefinition(
+            siteKind: .macCMS,
+            entryURL: entryURL,
+            seedURL: nil,
+            entryKind: .home,
+            routePatterns: .macCMS,
+            playbackPolicy: .playPageFirst,
+            requiresAccount: false,
+            seedVodID: nil,
+            seedSourceIndex: nil,
+            seedEpisodeIndex: nil,
+            seedDetailURL: nil,
+            seedPlayURL: nil
+        )
+
+        return Source(
+            id: Self.tiantianVideoID,
+            name: "天天电影（测试）",
+            baseURL: entryURL.absoluteString,
+            type: .html,
+            configuration: .video(
+                VideoSourceConfiguration(definition: definition)
             ),
             enabled: true,
             createdAt: now,

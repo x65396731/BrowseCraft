@@ -39,10 +39,21 @@ struct SourceRuntimeFactory {
     }
 
     func makeVideoSourceRuntime(definition: SourceDefinition) -> VideoSourceRuntime {
+        let parser: any VideoHTMLParsing = self.makeVideoHTMLParser(definition: definition)
         return VideoSourceRuntime(
             definition: definition,
-            pageContentLoader: self.pageContentLoader,
-            parser: self.makeVideoHTMLParser(definition: definition)
+            listLoader: VideoSourceListLoader(
+                pageContentLoader: self.pageContentLoader,
+                parser: parser
+            ),
+            detailLoader: VideoSourceDetailLoader(
+                pageContentLoader: self.pageContentLoader,
+                parser: parser
+            ),
+            playbackLoader: VideoSourcePlaybackLoader(
+                pageContentLoader: self.pageContentLoader,
+                parser: parser
+            )
         )
     }
 

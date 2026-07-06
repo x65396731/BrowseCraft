@@ -79,6 +79,31 @@ struct SaveVideoWatchHistoryUseCase {
     }
 }
 
+/// 中文注释：读取某一视频单集的观看历史，用于播放器恢复播放时间。
+struct LoadVideoWatchHistoryUseCase {
+    private let repository: VideoWatchHistoryRepository
+
+    init(repository: VideoWatchHistoryRepository) {
+        self.repository = repository
+    }
+
+    func execute(
+        userID: String,
+        sourceID: String,
+        vodID: String,
+        sourceIndex: Int,
+        episodeIndex: Int
+    ) throws -> VideoWatchHistory? {
+        return try self.repository.fetchHistory(
+            userID: userID,
+            sourceID: sourceID,
+            vodID: vodID,
+            sourceIndex: sourceIndex,
+            episodeIndex: episodeIndex
+        )
+    }
+}
+
 /// 中文注释：聚合 RSS、漫画和视频历史，供 History 页面按访问时间倒序展示。
 struct LoadReadingHistoryEntriesUseCase {
     private let rssRepository: RSSReadingHistoryRepository

@@ -2,27 +2,6 @@ import Foundation
 import SwiftSoup
 import BrowseCraftCore
 
-// 中文注释：VideoHTMLParsing 是视频站模板解析策略协议；MacCMS 只是当前第一个实现。
-protocol VideoHTMLParsing {
-    func parseList(
-        html: String,
-        definition: SourceDefinition,
-        pageURL: URL
-    ) throws -> [SourceContentItem]
-
-    func parseDetail(
-        html: String,
-        definition: SourceDefinition,
-        detailURL: URL
-    ) throws -> [SourceChapter]
-
-    func parsePlayback(
-        html: String,
-        definition: SourceDefinition,
-        playPageURL: URL
-    ) throws -> SourceVideoPlaybackReference
-}
-
 // 中文注释：MacCMSVideoHTMLParser 只处理 MacCMS 常见静态 HTML，不处理 VIP/DRM/反爬绕过。
 struct MacCMSVideoHTMLParser: VideoHTMLParsing {
     private struct PlayerPayload: Decodable {
@@ -78,7 +57,7 @@ struct MacCMSVideoHTMLParser: VideoHTMLParsing {
         html: String,
         definition: SourceDefinition,
         detailURL: URL
-    ) throws -> [SourceChapter] {
+    ) throws -> VideoDetailContent {
         let document: Document = try SwiftSoup.parse(html, detailURL.absoluteString)
         let elements: [Element] = try document.select(".ewave-content__playlist a[href^=\"/vodplay/\"], .ewave-content__playlist a[href*=\"/vodplay/\"]").array()
         var chapters: [SourceChapter] = []
@@ -104,7 +83,11 @@ struct MacCMSVideoHTMLParser: VideoHTMLParsing {
             )
         }
 
-        return chapters
+        return VideoDetailContent(
+            chapters: chapters,
+            synopsis: try self.synopsis(from: document),
+            metadataRows: try self.metadataRows(from: document)
+        )
     }
 
     func parsePlayback(
@@ -199,6 +182,81 @@ struct MacCMSVideoHTMLParser: VideoHTMLParsing {
             .first()?
             .text()
             .trimmedNonEmpty
+    }
+
+    private func synopsis(from document: Document) throws -> String? {
+        let selectors: [String] = [
+            ".ewave-content__detail .desc",
+            ".ewave-content__desc",
+            ".detail-content",
+            ".vod_content",
+            ".content",
+            ".ewave-content__detail p"
+        ]
+        var candidates: [String] = []
+
+        for selector: String in selectors {
+            let elements: [Element] = try document.select(selector).array()
+            for element: Element in elements {
+                guard let text: String = try element.text().cleanedDetailText,
+                      candidates.contains(text) == false else {
+                    continue
+                }
+
+                candidates.append(text)
+            }
+        }
+
+        if let explicitSynopsis: String = candidates.first(where: { text in
+            return text.contains("简介") || text.contains("剧情")
+        }) {
+            return self.strippedSynopsisPrefix(explicitSynopsis)
+        }
+
+        return candidates
+            .filter { text in
+                return text.count >= 30 && self.looksLikeMetadata(text) == false
+            }
+            .max { lhs, rhs in
+                return lhs.count < rhs.count
+            }
+    }
+
+    private func strippedSynopsisPrefix(_ text: String) -> String {
+        var result: String = text
+        let prefixes: [String] = ["剧情简介：", "剧情简介:", "简介：", "简介:", "剧情：", "剧情:"]
+
+        for prefix: String in prefixes where result.hasPrefix(prefix) {
+            result.removeFirst(prefix.count)
+            return result.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        return result
+    }
+
+    private func looksLikeMetadata(_ text: String) -> Bool {
+        let metadataKeys: [String] = ["主演", "导演", "类型", "地区", "年份", "语言", "状态", "更新", "别名"]
+        return metadataKeys.contains { key in
+            return text.hasPrefix(key) || text.hasPrefix("\(key)：") || text.hasPrefix("\(key):")
+        }
+    }
+
+    private func metadataRows(from document: Document) throws -> [String] {
+        let elements: [Element] = try document.select(".ewave-content__detail p, .ewave-content__detail li, .ewave-content__detail span").array()
+        var rows: [String] = []
+
+        for element: Element in elements {
+            guard let text: String = try element.text().cleanedDetailText,
+                  text.count <= 120,
+                  text.contains("简介") == false,
+                  rows.contains(text) == false else {
+                continue
+            }
+
+            rows.append(text)
+        }
+
+        return Array(rows.prefix(6))
     }
 
     private func vodID(from detailURL: URL) -> String? {
@@ -338,5 +396,17 @@ private extension String {
     var trimmedNonEmpty: String? {
         let trimmed: String = self.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    var cleanedDetailText: String? {
+        let collapsed: String = self
+            .replacingOccurrences(of: "\u{00a0}", with: " ")
+            .split(whereSeparator: { character in
+                return character.isWhitespace
+            })
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return collapsed.isEmpty ? nil : collapsed
     }
 }

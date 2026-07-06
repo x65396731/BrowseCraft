@@ -1,21 +1,24 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：VideoSourceRuntime 是 video source 的 MVP runtime；播放 UI 和历史保存由后续小节接入。
+// 中文注释：VideoSourceRuntime 是 video source 的 SourceRuntime 门面；页面加载和 HTML 映射下沉到 Loading/Mapping。
 struct VideoSourceRuntime: SourceRuntime {
     let definition: SourceDefinition
 
-    private let pageContentLoader: PageContentLoader
-    private let parser: any VideoHTMLParsing
+    private let listLoader: any VideoSourceListLoading
+    private let detailLoader: any VideoSourceDetailLoading
+    private let playbackLoader: any VideoSourcePlaybackLoading
 
     init(
         definition: SourceDefinition,
-        pageContentLoader: PageContentLoader,
-        parser: any VideoHTMLParsing
+        listLoader: any VideoSourceListLoading,
+        detailLoader: any VideoSourceDetailLoading,
+        playbackLoader: any VideoSourcePlaybackLoading
     ) {
         self.definition = definition
-        self.pageContentLoader = pageContentLoader
-        self.parser = parser
+        self.listLoader = listLoader
+        self.detailLoader = detailLoader
+        self.playbackLoader = playbackLoader
     }
 
     var capabilities: SourceRuntimeCapabilities {
@@ -40,24 +43,7 @@ struct VideoSourceRuntime: SourceRuntime {
 
     func loadList(_ input: SourceListInput) async throws -> SourceListOutput {
         try self.validateSource(input.context)
-        let url: URL = try self.listURL(for: input)
-        let html: String = try await self.pageContentLoader.getString(from: url)
-        let items: [SourceContentItem] = try self.parser.parseList(
-            html: html,
-            definition: self.definition,
-            pageURL: url
-        )
-
-        return SourceListOutput(
-            items: items,
-            pagination: nil,
-            diagnostics: SourceRuntimeDiagnostics.succeeded(
-                context: SourceRuntimeDiagnosticContext(
-                    runtimeContext: input.context,
-                    requestURL: url
-                )
-            )
-        )
+        return try await self.listLoader.loadList(input, definition: self.definition)
     }
 
     func search(_ input: SourceSearchInput) async throws -> SourceListOutput {
@@ -65,16 +51,10 @@ struct VideoSourceRuntime: SourceRuntime {
     }
 
     func loadDetail(_ input: SourceDetailInput) async throws -> SourceDetailOutput {
-        try self.validateSource(input.context)
-        let html: String = try await self.pageContentLoader.getString(from: input.detailURL)
-        let chapters: [SourceChapter] = try self.parser.parseDetail(
-            html: html,
-            definition: self.definition,
-            detailURL: input.detailURL
-        )
+        let content: VideoDetailContent = try await self.loadVideoDetailContent(input)
 
         return SourceDetailOutput(
-            chapters: chapters,
+            chapters: content.chapters,
             diagnostics: SourceRuntimeDiagnostics.succeeded(
                 context: SourceRuntimeDiagnosticContext(
                     runtimeContext: input.context,
@@ -82,6 +62,11 @@ struct VideoSourceRuntime: SourceRuntime {
                 )
             )
         )
+    }
+
+    func loadVideoDetailContent(_ input: SourceDetailInput) async throws -> VideoDetailContent {
+        try self.validateSource(input.context)
+        return try await self.detailLoader.loadDetailContent(input, definition: self.definition)
     }
 
     func loadReader(_ input: SourceReaderInput) async throws -> SourceReaderOutput {
@@ -100,42 +85,7 @@ struct VideoSourceRuntime: SourceRuntime {
 
     func loadPlayback(_ input: SourceVideoPlaybackInput) async throws -> SourceVideoPlaybackOutput {
         try self.validateSource(input.context)
-        let html: String = try await self.pageContentLoader.getString(from: input.playPageURL)
-        let reference: SourceVideoPlaybackReference = try self.parser.parsePlayback(
-            html: html,
-            definition: self.definition,
-            playPageURL: input.playPageURL
-        )
-
-        return SourceVideoPlaybackOutput(
-            reference: reference,
-            diagnostics: SourceRuntimeDiagnostics.succeeded(
-                context: SourceRuntimeDiagnosticContext(
-                    runtimeContext: input.context,
-                    requestURL: input.playPageURL
-                )
-            )
-        )
-    }
-
-    private func entryURL() throws -> URL {
-        guard let definition: VideoSourceDefinition = self.definition.video else {
-            throw SourceRuntimeError.invalidInput("Video runtime requires a video source definition.")
-        }
-
-        return definition.entryURL
-    }
-
-    private func listURL(for input: SourceListInput) throws -> URL {
-        if let urlOverride: URL = input.urlOverride {
-            return urlOverride
-        }
-
-        if let requestOverrideURL: URL = input.context.requestOverride?.url {
-            return requestOverrideURL
-        }
-
-        return try self.entryURL()
+        return try await self.playbackLoader.loadPlayback(input, definition: self.definition)
     }
 
     private func validateSource(_ context: SourceRuntimeContext) throws {

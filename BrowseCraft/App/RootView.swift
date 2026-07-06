@@ -53,6 +53,12 @@ struct RootView: View {
                         item: item,
                         source: source
                     )
+                },
+                videoDetailViewModelFactory: { item, source in
+                    return self.container.makeVideoDetailViewModel(
+                        item: item,
+                        source: source
+                    )
                 }
             )
                 .tabItem {

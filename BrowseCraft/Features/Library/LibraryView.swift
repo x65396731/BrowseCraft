@@ -8,6 +8,7 @@ struct LibraryView: View {
     let chapterListViewModelFactory: (ContentItem, Source) -> ChapterListViewModel
     let readerViewModelFactory: (ContentItem, Source, ChapterLink?) -> ReaderViewModel
     let feedContentDetailViewModelFactory: (ContentItem, Source) -> FeedContentDetailViewModel
+    let videoDetailViewModelFactory: (ContentItem, Source) -> VideoDetailViewModel
     @State private var didLoadInitialData: Bool = false
 
     private let gridColumns: [GridItem] = [
@@ -107,6 +108,18 @@ struct LibraryView: View {
                 detailViewModelFactory: { item, source in
                     return self.feedContentDetailViewModelFactory(item, source)
                 }
+            )
+        } else if let selectedSource: Source = self.viewModel.selectedSource,
+                  selectedSource.configuration.kind == .video {
+            VideoContentGridView(
+                items: self.viewModel.items,
+                source: selectedSource,
+                favoriteItemIDs: self.viewModel.favoriteItemIDs,
+                favoriteAction: { item in
+                    self.viewModel.toggleFavorite(item: item)
+                },
+                detailViewModelFactory: self.videoDetailViewModelFactory,
+                imageRequestConfig: self.viewModel.imageRequestConfig(for: selectedSource)
             )
         } else {
             LazyVGrid(columns: self.gridColumns, spacing: 16) {

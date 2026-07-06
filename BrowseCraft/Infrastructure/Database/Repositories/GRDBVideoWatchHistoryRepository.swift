@@ -32,6 +32,26 @@ final class GRDBVideoWatchHistoryRepository: VideoWatchHistoryRepository {
         }
     }
 
+    func fetchHistory(
+        userID: String,
+        sourceID: String,
+        vodID: String,
+        sourceIndex: Int,
+        episodeIndex: Int
+    ) throws -> VideoWatchHistory? {
+        return try self.database.queue.read { database in
+            let record: VideoWatchHistoryRecord? = try VideoWatchHistoryRecord
+                .filter(Column("userID") == userID)
+                .filter(Column("sourceID") == sourceID)
+                .filter(Column("vodID") == vodID)
+                .filter(Column("sourceIndex") == sourceIndex)
+                .filter(Column("episodeIndex") == episodeIndex)
+                .fetchOne(database)
+
+            return record?.domainModel()
+        }
+    }
+
     private static func upsert(_ record: VideoWatchHistoryRecord, in database: Database) throws {
         try database.execute(
             sql: """
