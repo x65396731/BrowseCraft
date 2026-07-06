@@ -22,6 +22,9 @@ packages:
   BrowseCraftRulesKit:
     url: git@github.com:x65396731/BrowseCraftRulesKit.git
     branch: main
+  KSPlayer:
+    url: https://github.com/kingslay/KSPlayer.git
+    branch: main
 
 targets:
   BrowseCraft:
@@ -35,6 +38,7 @@ targets:
     dependencies:
       - package: BrowseCraftCore
       - package: BrowseCraftRulesKit
+      - package: KSPlayer
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: xiefei.BrowseCraft
@@ -46,6 +50,14 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+    postBuildScripts:
+      - name: Patch FFmpegKit Bundle Identifiers
+        basedOnDependencyAnalysis: false
+        script: |
+          FRAMEWORK_PLIST="${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Frameworks/libshaderc_combined.framework/Info.plist"
+          if [ -f "$FRAMEWORK_PLIST" ]; then
+            /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.kintan.ksplayer.libshaderc-combined" "$FRAMEWORK_PLIST"
+          fi
 
   BrowseCraftTests:
     type: bundle.unit-test
