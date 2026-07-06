@@ -18,7 +18,7 @@ settings:
 
 packages:
   BrowseCraftCore:
-    path: /Users/xiefei/Desktop/BrowseCraftCore
+    path: ../BrowseCraftCore
   BrowseCraftRulesKit:
     url: git@github.com:x65396731/BrowseCraftRulesKit.git
     branch: main

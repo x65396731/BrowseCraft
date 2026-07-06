@@ -9,7 +9,7 @@ xcuserdata/
 build/
 DerivedData/
 .derivedData/
-TestResults/*.xcresult/
+**/*.xcresult/
 
 # XcodeGen generated project
 *.xcodeproj/
@@ -24,3 +24,4 @@ web-analysis/
 
 # Local sibling private rules repo
 BrowseCraftRulesKit/
+PrivatePackages/BrowseCraftCore
