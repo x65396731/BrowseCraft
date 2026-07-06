@@ -12,14 +12,14 @@ protocol VideoSourceDetailLoading {
 // 中文注释：VideoSourceDetailLoader 负责加载详情页并映射剧集、简介和元信息。
 struct VideoSourceDetailLoader: VideoSourceDetailLoading {
     private let pageContentLoader: PageContentLoader
-    private let parser: any VideoHTMLParsing
+    private let mapper: any VideoHTMLMapper
 
     init(
         pageContentLoader: PageContentLoader,
-        parser: any VideoHTMLParsing
+        mapper: any VideoHTMLMapper
     ) {
         self.pageContentLoader = pageContentLoader
-        self.parser = parser
+        self.mapper = mapper
     }
 
     func loadDetailContent(
@@ -27,7 +27,7 @@ struct VideoSourceDetailLoader: VideoSourceDetailLoading {
         definition: SourceDefinition
     ) async throws -> VideoDetailContent {
         let html: String = try await self.pageContentLoader.getString(from: input.detailURL)
-        return try self.parser.parseDetail(
+        return try self.mapper.mapDetail(
             html: html,
             definition: definition,
             detailURL: input.detailURL

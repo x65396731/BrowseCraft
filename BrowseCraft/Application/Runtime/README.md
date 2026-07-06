@@ -29,7 +29,7 @@ Responsibilities:
 - Keep `Rule/RuleSourceRuntime` as the rule-backed runtime implementation.
 - Keep rule-only loading in `Rule/Loading/`; list/search/chapter/reader loaders
   are runtime internals, not shared App use cases.
-- Keep rule-only mapping in `Rule/Mapping/RuleSourceRuntimeMapping`; it is not a
+- Keep rule-only mapping in `Rule/Mapping/RuleSourceRuntimeMapper`; it is not a
   shared App/Core compatibility layer.
 - Keep `RSS/RSSSourceRuntime` as the RSS-backed runtime implementation for
   public feed list loading.

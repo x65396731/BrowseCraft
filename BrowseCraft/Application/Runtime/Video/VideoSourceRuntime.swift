@@ -36,7 +36,7 @@ struct VideoSourceRuntime: SourceRuntime {
                 self.limitation(.search, "Video MVP does not support search yet."),
                 self.limitation(.reader, "Video sources use VideoPlayerHostView instead of reader output."),
                 self.limitation(.debug, "Video debug runtime is not connected yet."),
-                self.limitation(.candidateAnalysis, "Video MVP uses a MacCMS template parser, not selector candidate analysis.")
+                self.limitation(.candidateAnalysis, "Video MVP uses a MacCMS template mapper, not selector candidate analysis.")
             ]
         )
     }
@@ -54,7 +54,13 @@ struct VideoSourceRuntime: SourceRuntime {
         let content: VideoDetailContent = try await self.loadVideoDetailContent(input)
 
         return SourceDetailOutput(
-            chapters: content.chapters,
+            chapters: content.episodes.map { episode in
+                return SourceChapter(
+                    id: episode.id,
+                    title: episode.title,
+                    url: episode.playPageURL
+                )
+            },
             diagnostics: SourceRuntimeDiagnostics.succeeded(
                 context: SourceRuntimeDiagnosticContext(
                     runtimeContext: input.context,

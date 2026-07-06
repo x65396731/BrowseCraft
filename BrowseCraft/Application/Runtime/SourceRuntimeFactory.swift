@@ -39,28 +39,28 @@ struct SourceRuntimeFactory {
     }
 
     func makeVideoSourceRuntime(definition: SourceDefinition) -> VideoSourceRuntime {
-        let parser: any VideoHTMLParsing = self.makeVideoHTMLParser(definition: definition)
+        let mapper: any VideoHTMLMapper = self.makeVideoHTMLMapper(definition: definition)
         return VideoSourceRuntime(
             definition: definition,
             listLoader: VideoSourceListLoader(
                 pageContentLoader: self.pageContentLoader,
-                parser: parser
+                mapper: mapper
             ),
             detailLoader: VideoSourceDetailLoader(
                 pageContentLoader: self.pageContentLoader,
-                parser: parser
+                mapper: mapper
             ),
             playbackLoader: VideoSourcePlaybackLoader(
                 pageContentLoader: self.pageContentLoader,
-                parser: parser
+                mapper: mapper
             )
         )
     }
 
-    private func makeVideoHTMLParser(definition: SourceDefinition) -> any VideoHTMLParsing {
+    private func makeVideoHTMLMapper(definition: SourceDefinition) -> any VideoHTMLMapper {
         switch definition.video?.siteKind {
         case .macCMS, nil:
-            return MacCMSVideoHTMLParser()
+            return MacCMSVideoHTMLMapper()
         }
     }
 

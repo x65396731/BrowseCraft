@@ -11,7 +11,7 @@ struct RuleSourceRuntime: SourceRuntime {
     private let chapterLoader: RuleSourceChapterLoader
     private let readerLoader: RuleSourceReaderLoader
     private let definitionMapper: SourceDefinitionMapper
-    private let outputMapper: SourceRuntimeOutputMapper
+    private let outputMapper: RuleSourceRuntimeMapper
 
     init(
         source: Source,
@@ -20,7 +20,7 @@ struct RuleSourceRuntime: SourceRuntime {
         chapterLoader: RuleSourceChapterLoader,
         readerLoader: RuleSourceReaderLoader,
         definitionMapper: SourceDefinitionMapper = SourceDefinitionMapper(),
-        outputMapper: SourceRuntimeOutputMapper = SourceRuntimeOutputMapper()
+        outputMapper: RuleSourceRuntimeMapper = RuleSourceRuntimeMapper()
     ) {
         self.source = source
         self.listLoader = listLoader

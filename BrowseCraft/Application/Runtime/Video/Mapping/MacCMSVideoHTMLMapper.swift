@@ -2,8 +2,8 @@ import Foundation
 import SwiftSoup
 import BrowseCraftCore
 
-// 中文注释：MacCMSVideoHTMLParser 只处理 MacCMS 常见静态 HTML，不处理 VIP/DRM/反爬绕过。
-struct MacCMSVideoHTMLParser: VideoHTMLParsing {
+// 中文注释：MacCMSVideoHTMLMapper 只处理 MacCMS 常见静态 HTML，不处理 VIP/DRM/反爬绕过。
+struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
     private struct PlayerPayload: Decodable {
         let link: String?
         let link_next: String?
@@ -15,7 +15,7 @@ struct MacCMSVideoHTMLParser: VideoHTMLParsing {
         let nid: Int?
     }
 
-    func parseList(
+    func mapList(
         html: String,
         definition: SourceDefinition,
         pageURL: URL
@@ -53,14 +53,14 @@ struct MacCMSVideoHTMLParser: VideoHTMLParsing {
         return items
     }
 
-    func parseDetail(
+    func mapDetail(
         html: String,
         definition: SourceDefinition,
         detailURL: URL
     ) throws -> VideoDetailContent {
         let document: Document = try SwiftSoup.parse(html, detailURL.absoluteString)
         let elements: [Element] = try document.select(".ewave-content__playlist a[href^=\"/vodplay/\"], .ewave-content__playlist a[href*=\"/vodplay/\"]").array()
-        var chapters: [SourceChapter] = []
+        var episodes: [VideoEpisode] = []
 
         for element: Element in elements {
             guard let href: String = try element.attr("href").trimmedNonEmpty,
@@ -70,27 +70,27 @@ struct MacCMSVideoHTMLParser: VideoHTMLParsing {
             }
 
             let title: String = try element.text().trimmedNonEmpty ?? "Episode \(route.episodeIndex)"
-            chapters.append(
-                SourceChapter(
+            episodes.append(
+                VideoEpisode(
                     id: SourceVideoPlaybackReference.episodeKey(
                         vodID: route.vodID,
                         sourceIndex: route.sourceIndex,
                         episodeIndex: route.episodeIndex
                     ),
                     title: title,
-                    url: url
+                    playPageURL: url
                 )
             )
         }
 
         return VideoDetailContent(
-            chapters: chapters,
+            episodes: episodes,
             synopsis: try self.synopsis(from: document),
             metadataRows: try self.metadataRows(from: document)
         )
     }
 
-    func parsePlayback(
+    func mapPlayback(
         html: String,
         definition: SourceDefinition,
         playPageURL: URL

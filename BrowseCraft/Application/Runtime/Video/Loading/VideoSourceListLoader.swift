@@ -12,14 +12,14 @@ protocol VideoSourceListLoading {
 // 中文注释：VideoSourceListLoader 负责 video source 的列表 URL 选择、页面加载和列表映射。
 struct VideoSourceListLoader: VideoSourceListLoading {
     private let pageContentLoader: PageContentLoader
-    private let parser: any VideoHTMLParsing
+    private let mapper: any VideoHTMLMapper
 
     init(
         pageContentLoader: PageContentLoader,
-        parser: any VideoHTMLParsing
+        mapper: any VideoHTMLMapper
     ) {
         self.pageContentLoader = pageContentLoader
-        self.parser = parser
+        self.mapper = mapper
     }
 
     func loadList(
@@ -28,7 +28,7 @@ struct VideoSourceListLoader: VideoSourceListLoading {
     ) async throws -> SourceListOutput {
         let url: URL = try self.listURL(for: input, definition: definition)
         let html: String = try await self.pageContentLoader.getString(from: url)
-        let items: [SourceContentItem] = try self.parser.parseList(
+        let items: [SourceContentItem] = try self.mapper.mapList(
             html: html,
             definition: definition,
             pageURL: url

@@ -10,7 +10,7 @@ struct VideoPlaybackRoute: Identifiable {
 // 中文注释：VideoDetailViewModel 负责加载视频剧集列表，并把单集解析成播放器入口。
 @MainActor
 final class VideoDetailViewModel: ObservableObject {
-    @Published private(set) var episodes: [SourceChapter] = []
+    @Published private(set) var episodes: [VideoEpisode] = []
     @Published private(set) var synopsis: String?
     @Published private(set) var metadataRows: [String] = []
     @Published private(set) var isLoadingEpisodes: Bool = false
@@ -73,14 +73,20 @@ final class VideoDetailViewModel: ObservableObject {
                 context: self.runtimeContext(operation: .detail)
             )
 
-            if let videoRuntime: any VideoPlayableSourceRuntime = runtime as? any VideoPlayableSourceRuntime {
+            if let videoRuntime: any VideoPlaybackRuntimeProviding = runtime as? any VideoPlaybackRuntimeProviding {
                 let content: VideoDetailContent = try await videoRuntime.loadVideoDetailContent(input)
-                self.episodes = content.chapters
+                self.episodes = content.episodes
                 self.synopsis = content.synopsis
                 self.metadataRows = content.metadataRows
             } else {
                 let output: SourceDetailOutput = try await runtime.loadDetail(input)
-                self.episodes = output.chapters
+                self.episodes = output.chapters.map { chapter in
+                    return VideoEpisode(
+                        id: chapter.id,
+                        title: chapter.title,
+                        playPageURL: chapter.url
+                    )
+                }
                 self.synopsis = nil
                 self.metadataRows = []
             }
@@ -90,7 +96,7 @@ final class VideoDetailViewModel: ObservableObject {
         }
     }
 
-    func openEpisode(_ episode: SourceChapter) async {
+    func openEpisode(_ episode: VideoEpisode) async {
         if self.isLoadingPlayback {
             return
         }
@@ -102,7 +108,7 @@ final class VideoDetailViewModel: ObservableObject {
 
         do {
             let runtime: any SourceRuntime = try self.runtimeResolver.runtime(for: self.source)
-            guard let playbackRuntime: any VideoPlayableSourceRuntime = runtime as? any VideoPlayableSourceRuntime else {
+            guard let playbackRuntime: any VideoPlaybackRuntimeProviding = runtime as? any VideoPlaybackRuntimeProviding else {
                 throw SourceRuntimeError.unsupported(
                     .custom("Selected source does not expose video playback runtime.")
                 )
@@ -110,7 +116,7 @@ final class VideoDetailViewModel: ObservableObject {
 
             let output: SourceVideoPlaybackOutput = try await playbackRuntime.loadPlayback(
                 SourceVideoPlaybackInput(
-                    playPageURL: episode.url,
+                    playPageURL: episode.playPageURL,
                     context: self.runtimeContext(operation: nil)
                 )
             )

@@ -12,14 +12,14 @@ protocol VideoSourcePlaybackLoading {
 // 中文注释：VideoSourcePlaybackLoader 负责加载播放页并提取候选媒体地址和播放上下文。
 struct VideoSourcePlaybackLoader: VideoSourcePlaybackLoading {
     private let pageContentLoader: PageContentLoader
-    private let parser: any VideoHTMLParsing
+    private let mapper: any VideoHTMLMapper
 
     init(
         pageContentLoader: PageContentLoader,
-        parser: any VideoHTMLParsing
+        mapper: any VideoHTMLMapper
     ) {
         self.pageContentLoader = pageContentLoader
-        self.parser = parser
+        self.mapper = mapper
     }
 
     func loadPlayback(
@@ -27,7 +27,7 @@ struct VideoSourcePlaybackLoader: VideoSourcePlaybackLoading {
         definition: SourceDefinition
     ) async throws -> SourceVideoPlaybackOutput {
         let html: String = try await self.pageContentLoader.getString(from: input.playPageURL)
-        let reference: SourceVideoPlaybackReference = try self.parser.parsePlayback(
+        let reference: SourceVideoPlaybackReference = try self.mapper.mapPlayback(
             html: html,
             definition: definition,
             playPageURL: input.playPageURL
