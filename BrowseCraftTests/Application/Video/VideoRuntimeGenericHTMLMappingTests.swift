@@ -109,6 +109,29 @@ struct VideoRuntimeGenericHTMLMappingTests {
         #expect(playback.status == .pageOnly)
     }
 
+    @Test func genericHTMLMapperResolvesRelativeIframePlaybackURL() throws {
+        let mapper: GenericHTMLVideoHTMLMapper = GenericHTMLVideoHTMLMapper()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let playURL: URL = try #require(URL(string: "https://video.example.test/watch/iframe"))
+
+        let playback: SourceVideoPlaybackReference = try mapper.mapPlayback(
+            html: """
+            <html>
+              <body>
+                <iframe src="/embed/sample" allowfullscreen></iframe>
+              </body>
+            </html>
+            """,
+            definition: definition,
+            playPageURL: playURL
+        )
+
+        #expect(playback.candidateMediaURL?.absoluteString == "https://video.example.test/embed/sample")
+        #expect(playback.candidateMediaKind == .iframe)
+        #expect(playback.status == .pageOnly)
+        #expect(playback.playbackRequestConfig?.referer == playURL)
+    }
+
     private static func fixture(named name: String) throws -> String {
         let fileURL: URL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()

@@ -92,6 +92,28 @@ struct VideoSourceDetectionTests {
         #expect(detection.playbackMode == .iframe)
     }
 
+    @Test func detectsIframeAsContentAdapterWhenItIsTheMainContentShell() throws {
+        let detector: VideoSourceDetector = VideoSourceDetector()
+        let url: URL = try #require(URL(string: "https://video.example.test/"))
+
+        let detection: VideoSourceDetection = detector.detect(
+            VideoSourceDetectionInput(
+                url: url,
+                html: """
+                <html>
+                  <frameset>
+                    <frame src="/video-list.html">
+                  </frameset>
+                </html>
+                """
+            )
+        )
+
+        #expect(detection.adapter == .iframe)
+        #expect(detection.renderMode == .staticHTML)
+        #expect(detection.playbackMode == .unresolved)
+    }
+
     @Test func detectsWebViewAsRenderLayerNotAdapterLayer() throws {
         let detector: VideoSourceDetector = VideoSourceDetector()
         let url: URL = try #require(URL(string: "https://video.example.test/"))
@@ -141,6 +163,38 @@ struct VideoSourceDetectionTests {
         #expect(detection.confidence >= 0.80)
         #expect(detection.warnings.contains { warning in
             warning.contains("account")
+        })
+    }
+
+    @Test func loginAndVIPMarkersDoNotForcePluginWhenPublicContentExists() throws {
+        let detector: VideoSourceDetector = VideoSourceDetector()
+        let url: URL = try #require(URL(string: "https://video.example.test/"))
+
+        let detection: VideoSourceDetection = detector.detect(
+            VideoSourceDetectionInput(
+                url: url,
+                html: """
+                <html>
+                  <body>
+                    <header><a href="/login">登录</a><span>VIP会员</span></header>
+                    <article class="video-card thumb-block">
+                      <a href="/watch/public-sample">Public Sample</a>
+                      <img data-src="/cover.jpg">
+                      <span class="duration">12:00</span>
+                    </article>
+                  </body>
+                </html>
+                """
+            )
+        )
+
+        #expect(detection.adapter == .genericHTML)
+        #expect(detection.playbackMode == .unresolved)
+        #expect(detection.warnings.contains { warning in
+            warning.contains("VIP")
+        })
+        #expect(detection.warnings.contains { warning in
+            warning.contains("login")
         })
     }
 

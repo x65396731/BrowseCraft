@@ -48,6 +48,18 @@ network requests. `plugin` is the escape hatch for account-bound, encrypted,
 signed, or site-specific workflows that should not expand the built-in adapter
 layer.
 
+Video playback also has a narrower playback layer:
+
+```text
+Video/Playback
+  IframePlaybackResolver
+```
+
+`IframePlaybackResolver` does not make iframe pages natively playable. It
+normalizes iframe/embed playback candidates into
+`SourceVideoMediaKind.iframe + SourceVideoPlaybackStatus.pageOnly`, preserving a
+clear handoff point for later WebView, plugin, or media URL extraction work.
+
 Responsibilities:
 
 - Resolve a `Source` through `SourceDefinition.runtimeKind` to the correct concrete runtime.

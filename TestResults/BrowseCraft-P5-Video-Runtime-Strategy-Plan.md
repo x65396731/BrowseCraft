@@ -32,7 +32,7 @@ SourceRuntimeKind.video
 
 其中：
 
-- `VideoAdapter` 回答“列表/详情/基础资料怎么抽”。其中当前 `VideoAdapter.iframe` 语义是“内容资料层由 frame/iframe/embed 包住”，不是播放层 iframe。
+- `VideoAdapter` 回答“列表/详情/基础资料用哪套模板抽”。其中 `VideoAdapter.iframe` 表达内容资料层的 frame/iframe 套壳结构。
 - `Filtering` 回答“哪些 DOM 节点是广告、弹窗、跳转、无意义模块，应该过滤”。
 - `VideoRenderMode` 回答“页面 HTML/DOM 怎么拿”。
 - `VideoPlaybackMode` 回答“视频怎么播放”。
@@ -788,9 +788,9 @@ Playback 层只按 playbackMode 决定播放入口解析方式。
 
 ## P5.1.10 VideoSourceDetection 命名与 Plugin 判断修正
 
-状态：待实现。
+状态：已实现初版，并通过 P5.1.10 定向测试。
 
-目标：在进入播放层和 WebView 层前，先把检测模型的命名和 plugin 判断收口，避免后续实现建立在含混语义上。
+目标：在进入播放层和 WebView 层前，先把检测模型的命名和 plugin 判断收口，明确内容层 `VideoAdapter.iframe` 与播放层 `VideoPlaybackMode.iframe` 是两个不同上下文。
 
 需要明确的三层命名：
 
@@ -798,7 +798,7 @@ Playback 层只按 playbackMode 决定播放入口解析方式。
 内容资料层：
   VideoAdapter.macCMS
   VideoAdapter.genericHTML
-  VideoAdapter.iframe  当前兼容命名，语义是 frame 内容适配器
+  VideoAdapter.iframe
   VideoAdapter.plugin
 
 页面获取层：
@@ -814,13 +814,16 @@ Playback 层只按 playbackMode 决定播放入口解析方式。
 命名规则：
 
 ```text
-frame = 内容资料层。
-  站点的列表、详情或内容入口被 frame/iframe/embed 包住。
-  当前 Core/App 已有 VideoAdapter.iframe 时，短期继续兼容使用，但文档和代码注释要写清楚它是 frame content adapter。
+VideoAdapter = 内容资料模板。
+  表达 MacCMS、GenericHTML、Iframe、Plugin 这类“怎么抽列表/详情/基础资料”的策略。
 
-iframe = 播放层。
+VideoAdapter.iframe = 内容资料层。
+  页面主要列表、详情或内容入口被 frame/iframe/frameset 套住。
+  它回答“资料入口要先从 frame 里取出来”。
+
+VideoPlaybackMode.iframe = 播放层。
   最终播放入口是 iframe/embed/player。
-  只对应 VideoPlaybackMode.iframe。
+  它回答“播放入口怎么处理”。
 ```
 
 Plugin 判断规则：
@@ -844,7 +847,7 @@ Plugin 判断规则：
 
 ```text
 有些网站不登录也能解析公开内容，只是页面上存在登录/VIP提示。
-这种站点应该继续识别为 macCMS/genericHTML/frame，并带 warnings。
+这种站点应该继续识别为 macCMS/genericHTML/iframe，并带 warnings。
 
 只有核心数据流必须依赖账号、验证码、签名、解密或私有流程时，才识别为 plugin。
 ```
@@ -854,7 +857,7 @@ Plugin 判断规则：
 ```text
 P5.1.10 不做广告过滤实现。
 广告过滤仍放到后续 Filtering 层。
-但 P5.1.10 要避免把广告 iframe 误判成内容 frame 或播放 iframe。
+但 P5.1.10 要避免把广告 iframe 误判成内容 iframe 或播放 iframe。
 ```
 
 验收：
@@ -862,19 +865,22 @@ P5.1.10 不做广告过滤实现。
 ```text
 登录/VIP 文案 + 可抽公开内容 => genericHTML/macCMS + warnings，不是 plugin。
 验证码/加密/强混淆/核心签名流程 => plugin。
-内容资料层 frame/frameset => VideoAdapter.iframe。
+内容页主要资料入口是 frame/frameset/iframe shell => VideoAdapter.iframe。
 播放入口 iframe/embed => VideoPlaybackMode.iframe。
-同一 HTML 同时有内容资料层和播放层信号时，检测结果能表达组合，而不是互相抢类型。
+同一 HTML 同时有内容资料层和播放层信号时，adapter 与 playbackMode 分开表达。
 旧 VideoAdapterDetector 兼容 API 仍可返回 adapter/confidence/reasons/warnings。
 ```
 
 ## P5.1.11 Playback 层：IframePlayback 简单版
+
+状态：已实现初版，并通过 P5.1.11 定向测试。
 
 目标：处理普通 iframe 播放页，但不追多跳和解密。
 
 新增：
 
 ```text
+BrowseCraft/Application/Runtime/Video/Playback/VideoPlaybackResolver.swift
 BrowseCraft/Application/Runtime/Video/Playback/IframePlaybackResolver.swift
 ```
 
@@ -883,7 +889,9 @@ BrowseCraft/Application/Runtime/Video/Playback/IframePlaybackResolver.swift
 ```text
 playback:
   - 提取 iframe[src]
-  - 返回 pageOnly 或 externalEmbed 状态
+  - 补全相对 iframe/embed URL
+  - 返回 SourceVideoMediaKind.iframe + SourceVideoPlaybackStatus.pageOnly
+  - GenericHTML 和 MacCMS 播放解析共用 IframePlaybackResolver
 ```
 
 不处理：
@@ -898,6 +906,8 @@ iframe 内 JS 解密
 
 ```text
 iframe 播放页不会被误判成失败，而是通过 VideoPlaybackMode.iframe 产生明确状态。
+GenericHTML iframe[src] 相对 URL 能补全为绝对 URL。
+MacCMS player_aaaa.url 指向 embed/player 时识别为 iframe pageOnly。
 ```
 
 ## P5.1.12 Rendering 层：WebViewRequired 预留
@@ -1164,7 +1174,7 @@ P5.1.15 Filtering 层：VideoContentNoiseFilter
 
 ## 当前建议
 
-下一步优先做 P5.1.10。P5.1.9 已经把检测结果迁移为三层，但还需要把命名和 plugin 判断收口：
+P5.1.10 已实现初版。P5.1.9 已经把检测结果迁移为三层，P5.1.10 继续把内容层 iframe 与播放层 iframe 的边界，以及 plugin 判断收口：
 
 ```text
 VideoSourceDetection
@@ -1173,13 +1183,13 @@ VideoSourceDetection
   playbackMode = directMedia / iframe / unresolved
 ```
 
-P5.1.10 应该先修正：
+P5.1.10 已修正：
 
 ```text
-VideoAdapter.iframe 当前只表示内容资料层 frame adapter。
-VideoPlaybackMode.iframe 才表示播放层 iframe。
+VideoAdapter.iframe 表示内容资料层 iframe/frame 套壳。
+VideoPlaybackMode.iframe 表示播放层 iframe。
 登录/VIP/会员提示只作为 warnings。
 验证码、签名、加密、混淆、核心私有 API 才进入 plugin。
 ```
 
-完成 P5.1.10 后，再进入 P5.1.11 的 `Playback` 层 iframe 处理，让 `VideoPlaybackMode.iframe` 有明确执行路径。
+下一步在你明确要求测试后，先跑 P5.1.11 的 GenericHTML/MacCMS playback 定向测试；通过后再进入 P5.1.12 的 `Rendering` 层 WebViewRequired 预留。

@@ -155,6 +155,26 @@ struct VideoRuntimeMacCMSMappingTests {
         #expect(empty.status == .failed(.mediaURLNotFound))
     }
 
+    @Test func macCMSMapperClassifiesIframePlayerPayloadAsPageOnly() throws {
+        let mapper: MacCMSVideoHTMLMapper = MacCMSVideoHTMLMapper()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let playURL: URL = try #require(URL(string: "https://video.example.test/vodplay/117372-1-1.html"))
+
+        let playback: SourceVideoPlaybackReference = try mapper.mapPlayback(
+            html: """
+            <script>
+              var player_aaaa={"url":"/embed/117372-1-1","from":"iframe","id":"117372","sid":1,"nid":1};
+            </script>
+            """,
+            definition: definition,
+            playPageURL: playURL
+        )
+
+        #expect(playback.candidateMediaURL?.absoluteString == "https://video.example.test/embed/117372-1-1")
+        #expect(playback.candidateMediaKind == .iframe)
+        #expect(playback.status == .pageOnly)
+    }
+
     @Test func macCMSMapperClassifiesRestrictedAndPageOnlyPlayback() throws {
         let mapper: MacCMSVideoHTMLMapper = MacCMSVideoHTMLMapper()
         let definition: SourceDefinition = try Self.videoDefinition()

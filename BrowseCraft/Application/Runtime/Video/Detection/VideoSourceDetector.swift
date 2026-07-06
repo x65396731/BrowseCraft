@@ -7,11 +7,13 @@ struct VideoSourceDetector: VideoSourceDetecting {
         let restriction: RestrictionSignal = self.restrictionSignal(signals)
         let macCMS: DetectionScore = self.macCMSScore(signals)
         let genericHTML: DetectionScore = self.genericHTMLScore(signals)
+        let iframeContent: DetectionScore = self.iframeContentScore(signals)
         let renderMode: VideoRenderMode = self.renderMode(signals)
         let playback: PlaybackDetection = self.playbackDetection(signals)
         let adapterScore: AdapterDetection = self.adapterDetection(
             macCMS: macCMS,
             genericHTML: genericHTML,
+            iframeContent: iframeContent,
             restriction: restriction,
             renderMode: renderMode
         )
@@ -40,6 +42,7 @@ struct VideoSourceDetector: VideoSourceDetecting {
     private func adapterDetection(
         macCMS: DetectionScore,
         genericHTML: DetectionScore,
+        iframeContent: DetectionScore,
         restriction: RestrictionSignal,
         renderMode: VideoRenderMode
     ) -> AdapterDetection {
@@ -56,6 +59,14 @@ struct VideoSourceDetector: VideoSourceDetecting {
                 adapter: .macCMS,
                 score: macCMS.score,
                 reasons: macCMS.reasons
+            )
+        }
+
+        if iframeContent.score >= 0.62 && iframeContent.score >= genericHTML.score {
+            return AdapterDetection(
+                adapter: .iframe,
+                score: iframeContent.score,
+                reasons: iframeContent.reasons
             )
         }
 
@@ -91,20 +102,28 @@ struct VideoSourceDetector: VideoSourceDetecting {
             reasons.append("URL path matches common MacCMS routes.")
         }
 
-        let strongMarkers: [String] = [
+        let payloadMarkers: [String] = [
             "player_aaaa",
             "mac_url",
             "mac_player",
-            "macplayer",
+            "macplayer"
+        ]
+        let payloadMatches: [String] = signals.containedMarkers(payloadMarkers)
+        if payloadMatches.isEmpty == false {
+            score += 0.72
+            reasons.append("HTML contains MacCMS player payload markers: \(payloadMatches.joined(separator: ", ")).")
+        }
+
+        let routeMarkers: [String] = [
             "/vodtype/",
             "/vodshow/",
             "/voddetail/",
             "/vodplay/"
         ]
-        let strongMatches: [String] = signals.containedMarkers(strongMarkers)
-        if strongMatches.isEmpty == false {
-            score += min(0.55, Double(strongMatches.count) * 0.18)
-            reasons.append("HTML contains MacCMS strong markers: \(strongMatches.joined(separator: ", ")).")
+        let routeMatches: [String] = signals.containedMarkers(routeMarkers)
+        if routeMatches.isEmpty == false {
+            score += min(0.40, Double(routeMatches.count) * 0.16)
+            reasons.append("HTML contains MacCMS route markers: \(routeMatches.joined(separator: ", ")).")
         }
 
         let weakMarkers: [String] = [
@@ -176,6 +195,28 @@ struct VideoSourceDetector: VideoSourceDetecting {
         return DetectionScore(score: min(score, 1.0), reasons: reasons)
     }
 
+    private func iframeContentScore(_ signals: VideoSourceSignals) -> DetectionScore {
+        var score: Double = 0
+        var reasons: [String] = []
+
+        let frameShellMarkers: [String] = [
+            "<frameset",
+            "<frame "
+        ]
+        let frameShellMatches: [String] = signals.containedMarkers(frameShellMarkers)
+        if frameShellMatches.isEmpty == false {
+            score += 0.78
+            reasons.append("HTML contains frame shell markers for content extraction: \(frameShellMatches.joined(separator: ", ")).")
+        }
+
+        if signals.hasIframeElement && signals.hasPlaybackIframeSignal == false {
+            score += 0.64
+            reasons.append("HTML contains iframe shell markers without playback/embed context.")
+        }
+
+        return DetectionScore(score: min(score, 1.0), reasons: reasons)
+    }
+
     private func renderMode(_ signals: VideoSourceSignals) -> VideoRenderMode {
         if signals.htmlIsEmptyShell
             || signals.containsAny(["id=\"app\"", "id='app'", "data-reactroot", "__nuxt", "__next"]) {
@@ -201,14 +242,14 @@ struct VideoSourceDetector: VideoSourceDetecting {
         }
 
         let iframeMarkers: [String] = [
-            "<iframe",
-            "iframe src=",
             "embed/",
             "/embed",
-            "player"
+            "player",
+            "allowfullscreen",
+            "html5player"
         ]
         let iframeMatches: [String] = signals.containedMarkers(iframeMarkers)
-        if iframeMatches.isEmpty == false {
+        if signals.hasIframeElement && iframeMatches.isEmpty == false {
             return PlaybackDetection(
                 mode: .iframe,
                 reasons: ["Playback layer contains iframe/embed markers: \(iframeMatches.joined(separator: ", "))."]
@@ -222,14 +263,12 @@ struct VideoSourceDetector: VideoSourceDetecting {
         let pluginMarkers: [String] = [
             "captcha",
             "验证码",
-            "请先登录",
-            "登录后",
-            "会员专享",
-            "vip专享",
             "cryptojs",
             "decrypt",
             "encrypted",
-            "eval(function(p,a,c,k,e,d)"
+            "eval(function(p,a,c,k,e,d)",
+            "signature",
+            "wasm"
         ]
         let matches: [String] = signals.containedMarkers(pluginMarkers)
         guard matches.isEmpty == false else {
@@ -350,9 +389,8 @@ private struct VideoSourceSignals {
             "/video",
             ".m3u8",
             ".mp4",
-            "<video",
-            "<iframe"
-        ])
+            "<video"
+        ]) || self.hasPlaybackIframeSignal
 
         return hasAppShell && hasVideoContent == false
     }
@@ -368,6 +406,20 @@ private struct VideoSourceSignals {
         return patterns.reduce(0) { partialResult, pattern in
             partialResult + self.matchCount(pattern)
         }
+    }
+
+    var hasIframeElement: Bool {
+        return self.contains("<iframe") || self.contains("iframe src=")
+    }
+
+    var hasPlaybackIframeSignal: Bool {
+        return self.hasIframeElement && self.containsAny([
+            "embed/",
+            "/embed",
+            "player",
+            "allowfullscreen",
+            "html5player"
+        ])
     }
 
     func contains(_ marker: String) -> Bool {

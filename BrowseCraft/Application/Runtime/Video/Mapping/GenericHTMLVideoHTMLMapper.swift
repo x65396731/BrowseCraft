@@ -76,11 +76,6 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
         ].joined(separator: ", ")
     }
 
-    private struct PlaybackCandidate {
-        var url: URL?
-        var kind: SourceVideoMediaKind
-    }
-
     func mapList(
         html: String,
         definition: SourceDefinition,
@@ -174,10 +169,15 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
         playPageURL: URL
     ) throws -> SourceVideoPlaybackReference {
         let document: Document = try SwiftSoup.parse(html, playPageURL.absoluteString)
-        let candidate: PlaybackCandidate = self.playbackCandidate(
+        let candidate: VideoPlaybackCandidate = self.playbackCandidate(
             from: html,
             document: document,
             baseURL: playPageURL
+        )
+        let resolution: VideoPlaybackResolution = self.playbackResolution(
+            candidate: candidate,
+            playPageURL: playPageURL,
+            html: html
         )
         let title: String? = try self.title(from: document)
         let vodID: String = self.stableID(from: playPageURL)
@@ -193,23 +193,13 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
             ),
             episodeTitle: title,
             playPageURL: playPageURL,
-            candidateMediaURL: candidate.url,
-            candidateMediaKind: candidate.kind,
-            playbackRequestConfig: SourcePlaybackRequestConfig(
-                headers: [
-                    "Referer": playPageURL.absoluteString
-                ],
-                referer: playPageURL,
-                userAgent: nil
-            ),
+            candidateMediaURL: resolution.candidateMediaURL,
+            candidateMediaKind: resolution.candidateMediaKind,
+            playbackRequestConfig: resolution.playbackRequestConfig,
             nextEpisodeURL: nil,
             previousEpisodeURL: nil,
             sourceName: "genericHTML",
-            status: self.playbackStatus(
-                mediaURL: candidate.url,
-                mediaKind: candidate.kind,
-                html: html
-            )
+            status: resolution.status
         )
     }
 
@@ -336,14 +326,13 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
         from html: String,
         document: Document,
         baseURL: URL
-    ) -> PlaybackCandidate {
+    ) -> VideoPlaybackCandidate {
         let candidates: [String?] = [
             self.firstScriptArgument(html, functionName: "setVideoHLS"),
             self.firstScriptArgument(html, functionName: "setVideoUrlHigh"),
             self.firstScriptArgument(html, functionName: "setVideoUrlLow"),
             self.firstJSONLDContentURL(from: html),
             self.firstAttribute(in: document, selector: "video[src], source[src]", attribute: "src"),
-            self.firstAttribute(in: document, selector: "iframe[src]", attribute: "src"),
             self.firstMediaURL(in: html, suffix: "m3u8"),
             self.firstMediaURL(in: html, suffix: "mp4")
         ]
@@ -354,13 +343,49 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
                 continue
             }
 
-            return PlaybackCandidate(
+            return VideoPlaybackCandidate(
                 url: url,
                 kind: self.mediaKind(for: url)
             )
         }
 
-        return PlaybackCandidate(url: nil, kind: .unknown)
+        if let iframeSource: String = self.firstAttribute(in: document, selector: "iframe[src], embed[src]", attribute: "src"),
+           let iframeURL: URL = URL(string: iframeSource, relativeTo: baseURL)?.absoluteURL {
+            return VideoPlaybackCandidate(url: iframeURL, kind: .iframe)
+        }
+
+        return VideoPlaybackCandidate(url: nil, kind: .unknown)
+    }
+
+    private func playbackResolution(
+        candidate: VideoPlaybackCandidate,
+        playPageURL: URL,
+        html: String
+    ) -> VideoPlaybackResolution {
+        if let resolution: VideoPlaybackResolution = IframePlaybackResolver().resolve(
+            candidate: candidate,
+            playPageURL: playPageURL,
+            html: html
+        ) {
+            return resolution
+        }
+
+        return VideoPlaybackResolution(
+            candidateMediaURL: candidate.url,
+            candidateMediaKind: candidate.kind,
+            playbackRequestConfig: SourcePlaybackRequestConfig(
+                headers: [
+                    "Referer": playPageURL.absoluteString
+                ],
+                referer: playPageURL,
+                userAgent: nil
+            ),
+            status: self.playbackStatus(
+                mediaURL: candidate.url,
+                mediaKind: candidate.kind,
+                html: html
+            )
+        )
     }
 
     private func playbackStatus(

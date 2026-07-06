@@ -172,9 +172,12 @@ struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
         let episodeIndex: Int = payload?.nid ?? route?.episodeIndex ?? 1
         let mediaURL: URL? = self.absoluteURL(payload?.url, baseURL: playPageURL)
         let mediaKind: SourceVideoMediaKind = self.mediaKind(for: mediaURL)
-        let status: SourceVideoPlaybackStatus = self.playbackStatus(
-            mediaURL: mediaURL,
-            mediaKind: mediaKind,
+        let resolution: VideoPlaybackResolution = self.playbackResolution(
+            candidate: VideoPlaybackCandidate(
+                url: mediaURL,
+                kind: mediaKind
+            ),
+            playPageURL: playPageURL,
             html: html
         )
 
@@ -189,19 +192,13 @@ struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
             ),
             episodeTitle: try self.episodeTitle(from: document),
             playPageURL: playPageURL,
-            candidateMediaURL: mediaURL,
-            candidateMediaKind: mediaKind,
-            playbackRequestConfig: SourcePlaybackRequestConfig(
-                headers: [
-                    "Referer": playPageURL.absoluteString
-                ],
-                referer: playPageURL,
-                userAgent: nil
-            ),
+            candidateMediaURL: resolution.candidateMediaURL,
+            candidateMediaKind: resolution.candidateMediaKind,
+            playbackRequestConfig: resolution.playbackRequestConfig,
             nextEpisodeURL: self.absoluteURL(payload?.link_next, baseURL: playPageURL),
             previousEpisodeURL: self.absoluteURL(payload?.link_pre, baseURL: playPageURL),
             sourceName: payload?.from,
-            status: status
+            status: resolution.status
         )
     }
 
@@ -396,7 +393,42 @@ struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
             return .mp4
         }
 
+        if path.contains("embed") || path.contains("player") || url?.host?.lowercased().contains("iframe") == true {
+            return .iframe
+        }
+
         return .unknown
+    }
+
+    private func playbackResolution(
+        candidate: VideoPlaybackCandidate,
+        playPageURL: URL,
+        html: String
+    ) -> VideoPlaybackResolution {
+        if let resolution: VideoPlaybackResolution = IframePlaybackResolver().resolve(
+            candidate: candidate,
+            playPageURL: playPageURL,
+            html: html
+        ) {
+            return resolution
+        }
+
+        return VideoPlaybackResolution(
+            candidateMediaURL: candidate.url,
+            candidateMediaKind: candidate.kind,
+            playbackRequestConfig: SourcePlaybackRequestConfig(
+                headers: [
+                    "Referer": playPageURL.absoluteString
+                ],
+                referer: playPageURL,
+                userAgent: nil
+            ),
+            status: self.playbackStatus(
+                mediaURL: candidate.url,
+                mediaKind: candidate.kind,
+                html: html
+            )
+        )
     }
 
     private func playbackStatus(
