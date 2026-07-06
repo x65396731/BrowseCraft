@@ -9,7 +9,7 @@ struct UserLibraryState: Identifiable, Hashable {
     }
 
     var userID: String
-    var selectedSourceID: String
+    var selectedSourceID: String?
     var listContext: ListContext?
     var lastRefreshAt: Date?
     var updatedAt: Date

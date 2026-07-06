@@ -35,7 +35,7 @@ Responsibilities:
   public feed list loading.
 - Keep RSS mapping/loading in `RSS/Mapping/` and `RSS/Loading/`; RSS does not
   extend `SiteRule` or the rule editor.
-- Keep debug/source summary mapping in `Debug/RuleDebugSourceMapping`.
+- Keep rule debug/source summary mapping in `Rule/Mapping/RuleSourceDebugMapping`.
 - Add runtime-facing use cases before wiring Library and Reader features to them.
 - Keep the plugin runtime slot explicit in the resolver/factory plan, while
   deferring plugin execution to a later phase.

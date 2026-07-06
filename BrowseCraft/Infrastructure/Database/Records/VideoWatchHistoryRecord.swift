@@ -10,6 +10,7 @@ struct VideoWatchHistoryRecord: Codable, FetchableRecord, MutablePersistableReco
     var userID: String
     var sourceID: String
     var vodID: String
+    var workKey: String
     var videoTitle: String
     var episodeTitle: String?
     var episodeKey: String
@@ -34,6 +35,7 @@ struct VideoWatchHistoryRecord: Codable, FetchableRecord, MutablePersistableReco
         self.userID = history.userID
         self.sourceID = history.sourceID
         self.vodID = history.vodID
+        self.workKey = Self.workKey(for: history)
         self.videoTitle = history.videoTitle
         self.episodeTitle = history.episodeTitle
         self.episodeKey = history.episodeKey
@@ -125,5 +127,18 @@ struct VideoWatchHistoryRecord: Codable, FetchableRecord, MutablePersistableReco
         }
 
         return try? JSONDecoder().decode(SourcePlaybackRequestConfig.self, from: data)
+    }
+
+    private static func workKey(for history: VideoWatchHistory) -> String {
+        let trimmedVodID: String = history.vodID.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedVodID.isEmpty == false {
+            return "vod::\(trimmedVodID)"
+        }
+
+        if let detailURL: URL = history.detailURL {
+            return "detail::\(detailURL.absoluteString)"
+        }
+
+        return "title::\(history.videoTitle)"
     }
 }

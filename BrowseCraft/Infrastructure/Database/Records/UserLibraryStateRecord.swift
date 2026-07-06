@@ -8,7 +8,7 @@ struct UserLibraryStateRecord: Codable, FetchableRecord, MutablePersistableRecor
     static let databaseTableName: String = "user_library_state"
 
     var userID: String
-    var selectedSourceID: String
+    var selectedSourceID: String?
     var listContextJSON: String?
     var lastRefreshAt: Date?
     var updatedAt: Date

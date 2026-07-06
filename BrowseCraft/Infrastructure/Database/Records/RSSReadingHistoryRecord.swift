@@ -22,7 +22,7 @@ struct RSSReadingHistoryRecord: Codable, FetchableRecord, MutablePersistableReco
     init(history: RSSReadingHistory) {
         self.userID = history.userID
         self.sourceID = history.sourceID
-        self.itemID = history.itemID
+        self.itemID = Self.storageItemID(for: history)
         self.dataType = history.dataType.rawValue
         self.title = history.title
         self.dataContent = history.dataContent
@@ -47,5 +47,18 @@ struct RSSReadingHistoryRecord: Codable, FetchableRecord, MutablePersistableReco
             sourceName: self.sourceName,
             originFeedURL: self.originFeedURL.flatMap(URL.init(string:))
         )
+    }
+
+    private static func storageItemID(for history: RSSReadingHistory) -> String {
+        let trimmedItemID: String = history.itemID.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedItemID.isEmpty == false {
+            return trimmedItemID
+        }
+
+        if let detailURL: URL = history.detailURL {
+            return "detail::\(detailURL.absoluteString)"
+        }
+
+        return "title::\(history.title)"
     }
 }

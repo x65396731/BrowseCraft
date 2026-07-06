@@ -12,12 +12,11 @@ final class GRDBVideoWatchHistoryRepository: VideoWatchHistoryRepository {
     }
 
     func save(_ history: VideoWatchHistory) throws {
-        var record: VideoWatchHistoryRecord = VideoWatchHistoryRecord(history: history)
-        record.vodID = Self.storageVodID(for: history)
+        let record: VideoWatchHistoryRecord = VideoWatchHistoryRecord(history: history)
 
         try self.database.queue.write { database in
             try Self.deleteExistingWorkHistory(for: record, in: database)
-            try record.insert(database)
+            try Self.upsert(record, in: database)
         }
     }
 
@@ -61,12 +60,12 @@ final class GRDBVideoWatchHistoryRepository: VideoWatchHistoryRepository {
         try database.execute(
             sql: """
             DELETE FROM \(VideoWatchHistoryRecord.databaseTableName)
-            WHERE userID = ? AND sourceID = ? AND vodID = ?
+            WHERE userID = ? AND sourceID = ? AND workKey = ?
             """,
             arguments: [
                 record.userID,
                 record.sourceID,
-                record.vodID
+                record.workKey
             ]
         )
 
@@ -98,16 +97,59 @@ final class GRDBVideoWatchHistoryRepository: VideoWatchHistoryRepository {
         )
     }
 
-    private static func storageVodID(for history: VideoWatchHistory) -> String {
-        let trimmedVodID: String = history.vodID.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmedVodID.isEmpty == false {
-            return trimmedVodID
-        }
-
-        if let detailURL: URL = history.detailURL {
-            return "detail::\(detailURL.absoluteString)"
-        }
-
-        return "title::\(history.videoTitle)"
+    private static func upsert(_ record: VideoWatchHistoryRecord, in database: Database) throws {
+        try database.execute(
+            sql: """
+            INSERT INTO \(VideoWatchHistoryRecord.databaseTableName)
+                (userID, sourceID, vodID, workKey, videoTitle, episodeTitle, episodeKey, sourceIndex, episodeIndex, detailURL, playPageURL, candidateMediaURL, candidateMediaKind, playbackStatusJSON, playbackRequestConfigJSON, coverURL, sourceName, lastPlaybackTime, duration, visitedAt, updatedAt, previousEpisodeURL, nextEpisodeURL)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(userID, sourceID, workKey) DO UPDATE SET
+                vodID = excluded.vodID,
+                videoTitle = excluded.videoTitle,
+                episodeTitle = excluded.episodeTitle,
+                episodeKey = excluded.episodeKey,
+                sourceIndex = excluded.sourceIndex,
+                episodeIndex = excluded.episodeIndex,
+                detailURL = excluded.detailURL,
+                playPageURL = excluded.playPageURL,
+                candidateMediaURL = excluded.candidateMediaURL,
+                candidateMediaKind = excluded.candidateMediaKind,
+                playbackStatusJSON = excluded.playbackStatusJSON,
+                playbackRequestConfigJSON = excluded.playbackRequestConfigJSON,
+                coverURL = excluded.coverURL,
+                sourceName = excluded.sourceName,
+                lastPlaybackTime = excluded.lastPlaybackTime,
+                duration = excluded.duration,
+                visitedAt = excluded.visitedAt,
+                updatedAt = excluded.updatedAt,
+                previousEpisodeURL = excluded.previousEpisodeURL,
+                nextEpisodeURL = excluded.nextEpisodeURL
+            """,
+            arguments: [
+                record.userID,
+                record.sourceID,
+                record.vodID,
+                record.workKey,
+                record.videoTitle,
+                record.episodeTitle,
+                record.episodeKey,
+                record.sourceIndex,
+                record.episodeIndex,
+                record.detailURL,
+                record.playPageURL,
+                record.candidateMediaURL,
+                record.candidateMediaKind,
+                record.playbackStatusJSON,
+                record.playbackRequestConfigJSON,
+                record.coverURL,
+                record.sourceName,
+                record.lastPlaybackTime,
+                record.duration,
+                record.visitedAt,
+                record.updatedAt,
+                record.previousEpisodeURL,
+                record.nextEpisodeURL
+            ]
+        )
     }
 }

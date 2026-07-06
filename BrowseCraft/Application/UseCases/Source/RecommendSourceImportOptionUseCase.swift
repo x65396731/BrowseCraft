@@ -1,9 +1,9 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：SourceImportRecommendationUseCase.swift 为添加来源流程提供本地启发式推荐，不执行网络抓取。
+// 中文注释：根据 Add Source 表单输入和可选页面线索，推荐 RSS/Video/Rule 等导入选项；本用例不执行网络抓取。
 
-struct SourceImportRecommendationUseCase {
+struct RecommendSourceImportOptionUseCase {
     func execute(
         draft: SourceImportDraft,
         selectedOptionKind: SourceImportOptionKind? = nil,

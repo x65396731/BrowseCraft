@@ -1,7 +1,7 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：RefreshSourceRuntimeUseCase 是按 SourceRuntimeKind 刷新列表的统一入口。
+// 中文注释：根据 Source 配置选择对应 runtime，并加载 Sources/Library 页面展示的列表内容。
 struct RefreshSourceRuntimeUseCase {
     private let runtimeResolver: any SourceRuntimeResolving
 

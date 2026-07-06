@@ -109,7 +109,7 @@ final class AppContainer {
         let importSourceRulePackageUseCase: ImportSourceRulePackageUseCase = ImportSourceRulePackageUseCase(
             sourceRepository: self.sourceRepository
         )
-        let sourceImportRecommendationUseCase: SourceImportRecommendationUseCase = SourceImportRecommendationUseCase()
+        let recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase = RecommendSourceImportOptionUseCase()
         let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = RefreshSourceRuntimeUseCase(
             runtimeResolver: self.makeSourceRuntimeResolver()
         )
@@ -153,7 +153,7 @@ final class AppContainer {
             duplicateSourceRuleUseCase: duplicateSourceRuleUseCase,
             exportSourceRulePackageUseCase: exportSourceRulePackageUseCase,
             importSourceRulePackageUseCase: importSourceRulePackageUseCase,
-            sourceImportRecommendationUseCase: sourceImportRecommendationUseCase,
+            recommendSourceImportOptionUseCase: recommendSourceImportOptionUseCase,
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
             saveUserLibraryStateUseCase: saveUserLibraryStateUseCase,
             listDebugUseCase: listDebugUseCase,

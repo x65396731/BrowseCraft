@@ -1,9 +1,8 @@
 import Foundation
 
-// 中文注释：SyncBuiltInSourcesUseCase.swift 属于应用用例层，用于说明本文件承载的核心职责。
+// 中文注释：同步应用内置 Source 定义到本地数据库，供首次启动和内置规则更新后使用。
 
-/// 中文注释：确保内置源存在于本地数据库中。
-/// 中文注释：该用例不访问网络，只在缺失时写入内置 Source 记录。
+/// 中文注释：确保内置源存在于本地数据库中；该用例不访问网络。
 struct SyncBuiltInSourcesUseCase {
     private let sourceRepository: SourceRepository
 
@@ -11,7 +10,6 @@ struct SyncBuiltInSourcesUseCase {
         self.sourceRepository = sourceRepository
     }
 
-    /// 中文注释：execute 方法封装当前类型的一段业务或界面行为。
     func execute() throws {
         let existingSources: [Source] = try self.sourceRepository.fetchSources()
         let latestBuiltInSources: [Source] = BuiltInSource.allBuiltIns()
@@ -32,7 +30,7 @@ struct SyncBuiltInSourcesUseCase {
         }
     }
 
-    /// 中文注释：同步所有内置源。数据库只保存当前运行副本。
+    /// 中文注释：用最新内置定义覆盖本地内置 Source；用户自定义 Source 不受影响。
     private func updateExistingBuiltInSources(
         _ existingSources: [Source],
         latestBuiltInSources: [Source]

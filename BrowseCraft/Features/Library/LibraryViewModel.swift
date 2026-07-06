@@ -415,7 +415,11 @@ final class LibraryViewModel: ObservableObject {
     private func restoreStartupLibraryState() throws {
         let persistedState: UserLibraryState? = try self.loadUserLibraryStateUseCase.execute(userID: self.userID)
         let persistedSource: Source? = persistedState.flatMap { state in
-            return self.source(for: state.selectedSourceID)
+            guard let selectedSourceID: String = state.selectedSourceID else {
+                return nil
+            }
+
+            return self.source(for: selectedSourceID)
         }
         let resolvedSource: Source? = persistedSource ?? self.sources.first
 

@@ -28,7 +28,7 @@ final class SourcesViewModel: ObservableObject {
     private let duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase
     private let exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase
     private let importSourceRulePackageUseCase: ImportSourceRulePackageUseCase
-    private let sourceImportRecommendationUseCase: SourceImportRecommendationUseCase
+    private let recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase
     private let ruleValidator: SiteRuleValidator
     private let jsonEncoder: JSONEncoder
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
@@ -54,7 +54,7 @@ final class SourcesViewModel: ObservableObject {
         duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase,
         exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase,
         importSourceRulePackageUseCase: ImportSourceRulePackageUseCase,
-        sourceImportRecommendationUseCase: SourceImportRecommendationUseCase,
+        recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase,
         ruleValidator: SiteRuleValidator = SiteRuleValidator(),
         jsonEncoder: JSONEncoder = JSONEncoder(),
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
@@ -77,7 +77,7 @@ final class SourcesViewModel: ObservableObject {
         self.duplicateSourceRuleUseCase = duplicateSourceRuleUseCase
         self.exportSourceRulePackageUseCase = exportSourceRulePackageUseCase
         self.importSourceRulePackageUseCase = importSourceRulePackageUseCase
-        self.sourceImportRecommendationUseCase = sourceImportRecommendationUseCase
+        self.recommendSourceImportOptionUseCase = recommendSourceImportOptionUseCase
         self.ruleValidator = ruleValidator
         self.jsonEncoder = jsonEncoder
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
@@ -275,7 +275,7 @@ final class SourcesViewModel: ObservableObject {
         html: String? = nil,
         headers: [String: String] = [:]
     ) -> SourceImportRecommendation {
-        return self.sourceImportRecommendationUseCase.execute(
+        return self.recommendSourceImportOptionUseCase.execute(
             draft: draft,
             selectedOptionKind: selectedOptionKind,
             html: html,
