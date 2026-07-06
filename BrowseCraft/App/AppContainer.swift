@@ -289,6 +289,34 @@ final class AppContainer {
     }
 
     @MainActor
+    func makeVideoPlayerViewModel(history: VideoWatchHistory, source: Source) -> VideoPlayerViewModel {
+        let repository: VideoWatchHistoryRepository = GRDBVideoWatchHistoryRepository(
+            database: self.database
+        )
+        let saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase = SaveVideoWatchHistoryUseCase(
+            repository: repository
+        )
+        let loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase = LoadVideoWatchHistoryUseCase(
+            repository: repository
+        )
+        let reference: SourceVideoPlaybackReference = history.playbackReference(
+            defaultSourceName: source.name
+        )
+
+        return VideoPlayerViewModel(
+            source: source,
+            reference: reference,
+            videoTitle: history.videoTitle,
+            detailURL: history.detailURL,
+            coverURL: history.coverURL,
+            saveVideoWatchHistoryUseCase: saveVideoWatchHistoryUseCase,
+            loadVideoWatchHistoryUseCase: loadVideoWatchHistoryUseCase,
+            runtimeResolver: self.makeSourceRuntimeResolver(),
+            userID: history.userID
+        )
+    }
+
+    @MainActor
     func makeVideoDetailViewModel(item: ContentItem, source: Source) -> VideoDetailViewModel {
         let repository: VideoWatchHistoryRepository = GRDBVideoWatchHistoryRepository(
             database: self.database
@@ -340,7 +368,10 @@ final class AppContainer {
 
         return HistoryViewModel(
             loadReadingHistoryEntriesUseCase: loadReadingHistoryEntriesUseCase,
-            loadSourcesUseCase: loadSourcesUseCase
+            loadSourcesUseCase: loadSourcesUseCase,
+            videoPlayerViewModelFactory: { history, source in
+                return self.makeVideoPlayerViewModel(history: history, source: source)
+            }
         )
     }
 }

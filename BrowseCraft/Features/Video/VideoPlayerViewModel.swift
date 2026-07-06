@@ -7,16 +7,18 @@ final class VideoPlayerViewModel: ObservableObject {
     @Published private(set) var currentPlaybackTime: TimeInterval = 0
     @Published private(set) var duration: TimeInterval?
     @Published private(set) var isPrepared: Bool = false
+    @Published private(set) var isLoadingEpisodeSwitch: Bool = false
     @Published var errorMessage: String?
 
     let source: Source
-    let reference: SourceVideoPlaybackReference
+    @Published private(set) var reference: SourceVideoPlaybackReference
     let videoTitle: String
     let detailURL: URL?
     let coverURL: URL?
 
     private let saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase
     private let loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase
+    private let runtimeResolver: any SourceRuntimeResolving
     private let userID: String
     private let now: () -> Date
     private var autosaveTask: Task<Void, Never>?
@@ -31,6 +33,7 @@ final class VideoPlayerViewModel: ObservableObject {
         coverURL: URL?,
         saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase,
         loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase,
+        runtimeResolver: any SourceRuntimeResolving,
         userID: String = AppUser.localDefaultID,
         now: @escaping () -> Date = Date.init
     ) {
@@ -41,6 +44,7 @@ final class VideoPlayerViewModel: ObservableObject {
         self.coverURL = coverURL
         self.saveVideoWatchHistoryUseCase = saveVideoWatchHistoryUseCase
         self.loadVideoWatchHistoryUseCase = loadVideoWatchHistoryUseCase
+        self.runtimeResolver = runtimeResolver
         self.userID = userID
         self.now = now
     }
@@ -57,6 +61,14 @@ final class VideoPlayerViewModel: ObservableObject {
         }
 
         return "\(self.videoTitle) - \(episodeTitle)"
+    }
+
+    var canOpenPreviousEpisode: Bool {
+        return self.reference.previousEpisodeURL != nil && self.isLoadingEpisodeSwitch == false
+    }
+
+    var canOpenNextEpisode: Bool {
+        return self.reference.nextEpisodeURL != nil && self.isLoadingEpisodeSwitch == false
     }
 
     var nativeMediaURL: URL? {
@@ -134,6 +146,70 @@ final class VideoPlayerViewModel: ObservableObject {
         self.saveCurrentProgress(force: true)
     }
 
+    func openPreviousEpisode() async {
+        await self.openEpisode(playPageURL: self.reference.previousEpisodeURL)
+    }
+
+    func openNextEpisode() async {
+        await self.openEpisode(playPageURL: self.reference.nextEpisodeURL)
+    }
+
+    private func openEpisode(playPageURL: URL?) async {
+        guard let playPageURL: URL = playPageURL,
+              self.isLoadingEpisodeSwitch == false else {
+            return
+        }
+
+        self.saveCurrentProgress(force: true)
+        self.isLoadingEpisodeSwitch = true
+        defer {
+            self.isLoadingEpisodeSwitch = false
+        }
+
+        do {
+            let runtime: any SourceRuntime = try self.runtimeResolver.runtime(for: self.source)
+            guard let playbackRuntime: any VideoPlaybackRuntimeProviding = runtime as? any VideoPlaybackRuntimeProviding else {
+                throw SourceRuntimeError.unsupported(
+                    .custom("Selected source does not expose video playback runtime.")
+                )
+            }
+
+            let output: SourceVideoPlaybackOutput = try await playbackRuntime.loadPlayback(
+                SourceVideoPlaybackInput(
+                    playPageURL: playPageURL,
+                    context: self.runtimeContext()
+                )
+            )
+
+            self.autosaveTask?.cancel()
+            self.autosaveTask = nil
+            self.reference = output.reference
+            self.currentPlaybackTime = 0
+            self.duration = nil
+            self.isPrepared = false
+            self.didSeekToRestoredTime = false
+            self.lastSavedPlaybackTime = nil
+            self.prepareForPlayback()
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-episode-switch-error")
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+        }
+    }
+
+    private func runtimeContext() -> SourceRuntimeContext {
+        return SourceRuntimeContext(
+            sourceID: self.source.id,
+            pageID: nil,
+            tabID: nil,
+            sectionID: nil,
+            sectionRole: nil,
+            ruleID: nil,
+            requestOverride: nil,
+            debugMode: false,
+            operation: nil
+        )
+    }
+
     private func startAutosaveIfNeeded() {
         guard self.autosaveTask == nil else {
             return
@@ -142,7 +218,7 @@ final class VideoPlayerViewModel: ObservableObject {
         self.autosaveTask = Task { [weak self] in
             while Task.isCancelled == false {
                 try? await Task.sleep(nanoseconds: 30_000_000_000)
-                await self?.saveCurrentProgress(force: false)
+                self?.saveCurrentProgress(force: false)
             }
         }
     }

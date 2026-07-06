@@ -59,6 +59,7 @@ typealias SourceRuntimeKind = BrowseCraftCore.SourceRuntimeKind
 typealias SourcePlaybackRequestConfig = BrowseCraftCore.SourcePlaybackRequestConfig
 typealias SourceVideoMediaKind = BrowseCraftCore.SourceVideoMediaKind
 typealias SourceVideoPlaybackReference = BrowseCraftCore.SourceVideoPlaybackReference
+typealias SourceVideoPlaybackStatus = BrowseCraftCore.SourceVideoPlaybackStatus
 typealias SiteRuleValidationResult = BrowseCraftCore.SiteRuleValidationResult
 typealias SiteRuleValidator = BrowseCraftCore.SiteRuleValidator
 typealias BrowseCraftRulePackage = BrowseCraftCore.BrowseCraftRulePackage

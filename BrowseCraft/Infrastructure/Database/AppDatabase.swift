@@ -177,6 +177,7 @@ final class AppDatabase {
                 table.column("playPageURL", .text).notNull()
                 table.column("candidateMediaURL", .text)
                 table.column("candidateMediaKind", .text).notNull()
+                table.column("playbackStatusJSON", .text)
                 table.column("playbackRequestConfigJSON", .text)
                 table.column("coverURL", .text)
                 table.column("sourceName", .text)
@@ -186,7 +187,7 @@ final class AppDatabase {
                 table.column("updatedAt", .datetime).notNull()
                 table.column("previousEpisodeURL", .text)
                 table.column("nextEpisodeURL", .text)
-                table.uniqueKey(["userID", "sourceID", "vodID", "sourceIndex", "episodeIndex"])
+                table.uniqueKey(["userID", "sourceID", "vodID"])
             }
 
             try database.execute(

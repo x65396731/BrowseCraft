@@ -19,6 +19,7 @@ struct VideoWatchHistoryRecord: Codable, FetchableRecord, MutablePersistableReco
     var playPageURL: String
     var candidateMediaURL: String?
     var candidateMediaKind: String
+    var playbackStatusJSON: String?
     var playbackRequestConfigJSON: String?
     var coverURL: String?
     var sourceName: String?
@@ -42,6 +43,7 @@ struct VideoWatchHistoryRecord: Codable, FetchableRecord, MutablePersistableReco
         self.playPageURL = history.playPageURL.absoluteString
         self.candidateMediaURL = history.candidateMediaURL?.absoluteString
         self.candidateMediaKind = history.candidateMediaKind.rawValue
+        self.playbackStatusJSON = Self.encodePlaybackStatus(history.playbackStatus)
         self.playbackRequestConfigJSON = Self.encodePlaybackRequestConfig(history.playbackRequestConfig)
         self.coverURL = history.coverURL?.absoluteString
         self.sourceName = history.sourceName
@@ -67,6 +69,7 @@ struct VideoWatchHistoryRecord: Codable, FetchableRecord, MutablePersistableReco
             playPageURL: URL(string: self.playPageURL) ?? URL(fileURLWithPath: "/"),
             candidateMediaURL: self.candidateMediaURL.flatMap(URL.init(string:)),
             candidateMediaKind: SourceVideoMediaKind(rawValue: self.candidateMediaKind) ?? .unknown,
+            playbackStatus: Self.decodePlaybackStatus(self.playbackStatusJSON, candidateMediaURL: self.candidateMediaURL, candidateMediaKind: self.candidateMediaKind),
             playbackRequestConfig: Self.decodePlaybackRequestConfig(self.playbackRequestConfigJSON),
             coverURL: self.coverURL.flatMap(URL.init(string:)),
             sourceName: self.sourceName,
@@ -77,6 +80,33 @@ struct VideoWatchHistoryRecord: Codable, FetchableRecord, MutablePersistableReco
             previousEpisodeURL: self.previousEpisodeURL.flatMap(URL.init(string:)),
             nextEpisodeURL: self.nextEpisodeURL.flatMap(URL.init(string:))
         )
+    }
+
+    private static func encodePlaybackStatus(_ status: SourceVideoPlaybackStatus) -> String? {
+        guard let data: Data = try? JSONEncoder().encode(status) else {
+            return nil
+        }
+
+        return String(data: data, encoding: .utf8)
+    }
+
+    private static func decodePlaybackStatus(
+        _ json: String?,
+        candidateMediaURL: String?,
+        candidateMediaKind: String
+    ) -> SourceVideoPlaybackStatus {
+        if let json: String = json,
+           let data: Data = json.data(using: .utf8),
+           let status: SourceVideoPlaybackStatus = try? JSONDecoder().decode(SourceVideoPlaybackStatus.self, from: data) {
+            return status
+        }
+
+        let mediaKind: SourceVideoMediaKind = SourceVideoMediaKind(rawValue: candidateMediaKind) ?? .unknown
+        if candidateMediaURL != nil, mediaKind == .m3u8 || mediaKind == .mp4 {
+            return .playable
+        }
+
+        return .pageOnly
     }
 
     private static func encodePlaybackRequestConfig(_ config: SourcePlaybackRequestConfig?) -> String? {

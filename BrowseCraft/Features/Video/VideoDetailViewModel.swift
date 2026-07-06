@@ -127,7 +127,8 @@ final class VideoDetailViewModel: ObservableObject {
                 detailURL: URL(string: self.item.detailURL),
                 coverURL: self.coverURL,
                 saveVideoWatchHistoryUseCase: self.saveVideoWatchHistoryUseCase,
-                loadVideoWatchHistoryUseCase: self.loadVideoWatchHistoryUseCase
+                loadVideoWatchHistoryUseCase: self.loadVideoWatchHistoryUseCase,
+                runtimeResolver: self.runtimeResolver
             )
             self.playbackRoute = VideoPlaybackRoute(
                 id: [

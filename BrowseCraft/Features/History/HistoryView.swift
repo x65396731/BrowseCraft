@@ -12,11 +12,25 @@ struct HistoryView: View {
             List {
                 Section("Reading") {
                     ForEach(self.viewModel.readingHistoryEntries, id: \.id) { entry in
-                        NavigationLink(destination: self.destination(for: entry)) {
-                            HistoryEntryRowView(
-                                entry: entry,
-                                dateText: Self.historyDateFormatter.string(from: entry.visitedAt)
-                            )
+                        if entry.kind == .video {
+                            Button {
+                                if let history: VideoWatchHistory = entry.videoHistory {
+                                    self.viewModel.openVideoHistory(history)
+                                }
+                            } label: {
+                                HistoryEntryRowView(
+                                    entry: entry,
+                                    dateText: Self.historyDateFormatter.string(from: entry.visitedAt)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        } else {
+                            NavigationLink(destination: self.destination(for: entry)) {
+                                HistoryEntryRowView(
+                                    entry: entry,
+                                    dateText: Self.historyDateFormatter.string(from: entry.visitedAt)
+                                )
+                            }
                         }
                     }
                 }
@@ -35,6 +49,9 @@ struct HistoryView: View {
             .navigationTitle("History")
             .onAppear {
                 self.viewModel.load()
+            }
+            .fullScreenCover(item: self.$viewModel.videoPlaybackRoute) { route in
+                VideoPlayerHostView(viewModel: route.viewModel)
             }
             .alert(isPresented: self.errorAlertBinding) {
                 Alert(
@@ -69,11 +86,7 @@ struct HistoryView: View {
                 HistoryUnavailableView(message: "Missing comic source or chapter URL.")
             }
         case .video:
-            if entry.videoHistory != nil {
-                HistoryUnavailableView(message: "Video player is not connected yet.")
-            } else {
-                HistoryUnavailableView(message: "Missing video history.")
-            }
+            HistoryUnavailableView(message: "Video history opens with the full-screen player.")
         }
     }
 

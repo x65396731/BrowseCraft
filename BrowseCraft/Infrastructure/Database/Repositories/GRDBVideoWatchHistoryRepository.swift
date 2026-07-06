@@ -3,7 +3,7 @@ import GRDB
 
 // 中文注释：GRDBVideoWatchHistoryRepository 通过 SQLite 保存视频观看历史。
 
-/// 中文注释：保存时按 userID/sourceID/vodID/sourceIndex/episodeIndex upsert，避免同一剧集重复插入。
+/// 中文注释：保存时按作品级 key 覆盖旧记录，避免 History 页同一视频按剧集重复显示。
 final class GRDBVideoWatchHistoryRepository: VideoWatchHistoryRepository {
     private let database: AppDatabase
 
@@ -12,10 +12,12 @@ final class GRDBVideoWatchHistoryRepository: VideoWatchHistoryRepository {
     }
 
     func save(_ history: VideoWatchHistory) throws {
-        let record: VideoWatchHistoryRecord = VideoWatchHistoryRecord(history: history)
+        var record: VideoWatchHistoryRecord = VideoWatchHistoryRecord(history: history)
+        record.vodID = Self.storageVodID(for: history)
 
         try self.database.queue.write { database in
-            try Self.upsert(record, in: database)
+            try Self.deleteExistingWorkHistory(for: record, in: database)
+            try record.insert(database)
         }
     }
 
@@ -52,53 +54,60 @@ final class GRDBVideoWatchHistoryRepository: VideoWatchHistoryRepository {
         }
     }
 
-    private static func upsert(_ record: VideoWatchHistoryRecord, in database: Database) throws {
+    private static func deleteExistingWorkHistory(
+        for record: VideoWatchHistoryRecord,
+        in database: Database
+    ) throws {
         try database.execute(
             sql: """
-            INSERT INTO \(VideoWatchHistoryRecord.databaseTableName)
-                (userID, sourceID, vodID, videoTitle, episodeTitle, episodeKey, sourceIndex, episodeIndex, detailURL, playPageURL, candidateMediaURL, candidateMediaKind, playbackRequestConfigJSON, coverURL, sourceName, lastPlaybackTime, duration, visitedAt, updatedAt, previousEpisodeURL, nextEpisodeURL)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(userID, sourceID, vodID, sourceIndex, episodeIndex) DO UPDATE SET
-                videoTitle = excluded.videoTitle,
-                episodeTitle = excluded.episodeTitle,
-                episodeKey = excluded.episodeKey,
-                detailURL = excluded.detailURL,
-                playPageURL = excluded.playPageURL,
-                candidateMediaURL = excluded.candidateMediaURL,
-                candidateMediaKind = excluded.candidateMediaKind,
-                playbackRequestConfigJSON = excluded.playbackRequestConfigJSON,
-                coverURL = excluded.coverURL,
-                sourceName = excluded.sourceName,
-                lastPlaybackTime = excluded.lastPlaybackTime,
-                duration = excluded.duration,
-                visitedAt = excluded.visitedAt,
-                updatedAt = excluded.updatedAt,
-                previousEpisodeURL = excluded.previousEpisodeURL,
-                nextEpisodeURL = excluded.nextEpisodeURL
+            DELETE FROM \(VideoWatchHistoryRecord.databaseTableName)
+            WHERE userID = ? AND sourceID = ? AND vodID = ?
             """,
             arguments: [
                 record.userID,
                 record.sourceID,
-                record.vodID,
-                record.videoTitle,
-                record.episodeTitle,
-                record.episodeKey,
-                record.sourceIndex,
-                record.episodeIndex,
-                record.detailURL,
-                record.playPageURL,
-                record.candidateMediaURL,
-                record.candidateMediaKind,
-                record.playbackRequestConfigJSON,
-                record.coverURL,
-                record.sourceName,
-                record.lastPlaybackTime,
-                record.duration,
-                record.visitedAt,
-                record.updatedAt,
-                record.previousEpisodeURL,
-                record.nextEpisodeURL
+                record.vodID
             ]
         )
+
+        if let detailURL: String = record.detailURL,
+           detailURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            try database.execute(
+                sql: """
+                DELETE FROM \(VideoWatchHistoryRecord.databaseTableName)
+                WHERE userID = ? AND sourceID = ? AND detailURL = ?
+                """,
+                arguments: [
+                    record.userID,
+                    record.sourceID,
+                    detailURL
+                ]
+            )
+        }
+
+        try database.execute(
+            sql: """
+            DELETE FROM \(VideoWatchHistoryRecord.databaseTableName)
+            WHERE userID = ? AND sourceID = ? AND videoTitle = ?
+            """,
+            arguments: [
+                record.userID,
+                record.sourceID,
+                record.videoTitle
+            ]
+        )
+    }
+
+    private static func storageVodID(for history: VideoWatchHistory) -> String {
+        let trimmedVodID: String = history.vodID.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedVodID.isEmpty == false {
+            return trimmedVodID
+        }
+
+        if let detailURL: URL = history.detailURL {
+            return "detail::\(detailURL.absoluteString)"
+        }
+
+        return "title::\(history.videoTitle)"
     }
 }

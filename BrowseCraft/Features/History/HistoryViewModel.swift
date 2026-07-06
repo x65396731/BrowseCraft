@@ -7,20 +7,24 @@ import Foundation
 final class HistoryViewModel: ObservableObject {
     @Published private(set) var readingHistoryEntries: [ReadingHistoryEntry] = []
     @Published private(set) var sources: [Source] = []
+    @Published var videoPlaybackRoute: VideoPlaybackRoute?
     @Published var errorMessage: String?
 
     private let loadReadingHistoryEntriesUseCase: LoadReadingHistoryEntriesUseCase
     private let loadSourcesUseCase: LoadSourcesUseCase
     private let userID: String
+    private let videoPlayerViewModelFactory: @MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel
 
     init(
         loadReadingHistoryEntriesUseCase: LoadReadingHistoryEntriesUseCase,
         loadSourcesUseCase: LoadSourcesUseCase,
-        userID: String = AppUser.localDefaultID
+        userID: String = AppUser.localDefaultID,
+        videoPlayerViewModelFactory: @escaping @MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel
     ) {
         self.loadReadingHistoryEntriesUseCase = loadReadingHistoryEntriesUseCase
         self.loadSourcesUseCase = loadSourcesUseCase
         self.userID = userID
+        self.videoPlayerViewModelFactory = videoPlayerViewModelFactory
     }
 
     @MainActor
@@ -28,7 +32,9 @@ final class HistoryViewModel: ObservableObject {
     func load() {
         do {
             self.sources = try self.loadSourcesUseCase.execute()
-            self.readingHistoryEntries = try self.loadReadingHistoryEntriesUseCase.execute(userID: self.userID)
+            self.readingHistoryEntries = self.deduplicatedVideoEntries(
+                try self.loadReadingHistoryEntriesUseCase.execute(userID: self.userID)
+            )
         } catch {
             self.errorMessage = error.localizedDescription
         }
@@ -37,6 +43,45 @@ final class HistoryViewModel: ObservableObject {
     func source(for sourceID: String) -> Source? {
         return self.sources.first { source in
             return source.id == sourceID
+        }
+    }
+
+    @MainActor
+    func openVideoHistory(_ history: VideoWatchHistory) {
+        guard let source: Source = self.source(for: history.sourceID) else {
+            self.errorMessage = "Missing video source."
+            return
+        }
+
+        let viewModel: VideoPlayerViewModel = self.videoPlayerViewModelFactory(history, source)
+        self.videoPlaybackRoute = VideoPlaybackRoute(
+            id: history.id,
+            viewModel: viewModel
+        )
+    }
+
+    private func deduplicatedVideoEntries(_ entries: [ReadingHistoryEntry]) -> [ReadingHistoryEntry] {
+        var latestVideoEntriesByWorkID: [String: ReadingHistoryEntry] = [:]
+        var deduplicatedEntries: [ReadingHistoryEntry] = []
+
+        for entry: ReadingHistoryEntry in entries {
+            guard let videoHistory: VideoWatchHistory = entry.videoHistory else {
+                deduplicatedEntries.append(entry)
+                continue
+            }
+
+            let workID: String = videoHistory.workHistoryKey
+            if let existingEntry: ReadingHistoryEntry = latestVideoEntriesByWorkID[workID],
+               existingEntry.visitedAt >= entry.visitedAt {
+                continue
+            }
+
+            latestVideoEntriesByWorkID[workID] = entry
+        }
+
+        deduplicatedEntries.append(contentsOf: latestVideoEntriesByWorkID.values)
+        return deduplicatedEntries.sorted { lhs, rhs in
+            return lhs.visitedAt > rhs.visitedAt
         }
     }
 }

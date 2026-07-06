@@ -40,10 +40,8 @@ struct VideoDetailView: View {
         .refreshable {
             await self.viewModel.loadEpisodes()
         }
-        .sheet(item: self.$viewModel.playbackRoute) { route in
-            NavigationView {
-                VideoPlayerHostView(viewModel: route.viewModel)
-            }
+        .fullScreenCover(item: self.$viewModel.playbackRoute) { route in
+            VideoPlayerHostView(viewModel: route.viewModel)
         }
         .overlay {
             if self.viewModel.isLoadingPlayback {

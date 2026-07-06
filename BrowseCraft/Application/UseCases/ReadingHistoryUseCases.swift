@@ -64,6 +64,7 @@ struct SaveVideoWatchHistoryUseCase {
             playPageURL: reference.playPageURL,
             candidateMediaURL: reference.candidateMediaURL,
             candidateMediaKind: reference.candidateMediaKind,
+            playbackStatus: reference.status,
             playbackRequestConfig: reference.playbackRequestConfig,
             coverURL: coverURL,
             sourceName: reference.sourceName ?? source.name,
@@ -134,6 +135,7 @@ struct LoadReadingHistoryEntriesUseCase {
             }
         let videoEntries: [ReadingHistoryEntry] = try self.videoRepository
             .fetchHistory(userID: userID)
+            .latestVideoHistoriesByWork()
             .map { history in
                 return ReadingHistoryEntry(videoHistory: history)
             }
@@ -167,5 +169,25 @@ struct LoadReadingHistoryEntriesUseCase {
             history.sourceID,
             history.comicItemID
         ].joined(separator: "::")
+    }
+}
+
+private extension Array where Element == VideoWatchHistory {
+    func latestVideoHistoriesByWork() -> [VideoWatchHistory] {
+        var latestByWorkID: [String: VideoWatchHistory] = [:]
+
+        for history: VideoWatchHistory in self {
+            let workID: String = history.workHistoryKey
+            if let existingHistory: VideoWatchHistory = latestByWorkID[workID],
+               existingHistory.updatedAt >= history.updatedAt {
+                continue
+            }
+
+            latestByWorkID[workID] = history
+        }
+
+        return latestByWorkID.values.sorted { lhs, rhs in
+            return lhs.updatedAt > rhs.updatedAt
+        }
     }
 }
