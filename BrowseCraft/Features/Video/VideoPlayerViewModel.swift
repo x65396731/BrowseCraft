@@ -168,7 +168,7 @@ final class VideoPlayerViewModel: ObservableObject {
 
         do {
             let runtime: any SourceRuntime = try self.runtimeResolver.runtime(for: self.source)
-            guard let playbackRuntime: any VideoPlaybackRuntimeProviding = runtime as? any VideoPlaybackRuntimeProviding else {
+            guard let playbackRuntime: any VideoPlaybackRuntimeCapability = runtime as? any VideoPlaybackRuntimeCapability else {
                 throw SourceRuntimeError.unsupported(
                     .custom("Selected source does not expose video playback runtime.")
                 )

@@ -27,39 +27,44 @@ struct ResolveLibrarySourcePresentationUseCase {
     }
 
     private func videoListTabs(for configuration: VideoSourceConfiguration) -> [ListTabRule] {
-        guard configuration.definition.siteKind == .macCMS else {
-            return []
+        let tabs: [VideoSourceListTab]
+        if configuration.listTabs.isEmpty {
+            tabs = [
+                VideoSourceListTab(
+                    id: "video.home",
+                    title: "首页",
+                    url: configuration.definition.entryURL.absoluteString
+                )
+            ]
+        } else {
+            tabs = configuration.listTabs
         }
 
-        return [
-            self.videoListTab(id: "video.home", title: "首页", listURL: configuration.definition.entryURL.absoluteString),
-            self.videoListTab(id: "video.category.1", title: "电影", listURL: "/vodtype/1.html"),
-            self.videoListTab(id: "video.category.2", title: "电视剧", listURL: "/vodtype/2.html"),
-            self.videoListTab(id: "video.category.3", title: "综艺", listURL: "/vodtype/3.html"),
-            self.videoListTab(id: "video.category.4", title: "动漫", listURL: "/vodtype/4.html")
-        ]
+        return tabs.map { tab in
+            return self.videoListTab(tab)
+        }
     }
 
-    private func videoListTab(id: String, title: String, listURL: String) -> ListTabRule {
+    private func videoListTab(_ tab: VideoSourceListTab) -> ListTabRule {
         return ListTabRule(
-            id: id,
-            title: title,
+            id: tab.id,
+            title: tab.title,
             list: ListRule(
-                id: id,
-                url: listURL,
-                item: ".ewave-vodlist__box",
-                title: ".ewave-vodlist__thumb@title",
-                link: "a[href*=/voddetail/]@href",
-                cover: ".ewave-vodlist__thumb@data-original",
+                id: tab.id,
+                url: tab.url,
+                item: tab.itemSelector ?? "",
+                title: tab.titleSelector ?? "",
+                link: tab.linkSelector ?? "",
+                cover: tab.coverSelector,
                 type: .video,
-                latestText: ".pic-text.text-right"
+                latestText: tab.latestTextSelector
             ),
             context: ListContext(
                 pageId: "video",
-                tabId: id,
+                tabId: tab.id,
                 sectionId: nil,
-                listRuleId: id,
-                sectionRole: .main
+                listRuleId: tab.id,
+                sectionRole: tab.role
             )
         )
     }

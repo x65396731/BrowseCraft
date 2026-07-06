@@ -36,6 +36,17 @@ struct VideoContentGridView: View {
             }
         }
         .padding(16)
+        .onAppear {
+            #if DEBUG
+            print(
+                "[BrowseCraftVideoUI] grid appear " +
+                "source=\(self.source.id) " +
+                "kind=\(self.source.configuration.kind.rawValue) " +
+                "items=\(self.items.count) " +
+                "firstItem=\(self.items.first?.id ?? "nil")"
+            )
+            #endif
+        }
     }
 }
 

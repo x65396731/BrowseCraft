@@ -227,7 +227,15 @@ final class LibraryViewModel: ObservableObject {
     }
 
     var listTabStates: [LibraryListTabState] {
-        return self.listTabs.map { tab in
+        let tabs: [ListTabRule] = self.listTabs
+        #if DEBUG
+        self.logListTabs(
+            origin: "listTabStates",
+            source: self.selectedSource,
+            tabs: tabs
+        )
+        #endif
+        return tabs.map { tab in
             return LibraryListTabState(
                 id: tab.id,
                 title: tab.title,
@@ -279,6 +287,13 @@ final class LibraryViewModel: ObservableObject {
 
     private func ensureSelectedListTab() {
         let tabs: [ListTabRule] = self.listTabs
+        #if DEBUG
+        self.logListTabs(
+            origin: "ensureSelectedListTab",
+            source: self.selectedSource,
+            tabs: tabs
+        )
+        #endif
 
         if let selectedListTabID: String = self.selectedListTabID,
            tabs.contains(where: { tab in tab.id == selectedListTabID }) {
@@ -287,6 +302,32 @@ final class LibraryViewModel: ObservableObject {
 
         self.selectedListTabID = tabs.first?.id
     }
+
+    #if DEBUG
+    private func logListTabs(
+        origin: String,
+        source: Source?,
+        tabs: [ListTabRule]
+    ) {
+        let tabDescription: String = tabs.map { tab in
+            return [
+                tab.id,
+                tab.title,
+                tab.list.url
+            ].joined(separator: "|")
+        }
+        .joined(separator: ", ")
+
+        print(
+            "[BrowseCraftLibraryTabs] origin=\(origin) " +
+            "source=\(source?.id ?? "nil") " +
+            "kind=\(source?.configuration.kind.rawValue ?? "nil") " +
+            "selected=\(self.selectedListTabID ?? "nil") " +
+            "count=\(tabs.count) " +
+            "tabs=[\(tabDescription)]"
+        )
+    }
+    #endif
 
 
     private func contextDescription(_ context: ListContext?) -> String {

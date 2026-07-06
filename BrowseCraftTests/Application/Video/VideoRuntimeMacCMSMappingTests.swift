@@ -105,6 +105,56 @@ struct VideoRuntimeMacCMSMappingTests {
         #expect(playback.status == .playable)
     }
 
+    @Test func macCMSMapperUsesSkinSelectorFallbacks() throws {
+        let mapper: MacCMSVideoHTMLMapper = MacCMSVideoHTMLMapper()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let listURL: URL = try #require(URL(string: "https://video.example.test/vodtype/2.html"))
+        let detailURL: URL = try #require(URL(string: "https://video.example.test/voddetail/117372.html"))
+
+        let items: [SourceContentItem] = try mapper.mapList(
+            html: Self.stuiListHTML,
+            definition: definition,
+            pageURL: listURL
+        )
+        #expect(items.count == 1)
+        #expect(items[0].title == "Stui 示例影片")
+        #expect(items[0].coverURL?.absoluteString == "https://video.example.test/stui-cover.jpg")
+        #expect(items[0].latestText == "更新至03集")
+
+        let detail: VideoDetailContent = try mapper.mapDetail(
+            html: Self.moduleDetailHTML,
+            definition: definition,
+            detailURL: detailURL
+        )
+        #expect(detail.episodes.map(\.id) == ["117372-1-3"])
+        #expect(detail.episodes.map(\.title) == ["第3集"])
+    }
+
+    @Test func macCMSMapperClassifiesMP4AndEmptyPlayerPayload() throws {
+        let mapper: MacCMSVideoHTMLMapper = MacCMSVideoHTMLMapper()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let playURL: URL = try #require(URL(string: "https://video.example.test/vodplay/117372-1-1.html"))
+
+        let mp4: SourceVideoPlaybackReference = try mapper.mapPlayback(
+            html: """
+            <script>
+              var player_aaaa={"url":"https://media.example.test/video/movie.mp4","from":"mp4","id":"117372","sid":1,"nid":1};
+            </script>
+            """,
+            definition: definition,
+            playPageURL: playURL
+        )
+        #expect(mp4.candidateMediaKind == .mp4)
+        #expect(mp4.status == .playable)
+
+        let empty: SourceVideoPlaybackReference = try mapper.mapPlayback(
+            html: "<script>var player_aaaa={\"url\":\"\",\"id\":\"117372\",\"sid\":1,\"nid\":1};</script>",
+            definition: definition,
+            playPageURL: playURL
+        )
+        #expect(empty.status == .failed(.mediaURLNotFound))
+    }
+
     @Test func macCMSMapperClassifiesRestrictedAndPageOnlyPlayback() throws {
         let mapper: MacCMSVideoHTMLMapper = MacCMSVideoHTMLMapper()
         let definition: SourceDefinition = try Self.videoDefinition()
@@ -133,6 +183,26 @@ struct VideoRuntimeMacCMSMappingTests {
         #expect(pageOnly.status == .pageOnly)
     }
 
+    @Test func videoAdapterDetectorIdentifiesMacCMSFromRouteAndHTMLSignals() throws {
+        let detector: VideoAdapterDetector = VideoAdapterDetector()
+        let routeURL: URL = try #require(URL(string: "https://video.example.test/voddetail/117372.html"))
+        let routeDetection: VideoAdapterDetection = detector.detect(
+            VideoAdapterDetectionInput(url: routeURL)
+        )
+        #expect(routeDetection.adapter == .macCMS)
+        #expect(routeDetection.confidence >= 0.80)
+
+        let homeURL: URL = try #require(URL(string: "https://video.example.test/"))
+        let htmlDetection: VideoAdapterDetection = detector.detect(
+            VideoAdapterDetectionInput(
+                url: homeURL,
+                html: "<script>var player_aaaa={\"url\":\"\"};</script><div>mac_history vod_name</div>"
+            )
+        )
+        #expect(htmlDetection.adapter == .macCMS)
+        #expect(htmlDetection.reasons.isEmpty == false)
+    }
+
     private static func videoDefinition() throws -> SourceDefinition {
         let baseURL: URL = try #require(URL(string: "https://video.example.test/"))
         return SourceDefinition(
@@ -145,7 +215,7 @@ struct VideoRuntimeMacCMSMappingTests {
             comic: nil,
             rss: nil,
             video: VideoSourceDefinition(
-                siteKind: .macCMS,
+                adapter: .macCMS,
                 entryURL: baseURL,
                 seedURL: nil,
                 entryKind: .home,
@@ -187,6 +257,27 @@ struct VideoRuntimeMacCMSMappingTests {
         <div class="ewave-content__playlist">
           <a href="/vodplay/117372-1-1.html">第1集</a>
           <a href="/vodplay/117372-1-2.html">第2集</a>
+        </div>
+      </body>
+    </html>
+    """
+
+    private static let stuiListHTML: String = """
+    <html>
+      <body>
+        <div class="stui-vodlist__box">
+          <a class="stui-vodlist__thumb" href="/voddetail/117372.html" title="Stui 示例影片" data-original="/stui-cover.jpg"></a>
+          <span class="pic-text">更新至03集</span>
+        </div>
+      </body>
+    </html>
+    """
+
+    private static let moduleDetailHTML: String = """
+    <html>
+      <body>
+        <div class="module-play-list">
+          <a href="/vodplay/117372-1-3.html">第3集</a>
         </div>
       </body>
     </html>

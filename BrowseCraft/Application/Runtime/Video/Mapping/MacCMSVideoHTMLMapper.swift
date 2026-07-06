@@ -4,6 +4,75 @@ import BrowseCraftCore
 
 // 中文注释：MacCMSVideoHTMLMapper 只处理 MacCMS 常见静态 HTML，不处理 VIP/DRM/反爬绕过。
 struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
+    private enum Selectors {
+        static let listItems: String = [
+            ".ewave-vodlist__box",
+            ".stui-vodlist__box",
+            ".stui-vodlist__item",
+            ".myui-vodlist__box",
+            ".module-item",
+            ".module-card-item"
+        ].joined(separator: ", ")
+
+        static let detailLinks: String = [
+            "a.thumb-link[href^=\"/voddetail/\"]",
+            "h4 a[href^=\"/voddetail/\"]",
+            ".module-item-pic[href^=\"/voddetail/\"]",
+            ".module-card-item-title[href^=\"/voddetail/\"]",
+            "a[href*=\"/voddetail/\"]"
+        ].joined(separator: ", ")
+
+        static let titleAttributes: String = [
+            ".ewave-vodlist__thumb[title]",
+            ".stui-vodlist__thumb[title]",
+            ".myui-vodlist__thumb[title]",
+            ".module-item-pic[title]"
+        ].joined(separator: ", ")
+
+        static let titleTexts: String = [
+            ".ewave-vodlist__detail h4 a",
+            ".stui-vodlist__detail h4 a",
+            ".myui-vodlist__detail h4 a",
+            ".module-card-item-title",
+            "h4.title a"
+        ].joined(separator: ", ")
+
+        static let covers: String = [
+            ".ewave-vodlist__thumb[data-original]",
+            ".stui-vodlist__thumb[data-original]",
+            ".myui-vodlist__thumb[data-original]",
+            ".module-item-pic[data-src]",
+            "img[data-original]",
+            "img[data-src]",
+            "img[src]"
+        ].joined(separator: ", ")
+
+        static let latestTexts: String = [
+            ".pic-text.text-right",
+            ".pic-text",
+            ".module-item-note",
+            ".module-item-text"
+        ].joined(separator: ", ")
+
+        static let episodeLinks: String = [
+            ".ewave-content__playlist a[href^=\"/vodplay/\"]",
+            ".ewave-content__playlist a[href*=\"/vodplay/\"]",
+            ".stui-content__playlist a[href^=\"/vodplay/\"]",
+            ".stui-content__playlist a[href*=\"/vodplay/\"]",
+            ".myui-content__list a[href^=\"/vodplay/\"]",
+            ".myui-content__list a[href*=\"/vodplay/\"]",
+            ".module-play-list a[href^=\"/vodplay/\"]",
+            ".module-play-list a[href*=\"/vodplay/\"]"
+        ].joined(separator: ", ")
+
+        static let playerTitles: String = [
+            ".ewave-player__detail h1.title a",
+            ".stui-player__detail h1.title a",
+            ".myui-player__detail h1.title a",
+            "h1.title"
+        ].joined(separator: ", ")
+    }
+
     private struct PlayerPayload: Decodable {
         let link: String?
         let link_next: String?
@@ -21,7 +90,7 @@ struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
         pageURL: URL
     ) throws -> [SourceContentItem] {
         let document: Document = try SwiftSoup.parse(html, pageURL.absoluteString)
-        let elements: [Element] = try document.select(".ewave-vodlist__box").array()
+        let elements: [Element] = try document.select(Selectors.listItems).array()
         var seenIDs: Set<String> = Set<String>()
         var items: [SourceContentItem] = []
 
@@ -59,7 +128,7 @@ struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
         detailURL: URL
     ) throws -> VideoDetailContent {
         let document: Document = try SwiftSoup.parse(html, detailURL.absoluteString)
-        let elements: [Element] = try document.select(".ewave-content__playlist a[href^=\"/vodplay/\"], .ewave-content__playlist a[href*=\"/vodplay/\"]").array()
+        let elements: [Element] = try document.select(Selectors.episodeLinks).array()
         var episodes: [VideoEpisode] = []
 
         for element: Element in elements {
@@ -137,7 +206,7 @@ struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
     }
 
     private func detailURL(from element: Element, baseURL: URL) throws -> URL? {
-        let href: String? = try element.select("a.thumb-link[href^=\"/voddetail/\"], h4 a[href^=\"/voddetail/\"], a[href*=\"/voddetail/\"]")
+        let href: String? = try element.select(Selectors.detailLinks)
             .first()?
             .attr("href")
             .trimmedNonEmpty
@@ -150,24 +219,26 @@ struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
     }
 
     private func title(from element: Element) throws -> String? {
-        if let title: String = try element.select(".ewave-vodlist__thumb[title]")
+        if let title: String = try element.select(Selectors.titleAttributes)
             .first()?
             .attr("title")
             .trimmedNonEmpty {
             return title
         }
 
-        return try element.select(".ewave-vodlist__detail h4 a, h4.title a")
+        return try element.select(Selectors.titleTexts)
             .first()?
             .text()
             .trimmedNonEmpty
     }
 
     private func coverURL(from element: Element, baseURL: URL) throws -> URL? {
-        let value: String? = try element.select(".ewave-vodlist__thumb[data-original], img[data-original], img[src]")
+        let value: String? = try element.select(Selectors.covers)
             .first()
             .flatMap { element in
-                return try? element.attr("data-original").trimmedNonEmpty ?? element.attr("src").trimmedNonEmpty
+                return try? element.attr("data-original").trimmedNonEmpty
+                    ?? element.attr("data-src").trimmedNonEmpty
+                    ?? element.attr("src").trimmedNonEmpty
             }
 
         guard let value: String else {
@@ -178,7 +249,7 @@ struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
     }
 
     private func latestText(from element: Element) throws -> String? {
-        return try element.select(".pic-text.text-right")
+        return try element.select(Selectors.latestTexts)
             .first()?
             .text()
             .trimmedNonEmpty
@@ -298,14 +369,7 @@ struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
     }
 
     private func episodeTitle(from document: Document) throws -> String? {
-        if let title: String = try document.select(".ewave-player__detail h1.title a")
-            .first()?
-            .text()
-            .trimmedNonEmpty {
-            return title
-        }
-
-        return try document.select("h1.title")
+        return try document.select(Selectors.playerTitles)
             .first()?
             .text()
             .trimmedNonEmpty
@@ -351,6 +415,10 @@ struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
 
         if normalizedHTML.contains("vip") {
             return .restricted(.vipOnly)
+        }
+
+        if normalizedHTML.contains("player_aaaa") && mediaURL == nil {
+            return .failed(.mediaURLNotFound)
         }
 
         return .pageOnly

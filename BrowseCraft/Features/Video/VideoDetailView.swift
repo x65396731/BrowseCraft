@@ -34,7 +34,24 @@ struct VideoDetailView: View {
         }
         .navigationTitle("Video")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            #if DEBUG
+            print(
+                "[BrowseCraftVideoDetail] view appear " +
+                "source=\(self.viewModel.source.id) " +
+                "item=\(self.viewModel.item.id) " +
+                "episodes=\(self.viewModel.episodes.count)"
+            )
+            #endif
+        }
         .task {
+            #if DEBUG
+            print(
+                "[BrowseCraftVideoDetail] task start " +
+                "source=\(self.viewModel.source.id) " +
+                "item=\(self.viewModel.item.id)"
+            )
+            #endif
             await self.viewModel.loadEpisodesIfNeeded()
         }
         .refreshable {

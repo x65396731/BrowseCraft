@@ -12,6 +12,7 @@ enum BuiltInSource {
     static let primaryBuiltInRuleJSON: String = BrowseCraftPrivateRuleCatalog.primaryBuiltInRuleJSON
     static let solidotRSSID: String = "built-in.rss.solidot"
     static let tiantianVideoID: String = "built-in.video.baixiaotangtop"
+    static let genericHTMLVideoID: String = "built-in.video.xvideos"
 
     static func allBuiltIns(now: Date = Date()) -> [Source] {
         var sources: [Source] = BrowseCraftPrivateRuleCatalog.builtInRules.map { builtInRule in
@@ -19,6 +20,7 @@ enum BuiltInSource {
         }
         sources.append(Self.solidotRSS(now: now))
         sources.append(Self.tiantianVideo(now: now))
+        sources.append(Self.genericHTMLVideo(now: now))
         return sources
     }
 
@@ -62,7 +64,7 @@ enum BuiltInSource {
     static func tiantianVideo(now: Date = Date()) -> Source {
         let entryURL: URL = URL(string: "https://www.baixiaotangtop.com/")!
         let definition: VideoSourceDefinition = VideoSourceDefinition(
-            siteKind: .macCMS,
+            adapter: .macCMS,
             entryURL: entryURL,
             seedURL: nil,
             entryKind: .home,
@@ -82,11 +84,119 @@ enum BuiltInSource {
             baseURL: entryURL.absoluteString,
             type: .html,
             configuration: .video(
-                VideoSourceConfiguration(definition: definition)
+                VideoSourceConfiguration(
+                    definition: definition,
+                    listTabs: Self.macCMSVideoListTabs(entryURL: entryURL)
+                )
             ),
             enabled: true,
             createdAt: now,
             updatedAt: now
+        )
+    }
+
+    /// 中文注释：genericHTMLVideo 方法返回开发验证用 GenericHTML 视频源。
+    static func genericHTMLVideo(now: Date = Date()) -> Source {
+        let entryURL: URL = URL(string: "https://www.xvideos.com/")!
+        let definition: VideoSourceDefinition = VideoSourceDefinition(
+            adapter: .genericHTML,
+            entryURL: entryURL,
+            seedURL: nil,
+            entryKind: .home,
+            routePatterns: nil,
+            playbackPolicy: .playPageFirst,
+            requiresAccount: false,
+            seedVodID: nil,
+            seedSourceIndex: nil,
+            seedEpisodeIndex: nil,
+            seedDetailURL: nil,
+            seedPlayURL: nil
+        )
+
+        return Source(
+            id: Self.genericHTMLVideoID,
+            name: "GenericHTML 视频（测试）",
+            baseURL: entryURL.absoluteString,
+            type: .html,
+            configuration: .video(
+                VideoSourceConfiguration(
+                    definition: definition,
+                    listTabs: [
+                        Self.genericHTMLVideoHomeTab(entryURL: entryURL)
+                    ]
+                )
+            ),
+            enabled: true,
+            createdAt: now,
+            updatedAt: now
+        )
+    }
+
+    private static func macCMSVideoListTabs(entryURL: URL) -> [VideoSourceListTab] {
+        return [
+            VideoSourceListTab(
+                id: "video.home",
+                title: "首页",
+                url: entryURL.absoluteString,
+                itemSelector: ".ewave-vodlist__box",
+                titleSelector: ".ewave-vodlist__thumb@title",
+                linkSelector: "a[href*=/voddetail/]@href",
+                coverSelector: ".ewave-vodlist__thumb@data-original",
+                latestTextSelector: ".pic-text.text-right"
+            ),
+            VideoSourceListTab(
+                id: "video.category.1",
+                title: "电影",
+                url: "/vodtype/1.html",
+                itemSelector: ".ewave-vodlist__box",
+                titleSelector: ".ewave-vodlist__thumb@title",
+                linkSelector: "a[href*=/voddetail/]@href",
+                coverSelector: ".ewave-vodlist__thumb@data-original",
+                latestTextSelector: ".pic-text.text-right"
+            ),
+            VideoSourceListTab(
+                id: "video.category.2",
+                title: "电视剧",
+                url: "/vodtype/2.html",
+                itemSelector: ".ewave-vodlist__box",
+                titleSelector: ".ewave-vodlist__thumb@title",
+                linkSelector: "a[href*=/voddetail/]@href",
+                coverSelector: ".ewave-vodlist__thumb@data-original",
+                latestTextSelector: ".pic-text.text-right"
+            ),
+            VideoSourceListTab(
+                id: "video.category.3",
+                title: "综艺",
+                url: "/vodtype/3.html",
+                itemSelector: ".ewave-vodlist__box",
+                titleSelector: ".ewave-vodlist__thumb@title",
+                linkSelector: "a[href*=/voddetail/]@href",
+                coverSelector: ".ewave-vodlist__thumb@data-original",
+                latestTextSelector: ".pic-text.text-right"
+            ),
+            VideoSourceListTab(
+                id: "video.category.4",
+                title: "动漫",
+                url: "/vodtype/4.html",
+                itemSelector: ".ewave-vodlist__box",
+                titleSelector: ".ewave-vodlist__thumb@title",
+                linkSelector: "a[href*=/voddetail/]@href",
+                coverSelector: ".ewave-vodlist__thumb@data-original",
+                latestTextSelector: ".pic-text.text-right"
+            )
+        ]
+    }
+
+    private static func genericHTMLVideoHomeTab(entryURL: URL) -> VideoSourceListTab {
+        return VideoSourceListTab(
+            id: "video.home",
+            title: "首页",
+            url: entryURL.absoluteString,
+            itemSelector: ".frame-block.thumb-block",
+            titleSelector: ".thumb-under .title a@title",
+            linkSelector: "a[href*=/video]@href",
+            coverSelector: "img[data-src], img[src]",
+            latestTextSelector: ".duration"
         )
     }
 

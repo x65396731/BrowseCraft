@@ -37,6 +37,16 @@ final class VideoDetailViewModel: ObservableObject {
         self.runtimeResolver = runtimeResolver
         self.saveVideoWatchHistoryUseCase = saveVideoWatchHistoryUseCase
         self.loadVideoWatchHistoryUseCase = loadVideoWatchHistoryUseCase
+
+        #if DEBUG
+        print(
+            "[BrowseCraftVideoDetail] init " +
+            "source=\(source.id) " +
+            "kind=\(source.configuration.kind.rawValue) " +
+            "item=\(item.id) " +
+            "detailURL=\(item.detailURL)"
+        )
+        #endif
     }
 
     var sourceName: String {
@@ -68,16 +78,33 @@ final class VideoDetailViewModel: ObservableObject {
 
         do {
             let runtime: any SourceRuntime = try self.runtimeResolver.runtime(for: self.source)
+            #if DEBUG
+            print(
+                "[BrowseCraftVideoDetail] loadEpisodes request " +
+                "source=\(self.source.id) " +
+                "item=\(self.item.id) " +
+                "detailURL=\(detailURL.absoluteString) " +
+                "runtime=\(type(of: runtime))"
+            )
+            #endif
             let input: SourceDetailInput = SourceDetailInput(
                 detailURL: detailURL,
                 context: self.runtimeContext(operation: .detail)
             )
 
-            if let videoRuntime: any VideoPlaybackRuntimeProviding = runtime as? any VideoPlaybackRuntimeProviding {
+            if let videoRuntime: any VideoPlaybackRuntimeCapability = runtime as? any VideoPlaybackRuntimeCapability {
                 let content: VideoDetailContent = try await videoRuntime.loadVideoDetailContent(input)
                 self.episodes = content.episodes
                 self.synopsis = content.synopsis
                 self.metadataRows = content.metadataRows
+                #if DEBUG
+                print(
+                    "[BrowseCraftVideoDetail] loadEpisodes video-result " +
+                    "source=\(self.source.id) " +
+                    "episodes=\(content.episodes.count) " +
+                    "firstEpisode=\(content.episodes.first?.id ?? "nil")"
+                )
+                #endif
             } else {
                 let output: SourceDetailOutput = try await runtime.loadDetail(input)
                 self.episodes = output.chapters.map { chapter in
@@ -89,6 +116,13 @@ final class VideoDetailViewModel: ObservableObject {
                 }
                 self.synopsis = nil
                 self.metadataRows = []
+                #if DEBUG
+                print(
+                    "[BrowseCraftVideoDetail] loadEpisodes fallback-result " +
+                    "source=\(self.source.id) " +
+                    "episodes=\(self.episodes.count)"
+                )
+                #endif
             }
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-detail-error")
@@ -108,7 +142,15 @@ final class VideoDetailViewModel: ObservableObject {
 
         do {
             let runtime: any SourceRuntime = try self.runtimeResolver.runtime(for: self.source)
-            guard let playbackRuntime: any VideoPlaybackRuntimeProviding = runtime as? any VideoPlaybackRuntimeProviding else {
+            #if DEBUG
+            print(
+                "[BrowseCraftVideoDetail] openEpisode request " +
+                "source=\(self.source.id) " +
+                "episode=\(episode.id) " +
+                "playPageURL=\(episode.playPageURL.absoluteString)"
+            )
+            #endif
+            guard let playbackRuntime: any VideoPlaybackRuntimeCapability = runtime as? any VideoPlaybackRuntimeCapability else {
                 throw SourceRuntimeError.unsupported(
                     .custom("Selected source does not expose video playback runtime.")
                 )
@@ -138,6 +180,15 @@ final class VideoDetailViewModel: ObservableObject {
                 ].joined(separator: "::"),
                 viewModel: playerViewModel
             )
+            #if DEBUG
+            print(
+                "[BrowseCraftVideoDetail] openEpisode playback-result " +
+                "source=\(self.source.id) " +
+                "episodeKey=\(output.reference.episodeKey) " +
+                "mediaKind=\(output.reference.candidateMediaKind.rawValue) " +
+                "status=\(output.reference.status)"
+            )
+            #endif
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-playback-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)

@@ -1,7 +1,7 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：VideoHTMLMapper 是视频站模板映射策略协议；MacCMS 只是当前第一个实现。
+// 中文注释：VideoHTMLMapper 是视频适配器映射协议；MacCMS 只是当前第一个实现。
 protocol VideoHTMLMapper {
     func mapList(
         html: String,

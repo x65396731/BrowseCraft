@@ -58,39 +58,7 @@ struct VideoSourceListLoader: VideoSourceListLoading {
             return requestOverrideURL
         }
 
-        if let tabURL: URL = try self.listTabURL(
-            for: input.context,
-            definition: definition
-        ) {
-            return tabURL
-        }
-
         return try self.entryURL(definition: definition)
-    }
-
-    private func listTabURL(
-        for context: SourceRuntimeContext,
-        definition: SourceDefinition
-    ) throws -> URL? {
-        let identifier: String? = context.ruleID ?? context.tabID
-        guard let identifier: String = identifier else {
-            return nil
-        }
-
-        let definitionEntryURL: URL = try self.entryURL(definition: definition)
-        if identifier == "video.home" {
-            return definitionEntryURL
-        }
-
-        guard identifier.hasPrefix("video.category."),
-              let categoryID: String = identifier.split(separator: ".").last.map(String.init) else {
-            return nil
-        }
-
-        return URL(
-            string: "/vodtype/\(categoryID).html",
-            relativeTo: definitionEntryURL
-        )?.absoluteURL
     }
 
     private func entryURL(definition: SourceDefinition) throws -> URL {

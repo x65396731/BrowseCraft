@@ -148,6 +148,60 @@ struct RSSSourceConfiguration: Codable, Hashable {
 
 struct VideoSourceConfiguration: Codable, Hashable {
     var definition: VideoSourceDefinition
+    var listTabs: [VideoSourceListTab]
+
+    init(
+        definition: VideoSourceDefinition,
+        listTabs: [VideoSourceListTab] = []
+    ) {
+        self.definition = definition
+        self.listTabs = listTabs
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case definition
+        case listTabs
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.definition = try container.decode(VideoSourceDefinition.self, forKey: .definition)
+        self.listTabs = try container.decodeIfPresent([VideoSourceListTab].self, forKey: .listTabs) ?? []
+    }
+}
+
+struct VideoSourceListTab: Codable, Hashable, Identifiable {
+    var id: String
+    var title: String
+    var url: String
+    var role: SectionRole?
+    var itemSelector: String?
+    var titleSelector: String?
+    var linkSelector: String?
+    var coverSelector: String?
+    var latestTextSelector: String?
+
+    init(
+        id: String,
+        title: String,
+        url: String,
+        role: SectionRole? = .main,
+        itemSelector: String? = nil,
+        titleSelector: String? = nil,
+        linkSelector: String? = nil,
+        coverSelector: String? = nil,
+        latestTextSelector: String? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.url = url
+        self.role = role
+        self.itemSelector = itemSelector
+        self.titleSelector = titleSelector
+        self.linkSelector = linkSelector
+        self.coverSelector = coverSelector
+        self.latestTextSelector = latestTextSelector
+    }
 }
 
 struct PluginSourceConfiguration: Codable, Hashable {
