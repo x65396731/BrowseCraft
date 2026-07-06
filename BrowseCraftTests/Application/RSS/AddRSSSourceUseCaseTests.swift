@@ -55,7 +55,7 @@ struct AddRSSSourceUseCaseTests {
 
         #expect(source.name == "My Feed")
         #expect(record.kind == "rss")
-        #expect(record.ruleJSON == "{}")
+        #expect(record.configJSON.contains("https:\\/\\/www.solidot.org\\/index.rss"))
         #expect(decodedSource.configuration == source.configuration)
     }
 

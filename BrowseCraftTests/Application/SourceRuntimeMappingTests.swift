@@ -73,9 +73,10 @@ struct SourceRuntimeMappingTests {
 
         do {
             _ = try resolver.runtime(for: pluginDefinition)
-            Issue.record("Expected plugin runtime resolution to fail until P3-10.")
+            Issue.record("Expected plugin runtime resolution to fail while it is disconnected.")
         } catch SourceRuntimeError.unsupported(.custom(let message)) {
-            #expect(message.contains("P3-10"))
+            #expect(message.contains("Plugin source runtime"))
+            #expect(message.contains("not connected"))
         } catch {
             Issue.record("Unexpected error: \(error.localizedDescription)")
         }
@@ -275,7 +276,7 @@ struct SourceRuntimeMappingTests {
     }
 
     @Test func outputMapperMapsItemsChaptersReaderAndPassesDiagnosticsThrough() throws {
-        let mapper: SourceRuntimeOutputMapper = SourceRuntimeOutputMapper()
+        let mapper: RuleSourceRuntimeMapper = RuleSourceRuntimeMapper()
         let diagnostics: SourceRuntimeDiagnostics = SourceRuntimeDiagnostics.partial(
             requestLogs: [
                 SourceRequestLog(

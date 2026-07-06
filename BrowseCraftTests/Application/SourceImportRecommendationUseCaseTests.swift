@@ -6,7 +6,7 @@ import Testing
 // 中文注释：SourceImportRecommendationUseCaseTests 固定 P4.6 添加来源推荐启发式边界。
 struct SourceImportRecommendationUseCaseTests {
     @Test func rssLookingURLRecommendsRSSFeed() {
-        let useCase: SourceImportRecommendationUseCase = SourceImportRecommendationUseCase()
+        let useCase: RecommendSourceImportOptionUseCase = RecommendSourceImportOptionUseCase()
         let draft: SourceImportDraft = SourceImportDraft(entryURL: "https://example.test/feed.xml")
 
         let recommendation: SourceImportRecommendation = useCase.execute(
@@ -22,7 +22,7 @@ struct SourceImportRecommendationUseCaseTests {
     }
 
     @Test func rssEntryRejectsNonRSSLookingURL() {
-        let useCase: SourceImportRecommendationUseCase = SourceImportRecommendationUseCase()
+        let useCase: RecommendSourceImportOptionUseCase = RecommendSourceImportOptionUseCase()
         let draft: SourceImportDraft = SourceImportDraft(entryURL: "https://example.test/watch/123")
 
         let recommendation: SourceImportRecommendation = useCase.execute(
@@ -37,7 +37,7 @@ struct SourceImportRecommendationUseCaseTests {
     }
 
     @Test func rssContentTypeHeaderRecommendsRSSFeed() {
-        let useCase: SourceImportRecommendationUseCase = SourceImportRecommendationUseCase()
+        let useCase: RecommendSourceImportOptionUseCase = RecommendSourceImportOptionUseCase()
         let draft: SourceImportDraft = SourceImportDraft(entryURL: "https://example.test/latest")
 
         let recommendation: SourceImportRecommendation = useCase.execute(
@@ -51,7 +51,7 @@ struct SourceImportRecommendationUseCaseTests {
     }
 
     @Test func rssLinkInHTMLRecommendsFeedWithMediumConfidence() {
-        let useCase: SourceImportRecommendationUseCase = SourceImportRecommendationUseCase()
+        let useCase: RecommendSourceImportOptionUseCase = RecommendSourceImportOptionUseCase()
         let draft: SourceImportDraft = SourceImportDraft(entryURL: "https://example.test")
         let html: String = """
         <html>
@@ -70,7 +70,7 @@ struct SourceImportRecommendationUseCaseTests {
     }
 
     @Test func videoHTMLRecommendsVideoRuntimeWithoutRuleFallback() {
-        let useCase: SourceImportRecommendationUseCase = SourceImportRecommendationUseCase()
+        let useCase: RecommendSourceImportOptionUseCase = RecommendSourceImportOptionUseCase()
         let draft: SourceImportDraft = SourceImportDraft(entryURL: "https://video.example.test")
         let html: String = "<html><body><video src=\"movie.mp4\"></video></body></html>"
 
@@ -84,7 +84,7 @@ struct SourceImportRecommendationUseCaseTests {
     }
 
     @Test func knownRuleTemplateURLRecommendsComicRuntimeSource() {
-        let useCase: SourceImportRecommendationUseCase = SourceImportRecommendationUseCase()
+        let useCase: RecommendSourceImportOptionUseCase = RecommendSourceImportOptionUseCase()
         let draft: SourceImportDraft = SourceImportDraft(entryURL: "https://mycomic.com/cn")
 
         let recommendation: SourceImportRecommendation = useCase.execute(draft: draft)
@@ -97,7 +97,7 @@ struct SourceImportRecommendationUseCaseTests {
     }
 
     @Test func unknownWebsiteFallsBackToLowConfidenceComicRecommendation() {
-        let useCase: SourceImportRecommendationUseCase = SourceImportRecommendationUseCase()
+        let useCase: RecommendSourceImportOptionUseCase = RecommendSourceImportOptionUseCase()
         let draft: SourceImportDraft = SourceImportDraft(entryURL: "https://unknown.example.test")
 
         let recommendation: SourceImportRecommendation = useCase.execute(draft: draft)

@@ -20,8 +20,7 @@ packages:
   BrowseCraftCore:
     path: ../BrowseCraftCore
   BrowseCraftRulesKit:
-    url: git@github.com:x65396731/BrowseCraftRulesKit.git
-    branch: main
+    path: ../BrowseCraftRulesKit
   KSPlayer:
     url: https://github.com/kingslay/KSPlayer.git
     branch: main
@@ -37,8 +36,11 @@ targets:
           - "**/*.md"
     dependencies:
       - package: BrowseCraftCore
+        product: BrowseCraftCore
       - package: BrowseCraftRulesKit
+        product: BrowseCraftRulesKit
       - package: KSPlayer
+        product: KSPlayer
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: xiefei.BrowseCraft
@@ -68,6 +70,7 @@ targets:
     dependencies:
       - target: BrowseCraft
       - package: BrowseCraftCore
+        product: BrowseCraftCore
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: xiefei.BrowseCraftTests
