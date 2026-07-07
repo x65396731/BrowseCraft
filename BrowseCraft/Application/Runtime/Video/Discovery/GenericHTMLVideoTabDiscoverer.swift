@@ -3,6 +3,11 @@ import SwiftSoup
 import BrowseCraftCore
 
 struct GenericHTMLVideoTabDiscoverer: VideoTabDiscovering {
+    private enum Defaults {
+        // Generic HTML tabs are guessed from broad navigation areas; cap auto-discovery to avoid importing noisy site links.
+        static let maxAutoDiscoveredTabs: Int = 12
+    }
+
     private enum Selectors {
         static let candidateLinks: [String] = [
             "nav a[href]",
@@ -28,9 +33,14 @@ struct GenericHTMLVideoTabDiscoverer: VideoTabDiscovering {
     }
 
     private let maxDiscoveredTabs: Int
+    private let lexicon: VideoDetectionLexicon
 
-    init(maxDiscoveredTabs: Int = 12) {
+    init(
+        maxDiscoveredTabs: Int = Defaults.maxAutoDiscoveredTabs,
+        lexicon: VideoDetectionLexicon = .default
+    ) {
         self.maxDiscoveredTabs = maxDiscoveredTabs
+        self.lexicon = lexicon
     }
 
     func discoverTabs(
@@ -152,30 +162,7 @@ struct GenericHTMLVideoTabDiscoverer: VideoTabDiscovering {
         .joined(separator: " ")
         .lowercased()
 
-        return [
-            "login",
-            "logout",
-            "account",
-            "profile",
-            "history",
-            "favorite",
-            "favourite",
-            "upload",
-            "advert",
-            "ads",
-            "privacy",
-            "terms",
-            "contact",
-            "support",
-            "signup",
-            "register",
-            "会员",
-            "登录",
-            "注册"
-        ]
-        .contains { marker in
-            text.contains(marker)
-        }
+        return self.lexicon.containsMarker(in: text, category: .navigationReject)
     }
 
     private func normalizedTitle(_ title: String) -> String {

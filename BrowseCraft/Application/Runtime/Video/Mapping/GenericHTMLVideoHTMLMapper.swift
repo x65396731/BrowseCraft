@@ -76,6 +76,12 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
         ].joined(separator: ", ")
     }
 
+    private let lexicon: VideoDetectionLexicon
+
+    init(lexicon: VideoDetectionLexicon = .default) {
+        self.lexicon = lexicon
+    }
+
     func mapList(
         html: String,
         definition: SourceDefinition,
@@ -393,8 +399,6 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
         mediaKind: SourceVideoMediaKind,
         html: String
     ) -> SourceVideoPlaybackStatus {
-        let normalizedHTML: String = html.lowercased()
-
         if mediaURL != nil, mediaKind == .m3u8 || mediaKind == .mp4 {
             return .playable
         }
@@ -403,15 +407,15 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
             return .pageOnly
         }
 
-        if normalizedHTML.contains("captcha") || normalizedHTML.contains("验证码") {
+        if self.lexicon.containsMarker(in: html, category: .captchaRestriction) {
             return .restricted(.captchaOrAntiBot)
         }
 
-        if normalizedHTML.contains("login") || normalizedHTML.contains("登录") {
+        if self.lexicon.containsMarker(in: html, category: .accountRestriction) {
             return .restricted(.requiresLogin)
         }
 
-        if normalizedHTML.contains("vip") || normalizedHTML.contains("premium") || normalizedHTML.contains("会员") {
+        if self.lexicon.containsMarker(in: html, category: .payRestriction) {
             return .restricted(.vipOnly)
         }
 

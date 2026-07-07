@@ -2,6 +2,12 @@ import Foundation
 import BrowseCraftCore
 
 struct VideoSourceDetector: VideoSourceDetecting {
+    private let lexicon: VideoDetectionLexicon
+
+    init(lexicon: VideoDetectionLexicon = .default) {
+        self.lexicon = lexicon
+    }
+
     func detect(_ input: VideoSourceDetectionInput) -> VideoSourceDetection {
         let signals: VideoSourceSignals = VideoSourceSignals(input: input)
         let restriction: RestrictionSignal = self.restrictionSignal(signals)
@@ -102,36 +108,21 @@ struct VideoSourceDetector: VideoSourceDetecting {
             reasons.append("URL path matches common MacCMS routes.")
         }
 
-        let payloadMarkers: [String] = [
-            "player_aaaa",
-            "mac_url",
-            "mac_player",
-            "macplayer"
-        ]
+        let payloadMarkers: [String] = self.lexicon.markers(for: .macCMSPayload)
         let payloadMatches: [String] = signals.containedMarkers(payloadMarkers)
         if payloadMatches.isEmpty == false {
             score += 0.72
             reasons.append("HTML contains MacCMS player payload markers: \(payloadMatches.joined(separator: ", ")).")
         }
 
-        let routeMarkers: [String] = [
-            "/vodtype/",
-            "/vodshow/",
-            "/voddetail/",
-            "/vodplay/"
-        ]
+        let routeMarkers: [String] = self.lexicon.markers(for: .macCMSRoute)
         let routeMatches: [String] = signals.containedMarkers(routeMarkers)
         if routeMatches.isEmpty == false {
             score += min(0.40, Double(routeMatches.count) * 0.16)
             reasons.append("HTML contains MacCMS route markers: \(routeMatches.joined(separator: ", ")).")
         }
 
-        let weakMarkers: [String] = [
-            "mac_history",
-            "vod_name",
-            "vod_id",
-            "zanpian"
-        ]
+        let weakMarkers: [String] = self.lexicon.markers(for: .macCMSWeak)
         let weakMatches: [String] = signals.containedMarkers(weakMarkers)
         if weakMatches.count >= 2 {
             score += 0.20
@@ -145,12 +136,7 @@ struct VideoSourceDetector: VideoSourceDetecting {
         var score: Double = 0
         var reasons: [String] = []
 
-        let strongMarkers: [String] = [
-            ".m3u8",
-            ".mp4",
-            "<video",
-            "<source"
-        ]
+        let strongMarkers: [String] = self.lexicon.markers(for: .directMedia)
         let strongMatches: [String] = signals.containedMarkers(strongMarkers)
         if strongMatches.isEmpty == false {
             score += min(0.70, 0.42 + Double(strongMatches.count - 1) * 0.10)
@@ -163,29 +149,14 @@ struct VideoSourceDetector: VideoSourceDetecting {
             reasons.append("HTML contains repeated generic video route links.")
         }
 
-        let mediumMarkers: [String] = [
-            "video-card",
-            "video-item",
-            "frame-block",
-            "thumb-block",
-            "duration",
-            "views",
-            "thumbnail",
-            "thumb"
-        ]
+        let mediumMarkers: [String] = self.lexicon.markers(for: .genericListCard)
         let mediumMatches: [String] = signals.containedMarkers(mediumMarkers)
         if mediumMatches.count >= 2 {
             score += min(0.28, Double(mediumMatches.count) * 0.07)
             reasons.append("HTML contains generic video card/list markers: \(mediumMatches.joined(separator: ", ")).")
         }
 
-        let weakMarkers: [String] = [
-            "data-src",
-            "lazyload",
-            "playlist",
-            "episode",
-            "播放"
-        ]
+        let weakMarkers: [String] = self.lexicon.markers(for: .genericSupporting)
         let weakMatches: [String] = signals.containedMarkers(weakMarkers)
         if weakMatches.count >= 2 && (score > 0 || signals.videoRouteHitCount > 0) {
             score += min(0.12, Double(weakMatches.count) * 0.03)
@@ -219,7 +190,7 @@ struct VideoSourceDetector: VideoSourceDetecting {
 
     private func renderMode(_ signals: VideoSourceSignals) -> VideoRenderMode {
         if signals.htmlIsEmptyShell
-            || signals.containsAny(["id=\"app\"", "id='app'", "data-reactroot", "__nuxt", "__next"]) {
+            || signals.containsAny(self.lexicon.markers(for: .webViewShell)) {
             return .webViewRequired
         }
 
@@ -227,12 +198,7 @@ struct VideoSourceDetector: VideoSourceDetecting {
     }
 
     private func playbackDetection(_ signals: VideoSourceSignals) -> PlaybackDetection {
-        let directMarkers: [String] = [
-            ".m3u8",
-            ".mp4",
-            "<video",
-            "<source"
-        ]
+        let directMarkers: [String] = self.lexicon.markers(for: .directMedia)
         let directMatches: [String] = signals.containedMarkers(directMarkers)
         if directMatches.isEmpty == false {
             return PlaybackDetection(
@@ -241,13 +207,7 @@ struct VideoSourceDetector: VideoSourceDetecting {
             )
         }
 
-        let iframeMarkers: [String] = [
-            "embed/",
-            "/embed",
-            "player",
-            "allowfullscreen",
-            "html5player"
-        ]
+        let iframeMarkers: [String] = self.lexicon.markers(for: .iframePlayback)
         let iframeMatches: [String] = signals.containedMarkers(iframeMarkers)
         if signals.hasIframeElement && iframeMatches.isEmpty == false {
             return PlaybackDetection(
@@ -260,16 +220,7 @@ struct VideoSourceDetector: VideoSourceDetecting {
     }
 
     private func restrictionSignal(_ signals: VideoSourceSignals) -> RestrictionSignal {
-        let pluginMarkers: [String] = [
-            "captcha",
-            "验证码",
-            "cryptojs",
-            "decrypt",
-            "encrypted",
-            "eval(function(p,a,c,k,e,d)",
-            "signature",
-            "wasm"
-        ]
+        let pluginMarkers: [String] = self.lexicon.markers(for: .pluginRestriction)
         let matches: [String] = signals.containedMarkers(pluginMarkers)
         guard matches.isEmpty == false else {
             return RestrictionSignal(
@@ -301,11 +252,11 @@ struct VideoSourceDetector: VideoSourceDetecting {
             warnings.append("This source may need account, CAPTCHA, signing, or decryption support.")
         }
 
-        if signals.containsAny(["vip", "会员", "付费"]) {
+        if signals.containsAny(self.lexicon.markers(for: .payRestriction)) {
             warnings.append("The page contains VIP/member restriction markers.")
         }
 
-        if signals.containsAny(["login", "登录"]) {
+        if signals.containsAny(self.lexicon.markers(for: .accountRestriction)) {
             warnings.append("The page contains login markers.")
         }
 
@@ -381,7 +332,7 @@ private struct VideoSourceSignals {
             return false
         }
 
-        let hasAppShell: Bool = self.containsAny(["id=\"app\"", "id='app'", "__nuxt", "__next"])
+        let hasAppShell: Bool = self.containsAny(VideoDetectionLexicon.default.markers(for: .webViewShell))
         let hasVideoContent: Bool = self.containsAny([
             "/voddetail/",
             "/vodplay/",
@@ -413,13 +364,7 @@ private struct VideoSourceSignals {
     }
 
     var hasPlaybackIframeSignal: Bool {
-        return self.hasIframeElement && self.containsAny([
-            "embed/",
-            "/embed",
-            "player",
-            "allowfullscreen",
-            "html5player"
-        ])
+        return self.hasIframeElement && self.containsAny(VideoDetectionLexicon.default.markers(for: .iframePlayback))
     }
 
     func contains(_ marker: String) -> Bool {

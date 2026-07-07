@@ -225,6 +225,120 @@ struct VideoSourceDetectionTests {
         })
     }
 
+    @Test func localizedJapanesePlaybackLabelsOnlyAssistStructureSignals() throws {
+        let detector: VideoSourceDetector = VideoSourceDetector()
+        let url: URL = try #require(URL(string: "https://jp.example.test/watch/sample"))
+
+        let detection: VideoSourceDetection = detector.detect(
+            VideoSourceDetectionInput(
+                url: url,
+                html: """
+                <html lang="ja">
+                  <body>
+                    <article class="thumb-block duration">
+                      <a href="/watch/sample">無料サンプルを再生</a>
+                      <video>
+                        <source src="https://media.example.test/sample.m3u8" type="application/vnd.apple.mpegurl">
+                      </video>
+                    </article>
+                  </body>
+                </html>
+                """
+            )
+        )
+
+        #expect(detection.adapter == .genericHTML)
+        #expect(detection.playbackMode == .directMedia)
+        #expect(detection.confidence >= 0.70)
+    }
+
+    @Test func localizedSemanticMarkersAloneDoNotProduceSupportedConfidence() throws {
+        let detector: VideoSourceDetector = VideoSourceDetector()
+        let url: URL = try #require(URL(string: "https://jp.example.test/"))
+
+        let detection: VideoSourceDetection = detector.detect(
+            VideoSourceDetectionInput(
+                url: url,
+                html: """
+                <html lang="ja">
+                  <body>
+                    <p>ログインしてプレミアム会員エピソードを再生できます。</p>
+                  </body>
+                </html>
+                """
+            )
+        )
+
+        #expect(detection.adapter == .genericHTML)
+        #expect(detection.playbackMode == .unresolved)
+        #expect(detection.confidence <= 0.36)
+        #expect(detection.warnings.contains { warning in
+            warning.contains("VIP")
+        })
+        #expect(detection.warnings.contains { warning in
+            warning.contains("login")
+        })
+    }
+
+    @Test func spanishAccountAndPayMarkersDoNotForcePluginWhenPublicContentExists() throws {
+        let detector: VideoSourceDetector = VideoSourceDetector()
+        let url: URL = try #require(URL(string: "https://es.example.test/"))
+
+        let detection: VideoSourceDetection = detector.detect(
+            VideoSourceDetectionInput(
+                url: url,
+                html: """
+                <html lang="es">
+                  <body>
+                    <header>
+                      <a href="/cuenta">Iniciar sesión</a>
+                      <span>Premium para miembros</span>
+                    </header>
+                    <article class="video-card thumb-block duration">
+                      <a href="/watch/publico">Ver muestra pública</a>
+                      <img data-src="/cover.jpg">
+                    </article>
+                  </body>
+                </html>
+                """
+            )
+        )
+
+        #expect(detection.adapter == .genericHTML)
+        #expect(detection.playbackMode == .unresolved)
+        #expect(detection.warnings.contains { warning in
+            warning.contains("VIP")
+        })
+        #expect(detection.warnings.contains { warning in
+            warning.contains("login")
+        })
+    }
+
+    @Test func localizedCaptchaMarkerStillRoutesToPluginBoundary() throws {
+        let detector: VideoSourceDetector = VideoSourceDetector()
+        let resolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver()
+        let url: URL = try #require(URL(string: "https://jp.example.test/secure"))
+        let definition: VideoSourceDefinition = try Self.videoDefinition(adapter: .plugin, entryURL: url)
+
+        let decision: VideoSourceImportDecision = resolver.decision(
+            for: detector.detect(
+                VideoSourceDetectionInput(
+                    url: url,
+                    html: """
+                    <html lang="ja">
+                      <body>
+                        <p>認証コードを確認してください。</p>
+                      </body>
+                    </html>
+                    """
+                )
+            ),
+            definition: definition
+        )
+
+        #expect(decision == .pluginRequired(.captchaOrAntiBot))
+    }
+
     @Test func importDecisionSupportsHighConfidenceBuiltInVideoSource() throws {
         let detector: VideoSourceDetector = VideoSourceDetector()
         let resolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver()

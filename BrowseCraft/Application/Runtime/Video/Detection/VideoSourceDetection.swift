@@ -37,6 +37,204 @@ protocol VideoSourceDetecting {
     func detect(_ input: VideoSourceDetectionInput) -> VideoSourceDetection
 }
 
+// Detector-only lexicon for semantic page signals. This is not a UI localization layer.
+struct VideoDetectionLexicon: Hashable {
+    enum Category: Hashable {
+        case webViewShell
+        case directMedia
+        case macCMSPayload
+        case macCMSRoute
+        case macCMSWeak
+        case genericListCard
+        case genericSupporting
+        case iframePlayback
+        case pluginRestriction
+        case captchaRestriction
+        case signingRestriction
+        case encryptedPlaybackRestriction
+        case wasmRestriction
+        case sessionRestriction
+        case privateAPIRestriction
+        case payRestriction
+        case accountRestriction
+        case navigationReject
+    }
+
+    var markersByCategory: [Category: [String]]
+
+    static let `default`: VideoDetectionLexicon = VideoDetectionLexicon(
+        markersByCategory: [
+            .webViewShell: [
+                "id=\"app\"",
+                "id='app'",
+                "data-reactroot",
+                "__nuxt",
+                "__next"
+            ],
+            .directMedia: [
+                ".m3u8",
+                ".mp4",
+                "<video",
+                "<source",
+                "application/vnd.apple.mpegurl",
+                "video/mp4"
+            ],
+            .macCMSPayload: [
+                "player_aaaa",
+                "mac_url",
+                "mac_player",
+                "macplayer"
+            ],
+            .macCMSRoute: [
+                "/vodtype/",
+                "/vodshow/",
+                "/voddetail/",
+                "/vodplay/"
+            ],
+            .macCMSWeak: [
+                "mac_history",
+                "vod_name",
+                "vod_id",
+                "zanpian"
+            ],
+            .genericListCard: [
+                "video-card",
+                "video-item",
+                "frame-block",
+                "thumb-block",
+                "duration",
+                "views",
+                "thumbnail",
+                "thumb"
+            ],
+            .genericSupporting: [
+                "data-src",
+                "lazyload",
+                "playlist",
+                "episode",
+                "episodio",
+                "エピソード",
+                "에피소드",
+                "播放",
+                "再生",
+                "재생",
+                "reproducir"
+            ],
+            .iframePlayback: [
+                "embed/",
+                "/embed",
+                "player",
+                "allowfullscreen",
+                "html5player"
+            ],
+            .pluginRestriction: [
+                "captcha",
+                "验证码",
+                "認証コード",
+                "캡차",
+                "anti-bot",
+                "cryptojs",
+                "decrypt",
+                "encrypted",
+                "eval(function(p,a,c,k,e,d)",
+                "signature",
+                "wasm"
+            ],
+            .captchaRestriction: [
+                "captcha",
+                "验证码",
+                "認証コード",
+                "캡차",
+                "anti-bot"
+            ],
+            .signingRestriction: [
+                "signature",
+                "token"
+            ],
+            .encryptedPlaybackRestriction: [
+                "cryptojs",
+                "decrypt",
+                "encrypted"
+            ],
+            .wasmRestriction: [
+                "wasm"
+            ],
+            .sessionRestriction: [
+                "session",
+                "cookie"
+            ],
+            .privateAPIRestriction: [
+                "private api",
+                "privateapi"
+            ],
+            .payRestriction: [
+                "vip",
+                "premium",
+                "member-only",
+                "members only",
+                "会员",
+                "會員",
+                "付费",
+                "有料",
+                "会員",
+                "프리미엄",
+                "miembros",
+                "suscriptores"
+            ],
+            .accountRestriction: [
+                "login",
+                "sign in",
+                "account",
+                "登录",
+                "登入",
+                "ログイン",
+                "サインイン",
+                "로그인",
+                "iniciar sesión",
+                "iniciar sesion"
+            ],
+            .navigationReject: [
+                "login",
+                "logout",
+                "account",
+                "profile",
+                "history",
+                "favorite",
+                "favourite",
+                "upload",
+                "advert",
+                "ads",
+                "privacy",
+                "terms",
+                "contact",
+                "support",
+                "signup",
+                "register",
+                "会员",
+                "會員",
+                "登录",
+                "登入",
+                "注册",
+                "註冊",
+                "ログイン",
+                "サインイン",
+                "로그인"
+            ]
+        ]
+    )
+
+    func markers(for category: Category) -> [String] {
+        return self.markersByCategory[category] ?? []
+    }
+
+    func containsMarker(in text: String, category: Category) -> Bool {
+        let normalizedText: String = text.lowercased()
+        return self.markers(for: category).contains { marker in
+            normalizedText.contains(marker.lowercased())
+        }
+    }
+}
+
 // Converts detection signals into import branches for supported, unavailable, and plugin-required sources.
 enum VideoSourceImportDecision: Hashable {
     case supported(VideoSourceDefinition)
@@ -124,27 +322,30 @@ struct VideoSourceImportDecisionResolver {
             .joined(separator: " ")
             .lowercased()
 
-        if reasonText.contains("captcha") || reasonText.contains("验证码") || reasonText.contains("anti-bot") {
+        let lexicon: VideoDetectionLexicon = .default
+
+        if lexicon.containsMarker(in: reasonText, category: .captchaRestriction) {
             return .captchaOrAntiBot
         }
 
-        if reasonText.contains("signature") || reasonText.contains("token") {
+        if lexicon.containsMarker(in: reasonText, category: .signingRestriction) {
             return .signingRequired
         }
 
-        if reasonText.contains("cryptojs") || reasonText.contains("decrypt") || reasonText.contains("encrypted") {
+        if lexicon.containsMarker(in: reasonText, category: .encryptedPlaybackRestriction) {
             return .encryptedPlayback
         }
 
-        if reasonText.contains("wasm") {
+        if lexicon.containsMarker(in: reasonText, category: .wasmRestriction) {
             return .wasmRequired
         }
 
-        if reasonText.contains("session") || reasonText.contains("cookie") || warningText.contains("account") {
+        if lexicon.containsMarker(in: reasonText, category: .sessionRestriction)
+            || lexicon.containsMarker(in: warningText, category: .accountRestriction) {
             return .sessionFlowRequired
         }
 
-        if reasonText.contains("private api") || reasonText.contains("privateapi") {
+        if lexicon.containsMarker(in: reasonText, category: .privateAPIRestriction) {
             return .privateAPIRequired
         }
 

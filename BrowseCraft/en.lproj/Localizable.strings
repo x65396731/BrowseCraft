@@ -1,0 +1,16 @@
+/* Video source import */
+"video_source_import_failed_to_save" = "Failed to save video source.";
+"video_source_import_needs_review" = "This video source needs review before saving.";
+"video_source_import_needs_review_with_warnings" = "This video source needs review before saving. %@";
+"video_source_import_unavailable_unknown_structure" = "Website content could not be recognized.";
+"video_source_import_unavailable_low_confidence" = "Website content could not be recognized with enough confidence.";
+"video_source_import_unavailable_no_video_signals" = "No stable video source signals were found on this page.";
+"video_source_import_unavailable_unsupported_adapter" = "This video source structure is not supported yet.";
+"video_source_import_unavailable_webview_not_connected" = "This video source requires WebView support, which is not connected yet.";
+"video_source_import_unavailable_iframe_content_not_connected" = "This video source stores content inside frame or iframe pages, which are not connected yet.";
+"video_source_import_plugin_captcha_or_antibot" = "This source requires CAPTCHA or anti-bot handling. Please use the Plugin module later.";
+"video_source_import_plugin_signing_required" = "This source requires request signing or dynamic tokens. Please use the Plugin module later.";
+"video_source_import_plugin_encrypted_playback" = "This source requires encrypted playback handling. Please use the Plugin module later.";
+"video_source_import_plugin_wasm_required" = "This source requires WASM execution. Please use the Plugin module later.";
+"video_source_import_plugin_session_flow_required" = "This source requires session or cookie flow handling. Please use the Plugin module later.";
+"video_source_import_plugin_private_api_required" = "This source requires private API handling. Please use the Plugin module later.";

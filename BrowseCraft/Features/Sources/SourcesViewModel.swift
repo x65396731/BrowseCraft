@@ -151,19 +151,36 @@ final class SourcesViewModel: ObservableObject {
     }
 
     @MainActor
-    /// 中文注释：addVideoSource 方法保存 MacCMS video source，播放链路由后续 P4.13 小节接入。
-    func addVideoSource(entryURLString: String, name: String? = nil) -> Source? {
+    /// 中文注释：addVideoSource 方法导入 video source；P5.1.14 后会先返回产品分支，再决定是否保存。
+    func addVideoSource(entryURLString: String, name: String? = nil) -> AddVideoSourceResult? {
         do {
-            let source: Source = try self.addVideoSourceUseCase.execute(
+            let result: AddVideoSourceResult = try self.addVideoSourceUseCase.execute(
                 entryURLString: entryURLString,
                 name: name
             )
 
-            self.load()
-            self.selectSource(id: source.id)
-            return source
+            if case .saved(let source) = result {
+                self.load()
+                self.selectSource(id: source.id)
+            }
+
+            return result
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "video-source-add-error")
+            self.errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    @MainActor
+    func saveReviewedVideoSource(_ source: Source) -> Source? {
+        do {
+            let savedSource: Source = try self.addVideoSourceUseCase.saveReviewedSource(source)
+            self.load()
+            self.selectSource(id: savedSource.id)
+            return savedSource
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "video-source-review-save-error")
             self.errorMessage = error.localizedDescription
             return nil
         }

@@ -108,7 +108,7 @@ struct VideoTabDiscoveryTests {
             makeID: { "video.example" }
         )
 
-        let source: Source = try useCase.execute(
+        let result: AddVideoSourceResult = try useCase.execute(
             entryURLString: "https://video.example.test/",
             name: "Video Example",
             entryHTML: """
@@ -119,11 +119,23 @@ struct VideoTabDiscoveryTests {
                   <a href="/new">新片</a>
                   <a href="/popular">热门</a>
                 </nav>
-                <div class="video-card"><img data-src="/cover.jpg"><a href="/watch/sample">Sample</a></div>
+                <div class="video-card thumb-block duration thumbnail">
+                  <video><source src="https://media.example.test/sample.m3u8"></video>
+                  <img data-src="/cover.jpg">
+                  <a href="/watch/sample">Sample</a>
+                </div>
               </body>
             </html>
             """
         )
+
+        let source: Source
+        if case .saved(let savedSource) = result {
+            source = savedSource
+        } else {
+            Issue.record("Expected high-confidence video source import to save.")
+            return
+        }
 
         guard case .video(let configuration) = source.configuration else {
             Issue.record("Expected video source configuration.")
@@ -133,6 +145,98 @@ struct VideoTabDiscoveryTests {
         #expect(configuration.definition.adapter == .genericHTML)
         #expect(configuration.listTabs.map(\.title) == ["首页", "新片", "热门"])
         #expect(repository.savedSources.map(\.id) == ["video.example"])
+    }
+
+    @Test func addVideoSourceUseCaseRequiresReviewWhenHTMLIsMissing() throws {
+        let repository: VideoTabDiscoveryInMemorySourceRepository = VideoTabDiscoveryInMemorySourceRepository()
+        let useCase: AddVideoSourceUseCase = AddVideoSourceUseCase(
+            sourceRepository: repository,
+            makeID: { "video.review" }
+        )
+
+        let result: AddVideoSourceResult = try useCase.execute(
+            entryURLString: "https://video.example.test/",
+            name: "Review Video"
+        )
+
+        if case .needsReview(let source, let warnings) = result {
+            #expect(source.id == "video.review")
+            #expect(warnings.isEmpty == false)
+        } else {
+            Issue.record("Expected video source without entry HTML to require review.")
+        }
+
+        #expect(repository.savedSources.isEmpty)
+    }
+
+    @Test func addVideoSourceUseCaseCanSaveReviewedVideoSource() throws {
+        let repository: VideoTabDiscoveryInMemorySourceRepository = VideoTabDiscoveryInMemorySourceRepository()
+        let useCase: AddVideoSourceUseCase = AddVideoSourceUseCase(
+            sourceRepository: repository,
+            makeID: { "video.review" }
+        )
+
+        let result: AddVideoSourceResult = try useCase.execute(
+            entryURLString: "https://video.example.test/",
+            name: "Review Video"
+        )
+
+        guard case .needsReview(let source, _) = result else {
+            Issue.record("Expected video source without entry HTML to require review.")
+            return
+        }
+
+        let savedSource: Source = try useCase.saveReviewedSource(source)
+
+        #expect(savedSource.id == "video.review")
+        #expect(repository.savedSources.map(\.id) == ["video.review"])
+    }
+
+    @Test func addVideoSourceUseCaseDoesNotSaveUnavailableVideoSource() throws {
+        let repository: VideoTabDiscoveryInMemorySourceRepository = VideoTabDiscoveryInMemorySourceRepository()
+        let useCase: AddVideoSourceUseCase = AddVideoSourceUseCase(
+            sourceRepository: repository,
+            makeID: { "video.unavailable" }
+        )
+
+        let result: AddVideoSourceResult = try useCase.execute(
+            entryURLString: "https://article.example.test/",
+            name: "Not Video",
+            entryHTML: """
+            <html>
+              <body>
+                <h1>About this site</h1>
+                <p>Company profile and contact information.</p>
+              </body>
+            </html>
+            """
+        )
+
+        #expect(result == .unavailable(.noVideoSignals))
+        #expect(repository.savedSources.isEmpty)
+    }
+
+    @Test func addVideoSourceUseCaseDoesNotSavePluginRequiredVideoSource() throws {
+        let repository: VideoTabDiscoveryInMemorySourceRepository = VideoTabDiscoveryInMemorySourceRepository()
+        let useCase: AddVideoSourceUseCase = AddVideoSourceUseCase(
+            sourceRepository: repository,
+            makeID: { "video.plugin" }
+        )
+
+        let result: AddVideoSourceResult = try useCase.execute(
+            entryURLString: "https://video.example.test/",
+            name: "Plugin Video",
+            entryHTML: """
+            <html>
+              <body>
+                <script>var media = CryptoJS.AES.decrypt(payload, key)</script>
+              </body>
+            </html>
+            """
+        )
+
+        #expect(result == .pluginRequired(.encryptedPlayback))
+        #expect(repository.savedSources.isEmpty)
     }
 
     private static func videoDefinition(

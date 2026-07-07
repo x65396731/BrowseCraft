@@ -4,6 +4,11 @@ import BrowseCraftCore
 
 // 中文注释：MacCMSVideoHTMLMapper 只处理 MacCMS 常见静态 HTML，不处理 VIP/DRM/反爬绕过。
 struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
+    private enum Defaults {
+        // Limit detail metadata summary rows only; this does not cap discovered category tabs.
+        static let maxMetadataRows: Int = 6
+    }
+
     private enum Selectors {
         static let listItems: String = [
             ".ewave-vodlist__box",
@@ -71,6 +76,12 @@ struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
             ".myui-player__detail h1.title a",
             "h1.title"
         ].joined(separator: ", ")
+    }
+
+    private let lexicon: VideoDetectionLexicon
+
+    init(lexicon: VideoDetectionLexicon = .default) {
+        self.lexicon = lexicon
     }
 
     private struct PlayerPayload: Decodable {
@@ -324,7 +335,7 @@ struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
             rows.append(text)
         }
 
-        return Array(rows.prefix(6))
+        return Array(rows.prefix(Defaults.maxMetadataRows))
     }
 
     private func vodID(from detailURL: URL) -> String? {
@@ -440,16 +451,15 @@ struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
             return .playable
         }
 
-        let normalizedHTML: String = html.lowercased()
-        if normalizedHTML.contains("请登录") || normalizedHTML.contains("login required") {
+        if self.lexicon.containsMarker(in: html, category: .accountRestriction) {
             return .restricted(.requiresLogin)
         }
 
-        if normalizedHTML.contains("vip") {
+        if self.lexicon.containsMarker(in: html, category: .payRestriction) {
             return .restricted(.vipOnly)
         }
 
-        if normalizedHTML.contains("player_aaaa") && mediaURL == nil {
+        if self.lexicon.containsMarker(in: html, category: .macCMSPayload) && mediaURL == nil {
             return .failed(.mediaURLNotFound)
         }
 

@@ -1,11 +1,19 @@
 import Foundation
 import BrowseCraftCore
 
+enum AddVideoSourceResult: Hashable {
+    case saved(Source)
+    case needsReview(Source, warnings: [String])
+    case unavailable(VideoSourceUnavailableReason)
+    case pluginRequired(VideoSourcePluginReason)
+}
+
 // 中文注释：AddVideoSourceUseCase 保存模板化 video website source；本阶段不抓取页面、不接播放器。
 struct AddVideoSourceUseCase {
     private let sourceRepository: SourceRepository
     private let urlResolver: VideoSourceURLResolver
-    private let adapterDetector: any VideoAdapterDetecting
+    private let sourceDetector: any VideoSourceDetecting
+    private let decisionResolver: VideoSourceImportDecisionResolver
     private let tabDiscovererRegistry: VideoTabDiscovererRegistry
     private let now: () -> Date
     private let makeID: () -> String
@@ -13,14 +21,16 @@ struct AddVideoSourceUseCase {
     init(
         sourceRepository: SourceRepository,
         urlResolver: VideoSourceURLResolver = VideoSourceURLResolver(),
-        adapterDetector: any VideoAdapterDetecting = VideoAdapterDetector(),
+        sourceDetector: any VideoSourceDetecting = VideoSourceDetector(),
+        decisionResolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver(),
         tabDiscovererRegistry: VideoTabDiscovererRegistry = VideoTabDiscovererRegistry(),
         now: @escaping () -> Date = Date.init,
         makeID: @escaping () -> String = { UUID().uuidString }
     ) {
         self.sourceRepository = sourceRepository
         self.urlResolver = urlResolver
-        self.adapterDetector = adapterDetector
+        self.sourceDetector = sourceDetector
+        self.decisionResolver = decisionResolver
         self.tabDiscovererRegistry = tabDiscovererRegistry
         self.now = now
         self.makeID = makeID
@@ -31,14 +41,15 @@ struct AddVideoSourceUseCase {
         name: String? = nil,
         entryHTML: String? = nil,
         headers: [String: String] = [:]
-    ) throws -> Source {
+    ) throws -> AddVideoSourceResult {
         let resolution: VideoSourceURLResolution = try self.urlResolver.resolve(entryURLString)
         let timestamp: Date = self.now()
-        let adapter: VideoAdapter = self.adapter(
+        let detection: VideoSourceDetection? = self.detection(
             entryURL: resolution.entryURL,
             html: entryHTML,
             headers: headers
         )
+        let adapter: VideoAdapter = detection?.adapter ?? .macCMS
         let definition: VideoSourceDefinition = VideoSourceDefinition(
             adapter: adapter,
             entryURL: resolution.entryURL,
@@ -53,9 +64,49 @@ struct AddVideoSourceUseCase {
             seedDetailURL: resolution.seedDetailURL,
             seedPlayURL: resolution.seedPlayURL
         )
-        let source: Source = Source(
+        let source: Source = try self.makeSource(
+            resolution: resolution,
+            definition: definition,
+            inputName: name,
+            entryHTML: entryHTML,
+            timestamp: timestamp
+        )
+
+        guard let detection: VideoSourceDetection else {
+            return .needsReview(
+                source,
+                warnings: ["Entry HTML was not provided; review before saving this video source."]
+            )
+        }
+
+        switch self.decisionResolver.decision(for: detection, definition: definition) {
+        case .supported:
+            try self.sourceRepository.saveSource(source)
+            return .saved(source)
+        case .needsReview(_, let warnings):
+            return .needsReview(source, warnings: warnings)
+        case .unavailable(let reason):
+            return .unavailable(reason)
+        case .pluginRequired(let reason):
+            return .pluginRequired(reason)
+        }
+    }
+
+    func saveReviewedSource(_ source: Source) throws -> Source {
+        try self.sourceRepository.saveSource(source)
+        return source
+    }
+
+    private func makeSource(
+        resolution: VideoSourceURLResolution,
+        definition: VideoSourceDefinition,
+        inputName: String?,
+        entryHTML: String?,
+        timestamp: Date
+    ) throws -> Source {
+        return Source(
             id: self.makeID(),
-            name: self.sourceName(inputName: name, baseURL: resolution.baseURL),
+            name: self.sourceName(inputName: inputName, baseURL: resolution.baseURL),
             baseURL: resolution.baseURL.absoluteString,
             type: .html,
             configuration: .video(
@@ -72,9 +123,6 @@ struct AddVideoSourceUseCase {
             createdAt: timestamp,
             updatedAt: timestamp
         )
-
-        try self.sourceRepository.saveSource(source)
-        return source
     }
 
     private func sourceName(inputName: String?, baseURL: URL) -> String {
@@ -85,23 +133,22 @@ struct AddVideoSourceUseCase {
         return baseURL.host ?? "Video Source"
     }
 
-    private func adapter(
+    private func detection(
         entryURL: URL,
         html: String?,
         headers: [String: String]
-    ) -> VideoAdapter {
+    ) -> VideoSourceDetection? {
         guard let html: String else {
-            return .macCMS
+            return nil
         }
 
-        let detection: VideoAdapterDetection = self.adapterDetector.detect(
-            VideoAdapterDetectionInput(
+        return self.sourceDetector.detect(
+            VideoSourceDetectionInput(
                 url: entryURL,
                 html: html,
                 headers: headers
             )
         )
-        return detection.adapter
     }
 
     private func listTabs(

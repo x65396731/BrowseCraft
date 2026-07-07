@@ -1,0 +1,16 @@
+/* Video source import */
+"video_source_import_failed_to_save" = "视频来源保存失败。";
+"video_source_import_needs_review" = "此视频来源需要确认后再保存。";
+"video_source_import_needs_review_with_warnings" = "此视频来源需要确认后再保存。%@";
+"video_source_import_unavailable_unknown_structure" = "无法识别该网站内容。";
+"video_source_import_unavailable_low_confidence" = "无法以足够置信度识别该网站内容。";
+"video_source_import_unavailable_no_video_signals" = "此页面未发现稳定的视频来源信号。";
+"video_source_import_unavailable_unsupported_adapter" = "暂不支持此视频来源结构。";
+"video_source_import_unavailable_webview_not_connected" = "此视频来源需要 WebView 支持，但当前尚未接入。";
+"video_source_import_unavailable_iframe_content_not_connected" = "此视频来源将内容放在 frame 或 iframe 页面中，但当前尚未接入。";
+"video_source_import_plugin_captcha_or_antibot" = "此来源需要验证码或反爬处理。请在后续 Plugin 模块中使用。";
+"video_source_import_plugin_signing_required" = "此来源需要请求签名或动态 token。请在后续 Plugin 模块中使用。";
+"video_source_import_plugin_encrypted_playback" = "此来源需要加密播放处理。请在后续 Plugin 模块中使用。";
+"video_source_import_plugin_wasm_required" = "此来源需要执行 WASM。请在后续 Plugin 模块中使用。";
+"video_source_import_plugin_session_flow_required" = "此来源需要 session 或 cookie 流程处理。请在后续 Plugin 模块中使用。";
+"video_source_import_plugin_private_api_required" = "此来源需要私有 API 处理。请在后续 Plugin 模块中使用。";

@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 // 中文注释：AddSourceView.swift 是中性的添加来源入口，具体导入能力由 SourceImportOption 决定。
@@ -148,17 +149,20 @@ struct AddSourceView: View {
 }
 
 private struct VideoSourceImportView: View {
-    private enum ImportState: Equatable {
+    private enum ImportState {
         case idle
         case saving
         case saved
+        case needsReview(Source, warnings: [String])
+        case unavailable(VideoSourceUnavailableReason)
+        case pluginRequired(VideoSourcePluginReason)
         case error(String)
 
         var isWorking: Bool {
             switch self {
             case .saving:
                 return true
-            case .idle, .saved, .error:
+            case .idle, .saved, .needsReview, .unavailable, .pluginRequired, .error:
                 return false
             }
         }
@@ -191,14 +195,14 @@ private struct VideoSourceImportView: View {
                     .disabled(self.importState.isWorking)
 
                     Button(self.primaryButtonTitle) {
-                        self.save()
+                        self.primaryAction()
                     }
                     .disabled(self.canSubmit == false)
                 }
 
                 Section("Runtime") {
                     LabeledContent("Type", value: "Video")
-                    LabeledContent("Template", value: "MacCMS")
+                    LabeledContent("Template", value: "Auto Detect")
                     Text("RSS URLs should be added from RSS Feed.")
                         .foregroundStyle(.secondary)
                 }
@@ -232,6 +236,10 @@ private struct VideoSourceImportView: View {
     }
 
     private var canSubmit: Bool {
+        if case .needsReview = self.importState {
+            return true
+        }
+
         return self.trimmedEntryURL.isEmpty == false && self.importState.isWorking == false
     }
 
@@ -241,7 +249,9 @@ private struct VideoSourceImportView: View {
             return "Saving..."
         case .saved:
             return "Saved"
-        case .idle, .error:
+        case .needsReview:
+            return "Save Anyway"
+        case .idle, .unavailable, .pluginRequired, .error:
             return "Add Video Source"
         }
     }
@@ -254,6 +264,12 @@ private struct VideoSourceImportView: View {
             return "Saving video source..."
         case .saved:
             return "Video source saved."
+        case .needsReview(_, let warnings):
+            return self.needsReviewMessage(warnings: warnings)
+        case .unavailable(let reason):
+            return self.unavailableMessage(reason: reason)
+        case .pluginRequired(let reason):
+            return self.pluginRequiredMessage(reason: reason)
         case .error(let message):
             return message
         }
@@ -261,8 +277,10 @@ private struct VideoSourceImportView: View {
 
     private var statusForegroundStyle: Color {
         switch self.importState {
-        case .error:
+        case .error, .unavailable, .pluginRequired:
             return .red
+        case .needsReview:
+            return .orange
         case .saved:
             return .green
         case .idle, .saving:
@@ -271,21 +289,182 @@ private struct VideoSourceImportView: View {
     }
 
     @MainActor
-    private func save() {
+    private func primaryAction() {
+        if case .needsReview(let source, _) = self.importState {
+            self.saveReviewed(source)
+            return
+        }
+
+        self.startImport()
+    }
+
+    @MainActor
+    private func startImport() {
         self.importState = .saving
-        let source: Source? = self.viewModel.addVideoSource(
+        let result: AddVideoSourceResult? = self.viewModel.addVideoSource(
             entryURLString: self.entryURL,
             name: self.trimmedSourceName
         )
 
-        guard source != nil else {
-            self.importState = .error(self.viewModel.errorMessage ?? "Failed to save video source.")
+        guard let result: AddVideoSourceResult else {
+            self.importState = .error(self.viewModel.errorMessage ?? VideoSourceImportStrings.failedToSave)
             return
         }
 
+        self.apply(result)
+    }
+
+    @MainActor
+    private func saveReviewed(_ source: Source) {
+        self.importState = .saving
+        guard self.viewModel.saveReviewedVideoSource(source) != nil else {
+            self.importState = .error(self.viewModel.errorMessage ?? VideoSourceImportStrings.failedToSave)
+            return
+        }
+
+        self.finishSaved()
+    }
+
+    @MainActor
+    private func apply(_ result: AddVideoSourceResult) {
+        switch result {
+        case .saved:
+            self.finishSaved()
+        case .needsReview(let source, let warnings):
+            self.importState = .needsReview(source, warnings: warnings)
+        case .unavailable(let reason):
+            self.importState = .unavailable(reason)
+        case .pluginRequired(let reason):
+            self.importState = .pluginRequired(reason)
+        }
+    }
+
+    @MainActor
+    private func finishSaved() {
         self.importState = .saved
         self.completion()
         self.dismiss()
+    }
+
+    private func needsReviewMessage(warnings: [String]) -> String {
+        if warnings.isEmpty {
+            return VideoSourceImportStrings.needsReview
+        }
+
+        return VideoSourceImportStrings.needsReview(warnings: warnings)
+    }
+
+    private func unavailableMessage(reason: VideoSourceUnavailableReason) -> String {
+        return VideoSourceImportStrings.unavailable(reason)
+    }
+
+    private func pluginRequiredMessage(reason: VideoSourcePluginReason) -> String {
+        return VideoSourceImportStrings.pluginRequired(reason)
+    }
+}
+
+private enum VideoSourceImportStrings {
+    static let failedToSave: String = Self.localized(
+        "video_source_import_failed_to_save",
+        fallback: "Failed to save video source."
+    )
+    static let needsReview: String = Self.localized(
+        "video_source_import_needs_review",
+        fallback: "This video source needs review before saving."
+    )
+
+    static func needsReview(warnings: [String]) -> String {
+        guard warnings.isEmpty == false else {
+            return Self.needsReview
+        }
+
+        return String(
+            format: Self.localized(
+                "video_source_import_needs_review_with_warnings",
+                fallback: "This video source needs review before saving. %@"
+            ),
+            warnings.joined(separator: " ")
+        )
+    }
+
+    static func unavailable(_ reason: VideoSourceUnavailableReason) -> String {
+        switch reason {
+        case .unknownStructure:
+            return Self.localized(
+                "video_source_import_unavailable_unknown_structure",
+                fallback: "Website content could not be recognized."
+            )
+        case .lowConfidence:
+            return Self.localized(
+                "video_source_import_unavailable_low_confidence",
+                fallback: "Website content could not be recognized with enough confidence."
+            )
+        case .noVideoSignals:
+            return Self.localized(
+                "video_source_import_unavailable_no_video_signals",
+                fallback: "No stable video source signals were found on this page."
+            )
+        case .unsupportedAdapter:
+            return Self.localized(
+                "video_source_import_unavailable_unsupported_adapter",
+                fallback: "This video source structure is not supported yet."
+            )
+        case .webViewNotConnected:
+            return Self.localized(
+                "video_source_import_unavailable_webview_not_connected",
+                fallback: "This video source requires WebView support, which is not connected yet."
+            )
+        case .iframeContentNotConnected:
+            return Self.localized(
+                "video_source_import_unavailable_iframe_content_not_connected",
+                fallback: "This video source stores content inside frame or iframe pages, which are not connected yet."
+            )
+        }
+    }
+
+    static func pluginRequired(_ reason: VideoSourcePluginReason) -> String {
+        switch reason {
+        case .captchaOrAntiBot:
+            return Self.localized(
+                "video_source_import_plugin_captcha_or_antibot",
+                fallback: "This source requires CAPTCHA or anti-bot handling. Please use the Plugin module later."
+            )
+        case .signingRequired:
+            return Self.localized(
+                "video_source_import_plugin_signing_required",
+                fallback: "This source requires request signing or dynamic tokens. Please use the Plugin module later."
+            )
+        case .encryptedPlayback:
+            return Self.localized(
+                "video_source_import_plugin_encrypted_playback",
+                fallback: "This source requires encrypted playback handling. Please use the Plugin module later."
+            )
+        case .wasmRequired:
+            return Self.localized(
+                "video_source_import_plugin_wasm_required",
+                fallback: "This source requires WASM execution. Please use the Plugin module later."
+            )
+        case .sessionFlowRequired:
+            return Self.localized(
+                "video_source_import_plugin_session_flow_required",
+                fallback: "This source requires session or cookie flow handling. Please use the Plugin module later."
+            )
+        case .privateAPIRequired:
+            return Self.localized(
+                "video_source_import_plugin_private_api_required",
+                fallback: "This source requires private API handling. Please use the Plugin module later."
+            )
+        }
+    }
+
+    private static func localized(_ key: String, fallback: String) -> String {
+        return NSLocalizedString(
+            key,
+            tableName: nil,
+            bundle: .main,
+            value: fallback,
+            comment: ""
+        )
     }
 }
 

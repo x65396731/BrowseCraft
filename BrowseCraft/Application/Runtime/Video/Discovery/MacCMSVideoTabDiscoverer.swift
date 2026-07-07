@@ -42,6 +42,7 @@ struct MacCMSVideoTabDiscoverer: VideoTabDiscovering {
             }
         )
 
+        // MacCMS category routes are strongly structured, so keep all discovered /vodtype/ and /vodshow/ tabs.
         return self.tabs(
             from: links,
             definition: definition
