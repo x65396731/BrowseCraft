@@ -8,6 +8,7 @@ struct SourceLoadingState: Equatable {
 }
 
 struct SourceLibrarySnapshot: Equatable {
+    let source: Source
     let sourceID: String
     let sourceName: String
     let runtimeKind: SourceRuntimeKind
@@ -36,6 +37,7 @@ final class SourceSelectionStore: ObservableObject {
 
     func publishLibrarySnapshot(source: Source, items: [ContentItem]) {
         self.preparedLibrarySnapshot = SourceLibrarySnapshot(
+            source: source,
             sourceID: source.id,
             sourceName: source.name,
             runtimeKind: source.configuration.kind,

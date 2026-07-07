@@ -402,6 +402,13 @@ final class LibraryViewModel: ObservableObject {
     private func applyPreparedLibrarySnapshot(_ snapshot: SourceLibrarySnapshot?) {
         self.preparedLibrarySnapshot = snapshot
 
+        if let snapshot: SourceLibrarySnapshot = snapshot {
+            self.upsertSource(snapshot.source)
+            if self.selectedSourceID == snapshot.sourceID {
+                self.ensureSelectedListTab()
+            }
+        }
+
         guard self.applyPreparedSnapshotIfAvailable() else {
             return
         }
@@ -420,6 +427,7 @@ final class LibraryViewModel: ObservableObject {
             return false
         }
 
+        self.upsertSource(snapshot.source)
         self.items = snapshot.items
         self.logLibraryItems(
             origin: "current-snapshot",
@@ -427,6 +435,17 @@ final class LibraryViewModel: ObservableObject {
             context: self.selectedListContext
         )
         return true
+    }
+
+    private func upsertSource(_ source: Source) {
+        if let index: Array<Source>.Index = self.sources.firstIndex(where: { existingSource in
+            return existingSource.id == source.id
+        }) {
+            self.sources[index] = source
+            return
+        }
+
+        self.sources.insert(source, at: 0)
     }
 
     private func loadCachedItemsForSelectedTab() {

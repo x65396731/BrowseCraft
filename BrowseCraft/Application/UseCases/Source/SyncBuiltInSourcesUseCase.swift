@@ -1,8 +1,8 @@
 import Foundation
 
-// 中文注释：同步应用内置 Source 定义到本地数据库，供首次启动和内置规则更新后使用。
+// 中文注释：历史内置 Source 同步入口保留为空操作，真实 catalog 数据改由用户手动导入。
 
-/// 中文注释：确保内置源存在于本地数据库中；该用例不访问网络。
+/// 中文注释：不再在启动时自动写入任何 Source，用户初始状态保持空规则列表。
 struct SyncBuiltInSourcesUseCase {
     private let sourceRepository: SourceRepository
 
@@ -11,104 +11,6 @@ struct SyncBuiltInSourcesUseCase {
     }
 
     func execute() throws {
-        let existingSources: [Source] = try self.sourceRepository.fetchSources()
-        let latestBuiltInSources: [Source] = BuiltInSource.allBuiltIns()
-        try self.updateExistingBuiltInSources(
-            existingSources,
-            latestBuiltInSources: latestBuiltInSources
-        )
-
-        let refreshedSources: [Source] = try self.sourceRepository.fetchSources()
-        let existingIDs: Set<String> = Set(
-            refreshedSources.map { source in
-                return source.id
-            }
-        )
-
-        for source: Source in latestBuiltInSources where existingIDs.contains(source.id) == false {
-            try self.sourceRepository.saveSource(source)
-        }
-    }
-
-    /// 中文注释：用最新内置定义覆盖本地内置 Source；用户自定义 Source 不受影响。
-    private func updateExistingBuiltInSources(
-        _ existingSources: [Source],
-        latestBuiltInSources: [Source]
-    ) throws {
-        for existingSource: Source in existingSources {
-            guard let latestBuiltInSource: Source = self.latestBuiltInSource(
-                matching: existingSource,
-                in: latestBuiltInSources
-            ) else {
-                continue
-            }
-
-            if existingSource.name == latestBuiltInSource.name
-                && existingSource.baseURL == latestBuiltInSource.baseURL
-                && existingSource.type == latestBuiltInSource.type
-                && existingSource.configuration == latestBuiltInSource.configuration {
-                continue
-            }
-
-            var updatedSource: Source = existingSource
-            updatedSource.name = latestBuiltInSource.name
-            updatedSource.baseURL = latestBuiltInSource.baseURL
-            updatedSource.type = latestBuiltInSource.type
-            updatedSource.configuration = latestBuiltInSource.configuration
-            updatedSource.updatedAt = Date()
-            try self.sourceRepository.saveSource(updatedSource)
-
-            #if DEBUG
-            self.logSyncedBuiltInSource(updatedSource)
-            #endif
-        }
-    }
-
-    #if DEBUG
-    private func logSyncedBuiltInSource(_ source: Source) {
-        switch source.configuration {
-        case .comic(let configuration):
-            let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(configuration.rule)
-            print(
-                "[BrowseCraftRule] Synced built-in source id=\(source.id) " +
-                "name=\(source.name) " +
-                "chapterContainer=\(resolvedRule.primaryDetailRule?.chapterContainer ?? "nil") " +
-                "chapterItem=\(resolvedRule.primaryDetailRule?.chapterItem ?? "nil")"
-            )
-        case .rss, .video, .plugin:
-            print(
-                "[BrowseCraftSource] Synced built-in source id=\(source.id) " +
-                "name=\(source.name) " +
-                "kind=\(source.configuration.kind.rawValue)"
-            )
-        }
-    }
-    #endif
-
-    private func latestBuiltInSource(
-        matching existingSource: Source,
-        in latestBuiltInSources: [Source]
-    ) -> Source? {
-        if let stableMatch: Source = latestBuiltInSources.first(where: { source in
-            return source.id == existingSource.id
-        }) {
-            return stableMatch
-        }
-
-        let normalizedExistingName: String = self.normalizedName(existingSource.name)
-        let normalizedExistingBaseURL: String = self.normalizedBaseURL(existingSource.baseURL)
-
-        return latestBuiltInSources.first { source in
-            return self.normalizedName(source.name) == normalizedExistingName
-                && self.normalizedBaseURL(source.baseURL) == normalizedExistingBaseURL
-        }
-    }
-
-    private func normalizedName(_ name: String) -> String {
-        return name.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-    }
-
-    private func normalizedBaseURL(_ baseURL: String) -> String {
-        return baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        _ = self.sourceRepository
     }
 }

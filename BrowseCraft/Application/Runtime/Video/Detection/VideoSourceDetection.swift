@@ -206,9 +206,6 @@ struct VideoSourceImportDecisionResolver {
         let reasonText: String = detection.reasons
             .joined(separator: " ")
             .lowercased()
-        let warningText: String = detection.warnings
-            .joined(separator: " ")
-            .lowercased()
 
         if self.lexicon.containsMarker(in: reasonText, category: .captchaRestriction) {
             return .captchaOrAntiBot
@@ -226,8 +223,7 @@ struct VideoSourceImportDecisionResolver {
             return .wasmRequired
         }
 
-        if self.lexicon.containsMarker(in: reasonText, category: .sessionRestriction)
-            || self.lexicon.containsMarker(in: warningText, category: .accountRestriction) {
+        if self.lexicon.containsMarker(in: reasonText, category: .sessionRestriction) {
             return .sessionFlowRequired
         }
 

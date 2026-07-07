@@ -17,7 +17,8 @@ struct RootView: View {
     @StateObject private var libraryViewModel: LibraryViewModel
     @StateObject private var historyViewModel: HistoryViewModel
     @StateObject private var settingsViewModel: SettingsViewModel
-    @State private var selectedTab: RootTab = .library
+    @State private var selectedTab: RootTab = .sources
+    @State private var didResolveInitialTab: Bool = false
 
     init(container: AppContainer) {
         self.container = container
@@ -86,5 +87,25 @@ struct RootView: View {
                 }
                 .tag(RootTab.settings)
         }
+        .onAppear {
+            self.resolveInitialTabIfNeeded()
+        }
+        .onChange(of: self.sourcesViewModel.latestCatalogSourceAddID) { sourceID in
+            guard sourceID != nil else {
+                return
+            }
+
+            self.selectedTab = .library
+        }
+    }
+
+    private func resolveInitialTabIfNeeded() {
+        if self.didResolveInitialTab {
+            return
+        }
+
+        self.didResolveInitialTab = true
+        self.sourcesViewModel.load()
+        self.selectedTab = self.sourcesViewModel.sources.isEmpty ? .sources : .library
     }
 }

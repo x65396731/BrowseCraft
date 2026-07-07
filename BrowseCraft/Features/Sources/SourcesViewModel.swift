@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 import BrowseCraftCore
+import BrowseCraftRulesKit
 
 // 中文注释：SourcesViewModel.swift 属于界面功能层，用于说明本文件承载的核心职责。
 
@@ -18,12 +19,14 @@ final class SourcesViewModel: ObservableObject {
     @Published private(set) var isRefreshing: Bool = false
     @Published private(set) var refreshingSourceID: String?
     @Published private(set) var latestVideoImportDebugSnapshot: SourceDebugSnapshot?
+    @Published private(set) var latestCatalogSourceAddID: String?
 
     private let syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase
     private let loadSourcesUseCase: LoadSourcesUseCase
     private let addComicRuleSourceUseCase: AddComicRuleSourceUseCase
     private let addRSSSourceUseCase: AddRSSSourceUseCase
     private let addVideoSourceUseCase: AddVideoSourceUseCase
+    private let addCatalogSourceUseCase: AddCatalogSourceUseCase
     private let deleteSourceUseCase: DeleteSourceUseCase
     private let updateSourceRuleUseCase: UpdateSourceRuleUseCase
     private let duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase
@@ -50,6 +53,7 @@ final class SourcesViewModel: ObservableObject {
         addComicRuleSourceUseCase: AddComicRuleSourceUseCase,
         addRSSSourceUseCase: AddRSSSourceUseCase,
         addVideoSourceUseCase: AddVideoSourceUseCase,
+        addCatalogSourceUseCase: AddCatalogSourceUseCase,
         deleteSourceUseCase: DeleteSourceUseCase,
         updateSourceRuleUseCase: UpdateSourceRuleUseCase,
         duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase,
@@ -73,6 +77,7 @@ final class SourcesViewModel: ObservableObject {
         self.addComicRuleSourceUseCase = addComicRuleSourceUseCase
         self.addRSSSourceUseCase = addRSSSourceUseCase
         self.addVideoSourceUseCase = addVideoSourceUseCase
+        self.addCatalogSourceUseCase = addCatalogSourceUseCase
         self.deleteSourceUseCase = deleteSourceUseCase
         self.updateSourceRuleUseCase = updateSourceRuleUseCase
         self.duplicateSourceRuleUseCase = duplicateSourceRuleUseCase
@@ -171,6 +176,40 @@ final class SourcesViewModel: ObservableObject {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "video-source-add-error")
             self.errorMessage = error.localizedDescription
             return nil
+        }
+    }
+
+    var catalogSources: [BrowseCraftCatalogSource] {
+        return BrowseCraftSourceCatalog.sources
+    }
+
+    func isCatalogSourceAdded(_ catalogSource: BrowseCraftCatalogSource) -> Bool {
+        return self.sources.contains { source in
+            return source.id == catalogSource.id
+        }
+    }
+
+    @MainActor
+    func addCatalogSource(_ catalogSource: BrowseCraftCatalogSource) async -> Bool {
+        do {
+            let result: AddCatalogSourceResult = try await self.addCatalogSourceUseCase.execute(catalogSource)
+            let source: Source = result.source
+            self.load()
+            if let listOutput: SourceListOutput = result.listOutput {
+                let items: [ContentItem] = self.contentItems(from: listOutput, source: source)
+                self.sourceSelectionStore.publishLibrarySnapshot(source: source, items: items)
+                self.logPublishedLibrarySnapshot(source: source, items: items, origin: "catalog-source-add")
+            }
+            self.selectSource(id: source.id)
+            if result.listOutput != nil {
+                self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
+            }
+            self.latestCatalogSourceAddID = source.id
+            return true
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-source-add-error")
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+            return false
         }
     }
 

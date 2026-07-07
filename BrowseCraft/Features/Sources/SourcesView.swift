@@ -6,6 +6,7 @@ import SwiftUI
 struct SourcesView: View {
     @ObservedObject var viewModel: SourcesViewModel
     @State private var isShowingAddSourceView: Bool = false
+    @State private var isShowingCatalogSourceListView: Bool = false
 
     var body: some View {
         NavigationView {
@@ -73,6 +74,16 @@ struct SourcesView: View {
                 ToolbarItemGroup(placement: .navigationBarLeading) {
                     Button(
                         action: {
+                            self.isShowingCatalogSourceListView = true
+                        },
+                        label: {
+                            Image(systemName: "list.bullet.rectangle")
+                        }
+                    )
+                    .accessibilityLabel("Source Catalog")
+
+                    Button(
+                        action: {
                             self.isShowingAddSourceView = true
                         },
                         label: {
@@ -106,6 +117,9 @@ struct SourcesView: View {
             }
             .sheet(isPresented: self.$isShowingAddSourceView) {
                 AddSourceView(viewModel: self.viewModel)
+            }
+            .sheet(isPresented: self.$isShowingCatalogSourceListView) {
+                CatalogSourceListView(viewModel: self.viewModel)
             }
             .alert(isPresented: self.errorAlertBinding) {
                 self.errorAlert()

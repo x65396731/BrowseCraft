@@ -113,6 +113,10 @@ final class AppContainer {
         let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = RefreshSourceRuntimeUseCase(
             runtimeResolver: self.makeSourceRuntimeResolver()
         )
+        let addCatalogSourceUseCase: AddCatalogSourceUseCase = AddCatalogSourceUseCase(
+            sourceRepository: self.sourceRepository,
+            refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
+        )
         let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase = SaveUserLibraryStateUseCase(
             repository: userLibraryStateRepository
         )
@@ -148,6 +152,7 @@ final class AppContainer {
             addComicRuleSourceUseCase: addComicRuleSourceUseCase,
             addRSSSourceUseCase: addRSSSourceUseCase,
             addVideoSourceUseCase: addVideoSourceUseCase,
+            addCatalogSourceUseCase: addCatalogSourceUseCase,
             deleteSourceUseCase: deleteSourceUseCase,
             updateSourceRuleUseCase: updateSourceRuleUseCase,
             duplicateSourceRuleUseCase: duplicateSourceRuleUseCase,

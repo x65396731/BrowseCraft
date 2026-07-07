@@ -436,6 +436,26 @@ struct VideoSourceDetectionTests {
         #expect(decision == .unavailable(.lowConfidence))
     }
 
+    @Test func accountWarningDoesNotBecomePluginSessionReason() throws {
+        let resolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver()
+        let url: URL = try #require(URL(string: "https://video.example.test/secure"))
+        let definition: VideoSourceDefinition = try Self.videoDefinition(adapter: .plugin, entryURL: url)
+
+        let decision: VideoSourceImportDecision = resolver.decision(
+            for: VideoSourceDetection(
+                adapter: .plugin,
+                renderMode: .staticHTML,
+                playbackMode: .unresolved,
+                confidence: 0.82,
+                reasons: ["HTML contains plugin-level markers: custom private runtime."],
+                warnings: ["The page contains login markers."]
+            ),
+            definition: definition
+        )
+
+        #expect(decision == .pluginRequired(.privateAPIRequired))
+    }
+
     @Test func importDecisionRoutesWebViewRequiredToUnavailable() throws {
         let detector: VideoSourceDetector = VideoSourceDetector()
         let resolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver()
