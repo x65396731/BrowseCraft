@@ -131,6 +131,10 @@ struct AddCatalogSourceUseCase {
                             entryKind: try self.entryKind(from: videoRule.entryKind),
                             routePatterns: try self.routePatterns(from: videoRule.routePattern),
                             playbackPolicy: try self.playbackPolicy(from: videoRule.playbackPolicy),
+                            sharedRequest: videoRule.sharedRequest,
+                            listRequest: videoRule.listRequest,
+                            detailRequest: videoRule.detailRequest,
+                            playRequest: videoRule.playRequest,
                             requiresAccount: videoRule.requiresAccount,
                             seedVodID: nil,
                             seedSourceIndex: nil,
@@ -277,6 +281,10 @@ private struct CatalogVideoRule: Decodable {
     let entryKind: String
     let routePattern: String?
     let playbackPolicy: String
+    let sharedRequest: RequestConfig?
+    let listRequest: RequestConfig?
+    let detailRequest: RequestConfig?
+    let playRequest: RequestConfig?
     let requiresAccount: Bool
     let listTabs: [CatalogVideoListTabRule]
 }

@@ -57,6 +57,7 @@ struct VideoSourceRuntime: SourceRuntime {
 
     func loadDetail(_ input: SourceDetailInput) async throws -> SourceDetailOutput {
         let content: VideoDetailContent = try await self.loadVideoDetailContent(input)
+        let request: RequestConfig? = self.detailRequest(for: input)
 
         return SourceDetailOutput(
             chapters: content.episodes.map { episode in
@@ -67,6 +68,12 @@ struct VideoSourceRuntime: SourceRuntime {
                 )
             },
             diagnostics: SourceRuntimeDiagnostics.succeeded(
+                requestLogs: [
+                    VideoRequestConfigResolver().requestLog(
+                        url: input.detailURL,
+                        request: request
+                    )
+                ],
                 context: SourceRuntimeDiagnosticContext(
                     runtimeContext: input.context,
                     requestURL: input.detailURL
@@ -106,6 +113,18 @@ struct VideoSourceRuntime: SourceRuntime {
                 actual: context.sourceID
             )
         }
+    }
+
+    private func detailRequest(for input: SourceDetailInput) -> RequestConfig? {
+        guard let videoDefinition: VideoSourceDefinition = self.definition.video else {
+            return nil
+        }
+
+        return VideoRequestConfigResolver().request(
+            for: .detail,
+            definition: videoDefinition,
+            context: input.context
+        )
     }
 
     private func limitation(

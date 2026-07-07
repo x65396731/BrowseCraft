@@ -14,15 +14,18 @@ struct VideoSourceListLoader: VideoSourceListLoading {
     private let pageContentLoader: PageContentLoader
     private let mapper: any VideoHTMLMapper
     private let renderingGuard: VideoSourceRenderingGuard
+    private let requestConfigResolver: VideoRequestConfigResolver
 
     init(
         pageContentLoader: PageContentLoader,
         mapper: any VideoHTMLMapper,
-        renderingGuard: VideoSourceRenderingGuard = VideoSourceRenderingGuard()
+        renderingGuard: VideoSourceRenderingGuard = VideoSourceRenderingGuard(),
+        requestConfigResolver: VideoRequestConfigResolver = VideoRequestConfigResolver()
     ) {
         self.pageContentLoader = pageContentLoader
         self.mapper = mapper
         self.renderingGuard = renderingGuard
+        self.requestConfigResolver = requestConfigResolver
     }
 
     func loadList(
@@ -30,8 +33,23 @@ struct VideoSourceListLoader: VideoSourceListLoading {
         definition: SourceDefinition
     ) async throws -> SourceListOutput {
         let url: URL = try self.listURL(for: input, definition: definition)
-        let html: String = try await self.pageContentLoader.getString(from: url)
-        try self.renderingGuard.validateStaticHTML(url: url, html: html)
+        guard let videoDefinition: VideoSourceDefinition = definition.video else {
+            throw SourceRuntimeError.invalidInput("Video runtime requires a video source definition.")
+        }
+
+        let request: RequestConfig? = self.requestConfigResolver.request(
+            for: .list,
+            definition: videoDefinition,
+            context: input.context
+        )
+        let html: String
+        do {
+            html = try await self.pageContentLoader.getString(from: url, request: request)
+            try self.renderingGuard.validateStaticHTML(url: url, html: html)
+        } catch {
+            throw self.requestConfigResolver.mappedLoadingError(error, url: url)
+        }
+
         let items: [SourceContentItem] = try self.mapper.mapList(
             html: html,
             definition: definition,
@@ -42,6 +60,14 @@ struct VideoSourceListLoader: VideoSourceListLoading {
             items: items,
             pagination: nil,
             diagnostics: SourceRuntimeDiagnostics.succeeded(
+                requestLogs: [
+                    self.requestConfigResolver.requestLog(
+                        url: url,
+                        request: request,
+                        html: html
+                    )
+                ],
+                issues: self.requestConfigResolver.emptyListIssues(items: items),
                 context: SourceRuntimeDiagnosticContext(
                     runtimeContext: input.context,
                     requestURL: url

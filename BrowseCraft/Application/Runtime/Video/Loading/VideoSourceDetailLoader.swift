@@ -14,23 +14,41 @@ struct VideoSourceDetailLoader: VideoSourceDetailLoading {
     private let pageContentLoader: PageContentLoader
     private let mapper: any VideoHTMLMapper
     private let renderingGuard: VideoSourceRenderingGuard
+    private let requestConfigResolver: VideoRequestConfigResolver
 
     init(
         pageContentLoader: PageContentLoader,
         mapper: any VideoHTMLMapper,
-        renderingGuard: VideoSourceRenderingGuard = VideoSourceRenderingGuard()
+        renderingGuard: VideoSourceRenderingGuard = VideoSourceRenderingGuard(),
+        requestConfigResolver: VideoRequestConfigResolver = VideoRequestConfigResolver()
     ) {
         self.pageContentLoader = pageContentLoader
         self.mapper = mapper
         self.renderingGuard = renderingGuard
+        self.requestConfigResolver = requestConfigResolver
     }
 
     func loadDetailContent(
         _ input: SourceDetailInput,
         definition: SourceDefinition
     ) async throws -> VideoDetailContent {
-        let html: String = try await self.pageContentLoader.getString(from: input.detailURL)
-        try self.renderingGuard.validateStaticHTML(url: input.detailURL, html: html)
+        guard let videoDefinition: VideoSourceDefinition = definition.video else {
+            throw SourceRuntimeError.invalidInput("Video runtime requires a video source definition.")
+        }
+
+        let request: RequestConfig? = self.requestConfigResolver.request(
+            for: .detail,
+            definition: videoDefinition,
+            context: input.context
+        )
+        let html: String
+        do {
+            html = try await self.pageContentLoader.getString(from: input.detailURL, request: request)
+            try self.renderingGuard.validateStaticHTML(url: input.detailURL, html: html)
+        } catch {
+            throw self.requestConfigResolver.mappedLoadingError(error, url: input.detailURL)
+        }
+
         return try self.mapper.mapDetail(
             html: html,
             definition: definition,
