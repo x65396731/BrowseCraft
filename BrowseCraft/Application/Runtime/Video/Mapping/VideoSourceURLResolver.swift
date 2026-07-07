@@ -1,7 +1,7 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：VideoSourceURLResolver 把用户输入的 MacCMS URL 归一化为站点级 video source 配置。
+// 中文注释：VideoSourceURLResolver 只把用户输入的 video URL 归一化；不判断站点 adapter/类型。
 struct VideoSourceURLResolver {
     func resolve(_ input: String) throws -> VideoSourceURLResolution {
         let url: URL = try self.normalizedURL(from: input)
@@ -77,7 +77,19 @@ struct VideoSourceURLResolver {
             )
         }
 
-        throw VideoSourceURLResolverError.unsupportedVideoURL
+        return VideoSourceURLResolution(
+            baseURL: baseURL,
+            entryURL: url,
+            seedURL: nil,
+            entryKind: .home,
+            normalizedEntryURL: url,
+            vodID: nil,
+            sourceIndex: nil,
+            episodeIndex: nil,
+            defaultListURL: url,
+            seedDetailURL: nil,
+            seedPlayURL: nil
+        )
     }
 
     private func normalizedURL(from input: String) throws -> URL {
@@ -219,7 +231,7 @@ enum VideoSourceURLResolverError: LocalizedError, Equatable {
         case .rssURLNotVideo:
             return "This URL looks like an RSS feed. Add it from RSS Feed instead."
         case .unsupportedVideoURL:
-            return "This video URL is not a supported MacCMS page yet."
+            return "This video URL cannot be inspected right now."
         }
     }
 }

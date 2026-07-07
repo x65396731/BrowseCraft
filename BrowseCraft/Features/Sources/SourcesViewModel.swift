@@ -157,23 +157,17 @@ final class SourcesViewModel: ObservableObject {
     }
 
     @MainActor
-    /// 中文注释：addVideoSource 方法导入 video source；P5.1.14 后会先返回产品分支，再决定是否保存。
-    func addVideoSource(entryURLString: String, name: String? = nil) -> AddVideoSourceResult? {
+    /// 中文注释：inspectVideoSource 方法只解析手动输入的 video URL 并返回事实日志，不自动判断类型或保存 Source。
+    func inspectVideoSource(entryURLString: String, name: String? = nil) -> VideoSourceImportInspection? {
         do {
-            let debugResult: AddVideoSourceDebugResult = try self.addVideoSourceUseCase.executeWithDebugSnapshot(
+            let inspection: VideoSourceImportInspection = try self.addVideoSourceUseCase.inspect(
                 entryURLString: entryURLString,
                 name: name
             )
-            let result: AddVideoSourceResult = debugResult.result
-            self.latestVideoImportDebugSnapshot = debugResult.debugSnapshot
-
-            if case .saved = result {
-                self.load()
-            }
-
-            return result
+            self.latestVideoImportDebugSnapshot = nil
+            return inspection
         } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "video-source-add-error")
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "video-source-inspect-error")
             self.errorMessage = error.localizedDescription
             return nil
         }

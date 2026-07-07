@@ -151,18 +151,15 @@ struct AddSourceView: View {
 private struct VideoSourceImportView: View {
     private enum ImportState {
         case idle
-        case saving
-        case saved
-        case needsReview
-        case unavailable(VideoSourceUnavailableReason)
-        case pluginRequired(VideoSourcePluginReason)
+        case inspecting
+        case inspected(VideoSourceImportInspection)
         case error(String)
 
         var isWorking: Bool {
             switch self {
-            case .saving:
+            case .inspecting:
                 return true
-            case .idle, .saved, .needsReview, .unavailable, .pluginRequired, .error:
+            case .idle, .inspected, .error:
                 return false
             }
         }
@@ -202,9 +199,19 @@ private struct VideoSourceImportView: View {
 
                 Section("Runtime") {
                     LabeledContent("Type", value: "Video")
-                    LabeledContent("Template", value: "Auto Detect")
-                    Text("RSS URLs should be added from RSS Feed.")
+                    LabeledContent("Mode", value: "Manual")
+                    Text("This view only logs URL facts. It does not infer a video adapter or save a source.")
                         .foregroundStyle(.secondary)
+                }
+
+                if let inspection: VideoSourceImportInspection = self.inspection {
+                    Section("Log") {
+                        ForEach(inspection.logLines, id: \.self) { line in
+                            Text(line)
+                                .font(.footnote)
+                                .textSelection(.enabled)
+                        }
+                    }
                 }
 
                 if let message: String = self.statusMessage {
@@ -241,14 +248,12 @@ private struct VideoSourceImportView: View {
 
     private var primaryButtonTitle: String {
         switch self.importState {
-        case .saving:
-            return "Saving..."
-        case .saved:
-            return "Saved"
-        case .idle, .unavailable, .pluginRequired, .error:
-            return "Add Video Source"
-        case .needsReview:
-            return "Add Video Source"
+        case .inspecting:
+            return "Inspecting..."
+        case .inspected:
+            return "Inspect Again"
+        case .idle, .error:
+            return "Inspect URL"
         }
     }
 
@@ -256,16 +261,10 @@ private struct VideoSourceImportView: View {
         switch self.importState {
         case .idle:
             return nil
-        case .saving:
-            return "Saving video source..."
-        case .saved:
-            return VideoSourceImportStrings.saved
-        case .needsReview:
-            return VideoSourceImportStrings.needsReview
-        case .unavailable(let reason):
-            return self.unavailableMessage(reason: reason)
-        case .pluginRequired(let reason):
-            return self.pluginRequiredMessage(reason: reason)
+        case .inspecting:
+            return "Inspecting video URL..."
+        case .inspected:
+            return "Inspection finished. No source was saved."
         case .error(let message):
             return message
         }
@@ -273,69 +272,50 @@ private struct VideoSourceImportView: View {
 
     private var statusForegroundStyle: Color {
         switch self.importState {
-        case .error, .needsReview, .unavailable, .pluginRequired:
+        case .error:
             return .red
-        case .saved:
+        case .inspected:
             return .green
-        case .idle, .saving:
+        case .idle, .inspecting:
             return .secondary
         }
     }
 
-    @MainActor
-    private func primaryAction() {
-        self.startImport()
+    private var inspection: VideoSourceImportInspection? {
+        guard case .inspected(let inspection) = self.importState else {
+            return nil
+        }
+
+        return inspection
     }
 
     @MainActor
-    private func startImport() {
-        self.importState = .saving
-        let result: AddVideoSourceResult? = self.viewModel.addVideoSource(
+    private func primaryAction() {
+        self.startInspection()
+    }
+
+    @MainActor
+    private func startInspection() {
+        self.importState = .inspecting
+        let inspection: VideoSourceImportInspection? = self.viewModel.inspectVideoSource(
             entryURLString: self.entryURL,
             name: self.trimmedSourceName
         )
 
-        guard let result: AddVideoSourceResult else {
+        guard let inspection: VideoSourceImportInspection else {
             self.importState = .error(VideoSourceImportStrings.invalidOrUnavailable)
             return
         }
 
-        self.apply(result)
-    }
-
-    @MainActor
-    private func apply(_ result: AddVideoSourceResult) {
-        switch result {
-        case .saved:
-            self.finishSaved()
-        case .needsReview:
-            self.importState = .needsReview
-        case .unavailable(let reason):
-            self.importState = .unavailable(reason)
-        case .pluginRequired(let reason):
-            self.importState = .pluginRequired(reason)
-        }
-    }
-
-    @MainActor
-    private func finishSaved() {
-        self.importState = .saved
-        self.completion()
-        self.dismiss()
-    }
-
-    private func unavailableMessage(reason: VideoSourceUnavailableReason) -> String {
-        return VideoSourceImportResultFormatter.message(for: .unavailable(reason))
-    }
-
-    private func pluginRequiredMessage(reason: VideoSourcePluginReason) -> String {
-        return VideoSourceImportResultFormatter.message(for: .pluginRequired(reason))
+        self.importState = .inspected(inspection)
     }
 }
 
 enum VideoSourceImportResultFormatter {
     static func message(for result: AddVideoSourceResult) -> String {
         switch result {
+        case .inspected:
+            return "Video URL inspected."
         case .saved:
             return VideoSourceImportStrings.saved
         case .needsReview:

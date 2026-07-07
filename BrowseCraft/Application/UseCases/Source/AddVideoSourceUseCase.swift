@@ -1,7 +1,17 @@
 import Foundation
 import BrowseCraftCore
 
+struct VideoSourceImportInspection: Hashable {
+    var baseURL: URL
+    var entryURL: URL
+    var seedURL: URL?
+    var entryKind: VideoSourceEntryKind
+    var sourceName: String?
+    var logLines: [String]
+}
+
 enum AddVideoSourceResult: Hashable {
+    case inspected(VideoSourceImportInspection)
     case saved(Source)
     case needsReview(Source, warnings: [String])
     case unavailable(VideoSourceUnavailableReason)
@@ -10,38 +20,19 @@ enum AddVideoSourceResult: Hashable {
 
 struct AddVideoSourceDebugResult: Hashable {
     var result: AddVideoSourceResult
-    var debugSnapshot: SourceDebugSnapshot
+    var debugSnapshot: SourceDebugSnapshot?
 }
 
-// 中文注释：AddVideoSourceUseCase 保存模板化 video website source；本阶段不抓取页面、不接播放器。
+// 中文注释：手动 video source 入口只做 URL 解析和事实日志，不自动判断 adapter/类型，也不保存 Source。
 struct AddVideoSourceUseCase {
-    private let sourceRepository: SourceRepository
     private let urlResolver: VideoSourceURLResolver
-    private let sourceDetector: any VideoSourceDetecting
-    private let decisionResolver: VideoSourceImportDecisionResolver
-    private let tabDiscovererRegistry: VideoTabDiscovererRegistry
-    private let debugSnapshotBuilder: VideoSourceImportDebugSnapshotBuilder
-    private let now: () -> Date
-    private let makeID: () -> String
 
     init(
         sourceRepository: SourceRepository,
-        urlResolver: VideoSourceURLResolver = VideoSourceURLResolver(),
-        sourceDetector: any VideoSourceDetecting = VideoSourceDetector(),
-        decisionResolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver(),
-        tabDiscovererRegistry: VideoTabDiscovererRegistry = VideoTabDiscovererRegistry(),
-        debugSnapshotBuilder: VideoSourceImportDebugSnapshotBuilder = VideoSourceImportDebugSnapshotBuilder(),
-        now: @escaping () -> Date = Date.init,
-        makeID: @escaping () -> String = { UUID().uuidString }
+        urlResolver: VideoSourceURLResolver = VideoSourceURLResolver()
     ) {
-        self.sourceRepository = sourceRepository
+        _ = sourceRepository
         self.urlResolver = urlResolver
-        self.sourceDetector = sourceDetector
-        self.decisionResolver = decisionResolver
-        self.tabDiscovererRegistry = tabDiscovererRegistry
-        self.debugSnapshotBuilder = debugSnapshotBuilder
-        self.now = now
-        self.makeID = makeID
     }
 
     func execute(
@@ -50,12 +41,14 @@ struct AddVideoSourceUseCase {
         entryHTML: String? = nil,
         headers: [String: String] = [:]
     ) throws -> AddVideoSourceResult {
-        return try self.executeWithDebugSnapshot(
-            entryURLString: entryURLString,
-            name: name,
-            entryHTML: entryHTML,
-            headers: headers
-        ).result
+        return .inspected(
+            try self.inspect(
+                entryURLString: entryURLString,
+                name: name,
+                entryHTML: entryHTML,
+                headers: headers
+            )
+        )
     }
 
     func executeWithDebugSnapshot(
@@ -64,158 +57,99 @@ struct AddVideoSourceUseCase {
         entryHTML: String? = nil,
         headers: [String: String] = [:]
     ) throws -> AddVideoSourceDebugResult {
+        return AddVideoSourceDebugResult(
+            result: try self.execute(
+                entryURLString: entryURLString,
+                name: name,
+                entryHTML: entryHTML,
+                headers: headers
+            ),
+            debugSnapshot: nil
+        )
+    }
+
+    func inspect(
+        entryURLString: String,
+        name: String? = nil,
+        entryHTML: String? = nil,
+        headers: [String: String] = [:]
+    ) throws -> VideoSourceImportInspection {
         let resolution: VideoSourceURLResolution = try self.urlResolver.resolve(entryURLString)
-        let startedAt: Date = self.now()
-        let detection: VideoSourceDetection? = self.detection(
-            entryURL: resolution.entryURL,
-            html: entryHTML,
+        let sourceName: String? = name?.trimmedNonEmpty
+        let logLines: [String] = self.logLines(
+            resolution: resolution,
+            sourceName: sourceName,
+            entryHTML: entryHTML,
             headers: headers
         )
-        let adapter: VideoAdapter = detection?.adapter ?? .macCMS
-        let definition: VideoSourceDefinition = VideoSourceDefinition(
-            adapter: adapter,
+
+        return VideoSourceImportInspection(
+            baseURL: resolution.baseURL,
             entryURL: resolution.entryURL,
             seedURL: resolution.seedURL,
             entryKind: resolution.entryKind,
-            routePatterns: adapter == .macCMS ? .macCMS : nil,
-            playbackPolicy: .playPageFirst,
-            requiresAccount: false,
-            seedVodID: resolution.vodID,
-            seedSourceIndex: resolution.sourceIndex,
-            seedEpisodeIndex: resolution.episodeIndex,
-            seedDetailURL: resolution.seedDetailURL,
-            seedPlayURL: resolution.seedPlayURL
-        )
-        let source: Source = try self.makeSource(
-            resolution: resolution,
-            definition: definition,
-            inputName: name,
-            entryHTML: entryHTML,
-            timestamp: startedAt
-        )
-
-        guard let detection: VideoSourceDetection else {
-            let warning: String = "Entry HTML was not provided; review before saving this video source."
-            let decision: VideoSourceImportDecision = .needsReview(
-                definition,
-                warnings: [warning]
-            )
-            return AddVideoSourceDebugResult(
-                result: .needsReview(source, warnings: [warning]),
-                debugSnapshot: self.debugSnapshotBuilder.makeSnapshot(
-                    source: source,
-                    entryURL: resolution.entryURL,
-                    detection: nil,
-                    decision: decision,
-                    startedAt: startedAt,
-                    completedAt: self.now()
-                )
-            )
-        }
-
-        let decision: VideoSourceImportDecision = self.decisionResolver.decision(
-            for: detection,
-            definition: definition
-        )
-        let result: AddVideoSourceResult
-        switch decision {
-        case .supported:
-            try self.sourceRepository.saveSource(source)
-            result = .saved(source)
-        case .needsReview(_, let warnings):
-            result = .needsReview(source, warnings: warnings)
-        case .unavailable(let reason):
-            result = .unavailable(reason)
-        case .pluginRequired(let reason):
-            result = .pluginRequired(reason)
-        }
-
-        return AddVideoSourceDebugResult(
-            result: result,
-            debugSnapshot: self.debugSnapshotBuilder.makeSnapshot(
-                source: source,
-                entryURL: resolution.entryURL,
-                detection: detection,
-                decision: decision,
-                startedAt: startedAt,
-                completedAt: self.now()
-            )
+            sourceName: sourceName,
+            logLines: logLines
         )
     }
 
-    private func makeSource(
+    private func logLines(
         resolution: VideoSourceURLResolution,
-        definition: VideoSourceDefinition,
-        inputName: String?,
+        sourceName: String?,
         entryHTML: String?,
-        timestamp: Date
-    ) throws -> Source {
-        return Source(
-            id: self.makeID(),
-            name: self.sourceName(inputName: inputName, baseURL: resolution.baseURL),
-            baseURL: resolution.baseURL.absoluteString,
-            type: .html,
-            configuration: .video(
-                VideoSourceConfiguration(
-                    definition: definition,
-                    listTabs: try self.listTabs(
-                        definition: definition,
-                        entryHTML: entryHTML,
-                        entryURL: resolution.entryURL
-                    )
-                )
-            ),
-            enabled: true,
-            createdAt: timestamp,
-            updatedAt: timestamp
-        )
-    }
-
-    private func sourceName(inputName: String?, baseURL: URL) -> String {
-        if let inputName: String = inputName?.trimmedNonEmpty {
-            return inputName
-        }
-
-        return baseURL.host ?? "Video Source"
-    }
-
-    private func detection(
-        entryURL: URL,
-        html: String?,
         headers: [String: String]
-    ) -> VideoSourceDetection? {
-        guard let html: String else {
-            return nil
+    ) -> [String] {
+        var lines: [String] = [
+            "Input accepted.",
+            "Base URL: \(resolution.baseURL.absoluteString)",
+            "Entry URL: \(resolution.entryURL.absoluteString)",
+            "Entry page role: \(self.displayTitle(for: resolution.entryKind))"
+        ]
+
+        if let sourceName: String {
+            lines.append("Name: \(sourceName)")
+        }
+        if let seedURL: URL = resolution.seedURL {
+            lines.append("Seed URL: \(seedURL.absoluteString)")
+        }
+        if let vodID: String = resolution.vodID {
+            lines.append("Seed vod id: \(vodID)")
+        }
+        if let sourceIndex: Int = resolution.sourceIndex {
+            lines.append("Seed source index: \(sourceIndex)")
+        }
+        if let episodeIndex: Int = resolution.episodeIndex {
+            lines.append("Seed episode index: \(episodeIndex)")
         }
 
-        return self.sourceDetector.detect(
-            VideoSourceDetectionInput(
-                url: entryURL,
-                html: html,
-                headers: headers
-            )
-        )
+        lines.append("Headers: \(headers.count)")
+
+        if let entryHTML: String {
+            lines.append("HTML provided: yes")
+            lines.append("HTML bytes: \(entryHTML.utf8.count)")
+            lines.append("Contains iframe: \(entryHTML.range(of: "<iframe", options: .caseInsensitive) == nil ? "no" : "yes")")
+            lines.append("Contains video tag: \(entryHTML.range(of: "<video", options: .caseInsensitive) == nil ? "no" : "yes")")
+        } else {
+            lines.append("HTML provided: no")
+        }
+
+        lines.append("No video adapter or source type was inferred.")
+        return lines
     }
 
-    private func listTabs(
-        definition: VideoSourceDefinition,
-        entryHTML: String?,
-        entryURL: URL
-    ) throws -> [VideoSourceListTab] {
-        guard let entryHTML: String else {
-            return [
-                VideoTabDiscoveryDefaults.homeTab(for: definition)
-            ]
+    private func displayTitle(for entryKind: VideoSourceEntryKind) -> String {
+        switch entryKind {
+        case .home:
+            return "home"
+        case .category:
+            return "category"
+        case .list:
+            return "list"
+        case .detail:
+            return "detail"
+        case .play:
+            return "play"
         }
-
-        let discoverer: any VideoTabDiscovering = self.tabDiscovererRegistry.discoverer(
-            for: definition.adapter
-        )
-        return try discoverer.discoverTabs(
-            html: entryHTML,
-            definition: definition,
-            pageURL: entryURL
-        )
     }
 }
 

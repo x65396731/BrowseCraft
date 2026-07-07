@@ -34,7 +34,7 @@ struct VideoRuntimeMacCMSMappingTests {
         #expect(play.seedDetailURL?.absoluteString == "https://video.example.test/voddetail/117372.html")
     }
 
-    @Test func urlResolverRejectsRSSAndUnsupportedRoutes() throws {
+    @Test func urlResolverRejectsRSSAndKeepsGenericRoutesInspectable() throws {
         let resolver: VideoSourceURLResolver = VideoSourceURLResolver()
 
         do {
@@ -46,14 +46,10 @@ struct VideoRuntimeMacCMSMappingTests {
             Issue.record("Unexpected error: \(error.localizedDescription)")
         }
 
-        do {
-            _ = try resolver.resolve("https://video.example.test/topic/weekly.html")
-            Issue.record("Expected unsupported route to be rejected.")
-        } catch VideoSourceURLResolverError.unsupportedVideoURL {
-            #expect(true)
-        } catch {
-            Issue.record("Unexpected error: \(error.localizedDescription)")
-        }
+        let genericRoute: VideoSourceURLResolution = try resolver.resolve("https://video.example.test/topic/weekly.html")
+        #expect(genericRoute.entryURL.absoluteString == "https://video.example.test/topic/weekly.html")
+        #expect(genericRoute.defaultListURL?.absoluteString == "https://video.example.test/topic/weekly.html")
+        #expect(genericRoute.seedURL == nil)
     }
 
     @Test func macCMSMapperExtractsListDetailAndPlaybackReferences() throws {
