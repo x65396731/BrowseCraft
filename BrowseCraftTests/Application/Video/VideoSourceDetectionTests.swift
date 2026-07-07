@@ -169,7 +169,7 @@ struct VideoSourceDetectionTests {
     }
 
     @Test func detectsPluginWhenRestrictionSignalsAreStrong() throws {
-        let detector: VideoSourceDetector = VideoSourceDetector()
+        let detector: VideoSourceDetector = Self.detector(language: .simplifiedChinese)
         let url: URL = try #require(URL(string: "https://video.example.test/"))
 
         let detection: VideoSourceDetection = detector.detect(
@@ -194,7 +194,7 @@ struct VideoSourceDetectionTests {
     }
 
     @Test func loginAndVIPMarkersDoNotForcePluginWhenPublicContentExists() throws {
-        let detector: VideoSourceDetector = VideoSourceDetector()
+        let detector: VideoSourceDetector = Self.detector(language: .simplifiedChinese)
         let url: URL = try #require(URL(string: "https://video.example.test/"))
 
         let detection: VideoSourceDetection = detector.detect(
@@ -226,7 +226,7 @@ struct VideoSourceDetectionTests {
     }
 
     @Test func localizedJapanesePlaybackLabelsOnlyAssistStructureSignals() throws {
-        let detector: VideoSourceDetector = VideoSourceDetector()
+        let detector: VideoSourceDetector = Self.detector(language: .japanese)
         let url: URL = try #require(URL(string: "https://jp.example.test/watch/sample"))
 
         let detection: VideoSourceDetection = detector.detect(
@@ -253,7 +253,7 @@ struct VideoSourceDetectionTests {
     }
 
     @Test func localizedSemanticMarkersAloneDoNotProduceSupportedConfidence() throws {
-        let detector: VideoSourceDetector = VideoSourceDetector()
+        let detector: VideoSourceDetector = Self.detector(language: .japanese)
         let url: URL = try #require(URL(string: "https://jp.example.test/"))
 
         let detection: VideoSourceDetection = detector.detect(
@@ -280,8 +280,8 @@ struct VideoSourceDetectionTests {
         })
     }
 
-    @Test func spanishAccountAndPayMarkersDoNotForcePluginWhenPublicContentExists() throws {
-        let detector: VideoSourceDetector = VideoSourceDetector()
+    @Test func unsupportedSpanishAccountMarkerDoesNotProduceLocalizedLoginWarning() throws {
+        let detector: VideoSourceDetector = Self.detector(language: .english)
         let url: URL = try #require(URL(string: "https://es.example.test/"))
 
         let detection: VideoSourceDetection = detector.detect(
@@ -311,12 +311,13 @@ struct VideoSourceDetectionTests {
         })
         #expect(detection.warnings.contains { warning in
             warning.contains("login")
-        })
+        } == false)
     }
 
     @Test func localizedCaptchaMarkerStillRoutesToPluginBoundary() throws {
-        let detector: VideoSourceDetector = VideoSourceDetector()
-        let resolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver()
+        let lexicon: VideoDetectionLexicon = Self.videoLexicon(language: .japanese)
+        let detector: VideoSourceDetector = VideoSourceDetector(lexicon: lexicon)
+        let resolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver(lexicon: lexicon)
         let url: URL = try #require(URL(string: "https://jp.example.test/secure"))
         let definition: VideoSourceDefinition = try Self.videoDefinition(adapter: .plugin, entryURL: url)
 
@@ -535,6 +536,16 @@ struct VideoSourceDetectionTests {
         #expect(detection.reasons.contains { reason in
             reason.contains("Playback mode")
         })
+    }
+
+    private static func detector(language: SourceDetectionLexicon.Language) -> VideoSourceDetector {
+        return VideoSourceDetector(lexicon: Self.videoLexicon(language: language))
+    }
+
+    private static func videoLexicon(language: SourceDetectionLexicon.Language) -> VideoDetectionLexicon {
+        return VideoDetectionLexicon(
+            sourceLexicon: SourceDetectionLexicon.load(language: language)
+        )
     }
 
     private static func videoDefinition(

@@ -176,7 +176,11 @@ struct VideoRuntimeMacCMSMappingTests {
     }
 
     @Test func macCMSMapperClassifiesRestrictedAndPageOnlyPlayback() throws {
-        let mapper: MacCMSVideoHTMLMapper = MacCMSVideoHTMLMapper()
+        let mapper: MacCMSVideoHTMLMapper = MacCMSVideoHTMLMapper(
+            lexicon: VideoDetectionLexicon(
+                sourceLexicon: SourceDetectionLexicon.load(language: .simplifiedChinese)
+            )
+        )
         let definition: SourceDefinition = try Self.videoDefinition()
         let playURL: URL = try #require(URL(string: "https://video.example.test/vodplay/117372-1-1.html"))
 

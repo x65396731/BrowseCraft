@@ -68,7 +68,9 @@ struct SourceContentNoiseFilterTests {
     }
 
     @Test func discardsAccountNavigationListItem() throws {
-        let filter: SourceContentNoiseFilter = SourceContentNoiseFilter()
+        let filter: SourceContentNoiseFilter = SourceContentNoiseFilter(
+            lexicon: SourceDetectionLexicon.load(language: .simplifiedChinese)
+        )
         let decision: SourceContentNoiseDecision = filter.decision(
             for: SourceContentNoiseCandidate(
                 title: "登录",

@@ -1,0 +1,35 @@
+{
+  "accountNavigation": [
+    "登录",
+    "登入",
+    "注册",
+    "註冊"
+  ],
+  "accountRestriction": [
+    "登录",
+    "登入"
+  ],
+  "captchaRestriction": [
+    "验证码"
+  ],
+  "pluginRestriction": [
+    "验证码"
+  ],
+  "payRestriction": [
+    "vip",
+    "会员",
+    "會員",
+    "付费"
+  ],
+  "genericSupporting": [
+    "播放"
+  ],
+  "navigationReject": [
+    "会员",
+    "會員",
+    "登录",
+    "登入",
+    "注册",
+    "註冊"
+  ]
+}

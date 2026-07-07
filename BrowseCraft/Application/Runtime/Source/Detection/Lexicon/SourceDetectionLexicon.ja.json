@@ -1,0 +1,28 @@
+{
+  "accountNavigation": [
+    "ログイン",
+    "サインイン"
+  ],
+  "accountRestriction": [
+    "ログイン",
+    "サインイン"
+  ],
+  "captchaRestriction": [
+    "認証コード"
+  ],
+  "pluginRestriction": [
+    "認証コード"
+  ],
+  "payRestriction": [
+    "有料",
+    "会員"
+  ],
+  "genericSupporting": [
+    "エピソード",
+    "再生"
+  ],
+  "navigationReject": [
+    "ログイン",
+    "サインイン"
+  ]
+}

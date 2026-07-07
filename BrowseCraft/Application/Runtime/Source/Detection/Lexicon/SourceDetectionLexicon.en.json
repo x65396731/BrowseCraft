@@ -1,0 +1,41 @@
+{
+  "accountNavigation": [
+    "login",
+    "logout",
+    "sign in",
+    "signin",
+    "signup",
+    "register",
+    "account",
+    "profile"
+  ],
+  "accountRestriction": [
+    "login",
+    "sign in",
+    "account"
+  ],
+  "payRestriction": [
+    "vip",
+    "premium",
+    "member-only",
+    "members only"
+  ],
+  "navigationReject": [
+    "login",
+    "logout",
+    "account",
+    "profile",
+    "history",
+    "favorite",
+    "favourite",
+    "upload",
+    "advert",
+    "ads",
+    "privacy",
+    "terms",
+    "contact",
+    "support",
+    "signup",
+    "register"
+  ]
+}

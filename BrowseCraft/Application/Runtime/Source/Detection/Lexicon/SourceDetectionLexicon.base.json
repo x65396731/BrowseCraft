@@ -1,0 +1,154 @@
+{
+  "advertising": [
+    "ads",
+    "ad-",
+    "-ad",
+    "_ad",
+    "advert",
+    "advertise",
+    "advertisement",
+    "banner",
+    "sponsor",
+    "sponsored",
+    "promotion",
+    "promoted"
+  ],
+  "popupOrOverlay": [
+    "popup",
+    "pop-up",
+    "modal",
+    "overlay",
+    "interstitial"
+  ],
+  "tracking": [
+    "analytics",
+    "tracking",
+    "tracker",
+    "pixel",
+    "beacon",
+    "statcounter",
+    "doubleclick",
+    "googletagmanager",
+    "google-analytics"
+  ],
+  "externalPromotion": [
+    "download app",
+    "install app",
+    "apk",
+    "app store",
+    "play store",
+    "telegram",
+    "discord"
+  ],
+  "playbackStructure": [
+    "player",
+    "play",
+    "embed",
+    "iframe",
+    "video",
+    "m3u8",
+    "mp4"
+  ],
+  "webViewShell": [
+    "id=\"app\"",
+    "id='app'",
+    "data-reactroot",
+    "__nuxt",
+    "__next"
+  ],
+  "directMedia": [
+    ".m3u8",
+    ".mp4",
+    "<video",
+    "<source",
+    "application/vnd.apple.mpegurl",
+    "video/mp4"
+  ],
+  "macCMSPayload": [
+    "player_aaaa",
+    "mac_url",
+    "mac_player",
+    "macplayer"
+  ],
+  "macCMSRoute": [
+    "/vodtype/",
+    "/vodshow/",
+    "/voddetail/",
+    "/vodplay/"
+  ],
+  "macCMSWeak": [
+    "mac_history",
+    "vod_name",
+    "vod_id",
+    "zanpian"
+  ],
+  "genericListCard": [
+    "video-card",
+    "video-item",
+    "frame-block",
+    "thumb-block",
+    "duration",
+    "views",
+    "thumbnail",
+    "thumb"
+  ],
+  "genericSupporting": [
+    "data-src",
+    "lazyload",
+    "playlist",
+    "episode"
+  ],
+  "iframePlayback": [
+    "embed/",
+    "/embed",
+    "player",
+    "allowfullscreen",
+    "html5player"
+  ],
+  "pluginRestriction": [
+    "captcha",
+    "anti-bot",
+    "cryptojs",
+    "decrypt",
+    "encrypted",
+    "eval(function(p,a,c,k,e,d)",
+    "signature",
+    "wasm"
+  ],
+  "captchaRestriction": [
+    "captcha",
+    "anti-bot"
+  ],
+  "signingRestriction": [
+    "signature",
+    "token"
+  ],
+  "encryptedPlaybackRestriction": [
+    "cryptojs",
+    "decrypt",
+    "encrypted"
+  ],
+  "wasmRestriction": [
+    "wasm"
+  ],
+  "sessionRestriction": [
+    "session",
+    "cookie"
+  ],
+  "privateAPIRestriction": [
+    "private api",
+    "privateapi"
+  ],
+  "feedStructure": [
+    "rss",
+    "atom",
+    "xml",
+    "json"
+  ],
+  "comicStructure": [
+    "chapter",
+    "episode",
+    "page",
+    "viewer"
+  ]
+}

@@ -73,79 +73,10 @@ protocol SourceContentNoiseFiltering {
 }
 
 struct SourceContentNoiseFilter: SourceContentNoiseFiltering {
-    private enum Markers {
-        static let advertising: [String] = [
-            "ads",
-            "ad-",
-            "-ad",
-            "_ad",
-            "advert",
-            "advertise",
-            "advertisement",
-            "banner",
-            "sponsor",
-            "sponsored",
-            "promotion",
-            "promoted"
-        ]
+    private let lexicon: SourceDetectionLexicon
 
-        static let popupOrOverlay: [String] = [
-            "popup",
-            "pop-up",
-            "modal",
-            "overlay",
-            "interstitial"
-        ]
-
-        static let tracking: [String] = [
-            "analytics",
-            "tracking",
-            "tracker",
-            "pixel",
-            "beacon",
-            "statcounter",
-            "doubleclick",
-            "googletagmanager",
-            "google-analytics"
-        ]
-
-        static let accountNavigation: [String] = [
-            "login",
-            "logout",
-            "sign in",
-            "signin",
-            "signup",
-            "register",
-            "account",
-            "profile",
-            "登录",
-            "登入",
-            "注册",
-            "註冊",
-            "ログイン",
-            "サインイン",
-            "로그인"
-        ]
-
-        static let externalPromotion: [String] = [
-            "download app",
-            "install app",
-            "apk",
-            "app store",
-            "play store",
-            "telegram",
-            "discord"
-        ]
-
-        static let playback: [String] = [
-            "player",
-            "play",
-            "embed",
-            "iframe",
-            "video",
-            "m3u8",
-            "mp4"
-        ]
+    init(lexicon: SourceDetectionLexicon = .default) {
+        self.lexicon = lexicon
     }
 
     func decision(for candidate: SourceContentNoiseCandidate) -> SourceContentNoiseDecision {
@@ -156,15 +87,15 @@ struct SourceContentNoiseFilter: SourceContentNoiseFiltering {
             reasons.append(.emptyContent)
         }
 
-        if self.containsMarker(in: searchableText, markers: Markers.tracking) {
+        if self.lexicon.containsMarker(in: searchableText, category: .tracking) {
             reasons.append(.tracking)
         }
 
-        if self.containsMarker(in: searchableText, markers: Markers.popupOrOverlay) {
+        if self.lexicon.containsMarker(in: searchableText, category: .popupOrOverlay) {
             reasons.append(.popupOrOverlay)
         }
 
-        if self.containsMarker(in: searchableText, markers: Markers.advertising),
+        if self.lexicon.containsMarker(in: searchableText, category: .advertising),
            self.hasPlaybackSignal(candidate) == false {
             reasons.append(.advertising)
         }
@@ -173,7 +104,7 @@ struct SourceContentNoiseFilter: SourceContentNoiseFiltering {
             reasons.append(.accountNavigation)
         }
 
-        if self.containsMarker(in: searchableText, markers: Markers.externalPromotion),
+        if self.lexicon.containsMarker(in: searchableText, category: .externalPromotion),
            self.hasPlaybackSignal(candidate) == false {
             reasons.append(.externalPromotion)
         }
@@ -203,7 +134,7 @@ struct SourceContentNoiseFilter: SourceContentNoiseFiltering {
         _ candidate: SourceContentNoiseCandidate,
         searchableText: String
     ) -> Bool {
-        guard self.containsMarker(in: searchableText, markers: Markers.accountNavigation) else {
+        guard self.lexicon.containsMarker(in: searchableText, category: .accountNavigation) else {
             return false
         }
 
@@ -224,7 +155,7 @@ struct SourceContentNoiseFilter: SourceContentNoiseFiltering {
             urlText = candidate.url?.path
         }
 
-        return self.containsMarker(
+        return self.lexicon.containsMarker(
             in: [
                 candidate.title,
                 urlText,
@@ -235,7 +166,7 @@ struct SourceContentNoiseFilter: SourceContentNoiseFiltering {
             ]
                 .compactMap { $0 }
                 .joined(separator: " "),
-            markers: Markers.playback
+            category: .playbackStructure
         )
     }
 
@@ -253,13 +184,6 @@ struct SourceContentNoiseFilter: SourceContentNoiseFiltering {
             .compactMap { $0 }
             .joined(separator: " ")
             .lowercased()
-    }
-
-    private func containsMarker(in text: String, markers: [String]) -> Bool {
-        let normalizedText: String = text.lowercased()
-        return markers.contains { marker in
-            normalizedText.contains(marker.lowercased())
-        }
     }
 
     private func isBlank(_ value: String?) -> Bool {
