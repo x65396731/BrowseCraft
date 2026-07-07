@@ -169,7 +169,7 @@ struct VideoTabDiscoveryTests {
         #expect(repository.savedSources.isEmpty)
     }
 
-    @Test func addVideoSourceUseCaseCanSaveReviewedVideoSource() throws {
+    @Test func addVideoSourceUseCaseDoesNotSaveNeedsReviewVideoSource() throws {
         let repository: VideoTabDiscoveryInMemorySourceRepository = VideoTabDiscoveryInMemorySourceRepository()
         let useCase: AddVideoSourceUseCase = AddVideoSourceUseCase(
             sourceRepository: repository,
@@ -186,10 +186,8 @@ struct VideoTabDiscoveryTests {
             return
         }
 
-        let savedSource: Source = try useCase.saveReviewedSource(source)
-
-        #expect(savedSource.id == "video.review")
-        #expect(repository.savedSources.map(\.id) == ["video.review"])
+        #expect(source.id == "video.review")
+        #expect(repository.savedSources.isEmpty)
     }
 
     @Test func addVideoSourceUseCaseDoesNotSaveUnavailableVideoSource() throws {

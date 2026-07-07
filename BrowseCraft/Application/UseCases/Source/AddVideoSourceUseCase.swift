@@ -8,6 +8,11 @@ enum AddVideoSourceResult: Hashable {
     case pluginRequired(VideoSourcePluginReason)
 }
 
+struct AddVideoSourceDebugResult: Hashable {
+    var result: AddVideoSourceResult
+    var debugSnapshot: SourceDebugSnapshot
+}
+
 // 中文注释：AddVideoSourceUseCase 保存模板化 video website source；本阶段不抓取页面、不接播放器。
 struct AddVideoSourceUseCase {
     private let sourceRepository: SourceRepository
@@ -15,6 +20,7 @@ struct AddVideoSourceUseCase {
     private let sourceDetector: any VideoSourceDetecting
     private let decisionResolver: VideoSourceImportDecisionResolver
     private let tabDiscovererRegistry: VideoTabDiscovererRegistry
+    private let debugSnapshotBuilder: VideoSourceImportDebugSnapshotBuilder
     private let now: () -> Date
     private let makeID: () -> String
 
@@ -24,6 +30,7 @@ struct AddVideoSourceUseCase {
         sourceDetector: any VideoSourceDetecting = VideoSourceDetector(),
         decisionResolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver(),
         tabDiscovererRegistry: VideoTabDiscovererRegistry = VideoTabDiscovererRegistry(),
+        debugSnapshotBuilder: VideoSourceImportDebugSnapshotBuilder = VideoSourceImportDebugSnapshotBuilder(),
         now: @escaping () -> Date = Date.init,
         makeID: @escaping () -> String = { UUID().uuidString }
     ) {
@@ -32,6 +39,7 @@ struct AddVideoSourceUseCase {
         self.sourceDetector = sourceDetector
         self.decisionResolver = decisionResolver
         self.tabDiscovererRegistry = tabDiscovererRegistry
+        self.debugSnapshotBuilder = debugSnapshotBuilder
         self.now = now
         self.makeID = makeID
     }
@@ -42,8 +50,22 @@ struct AddVideoSourceUseCase {
         entryHTML: String? = nil,
         headers: [String: String] = [:]
     ) throws -> AddVideoSourceResult {
+        return try self.executeWithDebugSnapshot(
+            entryURLString: entryURLString,
+            name: name,
+            entryHTML: entryHTML,
+            headers: headers
+        ).result
+    }
+
+    func executeWithDebugSnapshot(
+        entryURLString: String,
+        name: String? = nil,
+        entryHTML: String? = nil,
+        headers: [String: String] = [:]
+    ) throws -> AddVideoSourceDebugResult {
         let resolution: VideoSourceURLResolution = try self.urlResolver.resolve(entryURLString)
-        let timestamp: Date = self.now()
+        let startedAt: Date = self.now()
         let detection: VideoSourceDetection? = self.detection(
             entryURL: resolution.entryURL,
             html: entryHTML,
@@ -69,32 +91,56 @@ struct AddVideoSourceUseCase {
             definition: definition,
             inputName: name,
             entryHTML: entryHTML,
-            timestamp: timestamp
+            timestamp: startedAt
         )
 
         guard let detection: VideoSourceDetection else {
-            return .needsReview(
-                source,
-                warnings: ["Entry HTML was not provided; review before saving this video source."]
+            let warning: String = "Entry HTML was not provided; review before saving this video source."
+            let decision: VideoSourceImportDecision = .needsReview(
+                definition,
+                warnings: [warning]
+            )
+            return AddVideoSourceDebugResult(
+                result: .needsReview(source, warnings: [warning]),
+                debugSnapshot: self.debugSnapshotBuilder.makeSnapshot(
+                    source: source,
+                    entryURL: resolution.entryURL,
+                    detection: nil,
+                    decision: decision,
+                    startedAt: startedAt,
+                    completedAt: self.now()
+                )
             )
         }
 
-        switch self.decisionResolver.decision(for: detection, definition: definition) {
+        let decision: VideoSourceImportDecision = self.decisionResolver.decision(
+            for: detection,
+            definition: definition
+        )
+        let result: AddVideoSourceResult
+        switch decision {
         case .supported:
             try self.sourceRepository.saveSource(source)
-            return .saved(source)
+            result = .saved(source)
         case .needsReview(_, let warnings):
-            return .needsReview(source, warnings: warnings)
+            result = .needsReview(source, warnings: warnings)
         case .unavailable(let reason):
-            return .unavailable(reason)
+            result = .unavailable(reason)
         case .pluginRequired(let reason):
-            return .pluginRequired(reason)
+            result = .pluginRequired(reason)
         }
-    }
 
-    func saveReviewedSource(_ source: Source) throws -> Source {
-        try self.sourceRepository.saveSource(source)
-        return source
+        return AddVideoSourceDebugResult(
+            result: result,
+            debugSnapshot: self.debugSnapshotBuilder.makeSnapshot(
+                source: source,
+                entryURL: resolution.entryURL,
+                detection: detection,
+                decision: decision,
+                startedAt: startedAt,
+                completedAt: self.now()
+            )
+        )
     }
 
     private func makeSource(

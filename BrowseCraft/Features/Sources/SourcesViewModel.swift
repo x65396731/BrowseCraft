@@ -17,6 +17,7 @@ final class SourcesViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published private(set) var isRefreshing: Bool = false
     @Published private(set) var refreshingSourceID: String?
+    @Published private(set) var latestVideoImportDebugSnapshot: SourceDebugSnapshot?
 
     private let syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase
     private let loadSourcesUseCase: LoadSourcesUseCase
@@ -154,33 +155,20 @@ final class SourcesViewModel: ObservableObject {
     /// 中文注释：addVideoSource 方法导入 video source；P5.1.14 后会先返回产品分支，再决定是否保存。
     func addVideoSource(entryURLString: String, name: String? = nil) -> AddVideoSourceResult? {
         do {
-            let result: AddVideoSourceResult = try self.addVideoSourceUseCase.execute(
+            let debugResult: AddVideoSourceDebugResult = try self.addVideoSourceUseCase.executeWithDebugSnapshot(
                 entryURLString: entryURLString,
                 name: name
             )
+            let result: AddVideoSourceResult = debugResult.result
+            self.latestVideoImportDebugSnapshot = debugResult.debugSnapshot
 
-            if case .saved(let source) = result {
+            if case .saved = result {
                 self.load()
-                self.selectSource(id: source.id)
             }
 
             return result
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "video-source-add-error")
-            self.errorMessage = error.localizedDescription
-            return nil
-        }
-    }
-
-    @MainActor
-    func saveReviewedVideoSource(_ source: Source) -> Source? {
-        do {
-            let savedSource: Source = try self.addVideoSourceUseCase.saveReviewedSource(source)
-            self.load()
-            self.selectSource(id: savedSource.id)
-            return savedSource
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "video-source-review-save-error")
             self.errorMessage = error.localizedDescription
             return nil
         }
