@@ -77,9 +77,14 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
     }
 
     private let lexicon: VideoDetectionLexicon
+    private let noiseFilter: any SourceContentNoiseFiltering
 
-    init(lexicon: VideoDetectionLexicon = .default) {
+    init(
+        lexicon: VideoDetectionLexicon = .default,
+        noiseFilter: any SourceContentNoiseFiltering = SourceContentNoiseFilter()
+    ) {
         self.lexicon = lexicon
+        self.noiseFilter = noiseFilter
     }
 
     func mapList(
@@ -116,6 +121,18 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
             guard self.isLikelyContentItem(element),
                   let detailURL: URL = try self.detailURL(from: element, baseURL: pageURL),
                   let title: String = try self.title(from: element) else {
+                continue
+            }
+
+            let noiseDecision: SourceContentNoiseDecision = self.noiseFilter.decision(
+                for: try self.noiseCandidate(
+                    from: element,
+                    title: title,
+                    url: detailURL,
+                    context: .listItem
+                )
+            )
+            guard noiseDecision.action != .discard else {
                 continue
             }
 
@@ -355,7 +372,7 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
             )
         }
 
-        if let iframeSource: String = self.firstAttribute(in: document, selector: "iframe[src], embed[src]", attribute: "src"),
+        if let iframeSource: String = self.firstPlaybackFrameSource(in: document, baseURL: baseURL),
            let iframeURL: URL = URL(string: iframeSource, relativeTo: baseURL)?.absoluteURL {
             return VideoPlaybackCandidate(url: iframeURL, kind: .iframe)
         }
@@ -496,6 +513,78 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
         } catch {
             return nil
         }
+    }
+
+    private func firstPlaybackFrameSource(in document: Document, baseURL: URL) -> String? {
+        do {
+            let frames: [Element] = try document.select("iframe[src], embed[src]").array()
+            for frame: Element in frames {
+                guard let source: String = try frame.attr("src").trimmedNonEmpty,
+                      let url: URL = URL(string: source, relativeTo: baseURL)?.absoluteURL else {
+                    continue
+                }
+
+                let decision: SourceContentNoiseDecision = self.noiseFilter.decision(
+                    for: try self.noiseCandidate(
+                        from: frame,
+                        title: self.linkTitle(from: frame),
+                        url: url,
+                        context: .playbackCandidate
+                    )
+                )
+                guard decision.action != .discard else {
+                    continue
+                }
+
+                return source
+            }
+
+            return nil
+        } catch {
+            return nil
+        }
+    }
+
+    private func noiseCandidate(
+        from element: Element,
+        title: String?,
+        url: URL?,
+        context: SourceContentNoiseContext
+    ) throws -> SourceContentNoiseCandidate {
+        return SourceContentNoiseCandidate(
+            title: title,
+            url: url,
+            text: try element.text().trimmedNonEmpty,
+            cssClass: try element.className().trimmedNonEmpty,
+            elementID: try element.id().trimmedNonEmpty,
+            tagName: element.tagName().trimmedNonEmpty,
+            attributes: try self.noiseAttributes(from: element),
+            sourceKind: .video,
+            context: context
+        )
+    }
+
+    private func noiseAttributes(from element: Element) throws -> [String: String] {
+        let names: [String] = [
+            "href",
+            "src",
+            "title",
+            "alt",
+            "aria-label",
+            "data-src",
+            "data-original",
+            "data-thumb",
+            "role"
+        ]
+        var attributes: [String: String] = [:]
+
+        for name: String in names {
+            if let value: String = try element.attr(name).trimmedNonEmpty {
+                attributes[name] = value
+            }
+        }
+
+        return attributes
     }
 
     private func firstMediaURL(in html: String, suffix: String) -> String? {

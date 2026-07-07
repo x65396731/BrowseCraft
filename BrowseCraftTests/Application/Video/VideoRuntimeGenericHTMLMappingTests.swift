@@ -26,6 +26,36 @@ struct VideoRuntimeGenericHTMLMappingTests {
         })
     }
 
+    @Test func genericHTMLMapperFiltersObviousNoiseListItems() throws {
+        let mapper: GenericHTMLVideoHTMLMapper = GenericHTMLVideoHTMLMapper()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let listURL: URL = try #require(URL(string: "https://video.example.test/"))
+
+        let items: [SourceContentItem] = try mapper.mapList(
+            html: """
+            <html>
+              <body>
+                <article class="video-card ad-banner sponsored">
+                  <a href="/promo/install-app">Sponsored Install App</a>
+                  <img src="/promo.jpg" alt="Sponsored Install App">
+                </article>
+                <article class="video-card">
+                  <a href="/watch/movie-1" title="Movie 1">Movie 1</a>
+                  <img src="/movie-1.jpg" alt="Movie 1">
+                  <span class="duration">12 min</span>
+                </article>
+              </body>
+            </html>
+            """,
+            definition: definition,
+            pageURL: listURL
+        )
+
+        #expect(items.count == 1)
+        #expect(items.first?.title == "Movie 1")
+        #expect(items.first?.detailURL?.absoluteString == "https://video.example.test/watch/movie-1")
+    }
+
     @Test func genericHTMLMapperBuildsDetailContentFromPlayablePage() throws {
         let mapper: any VideoHTMLMapper = VideoAdapterRegistry().mapper(for: .genericHTML)
         let definition: SourceDefinition = try Self.videoDefinition()
@@ -130,6 +160,29 @@ struct VideoRuntimeGenericHTMLMappingTests {
         #expect(playback.candidateMediaKind == .iframe)
         #expect(playback.status == .pageOnly)
         #expect(playback.playbackRequestConfig?.referer == playURL)
+    }
+
+    @Test func genericHTMLMapperSkipsTrackingIframeBeforePlaybackIframe() throws {
+        let mapper: GenericHTMLVideoHTMLMapper = GenericHTMLVideoHTMLMapper()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let playURL: URL = try #require(URL(string: "https://video.example.test/watch/iframe"))
+
+        let playback: SourceVideoPlaybackReference = try mapper.mapPlayback(
+            html: """
+            <html>
+              <body>
+                <iframe class="tracking-pixel" src="https://analytics.example.test/pixel"></iframe>
+                <iframe class="responsive-player" src="/embed/movie-1" allowfullscreen></iframe>
+              </body>
+            </html>
+            """,
+            definition: definition,
+            playPageURL: playURL
+        )
+
+        #expect(playback.candidateMediaURL?.absoluteString == "https://video.example.test/embed/movie-1")
+        #expect(playback.candidateMediaKind == .iframe)
+        #expect(playback.status == .pageOnly)
     }
 
     @Test func videoListLoaderRejectsWebViewRequiredHTMLBeforeStaticMapping() async throws {
