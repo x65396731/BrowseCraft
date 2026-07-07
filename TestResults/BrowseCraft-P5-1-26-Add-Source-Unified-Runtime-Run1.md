@@ -49,6 +49,14 @@ The previous RSS mapper only understood RSS 2.0 `<channel><item>`, so V2EX loade
 - Add a real Request Options editor for manual source import. This should pass through `RequestConfig` instead of showing placeholder controls.
 - Decide which request fields are user-facing first: headers, referer, cookie policy, WebView requirement, or request method/body.
 - Extend comic import debug from list-only summary to detail/reader handoff after the unified entry stabilizes.
+- Stabilize the physical Debug split first: Common / RSS / Rule / Video.
+- Keep Video Debug as URL inspection for now, with clear wording that full rule debugging depends on video iframe/WebView/script/media extraction support.
+- Do not expand Video Debug into a full workbench until the video runtime can handle list/detail/play/iframe/WebView/script/media extraction.
+- Treat anti-bot/challenge HTML as a first-class debug diagnosis such as `blockedByAntiBot`, not as RSS/parser/selector failure.
+- Re-plan the next steps as:
+  - P5.1.27 Source Debug physical layer stabilization.
+  - P5.1.28 Video parsing capability completion.
+  - P5.1.29 Video Debug Workbench.
 
 ## Tests
 

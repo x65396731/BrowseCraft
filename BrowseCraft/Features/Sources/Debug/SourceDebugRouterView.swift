@@ -17,7 +17,7 @@ struct SourceDebugRouterView: View {
                 entryURL: self.entryURL
             )
         case .comic:
-            ComicSourceRuleDebugView(
+            RuleSourceDebugView(
                 viewModel: self.viewModel,
                 entryURL: self.entryURL,
                 sourceName: self.sourceName,

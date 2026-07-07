@@ -26,25 +26,21 @@ struct VideoSourceDebugView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Input") {
-                    TextField("URL", text: self.$debugEntryURL)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(.URL)
-                        .disabled(self.isRunning)
-                }
+                SourceDebugInputSection(
+                    entryURL: self.$debugEntryURL,
+                    isRunning: self.isRunning
+                )
 
-                Section("Runtime") {
-                    LabeledContent("Type", value: RuntimeSourceImportKind.video.displayTitle)
-                    Text(RuntimeSourceImportKind.video.debugSummary)
-                        .foregroundStyle(.secondary)
-
-                    Button(self.isRunning ? "Running..." : "Run Debug") {
+                SourceDebugRunSection(
+                    kind: .video,
+                    isRunning: self.isRunning,
+                    canRun: self.canRun,
+                    runAction: {
                         Task {
                             await self.runDebug()
                         }
                     }
-                    .disabled(self.canRun == false)
-                }
+                )
 
                 Section("Video Debug") {
                     Text("Video debug only shows request and URL inspection logs. It does not choose a video adapter.")
@@ -56,7 +52,7 @@ struct VideoSourceDebugView: View {
                         ProgressView("Running debug...")
                     }
                 } else if let preview: RuntimeSourcePreviewResult = self.preview {
-                    RuntimeSourcePreviewDebugSection(preview: preview)
+                    VideoDebugResultView(preview: preview)
                 } else if let errorMessage: String = self.errorMessage {
                     Section("Status") {
                         Text(errorMessage)

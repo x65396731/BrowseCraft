@@ -1193,3 +1193,135 @@ VideoPlaybackMode.iframe 表示播放层 iframe。
 ```
 
 下一步在你明确要求测试后，先跑 P5.1.11 的 GenericHTML/MacCMS playback 定向测试；通过后再进入 P5.1.12 的 `Rendering` 层 WebViewRequired 预留。
+
+## 2026-07-08 当前工作重排
+
+背景：
+
+```text
+P5.1.26 已经把 Add Source 入口改成三端统一 shell。
+RSS Debug 已经能展示请求、parser、raw preview，并能识别反扒 HTML challenge。
+Comic Rule Debug 已经能跑 list rule、展示 request/extraction/issues，并能回到 Rule JSON 调整。
+Video Debug 目前仍只是 URL inspection，不能真正帮助用户逐层调视频规则。
+```
+
+新的结论：
+
+```text
+添加/保存层：视频应该更少自动推断，不恢复 adapter 自动判断。
+调试层：视频比漫画更复杂，不能只做 URL inspection。
+完整 Video Debug 依赖 iframe、WebView、脚本变量、播放地址提取等视频解析能力。
+```
+
+因此当前工作重新排为：
+
+### P5.1.27 Source Debug 物理层稳定
+
+目标：先把三端 Debug 的公共结构整理稳定，但不强行完成完整 Video Debug。
+
+范围：
+
+```text
+Features/Sources/Debug/Common
+  SourceDebugInputSection
+  SourceDebugRunSection
+  后续可继续补 Status / Request / RawPreview / Issues 公共 section
+
+Features/Sources/Debug/RSS
+  RSSSourceDebugView
+  RSSDebugResultView
+
+Features/Sources/Debug/Rule
+  RuleSourceDebugView
+  RuleDebugResultView
+
+Features/Sources/Debug/Video
+  VideoSourceDebugView
+  VideoDebugResultView
+```
+
+验收：
+
+```text
+AddRuntimeSourceView 只负责统一入口和跳转。
+RSS / Comic / Video 的 Debug View 在物理层可见分开。
+公共组件只承载三端真正共有的输入、运行、状态和结果展示能力。
+Comic 和 RSS 可继续作为可用调试链路。
+Video 保留 URL inspection，但文案必须说明完整规则调试依赖后续视频解析能力。
+```
+
+非目标：
+
+```text
+不在 P5.1.27 实现完整视频规则调试。
+不恢复视频 adapter 自动判断。
+不新增视频保存路径。
+不强行把 Video Debug 做成和 Comic Debug 等价。
+```
+
+### P5.1.28 视频解析能力补齐计划
+
+目标：先补足视频 runtime 的解析能力，再做真正可用的 Video Debug。
+
+需要补的能力：
+
+```text
+list      视频列表卡片提取
+detail    视频详情/剧集提取
+play      播放页入口提取
+iframe    内容 iframe 和播放 iframe 分层处理
+webView   JS 壳页 / 需要渲染页面的加载能力
+script    script 变量、JSON 内嵌数据、正则提取
+media     m3u8 / mp4 / direct video URL 提取
+antiBot   Cloudflare/challenge/验证页识别为 blockedByAntiBot
+```
+
+设计原则：
+
+```text
+用户自己选择调试阶段：List / Detail / Play / Iframe / WebView。
+系统只执行用户选择的阶段和规则，不猜 adapter。
+每一层都输出 request、raw preview、extraction、issues。
+WebView 和插件是能力出口，不是普通 selector 失败的兜底假成功。
+```
+
+### P5.1.29 Video Debug Workbench
+
+目标：在 P5.1.28 能力具备后，再把视频调试页做成真正可操作的工作台。
+
+结构：
+
+```text
+VideoSourceDebugView
+  SourceDebugInputSection
+  VideoDebugStageSection
+    List / Detail / Play / Iframe / WebView
+  VideoDebugRequestSection
+    headers / referer / cookie / webView / method
+  VideoDebugRuleEditorSection
+    当前阶段的 selector / regex / script extraction
+  SourceDebugRunSection
+  VideoDebugResultView
+    Request
+    Raw Preview
+    Extraction
+    Issues
+```
+
+验收：
+
+```text
+用户能从一个 video URL 开始，手动选择阶段并逐层调整规则。
+调试结果明确区分 selectorEmpty、parserFailed、blockedByAntiBot、webViewRequired、iframeRequired。
+系统不自动判断视频源类型，不自动选择 adapter。
+调通后的规则再进入保存流程；保存时机仍保持 library/list load 成功后入库。
+```
+
+### 当前优先级
+
+```text
+1. 收口 P5.1.27：完成 Debug 物理层稳定和文档同步。
+2. 暂停扩展 Video Debug UI：避免在解析能力不足时做空架子。
+3. 重新设计 P5.1.28：先补 iframe / WebView / script / media / antiBot 能力。
+4. 再进入 P5.1.29：做完整 Video Debug Workbench。
+```
