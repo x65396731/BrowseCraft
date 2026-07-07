@@ -3,7 +3,7 @@ import Foundation
 // 中文注释：DefaultPageContentLoader.swift 是页面内容加载的生产分流器，统一判断 HTTP 与 WebView 路径。
 
 /// 中文注释：默认页面加载器；没有 needsWebView 时保持 Alamofire 抓取，只有规则显式要求时才走 WebView。
-final class DefaultPageContentLoader: PageContentLoader {
+final class DefaultPageContentLoader: PageContentLoader, PageDataLoader {
     private let httpClient: HTTPClient
     private let renderedPageContentLoader: RenderedPageContentLoader
 
@@ -34,5 +34,9 @@ final class DefaultPageContentLoader: PageContentLoader {
             from: url,
             request: request
         )
+    }
+
+    func getData(from url: URL, request: RequestConfig?) async throws -> Data {
+        return try await self.httpClient.getData(from: url, request: request)
     }
 }

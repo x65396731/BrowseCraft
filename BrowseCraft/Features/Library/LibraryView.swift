@@ -1,13 +1,13 @@
 import SwiftUI
 
-// 中文注释：LibraryView 根据当前 SourceRuntimeKind 选择 Feed 列表或漫画网格展示。
+// 中文注释：LibraryView 根据当前 SourceRuntimeKind 选择 RSS、视频或漫画展示层。
 
 /// 中文注释：LibraryView 只负责展示 Library 状态，数据加载与切源逻辑在 LibraryViewModel。
 struct LibraryView: View {
     @ObservedObject var viewModel: LibraryViewModel
     let chapterListViewModelFactory: (ContentItem, Source) -> ChapterListViewModel
     let readerViewModelFactory: (ContentItem, Source, ChapterLink?) -> ReaderViewModel
-    let feedContentDetailViewModelFactory: (ContentItem, Source) -> FeedContentDetailViewModel
+    let rssContentDetailViewModelFactory: (ContentItem, Source) -> RSSContentDetailViewModel
     let videoDetailViewModelFactory: (ContentItem, Source) -> VideoDetailViewModel
     @State private var didLoadInitialData: Bool = false
 
@@ -97,7 +97,7 @@ struct LibraryView: View {
     private var libraryContent: some View {
         if let selectedSource: Source = self.viewModel.selectedSource,
            selectedSource.configuration.kind == .rss {
-            FeedContentListView(
+            RSSContentListView(
                 items: self.viewModel.items,
                 source: selectedSource,
                 favoriteItemIDs: self.viewModel.favoriteItemIDs,
@@ -106,7 +106,7 @@ struct LibraryView: View {
                 },
                 readAction: { _ in },
                 detailViewModelFactory: { item, source in
-                    return self.feedContentDetailViewModelFactory(item, source)
+                    return self.rssContentDetailViewModelFactory(item, source)
                 }
             )
         } else if let selectedSource: Source = self.viewModel.selectedSource,
@@ -237,238 +237,6 @@ struct LibraryView: View {
             }
         )
     }
-}
-
-private struct FeedContentListView: View {
-    let items: [ContentItem]
-    let source: Source
-    let favoriteItemIDs: Set<String>
-    let favoriteAction: (ContentItem) -> Void
-    let readAction: (ContentItem) -> Void
-    let detailViewModelFactory: (ContentItem, Source) -> FeedContentDetailViewModel
-
-    var body: some View {
-        LazyVStack(spacing: 12) {
-            ForEach(self.items, id: \.id) { item in
-                NavigationLink(
-                    destination: FeedContentDetailView(
-                        viewModel: self.detailViewModelFactory(item, self.source)
-                    ),
-                    label: {
-                        FeedContentRowView(
-                            item: item,
-                            sourceName: self.source.name,
-                            isFavorite: self.favoriteItemIDs.contains(item.id),
-                            favoriteAction: {
-                                self.favoriteAction(item)
-                            }
-                        )
-                    }
-                )
-                .buttonStyle(.plain)
-                .simultaneousGesture(
-                    TapGesture().onEnded {
-                        #if DEBUG
-                        print(
-                            "[BrowseCraftNavigation] Tap RSS article " +
-                            "itemId=\(item.id) " +
-                            "title=\(item.title) " +
-                            "detailURL=\(item.detailURL)"
-                        )
-                        #endif
-
-                        self.readAction(item)
-                    }
-                )
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-    }
-}
-
-private struct FeedContentRowView: View {
-    let item: ContentItem
-    let sourceName: String
-    let isFavorite: Bool
-    let favoriteAction: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(self.item.title)
-                        .font(.title3.weight(.semibold))
-                        .foregroundColor(.primary)
-                        .lineLimit(3)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    HStack(spacing: 8) {
-                        Label(
-                            title: {
-                                Text("Feed")
-                            },
-                            icon: {
-                                Image(systemName: "doc.text")
-                            }
-                        )
-
-                        Text(self.sourceName)
-
-                        if let updatedAt: Date = self.item.updatedAt {
-                            Text(FeedContentDateFormatter.string(from: updatedAt))
-                        }
-                    }
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-                }
-
-                Button(
-                    action: {
-                        self.favoriteAction()
-                    },
-                    label: {
-                        Image(systemName: self.isFavorite ? "star.fill" : "star")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(self.isFavorite ? .yellow : .secondary)
-                            .frame(width: 32, height: 32)
-                    }
-                )
-                .buttonStyle(.plain)
-                .accessibilityLabel(self.isFavorite ? "Remove Favorite" : "Add Favorite")
-            }
-
-            if let summary: String = self.summaryText {
-                Text(summary)
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .lineLimit(5)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            HStack(spacing: 6) {
-                Text("Read")
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-            }
-            .font(.callout.weight(.semibold))
-            .foregroundColor(.blue)
-        }
-        .padding(16)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(Color(.separator), lineWidth: 1)
-        )
-    }
-
-    private var summaryText: String? {
-        return FeedContentTextFormatter.sanitized(self.item.latestText)
-    }
-}
-
-private struct FeedContentDetailView: View {
-    @StateObject private var viewModel: FeedContentDetailViewModel
-
-    init(viewModel: FeedContentDetailViewModel) {
-        _viewModel = StateObject(wrappedValue: viewModel)
-    }
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                Text(self.viewModel.item.title)
-                    .font(.largeTitle.weight(.bold))
-                    .fixedSize(horizontal: false, vertical: true)
-
-                HStack(spacing: 8) {
-                    Label(
-                        title: {
-                            Text(self.viewModel.sourceName)
-                        },
-                        icon: {
-                            Image(systemName: "dot.radiowaves.left.and.right")
-                        }
-                    )
-
-                    Text("Feed")
-
-                    if let updatedAt: Date = self.viewModel.item.updatedAt {
-                        Text(FeedContentDateFormatter.string(from: updatedAt))
-                    }
-                }
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-
-                if let summary: String = FeedContentTextFormatter.sanitized(self.viewModel.item.latestText) {
-                    Text(summary)
-                        .font(.body)
-                        .lineSpacing(5)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                if let url: URL = URL(string: self.viewModel.item.detailURL) {
-                    Link(destination: url) {
-                        Label("Open Original", systemImage: "safari")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .padding(.top, 4)
-                }
-            }
-            .padding(20)
-        }
-        .navigationTitle("Feed")
-        .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            self.viewModel.saveReadingHistoryIfNeeded()
-        }
-    }
-}
-
-enum FeedContentTextFormatter {
-    static func sanitized(_ text: String?) -> String? {
-        guard let text: String = text else {
-            return nil
-        }
-
-        let withoutTags: String = text.replacingOccurrences(
-            of: "<[^>]+>",
-            with: " ",
-            options: .regularExpression
-        )
-        let decoded: String = withoutTags
-            .replacingOccurrences(of: "&nbsp;", with: " ")
-            .replacingOccurrences(of: "&amp;", with: "&")
-            .replacingOccurrences(of: "&lt;", with: "<")
-            .replacingOccurrences(of: "&gt;", with: ">")
-            .replacingOccurrences(of: "&quot;", with: "\"")
-            .replacingOccurrences(of: "&#39;", with: "'")
-        let collapsed: String = decoded
-            .split(whereSeparator: { character in
-                return character.isWhitespace
-            })
-            .joined(separator: " ")
-
-        return collapsed.isEmpty ? nil : collapsed
-    }
-}
-
-private enum FeedContentDateFormatter {
-    static func string(from date: Date) -> String {
-        return Self.formatter.string(from: date)
-    }
-
-    private static let formatter: DateFormatter = {
-        let formatter: DateFormatter = DateFormatter()
-        formatter.locale = Locale.current
-        formatter.timeZone = TimeZone.current
-        formatter.dateFormat = "yyyy-MM-dd HH:mm"
-        return formatter
-    }()
 }
 
 private struct LibraryLoadingView: View {

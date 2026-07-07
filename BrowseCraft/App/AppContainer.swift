@@ -278,7 +278,7 @@ final class AppContainer {
     }
 
     @MainActor
-    func makeFeedContentDetailViewModel(item: ContentItem, source: Source) -> FeedContentDetailViewModel {
+    func makeRSSContentDetailViewModel(item: ContentItem, source: Source) -> RSSContentDetailViewModel {
         let repository: RSSReadingHistoryRepository = GRDBRSSReadingHistoryRepository(
             database: self.database
         )
@@ -286,7 +286,7 @@ final class AppContainer {
             repository: repository
         )
 
-        return FeedContentDetailViewModel(
+        return RSSContentDetailViewModel(
             item: item,
             source: source,
             saveRSSReadingHistoryUseCase: saveRSSReadingHistoryUseCase

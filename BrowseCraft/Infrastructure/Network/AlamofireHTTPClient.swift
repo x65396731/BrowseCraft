@@ -38,6 +38,30 @@ final class AlamofireHTTPClient: HTTPClient {
         return html
     }
 
+    /// 中文注释：RSS/XML 需要保留服务器原始 bytes，避免先按错误字符串编码解码造成乱码。
+    func getData(from url: URL, request: RequestConfig?) async throws -> Data {
+        let urlRequest: URLRequest = self.urlRequest(for: url, request: request)
+        let data: Data
+        do {
+            data = try await AF.request(urlRequest).serializingData().value
+        } catch {
+            throw RuleExecutionError.network(
+                url: url.absoluteString,
+                underlyingDescription: error.localizedDescription
+            )
+        }
+
+        #if DEBUG
+        print(
+            "[BrowseCraftNetwork] data url=\(url.absoluteString) " +
+            "requestScope=\(request?.scope?.rawValue ?? "default") " +
+            "bytes=\(data.count)"
+        )
+        #endif
+
+        return data
+    }
+
     /// 中文注释：集中生成 URLRequest，确保页面级 headers 覆盖默认 headers，同时旧站点仍保留浏览器 UA/Accept。
     private func urlRequest(for url: URL, request: RequestConfig?) -> URLRequest {
         var urlRequest: URLRequest = URLRequest(url: url)

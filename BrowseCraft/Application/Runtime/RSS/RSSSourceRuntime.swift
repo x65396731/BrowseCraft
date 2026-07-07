@@ -95,7 +95,7 @@ struct RSSSourceRuntime: SourceRuntime {
                 id: self.itemID(item: item, index: index),
                 title: item.title ?? "Untitled RSS Item",
                 detailURL: item.link,
-                coverURL: nil,
+                coverURL: item.coverURL,
                 latestText: self.latestText(from: item),
                 updatedAt: item.publishedAt
             )

@@ -132,7 +132,7 @@ private struct RSSHistoryDetailView: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
 
-                if let content: String = FeedContentTextFormatter.sanitized(self.history.dataContent) {
+                if let content: String = RSSContentTextFormatter.sanitized(self.history.dataContent) {
                     Text(content)
                         .font(.body)
                         .lineSpacing(5)

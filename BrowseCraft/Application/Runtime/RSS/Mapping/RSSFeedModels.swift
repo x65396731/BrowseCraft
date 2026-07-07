@@ -10,6 +10,7 @@ struct RSSFeedItem: Equatable {
     var title: String?
     var link: URL?
     var summary: String?
+    var coverURL: URL?
     var publishedAt: Date?
     var guid: String?
 }

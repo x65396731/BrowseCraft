@@ -1,11 +1,11 @@
 import Combine
 import Foundation
 
-// 中文注释：FeedContentDetailViewModel 负责 RSS 详情页的业务行为。
+// 中文注释：RSSContentDetailViewModel 负责 RSS 详情页的业务行为。
 
 /// 中文注释：RSS 阅读历史保存放在 ViewModel，View 只负责展示与触发生命周期。
 @MainActor
-final class FeedContentDetailViewModel: ObservableObject {
+final class RSSContentDetailViewModel: ObservableObject {
     let item: ContentItem
     let source: Source
 
@@ -79,7 +79,7 @@ final class FeedContentDetailViewModel: ObservableObject {
     }
 
     private func dataContent() -> String {
-        if let summary: String = FeedContentTextFormatter.sanitized(self.item.latestText) {
+        if let summary: String = RSSContentTextFormatter.sanitized(self.item.latestText) {
             return summary
         }
 

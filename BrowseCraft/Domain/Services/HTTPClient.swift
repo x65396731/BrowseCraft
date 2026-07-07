@@ -9,8 +9,13 @@ protocol PageContentLoader {
     func getString(from url: URL, request: RequestConfig?) async throws -> String
 }
 
+/// 中文注释：需要保留原始编码的内容使用 Data 加载，例如 RSS/XML feed。
+protocol PageDataLoader {
+    func getData(from url: URL, request: RequestConfig?) async throws -> Data
+}
+
 /// 中文注释：普通 HTTP 客户端仍作为独立协议存在，方便网络层和测试层表达“不会执行 JS”的实现。
-protocol HTTPClient: PageContentLoader {}
+protocol HTTPClient: PageContentLoader, PageDataLoader {}
 
 extension PageContentLoader {
     /// 中文注释：旧调用点不关心页面级请求配置时，继续走默认请求，避免一次性改动所有调用方。

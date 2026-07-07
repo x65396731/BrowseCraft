@@ -82,6 +82,11 @@ private final class RecordingPageHTTPClient: HTTPClient {
 
         return self.html
     }
+
+    func getData(from url: URL, request: RequestConfig?) async throws -> Data {
+        let html: String = try await self.getString(from: url, request: request)
+        return Data(html.utf8)
+    }
 }
 
 private final class RecordingRenderedPageContentLoader: RenderedPageContentLoader {

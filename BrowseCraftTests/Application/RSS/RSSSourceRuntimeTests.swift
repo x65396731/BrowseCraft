@@ -17,6 +17,7 @@ struct RSSSourceRuntimeTests {
                             title: "奇客资讯一",
                             link: try #require(URL(string: "https://www.solidot.org/story?sid=100001")),
                             summary: "第一条摘要",
+                            coverURL: try #require(URL(string: "https://www.solidot.org/image.jpg")),
                             publishedAt: nil,
                             guid: "solidot-100001"
                         ),
@@ -24,6 +25,7 @@ struct RSSSourceRuntimeTests {
                             title: "奇客资讯二",
                             link: try #require(URL(string: "https://www.solidot.org/story?sid=100002")),
                             summary: nil,
+                            coverURL: nil,
                             publishedAt: Date(timeIntervalSince1970: 1_783_209_600),
                             guid: nil
                         )
@@ -44,6 +46,7 @@ struct RSSSourceRuntimeTests {
         #expect(output.items[0].id == "solidot-100001")
         #expect(output.items[0].title == "奇客资讯一")
         #expect(output.items[0].detailURL?.absoluteString == "https://www.solidot.org/story?sid=100001")
+        #expect(output.items[0].coverURL?.absoluteString == "https://www.solidot.org/image.jpg")
         #expect(output.items[0].latestText == "第一条摘要")
         #expect(output.items[1].id == "https://www.solidot.org/story?sid=100002")
         #expect(output.pagination == nil)
