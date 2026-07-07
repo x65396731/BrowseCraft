@@ -132,6 +132,92 @@ struct VideoRuntimeGenericHTMLMappingTests {
         #expect(playback.playbackRequestConfig?.referer == playURL)
     }
 
+    @Test func videoListLoaderRejectsWebViewRequiredHTMLBeforeStaticMapping() async throws {
+        let loader: VideoSourceListLoader = VideoSourceListLoader(
+            pageContentLoader: RecordingVideoPageContentLoader(html: Self.webViewShellHTML),
+            mapper: GenericHTMLVideoHTMLMapper()
+        )
+        let definition: SourceDefinition = try Self.videoDefinition()
+
+        do {
+            _ = try await loader.loadList(
+                SourceListInput(
+                    page: 1,
+                    urlOverride: nil,
+                    context: Self.context(sourceID: definition.id, operation: .list)
+                ),
+                definition: definition
+            )
+            Issue.record("Expected WebView-required video list HTML to be rejected before static mapping.")
+        } catch SourceRuntimeError.unsupported(.custom(let message)) {
+            #expect(message.contains("WebView rendering"))
+            #expect(message.contains("not connected"))
+            #expect(message.contains("webViewRequired"))
+        } catch {
+            Issue.record("Unexpected error: \(error.localizedDescription)")
+        }
+    }
+
+    @Test func videoPlaybackLoaderRejectsWebViewRequiredHTMLBeforeStaticMapping() async throws {
+        let loader: VideoSourcePlaybackLoader = VideoSourcePlaybackLoader(
+            pageContentLoader: RecordingVideoPageContentLoader(html: Self.webViewShellHTML),
+            mapper: GenericHTMLVideoHTMLMapper()
+        )
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let playURL: URL = try #require(URL(string: "https://www.xvideos.com/watch/spa"))
+
+        do {
+            _ = try await loader.loadPlayback(
+                SourceVideoPlaybackInput(
+                    playPageURL: playURL,
+                    context: Self.context(sourceID: definition.id, operation: .reader)
+                ),
+                definition: definition
+            )
+            Issue.record("Expected WebView-required playback HTML to be rejected before static mapping.")
+        } catch SourceRuntimeError.unsupported(.custom(let message)) {
+            #expect(message.contains("WebView rendering"))
+            #expect(message.contains("not connected"))
+            #expect(message.contains("webViewRequired"))
+        } catch {
+            Issue.record("Unexpected error: \(error.localizedDescription)")
+        }
+    }
+
+    @Test func unsupportedVideoAdaptersExposeProductBranchMessages() throws {
+        let registry: VideoAdapterRegistry = VideoAdapterRegistry()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let url: URL = try #require(URL(string: "https://video.example.test/"))
+
+        do {
+            _ = try registry.mapper(for: .plugin).mapList(
+                html: "<html></html>",
+                definition: definition,
+                pageURL: url
+            )
+            Issue.record("Expected plugin adapter to report Plugin module branch.")
+        } catch SourceRuntimeError.unsupported(.custom(let message)) {
+            #expect(message.contains("Plugin module"))
+            #expect(message.contains("PluginSourceRuntime"))
+        } catch {
+            Issue.record("Unexpected plugin adapter error: \(error.localizedDescription)")
+        }
+
+        do {
+            _ = try registry.mapper(for: .iframe).mapList(
+                html: "<html></html>",
+                definition: definition,
+                pageURL: url
+            )
+            Issue.record("Expected iframe content adapter to report unavailable branch.")
+        } catch SourceRuntimeError.unsupported(.custom(let message)) {
+            #expect(message.contains("iframe content adapter"))
+            #expect(message.contains("not connected"))
+        } catch {
+            Issue.record("Unexpected iframe adapter error: \(error.localizedDescription)")
+        }
+    }
+
     private static func fixture(named name: String) throws -> String {
         let fileURL: URL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -143,6 +229,33 @@ struct VideoRuntimeGenericHTMLMappingTests {
             .appendingPathComponent("\(name).html")
 
         return try String(contentsOf: fileURL, encoding: .utf8)
+    }
+
+    private static var webViewShellHTML: String {
+        return """
+        <html>
+          <body>
+            <main id="app"></main>
+            <script src="/assets/runtime.js"></script>
+            <script src="/assets/chunk-vendors.js"></script>
+          </body>
+        </html>
+        """
+    }
+
+    private static func context(
+        sourceID: String,
+        operation: SourceRuntimeOperation
+    ) -> SourceRuntimeContext {
+        return SourceRuntimeContext(
+            sourceID: sourceID,
+            pageID: nil,
+            tabID: nil,
+            ruleID: nil,
+            requestOverride: nil,
+            debugMode: false,
+            operation: operation
+        )
     }
 
     private static func videoDefinition() throws -> SourceDefinition {
@@ -172,5 +285,13 @@ struct VideoRuntimeGenericHTMLMappingTests {
             ),
             plugin: nil
         )
+    }
+}
+
+private struct RecordingVideoPageContentLoader: PageContentLoader {
+    var html: String
+
+    func getString(from url: URL, request: RequestConfig?) async throws -> String {
+        return self.html
     }
 }

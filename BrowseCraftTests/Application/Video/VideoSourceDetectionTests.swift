@@ -21,7 +21,7 @@ struct VideoSourceDetectionTests {
 
     @Test func detectsGenericHTMLDirectMediaWithoutWeakMarkerDependence() throws {
         let detector: VideoSourceDetector = VideoSourceDetector()
-        let url: URL = try #require(URL(string: "https://video.example.test/watch/sample"))
+        let url: URL = try #require(URL(string: "https://video.example.test/catalog"))
 
         let detection: VideoSourceDetection = detector.detect(
             VideoSourceDetectionInput(
@@ -141,6 +141,33 @@ struct VideoSourceDetectionTests {
         })
     }
 
+    @Test func detectsSPAShellAsWebViewRequiredWithoutForcingPlugin() throws {
+        let detector: VideoSourceDetector = VideoSourceDetector()
+        let url: URL = try #require(URL(string: "https://video.example.test/watch/spa"))
+
+        let detection: VideoSourceDetection = detector.detect(
+            VideoSourceDetectionInput(
+                url: url,
+                html: """
+                <html>
+                  <body>
+                    <main id="app"></main>
+                    <script src="/assets/runtime.js"></script>
+                    <script src="/assets/chunk-vendors.js"></script>
+                  </body>
+                </html>
+                """
+            )
+        )
+
+        #expect(detection.adapter == .genericHTML)
+        #expect(detection.renderMode == .webViewRequired)
+        #expect(detection.playbackMode == .unresolved)
+        #expect(detection.warnings.contains { warning in
+            warning.contains("Static HTML")
+        })
+    }
+
     @Test func detectsPluginWhenRestrictionSignalsAreStrong() throws {
         let detector: VideoSourceDetector = VideoSourceDetector()
         let url: URL = try #require(URL(string: "https://video.example.test/"))
@@ -198,6 +225,178 @@ struct VideoSourceDetectionTests {
         })
     }
 
+    @Test func importDecisionSupportsHighConfidenceBuiltInVideoSource() throws {
+        let detector: VideoSourceDetector = VideoSourceDetector()
+        let resolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver()
+        let url: URL = try #require(URL(string: "https://video.example.test/voddetail/117372.html"))
+        let definition: VideoSourceDefinition = try Self.videoDefinition(adapter: .macCMS, entryURL: url)
+
+        let decision: VideoSourceImportDecision = resolver.decision(
+            for: detector.detect(VideoSourceDetectionInput(url: url)),
+            definition: definition
+        )
+
+        if case .supported(let supportedDefinition) = decision {
+            #expect(supportedDefinition.adapter == .macCMS)
+        } else {
+            Issue.record("Expected high-confidence MacCMS detection to be supported.")
+        }
+    }
+
+    @Test func importDecisionUsesNeedsReviewForMediumConfidenceGenericHTML() throws {
+        let detector: VideoSourceDetector = VideoSourceDetector()
+        let resolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver()
+        let url: URL = try #require(URL(string: "https://video.example.test/watch/sample"))
+        let definition: VideoSourceDefinition = try Self.videoDefinition(adapter: .genericHTML, entryURL: url)
+
+        let decision: VideoSourceImportDecision = resolver.decision(
+            for: detector.detect(
+                VideoSourceDetectionInput(
+                    url: url,
+                    html: """
+                    <html>
+                      <body>
+                        <article class="video-card thumb-block duration thumbnail">
+                          <a href="/watch/a">A</a>
+                          <a href="/watch/b">B</a>
+                        </article>
+                      </body>
+                    </html>
+                    """
+                )
+            ),
+            definition: definition
+        )
+
+        if case .needsReview(let reviewDefinition, _) = decision {
+            #expect(reviewDefinition.adapter == .genericHTML)
+        } else {
+            Issue.record("Expected medium-confidence generic HTML detection to need review.")
+        }
+    }
+
+    @Test func importDecisionDoesNotTreatNoVideoSignalsAsPlugin() throws {
+        let detector: VideoSourceDetector = VideoSourceDetector()
+        let resolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver()
+        let url: URL = try #require(URL(string: "https://article.example.test/about"))
+        let definition: VideoSourceDefinition = try Self.videoDefinition(adapter: .genericHTML, entryURL: url)
+
+        let decision: VideoSourceImportDecision = resolver.decision(
+            for: detector.detect(
+                VideoSourceDetectionInput(
+                    url: url,
+                    html: """
+                    <html>
+                      <body>
+                        <h1>About this site</h1>
+                        <p>Company profile and contact information.</p>
+                      </body>
+                    </html>
+                    """
+                )
+            ),
+            definition: definition
+        )
+
+        #expect(decision == .unavailable(.noVideoSignals))
+    }
+
+    @Test func importDecisionTreatsLowConfidenceAsUnavailableNotPlugin() throws {
+        let resolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver()
+        let url: URL = try #require(URL(string: "https://video.example.test/watch/weak"))
+        let definition: VideoSourceDefinition = try Self.videoDefinition(adapter: .genericHTML, entryURL: url)
+
+        let decision: VideoSourceImportDecision = resolver.decision(
+            for: VideoSourceDetection(
+                adapter: .genericHTML,
+                renderMode: .staticHTML,
+                playbackMode: .unresolved,
+                confidence: 0.42,
+                reasons: ["Generic video signal exists, but confidence is below review threshold."],
+                warnings: []
+            ),
+            definition: definition
+        )
+
+        #expect(decision == .unavailable(.lowConfidence))
+    }
+
+    @Test func importDecisionRoutesWebViewRequiredToUnavailable() throws {
+        let detector: VideoSourceDetector = VideoSourceDetector()
+        let resolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver()
+        let url: URL = try #require(URL(string: "https://video.example.test/watch/spa"))
+        let definition: VideoSourceDefinition = try Self.videoDefinition(adapter: .genericHTML, entryURL: url)
+
+        let decision: VideoSourceImportDecision = resolver.decision(
+            for: detector.detect(
+                VideoSourceDetectionInput(
+                    url: url,
+                    html: """
+                    <html>
+                      <body>
+                        <main id="app"></main>
+                        <script src="/assets/runtime.js"></script>
+                      </body>
+                    </html>
+                    """
+                )
+            ),
+            definition: definition
+        )
+
+        #expect(decision == .unavailable(.webViewNotConnected))
+    }
+
+    @Test func importDecisionRoutesIframeContentAdapterToUnavailable() throws {
+        let detector: VideoSourceDetector = VideoSourceDetector()
+        let resolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver()
+        let url: URL = try #require(URL(string: "https://video.example.test/"))
+        let definition: VideoSourceDefinition = try Self.videoDefinition(adapter: .iframe, entryURL: url)
+
+        let decision: VideoSourceImportDecision = resolver.decision(
+            for: detector.detect(
+                VideoSourceDetectionInput(
+                    url: url,
+                    html: """
+                    <html>
+                      <frameset>
+                        <frame src="/video-list.html">
+                      </frameset>
+                    </html>
+                    """
+                )
+            ),
+            definition: definition
+        )
+
+        #expect(decision == .unavailable(.iframeContentNotConnected))
+    }
+
+    @Test func importDecisionRoutesEncryptedPlaybackToPluginRequired() throws {
+        let detector: VideoSourceDetector = VideoSourceDetector()
+        let resolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver()
+        let url: URL = try #require(URL(string: "https://video.example.test/secure"))
+        let definition: VideoSourceDefinition = try Self.videoDefinition(adapter: .plugin, entryURL: url)
+
+        let decision: VideoSourceImportDecision = resolver.decision(
+            for: detector.detect(
+                VideoSourceDetectionInput(
+                    url: url,
+                    html: """
+                    <html>
+                      <body>
+                        <script>var media = CryptoJS.AES.decrypt(payload, key)</script>
+                      </body>
+                    </html>
+                    """
+                )
+            ),
+            definition: definition
+        )
+
+        #expect(decision == .pluginRequired(.encryptedPlayback))
+    }
+
     @Test func legacyVideoAdapterDetectorWrapsThreeLayerDetection() throws {
         let detector: VideoAdapterDetector = VideoAdapterDetector()
         let url: URL = try #require(URL(string: "https://video.example.test/watch/sample"))
@@ -222,5 +421,25 @@ struct VideoSourceDetectionTests {
         #expect(detection.reasons.contains { reason in
             reason.contains("Playback mode")
         })
+    }
+
+    private static func videoDefinition(
+        adapter: VideoAdapter,
+        entryURL: URL
+    ) throws -> VideoSourceDefinition {
+        return VideoSourceDefinition(
+            adapter: adapter,
+            entryURL: entryURL,
+            seedURL: nil,
+            entryKind: .home,
+            routePatterns: adapter == .macCMS ? .macCMS : nil,
+            playbackPolicy: .playPageFirst,
+            requiresAccount: false,
+            seedVodID: nil,
+            seedSourceIndex: nil,
+            seedEpisodeIndex: nil,
+            seedDetailURL: nil,
+            seedPlayURL: nil
+        )
     }
 }

@@ -47,8 +47,20 @@ struct UnsupportedVideoHTMLMapper: VideoHTMLMapper {
     }
 
     private func unsupportedError() -> SourceRuntimeError {
+        let message: String
+        switch self.adapter {
+        case .iframe:
+            message = "Video iframe content adapter is not connected yet."
+        case .webView:
+            message = "Video WebView rendering adapter is not connected yet."
+        case .plugin:
+            message = "This video source requires the Plugin module, but PluginSourceRuntime is not connected yet."
+        case .macCMS, .genericHTML:
+            message = "Video adapter \(self.adapter.rawValue) is not connected yet."
+        }
+
         return SourceRuntimeError.unsupported(
-            .custom("Video adapter \(self.adapter.rawValue) is not connected yet.")
+            .custom(message)
         )
     }
 }

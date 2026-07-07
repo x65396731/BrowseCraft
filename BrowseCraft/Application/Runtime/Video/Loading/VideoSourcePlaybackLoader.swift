@@ -13,13 +13,16 @@ protocol VideoSourcePlaybackLoading {
 struct VideoSourcePlaybackLoader: VideoSourcePlaybackLoading {
     private let pageContentLoader: PageContentLoader
     private let mapper: any VideoHTMLMapper
+    private let renderingGuard: VideoSourceRenderingGuard
 
     init(
         pageContentLoader: PageContentLoader,
-        mapper: any VideoHTMLMapper
+        mapper: any VideoHTMLMapper,
+        renderingGuard: VideoSourceRenderingGuard = VideoSourceRenderingGuard()
     ) {
         self.pageContentLoader = pageContentLoader
         self.mapper = mapper
+        self.renderingGuard = renderingGuard
     }
 
     func loadPlayback(
@@ -27,6 +30,7 @@ struct VideoSourcePlaybackLoader: VideoSourcePlaybackLoading {
         definition: SourceDefinition
     ) async throws -> SourceVideoPlaybackOutput {
         let html: String = try await self.pageContentLoader.getString(from: input.playPageURL)
+        try self.renderingGuard.validateStaticHTML(url: input.playPageURL, html: html)
         let reference: SourceVideoPlaybackReference = try self.mapper.mapPlayback(
             html: html,
             definition: definition,

@@ -13,13 +13,16 @@ protocol VideoSourceDetailLoading {
 struct VideoSourceDetailLoader: VideoSourceDetailLoading {
     private let pageContentLoader: PageContentLoader
     private let mapper: any VideoHTMLMapper
+    private let renderingGuard: VideoSourceRenderingGuard
 
     init(
         pageContentLoader: PageContentLoader,
-        mapper: any VideoHTMLMapper
+        mapper: any VideoHTMLMapper,
+        renderingGuard: VideoSourceRenderingGuard = VideoSourceRenderingGuard()
     ) {
         self.pageContentLoader = pageContentLoader
         self.mapper = mapper
+        self.renderingGuard = renderingGuard
     }
 
     func loadDetailContent(
@@ -27,6 +30,7 @@ struct VideoSourceDetailLoader: VideoSourceDetailLoading {
         definition: SourceDefinition
     ) async throws -> VideoDetailContent {
         let html: String = try await self.pageContentLoader.getString(from: input.detailURL)
+        try self.renderingGuard.validateStaticHTML(url: input.detailURL, html: html)
         return try self.mapper.mapDetail(
             html: html,
             definition: definition,

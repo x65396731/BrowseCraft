@@ -13,13 +13,16 @@ protocol VideoSourceListLoading {
 struct VideoSourceListLoader: VideoSourceListLoading {
     private let pageContentLoader: PageContentLoader
     private let mapper: any VideoHTMLMapper
+    private let renderingGuard: VideoSourceRenderingGuard
 
     init(
         pageContentLoader: PageContentLoader,
-        mapper: any VideoHTMLMapper
+        mapper: any VideoHTMLMapper,
+        renderingGuard: VideoSourceRenderingGuard = VideoSourceRenderingGuard()
     ) {
         self.pageContentLoader = pageContentLoader
         self.mapper = mapper
+        self.renderingGuard = renderingGuard
     }
 
     func loadList(
@@ -28,6 +31,7 @@ struct VideoSourceListLoader: VideoSourceListLoading {
     ) async throws -> SourceListOutput {
         let url: URL = try self.listURL(for: input, definition: definition)
         let html: String = try await self.pageContentLoader.getString(from: url)
+        try self.renderingGuard.validateStaticHTML(url: url, html: html)
         let items: [SourceContentItem] = try self.mapper.mapList(
             html: html,
             definition: definition,
