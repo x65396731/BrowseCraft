@@ -8,7 +8,7 @@ struct HistoryView: View {
     let readerViewModelFactory: (ComicChapterHistory, Source) -> ReaderViewModel
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
                 Section("Reading") {
                     ForEach(self.viewModel.readingHistoryEntries, id: \.id) { entry in

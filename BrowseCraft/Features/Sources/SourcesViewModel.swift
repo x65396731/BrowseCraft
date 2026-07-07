@@ -33,6 +33,7 @@ final class SourcesViewModel: ObservableObject {
     private let exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase
     private let importSourceRulePackageUseCase: ImportSourceRulePackageUseCase
     private let recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase
+    private let previewRuntimeSourceUseCase: PreviewRuntimeSourceUseCase
     private let ruleValidator: SiteRuleValidator
     private let jsonEncoder: JSONEncoder
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
@@ -60,6 +61,7 @@ final class SourcesViewModel: ObservableObject {
         exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase,
         importSourceRulePackageUseCase: ImportSourceRulePackageUseCase,
         recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase,
+        previewRuntimeSourceUseCase: PreviewRuntimeSourceUseCase,
         ruleValidator: SiteRuleValidator = SiteRuleValidator(),
         jsonEncoder: JSONEncoder = JSONEncoder(),
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
@@ -84,6 +86,7 @@ final class SourcesViewModel: ObservableObject {
         self.exportSourceRulePackageUseCase = exportSourceRulePackageUseCase
         self.importSourceRulePackageUseCase = importSourceRulePackageUseCase
         self.recommendSourceImportOptionUseCase = recommendSourceImportOptionUseCase
+        self.previewRuntimeSourceUseCase = previewRuntimeSourceUseCase
         self.ruleValidator = ruleValidator
         self.jsonEncoder = jsonEncoder
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
@@ -119,16 +122,21 @@ final class SourcesViewModel: ObservableObject {
 
     @MainActor
     /// 中文注释：addRuleSource 方法封装网站规则导入路径。
-    func addRuleSource(name: String, baseURL: String, ruleJSON: String) -> Bool {
+    func addRuleSource(name: String, baseURL: String, ruleJSON: String) async -> Bool {
         do {
-            let source: Source = try self.addComicRuleSourceUseCase.execute(
+            let result: AddComicRuleSourceResult = try await self.addComicRuleSourceUseCase.execute(
                 name: name,
                 baseURL: baseURL,
                 ruleJSON: ruleJSON
             )
+            let source: Source = result.source
 
             self.load()
+            let items: [ContentItem] = self.contentItems(from: result.listOutput, source: source)
+            self.sourceSelectionStore.publishLibrarySnapshot(source: source, items: items)
+            self.logPublishedLibrarySnapshot(source: source, items: items, origin: "rule-source-add")
             self.selectSource(id: source.id)
+            self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
             return true
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "rule-source-add-error")
@@ -141,13 +149,18 @@ final class SourcesViewModel: ObservableObject {
     /// 中文注释：addRSSSource 方法封装公开 RSS Feed 导入路径。
     func addRSSSource(feedURLString: String, name: String? = nil) async -> Source? {
         do {
-            let source: Source = try await self.addRSSSourceUseCase.execute(
+            let result: AddRSSSourceResult = try await self.addRSSSourceUseCase.execute(
                 feedURLString: feedURLString,
                 name: name
             )
+            let source: Source = result.source
 
             self.load()
+            let items: [ContentItem] = self.contentItems(from: result.listOutput, source: source)
+            self.sourceSelectionStore.publishLibrarySnapshot(source: source, items: items)
+            self.logPublishedLibrarySnapshot(source: source, items: items, origin: "rss-source-add")
             self.selectSource(id: source.id)
+            self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
             return source
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "rss-source-add-error")
@@ -168,6 +181,36 @@ final class SourcesViewModel: ObservableObject {
             return inspection
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "video-source-inspect-error")
+            self.errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    @MainActor
+    func previewRuntimeSource(
+        kind: RuntimeSourceImportKind,
+        entryURLString: String,
+        name: String? = nil
+    ) async -> RuntimeSourcePreviewResult? {
+        do {
+            return try await self.previewRuntimeSourceUseCase.execute(
+                kind: kind,
+                entryURLString: entryURLString,
+                name: name
+            )
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "runtime-source-preview-error")
+            self.errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    @MainActor
+    func debugRSSRuntimeSource(entryURLString: String) async -> RuntimeRSSDebugResult? {
+        do {
+            return try await self.previewRuntimeSourceUseCase.debugRSS(entryURLString: entryURLString)
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "rss-runtime-debug-error")
             self.errorMessage = error.localizedDescription
             return nil
         }
@@ -412,6 +455,43 @@ final class SourcesViewModel: ObservableObject {
     }
 
     @MainActor
+    func debugRuntimeComicRule(
+        name: String?,
+        baseURL: String,
+        ruleJSON: String
+    ) async -> RuleDebugSession? {
+        let validationResult: SiteRuleValidationResult = self.validateRuleJSON(ruleJSON)
+        guard let rule: SiteRule = validationResult.rule else {
+            self.errorMessage = "Rule JSON is not valid enough to debug."
+            return nil
+        }
+
+        let trimmedName: String? = name?.trimmingCharacters(in: .whitespacesAndNewlines)
+            .nilIfEmpty
+        let trimmedBaseURL: String = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sourceBaseURL: String = trimmedBaseURL.isEmpty ? rule.baseUrl : trimmedBaseURL
+        let sourceName: String = trimmedName ?? rule.name
+        let now: Date = self.now()
+        let source: Source = Source(
+            id: "debug.comic.import",
+            name: sourceName,
+            baseURL: sourceBaseURL,
+            type: .html,
+            rule: rule,
+            enabled: true,
+            createdAt: now,
+            updatedAt: now
+        )
+
+        return await self.debugListRule(
+            source: source,
+            listTab: nil,
+            page: 1,
+            urlOverride: nil
+        )
+    }
+
+    @MainActor
     func debugSearchRule(
         source: Source,
         keyword: String,
@@ -603,5 +683,11 @@ final class SourcesViewModel: ObservableObject {
                 self?.selectedSourceID = selectedSourceID
             }
             .store(in: &self.cancellables)
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        return self.isEmpty ? nil : self
     }
 }

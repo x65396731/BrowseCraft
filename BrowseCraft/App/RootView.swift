@@ -90,7 +90,7 @@ struct RootView: View {
         .onAppear {
             self.resolveInitialTabIfNeeded()
         }
-        .onChange(of: self.sourcesViewModel.latestCatalogSourceAddID) { sourceID in
+        .onChange(of: self.sourcesViewModel.latestCatalogSourceAddID) { _, sourceID in
             guard sourceID != nil else {
                 return
             }

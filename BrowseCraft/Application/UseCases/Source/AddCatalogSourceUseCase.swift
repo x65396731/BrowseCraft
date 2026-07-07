@@ -34,17 +34,20 @@ struct AddCatalogSourceResult {
 struct AddCatalogSourceUseCase {
     private let sourceRepository: SourceRepository
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
+    private let validateSourceListLoadUseCase: ValidateSourceListLoadUseCase
     private let jsonDecoder: JSONDecoder
     private let now: () -> Date
 
     init(
         sourceRepository: SourceRepository,
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
+        validateSourceListLoadUseCase: ValidateSourceListLoadUseCase = ValidateSourceListLoadUseCase(),
         jsonDecoder: JSONDecoder = JSONDecoder(),
         now: @escaping () -> Date = Date.init
     ) {
         self.sourceRepository = sourceRepository
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
+        self.validateSourceListLoadUseCase = validateSourceListLoadUseCase
         self.jsonDecoder = jsonDecoder
         self.now = now
     }
@@ -61,6 +64,7 @@ struct AddCatalogSourceUseCase {
             source: source,
             listContext: nil
         )
+        try self.validateSourceListLoadUseCase.execute(listOutput)
         try self.sourceRepository.saveSource(source)
         return AddCatalogSourceResult(source: source, listOutput: listOutput)
     }

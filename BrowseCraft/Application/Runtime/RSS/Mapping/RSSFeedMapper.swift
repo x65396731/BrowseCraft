@@ -34,7 +34,9 @@ enum RSSFeedMapperError: Error, Equatable {
 private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
     private enum Context {
         case channel
+        case feed
         case item
+        case entry
         case other
     }
 
@@ -57,12 +59,23 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
         self.currentElementName = normalizedName
         self.currentText = ""
 
-        if self.contextStack.last == .item {
-            self.applyImageAttributeIfNeeded(elementName: normalizedName, attributes: attributeDict)
+        if self.contextStack.last == .item || self.contextStack.last == .entry {
+            self.applyElementAttributesIfNeeded(elementName: normalizedName, attributes: attributeDict)
+        }
+
+        if normalizedName == "feed" {
+            self.contextStack.append(.feed)
+            return
         }
 
         if normalizedName == "channel" {
             self.contextStack.append(.channel)
+            return
+        }
+
+        if normalizedName == "entry" {
+            self.contextStack.append(.entry)
+            self.currentItem = MutableRSSFeedItem()
             return
         }
 
@@ -96,14 +109,23 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
         let context: Context = self.contextStack.last ?? .other
 
         switch (context, normalizedName) {
+        case (.feed, "title"):
+            if self.feedTitle == nil {
+                self.feedTitle = value
+            }
         case (.channel, "title"):
             if self.feedTitle == nil {
                 self.feedTitle = value
             }
         case (.item, "title"):
             self.currentItem?.title = value
+        case (.entry, "title"):
+            self.currentItem?.title = value
         case (.item, "link"):
             self.currentItem?.link = value.flatMap(URL.init(string:))
+        case (.entry, "summary"), (.entry, "content"):
+            self.currentItem?.summary = value
+            self.currentItem?.applyFallbackCoverURL(Self.firstImageURL(in: value))
         case (.item, "description"):
             self.currentItem?.summary = value
             self.currentItem?.applyFallbackCoverURL(Self.firstImageURL(in: value))
@@ -113,13 +135,20 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
             self.currentItem?.applyFallbackCoverURL(value.flatMap(URL.init(string:)))
         case (.item, "pubdate"):
             self.currentItem?.publishedAt = value.flatMap(Self.date(from:))
+        case (.entry, "published"), (.entry, "updated"):
+            if self.currentItem?.publishedAt == nil {
+                self.currentItem?.publishedAt = value.flatMap(Self.date(from:))
+            }
         case (.item, "guid"):
+            self.currentItem?.guid = value
+        case (.entry, "id"):
             self.currentItem?.guid = value
         default:
             break
         }
 
-        if normalizedName == "item", let currentItem: MutableRSSFeedItem = self.currentItem {
+        if (normalizedName == "item" || normalizedName == "entry"),
+           let currentItem: MutableRSSFeedItem = self.currentItem {
             self.items.append(currentItem.feedItem)
             self.currentItem = nil
         }
@@ -129,12 +158,17 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
         self.currentText = ""
     }
 
-    private func applyImageAttributeIfNeeded(elementName: String, attributes: [String: String]) {
+    private func applyElementAttributesIfNeeded(elementName: String, attributes: [String: String]) {
         guard self.currentItem != nil else {
             return
         }
 
         switch elementName {
+        case "link":
+            let rel: String = attributes["rel"]?.lowercased() ?? "alternate"
+            if rel == "alternate" || rel.isEmpty {
+                self.currentItem?.applyFallbackLink(Self.attributeURL(attributes["href"]))
+            }
         case "media:thumbnail", "media:content", "thumbnail", "content":
             self.currentItem?.applyFallbackCoverURL(Self.attributeURL(attributes["url"]))
         case "itunes:image":
@@ -199,6 +233,11 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
     }
 
     private static func date(from string: String) -> Date? {
+        if let date: Date = Self.iso8601DateFormatter.date(from: string)
+            ?? Self.iso8601FractionalDateFormatter.date(from: string) {
+            return date
+        }
+
         for formatter in Self.dateFormatters {
             if let date: Date = formatter.date(from: string) {
                 return date
@@ -222,6 +261,18 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
             formatter.dateFormat = format
             return formatter
         }
+    }()
+
+    private static let iso8601DateFormatter: ISO8601DateFormatter = {
+        let formatter: ISO8601DateFormatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    private static let iso8601FractionalDateFormatter: ISO8601DateFormatter = {
+        let formatter: ISO8601DateFormatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
     }()
 }
 
@@ -247,6 +298,12 @@ private struct MutableRSSFeedItem {
     mutating func applyFallbackCoverURL(_ url: URL?) {
         if self.coverURL == nil {
             self.coverURL = url
+        }
+    }
+
+    mutating func applyFallbackLink(_ url: URL?) {
+        if self.link == nil {
+            self.link = url
         }
     }
 }

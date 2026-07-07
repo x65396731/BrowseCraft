@@ -16,7 +16,7 @@ struct LibraryView: View {
     ]
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
                 self.listTabBar
 

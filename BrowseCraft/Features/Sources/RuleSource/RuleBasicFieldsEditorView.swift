@@ -28,16 +28,16 @@ struct RuleBasicFieldsEditorView: View {
         Section("Rule") {
             TextField("Rule Name", text: self.$rule.name)
             TextField("Base URL", text: self.$rule.baseUrl)
-                .autocapitalization(.none)
+                .textInputAutocapitalization(.never)
                 .keyboardType(.URL)
         }
 
         Section("Site") {
             TextField("Site Name", text: self.siteTextBinding(\.name))
             TextField("Domain", text: self.siteTextBinding(\.domain))
-                .autocapitalization(.none)
+                .textInputAutocapitalization(.never)
             TextField("Site Base URL", text: self.siteTextBinding(\.baseURL))
-                .autocapitalization(.none)
+                .textInputAutocapitalization(.never)
                 .keyboardType(.URL)
             TextField("Language", text: self.optionalSiteTextBinding(\.language))
             self.displayModePicker(
@@ -162,7 +162,7 @@ private struct RulePageBasicFieldsEditorView: View {
     var body: some View {
         DisclosureGroup {
             TextField("ID", text: self.$page.id)
-                .autocapitalization(.none)
+                .textInputAutocapitalization(.never)
             TextField("Title", text: self.$page.title)
             Picker("Type", selection: self.$page.type) {
                 ForEach(self.pageTypes, id: \.self) { pageType in
@@ -170,18 +170,18 @@ private struct RulePageBasicFieldsEditorView: View {
                 }
             }
             TextField("URL", text: self.optionalTextBinding(\.url))
-                .autocapitalization(.none)
+                .textInputAutocapitalization(.never)
                 .keyboardType(.URL)
             self.displayModePicker()
 
             TextField("List Rule Ref", text: self.ruleRefBinding(\.list))
-                .autocapitalization(.none)
+                .textInputAutocapitalization(.never)
             TextField("Detail Rule Ref", text: self.ruleRefBinding(\.detail))
-                .autocapitalization(.none)
+                .textInputAutocapitalization(.never)
             TextField("Gallery Rule Ref", text: self.ruleRefBinding(\.gallery))
-                .autocapitalization(.none)
+                .textInputAutocapitalization(.never)
             TextField("Search Rule Ref", text: self.ruleRefBinding(\.search))
-                .autocapitalization(.none)
+                .textInputAutocapitalization(.never)
         } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(self.page.title.isEmpty ? self.page.id : self.page.title)

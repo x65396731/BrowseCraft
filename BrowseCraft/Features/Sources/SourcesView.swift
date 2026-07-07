@@ -9,7 +9,7 @@ struct SourcesView: View {
     @State private var isShowingCatalogSourceListView: Bool = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
                 Section(
                     footer: Text("Deleting a source also removes its related reading/watch history and library state.")

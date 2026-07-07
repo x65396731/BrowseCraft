@@ -1,8 +1,8 @@
 import SwiftUI
 
-// 中文注释：ImportWebsiteRulePackageView.swift 是网站规则包导入界面，属于高级规则路径。
+// 中文注释：WebsiteRulePackageImportView.swift 是网站规则包导入界面，属于高级规则路径。
 
-struct ImportWebsiteRulePackageView: View {
+struct WebsiteRulePackageImportView: View {
     @ObservedObject var viewModel: SourcesViewModel
     @Environment(\.dismiss) private var dismiss
     var completion: (() -> Void)?
@@ -10,7 +10,7 @@ struct ImportWebsiteRulePackageView: View {
     @State private var packageJSON: String = ""
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section("Website Rule Package JSON") {
                     TextEditor(text: self.$packageJSON)

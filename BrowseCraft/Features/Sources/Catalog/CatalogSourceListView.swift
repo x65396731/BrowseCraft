@@ -8,7 +8,7 @@ struct CatalogSourceListView: View {
     @State private var failedSourceIDs: Set<String> = []
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
                 Section {
                     ForEach(self.viewModel.catalogSources, id: \.id) { catalogSource in

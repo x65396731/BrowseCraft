@@ -23,7 +23,7 @@ struct RuleJSONEditorView: View {
             TextEditor(text: self.$ruleJSON)
                 .font(.system(.body, design: .monospaced))
                 .frame(minHeight: 320)
-                .autocapitalization(.none)
+                .textInputAutocapitalization(.never)
                 .disabled(self.isEditable == false)
 
             HStack {

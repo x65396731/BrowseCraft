@@ -266,7 +266,7 @@ struct RuleDetailView: View {
     }
 
     private func editorSheet() -> some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 RuleJSONEditorView(
                     ruleJSON: self.$draftRuleJSON,
@@ -308,7 +308,7 @@ struct RuleDetailView: View {
     }
 
     private func basicEditorSheet() -> some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 if let basicRuleBinding: Binding<SiteRule> = self.draftBasicRuleBinding {
                     RuleBasicFieldsEditorView(rule: basicRuleBinding)
@@ -335,7 +335,7 @@ struct RuleDetailView: View {
     }
 
     private func exportSheet() -> some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 if let exportedPackage: RulePackageExport = self.exportedPackage {
                     Section("File") {
@@ -385,7 +385,7 @@ struct RuleDetailView: View {
     }
 
     private func debugSheet() -> some View {
-        NavigationView {
+        NavigationStack {
             RuleDebugSessionView(
                 session: self.debugSession,
                 applyCandidate: { candidate in

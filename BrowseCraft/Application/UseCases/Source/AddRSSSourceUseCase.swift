@@ -2,25 +2,36 @@ import Foundation
 import BrowseCraftCore
 
 // 中文注释：AddRSSSourceUseCase 负责把公开 RSS feed 保存为 rss-backed Source，不处理账号或凭据。
+struct AddRSSSourceResult {
+    let source: Source
+    let listOutput: SourceListOutput
+}
+
 struct AddRSSSourceUseCase {
     private let sourceRepository: SourceRepository
     private let feedLoader: any RSSFeedLoading
+    private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
+    private let validateSourceListLoadUseCase: ValidateSourceListLoadUseCase
     private let now: () -> Date
     private let makeID: () -> String
 
     init(
         sourceRepository: SourceRepository,
         feedLoader: any RSSFeedLoading,
+        refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
+        validateSourceListLoadUseCase: ValidateSourceListLoadUseCase = ValidateSourceListLoadUseCase(),
         now: @escaping () -> Date = Date.init,
         makeID: @escaping () -> String = { UUID().uuidString }
     ) {
         self.sourceRepository = sourceRepository
         self.feedLoader = feedLoader
+        self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
+        self.validateSourceListLoadUseCase = validateSourceListLoadUseCase
         self.now = now
         self.makeID = makeID
     }
 
-    func execute(feedURLString: String, name: String? = nil) async throws -> Source {
+    func execute(feedURLString: String, name: String? = nil) async throws -> AddRSSSourceResult {
         let feedURL: URL = try self.feedURL(from: feedURLString)
         let feed: RSSFeed = try await self.feedLoader.load(feedURL: feedURL)
         let timestamp: Date = self.now()
@@ -43,8 +54,13 @@ struct AddRSSSourceUseCase {
             updatedAt: timestamp
         )
 
+        let listOutput: SourceListOutput = try await self.refreshSourceRuntimeUseCase.execute(
+            source: source,
+            listContext: nil
+        )
+        try self.validateSourceListLoadUseCase.execute(listOutput)
         try self.sourceRepository.saveSource(source)
-        return source
+        return AddRSSSourceResult(source: source, listOutput: listOutput)
     }
 
     private func feedURL(from string: String) throws -> URL {

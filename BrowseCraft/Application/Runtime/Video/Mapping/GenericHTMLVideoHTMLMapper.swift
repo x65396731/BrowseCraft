@@ -556,7 +556,7 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
             url: url,
             text: try element.text().trimmedNonEmpty,
             cssClass: try element.className().trimmedNonEmpty,
-            elementID: try element.id().trimmedNonEmpty,
+            elementID: element.id().trimmedNonEmpty,
             tagName: element.tagName().trimmedNonEmpty,
             attributes: try self.noiseAttributes(from: element),
             sourceKind: .video,

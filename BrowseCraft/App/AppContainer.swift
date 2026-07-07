@@ -84,15 +84,25 @@ final class AppContainer {
         let loadSourcesUseCase: LoadSourcesUseCase = LoadSourcesUseCase(
             sourceRepository: self.sourceRepository
         )
+        let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = RefreshSourceRuntimeUseCase(
+            runtimeResolver: self.makeSourceRuntimeResolver()
+        )
         let addComicRuleSourceUseCase: AddComicRuleSourceUseCase = AddComicRuleSourceUseCase(
-            sourceRepository: self.sourceRepository
+            sourceRepository: self.sourceRepository,
+            refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
         )
         let addRSSSourceUseCase: AddRSSSourceUseCase = AddRSSSourceUseCase(
             sourceRepository: self.sourceRepository,
-            feedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader)
+            feedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader),
+            refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
         )
         let addVideoSourceUseCase: AddVideoSourceUseCase = AddVideoSourceUseCase(
             sourceRepository: self.sourceRepository
+        )
+        let previewRuntimeSourceUseCase: PreviewRuntimeSourceUseCase = PreviewRuntimeSourceUseCase(
+            pageContentLoader: self.pageContentLoader,
+            rssFeedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader),
+            videoSourceUseCase: addVideoSourceUseCase
         )
         let deleteSourceUseCase: DeleteSourceUseCase = DeleteSourceUseCase(
             sourceRepository: self.sourceRepository
@@ -110,9 +120,6 @@ final class AppContainer {
             sourceRepository: self.sourceRepository
         )
         let recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase = RecommendSourceImportOptionUseCase()
-        let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = RefreshSourceRuntimeUseCase(
-            runtimeResolver: self.makeSourceRuntimeResolver()
-        )
         let addCatalogSourceUseCase: AddCatalogSourceUseCase = AddCatalogSourceUseCase(
             sourceRepository: self.sourceRepository,
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
@@ -159,6 +166,7 @@ final class AppContainer {
             exportSourceRulePackageUseCase: exportSourceRulePackageUseCase,
             importSourceRulePackageUseCase: importSourceRulePackageUseCase,
             recommendSourceImportOptionUseCase: recommendSourceImportOptionUseCase,
+            previewRuntimeSourceUseCase: previewRuntimeSourceUseCase,
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
             saveUserLibraryStateUseCase: saveUserLibraryStateUseCase,
             listDebugUseCase: listDebugUseCase,

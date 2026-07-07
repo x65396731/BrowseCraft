@@ -14,7 +14,7 @@ Date: 2026-07-05
 - `git diff --check`: passed.
 - Main source list row wording adjusted from `Built-in rule` / `User rule` to `Built-in source` / `User source`.
 - `Features/Sources/AddSourceView.swift` is now the neutral Add Source entry.
-- `AddRuleSourceView.swift` and `ImportWebsiteRulePackageView.swift` remain advanced website rule paths.
+- `WebsiteRuleImportView.swift` and `WebsiteRulePackageImportView.swift` remain advanced website rule paths.
 - `SourceImport*` models are grouped under `Domain/Models/Source/`.
 - No new `Purpose` / `Feature` terminology was introduced.
 
