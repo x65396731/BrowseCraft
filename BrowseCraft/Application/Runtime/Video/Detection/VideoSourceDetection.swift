@@ -29,7 +29,7 @@ enum VideoRenderMode: String, Codable, Hashable {
 
 enum VideoPlaybackMode: String, Codable, Hashable {
     case directMedia
-    case iframe
+    case iframePlayer
     case unresolved
 }
 
@@ -47,7 +47,7 @@ struct VideoDetectionLexicon: Hashable {
         case macCMSWeak
         case genericListCard
         case genericSupporting
-        case iframePlayback
+        case iframePlayerPlayback
         case pluginRestriction
         case captchaRestriction
         case signingRestriction
@@ -94,7 +94,7 @@ private extension VideoDetectionLexicon.Category {
             return .genericListCard
         case .genericSupporting:
             return .genericSupporting
-        case .iframePlayback:
+        case .iframePlayerPlayback:
             return .iframePlayback
         case .pluginRestriction:
             return .pluginRestriction
@@ -134,7 +134,6 @@ enum VideoSourceUnavailableReason: String, Codable, Hashable {
     case noVideoSignals
     case unsupportedAdapter
     case webViewNotConnected
-    case iframeContentNotConnected
 }
 
 enum VideoSourcePluginReason: String, Codable, Hashable {
@@ -171,10 +170,6 @@ struct VideoSourceImportDecisionResolver {
 
         if detection.renderMode == .webViewRequired || detection.adapter == .webView {
             return .unavailable(.webViewNotConnected)
-        }
-
-        if detection.adapter == .iframe {
-            return .unavailable(.iframeContentNotConnected)
         }
 
         guard detection.adapter == .macCMS || detection.adapter == .genericHTML else {

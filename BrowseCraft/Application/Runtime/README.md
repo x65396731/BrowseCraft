@@ -22,7 +22,6 @@ SourceRuntime
     adapter:
       macCMS
       genericHTML
-      iframe
       webView
       plugin
   PluginSourceRuntime
@@ -35,30 +34,31 @@ Video runtime uses one adapter layer:
 VideoAdapter
   macCMS
   genericHTML
-  iframe
   webView
   plugin
 ```
 
 `VideoAdapter` names the video-source adapter used to turn a site's list,
 detail, and playback pages into BrowseCraft runtime outputs. `macCMS`,
-`genericHTML`, and `iframe` are built-in App mappers. `webView` means the site
-needs a real WebView runtime to run JavaScript, render final DOM, or observe
-network requests. `plugin` is the escape hatch for account-bound, encrypted,
-signed, or site-specific workflows that should not expand the built-in adapter
-layer.
+and `genericHTML` are built-in App mappers. `webView` means the site needs a
+real WebView runtime to run JavaScript, render final DOM, or observe network
+requests. `plugin` is the escape hatch for account-bound, encrypted, signed, or
+site-specific workflows that should not expand the built-in adapter layer.
 
 Video playback also has a narrower playback layer:
 
 ```text
 Video/Playback
-  IframePlaybackResolver
+  IframePlayerPlaybackResolver
+  VideoIframePlayerResolver
 ```
 
-`IframePlaybackResolver` does not make iframe pages natively playable. It
+`IframePlayerPlaybackResolver` does not make iframe pages natively playable. It
 normalizes iframe/embed playback candidates into
-`SourceVideoMediaKind.iframe + SourceVideoPlaybackStatus.pageOnly`, preserving a
+`SourceVideoMediaKind.iframePlayer + SourceVideoPlaybackStatus.pageOnly`, preserving a
 clear handoff point for later WebView, plugin, or media URL extraction work.
+`VideoIframePlayerResolver` can then follow iframe-player playback candidates
+inside the playback layer. It is not a content frame/site shell resolver.
 
 Responsibilities:
 

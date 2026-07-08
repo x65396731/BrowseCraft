@@ -41,6 +41,28 @@ struct VideoSourceDetailLoader: VideoSourceDetailLoading {
             definition: videoDefinition,
             context: input.context
         )
+
+        if videoDefinition.entryKind == .play {
+            return VideoDetailContent(
+                episodes: [
+                    VideoEpisode(
+                        id: "\(definition.id).video.single.\(self.stableID(from: input.detailURL))",
+                        title: definition.name,
+                        playPageURL: input.detailURL
+                    )
+                ],
+                synopsis: nil,
+                metadataRows: [],
+                requestLogs: [
+                    self.requestConfigResolver.requestLog(
+                        url: input.detailURL,
+                        request: request
+                    )
+                ],
+                issues: []
+            )
+        }
+
         let html: String
         do {
             html = try await self.pageContentLoader.getString(from: input.detailURL, request: request)
@@ -49,10 +71,28 @@ struct VideoSourceDetailLoader: VideoSourceDetailLoading {
             throw self.requestConfigResolver.mappedLoadingError(error, url: input.detailURL)
         }
 
-        return try self.mapper.mapDetail(
+        var content: VideoDetailContent = try self.mapper.mapDetail(
             html: html,
             definition: definition,
             detailURL: input.detailURL
         )
+        content.requestLogs = [
+            self.requestConfigResolver.requestLog(
+                url: input.detailURL,
+                request: request,
+                html: html
+            )
+        ]
+        content.issues = []
+
+        return content
+    }
+
+    private func stableID(from url: URL) -> String {
+        let value: String = url.path
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            .replacingOccurrences(of: "/", with: "-")
+
+        return value.isEmpty ? "root" : value
     }
 }

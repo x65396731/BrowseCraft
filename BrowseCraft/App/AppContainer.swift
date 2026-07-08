@@ -97,7 +97,8 @@ final class AppContainer {
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
         )
         let addVideoSourceUseCase: AddVideoSourceUseCase = AddVideoSourceUseCase(
-            sourceRepository: self.sourceRepository
+            sourceRepository: self.sourceRepository,
+            refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
         )
         let previewRuntimeSourceUseCase: PreviewRuntimeSourceUseCase = PreviewRuntimeSourceUseCase(
             pageContentLoader: self.pageContentLoader,

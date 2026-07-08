@@ -36,7 +36,7 @@ struct VideoSourceRuntime: SourceRuntime {
                 self.limitation(.search, "Video MVP does not support search yet."),
                 self.limitation(.reader, "Video sources use VideoPlayerHostView instead of reader output."),
                 self.limitation(.debug, "Video debug runtime is not connected yet."),
-                self.limitation(.candidateAnalysis, "Video MVP uses a MacCMS template mapper, not selector candidate analysis."),
+                self.limitation(.candidateAnalysis, "Video MVP uses template mappers, not selector candidate analysis."),
                 SourceRuntimeCapabilityLimitation(
                     capability: .webView,
                     reason: .notConnected,
@@ -58,6 +58,17 @@ struct VideoSourceRuntime: SourceRuntime {
     func loadDetail(_ input: SourceDetailInput) async throws -> SourceDetailOutput {
         let content: VideoDetailContent = try await self.loadVideoDetailContent(input)
         let request: RequestConfig? = self.detailRequest(for: input)
+        let requestLogs: [SourceRequestLog]
+        if content.requestLogs.isEmpty {
+            requestLogs = [
+                VideoRequestConfigResolver().requestLog(
+                    url: input.detailURL,
+                    request: request
+                )
+            ]
+        } else {
+            requestLogs = content.requestLogs
+        }
 
         return SourceDetailOutput(
             chapters: content.episodes.map { episode in
@@ -68,12 +79,8 @@ struct VideoSourceRuntime: SourceRuntime {
                 )
             },
             diagnostics: SourceRuntimeDiagnostics.succeeded(
-                requestLogs: [
-                    VideoRequestConfigResolver().requestLog(
-                        url: input.detailURL,
-                        request: request
-                    )
-                ],
+                requestLogs: requestLogs,
+                issues: content.issues,
                 context: SourceRuntimeDiagnosticContext(
                     runtimeContext: input.context,
                     requestURL: input.detailURL

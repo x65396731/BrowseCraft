@@ -77,6 +77,22 @@ struct VideoSourceURLResolver {
             )
         }
 
+        if self.isStandalonePlayURL(url, path: path) {
+            return VideoSourceURLResolution(
+                baseURL: baseURL,
+                entryURL: url,
+                seedURL: url,
+                entryKind: .play,
+                normalizedEntryURL: url,
+                vodID: nil,
+                sourceIndex: nil,
+                episodeIndex: nil,
+                defaultListURL: url,
+                seedDetailURL: nil,
+                seedPlayURL: url
+            )
+        }
+
         return VideoSourceURLResolution(
             baseURL: baseURL,
             entryURL: url,
@@ -139,6 +155,32 @@ struct VideoSourceURLResolver {
         }
 
         return path.hasPrefix("/") ? path : "/\(path)"
+    }
+
+    private func isStandalonePlayURL(_ url: URL, path: String) -> Bool {
+        let host: String = url.host?.lowercased() ?? ""
+        if host.contains("youtu.be"), path != "/" {
+            return true
+        }
+
+        if host.contains("youtube.com") {
+            if path.hasPrefix("/embed/") {
+                return true
+            }
+
+            if path == "/watch",
+               URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?
+                .contains(where: { item in item.name == "v" && item.value?.isEmpty == false }) == true {
+                return true
+            }
+        }
+
+        if path.hasPrefix("/embed/") {
+            return true
+        }
+
+        return false
     }
 
     private func playRoute(from path: String) -> VideoPlayRoute? {

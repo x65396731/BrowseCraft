@@ -71,6 +71,22 @@ struct VideoRequestConfigResolver {
                     message: "Video playback page did not expose a playable media URL."
                 )
             ]
+        case .failed(.iframePlayerDepthExceeded):
+            return [
+                SourceRuntimeIssue(
+                    id: "video.iframePlayerDepthExceeded",
+                    severity: .warning,
+                    message: "Video playback iframe player exceeded the supported depth."
+                )
+            ]
+        case .failed(.iframePlayerLoopDetected):
+            return [
+                SourceRuntimeIssue(
+                    id: "video.iframePlayerLoopDetected",
+                    severity: .warning,
+                    message: "Video playback iframe player loop detected."
+                )
+            ]
         case .restricted(.captchaOrAntiBot):
             return [
                 SourceRuntimeIssue(

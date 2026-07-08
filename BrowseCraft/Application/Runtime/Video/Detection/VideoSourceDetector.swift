@@ -13,13 +13,11 @@ struct VideoSourceDetector: VideoSourceDetecting {
         let restriction: RestrictionSignal = self.restrictionSignal(signals)
         let macCMS: DetectionScore = self.macCMSScore(signals)
         let genericHTML: DetectionScore = self.genericHTMLScore(signals)
-        let iframeContent: DetectionScore = self.iframeContentScore(signals)
         let renderMode: VideoRenderMode = self.renderMode(signals)
         let playback: PlaybackDetection = self.playbackDetection(signals)
         let adapterScore: AdapterDetection = self.adapterDetection(
             macCMS: macCMS,
             genericHTML: genericHTML,
-            iframeContent: iframeContent,
             restriction: restriction,
             renderMode: renderMode
         )
@@ -48,7 +46,6 @@ struct VideoSourceDetector: VideoSourceDetecting {
     private func adapterDetection(
         macCMS: DetectionScore,
         genericHTML: DetectionScore,
-        iframeContent: DetectionScore,
         restriction: RestrictionSignal,
         renderMode: VideoRenderMode
     ) -> AdapterDetection {
@@ -65,14 +62,6 @@ struct VideoSourceDetector: VideoSourceDetecting {
                 adapter: .macCMS,
                 score: macCMS.score,
                 reasons: macCMS.reasons
-            )
-        }
-
-        if iframeContent.score >= 0.62 && iframeContent.score >= genericHTML.score {
-            return AdapterDetection(
-                adapter: .iframe,
-                score: iframeContent.score,
-                reasons: iframeContent.reasons
             )
         }
 
@@ -166,28 +155,6 @@ struct VideoSourceDetector: VideoSourceDetecting {
         return DetectionScore(score: min(score, 1.0), reasons: reasons)
     }
 
-    private func iframeContentScore(_ signals: VideoSourceSignals) -> DetectionScore {
-        var score: Double = 0
-        var reasons: [String] = []
-
-        let frameShellMarkers: [String] = [
-            "<frameset",
-            "<frame "
-        ]
-        let frameShellMatches: [String] = signals.containedMarkers(frameShellMarkers)
-        if frameShellMatches.isEmpty == false {
-            score += 0.78
-            reasons.append("HTML contains frame shell markers for content extraction: \(frameShellMatches.joined(separator: ", ")).")
-        }
-
-        if signals.hasIframeElement && signals.hasPlaybackIframeSignal == false {
-            score += 0.64
-            reasons.append("HTML contains iframe shell markers without playback/embed context.")
-        }
-
-        return DetectionScore(score: min(score, 1.0), reasons: reasons)
-    }
-
     private func renderMode(_ signals: VideoSourceSignals) -> VideoRenderMode {
         if signals.htmlIsEmptyShell
             || signals.containsAny(self.lexicon.markers(for: .webViewShell)) {
@@ -207,11 +174,11 @@ struct VideoSourceDetector: VideoSourceDetecting {
             )
         }
 
-        let iframeMarkers: [String] = self.lexicon.markers(for: .iframePlayback)
+        let iframeMarkers: [String] = self.lexicon.markers(for: .iframePlayerPlayback)
         let iframeMatches: [String] = signals.containedMarkers(iframeMarkers)
         if signals.hasIframeElement && iframeMatches.isEmpty == false {
             return PlaybackDetection(
-                mode: .iframe,
+                mode: .iframePlayer,
                 reasons: ["Playback layer contains iframe/embed markers: \(iframeMatches.joined(separator: ", "))."]
             )
         }
@@ -364,7 +331,7 @@ private struct VideoSourceSignals {
     }
 
     var hasPlaybackIframeSignal: Bool {
-        return self.hasIframeElement && self.containsAny(VideoDetectionLexicon.default.markers(for: .iframePlayback))
+        return self.hasIframeElement && self.containsAny(VideoDetectionLexicon.default.markers(for: .iframePlayerPlayback))
     }
 
     func contains(_ marker: String) -> Bool {

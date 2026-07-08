@@ -50,24 +50,66 @@ struct VideoSourceListLoader: VideoSourceListLoading {
             throw self.requestConfigResolver.mappedLoadingError(error, url: url)
         }
 
+        if videoDefinition.entryKind == .play {
+            let coverURL: URL? = self.coverURL(from: html, baseURL: url)
+            #if DEBUG
+            print(
+                "[BrowseCraftVideoList] single-play-item " +
+                "source=\(definition.id) " +
+                "url=\(url.absoluteString) " +
+                "cover=\(coverURL?.absoluteString ?? "nil")"
+            )
+            #endif
+            let items: [SourceContentItem] = [
+                SourceContentItem(
+                    id: "\(definition.id).video.single.\(self.stableID(from: url))",
+                    title: definition.name,
+                    detailURL: url,
+                    coverURL: coverURL,
+                    latestText: "Single video",
+                    updatedAt: nil
+                )
+            ]
+            return SourceListOutput(
+                items: items,
+                pagination: nil,
+                diagnostics: SourceRuntimeDiagnostics.succeeded(
+                    requestLogs: [
+                        self.requestConfigResolver.requestLog(
+                            url: url,
+                            request: request,
+                            html: html
+                        )
+                    ],
+                    issues: [],
+                    context: SourceRuntimeDiagnosticContext(
+                        runtimeContext: input.context,
+                        requestURL: url
+                    )
+                )
+            )
+        }
+
         let items: [SourceContentItem] = try self.mapper.mapList(
             html: html,
             definition: definition,
             pageURL: url
         )
+        let requestLogs: [SourceRequestLog] = [
+            self.requestConfigResolver.requestLog(
+                url: url,
+                request: request,
+                html: html
+            )
+        ]
+        let issues: [SourceRuntimeIssue] = self.requestConfigResolver.emptyListIssues(items: items)
 
         return SourceListOutput(
             items: items,
             pagination: nil,
             diagnostics: SourceRuntimeDiagnostics.succeeded(
-                requestLogs: [
-                    self.requestConfigResolver.requestLog(
-                        url: url,
-                        request: request,
-                        html: html
-                    )
-                ],
-                issues: self.requestConfigResolver.emptyListIssues(items: items),
+                requestLogs: requestLogs,
+                issues: issues,
                 context: SourceRuntimeDiagnosticContext(
                     runtimeContext: input.context,
                     requestURL: url
@@ -97,5 +139,104 @@ struct VideoSourceListLoader: VideoSourceListLoading {
         }
 
         return videoDefinition.entryURL
+    }
+
+    private func coverURL(from html: String, baseURL: URL) -> URL? {
+        let patterns: [String] = [
+            #"<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)["']"#,
+            #"<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image(?::secure_url)?["']"#,
+            #"<meta[^>]+name=["']twitter:image(?::src)?["'][^>]+content=["']([^"']+)["']"#,
+            #"<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image(?::src)?["']"#,
+            #""thumbnail_url"\s*:\s*"([^"]+)""#,
+            #""thumbnailUrl"\s*:\s*"([^"]+)""#,
+            #"background:\s*url\((https?:\/\/[^)]+)\)"#,
+            #"placeholderInit\([^;]+,\s*"([^"]+)""#
+        ]
+
+        for pattern: String in patterns {
+            guard let value: String = self.normalizedURLString(
+                    self.firstMatch(html, pattern: pattern)
+                ),
+                  let url: URL = URL(string: value, relativeTo: baseURL)?.absoluteURL else {
+                continue
+            }
+
+            return url
+        }
+
+        if let youtubeURL: URL = self.youtubeThumbnailURL(from: baseURL) {
+            return youtubeURL
+        }
+
+        return nil
+    }
+
+    private func normalizedURLString(_ value: String?) -> String? {
+        return value?
+            .replacingOccurrences(of: "\\/", with: "/")
+            .replacingOccurrences(of: "\\u0026", with: "&")
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .trimmedNonEmpty
+    }
+
+    private func firstMatch(_ text: String, pattern: String) -> String? {
+        guard let regex: NSRegularExpression = try? NSRegularExpression(
+            pattern: pattern,
+            options: [.caseInsensitive]
+        ) else {
+            return nil
+        }
+
+        let range: NSRange = NSRange(text.startIndex..<text.endIndex, in: text)
+        guard let match: NSTextCheckingResult = regex.firstMatch(in: text, range: range),
+              match.numberOfRanges > 1,
+              let valueRange: Range<String.Index> = Range(match.range(at: 1), in: text) else {
+            return nil
+        }
+
+        return String(text[valueRange])
+    }
+
+    private func stableID(from url: URL) -> String {
+        let value: String = url.path
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            .replacingOccurrences(of: "/", with: "-")
+
+        return value.isEmpty ? "root" : value
+    }
+
+    private func youtubeThumbnailURL(from url: URL) -> URL? {
+        guard let host: String = url.host?.lowercased(),
+              host.contains("youtube.com") || host.contains("youtu.be") else {
+            return nil
+        }
+
+        let components: [String] = url.pathComponents.filter { component in
+            component != "/"
+        }
+        let videoID: String?
+        if components.first == "embed", components.count >= 2 {
+            videoID = components[1]
+        } else if host.contains("youtu.be"), let first: String = components.first {
+            videoID = first
+        } else {
+            videoID = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?
+                .first(where: { item in item.name == "v" })?
+                .value
+        }
+
+        guard let videoID: String = videoID?.trimmedNonEmpty else {
+            return nil
+        }
+
+        return URL(string: "https://i.ytimg.com/vi/\(videoID)/hqdefault.jpg")
+    }
+}
+
+private extension String {
+    var trimmedNonEmpty: String? {
+        let trimmed: String = self.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }

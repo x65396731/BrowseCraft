@@ -15,17 +15,20 @@ struct VideoSourcePlaybackLoader: VideoSourcePlaybackLoading {
     private let mapper: any VideoHTMLMapper
     private let renderingGuard: VideoSourceRenderingGuard
     private let requestConfigResolver: VideoRequestConfigResolver
+    private let iframeMaxDepth: Int
 
     init(
         pageContentLoader: PageContentLoader,
         mapper: any VideoHTMLMapper,
         renderingGuard: VideoSourceRenderingGuard = VideoSourceRenderingGuard(),
-        requestConfigResolver: VideoRequestConfigResolver = VideoRequestConfigResolver()
+        requestConfigResolver: VideoRequestConfigResolver = VideoRequestConfigResolver(),
+        iframeMaxDepth: Int = 2
     ) {
         self.pageContentLoader = pageContentLoader
         self.mapper = mapper
         self.renderingGuard = renderingGuard
         self.requestConfigResolver = requestConfigResolver
+        self.iframeMaxDepth = iframeMaxDepth
     }
 
     func loadPlayback(
@@ -49,23 +52,37 @@ struct VideoSourcePlaybackLoader: VideoSourcePlaybackLoading {
             throw self.requestConfigResolver.mappedLoadingError(error, url: input.playPageURL)
         }
 
-        let reference: SourceVideoPlaybackReference = try self.mapper.mapPlayback(
+        let initialReference: SourceVideoPlaybackReference = try self.mapper.mapPlayback(
             html: html,
             definition: definition,
             playPageURL: input.playPageURL
         )
+        let iframePlayerResolution: VideoIframePlayerResolution? = try await VideoIframePlayerResolver(
+            pageContentLoader: self.pageContentLoader,
+            mapper: self.mapper,
+            requestConfigResolver: self.requestConfigResolver,
+            maxDepth: self.iframeMaxDepth
+        ).resolve(
+            reference: initialReference,
+            definition: definition,
+            baseRequest: request
+        )
+        let reference: SourceVideoPlaybackReference = iframePlayerResolution?.reference ?? initialReference
+        let requestLogs: [SourceRequestLog] = [
+            self.requestConfigResolver.requestLog(
+                url: input.playPageURL,
+                request: request,
+                html: html
+            )
+        ] + (iframePlayerResolution?.requestLogs ?? [])
+        let issues: [SourceRuntimeIssue] = iframePlayerResolution?.issues
+            ?? self.requestConfigResolver.playbackIssues(reference: reference)
 
         return SourceVideoPlaybackOutput(
             reference: reference,
             diagnostics: SourceRuntimeDiagnostics.succeeded(
-                requestLogs: [
-                    self.requestConfigResolver.requestLog(
-                        url: input.playPageURL,
-                        request: request,
-                        html: html
-                    )
-                ],
-                issues: self.requestConfigResolver.playbackIssues(reference: reference),
+                requestLogs: requestLogs,
+                issues: issues,
                 context: SourceRuntimeDiagnosticContext(
                     runtimeContext: input.context,
                     requestURL: input.playPageURL

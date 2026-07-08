@@ -46,7 +46,7 @@ struct VideoPlayerHostView: View {
         KSVideoPlayerView(
             coordinator: self.playerCoordinator,
             url: mediaURL,
-            options: KSOptions(),
+            options: self.playbackOptions(),
             title: self.viewModel.displayTitle
         )
         .overlay(alignment: .bottom) {
@@ -69,8 +69,65 @@ struct VideoPlayerHostView: View {
         }
 
         self.installPlayerCallbacks()
-        playerLayer.set(url: mediaURL, options: KSOptions())
+        playerLayer.set(url: mediaURL, options: self.playbackOptions())
         self.configureBackBlock(for: playerLayer.player.view)
+    }
+
+    private func playbackOptions() -> KSOptions {
+        let options: KSOptions = KSOptions()
+        guard let requestConfig: SourcePlaybackRequestConfig = self.viewModel.reference.playbackRequestConfig else {
+            return options
+        }
+
+        var headers: [String: String] = requestConfig.headers
+        if let referer: URL = requestConfig.referer,
+           headers.keys.contains(where: { $0.caseInsensitiveCompare("Referer") == .orderedSame }) == false {
+            headers["Referer"] = referer.absoluteString
+        }
+        if let userAgent: String = requestConfig.userAgent,
+           headers.keys.contains(where: { $0.caseInsensitiveCompare("User-Agent") == .orderedSame }) == false {
+            headers["User-Agent"] = userAgent
+        }
+        if headers.keys.contains(where: { $0.caseInsensitiveCompare("Origin") == .orderedSame }) == false,
+           let origin: String = self.originHeader(from: requestConfig.referer) {
+            headers["Origin"] = origin
+        }
+
+        if headers.isEmpty == false {
+            options.appendHeader(headers)
+        }
+        options.referer = requestConfig.referer?.absoluteString
+        if let userAgent: String = requestConfig.userAgent ?? headers.first(where: { element in
+            element.key.caseInsensitiveCompare("User-Agent") == .orderedSame
+        })?.value {
+            options.userAgent = userAgent
+        }
+
+        #if DEBUG
+        print(
+            "[BrowseCraftVideoPlayer] playback-options " +
+            "media=\(self.viewModel.nativeMediaURL?.absoluteString ?? "nil") " +
+            "referer=\(options.referer ?? "nil") " +
+            "userAgent=\(options.userAgent ?? "nil") " +
+            "headers=\(headers.keys.sorted().joined(separator: ","))"
+        )
+        #endif
+
+        return options
+    }
+
+    private func originHeader(from url: URL?) -> String? {
+        guard let url: URL,
+              let scheme: String = url.scheme,
+              let host: String = url.host else {
+            return nil
+        }
+
+        if let port: Int = url.port {
+            return "\(scheme)://\(host):\(port)"
+        }
+
+        return "\(scheme)://\(host)"
     }
 
     private func installPlayerCallbacks() {

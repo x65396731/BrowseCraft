@@ -4,6 +4,8 @@ import BrowseCraftCore
 
 // 中文注释：MacCMSVideoHTMLMapper 只处理 MacCMS 常见静态 HTML，不处理 VIP/DRM/反爬绕过。
 struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
+    private static let playbackUserAgent: String = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+
     private enum Defaults {
         // Limit detail metadata summary rows only; this does not cap discovered category tabs.
         static let maxMetadataRows: Int = 6
@@ -404,8 +406,12 @@ struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
             return .mp4
         }
 
-        if path.contains("embed") || path.contains("player") || url?.host?.lowercased().contains("iframe") == true {
-            return .iframe
+        let host: String = url?.host?.lowercased() ?? ""
+        if path.contains("embed")
+            || path.contains("player")
+            || host.contains("iframe")
+            || host.hasPrefix("player.") {
+            return .iframePlayer
         }
 
         return .unknown
@@ -416,7 +422,7 @@ struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
         playPageURL: URL,
         html: String
     ) -> VideoPlaybackResolution {
-        if let resolution: VideoPlaybackResolution = IframePlaybackResolver().resolve(
+        if let resolution: VideoPlaybackResolution = IframePlayerPlaybackResolver().resolve(
             candidate: candidate,
             playPageURL: playPageURL,
             html: html
@@ -429,10 +435,11 @@ struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
             candidateMediaKind: candidate.kind,
             playbackRequestConfig: SourcePlaybackRequestConfig(
                 headers: [
-                    "Referer": playPageURL.absoluteString
+                    "Referer": playPageURL.absoluteString,
+                    "User-Agent": Self.playbackUserAgent
                 ],
                 referer: playPageURL,
-                userAgent: nil
+                userAgent: Self.playbackUserAgent
             ),
             status: self.playbackStatus(
                 mediaURL: candidate.url,

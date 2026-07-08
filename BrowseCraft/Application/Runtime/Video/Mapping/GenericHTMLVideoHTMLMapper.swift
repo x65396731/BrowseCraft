@@ -4,6 +4,8 @@ import BrowseCraftCore
 
 // 中文注释：GenericHTMLVideoHTMLMapper 只处理静态 HTML 中已经暴露列表、播放页或媒体 URL 的普通视频站。
 struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
+    private static let playbackUserAgent: String = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+
     private enum Selectors {
         static let listItemGroups: [String] = [
             ".frame-block.thumb-block",
@@ -355,6 +357,7 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
             self.firstScriptArgument(html, functionName: "setVideoUrlHigh"),
             self.firstScriptArgument(html, functionName: "setVideoUrlLow"),
             self.firstJSONLDContentURL(from: html),
+            self.firstVimeoProgressiveMP4(from: html),
             self.firstAttribute(in: document, selector: "video[src], source[src]", attribute: "src"),
             self.firstMediaURL(in: html, suffix: "m3u8"),
             self.firstMediaURL(in: html, suffix: "mp4")
@@ -372,9 +375,17 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
             )
         }
 
-        if let iframeSource: String = self.firstPlaybackFrameSource(in: document, baseURL: baseURL),
-           let iframeURL: URL = URL(string: iframeSource, relativeTo: baseURL)?.absoluteURL {
-            return VideoPlaybackCandidate(url: iframeURL, kind: .iframe)
+        if let iframeSource: String = self.firstPlaybackFrameSource(
+            html: html,
+            document: document,
+            baseURL: baseURL
+        ),
+           let iframePlayerURL: URL = URL(string: iframeSource, relativeTo: baseURL)?.absoluteURL {
+            return VideoPlaybackCandidate(url: iframePlayerURL, kind: .iframePlayer)
+        }
+
+        if self.mediaKind(for: baseURL) == .iframePlayer {
+            return VideoPlaybackCandidate(url: baseURL, kind: .iframePlayer)
         }
 
         return VideoPlaybackCandidate(url: nil, kind: .unknown)
@@ -385,7 +396,7 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
         playPageURL: URL,
         html: String
     ) -> VideoPlaybackResolution {
-        if let resolution: VideoPlaybackResolution = IframePlaybackResolver().resolve(
+        if let resolution: VideoPlaybackResolution = IframePlayerPlaybackResolver().resolve(
             candidate: candidate,
             playPageURL: playPageURL,
             html: html
@@ -393,15 +404,17 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
             return resolution
         }
 
+        let refererURL: URL = self.playbackRefererURL(for: playPageURL)
         return VideoPlaybackResolution(
             candidateMediaURL: candidate.url,
             candidateMediaKind: candidate.kind,
             playbackRequestConfig: SourcePlaybackRequestConfig(
                 headers: [
-                    "Referer": playPageURL.absoluteString
+                    "Referer": refererURL.absoluteString,
+                    "User-Agent": Self.playbackUserAgent
                 ],
-                referer: playPageURL,
-                userAgent: nil
+                referer: refererURL,
+                userAgent: Self.playbackUserAgent
             ),
             status: self.playbackStatus(
                 mediaURL: candidate.url,
@@ -420,7 +433,7 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
             return .playable
         }
 
-        if mediaURL != nil, mediaKind == .iframe {
+        if mediaURL != nil, mediaKind == .iframePlayer {
             return .pageOnly
         }
 
@@ -453,8 +466,11 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
             return .mp4
         }
 
-        if path.contains("embed") || url.host?.lowercased().contains("iframe") == true {
-            return .iframe
+        let host: String = url.host?.lowercased() ?? ""
+        if path.contains("embed")
+            || host.contains("iframe")
+            || host.hasPrefix("player.") {
+            return .iframePlayer
         }
 
         return .unknown
@@ -500,6 +516,20 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
         )
     }
 
+    private func firstVimeoProgressiveMP4(from html: String) -> String? {
+        return self.firstMatch(
+            html,
+            pattern: #""progressive"\s*:\s*\[[\s\S]*?"url"\s*:\s*"([^"]+?\.mp4[^"]*)"#
+        )
+    }
+
+    private func firstJSONLDEmbedURL(from html: String) -> String? {
+        return self.firstMatch(
+            html,
+            pattern: #""embedUrl"\s*:\s*"([^"]+)""#
+        )
+    }
+
     private func firstAttribute(
         in document: Document,
         selector: String,
@@ -515,8 +545,39 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
         }
     }
 
-    private func firstPlaybackFrameSource(in document: Document, baseURL: URL) -> String? {
+    private func firstPlaybackFrameSource(
+        html: String,
+        document: Document,
+        baseURL: URL
+    ) -> String? {
         do {
+            let metaSelectors: [String] = [
+                "meta[property=og:video:url][content]",
+                "meta[property=og:video:secure_url][content]",
+                "meta[name=twitter:player][content]",
+                "meta[name=twitter:player][value]"
+            ]
+            for selector: String in metaSelectors {
+                let metas: [Element] = try document.select(selector).array()
+                for meta: Element in metas {
+                    let content: String? = try meta.attr("content").trimmedNonEmpty
+                    let value: String? = try meta.attr("value").trimmedNonEmpty
+                    guard let source: String = content ?? value,
+                          let url: URL = URL(string: source, relativeTo: baseURL)?.absoluteURL,
+                          self.mediaKind(for: url) == .iframePlayer else {
+                        continue
+                    }
+
+                    return source
+                }
+            }
+
+            if let embedURLString: String = self.firstJSONLDEmbedURL(from: html),
+               let embedURL: URL = URL(string: embedURLString, relativeTo: baseURL)?.absoluteURL,
+               self.mediaKind(for: embedURL) == .iframePlayer {
+                return embedURLString
+            }
+
             let frames: [Element] = try document.select("iframe[src], embed[src]").array()
             for frame: Element in frames {
                 guard let source: String = try frame.attr("src").trimmedNonEmpty,
@@ -594,6 +655,23 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
         )
     }
 
+    private func playbackRefererURL(for playPageURL: URL) -> URL {
+        guard playPageURL.host?.lowercased() == "player.vimeo.com" else {
+            return playPageURL
+        }
+
+        let components: [String] = playPageURL.pathComponents.filter { component in
+            component != "/"
+        }
+        guard components.count >= 2,
+              components[0] == "video",
+              let url: URL = URL(string: "https://vimeo.com/\(components[1])") else {
+            return playPageURL
+        }
+
+        return url
+    }
+
     private func firstMatch(_ string: String, pattern: String) -> String? {
         guard let regex: NSRegularExpression = try? NSRegularExpression(
             pattern: pattern,
@@ -611,6 +689,8 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
 
         return String(string[swiftRange])
             .replacingOccurrences(of: "\\/", with: "/")
+            .replacingOccurrences(of: "\\u0026", with: "&")
+            .replacingOccurrences(of: "&amp;", with: "&")
             .trimmedNonEmpty
     }
 }

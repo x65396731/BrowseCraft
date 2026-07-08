@@ -201,8 +201,6 @@ struct AddCatalogSourceUseCase {
             return .macCMS
         case "genericHTML":
             return .genericHTML
-        case "iframe":
-            return .iframe
         case "webView":
             return .webView
         case "plugin":

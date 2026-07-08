@@ -79,7 +79,7 @@ final class VideoPlayerViewModel: ObservableObject {
         switch self.reference.candidateMediaKind {
         case .m3u8, .mp4:
             return self.reference.candidateMediaURL
-        case .iframe, .unknown:
+        case .iframePlayer, .unknown:
             return nil
         }
     }

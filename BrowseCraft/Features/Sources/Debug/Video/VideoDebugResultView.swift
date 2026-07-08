@@ -1,26 +1,73 @@
 import SwiftUI
+import BrowseCraftCore
 
-// 中文注释：VideoDebugResultView 目前只展示视频 URL 手动调试日志，不选择 adapter。
+// 中文注释：VideoDebugResultView 展示手动 video 配置跑 runtime 后的列表调试结果。
 struct VideoDebugResultView: View {
-    let preview: RuntimeSourcePreviewResult
+    let result: ManualVideoSourceDebugResult
 
     var body: some View {
         Section("Debug Result") {
-            LabeledContent("URL", value: self.preview.entryURL.absoluteString)
-            if let title: String = self.preview.title {
-                LabeledContent("Title", value: title)
-            }
-            Text(self.preview.summary)
-                .foregroundStyle(.secondary)
+            LabeledContent("Status", value: self.result.listOutput.diagnostics.status.rawValue)
+            LabeledContent("Items", value: "\(self.result.listOutput.items.count)")
+            LabeledContent("Source", value: self.result.source.name)
+            LabeledContent("Entry", value: self.result.inspection.entryKind.rawValue)
         }
 
-        Section("Logs") {
-            ForEach(self.preview.logLines, id: \.self) { line in
-                Text(line)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
+        if self.result.listOutput.items.isEmpty == false {
+            Section("Preview Items") {
+                ForEach(self.result.listOutput.items.prefix(5), id: \.id) { item in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(item.title)
+                            .font(.footnote)
+                        if let detailURL = item.detailURL {
+                            Text(detailURL.absoluteString)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                        }
+                        if let coverURL = item.coverURL {
+                            Text(coverURL.absoluteString)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                        }
+                    }
+                }
             }
         }
+
+        if self.result.listOutput.diagnostics.requestLogs.isEmpty == false {
+            Section("Request") {
+                ForEach(self.result.listOutput.diagnostics.requestLogs, id: \.url) { log in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(log.url.absoluteString)
+                            .font(.footnote)
+                            .textSelection(.enabled)
+                        Text(self.requestSummary(log))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+
+        if self.result.listOutput.diagnostics.issues.isEmpty == false {
+            Section("Issues") {
+                ForEach(self.result.listOutput.diagnostics.issues) { issue in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(issue.severity.rawValue)
+                            .font(.footnote)
+                        Text(issue.message)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    private func requestSummary(_ log: SourceRequestLog) -> String {
+        let bytes: String = log.contentLength.map { "\($0) bytes" } ?? "bytes unknown"
+        return "\(log.method) · headers \(log.headerCount) · \(bytes)"
     }
 }

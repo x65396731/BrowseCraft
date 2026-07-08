@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import BrowseCraftCore
 
 // 中文注释：RuntimeSourceImportView 是统一添加源外壳；具体 Debug 由 SourceDebugRouterView 按 runtime 分发。
 struct RuntimeSourceImportView: View {
@@ -29,6 +30,8 @@ struct RuntimeSourceImportView: View {
     @State private var entryURL: String = ""
     @State private var sourceName: String = ""
     @State private var ruleJSON: String = ""
+    @State private var selectedVideoAdapter: VideoAdapter = .genericHTML
+    @State private var selectedVideoEntryKind: VideoSourceEntryKind = .play
     @State private var validationResult: SiteRuleValidationResult = SiteRuleValidationResult(rule: nil, issues: [])
     @State private var operationState: OperationState = .idle
     @State private var isShowingDebugView: Bool = false
@@ -87,6 +90,10 @@ struct RuntimeSourceImportView: View {
                     kind: self.kind,
                     entryURL: self.entryURL,
                     sourceName: self.trimmedSourceName,
+                    videoConfiguration: self.kind == .video ? ManualVideoSourceConfigurationDraft(
+                        adapter: self.selectedVideoAdapter,
+                        entryKind: self.selectedVideoEntryKind
+                    ) : nil,
                     ruleJSON: self.$ruleJSON
                 )
             }
@@ -145,7 +152,10 @@ struct RuntimeSourceImportView: View {
                 && self.trimmedEntryURL.isEmpty == false
                 && self.operationState.isWorking == false
         case .video:
-            return false
+            return self.preview != nil
+                && self.trimmedEntryURL.isEmpty == false
+                && self.selectedVideoAdapter.isManualSaveSupported
+                && self.operationState.isWorking == false
         }
     }
 
@@ -210,11 +220,23 @@ struct RuntimeSourceImportView: View {
 
     @ViewBuilder
     private var videoSections: some View {
-        if self.preview != nil {
-            Section("Manual Rule") {
-                Label("Manual video rule editing is not connected yet.", systemImage: "hammer")
-                    .foregroundStyle(.secondary)
+        Section("Manual Rule") {
+            Picker("Adapter", selection: self.$selectedVideoAdapter) {
+                ForEach(VideoAdapter.manualImportOptions, id: \.self) { adapter in
+                    Text(adapter.manualImportTitle)
+                        .tag(adapter)
+                }
             }
+
+            Picker("Entry", selection: self.$selectedVideoEntryKind) {
+                ForEach(VideoSourceEntryKind.manualImportOptions, id: \.self) { entryKind in
+                    Text(entryKind.manualImportTitle)
+                        .tag(entryKind)
+                }
+            }
+
+            Text(self.manualVideoRuleSummary)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -252,7 +274,7 @@ struct RuntimeSourceImportView: View {
         case .rss:
             await self.saveRSS()
         case .video:
-            self.operationState = .error("Manual video rule is required before saving.")
+            await self.saveVideo()
         }
     }
 
@@ -281,6 +303,25 @@ struct RuntimeSourceImportView: View {
 
         guard source != nil else {
             self.operationState = .error(self.viewModel.errorMessage ?? "Failed to save RSS source.")
+            return
+        }
+
+        self.finishSaved()
+    }
+
+    @MainActor
+    private func saveVideo() async {
+        let source: Source? = await self.viewModel.addManualVideoSource(
+            entryURLString: self.entryURL,
+            name: self.trimmedSourceName,
+            configuration: ManualVideoSourceConfigurationDraft(
+                adapter: self.selectedVideoAdapter,
+                entryKind: self.selectedVideoEntryKind
+            )
+        )
+
+        guard source != nil else {
+            self.operationState = .error(self.viewModel.errorMessage ?? "Failed to save video source.")
             return
         }
 
@@ -359,5 +400,62 @@ struct RuntimeSourceImportView: View {
         }
 
         return json
+    }
+
+    private var manualVideoRuleSummary: String {
+        if self.selectedVideoEntryKind == .play {
+            return "Use Play for direct player URLs. Embed URLs are handled as iframePlayer/pageOnly unless the page exposes mp4 or m3u8."
+        }
+
+        return "Use Home/List/Detail only when the URL represents a browsable video page."
+    }
+}
+
+private extension VideoAdapter {
+    static var manualImportOptions: [VideoAdapter] {
+        return [.genericHTML, .macCMS, .webView, .plugin]
+    }
+
+    var manualImportTitle: String {
+        switch self {
+        case .genericHTML:
+            return "Generic HTML"
+        case .macCMS:
+            return "MacCMS"
+        case .webView:
+            return "WebView"
+        case .plugin:
+            return "Plugin"
+        }
+    }
+
+    var isManualSaveSupported: Bool {
+        switch self {
+        case .genericHTML, .macCMS:
+            return true
+        case .webView, .plugin:
+            return false
+        }
+    }
+}
+
+private extension VideoSourceEntryKind {
+    static var manualImportOptions: [VideoSourceEntryKind] {
+        return [.play, .home, .list, .detail, .category]
+    }
+
+    var manualImportTitle: String {
+        switch self {
+        case .home:
+            return "Home"
+        case .category:
+            return "Category"
+        case .list:
+            return "List"
+        case .detail:
+            return "Detail"
+        case .play:
+            return "Play"
+        }
     }
 }

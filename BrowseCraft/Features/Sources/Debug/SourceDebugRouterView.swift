@@ -7,6 +7,7 @@ struct SourceDebugRouterView: View {
     let kind: RuntimeSourceImportKind
     let entryURL: String
     let sourceName: String?
+    let videoConfiguration: ManualVideoSourceConfigurationDraft?
     @Binding var ruleJSON: String
 
     var body: some View {
@@ -27,7 +28,11 @@ struct SourceDebugRouterView: View {
             VideoSourceDebugView(
                 viewModel: self.viewModel,
                 entryURL: self.entryURL,
-                sourceName: self.sourceName
+                sourceName: self.sourceName,
+                configuration: self.videoConfiguration ?? ManualVideoSourceConfigurationDraft(
+                    adapter: .genericHTML,
+                    entryKind: .play
+                )
             )
         }
     }

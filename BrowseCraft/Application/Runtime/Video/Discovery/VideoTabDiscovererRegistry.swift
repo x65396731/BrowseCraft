@@ -9,7 +9,7 @@ struct VideoTabDiscovererRegistry {
             return MacCMSVideoTabDiscoverer()
         case .genericHTML:
             return GenericHTMLVideoTabDiscoverer()
-        case .iframe, .webView, .plugin:
+        case .webView, .plugin:
             return FallbackVideoTabDiscoverer()
         }
     }

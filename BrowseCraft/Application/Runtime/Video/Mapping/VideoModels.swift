@@ -1,4 +1,5 @@
 import Foundation
+import BrowseCraftCore
 
 // 中文注释：VideoEpisode 是 video runtime 内部剧集模型，避免把漫画章节语义扩散到视频 UI。
 struct VideoEpisode: Identifiable, Hashable {
@@ -12,4 +13,6 @@ struct VideoDetailContent {
     var episodes: [VideoEpisode]
     var synopsis: String?
     var metadataRows: [String]
+    var requestLogs: [SourceRequestLog] = []
+    var issues: [SourceRuntimeIssue] = []
 }

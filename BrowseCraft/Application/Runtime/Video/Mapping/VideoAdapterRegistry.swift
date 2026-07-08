@@ -9,8 +9,6 @@ struct VideoAdapterRegistry {
             return MacCMSVideoHTMLMapper()
         case .genericHTML:
             return GenericHTMLVideoHTMLMapper()
-        case .iframe:
-            return UnsupportedVideoHTMLMapper(adapter: .iframe)
         case .webView:
             return UnsupportedVideoHTMLMapper(adapter: .webView)
         case .plugin:
@@ -49,8 +47,6 @@ struct UnsupportedVideoHTMLMapper: VideoHTMLMapper {
     private func unsupportedError() -> SourceRuntimeError {
         let message: String
         switch self.adapter {
-        case .iframe:
-            message = "Video iframe content adapter is not connected yet."
         case .webView:
             message = "Video WebView rendering adapter is not connected yet."
         case .plugin:

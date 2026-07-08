@@ -10,6 +10,22 @@ struct VideoSourceImportInspection: Hashable {
     var logLines: [String]
 }
 
+struct ManualVideoSourceConfigurationDraft: Hashable {
+    var adapter: VideoAdapter
+    var entryKind: VideoSourceEntryKind
+}
+
+struct AddManualVideoSourceResult {
+    let source: Source
+    let listOutput: SourceListOutput
+}
+
+struct ManualVideoSourceDebugResult: Hashable {
+    var inspection: VideoSourceImportInspection
+    var source: Source
+    var listOutput: SourceListOutput
+}
+
 enum AddVideoSourceResult: Hashable {
     case inspected(VideoSourceImportInspection)
     case saved(Source)
@@ -23,16 +39,29 @@ struct AddVideoSourceDebugResult: Hashable {
     var debugSnapshot: SourceDebugSnapshot?
 }
 
-// 中文注释：手动 video source 入口只做 URL 解析和事实日志，不自动判断 adapter/类型，也不保存 Source。
+// 中文注释：手动 video source 入口不自动判断 adapter/类型；保存必须使用用户选择的配置并通过列表加载验证。
 struct AddVideoSourceUseCase {
+    private let sourceRepository: SourceRepository
+    private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase?
+    private let validateSourceListLoadUseCase: ValidateSourceListLoadUseCase
     private let urlResolver: VideoSourceURLResolver
+    private let now: () -> Date
+    private let makeID: () -> String
 
     init(
         sourceRepository: SourceRepository,
-        urlResolver: VideoSourceURLResolver = VideoSourceURLResolver()
+        refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase? = nil,
+        validateSourceListLoadUseCase: ValidateSourceListLoadUseCase = ValidateSourceListLoadUseCase(),
+        urlResolver: VideoSourceURLResolver = VideoSourceURLResolver(),
+        now: @escaping () -> Date = Date.init,
+        makeID: @escaping () -> String = { UUID().uuidString }
     ) {
-        _ = sourceRepository
+        self.sourceRepository = sourceRepository
+        self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
+        self.validateSourceListLoadUseCase = validateSourceListLoadUseCase
         self.urlResolver = urlResolver
+        self.now = now
+        self.makeID = makeID
     }
 
     func execute(
@@ -93,6 +122,55 @@ struct AddVideoSourceUseCase {
         )
     }
 
+    func saveManualVideoSource(
+        entryURLString: String,
+        name: String? = nil,
+        configuration: ManualVideoSourceConfigurationDraft
+    ) async throws -> AddManualVideoSourceResult {
+        let debugResult: ManualVideoSourceDebugResult = try await self.debugManualVideoSource(
+            entryURLString: entryURLString,
+            name: name,
+            configuration: configuration
+        )
+        let source: Source = debugResult.source
+        let listOutput: SourceListOutput = debugResult.listOutput
+        try self.sourceRepository.saveSource(source)
+        return AddManualVideoSourceResult(source: source, listOutput: listOutput)
+    }
+
+    func debugManualVideoSource(
+        entryURLString: String,
+        name: String? = nil,
+        configuration: ManualVideoSourceConfigurationDraft
+    ) async throws -> ManualVideoSourceDebugResult {
+        guard let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = self.refreshSourceRuntimeUseCase else {
+            throw SourceRuntimeError.unsupported(
+                .custom("Manual video source debug requires runtime list validation.")
+            )
+        }
+
+        let inspection: VideoSourceImportInspection = try self.inspect(
+            entryURLString: entryURLString,
+            name: name
+        )
+        let source: Source = self.manualSource(
+            inspection: inspection,
+            inputName: name,
+            configuration: configuration
+        )
+        let listOutput: SourceListOutput = try await refreshSourceRuntimeUseCase.execute(
+            source: source,
+            listContext: nil,
+            debugMode: true
+        )
+        try self.validateSourceListLoadUseCase.execute(listOutput)
+        return ManualVideoSourceDebugResult(
+            inspection: inspection,
+            source: source,
+            listOutput: listOutput
+        )
+    }
+
     private func logLines(
         resolution: VideoSourceURLResolution,
         sourceName: String?,
@@ -150,6 +228,52 @@ struct AddVideoSourceUseCase {
         case .play:
             return "play"
         }
+    }
+
+    private func sourceName(
+        inputName: String?,
+        inspection: VideoSourceImportInspection
+    ) -> String {
+        if let inputName: String = inputName?.trimmedNonEmpty {
+            return inputName
+        }
+
+        return inspection.entryURL.host ?? "Video Source"
+    }
+
+    private func manualSource(
+        inspection: VideoSourceImportInspection,
+        inputName: String?,
+        configuration: ManualVideoSourceConfigurationDraft
+    ) -> Source {
+        let timestamp: Date = self.now()
+        return Source(
+            id: self.makeID(),
+            name: self.sourceName(inputName: inputName, inspection: inspection),
+            baseURL: inspection.baseURL.absoluteString,
+            type: .html,
+            configuration: .video(
+                VideoSourceConfiguration(
+                    definition: VideoSourceDefinition(
+                        adapter: configuration.adapter,
+                        entryURL: inspection.entryURL,
+                        seedURL: inspection.seedURL,
+                        entryKind: configuration.entryKind,
+                        routePatterns: configuration.adapter == .macCMS ? .macCMS : nil,
+                        playbackPolicy: .playPageFirst,
+                        requiresAccount: false,
+                        seedVodID: nil,
+                        seedSourceIndex: nil,
+                        seedEpisodeIndex: nil,
+                        seedDetailURL: nil,
+                        seedPlayURL: configuration.entryKind == .play ? inspection.entryURL : nil
+                    )
+                )
+            ),
+            enabled: true,
+            createdAt: timestamp,
+            updatedAt: timestamp
+        )
     }
 }
 

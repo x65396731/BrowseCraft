@@ -75,8 +75,6 @@ struct VideoSourceImportDebugSnapshotBuilder {
             return .unsupported
         case .unavailable(.webViewNotConnected):
             return .webViewRequired
-        case .unavailable(.iframeContentNotConnected):
-            return .iframe
         case .supported, .needsReview:
             break
         }
@@ -85,13 +83,15 @@ struct VideoSourceImportDebugSnapshotBuilder {
             return .webViewRequired
         }
 
+        if detection.playbackMode == .iframePlayer {
+            return .iframePlayer
+        }
+
         switch detection.adapter {
         case .macCMS:
             return .macCMS
         case .genericHTML:
             return .genericHTML
-        case .iframe:
-            return .iframe
         case .webView:
             return .webViewRequired
         case .plugin:
@@ -256,7 +256,7 @@ struct VideoSourceImportDebugSnapshotBuilder {
             return .lowConfidence
         case .unsupportedAdapter:
             return .unsupportedStructure
-        case .webViewNotConnected, .iframeContentNotConnected:
+        case .webViewNotConnected:
             return .missingCapability
         }
     }

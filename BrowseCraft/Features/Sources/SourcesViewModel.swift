@@ -187,6 +187,53 @@ final class SourcesViewModel: ObservableObject {
     }
 
     @MainActor
+    func addManualVideoSource(
+        entryURLString: String,
+        name: String? = nil,
+        configuration: ManualVideoSourceConfigurationDraft
+    ) async -> Source? {
+        do {
+            let result: AddManualVideoSourceResult = try await self.addVideoSourceUseCase.saveManualVideoSource(
+                entryURLString: entryURLString,
+                name: name,
+                configuration: configuration
+            )
+            let source: Source = result.source
+
+            self.load()
+            let items: [ContentItem] = self.contentItems(from: result.listOutput, source: source)
+            self.sourceSelectionStore.publishLibrarySnapshot(source: source, items: items)
+            self.logPublishedLibrarySnapshot(source: source, items: items, origin: "manual-video-source-add")
+            self.selectSource(id: source.id)
+            self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
+            return source
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "manual-video-source-add-error")
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+            return nil
+        }
+    }
+
+    @MainActor
+    func debugManualVideoSource(
+        entryURLString: String,
+        name: String? = nil,
+        configuration: ManualVideoSourceConfigurationDraft
+    ) async -> ManualVideoSourceDebugResult? {
+        do {
+            return try await self.addVideoSourceUseCase.debugManualVideoSource(
+                entryURLString: entryURLString,
+                name: name,
+                configuration: configuration
+            )
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "manual-video-source-debug-error")
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+            return nil
+        }
+    }
+
+    @MainActor
     func previewRuntimeSource(
         kind: RuntimeSourceImportKind,
         entryURLString: String,
