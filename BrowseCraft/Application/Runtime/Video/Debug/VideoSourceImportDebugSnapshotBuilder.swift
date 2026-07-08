@@ -26,9 +26,9 @@ struct VideoSourceImportDebugSnapshotBuilder {
                 url: entryURL.absoluteString
             ),
             sourceKind: .video,
-            structure: self.structureSummary(detection: detection, decision: decision),
+            structure: self.structureSummary(source: source, detection: detection, decision: decision),
             importDecision: self.importDecisionSummary(decision),
-            signals: self.signals(detection: detection, decision: decision),
+            signals: self.signals(source: source, detection: detection, decision: decision),
             requestLogs: [],
             extractionLogs: [],
             previewItems: [],
@@ -38,6 +38,7 @@ struct VideoSourceImportDebugSnapshotBuilder {
     }
 
     private func structureSummary(
+        source: Source,
         detection: VideoSourceDetection?,
         decision: VideoSourceImportDecision
     ) -> SourceDebugStructureSummary {
@@ -53,7 +54,7 @@ struct VideoSourceImportDebugSnapshotBuilder {
 
         return SourceDebugStructureSummary(
             kind: self.structureKind(detection: detection, decision: decision),
-            adapterID: detection.adapter.rawValue,
+            adapterID: self.selectedAdapterID(source: source),
             renderMode: detection.renderMode.rawValue,
             playbackMode: detection.playbackMode.rawValue,
             confidence: detection.confidence
@@ -77,7 +78,7 @@ struct VideoSourceImportDebugSnapshotBuilder {
             break
         }
 
-        if detection.renderMode == .webViewRequired || detection.adapter == .webView {
+        if detection.renderMode == .webViewRequired {
             return .webViewRequired
         }
 
@@ -85,15 +86,17 @@ struct VideoSourceImportDebugSnapshotBuilder {
             return .iframePlayer
         }
 
-        switch detection.adapter {
-        case .macCMS:
+        switch self.adapter(from: decision) {
+        case .macCMS?:
             return .macCMS
-        case .genericHTML:
+        case .genericHTML?:
             return .genericHTML
-        case .webView:
+        case .webView?:
             return .webViewRequired
-        case .plugin:
+        case .plugin?:
             return .pluginRequired
+        case nil:
+            return .unknown
         }
     }
 
@@ -123,21 +126,24 @@ struct VideoSourceImportDebugSnapshotBuilder {
     }
 
     private func signals(
+        source: Source,
         detection: VideoSourceDetection?,
         decision: VideoSourceImportDecision
     ) -> [SourceDebugSignal] {
         var signals: [SourceDebugSignal] = []
 
-        if let detection: VideoSourceDetection {
+        if let selectedAdapterID: String = self.selectedAdapterID(source: source) {
             signals.append(
                 SourceDebugSignal(
-                    id: "video.adapter",
+                    id: "video.selectedAdapter",
                     category: .adapter,
-                    key: "adapter",
-                    value: detection.adapter.rawValue,
-                    confidence: detection.confidence
+                    key: "selectedAdapter",
+                    value: selectedAdapterID
                 )
             )
+        }
+
+        if let detection: VideoSourceDetection {
             signals.append(
                 SourceDebugSignal(
                     id: "video.renderMode",
@@ -177,6 +183,23 @@ struct VideoSourceImportDebugSnapshotBuilder {
         )
 
         return signals
+    }
+
+    private func selectedAdapterID(source: Source) -> String? {
+        guard case .video(let configuration) = source.configuration else {
+            return nil
+        }
+
+        return configuration.definition.adapter.rawValue
+    }
+
+    private func adapter(from decision: VideoSourceImportDecision) -> VideoAdapter? {
+        switch decision {
+        case .supported(let definition), .needsReview(let definition, _):
+            return definition.adapter
+        case .unavailable, .pluginRequired:
+            return nil
+        }
     }
 
     private func reasonSignals(_ reasons: [String]) -> [SourceDebugSignal] {

@@ -203,14 +203,17 @@ struct VideoRuntimeMacCMSMappingTests {
         #expect(pageOnly.status == .pageOnly)
     }
 
-    @Test func videoAdapterDetectorIdentifiesMacCMSFromRouteAndHTMLSignals() throws {
+    @Test func videoAdapterDetectorKeepsMacCMSSignalsAsFacts() throws {
         let detector: VideoAdapterDetector = VideoAdapterDetector()
         let routeURL: URL = try #require(URL(string: "https://video.example.test/voddetail/117372.html"))
         let routeDetection: VideoAdapterDetection = detector.detect(
             VideoAdapterDetectionInput(url: routeURL)
         )
-        #expect(routeDetection.adapter == .macCMS)
-        #expect(routeDetection.confidence >= 0.80)
+        #expect(routeDetection.adapter == .genericHTML)
+        #expect(routeDetection.confidence >= 0.75)
+        #expect(routeDetection.reasons.contains { reason in
+            reason.contains("Content mapper adapter was not inferred")
+        })
 
         let homeURL: URL = try #require(URL(string: "https://video.example.test/"))
         let htmlDetection: VideoAdapterDetection = detector.detect(
@@ -219,7 +222,7 @@ struct VideoRuntimeMacCMSMappingTests {
                 html: "<script>var player_aaaa={\"url\":\"\"};</script><div>mac_history vod_name</div>"
             )
         )
-        #expect(htmlDetection.adapter == .macCMS)
+        #expect(htmlDetection.adapter == .genericHTML)
         #expect(htmlDetection.reasons.isEmpty == false)
     }
 

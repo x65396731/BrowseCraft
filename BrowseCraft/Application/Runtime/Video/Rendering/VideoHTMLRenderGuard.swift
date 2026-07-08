@@ -101,7 +101,7 @@ struct VideoHTMLRenderGuard {
         var details: [String] = [
             "Video source requires WebView-rendered DOM before content mapping.",
             "Render mode: \(detection.renderMode.rawValue).",
-            "Content adapter: \(detection.adapter.rawValue).",
+            "Content adapter is selected by the current rule or debug tab.",
             "Playback mode: \(detection.playbackMode.rawValue)."
         ]
 

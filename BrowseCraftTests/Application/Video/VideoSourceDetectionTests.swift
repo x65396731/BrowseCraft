@@ -3,9 +3,9 @@ import Testing
 import BrowseCraftCore
 @testable import BrowseCraft
 
-// 中文注释：P5.1.9 固定视频源检测三层模型，避免 adapter、render、playback 混成一个分类。
+// 中文注释：P5.1.30a-2 后 detection 只输出事实信号；macCMS/genericHTML 由规则或调试选项卡决定。
 struct VideoSourceDetectionTests {
-    @Test func detectsMacCMSAdapterFromRouteSignal() throws {
+    @Test func detectsVideoCMSRouteSignalWithoutChoosingContentMapper() throws {
         let detector: VideoSourceDetector = VideoSourceDetector()
         let url: URL = try #require(URL(string: "https://video.example.test/voddetail/117372.html"))
 
@@ -13,13 +13,16 @@ struct VideoSourceDetectionTests {
             VideoSourceDetectionInput(url: url)
         )
 
-        #expect(detection.adapter == .macCMS)
+        #expect(detection.adapter == .genericHTML)
         #expect(detection.renderMode == .staticHTML)
         #expect(detection.playbackMode == .unresolved)
         #expect(detection.confidence >= 0.75)
+        #expect(detection.reasons.contains { reason in
+            reason.contains("Content mapper adapter was not inferred")
+        })
     }
 
-    @Test func detectsGenericHTMLDirectMediaWithoutWeakMarkerDependence() throws {
+    @Test func detectsDirectMediaWithoutChoosingContentMapper() throws {
         let detector: VideoSourceDetector = VideoSourceDetector()
         let url: URL = try #require(URL(string: "https://video.example.test/catalog"))
 
@@ -42,6 +45,9 @@ struct VideoSourceDetectionTests {
         #expect(detection.renderMode == .staticHTML)
         #expect(detection.playbackMode == .directMedia)
         #expect(detection.confidence >= 0.60)
+        #expect(detection.reasons.contains { reason in
+            reason.contains("Content mapper adapter was not inferred")
+        })
     }
 
     @Test func weakGenericHTMLMarkersAloneDoNotProduceHighConfidence() throws {
@@ -62,7 +68,6 @@ struct VideoSourceDetectionTests {
             )
         )
 
-        #expect(detection.adapter == .genericHTML)
         #expect(detection.playbackMode == .unresolved)
         #expect(detection.confidence <= 0.36)
     }
@@ -87,9 +92,11 @@ struct VideoSourceDetectionTests {
             )
         )
 
-        #expect(detection.adapter == .genericHTML)
         #expect(detection.renderMode == .staticHTML)
         #expect(detection.playbackMode == .iframePlayer)
+        #expect(detection.reasons.contains { reason in
+            reason.contains("Content mapper adapter was not inferred")
+        })
     }
 
     @Test func framesetShellDoesNotBecomeContentAdapter() throws {
@@ -109,7 +116,6 @@ struct VideoSourceDetectionTests {
             )
         )
 
-        #expect(detection.adapter == .genericHTML)
         #expect(detection.renderMode == .staticHTML)
         #expect(detection.playbackMode == .unresolved)
     }
@@ -133,7 +139,6 @@ struct VideoSourceDetectionTests {
             )
         )
 
-        #expect(detection.adapter == .genericHTML)
         #expect(detection.renderMode == .webViewRequired)
         #expect(detection.playbackMode == .unresolved)
         #expect(detection.warnings.contains { warning in
@@ -160,7 +165,6 @@ struct VideoSourceDetectionTests {
             )
         )
 
-        #expect(detection.adapter == .genericHTML)
         #expect(detection.renderMode == .webViewRequired)
         #expect(detection.playbackMode == .unresolved)
         #expect(detection.warnings.contains { warning in
@@ -215,7 +219,6 @@ struct VideoSourceDetectionTests {
             )
         )
 
-        #expect(detection.adapter == .genericHTML)
         #expect(detection.playbackMode == .unresolved)
         #expect(detection.warnings.contains { warning in
             warning.contains("VIP")
@@ -247,7 +250,6 @@ struct VideoSourceDetectionTests {
             )
         )
 
-        #expect(detection.adapter == .genericHTML)
         #expect(detection.playbackMode == .directMedia)
         #expect(detection.confidence >= 0.70)
     }
@@ -269,7 +271,6 @@ struct VideoSourceDetectionTests {
             )
         )
 
-        #expect(detection.adapter == .genericHTML)
         #expect(detection.playbackMode == .unresolved)
         #expect(detection.confidence <= 0.36)
         #expect(detection.warnings.contains { warning in
@@ -304,7 +305,6 @@ struct VideoSourceDetectionTests {
             )
         )
 
-        #expect(detection.adapter == .genericHTML)
         #expect(detection.playbackMode == .unresolved)
         #expect(detection.warnings.contains { warning in
             warning.contains("VIP")
@@ -354,7 +354,7 @@ struct VideoSourceDetectionTests {
         if case .supported(let supportedDefinition) = decision {
             #expect(supportedDefinition.adapter == .macCMS)
         } else {
-            Issue.record("Expected high-confidence MacCMS detection to be supported.")
+            Issue.record("Expected high-confidence video signals with a rule-selected MacCMS adapter to be supported.")
         }
     }
 
@@ -386,7 +386,7 @@ struct VideoSourceDetectionTests {
         if case .needsReview(let reviewDefinition, _) = decision {
             #expect(reviewDefinition.adapter == .genericHTML)
         } else {
-            Issue.record("Expected medium-confidence generic HTML detection to need review.")
+            Issue.record("Expected medium-confidence video signals with a rule-selected Generic HTML adapter to need review.")
         }
     }
 
@@ -515,7 +515,7 @@ struct VideoSourceDetectionTests {
         #expect(decision == .pluginRequired(.encryptedPlayback))
     }
 
-    @Test func legacyVideoAdapterDetectorWrapsThreeLayerDetection() throws {
+    @Test func legacyVideoAdapterDetectorWrapsFactDetectionWithoutChoosingMapper() throws {
         let detector: VideoAdapterDetector = VideoAdapterDetector()
         let url: URL = try #require(URL(string: "https://video.example.test/watch/sample"))
 
@@ -538,6 +538,9 @@ struct VideoSourceDetectionTests {
         })
         #expect(detection.reasons.contains { reason in
             reason.contains("Playback mode")
+        })
+        #expect(detection.reasons.contains { reason in
+            reason.contains("Content mapper adapter was not inferred")
         })
     }
 

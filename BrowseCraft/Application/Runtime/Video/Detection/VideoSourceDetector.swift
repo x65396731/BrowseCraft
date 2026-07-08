@@ -11,18 +11,16 @@ struct VideoSourceDetector: VideoSourceDetecting {
     func detect(_ input: VideoSourceDetectionInput) -> VideoSourceDetection {
         let signals: VideoSourceSignals = VideoSourceSignals(input: input)
         let restriction: RestrictionSignal = self.restrictionSignal(signals)
-        let macCMS: DetectionScore = self.macCMSScore(signals)
-        let genericHTML: DetectionScore = self.genericHTMLScore(signals)
+        let contentSignals: DetectionScore = self.videoContentScore(signals)
         let renderMode: VideoRenderRequirement = self.renderMode(signals)
         let playback: PlaybackDetection = self.playbackDetection(signals)
-        let adapterScore: AdapterDetection = self.adapterDetection(
-            macCMS: macCMS,
-            genericHTML: genericHTML,
+        let detectionScope: DetectionScope = self.detectionScope(
+            contentSignals: contentSignals,
             restriction: restriction,
             renderMode: renderMode
         )
         let confidence: Double = self.confidence(
-            adapterScore: adapterScore.score,
+            signalScore: detectionScope.score,
             renderMode: renderMode,
             playbackMode: playback.mode,
             restriction: restriction
@@ -34,96 +32,84 @@ struct VideoSourceDetector: VideoSourceDetecting {
         )
 
         return VideoSourceDetection(
-            adapter: adapterScore.adapter,
+            adapter: detectionScope.compatibilityAdapter,
             renderMode: renderMode,
             playbackMode: playback.mode,
             confidence: confidence,
-            reasons: adapterScore.reasons + playback.reasons,
+            reasons: detectionScope.reasons + playback.reasons,
             warnings: warnings
         )
     }
 
-    private func adapterDetection(
-        macCMS: DetectionScore,
-        genericHTML: DetectionScore,
+    private func detectionScope(
+        contentSignals: DetectionScore,
         restriction: RestrictionSignal,
         renderMode: VideoRenderRequirement
-    ) -> AdapterDetection {
+    ) -> DetectionScope {
         if restriction.shouldUsePlugin {
-            return AdapterDetection(
-                adapter: .plugin,
+            return DetectionScope(
+                compatibilityAdapter: .plugin,
                 score: restriction.score,
                 reasons: restriction.reasons
             )
         }
 
-        if macCMS.score >= 0.72 && macCMS.score >= genericHTML.score {
-            return AdapterDetection(
-                adapter: .macCMS,
-                score: macCMS.score,
-                reasons: macCMS.reasons
-            )
-        }
-
-        if genericHTML.score >= 0.50 {
-            return AdapterDetection(
-                adapter: .genericHTML,
-                score: genericHTML.score,
-                reasons: genericHTML.reasons
-            )
-        }
-
         if renderMode == .webViewRequired {
-            return AdapterDetection(
-                adapter: .genericHTML,
-                score: 0.48,
-                reasons: ["HTML looks JavaScript-rendered; defaulting content extraction adapter to generic HTML."]
+            return DetectionScope(
+                compatibilityAdapter: .genericHTML,
+                score: max(0.48, contentSignals.score),
+                reasons: contentSignals.reasons + [
+                    "HTML looks JavaScript-rendered; content mapper adapter remains user/rule-selected."
+                ]
             )
         }
 
-        return AdapterDetection(
-            adapter: .genericHTML,
+        if contentSignals.score > 0 {
+            return DetectionScope(
+                compatibilityAdapter: .genericHTML,
+                score: contentSignals.score,
+                reasons: contentSignals.reasons + [
+                    "Content mapper adapter was not inferred; use the selected tab or rule configuration."
+                ]
+            )
+        }
+
+        return DetectionScope(
+            compatibilityAdapter: .genericHTML,
             score: 0.30,
-            reasons: ["No strong video content adapter signal matched; defaulting to generic HTML."]
+            reasons: ["No video content signals matched; content mapper adapter remains user/rule-selected."]
         )
     }
 
-    private func macCMSScore(_ signals: VideoSourceSignals) -> DetectionScore {
+    private func videoContentScore(_ signals: VideoSourceSignals) -> DetectionScore {
         var score: Double = 0
         var reasons: [String] = []
 
         if signals.pathMatches(#"^/vod(type|show|detail|play)/"#) {
-            score += 0.82
-            reasons.append("URL path matches common MacCMS routes.")
+            score += 0.76
+            reasons.append("URL path matches common video CMS routes.")
         }
 
         let payloadMarkers: [String] = self.lexicon.markers(for: .macCMSPayload)
         let payloadMatches: [String] = signals.containedMarkers(payloadMarkers)
         if payloadMatches.isEmpty == false {
-            score += 0.72
-            reasons.append("HTML contains MacCMS player payload markers: \(payloadMatches.joined(separator: ", ")).")
+            score += 0.62
+            reasons.append("HTML contains known video CMS player payload markers: \(payloadMatches.joined(separator: ", ")).")
         }
 
         let routeMarkers: [String] = self.lexicon.markers(for: .macCMSRoute)
         let routeMatches: [String] = signals.containedMarkers(routeMarkers)
         if routeMatches.isEmpty == false {
             score += min(0.40, Double(routeMatches.count) * 0.16)
-            reasons.append("HTML contains MacCMS route markers: \(routeMatches.joined(separator: ", ")).")
+            reasons.append("HTML contains known video CMS route markers: \(routeMatches.joined(separator: ", ")).")
         }
 
-        let weakMarkers: [String] = self.lexicon.markers(for: .macCMSWeak)
-        let weakMatches: [String] = signals.containedMarkers(weakMarkers)
-        if weakMatches.count >= 2 {
+        let weakCMSMarkers: [String] = self.lexicon.markers(for: .macCMSWeak)
+        let weakCMSMatches: [String] = signals.containedMarkers(weakCMSMarkers)
+        if weakCMSMatches.count >= 2 {
             score += 0.20
-            reasons.append("HTML contains multiple MacCMS weak markers: \(weakMatches.joined(separator: ", ")).")
+            reasons.append("HTML contains multiple weak video CMS markers: \(weakCMSMatches.joined(separator: ", ")).")
         }
-
-        return DetectionScore(score: min(score, 1.0), reasons: reasons)
-    }
-
-    private func genericHTMLScore(_ signals: VideoSourceSignals) -> DetectionScore {
-        var score: Double = 0
-        var reasons: [String] = []
 
         let strongMarkers: [String] = self.lexicon.markers(for: .directMedia)
         let strongMatches: [String] = signals.containedMarkers(strongMarkers)
@@ -145,11 +131,11 @@ struct VideoSourceDetector: VideoSourceDetecting {
             reasons.append("HTML contains generic video card/list markers: \(mediumMatches.joined(separator: ", ")).")
         }
 
-        let weakMarkers: [String] = self.lexicon.markers(for: .genericSupporting)
-        let weakMatches: [String] = signals.containedMarkers(weakMarkers)
-        if weakMatches.count >= 2 && (score > 0 || signals.videoRouteHitCount > 0) {
-            score += min(0.12, Double(weakMatches.count) * 0.03)
-            reasons.append("HTML contains supporting weak video markers: \(weakMatches.joined(separator: ", ")).")
+        let supportingMarkers: [String] = self.lexicon.markers(for: .genericSupporting)
+        let supportingMatches: [String] = signals.containedMarkers(supportingMarkers)
+        if supportingMatches.count >= 2 && (score > 0 || signals.videoRouteHitCount > 0) {
+            score += min(0.12, Double(supportingMatches.count) * 0.03)
+            reasons.append("HTML contains supporting weak video markers: \(supportingMatches.joined(separator: ", ")).")
         }
 
         return DetectionScore(score: min(score, 1.0), reasons: reasons)
@@ -231,7 +217,7 @@ struct VideoSourceDetector: VideoSourceDetecting {
     }
 
     private func confidence(
-        adapterScore: Double,
+        signalScore: Double,
         renderMode: VideoRenderRequirement,
         playbackMode: VideoPlaybackMode,
         restriction: RestrictionSignal
@@ -240,7 +226,7 @@ struct VideoSourceDetector: VideoSourceDetecting {
             return restriction.score
         }
 
-        var confidence: Double = adapterScore
+        var confidence: Double = signalScore
         if renderMode == .webViewRequired {
             confidence = min(1.0, confidence + 0.05)
         }
@@ -253,8 +239,8 @@ struct VideoSourceDetector: VideoSourceDetecting {
     }
 }
 
-private struct AdapterDetection {
-    var adapter: VideoAdapter
+private struct DetectionScope {
+    var compatibilityAdapter: VideoAdapter
     var score: Double
     var reasons: [String]
 }
@@ -277,10 +263,12 @@ private struct RestrictionSignal {
 
 private struct VideoSourceSignals {
     let path: String
+    let html: String
     let haystack: String
 
     init(input: VideoSourceDetectionInput) {
         self.path = input.url.path.lowercased()
+        self.html = (input.html ?? "").lowercased()
         let headerText: String = input.headers
             .map { key, value in "\(key): \(value)" }
             .joined(separator: "\n")
@@ -294,13 +282,13 @@ private struct VideoSourceSignals {
     }
 
     var htmlIsEmptyShell: Bool {
-        let trimmed: String = self.haystack.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed: String = self.html.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.isEmpty == false else {
             return false
         }
 
-        let hasAppShell: Bool = self.containsAny(VideoDetectionLexicon.default.markers(for: .webViewShell))
-        let hasVideoContent: Bool = self.containsAny([
+        let hasAppShell: Bool = self.htmlContainsAny(VideoDetectionLexicon.default.markers(for: .webViewShell))
+        let hasVideoContent: Bool = self.htmlContainsAny([
             "/voddetail/",
             "/vodplay/",
             "/watch",
@@ -340,6 +328,12 @@ private struct VideoSourceSignals {
 
     func containsAny(_ markers: [String]) -> Bool {
         return self.containedMarkers(markers).isEmpty == false
+    }
+
+    func htmlContainsAny(_ markers: [String]) -> Bool {
+        return markers.contains { marker in
+            self.html.contains(marker.lowercased())
+        }
     }
 
     func containedMarkers(_ markers: [String]) -> [String] {

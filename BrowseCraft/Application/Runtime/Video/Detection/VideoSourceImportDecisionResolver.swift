@@ -1,7 +1,7 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：导入决策只解释 detection 结果，不执行 mapper、WebView 或插件。
+// 中文注释：导入决策只解释 detection 事实，不自动选择 macCMS/genericHTML mapper。
 enum VideoSourceImportDecision: Hashable {
     case supported(VideoSourceDefinition)
     case needsReview(VideoSourceDefinition, warnings: [String])
@@ -48,7 +48,7 @@ struct VideoSourceImportDecisionResolver {
             return .pluginRequired(self.pluginReason(from: detection))
         }
 
-        guard detection.adapter == .macCMS || detection.adapter == .genericHTML || detection.adapter == .webView else {
+        guard self.isBuiltInAdapter(definition.adapter) else {
             return .unavailable(.unsupportedAdapter)
         }
 
@@ -83,12 +83,12 @@ struct VideoSourceImportDecisionResolver {
         _ definition: VideoSourceDefinition,
         detection: VideoSourceDetection
     ) -> VideoSourceDefinition {
-        guard detection.adapter == .webView || detection.renderMode == .webViewRequired else {
+        guard definition.adapter == .webView || detection.renderMode == .webViewRequired else {
             return definition
         }
 
         return VideoSourceDefinition(
-            adapter: detection.adapter == .webView ? .genericHTML : definition.adapter,
+            adapter: definition.adapter == .webView ? .genericHTML : definition.adapter,
             entryURL: definition.entryURL,
             seedURL: definition.seedURL,
             entryKind: definition.entryKind,
@@ -131,9 +131,18 @@ struct VideoSourceImportDecisionResolver {
         return Array(Set(warnings)).sorted()
     }
 
+    private func isBuiltInAdapter(_ adapter: VideoAdapter) -> Bool {
+        switch adapter {
+        case .macCMS, .genericHTML, .webView:
+            return true
+        case .plugin:
+            return false
+        }
+    }
+
     private func hasNoVideoSignals(_ detection: VideoSourceDetection) -> Bool {
         return detection.reasons.contains { reason in
-            return reason.localizedCaseInsensitiveContains("No strong video content adapter signal")
+            return reason.localizedCaseInsensitiveContains("No video content signals matched")
         }
     }
 
