@@ -10,13 +10,13 @@ struct VideoIframePlayerResolution {
 
 struct VideoIframePlayerResolver {
     private let pageContentLoader: PageContentLoader
-    private let mapper: any VideoHTMLMapper
+    private let mapper: any VideoContentMapper
     private let requestConfigResolver: VideoRequestConfigResolver
     private let maxDepth: Int
 
     init(
         pageContentLoader: PageContentLoader,
-        mapper: any VideoHTMLMapper,
+        mapper: any VideoContentMapper,
         requestConfigResolver: VideoRequestConfigResolver = VideoRequestConfigResolver(),
         maxDepth: Int = 2
     ) {

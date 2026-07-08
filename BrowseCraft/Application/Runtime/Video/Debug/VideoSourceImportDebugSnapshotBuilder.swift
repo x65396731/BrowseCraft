@@ -73,8 +73,6 @@ struct VideoSourceImportDebugSnapshotBuilder {
             return .unknown
         case .unavailable(.unsupportedAdapter):
             return .unsupported
-        case .unavailable(.webViewNotConnected):
-            return .webViewRequired
         case .supported, .needsReview:
             break
         }
@@ -256,8 +254,6 @@ struct VideoSourceImportDebugSnapshotBuilder {
             return .lowConfidence
         case .unsupportedAdapter:
             return .unsupportedStructure
-        case .webViewNotConnected:
-            return .missingCapability
         }
     }
 

@@ -29,21 +29,27 @@ struct VideoSourceRuntime: SourceRuntime {
             supportsReader: false,
             supportsDebug: false,
             supportsCandidateAnalysis: false,
-            requiresWebView: false,
+            requiresWebView: self.requiresWebView,
             requiresCookieStore: false,
             requiresAccount: self.definition.video?.requiresAccount ?? false,
             limitations: [
                 self.limitation(.search, "Video MVP does not support search yet."),
                 self.limitation(.reader, "Video sources use VideoPlayerHostView instead of reader output."),
                 self.limitation(.debug, "Video debug runtime is not connected yet."),
-                self.limitation(.candidateAnalysis, "Video MVP uses template mappers, not selector candidate analysis."),
-                SourceRuntimeCapabilityLimitation(
-                    capability: .webView,
-                    reason: .notConnected,
-                    message: "WebView video rendering is not connected yet."
-                )
+                self.limitation(.candidateAnalysis, "Video MVP uses template mappers, not selector candidate analysis.")
             ]
         )
+    }
+
+    private var requiresWebView: Bool {
+        guard let videoDefinition: VideoSourceDefinition = self.definition.video else {
+            return false
+        }
+
+        return videoDefinition.sharedRequest?.needsWebView == true
+            || videoDefinition.listRequest?.needsWebView == true
+            || videoDefinition.detailRequest?.needsWebView == true
+            || videoDefinition.playRequest?.needsWebView == true
     }
 
     func loadList(_ input: SourceListInput) async throws -> SourceListOutput {
@@ -143,49 +149,5 @@ struct VideoSourceRuntime: SourceRuntime {
             reason: .notImplemented,
             message: message
         )
-    }
-}
-
-// 中文注释：P5.1.12 的渲染层门闩；WebView 视频渲染接入前，避免静态 mapper 把 JS 壳页误报为普通解析失败。
-struct VideoSourceRenderingGuard {
-    private let detector: any VideoSourceDetecting
-
-    init(detector: any VideoSourceDetecting = VideoSourceDetector()) {
-        self.detector = detector
-    }
-
-    func validateStaticHTML(
-        url: URL,
-        html: String,
-        headers: [String: String] = [:]
-    ) throws {
-        let detection: VideoSourceDetection = self.detector.detect(
-            VideoSourceDetectionInput(
-                url: url,
-                html: html,
-                headers: headers
-            )
-        )
-
-        guard detection.renderMode == .staticHTML else {
-            throw SourceRuntimeError.unsupported(
-                .custom(self.unsupportedWebViewMessage(detection: detection))
-            )
-        }
-    }
-
-    private func unsupportedWebViewMessage(detection: VideoSourceDetection) -> String {
-        var details: [String] = [
-            "Video source requires WebView rendering, but WebView video rendering is not connected yet.",
-            "Render mode: \(detection.renderMode.rawValue).",
-            "Adapter: \(detection.adapter.rawValue).",
-            "Playback mode: \(detection.playbackMode.rawValue)."
-        ]
-
-        if detection.warnings.isEmpty == false {
-            details.append("Warnings: \(detection.warnings.joined(separator: " "))")
-        }
-
-        return details.joined(separator: " ")
     }
 }

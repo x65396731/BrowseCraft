@@ -413,7 +413,7 @@ struct RuntimeSourceImportView: View {
 
 private extension VideoAdapter {
     static var manualImportOptions: [VideoAdapter] {
-        return [.genericHTML, .macCMS, .webView, .plugin]
+        return [.genericHTML, .macCMS, .plugin]
     }
 
     var manualImportTitle: String {
@@ -423,7 +423,7 @@ private extension VideoAdapter {
         case .macCMS:
             return "MacCMS"
         case .webView:
-            return "WebView"
+            return "WebView (legacy)"
         case .plugin:
             return "Plugin"
         }

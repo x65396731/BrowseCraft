@@ -89,10 +89,10 @@ struct VideoSourceDetectionTests {
 
         #expect(detection.adapter == .genericHTML)
         #expect(detection.renderMode == .staticHTML)
-        #expect(detection.playbackMode == .iframe)
+        #expect(detection.playbackMode == .iframePlayer)
     }
 
-    @Test func detectsIframeAsContentAdapterWhenItIsTheMainContentShell() throws {
+    @Test func framesetShellDoesNotBecomeContentAdapter() throws {
         let detector: VideoSourceDetector = VideoSourceDetector()
         let url: URL = try #require(URL(string: "https://video.example.test/"))
 
@@ -109,7 +109,7 @@ struct VideoSourceDetectionTests {
             )
         )
 
-        #expect(detection.adapter == .iframe)
+        #expect(detection.adapter == .genericHTML)
         #expect(detection.renderMode == .staticHTML)
         #expect(detection.playbackMode == .unresolved)
     }
@@ -456,7 +456,7 @@ struct VideoSourceDetectionTests {
         #expect(decision == .pluginRequired(.privateAPIRequired))
     }
 
-    @Test func importDecisionRoutesWebViewRequiredToUnavailable() throws {
+    @Test func importDecisionRoutesWebViewRequiredToNeedsReviewWithRenderedDOMRequest() throws {
         let detector: VideoSourceDetector = VideoSourceDetector()
         let resolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver()
         let url: URL = try #require(URL(string: "https://video.example.test/watch/spa"))
@@ -479,32 +479,15 @@ struct VideoSourceDetectionTests {
             definition: definition
         )
 
-        #expect(decision == .unavailable(.webViewNotConnected))
-    }
-
-    @Test func importDecisionRoutesIframeContentAdapterToUnavailable() throws {
-        let detector: VideoSourceDetector = VideoSourceDetector()
-        let resolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver()
-        let url: URL = try #require(URL(string: "https://video.example.test/"))
-        let definition: VideoSourceDefinition = try Self.videoDefinition(adapter: .iframe, entryURL: url)
-
-        let decision: VideoSourceImportDecision = resolver.decision(
-            for: detector.detect(
-                VideoSourceDetectionInput(
-                    url: url,
-                    html: """
-                    <html>
-                      <frameset>
-                        <frame src="/video-list.html">
-                      </frameset>
-                    </html>
-                    """
-                )
-            ),
-            definition: definition
-        )
-
-        #expect(decision == .unavailable(.iframeContentNotConnected))
+        if case .needsReview(let reviewDefinition, let warnings) = decision {
+            #expect(reviewDefinition.adapter == .genericHTML)
+            #expect(reviewDefinition.sharedRequest?.needsWebView == true)
+            #expect(warnings.contains { warning in
+                warning.contains("WebView-rendered DOM")
+            })
+        } else {
+            Issue.record("Expected WebView-required source to stay in built-in review path.")
+        }
     }
 
     @Test func importDecisionRoutesEncryptedPlaybackToPluginRequired() throws {

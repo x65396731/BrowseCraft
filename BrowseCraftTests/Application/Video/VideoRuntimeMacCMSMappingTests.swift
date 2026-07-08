@@ -53,7 +53,7 @@ struct VideoRuntimeMacCMSMappingTests {
     }
 
     @Test func macCMSMapperExtractsListDetailAndPlaybackReferences() throws {
-        let mapper: MacCMSVideoHTMLMapper = MacCMSVideoHTMLMapper()
+        let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
         let definition: SourceDefinition = try Self.videoDefinition()
         let listURL: URL = try #require(URL(string: "https://video.example.test/vodtype/2.html"))
         let detailURL: URL = try #require(URL(string: "https://video.example.test/voddetail/117372.html"))
@@ -102,7 +102,7 @@ struct VideoRuntimeMacCMSMappingTests {
     }
 
     @Test func macCMSMapperUsesSkinSelectorFallbacks() throws {
-        let mapper: MacCMSVideoHTMLMapper = MacCMSVideoHTMLMapper()
+        let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
         let definition: SourceDefinition = try Self.videoDefinition()
         let listURL: URL = try #require(URL(string: "https://video.example.test/vodtype/2.html"))
         let detailURL: URL = try #require(URL(string: "https://video.example.test/voddetail/117372.html"))
@@ -127,7 +127,7 @@ struct VideoRuntimeMacCMSMappingTests {
     }
 
     @Test func macCMSMapperClassifiesMP4AndEmptyPlayerPayload() throws {
-        let mapper: MacCMSVideoHTMLMapper = MacCMSVideoHTMLMapper()
+        let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
         let definition: SourceDefinition = try Self.videoDefinition()
         let playURL: URL = try #require(URL(string: "https://video.example.test/vodplay/117372-1-1.html"))
 
@@ -152,7 +152,7 @@ struct VideoRuntimeMacCMSMappingTests {
     }
 
     @Test func macCMSMapperClassifiesIframePlayerPayloadAsPageOnly() throws {
-        let mapper: MacCMSVideoHTMLMapper = MacCMSVideoHTMLMapper()
+        let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
         let definition: SourceDefinition = try Self.videoDefinition()
         let playURL: URL = try #require(URL(string: "https://video.example.test/vodplay/117372-1-1.html"))
 
@@ -167,12 +167,12 @@ struct VideoRuntimeMacCMSMappingTests {
         )
 
         #expect(playback.candidateMediaURL?.absoluteString == "https://video.example.test/embed/117372-1-1")
-        #expect(playback.candidateMediaKind == .iframe)
+        #expect(playback.candidateMediaKind == .iframePlayer)
         #expect(playback.status == .pageOnly)
     }
 
     @Test func macCMSMapperClassifiesRestrictedAndPageOnlyPlayback() throws {
-        let mapper: MacCMSVideoHTMLMapper = MacCMSVideoHTMLMapper(
+        let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper(
             lexicon: VideoDetectionLexicon(
                 sourceLexicon: SourceDetectionLexicon.load(language: .simplifiedChinese)
             )

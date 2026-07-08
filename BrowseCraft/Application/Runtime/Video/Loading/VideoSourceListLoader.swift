@@ -12,19 +12,19 @@ protocol VideoSourceListLoading {
 // 中文注释：VideoSourceListLoader 负责 video source 的列表 URL 选择、页面加载和列表映射。
 struct VideoSourceListLoader: VideoSourceListLoading {
     private let pageContentLoader: PageContentLoader
-    private let mapper: any VideoHTMLMapper
-    private let renderingGuard: VideoSourceRenderingGuard
+    private let mapper: any VideoContentMapper
+    private let renderGuard: VideoHTMLRenderGuard
     private let requestConfigResolver: VideoRequestConfigResolver
 
     init(
         pageContentLoader: PageContentLoader,
-        mapper: any VideoHTMLMapper,
-        renderingGuard: VideoSourceRenderingGuard = VideoSourceRenderingGuard(),
+        mapper: any VideoContentMapper,
+        renderGuard: VideoHTMLRenderGuard = VideoHTMLRenderGuard(),
         requestConfigResolver: VideoRequestConfigResolver = VideoRequestConfigResolver()
     ) {
         self.pageContentLoader = pageContentLoader
         self.mapper = mapper
-        self.renderingGuard = renderingGuard
+        self.renderGuard = renderGuard
         self.requestConfigResolver = requestConfigResolver
     }
 
@@ -43,9 +43,10 @@ struct VideoSourceListLoader: VideoSourceListLoading {
             context: input.context
         )
         let html: String
+        let renderIssues: [SourceRuntimeIssue]
         do {
             html = try await self.pageContentLoader.getString(from: url, request: request)
-            try self.renderingGuard.validateStaticHTML(url: url, html: html)
+            renderIssues = try self.renderGuard.validateMappableHTML(url: url, html: html, request: request)
         } catch {
             throw self.requestConfigResolver.mappedLoadingError(error, url: url)
         }
@@ -81,7 +82,7 @@ struct VideoSourceListLoader: VideoSourceListLoading {
                             html: html
                         )
                     ],
-                    issues: [],
+                    issues: renderIssues,
                     context: SourceRuntimeDiagnosticContext(
                         runtimeContext: input.context,
                         requestURL: url
@@ -102,7 +103,8 @@ struct VideoSourceListLoader: VideoSourceListLoading {
                 html: html
             )
         ]
-        let issues: [SourceRuntimeIssue] = self.requestConfigResolver.emptyListIssues(items: items)
+        let issues: [SourceRuntimeIssue] = renderIssues
+            + self.requestConfigResolver.emptyListIssues(items: items)
 
         return SourceListOutput(
             items: items,

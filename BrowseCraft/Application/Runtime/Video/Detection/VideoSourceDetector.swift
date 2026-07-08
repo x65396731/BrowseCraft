@@ -13,7 +13,7 @@ struct VideoSourceDetector: VideoSourceDetecting {
         let restriction: RestrictionSignal = self.restrictionSignal(signals)
         let macCMS: DetectionScore = self.macCMSScore(signals)
         let genericHTML: DetectionScore = self.genericHTMLScore(signals)
-        let renderMode: VideoRenderMode = self.renderMode(signals)
+        let renderMode: VideoRenderRequirement = self.renderMode(signals)
         let playback: PlaybackDetection = self.playbackDetection(signals)
         let adapterScore: AdapterDetection = self.adapterDetection(
             macCMS: macCMS,
@@ -47,7 +47,7 @@ struct VideoSourceDetector: VideoSourceDetecting {
         macCMS: DetectionScore,
         genericHTML: DetectionScore,
         restriction: RestrictionSignal,
-        renderMode: VideoRenderMode
+        renderMode: VideoRenderRequirement
     ) -> AdapterDetection {
         if restriction.shouldUsePlugin {
             return AdapterDetection(
@@ -155,7 +155,7 @@ struct VideoSourceDetector: VideoSourceDetecting {
         return DetectionScore(score: min(score, 1.0), reasons: reasons)
     }
 
-    private func renderMode(_ signals: VideoSourceSignals) -> VideoRenderMode {
+    private func renderMode(_ signals: VideoSourceSignals) -> VideoRenderRequirement {
         if signals.htmlIsEmptyShell
             || signals.containsAny(self.lexicon.markers(for: .webViewShell)) {
             return .webViewRequired
@@ -206,7 +206,7 @@ struct VideoSourceDetector: VideoSourceDetecting {
 
     private func warnings(
         signals: VideoSourceSignals,
-        renderMode: VideoRenderMode,
+        renderMode: VideoRenderRequirement,
         restriction: RestrictionSignal
     ) -> [String] {
         var warnings: [String] = []
@@ -232,7 +232,7 @@ struct VideoSourceDetector: VideoSourceDetecting {
 
     private func confidence(
         adapterScore: Double,
-        renderMode: VideoRenderMode,
+        renderMode: VideoRenderRequirement,
         playbackMode: VideoPlaybackMode,
         restriction: RestrictionSignal
     ) -> Double {

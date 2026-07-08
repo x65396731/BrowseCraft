@@ -1,8 +1,8 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：VideoHTMLMapper 是视频适配器映射协议；MacCMS 只是当前第一个实现。
-protocol VideoHTMLMapper {
+// 中文注释：VideoContentMapper 只负责把已经取得的 HTML/DOM 映射成视频内容，不负责请求、WebView 或插件执行。
+protocol VideoContentMapper {
     func mapList(
         html: String,
         definition: SourceDefinition,

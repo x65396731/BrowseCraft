@@ -1,7 +1,7 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：VideoPlaybackResolver 只规范化播放候选，不负责列表/详情资料抽取。
+// 中文注释：播放候选 resolver 只规范化播放入口，不负责列表/详情资料抽取。
 struct VideoPlaybackCandidate {
     var url: URL?
     var kind: SourceVideoMediaKind
@@ -21,4 +21,3 @@ protocol VideoPlaybackResolving {
         html: String
     ) -> VideoPlaybackResolution?
 }
-

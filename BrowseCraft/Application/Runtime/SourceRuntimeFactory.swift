@@ -6,18 +6,18 @@ struct SourceRuntimeFactory {
     private let pageContentLoader: PageContentLoader
     private let ruleParser: RuleParsingService
     private let urlResolver: URLResolvingService
-    private let videoAdapterRegistry: VideoAdapterRegistry
+    private let videoContentMapperRegistry: VideoContentMapperRegistry
 
     init(
         pageContentLoader: PageContentLoader,
         ruleParser: RuleParsingService,
         urlResolver: URLResolvingService,
-        videoAdapterRegistry: VideoAdapterRegistry = VideoAdapterRegistry()
+        videoContentMapperRegistry: VideoContentMapperRegistry = VideoContentMapperRegistry()
     ) {
         self.pageContentLoader = pageContentLoader
         self.ruleParser = ruleParser
         self.urlResolver = urlResolver
-        self.videoAdapterRegistry = videoAdapterRegistry
+        self.videoContentMapperRegistry = videoContentMapperRegistry
     }
 
     func makeRuntimeResolver() -> SourceRuntimeResolver {
@@ -42,7 +42,7 @@ struct SourceRuntimeFactory {
     }
 
     func makeVideoSourceRuntime(definition: SourceDefinition) -> VideoSourceRuntime {
-        let mapper: any VideoHTMLMapper = self.makeVideoHTMLMapper(definition: definition)
+        let mapper: any VideoContentMapper = self.makeVideoContentMapper(definition: definition)
         return VideoSourceRuntime(
             definition: definition,
             listLoader: VideoSourceListLoader(
@@ -60,8 +60,8 @@ struct SourceRuntimeFactory {
         )
     }
 
-    private func makeVideoHTMLMapper(definition: SourceDefinition) -> any VideoHTMLMapper {
-        return self.videoAdapterRegistry.mapper(for: definition.video?.adapter)
+    private func makeVideoContentMapper(definition: SourceDefinition) -> any VideoContentMapper {
+        return self.videoContentMapperRegistry.mapper(for: definition.video?.adapter)
     }
 
     func makeComicSourceRuntime(source: Source) -> RuleSourceRuntime {

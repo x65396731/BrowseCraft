@@ -117,6 +117,11 @@ struct AddCatalogSourceUseCase {
                 from: videoRule.entryURL,
                 error: CatalogSourceImportError.invalidEntryURL
             )
+            let importedAdapter: VideoAdapter = try self.adapter(from: videoRule.adapter)
+            let contentAdapter: VideoAdapter = importedAdapter == .webView ? .genericHTML : importedAdapter
+            let sharedRequest: RequestConfig? = importedAdapter == .webView
+                ? self.webViewRequest(videoRule.sharedRequest)
+                : videoRule.sharedRequest
             return Source(
                 id: catalogSource.id,
                 name: catalogSource.name,
@@ -125,13 +130,13 @@ struct AddCatalogSourceUseCase {
                 configuration: .video(
                     VideoSourceConfiguration(
                         definition: VideoSourceDefinition(
-                            adapter: try self.adapter(from: videoRule.adapter),
+                            adapter: contentAdapter,
                             entryURL: entryURL,
                             seedURL: nil,
                             entryKind: try self.entryKind(from: videoRule.entryKind),
                             routePatterns: try self.routePatterns(from: videoRule.routePattern),
                             playbackPolicy: try self.playbackPolicy(from: videoRule.playbackPolicy),
-                            sharedRequest: videoRule.sharedRequest,
+                            sharedRequest: sharedRequest,
                             listRequest: videoRule.listRequest,
                             detailRequest: videoRule.detailRequest,
                             playRequest: videoRule.playRequest,
@@ -150,6 +155,24 @@ struct AddCatalogSourceUseCase {
                 updatedAt: createdAt
             )
         }
+    }
+
+    private func webViewRequest(_ request: RequestConfig?) -> RequestConfig {
+        return RequestConfig(
+            scope: request?.scope,
+            mergePolicy: request?.mergePolicy,
+            method: request?.method,
+            headers: request?.headers,
+            body: request?.body,
+            cookiePolicy: request?.cookiePolicy,
+            cookiePriority: request?.cookiePriority,
+            cookieScope: request?.cookieScope,
+            charset: request?.charset,
+            needsWebView: true,
+            autoScroll: request?.autoScroll,
+            imageHeaders: request?.imageHeaders,
+            imageRequest: request?.imageRequest
+        )
     }
 
     private func rule(from ruleJSON: String) throws -> SiteRule {

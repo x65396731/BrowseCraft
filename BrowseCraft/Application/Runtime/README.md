@@ -19,41 +19,53 @@ SourceRuntime
     config: RSS / Atom definition
   VideoSourceRuntime
     config: VideoSourceDefinition
-    adapter:
+    content mapping:
       macCMS
       genericHTML
+    rendering:
+      staticHTML
       webView
-      plugin
+    playback candidate:
+      directMedia
+      iframePlayer
   PluginSourceRuntime
     config: plugin manifest / package
 ```
 
-Video runtime uses one adapter layer:
+Video runtime keeps four axes separate:
 
 ```text
-VideoAdapter
+ContentMapping
   macCMS
   genericHTML
-  webView
+
+Rendering
+  static HTML
+  WebView-rendered DOM
+
+PlaybackCandidate
+  direct mp4/m3u8
+  iframePlayer/pageOnly
+
+Escape
   plugin
 ```
 
-`VideoAdapter` names the video-source adapter used to turn a site's list,
-detail, and playback pages into BrowseCraft runtime outputs. `macCMS`,
-and `genericHTML` are built-in App mappers. `webView` means the site needs a
-real WebView runtime to run JavaScript, render final DOM, or observe network
-requests. `plugin` is the escape hatch for account-bound, encrypted, signed, or
-site-specific workflows that should not expand the built-in adapter layer.
+`macCMS` and `genericHTML` are built-in content mappers. WebView is an HTML
+acquisition/rendering mode, not a mapper. `iframePlayer` is a playback
+candidate, not a list/detail adapter. `plugin` is the escape hatch for
+account-bound, encrypted, signed, or site-specific workflows that should not
+expand the built-in content mapper layer.
 
 Video playback also has a narrower playback layer:
 
 ```text
-Video/Playback
-  IframePlayerPlaybackResolver
+Video/PlaybackCandidate
+  IframePlayerCandidateResolver
   VideoIframePlayerResolver
 ```
 
-`IframePlayerPlaybackResolver` does not make iframe pages natively playable. It
+`IframePlayerCandidateResolver` does not make iframe pages natively playable. It
 normalizes iframe/embed playback candidates into
 `SourceVideoMediaKind.iframePlayer + SourceVideoPlaybackStatus.pageOnly`, preserving a
 clear handoff point for later WebView, plugin, or media URL extraction work.
@@ -76,9 +88,13 @@ Responsibilities:
   extend `SiteRule` or the rule editor.
 - Keep `Video/VideoSourceRuntime` as the video-backed runtime implementation.
 - Keep video list/detail/playback loading in `Video/Loading/`; those loaders
-  call a `VideoHTMLMapper` chosen by the video adapter layer.
-- Keep built-in video adapter mapping in `Video/Mapping/`; `MacCMSVideoHTMLMapper`
-  is the first adapter mapper, not the top-level source kind.
+  call a `VideoContentMapper` after static or rendered HTML is available.
+- Keep built-in video content mapping in `Video/ContentMapping/`; `MacCMSVideoContentMapper`
+  and `GenericHTMLVideoContentMapper` describe content structure, not WebView or plugin execution.
+- Keep WebView/static HTML requirements in `Video/Rendering/`; WebView is an HTML
+  acquisition mode, not a content adapter.
+- Keep iframe/embed playback handling in `Video/PlaybackCandidate/`; iframePlayer
+  is a playback candidate, not a list/detail content adapter.
 - Keep `VideoPlaybackRuntimeCapability` as the video playback capability so a
   future plugin runtime can expose playback through the same boundary.
 - Keep rule debug/source summary mapping in `Rule/Mapping/RuleSourceDebugMapping`.

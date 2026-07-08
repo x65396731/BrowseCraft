@@ -12,19 +12,19 @@ protocol VideoSourceDetailLoading {
 // 中文注释：VideoSourceDetailLoader 负责加载详情页并映射剧集、简介和元信息。
 struct VideoSourceDetailLoader: VideoSourceDetailLoading {
     private let pageContentLoader: PageContentLoader
-    private let mapper: any VideoHTMLMapper
-    private let renderingGuard: VideoSourceRenderingGuard
+    private let mapper: any VideoContentMapper
+    private let renderGuard: VideoHTMLRenderGuard
     private let requestConfigResolver: VideoRequestConfigResolver
 
     init(
         pageContentLoader: PageContentLoader,
-        mapper: any VideoHTMLMapper,
-        renderingGuard: VideoSourceRenderingGuard = VideoSourceRenderingGuard(),
+        mapper: any VideoContentMapper,
+        renderGuard: VideoHTMLRenderGuard = VideoHTMLRenderGuard(),
         requestConfigResolver: VideoRequestConfigResolver = VideoRequestConfigResolver()
     ) {
         self.pageContentLoader = pageContentLoader
         self.mapper = mapper
-        self.renderingGuard = renderingGuard
+        self.renderGuard = renderGuard
         self.requestConfigResolver = requestConfigResolver
     }
 
@@ -64,9 +64,10 @@ struct VideoSourceDetailLoader: VideoSourceDetailLoading {
         }
 
         let html: String
+        let renderIssues: [SourceRuntimeIssue]
         do {
             html = try await self.pageContentLoader.getString(from: input.detailURL, request: request)
-            try self.renderingGuard.validateStaticHTML(url: input.detailURL, html: html)
+            renderIssues = try self.renderGuard.validateMappableHTML(url: input.detailURL, html: html, request: request)
         } catch {
             throw self.requestConfigResolver.mappedLoadingError(error, url: input.detailURL)
         }
@@ -83,7 +84,7 @@ struct VideoSourceDetailLoader: VideoSourceDetailLoading {
                 html: html
             )
         ]
-        content.issues = []
+        content.issues = renderIssues
 
         return content
     }

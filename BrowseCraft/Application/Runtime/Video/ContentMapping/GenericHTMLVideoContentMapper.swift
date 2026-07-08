@@ -2,8 +2,8 @@ import Foundation
 import SwiftSoup
 import BrowseCraftCore
 
-// 中文注释：GenericHTMLVideoHTMLMapper 只处理静态 HTML 中已经暴露列表、播放页或媒体 URL 的普通视频站。
-struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
+// 中文注释：GenericHTMLVideoContentMapper 处理通用视频 HTML/DOM；HTML 可来自静态 HTTP 或 WebView 渲染。
+struct GenericHTMLVideoContentMapper: VideoContentMapper {
     private static let playbackUserAgent: String = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
 
     private enum Selectors {
@@ -396,7 +396,7 @@ struct GenericHTMLVideoHTMLMapper: VideoHTMLMapper {
         playPageURL: URL,
         html: String
     ) -> VideoPlaybackResolution {
-        if let resolution: VideoPlaybackResolution = IframePlayerPlaybackResolver().resolve(
+        if let resolution: VideoPlaybackResolution = IframePlayerCandidateResolver().resolve(
             candidate: candidate,
             playPageURL: playPageURL,
             html: html

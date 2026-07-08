@@ -15,16 +15,11 @@ struct VideoSourceDetectionInput: Hashable {
 
 struct VideoSourceDetection: Hashable {
     var adapter: VideoAdapter
-    var renderMode: VideoRenderMode
+    var renderMode: VideoRenderRequirement
     var playbackMode: VideoPlaybackMode
     var confidence: Double
     var reasons: [String]
     var warnings: [String]
-}
-
-enum VideoRenderMode: String, Codable, Hashable {
-    case staticHTML
-    case webViewRequired
 }
 
 enum VideoPlaybackMode: String, Codable, Hashable {
@@ -117,115 +112,5 @@ private extension VideoDetectionLexicon.Category {
         case .navigationReject:
             return .navigationReject
         }
-    }
-}
-
-// Converts detection signals into import branches for supported, unavailable, and plugin-required sources.
-enum VideoSourceImportDecision: Hashable {
-    case supported(VideoSourceDefinition)
-    case needsReview(VideoSourceDefinition, warnings: [String])
-    case unavailable(VideoSourceUnavailableReason)
-    case pluginRequired(VideoSourcePluginReason)
-}
-
-enum VideoSourceUnavailableReason: String, Codable, Hashable {
-    case unknownStructure
-    case lowConfidence
-    case noVideoSignals
-    case unsupportedAdapter
-    case webViewNotConnected
-}
-
-enum VideoSourcePluginReason: String, Codable, Hashable {
-    case captchaOrAntiBot
-    case signingRequired
-    case encryptedPlayback
-    case wasmRequired
-    case sessionFlowRequired
-    case privateAPIRequired
-}
-
-struct VideoSourceImportDecisionResolver {
-    private let supportedConfidenceThreshold: Double
-    private let reviewConfidenceThreshold: Double
-    private let lexicon: VideoDetectionLexicon
-
-    init(
-        supportedConfidenceThreshold: Double = 0.72,
-        reviewConfidenceThreshold: Double = 0.50,
-        lexicon: VideoDetectionLexicon = .default
-    ) {
-        self.supportedConfidenceThreshold = supportedConfidenceThreshold
-        self.reviewConfidenceThreshold = reviewConfidenceThreshold
-        self.lexicon = lexicon
-    }
-
-    func decision(
-        for detection: VideoSourceDetection,
-        definition: VideoSourceDefinition
-    ) -> VideoSourceImportDecision {
-        if detection.adapter == .plugin {
-            return .pluginRequired(self.pluginReason(from: detection))
-        }
-
-        if detection.renderMode == .webViewRequired || detection.adapter == .webView {
-            return .unavailable(.webViewNotConnected)
-        }
-
-        guard detection.adapter == .macCMS || detection.adapter == .genericHTML else {
-            return .unavailable(.unsupportedAdapter)
-        }
-
-        if self.hasNoVideoSignals(detection) {
-            return .unavailable(.noVideoSignals)
-        }
-
-        if detection.confidence < self.reviewConfidenceThreshold {
-            return .unavailable(.lowConfidence)
-        }
-
-        if detection.confidence < self.supportedConfidenceThreshold || detection.warnings.isEmpty == false {
-            return .needsReview(definition, warnings: detection.warnings)
-        }
-
-        return .supported(definition)
-    }
-
-    private func hasNoVideoSignals(_ detection: VideoSourceDetection) -> Bool {
-        return detection.reasons.contains { reason in
-            return reason.localizedCaseInsensitiveContains("No strong video content adapter signal")
-        }
-    }
-
-    private func pluginReason(from detection: VideoSourceDetection) -> VideoSourcePluginReason {
-        let reasonText: String = detection.reasons
-            .joined(separator: " ")
-            .lowercased()
-
-        if self.lexicon.containsMarker(in: reasonText, category: .captchaRestriction) {
-            return .captchaOrAntiBot
-        }
-
-        if self.lexicon.containsMarker(in: reasonText, category: .signingRestriction) {
-            return .signingRequired
-        }
-
-        if self.lexicon.containsMarker(in: reasonText, category: .encryptedPlaybackRestriction) {
-            return .encryptedPlayback
-        }
-
-        if self.lexicon.containsMarker(in: reasonText, category: .wasmRestriction) {
-            return .wasmRequired
-        }
-
-        if self.lexicon.containsMarker(in: reasonText, category: .sessionRestriction) {
-            return .sessionFlowRequired
-        }
-
-        if self.lexicon.containsMarker(in: reasonText, category: .privateAPIRestriction) {
-            return .privateAPIRequired
-        }
-
-        return .privateAPIRequired
     }
 }

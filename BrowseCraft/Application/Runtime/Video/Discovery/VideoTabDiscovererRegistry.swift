@@ -1,15 +1,15 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：VideoTabDiscovererRegistry 只负责 adapter 到 tab discovery 策略的分发。
+// 中文注释：VideoTabDiscovererRegistry 只按内容结构选择 tab discovery；WebView 是渲染方式。
 struct VideoTabDiscovererRegistry {
     func discoverer(for adapter: VideoAdapter?) -> any VideoTabDiscovering {
         switch adapter {
         case .macCMS, nil:
             return MacCMSVideoTabDiscoverer()
-        case .genericHTML:
+        case .genericHTML, .webView:
             return GenericHTMLVideoTabDiscoverer()
-        case .webView, .plugin:
+        case .plugin:
             return FallbackVideoTabDiscoverer()
         }
     }

@@ -2,8 +2,8 @@ import Foundation
 import SwiftSoup
 import BrowseCraftCore
 
-// 中文注释：MacCMSVideoHTMLMapper 只处理 MacCMS 常见静态 HTML，不处理 VIP/DRM/反爬绕过。
-struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
+// 中文注释：MacCMSVideoContentMapper 只处理 MacCMS 常见 HTML/DOM，不处理 VIP/DRM/反爬绕过。
+struct MacCMSVideoContentMapper: VideoContentMapper {
     private static let playbackUserAgent: String = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
 
     private enum Defaults {
@@ -422,7 +422,7 @@ struct MacCMSVideoHTMLMapper: VideoHTMLMapper {
         playPageURL: URL,
         html: String
     ) -> VideoPlaybackResolution {
-        if let resolution: VideoPlaybackResolution = IframePlayerPlaybackResolver().resolve(
+        if let resolution: VideoPlaybackResolution = IframePlayerCandidateResolver().resolve(
             candidate: candidate,
             playPageURL: playPageURL,
             html: html

@@ -7,6 +7,7 @@ import WebKit
 enum WKWebViewHTMLLoaderError: LocalizedError {
     case emptyHTML(url: URL)
     case unexpectedJavaScriptResult(url: URL)
+    case timedOut(url: URL, seconds: Double)
 
     var errorDescription: String? {
         switch self {
@@ -14,6 +15,8 @@ enum WKWebViewHTMLLoaderError: LocalizedError {
             return "WebView rendered empty HTML: \(url.absoluteString)"
         case .unexpectedJavaScriptResult(let url):
             return "WebView returned unexpected JavaScript result: \(url.absoluteString)"
+        case .timedOut(let url, let seconds):
+            return "WebView rendering timed out after \(seconds) seconds: \(url.absoluteString)"
         }
     }
 }
@@ -33,6 +36,16 @@ final class WKWebViewHTMLLoader: RenderedPageContentLoader {
 
 @MainActor
 private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
+    private enum Timing {
+        static let timeoutNanoseconds: UInt64 = 12_000_000_000
+        static let timeoutSeconds: Double = 12
+        static let postFinishDelayNanoseconds: UInt64 = 500_000_000
+        static let postScrollDelayNanoseconds: UInt64 = 500_000_000
+        static let domStableDelayNanoseconds: UInt64 = 300_000_000
+        static let domStableChecks: Int = 3
+        static let stableLengthDelta: Int = 32
+    }
+
     private let url: URL
     private let request: RequestConfig?
     private let webView: WKWebView
@@ -58,6 +71,7 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
             try await withCheckedThrowingContinuation { continuation in
                 self.continuation = continuation
                 self.webView.load(self.urlRequest())
+                self.startTimeout()
             }
         } onCancel: {
             Task { @MainActor in
@@ -69,15 +83,33 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         Task { @MainActor in
             do {
+                try await Task.sleep(nanoseconds: Timing.postFinishDelayNanoseconds)
+
                 if self.request?.autoScroll == true {
                     try await self.scrollToBottom()
+                    try await Task.sleep(nanoseconds: Timing.postScrollDelayNanoseconds)
                 }
 
+                try await self.waitForStableDOMLength()
                 let html: String = try await self.renderedHTML()
                 self.finish(.success(html))
             } catch {
                 self.finish(.failure(error))
             }
+        }
+    }
+
+    private func startTimeout() {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: Timing.timeoutNanoseconds)
+            self.finish(
+                .failure(
+                    WKWebViewHTMLLoaderError.timedOut(
+                        url: self.url,
+                        seconds: Timing.timeoutSeconds
+                    )
+                )
+            )
         }
     }
 
@@ -135,7 +167,37 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         _ = try await self.webView.evaluateJavaScript(
             "window.scrollTo(0, document.body.scrollHeight);"
         )
-        try await Task.sleep(nanoseconds: 300_000_000)
+    }
+
+    private func waitForStableDOMLength() async throws {
+        var previousLength: Int?
+
+        for _ in 0..<Timing.domStableChecks {
+            let currentLength: Int = try await self.renderedHTMLLength()
+            if let previousLength: Int,
+               abs(currentLength - previousLength) <= Timing.stableLengthDelta {
+                return
+            }
+
+            previousLength = currentLength
+            try await Task.sleep(nanoseconds: Timing.domStableDelayNanoseconds)
+        }
+    }
+
+    private func renderedHTMLLength() async throws -> Int {
+        let result: Any? = try await self.webView.evaluateJavaScript(
+            "document.documentElement.outerHTML.length"
+        )
+
+        if let length: Int = result as? Int {
+            return length
+        }
+
+        if let length: Double = result as? Double {
+            return Int(length)
+        }
+
+        throw WKWebViewHTMLLoaderError.unexpectedJavaScriptResult(url: self.url)
     }
 
     /// 中文注释：读取 documentElement.outerHTML，确保解析器拿到的是 JS 执行后的整页 DOM。

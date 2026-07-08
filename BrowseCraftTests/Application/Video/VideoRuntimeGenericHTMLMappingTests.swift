@@ -6,7 +6,7 @@ import BrowseCraftCore
 // 中文注释：P5.1.7 使用真实 genericHTML 样本固定静态 HTML 和播放器脚本解析，不验证媒体 URL 长期可播放。
 struct VideoRuntimeGenericHTMLMappingTests {
     @Test func genericHTMLMapperExtractsXVideosLikeListItems() throws {
-        let mapper: any VideoHTMLMapper = VideoAdapterRegistry().mapper(for: .genericHTML)
+        let mapper: any VideoContentMapper = VideoContentMapperRegistry().mapper(for: .genericHTML)
         let definition: SourceDefinition = try Self.videoDefinition()
         let listURL: URL = try #require(URL(string: "https://www.xvideos.com/"))
 
@@ -27,7 +27,7 @@ struct VideoRuntimeGenericHTMLMappingTests {
     }
 
     @Test func genericHTMLMapperFiltersObviousNoiseListItems() throws {
-        let mapper: GenericHTMLVideoHTMLMapper = GenericHTMLVideoHTMLMapper()
+        let mapper: GenericHTMLVideoContentMapper = GenericHTMLVideoContentMapper()
         let definition: SourceDefinition = try Self.videoDefinition()
         let listURL: URL = try #require(URL(string: "https://video.example.test/"))
 
@@ -57,7 +57,7 @@ struct VideoRuntimeGenericHTMLMappingTests {
     }
 
     @Test func genericHTMLMapperBuildsDetailContentFromPlayablePage() throws {
-        let mapper: any VideoHTMLMapper = VideoAdapterRegistry().mapper(for: .genericHTML)
+        let mapper: any VideoContentMapper = VideoContentMapperRegistry().mapper(for: .genericHTML)
         let definition: SourceDefinition = try Self.videoDefinition()
         let detailURL: URL = try #require(URL(string: "https://www.xvideos.com/video.opiftaofe66/49155991/0/amateur_coed_gets_fucked_before_party_-_daisy_fox"))
 
@@ -75,7 +75,7 @@ struct VideoRuntimeGenericHTMLMappingTests {
     }
 
     @Test func genericHTMLMapperExtractsHTML5PlayerPlaybackURL() throws {
-        let mapper: any VideoHTMLMapper = VideoAdapterRegistry().mapper(for: .genericHTML)
+        let mapper: any VideoContentMapper = VideoContentMapperRegistry().mapper(for: .genericHTML)
         let definition: SourceDefinition = try Self.videoDefinition()
         let playURL: URL = try #require(URL(string: "https://www.xvideos.com/video.opiftaofe66/49155991/0/amateur_coed_gets_fucked_before_party_-_daisy_fox"))
 
@@ -94,7 +94,7 @@ struct VideoRuntimeGenericHTMLMappingTests {
     }
 
     @Test func genericHTMLMapperFallsBackToJSONLDContentURL() throws {
-        let mapper: GenericHTMLVideoHTMLMapper = GenericHTMLVideoHTMLMapper()
+        let mapper: GenericHTMLVideoContentMapper = GenericHTMLVideoContentMapper()
         let definition: SourceDefinition = try Self.videoDefinition()
         let playURL: URL = try #require(URL(string: "https://video.example.test/watch/sample"))
 
@@ -119,7 +119,7 @@ struct VideoRuntimeGenericHTMLMappingTests {
     }
 
     @Test func genericHTMLMapperClassifiesIframeAsPageOnly() throws {
-        let mapper: GenericHTMLVideoHTMLMapper = GenericHTMLVideoHTMLMapper()
+        let mapper: GenericHTMLVideoContentMapper = GenericHTMLVideoContentMapper()
         let definition: SourceDefinition = try Self.videoDefinition()
         let playURL: URL = try #require(URL(string: "https://video.example.test/watch/iframe"))
 
@@ -135,12 +135,12 @@ struct VideoRuntimeGenericHTMLMappingTests {
             playPageURL: playURL
         )
 
-        #expect(playback.candidateMediaKind == .iframe)
+        #expect(playback.candidateMediaKind == .iframePlayer)
         #expect(playback.status == .pageOnly)
     }
 
     @Test func genericHTMLMapperResolvesRelativeIframePlaybackURL() throws {
-        let mapper: GenericHTMLVideoHTMLMapper = GenericHTMLVideoHTMLMapper()
+        let mapper: GenericHTMLVideoContentMapper = GenericHTMLVideoContentMapper()
         let definition: SourceDefinition = try Self.videoDefinition()
         let playURL: URL = try #require(URL(string: "https://video.example.test/watch/iframe"))
 
@@ -157,13 +157,13 @@ struct VideoRuntimeGenericHTMLMappingTests {
         )
 
         #expect(playback.candidateMediaURL?.absoluteString == "https://video.example.test/embed/sample")
-        #expect(playback.candidateMediaKind == .iframe)
+        #expect(playback.candidateMediaKind == .iframePlayer)
         #expect(playback.status == .pageOnly)
         #expect(playback.playbackRequestConfig?.referer == playURL)
     }
 
     @Test func genericHTMLMapperSkipsTrackingIframeBeforePlaybackIframe() throws {
-        let mapper: GenericHTMLVideoHTMLMapper = GenericHTMLVideoHTMLMapper()
+        let mapper: GenericHTMLVideoContentMapper = GenericHTMLVideoContentMapper()
         let definition: SourceDefinition = try Self.videoDefinition()
         let playURL: URL = try #require(URL(string: "https://video.example.test/watch/iframe"))
 
@@ -181,14 +181,14 @@ struct VideoRuntimeGenericHTMLMappingTests {
         )
 
         #expect(playback.candidateMediaURL?.absoluteString == "https://video.example.test/embed/movie-1")
-        #expect(playback.candidateMediaKind == .iframe)
+        #expect(playback.candidateMediaKind == .iframePlayer)
         #expect(playback.status == .pageOnly)
     }
 
-    @Test func videoListLoaderRejectsWebViewRequiredHTMLBeforeStaticMapping() async throws {
+    @Test func videoListLoaderRejectsStaticWebViewShellBeforeContentMapping() async throws {
         let loader: VideoSourceListLoader = VideoSourceListLoader(
             pageContentLoader: RecordingVideoPageContentLoader(html: Self.webViewShellHTML),
-            mapper: GenericHTMLVideoHTMLMapper()
+            mapper: GenericHTMLVideoContentMapper()
         )
         let definition: SourceDefinition = try Self.videoDefinition()
 
@@ -201,20 +201,19 @@ struct VideoRuntimeGenericHTMLMappingTests {
                 ),
                 definition: definition
             )
-            Issue.record("Expected WebView-required video list HTML to be rejected before static mapping.")
+            Issue.record("Expected static WebView shell HTML to be rejected before content mapping.")
         } catch SourceRuntimeError.unsupported(.custom(let message)) {
-            #expect(message.contains("WebView rendering"))
-            #expect(message.contains("not connected"))
+            #expect(message.contains("WebView-rendered DOM"))
             #expect(message.contains("webViewRequired"))
         } catch {
             Issue.record("Unexpected error: \(error.localizedDescription)")
         }
     }
 
-    @Test func videoPlaybackLoaderRejectsWebViewRequiredHTMLBeforeStaticMapping() async throws {
+    @Test func videoPlaybackLoaderRejectsStaticWebViewShellBeforeContentMapping() async throws {
         let loader: VideoSourcePlaybackLoader = VideoSourcePlaybackLoader(
             pageContentLoader: RecordingVideoPageContentLoader(html: Self.webViewShellHTML),
-            mapper: GenericHTMLVideoHTMLMapper()
+            mapper: GenericHTMLVideoContentMapper()
         )
         let definition: SourceDefinition = try Self.videoDefinition()
         let playURL: URL = try #require(URL(string: "https://www.xvideos.com/watch/spa"))
@@ -227,18 +226,158 @@ struct VideoRuntimeGenericHTMLMappingTests {
                 ),
                 definition: definition
             )
-            Issue.record("Expected WebView-required playback HTML to be rejected before static mapping.")
+            Issue.record("Expected static WebView shell playback HTML to be rejected before content mapping.")
         } catch SourceRuntimeError.unsupported(.custom(let message)) {
-            #expect(message.contains("WebView rendering"))
-            #expect(message.contains("not connected"))
+            #expect(message.contains("WebView-rendered DOM"))
             #expect(message.contains("webViewRequired"))
         } catch {
             Issue.record("Unexpected error: \(error.localizedDescription)")
         }
     }
 
-    @Test func unsupportedVideoAdaptersExposeProductBranchMessages() throws {
-        let registry: VideoAdapterRegistry = VideoAdapterRegistry()
+    @Test func videoListLoaderUsesWebViewRequestAndReportsRenderedDOM() async throws {
+        let pageLoader: RecordingVideoPageContentLoader = RecordingVideoPageContentLoader(
+            html: Self.renderedListHTML
+        )
+        let loader: VideoSourceListLoader = VideoSourceListLoader(
+            pageContentLoader: pageLoader,
+            mapper: GenericHTMLVideoContentMapper()
+        )
+        let definition: SourceDefinition = try Self.videoDefinition(
+            listRequest: RequestConfig(needsWebView: true)
+        )
+
+        let output: SourceListOutput = try await loader.loadList(
+            SourceListInput(
+                page: 1,
+                urlOverride: nil,
+                context: Self.context(sourceID: definition.id, operation: .list)
+            ),
+            definition: definition
+        )
+
+        #expect(pageLoader.lastRequest?.needsWebView == true)
+        #expect(output.items.count == 1)
+        #expect(output.diagnostics.issues.contains { issue in
+            issue.id == "video.webViewRenderedDOMUsed"
+        })
+    }
+
+    @Test func videoDetailLoaderUsesStageWebViewRequest() async throws {
+        let pageLoader: RecordingVideoPageContentLoader = RecordingVideoPageContentLoader(
+            html: Self.renderedDetailHTML
+        )
+        let loader: VideoSourceDetailLoader = VideoSourceDetailLoader(
+            pageContentLoader: pageLoader,
+            mapper: GenericHTMLVideoContentMapper()
+        )
+        let definition: SourceDefinition = try Self.videoDefinition(
+            detailRequest: RequestConfig(needsWebView: true)
+        )
+        let detailURL: URL = try #require(URL(string: "https://www.xvideos.com/watch/movie-1"))
+
+        let content: VideoDetailContent = try await loader.loadDetailContent(
+            SourceDetailInput(
+                detailURL: detailURL,
+                context: Self.context(sourceID: definition.id, operation: .detail)
+            ),
+            definition: definition
+        )
+
+        #expect(pageLoader.lastRequest?.needsWebView == true)
+        #expect(content.episodes.count == 1)
+        #expect(content.issues.contains { issue in
+            issue.id == "video.webViewRenderedDOMUsed"
+        })
+    }
+
+    @Test func videoPlaybackLoaderUsesOverrideWebViewRequest() async throws {
+        let pageLoader: RecordingVideoPageContentLoader = RecordingVideoPageContentLoader(
+            html: Self.renderedPlaybackHTML
+        )
+        let loader: VideoSourcePlaybackLoader = VideoSourcePlaybackLoader(
+            pageContentLoader: pageLoader,
+            mapper: GenericHTMLVideoContentMapper()
+        )
+        let definition: SourceDefinition = try Self.videoDefinition(
+            playRequest: RequestConfig(needsWebView: false)
+        )
+        let playURL: URL = try #require(URL(string: "https://www.xvideos.com/watch/movie-1"))
+
+        let output: SourceVideoPlaybackOutput = try await loader.loadPlayback(
+            SourceVideoPlaybackInput(
+                playPageURL: playURL,
+                context: Self.context(
+                    sourceID: definition.id,
+                    operation: .reader,
+                    requestOverride: SourceRequestOverride(
+                        url: nil,
+                        headers: [:],
+                        requiresWebView: true
+                    )
+                )
+            ),
+            definition: definition
+        )
+
+        #expect(pageLoader.lastRequest?.needsWebView == true)
+        #expect(output.reference.status == .playable)
+        #expect(output.diagnostics.issues.contains { issue in
+            issue.id == "video.webViewRenderedDOMUsed"
+        })
+    }
+
+    @Test func videoListLoaderRejectsWebViewRenderedShell() async throws {
+        let loader: VideoSourceListLoader = VideoSourceListLoader(
+            pageContentLoader: RecordingVideoPageContentLoader(html: Self.webViewShellHTML),
+            mapper: GenericHTMLVideoContentMapper()
+        )
+        let definition: SourceDefinition = try Self.videoDefinition(
+            listRequest: RequestConfig(needsWebView: true)
+        )
+
+        do {
+            _ = try await loader.loadList(
+                SourceListInput(
+                    page: 1,
+                    urlOverride: nil,
+                    context: Self.context(sourceID: definition.id, operation: .list)
+                ),
+                definition: definition
+            )
+            Issue.record("Expected WebView-rendered shell HTML to be rejected.")
+        } catch SourceRuntimeError.unsupported(.custom(let message)) {
+            #expect(message.contains("video.renderedHTMLStillShell"))
+        } catch {
+            Issue.record("Unexpected error: \(error.localizedDescription)")
+        }
+    }
+
+    @Test func webViewAdapterUsesGenericContentMapperAsLegacyRenderSignal() throws {
+        let registry: VideoContentMapperRegistry = VideoContentMapperRegistry()
+        let mapper: any VideoContentMapper = registry.mapper(for: .webView)
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let url: URL = try #require(URL(string: "https://video.example.test/"))
+
+        let items: [SourceContentItem] = try mapper.mapList(
+            html: """
+            <html>
+              <body>
+                <article class="video-card">
+                  <a href="/watch/movie-1" title="Movie 1">Movie 1</a>
+                </article>
+              </body>
+            </html>
+            """,
+            definition: definition,
+            pageURL: url
+        )
+
+        #expect(items.count == 1)
+    }
+
+    @Test func pluginAdapterReportsPluginModuleBranch() throws {
+        let registry: VideoContentMapperRegistry = VideoContentMapperRegistry()
         let definition: SourceDefinition = try Self.videoDefinition()
         let url: URL = try #require(URL(string: "https://video.example.test/"))
 
@@ -254,20 +393,6 @@ struct VideoRuntimeGenericHTMLMappingTests {
             #expect(message.contains("PluginSourceRuntime"))
         } catch {
             Issue.record("Unexpected plugin adapter error: \(error.localizedDescription)")
-        }
-
-        do {
-            _ = try registry.mapper(for: .iframe).mapList(
-                html: "<html></html>",
-                definition: definition,
-                pageURL: url
-            )
-            Issue.record("Expected iframe content adapter to report unavailable branch.")
-        } catch SourceRuntimeError.unsupported(.custom(let message)) {
-            #expect(message.contains("iframe content adapter"))
-            #expect(message.contains("not connected"))
-        } catch {
-            Issue.record("Unexpected iframe adapter error: \(error.localizedDescription)")
         }
     }
 
@@ -296,22 +421,64 @@ struct VideoRuntimeGenericHTMLMappingTests {
         """
     }
 
+    private static var renderedListHTML: String {
+        return """
+        <html>
+          <body>
+            <article class="video-card">
+              <a href="/watch/movie-1" title="Movie 1">Movie 1</a>
+              <img src="/movie-1.jpg" alt="Movie 1">
+            </article>
+          </body>
+        </html>
+        """
+    }
+
+    private static var renderedDetailHTML: String {
+        return """
+        <html>
+          <body>
+            <h1>Movie 1</h1>
+            <p class="description">A rendered detail page with enough description text for mapping.</p>
+          </body>
+        </html>
+        """
+    }
+
+    private static var renderedPlaybackHTML: String {
+        return """
+        <html>
+          <body>
+            <video>
+              <source src="https://media.example.test/movie-1.m3u8">
+            </video>
+          </body>
+        </html>
+        """
+    }
+
     private static func context(
         sourceID: String,
-        operation: SourceRuntimeOperation
+        operation: SourceRuntimeOperation,
+        requestOverride: SourceRequestOverride? = nil
     ) -> SourceRuntimeContext {
         return SourceRuntimeContext(
             sourceID: sourceID,
             pageID: nil,
             tabID: nil,
             ruleID: nil,
-            requestOverride: nil,
+            requestOverride: requestOverride,
             debugMode: false,
             operation: operation
         )
     }
 
-    private static func videoDefinition() throws -> SourceDefinition {
+    private static func videoDefinition(
+        sharedRequest: RequestConfig? = nil,
+        listRequest: RequestConfig? = nil,
+        detailRequest: RequestConfig? = nil,
+        playRequest: RequestConfig? = nil
+    ) throws -> SourceDefinition {
         let baseURL: URL = try #require(URL(string: "https://www.xvideos.com/"))
         return SourceDefinition(
             id: "generic.example",
@@ -329,6 +496,10 @@ struct VideoRuntimeGenericHTMLMappingTests {
                 entryKind: .home,
                 routePatterns: nil,
                 playbackPolicy: .playPageFirst,
+                sharedRequest: sharedRequest,
+                listRequest: listRequest,
+                detailRequest: detailRequest,
+                playRequest: playRequest,
                 requiresAccount: false,
                 seedVodID: nil,
                 seedSourceIndex: nil,
@@ -341,10 +512,16 @@ struct VideoRuntimeGenericHTMLMappingTests {
     }
 }
 
-private struct RecordingVideoPageContentLoader: PageContentLoader {
-    var html: String
+private final class RecordingVideoPageContentLoader: PageContentLoader {
+    let html: String
+    private(set) var lastRequest: RequestConfig?
+
+    init(html: String) {
+        self.html = html
+    }
 
     func getString(from url: URL, request: RequestConfig?) async throws -> String {
+        self.lastRequest = request
         return self.html
     }
 }
