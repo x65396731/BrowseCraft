@@ -84,8 +84,33 @@ final class VideoPlayerViewModel: ObservableObject {
         }
     }
 
-    var fallbackPageURL: URL {
-        return self.reference.playPageURL
+    var playbackDestination: VideoPlaybackDestination {
+        if let nativeMediaURL: URL = self.nativeMediaURL {
+            return .native(nativeMediaURL)
+        }
+
+        switch self.reference.status {
+        case .pageOnly:
+            return .web(VideoWebPlayerRequest(reference: self.reference))
+        case .playable:
+            return .unavailable(
+                title: "Unsupported Media",
+                message: "This episode did not expose a direct mp4 or m3u8 URL.",
+                systemImage: "play.slash"
+            )
+        case .restricted(let restriction):
+            return .unavailable(
+                title: "Playback Restricted",
+                message: self.restrictionMessage(restriction),
+                systemImage: "lock.fill"
+            )
+        case .failed(let failure):
+            return .unavailable(
+                title: "Playback Unavailable",
+                message: self.failureMessage(failure),
+                systemImage: "exclamationmark.triangle.fill"
+            )
+        }
     }
 
     var restoredPlaybackTime: TimeInterval {
@@ -247,4 +272,40 @@ final class VideoPlayerViewModel: ObservableObject {
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
     }
+
+    private func restrictionMessage(_ restriction: SourceVideoPlaybackRestriction) -> String {
+        switch restriction {
+        case .requiresLogin:
+            return "This episode requires account login."
+        case .vipOnly:
+            return "This episode is limited to VIP or paid users."
+        case .drm:
+            return "This episode appears to use DRM-protected playback."
+        case .regionBlocked:
+            return "This episode appears to be region blocked."
+        case .captchaOrAntiBot:
+            return "This episode appears to be blocked by captcha or anti-bot protection."
+        }
+    }
+
+    private func failureMessage(_ failure: SourceVideoPlaybackFailure) -> String {
+        switch failure {
+        case .mediaURLNotFound:
+            return "The playback page did not expose a playable media URL."
+        case .unsupportedMediaKind:
+            return "The playback page exposed a media type BrowseCraft cannot play yet."
+        case .parsingFailed:
+            return "BrowseCraft could not parse this playback page."
+        case .iframePlayerDepthExceeded:
+            return "The iframe player exceeded the supported resolution depth."
+        case .iframePlayerLoopDetected:
+            return "The iframe player redirected in a loop."
+        }
+    }
+}
+
+enum VideoPlaybackDestination: Equatable {
+    case native(URL)
+    case web(VideoWebPlayerRequest)
+    case unavailable(title: String, message: String, systemImage: String)
 }

@@ -1,27 +1,16 @@
-import SafariServices
 import SwiftUI
-import KSPlayer
 
 // 中文注释：VideoPlayerHostView 是视频播放页，不复用漫画 Reader UI。
 struct VideoPlayerHostView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: VideoPlayerViewModel
-    @StateObject private var playerCoordinator: KSVideoPlayer.Coordinator
-    @State private var isShowingSafari: Bool = false
 
     init(viewModel: VideoPlayerViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
-        _playerCoordinator = StateObject(wrappedValue: KSVideoPlayer.Coordinator())
     }
 
     var body: some View {
-        Group {
-            if let mediaURL: URL = self.viewModel.nativeMediaURL {
-                self.nativePlayer(mediaURL: mediaURL)
-            } else {
-                self.fallbackPlayer
-            }
-        }
+        self.playerContent
         .task {
             self.viewModel.prepareForPlayback()
         }
@@ -42,126 +31,47 @@ struct VideoPlayerHostView: View {
         }
     }
 
-    private func nativePlayer(mediaURL: URL) -> some View {
-        KSVideoPlayerView(
-            coordinator: self.playerCoordinator,
-            url: mediaURL,
-            options: self.playbackOptions(),
-            title: self.viewModel.displayTitle
-        )
-        .overlay(alignment: .bottom) {
-            self.episodeNavigationControls
-                .padding(.horizontal, 28)
-                .padding(.bottom, 76)
-        }
-        .onChange(of: mediaURL) { _, newURL in
-            self.switchNativePlayer(to: newURL)
-        }
-        .onAppear {
-            self.installPlayerCallbacks()
-        }
-    }
-
-    private func switchNativePlayer(to mediaURL: URL) {
-        guard let playerLayer: KSPlayerLayer = self.playerCoordinator.playerLayer,
-              playerLayer.url != mediaURL else {
-            return
-        }
-
-        self.installPlayerCallbacks()
-        playerLayer.set(url: mediaURL, options: self.playbackOptions())
-        self.configureBackBlock(for: playerLayer.player.view)
-    }
-
-    private func playbackOptions() -> KSOptions {
-        let options: KSOptions = KSOptions()
-        guard let requestConfig: SourcePlaybackRequestConfig = self.viewModel.reference.playbackRequestConfig else {
-            return options
-        }
-
-        var headers: [String: String] = requestConfig.headers
-        if let referer: URL = requestConfig.referer,
-           headers.keys.contains(where: { $0.caseInsensitiveCompare("Referer") == .orderedSame }) == false {
-            headers["Referer"] = referer.absoluteString
-        }
-        if let userAgent: String = requestConfig.userAgent,
-           headers.keys.contains(where: { $0.caseInsensitiveCompare("User-Agent") == .orderedSame }) == false {
-            headers["User-Agent"] = userAgent
-        }
-        if headers.keys.contains(where: { $0.caseInsensitiveCompare("Origin") == .orderedSame }) == false,
-           let origin: String = self.originHeader(from: requestConfig.referer) {
-            headers["Origin"] = origin
-        }
-
-        if headers.isEmpty == false {
-            options.appendHeader(headers)
-        }
-        options.referer = requestConfig.referer?.absoluteString
-        if let userAgent: String = requestConfig.userAgent ?? headers.first(where: { element in
-            element.key.caseInsensitiveCompare("User-Agent") == .orderedSame
-        })?.value {
-            options.userAgent = userAgent
-        }
-
-        #if DEBUG
-        print(
-            "[BrowseCraftVideoPlayer] playback-options " +
-            "media=\(self.viewModel.nativeMediaURL?.absoluteString ?? "nil") " +
-            "referer=\(options.referer ?? "nil") " +
-            "userAgent=\(options.userAgent ?? "nil") " +
-            "headers=\(headers.keys.sorted().joined(separator: ","))"
-        )
-        #endif
-
-        return options
-    }
-
-    private func originHeader(from url: URL?) -> String? {
-        guard let url: URL,
-              let scheme: String = url.scheme,
-              let host: String = url.host else {
-            return nil
-        }
-
-        if let port: Int = url.port {
-            return "\(scheme)://\(host):\(port)"
-        }
-
-        return "\(scheme)://\(host)"
-    }
-
-    private func installPlayerCallbacks() {
-        self.playerCoordinator.onPlay = { currentTime, totalTime in
-            self.viewModel.recordPlaybackProgress(
-                currentTime: currentTime,
-                totalTime: totalTime
-            )
-        }
-        self.playerCoordinator.onStateChanged = { layer, state in
-            self.configureBackBlock(for: layer.player.view)
-            if state == .readyToPlay {
-                DispatchQueue.main.async {
-                    layer.play()
-                    self.viewModel.markReadyToPlay { playbackTime in
-                        layer.seek(
-                            time: playbackTime,
-                            autoPlay: true,
-                            completion: { _ in }
-                        )
-                    }
+    @ViewBuilder
+    private var playerContent: some View {
+        switch self.viewModel.playbackDestination {
+        case .native(let mediaURL):
+            VideoNativePlayerView(
+                mediaURL: mediaURL,
+                requestConfig: self.viewModel.reference.playbackRequestConfig,
+                title: self.viewModel.displayTitle,
+                controls: {
+                    self.episodeNavigationControls
+                },
+                onProgress: { currentTime, totalTime in
+                    self.viewModel.recordPlaybackProgress(
+                        currentTime: currentTime,
+                        totalTime: totalTime
+                    )
+                },
+                onReadyToPlay: { seek in
+                    self.viewModel.markReadyToPlay(seek: seek)
+                },
+                onClose: {
+                    self.closePlayer()
                 }
-            }
-        }
-        self.configureBackBlock(for: self.playerCoordinator.playerLayer?.player.view)
-    }
-
-    private func configureBackBlock(for view: UIView?) {
-        guard let playerView: PlayerView = view as? PlayerView else {
-            return
-        }
-
-        playerView.backBlock = {
-            self.closePlayer()
+            )
+        case .web(let request):
+            VideoWebPlayerHostView(
+                request: request,
+                title: self.viewModel.displayTitle,
+                controls: {
+                    self.episodeNavigationControls
+                },
+                onClose: {
+                    self.closePlayer()
+                }
+            )
+        case .unavailable(let title, let message, let systemImage):
+            self.unavailablePlayer(
+                title: title,
+                message: message,
+                systemImage: systemImage
+            )
         }
     }
 
@@ -170,7 +80,11 @@ struct VideoPlayerHostView: View {
         self.dismiss()
     }
 
-    private var fallbackPlayer: some View {
+    private func unavailablePlayer(
+        title: String,
+        message: String,
+        systemImage: String
+    ) -> some View {
         VStack(spacing: 18) {
             HStack {
                 Spacer()
@@ -190,36 +104,22 @@ struct VideoPlayerHostView: View {
 
             Spacer(minLength: 0)
 
-            Image(systemName: "safari")
+            Image(systemName: systemImage)
                 .font(.system(size: 44, weight: .semibold))
-                .foregroundColor(.blue)
+                .foregroundColor(.secondary)
 
             VStack(spacing: 6) {
-                Text("Web Player Required")
+                Text(title)
                     .font(.title3.weight(.semibold))
 
-                Text("This episode does not expose a direct media URL yet.")
+                Text(message)
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             }
 
-            Button(
-                action: {
-                    self.isShowingSafari = true
-                },
-                label: {
-                    Label("Open Web Player", systemImage: "safari")
-                        .frame(maxWidth: .infinity)
-                }
-            )
-            .buttonStyle(.borderedProminent)
-
             self.episodeNavigationControls
-            .sheet(isPresented: self.$isShowingSafari) {
-                SafariView(url: self.viewModel.fallbackPageURL)
-                    .ignoresSafeArea()
-            }
+
             Spacer(minLength: 0)
         }
         .padding(24)
@@ -278,14 +178,4 @@ struct VideoPlayerHostView: View {
             }
         )
     }
-}
-
-private struct SafariView: UIViewControllerRepresentable {
-    let url: URL
-
-    func makeUIViewController(context _: Context) -> SFSafariViewController {
-        return SFSafariViewController(url: self.url)
-    }
-
-    func updateUIViewController(_ uiViewController: SFSafariViewController, context _: Context) {}
 }
