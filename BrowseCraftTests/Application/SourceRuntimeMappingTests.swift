@@ -191,6 +191,57 @@ struct SourceRuntimeMappingTests {
         #expect(input.context.debugMode == true)
     }
 
+    @Test func libraryPresentationReturnsVideoImageRequestConfig() throws {
+        let entryURL: URL = try #require(URL(string: "https://www.arte.tv/en/videos/"))
+        let source = Source(
+            id: "catalog.video.arte",
+            name: "ARTE Videos",
+            baseURL: "https://www.arte.tv/",
+            type: .html,
+            configuration: .video(
+                VideoSourceConfiguration(
+                    definition: VideoSourceDefinition(
+                        adapter: .genericHTML,
+                        entryURL: entryURL,
+                        seedURL: nil,
+                        entryKind: .list,
+                        routePatterns: nil,
+                        playbackPolicy: .playPageFirst,
+                        sharedRequest: RequestConfig(
+                            imageRequest: ImageRequestConfig(
+                                headers: [
+                                    "Accept": "image/jpeg,image/png,image/*;q=0.8,*/*;q=0.5"
+                                ]
+                            )
+                        ),
+                        listRequest: RequestConfig(
+                            imageHeaders: [
+                                "X-List-Image": "list"
+                            ]
+                        ),
+                        detailRequest: nil,
+                        playRequest: nil,
+                        requiresAccount: false,
+                        seedVodID: nil,
+                        seedSourceIndex: nil,
+                        seedEpisodeIndex: nil,
+                        seedDetailURL: nil,
+                        seedPlayURL: nil
+                    )
+                )
+            ),
+            enabled: true,
+            createdAt: Date(timeIntervalSince1970: 0),
+            updatedAt: Date(timeIntervalSince1970: 0)
+        )
+
+        let request: RequestConfig? = ResolveLibrarySourcePresentationUseCase()
+            .imageRequestConfig(for: source, listTab: nil)
+
+        #expect(request?.imageRequest?.headers?["Accept"] == "image/jpeg,image/png,image/*;q=0.8,*/*;q=0.5")
+        #expect(request?.imageHeaders?["X-List-Image"] == "list")
+    }
+
     @Test func sourceDefinitionMapperMapsOwnershipRuleMetadataAndBaseURLFallback() throws {
         let mapper: SourceDefinitionMapper = SourceDefinitionMapper()
         let builtInSource: Source = try Self.source(id: "built-in.example")

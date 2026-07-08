@@ -123,4 +123,29 @@ struct ImageRequestFactoryTests {
         // 中文注释：图片请求应优先使用 imageRequest 的 Cookie 策略，而不是页面 request 的 none 策略。
         #expect(urlRequest.value(forHTTPHeaderField: "Cookie") == "image_session=rule")
     }
+
+    @Test func itemThumbnailCacheKeyIgnoresRefererButKeepsContentHeaders() throws {
+        let url: URL = try #require(URL(string: "https://image.example/item.jpg?size=small"))
+        var firstRequest: URLRequest = URLRequest(url: url)
+        firstRequest.setValue("https://site.example/detail-a", forHTTPHeaderField: "Referer")
+        firstRequest.setValue("image/webp", forHTTPHeaderField: "Accept")
+
+        var secondRequest: URLRequest = URLRequest(url: url)
+        secondRequest.setValue("https://site.example/detail-b", forHTTPHeaderField: "Referer")
+        secondRequest.setValue("image/webp", forHTTPHeaderField: "Accept")
+
+        var cookieRequest: URLRequest = URLRequest(url: url)
+        cookieRequest.setValue("https://site.example/detail-a", forHTTPHeaderField: "Referer")
+        cookieRequest.setValue("image/webp", forHTTPHeaderField: "Accept")
+        cookieRequest.setValue("session=abc", forHTTPHeaderField: "Cookie")
+
+        #expect(
+            ItemThumbnailImageCachePlugin.cacheKey(url: url, request: firstRequest)
+                == ItemThumbnailImageCachePlugin.cacheKey(url: url, request: secondRequest)
+        )
+        #expect(
+            ItemThumbnailImageCachePlugin.cacheKey(url: url, request: firstRequest)
+                != ItemThumbnailImageCachePlugin.cacheKey(url: url, request: cookieRequest)
+        )
+    }
 }

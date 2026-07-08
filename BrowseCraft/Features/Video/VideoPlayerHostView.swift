@@ -56,7 +56,7 @@ struct VideoPlayerHostView: View {
                 }
             )
         case .web(let request):
-            VideoWebPlayerHostView(
+            VideoWebPlayerView(
                 request: request,
                 title: self.viewModel.displayTitle,
                 controls: {

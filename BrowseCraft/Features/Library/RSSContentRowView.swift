@@ -12,7 +12,7 @@ struct RSSContentRowView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 12) {
                 if self.item.coverURL != nil {
-                    CoverImageView(urlString: self.item.coverURL)
+                    ItemThumbnailImageView(urlString: self.item.coverURL)
                         .frame(width: 96, height: 72)
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }

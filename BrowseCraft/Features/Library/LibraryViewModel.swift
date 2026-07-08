@@ -26,6 +26,7 @@ final class LibraryViewModel: ObservableObject {
     private let loadSourcesUseCase: LoadSourcesUseCase
     private let toggleFavoriteUseCase: ToggleFavoriteUseCase
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
+    private let videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase?
     private let loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase
     private let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase
     private let resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase
@@ -33,6 +34,7 @@ final class LibraryViewModel: ObservableObject {
     private let userID: String
     private let now: () -> Date
     private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
+    private var tabDiscoveryAttemptedSourceIDs: Set<String> = Set<String>()
     /// 中文注释：刷新令牌用于避免旧 source 的慢请求回写或提前关闭当前 source 的 loading。
     private var refreshToken: Int = 0
 
@@ -41,6 +43,7 @@ final class LibraryViewModel: ObservableObject {
         loadSourcesUseCase: LoadSourcesUseCase,
         toggleFavoriteUseCase: ToggleFavoriteUseCase,
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
+        videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase? = nil,
         loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase,
         saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase,
         resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase,
@@ -52,6 +55,7 @@ final class LibraryViewModel: ObservableObject {
         self.loadSourcesUseCase = loadSourcesUseCase
         self.toggleFavoriteUseCase = toggleFavoriteUseCase
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
+        self.videoTabDiscoveryUseCase = videoTabDiscoveryUseCase
         self.loadUserLibraryStateUseCase = loadUserLibraryStateUseCase
         self.saveUserLibraryStateUseCase = saveUserLibraryStateUseCase
         self.resolveLibrarySourcePresentationUseCase = resolveLibrarySourcePresentationUseCase
@@ -116,12 +120,17 @@ final class LibraryViewModel: ObservableObject {
 
     @MainActor
     func refreshSelectedListTab() async {
-        guard let selectedSource: Source = self.selectedSource else {
+        guard self.selectedSource != nil else {
             return
         }
 
+        await self.discoverTabsForSelectedVideoSourceIfNeeded()
         self.ensureSelectedListTab()
-        let expectedSourceID: String = selectedSource.id
+        guard let refreshedSelectedSource: Source = self.selectedSource else {
+            return
+        }
+
+        let expectedSourceID: String = refreshedSelectedSource.id
         let expectedTabID: String? = self.selectedListTab?.id
         let expectedListContext: ListContext? = self.selectedListContext
         self.refreshToken += 1
@@ -130,7 +139,7 @@ final class LibraryViewModel: ObservableObject {
 
         do {
             let output: SourceListOutput = try await self.refreshSourceRuntimeUseCase.execute(
-                source: selectedSource,
+                source: refreshedSelectedSource,
                 listContext: expectedListContext
             )
             if Task.isCancelled == false,
@@ -139,11 +148,11 @@ final class LibraryViewModel: ObservableObject {
                self.selectedListTab?.id == expectedTabID {
                 self.items = self.contentItems(
                     from: output,
-                    source: selectedSource,
+                    source: refreshedSelectedSource,
                     context: expectedListContext
                 )
                 self.sourceSelectionStore.publishLibrarySnapshot(
-                    source: selectedSource,
+                    source: refreshedSelectedSource,
                     items: self.items
                 )
                 self.logLibraryItems(
@@ -301,6 +310,53 @@ final class LibraryViewModel: ObservableObject {
         }
 
         self.selectedListTabID = tabs.first?.id
+    }
+
+    @MainActor
+    private func discoverTabsForSelectedVideoSourceIfNeeded() async {
+        guard let videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase,
+              let source: Source = self.selectedSource,
+              case .video(let configuration) = source.configuration,
+              configuration.listTabs.count <= 1,
+              self.tabDiscoveryAttemptedSourceIDs.contains(source.id) == false else {
+            return
+        }
+
+        self.tabDiscoveryAttemptedSourceIDs.insert(source.id)
+
+        do {
+            let tabs: [VideoSourceListTab] = try await videoTabDiscoveryUseCase.discoverTabs(
+                sourceID: source.id,
+                definition: configuration.definition,
+                explicitTabs: configuration.listTabs
+            )
+            guard tabs != configuration.listTabs else {
+                return
+            }
+
+            var updatedSource: Source = source
+            updatedSource.configuration = .video(
+                VideoSourceConfiguration(
+                    definition: configuration.definition,
+                    listTabs: tabs
+                )
+            )
+            self.upsertSource(updatedSource)
+            self.ensureSelectedListTab()
+            #if DEBUG
+            print(
+                "[BrowseCraftLibraryTabs] origin=webview-discovery " +
+                "source=\(source.id) " +
+                "count=\(tabs.count)"
+            )
+            #endif
+        } catch {
+            RuleExecutionErrorClassifier.log(
+                error: error,
+                stage: .list,
+                event: "library-tab-discovery-error"
+            )
+        }
     }
 
     #if DEBUG

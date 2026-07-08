@@ -19,11 +19,97 @@ struct ResolveLibrarySourcePresentationUseCase {
     }
 
     func imageRequestConfig(for source: Source, listTab: ListTabRule?) -> RequestConfig? {
+        if case .video(let configuration) = source.configuration {
+            return self.videoImageRequestConfig(for: configuration)
+        }
+
         guard let rule: SiteRule = source.ruleConfiguration?.rule else {
             return nil
         }
 
         return rule.request(for: listTab)
+    }
+
+    private func videoImageRequestConfig(for configuration: VideoSourceConfiguration) -> RequestConfig? {
+        return self.merged(
+            base: configuration.definition.sharedRequest,
+            override: configuration.definition.listRequest
+        )
+    }
+
+    private func merged(base: RequestConfig?, override: RequestConfig?) -> RequestConfig? {
+        guard let override: RequestConfig else {
+            return base
+        }
+
+        guard let base: RequestConfig else {
+            return override
+        }
+
+        if override.mergePolicy == .override {
+            return override
+        }
+
+        var headers: [String: String] = base.headers ?? [:]
+        override.headers?.forEach { key, value in
+            headers[key] = value
+        }
+
+        var imageHeaders: [String: String] = base.imageHeaders ?? [:]
+        override.imageHeaders?.forEach { key, value in
+            imageHeaders[key] = value
+        }
+
+        let imageRequest: ImageRequestConfig? = self.mergedImageRequest(
+            base: base.imageRequest,
+            override: override.imageRequest
+        )
+
+        return RequestConfig(
+            scope: override.scope ?? base.scope,
+            mergePolicy: override.mergePolicy ?? base.mergePolicy,
+            method: override.method ?? base.method,
+            headers: headers.isEmpty ? nil : headers,
+            body: override.body ?? base.body,
+            cookiePolicy: override.cookiePolicy ?? base.cookiePolicy,
+            cookiePriority: override.cookiePriority ?? base.cookiePriority,
+            cookieScope: override.cookieScope ?? base.cookieScope,
+            charset: override.charset ?? base.charset,
+            needsWebView: override.needsWebView ?? base.needsWebView,
+            autoScroll: override.autoScroll ?? base.autoScroll,
+            imageHeaders: imageHeaders.isEmpty ? nil : imageHeaders,
+            imageRequest: imageRequest
+        )
+    }
+
+    private func mergedImageRequest(
+        base: ImageRequestConfig?,
+        override: ImageRequestConfig?
+    ) -> ImageRequestConfig? {
+        guard let override: ImageRequestConfig else {
+            return base
+        }
+
+        guard let base: ImageRequestConfig else {
+            return override
+        }
+
+        if override.mergePolicy == .override {
+            return override
+        }
+
+        var headers: [String: String] = base.headers ?? [:]
+        override.headers?.forEach { key, value in
+            headers[key] = value
+        }
+
+        return ImageRequestConfig(
+            headers: headers.isEmpty ? nil : headers,
+            cookiePolicy: override.cookiePolicy ?? base.cookiePolicy,
+            cookiePriority: override.cookiePriority ?? base.cookiePriority,
+            cookieScope: override.cookieScope ?? base.cookieScope,
+            mergePolicy: override.mergePolicy ?? base.mergePolicy
+        )
     }
 
     private func videoListTabs(for configuration: VideoSourceConfiguration) -> [ListTabRule] {

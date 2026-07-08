@@ -74,6 +74,122 @@ struct VideoRuntimeGenericHTMLMappingTests {
         })
     }
 
+    @Test func genericHTMLMapperExtractsARTEWebViewRenderedListItems() throws {
+        let mapper: GenericHTMLVideoContentMapper = GenericHTMLVideoContentMapper()
+        let definition: SourceDefinition = try Self.arteVideoDefinition(
+            sharedRequest: RequestConfig(needsWebView: true, autoScroll: true)
+        )
+        let listURL: URL = try #require(URL(string: "https://www.arte.tv/en/videos/"))
+
+        let items: [SourceContentItem] = try mapper.mapList(
+            html: Self.fixture(named: "arte-rendered-list"),
+            definition: definition,
+            pageURL: listURL
+        )
+
+        #expect(items.count == 2)
+        #expect(items[0].title == "European Culture Documentary")
+        #expect(items[0].detailURL?.absoluteString == "https://www.arte.tv/en/videos/123456-000-A/european-culture-documentary/")
+        #expect(items[0].coverURL?.host == "api-cdn.arte.tv")
+        #expect(items[0].latestText == "Documentary - 52 min")
+    }
+
+    @Test func genericHTMLMapperExtractsListCoverFromSrcset() throws {
+        let mapper: GenericHTMLVideoContentMapper = GenericHTMLVideoContentMapper()
+        let definition: SourceDefinition = try Self.arteVideoDefinition(
+            sharedRequest: RequestConfig(needsWebView: true, autoScroll: true)
+        )
+        let listURL: URL = try #require(URL(string: "https://www.arte.tv/en/videos/"))
+
+        let items: [SourceContentItem] = try mapper.mapList(
+            html: """
+            <html>
+              <body>
+                <article data-testid="video-card">
+                  <a href="/en/videos/115289-000-A/arte-reportage/" title="ARTE Reportage">
+                    <picture>
+                      <source srcset="https://api-cdn.arte.tv/img/v2/image/reportage-640.jpg 640w, https://api-cdn.arte.tv/img/v2/image/reportage-1280.jpg 1280w">
+                      <img alt="ARTE Reportage">
+                    </picture>
+                  </a>
+                  <span class="metadata">Reportage - 24 min</span>
+                </article>
+              </body>
+            </html>
+            """,
+            definition: definition,
+            pageURL: listURL
+        )
+
+        #expect(items.count == 1)
+        #expect(items[0].coverURL?.absoluteString == "https://api-cdn.arte.tv/img/v2/image/reportage-640.jpg")
+    }
+
+    @Test func genericHTMLMapperBackfillsARTECoverFromRenderedPageData() throws {
+        let mapper: GenericHTMLVideoContentMapper = GenericHTMLVideoContentMapper()
+        let definition: SourceDefinition = try Self.arteVideoDefinition(
+            sharedRequest: RequestConfig(needsWebView: true, autoScroll: true)
+        )
+        let listURL: URL = try #require(URL(string: "https://www.arte.tv/en/videos/"))
+
+        let items: [SourceContentItem] = try mapper.mapList(
+            html: """
+            <html>
+              <body>
+                <article data-testid="video-card">
+                  <a href="/en/videos/RC-024146/duels-of-history/" title="Duels of History">
+                    Duels of History
+                  </a>
+                </article>
+                <script id="__NEXT_DATA__" type="application/json">
+                  {
+                    "href": "https:\\/\\/www.arte.tv\\/en\\/videos\\/RC-024146\\/duels-of-history\\/",
+                    "image": "https:\\/\\/api-cdn.arte.tv\\/img\\/v2\\/image\\/duels-cover\\/620x350?type=TEXT"
+                  }
+                </script>
+              </body>
+            </html>
+            """,
+            definition: definition,
+            pageURL: listURL
+        )
+
+        #expect(items.count == 1)
+        #expect(items[0].coverURL?.absoluteString == "https://api-cdn.arte.tv/img/v2/image/duels-cover/620x350?type=TEXT")
+    }
+
+    @Test func genericHTMLMapperSkipsARTELanguageSwitchItems() throws {
+        let mapper: GenericHTMLVideoContentMapper = GenericHTMLVideoContentMapper()
+        let definition: SourceDefinition = try Self.arteVideoDefinition(
+            sharedRequest: RequestConfig(needsWebView: true, autoScroll: true)
+        )
+        let listURL: URL = try #require(URL(string: "https://www.arte.tv/en/videos/cinema/"))
+
+        let items: [SourceContentItem] = try mapper.mapList(
+            html: """
+            <html>
+              <body>
+                <article>
+                  <a href="/fr/videos/cinema/" title="Français (FR)">Français (FR)</a>
+                </article>
+                <article>
+                  <a href="/en/videos/cinema/" title="English (EN)">English (EN)</a>
+                </article>
+                <article data-testid="video-card">
+                  <a href="/en/videos/132676-000-A/raye-guests/" title="RAYE | Guests">RAYE | Guests</a>
+                  <img src="https://api-cdn.arte.tv/img/v2/image/raye/620x350?type=TEXT" alt="RAYE | Guests">
+                </article>
+              </body>
+            </html>
+            """,
+            definition: definition,
+            pageURL: listURL
+        )
+
+        #expect(items.count == 1)
+        #expect(items.first?.title == "RAYE | Guests")
+    }
+
     @Test func genericHTMLMapperExtractsHTML5PlayerPlaybackURL() throws {
         let mapper: any VideoContentMapper = VideoContentMapperRegistry().mapper(for: .genericHTML)
         let definition: SourceDefinition = try Self.videoDefinition()
@@ -136,6 +252,38 @@ struct VideoRuntimeGenericHTMLMappingTests {
         )
 
         #expect(playback.candidateMediaKind == .iframePlayer)
+        #expect(playback.status == .pageOnly)
+    }
+
+    @Test func genericHTMLMapperKeepsRenderedWebViewPlaybackPageOpenWhenDirectMediaIsHidden() throws {
+        let mapper: GenericHTMLVideoContentMapper = GenericHTMLVideoContentMapper()
+        let definition: SourceDefinition = try Self.arteVideoDefinition(
+            sharedRequest: RequestConfig(needsWebView: true, autoScroll: true)
+        )
+        let playURL: URL = try #require(URL(string: "https://www.arte.tv/en/videos/RC-024169/arte-book-club/"))
+
+        let playback: SourceVideoPlaybackReference = try mapper.mapPlayback(
+            html: """
+            <html>
+              <head>
+                <script id="__NEXT_DATA__" type="application/json">
+                  {"props":{"pageProps":{"programId":"RC-024169"}}}
+                </script>
+              </head>
+              <body>
+                <main>
+                  <h1>ARTE Book Club</h1>
+                  <div data-testid="video-player"></div>
+                </main>
+              </body>
+            </html>
+            """,
+            definition: definition,
+            playPageURL: playURL
+        )
+
+        #expect(playback.candidateMediaURL == nil)
+        #expect(playback.candidateMediaKind == .unknown)
         #expect(playback.status == .pageOnly)
     }
 
@@ -261,6 +409,41 @@ struct VideoRuntimeGenericHTMLMappingTests {
         #expect(output.diagnostics.issues.contains { issue in
             issue.id == "video.webViewRenderedDOMUsed"
         })
+    }
+
+    @Test func videoListLoaderMapsARTEWebViewRenderedDOMWithNextShell() async throws {
+        let pageLoader: RecordingVideoPageContentLoader = RecordingVideoPageContentLoader(
+            html: try Self.fixture(named: "arte-rendered-list")
+        )
+        let loader: VideoSourceListLoader = VideoSourceListLoader(
+            pageContentLoader: pageLoader,
+            mapper: GenericHTMLVideoContentMapper()
+        )
+        let definition: SourceDefinition = try Self.arteVideoDefinition(
+            sharedRequest: RequestConfig(needsWebView: true, autoScroll: true)
+        )
+
+        let output: SourceListOutput = try await loader.loadList(
+            SourceListInput(
+                page: 1,
+                urlOverride: nil,
+                context: Self.context(sourceID: definition.id, operation: .list)
+            ),
+            definition: definition
+        )
+
+        #expect(pageLoader.lastRequest?.needsWebView == true)
+        #expect(pageLoader.lastRequest?.autoScroll == true)
+        #expect(output.items.map(\.title) == [
+            "European Culture Documentary",
+            "Jazz Concert Live"
+        ])
+        #expect(output.diagnostics.issues.contains { issue in
+            issue.id == "video.webViewRenderedDOMUsed"
+        })
+        #expect(output.diagnostics.issues.contains { issue in
+            issue.id == "video.selectorEmpty"
+        } == false)
     }
 
     @Test func videoDetailLoaderUsesStageWebViewRequest() async throws {
@@ -494,6 +677,45 @@ struct VideoRuntimeGenericHTMLMappingTests {
                 entryURL: baseURL,
                 seedURL: nil,
                 entryKind: .home,
+                routePatterns: nil,
+                playbackPolicy: .playPageFirst,
+                sharedRequest: sharedRequest,
+                listRequest: listRequest,
+                detailRequest: detailRequest,
+                playRequest: playRequest,
+                requiresAccount: false,
+                seedVodID: nil,
+                seedSourceIndex: nil,
+                seedEpisodeIndex: nil,
+                seedDetailURL: nil,
+                seedPlayURL: nil
+            ),
+            plugin: nil
+        )
+    }
+
+    private static func arteVideoDefinition(
+        sharedRequest: RequestConfig? = nil,
+        listRequest: RequestConfig? = nil,
+        detailRequest: RequestConfig? = nil,
+        playRequest: RequestConfig? = nil
+    ) throws -> SourceDefinition {
+        let baseURL: URL = try #require(URL(string: "https://www.arte.tv/"))
+        let entryURL: URL = try #require(URL(string: "https://www.arte.tv/en/videos/"))
+        return SourceDefinition(
+            id: "arte.webview.generic",
+            runtimeKind: .video,
+            name: "ARTE Videos",
+            baseURL: baseURL,
+            version: nil,
+            ownership: .user,
+            comic: nil,
+            rss: nil,
+            video: VideoSourceDefinition(
+                adapter: .genericHTML,
+                entryURL: entryURL,
+                seedURL: nil,
+                entryKind: .list,
                 routePatterns: nil,
                 playbackPolicy: .playPageFirst,
                 sharedRequest: sharedRequest,

@@ -143,7 +143,7 @@ struct VideoSourceDetector: VideoSourceDetecting {
 
     private func renderMode(_ signals: VideoSourceSignals) -> VideoRenderRequirement {
         if signals.htmlIsEmptyShell
-            || signals.containsAny(self.lexicon.markers(for: .webViewShell)) {
+            || signals.hasUnmappedWebViewShell {
             return .webViewRequired
         }
 
@@ -287,18 +287,31 @@ private struct VideoSourceSignals {
             return false
         }
 
-        let hasAppShell: Bool = self.htmlContainsAny(VideoDetectionLexicon.default.markers(for: .webViewShell))
-        let hasVideoContent: Bool = self.htmlContainsAny([
+        return self.hasAppShell && self.hasMappableVideoContent == false
+    }
+
+    var hasUnmappedWebViewShell: Bool {
+        return self.hasAppShell && self.hasMappableVideoContent == false
+    }
+
+    private var hasAppShell: Bool {
+        return self.htmlContainsAny(VideoDetectionLexicon.default.markers(for: .webViewShell))
+    }
+
+    private var hasMappableVideoContent: Bool {
+        return self.htmlContainsAny([
             "/voddetail/",
             "/vodplay/",
             "/watch",
             "/video",
+            "/videos/",
             ".m3u8",
             ".mp4",
-            "<video"
+            "<video",
+            "video-card",
+            "video-item",
+            "thumbnail"
         ]) || self.hasPlaybackIframeSignal
-
-        return hasAppShell && hasVideoContent == false
     }
 
     var videoRouteHitCount: Int {

@@ -60,7 +60,7 @@ private struct VideoLibraryCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack(alignment: .topTrailing) {
-                CoverImageView(
+                ItemThumbnailImageView(
                     urlString: self.item.coverURL,
                     refererURLString: self.item.detailURL,
                     requestConfig: self.imageRequestConfig

@@ -22,7 +22,8 @@ struct GenericHTMLVideoTabDiscoverer: VideoTabDiscovering {
             ".cat a[href]",
             "[class*=\"categor\"] a[href]",
             "[class*=\"menu\"] a[href]",
-            "[class*=\"nav\"] a[href]"
+            "[class*=\"nav\"] a[href]",
+            "a[href*=\"/videos/\"]"
         ]
 
         static let itemSelector: String = ".frame-block.thumb-block, article, .video-item, .video-card, .movie, .vod, .list-item"
@@ -134,9 +135,58 @@ struct GenericHTMLVideoTabDiscoverer: VideoTabDiscovering {
             || path.contains("/best")
             || path.contains("/popular")
             || path.contains("/top")
-            || path.contains("/search")
+            || self.isEntrySubsectionPath(path, definition: definition)
             || query.contains("k=")
             || query.contains("category=")
+    }
+
+    private func isEntrySubsectionPath(
+        _ path: String,
+        definition: VideoSourceDefinition
+    ) -> Bool {
+        let entryPath: String = self.normalizedDirectoryPath(definition.entryURL.path.lowercased())
+        let normalizedPath: String = self.normalizedDirectoryPath(path)
+        guard entryPath != "/",
+              normalizedPath.hasPrefix(entryPath),
+              normalizedPath != entryPath else {
+            return false
+        }
+
+        let suffix: String = String(normalizedPath.dropFirst(entryPath.count))
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard suffix.isEmpty == false else {
+            return false
+        }
+
+        let firstSegment: String = suffix
+            .split(separator: "/")
+            .first
+            .map(String.init) ?? ""
+        return self.isConcreteVideoIDSegment(firstSegment) == false
+            && self.isRejectedPathSegment(firstSegment) == false
+    }
+
+    private func normalizedDirectoryPath(_ path: String) -> String {
+        let trimmed: String = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return trimmed.isEmpty ? "/" : "/\(trimmed)/"
+    }
+
+    private func isConcreteVideoIDSegment(_ segment: String) -> Bool {
+        if segment.range(
+            of: #"^\d{4,}-\d{3}-[a-z]$"#,
+            options: [.regularExpression, .caseInsensitive]
+        ) != nil {
+            return true
+        }
+
+        if segment.range(
+            of: #"^rc-\d+"#,
+            options: [.regularExpression, .caseInsensitive]
+        ) != nil {
+            return true
+        }
+
+        return false
     }
 
     private func isSameSite(_ url: URL, entryURL: URL) -> Bool {
@@ -163,6 +213,33 @@ struct GenericHTMLVideoTabDiscoverer: VideoTabDiscovering {
         .lowercased()
 
         return self.lexicon.containsMarker(in: text, category: .navigationReject)
+            || self.containsNonCategoryNavigationMarker(text)
+    }
+
+    private func isRejectedPathSegment(_ segment: String) -> Bool {
+        return self.containsNonCategoryNavigationMarker(segment.lowercased())
+    }
+
+    private func containsNonCategoryNavigationMarker(_ text: String) -> Bool {
+        let markers: [String] = [
+            "search",
+            "login",
+            "signin",
+            "sign-in",
+            "account",
+            "profile",
+            "newsletter",
+            "privacy",
+            "terms",
+            "about",
+            "contact",
+            "help",
+            "app-store",
+            "apps"
+        ]
+        return markers.contains { marker in
+            text.contains(marker)
+        }
     }
 
     private func normalizedTitle(_ title: String) -> String {

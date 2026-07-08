@@ -101,9 +101,123 @@ struct VideoTabDiscoveryTests {
         #expect(tabs.map(\.title) == ["首页"])
     }
 
+    @Test func genericHTMLDiscoveryFindsRenderedARTESectionTabs() throws {
+        let entryURL: URL = try #require(URL(string: "https://www.arte.tv/en/videos/"))
+        let definition: VideoSourceDefinition = Self.videoDefinition(
+            adapter: .genericHTML,
+            entryURL: entryURL
+        )
+        let discoverer: GenericHTMLVideoTabDiscoverer = GenericHTMLVideoTabDiscoverer()
+
+        let tabs: [VideoSourceListTab] = try discoverer.discoverTabs(
+            html: """
+            <html>
+              <body>
+                <nav>
+                  <a href="/en/videos/series/">Series</a>
+                  <a href="/en/videos/cinema/">Cinema</a>
+                  <a href="/en/videos/132676-000-A/raye-guests/">RAYE | Guests</a>
+                </nav>
+              </body>
+            </html>
+            """,
+            definition: definition,
+            pageURL: entryURL
+        )
+
+        #expect(tabs.map(\.title) == ["首页", "Series", "Cinema"])
+        #expect(tabs.map(\.url).contains("https://www.arte.tv/en/videos/132676-000-A/raye-guests/") == false)
+    }
+
+    @Test func genericHTMLDiscoveryRejectsSearchWhileScanningRenderedARTEVideoLinks() throws {
+        let entryURL: URL = try #require(URL(string: "https://www.arte.tv/en/videos/"))
+        let definition: VideoSourceDefinition = Self.videoDefinition(
+            adapter: .genericHTML,
+            entryURL: entryURL
+        )
+        let discoverer: GenericHTMLVideoTabDiscoverer = GenericHTMLVideoTabDiscoverer()
+
+        let tabs: [VideoSourceListTab] = try discoverer.discoverTabs(
+            html: """
+            <html>
+              <body>
+                <main>
+                  <a href="/en/search/">Go to search</a>
+                  <a href="/en/videos/series/">Series</a>
+                  <a href="/en/videos/cinema/">Cinema</a>
+                  <a href="/en/videos/culture-and-pop/">Culture and Pop</a>
+                  <a href="/en/videos/RC-024146/duels-of-history/">Duels of History</a>
+                  <a href="/en/videos/115289-000-A/arte-reportage/">ARTE Reportage</a>
+                </main>
+              </body>
+            </html>
+            """,
+            definition: definition,
+            pageURL: entryURL
+        )
+
+        #expect(tabs.map(\.title) == ["首页", "Series", "Cinema", "Culture and Pop"])
+        #expect(tabs.map(\.title).contains("Go to search") == false)
+        #expect(tabs.map(\.title).contains("Duels of History") == false)
+        #expect(tabs.map(\.title).contains("ARTE Reportage") == false)
+    }
+
+    @Test func videoSourceTabDiscoveryUsesWebViewRenderedDOMAndMergesExplicitTabs() async throws {
+        let entryURL: URL = try #require(URL(string: "https://www.arte.tv/en/videos/"))
+        let definition: VideoSourceDefinition = Self.videoDefinition(
+            adapter: .genericHTML,
+            entryURL: entryURL,
+            sharedRequest: RequestConfig(needsWebView: true, autoScroll: true)
+        )
+        let pageLoader: RecordingVideoTabPageContentLoader = RecordingVideoTabPageContentLoader(
+            html: """
+            <html>
+              <body>
+                <nav>
+                  <a href="/en/videos/series/">Series</a>
+                  <a href="/en/videos/cinema/">Cinema</a>
+                  <a href="/en/videos/culture-and-pop/">Culture</a>
+                  <a href="/en/videos/politics-and-society/">Society</a>
+                  <a href="/en/videos/history/">History</a>
+                  <a href="/en/videos/science/">Science</a>
+                </nav>
+              </body>
+            </html>
+            """
+        )
+        let useCase: VideoSourceTabDiscoveryUseCase = VideoSourceTabDiscoveryUseCase(
+            pageContentLoader: pageLoader
+        )
+
+        let tabs: [VideoSourceListTab] = try await useCase.discoverTabs(
+            sourceID: "catalog.video.arte",
+            definition: definition,
+            explicitTabs: [
+                VideoSourceListTab(
+                    id: "video.arte.videos",
+                    title: "Videos",
+                    url: entryURL.absoluteString
+                )
+            ]
+        )
+
+        #expect(pageLoader.lastRequest?.needsWebView == true)
+        #expect(pageLoader.lastRequest?.autoScroll == true)
+        #expect(tabs.map(\.title) == [
+            "Videos",
+            "Series",
+            "Cinema",
+            "Culture",
+            "Society",
+            "History",
+            "Science"
+        ])
+    }
+
     private static func videoDefinition(
         adapter: VideoAdapter,
-        entryURL: URL
+        entryURL: URL,
+        sharedRequest: RequestConfig? = nil
     ) -> VideoSourceDefinition {
         return VideoSourceDefinition(
             adapter: adapter,
@@ -112,6 +226,7 @@ struct VideoTabDiscoveryTests {
             entryKind: .home,
             routePatterns: adapter == .macCMS ? .macCMS : nil,
             playbackPolicy: .playPageFirst,
+            sharedRequest: sharedRequest,
             requiresAccount: false,
             seedVodID: nil,
             seedSourceIndex: nil,
@@ -119,5 +234,20 @@ struct VideoTabDiscoveryTests {
             seedDetailURL: nil,
             seedPlayURL: nil
         )
+    }
+}
+
+private final class RecordingVideoTabPageContentLoader: PageContentLoader {
+    let html: String
+    private(set) var lastRequest: RequestConfig?
+
+    init(html: String) {
+        self.html = html
+    }
+
+    func getString(from url: URL, request: RequestConfig?) async throws -> String {
+        _ = url
+        self.lastRequest = request
+        return self.html
     }
 }

@@ -47,8 +47,8 @@ struct VideoWebPlayerRequest: Equatable {
     }
 }
 
-// 中文注释：VideoWebPlayerHostView 是 WebUI/WKWebView 的物理层封装，只负责网页播放器承载。
-struct VideoWebPlayerHostView<Controls: View>: View {
+// 中文注释：VideoWebPlayerView 是 WebUI/WKWebView 的物理层封装；和 VideoNativePlayerView 平行。
+struct VideoWebPlayerView<Controls: View>: View {
     @Environment(\.openURL) private var openURL
     @StateObject private var coordinator: VideoWebPlayerCoordinator
 
@@ -86,9 +86,23 @@ struct VideoWebPlayerHostView<Controls: View>: View {
                     .contentInsetAdjustmentBehavior(.never)
                     .refreshable()
                     .onAppear {
+                        #if DEBUG
+                        print(
+                            "[BrowseCraftVideoWebPlayer] appear/load " +
+                            "url=\(self.request.url.absoluteString) " +
+                            "title=\(self.title)"
+                        )
+                        #endif
                         proxy.load(request: self.request.urlRequest)
                     }
                     .onChange(of: self.request) { _, newRequest in
+                        #if DEBUG
+                        print(
+                            "[BrowseCraftVideoWebPlayer] reload " +
+                            "url=\(newRequest.url.absoluteString) " +
+                            "title=\(self.title)"
+                        )
+                        #endif
                         proxy.load(request: newRequest.urlRequest)
                     }
                     .ignoresSafeArea(edges: .bottom)

@@ -10,6 +10,7 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
         static let listItemGroups: [String] = [
             ".frame-block.thumb-block",
             "article",
+            "[data-testid*=\"video\"], [data-testid*=\"card\"]",
             ".video-item, .video-card",
             ".movie, .vod",
             ".list-item",
@@ -22,6 +23,7 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
             ".thumb a[href]",
             ".thumb-under .title a[href]",
             "a[href*=\"/video\"]",
+            "a[href*=\"/videos/\"]",
             "a[href*=\"play\"]",
             "a[href*=\"watch\"]",
             "a[href*=\"episode\"]",
@@ -41,14 +43,25 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
             "h1",
             "h2",
             "h3",
+            "h4",
             "a"
         ].joined(separator: ", ")
 
         static let covers: String = [
             "img[data-original]",
             "img[data-src]",
+            "img[data-srcset]",
             "img[data-thumb]",
-            "img[src]"
+            "[data-image]",
+            "[data-img]",
+            "[data-poster]",
+            "[poster]",
+            "[style*=\"background-image\"]",
+            "meta[itemprop=\"thumbnailUrl\"][content]",
+            "link[itemprop=\"thumbnailUrl\"][href]",
+            "img[src]",
+            "img[srcset]",
+            "source[srcset]"
         ].joined(separator: ", ")
 
         static let latestTexts: String = [
@@ -65,7 +78,8 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
             "a[href*=\"play\"]",
             "a[href*=\"watch\"]",
             "a[href*=\"episode\"]",
-            "a[href*=\"/video\"]"
+            "a[href*=\"/video\"]",
+            "a[href*=\"/videos/\"]"
         ].joined(separator: ", ")
 
         static let synopsis: String = [
@@ -95,12 +109,14 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
         pageURL: URL
     ) throws -> [SourceContentItem] {
         let document: Document = try SwiftSoup.parse(html, pageURL.absoluteString)
+        let pageCoverURLs: [String: URL] = self.pageCoverURLMap(from: html, pageURL: pageURL)
         for selector: String in Selectors.listItemGroups {
             let elements: [Element] = try document.select(selector).array()
             let items: [SourceContentItem] = try self.mapListItems(
                 elements,
                 definition: definition,
-                pageURL: pageURL
+                pageURL: pageURL,
+                pageCoverURLs: pageCoverURLs
             )
 
             if items.isEmpty == false {
@@ -114,7 +130,8 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
     private func mapListItems(
         _ elements: [Element],
         definition: SourceDefinition,
-        pageURL: URL
+        pageURL: URL,
+        pageCoverURLs: [String: URL]
     ) throws -> [SourceContentItem] {
         var seenDetailURLs: Set<String> = Set<String>()
         var items: [SourceContentItem] = []
@@ -122,7 +139,9 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
         for element: Element in elements {
             guard self.isLikelyContentItem(element),
                   let detailURL: URL = try self.detailURL(from: element, baseURL: pageURL),
-                  let title: String = try self.title(from: element) else {
+                  self.isLikelyDetailURL(detailURL, pageURL: pageURL),
+                  let title: String = try self.title(from: element),
+                  self.isLanguageSwitchItem(title: title, detailURL: detailURL, pageURL: pageURL) == false else {
                 continue
             }
 
@@ -143,13 +162,26 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
                 continue
             }
 
+            let elementCoverURL: URL? = try self.coverURL(from: element, baseURL: pageURL)
+            let fallbackCoverURL: URL? = pageCoverURLs[self.normalizedURLKey(detailURL)]
+            let coverURL: URL? = elementCoverURL ?? fallbackCoverURL
+            #if DEBUG
+            if coverURL == nil {
+                print(
+                    "[BrowseCraftVideoMapping] genericHTML list missing-cover " +
+                    "source=\(definition.id) " +
+                    "title=\(title) " +
+                    "detailURL=\(detailURL.absoluteString)"
+                )
+            }
+            #endif
             seenDetailURLs.insert(detailKey)
             items.append(
                 SourceContentItem(
                     id: "\(definition.id).video.generic.\(self.stableID(from: detailURL))",
                     title: title,
                     detailURL: detailURL,
-                    coverURL: try self.coverURL(from: element, baseURL: pageURL),
+                    coverURL: coverURL,
                     latestText: try self.latestText(from: element),
                     updatedAt: nil
                 )
@@ -202,7 +234,8 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
         let resolution: VideoPlaybackResolution = self.playbackResolution(
             candidate: candidate,
             playPageURL: playPageURL,
-            html: html
+            html: html,
+            definition: definition
         )
         let title: String? = try self.title(from: document)
         let vodID: String = self.stableID(from: playPageURL)
@@ -284,12 +317,7 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
     private func coverURL(from element: Element, baseURL: URL) throws -> URL? {
         let images: [Element] = try element.select(Selectors.covers).array()
         for image: Element in images {
-            let value: String? = try image.attr("data-original").trimmedNonEmpty
-                ?? image.attr("data-src").trimmedNonEmpty
-                ?? image.attr("data-thumb").trimmedNonEmpty
-                ?? image.attr("src").trimmedNonEmpty
-
-            guard let value: String,
+            guard let value: String = try self.coverURLString(from: image),
                   let url: URL = URL(string: value, relativeTo: baseURL)?.absoluteURL else {
                 continue
             }
@@ -298,6 +326,153 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
         }
 
         return nil
+    }
+
+    private func coverURLString(from image: Element) throws -> String? {
+        let directAttributes: [String] = [
+            "data-original",
+            "data-src",
+            "data-thumb",
+            "data-image",
+            "data-img",
+            "data-poster",
+            "poster",
+            "content",
+            "href",
+            "src"
+        ]
+        for attribute: String in directAttributes {
+            if let value: String = try image.attr(attribute).trimmedNonEmpty {
+                return value
+            }
+        }
+
+        if let value: String = self.firstSrcsetURL(try image.attr("data-srcset")) {
+            return value
+        }
+
+        if let value: String = self.firstSrcsetURL(try image.attr("srcset")) {
+            return value
+        }
+
+        return self.firstStyleURL(try image.attr("style"))
+    }
+
+    private func firstSrcsetURL(_ srcset: String) -> String? {
+        return srcset
+            .split(separator: ",")
+            .lazy
+            .compactMap { candidate -> String? in
+                return candidate
+                    .split(whereSeparator: { character in
+                        return character.isWhitespace
+                    })
+                    .first
+                    .map(String.init)?
+                    .trimmedNonEmpty
+            }
+            .first
+    }
+
+    private func firstStyleURL(_ style: String) -> String? {
+        return self.firstMatch(
+            style,
+            pattern: #"url\((?:'|")?([^)'"]+)(?:'|")?\)"#
+        )
+    }
+
+    private func pageCoverURLMap(from html: String, pageURL: URL) -> [String: URL] {
+        let normalizedHTML: String = self.normalizedEmbeddedHTML(html)
+        let imageMatches: [TextURLMatch] = self.arteImageURLMatches(in: normalizedHTML)
+        guard imageMatches.isEmpty == false else {
+            return [:]
+        }
+
+        let detailMatches: [TextURLMatch] = self.detailURLMatches(in: normalizedHTML, pageURL: pageURL)
+        var map: [String: URL] = [:]
+        for detailMatch: TextURLMatch in detailMatches {
+            let key: String = self.normalizedURLKey(detailMatch.url)
+            guard map[key] == nil,
+                  let imageURL: URL = self.nearestImageURL(to: detailMatch, images: imageMatches) else {
+                continue
+            }
+
+            map[key] = imageURL
+        }
+
+        return map
+    }
+
+    private func normalizedEmbeddedHTML(_ html: String) -> String {
+        return html
+            .replacingOccurrences(of: "\\/", with: "/")
+            .replacingOccurrences(of: "\\u0026", with: "&")
+            .replacingOccurrences(of: "&amp;", with: "&")
+    }
+
+    private func arteImageURLMatches(in text: String) -> [TextURLMatch] {
+        return self.urlMatches(
+            in: text,
+            pattern: #"https?:\/\/api-cdn\.arte\.tv\/img\/v2\/image\/[^"',}\\\s<>]+"#,
+            baseURL: nil
+        )
+    }
+
+    private func detailURLMatches(in text: String, pageURL: URL) -> [TextURLMatch] {
+        let absolutePattern: String = #"https?:\/\/www\.arte\.tv\/en\/videos\/(?:RC-\d+|\d{4,}-\d{3}-[A-Z])\/[^"',}\\\s<>]+"#
+        let relativePattern: String = #"\/en\/videos\/(?:RC-\d+|\d{4,}-\d{3}-[A-Z])\/[^"',}\\\s<>]+"#
+        return self.urlMatches(in: text, pattern: absolutePattern, baseURL: pageURL)
+            + self.urlMatches(in: text, pattern: relativePattern, baseURL: pageURL)
+    }
+
+    private func urlMatches(
+        in text: String,
+        pattern: String,
+        baseURL: URL?
+    ) -> [TextURLMatch] {
+        guard let regex: NSRegularExpression = try? NSRegularExpression(
+            pattern: pattern,
+            options: [.caseInsensitive]
+        ) else {
+            return []
+        }
+
+        let nsRange: NSRange = NSRange(text.startIndex..<text.endIndex, in: text)
+        let results: [NSTextCheckingResult] = regex.matches(in: text, range: nsRange)
+        return results.compactMap { result -> TextURLMatch? in
+            guard let range: Range<String.Index> = Range(result.range, in: text) else {
+                return nil
+            }
+
+            let rawValue: String = String(text[range])
+            guard let url: URL = URL(string: rawValue, relativeTo: baseURL)?.absoluteURL else {
+                return nil
+            }
+
+            return TextURLMatch(location: result.range.location, url: url)
+        }
+    }
+
+    private func nearestImageURL(
+        to detail: TextURLMatch,
+        images: [TextURLMatch]
+    ) -> URL? {
+        let maxDistance: Int = 5_000
+        var bestMatch: TextURLMatch?
+        var bestDistance: Int = Int.max
+
+        for image in images {
+            let distance: Int = abs(image.location - detail.location)
+            guard distance < bestDistance,
+                  distance <= maxDistance else {
+                continue
+            }
+
+            bestDistance = distance
+            bestMatch = image
+        }
+
+        return bestMatch?.url
     }
 
     private func latestText(from element: Element) throws -> String? {
@@ -394,7 +569,8 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
     private func playbackResolution(
         candidate: VideoPlaybackCandidate,
         playPageURL: URL,
-        html: String
+        html: String,
+        definition: SourceDefinition
     ) -> VideoPlaybackResolution {
         if let resolution: VideoPlaybackResolution = IframePlayerCandidateResolver().resolve(
             candidate: candidate,
@@ -419,7 +595,8 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
             status: self.playbackStatus(
                 mediaURL: candidate.url,
                 mediaKind: candidate.kind,
-                html: html
+                html: html,
+                definition: definition
             )
         )
     }
@@ -427,7 +604,8 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
     private func playbackStatus(
         mediaURL: URL?,
         mediaKind: SourceVideoMediaKind,
-        html: String
+        html: String,
+        definition: SourceDefinition
     ) -> SourceVideoPlaybackStatus {
         if mediaURL != nil, mediaKind == .m3u8 || mediaKind == .mp4 {
             return .playable
@@ -449,7 +627,20 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
             return .restricted(.vipOnly)
         }
 
+        if self.requiresRenderedWebPlayback(definition: definition) {
+            return .pageOnly
+        }
+
         return .failed(.mediaURLNotFound)
+    }
+
+    private func requiresRenderedWebPlayback(definition: SourceDefinition) -> Bool {
+        guard let videoDefinition: VideoSourceDefinition = definition.video else {
+            return false
+        }
+
+        return videoDefinition.sharedRequest?.needsWebView == true
+            || videoDefinition.playRequest?.needsWebView == true
     }
 
     private func mediaKind(for url: URL?) -> SourceVideoMediaKind {
@@ -485,9 +676,106 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
         }
 
         return lowercased.contains("/video")
+            || lowercased.contains("/videos/")
             || lowercased.contains("play")
             || lowercased.contains("watch")
             || lowercased.contains("episode")
+    }
+
+    private func isLikelyDetailURL(_ url: URL, pageURL: URL) -> Bool {
+        let pagePath: String = self.normalizedDirectoryPath(pageURL.path.lowercased())
+        let detailPath: String = self.normalizedDirectoryPath(url.path.lowercased())
+        guard pagePath != "/",
+              detailPath.hasPrefix(pagePath),
+              detailPath != pagePath else {
+            return true
+        }
+
+        let suffix: String = String(detailPath.dropFirst(pagePath.count))
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let segments: [Substring] = suffix.split(separator: "/")
+        guard segments.count == 1 else {
+            return true
+        }
+
+        return self.isConcreteVideoIDSegment(String(segments[0]))
+    }
+
+    private func isLanguageSwitchItem(
+        title: String,
+        detailURL: URL,
+        pageURL: URL
+    ) -> Bool {
+        guard title.range(
+            of: #"^[\p{L}\p{M}\s]+ \([A-Z]{2}\)$"#,
+            options: [.regularExpression]
+        ) != nil else {
+            return false
+        }
+
+        let pageLanguage: String? = self.languagePathSegment(from: pageURL)
+        let detailLanguage: String? = self.languagePathSegment(from: detailURL)
+        if let pageLanguage: String,
+           let detailLanguage: String,
+           pageLanguage != detailLanguage {
+            return true
+        }
+
+        return self.isCategoryRootURL(detailURL)
+    }
+
+    private func languagePathSegment(from url: URL) -> String? {
+        let segments: [String] = url.pathComponents.filter { component in
+            return component != "/"
+        }
+        guard let language: String = segments.first,
+              language.count == 2 else {
+            return nil
+        }
+
+        return language.lowercased()
+    }
+
+    private func isCategoryRootURL(_ url: URL) -> Bool {
+        let segments: [String] = url.pathComponents.filter { component in
+            return component != "/"
+        }
+        guard segments.count >= 3,
+              segments[1].lowercased() == "videos" else {
+            return false
+        }
+
+        return self.isConcreteVideoIDSegment(segments[2]) == false
+    }
+
+    private func normalizedDirectoryPath(_ path: String) -> String {
+        let trimmed: String = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return trimmed.isEmpty ? "/" : "/\(trimmed)/"
+    }
+
+    private func normalizedURLKey(_ url: URL) -> String {
+        guard var components: URLComponents = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return url.absoluteString
+                .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                .lowercased()
+        }
+
+        components.fragment = nil
+        let value: String = components.url?.absoluteString ?? url.absoluteString
+        return value
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            .lowercased()
+    }
+
+    private func isConcreteVideoIDSegment(_ segment: String) -> Bool {
+        if segment.range(
+            of: #"^\d{4,}-\d{3}-[a-z]$"#,
+            options: [.regularExpression, .caseInsensitive]
+        ) != nil {
+            return true
+        }
+
+        return false
     }
 
     private func isLikelyPlaybackURL(_ url: URL) -> Bool {
@@ -693,6 +981,11 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
             .replacingOccurrences(of: "&amp;", with: "&")
             .trimmedNonEmpty
     }
+}
+
+private struct TextURLMatch {
+    let location: Int
+    let url: URL
 }
 
 private extension String {

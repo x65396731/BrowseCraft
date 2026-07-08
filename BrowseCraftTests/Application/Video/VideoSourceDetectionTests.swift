@@ -172,6 +172,40 @@ struct VideoSourceDetectionTests {
         })
     }
 
+    @Test func renderedNextDOMWithVideoCardsIsMappableAfterWebView() throws {
+        let detector: VideoSourceDetector = VideoSourceDetector()
+        let url: URL = try #require(URL(string: "https://www.arte.tv/en/videos/"))
+
+        let detection: VideoSourceDetection = detector.detect(
+            VideoSourceDetectionInput(
+                url: url,
+                html: """
+                <html>
+                  <head>
+                    <script id="__NEXT_DATA__" type="application/json">{}</script>
+                  </head>
+                  <body>
+                    <div id="__next">
+                      <article data-testid="video-card">
+                        <a href="/en/videos/123456-000-A/european-culture-documentary/">
+                          <img src="https://api-cdn.arte.tv/img/v2/image/sample-cover.jpg" alt="European Culture Documentary">
+                          <h3>European Culture Documentary</h3>
+                        </a>
+                      </article>
+                    </div>
+                  </body>
+                </html>
+                """
+            )
+        )
+
+        #expect(detection.renderMode == .staticHTML)
+        #expect(detection.adapter == .genericHTML)
+        #expect(detection.reasons.contains { reason in
+            reason.contains("Content mapper adapter was not inferred")
+        })
+    }
+
     @Test func detectsPluginWhenRestrictionSignalsAreStrong() throws {
         let detector: VideoSourceDetector = Self.detector(language: .simplifiedChinese)
         let url: URL = try #require(URL(string: "https://video.example.test/"))

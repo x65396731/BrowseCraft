@@ -51,6 +51,7 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
     private let webView: WKWebView
     private var continuation: CheckedContinuation<String, Error>?
     private var hasCompleted: Bool = false
+    private var isLoadingHTTPSUpgrade: Bool = false
 
     init(url: URL, request: RequestConfig?) {
         self.url = url
@@ -70,7 +71,7 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 self.continuation = continuation
-                self.webView.load(self.urlRequest())
+                self.webView.load(self.urlRequest(for: self.url, includeBody: true))
                 self.startTimeout()
             }
         } onCancel: {
@@ -81,6 +82,7 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        self.isLoadingHTTPSUpgrade = false
         Task { @MainActor in
             do {
                 try await Task.sleep(nanoseconds: Timing.postFinishDelayNanoseconds)
@@ -99,6 +101,25 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         }
     }
 
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
+        guard navigationAction.targetFrame?.isMainFrame == true,
+              let navigationURL: URL = navigationAction.request.url,
+              let upgradedURL: URL = self.httpsURLIfNeeded(from: navigationURL) else {
+            decisionHandler(.allow)
+            return
+        }
+
+        self.isLoadingHTTPSUpgrade = true
+        decisionHandler(.cancel)
+        Task { @MainActor in
+            webView.load(self.urlRequest(for: upgradedURL, includeBody: false))
+        }
+    }
+
     private func startTimeout() {
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: Timing.timeoutNanoseconds)
@@ -114,19 +135,27 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        guard self.shouldIgnoreInterruptedNavigation(error) == false else {
+            return
+        }
+
         self.finish(.failure(error))
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        guard self.shouldIgnoreInterruptedNavigation(error) == false else {
+            return
+        }
+
         self.finish(.failure(error))
     }
 
     /// 中文注释：WebView 使用同一份 RequestConfig header/body 语义，避免 HTTP 与 WebView 路径请求差异过大。
-    private func urlRequest() -> URLRequest {
-        var urlRequest: URLRequest = URLRequest(url: self.url)
+    private func urlRequest(for url: URL, includeBody: Bool) -> URLRequest {
+        var urlRequest: URLRequest = URLRequest(url: url)
         urlRequest.httpMethod = self.request?.method?.rawValue ?? "GET"
 
-        self.defaultHeaders().forEach { key, value in
+        self.defaultHeaders(for: url).forEach { key, value in
             urlRequest.setValue(value, forHTTPHeaderField: key)
         }
         self.request?.headers?.forEach { key, value in
@@ -135,14 +164,14 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
 
         let cookieHeaders: [String: String] = CookieHeaderResolver.headersByApplyingPageCookies(
             to: urlRequest.allHTTPHeaderFields ?? [:],
-            url: self.url,
+            url: url,
             request: self.request
         )
         cookieHeaders.forEach { key, value in
             urlRequest.setValue(value, forHTTPHeaderField: key)
         }
 
-        if let body: RequestBody = self.request?.body {
+        if includeBody, let body: RequestBody = self.request?.body {
             urlRequest.httpBody = Data(body.value.utf8)
             if let contentType: String = body.contentType {
                 urlRequest.setValue(contentType, forHTTPHeaderField: "Content-Type")
@@ -153,20 +182,83 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
     }
 
     /// 中文注释：默认 header 模拟移动端浏览器访问，保持和 AlamofireHTTPClient 的旧抓取行为一致。
-    private func defaultHeaders() -> [String: String] {
+    private func defaultHeaders(for url: URL) -> [String: String] {
         return [
             "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "zh-CN,zh-Hans;q=0.9,zh;q=0.8,en;q=0.5",
-            "Referer": "\(self.url.scheme ?? "https")://\(self.url.host ?? "")/"
+            "Referer": "\(url.scheme ?? "https")://\(url.host ?? "")/"
         ]
     }
 
-    /// 中文注释：部分懒加载站点需要滚动后才把图片或列表节点写入 DOM，当前先提供一次性滚到底能力。
+    private func httpsURLIfNeeded(from url: URL) -> URL? {
+        guard url.scheme?.lowercased() == "http",
+              var components: URLComponents = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+
+        components.scheme = "https"
+        return components.url
+    }
+
+    private func shouldIgnoreInterruptedNavigation(_ error: Error) -> Bool {
+        guard self.isLoadingHTTPSUpgrade else {
+            return false
+        }
+
+        let nsError: NSError = error as NSError
+        return (nsError.domain == "WebKitErrorDomain" && nsError.code == 102)
+            || (nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled)
+    }
+
+    /// 中文注释：部分懒加载站点需要真实滚动节奏才会把下方图片写入 DOM。
     private func scrollToBottom() async throws {
-        _ = try await self.webView.evaluateJavaScript(
-            "window.scrollTo(0, document.body.scrollHeight);"
-        )
+        var previousY: Double = -1
+
+        for step in 0..<10 {
+            let result: Any? = try await self.webView.evaluateJavaScript(
+                """
+                (() => {
+                  const viewport = window.innerHeight || 667;
+                  const targetY = Math.min(
+                    document.body.scrollHeight,
+                    Math.round(\(step + 1) * viewport * 0.85)
+                  );
+                  window.scrollTo(0, targetY);
+                  window.dispatchEvent(new Event("scroll"));
+                  return {
+                    y: window.scrollY,
+                    viewport: viewport,
+                    height: document.body.scrollHeight
+                  };
+                })();
+                """
+            )
+            let state: [String: Any] = result as? [String: Any] ?? [:]
+            let currentY: Double = self.doubleValue(state["y"])
+            let viewport: Double = self.doubleValue(state["viewport"])
+            let height: Double = self.doubleValue(state["height"])
+
+            try await Task.sleep(nanoseconds: 180_000_000)
+            if abs(currentY - previousY) < 4,
+               currentY + viewport >= height - 4 {
+                break
+            }
+
+            previousY = currentY
+        }
+    }
+
+    private func doubleValue(_ value: Any?) -> Double {
+        if let double: Double = value as? Double {
+            return double
+        }
+
+        if let int: Int = value as? Int {
+            return Double(int)
+        }
+
+        return 0
     }
 
     private func waitForStableDOMLength() async throws {

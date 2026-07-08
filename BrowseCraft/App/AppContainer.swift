@@ -123,7 +123,10 @@ final class AppContainer {
         let recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase = RecommendSourceImportOptionUseCase()
         let addCatalogSourceUseCase: AddCatalogSourceUseCase = AddCatalogSourceUseCase(
             sourceRepository: self.sourceRepository,
-            refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
+            refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
+            videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase(
+                pageContentLoader: self.pageContentLoader
+            )
         )
         let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase = SaveUserLibraryStateUseCase(
             repository: userLibraryStateRepository
@@ -207,6 +210,9 @@ final class AppContainer {
             loadSourcesUseCase: loadSourcesUseCase,
             toggleFavoriteUseCase: toggleFavoriteUseCase,
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
+            videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase(
+                pageContentLoader: self.pageContentLoader
+            ),
             loadUserLibraryStateUseCase: loadUserLibraryStateUseCase,
             saveUserLibraryStateUseCase: saveUserLibraryStateUseCase,
             resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase(),

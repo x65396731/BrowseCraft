@@ -9,7 +9,7 @@ struct CompactContentRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            CoverImageView(urlString: self.item.coverURL)
+            ItemThumbnailImageView(urlString: self.item.coverURL)
                 .frame(width: 48, height: 64)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
 
