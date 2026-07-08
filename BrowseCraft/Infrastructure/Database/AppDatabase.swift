@@ -59,8 +59,16 @@ final class AppDatabase {
             }
 
             try database.create(table: FavoriteRecord.databaseTableName, ifNotExists: true) { table in
-                table.column("itemId", .text).primaryKey()
+                table.column("userID", .text)
+                    .primaryKey()
+                    .references(AppUserRecord.databaseTableName, column: "id", onDelete: .cascade)
+                table.column("favoriteItemIDsJSON", .text).notNull()
+                table.column("favoriteItemsJSON", .text).notNull()
+                table.column("rssFavoritesJSON", .text)
+                table.column("comicFavoritesJSON", .text)
+                table.column("videoFavoritesJSON", .text)
                 table.column("createdAt", .datetime).notNull()
+                table.column("updatedAt", .datetime).notNull()
             }
 
             try database.create(table: AppUserRecord.databaseTableName, ifNotExists: true) { table in
@@ -172,6 +180,7 @@ final class AppDatabase {
             ]
         )
     }
+
 
     private static func createIndexes(in database: Database) throws {
         try database.execute(

@@ -103,4 +103,12 @@ extension Source {
     var isBuiltIn: Bool {
         return self.id.hasPrefix("built-in.")
     }
+
+    var favoriteVideoKind: FavoriteContentKind? {
+        guard case .video(let configuration) = self.configuration else {
+            return nil
+        }
+
+        return configuration.definition.adapter == .webView ? .videoWeb : .videoNative
+    }
 }

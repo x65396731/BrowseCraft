@@ -25,6 +25,18 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '17.0'
+      config.build_settings['LIBRARY_SEARCH_PATHS'] = ['$(inherited)']
     end
+  end
+
+  # Xcode 26 expands the old CocoaPods Swift runtime search path into a
+  # cryptexd Metal toolchain path and reports it as a missing search path.
+  Dir.glob(File.join(installer.sandbox.root, 'Target Support Files/**/*.xcconfig')).each do |xcconfig|
+    content = File.read(xcconfig)
+    cleaned = content.gsub(
+      'LIBRARY_SEARCH_PATHS = $(inherited) "${TOOLCHAIN_DIR}/usr/lib/swift/${PLATFORM_NAME}" /usr/lib/swift',
+      'LIBRARY_SEARCH_PATHS = $(inherited)'
+    )
+    File.write(xcconfig, cleaned) if cleaned != content
   end
 end

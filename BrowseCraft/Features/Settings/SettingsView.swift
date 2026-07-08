@@ -255,7 +255,7 @@ private struct BookmarksSettingsView: View {
     var body: some View {
         List {
             Section {
-                Label("Favorites are managed from History.", systemImage: "heart")
+                Label("Favorites are managed from the Favorites tab.", systemImage: "heart")
                 Label("Saved bookmark folders can be added after the bookmark model is introduced.", systemImage: "folder")
             }
         }

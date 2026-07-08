@@ -220,6 +220,20 @@ final class AppContainer {
         )
     }
 
+    func makeFavoriteViewModel() -> FavoriteViewModel {
+        let loadSourcesUseCase: LoadSourcesUseCase = LoadSourcesUseCase(
+            sourceRepository: self.sourceRepository
+        )
+        let loadFavoriteItemsUseCase: ToggleFavoriteUseCase = ToggleFavoriteUseCase(
+            favoriteRepository: self.favoriteRepository
+        )
+
+        return FavoriteViewModel(
+            loadFavoriteItemsUseCase: loadFavoriteItemsUseCase,
+            loadSourcesUseCase: loadSourcesUseCase
+        )
+    }
+
     /// 中文注释：makeChapterListViewModel 方法封装当前类型的一段业务或界面行为。
     func makeChapterListViewModel(item: ContentItem, source: Source) -> ChapterListViewModel {
         let loadChaptersUseCase: LoadChaptersUseCase = LoadChaptersUseCase(

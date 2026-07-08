@@ -1,0 +1,63 @@
+import Foundation
+
+// 中文注释：FavoriteContentItem 保存收藏页需要展示的内容快照。
+
+enum FavoriteContentKind: String, Codable, Hashable {
+    case rss
+    case comic
+    case videoNative
+    case videoWeb
+}
+
+/// 中文注释：收藏页依赖这里的快照字段直接展示内容，不反查当前列表状态。
+struct FavoriteContentItem: Identifiable, Hashable, Codable {
+    var id: String
+    var sourceID: String
+    var title: String
+    var detailURL: String
+    var coverURL: String?
+    var kind: FavoriteContentKind
+    var latestText: String?
+    var updatedAt: Date?
+    var favoritedAt: Date?
+    var listOrder: Int?
+    var listContext: ListContext?
+
+    func contentItem() -> ContentItem {
+        let contentKind: SourceContentKind
+        switch self.kind {
+        case .rss:
+            contentKind = .article
+        case .comic:
+            contentKind = .comic
+        case .videoNative, .videoWeb:
+            contentKind = .video
+        }
+
+        return ContentItem(
+            id: self.id,
+            sourceId: self.sourceID,
+            title: self.title,
+            detailURL: self.detailURL,
+            coverURL: self.coverURL,
+            type: contentKind,
+            latestText: self.latestText,
+            updatedAt: self.updatedAt,
+            listOrder: self.listOrder,
+            listContext: self.listContext
+        )
+    }
+
+    var displayKindTitle: String {
+        switch self.kind {
+        case .rss:
+            return "RSS"
+        case .comic:
+            return "Comic"
+        case .videoNative:
+            return "Native Video"
+        case .videoWeb:
+            return "Web Video"
+        }
+    }
+}

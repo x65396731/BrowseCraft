@@ -6,7 +6,7 @@ import Foundation
 protocol FavoriteRepository {
     /// 中文注释：fetchFavoriteItemIDs 方法封装当前类型的一段业务或界面行为。
     func fetchFavoriteItemIDs() throws -> Set<String>
+    func fetchFavoriteItems() throws -> [FavoriteContentItem]
     /// 中文注释：setFavorite 方法封装当前类型的一段业务或界面行为。
-    func setFavorite(itemId: String, isFavorite: Bool) throws
+    func setFavorite(item: FavoriteContentItem, isFavorite: Bool) throws
 }
-

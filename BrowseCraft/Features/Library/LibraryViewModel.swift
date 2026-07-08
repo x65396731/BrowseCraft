@@ -190,7 +190,20 @@ final class LibraryViewModel: ObservableObject {
     /// 中文注释：toggleFavorite 方法封装当前类型的一段业务或界面行为。
     func toggleFavorite(item: ContentItem) {
         do {
-            self.favoriteItemIDs = try self.toggleFavoriteUseCase.execute(itemId: item.id)
+            let favoriteItem: FavoriteContentItem = FavoriteContentItem(
+                id: item.id,
+                sourceID: item.sourceId,
+                title: item.title,
+                detailURL: item.detailURL,
+                coverURL: item.coverURL,
+                kind: self.favoriteKind(for: item),
+                latestText: item.latestText,
+                updatedAt: item.updatedAt,
+                favoritedAt: self.now(),
+                listOrder: item.listOrder,
+                listContext: item.listContext
+            )
+            self.favoriteItemIDs = try self.toggleFavoriteUseCase.execute(item: favoriteItem)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "favorite-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
@@ -654,5 +667,18 @@ final class LibraryViewModel: ObservableObject {
             "context=\(self.contextDescription(context))"
         )
         #endif
+    }
+
+    private func favoriteKind(for item: ContentItem) -> FavoriteContentKind {
+        switch item.type {
+        case .article:
+            return .rss
+        case .comic:
+            return .comic
+        case .video:
+            return self.source(for: item.sourceId)?.favoriteVideoKind ?? .videoNative
+        default:
+            return .rss
+        }
     }
 }

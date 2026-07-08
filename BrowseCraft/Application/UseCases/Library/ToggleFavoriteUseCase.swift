@@ -15,13 +15,16 @@ struct ToggleFavoriteUseCase {
         return try self.favoriteRepository.fetchFavoriteItemIDs()
     }
 
-    /// 中文注释：execute 方法封装当前类型的一段业务或界面行为。
-    func execute(itemId: String) throws -> Set<String> {
-        let currentIDs: Set<String> = try self.favoriteRepository.fetchFavoriteItemIDs()
-        let shouldBecomeFavorite: Bool = !currentIDs.contains(itemId)
+    func loadFavoriteItems() throws -> [FavoriteContentItem] {
+        return try self.favoriteRepository.fetchFavoriteItems()
+    }
 
-        try self.favoriteRepository.setFavorite(itemId: itemId, isFavorite: shouldBecomeFavorite)
+    /// 中文注释：execute 方法封装当前类型的一段业务或界面行为。
+    func execute(item: FavoriteContentItem) throws -> Set<String> {
+        let currentIDs: Set<String> = try self.favoriteRepository.fetchFavoriteItemIDs()
+        let shouldBecomeFavorite: Bool = !currentIDs.contains(item.id)
+
+        try self.favoriteRepository.setFavorite(item: item, isFavorite: shouldBecomeFavorite)
         return try self.favoriteRepository.fetchFavoriteItemIDs()
     }
 }
-

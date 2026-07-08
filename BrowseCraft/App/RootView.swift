@@ -7,6 +7,7 @@ import SwiftUI
 struct RootView: View {
     private enum RootTab: Hashable {
         case sources
+        case favorites
         case library
         case history
         case settings
@@ -14,6 +15,7 @@ struct RootView: View {
 
     private let container: AppContainer
     @StateObject private var sourcesViewModel: SourcesViewModel
+    @StateObject private var favoriteViewModel: FavoriteViewModel
     @StateObject private var libraryViewModel: LibraryViewModel
     @StateObject private var historyViewModel: HistoryViewModel
     @StateObject private var settingsViewModel: SettingsViewModel
@@ -23,6 +25,7 @@ struct RootView: View {
     init(container: AppContainer) {
         self.container = container
         _sourcesViewModel = StateObject(wrappedValue: container.makeSourcesViewModel())
+        _favoriteViewModel = StateObject(wrappedValue: container.makeFavoriteViewModel())
         _libraryViewModel = StateObject(wrappedValue: container.makeLibraryViewModel())
         _historyViewModel = StateObject(wrappedValue: container.makeHistoryViewModel())
         _settingsViewModel = StateObject(wrappedValue: container.makeSettingsViewModel())
@@ -36,6 +39,37 @@ struct RootView: View {
                     Text("Sources")
                 }
                 .tag(RootTab.sources)
+
+            FavoriteView(
+                viewModel: self.favoriteViewModel,
+                chapterListViewModelFactory: { item, source in
+                    return self.container.makeChapterListViewModel(item: item, source: source)
+                },
+                readerViewModelFactory: { item, source, chapter in
+                    return self.container.makeReaderViewModel(
+                        item: item,
+                        source: source,
+                        selectedChapter: chapter
+                    )
+                },
+                rssContentDetailViewModelFactory: { item, source in
+                    return self.container.makeRSSContentDetailViewModel(
+                        item: item,
+                        source: source
+                    )
+                },
+                videoDetailViewModelFactory: { item, source in
+                    return self.container.makeVideoDetailViewModel(
+                        item: item,
+                        source: source
+                    )
+                }
+            )
+                .tabItem {
+                    Image(systemName: "heart")
+                    Text("Favorites")
+                }
+                .tag(RootTab.favorites)
 
             LibraryView(
                 viewModel: self.libraryViewModel,
