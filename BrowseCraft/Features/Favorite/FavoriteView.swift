@@ -14,11 +14,11 @@ struct FavoriteView: View {
             List {
                 Section("Favorites") {
                     ForEach(self.viewModel.favoriteItems, id: \.id) { item in
-                        if let source: Source = self.viewModel.source(for: item.sourceID) {
+                        if let source: Source = self.viewModel.source(for: item) {
                             NavigationLink(destination: self.destination(for: item, source: source)) {
                                 FavoriteEntryRowView(
                                     item: item,
-                                    sourceName: source.name,
+                                    sourceName: self.viewModel.sourceName(for: item),
                                     dateText: Self.favoriteDateFormatter.string(from: item.favoritedAt ?? item.updatedAt ?? Date())
                                 )
                             }

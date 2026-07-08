@@ -30,9 +30,17 @@ final class FavoriteViewModel: ObservableObject {
         }
     }
 
-    func source(for sourceID: String) -> Source? {
-        return self.sources.first { source in
-            source.id == sourceID
+    func source(for item: FavoriteContentItem) -> Source? {
+        if let currentSource: Source = self.sources.first(where: { source in
+            source.id == item.sourceID
+        }) {
+            return currentSource
         }
+
+        return item.fallbackSource()
+    }
+
+    func sourceName(for item: FavoriteContentItem) -> String {
+        return self.source(for: item)?.name ?? item.sourceSnapshot?.name ?? "Unknown Source"
     }
 }

@@ -190,6 +190,7 @@ final class LibraryViewModel: ObservableObject {
     /// 中文注释：toggleFavorite 方法封装当前类型的一段业务或界面行为。
     func toggleFavorite(item: ContentItem) {
         do {
+            let source: Source? = self.source(for: item.sourceId)
             let favoriteItem: FavoriteContentItem = FavoriteContentItem(
                 id: item.id,
                 sourceID: item.sourceId,
@@ -201,7 +202,8 @@ final class LibraryViewModel: ObservableObject {
                 updatedAt: item.updatedAt,
                 favoritedAt: self.now(),
                 listOrder: item.listOrder,
-                listContext: item.listContext
+                listContext: item.listContext,
+                sourceSnapshot: source.map(FavoriteSourceSnapshot.init(source:))
             )
             self.favoriteItemIDs = try self.toggleFavoriteUseCase.execute(item: favoriteItem)
         } catch {

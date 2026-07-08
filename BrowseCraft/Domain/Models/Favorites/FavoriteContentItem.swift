@@ -22,6 +22,7 @@ struct FavoriteContentItem: Identifiable, Hashable, Codable {
     var favoritedAt: Date?
     var listOrder: Int?
     var listContext: ListContext?
+    var sourceSnapshot: FavoriteSourceSnapshot?
 
     func contentItem() -> ContentItem {
         let contentKind: SourceContentKind
@@ -48,6 +49,10 @@ struct FavoriteContentItem: Identifiable, Hashable, Codable {
         )
     }
 
+    func fallbackSource() -> Source? {
+        return self.sourceSnapshot?.source()
+    }
+
     var displayKindTitle: String {
         switch self.kind {
         case .rss:
@@ -59,5 +64,41 @@ struct FavoriteContentItem: Identifiable, Hashable, Codable {
         case .videoWeb:
             return "Web Video"
         }
+    }
+}
+
+/// 中文注释：收藏必须能独立打开详情，所以这里保存请求详情所需的 source 配置快照。
+struct FavoriteSourceSnapshot: Hashable, Codable {
+    var id: String
+    var name: String
+    var baseURL: String
+    var type: SourceType
+    var configuration: SourceConfiguration
+    var enabled: Bool
+    var createdAt: Date
+    var updatedAt: Date
+
+    init(source: Source) {
+        self.id = source.id
+        self.name = source.name
+        self.baseURL = source.baseURL
+        self.type = source.type
+        self.configuration = source.configuration
+        self.enabled = source.enabled
+        self.createdAt = source.createdAt
+        self.updatedAt = source.updatedAt
+    }
+
+    func source() -> Source {
+        return Source(
+            id: self.id,
+            name: self.name,
+            baseURL: self.baseURL,
+            type: self.type,
+            configuration: self.configuration,
+            enabled: self.enabled,
+            createdAt: self.createdAt,
+            updatedAt: self.updatedAt
+        )
     }
 }
