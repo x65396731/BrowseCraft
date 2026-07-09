@@ -124,7 +124,7 @@ struct RootView: View {
         .onAppear {
             self.resolveInitialTabIfNeeded()
         }
-        .onChange(of: self.sourcesViewModel.latestCatalogSourceAddID) { _, sourceID in
+        .onChange(of: self.sourcesViewModel.latestSourceAddID) { _, sourceID in
             guard sourceID != nil else {
                 return
             }

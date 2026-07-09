@@ -10,6 +10,7 @@ struct AddSourceView: View {
     @State private var runtimeSourceKind: RuntimeSourceImportKind?
     @State private var isShowingComicDiscovery: Bool = false
     @State private var isShowingVideoDiscovery: Bool = false
+    @State private var isShowingRSSDiscovery: Bool = false
     @State private var unavailableOption: SourceImportOptionKind?
 
     private let options: [SourceImportOption] = SourceImportOption.defaultOptions
@@ -40,6 +41,14 @@ struct AddSourceView: View {
             }
             .sheet(isPresented: self.$isShowingVideoDiscovery) {
                 VideoDiscoveryView(viewModel: self.viewModel)
+            }
+            .sheet(isPresented: self.$isShowingRSSDiscovery) {
+                RSSDiscoveryView(
+                    viewModel: self.viewModel,
+                    completion: {
+                        self.dismiss()
+                    }
+                )
             }
             .sheet(item: self.$runtimeSourceKind) { kind in
                 RuntimeSourceImportView(
@@ -87,7 +96,7 @@ struct AddSourceView: View {
         case .videoSource:
             self.isShowingVideoDiscovery = true
         case .rssFeedURL:
-            self.runtimeSourceKind = .rss
+            self.isShowingRSSDiscovery = true
         case .scriptSource:
             self.unavailableOption = option.kind
         }

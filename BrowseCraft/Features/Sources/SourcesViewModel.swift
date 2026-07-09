@@ -18,6 +18,7 @@ final class SourcesViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published private(set) var isRefreshing: Bool = false
     @Published private(set) var refreshingSourceID: String?
+    @Published private(set) var latestSourceAddID: String?
     @Published private(set) var latestCatalogSourceAddID: String?
     @Published private(set) var catalogSources: [BrowseCraftCatalogSource] = []
     @Published private(set) var isLoadingCatalogSources: Bool = false
@@ -29,6 +30,7 @@ final class SourcesViewModel: ObservableObject {
     private let addVideoSourceUseCase: AddVideoSourceUseCase
     private let discoverComicResourcesUseCase: DiscoverComicResourcesUseCase
     private let discoverVideoResourcesUseCase: DiscoverVideoResourcesUseCase
+    private let discoverRSSFeedsUseCase: DiscoverRSSFeedsUseCase
     private let saveTemporaryResourceHistoryUseCase: SaveTemporaryResourceHistoryUseCase
     private let addCatalogSourceUseCase: AddCatalogSourceUseCase
     private let loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase
@@ -56,6 +58,7 @@ final class SourcesViewModel: ObservableObject {
         addVideoSourceUseCase: AddVideoSourceUseCase,
         discoverComicResourcesUseCase: DiscoverComicResourcesUseCase,
         discoverVideoResourcesUseCase: DiscoverVideoResourcesUseCase,
+        discoverRSSFeedsUseCase: DiscoverRSSFeedsUseCase,
         saveTemporaryResourceHistoryUseCase: SaveTemporaryResourceHistoryUseCase,
         addCatalogSourceUseCase: AddCatalogSourceUseCase,
         loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase,
@@ -80,6 +83,7 @@ final class SourcesViewModel: ObservableObject {
         self.addVideoSourceUseCase = addVideoSourceUseCase
         self.discoverComicResourcesUseCase = discoverComicResourcesUseCase
         self.discoverVideoResourcesUseCase = discoverVideoResourcesUseCase
+        self.discoverRSSFeedsUseCase = discoverRSSFeedsUseCase
         self.saveTemporaryResourceHistoryUseCase = saveTemporaryResourceHistoryUseCase
         self.addCatalogSourceUseCase = addCatalogSourceUseCase
         self.loadCatalogSourcesUseCase = loadCatalogSourcesUseCase
@@ -151,6 +155,19 @@ final class SourcesViewModel: ObservableObject {
     }
 
     @MainActor
+    func discoverRSSFeeds(siteURLString: String) async -> [DiscoveredRSSFeedItem] {
+        do {
+            return try await self.discoverRSSFeedsUseCase.execute(
+                DiscoverRSSFeedsInput(siteURLString: siteURLString)
+            )
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "rss-discovery-error")
+            self.errorMessage = error.localizedDescription
+            return []
+        }
+    }
+
+    @MainActor
     func saveTemporaryHistory(_ history: TemporaryResourceHistory) {
         do {
             try self.saveTemporaryResourceHistoryUseCase.execute(history: history)
@@ -177,6 +194,7 @@ final class SourcesViewModel: ObservableObject {
             self.logPublishedLibrarySnapshot(source: source, items: items, origin: "rule-source-add")
             self.selectSource(id: source.id)
             self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
+            self.latestSourceAddID = source.id
             return true
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "rule-source-add-error")
@@ -201,6 +219,7 @@ final class SourcesViewModel: ObservableObject {
             self.logPublishedLibrarySnapshot(source: source, items: items, origin: "rss-source-add")
             self.selectSource(id: source.id)
             self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
+            self.latestSourceAddID = source.id
             return source
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "rss-source-add-error")
@@ -229,6 +248,7 @@ final class SourcesViewModel: ObservableObject {
             self.logPublishedLibrarySnapshot(source: source, items: items, origin: "manual-video-source-add")
             self.selectSource(id: source.id)
             self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
+            self.latestSourceAddID = source.id
             return source
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "manual-video-source-add-error")
@@ -277,6 +297,7 @@ final class SourcesViewModel: ObservableObject {
             if result.listOutput != nil {
                 self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
             }
+            self.latestSourceAddID = source.id
             self.latestCatalogSourceAddID = source.id
             return true
         } catch {
