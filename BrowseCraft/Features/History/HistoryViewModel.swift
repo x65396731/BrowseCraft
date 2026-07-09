@@ -11,17 +11,20 @@ final class HistoryViewModel: ObservableObject {
     @Published var errorMessage: String?
 
     private let loadReadingHistoryEntriesUseCase: LoadReadingHistoryEntriesUseCase
+    private let deleteReadingHistoryEntryUseCase: DeleteReadingHistoryEntryUseCase
     private let loadSourcesUseCase: LoadSourcesUseCase
     private let userID: String
     private let videoPlayerViewModelFactory: @MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel
 
     init(
         loadReadingHistoryEntriesUseCase: LoadReadingHistoryEntriesUseCase,
+        deleteReadingHistoryEntryUseCase: DeleteReadingHistoryEntryUseCase,
         loadSourcesUseCase: LoadSourcesUseCase,
         userID: String = AppUser.localDefaultID,
         videoPlayerViewModelFactory: @escaping @MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel
     ) {
         self.loadReadingHistoryEntriesUseCase = loadReadingHistoryEntriesUseCase
+        self.deleteReadingHistoryEntryUseCase = deleteReadingHistoryEntryUseCase
         self.loadSourcesUseCase = loadSourcesUseCase
         self.userID = userID
         self.videoPlayerViewModelFactory = videoPlayerViewModelFactory
@@ -58,6 +61,29 @@ final class HistoryViewModel: ObservableObject {
             id: history.id,
             viewModel: viewModel
         )
+    }
+
+    @MainActor
+    func deleteHistoryEntries(at offsets: IndexSet) {
+        let entriesToDelete: [ReadingHistoryEntry] = offsets.compactMap { index in
+            guard self.readingHistoryEntries.indices.contains(index) else {
+                return nil
+            }
+
+            return self.readingHistoryEntries[index]
+        }
+
+        do {
+            for entry: ReadingHistoryEntry in entriesToDelete {
+                try self.deleteReadingHistoryEntryUseCase.execute(entry)
+            }
+            for index: Int in offsets.sorted(by: >) where self.readingHistoryEntries.indices.contains(index) {
+                self.readingHistoryEntries.remove(at: index)
+            }
+        } catch {
+            self.errorMessage = error.localizedDescription
+            self.load()
+        }
     }
 
     private func deduplicatedVideoEntries(_ entries: [ReadingHistoryEntry]) -> [ReadingHistoryEntry] {

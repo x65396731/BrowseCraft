@@ -28,6 +28,8 @@ final class SourcesViewModel: ObservableObject {
     private let addRSSSourceUseCase: AddRSSSourceUseCase
     private let addVideoSourceUseCase: AddVideoSourceUseCase
     private let discoverComicResourcesUseCase: DiscoverComicResourcesUseCase
+    private let discoverVideoResourcesUseCase: DiscoverVideoResourcesUseCase
+    private let saveTemporaryResourceHistoryUseCase: SaveTemporaryResourceHistoryUseCase
     private let addCatalogSourceUseCase: AddCatalogSourceUseCase
     private let loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase
     private let deleteSourceUseCase: DeleteSourceUseCase
@@ -53,6 +55,8 @@ final class SourcesViewModel: ObservableObject {
         addRSSSourceUseCase: AddRSSSourceUseCase,
         addVideoSourceUseCase: AddVideoSourceUseCase,
         discoverComicResourcesUseCase: DiscoverComicResourcesUseCase,
+        discoverVideoResourcesUseCase: DiscoverVideoResourcesUseCase,
+        saveTemporaryResourceHistoryUseCase: SaveTemporaryResourceHistoryUseCase,
         addCatalogSourceUseCase: AddCatalogSourceUseCase,
         loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase,
         deleteSourceUseCase: DeleteSourceUseCase,
@@ -75,6 +79,8 @@ final class SourcesViewModel: ObservableObject {
         self.addRSSSourceUseCase = addRSSSourceUseCase
         self.addVideoSourceUseCase = addVideoSourceUseCase
         self.discoverComicResourcesUseCase = discoverComicResourcesUseCase
+        self.discoverVideoResourcesUseCase = discoverVideoResourcesUseCase
+        self.saveTemporaryResourceHistoryUseCase = saveTemporaryResourceHistoryUseCase
         self.addCatalogSourceUseCase = addCatalogSourceUseCase
         self.loadCatalogSourcesUseCase = loadCatalogSourcesUseCase
         self.deleteSourceUseCase = deleteSourceUseCase
@@ -125,6 +131,32 @@ final class SourcesViewModel: ObservableObject {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "comic-discovery-error")
             self.errorMessage = error.localizedDescription
             return []
+        }
+    }
+
+    @MainActor
+    func discoverVideoResources(siteURLString: String, keyword: String) async -> [TransientVideoDiscoveryItem] {
+        do {
+            return try await self.discoverVideoResourcesUseCase.execute(
+                DiscoverVideoResourcesInput(
+                    siteURLString: siteURLString,
+                    keyword: keyword
+                )
+            )
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "video-discovery-error")
+            self.errorMessage = error.localizedDescription
+            return []
+        }
+    }
+
+    @MainActor
+    func saveTemporaryHistory(_ history: TemporaryResourceHistory) {
+        do {
+            try self.saveTemporaryResourceHistoryUseCase.execute(history: history)
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "temporary-history-save-error")
+            self.errorMessage = error.localizedDescription
         }
     }
 

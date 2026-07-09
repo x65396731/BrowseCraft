@@ -1,8 +1,6 @@
 import SwiftUI
-import WebKit
-import WebUI
 
-struct ComicDiscoveryView: View {
+struct VideoDiscoveryView: View {
     private enum SearchState: Equatable {
         case idle
         case searching
@@ -22,10 +20,10 @@ struct ComicDiscoveryView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var siteURL: String = ""
-    @State private var keyword: String = DiscoverComicResourcesUseCase.defaultKeywords[0]
+    @State private var keyword: String = DiscoverVideoResourcesUseCase.defaultKeywords[0]
     @State private var customKeyword: String = ""
-    @State private var keywordSuggestions: [String] = DiscoverComicResourcesUseCase.defaultKeywords
-    @State private var items: [TransientComicDiscoveryItem] = []
+    @State private var keywordSuggestions: [String] = DiscoverVideoResourcesUseCase.defaultKeywords
+    @State private var items: [TransientVideoDiscoveryItem] = []
     @State private var searchState: SearchState = .idle
 
     var body: some View {
@@ -76,6 +74,8 @@ struct ComicDiscoveryView: View {
                         }
                     )
                     .disabled(self.canSearch == false)
+                } footer: {
+                    Text("Temporary discovery only. Web pages open in Web Player; direct mp4/m3u8 links can use Native Player.")
                 }
 
                 self.statusSection
@@ -84,18 +84,18 @@ struct ComicDiscoveryView: View {
                     Section("Results") {
                         ForEach(self.items) { item in
                             NavigationLink {
-                                ComicDiscoveryDetailView(
+                                VideoDiscoveryDetailView(
                                     item: item,
                                     viewModel: self.viewModel
                                 )
                             } label: {
-                                ComicDiscoveryResultRow(item: item)
+                                VideoDiscoveryResultRow(item: item)
                             }
                         }
                     }
                 }
             }
-            .navigationTitle("Comics")
+            .navigationTitle("Video")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") {
@@ -167,7 +167,7 @@ struct ComicDiscoveryView: View {
             EmptyView()
         case .searching:
             Section("Status") {
-                Text("Searching comic-like resources on this website...")
+                Text("Searching video-like resources on this website...")
                     .foregroundStyle(.secondary)
             }
         case .finished:
@@ -187,7 +187,7 @@ struct ComicDiscoveryView: View {
     private func search() async {
         self.searchState = .searching
         self.viewModel.errorMessage = nil
-        self.items = await self.viewModel.discoverComicResources(
+        self.items = await self.viewModel.discoverVideoResources(
             siteURLString: self.trimmedSiteURL,
             keyword: self.trimmedKeyword
         )
@@ -203,8 +203,8 @@ struct ComicDiscoveryView: View {
     }
 }
 
-private struct ComicDiscoveryResultRow: View {
-    let item: TransientComicDiscoveryItem
+private struct VideoDiscoveryResultRow: View {
+    let item: TransientVideoDiscoveryItem
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -213,13 +213,20 @@ private struct ComicDiscoveryResultRow: View {
                 refererURLString: self.item.detailURL,
                 requestConfig: nil
             )
-            .frame(width: 64, height: 88)
+            .frame(width: 74, height: 74)
             .clipShape(RoundedRectangle(cornerRadius: 8))
 
             VStack(alignment: .leading, spacing: 6) {
-                Text(self.item.title)
-                    .font(.headline)
-                    .lineLimit(2)
+                HStack(spacing: 6) {
+                    Text(self.item.title)
+                        .font(.headline)
+                        .lineLimit(2)
+
+                    Spacer(minLength: 0)
+
+                    Image(systemName: self.item.playbackKind == .directMedia ? "play.circle.fill" : "safari")
+                        .foregroundStyle(.blue)
+                }
 
                 Text(self.item.detailURL)
                     .font(.caption)
@@ -238,8 +245,8 @@ private struct ComicDiscoveryResultRow: View {
     }
 }
 
-private struct ComicDiscoveryDetailView: View {
-    let item: TransientComicDiscoveryItem
+private struct VideoDiscoveryDetailView: View {
+    let item: TransientVideoDiscoveryItem
     @ObservedObject var viewModel: SourcesViewModel
 
     var body: some View {
@@ -250,8 +257,8 @@ private struct ComicDiscoveryDetailView: View {
                     refererURLString: self.item.detailURL,
                     requestConfig: nil
                 )
-                .aspectRatio(0.72, contentMode: .fit)
-                .frame(maxWidth: 180)
+                .aspectRatio(1.45, contentMode: .fit)
+                .frame(maxWidth: 220)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
 
                 Text(self.item.title)
@@ -263,23 +270,40 @@ private struct ComicDiscoveryDetailView: View {
                 }
             }
 
-            Section("Temporary Detail") {
-                LabeledContent("Keyword", value: self.item.matchedKeyword)
-                LabeledContent("Source Page", value: self.item.sourcePageURL)
-
+            Section("Playback") {
                 if let url: URL = URL(string: self.item.detailURL) {
                     NavigationLink {
-                        ComicDiscoveryWebResourceView(
+                        VideoDiscoveryWebPlayerScreen(
                             url: url,
                             title: self.item.title
                         )
                     } label: {
-                        Label("Open Resource", systemImage: "globe")
+                        Label("Open in Web Player", systemImage: "safari")
+                    }
+
+                    if self.item.playbackKind == .directMedia {
+                        NavigationLink {
+                            VideoDiscoveryNativePlayerScreen(
+                                mediaURL: url,
+                                title: self.item.title
+                            )
+                        } label: {
+                            Label("Open in Native Player", systemImage: "play.circle")
+                        }
+                    } else {
+                        Label("Native Player needs a direct mp4/m3u8 URL", systemImage: "info.circle")
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
+
+            Section("Temporary Detail") {
+                LabeledContent("Keyword", value: self.item.matchedKeyword)
+                LabeledContent("Source Page", value: self.item.sourcePageURL)
+                LabeledContent("Playback Type", value: self.item.playbackKind == .directMedia ? "Direct Media" : "Web Page")
+            }
         }
-        .navigationTitle("Comic Detail")
+        .navigationTitle("Video Detail")
         .onAppear {
             self.saveTemporaryHistory()
         }
@@ -293,120 +317,61 @@ private struct ComicDiscoveryDetailView: View {
         self.viewModel.saveTemporaryHistory(
             TemporaryResourceHistory(
                 userID: AppUser.localDefaultID,
-                kind: .comic,
+                kind: .video,
                 title: self.item.title,
                 resourceURL: resourceURL,
                 coverURL: self.item.coverURL.flatMap(URL.init(string:)),
                 sourcePageURL: URL(string: self.item.sourcePageURL),
                 matchedKeyword: self.item.matchedKeyword,
-                videoPlaybackKind: nil,
+                videoPlaybackKind: self.item.playbackKind == .directMedia ? .directMedia : .webPage,
                 visitedAt: Date()
             )
         )
     }
 }
 
-private struct ComicDiscoveryWebResourceView: View {
-    @StateObject private var coordinator: ComicDiscoveryWebResourceCoordinator = ComicDiscoveryWebResourceCoordinator()
+private struct VideoDiscoveryWebPlayerScreen: View {
+    @Environment(\.dismiss) private var dismiss
 
     let url: URL
     let title: String
 
     var body: some View {
-        WebViewReader { proxy in
-            VStack(spacing: 0) {
-                self.toolbar(proxy: proxy)
-
-                ProgressView(value: proxy.estimatedProgress)
-                    .opacity(proxy.isLoading ? 1 : 0.12)
-
-                WebView(configuration: self.coordinator.configuration)
-                    .uiDelegate(self.coordinator)
-                    .navigationDelegate(self.coordinator)
-                    .allowsBackForwardNavigationGestures(true)
-                    .allowsLinkPreview(false)
-                    .contentInsetAdjustmentBehavior(.never)
-                    .refreshable()
-                    .onAppear {
-                        proxy.load(request: URLRequest(url: self.url))
-                    }
-                    .ignoresSafeArea(edges: .bottom)
+        VideoWebPlayerView(
+            request: VideoWebPlayerRequest(url: self.url),
+            title: self.title,
+            controls: {
+                EmptyView()
+            },
+            onClose: {
+                self.dismiss()
             }
-            .background(Color(.systemBackground))
-        }
-        .navigationTitle(self.title)
-        .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private func toolbar(proxy: WebViewProxy) -> some View {
-        HStack(spacing: 12) {
-            Button {
-                proxy.goBack()
-            } label: {
-                Label("Back", systemImage: "chevron.backward")
-                    .labelStyle(.iconOnly)
-            }
-            .disabled(proxy.canGoBack == false)
-
-            Button {
-                proxy.goForward()
-            } label: {
-                Label("Forward", systemImage: "chevron.forward")
-                    .labelStyle(.iconOnly)
-            }
-            .disabled(proxy.canGoForward == false)
-
-            Button {
-                proxy.reload()
-            } label: {
-                Label("Reload", systemImage: "arrow.clockwise")
-                    .labelStyle(.iconOnly)
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(proxy.title?.isEmpty == false ? proxy.title ?? self.title : self.title)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-
-                Text((proxy.url ?? self.url).host() ?? self.url.absoluteString)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .buttonStyle(.borderless)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(.bar)
+        )
+        .navigationBarBackButtonHidden(true)
     }
 }
 
-@MainActor
-private final class ComicDiscoveryWebResourceCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigationDelegate {
-    let configuration: WKWebViewConfiguration
+private struct VideoDiscoveryNativePlayerScreen: View {
+    @Environment(\.dismiss) private var dismiss
 
-    override init() {
-        let configuration: WKWebViewConfiguration = WKWebViewConfiguration()
-        configuration.websiteDataStore = .default()
-        configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
-        self.configuration = configuration
+    let mediaURL: URL
+    let title: String
 
-        super.init()
-    }
-
-    func webView(
-        _ webView: WKWebView,
-        createWebViewWith configuration: WKWebViewConfiguration,
-        for navigationAction: WKNavigationAction,
-        windowFeatures: WKWindowFeatures
-    ) -> WKWebView? {
-        guard navigationAction.targetFrame == nil,
-              let requestURL: URL = navigationAction.request.url else {
-            return nil
-        }
-
-        webView.load(URLRequest(url: requestURL))
-        return nil
+    var body: some View {
+        VideoNativePlayerView(
+            mediaURL: self.mediaURL,
+            requestConfig: nil,
+            title: self.title,
+            controls: {
+                EmptyView()
+            },
+            onProgress: { _, _ in },
+            onReadyToPlay: { _ in },
+            onClose: {
+                self.dismiss()
+            }
+        )
+        .ignoresSafeArea()
+        .navigationBarBackButtonHidden(true)
     }
 }

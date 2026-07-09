@@ -158,11 +158,35 @@ final class AppDatabase {
                 table.uniqueKey(["userID", "sourceID", "workKey"])
             }
 
+            try Self.createTemporaryResourceHistoryTable(in: database)
+
             try Self.insertLocalDefaultUser(in: database)
             try Self.createIndexes(in: database)
         }
 
+        migrator.registerMigration("createTemporaryResourceHistory") { database in
+            try Self.createTemporaryResourceHistoryTable(in: database)
+            try Self.createTemporaryResourceHistoryIndexes(in: database)
+        }
+
         return migrator
+    }
+
+    private static func createTemporaryResourceHistoryTable(in database: Database) throws {
+        try database.create(table: TemporaryResourceHistoryRecord.databaseTableName, ifNotExists: true) { table in
+            table.column("userID", .text)
+                .notNull()
+                .references(AppUserRecord.databaseTableName, column: "id", onDelete: .cascade)
+            table.column("kind", .text).notNull()
+            table.column("title", .text).notNull()
+            table.column("resourceURL", .text).notNull()
+            table.column("coverURL", .text)
+            table.column("sourcePageURL", .text)
+            table.column("matchedKeyword", .text)
+            table.column("videoPlaybackKind", .text)
+            table.column("visitedAt", .datetime).notNull()
+            table.uniqueKey(["userID", "kind", "resourceURL"])
+        }
     }
 
     private static func insertLocalDefaultUser(in database: Database) throws {
@@ -211,6 +235,7 @@ final class AppDatabase {
             ON \(VideoWatchHistoryRecord.databaseTableName)(userID, updatedAt DESC)
             """
         )
+        try Self.createTemporaryResourceHistoryIndexes(in: database)
         try database.execute(
             sql: """
             CREATE INDEX IF NOT EXISTS idx_video_watch_history_detail_url
@@ -245,6 +270,15 @@ final class AppDatabase {
             sql: """
             CREATE INDEX IF NOT EXISTS idx_user_library_state_selected_source
             ON \(UserLibraryStateRecord.databaseTableName)(selectedSourceID)
+            """
+        )
+    }
+
+    private static func createTemporaryResourceHistoryIndexes(in database: Database) throws {
+        try database.execute(
+            sql: """
+            CREATE INDEX IF NOT EXISTS idx_temporary_resource_history_user_visited_at
+            ON \(TemporaryResourceHistoryRecord.databaseTableName)(userID, visitedAt DESC)
             """
         )
     }

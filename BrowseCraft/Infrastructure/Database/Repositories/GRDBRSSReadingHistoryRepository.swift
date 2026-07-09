@@ -32,6 +32,24 @@ final class GRDBRSSReadingHistoryRepository: RSSReadingHistoryRepository {
         }
     }
 
+    func delete(_ history: RSSReadingHistory) throws {
+        let record: RSSReadingHistoryRecord = RSSReadingHistoryRecord(history: history)
+
+        try self.database.queue.write { database in
+            try database.execute(
+                sql: """
+                DELETE FROM \(RSSReadingHistoryRecord.databaseTableName)
+                WHERE userID = ? AND sourceID = ? AND itemID = ?
+                """,
+                arguments: [
+                    record.userID,
+                    record.sourceID,
+                    record.itemID
+                ]
+            )
+        }
+    }
+
     private static func upsert(_ record: RSSReadingHistoryRecord, in database: Database) throws {
         try database.execute(
             sql: """

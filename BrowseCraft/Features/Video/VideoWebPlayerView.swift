@@ -228,15 +228,20 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
     @Published var promptInput: String = ""
 
     let configuration: WKWebViewConfiguration
+    private let initialHost: String?
 
     init(request: VideoWebPlayerRequest) {
         let configuration: WKWebViewConfiguration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .default()
         configuration.allowsInlineMediaPlayback = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
+        configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
+        configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         if let userAgent: String = request.userAgent {
             configuration.applicationNameForUserAgent = userAgent
         }
         self.configuration = configuration
+        self.initialHost = request.url.host?.lowercased()
         super.init()
     }
 
@@ -289,9 +294,24 @@ extension VideoWebPlayerCoordinator: WKUIDelegate {
         for navigationAction: WKNavigationAction,
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
-        if navigationAction.targetFrame == nil,
-           let requestURL: URL = navigationAction.request.url {
-            webView.load(URLRequest(url: requestURL))
+        if navigationAction.targetFrame == nil {
+            guard self.shouldAllowMainFrameNavigation(to: navigationAction.request.url) else {
+                #if DEBUG
+                print(
+                    "[BrowseCraftVideoWebPlayer] block-target-blank " +
+                    "url=\(navigationAction.request.url?.absoluteString ?? "nil")"
+                )
+                #endif
+                return nil
+            }
+
+            #if DEBUG
+            print(
+                "[BrowseCraftVideoWebPlayer] target-blank " +
+                "url=\(navigationAction.request.url?.absoluteString ?? "nil")"
+            )
+            #endif
+            webView.load(navigationAction.request)
         }
         return nil
     }
@@ -341,9 +361,85 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
         }
 
         if ["http", "https", "blob", "file", "about"].contains(scheme) {
+            if navigationAction.targetFrame?.isMainFrame != false,
+               self.shouldAllowMainFrameNavigation(to: navigationAction.request.url) == false {
+                #if DEBUG
+                print(
+                    "[BrowseCraftVideoWebPlayer] block-main-frame " +
+                    "url=\(navigationAction.request.url?.absoluteString ?? "nil")"
+                )
+                #endif
+                return (.cancel, preferences)
+            }
+
+            #if DEBUG
+            if navigationAction.targetFrame == nil {
+                print(
+                    "[BrowseCraftVideoWebPlayer] allow-new-frame " +
+                    "url=\(navigationAction.request.url?.absoluteString ?? "nil")"
+                )
+            }
+            #endif
             return (.allow, preferences)
         }
 
+        #if DEBUG
+        print(
+            "[BrowseCraftVideoWebPlayer] cancel-navigation " +
+            "scheme=\(scheme) url=\(navigationAction.request.url?.absoluteString ?? "nil")"
+        )
+        #endif
         return (.cancel, preferences)
+    }
+
+    private func shouldAllowMainFrameNavigation(to url: URL?) -> Bool {
+        guard let url: URL,
+              let scheme: String = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              let host: String = url.host?.lowercased(),
+              let initialHost: String = self.initialHost else {
+            return true
+        }
+
+        return host == initialHost
+            || host.hasSuffix(".\(initialHost)")
+            || initialHost.hasSuffix(".\(host)")
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        #if DEBUG
+        print(
+            "[BrowseCraftVideoWebPlayer] did-finish " +
+            "url=\(webView.url?.absoluteString ?? "nil") title=\(webView.title ?? "nil")"
+        )
+        #endif
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        #if DEBUG
+        print(
+            "[BrowseCraftVideoWebPlayer] did-fail " +
+            "url=\(webView.url?.absoluteString ?? "nil") error=\(error.localizedDescription)"
+        )
+        #endif
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        #if DEBUG
+        print(
+            "[BrowseCraftVideoWebPlayer] did-fail-provisional " +
+            "url=\(webView.url?.absoluteString ?? "nil") error=\(error.localizedDescription)"
+        )
+        #endif
+    }
+
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        #if DEBUG
+        print(
+            "[BrowseCraftVideoWebPlayer] web-content-terminated " +
+            "url=\(webView.url?.absoluteString ?? "nil")"
+        )
+        #endif
+        webView.reload()
     }
 }

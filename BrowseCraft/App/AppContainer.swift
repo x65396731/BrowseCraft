@@ -106,6 +106,13 @@ final class AppContainer {
             pageContentLoader: self.pageContentLoader,
             urlResolver: self.urlResolver
         )
+        let discoverVideoResourcesUseCase: DiscoverVideoResourcesUseCase = DiscoverVideoResourcesUseCase(
+            pageContentLoader: self.pageContentLoader,
+            urlResolver: self.urlResolver
+        )
+        let saveTemporaryResourceHistoryUseCase: SaveTemporaryResourceHistoryUseCase = SaveTemporaryResourceHistoryUseCase(
+            repository: GRDBTemporaryResourceHistoryRepository(database: self.database)
+        )
         let deleteSourceUseCase: DeleteSourceUseCase = DeleteSourceUseCase(
             sourceRepository: self.sourceRepository
         )
@@ -142,6 +149,8 @@ final class AppContainer {
             addRSSSourceUseCase: addRSSSourceUseCase,
             addVideoSourceUseCase: addVideoSourceUseCase,
             discoverComicResourcesUseCase: discoverComicResourcesUseCase,
+            discoverVideoResourcesUseCase: discoverVideoResourcesUseCase,
+            saveTemporaryResourceHistoryUseCase: saveTemporaryResourceHistoryUseCase,
             addCatalogSourceUseCase: addCatalogSourceUseCase,
             loadCatalogSourcesUseCase: loadCatalogSourcesUseCase,
             deleteSourceUseCase: deleteSourceUseCase,
@@ -378,10 +387,20 @@ final class AppContainer {
         let videoRepository: VideoWatchHistoryRepository = GRDBVideoWatchHistoryRepository(
             database: self.database
         )
+        let temporaryRepository: TemporaryResourceHistoryRepository = GRDBTemporaryResourceHistoryRepository(
+            database: self.database
+        )
         let loadReadingHistoryEntriesUseCase: LoadReadingHistoryEntriesUseCase = LoadReadingHistoryEntriesUseCase(
             rssRepository: rssRepository,
             comicRepository: comicRepository,
-            videoRepository: videoRepository
+            videoRepository: videoRepository,
+            temporaryRepository: temporaryRepository
+        )
+        let deleteReadingHistoryEntryUseCase: DeleteReadingHistoryEntryUseCase = DeleteReadingHistoryEntryUseCase(
+            rssRepository: rssRepository,
+            comicRepository: comicRepository,
+            videoRepository: videoRepository,
+            temporaryRepository: temporaryRepository
         )
         let loadSourcesUseCase: LoadSourcesUseCase = LoadSourcesUseCase(
             sourceRepository: self.sourceRepository
@@ -389,6 +408,7 @@ final class AppContainer {
 
         return HistoryViewModel(
             loadReadingHistoryEntriesUseCase: loadReadingHistoryEntriesUseCase,
+            deleteReadingHistoryEntryUseCase: deleteReadingHistoryEntryUseCase,
             loadSourcesUseCase: loadSourcesUseCase,
             videoPlayerViewModelFactory: { history, source in
                 return self.makeVideoPlayerViewModel(history: history, source: source)

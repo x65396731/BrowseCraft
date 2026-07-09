@@ -80,6 +80,19 @@ struct SaveVideoWatchHistoryUseCase {
     }
 }
 
+/// 中文注释：保存临时资源历史；不绑定 Source，不参与 Source 删除级联。
+struct SaveTemporaryResourceHistoryUseCase {
+    private let repository: TemporaryResourceHistoryRepository
+
+    init(repository: TemporaryResourceHistoryRepository) {
+        self.repository = repository
+    }
+
+    func execute(history: TemporaryResourceHistory) throws {
+        try self.repository.save(history)
+    }
+}
+
 /// 中文注释：读取某一视频单集的观看历史，用于播放器恢复播放时间。
 struct LoadVideoWatchHistoryUseCase {
     private let repository: VideoWatchHistoryRepository
@@ -110,15 +123,18 @@ struct LoadReadingHistoryEntriesUseCase {
     private let rssRepository: RSSReadingHistoryRepository
     private let comicRepository: ComicChapterHistoryRepository
     private let videoRepository: VideoWatchHistoryRepository
+    private let temporaryRepository: TemporaryResourceHistoryRepository
 
     init(
         rssRepository: RSSReadingHistoryRepository,
         comicRepository: ComicChapterHistoryRepository,
-        videoRepository: VideoWatchHistoryRepository
+        videoRepository: VideoWatchHistoryRepository,
+        temporaryRepository: TemporaryResourceHistoryRepository
     ) {
         self.rssRepository = rssRepository
         self.comicRepository = comicRepository
         self.videoRepository = videoRepository
+        self.temporaryRepository = temporaryRepository
     }
 
     func execute(userID: String) throws -> [ReadingHistoryEntry] {
@@ -139,8 +155,13 @@ struct LoadReadingHistoryEntriesUseCase {
             .map { history in
                 return ReadingHistoryEntry(videoHistory: history)
             }
+        let temporaryEntries: [ReadingHistoryEntry] = try self.temporaryRepository
+            .fetchHistory(userID: userID)
+            .map { history in
+                return ReadingHistoryEntry(temporaryHistory: history)
+            }
 
-        return (rssEntries + comicEntries + videoEntries).sorted { lhs, rhs in
+        return (rssEntries + comicEntries + videoEntries + temporaryEntries).sorted { lhs, rhs in
             return lhs.visitedAt > rhs.visitedAt
         }
     }
@@ -169,6 +190,47 @@ struct LoadReadingHistoryEntriesUseCase {
             history.sourceID,
             history.comicItemID
         ].joined(separator: "::")
+    }
+}
+
+/// 中文注释：删除单条历史记录，只影响该记录所在历史表，不删除 Source。
+struct DeleteReadingHistoryEntryUseCase {
+    private let rssRepository: RSSReadingHistoryRepository
+    private let comicRepository: ComicChapterHistoryRepository
+    private let videoRepository: VideoWatchHistoryRepository
+    private let temporaryRepository: TemporaryResourceHistoryRepository
+
+    init(
+        rssRepository: RSSReadingHistoryRepository,
+        comicRepository: ComicChapterHistoryRepository,
+        videoRepository: VideoWatchHistoryRepository,
+        temporaryRepository: TemporaryResourceHistoryRepository
+    ) {
+        self.rssRepository = rssRepository
+        self.comicRepository = comicRepository
+        self.videoRepository = videoRepository
+        self.temporaryRepository = temporaryRepository
+    }
+
+    func execute(_ entry: ReadingHistoryEntry) throws {
+        switch entry.kind {
+        case .rss:
+            if let history: RSSReadingHistory = entry.rssHistory {
+                try self.rssRepository.delete(history)
+            }
+        case .comic:
+            if let history: ComicChapterHistory = entry.comicHistory {
+                try self.comicRepository.delete(history)
+            }
+        case .video:
+            if let history: VideoWatchHistory = entry.videoHistory {
+                try self.videoRepository.delete(history)
+            }
+        case .temporary:
+            if let history: TemporaryResourceHistory = entry.temporaryHistory {
+                try self.temporaryRepository.delete(history)
+            }
+        }
     }
 }
 

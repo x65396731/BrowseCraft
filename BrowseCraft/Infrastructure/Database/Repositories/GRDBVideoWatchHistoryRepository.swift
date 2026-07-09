@@ -33,6 +33,24 @@ final class GRDBVideoWatchHistoryRepository: VideoWatchHistoryRepository {
         }
     }
 
+    func delete(_ history: VideoWatchHistory) throws {
+        let record: VideoWatchHistoryRecord = VideoWatchHistoryRecord(history: history)
+
+        try self.database.queue.write { database in
+            try database.execute(
+                sql: """
+                DELETE FROM \(VideoWatchHistoryRecord.databaseTableName)
+                WHERE userID = ? AND sourceID = ? AND workKey = ?
+                """,
+                arguments: [
+                    record.userID,
+                    record.sourceID,
+                    record.workKey
+                ]
+            )
+        }
+    }
+
     func fetchHistory(
         userID: String,
         sourceID: String,

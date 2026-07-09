@@ -6,4 +6,5 @@ import Foundation
 protocol RSSReadingHistoryRepository {
     func save(_ history: RSSReadingHistory) throws
     func fetchHistory(userID: String) throws -> [RSSReadingHistory]
+    func delete(_ history: RSSReadingHistory) throws
 }

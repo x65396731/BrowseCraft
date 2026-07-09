@@ -6,6 +6,7 @@ import Foundation
 protocol VideoWatchHistoryRepository {
     func save(_ history: VideoWatchHistory) throws
     func fetchHistory(userID: String) throws -> [VideoWatchHistory]
+    func delete(_ history: VideoWatchHistory) throws
     func fetchHistory(
         userID: String,
         sourceID: String,

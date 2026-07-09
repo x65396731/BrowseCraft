@@ -8,6 +8,7 @@ struct ReadingHistoryEntry: Identifiable, Hashable {
         case rss
         case comic
         case video
+        case temporary
     }
 
     var id: String
@@ -20,6 +21,7 @@ struct ReadingHistoryEntry: Identifiable, Hashable {
     var rssHistory: RSSReadingHistory?
     var comicHistory: ComicChapterHistory?
     var videoHistory: VideoWatchHistory?
+    var temporaryHistory: TemporaryResourceHistory?
 
     init(rssHistory: RSSReadingHistory) {
         self.id = "rss::\(rssHistory.id)"
@@ -32,6 +34,7 @@ struct ReadingHistoryEntry: Identifiable, Hashable {
         self.rssHistory = rssHistory
         self.comicHistory = nil
         self.videoHistory = nil
+        self.temporaryHistory = nil
     }
 
     init(comicHistory: ComicChapterHistory) {
@@ -45,6 +48,7 @@ struct ReadingHistoryEntry: Identifiable, Hashable {
         self.rssHistory = nil
         self.comicHistory = comicHistory
         self.videoHistory = nil
+        self.temporaryHistory = nil
     }
 
     init(videoHistory: VideoWatchHistory) {
@@ -58,5 +62,20 @@ struct ReadingHistoryEntry: Identifiable, Hashable {
         self.rssHistory = nil
         self.comicHistory = nil
         self.videoHistory = videoHistory
+        self.temporaryHistory = nil
+    }
+
+    init(temporaryHistory: TemporaryResourceHistory) {
+        self.id = "temporary::\(temporaryHistory.id)"
+        self.kind = .temporary
+        self.userID = temporaryHistory.userID
+        self.sourceID = "temporary"
+        self.title = temporaryHistory.title
+        self.subtitle = temporaryHistory.kind == .video ? "Temporary Video" : "Temporary Comic"
+        self.visitedAt = temporaryHistory.visitedAt
+        self.rssHistory = nil
+        self.comicHistory = nil
+        self.videoHistory = nil
+        self.temporaryHistory = temporaryHistory
     }
 }

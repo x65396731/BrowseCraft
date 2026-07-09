@@ -32,6 +32,25 @@ final class GRDBComicChapterHistoryRepository: ComicChapterHistoryRepository {
         }
     }
 
+    func delete(_ history: ComicChapterHistory) throws {
+        let record: ComicChapterHistoryRecord = ComicChapterHistoryRecord(history: history)
+
+        try self.database.queue.write { database in
+            try database.execute(
+                sql: """
+                DELETE FROM \(ComicChapterHistoryRecord.databaseTableName)
+                WHERE userID = ? AND sourceID = ? AND comicItemID = ? AND chapterKey = ?
+                """,
+                arguments: [
+                    record.userID,
+                    record.sourceID,
+                    record.comicItemID,
+                    record.chapterKey
+                ]
+            )
+        }
+    }
+
     private static func upsert(_ record: ComicChapterHistoryRecord, in database: Database) throws {
         try database.execute(
             sql: """
