@@ -55,8 +55,8 @@ final class GRDBComicChapterHistoryRepository: ComicChapterHistoryRepository {
         try database.execute(
             sql: """
             INSERT INTO \(ComicChapterHistoryRecord.databaseTableName)
-                (userID, sourceID, comicItemID, comicTitle, chapterID, chapterKey, chapterURL, chapterTitle, visitedAt, coverURL, lastReaderPageURL, lastPageImageURL, lastPageImageCacheKey, lastPageIndex, previousChapterURL, nextChapterURL)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (userID, sourceID, comicItemID, comicTitle, chapterID, chapterKey, chapterURL, chapterTitle, visitedAt, coverURL, lastReaderPageURL, lastPageImageURL, lastPageImageCacheKey, lastPageIndex, previousChapterURL, nextChapterURL, sourceSnapshotJSON)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(userID, sourceID, comicItemID, chapterKey) DO UPDATE SET
                 comicTitle = excluded.comicTitle,
                 chapterID = excluded.chapterID,
@@ -69,7 +69,8 @@ final class GRDBComicChapterHistoryRepository: ComicChapterHistoryRepository {
                 lastPageImageCacheKey = excluded.lastPageImageCacheKey,
                 lastPageIndex = excluded.lastPageIndex,
                 previousChapterURL = excluded.previousChapterURL,
-                nextChapterURL = excluded.nextChapterURL
+                nextChapterURL = excluded.nextChapterURL,
+                sourceSnapshotJSON = excluded.sourceSnapshotJSON
             """,
             arguments: [
                 record.userID,
@@ -87,7 +88,8 @@ final class GRDBComicChapterHistoryRepository: ComicChapterHistoryRepository {
                 record.lastPageImageCacheKey,
                 record.lastPageIndex,
                 record.previousChapterURL,
-                record.nextChapterURL
+                record.nextChapterURL,
+                record.sourceSnapshotJSON
             ]
         )
     }

@@ -65,6 +65,42 @@ struct Source: Identifiable, Hashable {
     }
 }
 
+// 中文注释：SourceSnapshot 保存脱离 sources 表后仍可恢复运行所需的来源配置快照。
+struct SourceSnapshot: Hashable, Codable {
+    var id: String
+    var name: String
+    var baseURL: String
+    var type: SourceType
+    var configuration: SourceConfiguration
+    var enabled: Bool
+    var createdAt: Date
+    var updatedAt: Date
+
+    init(source: Source) {
+        self.id = source.id
+        self.name = source.name
+        self.baseURL = source.baseURL
+        self.type = source.type
+        self.configuration = source.configuration
+        self.enabled = source.enabled
+        self.createdAt = source.createdAt
+        self.updatedAt = source.updatedAt
+    }
+
+    func source() -> Source {
+        return Source(
+            id: self.id,
+            name: self.name,
+            baseURL: self.baseURL,
+            type: self.type,
+            configuration: self.configuration,
+            enabled: self.enabled,
+            createdAt: self.createdAt,
+            updatedAt: self.updatedAt
+        )
+    }
+}
+
 extension Source {
     var comicConfiguration: ComicSourceConfiguration? {
         guard case .comic(let configuration) = self.configuration else {

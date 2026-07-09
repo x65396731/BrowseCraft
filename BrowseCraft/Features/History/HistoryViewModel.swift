@@ -49,9 +49,17 @@ final class HistoryViewModel: ObservableObject {
         }
     }
 
+    func source(for history: ComicChapterHistory) -> Source? {
+        return self.source(for: history.sourceID) ?? history.fallbackSource()
+    }
+
+    func source(for history: VideoWatchHistory) -> Source? {
+        return self.source(for: history.sourceID) ?? history.fallbackSource()
+    }
+
     @MainActor
     func openVideoHistory(_ history: VideoWatchHistory) {
-        guard let source: Source = self.source(for: history.sourceID) else {
+        guard let source: Source = self.source(for: history) else {
             self.errorMessage = "Missing video source."
             return
         }

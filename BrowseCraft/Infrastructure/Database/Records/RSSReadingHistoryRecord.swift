@@ -18,6 +18,7 @@ struct RSSReadingHistoryRecord: Codable, FetchableRecord, MutablePersistableReco
     var detailURL: String?
     var sourceName: String?
     var originFeedURL: String?
+    var sourceSnapshotJSON: String?
 
     init(history: RSSReadingHistory) {
         self.userID = history.userID
@@ -31,6 +32,7 @@ struct RSSReadingHistoryRecord: Codable, FetchableRecord, MutablePersistableReco
         self.detailURL = history.detailURL?.absoluteString
         self.sourceName = history.sourceName
         self.originFeedURL = history.originFeedURL?.absoluteString
+        self.sourceSnapshotJSON = Self.encodeSourceSnapshot(history.sourceSnapshot)
     }
 
     func domainModel() -> RSSReadingHistory {
@@ -45,7 +47,8 @@ struct RSSReadingHistoryRecord: Codable, FetchableRecord, MutablePersistableReco
             visitedAt: self.visitedAt,
             detailURL: self.detailURL.flatMap(URL.init(string:)),
             sourceName: self.sourceName,
-            originFeedURL: self.originFeedURL.flatMap(URL.init(string:))
+            originFeedURL: self.originFeedURL.flatMap(URL.init(string:)),
+            sourceSnapshot: Self.decodeSourceSnapshot(self.sourceSnapshotJSON)
         )
     }
 
@@ -60,5 +63,23 @@ struct RSSReadingHistoryRecord: Codable, FetchableRecord, MutablePersistableReco
         }
 
         return "title::\(history.title)"
+    }
+
+    private static func encodeSourceSnapshot(_ snapshot: SourceSnapshot?) -> String? {
+        guard let snapshot: SourceSnapshot = snapshot,
+              let data: Data = try? JSONEncoder().encode(snapshot) else {
+            return nil
+        }
+
+        return String(data: data, encoding: .utf8)
+    }
+
+    private static func decodeSourceSnapshot(_ json: String?) -> SourceSnapshot? {
+        guard let json: String = json,
+              let data: Data = json.data(using: .utf8) else {
+            return nil
+        }
+
+        return try? JSONDecoder().decode(SourceSnapshot.self, from: data)
     }
 }

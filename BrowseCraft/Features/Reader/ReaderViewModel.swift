@@ -360,7 +360,8 @@ final class ReaderViewModel: ObservableObject {
             lastPageImageCacheKey: nil,
             lastPageIndex: self.currentPageIndex ?? (chapter.pageImageURLs.isEmpty ? nil : 0),
             previousChapterURL: chapter.previousChapterURL.flatMap(URL.init(string:)),
-            nextChapterURL: chapter.nextChapterURL.flatMap(URL.init(string:))
+            nextChapterURL: chapter.nextChapterURL.flatMap(URL.init(string:)),
+            sourceSnapshot: SourceSnapshot(source: self.source)
         )
     }
 

@@ -94,6 +94,7 @@ final class AppDatabase {
                 table.column("detailURL", .text)
                 table.column("sourceName", .text)
                 table.column("originFeedURL", .text)
+                table.column("sourceSnapshotJSON", .text)
                 table.uniqueKey(["userID", "sourceID", "itemID"])
             }
 
@@ -116,6 +117,7 @@ final class AppDatabase {
                 table.column("lastPageIndex", .integer)
                 table.column("previousChapterURL", .text)
                 table.column("nextChapterURL", .text)
+                table.column("sourceSnapshotJSON", .text)
                 table.uniqueKey(["userID", "sourceID", "comicItemID", "chapterKey"])
             }
 
@@ -155,6 +157,7 @@ final class AppDatabase {
                 table.column("updatedAt", .datetime).notNull()
                 table.column("previousEpisodeURL", .text)
                 table.column("nextEpisodeURL", .text)
+                table.column("sourceSnapshotJSON", .text)
                 table.uniqueKey(["userID", "sourceID", "workKey"])
             }
 

@@ -15,7 +15,7 @@ target 'BrowseCraft' do
   end
 
   target 'BrowseCraftUITests' do
-    inherit! :search_paths
+    # UI tests launch the app bundle and do not import app Pods directly.
   end
 end
 

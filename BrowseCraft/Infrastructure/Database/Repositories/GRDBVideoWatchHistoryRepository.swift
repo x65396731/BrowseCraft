@@ -119,8 +119,8 @@ final class GRDBVideoWatchHistoryRepository: VideoWatchHistoryRepository {
         try database.execute(
             sql: """
             INSERT INTO \(VideoWatchHistoryRecord.databaseTableName)
-                (userID, sourceID, vodID, workKey, videoTitle, episodeTitle, episodeKey, sourceIndex, episodeIndex, detailURL, playPageURL, candidateMediaURL, candidateMediaKind, playbackStatusJSON, playbackRequestConfigJSON, coverURL, sourceName, lastPlaybackTime, duration, visitedAt, updatedAt, previousEpisodeURL, nextEpisodeURL)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (userID, sourceID, vodID, workKey, videoTitle, episodeTitle, episodeKey, sourceIndex, episodeIndex, detailURL, playPageURL, candidateMediaURL, candidateMediaKind, playbackStatusJSON, playbackRequestConfigJSON, coverURL, sourceName, lastPlaybackTime, duration, visitedAt, updatedAt, previousEpisodeURL, nextEpisodeURL, sourceSnapshotJSON)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(userID, sourceID, workKey) DO UPDATE SET
                 vodID = excluded.vodID,
                 videoTitle = excluded.videoTitle,
@@ -141,7 +141,8 @@ final class GRDBVideoWatchHistoryRepository: VideoWatchHistoryRepository {
                 visitedAt = excluded.visitedAt,
                 updatedAt = excluded.updatedAt,
                 previousEpisodeURL = excluded.previousEpisodeURL,
-                nextEpisodeURL = excluded.nextEpisodeURL
+                nextEpisodeURL = excluded.nextEpisodeURL,
+                sourceSnapshotJSON = excluded.sourceSnapshotJSON
             """,
             arguments: [
                 record.userID,
@@ -166,7 +167,8 @@ final class GRDBVideoWatchHistoryRepository: VideoWatchHistoryRepository {
                 record.visitedAt,
                 record.updatedAt,
                 record.previousEpisodeURL,
-                record.nextEpisodeURL
+                record.nextEpisodeURL,
+                record.sourceSnapshotJSON
             ]
         )
     }

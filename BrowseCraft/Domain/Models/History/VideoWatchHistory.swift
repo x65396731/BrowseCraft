@@ -37,6 +37,7 @@ struct VideoWatchHistory: Identifiable, Hashable {
     var updatedAt: Date
     var previousEpisodeURL: URL?
     var nextEpisodeURL: URL?
+    var sourceSnapshot: SourceSnapshot? = nil
 
     var workHistoryKey: String {
         let trimmedVodID: String = self.vodID.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -72,5 +73,9 @@ struct VideoWatchHistory: Identifiable, Hashable {
             sourceName: self.sourceName ?? defaultSourceName,
             status: self.playbackStatus
         )
+    }
+
+    func fallbackSource() -> Source? {
+        return self.sourceSnapshot?.source()
     }
 }

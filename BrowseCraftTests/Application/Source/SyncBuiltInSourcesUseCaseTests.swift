@@ -46,6 +46,9 @@ struct SyncBuiltInSourcesUseCaseTests {
 
         try SyncBuiltInSourcesUseCase(
             sourceRepository: repository,
+            catalogSources: [
+                Self.arteCatalogSource()
+            ],
             now: {
                 return Date(timeIntervalSince1970: 30)
             }
@@ -67,6 +70,40 @@ struct SyncBuiltInSourcesUseCaseTests {
         #expect(
             configuration.definition.sharedRequest?.imageRequest?.headers?["Accept"] ==
                 "image/jpeg,image/png,image/*;q=0.8,*/*;q=0.5"
+        )
+    }
+
+    private static func arteCatalogSource() -> BrowseCraftCatalogSource {
+        return BrowseCraftCatalogSource(
+            id: "catalog.video.arte",
+            name: "ARTE Videos",
+            baseURL: "https://www.arte.tv/",
+            kind: .video,
+            ruleJSON: """
+            {
+              "adapter": "genericHTML",
+              "entryURL": "https://www.arte.tv/en/videos/",
+              "entryKind": "list",
+              "playbackPolicy": "playPageFirst",
+              "sharedRequest": {
+                "needsWebView": true,
+                "autoScroll": true,
+                "imageRequest": {
+                  "headers": {
+                    "Accept": "image/jpeg,image/png,image/*;q=0.8,*/*;q=0.5"
+                  }
+                }
+              },
+              "requiresAccount": false,
+              "listTabs": [
+                {
+                  "id": "video.arte.videos",
+                  "title": "Videos",
+                  "url": "https://www.arte.tv/en/videos/"
+                }
+              ]
+            }
+            """
         )
     }
 }

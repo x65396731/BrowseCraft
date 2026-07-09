@@ -24,4 +24,9 @@ struct RSSReadingHistory: Identifiable, Hashable {
     var detailURL: URL?
     var sourceName: String?
     var originFeedURL: URL?
+    var sourceSnapshot: SourceSnapshot? = nil
+
+    func fallbackSource() -> Source? {
+        return self.sourceSnapshot?.source()
+    }
 }

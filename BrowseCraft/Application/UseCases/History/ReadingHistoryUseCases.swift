@@ -73,7 +73,8 @@ struct SaveVideoWatchHistoryUseCase {
             visitedAt: visitedAt,
             updatedAt: visitedAt,
             previousEpisodeURL: reference.previousEpisodeURL,
-            nextEpisodeURL: reference.nextEpisodeURL
+            nextEpisodeURL: reference.nextEpisodeURL,
+            sourceSnapshot: SourceSnapshot(source: source)
         )
 
         try self.execute(history: history)

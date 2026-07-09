@@ -23,6 +23,7 @@ struct ComicChapterHistoryRecord: Codable, FetchableRecord, MutablePersistableRe
     var lastPageIndex: Int?
     var previousChapterURL: String?
     var nextChapterURL: String?
+    var sourceSnapshotJSON: String?
 
     init(history: ComicChapterHistory) {
         self.userID = history.userID
@@ -41,6 +42,7 @@ struct ComicChapterHistoryRecord: Codable, FetchableRecord, MutablePersistableRe
         self.lastPageIndex = history.lastPageIndex
         self.previousChapterURL = history.previousChapterURL?.absoluteString
         self.nextChapterURL = history.nextChapterURL?.absoluteString
+        self.sourceSnapshotJSON = Self.encodeSourceSnapshot(history.sourceSnapshot)
     }
 
     func domainModel() -> ComicChapterHistory {
@@ -60,7 +62,26 @@ struct ComicChapterHistoryRecord: Codable, FetchableRecord, MutablePersistableRe
             lastPageImageCacheKey: self.lastPageImageCacheKey,
             lastPageIndex: self.lastPageIndex,
             previousChapterURL: self.previousChapterURL.flatMap(URL.init(string:)),
-            nextChapterURL: self.nextChapterURL.flatMap(URL.init(string:))
+            nextChapterURL: self.nextChapterURL.flatMap(URL.init(string:)),
+            sourceSnapshot: Self.decodeSourceSnapshot(self.sourceSnapshotJSON)
         )
+    }
+
+    private static func encodeSourceSnapshot(_ snapshot: SourceSnapshot?) -> String? {
+        guard let snapshot: SourceSnapshot = snapshot,
+              let data: Data = try? JSONEncoder().encode(snapshot) else {
+            return nil
+        }
+
+        return String(data: data, encoding: .utf8)
+    }
+
+    private static func decodeSourceSnapshot(_ json: String?) -> SourceSnapshot? {
+        guard let json: String = json,
+              let data: Data = json.data(using: .utf8) else {
+            return nil
+        }
+
+        return try? JSONDecoder().decode(SourceSnapshot.self, from: data)
     }
 }

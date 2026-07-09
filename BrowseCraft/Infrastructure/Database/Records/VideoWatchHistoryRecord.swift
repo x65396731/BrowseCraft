@@ -30,6 +30,7 @@ struct VideoWatchHistoryRecord: Codable, FetchableRecord, MutablePersistableReco
     var updatedAt: Date
     var previousEpisodeURL: String?
     var nextEpisodeURL: String?
+    var sourceSnapshotJSON: String?
 
     init(history: VideoWatchHistory) {
         self.userID = history.userID
@@ -55,6 +56,7 @@ struct VideoWatchHistoryRecord: Codable, FetchableRecord, MutablePersistableReco
         self.updatedAt = history.updatedAt
         self.previousEpisodeURL = history.previousEpisodeURL?.absoluteString
         self.nextEpisodeURL = history.nextEpisodeURL?.absoluteString
+        self.sourceSnapshotJSON = Self.encodeSourceSnapshot(history.sourceSnapshot)
     }
 
     func domainModel() -> VideoWatchHistory {
@@ -80,7 +82,8 @@ struct VideoWatchHistoryRecord: Codable, FetchableRecord, MutablePersistableReco
             visitedAt: self.visitedAt,
             updatedAt: self.updatedAt,
             previousEpisodeURL: self.previousEpisodeURL.flatMap(URL.init(string:)),
-            nextEpisodeURL: self.nextEpisodeURL.flatMap(URL.init(string:))
+            nextEpisodeURL: self.nextEpisodeURL.flatMap(URL.init(string:)),
+            sourceSnapshot: Self.decodeSourceSnapshot(self.sourceSnapshotJSON)
         )
     }
 
@@ -140,5 +143,23 @@ struct VideoWatchHistoryRecord: Codable, FetchableRecord, MutablePersistableReco
         }
 
         return "title::\(history.videoTitle)"
+    }
+
+    private static func encodeSourceSnapshot(_ snapshot: SourceSnapshot?) -> String? {
+        guard let snapshot: SourceSnapshot = snapshot,
+              let data: Data = try? JSONEncoder().encode(snapshot) else {
+            return nil
+        }
+
+        return String(data: data, encoding: .utf8)
+    }
+
+    private static func decodeSourceSnapshot(_ json: String?) -> SourceSnapshot? {
+        guard let json: String = json,
+              let data: Data = json.data(using: .utf8) else {
+            return nil
+        }
+
+        return try? JSONDecoder().decode(SourceSnapshot.self, from: data)
     }
 }

@@ -54,8 +54,8 @@ final class GRDBRSSReadingHistoryRepository: RSSReadingHistoryRepository {
         try database.execute(
             sql: """
             INSERT INTO \(RSSReadingHistoryRecord.databaseTableName)
-                (userID, sourceID, itemID, dataType, title, dataContent, dataTime, visitedAt, detailURL, sourceName, originFeedURL)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (userID, sourceID, itemID, dataType, title, dataContent, dataTime, visitedAt, detailURL, sourceName, originFeedURL, sourceSnapshotJSON)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(userID, sourceID, itemID) DO UPDATE SET
                 dataType = excluded.dataType,
                 title = excluded.title,
@@ -64,7 +64,8 @@ final class GRDBRSSReadingHistoryRepository: RSSReadingHistoryRepository {
                 visitedAt = excluded.visitedAt,
                 detailURL = excluded.detailURL,
                 sourceName = excluded.sourceName,
-                originFeedURL = excluded.originFeedURL
+                originFeedURL = excluded.originFeedURL,
+                sourceSnapshotJSON = excluded.sourceSnapshotJSON
             """,
             arguments: [
                 record.userID,
@@ -77,7 +78,8 @@ final class GRDBRSSReadingHistoryRepository: RSSReadingHistoryRepository {
                 record.visitedAt,
                 record.detailURL,
                 record.sourceName,
-                record.originFeedURL
+                record.originFeedURL,
+                record.sourceSnapshotJSON
             ]
         )
     }

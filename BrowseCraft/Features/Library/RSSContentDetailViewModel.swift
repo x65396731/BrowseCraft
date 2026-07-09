@@ -90,7 +90,8 @@ final class RSSContentDetailViewModel: ObservableObject {
             visitedAt: timestamp,
             detailURL: URL(string: self.item.detailURL),
             sourceName: self.source.name,
-            originFeedURL: self.originFeedURL()
+            originFeedURL: self.originFeedURL(),
+            sourceSnapshot: SourceSnapshot(source: self.source)
         )
     }
 

@@ -306,11 +306,16 @@ private struct ComicDiscoveryDetailView: View {
     }
 }
 
-private struct ComicDiscoveryWebResourceView: View {
+struct ComicDiscoveryWebResourceView: View {
     @StateObject private var coordinator: ComicDiscoveryWebResourceCoordinator = ComicDiscoveryWebResourceCoordinator()
 
     let url: URL
     let title: String
+
+    init(url: URL, title: String) {
+        self.url = url
+        self.title = title
+    }
 
     var body: some View {
         WebViewReader { proxy in

@@ -82,7 +82,7 @@ struct HistoryView: View {
             }
         case .comic:
             if let history: ComicChapterHistory = entry.comicHistory,
-               let source: Source = self.viewModel.source(for: history.sourceID),
+               let source: Source = self.viewModel.source(for: history),
                history.lastReaderPageURL != nil || history.chapterURL != nil {
                 ReaderView(viewModel: self.readerViewModelFactory(history, source))
             } else {
@@ -233,7 +233,12 @@ private struct TemporaryHistoryDetailView: View {
                         }
                     }
                 } else {
-                    Link(destination: self.history.resourceURL) {
+                    NavigationLink {
+                        ComicDiscoveryWebResourceView(
+                            url: self.history.resourceURL,
+                            title: self.history.title
+                        )
+                    } label: {
                         Label("Open Resource", systemImage: "globe")
                     }
                 }
