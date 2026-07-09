@@ -8,6 +8,7 @@ final class VideoPlayerViewModel: ObservableObject {
     @Published private(set) var duration: TimeInterval?
     @Published private(set) var isPrepared: Bool = false
     @Published private(set) var isLoadingEpisodeSwitch: Bool = false
+    @Published private(set) var shouldPlayAd: Bool = false
     @Published var errorMessage: String?
 
     let source: Source
@@ -18,12 +19,15 @@ final class VideoPlayerViewModel: ObservableObject {
 
     private let saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase
     private let loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase
+    private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
     private let runtimeResolver: any SourceRuntimeResolving
     private let userID: String
     private let now: () -> Date
     private var autosaveTask: Task<Void, Never>?
     private var didSeekToRestoredTime: Bool = false
     private var lastSavedPlaybackTime: TimeInterval?
+    private var lastVideoAdPointCheckAt: Date?
+    private var accumulatedVideoAdPointInterval: TimeInterval = 0
 
     init(
         source: Source,
@@ -33,6 +37,7 @@ final class VideoPlayerViewModel: ObservableObject {
         coverURL: URL?,
         saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase,
         loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase,
+        accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil,
         runtimeResolver: any SourceRuntimeResolving,
         userID: String = AppUser.localDefaultID,
         now: @escaping () -> Date = Date.init
@@ -44,6 +49,7 @@ final class VideoPlayerViewModel: ObservableObject {
         self.coverURL = coverURL
         self.saveVideoWatchHistoryUseCase = saveVideoWatchHistoryUseCase
         self.loadVideoWatchHistoryUseCase = loadVideoWatchHistoryUseCase
+        self.accumulateAdPointsUseCase = accumulateAdPointsUseCase
         self.runtimeResolver = runtimeResolver
         self.userID = userID
         self.now = now
@@ -137,6 +143,7 @@ final class VideoPlayerViewModel: ObservableObject {
             }
 
             self.saveCurrentProgress(force: true)
+            self.startAutosaveIfNeeded()
         } catch {
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
@@ -168,7 +175,12 @@ final class VideoPlayerViewModel: ObservableObject {
     func saveOnDisappear() {
         self.autosaveTask?.cancel()
         self.autosaveTask = nil
+        self.resetVideoAdPointTimer()
         self.saveCurrentProgress(force: true)
+    }
+
+    func markAdPlaybackHandled() {
+        self.shouldPlayAd = false
     }
 
     func openPreviousEpisode() async {
@@ -214,6 +226,7 @@ final class VideoPlayerViewModel: ObservableObject {
             self.isPrepared = false
             self.didSeekToRestoredTime = false
             self.lastSavedPlaybackTime = nil
+            self.resetVideoAdPointTimer()
             self.prepareForPlayback()
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-episode-switch-error")
@@ -240,12 +253,18 @@ final class VideoPlayerViewModel: ObservableObject {
             return
         }
 
+        self.lastVideoAdPointCheckAt = self.now()
         self.autosaveTask = Task { [weak self] in
             while Task.isCancelled == false {
-                try? await Task.sleep(nanoseconds: 30_000_000_000)
-                self?.saveCurrentProgress(force: false)
+                try? await Task.sleep(nanoseconds: Self.autosaveIntervalNanoseconds)
+                self?.handleAutosaveTick()
             }
         }
+    }
+
+    private func handleAutosaveTick() {
+        self.saveCurrentProgress(force: false)
+        self.accumulateVideoAdPointsIfNeeded()
     }
 
     private func saveCurrentProgress(force: Bool) {
@@ -270,6 +289,59 @@ final class VideoPlayerViewModel: ObservableObject {
             self.lastSavedPlaybackTime = self.currentPlaybackTime
         } catch {
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+        }
+    }
+
+    private func accumulateVideoAdPointsIfNeeded() {
+        let currentDate: Date = self.now()
+        guard let lastVideoAdPointCheckAt: Date = self.lastVideoAdPointCheckAt else {
+            self.lastVideoAdPointCheckAt = currentDate
+            return
+        }
+
+        let elapsed: TimeInterval = currentDate.timeIntervalSince(lastVideoAdPointCheckAt)
+        guard elapsed > 0 else {
+            return
+        }
+
+        self.lastVideoAdPointCheckAt = currentDate
+        self.accumulatedVideoAdPointInterval += elapsed
+        guard self.accumulatedVideoAdPointInterval >= Self.videoAdPointInterval else {
+            return
+        }
+
+        self.accumulatedVideoAdPointInterval -= Self.videoAdPointInterval
+        self.accumulateAdPoints(points: AdPointRule.videoPoints)
+    }
+
+    private func resetVideoAdPointTimer() {
+        self.lastVideoAdPointCheckAt = nil
+        self.accumulatedVideoAdPointInterval = 0
+    }
+
+    private func accumulateAdPoints(points: Int) {
+        guard let accumulateAdPointsUseCase: AccumulateAdPointsUseCase = self.accumulateAdPointsUseCase else {
+            return
+        }
+
+        do {
+            let result: AdPointAccumulationResult = try accumulateAdPointsUseCase.execute(
+                userID: self.userID,
+                points: points
+            )
+            if result.shouldPlayAd {
+                self.shouldPlayAd = true
+            }
+        } catch {
+            #if DEBUG
+            print(
+                "[BrowseCraftAdPoints] video accumulate failed " +
+                "sourceID=\(self.source.id) " +
+                "vodID=\(self.reference.vodID) " +
+                "episodeKey=\(self.reference.episodeKey) " +
+                "error=\(error)"
+            )
+            #endif
         }
     }
 
@@ -302,6 +374,9 @@ final class VideoPlayerViewModel: ObservableObject {
             return "The iframe player redirected in a loop."
         }
     }
+
+    private static let autosaveIntervalNanoseconds: UInt64 = 30_000_000_000
+    private static let videoAdPointInterval: TimeInterval = 600
 }
 
 enum VideoPlaybackDestination: Equatable {

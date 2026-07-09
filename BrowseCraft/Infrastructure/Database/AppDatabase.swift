@@ -74,6 +74,8 @@ final class AppDatabase {
             try database.create(table: AppUserRecord.databaseTableName, ifNotExists: true) { table in
                 table.column("id", .text).primaryKey()
                 table.column("displayName", .text)
+                table.column("hasRemovedAds", .boolean).notNull().defaults(to: false)
+                table.column("pendingAdPoints", .integer).notNull().defaults(to: 0)
                 table.column("createdAt", .datetime).notNull()
                 table.column("updatedAt", .datetime).notNull()
             }
@@ -169,12 +171,14 @@ final class AppDatabase {
         try database.execute(
             sql: """
             INSERT OR IGNORE INTO \(AppUserRecord.databaseTableName)
-                (id, displayName, createdAt, updatedAt)
-            VALUES (?, ?, ?, ?)
+                (id, displayName, hasRemovedAds, pendingAdPoints, createdAt, updatedAt)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
             arguments: [
                 AppUser.localDefaultID,
                 "Local Default",
+                false,
+                0,
                 now,
                 now
             ]

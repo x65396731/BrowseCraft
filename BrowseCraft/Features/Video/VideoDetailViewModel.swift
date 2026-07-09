@@ -24,19 +24,22 @@ final class VideoDetailViewModel: ObservableObject {
     private let runtimeResolver: any SourceRuntimeResolving
     private let saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase
     private let loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase
+    private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
 
     init(
         item: ContentItem,
         source: Source,
         runtimeResolver: any SourceRuntimeResolving,
         saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase,
-        loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase
+        loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase,
+        accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil
     ) {
         self.item = item
         self.source = source
         self.runtimeResolver = runtimeResolver
         self.saveVideoWatchHistoryUseCase = saveVideoWatchHistoryUseCase
         self.loadVideoWatchHistoryUseCase = loadVideoWatchHistoryUseCase
+        self.accumulateAdPointsUseCase = accumulateAdPointsUseCase
 
         #if DEBUG
         print(
@@ -170,6 +173,7 @@ final class VideoDetailViewModel: ObservableObject {
                 coverURL: self.coverURL,
                 saveVideoWatchHistoryUseCase: self.saveVideoWatchHistoryUseCase,
                 loadVideoWatchHistoryUseCase: self.loadVideoWatchHistoryUseCase,
+                accumulateAdPointsUseCase: self.accumulateAdPointsUseCase,
                 runtimeResolver: self.runtimeResolver
             )
             self.playbackRoute = VideoPlaybackRoute(

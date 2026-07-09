@@ -8,6 +8,8 @@ struct AppUser: Identifiable, Hashable {
 
     var id: String
     var displayName: String?
+    var hasRemovedAds: Bool
+    var pendingAdPoints: Int
     var createdAt: Date
     var updatedAt: Date
 }

@@ -22,6 +22,7 @@ final class ReaderViewModel: ObservableObject {
     @Published private(set) var currentPageIndex: Int?
     @Published private(set) var currentPageImageURL: URL?
     @Published private(set) var pendingRestorePageIndex: Int?
+    @Published private(set) var shouldPlayAd: Bool = false
     /// 中文注释：记录最近一次章节切换方向，让 View 在新章节加载完成后决定是否需要调整滚动位置。
     @Published private(set) var pendingChapterNavigationDirection: ReaderChapterNavigationDirection?
     @Published var errorMessage: String?
@@ -33,6 +34,7 @@ final class ReaderViewModel: ObservableObject {
     private let loadReaderChapterUseCase: LoadReaderChapterUseCase
     private let resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
     private let saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase?
+    private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
     private let now: () -> Date
     private var savedChapterHistoryKeys: Set<String> = []
 
@@ -44,6 +46,7 @@ final class ReaderViewModel: ObservableObject {
         loadReaderChapterUseCase: LoadReaderChapterUseCase,
         resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase,
         saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase? = nil,
+        accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil,
         now: @escaping () -> Date = Date.init
     ) {
         self.item = item
@@ -53,6 +56,7 @@ final class ReaderViewModel: ObservableObject {
         self.loadReaderChapterUseCase = loadReaderChapterUseCase
         self.resolveReaderSourcePresentationUseCase = resolveReaderSourcePresentationUseCase
         self.saveComicChapterHistoryUseCase = saveComicChapterHistoryUseCase
+        self.accumulateAdPointsUseCase = accumulateAdPointsUseCase
         self.now = now
         self.currentPageIndex = restoreContext?.lastPageIndex
         self.currentPageImageURL = restoreContext?.lastPageImageURLString.flatMap(URL.init(string:))
@@ -158,7 +162,8 @@ final class ReaderViewModel: ObservableObject {
             chapter: chapter,
             chapterKey: self.chapterKey(for: chapter),
             reason: reason,
-            shouldSkipIfSaved: false
+            shouldSkipIfSaved: false,
+            shouldAccumulateAdPoints: false
         )
     }
 
@@ -170,6 +175,11 @@ final class ReaderViewModel: ObservableObject {
     @MainActor
     func markChapterNavigationScrollHandled() {
         self.pendingChapterNavigationDirection = nil
+    }
+
+    @MainActor
+    func markAdPlaybackHandled() {
+        self.shouldPlayAd = false
     }
 
     @MainActor
@@ -234,7 +244,8 @@ final class ReaderViewModel: ObservableObject {
             chapter: chapter,
             chapterKey: self.chapterKey(for: chapter),
             reason: "initial-chapter-load",
-            shouldSkipIfSaved: false
+            shouldSkipIfSaved: false,
+            shouldAccumulateAdPoints: true
         )
     }
 
@@ -242,7 +253,8 @@ final class ReaderViewModel: ObservableObject {
         chapter: ReaderChapter,
         chapterKey: String,
         reason: String,
-        shouldSkipIfSaved: Bool
+        shouldSkipIfSaved: Bool,
+        shouldAccumulateAdPoints: Bool
     ) {
         guard let saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase = self.saveComicChapterHistoryUseCase else {
             return
@@ -259,6 +271,9 @@ final class ReaderViewModel: ObservableObject {
             try saveComicChapterHistoryUseCase.execute(
                 history: self.comicChapterHistory(chapter: chapter, chapterKey: chapterKey)
             )
+            if shouldAccumulateAdPoints {
+                self.accumulateAdPoints(points: AdPointRule.comicPoints, chapterKey: chapterKey)
+            }
             #if DEBUG
             print(
                 "[BrowseCraftComicHistory] saved " +
@@ -274,6 +289,29 @@ final class ReaderViewModel: ObservableObject {
             print(
                 "[BrowseCraftComicHistory] save failed " +
                 "reason=\(reason) " +
+                "sourceID=\(self.source.id) " +
+                "comicItemID=\(self.item.id) " +
+                "chapterKey=\(chapterKey) " +
+                "error=\(error)"
+            )
+            #endif
+        }
+    }
+
+    private func accumulateAdPoints(points: Int, chapterKey: String) {
+        guard let accumulateAdPointsUseCase: AccumulateAdPointsUseCase = self.accumulateAdPointsUseCase else {
+            return
+        }
+
+        do {
+            let result: AdPointAccumulationResult = try accumulateAdPointsUseCase.execute(points: points)
+            if result.shouldPlayAd {
+                self.shouldPlayAd = true
+            }
+        } catch {
+            #if DEBUG
+            print(
+                "[BrowseCraftAdPoints] comic accumulate failed " +
                 "sourceID=\(self.source.id) " +
                 "comicItemID=\(self.item.id) " +
                 "chapterKey=\(chapterKey) " +

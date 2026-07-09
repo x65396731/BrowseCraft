@@ -6,10 +6,13 @@ import Foundation
 /// 中文注释：RSS 阅读历史保存放在 ViewModel，View 只负责展示与触发生命周期。
 @MainActor
 final class RSSContentDetailViewModel: ObservableObject {
+    @Published private(set) var shouldPlayAd: Bool = false
+
     let item: ContentItem
     let source: Source
 
     private let saveRSSReadingHistoryUseCase: SaveRSSReadingHistoryUseCase
+    private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
     private let now: () -> Date
     private var didSaveReadingHistory: Bool = false
 
@@ -17,11 +20,13 @@ final class RSSContentDetailViewModel: ObservableObject {
         item: ContentItem,
         source: Source,
         saveRSSReadingHistoryUseCase: SaveRSSReadingHistoryUseCase,
+        accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil,
         now: @escaping () -> Date = Date.init
     ) {
         self.item = item
         self.source = source
         self.saveRSSReadingHistoryUseCase = saveRSSReadingHistoryUseCase
+        self.accumulateAdPointsUseCase = accumulateAdPointsUseCase
         self.now = now
     }
 
@@ -40,6 +45,7 @@ final class RSSContentDetailViewModel: ObservableObject {
             try self.saveRSSReadingHistoryUseCase.execute(
                 history: self.readingHistory()
             )
+            self.accumulateAdPoints(points: AdPointRule.rssPoints)
             #if DEBUG
             print(
                 "[BrowseCraftRSSHistory] saved " +
@@ -58,6 +64,10 @@ final class RSSContentDetailViewModel: ObservableObject {
             )
             #endif
         }
+    }
+
+    func markAdPlaybackHandled() {
+        self.shouldPlayAd = false
     }
 
     private func readingHistory() -> RSSReadingHistory {
@@ -92,5 +102,27 @@ final class RSSContentDetailViewModel: ObservableObject {
         }
 
         return configuration.definition.feedURL
+    }
+
+    private func accumulateAdPoints(points: Int) {
+        guard let accumulateAdPointsUseCase: AccumulateAdPointsUseCase = self.accumulateAdPointsUseCase else {
+            return
+        }
+
+        do {
+            let result: AdPointAccumulationResult = try accumulateAdPointsUseCase.execute(points: points)
+            if result.shouldPlayAd {
+                self.shouldPlayAd = true
+            }
+        } catch {
+            #if DEBUG
+            print(
+                "[BrowseCraftAdPoints] RSS accumulate failed " +
+                "sourceID=\(self.source.id) " +
+                "itemID=\(self.item.id) " +
+                "error=\(error)"
+            )
+            #endif
+        }
     }
 }

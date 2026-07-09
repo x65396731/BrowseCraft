@@ -9,12 +9,16 @@ struct AppUserRecord: Codable, FetchableRecord, MutablePersistableRecord {
 
     var id: String
     var displayName: String?
+    var hasRemovedAds: Bool
+    var pendingAdPoints: Int
     var createdAt: Date
     var updatedAt: Date
 
     init(user: AppUser) {
         self.id = user.id
         self.displayName = user.displayName
+        self.hasRemovedAds = user.hasRemovedAds
+        self.pendingAdPoints = user.pendingAdPoints
         self.createdAt = user.createdAt
         self.updatedAt = user.updatedAt
     }
@@ -23,6 +27,8 @@ struct AppUserRecord: Codable, FetchableRecord, MutablePersistableRecord {
         return AppUser(
             id: self.id,
             displayName: self.displayName,
+            hasRemovedAds: self.hasRemovedAds,
+            pendingAdPoints: self.pendingAdPoints,
             createdAt: self.createdAt,
             updatedAt: self.updatedAt
         )

@@ -272,6 +272,7 @@ final class AppContainer {
         let saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase = SaveComicChapterHistoryUseCase(
             repository: repository
         )
+        let accumulateAdPointsUseCase: AccumulateAdPointsUseCase = self.makeAccumulateAdPointsUseCase()
 
         return ReaderViewModel(
             item: item,
@@ -280,7 +281,8 @@ final class AppContainer {
             restoreContext: restoreContext,
             loadReaderChapterUseCase: loadReaderChapterUseCase,
             resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase(),
-            saveComicChapterHistoryUseCase: saveComicChapterHistoryUseCase
+            saveComicChapterHistoryUseCase: saveComicChapterHistoryUseCase,
+            accumulateAdPointsUseCase: accumulateAdPointsUseCase
         )
     }
 
@@ -320,11 +322,13 @@ final class AppContainer {
         let saveRSSReadingHistoryUseCase: SaveRSSReadingHistoryUseCase = SaveRSSReadingHistoryUseCase(
             repository: repository
         )
+        let accumulateAdPointsUseCase: AccumulateAdPointsUseCase = self.makeAccumulateAdPointsUseCase()
 
         return RSSContentDetailViewModel(
             item: item,
             source: source,
-            saveRSSReadingHistoryUseCase: saveRSSReadingHistoryUseCase
+            saveRSSReadingHistoryUseCase: saveRSSReadingHistoryUseCase,
+            accumulateAdPointsUseCase: accumulateAdPointsUseCase
         )
     }
 
@@ -351,6 +355,7 @@ final class AppContainer {
             coverURL: history.coverURL,
             saveVideoWatchHistoryUseCase: saveVideoWatchHistoryUseCase,
             loadVideoWatchHistoryUseCase: loadVideoWatchHistoryUseCase,
+            accumulateAdPointsUseCase: self.makeAccumulateAdPointsUseCase(),
             runtimeResolver: self.makeSourceRuntimeResolver(),
             userID: history.userID
         )
@@ -373,7 +378,8 @@ final class AppContainer {
             source: source,
             runtimeResolver: self.makeSourceRuntimeResolver(),
             saveVideoWatchHistoryUseCase: saveVideoWatchHistoryUseCase,
-            loadVideoWatchHistoryUseCase: loadVideoWatchHistoryUseCase
+            loadVideoWatchHistoryUseCase: loadVideoWatchHistoryUseCase,
+            accumulateAdPointsUseCase: self.makeAccumulateAdPointsUseCase()
         )
     }
 
@@ -384,6 +390,12 @@ final class AppContainer {
 
     func makeSourceRuntimeResolver() -> any SourceRuntimeResolving {
         return self.sourceRuntimeFactory.makeRuntimeResolver()
+    }
+
+    private func makeAccumulateAdPointsUseCase() -> AccumulateAdPointsUseCase {
+        return AccumulateAdPointsUseCase(
+            repository: GRDBAppUserRepository(database: self.database)
+        )
     }
 
     /// 中文注释：makeHistoryViewModel 方法封装当前类型的一段业务或界面行为。
