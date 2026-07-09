@@ -35,7 +35,7 @@ struct VideoSourceRuntime: SourceRuntime {
             limitations: [
                 self.limitation(.search, "Video MVP does not support search yet."),
                 self.limitation(.reader, "Video sources use VideoPlayerHostView instead of reader output."),
-                self.limitation(.debug, "Video debug runtime is not connected yet."),
+                self.limitation(.debug, "Video runtime diagnostics are not available."),
                 self.limitation(.candidateAnalysis, "Video MVP uses template mappers, not selector candidate analysis.")
             ]
         )
@@ -108,7 +108,7 @@ struct VideoSourceRuntime: SourceRuntime {
         try self.validateSource(input)
         return SourceDebugOutput(
             diagnostics: SourceRuntimeDiagnostics.skipped(
-                message: "Video debug runtime is not connected yet.",
+                message: "Video runtime diagnostics are not available.",
                 context: SourceRuntimeDiagnosticContext(runtimeContext: input)
             )
         )

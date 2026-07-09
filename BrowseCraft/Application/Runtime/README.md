@@ -97,7 +97,6 @@ Responsibilities:
   is a playback candidate, not a list/detail content adapter.
 - Keep `VideoPlaybackRuntimeCapability` as the video playback capability so a
   future plugin runtime can expose playback through the same boundary.
-- Keep rule debug/source summary mapping in `Rule/Mapping/RuleSourceDebugMapping`.
 - Add runtime-facing use cases before wiring Library and Reader features to them.
 - Keep the plugin runtime slot explicit in the resolver/factory plan, while
   deferring plugin execution to a later phase.

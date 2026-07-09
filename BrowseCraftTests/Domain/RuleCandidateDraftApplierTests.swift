@@ -189,7 +189,7 @@ struct RuleCandidateDraftApplierTests {
 
     private static func candidate(
         field: RuleCandidateField,
-        stage: RuleDebugStage,
+        stage: RuleAnalysisStage,
         selector: String = ".candidate",
         selectorKind: SelectorKind = .css,
         function: ExtractFunction = .text,

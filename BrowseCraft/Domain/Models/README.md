@@ -6,7 +6,7 @@ Domain models are grouped by the business area that owns the data shape.
 - `Reader/`: reader navigation and chapter content models.
 - `History/`: persisted reading/watch history and local user identity used by history records.
 - `Library/`: persisted library state.
-- `Rule/`: rule debug data contracts.
+- `Rule/`: rule-backed source and candidate analysis data contracts.
 - `Settings/`: persisted or selectable app settings models.
 
 Naming rules:

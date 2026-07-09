@@ -127,12 +127,90 @@ typealias RuleCandidateWarningSeverity = SourceRuleCandidateWarningSeverity
 typealias RuleCandidateWarningCategory = SourceRuleCandidateWarningCategory
 typealias RuleCandidateSource = SourceRuleCandidateSource
 
+extension RuleAnalysisStage {
+    var sourceRuntimeOperation: SourceRuntimeOperation {
+        switch self {
+        case .list:
+            return .list
+        case .search:
+            return .search
+        case .detail:
+            return .detail
+        case .reader:
+            return .reader
+        }
+    }
+}
+
+extension SourceRuntimeOperation {
+    var ruleAnalysisStage: RuleAnalysisStage? {
+        switch self {
+        case .list:
+            return .list
+        case .search:
+            return .search
+        case .detail:
+            return .detail
+        case .reader:
+            return .reader
+        case .debug:
+            return nil
+        }
+    }
+}
+
+extension BrowseCraftCore.SelectorKind {
+    var sourceRuleSelectorKind: SourceRuleSelectorKind {
+        switch self {
+        case .css:
+            return .css
+        case .jsonPath:
+            return .jsonPath
+        case .xpath:
+            return .xpath
+        case .current:
+            return .current
+        }
+    }
+}
+
+extension BrowseCraftCore.ExtractFunction {
+    var sourceRuleExtractFunction: SourceRuleExtractFunction {
+        switch self {
+        case .text:
+            return .text
+        case .html:
+            return .html
+        case .attr:
+            return .attr
+        case .raw:
+            return .raw
+        case .url:
+            return .url
+        case .decodeBase64:
+            return .decodeBase64
+        case .removingPercentEncoding:
+            return .removingPercentEncoding
+        case .addingPercentEncoding:
+            return .addingPercentEncoding
+        case .replace:
+            return .replace
+        case .decompressFromBase64:
+            return .decompressFromBase64
+        case .reversed:
+            return .reversed
+        case .regexReplacement:
+            return .regexReplacement
+        }
+    }
+}
+
 extension SourceRuleCandidateReport {
     init(
         id: String,
         sourceID: String,
         sourceName: String,
-        stage: RuleDebugStage,
+        stage: RuleAnalysisStage,
         pageID: String?,
         ruleID: String?,
         url: String?,
@@ -154,8 +232,8 @@ extension SourceRuleCandidateReport {
         )
     }
 
-    var stage: RuleDebugStage {
-        self.operation.ruleDebugStage ?? .list
+    var stage: RuleAnalysisStage {
+        self.operation.ruleAnalysisStage ?? .list
     }
 }
 
@@ -163,7 +241,7 @@ extension SourceRuleCandidate {
     init(
         id: String,
         field: RuleCandidateField,
-        stage: RuleDebugStage,
+        stage: RuleAnalysisStage,
         selector: String,
         selectorKind: SelectorKind,
         function: ExtractFunction,
@@ -188,8 +266,8 @@ extension SourceRuleCandidate {
         )
     }
 
-    var stage: RuleDebugStage {
-        self.operation.ruleDebugStage ?? .list
+    var stage: RuleAnalysisStage {
+        self.operation.ruleAnalysisStage ?? .list
     }
 }
 
@@ -198,11 +276,11 @@ extension SourceRuleCandidate {
 typealias RuleCandidateDraftApplier = SourceRuleCandidateDraftApplier
 
 extension SourceRuleCandidateDraftApplier {
-    func canApply(candidate: RuleCandidate, stage: RuleDebugStage?) -> Bool {
+    func canApply(candidate: RuleCandidate, stage: RuleAnalysisStage?) -> Bool {
         self.canApply(candidate: candidate, operation: stage?.sourceRuntimeOperation)
     }
 
-    func apply(candidate: RuleCandidate, stage: RuleDebugStage?, ruleID: String?, rule: inout SiteRule) -> Bool {
+    func apply(candidate: RuleCandidate, stage: RuleAnalysisStage?, ruleID: String?, rule: inout SiteRule) -> Bool {
         self.apply(candidate: candidate, operation: stage?.sourceRuntimeOperation, ruleID: ruleID, rule: &rule)
     }
 }

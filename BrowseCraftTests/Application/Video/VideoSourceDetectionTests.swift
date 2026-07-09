@@ -3,7 +3,7 @@ import Testing
 import BrowseCraftCore
 @testable import BrowseCraft
 
-// 中文注释：P5.1.30a-2 后 detection 只输出事实信号；macCMS/genericHTML 由规则或调试选项卡决定。
+// 中文注释：P5.1.30a-2 后 detection 只输出事实信号；macCMS/genericHTML 由规则或来源配置决定。
 struct VideoSourceDetectionTests {
     @Test func detectsVideoCMSRouteSignalWithoutChoosingContentMapper() throws {
         let detector: VideoSourceDetector = VideoSourceDetector()

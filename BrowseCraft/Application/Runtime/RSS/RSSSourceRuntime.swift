@@ -31,7 +31,7 @@ struct RSSSourceRuntime: SourceRuntime {
                 self.limitation(.pagination, "RSS MVP does not support pagination."),
                 self.limitation(.detail, "RSS MVP exposes feed item links but does not load detail pages."),
                 self.limitation(.reader, "RSS MVP does not support reader output."),
-                self.limitation(.debug, "RSS debug runtime is not connected yet."),
+                self.limitation(.debug, "RSS runtime diagnostics are not available."),
                 self.limitation(.candidateAnalysis, "RSS feeds use a fixed XML schema and do not run selector candidate analysis.")
             ]
         )
@@ -83,7 +83,7 @@ struct RSSSourceRuntime: SourceRuntime {
         try self.validateSource(input)
         return SourceDebugOutput(
             diagnostics: SourceRuntimeDiagnostics.skipped(
-                message: "RSS debug runtime is not connected yet.",
+                message: "RSS runtime diagnostics are not available.",
                 context: SourceRuntimeDiagnosticContext(runtimeContext: input)
             )
         )

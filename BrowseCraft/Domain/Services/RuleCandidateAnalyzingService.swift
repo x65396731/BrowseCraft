@@ -31,7 +31,7 @@ protocol RuleCandidateAnalyzingService {
         html: String,
         source: Source,
         pagination: PaginationRule?,
-        stage: RuleDebugStage,
+        stage: RuleAnalysisStage,
         pageID: String?,
         ruleID: String?,
         currentURL: String?,

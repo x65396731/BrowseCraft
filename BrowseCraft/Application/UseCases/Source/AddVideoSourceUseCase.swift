@@ -20,23 +20,12 @@ struct AddManualVideoSourceResult {
     let listOutput: SourceListOutput
 }
 
-struct ManualVideoSourceDebugResult: Hashable {
-    var inspection: VideoSourceImportInspection
-    var source: Source
-    var listOutput: SourceListOutput
-}
-
 enum AddVideoSourceResult: Hashable {
     case inspected(VideoSourceImportInspection)
     case saved(Source)
     case needsReview(Source, warnings: [String])
     case unavailable(VideoSourceUnavailableReason)
     case pluginRequired(VideoSourcePluginReason)
-}
-
-struct AddVideoSourceDebugResult: Hashable {
-    var result: AddVideoSourceResult
-    var debugSnapshot: SourceDebugSnapshot?
 }
 
 // 中文注释：手动 video source 入口不自动判断 adapter/类型；保存必须使用用户选择的配置并通过列表加载验证。
@@ -80,23 +69,6 @@ struct AddVideoSourceUseCase {
         )
     }
 
-    func executeWithDebugSnapshot(
-        entryURLString: String,
-        name: String? = nil,
-        entryHTML: String? = nil,
-        headers: [String: String] = [:]
-    ) throws -> AddVideoSourceDebugResult {
-        return AddVideoSourceDebugResult(
-            result: try self.execute(
-                entryURLString: entryURLString,
-                name: name,
-                entryHTML: entryHTML,
-                headers: headers
-            ),
-            debugSnapshot: nil
-        )
-    }
-
     func inspect(
         entryURLString: String,
         name: String? = nil,
@@ -127,25 +99,24 @@ struct AddVideoSourceUseCase {
         name: String? = nil,
         configuration: ManualVideoSourceConfigurationDraft
     ) async throws -> AddManualVideoSourceResult {
-        let debugResult: ManualVideoSourceDebugResult = try await self.debugManualVideoSource(
+        let result: AddManualVideoSourceResult = try await self.validatedManualVideoSource(
             entryURLString: entryURLString,
             name: name,
             configuration: configuration
         )
-        let source: Source = debugResult.source
-        let listOutput: SourceListOutput = debugResult.listOutput
+        let source: Source = result.source
         try self.sourceRepository.saveSource(source)
-        return AddManualVideoSourceResult(source: source, listOutput: listOutput)
+        return result
     }
 
-    func debugManualVideoSource(
+    private func validatedManualVideoSource(
         entryURLString: String,
         name: String? = nil,
         configuration: ManualVideoSourceConfigurationDraft
-    ) async throws -> ManualVideoSourceDebugResult {
+    ) async throws -> AddManualVideoSourceResult {
         guard let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = self.refreshSourceRuntimeUseCase else {
             throw SourceRuntimeError.unsupported(
-                .custom("Manual video source debug requires runtime list validation.")
+                .custom("Manual video source saving requires runtime list validation.")
             )
         }
 
@@ -161,11 +132,10 @@ struct AddVideoSourceUseCase {
         let listOutput: SourceListOutput = try await refreshSourceRuntimeUseCase.execute(
             source: source,
             listContext: nil,
-            debugMode: true
+            debugMode: false
         )
         try self.validateSourceListLoadUseCase.execute(listOutput)
-        return ManualVideoSourceDebugResult(
-            inspection: inspection,
+        return AddManualVideoSourceResult(
             source: source,
             listOutput: listOutput
         )

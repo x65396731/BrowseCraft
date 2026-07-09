@@ -50,12 +50,12 @@ struct RuleSourceRuntime: SourceRuntime {
                 SourceRuntimeCapabilityLimitation(
                     capability: .debug,
                     reason: .notConnected,
-                    message: "Rule debug runtime is reserved and not connected to the App rule debug flow yet."
+                    message: "Rule runtime diagnostics are not available."
                 ),
                 SourceRuntimeCapabilityLimitation(
                     capability: .candidateAnalysis,
                     reason: .notConnected,
-                    message: "Rule candidate analysis remains in the App debug flow until Core candidate models move in P3-5."
+                    message: "Rule candidate analysis is not exposed through this runtime."
                 )
             ]
         )
@@ -138,7 +138,7 @@ struct RuleSourceRuntime: SourceRuntime {
 
         return SourceDebugOutput(
             diagnostics: SourceRuntimeDiagnostics.skipped(
-                message: "Debug runtime is reserved by P3-2.5 and will be connected after runtime call sites are introduced.",
+                message: "Rule runtime diagnostics are not available.",
                 context: self.diagnosticContext(from: input)
             )
         )

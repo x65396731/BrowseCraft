@@ -160,7 +160,7 @@ final class SwiftSoupRuleSelectorFinder: RuleCandidateAnalyzingService {
         html: String,
         source: Source,
         pagination: PaginationRule?,
-        stage: RuleDebugStage,
+        stage: RuleAnalysisStage,
         pageID: String?,
         ruleID: String?,
         currentURL: String?,
@@ -227,7 +227,7 @@ final class SwiftSoupRuleSelectorFinder: RuleCandidateAnalyzingService {
             }
     }
 
-    private func itemCandidate(group: ItemGroup, stage: RuleDebugStage) throws -> RuleCandidate {
+    private func itemCandidate(group: ItemGroup, stage: RuleAnalysisStage) throws -> RuleCandidate {
         let score: RuleCandidateScore = try self.itemScore(group: group)
         return RuleCandidate(
             id: self.idGenerator(),
@@ -289,7 +289,7 @@ final class SwiftSoupRuleSelectorFinder: RuleCandidateAnalyzingService {
 
     private func fieldCandidates(
         itemGroup: ItemGroup,
-        stage: RuleDebugStage
+        stage: RuleAnalysisStage
     ) throws -> [RuleCandidate] {
         let probes: [FieldProbe] = [
             FieldProbe(field: .title, selector: "a.title", function: .text, param: nil, source: .semanticElement),
@@ -330,7 +330,7 @@ final class SwiftSoupRuleSelectorFinder: RuleCandidateAnalyzingService {
     private func fieldCandidate(
         probe: FieldProbe,
         elements: [Element],
-        stage: RuleDebugStage
+        stage: RuleAnalysisStage
     ) throws -> RuleCandidate? {
         var samples: [String] = []
         var matchedCount: Int = 0
@@ -451,7 +451,7 @@ final class SwiftSoupRuleSelectorFinder: RuleCandidateAnalyzingService {
             }
     }
 
-    private func chapterContainerCandidate(group: ItemGroup, stage: RuleDebugStage) throws -> RuleCandidate? {
+    private func chapterContainerCandidate(group: ItemGroup, stage: RuleAnalysisStage) throws -> RuleCandidate? {
         guard let container: Element = try self.commonContainer(for: group),
               let selector: String = try self.containerSelector(for: container) else {
             return nil
@@ -491,7 +491,7 @@ final class SwiftSoupRuleSelectorFinder: RuleCandidateAnalyzingService {
         )
     }
 
-    private func chapterItemCandidate(group: ItemGroup, stage: RuleDebugStage) throws -> RuleCandidate {
+    private func chapterItemCandidate(group: ItemGroup, stage: RuleAnalysisStage) throws -> RuleCandidate {
         return RuleCandidate(
             id: self.idGenerator(),
             field: .chapterItem,
@@ -547,7 +547,7 @@ final class SwiftSoupRuleSelectorFinder: RuleCandidateAnalyzingService {
 
     private func chapterFieldCandidates(
         itemGroup: ItemGroup,
-        stage: RuleDebugStage
+        stage: RuleAnalysisStage
     ) throws -> [RuleCandidate] {
         let probes: [FieldProbe] = [
             FieldProbe(field: .chapterTitle, selector: "a[href]", function: .text, param: nil, source: .semanticElement),
@@ -617,7 +617,7 @@ final class SwiftSoupRuleSelectorFinder: RuleCandidateAnalyzingService {
             }
     }
 
-    private func imageCandidate(group: ItemGroup, stage: RuleDebugStage) throws -> RuleCandidate {
+    private func imageCandidate(group: ItemGroup, stage: RuleAnalysisStage) throws -> RuleCandidate {
         let imageAttributeExpression: String = "data-src|data-original|data-lazy-src|src"
         return RuleCandidate(
             id: self.idGenerator(),
@@ -719,7 +719,7 @@ final class SwiftSoupRuleSelectorFinder: RuleCandidateAnalyzingService {
         return warnings
     }
 
-    private func nextPageLinkCandidates(in document: Document, stage: RuleDebugStage) throws -> [RuleCandidate] {
+    private func nextPageLinkCandidates(in document: Document, stage: RuleAnalysisStage) throws -> [RuleCandidate] {
         let links: [Element] = try document.select("a[href]").array()
         let candidates: [RuleCandidate] = try links.compactMap { link in
             guard try self.isPotentialNextPageLink(link),
@@ -761,7 +761,7 @@ final class SwiftSoupRuleSelectorFinder: RuleCandidateAnalyzingService {
     private func nextPageLinkCandidate(
         link: Element,
         selector: String,
-        stage: RuleDebugStage
+        stage: RuleAnalysisStage
     ) throws -> RuleCandidate {
         let href: String = try link.attr("href").trimmingCharacters(in: .whitespacesAndNewlines)
         return RuleCandidate(
@@ -787,7 +787,7 @@ final class SwiftSoupRuleSelectorFinder: RuleCandidateAnalyzingService {
 
     private func pagePlaceholderCandidate(
         pagination: PaginationRule?,
-        stage: RuleDebugStage,
+        stage: RuleAnalysisStage,
         currentURL: String?,
         urlTemplate: String?
     ) -> RuleCandidate? {

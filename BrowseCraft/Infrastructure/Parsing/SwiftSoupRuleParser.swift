@@ -6,7 +6,7 @@ import SwiftSoup
 
 /// 中文注释：基于 SwiftSoup 的 HTML 规则解析器。
 /// 中文注释：SwiftSoup 只出现在这里，应用其他部分都通过 RuleParsingService 使用解析能力。
-final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService, RulePaginationParsingService {
+final class SwiftSoupRuleParser: RuleParsingService, RulePaginationParsingService {
     private struct DataChapter: Decodable {
         let id: Int
         let title: String
@@ -170,79 +170,6 @@ final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService
         )
     }
 
-    func debugParseList(
-        html: String,
-        source: Source,
-        listRule: ListRule,
-        context: ListContext?,
-        sections: [SectionRule]?
-    ) throws -> RuleListDebugParseResult {
-        let document: Document = try SwiftSoup.parse(html, source.baseURL)
-        var items: [ContentItem] = []
-        var issues: [RuleDebugIssue] = []
-        var seenItemIDs: Set<String> = Set<String>()
-        var candidateCount: Int = 0
-
-        if let sections: [SectionRule] = sections,
-           sections.isEmpty == false {
-            for section: SectionRule in sections {
-                let containers: [Element] = try self.selectedElements(
-                    element: document,
-                    rule: section.container,
-                    includesSelf: true
-                )
-                let sectionContext: ListContext = self.listContext(
-                    base: context,
-                    section: section,
-                    listRule: listRule
-                )
-
-                for (containerIndex, container) in containers.enumerated() {
-                    let elements: [Element] = try container.select(listRule.item).array()
-                    candidateCount += elements.count
-                    let result: RuleListDebugParseResult = self.debugContentItems(
-                        from: elements,
-                        source: source,
-                        listRule: listRule,
-                        context: sectionContext,
-                        issuePrefix: "section-\(section.id ?? String(containerIndex))"
-                    )
-
-                    for item: ContentItem in result.items where seenItemIDs.contains(item.id) == false {
-                        seenItemIDs.insert(item.id)
-                        items.append(item)
-                    }
-
-                    issues.append(contentsOf: result.issues)
-                }
-            }
-        } else {
-            let elements: [Element] = try document.select(listRule.item).array()
-            candidateCount = elements.count
-            let result: RuleListDebugParseResult = self.debugContentItems(
-                from: elements,
-                source: source,
-                listRule: listRule,
-                context: context,
-                issuePrefix: "list"
-            )
-            items = result.items
-            issues = result.issues
-        }
-
-        let logs: [RuleDebugExtractionLog] = self.debugListExtractionLogs(
-            listRule: listRule,
-            candidateCount: candidateCount,
-            items: items
-        )
-
-        return RuleListDebugParseResult(
-            items: items,
-            extractionLogs: logs,
-            issues: issues
-        )
-    }
-
     private func contentItems(
         from elements: [Element],
         source: Source,
@@ -350,251 +277,6 @@ final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService
         }
 
         return source.rule.primaryListRule.type
-    }
-
-    private func debugContentItems(
-        from elements: [Element],
-        source: Source,
-        listRule: ListRule,
-        context: ListContext?,
-        issuePrefix: String
-    ) -> RuleListDebugParseResult {
-        var items: [ContentItem] = []
-        var issues: [RuleDebugIssue] = []
-
-        for (index, element) in elements.enumerated() {
-            let title: String = self.debugExtract(
-                element: element,
-                expression: listRule.title,
-                ruleID: listRule.id,
-                field: .title,
-                index: index,
-                issuePrefix: issuePrefix,
-                issues: &issues
-            )
-            let link: String = self.debugExtract(
-                element: element,
-                expression: listRule.link,
-                ruleID: listRule.id,
-                field: .link,
-                index: index,
-                issuePrefix: issuePrefix,
-                issues: &issues
-            )
-
-            if title.isEmpty {
-                issues.append(
-                    self.debugIssue(
-                        id: "\(issuePrefix)-\(index)-title-empty",
-                        ruleID: listRule.id,
-                        field: .title,
-                        category: .fieldMissing,
-                        message: "Skipped list item \(index) because title was empty."
-                    )
-                )
-            }
-
-            if link.isEmpty {
-                issues.append(
-                    self.debugIssue(
-                        id: "\(issuePrefix)-\(index)-link-empty",
-                        ruleID: listRule.id,
-                        field: .link,
-                        category: .fieldMissing,
-                        message: "Skipped list item \(index) because link was empty."
-                    )
-                )
-            }
-
-            if title.isEmpty || link.isEmpty {
-                continue
-            }
-
-            let detailURL: String = self.urlResolver.absoluteString(link, baseURLString: source.baseURL)
-            let coverURL: String? = self.debugOptionalExtract(
-                element: element,
-                expression: listRule.cover,
-                baseURLString: source.baseURL,
-                ruleID: listRule.id,
-                field: .cover,
-                index: index,
-                issuePrefix: issuePrefix,
-                issues: &issues
-            )
-            let latestText: String? = self.debugOptionalExtract(
-                element: element,
-                expression: listRule.latestText,
-                baseURLString: nil,
-                ruleID: listRule.id,
-                field: .latestText,
-                index: index,
-                issuePrefix: issuePrefix,
-                issues: &issues
-            )
-
-            items.append(
-                ContentItem(
-                    id: self.stableID(sourceId: source.id, urlString: detailURL),
-                    sourceId: source.id,
-                    title: title,
-                    detailURL: detailURL,
-                    coverURL: coverURL,
-                    type: listRule.type,
-                    latestText: latestText,
-                    updatedAt: Date(),
-                    listOrder: items.count,
-                    listContext: context
-                )
-            )
-        }
-
-        return RuleListDebugParseResult(
-            items: items,
-            extractionLogs: [],
-            issues: issues
-        )
-    }
-
-    private func debugListExtractionLogs(
-        listRule: ListRule,
-        candidateCount: Int,
-        items: [ContentItem]
-    ) -> [RuleDebugExtractionLog] {
-        return [
-            RuleDebugExtractionLog(
-                id: "list-\(listRule.id ?? "primary")-item",
-                stage: .list,
-                ruleID: listRule.id,
-                selector: listRule.item,
-                field: .item,
-                candidateCount: candidateCount,
-                outputCount: items.count,
-                samples: Array(items.prefix(3).map(\.title)),
-                message: "Selected list item candidates."
-            ),
-            RuleDebugExtractionLog(
-                id: "list-\(listRule.id ?? "primary")-title",
-                stage: .list,
-                ruleID: listRule.id,
-                selector: listRule.title,
-                field: .title,
-                candidateCount: candidateCount,
-                outputCount: items.count,
-                samples: Array(items.prefix(3).map(\.title)),
-                message: "Extracted list item titles."
-            ),
-            RuleDebugExtractionLog(
-                id: "list-\(listRule.id ?? "primary")-link",
-                stage: .list,
-                ruleID: listRule.id,
-                selector: listRule.link,
-                field: .link,
-                candidateCount: candidateCount,
-                outputCount: items.count,
-                samples: Array(items.prefix(3).map(\.detailURL)),
-                message: "Extracted list item detail links."
-            ),
-            RuleDebugExtractionLog(
-                id: "list-\(listRule.id ?? "primary")-cover",
-                stage: .list,
-                ruleID: listRule.id,
-                selector: listRule.cover,
-                field: .cover,
-                candidateCount: candidateCount,
-                outputCount: items.filter { item in item.coverURL?.isEmpty == false }.count,
-                samples: Array(items.compactMap(\.coverURL).prefix(3)),
-                message: "Extracted list item covers."
-            ),
-            RuleDebugExtractionLog(
-                id: "list-\(listRule.id ?? "primary")-latestText",
-                stage: .list,
-                ruleID: listRule.id,
-                selector: listRule.latestText,
-                field: .latestText,
-                candidateCount: candidateCount,
-                outputCount: items.filter { item in item.latestText?.isEmpty == false }.count,
-                samples: Array(items.compactMap(\.latestText).prefix(3)),
-                message: "Extracted list item latest text."
-            )
-        ]
-    }
-
-    private func debugExtract(
-        element: Element,
-        expression: String,
-        ruleID: String?,
-        field: RuleDebugField,
-        index: Int,
-        issuePrefix: String,
-        issues: inout [RuleDebugIssue]
-    ) -> String {
-        do {
-            return try self.extract(element: element, expression: expression)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        } catch {
-            issues.append(
-                self.debugIssue(
-                    id: "\(issuePrefix)-\(index)-\(field.rawValue)-error",
-                    ruleID: ruleID,
-                    field: field,
-                    category: .parserError,
-                    message: "Failed to extract \(field.rawValue) for list item \(index): \(error.localizedDescription)"
-                )
-            )
-            return ""
-        }
-    }
-
-    private func debugOptionalExtract(
-        element: Element,
-        expression: String?,
-        baseURLString: String?,
-        ruleID: String?,
-        field: RuleDebugField,
-        index: Int,
-        issuePrefix: String,
-        issues: inout [RuleDebugIssue]
-    ) -> String? {
-        guard let expression: String = expression else {
-            return nil
-        }
-
-        do {
-            return try self.optionalExtract(
-                element: element,
-                expression: expression,
-                baseURLString: baseURLString
-            )
-        } catch {
-            issues.append(
-                self.debugIssue(
-                    id: "\(issuePrefix)-\(index)-\(field.rawValue)-error",
-                    ruleID: ruleID,
-                    field: field,
-                    category: .parserError,
-                    message: "Failed to extract \(field.rawValue) for list item \(index): \(error.localizedDescription)"
-                )
-            )
-            return nil
-        }
-    }
-
-    private func debugIssue(
-        id: String,
-        ruleID: String?,
-        field: RuleDebugField?,
-        category: RuleDebugIssueCategory,
-        message: String
-    ) -> RuleDebugIssue {
-        return RuleDebugIssue(
-            id: id,
-            severity: .warning,
-            category: category,
-            stage: .list,
-            ruleID: ruleID,
-            field: field,
-            message: message
-        )
     }
 
     private func listContext(base: ListContext?, section: SectionRule, listRule: ListRule) -> ListContext {
@@ -985,29 +667,11 @@ final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService
         chapterRule: ChapterRule,
         context: ListContext?
     ) throws -> [Element] {
-        #if DEBUG
-        let debugChapterSelector: String = "a[href*=\"/cn/chapters/\"]"
-        let globalChapterLinkCount: Int = try document.select(debugChapterSelector).array().count
-        #endif
-
         let scope: Element = try self.contextualScope(
             in: document,
             mainScopeRule: detailRule.mainScope,
             context: context
         ) ?? document
-
-        #if DEBUG
-        let scopeChapterLinkCount: Int = try scope.select(debugChapterSelector).array().count
-        print(
-            "[BrowseCraftRule] V2 chapter scope " +
-            "mainScope=\(detailRule.mainScope?.selector ?? "nil") " +
-            "contextSectionId=\(context?.sectionId ?? "nil") " +
-            "contextSectionRole=\(context?.sectionRole?.rawValue ?? "nil") " +
-            "scopeTag=\(scope.tagName()) " +
-            "globalChapterLinkCount=\(globalChapterLinkCount) " +
-            "scopeChapterLinkCount=\(scopeChapterLinkCount)"
-        )
-        #endif
 
         let containerScopes: [Element]
 
@@ -1020,33 +684,6 @@ final class SwiftSoupRuleParser: RuleParsingService, RuleListDebugParsingService
         } else {
             containerScopes = [scope]
         }
-
-        #if DEBUG
-        print(
-            "[BrowseCraftRule] V2 chapter containers " +
-            "sectionContainer=\(chapterRule.section?.container.selector ?? "nil") " +
-            "containerCount=\(containerScopes.count)"
-        )
-
-        for (index, containerScope) in containerScopes.enumerated() {
-            let containerChapterLinks: [Element] = try containerScope.select(debugChapterSelector).array()
-            print(
-                "[BrowseCraftRule] V2 chapter container " +
-                "index=\(index) " +
-                "tag=\(containerScope.tagName()) " +
-                "chapterLinkCount=\(containerChapterLinks.count)"
-            )
-
-            for previewElement: Element in containerChapterLinks.prefix(5) {
-                print(
-                    "[BrowseCraftRule] V2 chapter container preview " +
-                    "index=\(index) " +
-                    "title=\(try previewElement.text()) " +
-                    "href=\(try previewElement.attr("href"))"
-                )
-            }
-        }
-        #endif
 
         var elements: [Element] = []
 

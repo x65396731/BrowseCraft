@@ -102,11 +102,6 @@ final class AppContainer {
             sourceRepository: self.sourceRepository,
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
         )
-        let previewRuntimeSourceUseCase: PreviewRuntimeSourceUseCase = PreviewRuntimeSourceUseCase(
-            pageContentLoader: self.pageContentLoader,
-            rssFeedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader),
-            videoSourceUseCase: addVideoSourceUseCase
-        )
         let deleteSourceUseCase: DeleteSourceUseCase = DeleteSourceUseCase(
             sourceRepository: self.sourceRepository
         )
@@ -136,32 +131,6 @@ final class AppContainer {
         let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase = SaveUserLibraryStateUseCase(
             repository: userLibraryStateRepository
         )
-        let ruleCandidateAnalyzer: RuleCandidateAnalyzingService = SwiftSoupRuleSelectorFinder()
-        let listDebugUseCase: ListDebugUseCase = ListDebugUseCase(
-            pageContentLoader: self.pageContentLoader,
-            ruleParser: self.ruleParser,
-            urlResolver: self.urlResolver,
-            candidateAnalyzer: ruleCandidateAnalyzer
-        )
-        let searchDebugUseCase: SearchDebugUseCase = SearchDebugUseCase(
-            pageContentLoader: self.pageContentLoader,
-            ruleParser: self.ruleParser,
-            urlResolver: self.urlResolver,
-            candidateAnalyzer: ruleCandidateAnalyzer
-        )
-        let detailDebugUseCase: DetailDebugUseCase = DetailDebugUseCase(
-            pageContentLoader: self.pageContentLoader,
-            ruleParser: self.ruleParser,
-            urlResolver: self.urlResolver,
-            candidateAnalyzer: ruleCandidateAnalyzer
-        )
-        let readerDebugUseCase: ReaderDebugUseCase = ReaderDebugUseCase(
-            pageContentLoader: self.pageContentLoader,
-            ruleParser: self.ruleParser,
-            urlResolver: self.urlResolver,
-            candidateAnalyzer: ruleCandidateAnalyzer
-        )
-
         return SourcesViewModel(
             syncBuiltInSourcesUseCase: syncBuiltInSourcesUseCase,
             loadSourcesUseCase: loadSourcesUseCase,
@@ -176,13 +145,8 @@ final class AppContainer {
             exportSourceRulePackageUseCase: exportSourceRulePackageUseCase,
             importSourceRulePackageUseCase: importSourceRulePackageUseCase,
             recommendSourceImportOptionUseCase: recommendSourceImportOptionUseCase,
-            previewRuntimeSourceUseCase: previewRuntimeSourceUseCase,
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
             saveUserLibraryStateUseCase: saveUserLibraryStateUseCase,
-            listDebugUseCase: listDebugUseCase,
-            searchDebugUseCase: searchDebugUseCase,
-            detailDebugUseCase: detailDebugUseCase,
-            readerDebugUseCase: readerDebugUseCase,
             sourceSelectionStore: self.sourceSelectionStore
         )
     }

@@ -18,7 +18,6 @@ final class SourcesViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published private(set) var isRefreshing: Bool = false
     @Published private(set) var refreshingSourceID: String?
-    @Published private(set) var latestVideoImportDebugSnapshot: SourceDebugSnapshot?
     @Published private(set) var latestCatalogSourceAddID: String?
     @Published private(set) var catalogSources: [BrowseCraftCatalogSource] = []
     @Published private(set) var isLoadingCatalogSources: Bool = false
@@ -36,15 +35,10 @@ final class SourcesViewModel: ObservableObject {
     private let exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase
     private let importSourceRulePackageUseCase: ImportSourceRulePackageUseCase
     private let recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase
-    private let previewRuntimeSourceUseCase: PreviewRuntimeSourceUseCase
     private let ruleValidator: SiteRuleValidator
     private let jsonEncoder: JSONEncoder
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
     private let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase
-    private let listDebugUseCase: ListDebugUseCase
-    private let searchDebugUseCase: SearchDebugUseCase
-    private let detailDebugUseCase: DetailDebugUseCase
-    private let readerDebugUseCase: ReaderDebugUseCase
     private let sourceSelectionStore: SourceSelectionStore
     private let userID: String
     private let now: () -> Date
@@ -65,15 +59,10 @@ final class SourcesViewModel: ObservableObject {
         exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase,
         importSourceRulePackageUseCase: ImportSourceRulePackageUseCase,
         recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase,
-        previewRuntimeSourceUseCase: PreviewRuntimeSourceUseCase,
         ruleValidator: SiteRuleValidator = SiteRuleValidator(),
         jsonEncoder: JSONEncoder = JSONEncoder(),
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
         saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase,
-        listDebugUseCase: ListDebugUseCase,
-        searchDebugUseCase: SearchDebugUseCase,
-        detailDebugUseCase: DetailDebugUseCase,
-        readerDebugUseCase: ReaderDebugUseCase,
         sourceSelectionStore: SourceSelectionStore,
         userID: String = AppUser.localDefaultID,
         now: @escaping () -> Date = Date.init
@@ -91,15 +80,10 @@ final class SourcesViewModel: ObservableObject {
         self.exportSourceRulePackageUseCase = exportSourceRulePackageUseCase
         self.importSourceRulePackageUseCase = importSourceRulePackageUseCase
         self.recommendSourceImportOptionUseCase = recommendSourceImportOptionUseCase
-        self.previewRuntimeSourceUseCase = previewRuntimeSourceUseCase
         self.ruleValidator = ruleValidator
         self.jsonEncoder = jsonEncoder
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
         self.saveUserLibraryStateUseCase = saveUserLibraryStateUseCase
-        self.listDebugUseCase = listDebugUseCase
-        self.searchDebugUseCase = searchDebugUseCase
-        self.detailDebugUseCase = detailDebugUseCase
-        self.readerDebugUseCase = readerDebugUseCase
         self.sourceSelectionStore = sourceSelectionStore
         self.userID = userID
         self.now = now
@@ -175,23 +159,6 @@ final class SourcesViewModel: ObservableObject {
     }
 
     @MainActor
-    /// 中文注释：inspectVideoSource 方法只解析手动输入的 video URL 并返回事实日志，不自动判断类型或保存 Source。
-    func inspectVideoSource(entryURLString: String, name: String? = nil) -> VideoSourceImportInspection? {
-        do {
-            let inspection: VideoSourceImportInspection = try self.addVideoSourceUseCase.inspect(
-                entryURLString: entryURLString,
-                name: name
-            )
-            self.latestVideoImportDebugSnapshot = nil
-            return inspection
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "video-source-inspect-error")
-            self.errorMessage = error.localizedDescription
-            return nil
-        }
-    }
-
-    @MainActor
     func addManualVideoSource(
         entryURLString: String,
         name: String? = nil,
@@ -215,55 +182,6 @@ final class SourcesViewModel: ObservableObject {
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "manual-video-source-add-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
-            return nil
-        }
-    }
-
-    @MainActor
-    func debugManualVideoSource(
-        entryURLString: String,
-        name: String? = nil,
-        configuration: ManualVideoSourceConfigurationDraft
-    ) async -> ManualVideoSourceDebugResult? {
-        do {
-            return try await self.addVideoSourceUseCase.debugManualVideoSource(
-                entryURLString: entryURLString,
-                name: name,
-                configuration: configuration
-            )
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "manual-video-source-debug-error")
-            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
-            return nil
-        }
-    }
-
-    @MainActor
-    func previewRuntimeSource(
-        kind: RuntimeSourceImportKind,
-        entryURLString: String,
-        name: String? = nil
-    ) async -> RuntimeSourcePreviewResult? {
-        do {
-            return try await self.previewRuntimeSourceUseCase.execute(
-                kind: kind,
-                entryURLString: entryURLString,
-                name: name
-            )
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "runtime-source-preview-error")
-            self.errorMessage = error.localizedDescription
-            return nil
-        }
-    }
-
-    @MainActor
-    func debugRSSRuntimeSource(entryURLString: String) async -> RuntimeRSSDebugResult? {
-        do {
-            return try await self.previewRuntimeSourceUseCase.debugRSS(entryURLString: entryURLString)
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "rss-runtime-debug-error")
-            self.errorMessage = error.localizedDescription
             return nil
         }
     }
@@ -504,99 +422,6 @@ final class SourcesViewModel: ObservableObject {
             self.errorMessage = error.localizedDescription
             return nil
         }
-    }
-
-    @MainActor
-    func debugListRule(
-        source: Source,
-        listTab: ListTabRule?,
-        page: Int = 1,
-        urlOverride: String? = nil
-    ) async -> RuleDebugSession {
-        return await self.listDebugUseCase.execute(
-            source: source,
-            listTab: listTab,
-            page: page,
-            urlOverride: urlOverride
-        )
-    }
-
-    @MainActor
-    func debugRuntimeComicRule(
-        name: String?,
-        baseURL: String,
-        ruleJSON: String
-    ) async -> RuleDebugSession? {
-        let validationResult: SiteRuleValidationResult = self.validateRuleJSON(ruleJSON)
-        guard let rule: SiteRule = validationResult.rule else {
-            self.errorMessage = "Rule JSON is not valid enough to debug."
-            return nil
-        }
-
-        let trimmedName: String? = name?.trimmingCharacters(in: .whitespacesAndNewlines)
-            .nilIfEmpty
-        let trimmedBaseURL: String = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        let sourceBaseURL: String = trimmedBaseURL.isEmpty ? rule.baseUrl : trimmedBaseURL
-        let sourceName: String = trimmedName ?? rule.name
-        let now: Date = self.now()
-        let source: Source = Source(
-            id: "debug.comic.import",
-            name: sourceName,
-            baseURL: sourceBaseURL,
-            type: .html,
-            rule: rule,
-            enabled: true,
-            createdAt: now,
-            updatedAt: now
-        )
-
-        return await self.debugListRule(
-            source: source,
-            listTab: nil,
-            page: 1,
-            urlOverride: nil
-        )
-    }
-
-    @MainActor
-    func debugSearchRule(
-        source: Source,
-        keyword: String,
-        page: Int = 1,
-        urlOverride: String? = nil
-    ) async -> RuleDebugSession {
-        return await self.searchDebugUseCase.execute(
-            source: source,
-            keyword: keyword,
-            page: page,
-            urlOverride: urlOverride
-        )
-    }
-
-    @MainActor
-    func debugDetailRule(
-        source: Source,
-        detailURL: String,
-        context: ListContext?
-    ) async -> RuleDebugSession {
-        return await self.detailDebugUseCase.execute(
-            source: source,
-            detailURL: detailURL,
-            context: context
-        )
-    }
-
-    @MainActor
-    func debugReaderRule(
-        source: Source,
-        chapterURL: String,
-        context: ListContext?
-    ) async -> RuleDebugSession {
-        return await self.readerDebugUseCase.execute(
-            source: source,
-            chapterURL: chapterURL,
-            context: context
-        )
     }
 
     var selectedSource: Source? {

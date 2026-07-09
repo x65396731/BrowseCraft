@@ -1,22 +1,19 @@
 import Foundation
 import SwiftUI
-import BrowseCraftCore
 
-// 中文注释：RuntimeSourceImportView 是统一添加源外壳；具体 Debug 由 SourceDebugRouterView 按 runtime 分发。
+// 中文注释：RuntimeSourceImportView 是统一添加源外壳，添加流程只保留用户输入和保存动作。
 struct RuntimeSourceImportView: View {
     private enum OperationState: Equatable {
         case idle
-        case requesting
-        case previewed(RuntimeSourcePreviewResult)
         case saving
         case saved
         case error(String)
 
         var isWorking: Bool {
             switch self {
-            case .requesting, .saving:
+            case .saving:
                 return true
-            case .idle, .previewed, .saved, .error:
+            case .idle, .saved, .error:
                 return false
             }
         }
@@ -28,47 +25,15 @@ struct RuntimeSourceImportView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var entryURL: String = ""
-    @State private var sourceName: String = ""
-    @State private var ruleJSON: String = ""
-    @State private var selectedVideoAdapter: VideoAdapter = .genericHTML
-    @State private var selectedVideoEntryKind: VideoSourceEntryKind = .play
-    @State private var validationResult: SiteRuleValidationResult = SiteRuleValidationResult(rule: nil, issues: [])
     @State private var operationState: OperationState = .idle
-    @State private var isShowingDebugView: Bool = false
 
     var body: some View {
         NavigationStack {
             Form {
                 RuntimeSourceImportInputSection(
                     entryURL: self.$entryURL,
-                    sourceName: self.$sourceName,
-                    requestButtonTitle: self.requestButtonTitle,
-                    isWorking: self.operationState.isWorking,
-                    canRequest: self.canRequest,
-                    requestAction: self.requestPreviewAction
+                    isWorking: self.operationState.isWorking
                 )
-
-                if let preview: RuntimeSourcePreviewResult = self.preview {
-                    RuntimeSourceImportRequestResultSection(preview: preview)
-                }
-
-                RuntimeSourceImportSummarySection(kind: self.kind)
-
-                RuntimeSourceImportDebugEntrySection(
-                    canOpenDebug: self.canOpenDebug,
-                    openAction: {
-                        self.isShowingDebugView = true
-                    }
-                )
-
-                switch self.kind {
-                case .comic:
-                    self.comicSections
-                case .rss:
-                    EmptyView()
-                case .video:
-                    self.videoSections
-                }
 
                 if let message: String = self.statusMessage {
                     Section("Status") {
@@ -78,25 +43,6 @@ struct RuntimeSourceImportView: View {
                 }
             }
             .navigationTitle("Add Source")
-            .onAppear {
-                self.validationResult = self.viewModel.validateRuleJSON(self.ruleJSON)
-            }
-            .onChange(of: self.ruleJSON) { _, newValue in
-                self.validationResult = self.viewModel.validateRuleJSON(newValue)
-            }
-            .sheet(isPresented: self.$isShowingDebugView) {
-                SourceDebugRouterView(
-                    viewModel: self.viewModel,
-                    kind: self.kind,
-                    entryURL: self.entryURL,
-                    sourceName: self.trimmedSourceName,
-                    videoConfiguration: self.kind == .video ? ManualVideoSourceConfigurationDraft(
-                        adapter: self.selectedVideoAdapter,
-                        entryKind: self.selectedVideoEntryKind
-                    ) : nil,
-                    ruleJSON: self.$ruleJSON
-                )
-            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") {
@@ -121,71 +67,15 @@ struct RuntimeSourceImportView: View {
         return self.entryURL.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var trimmedSourceName: String? {
-        let trimmed: String = self.sourceName.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
-    }
-
-    private var requestButtonTitle: String {
-        switch self.operationState {
-        case .requesting:
-            return "Requesting..."
-        case .previewed:
-            return "Request Again"
-        case .idle, .saving, .saved, .error:
-            return "Request"
-        }
-    }
-
-    private var canRequest: Bool {
-        return self.trimmedEntryURL.isEmpty == false && self.operationState.isWorking == false
-    }
-
     private var canSave: Bool {
-        switch self.kind {
-        case .comic:
-            return self.trimmedEntryURL.isEmpty == false
-                && self.validationResult.canSave
-                && self.operationState.isWorking == false
-        case .rss:
-            return self.preview != nil
-                && self.trimmedEntryURL.isEmpty == false
-                && self.operationState.isWorking == false
-        case .video:
-            return self.preview != nil
-                && self.trimmedEntryURL.isEmpty == false
-                && self.selectedVideoAdapter.isManualSaveSupported
-                && self.operationState.isWorking == false
-        }
-    }
-
-    private var canOpenDebug: Bool {
-        switch self.kind {
-        case .comic:
-            return self.operationState.isWorking == false
-                && self.trimmedEntryURL.isEmpty == false
-        case .rss, .video:
-            return self.operationState.isWorking == false
-                && self.trimmedEntryURL.isEmpty == false
-        }
-    }
-
-    private var preview: RuntimeSourcePreviewResult? {
-        guard case .previewed(let preview) = self.operationState else {
-            return nil
-        }
-
-        return preview
+        return self.trimmedEntryURL.isEmpty == false
+            && self.operationState.isWorking == false
     }
 
     private var statusMessage: String? {
         switch self.operationState {
         case .idle:
             return nil
-        case .requesting:
-            return "Requesting source..."
-        case .previewed:
-            return "Request finished."
         case .saving:
             return "Saving source..."
         case .saved:
@@ -199,69 +89,11 @@ struct RuntimeSourceImportView: View {
         switch self.operationState {
         case .error:
             return .red
-        case .previewed, .saved:
+        case .saved:
             return .green
-        case .idle, .requesting, .saving:
+        case .idle, .saving:
             return .secondary
         }
-    }
-
-    @ViewBuilder
-    private var comicSections: some View {
-        RuleJSONEditorView(
-            ruleJSON: self.$ruleJSON,
-            validationResult: self.validationResult,
-            isEditable: self.operationState.isWorking == false,
-            formatAction: {
-                self.formatRuleJSON()
-            }
-        )
-    }
-
-    @ViewBuilder
-    private var videoSections: some View {
-        Section("Manual Rule") {
-            Picker("Adapter", selection: self.$selectedVideoAdapter) {
-                ForEach(VideoAdapter.manualImportOptions, id: \.self) { adapter in
-                    Text(adapter.manualImportTitle)
-                        .tag(adapter)
-                }
-            }
-
-            Picker("Entry", selection: self.$selectedVideoEntryKind) {
-                ForEach(VideoSourceEntryKind.manualImportOptions, id: \.self) { entryKind in
-                    Text(entryKind.manualImportTitle)
-                        .tag(entryKind)
-                }
-            }
-
-            Text(self.manualVideoRuleSummary)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private func requestPreviewAction() {
-        Task {
-            await self.requestPreview()
-        }
-    }
-
-    @MainActor
-    private func requestPreview() async {
-        self.operationState = .requesting
-        let preview: RuntimeSourcePreviewResult? = await self.viewModel.previewRuntimeSource(
-            kind: self.kind,
-            entryURLString: self.entryURL,
-            name: self.trimmedSourceName
-        )
-
-        guard let preview: RuntimeSourcePreviewResult else {
-            self.operationState = .error(self.viewModel.errorMessage ?? "Failed to request source.")
-            return
-        }
-
-        self.applyComicRuleDraftIfNeeded(from: preview)
-        self.operationState = .previewed(preview)
     }
 
     @MainActor
@@ -281,9 +113,12 @@ struct RuntimeSourceImportView: View {
     @MainActor
     private func saveComic() async {
         let didSave: Bool = await self.viewModel.addRuleSource(
-            name: self.trimmedSourceName ?? "",
+            name: self.defaultSourceName,
             baseURL: self.trimmedEntryURL,
-            ruleJSON: self.ruleJSON
+            ruleJSON: Self.makeComicRuleDraftJSON(
+                entryURLString: self.trimmedEntryURL,
+                name: self.defaultSourceName
+            )
         )
 
         guard didSave else {
@@ -298,7 +133,7 @@ struct RuntimeSourceImportView: View {
     private func saveRSS() async {
         let source: Source? = await self.viewModel.addRSSSource(
             feedURLString: self.entryURL,
-            name: self.trimmedSourceName
+            name: self.defaultSourceName
         )
 
         guard source != nil else {
@@ -313,10 +148,10 @@ struct RuntimeSourceImportView: View {
     private func saveVideo() async {
         let source: Source? = await self.viewModel.addManualVideoSource(
             entryURLString: self.entryURL,
-            name: self.trimmedSourceName,
+            name: self.defaultSourceName,
             configuration: ManualVideoSourceConfigurationDraft(
-                adapter: self.selectedVideoAdapter,
-                entryKind: self.selectedVideoEntryKind
+                adapter: .genericHTML,
+                entryKind: .play
             )
         )
 
@@ -335,34 +170,18 @@ struct RuntimeSourceImportView: View {
         self.dismiss()
     }
 
-    private func formatRuleJSON() {
-        guard let rule: SiteRule = self.validationResult.rule else {
-            return
-        }
-
-        self.ruleJSON = self.viewModel.formattedRuleJSON(for: rule)
-        self.validationResult = self.viewModel.validateRuleJSON(self.ruleJSON)
+    private var defaultSourceName: String {
+        return URL(string: self.trimmedEntryURL)?.host ?? "Comic Source"
     }
 
-    private func applyComicRuleDraftIfNeeded(from preview: RuntimeSourcePreviewResult) {
-        guard self.kind == .comic,
-              self.ruleJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return
-        }
-
-        self.ruleJSON = Self.makeComicRuleDraftJSON(from: preview)
-        self.validationResult = self.viewModel.validateRuleJSON(self.ruleJSON)
-    }
-
-    private static func makeComicRuleDraftJSON(from preview: RuntimeSourcePreviewResult) -> String {
-        let baseURL: String = preview.entryURL.absoluteString
-        let trimmedTitle: String? = preview.title?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+    private static func makeComicRuleDraftJSON(entryURLString: String, name: String?) -> String {
+        let baseURL: String = entryURLString
+        let trimmedName: String? = name?.trimmingCharacters(in: .whitespacesAndNewlines)
         let sourceName: String
-        if let trimmedTitle: String, trimmedTitle.isEmpty == false {
-            sourceName = trimmedTitle
+        if let trimmedName: String, trimmedName.isEmpty == false {
+            sourceName = trimmedName
         } else {
-            sourceName = preview.entryURL.host ?? "Comic Source"
+            sourceName = URL(string: baseURL)?.host ?? "Comic Source"
         }
         let draft: [String: Any] = [
             "name": sourceName,
@@ -400,62 +219,5 @@ struct RuntimeSourceImportView: View {
         }
 
         return json
-    }
-
-    private var manualVideoRuleSummary: String {
-        if self.selectedVideoEntryKind == .play {
-            return "Use Play for direct player URLs. Embed URLs are handled as iframePlayer/pageOnly unless the page exposes mp4 or m3u8."
-        }
-
-        return "Use Home/List/Detail only when the URL represents a browsable video page."
-    }
-}
-
-private extension VideoAdapter {
-    static var manualImportOptions: [VideoAdapter] {
-        return [.genericHTML, .macCMS, .plugin]
-    }
-
-    var manualImportTitle: String {
-        switch self {
-        case .genericHTML:
-            return "Generic HTML"
-        case .macCMS:
-            return "MacCMS"
-        case .webView:
-            return "WebView (legacy)"
-        case .plugin:
-            return "Plugin"
-        }
-    }
-
-    var isManualSaveSupported: Bool {
-        switch self {
-        case .genericHTML, .macCMS:
-            return true
-        case .webView, .plugin:
-            return false
-        }
-    }
-}
-
-private extension VideoSourceEntryKind {
-    static var manualImportOptions: [VideoSourceEntryKind] {
-        return [.play, .home, .list, .detail, .category]
-    }
-
-    var manualImportTitle: String {
-        switch self {
-        case .home:
-            return "Home"
-        case .category:
-            return "Category"
-        case .list:
-            return "List"
-        case .detail:
-            return "Detail"
-        case .play:
-            return "Play"
-        }
     }
 }
