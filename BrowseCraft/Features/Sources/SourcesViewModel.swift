@@ -27,6 +27,7 @@ final class SourcesViewModel: ObservableObject {
     private let addComicRuleSourceUseCase: AddComicRuleSourceUseCase
     private let addRSSSourceUseCase: AddRSSSourceUseCase
     private let addVideoSourceUseCase: AddVideoSourceUseCase
+    private let discoverComicResourcesUseCase: DiscoverComicResourcesUseCase
     private let addCatalogSourceUseCase: AddCatalogSourceUseCase
     private let loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase
     private let deleteSourceUseCase: DeleteSourceUseCase
@@ -51,6 +52,7 @@ final class SourcesViewModel: ObservableObject {
         addComicRuleSourceUseCase: AddComicRuleSourceUseCase,
         addRSSSourceUseCase: AddRSSSourceUseCase,
         addVideoSourceUseCase: AddVideoSourceUseCase,
+        discoverComicResourcesUseCase: DiscoverComicResourcesUseCase,
         addCatalogSourceUseCase: AddCatalogSourceUseCase,
         loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase,
         deleteSourceUseCase: DeleteSourceUseCase,
@@ -72,6 +74,7 @@ final class SourcesViewModel: ObservableObject {
         self.addComicRuleSourceUseCase = addComicRuleSourceUseCase
         self.addRSSSourceUseCase = addRSSSourceUseCase
         self.addVideoSourceUseCase = addVideoSourceUseCase
+        self.discoverComicResourcesUseCase = discoverComicResourcesUseCase
         self.addCatalogSourceUseCase = addCatalogSourceUseCase
         self.loadCatalogSourcesUseCase = loadCatalogSourcesUseCase
         self.deleteSourceUseCase = deleteSourceUseCase
@@ -106,6 +109,22 @@ final class SourcesViewModel: ObservableObject {
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-load-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+        }
+    }
+
+    @MainActor
+    func discoverComicResources(siteURLString: String, keyword: String) async -> [TransientComicDiscoveryItem] {
+        do {
+            return try await self.discoverComicResourcesUseCase.execute(
+                DiscoverComicResourcesInput(
+                    siteURLString: siteURLString,
+                    keyword: keyword
+                )
+            )
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "comic-discovery-error")
+            self.errorMessage = error.localizedDescription
+            return []
         }
     }
 

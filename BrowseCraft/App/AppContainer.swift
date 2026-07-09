@@ -102,6 +102,10 @@ final class AppContainer {
             sourceRepository: self.sourceRepository,
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
         )
+        let discoverComicResourcesUseCase: DiscoverComicResourcesUseCase = DiscoverComicResourcesUseCase(
+            pageContentLoader: self.pageContentLoader,
+            urlResolver: self.urlResolver
+        )
         let deleteSourceUseCase: DeleteSourceUseCase = DeleteSourceUseCase(
             sourceRepository: self.sourceRepository
         )
@@ -137,6 +141,7 @@ final class AppContainer {
             addComicRuleSourceUseCase: addComicRuleSourceUseCase,
             addRSSSourceUseCase: addRSSSourceUseCase,
             addVideoSourceUseCase: addVideoSourceUseCase,
+            discoverComicResourcesUseCase: discoverComicResourcesUseCase,
             addCatalogSourceUseCase: addCatalogSourceUseCase,
             loadCatalogSourcesUseCase: loadCatalogSourcesUseCase,
             deleteSourceUseCase: deleteSourceUseCase,
