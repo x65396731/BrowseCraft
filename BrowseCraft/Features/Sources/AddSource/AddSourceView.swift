@@ -7,9 +7,7 @@ struct AddSourceView: View {
     @ObservedObject var viewModel: SourcesViewModel
     @Environment(\.dismiss) private var dismiss
 
-    @State private var isShowingWebsiteRuleImportView: Bool = false
     @State private var runtimeSourceKind: RuntimeSourceImportKind?
-    @State private var isShowingWebsiteRulePackageImportView: Bool = false
     @State private var unavailableOption: SourceImportOptionKind?
 
     private let options: [SourceImportOption] = SourceImportOption.defaultOptions
@@ -24,8 +22,6 @@ struct AddSourceView: View {
                 }
 
                 Section("Advanced") {
-                    self.optionButton(for: .websiteRuleJSON)
-                    self.optionButton(for: .rulePackageJSON)
                     self.optionButton(for: .scriptSource)
                 }
             }
@@ -37,26 +33,10 @@ struct AddSourceView: View {
                     }
                 }
             }
-            .sheet(isPresented: self.$isShowingWebsiteRuleImportView) {
-                WebsiteRuleImportView(
-                    viewModel: self.viewModel,
-                    completion: {
-                        self.dismiss()
-                    }
-                )
-            }
             .sheet(item: self.$runtimeSourceKind) { kind in
                 RuntimeSourceImportView(
                     viewModel: self.viewModel,
                     kind: kind,
-                    completion: {
-                        self.dismiss()
-                    }
-                )
-            }
-            .sheet(isPresented: self.$isShowingWebsiteRulePackageImportView) {
-                WebsiteRulePackageImportView(
-                    viewModel: self.viewModel,
                     completion: {
                         self.dismiss()
                     }
@@ -98,10 +78,6 @@ struct AddSourceView: View {
             self.runtimeSourceKind = .comic
         case .videoSource:
             self.runtimeSourceKind = .video
-        case .websiteRuleJSON:
-            self.isShowingWebsiteRuleImportView = true
-        case .rulePackageJSON:
-            self.isShowingWebsiteRulePackageImportView = true
         case .rssFeedURL:
             self.runtimeSourceKind = .rss
         case .scriptSource:
@@ -130,7 +106,7 @@ struct AddSourceView: View {
             return "Video sources can be added from the Video source form."
         case .scriptSource:
             return "Script Source is not available yet."
-        case .websiteRuleJSON, .rulePackageJSON, .rssFeedURL, nil:
+        case .rssFeedURL, nil:
             return "This source type is not available yet."
         }
     }
@@ -143,10 +119,6 @@ private extension SourceImportOptionKind {
             return "Comics"
         case .videoSource:
             return "Video"
-        case .websiteRuleJSON:
-            return "Website Rule JSON"
-        case .rulePackageJSON:
-            return "Website Rule Package"
         case .rssFeedURL:
             return "RSS Feed"
         case .scriptSource:
@@ -160,10 +132,6 @@ private extension SourceImportOptionKind {
             return "book.pages"
         case .videoSource:
             return "play.rectangle"
-        case .websiteRuleJSON:
-            return "curlybraces"
-        case .rulePackageJSON:
-            return "shippingbox"
         case .rssFeedURL:
             return "dot.radiowaves.left.and.right"
         case .scriptSource:

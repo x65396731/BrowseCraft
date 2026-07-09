@@ -11,8 +11,6 @@ struct SourceImportRecommendationTests {
         #expect(options.map(\.kind) == [
             .comicSource,
             .videoSource,
-            .websiteRuleJSON,
-            .rulePackageJSON,
             .rssFeedURL,
             .scriptSource
         ])
@@ -21,12 +19,10 @@ struct SourceImportRecommendationTests {
         #expect(options[0].defaultConfigurationKind == .comic)
         #expect(options[1].defaultSourceType == .html)
         #expect(options[1].defaultConfigurationKind == .video)
-        #expect(options[2].acceptsRuleJSONInput == true)
-        #expect(options[2].defaultConfigurationKind == .comic)
-        #expect(options[4].requiresURLInput == true)
-        #expect(options[4].defaultSourceType == .rss)
-        #expect(options[4].defaultConfigurationKind == .rss)
-        #expect(options[5].defaultConfigurationKind == .plugin)
+        #expect(options[2].requiresURLInput == true)
+        #expect(options[2].defaultSourceType == .rss)
+        #expect(options[2].defaultConfigurationKind == .rss)
+        #expect(options[3].defaultConfigurationKind == .plugin)
     }
 
     @Test func recommendationAppliesInternalAxesWithoutOverwritingDraftText() {
@@ -38,11 +34,11 @@ struct SourceImportRecommendationTests {
             ruleJSON: "{ \"name\": \"Example\" }"
         )
         let recommendation: SourceImportRecommendation = SourceImportRecommendation(
-            optionKind: .websiteRuleJSON,
-            sourceType: .json,
+            optionKind: .comicSource,
+            sourceType: .html,
             configurationKind: .comic,
             confidence: .high,
-            reasons: [.ruleJSONDetected]
+            reasons: [.userSelectedOption]
         )
 
         let updatedDraft: SourceImportDraft = recommendation.applying(to: draft)
@@ -50,7 +46,7 @@ struct SourceImportRecommendationTests {
         #expect(updatedDraft.name == draft.name)
         #expect(updatedDraft.entryURL == draft.entryURL)
         #expect(updatedDraft.ruleJSON == draft.ruleJSON)
-        #expect(updatedDraft.sourceType == .json)
+        #expect(updatedDraft.sourceType == .html)
         #expect(updatedDraft.configurationKind == .comic)
         #expect(recommendation.isStrongRecommendation == true)
     }

@@ -68,7 +68,7 @@ typealias RulePackageCoder = BrowseCraftCore.RulePackageCoder
 typealias RulePackageError = BrowseCraftCore.RulePackageError
 
 extension BrowseCraftCore.SiteRule {
-    /// 中文注释：WebsiteRuleImportView 展示给用户参考的网站规则 JSON 示例。
+    /// 中文注释：这里提供给用户参考的是通用网站规则 JSON 示例。
     static let exampleJSON: String = """
     {
       "name": "Example Site",

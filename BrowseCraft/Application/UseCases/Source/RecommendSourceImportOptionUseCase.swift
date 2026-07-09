@@ -19,16 +19,6 @@ struct RecommendSourceImportOptionUseCase {
             )
         }
 
-        if draft.trimmedRuleJSON != nil {
-            return SourceImportRecommendation(
-                optionKind: .websiteRuleJSON,
-                sourceType: .json,
-                configurationKind: .comic,
-                confidence: .high,
-                reasons: [.ruleJSONDetected]
-            )
-        }
-
         let normalizedURL: String = draft.trimmedEntryURL.lowercased()
         let normalizedHTML: String = html?.lowercased() ?? ""
         let normalizedHeaders: [String: String] = Self.normalized(headers)
@@ -134,7 +124,7 @@ struct RecommendSourceImportOptionUseCase {
                 configurationKind: .comic,
                 confidence: .medium,
                 reasons: [.userSelectedOption],
-                warnings: ["Comic sources use Website Rule JSON under the hood."]
+                warnings: ["Comic sources use the rule-backed source runtime."]
             )
         case .videoSource:
             return SourceImportRecommendation(
@@ -145,7 +135,7 @@ struct RecommendSourceImportOptionUseCase {
                 reasons: [.userSelectedOption],
                 warnings: ["Video sources use the video runtime and currently support MacCMS-style pages first."]
             )
-        case .websiteRuleJSON, .rulePackageJSON, .scriptSource:
+        case .scriptSource:
             return self.execute(draft: draft, html: html, headers: headers)
         }
     }
