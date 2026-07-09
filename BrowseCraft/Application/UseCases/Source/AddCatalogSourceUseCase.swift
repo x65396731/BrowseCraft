@@ -30,6 +30,30 @@ struct AddCatalogSourceResult {
     let listOutput: SourceListOutput?
 }
 
+struct LoadCatalogSourcesUseCase {
+    private let pageDataLoader: PageDataLoader
+
+    init(pageDataLoader: PageDataLoader) {
+        self.pageDataLoader = pageDataLoader
+    }
+
+    func execute() async throws -> [BrowseCraftCatalogSource] {
+        let data: Data = try await self.pageDataLoader.getData(
+            from: BrowseCraftSourceCatalog.catalogAPIURL,
+            request: self.requestConfig
+        )
+        return try BrowseCraftSourceCatalog.sources(from: data)
+    }
+
+    private var requestConfig: RequestConfig {
+        return RequestConfig(
+            headers: [
+                "Accept": "application/json"
+            ]
+        )
+    }
+}
+
 // 中文注释：Catalog 来源必须先通过既存 runtime 加载流程，加载成功后才写入本地 DB。
 struct AddCatalogSourceUseCase {
     private let sourceRepository: SourceRepository

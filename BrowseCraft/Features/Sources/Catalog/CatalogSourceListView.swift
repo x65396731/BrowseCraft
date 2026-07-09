@@ -10,21 +10,31 @@ struct CatalogSourceListView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    ForEach(self.viewModel.catalogSources, id: \.id) { catalogSource in
-                        CatalogSourceRowView(
-                            catalogSource: catalogSource,
-                            isAdded: self.viewModel.isCatalogSourceAdded(catalogSource),
-                            isAdding: self.addingSourceIDs.contains(catalogSource.id),
-                            didFail: self.failedSourceIDs.contains(catalogSource.id),
-                            addAction: {
-                                self.add(catalogSource)
-                            }
-                        )
+                if self.viewModel.isLoadingCatalogSources && self.viewModel.catalogSources.isEmpty {
+                    ProgressView("加载中")
+                } else if self.viewModel.catalogSources.isEmpty {
+                    Text("暂无测试数据")
+                        .foregroundColor(.secondary)
+                } else {
+                    Section {
+                        ForEach(self.viewModel.catalogSources, id: \.id) { catalogSource in
+                            CatalogSourceRowView(
+                                catalogSource: catalogSource,
+                                isAdded: self.viewModel.isCatalogSourceAdded(catalogSource),
+                                isAdding: self.addingSourceIDs.contains(catalogSource.id),
+                                didFail: self.failedSourceIDs.contains(catalogSource.id),
+                                addAction: {
+                                    self.add(catalogSource)
+                                }
+                            )
+                        }
                     }
                 }
             }
             .navigationTitle("测试数据")
+            .task {
+                await self.viewModel.loadCatalogSourcesIfNeeded()
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") {

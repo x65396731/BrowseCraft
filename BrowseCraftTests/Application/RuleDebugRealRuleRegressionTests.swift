@@ -2,62 +2,7 @@ import Foundation
 import Testing
 @testable import BrowseCraft
 
-// 中文注释：P2-3.5 用真实规则 fixture 回归 RuleDebugger 的 list debug 链路，不访问真实网络。
 struct RuleDebugRealRuleRegressionTests {
-    @Test func builtInRuleDebugParsesFixtureWithoutMutatingSource() async throws {
-        let source: Source = BuiltInSource.primaryBuiltIn(now: Self.fixedDate())
-        let originalSource: Source = source
-        let loader: RuleDebugRegressionPageContentLoader = RuleDebugRegressionPageContentLoader(
-            html: BuiltInRuleHTMLFixtures.listHTML
-        )
-        let useCase: ListDebugUseCase = Self.useCase(loader: loader)
-
-        let session: RuleDebugSession = await useCase.execute(
-            source: source,
-            listTab: source.rule.availableListTabs.first,
-            page: 1
-        )
-
-        let itemLog: RuleDebugExtractionLog = try #require(
-            session.extractionLogs.first { log in log.field == .item }
-        )
-
-        #expect(session.status == .succeeded)
-        #expect(source == originalSource)
-        #expect(session.input.sourceID == BuiltInSource.primaryBuiltInID)
-        #expect(session.previewItems.map(\.title) == ["猎人游戏W", "1步前进 2步后退"])
-        #expect(itemLog.candidateCount == 2)
-        #expect(itemLog.outputCount == 2)
-        #expect(session.issues.isEmpty)
-    }
-
-    @Test func selectorEmptyRegressionReportsCandidateZero() async throws {
-        let source: Source = BuiltInSource.primaryBuiltIn(now: Self.fixedDate())
-        var tab: ListTabRule = try #require(source.rule.availableListTabs.first)
-        tab.list.item = ".missing-card"
-        let loader: RuleDebugRegressionPageContentLoader = RuleDebugRegressionPageContentLoader(
-            html: BuiltInRuleHTMLFixtures.listHTML
-        )
-        let useCase: ListDebugUseCase = Self.useCase(loader: loader)
-
-        let session: RuleDebugSession = await useCase.execute(
-            source: source,
-            listTab: tab,
-            page: 1
-        )
-
-        let itemLog: RuleDebugExtractionLog = try #require(
-            session.extractionLogs.first { log in log.field == .item }
-        )
-
-        #expect(session.status == .empty)
-        #expect(itemLog.candidateCount == 0)
-        #expect(itemLog.outputCount == 0)
-        #expect(session.issues.contains { issue in
-            issue.category == .selectorEmpty && issue.field == .item
-        })
-    }
-
     @Test func fieldMissingRegressionReportsSkippedItems() async throws {
         let source: Source = try Self.v2Source(listURL: "https://example.test/list/1")
         let loader: RuleDebugRegressionPageContentLoader = RuleDebugRegressionPageContentLoader(

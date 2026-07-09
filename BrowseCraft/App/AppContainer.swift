@@ -10,6 +10,7 @@ final class AppContainer {
     private let favoriteRepository: FavoriteRepository
     private let httpClient: HTTPClient
     private let pageContentLoader: PageContentLoader
+    private let pageDataLoader: PageDataLoader
     private let urlResolver: URLResolvingService
     private let ruleParser: RuleParsingService
     private let sourceRuntimeFactory: SourceRuntimeFactory
@@ -25,7 +26,7 @@ final class AppContainer {
             let database: AppDatabase = try AppDatabase()
             let urlResolver: URLResolvingService = URLResolvingService()
             let httpClient: HTTPClient = AlamofireHTTPClient()
-            let pageContentLoader: PageContentLoader = DefaultPageContentLoader(httpClient: httpClient)
+            let pageContentLoader: DefaultPageContentLoader = DefaultPageContentLoader(httpClient: httpClient)
             let ruleParser: RuleParsingService = SwiftSoupRuleParser(urlResolver: urlResolver)
 
             self.database = database
@@ -33,6 +34,7 @@ final class AppContainer {
             self.favoriteRepository = GRDBFavoriteRepository(database: database)
             self.httpClient = httpClient
             self.pageContentLoader = pageContentLoader
+            self.pageDataLoader = pageContentLoader
             self.urlResolver = urlResolver
             self.ruleParser = ruleParser
             self.sourceRuntimeFactory = SourceRuntimeFactory(
@@ -128,6 +130,9 @@ final class AppContainer {
                 pageContentLoader: self.pageContentLoader
             )
         )
+        let loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase = LoadCatalogSourcesUseCase(
+            pageDataLoader: self.pageDataLoader
+        )
         let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase = SaveUserLibraryStateUseCase(
             repository: userLibraryStateRepository
         )
@@ -164,6 +169,7 @@ final class AppContainer {
             addRSSSourceUseCase: addRSSSourceUseCase,
             addVideoSourceUseCase: addVideoSourceUseCase,
             addCatalogSourceUseCase: addCatalogSourceUseCase,
+            loadCatalogSourcesUseCase: loadCatalogSourcesUseCase,
             deleteSourceUseCase: deleteSourceUseCase,
             updateSourceRuleUseCase: updateSourceRuleUseCase,
             duplicateSourceRuleUseCase: duplicateSourceRuleUseCase,

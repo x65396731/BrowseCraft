@@ -12,7 +12,7 @@ struct SyncBuiltInSourcesUseCase {
 
     init(
         sourceRepository: SourceRepository,
-        catalogSources: [BrowseCraftCatalogSource] = BrowseCraftSourceCatalog.sources,
+        catalogSources: [BrowseCraftCatalogSource] = [],
         catalogSourceMaterializer: CatalogSourceMaterializer = CatalogSourceMaterializer(),
         now: @escaping () -> Date = Date.init
     ) {

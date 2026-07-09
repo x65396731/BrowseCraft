@@ -20,6 +20,8 @@ final class SourcesViewModel: ObservableObject {
     @Published private(set) var refreshingSourceID: String?
     @Published private(set) var latestVideoImportDebugSnapshot: SourceDebugSnapshot?
     @Published private(set) var latestCatalogSourceAddID: String?
+    @Published private(set) var catalogSources: [BrowseCraftCatalogSource] = []
+    @Published private(set) var isLoadingCatalogSources: Bool = false
 
     private let syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase
     private let loadSourcesUseCase: LoadSourcesUseCase
@@ -27,6 +29,7 @@ final class SourcesViewModel: ObservableObject {
     private let addRSSSourceUseCase: AddRSSSourceUseCase
     private let addVideoSourceUseCase: AddVideoSourceUseCase
     private let addCatalogSourceUseCase: AddCatalogSourceUseCase
+    private let loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase
     private let deleteSourceUseCase: DeleteSourceUseCase
     private let updateSourceRuleUseCase: UpdateSourceRuleUseCase
     private let duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase
@@ -55,6 +58,7 @@ final class SourcesViewModel: ObservableObject {
         addRSSSourceUseCase: AddRSSSourceUseCase,
         addVideoSourceUseCase: AddVideoSourceUseCase,
         addCatalogSourceUseCase: AddCatalogSourceUseCase,
+        loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase,
         deleteSourceUseCase: DeleteSourceUseCase,
         updateSourceRuleUseCase: UpdateSourceRuleUseCase,
         duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase,
@@ -80,6 +84,7 @@ final class SourcesViewModel: ObservableObject {
         self.addRSSSourceUseCase = addRSSSourceUseCase
         self.addVideoSourceUseCase = addVideoSourceUseCase
         self.addCatalogSourceUseCase = addCatalogSourceUseCase
+        self.loadCatalogSourcesUseCase = loadCatalogSourcesUseCase
         self.deleteSourceUseCase = deleteSourceUseCase
         self.updateSourceRuleUseCase = updateSourceRuleUseCase
         self.duplicateSourceRuleUseCase = duplicateSourceRuleUseCase
@@ -263,8 +268,23 @@ final class SourcesViewModel: ObservableObject {
         }
     }
 
-    var catalogSources: [BrowseCraftCatalogSource] {
-        return BrowseCraftSourceCatalog.sources
+    @MainActor
+    func loadCatalogSourcesIfNeeded() async {
+        if self.catalogSources.isEmpty == false || self.isLoadingCatalogSources {
+            return
+        }
+
+        self.isLoadingCatalogSources = true
+        defer {
+            self.isLoadingCatalogSources = false
+        }
+
+        do {
+            self.catalogSources = try await self.loadCatalogSourcesUseCase.execute()
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-source-load-error")
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+        }
     }
 
     func isCatalogSourceAdded(_ catalogSource: BrowseCraftCatalogSource) -> Bool {

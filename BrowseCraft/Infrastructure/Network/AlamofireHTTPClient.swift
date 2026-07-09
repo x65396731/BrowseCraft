@@ -10,7 +10,7 @@ final class AlamofireHTTPClient: HTTPClient {
         let urlRequest: URLRequest = self.urlRequest(for: url, request: request)
         let html: String
         do {
-            html = try await AF.request(urlRequest).serializingString().value
+            html = try await self.performStringRequest(urlRequest)
         } catch {
             throw RuleExecutionError.network(
                 url: url.absoluteString,
@@ -43,7 +43,7 @@ final class AlamofireHTTPClient: HTTPClient {
         let urlRequest: URLRequest = self.urlRequest(for: url, request: request)
         let data: Data
         do {
-            data = try await AF.request(urlRequest).serializingData().value
+            data = try await self.performDataRequest(urlRequest)
         } catch {
             throw RuleExecutionError.network(
                 url: url.absoluteString,
@@ -60,6 +60,24 @@ final class AlamofireHTTPClient: HTTPClient {
         #endif
 
         return data
+    }
+
+    /// 中文注释：使用 Alamofire 的 callback API 自己桥接 async，避免当前运行环境在 Alamofire Concurrency bridge 中崩溃。
+    private func performStringRequest(_ urlRequest: URLRequest) async throws -> String {
+        return try await withCheckedThrowingContinuation { continuation in
+            AF.request(urlRequest).responseString { response in
+                continuation.resume(with: response.result)
+            }
+        }
+    }
+
+    /// 中文注释：RSS/API 等原始 bytes 请求也复用 callback bridge，继续保留 Alamofire 的请求能力。
+    private func performDataRequest(_ urlRequest: URLRequest) async throws -> Data {
+        return try await withCheckedThrowingContinuation { continuation in
+            AF.request(urlRequest).responseData { response in
+                continuation.resume(with: response.result)
+            }
+        }
     }
 
     /// 中文注释：集中生成 URLRequest，确保页面级 headers 覆盖默认 headers，同时旧站点仍保留浏览器 UA/Accept。
