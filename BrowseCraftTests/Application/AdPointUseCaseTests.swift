@@ -14,7 +14,17 @@ struct AdPointUseCaseTests {
 
         let result: AdPointAccumulationResult = try useCase.execute(points: AdPointRule.rssPoints)
 
-        #expect(result == .noAdNeeded(pendingPoints: 30))
+        #expect(result.shouldPlayAd == false)
+        #expect(result.pendingPoints == 30)
+        #expect(
+            result == .noAdNeeded(
+                previousPoints: 20,
+                addedPoints: AdPointRule.rssPoints,
+                pendingPoints: 30,
+                threshold: AdPointRule.threshold,
+                hasRemovedAds: false
+            )
+        )
         #expect(repository.savedUser?.pendingAdPoints == 30)
     }
 
@@ -29,7 +39,17 @@ struct AdPointUseCaseTests {
 
         let result: AdPointAccumulationResult = try useCase.execute(points: AdPointRule.comicPoints)
 
-        #expect(result == .shouldPlayAd(pendingPoints: 0))
+        #expect(result.shouldPlayAd == true)
+        #expect(result.pendingPoints == 0)
+        #expect(
+            result == .shouldPlayAd(
+                previousPoints: 90,
+                addedPoints: AdPointRule.comicPoints,
+                pendingPoints: 0,
+                threshold: AdPointRule.threshold,
+                hasRemovedAds: false
+            )
+        )
         #expect(repository.savedUser?.pendingAdPoints == 0)
     }
 
@@ -44,7 +64,17 @@ struct AdPointUseCaseTests {
 
         let result: AdPointAccumulationResult = try useCase.execute(points: AdPointRule.videoPoints)
 
-        #expect(result == .noAdNeeded(pendingPoints: 0))
+        #expect(result.shouldPlayAd == false)
+        #expect(result.pendingPoints == 0)
+        #expect(
+            result == .noAdNeeded(
+                previousPoints: 90,
+                addedPoints: AdPointRule.videoPoints,
+                pendingPoints: 0,
+                threshold: AdPointRule.threshold,
+                hasRemovedAds: true
+            )
+        )
         #expect(repository.savedUser?.pendingAdPoints == 0)
         #expect(repository.savedUser?.hasRemovedAds == true)
     }

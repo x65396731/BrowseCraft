@@ -29,6 +29,12 @@ struct VideoPlayerHostView: View {
                 )
             )
         }
+        .handlesRewardedAdPlayback(
+            shouldPlayAd: self.viewModel.shouldPlayAd,
+            markHandled: {
+                self.viewModel.markAdPlaybackHandled()
+            }
+        )
     }
 
     @ViewBuilder

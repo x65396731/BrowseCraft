@@ -5,7 +5,7 @@ import SwiftUI
 /// 中文注释：SourcesView 是 struct，负责本模块中的对应职责。
 struct SourcesView: View {
     @ObservedObject var viewModel: SourcesViewModel
-    @StateObject private var rewardedAdTester: RewardedAdTestViewModel = RewardedAdTestViewModel()
+    @StateObject private var adPlaybackViewModel: AdPlaybackViewModel = AdPlaybackViewModel()
     @State private var isShowingAddSourceView: Bool = false
     @State private var isShowingCatalogSourceListView: Bool = false
 
@@ -76,19 +76,19 @@ struct SourcesView: View {
                     Button(
                         action: {
                             Task {
-                                await self.rewardedAdTester.loadAndShow()
+                                await self.adPlaybackViewModel.loadAndShow()
                             }
                         },
                         label: {
-                            if self.rewardedAdTester.isLoading {
+                            if self.adPlaybackViewModel.isLoading {
                                 ProgressView()
                             } else {
                                 Image(systemName: "play.rectangle.on.rectangle")
                             }
                         }
                     )
-                    .disabled(self.rewardedAdTester.isLoading)
-                    .accessibilityLabel("Test Rewarded Ad")
+                    .disabled(self.adPlaybackViewModel.isLoading)
+                    .accessibilityLabel("Ad Playback")
 
                     Button(
                         action: {
@@ -144,10 +144,10 @@ struct SourcesView: View {
             }
             .alert("Google Ads", isPresented: self.adAlertBinding) {
                 Button("OK") {
-                    self.rewardedAdTester.message = nil
+                    self.adPlaybackViewModel.message = nil
                 }
             } message: {
-                Text(self.rewardedAdTester.message ?? "")
+                Text(self.adPlaybackViewModel.message ?? "")
             }
         }
     }
@@ -202,11 +202,11 @@ struct SourcesView: View {
     private var adAlertBinding: Binding<Bool> {
         return Binding<Bool>(
             get: {
-                return self.rewardedAdTester.message != nil
+                return self.adPlaybackViewModel.message != nil
             },
             set: { newValue in
                 if newValue == false {
-                    self.rewardedAdTester.message = nil
+                    self.adPlaybackViewModel.message = nil
                 }
             }
         )

@@ -66,5 +66,11 @@ struct RSSContentDetailView: View {
         .onAppear {
             self.viewModel.saveReadingHistoryIfNeeded()
         }
+        .handlesRewardedAdPlayback(
+            shouldPlayAd: self.viewModel.shouldPlayAd,
+            markHandled: {
+                self.viewModel.markAdPlaybackHandled()
+            }
+        )
     }
 }

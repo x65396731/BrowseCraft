@@ -179,6 +179,12 @@ final class ReaderViewModel: ObservableObject {
 
     @MainActor
     func markAdPlaybackHandled() {
+        #if DEBUG
+        print(
+            "[BrowseCraftAdPlayback] comic mark handled " +
+            "sourceID=\(self.source.id) comicItemID=\(self.item.id) previousShouldPlayAd=\(self.shouldPlayAd)"
+        )
+        #endif
         self.shouldPlayAd = false
     }
 
@@ -305,7 +311,20 @@ final class ReaderViewModel: ObservableObject {
 
         do {
             let result: AdPointAccumulationResult = try accumulateAdPointsUseCase.execute(points: points)
+            #if DEBUG
+            print(
+                "[BrowseCraftAdPoints] comic result " +
+                "sourceID=\(self.source.id) comicItemID=\(self.item.id) " +
+                "chapterKey=\(chapterKey) \(result.debugDescription)"
+            )
+            #endif
             if result.shouldPlayAd {
+                #if DEBUG
+                print(
+                    "[BrowseCraftAdPlayback] comic shouldPlayAd=true " +
+                    "sourceID=\(self.source.id) comicItemID=\(self.item.id) chapterKey=\(chapterKey)"
+                )
+                #endif
                 self.shouldPlayAd = true
             }
         } catch {

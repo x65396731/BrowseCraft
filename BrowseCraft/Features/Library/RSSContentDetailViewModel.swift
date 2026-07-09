@@ -67,6 +67,12 @@ final class RSSContentDetailViewModel: ObservableObject {
     }
 
     func markAdPlaybackHandled() {
+        #if DEBUG
+        print(
+            "[BrowseCraftAdPlayback] RSS mark handled " +
+            "sourceID=\(self.source.id) itemID=\(self.item.id) previousShouldPlayAd=\(self.shouldPlayAd)"
+        )
+        #endif
         self.shouldPlayAd = false
     }
 
@@ -111,7 +117,20 @@ final class RSSContentDetailViewModel: ObservableObject {
 
         do {
             let result: AdPointAccumulationResult = try accumulateAdPointsUseCase.execute(points: points)
+            #if DEBUG
+            print(
+                "[BrowseCraftAdPoints] RSS result " +
+                "sourceID=\(self.source.id) itemID=\(self.item.id) " +
+                "\(result.debugDescription)"
+            )
+            #endif
             if result.shouldPlayAd {
+                #if DEBUG
+                print(
+                    "[BrowseCraftAdPlayback] RSS shouldPlayAd=true " +
+                    "sourceID=\(self.source.id) itemID=\(self.item.id)"
+                )
+                #endif
                 self.shouldPlayAd = true
             }
         } catch {

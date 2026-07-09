@@ -180,6 +180,13 @@ final class VideoPlayerViewModel: ObservableObject {
     }
 
     func markAdPlaybackHandled() {
+        #if DEBUG
+        print(
+            "[BrowseCraftAdPlayback] video mark handled " +
+            "sourceID=\(self.source.id) vodID=\(self.reference.vodID) " +
+            "episodeKey=\(self.reference.episodeKey) previousShouldPlayAd=\(self.shouldPlayAd)"
+        )
+        #endif
         self.shouldPlayAd = false
     }
 
@@ -306,6 +313,15 @@ final class VideoPlayerViewModel: ObservableObject {
 
         self.lastVideoAdPointCheckAt = currentDate
         self.accumulatedVideoAdPointInterval += elapsed
+        #if DEBUG
+        print(
+            "[BrowseCraftAdPoints] video timer tick " +
+            "sourceID=\(self.source.id) vodID=\(self.reference.vodID) " +
+            "episodeKey=\(self.reference.episodeKey) elapsed=\(elapsed) " +
+            "accumulatedInterval=\(self.accumulatedVideoAdPointInterval) " +
+            "requiredInterval=\(Self.videoAdPointInterval)"
+        )
+        #endif
         guard self.accumulatedVideoAdPointInterval >= Self.videoAdPointInterval else {
             return
         }
@@ -329,7 +345,21 @@ final class VideoPlayerViewModel: ObservableObject {
                 userID: self.userID,
                 points: points
             )
+            #if DEBUG
+            print(
+                "[BrowseCraftAdPoints] video result " +
+                "sourceID=\(self.source.id) vodID=\(self.reference.vodID) " +
+                "episodeKey=\(self.reference.episodeKey) \(result.debugDescription)"
+            )
+            #endif
             if result.shouldPlayAd {
+                #if DEBUG
+                print(
+                    "[BrowseCraftAdPlayback] video shouldPlayAd=true " +
+                    "sourceID=\(self.source.id) vodID=\(self.reference.vodID) " +
+                    "episodeKey=\(self.reference.episodeKey)"
+                )
+                #endif
                 self.shouldPlayAd = true
             }
         } catch {
