@@ -32,14 +32,19 @@ struct AddCatalogSourceResult {
 
 struct LoadCatalogSourcesUseCase {
     private let pageDataLoader: PageDataLoader
+    private let catalogAPIURL: URL
 
-    init(pageDataLoader: PageDataLoader) {
+    init(
+        pageDataLoader: PageDataLoader,
+        catalogAPIURL: URL = URL(string: "https://anyportal.online/catalog/sources")!
+    ) {
         self.pageDataLoader = pageDataLoader
+        self.catalogAPIURL = catalogAPIURL
     }
 
     func execute() async throws -> [BrowseCraftCatalogSource] {
         let data: Data = try await self.pageDataLoader.getData(
-            from: BrowseCraftSourceCatalog.catalogAPIURL,
+            from: self.catalogAPIURL,
             request: self.requestConfig
         )
         return try BrowseCraftSourceCatalog.sources(from: data)
