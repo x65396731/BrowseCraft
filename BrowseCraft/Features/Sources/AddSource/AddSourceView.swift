@@ -23,10 +23,6 @@ struct AddSourceView: View {
                     self.optionButton(for: .videoSource)
                     self.optionButton(for: .rssFeedURL)
                 }
-
-                Section("Advanced") {
-                    self.optionButton(for: .scriptSource)
-                }
             }
             .navigationTitle("Add Source")
             .toolbar {
@@ -122,7 +118,7 @@ struct AddSourceView: View {
         case .videoSource:
             return "Video sources can be added from the Video source form."
         case .scriptSource:
-            return "Script Source is not available yet."
+            return "Script Source is closed. Use Website Rule JSON or URL-based source search instead."
         case .rssFeedURL, nil:
             return "This source type is not available yet."
         }

@@ -14,6 +14,7 @@ enum VideoSourceUnavailableReason: String, Codable, Hashable {
     case lowConfidence
     case noVideoSignals
     case unsupportedAdapter
+    case pluginBoundaryClosed
 }
 
 enum VideoSourcePluginReason: String, Codable, Hashable {
@@ -28,16 +29,13 @@ enum VideoSourcePluginReason: String, Codable, Hashable {
 struct VideoSourceImportDecisionResolver {
     private let supportedConfidenceThreshold: Double
     private let reviewConfidenceThreshold: Double
-    private let lexicon: VideoDetectionLexicon
 
     init(
         supportedConfidenceThreshold: Double = 0.72,
-        reviewConfidenceThreshold: Double = 0.50,
-        lexicon: VideoDetectionLexicon = .default
+        reviewConfidenceThreshold: Double = 0.50
     ) {
         self.supportedConfidenceThreshold = supportedConfidenceThreshold
         self.reviewConfidenceThreshold = reviewConfidenceThreshold
-        self.lexicon = lexicon
     }
 
     func decision(
@@ -45,7 +43,7 @@ struct VideoSourceImportDecisionResolver {
         definition: VideoSourceDefinition
     ) -> VideoSourceImportDecision {
         if detection.adapter == .plugin {
-            return .pluginRequired(self.pluginReason(from: detection))
+            return .unavailable(.pluginBoundaryClosed)
         }
 
         guard self.isBuiltInAdapter(definition.adapter) else {
@@ -144,37 +142,5 @@ struct VideoSourceImportDecisionResolver {
         return detection.reasons.contains { reason in
             return reason.localizedCaseInsensitiveContains("No video content signals matched")
         }
-    }
-
-    private func pluginReason(from detection: VideoSourceDetection) -> VideoSourcePluginReason {
-        let reasonText: String = detection.reasons
-            .joined(separator: " ")
-            .lowercased()
-
-        if self.lexicon.containsMarker(in: reasonText, category: .captchaRestriction) {
-            return .captchaOrAntiBot
-        }
-
-        if self.lexicon.containsMarker(in: reasonText, category: .signingRestriction) {
-            return .signingRequired
-        }
-
-        if self.lexicon.containsMarker(in: reasonText, category: .encryptedPlaybackRestriction) {
-            return .encryptedPlayback
-        }
-
-        if self.lexicon.containsMarker(in: reasonText, category: .wasmRestriction) {
-            return .wasmRequired
-        }
-
-        if self.lexicon.containsMarker(in: reasonText, category: .sessionRestriction) {
-            return .sessionFlowRequired
-        }
-
-        if self.lexicon.containsMarker(in: reasonText, category: .privateAPIRestriction) {
-            return .privateAPIRequired
-        }
-
-        return .privateAPIRequired
     }
 }

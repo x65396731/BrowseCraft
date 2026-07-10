@@ -49,11 +49,6 @@ extension SourceImportOption {
             kind: .rssFeedURL,
             defaultSourceType: .rss,
             defaultConfigurationKind: .rss
-        ),
-        SourceImportOption(
-            kind: .scriptSource,
-            defaultSourceType: .json,
-            defaultConfigurationKind: .plugin
         )
     ]
 

@@ -348,10 +348,10 @@ struct VideoSourceDetectionTests {
         } == false)
     }
 
-    @Test func localizedCaptchaMarkerStillRoutesToPluginBoundary() throws {
+    @Test func localizedCaptchaMarkerReportsClosedPluginBoundary() throws {
         let lexicon: VideoDetectionLexicon = Self.videoLexicon(language: .japanese)
         let detector: VideoSourceDetector = VideoSourceDetector(lexicon: lexicon)
-        let resolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver(lexicon: lexicon)
+        let resolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver()
         let url: URL = try #require(URL(string: "https://jp.example.test/secure"))
         let definition: VideoSourceDefinition = try Self.videoDefinition(adapter: .plugin, entryURL: url)
 
@@ -371,7 +371,7 @@ struct VideoSourceDetectionTests {
             definition: definition
         )
 
-        #expect(decision == .pluginRequired(.captchaOrAntiBot))
+        #expect(decision == .unavailable(.pluginBoundaryClosed))
     }
 
     @Test func importDecisionSupportsHighConfidenceBuiltInVideoSource() throws {
@@ -470,7 +470,7 @@ struct VideoSourceDetectionTests {
         #expect(decision == .unavailable(.lowConfidence))
     }
 
-    @Test func accountWarningDoesNotBecomePluginSessionReason() throws {
+    @Test func accountWarningDoesNotBypassClosedPluginBoundary() throws {
         let resolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver()
         let url: URL = try #require(URL(string: "https://video.example.test/secure"))
         let definition: VideoSourceDefinition = try Self.videoDefinition(adapter: .plugin, entryURL: url)
@@ -487,7 +487,7 @@ struct VideoSourceDetectionTests {
             definition: definition
         )
 
-        #expect(decision == .pluginRequired(.privateAPIRequired))
+        #expect(decision == .unavailable(.pluginBoundaryClosed))
     }
 
     @Test func importDecisionRoutesWebViewRequiredToNeedsReviewWithRenderedDOMRequest() throws {
@@ -524,7 +524,7 @@ struct VideoSourceDetectionTests {
         }
     }
 
-    @Test func importDecisionRoutesEncryptedPlaybackToPluginRequired() throws {
+    @Test func importDecisionTreatsEncryptedPlaybackAsClosedPluginBoundary() throws {
         let detector: VideoSourceDetector = VideoSourceDetector()
         let resolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver()
         let url: URL = try #require(URL(string: "https://video.example.test/secure"))
@@ -546,7 +546,7 @@ struct VideoSourceDetectionTests {
             definition: definition
         )
 
-        #expect(decision == .pluginRequired(.encryptedPlayback))
+        #expect(decision == .unavailable(.pluginBoundaryClosed))
     }
 
     @Test func legacyVideoAdapterDetectorWrapsFactDetectionWithoutChoosingMapper() throws {

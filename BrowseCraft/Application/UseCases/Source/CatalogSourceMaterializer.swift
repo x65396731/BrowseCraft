@@ -150,7 +150,7 @@ struct CatalogSourceMaterializer {
         case "webView":
             return .webView
         case "plugin":
-            return .plugin
+            throw CatalogSourceImportError.unsupportedRuleValue(field: "adapter", value: adapter)
         default:
             throw CatalogSourceImportError.unsupportedRuleValue(field: "adapter", value: adapter)
         }

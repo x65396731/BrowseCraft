@@ -114,6 +114,12 @@ struct AddVideoSourceUseCase {
         name: String? = nil,
         configuration: ManualVideoSourceConfigurationDraft
     ) async throws -> AddManualVideoSourceResult {
+        guard self.isManualAdapterSupported(configuration.adapter) else {
+            throw SourceRuntimeError.unsupported(
+                .custom("Plugin video adapter import is closed. Use Generic HTML or MacCMS rules.")
+            )
+        }
+
         guard let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = self.refreshSourceRuntimeUseCase else {
             throw SourceRuntimeError.unsupported(
                 .custom("Manual video source saving requires runtime list validation.")
@@ -244,6 +250,15 @@ struct AddVideoSourceUseCase {
             createdAt: timestamp,
             updatedAt: timestamp
         )
+    }
+
+    private func isManualAdapterSupported(_ adapter: VideoAdapter) -> Bool {
+        switch adapter {
+        case .genericHTML, .macCMS:
+            return true
+        case .webView, .plugin:
+            return false
+        }
     }
 }
 

@@ -11,8 +11,7 @@ struct SourceImportRecommendationTests {
         #expect(options.map(\.kind) == [
             .comicSource,
             .videoSource,
-            .rssFeedURL,
-            .scriptSource
+            .rssFeedURL
         ])
 
         #expect(options[0].defaultSourceType == .html)
@@ -22,7 +21,6 @@ struct SourceImportRecommendationTests {
         #expect(options[2].requiresURLInput == true)
         #expect(options[2].defaultSourceType == .rss)
         #expect(options[2].defaultConfigurationKind == .rss)
-        #expect(options[3].defaultConfigurationKind == .plugin)
     }
 
     @Test func recommendationAppliesInternalAxesWithoutOverwritingDraftText() {
