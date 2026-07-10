@@ -7,6 +7,7 @@ import GRDB
 struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
     static let databaseTableName: String = "sources"
 
+    var userID: String
     var id: String
     var name: String
     var baseURL: String
@@ -18,9 +19,36 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
     var updatedAt: Date
     var deletedAt: Date?
 
+    init(
+        userID: String,
+        id: String,
+        name: String,
+        baseURL: String,
+        type: String,
+        kind: String,
+        configJSON: String,
+        enabled: Bool,
+        createdAt: Date,
+        updatedAt: Date,
+        deletedAt: Date?
+    ) {
+        self.userID = userID
+        self.id = id
+        self.name = name
+        self.baseURL = baseURL
+        self.type = type
+        self.kind = kind
+        self.configJSON = configJSON
+        self.enabled = enabled
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.deletedAt = deletedAt
+    }
+
     init(source: Source) throws {
         let encodedConfiguration: Data = try JSONEncoder().encode(source.configuration)
 
+        self.userID = source.userID
         self.id = source.id
         self.name = source.name
         self.baseURL = source.baseURL
@@ -35,6 +63,7 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
 
     func domainModel() throws -> Source {
         return Source(
+            userID: self.userID,
             id: self.id,
             name: self.name,
             baseURL: self.baseURL,
@@ -64,6 +93,10 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
         }
 
         return runtimeKind == .comic && self.kind == "rule"
+    }
+
+    var lastChangedAt: Date {
+        return max(self.updatedAt, self.deletedAt ?? .distantPast)
     }
 }
 

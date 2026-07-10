@@ -6,6 +6,7 @@ import Foundation
 /// 中文注释：Source 是 App 持久化实体；执行语义由 SourceRuntime 决定。
 /// 中文注释：Source 的主配置入口是 SourceConfiguration；rule 访问器只用于迁移期兼容旧调用点。
 struct Source: Identifiable, Hashable {
+    var userID: String
     var id: String
     var name: String
     var baseURL: String
@@ -17,6 +18,7 @@ struct Source: Identifiable, Hashable {
     var deletedAt: Date?
 
     init(
+        userID: String = AppUser.localDefaultID,
         id: String,
         name: String,
         baseURL: String,
@@ -27,6 +29,7 @@ struct Source: Identifiable, Hashable {
         updatedAt: Date,
         deletedAt: Date? = nil
     ) {
+        self.userID = userID
         self.id = id
         self.name = name
         self.baseURL = baseURL
@@ -39,6 +42,7 @@ struct Source: Identifiable, Hashable {
     }
 
     init(
+        userID: String = AppUser.localDefaultID,
         id: String,
         name: String,
         baseURL: String,
@@ -50,6 +54,7 @@ struct Source: Identifiable, Hashable {
         deletedAt: Date? = nil
     ) {
         self.init(
+            userID: userID,
             id: id,
             name: name,
             baseURL: baseURL,
@@ -72,6 +77,7 @@ struct Source: Identifiable, Hashable {
 
 // 中文注释：SourceSnapshot 保存脱离 sources 表后仍可恢复运行所需的来源配置快照。
 struct SourceSnapshot: Hashable, Codable {
+    var userID: String?
     var id: String
     var name: String
     var baseURL: String
@@ -83,6 +89,7 @@ struct SourceSnapshot: Hashable, Codable {
     var deletedAt: Date?
 
     init(source: Source) {
+        self.userID = source.userID
         self.id = source.id
         self.name = source.name
         self.baseURL = source.baseURL
@@ -96,6 +103,7 @@ struct SourceSnapshot: Hashable, Codable {
 
     func source() -> Source {
         return Source(
+            userID: self.userID ?? AppUser.localDefaultID,
             id: self.id,
             name: self.name,
             baseURL: self.baseURL,

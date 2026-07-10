@@ -51,6 +51,13 @@ struct SyncQueueRecord: Codable, FetchableRecord, MutablePersistableRecord {
                 Self.Columns.entityID == entityID
             )
             .fetchOne(database) {
+            let existingOperation: SyncQueueOperation = SyncQueueOperation(rawValue: existing.operation) ?? .upsert
+            if existingOperation == .delete,
+               operation == .upsert,
+               updatedAt <= existing.updatedAt {
+                return
+            }
+
             existing.operation = operation.rawValue
             existing.updatedAt = updatedAt
             existing.retryCount = 0

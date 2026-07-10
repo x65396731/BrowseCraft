@@ -14,6 +14,7 @@ final class GRDBSourceRepository: SourceRepository {
     func fetchSources() throws -> [Source] {
         return try self.database.queue.read { database in
             let records: [SourceRecord] = try SourceRecord
+                .filter(SourceRecord.Columns.userID == AppUser.localDefaultID)
                 .filter(SourceRecord.Columns.deletedAt == nil)
                 .order(SourceRecord.Columns.updatedAt.desc)
                 .fetchAll(database)
