@@ -3,6 +3,7 @@ import Foundation
 // 中文注释：MockCloudRecordStore 模拟 CloudKit 的增量 token、保存失败和服务端版本。
 final class MockCloudRecordStore: CloudRecordStore {
     private var sourceRecordsByID: [String: SourceCloudRecord]
+    private var favoriteItemRecordsByID: [String: FavoriteItemCloudRecord]
     private var currentVersion: Int
     private let now: () -> Date
 
@@ -11,6 +12,7 @@ final class MockCloudRecordStore: CloudRecordStore {
 
     init(
         sourceRecords: [SourceCloudRecord] = [],
+        favoriteItemRecords: [FavoriteItemCloudRecord] = [],
         now: @escaping () -> Date = Date.init
     ) {
         self.sourceRecordsByID = Dictionary(
@@ -18,7 +20,12 @@ final class MockCloudRecordStore: CloudRecordStore {
                 return (record.payload.sourceID, record)
             }
         )
-        self.currentVersion = sourceRecords.map(\.version).max() ?? 0
+        self.favoriteItemRecordsByID = Dictionary(
+            uniqueKeysWithValues: favoriteItemRecords.map { record in
+                return (record.payload.itemID, record)
+            }
+        )
+        self.currentVersion = (sourceRecords.map(\.version) + favoriteItemRecords.map(\.version)).max() ?? 0
         self.now = now
         self.failNextFetch = false
         self.failNextSave = false
@@ -66,8 +73,54 @@ final class MockCloudRecordStore: CloudRecordStore {
         }
     }
 
+    func fetchChangedFavoriteItemRecords(since token: Data?) throws -> FavoriteItemCloudChangeSet {
+        if self.failNextFetch {
+            self.failNextFetch = false
+            throw MockCloudRecordStoreError.fetchFailed
+        }
+
+        let tokenVersion: Int = Self.version(from: token)
+        let records: [FavoriteItemCloudPayload] = self.favoriteItemRecordsByID.values
+            .filter { record in
+                return record.version > tokenVersion
+            }
+            .sorted { lhs, rhs in
+                if lhs.version != rhs.version {
+                    return lhs.version < rhs.version
+                }
+
+                return lhs.payload.itemID < rhs.payload.itemID
+            }
+            .map(\.payload)
+
+        return FavoriteItemCloudChangeSet(
+            records: records,
+            changeToken: Self.tokenData(for: self.currentVersion)
+        )
+    }
+
+    func saveFavoriteItemRecords(_ records: [FavoriteItemCloudPayload]) throws {
+        if self.failNextSave {
+            self.failNextSave = false
+            throw MockCloudRecordStoreError.saveFailed
+        }
+
+        for payload in records {
+            self.currentVersion += 1
+            self.favoriteItemRecordsByID[payload.itemID] = FavoriteItemCloudRecord(
+                payload: payload,
+                serverUpdatedAt: self.now(),
+                version: self.currentVersion
+            )
+        }
+    }
+
     func sourceRecord(id: String) -> SourceCloudRecord? {
         return self.sourceRecordsByID[id]
+    }
+
+    func favoriteItemRecord(id: String) -> FavoriteItemCloudRecord? {
+        return self.favoriteItemRecordsByID[id]
     }
 
     private static func version(from token: Data?) -> Int {

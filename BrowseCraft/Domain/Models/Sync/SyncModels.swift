@@ -4,6 +4,7 @@ import Foundation
 enum SyncEntityType: String, Codable, Hashable {
     case source
     case favorite
+    case favoriteItem
 }
 
 enum SyncQueueOperation: String, Codable, Hashable {

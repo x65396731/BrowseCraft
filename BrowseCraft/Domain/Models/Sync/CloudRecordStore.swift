@@ -4,6 +4,8 @@ import Foundation
 protocol CloudRecordStore {
     func fetchChangedSourceRecords(since token: Data?) throws -> SourceCloudChangeSet
     func saveSourceRecords(_ records: [SourceCloudPayload]) throws
+    func fetchChangedFavoriteItemRecords(since token: Data?) throws -> FavoriteItemCloudChangeSet
+    func saveFavoriteItemRecords(_ records: [FavoriteItemCloudPayload]) throws
 }
 
 struct SourceCloudChangeSet: Hashable {
@@ -13,6 +15,17 @@ struct SourceCloudChangeSet: Hashable {
 
 struct SourceCloudRecord: Hashable {
     var payload: SourceCloudPayload
+    var serverUpdatedAt: Date
+    var version: Int
+}
+
+struct FavoriteItemCloudChangeSet: Hashable {
+    var records: [FavoriteItemCloudPayload]
+    var changeToken: Data?
+}
+
+struct FavoriteItemCloudRecord: Hashable {
+    var payload: FavoriteItemCloudPayload
     var serverUpdatedAt: Date
     var version: Int
 }

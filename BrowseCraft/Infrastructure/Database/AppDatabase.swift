@@ -64,6 +64,7 @@ final class AppDatabase {
         try AppUserRecord.createTable(in: database)
         try SourceRecord.createTable(in: database)
         try FavoriteRecord.createTable(in: database)
+        try FavoriteItemRecord.createTable(in: database)
         try UserStoreKitTransactionRecord.createTable(in: database)
         try SyncStateRecord.createTable(in: database)
         try SyncQueueRecord.createTable(in: database)
@@ -77,6 +78,7 @@ final class AppDatabase {
     /// 中文注释：索引创建保持与表创建分离，便于后续按性能热点独立调整。
     private static func createCurrentIndexes(in database: Database) throws {
         try SourceRecord.createIndexes(in: database)
+        try FavoriteItemRecord.createIndexes(in: database)
         try RSSReadingHistoryRecord.createIndexes(in: database)
         try ComicChapterHistoryRecord.createIndexes(in: database)
         try VideoWatchHistoryRecord.createIndexes(in: database)

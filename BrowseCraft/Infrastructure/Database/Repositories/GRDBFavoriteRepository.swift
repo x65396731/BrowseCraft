@@ -61,9 +61,38 @@ final class GRDBFavoriteRepository: FavoriteRepository {
                 itemIDs.insert(item.id)
                 items.removeAll { $0.id == item.id }
                 items.append(itemWithFavoriteDate)
+                var itemRecord: FavoriteItemRecord = try FavoriteItemRecord(
+                    userID: userID,
+                    item: itemWithFavoriteDate,
+                    updatedAt: now,
+                    deletedAt: nil
+                )
+                if let existingItemRecord: FavoriteItemRecord = try FavoriteItemRecord.fetchOne(
+                    database,
+                    key: ["userID": userID, "itemID": item.id]
+                ) {
+                    itemRecord.createdAt = existingItemRecord.createdAt
+                }
+                try itemRecord.save(database)
             } else {
                 itemIDs.remove(item.id)
                 items.removeAll { $0.id == item.id }
+                if var itemRecord: FavoriteItemRecord = try FavoriteItemRecord.fetchOne(
+                    database,
+                    key: ["userID": userID, "itemID": item.id]
+                ) {
+                    itemRecord.updatedAt = now
+                    itemRecord.deletedAt = now
+                    try itemRecord.save(database)
+                } else {
+                    var itemRecord: FavoriteItemRecord = try FavoriteItemRecord(
+                        userID: userID,
+                        item: item,
+                        updatedAt: now,
+                        deletedAt: now
+                    )
+                    try itemRecord.insert(database)
+                }
             }
 
             record.favoriteItemIDsJSON = Self.encodeItemIDs(itemIDs)
@@ -72,9 +101,9 @@ final class GRDBFavoriteRepository: FavoriteRepository {
             record.deletedAt = nil
             try record.save(database)
             try SyncQueueRecord.enqueue(
-                entityType: .favorite,
-                entityID: userID,
-                operation: .upsert,
+                entityType: .favoriteItem,
+                entityID: item.id,
+                operation: isFavorite ? .upsert : .delete,
                 updatedAt: now,
                 in: database
             )

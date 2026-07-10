@@ -104,8 +104,8 @@ struct SyncRepositoryTests {
 
         let pending: [SyncQueueItem] = try queueRepository.fetchPending(limit: 10)
         #expect(pending.count == 1)
-        #expect(pending[0].entityType == .favorite)
-        #expect(pending[0].entityID == AppUser.localDefaultID)
+        #expect(pending[0].entityType == .favoriteItem)
+        #expect(pending[0].entityID == "favorite-1")
         #expect(pending[0].operation == .upsert)
     }
 
