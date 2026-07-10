@@ -72,7 +72,10 @@ final class AppContainer {
     }
 
     func makeSettingsViewModel() -> SettingsViewModel {
-        return SettingsViewModel(imageCacheConfigurator: self.imageCacheConfigurator)
+        return SettingsViewModel(
+            imageCacheConfigurator: self.imageCacheConfigurator,
+            appUserRepository: GRDBAppUserRepository(database: self.database)
+        )
     }
 
     /// 中文注释：makeSourcesViewModel 方法封装当前类型的一段业务或界面行为。

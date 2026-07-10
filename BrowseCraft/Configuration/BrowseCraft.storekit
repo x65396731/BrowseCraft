@@ -1,0 +1,145 @@
+{
+  "identifier" : "BrowseCraftLocalStoreKit",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "19.99",
+      "familyShareable" : false,
+      "internalID" : "browsecraft-premium-year",
+      "localizations" : [
+        {
+          "description" : "One year of BrowseCraft premium access.",
+          "displayName" : "1 Year",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "browsecraft.premium.year",
+      "referenceName" : "1 Year",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "6.99",
+      "familyShareable" : false,
+      "internalID" : "browsecraft-premium-quarter",
+      "localizations" : [
+        {
+          "description" : "One quarter of BrowseCraft premium access.",
+          "displayName" : "1 Quarter",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "browsecraft.premium.quarter",
+      "referenceName" : "1 Quarter",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "2.99",
+      "familyShareable" : false,
+      "internalID" : "browsecraft-premium-month",
+      "localizations" : [
+        {
+          "description" : "One month of BrowseCraft premium access.",
+          "displayName" : "1 Month",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "browsecraft.premium.month",
+      "referenceName" : "1 Month",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "browsecraft-site-slot-1",
+      "localizations" : [
+        {
+          "description" : "Add one custom site position.",
+          "displayName" : "1 Site Slot",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "browsecraft.site.slot.1",
+      "referenceName" : "1 Site Slot",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "3.99",
+      "familyShareable" : false,
+      "internalID" : "browsecraft-site-slot-5",
+      "localizations" : [
+        {
+          "description" : "Add five custom site positions.",
+          "displayName" : "5 Site Slots",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "browsecraft.site.slot.5",
+      "referenceName" : "5 Site Slots",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "6.99",
+      "familyShareable" : false,
+      "internalID" : "browsecraft-site-slot-10",
+      "localizations" : [
+        {
+          "description" : "Add ten custom site positions.",
+          "displayName" : "10 Site Slots",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "browsecraft.site.slot.10",
+      "referenceName" : "10 Site Slots",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "14.99",
+      "familyShareable" : false,
+      "internalID" : "browsecraft-site-slot-30",
+      "localizations" : [
+        {
+          "description" : "Add thirty custom site positions.",
+          "displayName" : "30 Site Slots",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "browsecraft.site.slot.30",
+      "referenceName" : "30 Site Slots",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "browsecraft-remove-ads",
+      "localizations" : [
+        {
+          "description" : "Hide rewarded ad prompts permanently.",
+          "displayName" : "Remove Ads",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "browsecraft.remove.ads",
+      "referenceName" : "Remove Ads",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "BrowseCraft",
+    "_developerTeamID" : "FAKETEAMID",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 741398400,
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

@@ -98,6 +98,7 @@ struct AdPointUseCaseTests {
 
 private final class InMemoryAppUserRepository: AppUserRepository {
     private var user: AppUser?
+    private var transactionIDs: Set<String> = []
     private(set) var savedUser: AppUser?
 
     init(user: AppUser?) {
@@ -108,8 +109,18 @@ private final class InMemoryAppUserRepository: AppUserRepository {
         return self.user
     }
 
+    func hasProcessedStoreKitTransaction(userID: String, transactionID: String) throws -> Bool {
+        return self.transactionIDs.contains("\(userID):\(transactionID)")
+    }
+
     func saveUser(_ user: AppUser) throws {
         self.user = user
         self.savedUser = user
+    }
+
+    func saveUser(_ user: AppUser, storeKitTransaction: UserStoreKitTransaction) throws {
+        self.user = user
+        self.savedUser = user
+        self.transactionIDs.insert("\(storeKitTransaction.userID):\(storeKitTransaction.transactionID)")
     }
 }

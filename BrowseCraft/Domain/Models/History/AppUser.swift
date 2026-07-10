@@ -10,6 +10,19 @@ struct AppUser: Identifiable, Hashable {
     var displayName: String?
     var hasRemovedAds: Bool
     var pendingAdPoints: Int
+    var siteSlotLimit: Int = 1
+    var purchasedSiteSlots: Int = 0
+    var vipExpiresAt: Date? = nil
+    var processedStoreKitTransactionIDsJSON: String? = nil
+    var lastStoreKitTransactionID: String? = nil
+    var lastStoreKitOriginalTransactionID: String? = nil
+    var lastStoreKitProductID: String? = nil
+    var lastStoreKitProductType: String? = nil
+    var lastStoreKitEnvironment: String? = nil
+    var lastStoreKitOwnershipType: String? = nil
+    var lastStoreKitPurchaseDate: Date? = nil
+    var lastStoreKitExpirationDate: Date? = nil
+    var lastStoreKitRevocationDate: Date? = nil
     var createdAt: Date
     var updatedAt: Date
 }

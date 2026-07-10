@@ -76,9 +76,24 @@ final class AppDatabase {
                 table.column("displayName", .text)
                 table.column("hasRemovedAds", .boolean).notNull().defaults(to: false)
                 table.column("pendingAdPoints", .integer).notNull().defaults(to: 0)
+                table.column("siteSlotLimit", .integer).notNull().defaults(to: 1)
+                table.column("purchasedSiteSlots", .integer).notNull().defaults(to: 0)
+                table.column("vipExpiresAt", .datetime)
+                table.column("processedStoreKitTransactionIDsJSON", .text)
+                table.column("lastStoreKitTransactionID", .text)
+                table.column("lastStoreKitOriginalTransactionID", .text)
+                table.column("lastStoreKitProductID", .text)
+                table.column("lastStoreKitProductType", .text)
+                table.column("lastStoreKitEnvironment", .text)
+                table.column("lastStoreKitOwnershipType", .text)
+                table.column("lastStoreKitPurchaseDate", .datetime)
+                table.column("lastStoreKitExpirationDate", .datetime)
+                table.column("lastStoreKitRevocationDate", .datetime)
                 table.column("createdAt", .datetime).notNull()
                 table.column("updatedAt", .datetime).notNull()
             }
+
+            try Self.createUserStoreKitTransactionsTable(in: database)
 
             try database.create(table: RSSReadingHistoryRecord.databaseTableName, ifNotExists: true) { table in
                 table.column("userID", .text)
@@ -175,6 +190,25 @@ final class AppDatabase {
         return migrator
     }
 
+    private static func createUserStoreKitTransactionsTable(in database: Database) throws {
+        try database.create(table: UserStoreKitTransactionRecord.databaseTableName, ifNotExists: true) { table in
+            table.column("userID", .text)
+                .notNull()
+                .references(AppUserRecord.databaseTableName, column: "id", onDelete: .cascade)
+            table.column("transactionID", .text).notNull()
+            table.column("originalTransactionID", .text).notNull()
+            table.column("productID", .text).notNull()
+            table.column("productType", .text).notNull()
+            table.column("environment", .text).notNull()
+            table.column("ownershipType", .text).notNull()
+            table.column("purchaseDate", .datetime).notNull()
+            table.column("expirationDate", .datetime)
+            table.column("revocationDate", .datetime)
+            table.column("createdAt", .datetime).notNull()
+            table.primaryKey(["userID", "transactionID"])
+        }
+    }
+
     private static func createTemporaryResourceHistoryTable(in database: Database) throws {
         try database.create(table: TemporaryResourceHistoryRecord.databaseTableName, ifNotExists: true) { table in
             table.column("userID", .text)
@@ -198,14 +232,47 @@ final class AppDatabase {
         try database.execute(
             sql: """
             INSERT OR IGNORE INTO \(AppUserRecord.databaseTableName)
-                (id, displayName, hasRemovedAds, pendingAdPoints, createdAt, updatedAt)
-            VALUES (?, ?, ?, ?, ?, ?)
+                (
+                    id,
+                    displayName,
+                    hasRemovedAds,
+                    pendingAdPoints,
+                    siteSlotLimit,
+                    purchasedSiteSlots,
+                    vipExpiresAt,
+                    processedStoreKitTransactionIDsJSON,
+                    lastStoreKitTransactionID,
+                    lastStoreKitOriginalTransactionID,
+                    lastStoreKitProductID,
+                    lastStoreKitProductType,
+                    lastStoreKitEnvironment,
+                    lastStoreKitOwnershipType,
+                    lastStoreKitPurchaseDate,
+                    lastStoreKitExpirationDate,
+                    lastStoreKitRevocationDate,
+                    createdAt,
+                    updatedAt
+                )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             arguments: [
                 AppUser.localDefaultID,
                 "Local Default",
                 false,
                 0,
+                1,
+                0,
+                DatabaseValue.null,
+                DatabaseValue.null,
+                DatabaseValue.null,
+                DatabaseValue.null,
+                DatabaseValue.null,
+                DatabaseValue.null,
+                DatabaseValue.null,
+                DatabaseValue.null,
+                DatabaseValue.null,
+                DatabaseValue.null,
+                DatabaseValue.null,
                 now,
                 now
             ]
@@ -273,6 +340,18 @@ final class AppDatabase {
             sql: """
             CREATE INDEX IF NOT EXISTS idx_user_library_state_selected_source
             ON \(UserLibraryStateRecord.databaseTableName)(selectedSourceID)
+            """
+        )
+        try database.execute(
+            sql: """
+            CREATE INDEX IF NOT EXISTS idx_user_storekit_transactions_original_transaction
+            ON \(UserStoreKitTransactionRecord.databaseTableName)(userID, originalTransactionID)
+            """
+        )
+        try database.execute(
+            sql: """
+            CREATE INDEX IF NOT EXISTS idx_user_storekit_transactions_product
+            ON \(UserStoreKitTransactionRecord.databaseTableName)(userID, productID, purchaseDate DESC)
             """
         )
     }

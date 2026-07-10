@@ -108,15 +108,14 @@ schemes:
       targets:
         BrowseCraft: all
         BrowseCraftTests: [test]
-        BrowseCraftUITests: [test]
     run:
       config: Debug
+      storeKitConfiguration: BrowseCraft/Configuration/BrowseCraft.storekit
     test:
       config: Debug
       gatherCoverageData: true
       targets:
         - BrowseCraftTests
-        - BrowseCraftUITests
     profile:
       config: Release
     analyze:
@@ -129,15 +128,14 @@ schemes:
       targets:
         BrowseCraft: all
         BrowseCraftTests: [test]
-        BrowseCraftUITests: [test]
     run:
       config: Debug
+      storeKitConfiguration: BrowseCraft/Configuration/BrowseCraft.storekit
     test:
       config: Debug
       gatherCoverageData: true
       targets:
         - BrowseCraftTests
-        - BrowseCraftUITests
     profile:
       config: Debug
     analyze:

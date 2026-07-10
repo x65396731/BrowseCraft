@@ -11,6 +11,19 @@ struct AppUserRecord: Codable, FetchableRecord, MutablePersistableRecord {
     var displayName: String?
     var hasRemovedAds: Bool
     var pendingAdPoints: Int
+    var siteSlotLimit: Int
+    var purchasedSiteSlots: Int
+    var vipExpiresAt: Date?
+    var processedStoreKitTransactionIDsJSON: String?
+    var lastStoreKitTransactionID: String?
+    var lastStoreKitOriginalTransactionID: String?
+    var lastStoreKitProductID: String?
+    var lastStoreKitProductType: String?
+    var lastStoreKitEnvironment: String?
+    var lastStoreKitOwnershipType: String?
+    var lastStoreKitPurchaseDate: Date?
+    var lastStoreKitExpirationDate: Date?
+    var lastStoreKitRevocationDate: Date?
     var createdAt: Date
     var updatedAt: Date
 
@@ -19,6 +32,19 @@ struct AppUserRecord: Codable, FetchableRecord, MutablePersistableRecord {
         self.displayName = user.displayName
         self.hasRemovedAds = user.hasRemovedAds
         self.pendingAdPoints = user.pendingAdPoints
+        self.siteSlotLimit = user.siteSlotLimit
+        self.purchasedSiteSlots = user.purchasedSiteSlots
+        self.vipExpiresAt = user.vipExpiresAt
+        self.processedStoreKitTransactionIDsJSON = user.processedStoreKitTransactionIDsJSON
+        self.lastStoreKitTransactionID = user.lastStoreKitTransactionID
+        self.lastStoreKitOriginalTransactionID = user.lastStoreKitOriginalTransactionID
+        self.lastStoreKitProductID = user.lastStoreKitProductID
+        self.lastStoreKitProductType = user.lastStoreKitProductType
+        self.lastStoreKitEnvironment = user.lastStoreKitEnvironment
+        self.lastStoreKitOwnershipType = user.lastStoreKitOwnershipType
+        self.lastStoreKitPurchaseDate = user.lastStoreKitPurchaseDate
+        self.lastStoreKitExpirationDate = user.lastStoreKitExpirationDate
+        self.lastStoreKitRevocationDate = user.lastStoreKitRevocationDate
         self.createdAt = user.createdAt
         self.updatedAt = user.updatedAt
     }
@@ -29,6 +55,19 @@ struct AppUserRecord: Codable, FetchableRecord, MutablePersistableRecord {
             displayName: self.displayName,
             hasRemovedAds: self.hasRemovedAds,
             pendingAdPoints: self.pendingAdPoints,
+            siteSlotLimit: self.siteSlotLimit,
+            purchasedSiteSlots: self.purchasedSiteSlots,
+            vipExpiresAt: self.vipExpiresAt,
+            processedStoreKitTransactionIDsJSON: self.processedStoreKitTransactionIDsJSON,
+            lastStoreKitTransactionID: self.lastStoreKitTransactionID,
+            lastStoreKitOriginalTransactionID: self.lastStoreKitOriginalTransactionID,
+            lastStoreKitProductID: self.lastStoreKitProductID,
+            lastStoreKitProductType: self.lastStoreKitProductType,
+            lastStoreKitEnvironment: self.lastStoreKitEnvironment,
+            lastStoreKitOwnershipType: self.lastStoreKitOwnershipType,
+            lastStoreKitPurchaseDate: self.lastStoreKitPurchaseDate,
+            lastStoreKitExpirationDate: self.lastStoreKitExpirationDate,
+            lastStoreKitRevocationDate: self.lastStoreKitRevocationDate,
             createdAt: self.createdAt,
             updatedAt: self.updatedAt
         )

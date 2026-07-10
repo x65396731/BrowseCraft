@@ -1,6 +1,6 @@
 import Foundation
 
-// 中文注释：Sources 页面用于触发一次广告加载和播放的 SwiftUI 状态模型。
+// 中文注释：AdPlaybackViewModel 用于手动触发一次广告加载和播放。
 @MainActor
 final class AdPlaybackViewModel: ObservableObject {
     @Published private(set) var isLoading: Bool = false
