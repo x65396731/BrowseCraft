@@ -18,7 +18,10 @@ final class GRDBAppUserRepository: AppUserRepository {
     func hasProcessedStoreKitTransaction(userID: String, transactionID: String) throws -> Bool {
         return try self.database.queue.read { database in
             let count: Int = try UserStoreKitTransactionRecord
-                .filter(Column("userID") == userID && Column("transactionID") == transactionID)
+                .filter(
+                    UserStoreKitTransactionRecord.Columns.userID == userID &&
+                    UserStoreKitTransactionRecord.Columns.transactionID == transactionID
+                )
                 .fetchCount(database)
             return count > 0
         }

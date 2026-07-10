@@ -16,6 +16,7 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
     var enabled: Bool
     var createdAt: Date
     var updatedAt: Date
+    var deletedAt: Date?
 
     init(source: Source) throws {
         let encodedConfiguration: Data = try JSONEncoder().encode(source.configuration)
@@ -29,6 +30,7 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
         self.enabled = source.enabled
         self.createdAt = source.createdAt
         self.updatedAt = source.updatedAt
+        self.deletedAt = source.deletedAt
     }
 
     func domainModel() throws -> Source {
@@ -40,7 +42,8 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
             configuration: try self.sourceConfiguration(),
             enabled: self.enabled,
             createdAt: self.createdAt,
-            updatedAt: self.updatedAt
+            updatedAt: self.updatedAt,
+            deletedAt: self.deletedAt
         )
     }
 

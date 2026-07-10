@@ -14,4 +14,5 @@ struct FavoriteRecord: Codable, FetchableRecord, MutablePersistableRecord {
     var videoFavoritesJSON: String?
     var createdAt: Date
     var updatedAt: Date
+    var deletedAt: Date?
 }

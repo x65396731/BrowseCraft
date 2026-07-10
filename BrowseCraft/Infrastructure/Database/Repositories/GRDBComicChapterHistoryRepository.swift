@@ -22,8 +22,8 @@ final class GRDBComicChapterHistoryRepository: ComicChapterHistoryRepository {
     func fetchHistory(userID: String) throws -> [ComicChapterHistory] {
         return try self.database.queue.read { database in
             let records: [ComicChapterHistoryRecord] = try ComicChapterHistoryRecord
-                .filter(Column("userID") == userID)
-                .order(Column("visitedAt").desc)
+                .filter(ComicChapterHistoryRecord.Columns.userID == userID)
+                .order(ComicChapterHistoryRecord.Columns.visitedAt.desc)
                 .fetchAll(database)
 
             return records.map { record in

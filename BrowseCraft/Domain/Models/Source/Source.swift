@@ -14,6 +14,7 @@ struct Source: Identifiable, Hashable {
     var enabled: Bool
     var createdAt: Date
     var updatedAt: Date
+    var deletedAt: Date?
 
     init(
         id: String,
@@ -23,7 +24,8 @@ struct Source: Identifiable, Hashable {
         configuration: SourceConfiguration,
         enabled: Bool,
         createdAt: Date,
-        updatedAt: Date
+        updatedAt: Date,
+        deletedAt: Date? = nil
     ) {
         self.id = id
         self.name = name
@@ -33,6 +35,7 @@ struct Source: Identifiable, Hashable {
         self.enabled = enabled
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.deletedAt = deletedAt
     }
 
     init(
@@ -43,7 +46,8 @@ struct Source: Identifiable, Hashable {
         rule: SiteRule,
         enabled: Bool,
         createdAt: Date,
-        updatedAt: Date
+        updatedAt: Date,
+        deletedAt: Date? = nil
     ) {
         self.init(
             id: id,
@@ -60,7 +64,8 @@ struct Source: Identifiable, Hashable {
             ),
             enabled: enabled,
             createdAt: createdAt,
-            updatedAt: updatedAt
+            updatedAt: updatedAt,
+            deletedAt: deletedAt
         )
     }
 }
@@ -75,6 +80,7 @@ struct SourceSnapshot: Hashable, Codable {
     var enabled: Bool
     var createdAt: Date
     var updatedAt: Date
+    var deletedAt: Date?
 
     init(source: Source) {
         self.id = source.id
@@ -85,6 +91,7 @@ struct SourceSnapshot: Hashable, Codable {
         self.enabled = source.enabled
         self.createdAt = source.createdAt
         self.updatedAt = source.updatedAt
+        self.deletedAt = source.deletedAt
     }
 
     func source() -> Source {
@@ -96,7 +103,8 @@ struct SourceSnapshot: Hashable, Codable {
             configuration: self.configuration,
             enabled: self.enabled,
             createdAt: self.createdAt,
-            updatedAt: self.updatedAt
+            updatedAt: self.updatedAt,
+            deletedAt: self.deletedAt
         )
     }
 }

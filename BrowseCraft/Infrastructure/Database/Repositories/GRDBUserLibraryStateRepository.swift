@@ -14,7 +14,7 @@ final class GRDBUserLibraryStateRepository: UserLibraryStateRepository {
     func fetch(userID: String) throws -> UserLibraryState? {
         return try self.database.queue.read { database in
             let record: UserLibraryStateRecord? = try UserLibraryStateRecord
-                .filter(Column("userID") == userID)
+                .filter(UserLibraryStateRecord.Columns.userID == userID)
                 .fetchOne(database)
 
             return record?.domainModel()

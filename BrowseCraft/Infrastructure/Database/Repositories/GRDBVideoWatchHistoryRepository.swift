@@ -23,8 +23,11 @@ final class GRDBVideoWatchHistoryRepository: VideoWatchHistoryRepository {
     func fetchHistory(userID: String) throws -> [VideoWatchHistory] {
         return try self.database.queue.read { database in
             let records: [VideoWatchHistoryRecord] = try VideoWatchHistoryRecord
-                .filter(Column("userID") == userID)
-                .order(Column("updatedAt").desc, Column("visitedAt").desc)
+                .filter(VideoWatchHistoryRecord.Columns.userID == userID)
+                .order(
+                    VideoWatchHistoryRecord.Columns.updatedAt.desc,
+                    VideoWatchHistoryRecord.Columns.visitedAt.desc
+                )
                 .fetchAll(database)
 
             return records.map { record in
@@ -60,11 +63,11 @@ final class GRDBVideoWatchHistoryRepository: VideoWatchHistoryRepository {
     ) throws -> VideoWatchHistory? {
         return try self.database.queue.read { database in
             let record: VideoWatchHistoryRecord? = try VideoWatchHistoryRecord
-                .filter(Column("userID") == userID)
-                .filter(Column("sourceID") == sourceID)
-                .filter(Column("vodID") == vodID)
-                .filter(Column("sourceIndex") == sourceIndex)
-                .filter(Column("episodeIndex") == episodeIndex)
+                .filter(VideoWatchHistoryRecord.Columns.userID == userID)
+                .filter(VideoWatchHistoryRecord.Columns.sourceID == sourceID)
+                .filter(VideoWatchHistoryRecord.Columns.vodID == vodID)
+                .filter(VideoWatchHistoryRecord.Columns.sourceIndex == sourceIndex)
+                .filter(VideoWatchHistoryRecord.Columns.episodeIndex == episodeIndex)
                 .fetchOne(database)
 
             return record?.domainModel()

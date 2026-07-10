@@ -48,7 +48,8 @@ final class GRDBFavoriteRepository: FavoriteRepository {
                     comicFavoritesJSON: nil,
                     videoFavoritesJSON: nil,
                     createdAt: now,
-                    updatedAt: now
+                    updatedAt: now,
+                    deletedAt: nil
                 )
             }
 
@@ -68,7 +69,15 @@ final class GRDBFavoriteRepository: FavoriteRepository {
             record.favoriteItemIDsJSON = Self.encodeItemIDs(itemIDs)
             record.favoriteItemsJSON = Self.encodeFavoriteItems(items)
             record.updatedAt = now
+            record.deletedAt = nil
             try record.save(database)
+            try SyncQueueRecord.enqueue(
+                entityType: .favorite,
+                entityID: userID,
+                operation: .upsert,
+                updatedAt: now,
+                in: database
+            )
         }
     }
 

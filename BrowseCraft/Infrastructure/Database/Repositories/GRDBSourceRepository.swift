@@ -14,7 +14,8 @@ final class GRDBSourceRepository: SourceRepository {
     func fetchSources() throws -> [Source] {
         return try self.database.queue.read { database in
             let records: [SourceRecord] = try SourceRecord
-                .order(Column("updatedAt").desc)
+                .filter(SourceRecord.Columns.deletedAt == nil)
+                .order(SourceRecord.Columns.updatedAt.desc)
                 .fetchAll(database)
 
             return try records.map { record in
@@ -27,13 +28,39 @@ final class GRDBSourceRepository: SourceRepository {
         try self.database.queue.write { database in
             var record: SourceRecord = try SourceRecord(source: source)
             try record.save(database)
+
+            if source.isBuiltIn == false {
+                try SyncQueueRecord.enqueue(
+                    entityType: .source,
+                    entityID: source.id,
+                    operation: .upsert,
+                    updatedAt: source.updatedAt,
+                    in: database
+                )
+            }
         }
     }
 
     func deleteSource(id: String) throws {
         try self.database.queue.write { database in
+            let now: Date = Date()
             try Self.clearSourceSelection(sourceID: id, in: database)
-            _ = try SourceRecord.deleteOne(database, key: id)
+
+            if var record: SourceRecord = try SourceRecord.fetchOne(database, key: id) {
+                record.updatedAt = now
+                record.deletedAt = now
+                try record.save(database)
+            }
+
+            if id.hasPrefix("built-in.") == false {
+                try SyncQueueRecord.enqueue(
+                    entityType: .source,
+                    entityID: id,
+                    operation: .delete,
+                    updatedAt: now,
+                    in: database
+                )
+            }
         }
     }
 

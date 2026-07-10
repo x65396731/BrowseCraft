@@ -20,8 +20,8 @@ final class GRDBTemporaryResourceHistoryRepository: TemporaryResourceHistoryRepo
     func fetchHistory(userID: String) throws -> [TemporaryResourceHistory] {
         return try self.database.queue.read { database in
             let records: [TemporaryResourceHistoryRecord] = try TemporaryResourceHistoryRecord
-                .filter(Column("userID") == userID)
-                .order(Column("visitedAt").desc)
+                .filter(TemporaryResourceHistoryRecord.Columns.userID == userID)
+                .order(TemporaryResourceHistoryRecord.Columns.visitedAt.desc)
                 .fetchAll(database)
 
             return records.compactMap { record in

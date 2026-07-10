@@ -22,8 +22,8 @@ final class GRDBRSSReadingHistoryRepository: RSSReadingHistoryRepository {
     func fetchHistory(userID: String) throws -> [RSSReadingHistory] {
         return try self.database.queue.read { database in
             let records: [RSSReadingHistoryRecord] = try RSSReadingHistoryRecord
-                .filter(Column("userID") == userID)
-                .order(Column("visitedAt").desc)
+                .filter(RSSReadingHistoryRecord.Columns.userID == userID)
+                .order(RSSReadingHistoryRecord.Columns.visitedAt.desc)
                 .fetchAll(database)
 
             return records.map { record in
