@@ -55,9 +55,20 @@ struct LoadCatalogSourcesUseCase {
     }
 
     func execute() async throws -> [BrowseCraftCatalogSource] {
+        let requestConfig: RequestConfig = self.requestConfig
+        #if DEBUG
+        let headers: [String: String] = requestConfig.headers ?? [:]
+        print(
+            "[BrowseCraftCatalog] request " +
+            "url=\(self.catalogAPIURL.absoluteString) " +
+            "headerCount=\(headers.count) " +
+            "hasRequiredPortalHeaders=\(self.hasRequiredPortalHeaders(headers))"
+        )
+        #endif
+
         let data: Data = try await self.pageDataLoader.getData(
             from: self.catalogAPIURL,
-            request: self.requestConfig
+            request: requestConfig
         )
         return try BrowseCraftSourceCatalog.sources(from: self.catalogSourceData(from: data))
     }
@@ -77,7 +88,19 @@ struct LoadCatalogSourcesUseCase {
             from: data
         )
 
-        guard encryptedSources.contains(where: { source in source.encryptedRule != nil }) else {
+        let encryptedRuleCount: Int = encryptedSources.filter { source in
+            source.encryptedRule != nil
+        }.count
+
+        #if DEBUG
+        print(
+            "[BrowseCraftCatalog] payload " +
+            "sources=\(encryptedSources.count) " +
+            "encryptedRules=\(encryptedRuleCount)"
+        )
+        #endif
+
+        guard encryptedRuleCount > 0 else {
             return data
         }
 
@@ -97,6 +120,20 @@ struct LoadCatalogSourcesUseCase {
         }
 
         return try self.jsonEncoder.encode(plainSources)
+    }
+
+    private func hasRequiredPortalHeaders(_ headers: [String: String]) -> Bool {
+        let requiredHeaders: [String] = [
+            "userId",
+            "osInfo",
+            "deviceInfo",
+            "aplVersion",
+            "X-Request-Id"
+        ]
+        let headerNames: Set<String> = Set(headers.keys.map { $0.lowercased() })
+        return requiredHeaders.allSatisfy { headerName in
+            headerNames.contains(headerName.lowercased())
+        }
     }
 }
 
