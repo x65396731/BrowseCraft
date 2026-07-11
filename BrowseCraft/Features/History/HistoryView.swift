@@ -51,6 +51,7 @@ struct HistoryView: View {
             )
             .navigationTitle("History")
             .onAppear {
+                CrashDiagnostics.shared.setScreen(.history)
                 self.viewModel.load()
             }
             .fullScreenCover(item: self.$viewModel.videoPlaybackRoute) { route in

@@ -67,6 +67,7 @@ struct LibraryView: View {
                 }
             }
             .onAppear {
+                CrashDiagnostics.shared.setScreen(.library)
                 if self.didLoadInitialData == false {
                     self.didLoadInitialData = true
                     Task {

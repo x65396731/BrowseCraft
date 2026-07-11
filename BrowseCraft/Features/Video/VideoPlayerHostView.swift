@@ -12,6 +12,7 @@ struct VideoPlayerHostView: View {
     var body: some View {
         self.playerContent
         .task {
+            CrashDiagnostics.shared.setScreen(.videoPlayer)
             self.viewModel.prepareForPlayback()
         }
         .onDisappear {

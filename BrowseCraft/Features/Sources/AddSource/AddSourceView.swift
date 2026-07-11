@@ -65,6 +65,9 @@ struct AddSourceView: View {
                     Text(self.unavailableOptionMessage)
                 }
             )
+            .onAppear {
+                CrashDiagnostics.shared.setScreen(.addSource)
+            }
         }
     }
 

@@ -72,6 +72,9 @@ struct ChapterListView: View {
         }
         .navigationTitle("Chapters")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            CrashDiagnostics.shared.setScreen(.sourceDetail)
+        }
         .task {
             await self.viewModel.load()
         }
@@ -170,6 +173,9 @@ struct ReaderView: View {
             .background(Color(.systemBackground))
             .navigationTitle(self.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                CrashDiagnostics.shared.setScreen(.comicReader)
+            }
             .task {
                 await self.viewModel.load()
                 await self.restoreInitialPageIfNeeded(proxy: proxy)

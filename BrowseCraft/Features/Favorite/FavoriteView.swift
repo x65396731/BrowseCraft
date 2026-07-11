@@ -45,6 +45,7 @@ struct FavoriteView: View {
             )
             .navigationTitle("Favorites")
             .onAppear {
+                CrashDiagnostics.shared.setScreen(.favorite)
                 self.viewModel.load()
             }
             .alert(isPresented: self.errorAlertBinding) {

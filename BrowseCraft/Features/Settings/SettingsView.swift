@@ -1,5 +1,6 @@
 import StoreKit
 import SwiftUI
+import UIKit
 
 // 中文注释：SettingsView.swift 属于用户设置功能层，集中承载账号、同步、缓存和应用信息入口。
 
@@ -118,6 +119,31 @@ struct SettingsView: View {
 
                 Section("App") {
                     SettingsRow(
+                        systemImage: "stethoscope",
+                        title: "Diagnostic Code",
+                        detail: self.viewModel.diagnosticCode
+                    )
+                    .contextMenu {
+                        Button("Copy") {
+                            UIPasteboard.general.string = self.viewModel.diagnosticCode
+                        }
+                    }
+
+                    Button(
+                        action: {
+                            UIPasteboard.general.string = self.viewModel.diagnosticCode
+                        },
+                        label: {
+                            SettingsRow(
+                                systemImage: "doc.on.doc",
+                                title: "Copy Diagnostic Code",
+                                detail: nil
+                            )
+                        }
+                    )
+                    .buttonStyle(.plain)
+
+                    SettingsRow(
                         systemImage: "number",
                         title: "Version",
                         detail: Self.versionText
@@ -172,6 +198,10 @@ struct SettingsView: View {
                         plan: plan
                     )
                 }
+            }
+            .onAppear {
+                self.viewModel.refreshDiagnosticCode()
+                CrashDiagnostics.shared.setScreen(.settings)
             }
         }
     }

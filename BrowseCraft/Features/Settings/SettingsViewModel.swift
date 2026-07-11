@@ -9,17 +9,27 @@ final class SettingsViewModel: ObservableObject {
     @Published private(set) var imageCacheSettings: ImageCacheSettings
     @Published var cacheErrorMessage: String?
     @Published var cacheStatusMessage: String?
+    @Published private(set) var diagnosticCode: String
 
     private let imageCacheConfigurator: ImageCacheConfigurator
     private let appUserRepository: AppUserRepository
+    private let diagnosticIdentityStore: DiagnosticIdentityStore
 
     init(
         imageCacheConfigurator: ImageCacheConfigurator,
-        appUserRepository: AppUserRepository? = nil
+        appUserRepository: AppUserRepository? = nil,
+        diagnosticIdentityStore: DiagnosticIdentityStore = .shared
     ) {
         self.imageCacheConfigurator = imageCacheConfigurator
         self.appUserRepository = appUserRepository ?? InMemoryDefaultAppUserRepository()
+        self.diagnosticIdentityStore = diagnosticIdentityStore
         self.imageCacheSettings = ImageCacheSettings.load()
+        self.diagnosticCode = diagnosticIdentityStore.identity.diagnosticCode
+    }
+
+    @MainActor
+    func refreshDiagnosticCode() {
+        self.diagnosticCode = self.diagnosticIdentityStore.identity.diagnosticCode
     }
 
     @MainActor
