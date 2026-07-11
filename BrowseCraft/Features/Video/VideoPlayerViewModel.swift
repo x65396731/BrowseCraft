@@ -239,6 +239,7 @@ final class VideoPlayerViewModel: ObservableObject {
             self.prepareForPlayback()
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-episode-switch-error")
+            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .videoPlayback, errorCode: "video-episode-switch-error")
             CrashDiagnostics.shared.record(
                 error: error,
                 category: .playback,

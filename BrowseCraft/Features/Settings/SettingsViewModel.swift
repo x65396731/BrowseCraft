@@ -42,6 +42,10 @@ final class SettingsViewModel: ObservableObject {
             self.imageCacheSettings = settings
             self.cacheErrorMessage = nil
             self.cacheStatusMessage = nil
+            AppAnalytics.shared.logSettingChanged(
+                name: "image_cache_limit",
+                value: String(limit.megabytes)
+            )
         } catch {
             #if DEBUG
             print("[BrowseCraftImageCache] settings update failed error=\(error)")

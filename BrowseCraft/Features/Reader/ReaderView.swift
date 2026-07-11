@@ -74,6 +74,7 @@ struct ChapterListView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             CrashDiagnostics.shared.setScreen(.sourceDetail)
+            AppAnalytics.shared.logScreenView(.sourceDetail)
             CrashDiagnostics.shared.setSource(self.viewModel.source)
             CrashDiagnostics.shared.setRuleStage(.chapter)
         }
@@ -177,6 +178,7 @@ struct ReaderView: View {
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 CrashDiagnostics.shared.setScreen(.comicReader)
+                AppAnalytics.shared.logScreenView(.comicReader)
                 CrashDiagnostics.shared.setSource(self.viewModel.diagnosticSource)
                 CrashDiagnostics.shared.setRuleStage(.reader)
             }

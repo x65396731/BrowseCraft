@@ -36,6 +36,7 @@ struct VideoDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             CrashDiagnostics.shared.setScreen(.videoDetail)
+            AppAnalytics.shared.logScreenView(.videoDetail)
             CrashDiagnostics.shared.setSource(self.viewModel.source)
             CrashDiagnostics.shared.setRuleStage(.detail)
             #if DEBUG

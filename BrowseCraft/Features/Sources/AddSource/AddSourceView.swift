@@ -67,6 +67,7 @@ struct AddSourceView: View {
             )
             .onAppear {
                 CrashDiagnostics.shared.setScreen(.addSource)
+                AppAnalytics.shared.logScreenView(.addSource)
             }
         }
     }

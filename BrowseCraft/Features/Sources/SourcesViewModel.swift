@@ -126,14 +126,18 @@ final class SourcesViewModel: ObservableObject {
     func discoverComicResources(siteURLString: String, keyword: String) async -> [TransientComicDiscoveryItem] {
         CrashDiagnostics.shared.setRuleStage(.search)
         do {
-            return try await self.discoverComicResourcesUseCase.execute(
+            let results: [TransientComicDiscoveryItem] = try await self.discoverComicResourcesUseCase.execute(
                 DiscoverComicResourcesInput(
                     siteURLString: siteURLString,
                     keyword: keyword
                 )
             )
+            AppAnalytics.shared.logSearchSubmitted(sourceType: .comic, resultCount: results.count)
+            return results
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "comic-discovery-error")
+            AppAnalytics.shared.logSearchSubmitted(sourceType: .comic, resultCount: 0)
+            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .search, errorCode: "comic-discovery-error")
             self.errorMessage = error.localizedDescription
             return []
         }
@@ -143,14 +147,18 @@ final class SourcesViewModel: ObservableObject {
     func discoverVideoResources(siteURLString: String, keyword: String) async -> [TransientVideoDiscoveryItem] {
         CrashDiagnostics.shared.setRuleStage(.search)
         do {
-            return try await self.discoverVideoResourcesUseCase.execute(
+            let results: [TransientVideoDiscoveryItem] = try await self.discoverVideoResourcesUseCase.execute(
                 DiscoverVideoResourcesInput(
                     siteURLString: siteURLString,
                     keyword: keyword
                 )
             )
+            AppAnalytics.shared.logSearchSubmitted(sourceType: .video, resultCount: results.count)
+            return results
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "video-discovery-error")
+            AppAnalytics.shared.logSearchSubmitted(sourceType: .video, resultCount: 0)
+            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .search, errorCode: "video-discovery-error")
             self.errorMessage = error.localizedDescription
             return []
         }
@@ -160,11 +168,15 @@ final class SourcesViewModel: ObservableObject {
     func discoverRSSFeeds(siteURLString: String) async -> [DiscoveredRSSFeedItem] {
         CrashDiagnostics.shared.setRuleStage(.rssFeed)
         do {
-            return try await self.discoverRSSFeedsUseCase.execute(
+            let results: [DiscoveredRSSFeedItem] = try await self.discoverRSSFeedsUseCase.execute(
                 DiscoverRSSFeedsInput(siteURLString: siteURLString)
             )
+            AppAnalytics.shared.logSearchSubmitted(sourceType: .rss, resultCount: results.count)
+            return results
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "rss-discovery-error")
+            AppAnalytics.shared.logSearchSubmitted(sourceType: .rss, resultCount: 0)
+            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .rssFeed, errorCode: "rss-discovery-error")
             self.errorMessage = error.localizedDescription
             return []
         }
@@ -184,6 +196,7 @@ final class SourcesViewModel: ObservableObject {
     /// 中文注释：addRuleSource 方法封装网站规则导入路径。
     func addRuleSource(name: String, baseURL: String, ruleJSON: String) async -> Bool {
         CrashDiagnostics.shared.setRuleStage(.list)
+        AppAnalytics.shared.logRuleImportStarted(sourceType: .comic)
         do {
             let result: AddComicRuleSourceResult = try await self.addComicRuleSourceUseCase.execute(
                 name: name,
@@ -199,9 +212,12 @@ final class SourcesViewModel: ObservableObject {
             self.selectSource(id: source.id)
             self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
             self.latestSourceAddID = source.id
+            AppAnalytics.shared.logRuleImportSucceeded(source: source)
             return true
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "rule-source-add-error")
+            AppAnalytics.shared.logRuleImportFailed(sourceType: .comic, errorCode: "rule-source-add-error")
+            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .list, errorCode: "rule-source-add-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
             return false
         }
@@ -343,7 +359,9 @@ final class SourcesViewModel: ObservableObject {
     func selectSource(id: String?) {
         self.selectedSourceID = id
         self.sourceSelectionStore.selectedSourceID = id
-        CrashDiagnostics.shared.setSource(self.source(id: id))
+        let selectedSource: Source? = self.source(id: id)
+        CrashDiagnostics.shared.setSource(selectedSource)
+        AppAnalytics.shared.logSourceSelected(selectedSource)
         self.saveLibraryStateForSelectedSource(lastRefreshAt: nil)
     }
 
@@ -370,6 +388,7 @@ final class SourcesViewModel: ObservableObject {
         } catch {
             self.failedRefreshAction = .select(sourceID: source.id)
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-select-refresh-error")
+            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .list, errorCode: "source-select-refresh-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
 
@@ -494,12 +513,16 @@ final class SourcesViewModel: ObservableObject {
 
     @MainActor
     func importRulePackage(packageJSON: String) -> Source? {
+        AppAnalytics.shared.logRuleImportStarted(sourceType: .unknown)
         do {
             let importedSource: Source = try self.importSourceRulePackageUseCase.execute(packageJSON: packageJSON)
             self.load()
             self.selectSource(id: importedSource.id)
+            AppAnalytics.shared.logRuleImportSucceeded(source: importedSource)
             return importedSource
         } catch {
+            AppAnalytics.shared.logRuleImportFailed(sourceType: .unknown, errorCode: "rule-package-import-error")
+            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .list, errorCode: "rule-package-import-error")
             self.errorMessage = error.localizedDescription
             return nil
         }
@@ -557,6 +580,7 @@ final class SourcesViewModel: ObservableObject {
         } catch {
             self.failedRefreshAction = .refresh(sourceID: source.id)
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-refresh-error")
+            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .list, errorCode: "source-refresh-error")
             CrashDiagnostics.shared.record(
                 error: error,
                 category: .parser,

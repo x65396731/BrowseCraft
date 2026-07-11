@@ -217,6 +217,8 @@ final class ReaderViewModel: ObservableObject {
             )
             self.chapter = loadedChapter
             self.saveComicChapterHistoryIfNeeded(chapter: loadedChapter)
+            AppAnalytics.shared.logReaderOpened(source: self.source)
+            AppAnalytics.shared.logChapterOpened(source: self.source)
 
             #if DEBUG
             print(
@@ -228,6 +230,7 @@ final class ReaderViewModel: ObservableObject {
             #endif
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .reader, event: "reader-load-error")
+            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .reader, errorCode: "reader-load-error")
             CrashDiagnostics.shared.record(
                 error: error,
                 category: .parser,
@@ -503,6 +506,7 @@ final class ChapterListViewModel: ObservableObject {
             #endif
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "chapters-load-error")
+            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .detail, errorCode: "chapter-load-error")
             CrashDiagnostics.shared.record(
                 error: error,
                 category: .parser,

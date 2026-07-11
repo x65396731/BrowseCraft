@@ -46,6 +46,7 @@ final class RSSContentDetailViewModel: ObservableObject {
                 history: self.readingHistory()
             )
             self.accumulateAdPoints(points: AdPointRule.rssPoints)
+            AppAnalytics.shared.logReaderOpened(source: self.source)
             #if DEBUG
             print(
                 "[BrowseCraftRSSHistory] saved " +

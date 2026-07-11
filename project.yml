@@ -58,6 +58,8 @@ targets:
         product: FirebaseCore
       - package: Firebase
         product: FirebaseCrashlytics
+      - package: Firebase
+        product: FirebaseAnalytics
     configFiles:
       Debug: Config/CatalogEncryption.debug.xcconfig
       Release: Config/CatalogEncryption.release.xcconfig

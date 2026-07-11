@@ -18,6 +18,8 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         FirebaseApp.configure()
         CrashDiagnostics.shared.configure()
+        AppAnalytics.shared.configure()
+        AppAnalytics.shared.logAppOpen()
         return true
     }
 }

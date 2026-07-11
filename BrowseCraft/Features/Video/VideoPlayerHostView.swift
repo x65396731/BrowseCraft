@@ -13,6 +13,7 @@ struct VideoPlayerHostView: View {
         self.playerContent
         .task {
             CrashDiagnostics.shared.setScreen(.videoPlayer)
+            AppAnalytics.shared.logScreenView(.videoPlayer)
             CrashDiagnostics.shared.setSource(self.viewModel.source)
             CrashDiagnostics.shared.setRuleStage(.videoPlayback)
             self.viewModel.prepareForPlayback()

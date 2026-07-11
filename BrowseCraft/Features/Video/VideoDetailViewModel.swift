@@ -130,6 +130,7 @@ final class VideoDetailViewModel: ObservableObject {
             }
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-detail-error")
+            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .detail, errorCode: "video-detail-error")
             CrashDiagnostics.shared.record(
                 error: error,
                 category: .parser,
@@ -203,6 +204,7 @@ final class VideoDetailViewModel: ObservableObject {
             #endif
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-playback-error")
+            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .videoPlayback, errorCode: "video-playback-error")
             CrashDiagnostics.shared.record(
                 error: error,
                 category: .playback,

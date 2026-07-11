@@ -178,6 +178,7 @@ final class LibraryViewModel: ObservableObject {
                self.selectedSourceID == expectedSourceID,
                self.selectedListTab?.id == expectedTabID {
                 RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "library-refresh-error")
+                AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .list, errorCode: "library-refresh-error")
                 self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
             }
         }
@@ -191,6 +192,7 @@ final class LibraryViewModel: ObservableObject {
     /// 中文注释：toggleFavorite 方法封装当前类型的一段业务或界面行为。
     func toggleFavorite(item: ContentItem) {
         do {
+            let wasFavorite: Bool = self.favoriteItemIDs.contains(item.id)
             let source: Source? = self.source(for: item.sourceId)
             let favoriteItem: FavoriteContentItem = FavoriteContentItem(
                 id: item.id,
@@ -207,6 +209,7 @@ final class LibraryViewModel: ObservableObject {
                 sourceSnapshot: source.map(FavoriteSourceSnapshot.init(source:))
             )
             self.favoriteItemIDs = try self.toggleFavoriteUseCase.execute(item: favoriteItem)
+            AppAnalytics.shared.logBookmarkChanged(isFavorite: wasFavorite == false, source: source)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "favorite-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
@@ -469,6 +472,7 @@ final class LibraryViewModel: ObservableObject {
             self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs()
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "switch-source-error")
+            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .list, errorCode: "switch-source-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
     }
