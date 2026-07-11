@@ -13,6 +13,7 @@ struct SettingsView: View {
     @AppStorage("settings.cloudSyncEnabled") private var isCloudSyncEnabled: Bool = false
     @AppStorage("settings.syncBookmarks") private var shouldSyncBookmarks: Bool = true
     @AppStorage("settings.syncReadingProgress") private var shouldSyncReadingProgress: Bool = true
+    @AppStorage(CrashDiagnostics.collectionEnabledDefaultsKey) private var isDiagnosticsEnabled: Bool = CrashDiagnostics.isCollectionEnabled
 
     @State private var isShowingInAppPurchase: Bool = false
     @State private var isShowingRatingAlert: Bool = false
@@ -117,32 +118,50 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("App") {
-                    SettingsRow(
-                        systemImage: "stethoscope",
-                        title: "Diagnostic Code",
-                        detail: self.viewModel.diagnosticCode
-                    )
-                    .contextMenu {
-                        Button("Copy") {
-                            UIPasteboard.general.string = self.viewModel.diagnosticCode
-                        }
-                    }
-
-                    Button(
-                        action: {
-                            UIPasteboard.general.string = self.viewModel.diagnosticCode
-                        },
-                        label: {
+                Section(
+                    content: {
+                        Toggle(isOn: self.$isDiagnosticsEnabled) {
                             SettingsRow(
-                                systemImage: "doc.on.doc",
-                                title: "Copy Diagnostic Code",
-                                detail: nil
+                                systemImage: "waveform.path.ecg",
+                                title: "Send Crash Diagnostics",
+                                detail: self.isDiagnosticsEnabled ? "On" : "Off"
                             )
                         }
-                    )
-                    .buttonStyle(.plain)
+                        .onChange(of: self.isDiagnosticsEnabled) { _, newValue in
+                            CrashDiagnostics.shared.setCollectionEnabled(newValue)
+                        }
 
+                        SettingsRow(
+                            systemImage: "stethoscope",
+                            title: "Diagnostic Code",
+                            detail: self.viewModel.diagnosticCode
+                        )
+                        .contextMenu {
+                            Button("Copy") {
+                                UIPasteboard.general.string = self.viewModel.diagnosticCode
+                            }
+                        }
+
+                        Button(
+                            action: {
+                                UIPasteboard.general.string = self.viewModel.diagnosticCode
+                            },
+                            label: {
+                                SettingsRow(
+                                    systemImage: "doc.on.doc",
+                                    title: "Copy Diagnostic Code",
+                                    detail: nil
+                                )
+                            }
+                        )
+                        .buttonStyle(.plain)
+                    },
+                    footer: {
+                        Text("Diagnostic reports include the code above, app version, device model, current screen, source, stage, and selected non-crash errors. They do not include cookies, tokens, full HTML, or full URL query values.")
+                    }
+                )
+
+                Section("App") {
                     SettingsRow(
                         systemImage: "number",
                         title: "Version",

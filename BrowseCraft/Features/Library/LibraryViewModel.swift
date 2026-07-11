@@ -449,7 +449,7 @@ final class LibraryViewModel: ObservableObject {
         self.refreshToken += 1
         self.isRefreshing = false
         self.selectedSourceID = selectedSourceID
-        CrashDiagnostics.shared.setSource(self.source(for: selectedSourceID))
+        CrashDiagnostics.shared.setSource(selectedSourceID.flatMap { self.source(for: $0) })
         self.selectedListTabID = nil
         self.errorMessage = nil
         self.items = []

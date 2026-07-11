@@ -6,6 +6,7 @@ import UIKit
 
 final class CrashDiagnostics {
     static let shared: CrashDiagnostics = CrashDiagnostics()
+    static let collectionEnabledDefaultsKey: String = "settings.diagnosticsEnabled"
 
     private enum Key {
         static let diagnosticCode: String = "diagnosticCode"
@@ -30,6 +31,7 @@ final class CrashDiagnostics {
         let identity: DiagnosticIdentity = identityStore.identity
         let crashlytics: Crashlytics = Crashlytics.crashlytics()
 
+        crashlytics.setCrashlyticsCollectionEnabled(Self.isCollectionEnabled)
         crashlytics.setUserID(identity.supportUserId)
         crashlytics.setCustomValue(identity.diagnosticCode, forKey: Key.diagnosticCode)
         crashlytics.setCustomValue(identity.sessionId, forKey: Key.sessionId)
@@ -61,6 +63,11 @@ final class CrashDiagnostics {
         Crashlytics.crashlytics().setCustomValue(stage.rawValue, forKey: Key.ruleStage)
     }
 
+    func setCollectionEnabled(_ isEnabled: Bool) {
+        UserDefaults.standard.set(isEnabled, forKey: Self.collectionEnabledDefaultsKey)
+        Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(isEnabled)
+    }
+
     func record(
         error: Error,
         severity: DiagnosticSeverity = .error,
@@ -68,12 +75,24 @@ final class CrashDiagnostics {
         errorCode: String? = nil,
         event: String? = nil
     ) {
+        guard Self.isCollectionEnabled else {
+            return
+        }
+
         let crashlytics: Crashlytics = Crashlytics.crashlytics()
         crashlytics.setCustomValue(severity.rawValue, forKey: Key.severity)
         crashlytics.setCustomValue(category.rawValue, forKey: Key.category)
         crashlytics.setCustomValue(errorCode ?? "", forKey: Key.errorCode)
         crashlytics.setCustomValue(event ?? "", forKey: Key.errorEvent)
         crashlytics.record(error: error)
+    }
+
+    static var isCollectionEnabled: Bool {
+        if UserDefaults.standard.object(forKey: Self.collectionEnabledDefaultsKey) == nil {
+            return true
+        }
+
+        return UserDefaults.standard.bool(forKey: Self.collectionEnabledDefaultsKey)
     }
 
     private static var appVersion: String {
