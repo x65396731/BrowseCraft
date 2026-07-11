@@ -56,6 +56,34 @@ struct VideoRuntimeGenericHTMLMappingTests {
         #expect(items.first?.detailURL?.absoluteString == "https://video.example.test/watch/movie-1")
     }
 
+    @Test func registryMapsLegacyKpkuangGenericHTMLDefinitionToMacCMS() throws {
+        let mapper: any VideoContentMapper = VideoContentMapperRegistry().mapper(
+            for: try Self.kpkuangLegacyGenericHTMLDefinition()
+        )
+        let listURL: URL = try #require(URL(string: "https://www.kpkuang.fun/vodtype/1/"))
+
+        let items: [SourceContentItem] = try mapper.mapList(
+            html: """
+            <html>
+              <body>
+                <li><a href="/user/plays.html">播放记录</a></li>
+                <div class="module-item">
+                  <a class="module-item-pic" href="/voddetail/117372.html" title="示例影片" data-src="/cover.jpg"></a>
+                  <div class="module-card-item-title">示例影片</div>
+                  <div class="module-item-note">HD</div>
+                </div>
+              </body>
+            </html>
+            """,
+            definition: try Self.kpkuangLegacyGenericHTMLDefinition(),
+            pageURL: listURL
+        )
+
+        #expect(items.count == 1)
+        #expect(items.first?.title == "示例影片")
+        #expect(items.first?.detailURL?.absoluteString == "https://www.kpkuang.fun/voddetail/117372.html")
+    }
+
     @Test func genericHTMLMapperBuildsDetailContentFromPlayablePage() throws {
         let mapper: any VideoContentMapper = VideoContentMapperRegistry().mapper(for: .genericHTML)
         let definition: SourceDefinition = try Self.videoDefinition()
@@ -722,6 +750,40 @@ struct VideoRuntimeGenericHTMLMappingTests {
                 listRequest: listRequest,
                 detailRequest: detailRequest,
                 playRequest: playRequest,
+                requiresAccount: false,
+                seedVodID: nil,
+                seedSourceIndex: nil,
+                seedEpisodeIndex: nil,
+                seedDetailURL: nil,
+                seedPlayURL: nil
+            ),
+            plugin: nil
+        )
+    }
+
+    private static func kpkuangLegacyGenericHTMLDefinition() throws -> SourceDefinition {
+        let baseURL: URL = try #require(URL(string: "https://www.kpkuang.fun/"))
+        let entryURL: URL = try #require(URL(string: "https://www.kpkuang.fun/vodtype/1/"))
+        return SourceDefinition(
+            id: "kpkuang",
+            runtimeKind: .video,
+            name: "看片狂人",
+            baseURL: baseURL,
+            version: nil,
+            ownership: .user,
+            comic: nil,
+            rss: nil,
+            video: VideoSourceDefinition(
+                adapter: .genericHTML,
+                entryURL: entryURL,
+                seedURL: nil,
+                entryKind: .list,
+                routePatterns: nil,
+                playbackPolicy: .playPageFirst,
+                sharedRequest: nil,
+                listRequest: nil,
+                detailRequest: nil,
+                playRequest: nil,
                 requiresAccount: false,
                 seedVodID: nil,
                 seedSourceIndex: nil,

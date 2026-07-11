@@ -9,6 +9,8 @@ struct VideoIframePlayerResolution {
 }
 
 struct VideoIframePlayerResolver {
+    private static let playbackUserAgent: String = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+
     private let pageContentLoader: PageContentLoader
     private let mapper: any VideoContentMapper
     private let requestConfigResolver: VideoRequestConfigResolver
@@ -38,6 +40,16 @@ struct VideoIframePlayerResolver {
         guard iframePlayerURL != reference.playPageURL else {
             return nil
         }
+        if let mediaKind: SourceVideoMediaKind = self.directMediaKind(for: iframePlayerURL) {
+            return self.directMediaResolution(
+                originalReference: reference,
+                mediaURL: iframePlayerURL,
+                mediaKind: mediaKind,
+                refererURL: reference.playPageURL,
+                baseRequest: baseRequest,
+                depth: 0
+            )
+        }
         if self.isTerminalIframePlayerURL(iframePlayerURL) {
             return nil
         }
@@ -64,6 +76,10 @@ struct VideoIframePlayerResolver {
             return true
         }
 
+        if host == "abyssplayer.com" || host.hasSuffix(".abyssplayer.com") {
+            return true
+        }
+
         return false
     }
 
@@ -76,6 +92,17 @@ struct VideoIframePlayerResolver {
         depth: Int,
         visitedURLs: Set<String>
     ) async throws -> VideoIframePlayerResolution {
+        if let mediaKind: SourceVideoMediaKind = self.directMediaKind(for: currentURL) {
+            return self.directMediaResolution(
+                originalReference: originalReference,
+                mediaURL: currentURL,
+                mediaKind: mediaKind,
+                refererURL: refererURL,
+                baseRequest: baseRequest,
+                depth: depth
+            )
+        }
+
         if depth > self.maxDepth {
             return VideoIframePlayerResolution(
                 reference: self.reference(
@@ -203,7 +230,7 @@ struct VideoIframePlayerResolver {
             return VideoIframePlayerResolution(
                 reference: self.reference(
                     from: originalReference,
-                    status: .failed(.mediaURLNotFound)
+                    status: .pageOnly
                 ),
                 requestLogs: [iframePlayerLog],
                 issues: [
@@ -244,6 +271,63 @@ struct VideoIframePlayerResolver {
         )
     }
 
+    private func directMediaKind(for url: URL) -> SourceVideoMediaKind? {
+        let path: String = url.path.lowercased()
+        if path.hasSuffix(".m3u8") {
+            return .m3u8
+        }
+
+        if path.hasSuffix(".mp4") {
+            return .mp4
+        }
+
+        return nil
+    }
+
+    private func directMediaResolution(
+        originalReference: SourceVideoPlaybackReference,
+        mediaURL: URL,
+        mediaKind: SourceVideoMediaKind,
+        refererURL: URL,
+        baseRequest: RequestConfig?,
+        depth: Int
+    ) -> VideoIframePlayerResolution {
+        if VideoPlaybackAdMediaFilter.isBlocked(mediaURL) {
+            return VideoIframePlayerResolution(
+                reference: self.reference(
+                    from: originalReference,
+                    status: .failed(.mediaURLNotFound)
+                ),
+                requestLogs: [],
+                issues: [
+                    SourceRuntimeIssue(
+                        id: "video.adMediaFiltered",
+                        severity: .warning,
+                        message: "Video playback candidate matched a blocked ad media host."
+                    )
+                ]
+            )
+        }
+
+        return VideoIframePlayerResolution(
+            reference: self.reference(
+                from: originalReference,
+                directMediaURL: mediaURL,
+                mediaKind: mediaKind,
+                refererURL: refererURL,
+                baseRequest: baseRequest
+            ),
+            requestLogs: [],
+            issues: [
+                SourceRuntimeIssue(
+                    id: "video.iframePlayerMediaFound",
+                    severity: .info,
+                    message: "Video iframe player media found at depth \(depth)."
+                )
+            ]
+        )
+    }
+
     private func reference(
         from originalReference: SourceVideoPlaybackReference,
         iframePlayerReference: SourceVideoPlaybackReference
@@ -262,6 +346,43 @@ struct VideoIframePlayerResolver {
             previousEpisodeURL: originalReference.previousEpisodeURL,
             sourceName: originalReference.sourceName ?? iframePlayerReference.sourceName,
             status: iframePlayerReference.status
+        )
+    }
+
+    private func reference(
+        from originalReference: SourceVideoPlaybackReference,
+        directMediaURL: URL,
+        mediaKind: SourceVideoMediaKind,
+        refererURL: URL,
+        baseRequest: RequestConfig?
+    ) -> SourceVideoPlaybackReference {
+        var headers: [String: String] = baseRequest?.headers ?? [:]
+        headers["Referer"] = refererURL.absoluteString
+        if headers.keys.contains(where: { $0.caseInsensitiveCompare("User-Agent") == .orderedSame }) == false {
+            headers["User-Agent"] = Self.playbackUserAgent
+        }
+        let userAgent: String? = headers.first { header in
+            header.key.caseInsensitiveCompare("User-Agent") == .orderedSame
+        }?.value
+
+        return SourceVideoPlaybackReference(
+            vodID: originalReference.vodID,
+            sourceIndex: originalReference.sourceIndex,
+            episodeIndex: originalReference.episodeIndex,
+            episodeKey: originalReference.episodeKey,
+            episodeTitle: originalReference.episodeTitle,
+            playPageURL: originalReference.playPageURL,
+            candidateMediaURL: directMediaURL,
+            candidateMediaKind: mediaKind,
+            playbackRequestConfig: SourcePlaybackRequestConfig(
+                headers: headers,
+                referer: refererURL,
+                userAgent: userAgent
+            ),
+            nextEpisodeURL: originalReference.nextEpisodeURL,
+            previousEpisodeURL: originalReference.previousEpisodeURL,
+            sourceName: originalReference.sourceName,
+            status: .playable
         )
     }
 

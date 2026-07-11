@@ -126,6 +126,99 @@ struct VideoRuntimeMacCMSMappingTests {
         #expect(detail.episodes.map(\.title) == ["第3集"])
     }
 
+    @Test func macCMSMapperExtractsVfedListItemsAndSlashRoutes() throws {
+        let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let listURL: URL = try #require(URL(string: "https://www.kpkuang.fun/vodtype/1/"))
+
+        let items: [SourceContentItem] = try mapper.mapList(
+            html: Self.vfedListHTML,
+            definition: definition,
+            pageURL: listURL
+        )
+
+        #expect(items.count == 1)
+        #expect(items[0].id == "video.example.video.666009")
+        #expect(items[0].title == "波波仔大电影2")
+        #expect(items[0].detailURL?.absoluteString == "https://www.kpkuang.fun/voddetail/666009/")
+        #expect(items[0].coverURL?.absoluteString == "https://www.kpkuang.fun/upload/vfed-cover.jpg")
+        #expect(items[0].latestText == "HD")
+    }
+
+    @Test func macCMSMapperFiltersVfedRecommendationCards() throws {
+        let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let listURL: URL = try #require(URL(string: "https://www.kpkuang.fun/vodtype/1/"))
+
+        let items: [SourceContentItem] = try mapper.mapList(
+            html: Self.vfedRecommendationHTML,
+            definition: definition,
+            pageURL: listURL
+        )
+
+        #expect(items.isEmpty)
+    }
+
+    @Test func macCMSMapperExtractsVfedEpisodeSlashRoutes() throws {
+        let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let detailURL: URL = try #require(URL(string: "https://www.kpkuang.fun/voddetail/666009/"))
+
+        let detail: VideoDetailContent = try mapper.mapDetail(
+            html: Self.vfedDetailHTML,
+            definition: definition,
+            detailURL: detailURL
+        )
+
+        #expect(detail.episodes.map(\.id) == ["666009-1-1"])
+        #expect(detail.episodes.map(\.title) == ["正片"])
+        #expect(detail.episodes[0].playPageURL.absoluteString == "https://www.kpkuang.fun/vodplay/666009-1-1/")
+    }
+
+    @Test func macCMSMapperUsesMostCompleteVfedPlaybackList() throws {
+        let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let detailURL: URL = try #require(URL(string: "https://www.kpkuang.fun/voddetail/1091565/"))
+
+        let detail: VideoDetailContent = try mapper.mapDetail(
+            html: Self.vfedMultiLineDetailHTML,
+            definition: definition,
+            detailURL: detailURL
+        )
+
+        #expect(detail.episodes.map(\.id) == ["1091565-23-1", "1091565-23-2", "1091565-23-3"])
+        #expect(detail.episodes.map(\.title) == ["第1集", "第2集", "第3集"])
+    }
+
+    @Test func macCMSMapperFallsBackWhenOnlyVfedVIPPlaybackListsExist() throws {
+        let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let detailURL: URL = try #require(URL(string: "https://www.kpkuang.fun/voddetail/900001/"))
+
+        let detail: VideoDetailContent = try mapper.mapDetail(
+            html: Self.vfedOnlyVIPDetailHTML,
+            definition: definition,
+            detailURL: detailURL
+        )
+
+        #expect(detail.episodes.map(\.id) == ["900001-7-1", "900001-7-2"])
+        #expect(detail.episodes.map(\.title) == ["第1集", "第2集"])
+    }
+
+    @Test func macCMSMapperSortsVfedEpisodeTitlesNumerically() throws {
+        let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let detailURL: URL = try #require(URL(string: "https://www.kpkuang.fun/voddetail/900002/"))
+
+        let detail: VideoDetailContent = try mapper.mapDetail(
+            html: Self.vfedUnsortedEpisodeDetailHTML,
+            definition: definition,
+            detailURL: detailURL
+        )
+
+        #expect(detail.episodes.map(\.title) == ["S1_EP10_中文字幕", "S1_EP29_中文字幕", "S1_EP30_中文字幕"])
+    }
+
     @Test func macCMSMapperClassifiesMP4AndEmptyPlayerPayload() throws {
         let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
         let definition: SourceDefinition = try Self.videoDefinition()
@@ -167,6 +260,157 @@ struct VideoRuntimeMacCMSMappingTests {
         )
 
         #expect(playback.candidateMediaURL?.absoluteString == "https://video.example.test/embed/117372-1-1")
+        #expect(playback.candidateMediaKind == .iframePlayer)
+        #expect(playback.status == .pageOnly)
+    }
+
+    @Test func macCMSMapperFiltersKnownAdMediaPayload() throws {
+        let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let playURL: URL = try #require(URL(string: "https://video.example.test/vodplay/117372-1-1.html"))
+
+        let playback: SourceVideoPlaybackReference = try mapper.mapPlayback(
+            html: """
+            <script>
+              var player_aaaa={"url":"https://vv.jisuzyv.com/play/dBBNZZJd/index.m3u8","from":"adline","id":"117372","sid":15,"nid":1};
+            </script>
+            """,
+            definition: definition,
+            playPageURL: playURL
+        )
+
+        #expect(playback.candidateMediaKind == .m3u8)
+        #expect(playback.status == .failed(.mediaURLNotFound))
+    }
+
+    @Test func iframePlayerResolverFallsBackToWebPlaybackWhenStaticMediaIsMissing() async throws {
+        let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let playURL: URL = try #require(URL(string: "https://video.example.test/vodplay/117372-1-1.html"))
+        let initialReference: SourceVideoPlaybackReference = try mapper.mapPlayback(
+            html: """
+            <script>
+              var player_aaaa={"url":"https://player.example.test/player/117372-1-1","from":"iframe","id":"117372","sid":1,"nid":1};
+            </script>
+            """,
+            definition: definition,
+            playPageURL: playURL
+        )
+
+        let resolver: VideoIframePlayerResolver = VideoIframePlayerResolver(
+            pageContentLoader: StaticMacCMSPlaybackPageContentLoader(
+                html: "<html><body>iframe player shell without direct media</body></html>"
+            ),
+            mapper: mapper
+        )
+        let optionalResolution: VideoIframePlayerResolution? = try await resolver.resolve(
+            reference: initialReference,
+            definition: definition,
+            baseRequest: nil
+        )
+        let resolution: VideoIframePlayerResolution = try #require(optionalResolution)
+
+        #expect(resolution.reference.status == .pageOnly)
+        #expect(resolution.reference.candidateMediaURL?.absoluteString == "https://player.example.test/player/117372-1-1")
+        #expect(resolution.reference.candidateMediaKind == .iframePlayer)
+        #expect(resolution.issues.contains { issue in
+            issue.id == "video.iframePlayerMediaMissing"
+        })
+    }
+
+    @Test func iframePlayerResolverTreatsDirectMediaCandidateAsPlayable() async throws {
+        let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let playURL: URL = try #require(URL(string: "https://video.example.test/vodplay/117372-1-1.html"))
+        let reference: SourceVideoPlaybackReference = SourceVideoPlaybackReference(
+            vodID: "117372",
+            sourceIndex: 1,
+            episodeIndex: 1,
+            episodeKey: "117372-1-1",
+            episodeTitle: "第1集",
+            playPageURL: playURL,
+            candidateMediaURL: try #require(URL(string: "https://media.example.test/video/index.m3u8")),
+            candidateMediaKind: .iframePlayer,
+            playbackRequestConfig: nil,
+            nextEpisodeURL: nil,
+            previousEpisodeURL: nil,
+            sourceName: "iframe",
+            status: .pageOnly
+        )
+
+        let resolver: VideoIframePlayerResolver = VideoIframePlayerResolver(
+            pageContentLoader: StaticMacCMSPlaybackPageContentLoader(html: ""),
+            mapper: mapper
+        )
+        let optionalResolution: VideoIframePlayerResolution? = try await resolver.resolve(
+            reference: reference,
+            definition: definition,
+            baseRequest: nil
+        )
+        let resolution: VideoIframePlayerResolution = try #require(optionalResolution)
+
+        #expect(resolution.reference.status == .playable)
+        #expect(resolution.reference.candidateMediaURL?.absoluteString == "https://media.example.test/video/index.m3u8")
+        #expect(resolution.reference.candidateMediaKind == .m3u8)
+        #expect(resolution.reference.playbackRequestConfig?.referer == playURL)
+    }
+
+    @Test func iframePlayerResolverTreatsNestedDirectMediaAsPlayable() async throws {
+        let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let playURL: URL = try #require(URL(string: "https://video.example.test/vodplay/117372-1-1.html"))
+        let initialReference: SourceVideoPlaybackReference = try mapper.mapPlayback(
+            html: """
+            <script>
+              var player_aaaa={"url":"https://player.example.test/player/117372-1-1","from":"iframe","id":"117372","sid":1,"nid":1};
+            </script>
+            """,
+            definition: definition,
+            playPageURL: playURL
+        )
+
+        let resolver: VideoIframePlayerResolver = VideoIframePlayerResolver(
+            pageContentLoader: StaticMacCMSPlaybackPageContentLoader(
+                html: """
+                <script>
+                  var player_aaaa={"url":"https://media.example.test/video/index.m3u8","from":"m3u8","id":"117372","sid":1,"nid":1};
+                </script>
+                """
+            ),
+            mapper: mapper
+        )
+        let optionalResolution: VideoIframePlayerResolution? = try await resolver.resolve(
+            reference: initialReference,
+            definition: definition,
+            baseRequest: nil
+        )
+        let resolution: VideoIframePlayerResolution = try #require(optionalResolution)
+
+        #expect(resolution.reference.status == .playable)
+        #expect(resolution.reference.candidateMediaURL?.absoluteString == "https://media.example.test/video/index.m3u8")
+        #expect(resolution.reference.candidateMediaKind == .m3u8)
+        #expect(resolution.reference.playbackRequestConfig?.referer?.absoluteString == "https://player.example.test/player/117372-1-1")
+    }
+
+    @Test func macCMSMapperExtractsVfedIframePlayerBeforeRestrictionText() throws {
+        let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper(
+            lexicon: VideoDetectionLexicon(
+                sourceLexicon: SourceDetectionLexicon.load(language: .simplifiedChinese)
+            )
+        )
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let playURL: URL = try #require(URL(string: "https://www.kpkuang.fun/vodplay/1058034-3-1.html"))
+
+        let playback: SourceVideoPlaybackReference = try mapper.mapPlayback(
+            html: Self.vfedPlaybackHTML,
+            definition: definition,
+            playPageURL: playURL
+        )
+
+        #expect(playback.vodID == "1058034")
+        #expect(playback.sourceIndex == 3)
+        #expect(playback.episodeIndex == 1)
+        #expect(playback.candidateMediaURL?.absoluteString == "https://abyssplayer.com/_4oi_-qJR")
         #expect(playback.candidateMediaKind == .iframePlayer)
         #expect(playback.status == .pageOnly)
     }
@@ -306,6 +550,162 @@ struct VideoRuntimeMacCMSMappingTests {
     </html>
     """
 
+    private static let vfedListHTML: String = """
+    <html>
+      <body>
+        <ul>
+          <li id="listid_666009_7295" class="fed-list-item fed-padding fed-col-xs4 fed-col-sm3 fed-col-md2">
+            <a class="fed-list-pics fed-lazy fed-part-2by3" href="/voddetail/666009/" title="波波仔大电影2" data-original="/upload/vfed-cover.jpg">
+              <span class="fed-list-remarks">HD</span>
+            </a>
+            <a class="fed-list-title" href="/voddetail/666009/" title="波波仔大电影2">
+              <h4>备用标题</h4>
+            </a>
+          </li>
+        </ul>
+      </body>
+    </html>
+    """
+
+    private static let vfedRecommendationHTML: String = """
+    <html>
+      <body>
+        <ul>
+          <li class="fed-list-item fed-padding fed-col-xs12 fed-col-sm6 fed-col-md4">
+            <a class="fed-list-pics fed-lazy fed-part-2by1" href="/voddetail/1069266/" data-original="/upload/recommend.jpg">
+              <span class="cinema_title">惩罚者：最后一击</span>
+            </a>
+          </li>
+        </ul>
+      </body>
+    </html>
+    """
+
+    private static let vfedDetailHTML: String = """
+    <html>
+      <body>
+        <a class="fed-deta-play" href="/vodplay/666009-1-1/">立即播放</a>
+        <li class="fed-play-item fed-drop-item">
+          <ul class="fed-drop-head fed-padding fed-part-rows">
+            <li>来自 <span class="uk-label">腾讯视频-VIP解析</span> 的播放列表</li>
+          </ul>
+          <ul class="fed-part-rows">
+            <li>
+              <a href="/vodplay/666009-7-1/">VIP正片</a>
+            </li>
+          </ul>
+        </li>
+        <li class="fed-play-item fed-drop-item">
+          <ul class="fed-drop-head fed-padding fed-part-rows">
+            <li>来自 <span class="uk-label">IK影视</span> 的播放列表</li>
+          </ul>
+          <ul class="fed-part-rows">
+            <li>
+              <a href="/vodplay/666009-1-1/">正片</a>
+            </li>
+          </ul>
+        </li>
+        <li class="fed-play-item fed-drop-item">
+          <ul class="fed-drop-head fed-padding fed-part-rows">
+            <li>来自 <span class="uk-label">量子云</span> 的播放列表</li>
+          </ul>
+          <ul class="fed-part-rows">
+            <li>
+              <a href="/vodplay/666009-12-1/">正片</a>
+            </li>
+          </ul>
+        </li>
+      </body>
+    </html>
+    """
+
+    private static let vfedMultiLineDetailHTML: String = """
+    <html>
+      <body>
+        <li class="fed-play-item fed-drop-item">
+          <ul class="fed-drop-head fed-padding fed-part-rows">
+            <li>来自 <span class="uk-label">腾讯视频-VIP解析</span> 的播放列表</li>
+          </ul>
+          <ul class="fed-part-rows">
+            <li><a href="/vodplay/1091565-7-1/">第1集</a></li>
+            <li><a href="/vodplay/1091565-7-2/">第2集</a></li>
+            <li><a href="/vodplay/1091565-7-3/">第3集</a></li>
+          </ul>
+        </li>
+        <li class="fed-play-item fed-drop-item">
+          <ul class="fed-drop-head fed-padding fed-part-rows">
+            <li>来自 <span class="uk-label">电影天堂</span> 的播放列表</li>
+          </ul>
+          <ul class="fed-part-rows">
+            <li><a href="/vodplay/1091565-21-1/">第1集</a></li>
+            <li><a href="/vodplay/1091565-21-2/">第2集</a></li>
+          </ul>
+        </li>
+        <li class="fed-play-item fed-drop-item">
+          <ul class="fed-drop-head fed-padding fed-part-rows">
+            <li>来自 <span class="uk-label">量子云</span> 的播放列表</li>
+          </ul>
+          <ul class="fed-part-rows">
+            <li><a href="/vodplay/1091565-23-1/">第1集</a></li>
+            <li><a href="/vodplay/1091565-23-2/">第2集</a></li>
+            <li><a href="/vodplay/1091565-23-3/">第3集</a></li>
+          </ul>
+        </li>
+      </body>
+    </html>
+    """
+
+    private static let vfedOnlyVIPDetailHTML: String = """
+    <html>
+      <body>
+        <li class="fed-play-item fed-drop-item">
+          <ul class="fed-drop-head fed-padding fed-part-rows">
+            <li>来自 <span class="uk-label">腾讯视频-VIP解析</span> 的播放列表</li>
+          </ul>
+          <ul class="fed-part-rows">
+            <li><a href="/vodplay/900001-7-1/">第1集</a></li>
+            <li><a href="/vodplay/900001-7-2/">第2集</a></li>
+          </ul>
+        </li>
+      </body>
+    </html>
+    """
+
+    private static let vfedUnsortedEpisodeDetailHTML: String = """
+    <html>
+      <body>
+        <li class="fed-play-item fed-drop-item">
+          <ul class="fed-drop-head fed-padding fed-part-rows">
+            <li>来自 <span class="uk-label">字幕云</span> 的播放列表</li>
+          </ul>
+          <ul class="fed-part-rows">
+            <li><a href="/vodplay/900002-1-29/">S1_EP29_中文字幕</a></li>
+            <li><a href="/vodplay/900002-1-30/">S1_EP30_中文字幕</a></li>
+            <li><a href="/vodplay/900002-1-10/">S1_EP10_中文字幕</a></li>
+          </ul>
+        </li>
+      </body>
+    </html>
+    """
+
+    private static let vfedPlaybackHTML: String = """
+    <html>
+      <body>
+        <a class="fed-navs-login" href="javascript:;">登录</a>
+        <div class="fed-play-player">
+          <iframe id="fed-play-iframe" class="fed-play-iframe" data-play="NDoaHR0cHM6Ly9hYnlzc3BsYXllci5jb20vXzRvaV8tcUpS"></iframe>
+          <div class="fed-play-confirm">
+            <p>提示：购买VIP会员组，享受超级权限，谢谢支持。</p>
+            <a class="fed-navs-login" href="javascript:;">立即登录</a>
+          </div>
+        </div>
+        <div class="fed-play-title">
+          <span class="fed-play-text">木乃伊TC_原声_中文字幕</span>
+        </div>
+      </body>
+    </html>
+    """
+
     private static let playbackHTML: String = """
     <html>
       <body>
@@ -318,4 +718,16 @@ struct VideoRuntimeMacCMSMappingTests {
       </body>
     </html>
     """
+}
+
+private final class StaticMacCMSPlaybackPageContentLoader: PageContentLoader {
+    let html: String
+
+    init(html: String) {
+        self.html = html
+    }
+
+    func getString(from url: URL, request: RequestConfig?) async throws -> String {
+        return self.html
+    }
 }

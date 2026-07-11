@@ -18,7 +18,8 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
             ".stui-vodlist__item",
             ".myui-vodlist__box",
             ".module-item",
-            ".module-card-item"
+            ".module-card-item",
+            ".fed-list-item"
         ].joined(separator: ", ")
 
         static let detailLinks: String = [
@@ -26,6 +27,8 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
             "h4 a[href^=\"/voddetail/\"]",
             ".module-item-pic[href^=\"/voddetail/\"]",
             ".module-card-item-title[href^=\"/voddetail/\"]",
+            "a.fed-list-pics[href*=\"/voddetail/\"]",
+            "a.fed-list-title[href*=\"/voddetail/\"]",
             "a[href*=\"/voddetail/\"]"
         ].joined(separator: ", ")
 
@@ -33,7 +36,9 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
             ".ewave-vodlist__thumb[title]",
             ".stui-vodlist__thumb[title]",
             ".myui-vodlist__thumb[title]",
-            ".module-item-pic[title]"
+            ".module-item-pic[title]",
+            ".fed-list-pics[title]",
+            ".fed-list-title[title]"
         ].joined(separator: ", ")
 
         static let titleTexts: String = [
@@ -41,6 +46,9 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
             ".stui-vodlist__detail h4 a",
             ".myui-vodlist__detail h4 a",
             ".module-card-item-title",
+            ".fed-list-title h4",
+            ".fed-list-title",
+            ".cinema_title",
             "h4.title a"
         ].joined(separator: ", ")
 
@@ -49,6 +57,8 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
             ".stui-vodlist__thumb[data-original]",
             ".myui-vodlist__thumb[data-original]",
             ".module-item-pic[data-src]",
+            ".fed-list-pics[data-original]",
+            ".fed-list-pics[data-src]",
             "img[data-original]",
             "img[data-src]",
             "img[src]"
@@ -58,7 +68,8 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
             ".pic-text.text-right",
             ".pic-text",
             ".module-item-note",
-            ".module-item-text"
+            ".module-item-text",
+            ".fed-list-remarks"
         ].joined(separator: ", ")
 
         static let episodeLinks: String = [
@@ -69,13 +80,17 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
             ".myui-content__list a[href^=\"/vodplay/\"]",
             ".myui-content__list a[href*=\"/vodplay/\"]",
             ".module-play-list a[href^=\"/vodplay/\"]",
-            ".module-play-list a[href*=\"/vodplay/\"]"
+            ".module-play-list a[href*=\"/vodplay/\"]",
+            ".fed-play-item a[href*=\"/vodplay/\"]",
+            ".fed-part-rows a[href*=\"/vodplay/\"]"
         ].joined(separator: ", ")
 
         static let playerTitles: String = [
             ".ewave-player__detail h1.title a",
             ".stui-player__detail h1.title a",
             ".myui-player__detail h1.title a",
+            ".fed-player-info h1",
+            ".fed-play-title",
             "h1.title"
         ].joined(separator: ", ")
     }
@@ -108,6 +123,10 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
         var items: [SourceContentItem] = []
 
         for element: Element in elements {
+            guard try self.shouldIncludeListItem(element) else {
+                continue
+            }
+
             guard let detailURL: URL = try self.detailURL(from: element, baseURL: pageURL),
                   let vodID: String = self.vodID(from: detailURL) else {
                 continue
@@ -135,30 +154,58 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
         return items
     }
 
+    private func shouldIncludeListItem(_ element: Element) throws -> Bool {
+        let classes: [String] = try element.attr("class")
+            .split(whereSeparator: { $0.isWhitespace })
+            .map(String.init)
+        guard classes.contains("fed-list-item") else {
+            return true
+        }
+
+        if try element.attr("id").hasPrefix("listid_") {
+            return true
+        }
+
+        let titleLinks: [Element] = try element.select("a.fed-list-title[href*=\"/voddetail/\"]")
+            .array()
+        return titleLinks.isEmpty == false
+    }
+
     func mapDetail(
         html: String,
         definition: SourceDefinition,
         detailURL: URL
     ) throws -> VideoDetailContent {
         let document: Document = try SwiftSoup.parse(html, detailURL.absoluteString)
-        let elements: [Element] = try document.select(Selectors.episodeLinks).array()
+        let elements: [Element] = try self.episodeElements(from: document)
+        var seenIDs: Set<String> = Set<String>()
         var episodes: [VideoEpisode] = []
 
         for element: Element in elements {
+            guard try self.shouldIncludeEpisodeLink(element) else {
+                continue
+            }
+
             guard let href: String = try element.attr("href").trimmedNonEmpty,
                   let url: URL = URL(string: href, relativeTo: detailURL)?.absoluteURL,
                   let route: VideoPlayRoute = self.playRoute(from: url.path) else {
                 continue
             }
 
+            let episodeID: String = SourceVideoPlaybackReference.episodeKey(
+                vodID: route.vodID,
+                sourceIndex: route.sourceIndex,
+                episodeIndex: route.episodeIndex
+            )
+            guard seenIDs.contains(episodeID) == false else {
+                continue
+            }
+
             let title: String = try element.text().trimmedNonEmpty ?? "Episode \(route.episodeIndex)"
+            seenIDs.insert(episodeID)
             episodes.append(
                 VideoEpisode(
-                    id: SourceVideoPlaybackReference.episodeKey(
-                        vodID: route.vodID,
-                        sourceIndex: route.sourceIndex,
-                        episodeIndex: route.episodeIndex
-                    ),
+                    id: episodeID,
                     title: title,
                     playPageURL: url
                 )
@@ -166,10 +213,92 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
         }
 
         return VideoDetailContent(
-            episodes: episodes,
+            episodes: self.sortedEpisodes(episodes),
             synopsis: try self.synopsis(from: document),
             metadataRows: try self.metadataRows(from: document)
         )
+    }
+
+    private func episodeElements(from document: Document) throws -> [Element] {
+        let playItems: [Element] = try document.select(".fed-play-item").array()
+        guard playItems.isEmpty == false else {
+            return try document.select(Selectors.episodeLinks).array()
+        }
+
+        var bestElements: [Element] = []
+        var fallbackElements: [Element] = []
+        for playItem: Element in playItems {
+            let elements: [Element] = try playItem.select("a[href*=\"/vodplay/\"]")
+                .array()
+            if elements.count > fallbackElements.count {
+                fallbackElements = elements
+            }
+
+            guard try self.shouldIncludeVfedPlayItem(playItem) else {
+                continue
+            }
+
+            if elements.count > bestElements.count {
+                bestElements = elements
+            }
+        }
+
+        return bestElements.isEmpty ? fallbackElements : bestElements
+    }
+
+    private func shouldIncludeEpisodeLink(_ element: Element) throws -> Bool {
+        let classes: [String] = try element.attr("class")
+            .split(whereSeparator: { $0.isWhitespace })
+            .map(String.init)
+        if classes.contains("fed-deta-play") {
+            return false
+        }
+
+        return true
+    }
+
+    private func shouldIncludeVfedPlayItem(_ element: Element) throws -> Bool {
+        let headerText: String = try element.select(".fed-drop-head").text()
+        return headerText.range(of: "VIP解析", options: [.caseInsensitive, .widthInsensitive]) == nil
+    }
+
+    private func sortedEpisodes(_ episodes: [VideoEpisode]) -> [VideoEpisode] {
+        let indexedEpisodes: [(offset: Int, episode: VideoEpisode)] = episodes.enumerated().map { pair in
+            return (offset: pair.offset, episode: pair.element)
+        }
+
+        return indexedEpisodes.sorted { lhs, rhs in
+            let lhsKey: Int? = self.episodeSortKey(lhs.episode)
+            let rhsKey: Int? = self.episodeSortKey(rhs.episode)
+            switch (lhsKey, rhsKey) {
+            case let (lhsKey?, rhsKey?) where lhsKey != rhsKey:
+                return lhsKey < rhsKey
+            default:
+                return lhs.offset < rhs.offset
+            }
+        }
+        .map { item in
+            return item.episode
+        }
+    }
+
+    private func episodeSortKey(_ episode: VideoEpisode) -> Int? {
+        let titlePatterns: [String] = [
+            #"(?i)EP0*(\d+)"#,
+            #"第0*(\d+)[集话話回]"#
+        ]
+
+        for pattern: String in titlePatterns {
+            if let value: String = self.firstMatch(episode.title, pattern: pattern),
+               let number: Int = Int(value) {
+                return number
+            }
+        }
+
+        guard let value: String = self.firstMatch(episode.id, pattern: #"-0*(\d+)$"#) else {
+            return nil
+        }
+        return Int(value)
     }
 
     func mapPlayback(
@@ -183,13 +312,13 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
         let vodID: String = payload?.id ?? route?.vodID ?? "unknown"
         let sourceIndex: Int = payload?.sid ?? route?.sourceIndex ?? 1
         let episodeIndex: Int = payload?.nid ?? route?.episodeIndex ?? 1
-        let mediaURL: URL? = self.absoluteURL(payload?.url, baseURL: playPageURL)
-        let mediaKind: SourceVideoMediaKind = self.mediaKind(for: mediaURL)
+        let candidate: VideoPlaybackCandidate = try self.playbackCandidate(
+            payload: payload,
+            document: document,
+            baseURL: playPageURL
+        )
         let resolution: VideoPlaybackResolution = self.playbackResolution(
-            candidate: VideoPlaybackCandidate(
-                url: mediaURL,
-                kind: mediaKind
-            ),
+            candidate: candidate,
             playPageURL: playPageURL,
             html: html
         )
@@ -341,13 +470,13 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
     }
 
     private func vodID(from detailURL: URL) -> String? {
-        return self.firstMatch(detailURL.path, pattern: #"^/voddetail/(\d+)\.html$"#)
+        return self.firstMatch(detailURL.path, pattern: #"^/voddetail/(\d+)(?:\.html|/)?$"#)
     }
 
     private func playRoute(from path: String) -> VideoPlayRoute? {
         guard let result: NSTextCheckingResult = self.match(
             path,
-            pattern: #"^/vodplay/(\d+)-(\d+)-(\d+)\.html$"#
+            pattern: #"^/vodplay/(\d+)-(\d+)-(\d+)(?:\.html|/)?$"#
         ) else {
             return nil
         }
@@ -376,6 +505,70 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
         }
 
         return try? JSONDecoder().decode(PlayerPayload.self, from: Data(json.utf8))
+    }
+
+    private func playbackCandidate(
+        payload: PlayerPayload?,
+        document: Document,
+        baseURL: URL
+    ) throws -> VideoPlaybackCandidate {
+        if let mediaURL: URL = self.absoluteURL(payload?.url, baseURL: baseURL) {
+            return VideoPlaybackCandidate(
+                url: mediaURL,
+                kind: self.mediaKind(for: mediaURL)
+            )
+        }
+
+        if let iframeURL: URL = try self.vfedIframePlayerURL(from: document, baseURL: baseURL) {
+            return VideoPlaybackCandidate(url: iframeURL, kind: .iframePlayer)
+        }
+
+        return VideoPlaybackCandidate(url: nil, kind: .unknown)
+    }
+
+    private func vfedIframePlayerURL(from document: Document, baseURL: URL) throws -> URL? {
+        let selectors: [String] = [
+            "iframe.fed-play-iframe",
+            "#fed-play-iframe",
+            ".fed-play-player iframe"
+        ]
+
+        for selector: String in selectors {
+            let frames: [Element] = try document.select(selector).array()
+            for frame: Element in frames {
+                let candidates: [String?] = [
+                    self.decodedVfedPlayerURL(from: try frame.attr("data-play")),
+                    try frame.attr("src").trimmedNonEmpty,
+                    try frame.attr("data-src").trimmedNonEmpty
+                ]
+
+                for candidate: String? in candidates {
+                    guard let candidate: String,
+                          let url: URL = URL(string: candidate, relativeTo: baseURL)?.absoluteURL else {
+                        continue
+                    }
+
+                    return url
+                }
+            }
+        }
+
+        return nil
+    }
+
+    private func decodedVfedPlayerURL(from encoded: String) -> String? {
+        guard let encoded: String = encoded.trimmedNonEmpty else {
+            return nil
+        }
+
+        let payload: String = String(encoded.dropFirst(3))
+        guard payload.isEmpty == false,
+              let data: Data = Data(base64Encoded: payload),
+              let decoded: String = String(data: data, encoding: .utf8)?.trimmedNonEmpty else {
+            return nil
+        }
+
+        return decoded
     }
 
     private func episodeTitle(from document: Document) throws -> String? {
@@ -454,8 +647,16 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
         mediaKind: SourceVideoMediaKind,
         html: String
     ) -> SourceVideoPlaybackStatus {
+        if VideoPlaybackAdMediaFilter.isBlocked(mediaURL) {
+            return .failed(.mediaURLNotFound)
+        }
+
         if mediaURL != nil, mediaKind == .m3u8 || mediaKind == .mp4 {
             return .playable
+        }
+
+        if mediaURL != nil, mediaKind == .iframePlayer {
+            return .pageOnly
         }
 
         if self.lexicon.containsMarker(in: html, category: .accountRestriction) {

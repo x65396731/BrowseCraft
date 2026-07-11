@@ -3,6 +3,13 @@ import BrowseCraftCore
 
 // 中文注释：VideoContentMapperRegistry 只按内容结构选择 mapper；WebView 是渲染方式，不是内容 mapper。
 struct VideoContentMapperRegistry {
+    func mapper(for definition: SourceDefinition) -> any VideoContentMapper {
+        if self.shouldUseMacCMSCompatibilityMapper(definition) {
+            return MacCMSVideoContentMapper()
+        }
+        return self.mapper(for: definition.video?.adapter)
+    }
+
     func mapper(for adapter: VideoAdapter?) -> any VideoContentMapper {
         switch adapter {
         case .macCMS, nil:
@@ -12,6 +19,17 @@ struct VideoContentMapperRegistry {
         case .plugin:
             return PluginRequiredVideoContentMapper()
         }
+    }
+
+    private func shouldUseMacCMSCompatibilityMapper(_ definition: SourceDefinition) -> Bool {
+        guard definition.video?.adapter == .genericHTML else {
+            return false
+        }
+
+        let sourceID: String = definition.id.lowercased()
+        let host: String = definition.baseURL.host?.lowercased() ?? ""
+        return sourceID == "kpkuang"
+            && (host == "kpkuang.fun" || host == "www.kpkuang.fun")
     }
 }
 

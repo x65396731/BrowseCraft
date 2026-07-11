@@ -58,7 +58,11 @@ struct CatalogSourceMaterializer {
         case .video:
             let videoRule: CatalogVideoRule = try self.decodeRule(CatalogVideoRule.self, from: catalogSource)
             let importedAdapter: VideoAdapter = try self.adapter(from: videoRule.adapter)
-            let contentAdapter: VideoAdapter = importedAdapter == .webView ? .genericHTML : importedAdapter
+            let routePatterns: VideoSourceRoutePatterns? = try self.routePatterns(from: videoRule.routePattern)
+            let contentAdapter: VideoAdapter = self.contentAdapter(
+                importedAdapter: importedAdapter,
+                routePatterns: routePatterns
+            )
             let sharedRequest: RequestConfig? = importedAdapter == .webView
                 ? self.webViewRequest(videoRule.sharedRequest)
                 : videoRule.sharedRequest
@@ -77,7 +81,7 @@ struct CatalogSourceMaterializer {
                             ),
                             seedURL: nil,
                             entryKind: try self.entryKind(from: videoRule.entryKind),
-                            routePatterns: try self.routePatterns(from: videoRule.routePattern),
+                            routePatterns: routePatterns,
                             playbackPolicy: try self.playbackPolicy(from: videoRule.playbackPolicy),
                             sharedRequest: sharedRequest,
                             listRequest: videoRule.listRequest,
@@ -98,6 +102,19 @@ struct CatalogSourceMaterializer {
                 updatedAt: updatedAt
             )
         }
+    }
+
+    private func contentAdapter(
+        importedAdapter: VideoAdapter,
+        routePatterns: VideoSourceRoutePatterns?
+    ) -> VideoAdapter {
+        if importedAdapter == .webView {
+            return .genericHTML
+        }
+        if routePatterns == .macCMS {
+            return .macCMS
+        }
+        return importedAdapter
     }
 
     private func rule(from catalogSource: BrowseCraftCatalogSource) throws -> SiteRule {
@@ -213,14 +230,18 @@ struct CatalogSourceMaterializer {
         }
     }
 
-    private func routePatterns(from routePattern: String?) throws -> VideoSourceRoutePatterns? {
-        switch routePattern {
+    private func routePatterns(from routePattern: CatalogRoutePattern?) throws -> VideoSourceRoutePatterns? {
+        if let unsupportedPreset: String = routePattern?.unsupportedPreset {
+            throw CatalogSourceImportError.unsupportedRuleValue(field: "routePattern", value: unsupportedPreset)
+        }
+
+        switch routePattern?.preset {
         case "macCMS":
             return .macCMS
         case nil:
             return nil
-        case let value?:
-            throw CatalogSourceImportError.unsupportedRuleValue(field: "routePattern", value: value)
+        default:
+            return nil
         }
     }
 
@@ -288,7 +309,7 @@ private struct CatalogVideoRule: Decodable {
     let adapter: String
     let entryURL: String
     let entryKind: String
-    let routePattern: String?
+    let routePattern: CatalogRoutePattern?
     let playbackPolicy: String
     let sharedRequest: RequestConfig?
     let listRequest: RequestConfig?
@@ -316,7 +337,7 @@ private struct CatalogVideoRule: Decodable {
         self.adapter = try container.decodeIfPresent(String.self, forKey: .adapter) ?? "genericHTML"
         self.entryURL = try container.decode(String.self, forKey: .entryURL)
         self.entryKind = try container.decodeIfPresent(String.self, forKey: .entryKind) ?? "list"
-        self.routePattern = try container.decodeIfPresent(String.self, forKey: .routePattern)
+        self.routePattern = try container.decodeIfPresent(CatalogRoutePattern.self, forKey: .routePattern)
         self.playbackPolicy = try container.decodeIfPresent(String.self, forKey: .playbackPolicy) ?? "playPageFirst"
         self.sharedRequest = try Self.decodeRequest(from: container, forKey: .sharedRequest)
         self.listRequest = try Self.decodeRequest(from: container, forKey: .listRequest)
@@ -331,6 +352,84 @@ private struct CatalogVideoRule: Decodable {
         forKey key: CodingKeys
     ) throws -> RequestConfig? {
         return try container.decodeIfPresent(CatalogRequestConfig.self, forKey: key)?.requestConfig
+    }
+}
+
+private struct CatalogRoutePattern: Decodable {
+    let preset: String?
+    private let strictStringPreset: Bool
+
+    private enum CodingKeys: String, CodingKey {
+        case adapter
+        case category
+        case detail
+        case kind
+        case list
+        case macCMS
+        case mode
+        case name
+        case play
+        case preset
+        case routePattern
+        case search
+        case type
+    }
+
+    init(from decoder: Decoder) throws {
+        if let stringValue: String = try? decoder.singleValueContainer().decode(String.self) {
+            self.preset = stringValue
+            self.strictStringPreset = true
+            return
+        }
+
+        let container: KeyedDecodingContainer<CodingKeys> = try decoder.container(keyedBy: CodingKeys.self)
+        self.preset = try Self.objectPreset(from: container)
+        self.strictStringPreset = false
+    }
+
+    var unsupportedPreset: String? {
+        guard self.strictStringPreset, self.preset != "macCMS" else {
+            return nil
+        }
+        return self.preset
+    }
+
+    private static func objectPreset(from container: KeyedDecodingContainer<CodingKeys>) throws -> String? {
+        let keys: [CodingKeys] = [.preset, .type, .kind, .name, .adapter, .mode, .routePattern]
+        for key in keys {
+            if let value: String = try? container.decodeIfPresent(String.self, forKey: key) {
+                if self.isMacCMSMarker(value) {
+                    return "macCMS"
+                }
+            }
+        }
+        if (try container.decodeIfPresent(Bool.self, forKey: .macCMS)) == true {
+            return "macCMS"
+        }
+        if try self.containsMacCMSRouteTemplate(in: container) {
+            return "macCMS"
+        }
+        return nil
+    }
+
+    private static func containsMacCMSRouteTemplate(
+        in container: KeyedDecodingContainer<CodingKeys>
+    ) throws -> Bool {
+        let keys: [CodingKeys] = [.detail, .play, .list, .category, .search]
+        for key in keys {
+            if let value: String = try? container.decodeIfPresent(String.self, forKey: key),
+               self.isMacCMSMarker(value) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private static func isMacCMSMarker(_ value: String) -> Bool {
+        let normalized: String = value.lowercased()
+        return normalized == "maccms"
+            || normalized.contains("/voddetail/")
+            || normalized.contains("/vodplay/")
     }
 }
 

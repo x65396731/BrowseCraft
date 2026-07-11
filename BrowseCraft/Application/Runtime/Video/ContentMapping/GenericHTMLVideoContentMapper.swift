@@ -607,6 +607,10 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
         html: String,
         definition: SourceDefinition
     ) -> SourceVideoPlaybackStatus {
+        if VideoPlaybackAdMediaFilter.isBlocked(mediaURL) {
+            return .failed(.mediaURLNotFound)
+        }
+
         if mediaURL != nil, mediaKind == .m3u8 || mediaKind == .mp4 {
             return .playable
         }

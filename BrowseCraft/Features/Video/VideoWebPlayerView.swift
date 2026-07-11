@@ -427,6 +427,10 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
             return true
         }
 
+        if self.isAbyssPlayerHost(host), self.isAbyssPlayerHost(initialHost) {
+            return true
+        }
+
         return host == initialHost
             || host.hasSuffix(".\(initialHost)")
             || initialHost.hasSuffix(".\(host)")
@@ -437,6 +441,13 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
             || host.hasSuffix(".youtube.com")
             || host == "youtube-nocookie.com"
             || host.hasSuffix(".youtube-nocookie.com")
+    }
+
+    private func isAbyssPlayerHost(_ host: String) -> Bool {
+        return host == "abyssplayer.com"
+            || host.hasSuffix(".abyssplayer.com")
+            || host == "abyss.to"
+            || host.hasSuffix(".abyss.to")
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

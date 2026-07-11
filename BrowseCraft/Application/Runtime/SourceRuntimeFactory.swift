@@ -61,7 +61,7 @@ struct SourceRuntimeFactory {
     }
 
     private func makeVideoContentMapper(definition: SourceDefinition) -> any VideoContentMapper {
-        return self.videoContentMapperRegistry.mapper(for: definition.video?.adapter)
+        return self.videoContentMapperRegistry.mapper(for: definition)
     }
 
     func makeComicSourceRuntime(source: Source) -> RuleSourceRuntime {
