@@ -49,6 +49,8 @@ struct RSSContentListView: View {
         .padding(.vertical, 12)
         .onAppear {
             CrashDiagnostics.shared.setScreen(.rssList)
+            CrashDiagnostics.shared.setSource(self.source)
+            CrashDiagnostics.shared.setRuleStage(.rssFeed)
         }
     }
 }

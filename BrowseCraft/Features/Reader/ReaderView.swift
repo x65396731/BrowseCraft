@@ -74,6 +74,8 @@ struct ChapterListView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             CrashDiagnostics.shared.setScreen(.sourceDetail)
+            CrashDiagnostics.shared.setSource(self.viewModel.source)
+            CrashDiagnostics.shared.setRuleStage(.chapter)
         }
         .task {
             await self.viewModel.load()
@@ -175,6 +177,8 @@ struct ReaderView: View {
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 CrashDiagnostics.shared.setScreen(.comicReader)
+                CrashDiagnostics.shared.setSource(self.viewModel.diagnosticSource)
+                CrashDiagnostics.shared.setRuleStage(.reader)
             }
             .task {
                 await self.viewModel.load()

@@ -124,6 +124,7 @@ final class SourcesViewModel: ObservableObject {
 
     @MainActor
     func discoverComicResources(siteURLString: String, keyword: String) async -> [TransientComicDiscoveryItem] {
+        CrashDiagnostics.shared.setRuleStage(.search)
         do {
             return try await self.discoverComicResourcesUseCase.execute(
                 DiscoverComicResourcesInput(
@@ -140,6 +141,7 @@ final class SourcesViewModel: ObservableObject {
 
     @MainActor
     func discoverVideoResources(siteURLString: String, keyword: String) async -> [TransientVideoDiscoveryItem] {
+        CrashDiagnostics.shared.setRuleStage(.search)
         do {
             return try await self.discoverVideoResourcesUseCase.execute(
                 DiscoverVideoResourcesInput(
@@ -156,6 +158,7 @@ final class SourcesViewModel: ObservableObject {
 
     @MainActor
     func discoverRSSFeeds(siteURLString: String) async -> [DiscoveredRSSFeedItem] {
+        CrashDiagnostics.shared.setRuleStage(.rssFeed)
         do {
             return try await self.discoverRSSFeedsUseCase.execute(
                 DiscoverRSSFeedsInput(siteURLString: siteURLString)
@@ -180,6 +183,7 @@ final class SourcesViewModel: ObservableObject {
     @MainActor
     /// 中文注释：addRuleSource 方法封装网站规则导入路径。
     func addRuleSource(name: String, baseURL: String, ruleJSON: String) async -> Bool {
+        CrashDiagnostics.shared.setRuleStage(.list)
         do {
             let result: AddComicRuleSourceResult = try await self.addComicRuleSourceUseCase.execute(
                 name: name,
@@ -206,6 +210,7 @@ final class SourcesViewModel: ObservableObject {
     @MainActor
     /// 中文注释：addRSSSource 方法封装公开 RSS Feed 导入路径。
     func addRSSSource(feedURLString: String, name: String? = nil) async -> Source? {
+        CrashDiagnostics.shared.setRuleStage(.rssFeed)
         do {
             let result: AddRSSSourceResult = try await self.addRSSSourceUseCase.execute(
                 feedURLString: feedURLString,
@@ -234,6 +239,7 @@ final class SourcesViewModel: ObservableObject {
         name: String? = nil,
         configuration: ManualVideoSourceConfigurationDraft
     ) async -> Source? {
+        CrashDiagnostics.shared.setRuleStage(.list)
         do {
             let result: AddManualVideoSourceResult = try await self.addVideoSourceUseCase.saveManualVideoSource(
                 entryURLString: entryURLString,
@@ -259,6 +265,7 @@ final class SourcesViewModel: ObservableObject {
 
     @MainActor
     func loadCatalogSourcesIfNeeded() async {
+        CrashDiagnostics.shared.setRuleStage(.list)
         if self.catalogSources.isEmpty == false || self.isLoadingCatalogSources {
             return
         }
@@ -284,6 +291,7 @@ final class SourcesViewModel: ObservableObject {
 
     @MainActor
     func addCatalogSource(_ catalogSource: BrowseCraftCatalogSource) async -> Bool {
+        CrashDiagnostics.shared.setRuleStage(.list)
         do {
             let result: AddCatalogSourceResult = try await self.addCatalogSourceUseCase.execute(catalogSource)
             let source: Source = result.source
@@ -335,6 +343,7 @@ final class SourcesViewModel: ObservableObject {
     func selectSource(id: String?) {
         self.selectedSourceID = id
         self.sourceSelectionStore.selectedSourceID = id
+        CrashDiagnostics.shared.setSource(self.source(id: id))
         self.saveLibraryStateForSelectedSource(lastRefreshAt: nil)
     }
 
@@ -548,6 +557,12 @@ final class SourcesViewModel: ObservableObject {
         } catch {
             self.failedRefreshAction = .refresh(sourceID: source.id)
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-refresh-error")
+            CrashDiagnostics.shared.record(
+                error: error,
+                category: .parser,
+                errorCode: "source-refresh-error",
+                event: "source-refresh-error"
+            )
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
 
@@ -557,6 +572,7 @@ final class SourcesViewModel: ObservableObject {
 
 
     private func refreshSourceForSelection(_ source: Source) async throws -> [ContentItem] {
+        CrashDiagnostics.shared.setRuleStage(.list)
         let output: SourceListOutput = try await self.refreshSourceRuntimeUseCase.execute(
             source: source,
             listContext: nil

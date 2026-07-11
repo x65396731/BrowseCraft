@@ -65,6 +65,8 @@ struct RSSContentDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             CrashDiagnostics.shared.setScreen(.rssDetail)
+            CrashDiagnostics.shared.setSource(self.viewModel.source)
+            CrashDiagnostics.shared.setRuleStage(.rssFeed)
             self.viewModel.saveReadingHistoryIfNeeded()
         }
         .handlesRewardedAdPlayback(

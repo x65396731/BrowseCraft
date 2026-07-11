@@ -52,3 +52,18 @@ enum DiagnosticLogCategory: String {
     case ui
     case unknown
 }
+
+extension Source {
+    var diagnosticSourceType: DiagnosticSourceType {
+        switch self.configuration.kind {
+        case .comic:
+            return .comic
+        case .video:
+            return .video
+        case .rss:
+            return .rss
+        case .plugin:
+            return .unknown
+        }
+    }
+}

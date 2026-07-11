@@ -38,6 +38,10 @@ final class ReaderViewModel: ObservableObject {
     private let now: () -> Date
     private var savedChapterHistoryKeys: Set<String> = []
 
+    var diagnosticSource: Source {
+        return self.source
+    }
+
     init(
         item: ContentItem,
         source: Source,
@@ -193,6 +197,7 @@ final class ReaderViewModel: ObservableObject {
         chapterURLString: String?,
         shouldRestoreInitialPage: Bool
     ) async {
+        CrashDiagnostics.shared.setRuleStage(.reader)
         self.isLoading = true
         self.errorMessage = nil
         if shouldRestoreInitialPage {
@@ -223,6 +228,12 @@ final class ReaderViewModel: ObservableObject {
             #endif
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .reader, event: "reader-load-error")
+            CrashDiagnostics.shared.record(
+                error: error,
+                category: .parser,
+                errorCode: "reader-load-error",
+                event: "reader-load-error"
+            )
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
             let classifiedMessage: String = RuleExecutionErrorClassifier.userMessage(for: error)
 
@@ -438,6 +449,7 @@ final class ChapterListViewModel: ObservableObject {
     @MainActor
     /// 中文注释：load 方法封装当前类型的一段业务或界面行为。
     func load() async {
+        CrashDiagnostics.shared.setRuleStage(.chapter)
         if self.chapters.isEmpty == false {
             #if DEBUG
             print(
@@ -491,6 +503,12 @@ final class ChapterListViewModel: ObservableObject {
             #endif
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "chapters-load-error")
+            CrashDiagnostics.shared.record(
+                error: error,
+                category: .parser,
+                errorCode: "chapter-load-error",
+                event: "chapter-load-error"
+            )
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
             let classifiedMessage: String = RuleExecutionErrorClassifier.userMessage(for: error)
 

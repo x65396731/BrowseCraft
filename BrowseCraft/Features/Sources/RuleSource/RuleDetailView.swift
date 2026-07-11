@@ -33,6 +33,7 @@ struct RuleDetailView: View {
         .navigationTitle("Rule")
         .onAppear {
             CrashDiagnostics.shared.setScreen(.ruleEditor)
+            CrashDiagnostics.shared.setSource(self.viewModel.source(id: self.sourceID))
             self.resetDraftIfNeeded()
         }
         .sheet(isPresented: self.$isShowingJSONEditor) {

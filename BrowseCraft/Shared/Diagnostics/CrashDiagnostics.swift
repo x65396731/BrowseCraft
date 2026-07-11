@@ -21,6 +21,7 @@ final class CrashDiagnostics {
         static let severity: String = "severity"
         static let category: String = "category"
         static let errorCode: String = "errorCode"
+        static let errorEvent: String = "errorEvent"
     }
 
     private init() {}
@@ -47,6 +48,15 @@ final class CrashDiagnostics {
         Crashlytics.crashlytics().setCustomValue(type.rawValue, forKey: Key.sourceType)
     }
 
+    func setSource(_ source: Source?) {
+        guard let source: Source else {
+            self.setSource(id: nil, type: .unknown)
+            return
+        }
+
+        self.setSource(id: source.id, type: source.diagnosticSourceType)
+    }
+
     func setRuleStage(_ stage: DiagnosticRuleStage) {
         Crashlytics.crashlytics().setCustomValue(stage.rawValue, forKey: Key.ruleStage)
     }
@@ -55,12 +65,14 @@ final class CrashDiagnostics {
         error: Error,
         severity: DiagnosticSeverity = .error,
         category: DiagnosticLogCategory = .unknown,
-        errorCode: String? = nil
+        errorCode: String? = nil,
+        event: String? = nil
     ) {
         let crashlytics: Crashlytics = Crashlytics.crashlytics()
         crashlytics.setCustomValue(severity.rawValue, forKey: Key.severity)
         crashlytics.setCustomValue(category.rawValue, forKey: Key.category)
         crashlytics.setCustomValue(errorCode ?? "", forKey: Key.errorCode)
+        crashlytics.setCustomValue(event ?? "", forKey: Key.errorEvent)
         crashlytics.record(error: error)
     }
 

@@ -69,6 +69,7 @@ final class VideoDetailViewModel: ObservableObject {
     }
 
     func loadEpisodes() async {
+        CrashDiagnostics.shared.setRuleStage(.detail)
         guard let detailURL: URL = URL(string: self.item.detailURL) else {
             self.errorMessage = "Video detail URL is invalid."
             return
@@ -129,11 +130,18 @@ final class VideoDetailViewModel: ObservableObject {
             }
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-detail-error")
+            CrashDiagnostics.shared.record(
+                error: error,
+                category: .parser,
+                errorCode: "video-detail-error",
+                event: "video-detail-error"
+            )
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
     }
 
     func openEpisode(_ episode: VideoEpisode) async {
+        CrashDiagnostics.shared.setRuleStage(.videoPlayback)
         if self.isLoadingPlayback {
             return
         }
@@ -195,6 +203,12 @@ final class VideoDetailViewModel: ObservableObject {
             #endif
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-playback-error")
+            CrashDiagnostics.shared.record(
+                error: error,
+                category: .playback,
+                errorCode: "video-playback-error",
+                event: "video-playback-error"
+            )
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
     }

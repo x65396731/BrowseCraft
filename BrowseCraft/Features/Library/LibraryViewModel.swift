@@ -125,6 +125,7 @@ final class LibraryViewModel: ObservableObject {
         }
 
         await self.discoverTabsForSelectedVideoSourceIfNeeded()
+        CrashDiagnostics.shared.setRuleStage(.list)
         self.ensureSelectedListTab()
         guard let refreshedSelectedSource: Source = self.selectedSource else {
             return
@@ -338,6 +339,7 @@ final class LibraryViewModel: ObservableObject {
         }
 
         self.tabDiscoveryAttemptedSourceIDs.insert(source.id)
+        CrashDiagnostics.shared.setRuleStage(.list)
 
         do {
             let tabs: [VideoSourceListTab] = try await videoTabDiscoveryUseCase.discoverTabs(
@@ -447,6 +449,7 @@ final class LibraryViewModel: ObservableObject {
         self.refreshToken += 1
         self.isRefreshing = false
         self.selectedSourceID = selectedSourceID
+        CrashDiagnostics.shared.setSource(self.source(for: selectedSourceID))
         self.selectedListTabID = nil
         self.errorMessage = nil
         self.items = []
@@ -564,6 +567,7 @@ final class LibraryViewModel: ObservableObject {
 
         self.selectedSourceID = source.id
         self.sourceSelectionStore.selectedSourceID = source.id
+        CrashDiagnostics.shared.setSource(source)
 
         if persistedSource?.id == source.id {
             self.restoreSelectedListTab(from: persistedState?.listContext)

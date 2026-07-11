@@ -124,6 +124,7 @@ final class VideoPlayerViewModel: ObservableObject {
     }
 
     func prepareForPlayback() {
+        CrashDiagnostics.shared.setRuleStage(.videoPlayback)
         if self.isPrepared {
             return
         }
@@ -199,6 +200,7 @@ final class VideoPlayerViewModel: ObservableObject {
     }
 
     private func openEpisode(playPageURL: URL?) async {
+        CrashDiagnostics.shared.setRuleStage(.videoPlayback)
         guard let playPageURL: URL = playPageURL,
               self.isLoadingEpisodeSwitch == false else {
             return
@@ -237,6 +239,12 @@ final class VideoPlayerViewModel: ObservableObject {
             self.prepareForPlayback()
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-episode-switch-error")
+            CrashDiagnostics.shared.record(
+                error: error,
+                category: .playback,
+                errorCode: "video-episode-switch-error",
+                event: "video-episode-switch-error"
+            )
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
     }

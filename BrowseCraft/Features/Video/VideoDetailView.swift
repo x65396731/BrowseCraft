@@ -36,6 +36,8 @@ struct VideoDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             CrashDiagnostics.shared.setScreen(.videoDetail)
+            CrashDiagnostics.shared.setSource(self.viewModel.source)
+            CrashDiagnostics.shared.setRuleStage(.detail)
             #if DEBUG
             print(
                 "[BrowseCraftVideoDetail] view appear " +
