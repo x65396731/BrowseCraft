@@ -76,6 +76,16 @@
     "/voddetail/",
     "/vodplay/"
   ],
+  "macCMSTemplate": [
+    "/template/vfed/",
+    "var vfed",
+    "fed-list-item",
+    "fed-list-pics",
+    "fed-list-title",
+    "fed-play-item",
+    "fed-part-rows",
+    "player_aaaa"
+  ],
   "macCMSWeak": [
     "mac_history",
     "vod_name",

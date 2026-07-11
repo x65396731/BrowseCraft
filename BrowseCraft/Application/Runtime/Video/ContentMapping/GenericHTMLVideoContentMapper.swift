@@ -4,8 +4,6 @@ import BrowseCraftCore
 
 // 中文注释：GenericHTMLVideoContentMapper 处理通用视频 HTML/DOM；HTML 可来自静态 HTTP 或 WebView 渲染。
 struct GenericHTMLVideoContentMapper: VideoContentMapper {
-    private static let playbackUserAgent: String = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
-
     private enum Selectors {
         static let listItemGroups: [String] = [
             ".frame-block.thumb-block",
@@ -585,12 +583,9 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
             candidateMediaURL: candidate.url,
             candidateMediaKind: candidate.kind,
             playbackRequestConfig: SourcePlaybackRequestConfig(
-                headers: [
-                    "Referer": refererURL.absoluteString,
-                    "User-Agent": Self.playbackUserAgent
-                ],
+                headers: BrowserRequestHeaders.Chrome.playbackHeaders(referer: refererURL),
                 referer: refererURL,
-                userAgent: Self.playbackUserAgent
+                userAgent: BrowserRequestHeaders.Chrome.chromeUserAgent
             ),
             status: self.playbackStatus(
                 mediaURL: candidate.url,

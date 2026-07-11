@@ -9,8 +9,6 @@ struct VideoIframePlayerResolution {
 }
 
 struct VideoIframePlayerResolver {
-    private static let playbackUserAgent: String = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
-
     private let pageContentLoader: PageContentLoader
     private let mapper: any VideoContentMapper
     private let requestConfigResolver: VideoRequestConfigResolver
@@ -73,10 +71,6 @@ struct VideoIframePlayerResolver {
         let path: String = url.path.lowercased()
         if (host == "youtube.com" || host.hasSuffix(".youtube.com") || host == "youtube-nocookie.com" || host.hasSuffix(".youtube-nocookie.com")),
            path.hasPrefix("/embed/") {
-            return true
-        }
-
-        if host == "abyssplayer.com" || host.hasSuffix(".abyssplayer.com") {
             return true
         }
 
@@ -238,7 +232,19 @@ struct VideoIframePlayerResolver {
                     self.iframePlayerMediaMissingIssue()
                 ]
             )
-        case .restricted(_), .failed(_):
+        case .restricted(_):
+            return VideoIframePlayerResolution(
+                reference: self.reference(
+                    from: originalReference,
+                    status: .pageOnly
+                ),
+                requestLogs: [iframePlayerLog],
+                issues: [
+                    loadedIssue,
+                    self.iframePlayerMediaMissingIssue()
+                ]
+            )
+        case .failed(_):
             return VideoIframePlayerResolution(
                 reference: self.reference(
                     from: originalReference,
@@ -251,7 +257,8 @@ struct VideoIframePlayerResolver {
     }
 
     private func request(base: RequestConfig?, refererURL: URL) -> RequestConfig {
-        var headers: [String: String] = base?.headers ?? [:]
+        var headers: [String: String] = BrowserRequestHeaders.Chrome.defaultHeaders(for: refererURL, referer: refererURL)
+        headers = BrowserRequestHeaders.applyingOverrides(base?.headers, to: headers)
         headers["Referer"] = refererURL.absoluteString
 
         return RequestConfig(
@@ -356,11 +363,9 @@ struct VideoIframePlayerResolver {
         refererURL: URL,
         baseRequest: RequestConfig?
     ) -> SourceVideoPlaybackReference {
-        var headers: [String: String] = baseRequest?.headers ?? [:]
+        var headers: [String: String] = BrowserRequestHeaders.Chrome.defaultHeaders(for: directMediaURL, referer: refererURL)
+        headers = BrowserRequestHeaders.applyingOverrides(baseRequest?.headers, to: headers)
         headers["Referer"] = refererURL.absoluteString
-        if headers.keys.contains(where: { $0.caseInsensitiveCompare("User-Agent") == .orderedSame }) == false {
-            headers["User-Agent"] = Self.playbackUserAgent
-        }
         let userAgent: String? = headers.first { header in
             header.key.caseInsensitiveCompare("User-Agent") == .orderedSame
         }?.value

@@ -166,9 +166,11 @@ final class AlamofireHTTPClient: HTTPClient {
         var urlRequest: URLRequest = URLRequest(url: url)
         urlRequest.httpMethod = request?.method?.rawValue ?? "GET"
 
-        var headers: [String: String] = self.defaultHeaders(for: url)
-        request?.headers?.forEach { key, value in
-            headers[key] = value
+        var headers: [String: String] = APIRequestHeaders.isManagedAPIURL(url)
+            ? request?.headers ?? [:]
+            : BrowserRequestHeaders.Chrome.defaultHeaders(for: url)
+        if APIRequestHeaders.isManagedAPIURL(url) == false {
+            headers = BrowserRequestHeaders.applyingOverrides(request?.headers, to: headers)
         }
         headers = CookieHeaderResolver.headersByApplyingPageCookies(
             to: headers,
@@ -188,15 +190,5 @@ final class AlamofireHTTPClient: HTTPClient {
         }
 
         return urlRequest
-    }
-
-    /// 中文注释：默认 headers 保持旧版抓取行为，避免没有 RequestConfig 的既存规则产生回归。
-    private func defaultHeaders(for url: URL) -> [String: String] {
-        return [
-            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "zh-CN,zh-Hans;q=0.9,zh;q=0.8,en;q=0.5",
-            "Referer": "\(url.scheme ?? "https")://\(url.host ?? "")/"
-        ]
     }
 }

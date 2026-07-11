@@ -190,7 +190,22 @@ struct VideoRuntimeMacCMSMappingTests {
         #expect(detail.episodes.map(\.title) == ["第1集", "第2集", "第3集"])
     }
 
-    @Test func macCMSMapperFallsBackWhenOnlyVfedVIPPlaybackListsExist() throws {
+    @Test func macCMSMapperPrefersNativeVfedPlaybackListWhenCountsTie() throws {
+        let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let detailURL: URL = try #require(URL(string: "https://www.kpkuang.fun/voddetail/1102134/"))
+
+        let detail: VideoDetailContent = try mapper.mapDetail(
+            html: Self.vfedNativePreferredDetailHTML,
+            definition: definition,
+            detailURL: detailURL
+        )
+
+        #expect(detail.episodes.map(\.id) == ["1102134-19-1"])
+        #expect(detail.episodes.map(\.title) == ["正片"])
+    }
+
+    @Test func macCMSMapperReturnsEmptyWhenOnlyVfedVIPPlaybackListsExist() throws {
         let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
         let definition: SourceDefinition = try Self.videoDefinition()
         let detailURL: URL = try #require(URL(string: "https://www.kpkuang.fun/voddetail/900001/"))
@@ -201,8 +216,7 @@ struct VideoRuntimeMacCMSMappingTests {
             detailURL: detailURL
         )
 
-        #expect(detail.episodes.map(\.id) == ["900001-7-1", "900001-7-2"])
-        #expect(detail.episodes.map(\.title) == ["第1集", "第2集"])
+        #expect(detail.episodes.isEmpty)
     }
 
     @Test func macCMSMapperSortsVfedEpisodeTitlesNumerically() throws {
@@ -390,6 +404,77 @@ struct VideoRuntimeMacCMSMappingTests {
         #expect(resolution.reference.candidateMediaURL?.absoluteString == "https://media.example.test/video/index.m3u8")
         #expect(resolution.reference.candidateMediaKind == .m3u8)
         #expect(resolution.reference.playbackRequestConfig?.referer?.absoluteString == "https://player.example.test/player/117372-1-1")
+    }
+
+    @Test func iframePlayerResolverPrefersNativeMediaFromAbyssPlayer() async throws {
+        let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let playURL: URL = try #require(URL(string: "https://www.kpkuang.fun/vodplay/1102134-2-1.html"))
+        let initialReference: SourceVideoPlaybackReference = try mapper.mapPlayback(
+            html: """
+            <script>
+              var player_aaaa={"url":"https://abyssplayer.com/sDartUzFZ","from":"iframe","id":"1102134","sid":2,"nid":1};
+            </script>
+            """,
+            definition: definition,
+            playPageURL: playURL
+        )
+
+        let resolver: VideoIframePlayerResolver = VideoIframePlayerResolver(
+            pageContentLoader: StaticMacCMSPlaybackPageContentLoader(
+                html: """
+                <script>
+                  var player_aaaa={"url":"https://media.example.test/20260711_87800_0.mp4","from":"mp4","id":"1102134","sid":2,"nid":1};
+                </script>
+                """
+            ),
+            mapper: mapper
+        )
+        let optionalResolution: VideoIframePlayerResolution? = try await resolver.resolve(
+            reference: initialReference,
+            definition: definition,
+            baseRequest: nil
+        )
+        let resolution: VideoIframePlayerResolution = try #require(optionalResolution)
+
+        #expect(resolution.reference.status == .playable)
+        #expect(resolution.reference.candidateMediaURL?.absoluteString == "https://media.example.test/20260711_87800_0.mp4")
+        #expect(resolution.reference.candidateMediaKind == .mp4)
+        #expect(resolution.reference.playbackRequestConfig?.referer?.absoluteString == "https://abyssplayer.com/sDartUzFZ")
+    }
+
+    @Test func iframePlayerResolverKeepsPageOnlyWhenPlayerShellHasRestrictionNoise() async throws {
+        let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let playURL: URL = try #require(URL(string: "https://www.kpkuang.fun/vodplay/1102134-2-1.html"))
+        let initialReference: SourceVideoPlaybackReference = try mapper.mapPlayback(
+            html: """
+            <script>
+              var player_aaaa={"url":"https://abyssplayer.com/sDartUzFZ","from":"iframe","id":"1102134","sid":2,"nid":1};
+            </script>
+            """,
+            definition: definition,
+            playPageURL: playURL
+        )
+
+        let resolver: VideoIframePlayerResolver = VideoIframePlayerResolver(
+            pageContentLoader: StaticMacCMSPlaybackPageContentLoader(
+                html: """
+                <html><body>VIP 专享 线路打分 广告密度 视频画质</body></html>
+                """
+            ),
+            mapper: mapper
+        )
+        let optionalResolution: VideoIframePlayerResolution? = try await resolver.resolve(
+            reference: initialReference,
+            definition: definition,
+            baseRequest: nil
+        )
+        let resolution: VideoIframePlayerResolution = try #require(optionalResolution)
+
+        #expect(resolution.reference.status == .pageOnly)
+        #expect(resolution.reference.candidateMediaURL?.absoluteString == "https://abyssplayer.com/sDartUzFZ")
+        #expect(resolution.reference.candidateMediaKind == .iframePlayer)
     }
 
     @Test func macCMSMapperExtractsVfedIframePlayerBeforeRestrictionText() throws {
@@ -649,6 +734,41 @@ struct VideoRuntimeMacCMSMappingTests {
             <li><a href="/vodplay/1091565-23-1/">第1集</a></li>
             <li><a href="/vodplay/1091565-23-2/">第2集</a></li>
             <li><a href="/vodplay/1091565-23-3/">第3集</a></li>
+          </ul>
+        </li>
+      </body>
+    </html>
+    """
+
+    private static let vfedNativePreferredDetailHTML: String = """
+    <html>
+      <body>
+        <li class="fed-play-item fed-drop-item">
+          <div>该线路播放器为第三方提供，建议浏览器安装启用ublock扩展，可屏蔽掉广告。</div>
+          <ul class="fed-drop-head fed-padding fed-part-rows">
+            <li>来自 <span class="uk-label">超清AB线</span> 的播放列表</li>
+          </ul>
+          <ul class="fed-part-rows">
+            <li><a href="/vodplay/1102134-2-1/">1080p_原声_中文字幕</a></li>
+            <li><a href="/vodplay/1102134-2-1/">开始播放</a></li>
+          </ul>
+        </li>
+        <li class="fed-play-item fed-drop-item">
+          <div>该线路播放器为第三方提供，建议浏览器安装启用ublock扩展，可屏蔽掉广告。</div>
+          <ul class="fed-drop-head fed-padding fed-part-rows">
+            <li>来自 <span class="uk-label">超清EV线</span> 的播放列表</li>
+          </ul>
+          <ul class="fed-part-rows">
+            <li><a href="/vodplay/1102134-1-1/">1080p_原声_中文字幕</a></li>
+            <li><a href="/vodplay/1102134-1-1/">开始播放</a></li>
+          </ul>
+        </li>
+        <li class="fed-play-item fed-drop-item">
+          <ul class="fed-drop-head fed-padding fed-part-rows">
+            <li>来自 <span class="uk-label">火花云</span> 的播放列表</li>
+          </ul>
+          <ul class="fed-part-rows">
+            <li><a href="/vodplay/1102134-19-1/">正片</a></li>
           </ul>
         </li>
       </body>

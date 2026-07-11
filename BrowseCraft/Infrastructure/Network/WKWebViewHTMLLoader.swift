@@ -155,10 +155,11 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         var urlRequest: URLRequest = URLRequest(url: url)
         urlRequest.httpMethod = self.request?.method?.rawValue ?? "GET"
 
-        self.defaultHeaders(for: url).forEach { key, value in
-            urlRequest.setValue(value, forHTTPHeaderField: key)
-        }
-        self.request?.headers?.forEach { key, value in
+        let headers: [String: String] = BrowserRequestHeaders.applyingOverrides(
+            self.request?.headers,
+            to: BrowserRequestHeaders.Chrome.defaultHeaders(for: url)
+        )
+        headers.forEach { key, value in
             urlRequest.setValue(value, forHTTPHeaderField: key)
         }
 
@@ -179,16 +180,6 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         }
 
         return urlRequest
-    }
-
-    /// 中文注释：默认 header 模拟移动端浏览器访问，保持和 AlamofireHTTPClient 的旧抓取行为一致。
-    private func defaultHeaders(for url: URL) -> [String: String] {
-        return [
-            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "zh-CN,zh-Hans;q=0.9,zh;q=0.8,en;q=0.5",
-            "Referer": "\(url.scheme ?? "https")://\(url.host ?? "")/"
-        ]
     }
 
     private func httpsURLIfNeeded(from url: URL) -> URL? {

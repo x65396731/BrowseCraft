@@ -4,8 +4,6 @@ import BrowseCraftCore
 
 // 中文注释：MacCMSVideoContentMapper 只处理 MacCMS 常见 HTML/DOM，不处理 VIP/DRM/反爬绕过。
 struct MacCMSVideoContentMapper: VideoContentMapper {
-    private static let playbackUserAgent: String = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
-
     private enum Defaults {
         // Limit detail metadata summary rows only; this does not cap discovered category tabs.
         static let maxMetadataRows: Int = 6
@@ -226,24 +224,119 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
         }
 
         var bestElements: [Element] = []
-        var fallbackElements: [Element] = []
+        var bestScore: Int = Int.min
+        var bestTitle: String = ""
         for playItem: Element in playItems {
-            let elements: [Element] = try playItem.select("a[href*=\"/vodplay/\"]")
-                .array()
-            if elements.count > fallbackElements.count {
-                fallbackElements = elements
-            }
+            let elements: [Element] = try self.vfedEpisodeElements(in: playItem)
+            let title: String = try self.vfedPlayItemTitle(playItem)
 
             guard try self.shouldIncludeVfedPlayItem(playItem) else {
+                #if DEBUG
+                print(
+                    "[BrowseCraftMacCMSVfedEpisodes] skip " +
+                    "title=\(title) reason=vip count=\(elements.count)"
+                )
+                #endif
                 continue
             }
 
-            if elements.count > bestElements.count {
+            let score: Int = try self.vfedPlayItemPreferenceScore(playItem)
+            #if DEBUG
+            print(
+                "[BrowseCraftMacCMSVfedEpisodes] candidate " +
+                "title=\(title) count=\(elements.count) score=\(score) " +
+                "first=\(try elements.first?.attr("href") ?? "nil")"
+            )
+            #endif
+            if elements.count > bestElements.count ||
+                (elements.count == bestElements.count && score > bestScore) {
                 bestElements = elements
+                bestScore = score
+                bestTitle = title
             }
         }
 
-        return bestElements.isEmpty ? fallbackElements : bestElements
+        #if DEBUG
+        print(
+            "[BrowseCraftMacCMSVfedEpisodes] selected " +
+            "title=\(bestTitle) count=\(bestElements.count) score=\(bestScore) " +
+            "first=\(try bestElements.first?.attr("href") ?? "nil")"
+        )
+        #endif
+        return bestElements
+    }
+
+    private func vfedEpisodeElements(in playItem: Element) throws -> [Element] {
+        var directListElements: [Element] = []
+        for child: Element in playItem.children().array() {
+            guard child.tagNameNormal() == "ul",
+                  child.hasClass("fed-part-rows"),
+                  child.hasClass("fed-drop-head") == false else {
+                continue
+            }
+
+            directListElements.append(
+                contentsOf: try child.select("a[href*=\"/vodplay/\"]").array()
+            )
+        }
+
+        if directListElements.isEmpty == false {
+            return try self.deduplicatedVfedEpisodeElements(directListElements)
+        }
+
+        let fallbackElements: [Element] = try playItem.select("a[href*=\"/vodplay/\"]")
+            .array()
+            .filter { anchor in
+                return self.isElement(anchor, insideOwnVfedPlayItem: playItem)
+            }
+        return try self.deduplicatedVfedEpisodeElements(fallbackElements)
+    }
+
+    private func deduplicatedVfedEpisodeElements(_ elements: [Element]) throws -> [Element] {
+        var seenRoutes: Set<String> = Set<String>()
+        var uniqueElements: [Element] = []
+
+        for element: Element in elements {
+            guard let href: String = try element.attr("href").trimmedNonEmpty else {
+                continue
+            }
+
+            let path: String = URL(string: href)?.path ?? href
+            let routeKey: String
+            if let route: VideoPlayRoute = self.playRoute(from: path) {
+                routeKey = SourceVideoPlaybackReference.episodeKey(
+                    vodID: route.vodID,
+                    sourceIndex: route.sourceIndex,
+                    episodeIndex: route.episodeIndex
+                )
+            } else {
+                routeKey = href
+            }
+
+            guard seenRoutes.contains(routeKey) == false else {
+                continue
+            }
+
+            seenRoutes.insert(routeKey)
+            uniqueElements.append(element)
+        }
+
+        return uniqueElements
+    }
+
+    private func isElement(_ element: Element, insideOwnVfedPlayItem playItem: Element) -> Bool {
+        var parent: Element? = element.parent()
+        while let current: Element = parent {
+            if current === playItem {
+                return true
+            }
+            if current.hasClass("fed-play-item") {
+                return false
+            }
+            parent = current.parent()
+        }
+
+        return true
     }
 
     private func shouldIncludeEpisodeLink(_ element: Element) throws -> Bool {
@@ -258,8 +351,28 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
     }
 
     private func shouldIncludeVfedPlayItem(_ element: Element) throws -> Bool {
-        let headerText: String = try element.select(".fed-drop-head").text()
+        let headerText: String = try self.vfedPlayItemTitle(element)
         return headerText.range(of: "VIP解析", options: [.caseInsensitive, .widthInsensitive]) == nil
+    }
+
+    private func vfedPlayItemPreferenceScore(_ element: Element) throws -> Int {
+        let headerText: String = try self.vfedPlayItemTitle(element)
+        let itemText: String = try element.text()
+        let text: String = "\(headerText) \(itemText)"
+        var score: Int = 0
+
+        if text.range(of: "第三方提供", options: [.caseInsensitive, .widthInsensitive]) != nil {
+            score -= 30
+        }
+        if text.range(of: "超清AB线", options: [.caseInsensitive, .widthInsensitive]) != nil ||
+            text.range(of: "超清EV线", options: [.caseInsensitive, .widthInsensitive]) != nil {
+            score -= 20
+        }
+        return score
+    }
+
+    private func vfedPlayItemTitle(_ element: Element) throws -> String {
+        return try element.select(".fed-drop-head").text().trimmedNonEmpty ?? "unknown"
     }
 
     private func sortedEpisodes(_ episodes: [VideoEpisode]) -> [VideoEpisode] {
@@ -627,12 +740,9 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
             candidateMediaURL: candidate.url,
             candidateMediaKind: candidate.kind,
             playbackRequestConfig: SourcePlaybackRequestConfig(
-                headers: [
-                    "Referer": playPageURL.absoluteString,
-                    "User-Agent": Self.playbackUserAgent
-                ],
+                headers: BrowserRequestHeaders.Chrome.playbackHeaders(referer: playPageURL),
                 referer: playPageURL,
-                userAgent: Self.playbackUserAgent
+                userAgent: BrowserRequestHeaders.Chrome.chromeUserAgent
             ),
             status: self.playbackStatus(
                 mediaURL: candidate.url,

@@ -37,6 +37,7 @@ struct SourceDetectionLexicon: Hashable {
         case directMedia
         case macCMSPayload
         case macCMSRoute
+        case macCMSTemplate
         case macCMSWeak
         case genericListCard
         case genericSupporting

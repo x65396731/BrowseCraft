@@ -74,11 +74,8 @@ struct LoadCatalogSourcesUseCase {
     }
 
     private var requestConfig: RequestConfig {
-        var headers: [String: String] = self.requestHeaders()
-        headers["Accept"] = "application/json"
-
         return RequestConfig(
-            headers: headers
+            headers: APIRequestHeaders.catalogHeaders(base: self.requestHeaders())
         )
     }
 

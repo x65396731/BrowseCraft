@@ -56,32 +56,12 @@ struct VideoRuntimeGenericHTMLMappingTests {
         #expect(items.first?.detailURL?.absoluteString == "https://video.example.test/watch/movie-1")
     }
 
-    @Test func registryMapsLegacyKpkuangGenericHTMLDefinitionToMacCMS() throws {
+    @Test func registryDoesNotMapLegacyKpkuangGenericHTMLDefinitionByHost() throws {
         let mapper: any VideoContentMapper = VideoContentMapperRegistry().mapper(
             for: try Self.kpkuangLegacyGenericHTMLDefinition()
         )
-        let listURL: URL = try #require(URL(string: "https://www.kpkuang.fun/vodtype/1/"))
 
-        let items: [SourceContentItem] = try mapper.mapList(
-            html: """
-            <html>
-              <body>
-                <li><a href="/user/plays.html">播放记录</a></li>
-                <div class="module-item">
-                  <a class="module-item-pic" href="/voddetail/117372.html" title="示例影片" data-src="/cover.jpg"></a>
-                  <div class="module-card-item-title">示例影片</div>
-                  <div class="module-item-note">HD</div>
-                </div>
-              </body>
-            </html>
-            """,
-            definition: try Self.kpkuangLegacyGenericHTMLDefinition(),
-            pageURL: listURL
-        )
-
-        #expect(items.count == 1)
-        #expect(items.first?.title == "示例影片")
-        #expect(items.first?.detailURL?.absoluteString == "https://www.kpkuang.fun/voddetail/117372.html")
+        #expect(mapper is GenericHTMLVideoContentMapper)
     }
 
     @Test func genericHTMLMapperBuildsDetailContentFromPlayablePage() throws {

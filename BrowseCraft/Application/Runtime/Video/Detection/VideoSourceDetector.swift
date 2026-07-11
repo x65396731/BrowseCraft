@@ -64,6 +64,16 @@ struct VideoSourceDetector: VideoSourceDetecting {
             )
         }
 
+        if let inferredAdapter: VideoAdapter = contentSignals.inferredAdapter {
+            return DetectionScope(
+                compatibilityAdapter: inferredAdapter,
+                score: contentSignals.score,
+                reasons: contentSignals.reasons + [
+                    "Strong video CMS markers matched; MacCMS route patterns can be used for content mapping."
+                ]
+            )
+        }
+
         if contentSignals.score > 0 {
             return DetectionScope(
                 compatibilityAdapter: .genericHTML,
@@ -104,6 +114,13 @@ struct VideoSourceDetector: VideoSourceDetecting {
             reasons.append("HTML contains known video CMS route markers: \(routeMatches.joined(separator: ", ")).")
         }
 
+        let templateMarkers: [String] = self.lexicon.markers(for: .macCMSTemplate)
+        let templateMatches: [String] = signals.containedMarkers(templateMarkers)
+        if templateMatches.isEmpty == false {
+            score += min(0.44, Double(templateMatches.count) * 0.12)
+            reasons.append("HTML contains known MacCMS/vfed template markers: \(templateMatches.joined(separator: ", ")).")
+        }
+
         let weakCMSMarkers: [String] = self.lexicon.markers(for: .macCMSWeak)
         let weakCMSMatches: [String] = signals.containedMarkers(weakCMSMarkers)
         if weakCMSMatches.count >= 2 {
@@ -138,7 +155,34 @@ struct VideoSourceDetector: VideoSourceDetecting {
             reasons.append("HTML contains supporting weak video markers: \(supportingMatches.joined(separator: ", ")).")
         }
 
-        return DetectionScore(score: min(score, 1.0), reasons: reasons)
+        let inferredAdapter: VideoAdapter? = self.inferredContentAdapter(
+            payloadMatches: payloadMatches,
+            routeMatches: routeMatches,
+            templateMatches: templateMatches
+        )
+
+        return DetectionScore(score: min(score, 1.0), reasons: reasons, inferredAdapter: inferredAdapter)
+    }
+
+    private func inferredContentAdapter(
+        payloadMatches: [String],
+        routeMatches: [String],
+        templateMatches: [String]
+    ) -> VideoAdapter? {
+        if templateMatches.count >= 2 {
+            return .macCMS
+        }
+
+        if payloadMatches.isEmpty == false && routeMatches.isEmpty == false {
+            return .macCMS
+        }
+
+        let normalizedRoutes: Set<String> = Set(routeMatches.map { $0.lowercased() })
+        if normalizedRoutes.contains("/voddetail/") && normalizedRoutes.contains("/vodplay/") {
+            return .macCMS
+        }
+
+        return nil
     }
 
     private func renderMode(_ signals: VideoSourceSignals) -> VideoRenderRequirement {
@@ -248,6 +292,7 @@ private struct DetectionScope {
 private struct DetectionScore {
     var score: Double
     var reasons: [String]
+    var inferredAdapter: VideoAdapter?
 }
 
 private struct PlaybackDetection {

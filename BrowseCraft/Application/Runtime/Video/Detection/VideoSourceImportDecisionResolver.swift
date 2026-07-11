@@ -1,7 +1,7 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：导入决策只解释 detection 事实，不自动选择 macCMS/genericHTML mapper。
+// 中文注释：导入决策只在强 MacCMS/vfed 特征命中时升级 mapper，普通弱信号仍尊重规则配置。
 enum VideoSourceImportDecision: Hashable {
     case supported(VideoSourceDefinition)
     case needsReview(VideoSourceDefinition, warnings: [String])
@@ -81,6 +81,29 @@ struct VideoSourceImportDecisionResolver {
         _ definition: VideoSourceDefinition,
         detection: VideoSourceDetection
     ) -> VideoSourceDefinition {
+        if detection.adapter == .macCMS,
+           definition.adapter == .genericHTML,
+           detection.renderMode != .webViewRequired {
+            return VideoSourceDefinition(
+                adapter: .macCMS,
+                entryURL: definition.entryURL,
+                seedURL: definition.seedURL,
+                entryKind: definition.entryKind,
+                routePatterns: definition.routePatterns ?? .macCMS,
+                playbackPolicy: definition.playbackPolicy,
+                sharedRequest: definition.sharedRequest,
+                listRequest: definition.listRequest,
+                detailRequest: definition.detailRequest,
+                playRequest: definition.playRequest,
+                requiresAccount: definition.requiresAccount,
+                seedVodID: definition.seedVodID,
+                seedSourceIndex: definition.seedSourceIndex,
+                seedEpisodeIndex: definition.seedEpisodeIndex,
+                seedDetailURL: definition.seedDetailURL,
+                seedPlayURL: definition.seedPlayURL
+            )
+        }
+
         guard definition.adapter == .webView || detection.renderMode == .webViewRequired else {
             return definition
         }

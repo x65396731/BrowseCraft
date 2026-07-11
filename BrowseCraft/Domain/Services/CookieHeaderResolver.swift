@@ -2,6 +2,123 @@ import Foundation
 
 // 中文注释：CookieHeaderResolver.swift 集中处理 RequestConfig 的 Cookie header 合并，避免网络、WebView、图片请求各自实现一套规则。
 
+enum BrowserRequestHeaders {
+    struct Chrome {
+        static let chromeUserAgent: String = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+
+        private static let chromeMajorVersion: String = "150"
+
+        private init() {}
+
+        static func defaultHeaders(for url: URL, referer: URL? = nil, includeOrigin: Bool = false) -> [String: String] {
+            var headers: [String: String] = self.chromeHeaders
+            if let referer: URL {
+                headers["Referer"] = referer.absoluteString
+            }
+            if includeOrigin, let origin: String = BrowserRequestHeaders.originHeader(from: referer ?? url) {
+                headers["Origin"] = origin
+            }
+            return headers
+        }
+
+        static func playbackHeaders(referer: URL) -> [String: String] {
+            return self.defaultHeaders(for: referer, referer: referer, includeOrigin: true)
+        }
+
+        private static var chromeHeaders: [String: String] {
+            return [
+                "User-Agent": self.chromeUserAgent,
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                "Accept-Language": "zh-CN,zh;q=0.9,zh-TW;q=0.8,en;q=0.7",
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache",
+                "Priority": "u=0, i",
+                "Sec-CH-UA": "\"Not;A=Brand\";v=\"8\", \"Chromium\";v=\"\(self.chromeMajorVersion)\", \"Google Chrome\";v=\"\(self.chromeMajorVersion)\"",
+                "Sec-CH-UA-Mobile": "?0",
+                "Sec-CH-UA-Platform": "\"macOS\"",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
+                "Upgrade-Insecure-Requests": "1"
+            ]
+        }
+    }
+
+    static func applyingOverrides(
+        _ overrides: [String: String]?,
+        to headers: [String: String]
+    ) -> [String: String] {
+        var resolvedHeaders: [String: String] = headers
+        overrides?.forEach { key, value in
+            self.setHeader(key, value: value, in: &resolvedHeaders)
+        }
+        return resolvedHeaders
+    }
+
+    static func containsHeader(_ name: String, in headers: [String: String]) -> Bool {
+        return headers.keys.contains { key in
+            return key.caseInsensitiveCompare(name) == .orderedSame
+        }
+    }
+
+    static func originHeader(from url: URL?) -> String? {
+        guard let url: URL,
+              let scheme: String = url.scheme,
+              let host: String = url.host else {
+            return nil
+        }
+
+        var origin: String = "\(scheme)://\(host)"
+        if let port: Int = url.port {
+            origin += ":\(port)"
+        }
+        return origin
+    }
+
+    private static func setHeader(_ name: String, value: String, in headers: inout [String: String]) {
+        if let existingKey: String = headers.keys.first(where: { key in
+            return key.caseInsensitiveCompare(name) == .orderedSame
+        }) {
+            headers[existingKey] = value
+        } else {
+            headers[name] = value
+        }
+    }
+}
+
+enum APIRequestHeaders {
+    static func isManagedAPIURL(_ url: URL) -> Bool {
+        guard let host: String = url.host?.lowercased() else {
+            return false
+        }
+
+        return host == "anyportal.online" || host.hasSuffix(".anyportal.online")
+    }
+
+    static func portalHeaders(
+        userID: String,
+        osInfo: String,
+        deviceInfo: String,
+        appVersion: String,
+        requestID: String = UUID().uuidString
+    ) -> [String: String] {
+        return [
+            "userId": userID,
+            "osInfo": osInfo,
+            "deviceInfo": deviceInfo,
+            "aplVersion": appVersion,
+            "X-Request-Id": requestID
+        ]
+    }
+
+    static func catalogHeaders(base: [String: String]) -> [String: String] {
+        var headers: [String: String] = base
+        headers["Accept"] = "application/json"
+        return headers
+    }
+}
+
 /// 中文注释：P1-4.4 的 Cookie 执行器；当前只负责请求头合并，不引入登录态 UI 或复杂 CookieStore。
 enum CookieHeaderResolver {
     /// 中文注释：页面 HTML 请求使用 RequestConfig 的 cookiePolicy/cookiePriority/cookieScope。

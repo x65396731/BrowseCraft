@@ -70,17 +70,22 @@ struct VideoNativePlayerView<Controls: View>: View {
             return options
         }
 
-        var headers: [String: String] = requestConfig.headers
+        var headers: [String: String] = BrowserRequestHeaders.Chrome.defaultHeaders(
+            for: self.mediaURL,
+            referer: requestConfig.referer,
+            includeOrigin: true
+        )
+        headers = BrowserRequestHeaders.applyingOverrides(requestConfig.headers, to: headers)
         if let referer: URL = requestConfig.referer,
-           headers.keys.contains(where: { $0.caseInsensitiveCompare("Referer") == .orderedSame }) == false {
+           BrowserRequestHeaders.containsHeader("Referer", in: headers) == false {
             headers["Referer"] = referer.absoluteString
         }
         if let userAgent: String = requestConfig.userAgent,
-           headers.keys.contains(where: { $0.caseInsensitiveCompare("User-Agent") == .orderedSame }) == false {
+           BrowserRequestHeaders.containsHeader("User-Agent", in: headers) == false {
             headers["User-Agent"] = userAgent
         }
-        if headers.keys.contains(where: { $0.caseInsensitiveCompare("Origin") == .orderedSame }) == false,
-           let origin: String = self.originHeader(from: requestConfig.referer) {
+        if BrowserRequestHeaders.containsHeader("Origin", in: headers) == false,
+           let origin: String = BrowserRequestHeaders.originHeader(from: requestConfig.referer) {
             headers["Origin"] = origin
         }
 
@@ -105,20 +110,6 @@ struct VideoNativePlayerView<Controls: View>: View {
         #endif
 
         return options
-    }
-
-    private func originHeader(from url: URL?) -> String? {
-        guard let url: URL,
-              let scheme: String = url.scheme,
-              let host: String = url.host else {
-            return nil
-        }
-
-        if let port: Int = url.port {
-            return "\(scheme)://\(host):\(port)"
-        }
-
-        return "\(scheme)://\(host)"
     }
 
     private func installPlayerCallbacks() {

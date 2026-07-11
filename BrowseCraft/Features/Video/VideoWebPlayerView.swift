@@ -55,13 +55,18 @@ struct VideoWebPlayerRequest: Equatable {
 
     var urlRequest: URLRequest {
         var request: URLRequest = URLRequest(url: self.url)
-        var allHeaders: [String: String] = self.headers
+        var allHeaders: [String: String] = BrowserRequestHeaders.Chrome.defaultHeaders(
+            for: self.url,
+            referer: self.referer,
+            includeOrigin: true
+        )
+        allHeaders = BrowserRequestHeaders.applyingOverrides(self.headers, to: allHeaders)
         if let referer: URL = self.referer,
-           allHeaders.keys.contains(where: { $0.caseInsensitiveCompare("Referer") == .orderedSame }) == false {
+           BrowserRequestHeaders.containsHeader("Referer", in: allHeaders) == false {
             allHeaders["Referer"] = referer.absoluteString
         }
         if let userAgent: String = self.userAgent,
-           allHeaders.keys.contains(where: { $0.caseInsensitiveCompare("User-Agent") == .orderedSame }) == false {
+           BrowserRequestHeaders.containsHeader("User-Agent", in: allHeaders) == false {
             allHeaders["User-Agent"] = userAgent
         }
         request.allHTTPHeaderFields = allHeaders.isEmpty ? nil : allHeaders

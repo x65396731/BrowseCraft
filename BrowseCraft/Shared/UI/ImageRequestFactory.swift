@@ -17,13 +17,10 @@ enum ImageRequestFactory {
         }
 
         var urlRequest: URLRequest = URLRequest(url: url)
-        var headers: [String: String] = self.defaultImageHeaders
-        requestConfig?.imageHeaders?.forEach { key, value in
-            headers[key] = value
-        }
-        requestConfig?.imageRequest?.headers?.forEach { key, value in
-            headers[key] = value
-        }
+        let refererURL: URL? = refererURLString.flatMap(URL.init(string:))
+        var headers: [String: String] = BrowserRequestHeaders.Chrome.defaultHeaders(for: url, referer: refererURL)
+        headers = BrowserRequestHeaders.applyingOverrides(requestConfig?.imageHeaders, to: headers)
+        headers = BrowserRequestHeaders.applyingOverrides(requestConfig?.imageRequest?.headers, to: headers)
 
         if let refererURLString: String = refererURLString,
            headers["Referer"] == nil {
@@ -53,13 +50,5 @@ enum ImageRequestFactory {
         )
 
         return ImageRequest(urlRequest: urlRequest)
-    }
-
-    /// 中文注释：默认图片 headers 保持旧版兼容，规则字段只在需要防盗链或特殊 Accept 时覆盖它们。
-    private static var defaultImageHeaders: [String: String] {
-        return [
-            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
-            "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
-        ]
     }
 }

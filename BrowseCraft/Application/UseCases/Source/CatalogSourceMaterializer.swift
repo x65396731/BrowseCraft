@@ -58,7 +58,13 @@ struct CatalogSourceMaterializer {
         case .video:
             let videoRule: CatalogVideoRule = try self.decodeRule(CatalogVideoRule.self, from: catalogSource)
             let importedAdapter: VideoAdapter = try self.adapter(from: videoRule.adapter)
-            let routePatterns: VideoSourceRoutePatterns? = try self.routePatterns(from: videoRule.routePattern)
+            let explicitRoutePatterns: VideoSourceRoutePatterns? = try self.routePatterns(from: videoRule.routePattern)
+            let routePatterns: VideoSourceRoutePatterns? = explicitRoutePatterns
+                ?? self.inferredRoutePatterns(
+                    from: videoRule,
+                    ruleJSON: catalogSource.ruleJSON,
+                    importedAdapter: importedAdapter
+                )
             let contentAdapter: VideoAdapter = self.contentAdapter(
                 importedAdapter: importedAdapter,
                 routePatterns: routePatterns
@@ -243,6 +249,89 @@ struct CatalogSourceMaterializer {
         default:
             return nil
         }
+    }
+
+    private func inferredRoutePatterns(
+        from videoRule: CatalogVideoRule,
+        ruleJSON: String,
+        importedAdapter: VideoAdapter
+    ) -> VideoSourceRoutePatterns? {
+        guard importedAdapter == .genericHTML else {
+            return nil
+        }
+
+        let haystack: String = self.macCMSInferenceText(from: videoRule, ruleJSON: ruleJSON)
+        if self.hasStrongMacCMSTemplateMarkers(haystack)
+            || self.hasMacCMSRouteCluster(haystack)
+            || self.hasMacCMSCategoryRouteCluster(videoRule.listTabs.map(\.url)) {
+            return .macCMS
+        }
+
+        return nil
+    }
+
+    private func macCMSInferenceText(
+        from videoRule: CatalogVideoRule,
+        ruleJSON: String
+    ) -> String {
+        var parts: [String] = [
+            ruleJSON,
+            videoRule.entryURL,
+            videoRule.entryKind
+        ]
+        for tab: CatalogVideoListTabRule in videoRule.listTabs {
+            parts.append(tab.url)
+            parts.append(tab.itemSelector ?? "")
+            parts.append(tab.titleSelector ?? "")
+            parts.append(tab.linkSelector ?? "")
+            parts.append(tab.coverSelector ?? "")
+            parts.append(tab.latestTextSelector ?? "")
+        }
+
+        return parts.joined(separator: "\n").lowercased()
+    }
+
+    private func hasStrongMacCMSTemplateMarkers(_ text: String) -> Bool {
+        let markers: [String] = [
+            "/template/vfed/",
+            "var vfed",
+            "fed-list-item",
+            "fed-list-pics",
+            "fed-list-title",
+            "fed-play-item",
+            "fed-part-rows",
+            "player_aaaa"
+        ]
+        let matchCount: Int = markers.reduce(into: 0) { count, marker in
+            if text.contains(marker) {
+                count += 1
+            }
+        }
+        return matchCount >= 2
+    }
+
+    private func hasMacCMSRouteCluster(_ text: String) -> Bool {
+        return text.contains("/voddetail/") && text.contains("/vodplay/")
+    }
+
+    private func hasMacCMSCategoryRouteCluster(_ values: [String]) -> Bool {
+        let categoryRoutes: Set<String> = Set(values.compactMap { value in
+            guard let url: URL = URL(string: value),
+                  let route: String = self.macCMSCategoryRoute(from: url.path) else {
+                return nil
+            }
+            return route
+        })
+        return categoryRoutes.count >= 2
+    }
+
+    private func macCMSCategoryRoute(from path: String) -> String? {
+        let normalizedPath: String = path.lowercased()
+        guard normalizedPath.hasPrefix("/vodtype/")
+            || normalizedPath.hasPrefix("/vodshow/") else {
+            return nil
+        }
+        return normalizedPath
     }
 
     private func playbackPolicy(from playbackPolicy: String) throws -> VideoPlaybackPolicy {

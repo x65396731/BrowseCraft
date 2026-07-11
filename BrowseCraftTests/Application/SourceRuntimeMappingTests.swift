@@ -242,6 +242,49 @@ struct SourceRuntimeMappingTests {
         #expect(request?.imageHeaders?["X-List-Image"] == "list")
     }
 
+    @Test func sourceDefinitionMapperPromotesPersistedMacCMSCategoryTabsToMacCMS() throws {
+        let entryURL: URL = try #require(URL(string: "https://www.kpkuang.fun/"))
+        let source = Source(
+            id: "kpkuang",
+            name: "看片狂人",
+            baseURL: "https://www.kpkuang.fun/",
+            type: .html,
+            configuration: .video(
+                VideoSourceConfiguration(
+                    definition: VideoSourceDefinition(
+                        adapter: .genericHTML,
+                        entryURL: entryURL,
+                        seedURL: nil,
+                        entryKind: .home,
+                        routePatterns: nil,
+                        playbackPolicy: .playPageFirst,
+                        requiresAccount: false
+                    ),
+                    listTabs: [
+                        VideoSourceListTab(
+                            id: "movie",
+                            title: "电影",
+                            url: "https://www.kpkuang.fun/vodtype/1/"
+                        ),
+                        VideoSourceListTab(
+                            id: "series",
+                            title: "连续剧",
+                            url: "https://www.kpkuang.fun/vodtype/2/"
+                        )
+                    ]
+                )
+            ),
+            enabled: true,
+            createdAt: Date(timeIntervalSince1970: 1),
+            updatedAt: Date(timeIntervalSince1970: 2)
+        )
+
+        let definition: SourceDefinition = SourceDefinitionMapper().definition(from: source)
+
+        #expect(definition.video?.adapter == .macCMS)
+        #expect(definition.video?.routePatterns == .macCMS)
+    }
+
     @Test func sourceDefinitionMapperMapsOwnershipRuleMetadataAndBaseURLFallback() throws {
         let mapper: SourceDefinitionMapper = SourceDefinitionMapper()
         let builtInSource: Source = try Self.source(id: "built-in.example")

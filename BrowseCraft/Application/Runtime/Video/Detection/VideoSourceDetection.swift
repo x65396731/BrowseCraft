@@ -39,6 +39,7 @@ struct VideoDetectionLexicon: Hashable {
         case directMedia
         case macCMSPayload
         case macCMSRoute
+        case macCMSTemplate
         case macCMSWeak
         case genericListCard
         case genericSupporting
@@ -83,6 +84,8 @@ private extension VideoDetectionLexicon.Category {
             return .macCMSPayload
         case .macCMSRoute:
             return .macCMSRoute
+        case .macCMSTemplate:
+            return .macCMSTemplate
         case .macCMSWeak:
             return .macCMSWeak
         case .genericListCard:

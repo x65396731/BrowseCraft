@@ -24,7 +24,7 @@ protocol VideoAdapterDetecting {
     func detect(_ input: VideoAdapterDetectionInput) -> VideoAdapterDetection
 }
 
-// 中文注释：兼容旧调用点；P5.1.9 后实际检测逻辑由 VideoSourceDetector 产出三层结果。
+// 中文注释：兼容旧调用点；实际检测逻辑由 VideoSourceDetector 产出适配器、渲染和播放三层结果。
 struct VideoAdapterDetector: VideoAdapterDetecting {
     private let sourceDetector: any VideoSourceDetecting
 

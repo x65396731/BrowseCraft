@@ -3,7 +3,7 @@ import Testing
 import BrowseCraftCore
 @testable import BrowseCraft
 
-// 中文注释：P5.1.30a-2 后 detection 只输出事实信号；macCMS/genericHTML 由规则或来源配置决定。
+// 中文注释：普通路由信号只作为事实；强 MacCMS/vfed 信号才会推断内容 mapper。
 struct VideoSourceDetectionTests {
     @Test func detectsVideoCMSRouteSignalWithoutChoosingContentMapper() throws {
         let detector: VideoSourceDetector = VideoSourceDetector()
@@ -47,6 +47,39 @@ struct VideoSourceDetectionTests {
         #expect(detection.confidence >= 0.60)
         #expect(detection.reasons.contains { reason in
             reason.contains("Content mapper adapter was not inferred")
+        })
+    }
+
+    @Test func detectsStrongVfedMarkersAsMacCMSContentMapper() throws {
+        let detector: VideoSourceDetector = VideoSourceDetector()
+        let url: URL = try #require(URL(string: "https://video.example.test/"))
+
+        let detection: VideoSourceDetection = detector.detect(
+            VideoSourceDetectionInput(
+                url: url,
+                html: """
+                <html>
+                  <head>
+                    <link rel="stylesheet" href="/template/vfed/asset/css/style.css">
+                  </head>
+                  <body>
+                    <script>var vfed = { "tpl": "/template/vfed/" };</script>
+                    <ul>
+                      <li class="fed-list-item">
+                        <a class="fed-list-pics" href="/voddetail/100/"></a>
+                        <a class="fed-list-title" href="/voddetail/100/">Title</a>
+                      </li>
+                    </ul>
+                  </body>
+                </html>
+                """
+            )
+        )
+
+        #expect(detection.adapter == .macCMS)
+        #expect(detection.renderMode == .staticHTML)
+        #expect(detection.reasons.contains { reason in
+            reason.contains("Strong video CMS markers matched")
         })
     }
 
@@ -389,6 +422,44 @@ struct VideoSourceDetectionTests {
             #expect(supportedDefinition.adapter == .macCMS)
         } else {
             Issue.record("Expected high-confidence video signals with a rule-selected MacCMS adapter to be supported.")
+        }
+    }
+
+    @Test func importDecisionPromotesStrongVfedGenericHTMLDefinitionToMacCMS() throws {
+        let detector: VideoSourceDetector = VideoSourceDetector()
+        let resolver: VideoSourceImportDecisionResolver = VideoSourceImportDecisionResolver()
+        let url: URL = try #require(URL(string: "https://video.example.test/"))
+        let definition: VideoSourceDefinition = try Self.videoDefinition(adapter: .genericHTML, entryURL: url)
+
+        let decision: VideoSourceImportDecision = resolver.decision(
+            for: detector.detect(
+                VideoSourceDetectionInput(
+                    url: url,
+                    html: """
+                    <html>
+                      <head>
+                        <link rel="stylesheet" href="/template/vfed/asset/css/style.css">
+                      </head>
+                      <body>
+                        <script>var vfed = { "tpl": "/template/vfed/" };</script>
+                        <div class="fed-list-item">
+                          <a class="fed-list-pics" href="/voddetail/100/"></a>
+                          <a class="fed-list-title" href="/voddetail/100/">Title</a>
+                          <a class="fed-play-item" href="/vodplay/100-1-1/">Play</a>
+                        </div>
+                      </body>
+                    </html>
+                    """
+                )
+            ),
+            definition: definition
+        )
+
+        if case .supported(let supportedDefinition) = decision {
+            #expect(supportedDefinition.adapter == .macCMS)
+            #expect(supportedDefinition.routePatterns == .macCMS)
+        } else {
+            Issue.record("Expected strong vfed signals to promote a Generic HTML definition to MacCMS.")
         }
     }
 

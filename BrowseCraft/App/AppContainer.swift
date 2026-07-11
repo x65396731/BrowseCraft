@@ -440,13 +440,12 @@ private struct PortalRequestHeaderProvider {
     }
 
     func headers() -> [String: String] {
-        return [
-            "userId": self.userID(),
-            "osInfo": self.osInfo,
-            "deviceInfo": self.deviceInfo,
-            "aplVersion": self.appVersion,
-            "X-Request-Id": UUID().uuidString
-        ]
+        return APIRequestHeaders.portalHeaders(
+            userID: self.userID(),
+            osInfo: self.osInfo,
+            deviceInfo: self.deviceInfo,
+            appVersion: self.appVersion
+        )
     }
 
     private func userID() -> String {
