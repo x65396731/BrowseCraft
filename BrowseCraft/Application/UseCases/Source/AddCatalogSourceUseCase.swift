@@ -33,13 +33,16 @@ struct AddCatalogSourceResult {
 struct LoadCatalogSourcesUseCase {
     private let pageDataLoader: PageDataLoader
     private let catalogAPIURL: URL
+    private let requestHeaders: () -> [String: String]
 
     init(
         pageDataLoader: PageDataLoader,
-        catalogAPIURL: URL = URL(string: "https://anyportal.online/catalog/sources")!
+        catalogAPIURL: URL = URL(string: "https://anyportal.online/catalog/sources")!,
+        requestHeaders: @escaping () -> [String: String] = { [:] }
     ) {
         self.pageDataLoader = pageDataLoader
         self.catalogAPIURL = catalogAPIURL
+        self.requestHeaders = requestHeaders
     }
 
     func execute() async throws -> [BrowseCraftCatalogSource] {
@@ -51,10 +54,11 @@ struct LoadCatalogSourcesUseCase {
     }
 
     private var requestConfig: RequestConfig {
+        var headers: [String: String] = self.requestHeaders()
+        headers["Accept"] = "application/json"
+
         return RequestConfig(
-            headers: [
-                "Accept": "application/json"
-            ]
+            headers: headers
         )
     }
 }

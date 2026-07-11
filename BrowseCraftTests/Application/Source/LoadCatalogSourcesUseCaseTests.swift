@@ -8,12 +8,28 @@ struct LoadCatalogSourcesUseCaseTests {
         let loader: RecordingCatalogPageDataLoader = RecordingCatalogPageDataLoader(
             data: Data(Self.portalCoreCatalogResponse.utf8)
         )
-        let useCase: LoadCatalogSourcesUseCase = LoadCatalogSourcesUseCase(pageDataLoader: loader)
+        let useCase: LoadCatalogSourcesUseCase = LoadCatalogSourcesUseCase(
+            pageDataLoader: loader,
+            requestHeaders: {
+                return [
+                    "userId": "local.default",
+                    "osInfo": "iOS 17.0",
+                    "deviceInfo": "iPhone15,3",
+                    "aplVersion": "1.0(1)",
+                    "X-Request-Id": "request-1"
+                ]
+            }
+        )
 
         _ = try await useCase.execute()
 
         #expect(loader.requests.map(\.url.absoluteString) == ["https://anyportal.online/catalog/sources"])
         #expect(loader.requests.first?.request?.headers?["Accept"] == "application/json")
+        #expect(loader.requests.first?.request?.headers?["userId"] == "local.default")
+        #expect(loader.requests.first?.request?.headers?["osInfo"] == "iOS 17.0")
+        #expect(loader.requests.first?.request?.headers?["deviceInfo"] == "iPhone15,3")
+        #expect(loader.requests.first?.request?.headers?["aplVersion"] == "1.0(1)")
+        #expect(loader.requests.first?.request?.headers?["X-Request-Id"] == "request-1")
     }
 
     @Test func loadCatalogSourcesDecodesPortalCoreObjectRuleJSON() async throws {
