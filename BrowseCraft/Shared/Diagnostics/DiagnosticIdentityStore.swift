@@ -87,7 +87,7 @@ final class DiagnosticIdentityStore {
 struct DiagnosticKeychainStore {
     private let service: String
 
-    init(service: String = Bundle.main.bundleIdentifier ?? "xiefei.BrowseCraft") {
+    init(service: String = Bundle.main.bundleIdentifier ?? "com.xiefei.AnyPortal") {
         self.service = service
     }
 

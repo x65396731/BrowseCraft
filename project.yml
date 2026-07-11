@@ -65,7 +65,7 @@ targets:
       Release: Config/CatalogEncryption.release.xcconfig
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: xiefei.BrowseCraft
+        PRODUCT_BUNDLE_IDENTIFIER: com.xiefei.AnyPortal
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: BrowseCraft/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
