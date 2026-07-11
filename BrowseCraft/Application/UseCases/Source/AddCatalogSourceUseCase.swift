@@ -6,7 +6,7 @@ enum CatalogSourceImportError: LocalizedError {
     case invalidBaseURL(String)
     case invalidFeedURL(String)
     case invalidEntryURL(String)
-    case invalidRuleJSON
+    case invalidRuleJSON(sourceID: String, name: String, kind: String, reason: String)
     case unsupportedRuleValue(field: String, value: String)
 
     var errorDescription: String? {
@@ -17,8 +17,8 @@ enum CatalogSourceImportError: LocalizedError {
             return "Invalid RSS feed URL: \(urlString)."
         case .invalidEntryURL(let urlString):
             return "Invalid video entry URL: \(urlString)."
-        case .invalidRuleJSON:
-            return "Invalid website rule JSON."
+        case .invalidRuleJSON(let sourceID, let name, let kind, let reason):
+            return "Invalid catalog rule JSON: source=\(sourceID) name=\(name) kind=\(kind) reason=\(reason)"
         case .unsupportedRuleValue(let field, let value):
             return "Unsupported catalog rule value \(field)=\(value)."
         }

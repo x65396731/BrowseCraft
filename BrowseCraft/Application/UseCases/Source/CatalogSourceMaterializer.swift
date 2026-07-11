@@ -27,13 +27,13 @@ struct CatalogSourceMaterializer {
                 name: catalogSource.name,
                 baseURL: catalogSource.baseURL,
                 type: .html,
-                rule: try self.rule(from: catalogSource.ruleJSON),
+                rule: try self.rule(from: catalogSource),
                 enabled: enabled,
                 createdAt: createdAt,
                 updatedAt: updatedAt
             )
         case .rss:
-            let rssRule: CatalogRSSRule = try self.decodeRule(CatalogRSSRule.self, from: catalogSource.ruleJSON)
+            let rssRule: CatalogRSSRule = try self.decodeRule(CatalogRSSRule.self, from: catalogSource)
             return Source(
                 id: catalogSource.id,
                 name: catalogSource.name,
@@ -56,7 +56,7 @@ struct CatalogSourceMaterializer {
                 updatedAt: updatedAt
             )
         case .video:
-            let videoRule: CatalogVideoRule = try self.decodeRule(CatalogVideoRule.self, from: catalogSource.ruleJSON)
+            let videoRule: CatalogVideoRule = try self.decodeRule(CatalogVideoRule.self, from: catalogSource)
             let importedAdapter: VideoAdapter = try self.adapter(from: videoRule.adapter)
             let contentAdapter: VideoAdapter = importedAdapter == .webView ? .genericHTML : importedAdapter
             let sharedRequest: RequestConfig? = importedAdapter == .webView
@@ -100,23 +100,63 @@ struct CatalogSourceMaterializer {
         }
     }
 
-    private func rule(from ruleJSON: String) throws -> SiteRule {
+    private func rule(from catalogSource: BrowseCraftCatalogSource) throws -> SiteRule {
         do {
-            return try self.jsonDecoder.decode(SiteRule.self, from: Data(ruleJSON.utf8))
+            return try self.jsonDecoder.decode(SiteRule.self, from: Data(catalogSource.ruleJSON.utf8))
         } catch {
-            throw CatalogSourceImportError.invalidRuleJSON
+            throw self.invalidRuleJSONError(for: catalogSource, underlyingError: error)
         }
     }
 
     private func decodeRule<Value: Decodable>(
         _ valueType: Value.Type,
-        from ruleJSON: String
+        from catalogSource: BrowseCraftCatalogSource
     ) throws -> Value {
         do {
-            return try self.jsonDecoder.decode(valueType, from: Data(ruleJSON.utf8))
+            return try self.jsonDecoder.decode(valueType, from: Data(catalogSource.ruleJSON.utf8))
         } catch {
-            throw CatalogSourceImportError.invalidRuleJSON
+            throw self.invalidRuleJSONError(for: catalogSource, underlyingError: error)
         }
+    }
+
+    private func invalidRuleJSONError(
+        for catalogSource: BrowseCraftCatalogSource,
+        underlyingError: Error
+    ) -> CatalogSourceImportError {
+        return .invalidRuleJSON(
+            sourceID: catalogSource.id,
+            name: catalogSource.name,
+            kind: catalogSource.kind.rawValue,
+            reason: Self.decodingDescription(for: underlyingError)
+        )
+    }
+
+    private static func decodingDescription(for error: Error) -> String {
+        if let decodingError: DecodingError = error as? DecodingError {
+            switch decodingError {
+            case .typeMismatch(let type, let context):
+                return "typeMismatch type=\(type) path=\(Self.codingPathDescription(context.codingPath)) detail=\(context.debugDescription)"
+            case .valueNotFound(let type, let context):
+                return "valueNotFound type=\(type) path=\(Self.codingPathDescription(context.codingPath)) detail=\(context.debugDescription)"
+            case .keyNotFound(let key, let context):
+                let path: [CodingKey] = context.codingPath + [key]
+                return "keyNotFound path=\(Self.codingPathDescription(path)) detail=\(context.debugDescription)"
+            case .dataCorrupted(let context):
+                return "dataCorrupted path=\(Self.codingPathDescription(context.codingPath)) detail=\(context.debugDescription)"
+            @unknown default:
+                return decodingError.localizedDescription
+            }
+        }
+
+        return error.localizedDescription
+    }
+
+    private static func codingPathDescription(_ codingPath: [CodingKey]) -> String {
+        guard codingPath.isEmpty == false else {
+            return "<root>"
+        }
+
+        return codingPath.map(\.stringValue).joined(separator: ".")
     }
 
     private func url(
@@ -229,6 +269,19 @@ private struct CatalogRSSRule: Decodable {
     let feedURL: String
     let requiresAccount: Bool
     let refreshPolicy: String
+
+    private enum CodingKeys: String, CodingKey {
+        case feedURL
+        case requiresAccount
+        case refreshPolicy
+    }
+
+    init(from decoder: Decoder) throws {
+        let container: KeyedDecodingContainer<CodingKeys> = try decoder.container(keyedBy: CodingKeys.self)
+        self.feedURL = try container.decode(String.self, forKey: .feedURL)
+        self.requiresAccount = try container.decodeIfPresent(Bool.self, forKey: .requiresAccount) ?? false
+        self.refreshPolicy = try container.decodeIfPresent(String.self, forKey: .refreshPolicy) ?? "manual"
+    }
 }
 
 private struct CatalogVideoRule: Decodable {
@@ -243,6 +296,42 @@ private struct CatalogVideoRule: Decodable {
     let playRequest: RequestConfig?
     let requiresAccount: Bool
     let listTabs: [CatalogVideoListTabRule]
+
+    private enum CodingKeys: String, CodingKey {
+        case adapter
+        case entryURL
+        case entryKind
+        case routePattern
+        case playbackPolicy
+        case sharedRequest
+        case listRequest
+        case detailRequest
+        case playRequest
+        case requiresAccount
+        case listTabs
+    }
+
+    init(from decoder: Decoder) throws {
+        let container: KeyedDecodingContainer<CodingKeys> = try decoder.container(keyedBy: CodingKeys.self)
+        self.adapter = try container.decodeIfPresent(String.self, forKey: .adapter) ?? "genericHTML"
+        self.entryURL = try container.decode(String.self, forKey: .entryURL)
+        self.entryKind = try container.decodeIfPresent(String.self, forKey: .entryKind) ?? "list"
+        self.routePattern = try container.decodeIfPresent(String.self, forKey: .routePattern)
+        self.playbackPolicy = try container.decodeIfPresent(String.self, forKey: .playbackPolicy) ?? "playPageFirst"
+        self.sharedRequest = try Self.decodeRequest(from: container, forKey: .sharedRequest)
+        self.listRequest = try Self.decodeRequest(from: container, forKey: .listRequest)
+        self.detailRequest = try Self.decodeRequest(from: container, forKey: .detailRequest)
+        self.playRequest = try Self.decodeRequest(from: container, forKey: .playRequest)
+        self.requiresAccount = try container.decodeIfPresent(Bool.self, forKey: .requiresAccount) ?? false
+        self.listTabs = try container.decodeIfPresent([CatalogVideoListTabRule].self, forKey: .listTabs) ?? []
+    }
+
+    private static func decodeRequest(
+        from container: KeyedDecodingContainer<CodingKeys>,
+        forKey key: CodingKeys
+    ) throws -> RequestConfig? {
+        return try container.decodeIfPresent(CatalogRequestConfig.self, forKey: key)?.requestConfig
+    }
 }
 
 private struct CatalogVideoListTabRule: Decodable {
@@ -254,4 +343,125 @@ private struct CatalogVideoListTabRule: Decodable {
     let linkSelector: String?
     let coverSelector: String?
     let latestTextSelector: String?
+}
+
+private struct CatalogRequestConfig: Decodable {
+    let requestConfig: RequestConfig
+
+    private enum CodingKeys: String, CodingKey {
+        case scope
+        case mergePolicy
+        case method
+        case headers
+        case body
+        case cookiePolicy
+        case cookiePriority
+        case cookieScope
+        case charset
+        case needsWebView
+        case autoScroll
+        case imageHeaders
+        case imageRequest
+    }
+
+    init(from decoder: Decoder) throws {
+        let container: KeyedDecodingContainer<CodingKeys> = try decoder.container(keyedBy: CodingKeys.self)
+        self.requestConfig = RequestConfig(
+            scope: try decodeCatalogEnum(RequestScope.self, from: container, forKey: .scope),
+            mergePolicy: try decodeCatalogEnum(
+                RequestMergePolicy.self,
+                from: container,
+                forKey: .mergePolicy,
+                aliases: ["merge": .mergeHeadersAndCookies]
+            ),
+            method: try decodeCatalogEnum(HTTPMethod.self, from: container, forKey: .method),
+            headers: try container.decodeIfPresent([String: String].self, forKey: .headers),
+            body: try container.decodeIfPresent(RequestBody.self, forKey: .body),
+            cookiePolicy: try decodeCatalogEnum(CookiePolicy.self, from: container, forKey: .cookiePolicy),
+            cookiePriority: try decodeCatalogEnum(CookiePriority.self, from: container, forKey: .cookiePriority),
+            cookieScope: try decodeCatalogEnum(
+                CookieScope.self,
+                from: container,
+                forKey: .cookieScope,
+                aliases: ["source": .site]
+            ),
+            charset: try decodeCatalogEnum(
+                Charset.self,
+                from: container,
+                forKey: .charset,
+                aliases: [
+                    "utf-8": .utf8,
+                    "UTF-8": .utf8,
+                    "shift-jis": .shiftJIS,
+                    "Shift_JIS": .shiftJIS
+                ]
+            ),
+            needsWebView: try container.decodeIfPresent(Bool.self, forKey: .needsWebView),
+            autoScroll: try container.decodeIfPresent(Bool.self, forKey: .autoScroll),
+            imageHeaders: try container.decodeIfPresent([String: String].self, forKey: .imageHeaders),
+            imageRequest: try container.decodeIfPresent(CatalogImageRequestConfig.self, forKey: .imageRequest)?.imageRequestConfig
+        )
+    }
+}
+
+private struct CatalogImageRequestConfig: Decodable {
+    let imageRequestConfig: ImageRequestConfig
+
+    private enum CodingKeys: String, CodingKey {
+        case headers
+        case cookiePolicy
+        case cookiePriority
+        case cookieScope
+        case mergePolicy
+    }
+
+    init(from decoder: Decoder) throws {
+        let container: KeyedDecodingContainer<CodingKeys> = try decoder.container(keyedBy: CodingKeys.self)
+        self.imageRequestConfig = ImageRequestConfig(
+            headers: try container.decodeIfPresent([String: String].self, forKey: .headers),
+            cookiePolicy: try decodeCatalogEnum(CookiePolicy.self, from: container, forKey: .cookiePolicy),
+            cookiePriority: try decodeCatalogEnum(CookiePriority.self, from: container, forKey: .cookiePriority),
+            cookieScope: try decodeCatalogEnum(
+                CookieScope.self,
+                from: container,
+                forKey: .cookieScope,
+                aliases: ["source": .site]
+            ),
+            mergePolicy: try decodeCatalogEnum(
+                RequestMergePolicy.self,
+                from: container,
+                forKey: .mergePolicy,
+                aliases: ["merge": .mergeHeadersAndCookies]
+            )
+        )
+    }
+}
+
+private func decodeCatalogEnum<Value, Key>(
+    _ valueType: Value.Type,
+    from container: KeyedDecodingContainer<Key>,
+    forKey key: Key,
+    aliases: [String: Value] = [:]
+) throws -> Value? where Value: RawRepresentable, Value.RawValue == String, Key: CodingKey {
+    guard let rawValue: String = try container.decodeIfPresent(String.self, forKey: key) else {
+        return nil
+    }
+
+    if rawValue == "default" {
+        return nil
+    }
+
+    if let aliasedValue: Value = aliases[rawValue] {
+        return aliasedValue
+    }
+
+    guard let value: Value = Value(rawValue: rawValue) else {
+        throw DecodingError.dataCorruptedError(
+            forKey: key,
+            in: container,
+            debugDescription: "Cannot initialize \(valueType) from invalid String value \(rawValue)"
+        )
+    }
+
+    return value
 }

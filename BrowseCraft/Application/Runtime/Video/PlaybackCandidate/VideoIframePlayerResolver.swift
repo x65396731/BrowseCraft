@@ -38,6 +38,9 @@ struct VideoIframePlayerResolver {
         guard iframePlayerURL != reference.playPageURL else {
             return nil
         }
+        if self.isTerminalIframePlayerURL(iframePlayerURL) {
+            return nil
+        }
 
         return try await self.resolve(
             originalReference: reference,
@@ -48,6 +51,20 @@ struct VideoIframePlayerResolver {
             depth: 1,
             visitedURLs: Set<String>([reference.playPageURL.absoluteString])
         )
+    }
+
+    private func isTerminalIframePlayerURL(_ url: URL) -> Bool {
+        guard let host: String = url.host?.lowercased() else {
+            return false
+        }
+
+        let path: String = url.path.lowercased()
+        if (host == "youtube.com" || host.hasSuffix(".youtube.com") || host == "youtube-nocookie.com" || host.hasSuffix(".youtube-nocookie.com")),
+           path.hasPrefix("/embed/") {
+            return true
+        }
+
+        return false
     }
 
     private func resolve(

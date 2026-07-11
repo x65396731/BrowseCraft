@@ -24,11 +24,33 @@ struct VideoWebPlayerRequest: Equatable {
     init(reference: SourceVideoPlaybackReference) {
         let requestConfig: SourcePlaybackRequestConfig? = reference.playbackRequestConfig
         self.init(
-            url: reference.candidateMediaURL ?? reference.playPageURL,
+            url: Self.webPlaybackURL(for: reference),
             headers: requestConfig?.headers ?? [:],
             referer: requestConfig?.referer,
             userAgent: requestConfig?.userAgent
         )
+    }
+
+    private static func webPlaybackURL(for reference: SourceVideoPlaybackReference) -> URL {
+        guard reference.candidateMediaKind == .iframePlayer,
+              let candidateMediaURL: URL = reference.candidateMediaURL,
+              Self.isYouTubeURL(candidateMediaURL),
+              Self.isYouTubeURL(reference.playPageURL) else {
+            return reference.candidateMediaURL ?? reference.playPageURL
+        }
+
+        return reference.playPageURL
+    }
+
+    private static func isYouTubeURL(_ url: URL) -> Bool {
+        guard let host: String = url.host?.lowercased() else {
+            return false
+        }
+
+        return host == "youtube.com"
+            || host.hasSuffix(".youtube.com")
+            || host == "youtube-nocookie.com"
+            || host.hasSuffix(".youtube-nocookie.com")
     }
 
     var urlRequest: URLRequest {
@@ -401,9 +423,20 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
             return true
         }
 
+        if self.isYouTubeHost(host), self.isYouTubeHost(initialHost) {
+            return true
+        }
+
         return host == initialHost
             || host.hasSuffix(".\(initialHost)")
             || initialHost.hasSuffix(".\(host)")
+    }
+
+    private func isYouTubeHost(_ host: String) -> Bool {
+        return host == "youtube.com"
+            || host.hasSuffix(".youtube.com")
+            || host == "youtube-nocookie.com"
+            || host.hasSuffix(".youtube-nocookie.com")
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

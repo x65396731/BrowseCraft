@@ -306,7 +306,10 @@ final class SourcesViewModel: ObservableObject {
     }
 
     @MainActor
-    func addCatalogSource(_ catalogSource: BrowseCraftCatalogSource) async -> Bool {
+    func addCatalogSource(
+        _ catalogSource: BrowseCraftCatalogSource,
+        shouldPresentError: Bool = true
+    ) async -> Bool {
         CrashDiagnostics.shared.setRuleStage(.list)
         do {
             let result: AddCatalogSourceResult = try await self.addCatalogSourceUseCase.execute(catalogSource)
@@ -326,7 +329,9 @@ final class SourcesViewModel: ObservableObject {
             return true
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-source-add-error")
-            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+            if shouldPresentError {
+                self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+            }
             return false
         }
     }

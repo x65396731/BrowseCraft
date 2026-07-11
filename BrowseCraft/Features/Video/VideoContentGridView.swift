@@ -15,7 +15,7 @@ struct VideoContentGridView: View {
 
     var body: some View {
         LazyVGrid(columns: self.gridColumns, spacing: 16) {
-            ForEach(self.items, id: \.id) { item in
+            ForEach(Array(self.items.enumerated()), id: \.offset) { _, item in
                 NavigationLink(
                     destination: VideoDetailView(
                         viewModel: self.detailViewModelFactory(item, self.source)

@@ -12,7 +12,7 @@ struct RSSContentListView: View {
 
     var body: some View {
         LazyVStack(spacing: 12) {
-            ForEach(self.items, id: \.id) { item in
+            ForEach(Array(self.items.enumerated()), id: \.offset) { _, item in
                 NavigationLink(
                     destination: RSSContentDetailView(
                         viewModel: self.detailViewModelFactory(item, self.source)

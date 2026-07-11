@@ -125,7 +125,7 @@ struct LibraryView: View {
             )
         } else {
             LazyVGrid(columns: self.gridColumns, spacing: 16) {
-                ForEach(self.viewModel.items, id: \.id) { item in
+                ForEach(Array(self.viewModel.items.enumerated()), id: \.offset) { _, item in
                     if let source: Source = self.viewModel.source(for: item.sourceId) {
                         ComicLibraryCardView(
                             item: item,

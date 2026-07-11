@@ -55,7 +55,10 @@ struct CatalogSourceListView: View {
         self.failedSourceIDs.remove(catalogSource.id)
 
         Task {
-            let didAdd: Bool = await self.viewModel.addCatalogSource(catalogSource)
+            let didAdd: Bool = await self.viewModel.addCatalogSource(
+                catalogSource,
+                shouldPresentError: false
+            )
             await MainActor.run {
                 self.addingSourceIDs.remove(catalogSource.id)
                 if didAdd {

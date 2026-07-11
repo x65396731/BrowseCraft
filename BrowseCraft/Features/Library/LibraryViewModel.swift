@@ -35,6 +35,7 @@ final class LibraryViewModel: ObservableObject {
     private let now: () -> Date
     private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
     private var tabDiscoveryAttemptedSourceIDs: Set<String> = Set<String>()
+    private var confirmedEmptyListTabKeys: Set<String> = Set<String>()
     /// 中文注释：刷新令牌用于避免旧 source 的慢请求回写或提前关闭当前 source 的 loading。
     private var refreshToken: Int = 0
 
@@ -104,7 +105,7 @@ final class LibraryViewModel: ObservableObject {
             return
         }
 
-        guard self.listTabs.contains(where: { tab in tab.id == tabID }) else {
+        guard self.visibleListTabs.contains(where: { tab in tab.id == tabID }) else {
             self.ensureSelectedListTab()
             return
         }
@@ -136,6 +137,7 @@ final class LibraryViewModel: ObservableObject {
         let expectedListContext: ListContext? = self.selectedListContext
         self.refreshToken += 1
         let currentRefreshToken: Int = self.refreshToken
+        var shouldRefreshReplacementTab: Bool = false
         self.isRefreshing = true
 
         do {
@@ -147,11 +149,20 @@ final class LibraryViewModel: ObservableObject {
                self.refreshToken == currentRefreshToken,
                self.selectedSourceID == expectedSourceID,
                self.selectedListTab?.id == expectedTabID {
-                self.items = self.contentItems(
+                let refreshedItems: [ContentItem] = self.contentItems(
                     from: output,
                     source: refreshedSelectedSource,
                     context: expectedListContext
                 )
+                self.items = refreshedItems
+                if self.updateConfirmedEmptyListTab(
+                    sourceID: expectedSourceID,
+                    tabID: expectedTabID,
+                    itemCount: refreshedItems.count
+                ) {
+                    self.ensureSelectedListTab()
+                    shouldRefreshReplacementTab = self.selectedListTabID != expectedTabID
+                }
                 self.sourceSelectionStore.publishLibrarySnapshot(
                     source: refreshedSelectedSource,
                     items: self.items
@@ -185,6 +196,12 @@ final class LibraryViewModel: ObservableObject {
 
         if self.refreshToken == currentRefreshToken {
             self.isRefreshing = false
+        }
+
+        if shouldRefreshReplacementTab,
+           self.refreshToken == currentRefreshToken,
+           self.selectedSourceID == expectedSourceID {
+            await self.refreshSelectedListTab()
         }
     }
 
@@ -255,7 +272,7 @@ final class LibraryViewModel: ObservableObject {
     }
 
     var listTabStates: [LibraryListTabState] {
-        let tabs: [ListTabRule] = self.listTabs
+        let tabs: [ListTabRule] = self.visibleListTabs
         #if DEBUG
         self.logListTabs(
             origin: "listTabStates",
@@ -303,18 +320,32 @@ final class LibraryViewModel: ObservableObject {
         return self.resolveLibrarySourcePresentationUseCase.listTabs(for: self.selectedSource)
     }
 
-    private var selectedListTab: ListTabRule? {
-        guard let selectedListTabID: String = self.selectedListTabID else {
-            return self.listTabs.first
+    private var visibleListTabs: [ListTabRule] {
+        let tabs: [ListTabRule] = self.listTabs
+        guard self.selectedSource?.configuration.kind == .video,
+              let sourceID: String = self.selectedSourceID else {
+            return tabs
         }
 
-        return self.listTabs.first { tab in
+        let visibleTabs: [ListTabRule] = tabs.filter { tab in
+            return self.confirmedEmptyListTabKeys.contains(self.listTabKey(sourceID: sourceID, tabID: tab.id)) == false
+        }
+
+        return visibleTabs.isEmpty ? tabs : visibleTabs
+    }
+
+    private var selectedListTab: ListTabRule? {
+        guard let selectedListTabID: String = self.selectedListTabID else {
+            return self.visibleListTabs.first
+        }
+
+        return self.visibleListTabs.first { tab in
             return tab.id == selectedListTabID
-        } ?? self.listTabs.first
+        } ?? self.visibleListTabs.first
     }
 
     private func ensureSelectedListTab() {
-        let tabs: [ListTabRule] = self.listTabs
+        let tabs: [ListTabRule] = self.visibleListTabs
         #if DEBUG
         self.logListTabs(
             origin: "ensureSelectedListTab",
@@ -329,6 +360,30 @@ final class LibraryViewModel: ObservableObject {
         }
 
         self.selectedListTabID = tabs.first?.id
+    }
+
+    private func updateConfirmedEmptyListTab(
+        sourceID: String,
+        tabID: String?,
+        itemCount: Int
+    ) -> Bool {
+        guard let tabID: String else {
+            return false
+        }
+
+        let key: String = self.listTabKey(sourceID: sourceID, tabID: tabID)
+        let wasHidden: Bool = self.confirmedEmptyListTabKeys.contains(key)
+        if itemCount == 0 {
+            self.confirmedEmptyListTabKeys.insert(key)
+        } else {
+            self.confirmedEmptyListTabKeys.remove(key)
+        }
+
+        return wasHidden != self.confirmedEmptyListTabKeys.contains(key)
+    }
+
+    private func listTabKey(sourceID: String, tabID: String) -> String {
+        return "\(sourceID)::\(tabID)"
     }
 
     @MainActor

@@ -41,6 +41,26 @@ enum RuleExecutionErrorClassifier {
             )
         }
 
+        if let catalogSourceImportError: CatalogSourceImportError = error as? CatalogSourceImportError {
+            return .ruleConfiguration(
+                stage: .list,
+                sourceID: "catalog",
+                reason: catalogSourceImportError.localizedDescription
+            )
+        }
+
+        if let sourceListLoadValidationError: SourceListLoadValidationError = error as? SourceListLoadValidationError {
+            switch sourceListLoadValidationError {
+            case .emptyList:
+                return .selectorEmpty(
+                    stage: .list,
+                    sourceID: "unknown",
+                    url: "unknown",
+                    ruleID: nil
+                )
+            }
+        }
+
         let nsError: NSError = error as NSError
         if nsError.domain == NSURLErrorDomain {
             return .network(
