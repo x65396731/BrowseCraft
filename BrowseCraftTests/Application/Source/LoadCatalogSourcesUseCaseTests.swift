@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import CryptoKit
 import BrowseCraftRulesKit
 @testable import BrowseCraft
 
@@ -51,6 +52,34 @@ struct LoadCatalogSourcesUseCaseTests {
         #expect(rule["entryURL"] as? String == "https://example.invalid/videos/")
     }
 
+    @Test func loadCatalogSourcesDecryptsEncryptedPortalCoreRule() async throws {
+        let encryptedResponse: String = try Self.encryptedPortalCoreCatalogResponse()
+        let loader: RecordingCatalogPageDataLoader = RecordingCatalogPageDataLoader(
+            data: Data(encryptedResponse.utf8)
+        )
+        let keyProvider: CatalogRuleDecryptionKeyProvider = CatalogRuleDecryptionKeyProvider(
+            keysByID: [
+                "test-v1": SymmetricKey(data: try #require(Data(base64Encoded: Self.testKeyBase64)))
+            ]
+        )
+        let useCase: LoadCatalogSourcesUseCase = LoadCatalogSourcesUseCase(
+            pageDataLoader: loader,
+            catalogRuleDecryptor: CatalogRuleDecryptor(keyProvider: keyProvider)
+        )
+
+        let sources: [BrowseCraftCatalogSource] = try await useCase.execute()
+        let source: BrowseCraftCatalogSource = try #require(sources.first)
+        let ruleData: Data = Data(source.ruleJSON.utf8)
+        let rule: [String: Any] = try #require(JSONSerialization.jsonObject(with: ruleData) as? [String: Any])
+
+        #expect(sources.count == 1)
+        #expect(source.id == "catalog.video.encrypted")
+        #expect(source.baseURL == "https://encrypted.example.invalid")
+        #expect(source.kind == .video)
+        #expect(rule["adapter"] as? String == "genericHTML")
+        #expect(rule["entryURL"] as? String == "https://encrypted.example.invalid/videos/")
+    }
+
     private static let portalCoreCatalogResponse: String = """
     [
       {
@@ -95,6 +124,61 @@ struct LoadCatalogSourcesUseCaseTests {
       }
     ]
     """
+
+    private static let testKeyBase64: String = "yAxcpfRu0nn6mEGZ395F29s8F9edPExEc2z1jCdSy18="
+
+    private static func encryptedPortalCoreCatalogResponse() throws -> String {
+        let sourcePayload: String = """
+        {
+          "id": "catalog.video.encrypted",
+          "name": "Encrypted Video",
+          "baseURL": "https://encrypted.example.invalid",
+          "kind": "video",
+          "ruleJSON": {
+            "adapter": "genericHTML",
+            "entryURL": "https://encrypted.example.invalid/videos/",
+            "entryKind": "list",
+            "routePattern": null,
+            "playbackPolicy": "playPageFirst",
+            "sharedRequest": null,
+            "listRequest": null,
+            "detailRequest": null,
+            "playRequest": null,
+            "requiresAccount": false,
+            "listTabs": []
+          }
+        }
+        """
+        let keyData: Data = try #require(Data(base64Encoded: Self.testKeyBase64))
+        let key: SymmetricKey = SymmetricKey(data: keyData)
+        let nonceData: Data = Data([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+        let sealedBox: AES.GCM.SealedBox = try AES.GCM.seal(
+            Data(sourcePayload.utf8),
+            using: key,
+            nonce: try AES.GCM.Nonce(data: nonceData)
+        )
+        var ciphertextAndTag: Data = sealedBox.ciphertext
+        ciphertextAndTag.append(sealedBox.tag)
+
+        return """
+        [
+          {
+            "id": "catalog.video.encrypted",
+            "name": "Encrypted Video",
+            "baseURL": "https://encrypted.example.invalid",
+            "kind": "video",
+            "encryptedRule": {
+              "version": 1,
+              "keyId": "test-v1",
+              "nonce": "\(nonceData.base64EncodedString())",
+              "ciphertext": "\(ciphertextAndTag.base64EncodedString())"
+            },
+            "createdAt": "2026-07-09T00:00:00+00:00",
+            "updatedAt": "2026-07-09T00:00:00+00:00"
+          }
+        ]
+        """
+    }
 }
 
 private final class RecordingCatalogPageDataLoader: PageDataLoader {

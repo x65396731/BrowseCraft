@@ -26,6 +26,8 @@
 	<string>$(BROWSECRAFT_ENVIRONMENT_NAME)</string>
 	<key>BrowseCraftRewardedAdUnitID</key>
 	<string>$(BROWSECRAFT_REWARDED_AD_UNIT_ID)</string>
+	<key>BrowseCraftCatalogEncryptionKeys</key>
+	<string>$(BROWSECRAFT_CATALOG_ENCRYPTION_KEYS)</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

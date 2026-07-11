@@ -22,6 +22,9 @@ Podfile.lock
 *.xcworkspace/
 web-analysis/
 
+# Local production build settings
+*.local.xcconfig
+
 # Local sibling private rules repo
 BrowseCraftRulesKit/
 PrivatePackages/BrowseCraftCore

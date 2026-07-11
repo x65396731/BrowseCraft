@@ -34,15 +34,24 @@ struct LoadCatalogSourcesUseCase {
     private let pageDataLoader: PageDataLoader
     private let catalogAPIURL: URL
     private let requestHeaders: () -> [String: String]
+    private let catalogRuleDecryptor: CatalogRuleDecryptor
+    private let jsonDecoder: JSONDecoder
+    private let jsonEncoder: JSONEncoder
 
     init(
         pageDataLoader: PageDataLoader,
         catalogAPIURL: URL = URL(string: "https://anyportal.online/catalog/sources")!,
-        requestHeaders: @escaping () -> [String: String] = { [:] }
+        requestHeaders: @escaping () -> [String: String] = { [:] },
+        catalogRuleDecryptor: CatalogRuleDecryptor = CatalogRuleDecryptor(),
+        jsonDecoder: JSONDecoder = JSONDecoder(),
+        jsonEncoder: JSONEncoder = JSONEncoder()
     ) {
         self.pageDataLoader = pageDataLoader
         self.catalogAPIURL = catalogAPIURL
         self.requestHeaders = requestHeaders
+        self.catalogRuleDecryptor = catalogRuleDecryptor
+        self.jsonDecoder = jsonDecoder
+        self.jsonEncoder = jsonEncoder
     }
 
     func execute() async throws -> [BrowseCraftCatalogSource] {
@@ -50,7 +59,7 @@ struct LoadCatalogSourcesUseCase {
             from: self.catalogAPIURL,
             request: self.requestConfig
         )
-        return try BrowseCraftSourceCatalog.sources(from: data)
+        return try BrowseCraftSourceCatalog.sources(from: self.catalogSourceData(from: data))
     }
 
     private var requestConfig: RequestConfig {
@@ -61,6 +70,50 @@ struct LoadCatalogSourcesUseCase {
             headers: headers
         )
     }
+
+    private func catalogSourceData(from data: Data) throws -> Data {
+        let encryptedSources: [EncryptedCatalogSourcePayload] = try self.jsonDecoder.decode(
+            [EncryptedCatalogSourcePayload].self,
+            from: data
+        )
+
+        guard encryptedSources.contains(where: { source in source.encryptedRule != nil }) else {
+            return data
+        }
+
+        let plainSources: [PlainCatalogSourcePayload] = try encryptedSources.map { source in
+            guard let encryptedRule: EncryptedCatalogRule = source.encryptedRule else {
+                throw CatalogRuleDecryptionError.invalidPlaintext
+            }
+
+            let decryptedRule: CatalogRuleJSONValue = try self.catalogRuleDecryptor.decrypt(encryptedRule)
+            return PlainCatalogSourcePayload(
+                id: source.id,
+                name: source.name,
+                baseURL: source.baseURL,
+                kind: source.kind,
+                ruleJSON: decryptedRule.importRuleJSON
+            )
+        }
+
+        return try self.jsonEncoder.encode(plainSources)
+    }
+}
+
+private struct EncryptedCatalogSourcePayload: Decodable {
+    let id: String
+    let name: String
+    let baseURL: String
+    let kind: String
+    let encryptedRule: EncryptedCatalogRule?
+}
+
+private struct PlainCatalogSourcePayload: Encodable {
+    let id: String
+    let name: String
+    let baseURL: String
+    let kind: String
+    let ruleJSON: CatalogRuleJSONValue
 }
 
 // 中文注释：Catalog 来源必须先通过既存 runtime 加载流程，加载成功后才写入本地 DB。

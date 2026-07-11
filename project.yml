@@ -51,6 +51,9 @@ targets:
         product: WebUI
       - package: GoogleMobileAds
         product: GoogleMobileAds
+    configFiles:
+      Debug: Config/CatalogEncryption.debug.xcconfig
+      Release: Config/CatalogEncryption.release.xcconfig
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: xiefei.BrowseCraft
@@ -131,6 +134,8 @@ schemes:
     run:
       config: Debug
       storeKitConfiguration: BrowseCraft/Configuration/BrowseCraft.storekit
+      environmentVariables:
+        BROWSECRAFT_CATALOG_ENCRYPTION_KEYS: "$(BROWSECRAFT_CATALOG_ENCRYPTION_KEYS)"
     test:
       config: Debug
       gatherCoverageData: true
@@ -149,6 +154,8 @@ schemes:
         BrowseCraft: all
     run:
       config: Release
+      environmentVariables:
+        BROWSECRAFT_CATALOG_ENCRYPTION_KEYS: "$(BROWSECRAFT_CATALOG_ENCRYPTION_KEYS)"
     profile:
       config: Release
     analyze:

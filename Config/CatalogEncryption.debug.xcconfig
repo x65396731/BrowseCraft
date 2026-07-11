@@ -1,0 +1,2 @@
+#include "../Pods/Target Support Files/Pods-BrowseCraft/Pods-BrowseCraft.debug.xcconfig"
+BROWSECRAFT_CATALOG_ENCRYPTION_KEYS = test-v1=base64:yAxcpfRu0nn6mEGZ395F29s8F9edPExEc2z1jCdSy18=
