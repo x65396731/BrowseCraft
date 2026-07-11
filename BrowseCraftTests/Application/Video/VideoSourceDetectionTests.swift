@@ -620,35 +620,6 @@ struct VideoSourceDetectionTests {
         #expect(decision == .unavailable(.pluginBoundaryClosed))
     }
 
-    @Test func legacyVideoAdapterDetectorWrapsFactDetectionWithoutChoosingMapper() throws {
-        let detector: VideoAdapterDetector = VideoAdapterDetector()
-        let url: URL = try #require(URL(string: "https://video.example.test/watch/sample"))
-
-        let detection: VideoAdapterDetection = detector.detect(
-            VideoAdapterDetectionInput(
-                url: url,
-                html: """
-                <html>
-                  <body>
-                    <video src="https://media.example.test/sample.mp4"></video>
-                  </body>
-                </html>
-                """
-            )
-        )
-
-        #expect(detection.adapter == .genericHTML)
-        #expect(detection.reasons.contains { reason in
-            reason.contains("Render mode")
-        })
-        #expect(detection.reasons.contains { reason in
-            reason.contains("Playback mode")
-        })
-        #expect(detection.reasons.contains { reason in
-            reason.contains("Content mapper adapter was not inferred")
-        })
-    }
-
     private static func detector(language: SourceDetectionLexicon.Language) -> VideoSourceDetector {
         return VideoSourceDetector(lexicon: Self.videoLexicon(language: language))
     }

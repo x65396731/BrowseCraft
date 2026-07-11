@@ -115,7 +115,9 @@ struct SourcesView: View {
             .onAppear {
                 CrashDiagnostics.shared.setScreen(.sourceList)
                 AppAnalytics.shared.logScreenView(.sourceList)
-                self.viewModel.load()
+                DispatchQueue.main.async {
+                    self.viewModel.load()
+                }
             }
             .sheet(isPresented: self.$isShowingAddSourceView) {
                 AddSourceView(viewModel: self.viewModel)

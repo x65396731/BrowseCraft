@@ -132,7 +132,7 @@ schemes:
         BrowseCraftTests: [test]
     run:
       config: Debug
-      storeKitConfiguration: ../BrowseCraft/Configuration/BrowseCraft.storekit
+      storeKitConfiguration: BrowseCraft/Configuration/BrowseCraft.storekit
     test:
       config: Debug
       gatherCoverageData: true
@@ -152,7 +152,7 @@ schemes:
         BrowseCraftTests: [test]
     run:
       config: Debug
-      storeKitConfiguration: ../BrowseCraft/Configuration/BrowseCraft.storekit
+      storeKitConfiguration: BrowseCraft/Configuration/BrowseCraft.storekit
       environmentVariables:
         BROWSECRAFT_CATALOG_ENCRYPTION_KEYS: "$(BROWSECRAFT_CATALOG_ENCRYPTION_KEYS)"
     test:

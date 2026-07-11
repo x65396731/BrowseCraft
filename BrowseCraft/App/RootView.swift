@@ -122,14 +122,18 @@ struct RootView: View {
                 .tag(RootTab.settings)
         }
         .onAppear {
-            self.resolveInitialTabIfNeeded()
+            DispatchQueue.main.async {
+                self.resolveInitialTabIfNeeded()
+            }
         }
         .onChange(of: self.sourcesViewModel.latestSourceAddID) { _, sourceID in
             guard sourceID != nil else {
                 return
             }
 
-            self.selectedTab = .library
+            DispatchQueue.main.async {
+                self.selectedTab = .library
+            }
         }
     }
 
