@@ -34,6 +34,7 @@ struct RSSContentRowView: View {
             .frame(height: 100)
         }
         .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
+        .contentShape(Rectangle())
     }
 
     private var thumbnail: some View {

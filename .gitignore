@@ -1,6 +1,9 @@
 # macOS local files
 .DS_Store
 
+# Local Codex instructions
+AGENTS.md
+
 # Xcode local user state
 xcuserdata/
 *.xcuserstate
