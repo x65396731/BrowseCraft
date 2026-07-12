@@ -128,6 +128,9 @@ final class AppContainer {
         let updateSourceRuleUseCase: UpdateSourceRuleUseCase = UpdateSourceRuleUseCase(
             sourceRepository: self.sourceRepository
         )
+        let updateVideoSourceConfigurationUseCase: UpdateVideoSourceConfigurationUseCase = UpdateVideoSourceConfigurationUseCase(
+            sourceRepository: self.sourceRepository
+        )
         let duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase = DuplicateSourceRuleUseCase(
             sourceRepository: self.sourceRepository
         )
@@ -169,6 +172,7 @@ final class AppContainer {
             loadCatalogSourcesUseCase: loadCatalogSourcesUseCase,
             deleteSourceUseCase: deleteSourceUseCase,
             updateSourceRuleUseCase: updateSourceRuleUseCase,
+            updateVideoSourceConfigurationUseCase: updateVideoSourceConfigurationUseCase,
             duplicateSourceRuleUseCase: duplicateSourceRuleUseCase,
             exportSourceRulePackageUseCase: exportSourceRulePackageUseCase,
             importSourceRulePackageUseCase: importSourceRulePackageUseCase,

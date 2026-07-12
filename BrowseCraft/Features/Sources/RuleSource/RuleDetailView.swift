@@ -1,22 +1,19 @@
 import SwiftUI
-import UIKit
+import BrowseCraftCore
 
-// 中文注释：RuleDetailView.swift 是 P2-1 的规则详情入口，用于查看、校验和编辑用户规则。
+// 中文注释：SourceDebugView 是统一调试入口；漫画和视频可编辑 JSON，RSS/插件保持只读。
 
-/// 中文注释：RuleDetailView 展示 V2 规则结构摘要，并为用户规则提供 JSON 编辑入口。
-struct RuleDetailView: View {
+struct SourceDebugView: View {
     @ObservedObject var viewModel: SourcesViewModel
     let sourceID: String
 
-    @State private var draftRuleJSON: String = ""
-    @State private var draftBasicRule: SiteRule?
+    @State private var draftJSON: String = ""
     @State private var draftSourceUpdatedAt: Date?
-    @State private var validationResult: SiteRuleValidationResult = SiteRuleValidationResult(rule: nil, issues: [])
+    @State private var validationResult: SourceDebugJSONValidationResult = SourceDebugJSONValidationResult(
+        isValid: false,
+        message: ""
+    )
     @State private var isShowingJSONEditor: Bool = false
-    @State private var isShowingBasicEditor: Bool = false
-    @State private var exportedPackage: RulePackageExport?
-    @State private var isShowingExportSheet: Bool = false
-    @State private var didCopyExport: Bool = false
 
     var body: some View {
         Group {
@@ -26,11 +23,11 @@ struct RuleDetailView: View {
                 EmptyStateView(
                     systemImage: "questionmark.folder",
                     title: "Source Not Found",
-                    message: "The rule may have been deleted."
+                    message: "The source may have been deleted."
                 )
             }
         }
-        .navigationTitle("Rule")
+        .navigationTitle("Debug")
         .onAppear {
             CrashDiagnostics.shared.setScreen(.ruleEditor)
             AppAnalytics.shared.logScreenView(.ruleEditor)
@@ -40,51 +37,29 @@ struct RuleDetailView: View {
         .sheet(isPresented: self.$isShowingJSONEditor) {
             self.editorSheet()
         }
-        .sheet(isPresented: self.$isShowingBasicEditor) {
-            self.basicEditorSheet()
-        }
-        .sheet(isPresented: self.$isShowingExportSheet) {
-            self.exportSheet()
-        }
     }
 
     private func content(source: Source) -> some View {
         Form {
-            Section("Source") {
-                LabeledContent("Name", value: source.name)
-                LabeledContent("Base URL", value: source.baseURL)
-                LabeledContent("Type", value: source.type.rawValue)
-                LabeledContent("Ownership", value: source.isBuiltIn ? "Built-in" : "User")
+            self.sourceSection(source: source)
+
+            switch source.configuration {
+            case .comic(let configuration):
+                self.comicSection(rule: configuration.rule)
+                self.comicRuleSetsSection(rule: configuration.rule)
+                self.comicRequestSection(rule: configuration.rule)
+            case .video(let configuration):
+                self.videoSection(configuration: configuration)
+            case .rss(let configuration):
+                self.rssSection(configuration: configuration)
+            case .plugin(let configuration):
+                self.pluginSection(configuration: configuration)
             }
 
-            self.siteSection(rule: source.rule)
-            self.pagesSection(rule: source.rule)
-            self.ruleSetsSection(rule: source.rule)
-            self.requestSection(rule: source.rule)
-            self.jsonPreviewSection(rule: source.rule)
-            self.rulePackageSection(source: source)
+            self.jsonPreviewSection(source: source)
 
             Section {
-                if source.isBuiltIn {
-                    Button(
-                        action: {
-                            _ = self.viewModel.duplicateSource(sourceID: source.id)
-                        },
-                        label: {
-                            Label("Duplicate as User Rule", systemImage: "doc.on.doc")
-                        }
-                    )
-                } else {
-                    Button(
-                        action: {
-                            self.resetDraft(source: source)
-                            self.isShowingBasicEditor = true
-                        },
-                        label: {
-                            Label("Edit Basic Fields", systemImage: "list.bullet.rectangle")
-                        }
-                    )
-
+                if self.viewModel.canEditDebugJSON(for: source) {
                     Button(
                         action: {
                             self.resetDraft(source: source)
@@ -94,26 +69,29 @@ struct RuleDetailView: View {
                             Label("Edit JSON", systemImage: "pencil")
                         }
                     )
+                } else {
+                    Label(
+                        source.isBuiltIn ? "Built-in source JSON is read-only." : "This source JSON is read-only.",
+                        systemImage: "lock"
+                    )
+                    .foregroundColor(.secondary)
                 }
             }
         }
     }
 
-    private func rulePackageSection(source: Source) -> some View {
-        Section("Rule Package") {
-            Button(
-                action: {
-                    self.exportRulePackage(sourceID: source.id)
-                },
-                label: {
-                    Label("Export Rule Package", systemImage: "square.and.arrow.up")
-                }
-            )
+    private func sourceSection(source: Source) -> some View {
+        Section("Source") {
+            LabeledContent("Name", value: source.name)
+            LabeledContent("Base URL", value: source.baseURL)
+            LabeledContent("Runtime", value: self.runtimeTitle(for: source))
+            LabeledContent("Type", value: source.type.rawValue)
+            LabeledContent("Ownership", value: source.isBuiltIn ? "Built-in" : "User")
         }
     }
 
-    private func siteSection(rule: SiteRule) -> some View {
-        Section("Site") {
+    private func comicSection(rule: SiteRule) -> some View {
+        Section("Comic Rule") {
             LabeledContent("Rule Name", value: rule.name)
             LabeledContent("Base URL", value: rule.baseUrl)
 
@@ -122,65 +100,24 @@ struct RuleDetailView: View {
                 LabeledContent("Display", value: site.displayMode?.rawValue ?? "Default")
                 LabeledContent("Language", value: site.language ?? "Unset")
             }
-        }
-    }
 
-    private func pagesSection(rule: SiteRule) -> some View {
-        Section("Pages") {
-            let pages: [PageRule] = rule.pages ?? []
-            if pages.isEmpty {
-                Text("Legacy rule without V2 pages.")
-                    .foregroundColor(.secondary)
-            } else {
-                ForEach(pages) { page in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(page.title)
-                            .font(.headline)
-                        self.secondaryText("\(page.id) · \(page.type.rawValue)")
-
-                        if let url: String = self.nonEmpty(page.url) {
-                            self.keyValueLine("URL", url)
-                        }
-
-                        if let displayMode: DisplayMode = page.displayMode {
-                            self.keyValueLine("Display", displayMode.rawValue)
-                        }
-
-                        let ruleRefs: String = self.ruleRefsSummary(page.ruleRefs)
-                        if ruleRefs.isEmpty == false {
-                            self.keyValueLine("Rule Refs", ruleRefs)
-                        }
-
-                        if let request: RequestConfig = page.request {
-                            self.keyValueLine("Request", self.requestSummary(request))
-                        }
-
-                        if let tabGroup: TabGroupRule = page.tabGroup {
-                            self.keyValueLine("Tabs", "\(tabGroup.tabs.count)")
-                        }
-
-                        if let sections: [SectionRule] = page.sections, sections.isEmpty == false {
-                            self.keyValueLine("Sections", "\(sections.count)")
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private func ruleSetsSection(rule: SiteRule) -> some View {
-        Section("RuleSets") {
-            let ruleSets: RuleSets? = rule.ruleSets
-            self.ruleSetLine("Series", ids: ruleSets?.seriesRules?.compactMap(\.id) ?? [])
-            self.ruleSetLine("List", ids: ruleSets?.listRules?.compactMap(\.id) ?? [])
-            self.ruleSetLine("Detail", ids: ruleSets?.detailRules?.compactMap(\.id) ?? [])
-            self.ruleSetLine("Gallery", ids: ruleSets?.galleryRules?.compactMap(\.id) ?? [])
-            self.ruleSetLine("Search", ids: ruleSets?.searchRules?.compactMap(\.id) ?? [])
+            LabeledContent("Pages", value: "\(rule.pages?.count ?? 0)")
             LabeledContent("Tabs", value: "\(rule.availableListTabs.count)")
         }
     }
 
-    private func requestSection(rule: SiteRule) -> some View {
+    private func comicRuleSetsSection(rule: SiteRule) -> some View {
+        Section("RuleSets") {
+            let ruleSets: RuleSets? = rule.ruleSets
+            self.countLine("Series", count: ruleSets?.seriesRules?.count ?? 0)
+            self.countLine("List", count: ruleSets?.listRules?.count ?? 0)
+            self.countLine("Detail", count: ruleSets?.detailRules?.count ?? 0)
+            self.countLine("Gallery", count: ruleSets?.galleryRules?.count ?? 0)
+            self.countLine("Search", count: ruleSets?.searchRules?.count ?? 0)
+        }
+    }
+
+    private func comicRequestSection(rule: SiteRule) -> some View {
         let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(rule)
 
         return Section("Request") {
@@ -191,9 +128,51 @@ struct RuleDetailView: View {
         }
     }
 
-    private func jsonPreviewSection(rule: SiteRule) -> some View {
+    private func videoSection(configuration: VideoSourceConfiguration) -> some View {
+        Section("Video") {
+            let definition: VideoSourceDefinition = configuration.definition
+            LabeledContent("Adapter", value: definition.adapter.rawValue)
+            LabeledContent("Entry URL", value: definition.entryURL.absoluteString)
+            LabeledContent("Entry Kind", value: definition.entryKind.rawValue)
+            LabeledContent("Playback", value: definition.playbackPolicy.rawValue)
+            LabeledContent("Requires Account", value: definition.requiresAccount ? "Yes" : "No")
+            LabeledContent("Tabs", value: "\(configuration.listTabs.count)")
+
+            if let seedURL: URL = definition.seedURL {
+                LabeledContent("Seed URL", value: seedURL.absoluteString)
+            }
+
+            if let seedPlayURL: URL = definition.seedPlayURL {
+                LabeledContent("Seed Play URL", value: seedPlayURL.absoluteString)
+            }
+
+            self.requestLine("Shared Request", request: definition.sharedRequest)
+            self.requestLine("List Request", request: definition.listRequest)
+            self.requestLine("Detail Request", request: definition.detailRequest)
+            self.requestLine("Play Request", request: definition.playRequest)
+        }
+    }
+
+    private func rssSection(configuration: RSSSourceConfiguration) -> some View {
+        Section("RSS") {
+            LabeledContent("Feed URL", value: configuration.definition.feedURL.absoluteString)
+            LabeledContent("Refresh", value: configuration.definition.refreshPolicy.rawValue)
+            LabeledContent("Requires Account", value: configuration.definition.requiresAccount ? "Yes" : "No")
+        }
+    }
+
+    private func pluginSection(configuration: PluginSourceConfiguration) -> some View {
+        Section("Plugin") {
+            LabeledContent("Plugin ID", value: configuration.definition.id)
+            LabeledContent("Display Name", value: configuration.definition.displayName)
+            LabeledContent("Runtime", value: configuration.definition.runtime.rawValue)
+            LabeledContent("Entrypoint", value: configuration.definition.entrypoint)
+        }
+    }
+
+    private func jsonPreviewSection(source: Source) -> some View {
         Section("JSON Preview") {
-            Text(self.viewModel.formattedRuleJSON(for: rule))
+            Text(self.viewModel.formattedDebugJSON(for: source))
                 .font(.system(.caption, design: .monospaced))
                 .lineLimit(12)
                 .textSelection(.enabled)
@@ -203,21 +182,26 @@ struct RuleDetailView: View {
     private func editorSheet() -> some View {
         NavigationStack {
             Form {
-                RuleJSONEditorView(
-                    ruleJSON: self.$draftRuleJSON,
-                    validationResult: self.validationResult,
-                    isEditable: true,
-                    formatAction: {
-                        self.formatDraftJSON()
-                    }
-                )
+                Section("JSON") {
+                    Label(
+                        self.validationResult.message,
+                        systemImage: self.validationResult.isValid ? "checkmark.circle.fill" : "xmark.octagon.fill"
+                    )
+                    .foregroundColor(self.validationResult.isValid ? .green : .red)
+
+                    TextEditor(text: self.$draftJSON)
+                        .font(.system(.body, design: .monospaced))
+                        .frame(minHeight: 360)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                }
             }
-            .navigationTitle("Edit Rule JSON")
+            .navigationTitle("Edit JSON")
             .onAppear {
-                self.validationResult = self.viewModel.validateRuleJSON(self.draftRuleJSON)
+                self.validateDraftJSON()
             }
-            .onChange(of: self.draftRuleJSON) { _, newValue in
-                self.validationResult = self.viewModel.validateRuleJSON(newValue)
+            .onChange(of: self.draftJSON) { _, _ in
+                self.validateDraftJSON()
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -228,253 +212,58 @@ struct RuleDetailView: View {
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        if self.viewModel.updateSourceRule(
+                        if self.viewModel.updateDebugJSON(
                             sourceID: self.sourceID,
-                            ruleJSON: self.draftRuleJSON,
+                            json: self.draftJSON,
                             expectedUpdatedAt: self.draftSourceUpdatedAt
                         ) {
                             self.isShowingJSONEditor = false
                         }
                     }
-                    .disabled(self.validationResult.canSave == false)
-                }
-            }
-        }
-    }
-
-    private func basicEditorSheet() -> some View {
-        NavigationStack {
-            Form {
-                if let basicRuleBinding: Binding<SiteRule> = self.draftBasicRuleBinding {
-                    RuleBasicFieldsEditorView(rule: basicRuleBinding)
-                }
-            }
-            .navigationTitle("Edit Basic Fields")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        self.isShowingBasicEditor = false
-                    }
-                }
-
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        if self.saveBasicRule() {
-                            self.isShowingBasicEditor = false
-                        }
-                    }
-                    .disabled(self.draftBasicRule == nil)
-                }
-            }
-        }
-    }
-
-    private func exportSheet() -> some View {
-        NavigationStack {
-            Form {
-                if let exportedPackage: RulePackageExport = self.exportedPackage {
-                    Section("File") {
-                        LabeledContent("Name", value: exportedPackage.suggestedFileName)
-                        ShareLink(item: exportedPackage.packageJSON) {
-                            Label("Share Package JSON", systemImage: "square.and.arrow.up")
-                        }
-                    }
-
-                    Section("Package JSON") {
-                        Text(exportedPackage.packageJSON)
-                            .font(.system(.caption, design: .monospaced))
-                            .textSelection(.enabled)
-                    }
-                } else {
-                    EmptyStateView(
-                        systemImage: "exclamationmark.triangle",
-                        title: "Export Failed",
-                        message: "The rule package could not be generated."
-                    )
-                }
-            }
-            .navigationTitle("Export Rule")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") {
-                        self.isShowingExportSheet = false
-                    }
-                }
-
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(
-                        action: {
-                            self.copyExportedPackage()
-                        },
-                        label: {
-                            Label(
-                                self.didCopyExport ? "Copied" : "Copy",
-                                systemImage: self.didCopyExport ? "checkmark" : "doc.on.doc"
-                            )
-                        }
-                    )
-                    .disabled(self.exportedPackage == nil)
+                    .disabled(self.validationResult.isValid == false)
                 }
             }
         }
     }
 
     private func resetDraftIfNeeded() {
-        if self.draftRuleJSON.isEmpty, let source: Source = self.viewModel.source(id: self.sourceID) {
+        if self.draftJSON.isEmpty, let source: Source = self.viewModel.source(id: self.sourceID) {
             self.resetDraft(source: source)
         }
     }
 
     private func resetDraft(source: Source) {
-        self.draftRuleJSON = self.viewModel.formattedRuleJSON(for: source.rule)
-        self.draftBasicRule = source.rule
+        self.draftJSON = self.viewModel.formattedDebugJSON(for: source)
         self.draftSourceUpdatedAt = source.updatedAt
-        self.validationResult = self.viewModel.validateRuleJSON(self.draftRuleJSON)
+        self.validateDraftJSON()
     }
 
-    private func formatDraftJSON() {
-        guard let rule: SiteRule = self.validationResult.rule else {
-            return
-        }
-
-        self.draftRuleJSON = self.viewModel.formattedRuleJSON(for: rule)
-        self.validationResult = self.viewModel.validateRuleJSON(self.draftRuleJSON)
-    }
-
-    private var draftBasicRuleBinding: Binding<SiteRule>? {
-        guard self.draftBasicRule != nil else {
-            return nil
-        }
-
-        return Binding<SiteRule>(
-            get: {
-                return self.draftBasicRule ?? SiteRule(
-                    version: nil,
-                    site: nil,
-                    urlPatterns: nil,
-                    pages: nil,
-                    ruleSets: nil,
-                    sharedRequest: nil,
-                    flags: nil,
-                    name: "",
-                    baseUrl: "",
-                    list: ListRule(
-                        id: nil,
-                        url: "",
-                        text: nil,
-                        item: "",
-                        itemRule: nil,
-                        fields: nil,
-                        title: "",
-                        link: "",
-                        cover: nil,
-                        type: .comic,
-                        latestText: nil,
-                        pagination: nil,
-                        ready: nil,
-                        request: nil,
-                        js: nil
-                    ),
-                    listTabs: nil,
-                    detail: nil,
-                    gallery: nil,
-                    video: nil
-                )
-            },
-            set: { newValue in
-                self.draftBasicRule = newValue
-            }
-        )
-    }
-
-    private func saveBasicRule() -> Bool {
-        guard let draftBasicRule: SiteRule = self.draftBasicRule else {
-            return false
-        }
-
-        let ruleJSON: String = self.viewModel.formattedRuleJSON(for: draftBasicRule)
-        return self.viewModel.updateSourceRule(
+    private func validateDraftJSON() {
+        self.validationResult = self.viewModel.validateDebugJSON(
             sourceID: self.sourceID,
-            ruleJSON: ruleJSON,
-            expectedUpdatedAt: self.draftSourceUpdatedAt
+            json: self.draftJSON
         )
     }
 
-    private func exportRulePackage(sourceID: String) {
-        self.didCopyExport = false
-
-        guard let exportedPackage: RulePackageExport = self.viewModel.exportRulePackage(sourceID: sourceID) else {
-            return
+    private func runtimeTitle(for source: Source) -> String {
+        switch source.configuration {
+        case .comic:
+            return "Comic"
+        case .video:
+            return "Video"
+        case .rss:
+            return "RSS"
+        case .plugin:
+            return "Plugin"
         }
-
-        self.exportedPackage = exportedPackage
-        self.isShowingExportSheet = true
     }
 
-    private func copyExportedPackage() {
-        guard let exportedPackage: RulePackageExport = self.exportedPackage else {
-            return
-        }
-
-        UIPasteboard.general.string = exportedPackage.packageJSON
-        self.didCopyExport = true
-    }
-
-    private func ruleSetLine(_ title: String, ids: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            LabeledContent(title, value: "\(ids.count)")
-            if ids.isEmpty == false {
-                self.secondaryText(ids.joined(separator: ", "))
-            }
-        }
+    private func countLine(_ title: String, count: Int) -> some View {
+        LabeledContent(title, value: "\(count)")
     }
 
     private func requestLine(_ title: String, request: RequestConfig?) -> some View {
         LabeledContent(title, value: request.map(self.requestSummary) ?? "Unset")
-    }
-
-    private func keyValueLine(_ key: String, _ value: String) -> some View {
-        HStack(alignment: .top, spacing: 6) {
-            Text(key)
-                .font(.caption)
-                .foregroundColor(.secondary)
-            Text(value)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .textSelection(.enabled)
-        }
-    }
-
-    private func secondaryText(_ value: String) -> some View {
-        Text(value)
-            .font(.caption)
-            .foregroundColor(.secondary)
-            .textSelection(.enabled)
-    }
-
-    private func ruleRefsSummary(_ ruleRefs: RuleRefs?) -> String {
-        guard let ruleRefs: RuleRefs = ruleRefs else {
-            return ""
-        }
-
-        let pairs: [(String, String?)] = [
-            ("series", ruleRefs.series),
-            ("list", ruleRefs.list),
-            ("detail", ruleRefs.detail),
-            ("gallery", ruleRefs.gallery),
-            ("search", ruleRefs.search)
-        ]
-
-        return pairs.compactMap { pair in
-            let key: String = pair.0
-            let value: String? = pair.1
-            guard let value: String = self.nonEmpty(value) else {
-                return nil
-            }
-
-            return "\(key): \(value)"
-        }
-        .joined(separator: " · ")
     }
 
     private func requestSummary(_ request: RequestConfig) -> String {
@@ -482,14 +271,6 @@ struct RuleDetailView: View {
 
         if let method: HTTPMethod = request.method {
             parts.append(method.rawValue)
-        }
-
-        if let scope: RequestScope = request.scope {
-            parts.append("scope=\(scope.rawValue)")
-        }
-
-        if let mergePolicy: RequestMergePolicy = request.mergePolicy {
-            parts.append("merge=\(mergePolicy.rawValue)")
         }
 
         if request.needsWebView == true {
@@ -504,10 +285,6 @@ struct RuleDetailView: View {
             parts.append("cookie=\(cookiePolicy.rawValue)")
         }
 
-        if let cookiePriority: CookiePriority = request.cookiePriority {
-            parts.append("cookiePriority=\(cookiePriority.rawValue)")
-        }
-
         if let charset: Charset = request.charset {
             parts.append("charset=\(charset.rawValue)")
         }
@@ -520,26 +297,6 @@ struct RuleDetailView: View {
             parts.append("imageHeaders=\(imageHeaders.count)")
         }
 
-        if let imageRequest: ImageRequestConfig = request.imageRequest {
-            let headerCount: Int = imageRequest.headers?.count ?? 0
-            parts.append(headerCount > 0 ? "imageRequest headers=\(headerCount)" : "imageRequest")
-        }
-
-        if let body: RequestBody = request.body {
-            parts.append(body.contentType.map { contentType in
-                return "body=\(contentType)"
-            } ?? "body")
-        }
-
         return parts.isEmpty ? "Configured" : parts.joined(separator: " · ")
-    }
-
-    private func nonEmpty(_ value: String?) -> String? {
-        guard let trimmedValue: String = value?.trimmingCharacters(in: .whitespacesAndNewlines),
-              trimmedValue.isEmpty == false else {
-            return nil
-        }
-
-        return trimmedValue
     }
 }

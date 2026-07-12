@@ -31,18 +31,16 @@ struct SourcesView: View {
                             )
                             .layoutPriority(1)
 
-                            if source.ruleConfiguration != nil {
-                                NavigationLink(
-                                    destination: RuleDetailView(
-                                        viewModel: self.viewModel,
-                                        sourceID: source.id
-                                    )
-                                ) {
-                                    Image(systemName: "info.circle")
-                                        .foregroundColor(.secondary)
-                                }
-                                .accessibilityLabel("Website Rule Details")
+                            NavigationLink(
+                                destination: SourceDebugView(
+                                    viewModel: self.viewModel,
+                                    sourceID: source.id
+                                )
+                            ) {
+                                Image(systemName: "info.circle")
+                                    .foregroundColor(.secondary)
                             }
+                            .accessibilityLabel("Source Debug")
                         }
                         .listRowInsets(
                             EdgeInsets(

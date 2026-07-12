@@ -49,6 +49,63 @@ struct UpdateSourceRuleUseCase {
     }
 }
 
+/// 中文注释：更新用户视频源配置；内置源仍只读，避免 catalog/built-in 同步覆盖用户修改。
+struct UpdateVideoSourceConfigurationUseCase {
+    private let sourceRepository: SourceRepository
+    private let jsonDecoder: JSONDecoder
+
+    init(
+        sourceRepository: SourceRepository,
+        jsonDecoder: JSONDecoder = JSONDecoder()
+    ) {
+        self.sourceRepository = sourceRepository
+        self.jsonDecoder = jsonDecoder
+    }
+
+    func execute(source: Source, configurationJSON: String, expectedUpdatedAt: Date? = nil) throws -> Source {
+        let latestSource: Source = try self.latestSource(matching: source) ?? source
+
+        guard latestSource.isBuiltIn == false else {
+            throw RuleManagementError.builtInSourceIsReadOnly
+        }
+
+        if let expectedUpdatedAt: Date = expectedUpdatedAt,
+           latestSource.updatedAt != expectedUpdatedAt {
+            throw RuleManagementError.sourceChanged
+        }
+
+        guard case .video = latestSource.configuration else {
+            throw RuleManagementError.unsupportedSourceConfiguration
+        }
+
+        let configuration: VideoSourceConfiguration = try self.jsonDecoder.decode(
+            VideoSourceConfiguration.self,
+            from: Data(configurationJSON.utf8)
+        )
+
+        var updatedSource: Source = latestSource
+        updatedSource.configuration = .video(configuration)
+        updatedSource.baseURL = self.baseURLString(from: configuration.definition.entryURL)
+        updatedSource.updatedAt = Date()
+        try self.sourceRepository.saveSource(updatedSource)
+        return updatedSource
+    }
+
+    private func latestSource(matching source: Source) throws -> Source? {
+        return try self.sourceRepository.fetchSources().first { candidate in
+            return candidate.id == source.id
+        }
+    }
+
+    private func baseURLString(from entryURL: URL) -> String {
+        var components: URLComponents? = URLComponents(url: entryURL, resolvingAgainstBaseURL: false)
+        components?.path = "/"
+        components?.query = nil
+        components?.fragment = nil
+        return components?.url?.absoluteString ?? entryURL.absoluteString
+    }
+}
+
 /// 中文注释：复制规则为用户规则，常用于基于内置规则创建可编辑副本。
 struct DuplicateSourceRuleUseCase {
     private let sourceRepository: SourceRepository
@@ -79,6 +136,7 @@ enum RuleManagementError: LocalizedError {
     case builtInSourceIsReadOnly
     case validationFailed(SiteRuleValidationResult)
     case sourceChanged
+    case unsupportedSourceConfiguration
 
     var errorDescription: String? {
         switch self {
@@ -88,6 +146,8 @@ enum RuleManagementError: LocalizedError {
             return result.errors.first?.message ?? "Rule validation failed."
         case .sourceChanged:
             return "This source changed after the editor was opened. Reopen the editor before saving."
+        case .unsupportedSourceConfiguration:
+            return "This source configuration cannot be edited here."
         }
     }
 }

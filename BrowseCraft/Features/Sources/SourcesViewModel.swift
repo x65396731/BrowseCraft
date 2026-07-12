@@ -5,6 +5,11 @@ import BrowseCraftRulesKit
 
 // 中文注释：SourcesViewModel.swift 属于界面功能层，用于说明本文件承载的核心职责。
 
+struct SourceDebugJSONValidationResult: Hashable {
+    var isValid: Bool
+    var message: String
+}
+
 /// 中文注释：Sources 标签页的视图模型，管理源列表、选中源、刷新状态和错误信息。
 /// 中文注释：SwiftUI 会观察这里的 @Published 属性，并在变化时刷新对应界面。
 final class SourcesViewModel: ObservableObject {
@@ -36,12 +41,14 @@ final class SourcesViewModel: ObservableObject {
     private let loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase
     private let deleteSourceUseCase: DeleteSourceUseCase
     private let updateSourceRuleUseCase: UpdateSourceRuleUseCase
+    private let updateVideoSourceConfigurationUseCase: UpdateVideoSourceConfigurationUseCase
     private let duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase
     private let exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase
     private let importSourceRulePackageUseCase: ImportSourceRulePackageUseCase
     private let recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase
     private let ruleValidator: SiteRuleValidator
     private let jsonEncoder: JSONEncoder
+    private let jsonDecoder: JSONDecoder
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
     private let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase
     private let sourceSelectionStore: SourceSelectionStore
@@ -64,6 +71,7 @@ final class SourcesViewModel: ObservableObject {
         loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase,
         deleteSourceUseCase: DeleteSourceUseCase,
         updateSourceRuleUseCase: UpdateSourceRuleUseCase,
+        updateVideoSourceConfigurationUseCase: UpdateVideoSourceConfigurationUseCase,
         duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase,
         exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase,
         importSourceRulePackageUseCase: ImportSourceRulePackageUseCase,
@@ -89,12 +97,14 @@ final class SourcesViewModel: ObservableObject {
         self.loadCatalogSourcesUseCase = loadCatalogSourcesUseCase
         self.deleteSourceUseCase = deleteSourceUseCase
         self.updateSourceRuleUseCase = updateSourceRuleUseCase
+        self.updateVideoSourceConfigurationUseCase = updateVideoSourceConfigurationUseCase
         self.duplicateSourceRuleUseCase = duplicateSourceRuleUseCase
         self.exportSourceRulePackageUseCase = exportSourceRulePackageUseCase
         self.importSourceRulePackageUseCase = importSourceRulePackageUseCase
         self.recommendSourceImportOptionUseCase = recommendSourceImportOptionUseCase
         self.ruleValidator = ruleValidator
         self.jsonEncoder = jsonEncoder
+        self.jsonDecoder = JSONDecoder()
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
         self.saveUserLibraryStateUseCase = saveUserLibraryStateUseCase
         self.sourceSelectionStore = sourceSelectionStore
@@ -467,6 +477,66 @@ final class SourcesViewModel: ObservableObject {
         }
     }
 
+    func formattedDebugJSON(for source: Source) -> String {
+        do {
+            switch source.configuration {
+            case .comic(let configuration):
+                return try self.formattedJSON(configuration.rule)
+            case .video(let configuration):
+                return try self.formattedJSON(configuration)
+            case .rss(let configuration):
+                return try self.formattedJSON(configuration)
+            case .plugin(let configuration):
+                return try self.formattedJSON(configuration)
+            }
+        } catch {
+            return "{}"
+        }
+    }
+
+    func canEditDebugJSON(for source: Source) -> Bool {
+        if source.isBuiltIn {
+            return false
+        }
+
+        switch source.configuration {
+        case .comic, .video:
+            return true
+        case .rss, .plugin:
+            return false
+        }
+    }
+
+    func validateDebugJSON(sourceID: String, json: String) -> SourceDebugJSONValidationResult {
+        guard let source: Source = self.source(id: sourceID) else {
+            return SourceDebugJSONValidationResult(isValid: false, message: "Source was not found.")
+        }
+
+        switch source.configuration {
+        case .comic:
+            let validationResult: SiteRuleValidationResult = self.validateRuleJSON(json)
+            if validationResult.canSave {
+                return SourceDebugJSONValidationResult(isValid: true, message: "Rule JSON is valid.")
+            }
+
+            return SourceDebugJSONValidationResult(
+                isValid: false,
+                message: validationResult.errors.first?.message ?? "Rule JSON is invalid."
+            )
+        case .video:
+            do {
+                _ = try self.jsonDecoder.decode(VideoSourceConfiguration.self, from: Data(json.utf8))
+                return SourceDebugJSONValidationResult(isValid: true, message: "Video configuration JSON is valid.")
+            } catch {
+                return SourceDebugJSONValidationResult(isValid: false, message: error.localizedDescription)
+            }
+        case .rss:
+            return SourceDebugJSONValidationResult(isValid: false, message: "RSS JSON is read-only.")
+        case .plugin:
+            return SourceDebugJSONValidationResult(isValid: false, message: "Plugin JSON is read-only.")
+        }
+    }
+
     @MainActor
     func updateSourceRule(sourceID: String, ruleJSON: String, expectedUpdatedAt: Date? = nil) -> Bool {
         guard let source: Source = self.source(id: sourceID) else {
@@ -484,6 +554,39 @@ final class SourcesViewModel: ObservableObject {
             return true
         } catch {
             self.errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    @MainActor
+    func updateDebugJSON(sourceID: String, json: String, expectedUpdatedAt: Date? = nil) -> Bool {
+        guard let source: Source = self.source(id: sourceID) else {
+            self.errorMessage = "Source was not found."
+            return false
+        }
+
+        switch source.configuration {
+        case .comic:
+            return self.updateSourceRule(
+                sourceID: sourceID,
+                ruleJSON: json,
+                expectedUpdatedAt: expectedUpdatedAt
+            )
+        case .video:
+            do {
+                let updatedSource: Source = try self.updateVideoSourceConfigurationUseCase.execute(
+                    source: source,
+                    configurationJSON: json,
+                    expectedUpdatedAt: expectedUpdatedAt
+                )
+                self.replaceSource(updatedSource)
+                return true
+            } catch {
+                self.errorMessage = error.localizedDescription
+                return false
+            }
+        case .rss, .plugin:
+            self.errorMessage = "This source JSON is read-only."
             return false
         }
     }
@@ -667,6 +770,11 @@ final class SourcesViewModel: ObservableObject {
         case .plugin:
             return .article
         }
+    }
+
+    private func formattedJSON<Value: Encodable>(_ value: Value) throws -> String {
+        let encodedValue: Data = try self.jsonEncoder.encode(value)
+        return String(data: encodedValue, encoding: .utf8) ?? "{}"
     }
 
     private func logPublishedLibrarySnapshot(
