@@ -15,7 +15,7 @@ struct FavoriteView: View {
                 Section("Favorites") {
                     ForEach(self.viewModel.favoriteItems, id: \.id) { item in
                         if let source: Source = self.viewModel.source(for: item) {
-                            NavigationLink(destination: self.destination(for: item, source: source)) {
+                            NavigationLink(value: FavoriteDestination(item: item, source: source)) {
                                 FavoriteEntryRowView(
                                     item: item,
                                     sourceName: self.viewModel.sourceName(for: item),
@@ -31,6 +31,9 @@ struct FavoriteView: View {
                         }
                     }
                 }
+            }
+            .navigationDestination(for: FavoriteDestination.self) { destination in
+                self.destination(for: destination.item, source: destination.source)
             }
             .overlay(
                 Group {
@@ -99,6 +102,11 @@ struct FavoriteView: View {
             }
         )
     }
+}
+
+private struct FavoriteDestination: Hashable {
+    let item: FavoriteContentItem
+    let source: Source
 }
 
 private struct FavoriteEntryRowView: View {

@@ -7,8 +7,16 @@ import UIKit
 /// 中文注释：ChapterListView 是 struct，负责本模块中的对应职责。
 struct ChapterListView: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject var viewModel: ChapterListViewModel
+    @StateObject private var viewModel: ChapterListViewModel
     let readerViewModelFactory: (ContentItem, Source, ChapterLink?) -> ReaderViewModel
+
+    init(
+        viewModel: ChapterListViewModel,
+        readerViewModelFactory: @escaping (ContentItem, Source, ChapterLink?) -> ReaderViewModel
+    ) {
+        self._viewModel = StateObject(wrappedValue: viewModel)
+        self.readerViewModelFactory = readerViewModelFactory
+    }
 
     var body: some View {
         ScrollView {
@@ -27,6 +35,15 @@ struct ChapterListView: View {
         .background(Color(.systemBackground))
         .navigationTitle(self.viewModel.item.title)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(for: ChapterLink.self) { chapter in
+            ReaderView(
+                viewModel: self.readerViewModelFactory(
+                    self.viewModel.item,
+                    self.viewModel.source,
+                    chapter
+                )
+            )
+        }
         .navigationBarBackButtonHidden(true)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
@@ -87,32 +104,23 @@ struct ChapterListView: View {
         } else {
             LazyVStack(spacing: 0) {
                 ForEach(self.viewModel.chapters, id: \.url) { chapter in
-                    NavigationLink(
-                        destination: ReaderView(
-                            viewModel: self.readerViewModelFactory(
-                                self.viewModel.item,
-                                self.viewModel.source,
-                                chapter
-                            )
-                        ),
-                        label: {
-                            HStack(spacing: 12) {
-                                Text(chapter.title)
-                                    .font(.body)
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(2)
+                    NavigationLink(value: chapter) {
+                        HStack(spacing: 12) {
+                            Text(chapter.title)
+                                .font(.body)
+                                .foregroundStyle(.primary)
+                                .lineLimit(2)
 
-                                Spacer(minLength: 12)
+                            Spacer(minLength: 12)
 
-                                Image(systemName: "chevron.right")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 14)
-                            .contentShape(Rectangle())
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.tertiary)
                         }
-                    )
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .contentShape(Rectangle())
+                    }
                     .buttonStyle(.plain)
 
                     if chapter.url != self.viewModel.chapters.last?.url {
@@ -254,52 +262,18 @@ private struct ChapterSummaryView: View {
 
 /// 中文注释：ReaderView 是 struct，负责本模块中的对应职责。
 struct ReaderView: View {
-    @ObservedObject var viewModel: ReaderViewModel
+    @StateObject private var viewModel: ReaderViewModel
     @State private var didApplyRestorePage: Bool = false
+
+    init(viewModel: ReaderViewModel) {
+        self._viewModel = StateObject(wrappedValue: viewModel)
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 12) {
-                    if self.viewModel.isLoading {
-                        ProgressView()
-                            .padding(.top, 80)
-                    }
-
-                    if let chapter: ReaderChapter = self.viewModel.chapter {
-                        ForEach(
-                            Array(chapter.pageImageURLs.enumerated()),
-                            id: \.offset
-                        ) { pageIndex, pageURLString in
-                            ReaderPageImageView(
-                                pageURLString: pageURLString,
-                                pageNumber: pageIndex + 1,
-                                refererURLString: chapter.chapterURL,
-                                requestConfig: self.viewModel.readerImageRequestConfig
-                            )
-                            .id(pageIndex)
-                            .background(
-                                ReaderPageVisibilityReporter(
-                                    pageIndex: pageIndex,
-                                    pageURLString: pageURLString
-                                )
-                            )
-                        }
-
-                        ReaderChapterNavigationBar(
-                            previousChapterURL: chapter.previousChapterURL,
-                            nextChapterURL: chapter.nextChapterURL,
-                            loadPrevious: {
-                                await self.viewModel.loadPreviousChapter()
-                            },
-                            loadNext: {
-                                await self.viewModel.loadNextChapter()
-                            }
-                        )
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                        .disabled(self.viewModel.isLoading)
-                    }
+                VStack(spacing: 12) {
+                    self.readerContent
                 }
                 .padding(.vertical, 12)
             }
@@ -353,6 +327,64 @@ struct ReaderView: View {
                 self.viewModel.markAdPlaybackHandled()
             }
         )
+    }
+
+    @ViewBuilder
+    private var readerContent: some View {
+        if self.viewModel.isLoading && self.viewModel.chapter == nil {
+            ProgressView()
+                .padding(.top, 80)
+        } else if let chapter: ReaderChapter = self.viewModel.chapter,
+                  chapter.pageImageURLs.isEmpty == false {
+            self.readerPages(for: chapter)
+        } else if self.viewModel.isLoading {
+            ProgressView()
+                .padding(.top, 80)
+        } else {
+            ContentUnavailableView(
+                "No Pages",
+                systemImage: "photo.on.rectangle.angled",
+                description: Text("This chapter did not return any readable pages.")
+            )
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 260)
+        }
+    }
+
+    @ViewBuilder
+    private func readerPages(for chapter: ReaderChapter) -> some View {
+        ForEach(
+            Array(chapter.pageImageURLs.enumerated()),
+            id: \.offset
+        ) { pageIndex, pageURLString in
+            ReaderPageImageView(
+                pageURLString: pageURLString,
+                pageNumber: pageIndex + 1,
+                refererURLString: chapter.chapterURL,
+                requestConfig: self.viewModel.readerImageRequestConfig
+            )
+            .id(pageIndex)
+            .background(
+                ReaderPageVisibilityReporter(
+                    pageIndex: pageIndex,
+                    pageURLString: pageURLString
+                )
+            )
+        }
+
+        ReaderChapterNavigationBar(
+            previousChapterURL: chapter.previousChapterURL,
+            nextChapterURL: chapter.nextChapterURL,
+            loadPrevious: {
+                await self.viewModel.loadPreviousChapter()
+            },
+            loadNext: {
+                await self.viewModel.loadNextChapter()
+            }
+        )
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .disabled(self.viewModel.isLoading)
     }
 
     @MainActor
