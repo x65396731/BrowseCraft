@@ -420,10 +420,22 @@ struct RSSDetailHTMLParser {
 
         if normalizedURLString.hasPrefix("//"),
            let scheme: String = baseURL?.scheme {
-            return URL(string: "\(scheme):\(normalizedURLString)")
+            return Self.absoluteURL(from: "\(scheme):\(normalizedURLString)", baseURL: nil)
         }
 
-        return URL(string: normalizedURLString, relativeTo: baseURL)?.absoluteURL
+        return Self.absoluteURL(from: normalizedURLString, baseURL: baseURL)
+    }
+
+    private static func absoluteURL(from string: String, baseURL: URL?) -> URL? {
+        if let url: URL = URL(string: string, relativeTo: baseURL)?.absoluteURL {
+            return url
+        }
+
+        guard let encodedString: String = string.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+            return nil
+        }
+
+        return URL(string: encodedString, relativeTo: baseURL)?.absoluteURL
     }
 
     private static func normalizedURLString(_ rawURLString: String) -> String? {

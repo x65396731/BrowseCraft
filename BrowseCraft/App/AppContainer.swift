@@ -102,10 +102,13 @@ final class AppContainer {
             feedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader),
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
         )
+        let loadRSSHubDiscoveryCandidatesUseCase: LoadRSSHubDiscoveryCandidatesUseCase =
+            LoadRSSHubDiscoveryCandidatesUseCase(
+                pageDataLoader: self.pageDataLoader
+            )
         let discoverRSSFeedsUseCase: DiscoverRSSFeedsUseCase = DiscoverRSSFeedsUseCase(
-            pageContentLoader: self.pageContentLoader,
             rssFeedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader),
-            urlResolver: self.urlResolver
+            loadRSSHubDiscoveryCandidatesUseCase: loadRSSHubDiscoveryCandidatesUseCase
         )
         let addVideoSourceUseCase: AddVideoSourceUseCase = AddVideoSourceUseCase(
             sourceRepository: self.sourceRepository,

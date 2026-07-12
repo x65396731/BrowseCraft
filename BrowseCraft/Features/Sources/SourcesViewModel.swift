@@ -173,11 +173,13 @@ final class SourcesViewModel: ObservableObject {
     @MainActor
     func discoverRSSFeeds(siteURLString: String) async -> [DiscoveredRSSFeedItem] {
         CrashDiagnostics.shared.setRuleStage(.rssFeed)
+        self.errorMessage = nil
         do {
             let results: [DiscoveredRSSFeedItem] = try await self.discoverRSSFeedsUseCase.execute(
                 DiscoverRSSFeedsInput(siteURLString: siteURLString)
             )
             AppAnalytics.shared.logSearchSubmitted(sourceType: .rss, resultCount: results.count)
+            self.errorMessage = nil
             return results
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "rss-discovery-error")

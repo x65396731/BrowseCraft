@@ -32,7 +32,7 @@ struct AddCatalogSourceResult {
 
 struct LoadCatalogSourcesUseCase {
     private let pageDataLoader: PageDataLoader
-    private let catalogAPIURL: URL
+    private let catalogAPIURL: URL?
     private let requestHeaders: () -> [String: String]
     private let catalogRuleDecryptor: CatalogRuleDecryptor
     private let jsonDecoder: JSONDecoder
@@ -40,7 +40,7 @@ struct LoadCatalogSourcesUseCase {
 
     init(
         pageDataLoader: PageDataLoader,
-        catalogAPIURL: URL = URL(string: "https://anyportal.online/catalog/sources")!,
+        catalogAPIURL: URL? = URL(string: "https://anyportal.online/catalog/sources"),
         requestHeaders: @escaping () -> [String: String] = { [:] },
         catalogRuleDecryptor: CatalogRuleDecryptor = CatalogRuleDecryptor(),
         jsonDecoder: JSONDecoder = JSONDecoder(),
@@ -55,19 +55,23 @@ struct LoadCatalogSourcesUseCase {
     }
 
     func execute() async throws -> [BrowseCraftCatalogSource] {
+        guard let catalogAPIURL: URL = self.catalogAPIURL else {
+            throw CatalogSourceImportError.invalidBaseURL("catalog-api")
+        }
+
         let requestConfig: RequestConfig = self.requestConfig
         #if DEBUG
         let headers: [String: String] = requestConfig.headers ?? [:]
         print(
             "[BrowseCraftCatalog] request " +
-            "url=\(self.catalogAPIURL.absoluteString) " +
+            "url=\(catalogAPIURL.absoluteString) " +
             "headerCount=\(headers.count) " +
             "hasRequiredPortalHeaders=\(self.hasRequiredPortalHeaders(headers))"
         )
         #endif
 
         let data: Data = try await self.pageDataLoader.getData(
-            from: self.catalogAPIURL,
+            from: catalogAPIURL,
             request: requestConfig
         )
         return try BrowseCraftSourceCatalog.sources(from: self.catalogSourceData(from: data))

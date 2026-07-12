@@ -90,7 +90,11 @@ struct SourceDefinitionMapper {
             return url
         }
 
-        return URL(string: "about:blank")!
+        if let placeholderURL: URL = URL(string: "about:blank") {
+            return placeholderURL
+        }
+
+        return URL(fileURLWithPath: "/")
     }
 
     private func ownership(for source: Source) -> SourceOwnership {

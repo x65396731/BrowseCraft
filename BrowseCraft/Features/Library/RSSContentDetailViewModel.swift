@@ -116,6 +116,11 @@ final class RSSContentDetailViewModel: ObservableObject {
                 metadata: self.mergedMetadata(detailContent.metadata, feedMetadata: feedPayload?.metadata)
             )
             updatedItem.latestText = payload.encodedString() ?? self.item.latestText
+            if self.trimmedNonEmpty(updatedItem.coverURL) == nil {
+                updatedItem.coverURL = mergedBlocks.compactMap { block in
+                    self.trimmedNonEmpty(block.imageURL)
+                }.first
+            }
             self.displayItem = updatedItem
 
             #if DEBUG
@@ -126,6 +131,7 @@ final class RSSContentDetailViewModel: ObservableObject {
                 "blocks=\(mergedBlocks.count) " +
                 "rawImages=\(rawDetailImageCount) " +
                 "images=\(imageCount) " +
+                "cover=\(updatedItem.coverURL ?? "nil") " +
                 "tags=\(detailContent.metadata.tags) " +
                 "likes=\(detailContent.metadata.likeCount.map(String.init) ?? "nil") " +
                 "comments=\(detailContent.metadata.commentCount.map(String.init) ?? "nil") " +
@@ -399,5 +405,10 @@ final class RSSContentDetailViewModel: ObservableObject {
             )
             #endif
         }
+    }
+
+    private func trimmedNonEmpty(_ string: String?) -> String? {
+        let trimmed: String = string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? nil : trimmed
     }
 }

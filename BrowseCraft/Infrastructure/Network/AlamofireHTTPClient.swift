@@ -25,7 +25,7 @@ final class AlamofireHTTPClient: HTTPClient {
             )
         }
 
-        let cloudflareBlocked: Bool = html.contains("Attention Required") || html.contains("cf-error-details")
+        let cloudflareBlocked: Bool = self.isAntiBotHTML(html)
 
         #if DEBUG
         print(
@@ -62,9 +62,17 @@ final class AlamofireHTTPClient: HTTPClient {
         print(
             "[BrowseCraftNetwork] data url=\(url.absoluteString) " +
             "requestScope=\(request?.scope?.rawValue ?? "default") " +
-            "bytes=\(dataResponse.data.count)"
+            "headersMode=\(self.headersMode(for: url, request: request)) " +
+            "accept=\(urlRequest.value(forHTTPHeaderField: "Accept") ?? "nil") " +
+            "contentType=\(dataResponse.response?.value(forHTTPHeaderField: "Content-Type") ?? "nil") " +
+            "bytes=\(dataResponse.data.count) " +
+            "preview=\(self.debugPreview(from: dataResponse.data))"
         )
         #endif
+
+        if self.isAntiBotData(dataResponse.data) {
+            throw RuleExecutionError.antiBot(url: url.absoluteString)
+        }
 
         return dataResponse.data
     }
@@ -166,10 +174,11 @@ final class AlamofireHTTPClient: HTTPClient {
         var urlRequest: URLRequest = URLRequest(url: url)
         urlRequest.httpMethod = request?.method?.rawValue ?? "GET"
 
-        var headers: [String: String] = APIRequestHeaders.isManagedAPIURL(url)
+        let explicitHeadersOnly: Bool = self.usesExplicitHeadersOnly(url: url, request: request)
+        var headers: [String: String] = explicitHeadersOnly
             ? request?.headers ?? [:]
             : BrowserRequestHeaders.Chrome.defaultHeaders(for: url)
-        if APIRequestHeaders.isManagedAPIURL(url) == false {
+        if explicitHeadersOnly == false {
             headers = BrowserRequestHeaders.applyingOverrides(request?.headers, to: headers)
         }
         headers = CookieHeaderResolver.headersByApplyingPageCookies(
@@ -190,5 +199,48 @@ final class AlamofireHTTPClient: HTTPClient {
         }
 
         return urlRequest
+    }
+
+    private func usesExplicitHeadersOnly(url: URL, request: RequestConfig?) -> Bool {
+        return APIRequestHeaders.isManagedAPIURL(url)
+            || request?.mergePolicy == .override
+    }
+
+    private func headersMode(for url: URL, request: RequestConfig?) -> String {
+        return self.usesExplicitHeadersOnly(url: url, request: request) ? "explicit" : "browser"
+    }
+
+    private func debugPreview(from data: Data) -> String {
+        let raw: String
+        if let string: String = String(data: data.prefix(160), encoding: .utf8) {
+            raw = string
+        } else {
+            raw = String(decoding: data.prefix(160), as: UTF8.self)
+        }
+
+        return raw
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+            .replacingOccurrences(of: "\t", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func isAntiBotData(_ data: Data) -> Bool {
+        let text: String
+        if let string: String = String(data: data.prefix(8_192), encoding: .utf8) {
+            text = string
+        } else {
+            text = String(decoding: data.prefix(8_192), as: UTF8.self)
+        }
+
+        return self.isAntiBotHTML(text)
+    }
+
+    private func isAntiBotHTML(_ html: String) -> Bool {
+        return html.localizedCaseInsensitiveContains("Attention Required")
+            || html.localizedCaseInsensitiveContains("Just a moment")
+            || html.localizedCaseInsensitiveContains("cf-error-details")
+            || html.localizedCaseInsensitiveContains("challenge-platform")
+            || html.localizedCaseInsensitiveContains("cdn-cgi/challenge-platform")
     }
 }

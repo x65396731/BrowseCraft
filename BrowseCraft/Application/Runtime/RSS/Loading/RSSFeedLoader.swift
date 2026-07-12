@@ -19,12 +19,17 @@ struct RSSFeedLoader: RSSFeedLoading {
     }
 
     func load(feedURL: URL) async throws -> RSSFeed {
+        let requestConfig: RequestConfig = RequestConfig(
+            mergePolicy: .override,
+            headers: APIRequestHeaders.rssFeedHeaders()
+        )
+
         if let dataLoader: PageDataLoader = self.pageContentLoader as? PageDataLoader {
-            let data: Data = try await dataLoader.getData(from: feedURL, request: nil)
+            let data: Data = try await dataLoader.getData(from: feedURL, request: requestConfig)
             return try self.mapper.map(data)
         }
 
-        let xml: String = try await self.pageContentLoader.getString(from: feedURL, request: nil)
+        let xml: String = try await self.pageContentLoader.getString(from: feedURL, request: requestConfig)
         return try self.mapper.map(xml)
     }
 }

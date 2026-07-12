@@ -258,7 +258,12 @@ struct SourceRuntimeMappingTests {
                         entryKind: .home,
                         routePatterns: nil,
                         playbackPolicy: .playPageFirst,
-                        requiresAccount: false
+                        requiresAccount: false,
+                        seedVodID: nil,
+                        seedSourceIndex: nil,
+                        seedEpisodeIndex: nil,
+                        seedDetailURL: nil,
+                        seedPlayURL: nil
                     ),
                     listTabs: [
                         VideoSourceListTab(
@@ -526,7 +531,7 @@ struct SourceRuntimeMappingTests {
     @Test func ruleSourceItemReferenceMapperMapsDirectReaderChapterHandoff() throws {
         let mapper = RuleSourceItemReferenceMapper()
         let requestOverride = SourceRequestOverride(
-            url: URL(string: "https://example.test/read/1")!,
+            url: URL(string: "https://example.test/read/1") ?? URL(fileURLWithPath: "/"),
             headers: ["Referer": "https://example.test"],
             method: "GET"
         )

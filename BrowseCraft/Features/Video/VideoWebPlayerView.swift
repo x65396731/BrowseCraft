@@ -455,7 +455,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
             || host.hasSuffix(".abyss.to")
     }
 
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation?) {
         #if DEBUG
         print(
             "[BrowseCraftVideoWebPlayer] did-finish " +
@@ -464,7 +464,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
         #endif
     }
 
-    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation?, withError error: Error) {
         #if DEBUG
         print(
             "[BrowseCraftVideoWebPlayer] did-fail " +
@@ -473,7 +473,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
         #endif
     }
 
-    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation?, withError error: Error) {
         #if DEBUG
         print(
             "[BrowseCraftVideoWebPlayer] did-fail-provisional " +

@@ -17,8 +17,8 @@ enum URLResolvingError: LocalizedError {
 /// 中文注释：URL 辅助服务，集中处理相对地址转绝对地址的逻辑。
 /// 中文注释：这样 SwiftUI 和解析器不需要各自重复拼接 URL。
 struct URLResolvingService {
-    private static let placeholderPattern: NSRegularExpression = {
-        return try! NSRegularExpression(pattern: "\\{([^{}]+)\\}")
+    private static let placeholderPattern: NSRegularExpression? = {
+        return try? NSRegularExpression(pattern: "\\{([^{}]+)\\}")
     }()
 
     private static let queryValueAllowedCharacters: CharacterSet = {
@@ -134,7 +134,10 @@ struct URLResolvingService {
         var rendered: String = ""
         var currentIndex: String.Index = rawTemplate.startIndex
         let fullRange: NSRange = NSRange(rawTemplate.startIndex..<rawTemplate.endIndex, in: rawTemplate)
-        let matches: [NSTextCheckingResult] = Self.placeholderPattern.matches(
+        guard let placeholderPattern: NSRegularExpression = Self.placeholderPattern else {
+            return rawTemplate
+        }
+        let matches: [NSTextCheckingResult] = placeholderPattern.matches(
             in: rawTemplate,
             range: fullRange
         )

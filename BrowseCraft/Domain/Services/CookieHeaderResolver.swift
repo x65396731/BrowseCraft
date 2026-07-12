@@ -117,6 +117,18 @@ enum APIRequestHeaders {
         headers["Accept"] = "application/json"
         return headers
     }
+
+    static func rssHubHeaders(base: [String: String] = [:]) -> [String: String] {
+        var headers: [String: String] = base
+        headers["Accept"] = "application/json"
+        return headers
+    }
+
+    static func rssFeedHeaders(base: [String: String] = [:]) -> [String: String] {
+        var headers: [String: String] = base
+        headers["Accept"] = "application/rss+xml,application/atom+xml,application/xml;q=0.9,text/xml;q=0.8,*/*;q=0.1"
+        return headers
+    }
 }
 
 /// 中文注释：P1-4.4 的 Cookie 执行器；当前只负责请求头合并，不引入登录态 UI 或复杂 CookieStore。

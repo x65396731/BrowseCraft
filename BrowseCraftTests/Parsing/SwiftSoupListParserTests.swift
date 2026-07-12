@@ -145,7 +145,7 @@ struct SwiftSoupListParserTests {
                 maxPages: 10,
                 stopWhenEmpty: true
             ),
-            currentURL: URL(string: "https://example.test/search?q=%E7%8C%AB&page=1")!
+            currentURL: URL(string: "https://example.test/search?q=%E7%8C%AB&page=1") ?? URL(fileURLWithPath: "/")
         )
 
         // 中文注释：P2-6.4 nextPage 抽取只返回下一页 URL，不自动发起第二次请求。

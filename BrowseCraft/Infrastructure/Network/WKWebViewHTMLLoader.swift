@@ -81,7 +81,7 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         }
     }
 
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation?) {
         self.isLoadingHTTPSUpgrade = false
         Task { @MainActor in
             do {
@@ -134,7 +134,7 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         }
     }
 
-    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation?, withError error: Error) {
         guard self.shouldIgnoreInterruptedNavigation(error) == false else {
             return
         }
@@ -142,7 +142,7 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         self.finish(.failure(error))
     }
 
-    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation?, withError error: Error) {
         guard self.shouldIgnoreInterruptedNavigation(error) == false else {
             return
         }

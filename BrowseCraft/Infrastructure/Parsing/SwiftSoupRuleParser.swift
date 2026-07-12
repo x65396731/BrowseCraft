@@ -1312,10 +1312,15 @@ final class SwiftSoupRuleParser: RuleParsingService, RulePaginationParsingServic
             var outputBytes: [UInt8] = Array(repeating: 0, count: outputSize)
             let decodedSize: Int = compressedBytes.withUnsafeBufferPointer { compressedBuffer in
                 return outputBytes.withUnsafeMutableBufferPointer { outputBuffer in
+                    guard let outputBaseAddress: UnsafeMutablePointer<UInt8> = outputBuffer.baseAddress,
+                          let compressedBaseAddress: UnsafePointer<UInt8> = compressedBuffer.baseAddress else {
+                        return 0
+                    }
+
                     return compression_decode_buffer(
-                        outputBuffer.baseAddress!,
+                        outputBaseAddress,
                         outputBuffer.count,
-                        compressedBuffer.baseAddress!,
+                        compressedBaseAddress,
                         compressedBuffer.count,
                         nil,
                         COMPRESSION_ZLIB

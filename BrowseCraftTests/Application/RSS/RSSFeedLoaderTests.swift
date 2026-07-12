@@ -4,7 +4,7 @@ import Testing
 
 // 中文注释：RSSFeedLoaderTests 固定 P4.9.2 loader 只负责公开 feed 加载和 parser 串接。
 struct RSSFeedLoaderTests {
-    @Test func loadsFeedXMLUsingPublicURLWithoutRequestConfig() async throws {
+    @Test func loadsFeedXMLUsingRSSAcceptRequestConfig() async throws {
         let pageContentLoader: RecordingPageContentLoader = RecordingPageContentLoader(
             response: Self.rssXML
         )
@@ -17,7 +17,7 @@ struct RSSFeedLoaderTests {
 
         #expect(pageContentLoader.requests.count == 1)
         #expect(pageContentLoader.requests.first?.url == url)
-        #expect(pageContentLoader.requests.first?.request == nil)
+        #expect(pageContentLoader.requests.first?.request?.headers?["Accept"]?.contains("application/rss+xml") == true)
         #expect(feed.title == "Solidot")
         #expect(feed.items.first?.title == "奇客资讯")
     }

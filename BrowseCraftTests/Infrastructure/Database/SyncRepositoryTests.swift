@@ -126,7 +126,7 @@ struct SyncRepositoryTests {
             configuration: .rss(
                 RSSSourceConfiguration(
                     definition: RSSSourceDefinition(
-                        feedURL: URL(string: "https://example.test/feed.xml")!,
+                        feedURL: URL(string: "https://example.test/feed.xml") ?? URL(fileURLWithPath: "/"),
                         requiresAccount: false,
                         refreshPolicy: .manual
                     )
