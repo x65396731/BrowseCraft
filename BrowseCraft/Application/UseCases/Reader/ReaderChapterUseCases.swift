@@ -1,5 +1,10 @@
 import Foundation
 
+struct ChapterDetailContent: Hashable {
+    var chapters: [ChapterLink]
+    var description: String?
+}
+
 // 中文注释：Reader Feature 仍通过 App use case 入口调用；rule-only 执行实现已收进 RuleSourceRuntime 边界。
 struct LoadChaptersUseCase {
     private let ruleSourceLoader: RuleSourceChapterLoader
@@ -24,7 +29,7 @@ struct LoadChaptersUseCase {
         )
     }
 
-    func execute(source: Source, item: ContentItem) async throws -> [ChapterLink] {
+    func execute(source: Source, item: ContentItem) async throws -> ChapterDetailContent {
         return try await self.ruleSourceLoader.execute(source: source, item: item)
     }
 }

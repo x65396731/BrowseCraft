@@ -39,7 +39,7 @@ struct RuleSourceChapterLoader {
     }
 
     /// 中文注释：execute 方法封装当前类型的一段业务或界面行为。
-    func execute(source: Source, item: ContentItem) async throws -> [ChapterLink] {
+    func execute(source: Source, item: ContentItem) async throws -> ChapterDetailContent {
         let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(source.rule)
 
         RuleExecutionLogger.log(
@@ -67,12 +67,15 @@ struct RuleSourceChapterLoader {
                 ]
             )
 
-            return [
-                ChapterLink(
-                    title: item.latestText ?? item.title,
-                    url: item.detailURL
-                )
-            ]
+            return ChapterDetailContent(
+                chapters: [
+                    ChapterLink(
+                        title: item.latestText ?? item.title,
+                        url: item.detailURL
+                    )
+                ],
+                description: nil
+            )
         }
 
         guard let detailURL: URL = URL(string: item.detailURL) else {
@@ -88,6 +91,7 @@ struct RuleSourceChapterLoader {
             request: resolvedRule.primaryDetailRequest
         )
         let chapters: [ChapterLink]
+        let description: String?
         if let detailRule: DetailRule = resolvedRule.primaryDetailRule {
             chapters = try self.ruleParser.parseDetailChapters(
                 html: detailHTML,
@@ -96,8 +100,16 @@ struct RuleSourceChapterLoader {
                 pageURL: item.detailURL,
                 context: item.listContext
             )
+            description = try self.ruleParser.parseDetailDescription(
+                html: detailHTML,
+                source: source,
+                detailRule: detailRule,
+                pageURL: item.detailURL,
+                context: item.listContext
+            )
         } else {
             chapters = []
+            description = nil
         }
 
         RuleExecutionLogger.log(
@@ -121,7 +133,10 @@ struct RuleSourceChapterLoader {
             )
         }
 
-        return chapters
+        return ChapterDetailContent(
+            chapters: chapters,
+            description: description
+        )
     }
 }
 

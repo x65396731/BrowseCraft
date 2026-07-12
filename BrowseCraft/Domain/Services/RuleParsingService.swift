@@ -36,6 +36,13 @@ protocol RuleParsingService {
         pageURL: String,
         context: ListContext?
     ) throws -> [ChapterLink]
+    func parseDetailDescription(
+        html: String,
+        source: Source,
+        detailRule: DetailRule,
+        pageURL: String,
+        context: ListContext?
+    ) throws -> String?
     /// 中文注释：parseReader 方法封装当前类型的一段业务或界面行为。
     func parseReader(html: String, source: Source, pageURL: String) throws -> ReaderChapter
     func parseReader(
@@ -161,6 +168,16 @@ extension RuleParsingService {
             pageURL: pageURL,
             context: context
         )
+    }
+
+    func parseDetailDescription(
+        html: String,
+        source: Source,
+        detailRule: DetailRule,
+        pageURL: String,
+        context: ListContext?
+    ) throws -> String? {
+        return nil
     }
 
     /// 中文注释：P1-5.3 默认保持旧解析行为；支持上下文的解析器可覆盖并按来源区块缩小 Reader 作用域。

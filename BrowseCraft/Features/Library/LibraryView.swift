@@ -12,8 +12,13 @@ struct LibraryView: View {
     @State private var didLoadInitialData: Bool = false
 
     private let gridColumns: [GridItem] = [
-        GridItem(.adaptive(minimum: 150), spacing: 14)
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12)
     ]
+    private let comicTabSelectedColor: Color = Color(red: 133 / 255, green: 153 / 255, blue: 255 / 255)
+    private let comicTabTextColor: Color = Color(red: 21 / 255, green: 30 / 255, blue: 71 / 255)
+    private let comicTabStrokeColor: Color = Color(red: 233 / 255, green: 236 / 255, blue: 239 / 255)
 
     var body: some View {
         NavigationStack {
@@ -45,7 +50,8 @@ struct LibraryView: View {
                     }
                 }
             )
-            .navigationTitle("Library")
+            .navigationTitle(self.libraryNavigationTitle)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(
@@ -95,6 +101,10 @@ struct LibraryView: View {
         return self.viewModel.isShowingSourceLoading
     }
 
+    private var libraryNavigationTitle: String {
+        return self.viewModel.selectedSource?.name ?? "Library"
+    }
+
     @ViewBuilder
     private var libraryContent: some View {
         if let selectedSource: Source = self.viewModel.selectedSource,
@@ -129,9 +139,7 @@ struct LibraryView: View {
                     if let source: Source = self.viewModel.source(for: item.sourceId) {
                         ComicLibraryCardView(
                             item: item,
-                            sourceName: source.name,
                             primaryActionTitle: self.viewModel.primaryActionTitle(for: source),
-                            primaryActionSystemImage: self.viewModel.primaryActionSystemImage(for: source),
                             isFavorite: self.viewModel.favoriteItemIDs.contains(item.id),
                             favoriteAction: {
                                 self.viewModel.toggleFavorite(item: item)
@@ -171,7 +179,59 @@ struct LibraryView: View {
         }
     }
 
+    @ViewBuilder
     private var listTabBar: some View {
+        if self.viewModel.selectedSource?.configuration.kind == .comic {
+            self.comicListTabBar
+        } else {
+            self.defaultListTabBar
+        }
+    }
+
+    private var comicListTabBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(self.viewModel.listTabStates) { tab in
+                    Button(
+                        action: {
+                            Task {
+                                await self.viewModel.selectListTab(id: tab.id)
+                            }
+                        },
+                        label: {
+                            Text(tab.title)
+                                .font(.system(size: 14, weight: .regular))
+                                .foregroundStyle(tab.isSelected ? Color.white : self.comicTabTextColor)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.82)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 10)
+                                .padding(.horizontal, 2)
+                                .frame(minHeight: 38)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                        .fill(tab.isSelected ? self.comicTabSelectedColor : Color.white)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                        .stroke(
+                                            tab.isSelected ? Color.clear : self.comicTabStrokeColor,
+                                            lineWidth: 1
+                                        )
+                                )
+                        }
+                    )
+                    .buttonStyle(.plain)
+                    .disabled(self.viewModel.isRefreshing)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+        }
+        .background(Color(.systemBackground))
+    }
+
+    private var defaultListTabBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 20) {
                 ForEach(self.viewModel.listTabStates) { tab in

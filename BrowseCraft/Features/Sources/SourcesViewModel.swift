@@ -122,10 +122,6 @@ final class SourcesViewModel: ObservableObject {
             try self.syncBuiltInSourcesUseCase.execute()
             let loadedSources: [Source] = try self.loadSourcesUseCase.execute()
             self.sources = loadedSources
-
-            if self.selectedSourceID == nil {
-                self.selectSource(id: loadedSources.first?.id)
-            }
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-load-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)

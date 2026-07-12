@@ -103,13 +103,13 @@ struct RuleSourceRuntime: SourceRuntime {
             url: input.detailURL,
             context: input.context
         )
-        let chapters: [ChapterLink] = try await self.chapterLoader.execute(
+        let detailContent: ChapterDetailContent = try await self.chapterLoader.execute(
             source: self.source,
             item: item
         )
 
         return self.outputMapper.detailOutput(
-            chapters: chapters,
+            chapters: detailContent.chapters,
             diagnostics: SourceRuntimeDiagnostics.succeeded()
         )
     }

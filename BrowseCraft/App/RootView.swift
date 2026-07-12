@@ -19,7 +19,7 @@ struct RootView: View {
     @StateObject private var libraryViewModel: LibraryViewModel
     @StateObject private var historyViewModel: HistoryViewModel
     @StateObject private var settingsViewModel: SettingsViewModel
-    @State private var selectedTab: RootTab = .sources
+    @State private var selectedTab: RootTab = .library
     @State private var didResolveInitialTab: Bool = false
 
     init(container: AppContainer) {
@@ -144,6 +144,8 @@ struct RootView: View {
 
         self.didResolveInitialTab = true
         self.sourcesViewModel.load()
-        self.selectedTab = self.sourcesViewModel.sources.isEmpty ? .sources : .library
+        if self.sourcesViewModel.sources.isEmpty {
+            self.selectedTab = .sources
+        }
     }
 }

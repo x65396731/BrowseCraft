@@ -1,77 +1,51 @@
+import NukeUI
 import SwiftUI
+import UIKit
 
 // 中文注释：ReaderView.swift 属于界面功能层，用于说明本文件承载的核心职责。
 
 /// 中文注释：ChapterListView 是 struct，负责本模块中的对应职责。
 struct ChapterListView: View {
+    @Environment(\.dismiss) private var dismiss
     @ObservedObject var viewModel: ChapterListViewModel
     let readerViewModelFactory: (ContentItem, Source, ChapterLink?) -> ReaderViewModel
 
     var body: some View {
-        List {
-            Section {
-                HStack(alignment: .top, spacing: 14) {
-                    CoverImageView(
-                        urlString: self.viewModel.item.coverURL,
-                        refererURLString: self.viewModel.item.detailURL,
-                        requestConfig: self.viewModel.detailCoverRequestConfig
-                    )
-                        .frame(width: 86, height: 120)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ChapterDetailHeaderView(viewModel: self.viewModel)
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(self.viewModel.item.title)
-                            .font(.headline)
-                            .lineLimit(3)
+                ChapterSummaryView(viewModel: self.viewModel)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 8)
 
-                        Text(self.viewModel.source.name)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-
-                        if let latestText: String = self.viewModel.item.latestText {
-                            Text(latestText)
-                                .font(.caption.weight(.semibold))
-                                .foregroundColor(.blue)
-                                .lineLimit(1)
-                        }
-                    }
-                }
-                .padding(.vertical, 6)
-            }
-
-            Section {
-                if self.viewModel.isLoading {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                        Spacer()
-                    }
-                } else if self.viewModel.chapters.isEmpty {
-                    Text("No Chapters")
-                        .foregroundColor(.secondary)
-                } else {
-                    ForEach(self.viewModel.chapters, id: \.url) { chapter in
-                        NavigationLink(
-                            destination: ReaderView(
-                                viewModel: self.readerViewModelFactory(
-                                    self.viewModel.item,
-                                    self.viewModel.source,
-                                    chapter
-                                )
-                            ),
-                            label: {
-                                Text(chapter.title)
-                                    .lineLimit(2)
-                            }
-                        )
-                    }
-                }
-            } header: {
-                Text("Chapters")
+                self.chapterList
             }
         }
-        .navigationTitle("Chapters")
+        .ignoresSafeArea(edges: .top)
+        .background(Color(.systemBackground))
+        .navigationTitle(self.viewModel.item.title)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    self.dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .frame(width: 34, height: 34)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Back")
+            }
+        }
         .onAppear {
             CrashDiagnostics.shared.setScreen(.sourceDetail)
             AppAnalytics.shared.logScreenView(.sourceDetail)
@@ -95,6 +69,62 @@ struct ChapterListView: View {
         }
     }
 
+    @ViewBuilder
+    private var chapterList: some View {
+        if self.viewModel.isLoading {
+            ProgressView()
+                .controlSize(.large)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 180)
+        } else if self.viewModel.chapters.isEmpty {
+            ContentUnavailableView(
+                "No Chapters",
+                systemImage: "list.bullet.rectangle",
+                description: Text("This source did not return any chapter entries.")
+            )
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 220)
+        } else {
+            LazyVStack(spacing: 0) {
+                ForEach(self.viewModel.chapters, id: \.url) { chapter in
+                    NavigationLink(
+                        destination: ReaderView(
+                            viewModel: self.readerViewModelFactory(
+                                self.viewModel.item,
+                                self.viewModel.source,
+                                chapter
+                            )
+                        ),
+                        label: {
+                            HStack(spacing: 12) {
+                                Text(chapter.title)
+                                    .font(.body)
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(2)
+
+                                Spacer(minLength: 12)
+
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 14)
+                            .contentShape(Rectangle())
+                        }
+                    )
+                    .buttonStyle(.plain)
+
+                    if chapter.url != self.viewModel.chapters.last?.url {
+                        Divider()
+                            .padding(.leading, 16)
+                    }
+                }
+            }
+            .padding(.bottom, 24)
+        }
+    }
+
     private var errorAlertBinding: Binding<Bool> {
         return Binding<Bool>(
             get: {
@@ -106,6 +136,119 @@ struct ChapterListView: View {
                 }
             }
         )
+    }
+}
+
+private struct ChapterDetailHeaderView: View {
+    @ObservedObject var viewModel: ChapterListViewModel
+
+    var body: some View {
+        ChapterDetailHeroImageView(viewModel: self.viewModel)
+    }
+}
+
+private struct ChapterDetailHeroImageView: View {
+    @ObservedObject var viewModel: ChapterListViewModel
+
+    var body: some View {
+        self.image
+            .frame(maxWidth: .infinity)
+            .frame(height: UIScreen.main.bounds.width * 1.05)
+            .background(Color(.secondarySystemBackground))
+            .clipped()
+            .ignoresSafeArea(edges: .top)
+    }
+
+    @ViewBuilder
+    private var image: some View {
+        if let request: ImageRequest = self.imageRequest {
+            LazyImage(source: request) { state in
+                if let uiImage: UIImage = state.imageContainer?.image {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                } else {
+                    self.placeholder
+                }
+            }
+        } else {
+            self.placeholder
+        }
+    }
+
+    private var imageRequest: ImageRequest? {
+        guard let coverURL: String = self.viewModel.item.coverURL else {
+            return nil
+        }
+
+        return ImageRequestFactory.makeRequest(
+            urlString: coverURL,
+            refererURLString: self.viewModel.item.detailURL,
+            requestConfig: self.viewModel.detailCoverRequestConfig
+        )
+    }
+
+    private var placeholder: some View {
+        ZStack {
+            Rectangle()
+                .fill(Color(.secondarySystemFill))
+
+            Image(systemName: "photo")
+                .font(.title2)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct ChapterSummaryView: View {
+    @ObservedObject var viewModel: ChapterListViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
+                self.summaryItem(
+                    title: "Description",
+                    value: self.descriptionText,
+                    lineLimit: nil
+                )
+
+                Divider()
+
+                self.summaryItem(
+                    title: "Last",
+                    value: self.viewModel.item.latestText ?? "Unknown",
+                    lineLimit: 2
+                )
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+    }
+
+    private var descriptionText: String {
+        guard let description: String = self.viewModel.detailDescription,
+              description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
+            return self.viewModel.source.name.uppercased()
+        }
+
+        return description
+    }
+
+    private func summaryItem(title: String, value: String, lineLimit: Int?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            Text(value)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(lineLimit)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 }
 

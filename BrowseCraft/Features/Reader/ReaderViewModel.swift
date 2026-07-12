@@ -419,6 +419,7 @@ final class ReaderViewModel: ObservableObject {
 /// 中文注释：ChapterListViewModel 是 final class，负责本模块中的对应职责。
 final class ChapterListViewModel: ObservableObject {
     @Published private(set) var chapters: [ChapterLink] = []
+    @Published private(set) var detailDescription: String?
     @Published private(set) var isLoading: Bool = false
     @Published var errorMessage: String?
 
@@ -474,14 +475,16 @@ final class ChapterListViewModel: ObservableObject {
 
         self.isLoading = true
         self.errorMessage = nil
+        self.detailDescription = nil
 
         do {
-            let loadedChapters: [ChapterLink] = try await self.loadChaptersUseCase.execute(
+            let detailContent: ChapterDetailContent = try await self.loadChaptersUseCase.execute(
                 source: self.source,
                 item: self.item
             )
             // 中文注释：章节解析器已经按源站分组顺序返回结果；这里不再按标题全局排序，避免单话/单行本/番外篇混排。
-            self.chapters = loadedChapters
+            self.chapters = detailContent.chapters
+            self.detailDescription = detailContent.description
 
             #if DEBUG
             print(

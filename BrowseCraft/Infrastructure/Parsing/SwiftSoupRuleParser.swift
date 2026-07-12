@@ -416,6 +416,73 @@ final class SwiftSoupRuleParser: RuleParsingService, RulePaginationParsingServic
         )
     }
 
+    func parseDetailDescription(
+        html: String,
+        source: Source,
+        detailRule: DetailRule,
+        pageURL: String,
+        context: ListContext?
+    ) throws -> String? {
+        let document: Document = try SwiftSoup.parse(html, pageURL)
+        let scope: Element = try self.contextualScope(
+            in: document,
+            mainScopeRule: detailRule.mainScope,
+            context: context
+        ) ?? document
+
+        if let descriptionRule: ExtractRule = detailRule.fields?.description {
+            let rawDescription: String = try self.extract(element: scope, rule: descriptionRule)
+
+            if let description: String = self.sanitizedDetailDescription(rawDescription) {
+                return description
+            }
+        }
+
+        return nil
+    }
+
+    private func sanitizedDetailDescription(_ value: String) -> String? {
+        let collapsedValue: String = value
+            .replacingOccurrences(of: "\u{00a0}", with: " ")
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .components(separatedBy: .newlines)
+            .map { line in
+                return line.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            .filter { line in
+                return line.isEmpty == false
+            }
+            .joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard collapsedValue.count >= 8,
+              self.isNoisyDetailDescription(collapsedValue) == false else {
+            return nil
+        }
+
+        return collapsedValue
+    }
+
+    private func isNoisyDetailDescription(_ value: String) -> Bool {
+        let lowercaseValue: String = value.lowercased()
+        let noisyFragments: [String] = [
+            "attention required",
+            "cloudflare",
+            "please enable cookies",
+            "you have been blocked",
+            "mycomic",
+            "browsecraft"
+        ]
+
+        if noisyFragments.contains(where: { fragment in lowercaseValue == fragment }) {
+            return true
+        }
+
+        return lowercaseValue.hasPrefix("attention required")
+            || lowercaseValue.hasPrefix("just a moment")
+    }
+
     private func chapterLinks(
         from elements: [Element],
         titleRule: ExtractRule,
