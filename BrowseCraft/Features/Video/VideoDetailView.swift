@@ -1,7 +1,9 @@
 import SwiftUI
+import UIKit
 
 // 中文注释：VideoDetailView 是视频详情和选集页，和漫画章节/Reader 流程分离。
 struct VideoDetailView: View {
+    @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: VideoDetailViewModel
 
     init(viewModel: VideoDetailViewModel) {
@@ -10,30 +12,40 @@ struct VideoDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                self.header
+            LazyVStack(spacing: 0) {
+                VideoDetailHeaderView(viewModel: self.viewModel)
 
-                self.detailSummary
+                VideoDetailSummaryView(viewModel: self.viewModel)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 8)
 
-                if self.viewModel.isLoadingEpisodes {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 32)
-                } else if self.viewModel.episodes.isEmpty {
-                    EmptyStateView(
-                        systemImage: "play.rectangle",
-                        title: "No Episodes",
-                        message: "Refresh this video detail after the source exposes episodes."
-                    )
-                    .padding(.vertical, 32)
-                } else {
-                    self.episodeList
-                }
+                self.episodeList
             }
-            .padding(16)
         }
-        .navigationTitle("Video")
+        .ignoresSafeArea(edges: .top)
+        .background(Color(.systemBackground))
+        .navigationTitle(self.viewModel.item.title)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    self.dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .frame(width: 34, height: 34)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Back")
+            }
+        }
         .onAppear {
             CrashDiagnostics.shared.setScreen(.videoDetail)
             AppAnalytics.shared.logScreenView(.videoDetail)
@@ -92,103 +104,57 @@ struct VideoDetailView: View {
         }
     }
 
-    private var header: some View {
-        HStack(alignment: .top, spacing: 14) {
-            CoverImageView(
-                urlString: self.viewModel.item.coverURL,
-                refererURLString: self.viewModel.item.detailURL,
-                requestConfig: nil
-            )
-            .frame(width: 112)
-            .aspectRatio(0.72, contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text(self.viewModel.item.title)
-                    .font(.title3.weight(.semibold))
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Label(
-                    title: {
-                        Text(self.viewModel.sourceName)
-                    },
-                    icon: {
-                        Image(systemName: "play.rectangle")
-                    }
-                )
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-                if let latestText: String = self.viewModel.item.latestText {
-                    Text(latestText)
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                        .lineLimit(2)
-                }
-            }
-        }
-    }
-
     @ViewBuilder
-    private var detailSummary: some View {
-        if let synopsis: String = self.viewModel.synopsis {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("简介")
-                    .font(.headline)
+    private var episodeList: some View {
+        if self.viewModel.isLoadingEpisodes {
+            ProgressView()
+                .controlSize(.large)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 180)
+        } else if self.viewModel.episodes.isEmpty {
+            ContentUnavailableView(
+                "No Episodes",
+                systemImage: "play.rectangle",
+                description: Text("This source did not return any episode entries.")
+            )
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 220)
+        } else {
+            LazyVStack(spacing: 0) {
+                ForEach(self.viewModel.episodes) { episode in
+                    Button(
+                        action: {
+                            Task {
+                                await self.viewModel.openEpisode(episode)
+                            }
+                        },
+                        label: {
+                            HStack(spacing: 12) {
+                                Text(episode.title)
+                                    .font(.body)
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(2)
 
-                Text(synopsis)
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .lineSpacing(4)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
+                                Spacer(minLength: 12)
 
-        if self.viewModel.metadataRows.isEmpty == false {
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(self.viewModel.metadataRows, id: \.self) { row in
-                    Text(row)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 14)
+                            .contentShape(Rectangle())
+                        }
+                    )
+                    .buttonStyle(.plain)
+
+                    if episode.id != self.viewModel.episodes.last?.id {
+                        Divider()
+                            .padding(.leading, 16)
+                    }
                 }
             }
-        }
-    }
-
-    private var episodeList: some View {
-        LazyVStack(spacing: 10) {
-            ForEach(self.viewModel.episodes) { episode in
-                Button(
-                    action: {
-                        Task {
-                            await self.viewModel.openEpisode(episode)
-                        }
-                    },
-                    label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "play.circle")
-                                .font(.title3)
-                                .foregroundColor(.blue)
-
-                            Text(episode.title)
-                                .font(.body.weight(.medium))
-                                .foregroundColor(.primary)
-                                .lineLimit(2)
-
-                            Spacer(minLength: 8)
-
-                            Image(systemName: "chevron.right")
-                                .font(.caption.weight(.semibold))
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(14)
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    }
-                )
-                .buttonStyle(.plain)
-            }
+            .padding(.bottom, 24)
         }
     }
 
@@ -203,5 +169,97 @@ struct VideoDetailView: View {
                 }
             }
         )
+    }
+}
+
+private struct VideoDetailHeaderView: View {
+    @ObservedObject var viewModel: VideoDetailViewModel
+
+    var body: some View {
+        VideoDetailHeroImageView(viewModel: self.viewModel)
+    }
+}
+
+private struct VideoDetailHeroImageView: View {
+    @ObservedObject var viewModel: VideoDetailViewModel
+
+    var body: some View {
+        CoverImageView(
+            urlString: self.viewModel.item.coverURL,
+            refererURLString: self.viewModel.item.detailURL,
+            requestConfig: nil
+        )
+        .frame(maxWidth: .infinity)
+        .frame(height: UIScreen.main.bounds.width * 1.05)
+        .background(Color(.secondarySystemBackground))
+        .clipped()
+        .ignoresSafeArea(edges: .top)
+    }
+}
+
+private struct VideoDetailSummaryView: View {
+    @ObservedObject var viewModel: VideoDetailViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
+                self.summaryItem(
+                    title: "Description",
+                    value: self.descriptionText,
+                    lineLimit: nil
+                )
+
+                Divider()
+
+                self.summaryItem(
+                    title: "Last",
+                    value: self.viewModel.item.latestText ?? "Unknown",
+                    lineLimit: 2
+                )
+
+                if self.metadataText.isEmpty == false {
+                    Divider()
+
+                    self.summaryItem(
+                        title: "Info",
+                        value: self.metadataText,
+                        lineLimit: nil
+                    )
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+    }
+
+    private var descriptionText: String {
+        guard let synopsis: String = self.viewModel.synopsis,
+              synopsis.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
+            return self.viewModel.sourceName.uppercased()
+        }
+
+        return synopsis
+    }
+
+    private var metadataText: String {
+        return self.viewModel.metadataRows.joined(separator: "\n")
+    }
+
+    private func summaryItem(title: String, value: String, lineLimit: Int?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            Text(value)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(lineLimit)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 }

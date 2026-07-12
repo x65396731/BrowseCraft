@@ -8,34 +8,39 @@ struct VideoContentGridView: View {
     let favoriteAction: (ContentItem) -> Void
     let detailViewModelFactory: (ContentItem, Source) -> VideoDetailViewModel
     let imageRequestConfig: RequestConfig?
+    @State private var selectedItem: ContentItem?
 
     private let gridColumns: [GridItem] = [
-        GridItem(.adaptive(minimum: 160), spacing: 14)
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12)
     ]
 
     var body: some View {
-        LazyVGrid(columns: self.gridColumns, spacing: 16) {
-            ForEach(Array(self.items.enumerated()), id: \.offset) { _, item in
-                NavigationLink(
-                    destination: VideoDetailView(
-                        viewModel: self.detailViewModelFactory(item, self.source)
-                    ),
-                    label: {
-                        VideoLibraryCardView(
-                            item: item,
-                            sourceName: self.source.name,
-                            isFavorite: self.favoriteItemIDs.contains(item.id),
-                            favoriteAction: {
-                                self.favoriteAction(item)
-                            },
-                            imageRequestConfig: self.imageRequestConfig
-                        )
-                    }
-                )
-                .buttonStyle(.plain)
+        VStack(spacing: 0) {
+            LazyVGrid(columns: self.gridColumns, spacing: 16) {
+                ForEach(Array(self.items.enumerated()), id: \.offset) { _, item in
+                    VideoLibraryCardView(
+                        item: item,
+                        primaryActionTitle: "Episodes",
+                        isFavorite: self.favoriteItemIDs.contains(item.id),
+                        favoriteAction: {
+                            self.favoriteAction(item)
+                        },
+                        openAction: {
+                            self.selectedItem = item
+                        },
+                        imageRequestConfig: self.imageRequestConfig
+                    )
+                }
             }
         }
         .padding(16)
+        .navigationDestination(item: self.$selectedItem) { item in
+            VideoDetailView(
+                viewModel: self.detailViewModelFactory(item, self.source)
+            )
+        }
         .onAppear {
             #if DEBUG
             print(
@@ -52,82 +57,94 @@ struct VideoContentGridView: View {
 
 private struct VideoLibraryCardView: View {
     let item: ContentItem
-    let sourceName: String
+    let primaryActionTitle: String
     let isFavorite: Bool
     let favoriteAction: () -> Void
+    let openAction: () -> Void
     let imageRequestConfig: RequestConfig?
 
+    private let titleColor: Color = Color(red: 21 / 255, green: 30 / 255, blue: 71 / 255)
+    private let chapterColor: Color = Color(red: 133 / 255, green: 153 / 255, blue: 255 / 255)
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ZStack(alignment: .topTrailing) {
-                ItemThumbnailImageView(
-                    urlString: self.item.coverURL,
-                    refererURLString: self.item.detailURL,
-                    requestConfig: self.imageRequestConfig
-                )
-                .aspectRatio(0.72, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        self.cardContent
+    }
 
-                Button(
-                    action: {
-                        self.favoriteAction()
-                    },
-                    label: {
-                        Image(systemName: self.isFavorite ? "star.fill" : "star")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(self.isFavorite ? .yellow : .white)
-                            .frame(width: 32, height: 32)
-                            .background(
-                                Circle()
-                                    .fill(Color.black.opacity(0.45))
-                            )
-                    }
-                )
-                .buttonStyle(.plain)
+    private var cardContent: some View {
+        ZStack(alignment: .topTrailing) {
+            Button(
+                action: {
+                    self.openDetailDestination()
+                },
+                label: {
+                    self.itemContent
+                }
+            )
+            .buttonStyle(.plain)
+
+            self.favoriteButton
                 .padding(6)
-                .accessibilityLabel(self.isFavorite ? "Remove Favorite" : "Add Favorite")
-            }
-
-            Text(self.item.title)
-                .font(.headline)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(spacing: 6) {
-                Label(
-                    title: {
-                        Text("Video")
-                    },
-                    icon: {
-                        Image(systemName: "play.rectangle")
-                    }
-                )
-
-                Text(self.sourceName)
-                    .lineLimit(1)
-            }
-            .font(.caption)
-            .foregroundColor(.secondary)
-
-            if let latestText: String = self.item.latestText {
-                Text(latestText)
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                    .lineLimit(1)
-            }
-
-            Label("Episodes", systemImage: "list.bullet.rectangle")
-                .font(.callout.weight(.semibold))
-                .foregroundColor(.blue)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 7)
         }
-        .padding(10)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(Color(.separator), lineWidth: 1)
+    }
+
+    private var itemContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ItemThumbnailImageView(
+                urlString: self.item.coverURL,
+                refererURLString: self.item.detailURL,
+                requestConfig: self.imageRequestConfig
+            )
+            .aspectRatio(129.0 / 194.0, contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(self.item.title)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(self.titleColor)
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30, alignment: .topLeading)
+
+                if let latestText: String = self.item.latestText {
+                    Text(latestText)
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundStyle(self.chapterColor)
+                        .lineLimit(1)
+                }
+            }
+        }
+    }
+
+    private var favoriteButton: some View {
+        Button(
+            action: {
+                self.favoriteAction()
+            },
+            label: {
+                Image(systemName: self.isFavorite ? "star.fill" : "star")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(self.isFavorite ? .yellow : .white)
+                    .frame(width: 32, height: 32)
+                    .background(
+                        Circle()
+                            .fill(Color.black.opacity(0.45))
+                    )
+            }
         )
+        .buttonStyle(.plain)
+        .accessibilityLabel(self.isFavorite ? "Remove Favorite" : "Add Favorite")
+    }
+
+    private func openDetailDestination() {
+        #if DEBUG
+        print(
+            "[BrowseCraftNavigation] Tap \(self.primaryActionTitle) " +
+            "itemId=\(self.item.id) " +
+            "title=\(self.item.title) " +
+            "detailURL=\(self.item.detailURL) " +
+            "latestText=\(self.item.latestText ?? "nil")"
+        )
+        #endif
+
+        self.openAction()
     }
 }

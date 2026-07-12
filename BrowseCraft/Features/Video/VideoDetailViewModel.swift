@@ -106,7 +106,9 @@ final class VideoDetailViewModel: ObservableObject {
                     "[BrowseCraftVideoDetail] loadEpisodes video-result " +
                     "source=\(self.source.id) " +
                     "episodes=\(content.episodes.count) " +
-                    "firstEpisode=\(content.episodes.first?.id ?? "nil")"
+                    "firstEpisode=\(content.episodes.first?.id ?? "nil") " +
+                    "hasSynopsis=\(content.synopsis?.isEmpty == false) " +
+                    "metadataRows=\(content.metadataRows.count)"
                 )
                 #endif
             } else {

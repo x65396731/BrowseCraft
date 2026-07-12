@@ -175,15 +175,13 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
         detailURL: URL
     ) throws -> VideoDetailContent {
         let document: Document = try SwiftSoup.parse(html, detailURL.absoluteString)
-        let elements: [Element] = try self.episodeElements(from: document)
+        let usesVfedPlayItems: Bool = try document.select(".fed-play-item").array().isEmpty == false
+        let entries: [VfedEpisodeEntry] = try self.episodeEntries(from: document)
         var seenIDs: Set<String> = Set<String>()
         var episodes: [VideoEpisode] = []
 
-        for element: Element in elements {
-            guard try self.shouldIncludeEpisodeLink(element) else {
-                continue
-            }
-
+        for entry: VfedEpisodeEntry in entries {
+            let element: Element = entry.element
             guard let href: String = try element.attr("href").trimmedNonEmpty,
                   let url: URL = URL(string: href, relativeTo: detailURL)?.absoluteURL,
                   let route: VideoPlayRoute = self.playRoute(from: url.path) else {
@@ -200,46 +198,56 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
             }
 
             let title: String = try element.text().trimmedNonEmpty ?? "Episode \(route.episodeIndex)"
+            let displayTitle: String = entry.lineTitle.map { "\($0) - \(title)" } ?? title
             seenIDs.insert(episodeID)
             episodes.append(
                 VideoEpisode(
                     id: episodeID,
-                    title: title,
+                    title: displayTitle,
                     playPageURL: url
                 )
             )
         }
 
         return VideoDetailContent(
-            episodes: self.sortedEpisodes(episodes),
+            episodes: usesVfedPlayItems ? episodes : self.sortedEpisodes(episodes),
             synopsis: try self.synopsis(from: document),
             metadataRows: try self.metadataRows(from: document)
         )
     }
 
-    private func episodeElements(from document: Document) throws -> [Element] {
+    private func episodeEntries(from document: Document) throws -> [VfedEpisodeEntry] {
         let playItems: [Element] = try document.select(".fed-play-item").array()
         guard playItems.isEmpty == false else {
-            return try document.select(Selectors.episodeLinks).array()
+            return try document.select(Selectors.episodeLinks)
+                .array()
+                .filter { element in
+                    return try self.shouldIncludeEpisodeLink(element)
+                }
+                .map { element in
+                    return VfedEpisodeEntry(element: element, lineTitle: nil)
+                }
         }
 
-        var bestElements: [Element] = []
-        var bestScore: Int = Int.min
-        var bestTitle: String = ""
-        for playItem: Element in playItems {
-            let elements: [Element] = try self.vfedEpisodeElements(in: playItem)
-            let title: String = try self.vfedPlayItemTitle(playItem)
+        let rankedPlayItems: [(offset: Int, element: Element)] = try playItems.enumerated()
+            .map { pair in
+                return (offset: pair.offset, element: pair.element)
+            }
+            .sorted { lhs, rhs in
+                let lhsScore: Int = try self.vfedPlayItemPreferenceScore(lhs.element)
+                let rhsScore: Int = try self.vfedPlayItemPreferenceScore(rhs.element)
+                if lhsScore != rhsScore {
+                    return lhsScore > rhsScore
+                }
 
-            guard try self.shouldIncludeVfedPlayItem(playItem) else {
-                #if DEBUG
-                print(
-                    "[BrowseCraftMacCMSVfedEpisodes] skip " +
-                    "title=\(title) reason=vip count=\(elements.count)"
-                )
-                #endif
-                continue
+                return lhs.offset < rhs.offset
             }
 
+        var entries: [VfedEpisodeEntry] = []
+        for rankedPlayItem in rankedPlayItems {
+            let playItem: Element = rankedPlayItem.element
+            let elements: [Element] = try self.vfedEpisodeElements(in: playItem)
+            let title: String = try self.vfedPlayItemTitle(playItem)
             let score: Int = try self.vfedPlayItemPreferenceScore(playItem)
             #if DEBUG
             print(
@@ -248,22 +256,29 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
                 "first=\(try elements.first?.attr("href") ?? "nil")"
             )
             #endif
-            if elements.count > bestElements.count ||
-                (elements.count == bestElements.count && score > bestScore) {
-                bestElements = elements
-                bestScore = score
-                bestTitle = title
+
+            for element: Element in elements {
+                guard try self.shouldIncludeEpisodeLink(element) else {
+                    continue
+                }
+
+                entries.append(
+                    VfedEpisodeEntry(
+                        element: element,
+                        lineTitle: self.normalizedVfedPlayItemTitle(title)
+                    )
+                )
             }
         }
 
         #if DEBUG
         print(
             "[BrowseCraftMacCMSVfedEpisodes] selected " +
-            "title=\(bestTitle) count=\(bestElements.count) score=\(bestScore) " +
-            "first=\(try bestElements.first?.attr("href") ?? "nil")"
+            "count=\(entries.count) " +
+            "first=\(try entries.first?.element.attr("href") ?? "nil")"
         )
         #endif
-        return bestElements
+        return entries
     }
 
     private func vfedEpisodeElements(in playItem: Element) throws -> [Element] {
@@ -281,7 +296,9 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
         }
 
         if directListElements.isEmpty == false {
-            return try self.deduplicatedVfedEpisodeElements(directListElements)
+            return try self.sortedVfedEpisodeElements(
+                self.deduplicatedVfedEpisodeElements(directListElements)
+            )
         }
 
         let fallbackElements: [Element] = try playItem.select("a[href*=\"/vodplay/\"]")
@@ -289,7 +306,9 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
             .filter { anchor in
                 return self.isElement(anchor, insideOwnVfedPlayItem: playItem)
             }
-        return try self.deduplicatedVfedEpisodeElements(fallbackElements)
+        return try self.sortedVfedEpisodeElements(
+            self.deduplicatedVfedEpisodeElements(fallbackElements)
+        )
     }
 
     private func deduplicatedVfedEpisodeElements(_ elements: [Element]) throws -> [Element] {
@@ -324,6 +343,26 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
         return uniqueElements
     }
 
+    private func sortedVfedEpisodeElements(_ elements: [Element]) throws -> [Element] {
+        let indexedElements: [(offset: Int, element: Element)] = elements.enumerated().map { pair in
+            return (offset: pair.offset, element: pair.element)
+        }
+
+        return try indexedElements.sorted { lhs, rhs in
+            let lhsHref: String = try lhs.element.attr("href")
+            let rhsHref: String = try rhs.element.attr("href")
+            let lhsRoute: VideoPlayRoute? = self.playRoute(from: URL(string: lhsHref)?.path ?? lhsHref)
+            let rhsRoute: VideoPlayRoute? = self.playRoute(from: URL(string: rhsHref)?.path ?? rhsHref)
+            switch (lhsRoute?.episodeIndex, rhsRoute?.episodeIndex) {
+            case let (lhsIndex?, rhsIndex?) where lhsIndex != rhsIndex:
+                return lhsIndex < rhsIndex
+            default:
+                return lhs.offset < rhs.offset
+            }
+        }
+        .map(\.element)
+    }
+
     private func isElement(_ element: Element, insideOwnVfedPlayItem playItem: Element) -> Bool {
         var parent: Element? = element.parent()
         while let current: Element = parent {
@@ -350,29 +389,37 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
         return true
     }
 
-    private func shouldIncludeVfedPlayItem(_ element: Element) throws -> Bool {
-        let headerText: String = try self.vfedPlayItemTitle(element)
-        return headerText.range(of: "VIP解析", options: [.caseInsensitive, .widthInsensitive]) == nil
-    }
-
     private func vfedPlayItemPreferenceScore(_ element: Element) throws -> Int {
         let headerText: String = try self.vfedPlayItemTitle(element)
         let itemText: String = try element.text()
         let text: String = "\(headerText) \(itemText)"
-        var score: Int = 0
+        var score: Int = 100
 
+        if text.range(of: "VIP解析", options: [.caseInsensitive, .widthInsensitive]) != nil {
+            score -= 100
+        }
         if text.range(of: "第三方提供", options: [.caseInsensitive, .widthInsensitive]) != nil {
-            score -= 30
+            score -= 80
         }
         if text.range(of: "超清AB线", options: [.caseInsensitive, .widthInsensitive]) != nil ||
             text.range(of: "超清EV线", options: [.caseInsensitive, .widthInsensitive]) != nil {
-            score -= 20
+            score -= 80
         }
         return score
     }
 
     private func vfedPlayItemTitle(_ element: Element) throws -> String {
         return try element.select(".fed-drop-head").text().trimmedNonEmpty ?? "unknown"
+    }
+
+    private func normalizedVfedPlayItemTitle(_ title: String) -> String? {
+        let normalized: String = title
+            .replacingOccurrences(of: "来自", with: "")
+            .replacingOccurrences(of: "的播放列表", with: "")
+            .replacingOccurrences(of: "视频排序：正序", with: "")
+            .replacingOccurrences(of: "视频排序：倒序", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalized.trimmedNonEmpty
     }
 
     private func sortedEpisodes(_ episodes: [VideoEpisode]) -> [VideoEpisode] {
@@ -485,19 +532,83 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
     }
 
     private func coverURL(from element: Element, baseURL: URL) throws -> URL? {
-        let value: String? = try element.select(Selectors.covers)
-            .first()
-            .flatMap { element in
-                return try? element.attr("data-original").trimmedNonEmpty
-                    ?? element.attr("data-src").trimmedNonEmpty
-                    ?? element.attr("src").trimmedNonEmpty
-            }
+        let fallbackValue: String? = try self.onerrorFallbackCoverValue(from: element)
+        let elements: [Element] = try element.select(Selectors.covers).array()
+        for element: Element in elements {
+            let candidates: [String?] = [
+                try element.attr("data-original").trimmedNonEmpty,
+                try element.attr("data-src").trimmedNonEmpty,
+                try element.attr("src").trimmedNonEmpty
+            ]
 
-        guard let value: String else {
-            return nil
+            for candidate: String? in candidates {
+                guard let value: String = candidate,
+                      self.isUsableCoverValue(value),
+                      let url: URL = URL(string: value, relativeTo: baseURL)?.absoluteURL,
+                      self.isHTTPImageURL(url) else {
+                    continue
+                }
+
+                if self.shouldPreferFallbackCoverValue(value),
+                   let fallbackValue: String,
+                   let fallbackURL: URL = URL(string: fallbackValue, relativeTo: baseURL)?.absoluteURL,
+                   self.isHTTPImageURL(fallbackURL) {
+                    return fallbackURL
+                }
+
+                return url
+            }
         }
 
-        return URL(string: value, relativeTo: baseURL)?.absoluteURL
+        return nil
+    }
+
+    private func onerrorFallbackCoverValue(from element: Element) throws -> String? {
+        let elements: [Element] = try element.select("[onerror]").array()
+        for element: Element in elements {
+            let script: String = try element.attr("onerror")
+            for pattern: String in [
+                #"attr\(\s*['"]src['"]\s*,\s*['"]([^'"]+)['"]\s*\)"#,
+                #"data\(\s*['"]original['"]\s*,\s*['"]([^'"]+)['"]\s*\)"#
+            ] {
+                guard let value: String = self.firstMatch(script, pattern: pattern),
+                      self.isUsableCoverValue(value) else {
+                    continue
+                }
+
+                return value
+            }
+        }
+
+        return nil
+    }
+
+    private func shouldPreferFallbackCoverValue(_ value: String) -> Bool {
+        guard let url: URL = URL(string: value),
+              let host: String = url.host?.lowercased() else {
+            return false
+        }
+
+        return host.contains("doubanio.com") ||
+            host == "m.media-amazon.com" ||
+            host == "image.tmdb.org"
+    }
+
+    private func isUsableCoverValue(_ value: String) -> Bool {
+        let normalized: String = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lowercased: String = normalized.lowercased()
+        return normalized.isEmpty == false &&
+            lowercased != "arraycover" &&
+            lowercased != "null" &&
+            lowercased != "undefined" &&
+            lowercased.hasPrefix("data:") == false &&
+            lowercased.hasPrefix("javascript:") == false &&
+            lowercased.hasPrefix("about:") == false
+    }
+
+    private func isHTTPImageURL(_ url: URL) -> Bool {
+        let scheme: String = url.scheme?.lowercased() ?? ""
+        return scheme == "http" || scheme == "https"
     }
 
     private func latestText(from element: Element) throws -> String? {
@@ -528,6 +639,15 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
 
                 candidates.append(text)
             }
+        }
+
+        for selector: String in ["meta[name=description][content]", "meta[property=og:description][content]"] {
+            guard let text: String = self.firstAttribute(in: document, selector: selector, attribute: "content")?.cleanedDetailText,
+                  candidates.contains(text) == false else {
+                continue
+            }
+
+            candidates.append(text)
         }
 
         if let explicitSynopsis: String = candidates.first(where: { text in
@@ -579,7 +699,41 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
             rows.append(text)
         }
 
+        self.appendMetadataRow(
+            "主演",
+            value: self.firstAttribute(in: document, selector: "meta[property=og:video:actor][content], meta[itemprop=actor][content]", attribute: "content"),
+            to: &rows
+        )
+        self.appendMetadataRow(
+            "类型",
+            value: self.firstAttribute(in: document, selector: "meta[property=og:video:class][content], meta[itemprop=class][content]", attribute: "content"),
+            to: &rows
+        )
+        self.appendMetadataRow(
+            "地区",
+            value: self.firstAttribute(in: document, selector: "meta[property=og:video:area][content], meta[itemprop=contentLocation][content]", attribute: "content"),
+            to: &rows
+        )
+        self.appendMetadataRow(
+            "日期",
+            value: self.firstAttribute(in: document, selector: "meta[property=og:video:date][content], meta[itemprop=uploadDate][content]", attribute: "content"),
+            to: &rows
+        )
+
         return Array(rows.prefix(Defaults.maxMetadataRows))
+    }
+
+    private func appendMetadataRow(_ title: String, value: String?, to rows: inout [String]) {
+        guard let value: String = value?.cleanedDetailText else {
+            return
+        }
+
+        let row: String = "\(title)：\(value)"
+        guard rows.contains(row) == false else {
+            return
+        }
+
+        rows.append(row)
     }
 
     private func vodID(from detailURL: URL) -> String? {
@@ -812,12 +966,32 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
 
         return String(string[swiftRange])
     }
+
+    private func firstAttribute(
+        in document: Document,
+        selector: String,
+        attribute: String
+    ) -> String? {
+        do {
+            return try document.select(selector)
+                .first()?
+                .attr(attribute)
+                .trimmedNonEmpty
+        } catch {
+            return nil
+        }
+    }
 }
 
 private struct VideoPlayRoute {
     var vodID: String
     var sourceIndex: Int
     var episodeIndex: Int
+}
+
+private struct VfedEpisodeEntry {
+    var element: Element
+    var lineTitle: String?
 }
 
 private extension String {

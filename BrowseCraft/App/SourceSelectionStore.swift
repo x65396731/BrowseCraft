@@ -12,6 +12,7 @@ struct SourceLibrarySnapshot: Equatable {
     let sourceID: String
     let sourceName: String
     let runtimeKind: SourceRuntimeKind
+    let listContext: ListContext?
     let items: [ContentItem]
 }
 
@@ -35,12 +36,17 @@ final class SourceSelectionStore: ObservableObject {
         }
     }
 
-    func publishLibrarySnapshot(source: Source, items: [ContentItem]) {
+    func publishLibrarySnapshot(
+        source: Source,
+        items: [ContentItem],
+        listContext: ListContext? = nil
+    ) {
         self.preparedLibrarySnapshot = SourceLibrarySnapshot(
             source: source,
             sourceID: source.id,
             sourceName: source.name,
             runtimeKind: source.configuration.kind,
+            listContext: listContext ?? items.first?.listContext,
             items: items
         )
     }

@@ -19,6 +19,9 @@ struct LibraryView: View {
     private let comicTabSelectedColor: Color = Color(red: 133 / 255, green: 153 / 255, blue: 255 / 255)
     private let comicTabTextColor: Color = Color(red: 21 / 255, green: 30 / 255, blue: 71 / 255)
     private let comicTabStrokeColor: Color = Color(red: 233 / 255, green: 236 / 255, blue: 239 / 255)
+    private let videoTabSelectedColor: Color = Color(red: 133 / 255, green: 153 / 255, blue: 255 / 255)
+    private let videoTabTextColor: Color = Color(red: 21 / 255, green: 30 / 255, blue: 71 / 255)
+    private let videoTabStrokeColor: Color = Color(red: 233 / 255, green: 236 / 255, blue: 239 / 255)
 
     var body: some View {
         NavigationStack {
@@ -183,6 +186,8 @@ struct LibraryView: View {
     private var listTabBar: some View {
         if self.viewModel.selectedSource?.configuration.kind == .comic {
             self.comicListTabBar
+        } else if self.viewModel.selectedSource?.configuration.kind == .video {
+            self.videoListTabBar
         } else {
             self.defaultListTabBar
         }
@@ -216,6 +221,49 @@ struct LibraryView: View {
                                     RoundedRectangle(cornerRadius: 6, style: .continuous)
                                         .stroke(
                                             tab.isSelected ? Color.clear : self.comicTabStrokeColor,
+                                            lineWidth: 1
+                                        )
+                                )
+                        }
+                    )
+                    .buttonStyle(.plain)
+                    .disabled(self.viewModel.isRefreshing)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+        }
+        .background(Color(.systemBackground))
+    }
+
+    private var videoListTabBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(self.viewModel.listTabStates) { tab in
+                    Button(
+                        action: {
+                            Task {
+                                await self.viewModel.selectListTab(id: tab.id)
+                            }
+                        },
+                        label: {
+                            Text(tab.title)
+                                .font(.system(size: 14, weight: .regular))
+                                .foregroundStyle(tab.isSelected ? Color.white : self.videoTabTextColor)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.82)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 10)
+                                .padding(.horizontal, 2)
+                                .frame(minHeight: 38)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                        .fill(tab.isSelected ? self.videoTabSelectedColor : Color.white)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                        .stroke(
+                                            tab.isSelected ? Color.clear : self.videoTabStrokeColor,
                                             lineWidth: 1
                                         )
                                 )

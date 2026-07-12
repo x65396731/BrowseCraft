@@ -170,12 +170,12 @@ struct VideoRuntimeMacCMSMappingTests {
             detailURL: detailURL
         )
 
-        #expect(detail.episodes.map(\.id) == ["666009-1-1"])
-        #expect(detail.episodes.map(\.title) == ["正片"])
+        #expect(detail.episodes.map(\.id) == ["666009-1-1", "666009-12-1", "666009-7-1"])
+        #expect(detail.episodes.map(\.title) == ["IK影视 - 正片", "量子云 - 正片", "腾讯视频-VIP解析 - VIP正片"])
         #expect(detail.episodes[0].playPageURL.absoluteString == "https://www.kpkuang.fun/vodplay/666009-1-1/")
     }
 
-    @Test func macCMSMapperUsesMostCompleteVfedPlaybackList() throws {
+    @Test func macCMSMapperKeepsAllVfedPlaybackListsWithNativeFirst() throws {
         let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
         let definition: SourceDefinition = try Self.videoDefinition()
         let detailURL: URL = try #require(URL(string: "https://www.kpkuang.fun/voddetail/1091565/"))
@@ -186,11 +186,29 @@ struct VideoRuntimeMacCMSMappingTests {
             detailURL: detailURL
         )
 
-        #expect(detail.episodes.map(\.id) == ["1091565-23-1", "1091565-23-2", "1091565-23-3"])
-        #expect(detail.episodes.map(\.title) == ["第1集", "第2集", "第3集"])
+        #expect(detail.episodes.map(\.id) == [
+            "1091565-21-1",
+            "1091565-21-2",
+            "1091565-23-1",
+            "1091565-23-2",
+            "1091565-23-3",
+            "1091565-7-1",
+            "1091565-7-2",
+            "1091565-7-3"
+        ])
+        #expect(detail.episodes.map(\.title) == [
+            "电影天堂 - 第1集",
+            "电影天堂 - 第2集",
+            "量子云 - 第1集",
+            "量子云 - 第2集",
+            "量子云 - 第3集",
+            "腾讯视频-VIP解析 - 第1集",
+            "腾讯视频-VIP解析 - 第2集",
+            "腾讯视频-VIP解析 - 第3集"
+        ])
     }
 
-    @Test func macCMSMapperPrefersNativeVfedPlaybackListWhenCountsTie() throws {
+    @Test func macCMSMapperKeepsNativeLineBeforeWebViewLinesWhenCountsTie() throws {
         let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
         let definition: SourceDefinition = try Self.videoDefinition()
         let detailURL: URL = try #require(URL(string: "https://www.kpkuang.fun/voddetail/1102134/"))
@@ -201,11 +219,42 @@ struct VideoRuntimeMacCMSMappingTests {
             detailURL: detailURL
         )
 
-        #expect(detail.episodes.map(\.id) == ["1102134-19-1"])
-        #expect(detail.episodes.map(\.title) == ["正片"])
+        #expect(detail.episodes.map(\.id) == ["1102134-19-1", "1102134-2-1", "1102134-1-1"])
+        #expect(detail.episodes.map(\.title) == [
+            "火花云 - 正片",
+            "超清AB线 - 1080p_原声_中文字幕",
+            "超清EV线 - 1080p_原声_中文字幕"
+        ])
     }
 
-    @Test func macCMSMapperReturnsEmptyWhenOnlyVfedVIPPlaybackListsExist() throws {
+    @Test func macCMSMapperKeepsPeerNativeVfedLinesInSiteOrder() throws {
+        let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
+        let definition: SourceDefinition = try Self.videoDefinition()
+        let detailURL: URL = try #require(URL(string: "https://www.kpkuang.fun/voddetail/39820/"))
+
+        let detail: VideoDetailContent = try mapper.mapDetail(
+            html: Self.vfedTieLineReliabilityDetailHTML,
+            definition: definition,
+            detailURL: detailURL
+        )
+
+        #expect(detail.episodes.map(\.id) == [
+            "39820-80-1",
+            "39820-97-1",
+            "39820-79-1",
+            "39820-56-1",
+            "39820-86-1"
+        ])
+        #expect(detail.episodes.map(\.title) == [
+            "IK影视 - 正片",
+            "MT影视 - 正片",
+            "高清资源库 - 正片",
+            "红牛云 - 正片",
+            "量子云 - 正片"
+        ])
+    }
+
+    @Test func macCMSMapperKeepsVfedVIPPlaybackListsWhenTheyAreTheOnlyLines() throws {
         let mapper: MacCMSVideoContentMapper = MacCMSVideoContentMapper()
         let definition: SourceDefinition = try Self.videoDefinition()
         let detailURL: URL = try #require(URL(string: "https://www.kpkuang.fun/voddetail/900001/"))
@@ -216,7 +265,8 @@ struct VideoRuntimeMacCMSMappingTests {
             detailURL: detailURL
         )
 
-        #expect(detail.episodes.isEmpty)
+        #expect(detail.episodes.map(\.id) == ["900001-7-1", "900001-7-2"])
+        #expect(detail.episodes.map(\.title) == ["腾讯视频-VIP解析 - 第1集", "腾讯视频-VIP解析 - 第2集"])
     }
 
     @Test func macCMSMapperSortsVfedEpisodeTitlesNumerically() throws {
@@ -230,7 +280,11 @@ struct VideoRuntimeMacCMSMappingTests {
             detailURL: detailURL
         )
 
-        #expect(detail.episodes.map(\.title) == ["S1_EP10_中文字幕", "S1_EP29_中文字幕", "S1_EP30_中文字幕"])
+        #expect(detail.episodes.map(\.title) == [
+            "字幕云 - S1_EP10_中文字幕",
+            "字幕云 - S1_EP29_中文字幕",
+            "字幕云 - S1_EP30_中文字幕"
+        ])
     }
 
     @Test func macCMSMapperClassifiesMP4AndEmptyPlayerPayload() throws {
@@ -746,6 +800,53 @@ struct VideoRuntimeMacCMSMappingTests {
           </ul>
           <ul class="fed-part-rows">
             <li><a href="/vodplay/1102134-19-1/">正片</a></li>
+          </ul>
+        </li>
+      </body>
+    </html>
+    """
+
+    private static let vfedTieLineReliabilityDetailHTML: String = """
+    <html>
+      <body>
+        <li class="fed-play-item fed-drop-item">
+          <ul class="fed-drop-head fed-padding fed-part-rows">
+            <li>来自 <span class="uk-label">IK影视</span> 的播放列表</li>
+          </ul>
+          <ul class="fed-part-rows">
+            <li><a href="/vodplay/39820-80-1.html">正片</a></li>
+          </ul>
+        </li>
+        <li class="fed-play-item fed-drop-item">
+          <ul class="fed-drop-head fed-padding fed-part-rows">
+            <li>来自 <span class="uk-label">MT影视</span> 的播放列表</li>
+          </ul>
+          <ul class="fed-part-rows">
+            <li><a href="/vodplay/39820-97-1.html">正片</a></li>
+          </ul>
+        </li>
+        <li class="fed-play-item fed-drop-item">
+          <ul class="fed-drop-head fed-padding fed-part-rows">
+            <li>来自 <span class="uk-label">高清资源库</span> 的播放列表</li>
+          </ul>
+          <ul class="fed-part-rows">
+            <li><a href="/vodplay/39820-79-1.html">正片</a></li>
+          </ul>
+        </li>
+        <li class="fed-play-item fed-drop-item">
+          <ul class="fed-drop-head fed-padding fed-part-rows">
+            <li>来自 <span class="uk-label">红牛云</span> 的播放列表</li>
+          </ul>
+          <ul class="fed-part-rows">
+            <li><a href="/vodplay/39820-56-1.html">正片</a></li>
+          </ul>
+        </li>
+        <li class="fed-play-item fed-drop-item">
+          <ul class="fed-drop-head fed-padding fed-part-rows">
+            <li>来自 <span class="uk-label">量子云</span> 的播放列表</li>
+          </ul>
+          <ul class="fed-part-rows">
+            <li><a href="/vodplay/39820-86-1.html">正片</a></li>
           </ul>
         </li>
       </body>

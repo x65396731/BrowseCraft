@@ -165,7 +165,8 @@ final class LibraryViewModel: ObservableObject {
                 }
                 self.sourceSelectionStore.publishLibrarySnapshot(
                     source: refreshedSelectedSource,
-                    items: self.items
+                    items: self.items,
+                    listContext: expectedListContext
                 )
                 self.logLibraryItems(
                     origin: "runtime-refresh-result",
@@ -556,7 +557,8 @@ final class LibraryViewModel: ObservableObject {
 
     private func applyPreparedSnapshotIfAvailable() -> Bool {
         guard let snapshot: SourceLibrarySnapshot = self.preparedLibrarySnapshot,
-              snapshot.sourceID == self.selectedSourceID else {
+              snapshot.sourceID == self.selectedSourceID,
+              self.snapshotMatchesSelectedListContext(snapshot) else {
             return false
         }
 
@@ -568,6 +570,23 @@ final class LibraryViewModel: ObservableObject {
             context: self.selectedListContext
         )
         return true
+    }
+
+    private func snapshotMatchesSelectedListContext(_ snapshot: SourceLibrarySnapshot) -> Bool {
+        guard snapshot.runtimeKind == .video else {
+            return true
+        }
+
+        guard let selectedContext: ListContext = self.selectedListContext else {
+            return true
+        }
+
+        guard let snapshotContext: ListContext = snapshot.listContext ?? snapshot.items.first?.listContext else {
+            return true
+        }
+
+        return snapshotContext.tabId == selectedContext.tabId &&
+            snapshotContext.listRuleId == selectedContext.listRuleId
     }
 
     private func upsertSource(_ source: Source) {
