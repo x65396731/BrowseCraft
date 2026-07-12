@@ -11,7 +11,7 @@ struct RSSContentListView: View {
     let detailViewModelFactory: (ContentItem, Source) -> RSSContentDetailViewModel
 
     var body: some View {
-        LazyVStack(spacing: 12) {
+        LazyVStack(spacing: 22) {
             ForEach(Array(self.items.enumerated()), id: \.offset) { _, item in
                 NavigationLink(
                     destination: RSSContentDetailView(
@@ -45,8 +45,10 @@ struct RSSContentListView: View {
                 )
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .top)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 24)
+        .background(Self.pageBackgroundColor)
         .onAppear {
             CrashDiagnostics.shared.setScreen(.rssList)
             AppAnalytics.shared.logScreenView(.rssList)
@@ -54,4 +56,10 @@ struct RSSContentListView: View {
             CrashDiagnostics.shared.setRuleStage(.rssFeed)
         }
     }
+
+    private static let pageBackgroundColor: Color = Color(
+        red: 250 / 255,
+        green: 250 / 255,
+        blue: 252 / 255
+    )
 }

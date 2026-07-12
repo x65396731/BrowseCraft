@@ -18,3 +18,68 @@ struct ContentItem: Identifiable, Hashable {
     /// 中文注释：记录列表项来自哪个页面、Tab 或 Section，后续详情/阅读页可用它缩小解析范围。
     var listContext: ListContext? = nil
 }
+
+// 中文注释：RSSContentPayload 是 RSS 详情页的富内容载体，通过 latestText 临时透传，不进入 Core runtime 模型。
+struct RSSContentPayload: Codable, Equatable, Hashable {
+    enum BlockKind: String, Codable {
+        case paragraph
+        case subtitle
+        case image
+    }
+
+    struct Metadata: Codable, Equatable, Hashable {
+        var tags: [String] = []
+        var likeCount: Int?
+        var commentCount: Int?
+    }
+
+    struct Block: Codable, Equatable, Hashable, Identifiable {
+        var id: String
+        var kind: BlockKind
+        var text: String?
+        var imageURL: String?
+    }
+
+    var summary: String?
+    var blocks: [Block]
+    var metadata: Metadata?
+
+    var summaryText: String? {
+        if let summary: String = self.summary?.trimmedNonEmpty {
+            return summary
+        }
+
+        return self.blocks.compactMap(\.text).first?.trimmedNonEmpty
+    }
+
+    func encodedString() -> String? {
+        guard let data: Data = try? JSONEncoder().encode(self) else {
+            return nil
+        }
+
+        return Self.prefix + data.base64EncodedString()
+    }
+
+    static func decode(from string: String?) -> RSSContentPayload? {
+        guard let string: String = string,
+              string.hasPrefix(Self.prefix) else {
+            return nil
+        }
+
+        let payloadString: String = String(string.dropFirst(Self.prefix.count))
+        guard let data: Data = Data(base64Encoded: payloadString) else {
+            return nil
+        }
+
+        return try? JSONDecoder().decode(RSSContentPayload.self, from: data)
+    }
+
+    private static let prefix: String = "__BROWSECRAFT_RSS_CONTENT_V1__"
+}
+
+private extension String {
+    var trimmedNonEmpty: String? {
+        let trimmed: String = self.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+}

@@ -11,6 +11,25 @@ struct RSSFeedItem: Equatable {
     var link: URL?
     var summary: String?
     var coverURL: URL?
+    var contentBlocks: [RSSContentPayload.Block]
     var publishedAt: Date?
     var guid: String?
+
+    init(
+        title: String?,
+        link: URL?,
+        summary: String?,
+        coverURL: URL?,
+        contentBlocks: [RSSContentPayload.Block] = [],
+        publishedAt: Date?,
+        guid: String?
+    ) {
+        self.title = title
+        self.link = link
+        self.summary = summary
+        self.coverURL = coverURL
+        self.contentBlocks = contentBlocks
+        self.publishedAt = publishedAt
+        self.guid = guid
+    }
 }

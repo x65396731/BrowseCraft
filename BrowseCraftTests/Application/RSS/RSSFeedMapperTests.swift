@@ -48,6 +48,28 @@ struct RSSFeedMapperTests {
         #expect(first.publishedAt != nil)
     }
 
+    @Test func parsesRichContentBlocksFromEncodedHTML() throws {
+        let mapper: RSSFeedMapper = RSSFeedMapper()
+        let feed: RSSFeed = try mapper.map(Self.richRSS)
+        let item: RSSFeedItem = try #require(feed.items.first)
+        let secondItem: RSSFeedItem = try #require(feed.items.dropFirst().first)
+
+        #expect(feed.items.count == 2)
+        #expect(item.coverURL?.absoluteString == "https://example.test/one.jpg")
+        #expect(item.contentBlocks.map(\.kind) == [.subtitle, .paragraph, .image, .subtitle, .paragraph, .image])
+        #expect(item.contentBlocks[0].text == "第一节")
+        #expect(item.contentBlocks[1].text == "第一段正文")
+        #expect(item.contentBlocks[2].imageURL == "https://example.test/one.jpg")
+        #expect(item.contentBlocks[3].text == "ROG二十周年展示区：典藏之巅，致敬传奇")
+        #expect(item.contentBlocks[4].text == "第二段正文")
+        #expect(item.contentBlocks[5].imageURL == "https://example.test/two.jpg")
+
+        #expect(secondItem.contentBlocks.map(\.kind) == [.subtitle, .paragraph, .image])
+        #expect(secondItem.contentBlocks[0].text == "第二条标题")
+        #expect(secondItem.contentBlocks[1].text == "第二条正文")
+        #expect(secondItem.contentBlocks[2].imageURL == "https://example.test/three.jpg")
+    }
+
     private static let solidotLikeRSS: String = """
     <?xml version="1.0" encoding="UTF-8"?>
     <rss version="2.0">
@@ -107,5 +129,30 @@ struct RSSFeedMapperTests {
         <content type="html">第二条摘要</content>
       </entry>
     </feed>
+    """
+
+    private static let richRSS: String = """
+    <rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+      <channel>
+        <item>
+          <title>富内容</title>
+          <content:encoded><![CDATA[
+            <h2>第一节</h2>
+            <p>第一段正文</p>
+            <img src="https://example.test/one.jpg" />
+            <p><strong>ROG二十周年展示区：典藏之巅，致敬传奇</strong></p>
+            <p>第二段正文<img src="https://example.test/two.jpg" /></p>
+          ]]></content:encoded>
+        </item>
+        <item>
+          <title>第二条富内容</title>
+          <content:encoded><![CDATA[
+            <p><strong>第二条标题</strong></p>
+            <p>第二条正文</p>
+            <img src="https://example.test/three.jpg" />
+          ]]></content:encoded>
+        </item>
+      </channel>
+    </rss>
     """
 }

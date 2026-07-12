@@ -324,7 +324,8 @@ final class AppContainer {
             item: item,
             source: source,
             saveRSSReadingHistoryUseCase: saveRSSReadingHistoryUseCase,
-            accumulateAdPointsUseCase: accumulateAdPointsUseCase
+            accumulateAdPointsUseCase: accumulateAdPointsUseCase,
+            pageContentLoader: self.pageContentLoader
         )
     }
 

@@ -126,11 +126,14 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
         case (.entry, "summary"), (.entry, "content"):
             self.currentItem?.summary = value
             self.currentItem?.applyFallbackCoverURL(Self.firstImageURL(in: value))
+            self.currentItem?.appendContentBlocks(Self.contentBlocks(in: value))
         case (.item, "description"):
             self.currentItem?.summary = value
             self.currentItem?.applyFallbackCoverURL(Self.firstImageURL(in: value))
+            self.currentItem?.appendContentBlocks(Self.contentBlocks(in: value))
         case (.item, "content:encoded"), (.item, "encoded"):
             self.currentItem?.applyFallbackCoverURL(Self.firstImageURL(in: value))
+            self.currentItem?.appendContentBlocks(Self.contentBlocks(in: value))
         case (.item, "thumb"), (.item, "thumbnail"), (.item, "cover"), (.item, "image"):
             self.currentItem?.applyFallbackCoverURL(value.flatMap(URL.init(string:)))
         case (.item, "pubdate"):
@@ -197,26 +200,195 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
     }
 
     private static func firstImageURL(in html: String?) -> URL? {
+        return Self.imageURLs(in: html).first
+    }
+
+    private static func contentBlocks(in html: String?) -> [RSSContentPayload.Block] {
         guard let html: String = html else {
-            return nil
+            return []
         }
 
-        let pattern: String = #"<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']"#
+        let pattern: String = #"(?is)<h[1-6]\b[^>]*>(.*?)</h[1-6]>|<p\b[^>]*>(.*?)</p>|<img\b[^>]*>"#
+        guard let regex: NSRegularExpression = try? NSRegularExpression(pattern: pattern) else {
+            return []
+        }
+
+        let range: NSRange = NSRange(html.startIndex..<html.endIndex, in: html)
+        let matches: [NSTextCheckingResult] = regex.matches(in: html, range: range)
+        var blocks: [RSSContentPayload.Block] = []
+        var seenImageURLs: Set<String> = []
+
+        for match in matches {
+            guard let fullRange: Range<String.Index> = Range(match.range(at: 0), in: html) else {
+                continue
+            }
+
+            let fullMatch: String = String(html[fullRange])
+            let lowercasedMatch: String = fullMatch.lowercased()
+
+            if lowercasedMatch.hasPrefix("<img") {
+                Self.appendImages(from: fullMatch, to: &blocks, seenImageURLs: &seenImageURLs)
+                continue
+            }
+
+            if match.numberOfRanges > 1,
+               let headingRange: Range<String.Index> = Range(match.range(at: 1), in: html),
+               let text: String = Self.plainText(from: String(html[headingRange])) {
+                blocks.append(Self.block(kind: .subtitle, text: text, imageURL: nil, index: blocks.count))
+                continue
+            }
+
+            if match.numberOfRanges > 2,
+               let paragraphRange: Range<String.Index> = Range(match.range(at: 2), in: html) {
+                let paragraphHTML: String = String(html[paragraphRange])
+
+                if let text: String = Self.plainText(from: paragraphHTML) {
+                    blocks.append(
+                        Self.block(
+                            kind: Self.paragraphBlockKind(html: paragraphHTML, text: text),
+                            text: text,
+                            imageURL: nil,
+                            index: blocks.count
+                        )
+                    )
+                }
+
+                Self.appendImages(from: paragraphHTML, to: &blocks, seenImageURLs: &seenImageURLs)
+            }
+        }
+
+        if blocks.isEmpty,
+           let text: String = Self.plainText(from: html) {
+            blocks.append(Self.block(kind: .paragraph, text: text, imageURL: nil, index: 0))
+        }
+
+        return blocks
+    }
+
+    private static func paragraphBlockKind(html: String, text: String) -> RSSContentPayload.BlockKind {
+        if Self.isEmphasizedParagraph(html: html, text: text) {
+            return .subtitle
+        }
+
+        if Self.isShortHeadingLikeText(text) {
+            return .subtitle
+        }
+
+        return .paragraph
+    }
+
+    private static func isEmphasizedParagraph(html: String, text: String) -> Bool {
+        let pattern: String = #"(?is)<(?:strong|b|em)\b[^>]*>(.*?)</(?:strong|b|em)>"#
+        guard let regex: NSRegularExpression = try? NSRegularExpression(pattern: pattern) else {
+            return false
+        }
+
+        let range: NSRange = NSRange(html.startIndex..<html.endIndex, in: html)
+        let emphasizedText: String = regex.matches(in: html, range: range)
+            .compactMap { match in
+                guard match.numberOfRanges > 1,
+                      let textRange: Range<String.Index> = Range(match.range(at: 1), in: html) else {
+                    return nil
+                }
+
+                return Self.plainText(from: String(html[textRange]))
+            }
+            .joined(separator: " ")
+
+        guard let normalizedEmphasizedText: String = emphasizedText.trimmedNonEmpty else {
+            return false
+        }
+
+        return normalizedEmphasizedText == text
+    }
+
+    private static func isShortHeadingLikeText(_ text: String) -> Bool {
+        let characterCount: Int = text.count
+        if characterCount > 34 {
+            return false
+        }
+
+        if text.contains("：") || text.contains(":") {
+            return true
+        }
+
+        return characterCount <= 18 && text.contains("。") == false && text.contains("，") == false
+    }
+
+    private static func appendImages(
+        from html: String,
+        to blocks: inout [RSSContentPayload.Block],
+        seenImageURLs: inout Set<String>
+    ) {
+        for url in Self.imageURLs(in: html) {
+            let urlString: String = url.absoluteString
+            guard seenImageURLs.contains(urlString) == false else {
+                continue
+            }
+
+            seenImageURLs.insert(urlString)
+            blocks.append(Self.block(kind: .image, text: nil, imageURL: urlString, index: blocks.count))
+        }
+    }
+
+    private static func imageURLs(in html: String?) -> [URL] {
+        guard let html: String = html else {
+            return []
+        }
+
+        let pattern: String = #"<img\b[^>]*(?:\bsrc|\bdata-src|\bdata-original)\s*=\s*["']([^"']+)["'][^>]*>"#
         guard let regex: NSRegularExpression = try? NSRegularExpression(
             pattern: pattern,
             options: [.caseInsensitive]
         ) else {
-            return nil
+            return []
         }
 
         let range: NSRange = NSRange(html.startIndex..<html.endIndex, in: html)
-        guard let match: NSTextCheckingResult = regex.firstMatch(in: html, range: range),
-              match.numberOfRanges > 1,
-              let urlRange: Range<String.Index> = Range(match.range(at: 1), in: html) else {
-            return nil
-        }
+        return regex.matches(in: html, range: range).compactMap { match in
+            guard match.numberOfRanges > 1,
+                  let urlRange: Range<String.Index> = Range(match.range(at: 1), in: html) else {
+                return nil
+            }
 
-        return URL(string: String(html[urlRange]))
+            return URL(string: String(html[urlRange]))
+        }
+    }
+
+    private static func block(
+        kind: RSSContentPayload.BlockKind,
+        text: String?,
+        imageURL: String?,
+        index: Int
+    ) -> RSSContentPayload.Block {
+        return RSSContentPayload.Block(
+            id: "\(kind.rawValue)-\(index)",
+            kind: kind,
+            text: text,
+            imageURL: imageURL
+        )
+    }
+
+    private static func plainText(from html: String) -> String? {
+        let withoutTags: String = html.replacingOccurrences(
+            of: "<[^>]+>",
+            with: " ",
+            options: .regularExpression
+        )
+        let decoded: String = withoutTags
+            .replacingOccurrences(of: "&nbsp;", with: " ")
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#39;", with: "'")
+        let collapsed: String = decoded
+            .split(whereSeparator: { character in
+                return character.isWhitespace
+            })
+            .joined(separator: " ")
+
+        return collapsed.trimmedNonEmpty
     }
 
     private static func looksLikeImageURL(_ string: String?) -> Bool {
@@ -281,6 +453,7 @@ private struct MutableRSSFeedItem {
     var link: URL?
     var summary: String?
     var coverURL: URL?
+    var contentBlocks: [RSSContentPayload.Block] = []
     var publishedAt: Date?
     var guid: String?
 
@@ -290,6 +463,7 @@ private struct MutableRSSFeedItem {
             link: self.link,
             summary: self.summary,
             coverURL: self.coverURL,
+            contentBlocks: self.contentBlocks,
             publishedAt: self.publishedAt,
             guid: self.guid
         )
@@ -304,6 +478,18 @@ private struct MutableRSSFeedItem {
     mutating func applyFallbackLink(_ url: URL?) {
         if self.link == nil {
             self.link = url
+        }
+    }
+
+    mutating func appendContentBlocks(_ blocks: [RSSContentPayload.Block]) {
+        guard blocks.isEmpty == false else {
+            return
+        }
+
+        if self.contentBlocks.isEmpty {
+            self.contentBlocks = blocks
+        } else {
+            self.contentBlocks.append(contentsOf: blocks)
         }
     }
 }

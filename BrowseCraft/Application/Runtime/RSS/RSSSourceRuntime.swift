@@ -119,7 +119,17 @@ struct RSSSourceRuntime: SourceRuntime {
     }
 
     private func latestText(from item: RSSFeedItem) -> String? {
-        return item.summary?.trimmedNonEmpty
+        if item.contentBlocks.isEmpty == false {
+            let payload: RSSContentPayload = RSSContentPayload(
+                summary: Self.plainText(from: item.summary),
+                blocks: item.contentBlocks
+            )
+            if let encodedString: String = payload.encodedString() {
+                return encodedString
+            }
+        }
+
+        return Self.plainText(from: item.summary)
     }
 
     private func validateSource(_ context: SourceRuntimeContext) throws {
@@ -142,6 +152,34 @@ struct RSSSourceRuntime: SourceRuntime {
         )
     }
 
+}
+
+private extension RSSSourceRuntime {
+    static func plainText(from html: String?) -> String? {
+        guard let html: String = html else {
+            return nil
+        }
+
+        let withoutTags: String = html.replacingOccurrences(
+            of: "<[^>]+>",
+            with: " ",
+            options: .regularExpression
+        )
+        let decoded: String = withoutTags
+            .replacingOccurrences(of: "&nbsp;", with: " ")
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#39;", with: "'")
+        let collapsed: String = decoded
+            .split(whereSeparator: { character in
+                return character.isWhitespace
+            })
+            .joined(separator: " ")
+
+        return collapsed.trimmedNonEmpty
+    }
 }
 
 private extension String {

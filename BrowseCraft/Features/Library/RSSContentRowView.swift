@@ -9,83 +9,108 @@ struct RSSContentRowView: View {
     let favoriteAction: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 12) {
-                if self.item.coverURL != nil {
-                    ItemThumbnailImageView(urlString: self.item.coverURL)
-                        .frame(width: 96, height: 72)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                }
+        HStack(alignment: .top, spacing: 15) {
+            self.thumbnail
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(self.item.title)
-                        .font(.title3.weight(.semibold))
-                        .foregroundColor(.primary)
-                        .lineLimit(3)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    HStack(spacing: 8) {
-                        Label(
-                            title: {
-                                Text("RSS")
-                            },
-                            icon: {
-                                Image(systemName: "dot.radiowaves.left.and.right")
-                            }
-                        )
-
-                        Text(self.sourceName)
-
-                        if let updatedAt: Date = self.item.updatedAt {
-                            Text(RSSContentDateFormatter.string(from: updatedAt))
-                        }
-                    }
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(self.categoryText)
+                    .font(.system(size: 10, weight: .regular))
+                    .foregroundColor(Self.secondaryTextColor)
                     .lineLimit(1)
-                }
+                    .padding(.top, 6)
 
-                Button(
-                    action: {
-                        self.favoriteAction()
-                    },
-                    label: {
-                        Image(systemName: self.isFavorite ? "star.fill" : "star")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(self.isFavorite ? .yellow : .secondary)
-                            .frame(width: 32, height: 32)
-                    }
-                )
-                .buttonStyle(.plain)
-                .accessibilityLabel(self.isFavorite ? "Remove Favorite" : "Add Favorite")
-            }
-
-            if let summary: String = self.summaryText {
-                Text(summary)
-                    .font(.body)
-                    .foregroundColor(.secondary)
+                Text(self.item.title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Self.primaryTextColor)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
-            }
+                    .padding(.top, 10)
 
-            HStack(spacing: 6) {
-                Text("Read")
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
+                Spacer(minLength: 0)
+
+                self.dateMetadata
+                    .padding(.bottom, 12)
             }
-            .font(.callout.weight(.semibold))
-            .foregroundColor(.blue)
+            .frame(height: 100)
         }
-        .padding(16)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(Color(.separator), lineWidth: 1)
-        )
+        .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
     }
 
-    private var summaryText: String? {
-        return RSSContentTextFormatter.sanitized(self.item.latestText)
+    private var thumbnail: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color.white)
+
+            if self.item.coverURL != nil {
+                ItemThumbnailImageView(urlString: self.item.coverURL)
+                    .frame(width: 90, height: 90)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            } else {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.white.opacity(0.82))
+                    .frame(width: 90, height: 90)
+                    .overlay(
+                        Image(systemName: "dot.radiowaves.left.and.right")
+                            .font(.system(size: 28, weight: .medium))
+                            .foregroundColor(Self.secondaryTextColor)
+                    )
+            }
+        }
+        .frame(width: 100, height: 100)
     }
+
+    private var dateMetadata: some View {
+        HStack(spacing: 10) {
+            if let updatedAt: Date = self.item.updatedAt {
+                Label(
+                    title: {
+                        Text(RSSContentDateFormatter.dayMonthString(from: updatedAt))
+                    },
+                    icon: {
+                        Image(systemName: "calendar")
+                    }
+                )
+
+                Spacer(minLength: 8)
+
+                Label(
+                    title: {
+                        Text(RSSContentDateFormatter.timeString(from: updatedAt).lowercased())
+                    },
+                    icon: {
+                        Image(systemName: "clock")
+                    }
+                )
+            } else {
+                Label(
+                    title: {
+                        Text("RSS")
+                    },
+                    icon: {
+                        Image(systemName: "dot.radiowaves.left.and.right")
+                    }
+                )
+            }
+        }
+        .font(.system(size: 11, weight: .medium))
+        .foregroundColor(Self.secondaryTextColor)
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
+    }
+
+    private var categoryText: String {
+        return "RSS: \(self.sourceName)"
+    }
+
+    private static let primaryTextColor: Color = Color(
+        red: 25 / 255,
+        green: 32 / 255,
+        blue: 45 / 255
+    )
+
+    private static let secondaryTextColor: Color = Color(
+        red: 147 / 255,
+        green: 151 / 255,
+        blue: 160 / 255
+    )
 }
