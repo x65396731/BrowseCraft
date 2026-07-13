@@ -91,7 +91,7 @@ final class RSSContentDetailViewModel: ObservableObject {
         self.didLoadDetailContent = true
 
         guard let pageContentLoader: PageContentLoader = self.pageContentLoader,
-              let detailURL: URL = Self.secureDetailURL(from: self.item.detailURL) else {
+              let detailURL: URL = URL(string: self.item.detailURL) else {
             return
         }
 
@@ -114,7 +114,7 @@ final class RSSContentDetailViewModel: ObservableObject {
                 summary: RSSContentTextFormatter.sanitized(self.item.latestText),
                 blocks: mergedBlocks,
                 metadata: self.mergedMetadata(detailContent.metadata, feedMetadata: feedPayload?.metadata),
-                media: feedPayload?.media
+                media: self.mergedMedia(detailContent.media, feedMedia: feedPayload?.media, coverURL: updatedItem.coverURL)
             )
             updatedItem.latestText = payload.encodedString() ?? self.item.latestText
             if self.shouldReplaceCoverURL(updatedItem.coverURL) {
@@ -172,6 +172,22 @@ final class RSSContentDetailViewModel: ObservableObject {
         )
     }
 
+    private func mergedMedia(
+        _ detailMedia: RSSContentPayload.Media?,
+        feedMedia: RSSContentPayload.Media?,
+        coverURL: String?
+    ) -> RSSContentPayload.Media? {
+        guard var media: RSSContentPayload.Media = feedMedia ?? detailMedia else {
+            return nil
+        }
+
+        if media.posterURL == nil {
+            media.posterURL = coverURL
+        }
+
+        return media
+    }
+
     private func mergedDetailBlocks(_ detailBlocks: [RSSContentPayload.Block]) -> [RSSContentPayload.Block] {
         var rejectedImageReasons: [String: Int] = [:]
         let detailTextBlocks: [RSSContentPayload.Block] = detailBlocks.filter { block in
@@ -191,7 +207,7 @@ final class RSSContentDetailViewModel: ObservableObject {
         }
 
         guard let feedPayload: RSSContentPayload = RSSContentPayload.decode(from: self.item.latestText) else {
-            let filteredDetailBlocks: [RSSContentPayload.Block] = detailTextBlocks + filteredDetailImageBlocks
+            let filteredDetailBlocks: [RSSContentPayload.Block] = detailTextBlocks + self.deduplicatedImageBlocks(filteredDetailImageBlocks)
             self.logRSSImageFilterSummary(
                 rawDetailBlocks: detailBlocks,
                 feedImageCount: 0,
@@ -202,7 +218,7 @@ final class RSSContentDetailViewModel: ObservableObject {
         }
 
         var feedImageBlocks: [RSSContentPayload.Block] = []
-        var seenImageURLs: Set<String> = []
+        var seenImageDedupeKeys: Set<String> = []
         for block in feedPayload.blocks where block.kind == .image {
             guard let imageURL: String = block.imageURL else {
                 rejectedImageReasons["missing-url", default: 0] += 1
@@ -218,11 +234,12 @@ final class RSSContentDetailViewModel: ObservableObject {
                 continue
             }
 
-            guard seenImageURLs.contains(resolvedImageURL) == false else {
+            let dedupeKey: String = self.imageDedupeKey(for: resolvedImageURL)
+            guard seenImageDedupeKeys.contains(dedupeKey) == false else {
                 continue
             }
 
-            seenImageURLs.insert(resolvedImageURL)
+            seenImageDedupeKeys.insert(dedupeKey)
             feedImageBlocks.append(
                 RSSContentPayload.Block(
                     id: "image-\(feedImageBlocks.count)",
@@ -233,17 +250,7 @@ final class RSSContentDetailViewModel: ObservableObject {
             )
         }
 
-        var mergedImageBlocks: [RSSContentPayload.Block] = []
-        var mergedImageURLs: Set<String> = []
-        for block in filteredDetailImageBlocks + feedImageBlocks {
-            guard let imageURL: String = block.imageURL,
-                  mergedImageURLs.contains(imageURL) == false else {
-                continue
-            }
-
-            mergedImageURLs.insert(imageURL)
-            mergedImageBlocks.append(block)
-        }
+        let mergedImageBlocks: [RSSContentPayload.Block] = self.deduplicatedImageBlocks(filteredDetailImageBlocks + feedImageBlocks)
 
         let mergedBlocks: [RSSContentPayload.Block] = detailTextBlocks + mergedImageBlocks
 
@@ -273,12 +280,12 @@ final class RSSContentDetailViewModel: ObservableObject {
     }
 
     private func resolvedImageURLString(_ imageURL: String) -> String? {
-        guard let baseURL: URL = Self.secureDetailURL(from: self.item.detailURL),
+        guard let baseURL: URL = URL(string: self.item.detailURL),
               let url: URL = URL(string: imageURL, relativeTo: baseURL)?.absoluteURL else {
             return nil
         }
 
-        return Self.secureURLIfNeeded(url).absoluteString
+        return url.absoluteString
     }
 
     private func reindexedBlocks(_ blocks: [RSSContentPayload.Block]) -> [RSSContentPayload.Block] {
@@ -301,6 +308,10 @@ final class RSSContentDetailViewModel: ObservableObject {
         let lowercasedURL: String = imageURL.lowercased()
         let host: String = url.host?.lowercased() ?? ""
 
+        if Self.isTemplateImageURL(lowercasedURL) {
+            return "template-url"
+        }
+
         if host.hasSuffix("gcores.com"), host != "image.gcores.com" {
             return "non-image-gcores-host"
         }
@@ -319,7 +330,10 @@ final class RSSContentDetailViewModel: ObservableObject {
             "apple-touch-icon",
             "logo",
             "gonganbeian",
-            "page_resources/misc"
+            "page_resources/misc",
+            "/static/img/language",
+            "/static/img/heart_",
+            "footer-appdownload"
         ]
         if let fragment: String = rejectedFragments.first(where: { lowercasedURL.contains($0) }) {
             return "fragment:\(fragment)"
@@ -332,12 +346,64 @@ final class RSSContentDetailViewModel: ObservableObject {
         return nil
     }
 
+    private func deduplicatedImageBlocks(_ imageBlocks: [RSSContentPayload.Block]) -> [RSSContentPayload.Block] {
+        var deduplicatedBlocks: [RSSContentPayload.Block] = []
+        var seenDedupeKeys: Set<String> = []
+
+        for block in imageBlocks {
+            guard let imageURL: String = block.imageURL else {
+                continue
+            }
+
+            let dedupeKey: String = self.imageDedupeKey(for: imageURL)
+            guard seenDedupeKeys.contains(dedupeKey) == false else {
+                continue
+            }
+
+            seenDedupeKeys.insert(dedupeKey)
+            deduplicatedBlocks.append(block)
+        }
+
+        return deduplicatedBlocks
+    }
+
+    private func imageDedupeKey(for imageURL: String) -> String {
+        guard let url: URL = URL(string: imageURL) else {
+            return imageURL
+        }
+
+        if Self.hasImageTransformQuery(url) {
+            var components: URLComponents? = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            components?.query = nil
+            return components?.url?.absoluteString ?? imageURL
+        }
+
+        return imageURL
+    }
+
+    private static func hasImageTransformQuery(_ url: URL) -> Bool {
+        guard let query: String = URLComponents(url: url, resolvingAgainstBaseURL: false)?.percentEncodedQuery?.lowercased() else {
+            return false
+        }
+
+        return query.contains("imageview2") || query.contains("imagemogr2")
+    }
+
+    private static func isTemplateImageURL(_ lowercasedURL: String) -> Bool {
+        return lowercasedURL.contains("${")
+            || lowercasedURL.contains("%7b")
+            || lowercasedURL.contains("escapehtml(")
+            || lowercasedURL.contains("imgsmallurl")
+            || lowercasedURL.contains("imgbannerurl")
+            || lowercasedURL.contains("imgbigurl")
+    }
+
     private static func isUnsupportedVectorImage(_ url: URL) -> Bool {
         return url.pathExtension.lowercased() == "svg"
     }
 
     private func smallImageDimensionMarker(in lowercasedURL: String) -> String? {
-        let pattern: String = #"(?<![a-z0-9])([wh]_(?:20|30|40|50|60|80))(?![0-9])"#
+        let pattern: String = #"((?<![a-z0-9])[wh]_(?:20|30|40|50|60|80)(?![0-9])|!/both/(?:100x60|120x80|130x88))"#
         guard let regex: NSRegularExpression = try? NSRegularExpression(pattern: pattern) else {
             return nil
         }
@@ -404,32 +470,6 @@ final class RSSContentDetailViewModel: ObservableObject {
 
         return self.displayItem.title
     }
-
-    private static func secureDetailURL(from string: String) -> URL? {
-        guard let url: URL = URL(string: string) else {
-            return nil
-        }
-
-        return Self.secureURLIfNeeded(url)
-    }
-
-    private static func secureURLIfNeeded(_ url: URL) -> URL {
-        guard url.scheme?.lowercased() == "http",
-              let host: String = url.host?.lowercased(),
-              Self.httpsPreferredHosts.contains(host),
-              var components: URLComponents = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            return url
-        }
-
-        components.scheme = "https"
-        return components.url ?? url
-    }
-
-    private static let httpsPreferredHosts: Set<String> = [
-        "images.infzm.com",
-        "weixin.sogou.com",
-        "www.jintiankansha.me"
-    ]
 
     private func originFeedURL() -> URL? {
         guard case .rss(let configuration) = self.source.configuration else {

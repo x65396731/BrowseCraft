@@ -283,9 +283,20 @@ struct RSSMediaPlayerView: View {
           <main>
             \(posterHTML)
             <h1>\(Self.htmlEscaped(title))</h1>
-            <audio controls preload="metadata" src="\(Self.htmlEscaped(mediaURL.absoluteString))"></audio>
+            <audio id="rss-audio" controls autoplay preload="auto" src="\(Self.htmlEscaped(mediaURL.absoluteString))"></audio>
             \(sourceHTML)
           </main>
+          <script>
+            const audio = document.getElementById("rss-audio");
+            if (audio) {
+              const play = () => audio.play().catch(() => {});
+              if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", play, { once: true });
+              } else {
+                play();
+              }
+            }
+          </script>
         </body>
         </html>
         """

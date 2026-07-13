@@ -136,18 +136,29 @@ struct DiscoverRSSFeedsUseCase {
         to candidates: inout [URL],
         requiresFeedLikeURL: Bool = true
     ) -> Bool {
-        guard self.isHTTPURL(url),
-              requiresFeedLikeURL == false || self.shouldKeepCandidate(url) else {
+        let candidateURL: URL = self.secureRSSCandidateURLIfNeeded(url)
+        guard self.isHTTPURL(candidateURL),
+              requiresFeedLikeURL == false || self.shouldKeepCandidate(candidateURL) else {
             return false
         }
 
-        let normalized: String = self.normalizedCandidateString(url)
+        let normalized: String = self.normalizedCandidateString(candidateURL)
         guard candidates.contains(where: { self.normalizedCandidateString($0) == normalized }) == false else {
             return false
         }
 
-        candidates.append(url)
+        candidates.append(candidateURL)
         return true
+    }
+
+    private func secureRSSCandidateURLIfNeeded(_ url: URL) -> URL {
+        guard url.scheme?.lowercased() == "http",
+              var components: URLComponents = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return url
+        }
+
+        components.scheme = "https"
+        return components.url ?? url
     }
 
     private func shouldKeepCandidate(_ url: URL) -> Bool {

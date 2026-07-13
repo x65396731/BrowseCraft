@@ -278,15 +278,26 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
               string.hasPrefix("data:") == false,
               string.hasPrefix("blob:") == false,
               string != "#",
-              string.lowercased() != "about:blank" else {
+              string.lowercased() != "about:blank",
+              Self.isTemplateImageURL(string) == false else {
             return nil
         }
 
         if string.hasPrefix("//") {
-            return Self.secureURLIfNeeded(URL(string: "https:\(string)"))
+            return URL(string: "https:\(string)")
         }
 
-        return Self.secureURLIfNeeded(URL(string: string))
+        return URL(string: string)
+    }
+
+    private static func isTemplateImageURL(_ urlString: String) -> Bool {
+        let lowercasedURL: String = urlString.lowercased()
+        return lowercasedURL.contains("${")
+            || lowercasedURL.contains("%7b")
+            || lowercasedURL.contains("escapehtml(")
+            || lowercasedURL.contains("imgsmallurl")
+            || lowercasedURL.contains("imgbannerurl")
+            || lowercasedURL.contains("imgbigurl")
     }
 
     private static func mediaCandidate(
@@ -330,7 +341,11 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
     }
 
     private static func firstImageURL(in html: String?) -> URL? {
-        return Self.imageURLs(in: html).first
+        guard let html: String = html else {
+            return nil
+        }
+
+        return Self.imageURLs(in: Self.articleHTML(in: html) ?? html).first
     }
 
     private static func contentBlocks(in html: String?) -> [RSSContentPayload.Block] {
@@ -338,22 +353,23 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
             return []
         }
 
+        let contentHTML: String = Self.articleHTML(in: html) ?? html
         let pattern: String = #"(?is)<h[1-6]\b[^>]*>(.*?)</h[1-6]>|<p\b[^>]*>(.*?)</p>|<img\b[^>]*>"#
         guard let regex: NSRegularExpression = try? NSRegularExpression(pattern: pattern) else {
             return []
         }
 
-        let range: NSRange = NSRange(html.startIndex..<html.endIndex, in: html)
-        let matches: [NSTextCheckingResult] = regex.matches(in: html, range: range)
+        let range: NSRange = NSRange(contentHTML.startIndex..<contentHTML.endIndex, in: contentHTML)
+        let matches: [NSTextCheckingResult] = regex.matches(in: contentHTML, range: range)
         var blocks: [RSSContentPayload.Block] = []
         var seenImageURLs: Set<String> = []
 
         for match in matches {
-            guard let fullRange: Range<String.Index> = Range(match.range(at: 0), in: html) else {
+            guard let fullRange: Range<String.Index> = Range(match.range(at: 0), in: contentHTML) else {
                 continue
             }
 
-            let fullMatch: String = String(html[fullRange])
+            let fullMatch: String = String(contentHTML[fullRange])
             let lowercasedMatch: String = fullMatch.lowercased()
 
             if lowercasedMatch.hasPrefix("<img") {
@@ -362,15 +378,15 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
             }
 
             if match.numberOfRanges > 1,
-               let headingRange: Range<String.Index> = Range(match.range(at: 1), in: html),
-               let text: String = Self.plainText(from: String(html[headingRange])) {
+               let headingRange: Range<String.Index> = Range(match.range(at: 1), in: contentHTML),
+               let text: String = Self.plainText(from: String(contentHTML[headingRange])) {
                 blocks.append(Self.block(kind: .subtitle, text: text, imageURL: nil, index: blocks.count))
                 continue
             }
 
             if match.numberOfRanges > 2,
-               let paragraphRange: Range<String.Index> = Range(match.range(at: 2), in: html) {
-                let paragraphHTML: String = String(html[paragraphRange])
+               let paragraphRange: Range<String.Index> = Range(match.range(at: 2), in: contentHTML) {
+                let paragraphHTML: String = String(contentHTML[paragraphRange])
 
                 if let text: String = Self.plainText(from: paragraphHTML) {
                     blocks.append(
@@ -388,11 +404,82 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
         }
 
         if blocks.isEmpty,
-           let text: String = Self.plainText(from: html) {
+           let text: String = Self.plainText(from: contentHTML) {
             blocks.append(Self.block(kind: .paragraph, text: text, imageURL: nil, index: 0))
         }
 
         return blocks
+    }
+
+    private static func articleHTML(in html: String) -> String? {
+        let markers: [String] = [
+            #"<div class="topic_content""#,
+            #"<div class='topic_content'"#,
+            #"<div class="nfzm-content__fulltext"#,
+            #"<div class='nfzm-content__fulltext"#,
+            #"<div class="article--content"#,
+            #"<div class='article--content"#
+        ]
+
+        guard let startMatch: (marker: String, range: Range<String.Index>) = markers.compactMap({ marker in
+            html.range(of: marker).map { range in
+                (marker: marker, range: range)
+            }
+        }).min(by: { lhs, rhs in lhs.range.lowerBound < rhs.range.lowerBound }) else {
+            return nil
+        }
+
+        if startMatch.marker.hasPrefix("<div"),
+           let elementHTML: String = Self.balancedDivHTML(in: html, startingAt: startMatch.range.lowerBound) {
+            return elementHTML
+        }
+
+        let tail: Substring = html[startMatch.range.lowerBound...]
+        let endMarkers: [String] = [
+            #"<!--fulltext end-->"#
+        ]
+
+        if let endRange: Range<Substring.Index> = endMarkers.compactMap({ marker in
+            tail.range(of: marker)
+        }).min(by: { lhs, rhs in lhs.lowerBound < rhs.lowerBound }) {
+            return String(tail[..<endRange.lowerBound])
+        }
+
+        return String(tail)
+    }
+
+    private static func balancedDivHTML(in html: String, startingAt startIndex: String.Index) -> String? {
+        guard html[startIndex...].lowercased().hasPrefix("<div") else {
+            return nil
+        }
+
+        let tagRegex: NSRegularExpression
+        do {
+            tagRegex = try NSRegularExpression(pattern: #"(?is)<\s*/?\s*div\b[^>]*>"#)
+        } catch {
+            return nil
+        }
+
+        let range: NSRange = NSRange(startIndex..<html.endIndex, in: html)
+        var depth: Int = 0
+        for match in tagRegex.matches(in: html, range: range) {
+            guard let tagRange: Range<String.Index> = Range(match.range(at: 0), in: html) else {
+                continue
+            }
+
+            let tag: String = String(html[tagRange]).lowercased()
+            if tag.hasPrefix("</") {
+                depth -= 1
+            } else {
+                depth += 1
+            }
+
+            if depth == 0 {
+                return String(html[startIndex..<tagRange.upperBound])
+            }
+        }
+
+        return nil
     }
 
     private static func paragraphBlockKind(html: String, text: String) -> RSSContentPayload.BlockKind {
@@ -493,6 +580,10 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
             }
 
             let tag: String = String(html[tagRange])
+            if Self.isDecorativeProfileImageTag(tag, in: html, at: tagRange.lowerBound) {
+                continue
+            }
+
             for attributeName in imageURLAttributes {
                 guard let rawURLString: String = Self.attributeValue(named: attributeName, in: tag),
                       let url: URL = Self.feedURL(rawURLString) else {
@@ -510,6 +601,54 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
         }
 
         return urls
+    }
+
+    private static func isDecorativeProfileImageTag(
+        _ tag: String,
+        in html: String,
+        at tagStartIndex: String.Index
+    ) -> Bool {
+        let tagContext: String = Self.decorativeImageContext(around: tag, in: html, at: tagStartIndex)
+        let semanticFragments: [String] = [
+            "avatar",
+            "author",
+            "authorcard",
+            "author-card",
+            "user-icon",
+            "user_icon",
+            "usertag",
+            "user-tag",
+            "profile",
+            "portrait",
+            "headimg",
+            "head-img"
+        ]
+
+        return semanticFragments.contains { fragment in
+            tagContext.contains(fragment)
+        }
+    }
+
+    private static func decorativeImageContext(
+        around tag: String,
+        in html: String,
+        at tagStartIndex: String.Index
+    ) -> String {
+        let prefixStart: String.Index = html.index(
+            tagStartIndex,
+            offsetBy: -min(240, html.distance(from: html.startIndex, to: tagStartIndex))
+        )
+        let prefix: String = String(html[prefixStart..<tagStartIndex])
+        let tagAttributes: String = [
+            Self.attributeValue(named: "class", in: tag),
+            Self.attributeValue(named: "alt", in: tag),
+            Self.attributeValue(named: "title", in: tag),
+            Self.attributeValue(named: "aria-label", in: tag)
+        ]
+            .compactMap { $0 }
+            .joined(separator: " ")
+
+        return "\(prefix) \(tagAttributes)".lowercased()
     }
 
     private static func attributeValue(named attributeName: String, in tag: String) -> String? {
@@ -531,19 +670,6 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
         return String(tag[valueRange]).trimmedNonEmpty
     }
 
-    private static func secureURLIfNeeded(_ url: URL?) -> URL? {
-        guard let url: URL,
-              url.scheme?.lowercased() == "http",
-              let host: String = url.host?.lowercased(),
-              Self.httpsPreferredHosts.contains(host),
-              var components: URLComponents = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            return url
-        }
-
-        components.scheme = "https"
-        return components.url ?? url
-    }
-
     private static func decodedHTMLEntities(in text: String) -> String {
         return text
             .replacingOccurrences(of: "&amp;", with: "&")
@@ -552,14 +678,6 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
             .replacingOccurrences(of: "&quot;", with: "\"")
             .replacingOccurrences(of: "&#39;", with: "'")
     }
-
-    private static let httpsPreferredHosts: Set<String> = [
-        "images.infzm.com",
-        "img2.jintiankansha.me",
-        "mmbiz.qpic.cn",
-        "weixin.sogou.com",
-        "www.jintiankansha.me"
-    ]
 
     private static func block(
         kind: RSSContentPayload.BlockKind,

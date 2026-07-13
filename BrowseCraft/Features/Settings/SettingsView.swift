@@ -179,7 +179,7 @@ struct SettingsView: View {
                         label: {
                             SettingsRow(
                                 systemImage: "star",
-                                title: "Rate BrowseCraft",
+                                title: "Rate AnyPortal",
                                 detail: nil
                             )
                         }
@@ -188,7 +188,7 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
-            .alert("Rate BrowseCraft", isPresented: self.$isShowingRatingAlert) {
+            .alert("Rate AnyPortal", isPresented: self.$isShowingRatingAlert) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text("App Store rating will be available after the App Store product ID is configured.")

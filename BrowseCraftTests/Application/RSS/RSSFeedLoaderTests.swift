@@ -22,6 +22,23 @@ struct RSSFeedLoaderTests {
         #expect(feed.items.first?.title == "奇客资讯")
     }
 
+    @Test func rejectsHTMLAntiBotPageBeforeParsingXML() async throws {
+        let pageContentLoader: RecordingPageContentLoader = RecordingPageContentLoader(
+            response: Self.antiBotHTML
+        )
+        let loader: RSSFeedLoader = RSSFeedLoader(
+            pageContentLoader: pageContentLoader
+        )
+        let url: URL = try #require(URL(string: "https://example.com/feed"))
+
+        do {
+            _ = try await loader.load(feedURL: url)
+            Issue.record("Expected antiBot error")
+        } catch let error as RuleExecutionError {
+            #expect(error == .antiBot(url: url.absoluteString))
+        }
+    }
+
     private static let rssXML: String = """
     <rss version="2.0">
       <channel>
@@ -33,6 +50,14 @@ struct RSSFeedLoaderTests {
         </item>
       </channel>
     </rss>
+    """
+
+    private static let antiBotHTML: String = """
+    <!DOCTYPE html>
+    <html lang="zh-CN">
+      <head><title>403 — 访问被拒绝</title></head>
+      <body>安全策略拦截</body>
+    </html>
     """
 }
 

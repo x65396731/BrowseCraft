@@ -44,6 +44,47 @@ struct RSSHubDiscoveryUseCaseTests {
         #expect(radarLoader.requestedURLs.isEmpty)
     }
 
+    @Test func directHTTPFeedURLUsesHTTPSCandidate() async throws {
+        let radarLoader: RSSHubDiscoveryRecordingPageDataLoader = RSSHubDiscoveryRecordingPageDataLoader(
+            responsesByURL: [:]
+        )
+        let feedURL: URL = try #require(URL(string: "https://example.com/feed"))
+        let feedLoader: RSSHubDiscoveryRecordingFeedLoader = RSSHubDiscoveryRecordingFeedLoader(
+            feedsByURL: [
+                feedURL.absoluteString: RSSFeed(
+                    title: "Example Feed",
+                    items: [
+                        RSSFeedItem(
+                            title: "Example post",
+                            link: URL(string: "https://example.com/post"),
+                            summary: nil,
+                            coverURL: nil,
+                            publishedAt: nil,
+                            guid: nil
+                        )
+                    ]
+                )
+            ]
+        )
+        let useCase: DiscoverRSSFeedsUseCase = DiscoverRSSFeedsUseCase(
+            rssFeedLoader: feedLoader,
+            loadRSSHubDiscoveryCandidatesUseCase: LoadRSSHubDiscoveryCandidatesUseCase(
+                pageDataLoader: radarLoader
+            )
+        )
+
+        let results: [DiscoveredRSSFeedItem] = try await useCase.execute(
+            DiscoverRSSFeedsInput(siteURLString: "http://example.com/feed")
+        )
+
+        let result: DiscoveredRSSFeedItem = try #require(results.first)
+        #expect(results.count == 1)
+        #expect(result.feedURL == feedURL)
+        #expect(result.siteURL.absoluteString == "http://example.com/feed")
+        #expect(feedLoader.requestedURLs == [feedURL])
+        #expect(radarLoader.requestedURLs.isEmpty)
+    }
+
     @Test func directAnyFeederPlinkURLBypassesRSSHubDiscovery() async throws {
         let radarLoader: RSSHubDiscoveryRecordingPageDataLoader = RSSHubDiscoveryRecordingPageDataLoader(
             responsesByURL: [:]

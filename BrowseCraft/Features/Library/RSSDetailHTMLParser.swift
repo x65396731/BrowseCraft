@@ -5,6 +5,7 @@ struct RSSDetailHTMLParser {
     struct DetailContent {
         var blocks: [RSSContentPayload.Block]
         var metadata: RSSContentPayload.Metadata
+        var media: RSSContentPayload.Media?
     }
 
     static func detailContentBlocks(in html: String, pageURL: URL) -> [RSSContentPayload.Block] {
@@ -15,26 +16,41 @@ struct RSSDetailHTMLParser {
         let articleHTML: String = Self.articleHTML(in: html) ?? html
         return DetailContent(
             blocks: Self.contentBlocks(in: articleHTML, baseURL: pageURL),
-            metadata: Self.metadata(in: html, articleHTML: articleHTML)
+            metadata: Self.metadata(in: html, articleHTML: articleHTML),
+            media: Self.media(in: html, articleHTML: articleHTML, pageURL: pageURL)
         )
     }
 
     private static func articleHTML(in html: String) -> String? {
         let markers: [String] = [
+            #"<div class="topic_content""#,
+            #"<div class='topic_content'"#,
+            #"<div class="nfzm-content__fulltext"#,
+            #"<div class='nfzm-content__fulltext"#,
+            #"<div class="article--content"#,
+            #"<div class='article--content"#,
             #"<div class="articlePage_content""#,
             #"<div class='articlePage_content'"#,
             #"class="articlePage_content""#,
             #"class='articlePage_content'"#
         ]
 
-        guard let startRange: Range<String.Index> = markers.compactMap({ marker in
-            html.range(of: marker)
-        }).min(by: { lhs, rhs in lhs.lowerBound < rhs.lowerBound }) else {
+        guard let startMatch: (marker: String, range: Range<String.Index>) = markers.compactMap({ marker in
+            html.range(of: marker).map { range in
+                (marker: marker, range: range)
+            }
+        }).min(by: { lhs, rhs in lhs.range.lowerBound < rhs.range.lowerBound }) else {
             return nil
         }
 
-        let tail: Substring = html[startRange.lowerBound...]
+        if startMatch.marker.hasPrefix("<div"),
+           let elementHTML: String = Self.balancedDivHTML(in: html, startingAt: startMatch.range.lowerBound) {
+            return elementHTML
+        }
+
+        let tail: Substring = html[startMatch.range.lowerBound...]
         let endMarkers: [String] = [
+            #"<!--fulltext end-->"#,
             #"<div class="newsPage_r""#,
             #"<div class='newsPage_r'"#,
             #"<div class="originalPage_bottom""#,
@@ -48,6 +64,40 @@ struct RSSDetailHTMLParser {
         }
 
         return String(tail)
+    }
+
+    private static func balancedDivHTML(in html: String, startingAt startIndex: String.Index) -> String? {
+        guard html[startIndex...].lowercased().hasPrefix("<div") else {
+            return nil
+        }
+
+        let tagRegex: NSRegularExpression
+        do {
+            tagRegex = try NSRegularExpression(pattern: #"(?is)<\s*/?\s*div\b[^>]*>"#)
+        } catch {
+            return nil
+        }
+
+        let range: NSRange = NSRange(startIndex..<html.endIndex, in: html)
+        var depth: Int = 0
+        for match in tagRegex.matches(in: html, range: range) {
+            guard let tagRange: Range<String.Index> = Range(match.range(at: 0), in: html) else {
+                continue
+            }
+
+            let tag: String = String(html[tagRange]).lowercased()
+            if tag.hasPrefix("</") {
+                depth -= 1
+            } else {
+                depth += 1
+            }
+
+            if depth == 0 {
+                return String(html[startIndex..<tagRange.upperBound])
+            }
+        }
+
+        return nil
     }
 
     private static func contentBlocks(in html: String?, baseURL: URL?) -> [RSSContentPayload.Block] {
@@ -286,6 +336,10 @@ struct RSSDetailHTMLParser {
                 }
 
                 let tag: String = String(html[tagRange])
+                if Self.isDecorativeProfileImageTag(tag, in: html, at: tagRange.lowerBound) {
+                    continue
+                }
+
                 let imageURLAttributes: [String] = [
                     "data-original",
                     "data-original-src",
@@ -360,6 +414,178 @@ struct RSSDetailHTMLParser {
         return urls
     }
 
+    private static func isDecorativeProfileImageTag(
+        _ tag: String,
+        in html: String,
+        at tagStartIndex: String.Index
+    ) -> Bool {
+        let tagContext: String = Self.decorativeImageContext(around: tag, in: html, at: tagStartIndex)
+        let semanticFragments: [String] = [
+            "avatar",
+            "author",
+            "authorcard",
+            "author-card",
+            "user-icon",
+            "user_icon",
+            "usertag",
+            "user-tag",
+            "profile",
+            "portrait",
+            "headimg",
+            "head-img"
+        ]
+
+        return semanticFragments.contains { fragment in
+            tagContext.contains(fragment)
+        }
+    }
+
+    private static func decorativeImageContext(
+        around tag: String,
+        in html: String,
+        at tagStartIndex: String.Index
+    ) -> String {
+        let prefixStart: String.Index = html.index(
+            tagStartIndex,
+            offsetBy: -min(240, html.distance(from: html.startIndex, to: tagStartIndex))
+        )
+        let prefix: String = String(html[prefixStart..<tagStartIndex])
+        let tagAttributes: String = [
+            Self.attributeValue(named: "class", in: tag),
+            Self.attributeValue(named: "alt", in: tag),
+            Self.attributeValue(named: "title", in: tag),
+            Self.attributeValue(named: "aria-label", in: tag)
+        ]
+            .compactMap { $0 }
+            .joined(separator: " ")
+
+        return "\(prefix) \(tagAttributes)".lowercased()
+    }
+
+    private static func media(in html: String, articleHTML: String, pageURL: URL) -> RSSContentPayload.Media? {
+        return Self.mediaCandidates(in: articleHTML, pageURL: pageURL).first
+            ?? Self.mediaCandidates(in: html, pageURL: pageURL).first
+    }
+
+    private static func mediaCandidates(in html: String, pageURL: URL) -> [RSSContentPayload.Media] {
+        var candidates: [RSSContentPayload.Media] = []
+        var seenURLStrings: Set<String> = []
+
+        let mediaTagPattern: String = #"(?is)<(?:audio|video|source)\b[^>]*>"#
+        if let mediaTagRegex: NSRegularExpression = try? NSRegularExpression(pattern: mediaTagPattern) {
+            let range: NSRange = NSRange(html.startIndex..<html.endIndex, in: html)
+            for match in mediaTagRegex.matches(in: html, range: range) {
+                guard let tagRange: Range<String.Index> = Range(match.range(at: 0), in: html) else {
+                    continue
+                }
+
+                let tag: String = String(html[tagRange])
+                let mimeType: String? = Self.attributeValue(named: "type", in: tag)
+                let explicitKind: RSSContentPayload.MediaKind? = Self.explicitMediaKind(from: tag)
+                for attributeName in ["src", "data-src", "data-url", "url"] {
+                    guard let rawURLString: String = Self.attributeValue(named: attributeName, in: tag) else {
+                        continue
+                    }
+
+                    Self.appendMediaCandidate(
+                        rawURLString,
+                        mimeType: mimeType,
+                        explicitKind: explicitKind,
+                        pageURL: pageURL,
+                        to: &candidates,
+                        seenURLStrings: &seenURLStrings
+                    )
+                }
+            }
+        }
+
+        let embeddedMediaURLPattern: String = #"https?:\\?/\\?/[^"'<>\s]+?\.(?:mp3|m4a|aac|ogg|oga|wav|flac|mp4|m4v|webm|mov|m3u8)(?:\?[^"'<>\s]*)?"#
+        if let embeddedMediaURLRegex: NSRegularExpression = try? NSRegularExpression(
+            pattern: embeddedMediaURLPattern,
+            options: [.caseInsensitive]
+        ) {
+            let range: NSRange = NSRange(html.startIndex..<html.endIndex, in: html)
+            for match in embeddedMediaURLRegex.matches(in: html, range: range) {
+                guard let urlRange: Range<String.Index> = Range(match.range(at: 0), in: html) else {
+                    continue
+                }
+
+                Self.appendMediaCandidate(
+                    String(html[urlRange]),
+                    mimeType: nil,
+                    explicitKind: nil,
+                    pageURL: pageURL,
+                    to: &candidates,
+                    seenURLStrings: &seenURLStrings
+                )
+            }
+        }
+
+        return candidates
+    }
+
+    private static func appendMediaCandidate(
+        _ rawURLString: String,
+        mimeType: String?,
+        explicitKind: RSSContentPayload.MediaKind?,
+        pageURL: URL,
+        to candidates: inout [RSSContentPayload.Media],
+        seenURLStrings: inout Set<String>
+    ) {
+        guard let normalizedURLString: String = Self.normalizedURLString(rawURLString) else {
+            return
+        }
+
+        let url: URL?
+        if normalizedURLString.hasPrefix("//") {
+            let scheme: String = pageURL.scheme?.lowercased() == "http" ? "https" : (pageURL.scheme ?? "https")
+            url = Self.absoluteURL(from: "\(scheme):\(normalizedURLString)", baseURL: nil)
+        } else {
+            url = Self.absoluteURL(from: normalizedURLString, baseURL: pageURL)
+        }
+
+        guard let url: URL,
+              seenURLStrings.contains(url.absoluteString) == false else {
+            return
+        }
+
+        let kind: RSSContentPayload.MediaKind?
+        if let explicitKind: RSSContentPayload.MediaKind = explicitKind {
+            kind = explicitKind
+        } else {
+            kind = RSSMediaClassifier.directMediaKind(mimeType: mimeType, url: url)
+        }
+
+        guard let kind: RSSContentPayload.MediaKind = kind else {
+            return
+        }
+
+        seenURLStrings.insert(url.absoluteString)
+        candidates.append(
+            RSSContentPayload.Media(
+                kind: kind,
+                playbackMode: .directMedia,
+                url: url.absoluteString,
+                mimeType: mimeType?.trimmedNonEmpty ?? RSSMediaClassifier.mimeType(for: url),
+                duration: nil,
+                posterURL: nil,
+                sourcePageURL: pageURL.absoluteString
+            )
+        )
+    }
+
+    private static func explicitMediaKind(from tag: String) -> RSSContentPayload.MediaKind? {
+        let lowercasedTag: String = tag.lowercased()
+        if lowercasedTag.hasPrefix("<audio") {
+            return .audio
+        }
+        if lowercasedTag.hasPrefix("<video") {
+            return .video
+        }
+
+        return nil
+    }
+
     private static func attributeValue(named name: String, in html: String) -> String? {
         let pattern: String = #"\b\#(name)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))"#
         guard let regex: NSRegularExpression = try? NSRegularExpression(
@@ -430,10 +656,10 @@ struct RSSDetailHTMLParser {
 
         if normalizedURLString.hasPrefix("//") {
             let scheme: String = baseURL?.scheme?.lowercased() == "http" ? "https" : (baseURL?.scheme ?? "https")
-            return Self.secureURLIfNeeded(Self.absoluteURL(from: "\(scheme):\(normalizedURLString)", baseURL: nil))
+            return Self.absoluteURL(from: "\(scheme):\(normalizedURLString)", baseURL: nil)
         }
 
-        return Self.secureURLIfNeeded(Self.absoluteURL(from: normalizedURLString, baseURL: baseURL))
+        return Self.absoluteURL(from: normalizedURLString, baseURL: baseURL)
     }
 
     private static func absoluteURL(from string: String, baseURL: URL?) -> URL? {
@@ -466,33 +692,23 @@ struct RSSDetailHTMLParser {
               decoded.hasPrefix("data:") == false,
               decoded.hasPrefix("blob:") == false,
               decoded != "#",
-              decoded.lowercased() != "about:blank" else {
+              decoded.lowercased() != "about:blank",
+              Self.isTemplateImageURL(decoded) == false else {
             return nil
         }
 
         return decoded
     }
 
-    private static func secureURLIfNeeded(_ url: URL?) -> URL? {
-        guard let url: URL,
-              url.scheme?.lowercased() == "http",
-              let host: String = url.host?.lowercased(),
-              Self.httpsPreferredHosts.contains(host),
-              var components: URLComponents = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            return url
-        }
-
-        components.scheme = "https"
-        return components.url ?? url
+    private static func isTemplateImageURL(_ urlString: String) -> Bool {
+        let lowercasedURL: String = urlString.lowercased()
+        return lowercasedURL.contains("${")
+            || lowercasedURL.contains("%7b")
+            || lowercasedURL.contains("escapehtml(")
+            || lowercasedURL.contains("imgsmallurl")
+            || lowercasedURL.contains("imgbannerurl")
+            || lowercasedURL.contains("imgbigurl")
     }
-
-    private static let httpsPreferredHosts: Set<String> = [
-        "images.infzm.com",
-        "img2.jintiankansha.me",
-        "mmbiz.qpic.cn",
-        "weixin.sogou.com",
-        "www.jintiankansha.me"
-    ]
 
     private static func block(
         kind: RSSContentPayload.BlockKind,

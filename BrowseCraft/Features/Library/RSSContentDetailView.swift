@@ -334,30 +334,22 @@ struct RSSContentDetailView: View {
             return urlString
         }
 
-        return Self.secureImageURLIfNeeded(url).absoluteString
+        return url.absoluteString
     }
-
-    private static func secureImageURLIfNeeded(_ url: URL) -> URL {
-        guard url.scheme?.lowercased() == "http",
-              let host: String = url.host?.lowercased(),
-              Self.httpsPreferredImageHosts.contains(host),
-              var components: URLComponents = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            return url
-        }
-
-        components.scheme = "https"
-        return components.url ?? url
-    }
-
-    private static let httpsPreferredImageHosts: Set<String> = [
-        "img2.jintiankansha.me",
-        "mmbiz.qpic.cn",
-        "www.jintiankansha.me"
-    ]
 
     private static func heroImageDedupeKey(for urlString: String) -> String {
         guard let url: URL = URL(string: urlString),
-              url.host?.lowercased() == "img.jiemian.com" else {
+              let host: String = url.host?.lowercased() else {
+            return urlString
+        }
+
+        if Self.hasImageTransformQuery(url) {
+            var components: URLComponents? = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            components?.query = nil
+            return components?.url?.absoluteString ?? urlString
+        }
+
+        guard host == "img.jiemian.com" else {
             return urlString
         }
 
@@ -395,6 +387,14 @@ struct RSSContentDetailView: View {
         }
 
         return 0
+    }
+
+    private static func hasImageTransformQuery(_ url: URL) -> Bool {
+        guard let query: String = URLComponents(url: url, resolvingAgainstBaseURL: false)?.percentEncodedQuery?.lowercased() else {
+            return false
+        }
+
+        return query.contains("imageview2") || query.contains("imagemogr2")
     }
 
     private static func normalizedJiemianImageFilename(_ filename: String) -> String? {
