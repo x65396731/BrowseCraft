@@ -264,9 +264,6 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
         configuration.mediaTypesRequiringUserActionForPlayback = []
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
-        if let userAgent: String = request.userAgent {
-            configuration.applicationNameForUserAgent = userAgent
-        }
         self.configuration = configuration
         self.initialHost = request.url.host?.lowercased()
         super.init()
@@ -387,7 +384,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
             return (.cancel, preferences)
         }
 
-        if ["http", "https", "blob", "file", "about"].contains(scheme) {
+        if ["http", "https", "blob", "file", "about", "data"].contains(scheme) {
             if navigationAction.targetFrame?.isMainFrame != false,
                self.shouldAllowMainFrameNavigation(to: navigationAction.request.url) == false {
                 #if DEBUG

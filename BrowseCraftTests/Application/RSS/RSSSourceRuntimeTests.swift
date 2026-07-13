@@ -93,6 +93,115 @@ struct RSSSourceRuntimeTests {
         }
     }
 
+    @Test func loadListEncodesStandardMediaIntoRSSPayload() async throws {
+        let definition: SourceDefinition = try Self.rssDefinition()
+        let runtime: RSSSourceRuntime = RSSSourceRuntime(
+            definition: definition,
+            feedLoader: StubRSSFeedLoader(
+                feed: RSSFeed(
+                    title: "Podcast",
+                    items: [
+                        RSSFeedItem(
+                            title: "Audio",
+                            link: try #require(URL(string: "https://example.test/audio")),
+                            summary: "Episode summary",
+                            coverURL: try #require(URL(string: "https://example.test/poster.jpg")),
+                            media: RSSContentPayload.Media(
+                                kind: .audio,
+                                playbackMode: .directMedia,
+                                url: "https://media.example.test/audio.mp3",
+                                mimeType: "audio/mpeg",
+                                duration: "12:34",
+                                posterURL: nil,
+                                sourcePageURL: nil
+                            ),
+                            publishedAt: nil,
+                            guid: "audio-1"
+                        )
+                    ]
+                )
+            )
+        )
+
+        let output: SourceListOutput = try await runtime.loadList(
+            SourceListInput(
+                page: 1,
+                urlOverride: nil,
+                context: Self.context(sourceID: definition.id)
+            )
+        )
+
+        let payload: RSSContentPayload = try #require(RSSContentPayload.decode(from: output.items.first?.latestText))
+        #expect(payload.summary == "Episode summary")
+        #expect(payload.media?.kind == .audio)
+        #expect(payload.media?.playbackMode == .directMedia)
+        #expect(payload.media?.url == "https://media.example.test/audio.mp3")
+        #expect(payload.media?.mimeType == "audio/mpeg")
+        #expect(payload.media?.duration == "12:34")
+        #expect(payload.media?.posterURL == "https://example.test/poster.jpg")
+        #expect(payload.media?.sourcePageURL == "https://example.test/audio")
+    }
+
+    @Test func loadListClassifiesKnownPlaybackPageLinksWithoutDedicatedRSSSource() async throws {
+        let definition: SourceDefinition = try Self.rssDefinition()
+        let runtime: RSSSourceRuntime = RSSSourceRuntime(
+            definition: definition,
+            feedLoader: StubRSSFeedLoader(
+                feed: RSSFeed(
+                    title: "Mixed links",
+                    items: [
+                        RSSFeedItem(
+                            title: "Known audio page",
+                            link: try #require(URL(string: "https://www.gcores.com/radios/216726")),
+                            summary: "Radio summary",
+                            coverURL: try #require(URL(string: "https://image.gcores.com/radio.jpg")),
+                            publishedAt: nil,
+                            guid: "radio"
+                        ),
+                        RSSFeedItem(
+                            title: "Known video page",
+                            link: try #require(URL(string: "https://www.gcores.com/videos/217000")),
+                            summary: "Video summary",
+                            coverURL: nil,
+                            publishedAt: nil,
+                            guid: "video"
+                        ),
+                        RSSFeedItem(
+                            title: "Known article page",
+                            link: try #require(URL(string: "https://www.gcores.com/articles/216999")),
+                            summary: "Article summary",
+                            coverURL: nil,
+                            publishedAt: nil,
+                            guid: "article"
+                        )
+                    ]
+                )
+            )
+        )
+
+        let output: SourceListOutput = try await runtime.loadList(
+            SourceListInput(
+                page: 1,
+                urlOverride: nil,
+                context: Self.context(sourceID: definition.id)
+            )
+        )
+
+        let radioPayload: RSSContentPayload = try #require(RSSContentPayload.decode(from: output.items[0].latestText))
+        #expect(radioPayload.media?.kind == .audio)
+        #expect(radioPayload.media?.playbackMode == .webPage)
+        #expect(radioPayload.media?.url == "https://www.gcores.com/radios/216726")
+        #expect(radioPayload.media?.posterURL == "https://image.gcores.com/radio.jpg")
+
+        let videoPayload: RSSContentPayload = try #require(RSSContentPayload.decode(from: output.items[1].latestText))
+        #expect(videoPayload.media?.kind == .video)
+        #expect(videoPayload.media?.playbackMode == .webPage)
+        #expect(videoPayload.media?.url == "https://www.gcores.com/videos/217000")
+
+        #expect(RSSContentPayload.decode(from: output.items[2].latestText) == nil)
+        #expect(output.items[2].latestText == "Article summary")
+    }
+
     private static func rssDefinition() throws -> SourceDefinition {
         return SourceDefinition(
             id: "rss.solidot",

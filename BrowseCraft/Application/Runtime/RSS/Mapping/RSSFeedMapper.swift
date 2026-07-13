@@ -146,6 +146,8 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
             self.currentItem?.guid = value
         case (.entry, "id"):
             self.currentItem?.guid = value
+        case (.item, "itunes:duration"), (.item, "duration"), (.entry, "itunes:duration"):
+            self.currentItem?.applyDuration(value)
         default:
             break
         }
@@ -169,22 +171,77 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
         switch elementName {
         case "link":
             let rel: String = attributes["rel"]?.lowercased() ?? "alternate"
-            if rel == "alternate" || rel.isEmpty {
+            if rel == "enclosure" {
+                let url: URL? = Self.attributeURL(attributes["href"])
+                if RSSMediaClassifier.imageKind(mimeType: attributes["type"], url: url) {
+                    self.currentItem?.applyFallbackCoverURL(url)
+                } else {
+                    self.currentItem?.applyMediaCandidate(
+                        Self.mediaCandidate(
+                            url: url,
+                            mimeType: attributes["type"],
+                            playbackMode: .directMedia,
+                            duration: attributes["duration"]
+                        )
+                    )
+                }
+            } else if rel == "alternate" || rel.isEmpty {
                 self.currentItem?.applyFallbackLink(Self.attributeURL(attributes["href"]))
             }
-        case "media:thumbnail", "media:content", "thumbnail", "content":
+        case "media:thumbnail", "thumbnail":
             self.currentItem?.applyFallbackCoverURL(Self.attributeURL(attributes["url"]))
+        case "media:content", "content":
+            self.applyMediaContentAttributes(attributes)
+        case "media:player":
+            self.currentItem?.applyMediaCandidate(
+                Self.mediaCandidate(
+                    url: Self.attributeURL(attributes["url"]),
+                    mimeType: attributes["type"],
+                    playbackMode: .webPage,
+                    explicitMedium: attributes["medium"],
+                    duration: attributes["duration"]
+                )
+            )
         case "itunes:image":
             self.currentItem?.applyFallbackCoverURL(Self.attributeURL(attributes["href"] ?? attributes["url"]))
         case "enclosure":
-            let type: String = attributes["type"]?.lowercased() ?? ""
-            let urlString: String? = attributes["url"]
-            if type.hasPrefix("image/") || Self.looksLikeImageURL(urlString) {
-                self.currentItem?.applyFallbackCoverURL(Self.attributeURL(urlString))
+            let url: URL? = Self.attributeURL(attributes["url"])
+            if RSSMediaClassifier.imageKind(mimeType: attributes["type"], url: url) {
+                self.currentItem?.applyFallbackCoverURL(url)
+            } else {
+                self.currentItem?.applyMediaCandidate(
+                    Self.mediaCandidate(
+                        url: url,
+                        mimeType: attributes["type"],
+                        playbackMode: .directMedia,
+                        duration: attributes["duration"]
+                    )
+                )
             }
         default:
             break
         }
+    }
+
+    private func applyMediaContentAttributes(_ attributes: [String: String]) {
+        let url: URL? = Self.attributeURL(attributes["url"])
+        let type: String? = attributes["type"]
+        let medium: String? = attributes["medium"]
+
+        if RSSMediaClassifier.imageKind(mimeType: type, url: url) || medium?.lowercased() == "image" {
+            self.currentItem?.applyFallbackCoverURL(url)
+            return
+        }
+
+        self.currentItem?.applyMediaCandidate(
+            Self.mediaCandidate(
+                url: url,
+                mimeType: type,
+                playbackMode: .directMedia,
+                explicitMedium: medium,
+                duration: attributes["duration"]
+            )
+        )
     }
 
     private static func normalizedName(elementName: String, qualifiedName: String?) -> String {
@@ -197,6 +254,46 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
         }
 
         return URL(string: string)
+    }
+
+    private static func mediaCandidate(
+        url: URL?,
+        mimeType: String?,
+        playbackMode: RSSContentPayload.MediaPlaybackMode,
+        explicitMedium: String? = nil,
+        duration: String? = nil
+    ) -> RSSContentPayload.Media? {
+        guard let url: URL = url else {
+            return nil
+        }
+
+        let kind: RSSContentPayload.MediaKind?
+        switch explicitMedium?.lowercased() {
+        case "audio":
+            kind = .audio
+        case "video":
+            kind = .video
+        default:
+            if playbackMode == .webPage {
+                kind = .video
+            } else {
+                kind = RSSMediaClassifier.directMediaKind(mimeType: mimeType, url: url)
+            }
+        }
+
+        guard let kind: RSSContentPayload.MediaKind = kind else {
+            return nil
+        }
+
+        return RSSContentPayload.Media(
+            kind: kind,
+            playbackMode: playbackMode,
+            url: url.absoluteString,
+            mimeType: mimeType?.trimmedNonEmpty ?? RSSMediaClassifier.mimeType(for: url),
+            duration: duration?.trimmedNonEmpty,
+            posterURL: nil,
+            sourcePageURL: nil
+        )
     }
 
     private static func firstImageURL(in html: String?) -> URL? {
@@ -270,7 +367,7 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
             return .subtitle
         }
 
-        if Self.isShortHeadingLikeText(text) {
+        if Self.isColonHeadingLikeText(text) {
             return .subtitle
         }
 
@@ -302,17 +399,12 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
         return normalizedEmphasizedText == text
     }
 
-    private static func isShortHeadingLikeText(_ text: String) -> Bool {
-        let characterCount: Int = text.count
-        if characterCount > 34 {
+    private static func isColonHeadingLikeText(_ text: String) -> Bool {
+        if text.count > 34 {
             return false
         }
 
-        if text.contains("：") || text.contains(":") {
-            return true
-        }
-
-        return characterCount <= 18 && text.contains("。") == false && text.contains("，") == false
+        return text.contains("：") || text.contains(":")
     }
 
     private static func appendImages(
@@ -453,6 +545,8 @@ private struct MutableRSSFeedItem {
     var link: URL?
     var summary: String?
     var coverURL: URL?
+    var media: RSSContentPayload.Media?
+    var pendingDuration: String?
     var contentBlocks: [RSSContentPayload.Block] = []
     var publishedAt: Date?
     var guid: String?
@@ -463,21 +557,72 @@ private struct MutableRSSFeedItem {
             link: self.link,
             summary: self.summary,
             coverURL: self.coverURL,
+            media: self.mediaWithPoster,
             contentBlocks: self.contentBlocks,
             publishedAt: self.publishedAt,
             guid: self.guid
         )
     }
 
+    private var mediaWithPoster: RSSContentPayload.Media? {
+        guard var media: RSSContentPayload.Media = self.media else {
+            return nil
+        }
+
+        if media.posterURL == nil {
+            media.posterURL = self.coverURL?.absoluteString
+        }
+
+        return media
+    }
+
     mutating func applyFallbackCoverURL(_ url: URL?) {
         if self.coverURL == nil {
             self.coverURL = url
+        }
+        if self.media?.posterURL == nil {
+            self.media?.posterURL = url?.absoluteString
         }
     }
 
     mutating func applyFallbackLink(_ url: URL?) {
         if self.link == nil {
             self.link = url
+        }
+    }
+
+    mutating func applyMediaCandidate(_ candidate: RSSContentPayload.Media?) {
+        guard var candidate: RSSContentPayload.Media = candidate else {
+            return
+        }
+
+        if candidate.posterURL == nil {
+            candidate.posterURL = self.coverURL?.absoluteString
+        }
+        if candidate.duration == nil {
+            candidate.duration = self.pendingDuration
+        }
+
+        guard let media: RSSContentPayload.Media = self.media else {
+            self.media = candidate
+            return
+        }
+
+        if media.playbackMode == .webPage, candidate.playbackMode == .directMedia {
+            candidate.duration = candidate.duration ?? media.duration
+            candidate.posterURL = candidate.posterURL ?? media.posterURL
+            self.media = candidate
+        }
+    }
+
+    mutating func applyDuration(_ duration: String?) {
+        guard let duration: String = duration?.trimmedNonEmpty else {
+            return
+        }
+
+        self.pendingDuration = duration
+        if self.media?.duration == nil {
+            self.media?.duration = duration
         }
     }
 

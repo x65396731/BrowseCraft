@@ -6,6 +6,7 @@ struct RSSSourceRuntime: SourceRuntime {
     let definition: SourceDefinition
 
     private let feedLoader: any RSSFeedLoading
+    private let mediaClassifier: RSSMediaClassifier = RSSMediaClassifier()
 
     init(
         definition: SourceDefinition,
@@ -119,10 +120,17 @@ struct RSSSourceRuntime: SourceRuntime {
     }
 
     private func latestText(from item: RSSFeedItem) -> String? {
-        if item.contentBlocks.isEmpty == false {
+        let media: RSSContentPayload.Media? = self.mediaClassifier.resolvedMedia(
+            feedMedia: item.media,
+            link: item.link,
+            coverURL: item.coverURL
+        )
+
+        if item.contentBlocks.isEmpty == false || media != nil {
             let payload: RSSContentPayload = RSSContentPayload(
                 summary: Self.plainText(from: item.summary),
-                blocks: item.contentBlocks
+                blocks: item.contentBlocks,
+                media: media
             )
             if let encodedString: String = payload.encodedString() {
                 return encodedString

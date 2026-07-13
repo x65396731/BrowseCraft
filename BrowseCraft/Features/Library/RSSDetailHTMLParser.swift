@@ -209,7 +209,7 @@ struct RSSDetailHTMLParser {
             return .subtitle
         }
 
-        if Self.isShortHeadingLikeText(text) {
+        if Self.isColonHeadingLikeText(text) {
             return .subtitle
         }
 
@@ -241,17 +241,12 @@ struct RSSDetailHTMLParser {
         return normalizedEmphasizedText == text
     }
 
-    private static func isShortHeadingLikeText(_ text: String) -> Bool {
-        let characterCount: Int = text.count
-        if characterCount > 34 {
+    private static func isColonHeadingLikeText(_ text: String) -> Bool {
+        if text.count > 34 {
             return false
         }
 
-        if text.contains("：") || text.contains(":") {
-            return true
-        }
-
-        return characterCount <= 18 && text.contains("。") == false && text.contains("，") == false
+        return text.contains("：") || text.contains(":")
     }
 
     private static func appendImages(

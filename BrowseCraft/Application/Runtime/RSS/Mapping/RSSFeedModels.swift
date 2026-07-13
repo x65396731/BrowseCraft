@@ -11,6 +11,7 @@ struct RSSFeedItem: Equatable {
     var link: URL?
     var summary: String?
     var coverURL: URL?
+    var media: RSSContentPayload.Media?
     var contentBlocks: [RSSContentPayload.Block]
     var publishedAt: Date?
     var guid: String?
@@ -20,6 +21,7 @@ struct RSSFeedItem: Equatable {
         link: URL?,
         summary: String?,
         coverURL: URL?,
+        media: RSSContentPayload.Media? = nil,
         contentBlocks: [RSSContentPayload.Block] = [],
         publishedAt: Date?,
         guid: String?
@@ -28,6 +30,7 @@ struct RSSFeedItem: Equatable {
         self.link = link
         self.summary = summary
         self.coverURL = coverURL
+        self.media = media
         self.contentBlocks = contentBlocks
         self.publishedAt = publishedAt
         self.guid = guid

@@ -44,13 +44,11 @@ struct RSSHubDiscoveryUseCaseTests {
         #expect(radarLoader.requestedURLs.isEmpty)
     }
 
-    @Test func discoversRSSHubFeedFromAnyFeederRealtimeWorldURL() async throws {
+    @Test func directAnyFeederPlinkURLBypassesRSSHubDiscovery() async throws {
         let radarLoader: RSSHubDiscoveryRecordingPageDataLoader = RSSHubDiscoveryRecordingPageDataLoader(
-            responsesByURL: [
-                "https://rsshub.app/api/radar/rules/anyfeeder.com": Data(Self.anyFeederRadarRules.utf8)
-            ]
+            responsesByURL: [:]
         )
-        let feedURL: URL = try #require(URL(string: "https://rsshub.app/zaobao/realtime/world"))
+        let feedURL: URL = try #require(URL(string: "https://plink.anyfeeder.com/zaobao/realtime/world"))
         let feedLoader: RSSHubDiscoveryRecordingFeedLoader = RSSHubDiscoveryRecordingFeedLoader(
             feedsByURL: [
                 feedURL.absoluteString: RSSFeed(
@@ -89,12 +87,7 @@ struct RSSHubDiscoveryUseCaseTests {
         #expect(result.itemCount == 1)
         #expect(result.firstItemTitle == "First item")
         #expect(feedLoader.requestedURLs == [feedURL])
-        #expect(
-            radarLoader.requestedURLs.map(\.absoluteString) == [
-                "https://rsshub.app/api/radar/rules/plink.anyfeeder.com",
-                "https://rsshub.app/api/radar/rules/anyfeeder.com"
-            ]
-        )
+        #expect(radarLoader.requestedURLs.isEmpty)
     }
 
     @Test func ignoresRSSHubRuleWhenInputURLCannotFillTargetParameters() async throws {

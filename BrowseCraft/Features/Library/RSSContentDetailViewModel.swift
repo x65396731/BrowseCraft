@@ -113,7 +113,8 @@ final class RSSContentDetailViewModel: ObservableObject {
             let payload: RSSContentPayload = RSSContentPayload(
                 summary: RSSContentTextFormatter.sanitized(self.item.latestText),
                 blocks: mergedBlocks,
-                metadata: self.mergedMetadata(detailContent.metadata, feedMetadata: feedPayload?.metadata)
+                metadata: self.mergedMetadata(detailContent.metadata, feedMetadata: feedPayload?.metadata),
+                media: feedPayload?.media
             )
             updatedItem.latestText = payload.encodedString() ?? self.item.latestText
             if self.trimmedNonEmpty(updatedItem.coverURL) == nil {

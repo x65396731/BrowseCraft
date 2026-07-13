@@ -21,6 +21,17 @@ struct ContentItem: Identifiable, Hashable {
 
 // 中文注释：RSSContentPayload 是 RSS 详情页的富内容载体，通过 latestText 临时透传，不进入 Core runtime 模型。
 struct RSSContentPayload: Codable, Equatable, Hashable {
+    enum MediaKind: String, Codable {
+        case article
+        case audio
+        case video
+    }
+
+    enum MediaPlaybackMode: String, Codable {
+        case directMedia
+        case webPage
+    }
+
     enum BlockKind: String, Codable {
         case paragraph
         case subtitle
@@ -40,9 +51,32 @@ struct RSSContentPayload: Codable, Equatable, Hashable {
         var imageURL: String?
     }
 
+    struct Media: Codable, Equatable, Hashable {
+        var kind: MediaKind
+        var playbackMode: MediaPlaybackMode
+        var url: String
+        var mimeType: String?
+        var duration: String?
+        var posterURL: String?
+        var sourcePageURL: String?
+    }
+
     var summary: String?
     var blocks: [Block]
     var metadata: Metadata?
+    var media: Media?
+
+    init(
+        summary: String?,
+        blocks: [Block],
+        metadata: Metadata? = nil,
+        media: Media? = nil
+    ) {
+        self.summary = summary
+        self.blocks = blocks
+        self.metadata = metadata
+        self.media = media
+    }
 
     var summaryText: String? {
         if let summary: String = self.summary?.trimmedNonEmpty {

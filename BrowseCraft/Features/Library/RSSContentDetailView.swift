@@ -9,6 +9,7 @@ struct RSSContentDetailView: View {
     @StateObject private var viewModel: RSSContentDetailViewModel
     @State private var selectedHeroImageIndex: Int = 0
     @State private var isShowingOriginalWebView: Bool = false
+    @State private var fullscreenMediaPlayerRequest: RSSMediaPlayerRequest?
 
     init(viewModel: RSSContentDetailViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -94,6 +95,15 @@ struct RSSContentDetailView: View {
                 )
             }
         }
+        .fullScreenCover(item: self.$fullscreenMediaPlayerRequest) { request in
+            RSSMediaPlayerView(
+                media: request.media,
+                title: request.title,
+                onClose: {
+                    self.fullscreenMediaPlayerRequest = nil
+                }
+            )
+        }
     }
 
     @ViewBuilder
@@ -161,6 +171,24 @@ struct RSSContentDetailView: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
+    private func openMedia(_ media: RSSContentPayload.Media) {
+        self.fullscreenMediaPlayerRequest = RSSMediaPlayerRequest(
+            media: media,
+            title: self.viewModel.displayItem.title
+        )
+    }
+
+    private func mediaTitle(_ media: RSSContentPayload.Media) -> String {
+        switch media.kind {
+        case .audio:
+            return "Audio"
+        case .video:
+            return "Video"
+        case .article:
+            return "Article"
+        }
+    }
+
     private var heroCarousel: some View {
         ZStack(alignment: .bottom) {
             let imageURLs: [String] = self.heroImageURLs
@@ -181,9 +209,44 @@ struct RSSContentDetailView: View {
                         .padding(.bottom, 38)
                 }
             }
+
+        }
+        .overlay {
+            if let media: RSSContentPayload.Media = self.rssMedia {
+                self.heroMediaButton(media)
+            }
         }
         .frame(maxWidth: .infinity)
         .clipped()
+    }
+
+    private func heroMediaButton(_ media: RSSContentPayload.Media) -> some View {
+        Button {
+            self.openMedia(media)
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(Color.black.opacity(0.34))
+                    .frame(width: 86, height: 86)
+                    .background(
+                        Circle()
+                            .fill(Color.white.opacity(0.22))
+                            .blur(radius: 1)
+                    )
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(0.88), lineWidth: 2)
+                    )
+
+                Image(systemName: "play.fill")
+                    .font(.system(size: 34, weight: .bold))
+                    .foregroundColor(Color.white)
+                    .offset(x: media.kind == .audio ? 0 : 2)
+            }
+            .shadow(color: Color.black.opacity(0.24), radius: 18, y: 8)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(self.mediaTitle(media))
     }
 
     private var heroPlaceholder: some View {
@@ -354,6 +417,10 @@ struct RSSContentDetailView: View {
         return metadata
     }
 
+    private var rssMedia: RSSContentPayload.Media? {
+        return RSSContentPayload.decode(from: self.viewModel.displayItem.latestText)?.media
+    }
+
     private var originalURL: URL? {
         return URL(string: self.viewModel.displayItem.detailURL)
     }
@@ -393,6 +460,18 @@ struct RSSContentDetailView: View {
         green: 238 / 255,
         blue: 238 / 255
     )
+}
+
+private struct RSSMediaPlayerRequest: Identifiable {
+    let id: String
+    let media: RSSContentPayload.Media
+    let title: String
+
+    init(media: RSSContentPayload.Media, title: String) {
+        self.id = "\(media.kind.rawValue)-\(media.playbackMode.rawValue)-\(media.url)"
+        self.media = media
+        self.title = title
+    }
 }
 
 private struct RSSOriginalWebView: View {

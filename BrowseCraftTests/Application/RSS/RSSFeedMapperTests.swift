@@ -70,6 +70,67 @@ struct RSSFeedMapperTests {
         #expect(secondItem.contentBlocks[2].imageURL == "https://example.test/three.jpg")
     }
 
+    @Test func parsesRSSAudioAndVideoEnclosuresWithoutBreakingImageCovers() throws {
+        let mapper: RSSFeedMapper = RSSFeedMapper()
+        let feed: RSSFeed = try mapper.map(Self.mediaEnclosureRSS)
+
+        #expect(feed.items.count == 4)
+
+        let audioItem: RSSFeedItem = try #require(feed.items.first)
+        #expect(audioItem.media?.kind == .audio)
+        #expect(audioItem.media?.playbackMode == .directMedia)
+        #expect(audioItem.media?.url == "https://media.example.test/show.mp3")
+        #expect(audioItem.media?.mimeType == "audio/mpeg")
+        #expect(audioItem.media?.duration == "01:02:03")
+        #expect(audioItem.coverURL?.absoluteString == "https://media.example.test/show.jpg")
+        #expect(audioItem.media?.posterURL == "https://media.example.test/show.jpg")
+
+        let videoItem: RSSFeedItem = try #require(feed.items.dropFirst().first)
+        #expect(videoItem.media?.kind == .video)
+        #expect(videoItem.media?.playbackMode == .directMedia)
+        #expect(videoItem.media?.url == "https://media.example.test/movie.mp4")
+        #expect(videoItem.media?.mimeType == "video/mp4")
+
+        let imageItem: RSSFeedItem = try #require(feed.items.dropFirst(2).first)
+        #expect(imageItem.coverURL?.absoluteString == "https://media.example.test/cover.jpg")
+        #expect(imageItem.media == nil)
+
+        let unknownItem: RSSFeedItem = try #require(feed.items.dropFirst(3).first)
+        #expect(unknownItem.coverURL == nil)
+        #expect(unknownItem.media == nil)
+    }
+
+    @Test func parsesAtomEnclosureAsMediaAndKeepsAlternateLink() throws {
+        let mapper: RSSFeedMapper = RSSFeedMapper()
+        let feed: RSSFeed = try mapper.map(Self.atomMediaFeed)
+        let item: RSSFeedItem = try #require(feed.items.first)
+
+        #expect(item.link?.absoluteString == "https://example.test/posts/one")
+        #expect(item.media?.kind == .audio)
+        #expect(item.media?.playbackMode == .directMedia)
+        #expect(item.media?.url == "https://media.example.test/one.m4a")
+        #expect(item.media?.mimeType == "audio/mp4")
+    }
+
+    @Test func parsesMediaRSSContentPlayerAndThumbnail() throws {
+        let mapper: RSSFeedMapper = RSSFeedMapper()
+        let feed: RSSFeed = try mapper.map(Self.mediaRSS)
+
+        let directVideoItem: RSSFeedItem = try #require(feed.items.first)
+        #expect(directVideoItem.coverURL?.absoluteString == "https://media.example.test/poster.jpg")
+        #expect(directVideoItem.media?.kind == .video)
+        #expect(directVideoItem.media?.playbackMode == .directMedia)
+        #expect(directVideoItem.media?.url == "https://media.example.test/stream.m3u8")
+        #expect(directVideoItem.media?.mimeType == "application/vnd.apple.mpegurl")
+        #expect(directVideoItem.media?.duration == "1200")
+        #expect(directVideoItem.media?.posterURL == "https://media.example.test/poster.jpg")
+
+        let playerItem: RSSFeedItem = try #require(feed.items.dropFirst().first)
+        #expect(playerItem.media?.kind == .video)
+        #expect(playerItem.media?.playbackMode == .webPage)
+        #expect(playerItem.media?.url == "https://player.example.test/watch/1")
+    }
+
     private static let solidotLikeRSS: String = """
     <?xml version="1.0" encoding="UTF-8"?>
     <rss version="2.0">
@@ -151,6 +212,63 @@ struct RSSFeedMapperTests {
             <p>第二条正文</p>
             <img src="https://example.test/three.jpg" />
           ]]></content:encoded>
+        </item>
+      </channel>
+    </rss>
+    """
+
+    private static let mediaEnclosureRSS: String = """
+    <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+      <channel>
+        <item>
+          <title>Audio episode</title>
+          <link>https://example.test/audio</link>
+          <itunes:image href="https://media.example.test/show.jpg" />
+          <itunes:duration>01:02:03</itunes:duration>
+          <enclosure url="https://media.example.test/show.mp3" type="audio/mpeg" />
+        </item>
+        <item>
+          <title>Video episode</title>
+          <link>https://example.test/video</link>
+          <enclosure url="https://media.example.test/movie.mp4" />
+        </item>
+        <item>
+          <title>Image enclosure</title>
+          <enclosure url="https://media.example.test/cover.jpg" type="image/jpeg" />
+        </item>
+        <item>
+          <title>Unknown enclosure</title>
+          <enclosure url="https://media.example.test/file.bin" type="application/octet-stream" />
+        </item>
+      </channel>
+    </rss>
+    """
+
+    private static let atomMediaFeed: String = """
+    <feed xmlns="http://www.w3.org/2005/Atom">
+      <title>Atom Media</title>
+      <entry>
+        <title>Atom audio</title>
+        <link rel="alternate" type="text/html" href="https://example.test/posts/one" />
+        <link rel="enclosure" type="audio/mp4" href="https://media.example.test/one.m4a" />
+        <id>tag:example.test,2026:one</id>
+      </entry>
+    </feed>
+    """
+
+    private static let mediaRSS: String = """
+    <rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+      <channel>
+        <item>
+          <title>Media RSS video</title>
+          <media:group>
+            <media:thumbnail url="https://media.example.test/poster.jpg" />
+            <media:content url="https://media.example.test/stream.m3u8" type="application/vnd.apple.mpegurl" duration="1200" />
+          </media:group>
+        </item>
+        <item>
+          <title>Media RSS player</title>
+          <media:player url="https://player.example.test/watch/1" />
         </item>
       </channel>
     </rss>
