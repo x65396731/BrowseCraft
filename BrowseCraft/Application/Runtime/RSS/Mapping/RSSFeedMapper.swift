@@ -122,7 +122,7 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
         case (.entry, "title"):
             self.currentItem?.title = value
         case (.item, "link"):
-            self.currentItem?.link = value.flatMap(URL.init(string:))
+            self.currentItem?.link = Self.feedURL(value)
         case (.entry, "summary"), (.entry, "content"):
             self.currentItem?.summary = value
             self.currentItem?.applyFallbackCoverURL(Self.firstImageURL(in: value))
@@ -135,7 +135,7 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
             self.currentItem?.applyFallbackCoverURL(Self.firstImageURL(in: value))
             self.currentItem?.appendContentBlocks(Self.contentBlocks(in: value))
         case (.item, "thumb"), (.item, "thumbnail"), (.item, "cover"), (.item, "image"):
-            self.currentItem?.applyFallbackCoverURL(value.flatMap(URL.init(string:)))
+            self.currentItem?.applyFallbackCoverURL(Self.feedURL(value))
         case (.item, "pubdate"):
             self.currentItem?.publishedAt = value.flatMap(Self.date(from:))
         case (.entry, "published"), (.entry, "updated"):
@@ -253,7 +253,40 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
             return nil
         }
 
-        return URL(string: string)
+        return Self.feedURL(string)
+    }
+
+    private static func feedURL(_ rawString: String?) -> URL? {
+        guard var string: String = rawString?.trimmedNonEmpty else {
+            return nil
+        }
+
+        string = Self.decodedHTMLEntities(in: string)
+            .replacingOccurrences(of: #"\/"#, with: "/")
+            .replacingOccurrences(of: #"\\/"#, with: "/")
+            .replacingOccurrences(of: "\\u002F", with: "/")
+            .replacingOccurrences(of: "\\u002f", with: "/")
+            .replacingOccurrences(of: "\\u0026", with: "&")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        while let lastCharacter: Character = string.last,
+              [")", "]", "}", ","].contains(lastCharacter) {
+            string.removeLast()
+        }
+
+        guard string.isEmpty == false,
+              string.hasPrefix("data:") == false,
+              string.hasPrefix("blob:") == false,
+              string != "#",
+              string.lowercased() != "about:blank" else {
+            return nil
+        }
+
+        if string.hasPrefix("//") {
+            return Self.secureURLIfNeeded(URL(string: "https:\(string)"))
+        }
+
+        return Self.secureURLIfNeeded(URL(string: string))
     }
 
     private static func mediaCandidate(
@@ -428,24 +461,105 @@ private final class RSSFeedMapperDelegate: NSObject, XMLParserDelegate {
             return []
         }
 
-        let pattern: String = #"<img\b[^>]*(?:\bsrc|\bdata-src|\bdata-original)\s*=\s*["']([^"']+)["'][^>]*>"#
+        let imageTagPattern: String = #"<img\b[^>]*>"#
         guard let regex: NSRegularExpression = try? NSRegularExpression(
-            pattern: pattern,
+            pattern: imageTagPattern,
             options: [.caseInsensitive]
         ) else {
             return []
         }
 
+        let imageURLAttributes: [String] = [
+            "data-original",
+            "data-original-src",
+            "data-src",
+            "data-lazy-src",
+            "data-actualsrc",
+            "data-url",
+            "data-file",
+            "data-image",
+            "data-echo",
+            "data-lazy",
+            "data-full",
+            "src"
+        ]
+
+        var urls: [URL] = []
+        var seenURLStrings: Set<String> = []
         let range: NSRange = NSRange(html.startIndex..<html.endIndex, in: html)
-        return regex.matches(in: html, range: range).compactMap { match in
-            guard match.numberOfRanges > 1,
-                  let urlRange: Range<String.Index> = Range(match.range(at: 1), in: html) else {
-                return nil
+        for match in regex.matches(in: html, range: range) {
+            guard let tagRange: Range<String.Index> = Range(match.range(at: 0), in: html) else {
+                continue
             }
 
-            return URL(string: String(html[urlRange]))
+            let tag: String = String(html[tagRange])
+            for attributeName in imageURLAttributes {
+                guard let rawURLString: String = Self.attributeValue(named: attributeName, in: tag),
+                      let url: URL = Self.feedURL(rawURLString) else {
+                    continue
+                }
+
+                let urlString: String = url.absoluteString
+                guard seenURLStrings.contains(urlString) == false else {
+                    continue
+                }
+
+                seenURLStrings.insert(urlString)
+                urls.append(url)
+            }
         }
+
+        return urls
     }
+
+    private static func attributeValue(named attributeName: String, in tag: String) -> String? {
+        let pattern: String = #"\b\#(NSRegularExpression.escapedPattern(for: attributeName))\s*=\s*(["'])(.*?)\1"#
+        guard let regex: NSRegularExpression = try? NSRegularExpression(
+            pattern: pattern,
+            options: [.caseInsensitive]
+        ) else {
+            return nil
+        }
+
+        let range: NSRange = NSRange(tag.startIndex..<tag.endIndex, in: tag)
+        guard let match: NSTextCheckingResult = regex.firstMatch(in: tag, range: range),
+              match.numberOfRanges > 2,
+              let valueRange: Range<String.Index> = Range(match.range(at: 2), in: tag) else {
+            return nil
+        }
+
+        return String(tag[valueRange]).trimmedNonEmpty
+    }
+
+    private static func secureURLIfNeeded(_ url: URL?) -> URL? {
+        guard let url: URL,
+              url.scheme?.lowercased() == "http",
+              let host: String = url.host?.lowercased(),
+              Self.httpsPreferredHosts.contains(host),
+              var components: URLComponents = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return url
+        }
+
+        components.scheme = "https"
+        return components.url ?? url
+    }
+
+    private static func decodedHTMLEntities(in text: String) -> String {
+        return text
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#39;", with: "'")
+    }
+
+    private static let httpsPreferredHosts: Set<String> = [
+        "images.infzm.com",
+        "img2.jintiankansha.me",
+        "mmbiz.qpic.cn",
+        "weixin.sogou.com",
+        "www.jintiankansha.me"
+    ]
 
     private static func block(
         kind: RSSContentPayload.BlockKind,

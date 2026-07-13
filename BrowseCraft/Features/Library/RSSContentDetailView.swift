@@ -138,7 +138,7 @@ struct RSSContentDetailView: View {
             }
         case .image:
             if let imageURL: String = block.imageURL {
-                CoverImageView(urlString: imageURL)
+                CoverImageView(urlString: Self.displayImageURLString(from: imageURL, baseURL: self.originalURL))
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: 190)
                     .aspectRatio(16 / 9, contentMode: .fit)
@@ -297,17 +297,25 @@ struct RSSContentDetailView: View {
 
     private var heroImageURLs: [String] {
         var urls: [String] = []
-        var seen: Set<String> = []
+        var indexesByDedupeKey: [String: Int] = [:]
 
         func append(_ urlString: String?) {
             guard let urlString: String = urlString?.trimmingCharacters(in: .whitespacesAndNewlines),
-                  urlString.isEmpty == false,
-                  seen.contains(urlString) == false else {
+                  urlString.isEmpty == false else {
                 return
             }
 
-            seen.insert(urlString)
-            urls.append(urlString)
+            let displayURLString: String = Self.displayImageURLString(from: urlString, baseURL: self.originalURL)
+            let dedupeKey: String = Self.heroImageDedupeKey(for: displayURLString)
+            if let existingIndex: Int = indexesByDedupeKey[dedupeKey] {
+                if Self.heroImageQualityScore(for: displayURLString) > Self.heroImageQualityScore(for: urls[existingIndex]) {
+                    urls[existingIndex] = displayURLString
+                }
+                return
+            }
+
+            indexesByDedupeKey[dedupeKey] = urls.count
+            urls.append(displayURLString)
         }
 
         append(self.viewModel.displayItem.coverURL)
@@ -319,6 +327,88 @@ struct RSSContentDetailView: View {
         }
 
         return urls
+    }
+
+    private static func displayImageURLString(from urlString: String, baseURL: URL?) -> String {
+        guard let url: URL = URL(string: urlString, relativeTo: baseURL)?.absoluteURL else {
+            return urlString
+        }
+
+        return Self.secureImageURLIfNeeded(url).absoluteString
+    }
+
+    private static func secureImageURLIfNeeded(_ url: URL) -> URL {
+        guard url.scheme?.lowercased() == "http",
+              let host: String = url.host?.lowercased(),
+              Self.httpsPreferredImageHosts.contains(host),
+              var components: URLComponents = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return url
+        }
+
+        components.scheme = "https"
+        return components.url ?? url
+    }
+
+    private static let httpsPreferredImageHosts: Set<String> = [
+        "img2.jintiankansha.me",
+        "mmbiz.qpic.cn",
+        "www.jintiankansha.me"
+    ]
+
+    private static func heroImageDedupeKey(for urlString: String) -> String {
+        guard let url: URL = URL(string: urlString),
+              url.host?.lowercased() == "img.jiemian.com" else {
+            return urlString
+        }
+
+        let filename: String = url.deletingPathExtension().lastPathComponent
+        guard let normalizedFilename: String = Self.normalizedJiemianImageFilename(filename),
+              normalizedFilename != filename else {
+            return urlString
+        }
+
+        var components: URLComponents? = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        let normalizedLastPathComponent: String
+        if url.pathExtension.isEmpty {
+            normalizedLastPathComponent = normalizedFilename
+        } else {
+            normalizedLastPathComponent = "\(normalizedFilename).\(url.pathExtension)"
+        }
+
+        components?.path = url
+            .deletingLastPathComponent()
+            .appendingPathComponent(normalizedLastPathComponent)
+            .path
+        return components?.url?.absoluteString ?? urlString
+    }
+
+    private static func heroImageQualityScore(for urlString: String) -> Int {
+        guard let url: URL = URL(string: urlString),
+              url.host?.lowercased() == "img.jiemian.com" else {
+            return 0
+        }
+
+        let filename: String = url.deletingPathExtension().lastPathComponent
+        guard let normalizedFilename: String = Self.normalizedJiemianImageFilename(filename),
+              normalizedFilename != filename else {
+            return 1
+        }
+
+        return 0
+    }
+
+    private static func normalizedJiemianImageFilename(_ filename: String) -> String? {
+        let pattern: String = #"_[a-z]?\d{2,5}x\d{2,5}$"#
+        guard let regex: NSRegularExpression = try? NSRegularExpression(pattern: pattern) else {
+            return nil
+        }
+
+        let range: NSRange = NSRange(filename.startIndex..<filename.endIndex, in: filename)
+        return regex.stringByReplacingMatches(
+            in: filename,
+            range: range,
+            withTemplate: ""
+        )
     }
 
     @ViewBuilder
@@ -422,8 +512,29 @@ struct RSSContentDetailView: View {
     }
 
     private var originalURL: URL? {
-        return URL(string: self.viewModel.displayItem.detailURL)
+        guard let url: URL = URL(string: self.viewModel.displayItem.detailURL) else {
+            return nil
+        }
+
+        return Self.secureOriginalURLIfNeeded(url)
     }
+
+    private static func secureOriginalURLIfNeeded(_ url: URL) -> URL {
+        guard url.scheme?.lowercased() == "http",
+              let host: String = url.host?.lowercased(),
+              Self.httpsPreferredOriginalHosts.contains(host),
+              var components: URLComponents = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return url
+        }
+
+        components.scheme = "https"
+        return components.url ?? url
+    }
+
+    private static let httpsPreferredOriginalHosts: Set<String> = [
+        "weixin.sogou.com",
+        "www.jintiankansha.me"
+    ]
 
     private static let primaryTextColor: Color = Color(
         red: 25 / 255,
@@ -562,6 +673,7 @@ private struct RSSOriginalWebView: View {
 @MainActor
 private final class RSSOriginalWebCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigationDelegate {
     let configuration: WKWebViewConfiguration
+    private var isLoadingHTTPSUpgrade: Bool = false
 
     override init() {
         let configuration: WKWebViewConfiguration = WKWebViewConfiguration()
@@ -586,5 +698,62 @@ private final class RSSOriginalWebCoordinator: NSObject, ObservableObject, WKUID
 
         webView.load(URLRequest(url: requestURL))
         return nil
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
+        guard navigationAction.targetFrame?.isMainFrame == true,
+              let navigationURL: URL = navigationAction.request.url,
+              let upgradedURL: URL = Self.httpsURLIfNeeded(from: navigationURL) else {
+            decisionHandler(.allow)
+            return
+        }
+
+        self.isLoadingHTTPSUpgrade = true
+        decisionHandler(.cancel)
+        webView.load(URLRequest(url: upgradedURL))
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation?) {
+        self.isLoadingHTTPSUpgrade = false
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation?, withError error: Error) {
+        guard self.shouldIgnoreInterruptedNavigation(error) == false else {
+            return
+        }
+
+        self.isLoadingHTTPSUpgrade = false
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation?, withError error: Error) {
+        guard self.shouldIgnoreInterruptedNavigation(error) == false else {
+            return
+        }
+
+        self.isLoadingHTTPSUpgrade = false
+    }
+
+    private static func httpsURLIfNeeded(from url: URL) -> URL? {
+        guard url.scheme?.lowercased() == "http",
+              var components: URLComponents = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+
+        components.scheme = "https"
+        return components.url
+    }
+
+    private func shouldIgnoreInterruptedNavigation(_ error: Error) -> Bool {
+        guard self.isLoadingHTTPSUpgrade else {
+            return false
+        }
+
+        let nsError: NSError = error as NSError
+        return (nsError.domain == "WebKitErrorDomain" && nsError.code == 102)
+            || (nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled)
     }
 }

@@ -91,7 +91,7 @@ final class RSSContentDetailViewModel: ObservableObject {
         self.didLoadDetailContent = true
 
         guard let pageContentLoader: PageContentLoader = self.pageContentLoader,
-              let detailURL: URL = URL(string: self.item.detailURL) else {
+              let detailURL: URL = Self.secureDetailURL(from: self.item.detailURL) else {
             return
         }
 
@@ -117,7 +117,7 @@ final class RSSContentDetailViewModel: ObservableObject {
                 media: feedPayload?.media
             )
             updatedItem.latestText = payload.encodedString() ?? self.item.latestText
-            if self.trimmedNonEmpty(updatedItem.coverURL) == nil {
+            if self.shouldReplaceCoverURL(updatedItem.coverURL) {
                 updatedItem.coverURL = mergedBlocks.compactMap { block in
                     self.trimmedNonEmpty(block.imageURL)
                 }.first
@@ -208,36 +208,44 @@ final class RSSContentDetailViewModel: ObservableObject {
                 rejectedImageReasons["missing-url", default: 0] += 1
                 continue
             }
+            guard let resolvedImageURL: String = self.resolvedImageURLString(imageURL) else {
+                rejectedImageReasons["invalid-url", default: 0] += 1
+                continue
+            }
 
-            if let reason: String = self.rssImageRejectionReason(imageURL) {
+            if let reason: String = self.rssImageRejectionReason(resolvedImageURL) {
                 rejectedImageReasons[reason, default: 0] += 1
                 continue
             }
 
-            guard seenImageURLs.contains(imageURL) == false else {
+            guard seenImageURLs.contains(resolvedImageURL) == false else {
                 continue
             }
 
-            seenImageURLs.insert(imageURL)
+            seenImageURLs.insert(resolvedImageURL)
             feedImageBlocks.append(
                 RSSContentPayload.Block(
                     id: "image-\(feedImageBlocks.count)",
                     kind: .image,
                     text: nil,
-                    imageURL: imageURL
+                    imageURL: resolvedImageURL
                 )
             )
         }
 
-        let mergedBlocks: [RSSContentPayload.Block]
-        if feedImageBlocks.isEmpty {
-            mergedBlocks = detailTextBlocks + filteredDetailImageBlocks
-        } else {
-            if filteredDetailImageBlocks.isEmpty == false {
-                rejectedImageReasons["detail-images-replaced-by-feed", default: 0] += filteredDetailImageBlocks.count
+        var mergedImageBlocks: [RSSContentPayload.Block] = []
+        var mergedImageURLs: Set<String> = []
+        for block in filteredDetailImageBlocks + feedImageBlocks {
+            guard let imageURL: String = block.imageURL,
+                  mergedImageURLs.contains(imageURL) == false else {
+                continue
             }
-            mergedBlocks = detailTextBlocks + feedImageBlocks
+
+            mergedImageURLs.insert(imageURL)
+            mergedImageBlocks.append(block)
         }
+
+        let mergedBlocks: [RSSContentPayload.Block] = detailTextBlocks + mergedImageBlocks
 
         let feedImageCount: Int = feedPayload.blocks.filter { block in
             block.kind == .image
@@ -250,6 +258,27 @@ final class RSSContentDetailViewModel: ObservableObject {
         )
 
         return self.reindexedBlocks(mergedBlocks)
+    }
+
+    private func shouldReplaceCoverURL(_ coverURL: String?) -> Bool {
+        guard let coverURL: String = self.trimmedNonEmpty(coverURL) else {
+            return true
+        }
+
+        guard let resolvedCoverURL: String = self.resolvedImageURLString(coverURL) else {
+            return true
+        }
+
+        return self.rssImageRejectionReason(resolvedCoverURL) != nil
+    }
+
+    private func resolvedImageURLString(_ imageURL: String) -> String? {
+        guard let baseURL: URL = Self.secureDetailURL(from: self.item.detailURL),
+              let url: URL = URL(string: imageURL, relativeTo: baseURL)?.absoluteURL else {
+            return nil
+        }
+
+        return Self.secureURLIfNeeded(url).absoluteString
     }
 
     private func reindexedBlocks(_ blocks: [RSSContentPayload.Block]) -> [RSSContentPayload.Block] {
@@ -276,14 +305,21 @@ final class RSSContentDetailViewModel: ObservableObject {
             return "non-image-gcores-host"
         }
 
+        if host == "www.beian.gov.cn" || host == "beian.gov.cn" {
+            return "beian-icon"
+        }
+
+        if Self.isUnsupportedVectorImage(url) {
+            return "unsupported-vector"
+        }
+
         let rejectedFragments: [String] = [
             "avatar",
             "favicon",
             "apple-touch-icon",
             "logo",
             "gonganbeian",
-            "page_resources/misc",
-            "/assets/"
+            "page_resources/misc"
         ]
         if let fragment: String = rejectedFragments.first(where: { lowercasedURL.contains($0) }) {
             return "fragment:\(fragment)"
@@ -294,6 +330,10 @@ final class RSSContentDetailViewModel: ObservableObject {
         }
 
         return nil
+    }
+
+    private static func isUnsupportedVectorImage(_ url: URL) -> Bool {
+        return url.pathExtension.lowercased() == "svg"
     }
 
     private func smallImageDimensionMarker(in lowercasedURL: String) -> String? {
@@ -364,6 +404,32 @@ final class RSSContentDetailViewModel: ObservableObject {
 
         return self.displayItem.title
     }
+
+    private static func secureDetailURL(from string: String) -> URL? {
+        guard let url: URL = URL(string: string) else {
+            return nil
+        }
+
+        return Self.secureURLIfNeeded(url)
+    }
+
+    private static func secureURLIfNeeded(_ url: URL) -> URL {
+        guard url.scheme?.lowercased() == "http",
+              let host: String = url.host?.lowercased(),
+              Self.httpsPreferredHosts.contains(host),
+              var components: URLComponents = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return url
+        }
+
+        components.scheme = "https"
+        return components.url ?? url
+    }
+
+    private static let httpsPreferredHosts: Set<String> = [
+        "images.infzm.com",
+        "weixin.sogou.com",
+        "www.jintiankansha.me"
+    ]
 
     private func originFeedURL() -> URL? {
         guard case .rss(let configuration) = self.source.configuration else {

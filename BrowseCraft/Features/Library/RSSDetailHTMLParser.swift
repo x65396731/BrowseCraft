@@ -286,7 +286,21 @@ struct RSSDetailHTMLParser {
                 }
 
                 let tag: String = String(html[tagRange])
-                for attributeName in ["data-original", "data-src", "src"] {
+                let imageURLAttributes: [String] = [
+                    "data-original",
+                    "data-original-src",
+                    "data-src",
+                    "data-lazy-src",
+                    "data-actualsrc",
+                    "data-url",
+                    "data-file",
+                    "data-image",
+                    "data-echo",
+                    "data-lazy",
+                    "data-full",
+                    "src"
+                ]
+                for attributeName in imageURLAttributes {
                     if let rawURLString: String = Self.attributeValue(named: attributeName, in: tag) {
                         Self.appendImageURL(
                             rawURLString,
@@ -294,7 +308,6 @@ struct RSSDetailHTMLParser {
                             to: &urls,
                             seenURLStrings: &seenURLStrings
                         )
-                        break
                     }
                 }
 
@@ -316,7 +329,9 @@ struct RSSDetailHTMLParser {
 
         let embeddedURLPatterns: [String] = [
             #"https?:\\?/\\?/image\.gcores\.com/[^"'<>\s]+"#,
-            #"//image\.gcores\.com/[^"'<>\s]+"#
+            #"//image\.gcores\.com/[^"'<>\s]+"#,
+            #"https?:\\?/\\?/images\.infzm\.com/[^"'<>\s]+"#,
+            #"//images\.infzm\.com/[^"'<>\s]+"#
         ]
 
         for pattern in embeddedURLPatterns {
@@ -413,12 +428,12 @@ struct RSSDetailHTMLParser {
             return nil
         }
 
-        if normalizedURLString.hasPrefix("//"),
-           let scheme: String = baseURL?.scheme {
-            return Self.absoluteURL(from: "\(scheme):\(normalizedURLString)", baseURL: nil)
+        if normalizedURLString.hasPrefix("//") {
+            let scheme: String = baseURL?.scheme?.lowercased() == "http" ? "https" : (baseURL?.scheme ?? "https")
+            return Self.secureURLIfNeeded(Self.absoluteURL(from: "\(scheme):\(normalizedURLString)", baseURL: nil))
         }
 
-        return Self.absoluteURL(from: normalizedURLString, baseURL: baseURL)
+        return Self.secureURLIfNeeded(Self.absoluteURL(from: normalizedURLString, baseURL: baseURL))
     }
 
     private static func absoluteURL(from string: String, baseURL: URL?) -> URL? {
@@ -448,12 +463,36 @@ struct RSSDetailHTMLParser {
         }
 
         guard decoded.isEmpty == false,
-              decoded.hasPrefix("data:") == false else {
+              decoded.hasPrefix("data:") == false,
+              decoded.hasPrefix("blob:") == false,
+              decoded != "#",
+              decoded.lowercased() != "about:blank" else {
             return nil
         }
 
         return decoded
     }
+
+    private static func secureURLIfNeeded(_ url: URL?) -> URL? {
+        guard let url: URL,
+              url.scheme?.lowercased() == "http",
+              let host: String = url.host?.lowercased(),
+              Self.httpsPreferredHosts.contains(host),
+              var components: URLComponents = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return url
+        }
+
+        components.scheme = "https"
+        return components.url ?? url
+    }
+
+    private static let httpsPreferredHosts: Set<String> = [
+        "images.infzm.com",
+        "img2.jintiankansha.me",
+        "mmbiz.qpic.cn",
+        "weixin.sogou.com",
+        "www.jintiankansha.me"
+    ]
 
     private static func block(
         kind: RSSContentPayload.BlockKind,
