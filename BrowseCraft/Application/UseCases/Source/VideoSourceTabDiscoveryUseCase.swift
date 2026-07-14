@@ -22,6 +22,11 @@ struct VideoSourceTabDiscoveryUseCase {
         definition: VideoSourceDefinition,
         explicitTabs: [VideoSourceListTab]
     ) async throws -> [VideoSourceListTab] {
+        // 中文注释：后台目录规则已经给出 tabs 时不要再加载入口页自动发现，避免反爬站点重复触发 WebView。
+        guard explicitTabs.isEmpty else {
+            return explicitTabs
+        }
+
         let request: RequestConfig? = self.requestConfigResolver.request(
             for: .list,
             definition: definition,

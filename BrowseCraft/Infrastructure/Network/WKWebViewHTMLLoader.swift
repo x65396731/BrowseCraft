@@ -39,6 +39,10 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
     private enum Timing {
         static let timeoutNanoseconds: UInt64 = 12_000_000_000
         static let timeoutSeconds: Double = 12
+        static let earlySnapshotInitialDelayNanoseconds: UInt64 = 1_200_000_000
+        static let earlySnapshotIntervalNanoseconds: UInt64 = 500_000_000
+        static let earlySnapshotAttempts: Int = 16
+        static let earlySnapshotMinimumHTMLLength: Int = 4_096
         static let postFinishDelayNanoseconds: UInt64 = 500_000_000
         static let postScrollDelayNanoseconds: UInt64 = 500_000_000
         static let domStableDelayNanoseconds: UInt64 = 300_000_000
@@ -73,6 +77,7 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
                 self.continuation = continuation
                 self.webView.load(self.urlRequest(for: self.url, includeBody: true))
                 self.startTimeout()
+                self.startEarlySnapshotPollingIfNeeded()
             }
         } onCancel: {
             Task { @MainActor in
@@ -117,6 +122,29 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         decisionHandler(.cancel)
         Task { @MainActor in
             webView.load(self.urlRequest(for: upgradedURL, includeBody: false))
+        }
+    }
+
+    private func startEarlySnapshotPollingIfNeeded() {
+        guard self.request?.autoScroll != true else {
+            return
+        }
+
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: Timing.earlySnapshotInitialDelayNanoseconds)
+
+            for _ in 0..<Timing.earlySnapshotAttempts {
+                guard self.hasCompleted == false else {
+                    return
+                }
+
+                if let html: String = try? await self.earlyRenderedHTMLIfReady() {
+                    self.finish(.success(html))
+                    return
+                }
+
+                try? await Task.sleep(nanoseconds: Timing.earlySnapshotIntervalNanoseconds)
+            }
         }
     }
 
@@ -283,6 +311,38 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         throw WKWebViewHTMLLoaderError.unexpectedJavaScriptResult(url: self.url)
     }
 
+    private func earlyRenderedHTMLIfReady() async throws -> String? {
+        let result: Any? = try await self.webView.evaluateJavaScript(
+            """
+            (() => {
+              const root = document.documentElement;
+              const body = document.body;
+              const html = root ? root.outerHTML : "";
+              const textLength = body ? (body.innerText || "").trim().length : 0;
+              return {
+                readyState: document.readyState || "",
+                html: html,
+                textLength: textLength
+              };
+            })();
+            """
+        )
+
+        guard let state: [String: Any] = result as? [String: Any],
+              let html: String = state["html"] as? String,
+              let readyState: String = state["readyState"] as? String else {
+            throw WKWebViewHTMLLoaderError.unexpectedJavaScriptResult(url: self.url)
+        }
+
+        guard readyState != "loading",
+              html.count >= Timing.earlySnapshotMinimumHTMLLength,
+              self.intValue(state["textLength"]) > 0 else {
+            return nil
+        }
+
+        return html
+    }
+
     /// 中文注释：读取 documentElement.outerHTML，确保解析器拿到的是 JS 执行后的整页 DOM。
     private func renderedHTML() async throws -> String {
         let result: Any? = try await self.webView.evaluateJavaScript(
@@ -298,6 +358,18 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         }
 
         return html
+    }
+
+    private func intValue(_ value: Any?) -> Int {
+        if let int: Int = value as? Int {
+            return int
+        }
+
+        if let double: Double = value as? Double {
+            return Int(double)
+        }
+
+        return 0
     }
 
     private func finish(_ result: Result<String, Error>) {

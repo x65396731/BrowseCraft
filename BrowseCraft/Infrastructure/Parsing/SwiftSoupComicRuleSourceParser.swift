@@ -1440,24 +1440,96 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
     }
 
     private func extract(element: Element, expression: String) throws -> String {
-        if expression == "this" {
+        let expressions: [String] = self.legacyExpressionCandidates(from: expression)
+        if expressions.count > 1 {
+            var firstError: Error?
+
+            for candidateExpression: String in expressions {
+                do {
+                    let value: String = try self.extractSingle(element: element, expression: candidateExpression)
+
+                    if self.isEffectivelyEmpty(value) == false {
+                        return value
+                    }
+                } catch {
+                    if firstError == nil {
+                        firstError = error
+                    }
+                }
+            }
+
+            if let firstError: Error = firstError {
+                throw firstError
+            }
+
+            return ""
+        }
+
+        return try self.extractSingle(element: element, expression: expressions.first ?? expression)
+    }
+
+    private func extractSingle(element: Element, expression: String) throws -> String {
+        let normalizedExpression: String = self.normalizedCurrentElementAlias(expression)
+
+        if normalizedExpression == "this" {
             return try element.text()
         }
 
-        if let separatorIndex: String.Index = expression.lastIndex(of: "@") {
-            let selector: String = String(expression[..<separatorIndex])
-            let attributeExpression: String = String(expression[expression.index(after: separatorIndex)...])
+        if let separatorIndex: String.Index = normalizedExpression.lastIndex(of: "@") {
+            let selector: String = String(normalizedExpression[..<separatorIndex])
+            let attributeExpression: String = String(normalizedExpression[normalizedExpression.index(after: separatorIndex)...])
             let selectedElement: Element? = try self.selectedElement(element: element, selector: selector)
 
             return try self.extractAttribute(element: selectedElement, attributeExpression: attributeExpression)
         }
 
-        return try self.selectedElement(element: element, selector: expression)?.text() ?? ""
+        return try self.selectedElement(element: element, selector: normalizedExpression)?.text() ?? ""
+    }
+
+    private func legacyExpressionCandidates(from expression: String) -> [String] {
+        let trimmedExpression: String = expression.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parts: [String] = trimmedExpression
+            .split(separator: ",")
+            .map { part in
+                return String(part).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            .filter { $0.isEmpty == false }
+
+        guard parts.count > 1 else {
+            return [trimmedExpression]
+        }
+
+        // 中文注释：旧版站规常把 attr 候选写成 "img@data-src, img@src"。
+        // 中文注释：逐个尝试可以避免 lastIndex("@") 把整段 CSS group 拆坏。
+        if parts.allSatisfy({ $0.contains("@") || $0 == "&" || $0 == "this" }) {
+            return parts
+        }
+
+        // 中文注释：包含当前元素别名时无法作为 CSS group 直接交给 SwiftSoup。
+        if parts.contains(where: { $0 == "&" || $0.hasPrefix("&@") }) {
+            return parts
+        }
+
+        return [trimmedExpression]
+    }
+
+    private func normalizedCurrentElementAlias(_ expression: String) -> String {
+        let trimmedExpression: String = expression.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if trimmedExpression == "&" {
+            return "this"
+        }
+
+        if trimmedExpression.hasPrefix("&@") {
+            return "this" + trimmedExpression.dropFirst()
+        }
+
+        return trimmedExpression
     }
 
     /// 中文注释：selectedElement 方法封装当前类型的一段业务或界面行为。
     private func selectedElement(element: Element, selector: String) throws -> Element? {
-        if selector.isEmpty || selector == "this" {
+        if selector.isEmpty || selector == "this" || selector == "&" {
             return element
         }
 
