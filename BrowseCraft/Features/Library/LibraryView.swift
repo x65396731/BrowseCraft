@@ -85,7 +85,11 @@ struct LibraryView: View {
                             }
                         }
                     )
-                    .disabled(self.viewModel.selectedSource == nil || self.viewModel.isRefreshing)
+                    .disabled(
+                        self.viewModel.selectedSource == nil ||
+                        self.viewModel.isRefreshing ||
+                        self.viewModel.isValidatingTabs
+                    )
                     .accessibilityLabel("Refresh Selected Tab")
                 }
             }
@@ -116,6 +120,10 @@ struct LibraryView: View {
 
     private var shouldShowLoadingView: Bool {
         return self.viewModel.isShowingSourceLoading
+    }
+
+    private var tabBarInteractionDisabled: Bool {
+        return self.viewModel.isRefreshing || self.viewModel.isValidatingTabs
     }
 
     private var libraryNavigationTitle: String {
@@ -256,9 +264,14 @@ struct LibraryView: View {
                         }
                     )
                     .buttonStyle(.plain)
-                    .disabled(self.viewModel.isRefreshing)
+                    .disabled(self.tabBarInteractionDisabled)
+                }
+
+                if self.viewModel.isValidatingTabs {
+                    self.tabValidationIndicator
                 }
             }
+            .opacity(self.viewModel.isValidatingTabs ? 0.58 : 1)
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
         }
@@ -299,9 +312,14 @@ struct LibraryView: View {
                         }
                     )
                     .buttonStyle(.plain)
-                    .disabled(self.viewModel.isRefreshing)
+                    .disabled(self.tabBarInteractionDisabled)
+                }
+
+                if self.viewModel.isValidatingTabs {
+                    self.tabValidationIndicator
                 }
             }
+            .opacity(self.viewModel.isValidatingTabs ? 0.58 : 1)
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
         }
@@ -342,12 +360,24 @@ struct LibraryView: View {
                         }
                     )
                     .buttonStyle(.plain)
-                    .disabled(self.viewModel.isRefreshing)
+                    .disabled(self.tabBarInteractionDisabled)
+                }
+
+                if self.viewModel.isValidatingTabs {
+                    self.tabValidationIndicator
                 }
             }
+            .opacity(self.viewModel.isValidatingTabs ? 0.58 : 1)
             .padding(.horizontal, 16)
         }
         .background(Color(.systemBackground))
+    }
+
+    private var tabValidationIndicator: some View {
+        ProgressView()
+            .controlSize(.small)
+            .padding(.horizontal, 4)
+            .accessibilityLabel("Validating Tabs")
     }
 
     private func openComicDestination(item: ContentItem, source: Source) {

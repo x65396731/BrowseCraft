@@ -26,6 +26,7 @@ final class LibraryViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published private(set) var selectedListTabErrorMessage: String?
     @Published private(set) var isRefreshing: Bool = false
+    @Published private(set) var isValidatingTabs: Bool = false
     @Published private(set) var preparingSource: SourceLoadingState?
     @Published private(set) var preparedLibrarySnapshot: SourceLibrarySnapshot?
 
@@ -105,7 +106,8 @@ final class LibraryViewModel: ObservableObject {
             )
             #endif
 
-            await self.refreshSelectedListTab()
+            await self.refreshSelectedListTab(validateTabsFirst: false)
+            await self.prepareTabsForSelectedSourceIfNeeded()
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "library-load-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
@@ -114,6 +116,10 @@ final class LibraryViewModel: ObservableObject {
 
     @MainActor
     func selectListTab(id tabID: String) async {
+        guard self.isValidatingTabs == false else {
+            return
+        }
+
         guard self.visibleListTabs.contains(where: { tab in tab.id == tabID }) else {
             self.ensureSelectedListTab()
             return
@@ -131,15 +137,14 @@ final class LibraryViewModel: ObservableObject {
     }
 
     @MainActor
-    func refreshSelectedListTab() async {
+    func refreshSelectedListTab(validateTabsFirst: Bool = true) async {
         guard self.selectedSource != nil else {
             return
         }
 
-        if self.validateSourceTabsUseCase == nil {
-            await self.discoverTabsForSelectedVideoSourceIfNeeded()
+        if validateTabsFirst {
+            await self.prepareTabsForSelectedSourceIfNeeded()
         }
-        await self.validateTabsForSelectedSourceIfNeeded()
         CrashDiagnostics.shared.setRuleStage(.list)
         self.ensureSelectedListTab()
         guard let refreshedSelectedSource: Source = self.selectedSource else {
@@ -491,6 +496,16 @@ final class LibraryViewModel: ObservableObject {
     }
 
     @MainActor
+    private func prepareTabsForSelectedSourceIfNeeded() async {
+        if self.validateSourceTabsUseCase == nil {
+            await self.discoverTabsForSelectedVideoSourceIfNeeded()
+            return
+        }
+
+        await self.validateTabsForSelectedSourceIfNeeded()
+    }
+
+    @MainActor
     private func validateTabsForSelectedSourceIfNeeded() async {
         guard let validateSourceTabsUseCase: ValidateSourceTabsUseCase,
               let source: Source = self.selectedSource,
@@ -500,6 +515,10 @@ final class LibraryViewModel: ObservableObject {
         }
 
         self.tabValidationAttemptedSourceIDs.insert(source.id)
+        self.isValidatingTabs = true
+        defer {
+            self.isValidatingTabs = false
+        }
         let expectedSourceID: String = source.id
         let result: SourceTabsValidationResult = await validateSourceTabsUseCase.execute(source: source)
         guard self.selectedSourceID == expectedSourceID else {
@@ -550,6 +569,10 @@ final class LibraryViewModel: ObservableObject {
         }
 
         self.tabDiscoveryAttemptedSourceIDs.insert(source.id)
+        self.isValidatingTabs = true
+        defer {
+            self.isValidatingTabs = false
+        }
         CrashDiagnostics.shared.setRuleStage(.list)
 
         do {
@@ -659,6 +682,7 @@ final class LibraryViewModel: ObservableObject {
         // 中文注释：切换 source 时先清除旧 source 的画面状态，避免旧列表在新网站加载期间继续可见。
         self.refreshToken += 1
         self.isRefreshing = false
+        self.isValidatingTabs = false
         self.selectedSourceID = selectedSourceID
         CrashDiagnostics.shared.setSource(selectedSourceID.flatMap { self.source(for: $0) })
         self.selectedListTabID = nil

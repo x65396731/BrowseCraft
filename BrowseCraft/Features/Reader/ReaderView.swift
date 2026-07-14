@@ -322,10 +322,9 @@ struct ReaderView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(spacing: 12) {
+                VStack(spacing: 0) {
                     self.readerContent
                 }
-                .padding(.vertical, 12)
             }
             .onPreferenceChange(ReaderPageVisibilityPreferenceKey.self) { pages in
                 if let visiblePage: ReaderPageVisibility = pages.min(by: { lhs, rhs in
