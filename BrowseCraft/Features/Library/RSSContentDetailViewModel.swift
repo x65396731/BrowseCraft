@@ -198,7 +198,7 @@ final class RSSContentDetailViewModel: ObservableObject {
             guard block.kind == .image else {
                 return false
             }
-            if let reason: String = self.rssImageRejectionReason(block.imageURL) {
+            if let reason: String = Self.rssImageRejectionReason(block.imageURL) {
                 rejectedImageReasons[reason, default: 0] += 1
                 return false
             }
@@ -229,7 +229,7 @@ final class RSSContentDetailViewModel: ObservableObject {
                 continue
             }
 
-            if let reason: String = self.rssImageRejectionReason(resolvedImageURL) {
+            if let reason: String = Self.rssImageRejectionReason(resolvedImageURL) {
                 rejectedImageReasons[reason, default: 0] += 1
                 continue
             }
@@ -276,7 +276,7 @@ final class RSSContentDetailViewModel: ObservableObject {
             return true
         }
 
-        return self.rssImageRejectionReason(resolvedCoverURL) != nil
+        return Self.rssImageRejectionReason(resolvedCoverURL) != nil
     }
 
     private func resolvedImageURLString(_ imageURL: String) -> String? {
@@ -299,7 +299,7 @@ final class RSSContentDetailViewModel: ObservableObject {
         }
     }
 
-    private func rssImageRejectionReason(_ imageURL: String?) -> String? {
+    static func rssImageRejectionReason(_ imageURL: String?) -> String? {
         guard let imageURL: String,
               let url: URL = URL(string: imageURL) else {
             return "invalid-url"
@@ -324,6 +324,10 @@ final class RSSContentDetailViewModel: ObservableObject {
             return "unsupported-vector"
         }
 
+        if Self.isDirectoryImageURL(url) {
+            return "directory-url"
+        }
+
         let rejectedFragments: [String] = [
             "avatar",
             "favicon",
@@ -339,11 +343,26 @@ final class RSSContentDetailViewModel: ObservableObject {
             return "fragment:\(fragment)"
         }
 
-        if let smallImageMarker: String = self.smallImageDimensionMarker(in: lowercasedURL) {
+        if let smallImageMarker: String = Self.smallImageDimensionMarker(in: lowercasedURL) {
             return "small:\(smallImageMarker)"
         }
 
         return nil
+    }
+
+    private static func isDirectoryImageURL(_ url: URL) -> Bool {
+        guard let scheme: String = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              let components: URLComponents = URLComponents(
+                url: url,
+                resolvingAgainstBaseURL: false
+              ) else {
+            return false
+        }
+
+        return components.percentEncodedPath.hasSuffix("/")
+            && url.query == nil
+            && url.fragment == nil
     }
 
     private func deduplicatedImageBlocks(_ imageBlocks: [RSSContentPayload.Block]) -> [RSSContentPayload.Block] {
@@ -402,7 +421,7 @@ final class RSSContentDetailViewModel: ObservableObject {
         return url.pathExtension.lowercased() == "svg"
     }
 
-    private func smallImageDimensionMarker(in lowercasedURL: String) -> String? {
+    private static func smallImageDimensionMarker(in lowercasedURL: String) -> String? {
         let pattern: String = #"((?<![a-z0-9])[wh]_(?:20|30|40|50|60|80)(?![0-9])|!/both/(?:100x60|120x80|130x88))"#
         guard let regex: NSRegularExpression = try? NSRegularExpression(pattern: pattern) else {
             return nil

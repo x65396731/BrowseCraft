@@ -67,6 +67,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.xiefei.AnyPortal
         PRODUCT_NAME: AnyPortal
+        PRODUCT_MODULE_NAME: BrowseCraft
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: BrowseCraft/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -112,6 +113,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: xiefei.BrowseCraftTests
         GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/AnyPortal.app/AnyPortal"
 
   BrowseCraftUITests:
     type: bundle.ui-testing

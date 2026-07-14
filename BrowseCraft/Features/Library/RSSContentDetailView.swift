@@ -36,7 +36,7 @@ struct RSSContentDetailView: View {
 
                         self.articleBody
 
-                        if self.originalURL != nil {
+                        if self.originalWebURL != nil {
                             Button {
                                 self.isShowingOriginalWebView = true
                             } label: {
@@ -88,7 +88,7 @@ struct RSSContentDetailView: View {
             }
         )
         .fullScreenCover(isPresented: self.$isShowingOriginalWebView) {
-            if let originalURL: URL = self.originalURL {
+            if let originalURL: URL = self.originalWebURL {
                 RSSOriginalWebView(
                     url: originalURL,
                     title: self.viewModel.displayItem.title
@@ -517,6 +517,19 @@ struct RSSContentDetailView: View {
         }
 
         return Self.secureOriginalURLIfNeeded(url)
+    }
+
+    private var originalWebURL: URL? {
+        guard let url: URL = self.originalURL,
+              Self.supportsOriginalWebViewURL(url) else {
+            return nil
+        }
+
+        return url
+    }
+
+    static func supportsOriginalWebViewURL(_ url: URL) -> Bool {
+        return url.scheme?.lowercased() != "http"
     }
 
     private static func secureOriginalURLIfNeeded(_ url: URL) -> URL {

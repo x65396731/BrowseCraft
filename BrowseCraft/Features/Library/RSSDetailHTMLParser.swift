@@ -132,6 +132,9 @@ struct RSSDetailHTMLParser {
             let lowercasedMatch: String = fullMatch.lowercased()
 
             if lowercasedMatch.hasPrefix("<img") {
+                if Self.isReactionImageTag(fullMatch, in: html, at: fullRange.lowerBound) {
+                    continue
+                }
                 Self.appendImages(from: fullMatch, baseURL: baseURL, to: &blocks, seenImageURLs: &seenImageURLs)
                 continue
             }
@@ -336,7 +339,8 @@ struct RSSDetailHTMLParser {
                 }
 
                 let tag: String = String(html[tagRange])
-                if Self.isDecorativeProfileImageTag(tag, in: html, at: tagRange.lowerBound) {
+                if Self.isDecorativeProfileImageTag(tag, in: html, at: tagRange.lowerBound)
+                    || Self.isReactionImageTag(tag, in: html, at: tagRange.lowerBound) {
                     continue
                 }
 
@@ -438,6 +442,28 @@ struct RSSDetailHTMLParser {
         return semanticFragments.contains { fragment in
             tagContext.contains(fragment)
         }
+    }
+
+    private static func isReactionImageTag(
+        _ tag: String,
+        in html: String,
+        at tagStartIndex: String.Index
+    ) -> Bool {
+        if Self.attributeValue(named: "class", in: tag)?
+            .lowercased()
+            .split(whereSeparator: { $0.isWhitespace })
+            .contains("reaction-item-button") == true {
+            return true
+        }
+
+        let prefixStart: String.Index = html.index(
+            tagStartIndex,
+            offsetBy: -min(600, html.distance(from: html.startIndex, to: tagStartIndex))
+        )
+        let prefix: String = String(html[prefixStart..<tagStartIndex])
+        let directParentPattern: String = #"(?is)<[^>]+class=[\"'][^\"']*\breaction-item-button\b[^\"']*[\"'][^>]*>\s*$"#
+
+        return prefix.range(of: directParentPattern, options: .regularExpression) != nil
     }
 
     private static func decorativeImageContext(
