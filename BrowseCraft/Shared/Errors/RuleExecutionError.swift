@@ -8,6 +8,16 @@ enum RuleExecutionError: LocalizedError {
     case antiBot(url: String)
     case selectorEmpty(stage: RuleExecutionLogger.Stage, sourceID: String, url: String, ruleID: String?)
     case ruleConfiguration(stage: RuleExecutionLogger.Stage, sourceID: String, reason: String)
+    case parserDiagnostics(
+        stage: RuleExecutionLogger.Stage,
+        sourceID: String,
+        ruleID: String?,
+        url: String,
+        operation: String,
+        selector: String?,
+        htmlPreview: String,
+        underlyingDescription: String
+    )
     case unknown(underlyingDescription: String)
 
     var errorDescription: String? {
@@ -20,6 +30,17 @@ enum RuleExecutionError: LocalizedError {
             return "规则没有匹配到内容：stage=\(stage.rawValue) source=\(sourceID) rule=\(ruleID ?? "nil") url=\(url)"
         case .ruleConfiguration(let stage, let sourceID, let reason):
             return "规则配置错误：stage=\(stage.rawValue) source=\(sourceID) reason=\(reason)"
+        case .parserDiagnostics(
+            let stage,
+            let sourceID,
+            let ruleID,
+            let url,
+            let operation,
+            let selector,
+            let htmlPreview,
+            let underlyingDescription
+        ):
+            return "规则解析错误：stage=\(stage.rawValue) source=\(sourceID) rule=\(ruleID ?? "nil") operation=\(operation) selector=\(selector ?? "nil") url=\(url) error=\(underlyingDescription) htmlPreview=\(htmlPreview)"
         case .unknown(let underlyingDescription):
             return underlyingDescription
         }
@@ -111,6 +132,8 @@ enum RuleExecutionErrorClassifier {
             return "selectorEmpty"
         case .ruleConfiguration:
             return "ruleConfiguration"
+        case .parserDiagnostics:
+            return "parserDiagnostics"
         case .unknown:
             return "unknown"
         }

@@ -231,7 +231,7 @@ struct DiscoverRSSFeedsUseCase {
         switch ruleExecutionError {
         case .antiBot, .network:
             return true
-        case .selectorEmpty, .ruleConfiguration, .unknown:
+        case .selectorEmpty, .ruleConfiguration, .parserDiagnostics, .unknown:
             return false
         }
     }

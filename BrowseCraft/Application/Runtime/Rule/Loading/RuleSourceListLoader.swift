@@ -69,13 +69,27 @@ struct RuleSourceListLoader {
             from: url,
             request: source.rule.request(for: listTab)
         )
-        let items: [ContentItem] = try self.ruleParser.parseList(
-            html: html,
-            source: source,
-            listRule: listRule,
-            context: listContext,
-            sections: listTab?.sections
-        )
+        let items: [ContentItem]
+        do {
+            items = try self.ruleParser.parseList(
+                html: html,
+                source: source,
+                listRule: listRule,
+                context: listContext,
+                sections: listTab?.sections
+            )
+        } catch {
+            throw RuleExecutionError.parserDiagnostics(
+                stage: .list,
+                sourceID: source.id,
+                ruleID: listRule.id,
+                url: url.absoluteString,
+                operation: "parseList",
+                selector: listRule.item,
+                htmlPreview: Self.htmlPreview(from: html),
+                underlyingDescription: error.localizedDescription
+            )
+        }
 
         RuleExecutionLogger.log(
             stage: .list,
@@ -129,5 +143,13 @@ struct RuleSourceListLoader {
             listRuleId: listRule.id,
             sectionRole: .main
         )
+    }
+
+    private static func htmlPreview(from html: String) -> String {
+        return String(html.prefix(240))
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+            .replacingOccurrences(of: "\t", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
