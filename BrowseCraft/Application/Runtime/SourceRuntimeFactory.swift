@@ -4,19 +4,16 @@ import BrowseCraftCore
 // 中文注释：SourceRuntimeFactory 集中装配各 runtime；comic 入口当前复用 RuleSourceRuntime 实现。
 struct SourceRuntimeFactory {
     private let pageContentLoader: PageContentLoader
-    private let ruleParser: RuleParsingService
-    private let urlResolver: URLResolvingService
+    private let ruleSourceRuntimeFactory: RuleSourceRuntimeFactory
     private let videoContentMapperRegistry: VideoContentMapperRegistry
 
     init(
         pageContentLoader: PageContentLoader,
-        ruleParser: RuleParsingService,
-        urlResolver: URLResolvingService,
+        ruleSourceRuntimeFactory: RuleSourceRuntimeFactory,
         videoContentMapperRegistry: VideoContentMapperRegistry = VideoContentMapperRegistry()
     ) {
         self.pageContentLoader = pageContentLoader
-        self.ruleParser = ruleParser
-        self.urlResolver = urlResolver
+        self.ruleSourceRuntimeFactory = ruleSourceRuntimeFactory
         self.videoContentMapperRegistry = videoContentMapperRegistry
     }
 
@@ -65,42 +62,6 @@ struct SourceRuntimeFactory {
     }
 
     func makeComicSourceRuntime(source: Source) -> RuleSourceRuntime {
-        return RuleSourceRuntime(
-            source: source,
-            listLoader: self.makeRuleSourceListLoader(),
-            searchLoader: self.makeRuleSourceSearchLoader(),
-            chapterLoader: self.makeRuleSourceChapterLoader(),
-            readerLoader: self.makeRuleSourceReaderLoader()
-        )
-    }
-
-    private func makeRuleSourceListLoader() -> RuleSourceListLoader {
-        return RuleSourceListLoader(
-            pageContentLoader: self.pageContentLoader,
-            ruleParser: self.ruleParser,
-            urlResolver: self.urlResolver
-        )
-    }
-
-    private func makeRuleSourceSearchLoader() -> RuleSourceSearchLoader {
-        return RuleSourceSearchLoader(
-            pageContentLoader: self.pageContentLoader,
-            ruleParser: self.ruleParser,
-            urlResolver: self.urlResolver
-        )
-    }
-
-    private func makeRuleSourceChapterLoader() -> RuleSourceChapterLoader {
-        return RuleSourceChapterLoader(
-            pageContentLoader: self.pageContentLoader,
-            ruleParser: self.ruleParser
-        )
-    }
-
-    private func makeRuleSourceReaderLoader() -> RuleSourceReaderLoader {
-        return RuleSourceReaderLoader(
-            pageContentLoader: self.pageContentLoader,
-            ruleParser: self.ruleParser
-        )
+        return self.ruleSourceRuntimeFactory.makeRuntime(source: source)
     }
 }

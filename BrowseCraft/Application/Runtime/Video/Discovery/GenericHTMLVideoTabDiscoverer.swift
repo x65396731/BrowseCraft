@@ -35,13 +35,16 @@ struct GenericHTMLVideoTabDiscoverer: VideoTabDiscovering {
 
     private let maxDiscoveredTabs: Int
     private let lexicon: VideoDetectionLexicon
+    private let htmlSelector: VideoHTMLSelector
 
     init(
         maxDiscoveredTabs: Int = Defaults.maxAutoDiscoveredTabs,
-        lexicon: VideoDetectionLexicon = .default
+        lexicon: VideoDetectionLexicon = .default,
+        htmlSelector: VideoHTMLSelector = VideoHTMLSelector()
     ) {
         self.maxDiscoveredTabs = maxDiscoveredTabs
         self.lexicon = lexicon
+        self.htmlSelector = htmlSelector
     }
 
     func discoverTabs(
@@ -49,7 +52,7 @@ struct GenericHTMLVideoTabDiscoverer: VideoTabDiscovering {
         definition: VideoSourceDefinition,
         pageURL: URL
     ) throws -> [VideoSourceListTab] {
-        let document: Document = try SwiftSoup.parse(html, pageURL.absoluteString)
+        let document: Document = try self.htmlSelector.parse(html: html, baseURL: pageURL.absoluteString)
         let candidates: [VideoTabDiscoveryLink] = try VideoTabDiscoveryUtilities.deduplicated(
             VideoTabDiscoveryUtilities.links(
                 from: document,

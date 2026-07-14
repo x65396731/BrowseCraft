@@ -94,9 +94,14 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
     }
 
     private let lexicon: VideoDetectionLexicon
+    private let htmlSelector: VideoHTMLSelector
 
-    init(lexicon: VideoDetectionLexicon = .default) {
+    init(
+        lexicon: VideoDetectionLexicon = .default,
+        htmlSelector: VideoHTMLSelector = VideoHTMLSelector()
+    ) {
         self.lexicon = lexicon
+        self.htmlSelector = htmlSelector
     }
 
     private struct PlayerPayload: Decodable {
@@ -115,8 +120,8 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
         definition: SourceDefinition,
         pageURL: URL
     ) throws -> [SourceContentItem] {
-        let document: Document = try SwiftSoup.parse(html, pageURL.absoluteString)
-        let elements: [Element] = try document.select(Selectors.listItems).array()
+        let document: Document = try self.htmlSelector.parse(html: html, baseURL: pageURL.absoluteString)
+        let elements: [Element] = try self.htmlSelector.elements(in: document, selector: Selectors.listItems)
         var seenIDs: Set<String> = Set<String>()
         var items: [SourceContentItem] = []
 
@@ -174,7 +179,7 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
         definition: SourceDefinition,
         detailURL: URL
     ) throws -> VideoDetailContent {
-        let document: Document = try SwiftSoup.parse(html, detailURL.absoluteString)
+        let document: Document = try self.htmlSelector.parse(html: html, baseURL: detailURL.absoluteString)
         let usesVfedPlayItems: Bool = try document.select(".fed-play-item").array().isEmpty == false
         let entries: [VfedEpisodeEntry] = try self.episodeEntries(from: document)
         var seenIDs: Set<String> = Set<String>()
@@ -466,7 +471,7 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
         definition: SourceDefinition,
         playPageURL: URL
     ) throws -> SourceVideoPlaybackReference {
-        let document: Document = try SwiftSoup.parse(html, playPageURL.absoluteString)
+        let document: Document = try self.htmlSelector.parse(html: html, baseURL: playPageURL.absoluteString)
         let payload: PlayerPayload? = self.playerPayload(from: html)
         let route: VideoPlayRoute? = self.playRoute(from: playPageURL.path)
         let vodID: String = payload?.id ?? route?.vodID ?? "unknown"
@@ -870,6 +875,7 @@ struct MacCMSVideoContentMapper: VideoContentMapper {
         if path.contains("embed")
             || path.contains("player")
             || host.contains("iframe")
+            || host.contains("abyssplayer.com")
             || host.hasPrefix("player.") {
             return .iframePlayer
         }

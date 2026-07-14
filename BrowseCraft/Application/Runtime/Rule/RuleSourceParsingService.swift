@@ -1,10 +1,10 @@
 import Foundation
 
-// 中文注释：RuleParsingService.swift 属于领域服务协议层，用于说明本文件承载的核心职责。
+// 中文注释：RuleSourceParsingService.swift 属于 RuleSourceRuntime 边界，只服务 SiteRule-backed source。
 
-/// 中文注释：规则解析服务协议，把原始页面文档转换成应用内部统一模型。
+/// 中文注释：RuleSourceRuntime 专用解析协议，把原始页面文档转换成应用内部统一模型。
 /// 中文注释：生产环境目前用 SwiftSoup 解析 HTML，但上层只依赖这个协议，方便以后替换解析器。
-protocol RuleParsingService {
+protocol RuleSourceParsingService {
     /// 中文注释：parseList 方法封装当前类型的一段业务或界面行为。
     func parseList(html: String, source: Source) throws -> [ContentItem]
     func parseList(html: String, source: Source, listRule: ListRule) throws -> [ContentItem]
@@ -83,7 +83,7 @@ protocol RulePaginationParsingService {
     ) throws -> String?
 }
 
-extension RuleParsingService {
+extension RuleSourceParsingService {
     /// 中文注释：P1-5.1 先在解析结果上附加列表上下文；具体 Section DOM 拆分留到后续步骤。
     func parseList(html: String, source: Source, listRule: ListRule, context: ListContext?) throws -> [ContentItem] {
         return try self.parseList(

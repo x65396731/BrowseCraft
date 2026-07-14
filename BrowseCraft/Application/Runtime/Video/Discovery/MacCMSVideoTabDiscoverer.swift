@@ -25,12 +25,18 @@ struct MacCMSVideoTabDiscoverer: VideoTabDiscovering {
         static let latestTextSelector: String = ".pic-text.text-right, .pic-text, .module-item-note, .module-item-text"
     }
 
+    private let htmlSelector: VideoHTMLSelector
+
+    init(htmlSelector: VideoHTMLSelector = VideoHTMLSelector()) {
+        self.htmlSelector = htmlSelector
+    }
+
     func discoverTabs(
         html: String,
         definition: VideoSourceDefinition,
         pageURL: URL
     ) throws -> [VideoSourceListTab] {
-        let document: Document = try SwiftSoup.parse(html, pageURL.absoluteString)
+        let document: Document = try self.htmlSelector.parse(html: html, baseURL: pageURL.absoluteString)
         let links: [VideoTabDiscoveryLink] = try VideoTabDiscoveryUtilities.deduplicated(
             VideoTabDiscoveryUtilities.links(
                 from: document,

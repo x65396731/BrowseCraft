@@ -10,30 +10,30 @@ struct SearchSourceResult: Hashable {
 
 struct RuleSourceSearchLoader {
     private let pageContentLoader: PageContentLoader
-    private let ruleParser: RuleParsingService
+    private let ruleSourceParser: RuleSourceParsingService
     private let paginationParser: RulePaginationParsingService?
     private let urlResolver: URLResolvingService
 
     init(
         pageContentLoader: PageContentLoader,
-        ruleParser: RuleParsingService,
+        ruleSourceParser: RuleSourceParsingService,
         urlResolver: URLResolvingService
     ) {
         self.pageContentLoader = pageContentLoader
-        self.ruleParser = ruleParser
-        self.paginationParser = ruleParser as? RulePaginationParsingService
+        self.ruleSourceParser = ruleSourceParser
+        self.paginationParser = ruleSourceParser as? RulePaginationParsingService
         self.urlResolver = urlResolver
     }
 
     /// 中文注释：兼容测试和旧装配入口；HTTPClient 本身也是 PageContentLoader。
     init(
         httpClient: HTTPClient,
-        ruleParser: RuleParsingService,
+        ruleSourceParser: RuleSourceParsingService,
         urlResolver: URLResolvingService
     ) {
         self.init(
             pageContentLoader: httpClient,
-            ruleParser: ruleParser,
+            ruleSourceParser: ruleSourceParser,
             urlResolver: urlResolver
         )
     }
@@ -105,7 +105,7 @@ struct RuleSourceSearchLoader {
             from: url,
             request: request
         )
-        let items: [ContentItem] = try self.ruleParser.parseSearch(
+        let items: [ContentItem] = try self.ruleSourceParser.parseSearch(
             html: html,
             source: source,
             searchRule: entry.rule,

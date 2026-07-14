@@ -11,21 +11,21 @@ struct LoadChaptersUseCase {
 
     init(
         pageContentLoader: PageContentLoader,
-        ruleParser: RuleParsingService
+        ruleSourceParser: RuleSourceParsingService
     ) {
         self.ruleSourceLoader = RuleSourceChapterLoader(
             pageContentLoader: pageContentLoader,
-            ruleParser: ruleParser
+            ruleSourceParser: ruleSourceParser
         )
     }
 
     init(
         httpClient: HTTPClient,
-        ruleParser: RuleParsingService
+        ruleSourceParser: RuleSourceParsingService
     ) {
         self.init(
             pageContentLoader: httpClient,
-            ruleParser: ruleParser
+            ruleSourceParser: ruleSourceParser
         )
     }
 
@@ -40,21 +40,21 @@ struct LoadReaderChapterUseCase {
 
     init(
         pageContentLoader: PageContentLoader,
-        ruleParser: RuleParsingService
+        ruleSourceParser: RuleSourceParsingService
     ) {
         self.ruleSourceLoader = RuleSourceReaderLoader(
             pageContentLoader: pageContentLoader,
-            ruleParser: ruleParser
+            ruleSourceParser: ruleSourceParser
         )
     }
 
     init(
         httpClient: HTTPClient,
-        ruleParser: RuleParsingService
+        ruleSourceParser: RuleSourceParsingService
     ) {
         self.init(
             pageContentLoader: httpClient,
-            ruleParser: ruleParser
+            ruleSourceParser: ruleSourceParser
         )
     }
 

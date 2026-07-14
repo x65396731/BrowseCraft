@@ -2,11 +2,11 @@ import Compression
 import Foundation
 import SwiftSoup
 
-// 中文注释：SwiftSoupRuleParser.swift 属于网页规则解析实现层，用于说明本文件承载的核心职责。
+// 中文注释：SwiftSoupRuleSourceParser.swift 是 RuleSourceRuntime 专用 SwiftSoup 解析实现。
 
-/// 中文注释：基于 SwiftSoup 的 HTML 规则解析器。
-/// 中文注释：SwiftSoup 只出现在这里，应用其他部分都通过 RuleParsingService 使用解析能力。
-final class SwiftSoupRuleParser: RuleParsingService, RulePaginationParsingService {
+/// 中文注释：基于 SwiftSoup 的 RuleSource HTML 解析器。
+/// 中文注释：漫画/RuleSource 通过 RuleSourceParsingService 使用它，video 不依赖这个实现。
+final class SwiftSoupRuleSourceParser: RuleSourceParsingService, RulePaginationParsingService {
     private struct DataChapter: Decodable {
         let id: Int
         let title: String

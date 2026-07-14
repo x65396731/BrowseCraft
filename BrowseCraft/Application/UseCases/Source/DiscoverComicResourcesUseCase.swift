@@ -1,5 +1,4 @@
 import Foundation
-import SwiftSoup
 
 struct DiscoverComicResourcesInput: Hashable {
     var siteURLString: String
@@ -57,6 +56,7 @@ struct DiscoverComicResourcesUseCase {
 
     private let pageContentLoader: PageContentLoader
     private let urlResolver: URLResolvingService
+    private let htmlScanner: HTMLDiscoveryScanner
 
     init(
         pageContentLoader: PageContentLoader,
@@ -64,10 +64,11 @@ struct DiscoverComicResourcesUseCase {
     ) {
         self.pageContentLoader = pageContentLoader
         self.urlResolver = urlResolver
+        self.htmlScanner = HTMLDiscoveryScanner(urlResolver: urlResolver)
     }
 
     func execute(_ input: DiscoverComicResourcesInput) async throws -> [TransientComicDiscoveryItem] {
-        let siteURL: URL = try self.siteURL(from: input.siteURLString)
+        let siteURL: URL = try self.htmlScanner.siteURL(from: input.siteURLString)
         let keyword: String = input.keyword.trimmingCharacters(in: .whitespacesAndNewlines)
         let candidateURLs: [URL] = self.candidateSearchURLs(siteURL: siteURL, keyword: keyword)
         let request: RequestConfig = RequestConfig(needsWebView: true, autoScroll: true)
@@ -121,68 +122,20 @@ struct DiscoverComicResourcesUseCase {
         return Array(items.prefix(Self.maxResultCount))
     }
 
-    private func siteURL(from rawValue: String) throws -> URL {
-        let trimmed: String = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        let normalized: String
-        if trimmed.lowercased().hasPrefix("http://") || trimmed.lowercased().hasPrefix("https://") {
-            normalized = trimmed
-        } else {
-            normalized = "https://\(trimmed)"
-        }
-
-        guard let url: URL = URL(string: normalized),
-              let scheme: String = url.scheme?.lowercased(),
-              scheme == "http" || scheme == "https" else {
-            throw URLResolvingError.invalidURL(rawValue)
-        }
-
-        return url
-    }
-
     private func candidateSearchURLs(siteURL: URL, keyword: String) -> [URL] {
-        var urls: [URL] = []
-        guard keyword.isEmpty == false,
-              let encodedKeyword: String = keyword.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
-            return [siteURL]
-        }
-
-        let baseURLString: String = siteURL.absoluteString
-        let root: String = "\(siteURL.scheme ?? "https")://\(siteURL.host ?? "")"
         let host: String = siteURL.host?.lowercased() ?? ""
-        let sitePath: String = siteURL.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        var preferredCandidates: [String] = []
-        if host.contains("komiic.com") || host.contains("komiic.cc") {
-            preferredCandidates.append("/search/\(encodedKeyword)")
-        }
-        if sitePath.isEmpty == false {
-            let scopedPath: String = "/\(sitePath)"
-            preferredCandidates.append("\(scopedPath)/search?keyword=\(encodedKeyword)")
-            preferredCandidates.append("\(scopedPath)/search?q=\(encodedKeyword)")
-        }
-
-        let rawCandidates: [String] = preferredCandidates + [
-            "/search?keyword=\(encodedKeyword)",
-            "/search?q=\(encodedKeyword)",
-            "/search?wd=\(encodedKeyword)",
-            "/?s=\(encodedKeyword)",
-            "/search/\(encodedKeyword)",
-            "/so/\(encodedKeyword)",
-            siteURL.path.isEmpty || siteURL.path == "/" ? "/" : siteURL.path
-        ]
-
-        for rawCandidate: String in rawCandidates {
-            let absoluteString: String = self.urlResolver.absoluteString(rawCandidate, baseURLString: root)
-            if let url: URL = URL(string: absoluteString),
-               urls.contains(url) == false {
-                urls.append(url)
-            }
-        }
-
-        if let url: URL = URL(string: baseURLString), urls.contains(url) == false {
-            urls.append(url)
-        }
-
-        return urls
+        return self.htmlScanner.candidateSearchURLs(
+            siteURL: siteURL,
+            keyword: keyword,
+            preferredPathBuilders: [
+                { encodedKeyword in
+                    return host.contains("komiic.com") || host.contains("komiic.cc")
+                        ? ["/search/\(encodedKeyword)"]
+                        : []
+                }
+            ],
+            additionalRawCandidates: []
+        )
     }
 
     private func parseItems(
@@ -190,14 +143,13 @@ struct DiscoverComicResourcesUseCase {
         pageURL: URL,
         keyword: String
     ) throws -> ParseItemsResult {
-        let document: Document = try SwiftSoup.parse(html, pageURL.absoluteString)
-        let anchors: [Element] = try document.select("a[href]").array()
+        let anchors: [HTMLDiscoveryElement] = try self.htmlScanner.anchors(html: html, pageURL: pageURL)
         let embeddedCoverURLMap: [String: String] = self.embeddedCoverURLMap(html: html, pageURL: pageURL)
         var items: [TransientComicDiscoveryItem] = []
         var seenURLs: Set<String> = Set<String>()
         var rejectionCounts: [ItemRejectionReason: Int] = [:]
 
-        for anchor: Element in anchors {
+        for anchor: HTMLDiscoveryElement in anchors {
             let outcome: ItemParseOutcome = try self.item(
                 from: anchor,
                 pageURL: pageURL,
@@ -233,13 +185,13 @@ struct DiscoverComicResourcesUseCase {
     }
 
     private func item(
-        from anchor: Element,
+        from anchor: HTMLDiscoveryElement,
         pageURL: URL,
         keyword: String,
         embeddedCoverURLMap: [String: String]
     ) throws -> ItemParseOutcome {
         let rawTitle: String = self.normalizedText(try anchor.text())
-        let title: String = self.cleanedTitle(self.bestTitle(anchor: anchor, fallback: rawTitle))
+        let title: String = self.cleanedTitle(self.htmlScanner.bestTitle(anchor: anchor, fallback: rawTitle))
         guard title.count >= 2 else {
             return .rejected(.emptyTitle)
         }
@@ -275,26 +227,6 @@ struct DiscoverComicResourcesUseCase {
             ),
             score: score
         )
-    }
-
-    private func bestTitle(anchor: Element, fallback: String) -> String {
-        if fallback.isEmpty == false {
-            return fallback
-        }
-
-        let titleAttribute: String = (try? anchor.attr("title")) ?? ""
-        let title: String = self.normalizedText(titleAttribute)
-        if title.isEmpty == false {
-            return title
-        }
-
-        if let images: Elements = try? anchor.select("img"),
-           let image: Element = images.first(),
-           let imageAlt: String = try? image.attr("alt") {
-            return self.normalizedText(imageAlt)
-        }
-
-        return ""
     }
 
     private func isLikelyComicResourceURL(_ absoluteString: String, pageURL: URL) -> Bool {
@@ -357,9 +289,9 @@ struct DiscoverComicResourcesUseCase {
         return pageURL.host?.lowercased() == host
     }
 
-    private func comicScore(anchor: Element, title: String, detailURL: String, keyword: String) throws -> Int {
-        let parent: Element? = anchor.parent()
-        let grandparent: Element? = parent?.parent()
+    private func comicScore(anchor: HTMLDiscoveryElement, title: String, detailURL: String, keyword: String) throws -> Int {
+        let parent: HTMLDiscoveryElement? = anchor.parent()
+        let grandparent: HTMLDiscoveryElement? = parent?.parent()
         let parentText: String
         if let parent = parent {
             parentText = (try? parent.text()) ?? ""
@@ -415,139 +347,22 @@ struct DiscoverComicResourcesUseCase {
     }
 
     private func coverURL(
-        anchor: Element,
+        anchor: HTMLDiscoveryElement,
         detailURL: String,
         pageURL: URL,
         embeddedCoverURLMap: [String: String]
     ) throws -> String? {
-        let containers: [Element] = self.coverSearchContainers(startingAt: anchor)
-        for container: Element in containers {
-            if let rawURL: String = try self.coverURLString(from: container) {
+        let containers: [HTMLDiscoveryElement] = self.htmlScanner.coverSearchContainers(startingAt: anchor)
+        for container: HTMLDiscoveryElement in containers {
+            if let rawURL: String = try self.htmlScanner.coverURLString(from: container) {
                 let absoluteURL: String = self.urlResolver.absoluteString(rawURL, baseURLString: pageURL.absoluteString)
-                if self.isBlockedCoverURLString(absoluteURL) == false {
+                if self.htmlScanner.isBlockedCoverURLString(absoluteURL) == false {
                     return absoluteURL
                 }
             }
         }
 
         return embeddedCoverURLMap[self.normalizedURLKey(detailURL)]
-    }
-
-    private func coverSearchContainers(startingAt anchor: Element) -> [Element] {
-        var containers: [Element] = [anchor]
-        var current: Element? = anchor
-        for _ in 0..<12 {
-            guard let parent: Element = current?.parent() else {
-                break
-            }
-
-            containers.append(parent)
-            current = parent
-        }
-
-        return containers
-    }
-
-    private func coverURLString(from container: Element) throws -> String? {
-        let selector: String = [
-            "img[data-original]",
-            "img[data-src]",
-            "img[data-lazy-src]",
-            "img[data-srcset]",
-            "img[srcset]",
-            "img[src]",
-            "source[data-srcset]",
-            "source[srcset]",
-            "picture source[data-srcset]",
-            "picture source[srcset]",
-            "[style*=\"background-image\"]",
-            "[style*=\"url(\"]"
-        ].joined(separator: ",")
-        let elements: [Element]
-        if try container.select(selector).isEmpty() == false {
-            elements = try container.select(selector).array()
-        } else {
-            elements = [container]
-        }
-
-        for element: Element in elements {
-            if let value: String = try self.directCoverURLString(from: element) {
-                return value
-            }
-        }
-
-        return nil
-    }
-
-    private func directCoverURLString(from element: Element) throws -> String? {
-        let directAttributes: [String] = [
-            "data-original",
-            "data-src",
-            "data-lazy-src",
-            "data-thumb",
-            "data-image",
-            "data-img",
-            "data-poster",
-            "poster",
-            "content",
-            "src"
-        ]
-        for attributeName: String in directAttributes {
-            let value: String = try element.attr(attributeName).trimmingCharacters(in: .whitespacesAndNewlines)
-            if self.isUsableCoverURLString(value) {
-                return value
-            }
-        }
-
-        if let value: String = self.firstSrcsetURL(try element.attr("data-srcset")) {
-            return value
-        }
-
-        if let value: String = self.firstSrcsetURL(try element.attr("srcset")) {
-            return value
-        }
-
-        return self.firstStyleURL(try element.attr("style"))
-    }
-
-    private func firstSrcsetURL(_ srcset: String) -> String? {
-        return srcset
-            .split(separator: ",")
-            .lazy
-            .compactMap { candidate -> String? in
-                let value: String? = candidate
-                    .split(whereSeparator: { character in
-                        return character.isWhitespace
-                    })
-                    .first
-                    .map(String.init)?
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-
-                guard let value: String, self.isUsableCoverURLString(value) else {
-                    return nil
-                }
-
-                return value
-            }
-            .first
-    }
-
-    private func firstStyleURL(_ style: String) -> String? {
-        guard let regex: NSRegularExpression = try? NSRegularExpression(
-            pattern: #"url\((?:'|")?([^)'"]+)(?:'|")?\)"#
-        ) else {
-            return nil
-        }
-
-        let range: NSRange = NSRange(style.startIndex..<style.endIndex, in: style)
-        guard let match: NSTextCheckingResult = regex.firstMatch(in: style, range: range),
-              match.numberOfRanges > 1,
-              let matchRange: Range<String.Index> = Range(match.range(at: 1), in: style) else {
-            return nil
-        }
-
-        let value: String = String(style[matchRange]).trimmingCharacters(in: .whitespacesAndNewlines)
-        return self.isUsableCoverURLString(value) ? value : nil
     }
 
     private func embeddedCoverURLMap(html: String, pageURL: URL) -> [String: String] {
@@ -588,7 +403,7 @@ struct DiscoverComicResourcesUseCase {
 
     private func absoluteEmbeddedCoverURLString(_ rawValue: String, pageURL: URL, host: String) -> String? {
         let value: String = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard self.isUsableCoverURLString(value) else {
+        guard self.htmlScanner.isUsableCoverURLString(value) else {
             return nil
         }
 
@@ -633,23 +448,9 @@ struct DiscoverComicResourcesUseCase {
         }
     }
 
-    private func isUsableCoverURLString(_ value: String) -> Bool {
-        return value.isEmpty == false
-            && value.hasPrefix("data:") == false
-            && value.hasPrefix("blob:") == false
-            && value != "#"
-    }
-
-    private func isBlockedCoverURLString(_ value: String) -> Bool {
-        let lowercasedValue: String = value.lowercased()
-        return lowercasedValue.hasSuffix(".svg")
-            || lowercasedValue.contains("/logo")
-            || lowercasedValue.contains("logo-")
-    }
-
-    private func latestText(anchor: Element) throws -> String? {
+    private func latestText(anchor: HTMLDiscoveryElement) throws -> String? {
         let text: String
-        if let parent: Element = anchor.parent() {
+        if let parent: HTMLDiscoveryElement = anchor.parent() {
             text = (try? parent.text()) ?? ""
         } else {
             text = (try? anchor.text()) ?? ""
@@ -663,10 +464,7 @@ struct DiscoverComicResourcesUseCase {
     }
 
     private func normalizedText(_ text: String) -> String {
-        return text
-            .components(separatedBy: .whitespacesAndNewlines)
-            .filter { part in part.isEmpty == false }
-            .joined(separator: " ")
+        return self.htmlScanner.normalizedText(text)
     }
 
     private func cleanedTitle(_ title: String) -> String {

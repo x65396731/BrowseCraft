@@ -17,24 +17,24 @@ enum LoadChaptersError: LocalizedError {
 /// 中文注释：加载单个 Library 条目的章节目录。
 struct RuleSourceChapterLoader {
     private let pageContentLoader: PageContentLoader
-    private let ruleParser: RuleParsingService
+    private let ruleSourceParser: RuleSourceParsingService
 
     init(
         pageContentLoader: PageContentLoader,
-        ruleParser: RuleParsingService
+        ruleSourceParser: RuleSourceParsingService
     ) {
         self.pageContentLoader = pageContentLoader
-        self.ruleParser = ruleParser
+        self.ruleSourceParser = ruleSourceParser
     }
 
     /// 中文注释：兼容旧测试和旧装配入口；普通 HTTP 客户端继续可直接作为页面内容加载器使用。
     init(
         httpClient: HTTPClient,
-        ruleParser: RuleParsingService
+        ruleSourceParser: RuleSourceParsingService
     ) {
         self.init(
             pageContentLoader: httpClient,
-            ruleParser: ruleParser
+            ruleSourceParser: ruleSourceParser
         )
     }
 
@@ -93,14 +93,14 @@ struct RuleSourceChapterLoader {
         let chapters: [ChapterLink]
         let description: String?
         if let detailRule: DetailRule = resolvedRule.primaryDetailRule {
-            chapters = try self.ruleParser.parseDetailChapters(
+            chapters = try self.ruleSourceParser.parseDetailChapters(
                 html: detailHTML,
                 source: source,
                 detailRule: detailRule,
                 pageURL: item.detailURL,
                 context: item.listContext
             )
-            description = try self.ruleParser.parseDetailDescription(
+            description = try self.ruleSourceParser.parseDetailDescription(
                 html: detailHTML,
                 source: source,
                 detailRule: detailRule,

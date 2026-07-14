@@ -18,27 +18,27 @@ enum LoadReaderChapterError: LocalizedError {
 }
 
 /// 中文注释：加载一个阅读章节页面，并解析出所有分页图片地址。
-/// 中文注释：网络请求留在应用层，具体 HTML 解析通过 RuleParsingService 隔离。
+/// 中文注释：网络请求留在应用层，具体 HTML 解析通过 RuleSourceParsingService 隔离。
 struct RuleSourceReaderLoader {
     private let pageContentLoader: PageContentLoader
-    private let ruleParser: RuleParsingService
+    private let ruleSourceParser: RuleSourceParsingService
 
     init(
         pageContentLoader: PageContentLoader,
-        ruleParser: RuleParsingService
+        ruleSourceParser: RuleSourceParsingService
     ) {
         self.pageContentLoader = pageContentLoader
-        self.ruleParser = ruleParser
+        self.ruleSourceParser = ruleSourceParser
     }
 
     /// 中文注释：兼容旧测试和旧装配入口；后续新增 WebView 测试可改用 pageContentLoader 注入。
     init(
         httpClient: HTTPClient,
-        ruleParser: RuleParsingService
+        ruleSourceParser: RuleSourceParsingService
     ) {
         self.init(
             pageContentLoader: httpClient,
-            ruleParser: ruleParser
+            ruleSourceParser: ruleSourceParser
         )
     }
 
@@ -96,7 +96,7 @@ struct RuleSourceReaderLoader {
 
         let chapter: ReaderChapter
         if let galleryRule: GalleryRule = resolvedRule.primaryGalleryRule {
-            chapter = try self.ruleParser.parseReader(
+            chapter = try self.ruleSourceParser.parseReader(
                 html: html,
                 source: source,
                 galleryRule: galleryRule,
@@ -178,7 +178,7 @@ struct RuleSourceReaderLoader {
         )
         let chapters: [ChapterLink]
         if let detailRule: DetailRule = resolvedRule.primaryDetailRule {
-            chapters = try self.ruleParser.parseDetailChapters(
+            chapters = try self.ruleSourceParser.parseDetailChapters(
                 html: detailHTML,
                 source: source,
                 detailRule: detailRule,

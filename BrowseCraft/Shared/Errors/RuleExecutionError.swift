@@ -3,7 +3,7 @@ import Foundation
 // 中文注释：RuleExecutionError.swift 统一规则执行链路的错误分类，避免 UI 只能显示底层错误字符串。
 
 /// 中文注释：规则执行链路可识别的错误类型，用于区分网络、反爬、选择器空结果和规则配置问题。
-enum RuleExecutionError: LocalizedError {
+enum RuleExecutionError: LocalizedError, Equatable {
     case network(url: String, underlyingDescription: String)
     case antiBot(url: String)
     case selectorEmpty(stage: RuleExecutionLogger.Stage, sourceID: String, url: String, ruleID: String?)

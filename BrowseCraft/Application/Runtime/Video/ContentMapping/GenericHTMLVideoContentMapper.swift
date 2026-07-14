@@ -92,13 +92,16 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
 
     private let lexicon: VideoDetectionLexicon
     private let noiseFilter: any SourceContentNoiseFiltering
+    private let htmlSelector: VideoHTMLSelector
 
     init(
         lexicon: VideoDetectionLexicon = .default,
-        noiseFilter: any SourceContentNoiseFiltering = SourceContentNoiseFilter()
+        noiseFilter: any SourceContentNoiseFiltering = SourceContentNoiseFilter(),
+        htmlSelector: VideoHTMLSelector = VideoHTMLSelector()
     ) {
         self.lexicon = lexicon
         self.noiseFilter = noiseFilter
+        self.htmlSelector = htmlSelector
     }
 
     func mapList(
@@ -106,10 +109,10 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
         definition: SourceDefinition,
         pageURL: URL
     ) throws -> [SourceContentItem] {
-        let document: Document = try SwiftSoup.parse(html, pageURL.absoluteString)
+        let document: Document = try self.htmlSelector.parse(html: html, baseURL: pageURL.absoluteString)
         let pageCoverURLs: [String: URL] = self.pageCoverURLMap(from: html, pageURL: pageURL)
         for selector: String in Selectors.listItemGroups {
-            let elements: [Element] = try document.select(selector).array()
+            let elements: [Element] = try self.htmlSelector.elements(in: document, selector: selector)
             let items: [SourceContentItem] = try self.mapListItems(
                 elements,
                 definition: definition,
@@ -194,7 +197,7 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
         definition: SourceDefinition,
         detailURL: URL
     ) throws -> VideoDetailContent {
-        let document: Document = try SwiftSoup.parse(html, detailURL.absoluteString)
+        let document: Document = try self.htmlSelector.parse(html: html, baseURL: detailURL.absoluteString)
         let episode: VideoEpisode = VideoEpisode(
             id: self.stableID(from: detailURL),
             title: try self.title(from: document) ?? "Episode 1",
@@ -223,7 +226,7 @@ struct GenericHTMLVideoContentMapper: VideoContentMapper {
         definition: SourceDefinition,
         playPageURL: URL
     ) throws -> SourceVideoPlaybackReference {
-        let document: Document = try SwiftSoup.parse(html, playPageURL.absoluteString)
+        let document: Document = try self.htmlSelector.parse(html: html, baseURL: playPageURL.absoluteString)
         let candidate: VideoPlaybackCandidate = self.playbackCandidate(
             from: html,
             document: document,

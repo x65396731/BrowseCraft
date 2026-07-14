@@ -5,7 +5,7 @@ import Testing
 struct SwiftSoupListParserTests {
     @Test func v2PageRuleRefsSelectRuleSetsListRule() throws {
         let source: Source = try Self.v2ListRuleSourceWithLegacyListDisabled()
-        let parser: SwiftSoupRuleParser = SwiftSoupRuleParser(
+        let parser: SwiftSoupRuleSourceParser = SwiftSoupRuleSourceParser(
             urlResolver: URLResolvingService()
         )
 
@@ -27,7 +27,7 @@ struct SwiftSoupListParserTests {
 
     @Test func v2PageSectionsAttachSectionContextToListItems() throws {
         let source: Source = try Self.v2ListRuleSourceWithLegacyListDisabled()
-        let parser: SwiftSoupRuleParser = SwiftSoupRuleParser(
+        let parser: SwiftSoupRuleSourceParser = SwiftSoupRuleSourceParser(
             urlResolver: URLResolvingService()
         )
         let tab: ListTabRule = try #require(source.rule.availableListTabs.first)
@@ -97,7 +97,7 @@ struct SwiftSoupListParserTests {
     """
 
     private static func assertSearchRuleParsesExtractRuleFields(
-        parser: SwiftSoupRuleParser,
+        parser: SwiftSoupRuleSourceParser,
         source: Source
     ) throws {
         let searchRule: SearchRule = try #require(source.rule.ruleSets?.searchRule(id: "search"))

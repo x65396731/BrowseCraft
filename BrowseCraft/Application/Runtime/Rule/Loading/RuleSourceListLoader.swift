@@ -3,28 +3,28 @@ import Foundation
 // 中文注释：RuleSourceListLoader 是 RuleSourceRuntime 内部列表刷新实现，只处理 SiteRule-backed source。
 struct RuleSourceListLoader {
     private let pageContentLoader: PageContentLoader
-    private let ruleParser: RuleParsingService
+    private let ruleSourceParser: RuleSourceParsingService
     private let urlResolver: URLResolvingService
 
     init(
         pageContentLoader: PageContentLoader,
-        ruleParser: RuleParsingService,
+        ruleSourceParser: RuleSourceParsingService,
         urlResolver: URLResolvingService
     ) {
         self.pageContentLoader = pageContentLoader
-        self.ruleParser = ruleParser
+        self.ruleSourceParser = ruleSourceParser
         self.urlResolver = urlResolver
     }
 
     /// 中文注释：兼容旧测试和旧装配入口；HTTPClient 本身也是 PageContentLoader 的一种实现。
     init(
         httpClient: HTTPClient,
-        ruleParser: RuleParsingService,
+        ruleSourceParser: RuleSourceParsingService,
         urlResolver: URLResolvingService
     ) {
         self.init(
             pageContentLoader: httpClient,
-            ruleParser: ruleParser,
+            ruleSourceParser: ruleSourceParser,
             urlResolver: urlResolver
         )
     }
@@ -71,7 +71,7 @@ struct RuleSourceListLoader {
         )
         let items: [ContentItem]
         do {
-            items = try self.ruleParser.parseList(
+            items = try self.ruleSourceParser.parseList(
                 html: html,
                 source: source,
                 listRule: listRule,

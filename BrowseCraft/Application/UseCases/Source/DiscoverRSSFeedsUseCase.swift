@@ -166,7 +166,7 @@ struct DiscoverRSSFeedsUseCase {
         let lowercasedPath: String = url.path.lowercased()
         let lowercasedQuery: String = url.query?.lowercased() ?? ""
 
-        return self.isKnownDirectFeedProvider(host: lowercasedHost)
+        return self.isKnownDirectFeedURL(host: lowercasedHost, path: lowercasedPath)
             || self.isFeedSubdomain(lowercasedHost)
             || lowercasedPath.contains("rss")
             || lowercasedPath.contains("feed")
@@ -177,8 +177,13 @@ struct DiscoverRSSFeedsUseCase {
             || lowercasedQuery.contains("atom")
     }
 
-    private func isKnownDirectFeedProvider(host: String) -> Bool {
-        return host == "plink.anyfeeder.com"
+    private func isKnownDirectFeedURL(host: String, path: String) -> Bool {
+        if host == "plink.anyfeeder.com" {
+            let pathComponents: [Substring] = path.split(separator: "/")
+            return pathComponents.count >= 3
+        }
+
+        return false
     }
 
     private func isFeedSubdomain(_ host: String) -> Bool {

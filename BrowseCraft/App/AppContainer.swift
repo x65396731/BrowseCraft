@@ -4,7 +4,7 @@ import UIKit
 // 中文注释：AppContainer.swift 属于应用装配和根导航，用于说明本文件承载的核心职责。
 
 /// 中文注释：AppContainer 不是界面，而是应用依赖装配中心。
-/// 中文注释：这里统一创建仓储、Alamofire 客户端、SwiftSoup 解析器和各个用例。
+/// 中文注释：这里统一创建仓储、Alamofire 客户端、RuleSource 解析器和各个用例。
 final class AppContainer {
     private let database: AppDatabase
     private let sourceRepository: SourceRepository
@@ -13,7 +13,7 @@ final class AppContainer {
     private let pageContentLoader: PageContentLoader
     private let pageDataLoader: PageDataLoader
     private let urlResolver: URLResolvingService
-    private let ruleParser: RuleParsingService
+    private let ruleSourceParser: RuleSourceParsingService
     private let sourceRuntimeFactory: SourceRuntimeFactory
     private let sourceSelectionStore: SourceSelectionStore
     /// 中文注释：图片缓存配置器需要和 App 生命周期一致，Settings 变更与启动配置共享同一份 DataCache 实例。
@@ -28,7 +28,7 @@ final class AppContainer {
             let urlResolver: URLResolvingService = URLResolvingService()
             let httpClient: HTTPClient = AlamofireHTTPClient()
             let pageContentLoader: DefaultPageContentLoader = DefaultPageContentLoader(httpClient: httpClient)
-            let ruleParser: RuleParsingService = SwiftSoupRuleParser(urlResolver: urlResolver)
+            let ruleSourceParser: RuleSourceParsingService = SwiftSoupRuleSourceParser(urlResolver: urlResolver)
 
             self.database = database
             self.sourceRepository = GRDBSourceRepository(database: database)
@@ -37,11 +37,14 @@ final class AppContainer {
             self.pageContentLoader = pageContentLoader
             self.pageDataLoader = pageContentLoader
             self.urlResolver = urlResolver
-            self.ruleParser = ruleParser
+            self.ruleSourceParser = ruleSourceParser
             self.sourceRuntimeFactory = SourceRuntimeFactory(
                 pageContentLoader: pageContentLoader,
-                ruleParser: ruleParser,
-                urlResolver: urlResolver
+                ruleSourceRuntimeFactory: RuleSourceRuntimeFactory(
+                    pageContentLoader: pageContentLoader,
+                    ruleSourceParser: ruleSourceParser,
+                    urlResolver: urlResolver
+                )
             )
             self.sourceSelectionStore = SourceSelectionStore()
         } catch {
@@ -243,7 +246,7 @@ final class AppContainer {
     func makeChapterListViewModel(item: ContentItem, source: Source) -> ChapterListViewModel {
         let loadChaptersUseCase: LoadChaptersUseCase = LoadChaptersUseCase(
             pageContentLoader: self.pageContentLoader,
-            ruleParser: self.ruleParser
+            ruleSourceParser: self.ruleSourceParser
         )
 
         return ChapterListViewModel(
@@ -263,7 +266,7 @@ final class AppContainer {
     ) -> ReaderViewModel {
         let loadReaderChapterUseCase: LoadReaderChapterUseCase = LoadReaderChapterUseCase(
             pageContentLoader: self.pageContentLoader,
-            ruleParser: self.ruleParser
+            ruleSourceParser: self.ruleSourceParser
         )
         let repository: ComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(
             database: self.database

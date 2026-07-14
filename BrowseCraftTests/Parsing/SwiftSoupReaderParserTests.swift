@@ -5,7 +5,7 @@ import Testing
 struct SwiftSoupReaderParserTests {
     @Test func v2PageRuleRefsSelectRuleSetsGalleryRule() throws {
         let source: Source = try Self.v2GalleryRuleSourceWithLegacyGalleryDisabled()
-        let parser: SwiftSoupRuleParser = SwiftSoupRuleParser(
+        let parser: SwiftSoupRuleSourceParser = SwiftSoupRuleSourceParser(
             urlResolver: URLResolvingService()
         )
 
@@ -28,7 +28,7 @@ struct SwiftSoupReaderParserTests {
 
     @Test func v2ReaderImagesUseListContextScope() throws {
         let source: Source = try Self.v2GalleryRuleSourceWithLegacyGalleryDisabled()
-        let parser: SwiftSoupRuleParser = SwiftSoupRuleParser(
+        let parser: SwiftSoupRuleSourceParser = SwiftSoupRuleSourceParser(
             urlResolver: URLResolvingService()
         )
 
@@ -60,7 +60,7 @@ struct SwiftSoupReaderParserTests {
 
     @Test func v2PageRuleRefsDriveListDetailAndReaderParsing() throws {
         let source: Source = try Self.v2RuleSourceWithLegacyEntrypointsDisabled()
-        let parser: SwiftSoupRuleParser = SwiftSoupRuleParser(
+        let parser: SwiftSoupRuleSourceParser = SwiftSoupRuleSourceParser(
             urlResolver: URLResolvingService()
         )
 
