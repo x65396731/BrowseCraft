@@ -35,6 +35,10 @@ struct CatalogSourceListView: View {
             .task {
                 await self.viewModel.loadCatalogSourcesIfNeeded()
             }
+            .refreshable {
+                await self.viewModel.refreshCatalogSources()
+                self.failedSourceIDs.removeAll()
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") {

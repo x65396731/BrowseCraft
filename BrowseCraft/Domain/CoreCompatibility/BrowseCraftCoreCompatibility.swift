@@ -33,6 +33,7 @@ typealias NestedItemRule = BrowseCraftCore.NestedItemRule
 typealias TagRule = BrowseCraftCore.TagRule
 typealias CommentRule = BrowseCraftCore.CommentRule
 typealias PictureRule = BrowseCraftCore.PictureRule
+typealias DetailChapterAPIRule = BrowseCraftCore.DetailChapterAPIRule
 typealias SectionRole = BrowseCraftCore.SectionRole
 typealias ItemLayout = BrowseCraftCore.ItemLayout
 typealias ChapterRule = BrowseCraftCore.ChapterRule

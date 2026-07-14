@@ -307,6 +307,26 @@ final class SourcesViewModel: ObservableObject {
         }
     }
 
+    @MainActor
+    func refreshCatalogSources() async {
+        CrashDiagnostics.shared.setRuleStage(.list)
+        if self.isLoadingCatalogSources {
+            return
+        }
+
+        self.isLoadingCatalogSources = true
+        defer {
+            self.isLoadingCatalogSources = false
+        }
+
+        do {
+            self.catalogSources = try await self.loadCatalogSourcesUseCase.execute()
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-source-refresh-error")
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+        }
+    }
+
     func isCatalogSourceAdded(_ catalogSource: BrowseCraftCatalogSource) -> Bool {
         return self.sources.contains { source in
             return source.id == catalogSource.id
