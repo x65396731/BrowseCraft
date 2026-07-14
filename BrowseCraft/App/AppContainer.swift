@@ -4,7 +4,7 @@ import UIKit
 // 中文注释：AppContainer.swift 属于应用装配和根导航，用于说明本文件承载的核心职责。
 
 /// 中文注释：AppContainer 不是界面，而是应用依赖装配中心。
-/// 中文注释：这里统一创建仓储、Alamofire 客户端、RuleSource 解析器和各个用例。
+/// 中文注释：这里统一创建仓储、Alamofire 客户端、漫画规则解析器和各个用例。
 final class AppContainer {
     private let database: AppDatabase
     private let sourceRepository: SourceRepository
@@ -13,7 +13,7 @@ final class AppContainer {
     private let pageContentLoader: PageContentLoader
     private let pageDataLoader: PageDataLoader
     private let urlResolver: URLResolvingService
-    private let ruleSourceParser: RuleSourceParsingService
+    private let comicRuleParser: ComicRuleSourceParsingService
     private let sourceRuntimeFactory: SourceRuntimeFactory
     private let sourceSelectionStore: SourceSelectionStore
     /// 中文注释：图片缓存配置器需要和 App 生命周期一致，Settings 变更与启动配置共享同一份 DataCache 实例。
@@ -28,7 +28,7 @@ final class AppContainer {
             let urlResolver: URLResolvingService = URLResolvingService()
             let httpClient: HTTPClient = AlamofireHTTPClient()
             let pageContentLoader: DefaultPageContentLoader = DefaultPageContentLoader(httpClient: httpClient)
-            let ruleSourceParser: RuleSourceParsingService = SwiftSoupRuleSourceParser(urlResolver: urlResolver)
+            let comicRuleParser: ComicRuleSourceParsingService = SwiftSoupComicRuleSourceParser(urlResolver: urlResolver)
 
             self.database = database
             self.sourceRepository = GRDBSourceRepository(database: database)
@@ -37,12 +37,12 @@ final class AppContainer {
             self.pageContentLoader = pageContentLoader
             self.pageDataLoader = pageContentLoader
             self.urlResolver = urlResolver
-            self.ruleSourceParser = ruleSourceParser
+            self.comicRuleParser = comicRuleParser
             self.sourceRuntimeFactory = SourceRuntimeFactory(
                 pageContentLoader: pageContentLoader,
-                ruleSourceRuntimeFactory: RuleSourceRuntimeFactory(
+                comicRuleSourceRuntimeFactory: ComicRuleSourceRuntimeFactory(
                     pageContentLoader: pageContentLoader,
-                    ruleSourceParser: ruleSourceParser,
+                    comicRuleParser: comicRuleParser,
                     urlResolver: urlResolver
                 )
             )
@@ -246,7 +246,7 @@ final class AppContainer {
     func makeChapterListViewModel(item: ContentItem, source: Source) -> ChapterListViewModel {
         let loadChaptersUseCase: LoadChaptersUseCase = LoadChaptersUseCase(
             pageContentLoader: self.pageContentLoader,
-            ruleSourceParser: self.ruleSourceParser
+            comicRuleParser: self.comicRuleParser
         )
 
         return ChapterListViewModel(
@@ -266,7 +266,7 @@ final class AppContainer {
     ) -> ReaderViewModel {
         let loadReaderChapterUseCase: LoadReaderChapterUseCase = LoadReaderChapterUseCase(
             pageContentLoader: self.pageContentLoader,
-            ruleSourceParser: self.ruleSourceParser
+            comicRuleParser: self.comicRuleParser
         )
         let repository: ComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(
             database: self.database
@@ -386,8 +386,8 @@ final class AppContainer {
         )
     }
 
-    /// 中文注释：漫画 source 当前复用 RuleSourceRuntime 实现；对外入口保持 comic runtime 语义。
-    func makeComicSourceRuntime(source: Source) -> RuleSourceRuntime {
+    /// 中文注释：漫画 source 通过 ComicRuleSourceRuntime 执行；对外入口保持 comic runtime 语义。
+    func makeComicSourceRuntime(source: Source) -> ComicRuleSourceRuntime {
         return self.sourceRuntimeFactory.makeComicSourceRuntime(source: source)
     }
 

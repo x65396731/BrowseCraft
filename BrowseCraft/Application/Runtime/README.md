@@ -7,13 +7,13 @@ stays in the App because it depends on App services such as repositories,
 network loaders, parsers, cache storage, and view-facing domain models.
 
 The architectural axis is `SourceDefinition + SourceRuntime`, not `SiteRule`.
-`SiteRule` JSON is the configuration format for `RuleSourceRuntime` only. RSS and
+`SiteRule` JSON is the configuration format for `ComicRuleSourceRuntime` only. RSS and
 video/plugin sources should be represented by their own runtime definitions
 instead of being forced into the rule schema.
 
 ```text
 SourceRuntime
-  RuleSourceRuntime
+  ComicRuleSourceRuntime
     config: SiteRule JSON
   RSSSourceRuntime
     config: RSS / Atom definition
@@ -77,10 +77,10 @@ Responsibilities:
 - Resolve a `Source` through `SourceDefinition.runtimeKind` to the correct concrete runtime.
 - Keep `SourceDefinitionMapping` as the runtime-neutral Source-to-Core metadata
   mapping boundary.
-- Keep `Rule/RuleSourceRuntime` as the rule-backed runtime implementation.
-- Keep rule-only loading in `Rule/Loading/`; list/search/chapter/reader loaders
+- Keep `Runtime/ComicRule/ComicRuleSourceRuntime` as the rule-backed runtime implementation.
+- Keep rule-only loading in `Runtime/ComicRule/Loading/`; list/search/chapter/reader loaders
   are runtime internals, not shared App use cases.
-- Keep rule-only mapping in `Rule/Mapping/RuleSourceRuntimeMapper`; it is not a
+- Keep rule-only mapping in `Runtime/ComicRule/Mapping/ComicRuleSourceRuntimeMapper`; it is not a
   shared App/Core compatibility layer.
 - Keep `RSS/RSSSourceRuntime` as the RSS-backed runtime implementation for
   public feed list loading.
@@ -106,10 +106,10 @@ Non-goals:
 - Do not move SwiftSoup, WebView, Nuke, or network implementations into
   `BrowseCraftCore`.
 - Do not treat `SiteRule` as the App-wide source axis. It is the configuration
-  format used by `RuleSourceRuntime`.
+  format used by `ComicRuleSourceRuntime`.
 - Do not add RSS, video, or plugin behavior as more `SiteRule` fields.
-- Do not route RSS through `RuleSourceRuntime`; RSS uses `RSSSourceRuntime`.
-- Do not route video through `RuleSourceRuntime`; video uses `VideoSourceRuntime`.
+- Do not route RSS through `ComicRuleSourceRuntime`; RSS uses `RSSSourceRuntime`.
+- Do not route video through `ComicRuleSourceRuntime`; video uses `VideoSourceRuntime`.
 - Do not model every video skin or route variant as a top-level runtime kind.
   Keep MacCMS skins such as ewave/stui/myui/module-item inside the MacCMS
   adapter mapper as selector fallbacks.

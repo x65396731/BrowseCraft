@@ -1,7 +1,7 @@
 import Foundation
 import BrowseCraftCore
 
-struct RuleSourceItemReferenceMapper {
+struct ComicRuleSourceItemReferenceMapper {
     func reference(
         from item: ContentItem,
         handoffIntent: SourceItemHandoffIntent = .detail,

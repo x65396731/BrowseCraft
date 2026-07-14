@@ -1,30 +1,30 @@
 import Foundation
 
-// 中文注释：RuleSourceListLoader 是 RuleSourceRuntime 内部列表刷新实现，只处理 SiteRule-backed source。
-struct RuleSourceListLoader {
+// 中文注释：ComicRuleSourceListLoader 是 ComicRuleSourceRuntime 内部列表刷新实现，只处理 SiteRule-backed source。
+struct ComicRuleSourceListLoader {
     private let pageContentLoader: PageContentLoader
-    private let ruleSourceParser: RuleSourceParsingService
+    private let comicRuleParser: ComicRuleSourceParsingService
     private let urlResolver: URLResolvingService
 
     init(
         pageContentLoader: PageContentLoader,
-        ruleSourceParser: RuleSourceParsingService,
+        comicRuleParser: ComicRuleSourceParsingService,
         urlResolver: URLResolvingService
     ) {
         self.pageContentLoader = pageContentLoader
-        self.ruleSourceParser = ruleSourceParser
+        self.comicRuleParser = comicRuleParser
         self.urlResolver = urlResolver
     }
 
     /// 中文注释：兼容旧测试和旧装配入口；HTTPClient 本身也是 PageContentLoader 的一种实现。
     init(
         httpClient: HTTPClient,
-        ruleSourceParser: RuleSourceParsingService,
+        comicRuleParser: ComicRuleSourceParsingService,
         urlResolver: URLResolvingService
     ) {
         self.init(
             pageContentLoader: httpClient,
-            ruleSourceParser: ruleSourceParser,
+            comicRuleParser: comicRuleParser,
             urlResolver: urlResolver
         )
     }
@@ -71,7 +71,7 @@ struct RuleSourceListLoader {
         )
         let items: [ContentItem]
         do {
-            items = try self.ruleSourceParser.parseList(
+            items = try self.comicRuleParser.parseList(
                 html: html,
                 source: source,
                 listRule: listRule,

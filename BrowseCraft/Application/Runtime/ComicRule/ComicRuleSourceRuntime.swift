@@ -1,26 +1,26 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：RuleSourceRuntime 只解释 SiteRule JSON 这种 rule-backed source；
+// 中文注释：ComicRuleSourceRuntime 只解释 SiteRule JSON 这种 rule-backed source；
 // App 总主轴是 SourceRuntime，RSS/Plugin 后续应走各自 runtime，不继续扩张 SiteRule。
-struct RuleSourceRuntime: SourceRuntime {
+struct ComicRuleSourceRuntime: SourceRuntime {
     let source: Source
 
-    private let listLoader: RuleSourceListLoader
-    private let searchLoader: RuleSourceSearchLoader
-    private let chapterLoader: RuleSourceChapterLoader
-    private let readerLoader: RuleSourceReaderLoader
+    private let listLoader: ComicRuleSourceListLoader
+    private let searchLoader: ComicRuleSourceSearchLoader
+    private let chapterLoader: ComicRuleSourceChapterLoader
+    private let readerLoader: ComicRuleSourceReaderLoader
     private let definitionMapper: SourceDefinitionMapper
-    private let outputMapper: RuleSourceRuntimeMapper
+    private let outputMapper: ComicRuleSourceRuntimeMapper
 
     init(
         source: Source,
-        listLoader: RuleSourceListLoader,
-        searchLoader: RuleSourceSearchLoader,
-        chapterLoader: RuleSourceChapterLoader,
-        readerLoader: RuleSourceReaderLoader,
+        listLoader: ComicRuleSourceListLoader,
+        searchLoader: ComicRuleSourceSearchLoader,
+        chapterLoader: ComicRuleSourceChapterLoader,
+        readerLoader: ComicRuleSourceReaderLoader,
         definitionMapper: SourceDefinitionMapper = SourceDefinitionMapper(),
-        outputMapper: RuleSourceRuntimeMapper = RuleSourceRuntimeMapper()
+        outputMapper: ComicRuleSourceRuntimeMapper = ComicRuleSourceRuntimeMapper()
     ) {
         self.source = source
         self.listLoader = listLoader

@@ -1,6 +1,6 @@
 import Foundation
 
-// 中文注释：RuleSourceReaderLoader 是 RuleSourceRuntime 内部阅读页加载边界，只处理 SiteRule-backed source。
+// 中文注释：ComicRuleSourceReaderLoader 是 ComicRuleSourceRuntime 内部阅读页加载边界，只处理 SiteRule-backed source。
 
 /// 中文注释：LoadReaderChapterError 是 enum，负责本模块中的对应职责。
 enum LoadReaderChapterError: LocalizedError {
@@ -18,27 +18,27 @@ enum LoadReaderChapterError: LocalizedError {
 }
 
 /// 中文注释：加载一个阅读章节页面，并解析出所有分页图片地址。
-/// 中文注释：网络请求留在应用层，具体 HTML 解析通过 RuleSourceParsingService 隔离。
-struct RuleSourceReaderLoader {
+/// 中文注释：网络请求留在应用层，具体 HTML 解析通过 ComicRuleSourceParsingService 隔离。
+struct ComicRuleSourceReaderLoader {
     private let pageContentLoader: PageContentLoader
-    private let ruleSourceParser: RuleSourceParsingService
+    private let comicRuleParser: ComicRuleSourceParsingService
 
     init(
         pageContentLoader: PageContentLoader,
-        ruleSourceParser: RuleSourceParsingService
+        comicRuleParser: ComicRuleSourceParsingService
     ) {
         self.pageContentLoader = pageContentLoader
-        self.ruleSourceParser = ruleSourceParser
+        self.comicRuleParser = comicRuleParser
     }
 
     /// 中文注释：兼容旧测试和旧装配入口；后续新增 WebView 测试可改用 pageContentLoader 注入。
     init(
         httpClient: HTTPClient,
-        ruleSourceParser: RuleSourceParsingService
+        comicRuleParser: ComicRuleSourceParsingService
     ) {
         self.init(
             pageContentLoader: httpClient,
-            ruleSourceParser: ruleSourceParser
+            comicRuleParser: comicRuleParser
         )
     }
 
@@ -96,7 +96,7 @@ struct RuleSourceReaderLoader {
 
         let chapter: ReaderChapter
         if let galleryRule: GalleryRule = resolvedRule.primaryGalleryRule {
-            chapter = try self.ruleSourceParser.parseReader(
+            chapter = try self.comicRuleParser.parseReader(
                 html: html,
                 source: source,
                 galleryRule: galleryRule,
@@ -178,7 +178,7 @@ struct RuleSourceReaderLoader {
         )
         let chapters: [ChapterLink]
         if let detailRule: DetailRule = resolvedRule.primaryDetailRule {
-            chapters = try self.ruleSourceParser.parseDetailChapters(
+            chapters = try self.comicRuleParser.parseDetailChapters(
                 html: detailHTML,
                 source: source,
                 detailRule: detailRule,

@@ -1,6 +1,6 @@
 import Foundation
 
-// 中文注释：RuleSourceChapterLoader 是 RuleSourceRuntime 内部章节目录加载边界，只处理 SiteRule-backed source。
+// 中文注释：ComicRuleSourceChapterLoader 是 ComicRuleSourceRuntime 内部章节目录加载边界，只处理 SiteRule-backed source。
 
 /// 中文注释：LoadChaptersError 是 enum，负责本模块中的对应职责。
 enum LoadChaptersError: LocalizedError {
@@ -15,26 +15,26 @@ enum LoadChaptersError: LocalizedError {
 }
 
 /// 中文注释：加载单个 Library 条目的章节目录。
-struct RuleSourceChapterLoader {
+struct ComicRuleSourceChapterLoader {
     private let pageContentLoader: PageContentLoader
-    private let ruleSourceParser: RuleSourceParsingService
+    private let comicRuleParser: ComicRuleSourceParsingService
 
     init(
         pageContentLoader: PageContentLoader,
-        ruleSourceParser: RuleSourceParsingService
+        comicRuleParser: ComicRuleSourceParsingService
     ) {
         self.pageContentLoader = pageContentLoader
-        self.ruleSourceParser = ruleSourceParser
+        self.comicRuleParser = comicRuleParser
     }
 
     /// 中文注释：兼容旧测试和旧装配入口；普通 HTTP 客户端继续可直接作为页面内容加载器使用。
     init(
         httpClient: HTTPClient,
-        ruleSourceParser: RuleSourceParsingService
+        comicRuleParser: ComicRuleSourceParsingService
     ) {
         self.init(
             pageContentLoader: httpClient,
-            ruleSourceParser: ruleSourceParser
+            comicRuleParser: comicRuleParser
         )
     }
 
@@ -93,14 +93,14 @@ struct RuleSourceChapterLoader {
         let chapters: [ChapterLink]
         let description: String?
         if let detailRule: DetailRule = resolvedRule.primaryDetailRule {
-            chapters = try self.ruleSourceParser.parseDetailChapters(
+            chapters = try self.comicRuleParser.parseDetailChapters(
                 html: detailHTML,
                 source: source,
                 detailRule: detailRule,
                 pageURL: item.detailURL,
                 context: item.listContext
             )
-            description = try self.ruleSourceParser.parseDetailDescription(
+            description = try self.comicRuleParser.parseDetailDescription(
                 html: detailHTML,
                 source: source,
                 detailRule: detailRule,

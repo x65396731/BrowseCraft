@@ -375,7 +375,7 @@ struct SourceRuntimeMappingTests {
     }
 
     @Test func outputMapperMapsItemsChaptersReaderAndPassesDiagnosticsThrough() throws {
-        let mapper: RuleSourceRuntimeMapper = RuleSourceRuntimeMapper()
+        let mapper: ComicRuleSourceRuntimeMapper = ComicRuleSourceRuntimeMapper()
         let diagnostics: SourceRuntimeDiagnostics = SourceRuntimeDiagnostics.partial(
             requestLogs: [
                 SourceRequestLog(
@@ -476,8 +476,8 @@ struct SourceRuntimeMappingTests {
         #expect(readerOutput.diagnostics == diagnostics)
     }
 
-    @Test func ruleSourceItemReferenceMapperMapsDetailHandoffWithoutReaderReplacement() throws {
-        let mapper = RuleSourceItemReferenceMapper()
+    @Test func comicRuleSourceItemReferenceMapperMapsDetailHandoffWithoutReaderReplacement() throws {
+        let mapper = ComicRuleSourceItemReferenceMapper()
         let runtimeContext = SourceRuntimeContext(
             sourceID: "user.example",
             pageID: "home",
@@ -528,8 +528,8 @@ struct SourceRuntimeMappingTests {
         #expect(reference.runtimeContext == runtimeContext)
     }
 
-    @Test func ruleSourceItemReferenceMapperMapsDirectReaderChapterHandoff() throws {
-        let mapper = RuleSourceItemReferenceMapper()
+    @Test func comicRuleSourceItemReferenceMapperMapsDirectReaderChapterHandoff() throws {
+        let mapper = ComicRuleSourceItemReferenceMapper()
         let requestOverride = SourceRequestOverride(
             url: URL(string: "https://example.test/read/1") ?? URL(fileURLWithPath: "/"),
             headers: ["Referer": "https://example.test"],

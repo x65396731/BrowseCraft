@@ -1,7 +1,7 @@
 import Foundation
 import BrowseCraftCore
 
-struct RuleSourceRuntimeMapper {
+struct ComicRuleSourceRuntimeMapper {
     func contentItem(from item: ContentItem) -> SourceContentItem {
         return SourceContentItem(
             id: item.id,

@@ -1,6 +1,6 @@
 import Foundation
 
-// 中文注释：RuleSourceSearchLoader 是 RuleSourceRuntime 内部搜索执行链路，只解释 SiteRule-backed source。
+// 中文注释：ComicRuleSourceSearchLoader 是 ComicRuleSourceRuntime 内部搜索执行链路，只解释 SiteRule-backed source。
 // 中文注释：它不写入 Library 列表缓存，RSS/Plugin 后续应走各自 runtime。
 
 struct SearchSourceResult: Hashable {
@@ -8,32 +8,32 @@ struct SearchSourceResult: Hashable {
     var pagination: PaginationResolution?
 }
 
-struct RuleSourceSearchLoader {
+struct ComicRuleSourceSearchLoader {
     private let pageContentLoader: PageContentLoader
-    private let ruleSourceParser: RuleSourceParsingService
-    private let paginationParser: RulePaginationParsingService?
+    private let comicRuleParser: ComicRuleSourceParsingService
+    private let paginationParser: ComicRulePaginationParsingService?
     private let urlResolver: URLResolvingService
 
     init(
         pageContentLoader: PageContentLoader,
-        ruleSourceParser: RuleSourceParsingService,
+        comicRuleParser: ComicRuleSourceParsingService,
         urlResolver: URLResolvingService
     ) {
         self.pageContentLoader = pageContentLoader
-        self.ruleSourceParser = ruleSourceParser
-        self.paginationParser = ruleSourceParser as? RulePaginationParsingService
+        self.comicRuleParser = comicRuleParser
+        self.paginationParser = comicRuleParser as? ComicRulePaginationParsingService
         self.urlResolver = urlResolver
     }
 
     /// 中文注释：兼容测试和旧装配入口；HTTPClient 本身也是 PageContentLoader。
     init(
         httpClient: HTTPClient,
-        ruleSourceParser: RuleSourceParsingService,
+        comicRuleParser: ComicRuleSourceParsingService,
         urlResolver: URLResolvingService
     ) {
         self.init(
             pageContentLoader: httpClient,
-            ruleSourceParser: ruleSourceParser,
+            comicRuleParser: comicRuleParser,
             urlResolver: urlResolver
         )
     }
@@ -105,7 +105,7 @@ struct RuleSourceSearchLoader {
             from: url,
             request: request
         )
-        let items: [ContentItem] = try self.ruleSourceParser.parseSearch(
+        let items: [ContentItem] = try self.comicRuleParser.parseSearch(
             html: html,
             source: source,
             searchRule: entry.rule,

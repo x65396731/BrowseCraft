@@ -1,10 +1,10 @@
 import Foundation
 
-// 中文注释：RuleSourceParsingService.swift 属于 RuleSourceRuntime 边界，只服务 SiteRule-backed source。
+// 中文注释：ComicRuleSourceParsingService.swift 属于 ComicRuleSourceRuntime 边界，只服务 SiteRule-backed source。
 
-/// 中文注释：RuleSourceRuntime 专用解析协议，把原始页面文档转换成应用内部统一模型。
+/// 中文注释：ComicRuleSourceRuntime 专用解析协议，把原始页面文档转换成应用内部统一模型。
 /// 中文注释：生产环境目前用 SwiftSoup 解析 HTML，但上层只依赖这个协议，方便以后替换解析器。
-protocol RuleSourceParsingService {
+protocol ComicRuleSourceParsingService {
     /// 中文注释：parseList 方法封装当前类型的一段业务或界面行为。
     func parseList(html: String, source: Source) throws -> [ContentItem]
     func parseList(html: String, source: Source, listRule: ListRule) throws -> [ContentItem]
@@ -74,7 +74,7 @@ enum PaginationResolutionSource: String, Hashable {
 }
 
 /// 中文注释：支持 DOM 的解析器可额外实现 nextPage 抽取，UseCase 不直接依赖具体 HTML 解析库。
-protocol RulePaginationParsingService {
+protocol ComicRulePaginationParsingService {
     func parseNextPageURL(
         html: String,
         source: Source,
@@ -83,7 +83,7 @@ protocol RulePaginationParsingService {
     ) throws -> String?
 }
 
-extension RuleSourceParsingService {
+extension ComicRuleSourceParsingService {
     /// 中文注释：P1-5.1 先在解析结果上附加列表上下文；具体 Section DOM 拆分留到后续步骤。
     func parseList(html: String, source: Source, listRule: ListRule, context: ListContext?) throws -> [ContentItem] {
         return try self.parseList(

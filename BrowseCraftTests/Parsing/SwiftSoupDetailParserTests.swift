@@ -5,7 +5,7 @@ import Testing
 struct SwiftSoupDetailParserTests {
     @Test func v2ChapterRulesApplyFunctionChains() throws {
         let source: Source = try Self.v2FunctionChainSource()
-        let parser: SwiftSoupRuleSourceParser = SwiftSoupRuleSourceParser(
+        let parser: SwiftSoupComicRuleSourceParser = SwiftSoupComicRuleSourceParser(
             urlResolver: URLResolvingService()
         )
 
@@ -30,7 +30,7 @@ struct SwiftSoupDetailParserTests {
 
     @Test func v2ChapterRulesUseFallbackWhenPrimaryResultIsBlankOrMissing() throws {
         let source: Source = try Self.v2FallbackSource()
-        let parser: SwiftSoupRuleSourceParser = SwiftSoupRuleSourceParser(
+        let parser: SwiftSoupComicRuleSourceParser = SwiftSoupComicRuleSourceParser(
             urlResolver: URLResolvingService()
         )
 
@@ -56,7 +56,7 @@ struct SwiftSoupDetailParserTests {
 
     @Test func v2ChapterRulesApplyReplaceFunctionInChain() throws {
         let source: Source = try Self.v2ReplaceFunctionSource()
-        let parser: SwiftSoupRuleSourceParser = SwiftSoupRuleSourceParser(
+        let parser: SwiftSoupComicRuleSourceParser = SwiftSoupComicRuleSourceParser(
             urlResolver: URLResolvingService()
         )
 
@@ -80,7 +80,7 @@ struct SwiftSoupDetailParserTests {
 
     @Test func v2ChapterRulesApplyDecompressFromBase64FunctionInChain() throws {
         let source: Source = try Self.v2DecompressFromBase64Source()
-        let parser: SwiftSoupRuleSourceParser = SwiftSoupRuleSourceParser(
+        let parser: SwiftSoupComicRuleSourceParser = SwiftSoupComicRuleSourceParser(
             urlResolver: URLResolvingService()
         )
 
@@ -104,7 +104,7 @@ struct SwiftSoupDetailParserTests {
 
     @Test func v2ChapterRulesUseCurrentSelectorKindForItemText() throws {
         let source: Source = try Self.v2CurrentSelectorKindSource()
-        let parser: SwiftSoupRuleSourceParser = SwiftSoupRuleSourceParser(
+        let parser: SwiftSoupComicRuleSourceParser = SwiftSoupComicRuleSourceParser(
             urlResolver: URLResolvingService()
         )
 
@@ -125,7 +125,7 @@ struct SwiftSoupDetailParserTests {
 
     @Test func v2PageRuleRefsSelectRuleSetsDetailRule() throws {
         let source: Source = try Self.v2DetailRuleSourceWithLegacyDetailDisabled()
-        let parser: SwiftSoupRuleSourceParser = SwiftSoupRuleSourceParser(
+        let parser: SwiftSoupComicRuleSourceParser = SwiftSoupComicRuleSourceParser(
             urlResolver: URLResolvingService()
         )
 
@@ -156,7 +156,7 @@ struct SwiftSoupDetailParserTests {
 
     @Test func v2DetailChaptersUseListContextScope() throws {
         let source: Source = try Self.v2DetailRuleSourceWithLegacyDetailDisabled()
-        let parser: SwiftSoupRuleSourceParser = SwiftSoupRuleSourceParser(
+        let parser: SwiftSoupComicRuleSourceParser = SwiftSoupComicRuleSourceParser(
             urlResolver: URLResolvingService()
         )
 

@@ -5,56 +5,56 @@ struct ChapterDetailContent: Hashable {
     var description: String?
 }
 
-// 中文注释：Reader Feature 仍通过 App use case 入口调用；rule-only 执行实现已收进 RuleSourceRuntime 边界。
+// 中文注释：Reader Feature 仍通过 App use case 入口调用；rule-only 执行实现已收进 ComicRuleSourceRuntime 边界。
 struct LoadChaptersUseCase {
-    private let ruleSourceLoader: RuleSourceChapterLoader
+    private let comicRuleSourceLoader: ComicRuleSourceChapterLoader
 
     init(
         pageContentLoader: PageContentLoader,
-        ruleSourceParser: RuleSourceParsingService
+        comicRuleParser: ComicRuleSourceParsingService
     ) {
-        self.ruleSourceLoader = RuleSourceChapterLoader(
+        self.comicRuleSourceLoader = ComicRuleSourceChapterLoader(
             pageContentLoader: pageContentLoader,
-            ruleSourceParser: ruleSourceParser
+            comicRuleParser: comicRuleParser
         )
     }
 
     init(
         httpClient: HTTPClient,
-        ruleSourceParser: RuleSourceParsingService
+        comicRuleParser: ComicRuleSourceParsingService
     ) {
         self.init(
             pageContentLoader: httpClient,
-            ruleSourceParser: ruleSourceParser
+            comicRuleParser: comicRuleParser
         )
     }
 
     func execute(source: Source, item: ContentItem) async throws -> ChapterDetailContent {
-        return try await self.ruleSourceLoader.execute(source: source, item: item)
+        return try await self.comicRuleSourceLoader.execute(source: source, item: item)
     }
 }
 
-// 中文注释：Reader Feature 仍通过 App use case 入口调用；rule-only 执行实现已收进 RuleSourceRuntime 边界。
+// 中文注释：Reader Feature 仍通过 App use case 入口调用；rule-only 执行实现已收进 ComicRuleSourceRuntime 边界。
 struct LoadReaderChapterUseCase {
-    private let ruleSourceLoader: RuleSourceReaderLoader
+    private let comicRuleSourceLoader: ComicRuleSourceReaderLoader
 
     init(
         pageContentLoader: PageContentLoader,
-        ruleSourceParser: RuleSourceParsingService
+        comicRuleParser: ComicRuleSourceParsingService
     ) {
-        self.ruleSourceLoader = RuleSourceReaderLoader(
+        self.comicRuleSourceLoader = ComicRuleSourceReaderLoader(
             pageContentLoader: pageContentLoader,
-            ruleSourceParser: ruleSourceParser
+            comicRuleParser: comicRuleParser
         )
     }
 
     init(
         httpClient: HTTPClient,
-        ruleSourceParser: RuleSourceParsingService
+        comicRuleParser: ComicRuleSourceParsingService
     ) {
         self.init(
             pageContentLoader: httpClient,
-            ruleSourceParser: ruleSourceParser
+            comicRuleParser: comicRuleParser
         )
     }
 
@@ -63,7 +63,7 @@ struct LoadReaderChapterUseCase {
         item: ContentItem,
         chapterURLString: String? = nil
     ) async throws -> ReaderChapter {
-        return try await self.ruleSourceLoader.execute(
+        return try await self.comicRuleSourceLoader.execute(
             source: source,
             item: item,
             chapterURLString: chapterURLString
