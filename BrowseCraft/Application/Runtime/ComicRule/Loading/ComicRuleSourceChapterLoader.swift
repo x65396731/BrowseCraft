@@ -16,6 +16,39 @@ enum LoadChaptersError: LocalizedError {
 
 /// 中文注释：加载单个 Library 条目的章节目录。
 struct ComicRuleSourceChapterLoader {
+    private struct ZaiManhuaDetailResponse: Decodable {
+        let errno: Int
+        let data: ZaiManhuaDetailData?
+    }
+
+    private struct ZaiManhuaDetailData: Decodable {
+        let comicInfo: ZaiManhuaComicInfo?
+    }
+
+    private struct ZaiManhuaComicInfo: Decodable {
+        let id: Int
+        let comicPy: String
+        let description: String?
+        let chapterList: [ZaiManhuaChapterGroup]?
+    }
+
+    private struct ZaiManhuaChapterGroup: Decodable {
+        let title: String?
+        let data: [ZaiManhuaChapter]
+    }
+
+    private struct ZaiManhuaChapter: Decodable {
+        let chapterID: Int
+        let chapterTitle: String
+        let chapterOrder: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case chapterID = "chapter_id"
+            case chapterTitle = "chapter_title"
+            case chapterOrder = "chapter_order"
+        }
+    }
+
     private let pageContentLoader: PageContentLoader
     private let comicRuleParser: ComicRuleSourceParsingService
 
@@ -93,20 +126,29 @@ struct ComicRuleSourceChapterLoader {
         let chapters: [ChapterLink]
         let description: String?
         if let detailRule: DetailRule = resolvedRule.primaryDetailRule {
-            chapters = try self.comicRuleParser.parseDetailChapters(
+            let parsedChapters: [ChapterLink] = try self.comicRuleParser.parseDetailChapters(
                 html: detailHTML,
                 source: source,
                 detailRule: detailRule,
                 pageURL: item.detailURL,
                 context: item.listContext
             )
-            description = try self.comicRuleParser.parseDetailDescription(
+            let parsedDescription: String? = try self.comicRuleParser.parseDetailDescription(
                 html: detailHTML,
                 source: source,
                 detailRule: detailRule,
                 pageURL: item.detailURL,
                 context: item.listContext
             )
+
+            if self.shouldUseZaiManhuaDetailAPI(source: source, item: item, chapters: parsedChapters),
+               let apiDetail: ChapterDetailContent = try await self.loadZaiManhuaDetailAPI(source: source, item: item) {
+                chapters = apiDetail.chapters
+                description = apiDetail.description ?? parsedDescription
+            } else {
+                chapters = parsedChapters
+                description = parsedDescription
+            }
         } else {
             chapters = []
             description = nil
@@ -137,6 +179,144 @@ struct ComicRuleSourceChapterLoader {
             chapters: chapters,
             description: description
         )
+    }
+
+    private func shouldUseZaiManhuaDetailAPI(source: Source, item: ContentItem, chapters: [ChapterLink]) -> Bool {
+        guard source.baseURL.contains("zaimanhua.com"),
+              item.detailURL.contains("/info/") else {
+            return false
+        }
+
+        if chapters.isEmpty {
+            return true
+        }
+
+        return chapters.contains { chapter in
+            return chapter.url.contains("/view/undefined/")
+        }
+    }
+
+    private func loadZaiManhuaDetailAPI(source: Source, item: ContentItem) async throws -> ChapterDetailContent? {
+        guard let comicPy: String = self.zaiManhuaComicPy(from: item.detailURL),
+              var components: URLComponents = URLComponents(string: "https://www.zaimanhua.com/api/v1/comic1/comic/detail") else {
+            return nil
+        }
+
+        components.queryItems = [
+            URLQueryItem(name: "channel", value: "pc"),
+            URLQueryItem(name: "app_name", value: "zmh"),
+            URLQueryItem(name: "version", value: "1.0.0"),
+            URLQueryItem(name: "timestamp", value: String(Int(Date().timeIntervalSince1970))),
+            URLQueryItem(name: "uid", value: "113119197"),
+            URLQueryItem(name: "comic_py", value: comicPy)
+        ]
+
+        guard let apiURL: URL = components.url else {
+            return nil
+        }
+
+        RuleExecutionLogger.log(
+            stage: .detail,
+            event: "zaimanhua-api-request",
+            fields: [
+                "source": source.id,
+                "item": item.id,
+                "apiURL": apiURL.absoluteString
+            ]
+        )
+
+        let json: String = try await self.pageContentLoader.getString(
+            from: apiURL,
+            request: nil
+        )
+        let response: ZaiManhuaDetailResponse = try JSONDecoder().decode(
+            ZaiManhuaDetailResponse.self,
+            from: Data(json.utf8)
+        )
+
+        guard response.errno == 0,
+              let comicInfo: ZaiManhuaComicInfo = response.data?.comicInfo else {
+            return nil
+        }
+
+        let chapters: [ChapterLink] = self.zaiManhuaChapters(from: comicInfo)
+        RuleExecutionLogger.log(
+            stage: .detail,
+            event: "zaimanhua-api-parsed",
+            fields: [
+                "source": source.id,
+                "item": item.id,
+                "comicID": comicInfo.id,
+                "chapterCount": chapters.count,
+                "firstURL": chapters.first?.url ?? "nil"
+            ]
+        )
+
+        guard chapters.isEmpty == false else {
+            return nil
+        }
+
+        return ChapterDetailContent(
+            chapters: chapters,
+            description: comicInfo.description
+        )
+    }
+
+    private func zaiManhuaComicPy(from detailURL: String) -> String? {
+        guard let url: URL = URL(string: detailURL) else {
+            return nil
+        }
+
+        let lastPathComponent: String = url.lastPathComponent
+        guard lastPathComponent.hasSuffix(".html") else {
+            return nil
+        }
+
+        return String(lastPathComponent.dropLast(".html".count))
+    }
+
+    private func zaiManhuaChapters(from comicInfo: ZaiManhuaComicInfo) -> [ChapterLink] {
+        var chapters: [ChapterLink] = []
+        var seenURLs: Set<String> = Set<String>()
+
+        for group: ZaiManhuaChapterGroup in comicInfo.chapterList ?? [] {
+            for chapter: ZaiManhuaChapter in group.data {
+                let url: String = "https://www.zaimanhua.com/view/\(comicInfo.comicPy)/\(comicInfo.id)/\(chapter.chapterID)"
+                guard seenURLs.contains(url) == false else {
+                    continue
+                }
+
+                seenURLs.insert(url)
+                chapters.append(
+                    ChapterLink(
+                        title: chapter.chapterTitle,
+                        url: url
+                    )
+                )
+            }
+        }
+
+        return chapters.sorted { lhs, rhs in
+            guard let lhsOrder: Int = self.zaiManhuaChapterOrder(chapter: lhs, comicInfo: comicInfo),
+                  let rhsOrder: Int = self.zaiManhuaChapterOrder(chapter: rhs, comicInfo: comicInfo) else {
+                return false
+            }
+
+            return lhsOrder > rhsOrder
+        }
+    }
+
+    private func zaiManhuaChapterOrder(chapter: ChapterLink, comicInfo: ZaiManhuaComicInfo) -> Int? {
+        for group: ZaiManhuaChapterGroup in comicInfo.chapterList ?? [] {
+            for sourceChapter: ZaiManhuaChapter in group.data {
+                let url: String = "https://www.zaimanhua.com/view/\(comicInfo.comicPy)/\(comicInfo.id)/\(sourceChapter.chapterID)"
+                if chapter.url == url {
+                    return sourceChapter.chapterOrder
+                }
+            }
+        }
+
+        return nil
     }
 }
 

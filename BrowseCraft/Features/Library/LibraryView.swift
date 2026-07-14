@@ -10,6 +10,7 @@ struct LibraryView: View {
     let rssContentDetailViewModelFactory: (ContentItem, Source) -> RSSContentDetailViewModel
     let videoDetailViewModelFactory: (ContentItem, Source) -> VideoDetailViewModel
     @State private var didLoadInitialData: Bool = false
+    @State private var selectedComicDestination: LibraryComicDestination?
 
     private let gridColumns: [GridItem] = [
         GridItem(.flexible(), spacing: 12),
@@ -55,6 +56,13 @@ struct LibraryView: View {
             )
             .navigationTitle(self.libraryNavigationTitle)
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(item: self.$selectedComicDestination) { destination in
+                self.readerDestination(
+                    for: destination.item,
+                    source: destination.source
+                )
+                .id(destination.id)
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(
@@ -138,7 +146,7 @@ struct LibraryView: View {
             )
         } else {
             LazyVGrid(columns: self.gridColumns, spacing: 16) {
-                ForEach(Array(self.viewModel.items.enumerated()), id: \.offset) { _, item in
+                ForEach(self.viewModel.items, id: \.id) { item in
                     if let source: Source = self.viewModel.source(for: item.sourceId) {
                         ComicLibraryCardView(
                             item: item,
@@ -147,11 +155,9 @@ struct LibraryView: View {
                             favoriteAction: {
                                 self.viewModel.toggleFavorite(item: item)
                             },
-                            readAction: {},
-                            readerDestination: self.readerDestination(
-                                for: item,
-                                source: source
-                            ),
+                            readAction: {
+                                self.openComicDestination(item: item, source: source)
+                            },
                             imageRequestConfig: self.viewModel.imageRequestConfig(for: source)
                         )
                     }
@@ -321,6 +327,20 @@ struct LibraryView: View {
         .background(Color(.systemBackground))
     }
 
+    private func openComicDestination(item: ContentItem, source: Source) {
+        #if DEBUG
+        print(
+            "[BrowseCraftNavigation] Select Library comic destination " +
+            "itemId=\(item.id) " +
+            "sourceId=\(source.id) " +
+            "title=\(item.title) " +
+            "detailURL=\(item.detailURL)"
+        )
+        #endif
+
+        self.selectedComicDestination = LibraryComicDestination(item: item, source: source)
+    }
+
     @ViewBuilder
     private func readerDestination(for item: ContentItem, source: Source) -> some View {
         if self.viewModel.shouldOpenReaderDirectly(for: source) {
@@ -346,6 +366,19 @@ struct LibraryView: View {
                 }
             }
         )
+    }
+}
+
+private struct LibraryComicDestination: Identifiable, Hashable {
+    let item: ContentItem
+    let source: Source
+
+    var id: String {
+        return [
+            self.source.id,
+            self.item.id,
+            self.item.detailURL
+        ].joined(separator: "|")
     }
 }
 

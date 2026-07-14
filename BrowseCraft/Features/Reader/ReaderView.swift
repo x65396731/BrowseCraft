@@ -8,6 +8,7 @@ import UIKit
 struct ChapterListView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: ChapterListViewModel
+    @State private var selectedReaderChapter: ChapterLink?
     let readerViewModelFactory: (ContentItem, Source, ChapterLink?) -> ReaderViewModel
 
     init(
@@ -35,14 +36,10 @@ struct ChapterListView: View {
         .background(Color(.systemBackground))
         .navigationTitle(self.viewModel.item.title)
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(for: ChapterLink.self) { chapter in
-            ReaderView(
-                viewModel: self.readerViewModelFactory(
-                    self.viewModel.item,
-                    self.viewModel.source,
-                    chapter
-                )
-            )
+        .navigationDestination(isPresented: self.readerDestinationPresentedBinding) {
+            if let chapter: ChapterLink = self.selectedReaderChapter {
+                self.readerDestination(for: chapter)
+            }
         }
         .navigationBarBackButtonHidden(true)
         .toolbarBackground(.hidden, for: .navigationBar)
@@ -104,7 +101,9 @@ struct ChapterListView: View {
         } else {
             LazyVStack(spacing: 0) {
                 ForEach(self.viewModel.chapters, id: \.url) { chapter in
-                    NavigationLink(value: chapter) {
+                    Button {
+                        self.openReaderDestination(for: chapter)
+                    } label: {
                         HStack(spacing: 12) {
                             Text(chapter.title)
                                 .font(.body)
@@ -144,6 +143,57 @@ struct ChapterListView: View {
                 }
             }
         )
+    }
+
+    private var readerDestinationPresentedBinding: Binding<Bool> {
+        return Binding<Bool>(
+            get: {
+                return self.selectedReaderChapter != nil
+            },
+            set: { newValue in
+                if newValue == false {
+                    self.selectedReaderChapter = nil
+                }
+            }
+        )
+    }
+
+    private func readerDestination(for chapter: ChapterLink) -> some View {
+        ReaderView(
+            viewModel: self.readerViewModelFactory(
+                self.viewModel.item,
+                self.viewModel.source,
+                chapter
+            )
+        )
+        .id(self.readerDestinationID(for: chapter))
+    }
+
+    private func openReaderDestination(for chapter: ChapterLink) {
+        self.logChapterTap(chapter)
+        self.selectedReaderChapter = chapter
+    }
+
+    private func logChapterTap(_ chapter: ChapterLink) {
+        #if DEBUG
+        print(
+            "[BrowseCraftNavigation] Tap Chapter " +
+            "itemId=\(self.viewModel.item.id) " +
+            "itemTitle=\(self.viewModel.item.title) " +
+            "detailURL=\(self.viewModel.item.detailURL) " +
+            "chapterTitle=\(chapter.title) " +
+            "chapterURL=\(chapter.url)"
+        )
+        #endif
+    }
+
+    private func readerDestinationID(for chapter: ChapterLink) -> String {
+        return [
+            self.viewModel.source.id,
+            self.viewModel.item.id,
+            self.viewModel.item.detailURL,
+            chapter.url
+        ].joined(separator: "|")
     }
 }
 

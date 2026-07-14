@@ -44,8 +44,17 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
     }
 
     func parseList(html: String, source: Source, listRule: ListRule) throws -> [ContentItem] {
-        let document: Document = try SwiftSoup.parse(html, source.baseURL)
-        let elements: [Element] = try document.select(listRule.item).array()
+        let document: Document = try self.parseListDocument(
+            html: html,
+            source: source,
+            listRule: listRule
+        )
+        let elements: [Element] = try self.listItemElements(
+            in: document,
+            selector: listRule.item,
+            source: source,
+            listRule: listRule
+        )
         let items: [ContentItem] = try self.contentItems(
             from: elements,
             source: source,
@@ -84,7 +93,11 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
             }
         }
 
-        let document: Document = try SwiftSoup.parse(html, source.baseURL)
+        let document: Document = try self.parseListDocument(
+            html: html,
+            source: source,
+            listRule: listRule
+        )
         var items: [ContentItem] = []
         var seenItemIDs: Set<String> = Set<String>()
 
@@ -101,7 +114,12 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
             )
 
             for container: Element in containers {
-                let elements: [Element] = try container.select(listRule.item).array()
+                let elements: [Element] = try self.listItemElements(
+                    in: container,
+                    selector: listRule.item,
+                    source: source,
+                    listRule: listRule
+                )
                 let sectionItems: [ContentItem] = try self.contentItems(
                     from: elements,
                     source: source,
@@ -177,28 +195,77 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
         context: ListContext?
     ) throws -> [ContentItem] {
         var items: [ContentItem] = []
+        var droppedCount: Int = 0
+        var loggedDropSamples: Int = 0
 
-        for element: Element in elements {
-            let title: String = try self.extract(element: element, expression: listRule.title)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            let link: String = try self.extract(element: element, expression: listRule.link)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+        for (index, element) in elements.enumerated() {
+            let title: String
+            let link: String
+            do {
+                title = try self.extract(element: element, expression: listRule.title)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                link = try self.extract(element: element, expression: listRule.link)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            } catch {
+                RuleExecutionLogger.log(
+                    stage: .list,
+                    event: "item-extract-error",
+                    fields: [
+                        "source": source.id,
+                        "listRule": listRule.id ?? "nil",
+                        "index": index,
+                        "titleSelector": listRule.title,
+                        "linkSelector": listRule.link,
+                        "error": error.localizedDescription,
+                        "elementPreview": self.elementPreview(element)
+                    ]
+                )
+                throw error
+            }
 
             // 中文注释：缺少标题或链接的列表项无法在应用中有效展示，直接跳过。
             if title.isEmpty || link.isEmpty {
+                droppedCount += 1
+                if loggedDropSamples < 3 {
+                    loggedDropSamples += 1
+                    RuleExecutionLogger.log(
+                        stage: .list,
+                        event: "item-dropped",
+                        fields: [
+                            "source": source.id,
+                            "listRule": listRule.id ?? "nil",
+                            "index": index,
+                            "titleEmpty": title.isEmpty,
+                            "linkEmpty": link.isEmpty,
+                            "titleSelector": listRule.title,
+                            "linkSelector": listRule.link,
+                            "titlePreview": self.shortPreview(title),
+                            "linkPreview": self.shortPreview(link),
+                            "elementPreview": self.elementPreview(element)
+                        ]
+                    )
+                }
                 continue
             }
 
             let detailURL: String = self.urlResolver.absoluteString(link, baseURLString: source.baseURL)
-            let coverURL: String? = try self.optionalExtract(
+            let coverURL: String? = self.optionalListField(
                 element: element,
                 expression: listRule.cover,
-                baseURLString: source.baseURL
+                baseURLString: source.baseURL,
+                field: "cover",
+                source: source,
+                listRule: listRule,
+                index: index
             )
-            let latestText: String? = try self.optionalExtract(
+            let latestText: String? = self.optionalListField(
                 element: element,
                 expression: listRule.latestText,
-                baseURLString: nil
+                baseURLString: nil,
+                field: "latestText",
+                source: source,
+                listRule: listRule,
+                index: index
             )
 
             let item: ContentItem = ContentItem(
@@ -217,7 +284,73 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
             items.append(item)
         }
 
+        if droppedCount > 0 {
+            RuleExecutionLogger.log(
+                stage: .list,
+                event: "item-drop-summary",
+                fields: [
+                    "source": source.id,
+                    "listRule": listRule.id ?? "nil",
+                    "candidateCount": elements.count,
+                    "droppedCount": droppedCount,
+                    "acceptedCount": items.count
+                ]
+            )
+        }
+
         return items
+    }
+
+    private func optionalListField(
+        element: Element,
+        expression: String?,
+        baseURLString: String?,
+        field: String,
+        source: Source,
+        listRule: ListRule,
+        index: Int
+    ) -> String? {
+        do {
+            return try self.optionalExtract(
+                element: element,
+                expression: expression,
+                baseURLString: baseURLString
+            )
+        } catch {
+            RuleExecutionLogger.log(
+                stage: .list,
+                event: "item-optional-field-error",
+                fields: [
+                    "source": source.id,
+                    "listRule": listRule.id ?? "nil",
+                    "index": index,
+                    "field": field,
+                    "expression": expression ?? "nil",
+                    "error": error.localizedDescription,
+                    "elementPreview": self.elementPreview(element)
+                ]
+            )
+            return nil
+        }
+    }
+
+    private func elementPreview(_ element: Element) -> String {
+        let html: String = (try? element.outerHtml()) ?? ""
+        return self.shortPreview(html)
+    }
+
+    private func shortPreview(_ value: String, limit: Int = 180) -> String {
+        let normalized: String = value
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+            .replacingOccurrences(of: "\t", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard normalized.count > limit else {
+            return normalized
+        }
+
+        return String(normalized.prefix(limit))
     }
 
     private func searchContentItems(
@@ -1173,6 +1306,210 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
         return elements
     }
 
+    private func parseListDocument(
+        html: String,
+        source: Source,
+        listRule: ListRule
+    ) throws -> Document {
+        RuleExecutionLogger.log(
+            stage: .list,
+            event: "document-parse-attempt",
+            fields: [
+                "source": source.id,
+                "listRule": listRule.id ?? "nil",
+                "htmlLength": html.count,
+                "baseURL": source.baseURL
+            ]
+        )
+
+        do {
+            return try SwiftSoup.parse(html, source.baseURL)
+        } catch {
+            RuleExecutionLogger.log(
+                stage: .list,
+                event: "document-parse-error",
+                fields: [
+                    "source": source.id,
+                    "listRule": listRule.id ?? "nil",
+                    "error": error.localizedDescription,
+                    "htmlPreview": self.shortPreview(html)
+                ]
+            )
+
+            let sanitizedHTML: String = html.replacingOccurrences(of: "\u{0000}", with: "")
+            guard sanitizedHTML != html else {
+                throw error
+            }
+
+            do {
+                let document: Document = try SwiftSoup.parse(sanitizedHTML, source.baseURL)
+                RuleExecutionLogger.log(
+                    stage: .list,
+                    event: "document-parse-recovered",
+                    fields: [
+                        "source": source.id,
+                        "listRule": listRule.id ?? "nil",
+                        "removedNullBytes": true
+                    ]
+                )
+                return document
+            } catch {
+                throw error
+            }
+        }
+    }
+
+    private func listItemElements(
+        in element: Element,
+        selector: String,
+        source: Source,
+        listRule: ListRule
+    ) throws -> [Element] {
+        let selectorParts: [String] = self.topLevelSelectorParts(selector)
+        if selectorParts.count > 1 {
+            return try self.listItemElements(
+                in: element,
+                selectorParts: selectorParts,
+                originalSelector: selector,
+                source: source,
+                listRule: listRule
+            )
+        }
+
+        do {
+            return try element.select(selector).array()
+        } catch {
+            RuleExecutionLogger.log(
+                stage: .list,
+                event: "item-selector-error",
+                fields: [
+                    "source": source.id,
+                    "listRule": listRule.id ?? "nil",
+                    "selector": selector,
+                    "error": error.localizedDescription
+                ]
+            )
+            throw error
+        }
+    }
+
+    private func listItemElements(
+        in element: Element,
+        selectorParts: [String],
+        originalSelector: String,
+        source: Source,
+        listRule: ListRule
+    ) throws -> [Element] {
+        var elements: [Element] = []
+        var seenHTML: Set<String> = Set<String>()
+        var failedSelectors: [String] = []
+        var matchedSelectors: [String] = []
+        var firstError: Error?
+
+        for selectorPart: String in selectorParts {
+            do {
+                let selectedElements: [Element] = try element.select(selectorPart).array()
+
+                if selectedElements.isEmpty == false {
+                    matchedSelectors.append("\(selectorPart):\(selectedElements.count)")
+                }
+
+                for selectedElement: Element in selectedElements {
+                    let selectedHTML: String = (try? selectedElement.outerHtml()) ?? ""
+                    guard seenHTML.contains(selectedHTML) == false else {
+                        continue
+                    }
+
+                    seenHTML.insert(selectedHTML)
+                    elements.append(selectedElement)
+                }
+            } catch {
+                if firstError == nil {
+                    firstError = error
+                }
+                failedSelectors.append(selectorPart)
+            }
+        }
+
+        RuleExecutionLogger.log(
+            stage: .list,
+            event: "item-selector-parts",
+            fields: [
+                "source": source.id,
+                "listRule": listRule.id ?? "nil",
+                "selector": originalSelector,
+                "matchedSelectors": matchedSelectors.joined(separator: "|"),
+                "failedSelectors": failedSelectors.joined(separator: "|"),
+                "count": elements.count
+            ]
+        )
+
+        if elements.isEmpty,
+           failedSelectors.count == selectorParts.count,
+           let firstError: Error = firstError {
+            throw firstError
+        }
+
+        return elements
+    }
+
+    private func topLevelSelectorParts(_ selector: String) -> [String] {
+        var parts: [String] = []
+        var current: String = ""
+        var parenthesisDepth: Int = 0
+        var bracketDepth: Int = 0
+        var quote: Character?
+        var previousCharacter: Character?
+
+        for character: Character in selector {
+            if let activeQuote: Character = quote {
+                current.append(character)
+
+                if character == activeQuote && previousCharacter != "\\" {
+                    quote = nil
+                }
+
+                previousCharacter = character
+                continue
+            }
+
+            switch character {
+            case "\"", "'":
+                quote = character
+                current.append(character)
+            case "(":
+                parenthesisDepth += 1
+                current.append(character)
+            case ")":
+                parenthesisDepth = max(0, parenthesisDepth - 1)
+                current.append(character)
+            case "[":
+                bracketDepth += 1
+                current.append(character)
+            case "]":
+                bracketDepth = max(0, bracketDepth - 1)
+                current.append(character)
+            case "," where parenthesisDepth == 0 && bracketDepth == 0:
+                let part: String = current.trimmingCharacters(in: .whitespacesAndNewlines)
+                if part.isEmpty == false {
+                    parts.append(part)
+                }
+                current = ""
+            default:
+                current.append(character)
+            }
+
+            previousCharacter = character
+        }
+
+        let finalPart: String = current.trimmingCharacters(in: .whitespacesAndNewlines)
+        if finalPart.isEmpty == false {
+            parts.append(finalPart)
+        }
+
+        return parts
+    }
+
     private func filteredElements(
         _ elements: [Element],
         excluding excludeRules: [ExtractRule],
@@ -1443,10 +1780,12 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
         let expressions: [String] = self.legacyExpressionCandidates(from: expression)
         if expressions.count > 1 {
             var firstError: Error?
+            var evaluatedCandidate: Bool = false
 
             for candidateExpression: String in expressions {
                 do {
                     let value: String = try self.extractSingle(element: element, expression: candidateExpression)
+                    evaluatedCandidate = true
 
                     if self.isEffectivelyEmpty(value) == false {
                         return value
@@ -1456,6 +1795,10 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
                         firstError = error
                     }
                 }
+            }
+
+            if evaluatedCandidate {
+                return ""
             }
 
             if let firstError: Error = firstError {
@@ -1488,6 +1831,11 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
 
     private func legacyExpressionCandidates(from expression: String) -> [String] {
         let trimmedExpression: String = expression.trimmingCharacters(in: .whitespacesAndNewlines)
+        let pipeExpressionParts: [String] = self.legacyPipeExpressionCandidates(from: trimmedExpression)
+        if pipeExpressionParts.count > 1 {
+            return pipeExpressionParts
+        }
+
         let parts: [String] = trimmedExpression
             .split(separator: ",")
             .map { part in
@@ -1499,9 +1847,9 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
             return [trimmedExpression]
         }
 
-        // 中文注释：旧版站规常把 attr 候选写成 "img@data-src, img@src"。
-        // 中文注释：逐个尝试可以避免 lastIndex("@") 把整段 CSS group 拆坏。
-        if parts.allSatisfy({ $0.contains("@") || $0 == "&" || $0 == "this" }) {
+        // 中文注释：旧版站规常把候选抽取写成 "h3 a, img@alt" 或 "img@data-src, img@src"。
+        // 中文注释：只要混入属性抽取，就逐个尝试，避免 lastIndex("@") 把整段 CSS group 拆坏。
+        if parts.contains(where: { $0.contains("@") || $0 == "&" || $0 == "this" }) {
             return parts
         }
 
@@ -1511,6 +1859,34 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
         }
 
         return [trimmedExpression]
+    }
+
+    private func legacyPipeExpressionCandidates(from expression: String) -> [String] {
+        guard let firstAttributeSeparator: String.Index = expression.firstIndex(of: "@") else {
+            return [expression]
+        }
+
+        let selector: String = String(expression[..<firstAttributeSeparator])
+        let attributeExpression: String = String(expression[expression.index(after: firstAttributeSeparator)...])
+        let parts: [String] = attributeExpression
+            .split(separator: "|")
+            .map { part in
+                return String(part).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            .filter { $0.isEmpty == false }
+
+        guard parts.count > 1,
+              parts.contains(where: { $0.contains("@") }) else {
+            return [expression]
+        }
+
+        return parts.map { part in
+            if part.contains("@") {
+                return part
+            }
+
+            return "\(selector)@\(part)"
+        }
     }
 
     private func normalizedCurrentElementAlias(_ expression: String) -> String {

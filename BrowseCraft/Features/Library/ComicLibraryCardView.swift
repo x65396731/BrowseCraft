@@ -3,24 +3,19 @@ import SwiftUI
 // 中文注释：ComicLibraryCardView.swift 属于 Library 漫画展示层，用于展示漫画封面和章节入口。
 
 /// 中文注释：ComicLibraryCardView 是漫画源在 Library 中使用的封面卡片。
-struct ComicLibraryCardView<ReaderDestination: View>: View {
+struct ComicLibraryCardView: View {
     let item: ContentItem
     let primaryActionTitle: String
     let isFavorite: Bool
     let favoriteAction: () -> Void
     let readAction: () -> Void
-    let readerDestination: ReaderDestination
     let imageRequestConfig: RequestConfig?
-    @State private var isShowingReaderDestination: Bool = false
 
     private let titleColor: Color = Color(red: 21 / 255, green: 30 / 255, blue: 71 / 255)
     private let chapterColor: Color = Color(red: 133 / 255, green: 153 / 255, blue: 255 / 255)
 
     var body: some View {
         self.cardContent
-            .navigationDestination(isPresented: self.$isShowingReaderDestination) {
-                self.readerDestination
-            }
     }
 
     private var cardContent: some View {
@@ -99,6 +94,5 @@ struct ComicLibraryCardView<ReaderDestination: View>: View {
         #endif
 
         self.readAction()
-        self.isShowingReaderDestination = true
     }
 }
