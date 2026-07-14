@@ -10,6 +10,12 @@ struct LibraryListTabState: Identifiable, Hashable {
     let isSelected: Bool
 }
 
+private struct LibraryListCacheEntry {
+    let sourceID: String
+    let context: ListContext?
+    let items: [ContentItem]
+}
+
 /// 中文注释：LibraryViewModel 以 SourceRuntimeKind 作为 Library 展示和刷新入口。
 final class LibraryViewModel: ObservableObject {
     @Published private(set) var items: [ContentItem] = []
@@ -40,6 +46,7 @@ final class LibraryViewModel: ObservableObject {
     private var tabValidationAttemptedSourceIDs: Set<String> = Set<String>()
     private var confirmedEmptyListTabKeys: Set<String> = Set<String>()
     private var listTabErrorMessages: [String: String] = [:]
+    private var listCache: [String: LibraryListCacheEntry] = [:]
     /// 中文注释：刷新令牌用于避免旧 source 的慢请求回写或提前关闭当前 source 的 loading。
     private var refreshToken: Int = 0
 
@@ -107,16 +114,13 @@ final class LibraryViewModel: ObservableObject {
 
     @MainActor
     func selectListTab(id tabID: String) async {
-        if self.isRefreshing {
-            return
-        }
-
         guard self.visibleListTabs.contains(where: { tab in tab.id == tabID }) else {
             self.ensureSelectedListTab()
             return
         }
 
         if self.selectedListTabID != tabID {
+            self.refreshToken += 1
             self.selectedListTabID = tabID
             self.selectedListTabErrorMessage = self.currentListTabErrorMessage()
             self.loadCachedItemsForSelectedTab()
@@ -143,13 +147,23 @@ final class LibraryViewModel: ObservableObject {
         }
 
         let expectedSourceID: String = refreshedSelectedSource.id
-        let expectedTabID: String? = self.selectedListTab?.id
+        let expectedTabID: String? = self.selectedListTabID
         let expectedListContext: ListContext? = self.selectedListContext
+        let expectedListStateKey: String = self.listStateKey(sourceID: expectedSourceID, context: expectedListContext)
         self.setListTabError(nil, sourceID: expectedSourceID, context: expectedListContext)
         self.refreshToken += 1
         let currentRefreshToken: Int = self.refreshToken
+        let requestID: Int = currentRefreshToken
         var shouldRefreshReplacementTab: Bool = false
         self.isRefreshing = true
+        #if DEBUG
+        print(
+            "[BrowseCraftLibraryRefresh] event=start " +
+            "requestID=\(requestID) " +
+            "source=\(expectedSourceID) " +
+            "context=\(self.contextDescription(expectedListContext))"
+        )
+        #endif
 
         do {
             let output: SourceListOutput = try await self.refreshSourceRuntimeUseCase.execute(
@@ -158,14 +172,18 @@ final class LibraryViewModel: ObservableObject {
             )
             if Task.isCancelled == false,
                self.refreshToken == currentRefreshToken,
-               self.selectedSourceID == expectedSourceID,
-               self.selectedListTab?.id == expectedTabID {
+               self.isCurrentListState(sourceID: expectedSourceID, key: expectedListStateKey) {
                 let refreshedItems: [ContentItem] = self.contentItems(
                     from: output,
                     source: refreshedSelectedSource,
                     context: expectedListContext
                 )
                 self.items = refreshedItems
+                self.cacheListItems(
+                    source: refreshedSelectedSource,
+                    items: refreshedItems,
+                    context: expectedListContext
+                )
                 self.setListTabError(nil, sourceID: expectedSourceID, context: expectedListContext)
                 if self.updateConfirmedEmptyListTab(
                     sourceID: expectedSourceID,
@@ -183,24 +201,35 @@ final class LibraryViewModel: ObservableObject {
                 self.logLibraryItems(
                     origin: "runtime-refresh-result",
                     sourceID: expectedSourceID,
-                    context: expectedListContext
+                    context: expectedListContext,
+                    requestID: requestID
                 )
                 self.saveCurrentLibraryState(lastRefreshAt: self.now())
                 #if DEBUG
                 print(
                     "[BrowseCraftLibrary] reload after refresh source=\(expectedSourceID) " +
+                    "requestID=\(requestID) " +
                     "items=\(self.items.count) " +
                     "context=\(self.contextDescription(expectedListContext))"
                 )
                 #endif
                 self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs()
+            } else {
+                #if DEBUG
+                print(
+                    "[BrowseCraftLibraryRefresh] event=stale-result " +
+                    "requestID=\(requestID) " +
+                    "source=\(expectedSourceID) " +
+                    "context=\(self.contextDescription(expectedListContext)) " +
+                    "current=\(self.currentListStateKey() ?? "nil")"
+                )
+                #endif
             }
         } catch is CancellationError {
             // 中文注释：快速切换 source 时取消旧请求；取消结果不能显示为用户错误。
         } catch {
             if self.refreshToken == currentRefreshToken,
-               self.selectedSourceID == expectedSourceID,
-               self.selectedListTab?.id == expectedTabID {
+               self.isCurrentListState(sourceID: expectedSourceID, key: expectedListStateKey) {
                 RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "library-refresh-error")
                 AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .list, errorCode: "library-refresh-error")
                 self.setListTabError(
@@ -424,6 +453,10 @@ final class LibraryViewModel: ObservableObject {
         }
 
         return self.listStateKey(sourceID: selectedSourceID, context: self.selectedListContext)
+    }
+
+    private func isCurrentListState(sourceID: String, key: String) -> Bool {
+        return self.selectedSourceID == sourceID && self.currentListStateKey() == key
     }
 
     private func currentListTabErrorMessage() -> String? {
@@ -685,6 +718,12 @@ final class LibraryViewModel: ObservableObject {
 
         self.upsertSource(snapshot.source)
         self.items = snapshot.items
+        let cacheContext: ListContext? = snapshot.listContext ?? self.selectedListContext
+        self.cacheListItems(
+            source: snapshot.source,
+            items: snapshot.items,
+            context: cacheContext
+        )
         self.setListTabError(nil, sourceID: snapshot.sourceID, context: self.selectedListContext)
         self.logLibraryItems(
             origin: "current-snapshot",
@@ -719,21 +758,32 @@ final class LibraryViewModel: ObservableObject {
 
     private func loadCachedItemsForSelectedTab() {
         if self.applyPreparedSnapshotIfAvailable() == false {
-            self.items = []
+            if let key: String = self.currentListStateKey(),
+               let cacheEntry: LibraryListCacheEntry = self.listCache[key] {
+                self.items = cacheEntry.items
+                self.setListTabError(nil, sourceID: cacheEntry.sourceID, context: cacheEntry.context)
+                self.logLibraryItems(
+                    origin: "tab-cache-hit",
+                    sourceID: cacheEntry.sourceID,
+                    context: cacheEntry.context
+                )
+                return
+            }
+
             self.logLibraryItems(
-                origin: "empty-tab-switch-no-snapshot",
+                origin: "tab-switch-no-snapshot-retain-current",
                 sourceID: self.selectedSourceID,
                 context: self.selectedListContext
             )
         }
     }
 
-    private func loadCachedItems(context: ListContext?) {
-        self.items = []
-        self.logLibraryItems(
-            origin: "disabled-cache-load",
-            sourceID: self.selectedSourceID,
-            context: context
+    private func cacheListItems(source: Source, items: [ContentItem], context: ListContext?) {
+        let key: String = self.listStateKey(sourceID: source.id, context: context)
+        self.listCache[key] = LibraryListCacheEntry(
+            sourceID: source.id,
+            context: context,
+            items: items
         )
     }
 
@@ -857,12 +907,15 @@ final class LibraryViewModel: ObservableObject {
     private func logLibraryItems(
         origin: String,
         sourceID: String?,
-        context: ListContext?
+        context: ListContext?,
+        requestID: Int? = nil
     ) {
         #if DEBUG
+        let requestDescription: String = requestID.map { " requestID=\($0)" } ?? ""
         print(
             "[BrowseCraftLibraryData] origin=\(origin) " +
             "source=\(sourceID ?? "nil") " +
+            "\(requestDescription) " +
             "items=\(self.items.count) " +
             "firstItem=\(self.items.first?.id ?? "nil") " +
             "context=\(self.contextDescription(context))"
