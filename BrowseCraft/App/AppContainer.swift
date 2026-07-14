@@ -206,6 +206,14 @@ final class AppContainer {
         let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = RefreshSourceRuntimeUseCase(
             runtimeResolver: self.makeSourceRuntimeResolver()
         )
+        let videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase = VideoSourceTabDiscoveryUseCase(
+            pageContentLoader: self.pageContentLoader
+        )
+        let validateSourceTabsUseCase: ValidateSourceTabsUseCase = ValidateSourceTabsUseCase(
+            refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
+            rssFeedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader),
+            videoTabDiscoveryUseCase: videoTabDiscoveryUseCase
+        )
         let loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase = LoadUserLibraryStateUseCase(
             repository: userLibraryStateRepository
         )
@@ -218,9 +226,8 @@ final class AppContainer {
             loadSourcesUseCase: loadSourcesUseCase,
             toggleFavoriteUseCase: toggleFavoriteUseCase,
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
-            videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase(
-                pageContentLoader: self.pageContentLoader
-            ),
+            videoTabDiscoveryUseCase: videoTabDiscoveryUseCase,
+            validateSourceTabsUseCase: validateSourceTabsUseCase,
             loadUserLibraryStateUseCase: loadUserLibraryStateUseCase,
             saveUserLibraryStateUseCase: saveUserLibraryStateUseCase,
             resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase(),

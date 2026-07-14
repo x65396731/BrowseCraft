@@ -18,6 +18,7 @@ final class LibraryViewModel: ObservableObject {
     @Published private(set) var selectedSourceID: String?
     @Published var selectedListTabID: String?
     @Published var errorMessage: String?
+    @Published private(set) var selectedListTabErrorMessage: String?
     @Published private(set) var isRefreshing: Bool = false
     @Published private(set) var preparingSource: SourceLoadingState?
     @Published private(set) var preparedLibrarySnapshot: SourceLibrarySnapshot?
@@ -27,6 +28,7 @@ final class LibraryViewModel: ObservableObject {
     private let toggleFavoriteUseCase: ToggleFavoriteUseCase
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
     private let videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase?
+    private let validateSourceTabsUseCase: ValidateSourceTabsUseCase?
     private let loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase
     private let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase
     private let resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase
@@ -35,7 +37,9 @@ final class LibraryViewModel: ObservableObject {
     private let now: () -> Date
     private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
     private var tabDiscoveryAttemptedSourceIDs: Set<String> = Set<String>()
+    private var tabValidationAttemptedSourceIDs: Set<String> = Set<String>()
     private var confirmedEmptyListTabKeys: Set<String> = Set<String>()
+    private var listTabErrorMessages: [String: String] = [:]
     /// 中文注释：刷新令牌用于避免旧 source 的慢请求回写或提前关闭当前 source 的 loading。
     private var refreshToken: Int = 0
 
@@ -45,6 +49,7 @@ final class LibraryViewModel: ObservableObject {
         toggleFavoriteUseCase: ToggleFavoriteUseCase,
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
         videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase? = nil,
+        validateSourceTabsUseCase: ValidateSourceTabsUseCase? = nil,
         loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase,
         saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase,
         resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase,
@@ -57,6 +62,7 @@ final class LibraryViewModel: ObservableObject {
         self.toggleFavoriteUseCase = toggleFavoriteUseCase
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
         self.videoTabDiscoveryUseCase = videoTabDiscoveryUseCase
+        self.validateSourceTabsUseCase = validateSourceTabsUseCase
         self.loadUserLibraryStateUseCase = loadUserLibraryStateUseCase
         self.saveUserLibraryStateUseCase = saveUserLibraryStateUseCase
         self.resolveLibrarySourcePresentationUseCase = resolveLibrarySourcePresentationUseCase
@@ -112,6 +118,7 @@ final class LibraryViewModel: ObservableObject {
 
         if self.selectedListTabID != tabID {
             self.selectedListTabID = tabID
+            self.selectedListTabErrorMessage = self.currentListTabErrorMessage()
             self.loadCachedItemsForSelectedTab()
             self.saveCurrentLibraryState(lastRefreshAt: nil)
         }
@@ -125,7 +132,10 @@ final class LibraryViewModel: ObservableObject {
             return
         }
 
-        await self.discoverTabsForSelectedVideoSourceIfNeeded()
+        if self.validateSourceTabsUseCase == nil {
+            await self.discoverTabsForSelectedVideoSourceIfNeeded()
+        }
+        await self.validateTabsForSelectedSourceIfNeeded()
         CrashDiagnostics.shared.setRuleStage(.list)
         self.ensureSelectedListTab()
         guard let refreshedSelectedSource: Source = self.selectedSource else {
@@ -135,6 +145,7 @@ final class LibraryViewModel: ObservableObject {
         let expectedSourceID: String = refreshedSelectedSource.id
         let expectedTabID: String? = self.selectedListTab?.id
         let expectedListContext: ListContext? = self.selectedListContext
+        self.setListTabError(nil, sourceID: expectedSourceID, context: expectedListContext)
         self.refreshToken += 1
         let currentRefreshToken: Int = self.refreshToken
         var shouldRefreshReplacementTab: Bool = false
@@ -155,6 +166,7 @@ final class LibraryViewModel: ObservableObject {
                     context: expectedListContext
                 )
                 self.items = refreshedItems
+                self.setListTabError(nil, sourceID: expectedSourceID, context: expectedListContext)
                 if self.updateConfirmedEmptyListTab(
                     sourceID: expectedSourceID,
                     tabID: expectedTabID,
@@ -191,7 +203,11 @@ final class LibraryViewModel: ObservableObject {
                self.selectedListTab?.id == expectedTabID {
                 RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "library-refresh-error")
                 AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .list, errorCode: "library-refresh-error")
-                self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+                self.setListTabError(
+                    RuleExecutionErrorClassifier.userMessage(for: error),
+                    sourceID: expectedSourceID,
+                    context: expectedListContext
+                )
             }
         }
 
@@ -261,7 +277,11 @@ final class LibraryViewModel: ObservableObject {
             return "Loading RSS"
         }
 
-        return "Loading Source"
+        if self.preparingSource != nil {
+            return "Loading Source"
+        }
+
+        return "Loading Tab"
     }
 
     var loadingMessage: String {
@@ -269,7 +289,7 @@ final class LibraryViewModel: ObservableObject {
             return "Fetching the latest items from \(preparingSource.sourceName)."
         }
 
-        return "Fetching the latest items from this source."
+        return "Fetching the latest items for this tab."
     }
 
     var listTabStates: [LibraryListTabState] {
@@ -361,6 +381,7 @@ final class LibraryViewModel: ObservableObject {
         }
 
         self.selectedListTabID = tabs.first?.id
+        self.selectedListTabErrorMessage = self.currentListTabErrorMessage()
     }
 
     private func updateConfirmedEmptyListTab(
@@ -385,6 +406,104 @@ final class LibraryViewModel: ObservableObject {
 
     private func listTabKey(sourceID: String, tabID: String) -> String {
         return "\(sourceID)::\(tabID)"
+    }
+
+    private func listStateKey(sourceID: String, context: ListContext?) -> String {
+        return [
+            sourceID,
+            context?.pageId ?? "nil",
+            context?.tabId ?? "nil",
+            context?.sectionId ?? "nil",
+            context?.listRuleId ?? "nil"
+        ].joined(separator: "::")
+    }
+
+    private func currentListStateKey() -> String? {
+        guard let selectedSourceID: String = self.selectedSourceID else {
+            return nil
+        }
+
+        return self.listStateKey(sourceID: selectedSourceID, context: self.selectedListContext)
+    }
+
+    private func currentListTabErrorMessage() -> String? {
+        guard let key: String = self.currentListStateKey() else {
+            return nil
+        }
+
+        return self.listTabErrorMessages[key]
+    }
+
+    private func setListTabError(_ message: String?, sourceID: String, context: ListContext?) {
+        let key: String = self.listStateKey(sourceID: sourceID, context: context)
+
+        if let message: String {
+            self.listTabErrorMessages[key] = message
+        } else {
+            self.listTabErrorMessages.removeValue(forKey: key)
+        }
+
+        if self.currentListStateKey() == key {
+            self.selectedListTabErrorMessage = message
+        }
+    }
+
+    private func isSelectedDefaultListTab() -> Bool {
+        guard let selectedTabID: String = self.selectedListTab?.id,
+              let firstTabID: String = self.visibleListTabs.first?.id else {
+            return false
+        }
+
+        return selectedTabID == firstTabID
+    }
+
+    @MainActor
+    private func validateTabsForSelectedSourceIfNeeded() async {
+        guard let validateSourceTabsUseCase: ValidateSourceTabsUseCase,
+              let source: Source = self.selectedSource,
+              source.configuration.kind != .plugin,
+              self.tabValidationAttemptedSourceIDs.contains(source.id) == false else {
+            return
+        }
+
+        self.tabValidationAttemptedSourceIDs.insert(source.id)
+        let expectedSourceID: String = source.id
+        let result: SourceTabsValidationResult = await validateSourceTabsUseCase.execute(source: source)
+        guard self.selectedSourceID == expectedSourceID else {
+            return
+        }
+
+        self.upsertSource(result.validatedSource)
+        self.logTabValidationResult(result)
+        self.ensureSelectedListTab()
+    }
+
+    private func logTabValidationResult(_ result: SourceTabsValidationResult) {
+        #if DEBUG
+        for entry: SourceTabValidationEntry in result.entries {
+            print(
+                "[BrowseCraftTabValidation] source=\(result.sourceID) " +
+                "kind=\(result.runtimeKind.rawValue) " +
+                "tab=\(entry.tabID ?? "nil") " +
+                "title=\(entry.title) " +
+                "status=\(self.tabValidationStatusDescription(entry.status)) " +
+                "items=\(entry.itemCount)"
+            )
+        }
+        #endif
+    }
+
+    private func tabValidationStatusDescription(_ status: SourceTabValidationStatus) -> String {
+        switch status {
+        case .valid:
+            return "valid"
+        case .empty:
+            return "empty"
+        case .failed(let message):
+            return "failed(\(message))"
+        case .skipped(let reason):
+            return "skipped(\(reason))"
+        }
     }
 
     @MainActor
@@ -511,8 +630,10 @@ final class LibraryViewModel: ObservableObject {
         CrashDiagnostics.shared.setSource(selectedSourceID.flatMap { self.source(for: $0) })
         self.selectedListTabID = nil
         self.errorMessage = nil
+        self.selectedListTabErrorMessage = nil
         self.items = []
         self.ensureSelectedListTab()
+        self.selectedListTabErrorMessage = self.currentListTabErrorMessage()
         self.saveCurrentLibraryState(lastRefreshAt: nil)
 
         do {
@@ -564,6 +685,7 @@ final class LibraryViewModel: ObservableObject {
 
         self.upsertSource(snapshot.source)
         self.items = snapshot.items
+        self.setListTabError(nil, sourceID: snapshot.sourceID, context: self.selectedListContext)
         self.logLibraryItems(
             origin: "current-snapshot",
             sourceID: snapshot.sourceID,
@@ -573,20 +695,15 @@ final class LibraryViewModel: ObservableObject {
     }
 
     private func snapshotMatchesSelectedListContext(_ snapshot: SourceLibrarySnapshot) -> Bool {
-        guard snapshot.runtimeKind == .video else {
-            return true
-        }
-
         guard let selectedContext: ListContext = self.selectedListContext else {
-            return true
+            return snapshot.listContext == nil && snapshot.items.first?.listContext == nil
         }
 
         guard let snapshotContext: ListContext = snapshot.listContext ?? snapshot.items.first?.listContext else {
-            return true
+            return self.isSelectedDefaultListTab()
         }
 
-        return snapshotContext.tabId == selectedContext.tabId &&
-            snapshotContext.listRuleId == selectedContext.listRuleId
+        return snapshotContext == selectedContext
     }
 
     private func upsertSource(_ source: Source) {

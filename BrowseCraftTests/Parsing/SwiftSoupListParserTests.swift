@@ -51,6 +51,23 @@ struct SwiftSoupListParserTests {
         #expect(items[1].listContext?.listRuleId == "home-list")
     }
 
+    @Test func legacyListTitleSelectorUsesFirstNonEmptyMatchedElement() throws {
+        let source: Source = Self.legacyListSource()
+        let parser: SwiftSoupComicRuleSourceParser = SwiftSoupComicRuleSourceParser(
+            urlResolver: URLResolvingService()
+        )
+
+        let items: [ContentItem] = try parser.parseList(
+            html: Self.listWithEmptyCoverAnchorHTML,
+            source: source
+        )
+
+        #expect(items.count == 1)
+        #expect(items[0].title == "下垂眼")
+        #expect(items[0].detailURL == "https://example.test/info/xiachuiyan.html")
+        #expect(items[0].coverURL == "https://example.test/images/xiachuiyan.jpg")
+    }
+
     private static let v2ListHTML: String = """
     <main>
       <article class="card" data-id="v2-1">
@@ -78,6 +95,21 @@ struct SwiftSoupListParserTests {
           <img class="cover" src="/images/recommend-1.jpg">
         </article>
       </section>
+    </main>
+    """
+
+    private static let listWithEmptyCoverAnchorHTML: String = """
+    <main>
+      <ul class="list_con_li">
+        <li>
+          <a href="/info/xiachuiyan.html" class="comic_img">
+            <img src="/images/xiachuiyan.jpg" alt="下垂眼 漫画封面">
+          </a>
+          <span class="comic_list_det">
+            <h3><a href="/info/xiachuiyan.html">下垂眼</a></h3>
+          </span>
+        </li>
+      </ul>
     </main>
     """
 
@@ -164,6 +196,86 @@ struct SwiftSoupListParserTests {
         return Source(
             id: "v2-list-source",
             name: "V2 List Source",
+            baseURL: "https://example.test",
+            type: .html,
+            rule: rule,
+            enabled: true,
+            createdAt: Date(timeIntervalSince1970: 0),
+            updatedAt: Date(timeIntervalSince1970: 0)
+        )
+    }
+
+    private static func legacyListSource() -> Source {
+        let rule: SiteRule = SiteRule(
+            version: 1,
+            site: nil,
+            urlPatterns: nil,
+            pages: nil,
+            ruleSets: nil,
+            sharedRequest: nil,
+            flags: nil,
+            name: "Legacy List Source",
+            baseUrl: "https://example.test",
+            list: ListRule(
+                id: "legacy-list",
+                url: "https://example.test/list",
+                item: ".list_con_li > li",
+                title: "a@title, a",
+                link: "a[href*='/info/']@href",
+                cover: "img@src",
+                type: .comic,
+                latestText: nil
+            ),
+            listTabs: nil,
+            detail: DetailRule(
+                id: "detail",
+                fields: nil,
+                title: "h1",
+                cover: nil,
+                mainScope: nil,
+                exclude: nil,
+                chapterRule: nil,
+                chapterContainer: nil,
+                chapterItem: "a",
+                chapterTitle: "this",
+                chapterLink: "this@href",
+                treatDetailURLAsChapter: nil,
+                tagRule: nil,
+                pictureRule: nil,
+                commentRule: nil,
+                videoRule: nil,
+                ready: nil,
+                request: nil,
+                js: nil
+            ),
+            gallery: GalleryRule(
+                id: "reader",
+                mainScope: nil,
+                item: nil,
+                image: nil,
+                thumbnail: nil,
+                link: nil,
+                totalPages: nil,
+                secondLevelPageURL: nil,
+                variants: nil,
+                sourceFiles: nil,
+                pagination: nil,
+                request: nil,
+                js: nil,
+                imageItem: "img.page",
+                imageUrl: "this@src",
+                comicTitle: nil,
+                chapterTitle: nil,
+                catalogLink: nil,
+                previousLink: nil,
+                nextLink: nil
+            ),
+            video: nil
+        )
+
+        return Source(
+            id: "legacy-list-source",
+            name: "Legacy List Source",
             baseURL: "https://example.test",
             type: .html,
             rule: rule,

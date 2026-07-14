@@ -36,6 +36,12 @@ struct LibraryView: View {
                             message: self.viewModel.loadingMessage
                         )
                     } else {
+                        if let selectedListTabErrorMessage: String = self.viewModel.selectedListTabErrorMessage {
+                            LibraryTabErrorBanner(message: selectedListTabErrorMessage)
+                                .padding(.horizontal, 16)
+                                .padding(.top, 12)
+                        }
+
                         self.libraryContent
                     }
                 }
@@ -47,9 +53,9 @@ struct LibraryView: View {
                         self.loadingOverlay
                     } else if self.viewModel.items.isEmpty {
                         EmptyStateView(
-                            systemImage: "square.grid.2x2",
-                            title: "No Items",
-                            message: "Refresh the selected tab to fill your library."
+                            systemImage: self.emptyStateSystemImage,
+                            title: self.emptyStateTitle,
+                            message: self.emptyStateMessage
                         )
                     }
                 }
@@ -114,6 +120,23 @@ struct LibraryView: View {
 
     private var libraryNavigationTitle: String {
         return self.viewModel.selectedSource?.name ?? "Library"
+    }
+
+    private var emptyStateSystemImage: String {
+        return self.viewModel.selectedListTabErrorMessage == nil
+            ? "square.grid.2x2"
+            : "exclamationmark.triangle"
+    }
+
+    private var emptyStateTitle: String {
+        return self.viewModel.selectedListTabErrorMessage == nil
+            ? "No Items"
+            : "Tab Failed"
+    }
+
+    private var emptyStateMessage: String {
+        return self.viewModel.selectedListTabErrorMessage
+            ?? "Refresh the selected tab to fill your library."
     }
 
     @ViewBuilder
@@ -402,5 +425,27 @@ private struct LibraryLoadingView: View {
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 24)
         .padding(.vertical, 48)
+    }
+}
+
+private struct LibraryTabErrorBanner: View {
+    let message: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle")
+                .foregroundStyle(.orange)
+
+            Text(self.message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }

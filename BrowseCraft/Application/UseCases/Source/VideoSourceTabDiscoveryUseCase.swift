@@ -22,11 +22,6 @@ struct VideoSourceTabDiscoveryUseCase {
         definition: VideoSourceDefinition,
         explicitTabs: [VideoSourceListTab]
     ) async throws -> [VideoSourceListTab] {
-        // 中文注释：后台目录规则已经给出 tabs 时不要再加载入口页自动发现，避免反爬站点重复触发 WebView。
-        guard explicitTabs.isEmpty else {
-            return explicitTabs
-        }
-
         let request: RequestConfig? = self.requestConfigResolver.request(
             for: .list,
             definition: definition,
@@ -42,22 +37,31 @@ struct VideoSourceTabDiscoveryUseCase {
                 operation: .list
             )
         )
-        let html: String = try await self.pageContentLoader.getString(
-            from: definition.entryURL,
-            request: request
-        )
-        let discoveredTabs: [VideoSourceListTab] = try self.discovererRegistry
-            .discoverer(for: definition.adapter)
-            .discoverTabs(
-                html: html,
-                definition: definition,
-                pageURL: definition.entryURL
-            )
 
-        return self.mergedTabs(
-            explicitTabs: explicitTabs,
-            discoveredTabs: discoveredTabs
-        )
+        do {
+            let html: String = try await self.pageContentLoader.getString(
+                from: definition.entryURL,
+                request: request
+            )
+            let discoveredTabs: [VideoSourceListTab] = try self.discovererRegistry
+                .discoverer(for: definition.adapter)
+                .discoverTabs(
+                    html: html,
+                    definition: definition,
+                    pageURL: definition.entryURL
+                )
+
+            return self.mergedTabs(
+                explicitTabs: explicitTabs,
+                discoveredTabs: discoveredTabs
+            )
+        } catch {
+            guard explicitTabs.isEmpty == false else {
+                throw error
+            }
+
+            return explicitTabs
+        }
     }
 
     private func mergedTabs(

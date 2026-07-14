@@ -1821,12 +1821,30 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
         if let separatorIndex: String.Index = normalizedExpression.lastIndex(of: "@") {
             let selector: String = String(normalizedExpression[..<separatorIndex])
             let attributeExpression: String = String(normalizedExpression[normalizedExpression.index(after: separatorIndex)...])
-            let selectedElement: Element? = try self.selectedElement(element: element, selector: selector)
+            let selectedElements: [Element] = try self.selectedElements(element: element, selector: selector)
 
-            return try self.extractAttribute(element: selectedElement, attributeExpression: attributeExpression)
+            for selectedElement: Element in selectedElements {
+                let value: String = try self.extractAttribute(
+                    element: selectedElement,
+                    attributeExpression: attributeExpression
+                )
+                if self.isEffectivelyEmpty(value) == false {
+                    return value
+                }
+            }
+
+            return ""
         }
 
-        return try self.selectedElement(element: element, selector: normalizedExpression)?.text() ?? ""
+        let selectedElements: [Element] = try self.selectedElements(element: element, selector: normalizedExpression)
+        for selectedElement: Element in selectedElements {
+            let value: String = try selectedElement.text()
+            if self.isEffectivelyEmpty(value) == false {
+                return value
+            }
+        }
+
+        return ""
     }
 
     private func legacyExpressionCandidates(from expression: String) -> [String] {
@@ -1905,24 +1923,28 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
 
     /// 中文注释：selectedElement 方法封装当前类型的一段业务或界面行为。
     private func selectedElement(element: Element, selector: String) throws -> Element? {
+        return try self.selectedElements(element: element, selector: selector).first
+    }
+
+    private func selectedElements(element: Element, selector: String) throws -> [Element] {
         if selector.isEmpty || selector == "this" || selector == "&" {
-            return element
+            return [element]
         }
 
         if selector == "parent" {
-            return element.parent()
+            return element.parent().map { [$0] } ?? []
         }
 
         if selector.hasPrefix("parent ") {
             let nestedSelector: String = String(selector.dropFirst("parent ".count))
             guard let parent: Element = element.parent() else {
-                return nil
+                return []
             }
 
-            return try parent.select(nestedSelector).first()
+            return try parent.select(nestedSelector).array()
         }
 
-        return try element.select(selector).first()
+        return try element.select(selector).array()
     }
 
     /// 中文注释：extractAttribute 方法封装当前类型的一段业务或界面行为。

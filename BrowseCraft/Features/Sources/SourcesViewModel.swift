@@ -215,7 +215,11 @@ final class SourcesViewModel: ObservableObject {
 
             self.load()
             let items: [ContentItem] = self.contentItems(from: result.listOutput, source: source)
-            self.sourceSelectionStore.publishLibrarySnapshot(source: source, items: items)
+            self.sourceSelectionStore.publishLibrarySnapshot(
+                source: source,
+                items: items,
+                listContext: nil
+            )
             self.logPublishedLibrarySnapshot(source: source, items: items, origin: "rule-source-add")
             self.selectSource(id: source.id)
             self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
@@ -244,7 +248,11 @@ final class SourcesViewModel: ObservableObject {
 
             self.load()
             let items: [ContentItem] = self.contentItems(from: result.listOutput, source: source)
-            self.sourceSelectionStore.publishLibrarySnapshot(source: source, items: items)
+            self.sourceSelectionStore.publishLibrarySnapshot(
+                source: source,
+                items: items,
+                listContext: nil
+            )
             self.logPublishedLibrarySnapshot(source: source, items: items, origin: "rss-source-add")
             self.selectSource(id: source.id)
             self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
@@ -274,7 +282,11 @@ final class SourcesViewModel: ObservableObject {
 
             self.load()
             let items: [ContentItem] = self.contentItems(from: result.listOutput, source: source)
-            self.sourceSelectionStore.publishLibrarySnapshot(source: source, items: items)
+            self.sourceSelectionStore.publishLibrarySnapshot(
+                source: source,
+                items: items,
+                listContext: nil
+            )
             self.logPublishedLibrarySnapshot(source: source, items: items, origin: "manual-video-source-add")
             self.selectSource(id: source.id)
             self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
@@ -345,7 +357,11 @@ final class SourcesViewModel: ObservableObject {
             self.load()
             if let listOutput: SourceListOutput = result.listOutput {
                 let items: [ContentItem] = self.contentItems(from: listOutput, source: source)
-                self.sourceSelectionStore.publishLibrarySnapshot(source: source, items: items)
+                self.sourceSelectionStore.publishLibrarySnapshot(
+                    source: source,
+                    items: items,
+                    listContext: nil
+                )
                 self.logPublishedLibrarySnapshot(source: source, items: items, origin: "catalog-source-add")
             }
             self.selectSource(id: source.id)
@@ -413,7 +429,11 @@ final class SourcesViewModel: ObservableObject {
 
         do {
             let items: [ContentItem] = try await self.refreshSourceForSelection(source)
-            self.sourceSelectionStore.publishLibrarySnapshot(source: source, items: items)
+            self.sourceSelectionStore.publishLibrarySnapshot(
+                source: source,
+                items: items,
+                listContext: nil
+            )
             self.logPublishedLibrarySnapshot(source: source, items: items, origin: "select-source-refresh")
             self.failedRefreshAction = nil
             self.selectSource(id: source.id)
@@ -699,7 +719,11 @@ final class SourcesViewModel: ObservableObject {
 
         do {
             let items: [ContentItem] = try await self.refreshSourceForSelection(source)
-            self.sourceSelectionStore.publishLibrarySnapshot(source: source, items: items)
+            self.sourceSelectionStore.publishLibrarySnapshot(
+                source: source,
+                items: items,
+                listContext: nil
+            )
             self.logPublishedLibrarySnapshot(source: source, items: items, origin: "manual-refresh")
             self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
             self.failedRefreshAction = nil
@@ -723,6 +747,7 @@ final class SourcesViewModel: ObservableObject {
 
     private func refreshSourceForSelection(_ source: Source) async throws -> [ContentItem] {
         CrashDiagnostics.shared.setRuleStage(.list)
+        // Sources 页的刷新只针对默认入口；非默认 tab 由 Library 按当前 ListContext 单独刷新。
         let output: SourceListOutput = try await self.refreshSourceRuntimeUseCase.execute(
             source: source,
             listContext: nil

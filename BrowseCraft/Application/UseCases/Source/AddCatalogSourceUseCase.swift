@@ -205,9 +205,11 @@ struct AddCatalogSourceUseCase {
                 updatedAt: createdAt
             )
         )
+        // Catalog 导入只验证默认入口。其它 tab 由 Library 按当前 tab 独立加载并记录失败状态。
+        let defaultListContext: ListContext? = nil
         let listOutput: SourceListOutput = try await self.refreshSourceRuntimeUseCase.execute(
             source: source,
-            listContext: nil
+            listContext: defaultListContext
         )
         try self.validateSourceListLoadUseCase.execute(listOutput)
         try self.sourceRepository.saveSource(source)
