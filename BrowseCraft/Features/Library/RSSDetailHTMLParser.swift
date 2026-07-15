@@ -22,6 +22,10 @@ struct RSSDetailHTMLParser {
     }
 
     private static func articleHTML(in html: String) -> String? {
+        if let bbcLearningEnglishArticleHTML: String = Self.bbcLearningEnglishArticleHTML(in: html) {
+            return bbcLearningEnglishArticleHTML
+        }
+
         let markers: [String] = [
             #"<div class="topic_content""#,
             #"<div class='topic_content'"#,
@@ -64,6 +68,27 @@ struct RSSDetailHTMLParser {
         }
 
         return String(tail)
+    }
+
+    private static func bbcLearningEnglishArticleHTML(in html: String) -> String? {
+        guard html.range(of: #"id="bbcle-content""#) != nil,
+              let startRange: Range<String.Index> = html.range(of: #"<div id="bbcle-content""#) else {
+            return nil
+        }
+
+        let tail: Substring = html[startRange.lowerBound...]
+        let endMarkers: [String] = [
+            #"<div class="widget widget-list widget-list-automatic""#,
+            #"<div class='widget widget-list widget-list-automatic'"#
+        ]
+
+        if let endRange: Range<Substring.Index> = endMarkers.compactMap({ marker in
+            tail.range(of: marker)
+        }).min(by: { lhs, rhs in lhs.lowerBound < rhs.lowerBound }) {
+            return String(tail[..<endRange.lowerBound])
+        }
+
+        return Self.balancedDivHTML(in: html, startingAt: startRange.lowerBound)
     }
 
     private static func balancedDivHTML(in html: String, startingAt startIndex: String.Index) -> String? {

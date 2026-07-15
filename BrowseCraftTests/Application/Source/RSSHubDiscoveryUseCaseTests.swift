@@ -131,6 +131,52 @@ struct RSSHubDiscoveryUseCaseTests {
         #expect(radarLoader.requestedURLs.isEmpty)
     }
 
+    @Test func directAnyFeederTwoSegmentPlinkURLBypassesRSSHubDiscovery() async throws {
+        let radarLoader: RSSHubDiscoveryRecordingPageDataLoader = RSSHubDiscoveryRecordingPageDataLoader(
+            responsesByURL: [:]
+        )
+        let feedURL: URL = try #require(URL(string: "https://plink.anyfeeder.com/nytimes/dual"))
+        let feedLoader: RSSHubDiscoveryRecordingFeedLoader = RSSHubDiscoveryRecordingFeedLoader(
+            feedsByURL: [
+                feedURL.absoluteString: RSSFeed(
+                    title: "纽约时报双语版",
+                    items: [
+                        RSSFeedItem(
+                            title: "中国开启可回收火箭时代，加速追赶SpaceX",
+                            link: URL(string: "https://cn.nytimes.com/china/20260710/china-space-reusable-rocket-launch-spacex/dual"),
+                            summary: nil,
+                            coverURL: nil,
+                            publishedAt: nil,
+                            guid: nil
+                        )
+                    ]
+                )
+            ]
+        )
+        let useCase: DiscoverRSSFeedsUseCase = DiscoverRSSFeedsUseCase(
+            rssFeedLoader: feedLoader,
+            loadRSSHubDiscoveryCandidatesUseCase: LoadRSSHubDiscoveryCandidatesUseCase(
+                pageDataLoader: radarLoader
+            )
+        )
+
+        let results: [DiscoveredRSSFeedItem] = try await useCase.execute(
+            DiscoverRSSFeedsInput(
+                siteURLString: "https://plink.anyfeeder.com/nytimes/dual"
+            )
+        )
+
+        let result: DiscoveredRSSFeedItem = try #require(results.first)
+        #expect(results.count == 1)
+        #expect(result.feedURL == feedURL)
+        #expect(result.siteURL.absoluteString == "https://plink.anyfeeder.com/nytimes/dual")
+        #expect(result.title == "纽约时报双语版")
+        #expect(result.itemCount == 1)
+        #expect(result.firstItemTitle == "中国开启可回收火箭时代，加速追赶SpaceX")
+        #expect(feedLoader.requestedURLs == [feedURL])
+        #expect(radarLoader.requestedURLs.isEmpty)
+    }
+
     @Test func ignoresRSSHubRuleWhenInputURLCannotFillTargetParameters() async throws {
         let radarLoader: RSSHubDiscoveryRecordingPageDataLoader = RSSHubDiscoveryRecordingPageDataLoader(
             responsesByURL: [

@@ -48,11 +48,18 @@ struct RSSSourceRuntime: SourceRuntime {
         let feed: RSSFeed = try await self.feedLoader.load(feedURL: rssDefinition.feedURL)
         let items: [SourceContentItem] = self.contentItems(from: feed)
         #if DEBUG
+        let latestTextLengths: [Int] = items.map { item in
+            return item.latestText?.count ?? 0
+        }
+        let maxLatestTextLength: Int = latestTextLengths.max() ?? 0
+        let firstLatestTextLength: Int = latestTextLengths.first ?? 0
         print(
             "[BrowseCraftRSS] runtime.loadList source=\(self.definition.id) " +
             "feedTitle=\(feed.title ?? "nil") " +
             "feedItems=\(feed.items.count) " +
             "outputItems=\(items.count) " +
+            "firstLatestTextLength=\(firstLatestTextLength) " +
+            "maxLatestTextLength=\(maxLatestTextLength) " +
             "url=\(rssDefinition.feedURL.absoluteString)"
         )
         #endif

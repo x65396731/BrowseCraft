@@ -6,6 +6,9 @@ import Foundation
 /// 中文注释：RSS 阅读历史保存放在 ViewModel，View 只负责展示与触发生命周期。
 @MainActor
 final class RSSContentDetailViewModel: ObservableObject {
+    private static let maxAcceptedDetailBlockCount: Int = 300
+    private static let maxAcceptedDetailImageCount: Int = 80
+
     @Published private(set) var shouldPlayAd: Bool = false
     @Published private(set) var displayItem: ContentItem
 
@@ -103,13 +106,37 @@ final class RSSContentDetailViewModel: ObservableObject {
             )
             let blocks: [RSSContentPayload.Block] = detailContent.blocks
             guard blocks.isEmpty == false else {
+                self.logEmptyDetailContent(htmlLength: html.count, url: detailURL)
                 return
             }
 
             var updatedItem: ContentItem = self.item
             let rawDetailImageCount: Int = blocks.filter { block in block.kind == .image }.count
+            guard self.shouldApplyDetailContent(blocks: blocks, imageCount: rawDetailImageCount) else {
+                self.logSkippedDetailContent(
+                    htmlLength: html.count,
+                    blocks: blocks.count,
+                    images: rawDetailImageCount,
+                    stage: "raw",
+                    url: detailURL
+                )
+                return
+            }
+
             let feedPayload: RSSContentPayload? = RSSContentPayload.decode(from: self.item.latestText)
             let mergedBlocks: [RSSContentPayload.Block] = self.mergedDetailBlocks(blocks)
+            let mergedImageCount: Int = mergedBlocks.filter { block in block.kind == .image }.count
+            guard self.shouldApplyDetailContent(blocks: mergedBlocks, imageCount: mergedImageCount) else {
+                self.logSkippedDetailContent(
+                    htmlLength: html.count,
+                    blocks: mergedBlocks.count,
+                    images: mergedImageCount,
+                    stage: "merged",
+                    url: detailURL
+                )
+                return
+            }
+
             let payload: RSSContentPayload = RSSContentPayload(
                 summary: RSSContentTextFormatter.sanitized(self.item.latestText),
                 blocks: mergedBlocks,
@@ -125,13 +152,14 @@ final class RSSContentDetailViewModel: ObservableObject {
             self.displayItem = updatedItem
 
             #if DEBUG
-            let imageCount: Int = mergedBlocks.filter { block in block.kind == .image }.count
             print(
                 "[BrowseCraftRSSDetail] loaded detail content " +
                 "itemID=\(self.item.id) " +
+                "htmlLength=\(html.count) " +
                 "blocks=\(mergedBlocks.count) " +
                 "rawImages=\(rawDetailImageCount) " +
-                "images=\(imageCount) " +
+                "images=\(mergedImageCount) " +
+                "latestTextLength=\(updatedItem.latestText?.count ?? 0) " +
                 "cover=\(updatedItem.coverURL ?? "nil") " +
                 "tags=\(detailContent.metadata.tags) " +
                 "likes=\(detailContent.metadata.likeCount.map(String.init) ?? "nil") " +
@@ -149,6 +177,44 @@ final class RSSContentDetailViewModel: ObservableObject {
             )
             #endif
         }
+    }
+
+    private func shouldApplyDetailContent(blocks: [RSSContentPayload.Block], imageCount: Int) -> Bool {
+        return blocks.count <= Self.maxAcceptedDetailBlockCount
+            && imageCount <= Self.maxAcceptedDetailImageCount
+    }
+
+    private func logEmptyDetailContent(htmlLength: Int, url: URL) {
+        #if DEBUG
+        print(
+            "[BrowseCraftRSSDetail] empty detail content " +
+            "itemID=\(self.item.id) " +
+            "htmlLength=\(htmlLength) " +
+            "url=\(url.absoluteString)"
+        )
+        #endif
+    }
+
+    private func logSkippedDetailContent(
+        htmlLength: Int,
+        blocks: Int,
+        images: Int,
+        stage: String,
+        url: URL
+    ) {
+        #if DEBUG
+        print(
+            "[BrowseCraftRSSDetail] skip oversized detail content " +
+            "itemID=\(self.item.id) " +
+            "stage=\(stage) " +
+            "htmlLength=\(htmlLength) " +
+            "blocks=\(blocks) " +
+            "images=\(images) " +
+            "maxBlocks=\(Self.maxAcceptedDetailBlockCount) " +
+            "maxImages=\(Self.maxAcceptedDetailImageCount) " +
+            "url=\(url.absoluteString)"
+        )
+        #endif
     }
 
     private func mergedMetadata(
@@ -318,6 +384,13 @@ final class RSSContentDetailViewModel: ObservableObject {
 
         if host == "www.beian.gov.cn" || host == "beian.gov.cn" {
             return "beian-icon"
+        }
+
+        if host == "a1.api.bbc.co.uk"
+            || host == "sb.scorecardresearch.com"
+            || host == "b.scorecardresearch.com"
+            || lowercasedURL.contains("scorecardresearch.com") {
+            return "tracking-pixel"
         }
 
         if Self.isUnsupportedVectorImage(url) {

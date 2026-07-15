@@ -32,6 +32,60 @@ struct RSSImageFilteringTests {
         #expect(imageURLs.contains("https://example.test/static/img/upvote.png") == false)
     }
 
+    @Test func parserLimitsBBCLearningEnglishArticleBeforeArchiveList() throws {
+        let html: String = """
+        <html><body>
+          <noscript><p><img src="https://a1.api.bbc.co.uk/hit.xiti?col=1" height="1" width="1"></p></noscript>
+          <div id="bbcle-content" class="content-no-sidebar b-g-p">
+            <div role="article">
+              <div class="widget-container widget-container-left">
+                <div class="widget widget-heading"><h3>媒体英语</h3></div>
+                <div class="widget widget-audio widget-audio-standard">
+                  <img src="https://ichef.bbc.co.uk/images/ic/640x360/p0nwg25x.jpg">
+                </div>
+                <div class="widget widget-richtext 6">
+                  <div class="text">
+                    <p class="BBCText">正文第一段</p>
+                    <p class="BBCText">正文第二段</p>
+                  </div>
+                </div>
+                <div class="widget widget-list widget-list-automatic">
+                  <ul>
+                    <li class="item"><img src="https://ichef.bbci.co.uk/images/ic/256xn/archive-one.jpg"></li>
+                    <li class="item"><img src="https://ichef.bbci.co.uk/images/ic/256xn/archive-two.jpg"></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </body></html>
+        """
+
+        let blocks: [RSSContentPayload.Block] = RSSDetailHTMLParser.detailContentBlocks(
+            in: html,
+            pageURL: try #require(URL(string: "https://www.bbc.co.uk/learningenglish/chinese/features/media-english/ep-260713"))
+        )
+        let texts: [String] = blocks.compactMap(\.text)
+        let imageURLs: [String] = blocks.compactMap(\.imageURL)
+
+        #expect(texts.contains("正文第一段"))
+        #expect(texts.contains("正文第二段"))
+        #expect(imageURLs == ["https://ichef.bbc.co.uk/images/ic/640x360/p0nwg25x.jpg"])
+    }
+
+    @Test func viewModelRejectsBBCTrackingImages() {
+        #expect(
+            RSSContentDetailViewModel.rssImageRejectionReason(
+                "https://a1.api.bbc.co.uk/hit.xiti?col=1"
+            ) == "tracking-pixel"
+        )
+        #expect(
+            RSSContentDetailViewModel.rssImageRejectionReason(
+                "https://sb.scorecardresearch.com/b?c2=19999701"
+            ) == "tracking-pixel"
+        )
+    }
+
     @Test func viewModelRejectsDirectoryImageURLWithoutQuery() {
         #expect(
             RSSContentDetailViewModel.rssImageRejectionReason(

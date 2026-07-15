@@ -180,7 +180,7 @@ struct DiscoverRSSFeedsUseCase {
     private func isKnownDirectFeedURL(host: String, path: String) -> Bool {
         if host == "plink.anyfeeder.com" {
             let pathComponents: [Substring] = path.split(separator: "/")
-            return pathComponents.count >= 3
+            return pathComponents.count >= 2
         }
 
         return false
