@@ -55,12 +55,26 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
             source: source,
             listRule: listRule
         )
+        if elements.isEmpty {
+            self.logEmptyListSelectorDiagnostics(
+                in: document,
+                source: source,
+                listRule: listRule
+            )
+        }
         let items: [ContentItem] = try self.contentItems(
             from: elements,
             source: source,
             listRule: listRule,
             context: nil
         )
+        if items.isEmpty == false {
+            self.logListSampleItems(
+                elements: elements,
+                source: source,
+                listRule: listRule
+            )
+        }
 
         RuleExecutionLogger.log(
             stage: .list,
@@ -459,6 +473,15 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
         pageURL: String,
         context: ListContext?
     ) throws -> [ChapterLink] {
+        RuleExecutionLogger.log(
+            stage: .detail,
+            event: "document-parse-attempt",
+            fields: [
+                "source": source.id,
+                "pageURL": pageURL,
+                "htmlLength": html.count
+            ]
+        )
         let document: Document = try SwiftSoup.parse(html, pageURL)
 
         if let chapterRule: ChapterRule = detailRule.chapterRule {
@@ -494,6 +517,15 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
                     "elementCount": elements.count
                 ]
             )
+            if elements.isEmpty {
+                self.logEmptyChapterSelectorDiagnostics(
+                    in: document,
+                    source: source,
+                    detailRule: detailRule,
+                    chapterItemSelector: chapterRule.item.selector ?? "nil",
+                    pageURL: pageURL
+                )
+            }
 
             return try self.chapterLinks(
                 from: elements,
@@ -530,6 +562,15 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
                 "elementCount": elements.count
             ]
         )
+        if elements.isEmpty {
+            self.logEmptyChapterSelectorDiagnostics(
+                in: document,
+                source: source,
+                detailRule: detailRule,
+                chapterItemSelector: chapterItemSelector,
+                pageURL: pageURL
+            )
+        }
 
         let titleRule: ExtractRule = ExtractRule(
             selector: chapterTitleExpression,
@@ -922,13 +963,16 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
     ) throws -> [Element] {
         if let chapterContainerSelector: String = detailRule.chapterContainer {
             let containers: [Element] = try document.select(chapterContainerSelector).array()
+            var elements: [Element] = []
 
             for container: Element in containers {
                 let scopedElements: [Element] = try container.select(chapterItemSelector).array()
 
-                if scopedElements.isEmpty == false {
-                    return scopedElements
-                }
+                elements.append(contentsOf: scopedElements)
+            }
+
+            if elements.isEmpty == false {
+                return elements
             }
 
             #if DEBUG
@@ -942,6 +986,74 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
         }
 
         return try document.select(chapterItemSelector).array()
+    }
+
+    private func logEmptyChapterSelectorDiagnostics(
+        in document: Document,
+        source: Source,
+        detailRule: DetailRule,
+        chapterItemSelector: String,
+        pageURL: String
+    ) {
+        RuleExecutionLogger.log(
+            stage: .detail,
+            event: "chapter-selector-empty-diagnostics",
+            fields: [
+                "source": source.id,
+                "pageURL": pageURL,
+                "chapterContainer": detailRule.chapterContainer ?? detailRule.chapterRule?.section?.container.selector ?? "nil",
+                "chapterItem": chapterItemSelector,
+                "topClasses": self.topClassSummary(in: document).joined(separator: "|"),
+                "chapterLinkSamples": self.chapterLinkSamples(in: document).joined(separator: "|")
+            ]
+        )
+    }
+
+    private func chapterLinkSamples(in element: Element) -> [String] {
+        let links: [Element] = (try? element.select("a[href]").array()) ?? []
+        var samples: [String] = []
+        var seen: Set<String> = Set<String>()
+
+        for link: Element in links {
+            guard samples.count < 12 else {
+                break
+            }
+
+            let href: String = ((try? link.attr("href")) ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let text: String = ((try? link.text()) ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let title: String = ((try? link.attr("title")) ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let label: String = text.isEmpty ? title : text
+
+            guard href.isEmpty == false,
+                  href.hasPrefix("#") == false,
+                  self.looksLikeChapterHref(href) || self.looksLikeChapterTitle(label) else {
+                continue
+            }
+
+            let sample: String = label.isEmpty
+                ? self.shortPreview(href, limit: 120)
+                : "\(self.shortPreview(label, limit: 50))=>\(self.shortPreview(href, limit: 120))"
+            guard seen.contains(sample) == false else {
+                continue
+            }
+
+            seen.insert(sample)
+            samples.append(sample)
+        }
+
+        return samples
+    }
+
+    private func looksLikeChapterHref(_ href: String) -> Bool {
+        let lowercaseHref: String = href.lowercased()
+        return lowercaseHref.contains("/chapter")
+            || lowercaseHref.contains("-chapter-")
+            || lowercaseHref.contains("/chapters/")
+            || lowercaseHref.contains("/read/")
+            || lowercaseHref.contains("/reader/")
     }
 
     private func fallbackChapterElements(
@@ -1451,6 +1563,251 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
         }
 
         return elements
+    }
+
+    private func logListSampleItems(
+        elements: [Element],
+        source: Source,
+        listRule: ListRule
+    ) {
+        RuleExecutionLogger.log(
+            stage: .list,
+            event: "sample-items",
+            fields: [
+                "source": source.id,
+                "listRule": listRule.id ?? "nil",
+                "selector": listRule.item,
+                "sampleItems": self.listSampleItems(
+                    elements: elements,
+                    source: source,
+                    listRule: listRule
+                ).joined(separator: " || ")
+            ]
+        )
+    }
+
+    private func listSampleItems(
+        elements: [Element],
+        source: Source,
+        listRule: ListRule
+    ) -> [String] {
+        var samples: [String] = []
+
+        for (index, element) in elements.enumerated() {
+            guard samples.count < 3 else {
+                break
+            }
+
+            let title: String = ((try? self.extract(element: element, expression: listRule.title)) ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let link: String = ((try? self.extract(element: element, expression: listRule.link)) ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard title.isEmpty == false,
+                  link.isEmpty == false else {
+                continue
+            }
+
+            let detailURL: String = self.urlResolver.absoluteString(link, baseURLString: source.baseURL)
+            samples.append(
+                [
+                    "index=\(index)",
+                    "itemClass=\(self.itemClassSample(element))",
+                    "title=\(self.shortPreview(title, limit: 60))",
+                    "link=\(self.shortPreview(detailURL, limit: 120))",
+                    "coverAttrs=\(self.coverAttributeSample(element))",
+                    "latestCandidates=\(self.latestTextCandidateSample(element, listRule: listRule))"
+                ].joined(separator: ";")
+            )
+        }
+
+        return samples
+    }
+
+    private func itemClassSample(_ element: Element) -> String {
+        let className: String = ((try? element.className()) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return className.isEmpty ? "nil" : self.shortPreview(className, limit: 80)
+    }
+
+    private func coverAttributeSample(_ element: Element) -> String {
+        guard let image: Element = try? element.select("img").first() else {
+            return "nil"
+        }
+
+        let attrs: [String] = [
+            "src",
+            "data-src",
+            "data-original",
+            "data-lazy-src",
+            "data-manga-src"
+        ].compactMap { attributeName in
+            let value: String = ((try? image.attr(attributeName)) ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard value.isEmpty == false else {
+                return nil
+            }
+
+            return "\(attributeName)=\(self.shortPreview(value, limit: 80))"
+        }
+
+        return attrs.isEmpty ? "nil" : attrs.joined(separator: ",")
+    }
+
+    private func latestTextCandidateSample(_ element: Element, listRule: ListRule) -> String {
+        var candidates: [String] = []
+        if let latestText: String = try? self.optionalExtract(
+            element: element,
+            expression: listRule.latestText,
+            baseURLString: nil
+        ) {
+            candidates.append("rule=\(self.shortPreview(latestText, limit: 60))")
+        }
+
+        let selectors: [String] = [
+            ".mg_chapter",
+            ".chapter",
+            ".latest",
+            ".latest-chap",
+            ".post-on",
+            ".chapter_count",
+            "time"
+        ]
+        for selector: String in selectors {
+            guard candidates.count < 4,
+                  let text: String = self.firstText(in: element, selector: selector) else {
+                continue
+            }
+
+            candidates.append("\(selector)=\(self.shortPreview(text, limit: 60))")
+        }
+
+        return candidates.isEmpty ? "nil" : candidates.joined(separator: ",")
+    }
+
+    private func firstText(in element: Element, selector: String) -> String? {
+        guard let selectedElement: Element = try? element.select(selector).first() else {
+            return nil
+        }
+
+        let text: String = ((try? selectedElement.text()) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty ? nil : text
+    }
+
+    private func logEmptyListSelectorDiagnostics(
+        in element: Element,
+        source: Source,
+        listRule: ListRule
+    ) {
+        RuleExecutionLogger.log(
+            stage: .list,
+            event: "item-selector-empty-diagnostics",
+            fields: [
+                "source": source.id,
+                "listRule": listRule.id ?? "nil",
+                "selector": listRule.item,
+                "topClasses": self.topClassSummary(in: element).joined(separator: "|"),
+                "linkSamples": self.listLinkSamples(in: element).joined(separator: "|")
+            ]
+        )
+    }
+
+    private func topClassSummary(in element: Element) -> [String] {
+        let elementsWithClass: [Element] = (try? element.select("[class]").array()) ?? []
+        var countsByClass: [String: Int] = [:]
+
+        for selectedElement: Element in elementsWithClass {
+            let rawClassName: String = (try? selectedElement.className()) ?? ""
+            let classNames: [String] = rawClassName
+                .split(separator: " ")
+                .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { $0.isEmpty == false }
+
+            for className: String in classNames {
+                countsByClass[className, default: 0] += 1
+            }
+        }
+
+        return countsByClass
+            .sorted { left, right in
+                if left.value == right.value {
+                    return left.key < right.key
+                }
+                return left.value > right.value
+            }
+            .prefix(16)
+            .map { className, count in
+                return "\(className):\(count)"
+            }
+    }
+
+    private func listLinkSamples(in element: Element) -> [String] {
+        let links: [Element] = (try? element.select("a[href]").array()) ?? []
+        let detailSignals: [String] = [
+            "/manga/",
+            "/comic/",
+            "/comics/",
+            "/info/",
+            "/series/",
+            "/title/"
+        ]
+        var samples: [String] = []
+        var seen: Set<String> = Set<String>()
+
+        for link: Element in links {
+            guard samples.count < 8 else {
+                break
+            }
+
+            let href: String = ((try? link.attr("href")) ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard href.isEmpty == false,
+                  href.hasPrefix("#") == false,
+                  detailSignals.contains(where: { signal in href.localizedCaseInsensitiveContains(signal) }) else {
+                continue
+            }
+
+            let title: String = ((try? link.text()) ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let sample: String = title.isEmpty
+                ? href
+                : "\(self.shortPreview(title, limit: 40))=>\(href)"
+
+            guard seen.contains(sample) == false else {
+                continue
+            }
+
+            seen.insert(sample)
+            samples.append(sample)
+        }
+
+        if samples.isEmpty {
+            for link: Element in links {
+                guard samples.count < 8 else {
+                    break
+                }
+
+                let href: String = ((try? link.attr("href")) ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                let title: String = ((try? link.text()) ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                guard href.isEmpty == false,
+                      href.hasPrefix("#") == false,
+                      title.isEmpty == false else {
+                    continue
+                }
+
+                let sample: String = "\(self.shortPreview(title, limit: 40))=>\(href)"
+                guard seen.contains(sample) == false else {
+                    continue
+                }
+
+                seen.insert(sample)
+                samples.append(sample)
+            }
+        }
+
+        return samples
     }
 
     private func topLevelSelectorParts(_ selector: String) -> [String] {

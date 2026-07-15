@@ -66,7 +66,7 @@ final class AlamofireHTTPClient: HTTPClient {
             "accept=\(urlRequest.value(forHTTPHeaderField: "Accept") ?? "nil") " +
             "contentType=\(dataResponse.response?.value(forHTTPHeaderField: "Content-Type") ?? "nil") " +
             "bytes=\(dataResponse.data.count) " +
-            "preview=\(self.debugPreview(from: dataResponse.data))"
+            "preview=\(self.debugPreview(from: dataResponse.data, url: url))"
         )
         #endif
 
@@ -210,7 +210,11 @@ final class AlamofireHTTPClient: HTTPClient {
         return self.usesExplicitHeadersOnly(url: url, request: request) ? "explicit" : "browser"
     }
 
-    private func debugPreview(from data: Data) -> String {
+    private func debugPreview(from data: Data, url: URL) -> String {
+        if self.shouldRedactDebugPreview(for: url) {
+            return "redacted-catalog-api"
+        }
+
         let raw: String
         if let string: String = String(data: data.prefix(160), encoding: .utf8) {
             raw = string
@@ -223,6 +227,11 @@ final class AlamofireHTTPClient: HTTPClient {
             .replacingOccurrences(of: "\r", with: " ")
             .replacingOccurrences(of: "\t", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func shouldRedactDebugPreview(for url: URL) -> Bool {
+        return APIRequestHeaders.isManagedAPIURL(url)
+            && url.path == "/catalog/sources"
     }
 
     private func isAntiBotData(_ data: Data) -> Bool {

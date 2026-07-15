@@ -37,8 +37,10 @@ final class WKWebViewHTMLLoader: RenderedPageContentLoader {
 @MainActor
 private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
     private enum Timing {
-        static let timeoutNanoseconds: UInt64 = 12_000_000_000
-        static let timeoutSeconds: Double = 12
+        static let defaultTimeoutNanoseconds: UInt64 = 12_000_000_000
+        static let defaultTimeoutSeconds: Double = 12
+        static let autoScrollTimeoutNanoseconds: UInt64 = 24_000_000_000
+        static let autoScrollTimeoutSeconds: Double = 24
         static let earlySnapshotInitialDelayNanoseconds: UInt64 = 1_200_000_000
         static let earlySnapshotIntervalNanoseconds: UInt64 = 500_000_000
         static let earlySnapshotAttempts: Int = 16
@@ -149,17 +151,31 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
     }
 
     private func startTimeout() {
+        let timeoutNanoseconds: UInt64 = self.timeoutNanoseconds
+        let timeoutSeconds: Double = self.timeoutSeconds
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: Timing.timeoutNanoseconds)
+            try? await Task.sleep(nanoseconds: timeoutNanoseconds)
             self.finish(
                 .failure(
                     WKWebViewHTMLLoaderError.timedOut(
                         url: self.url,
-                        seconds: Timing.timeoutSeconds
+                        seconds: timeoutSeconds
                     )
                 )
             )
         }
+    }
+
+    private var timeoutNanoseconds: UInt64 {
+        return self.request?.autoScroll == true
+            ? Timing.autoScrollTimeoutNanoseconds
+            : Timing.defaultTimeoutNanoseconds
+    }
+
+    private var timeoutSeconds: Double {
+        return self.request?.autoScroll == true
+            ? Timing.autoScrollTimeoutSeconds
+            : Timing.defaultTimeoutSeconds
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation?, withError error: Error) {
