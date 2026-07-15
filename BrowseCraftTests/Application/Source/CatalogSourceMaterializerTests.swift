@@ -5,6 +5,70 @@ import BrowseCraftRulesKit
 @testable import BrowseCraft
 
 struct CatalogSourceMaterializerTests {
+    @Test func materializesComicRuleWithEmptyChapterAPIRequestBody() throws {
+        let materializer: CatalogSourceMaterializer = CatalogSourceMaterializer()
+        let catalogSource: BrowseCraftCatalogSource = BrowseCraftCatalogSource(
+            id: "komiic",
+            name: "Komiic",
+            baseURL: "https://komiic.com",
+            kind: .comic,
+            ruleJSON: """
+            {
+              "version": 1,
+              "name": "Komiic",
+              "baseUrl": "https://komiic.com",
+              "list": {
+                "id": "latest",
+                "url": "https://komiic.com/latest",
+                "item": "a[href*='/comic/']",
+                "title": "this",
+                "link": "this@href",
+                "cover": "img@src",
+                "type": "comic"
+              },
+              "detail": {
+                "id": "detail",
+                "title": "h1",
+                "cover": "img@src",
+                "chapterContainer": "body",
+                "chapterItem": "a[href*='/chapter/']",
+                "chapterTitle": "this",
+                "chapterLink": "this@href",
+                "chapterAPI": {
+                  "url": "https://komiic.com/api/query",
+                  "request": {
+                    "method": "POST",
+                    "body": {}
+                  },
+                  "itemPath": "data.chapters[]",
+                  "titlePath": "title",
+                  "urlPath": "url",
+                  "preferAPI": true
+                }
+              },
+              "gallery": {
+                "id": "reader",
+                "imageItem": "img",
+                "imageUrl": "this@src"
+              }
+            }
+            """
+        )
+
+        let source: Source = try materializer.source(
+            from: catalogSource,
+            createdAt: Date(timeIntervalSince1970: 10),
+            updatedAt: Date(timeIntervalSince1970: 20)
+        )
+
+        guard case .comic(let configuration) = source.configuration else {
+            Issue.record("Expected catalog source to materialize as a comic source.")
+            return
+        }
+
+        #expect(configuration.rule.name == "Komiic")
+    }
+
     @Test func materializesVideoSourceWithObjectRoutePattern() throws {
         let materializer: CatalogSourceMaterializer = CatalogSourceMaterializer()
         let catalogSource: BrowseCraftCatalogSource = BrowseCraftCatalogSource(

@@ -86,6 +86,28 @@ struct ComicRuleSourceChapterLoader {
             )
         }
 
+        if let detailRule: DetailRule = resolvedRule.primaryDetailRule,
+           self.shouldPreferDetailAPI(detailRule: detailRule),
+           let apiDetail: ChapterDetailContent = try await self.loadDetailAPI(
+            source: source,
+            item: item,
+            detailRule: detailRule
+           ) {
+            RuleExecutionLogger.log(
+                stage: .detail,
+                event: "preferred-detail-api-output",
+                fields: [
+                    "source": source.id,
+                    "item": item.id,
+                    "detailURL": item.detailURL,
+                    "count": apiDetail.chapters.count,
+                    "firstURL": apiDetail.chapters.first?.url ?? "nil"
+                ]
+            )
+
+            return apiDetail
+        }
+
         let detailHTML: String = try await self.pageContentLoader.getString(
             from: detailURL,
             request: resolvedRule.primaryDetailRequest
@@ -176,6 +198,10 @@ struct ComicRuleSourceChapterLoader {
         return apiRule.preferAPI == true || parsedChapters.isEmpty || self.hasInvalidChapterURLs(parsedChapters)
     }
 
+    private func shouldPreferDetailAPI(detailRule: DetailRule) -> Bool {
+        return detailRule.chapterAPI?.preferAPI == true
+    }
+
     private func loadDetailAPI(
         source: Source,
         item: ContentItem,
@@ -185,7 +211,7 @@ struct ComicRuleSourceChapterLoader {
             return nil
         }
 
-        let apiURLString: String = self.replacingTemplatePlaceholders(
+        let apiURLString: String = ComicRuleAPIResolver.replacingTemplatePlaceholders(
             in: apiRule.url,
             source: source,
             item: item,
@@ -212,20 +238,26 @@ struct ComicRuleSourceChapterLoader {
             ]
         )
 
+        let request: RequestConfig? = self.detailAPIRequest(
+            apiRule: apiRule,
+            detailRule: detailRule,
+            source: source,
+            item: item
+        )
         let json: String = try await self.pageContentLoader.getString(
             from: apiURL,
-            request: apiRule.request ?? detailRule.request
+            request: request
         )
         let jsonObject: Any = try JSONSerialization.jsonObject(with: Data(json.utf8))
-        let itemObjects: [Any] = self.jsonValues(at: apiRule.itemPath, in: jsonObject)
+        let itemObjects: [Any] = ComicRuleAPIResolver.jsonValues(at: apiRule.itemPath, in: jsonObject)
 
         var chapters: [ChapterLink] = []
         var sortableChapters: [(chapter: ChapterLink, order: Double?)] = []
         var seenURLs: Set<String> = Set<String>()
 
         for itemObject: Any in itemObjects {
-            guard let title: String = self.stringValue(
-                self.firstJSONValue(at: apiRule.titlePath, in: itemObject)
+            guard let title: String = ComicRuleAPIResolver.stringValue(
+                ComicRuleAPIResolver.firstJSONValue(at: apiRule.titlePath, in: itemObject)
             )?.trimmingCharacters(in: .whitespacesAndNewlines),
                   title.isEmpty == false,
                   let chapterURL: String = self.chapterURL(
@@ -243,7 +275,9 @@ struct ComicRuleSourceChapterLoader {
             seenURLs.insert(chapterURL)
             let chapter: ChapterLink = ChapterLink(title: title, url: chapterURL)
             let order: Double? = apiRule.orderPath.flatMap { path in
-                return self.doubleValue(self.firstJSONValue(at: path, in: itemObject))
+                return ComicRuleAPIResolver.doubleValue(
+                    ComicRuleAPIResolver.firstJSONValue(at: path, in: itemObject)
+                )
             }
             chapters.append(chapter)
             sortableChapters.append((chapter: chapter, order: order))
@@ -252,7 +286,7 @@ struct ComicRuleSourceChapterLoader {
         let sortedChapters: [ChapterLink] = self.sortedAPIChapters(sortableChapters, sort: apiRule.sort)
         let outputChapters: [ChapterLink] = sortedChapters.isEmpty ? chapters : sortedChapters
         let description: String? = apiRule.descriptionPath.flatMap { path in
-            return self.stringValue(self.firstJSONValue(at: path, in: jsonObject))?
+            return ComicRuleAPIResolver.stringValue(ComicRuleAPIResolver.firstJSONValue(at: path, in: jsonObject))?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
@@ -278,6 +312,23 @@ struct ComicRuleSourceChapterLoader {
         )
     }
 
+    private func detailAPIRequest(
+        apiRule: DetailChapterAPIRule,
+        detailRule: DetailRule,
+        source: Source,
+        item: ContentItem
+    ) -> RequestConfig? {
+        guard let request: RequestConfig = apiRule.request ?? detailRule.request else {
+            return nil
+        }
+
+        return ComicRuleAPIResolver.request(
+            from: request,
+            source: source,
+            item: item
+        )
+    }
+
     private func chapterURL(
         apiRule: DetailChapterAPIRule,
         source: Source,
@@ -287,7 +338,7 @@ struct ComicRuleSourceChapterLoader {
     ) -> String? {
         if let urlTemplate: String = apiRule.urlTemplate,
            urlTemplate.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            return self.replacingTemplatePlaceholders(
+            return ComicRuleAPIResolver.replacingTemplatePlaceholders(
                 in: urlTemplate,
                 source: source,
                 item: item,
@@ -297,7 +348,9 @@ struct ComicRuleSourceChapterLoader {
         }
 
         guard let urlPath: String = apiRule.urlPath,
-              let rawURL: String = self.stringValue(self.firstJSONValue(at: urlPath, in: currentJSON)) else {
+              let rawURL: String = ComicRuleAPIResolver.stringValue(
+                ComicRuleAPIResolver.firstJSONValue(at: urlPath, in: currentJSON)
+              ) else {
             return nil
         }
 
@@ -349,150 +402,6 @@ struct ComicRuleSourceChapterLoader {
             || lowercasedURL.hasSuffix("/0")
     }
 
-    private func replacingTemplatePlaceholders(
-        in template: String,
-        source: Source,
-        item: ContentItem,
-        rootJSON: Any?,
-        currentJSON: Any?
-    ) -> String {
-        var output: String = template
-        let pattern: String = #"\{([^{}]+)\}"#
-        guard let regex: NSRegularExpression = try? NSRegularExpression(pattern: pattern) else {
-            return output
-        }
-
-        let matches: [NSTextCheckingResult] = regex.matches(
-            in: template,
-            range: NSRange(template.startIndex..<template.endIndex, in: template)
-        )
-
-        for match: NSTextCheckingResult in matches.reversed() {
-            guard match.numberOfRanges == 2,
-                  let fullRange: Range<String.Index> = Range(match.range(at: 0), in: output),
-                  let tokenRange: Range<String.Index> = Range(match.range(at: 1), in: template) else {
-                continue
-            }
-
-            let token: String = String(template[tokenRange])
-            let replacement: String = self.templateValue(
-                token: token,
-                source: source,
-                item: item,
-                rootJSON: rootJSON,
-                currentJSON: currentJSON
-            ) ?? ""
-            output.replaceSubrange(fullRange, with: replacement)
-        }
-
-        return output
-    }
-
-    private func templateValue(
-        token: String,
-        source: Source,
-        item: ContentItem,
-        rootJSON: Any?,
-        currentJSON: Any?
-    ) -> String? {
-        switch token {
-        case "source.id":
-            return source.id
-        case "source.baseURL", "source.baseUrl":
-            return source.baseURL
-        case "item.id":
-            return item.id
-        case "item.title":
-            return item.title
-        case "detailURL", "item.detailURL":
-            return item.detailURL
-        case "detailSlug", "item.detailSlug":
-            return self.detailSlug(from: item.detailURL)
-        case "timestamp":
-            return String(Int(Date().timeIntervalSince1970))
-        default:
-            if let currentJSON: Any = currentJSON,
-               let value: String = self.stringValue(self.firstJSONValue(at: token, in: currentJSON)) {
-                return value
-            }
-
-            if let rootJSON: Any = rootJSON,
-               let value: String = self.stringValue(self.firstJSONValue(at: token, in: rootJSON)) {
-                return value
-            }
-
-            return nil
-        }
-    }
-
-    private func detailSlug(from detailURL: String) -> String? {
-        guard let url: URL = URL(string: detailURL) else {
-            return nil
-        }
-
-        let lastPathComponent: String = url.lastPathComponent
-        if let extensionRange: Range<String.Index> = lastPathComponent.range(of: ".", options: .backwards) {
-            return String(lastPathComponent[..<extensionRange.lowerBound])
-        }
-
-        return lastPathComponent.isEmpty ? nil : lastPathComponent
-    }
-
-    private func firstJSONValue(at path: String, in object: Any) -> Any? {
-        return self.jsonValues(at: path, in: object).first
-    }
-
-    private func jsonValues(at path: String, in object: Any) -> [Any] {
-        let segments: [String] = path
-            .split(separator: ".")
-            .map(String.init)
-            .filter { segment in segment.isEmpty == false }
-
-        return segments.reduce([object]) { values, segment in
-            let shouldFlattenArray: Bool = segment.hasSuffix("[]")
-            let key: String = shouldFlattenArray ? String(segment.dropLast(2)) : segment
-            var nextValues: [Any] = []
-
-            for value: Any in values {
-                if key.isEmpty {
-                    nextValues.append(value)
-                } else if let dictionary: [String: Any] = value as? [String: Any],
-                          let child: Any = dictionary[key] {
-                    nextValues.append(child)
-                }
-            }
-
-            if shouldFlattenArray {
-                return nextValues.flatMap { value in
-                    return value as? [Any] ?? []
-                }
-            }
-
-            return nextValues
-        }
-    }
-
-    private func stringValue(_ value: Any?) -> String? {
-        switch value {
-        case let string as String:
-            return string
-        case let number as NSNumber:
-            return number.stringValue
-        default:
-            return nil
-        }
-    }
-
-    private func doubleValue(_ value: Any?) -> Double? {
-        switch value {
-        case let number as NSNumber:
-            return number.doubleValue
-        case let string as String:
-            return Double(string)
-        default:
-            return nil
-        }
-    }
 }
 
 func shouldTreatDetailURLAsChapter(resolvedRule: ResolvedSiteRule, item: ContentItem) -> Bool {

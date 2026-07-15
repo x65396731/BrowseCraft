@@ -10,7 +10,8 @@ enum ImageRequestFactory {
     static func makeRequest(
         urlString: String,
         refererURLString: String? = nil,
-        requestConfig: RequestConfig? = nil
+        requestConfig: RequestConfig? = nil,
+        additionalHeaders: [String: String]? = nil
     ) -> ImageRequest? {
         guard let url: URL = URL(string: urlString) else {
             return nil
@@ -31,6 +32,7 @@ enum ImageRequestFactory {
             url: url,
             request: requestConfig
         )
+        headers = BrowserRequestHeaders.applyingOverrides(additionalHeaders, to: headers)
 
         headers.forEach { key, value in
             urlRequest.setValue(value, forHTTPHeaderField: key)
@@ -44,6 +46,7 @@ enum ImageRequestFactory {
                 "referer": refererURLString ?? "nil",
                 "requestScope": requestConfig?.scope?.rawValue ?? "default",
                 "headerCount": headers.count,
+                "additionalHeaderCount": additionalHeaders?.count ?? 0,
                 "hasReferer": headers["Referer"] != nil,
                 "hasCookie": headers["Cookie"] != nil
             ]

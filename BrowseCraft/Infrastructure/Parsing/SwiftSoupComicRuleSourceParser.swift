@@ -62,11 +62,16 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
                 listRule: listRule
             )
         }
+        let embeddedCoverURLMap: [String: String] = self.embeddedCoverURLMap(
+            html: html,
+            baseURLString: source.baseURL
+        )
         let items: [ContentItem] = try self.contentItems(
             from: elements,
             source: source,
             listRule: listRule,
-            context: nil
+            context: nil,
+            embeddedCoverURLMap: embeddedCoverURLMap
         )
         if items.isEmpty == false {
             self.logListSampleItems(
@@ -114,6 +119,10 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
         )
         var items: [ContentItem] = []
         var seenItemIDs: Set<String> = Set<String>()
+        let embeddedCoverURLMap: [String: String] = self.embeddedCoverURLMap(
+            html: html,
+            baseURLString: source.baseURL
+        )
 
         for section: SectionRule in sections {
             let containers: [Element] = try self.selectedElements(
@@ -138,7 +147,8 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
                     from: elements,
                     source: source,
                     listRule: listRule,
-                    context: sectionContext
+                    context: sectionContext,
+                    embeddedCoverURLMap: embeddedCoverURLMap
                 )
 
                 for item: ContentItem in sectionItems where seenItemIDs.contains(item.id) == false {
@@ -206,7 +216,8 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
         from elements: [Element],
         source: Source,
         listRule: ListRule,
-        context: ListContext?
+        context: ListContext?,
+        embeddedCoverURLMap: [String: String]
     ) throws -> [ContentItem] {
         var items: [ContentItem] = []
         var droppedCount: Int = 0
@@ -272,6 +283,8 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
                 listRule: listRule,
                 index: index
             )
+            let resolvedCoverURL: String? = coverURL
+                ?? embeddedCoverURLMap[self.normalizedURLKey(detailURL)]
             let latestText: String? = self.optionalListField(
                 element: element,
                 expression: listRule.latestText,
@@ -287,7 +300,7 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
                 sourceId: source.id,
                 title: title,
                 detailURL: detailURL,
-                coverURL: coverURL,
+                coverURL: resolvedCoverURL,
                 type: listRule.type,
                 latestText: latestText,
                 updatedAt: Date(),
@@ -325,11 +338,18 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
         index: Int
     ) -> String? {
         do {
-            return try self.optionalExtract(
+            let value: String? = try self.optionalExtract(
                 element: element,
                 expression: expression,
                 baseURLString: baseURLString
             )
+            if value == nil,
+               field == "cover",
+               let baseURLString: String = baseURLString {
+                return try self.fallbackCoverURL(in: element, baseURLString: baseURLString)
+            }
+
+            return value
         } catch {
             RuleExecutionLogger.log(
                 stage: .list,
@@ -345,6 +365,195 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
                 ]
             )
             return nil
+        }
+    }
+
+    private func fallbackCoverURL(in element: Element, baseURLString: String) throws -> String? {
+        let selector: String = [
+            "img[data-original]",
+            "img[data-src]",
+            "img[data-lazy-src]",
+            "img[data-srcset]",
+            "img[srcset]",
+            "img[src]",
+            "source[data-srcset]",
+            "source[srcset]",
+            "[style*=\"background-image\"]",
+            "[style*=\"url(\"]"
+        ].joined(separator: ",")
+
+        for selectedElement: Element in try element.select(selector).array() {
+            guard let rawURLString: String = try self.directCoverURLString(from: selectedElement) else {
+                continue
+            }
+
+            return self.urlResolver.absoluteString(rawURLString, baseURLString: baseURLString)
+        }
+
+        return nil
+    }
+
+    private func directCoverURLString(from element: Element) throws -> String? {
+        let directAttributes: [String] = [
+            "data-original",
+            "data-src",
+            "data-lazy-src",
+            "data-thumb",
+            "data-image",
+            "data-img",
+            "data-poster",
+            "poster",
+            "content",
+            "src"
+        ]
+
+        for attributeName: String in directAttributes {
+            let value: String = try element.attr(attributeName)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if self.isUsableCoverURLString(value) {
+                return value
+            }
+        }
+
+        if let value: String = self.firstSrcsetURL(try element.attr("data-srcset")) {
+            return value
+        }
+
+        if let value: String = self.firstSrcsetURL(try element.attr("srcset")) {
+            return value
+        }
+
+        return self.firstStyleURL(try element.attr("style"))
+    }
+
+    private func firstSrcsetURL(_ srcset: String) -> String? {
+        return srcset
+            .split(separator: ",")
+            .lazy
+            .compactMap { candidate -> String? in
+                let value: String? = candidate
+                    .split(whereSeparator: { character in
+                        return character.isWhitespace
+                    })
+                    .first
+                    .map(String.init)?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+
+                guard let value: String,
+                      self.isUsableCoverURLString(value) else {
+                    return nil
+                }
+
+                return value
+            }
+            .first
+    }
+
+    private func firstStyleURL(_ style: String) -> String? {
+        guard let regex: NSRegularExpression = try? NSRegularExpression(
+            pattern: #"url\((?:'|")?([^)'"]+)(?:'|")?\)"#
+        ) else {
+            return nil
+        }
+
+        let range: NSRange = NSRange(style.startIndex..<style.endIndex, in: style)
+        guard let match: NSTextCheckingResult = regex.firstMatch(in: style, range: range),
+              match.numberOfRanges > 1,
+              let matchRange: Range<String.Index> = Range(match.range(at: 1), in: style) else {
+            return nil
+        }
+
+        let value: String = String(style[matchRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+        return self.isUsableCoverURLString(value) ? value : nil
+    }
+
+    private func isUsableCoverURLString(_ value: String) -> Bool {
+        return value.isEmpty == false
+            && value.hasPrefix("data:") == false
+            && value.hasPrefix("blob:") == false
+            && value != "#"
+    }
+
+    private func embeddedCoverURLMap(html: String, baseURLString: String) -> [String: String] {
+        let normalizedHTML: String = self.normalizedEmbeddedHTML(html)
+        var map: [String: String] = [:]
+
+        for match: [String] in self.regexMatches(in: normalizedHTML, pattern: self.embeddedURLThenImagePattern()) where match.count >= 3 {
+            if let detailURL: String = self.absoluteEmbeddedURLString(match[1], baseURLString: baseURLString),
+               let coverURL: String = self.absoluteEmbeddedURLString(match[2], baseURLString: baseURLString) {
+                map[self.normalizedURLKey(detailURL)] = coverURL
+            }
+        }
+
+        for match: [String] in self.regexMatches(in: normalizedHTML, pattern: self.embeddedImageThenURLPattern()) where match.count >= 3 {
+            if let coverURL: String = self.absoluteEmbeddedURLString(match[1], baseURLString: baseURLString),
+               let detailURL: String = self.absoluteEmbeddedURLString(match[2], baseURLString: baseURLString),
+               map[self.normalizedURLKey(detailURL)] == nil {
+                map[self.normalizedURLKey(detailURL)] = coverURL
+            }
+        }
+
+        return map
+    }
+
+    private func embeddedURLThenImagePattern() -> String {
+        return #""(?:url|href|link|path|detailURL|detailUrl|detail_url|canonicalUrl|canonicalURL)"\s*:\s*"([^"]+)".{0,1600}?"(?:imageUrl|imageURL|image_url|coverUrl|coverURL|cover_url|thumbnailUrl|thumbnailURL|thumbnail_url|posterUrl|posterURL|poster_url)"\s*:\s*"([^"]+)""#
+    }
+
+    private func embeddedImageThenURLPattern() -> String {
+        return #""(?:imageUrl|imageURL|image_url|coverUrl|coverURL|cover_url|thumbnailUrl|thumbnailURL|thumbnail_url|posterUrl|posterURL|poster_url)"\s*:\s*"([^"]+)".{0,1600}?"(?:url|href|link|path|detailURL|detailUrl|detail_url|canonicalUrl|canonicalURL)"\s*:\s*"([^"]+)""#
+    }
+
+    private func normalizedEmbeddedHTML(_ html: String) -> String {
+        return html
+            .replacingOccurrences(of: "\\/", with: "/")
+            .replacingOccurrences(of: "\\u002F", with: "/")
+            .replacingOccurrences(of: "\\u0026", with: "&")
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#34;", with: "\"")
+    }
+
+    private func absoluteEmbeddedURLString(_ rawValue: String, baseURLString: String) -> String? {
+        let value: String = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard self.isUsableCoverURLString(value),
+              value.hasPrefix("http://")
+                || value.hasPrefix("https://")
+                || value.hasPrefix("/")
+                || value.hasPrefix("//") else {
+            return nil
+        }
+
+        return self.urlResolver.absoluteString(value, baseURLString: baseURLString)
+    }
+
+    private func normalizedURLKey(_ value: String) -> String {
+        guard let components: URLComponents = URLComponents(string: value),
+              let scheme: String = components.scheme?.lowercased(),
+              let host: String = components.host?.lowercased() else {
+            return value.lowercased()
+        }
+
+        return "\(scheme)://\(host)\(components.path)"
+    }
+
+    private func regexMatches(in text: String, pattern: String) -> [[String]] {
+        guard let regex: NSRegularExpression = try? NSRegularExpression(
+            pattern: pattern,
+            options: [.dotMatchesLineSeparators]
+        ) else {
+            return []
+        }
+
+        let range: NSRange = NSRange(text.startIndex..<text.endIndex, in: text)
+        return regex.matches(in: text, range: range).map { match in
+            return (0..<match.numberOfRanges).compactMap { index -> String? in
+                guard let range: Range<String.Index> = Range(match.range(at: index), in: text) else {
+                    return nil
+                }
+
+                return String(text[range])
+            }
         }
     }
 
@@ -1186,6 +1395,10 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
             }
 
             let imageURL: String = self.urlResolver.absoluteString(rawImageURL, baseURLString: pageURL)
+            guard self.isNativelyLoadableImageURL(imageURL) else {
+                continue
+            }
+
             pageImageURLs.append(imageURL)
         }
 
@@ -1233,6 +1446,17 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
             ),
             pageImageURLs: pageImageURLs
         )
+    }
+
+    private func isNativelyLoadableImageURL(_ urlString: String) -> Bool {
+        let normalizedURLString: String = urlString
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+
+        return normalizedURLString.hasPrefix("blob:") == false
+            && normalizedURLString.hasPrefix("data:") == false
+            && normalizedURLString.hasPrefix("about:") == false
+            && normalizedURLString.hasPrefix("javascript:") == false
     }
 
     /// 中文注释：optionalExtract 方法封装当前类型的一段业务或界面行为。
@@ -1630,24 +1854,41 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
     }
 
     private func coverAttributeSample(_ element: Element) -> String {
-        guard let image: Element = try? element.select("img").first() else {
-            return "nil"
-        }
-
-        let attrs: [String] = [
+        var attrs: [String] = []
+        if let image: Element = try? element.select("img").first() {
+            attrs = [
             "src",
             "data-src",
             "data-original",
             "data-lazy-src",
             "data-manga-src"
-        ].compactMap { attributeName in
-            let value: String = ((try? image.attr(attributeName)) ?? "")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            guard value.isEmpty == false else {
-                return nil
-            }
+            ].compactMap { attributeName in
+                let value: String = ((try? image.attr(attributeName)) ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                guard value.isEmpty == false else {
+                    return nil
+                }
 
-            return "\(attributeName)=\(self.shortPreview(value, limit: 80))"
+                return "\(attributeName)=\(self.shortPreview(value, limit: 80))"
+            }
+        }
+
+        if attrs.isEmpty,
+           let styledElement: Element = try? element.select("[style*=\"url(\"]").first() {
+            let style: String = ((try? styledElement.attr("style")) ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if style.isEmpty == false {
+                attrs.append("style=\(self.shortPreview(style, limit: 120))")
+            }
+        }
+
+        if attrs.isEmpty,
+           let styledElement: Element = try? element.select("[style*=\"background-image\"]").first() {
+            let style: String = ((try? styledElement.attr("style")) ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if style.isEmpty == false {
+                attrs.append("style=\(self.shortPreview(style, limit: 120))")
+            }
         }
 
         return attrs.isEmpty ? "nil" : attrs.joined(separator: ",")

@@ -39,6 +39,7 @@ typealias ItemLayout = BrowseCraftCore.ItemLayout
 typealias ChapterRule = BrowseCraftCore.ChapterRule
 typealias ChapterSort = BrowseCraftCore.ChapterSort
 typealias GalleryRule = BrowseCraftCore.GalleryRule
+typealias ReaderImageAPIRule = BrowseCraftCore.ReaderImageAPIRule
 typealias GalleryVariantRule = BrowseCraftCore.GalleryVariantRule
 typealias ResourceLinkRule = BrowseCraftCore.ResourceLinkRule
 typealias SearchRule = BrowseCraftCore.SearchRule

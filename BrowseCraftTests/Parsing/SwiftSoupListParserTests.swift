@@ -68,6 +68,55 @@ struct SwiftSoupListParserTests {
         #expect(items[0].coverURL == "https://example.test/images/xiachuiyan.jpg")
     }
 
+    @Test func legacyListCoverFallsBackToInlineBackgroundImage() throws {
+        let source: Source = Self.legacyListSource()
+        let parser: SwiftSoupComicRuleSourceParser = SwiftSoupComicRuleSourceParser(
+            urlResolver: URLResolvingService()
+        )
+
+        let items: [ContentItem] = try parser.parseList(
+            html: Self.listWithBackgroundCoverHTML,
+            source: source
+        )
+
+        #expect(items.count == 1)
+        #expect(items[0].title == "背景图作品")
+        #expect(items[0].detailURL == "https://example.test/info/background.html")
+        #expect(items[0].coverURL == "https://example.test/images/background.jpg")
+    }
+
+    @Test func legacyListCoverFallsBackToEmbeddedImageURLMap() throws {
+        let source: Source = Self.embeddedURLListSource()
+        let parser: SwiftSoupComicRuleSourceParser = SwiftSoupComicRuleSourceParser(
+            urlResolver: URLResolvingService()
+        )
+
+        let items: [ContentItem] = try parser.parseList(
+            html: Self.listWithEmbeddedCoverMapHTML,
+            source: source
+        )
+
+        #expect(items.count == 1)
+        #expect(items[0].title == "小栗子到我家")
+        #expect(items[0].detailURL == "https://example.test/comic/5571")
+        #expect(items[0].coverURL == "https://example.test/images/cover-5571.jpg")
+    }
+
+    @Test func legacyListCoverFallsBackToEmbeddedAbsoluteImageURLMap() throws {
+        let source: Source = Self.embeddedURLListSource()
+        let parser: SwiftSoupComicRuleSourceParser = SwiftSoupComicRuleSourceParser(
+            urlResolver: URLResolvingService()
+        )
+
+        let items: [ContentItem] = try parser.parseList(
+            html: Self.listWithEmbeddedAbsoluteCoverMapHTML,
+            source: source
+        )
+
+        #expect(items.count == 1)
+        #expect(items[0].coverURL == "https://img.example.test/cover-5571.jpg")
+    }
+
     private static let v2ListHTML: String = """
     <main>
       <article class="card" data-id="v2-1">
@@ -110,6 +159,44 @@ struct SwiftSoupListParserTests {
           </span>
         </li>
       </ul>
+    </main>
+    """
+
+    private static let listWithBackgroundCoverHTML: String = """
+    <main>
+      <ul class="list_con_li">
+        <li>
+          <a href="/info/background.html" class="comic_img">
+            <div class="v-img__img" style="background-image: url('/images/background.jpg');"></div>
+          </a>
+          <span class="comic_list_det">
+            <h3><a href="/info/background.html">背景图作品</a></h3>
+          </span>
+        </li>
+      </ul>
+    </main>
+    """
+
+    private static let listWithEmbeddedCoverMapHTML: String = """
+    <main>
+      <div class="comic-card-wrapper">
+        <a href="/comic/5571">小栗子到我家</a>
+        <span>连载19话</span>
+      </div>
+      <script>
+        window.__DATA__ = {"items":[{"url":"/comic/5571","title":"小栗子到我家","imageUrl":"/images/cover-5571.jpg"}]};
+      </script>
+    </main>
+    """
+
+    private static let listWithEmbeddedAbsoluteCoverMapHTML: String = """
+    <main>
+      <div class="comic-card-wrapper">
+        <a href="/comic/5571">小栗子到我家</a>
+      </div>
+      <script>
+        window.__DATA__ = {"items":[{"coverUrl":"https:\\/\\/img.example.test\\/cover-5571.jpg","title":"小栗子到我家","href":"\\/comic\\/5571"}]};
+      </script>
     </main>
     """
 
@@ -276,6 +363,54 @@ struct SwiftSoupListParserTests {
         return Source(
             id: "legacy-list-source",
             name: "Legacy List Source",
+            baseURL: "https://example.test",
+            type: .html,
+            rule: rule,
+            enabled: true,
+            createdAt: Date(timeIntervalSince1970: 0),
+            updatedAt: Date(timeIntervalSince1970: 0)
+        )
+    }
+
+    private static func embeddedURLListSource() -> Source {
+        let rule: SiteRule = SiteRule(
+            version: 1,
+            site: nil,
+            urlPatterns: nil,
+            pages: nil,
+            ruleSets: nil,
+            sharedRequest: nil,
+            flags: nil,
+            name: "Embedded URL Source",
+            baseUrl: "https://example.test",
+            list: ListRule(
+                id: "updates",
+                url: "https://example.test/updates",
+                item: ".comic-card-wrapper",
+                title: "a",
+                link: "a@href",
+                cover: "img@src",
+                type: .comic,
+                latestText: nil
+            ),
+            listTabs: nil,
+            detail: DetailRule(
+                id: "detail",
+                chapterItem: "a",
+                chapterTitle: "this",
+                chapterLink: "this@href"
+            ),
+            gallery: GalleryRule(
+                id: "reader",
+                imageItem: "img.page",
+                imageUrl: "this@src"
+            ),
+            video: nil
+        )
+
+        return Source(
+            id: "embedded-url-source",
+            name: "Embedded URL Source",
             baseURL: "https://example.test",
             type: .html,
             rule: rule,

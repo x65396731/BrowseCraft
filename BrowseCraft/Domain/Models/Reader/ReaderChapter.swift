@@ -13,4 +13,5 @@ struct ReaderChapter: Hashable {
     var previousChapterURL: String?
     var nextChapterURL: String?
     var pageImageURLs: [String]
+    var pageImageHeaders: [String: [String: String]] = [:]
 }

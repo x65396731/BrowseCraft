@@ -125,10 +125,97 @@ struct CatalogSourceMaterializer {
 
     private func rule(from catalogSource: BrowseCraftCatalogSource) throws -> SiteRule {
         do {
-            return try self.jsonDecoder.decode(SiteRule.self, from: Data(catalogSource.ruleJSON.utf8))
+            return try self.jsonDecoder.decode(
+                SiteRule.self,
+                from: self.sanitizedRuleJSONData(from: catalogSource.ruleJSON)
+            )
         } catch {
             throw self.invalidRuleJSONError(for: catalogSource, underlyingError: error)
         }
+    }
+
+    private func sanitizedRuleJSONData(from ruleJSON: String) -> Data {
+        let data: Data = Data(ruleJSON.utf8)
+        guard let jsonObject: Any = try? JSONSerialization.jsonObject(with: data) else {
+            return data
+        }
+
+        var didRemoveEmptyBody: Bool = false
+        let sanitizedObject: Any = Self.removingEmptyRequestBodies(
+            from: jsonObject,
+            didRemoveEmptyBody: &didRemoveEmptyBody
+        )
+        guard didRemoveEmptyBody,
+              JSONSerialization.isValidJSONObject(sanitizedObject),
+              let sanitizedData: Data = try? JSONSerialization.data(
+                withJSONObject: sanitizedObject,
+                options: [.sortedKeys]
+              ) else {
+            return data
+        }
+
+        return sanitizedData
+    }
+
+    private static func removingEmptyRequestBodies(
+        from value: Any,
+        didRemoveEmptyBody: inout Bool
+    ) -> Any {
+        if var dictionary: [String: Any] = value as? [String: Any] {
+            if let body: Any = dictionary["body"],
+               self.isEmptyRequestBody(body) {
+                dictionary.removeValue(forKey: "body")
+                didRemoveEmptyBody = true
+            }
+
+            for (key, childValue) in dictionary {
+                dictionary[key] = self.removingEmptyRequestBodies(
+                    from: childValue,
+                    didRemoveEmptyBody: &didRemoveEmptyBody
+                )
+            }
+
+            return dictionary
+        }
+
+        if let array: [Any] = value as? [Any] {
+            return array.map { childValue in
+                self.removingEmptyRequestBodies(
+                    from: childValue,
+                    didRemoveEmptyBody: &didRemoveEmptyBody
+                )
+            }
+        }
+
+        return value
+    }
+
+    private static func isEmptyRequestBody(_ value: Any) -> Bool {
+        if value is NSNull {
+            return true
+        }
+
+        if let string: String = value as? String {
+            return string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+
+        guard let dictionary: [String: Any] = value as? [String: Any] else {
+            return false
+        }
+
+        guard let rawValue: Any = dictionary["value"] else {
+            return true
+        }
+
+        if rawValue is NSNull {
+            return true
+        }
+
+        if let string: String = rawValue as? String {
+            return string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+
+        return false
     }
 
     private func decodeRule<Value: Decodable>(

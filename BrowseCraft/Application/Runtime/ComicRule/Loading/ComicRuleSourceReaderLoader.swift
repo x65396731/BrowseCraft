@@ -89,20 +89,29 @@ struct ComicRuleSourceReaderLoader {
             )
         }
 
-        let html: String = try await self.pageContentLoader.getString(
-            from: chapterURL,
-            request: resolvedRule.primaryGalleryRequest
-        )
-
         let chapter: ReaderChapter
         if let galleryRule: GalleryRule = resolvedRule.primaryGalleryRule {
-            chapter = try self.comicRuleParser.parseReader(
-                html: html,
+            if let apiChapter: ReaderChapter = try await self.loadImageAPI(
                 source: source,
+                item: item,
                 galleryRule: galleryRule,
-                pageURL: chapterURLString,
-                context: item.listContext
-            )
+                chapterURLString: chapterURLString,
+                fallbackRequest: resolvedRule.primaryGalleryRequest
+            ) {
+                chapter = apiChapter
+            } else {
+                let html: String = try await self.pageContentLoader.getString(
+                    from: chapterURL,
+                    request: resolvedRule.primaryGalleryRequest
+                )
+                chapter = try self.comicRuleParser.parseReader(
+                    html: html,
+                    source: source,
+                    galleryRule: galleryRule,
+                    pageURL: chapterURLString,
+                    context: item.listContext
+                )
+            }
         } else {
             chapter = emptyReaderChapter(source: source, pageURL: chapterURLString)
         }
@@ -265,6 +274,240 @@ struct ComicRuleSourceReaderLoader {
         }
 
         return normalizedText
+    }
+
+    private func loadImageAPI(
+        source: Source,
+        item: ContentItem,
+        galleryRule: GalleryRule,
+        chapterURLString: String,
+        fallbackRequest: RequestConfig?
+    ) async throws -> ReaderChapter? {
+        guard let apiRule: ReaderImageAPIRule = galleryRule.imageAPI else {
+            return nil
+        }
+
+        let apiURLString: String = ComicRuleAPIResolver.replacingTemplatePlaceholders(
+            in: apiRule.url,
+            source: source,
+            item: item,
+            chapterURL: chapterURLString,
+            rootJSON: nil,
+            currentJSON: nil
+        )
+
+        guard let apiURL: URL = URL(string: apiURLString) else {
+            throw RuleExecutionError.ruleConfiguration(
+                stage: .reader,
+                sourceID: source.id,
+                reason: "Invalid reader image API URL: \(apiURLString)"
+            )
+        }
+
+        RuleExecutionLogger.log(
+            stage: .reader,
+            event: "image-api-request",
+            fields: [
+                "source": source.id,
+                "item": item.id,
+                "apiURL": apiURL.absoluteString,
+                "itemPath": apiRule.itemPath,
+                "chapterURL": chapterURLString
+            ]
+        )
+
+        let request: RequestConfig? = ComicRuleAPIResolver.request(
+            from: apiRule.request ?? fallbackRequest,
+            source: source,
+            item: item,
+            chapterURL: chapterURLString
+        )
+        let json: String = try await self.pageContentLoader.getString(
+            from: apiURL,
+            request: request
+        )
+        let jsonObject: Any = try JSONSerialization.jsonObject(with: Data(json.utf8))
+        let itemObjects: [Any] = ComicRuleAPIResolver.jsonValues(at: apiRule.itemPath, in: jsonObject)
+
+        var sortableImagePages: [(url: String, headers: [String: String], order: Double?)] = []
+        var imagePages: [(url: String, headers: [String: String])] = []
+        var seenURLs: Set<String> = Set<String>()
+
+        for itemObject: Any in itemObjects {
+            guard let imageURL: String = self.imageURL(
+                apiRule: apiRule,
+                source: source,
+                item: item,
+                chapterURLString: chapterURLString,
+                rootJSON: jsonObject,
+                currentJSON: itemObject
+            ),
+                  imageURL.isEmpty == false,
+                  self.isNativelyLoadableImageURL(imageURL),
+                  seenURLs.contains(imageURL) == false else {
+                continue
+            }
+
+            seenURLs.insert(imageURL)
+            let imageHeaders: [String: String] = self.imageHeaders(
+                apiRule: apiRule,
+                source: source,
+                item: item,
+                chapterURLString: chapterURLString,
+                rootJSON: jsonObject,
+                currentJSON: itemObject
+            )
+            imagePages.append((url: imageURL, headers: imageHeaders))
+            let order: Double? = apiRule.orderPath.flatMap { path in
+                return ComicRuleAPIResolver.doubleValue(
+                    ComicRuleAPIResolver.firstJSONValue(at: path, in: itemObject)
+                )
+            }
+            sortableImagePages.append((url: imageURL, headers: imageHeaders, order: order))
+        }
+
+        let sortedImagePages: [(url: String, headers: [String: String])] = self.sortedImagePages(
+            sortableImagePages,
+            sort: apiRule.sort
+        )
+        let outputImagePages: [(url: String, headers: [String: String])] = sortedImagePages.isEmpty
+            ? imagePages
+            : sortedImagePages
+        let outputImageURLs: [String] = outputImagePages.map(\.url)
+        let outputImageHeaders: [String: [String: String]] = Dictionary(
+            uniqueKeysWithValues: outputImagePages
+                .filter { page in page.headers.isEmpty == false }
+                .map { page in (page.url, page.headers) }
+        )
+
+        RuleExecutionLogger.log(
+            stage: .reader,
+            event: "image-api-parsed",
+            fields: [
+                "source": source.id,
+                "item": item.id,
+                "chapterURL": chapterURLString,
+                "itemCount": itemObjects.count,
+                "pageCount": outputImageURLs.count,
+                "imageHeaderPages": outputImageHeaders.count,
+                "firstImage": outputImageURLs.first ?? "nil"
+            ]
+        )
+
+        guard outputImageURLs.isEmpty == false else {
+            return nil
+        }
+
+        return ReaderChapter(
+            sourceId: source.id,
+            comicTitle: nil,
+            chapterTitle: nil,
+            chapterURL: chapterURLString,
+            catalogURL: nil,
+            previousChapterURL: nil,
+            nextChapterURL: nil,
+            pageImageURLs: outputImageURLs,
+            pageImageHeaders: outputImageHeaders
+        )
+    }
+
+    private func imageURL(
+        apiRule: ReaderImageAPIRule,
+        source: Source,
+        item: ContentItem,
+        chapterURLString: String,
+        rootJSON: Any,
+        currentJSON: Any
+    ) -> String? {
+        if let urlTemplate: String = apiRule.urlTemplate,
+           urlTemplate.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            return ComicRuleAPIResolver.replacingTemplatePlaceholders(
+                in: urlTemplate,
+                source: source,
+                item: item,
+                chapterURL: chapterURLString,
+                rootJSON: rootJSON,
+                currentJSON: currentJSON
+            )
+        }
+
+        guard let urlPath: String = apiRule.urlPath,
+              let rawURL: String = ComicRuleAPIResolver.stringValue(
+                ComicRuleAPIResolver.firstJSONValue(at: urlPath, in: currentJSON)
+              ) else {
+            return nil
+        }
+
+        return URLResolvingService().absoluteString(rawURL, baseURLString: chapterURLString)
+    }
+
+    private func imageHeaders(
+        apiRule: ReaderImageAPIRule,
+        source: Source,
+        item: ContentItem,
+        chapterURLString: String,
+        rootJSON: Any,
+        currentJSON: Any
+    ) -> [String: String] {
+        guard let headerTemplates: [String: String] = apiRule.imageHeaders,
+              headerTemplates.isEmpty == false else {
+            return [:]
+        }
+
+        return headerTemplates.reduce(into: [String: String]()) { headers, pair in
+            let value: String = ComicRuleAPIResolver.replacingTemplatePlaceholders(
+                in: pair.value,
+                source: source,
+                item: item,
+                chapterURL: chapterURLString,
+                rootJSON: rootJSON,
+                currentJSON: currentJSON
+            )
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if value.isEmpty == false {
+                headers[pair.key] = value
+            }
+        }
+    }
+
+    private func sortedImagePages(
+        _ pages: [(url: String, headers: [String: String], order: Double?)],
+        sort: ChapterSort?
+    ) -> [(url: String, headers: [String: String])] {
+        guard let sort: ChapterSort = sort,
+              sort != .none,
+              pages.contains(where: { page in page.order != nil }) else {
+            return []
+        }
+
+        return pages.sorted { lhs, rhs in
+            let lhsOrder: Double = lhs.order ?? 0
+            let rhsOrder: Double = rhs.order ?? 0
+
+            switch sort {
+            case .ascending:
+                return lhsOrder < rhsOrder
+            case .descending:
+                return lhsOrder > rhsOrder
+            case .none:
+                return false
+            }
+        }
+        .map { page in
+            return (url: page.url, headers: page.headers)
+        }
+    }
+
+    private func isNativelyLoadableImageURL(_ urlString: String) -> Bool {
+        let normalizedURLString: String = urlString
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+
+        return normalizedURLString.hasPrefix("blob:") == false
+            && normalizedURLString.hasPrefix("data:") == false
+            && normalizedURLString.hasPrefix("about:") == false
+            && normalizedURLString.hasPrefix("javascript:") == false
     }
 }
 

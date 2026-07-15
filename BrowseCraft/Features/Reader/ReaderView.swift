@@ -410,7 +410,8 @@ struct ReaderView: View {
                 pageURLString: pageURLString,
                 pageNumber: pageIndex + 1,
                 refererURLString: chapter.chapterURL,
-                requestConfig: self.viewModel.readerImageRequestConfig
+                requestConfig: self.viewModel.readerImageRequestConfig,
+                additionalHeaders: chapter.pageImageHeaders[pageURLString] ?? [:]
             )
             .id(pageIndex)
             .background(
