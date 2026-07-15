@@ -327,6 +327,13 @@ struct ComicRuleSourceReaderLoader {
             request: request
         )
         let jsonObject: Any = try JSONSerialization.jsonObject(with: Data(json.utf8))
+        if let apiErrorMessage: String = ComicRuleAPIResolver.apiErrorMessage(in: jsonObject) {
+            throw RuleExecutionError.sourceAPI(
+                stage: .reader,
+                sourceID: source.id,
+                reason: "Reader image API returned error: \(apiErrorMessage)"
+            )
+        }
         let itemObjects: [Any] = ComicRuleAPIResolver.jsonValues(at: apiRule.itemPath, in: jsonObject)
 
         var sortableImagePages: [(url: String, headers: [String: String], order: Double?)] = []

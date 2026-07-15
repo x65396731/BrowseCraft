@@ -11,6 +11,7 @@ typealias TabGroupRule = BrowseCraftCore.TabGroupRule
 typealias TabRule = BrowseCraftCore.TabRule
 typealias TabLayout = BrowseCraftCore.TabLayout
 typealias DetailRule = BrowseCraftCore.DetailRule
+typealias ListAPIRule = BrowseCraftCore.ListAPIRule
 typealias ExtractRule = BrowseCraftCore.ExtractRule
 typealias SelectorKind = BrowseCraftCore.SelectorKind
 typealias ExtractFunction = BrowseCraftCore.ExtractFunction

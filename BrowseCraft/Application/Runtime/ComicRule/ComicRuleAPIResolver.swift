@@ -7,6 +7,7 @@ struct ComicRuleAPIResolver {
         source: Source,
         item: ContentItem,
         chapterURL: String? = nil,
+        page: Int? = nil,
         rootJSON: Any? = nil,
         currentJSON: Any? = nil
     ) -> RequestConfig? {
@@ -22,6 +23,7 @@ struct ComicRuleAPIResolver {
                     source: source,
                     item: item,
                     chapterURL: chapterURL,
+                    page: page,
                     rootJSON: rootJSON,
                     currentJSON: currentJSON
                 )
@@ -36,6 +38,7 @@ struct ComicRuleAPIResolver {
         source: Source,
         item: ContentItem,
         chapterURL: String? = nil,
+        page: Int? = nil,
         rootJSON: Any? = nil,
         currentJSON: Any? = nil
     ) -> String {
@@ -67,6 +70,7 @@ struct ComicRuleAPIResolver {
                 source: source,
                 item: item,
                 chapterURL: chapterURL,
+                page: page,
                 rootJSON: rootJSON,
                 currentJSON: currentJSON
             ) ?? ""
@@ -166,6 +170,30 @@ struct ComicRuleAPIResolver {
         .map(\.value)
     }
 
+    static func apiErrorMessage(in object: Any) -> String? {
+        guard let dictionary: [String: Any] = object as? [String: Any] else {
+            return nil
+        }
+
+        if let errors: [Any] = dictionary["errors"] as? [Any],
+           errors.isEmpty == false {
+            let messages: [String] = errors.compactMap { error in
+                return self.apiErrorMessage(from: error)
+            }
+            if messages.isEmpty == false {
+                return messages.joined(separator: "; ")
+            }
+
+            return "API returned errors"
+        }
+
+        if let error: Any = dictionary["error"] {
+            return self.apiErrorMessage(from: error) ?? "API returned error"
+        }
+
+        return nil
+    }
+
     static func detailSlug(from detailURL: String) -> String? {
         guard let url: URL = URL(string: detailURL) else {
             return nil
@@ -200,11 +228,46 @@ struct ComicRuleAPIResolver {
         return components[valueIndex]
     }
 
+    private static func apiErrorMessage(from object: Any) -> String? {
+        if let message: String = self.stringValue(object) {
+            return message
+        }
+
+        guard let dictionary: [String: Any] = object as? [String: Any] else {
+            return nil
+        }
+
+        let message: String? = self.stringValue(dictionary["message"])
+        let code: String? = self.stringValue(dictionary["code"])
+            ?? ((dictionary["extensions"] as? [String: Any]).flatMap { extensions in
+                return self.stringValue(extensions["code"])
+            })
+
+        var details: [String] = []
+        if let message: String, message.isEmpty == false {
+            details.append(message)
+        }
+        if let code: String, code.isEmpty == false {
+            details.append("code=\(code)")
+        }
+
+        if let extensions: [String: Any] = dictionary["extensions"] as? [String: Any] {
+            for key: String in ["current", "limit", "requested"] {
+                if let value: String = self.stringValue(extensions[key]) {
+                    details.append("\(key)=\(value)")
+                }
+            }
+        }
+
+        return details.isEmpty ? nil : details.joined(separator: " ")
+    }
+
     private static func templateValue(
         token: String,
         source: Source,
         item: ContentItem,
         chapterURL: String?,
+        page: Int?,
         rootJSON: Any?,
         currentJSON: Any?
     ) -> String? {
@@ -233,6 +296,8 @@ struct ComicRuleAPIResolver {
             return self.detailSlug(from: item.detailURL)
         case "timestamp":
             return String(Int(Date().timeIntervalSince1970))
+        case "page":
+            return page.map(String.init)
         default:
             if let currentJSON: Any = currentJSON,
                let value: String = self.stringValue(self.firstJSONValue(at: token, in: currentJSON)) {

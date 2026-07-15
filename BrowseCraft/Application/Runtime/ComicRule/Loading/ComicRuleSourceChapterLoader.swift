@@ -249,6 +249,13 @@ struct ComicRuleSourceChapterLoader {
             request: request
         )
         let jsonObject: Any = try JSONSerialization.jsonObject(with: Data(json.utf8))
+        if let apiErrorMessage: String = ComicRuleAPIResolver.apiErrorMessage(in: jsonObject) {
+            throw RuleExecutionError.sourceAPI(
+                stage: .detail,
+                sourceID: source.id,
+                reason: "Detail API returned error: \(apiErrorMessage)"
+            )
+        }
         let itemObjects: [Any] = ComicRuleAPIResolver.jsonValues(at: apiRule.itemPath, in: jsonObject)
 
         var chapters: [ChapterLink] = []

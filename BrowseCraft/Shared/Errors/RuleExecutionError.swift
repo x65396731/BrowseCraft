@@ -8,6 +8,7 @@ enum RuleExecutionError: LocalizedError, Equatable {
     case antiBot(url: String)
     case selectorEmpty(stage: RuleExecutionLogger.Stage, sourceID: String, url: String, ruleID: String?)
     case ruleConfiguration(stage: RuleExecutionLogger.Stage, sourceID: String, reason: String)
+    case sourceAPI(stage: RuleExecutionLogger.Stage, sourceID: String, reason: String)
     case parserDiagnostics(
         stage: RuleExecutionLogger.Stage,
         sourceID: String,
@@ -30,6 +31,8 @@ enum RuleExecutionError: LocalizedError, Equatable {
             return "规则没有匹配到内容：stage=\(stage.rawValue) source=\(sourceID) rule=\(ruleID ?? "nil") url=\(url)"
         case .ruleConfiguration(let stage, let sourceID, let reason):
             return "规则配置错误：stage=\(stage.rawValue) source=\(sourceID) reason=\(reason)"
+        case .sourceAPI(let stage, let sourceID, let reason):
+            return "源站接口返回错误：stage=\(stage.rawValue) source=\(sourceID) reason=\(reason)"
         case .parserDiagnostics(
             let stage,
             let sourceID,
@@ -132,6 +135,8 @@ enum RuleExecutionErrorClassifier {
             return "selectorEmpty"
         case .ruleConfiguration:
             return "ruleConfiguration"
+        case .sourceAPI:
+            return "sourceAPI"
         case .parserDiagnostics:
             return "parserDiagnostics"
         case .unknown:

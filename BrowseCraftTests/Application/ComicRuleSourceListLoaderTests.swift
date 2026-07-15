@@ -1,0 +1,178 @@
+import Foundation
+import Testing
+@testable import BrowseCraft
+
+struct ComicRuleSourceListLoaderTests {
+    @Test func preferredListAPILoadsItemsBeforeListHTML() async throws {
+        let pageContentLoader: RecordingListPageContentLoader = RecordingListPageContentLoader(
+            responses: [
+                "https://example.test/api/comics?page=1": """
+                {
+                  "data": {
+                    "comics": [
+                      { "id": "5571", "title": "小栗子到我家", "imageToken": "cover-5571", "latest": "连载19话", "sort": 2 },
+                      { "id": "8601", "title": "必杀千金丽泽", "imageToken": "cover-8601", "latest": "连载02话", "sort": 1 }
+                    ]
+                  }
+                }
+                """
+            ],
+            disallowedURLs: ["https://example.test/updates"]
+        )
+        let loader: ComicRuleSourceListLoader = Self.loader(pageContentLoader: pageContentLoader)
+
+        let items: [ContentItem] = try await loader.execute(source: Self.sourceWithPreferredListAPI())
+
+        #expect(items.map(\.title) == ["必杀千金丽泽", "小栗子到我家"])
+        #expect(items.map(\.detailURL) == [
+            "https://example.test/comic/8601",
+            "https://example.test/comic/5571"
+        ])
+        #expect(items.map(\.coverURL) == [
+            "https://example.test/api/image/cover-8601",
+            "https://example.test/api/image/cover-5571"
+        ])
+        #expect(items.map(\.latestText) == ["连载02话", "连载19话"])
+        #expect(items.map(\.listOrder) == [0, 1])
+        #expect(pageContentLoader.requestedURLs == ["https://example.test/api/comics?page=1"])
+    }
+
+    @Test func emptyPreferredListAPIFallsBackToDOMList() async throws {
+        let pageContentLoader: RecordingListPageContentLoader = RecordingListPageContentLoader(
+            responses: [
+                "https://example.test/api/comics?page=1": """
+                { "data": { "comics": [] } }
+                """,
+                "https://example.test/updates": """
+                <main>
+                  <article class="item">
+                    <a href="/comic/dom">DOM 漫画</a>
+                    <img src="/covers/dom.jpg">
+                    <span class="latest">连载01话</span>
+                  </article>
+                </main>
+                """
+            ],
+            disallowedURLs: []
+        )
+        let loader: ComicRuleSourceListLoader = Self.loader(pageContentLoader: pageContentLoader)
+
+        let items: [ContentItem] = try await loader.execute(source: Self.sourceWithPreferredListAPI())
+
+        #expect(pageContentLoader.requestedURLs == [
+            "https://example.test/api/comics?page=1",
+            "https://example.test/updates"
+        ])
+        #expect(items.count == 1)
+        #expect(items[0].title == "DOM 漫画")
+        #expect(items[0].detailURL == "https://example.test/comic/dom")
+        #expect(items[0].coverURL == "https://example.test/covers/dom.jpg")
+    }
+
+    private static func loader(pageContentLoader: PageContentLoader) -> ComicRuleSourceListLoader {
+        return ComicRuleSourceListLoader(
+            pageContentLoader: pageContentLoader,
+            comicRuleParser: SwiftSoupComicRuleSourceParser(urlResolver: URLResolvingService()),
+            urlResolver: URLResolvingService()
+        )
+    }
+
+    private static func sourceWithPreferredListAPI() -> Source {
+        let rule: SiteRule = SiteRule(
+            version: 1,
+            site: nil,
+            urlPatterns: nil,
+            pages: nil,
+            ruleSets: nil,
+            sharedRequest: nil,
+            flags: nil,
+            name: "Preferred List API Source",
+            baseUrl: "https://example.test",
+            list: ListRule(
+                id: "updates",
+                url: "https://example.test/updates",
+                item: ".item",
+                title: "a",
+                link: "a@href",
+                cover: "img@src",
+                type: .comic,
+                latestText: ".latest",
+                listAPI: ListAPIRule(
+                    url: "https://example.test/api/comics?page={page}",
+                    itemPath: "data.comics[]",
+                    titlePath: "title",
+                    urlTemplate: "https://example.test/comic/{id}",
+                    coverTemplate: "https://example.test/api/image/{imageToken}",
+                    latestTextPath: "latest",
+                    orderPath: "sort",
+                    sort: .ascending,
+                    preferAPI: true
+                )
+            ),
+            listTabs: nil,
+            detail: DetailRule(
+                id: "detail",
+                chapterItem: ".chapter a",
+                chapterTitle: "this",
+                chapterLink: "this@href"
+            ),
+            gallery: GalleryRule(
+                id: "reader",
+                imageItem: "img",
+                imageUrl: "this@src"
+            ),
+            video: nil
+        )
+
+        return Source(
+            id: "preferred-list-api-source",
+            name: "Preferred List API Source",
+            baseURL: "https://example.test",
+            type: .html,
+            rule: rule,
+            enabled: true,
+            createdAt: Date(timeIntervalSince1970: 0),
+            updatedAt: Date(timeIntervalSince1970: 0)
+        )
+    }
+}
+
+private final class RecordingListPageContentLoader: PageContentLoader {
+    private enum LoaderError: LocalizedError {
+        case disallowedURL(String)
+        case missingResponse(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .disallowedURL(let url):
+                return "Unexpected request to disallowed URL: \(url)"
+            case .missingResponse(let url):
+                return "Missing response for URL: \(url)"
+            }
+        }
+    }
+
+    private let responses: [String: String]
+    private let disallowedURLs: Set<String>
+    private(set) var requestedURLs: [String] = []
+
+    init(responses: [String: String], disallowedURLs: Set<String>) {
+        self.responses = responses
+        self.disallowedURLs = disallowedURLs
+    }
+
+    func getString(from url: URL, request: RequestConfig?) async throws -> String {
+        let urlString: String = url.absoluteString
+        self.requestedURLs.append(urlString)
+
+        if self.disallowedURLs.contains(urlString) {
+            throw LoaderError.disallowedURL(urlString)
+        }
+
+        guard let response: String = self.responses[urlString] else {
+            throw LoaderError.missingResponse(urlString)
+        }
+
+        return response
+    }
+}
