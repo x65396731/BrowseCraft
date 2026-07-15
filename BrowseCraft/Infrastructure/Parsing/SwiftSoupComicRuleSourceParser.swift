@@ -738,6 +738,9 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
 
             return try self.chapterLinks(
                 from: elements,
+                source: source,
+                ruleID: detailRule.id,
+                itemSelector: chapterRule.item.selector,
                 titleRule: chapterRule.title,
                 urlRule: chapterRule.url,
                 pageURL: pageURL
@@ -781,19 +784,14 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
             )
         }
 
-        let titleRule: ExtractRule = ExtractRule(
-            selector: chapterTitleExpression,
-            function: .text,
-            param: nil,
-            regex: nil,
-            replacement: nil,
-            fallback: nil
-        )
         let urlRule: ExtractRule = self.extractRule(fromLegacyExpression: chapterLinkExpression)
 
         return try self.chapterLinks(
             from: elements,
-            titleRule: titleRule,
+            source: source,
+            ruleID: detailRule.id,
+            itemSelector: chapterItemSelector,
+            titleExpression: chapterTitleExpression,
             urlRule: urlRule,
             pageURL: pageURL
         )
@@ -868,20 +866,103 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
 
     private func chapterLinks(
         from elements: [Element],
+        source: Source,
+        ruleID: String?,
+        itemSelector: String?,
+        titleExpression: String,
+        urlRule: ExtractRule,
+        pageURL: String
+    ) throws -> [ChapterLink] {
+        return try self.chapterLinks(
+            from: elements,
+            source: source,
+            ruleID: ruleID,
+            itemSelector: itemSelector,
+            titleSelectorDescription: titleExpression,
+            urlSelectorDescription: urlRule.selector,
+            pageURL: pageURL,
+            extractTitle: { element in
+                return try self.extract(element: element, expression: titleExpression)
+            },
+            extractURL: { element in
+                return try self.extract(element: element, rule: urlRule)
+            }
+        )
+    }
+
+    private func chapterLinks(
+        from elements: [Element],
+        source: Source,
+        ruleID: String?,
+        itemSelector: String?,
         titleRule: ExtractRule,
         urlRule: ExtractRule,
         pageURL: String
     ) throws -> [ChapterLink] {
+        return try self.chapterLinks(
+            from: elements,
+            source: source,
+            ruleID: ruleID,
+            itemSelector: itemSelector,
+            titleSelectorDescription: titleRule.selector,
+            urlSelectorDescription: urlRule.selector,
+            pageURL: pageURL,
+            extractTitle: { element in
+                return try self.extract(element: element, rule: titleRule)
+            },
+            extractURL: { element in
+                return try self.extract(element: element, rule: urlRule)
+            }
+        )
+    }
+
+    private func chapterLinks(
+        from elements: [Element],
+        source: Source,
+        ruleID: String?,
+        itemSelector: String?,
+        titleSelectorDescription: String?,
+        urlSelectorDescription: String?,
+        pageURL: String,
+        extractTitle: (Element) throws -> String,
+        extractURL: (Element) throws -> String
+    ) throws -> [ChapterLink] {
         var chapters: [ChapterLink] = []
         var seenURLs: Set<String> = Set<String>()
+        var emptySkippedCount: Int = 0
+        var extractFailedCount: Int = 0
+        var loggedExtractErrorCount: Int = 0
 
-        for element: Element in elements {
-            let title: String = try self.extract(element: element, rule: titleRule)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            let rawURL: String = try self.extract(element: element, rule: urlRule)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+        for (index, element) in elements.enumerated() {
+            let title: String
+            let rawURL: String
+            do {
+                title = try extractTitle(element)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                rawURL = try extractURL(element)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            } catch {
+                extractFailedCount += 1
+                if loggedExtractErrorCount < 5 {
+                    loggedExtractErrorCount += 1
+                    RuleExecutionLogger.log(
+                        stage: .detail,
+                        event: "chapter-item-extract-error",
+                        fields: [
+                            "pageURL": pageURL,
+                            "index": index,
+                            "titleSelector": titleSelectorDescription,
+                            "urlSelector": urlSelectorDescription,
+                            "error": error.localizedDescription,
+                            "elementPreview": self.elementPreview(element)
+                        ]
+                    )
+                }
+                continue
+            }
 
             if title.isEmpty || rawURL.isEmpty {
+                emptySkippedCount += 1
                 continue
             }
 
@@ -898,6 +979,33 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
                     title: title,
                     url: chapterURL
                 )
+            )
+        }
+
+        if emptySkippedCount > 0 || extractFailedCount > 0 {
+            RuleExecutionLogger.log(
+                stage: .detail,
+                event: "chapter-item-summary",
+                fields: [
+                    "pageURL": pageURL,
+                    "candidateCount": elements.count,
+                    "parsedCount": chapters.count,
+                    "emptySkippedCount": emptySkippedCount,
+                    "extractFailedCount": extractFailedCount
+                ]
+            )
+        }
+
+        if elements.isEmpty == false && chapters.isEmpty {
+            throw RuleExecutionError.parserDiagnostics(
+                stage: .detail,
+                sourceID: source.id,
+                ruleID: ruleID,
+                url: pageURL,
+                operation: "parseDetailChapters",
+                selector: itemSelector,
+                htmlPreview: elements.first.map { self.elementPreview($0) } ?? "",
+                underlyingDescription: "Chapter selector matched \(elements.count) candidates but parsed 0 chapters. emptySkipped=\(emptySkippedCount) extractFailed=\(extractFailedCount) titleSelector=\(titleSelectorDescription ?? "nil") urlSelector=\(urlSelectorDescription ?? "nil")"
             )
         }
 
@@ -2419,7 +2527,13 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
         if let separatorIndex: String.Index = normalizedExpression.lastIndex(of: "@") {
             let selector: String = String(normalizedExpression[..<separatorIndex])
             let attributeExpression: String = String(normalizedExpression[normalizedExpression.index(after: separatorIndex)...])
-            let selectedElements: [Element] = try self.selectedElements(element: element, selector: selector)
+            let normalizedSelector: String = self.normalizedCurrentElementAlias(selector)
+            let selectedElements: [Element]
+            if normalizedSelector.isEmpty || normalizedSelector == "this" {
+                selectedElements = [element]
+            } else {
+                selectedElements = try self.selectedElements(element: element, selector: normalizedSelector)
+            }
 
             for selectedElement: Element in selectedElements {
                 let value: String = try self.extractAttribute(
@@ -2558,6 +2672,16 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
             }
 
         for attribute: String in attributes {
+            if attribute == "this" || attribute == "&" {
+                let value: String = try element.text().trimmingCharacters(in: .whitespacesAndNewlines)
+
+                if value.isEmpty == false {
+                    return value
+                }
+
+                continue
+            }
+
             let value: String = try element.attr(attribute).trimmingCharacters(in: .whitespacesAndNewlines)
 
             if value.isEmpty == false {
