@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import BrowseCraftCore
 @testable import BrowseCraft
 
 // 中文注释：ComicRuleSourceReaderProtectedResourceTests 验证漫画 reader 能把 imageAPI 条目映射成受保护图片引用。
@@ -37,8 +38,8 @@ struct ComicRuleSourceReaderProtectedResourceTests {
         )
 
         #expect(chapter.pageImageURLs == [
-            "protected://reader-image?imageId=img-0&quality=2",
-            "protected://reader-image?imageId=img-1&quality=2"
+            "protected://reader-image?imageId=img-0&quality=high",
+            "protected://reader-image?imageId=img-1&quality=high"
         ])
         #expect(chapter.pageResources.count == 2)
 
@@ -46,12 +47,16 @@ struct ComicRuleSourceReaderProtectedResourceTests {
             Issue.record("Expected first page to be protectedResource")
             return
         }
-        #expect(firstReference.sourceID == "protected-reader-source")
-        #expect(firstReference.baseURL?.absoluteString == "https://example.test")
-        #expect(firstReference.parameters["imageId"] == "img-0")
-        #expect(firstReference.parameters["quality"] == "high")
-        #expect(firstReference.parameters["id"] == "img-0")
-        #expect(firstReference.rule.binaryRequest.url == "https://example.test/encrypt/{imageId}/{quality}")
+        guard case .legacy(let legacyReference) = firstReference.execution else {
+            Issue.record("Expected imageAPI without resourcePipeline to keep the legacy route")
+            return
+        }
+        #expect(legacyReference.sourceID == "protected-reader-source")
+        #expect(legacyReference.baseURL?.absoluteString == "https://example.test")
+        #expect(legacyReference.parameters["imageId"] == "img-0")
+        #expect(legacyReference.parameters["quality"] == "high")
+        #expect(legacyReference.parameters["id"] == "img-0")
+        #expect(legacyReference.rule.binaryRequest.url == "https://example.test/encrypt/{imageId}/{quality}")
     }
 
     @Test func galleryProtectedResourceProducesProtectedReaderPageResources() async throws {
@@ -100,10 +105,109 @@ struct ComicRuleSourceReaderProtectedResourceTests {
             Issue.record("Expected gallery protectedResource to bridge into protected page resources")
             return
         }
-        #expect(firstReference.parameters["imageId"] == "img-1")
-        #expect(firstReference.parameters["id"] == "img-1")
-        #expect(firstReference.parameters["quality"] == "2")
-        #expect(firstReference.rule.binaryRequest.url == "https://example.test/encrypt/{id}/{quality}")
+        guard case .legacy(let legacyReference) = firstReference.execution else {
+            Issue.record("Expected gallery protectedResource bridge to keep the legacy route")
+            return
+        }
+        #expect(legacyReference.parameters["imageId"] == "img-1")
+        #expect(legacyReference.parameters["id"] == "img-1")
+        #expect(legacyReference.parameters["quality"] == "2")
+        #expect(legacyReference.rule.binaryRequest.url == "https://example.test/encrypt/{id}/{quality}")
+    }
+
+    @Test func v2PipelineMapsItemRootAndContextWithoutDependingOnLegacyURL() async throws {
+        let pageContentLoader: RecordingReaderPageContentLoader = RecordingReaderPageContentLoader(
+            responses: [
+                "https://example.test/api/chapter/10/images": """
+                {
+                  "meta": { "chapterKey": "root-10" },
+                  "images": [
+                    {
+                      "id": "img-0",
+                      "nested": { "rank": 3 },
+                      "flags": [true, null]
+                    }
+                  ]
+                }
+                """
+            ]
+        )
+        let loader: ComicRuleSourceReaderLoader = ComicRuleSourceReaderLoader(
+            pageContentLoader: pageContentLoader,
+            comicRuleParser: SwiftSoupComicRuleSourceParser(urlResolver: URLResolvingService())
+        )
+
+        let chapter: ReaderChapter = try await loader.execute(
+            source: Self.sourceWithResourcePipeline(policy: .pipelineOnly),
+            item: ContentItem(
+                id: "comic-10",
+                sourceId: "protected-reader-source",
+                title: "Pipeline Reader",
+                detailURL: "https://example.test/comic/10",
+                coverURL: nil,
+                type: .comic,
+                latestText: nil
+            ),
+            chapterURLString: "https://example.test/chapter/10"
+        )
+
+        guard case .some(.protectedResource(let protectedReference)) = chapter.pageResources.first,
+              case .pipeline(let pipelineReference) = protectedReference.execution else {
+            Issue.record("Expected V2 imageAPI item to become a pipeline reference")
+            return
+        }
+
+        #expect(pipelineReference.item["id"] == .string("img-0"))
+        #expect(pipelineReference.item["nested"] == .object(["rank": .number(3)]))
+        #expect(pipelineReference.item["flags"] == .array([.boolean(true), .null]))
+        #expect(pipelineReference.root["meta"] == .object(["chapterKey": .string("root-10")]))
+        #expect(pipelineReference.context["readerAccessToken"] == .string("context-secret"))
+        #expect(pipelineReference.legacyFallback == nil)
+        #expect(pipelineReference.displayURLString.hasPrefix("resource-pipeline://reader/"))
+    }
+
+    @Test func executionPolicyAloneControlsLegacyFallback() async throws {
+        let legacyData: Data = Data("legacy-image".utf8)
+        let legacyReference: LegacyProtectedReaderImageReference = LegacyProtectedReaderImageReference(
+            displayURLString: "protected://reader-image?id=img-0",
+            sourceID: "protected-reader-source",
+            baseURL: URL(string: "https://example.test"),
+            rule: Self.legacyProtectedResource(),
+            parameters: ["id": "img-0"]
+        )
+        let loader: ReaderProtectedResourceLoader = ReaderProtectedResourceLoader(
+            loadLegacy: { _ in
+                ProtectedResourceOutput(data: legacyData, contentType: .image)
+            },
+            executePipeline: { _ in
+                throw StubResourcePipelineError.failed
+            }
+        )
+        let context: SourceRequestContext = SourceRequestContext(sourceID: "protected-reader-source")
+        var pipelineReference: ResourcePipelineReaderImageReference = ResourcePipelineReaderImageReference(
+            displayURLString: "resource-pipeline://reader/test/0",
+            sourceID: "protected-reader-source",
+            baseURL: URL(string: "https://example.test"),
+            rule: Self.resourcePipeline(),
+            item: ["id": .string("img-0")],
+            root: [:],
+            context: [:],
+            legacyFallback: legacyReference
+        )
+
+        let fallbackData: Data = try await loader.load(
+            ProtectedReaderImageReference(execution: .pipeline(pipelineReference)),
+            context: context
+        )
+        #expect(fallbackData == legacyData)
+
+        pipelineReference.legacyFallback = nil
+        await #expect(throws: RuleExecutionError.self) {
+            _ = try await loader.load(
+                ProtectedReaderImageReference(execution: .pipeline(pipelineReference)),
+                context: context
+            )
+        }
     }
 
     private static func sourceWithProtectedImageAPI() -> Source {
@@ -255,6 +359,95 @@ struct ComicRuleSourceReaderProtectedResourceTests {
         )
     }
 
+    private static func sourceWithResourcePipeline(
+        policy: ReaderImageResourcePipelineExecutionPolicy
+    ) -> Source {
+        var source: Source = self.sourceWithProtectedImageAPI()
+        var rule: SiteRule = source.rule
+        let galleryRule: GalleryRule = GalleryRule(
+            id: "pipeline-reader",
+            imageAPI: ReaderImageAPIRule(
+                url: "https://example.test/api/chapter/{detailSlug}/images",
+                itemPath: "images[]",
+                resourcePipeline: ReaderImageResourcePipelineRule(
+                    executionPolicy: policy,
+                    pipeline: self.resourcePipeline()
+                ),
+                protectedResource: policy == .pipelineWithLegacyFallback
+                    ? self.legacyProtectedResource()
+                    : nil
+            ),
+            imageItem: "img",
+            imageUrl: "this@src"
+        )
+        rule.version = 2
+        rule.context = [
+            "readerAccessToken": SiteRuleContextValue(value: "context-secret")
+        ]
+        rule.pages = [
+            PageRule(
+                id: "reader-page",
+                title: "Reader",
+                type: .reader,
+                ruleRefs: RuleRefs(gallery: "pipeline-reader")
+            )
+        ]
+        rule.ruleSets = RuleSets(galleryRules: [galleryRule])
+        source.rule = rule
+        return source
+    }
+
+    private static func resourcePipeline() -> ResourcePipelineRule {
+        return ResourcePipelineRule(
+            bindings: [
+                "imageID": ResourceBindingRule(source: .item, path: "id")
+            ],
+            steps: [
+                ResourcePipelineStepRule(
+                    id: "imageData",
+                    operation: .request(
+                        ResourceRequestOperationRule(
+                            urlTemplate: "https://cdn.example.test/{binding.imageID}",
+                            responseType: .data
+                        )
+                    )
+                )
+            ],
+            output: ResourcePipelineOutputRule(
+                value: ResourceValueReferenceRule(source: .step, name: "imageData"),
+                contentType: .image
+            )
+        )
+    }
+
+    private static func legacyProtectedResource() -> ProtectedResourceRule {
+        return ProtectedResourceRule(
+            type: .encryptedBinary,
+            binaryRequest: ProtectedResourceRequestRule(url: "https://example.test/legacy/{id}"),
+            decrypt: ProtectedResourceDecryptRule(
+                algorithm: .aes,
+                mode: .cbc,
+                padding: .pkcs7,
+                key: ProtectedResourceValueRule(
+                    source: .constant,
+                    value: "12345678901234567890123456789012",
+                    encoding: .utf8
+                ),
+                iv: ProtectedResourceValueRule(
+                    source: .constant,
+                    value: "abcdefghijklmnop",
+                    encoding: .utf8
+                ),
+                ciphertextEncoding: .raw
+            ),
+            output: ProtectedResourceOutputRule(contentType: .image)
+        )
+    }
+
+}
+
+private enum StubResourcePipelineError: Error {
+    case failed
 }
 
 private final class RecordingReaderPageContentLoader: PageContentLoader {

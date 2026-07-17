@@ -13,6 +13,7 @@ build/
 DerivedData/
 .derivedData/
 **/*.xcresult/
+TestResults/*.md
 
 # XcodeGen generated project
 *.xcodeproj/

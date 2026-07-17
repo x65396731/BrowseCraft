@@ -304,7 +304,8 @@ struct ComicRuleSourceReaderLoader {
                 fields: [
                     "source": source.id,
                     "path": "imageAPI",
-                    "hasProtectedResource": (imageAPI.protectedResource != nil).description
+                    "hasProtectedResource": (imageAPI.protectedResource != nil).description,
+                    "hasResourcePipeline": (imageAPI.resourcePipeline != nil).description
                 ]
             )
             return imageAPI
@@ -415,7 +416,8 @@ struct ComicRuleSourceReaderLoader {
                 "apiURL": apiURL.absoluteString,
                 "itemPath": apiRule.itemPath,
                 "chapterURL": chapterURLString,
-                "hasProtectedResource": (apiRule.protectedResource != nil).description
+                "hasProtectedResource": (apiRule.protectedResource != nil).description,
+                "hasResourcePipeline": (apiRule.resourcePipeline != nil).description
             ]
         )
 
@@ -444,16 +446,28 @@ struct ComicRuleSourceReaderLoader {
         var imagePages: [(url: String, headers: [String: String], resource: ReaderPageResource)] = []
         var seenURLs: Set<String> = Set<String>()
 
-        for itemObject: Any in itemObjects {
-            guard let imageURL: String = self.imageURL(
+        for (itemIndex, itemObject): (Int, Any) in itemObjects.enumerated() {
+            let resolvedImageURL: String? = self.imageURL(
                 apiRule: apiRule,
                 source: source,
                 item: item,
                 chapterURLString: chapterURLString,
                 rootJSON: jsonObject,
                 currentJSON: itemObject
-            ),
-                  imageURL.isEmpty == false,
+            )
+            guard let resource: ReaderPageResource = try self.readerPageResource(
+                apiRule: apiRule,
+                source: source,
+                chapterURLString: chapterURLString,
+                itemIndex: itemIndex,
+                imageURL: resolvedImageURL,
+                rootJSON: jsonObject,
+                currentJSON: itemObject
+            ) else {
+                continue
+            }
+            let imageURL: String = resource.displayURLString
+            guard imageURL.isEmpty == false,
                   self.isNativelyLoadableImageURL(imageURL),
                   seenURLs.contains(imageURL) == false else {
                 continue
@@ -465,13 +479,6 @@ struct ComicRuleSourceReaderLoader {
                 source: source,
                 item: item,
                 chapterURLString: chapterURLString,
-                rootJSON: jsonObject,
-                currentJSON: itemObject
-            )
-            let resource: ReaderPageResource = self.readerPageResource(
-                apiRule: apiRule,
-                source: source,
-                imageURL: imageURL,
                 rootJSON: jsonObject,
                 currentJSON: itemObject
             )
@@ -600,14 +607,93 @@ struct ComicRuleSourceReaderLoader {
     private func readerPageResource(
         apiRule: ReaderImageAPIRule,
         source: Source,
-        imageURL: String,
+        chapterURLString: String,
+        itemIndex: Int,
+        imageURL: String?,
         rootJSON: Any,
         currentJSON: Any
-    ) -> ReaderPageResource {
+    ) throws -> ReaderPageResource? {
+        if let resourcePipeline = apiRule.resourcePipeline {
+            let displayURLString: String = self.nonEmpty(imageURL)
+                ?? self.resourcePipelineDisplayURL(
+                    sourceID: source.id,
+                    chapterURLString: chapterURLString,
+                    itemIndex: itemIndex
+                )
+            let legacyFallback: LegacyProtectedReaderImageReference?
+            switch resourcePipeline.executionPolicy {
+            case .pipelineOnly:
+                legacyFallback = nil
+            case .pipelineWithLegacyFallback:
+                guard let protectedResourceRule: ProtectedResourceRule = apiRule.protectedResource,
+                      let legacyDisplayURL: String = self.nonEmpty(imageURL) else {
+                    throw RuleExecutionError.ruleConfiguration(
+                        stage: .reader,
+                        sourceID: source.id,
+                        reason: "resourcePipeline legacy fallback is missing a resolvable protected image URL"
+                    )
+                }
+                legacyFallback = self.legacyProtectedReference(
+                    apiRule: apiRule,
+                    source: source,
+                    imageURL: legacyDisplayURL,
+                    protectedResourceRule: protectedResourceRule,
+                    rootJSON: rootJSON,
+                    currentJSON: currentJSON
+                )
+            }
+
+            return .protectedResource(
+                ProtectedReaderImageReference(
+                    execution: .pipeline(
+                        ResourcePipelineReaderImageReference(
+                            displayURLString: displayURLString,
+                            sourceID: source.id,
+                            baseURL: URL(string: source.baseURL),
+                            rule: resourcePipeline.pipeline,
+                            item: try self.resourcePipelineScope(from: currentJSON),
+                            root: try self.resourcePipelineScope(from: rootJSON),
+                            context: ComicRuleAPIResolver.ruleContextValues(source: source).mapValues {
+                                .string($0)
+                            },
+                            legacyFallback: legacyFallback
+                        )
+                    )
+                )
+            )
+        }
+
+        guard let imageURL: String = self.nonEmpty(imageURL) else {
+            return nil
+        }
         guard let protectedResourceRule: ProtectedResourceRule = apiRule.protectedResource else {
             return .remoteImageURL(imageURL)
         }
 
+        return .protectedResource(
+            ProtectedReaderImageReference(
+                execution: .legacy(
+                    self.legacyProtectedReference(
+                        apiRule: apiRule,
+                        source: source,
+                        imageURL: imageURL,
+                        protectedResourceRule: protectedResourceRule,
+                        rootJSON: rootJSON,
+                        currentJSON: currentJSON
+                    )
+                )
+            )
+        )
+    }
+
+    private func legacyProtectedReference(
+        apiRule: ReaderImageAPIRule,
+        source: Source,
+        imageURL: String,
+        protectedResourceRule: ProtectedResourceRule,
+        rootJSON: Any,
+        currentJSON: Any
+    ) -> LegacyProtectedReaderImageReference {
         let parameters: [String: String] = self.protectedResourceParameters(
             apiRule: apiRule,
             imageURL: imageURL,
@@ -616,14 +702,77 @@ struct ComicRuleSourceReaderLoader {
             currentJSON: currentJSON
         )
 
-        return .protectedResource(
-            ProtectedReaderImageReference(
-                displayURLString: imageURL,
-                sourceID: source.id,
-                baseURL: URL(string: source.baseURL),
-                rule: protectedResourceRule,
-                parameters: parameters
-            )
+        return LegacyProtectedReaderImageReference(
+            displayURLString: imageURL,
+            sourceID: source.id,
+            baseURL: URL(string: source.baseURL),
+            rule: protectedResourceRule,
+            parameters: parameters
+        )
+    }
+
+    private func nonEmpty(_ value: String?) -> String? {
+        guard let value: String = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              value.isEmpty == false else {
+            return nil
+        }
+        return value
+    }
+
+    private func resourcePipelineDisplayURL(
+        sourceID: String,
+        chapterURLString: String,
+        itemIndex: Int
+    ) -> String {
+        let identity: String = [sourceID, chapterURLString]
+            .joined(separator: "|")
+            .data(using: .utf8)?
+            .base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "") ?? "reader"
+        return "resource-pipeline://reader/\(identity)/\(itemIndex)"
+    }
+
+    private func resourcePipelineScope(
+        from jsonObject: Any
+    ) throws -> [String: ReaderResourcePipelineValue] {
+        if let object: [String: Any] = jsonObject as? [String: Any] {
+            return try object.mapValues { value in
+                try self.resourcePipelineValue(from: value)
+            }
+        }
+        return ["value": try self.resourcePipelineValue(from: jsonObject)]
+    }
+
+    private func resourcePipelineValue(from jsonValue: Any) throws -> ReaderResourcePipelineValue {
+        if jsonValue is NSNull {
+            return .null
+        }
+        if let value: String = jsonValue as? String {
+            return .string(value)
+        }
+        if let value: Bool = jsonValue as? Bool {
+            return .boolean(value)
+        }
+        if let value: NSNumber = jsonValue as? NSNumber {
+            return .number(value.doubleValue)
+        }
+        if let value: [String: Any] = jsonValue as? [String: Any] {
+            return .object(try value.mapValues { nestedValue in
+                try self.resourcePipelineValue(from: nestedValue)
+            })
+        }
+        if let value: [Any] = jsonValue as? [Any] {
+            return .array(try value.map { nestedValue in
+                try self.resourcePipelineValue(from: nestedValue)
+            })
+        }
+
+        throw RuleExecutionError.ruleConfiguration(
+            stage: .reader,
+            sourceID: "unknown",
+            reason: "resourcePipeline scope contains an unsupported JSON value"
         )
     }
 

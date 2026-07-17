@@ -33,7 +33,7 @@ final class ReaderViewModel: ObservableObject {
     private let selectedChapter: ChapterLink?
     private let restoreContext: ReaderHistoryRestoreContext?
     private let loadReaderChapterUseCase: LoadReaderChapterUseCase
-    private let protectedResourceLoader: ProtectedResourceLoader?
+    private let protectedResourceLoader: ReaderProtectedResourceLoader?
     private let resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
     private let saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase?
     private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
@@ -50,7 +50,7 @@ final class ReaderViewModel: ObservableObject {
         selectedChapter: ChapterLink? = nil,
         restoreContext: ReaderHistoryRestoreContext? = nil,
         loadReaderChapterUseCase: LoadReaderChapterUseCase,
-        protectedResourceLoader: ProtectedResourceLoader? = nil,
+        protectedResourceLoader: ReaderProtectedResourceLoader? = nil,
         resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase,
         saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase? = nil,
         accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil,
@@ -264,7 +264,7 @@ final class ReaderViewModel: ObservableObject {
     }
 
     func loadProtectedImage(reference: ProtectedReaderImageReference) async throws -> UIImage {
-        guard let protectedResourceLoader: ProtectedResourceLoader = self.protectedResourceLoader else {
+        guard let protectedResourceLoader: ReaderProtectedResourceLoader = self.protectedResourceLoader else {
             throw RuleExecutionError.protectedResource(
                 stage: .image,
                 sourceID: reference.sourceID,
@@ -272,24 +272,20 @@ final class ReaderViewModel: ObservableObject {
             )
         }
 
-        let output: ProtectedResourceOutput = try await protectedResourceLoader.load(
-            ProtectedResourceLoadInput(
-                rule: reference.rule,
+        let data: Data = try await protectedResourceLoader.load(
+            reference,
+            context: SourceRequestContext(
                 sourceID: reference.sourceID,
-                parameters: reference.parameters,
-                context: SourceRequestContext(
-                    sourceID: reference.sourceID,
-                    baseURL: reference.baseURL ?? URL(string: self.source.baseURL),
-                    purpose: .image,
-                    refererURL: (self.chapter?.chapterURL).flatMap { chapterURL in
-                        URL(string: chapterURL)
-                    },
-                    contextValues: ComicRuleAPIResolver.ruleContextValues(source: self.source)
-                )
+                baseURL: reference.baseURL ?? URL(string: self.source.baseURL),
+                purpose: .image,
+                refererURL: (self.chapter?.chapterURL).flatMap { chapterURL in
+                    URL(string: chapterURL)
+                },
+                contextValues: ComicRuleAPIResolver.ruleContextValues(source: self.source)
             )
         )
 
-        guard let image: UIImage = UIImage(data: output.data) else {
+        guard let image: UIImage = UIImage(data: data) else {
             throw RuleExecutionError.protectedResource(
                 stage: .image,
                 sourceID: reference.sourceID,

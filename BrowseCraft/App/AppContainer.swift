@@ -13,7 +13,7 @@ final class AppContainer {
     private let sourceCredentialStore: SourceCredentialStoring
     private let pageContentLoader: PageContentLoader
     private let pageDataLoader: PageDataLoader
-    private let protectedResourceLoader: ProtectedResourceLoader
+    private let protectedResourceLoader: ReaderProtectedResourceLoader
     private let urlResolver: URLResolvingService
     private let comicRuleParser: ComicRuleSourceParsingService
     private let sourceRuntimeFactory: SourceRuntimeFactory
@@ -40,7 +40,13 @@ final class AppContainer {
             self.sourceCredentialStore = sourceCredentialStore
             self.pageContentLoader = pageContentLoader
             self.pageDataLoader = pageContentLoader
-            self.protectedResourceLoader = ProtectedResourceLoader(dataLoader: pageContentLoader)
+            self.protectedResourceLoader = ReaderProtectedResourceLoader(
+                legacyLoader: ProtectedResourceLoader(dataLoader: pageContentLoader),
+                pipelineExecutor: ResourcePipelineExecutor(
+                    dataLoader: pageContentLoader,
+                    cryptography: CommonCryptoResourcePipelineCryptography()
+                )
+            )
             self.urlResolver = urlResolver
             self.comicRuleParser = comicRuleParser
             self.sourceRuntimeFactory = SourceRuntimeFactory(

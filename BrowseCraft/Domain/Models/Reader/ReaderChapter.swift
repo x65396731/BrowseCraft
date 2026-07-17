@@ -18,11 +18,70 @@ enum ReaderPageResource: Hashable {
 }
 
 struct ProtectedReaderImageReference: Hashable {
+    var displayURLString: String {
+        switch self.execution {
+        case .legacy(let reference):
+            return reference.displayURLString
+        case .pipeline(let reference):
+            return reference.displayURLString
+        }
+    }
+
+    var sourceID: String {
+        switch self.execution {
+        case .legacy(let reference):
+            return reference.sourceID
+        case .pipeline(let reference):
+            return reference.sourceID
+        }
+    }
+
+    var baseURL: URL? {
+        switch self.execution {
+        case .legacy(let reference):
+            return reference.baseURL
+        case .pipeline(let reference):
+            return reference.baseURL
+        }
+    }
+
+    var execution: ProtectedReaderImageExecution
+}
+
+/// 中文注释：Reader 只持有“如何加载受保护图片”的领域描述，不在界面层解释 Core pipeline 规则。
+enum ProtectedReaderImageExecution: Hashable {
+    case legacy(LegacyProtectedReaderImageReference)
+    case pipeline(ResourcePipelineReaderImageReference)
+}
+
+struct LegacyProtectedReaderImageReference: Hashable {
     var displayURLString: String
     var sourceID: String
     var baseURL: URL?
     var rule: ProtectedResourceRule
     var parameters: [String: String]
+}
+
+struct ResourcePipelineReaderImageReference: Hashable {
+    var displayURLString: String
+    var sourceID: String
+    var baseURL: URL?
+    var rule: ResourcePipelineRule
+    var item: [String: ReaderResourcePipelineValue]
+    var root: [String: ReaderResourcePipelineValue]
+    var context: [String: ReaderResourcePipelineValue]
+    /// 中文注释：只有 executionPolicy 明确允许时才携带旧链路；nil 表示 pipeline 失败必须直接失败。
+    var legacyFallback: LegacyProtectedReaderImageReference?
+}
+
+/// 中文注释：JSON scope 的稳定值合同放在 Domain，避免 Reader 依赖 Application 执行器内部类型。
+indirect enum ReaderResourcePipelineValue: Hashable {
+    case string(String)
+    case number(Double)
+    case boolean(Bool)
+    case object([String: ReaderResourcePipelineValue])
+    case array([ReaderResourcePipelineValue])
+    case null
 }
 
 /// 中文注释：标准化的阅读页解析结果。

@@ -82,7 +82,7 @@ final class AlamofireHTTPClient: HTTPClient, ContextualPageContentLoader, Contex
             "accept=\(urlRequest.value(forHTTPHeaderField: "Accept") ?? "nil") " +
             "contentType=\(dataResponse.response?.value(forHTTPHeaderField: "Content-Type") ?? "nil") " +
             "bytes=\(dataResponse.data.count) " +
-            "preview=\(self.debugPreview(from: dataResponse.data, url: url))"
+            "preview=\(Self.debugPreview(from: dataResponse.data, url: url, purpose: context?.purpose))"
         )
         #endif
 
@@ -294,8 +294,16 @@ final class AlamofireHTTPClient: HTTPClient, ContextualPageContentLoader, Contex
         return self.usesExplicitHeadersOnly(url: url, request: request) ? "explicit" : "browser"
     }
 
-    private func debugPreview(from data: Data, url: URL) -> String {
-        if self.shouldRedactDebugPreview(for: url) {
+    static func debugPreview(
+        from data: Data,
+        url: URL,
+        purpose: SourceRequestPurpose?
+    ) -> String {
+        if purpose == .protectedResource {
+            return "redacted-protected-resource"
+        }
+
+        if Self.shouldRedactDebugPreview(for: url) {
             return "redacted-catalog-api"
         }
 
@@ -313,7 +321,7 @@ final class AlamofireHTTPClient: HTTPClient, ContextualPageContentLoader, Contex
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private func shouldRedactDebugPreview(for url: URL) -> Bool {
+    private static func shouldRedactDebugPreview(for url: URL) -> Bool {
         return APIRequestHeaders.isManagedAPIURL(url)
             && url.path == "/catalog/sources"
     }
