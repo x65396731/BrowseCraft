@@ -386,7 +386,31 @@ struct ComicRuleSourceReaderLoader {
                 reason: "Reader image API returned error: \(apiErrorMessage)"
             )
         }
+        let itemArrayState: ComicRuleAPIResolver.JSONArrayState = ComicRuleAPIResolver.jsonArrayState(
+            at: apiRule.itemPath,
+            in: jsonObject
+        )
         let itemObjects: [Any] = ComicRuleAPIResolver.jsonValues(at: apiRule.itemPath, in: jsonObject)
+
+        if itemArrayState == .empty,
+           apiRule.emptyResultPolicy == .requiresAccount {
+            RuleExecutionLogger.log(
+                stage: .reader,
+                event: "image-api-access-required",
+                fields: [
+                    "source": source.id,
+                    "item": item.id,
+                    "chapterURL": chapterURLString,
+                    "itemArrayState": "empty",
+                    "policy": apiRule.emptyResultPolicy?.rawValue ?? "nil"
+                ]
+            )
+            throw RuleExecutionError.accessRequired(
+                stage: .reader,
+                sourceID: source.id,
+                url: chapterURLString
+            )
+        }
 
         var sortableImagePages: [(url: String, headers: [String: String], resource: ReaderPageResource, order: Double?)] = []
         var imagePages: [(url: String, headers: [String: String], resource: ReaderPageResource)] = []

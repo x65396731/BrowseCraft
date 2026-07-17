@@ -145,7 +145,7 @@ final class AppAnalytics {
         switch classifiedError {
         case .network, .antiBot:
             event = .networkRequestFailed
-        case .selectorEmpty, .ruleConfiguration, .sourceAPI, .protectedResource, .parserDiagnostics, .unknown:
+        case .accessRequired, .selectorEmpty, .ruleConfiguration, .sourceAPI, .protectedResource, .parserDiagnostics, .unknown:
             event = .parseFailed
         }
 

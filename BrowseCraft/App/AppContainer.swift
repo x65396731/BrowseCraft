@@ -303,6 +303,7 @@ final class AppContainer {
             loadReaderChapterUseCase: loadReaderChapterUseCase,
             protectedResourceLoader: self.protectedResourceLoader,
             sourceCredentialProvider: self.sourceCredentialStore,
+            sourceCredentialStore: self.sourceCredentialStore,
             resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase(),
             saveComicChapterHistoryUseCase: saveComicChapterHistoryUseCase,
             accumulateAdPointsUseCase: accumulateAdPointsUseCase

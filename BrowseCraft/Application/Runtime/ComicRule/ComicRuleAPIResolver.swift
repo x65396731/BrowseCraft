@@ -2,6 +2,12 @@ import Foundation
 
 // 中文注释：ComicRuleAPIResolver 集中处理 API-backed comic rule 的 JSON path、模板和请求体替换。
 struct ComicRuleAPIResolver {
+    enum JSONArrayState: Equatable {
+        case missing
+        case empty
+        case nonEmpty
+    }
+
     static func request(
         from request: RequestConfig?,
         source: Source,
@@ -181,6 +187,66 @@ struct ComicRuleAPIResolver {
 
             return nextValues
         }
+    }
+
+    /// 中文注释：区分“规则路径不存在”和“源站确实返回空数组”，账号限制只能由后者触发。
+    static func jsonArrayState(at path: String, in object: Any) -> JSONArrayState {
+        let segments: [String] = path
+            .split(separator: ".")
+            .map(String.init)
+            .filter { segment in segment.isEmpty == false }
+        guard segments.isEmpty == false,
+              segments.contains(where: { $0.hasSuffix("[]") }) else {
+            return .missing
+        }
+
+        var values: [Any] = [object]
+        var encounteredArray: Bool = false
+
+        for segment: String in segments {
+            let shouldFlattenArray: Bool = segment.hasSuffix("[]")
+            let key: String = shouldFlattenArray ? String(segment.dropLast(2)) : segment
+            var nextValues: [Any] = []
+            var resolvedValueCount: Int = 0
+
+            for value: Any in values {
+                let child: Any?
+                if key.isEmpty {
+                    child = value
+                } else {
+                    child = (value as? [String: Any])?[key]
+                }
+
+                guard let child: Any else {
+                    continue
+                }
+                resolvedValueCount += 1
+
+                if shouldFlattenArray {
+                    guard let array: [Any] = child as? [Any] else {
+                        return .missing
+                    }
+                    encounteredArray = true
+                    nextValues.append(contentsOf: array)
+                } else {
+                    nextValues.append(child)
+                }
+            }
+
+            guard resolvedValueCount > 0 else {
+                return encounteredArray && values.isEmpty ? .empty : .missing
+            }
+            if shouldFlattenArray,
+               nextValues.isEmpty {
+                return .empty
+            }
+            values = nextValues
+        }
+
+        guard encounteredArray else {
+            return .missing
+        }
+        return values.isEmpty ? .empty : .nonEmpty
     }
 
     static func stringValue(_ value: Any?) -> String? {

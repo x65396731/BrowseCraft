@@ -6,6 +6,7 @@ import Foundation
 enum RuleExecutionError: LocalizedError, Equatable {
     case network(url: String, underlyingDescription: String)
     case antiBot(url: String)
+    case accessRequired(stage: RuleExecutionLogger.Stage, sourceID: String, url: String)
     case selectorEmpty(stage: RuleExecutionLogger.Stage, sourceID: String, url: String, ruleID: String?)
     case ruleConfiguration(stage: RuleExecutionLogger.Stage, sourceID: String, reason: String)
     case sourceAPI(stage: RuleExecutionLogger.Stage, sourceID: String, reason: String)
@@ -28,6 +29,8 @@ enum RuleExecutionError: LocalizedError, Equatable {
             return "网络请求失败：\(url)\n\(underlyingDescription)"
         case .antiBot(let url):
             return "源站返回了反爬/验证页面：\(url)"
+        case .accessRequired(let stage, let sourceID, let url):
+            return "此内容需要源站账号访问：stage=\(stage.rawValue) source=\(sourceID) url=\(url)"
         case .selectorEmpty(let stage, let sourceID, let url, let ruleID):
             return "规则没有匹配到内容：stage=\(stage.rawValue) source=\(sourceID) rule=\(ruleID ?? "nil") url=\(url)"
         case .ruleConfiguration(let stage, let sourceID, let reason):
@@ -134,6 +137,8 @@ enum RuleExecutionErrorClassifier {
             return "network"
         case .antiBot:
             return "antiBot"
+        case .accessRequired:
+            return "accessRequired"
         case .selectorEmpty:
             return "selectorEmpty"
         case .ruleConfiguration:

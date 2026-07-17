@@ -114,7 +114,12 @@ struct LibrarySourceLoginStateResolver {
             return false
         }
 
-        return credential.cookies.isEmpty == false
+        let now: Date = self.now()
+        let hasActiveCookie: Bool = credential.cookies.contains { cookie in
+            return cookie.expiresDate.map({ $0 > now }) ?? true
+        }
+
+        return hasActiveCookie
             || credential.headers.isEmpty == false
             || credential.accessToken?.isEmpty == false
             || credential.refreshToken?.isEmpty == false

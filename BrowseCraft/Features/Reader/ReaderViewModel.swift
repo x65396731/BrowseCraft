@@ -16,6 +16,14 @@ enum ReaderChapterNavigationDirection {
     case next
 }
 
+struct ReaderSourceLoginPrompt: Identifiable, Hashable {
+    let state: LibrarySourceLoginState
+
+    var id: String {
+        return state.id
+    }
+}
+
 /// 中文注释：ReaderViewModel 是 final class，负责本模块中的对应职责。
 final class ReaderViewModel: ObservableObject {
     @Published private(set) var chapter: ReaderChapter?
@@ -26,6 +34,8 @@ final class ReaderViewModel: ObservableObject {
     @Published private(set) var shouldPlayAd: Bool = false
     /// 中文注释：记录最近一次章节切换方向，让 View 在新章节加载完成后决定是否需要调整滚动位置。
     @Published private(set) var pendingChapterNavigationDirection: ReaderChapterNavigationDirection?
+    @Published private(set) var sourceLoginPrompt: ReaderSourceLoginPrompt?
+    @Published private(set) var requestedSourceLogin: LibrarySourceLoginState?
     @Published var errorMessage: String?
 
     let item: ContentItem
@@ -35,11 +45,14 @@ final class ReaderViewModel: ObservableObject {
     private let loadReaderChapterUseCase: LoadReaderChapterUseCase
     private let protectedResourceLoader: ReaderProtectedResourceLoader?
     private let sourceCredentialProvider: any SourceCredentialProviding
+    private let sourceCredentialStore: (any SourceCredentialStoring)?
     private let resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
     private let saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase?
     private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
     private let now: () -> Date
     private var savedChapterHistoryKeys: Set<String> = []
+    private var pendingAccessChapterURLString: String?
+    private var pendingAccessShouldRestoreInitialPage: Bool = false
 
     var diagnosticSource: Source {
         return self.source
@@ -53,6 +66,7 @@ final class ReaderViewModel: ObservableObject {
         loadReaderChapterUseCase: LoadReaderChapterUseCase,
         protectedResourceLoader: ReaderProtectedResourceLoader? = nil,
         sourceCredentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider(),
+        sourceCredentialStore: (any SourceCredentialStoring)? = nil,
         resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase,
         saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase? = nil,
         accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil,
@@ -65,6 +79,7 @@ final class ReaderViewModel: ObservableObject {
         self.loadReaderChapterUseCase = loadReaderChapterUseCase
         self.protectedResourceLoader = protectedResourceLoader
         self.sourceCredentialProvider = sourceCredentialProvider
+        self.sourceCredentialStore = sourceCredentialStore
         self.resolveReaderSourcePresentationUseCase = resolveReaderSourcePresentationUseCase
         self.saveComicChapterHistoryUseCase = saveComicChapterHistoryUseCase
         self.accumulateAdPointsUseCase = accumulateAdPointsUseCase
@@ -200,6 +215,48 @@ final class ReaderViewModel: ObservableObject {
     }
 
     @MainActor
+    func requestSourceLogin(state: LibrarySourceLoginState) {
+        self.sourceLoginPrompt = nil
+        self.requestedSourceLogin = state
+    }
+
+    @MainActor
+    func hideSourceLoginPrompt() {
+        self.sourceLoginPrompt = nil
+    }
+
+    @MainActor
+    func dismissSourceLoginPrompt() {
+        self.sourceLoginPrompt = nil
+        self.clearPendingAccessRetry()
+    }
+
+    @MainActor
+    func dismissRequestedSourceLogin() {
+        self.requestedSourceLogin = nil
+        self.clearPendingAccessRetry()
+    }
+
+    @MainActor
+    func completeRequestedSourceLogin(credential: SourceCredential) async {
+        guard credential.sourceID == self.requestedSourceLogin?.sourceID,
+              let sourceCredentialStore: any SourceCredentialStoring = self.sourceCredentialStore else {
+            return
+        }
+
+        sourceCredentialStore.save(credential)
+        self.requestedSourceLogin = nil
+
+        let chapterURLString: String? = self.pendingAccessChapterURLString
+        let shouldRestoreInitialPage: Bool = self.pendingAccessShouldRestoreInitialPage
+        self.clearPendingAccessRetry()
+        await self.loadChapter(
+            chapterURLString: chapterURLString,
+            shouldRestoreInitialPage: shouldRestoreInitialPage
+        )
+    }
+
+    @MainActor
     private func loadChapter(
         chapterURLString: String?,
         shouldRestoreInitialPage: Bool
@@ -236,16 +293,27 @@ final class ReaderViewModel: ObservableObject {
             )
             #endif
         } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .reader, event: "reader-load-error")
-            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .reader, errorCode: "reader-load-error")
-            CrashDiagnostics.shared.record(
-                error: error,
-                category: .parser,
-                errorCode: "reader-load-error",
-                event: "reader-load-error"
+            let classifiedError: RuleExecutionError = RuleExecutionErrorClassifier.classified(error)
+            RuleExecutionErrorClassifier.log(error: classifiedError, stage: .reader, event: "reader-load-error")
+            switch classifiedError {
+            case .accessRequired:
+                // 中文注释：账号访问限制是预期业务状态，不作为解析失败上报 Crashlytics。
+                break
+            default:
+                AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .reader, errorCode: "reader-load-error")
+                CrashDiagnostics.shared.record(
+                    error: error,
+                    category: .parser,
+                    errorCode: "reader-load-error",
+                    event: "reader-load-error"
+                )
+            }
+            self.handleReaderLoadError(
+                classifiedError,
+                chapterURLString: chapterURLString,
+                shouldRestoreInitialPage: shouldRestoreInitialPage
             )
-            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
-            let classifiedMessage: String = RuleExecutionErrorClassifier.userMessage(for: error)
+            let classifiedMessage: String = RuleExecutionErrorClassifier.userMessage(for: classifiedError)
 
             #if DEBUG
             print(
@@ -259,6 +327,41 @@ final class ReaderViewModel: ObservableObject {
         }
 
         self.isLoading = false
+    }
+
+    @MainActor
+    private func handleReaderLoadError(
+        _ error: RuleExecutionError,
+        chapterURLString: String?,
+        shouldRestoreInitialPage: Bool
+    ) {
+        guard case .accessRequired = error else {
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+            return
+        }
+
+        guard let sourceCredentialStore: any SourceCredentialStoring = self.sourceCredentialStore,
+              let loginState: LibrarySourceLoginState = LibrarySourceLoginStateResolver(
+                credentialStore: sourceCredentialStore,
+                now: self.now
+              ).resolve(source: self.source) else {
+            self.errorMessage = "This chapter requires a source account, but this source has no available login page."
+            return
+        }
+
+        guard loginState.status == .guest else {
+            self.errorMessage = "This account cannot access the chapter. Purchase or VIP membership may be required."
+            return
+        }
+
+        self.pendingAccessChapterURLString = chapterURLString
+        self.pendingAccessShouldRestoreInitialPage = shouldRestoreInitialPage
+        self.sourceLoginPrompt = ReaderSourceLoginPrompt(state: loginState)
+    }
+
+    private func clearPendingAccessRetry() {
+        self.pendingAccessChapterURLString = nil
+        self.pendingAccessShouldRestoreInitialPage = false
     }
 
     /// 中文注释：阅读页图片加载使用 GalleryRule 的图片请求配置，避免 UI 直接理解规则选择细节。

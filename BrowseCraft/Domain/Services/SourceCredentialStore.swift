@@ -131,7 +131,7 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring {
     }
 
     func cookieHeader(for context: SourceRequestContext, url: URL) -> String? {
-        guard let credential: SourceCredential = self.credential(for: context, url: url),
+        guard let credential: SourceCredential = self.cookieCredential(for: context),
               credential.cookies.isEmpty == false else {
             #if DEBUG
             self.debugCredentialMiss(context: context, url: url, operation: "cookie")
@@ -171,7 +171,7 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring {
     }
 
     func headerOverrides(for context: SourceRequestContext, url: URL) -> [String: String] {
-        guard let credential: SourceCredential = self.credential(for: context, url: url),
+        guard let credential: SourceCredential = self.headerCredential(for: context, url: url),
               self.isExpired(credential) == false else {
             #if DEBUG
             self.debugCredentialMiss(context: context, url: url, operation: "headers")
@@ -266,7 +266,19 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring {
         return value
     }
 
-    private func credential(for context: SourceRequestContext, url: URL) -> SourceCredential? {
+    /// 中文注释：Cookie 是否可发送由 Cookie 自身的 Domain/Path/Secure 等属性决定，不能被 source baseURL 的单一 host 预先拦截。
+    private func cookieCredential(for context: SourceRequestContext) -> SourceCredential? {
+        guard let sourceID: String = context.sourceID,
+              let credential: SourceCredential = self.credential(sourceID: sourceID),
+              self.isExpired(credential) == false else {
+            return nil
+        }
+
+        return credential
+    }
+
+    /// 中文注释：自定义 Header 仍限制在凭据 baseURL host 及其子域，避免因 Cookie 的跨子域能力扩大 Header 泄露范围。
+    private func headerCredential(for context: SourceRequestContext, url: URL) -> SourceCredential? {
         guard let sourceID: String = context.sourceID,
               let credential: SourceCredential = self.credential(sourceID: sourceID),
               self.isExpired(credential) == false,
@@ -305,6 +317,11 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring {
         }
 
         guard let host: String = url.host?.lowercased() else {
+            return false
+        }
+
+        if cookie.isSecure,
+           url.scheme?.lowercased() != "https" {
             return false
         }
 

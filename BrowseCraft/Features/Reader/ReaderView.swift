@@ -381,6 +381,37 @@ struct ReaderView: View {
                 )
             )
         }
+        .alert(item: self.sourceLoginPromptBinding) { prompt in
+            Alert(
+                title: Text("Login Required"),
+                message: Text("This chapter requires a source account. Signing in may not grant access if purchase or VIP membership is also required."),
+                primaryButton: .default(
+                    Text("Log In"),
+                    action: {
+                        self.viewModel.requestSourceLogin(state: prompt.state)
+                    }
+                ),
+                secondaryButton: .cancel(
+                    Text("Not Now"),
+                    action: {
+                        self.viewModel.dismissSourceLoginPrompt()
+                    }
+                )
+            )
+        }
+        .fullScreenCover(item: self.requestedSourceLoginBinding) { loginState in
+            SourceLoginView(
+                state: loginState,
+                cancelAction: {
+                    self.viewModel.dismissRequestedSourceLogin()
+                },
+                completeAction: { credential in
+                    Task {
+                        await self.viewModel.completeRequestedSourceLogin(credential: credential)
+                    }
+                }
+            )
+        }
         .handlesRewardedAdPlayback(
             shouldPlayAd: self.viewModel.shouldPlayAd,
             markHandled: {
@@ -409,6 +440,32 @@ struct ReaderView: View {
             .frame(maxWidth: .infinity)
             .frame(minHeight: 260)
         }
+    }
+
+    private var sourceLoginPromptBinding: Binding<ReaderSourceLoginPrompt?> {
+        return Binding<ReaderSourceLoginPrompt?>(
+            get: {
+                return self.viewModel.sourceLoginPrompt
+            },
+            set: { newValue in
+                if newValue == nil {
+                    self.viewModel.hideSourceLoginPrompt()
+                }
+            }
+        )
+    }
+
+    private var requestedSourceLoginBinding: Binding<LibrarySourceLoginState?> {
+        return Binding<LibrarySourceLoginState?>(
+            get: {
+                return self.viewModel.requestedSourceLogin
+            },
+            set: { newValue in
+                if newValue == nil {
+                    self.viewModel.dismissRequestedSourceLogin()
+                }
+            }
+        )
     }
 
     @ViewBuilder
