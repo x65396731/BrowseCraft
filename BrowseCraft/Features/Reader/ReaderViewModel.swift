@@ -41,6 +41,9 @@ final class ReaderViewModel: ObservableObject {
     let item: ContentItem
     private let source: Source
     private let selectedChapter: ChapterLink?
+    private let navigationChapterURLs: [String]
+    private let navigationChapterTitles: [String?]
+    private let navigationOrder: ChapterNavigationOrder
     private let restoreContext: ReaderHistoryRestoreContext?
     private let loadReaderChapterUseCase: LoadReaderChapterUseCase
     private let protectedResourceLoader: ReaderProtectedResourceLoader?
@@ -75,6 +78,9 @@ final class ReaderViewModel: ObservableObject {
         self.item = item
         self.source = source
         self.selectedChapter = selectedChapter
+        self.navigationChapterURLs = selectedChapter?.navigationChapterURLs ?? []
+        self.navigationChapterTitles = selectedChapter?.navigationChapterTitles ?? []
+        self.navigationOrder = selectedChapter?.navigationOrder ?? .descending
         self.restoreContext = restoreContext
         self.loadReaderChapterUseCase = loadReaderChapterUseCase
         self.protectedResourceLoader = protectedResourceLoader
@@ -279,8 +285,9 @@ final class ReaderViewModel: ObservableObject {
                 item: self.item,
                 chapterURLString: chapterURLString
             )
-            self.chapter = loadedChapter
-            self.saveComicChapterHistoryIfNeeded(chapter: loadedChapter)
+            let navigableChapter: ReaderChapter = self.chapterByResolvingNavigation(for: loadedChapter)
+            self.chapter = navigableChapter
+            self.saveComicChapterHistoryIfNeeded(chapter: navigableChapter)
             AppAnalytics.shared.logReaderOpened(source: self.source)
             AppAnalytics.shared.logChapterOpened(source: self.source)
 
@@ -521,8 +528,20 @@ final class ReaderViewModel: ObservableObject {
             lastPageIndex: self.currentPageIndex ?? (chapter.pageImageURLs.isEmpty ? nil : 0),
             previousChapterURL: chapter.previousChapterURL.flatMap(URL.init(string:)),
             nextChapterURL: chapter.nextChapterURL.flatMap(URL.init(string:)),
+            previousChapterTitle: self.navigationTitle(for: chapter.previousChapterURL),
+            nextChapterTitle: self.navigationTitle(for: chapter.nextChapterURL),
             sourceSnapshot: SourceSnapshot(source: self.source)
         )
+    }
+
+    private func navigationTitle(for chapterURL: String?) -> String? {
+        guard let chapterURL: String = self.nonEmptyURLString(chapterURL),
+              let chapterIndex: Int = self.navigationIndex(for: chapterURL),
+              self.navigationChapterTitles.indices.contains(chapterIndex) else {
+            return nil
+        }
+
+        return self.nonEmptyURLString(self.navigationChapterTitles[chapterIndex])
     }
 
     private func chapterKey(for chapter: ReaderChapter) -> String {
@@ -560,6 +579,59 @@ final class ReaderViewModel: ObservableObject {
 
         return urlString
     }
+
+    /// 中文注释：优先保留 reader 页面自身解析出的导航；imageAPI 等无导航结果再使用详情页章节顺序补齐。
+    private func chapterByResolvingNavigation(for chapter: ReaderChapter) -> ReaderChapter {
+        guard let currentIndex: Int = self.navigationIndex(for: chapter.chapterURL) else {
+            return chapter
+        }
+
+        var resolvedChapter: ReaderChapter = chapter
+        if self.nonEmptyURLString(resolvedChapter.chapterTitle) == nil,
+           self.navigationChapterTitles.indices.contains(currentIndex),
+           let navigationTitle: String = self.nonEmptyURLString(self.navigationChapterTitles[currentIndex]) {
+            resolvedChapter.chapterTitle = navigationTitle
+        }
+        let previousIndex: Int
+        let nextIndex: Int
+        switch self.navigationOrder {
+        case .ascending:
+            previousIndex = currentIndex - 1
+            nextIndex = currentIndex + 1
+        case .descending:
+            previousIndex = currentIndex + 1
+            nextIndex = currentIndex - 1
+        }
+
+        if self.nonEmptyURLString(resolvedChapter.previousChapterURL) == nil,
+           self.navigationChapterURLs.indices.contains(previousIndex) {
+            resolvedChapter.previousChapterURL = self.navigationChapterURLs[previousIndex]
+        }
+        if self.nonEmptyURLString(resolvedChapter.nextChapterURL) == nil,
+           self.navigationChapterURLs.indices.contains(nextIndex) {
+            resolvedChapter.nextChapterURL = self.navigationChapterURLs[nextIndex]
+        }
+        return resolvedChapter
+    }
+
+    private func navigationIndex(for chapterURL: String) -> Int? {
+        if let exactIndex: Int = self.navigationChapterURLs.firstIndex(of: chapterURL) {
+            return exactIndex
+        }
+
+        let normalizedChapterURL: String = self.normalizedNavigationURL(chapterURL)
+        return self.navigationChapterURLs.firstIndex { candidateURL in
+            return self.normalizedNavigationURL(candidateURL) == normalizedChapterURL
+        }
+    }
+
+    private func normalizedNavigationURL(_ urlString: String) -> String {
+        var normalizedURL: String = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        while normalizedURL.count > 1 && normalizedURL.hasSuffix("/") {
+            normalizedURL.removeLast()
+        }
+        return normalizedURL
+    }
 }
 
 /// 中文注释：ChapterListViewModel 是 final class，负责本模块中的对应职责。
@@ -573,6 +645,12 @@ final class ChapterListViewModel: ObservableObject {
     let source: Source
     private let loadChaptersUseCase: LoadChaptersUseCase
     private let resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
+
+    var chapterNavigationOrder: ChapterNavigationOrder {
+        let detailRule: DetailRule? = self.source.rule.primaryDetailRule
+        let chapterSort: ChapterSort? = detailRule?.chapterAPI?.sort ?? detailRule?.chapterRule?.sort
+        return chapterSort == .ascending ? .ascending : .descending
+    }
 
     init(
         item: ContentItem,

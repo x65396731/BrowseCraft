@@ -33,6 +33,8 @@ struct ComicChapterHistory: Identifiable, Hashable {
     /// 中文注释：上一话/下一话 URL 是上次阅读时已知的导航状态，重新解析章节后应以最新结果为准。
     var previousChapterURL: URL?
     var nextChapterURL: URL?
+    var previousChapterTitle: String? = nil
+    var nextChapterTitle: String? = nil
     var sourceSnapshot: SourceSnapshot? = nil
 
     func fallbackSource() -> Source? {

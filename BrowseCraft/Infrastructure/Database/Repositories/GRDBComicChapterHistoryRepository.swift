@@ -55,8 +55,8 @@ final class GRDBComicChapterHistoryRepository: ComicChapterHistoryRepository {
         try database.execute(
             sql: """
             INSERT INTO \(ComicChapterHistoryRecord.databaseTableName)
-                (userID, sourceID, comicItemID, comicTitle, chapterID, chapterKey, chapterURL, chapterTitle, visitedAt, coverURL, lastReaderPageURL, lastPageImageURL, lastPageImageCacheKey, lastPageIndex, previousChapterURL, nextChapterURL, sourceSnapshotJSON)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (userID, sourceID, comicItemID, comicTitle, chapterID, chapterKey, chapterURL, chapterTitle, visitedAt, coverURL, lastReaderPageURL, lastPageImageURL, lastPageImageCacheKey, lastPageIndex, previousChapterURL, nextChapterURL, previousChapterTitle, nextChapterTitle, sourceSnapshotJSON)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(userID, sourceID, comicItemID, chapterKey) DO UPDATE SET
                 comicTitle = excluded.comicTitle,
                 chapterID = excluded.chapterID,
@@ -70,6 +70,8 @@ final class GRDBComicChapterHistoryRepository: ComicChapterHistoryRepository {
                 lastPageIndex = excluded.lastPageIndex,
                 previousChapterURL = excluded.previousChapterURL,
                 nextChapterURL = excluded.nextChapterURL,
+                previousChapterTitle = excluded.previousChapterTitle,
+                nextChapterTitle = excluded.nextChapterTitle,
                 sourceSnapshotJSON = excluded.sourceSnapshotJSON
             """,
             arguments: [
@@ -89,6 +91,8 @@ final class GRDBComicChapterHistoryRepository: ComicChapterHistoryRepository {
                 record.lastPageIndex,
                 record.previousChapterURL,
                 record.nextChapterURL,
+                record.previousChapterTitle,
+                record.nextChapterTitle,
                 record.sourceSnapshotJSON
             ]
         )

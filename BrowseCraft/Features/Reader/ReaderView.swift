@@ -182,7 +182,13 @@ struct ChapterListView: View {
 
     private func openReaderDestination(for chapter: ChapterLink) {
         self.logChapterTap(chapter)
-        self.selectedReaderChapter = chapter
+        var selectedChapter: ChapterLink = chapter
+        selectedChapter.navigationChapterURLs = self.viewModel.chapters.map(\.url)
+        selectedChapter.navigationChapterTitles = self.viewModel.chapters.map { chapter in
+            return chapter.title
+        }
+        selectedChapter.navigationOrder = self.viewModel.chapterNavigationOrder
+        self.selectedReaderChapter = selectedChapter
     }
 
     private func logChapterTap(_ chapter: ChapterLink) {

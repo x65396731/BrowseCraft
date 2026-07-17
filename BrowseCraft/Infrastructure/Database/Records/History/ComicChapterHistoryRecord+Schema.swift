@@ -18,6 +18,8 @@ extension ComicChapterHistoryRecord {
         static let lastPageIndex: Column = Column("lastPageIndex")
         static let previousChapterURL: Column = Column("previousChapterURL")
         static let nextChapterURL: Column = Column("nextChapterURL")
+        static let previousChapterTitle: Column = Column("previousChapterTitle")
+        static let nextChapterTitle: Column = Column("nextChapterTitle")
         static let sourceSnapshotJSON: Column = Column("sourceSnapshotJSON")
     }
 
@@ -43,6 +45,8 @@ extension ComicChapterHistoryRecord {
             table.column("lastPageIndex", .integer)
             table.column("previousChapterURL", .text)
             table.column("nextChapterURL", .text)
+            table.column("previousChapterTitle", .text)
+            table.column("nextChapterTitle", .text)
             table.column("sourceSnapshotJSON", .text)
             table.uniqueKey(["userID", "sourceID", "comicItemID", "chapterKey"])
         }

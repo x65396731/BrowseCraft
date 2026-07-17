@@ -311,6 +311,20 @@ final class AppContainer {
     }
 
     func makeReaderViewModel(history: ComicChapterHistory, source: Source) -> ReaderViewModel {
+        let repository: ComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(
+            database: self.database
+        )
+        let storedChapterTitlesByURL: [String: String] = (try? repository.fetchHistory(userID: history.userID))?
+            .filter { storedHistory in
+                return storedHistory.sourceID == history.sourceID
+                    && storedHistory.comicItemID == history.comicItemID
+            }
+            .reduce(into: [:]) { titles, storedHistory in
+                guard let chapterURL: String = storedHistory.chapterURL?.absoluteString else {
+                    return
+                }
+                titles[chapterURL] = storedHistory.chapterTitle
+            } ?? [:]
         let readerURL: URL? = history.lastReaderPageURL ?? history.chapterURL
         let item: ContentItem = ContentItem(
             id: history.comicItemID,
@@ -323,7 +337,26 @@ final class AppContainer {
             updatedAt: history.visitedAt
         )
         let selectedChapter: ChapterLink? = readerURL.map { url in
-            return ChapterLink(title: history.chapterTitle, url: url.absoluteString)
+            var navigationChapterURLs: [String] = []
+            var navigationChapterTitles: [String?] = []
+            let appendNavigationChapter: (URL?, String?) -> Void = { chapterURL, storedTitle in
+                guard let chapterURL: URL else {
+                    return
+                }
+                navigationChapterURLs.append(chapterURL.absoluteString)
+                navigationChapterTitles.append(
+                    storedTitle ?? storedChapterTitlesByURL[chapterURL.absoluteString]
+                )
+            }
+            appendNavigationChapter(history.nextChapterURL, history.nextChapterTitle)
+            appendNavigationChapter(url, history.chapterTitle)
+            appendNavigationChapter(history.previousChapterURL, history.previousChapterTitle)
+            return ChapterLink(
+                title: history.chapterTitle,
+                url: url.absoluteString,
+                navigationChapterURLs: navigationChapterURLs,
+                navigationChapterTitles: navigationChapterTitles
+            )
         }
         let restoreContext: ReaderHistoryRestoreContext = ReaderHistoryRestoreContext(
             lastPageIndex: history.lastPageIndex,
