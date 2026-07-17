@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import UIKit
 
 // 中文注释：ReaderViewModel.swift 属于界面功能层，用于说明本文件承载的核心职责。
 
@@ -32,6 +33,7 @@ final class ReaderViewModel: ObservableObject {
     private let selectedChapter: ChapterLink?
     private let restoreContext: ReaderHistoryRestoreContext?
     private let loadReaderChapterUseCase: LoadReaderChapterUseCase
+    private let protectedResourceLoader: ProtectedResourceLoader?
     private let resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
     private let saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase?
     private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
@@ -48,6 +50,7 @@ final class ReaderViewModel: ObservableObject {
         selectedChapter: ChapterLink? = nil,
         restoreContext: ReaderHistoryRestoreContext? = nil,
         loadReaderChapterUseCase: LoadReaderChapterUseCase,
+        protectedResourceLoader: ProtectedResourceLoader? = nil,
         resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase,
         saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase? = nil,
         accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil,
@@ -58,6 +61,7 @@ final class ReaderViewModel: ObservableObject {
         self.selectedChapter = selectedChapter
         self.restoreContext = restoreContext
         self.loadReaderChapterUseCase = loadReaderChapterUseCase
+        self.protectedResourceLoader = protectedResourceLoader
         self.resolveReaderSourcePresentationUseCase = resolveReaderSourcePresentationUseCase
         self.saveComicChapterHistoryUseCase = saveComicChapterHistoryUseCase
         self.accumulateAdPointsUseCase = accumulateAdPointsUseCase
@@ -257,6 +261,43 @@ final class ReaderViewModel: ObservableObject {
     /// 中文注释：阅读页图片加载使用 GalleryRule 的图片请求配置，避免 UI 直接理解规则选择细节。
     var readerImageRequestConfig: RequestConfig? {
         return self.resolveReaderSourcePresentationUseCase.readerImageRequestConfig(for: self.source)
+    }
+
+    func loadProtectedImage(reference: ProtectedReaderImageReference) async throws -> UIImage {
+        guard let protectedResourceLoader: ProtectedResourceLoader = self.protectedResourceLoader else {
+            throw RuleExecutionError.protectedResource(
+                stage: .image,
+                sourceID: reference.sourceID,
+                reason: "Protected resource loader is not configured"
+            )
+        }
+
+        let output: ProtectedResourceOutput = try await protectedResourceLoader.load(
+            ProtectedResourceLoadInput(
+                rule: reference.rule,
+                sourceID: reference.sourceID,
+                parameters: reference.parameters,
+                context: SourceRequestContext(
+                    sourceID: reference.sourceID,
+                    baseURL: reference.baseURL ?? URL(string: self.source.baseURL),
+                    purpose: .image,
+                    refererURL: (self.chapter?.chapterURL).flatMap { chapterURL in
+                        URL(string: chapterURL)
+                    },
+                    contextValues: ComicRuleAPIResolver.ruleContextValues(source: self.source)
+                )
+            )
+        )
+
+        guard let image: UIImage = UIImage(data: output.data) else {
+            throw RuleExecutionError.protectedResource(
+                stage: .image,
+                sourceID: reference.sourceID,
+                reason: "Decrypted protected resource is not a valid image"
+            )
+        }
+
+        return image
     }
 
     private func saveComicChapterHistoryIfNeeded(chapter: ReaderChapter) {
@@ -503,6 +544,7 @@ final class ChapterListViewModel: ObservableObject {
                     "itemTitle=\(self.item.title) " +
                     "index=\(index) " +
                     "chapterTitle=\(chapter.title) " +
+                    "chapterSubtitle=\(chapter.subtitle ?? "nil") " +
                     "chapterURL=\(chapter.url)"
                 )
             }

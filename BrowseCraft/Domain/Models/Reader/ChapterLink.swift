@@ -6,5 +6,6 @@ import Foundation
 /// 中文注释：列表页只给出作品详情地址，阅读器需要先解析到具体章节地址。
 struct ChapterLink: Hashable {
     var title: String
+    var subtitle: String? = nil
     var url: String
 }

@@ -91,15 +91,32 @@ struct ComicRuleSourceReaderLoader {
 
         let chapter: ReaderChapter
         if let galleryRule: GalleryRule = resolvedRule.primaryGalleryRule {
-            if let apiChapter: ReaderChapter = try await self.loadImageAPI(
+            let imageAPIRule: ReaderImageAPIRule? = try self.readerImageAPIRule(
+                source: source,
+                galleryRule: galleryRule
+            )
+            if let imageAPIRule: ReaderImageAPIRule,
+               let apiChapter: ReaderChapter = try await self.loadImageAPI(
                 source: source,
                 item: item,
-                galleryRule: galleryRule,
+                apiRule: imageAPIRule,
                 chapterURLString: chapterURLString,
                 fallbackRequest: resolvedRule.primaryGalleryRequest
             ) {
                 chapter = apiChapter
             } else {
+                RuleExecutionLogger.log(
+                    stage: .reader,
+                    event: "loader-path",
+                    fields: [
+                        "source": source.id,
+                        "item": item.id,
+                        "path": "domSelector",
+                        "hasImageAPI": (galleryRule.imageAPI != nil).description,
+                        "hasGalleryProtectedResource": (galleryRule.protectedResource != nil).description,
+                        "imageItem": galleryRule.imageItem
+                    ]
+                )
                 let html: String = try await self.pageContentLoader.getString(
                     from: chapterURL,
                     request: resolvedRule.primaryGalleryRequest
@@ -276,17 +293,102 @@ struct ComicRuleSourceReaderLoader {
         return normalizedText
     }
 
-    private func loadImageAPI(
+    private func readerImageAPIRule(
         source: Source,
-        item: ContentItem,
-        galleryRule: GalleryRule,
-        chapterURLString: String,
-        fallbackRequest: RequestConfig?
-    ) async throws -> ReaderChapter? {
-        guard let apiRule: ReaderImageAPIRule = galleryRule.imageAPI else {
+        galleryRule: GalleryRule
+    ) throws -> ReaderImageAPIRule? {
+        if let imageAPI: ReaderImageAPIRule = galleryRule.imageAPI {
+            RuleExecutionLogger.log(
+                stage: .reader,
+                event: "loader-path",
+                fields: [
+                    "source": source.id,
+                    "path": "imageAPI",
+                    "hasProtectedResource": (imageAPI.protectedResource != nil).description
+                ]
+            )
+            return imageAPI
+        }
+
+        guard let galleryProtectedResource: GalleryProtectedResourceRule = galleryRule.protectedResource else {
             return nil
         }
 
+        RuleExecutionLogger.log(
+            stage: .reader,
+            event: "loader-path",
+            fields: [
+                "source": source.id,
+                "path": "galleryProtectedResource",
+                "type": galleryProtectedResource.type ?? "nil",
+                "hasItemSource": (galleryProtectedResource.itemSource != nil).description,
+                "hasNativeRule": (galleryProtectedResource.nativeRule != nil).description,
+                "hasKeyDerivation": galleryProtectedResource.hasKeyDerivation.description
+            ]
+        )
+
+        guard let itemSource: ReaderProtectedResourceItemSourceRule = galleryProtectedResource.itemSource else {
+            throw RuleExecutionError.protectedResource(
+                stage: .reader,
+                sourceID: source.id,
+                reason: "gallery.protectedResource is missing itemSource"
+            )
+        }
+
+        guard let nativeRule: ProtectedResourceRule = galleryProtectedResource.nativeRule else {
+            throw RuleExecutionError.protectedResource(
+                stage: .reader,
+                sourceID: source.id,
+                reason: "gallery.protectedResource uses unsupported schema: type=\(galleryProtectedResource.type ?? "nil") keyDerivation=\(galleryProtectedResource.hasKeyDerivation)"
+            )
+        }
+
+        return ReaderImageAPIRule(
+            url: itemSource.url,
+            request: self.itemSourceRequest(itemSource),
+            itemPath: itemSource.itemPath,
+            urlTemplate: self.protectedDisplayURLTemplate(idPath: itemSource.idPath),
+            urlPath: nil,
+            imageHeaders: nil,
+            orderPath: itemSource.orderPath,
+            sort: itemSource.sort,
+            protectedResource: nativeRule
+        )
+    }
+
+    private func itemSourceRequest(_ itemSource: ReaderProtectedResourceItemSourceRule) -> RequestConfig? {
+        if let request: RequestConfig = itemSource.request {
+            return request
+        }
+
+        guard itemSource.method != nil || itemSource.headers?.isEmpty == false else {
+            return nil
+        }
+
+        return RequestConfig(
+            scope: .rule,
+            mergePolicy: .mergeHeaders,
+            method: itemSource.method,
+            headers: itemSource.headers,
+            needsWebView: false
+        )
+    }
+
+    private func protectedDisplayURLTemplate(idPath: String) -> String {
+        if idPath == "imageId" {
+            return "protected://reader-image?imageId={imageId}&quality=2"
+        }
+
+        return "protected://reader-image?imageId={\(idPath)}&\(idPath)={\(idPath)}&quality=2"
+    }
+
+    private func loadImageAPI(
+        source: Source,
+        item: ContentItem,
+        apiRule: ReaderImageAPIRule,
+        chapterURLString: String,
+        fallbackRequest: RequestConfig?
+    ) async throws -> ReaderChapter? {
         let apiURLString: String = ComicRuleAPIResolver.replacingTemplatePlaceholders(
             in: apiRule.url,
             source: source,
@@ -312,12 +414,14 @@ struct ComicRuleSourceReaderLoader {
                 "item": item.id,
                 "apiURL": apiURL.absoluteString,
                 "itemPath": apiRule.itemPath,
-                "chapterURL": chapterURLString
+                "chapterURL": chapterURLString,
+                "hasProtectedResource": (apiRule.protectedResource != nil).description
             ]
         )
 
-        let request: RequestConfig? = ComicRuleAPIResolver.request(
-            from: apiRule.request ?? fallbackRequest,
+        let request: RequestConfig? = ComicRuleAPIRequestResolver.request(
+            base: fallbackRequest,
+            override: apiRule.request,
             source: source,
             item: item,
             chapterURL: chapterURLString
@@ -336,8 +440,8 @@ struct ComicRuleSourceReaderLoader {
         }
         let itemObjects: [Any] = ComicRuleAPIResolver.jsonValues(at: apiRule.itemPath, in: jsonObject)
 
-        var sortableImagePages: [(url: String, headers: [String: String], order: Double?)] = []
-        var imagePages: [(url: String, headers: [String: String])] = []
+        var sortableImagePages: [(url: String, headers: [String: String], resource: ReaderPageResource, order: Double?)] = []
+        var imagePages: [(url: String, headers: [String: String], resource: ReaderPageResource)] = []
         var seenURLs: Set<String> = Set<String>()
 
         for itemObject: Any in itemObjects {
@@ -364,23 +468,31 @@ struct ComicRuleSourceReaderLoader {
                 rootJSON: jsonObject,
                 currentJSON: itemObject
             )
-            imagePages.append((url: imageURL, headers: imageHeaders))
+            let resource: ReaderPageResource = self.readerPageResource(
+                apiRule: apiRule,
+                source: source,
+                imageURL: imageURL,
+                rootJSON: jsonObject,
+                currentJSON: itemObject
+            )
+            imagePages.append((url: imageURL, headers: imageHeaders, resource: resource))
             let order: Double? = apiRule.orderPath.flatMap { path in
                 return ComicRuleAPIResolver.doubleValue(
                     ComicRuleAPIResolver.firstJSONValue(at: path, in: itemObject)
                 )
             }
-            sortableImagePages.append((url: imageURL, headers: imageHeaders, order: order))
+            sortableImagePages.append((url: imageURL, headers: imageHeaders, resource: resource, order: order))
         }
 
-        let sortedImagePages: [(url: String, headers: [String: String])] = self.sortedImagePages(
+        let sortedImagePages: [(url: String, headers: [String: String], resource: ReaderPageResource)] = self.sortedImagePages(
             sortableImagePages,
             sort: apiRule.sort
         )
-        let outputImagePages: [(url: String, headers: [String: String])] = sortedImagePages.isEmpty
+        let outputImagePages: [(url: String, headers: [String: String], resource: ReaderPageResource)] = sortedImagePages.isEmpty
             ? imagePages
             : sortedImagePages
         let outputImageURLs: [String] = outputImagePages.map(\.url)
+        let outputResources: [ReaderPageResource] = outputImagePages.map(\.resource)
         let outputImageHeaders: [String: [String: String]] = Dictionary(
             uniqueKeysWithValues: outputImagePages
                 .filter { page in page.headers.isEmpty == false }
@@ -396,6 +508,12 @@ struct ComicRuleSourceReaderLoader {
                 "chapterURL": chapterURLString,
                 "itemCount": itemObjects.count,
                 "pageCount": outputImageURLs.count,
+                "protectedCount": outputResources.filter { resource in
+                    if case .protectedResource = resource {
+                        return true
+                    }
+                    return false
+                }.count,
                 "imageHeaderPages": outputImageHeaders.count,
                 "firstImage": outputImageURLs.first ?? "nil"
             ]
@@ -414,6 +532,7 @@ struct ComicRuleSourceReaderLoader {
             previousChapterURL: nil,
             nextChapterURL: nil,
             pageImageURLs: outputImageURLs,
+            pageResources: outputResources,
             pageImageHeaders: outputImageHeaders
         )
     }
@@ -478,10 +597,94 @@ struct ComicRuleSourceReaderLoader {
         }
     }
 
+    private func readerPageResource(
+        apiRule: ReaderImageAPIRule,
+        source: Source,
+        imageURL: String,
+        rootJSON: Any,
+        currentJSON: Any
+    ) -> ReaderPageResource {
+        guard let protectedResourceRule: ProtectedResourceRule = apiRule.protectedResource else {
+            return .remoteImageURL(imageURL)
+        }
+
+        let parameters: [String: String] = self.protectedResourceParameters(
+            apiRule: apiRule,
+            imageURL: imageURL,
+            protectedResourceRule: protectedResourceRule,
+            rootJSON: rootJSON,
+            currentJSON: currentJSON
+        )
+
+        return .protectedResource(
+            ProtectedReaderImageReference(
+                displayURLString: imageURL,
+                sourceID: source.id,
+                baseURL: URL(string: source.baseURL),
+                rule: protectedResourceRule,
+                parameters: parameters
+            )
+        )
+    }
+
+    private func protectedResourceParameters(
+        apiRule: ReaderImageAPIRule,
+        imageURL: String,
+        protectedResourceRule: ProtectedResourceRule,
+        rootJSON: Any,
+        currentJSON: Any
+    ) -> [String: String] {
+        var parameters: [String: String] = [:]
+
+        if let urlTemplate: String = apiRule.urlTemplate {
+            self.templateTokens(in: urlTemplate).forEach { token in
+                if let value: String = ComicRuleAPIResolver.stringValue(
+                    ComicRuleAPIResolver.firstJSONValue(at: token, in: currentJSON)
+                ) ?? ComicRuleAPIResolver.stringValue(
+                    ComicRuleAPIResolver.firstJSONValue(at: token, in: rootJSON)
+                ),
+                   value.isEmpty == false {
+                    parameters[token] = value
+                }
+            }
+        }
+
+        if let urlComponents: URLComponents = URLComponents(string: imageURL) {
+            urlComponents.queryItems?.forEach { item in
+                if let value: String = item.value,
+                   value.isEmpty == false {
+                    parameters[item.name] = value
+                }
+            }
+        }
+
+        return parameters
+    }
+
+    private func templateTokens(in template: String) -> [String] {
+        let pattern: String = #"\{([^{}]+)\}"#
+        guard let regex: NSRegularExpression = try? NSRegularExpression(pattern: pattern) else {
+            return []
+        }
+
+        return regex.matches(
+            in: template,
+            range: NSRange(template.startIndex..<template.endIndex, in: template)
+        )
+        .compactMap { match in
+            guard match.numberOfRanges == 2,
+                  let range: Range<String.Index> = Range(match.range(at: 1), in: template) else {
+                return nil
+            }
+
+            return String(template[range])
+        }
+    }
+
     private func sortedImagePages(
-        _ pages: [(url: String, headers: [String: String], order: Double?)],
+        _ pages: [(url: String, headers: [String: String], resource: ReaderPageResource, order: Double?)],
         sort: ChapterSort?
-    ) -> [(url: String, headers: [String: String])] {
+    ) -> [(url: String, headers: [String: String], resource: ReaderPageResource)] {
         guard let sort: ChapterSort = sort,
               sort != .none,
               pages.contains(where: { page in page.order != nil }) else {
@@ -502,7 +705,7 @@ struct ComicRuleSourceReaderLoader {
             }
         }
         .map { page in
-            return (url: page.url, headers: page.headers)
+            return (url: page.url, headers: page.headers, resource: page.resource)
         }
     }
 

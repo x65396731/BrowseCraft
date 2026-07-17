@@ -9,10 +9,20 @@ private struct HTTPDataResponse {
 }
 
 /// 中文注释：生产环境使用的 HTTP 客户端，底层由 Alamofire 实现。
-final class AlamofireHTTPClient: HTTPClient {
+final class AlamofireHTTPClient: HTTPClient, ContextualPageContentLoader, ContextualPageDataLoader {
+    private let credentialProvider: SourceCredentialProviding
+
+    init(credentialProvider: SourceCredentialProviding = EmptySourceCredentialProvider()) {
+        self.credentialProvider = credentialProvider
+    }
+
     /// 中文注释：getString 方法把 V2 RequestConfig 合入默认 HTML 请求头，并通过 CookieHeaderResolver 应用 Cookie 策略。
     func getString(from url: URL, request: RequestConfig?) async throws -> String {
-        let urlRequest: URLRequest = self.urlRequest(for: url, request: request)
+        return try await self.getString(from: url, request: request, context: nil)
+    }
+
+    func getString(from url: URL, request: RequestConfig?, context: SourceRequestContext?) async throws -> String {
+        let urlRequest: URLRequest = self.urlRequest(for: url, request: request, context: context)
         let dataResponse: HTTPDataResponse
         let html: String
         do {
@@ -31,6 +41,7 @@ final class AlamofireHTTPClient: HTTPClient {
         print(
             "[BrowseCraftNetwork] url=\(url.absoluteString) " +
             "requestScope=\(request?.scope?.rawValue ?? "default") " +
+            "purpose=\(context?.purpose.rawValue ?? "none") " +
             "needsWebView=\(request?.needsWebView?.description ?? "nil") " +
             "bytes=\(dataResponse.data.count) " +
             "cloudflareBlocked=\(cloudflareBlocked) " +
@@ -47,7 +58,11 @@ final class AlamofireHTTPClient: HTTPClient {
 
     /// 中文注释：RSS/XML 需要保留服务器原始 bytes，避免先按错误字符串编码解码造成乱码。
     func getData(from url: URL, request: RequestConfig?) async throws -> Data {
-        let urlRequest: URLRequest = self.urlRequest(for: url, request: request)
+        return try await self.getData(from: url, request: request, context: nil)
+    }
+
+    func getData(from url: URL, request: RequestConfig?, context: SourceRequestContext?) async throws -> Data {
+        let urlRequest: URLRequest = self.urlRequest(for: url, request: request, context: context)
         let dataResponse: HTTPDataResponse
         do {
             dataResponse = try await self.performDataRequest(urlRequest)
@@ -62,6 +77,7 @@ final class AlamofireHTTPClient: HTTPClient {
         print(
             "[BrowseCraftNetwork] data url=\(url.absoluteString) " +
             "requestScope=\(request?.scope?.rawValue ?? "default") " +
+            "purpose=\(context?.purpose.rawValue ?? "none") " +
             "headersMode=\(self.headersMode(for: url, request: request)) " +
             "accept=\(urlRequest.value(forHTTPHeaderField: "Accept") ?? "nil") " +
             "contentType=\(dataResponse.response?.value(forHTTPHeaderField: "Content-Type") ?? "nil") " +
@@ -170,7 +186,11 @@ final class AlamofireHTTPClient: HTTPClient {
     }
 
     /// 中文注释：集中生成 URLRequest，确保页面级 headers 覆盖默认 headers，同时旧站点仍保留浏览器 UA/Accept。
-    private func urlRequest(for url: URL, request: RequestConfig?) -> URLRequest {
+    private func urlRequest(
+        for url: URL,
+        request: RequestConfig?,
+        context: SourceRequestContext?
+    ) -> URLRequest {
         var urlRequest: URLRequest = URLRequest(url: url)
         urlRequest.httpMethod = request?.method?.rawValue ?? "GET"
 
@@ -181,11 +201,38 @@ final class AlamofireHTTPClient: HTTPClient {
         if explicitHeadersOnly == false {
             headers = BrowserRequestHeaders.applyingOverrides(request?.headers, to: headers)
         }
+        if let context: SourceRequestContext {
+            headers = self.headersByFillingMissingCredentialHeaders(
+                to: headers,
+                url: url,
+                context: context
+            )
+            headers = BrowserRequestHeaders.applyingOverrides(context.additionalHeaders, to: headers)
+        }
+        let credentialCookieHeader: String? = context.flatMap {
+            self.credentialProvider.cookieHeader(for: $0, url: url)
+        }
+        let hadCustomCookieHeader: Bool = BrowserRequestHeaders.containsHeader("Cookie", in: headers)
         headers = CookieHeaderResolver.headersByApplyingPageCookies(
             to: headers,
             url: url,
-            request: request
+            request: request,
+            credentialCookieHeader: credentialCookieHeader
         )
+        if let context: SourceRequestContext {
+            #if DEBUG
+            print(
+                "[BrowseCraftCredential] request context " +
+                "sourceID=\(context.sourceID ?? "nil") " +
+                "purpose=\(context.purpose.rawValue) " +
+                "host=\(url.host ?? "nil") " +
+                "credentialCookie=\((credentialCookieHeader != nil).description) " +
+                "customCookie=\(hadCustomCookieHeader.description) " +
+                "finalCookie=\(BrowserRequestHeaders.containsHeader("Cookie", in: headers).description) " +
+                "headerCount=\(headers.count)"
+            )
+            #endif
+        }
 
         headers.forEach { key, value in
             urlRequest.setValue(value, forHTTPHeaderField: key)
@@ -199,6 +246,43 @@ final class AlamofireHTTPClient: HTTPClient {
         }
 
         return urlRequest
+    }
+
+    /// 中文注释：凭证 header 只补缺，不覆盖规则 RequestConfig 或默认浏览器模拟 header。
+    private func headersByFillingMissingCredentialHeaders(
+        to headers: [String: String],
+        url: URL,
+        context: SourceRequestContext
+    ) -> [String: String] {
+        let credentialHeaders: [String: String] = self.credentialProvider.headerOverrides(for: context, url: url)
+        guard credentialHeaders.isEmpty == false else {
+            return headers
+        }
+
+        var resolvedHeaders: [String: String] = headers
+        var filledHeaderNames: [String] = []
+        var skippedHeaderNames: [String] = []
+        credentialHeaders.forEach { key, value in
+            guard BrowserRequestHeaders.containsHeader(key, in: resolvedHeaders) == false else {
+                skippedHeaderNames.append(key)
+                return
+            }
+            resolvedHeaders[key] = value
+            filledHeaderNames.append(key)
+        }
+
+        #if DEBUG
+        print(
+            "[BrowseCraftCredential] fill headers " +
+            "sourceID=\(context.sourceID ?? "nil") " +
+            "purpose=\(context.purpose.rawValue) " +
+            "host=\(url.host ?? "nil") " +
+            "filled=\(filledHeaderNames.joined(separator: ",")) " +
+            "skippedExisting=\(skippedHeaderNames.joined(separator: ","))"
+        )
+        #endif
+
+        return resolvedHeaders
     }
 
     private func usesExplicitHeadersOnly(url: URL, request: RequestConfig?) -> Bool {

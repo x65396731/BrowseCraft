@@ -10,8 +10,10 @@ final class AppContainer {
     private let sourceRepository: SourceRepository
     private let favoriteRepository: FavoriteRepository
     private let httpClient: HTTPClient
+    private let sourceCredentialStore: SourceCredentialStoring
     private let pageContentLoader: PageContentLoader
     private let pageDataLoader: PageDataLoader
+    private let protectedResourceLoader: ProtectedResourceLoader
     private let urlResolver: URLResolvingService
     private let comicRuleParser: ComicRuleSourceParsingService
     private let sourceRuntimeFactory: SourceRuntimeFactory
@@ -26,7 +28,8 @@ final class AppContainer {
         do {
             let database: AppDatabase = try AppDatabase()
             let urlResolver: URLResolvingService = URLResolvingService()
-            let httpClient: HTTPClient = AlamofireHTTPClient()
+            let sourceCredentialStore: SourceCredentialStoring = InMemorySourceCredentialStore()
+            let httpClient: HTTPClient = AlamofireHTTPClient(credentialProvider: sourceCredentialStore)
             let pageContentLoader: DefaultPageContentLoader = DefaultPageContentLoader(httpClient: httpClient)
             let comicRuleParser: ComicRuleSourceParsingService = SwiftSoupComicRuleSourceParser(urlResolver: urlResolver)
 
@@ -34,8 +37,10 @@ final class AppContainer {
             self.sourceRepository = GRDBSourceRepository(database: database)
             self.favoriteRepository = GRDBFavoriteRepository(database: database)
             self.httpClient = httpClient
+            self.sourceCredentialStore = sourceCredentialStore
             self.pageContentLoader = pageContentLoader
             self.pageDataLoader = pageContentLoader
+            self.protectedResourceLoader = ProtectedResourceLoader(dataLoader: pageContentLoader)
             self.urlResolver = urlResolver
             self.comicRuleParser = comicRuleParser
             self.sourceRuntimeFactory = SourceRuntimeFactory(
@@ -289,6 +294,7 @@ final class AppContainer {
             selectedChapter: selectedChapter,
             restoreContext: restoreContext,
             loadReaderChapterUseCase: loadReaderChapterUseCase,
+            protectedResourceLoader: self.protectedResourceLoader,
             resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase(),
             saveComicChapterHistoryUseCase: saveComicChapterHistoryUseCase,
             accumulateAdPointsUseCase: accumulateAdPointsUseCase

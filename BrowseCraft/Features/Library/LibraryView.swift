@@ -70,6 +70,39 @@ struct LibraryView: View {
                 .id(destination.id)
             }
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Menu(
+                        content: {
+                            ForEach(self.viewModel.sources, id: \.id) { source in
+                                Button(
+                                    action: {
+                                        Task {
+                                            await self.viewModel.selectSource(id: source.id)
+                                        }
+                                    },
+                                    label: {
+                                        Label(
+                                            source.name,
+                                            systemImage: source.id == self.viewModel.selectedSourceID
+                                                ? "checkmark"
+                                                : self.sourceSystemImage(for: source)
+                                        )
+                                    }
+                                )
+                            }
+                        },
+                        label: {
+                            Image(systemName: "rectangle.stack")
+                        }
+                    )
+                    .disabled(
+                        self.viewModel.sources.isEmpty ||
+                        self.viewModel.isRefreshing ||
+                        self.viewModel.isValidatingTabs
+                    )
+                    .accessibilityLabel("Switch Source")
+                }
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(
                         action: {
@@ -115,6 +148,19 @@ struct LibraryView: View {
                     )
                 )
             }
+        }
+    }
+
+    private func sourceSystemImage(for source: Source) -> String {
+        switch source.configuration.kind {
+        case .comic:
+            return "book"
+        case .rss:
+            return "dot.radiowaves.left.and.right"
+        case .video:
+            return "play.rectangle"
+        case .plugin:
+            return "puzzlepiece.extension"
         }
     }
 

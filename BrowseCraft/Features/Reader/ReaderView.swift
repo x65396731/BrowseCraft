@@ -105,10 +105,21 @@ struct ChapterListView: View {
                         self.openReaderDestination(for: chapter)
                     } label: {
                         HStack(spacing: 12) {
-                            Text(chapter.title)
-                                .font(.body)
-                                .foregroundStyle(.primary)
-                                .lineLimit(2)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(chapter.title)
+                                    .font(.body)
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(2)
+
+                                if let subtitle: String = chapter.subtitle?.trimmingCharacters(in: .whitespacesAndNewlines),
+                                   subtitle.isEmpty == false {
+                                    Text(subtitle)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(2)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
 
                             Spacer(minLength: 12)
 
@@ -384,7 +395,7 @@ struct ReaderView: View {
             ProgressView()
                 .padding(.top, 80)
         } else if let chapter: ReaderChapter = self.viewModel.chapter,
-                  chapter.pageImageURLs.isEmpty == false {
+                  chapter.pageResources.isEmpty == false || chapter.pageImageURLs.isEmpty == false {
             self.readerPages(for: chapter)
         } else if self.viewModel.isLoading {
             ProgressView()
@@ -402,16 +413,23 @@ struct ReaderView: View {
 
     @ViewBuilder
     private func readerPages(for chapter: ReaderChapter) -> some View {
+        let pageResources: [ReaderPageResource] = chapter.pageResources.isEmpty
+            ? chapter.pageImageURLs.map { urlString in .remoteImageURL(urlString) }
+            : chapter.pageResources
         ForEach(
-            Array(chapter.pageImageURLs.enumerated()),
+            Array(pageResources.enumerated()),
             id: \.offset
-        ) { pageIndex, pageURLString in
+        ) { pageIndex, resource in
+            let pageURLString: String = resource.displayURLString
             ReaderPageImageView(
-                pageURLString: pageURLString,
+                resource: resource,
                 pageNumber: pageIndex + 1,
                 refererURLString: chapter.chapterURL,
                 requestConfig: self.viewModel.readerImageRequestConfig,
-                additionalHeaders: chapter.pageImageHeaders[pageURLString] ?? [:]
+                additionalHeaders: chapter.pageImageHeaders[pageURLString] ?? [:],
+                loadProtectedImage: { reference in
+                    try await self.viewModel.loadProtectedImage(reference: reference)
+                }
             )
             .id(pageIndex)
             .background(
@@ -440,7 +458,7 @@ struct ReaderView: View {
     @MainActor
     private func scrollToTopForLoadedChapter(proxy: ScrollViewProxy) async {
         // 中文注释：只有“下一章”需要回到新章节顶部；历史恢复页码和上一章都不走这里。
-        guard self.viewModel.chapter?.pageImageURLs.isEmpty == false,
+        guard self.hasReaderPages(self.viewModel.chapter),
               self.viewModel.pendingRestorePageIndex == nil,
               self.viewModel.pendingChapterNavigationDirection == .next else {
             return
@@ -455,7 +473,7 @@ struct ReaderView: View {
     private func restoreInitialPageIfNeeded(proxy: ScrollViewProxy) async {
         guard self.didApplyRestorePage == false,
               let pageIndex: Int = self.viewModel.pendingRestorePageIndex,
-              let pageCount: Int = self.viewModel.chapter?.pageImageURLs.count,
+              let pageCount: Int = self.readerPageCount(self.viewModel.chapter),
               pageIndex >= 0,
               pageIndex < pageCount else {
             return
@@ -475,6 +493,22 @@ struct ReaderView: View {
         }
 
         return self.viewModel.item.latestText ?? self.viewModel.item.title
+    }
+
+    private func hasReaderPages(_ chapter: ReaderChapter?) -> Bool {
+        guard let chapter: ReaderChapter else {
+            return false
+        }
+
+        return chapter.pageResources.isEmpty == false || chapter.pageImageURLs.isEmpty == false
+    }
+
+    private func readerPageCount(_ chapter: ReaderChapter?) -> Int? {
+        guard let chapter: ReaderChapter else {
+            return nil
+        }
+
+        return chapter.pageResources.isEmpty ? chapter.pageImageURLs.count : chapter.pageResources.count
     }
 
     private var errorAlertBinding: Binding<Bool> {

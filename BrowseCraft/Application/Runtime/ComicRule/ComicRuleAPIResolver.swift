@@ -29,6 +29,36 @@ struct ComicRuleAPIResolver {
                 )
             )
         }
+        request.headers = self.replacingTemplatePlaceholders(
+            in: request.headers,
+            source: source,
+            item: item,
+            chapterURL: chapterURL,
+            page: page,
+            rootJSON: rootJSON,
+            currentJSON: currentJSON
+        )
+        request.imageHeaders = self.replacingTemplatePlaceholders(
+            in: request.imageHeaders,
+            source: source,
+            item: item,
+            chapterURL: chapterURL,
+            page: page,
+            rootJSON: rootJSON,
+            currentJSON: currentJSON
+        )
+        if var imageRequest: ImageRequestConfig = request.imageRequest {
+            imageRequest.headers = self.replacingTemplatePlaceholders(
+                in: imageRequest.headers,
+                source: source,
+                item: item,
+                chapterURL: chapterURL,
+                page: page,
+                rootJSON: rootJSON,
+                currentJSON: currentJSON
+            )
+            request.imageRequest = imageRequest
+        }
 
         return request
     }
@@ -78,6 +108,34 @@ struct ComicRuleAPIResolver {
         }
 
         return output
+    }
+
+    static func replacingTemplatePlaceholders(
+        in headers: [String: String]?,
+        source: Source,
+        item: ContentItem,
+        chapterURL: String? = nil,
+        page: Int? = nil,
+        rootJSON: Any? = nil,
+        currentJSON: Any? = nil
+    ) -> [String: String]? {
+        guard let headers: [String: String] else {
+            return nil
+        }
+
+        var resolvedHeaders: [String: String] = [:]
+        headers.forEach { key, value in
+            resolvedHeaders[key] = self.replacingTemplatePlaceholders(
+                in: value,
+                source: source,
+                item: item,
+                chapterURL: chapterURL,
+                page: page,
+                rootJSON: rootJSON,
+                currentJSON: currentJSON
+            )
+        }
+        return resolvedHeaders
     }
 
     private static func isTemplateToken(_ token: String) -> Bool {
@@ -191,6 +249,17 @@ struct ComicRuleAPIResolver {
             return self.apiErrorMessage(from: error) ?? "API returned error"
         }
 
+        if let code: String = self.stringValue(dictionary["code"]),
+           code != "0" {
+            let message: String? = self.stringValue(dictionary["message"])
+            var details: [String] = []
+            if let message: String, message.isEmpty == false {
+                details.append(message)
+            }
+            details.append("code=\(code)")
+            return details.joined(separator: " ")
+        }
+
         return nil
     }
 
@@ -199,7 +268,18 @@ struct ComicRuleAPIResolver {
             return nil
         }
 
-        let lastPathComponent: String = url.lastPathComponent
+        let components: [String] = url.pathComponents.filter { component in
+            return component != "/"
+        }
+        guard var lastPathComponent: String = components.last else {
+            return nil
+        }
+
+        if ["content", "detail", "info"].contains(lastPathComponent.lowercased()),
+           components.count >= 2 {
+            lastPathComponent = components[components.count - 2]
+        }
+
         if let extensionRange: Range<String.Index> = lastPathComponent.range(of: ".", options: .backwards) {
             return String(lastPathComponent[..<extensionRange.lowerBound])
         }
@@ -276,6 +356,21 @@ struct ComicRuleAPIResolver {
             return source.id
         case "source.baseURL", "source.baseUrl":
             return source.baseURL
+        case "context.userAgent":
+            return self.ruleContextValue("userAgent", source: source)
+                ?? BrowserRequestHeaders.Chrome.chromeUserAgent
+        case "context.device":
+            return self.ruleContextValue("device", source: source) ?? "server"
+        case "context.deviceUUID":
+            return self.ruleContextValue("deviceUUID", source: source)
+                ?? self.ruleContextValue("uuid", source: source)
+                ?? self.contextDeviceUUID(source: source)
+        case "context.uuid":
+            return self.ruleContextValue("uuid", source: source)
+                ?? self.ruleContextValue("deviceUUID", source: source)
+                ?? self.contextDeviceUUID(source: source)
+        case "context.readerAccessToken":
+            return self.ruleContextValue("readerAccessToken", source: source)
         case "item.id":
             return item.id
         case "item.title":
@@ -287,7 +382,11 @@ struct ComicRuleAPIResolver {
         case "chapterURL", "reader.chapterURL":
             return chapterURL
         case "chapterId", "reader.chapterId":
-            return chapterURL.flatMap { self.pathComponent(after: "chapter", in: $0) }
+            guard let chapterURL: String else {
+                return nil
+            }
+            return self.pathComponent(after: "chapter", in: chapterURL)
+                ?? self.detailSlug(from: chapterURL)
         case "comicId", "reader.comicId":
             if let chapterURL: String,
                let comicID: String = self.pathComponent(after: "comic", in: chapterURL) {
@@ -299,6 +398,13 @@ struct ComicRuleAPIResolver {
         case "page":
             return page.map(String.init)
         default:
+            if token.hasPrefix("context.") {
+                let contextKey: String = String(token.dropFirst("context.".count))
+                if let value: String = self.ruleContextValue(contextKey, source: source) {
+                    return value
+                }
+            }
+
             if let currentJSON: Any = currentJSON,
                let value: String = self.stringValue(self.firstJSONValue(at: token, in: currentJSON)) {
                 return value
@@ -311,5 +417,57 @@ struct ComicRuleAPIResolver {
 
             return nil
         }
+    }
+
+    private static func contextDeviceUUID(source: Source) -> String {
+        let rawID: String = "BrowseCraft:\(source.id):\(source.baseURL)"
+        let data: Data? = rawID.data(using: .utf8)
+        let encoded: String = data?.base64EncodedString() ?? source.id
+        let sanitized: String = encoded
+            .filter { character in
+                character.isLetter || character.isNumber
+            }
+            .lowercased()
+        let padded: String = sanitized.padding(toLength: 32, withPad: "0", startingAt: 0)
+        return String(padded.prefix(32))
+    }
+
+    static func ruleContextValues(source: Source) -> [String: String] {
+        guard let context: [String: SiteRuleContextValue] = source.rule.context else {
+            return [:]
+        }
+
+        var values: [String: String] = [:]
+        context.forEach { key, value in
+            if let resolvedValue: String = self.ruleContextValue(value) {
+                values[key] = resolvedValue
+            }
+        }
+        if values["uuid"] == nil,
+           let deviceUUID: String = values["deviceUUID"] {
+            values["uuid"] = deviceUUID
+        }
+        if values["deviceUUID"] == nil,
+           let uuid: String = values["uuid"] {
+            values["deviceUUID"] = uuid
+        }
+        return values
+    }
+
+    private static func ruleContextValue(_ key: String, source: Source) -> String? {
+        guard let value: SiteRuleContextValue = source.rule.context?[key] else {
+            return nil
+        }
+        return self.ruleContextValue(value)
+    }
+
+    private static func ruleContextValue(_ value: SiteRuleContextValue) -> String? {
+        for candidate: String? in [value.value, value.anonymousValue, value.`default`] {
+            if let candidate: String = candidate?.trimmingCharacters(in: .whitespacesAndNewlines),
+               candidate.isEmpty == false {
+                return candidate
+            }
+        }
+        return nil
     }
 }

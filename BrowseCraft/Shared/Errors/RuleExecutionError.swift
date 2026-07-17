@@ -9,6 +9,7 @@ enum RuleExecutionError: LocalizedError, Equatable {
     case selectorEmpty(stage: RuleExecutionLogger.Stage, sourceID: String, url: String, ruleID: String?)
     case ruleConfiguration(stage: RuleExecutionLogger.Stage, sourceID: String, reason: String)
     case sourceAPI(stage: RuleExecutionLogger.Stage, sourceID: String, reason: String)
+    case protectedResource(stage: RuleExecutionLogger.Stage, sourceID: String, reason: String)
     case parserDiagnostics(
         stage: RuleExecutionLogger.Stage,
         sourceID: String,
@@ -33,6 +34,8 @@ enum RuleExecutionError: LocalizedError, Equatable {
             return "规则配置错误：stage=\(stage.rawValue) source=\(sourceID) reason=\(reason)"
         case .sourceAPI(let stage, let sourceID, let reason):
             return "源站接口返回错误：stage=\(stage.rawValue) source=\(sourceID) reason=\(reason)"
+        case .protectedResource(let stage, let sourceID, let reason):
+            return "受保护资源处理失败：stage=\(stage.rawValue) source=\(sourceID) reason=\(reason)"
         case .parserDiagnostics(
             let stage,
             let sourceID,
@@ -137,6 +140,8 @@ enum RuleExecutionErrorClassifier {
             return "ruleConfiguration"
         case .sourceAPI:
             return "sourceAPI"
+        case .protectedResource:
+            return "protectedResource"
         case .parserDiagnostics:
             return "parserDiagnostics"
         case .unknown:

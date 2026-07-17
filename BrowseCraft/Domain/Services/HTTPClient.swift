@@ -17,9 +17,31 @@ protocol PageDataLoader {
 /// 中文注释：普通 HTTP 客户端仍作为独立协议存在，方便网络层和测试层表达“不会执行 JS”的实现。
 protocol HTTPClient: PageContentLoader, PageDataLoader {}
 
+/// 中文注释：带来源上下文的文本加载协议；旧实现无需立刻迁移，运行时可按能力向下兼容。
+protocol ContextualPageContentLoader: PageContentLoader {
+    func getString(from url: URL, request: RequestConfig?, context: SourceRequestContext?) async throws -> String
+}
+
+/// 中文注释：带来源上下文的二进制加载协议；后续受保护资源和解密图片会从这里传递站点身份。
+protocol ContextualPageDataLoader: PageDataLoader {
+    func getData(from url: URL, request: RequestConfig?, context: SourceRequestContext?) async throws -> Data
+}
+
 extension PageContentLoader {
     /// 中文注释：旧调用点不关心页面级请求配置时，继续走默认请求，避免一次性改动所有调用方。
     func getString(from url: URL) async throws -> String {
         return try await self.getString(from: url, request: nil)
+    }
+}
+
+extension ContextualPageContentLoader {
+    func getString(from url: URL, request: RequestConfig?) async throws -> String {
+        return try await self.getString(from: url, request: request, context: nil)
+    }
+}
+
+extension ContextualPageDataLoader {
+    func getData(from url: URL, request: RequestConfig?) async throws -> Data {
+        return try await self.getData(from: url, request: request, context: nil)
     }
 }

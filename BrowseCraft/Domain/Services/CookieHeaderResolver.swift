@@ -139,12 +139,28 @@ enum CookieHeaderResolver {
         url: URL,
         request: RequestConfig?
     ) -> [String: String] {
+        return self.headersByApplyingPageCookies(
+            to: headers,
+            url: url,
+            request: request,
+            credentialCookieHeader: nil
+        )
+    }
+
+    /// 中文注释：站点凭证 Cookie 作为按 source 隔离的浏览器态参与合并，不直接覆盖规则 Cookie。
+    static func headersByApplyingPageCookies(
+        to headers: [String: String],
+        url: URL,
+        request: RequestConfig?,
+        credentialCookieHeader: String?
+    ) -> [String: String] {
         return self.headersByApplyingCookies(
             to: headers,
             url: url,
             cookiePolicy: request?.cookiePolicy,
             cookiePriority: request?.cookiePriority,
-            browserCookieHeader: self.browserCookieHeader(for: url)
+            browserCookieHeader: self.browserCookieHeader(for: url),
+            credentialCookieHeader: credentialCookieHeader
         )
     }
 
@@ -154,12 +170,27 @@ enum CookieHeaderResolver {
         url: URL,
         request: RequestConfig?
     ) -> [String: String] {
+        return self.headersByApplyingImageCookies(
+            to: headers,
+            url: url,
+            request: request,
+            credentialCookieHeader: nil
+        )
+    }
+
+    static func headersByApplyingImageCookies(
+        to headers: [String: String],
+        url: URL,
+        request: RequestConfig?,
+        credentialCookieHeader: String?
+    ) -> [String: String] {
         return self.headersByApplyingCookies(
             to: headers,
             url: url,
             cookiePolicy: request?.imageRequest?.cookiePolicy ?? request?.cookiePolicy,
             cookiePriority: request?.imageRequest?.cookiePriority ?? request?.cookiePriority,
-            browserCookieHeader: self.browserCookieHeader(for: url)
+            browserCookieHeader: self.browserCookieHeader(for: url),
+            credentialCookieHeader: credentialCookieHeader
         )
     }
 
@@ -171,13 +202,32 @@ enum CookieHeaderResolver {
         cookiePriority: CookiePriority?,
         browserCookieHeader: String?
     ) -> [String: String] {
+        return self.headersByApplyingCookies(
+            to: headers,
+            url: url,
+            cookiePolicy: cookiePolicy,
+            cookiePriority: cookiePriority,
+            browserCookieHeader: browserCookieHeader,
+            credentialCookieHeader: nil
+        )
+    }
+
+    static func headersByApplyingCookies(
+        to headers: [String: String],
+        url: URL,
+        cookiePolicy: CookiePolicy?,
+        cookiePriority: CookiePriority?,
+        browserCookieHeader: String?,
+        credentialCookieHeader: String?
+    ) -> [String: String] {
         var resolvedHeaders: [String: String] = headers
         let customCookieHeader: String? = self.headerValue("Cookie", in: headers)
         let resolvedCookieHeader: String? = self.resolvedCookieHeader(
             cookiePolicy: cookiePolicy,
             cookiePriority: cookiePriority,
             customCookieHeader: customCookieHeader,
-            browserCookieHeader: browserCookieHeader
+            browserCookieHeader: browserCookieHeader,
+            credentialCookieHeader: credentialCookieHeader
         )
 
         self.removeHeader("Cookie", from: &resolvedHeaders)
@@ -197,17 +247,38 @@ enum CookieHeaderResolver {
         customCookieHeader: String?,
         browserCookieHeader: String?
     ) -> String? {
+        return self.resolvedCookieHeader(
+            cookiePolicy: cookiePolicy,
+            cookiePriority: cookiePriority,
+            customCookieHeader: customCookieHeader,
+            browserCookieHeader: browserCookieHeader,
+            credentialCookieHeader: nil
+        )
+    }
+
+    static func resolvedCookieHeader(
+        cookiePolicy: CookiePolicy?,
+        cookiePriority: CookiePriority?,
+        customCookieHeader: String?,
+        browserCookieHeader: String?,
+        credentialCookieHeader: String?
+    ) -> String? {
+        let browserLikeCookieHeader: String? = self.mergedCookieHeader(
+            primaryCookieHeader: credentialCookieHeader,
+            secondaryCookieHeader: browserCookieHeader
+        )
+
         switch cookiePolicy {
         case .some(.none):
             return nil
         case .some(.custom):
             return customCookieHeader
         case .some(.browser):
-            return browserCookieHeader
+            return browserLikeCookieHeader
         case .some(.browserThenCustom):
             return self.mergedCookieHeader(
                 customCookieHeader: customCookieHeader,
-                browserCookieHeader: browserCookieHeader,
+                browserCookieHeader: browserLikeCookieHeader,
                 cookiePriority: cookiePriority
             )
         case nil:
@@ -247,6 +318,27 @@ enum CookieHeaderResolver {
             : self.mergeCookiePairs(primary: browserCookies, secondary: customCookies)
 
         return orderedPairs
+            .map { pair in "\(pair.name)=\(pair.value)" }
+            .joined(separator: "; ")
+    }
+
+    /// 中文注释：用于合并全局浏览器 Cookie 和按 source 保存的凭证 Cookie；同名时 primary 优先。
+    private static func mergedCookieHeader(
+        primaryCookieHeader: String?,
+        secondaryCookieHeader: String?
+    ) -> String? {
+        let primaryCookies: [(name: String, value: String)] = self.cookiePairs(from: primaryCookieHeader)
+        let secondaryCookies: [(name: String, value: String)] = self.cookiePairs(from: secondaryCookieHeader)
+
+        if primaryCookies.isEmpty {
+            return secondaryCookieHeader
+        }
+
+        if secondaryCookies.isEmpty {
+            return primaryCookieHeader
+        }
+
+        return self.mergeCookiePairs(primary: primaryCookies, secondary: secondaryCookies)
             .map { pair in "\(pair.name)=\(pair.value)" }
             .joined(separator: "; ")
     }

@@ -226,6 +226,14 @@ struct ComicRuleSourceListLoader {
             )
         }
 
+        let request: RequestConfig? = ComicRuleAPIRequestResolver.request(
+            base: source.rule.request(for: listTab),
+            override: apiRule.request,
+            source: source,
+            item: templateItem,
+            page: page
+        )
+
         RuleExecutionLogger.log(
             stage: .list,
             event: "list-api-request",
@@ -234,15 +242,12 @@ struct ComicRuleSourceListLoader {
                 "tab": listContext.tabId ?? "nil",
                 "listRule": listContext.listRuleId ?? "nil",
                 "apiURL": apiURL.absoluteString,
-                "itemPath": apiRule.itemPath
+                "itemPath": apiRule.itemPath,
+                "requestScope": request?.scope?.rawValue ?? "nil",
+                "requestMergePolicy": request?.mergePolicy?.rawValue ?? "nil",
+                "headerCount": request?.headers?.count ?? 0,
+                "headerNames": self.safeHeaderNames(request?.headers)
             ]
-        )
-
-        let request: RequestConfig? = ComicRuleAPIResolver.request(
-            from: apiRule.request ?? source.rule.request(for: listTab),
-            source: source,
-            item: templateItem,
-            page: page
         )
         let json: String = try await self.pageContentLoader.getString(from: apiURL, request: request)
         let jsonObject: Any = try JSONSerialization.jsonObject(with: Data(json.utf8))
@@ -436,6 +441,16 @@ struct ComicRuleSourceListLoader {
             listRuleId: listRule.id,
             sectionRole: .main
         )
+    }
+
+    private func safeHeaderNames(_ headers: [String: String]?) -> String {
+        guard let headers: [String: String], headers.isEmpty == false else {
+            return "none"
+        }
+
+        return headers.keys
+            .sorted { lhs, rhs in lhs.localizedCaseInsensitiveCompare(rhs) == .orderedAscending }
+            .joined(separator: ",")
     }
 
     private static func htmlPreview(from html: String) -> String {

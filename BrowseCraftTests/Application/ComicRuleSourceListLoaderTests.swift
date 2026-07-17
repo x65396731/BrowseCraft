@@ -69,6 +69,61 @@ struct ComicRuleSourceListLoaderTests {
         #expect(items[0].coverURL == "https://example.test/covers/dom.jpg")
     }
 
+    @Test func listAPIRequestInheritsSharedHeadersAndAppliesAPIOverrides() async throws {
+        let pageContentLoader: RecordingListPageContentLoader = RecordingListPageContentLoader(
+            responses: [
+                "https://example.test/api/comics?page=1": """
+                {
+                  "data": {
+                    "comics": [
+                      { "id": "5571", "title": "小栗子到我家" }
+                    ]
+                  }
+                }
+                """
+            ],
+            disallowedURLs: ["https://example.test/updates"]
+        )
+        let loader: ComicRuleSourceListLoader = Self.loader(pageContentLoader: pageContentLoader)
+
+        _ = try await loader.execute(source: Self.sourceWithMergedListAPIRequest())
+
+        let request: RequestConfig = try #require(pageContentLoader.requests.first)
+        #expect(request.headers?["device"] == "server")
+        #expect(request.headers?["uuid"] == "rule-uuid")
+        #expect(request.headers?["Accept-Language"] == "zh")
+        #expect(request.headers?["Accept"] == "application/json")
+        #expect(request.scope == .rule)
+        #expect(request.needsWebView == false)
+    }
+
+    @Test func listAPIErrorCodeThrowsSourceAPIInsteadOfFallingBackToDOM() async throws {
+        let pageContentLoader: RecordingListPageContentLoader = RecordingListPageContentLoader(
+            responses: [
+                "https://example.test/api/comics?page=1": """
+                { "code": 403, "message": "uuid錯誤" }
+                """
+            ],
+            disallowedURLs: ["https://example.test/updates"]
+        )
+        let loader: ComicRuleSourceListLoader = Self.loader(pageContentLoader: pageContentLoader)
+
+        do {
+            _ = try await loader.execute(source: Self.sourceWithPreferredListAPI())
+            Issue.record("Expected sourceAPI error")
+        } catch let error as RuleExecutionError {
+            guard case .sourceAPI(let stage, let sourceID, let reason) = error else {
+                Issue.record("Expected sourceAPI error, got \(error)")
+                return
+            }
+            #expect(stage == .list)
+            #expect(sourceID == "preferred-list-api-source")
+            #expect(reason.contains("uuid錯誤"))
+            #expect(reason.contains("code=403"))
+            #expect(pageContentLoader.requestedURLs == ["https://example.test/api/comics?page=1"])
+        }
+    }
+
     private static func loader(pageContentLoader: PageContentLoader) -> ComicRuleSourceListLoader {
         return ComicRuleSourceListLoader(
             pageContentLoader: pageContentLoader,
@@ -135,6 +190,75 @@ struct ComicRuleSourceListLoaderTests {
             updatedAt: Date(timeIntervalSince1970: 0)
         )
     }
+
+    private static func sourceWithMergedListAPIRequest() -> Source {
+        let rule: SiteRule = SiteRule(
+            version: 1,
+            site: nil,
+            urlPatterns: nil,
+            pages: nil,
+            ruleSets: nil,
+            sharedRequest: RequestConfig(
+                scope: .site,
+                headers: [
+                    "device": "server",
+                    "uuid": "rule-uuid",
+                    "Accept-Language": "zh",
+                    "Accept": "text/html"
+                ],
+                needsWebView: false
+            ),
+            flags: nil,
+            name: "Merged List API Request Source",
+            baseUrl: "https://example.test",
+            list: ListRule(
+                id: "updates",
+                url: "https://example.test/updates",
+                item: ".item",
+                title: "a",
+                link: "a@href",
+                cover: nil,
+                type: .comic,
+                latestText: nil,
+                listAPI: ListAPIRule(
+                    url: "https://example.test/api/comics?page={page}",
+                    request: RequestConfig(
+                        scope: .rule,
+                        mergePolicy: .mergeHeaders,
+                        headers: ["Accept": "application/json"]
+                    ),
+                    itemPath: "data.comics[]",
+                    titlePath: "title",
+                    urlTemplate: "https://example.test/comic/{id}",
+                    preferAPI: true
+                )
+            ),
+            listTabs: nil,
+            detail: DetailRule(
+                id: "detail",
+                chapterItem: ".chapter a",
+                chapterTitle: "this",
+                chapterLink: "this@href"
+            ),
+            gallery: GalleryRule(
+                id: "reader",
+                imageItem: "img",
+                imageUrl: "this@src"
+            ),
+            video: nil
+        )
+
+        return Source(
+            id: "merged-list-api-request-source",
+            name: "Merged List API Request Source",
+            baseURL: "https://example.test",
+            type: .html,
+            rule: rule,
+            enabled: true,
+            createdAt: Date(timeIntervalSince1970: 0),
+            updatedAt: Date(timeIntervalSince1970: 0)
+        )
+    }
 }
 
 private final class RecordingListPageContentLoader: PageContentLoader {
@@ -155,6 +279,7 @@ private final class RecordingListPageContentLoader: PageContentLoader {
     private let responses: [String: String]
     private let disallowedURLs: Set<String>
     private(set) var requestedURLs: [String] = []
+    private(set) var requests: [RequestConfig] = []
 
     init(responses: [String: String], disallowedURLs: Set<String>) {
         self.responses = responses
@@ -164,6 +289,9 @@ private final class RecordingListPageContentLoader: PageContentLoader {
     func getString(from url: URL, request: RequestConfig?) async throws -> String {
         let urlString: String = url.absoluteString
         self.requestedURLs.append(urlString)
+        if let request: RequestConfig {
+            self.requests.append(request)
+        }
 
         if self.disallowedURLs.contains(urlString) {
             throw LoaderError.disallowedURL(urlString)

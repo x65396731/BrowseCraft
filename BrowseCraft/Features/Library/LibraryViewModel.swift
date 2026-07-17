@@ -296,6 +296,21 @@ final class LibraryViewModel: ObservableObject {
         }
     }
 
+    @MainActor
+    func selectSource(id sourceID: String) async {
+        guard self.sources.contains(where: { source in source.id == sourceID }) else {
+            return
+        }
+
+        guard self.selectedSourceID != sourceID else {
+            return
+        }
+
+        self.sourceSelectionStore.selectedSourceID = sourceID
+        await self.refreshSelectedListTab()
+        await self.prepareTabsForSelectedSourceIfNeeded()
+    }
+
     var selectedSource: Source? {
         return self.sources.first { source in
             return source.id == self.selectedSourceID

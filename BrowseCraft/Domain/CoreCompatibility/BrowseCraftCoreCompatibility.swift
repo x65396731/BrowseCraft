@@ -4,6 +4,7 @@ import BrowseCraftCore
 // 中文注释：BrowseCraftCoreCompatibility 是 App 侧唯一 Core 兼容入口；真实规则模型、resolved graph、candidate 合同与 draft applier 实现均定义在 BrowseCraftCore。
 
 typealias SiteRule = BrowseCraftCore.SiteRule
+typealias SiteRuleContextValue = BrowseCraftCore.SiteRuleContextValue
 typealias ListRule = BrowseCraftCore.ListRule
 typealias ListTabRule = BrowseCraftCore.ListTabRule
 typealias ListContext = BrowseCraftCore.ListContext
@@ -41,6 +42,23 @@ typealias ChapterRule = BrowseCraftCore.ChapterRule
 typealias ChapterSort = BrowseCraftCore.ChapterSort
 typealias GalleryRule = BrowseCraftCore.GalleryRule
 typealias ReaderImageAPIRule = BrowseCraftCore.ReaderImageAPIRule
+typealias GalleryProtectedResourceRule = BrowseCraftCore.GalleryProtectedResourceRule
+typealias ReaderProtectedResourceItemSourceRule = BrowseCraftCore.ReaderProtectedResourceItemSourceRule
+typealias ProtectedResourceRule = BrowseCraftCore.ProtectedResourceRule
+typealias ProtectedResourceType = BrowseCraftCore.ProtectedResourceType
+typealias ProtectedResourceRequestRule = BrowseCraftCore.ProtectedResourceRequestRule
+typealias ProtectedResourceDecryptRule = BrowseCraftCore.ProtectedResourceDecryptRule
+typealias ProtectedResourceAlgorithm = BrowseCraftCore.ProtectedResourceAlgorithm
+typealias ProtectedResourceCipherMode = BrowseCraftCore.ProtectedResourceCipherMode
+typealias ProtectedResourcePadding = BrowseCraftCore.ProtectedResourcePadding
+typealias ProtectedResourceDataEncoding = BrowseCraftCore.ProtectedResourceDataEncoding
+typealias ProtectedResourceValueRule = BrowseCraftCore.ProtectedResourceValueRule
+typealias ProtectedResourceValueSource = BrowseCraftCore.ProtectedResourceValueSource
+typealias ProtectedResourceOutputRule = BrowseCraftCore.ProtectedResourceOutputRule
+typealias ProtectedResourceOutputContentType = BrowseCraftCore.ProtectedResourceOutputContentType
+typealias ProtectedResourceKeyDerivationRule = BrowseCraftCore.ProtectedResourceKeyDerivationRule
+typealias ProtectedResourceContextSecretDerivationRule = BrowseCraftCore.ProtectedResourceContextSecretDerivationRule
+typealias ProtectedResourceKeyEnvelopeDecryptRule = BrowseCraftCore.ProtectedResourceKeyEnvelopeDecryptRule
 typealias GalleryVariantRule = BrowseCraftCore.GalleryVariantRule
 typealias ResourceLinkRule = BrowseCraftCore.ResourceLinkRule
 typealias SearchRule = BrowseCraftCore.SearchRule

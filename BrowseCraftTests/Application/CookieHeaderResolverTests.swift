@@ -30,6 +30,20 @@ struct CookieHeaderResolverTests {
         #expect(headers["Cookie"] == "session=browser; token=abc")
     }
 
+    @Test func browserPolicyUsesCredentialCookieBeforeGlobalBrowserCookie() throws {
+        let headers: [String: String] = CookieHeaderResolver.headersByApplyingCookies(
+            to: ["Cookie": "session=rule; theme=dark"],
+            url: try #require(URL(string: "https://example.test")),
+            cookiePolicy: .browser,
+            cookiePriority: .browser,
+            browserCookieHeader: "session=browser; token=abc",
+            credentialCookieHeader: "session=credential; member=yes"
+        )
+
+        // 中文注释：按 source 保存的登录态比全局浏览器 Cookie 更精确，同名 Cookie 应优先生效。
+        #expect(headers["Cookie"] == "token=abc; session=credential; member=yes")
+    }
+
     @Test func browserThenCustomMergesCookiesWithCustomPriority() throws {
         let headers: [String: String] = CookieHeaderResolver.headersByApplyingCookies(
             to: ["Cookie": "session=rule; theme=dark"],
@@ -43,6 +57,20 @@ struct CookieHeaderResolverTests {
         #expect(headers["Cookie"] == "token=abc; session=rule; theme=dark")
     }
 
+    @Test func browserThenCustomMergesCredentialCookiesWithCustomPriority() throws {
+        let headers: [String: String] = CookieHeaderResolver.headersByApplyingCookies(
+            to: ["Cookie": "session=rule; theme=dark"],
+            url: try #require(URL(string: "https://example.test")),
+            cookiePolicy: .browserThenCustom,
+            cookiePriority: .custom,
+            browserCookieHeader: "session=browser; token=abc",
+            credentialCookieHeader: "session=credential; member=yes"
+        )
+
+        // 中文注释：规则 Cookie 优先时，credential/global browser 的独有 Cookie 仍会保留。
+        #expect(headers["Cookie"] == "token=abc; member=yes; session=rule; theme=dark")
+    }
+
     @Test func browserThenCustomMergesCookiesWithBrowserPriority() throws {
         let headers: [String: String] = CookieHeaderResolver.headersByApplyingCookies(
             to: ["Cookie": "session=rule; theme=dark"],
@@ -54,6 +82,20 @@ struct CookieHeaderResolverTests {
 
         // 中文注释：browser 优先时，同名 Cookie 使用浏览器值，规则独有 Cookie 继续保留。
         #expect(headers["Cookie"] == "theme=dark; session=browser; token=abc")
+    }
+
+    @Test func browserThenCustomMergesCredentialCookiesWithBrowserPriority() throws {
+        let headers: [String: String] = CookieHeaderResolver.headersByApplyingCookies(
+            to: ["Cookie": "session=rule; theme=dark"],
+            url: try #require(URL(string: "https://example.test")),
+            cookiePolicy: .browserThenCustom,
+            cookiePriority: .browser,
+            browserCookieHeader: "session=browser; token=abc",
+            credentialCookieHeader: "session=credential; member=yes"
+        )
+
+        // 中文注释：browser 优先语义下，按 source 的 credential Cookie 先合入 browser-like 层。
+        #expect(headers["Cookie"] == "theme=dark; token=abc; session=credential; member=yes")
     }
 
     @Test func nonePolicyRemovesCookieHeader() throws {

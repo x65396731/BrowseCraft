@@ -91,7 +91,8 @@ struct ComicRuleSourceChapterLoader {
            let apiDetail: ChapterDetailContent = try await self.loadDetailAPI(
             source: source,
             item: item,
-            detailRule: detailRule
+            detailRule: detailRule,
+            fallbackRequest: resolvedRule.primaryDetailRequest
            ) {
             RuleExecutionLogger.log(
                 stage: .detail,
@@ -135,7 +136,8 @@ struct ComicRuleSourceChapterLoader {
                let apiDetail: ChapterDetailContent = try await self.loadDetailAPI(
                 source: source,
                 item: item,
-                detailRule: detailRule
+                detailRule: detailRule,
+                fallbackRequest: resolvedRule.primaryDetailRequest
                ) {
                 chapters = apiDetail.chapters
                 description = apiDetail.description ?? parsedDescription
@@ -205,7 +207,8 @@ struct ComicRuleSourceChapterLoader {
     private func loadDetailAPI(
         source: Source,
         item: ContentItem,
-        detailRule: DetailRule
+        detailRule: DetailRule,
+        fallbackRequest: RequestConfig?
     ) async throws -> ChapterDetailContent? {
         guard let apiRule: DetailChapterAPIRule = detailRule.chapterAPI else {
             return nil
@@ -241,6 +244,7 @@ struct ComicRuleSourceChapterLoader {
         let request: RequestConfig? = self.detailAPIRequest(
             apiRule: apiRule,
             detailRule: detailRule,
+            fallbackRequest: fallbackRequest,
             source: source,
             item: item
         )
@@ -280,7 +284,16 @@ struct ComicRuleSourceChapterLoader {
             }
 
             seenURLs.insert(chapterURL)
-            let chapter: ChapterLink = ChapterLink(title: title, url: chapterURL)
+            let subtitle: String? = apiRule.descriptionPath.flatMap { path in
+                ComicRuleAPIResolver.stringValue(
+                    ComicRuleAPIResolver.firstJSONValue(at: path, in: itemObject)
+                )?.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            let chapter: ChapterLink = ChapterLink(
+                title: title,
+                subtitle: subtitle?.isEmpty == false ? subtitle : nil,
+                url: chapterURL
+            )
             let order: Double? = apiRule.orderPath.flatMap { path in
                 return ComicRuleAPIResolver.doubleValue(
                     ComicRuleAPIResolver.firstJSONValue(at: path, in: itemObject)
@@ -322,15 +335,13 @@ struct ComicRuleSourceChapterLoader {
     private func detailAPIRequest(
         apiRule: DetailChapterAPIRule,
         detailRule: DetailRule,
+        fallbackRequest: RequestConfig?,
         source: Source,
         item: ContentItem
     ) -> RequestConfig? {
-        guard let request: RequestConfig = apiRule.request ?? detailRule.request else {
-            return nil
-        }
-
-        return ComicRuleAPIResolver.request(
-            from: request,
+        return ComicRuleAPIRequestResolver.request(
+            base: fallbackRequest ?? detailRule.request,
+            override: apiRule.request,
             source: source,
             item: item
         )
