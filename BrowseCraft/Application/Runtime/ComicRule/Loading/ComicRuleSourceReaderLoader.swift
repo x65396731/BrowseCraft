@@ -311,76 +311,7 @@ struct ComicRuleSourceReaderLoader {
             return imageAPI
         }
 
-        guard let galleryProtectedResource: GalleryProtectedResourceRule = galleryRule.protectedResource else {
-            return nil
-        }
-
-        RuleExecutionLogger.log(
-            stage: .reader,
-            event: "loader-path",
-            fields: [
-                "source": source.id,
-                "path": "galleryProtectedResource",
-                "type": galleryProtectedResource.type ?? "nil",
-                "hasItemSource": (galleryProtectedResource.itemSource != nil).description,
-                "hasNativeRule": (galleryProtectedResource.nativeRule != nil).description,
-                "hasKeyDerivation": galleryProtectedResource.hasKeyDerivation.description
-            ]
-        )
-
-        guard let itemSource: ReaderProtectedResourceItemSourceRule = galleryProtectedResource.itemSource else {
-            throw RuleExecutionError.protectedResource(
-                stage: .reader,
-                sourceID: source.id,
-                reason: "gallery.protectedResource is missing itemSource"
-            )
-        }
-
-        guard let nativeRule: ProtectedResourceRule = galleryProtectedResource.nativeRule else {
-            throw RuleExecutionError.protectedResource(
-                stage: .reader,
-                sourceID: source.id,
-                reason: "gallery.protectedResource uses unsupported schema: type=\(galleryProtectedResource.type ?? "nil") keyDerivation=\(galleryProtectedResource.hasKeyDerivation)"
-            )
-        }
-
-        return ReaderImageAPIRule(
-            url: itemSource.url,
-            request: self.itemSourceRequest(itemSource),
-            itemPath: itemSource.itemPath,
-            urlTemplate: self.protectedDisplayURLTemplate(idPath: itemSource.idPath),
-            urlPath: nil,
-            imageHeaders: nil,
-            orderPath: itemSource.orderPath,
-            sort: itemSource.sort,
-            protectedResource: nativeRule
-        )
-    }
-
-    private func itemSourceRequest(_ itemSource: ReaderProtectedResourceItemSourceRule) -> RequestConfig? {
-        if let request: RequestConfig = itemSource.request {
-            return request
-        }
-
-        guard itemSource.method != nil || itemSource.headers?.isEmpty == false else {
-            return nil
-        }
-
-        return RequestConfig(
-            scope: .rule,
-            mergePolicy: .mergeHeaders,
-            method: itemSource.method,
-            headers: itemSource.headers,
-            needsWebView: false
-        )
-    }
-
-    private func protectedDisplayURLTemplate(idPath: String) -> String {
-        if idPath == "imageId" {
-            return "protected://reader-image?imageId={imageId}&quality=2"
-        }
-
-        return "protected://reader-image?imageId={\(idPath)}&\(idPath)={\(idPath)}&quality=2"
+        return nil
     }
 
     private func loadImageAPI(
