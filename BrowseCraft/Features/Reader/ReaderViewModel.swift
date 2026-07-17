@@ -34,6 +34,7 @@ final class ReaderViewModel: ObservableObject {
     private let restoreContext: ReaderHistoryRestoreContext?
     private let loadReaderChapterUseCase: LoadReaderChapterUseCase
     private let protectedResourceLoader: ReaderProtectedResourceLoader?
+    private let sourceCredentialProvider: any SourceCredentialProviding
     private let resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
     private let saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase?
     private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
@@ -51,6 +52,7 @@ final class ReaderViewModel: ObservableObject {
         restoreContext: ReaderHistoryRestoreContext? = nil,
         loadReaderChapterUseCase: LoadReaderChapterUseCase,
         protectedResourceLoader: ReaderProtectedResourceLoader? = nil,
+        sourceCredentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider(),
         resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase,
         saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase? = nil,
         accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil,
@@ -62,6 +64,7 @@ final class ReaderViewModel: ObservableObject {
         self.restoreContext = restoreContext
         self.loadReaderChapterUseCase = loadReaderChapterUseCase
         self.protectedResourceLoader = protectedResourceLoader
+        self.sourceCredentialProvider = sourceCredentialProvider
         self.resolveReaderSourcePresentationUseCase = resolveReaderSourcePresentationUseCase
         self.saveComicChapterHistoryUseCase = saveComicChapterHistoryUseCase
         self.accumulateAdPointsUseCase = accumulateAdPointsUseCase
@@ -281,7 +284,10 @@ final class ReaderViewModel: ObservableObject {
                 refererURL: (self.chapter?.chapterURL).flatMap { chapterURL in
                     URL(string: chapterURL)
                 },
-                contextValues: ComicRuleAPIResolver.ruleContextValues(source: self.source)
+                contextValues: ComicRuleAPIResolver.ruleContextValues(
+                    source: self.source,
+                    credentialProvider: self.sourceCredentialProvider
+                )
             )
         )
 

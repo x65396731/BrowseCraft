@@ -48,11 +48,12 @@ struct ResourcePipelineExecutorTests {
                 rule: rule,
                 sourceID: "generic-test-source",
                 item: ["id": .string("123")],
-                context: ["readerAccessToken": .string(secret)],
+                context: ["readerAccessToken": .string("guest-secret")],
                 requestContext: SourceRequestContext(
                     sourceID: "generic-test-source",
                     baseURL: URL(string: "https://example.test")!,
-                    purpose: .image
+                    purpose: .image,
+                    contextValues: ["readerAccessToken": secret]
                 )
             )
         )

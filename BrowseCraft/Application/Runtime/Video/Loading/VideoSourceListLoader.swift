@@ -45,7 +45,16 @@ struct VideoSourceListLoader: VideoSourceListLoading {
         let html: String
         let renderIssues: [SourceRuntimeIssue]
         do {
-            html = try await self.pageContentLoader.getString(from: url, request: request)
+            html = try await self.pageContentLoader.getString(
+                from: url,
+                request: request,
+                context: SourceRequestContext(
+                    sourceID: definition.id,
+                    baseURL: definition.baseURL,
+                    purpose: .video,
+                    refererURL: url
+                )
+            )
             renderIssues = try self.renderGuard.validateMappableHTML(url: url, html: html, request: request)
         } catch {
             throw self.requestConfigResolver.mappedLoadingError(error, url: url)

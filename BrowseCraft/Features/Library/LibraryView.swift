@@ -70,37 +70,36 @@ struct LibraryView: View {
                 .id(destination.id)
             }
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Menu(
-                        content: {
-                            ForEach(self.viewModel.sources, id: \.id) { source in
-                                Button(
-                                    action: {
-                                        Task {
-                                            await self.viewModel.selectSource(id: source.id)
-                                        }
-                                    },
-                                    label: {
-                                        Label(
-                                            source.name,
-                                            systemImage: source.id == self.viewModel.selectedSourceID
-                                                ? "checkmark"
-                                                : self.sourceSystemImage(for: source)
-                                        )
+                if let loginState: LibrarySourceLoginState = self.viewModel.selectedSourceLoginState {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        if loginState.status == .authenticated {
+                            Menu {
+                                Button("Open Login Page") {
+                                    self.viewModel.requestSelectedSourceLogin()
+                                }
+
+                                Button("Log Out", role: .destructive) {
+                                    Task {
+                                        await SourceLoginSessionCleaner().clear(state: loginState)
+                                        self.viewModel.removeSelectedSourceCredential()
+                                        await self.viewModel.refreshSelectedListTab()
                                     }
-                                )
+                                }
+                            } label: {
+                                Image(systemName: self.accountSystemImage(for: loginState.status))
                             }
-                        },
-                        label: {
-                            Image(systemName: "rectangle.stack")
+                            .disabled(self.viewModel.isRefreshing || self.viewModel.isValidatingTabs)
+                            .accessibilityLabel(self.accountAccessibilityLabel(for: loginState.status))
+                        } else {
+                            Button {
+                                self.viewModel.requestSelectedSourceLogin()
+                            } label: {
+                                Image(systemName: self.accountSystemImage(for: loginState.status))
+                            }
+                            .disabled(self.viewModel.isRefreshing || self.viewModel.isValidatingTabs)
+                            .accessibilityLabel(self.accountAccessibilityLabel(for: loginState.status))
                         }
-                    )
-                    .disabled(
-                        self.viewModel.sources.isEmpty ||
-                        self.viewModel.isRefreshing ||
-                        self.viewModel.isValidatingTabs
-                    )
-                    .accessibilityLabel("Switch Source")
+                    }
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -125,6 +124,20 @@ struct LibraryView: View {
                     )
                     .accessibilityLabel("Refresh Selected Tab")
                 }
+            }
+            .fullScreenCover(item: self.requestedSourceLoginBinding) { loginState in
+                SourceLoginView(
+                    state: loginState,
+                    cancelAction: {
+                        self.viewModel.dismissRequestedSourceLogin()
+                    },
+                    completeAction: { credential in
+                        self.viewModel.completeRequestedSourceLogin(credential: credential)
+                        Task {
+                            await self.viewModel.refreshSelectedListTab()
+                        }
+                    }
+                )
             }
             .onAppear {
                 CrashDiagnostics.shared.setScreen(.library)
@@ -151,16 +164,21 @@ struct LibraryView: View {
         }
     }
 
-    private func sourceSystemImage(for source: Source) -> String {
-        switch source.configuration.kind {
-        case .comic:
-            return "book"
-        case .rss:
-            return "dot.radiowaves.left.and.right"
-        case .video:
-            return "play.rectangle"
-        case .plugin:
-            return "puzzlepiece.extension"
+    private func accountSystemImage(for status: LibrarySourceLoginStatus) -> String {
+        switch status {
+        case .guest:
+            return "person.crop.circle"
+        case .authenticated:
+            return "person.crop.circle.fill"
+        }
+    }
+
+    private func accountAccessibilityLabel(for status: LibrarySourceLoginStatus) -> String {
+        switch status {
+        case .guest:
+            return "Guest account"
+        case .authenticated:
+            return "Signed in account"
         }
     }
 
@@ -462,6 +480,19 @@ struct LibraryView: View {
             set: { newValue in
                 if newValue == false {
                     self.viewModel.errorMessage = nil
+                }
+            }
+        )
+    }
+
+    private var requestedSourceLoginBinding: Binding<LibrarySourceLoginState?> {
+        return Binding<LibrarySourceLoginState?>(
+            get: {
+                return self.viewModel.requestedSourceLogin
+            },
+            set: { newValue in
+                if newValue == nil {
+                    self.viewModel.dismissRequestedSourceLogin()
                 }
             }
         )

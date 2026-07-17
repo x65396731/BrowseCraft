@@ -103,7 +103,13 @@ struct ComicRuleSourceSearchLoader {
 
         let html: String = try await self.pageContentLoader.getString(
             from: url,
-            request: request
+            request: request,
+            context: SourceRequestContext(
+                sourceID: source.id,
+                baseURL: URL(string: source.baseURL),
+                purpose: .search,
+                refererURL: url
+            )
         )
         let items: [ContentItem] = try self.comicRuleParser.parseSearch(
             html: html,

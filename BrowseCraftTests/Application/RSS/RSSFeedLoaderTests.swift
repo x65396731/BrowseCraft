@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import BrowseCraft
 
-// 中文注释：RSSFeedLoaderTests 固定 P4.9.2 loader 只负责公开 feed 加载和 parser 串接。
+// 中文注释：RSSFeedLoaderTests 固定 feed 加载、parser 串接以及来源上下文透传。
 struct RSSFeedLoaderTests {
     @Test func loadsFeedXMLUsingRSSAcceptRequestConfig() async throws {
         let pageContentLoader: RecordingPageContentLoader = RecordingPageContentLoader(
@@ -39,6 +39,24 @@ struct RSSFeedLoaderTests {
         }
     }
 
+    @Test func forwardsSourceContextForProtectedFeedRequest() async throws {
+        let pageContentLoader: RecordingPageContentLoader = RecordingPageContentLoader(
+            response: Self.rssXML
+        )
+        let loader: RSSFeedLoader = RSSFeedLoader(pageContentLoader: pageContentLoader)
+        let url: URL = try #require(URL(string: "https://example.test/member/feed.xml"))
+        let context: SourceRequestContext = SourceRequestContext(
+            sourceID: "rss.member",
+            baseURL: try #require(URL(string: "https://example.test")),
+            purpose: .rss,
+            refererURL: url
+        )
+
+        _ = try await loader.load(feedURL: url, context: context)
+
+        #expect(pageContentLoader.requests.first?.context == context)
+    }
+
     private static let rssXML: String = """
     <rss version="2.0">
       <channel>
@@ -61,10 +79,11 @@ struct RSSFeedLoaderTests {
     """
 }
 
-private final class RecordingPageContentLoader: PageContentLoader {
+private final class RecordingPageContentLoader: ContextualPageContentLoader {
     struct Request {
         var url: URL
         var request: RequestConfig?
+        var context: SourceRequestContext?
     }
 
     private let response: String
@@ -75,10 +94,19 @@ private final class RecordingPageContentLoader: PageContentLoader {
     }
 
     func getString(from url: URL, request: RequestConfig?) async throws -> String {
+        return try await self.getString(from: url, request: request, context: nil)
+    }
+
+    func getString(
+        from url: URL,
+        request: RequestConfig?,
+        context: SourceRequestContext?
+    ) async throws -> String {
         self.requests.append(
             Request(
                 url: url,
-                request: request
+                request: request,
+                context: context
             )
         )
         return self.response

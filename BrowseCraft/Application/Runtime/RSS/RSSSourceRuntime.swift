@@ -45,7 +45,20 @@ struct RSSSourceRuntime: SourceRuntime {
             throw SourceRuntimeError.invalidInput("RSS runtime requires an RSS source definition.")
         }
 
-        let feed: RSSFeed = try await self.feedLoader.load(feedURL: rssDefinition.feedURL)
+        let feed: RSSFeed
+        if let contextualLoader: any ContextualRSSFeedLoading = self.feedLoader as? any ContextualRSSFeedLoading {
+            feed = try await contextualLoader.load(
+                feedURL: rssDefinition.feedURL,
+                context: SourceRequestContext(
+                    sourceID: self.definition.id,
+                    baseURL: self.definition.baseURL,
+                    purpose: .rss,
+                    refererURL: rssDefinition.feedURL
+                )
+            )
+        } else {
+            feed = try await self.feedLoader.load(feedURL: rssDefinition.feedURL)
+        }
         let items: [SourceContentItem] = self.contentItems(from: feed)
         #if DEBUG
         let latestTextLengths: [Int] = items.map { item in

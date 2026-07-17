@@ -32,6 +32,32 @@ extension PageContentLoader {
     func getString(from url: URL) async throws -> String {
         return try await self.getString(from: url, request: nil)
     }
+
+    /// 中文注释：运行时可通过基础协议传递来源上下文；旧 loader 不支持时自动退回原请求接口。
+    func getString(
+        from url: URL,
+        request: RequestConfig?,
+        context: SourceRequestContext?
+    ) async throws -> String {
+        if let contextualLoader: any ContextualPageContentLoader = self as? any ContextualPageContentLoader {
+            return try await contextualLoader.getString(from: url, request: request, context: context)
+        }
+        return try await self.getString(from: url, request: request)
+    }
+}
+
+extension PageDataLoader {
+    /// 中文注释：二进制资源与页面文本共享同一兼容策略，避免调用方重复做能力判断。
+    func getData(
+        from url: URL,
+        request: RequestConfig?,
+        context: SourceRequestContext?
+    ) async throws -> Data {
+        if let contextualLoader: any ContextualPageDataLoader = self as? any ContextualPageDataLoader {
+            return try await contextualLoader.getData(from: url, request: request, context: context)
+        }
+        return try await self.getData(from: url, request: request)
+    }
 }
 
 extension ContextualPageContentLoader {

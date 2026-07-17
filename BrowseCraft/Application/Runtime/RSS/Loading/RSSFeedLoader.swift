@@ -5,8 +5,13 @@ protocol RSSFeedLoading {
     func load(feedURL: URL) async throws -> RSSFeed
 }
 
-// 中文注释：RSSFeedLoader 负责公开 RSS feed 的原始 XML 加载与映射，不处理登录、Cookie 或 Token。
-struct RSSFeedLoader: RSSFeedLoading {
+/// 中文注释：支持来源上下文的 RSS loader 会把 L3 会话带入 feed 请求；旧测试替身仍可只实现基础协议。
+protocol ContextualRSSFeedLoading: RSSFeedLoading {
+    func load(feedURL: URL, context: SourceRequestContext) async throws -> RSSFeed
+}
+
+// 中文注释：RSSFeedLoader 负责 RSS feed 的原始 XML 加载与映射；会话合并由带来源上下文的底层 loader 统一处理。
+struct RSSFeedLoader: ContextualRSSFeedLoading {
     private let pageContentLoader: PageContentLoader
     private let mapper: RSSFeedMapper
 
@@ -19,18 +24,34 @@ struct RSSFeedLoader: RSSFeedLoading {
     }
 
     func load(feedURL: URL) async throws -> RSSFeed {
+        return try await self.load(feedURL: feedURL, context: nil)
+    }
+
+    func load(feedURL: URL, context: SourceRequestContext) async throws -> RSSFeed {
+        return try await self.load(feedURL: feedURL, context: Optional(context))
+    }
+
+    private func load(feedURL: URL, context: SourceRequestContext?) async throws -> RSSFeed {
         let requestConfig: RequestConfig = RequestConfig(
             mergePolicy: .override,
             headers: APIRequestHeaders.rssFeedHeaders()
         )
 
         if let dataLoader: PageDataLoader = self.pageContentLoader as? PageDataLoader {
-            let data: Data = try await dataLoader.getData(from: feedURL, request: requestConfig)
+            let data: Data = try await dataLoader.getData(
+                from: feedURL,
+                request: requestConfig,
+                context: context
+            )
             try Self.validateFeedData(data, feedURL: feedURL)
             return try self.mapper.map(data)
         }
 
-        let xml: String = try await self.pageContentLoader.getString(from: feedURL, request: requestConfig)
+        let xml: String = try await self.pageContentLoader.getString(
+            from: feedURL,
+            request: requestConfig,
+            context: context
+        )
         try Self.validateFeedText(xml, feedURL: feedURL)
         return try self.mapper.map(xml)
     }

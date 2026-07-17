@@ -111,7 +111,8 @@ struct ComicRuleSourceChapterLoader {
 
         let detailHTML: String = try await self.pageContentLoader.getString(
             from: detailURL,
-            request: resolvedRule.primaryDetailRequest
+            request: resolvedRule.primaryDetailRequest,
+            context: self.requestContext(source: source, refererURL: detailURL)
         )
         let chapters: [ChapterLink]
         let description: String?
@@ -250,7 +251,11 @@ struct ComicRuleSourceChapterLoader {
         )
         let json: String = try await self.pageContentLoader.getString(
             from: apiURL,
-            request: request
+            request: request,
+            context: self.requestContext(
+                source: source,
+                refererURL: URL(string: item.detailURL) ?? apiURL
+            )
         )
         let jsonObject: Any = try JSONSerialization.jsonObject(with: Data(json.utf8))
         if let apiErrorMessage: String = ComicRuleAPIResolver.apiErrorMessage(in: jsonObject) {
@@ -329,6 +334,15 @@ struct ComicRuleSourceChapterLoader {
         return ChapterDetailContent(
             chapters: outputChapters,
             description: description?.isEmpty == false ? description : nil
+        )
+    }
+
+    private func requestContext(source: Source, refererURL: URL) -> SourceRequestContext {
+        return SourceRequestContext(
+            sourceID: source.id,
+            baseURL: URL(string: source.baseURL),
+            purpose: .detail,
+            refererURL: refererURL
         )
     }
 

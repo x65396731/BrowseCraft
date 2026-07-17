@@ -4,6 +4,7 @@ import Foundation
 
 enum SourceRequestPurpose: String, Hashable {
     case list
+    case search
     case detail
     case reader
     case image

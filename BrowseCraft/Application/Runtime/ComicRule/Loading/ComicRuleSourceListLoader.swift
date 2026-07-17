@@ -134,7 +134,8 @@ struct ComicRuleSourceListLoader {
 
         let html: String = try await self.pageContentLoader.getString(
             from: url,
-            request: source.rule.request(for: listTab)
+            request: source.rule.request(for: listTab),
+            context: self.requestContext(source: source, purpose: .list, refererURL: url)
         )
         let items: [ContentItem]
         do {
@@ -249,7 +250,11 @@ struct ComicRuleSourceListLoader {
                 "headerNames": self.safeHeaderNames(request?.headers)
             ]
         )
-        let json: String = try await self.pageContentLoader.getString(from: apiURL, request: request)
+        let json: String = try await self.pageContentLoader.getString(
+            from: apiURL,
+            request: request,
+            context: self.requestContext(source: source, purpose: .list, refererURL: fallbackURL)
+        )
         let jsonObject: Any = try JSONSerialization.jsonObject(with: Data(json.utf8))
         if let apiErrorMessage: String = ComicRuleAPIResolver.apiErrorMessage(in: jsonObject) {
             throw RuleExecutionError.sourceAPI(
@@ -337,6 +342,19 @@ struct ComicRuleSourceListLoader {
         )
 
         return items
+    }
+
+    private func requestContext(
+        source: Source,
+        purpose: SourceRequestPurpose,
+        refererURL: URL
+    ) -> SourceRequestContext {
+        return SourceRequestContext(
+            sourceID: source.id,
+            baseURL: URL(string: source.baseURL),
+            purpose: purpose,
+            refererURL: refererURL
+        )
     }
 
     private func listItemURL(

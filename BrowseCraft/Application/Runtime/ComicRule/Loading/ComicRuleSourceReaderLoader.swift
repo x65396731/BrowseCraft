@@ -119,7 +119,12 @@ struct ComicRuleSourceReaderLoader {
                 )
                 let html: String = try await self.pageContentLoader.getString(
                     from: chapterURL,
-                    request: resolvedRule.primaryGalleryRequest
+                    request: resolvedRule.primaryGalleryRequest,
+                    context: self.requestContext(
+                        source: source,
+                        purpose: .reader,
+                        refererURL: chapterURL
+                    )
                 )
                 chapter = try self.comicRuleParser.parseReader(
                     html: html,
@@ -200,7 +205,12 @@ struct ComicRuleSourceReaderLoader {
 
         let detailHTML: String = try await self.pageContentLoader.getString(
             from: detailURL,
-            request: resolvedRule.primaryDetailRequest
+            request: resolvedRule.primaryDetailRequest,
+            context: self.requestContext(
+                source: source,
+                purpose: .detail,
+                refererURL: detailURL
+            )
         )
         let chapters: [ChapterLink]
         if let detailRule: DetailRule = resolvedRule.primaryDetailRule {
@@ -361,7 +371,12 @@ struct ComicRuleSourceReaderLoader {
         )
         let json: String = try await self.pageContentLoader.getString(
             from: apiURL,
-            request: request
+            request: request,
+            context: self.requestContext(
+                source: source,
+                purpose: .reader,
+                refererURL: URL(string: chapterURLString) ?? apiURL
+            )
         )
         let jsonObject: Any = try JSONSerialization.jsonObject(with: Data(json.utf8))
         if let apiErrorMessage: String = ComicRuleAPIResolver.apiErrorMessage(in: jsonObject) {
@@ -798,6 +813,19 @@ struct ComicRuleSourceReaderLoader {
             && normalizedURLString.hasPrefix("data:") == false
             && normalizedURLString.hasPrefix("about:") == false
             && normalizedURLString.hasPrefix("javascript:") == false
+    }
+
+    private func requestContext(
+        source: Source,
+        purpose: SourceRequestPurpose,
+        refererURL: URL
+    ) -> SourceRequestContext {
+        return SourceRequestContext(
+            sourceID: source.id,
+            baseURL: URL(string: source.baseURL),
+            purpose: purpose,
+            refererURL: refererURL
+        )
     }
 }
 

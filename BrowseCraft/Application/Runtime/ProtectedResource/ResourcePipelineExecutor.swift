@@ -297,11 +297,9 @@ struct ResourcePipelineExecutor {
     ) throws -> [String: ResourcePipelineRuntimeValue] {
         let itemValue: ResourcePipelineInputValue = .object(input.item)
         let rootValue: ResourcePipelineInputValue = .object(input.root)
-        var contextValues: [String: ResourcePipelineInputValue] = input.requestContext?.contextValues.mapValues {
-            .string($0)
-        } ?? [:]
-        input.context.forEach { key, value in
-            contextValues[key] = value
+        var contextValues: [String: ResourcePipelineInputValue] = input.context
+        input.requestContext?.contextValues.forEach { key, value in
+            contextValues[key] = .string(value)
         }
         let contextValue: ResourcePipelineInputValue = .object(contextValues)
 
@@ -470,11 +468,7 @@ struct ResourcePipelineExecutor {
 
         let data: Data
         do {
-            if let contextualLoader: ContextualPageDataLoader = self.dataLoader as? ContextualPageDataLoader {
-                data = try await contextualLoader.getData(from: url, request: request, context: context)
-            } else {
-                data = try await self.dataLoader.getData(from: url, request: request)
-            }
+            data = try await self.dataLoader.getData(from: url, request: request, context: context)
         } catch is CancellationError {
             throw CancellationError()
         } catch {

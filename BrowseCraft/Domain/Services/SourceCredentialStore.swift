@@ -299,6 +299,11 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring {
     }
 
     private func cookie(_ cookie: HTTPCookie, matches url: URL) -> Bool {
+        if let expiresDate: Date = cookie.expiresDate,
+           expiresDate <= Date() {
+            return false
+        }
+
         guard let host: String = url.host?.lowercased() else {
             return false
         }

@@ -432,14 +432,21 @@ struct ComicRuleAPIResolver {
         return String(padded.prefix(32))
     }
 
-    static func ruleContextValues(source: Source) -> [String: String] {
+    static func ruleContextValues(
+        source: Source,
+        credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider()
+    ) -> [String: String] {
         guard let context: [String: SiteRuleContextValue] = source.rule.context else {
             return [:]
         }
 
         var values: [String: String] = [:]
         context.forEach { key, value in
-            if let resolvedValue: String = self.ruleContextValue(value) {
+            if let resolvedValue: String = self.credentialValue(
+                value.userValue,
+                sourceID: source.id,
+                credentialProvider: credentialProvider
+            ) ?? self.ruleContextValue(value) {
                 values[key] = resolvedValue
             }
         }
@@ -452,6 +459,44 @@ struct ComicRuleAPIResolver {
             values["deviceUUID"] = uuid
         }
         return values
+    }
+
+    private static func credentialValue(
+        _ userValue: String?,
+        sourceID: String,
+        credentialProvider: any SourceCredentialProviding
+    ) -> String? {
+        guard var reference: String = userValue?.trimmingCharacters(in: .whitespacesAndNewlines),
+              reference.isEmpty == false else {
+            return nil
+        }
+
+        if reference.hasPrefix("{") && reference.hasSuffix("}") {
+            reference = String(reference.dropFirst().dropLast())
+        }
+        guard reference.hasPrefix("credentialStore.") else {
+            return nil
+        }
+
+        let keyPath: String = String(reference.dropFirst("credentialStore.".count))
+        if keyPath == "accessToken" || keyPath == "refreshToken" {
+            return credentialProvider.token(for: sourceID, key: keyPath)
+        }
+        if keyPath.hasPrefix("localStorage.") {
+            return credentialProvider.storageValue(
+                for: sourceID,
+                storage: .localStorage,
+                key: String(keyPath.dropFirst("localStorage.".count))
+            )
+        }
+        if keyPath.hasPrefix("sessionStorage.") {
+            return credentialProvider.storageValue(
+                for: sourceID,
+                storage: .sessionStorage,
+                key: String(keyPath.dropFirst("sessionStorage.".count))
+            )
+        }
+        return nil
     }
 
     private static func ruleContextValue(_ key: String, source: Source) -> String? {

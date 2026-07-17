@@ -242,6 +242,7 @@ final class AppContainer {
             loadUserLibraryStateUseCase: loadUserLibraryStateUseCase,
             saveUserLibraryStateUseCase: saveUserLibraryStateUseCase,
             resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase(),
+            sourceCredentialStore: self.sourceCredentialStore,
             sourceSelectionStore: self.sourceSelectionStore
         )
     }
@@ -301,6 +302,7 @@ final class AppContainer {
             restoreContext: restoreContext,
             loadReaderChapterUseCase: loadReaderChapterUseCase,
             protectedResourceLoader: self.protectedResourceLoader,
+            sourceCredentialProvider: self.sourceCredentialStore,
             resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase(),
             saveComicChapterHistoryUseCase: saveComicChapterHistoryUseCase,
             accumulateAdPointsUseCase: accumulateAdPointsUseCase

@@ -138,7 +138,16 @@ struct VideoIframePlayerResolver {
         )
         let html: String
         do {
-            html = try await self.pageContentLoader.getString(from: currentURL, request: request)
+            html = try await self.pageContentLoader.getString(
+                from: currentURL,
+                request: request,
+                context: SourceRequestContext(
+                    sourceID: definition.id,
+                    baseURL: definition.baseURL,
+                    purpose: .video,
+                    refererURL: refererURL
+                )
+            )
         } catch {
             throw self.requestConfigResolver.mappedLoadingError(error, url: currentURL)
         }

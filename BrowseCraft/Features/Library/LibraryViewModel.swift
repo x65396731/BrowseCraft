@@ -10,6 +10,119 @@ struct LibraryListTabState: Identifiable, Hashable {
     let isSelected: Bool
 }
 
+enum LibrarySourceLoginStatus: Hashable {
+    case guest
+    case authenticated
+}
+
+struct LibrarySourceLoginState: Hashable, Identifiable {
+    let sourceID: String
+    let sourceName: String
+    let baseURL: URL
+    let loginURL: URL
+    let credentialKeys: [String]
+    let status: LibrarySourceLoginStatus
+
+    var id: String {
+        return "\(self.sourceID)|\(self.loginURL.absoluteString)"
+    }
+}
+
+// 中文注释：L1 仅解析当前 Source 是否声明登录入口及已有凭据状态；WebUI 登录行为由 L2 接入。
+struct LibrarySourceLoginStateResolver {
+    let credentialStore: SourceCredentialStoring
+    let now: () -> Date
+
+    init(
+        credentialStore: SourceCredentialStoring,
+        now: @escaping () -> Date = Date.init
+    ) {
+        self.credentialStore = credentialStore
+        self.now = now
+    }
+
+    func resolve(source: Source?) -> LibrarySourceLoginState? {
+        guard let source: Source,
+              let loginURL: URL = self.loginURL(for: source),
+              let baseURL: URL = URL(string: source.baseURL) else {
+            return nil
+        }
+
+        return LibrarySourceLoginState(
+            sourceID: source.id,
+            sourceName: source.name,
+            baseURL: baseURL,
+            loginURL: loginURL,
+            credentialKeys: self.credentialKeys(for: source),
+            status: self.hasActiveCredential(for: source.id) ? .authenticated : .guest
+        )
+    }
+
+    private func loginURL(for source: Source) -> URL? {
+        guard case .comic(let configuration) = source.configuration,
+              let rawLoginURL: String = configuration.rule.site?.loginURL else {
+            return nil
+        }
+
+        let loginURLString: String = rawLoginURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard loginURLString.isEmpty == false,
+              let loginURL: URL = URL(string: loginURLString),
+              let scheme: String = loginURL.scheme?.lowercased(),
+              scheme == "http" || scheme == "https" else {
+            return nil
+        }
+
+        return loginURL
+    }
+
+    private func credentialKeys(for source: Source) -> [String] {
+        guard case .comic(let configuration) = source.configuration,
+              let context: [String: SiteRuleContextValue] = configuration.rule.context else {
+            return []
+        }
+
+        let keys: Set<String> = Set(context.values.compactMap { value in
+            return value.userValue.flatMap(self.credentialKey(from:))
+        })
+        return keys.sorted()
+    }
+
+    private func credentialKey(from template: String) -> String? {
+        var value: String = template.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.hasPrefix("{") && value.hasSuffix("}") {
+            value.removeFirst()
+            value.removeLast()
+        }
+
+        let prefix: String = "credentialStore."
+        guard value.hasPrefix(prefix) else {
+            return nil
+        }
+
+        let key: String = String(value.dropFirst(prefix.count))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard key.isEmpty == false,
+              key.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" }) else {
+            return nil
+        }
+        return key
+    }
+
+    private func hasActiveCredential(for sourceID: String) -> Bool {
+        guard let credential: SourceCredential = self.credentialStore.credential(sourceID: sourceID),
+              credential.expiresAt.map({ $0 > self.now() }) ?? true else {
+            return false
+        }
+
+        return credential.cookies.isEmpty == false
+            || credential.headers.isEmpty == false
+            || credential.accessToken?.isEmpty == false
+            || credential.refreshToken?.isEmpty == false
+            || credential.localStorage.isEmpty == false
+            || credential.sessionStorage.isEmpty == false
+    }
+}
+
 private struct LibraryListCacheEntry {
     let sourceID: String
     let context: ListContext?
@@ -29,6 +142,8 @@ final class LibraryViewModel: ObservableObject {
     @Published private(set) var isValidatingTabs: Bool = false
     @Published private(set) var preparingSource: SourceLoadingState?
     @Published private(set) var preparedLibrarySnapshot: SourceLibrarySnapshot?
+    @Published private(set) var requestedSourceLogin: LibrarySourceLoginState?
+    @Published private var credentialRevision: Int = 0
 
     private let syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase
     private let loadSourcesUseCase: LoadSourcesUseCase
@@ -39,6 +154,7 @@ final class LibraryViewModel: ObservableObject {
     private let loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase
     private let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase
     private let resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase
+    private let sourceCredentialStore: SourceCredentialStoring
     private let sourceSelectionStore: SourceSelectionStore
     private let userID: String
     private let now: () -> Date
@@ -61,6 +177,7 @@ final class LibraryViewModel: ObservableObject {
         loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase,
         saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase,
         resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase,
+        sourceCredentialStore: SourceCredentialStoring,
         sourceSelectionStore: SourceSelectionStore,
         userID: String = AppUser.localDefaultID,
         now: @escaping () -> Date = Date.init
@@ -74,6 +191,7 @@ final class LibraryViewModel: ObservableObject {
         self.loadUserLibraryStateUseCase = loadUserLibraryStateUseCase
         self.saveUserLibraryStateUseCase = saveUserLibraryStateUseCase
         self.resolveLibrarySourcePresentationUseCase = resolveLibrarySourcePresentationUseCase
+        self.sourceCredentialStore = sourceCredentialStore
         self.sourceSelectionStore = sourceSelectionStore
         self.userID = userID
         self.now = now
@@ -296,25 +414,50 @@ final class LibraryViewModel: ObservableObject {
         }
     }
 
-    @MainActor
-    func selectSource(id sourceID: String) async {
-        guard self.sources.contains(where: { source in source.id == sourceID }) else {
-            return
-        }
-
-        guard self.selectedSourceID != sourceID else {
-            return
-        }
-
-        self.sourceSelectionStore.selectedSourceID = sourceID
-        await self.refreshSelectedListTab()
-        await self.prepareTabsForSelectedSourceIfNeeded()
-    }
-
     var selectedSource: Source? {
         return self.sources.first { source in
             return source.id == self.selectedSourceID
         }
+    }
+
+    var selectedSourceLoginState: LibrarySourceLoginState? {
+        _ = self.credentialRevision
+        return LibrarySourceLoginStateResolver(
+            credentialStore: self.sourceCredentialStore,
+            now: self.now
+        ).resolve(source: self.selectedSource)
+    }
+
+    @MainActor
+    func requestSelectedSourceLogin() {
+        self.requestedSourceLogin = self.selectedSourceLoginState
+    }
+
+    @MainActor
+    func dismissRequestedSourceLogin() {
+        self.requestedSourceLogin = nil
+    }
+
+    @MainActor
+    func completeRequestedSourceLogin(credential: SourceCredential) {
+        guard credential.sourceID == self.requestedSourceLogin?.sourceID else {
+            return
+        }
+
+        self.sourceCredentialStore.save(credential)
+        self.credentialRevision += 1
+        self.requestedSourceLogin = nil
+    }
+
+    @MainActor
+    func removeSelectedSourceCredential() {
+        guard let sourceID: String = self.selectedSourceID else {
+            return
+        }
+
+        self.sourceCredentialStore.removeCredential(sourceID: sourceID)
+        self.credentialRevision += 1
+        self.requestedSourceLogin = nil
     }
 
     var isShowingSourceLoading: Bool {
@@ -703,6 +846,7 @@ final class LibraryViewModel: ObservableObject {
         self.selectedListTabID = nil
         self.errorMessage = nil
         self.selectedListTabErrorMessage = nil
+        self.requestedSourceLogin = nil
         self.items = []
         self.ensureSelectedListTab()
         self.selectedListTabErrorMessage = self.currentListTabErrorMessage()
