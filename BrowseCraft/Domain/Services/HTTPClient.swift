@@ -2,6 +2,11 @@ import Foundation
 
 // 中文注释：HTTPClient.swift 属于领域服务协议层，用于说明本文件承载的核心职责。
 
+struct PageContentResponse {
+    let content: String
+    let finalURL: URL
+}
+
 /// 中文注释：应用用例层使用的页面内容加载协议。
 /// 中文注释：实现可以选择普通 HTTP 或 WebView 渲染后的 HTML，用例层只关心最终字符串。
 protocol PageContentLoader {
@@ -20,6 +25,15 @@ protocol HTTPClient: PageContentLoader, PageDataLoader {}
 /// 中文注释：带来源上下文的文本加载协议；旧实现无需立刻迁移，运行时可按能力向下兼容。
 protocol ContextualPageContentLoader: PageContentLoader {
     func getString(from url: URL, request: RequestConfig?, context: SourceRequestContext?) async throws -> String
+}
+
+/// 中文注释：需要读取重定向后 URL 的规则通过此能力获取正文和最终 URL；旧 loader 自动回退到请求 URL。
+protocol ContextualPageContentResponseLoader: ContextualPageContentLoader {
+    func getStringResponse(
+        from url: URL,
+        request: RequestConfig?,
+        context: SourceRequestContext?
+    ) async throws -> PageContentResponse
 }
 
 /// 中文注释：带来源上下文的二进制加载协议；后续受保护资源和解密图片会从这里传递站点身份。
@@ -43,6 +57,20 @@ extension PageContentLoader {
             return try await contextualLoader.getString(from: url, request: request, context: context)
         }
         return try await self.getString(from: url, request: request)
+    }
+
+    func getStringResponse(
+        from url: URL,
+        request: RequestConfig?,
+        context: SourceRequestContext?
+    ) async throws -> PageContentResponse {
+        if let responseLoader: any ContextualPageContentResponseLoader = self as? any ContextualPageContentResponseLoader {
+            return try await responseLoader.getStringResponse(from: url, request: request, context: context)
+        }
+        return PageContentResponse(
+            content: try await self.getString(from: url, request: request, context: context),
+            finalURL: url
+        )
     }
 }
 

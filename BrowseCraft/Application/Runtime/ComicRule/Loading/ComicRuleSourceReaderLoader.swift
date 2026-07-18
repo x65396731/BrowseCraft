@@ -341,8 +341,18 @@ struct ComicRuleSourceReaderLoader {
         chapterURLString: String,
         fallbackRequest: RequestConfig?
     ) async throws -> ReaderChapter? {
-        let apiURLString: String = ComicRuleAPIResolver.replacingTemplatePlaceholders(
+        let chapterFinalURL: URL? = try await self.chapterFinalURLIfNeeded(
+            source: source,
+            apiRule: apiRule,
+            chapterURLString: chapterURLString,
+            request: fallbackRequest
+        )
+        let resolvedAPITemplate: String = self.replacingChapterFinalURLPlaceholders(
             in: apiRule.url,
+            finalURL: chapterFinalURL
+        )
+        let apiURLString: String = ComicRuleAPIResolver.replacingTemplatePlaceholders(
+            in: resolvedAPITemplate,
             source: source,
             item: item,
             chapterURL: chapterURLString,
@@ -457,7 +467,8 @@ struct ComicRuleSourceReaderLoader {
                 itemIndex: itemIndex,
                 imageURL: resolvedImageURL,
                 rootJSON: jsonObject,
-                currentJSON: itemObject
+                currentJSON: itemObject,
+                chapterFinalURL: chapterFinalURL
             ) else {
                 continue
             }
@@ -614,7 +625,8 @@ struct ComicRuleSourceReaderLoader {
         itemIndex: Int,
         imageURL: String?,
         rootJSON: Any,
-        currentJSON: Any
+        currentJSON: Any,
+        chapterFinalURL: URL?
     ) throws -> ReaderPageResource? {
         if let resourcePipeline = apiRule.resourcePipeline {
             let displayURLString: String = self.nonEmpty(imageURL)
@@ -656,9 +668,10 @@ struct ComicRuleSourceReaderLoader {
                             rule: resourcePipeline.pipeline,
                             item: try self.resourcePipelineScope(from: currentJSON),
                             root: try self.resourcePipelineScope(from: rootJSON),
-                            context: ComicRuleAPIResolver.ruleContextValues(source: source).mapValues {
-                                .string($0)
-                            },
+                            context: self.resourcePipelineContext(
+                                source: source,
+                                chapterFinalURL: chapterFinalURL
+                            ),
                             legacyFallback: legacyFallback
                         )
                     )
@@ -687,6 +700,103 @@ struct ComicRuleSourceReaderLoader {
                 )
             )
         )
+    }
+
+    private func chapterFinalURLIfNeeded(
+        source: Source,
+        apiRule: ReaderImageAPIRule,
+        chapterURLString: String,
+        request: RequestConfig?
+    ) async throws -> URL? {
+        let finalURLTokenPrefix = "{chapter.finalURL."
+        let apiNeedsFinalURL = apiRule.url.contains(finalURLTokenPrefix)
+        let pipelineNeedsFinalURL = apiRule.resourcePipeline?.pipeline.bindings.values.contains { binding in
+            binding.source == .context
+                && (binding.path?.hasPrefix("chapter.finalURL.") ?? false)
+        } ?? false
+        guard apiNeedsFinalURL || pipelineNeedsFinalURL else {
+            return nil
+        }
+        guard let chapterURL = URL(string: chapterURLString) else {
+            throw RuleExecutionError.ruleConfiguration(
+                stage: .reader,
+                sourceID: source.id,
+                reason: "Invalid chapter URL: \(chapterURLString)"
+            )
+        }
+        let response = try await self.pageContentLoader.getStringResponse(
+            from: chapterURL,
+            request: request,
+            context: self.requestContext(
+                source: source,
+                purpose: .reader,
+                refererURL: chapterURL
+            )
+        )
+        RuleExecutionLogger.log(
+            stage: .reader,
+            event: "resolved-final-url",
+            fields: [
+                "source": source.id,
+                "chapterURL": chapterURLString,
+                "finalURLHost": response.finalURL.host ?? "nil",
+                "queryItemCount": URLComponents(url: response.finalURL, resolvingAgainstBaseURL: false)?.queryItems?.count ?? 0
+            ]
+        )
+        return response.finalURL
+    }
+
+    private func replacingChapterFinalURLPlaceholders(in template: String, finalURL: URL?) -> String {
+        guard let finalURL,
+              let components = URLComponents(url: finalURL, resolvingAgainstBaseURL: false) else {
+            return template
+        }
+        var output = template.replacingOccurrences(
+            of: "{chapter.finalURL.absoluteString}",
+            with: finalURL.absoluteString
+        )
+        for queryItem in components.queryItems ?? [] {
+            let rawValue = queryItem.value ?? ""
+            let absoluteValue = URL(string: rawValue, relativeTo: finalURL)?.absoluteURL.absoluteString ?? rawValue
+            output = output.replacingOccurrences(
+                of: "{chapter.finalURL.query.\(queryItem.name)}",
+                with: rawValue
+            )
+            output = output.replacingOccurrences(
+                of: "{chapter.finalURL.queryAbsolute.\(queryItem.name)}",
+                with: absoluteValue
+            )
+        }
+        return output
+    }
+
+    private func resourcePipelineContext(
+        source: Source,
+        chapterFinalURL: URL?
+    ) -> [String: ReaderResourcePipelineValue] {
+        var context = ComicRuleAPIResolver.ruleContextValues(source: source).mapValues {
+            ReaderResourcePipelineValue.string($0)
+        }
+        guard let chapterFinalURL,
+              let components = URLComponents(url: chapterFinalURL, resolvingAgainstBaseURL: false) else {
+            return context
+        }
+        var query: [String: ReaderResourcePipelineValue] = [:]
+        var queryAbsolute: [String: ReaderResourcePipelineValue] = [:]
+        for queryItem in components.queryItems ?? [] {
+            let rawValue = queryItem.value ?? ""
+            let absoluteValue = URL(string: rawValue, relativeTo: chapterFinalURL)?.absoluteURL.absoluteString ?? rawValue
+            query[queryItem.name] = .string(rawValue)
+            queryAbsolute[queryItem.name] = .string(absoluteValue)
+        }
+        context["chapter"] = .object([
+            "finalURL": .object([
+                "absoluteString": .string(chapterFinalURL.absoluteString),
+                "query": .object(query),
+                "queryAbsolute": .object(queryAbsolute)
+            ])
+        ])
+        return context
     }
 
     private func legacyProtectedReference(

@@ -2864,6 +2864,16 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
                 continue
             }
 
+            if attribute == "ownText" {
+                let value: String = try element.ownText().trimmingCharacters(in: .whitespacesAndNewlines)
+
+                if value.isEmpty == false {
+                    return value
+                }
+
+                continue
+            }
+
             let value: String = try element.attr(attribute).trimmingCharacters(in: .whitespacesAndNewlines)
 
             if value.isEmpty == false {

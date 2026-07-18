@@ -125,6 +125,40 @@ struct ResourcePipelineExecutorTests {
         ])
     }
 
+    @Test func sliceWithoutLengthConsumesRemainingBytes() async throws {
+        let rule: ResourcePipelineRule = ResourcePipelineRule(
+            bindings: [
+                "encryptedResource": ResourceBindingRule(source: .constant, value: "0123456789payload")
+            ],
+            steps: [
+                ResourcePipelineStepRule(
+                    id: "ciphertext",
+                    operation: .slice(
+                        ResourceSliceOperationRule(
+                            input: ResourceValueReferenceRule(source: .binding, name: "encryptedResource"),
+                            offset: 10,
+                            unit: .bytes
+                        )
+                    )
+                )
+            ],
+            output: ResourcePipelineOutputRule(
+                value: ResourceValueReferenceRule(source: .step, name: "ciphertext"),
+                contentType: .binary
+            )
+        )
+        let executor: ResourcePipelineExecutor = ResourcePipelineExecutor(
+            dataLoader: RecordingResourcePipelineDataLoader(responses: [:]),
+            cryptography: CommonCryptoResourcePipelineCryptography()
+        )
+
+        let output: ResourcePipelineExecutionOutput = try await executor.execute(
+            ResourcePipelineExecutionInput(rule: rule, sourceID: "slice-to-end")
+        )
+
+        #expect(output.data == Data("payload".utf8))
+    }
+
     @Test func invalidGraphFailsBeforeFirstRequest() async throws {
         let loader: RecordingResourcePipelineDataLoader = RecordingResourcePipelineDataLoader(responses: [:])
         let rule: ResourcePipelineRule = ResourcePipelineRule(
@@ -250,6 +284,56 @@ struct ResourcePipelineExecutorTests {
             -0.0,
             expectedURL: "https://example.test/image/0/2"
         )
+    }
+
+    @Test func repeatedSuccessfulJSONRequestUsesBoundedPipelineCache() async throws {
+        let manifestURL: String = "https://example.test/manifest"
+        let loader: RecordingResourcePipelineDataLoader = RecordingResourcePipelineDataLoader(
+            responses: [manifestURL: Data(#"{"cryptokey":"shared-key"}"#.utf8)]
+        )
+        let rule: ResourcePipelineRule = ResourcePipelineRule(
+            bindings: [:],
+            steps: [
+                ResourcePipelineStepRule(
+                    id: "manifestResponse",
+                    operation: .request(
+                        ResourceRequestOperationRule(
+                            urlTemplate: manifestURL,
+                            responseType: .json
+                        )
+                    )
+                ),
+                ResourcePipelineStepRule(
+                    id: "key",
+                    operation: .extract(
+                        ResourceExtractOperationRule(
+                            input: ResourceValueReferenceRule(source: .step, name: "manifestResponse"),
+                            path: "cryptokey",
+                            outputType: .string
+                        )
+                    )
+                )
+            ],
+            output: ResourcePipelineOutputRule(
+                value: ResourceValueReferenceRule(source: .step, name: "key"),
+                contentType: .binary
+            )
+        )
+        let executor: ResourcePipelineExecutor = ResourcePipelineExecutor(
+            dataLoader: loader,
+            cryptography: CommonCryptoResourcePipelineCryptography()
+        )
+
+        let first: ResourcePipelineExecutionOutput = try await executor.execute(
+            ResourcePipelineExecutionInput(rule: rule, sourceID: "cache-source")
+        )
+        let second: ResourcePipelineExecutionOutput = try await executor.execute(
+            ResourcePipelineExecutionInput(rule: rule, sourceID: "cache-source")
+        )
+
+        #expect(first.data == Data("shared-key".utf8))
+        #expect(second.data == first.data)
+        #expect(loader.requests.map(\.url.absoluteString) == [manifestURL])
     }
 
     private static func expectNumberBinding(

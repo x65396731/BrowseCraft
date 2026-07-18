@@ -117,6 +117,36 @@ struct SwiftSoupListParserTests {
         #expect(items[0].coverURL == "https://img.example.test/cover-5571.jpg")
     }
 
+    @Test func legacyOwnTextAttributeExcludesNestedChapterMetrics() throws {
+        var source: Source = Self.legacyListSource()
+        source.rule.detail?.chapterContainer = ".chapters"
+        source.rule.detail?.chapterItem = ".chapter"
+        source.rule.detail?.chapterTitle = ".number@ownText"
+        source.rule.detail?.chapterLink = ".reader@href"
+        let parser: SwiftSoupComicRuleSourceParser = SwiftSoupComicRuleSourceParser(
+            urlResolver: URLResolvingService()
+        )
+
+        let chapters: [ChapterLink] = try parser.parseDetailChapters(
+            html: """
+            <ul class="chapters">
+              <li class="chapter">
+                <dt class="number">
+                  001話
+                  <div class="metrics"><span>4.6万</span><a href="/comments">146</a></div>
+                </dt>
+                <a class="reader" href="/free_chapters/1">無料</a>
+              </li>
+            </ul>
+            """,
+            source: source,
+            pageURL: "https://example.test/books/1"
+        )
+
+        #expect(chapters.map(\.title) == ["001話"])
+        #expect(chapters.map(\.url) == ["https://example.test/free_chapters/1"])
+    }
+
     private static let v2ListHTML: String = """
     <main>
       <article class="card" data-id="v2-1">

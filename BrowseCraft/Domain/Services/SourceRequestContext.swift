@@ -2,7 +2,7 @@ import Foundation
 
 // 中文注释：SourceRequestContext.swift 描述一次站点请求的来源和用途，供登录态、受保护资源和后续解密链路复用。
 
-enum SourceRequestPurpose: String, Hashable {
+enum SourceRequestPurpose: String, Hashable, Sendable {
     case list
     case search
     case detail
@@ -15,7 +15,7 @@ enum SourceRequestPurpose: String, Hashable {
     case unknown
 }
 
-struct SourceRequestContext: Hashable {
+struct SourceRequestContext: Hashable, Sendable {
     let sourceID: String?
     let baseURL: URL?
     let purpose: SourceRequestPurpose

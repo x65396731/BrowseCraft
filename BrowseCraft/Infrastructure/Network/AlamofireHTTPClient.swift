@@ -9,7 +9,7 @@ private struct HTTPDataResponse {
 }
 
 /// 中文注释：生产环境使用的 HTTP 客户端，底层由 Alamofire 实现。
-final class AlamofireHTTPClient: HTTPClient, ContextualPageContentLoader, ContextualPageDataLoader {
+final class AlamofireHTTPClient: HTTPClient, ContextualPageContentResponseLoader, ContextualPageDataLoader {
     private let credentialProvider: SourceCredentialProviding
 
     init(credentialProvider: SourceCredentialProviding = EmptySourceCredentialProvider()) {
@@ -22,6 +22,14 @@ final class AlamofireHTTPClient: HTTPClient, ContextualPageContentLoader, Contex
     }
 
     func getString(from url: URL, request: RequestConfig?, context: SourceRequestContext?) async throws -> String {
+        return try await self.getStringResponse(from: url, request: request, context: context).content
+    }
+
+    func getStringResponse(
+        from url: URL,
+        request: RequestConfig?,
+        context: SourceRequestContext?
+    ) async throws -> PageContentResponse {
         let urlRequest: URLRequest = self.urlRequest(for: url, request: request, context: context)
         let dataResponse: HTTPDataResponse
         let html: String
@@ -53,7 +61,10 @@ final class AlamofireHTTPClient: HTTPClient, ContextualPageContentLoader, Contex
             throw RuleExecutionError.antiBot(url: url.absoluteString)
         }
 
-        return html
+        return PageContentResponse(
+            content: html,
+            finalURL: dataResponse.response?.url ?? url
+        )
     }
 
     /// 中文注释：RSS/XML 需要保留服务器原始 bytes，避免先按错误字符串编码解码造成乱码。

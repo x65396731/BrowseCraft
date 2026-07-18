@@ -115,10 +115,12 @@ enum ResourcePipelineExecutorError: LocalizedError, Equatable {
 struct ResourcePipelineExecutor {
     private let dataLoader: PageDataLoader
     private let cryptography: ResourcePipelineCryptography
+    private let requestCache: ResourcePipelineRequestCache
 
     init(dataLoader: PageDataLoader, cryptography: ResourcePipelineCryptography) {
         self.dataLoader = dataLoader
         self.cryptography = cryptography
+        self.requestCache = ResourcePipelineRequestCache()
     }
 
     func execute(_ input: ResourcePipelineExecutionInput) async throws -> ResourcePipelineExecutionOutput {
@@ -241,7 +243,7 @@ struct ResourcePipelineExecutor {
             }
         case .slice(let rule):
             guard rule.offset >= 0,
-                  rule.length >= 0 else {
+                  rule.length.map({ $0 >= 0 }) ?? true else {
                 throw ResourcePipelineExecutorError.invalidStep(id: stepID, reason: "negative slice")
             }
         case .split(let rule):
@@ -466,11 +468,45 @@ struct ResourcePipelineExecutor {
             contextValues: input.requestContext?.contextValues ?? [:]
         )
 
+        let cacheKey: ResourcePipelineRequestCache.Key = ResourcePipelineRequestCache.Key(
+            url: url,
+            request: request,
+            context: context
+        )
         let data: Data
         do {
-            data = try await self.dataLoader.getData(from: url, request: request, context: context)
+            if let cachedData: Data = try await self.requestCache.valueOrReserve(for: cacheKey) {
+                data = cachedData
+            } else {
+                do {
+                    let loadedData: Data = try await self.dataLoader.getData(
+                        from: url,
+                        request: request,
+                        context: context
+                    )
+                    await self.requestCache.succeed(
+                        loadedData,
+                        for: cacheKey,
+                        cacheCompleted: rule.responseType != .data
+                    )
+                    data = loadedData
+                } catch is CancellationError {
+                    let error: CancellationError = CancellationError()
+                    await self.requestCache.fail(for: cacheKey, error: error)
+                    throw error
+                } catch {
+                    let requestError: ResourcePipelineExecutorError = .requestFailed(
+                        url: url.absoluteString,
+                        reason: error.localizedDescription
+                    )
+                    await self.requestCache.fail(for: cacheKey, error: requestError)
+                    throw requestError
+                }
+            }
         } catch is CancellationError {
             throw CancellationError()
+        } catch let error as ResourcePipelineExecutorError {
+            throw error
         } catch {
             throw ResourcePipelineExecutorError.requestFailed(
                 url: url.absoluteString,
@@ -543,6 +579,81 @@ struct ResourcePipelineExecutor {
     }
 }
 
+private actor ResourcePipelineRequestCache {
+    struct Key: Hashable, Sendable {
+        let url: URL
+        let request: RequestConfig?
+        let context: SourceRequestContext
+    }
+
+    private struct CachedResponse {
+        let data: Data
+        let expiresAt: Date
+    }
+
+    private let completedTTL: TimeInterval = 300
+    private let maximumCompletedEntries: Int = 32
+    private let maximumCompletedResponseBytes: Int = 1024 * 1024
+    private var completed: [Key: CachedResponse] = [:]
+    private var completedOrder: [Key] = []
+    private var waiters: [Key: [CheckedContinuation<Data, any Error>]] = [:]
+
+    /// 中文注释：返回 nil 表示调用者取得加载权；相同请求的其它调用者挂起并共享该次结果。
+    func valueOrReserve(for key: Key) async throws -> Data? {
+        let now: Date = Date()
+        if let cached: CachedResponse = self.completed[key] {
+            if cached.expiresAt > now {
+                self.touch(key)
+                return cached.data
+            }
+            self.completed.removeValue(forKey: key)
+            self.completedOrder.removeAll { $0 == key }
+        }
+
+        if self.waiters[key] != nil {
+            return try await withCheckedThrowingContinuation { continuation in
+                self.waiters[key, default: []].append(continuation)
+            }
+        }
+
+        self.waiters[key] = []
+        return nil
+    }
+
+    func succeed(_ data: Data, for key: Key, cacheCompleted: Bool) {
+        let pendingWaiters: [CheckedContinuation<Data, any Error>] = self.waiters.removeValue(forKey: key) ?? []
+
+        if cacheCompleted,
+           data.count <= self.maximumCompletedResponseBytes {
+            self.completed[key] = CachedResponse(
+                data: data,
+                expiresAt: Date().addingTimeInterval(self.completedTTL)
+            )
+            self.touch(key)
+            self.trimCompletedResponsesIfNeeded()
+        }
+
+        pendingWaiters.forEach { $0.resume(returning: data) }
+    }
+
+    func fail(for key: Key, error: any Error) {
+        let pendingWaiters: [CheckedContinuation<Data, any Error>] = self.waiters.removeValue(forKey: key) ?? []
+        pendingWaiters.forEach { $0.resume(throwing: error) }
+    }
+
+    private func touch(_ key: Key) {
+        self.completedOrder.removeAll { $0 == key }
+        self.completedOrder.append(key)
+    }
+
+    private func trimCompletedResponsesIfNeeded() {
+        while self.completedOrder.count > self.maximumCompletedEntries {
+            let oldestKey: Key = self.completedOrder.removeFirst()
+            self.completed.removeValue(forKey: oldestKey)
+        }
+    }
+}
+
 private enum ResourcePipelineRuntimeValue {
     case data(Data)
     case string(String)
@@ -612,28 +723,36 @@ private enum ResourcePipelineRuntimeValue {
 
     func slice(
         offset: Int,
-        length: Int,
+        length: Int?,
         unit: ResourceSliceUnit
     ) throws -> ResourcePipelineRuntimeValue {
         switch unit {
         case .bytes:
             let data: Data = try self.dataValue()
             guard offset >= 0,
-                  length >= 0,
-                  offset + length <= data.count else {
-                throw ResourcePipelineExecutorError.invalidSlice(offset: offset, length: length)
+                  offset <= data.count else {
+                throw ResourcePipelineExecutorError.invalidSlice(offset: offset, length: length ?? 0)
+            }
+            let resolvedLength: Int = length ?? (data.count - offset)
+            guard resolvedLength >= 0,
+                  resolvedLength <= data.count - offset else {
+                throw ResourcePipelineExecutorError.invalidSlice(offset: offset, length: resolvedLength)
             }
             let start: Data.Index = data.index(data.startIndex, offsetBy: offset)
-            let end: Data.Index = data.index(start, offsetBy: length)
+            let end: Data.Index = data.index(start, offsetBy: resolvedLength)
             return .data(Data(data[start..<end]))
         case .characters:
             let characters: [Character] = Array(try self.stringValue())
             guard offset >= 0,
-                  length >= 0,
-                  offset + length <= characters.count else {
-                throw ResourcePipelineExecutorError.invalidSlice(offset: offset, length: length)
+                  offset <= characters.count else {
+                throw ResourcePipelineExecutorError.invalidSlice(offset: offset, length: length ?? 0)
             }
-            return .string(String(characters[offset..<(offset + length)]))
+            let resolvedLength: Int = length ?? (characters.count - offset)
+            guard resolvedLength >= 0,
+                  resolvedLength <= characters.count - offset else {
+                throw ResourcePipelineExecutorError.invalidSlice(offset: offset, length: resolvedLength)
+            }
+            return .string(String(characters[offset..<(offset + resolvedLength)]))
         }
     }
 }
@@ -867,7 +986,8 @@ private enum ResourcePipelineTemplateResolver {
             guard let range: Range<String.Index> = Range(match.range(at: 1), in: template) else {
                 return nil
             }
-            return String(template[range])
+            let token: String = String(template[range])
+            return self.isPipelineToken(token) ? token : nil
         }
     }
 
@@ -884,12 +1004,20 @@ private enum ResourcePipelineTemplateResolver {
                 continue
             }
             let token: String = String(template[tokenRange])
+            guard self.isPipelineToken(token) else {
+                continue
+            }
             guard let value: String = values[token] else {
                 throw ResourcePipelineExecutorError.unresolvedTemplateToken(token)
             }
             output.replaceSubrange(fullRange, with: value)
         }
         return output
+    }
+
+    /// 中文注释：普通 JSON/GraphQL 花括号是请求正文语法，只有显式 binding/step 命名空间才是 pipeline 模板。
+    private static func isPipelineToken(_ token: String) -> Bool {
+        return token.hasPrefix("binding.") || token.hasPrefix("step.")
     }
 
     static func resolve(_ request: RequestConfig, values: [String: String]) throws -> RequestConfig {
