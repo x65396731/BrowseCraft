@@ -645,7 +645,38 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
         )
     }
 
-    /// 中文注释：parseDetailChapters 方法封装当前类型的一段业务或界面行为。
+    /// 中文注释：完整详情入口只构造一次 DOM，并在 SwiftSoup adapter 内完成字段与章节解析。
+    func parseDetail(
+        html: String,
+        source: Source,
+        detailRule: DetailRule,
+        pageURL: String,
+        context: ListContext?
+    ) throws -> ComicRuleParsedDetail {
+        let document: Document = try self.parseDetailDocument(
+            html: html,
+            source: source,
+            pageURL: pageURL
+        )
+        let metadata: ComicRuleParsedDetailMetadata = try self.detailMetadata(
+            in: document,
+            detailRule: detailRule,
+            pageURL: pageURL,
+            context: context
+        )
+        let chapters: [ChapterLink] = try self.detailChapters(
+            in: document,
+            html: html,
+            source: source,
+            detailRule: detailRule,
+            pageURL: pageURL,
+            context: context
+        )
+
+        return ComicRuleParsedDetail(metadata: metadata, chapters: chapters)
+    }
+
+    /// 中文注释：parseDetailChapters 保留给 Reader 目录回查等兼容调用，内部复用完整详情的章节实现。
     func parseDetailChapters(html: String, source: Source, pageURL: String) throws -> [ChapterLink] {
         return try self.parseDetailChapters(
             html: html,
@@ -682,6 +713,48 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
         pageURL: String,
         context: ListContext?
     ) throws -> [ChapterLink] {
+        let document: Document = try self.parseDetailDocument(
+            html: html,
+            source: source,
+            pageURL: pageURL
+        )
+
+        return try self.detailChapters(
+            in: document,
+            html: html,
+            source: source,
+            detailRule: detailRule,
+            pageURL: pageURL,
+            context: context
+        )
+    }
+
+    func parseDetailDescription(
+        html: String,
+        source: Source,
+        detailRule: DetailRule,
+        pageURL: String,
+        context: ListContext?
+    ) throws -> String? {
+        let document: Document = try self.parseDetailDocument(
+            html: html,
+            source: source,
+            pageURL: pageURL
+        )
+
+        return try self.detailMetadata(
+            in: document,
+            detailRule: detailRule,
+            pageURL: pageURL,
+            context: context
+        ).description
+    }
+
+    private func parseDetailDocument(
+        html: String,
+        source: Source,
+        pageURL: String
+    ) throws -> Document {
         RuleExecutionLogger.log(
             stage: .detail,
             event: "document-parse-attempt",
@@ -691,7 +764,18 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
                 "htmlLength": html.count
             ]
         )
-        let document: Document = try SwiftSoup.parse(html, pageURL)
+
+        return try SwiftSoup.parse(html, pageURL)
+    }
+
+    private func detailChapters(
+        in document: Document,
+        html: String,
+        source: Source,
+        detailRule: DetailRule,
+        pageURL: String,
+        context: ListContext?
+    ) throws -> [ChapterLink] {
 
         if let chapterRule: ChapterRule = detailRule.chapterRule {
             // 中文注释：优先读取页面内的结构化章节数据。部分站点会把真实章节放在 x-data/JSON 中，
@@ -797,29 +881,120 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
         )
     }
 
-    func parseDetailDescription(
-        html: String,
-        source: Source,
+    private func detailMetadata(
+        in document: Document,
         detailRule: DetailRule,
         pageURL: String,
         context: ListContext?
-    ) throws -> String? {
-        let document: Document = try SwiftSoup.parse(html, pageURL)
+    ) throws -> ComicRuleParsedDetailMetadata {
         let scope: Element = try self.contextualScope(
             in: document,
             mainScopeRule: detailRule.mainScope,
             context: context
         ) ?? document
+        let fields: DetailFields? = detailRule.fields
+        let rawDescription: String? = try self.detailValue(fields?.description, in: scope)
+        let coverValue: String? = try self.detailValue(fields?.cover, in: scope)
+            ?? self.detailValue(detailRule.cover, in: scope)
+        let photoAlbumValue: String? = try self.detailValue(fields?.photoAlbumLink, in: scope)
+        let secondLevelPageValue: String? = try self.detailValue(fields?.secondLevelPageURL, in: scope)
 
-        if let descriptionRule: ExtractRule = detailRule.fields?.description {
-            let rawDescription: String = try self.extract(element: scope, rule: descriptionRule)
+        return ComicRuleParsedDetailMetadata(
+            idCode: try self.detailValue(fields?.idCode, in: scope),
+            title: try self.detailValue(fields?.title, in: scope)
+                ?? self.detailValue(detailRule.title, in: scope),
+            coverURL: self.absoluteDetailURL(coverValue, pageURL: pageURL),
+            description: rawDescription.flatMap { value in
+                return self.sanitizedDetailDescription(value)
+            },
+            author: try self.detailValue(fields?.author, in: scope),
+            status: try self.detailValue(fields?.status, in: scope),
+            category: try self.detailValue(fields?.category, in: scope),
+            tags: try self.detailValues(fields?.tags, in: scope),
+            language: try self.detailValue(fields?.language, in: scope),
+            publishedAt: try self.detailValue(fields?.publishedAt, in: scope),
+            updatedAt: try self.detailValue(fields?.updatedAt, in: scope),
+            license: try self.detailValue(fields?.license, in: scope),
+            totalImages: try self.detailInteger(fields?.totalImages, in: scope),
+            photoAlbumURL: self.absoluteDetailURL(photoAlbumValue, pageURL: pageURL),
+            secondLevelPageURL: self.absoluteDetailURL(secondLevelPageValue, pageURL: pageURL)
+        )
+    }
 
-            if let description: String = self.sanitizedDetailDescription(rawDescription) {
-                return description
-            }
+    private func detailValue(_ rule: ExtractRule?, in scope: Element) throws -> String? {
+        guard let rule: ExtractRule = rule else {
+            return nil
         }
 
-        return nil
+        return self.nonEmptyDetailValue(try self.extract(element: scope, rule: rule))
+    }
+
+    private func detailValue(_ expression: String?, in scope: Element) throws -> String? {
+        guard let expression: String = expression,
+              expression.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
+            return nil
+        }
+
+        return self.nonEmptyDetailValue(try self.extract(element: scope, expression: expression))
+    }
+
+    private func detailValues(_ rule: ExtractRule?, in scope: Element) throws -> [String] {
+        guard let rule: ExtractRule = rule else {
+            return []
+        }
+
+        let elements: [Element] = try self.selectedElements(element: scope, rule: rule)
+        let currentRule: ExtractRule = ExtractRule(
+            selectorKind: .current,
+            function: rule.function,
+            functions: rule.functions,
+            param: rule.param,
+            regex: rule.regex,
+            replacement: rule.replacement,
+            fallback: nil
+        )
+        var values: [String] = []
+        var seen: Set<String> = []
+
+        for element: Element in elements {
+            guard let value: String = self.nonEmptyDetailValue(
+                try self.extract(element: element, rule: currentRule)
+            ), seen.insert(value).inserted else {
+                continue
+            }
+            values.append(value)
+        }
+
+        if values.isEmpty,
+           let fallbackValue: String = try self.detailValue(rule, in: scope) {
+            return [fallbackValue]
+        }
+
+        return values
+    }
+
+    private func detailInteger(_ rule: ExtractRule?, in scope: Element) throws -> Int? {
+        guard let value: String = try self.detailValue(rule, in: scope) else {
+            return nil
+        }
+        if let exactValue: Int = Int(value) {
+            return exactValue
+        }
+
+        let digits: String = value.filter(\.isNumber)
+        return Int(digits)
+    }
+
+    private func nonEmptyDetailValue(_ value: String) -> String? {
+        let trimmedValue: String = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedValue.isEmpty ? nil : trimmedValue
+    }
+
+    private func absoluteDetailURL(_ value: String?, pageURL: String) -> String? {
+        guard let value: String = value else {
+            return nil
+        }
+        return self.urlResolver.absoluteString(value, baseURLString: pageURL)
     }
 
     private func sanitizedDetailDescription(_ value: String) -> String? {

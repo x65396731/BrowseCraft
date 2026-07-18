@@ -21,7 +21,7 @@ struct ComicRuleSourceRuntimeFactory {
             source: source,
             listLoader: self.makeListLoader(),
             searchLoader: self.makeSearchLoader(),
-            chapterLoader: self.makeChapterLoader(),
+            detailLoader: self.makeDetailLoader(),
             readerLoader: self.makeReaderLoader()
         )
     }
@@ -42,8 +42,8 @@ struct ComicRuleSourceRuntimeFactory {
         )
     }
 
-    private func makeChapterLoader() -> ComicRuleSourceChapterLoader {
-        return ComicRuleSourceChapterLoader(
+    private func makeDetailLoader() -> ComicRuleSourceDetailLoader {
+        return ComicRuleSourceDetailLoader(
             pageContentLoader: self.pageContentLoader,
             comicRuleParser: self.comicRuleParser
         )

@@ -8,7 +8,7 @@ struct ComicRuleSourceRuntime: SourceRuntime {
 
     private let listLoader: ComicRuleSourceListLoader
     private let searchLoader: ComicRuleSourceSearchLoader
-    private let chapterLoader: ComicRuleSourceChapterLoader
+    private let detailLoader: ComicRuleSourceDetailLoader
     private let readerLoader: ComicRuleSourceReaderLoader
     private let definitionMapper: SourceDefinitionMapper
     private let outputMapper: ComicRuleSourceRuntimeMapper
@@ -17,7 +17,7 @@ struct ComicRuleSourceRuntime: SourceRuntime {
         source: Source,
         listLoader: ComicRuleSourceListLoader,
         searchLoader: ComicRuleSourceSearchLoader,
-        chapterLoader: ComicRuleSourceChapterLoader,
+        detailLoader: ComicRuleSourceDetailLoader,
         readerLoader: ComicRuleSourceReaderLoader,
         definitionMapper: SourceDefinitionMapper = SourceDefinitionMapper(),
         outputMapper: ComicRuleSourceRuntimeMapper = ComicRuleSourceRuntimeMapper()
@@ -25,7 +25,7 @@ struct ComicRuleSourceRuntime: SourceRuntime {
         self.source = source
         self.listLoader = listLoader
         self.searchLoader = searchLoader
-        self.chapterLoader = chapterLoader
+        self.detailLoader = detailLoader
         self.readerLoader = readerLoader
         self.definitionMapper = definitionMapper
         self.outputMapper = outputMapper
@@ -104,7 +104,7 @@ struct ComicRuleSourceRuntime: SourceRuntime {
             context: input.context,
             reference: input.itemReference
         )
-        let detailContent: ComicRuleParsedDetail = try await self.chapterLoader.execute(
+        let detailContent: ComicRuleParsedDetail = try await self.detailLoader.execute(
             source: self.source,
             item: item
         )

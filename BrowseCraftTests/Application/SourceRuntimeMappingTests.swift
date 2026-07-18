@@ -430,11 +430,24 @@ struct SourceRuntimeMappingTests {
         )
         let detailOutput: SourceDetailOutput = mapper.detailOutput(
             detail: ComicRuleParsedDetail(
+                metadata: ComicRuleParsedDetailMetadata(
+                    idCode: "comic-1",
+                    title: "Title",
+                    coverURL: "https://example.test/covers/1.jpg",
+                    description: "详情简介",
+                    author: "作者甲",
+                    status: "连载中",
+                    category: "奇幻",
+                    tags: ["冒险", "魔法"],
+                    language: "zh-Hans",
+                    totalImages: 42,
+                    photoAlbumURL: "https://example.test/albums/1",
+                    secondLevelPageURL: "https://example.test/read/1"
+                ),
                 chapters: [
                     ChapterLink(title: "第01话", url: "https://example.test/chapters/1"),
                     ChapterLink(title: "invalid", url: "   ")
-                ],
-                description: "详情简介"
+                ]
             ),
             diagnostics: diagnostics
         )
@@ -469,7 +482,18 @@ struct SourceRuntimeMappingTests {
         #expect(detailOutput.chapters[0].id == "https://example.test/chapters/1")
         #expect(detailOutput.chapters[0].title == "第01话")
         #expect(detailOutput.chapters[0].url.absoluteString == "https://example.test/chapters/1")
+        #expect(detailOutput.metadata?.idCode == "comic-1")
+        #expect(detailOutput.metadata?.title == "Title")
+        #expect(detailOutput.metadata?.coverURL?.absoluteString == "https://example.test/covers/1.jpg")
         #expect(detailOutput.metadata?.description == "详情简介")
+        #expect(detailOutput.metadata?.author == "作者甲")
+        #expect(detailOutput.metadata?.status == "连载中")
+        #expect(detailOutput.metadata?.category == "奇幻")
+        #expect(detailOutput.metadata?.tags == ["冒险", "魔法"])
+        #expect(detailOutput.metadata?.language == "zh-Hans")
+        #expect(detailOutput.metadata?.totalImages == 42)
+        #expect(detailOutput.metadata?.photoAlbumURL?.absoluteString == "https://example.test/albums/1")
+        #expect(detailOutput.metadata?.secondLevelPageURL?.absoluteString == "https://example.test/read/1")
         #expect(detailOutput.diagnostics == diagnostics)
 
         #expect(readerOutput.chapter.chapterTitle == "第01话")

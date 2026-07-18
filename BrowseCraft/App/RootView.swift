@@ -42,8 +42,8 @@ struct RootView: View {
 
             FavoriteView(
                 viewModel: self.favoriteViewModel,
-                chapterListViewModelFactory: { item, source in
-                    return self.container.makeChapterListViewModel(item: item, source: source)
+                comicDetailViewModelFactory: { item, source in
+                    return self.container.makeComicDetailViewModel(item: item, source: source)
                 },
                 readerViewModelFactory: { item, source, chapter in
                     return self.container.makeReaderViewModel(
@@ -73,8 +73,8 @@ struct RootView: View {
 
             LibraryView(
                 viewModel: self.libraryViewModel,
-                chapterListViewModelFactory: { item, source in
-                    return self.container.makeChapterListViewModel(item: item, source: source)
+                comicDetailViewModelFactory: { item, source in
+                    return self.container.makeComicDetailViewModel(item: item, source: source)
                 },
                 readerViewModelFactory: { item, source, chapter in
                     return self.container.makeReaderViewModel(

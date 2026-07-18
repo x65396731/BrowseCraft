@@ -261,16 +261,17 @@ final class AppContainer {
         )
     }
 
-    /// 中文注释：makeChapterListViewModel 方法封装当前类型的一段业务或界面行为。
-    func makeChapterListViewModel(item: ContentItem, source: Source) -> ChapterListViewModel {
-        let loadChaptersUseCase: LoadChaptersUseCase = LoadChaptersUseCase(
+    /// 中文注释：创建独立漫画详情状态；详情加载不再由 ReaderViewModel 承担。
+    @MainActor
+    func makeComicDetailViewModel(item: ContentItem, source: Source) -> ComicDetailViewModel {
+        let loadComicDetailUseCase: LoadComicDetailUseCase = LoadComicDetailUseCase(
             runtimeResolver: self.sourceRuntimeFactory.makeRuntimeResolver()
         )
 
-        return ChapterListViewModel(
+        return ComicDetailViewModel(
             item: item,
             source: source,
-            loadChaptersUseCase: loadChaptersUseCase,
+            loadComicDetailUseCase: loadComicDetailUseCase,
             resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase()
         )
     }

@@ -193,6 +193,83 @@ struct SwiftSoupDetailParserTests {
         #expect(chapters.map(\.url) == ["https://example.test/chapters/main-1"])
     }
 
+    @Test func completeDetailBoundaryParsesMetadataAndChaptersTogether() throws {
+        let source: Source = try Self.v2CurrentSelectorKindSource()
+        let parser: SwiftSoupComicRuleSourceParser = SwiftSoupComicRuleSourceParser(
+            urlResolver: URLResolvingService()
+        )
+        let detailRule: DetailRule = DetailRule(
+            id: "complete-detail",
+            fields: DetailFields(
+                idCode: ExtractRule(selector: ".code", function: .text),
+                title: ExtractRule(selector: "h1", function: .text),
+                cover: ExtractRule(selector: "img.cover", function: .attr, param: "src"),
+                description: ExtractRule(selector: ".description", function: .text),
+                author: ExtractRule(selector: ".author", function: .text),
+                status: ExtractRule(selector: ".status", function: .text),
+                category: ExtractRule(selector: ".category", function: .text),
+                tags: ExtractRule(selector: ".tags a", function: .text),
+                language: ExtractRule(selector: ".language", function: .text),
+                publishedAt: ExtractRule(selector: ".published", function: .text),
+                updatedAt: ExtractRule(selector: ".updated", function: .text),
+                license: ExtractRule(selector: ".license", function: .text),
+                totalImages: ExtractRule(selector: ".page-count", function: .text),
+                photoAlbumLink: ExtractRule(selector: "a.album", function: .url),
+                secondLevelPageURL: ExtractRule(selector: "a.reader", function: .url)
+            ),
+            chapterRule: ChapterRule(
+                item: ExtractRule(selector: "a.chapter", function: .raw),
+                title: ExtractRule(selectorKind: .current, function: .text),
+                url: ExtractRule(selectorKind: .current, function: .url)
+            )
+        )
+
+        let detail: ComicRuleParsedDetail = try parser.parseDetail(
+            html: """
+            <main>
+              <span class="code">comic-100</span>
+              <h1>完整详情</h1>
+              <img class="cover" src="/covers/100.jpg">
+              <p class="description">这是一段足够完整的漫画详情简介。</p>
+              <span class="author">作者甲</span>
+              <span class="status">连载中</span>
+              <span class="category">少年漫画</span>
+              <div class="tags"><a>冒险</a><a>奇幻</a><a>冒险</a></div>
+              <span class="language">zh-Hans</span>
+              <time class="published">2026-01-01</time>
+              <time class="updated">2026-07-18</time>
+              <span class="license">正版授权</span>
+              <span class="page-count">42</span>
+              <a class="album" href="/albums/100">相册</a>
+              <a class="reader" href="/reader/100">阅读</a>
+              <a class="chapter" href="/chapters/1">第01话</a>
+            </main>
+            """,
+            source: source,
+            detailRule: detailRule,
+            pageURL: "https://example.test/comics/100",
+            context: nil
+        )
+
+        #expect(detail.metadata.idCode == "comic-100")
+        #expect(detail.metadata.title == "完整详情")
+        #expect(detail.metadata.coverURL == "https://example.test/covers/100.jpg")
+        #expect(detail.metadata.description == "这是一段足够完整的漫画详情简介。")
+        #expect(detail.metadata.author == "作者甲")
+        #expect(detail.metadata.status == "连载中")
+        #expect(detail.metadata.category == "少年漫画")
+        #expect(detail.metadata.tags == ["冒险", "奇幻"])
+        #expect(detail.metadata.language == "zh-Hans")
+        #expect(detail.metadata.publishedAt == "2026-01-01")
+        #expect(detail.metadata.updatedAt == "2026-07-18")
+        #expect(detail.metadata.license == "正版授权")
+        #expect(detail.metadata.totalImages == 42)
+        #expect(detail.metadata.photoAlbumURL == "https://example.test/albums/100")
+        #expect(detail.metadata.secondLevelPageURL == "https://example.test/reader/100")
+        #expect(detail.chapters.map(\.title) == ["第01话"])
+        #expect(detail.chapters.map(\.url) == ["https://example.test/chapters/1"])
+    }
+
     private static func v2FunctionChainSource() throws -> Source {
         let ruleJSON: String = """
         {

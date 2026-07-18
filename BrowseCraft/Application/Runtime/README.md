@@ -78,8 +78,15 @@ Responsibilities:
 - Keep `SourceDefinitionMapping` as the runtime-neutral Source-to-Core metadata
   mapping boundary.
 - Keep `Runtime/ComicRule/ComicRuleSourceRuntime` as the rule-backed runtime implementation.
-- Keep rule-only loading in `Runtime/ComicRule/Loading/`; list/search/chapter/reader loaders
+- Keep rule-only loading in `Runtime/ComicRule/Loading/`; list/search/detail/reader loaders
   are runtime internals, not shared App use cases.
+- Keep comic detail parsing behind `ComicRuleSourceParsingService.parseDetail`. The SwiftSoup
+  adapter converts one DOM document into `ComicRuleParsedDetailMetadata + chapters`; the detail
+  loader only orchestrates direct-chapter, DOM, and chapter-API selection. SwiftSoup types and
+  selector mechanics must not leak into the loader or `SourceRuntime`.
+- Normalize the parser output to Core `SourceDetailOutput` only in
+  `ComicRuleSourceRuntimeMapper`. `DetailChapterAPIRule.descriptionPath` is chapter subtitle
+  semantics and must not be reused as a work-level detail description.
 - Keep rule-only mapping in `Runtime/ComicRule/Mapping/ComicRuleSourceRuntimeMapper`; it is not a
   shared App/Core compatibility layer.
 - Use Core `SourceDetailOutput`, `SourceReaderOutput`, and `SourceRichContent` as the only
@@ -103,6 +110,9 @@ Responsibilities:
   future plugin runtime can expose playback through the same boundary. Video detail
   always uses `SourceRuntime.loadDetail`; playback capability must not add a private detail API.
 - Add runtime-facing use cases before wiring Library and Reader features to them.
+- Keep the comic UI flow as `Library/Favorites -> ComicDetailView -> ReaderView`.
+  `ComicDetailViewModel` consumes the complete `SourceDetailOutput`; `ReaderViewModel`
+  starts only after a concrete chapter has been selected.
 - Keep the plugin runtime slot explicit in the resolver/factory plan, while
   deferring plugin execution to a later phase.
 

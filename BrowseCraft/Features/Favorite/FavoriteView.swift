@@ -4,7 +4,7 @@ import SwiftUI
 
 struct FavoriteView: View {
     @ObservedObject var viewModel: FavoriteViewModel
-    let chapterListViewModelFactory: (ContentItem, Source) -> ChapterListViewModel
+    let comicDetailViewModelFactory: (ContentItem, Source) -> ComicDetailViewModel
     let readerViewModelFactory: (ContentItem, Source, ChapterLink?) -> ReaderViewModel
     let rssContentDetailViewModelFactory: (ContentItem, Source) -> RSSContentDetailViewModel
     let videoDetailViewModelFactory: (ContentItem, Source) -> VideoDetailViewModel
@@ -74,8 +74,8 @@ struct FavoriteView: View {
         case .rss:
             RSSContentDetailView(viewModel: self.rssContentDetailViewModelFactory(contentItem, source))
         case .comic:
-            ChapterListView(
-                viewModel: self.chapterListViewModelFactory(contentItem, source),
+            ComicDetailView(
+                viewModel: self.comicDetailViewModelFactory(contentItem, source),
                 readerViewModelFactory: self.readerViewModelFactory
             )
         case .videoNative, .videoWeb:

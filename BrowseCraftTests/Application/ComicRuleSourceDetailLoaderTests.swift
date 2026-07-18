@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import BrowseCraft
 
-struct ComicRuleSourceChapterLoaderTests {
+struct ComicRuleSourceDetailLoaderTests {
     @Test func preferredChapterAPILoadsBeforeDetailHTML() async throws {
         let pageContentLoader: RecordingChapterPageContentLoader = RecordingChapterPageContentLoader(
             responses: [
@@ -17,7 +17,7 @@ struct ComicRuleSourceChapterLoaderTests {
             ],
             disallowedURLs: ["https://example.test/comic/5571"]
         )
-        let loader: ComicRuleSourceChapterLoader = ComicRuleSourceChapterLoader(
+        let loader: ComicRuleSourceDetailLoader = ComicRuleSourceDetailLoader(
             pageContentLoader: pageContentLoader,
             comicRuleParser: SwiftSoupComicRuleSourceParser(urlResolver: URLResolvingService())
         )
@@ -45,6 +45,60 @@ struct ComicRuleSourceChapterLoaderTests {
             """
             {"query":"query chaptersByComicId($comicId: ID!) { chaptersByComicId(comicId: $comicId) { id title url } }","variables":{"comicId":"5571"}}
             """
+        ])
+    }
+
+    @Test func preferredChapterAPIStillLoadsConfiguredDetailMetadata() async throws {
+        let pageContentLoader: RecordingChapterPageContentLoader = RecordingChapterPageContentLoader(
+            responses: [
+                "https://example.test/comic/5571": """
+                <main>
+                  <h1>小栗子到我家</h1>
+                  <img class="cover" src="/covers/5571.jpg">
+                  <p class="author">作者甲</p>
+                </main>
+                """,
+                "https://example.test/api/comic/5571": """
+                {
+                  "chapters": [
+                    { "title": "第01话", "url": "/comic/5571/chapter/1" }
+                  ]
+                }
+                """
+            ],
+            disallowedURLs: []
+        )
+        let loader: ComicRuleSourceDetailLoader = ComicRuleSourceDetailLoader(
+            pageContentLoader: pageContentLoader,
+            comicRuleParser: SwiftSoupComicRuleSourceParser(urlResolver: URLResolvingService())
+        )
+        var source: Source = Self.sourceWithPreferredChapterAPI()
+        source.rule.detail?.fields = DetailFields(
+            title: ExtractRule(selector: "h1", function: .text),
+            cover: ExtractRule(selector: "img.cover", function: .attr, param: "src"),
+            author: ExtractRule(selector: ".author", function: .text)
+        )
+
+        let content: ComicRuleParsedDetail = try await loader.execute(
+            source: source,
+            item: ContentItem(
+                id: "comic-5571",
+                sourceId: "preferred-api-source",
+                title: "列表标题",
+                detailURL: "https://example.test/comic/5571",
+                coverURL: nil,
+                type: .comic,
+                latestText: "连载19话"
+            )
+        )
+
+        #expect(content.metadata.title == "小栗子到我家")
+        #expect(content.metadata.coverURL == "https://example.test/covers/5571.jpg")
+        #expect(content.metadata.author == "作者甲")
+        #expect(content.chapters.map(\.title) == ["第01话"])
+        #expect(pageContentLoader.requestedURLs == [
+            "https://example.test/comic/5571",
+            "https://example.test/api/comic/5571"
         ])
     }
 

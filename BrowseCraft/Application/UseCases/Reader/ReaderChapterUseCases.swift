@@ -1,41 +1,6 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：详情入口只依赖 SourceRuntime；具体漫画规则加载器由 runtime 内部装配。
-struct LoadChaptersUseCase {
-    private let runtimeResolver: any SourceRuntimeResolving
-    private let itemReferenceMapper: SourceItemReferenceMapper = SourceItemReferenceMapper()
-
-    init(runtimeResolver: any SourceRuntimeResolving) {
-        self.runtimeResolver = runtimeResolver
-    }
-
-    func execute(source: Source, item: ContentItem) async throws -> SourceDetailOutput {
-        guard let detailURL: URL = URL(string: item.detailURL) else {
-            throw SourceRuntimeError.invalidInput("Invalid detail URL: \(item.detailURL)")
-        }
-
-        let runtime: any SourceRuntime = try self.runtimeResolver.runtime(for: source)
-        return try await runtime.loadDetail(
-            SourceDetailInput(
-                detailURL: detailURL,
-                context: SourceRuntimeContext(
-                    sourceID: source.id,
-                    pageID: item.listContext?.pageId,
-                    tabID: item.listContext?.tabId,
-                    sectionID: item.listContext?.sectionId,
-                    sectionRole: item.listContext?.sectionRole?.rawValue,
-                    ruleID: item.listContext?.listRuleId,
-                    requestOverride: nil,
-                    debugMode: false,
-                    operation: .detail
-                ),
-                itemReference: self.itemReferenceMapper.reference(from: item, intent: .detail)
-            )
-        )
-    }
-}
-
 // 中文注释：Reader 入口同样只依赖 SourceRuntime；App 模型是界面投影，不再是加载合同。
 struct LoadReaderChapterUseCase {
     private let runtimeResolver: any SourceRuntimeResolving

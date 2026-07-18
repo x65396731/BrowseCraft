@@ -77,8 +77,25 @@ struct ComicRuleSourceRuntimeMapper {
         detail: ComicRuleParsedDetail,
         diagnostics: SourceRuntimeDiagnostics
     ) -> SourceDetailOutput {
+        let metadata: ComicRuleParsedDetailMetadata = detail.metadata
         return SourceDetailOutput(
-            metadata: SourceDetailMetadata(description: detail.description),
+            metadata: SourceDetailMetadata(
+                idCode: metadata.idCode,
+                title: metadata.title,
+                coverURL: self.url(from: metadata.coverURL),
+                description: metadata.description,
+                author: metadata.author,
+                status: metadata.status,
+                category: metadata.category,
+                tags: metadata.tags,
+                language: metadata.language,
+                publishedAt: metadata.publishedAt,
+                updatedAt: metadata.updatedAt,
+                license: metadata.license,
+                totalImages: metadata.totalImages,
+                photoAlbumURL: self.url(from: metadata.photoAlbumURL),
+                secondLevelPageURL: self.url(from: metadata.secondLevelPageURL)
+            ),
             chapters: self.chapters(from: detail.chapters),
             diagnostics: diagnostics
         )

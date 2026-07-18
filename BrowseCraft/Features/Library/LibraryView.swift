@@ -5,7 +5,7 @@ import SwiftUI
 /// 中文注释：LibraryView 只负责展示 Library 状态，数据加载与切源逻辑在 LibraryViewModel。
 struct LibraryView: View {
     @ObservedObject var viewModel: LibraryViewModel
-    let chapterListViewModelFactory: (ContentItem, Source) -> ChapterListViewModel
+    let comicDetailViewModelFactory: (ContentItem, Source) -> ComicDetailViewModel
     let readerViewModelFactory: (ContentItem, Source, ChapterLink?) -> ReaderViewModel
     let rssContentDetailViewModelFactory: (ContentItem, Source) -> RSSContentDetailViewModel
     let videoDetailViewModelFactory: (ContentItem, Source) -> VideoDetailViewModel
@@ -63,7 +63,7 @@ struct LibraryView: View {
             .navigationTitle(self.libraryNavigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(item: self.$selectedComicDestination) { destination in
-                self.readerDestination(
+                self.comicDestination(
                     for: destination.item,
                     source: destination.source
                 )
@@ -459,14 +459,14 @@ struct LibraryView: View {
     }
 
     @ViewBuilder
-    private func readerDestination(for item: ContentItem, source: Source) -> some View {
+    private func comicDestination(for item: ContentItem, source: Source) -> some View {
         if self.viewModel.shouldOpenReaderDirectly(for: source) {
             ReaderView(
                 viewModel: self.readerViewModelFactory(item, source, nil)
             )
         } else {
-            ChapterListView(
-                viewModel: self.chapterListViewModelFactory(item, source),
+            ComicDetailView(
+                viewModel: self.comicDetailViewModelFactory(item, source),
                 readerViewModelFactory: self.readerViewModelFactory
             )
         }
