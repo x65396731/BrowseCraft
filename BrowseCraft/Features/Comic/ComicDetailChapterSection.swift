@@ -13,7 +13,8 @@ struct ComicDetailChapterSection: View {
             title: self.chapters.isEmpty ? "Chapters" : "Chapters · \(self.chapters.count)",
             systemImage: "list.bullet.rectangle"
         ) {
-            VStack(spacing: 0) {
+            // 中文注释：长篇漫画可能包含上千章节，必须懒创建行，避免详情解析成功后主线程一次性构建全部按钮。
+            LazyVStack(spacing: 0) {
                 if self.isLoading && self.didLoad == false {
                     ProgressView("Loading Details")
                         .frame(maxWidth: .infinity)

@@ -60,7 +60,10 @@ struct ComicRuleSourceReaderLoader {
                 "section": item.listContext?.sectionId ?? "nil",
                 "listRule": item.listContext?.listRuleId ?? "nil",
                 "detailURL": item.detailURL,
-                "preferredChapterURL": chapterURLString ?? "nil"
+                "preferredChapterURL": chapterURLString ?? "nil",
+                "requestScope": resolvedRule.primaryGalleryRequest?.scope?.rawValue ?? "nil",
+                "needsWebView": resolvedRule.primaryGalleryRequest?.needsWebView?.description ?? "nil",
+                "autoScroll": resolvedRule.primaryGalleryRequest?.autoScroll?.description ?? "nil"
             ]
         )
 
@@ -153,7 +156,7 @@ struct ComicRuleSourceReaderLoader {
                 "item": item.id,
                 "chapterURL": chapter.chapterURL,
                 "pageCount": chapter.pageImageURLs.count,
-                "firstImage": chapter.pageImageURLs.first ?? "nil"
+                "firstImage": self.safeResourceURLDescription(chapter.pageImageURLs.first)
             ]
         )
 
@@ -514,7 +517,7 @@ struct ComicRuleSourceReaderLoader {
                     return false
                 }.count,
                 "imageHeaderPages": outputImageHeaders.count,
-                "firstImage": outputImageURLs.first ?? "nil"
+                "firstImage": self.safeResourceURLDescription(outputImageURLs.first)
             ]
         )
 
@@ -867,6 +870,17 @@ struct ComicRuleSourceReaderLoader {
             && normalizedURLString.hasPrefix("data:") == false
             && normalizedURLString.hasPrefix("about:") == false
             && normalizedURLString.hasPrefix("javascript:") == false
+    }
+
+    /// 中文注释：Reader 图片常带临时签名，只记录 scheme/host/path，避免查询凭据进入日志。
+    private func safeResourceURLDescription(_ value: String?) -> String {
+        guard let value: String,
+              let url: URL = URL(string: value),
+              let host: String = url.host else {
+            return value == nil ? "nil" : "invalid"
+        }
+
+        return "\(url.scheme ?? "unknown")://\(host)\(url.path)"
     }
 
     private func requestContext(

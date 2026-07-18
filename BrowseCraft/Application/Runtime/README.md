@@ -116,6 +116,33 @@ Responsibilities:
 - Keep the plugin runtime slot explicit in the resolver/factory plan, while
   deferring plugin execution to a later phase.
 
+## Comic Page Request Routing
+
+Comic requests use one Core-owned inheritance path for DOM and API loading:
+
+```text
+SiteRule.sharedRequest
+  -> PageRule.request / legacy list-detail-gallery request
+  -> ListRule / DetailRule / GalleryRule request
+  -> listAPI / chapterAPI / imageAPI request
+```
+
+Each child request overrides only the fields it declares unless its
+`mergePolicy` is `override`. In particular, an explicit
+`needsWebView: false` or `autoScroll: false` disables the shared value without
+dropping shared headers, cookies, charset, or image configuration. This lets a
+comic keep list and detail on HTTP while routing only the reader through
+WebView. Loaders must consume `SiteRule.request(for:)` or `ResolvedSiteRule`
+requests and must not read `sharedRequest` directly or add source-specific
+route branches.
+
+Native Reader images preserve the URL returned by the source because a signed
+CDN URL can bind its signature to the original transport. ATS exceptions must
+never use `NSAllowsArbitraryLoads`; when a legacy image CDN has no compatible
+HTTPS resource route, use the narrowest verified exception domain in
+`Info.plist`. Request logs record only the resource host/path and request shape,
+never the signed query, Referer value, cookie, or token.
+
 ## Comic API Response Semantics Boundary
 
 `responsePolicy` belongs to rule interpretation, not networking. It consumes an

@@ -42,8 +42,9 @@ enum ImageRequestFactory {
             stage: .image,
             event: "request",
             fields: [
-                "url": url.absoluteString,
-                "referer": refererURLString ?? "nil",
+                "urlHost": url.host ?? "nil",
+                "urlPath": url.path,
+                "scheme": url.scheme ?? "nil",
                 "requestScope": requestConfig?.scope?.rawValue ?? "default",
                 "headerCount": headers.count,
                 "additionalHeaderCount": additionalHeaders?.count ?? 0,

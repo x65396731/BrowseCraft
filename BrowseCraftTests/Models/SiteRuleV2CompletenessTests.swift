@@ -165,16 +165,48 @@ struct SiteRuleV2CompletenessTests {
             from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
         )
 
-        // 中文注释：请求配置按 Rule > Page > Site sharedRequest 选择，P1-4.1 先锁定选择结果，不在模型层做深度合并。
+        // 中文注释：请求配置按 Site → Page → Rule 合并，子层字段覆盖父层且保留未重写的共享字段。
         #expect(rule.primaryListRequest?.scope == .rule)
         #expect(rule.primaryGalleryRequest?.scope == .image)
         #expect(rule.primaryDetailRequest?.scope == .site)
+        #expect(rule.primaryListRequest?.headers?["User-Agent"] == "BrowseCraft")
 
         rule.ruleSets?.listRules?[0].request = nil
         #expect(rule.primaryListRequest?.scope == .page)
 
         rule.pages?[0].request = nil
         #expect(rule.primaryListRequest?.scope == .site)
+    }
+
+    @Test func pageRequestCanDisableSharedWebViewForDetailOnly() throws {
+        var rule: SiteRule = try JSONDecoder().decode(
+            SiteRule.self,
+            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
+        )
+        rule.sharedRequest?.needsWebView = true
+        rule.sharedRequest?.autoScroll = true
+        rule.ruleSets?.detailRules?[0].request = nil
+        rule.ruleSets?.galleryRules?[0].request = nil
+        rule.pages?[1].request = RequestConfig(
+            scope: .page,
+            mergePolicy: .mergeHeaders,
+            needsWebView: false,
+            autoScroll: false
+        )
+        rule.pages?[2].request = RequestConfig(
+            scope: .reader,
+            mergePolicy: .mergeHeadersAndCookies,
+            needsWebView: true,
+            autoScroll: true
+        )
+
+        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(rule)
+
+        #expect(resolvedRule.primaryDetailRequest?.needsWebView == false)
+        #expect(resolvedRule.primaryDetailRequest?.autoScroll == false)
+        #expect(resolvedRule.primaryDetailRequest?.headers?["User-Agent"] == "BrowseCraft")
+        #expect(resolvedRule.primaryGalleryRequest?.needsWebView == true)
+        #expect(resolvedRule.primaryGalleryRequest?.autoScroll == true)
     }
 
     @Test func resolvedDetailAndGalleryEntriesKeepPageRulePairing() throws {

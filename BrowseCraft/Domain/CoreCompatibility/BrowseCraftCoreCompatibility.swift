@@ -68,6 +68,7 @@ typealias SearchRule = BrowseCraftCore.SearchRule
 typealias KeywordEncoding = BrowseCraftCore.KeywordEncoding
 typealias PaginationRule = BrowseCraftCore.PaginationRule
 typealias RequestConfig = BrowseCraftCore.RequestConfig
+typealias RequestConfigResolver = BrowseCraftCore.RequestConfigResolver
 typealias RequestScope = BrowseCraftCore.RequestScope
 typealias RequestMergePolicy = BrowseCraftCore.RequestMergePolicy
 typealias ImageRequestConfig = BrowseCraftCore.ImageRequestConfig

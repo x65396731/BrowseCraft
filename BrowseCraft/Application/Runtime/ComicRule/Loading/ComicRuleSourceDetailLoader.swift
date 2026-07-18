@@ -40,7 +40,10 @@ struct ComicRuleSourceDetailLoader {
                 "section": item.listContext?.sectionId ?? "nil",
                 "listRule": item.listContext?.listRuleId ?? "nil",
                 "detailURL": item.detailURL,
-                "latestText": item.latestText ?? "nil"
+                "latestText": item.latestText ?? "nil",
+                "requestScope": resolvedRule.primaryDetailRequest?.scope?.rawValue ?? "nil",
+                "needsWebView": resolvedRule.primaryDetailRequest?.needsWebView?.description ?? "nil",
+                "autoScroll": resolvedRule.primaryDetailRequest?.autoScroll?.description ?? "nil"
             ]
         )
 

@@ -147,23 +147,23 @@ struct ComicRuleSourceRuntime: SourceRuntime {
     }
 
     private var requiresWebView: Bool {
-        if self.source.rule.sharedRequest?.needsWebView == true {
-            return true
-        }
+        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(self.source.rule)
 
         return self.source.rule.availableListTabs.contains { tab in
             return self.source.rule.request(for: tab)?.needsWebView == true
         }
+            || resolvedRule.primaryDetailRequest?.needsWebView == true
+            || resolvedRule.primaryGalleryRequest?.needsWebView == true
     }
 
     private var requiresCookieStore: Bool {
-        if self.source.rule.sharedRequest?.cookiePolicy != nil {
-            return true
-        }
+        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(self.source.rule)
 
         return self.source.rule.availableListTabs.contains { tab in
             return self.source.rule.request(for: tab)?.cookiePolicy != nil
         }
+            || resolvedRule.primaryDetailRequest?.cookiePolicy != nil
+            || resolvedRule.primaryGalleryRequest?.cookiePolicy != nil
     }
 
     private func listTab(for context: SourceRuntimeContext) -> ListTabRule? {

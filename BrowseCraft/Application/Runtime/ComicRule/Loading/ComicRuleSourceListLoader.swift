@@ -35,6 +35,7 @@ struct ComicRuleSourceListLoader {
 
     func execute(source: Source, listTab: ListTabRule?, page: Int = 1) async throws -> [ContentItem] {
         let listRule: ListRule = listTab?.list ?? source.rule.list
+        let pageRequest: RequestConfig? = source.rule.request(for: listTab)
         let url: URL
         do {
             url = try self.urlResolver.listURL(for: source, listRule: listRule, page: page)
@@ -61,7 +62,10 @@ struct ComicRuleSourceListLoader {
                 "listRule": listRule.id ?? "nil",
                 "section": listContext.sectionId ?? "nil",
                 "page": page,
-                "url": url.absoluteString
+                "url": url.absoluteString,
+                "requestScope": pageRequest?.scope?.rawValue ?? "nil",
+                "needsWebView": pageRequest?.needsWebView?.description ?? "nil",
+                "autoScroll": pageRequest?.autoScroll?.description ?? "nil"
             ]
         )
 
@@ -137,7 +141,7 @@ struct ComicRuleSourceListLoader {
 
         let html: String = try await self.pageContentLoader.getString(
             from: url,
-            request: source.rule.request(for: listTab),
+            request: pageRequest,
             context: self.requestContext(source: source, purpose: .list, refererURL: url)
         )
         let items: [ContentItem]

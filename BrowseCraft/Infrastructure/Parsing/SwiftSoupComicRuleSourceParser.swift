@@ -1187,9 +1187,16 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
         #if DEBUG
         print("[BrowseCraftRule] Parsed chapterCount=\(chapters.count) page=\(pageURL)")
 
-        for (index, chapter) in chapters.enumerated() {
+        // 中文注释：详情页可能有上千章节；逐条打印会阻塞 Debug 会话并让已完成的详情加载看起来仍在转圈。
+        let sampleIndices: [Int] = Array(
+            Set(
+                Array(chapters.indices.prefix(3)) + Array(chapters.indices.suffix(1))
+            )
+        ).sorted()
+        for index: Int in sampleIndices {
+            let chapter: ChapterLink = chapters[index]
             print(
-                "[BrowseCraftRule] Parsed chapter " +
+                "[BrowseCraftRule] Parsed chapter sample " +
                 "page=\(pageURL) " +
                 "index=\(index) " +
                 "title=\(chapter.title) " +
