@@ -32,6 +32,23 @@ final class GRDBComicChapterHistoryRepository: ComicChapterHistoryRepository {
         }
     }
 
+    func fetchLatest(
+        userID: String,
+        sourceID: String,
+        comicItemID: String
+    ) throws -> ComicChapterHistory? {
+        return try self.database.queue.read { database in
+            let record: ComicChapterHistoryRecord? = try ComicChapterHistoryRecord
+                .filter(ComicChapterHistoryRecord.Columns.userID == userID)
+                .filter(ComicChapterHistoryRecord.Columns.sourceID == sourceID)
+                .filter(ComicChapterHistoryRecord.Columns.comicItemID == comicItemID)
+                .order(ComicChapterHistoryRecord.Columns.visitedAt.desc)
+                .fetchOne(database)
+
+            return record?.domainModel()
+        }
+    }
+
     func delete(_ history: ComicChapterHistory) throws {
         let record: ComicChapterHistoryRecord = ComicChapterHistoryRecord(history: history)
 

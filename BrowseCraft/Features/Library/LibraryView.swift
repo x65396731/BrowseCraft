@@ -7,6 +7,7 @@ struct LibraryView: View {
     @ObservedObject var viewModel: LibraryViewModel
     let comicDetailViewModelFactory: (ContentItem, Source) -> ComicDetailViewModel
     let readerViewModelFactory: (ContentItem, Source, ChapterLink?) -> ReaderViewModel
+    let historyReaderViewModelFactory: (ComicChapterHistory, Source) -> ReaderViewModel
     let rssContentDetailViewModelFactory: (ContentItem, Source) -> RSSContentDetailViewModel
     let videoDetailViewModelFactory: (ContentItem, Source) -> VideoDetailViewModel
     @State private var didLoadInitialData: Bool = false
@@ -467,7 +468,8 @@ struct LibraryView: View {
         } else {
             ComicDetailView(
                 viewModel: self.comicDetailViewModelFactory(item, source),
-                readerViewModelFactory: self.readerViewModelFactory
+                readerViewModelFactory: self.readerViewModelFactory,
+                historyReaderViewModelFactory: self.historyReaderViewModelFactory
             )
         }
     }

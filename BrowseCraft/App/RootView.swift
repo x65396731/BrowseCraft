@@ -52,6 +52,9 @@ struct RootView: View {
                         selectedChapter: chapter
                     )
                 },
+                historyReaderViewModelFactory: { history, source in
+                    return self.container.makeReaderViewModel(history: history, source: source)
+                },
                 rssContentDetailViewModelFactory: { item, source in
                     return self.container.makeRSSContentDetailViewModel(
                         item: item,
@@ -82,6 +85,9 @@ struct RootView: View {
                         source: source,
                         selectedChapter: chapter
                     )
+                },
+                historyReaderViewModelFactory: { history, source in
+                    return self.container.makeReaderViewModel(history: history, source: source)
                 },
                 rssContentDetailViewModelFactory: { item, source in
                     return self.container.makeRSSContentDetailViewModel(

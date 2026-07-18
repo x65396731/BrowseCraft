@@ -4,16 +4,19 @@ import SwiftUI
 struct ComicDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: ComicDetailViewModel
-    @State private var selectedReaderChapter: ChapterLink?
+    @State private var selectedReaderDestination: ComicReaderDestination?
 
     let readerViewModelFactory: (ContentItem, Source, ChapterLink?) -> ReaderViewModel
+    let historyReaderViewModelFactory: (ComicChapterHistory, Source) -> ReaderViewModel
 
     init(
         viewModel: ComicDetailViewModel,
-        readerViewModelFactory: @escaping (ContentItem, Source, ChapterLink?) -> ReaderViewModel
+        readerViewModelFactory: @escaping (ContentItem, Source, ChapterLink?) -> ReaderViewModel,
+        historyReaderViewModelFactory: @escaping (ComicChapterHistory, Source) -> ReaderViewModel
     ) {
         self._viewModel = StateObject(wrappedValue: viewModel)
         self.readerViewModelFactory = readerViewModelFactory
+        self.historyReaderViewModelFactory = historyReaderViewModelFactory
     }
 
     var body: some View {
@@ -33,7 +36,8 @@ struct ComicDetailView: View {
                 ComicDetailActionSection(
                     chapterCount: self.viewModel.chapters.count,
                     latestText: self.viewModel.item.latestText,
-                    isEnabled: self.viewModel.startingChapter != nil,
+                    readingTitle: self.primaryReadingButtonTitle,
+                    isEnabled: self.viewModel.primaryReadingTarget != nil,
                     startReading: self.startReading
                 )
 
@@ -83,8 +87,8 @@ struct ComicDetailView: View {
             }
         }
         .navigationDestination(isPresented: self.readerDestinationPresentedBinding) {
-            if let chapter: ChapterLink = self.selectedReaderChapter {
-                self.readerDestination(for: chapter)
+            if let destination: ComicReaderDestination = self.selectedReaderDestination {
+                self.readerDestination(for: destination)
             }
         }
         .task {
@@ -99,21 +103,38 @@ struct ComicDetailView: View {
     private var readerDestinationPresentedBinding: Binding<Bool> {
         return Binding<Bool>(
             get: {
-                return self.selectedReaderChapter != nil
+                return self.selectedReaderDestination != nil
             },
             set: { newValue in
                 if newValue == false {
-                    self.selectedReaderChapter = nil
+                    self.selectedReaderDestination = nil
                 }
             }
         )
     }
 
+    private var primaryReadingButtonTitle: String {
+        guard let target: ComicReaderDestination = self.viewModel.primaryReadingTarget else {
+            return "Read Latest"
+        }
+        switch target {
+        case .chapter(let chapter):
+            return "Read Latest · \(chapter.title)"
+        case .history(let history):
+            return "Continue Reading · \(history.chapterTitle)"
+        }
+    }
+
     private func startReading() {
-        guard let chapter: ChapterLink = self.viewModel.startingChapter else {
+        guard let target: ComicReaderDestination = self.viewModel.primaryReadingTarget else {
             return
         }
-        self.openReaderDestination(chapter)
+        switch target {
+        case .chapter(let chapter):
+            self.openReaderDestination(chapter)
+        case .history(let history):
+            self.selectedReaderDestination = .history(history)
+        }
     }
 
     private func dismissDetail() {
@@ -125,7 +146,7 @@ struct ComicDetailView: View {
         selectedChapter.navigationChapterURLs = self.viewModel.chapters.map(\.url)
         selectedChapter.navigationChapterTitles = self.viewModel.chapters.map(\.title)
         selectedChapter.navigationOrder = self.viewModel.chapterNavigationOrder
-        self.selectedReaderChapter = selectedChapter
+        self.selectedReaderDestination = .chapter(selectedChapter)
 
         #if DEBUG
         print(
@@ -135,24 +156,46 @@ struct ComicDetailView: View {
         #endif
     }
 
-    private func readerDestination(for chapter: ChapterLink) -> some View {
-        ReaderView(
-            viewModel: self.readerViewModelFactory(
-                self.viewModel.item,
-                self.viewModel.source,
-                chapter
+    @ViewBuilder
+    private func readerDestination(for destination: ComicReaderDestination) -> some View {
+        switch destination {
+        case .chapter(let chapter):
+            ReaderView(
+                viewModel: self.readerViewModelFactory(
+                    self.viewModel.item,
+                    self.viewModel.source,
+                    chapter
+                )
             )
-        )
-        .id(self.readerDestinationID(for: chapter))
+            .id(self.readerDestinationID(for: destination))
+        case .history(let history):
+            ReaderView(
+                viewModel: self.historyReaderViewModelFactory(
+                    history,
+                    self.viewModel.source
+                )
+            )
+            .id(self.readerDestinationID(for: destination))
+        }
     }
 
-    private func readerDestinationID(for chapter: ChapterLink) -> String {
-        return [
-            self.viewModel.source.id,
-            self.viewModel.item.id,
-            self.viewModel.item.detailURL,
-            chapter.url
-        ].joined(separator: "|")
+    private func readerDestinationID(for destination: ComicReaderDestination) -> String {
+        switch destination {
+        case .chapter(let chapter):
+            return [
+                "chapter",
+                self.viewModel.source.id,
+                self.viewModel.item.id,
+                self.viewModel.item.detailURL,
+                chapter.url
+            ].joined(separator: "|")
+        case .history(let history):
+            return [
+                "history",
+                history.id,
+                String(history.visitedAt.timeIntervalSinceReferenceDate)
+            ].joined(separator: "|")
+        }
     }
 
     private func retry() {
@@ -162,6 +205,9 @@ struct ComicDetailView: View {
     }
 
     private func recordAppearance() {
+        if self.viewModel.didLoad {
+            self.viewModel.refreshLatestReadingHistory()
+        }
         CrashDiagnostics.shared.setScreen(.sourceDetail)
         AppAnalytics.shared.logScreenView(.sourceDetail)
         CrashDiagnostics.shared.setSource(self.viewModel.source)

@@ -20,11 +20,17 @@ struct ComicDetailRelatedLink: Identifiable, Hashable {
     }
 }
 
+enum ComicReaderDestination: Hashable {
+    case chapter(ChapterLink)
+    case history(ComicChapterHistory)
+}
+
 /// 中文注释：ComicDetailViewModel 持有漫画详情页状态；ReaderViewModel 只负责具体章节阅读。
 @MainActor
 final class ComicDetailViewModel: ObservableObject {
     @Published private(set) var metadata: SourceDetailMetadata?
     @Published private(set) var chapters: [ChapterLink] = []
+    @Published private(set) var latestReadingHistory: ComicChapterHistory?
     @Published private(set) var isLoading: Bool = false
     @Published private(set) var didLoad: Bool = false
     @Published var errorMessage: String?
@@ -33,18 +39,24 @@ final class ComicDetailViewModel: ObservableObject {
     let source: Source
 
     private let loadComicDetailUseCase: LoadComicDetailUseCase
+    private let loadLatestComicChapterHistoryUseCase: LoadLatestComicChapterHistoryUseCase
     private let resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
+    private let userID: String
 
     init(
         item: ContentItem,
         source: Source,
         loadComicDetailUseCase: LoadComicDetailUseCase,
-        resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
+        loadLatestComicChapterHistoryUseCase: LoadLatestComicChapterHistoryUseCase,
+        resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase,
+        userID: String = AppUser.localDefaultID
     ) {
         self.item = item
         self.source = source
         self.loadComicDetailUseCase = loadComicDetailUseCase
+        self.loadLatestComicChapterHistoryUseCase = loadLatestComicChapterHistoryUseCase
         self.resolveReaderSourcePresentationUseCase = resolveReaderSourcePresentationUseCase
+        self.userID = userID
 
         #if DEBUG
         print(
@@ -145,6 +157,25 @@ final class ComicDetailViewModel: ObservableObject {
         }
     }
 
+    var latestChapter: ChapterLink? {
+        switch self.chapterNavigationOrder {
+        case .ascending:
+            return self.chapters.last
+        case .descending:
+            return self.chapters.first
+        }
+    }
+
+    var primaryReadingTarget: ComicReaderDestination? {
+        if let latestReadingHistory: ComicChapterHistory = self.latestReadingHistory {
+            return .history(latestReadingHistory)
+        }
+        if let latestChapter: ChapterLink = self.latestChapter {
+            return .chapter(latestChapter)
+        }
+        return nil
+    }
+
     var detailCoverRequestConfig: RequestConfig? {
         return self.resolveReaderSourcePresentationUseCase.detailCoverRequestConfig(for: self.source)
     }
@@ -164,6 +195,7 @@ final class ComicDetailViewModel: ObservableObject {
         CrashDiagnostics.shared.setRuleStage(.detail)
         self.isLoading = true
         self.errorMessage = nil
+        self.refreshLatestReadingHistory()
         defer {
             self.isLoading = false
         }
@@ -206,6 +238,15 @@ final class ComicDetailViewModel: ObservableObject {
             )
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
+    }
+
+    /// 中文注释：详情页重新出现时可单独刷新历史，不必重复请求详情和章节列表。
+    func refreshLatestReadingHistory() {
+        self.latestReadingHistory = try? self.loadLatestComicChapterHistoryUseCase.execute(
+            userID: self.userID,
+            sourceID: self.source.id,
+            comicItemID: self.item.id
+        )
     }
 
     private func appendRow(

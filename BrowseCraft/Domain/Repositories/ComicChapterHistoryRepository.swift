@@ -6,5 +6,10 @@ import Foundation
 protocol ComicChapterHistoryRepository {
     func save(_ history: ComicChapterHistory) throws
     func fetchHistory(userID: String) throws -> [ComicChapterHistory]
+    func fetchLatest(
+        userID: String,
+        sourceID: String,
+        comicItemID: String
+    ) throws -> ComicChapterHistory?
     func delete(_ history: ComicChapterHistory) throws
 }

@@ -93,13 +93,14 @@ struct ComicDetailBadge: View {
 struct ComicDetailActionSection: View {
     let chapterCount: Int
     let latestText: String?
+    let readingTitle: String
     let isEnabled: Bool
     let startReading: () -> Void
 
     var body: some View {
         VStack(spacing: 12) {
             Button(action: self.startReading) {
-                Label("Start Reading", systemImage: "book.pages.fill")
+                Label(self.readingTitle, systemImage: "book.pages.fill")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)

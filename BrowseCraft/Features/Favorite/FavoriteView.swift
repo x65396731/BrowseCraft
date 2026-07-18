@@ -6,6 +6,7 @@ struct FavoriteView: View {
     @ObservedObject var viewModel: FavoriteViewModel
     let comicDetailViewModelFactory: (ContentItem, Source) -> ComicDetailViewModel
     let readerViewModelFactory: (ContentItem, Source, ChapterLink?) -> ReaderViewModel
+    let historyReaderViewModelFactory: (ComicChapterHistory, Source) -> ReaderViewModel
     let rssContentDetailViewModelFactory: (ContentItem, Source) -> RSSContentDetailViewModel
     let videoDetailViewModelFactory: (ContentItem, Source) -> VideoDetailViewModel
 
@@ -76,7 +77,8 @@ struct FavoriteView: View {
         case .comic:
             ComicDetailView(
                 viewModel: self.comicDetailViewModelFactory(contentItem, source),
-                readerViewModelFactory: self.readerViewModelFactory
+                readerViewModelFactory: self.readerViewModelFactory,
+                historyReaderViewModelFactory: self.historyReaderViewModelFactory
             )
         case .videoNative, .videoWeb:
             VideoDetailView(viewModel: self.videoDetailViewModelFactory(contentItem, source))

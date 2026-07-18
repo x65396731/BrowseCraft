@@ -267,11 +267,17 @@ final class AppContainer {
         let loadComicDetailUseCase: LoadComicDetailUseCase = LoadComicDetailUseCase(
             runtimeResolver: self.sourceRuntimeFactory.makeRuntimeResolver()
         )
+        let comicChapterHistoryRepository: ComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(
+            database: self.database
+        )
+        let loadLatestComicChapterHistoryUseCase: LoadLatestComicChapterHistoryUseCase =
+            LoadLatestComicChapterHistoryUseCase(repository: comicChapterHistoryRepository)
 
         return ComicDetailViewModel(
             item: item,
             source: source,
             loadComicDetailUseCase: loadComicDetailUseCase,
+            loadLatestComicChapterHistoryUseCase: loadLatestComicChapterHistoryUseCase,
             resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase()
         )
     }

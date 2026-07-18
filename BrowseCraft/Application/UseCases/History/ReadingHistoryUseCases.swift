@@ -28,6 +28,27 @@ struct SaveComicChapterHistoryUseCase {
     }
 }
 
+/// 中文注释：读取指定漫画最近访问的章节历史，用于详情页恢复阅读进度。
+struct LoadLatestComicChapterHistoryUseCase {
+    private let repository: ComicChapterHistoryRepository
+
+    init(repository: ComicChapterHistoryRepository) {
+        self.repository = repository
+    }
+
+    func execute(
+        userID: String,
+        sourceID: String,
+        comicItemID: String
+    ) throws -> ComicChapterHistory? {
+        return try self.repository.fetchLatest(
+            userID: userID,
+            sourceID: sourceID,
+            comicItemID: comicItemID
+        )
+    }
+}
+
 /// 中文注释：保存视频观看历史；播放器接入后会在进入播放、离开播放和自动保存时调用。
 struct SaveVideoWatchHistoryUseCase {
     private let repository: VideoWatchHistoryRepository
