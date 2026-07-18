@@ -110,6 +110,44 @@ struct ComicRuleSourceReaderProtectedResourceTests {
         #expect(pipelineReference.displayURLString.hasPrefix("resource-pipeline://reader/"))
     }
 
+    @Test func pipelineOnlyEmptyAPIResultDoesNotEnterDOMFallback() async throws {
+        let pageContentLoader = RecordingReaderPageContentLoader(
+            responses: [
+                "https://example.test/api/chapter/10/images": """
+                { "images": [] }
+                """
+            ]
+        )
+        let loader = ComicRuleSourceReaderLoader(
+            pageContentLoader: pageContentLoader,
+            comicRuleParser: SwiftSoupComicRuleSourceParser(urlResolver: URLResolvingService())
+        )
+
+        do {
+            _ = try await loader.execute(
+                source: Self.sourceWithResourcePipeline(policy: .pipelineOnly),
+                item: ContentItem(
+                    id: "comic-10",
+                    sourceId: "protected-reader-source",
+                    title: "Pipeline Reader",
+                    detailURL: "https://example.test/comic/10",
+                    coverURL: nil,
+                    type: .comic,
+                    latestText: nil
+                ),
+                chapterURLString: "https://example.test/chapter/10"
+            )
+            Issue.record("Expected pipelineOnly empty result failure")
+        } catch let error as RuleExecutionError {
+            guard case .protectedResource(_, _, let reason) = error else {
+                Issue.record("Expected protectedResource, got \(error)")
+                return
+            }
+            #expect(reason.contains("pipelineOnly"))
+            #expect(pageContentLoader.requestedURLs == ["https://example.test/api/chapter/10/images"])
+        }
+    }
+
     @Test func executionPolicyAloneControlsLegacyFallback() async throws {
         let legacyData: Data = Data("legacy-image".utf8)
         let legacyReference: LegacyProtectedReaderImageReference = LegacyProtectedReaderImageReference(

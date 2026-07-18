@@ -101,6 +101,40 @@ Responsibilities:
 - Keep the plugin runtime slot explicit in the resolver/factory plan, while
   deferring plugin execution to a later phase.
 
+## Comic API Response Semantics Boundary
+
+`responsePolicy` belongs to rule interpretation, not networking. It consumes an
+already parsed JSON value and answers only whether field parsing may continue.
+
+```text
+existing page/API loading
+  -> existing JSON parsing
+  -> explicit responsePolicy OR isolated legacy evaluation
+  -> itemPath
+  -> field mapping
+```
+
+The boundary is fixed as follows:
+
+- `envelope` evaluates only the declared business-status path, success values,
+  failure paths, and message paths.
+- `transportOnly` skips business-envelope evaluation. It does not change HTTP,
+  retry, cancellation, WebView, or fallback behavior.
+- A missing `responsePolicy` is the only path into the isolated legacy
+  `code=0` plus `errors/error` compatibility evaluator. Explicit policies never
+  fall through to legacy; endpoints whose success value is `200` must declare it.
+- The evaluator must not receive an HTTP response object or know about status
+  codes, headers, final URLs, request sending, retries, cancellation, DOM, or
+  API-to-DOM fallback.
+- `itemPath` state and field mapping happen after response semantics. A real
+  empty array is a parsing result; a non-empty input that maps to no output is a
+  response-contract error.
+- `pipelineOnly` may block DOM fallback at the reader entry point, but it must
+  not introduce a separate network or composite-error architecture.
+
+This contract intentionally keeps site-specific success values in rules while
+leaving the App's existing transport implementation unchanged.
+
 Non-goals:
 
 - Do not move SwiftSoup, WebView, Nuke, or network implementations into
@@ -117,3 +151,5 @@ Non-goals:
   site workflows into built-in video adapters. Those belong to plugin runtime
   planning.
 - Do not execute plugin code until the plugin runtime phase explicitly starts.
+- Do not expand `responsePolicy` into an API-specific transport layer, response
+  carrier, retry system, cancellation classifier, or fallback coordinator.

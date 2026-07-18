@@ -107,6 +107,9 @@ struct ComicRuleSourceListLoader {
                 if case .sourceAPI = error {
                     throw error
                 }
+                if case .apiResponseContract = error {
+                    throw error
+                }
 
                 RuleExecutionLogger.log(
                     stage: .list,
@@ -244,6 +247,7 @@ struct ComicRuleSourceListLoader {
                 "listRule": listContext.listRuleId ?? "nil",
                 "apiURL": apiURL.absoluteString,
                 "itemPath": apiRule.itemPath,
+                "responsePolicyMode": apiRule.responsePolicy?.mode.rawValue ?? "legacy",
                 "requestScope": request?.scope?.rawValue ?? "nil",
                 "requestMergePolicy": request?.mergePolicy?.rawValue ?? "nil",
                 "headerCount": request?.headers?.count ?? 0,
@@ -256,14 +260,32 @@ struct ComicRuleSourceListLoader {
             context: self.requestContext(source: source, purpose: .list, refererURL: fallbackURL)
         )
         let jsonObject: Any = try JSONSerialization.jsonObject(with: Data(json.utf8))
-        if let apiErrorMessage: String = ComicRuleAPIResolver.apiErrorMessage(in: jsonObject) {
+        let responseEvaluation = ComicRuleAPIResponseEvaluator.evaluate(
+            json: jsonObject,
+            responsePolicy: apiRule.responsePolicy
+        )
+        switch responseEvaluation {
+        case .allowParsing:
+            break
+        case .businessFailure(let message):
             throw RuleExecutionError.sourceAPI(
                 stage: .list,
                 sourceID: source.id,
-                reason: "List API returned error: \(apiErrorMessage)"
+                reason: "List API returned error: \(message)"
             )
         }
-        let itemObjects: [Any] = ComicRuleAPIResolver.jsonValues(at: apiRule.itemPath, in: jsonObject)
+        let itemPathResolution = ComicRuleAPIResolver.jsonArrayResolution(
+            at: apiRule.itemPath,
+            in: jsonObject
+        )
+        guard itemPathResolution.state == .empty || itemPathResolution.state == .nonEmpty else {
+            throw RuleExecutionError.apiResponseContract(
+                stage: .list,
+                sourceID: source.id,
+                reason: "List API itemPath \(apiRule.itemPath) resolved as \(itemPathResolution.state.rawValue)"
+            )
+        }
+        let itemObjects: [Any] = itemPathResolution.values
         let sortableItems: [(value: Any, order: Double?)] = itemObjects.map { itemObject in
             let order: Double? = apiRule.orderPath.flatMap { path in
                 return ComicRuleAPIResolver.doubleValue(
@@ -340,6 +362,15 @@ struct ComicRuleSourceListLoader {
                 "firstItem": items.first?.id ?? "nil"
             ]
         )
+
+        if itemObjects.isEmpty == false,
+           items.isEmpty {
+            throw RuleExecutionError.apiResponseContract(
+                stage: .list,
+                sourceID: source.id,
+                reason: "List API itemPath returned \(itemObjects.count) values, but all item mappings failed"
+            )
+        }
 
         return items
     }

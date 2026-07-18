@@ -105,6 +105,13 @@ struct ComicRuleSourceReaderLoader {
             ) {
                 chapter = apiChapter
             } else {
+                if imageAPIRule?.resourcePipeline?.executionPolicy == .pipelineOnly {
+                    throw RuleExecutionError.protectedResource(
+                        stage: .reader,
+                        sourceID: source.id,
+                        reason: "Reader image API returned an empty result for pipelineOnly execution"
+                    )
+                }
                 RuleExecutionLogger.log(
                     stage: .reader,
                     event: "loader-path",
@@ -356,6 +363,7 @@ struct ComicRuleSourceReaderLoader {
                 "item": item.id,
                 "apiURL": apiURL.absoluteString,
                 "itemPath": apiRule.itemPath,
+                "responsePolicyMode": apiRule.responsePolicy?.mode.rawValue ?? "legacy",
                 "chapterURL": chapterURLString,
                 "hasProtectedResource": (apiRule.protectedResource != nil).description,
                 "hasResourcePipeline": (apiRule.resourcePipeline != nil).description
@@ -379,20 +387,34 @@ struct ComicRuleSourceReaderLoader {
             )
         )
         let jsonObject: Any = try JSONSerialization.jsonObject(with: Data(json.utf8))
-        if let apiErrorMessage: String = ComicRuleAPIResolver.apiErrorMessage(in: jsonObject) {
+        let responseEvaluation = ComicRuleAPIResponseEvaluator.evaluate(
+            json: jsonObject,
+            responsePolicy: apiRule.responsePolicy
+        )
+        switch responseEvaluation {
+        case .allowParsing:
+            break
+        case .businessFailure(let message):
             throw RuleExecutionError.sourceAPI(
                 stage: .reader,
                 sourceID: source.id,
-                reason: "Reader image API returned error: \(apiErrorMessage)"
+                reason: "Reader image API returned error: \(message)"
             )
         }
-        let itemArrayState: ComicRuleAPIResolver.JSONArrayState = ComicRuleAPIResolver.jsonArrayState(
+        let itemPathResolution = ComicRuleAPIResolver.jsonArrayResolution(
             at: apiRule.itemPath,
             in: jsonObject
         )
-        let itemObjects: [Any] = ComicRuleAPIResolver.jsonValues(at: apiRule.itemPath, in: jsonObject)
+        guard itemPathResolution.state == .empty || itemPathResolution.state == .nonEmpty else {
+            throw RuleExecutionError.apiResponseContract(
+                stage: .reader,
+                sourceID: source.id,
+                reason: "Reader image API itemPath \(apiRule.itemPath) resolved as \(itemPathResolution.state.rawValue)"
+            )
+        }
+        let itemObjects: [Any] = itemPathResolution.values
 
-        if itemArrayState == .empty,
+        if itemPathResolution.state == .empty,
            apiRule.emptyResultPolicy == .requiresAccount {
             RuleExecutionLogger.log(
                 stage: .reader,
@@ -496,6 +518,14 @@ struct ComicRuleSourceReaderLoader {
             ]
         )
 
+        if itemObjects.isEmpty == false,
+           outputImageURLs.isEmpty {
+            throw RuleExecutionError.apiResponseContract(
+                stage: .reader,
+                sourceID: source.id,
+                reason: "Reader image API itemPath returned \(itemObjects.count) values, but all image mappings failed"
+            )
+        }
         guard outputImageURLs.isEmpty == false else {
             return nil
         }

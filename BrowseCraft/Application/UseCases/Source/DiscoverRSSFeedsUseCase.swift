@@ -180,6 +180,9 @@ struct DiscoverRSSFeedsUseCase {
     private func isKnownDirectFeedURL(host: String, path: String) -> Bool {
         if host == "plink.anyfeeder.com" {
             let pathComponents: [Substring] = path.split(separator: "/")
+            if pathComponents.starts(with: ["zaobao", "realtime"]) {
+                return pathComponents.count >= 3
+            }
             return pathComponents.count >= 2
         }
 
@@ -236,7 +239,7 @@ struct DiscoverRSSFeedsUseCase {
         switch ruleExecutionError {
         case .antiBot, .network:
             return true
-        case .accessRequired, .selectorEmpty, .ruleConfiguration, .sourceAPI, .protectedResource, .parserDiagnostics, .unknown:
+        case .accessRequired, .selectorEmpty, .ruleConfiguration, .apiResponseContract, .sourceAPI, .protectedResource, .parserDiagnostics, .unknown:
             return false
         }
     }

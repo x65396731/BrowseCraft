@@ -238,7 +238,8 @@ struct ComicRuleSourceChapterLoader {
                 "source": source.id,
                 "item": item.id,
                 "apiURL": apiURL.absoluteString,
-                "itemPath": apiRule.itemPath
+                "itemPath": apiRule.itemPath,
+                "responsePolicyMode": apiRule.responsePolicy?.mode.rawValue ?? "legacy"
             ]
         )
 
@@ -258,14 +259,32 @@ struct ComicRuleSourceChapterLoader {
             )
         )
         let jsonObject: Any = try JSONSerialization.jsonObject(with: Data(json.utf8))
-        if let apiErrorMessage: String = ComicRuleAPIResolver.apiErrorMessage(in: jsonObject) {
+        let responseEvaluation = ComicRuleAPIResponseEvaluator.evaluate(
+            json: jsonObject,
+            responsePolicy: apiRule.responsePolicy
+        )
+        switch responseEvaluation {
+        case .allowParsing:
+            break
+        case .businessFailure(let message):
             throw RuleExecutionError.sourceAPI(
                 stage: .detail,
                 sourceID: source.id,
-                reason: "Detail API returned error: \(apiErrorMessage)"
+                reason: "Detail API returned error: \(message)"
             )
         }
-        let itemObjects: [Any] = ComicRuleAPIResolver.jsonValues(at: apiRule.itemPath, in: jsonObject)
+        let itemPathResolution = ComicRuleAPIResolver.jsonArrayResolution(
+            at: apiRule.itemPath,
+            in: jsonObject
+        )
+        guard itemPathResolution.state == .empty || itemPathResolution.state == .nonEmpty else {
+            throw RuleExecutionError.apiResponseContract(
+                stage: .detail,
+                sourceID: source.id,
+                reason: "Detail API itemPath \(apiRule.itemPath) resolved as \(itemPathResolution.state.rawValue)"
+            )
+        }
+        let itemObjects: [Any] = itemPathResolution.values
 
         var chapters: [ChapterLink] = []
         var sortableChapters: [(chapter: ChapterLink, order: Double?)] = []
@@ -327,6 +346,14 @@ struct ComicRuleSourceChapterLoader {
             ]
         )
 
+        if itemObjects.isEmpty == false,
+           outputChapters.isEmpty {
+            throw RuleExecutionError.apiResponseContract(
+                stage: .detail,
+                sourceID: source.id,
+                reason: "Detail API itemPath returned \(itemObjects.count) values, but all chapter mappings failed"
+            )
+        }
         guard outputChapters.isEmpty == false else {
             return nil
         }

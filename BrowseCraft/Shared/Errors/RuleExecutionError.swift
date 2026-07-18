@@ -9,6 +9,7 @@ enum RuleExecutionError: LocalizedError, Equatable {
     case accessRequired(stage: RuleExecutionLogger.Stage, sourceID: String, url: String)
     case selectorEmpty(stage: RuleExecutionLogger.Stage, sourceID: String, url: String, ruleID: String?)
     case ruleConfiguration(stage: RuleExecutionLogger.Stage, sourceID: String, reason: String)
+    case apiResponseContract(stage: RuleExecutionLogger.Stage, sourceID: String, reason: String)
     case sourceAPI(stage: RuleExecutionLogger.Stage, sourceID: String, reason: String)
     case protectedResource(stage: RuleExecutionLogger.Stage, sourceID: String, reason: String)
     case parserDiagnostics(
@@ -35,6 +36,8 @@ enum RuleExecutionError: LocalizedError, Equatable {
             return "规则没有匹配到内容：stage=\(stage.rawValue) source=\(sourceID) rule=\(ruleID ?? "nil") url=\(url)"
         case .ruleConfiguration(let stage, let sourceID, let reason):
             return "规则配置错误：stage=\(stage.rawValue) source=\(sourceID) reason=\(reason)"
+        case .apiResponseContract(let stage, let sourceID, let reason):
+            return "源站接口响应合同不匹配：stage=\(stage.rawValue) source=\(sourceID) reason=\(reason)"
         case .sourceAPI(let stage, let sourceID, let reason):
             return "源站接口返回错误：stage=\(stage.rawValue) source=\(sourceID) reason=\(reason)"
         case .protectedResource(let stage, let sourceID, let reason):
@@ -143,6 +146,8 @@ enum RuleExecutionErrorClassifier {
             return "selectorEmpty"
         case .ruleConfiguration:
             return "ruleConfiguration"
+        case .apiResponseContract:
+            return "apiResponseContract"
         case .sourceAPI:
             return "sourceAPI"
         case .protectedResource:

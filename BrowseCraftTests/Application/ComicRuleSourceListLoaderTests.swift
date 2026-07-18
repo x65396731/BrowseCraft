@@ -124,6 +124,155 @@ struct ComicRuleSourceListLoaderTests {
         }
     }
 
+    @Test func explicitResponsePolicyAcceptsNumericBusinessStatus200() async throws {
+        let pageContentLoader = RecordingListPageContentLoader(
+            responses: [
+                "https://example.test/api/comics?page=1": """
+                {
+                  "code": 200,
+                  "message": "OK",
+                  "data": {
+                    "comics": [
+                      { "id": "5571", "title": "小栗子到我家" }
+                    ]
+                  }
+                }
+                """
+            ],
+            disallowedURLs: ["https://example.test/updates"]
+        )
+        let responsePolicy = APIResponsePolicy(
+            mode: .envelope,
+            businessStatusPath: "code",
+            successValues: [.number(200)],
+            failurePaths: ["errors[]", "error"],
+            messagePaths: ["message"]
+        )
+        let loader = Self.loader(pageContentLoader: pageContentLoader)
+
+        let items = try await loader.execute(
+            source: Self.sourceWithPreferredListAPI(responsePolicy: responsePolicy)
+        )
+
+        #expect(items.map(\.title) == ["小栗子到我家"])
+        #expect(pageContentLoader.requestedURLs == ["https://example.test/api/comics?page=1"])
+    }
+
+    @Test func explicitResponsePolicyRejectsUnlistedBusinessStatus() async throws {
+        let pageContentLoader = RecordingListPageContentLoader(
+            responses: [
+                "https://example.test/api/comics?page=1": """
+                { "code": 403, "message": "uuid錯誤" }
+                """
+            ],
+            disallowedURLs: ["https://example.test/updates"]
+        )
+        let responsePolicy = APIResponsePolicy(
+            mode: .envelope,
+            businessStatusPath: "code",
+            successValues: [.number(200)],
+            messagePaths: ["message"]
+        )
+        let loader = Self.loader(pageContentLoader: pageContentLoader)
+
+        do {
+            _ = try await loader.execute(
+                source: Self.sourceWithPreferredListAPI(responsePolicy: responsePolicy)
+            )
+            Issue.record("Expected explicit response policy failure")
+        } catch let error as RuleExecutionError {
+            guard case .sourceAPI(_, _, let reason) = error else {
+                Issue.record("Expected sourceAPI error, got \(error)")
+                return
+            }
+            #expect(reason.contains("uuid錯誤"))
+            #expect(reason.contains("code=403"))
+        }
+    }
+
+    @Test func explicitResponsePolicyKeepsNumericAndStringStatusDistinct() async throws {
+        let pageContentLoader = RecordingListPageContentLoader(
+            responses: [
+                "https://example.test/api/comics?page=1": """
+                { "code": "200", "message": "string status is not numeric" }
+                """
+            ],
+            disallowedURLs: ["https://example.test/updates"]
+        )
+        let responsePolicy = APIResponsePolicy(
+            mode: .envelope,
+            businessStatusPath: "code",
+            successValues: [.number(200)],
+            messagePaths: ["message"]
+        )
+        let loader = Self.loader(pageContentLoader: pageContentLoader)
+
+        do {
+            _ = try await loader.execute(
+                source: Self.sourceWithPreferredListAPI(responsePolicy: responsePolicy)
+            )
+            Issue.record("Expected string business status to differ from numeric status")
+        } catch let error as RuleExecutionError {
+            guard case .sourceAPI(_, _, let reason) = error else {
+                Issue.record("Expected sourceAPI error, got \(error)")
+                return
+            }
+            #expect(reason.contains("string status is not numeric"))
+            #expect(reason.contains("code=200"))
+        }
+    }
+
+    @Test func transportOnlyResponsePolicyDoesNotStackLegacyCodeCheck() async throws {
+        let pageContentLoader = RecordingListPageContentLoader(
+            responses: [
+                "https://example.test/api/comics?page=1": """
+                {
+                  "code": 403,
+                  "data": {
+                    "comics": [
+                      { "id": "5571", "title": "传输层规则" }
+                    ]
+                  }
+                }
+                """
+            ],
+            disallowedURLs: ["https://example.test/updates"]
+        )
+        let loader = Self.loader(pageContentLoader: pageContentLoader)
+
+        let items = try await loader.execute(
+            source: Self.sourceWithPreferredListAPI(
+                responsePolicy: APIResponsePolicy(mode: .transportOnly)
+            )
+        )
+
+        #expect(items.map(\.title) == ["传输层规则"])
+    }
+
+    @Test func nonemptyAPIItemsThatAllFailMappingRemainContractErrors() async throws {
+        let pageContentLoader = RecordingListPageContentLoader(
+            responses: [
+                "https://example.test/api/comics?page=1": """
+                { "data": { "comics": [{ "id": "missing-title" }] } }
+                """
+            ],
+            disallowedURLs: ["https://example.test/updates"]
+        )
+        let loader = Self.loader(pageContentLoader: pageContentLoader)
+
+        do {
+            _ = try await loader.execute(source: Self.sourceWithPreferredListAPI())
+            Issue.record("Expected API mapping contract failure")
+        } catch let error as RuleExecutionError {
+            guard case .apiResponseContract(_, _, let reason) = error else {
+                Issue.record("Expected apiResponseContract, got \(error)")
+                return
+            }
+            #expect(reason.contains("all item mappings failed"))
+            #expect(pageContentLoader.requestedURLs == ["https://example.test/api/comics?page=1"])
+        }
+    }
+
     private static func loader(pageContentLoader: PageContentLoader) -> ComicRuleSourceListLoader {
         return ComicRuleSourceListLoader(
             pageContentLoader: pageContentLoader,
@@ -132,7 +281,9 @@ struct ComicRuleSourceListLoaderTests {
         )
     }
 
-    private static func sourceWithPreferredListAPI() -> Source {
+    private static func sourceWithPreferredListAPI(
+        responsePolicy: APIResponsePolicy? = nil
+    ) -> Source {
         let rule: SiteRule = SiteRule(
             version: 1,
             site: nil,
@@ -161,7 +312,8 @@ struct ComicRuleSourceListLoaderTests {
                     latestTextPath: "latest",
                     orderPath: "sort",
                     sort: .ascending,
-                    preferAPI: true
+                    preferAPI: true,
+                    responsePolicy: responsePolicy
                 )
             ),
             listTabs: nil,
@@ -258,6 +410,77 @@ struct ComicRuleSourceListLoaderTests {
             createdAt: Date(timeIntervalSince1970: 0),
             updatedAt: Date(timeIntervalSince1970: 0)
         )
+    }
+}
+
+struct ComicRuleAPIResponseEvaluatorTests {
+    @Test func missingPolicyPreservesLegacyCodeZeroSuccess() {
+        let json: [String: Any] = ["code": 0, "data": ["items": [Any]()]]
+        let result = ComicRuleAPIResponseEvaluator.evaluate(
+            json: json,
+            responsePolicy: nil
+        )
+
+        #expect(result == .allowParsing)
+    }
+
+    @Test func missingPolicyPreservesLegacyNonzeroCodeFailure() {
+        let json: [String: Any] = ["code": 200, "message": "legacy response"]
+        let result = ComicRuleAPIResponseEvaluator.evaluate(
+            json: json,
+            responsePolicy: nil
+        )
+
+        #expect(result == .businessFailure(message: "legacy response code=200"))
+    }
+
+    @Test func missingPolicyPreservesLegacyErrorsDetails() {
+        let extensions: [String: Any] = ["code": "LIMIT", "current": 3]
+        let legacyError: [String: Any] = [
+            "message": "rate limited",
+            "extensions": extensions
+        ]
+        let json: [String: Any] = ["errors": [legacyError]]
+        let result = ComicRuleAPIResponseEvaluator.evaluate(
+            json: json,
+            responsePolicy: nil
+        )
+
+        #expect(result == .businessFailure(message: "rate limited code=LIMIT current=3"))
+    }
+
+    @Test func explicitEnvelopeNeverRunsLegacyErrorInference() {
+        let json: [String: Any] = ["code": 200, "error": "legacy-only field"]
+        let result = ComicRuleAPIResponseEvaluator.evaluate(
+            json: json,
+            responsePolicy: APIResponsePolicy(
+                mode: .envelope,
+                businessStatusPath: "code",
+                successValues: [.number(200)]
+            )
+        )
+
+        #expect(result == .allowParsing)
+    }
+}
+
+struct ComicRuleAPIJSONArrayResolutionTests {
+    @Test func distinguishesMissingNullTypeMismatchEmptyAndValues() {
+        let root: [String: Any] = [
+            "nullItems": NSNull(),
+            "wrongItems": "not-an-array",
+            "emptyItems": [Any](),
+            "items": [["id": 1], ["id": 2]]
+        ]
+
+        #expect(ComicRuleAPIResolver.jsonArrayResolution(at: "missingItems[]", in: root).state == .missing)
+        #expect(ComicRuleAPIResolver.jsonArrayResolution(at: "nullItems[]", in: root).state == .null)
+        #expect(ComicRuleAPIResolver.jsonArrayResolution(at: "wrongItems[]", in: root).state == .typeMismatch)
+        #expect(ComicRuleAPIResolver.jsonArrayResolution(at: "emptyItems[]", in: root).state == .empty)
+
+        let values = ComicRuleAPIResolver.jsonArrayResolution(at: "items[]", in: root)
+        #expect(values.state == .nonEmpty)
+        #expect(values.values.count == 2)
     }
 }
 
