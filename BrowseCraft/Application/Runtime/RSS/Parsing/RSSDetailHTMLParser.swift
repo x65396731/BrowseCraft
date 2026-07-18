@@ -1,6 +1,6 @@
 import Foundation
 
-// 中文注释：RSSDetailHTMLParser 只解析 RSS detailURL 的网页正文，不参与 RSS feed XML 规则映射。
+// 中文注释：RSSDetailHTMLParser 是 RSS runtime 的 Foundation 文本解析 adapter，不依赖 SwiftSoup。
 struct RSSDetailHTMLParser {
     struct DetailContent {
         var blocks: [RSSContentPayload.Block]

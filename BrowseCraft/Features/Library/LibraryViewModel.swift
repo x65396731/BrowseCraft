@@ -1072,6 +1072,7 @@ final class LibraryViewModel: ObservableObject {
                 coverURL: item.coverURL?.absoluteString,
                 type: self.contentType(for: source),
                 latestText: item.latestText,
+                richContent: item.richContent,
                 updatedAt: item.updatedAt,
                 listOrder: index,
                 listContext: context

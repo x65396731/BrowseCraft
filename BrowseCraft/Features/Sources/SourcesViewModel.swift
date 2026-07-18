@@ -765,6 +765,7 @@ final class SourcesViewModel: ObservableObject {
                 coverURL: item.coverURL?.absoluteString,
                 type: self.contentType(for: source),
                 latestText: item.latestText,
+                richContent: item.richContent,
                 updatedAt: item.updatedAt,
                 listOrder: index,
                 listContext: nil

@@ -429,10 +429,13 @@ struct SourceRuntimeMappingTests {
             diagnostics: diagnostics
         )
         let detailOutput: SourceDetailOutput = mapper.detailOutput(
-            chapters: [
-                ChapterLink(title: "第01话", url: "https://example.test/chapters/1"),
-                ChapterLink(title: "invalid", url: "   ")
-            ],
+            detail: ComicRuleParsedDetail(
+                chapters: [
+                    ChapterLink(title: "第01话", url: "https://example.test/chapters/1"),
+                    ChapterLink(title: "invalid", url: "   ")
+                ],
+                description: "详情简介"
+            ),
             diagnostics: diagnostics
         )
         let readerOutput: SourceReaderOutput = mapper.readerOutput(
@@ -466,9 +469,10 @@ struct SourceRuntimeMappingTests {
         #expect(detailOutput.chapters[0].id == "https://example.test/chapters/1")
         #expect(detailOutput.chapters[0].title == "第01话")
         #expect(detailOutput.chapters[0].url.absoluteString == "https://example.test/chapters/1")
+        #expect(detailOutput.metadata?.description == "详情简介")
         #expect(detailOutput.diagnostics == diagnostics)
 
-        #expect(readerOutput.chapter.title == "第01话")
+        #expect(readerOutput.chapter.chapterTitle == "第01话")
         #expect(readerOutput.chapter.imageURLs.map(\.absoluteString) == [
             "https://example.test/images/1.jpg",
             "https://example.test/images/2.jpg"
@@ -477,7 +481,7 @@ struct SourceRuntimeMappingTests {
     }
 
     @Test func comicRuleSourceItemReferenceMapperMapsDetailHandoffWithoutReaderReplacement() throws {
-        let mapper = ComicRuleSourceItemReferenceMapper()
+        let mapper = SourceItemReferenceMapper()
         let runtimeContext = SourceRuntimeContext(
             sourceID: "user.example",
             pageID: "home",
@@ -508,6 +512,7 @@ struct SourceRuntimeMappingTests {
 
         let reference: SourceItemReference = mapper.reference(
             from: item,
+            intent: .detail,
             runtimeContext: runtimeContext
         )
 
@@ -529,7 +534,7 @@ struct SourceRuntimeMappingTests {
     }
 
     @Test func comicRuleSourceItemReferenceMapperMapsDirectReaderChapterHandoff() throws {
-        let mapper = ComicRuleSourceItemReferenceMapper()
+        let mapper = SourceItemReferenceMapper()
         let requestOverride = SourceRequestOverride(
             url: URL(string: "https://example.test/read/1") ?? URL(fileURLWithPath: "/"),
             headers: ["Referer": "https://example.test"],
@@ -551,8 +556,8 @@ struct SourceRuntimeMappingTests {
 
         let reference: SourceItemReference = mapper.reference(
             from: item,
-            handoffIntent: .directReader,
-            chapter: chapter,
+            chapterURL: try #require(URL(string: chapter.url)),
+            intent: .directReader,
             requestOverride: requestOverride
         )
 

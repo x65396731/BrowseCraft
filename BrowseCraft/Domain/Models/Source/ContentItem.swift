@@ -1,9 +1,10 @@
 import Foundation
+import BrowseCraftCore
 
-// 中文注释：ContentItem 是 SourceRuntime 输出给列表、书架和历史功能使用的统一内容条目。
+// 中文注释：ContentItem 是 App 界面、缓存和历史功能使用的投影；跨 runtime 合同由 Core SourceContentItem 承担。
 
 /// 中文注释：BrowseCraft 在 Library 中展示的标准化内容条目。
-/// 中文注释：原始来源可以是网页、RSS、JSON 或 XML，解析后 UI 只需要这个统一模型。
+/// 中文注释：原始来源可以是网页、RSS、JSON 或 XML，App 在 runtime 边界把 Core 输出投影为此模型。
 struct ContentItem: Identifiable, Hashable {
     var id: String
     var sourceId: String
@@ -12,6 +13,8 @@ struct ContentItem: Identifiable, Hashable {
     var coverURL: String?
     var type: SourceContentKind
     var latestText: String?
+    /// 中文注释：来源详情富内容使用 Core 合同传递；latestText 仅保留列表摘要和旧缓存兼容。
+    var richContent: SourceRichContent? = nil
     var updatedAt: Date?
     /// 中文注释：记录当前列表快照内的展示顺序，缓存读取时用它恢复规则解析出的网页顺序。
     var listOrder: Int? = nil
@@ -19,65 +22,9 @@ struct ContentItem: Identifiable, Hashable {
     var listContext: ListContext? = nil
 }
 
-// 中文注释：RSSContentPayload 是 RSS 详情页的富内容载体，通过 latestText 临时透传，不进入 Core runtime 模型。
-struct RSSContentPayload: Codable, Equatable, Hashable {
-    enum MediaKind: String, Codable {
-        case article
-        case audio
-        case video
-    }
+typealias RSSContentPayload = SourceRichContent
 
-    enum MediaPlaybackMode: String, Codable {
-        case directMedia
-        case webPage
-    }
-
-    enum BlockKind: String, Codable {
-        case paragraph
-        case subtitle
-        case image
-    }
-
-    struct Metadata: Codable, Equatable, Hashable {
-        var tags: [String] = []
-        var likeCount: Int?
-        var commentCount: Int?
-    }
-
-    struct Block: Codable, Equatable, Hashable, Identifiable {
-        var id: String
-        var kind: BlockKind
-        var text: String?
-        var imageURL: String?
-    }
-
-    struct Media: Codable, Equatable, Hashable {
-        var kind: MediaKind
-        var playbackMode: MediaPlaybackMode
-        var url: String
-        var mimeType: String?
-        var duration: String?
-        var posterURL: String?
-        var sourcePageURL: String?
-    }
-
-    var summary: String?
-    var blocks: [Block]
-    var metadata: Metadata?
-    var media: Media?
-
-    init(
-        summary: String?,
-        blocks: [Block],
-        metadata: Metadata? = nil,
-        media: Media? = nil
-    ) {
-        self.summary = summary
-        self.blocks = blocks
-        self.metadata = metadata
-        self.media = media
-    }
-
+extension SourceRichContent {
     var summaryText: String? {
         if let summary: String = self.summary?.trimmedNonEmpty {
             return summary
@@ -86,21 +33,22 @@ struct RSSContentPayload: Codable, Equatable, Hashable {
         return self.blocks.compactMap(\.text).first?.trimmedNonEmpty
     }
 
-    func encodedString() -> String? {
+    /// 中文注释：仅用于读取旧缓存；新 runtime 不再把富内容写入 latestText。
+    func legacyEncodedString() -> String? {
         guard let data: Data = try? JSONEncoder().encode(self) else {
             return nil
         }
 
-        return Self.prefix + data.base64EncodedString()
+        return Self.legacyPrefix + data.base64EncodedString()
     }
 
     static func decode(from string: String?) -> RSSContentPayload? {
         guard let string: String = string,
-              string.hasPrefix(Self.prefix) else {
+              string.hasPrefix(Self.legacyPrefix) else {
             return nil
         }
 
-        let payloadString: String = String(string.dropFirst(Self.prefix.count))
+        let payloadString: String = String(string.dropFirst(Self.legacyPrefix.count))
         guard let data: Data = Data(base64Encoded: payloadString) else {
             return nil
         }
@@ -108,7 +56,7 @@ struct RSSContentPayload: Codable, Equatable, Hashable {
         return try? JSONDecoder().decode(RSSContentPayload.self, from: data)
     }
 
-    private static let prefix: String = "__BROWSECRAFT_RSS_CONTENT_V1__"
+    private static var legacyPrefix: String { "__BROWSECRAFT_RSS_CONTENT_V1__" }
 }
 
 private extension String {

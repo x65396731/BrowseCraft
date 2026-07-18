@@ -9,7 +9,8 @@ struct ComicRuleSourceRuntimeMapper {
             detailURL: self.url(from: item.detailURL),
             coverURL: self.url(from: item.coverURL),
             latestText: item.latestText,
-            updatedAt: item.updatedAt
+            updatedAt: item.updatedAt,
+            richContent: item.richContent
         )
     }
 
@@ -28,17 +29,35 @@ struct ComicRuleSourceRuntimeMapper {
             return SourceChapter(
                 id: chapter.url,
                 title: chapter.title,
-                url: url
+                subtitle: chapter.subtitle,
+                url: url,
+                navigationChapterURLs: chapter.navigationChapterURLs.compactMap { self.url(from: $0) },
+                navigationChapterTitles: chapter.navigationChapterTitles,
+                navigationOrder: chapter.navigationOrder == .ascending ? .ascending : .descending
             )
         }
     }
 
     func readerChapter(from chapter: ReaderChapter) -> SourceReaderChapter {
+        let chapterURL: URL = self.url(from: chapter.chapterURL)
+            ?? URL(string: "about:blank")!
         return SourceReaderChapter(
-            title: chapter.chapterTitle,
+            sourceID: chapter.sourceId,
+            comicTitle: chapter.comicTitle,
+            chapterTitle: chapter.chapterTitle,
+            chapterURL: chapterURL,
+            catalogURL: self.url(from: chapter.catalogURL),
+            previousChapterURL: self.url(from: chapter.previousChapterURL),
+            nextChapterURL: self.url(from: chapter.nextChapterURL),
             imageURLs: chapter.pageImageURLs.compactMap { imageURL in
                 return self.url(from: imageURL)
-            }
+            },
+            pageResources: chapter.pageResources.compactMap { self.readerPageResource(from: $0) },
+            imageHeaders: Dictionary(
+                uniqueKeysWithValues: chapter.pageImageHeaders.compactMap { key, value in
+                    return self.url(from: key).map { ($0, value) }
+                }
+            )
         )
     }
 
@@ -55,11 +74,12 @@ struct ComicRuleSourceRuntimeMapper {
     }
 
     func detailOutput(
-        chapters: [ChapterLink],
+        detail: ComicRuleParsedDetail,
         diagnostics: SourceRuntimeDiagnostics
     ) -> SourceDetailOutput {
         return SourceDetailOutput(
-            chapters: self.chapters(from: chapters),
+            metadata: SourceDetailMetadata(description: detail.description),
+            chapters: self.chapters(from: detail.chapters),
             diagnostics: diagnostics
         )
     }
@@ -81,5 +101,61 @@ struct ComicRuleSourceRuntimeMapper {
         }
 
         return URL(string: string)
+    }
+
+    private func readerPageResource(from resource: ReaderPageResource) -> SourceReaderPageResource? {
+        switch resource {
+        case .remoteImageURL(let urlString):
+            return self.url(from: urlString).map(SourceReaderPageResource.remoteImageURL)
+        case .protectedResource(let reference):
+            return .protectedResource(self.protectedReference(from: reference))
+        }
+    }
+
+    private func protectedReference(
+        from reference: ProtectedReaderImageReference
+    ) -> SourceProtectedReaderImageReference {
+        let execution: SourceProtectedReaderImageExecution
+        switch reference.execution {
+        case .legacy(let legacy):
+            execution = .legacy(self.legacyReference(from: legacy))
+        case .pipeline(let pipeline):
+            execution = .pipeline(
+                SourceResourcePipelineReaderImageReference(
+                    rule: pipeline.rule,
+                    item: pipeline.item.mapValues { self.runtimeValue(from: $0) },
+                    root: pipeline.root.mapValues { self.runtimeValue(from: $0) },
+                    context: pipeline.context.mapValues { self.runtimeValue(from: $0) },
+                    legacyFallback: pipeline.legacyFallback.map { self.legacyReference(from: $0) }
+                )
+            )
+        }
+
+        return SourceProtectedReaderImageReference(
+            displayURL: self.url(from: reference.displayURLString),
+            sourceID: reference.sourceID,
+            baseURL: reference.baseURL,
+            execution: execution
+        )
+    }
+
+    private func legacyReference(
+        from reference: LegacyProtectedReaderImageReference
+    ) -> SourceLegacyProtectedReaderImageReference {
+        return SourceLegacyProtectedReaderImageReference(
+            rule: reference.rule,
+            parameters: reference.parameters
+        )
+    }
+
+    private func runtimeValue(from value: ReaderResourcePipelineValue) -> SourceRuntimeValue {
+        switch value {
+        case .string(let value): return .string(value)
+        case .number(let value): return .number(value)
+        case .boolean(let value): return .boolean(value)
+        case .object(let value): return .object(value.mapValues { self.runtimeValue(from: $0) })
+        case .array(let value): return .array(value.map { self.runtimeValue(from: $0) })
+        case .null: return .null
+        }
     }
 }

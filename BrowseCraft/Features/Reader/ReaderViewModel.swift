@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 import UIKit
+import BrowseCraftCore
 
 // 中文注释：ReaderViewModel.swift 属于界面功能层，用于说明本文件承载的核心职责。
 
@@ -702,13 +703,22 @@ final class ChapterListViewModel: ObservableObject {
         self.detailDescription = nil
 
         do {
-            let detailContent: ChapterDetailContent = try await self.loadChaptersUseCase.execute(
+            let detailContent: SourceDetailOutput = try await self.loadChaptersUseCase.execute(
                 source: self.source,
                 item: self.item
             )
             // 中文注释：章节解析器已经按源站分组顺序返回结果；这里不再按标题全局排序，避免单话/单行本/番外篇混排。
-            self.chapters = detailContent.chapters
-            self.detailDescription = detailContent.description
+            self.chapters = detailContent.chapters.map { chapter in
+                return ChapterLink(
+                    title: chapter.title,
+                    subtitle: chapter.subtitle,
+                    url: chapter.url.absoluteString,
+                    navigationChapterURLs: chapter.navigationChapterURLs.map(\.absoluteString),
+                    navigationChapterTitles: chapter.navigationChapterTitles,
+                    navigationOrder: chapter.navigationOrder == .ascending ? .ascending : .descending
+                )
+            }
+            self.detailDescription = detailContent.metadata?.description
 
             #if DEBUG
             print(

@@ -93,7 +93,7 @@ struct RSSSourceRuntimeTests {
         }
     }
 
-    @Test func loadListEncodesStandardMediaIntoRSSPayload() async throws {
+    @Test func loadListMapsStandardMediaIntoCoreRichContent() async throws {
         let definition: SourceDefinition = try Self.rssDefinition()
         let runtime: RSSSourceRuntime = RSSSourceRuntime(
             definition: definition,
@@ -131,7 +131,8 @@ struct RSSSourceRuntimeTests {
             )
         )
 
-        let payload: RSSContentPayload = try #require(RSSContentPayload.decode(from: output.items.first?.latestText))
+        let payload: RSSContentPayload = try #require(output.items.first?.richContent)
+        #expect(output.items.first?.latestText == "Episode summary")
         #expect(payload.summary == "Episode summary")
         #expect(payload.media?.kind == .audio)
         #expect(payload.media?.playbackMode == .directMedia)
@@ -187,18 +188,18 @@ struct RSSSourceRuntimeTests {
             )
         )
 
-        let radioPayload: RSSContentPayload = try #require(RSSContentPayload.decode(from: output.items[0].latestText))
+        let radioPayload: RSSContentPayload = try #require(output.items[0].richContent)
         #expect(radioPayload.media?.kind == .audio)
         #expect(radioPayload.media?.playbackMode == .webPage)
         #expect(radioPayload.media?.url == "https://www.gcores.com/radios/216726")
         #expect(radioPayload.media?.posterURL == "https://image.gcores.com/radio.jpg")
 
-        let videoPayload: RSSContentPayload = try #require(RSSContentPayload.decode(from: output.items[1].latestText))
+        let videoPayload: RSSContentPayload = try #require(output.items[1].richContent)
         #expect(videoPayload.media?.kind == .video)
         #expect(videoPayload.media?.playbackMode == .webPage)
         #expect(videoPayload.media?.url == "https://www.gcores.com/videos/217000")
 
-        #expect(RSSContentPayload.decode(from: output.items[2].latestText) == nil)
+        #expect(output.items[2].richContent == nil)
         #expect(output.items[2].latestText == "Article summary")
     }
 

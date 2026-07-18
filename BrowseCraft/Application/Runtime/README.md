@@ -82,9 +82,13 @@ Responsibilities:
   are runtime internals, not shared App use cases.
 - Keep rule-only mapping in `Runtime/ComicRule/Mapping/ComicRuleSourceRuntimeMapper`; it is not a
   shared App/Core compatibility layer.
+- Use Core `SourceDetailOutput`, `SourceReaderOutput`, and `SourceRichContent` as the only
+  cross-runtime detail/reader contracts. App `ContentItem`, `ChapterLink`, and `ReaderChapter`
+  are UI/persistence projections created after the runtime boundary.
 - Keep `RSS/RSSSourceRuntime` as the RSS-backed runtime implementation for
-  public feed list loading.
-- Keep RSS mapping/loading in `RSS/Mapping/` and `RSS/Loading/`; RSS does not
+  feed list and article detail loading. RSS rich content must not be encoded into
+  `SourceContentItem.latestText`; that field is a plain list summary.
+- Keep RSS mapping/loading/parsing in `RSS/Mapping/`, `RSS/Loading/`, and `RSS/Parsing/`; RSS does not
   extend `SiteRule` or the rule editor.
 - Keep `Video/VideoSourceRuntime` as the video-backed runtime implementation.
 - Keep video list/detail/playback loading in `Video/Loading/`; those loaders
@@ -96,7 +100,8 @@ Responsibilities:
 - Keep iframe/embed playback handling in `Video/PlaybackCandidate/`; iframePlayer
   is a playback candidate, not a list/detail content adapter.
 - Keep `VideoPlaybackRuntimeCapability` as the video playback capability so a
-  future plugin runtime can expose playback through the same boundary.
+  future plugin runtime can expose playback through the same boundary. Video detail
+  always uses `SourceRuntime.loadDetail`; playback capability must not add a private detail API.
 - Add runtime-facing use cases before wiring Library and Reader features to them.
 - Keep the plugin runtime slot explicit in the resolver/factory plan, while
   deferring plugin execution to a later phase.

@@ -77,6 +77,10 @@ struct VideoSourceRuntime: SourceRuntime {
         }
 
         return SourceDetailOutput(
+            metadata: SourceDetailMetadata(
+                description: content.synopsis,
+                attributes: content.metadataRows.map { SourceDetailAttribute(value: $0) }
+            ),
             chapters: content.episodes.map { episode in
                 return SourceChapter(
                     id: episode.id,
@@ -95,7 +99,7 @@ struct VideoSourceRuntime: SourceRuntime {
         )
     }
 
-    func loadVideoDetailContent(_ input: SourceDetailInput) async throws -> VideoDetailContent {
+    private func loadVideoDetailContent(_ input: SourceDetailInput) async throws -> VideoDetailContent {
         try self.validateSource(input.context)
         return try await self.detailLoader.loadDetailContent(input, definition: self.definition)
     }

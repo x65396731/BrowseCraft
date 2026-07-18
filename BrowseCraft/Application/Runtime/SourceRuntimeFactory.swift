@@ -34,7 +34,8 @@ struct SourceRuntimeFactory {
     func makeRSSSourceRuntime(definition: SourceDefinition) -> RSSSourceRuntime {
         return RSSSourceRuntime(
             definition: definition,
-            feedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader)
+            feedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader),
+            pageContentLoader: self.pageContentLoader
         )
     }
 

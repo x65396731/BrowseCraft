@@ -1,5 +1,15 @@
 import Foundation
 
+/// Comic rule parsing intermediate. The public normalized detail contract is
+/// `SourceDetailOutput` in BrowseCraftCore; this type never crosses the runtime boundary.
+struct ComicRuleParsedDetail {
+    var chapters: [ChapterLink]
+    var description: String?
+}
+
+// 中文注释：仅兼容 loader 级测试名称；跨 runtime 的详情类型始终是 Core SourceDetailOutput。
+typealias ChapterDetailContent = ComicRuleParsedDetail
+
 // 中文注释：ComicRuleSourceChapterLoader 是 ComicRuleSourceRuntime 内部章节目录加载边界，只处理 SiteRule-backed source。
 
 /// 中文注释：LoadChaptersError 是 enum，负责本模块中的对应职责。
@@ -39,7 +49,7 @@ struct ComicRuleSourceChapterLoader {
     }
 
     /// 中文注释：execute 方法封装当前类型的一段业务或界面行为。
-    func execute(source: Source, item: ContentItem) async throws -> ChapterDetailContent {
+    func execute(source: Source, item: ContentItem) async throws -> ComicRuleParsedDetail {
         let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(source.rule)
 
         RuleExecutionLogger.log(
@@ -67,7 +77,7 @@ struct ComicRuleSourceChapterLoader {
                 ]
             )
 
-            return ChapterDetailContent(
+            return ComicRuleParsedDetail(
                 chapters: [
                     ChapterLink(
                         title: item.latestText ?? item.title,
@@ -88,7 +98,7 @@ struct ComicRuleSourceChapterLoader {
 
         if let detailRule: DetailRule = resolvedRule.primaryDetailRule,
            self.shouldPreferDetailAPI(detailRule: detailRule),
-           let apiDetail: ChapterDetailContent = try await self.loadDetailAPI(
+           let apiDetail: ComicRuleParsedDetail = try await self.loadDetailAPI(
             source: source,
             item: item,
             detailRule: detailRule,
@@ -134,7 +144,7 @@ struct ComicRuleSourceChapterLoader {
             let validParsedChapters: [ChapterLink] = self.validChapters(parsedChapters)
 
             if self.shouldUseDetailAPI(detailRule: detailRule, parsedChapters: parsedChapters),
-               let apiDetail: ChapterDetailContent = try await self.loadDetailAPI(
+               let apiDetail: ComicRuleParsedDetail = try await self.loadDetailAPI(
                 source: source,
                 item: item,
                 detailRule: detailRule,
@@ -187,7 +197,7 @@ struct ComicRuleSourceChapterLoader {
             )
         }
 
-        return ChapterDetailContent(
+        return ComicRuleParsedDetail(
             chapters: chapters,
             description: description
         )
@@ -210,7 +220,7 @@ struct ComicRuleSourceChapterLoader {
         item: ContentItem,
         detailRule: DetailRule,
         fallbackRequest: RequestConfig?
-    ) async throws -> ChapterDetailContent? {
+    ) async throws -> ComicRuleParsedDetail? {
         guard let apiRule: DetailChapterAPIRule = detailRule.chapterAPI else {
             return nil
         }
@@ -358,7 +368,7 @@ struct ComicRuleSourceChapterLoader {
             return nil
         }
 
-        return ChapterDetailContent(
+        return ComicRuleParsedDetail(
             chapters: outputChapters,
             description: description?.isEmpty == false ? description : nil
         )

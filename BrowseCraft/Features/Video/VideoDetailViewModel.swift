@@ -96,40 +96,26 @@ final class VideoDetailViewModel: ObservableObject {
                 context: self.runtimeContext(operation: .detail)
             )
 
-            if let videoRuntime: any VideoPlaybackRuntimeCapability = runtime as? any VideoPlaybackRuntimeCapability {
-                let content: VideoDetailContent = try await videoRuntime.loadVideoDetailContent(input)
-                self.episodes = content.episodes
-                self.synopsis = content.synopsis
-                self.metadataRows = content.metadataRows
-                #if DEBUG
-                print(
-                    "[BrowseCraftVideoDetail] loadEpisodes video-result " +
-                    "source=\(self.source.id) " +
-                    "episodes=\(content.episodes.count) " +
-                    "firstEpisode=\(content.episodes.first?.id ?? "nil") " +
-                    "hasSynopsis=\(content.synopsis?.isEmpty == false) " +
-                    "metadataRows=\(content.metadataRows.count)"
+            let output: SourceDetailOutput = try await runtime.loadDetail(input)
+            self.episodes = output.chapters.map { chapter in
+                return VideoEpisode(
+                    id: chapter.id,
+                    title: chapter.title,
+                    playPageURL: chapter.url
                 )
-                #endif
-            } else {
-                let output: SourceDetailOutput = try await runtime.loadDetail(input)
-                self.episodes = output.chapters.map { chapter in
-                    return VideoEpisode(
-                        id: chapter.id,
-                        title: chapter.title,
-                        playPageURL: chapter.url
-                    )
-                }
-                self.synopsis = nil
-                self.metadataRows = []
-                #if DEBUG
-                print(
-                    "[BrowseCraftVideoDetail] loadEpisodes fallback-result " +
-                    "source=\(self.source.id) " +
-                    "episodes=\(self.episodes.count)"
-                )
-                #endif
             }
+            self.synopsis = output.metadata?.description
+            self.metadataRows = output.metadata?.attributes.map(\.displayText) ?? []
+            #if DEBUG
+            print(
+                "[BrowseCraftVideoDetail] loadEpisodes runtime-result " +
+                "source=\(self.source.id) " +
+                "episodes=\(self.episodes.count) " +
+                "firstEpisode=\(self.episodes.first?.id ?? "nil") " +
+                "hasSynopsis=\(self.synopsis?.isEmpty == false) " +
+                "metadataRows=\(self.metadataRows.count)"
+            )
+            #endif
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-detail-error")
             AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .detail, errorCode: "video-detail-error")

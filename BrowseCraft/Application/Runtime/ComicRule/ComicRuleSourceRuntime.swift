@@ -101,15 +101,16 @@ struct ComicRuleSourceRuntime: SourceRuntime {
 
         let item: ContentItem = self.contentItem(
             url: input.detailURL,
-            context: input.context
+            context: input.context,
+            reference: input.itemReference
         )
-        let detailContent: ChapterDetailContent = try await self.chapterLoader.execute(
+        let detailContent: ComicRuleParsedDetail = try await self.chapterLoader.execute(
             source: self.source,
             item: item
         )
 
         return self.outputMapper.detailOutput(
-            chapters: detailContent.chapters,
+            detail: detailContent,
             diagnostics: SourceRuntimeDiagnostics.succeeded()
         )
     }
@@ -119,7 +120,8 @@ struct ComicRuleSourceRuntime: SourceRuntime {
 
         let item: ContentItem = self.contentItem(
             url: input.chapterURL,
-            context: input.context
+            context: input.context,
+            reference: input.itemReference
         )
         let chapter: ReaderChapter = try await self.readerLoader.execute(
             source: self.source,
@@ -180,22 +182,39 @@ struct ComicRuleSourceRuntime: SourceRuntime {
         return listTabs.first
     }
 
-    private func contentItem(url: URL, context: SourceRuntimeContext) -> ContentItem {
+    private func contentItem(
+        url: URL,
+        context: SourceRuntimeContext,
+        reference: SourceItemReference?
+    ) -> ContentItem {
         let urlString: String = url.absoluteString
         return ContentItem(
-            id: urlString,
+            id: reference?.id ?? urlString,
             sourceId: self.source.id,
-            title: self.source.name,
-            detailURL: urlString,
-            coverURL: nil,
-            type: .comic,
-            latestText: nil,
+            title: reference?.title ?? self.source.name,
+            detailURL: reference?.detailURL?.absoluteString ?? urlString,
+            coverURL: reference?.coverURL?.absoluteString,
+            type: reference?.contentType ?? .comic,
+            latestText: reference?.latestText,
             listOrder: nil,
-            listContext: self.listContext(from: context)
+            listContext: self.listContext(from: reference?.listContext, fallback: context)
         )
     }
 
-    private func listContext(from context: SourceRuntimeContext) -> ListContext? {
+    private func listContext(
+        from itemContext: SourceItemListContext?,
+        fallback context: SourceRuntimeContext
+    ) -> ListContext? {
+        if let itemContext: SourceItemListContext = itemContext {
+            return ListContext(
+                pageId: itemContext.pageID,
+                tabId: itemContext.tabID,
+                sectionId: itemContext.sectionID,
+                listRuleId: itemContext.ruleID,
+                sectionRole: itemContext.sectionRole.flatMap { SectionRole(rawValue: $0) }
+            )
+        }
+
         guard context.pageID != nil || context.tabID != nil || context.sectionID != nil || context.ruleID != nil else {
             return nil
         }

@@ -264,8 +264,7 @@ final class AppContainer {
     /// 中文注释：makeChapterListViewModel 方法封装当前类型的一段业务或界面行为。
     func makeChapterListViewModel(item: ContentItem, source: Source) -> ChapterListViewModel {
         let loadChaptersUseCase: LoadChaptersUseCase = LoadChaptersUseCase(
-            pageContentLoader: self.pageContentLoader,
-            comicRuleParser: self.comicRuleParser
+            runtimeResolver: self.sourceRuntimeFactory.makeRuntimeResolver()
         )
 
         return ChapterListViewModel(
@@ -284,8 +283,7 @@ final class AppContainer {
         restoreContext: ReaderHistoryRestoreContext? = nil
     ) -> ReaderViewModel {
         let loadReaderChapterUseCase: LoadReaderChapterUseCase = LoadReaderChapterUseCase(
-            pageContentLoader: self.pageContentLoader,
-            comicRuleParser: self.comicRuleParser
+            runtimeResolver: self.sourceRuntimeFactory.makeRuntimeResolver()
         )
         let repository: ComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(
             database: self.database
@@ -386,7 +384,7 @@ final class AppContainer {
             source: source,
             saveRSSReadingHistoryUseCase: saveRSSReadingHistoryUseCase,
             accumulateAdPointsUseCase: accumulateAdPointsUseCase,
-            pageContentLoader: self.pageContentLoader
+            runtimeResolver: self.sourceRuntimeFactory.makeRuntimeResolver()
         )
     }
 

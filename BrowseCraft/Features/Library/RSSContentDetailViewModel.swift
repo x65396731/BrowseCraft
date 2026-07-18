@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import BrowseCraftCore
 
 // 中文注释：RSSContentDetailViewModel 负责 RSS 详情页的业务行为。
 
@@ -17,7 +18,7 @@ final class RSSContentDetailViewModel: ObservableObject {
 
     private let saveRSSReadingHistoryUseCase: SaveRSSReadingHistoryUseCase
     private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
-    private let pageContentLoader: PageContentLoader?
+    private let runtimeResolver: any SourceRuntimeResolving
     private let now: () -> Date
     private var didSaveReadingHistory: Bool = false
     private var didLoadDetailContent: Bool = false
@@ -27,7 +28,7 @@ final class RSSContentDetailViewModel: ObservableObject {
         source: Source,
         saveRSSReadingHistoryUseCase: SaveRSSReadingHistoryUseCase,
         accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil,
-        pageContentLoader: PageContentLoader? = nil,
+        runtimeResolver: any SourceRuntimeResolving,
         now: @escaping () -> Date = Date.init
     ) {
         self.item = item
@@ -35,7 +36,7 @@ final class RSSContentDetailViewModel: ObservableObject {
         self.source = source
         self.saveRSSReadingHistoryUseCase = saveRSSReadingHistoryUseCase
         self.accumulateAdPointsUseCase = accumulateAdPointsUseCase
-        self.pageContentLoader = pageContentLoader
+        self.runtimeResolver = runtimeResolver
         self.now = now
     }
 
@@ -93,20 +94,30 @@ final class RSSContentDetailViewModel: ObservableObject {
 
         self.didLoadDetailContent = true
 
-        guard let pageContentLoader: PageContentLoader = self.pageContentLoader,
-              let detailURL: URL = URL(string: self.item.detailURL) else {
+        guard let detailURL: URL = URL(string: self.item.detailURL) else {
             return
         }
 
         do {
-            let html: String = try await pageContentLoader.getString(from: detailURL, request: nil)
-            let detailContent: RSSDetailHTMLParser.DetailContent = RSSDetailHTMLParser.detailContent(
-                in: html,
-                pageURL: detailURL
+            let runtime: any SourceRuntime = try self.runtimeResolver.runtime(for: self.source)
+            let output: SourceDetailOutput = try await runtime.loadDetail(
+                SourceDetailInput(
+                    detailURL: detailURL,
+                    context: SourceRuntimeContext(
+                        sourceID: self.source.id,
+                        pageID: nil,
+                        tabID: nil,
+                        ruleID: nil,
+                        requestOverride: nil,
+                        debugMode: false,
+                        operation: .detail
+                    )
+                )
             )
-            let blocks: [RSSContentPayload.Block] = detailContent.blocks
+            let detailPayload: SourceRichContent? = output.richContent
+            let blocks: [RSSContentPayload.Block] = detailPayload?.blocks ?? []
             guard blocks.isEmpty == false else {
-                self.logEmptyDetailContent(htmlLength: html.count, url: detailURL)
+                self.logEmptyDetailContent(htmlLength: 0, url: detailURL)
                 return
             }
 
@@ -114,7 +125,7 @@ final class RSSContentDetailViewModel: ObservableObject {
             let rawDetailImageCount: Int = blocks.filter { block in block.kind == .image }.count
             guard self.shouldApplyDetailContent(blocks: blocks, imageCount: rawDetailImageCount) else {
                 self.logSkippedDetailContent(
-                    htmlLength: html.count,
+                    htmlLength: 0,
                     blocks: blocks.count,
                     images: rawDetailImageCount,
                     stage: "raw",
@@ -123,12 +134,13 @@ final class RSSContentDetailViewModel: ObservableObject {
                 return
             }
 
-            let feedPayload: RSSContentPayload? = RSSContentPayload.decode(from: self.item.latestText)
+            let feedPayload: RSSContentPayload? = self.item.richContent
+                ?? RSSContentPayload.decode(from: self.item.latestText)
             let mergedBlocks: [RSSContentPayload.Block] = self.mergedDetailBlocks(blocks)
             let mergedImageCount: Int = mergedBlocks.filter { block in block.kind == .image }.count
             guard self.shouldApplyDetailContent(blocks: mergedBlocks, imageCount: mergedImageCount) else {
                 self.logSkippedDetailContent(
-                    htmlLength: html.count,
+                    htmlLength: 0,
                     blocks: mergedBlocks.count,
                     images: mergedImageCount,
                     stage: "merged",
@@ -140,10 +152,17 @@ final class RSSContentDetailViewModel: ObservableObject {
             let payload: RSSContentPayload = RSSContentPayload(
                 summary: RSSContentTextFormatter.sanitized(self.item.latestText),
                 blocks: mergedBlocks,
-                metadata: self.mergedMetadata(detailContent.metadata, feedMetadata: feedPayload?.metadata),
-                media: self.mergedMedia(detailContent.media, feedMedia: feedPayload?.media, coverURL: updatedItem.coverURL)
+                metadata: self.mergedMetadata(
+                    detailPayload?.metadata ?? RSSContentPayload.Metadata(),
+                    feedMetadata: feedPayload?.metadata
+                ),
+                media: self.mergedMedia(
+                    detailPayload?.media,
+                    feedMedia: feedPayload?.media,
+                    coverURL: updatedItem.coverURL
+                )
             )
-            updatedItem.latestText = payload.encodedString() ?? self.item.latestText
+            updatedItem.richContent = payload
             if self.shouldReplaceCoverURL(updatedItem.coverURL) {
                 updatedItem.coverURL = mergedBlocks.compactMap { block in
                     self.trimmedNonEmpty(block.imageURL)
@@ -155,15 +174,15 @@ final class RSSContentDetailViewModel: ObservableObject {
             print(
                 "[BrowseCraftRSSDetail] loaded detail content " +
                 "itemID=\(self.item.id) " +
-                "htmlLength=\(html.count) " +
+                "runtimeDetail=true " +
                 "blocks=\(mergedBlocks.count) " +
                 "rawImages=\(rawDetailImageCount) " +
                 "images=\(mergedImageCount) " +
                 "latestTextLength=\(updatedItem.latestText?.count ?? 0) " +
                 "cover=\(updatedItem.coverURL ?? "nil") " +
-                "tags=\(detailContent.metadata.tags) " +
-                "likes=\(detailContent.metadata.likeCount.map(String.init) ?? "nil") " +
-                "comments=\(detailContent.metadata.commentCount.map(String.init) ?? "nil") " +
+                "tags=\(detailPayload?.metadata?.tags ?? []) " +
+                "likes=\(detailPayload?.metadata?.likeCount.map(String.init) ?? "nil") " +
+                "comments=\(detailPayload?.metadata?.commentCount.map(String.init) ?? "nil") " +
                 "url=\(detailURL.absoluteString)"
             )
             #endif
@@ -272,7 +291,8 @@ final class RSSContentDetailViewModel: ObservableObject {
             return true
         }
 
-        guard let feedPayload: RSSContentPayload = RSSContentPayload.decode(from: self.item.latestText) else {
+        guard let feedPayload: RSSContentPayload = self.item.richContent
+            ?? RSSContentPayload.decode(from: self.item.latestText) else {
             let filteredDetailBlocks: [RSSContentPayload.Block] = detailTextBlocks + self.deduplicatedImageBlocks(filteredDetailImageBlocks)
             self.logRSSImageFilterSummary(
                 rawDetailBlocks: detailBlocks,

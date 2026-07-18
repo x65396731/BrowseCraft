@@ -108,7 +108,8 @@ struct RSSContentDetailView: View {
 
     @ViewBuilder
     private var articleBody: some View {
-        if let payload: RSSContentPayload = RSSContentPayload.decode(from: self.viewModel.displayItem.latestText),
+        if let payload: RSSContentPayload = self.viewModel.displayItem.richContent
+            ?? RSSContentPayload.decode(from: self.viewModel.displayItem.latestText),
            payload.blocks.isEmpty == false {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(payload.blocks.filter { block in block.kind != .image }.enumerated()), id: \.element.id) { index, block in
@@ -320,7 +321,8 @@ struct RSSContentDetailView: View {
 
         append(self.viewModel.displayItem.coverURL)
 
-        if let payload: RSSContentPayload = RSSContentPayload.decode(from: self.viewModel.displayItem.latestText) {
+        if let payload: RSSContentPayload = self.viewModel.displayItem.richContent
+            ?? RSSContentPayload.decode(from: self.viewModel.displayItem.latestText) {
             for block in payload.blocks where block.kind == .image {
                 append(block.imageURL)
             }
@@ -508,7 +510,8 @@ struct RSSContentDetailView: View {
     }
 
     private var rssMedia: RSSContentPayload.Media? {
-        return RSSContentPayload.decode(from: self.viewModel.displayItem.latestText)?.media
+        return (self.viewModel.displayItem.richContent
+            ?? RSSContentPayload.decode(from: self.viewModel.displayItem.latestText))?.media
     }
 
     private var originalURL: URL? {

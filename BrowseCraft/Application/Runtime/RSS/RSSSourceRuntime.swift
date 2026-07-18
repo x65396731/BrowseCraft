@@ -6,35 +6,45 @@ struct RSSSourceRuntime: SourceRuntime {
     let definition: SourceDefinition
 
     private let feedLoader: any RSSFeedLoading
+    private let pageContentLoader: PageContentLoader?
     private let mediaClassifier: RSSMediaClassifier = RSSMediaClassifier()
 
     init(
         definition: SourceDefinition,
-        feedLoader: any RSSFeedLoading
+        feedLoader: any RSSFeedLoading,
+        pageContentLoader: PageContentLoader? = nil
     ) {
         self.definition = definition
         self.feedLoader = feedLoader
+        self.pageContentLoader = pageContentLoader
     }
 
     var capabilities: SourceRuntimeCapabilities {
+        let supportsDetail: Bool = self.pageContentLoader != nil
+        var limitations: [SourceRuntimeCapabilityLimitation] = [
+            self.limitation(.search, "RSS MVP does not support search."),
+            self.limitation(.pagination, "RSS MVP does not support pagination."),
+            self.limitation(.reader, "RSS MVP does not support reader output."),
+            self.limitation(.debug, "RSS runtime diagnostics are not available."),
+            self.limitation(.candidateAnalysis, "RSS feeds use a fixed XML schema and do not run selector candidate analysis.")
+        ]
+        if supportsDetail == false {
+            limitations.append(
+                self.limitation(.detail, "RSS detail page loader is not connected.")
+            )
+        }
+
         return SourceRuntimeCapabilities(
             supportsSearch: false,
             supportsPagination: false,
-            supportsDetail: false,
+            supportsDetail: supportsDetail,
             supportsReader: false,
             supportsDebug: false,
             supportsCandidateAnalysis: false,
             requiresWebView: false,
             requiresCookieStore: false,
             requiresAccount: self.definition.rss?.requiresAccount ?? false,
-            limitations: [
-                self.limitation(.search, "RSS MVP does not support search."),
-                self.limitation(.pagination, "RSS MVP does not support pagination."),
-                self.limitation(.detail, "RSS MVP exposes feed item links but does not load detail pages."),
-                self.limitation(.reader, "RSS MVP does not support reader output."),
-                self.limitation(.debug, "RSS runtime diagnostics are not available."),
-                self.limitation(.candidateAnalysis, "RSS feeds use a fixed XML schema and do not run selector candidate analysis.")
-            ]
+            limitations: limitations
         )
     }
 
@@ -93,7 +103,44 @@ struct RSSSourceRuntime: SourceRuntime {
     }
 
     func loadDetail(_ input: SourceDetailInput) async throws -> SourceDetailOutput {
-        throw SourceRuntimeError.unsupported(.custom("RSS MVP does not support detail loading."))
+        try self.validateSource(input.context)
+        guard let pageContentLoader: PageContentLoader = self.pageContentLoader else {
+            throw SourceRuntimeError.unsupported(.custom("RSS detail page loader is not connected."))
+        }
+        let html: String = try await pageContentLoader.getString(
+            from: input.detailURL,
+            request: nil,
+            context: SourceRequestContext(
+                sourceID: self.definition.id,
+                baseURL: self.definition.baseURL,
+                purpose: .rss,
+                refererURL: input.detailURL
+            )
+        )
+        let detail: RSSDetailHTMLParser.DetailContent = RSSDetailHTMLParser.detailContent(
+            in: html,
+            pageURL: input.detailURL
+        )
+        let richContent: SourceRichContent? = detail.blocks.isEmpty && detail.media == nil
+            ? nil
+            : SourceRichContent(
+                summary: nil,
+                blocks: detail.blocks,
+                metadata: detail.metadata,
+                media: detail.media
+            )
+
+        return SourceDetailOutput(
+            metadata: SourceDetailMetadata(tags: detail.metadata.tags),
+            richContent: richContent,
+            chapters: [],
+            diagnostics: SourceRuntimeDiagnostics.succeeded(
+                context: SourceRuntimeDiagnosticContext(
+                    runtimeContext: input.context,
+                    requestURL: input.detailURL
+                )
+            )
+        )
     }
 
     func loadReader(_ input: SourceReaderInput) async throws -> SourceReaderOutput {
@@ -118,7 +165,8 @@ struct RSSSourceRuntime: SourceRuntime {
                 detailURL: item.link,
                 coverURL: item.coverURL,
                 latestText: self.latestText(from: item),
-                updatedAt: item.publishedAt
+                updatedAt: item.publishedAt,
+                richContent: self.richContent(from: item)
             )
         }
     }
@@ -140,6 +188,10 @@ struct RSSSourceRuntime: SourceRuntime {
     }
 
     private func latestText(from item: RSSFeedItem) -> String? {
+        return Self.plainText(from: item.summary)
+    }
+
+    private func richContent(from item: RSSFeedItem) -> RSSContentPayload? {
         let media: RSSContentPayload.Media? = self.mediaClassifier.resolvedMedia(
             feedMedia: item.media,
             link: item.link,
@@ -152,12 +204,10 @@ struct RSSSourceRuntime: SourceRuntime {
                 blocks: item.contentBlocks,
                 media: media
             )
-            if let encodedString: String = payload.encodedString() {
-                return encodedString
-            }
+            return payload
         }
 
-        return Self.plainText(from: item.summary)
+        return nil
     }
 
     private func validateSource(_ context: SourceRuntimeContext) throws {
