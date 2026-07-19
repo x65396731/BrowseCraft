@@ -17,18 +17,80 @@ struct VideoRuleParsedList: Hashable {
     var droppedCount: Int
 }
 
+/// 中文注释：详情 metadata 保留规则字段 id，P1-4 再映射到 Core SourceDetailMetadata。
+struct VideoRuleParsedDetailAttribute: Hashable {
+    var id: String
+    var label: String?
+    var value: String
+}
+
+struct VideoRuleParsedDetailMetadata: Hashable {
+    var idCode: String?
+    var title: String?
+    var coverURL: URL?
+    var description: String?
+    var attributes: [VideoRuleParsedDetailAttribute]
+}
+
+/// 中文注释：readyMatched=false 表示 DOM 分支合法地产生 empty，供后续 sourceStrategy 决定是否 fallback。
+struct VideoRuleParsedDetail: Hashable {
+    var metadata: VideoRuleParsedDetailMetadata
+    var readyMatched: Bool
+}
+
+struct VideoRuleParsedEpisode: Hashable {
+    var idCode: String?
+    var title: String
+    var playURL: URL
+    var order: Double?
+    var isRestricted: Bool?
+    var isPaid: Bool?
+}
+
+struct VideoRuleParsedEpisodeGroup: Hashable {
+    var idCode: String?
+    var title: String?
+    var episodes: [VideoRuleParsedEpisode]
+    var candidateCount: Int
+    var droppedCount: Int
+}
+
+struct VideoRuleParsedEpisodes: Hashable {
+    var groups: [VideoRuleParsedEpisodeGroup]
+    var readyMatched: Bool
+    var candidateCount: Int
+    var droppedCount: Int
+
+    var episodes: [VideoRuleParsedEpisode] {
+        return self.groups.flatMap(\.episodes)
+    }
+}
+
 protocol VideoRuleSourceParsingService {
     func parseList(
         html: String,
         pageURL: URL,
         rule: VideoListRule
     ) throws -> VideoRuleParsedList
+
+    func parseDetail(
+        html: String,
+        pageURL: URL,
+        rule: VideoDetailRule
+    ) throws -> VideoRuleParsedDetail
+
+    func parseEpisodes(
+        html: String,
+        pageURL: URL,
+        rule: VideoEpisodeRule
+    ) throws -> VideoRuleParsedEpisodes
 }
 
 enum VideoRuleSourceParsingError: LocalizedError {
     case unsupportedSelectorKind(SelectorKind)
     case unsupportedFunction(ExtractFunction)
     case readySelectorEmpty(ruleID: String)
+    case incompleteDOMRule(kind: String, ruleID: String)
 
     var errorDescription: String? {
         switch self {
@@ -38,6 +100,8 @@ enum VideoRuleSourceParsingError: LocalizedError {
             return "Video V2 parser does not support function=\(function.rawValue)."
         case .readySelectorEmpty(let ruleID):
             return "Video V2 list readiness selector produced no output for rule \(ruleID)."
+        case .incompleteDOMRule(let kind, let ruleID):
+            return "Video V2 \(kind) DOM rule is incomplete: \(ruleID)."
         }
     }
 }

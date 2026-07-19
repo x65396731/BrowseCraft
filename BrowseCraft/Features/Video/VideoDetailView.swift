@@ -130,10 +130,21 @@ struct VideoDetailView: View {
                         },
                         label: {
                             HStack(spacing: 12) {
-                                Text(episode.title)
-                                    .font(.body)
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(2)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(episode.title)
+                                        .font(.body)
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(2)
+
+                                    if let sourceName: String = episode.sourceName?.trimmingCharacters(
+                                        in: .whitespacesAndNewlines
+                                    ), sourceName.isEmpty == false {
+                                        Text(sourceName)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                    }
+                                }
 
                                 Spacer(minLength: 12)
 

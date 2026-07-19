@@ -30,7 +30,8 @@ struct SourceItemReferenceMapper {
             },
             handoffIntent: intent,
             requestOverride: requestOverride,
-            runtimeContext: runtimeContext
+            runtimeContext: runtimeContext,
+            idCode: item.idCode
         )
     }
 

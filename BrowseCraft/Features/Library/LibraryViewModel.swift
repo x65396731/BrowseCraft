@@ -387,6 +387,7 @@ final class LibraryViewModel: ObservableObject {
             let source: Source? = self.source(for: item.sourceId)
             let favoriteItem: FavoriteContentItem = FavoriteContentItem(
                 id: item.id,
+                idCode: item.idCode,
                 sourceID: item.sourceId,
                 title: item.title,
                 detailURL: item.detailURL,
@@ -1066,6 +1067,7 @@ final class LibraryViewModel: ObservableObject {
         return output.items.enumerated().map { index, item in
             return ContentItem(
                 id: item.id,
+                idCode: item.idCode,
                 sourceId: source.id,
                 title: item.title,
                 detailURL: item.detailURL?.absoluteString ?? item.id,

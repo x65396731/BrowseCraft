@@ -8,6 +8,11 @@ final class SwiftSoupVideoRuleSourceParser: VideoRuleSourceParsingService {
         pageURL: URL,
         rule: VideoListRule
     ) throws -> VideoRuleParsedList {
+        guard rule.effectiveSourceStrategy.usesDOM,
+              let itemRule: ExtractRule = rule.item,
+              let fields: VideoListFields = rule.fields else {
+            throw VideoRuleSourceParsingError.incompleteDOMRule(kind: "list", ruleID: rule.id)
+        }
         let document: Document = try SwiftSoup.parse(html, pageURL.absoluteString)
 
         if let readyRule: ExtractRule = rule.ready {
@@ -21,7 +26,7 @@ final class SwiftSoupVideoRuleSourceParser: VideoRuleSourceParsingService {
             }
         }
 
-        let candidates: [Element] = try self.selectedElements(from: document, rule: rule.item)
+        let candidates: [Element] = try self.selectedElements(from: document, rule: itemRule)
         var items: [VideoRuleParsedListItem] = []
         var seenDetailURLs: Set<String> = []
         var droppedCount: Int = 0
@@ -29,12 +34,12 @@ final class SwiftSoupVideoRuleSourceParser: VideoRuleSourceParsingService {
         for candidate: Element in candidates {
             let title: String = try self.extract(
                 from: candidate,
-                rule: rule.fields.title,
+                rule: fields.title,
                 pageURL: pageURL
             ).trimmingCharacters(in: .whitespacesAndNewlines)
             let detailURLString: String = try self.extract(
                 from: candidate,
-                rule: rule.fields.detailURL,
+                rule: fields.detailURL,
                 pageURL: pageURL
             ).trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -45,10 +50,10 @@ final class SwiftSoupVideoRuleSourceParser: VideoRuleSourceParsingService {
                 continue
             }
 
-            let idCode: String? = try rule.fields.idCode.flatMap { idRule in
+            let idCode: String? = try fields.idCode.flatMap { idRule in
                 return try self.optionalExtract(from: candidate, rule: idRule, pageURL: pageURL)
             }
-            let coverURL: URL? = try rule.fields.cover.flatMap { coverRule in
+            let coverURL: URL? = try fields.cover.flatMap { coverRule in
                 guard let value: String = try self.optionalExtract(
                     from: candidate,
                     rule: coverRule,
@@ -58,7 +63,7 @@ final class SwiftSoupVideoRuleSourceParser: VideoRuleSourceParsingService {
                 }
                 return self.absoluteHTTPURL(value, relativeTo: pageURL)
             }
-            let latestText: String? = try rule.fields.latestText.flatMap { latestRule in
+            let latestText: String? = try fields.latestText.flatMap { latestRule in
                 return try self.optionalExtract(from: candidate, rule: latestRule, pageURL: pageURL)
             }
 
@@ -78,6 +83,295 @@ final class SwiftSoupVideoRuleSourceParser: VideoRuleSourceParsingService {
             candidateCount: candidates.count,
             droppedCount: droppedCount
         )
+    }
+
+    func parseDetail(
+        html: String,
+        pageURL: URL,
+        rule: VideoDetailRule
+    ) throws -> VideoRuleParsedDetail {
+        guard rule.effectiveSourceStrategy.usesDOM,
+              let fields: VideoDetailFields = rule.fields else {
+            throw VideoRuleSourceParsingError.incompleteDOMRule(kind: "detail", ruleID: rule.id)
+        }
+        let document: Document = try SwiftSoup.parse(html, pageURL.absoluteString)
+        guard try self.readyMatched(in: document, rule: rule.ready, pageURL: pageURL) else {
+            return VideoRuleParsedDetail(
+                metadata: VideoRuleParsedDetailMetadata(
+                    idCode: nil,
+                    title: nil,
+                    coverURL: nil,
+                    description: nil,
+                    attributes: []
+                ),
+                readyMatched: false
+            )
+        }
+
+        let idCode: String? = try fields.idCode.flatMap { fieldRule in
+            return try self.optionalExtract(from: document, rule: fieldRule, pageURL: pageURL)
+        }
+        let title: String? = try self.optionalExtract(
+            from: document,
+            rule: fields.title,
+            pageURL: pageURL
+        )
+        let coverURL: URL? = try fields.cover.flatMap { fieldRule in
+            guard let value: String = try self.optionalExtract(
+                from: document,
+                rule: fieldRule,
+                pageURL: pageURL
+            ) else {
+                return nil
+            }
+            return self.absoluteHTTPURL(value, relativeTo: pageURL)
+        }
+        let description: String? = try fields.description.flatMap { fieldRule in
+            return try self.optionalExtract(from: document, rule: fieldRule, pageURL: pageURL)
+        }
+        let attributes: [VideoRuleParsedDetailAttribute] = try (fields.metadata ?? []).compactMap { field in
+            guard let value: String = try self.optionalExtract(
+                from: document,
+                rule: field.value,
+                pageURL: pageURL
+            ) else {
+                return nil
+            }
+            return VideoRuleParsedDetailAttribute(
+                id: field.id,
+                label: self.nonEmpty(field.label),
+                value: value
+            )
+        }
+
+        return VideoRuleParsedDetail(
+            metadata: VideoRuleParsedDetailMetadata(
+                idCode: idCode,
+                title: title,
+                coverURL: coverURL,
+                description: description,
+                attributes: attributes
+            ),
+            readyMatched: true
+        )
+    }
+
+    func parseEpisodes(
+        html: String,
+        pageURL: URL,
+        rule: VideoEpisodeRule
+    ) throws -> VideoRuleParsedEpisodes {
+        guard rule.effectiveSourceStrategy.usesDOM,
+              let itemRule: ExtractRule = rule.item,
+              let fields: VideoEpisodeFields = rule.fields else {
+            throw VideoRuleSourceParsingError.incompleteDOMRule(kind: "episode", ruleID: rule.id)
+        }
+        let document: Document = try SwiftSoup.parse(html, pageURL.absoluteString)
+        guard try self.readyMatched(in: document, rule: rule.ready, pageURL: pageURL) else {
+            return VideoRuleParsedEpisodes(
+                groups: [],
+                readyMatched: false,
+                candidateCount: 0,
+                droppedCount: 0
+            )
+        }
+
+        let groups: [VideoRuleParsedEpisodeGroup]
+        if let groupRule: VideoEpisodeGroupDOMRule = rule.group {
+            let groupElements: [Element] = try self.selectedElements(
+                from: document,
+                rule: groupRule.item
+            )
+            groups = try groupElements.map { groupElement in
+                return try self.parseEpisodeGroup(
+                    in: groupElement,
+                    groupRule: groupRule,
+                    itemRule: itemRule,
+                    fields: fields,
+                    sort: rule.sort,
+                    pageURL: pageURL
+                )
+            }
+        } else {
+            groups = [
+                try self.parseEpisodeGroup(
+                    in: document,
+                    groupRule: nil,
+                    itemRule: itemRule,
+                    fields: fields,
+                    sort: rule.sort,
+                    pageURL: pageURL
+                )
+            ]
+        }
+
+        return VideoRuleParsedEpisodes(
+            groups: groups,
+            readyMatched: true,
+            candidateCount: groups.reduce(0) { $0 + $1.candidateCount },
+            droppedCount: groups.reduce(0) { $0 + $1.droppedCount }
+        )
+    }
+
+    private func parseEpisodeGroup(
+        in container: Element,
+        groupRule: VideoEpisodeGroupDOMRule?,
+        itemRule: ExtractRule,
+        fields: VideoEpisodeFields,
+        sort: VideoEpisodeSort?,
+        pageURL: URL
+    ) throws -> VideoRuleParsedEpisodeGroup {
+        let groupIDCode: String? = try groupRule.flatMap { groupRule in
+            return try groupRule.idCode.flatMap { fieldRule in
+                return try self.optionalExtract(from: container, rule: fieldRule, pageURL: pageURL)
+            }
+        }
+        let groupTitle: String? = try groupRule.flatMap { groupRule in
+            return try groupRule.title.flatMap { fieldRule in
+                return try self.optionalExtract(from: container, rule: fieldRule, pageURL: pageURL)
+            }
+        }
+        let candidates: [Element] = try self.selectedElements(from: container, rule: itemRule)
+        var episodes: [VideoRuleParsedEpisode] = []
+        var seenPlayURLs: Set<String> = []
+        var droppedCount: Int = 0
+
+        for candidate: Element in candidates {
+            let title: String = try self.extract(
+                from: candidate,
+                rule: fields.title,
+                pageURL: pageURL
+            ).trimmingCharacters(in: .whitespacesAndNewlines)
+            let playURLValue: String = try self.extract(
+                from: candidate,
+                rule: fields.playURL,
+                pageURL: pageURL
+            ).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard title.isEmpty == false,
+                  let playURL: URL = self.absoluteHTTPURL(playURLValue, relativeTo: pageURL),
+                  seenPlayURLs.insert(self.canonicalURLKey(playURL)).inserted else {
+                droppedCount += 1
+                continue
+            }
+
+            let idCode: String? = try fields.idCode.flatMap { fieldRule in
+                return try self.optionalExtract(from: candidate, rule: fieldRule, pageURL: pageURL)
+            }
+            let order: Double? = try fields.order.flatMap { fieldRule in
+                guard let value: String = try self.optionalExtract(
+                    from: candidate,
+                    rule: fieldRule,
+                    pageURL: pageURL
+                ) else {
+                    return nil
+                }
+                return Double(value)
+            }
+            let isRestricted: Bool? = try self.scalarMatch(
+                from: candidate,
+                rule: fields.restriction,
+                pageURL: pageURL
+            )
+            let isPaid: Bool? = try self.scalarMatch(
+                from: candidate,
+                rule: fields.paid,
+                pageURL: pageURL
+            )
+
+            episodes.append(
+                VideoRuleParsedEpisode(
+                    idCode: idCode,
+                    title: title,
+                    playURL: playURL,
+                    order: order,
+                    isRestricted: isRestricted,
+                    isPaid: isPaid
+                )
+            )
+        }
+
+        return VideoRuleParsedEpisodeGroup(
+            idCode: groupIDCode,
+            title: groupTitle,
+            episodes: self.sortedEpisodes(episodes, sort: sort),
+            candidateCount: candidates.count,
+            droppedCount: droppedCount
+        )
+    }
+
+    private func scalarMatch(
+        from element: Element,
+        rule: VideoDOMScalarMatchRule?,
+        pageURL: URL
+    ) throws -> Bool? {
+        guard let rule: VideoDOMScalarMatchRule,
+              let value: String = try self.optionalExtract(
+                  from: element,
+                  rule: rule.value,
+                  pageURL: pageURL
+              ) else {
+            return nil
+        }
+        let normalizedValues: Set<String> = Set(rule.matchingValues.compactMap { self.nonEmpty($0) })
+        return normalizedValues.contains(value)
+    }
+
+    private func sortedEpisodes(
+        _ episodes: [VideoRuleParsedEpisode],
+        sort: VideoEpisodeSort?
+    ) -> [VideoRuleParsedEpisode] {
+        guard let sort: VideoEpisodeSort, sort != .source else {
+            return episodes
+        }
+        return episodes.enumerated().sorted { lhs, rhs in
+            switch (lhs.element.order, rhs.element.order) {
+            case let (left?, right?):
+                if left == right {
+                    return lhs.offset < rhs.offset
+                }
+                return sort == .ascending ? left < right : left > right
+            case (.some, nil):
+                return true
+            case (nil, .some):
+                return false
+            case (nil, nil):
+                return lhs.offset < rhs.offset
+            }
+        }.map(\.element)
+    }
+
+    private func readyMatched(
+        in document: Document,
+        rule: ExtractRule?,
+        pageURL: URL
+    ) throws -> Bool {
+        guard let rule: ExtractRule else {
+            return true
+        }
+        return try self.extract(from: document, rule: rule, pageURL: pageURL)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .isEmpty == false
+    }
+
+    private func canonicalURLKey(_ url: URL) -> String {
+        guard var components: URLComponents = URLComponents(
+            url: url,
+            resolvingAgainstBaseURL: false
+        ) else {
+            return url.absoluteString
+        }
+        components.scheme = components.scheme?.lowercased()
+        components.host = components.host?.lowercased()
+        components.fragment = nil
+        return components.string ?? url.absoluteString
+    }
+
+    private func nonEmpty(_ value: String?) -> String? {
+        guard let normalized: String = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              normalized.isEmpty == false else {
+            return nil
+        }
+        return normalized
     }
 
     private func optionalExtract(

@@ -12,6 +12,7 @@ enum FavoriteContentKind: String, Codable, Hashable {
 /// 中文注释：收藏页依赖这里的快照字段直接展示内容，不反查当前列表状态。
 struct FavoriteContentItem: Identifiable, Hashable, Codable {
     var id: String
+    var idCode: String? = nil
     var sourceID: String
     var title: String
     var detailURL: String
@@ -37,6 +38,7 @@ struct FavoriteContentItem: Identifiable, Hashable, Codable {
 
         return ContentItem(
             id: self.id,
+            idCode: self.idCode,
             sourceId: self.sourceID,
             title: self.title,
             detailURL: self.detailURL,

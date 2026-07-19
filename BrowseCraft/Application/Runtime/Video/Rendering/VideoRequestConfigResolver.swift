@@ -118,7 +118,7 @@ struct VideoRequestConfigResolver {
                 return SourceRuntimeError.unsupported(
                     .custom("video.blockedByAntiBot: \(url.absoluteString)")
                 )
-            case .network, .accessRequired, .selectorEmpty, .ruleConfiguration, .apiResponseContract, .sourceAPI, .protectedResource, .parserDiagnostics, .unknown:
+            case .network, .accessRequired, .selectorEmpty, .ruleConfiguration, .responseContract, .apiResponseContract, .sourceAPI, .protectedResource, .parserDiagnostics, .unknown:
                 return error
             }
         }

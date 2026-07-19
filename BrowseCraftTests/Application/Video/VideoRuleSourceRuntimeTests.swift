@@ -4,6 +4,23 @@ import BrowseCraftCore
 @testable import BrowseCraft
 
 struct VideoRuleSourceRuntimeTests {
+    @Test func videoRuleAPIPathResolverPreservesAllFiveArrayStates() {
+        let json: [String: Any] = [
+            "data": [
+                "nullItems": NSNull(),
+                "objectItems": ["id": "wrong-shape"],
+                "emptyItems": [],
+                "items": [["id": "movie-1"]]
+            ]
+        ]
+
+        #expect(VideoRuleAPIResolver.arrayResolution(at: "data.missingItems[]", in: json).state == .missing)
+        #expect(VideoRuleAPIResolver.arrayResolution(at: "data.nullItems[]", in: json).state == .null)
+        #expect(VideoRuleAPIResolver.arrayResolution(at: "data.objectItems[]", in: json).state == .typeMismatch)
+        #expect(VideoRuleAPIResolver.arrayResolution(at: "data.emptyItems[]", in: json).state == .empty)
+        #expect(VideoRuleAPIResolver.arrayResolution(at: "data.items[]", in: json).state == .nonEmpty)
+    }
+
     @Test func swiftSoupVideoRuleParserExecutesStructuredExtractRules() throws {
         let parser: SwiftSoupVideoRuleSourceParser = SwiftSoupVideoRuleSourceParser()
         let rule: VideoListRule = Self.listRule()
@@ -44,6 +61,187 @@ struct VideoRuleSourceRuntimeTests {
             "https://cdn.example.invalid/two.jpg"
         ])
         #expect(result.items.map(\.latestText) == ["Episode 1", nil])
+    }
+
+    @Test func swiftSoupVideoRuleParserMapsDetailMetadata() throws {
+        let parser: SwiftSoupVideoRuleSourceParser = SwiftSoupVideoRuleSourceParser()
+        let html: String = """
+        <main class="detail-ready" data-id="movie-7">
+          <h1>Movie Seven</h1>
+          <img class="poster" src="/covers/movie-7.jpg">
+          <p class="summary">A structured detail description.</p>
+          <span class="director">Director Seven</span>
+        </main>
+        """
+        let rule = VideoDetailRule(
+            id: "video-detail",
+            fields: VideoDetailFields(
+                idCode: ExtractRule(
+                    selector: ".detail-ready",
+                    selectorKind: .css,
+                    function: .attr,
+                    param: "data-id"
+                ),
+                title: ExtractRule(selector: "h1", selectorKind: .css, function: .text),
+                cover: ExtractRule(
+                    selector: ".poster",
+                    selectorKind: .css,
+                    function: .url,
+                    param: "src"
+                ),
+                description: ExtractRule(
+                    selector: ".summary",
+                    selectorKind: .css,
+                    function: .text
+                ),
+                metadata: [
+                    VideoDetailMetadataFieldRule(
+                        id: "director",
+                        label: "Director",
+                        value: ExtractRule(
+                            selector: ".director",
+                            selectorKind: .css,
+                            function: .text
+                        )
+                    )
+                ]
+            ),
+            ready: ExtractRule(selector: ".detail-ready", selectorKind: .css, function: .raw)
+        )
+
+        let result: VideoRuleParsedDetail = try parser.parseDetail(
+            html: html,
+            pageURL: try #require(URL(string: "https://video.example.invalid/detail/movie-7")),
+            rule: rule
+        )
+
+        #expect(result.readyMatched)
+        #expect(result.metadata.idCode == "movie-7")
+        #expect(result.metadata.title == "Movie Seven")
+        #expect(result.metadata.coverURL?.absoluteString == "https://video.example.invalid/covers/movie-7.jpg")
+        #expect(result.metadata.description == "A structured detail description.")
+        #expect(result.metadata.attributes == [
+            VideoRuleParsedDetailAttribute(id: "director", label: "Director", value: "Director Seven")
+        ])
+    }
+
+    @Test func swiftSoupVideoRuleParserPreservesDetailReadyEmptyState() throws {
+        let parser: SwiftSoupVideoRuleSourceParser = SwiftSoupVideoRuleSourceParser()
+        let rule = VideoDetailRule(
+            id: "video-detail",
+            fields: VideoDetailFields(
+                title: ExtractRule(selector: "h1", selectorKind: .css, function: .text)
+            ),
+            ready: ExtractRule(selector: ".detail-ready", selectorKind: .css, function: .raw)
+        )
+
+        let result: VideoRuleParsedDetail = try parser.parseDetail(
+            html: "<main><h1>Shell title</h1></main>",
+            pageURL: try #require(URL(string: "https://video.example.invalid/detail/shell")),
+            rule: rule
+        )
+
+        #expect(result.readyMatched == false)
+        #expect(result.metadata.title == nil)
+        #expect(result.metadata.attributes.isEmpty)
+    }
+
+    @Test func swiftSoupVideoRuleParserMapsAndSortsFlatEpisodes() throws {
+        let parser: SwiftSoupVideoRuleSourceParser = SwiftSoupVideoRuleSourceParser()
+        let html: String = """
+        <main class="episode-ready">
+          <a class="episode" href="/play/2" data-id="ep-2" data-order="2" data-paid="yes">
+            <span class="title">Episode 2</span>
+          </a>
+          <a class="episode" href="/play/1" data-id="ep-1" data-order="1" data-restricted="blocked">
+            <span class="title">Episode 1</span>
+          </a>
+          <a class="episode" href="/play/bonus" data-id="bonus">
+            <span class="title">Bonus</span>
+          </a>
+          <a class="episode" href="/play/1#duplicate" data-id="duplicate" data-order="3">
+            <span class="title">Duplicate</span>
+          </a>
+        </main>
+        """
+        let currentAttribute: (String) -> ExtractRule = { attribute in
+            return ExtractRule(selectorKind: .current, function: .attr, param: attribute)
+        }
+        let rule = VideoEpisodeRule(
+            id: "video-episodes",
+            item: ExtractRule(selector: ".episode", selectorKind: .css, function: .raw),
+            fields: VideoEpisodeFields(
+                idCode: currentAttribute("data-id"),
+                title: ExtractRule(selector: ".title", selectorKind: .css, function: .text),
+                playURL: ExtractRule(selectorKind: .current, function: .url, param: "href"),
+                order: currentAttribute("data-order"),
+                restriction: VideoDOMScalarMatchRule(
+                    value: currentAttribute("data-restricted"),
+                    matchingValues: ["blocked"]
+                ),
+                paid: VideoDOMScalarMatchRule(
+                    value: currentAttribute("data-paid"),
+                    matchingValues: ["yes"]
+                )
+            ),
+            ready: ExtractRule(selector: ".episode-ready", selectorKind: .css, function: .raw),
+            sort: .ascending
+        )
+
+        let result: VideoRuleParsedEpisodes = try parser.parseEpisodes(
+            html: html,
+            pageURL: try #require(URL(string: "https://video.example.invalid/detail/movie-7")),
+            rule: rule
+        )
+
+        #expect(result.readyMatched)
+        #expect(result.groups.count == 1)
+        #expect(result.candidateCount == 4)
+        #expect(result.droppedCount == 1)
+        #expect(result.episodes.map(\.title) == ["Episode 1", "Episode 2", "Bonus"])
+        #expect(result.episodes.map(\.order) == [1, 2, nil])
+        #expect(result.episodes.map(\.isRestricted) == [true, nil, nil])
+        #expect(result.episodes.map(\.isPaid) == [nil, true, nil])
+    }
+
+    @Test func swiftSoupVideoRuleParserScopesEpisodesWithinRouteGroups() throws {
+        let parser: SwiftSoupVideoRuleSourceParser = SwiftSoupVideoRuleSourceParser()
+        let html: String = """
+        <section class="route" data-route="route-a">
+          <h2>Route A</h2>
+          <a class="episode" href="/route-a/episode-1">Episode 1</a>
+        </section>
+        <section class="route" data-route="route-b">
+          <h2>Route B</h2>
+          <a class="episode" href="/route-b/episode-1">Episode 1</a>
+        </section>
+        """
+        let rule = VideoEpisodeRule(
+            id: "grouped-episodes",
+            group: VideoEpisodeGroupDOMRule(
+                item: ExtractRule(selector: ".route", selectorKind: .css, function: .raw),
+                idCode: ExtractRule(selectorKind: .current, function: .attr, param: "data-route"),
+                title: ExtractRule(selector: "h2", selectorKind: .css, function: .text)
+            ),
+            item: ExtractRule(selector: ".episode", selectorKind: .css, function: .raw),
+            fields: VideoEpisodeFields(
+                title: ExtractRule(selectorKind: .current, function: .text),
+                playURL: ExtractRule(selectorKind: .current, function: .url, param: "href")
+            )
+        )
+
+        let result: VideoRuleParsedEpisodes = try parser.parseEpisodes(
+            html: html,
+            pageURL: try #require(URL(string: "https://video.example.invalid/detail/movie-7")),
+            rule: rule
+        )
+
+        #expect(result.groups.map(\.idCode) == ["route-a", "route-b"])
+        #expect(result.groups.map(\.title) == ["Route A", "Route B"])
+        #expect(result.groups.map { $0.episodes.first?.playURL.absoluteString } == [
+            "https://video.example.invalid/route-a/episode-1",
+            "https://video.example.invalid/route-b/episode-1"
+        ])
     }
 
     @Test func videoRuleListLoaderUsesResolvedPageAndRuleRequest() async throws {
@@ -95,8 +293,152 @@ struct VideoRuleSourceRuntimeTests {
         #expect(parser.lastRule?.id == "video-list")
         #expect(output.items.map(\.title) == ["Movie One"])
         #expect(output.items.first?.id == "catalog.video.v2.video.v2.movie-1")
+        #expect(output.items.first?.idCode == "movie-1")
         #expect(output.pagination == nil)
         #expect(output.diagnostics.extractionLogs.first?.candidateCount == 1)
+    }
+
+    @Test func videoRuleListAPILoaderMapsSortsAndResolvesRelativeOutputURLs() async throws {
+        let pageLoader = RecordingVideoRulePageContentLoader(
+            html: """
+            {"data":{"items":[
+              {"id":"movie-2","slug":"movie-2","title":"Movie Two","cover":"../covers/two.jpg","order":2},
+              {"id":"movie-1","slug":"movie-1","title":"Movie One","cover":"../covers/one.jpg","order":1}
+            ]}}
+            """
+        )
+        let parser = RecordingVideoRuleParser(result: try Self.parsedListResult())
+        let rule: VideoSiteRule = Self.apiListSiteRule(strategy: .apiOnly)
+        let source: Source = Self.source(rule: rule)
+        let runtime = VideoRuleSourceRuntime(
+            source: source,
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            listLoader: VideoRuleSourceListLoader(pageContentLoader: pageLoader, parser: parser)
+        )
+
+        let output: SourceListOutput = try await runtime.loadList(
+            SourceListInput(
+                page: 1,
+                urlOverride: nil,
+                context: Self.context(sourceID: source.id, pageID: "latest", ruleID: "video-list")
+            )
+        )
+
+        #expect(pageLoader.urls.map(\.absoluteString) == ["https://video.example.invalid/api/list"])
+        #expect(pageLoader.lastRequest?.headers?["X-List-API"] == "api")
+        #expect(output.items.map(\.idCode) == ["movie-1", "movie-2"])
+        #expect(output.items.map(\.title) == ["Movie One", "Movie Two"])
+        #expect(output.items.map { $0.detailURL?.absoluteString } == [
+            "https://video.example.invalid/detail/movie-1",
+            "https://video.example.invalid/detail/movie-2"
+        ])
+        #expect(output.items.map { $0.coverURL?.absoluteString } == [
+            "https://video.example.invalid/covers/one.jpg",
+            "https://video.example.invalid/covers/two.jpg"
+        ])
+        #expect(parser.lastRule == nil)
+    }
+
+    @Test func videoRuleListAPIFallsBackToDOMOnlyForExplicitEmptyArray() async throws {
+        let pageLoader = RecordingVideoRulePageContentLoader(html: "{\"data\":{\"items\":[]}}")
+        let parser = RecordingVideoRuleParser(
+            result: try Self.parsedListResult(idCode: "dom-fallback")
+        )
+        let rule: VideoSiteRule = Self.apiListSiteRule(strategy: .apiThenDOM)
+        let source: Source = Self.source(rule: rule)
+        let runtime = VideoRuleSourceRuntime(
+            source: source,
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            listLoader: VideoRuleSourceListLoader(pageContentLoader: pageLoader, parser: parser)
+        )
+
+        let output: SourceListOutput = try await runtime.loadList(
+            SourceListInput(
+                page: 1,
+                urlOverride: nil,
+                context: Self.context(sourceID: source.id, pageID: "latest", ruleID: "video-list")
+            )
+        )
+
+        #expect(pageLoader.urls.map(\.absoluteString) == [
+            "https://video.example.invalid/api/list",
+            "https://video.example.invalid/videos/"
+        ])
+        #expect(parser.lastRule?.id == "video-list")
+        #expect(output.items.first?.idCode == "dom-fallback")
+        #expect(output.diagnostics.issues.contains { $0.id == "video.v2.listFallbackUsed" })
+    }
+
+    @Test func videoRuleListAPIMissingPathDoesNotFallBackToDOM() async throws {
+        let pageLoader = RecordingVideoRulePageContentLoader(html: "{\"data\":{}}")
+        let parser = RecordingVideoRuleParser(result: try Self.parsedListResult())
+        let rule: VideoSiteRule = Self.apiListSiteRule(strategy: .apiThenDOM)
+        let source: Source = Self.source(rule: rule)
+        let runtime = VideoRuleSourceRuntime(
+            source: source,
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            listLoader: VideoRuleSourceListLoader(pageContentLoader: pageLoader, parser: parser)
+        )
+
+        do {
+            _ = try await runtime.loadList(
+                SourceListInput(
+                    page: 1,
+                    urlOverride: nil,
+                    context: Self.context(sourceID: source.id, pageID: "latest", ruleID: "video-list")
+                )
+            )
+            Issue.record("Expected response-contract failure for a missing API itemPath.")
+        } catch let error as RuleExecutionError {
+            guard case .responseContract(_, _, let reason) = error else {
+                Issue.record("Unexpected rule error: \(error.localizedDescription)")
+                return
+            }
+            #expect(reason.contains("resolved as missing"))
+        }
+        #expect(pageLoader.urls.count == 1)
+        #expect(parser.lastRule == nil)
+    }
+
+    @Test func videoRuleListAPIBusinessFailureDoesNotFallBackToDOM() async throws {
+        let pageLoader = RecordingVideoRulePageContentLoader(
+            html: "{\"code\":403,\"message\":\"account required\",\"data\":{\"items\":[]}}"
+        )
+        let parser = RecordingVideoRuleParser(result: try Self.parsedListResult())
+        let rule: VideoSiteRule = Self.apiListSiteRule(
+            strategy: .apiThenDOM,
+            responsePolicy: APIResponsePolicy(
+                mode: .envelope,
+                businessStatusPath: "code",
+                successValues: [.number(0)],
+                messagePaths: ["message"]
+            )
+        )
+        let source: Source = Self.source(rule: rule)
+        let runtime = VideoRuleSourceRuntime(
+            source: source,
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            listLoader: VideoRuleSourceListLoader(pageContentLoader: pageLoader, parser: parser)
+        )
+
+        do {
+            _ = try await runtime.loadList(
+                SourceListInput(
+                    page: 1,
+                    urlOverride: nil,
+                    context: Self.context(sourceID: source.id, pageID: "latest", ruleID: "video-list")
+                )
+            )
+            Issue.record("Expected source API business failure.")
+        } catch let error as RuleExecutionError {
+            guard case .sourceAPI(_, _, let reason) = error else {
+                Issue.record("Unexpected rule error: \(error.localizedDescription)")
+                return
+            }
+            #expect(reason.contains("account required"))
+        }
+        #expect(pageLoader.urls.count == 1)
+        #expect(parser.lastRule == nil)
     }
 
     @Test func videoRuleListLoaderAppliesRuntimeOverrideAfterCompleteRuleInheritance() async throws {
@@ -562,6 +904,324 @@ struct VideoRuleSourceRuntimeTests {
         #expect(runtime.definition.video == nil)
     }
 
+    @Test func videoRuleDetailRuntimeReusesHTMLAndPreservesListHandoff() async throws {
+        let pageLoader = RecordingVideoRulePageContentLoader(html: Self.detailHTML)
+        let parser = SwiftSoupVideoRuleSourceParser()
+        let source: Source = Self.source(rule: Self.detailSiteRule())
+        let resolvedRule = try ResolvedVideoSiteRule(
+            validating: try #require(source.videoConfiguration?.ruleDrivenConfiguration?.rule)
+        )
+        let runtime = VideoRuleSourceRuntime(
+            source: source,
+            resolvedRule: resolvedRule,
+            listLoader: VideoRuleSourceListLoader(
+                pageContentLoader: pageLoader,
+                parser: parser
+            ),
+            detailLoader: VideoRuleSourceDetailLoader(
+                pageContentLoader: pageLoader,
+                parser: parser
+            )
+        )
+        let item = ContentItem(
+            id: "catalog.video.v2.video.v2.movie-7",
+            idCode: "movie-7",
+            sourceId: source.id,
+            title: "List title",
+            detailURL: "https://video.example.invalid/detail/movie-7",
+            coverURL: nil,
+            type: .video,
+            latestText: "Episode 2",
+            listContext: ListContext(
+                pageId: "latest",
+                tabId: "latest",
+                sectionId: nil,
+                listRuleId: "video-list",
+                sectionRole: nil
+            )
+        )
+        let context = SourceRuntimeContext(
+            sourceID: source.id,
+            pageID: "wrong-page-from-transient-context",
+            tabID: nil,
+            ruleID: nil,
+            requestOverride: nil,
+            debugMode: false,
+            operation: .detail
+        )
+
+        let output: SourceDetailOutput = try await runtime.loadDetail(
+            SourceDetailInput(
+                detailURL: try #require(URL(string: item.detailURL)),
+                context: context,
+                itemReference: SourceItemReferenceMapper().reference(from: item, intent: .detail)
+            )
+        )
+
+        #expect(runtime.capabilities.supportsDetail)
+        #expect(runtime.capabilities.limitation(for: .detail) == nil)
+        #expect(pageLoader.urls.count == 1)
+        #expect(pageLoader.requests[0]?.headers?["X-Site"] == "site")
+        #expect(pageLoader.requests[0]?.headers?["X-Page"] == "page")
+        #expect(pageLoader.requests[0]?.headers?["X-Detail"] == "detail")
+        #expect(output.metadata?.idCode == "movie-7")
+        #expect(output.metadata?.title == "Movie Seven")
+        #expect(output.metadata?.attributes.map(\.displayText) == ["Director: Director Seven"])
+        #expect(output.chapters.map(\.subtitle) == ["Route A", "Route B"])
+        #expect(output.chapters.map(\.title) == ["Episode 1", "Episode 1"])
+        #expect(output.chapters.map(\.url.absoluteString) == [
+            "https://video.example.invalid/route-a/episode-1",
+            "https://video.example.invalid/route-b/episode-1"
+        ])
+        #expect(output.diagnostics.requestLogs.count == 1)
+    }
+
+    @Test func videoRuleDetailRuntimeLoadsEpisodeDOMAgainWhenRequestDiffers() async throws {
+        let pageLoader = RecordingVideoRulePageContentLoader(html: Self.detailHTML)
+        let parser = SwiftSoupVideoRuleSourceParser()
+        let source: Source = Self.source(
+            rule: Self.detailSiteRule(
+                episodeRequest: RequestConfig(
+                    scope: .rule,
+                    headers: ["X-Episode": "episode"]
+                )
+            )
+        )
+        let resolvedRule = try ResolvedVideoSiteRule(
+            validating: try #require(source.videoConfiguration?.ruleDrivenConfiguration?.rule)
+        )
+        let runtime = VideoRuleSourceRuntime(
+            source: source,
+            resolvedRule: resolvedRule,
+            listLoader: VideoRuleSourceListLoader(pageContentLoader: pageLoader, parser: parser),
+            detailLoader: VideoRuleSourceDetailLoader(pageContentLoader: pageLoader, parser: parser)
+        )
+
+        let output: SourceDetailOutput = try await runtime.loadDetail(
+            SourceDetailInput(
+                detailURL: try #require(URL(string: "https://video.example.invalid/detail/movie-7")),
+                context: SourceRuntimeContext(
+                    sourceID: source.id,
+                    pageID: "latest",
+                    tabID: "latest",
+                    ruleID: "video-list",
+                    requestOverride: nil,
+                    debugMode: false,
+                    operation: .detail
+                )
+            )
+        )
+
+        #expect(output.chapters.count == 2)
+        #expect(pageLoader.urls.count == 2)
+        #expect(pageLoader.requests[0]?.headers?["X-Episode"] == nil)
+        #expect(pageLoader.requests[1]?.headers?["X-Episode"] == "episode")
+        #expect(output.diagnostics.requestLogs.count == 2)
+    }
+
+    @Test func videoRuleRuntimeClaimsP15APIDetailStrategiesAndRequestCapabilities() throws {
+        let rule: VideoSiteRule = Self.apiDetailSiteRule()
+        let source: Source = Self.source(rule: rule)
+        let resolvedRule = try ResolvedVideoSiteRule(validating: rule)
+        let pageLoader = RecordingVideoRulePageContentLoader(html: Self.detailHTML)
+        let parser = SwiftSoupVideoRuleSourceParser()
+        let runtime = VideoRuleSourceRuntime(
+            source: source,
+            resolvedRule: resolvedRule,
+            listLoader: VideoRuleSourceListLoader(pageContentLoader: pageLoader, parser: parser),
+            detailLoader: VideoRuleSourceDetailLoader(pageContentLoader: pageLoader, parser: parser)
+        )
+
+        #expect(runtime.capabilities.supportsDetail)
+        #expect(runtime.capabilities.limitation(for: .detail) == nil)
+        #expect(runtime.capabilities.requiresWebView)
+        #expect(runtime.capabilities.requiresCookieStore)
+    }
+
+    @Test func videoRuleDetailAndEpisodeAPIsMapGroupedChaptersAndItemTemplates() async throws {
+        let loader = RoutingVideoRulePageContentLoader(responses: [
+            "https://video.example.invalid/api/detail/movie-7": """
+            {"data":{"item":{"id":"movie-7","title":"Movie Seven API","cover":"/covers/movie-7.jpg","summary":"API detail","director":"Director API"}}}
+            """,
+            "https://video.example.invalid/api/episodes/movie-7": """
+            {"data":{"routes":[
+              {"id":"route-b","title":"Route B","episodes":[
+                {"id":"ep-2","title":"Episode 2","slug":"route-b/2","order":2,"restricted":false,"paid":true},
+                {"id":"ep-1","title":"Episode 1","slug":"route-b/1","order":1,"restricted":true,"paid":false}
+              ]}
+            ]}}
+            """
+        ])
+        let parser = SwiftSoupVideoRuleSourceParser()
+        let rule: VideoSiteRule = Self.apiDetailSiteRule()
+        let source: Source = Self.source(rule: rule)
+        let runtime = VideoRuleSourceRuntime(
+            source: source,
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            listLoader: VideoRuleSourceListLoader(pageContentLoader: loader, parser: parser),
+            detailLoader: VideoRuleSourceDetailLoader(pageContentLoader: loader, parser: parser)
+        )
+        let detailURL: URL = try #require(
+            URL(string: "https://video.example.invalid/detail/movie-7")
+        )
+        let reference = SourceItemReference(
+            id: "catalog.video.v2.video.v2.movie-7",
+            sourceID: source.id,
+            title: "List Movie Seven",
+            contentType: .video,
+            detailURL: detailURL,
+            chapterURL: nil,
+            coverURL: nil,
+            latestText: nil,
+            listContext: SourceItemListContext(
+                pageID: "latest",
+                tabID: "latest",
+                ruleID: "video-list"
+            ),
+            handoffIntent: .detail,
+            requestOverride: nil,
+            runtimeContext: nil,
+            idCode: "movie-7"
+        )
+
+        let output: SourceDetailOutput = try await runtime.loadDetail(
+            SourceDetailInput(
+                detailURL: detailURL,
+                context: SourceRuntimeContext(
+                    sourceID: source.id,
+                    pageID: "latest",
+                    tabID: "latest",
+                    ruleID: "video-list",
+                    requestOverride: nil,
+                    debugMode: false,
+                    operation: .detail
+                ),
+                itemReference: reference
+            )
+        )
+
+        #expect(loader.urls.map(\.absoluteString) == [
+            "https://video.example.invalid/api/detail/movie-7",
+            "https://video.example.invalid/api/episodes/movie-7"
+        ])
+        #expect(loader.requests[0]?.headers?["X-Detail-API"] == "detail-api")
+        #expect(loader.requests[1]?.headers?["X-Episode-API"] == "episode-api")
+        #expect(output.metadata?.idCode == "movie-7")
+        #expect(output.metadata?.title == "Movie Seven API")
+        #expect(output.metadata?.coverURL?.absoluteString == "https://video.example.invalid/covers/movie-7.jpg")
+        #expect(output.metadata?.attributes.map(\.displayText) == ["Director: Director API"])
+        #expect(output.chapters.map(\.subtitle) == ["Route B", "Route B"])
+        #expect(output.chapters.map(\.title) == ["Episode 1", "Episode 2"])
+        #expect(output.chapters.map(\.isRestricted) == [true, false])
+        #expect(output.chapters.map(\.isPaid) == [false, true])
+        #expect(output.chapters.map { $0.url.absoluteString } == [
+            "https://video.example.invalid/play/route-b/1",
+            "https://video.example.invalid/play/route-b/2"
+        ])
+    }
+
+    @Test func videoRuleEpisodeAPIAllowsAllGroupsToBeExplicitlyEmpty() async throws {
+        let loader = RoutingVideoRulePageContentLoader(responses: [
+            "https://video.example.invalid/api/detail/movie-7": "{\"data\":{\"item\":{\"id\":\"movie-7\",\"title\":\"Movie Seven API\"}}}",
+            "https://video.example.invalid/api/episodes/movie-7": "{\"data\":{\"routes\":[{\"id\":\"route-a\",\"episodes\":[]}]}}"
+        ])
+        let parser = SwiftSoupVideoRuleSourceParser()
+        let rule: VideoSiteRule = Self.apiDetailSiteRule()
+        let source: Source = Self.source(rule: rule)
+        let runtime = VideoRuleSourceRuntime(
+            source: source,
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            listLoader: VideoRuleSourceListLoader(pageContentLoader: loader, parser: parser),
+            detailLoader: VideoRuleSourceDetailLoader(pageContentLoader: loader, parser: parser)
+        )
+        let detailURL: URL = try #require(
+            URL(string: "https://video.example.invalid/detail/movie-7")
+        )
+        let reference = SourceItemReference(
+            id: "movie-7",
+            sourceID: source.id,
+            title: "Movie Seven",
+            contentType: .video,
+            detailURL: detailURL,
+            chapterURL: nil,
+            coverURL: nil,
+            latestText: nil,
+            listContext: SourceItemListContext(
+                pageID: "latest",
+                tabID: "latest",
+                ruleID: "video-list"
+            ),
+            handoffIntent: .detail,
+            requestOverride: nil,
+            runtimeContext: nil,
+            idCode: "movie-7"
+        )
+
+        let output: SourceDetailOutput = try await runtime.loadDetail(
+            SourceDetailInput(
+                detailURL: detailURL,
+                context: SourceRuntimeContext(
+                    sourceID: source.id,
+                    pageID: "latest",
+                    tabID: "latest",
+                    ruleID: "video-list",
+                    requestOverride: nil,
+                    debugMode: false,
+                    operation: .detail
+                ),
+                itemReference: reference
+            )
+        )
+
+        #expect(output.metadata?.title == "Movie Seven API")
+        #expect(output.chapters.isEmpty)
+        #expect(output.diagnostics.status == .succeeded)
+    }
+
+    @Test func videoRuleDetailRuntimeClassifiesAllDroppedEpisodesAsResponseContract() async throws {
+        let pageLoader = RecordingVideoRulePageContentLoader(
+            html: """
+            <main class="detail-ready">
+              <h1>Movie Seven</h1>
+              <section class="route"><h2>Route A</h2><a class="episode">Missing URL</a></section>
+            </main>
+            """
+        )
+        let parser = SwiftSoupVideoRuleSourceParser()
+        let rule: VideoSiteRule = Self.detailSiteRule()
+        let source: Source = Self.source(rule: rule)
+        let runtime = VideoRuleSourceRuntime(
+            source: source,
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            listLoader: VideoRuleSourceListLoader(pageContentLoader: pageLoader, parser: parser),
+            detailLoader: VideoRuleSourceDetailLoader(pageContentLoader: pageLoader, parser: parser)
+        )
+
+        do {
+            _ = try await runtime.loadDetail(
+                SourceDetailInput(
+                    detailURL: try #require(URL(string: "https://video.example.invalid/detail/movie-7")),
+                    context: SourceRuntimeContext(
+                        sourceID: source.id,
+                        pageID: "latest",
+                        tabID: "latest",
+                        ruleID: "video-list",
+                        requestOverride: nil,
+                        debugMode: false,
+                        operation: .detail
+                    )
+                )
+            )
+            Issue.record("Expected response-contract error for nonempty raw episodes with zero mapped output.")
+        } catch let error as RuleExecutionError {
+            guard case .responseContract(_, _, let reason) = error else {
+                Issue.record("Unexpected rule error: \(error.localizedDescription)")
+                return
+            }
+            #expect(reason.contains("matched 1 candidates"))
+        }
+    }
+
     private static func source(rule: VideoSiteRule) -> Source {
         let now: Date = Date(timeIntervalSince1970: 1_000)
         return Source(
@@ -574,6 +1234,198 @@ struct VideoRuleSourceRuntimeTests {
             createdAt: now,
             updatedAt: now
         )
+    }
+
+    private static let detailHTML: String = """
+    <main class="detail-ready">
+      <h1>Movie Seven</h1>
+      <p class="summary">A structured detail description.</p>
+      <span class="director">Director Seven</span>
+      <section class="route" data-route="route-a">
+        <h2>Route A</h2>
+        <a class="episode" href="/route-a/episode-1">Episode 1</a>
+      </section>
+      <section class="route" data-route="route-b">
+        <h2>Route B</h2>
+        <a class="episode" href="/route-b/episode-1">Episode 1</a>
+      </section>
+    </main>
+    """
+
+    private static func detailSiteRule(
+        episodeRequest: RequestConfig? = nil
+    ) -> VideoSiteRule {
+        var rule: VideoSiteRule = Self.siteRule()
+        rule.pages[0].ruleRefs = VideoRuleRefs(
+            list: "video-list",
+            detail: "video-detail",
+            episode: "video-episodes"
+        )
+        rule.ruleSets.detailRules = [
+            VideoDetailRule(
+                id: "video-detail",
+                fields: VideoDetailFields(
+                    title: ExtractRule(selector: "h1", selectorKind: .css, function: .text),
+                    description: ExtractRule(
+                        selector: ".summary",
+                        selectorKind: .css,
+                        function: .text
+                    ),
+                    metadata: [
+                        VideoDetailMetadataFieldRule(
+                            id: "director",
+                            label: "Director",
+                            value: ExtractRule(
+                                selector: ".director",
+                                selectorKind: .css,
+                                function: .text
+                            )
+                        )
+                    ]
+                ),
+                ready: ExtractRule(selector: ".detail-ready", selectorKind: .css, function: .raw),
+                request: RequestConfig(
+                    scope: .rule,
+                    headers: ["X-Detail": "detail"]
+                )
+            )
+        ]
+        rule.ruleSets.episodeRules = [
+            VideoEpisodeRule(
+                id: "video-episodes",
+                group: VideoEpisodeGroupDOMRule(
+                    item: ExtractRule(selector: ".route", selectorKind: .css, function: .raw),
+                    idCode: ExtractRule(
+                        selectorKind: .current,
+                        function: .attr,
+                        param: "data-route"
+                    ),
+                    title: ExtractRule(selector: "h2", selectorKind: .css, function: .text)
+                ),
+                item: ExtractRule(selector: ".episode", selectorKind: .css, function: .raw),
+                fields: VideoEpisodeFields(
+                    title: ExtractRule(selectorKind: .current, function: .text),
+                    playURL: ExtractRule(
+                        selectorKind: .current,
+                        function: .url,
+                        param: "href"
+                    )
+                ),
+                ready: ExtractRule(selector: ".detail-ready", selectorKind: .css, function: .raw),
+                sort: .source,
+                request: episodeRequest
+            )
+        ]
+        return rule
+    }
+
+    private static func apiListSiteRule(
+        strategy: VideoRuleDataSourceStrategy,
+        responsePolicy: APIResponsePolicy = APIResponsePolicy(mode: .transportOnly)
+    ) -> VideoSiteRule {
+        var rule: VideoSiteRule = Self.siteRule()
+        let domRule: VideoListRule = rule.ruleSets.listRules[0]
+        rule.ruleSets.listRules[0] = VideoListRule(
+            id: domRule.id,
+            sourceStrategy: strategy,
+            item: strategy.usesDOM ? domRule.item : nil,
+            fields: strategy.usesDOM ? domRule.fields : nil,
+            ready: strategy.usesDOM ? domRule.ready : nil,
+            pagination: nil,
+            request: domRule.request,
+            listAPI: VideoListAPIRule(
+                url: "https://video.example.invalid/api/list",
+                request: RequestConfig(
+                    scope: .rule,
+                    mergePolicy: .mergeHeaders,
+                    headers: ["X-List-API": "api"]
+                ),
+                itemPath: "data.items[]",
+                fields: VideoListAPIFields(
+                    idCodePath: "id",
+                    titlePath: "title",
+                    detailURLTemplate: "/detail/{current.slug}",
+                    coverPath: "cover"
+                ),
+                orderPath: "order",
+                sort: .ascending,
+                responsePolicy: responsePolicy
+            )
+        )
+        return rule
+    }
+
+    private static func apiDetailSiteRule() -> VideoSiteRule {
+        var rule: VideoSiteRule = Self.siteRule()
+        rule.pages[0].ruleRefs = VideoRuleRefs(
+            list: "video-list",
+            detail: "video-detail-api",
+            episode: "video-episode-api"
+        )
+        rule.ruleSets.detailRules = [
+            VideoDetailRule(
+                id: "video-detail-api",
+                sourceStrategy: .apiOnly,
+                detailAPI: VideoDetailAPIRule(
+                    url: "https://video.example.invalid/api/detail/{item.idCode}",
+                    request: RequestConfig(
+                        scope: .rule,
+                        mergePolicy: .mergeHeaders,
+                        headers: ["X-Detail-API": "detail-api"],
+                        cookiePolicy: .browser,
+                        needsWebView: true
+                    ),
+                    itemPath: "data.item",
+                    fields: VideoDetailAPIFields(
+                        idCodePath: "id",
+                        titlePath: "title",
+                        coverPath: "cover",
+                        descriptionPath: "summary",
+                        metadata: [
+                            VideoDetailAPIMetadataFieldRule(
+                                id: "director",
+                                label: "Director",
+                                valuePath: "director"
+                            )
+                        ]
+                    ),
+                    responsePolicy: APIResponsePolicy(mode: .transportOnly)
+                )
+            )
+        ]
+        rule.ruleSets.episodeRules = [
+            VideoEpisodeRule(
+                id: "video-episode-api",
+                sourceStrategy: .apiOnly,
+                episodeAPI: VideoEpisodeAPIRule(
+                    url: "https://video.example.invalid/api/episodes/{item.idCode}",
+                    request: RequestConfig(
+                        scope: .rule,
+                        mergePolicy: .mergeHeaders,
+                        headers: ["X-Episode-API": "episode-api"]
+                    ),
+                    groupPath: "data.routes[]",
+                    groupFields: VideoEpisodeAPIGroupFields(
+                        idCodePath: "id",
+                        titlePath: "title"
+                    ),
+                    itemPath: "episodes[]",
+                    fields: VideoEpisodeAPIFields(
+                        idCodePath: "id",
+                        titlePath: "title",
+                        playURLTemplate: "/play/{current.slug}",
+                        orderPath: "order",
+                        restrictionPath: "restricted",
+                        restrictedValues: [.boolean(true)],
+                        paidPath: "paid",
+                        paidValues: [.boolean(true)]
+                    ),
+                    sort: .ascending,
+                    responsePolicy: APIResponsePolicy(mode: .transportOnly)
+                )
+            )
+        ]
+        return rule
     }
 
     private static func siteRule() -> VideoSiteRule {
@@ -864,12 +1716,30 @@ private final class RecordingVideoRuleParser: VideoRuleSourceParsingService {
         self.lastRule = rule
         return self.result
     }
+
+    func parseDetail(
+        html: String,
+        pageURL: URL,
+        rule: VideoDetailRule
+    ) throws -> VideoRuleParsedDetail {
+        throw VideoRuleSourceParsingError.incompleteDOMRule(kind: "detail", ruleID: rule.id)
+    }
+
+    func parseEpisodes(
+        html: String,
+        pageURL: URL,
+        rule: VideoEpisodeRule
+    ) throws -> VideoRuleParsedEpisodes {
+        throw VideoRuleSourceParsingError.incompleteDOMRule(kind: "episode", ruleID: rule.id)
+    }
 }
 
 private final class RecordingVideoRulePageContentLoader: PageContentLoader {
     let html: String
     private(set) var lastURL: URL?
     private(set) var lastRequest: RequestConfig?
+    private(set) var urls: [URL] = []
+    private(set) var requests: [RequestConfig?] = []
 
     init(html: String) {
         self.html = html
@@ -878,7 +1748,30 @@ private final class RecordingVideoRulePageContentLoader: PageContentLoader {
     func getString(from url: URL, request: RequestConfig?) async throws -> String {
         self.lastURL = url
         self.lastRequest = request
+        self.urls.append(url)
+        self.requests.append(request)
         return self.html
+    }
+}
+
+private final class RoutingVideoRulePageContentLoader: PageContentLoader {
+    let responses: [String: String]
+    private(set) var urls: [URL] = []
+    private(set) var requests: [RequestConfig?] = []
+
+    init(responses: [String: String]) {
+        self.responses = responses
+    }
+
+    func getString(from url: URL, request: RequestConfig?) async throws -> String {
+        self.urls.append(url)
+        self.requests.append(request)
+        guard let response: String = self.responses[url.absoluteString] else {
+            throw SourceRuntimeError.invalidInput(
+                "No test response was registered for \(url.absoluteString)."
+            )
+        }
+        return response
     }
 }
 

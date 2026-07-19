@@ -190,6 +190,7 @@ struct ComicRuleSourceRuntime: SourceRuntime {
         let urlString: String = url.absoluteString
         return ContentItem(
             id: reference?.id ?? urlString,
+            idCode: reference?.idCode,
             sourceId: self.source.id,
             title: reference?.title ?? self.source.name,
             detailURL: reference?.detailURL?.absoluteString ?? urlString,

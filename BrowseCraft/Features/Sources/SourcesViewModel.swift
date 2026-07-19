@@ -759,6 +759,7 @@ final class SourcesViewModel: ObservableObject {
         return output.items.enumerated().map { index, item in
             return ContentItem(
                 id: item.id,
+                idCode: item.idCode,
                 sourceId: source.id,
                 title: item.title,
                 detailURL: item.detailURL?.absoluteString ?? item.id,

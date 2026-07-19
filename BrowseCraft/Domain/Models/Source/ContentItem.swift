@@ -7,6 +7,8 @@ import BrowseCraftCore
 /// 中文注释：原始来源可以是网页、RSS、JSON 或 XML，App 在 runtime 边界把 Core 输出投影为此模型。
 struct ContentItem: Identifiable, Hashable {
     var id: String
+    /// 中文注释：源站原始业务 id 必须跨 list → detail/episode 保留，不能从展示 id 反推。
+    var idCode: String? = nil
     var sourceId: String
     var title: String
     var detailURL: String

@@ -59,7 +59,8 @@ final class AppContainer {
                 ),
                 videoRuleSourceRuntimeFactory: VideoRuleSourceRuntimeFactory(
                     pageContentLoader: pageContentLoader,
-                    parser: videoRuleParser
+                    parser: videoRuleParser,
+                    credentialProvider: sourceCredentialStore
                 )
             )
             self.sourceSelectionStore = SourceSelectionStore()

@@ -22,6 +22,7 @@ final class VideoDetailViewModel: ObservableObject {
     let source: Source
 
     private let runtimeResolver: any SourceRuntimeResolving
+    private let itemReferenceMapper: SourceItemReferenceMapper = SourceItemReferenceMapper()
     private let saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase
     private let loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase
     private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
@@ -93,7 +94,11 @@ final class VideoDetailViewModel: ObservableObject {
             #endif
             let input: SourceDetailInput = SourceDetailInput(
                 detailURL: detailURL,
-                context: self.runtimeContext(operation: .detail)
+                context: self.runtimeContext(operation: .detail),
+                itemReference: self.itemReferenceMapper.reference(
+                    from: self.item,
+                    intent: .detail
+                )
             )
 
             let output: SourceDetailOutput = try await runtime.loadDetail(input)
@@ -101,7 +106,8 @@ final class VideoDetailViewModel: ObservableObject {
                 return VideoEpisode(
                     id: chapter.id,
                     title: chapter.title,
-                    playPageURL: chapter.url
+                    playPageURL: chapter.url,
+                    sourceName: chapter.subtitle
                 )
             }
             self.synopsis = output.metadata?.description
@@ -150,21 +156,34 @@ final class VideoDetailViewModel: ObservableObject {
                 "playPageURL=\(episode.playPageURL.absoluteString)"
             )
             #endif
-            guard let playbackRuntime: any VideoPlaybackRuntimeCapability = runtime as? any VideoPlaybackRuntimeCapability else {
+            let reference: SourceVideoPlaybackReference
+            if let playbackRuntime: any VideoPlaybackRuntimeCapability = runtime as? any VideoPlaybackRuntimeCapability {
+                let output: SourceVideoPlaybackOutput = try await playbackRuntime.loadPlayback(
+                    SourceVideoPlaybackInput(
+                        playPageURL: episode.playPageURL,
+                        context: self.runtimeContext(operation: nil)
+                    )
+                )
+                reference = output.reference
+            } else if self.source.videoConfiguration?.strategy == .ruleDriven {
+                reference = self.pageOnlyPlaybackReference(for: episode)
+                #if DEBUG
+                print(
+                    "[BrowseCraftVideoDetail] openEpisode page-only fallback " +
+                    "source=\(self.source.id) " +
+                    "episode=\(episode.id) " +
+                    "playPageURL=\(episode.playPageURL.absoluteString)"
+                )
+                #endif
+            } else {
                 throw SourceRuntimeError.unsupported(
                     .custom("Selected source does not expose video playback runtime.")
                 )
             }
 
-            let output: SourceVideoPlaybackOutput = try await playbackRuntime.loadPlayback(
-                SourceVideoPlaybackInput(
-                    playPageURL: episode.playPageURL,
-                    context: self.runtimeContext(operation: nil)
-                )
-            )
             let playerViewModel: VideoPlayerViewModel = VideoPlayerViewModel(
                 source: self.source,
-                reference: output.reference,
+                reference: reference,
                 videoTitle: self.item.title,
                 detailURL: URL(string: self.item.detailURL),
                 coverURL: self.coverURL,
@@ -175,9 +194,9 @@ final class VideoDetailViewModel: ObservableObject {
             )
             self.playbackRoute = VideoPlaybackRoute(
                 id: [
-                    output.reference.vodID,
-                    String(output.reference.sourceIndex),
-                    String(output.reference.episodeIndex)
+                    reference.vodID,
+                    String(reference.sourceIndex),
+                    String(reference.episodeIndex)
                 ].joined(separator: "::"),
                 viewModel: playerViewModel
             )
@@ -185,9 +204,9 @@ final class VideoDetailViewModel: ObservableObject {
             print(
                 "[BrowseCraftVideoDetail] openEpisode playback-result " +
                 "source=\(self.source.id) " +
-                "episodeKey=\(output.reference.episodeKey) " +
-                "mediaKind=\(output.reference.candidateMediaKind.rawValue) " +
-                "status=\(output.reference.status)"
+                "episodeKey=\(reference.episodeKey) " +
+                "mediaKind=\(reference.candidateMediaKind.rawValue) " +
+                "status=\(reference.status)"
             )
             #endif
         } catch {
@@ -201,6 +220,38 @@ final class VideoDetailViewModel: ObservableObject {
             )
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
+    }
+
+    private func pageOnlyPlaybackReference(for episode: VideoEpisode) -> SourceVideoPlaybackReference {
+        let episodeIndex: Int = (self.episodes.firstIndex(of: episode) ?? 0) + 1
+        let detailURL: URL? = URL(string: self.item.detailURL)
+        let trimmedVodID: String? = self.item.idCode?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let vodID: String
+        if let trimmedVodID: String, trimmedVodID.isEmpty == false {
+            vodID = trimmedVodID
+        } else {
+            vodID = self.item.id
+        }
+
+        return SourceVideoPlaybackReference(
+            vodID: vodID,
+            sourceIndex: 1,
+            episodeIndex: episodeIndex,
+            episodeKey: episode.id,
+            episodeTitle: episode.title,
+            playPageURL: episode.playPageURL,
+            candidateMediaURL: nil,
+            candidateMediaKind: .unknown,
+            playbackRequestConfig: SourcePlaybackRequestConfig(
+                headers: detailURL.map { BrowserRequestHeaders.Chrome.playbackHeaders(referer: $0) } ?? [:],
+                referer: detailURL,
+                userAgent: BrowserRequestHeaders.Chrome.chromeUserAgent
+            ),
+            nextEpisodeURL: nil,
+            previousEpisodeURL: nil,
+            sourceName: episode.sourceName ?? self.source.name,
+            status: .pageOnly
+        )
     }
 
     private func runtimeContext(operation: SourceRuntimeOperation?) -> SourceRuntimeContext {

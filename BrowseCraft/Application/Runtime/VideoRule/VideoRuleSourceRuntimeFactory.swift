@@ -5,13 +5,16 @@ import BrowseCraftCore
 struct VideoRuleSourceRuntimeFactory {
     private let pageContentLoader: PageContentLoader
     private let parser: VideoRuleSourceParsingService
+    private let credentialProvider: any SourceCredentialProviding
 
     init(
         pageContentLoader: PageContentLoader,
-        parser: VideoRuleSourceParsingService
+        parser: VideoRuleSourceParsingService,
+        credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider()
     ) {
         self.pageContentLoader = pageContentLoader
         self.parser = parser
+        self.credentialProvider = credentialProvider
     }
 
     func makeRuntime(source: Source) throws -> VideoRuleSourceRuntime {
@@ -33,7 +36,13 @@ struct VideoRuleSourceRuntimeFactory {
             resolvedRule: resolvedRule,
             listLoader: VideoRuleSourceListLoader(
                 pageContentLoader: self.pageContentLoader,
-                parser: self.parser
+                parser: self.parser,
+                credentialProvider: self.credentialProvider
+            ),
+            detailLoader: VideoRuleSourceDetailLoader(
+                pageContentLoader: self.pageContentLoader,
+                parser: self.parser,
+                credentialProvider: self.credentialProvider
             )
         )
     }
