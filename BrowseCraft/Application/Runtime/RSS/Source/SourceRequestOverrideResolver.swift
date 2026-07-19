@@ -78,7 +78,7 @@ struct SourceRequestOverrideResolver {
     private func cookiePolicy(from value: SourceRequestCookiePolicy?) -> CookiePolicy? {
         switch value {
         case .some(.none):
-            return .none
+            return CookiePolicy.none
         case .some(.read), .some(.write), .some(.readWrite):
             return .browser
         case nil:
