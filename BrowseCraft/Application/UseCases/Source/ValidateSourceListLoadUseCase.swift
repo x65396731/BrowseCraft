@@ -47,20 +47,17 @@ struct SourceTabsValidationResult: Equatable {
 struct ValidateSourceTabsUseCase {
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
     private let rssFeedLoader: (any RSSFeedLoading)?
-    private let videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase?
     private let sourcePresentationResolver: ResolveLibrarySourcePresentationUseCase
     private let validateSourceListLoadUseCase: ValidateSourceListLoadUseCase
 
     init(
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
         rssFeedLoader: (any RSSFeedLoading)? = nil,
-        videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase? = nil,
         sourcePresentationResolver: ResolveLibrarySourcePresentationUseCase = ResolveLibrarySourcePresentationUseCase(),
         validateSourceListLoadUseCase: ValidateSourceListLoadUseCase = ValidateSourceListLoadUseCase()
     ) {
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
         self.rssFeedLoader = rssFeedLoader
-        self.videoTabDiscoveryUseCase = videoTabDiscoveryUseCase
         self.sourcePresentationResolver = sourcePresentationResolver
         self.validateSourceListLoadUseCase = validateSourceListLoadUseCase
     }
@@ -93,41 +90,8 @@ struct ValidateSourceTabsUseCase {
     }
 
     private func validateVideoTabs(source: Source) async -> SourceTabsValidationResult {
-        guard case .video(let configuration) = source.configuration else {
-            return await self.validateListRuntimeTabs(source: source)
-        }
-        guard case .legacyPreset(let legacyConfiguration) = configuration else {
-            // 中文注释：V2 tab 已来自 pages，不运行 legacy WebView 自动发现。
-            return await self.validateListRuntimeTabs(source: source)
-        }
-
-        var validatedSource: Source = source
-        if let videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase {
-            do {
-                let discoveredTabs: [VideoSourceListTab] = try await videoTabDiscoveryUseCase.discoverTabs(
-                    sourceID: source.id,
-                    definition: legacyConfiguration.definition,
-                    explicitTabs: legacyConfiguration.listTabs
-                )
-                if discoveredTabs != legacyConfiguration.listTabs {
-                    validatedSource.configuration = .video(
-                        VideoSourceConfiguration(
-                            definition: legacyConfiguration.definition,
-                            listTabs: discoveredTabs
-                        )
-                    )
-                }
-            } catch {
-                #if DEBUG
-                print(
-                    "[BrowseCraftTabValidation] video discovery failed " +
-                    "source=\(source.id) error=\(error)"
-                )
-                #endif
-            }
-        }
-
-        return await self.validateListRuntimeTabs(source: validatedSource)
+        // 中文注释：V2 tab 完全来自 pages；P2-6 后不再运行 V1 WebView 自动发现。
+        return await self.validateListRuntimeTabs(source: source)
     }
 
     private func validateListRuntimeTabs(source: Source) async -> SourceTabsValidationResult {

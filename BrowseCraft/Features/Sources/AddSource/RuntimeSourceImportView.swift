@@ -105,8 +105,6 @@ struct RuntimeSourceImportView: View {
             await self.saveComic()
         case .rss:
             await self.saveRSS()
-        case .video:
-            await self.saveVideo()
         }
     }
 
@@ -138,25 +136,6 @@ struct RuntimeSourceImportView: View {
 
         guard source != nil else {
             self.operationState = .error(self.viewModel.errorMessage ?? "Failed to save RSS source.")
-            return
-        }
-
-        self.finishSaved()
-    }
-
-    @MainActor
-    private func saveVideo() async {
-        let source: Source? = await self.viewModel.addManualVideoSource(
-            entryURLString: self.entryURL,
-            name: self.defaultSourceName,
-            configuration: ManualVideoSourceConfigurationDraft(
-                adapter: .genericHTML,
-                entryKind: .play
-            )
-        )
-
-        guard source != nil else {
-            self.operationState = .error(self.viewModel.errorMessage ?? "Failed to save video source.")
             return
         }
 

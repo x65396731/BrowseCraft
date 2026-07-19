@@ -38,7 +38,6 @@ struct SourceDefinitionMapper {
                     isEditable: ruleConfiguration.isEditable
                 ),
                 rss: nil,
-                video: nil,
                 plugin: nil
             )
         case .rss(let rssConfiguration):
@@ -51,7 +50,6 @@ struct SourceDefinitionMapper {
                 ownership: ownership,
                 comic: nil,
                 rss: rssConfiguration.definition,
-                video: nil,
                 plugin: nil
             )
         case .video(let videoConfiguration):
@@ -60,13 +58,10 @@ struct SourceDefinitionMapper {
                 runtimeKind: .video,
                 name: name,
                 baseURL: self.baseURL(from: baseURL),
-                version: videoConfiguration.ruleDrivenConfiguration?.rule.version ?? version,
+                version: videoConfiguration.rule.version,
                 ownership: ownership,
                 comic: nil,
                 rss: nil,
-                video: videoConfiguration.legacyConfiguration.map { legacyConfiguration in
-                    return self.normalizedVideoDefinition(from: legacyConfiguration)
-                },
                 plugin: nil
             )
         case .plugin(let pluginConfiguration):
@@ -79,7 +74,6 @@ struct SourceDefinitionMapper {
                 ownership: ownership,
                 comic: nil,
                 rss: nil,
-                video: nil,
                 plugin: pluginConfiguration.definition
             )
         }
@@ -107,104 +101,4 @@ struct SourceDefinitionMapper {
         return .user
     }
 
-    private func normalizedVideoDefinition(
-        from configuration: VideoLegacySourceConfiguration
-    ) -> VideoSourceDefinition {
-        let definition: VideoSourceDefinition = configuration.definition
-        guard definition.adapter == .genericHTML,
-              self.hasMacCMSRoutePatternSignals(definition: definition, listTabs: configuration.listTabs) else {
-            return definition
-        }
-
-        return VideoSourceDefinition(
-            adapter: .macCMS,
-            entryURL: definition.entryURL,
-            seedURL: definition.seedURL,
-            entryKind: definition.entryKind,
-            routePatterns: definition.routePatterns ?? .macCMS,
-            playbackPolicy: definition.playbackPolicy,
-            sharedRequest: definition.sharedRequest,
-            listRequest: definition.listRequest,
-            detailRequest: definition.detailRequest,
-            playRequest: definition.playRequest,
-            requiresAccount: definition.requiresAccount,
-            seedVodID: definition.seedVodID,
-            seedSourceIndex: definition.seedSourceIndex,
-            seedEpisodeIndex: definition.seedEpisodeIndex,
-            seedDetailURL: definition.seedDetailURL,
-            seedPlayURL: definition.seedPlayURL
-        )
-    }
-
-    private func hasMacCMSRoutePatternSignals(
-        definition: VideoSourceDefinition,
-        listTabs: [VideoSourceListTab]
-    ) -> Bool {
-        if definition.routePatterns == .macCMS {
-            return true
-        }
-
-        var parts: [String] = [
-            definition.entryURL.absoluteString,
-            definition.seedURL?.absoluteString ?? "",
-            definition.seedDetailURL?.absoluteString ?? "",
-            definition.seedPlayURL?.absoluteString ?? ""
-        ]
-        for tab: VideoSourceListTab in listTabs {
-            parts.append(tab.url)
-            parts.append(tab.itemSelector ?? "")
-            parts.append(tab.titleSelector ?? "")
-            parts.append(tab.linkSelector ?? "")
-            parts.append(tab.coverSelector ?? "")
-            parts.append(tab.latestTextSelector ?? "")
-        }
-
-        let text: String = parts.joined(separator: "\n").lowercased()
-        return self.hasStrongMacCMSTemplateMarkers(text)
-            || self.hasMacCMSRouteCluster(text)
-            || self.hasMacCMSCategoryRouteCluster(in: parts)
-    }
-
-    private func hasStrongMacCMSTemplateMarkers(_ text: String) -> Bool {
-        let markers: [String] = [
-            "/template/vfed/",
-            "var vfed",
-            "fed-list-item",
-            "fed-list-pics",
-            "fed-list-title",
-            "fed-play-item",
-            "fed-part-rows",
-            "player_aaaa"
-        ]
-        let count: Int = markers.reduce(into: 0) { result, marker in
-            if text.contains(marker) {
-                result += 1
-            }
-        }
-        return count >= 2
-    }
-
-    private func hasMacCMSRouteCluster(_ text: String) -> Bool {
-        return text.contains("/voddetail/") && text.contains("/vodplay/")
-    }
-
-    private func hasMacCMSCategoryRouteCluster(in values: [String]) -> Bool {
-        let categoryRoutes: Set<String> = Set(values.compactMap { value in
-            guard let url: URL = URL(string: value),
-                  let route: String = self.macCMSCategoryRoute(from: url.path) else {
-                return nil
-            }
-            return route
-        })
-        return categoryRoutes.count >= 2
-    }
-
-    private func macCMSCategoryRoute(from path: String) -> String? {
-        let normalizedPath: String = path.lowercased()
-        guard normalizedPath.hasPrefix("/vodtype/")
-            || normalizedPath.hasPrefix("/vodshow/") else {
-            return nil
-        }
-        return normalizedPath
-    }
 }

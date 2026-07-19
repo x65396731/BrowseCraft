@@ -133,7 +133,7 @@ struct RecommendSourceImportOptionUseCase {
                 configurationKind: .video,
                 confidence: .medium,
                 reasons: [.userSelectedOption],
-                warnings: ["Video sources use the video runtime and currently support MacCMS-style pages first."]
+                warnings: ["Video sources must come from a validated VideoSiteRule V2 catalog entry."]
             )
         case .scriptSource:
             return self.execute(draft: draft, html: html, headers: headers)

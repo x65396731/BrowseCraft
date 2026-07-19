@@ -2865,7 +2865,7 @@ final class SwiftSoupComicRuleSourceParser: ComicRuleSourceParsingService, Comic
             }
 
             if attribute == "ownText" {
-                let value: String = try element.ownText().trimmingCharacters(in: .whitespacesAndNewlines)
+                let value: String = element.ownText().trimmingCharacters(in: .whitespacesAndNewlines)
 
                 if value.isEmpty == false {
                     return value

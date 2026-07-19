@@ -69,7 +69,7 @@ struct VideoHTMLRenderGuard {
             )
         ]
 
-        if detection.adapter == .plugin || detection.reasons.contains(where: { reason in
+        if detection.requiresPlugin || detection.reasons.contains(where: { reason in
             return reason.localizedCaseInsensitiveContains("captcha")
                 || reason.localizedCaseInsensitiveContains("anti-bot")
         }) {
@@ -101,7 +101,7 @@ struct VideoHTMLRenderGuard {
         var details: [String] = [
             "Video source requires WebView-rendered DOM before content mapping.",
             "Render mode: \(detection.renderMode.rawValue).",
-            "Content adapter is selected by the source configuration.",
+            "Content extraction is selected by the V2 rule.",
             "Playback mode: \(detection.playbackMode.rawValue)."
         ]
 

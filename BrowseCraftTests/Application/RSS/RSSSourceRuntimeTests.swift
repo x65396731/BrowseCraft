@@ -217,7 +217,6 @@ struct RSSSourceRuntimeTests {
                 requiresAccount: false,
                 refreshPolicy: .manual
             ),
-            video: nil,
             plugin: nil
         )
     }

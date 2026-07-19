@@ -32,9 +32,9 @@ struct VideoSourceDetector: VideoSourceDetecting {
         )
 
         return VideoSourceDetection(
-            adapter: detectionScope.compatibilityAdapter,
             renderMode: renderMode,
             playbackMode: playback.mode,
+            requiresPlugin: restriction.shouldUsePlugin,
             confidence: confidence,
             reasons: detectionScope.reasons + playback.reasons,
             warnings: warnings
@@ -48,7 +48,6 @@ struct VideoSourceDetector: VideoSourceDetecting {
     ) -> DetectionScope {
         if restriction.shouldUsePlugin {
             return DetectionScope(
-                compatibilityAdapter: .plugin,
                 score: restriction.score,
                 reasons: restriction.reasons
             )
@@ -56,38 +55,34 @@ struct VideoSourceDetector: VideoSourceDetecting {
 
         if renderMode == .webViewRequired {
             return DetectionScope(
-                compatibilityAdapter: .genericHTML,
                 score: max(0.48, contentSignals.score),
                 reasons: contentSignals.reasons + [
-                    "HTML looks JavaScript-rendered; content mapper adapter remains user/rule-selected."
+                    "HTML looks JavaScript-rendered; the V2 rule must declare WebView acquisition."
                 ]
             )
         }
 
-        if let inferredAdapter: VideoAdapter = contentSignals.inferredAdapter {
+        if contentSignals.hasStructuredCMSMarkers {
             return DetectionScope(
-                compatibilityAdapter: inferredAdapter,
                 score: contentSignals.score,
                 reasons: contentSignals.reasons + [
-                    "Strong video CMS markers matched; MacCMS route patterns can be used for content mapping."
+                    "Strong video CMS markers matched; the V2 rule still owns all selectors and routes."
                 ]
             )
         }
 
         if contentSignals.score > 0 {
             return DetectionScope(
-                compatibilityAdapter: .genericHTML,
                 score: contentSignals.score,
                 reasons: contentSignals.reasons + [
-                    "Content mapper adapter was not inferred; use the selected tab or rule configuration."
+                    "Video content markers matched; extraction remains V2 rule-driven."
                 ]
             )
         }
 
         return DetectionScope(
-            compatibilityAdapter: .genericHTML,
             score: 0.30,
-            reasons: ["No video content signals matched; content mapper adapter remains user/rule-selected."]
+            reasons: ["No video content signals matched; extraction remains V2 rule-driven."]
         )
     }
 
@@ -155,34 +150,38 @@ struct VideoSourceDetector: VideoSourceDetecting {
             reasons.append("HTML contains supporting weak video markers: \(supportingMatches.joined(separator: ", ")).")
         }
 
-        let inferredAdapter: VideoAdapter? = self.inferredContentAdapter(
+        let hasStructuredCMSMarkers: Bool = self.hasStructuredCMSMarkers(
             payloadMatches: payloadMatches,
             routeMatches: routeMatches,
             templateMatches: templateMatches
         )
 
-        return DetectionScore(score: min(score, 1.0), reasons: reasons, inferredAdapter: inferredAdapter)
+        return DetectionScore(
+            score: min(score, 1.0),
+            reasons: reasons,
+            hasStructuredCMSMarkers: hasStructuredCMSMarkers
+        )
     }
 
-    private func inferredContentAdapter(
+    private func hasStructuredCMSMarkers(
         payloadMatches: [String],
         routeMatches: [String],
         templateMatches: [String]
-    ) -> VideoAdapter? {
+    ) -> Bool {
         if templateMatches.count >= 2 {
-            return .macCMS
+            return true
         }
 
         if payloadMatches.isEmpty == false && routeMatches.isEmpty == false {
-            return .macCMS
+            return true
         }
 
         let normalizedRoutes: Set<String> = Set(routeMatches.map { $0.lowercased() })
         if normalizedRoutes.contains("/voddetail/") && normalizedRoutes.contains("/vodplay/") {
-            return .macCMS
+            return true
         }
 
-        return nil
+        return false
     }
 
     private func renderMode(_ signals: VideoSourceSignals) -> VideoRenderRequirement {
@@ -284,7 +283,6 @@ struct VideoSourceDetector: VideoSourceDetecting {
 }
 
 private struct DetectionScope {
-    var compatibilityAdapter: VideoAdapter
     var score: Double
     var reasons: [String]
 }
@@ -292,7 +290,7 @@ private struct DetectionScope {
 private struct DetectionScore {
     var score: Double
     var reasons: [String]
-    var inferredAdapter: VideoAdapter?
+    var hasStructuredCMSMarkers: Bool
 }
 
 private struct PlaybackDetection {

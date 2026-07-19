@@ -32,7 +32,6 @@ final class SourcesViewModel: ObservableObject {
     private let loadSourcesUseCase: LoadSourcesUseCase
     private let addComicRuleSourceUseCase: AddComicRuleSourceUseCase
     private let addRSSSourceUseCase: AddRSSSourceUseCase
-    private let addVideoSourceUseCase: AddVideoSourceUseCase
     private let discoverComicResourcesUseCase: DiscoverComicResourcesUseCase
     private let discoverVideoResourcesUseCase: DiscoverVideoResourcesUseCase
     private let discoverRSSFeedsUseCase: DiscoverRSSFeedsUseCase
@@ -62,7 +61,6 @@ final class SourcesViewModel: ObservableObject {
         loadSourcesUseCase: LoadSourcesUseCase,
         addComicRuleSourceUseCase: AddComicRuleSourceUseCase,
         addRSSSourceUseCase: AddRSSSourceUseCase,
-        addVideoSourceUseCase: AddVideoSourceUseCase,
         discoverComicResourcesUseCase: DiscoverComicResourcesUseCase,
         discoverVideoResourcesUseCase: DiscoverVideoResourcesUseCase,
         discoverRSSFeedsUseCase: DiscoverRSSFeedsUseCase,
@@ -88,7 +86,6 @@ final class SourcesViewModel: ObservableObject {
         self.loadSourcesUseCase = loadSourcesUseCase
         self.addComicRuleSourceUseCase = addComicRuleSourceUseCase
         self.addRSSSourceUseCase = addRSSSourceUseCase
-        self.addVideoSourceUseCase = addVideoSourceUseCase
         self.discoverComicResourcesUseCase = discoverComicResourcesUseCase
         self.discoverVideoResourcesUseCase = discoverVideoResourcesUseCase
         self.discoverRSSFeedsUseCase = discoverRSSFeedsUseCase
@@ -261,40 +258,6 @@ final class SourcesViewModel: ObservableObject {
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "rss-source-add-error")
             self.errorMessage = error.localizedDescription
-            return nil
-        }
-    }
-
-    @MainActor
-    func addManualVideoSource(
-        entryURLString: String,
-        name: String? = nil,
-        configuration: ManualVideoSourceConfigurationDraft
-    ) async -> Source? {
-        CrashDiagnostics.shared.setRuleStage(.list)
-        do {
-            let result: AddManualVideoSourceResult = try await self.addVideoSourceUseCase.saveManualVideoSource(
-                entryURLString: entryURLString,
-                name: name,
-                configuration: configuration
-            )
-            let source: Source = result.source
-
-            self.load()
-            let items: [ContentItem] = self.contentItems(from: result.listOutput, source: source)
-            self.sourceSelectionStore.publishLibrarySnapshot(
-                source: source,
-                items: items,
-                listContext: nil
-            )
-            self.logPublishedLibrarySnapshot(source: source, items: items, origin: "manual-video-source-add")
-            self.selectSource(id: source.id)
-            self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
-            self.latestSourceAddID = source.id
-            return source
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "manual-video-source-add-error")
-            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
             return nil
         }
     }

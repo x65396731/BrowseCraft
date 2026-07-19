@@ -73,7 +73,8 @@ final class SourceSyncService: CloudSyncService {
             for payload in changeSet.records {
                 guard payload.isBuiltIn == false,
                       payload.userID == AppUser.localDefaultID,
-                      payload.schemaVersion <= SourceCloudPayload.currentSchemaVersion else {
+                      payload.schemaVersion <= SourceCloudPayload.currentSchemaVersion,
+                      payload.isUnsupportedVideoV1 == false else {
                     result.skippedCount += 1
                     continue
                 }

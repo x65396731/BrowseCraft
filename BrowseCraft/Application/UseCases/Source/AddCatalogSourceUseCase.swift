@@ -158,7 +158,6 @@ private struct PlainCatalogSourcePayload: Encodable {
 struct AddCatalogSourceUseCase {
     private let sourceRepository: SourceRepository
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
-    private let videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase?
     private let validateSourceListLoadUseCase: ValidateSourceListLoadUseCase
     private let catalogSourceMaterializer: CatalogSourceMaterializer
     private let now: () -> Date
@@ -166,14 +165,12 @@ struct AddCatalogSourceUseCase {
     init(
         sourceRepository: SourceRepository,
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
-        videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase? = nil,
         validateSourceListLoadUseCase: ValidateSourceListLoadUseCase = ValidateSourceListLoadUseCase(),
         catalogSourceMaterializer: CatalogSourceMaterializer = CatalogSourceMaterializer(),
         now: @escaping () -> Date = Date.init
     ) {
         self.sourceRepository = sourceRepository
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
-        self.videoTabDiscoveryUseCase = videoTabDiscoveryUseCase
         self.validateSourceListLoadUseCase = validateSourceListLoadUseCase
         self.catalogSourceMaterializer = catalogSourceMaterializer
         self.now = now
@@ -189,21 +186,18 @@ struct AddCatalogSourceUseCase {
                 updatedAt: self.now(),
                 enabled: existingSource.enabled
             )
-            let discoveredSource: Source = try await self.sourceWithDiscoveredVideoTabs(currentCatalogSource)
-            if discoveredSource != existingSource {
-                try self.sourceRepository.saveSource(discoveredSource)
+            if currentCatalogSource != existingSource {
+                try self.sourceRepository.saveSource(currentCatalogSource)
             }
 
-            return AddCatalogSourceResult(source: discoveredSource, listOutput: nil)
+            return AddCatalogSourceResult(source: currentCatalogSource, listOutput: nil)
         }
 
         let createdAt: Date = self.now()
-        let source: Source = try await self.sourceWithDiscoveredVideoTabs(
-            try self.catalogSourceMaterializer.source(
-                from: catalogSource,
-                createdAt: createdAt,
-                updatedAt: createdAt
-            )
+        let source: Source = try self.catalogSourceMaterializer.source(
+            from: catalogSource,
+            createdAt: createdAt,
+            updatedAt: createdAt
         )
         // Catalog 导入只验证默认入口。其它 tab 由 Library 按当前 tab 独立加载并记录失败状态。
         let defaultListContext: ListContext? = nil
@@ -214,26 +208,5 @@ struct AddCatalogSourceUseCase {
         try self.validateSourceListLoadUseCase.execute(listOutput)
         try self.sourceRepository.saveSource(source)
         return AddCatalogSourceResult(source: source, listOutput: listOutput)
-    }
-
-    private func sourceWithDiscoveredVideoTabs(_ source: Source) async throws -> Source {
-        guard let videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase,
-              case .video(.legacyPreset(let legacyConfiguration)) = source.configuration else {
-            return source
-        }
-
-        var discoveredSource: Source = source
-        let tabs: [VideoSourceListTab] = try await videoTabDiscoveryUseCase.discoverTabs(
-            sourceID: source.id,
-            definition: legacyConfiguration.definition,
-            explicitTabs: legacyConfiguration.listTabs
-        )
-        discoveredSource.configuration = .video(
-            VideoSourceConfiguration(
-                definition: legacyConfiguration.definition,
-                listTabs: tabs
-            )
-        )
-        return discoveredSource
     }
 }

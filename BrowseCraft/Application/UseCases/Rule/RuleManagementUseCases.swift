@@ -87,13 +87,8 @@ struct UpdateVideoSourceConfigurationUseCase {
 
         var updatedSource: Source = latestSource
         updatedSource.configuration = .video(configuration)
-        switch configuration {
-        case .legacyPreset(let legacyConfiguration):
-            updatedSource.baseURL = self.baseURLString(from: legacyConfiguration.definition.entryURL)
-        case .ruleDriven(let ruleConfiguration):
-            updatedSource.name = ruleConfiguration.rule.name
-            updatedSource.baseURL = ruleConfiguration.rule.baseUrl
-        }
+        updatedSource.name = configuration.rule.name
+        updatedSource.baseURL = configuration.rule.baseUrl
         updatedSource.updatedAt = Date()
         try self.sourceRepository.saveSource(updatedSource)
         return updatedSource
@@ -110,14 +105,6 @@ struct UpdateVideoSourceConfigurationUseCase {
         }
     }
 
-    private func baseURLString(from entryURL: URL) -> String {
-        var components: URLComponents? = URLComponents(url: entryURL, resolvingAgainstBaseURL: false)
-        components?.path = "/"
-        components?.query = nil
-        components?.fragment = nil
-        return components?.url?.absoluteString ?? entryURL.absoluteString
-    }
-
     private func validatedConfiguration(
         from configurationJSON: String
     ) throws -> VideoSourceConfiguration {
@@ -125,10 +112,6 @@ struct UpdateVideoSourceConfigurationUseCase {
             VideoSourceConfiguration.self,
             from: Data(configurationJSON.utf8)
         )
-        guard case .ruleDriven = configuration else {
-            return configuration
-        }
-
         let rawRuleJSON: String = try self.ruleJSON(from: configurationJSON)
         let validationResult: VideoSiteRuleValidationResult = self.videoRuleValidator.validate(
             ruleJSON: rawRuleJSON
@@ -143,7 +126,7 @@ struct UpdateVideoSourceConfigurationUseCase {
     private func ruleJSON(from configurationJSON: String) throws -> String {
         let rawValue: Any = try JSONSerialization.jsonObject(with: Data(configurationJSON.utf8))
         guard let configuration: [String: Any] = rawValue as? [String: Any],
-              configuration["strategy"] as? String == VideoSourceConfigurationStrategy.ruleDriven.rawValue,
+              configuration["strategy"] as? String == VideoSourceConfiguration.strategy,
               let rule: [String: Any] = configuration["rule"] as? [String: Any] else {
             throw RuleManagementError.unsupportedSourceConfiguration
         }

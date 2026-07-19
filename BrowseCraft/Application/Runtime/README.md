@@ -6,10 +6,9 @@ Runtime contracts live in `BrowseCraftCore`, while concrete runtime wiring
 stays in the App because it depends on App services such as repositories,
 network loaders, parsers, cache storage, and view-facing domain models.
 
-The architectural axis is `SourceDefinition + SourceRuntime`, not `SiteRule`.
-`SiteRule` JSON is the configuration format for `ComicRuleSourceRuntime` only. RSS and
-video/plugin sources should be represented by their own runtime definitions
-instead of being forced into the rule schema.
+The architectural axis is `SourceDefinition + SourceRuntime`. Comics use
+`SiteRule`; video uses the independent `VideoSiteRule` V2 contract. RSS and
+plugin sources keep their own definitions.
 
 ```text
 SourceRuntime
@@ -17,60 +16,27 @@ SourceRuntime
     config: SiteRule JSON
   RSSSourceRuntime
     config: RSS / Atom definition
-  VideoSourceRuntime
-    config: VideoSourceDefinition
-    content mapping:
-      macCMS
-      genericHTML
-    rendering:
-      staticHTML
-      webView
-    playback candidate:
-      directMedia
-      iframePlayer
+  VideoRuleSourceRuntime
+    config: VideoSiteRule V2
+    list/detail/playback: explicit rule graph
+    playback: native direct media or WebUI
   PluginSourceRuntime
     config: plugin manifest / package
 ```
 
-Video runtime keeps four axes separate:
+Video V2 keeps extraction, rendering, and playback policy separate:
 
 ```text
-ContentMapping
-  macCMS
-  genericHTML
-
-Rendering
-  static HTML
-  WebView-rendered DOM
-
-PlaybackCandidate
-  direct mp4/m3u8
-  iframePlayer/pageOnly
-
-Escape
-  plugin
+VideoSiteRule
+  pages -> listRules -> detailRule -> playback
+  static HTML or WebView-rendered DOM
+  direct mp4/m3u8 -> Native
+  explicit page/iframe fallback -> WebUI
 ```
 
-`macCMS` and `genericHTML` are built-in content mappers. WebView is an HTML
-acquisition/rendering mode, not a mapper. `iframePlayer` is a playback
-candidate, not a list/detail adapter. `plugin` is the escape hatch for
-account-bound, encrypted, signed, or site-specific workflows that should not
-expand the built-in content mapper layer.
-
-Video playback also has a narrower playback layer:
-
-```text
-Video/PlaybackCandidate
-  IframePlayerCandidateResolver
-  VideoIframePlayerResolver
-```
-
-`IframePlayerCandidateResolver` does not make iframe pages natively playable. It
-normalizes iframe/embed playback candidates into
-`SourceVideoMediaKind.iframePlayer + SourceVideoPlaybackStatus.pageOnly`, preserving a
-clear handoff point for later WebView, plugin, or media URL extraction work.
-`VideoIframePlayerResolver` can then follow iframe-player playback candidates
-inside the playback layer. It is not a content frame/site shell resolver.
+P2-6 removed the V1 `MacCMS`/`GenericHTML` adapter graph. Video catalog items
+must declare `version: 2` and pass `VideoSiteRuleValidator`; there is no adapter
+inference or V1 fallback.
 
 Responsibilities:
 
@@ -97,15 +63,11 @@ Responsibilities:
   `SourceContentItem.latestText`; that field is a plain list summary.
 - Keep RSS mapping/loading/parsing in `RSS/Mapping/`, `RSS/Loading/`, and `RSS/Parsing/`; RSS does not
   extend `SiteRule` or the rule editor.
-- Keep `Video/VideoSourceRuntime` as the video-backed runtime implementation.
-- Keep video list/detail/playback loading in `Video/Loading/`; those loaders
-  call a `VideoContentMapper` after static or rendered HTML is available.
-- Keep built-in video content mapping in `Video/ContentMapping/`; `MacCMSVideoContentMapper`
-  and `GenericHTMLVideoContentMapper` describe content structure, not WebView or plugin execution.
-- Keep WebView/static HTML requirements in `Video/Rendering/`; WebView is an HTML
-  acquisition mode, not a content adapter.
-- Keep iframe/embed playback handling in `Video/PlaybackCandidate/`; iframePlayer
-  is a playback candidate, not a list/detail content adapter.
+- Keep `VideoRule/VideoRuleSourceRuntime` as the only video runtime implementation.
+- Keep V2 list/detail/playback loading and parsing in `VideoRule/`; selectors,
+  iframe traversal, and fallback behavior come only from the resolved rule graph.
+- Keep WebView/static HTML validation in `Video/Rendering/`; it is shared support
+  for V2 loaders, not a source adapter.
 - Keep `VideoPlaybackRuntimeCapability` as the video playback capability so a
   future plugin runtime can expose playback through the same boundary. Video detail
   always uses `SourceRuntime.loadDetail`; playback capability must not add a private detail API.
@@ -181,17 +143,15 @@ Non-goals:
 
 - Do not move SwiftSoup, WebView, Nuke, or network implementations into
   `BrowseCraftCore`.
-- Do not treat `SiteRule` as the App-wide source axis. It is the configuration
-  format used by `ComicRuleSourceRuntime`.
-- Do not add RSS, video, or plugin behavior as more `SiteRule` fields.
+- Do not treat comic `SiteRule` as the App-wide source axis.
+- Do not add RSS, `VideoSiteRule`, or plugin behavior as more comic `SiteRule` fields.
 - Do not route RSS through `ComicRuleSourceRuntime`; RSS uses `RSSSourceRuntime`.
-- Do not route video through `ComicRuleSourceRuntime`; video uses `VideoSourceRuntime`.
-- Do not model every video skin or route variant as a top-level runtime kind.
-  Keep MacCMS skins such as ewave/stui/myui/module-item inside the MacCMS
-  adapter mapper as selector fallbacks.
+- Do not route video through `ComicRuleSourceRuntime`; video uses `VideoRuleSourceRuntime`.
+- Do not restore host/CMS inference, V1 adapters, or mapper fallbacks. Site
+  differences belong in explicit V2 rules.
 - Do not put account login, CAPTCHA, JS signing, media decryption, or private
-  site workflows into built-in video adapters. Those belong to plugin runtime
-  planning.
+  site workflows into implicit video logic. Those belong to explicit rule or
+  plugin-runtime planning.
 - Do not execute plugin code until the plugin runtime phase explicitly starts.
 - Do not expand `responsePolicy` into an API-specific transport layer, response
   carrier, retry system, cancellation classifier, or fallback coordinator.

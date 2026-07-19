@@ -265,7 +265,7 @@ struct VideoRuleSourceRuntimeTests {
         )
         let source: Source = Self.source(rule: Self.siteRule())
         let resolvedRule: ResolvedVideoSiteRule = try ResolvedVideoSiteRule(
-            validating: try #require(source.videoConfiguration?.ruleDrivenConfiguration?.rule)
+            validating: try #require(source.videoConfiguration?.rule)
         )
         let runtime: VideoRuleSourceRuntime = VideoRuleSourceRuntime(
             source: source,
@@ -450,7 +450,7 @@ struct VideoRuleSourceRuntimeTests {
         )
         let source: Source = Self.source(rule: Self.requestInheritanceSiteRule())
         let resolvedRule: ResolvedVideoSiteRule = try ResolvedVideoSiteRule(
-            validating: try #require(source.videoConfiguration?.ruleDrivenConfiguration?.rule)
+            validating: try #require(source.videoConfiguration?.rule)
         )
         let runtime: VideoRuleSourceRuntime = VideoRuleSourceRuntime(
             source: source,
@@ -534,7 +534,7 @@ struct VideoRuleSourceRuntimeTests {
         )
         let source: Source = Self.source(rule: Self.siteRule())
         let resolvedRule: ResolvedVideoSiteRule = try ResolvedVideoSiteRule(
-            validating: try #require(source.videoConfiguration?.ruleDrivenConfiguration?.rule)
+            validating: try #require(source.videoConfiguration?.rule)
         )
         let runtime: VideoRuleSourceRuntime = VideoRuleSourceRuntime(
             source: source,
@@ -578,7 +578,7 @@ struct VideoRuleSourceRuntimeTests {
         )
         let source: Source = Self.source(rule: Self.paginatedSiteRule())
         let resolvedRule: ResolvedVideoSiteRule = try ResolvedVideoSiteRule(
-            validating: try #require(source.videoConfiguration?.ruleDrivenConfiguration?.rule)
+            validating: try #require(source.videoConfiguration?.rule)
         )
         let runtime: VideoRuleSourceRuntime = VideoRuleSourceRuntime(
             source: source,
@@ -613,7 +613,7 @@ struct VideoRuleSourceRuntimeTests {
         )
         let source: Source = Self.source(rule: Self.paginatedSiteRule(maxPages: 4))
         let resolvedRule: ResolvedVideoSiteRule = try ResolvedVideoSiteRule(
-            validating: try #require(source.videoConfiguration?.ruleDrivenConfiguration?.rule)
+            validating: try #require(source.videoConfiguration?.rule)
         )
         let runtime: VideoRuleSourceRuntime = VideoRuleSourceRuntime(
             source: source,
@@ -645,7 +645,7 @@ struct VideoRuleSourceRuntimeTests {
         )
         let source: Source = Self.source(rule: Self.paginatedSiteRule(stopWhenEmpty: true))
         let resolvedRule: ResolvedVideoSiteRule = try ResolvedVideoSiteRule(
-            validating: try #require(source.videoConfiguration?.ruleDrivenConfiguration?.rule)
+            validating: try #require(source.videoConfiguration?.rule)
         )
         let runtime: VideoRuleSourceRuntime = VideoRuleSourceRuntime(
             source: source,
@@ -681,7 +681,7 @@ struct VideoRuleSourceRuntimeTests {
         )
         let source: Source = Self.source(rule: Self.paginatedSiteRule(stopWhenEmpty: false))
         let resolvedRule: ResolvedVideoSiteRule = try ResolvedVideoSiteRule(
-            validating: try #require(source.videoConfiguration?.ruleDrivenConfiguration?.rule)
+            validating: try #require(source.videoConfiguration?.rule)
         )
         let runtime: VideoRuleSourceRuntime = VideoRuleSourceRuntime(
             source: source,
@@ -717,7 +717,7 @@ struct VideoRuleSourceRuntimeTests {
         )
         let source: Source = Self.source(rule: Self.siteRule())
         let resolvedRule: ResolvedVideoSiteRule = try ResolvedVideoSiteRule(
-            validating: try #require(source.videoConfiguration?.ruleDrivenConfiguration?.rule)
+            validating: try #require(source.videoConfiguration?.rule)
         )
         let runtime: VideoRuleSourceRuntime = VideoRuleSourceRuntime(
             source: source,
@@ -760,7 +760,7 @@ struct VideoRuleSourceRuntimeTests {
         )
         let source: Source = Self.source(rule: Self.siteRule())
         let resolvedRule: ResolvedVideoSiteRule = try ResolvedVideoSiteRule(
-            validating: try #require(source.videoConfiguration?.ruleDrivenConfiguration?.rule)
+            validating: try #require(source.videoConfiguration?.rule)
         )
         let runtime: VideoRuleSourceRuntime = VideoRuleSourceRuntime(
             source: source,
@@ -804,7 +804,7 @@ struct VideoRuleSourceRuntimeTests {
         let parser: RecordingVideoRuleParser = RecordingVideoRuleParser(result: parsed)
         let source: Source = Self.source(rule: Self.siteRule())
         let resolvedRule: ResolvedVideoSiteRule = try ResolvedVideoSiteRule(
-            validating: try #require(source.videoConfiguration?.ruleDrivenConfiguration?.rule)
+            validating: try #require(source.videoConfiguration?.rule)
         )
         let runtime: VideoRuleSourceRuntime = VideoRuleSourceRuntime(
             source: source,
@@ -841,7 +841,7 @@ struct VideoRuleSourceRuntimeTests {
         )
         let source: Source = Self.source(rule: Self.siteRule())
         let resolvedRule: ResolvedVideoSiteRule = try ResolvedVideoSiteRule(
-            validating: try #require(source.videoConfiguration?.ruleDrivenConfiguration?.rule)
+            validating: try #require(source.videoConfiguration?.rule)
         )
         let runtime: VideoRuleSourceRuntime = VideoRuleSourceRuntime(
             source: source,
@@ -874,15 +874,10 @@ struct VideoRuleSourceRuntimeTests {
         }
     }
 
-    @Test func sourceRuntimeResolverRoutesRuleDrivenVideoWithoutLegacyDefinition() throws {
+    @Test func sourceRuntimeResolverRoutesVideoToV2Runtime() throws {
         let source: Source = Self.source(rule: Self.siteRule())
         var didUseRuleRuntime: Bool = false
-        var didUseLegacyRuntime: Bool = false
         let resolver: SourceRuntimeResolver = SourceRuntimeResolver(
-            videoRuntimeFactory: { definition in
-                didUseLegacyRuntime = true
-                return VideoRuleStubRuntime(definition: definition)
-            },
             videoRuleRuntimeFactory: { source in
                 didUseRuleRuntime = true
                 return VideoRuleStubRuntime(
@@ -899,9 +894,8 @@ struct VideoRuleSourceRuntimeTests {
         let runtime: any SourceRuntime = try resolver.runtime(for: source)
 
         #expect(didUseRuleRuntime)
-        #expect(didUseLegacyRuntime == false)
         #expect(runtime.definition.runtimeKind == .video)
-        #expect(runtime.definition.video == nil)
+        #expect(runtime.definition.comic == nil)
     }
 
     @Test func videoRuleDetailRuntimeReusesHTMLAndPreservesListHandoff() async throws {
@@ -909,7 +903,7 @@ struct VideoRuleSourceRuntimeTests {
         let parser = SwiftSoupVideoRuleSourceParser()
         let source: Source = Self.source(rule: Self.detailSiteRule())
         let resolvedRule = try ResolvedVideoSiteRule(
-            validating: try #require(source.videoConfiguration?.ruleDrivenConfiguration?.rule)
+            validating: try #require(source.videoConfiguration?.rule)
         )
         let runtime = VideoRuleSourceRuntime(
             source: source,
@@ -988,7 +982,7 @@ struct VideoRuleSourceRuntimeTests {
             )
         )
         let resolvedRule = try ResolvedVideoSiteRule(
-            validating: try #require(source.videoConfiguration?.ruleDrivenConfiguration?.rule)
+            validating: try #require(source.videoConfiguration?.rule)
         )
         let runtime = VideoRuleSourceRuntime(
             source: source,

@@ -6,5 +6,4 @@ protocol VideoPlaybackRuntimeCapability: SourceRuntime {
     func loadPlayback(_ input: SourceVideoPlaybackInput) async throws -> SourceVideoPlaybackOutput
 }
 
-extension VideoSourceRuntime: VideoPlaybackRuntimeCapability {}
 extension VideoRuleSourceRuntime: VideoPlaybackRuntimeCapability {}

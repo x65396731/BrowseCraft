@@ -20,6 +20,11 @@ target 'BrowseCraft' do
 end
 
 post_install do |installer|
+  # CocoaPods 1.16 still stamps its generated project as Xcode 16. Mark the
+  # generated project with the active Xcode version so Xcode does not offer
+  # project-wide recommended-setting edits for disposable Pods metadata.
+  installer.pods_project.root_object.attributes['LastUpgradeCheck'] = '2660'
+
   # The app supports iOS 17 and above. Some pods declare older deployment
   # targets, so we lift generated Pod targets to the app's minimum version.
   installer.pods_project.targets.each do |target|

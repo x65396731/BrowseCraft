@@ -1,6 +1,15 @@
 import Foundation
 import BrowseCraftCore
 
+// 中文注释：VideoEpisode 是 Video V2 详情页内部剧集模型，不属于已删除的 V1 runtime。
+struct VideoEpisode: Identifiable, Hashable {
+    var id: String
+    var title: String
+    var playPageURL: URL
+    var sourceName: String? = nil
+    var playbackHandoff: SourceVideoPlaybackHandoff? = nil
+}
+
 // 中文注释：VideoPlaybackRoute 承载视频详情页进入播放器时需要的 ViewModel。
 struct VideoPlaybackRoute: Identifiable {
     let id: String
@@ -161,30 +170,19 @@ final class VideoDetailViewModel: ObservableObject {
             )
             #endif
             let reference: SourceVideoPlaybackReference
-            if let playbackRuntime: any VideoPlaybackRuntimeCapability = runtime as? any VideoPlaybackRuntimeCapability {
-                let output: SourceVideoPlaybackOutput = try await playbackRuntime.loadPlayback(
-                    SourceVideoPlaybackInput(
-                        playPageURL: episode.playPageURL,
-                        context: self.runtimeContext(operation: nil),
-                        handoff: episode.playbackHandoff
-                    )
-                )
-                reference = output.reference
-            } else if self.source.videoConfiguration?.strategy == .ruleDriven {
-                reference = self.pageOnlyPlaybackReference(for: episode)
-                #if DEBUG
-                print(
-                    "[BrowseCraftVideoDetail] openEpisode page-only fallback " +
-                    "source=\(self.source.id) " +
-                    "episode=\(episode.id) " +
-                    "playPageURL=\(episode.playPageURL.absoluteString)"
-                )
-                #endif
-            } else {
+            guard let playbackRuntime: any VideoPlaybackRuntimeCapability = runtime as? any VideoPlaybackRuntimeCapability else {
                 throw SourceRuntimeError.unsupported(
                     .custom("Selected source does not expose video playback runtime.")
                 )
             }
+            let output: SourceVideoPlaybackOutput = try await playbackRuntime.loadPlayback(
+                SourceVideoPlaybackInput(
+                    playPageURL: episode.playPageURL,
+                    context: self.runtimeContext(operation: nil),
+                    handoff: episode.playbackHandoff
+                )
+            )
+            reference = output.reference
 
             let playerViewModel: VideoPlayerViewModel = VideoPlayerViewModel(
                 source: self.source,
@@ -226,40 +224,6 @@ final class VideoDetailViewModel: ObservableObject {
             )
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
-    }
-
-    private func pageOnlyPlaybackReference(for episode: VideoEpisode) -> SourceVideoPlaybackReference {
-        let fallbackEpisodeIndex: Int = (self.episodes.firstIndex(of: episode) ?? 0) + 1
-        let detailURL: URL? = URL(string: self.item.detailURL)
-        let trimmedVodID: String? = self.item.idCode?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let vodID: String
-        if let trimmedVodID: String, trimmedVodID.isEmpty == false {
-            vodID = trimmedVodID
-        } else {
-            vodID = self.item.id
-        }
-        let handoff: SourceVideoPlaybackHandoff? = episode.playbackHandoff
-
-        return SourceVideoPlaybackReference(
-            vodID: handoff?.vodID ?? vodID,
-            sourceIndex: handoff?.sourceIndex ?? 1,
-            episodeIndex: handoff?.episodeIndex ?? fallbackEpisodeIndex,
-            episodeKey: handoff?.episodeKey ?? episode.id,
-            episodeTitle: handoff?.episodeTitle ?? episode.title,
-            playPageURL: episode.playPageURL,
-            candidateMediaURL: nil,
-            candidateMediaKind: .unknown,
-            playbackRequestConfig: SourcePlaybackRequestConfig(
-                headers: detailURL.map { BrowserRequestHeaders.Chrome.playbackHeaders(referer: $0) } ?? [:],
-                referer: detailURL,
-                userAgent: BrowserRequestHeaders.Chrome.chromeUserAgent
-            ),
-            nextEpisodeURL: handoff?.nextEpisodeURL,
-            previousEpisodeURL: handoff?.previousEpisodeURL,
-            sourceName: handoff?.sourceName ?? episode.sourceName ?? self.source.name,
-            status: .pageOnly,
-            handoff: handoff
-        )
     }
 
     private func runtimeContext(operation: SourceRuntimeOperation?) -> SourceRuntimeContext {

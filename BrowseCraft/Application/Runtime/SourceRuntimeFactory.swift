@@ -6,27 +6,21 @@ struct SourceRuntimeFactory {
     private let pageContentLoader: PageContentLoader
     private let comicRuleSourceRuntimeFactory: ComicRuleSourceRuntimeFactory
     private let videoRuleSourceRuntimeFactory: VideoRuleSourceRuntimeFactory
-    private let videoContentMapperRegistry: VideoContentMapperRegistry
 
     init(
         pageContentLoader: PageContentLoader,
         comicRuleSourceRuntimeFactory: ComicRuleSourceRuntimeFactory,
-        videoRuleSourceRuntimeFactory: VideoRuleSourceRuntimeFactory,
-        videoContentMapperRegistry: VideoContentMapperRegistry = VideoContentMapperRegistry()
+        videoRuleSourceRuntimeFactory: VideoRuleSourceRuntimeFactory
     ) {
         self.pageContentLoader = pageContentLoader
         self.comicRuleSourceRuntimeFactory = comicRuleSourceRuntimeFactory
         self.videoRuleSourceRuntimeFactory = videoRuleSourceRuntimeFactory
-        self.videoContentMapperRegistry = videoContentMapperRegistry
     }
 
     func makeRuntimeResolver() -> SourceRuntimeResolver {
         return SourceRuntimeResolver(
             rssRuntimeFactory: { definition in
                 return self.makeRSSSourceRuntime(definition: definition)
-            },
-            videoRuntimeFactory: { definition in
-                return self.makeVideoSourceRuntime(definition: definition)
             },
             videoRuleRuntimeFactory: { source in
                 return try self.makeVideoRuleSourceRuntime(source: source)
@@ -45,31 +39,8 @@ struct SourceRuntimeFactory {
         )
     }
 
-    func makeVideoSourceRuntime(definition: SourceDefinition) -> VideoSourceRuntime {
-        let mapper: any VideoContentMapper = self.makeVideoContentMapper(definition: definition)
-        return VideoSourceRuntime(
-            definition: definition,
-            listLoader: VideoSourceListLoader(
-                pageContentLoader: self.pageContentLoader,
-                mapper: mapper
-            ),
-            detailLoader: VideoSourceDetailLoader(
-                pageContentLoader: self.pageContentLoader,
-                mapper: mapper
-            ),
-            playbackLoader: VideoSourcePlaybackLoader(
-                pageContentLoader: self.pageContentLoader,
-                mapper: mapper
-            )
-        )
-    }
-
     func makeVideoRuleSourceRuntime(source: Source) throws -> VideoRuleSourceRuntime {
         return try self.videoRuleSourceRuntimeFactory.makeRuntime(source: source)
-    }
-
-    private func makeVideoContentMapper(definition: SourceDefinition) -> any VideoContentMapper {
-        return self.videoContentMapperRegistry.mapper(for: definition)
     }
 
     func makeComicSourceRuntime(source: Source) -> ComicRuleSourceRuntime {

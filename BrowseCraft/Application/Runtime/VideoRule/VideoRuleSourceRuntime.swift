@@ -1,7 +1,7 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：VideoRuleSourceRuntime 只执行 VideoSiteRule V2；P2-4 接通 direct/iframe/WebUI playback，不调用 legacy mapper。
+// 中文注释：VideoRuleSourceRuntime 是 P2-6 后唯一视频 runtime，执行 VideoSiteRule V2 的 list/detail/playback 图。
 struct VideoRuleSourceRuntime: SourceRuntime {
     let source: Source
     let resolvedRule: ResolvedVideoSiteRule

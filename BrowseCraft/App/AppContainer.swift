@@ -133,10 +133,6 @@ final class AppContainer {
             rssFeedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader),
             loadRSSHubDiscoveryCandidatesUseCase: loadRSSHubDiscoveryCandidatesUseCase
         )
-        let addVideoSourceUseCase: AddVideoSourceUseCase = AddVideoSourceUseCase(
-            sourceRepository: self.sourceRepository,
-            refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
-        )
         let discoverComicResourcesUseCase: DiscoverComicResourcesUseCase = DiscoverComicResourcesUseCase(
             pageContentLoader: self.pageContentLoader,
             urlResolver: self.urlResolver
@@ -169,10 +165,7 @@ final class AppContainer {
         let recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase = RecommendSourceImportOptionUseCase()
         let addCatalogSourceUseCase: AddCatalogSourceUseCase = AddCatalogSourceUseCase(
             sourceRepository: self.sourceRepository,
-            refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
-            videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase(
-                pageContentLoader: self.pageContentLoader
-            )
+            refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
         )
         let portalRequestHeaderProvider: PortalRequestHeaderProvider = PortalRequestHeaderProvider(
             appUserRepository: GRDBAppUserRepository(database: self.database)
@@ -189,7 +182,6 @@ final class AppContainer {
             loadSourcesUseCase: loadSourcesUseCase,
             addComicRuleSourceUseCase: addComicRuleSourceUseCase,
             addRSSSourceUseCase: addRSSSourceUseCase,
-            addVideoSourceUseCase: addVideoSourceUseCase,
             discoverComicResourcesUseCase: discoverComicResourcesUseCase,
             discoverVideoResourcesUseCase: discoverVideoResourcesUseCase,
             discoverRSSFeedsUseCase: discoverRSSFeedsUseCase,
@@ -226,13 +218,9 @@ final class AppContainer {
         let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = RefreshSourceRuntimeUseCase(
             runtimeResolver: self.makeSourceRuntimeResolver()
         )
-        let videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase = VideoSourceTabDiscoveryUseCase(
-            pageContentLoader: self.pageContentLoader
-        )
         let validateSourceTabsUseCase: ValidateSourceTabsUseCase = ValidateSourceTabsUseCase(
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
-            rssFeedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader),
-            videoTabDiscoveryUseCase: videoTabDiscoveryUseCase
+            rssFeedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader)
         )
         let loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase = LoadUserLibraryStateUseCase(
             repository: userLibraryStateRepository
@@ -246,7 +234,6 @@ final class AppContainer {
             loadSourcesUseCase: loadSourcesUseCase,
             toggleFavoriteUseCase: toggleFavoriteUseCase,
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
-            videoTabDiscoveryUseCase: videoTabDiscoveryUseCase,
             validateSourceTabsUseCase: validateSourceTabsUseCase,
             loadUserLibraryStateUseCase: loadUserLibraryStateUseCase,
             saveUserLibraryStateUseCase: saveUserLibraryStateUseCase,

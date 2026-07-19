@@ -163,15 +163,4 @@ extension Source {
         return self.id.hasPrefix("built-in.")
     }
 
-    var favoriteVideoKind: FavoriteContentKind? {
-        guard case .video(let configuration) = self.configuration else {
-            return nil
-        }
-
-        guard case .legacyPreset(let legacyConfiguration) = configuration else {
-            // 中文注释：V2 的播放出口要由 P2 playback rule 决定，不能从列表 WebView 策略猜测收藏类型。
-            return nil
-        }
-        return legacyConfiguration.definition.adapter == .webView ? .videoWeb : .videoNative
-    }
 }

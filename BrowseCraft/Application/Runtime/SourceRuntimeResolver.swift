@@ -10,14 +10,12 @@ struct SourceRuntimeResolver: SourceRuntimeResolving {
     private let definitionMapper: SourceDefinitionMapper
     private let comicRuntimeFactory: (Source) -> any SourceRuntime
     private let rssRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)?
-    private let videoRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)?
     private let videoRuleRuntimeFactory: ((Source) throws -> any SourceRuntime)?
     private let pluginRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)?
 
     init(
         definitionMapper: SourceDefinitionMapper = SourceDefinitionMapper(),
         rssRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)? = nil,
-        videoRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)? = nil,
         videoRuleRuntimeFactory: ((Source) throws -> any SourceRuntime)? = nil,
         pluginRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)? = nil,
         comicRuntimeFactory: @escaping (Source) -> any SourceRuntime
@@ -25,7 +23,6 @@ struct SourceRuntimeResolver: SourceRuntimeResolving {
         self.definitionMapper = definitionMapper
         self.comicRuntimeFactory = comicRuntimeFactory
         self.rssRuntimeFactory = rssRuntimeFactory
-        self.videoRuntimeFactory = videoRuntimeFactory
         self.videoRuleRuntimeFactory = videoRuleRuntimeFactory
         self.pluginRuntimeFactory = pluginRuntimeFactory
     }
@@ -58,27 +55,17 @@ struct SourceRuntimeResolver: SourceRuntimeResolving {
                 .custom("RSS source runtime is not connected in this resolver.")
             )
         case .video:
-            if let source: Source,
-               source.videoConfiguration?.strategy == .ruleDriven {
-                guard let videoRuleRuntimeFactory: (Source) throws -> any SourceRuntime = self.videoRuleRuntimeFactory else {
-                    throw SourceRuntimeError.unsupported(
-                        .custom("Video V2 rule-driven runtime is not connected in this resolver.")
-                    )
-                }
-                return try videoRuleRuntimeFactory(source)
-            }
-            guard definition.video != nil else {
-                throw SourceRuntimeError.unsupported(
-                    .custom("Video V2 runtime resolution requires the persisted App Source payload.")
+            guard let source: Source else {
+                throw SourceRuntimeError.invalidInput(
+                    "Video V2 runtime resolution requires the persisted App Source payload."
                 )
             }
-            if let videoRuntimeFactory: (SourceDefinition) -> any SourceRuntime = self.videoRuntimeFactory {
-                return videoRuntimeFactory(definition)
+            guard let videoRuleRuntimeFactory: (Source) throws -> any SourceRuntime = self.videoRuleRuntimeFactory else {
+                throw SourceRuntimeError.unsupported(
+                    .custom("Video V2 rule-driven runtime is not connected in this resolver.")
+                )
             }
-
-            throw SourceRuntimeError.unsupported(
-                .custom("Video source runtime is not connected in this resolver.")
-            )
+            return try videoRuleRuntimeFactory(source)
         case .plugin:
             if let pluginRuntimeFactory: (SourceDefinition) -> any SourceRuntime = self.pluginRuntimeFactory {
                 return pluginRuntimeFactory(definition)

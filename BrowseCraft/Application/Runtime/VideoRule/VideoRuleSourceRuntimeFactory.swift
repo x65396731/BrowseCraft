@@ -1,7 +1,7 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：VideoRuleSourceRuntimeFactory 只装配 ruleDriven 视频来源，不持有或推断 legacy adapter。
+// 中文注释：VideoRuleSourceRuntimeFactory 只装配 VideoSiteRule V2，不持有或推断站点 adapter。
 struct VideoRuleSourceRuntimeFactory {
     private let pageContentLoader: PageContentLoader
     private let parser: VideoRuleSourceParsingService
@@ -18,7 +18,7 @@ struct VideoRuleSourceRuntimeFactory {
     }
 
     func makeRuntime(source: Source) throws -> VideoRuleSourceRuntime {
-        guard case .video(.ruleDriven(let configuration)) = source.configuration else {
+        guard case .video(let configuration) = source.configuration else {
             throw SourceRuntimeError.invalidInput("Video V2 runtime requires a ruleDriven source configuration.")
         }
 

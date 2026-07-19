@@ -69,134 +69,6 @@ struct CatalogSourceMaterializerTests {
         #expect(configuration.rule.name == "Komiic")
     }
 
-    @Test func materializesVideoSourceWithObjectRoutePattern() throws {
-        let materializer: CatalogSourceMaterializer = CatalogSourceMaterializer()
-        let catalogSource: BrowseCraftCatalogSource = BrowseCraftCatalogSource(
-            id: "catalog.video.object-route",
-            name: "Object Route",
-            baseURL: "https://example.invalid",
-            kind: .video,
-            ruleJSON: """
-            {
-              "adapter": "genericHTML",
-              "entryURL": "https://example.invalid/videos/",
-              "entryKind": "list",
-              "routePattern": {
-                "detail": "/voddetail/{id}.html",
-                "play": "/vodplay/{id}-{source}-{episode}.html"
-              },
-              "playbackPolicy": "playPageFirst",
-              "requiresAccount": false,
-              "listTabs": []
-            }
-            """
-        )
-
-        let source: Source = try materializer.source(
-            from: catalogSource,
-            createdAt: Date(timeIntervalSince1970: 10),
-            updatedAt: Date(timeIntervalSince1970: 20)
-        )
-
-        guard case .video(.legacyPreset(let configuration)) = source.configuration else {
-            Issue.record("Expected catalog source to materialize as a video source.")
-            return
-        }
-
-        #expect(configuration.definition.adapter == .macCMS)
-        #expect(configuration.definition.routePatterns == .macCMS)
-    }
-
-    @Test func materializesGenericHTMLVfedRuleAsMacCMSRoutePattern() throws {
-        let materializer: CatalogSourceMaterializer = CatalogSourceMaterializer()
-        let catalogSource: BrowseCraftCatalogSource = BrowseCraftCatalogSource(
-            id: "catalog.video.vfed",
-            name: "Vfed Rule",
-            baseURL: "https://video.example.invalid",
-            kind: .video,
-            ruleJSON: """
-            {
-              "adapter": "genericHTML",
-              "entryURL": "https://video.example.invalid/",
-              "entryKind": "home",
-              "playbackPolicy": "playPageFirst",
-              "requiresAccount": false,
-              "listTabs": [
-                {
-                  "id": "movie",
-                  "title": "Movie",
-                  "url": "https://video.example.invalid/vodtype/1/",
-                  "itemSelector": ".fed-list-item",
-                  "titleSelector": ".fed-list-title",
-                  "linkSelector": "a[href*='/voddetail/']@href",
-                  "coverSelector": ".fed-list-pics@data-original",
-                  "latestTextSelector": ".fed-list-remarks"
-                }
-              ]
-            }
-            """
-        )
-
-        let source: Source = try materializer.source(
-            from: catalogSource,
-            createdAt: Date(timeIntervalSince1970: 10),
-            updatedAt: Date(timeIntervalSince1970: 20)
-        )
-
-        guard case .video(.legacyPreset(let configuration)) = source.configuration else {
-            Issue.record("Expected catalog source to materialize as a video source.")
-            return
-        }
-
-        #expect(configuration.definition.adapter == .macCMS)
-        #expect(configuration.definition.routePatterns == .macCMS)
-    }
-
-    @Test func materializesGenericHTMLMacCMSCategoryTabsAsMacCMSRoutePattern() throws {
-        let materializer: CatalogSourceMaterializer = CatalogSourceMaterializer()
-        let catalogSource: BrowseCraftCatalogSource = BrowseCraftCatalogSource(
-            id: "catalog.video.category-routes",
-            name: "Category Routes",
-            baseURL: "https://video.example.invalid",
-            kind: .video,
-            ruleJSON: """
-            {
-              "adapter": "genericHTML",
-              "entryURL": "https://video.example.invalid/",
-              "entryKind": "home",
-              "playbackPolicy": "playPageFirst",
-              "requiresAccount": false,
-              "listTabs": [
-                {
-                  "id": "movie",
-                  "title": "Movie",
-                  "url": "https://video.example.invalid/vodtype/1/"
-                },
-                {
-                  "id": "series",
-                  "title": "Series",
-                  "url": "https://video.example.invalid/vodtype/2/"
-                }
-              ]
-            }
-            """
-        )
-
-        let source: Source = try materializer.source(
-            from: catalogSource,
-            createdAt: Date(timeIntervalSince1970: 10),
-            updatedAt: Date(timeIntervalSince1970: 20)
-        )
-
-        guard case .video(.legacyPreset(let configuration)) = source.configuration else {
-            Issue.record("Expected catalog source to materialize as a video source.")
-            return
-        }
-
-        #expect(configuration.definition.adapter == .macCMS)
-        #expect(configuration.definition.routePatterns == .macCMS)
-    }
-
     @Test func materializesAndPersistsVideoV2AsRuleDrivenConfiguration() throws {
         let materializer: CatalogSourceMaterializer = CatalogSourceMaterializer()
         let catalogSource: BrowseCraftCatalogSource = BrowseCraftCatalogSource(
@@ -259,7 +131,7 @@ struct CatalogSourceMaterializerTests {
             updatedAt: Date(timeIntervalSince1970: 20)
         )
 
-        guard case .video(.ruleDriven(let configuration)) = source.configuration else {
+        guard case .video(let configuration) = source.configuration else {
             Issue.record("Expected Video V2 catalog source to use rule-driven persistence.")
             return
         }
@@ -283,45 +155,26 @@ struct CatalogSourceMaterializerTests {
         #expect(decodedConfiguration == source.configuration)
     }
 
-    @Test func decodesPersistedVideoConfigurationWithoutStrategyAsLegacyPreset() throws {
-        let legacyDefinition: VideoSourceDefinition = VideoSourceDefinition(
-            adapter: .genericHTML,
-            entryURL: try #require(URL(string: "https://video.example.invalid/videos/")),
-            seedURL: nil,
-            entryKind: .list,
-            routePatterns: nil,
-            playbackPolicy: .playPageFirst,
-            requiresAccount: false,
-            seedVodID: nil,
-            seedSourceIndex: nil,
-            seedEpisodeIndex: nil,
-            seedDetailURL: nil,
-            seedPlayURL: nil
-        )
-        let definitionData: Data = try JSONEncoder().encode(legacyDefinition)
-        let definitionJSON: [String: Any] = try #require(
-            JSONSerialization.jsonObject(with: definitionData) as? [String: Any]
-        )
-        let persistedData: Data = try JSONSerialization.data(
-            withJSONObject: [
-                "video": [
-                    "definition": definitionJSON,
-                    "listTabs": []
-                ]
-            ],
-            options: [.sortedKeys]
+    @Test func rejectsVideoV1CatalogRule() throws {
+        let catalogSource: BrowseCraftCatalogSource = BrowseCraftCatalogSource(
+            id: "catalog.video.v1",
+            name: "Video V1",
+            baseURL: "https://video.example.invalid/",
+            kind: .video,
+            ruleJSON: """
+            {
+              "adapter": "genericHTML",
+              "entryURL": "https://video.example.invalid/videos/"
+            }
+            """
         )
 
-        let configuration: SourceConfiguration = try JSONDecoder().decode(
-            SourceConfiguration.self,
-            from: persistedData
-        )
-
-        guard case .video(.legacyPreset(let legacyConfiguration)) = configuration else {
-            Issue.record("Expected persisted V1 video data without strategy to decode as legacyPreset.")
-            return
+        #expect(throws: CatalogSourceImportError.self) {
+            _ = try CatalogSourceMaterializer().source(
+                from: catalogSource,
+                createdAt: Date(timeIntervalSince1970: 10),
+                updatedAt: Date(timeIntervalSince1970: 20)
+            )
         }
-        #expect(legacyConfiguration.definition == legacyDefinition)
-        #expect(legacyConfiguration.listTabs.isEmpty)
     }
 }

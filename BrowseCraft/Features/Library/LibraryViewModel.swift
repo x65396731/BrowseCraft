@@ -154,7 +154,6 @@ final class LibraryViewModel: ObservableObject {
     private let loadSourcesUseCase: LoadSourcesUseCase
     private let toggleFavoriteUseCase: ToggleFavoriteUseCase
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
-    private let videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase?
     private let validateSourceTabsUseCase: ValidateSourceTabsUseCase?
     private let loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase
     private let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase
@@ -164,7 +163,6 @@ final class LibraryViewModel: ObservableObject {
     private let userID: String
     private let now: () -> Date
     private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
-    private var tabDiscoveryAttemptedSourceIDs: Set<String> = Set<String>()
     private var tabValidationAttemptedSourceIDs: Set<String> = Set<String>()
     private var confirmedEmptyListTabKeys: Set<String> = Set<String>()
     private var listTabErrorMessages: [String: String] = [:]
@@ -177,7 +175,6 @@ final class LibraryViewModel: ObservableObject {
         loadSourcesUseCase: LoadSourcesUseCase,
         toggleFavoriteUseCase: ToggleFavoriteUseCase,
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
-        videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase? = nil,
         validateSourceTabsUseCase: ValidateSourceTabsUseCase? = nil,
         loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase,
         saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase,
@@ -191,7 +188,6 @@ final class LibraryViewModel: ObservableObject {
         self.loadSourcesUseCase = loadSourcesUseCase
         self.toggleFavoriteUseCase = toggleFavoriteUseCase
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
-        self.videoTabDiscoveryUseCase = videoTabDiscoveryUseCase
         self.validateSourceTabsUseCase = validateSourceTabsUseCase
         self.loadUserLibraryStateUseCase = loadUserLibraryStateUseCase
         self.saveUserLibraryStateUseCase = saveUserLibraryStateUseCase
@@ -661,11 +657,6 @@ final class LibraryViewModel: ObservableObject {
 
     @MainActor
     private func prepareTabsForSelectedSourceIfNeeded() async {
-        if self.validateSourceTabsUseCase == nil {
-            await self.discoverTabsForSelectedVideoSourceIfNeeded()
-            return
-        }
-
         await self.validateTabsForSelectedSourceIfNeeded()
     }
 
@@ -719,58 +710,6 @@ final class LibraryViewModel: ObservableObject {
             return "failed(\(message))"
         case .skipped(let reason):
             return "skipped(\(reason))"
-        }
-    }
-
-    @MainActor
-    private func discoverTabsForSelectedVideoSourceIfNeeded() async {
-        guard let videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase,
-              let source: Source = self.selectedSource,
-              case .video(.legacyPreset(let legacyConfiguration)) = source.configuration,
-              legacyConfiguration.listTabs.count <= 1,
-              self.tabDiscoveryAttemptedSourceIDs.contains(source.id) == false else {
-            return
-        }
-
-        self.tabDiscoveryAttemptedSourceIDs.insert(source.id)
-        self.isValidatingTabs = true
-        defer {
-            self.isValidatingTabs = false
-        }
-        CrashDiagnostics.shared.setRuleStage(.list)
-
-        do {
-            let tabs: [VideoSourceListTab] = try await videoTabDiscoveryUseCase.discoverTabs(
-                sourceID: source.id,
-                definition: legacyConfiguration.definition,
-                explicitTabs: legacyConfiguration.listTabs
-            )
-            guard tabs != legacyConfiguration.listTabs else {
-                return
-            }
-
-            var updatedSource: Source = source
-            updatedSource.configuration = .video(
-                VideoSourceConfiguration(
-                    definition: legacyConfiguration.definition,
-                    listTabs: tabs
-                )
-            )
-            self.upsertSource(updatedSource)
-            self.ensureSelectedListTab()
-            #if DEBUG
-            print(
-                "[BrowseCraftLibraryTabs] origin=webview-discovery " +
-                "source=\(source.id) " +
-                "count=\(tabs.count)"
-            )
-            #endif
-        } catch {
-            RuleExecutionErrorClassifier.log(
-                error: error,
-                stage: .list,
-                event: "library-tab-discovery-error"
-            )
         }
     }
 
@@ -1121,7 +1060,7 @@ final class LibraryViewModel: ObservableObject {
         case .comic:
             return .comic
         case .video:
-            return self.source(for: item.sourceId)?.favoriteVideoKind ?? .videoNative
+            return .videoNative
         default:
             return .rss
         }

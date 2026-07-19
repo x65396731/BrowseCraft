@@ -14,9 +14,9 @@ struct VideoSourceDetectionInput: Hashable {
 }
 
 struct VideoSourceDetection: Hashable {
-    var adapter: VideoAdapter
     var renderMode: VideoRenderRequirement
     var playbackMode: VideoPlaybackMode
+    var requiresPlugin: Bool
     var confidence: Double
     var reasons: [String]
     var warnings: [String]
