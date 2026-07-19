@@ -1,7 +1,7 @@
 import Foundation
 import BrowseCraftCore
 
-/// 中文注释：漫画详情入口只依赖 SourceRuntime；具体规则加载和解析由 runtime 内部完成。
+/// 中文注释：漫画详情入口依赖 Core 的详情能力协议；具体规则加载和解析由 runtime 内部完成。
 struct LoadComicDetailUseCase {
     private let runtimeResolver: any SourceRuntimeResolving
     private let itemReferenceMapper: SourceItemReferenceMapper = SourceItemReferenceMapper()
@@ -16,7 +16,12 @@ struct LoadComicDetailUseCase {
         }
 
         let runtime: any SourceRuntime = try self.runtimeResolver.runtime(for: source)
-        return try await runtime.loadDetail(
+        guard let detailRuntime: any SourceDetailRuntime = runtime as? any SourceDetailRuntime else {
+            throw SourceRuntimeError.unsupported(
+                .custom("Selected source does not expose detail runtime capability.")
+            )
+        }
+        return try await detailRuntime.loadDetail(
             SourceDetailInput(
                 detailURL: detailURL,
                 context: SourceRuntimeContext(

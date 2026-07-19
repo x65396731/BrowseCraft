@@ -219,7 +219,7 @@ extension SourceRuntimeOperation {
             return .detail
         case .reader:
             return .reader
-        case .debug:
+        case .playback, .debug:
             return nil
         }
     }

@@ -132,7 +132,7 @@ private final class AddRSSRuntimeRegistry {
 
     func refreshUseCase() -> RefreshSourceRuntimeUseCase {
         return RefreshSourceRuntimeUseCase(
-            runtimeResolver: SourceRuntimeResolver(
+            runtimeResolver: TestSourceRuntimeResolver(
                 rssRuntimeFactory: { definition in
                     let runtime: AddRSSRecordingRuntime = AddRSSRecordingRuntime(
                         definition: definition,

@@ -342,11 +342,11 @@ struct SourceCredentialStoreTests {
             )
         )
 
-        let authenticatedValues: [String: String] = ComicRuleAPIResolver.ruleContextValues(
+        let authenticatedValues: [String: String] = ComicRuleAPITemplateResolver.ruleContextValues(
             source: source,
             credentialProvider: store
         )
-        let anonymousValues: [String: String] = ComicRuleAPIResolver.ruleContextValues(source: source)
+        let anonymousValues: [String: String] = ComicRuleAPITemplateResolver.ruleContextValues(source: source)
 
         #expect(authenticatedValues["readerAccessToken"] == "member-token")
         #expect(anonymousValues["readerAccessToken"] == "guest-token")

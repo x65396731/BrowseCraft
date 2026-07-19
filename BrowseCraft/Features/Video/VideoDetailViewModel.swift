@@ -113,7 +113,12 @@ final class VideoDetailViewModel: ObservableObject {
                 )
             )
 
-            let output: SourceDetailOutput = try await runtime.loadDetail(input)
+            guard let detailRuntime: any SourceDetailRuntime = runtime as? any SourceDetailRuntime else {
+                throw SourceRuntimeError.unsupported(
+                    .custom("Selected source does not expose detail runtime capability.")
+                )
+            }
+            let output: SourceDetailOutput = try await detailRuntime.loadDetail(input)
             self.episodes = output.chapters.map { chapter in
                 return VideoEpisode(
                     id: chapter.id,
@@ -170,7 +175,7 @@ final class VideoDetailViewModel: ObservableObject {
             )
             #endif
             let reference: SourceVideoPlaybackReference
-            guard let playbackRuntime: any VideoPlaybackRuntimeCapability = runtime as? any VideoPlaybackRuntimeCapability else {
+            guard let playbackRuntime: any SourceVideoPlaybackRuntime = runtime as? any SourceVideoPlaybackRuntime else {
                 throw SourceRuntimeError.unsupported(
                     .custom("Selected source does not expose video playback runtime.")
                 )
@@ -178,7 +183,7 @@ final class VideoDetailViewModel: ObservableObject {
             let output: SourceVideoPlaybackOutput = try await playbackRuntime.loadPlayback(
                 SourceVideoPlaybackInput(
                     playPageURL: episode.playPageURL,
-                    context: self.runtimeContext(operation: nil),
+                    context: self.runtimeContext(operation: .playback),
                     handoff: episode.playbackHandoff
                 )
             )

@@ -2,7 +2,7 @@ import Foundation
 import BrowseCraftCore
 
 // 中文注释：RSSSourceRuntime 是 RSS feed 的独立 SourceRuntime，不复用 SiteRule 解析 DSL。
-struct RSSSourceRuntime: SourceRuntime {
+struct RSSSourceRuntime: SourceRuntime, SourceDetailRuntime {
     let definition: SourceDefinition
 
     private let feedLoader: any RSSFeedLoading
@@ -25,6 +25,7 @@ struct RSSSourceRuntime: SourceRuntime {
             self.limitation(.search, "RSS MVP does not support search."),
             self.limitation(.pagination, "RSS MVP does not support pagination."),
             self.limitation(.reader, "RSS MVP does not support reader output."),
+            self.limitation(.playback, "RSS runtime exposes media through rich content, not video playback output."),
             self.limitation(.debug, "RSS runtime diagnostics are not available."),
             self.limitation(.candidateAnalysis, "RSS feeds use a fixed XML schema and do not run selector candidate analysis.")
         ]
@@ -39,6 +40,7 @@ struct RSSSourceRuntime: SourceRuntime {
             supportsPagination: false,
             supportsDetail: supportsDetail,
             supportsReader: false,
+            supportsPlayback: false,
             supportsDebug: false,
             supportsCandidateAnalysis: false,
             requiresWebView: false,
@@ -98,10 +100,6 @@ struct RSSSourceRuntime: SourceRuntime {
         )
     }
 
-    func search(_ input: SourceSearchInput) async throws -> SourceListOutput {
-        throw SourceRuntimeError.unsupported(.custom("RSS MVP does not support search."))
-    }
-
     func loadDetail(_ input: SourceDetailInput) async throws -> SourceDetailOutput {
         try self.validateSource(input.context)
         guard let pageContentLoader: PageContentLoader = self.pageContentLoader else {
@@ -139,20 +137,6 @@ struct RSSSourceRuntime: SourceRuntime {
                     runtimeContext: input.context,
                     requestURL: input.detailURL
                 )
-            )
-        )
-    }
-
-    func loadReader(_ input: SourceReaderInput) async throws -> SourceReaderOutput {
-        throw SourceRuntimeError.unsupported(.custom("RSS MVP does not support reader output."))
-    }
-
-    func debug(_ input: SourceRuntimeContext) async throws -> SourceDebugOutput {
-        try self.validateSource(input)
-        return SourceDebugOutput(
-            diagnostics: SourceRuntimeDiagnostics.skipped(
-                message: "RSS runtime diagnostics are not available.",
-                context: SourceRuntimeDiagnosticContext(runtimeContext: input)
             )
         )
     }

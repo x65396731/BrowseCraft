@@ -15,7 +15,6 @@ final class AppContainer {
     private let pageDataLoader: PageDataLoader
     private let protectedResourceLoader: ReaderProtectedResourceLoader
     private let urlResolver: URLResolvingService
-    private let comicRuleParser: ComicRuleSourceParsingService
     private let sourceRuntimeFactory: SourceRuntimeFactory
     private let sourceSelectionStore: SourceSelectionStore
     /// 中文注释：图片缓存配置器需要和 App 生命周期一致，Settings 变更与启动配置共享同一份 DataCache 实例。
@@ -52,15 +51,16 @@ final class AppContainer {
                 )
             )
             self.urlResolver = urlResolver
-            self.comicRuleParser = comicRuleParser
             self.sourceRuntimeFactory = SourceRuntimeFactory(
-                pageContentLoader: pageContentLoader,
-                comicRuleSourceRuntimeFactory: ComicRuleSourceRuntimeFactory(
+                comicSourceRuntimeFactory: ComicSourceRuntimeFactory(
                     pageContentLoader: pageContentLoader,
                     comicRuleParser: comicRuleParser,
                     urlResolver: urlResolver
                 ),
-                videoRuleSourceRuntimeFactory: VideoRuleSourceRuntimeFactory(
+                rssSourceRuntimeFactory: RSSSourceRuntimeFactory(
+                    pageContentLoader: pageContentLoader
+                ),
+                videoSourceRuntimeFactory: VideoSourceRuntimeFactory(
                     pageContentLoader: pageContentLoader,
                     parser: videoRuleParser,
                     credentialProvider: sourceCredentialStore
@@ -114,7 +114,7 @@ final class AppContainer {
             sourceRepository: self.sourceRepository
         )
         let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = RefreshSourceRuntimeUseCase(
-            runtimeResolver: self.makeSourceRuntimeResolver()
+            runtimeResolver: self.sourceRuntimeFactory
         )
         let addComicRuleSourceUseCase: AddComicRuleSourceUseCase = AddComicRuleSourceUseCase(
             sourceRepository: self.sourceRepository,
@@ -216,7 +216,7 @@ final class AppContainer {
             favoriteRepository: self.favoriteRepository
         )
         let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = RefreshSourceRuntimeUseCase(
-            runtimeResolver: self.makeSourceRuntimeResolver()
+            runtimeResolver: self.sourceRuntimeFactory
         )
         let validateSourceTabsUseCase: ValidateSourceTabsUseCase = ValidateSourceTabsUseCase(
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
@@ -261,7 +261,7 @@ final class AppContainer {
     @MainActor
     func makeComicDetailViewModel(item: ContentItem, source: Source) -> ComicDetailViewModel {
         let loadComicDetailUseCase: LoadComicDetailUseCase = LoadComicDetailUseCase(
-            runtimeResolver: self.sourceRuntimeFactory.makeRuntimeResolver()
+            runtimeResolver: self.sourceRuntimeFactory
         )
         let comicChapterHistoryRepository: ComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(
             database: self.database
@@ -287,7 +287,7 @@ final class AppContainer {
         restoreContext: ReaderHistoryRestoreContext? = nil
     ) -> ReaderViewModel {
         let loadReaderChapterUseCase: LoadReaderChapterUseCase = LoadReaderChapterUseCase(
-            runtimeResolver: self.sourceRuntimeFactory.makeRuntimeResolver()
+            runtimeResolver: self.sourceRuntimeFactory
         )
         let repository: ComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(
             database: self.database
@@ -388,7 +388,7 @@ final class AppContainer {
             source: source,
             saveRSSReadingHistoryUseCase: saveRSSReadingHistoryUseCase,
             accumulateAdPointsUseCase: accumulateAdPointsUseCase,
-            runtimeResolver: self.sourceRuntimeFactory.makeRuntimeResolver()
+            runtimeResolver: self.sourceRuntimeFactory
         )
     }
 
@@ -416,7 +416,7 @@ final class AppContainer {
             saveVideoWatchHistoryUseCase: saveVideoWatchHistoryUseCase,
             loadVideoWatchHistoryUseCase: loadVideoWatchHistoryUseCase,
             accumulateAdPointsUseCase: self.makeAccumulateAdPointsUseCase(),
-            runtimeResolver: self.makeSourceRuntimeResolver(),
+            runtimeResolver: self.sourceRuntimeFactory,
             credentialProvider: self.sourceCredentialStore,
             userID: history.userID
         )
@@ -437,21 +437,12 @@ final class AppContainer {
         return VideoDetailViewModel(
             item: item,
             source: source,
-            runtimeResolver: self.makeSourceRuntimeResolver(),
+            runtimeResolver: self.sourceRuntimeFactory,
             saveVideoWatchHistoryUseCase: saveVideoWatchHistoryUseCase,
             loadVideoWatchHistoryUseCase: loadVideoWatchHistoryUseCase,
             accumulateAdPointsUseCase: self.makeAccumulateAdPointsUseCase(),
             credentialProvider: self.sourceCredentialStore
         )
-    }
-
-    /// 中文注释：漫画 source 通过 ComicRuleSourceRuntime 执行；对外入口保持 comic runtime 语义。
-    func makeComicSourceRuntime(source: Source) -> ComicRuleSourceRuntime {
-        return self.sourceRuntimeFactory.makeComicSourceRuntime(source: source)
-    }
-
-    func makeSourceRuntimeResolver() -> any SourceRuntimeResolving {
-        return self.sourceRuntimeFactory.makeRuntimeResolver()
     }
 
     private func makeAccumulateAdPointsUseCase() -> AccumulateAdPointsUseCase {

@@ -2,7 +2,7 @@ import Compression
 import Foundation
 import SwiftSoup
 
-// 中文注释：SwiftSoupComicRuleSourceParser.swift 是 ComicRuleSourceRuntime 专用 SwiftSoup 解析实现。
+// 中文注释：SwiftSoupComicRuleSourceParser.swift 是 ComicSourceRuntime 专用 SwiftSoup 解析实现。
 
 /// 中文注释：基于 SwiftSoup 的漫画规则 HTML 解析器。
 /// 中文注释：漫画规则通过 ComicRuleSourceParsingService 使用它，video 不依赖这个实现。

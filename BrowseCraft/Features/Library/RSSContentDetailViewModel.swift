@@ -100,7 +100,12 @@ final class RSSContentDetailViewModel: ObservableObject {
 
         do {
             let runtime: any SourceRuntime = try self.runtimeResolver.runtime(for: self.source)
-            let output: SourceDetailOutput = try await runtime.loadDetail(
+            guard let detailRuntime: any SourceDetailRuntime = runtime as? any SourceDetailRuntime else {
+                throw SourceRuntimeError.unsupported(
+                    .custom("Selected source does not expose detail runtime capability.")
+                )
+            }
+            let output: SourceDetailOutput = try await detailRuntime.loadDetail(
                 SourceDetailInput(
                     detailURL: detailURL,
                     context: SourceRuntimeContext(

@@ -101,7 +101,7 @@ private final class AddComicRuntimeRegistry {
 
     func refreshUseCase() -> RefreshSourceRuntimeUseCase {
         return RefreshSourceRuntimeUseCase(
-            runtimeResolver: SourceRuntimeResolver { source in
+            runtimeResolver: TestSourceRuntimeResolver { source in
                 let runtime: AddComicRecordingRuntime = AddComicRecordingRuntime(
                     definition: SourceDefinitionMapper().definition(from: source),
                     loadError: self.loadError,

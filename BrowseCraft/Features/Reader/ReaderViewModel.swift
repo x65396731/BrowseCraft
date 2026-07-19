@@ -395,7 +395,7 @@ final class ReaderViewModel: ObservableObject {
                 refererURL: (self.chapter?.chapterURL).flatMap { chapterURL in
                     URL(string: chapterURL)
                 },
-                contextValues: ComicRuleAPIResolver.ruleContextValues(
+                contextValues: ComicRuleAPITemplateResolver.ruleContextValues(
                     source: self.source,
                     credentialProvider: self.sourceCredentialProvider
                 )

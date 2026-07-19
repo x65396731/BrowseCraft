@@ -34,16 +34,16 @@ struct ComicRulePageRequestRoutingTests {
             latestText: "第 1 话"
         )
 
-        _ = try await ComicRuleSourceListLoader(
+        _ = try await ComicSourceListLoader(
             pageContentLoader: pageContentLoader,
             comicRuleParser: parser,
             urlResolver: URLResolvingService()
         ).execute(source: source)
-        _ = try await ComicRuleSourceDetailLoader(
+        _ = try await ComicSourceDetailLoader(
             pageContentLoader: pageContentLoader,
             comicRuleParser: parser
         ).execute(source: source, item: item)
-        _ = try await ComicRuleSourceReaderLoader(
+        _ = try await ComicSourceReaderLoader(
             pageContentLoader: pageContentLoader,
             comicRuleParser: parser
         ).execute(

@@ -233,7 +233,7 @@ final class VideoPlayerViewModel: ObservableObject {
 
         do {
             let runtime: any SourceRuntime = try self.runtimeResolver.runtime(for: self.source)
-            guard let playbackRuntime: any VideoPlaybackRuntimeCapability = runtime as? any VideoPlaybackRuntimeCapability else {
+            guard let playbackRuntime: any SourceVideoPlaybackRuntime = runtime as? any SourceVideoPlaybackRuntime else {
                 throw SourceRuntimeError.unsupported(
                     .custom("Selected source does not expose video playback runtime.")
                 )
@@ -280,7 +280,7 @@ final class VideoPlayerViewModel: ObservableObject {
             ruleID: nil,
             requestOverride: nil,
             debugMode: false,
-            operation: nil
+            operation: .playback
         )
     }
 

@@ -6,23 +6,55 @@ Runtime contracts live in `BrowseCraftCore`, while concrete runtime wiring
 stays in the App because it depends on App services such as repositories,
 network loaders, parsers, cache storage, and view-facing domain models.
 
-The architectural axis is `SourceDefinition + SourceRuntime`. Comics use
+The architectural axis is `SourceConfiguration + SourceRuntime`.
+`SourceRuntimeFactory` dispatches directly to the matching domain factory;
+`SourceDefinition` remains runtime-neutral metadata exposed to Core. Comics use
 `SiteRule`; video uses the independent `VideoSiteRule` V2 contract. RSS and
 plugin sources keep their own definitions.
 
+Core protocols are capability-oriented. `SourceRuntime` is the shared list
+entry; optional operations use `SourceSearchRuntime`, `SourceDetailRuntime`,
+`SourceReaderRuntime`, `SourceDebugRuntime`, and `SourceVideoPlaybackRuntime`.
+A concrete runtime must only adopt the operations it can execute instead of
+implementing unrelated methods that always throw unsupported errors.
+
 ```text
 SourceRuntime
-  ComicRuleSourceRuntime
+  ComicSourceRuntime <- ComicSourceRuntimeFactory
     config: SiteRule JSON
-  RSSSourceRuntime
+  RSSSourceRuntime <- RSSSourceRuntimeFactory
     config: RSS / Atom definition
-  VideoRuleSourceRuntime
+  VideoSourceRuntime <- VideoSourceRuntimeFactory
     config: VideoSiteRule V2
     list/detail/playback: explicit rule graph
     playback: native direct media or WebUI
   PluginSourceRuntime
     config: plugin manifest / package
 ```
+
+Each domain root keeps only its runtime entry and factory. Supporting code is
+grouped by responsibility:
+
+```text
+Comic/  API/ Loading/ Mapping/ Parsing/ Reader/
+RSS/    Loading/ Mapping/ Parsing/
+Video/  API/ Detection/ Loading/ Parsing/ Playback/ Rendering/
+```
+
+`Parsing/` contains App-side protocols and normalized parser results. Concrete
+SwiftSoup adapters remain under `Infrastructure/Parsing/`; loaders and runtime
+factories must depend on parsing protocols instead of importing SwiftSoup.
+
+Naming follows the responsibility rather than the historical folder name:
+
+- Runtime orchestration uses `ComicSource...`, `VideoSource...`, or `RSSSource...`
+  (`SourceRuntime`, `SourceRuntimeFactory`, loaders, and output mappers).
+- Pure rule-contract interpretation keeps `ComicRule...` or `VideoRule...`
+  (`RuleAPITemplateResolver`, `RuleJSONResolver`, response evaluation,
+  pagination resolution, and parsed rule values).
+- `RuleSourceParsingService` names are explicit adapter-boundary protocols: they
+  accept rule declarations but hide the concrete DOM parser from loading code.
+- RSS transport/XML types use `RSSFeed...`; RSS is not a rule-backed source.
 
 Video V2 keeps extraction, rendering, and playback policy separate:
 
@@ -40,20 +72,28 @@ inference or V1 fallback.
 
 Responsibilities:
 
-- Resolve a `Source` through `SourceDefinition.runtimeKind` to the correct concrete runtime.
-- Keep `SourceDefinitionMapping` as the runtime-neutral Source-to-Core metadata
+- Resolve a `Source` through `Source.configuration` to the correct concrete runtime.
+- Keep `SourceRuntimeFactory` as both the sole dispatcher and the production
+  implementation of `SourceRuntimeResolving`; do not add a second resolver layer.
+- Keep `SourceDefinitionMapper` as the runtime-neutral Source-to-Core metadata
   mapping boundary.
-- Keep `Runtime/ComicRule/ComicRuleSourceRuntime` as the rule-backed runtime implementation.
-- Keep rule-only loading in `Runtime/ComicRule/Loading/`; list/search/detail/reader loaders
+- Keep `Runtime/Comic/ComicSourceRuntime` as the rule-backed runtime implementation.
+- Keep comic API request/context replacement in `ComicRuleAPITemplateResolver`
+  and JSON Path/value mapping in `ComicRuleJSONResolver`.
+- Keep comic business-response evaluation in `ComicRuleAPIResponseEvaluator`.
+  Its private legacy evaluator is the only missing-policy compatibility path;
+  explicit policies never enter legacy evaluation.
+- Keep rule-only loading in `Runtime/Comic/Loading/`; list/search/detail/reader loaders
   are runtime internals, not shared App use cases.
-- Keep comic detail parsing behind `ComicRuleSourceParsingService.parseDetail`. The SwiftSoup
+- Keep comic parsing contracts and normalized parser results in `Runtime/Comic/Parsing/`,
+  behind `ComicRuleSourceParsingService`. The SwiftSoup
   adapter converts one DOM document into `ComicRuleParsedDetailMetadata + chapters`; the detail
   loader only orchestrates direct-chapter, DOM, and chapter-API selection. SwiftSoup types and
   selector mechanics must not leak into the loader or `SourceRuntime`.
 - Normalize the parser output to Core `SourceDetailOutput` only in
-  `ComicRuleSourceRuntimeMapper`. `DetailChapterAPIRule.descriptionPath` is chapter subtitle
+  `ComicSourceRuntimeMapper`. `DetailChapterAPIRule.descriptionPath` is chapter subtitle
   semantics and must not be reused as a work-level detail description.
-- Keep rule-only mapping in `Runtime/ComicRule/Mapping/ComicRuleSourceRuntimeMapper`; it is not a
+- Keep rule-only mapping in `Runtime/Comic/Mapping/ComicSourceRuntimeMapper`; it is not a
   shared App/Core compatibility layer.
 - Use Core `SourceDetailOutput`, `SourceReaderOutput`, and `SourceRichContent` as the only
   cross-runtime detail/reader contracts. App `ContentItem`, `ChapterLink`, and `ReaderChapter`
@@ -63,19 +103,25 @@ Responsibilities:
   `SourceContentItem.latestText`; that field is a plain list summary.
 - Keep RSS mapping/loading/parsing in `RSS/Mapping/`, `RSS/Loading/`, and `RSS/Parsing/`; RSS does not
   extend `SiteRule` or the rule editor.
-- Keep `VideoRule/VideoRuleSourceRuntime` as the only video runtime implementation.
-- Keep V2 list/detail/playback loading and parsing in `VideoRule/`; selectors,
+- Keep `Video/VideoSourceRuntime` as the only video runtime implementation.
+- Keep Video V2 request/context replacement in `VideoRuleAPITemplateResolver`,
+  JSON Path/value/URL mapping in `VideoRuleJSONResolver`, and HTML parsing
+  contracts in `Video/Parsing/`; none of these loading boundaries may import SwiftSoup.
+- Keep video business-response evaluation in `VideoRuleAPIResponseEvaluator`.
+  Video V2 always receives an explicit policy and has no legacy evaluator.
+- Keep V2 list/detail/playback loading and parsing in `Video/`; selectors,
   iframe traversal, and fallback behavior come only from the resolved rule graph.
 - Keep WebView/static HTML validation in `Video/Rendering/`; it is shared support
   for V2 loaders, not a source adapter.
-- Keep `VideoPlaybackRuntimeCapability` as the video playback capability so a
-  future plugin runtime can expose playback through the same boundary. Video detail
-  always uses `SourceRuntime.loadDetail`; playback capability must not add a private detail API.
+- Keep playback request resolution in `Video/Playback/` and expose it through Core
+  `SourceVideoPlaybackRuntime`, so a future plugin runtime can use the same boundary.
+  Video detail uses Core `SourceDetailRuntime`; playback capability must not add a
+  private detail API.
 - Add runtime-facing use cases before wiring Library and Reader features to them.
 - Keep the comic UI flow as `Library/Favorites -> ComicDetailView -> ReaderView`.
   `ComicDetailViewModel` consumes the complete `SourceDetailOutput`; `ReaderViewModel`
   starts only after a concrete chapter has been selected.
-- Keep the plugin runtime slot explicit in the resolver/factory plan, while
+- Keep the plugin runtime slot explicit in the factory plan, while
   deferring plugin execution to a later phase.
 
 ## Comic Page Request Routing
@@ -109,6 +155,9 @@ never the signed query, Referer value, cookie, or token.
 
 `responsePolicy` belongs to rule interpretation, not networking. It consumes an
 already parsed JSON value and answers only whether field parsing may continue.
+Comic and Video keep this logic in their domain-specific
+`*RuleAPIResponseEvaluator.swift` files; the evaluator files must not import or
+accept transport response types.
 
 ```text
 existing page/API loading
@@ -145,8 +194,8 @@ Non-goals:
   `BrowseCraftCore`.
 - Do not treat comic `SiteRule` as the App-wide source axis.
 - Do not add RSS, `VideoSiteRule`, or plugin behavior as more comic `SiteRule` fields.
-- Do not route RSS through `ComicRuleSourceRuntime`; RSS uses `RSSSourceRuntime`.
-- Do not route video through `ComicRuleSourceRuntime`; video uses `VideoRuleSourceRuntime`.
+- Do not route RSS through `ComicSourceRuntime`; RSS uses `RSSSourceRuntime`.
+- Do not route video through `ComicSourceRuntime`; video uses `VideoSourceRuntime`.
 - Do not restore host/CMS inference, V1 adapters, or mapper fallbacks. Site
   differences belong in explicit V2 rules.
 - Do not put account login, CAPTCHA, JS signing, media decryption, or private

@@ -8,7 +8,7 @@ struct SourceRuntimeMappingTests {
     @Test func sourceRuntimeResolverReturnsComicRuntimeFromSourceRuntimeKind() throws {
         var source: Source = try Self.source(id: "user.example")
         source.type = .rss
-        let resolver = SourceRuntimeResolver { source in
+        let resolver = TestSourceRuntimeResolver { source in
             return StubSourceRuntime(definition: SourceDefinitionMapper().definition(from: source))
         }
 
@@ -20,7 +20,7 @@ struct SourceRuntimeMappingTests {
     }
 
     @Test func sourceRuntimeResolverConnectsRSSFactoryAndKeepsPluginDisconnected() throws {
-        let resolver = SourceRuntimeResolver(
+        let resolver = TestSourceRuntimeResolver(
             rssRuntimeFactory: { definition in
                 return StubSourceRuntime(definition: definition)
             },
@@ -83,7 +83,7 @@ struct SourceRuntimeMappingTests {
     }
 
     @Test func architectureGuardKeepsRuntimeSlotsIndependentFromSiteRulePayload() throws {
-        let resolver = SourceRuntimeResolver(
+        let resolver = TestSourceRuntimeResolver(
             rssRuntimeFactory: { definition in
                 return StubSourceRuntime(definition: definition)
             },
@@ -159,7 +159,7 @@ struct SourceRuntimeMappingTests {
         let source: Source = try Self.source(id: "user.example")
         let runtime = RecordingSourceRuntime(definition: SourceDefinitionMapper().definition(from: source))
         let useCase = RefreshSourceRuntimeUseCase(
-            runtimeResolver: SourceRuntimeResolver { _ in
+            runtimeResolver: TestSourceRuntimeResolver { _ in
                 return runtime
             }
         )
@@ -276,7 +276,7 @@ struct SourceRuntimeMappingTests {
     }
 
     @Test func outputMapperMapsItemsChaptersReaderAndPassesDiagnosticsThrough() throws {
-        let mapper: ComicRuleSourceRuntimeMapper = ComicRuleSourceRuntimeMapper()
+        let mapper: ComicSourceRuntimeMapper = ComicSourceRuntimeMapper()
         let diagnostics: SourceRuntimeDiagnostics = SourceRuntimeDiagnostics.partial(
             requestLogs: [
                 SourceRequestLog(
@@ -514,7 +514,7 @@ struct SourceRuntimeMappingTests {
     }
 }
 
-private struct StubSourceRuntime: SourceRuntime {
+private struct StubSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDetailRuntime, SourceReaderRuntime {
     let definition: SourceDefinition
 
     var capabilities: SourceRuntimeCapabilities {
