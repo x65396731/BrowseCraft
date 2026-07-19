@@ -21,8 +21,11 @@ struct VideoWebPlayerRequest: Equatable {
         self.userAgent = userAgent
     }
 
-    init(reference: SourceVideoPlaybackReference) {
-        let requestConfig: SourcePlaybackRequestConfig? = reference.playbackRequestConfig
+    init(
+        reference: SourceVideoPlaybackReference,
+        requestConfig: SourcePlaybackRequestConfig? = nil
+    ) {
+        let requestConfig: SourcePlaybackRequestConfig? = requestConfig ?? reference.playbackRequestConfig
         self.init(
             url: Self.webPlaybackURL(for: reference),
             headers: requestConfig?.headers ?? [:],
@@ -116,21 +119,25 @@ struct VideoWebPlayerView<Controls: View>: View {
                         #if DEBUG
                         print(
                             "[BrowseCraftVideoWebPlayer] appear/load " +
-                            "url=\(self.request.url.absoluteString) " +
+                            "url=\(Self.safeLogURL(self.request.url)) " +
                             "title=\(self.title)"
                         )
                         #endif
-                        proxy.load(request: self.request.urlRequest)
+                        self.coordinator.prepareCookies(for: self.request) {
+                            proxy.load(request: self.request.urlRequest)
+                        }
                     }
                     .onChange(of: self.request) { _, newRequest in
                         #if DEBUG
                         print(
                             "[BrowseCraftVideoWebPlayer] reload " +
-                            "url=\(newRequest.url.absoluteString) " +
+                            "url=\(Self.safeLogURL(newRequest.url)) " +
                             "title=\(self.title)"
                         )
                         #endif
-                        proxy.load(request: newRequest.urlRequest)
+                        self.coordinator.prepareCookies(for: newRequest) {
+                            proxy.load(request: newRequest.urlRequest)
+                        }
                     }
                     .ignoresSafeArea(edges: .bottom)
 
@@ -160,6 +167,11 @@ struct VideoWebPlayerView<Controls: View>: View {
         } message: { dialog in
             Text(dialog.message)
         }
+    }
+
+    private static func safeLogURL(_ url: URL) -> String {
+        let host: String = url.host ?? "unknown-host"
+        return "\(host)\(url.path)"
     }
 
     private func toolbar(proxy: WebViewProxy) -> some View {
@@ -269,6 +281,64 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
         super.init()
     }
 
+    /// 中文注释：把本次播放即时解析出的 Cookie 注入 WebKit store，后续 iframe/媒体子请求无需持久化 Cookie 到历史记录。
+    func prepareCookies(
+        for request: VideoWebPlayerRequest,
+        completion: @escaping @MainActor () -> Void
+    ) {
+        guard let cookieHeader: String = request.headers.first(where: { key, _ in
+            return key.caseInsensitiveCompare("Cookie") == .orderedSame
+        })?.value else {
+            completion()
+            return
+        }
+        let cookies: [HTTPCookie] = self.cookies(from: cookieHeader, url: request.url)
+        guard cookies.isEmpty == false else {
+            completion()
+            return
+        }
+        let cookieStore: WKHTTPCookieStore = self.configuration.websiteDataStore.httpCookieStore
+        let group: DispatchGroup = DispatchGroup()
+        for cookie: HTTPCookie in cookies {
+            group.enter()
+            cookieStore.setCookie(cookie) {
+                group.leave()
+            }
+        }
+        group.notify(queue: .main) {
+            Task { @MainActor in
+                completion()
+            }
+        }
+    }
+
+    private func cookies(from header: String, url: URL) -> [HTTPCookie] {
+        guard let host: String = url.host else {
+            return []
+        }
+        return header.split(separator: ";").compactMap { component in
+            let pair: [Substring] = component.split(separator: "=", maxSplits: 1)
+            guard pair.count == 2 else {
+                return nil
+            }
+            let name: String = pair[0].trimmingCharacters(in: .whitespacesAndNewlines)
+            let value: String = pair[1].trimmingCharacters(in: .whitespacesAndNewlines)
+            guard name.isEmpty == false else {
+                return nil
+            }
+            var properties: [HTTPCookiePropertyKey: Any] = [
+                .domain: host,
+                .path: "/",
+                .name: name,
+                .value: value
+            ]
+            if url.scheme?.lowercased() == "https" {
+                properties[.secure] = "TRUE"
+            }
+            return HTTPCookie(properties: properties)
+        }
+    }
+
     func confirmDialog() {
         guard let dialog: Dialog = self.dialog else {
             return
@@ -323,7 +393,7 @@ extension VideoWebPlayerCoordinator: WKUIDelegate {
                 #if DEBUG
                 print(
                     "[BrowseCraftVideoWebPlayer] block-target-blank " +
-                    "url=\(navigationAction.request.url?.absoluteString ?? "nil")"
+                    "url=\(self.safeLogURL(navigationAction.request.url))"
                 )
                 #endif
                 return nil
@@ -332,7 +402,7 @@ extension VideoWebPlayerCoordinator: WKUIDelegate {
             #if DEBUG
             print(
                 "[BrowseCraftVideoWebPlayer] target-blank " +
-                "url=\(navigationAction.request.url?.absoluteString ?? "nil")"
+                "url=\(self.safeLogURL(navigationAction.request.url))"
             )
             #endif
             webView.load(navigationAction.request)
@@ -390,7 +460,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
                 #if DEBUG
                 print(
                     "[BrowseCraftVideoWebPlayer] block-main-frame " +
-                    "url=\(navigationAction.request.url?.absoluteString ?? "nil")"
+                    "url=\(self.safeLogURL(navigationAction.request.url))"
                 )
                 #endif
                 return (.cancel, preferences)
@@ -400,7 +470,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
             if navigationAction.targetFrame == nil {
                 print(
                     "[BrowseCraftVideoWebPlayer] allow-new-frame " +
-                    "url=\(navigationAction.request.url?.absoluteString ?? "nil")"
+                    "url=\(self.safeLogURL(navigationAction.request.url))"
                 )
             }
             #endif
@@ -410,7 +480,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
         #if DEBUG
         print(
             "[BrowseCraftVideoWebPlayer] cancel-navigation " +
-            "scheme=\(scheme) url=\(navigationAction.request.url?.absoluteString ?? "nil")"
+            "scheme=\(scheme) url=\(self.safeLogURL(navigationAction.request.url))"
         )
         #endif
         return (.cancel, preferences)
@@ -456,7 +526,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
         #if DEBUG
         print(
             "[BrowseCraftVideoWebPlayer] did-finish " +
-            "url=\(webView.url?.absoluteString ?? "nil") title=\(webView.title ?? "nil")"
+            "url=\(self.safeLogURL(webView.url)) title=\(webView.title ?? "nil")"
         )
         #endif
     }
@@ -465,7 +535,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
         #if DEBUG
         print(
             "[BrowseCraftVideoWebPlayer] did-fail " +
-            "url=\(webView.url?.absoluteString ?? "nil") error=\(error.localizedDescription)"
+            "url=\(self.safeLogURL(webView.url)) error=\(error.localizedDescription)"
         )
         #endif
     }
@@ -474,7 +544,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
         #if DEBUG
         print(
             "[BrowseCraftVideoWebPlayer] did-fail-provisional " +
-            "url=\(webView.url?.absoluteString ?? "nil") error=\(error.localizedDescription)"
+            "url=\(self.safeLogURL(webView.url)) error=\(error.localizedDescription)"
         )
         #endif
     }
@@ -483,9 +553,16 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
         #if DEBUG
         print(
             "[BrowseCraftVideoWebPlayer] web-content-terminated " +
-            "url=\(webView.url?.absoluteString ?? "nil")"
+            "url=\(self.safeLogURL(webView.url))"
         )
         #endif
         webView.reload()
+    }
+
+    private func safeLogURL(_ url: URL?) -> String {
+        guard let url: URL else {
+            return "nil"
+        }
+        return "\(url.host ?? "unknown-host")\(url.path)"
     }
 }

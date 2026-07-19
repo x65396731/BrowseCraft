@@ -26,6 +26,7 @@ final class VideoDetailViewModel: ObservableObject {
     private let saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase
     private let loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase
     private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
+    private let credentialProvider: any SourceCredentialProviding
 
     init(
         item: ContentItem,
@@ -33,7 +34,8 @@ final class VideoDetailViewModel: ObservableObject {
         runtimeResolver: any SourceRuntimeResolving,
         saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase,
         loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase,
-        accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil
+        accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil,
+        credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider()
     ) {
         self.item = item
         self.source = source
@@ -41,6 +43,7 @@ final class VideoDetailViewModel: ObservableObject {
         self.saveVideoWatchHistoryUseCase = saveVideoWatchHistoryUseCase
         self.loadVideoWatchHistoryUseCase = loadVideoWatchHistoryUseCase
         self.accumulateAdPointsUseCase = accumulateAdPointsUseCase
+        self.credentialProvider = credentialProvider
 
         #if DEBUG
         print(
@@ -107,7 +110,8 @@ final class VideoDetailViewModel: ObservableObject {
                     id: chapter.id,
                     title: chapter.title,
                     playPageURL: chapter.url,
-                    sourceName: chapter.subtitle
+                    sourceName: chapter.subtitle,
+                    playbackHandoff: chapter.videoPlaybackHandoff
                 )
             }
             self.synopsis = output.metadata?.description
@@ -161,7 +165,8 @@ final class VideoDetailViewModel: ObservableObject {
                 let output: SourceVideoPlaybackOutput = try await playbackRuntime.loadPlayback(
                     SourceVideoPlaybackInput(
                         playPageURL: episode.playPageURL,
-                        context: self.runtimeContext(operation: nil)
+                        context: self.runtimeContext(operation: nil),
+                        handoff: episode.playbackHandoff
                     )
                 )
                 reference = output.reference
@@ -190,7 +195,8 @@ final class VideoDetailViewModel: ObservableObject {
                 saveVideoWatchHistoryUseCase: self.saveVideoWatchHistoryUseCase,
                 loadVideoWatchHistoryUseCase: self.loadVideoWatchHistoryUseCase,
                 accumulateAdPointsUseCase: self.accumulateAdPointsUseCase,
-                runtimeResolver: self.runtimeResolver
+                runtimeResolver: self.runtimeResolver,
+                credentialProvider: self.credentialProvider
             )
             self.playbackRoute = VideoPlaybackRoute(
                 id: [
@@ -210,7 +216,7 @@ final class VideoDetailViewModel: ObservableObject {
             )
             #endif
         } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-playback-error")
+            RuleExecutionErrorClassifier.log(error: error, stage: .playback, event: "video-playback-error")
             AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .videoPlayback, errorCode: "video-playback-error")
             CrashDiagnostics.shared.record(
                 error: error,
@@ -223,7 +229,7 @@ final class VideoDetailViewModel: ObservableObject {
     }
 
     private func pageOnlyPlaybackReference(for episode: VideoEpisode) -> SourceVideoPlaybackReference {
-        let episodeIndex: Int = (self.episodes.firstIndex(of: episode) ?? 0) + 1
+        let fallbackEpisodeIndex: Int = (self.episodes.firstIndex(of: episode) ?? 0) + 1
         let detailURL: URL? = URL(string: self.item.detailURL)
         let trimmedVodID: String? = self.item.idCode?.trimmingCharacters(in: .whitespacesAndNewlines)
         let vodID: String
@@ -232,13 +238,14 @@ final class VideoDetailViewModel: ObservableObject {
         } else {
             vodID = self.item.id
         }
+        let handoff: SourceVideoPlaybackHandoff? = episode.playbackHandoff
 
         return SourceVideoPlaybackReference(
-            vodID: vodID,
-            sourceIndex: 1,
-            episodeIndex: episodeIndex,
-            episodeKey: episode.id,
-            episodeTitle: episode.title,
+            vodID: handoff?.vodID ?? vodID,
+            sourceIndex: handoff?.sourceIndex ?? 1,
+            episodeIndex: handoff?.episodeIndex ?? fallbackEpisodeIndex,
+            episodeKey: handoff?.episodeKey ?? episode.id,
+            episodeTitle: handoff?.episodeTitle ?? episode.title,
             playPageURL: episode.playPageURL,
             candidateMediaURL: nil,
             candidateMediaKind: .unknown,
@@ -247,10 +254,11 @@ final class VideoDetailViewModel: ObservableObject {
                 referer: detailURL,
                 userAgent: BrowserRequestHeaders.Chrome.chromeUserAgent
             ),
-            nextEpisodeURL: nil,
-            previousEpisodeURL: nil,
-            sourceName: episode.sourceName ?? self.source.name,
-            status: .pageOnly
+            nextEpisodeURL: handoff?.nextEpisodeURL,
+            previousEpisodeURL: handoff?.previousEpisodeURL,
+            sourceName: handoff?.sourceName ?? episode.sourceName ?? self.source.name,
+            status: .pageOnly,
+            handoff: handoff
         )
     }
 

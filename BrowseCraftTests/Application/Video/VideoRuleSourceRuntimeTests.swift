@@ -1732,6 +1732,14 @@ private final class RecordingVideoRuleParser: VideoRuleSourceParsingService {
     ) throws -> VideoRuleParsedEpisodes {
         throw VideoRuleSourceParsingError.incompleteDOMRule(kind: "episode", ruleID: rule.id)
     }
+
+    func parsePlayback(
+        html: String,
+        pageURL: URL,
+        rule: VideoPlaybackRule
+    ) throws -> VideoRuleParsedPlayback {
+        throw VideoRuleSourceParsingError.incompleteDOMRule(kind: "playback", ruleID: rule.id)
+    }
 }
 
 private final class RecordingVideoRulePageContentLoader: PageContentLoader {

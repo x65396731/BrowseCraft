@@ -43,6 +43,11 @@ struct VideoRuleSourceRuntimeFactory {
                 pageContentLoader: self.pageContentLoader,
                 parser: self.parser,
                 credentialProvider: self.credentialProvider
+            ),
+            playbackLoader: VideoRuleSourcePlaybackLoader(
+                pageContentLoader: self.pageContentLoader,
+                parser: self.parser,
+                credentialProvider: self.credentialProvider
             )
         )
     }

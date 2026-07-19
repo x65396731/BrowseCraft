@@ -100,11 +100,12 @@ struct VideoNativePlayerView<Controls: View>: View {
         }
 
         #if DEBUG
+        let mediaLocation: String = (self.mediaURL.host ?? "unknown") + self.mediaURL.path
         print(
             "[BrowseCraftVideoPlayer] playback-options " +
-            "media=\(self.mediaURL.absoluteString) " +
-            "referer=\(options.referer ?? "nil") " +
-            "userAgent=\(options.userAgent ?? "nil") " +
+            "media=\(mediaLocation) " +
+            "hasReferer=\(options.referer != nil) " +
+            "hasUserAgent=\(options.userAgent != nil) " +
             "headers=\(headers.keys.sorted().joined(separator: ","))"
         )
         #endif

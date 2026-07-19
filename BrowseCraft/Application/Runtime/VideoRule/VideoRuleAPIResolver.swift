@@ -72,6 +72,25 @@ struct VideoRuleAPITemplateContext {
 }
 
 struct VideoRuleAPIResolver {
+    static func resolvedContextValues(
+        source: Source,
+        rule: VideoSiteRule,
+        credentialProvider: any SourceCredentialProviding
+    ) -> [String: String] {
+        let templateContext = VideoRuleAPITemplateContext(
+            source: source,
+            rule: rule,
+            credentialProvider: credentialProvider
+        )
+        var values: [String: String] = [:]
+        for key: String in (rule.context ?? [:]).keys.sorted() {
+            if let value: String = self.contextValue(key, context: templateContext) {
+                values[key] = value
+            }
+        }
+        return values
+    }
+
     static func resolvedRequest(
         _ request: RequestConfig?,
         context: VideoRuleAPITemplateContext

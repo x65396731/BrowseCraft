@@ -21,6 +21,7 @@ final class VideoPlayerViewModel: ObservableObject {
     private let loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase
     private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
     private let runtimeResolver: any SourceRuntimeResolving
+    private let playbackRequestResolver: VideoPlaybackRequestResolver
     private let userID: String
     private let now: () -> Date
     private var autosaveTask: Task<Void, Never>?
@@ -39,6 +40,7 @@ final class VideoPlayerViewModel: ObservableObject {
         loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase,
         accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil,
         runtimeResolver: any SourceRuntimeResolving,
+        credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider(),
         userID: String = AppUser.localDefaultID,
         now: @escaping () -> Date = Date.init
     ) {
@@ -51,6 +53,9 @@ final class VideoPlayerViewModel: ObservableObject {
         self.loadVideoWatchHistoryUseCase = loadVideoWatchHistoryUseCase
         self.accumulateAdPointsUseCase = accumulateAdPointsUseCase
         self.runtimeResolver = runtimeResolver
+        self.playbackRequestResolver = VideoPlaybackRequestResolver(
+            credentialProvider: credentialProvider
+        )
         self.userID = userID
         self.now = now
     }
@@ -90,6 +95,15 @@ final class VideoPlayerViewModel: ObservableObject {
         }
     }
 
+    var resolvedPlaybackRequestConfig: SourcePlaybackRequestConfig? {
+        let resourceURL: URL = self.reference.candidateMediaURL ?? self.reference.playPageURL
+        return self.playbackRequestResolver.resolve(
+            self.reference.playbackRequestConfig,
+            source: self.source,
+            resourceURL: resourceURL
+        )
+    }
+
     var playbackDestination: VideoPlaybackDestination {
         if let nativeMediaURL: URL = self.nativeMediaURL {
             return .native(nativeMediaURL)
@@ -97,7 +111,12 @@ final class VideoPlayerViewModel: ObservableObject {
 
         switch self.reference.status {
         case .pageOnly:
-            return .web(VideoWebPlayerRequest(reference: self.reference))
+            return .web(
+                VideoWebPlayerRequest(
+                    reference: self.reference,
+                    requestConfig: self.resolvedPlaybackRequestConfig
+                )
+            )
         case .playable:
             return .unavailable(
                 title: "Unsupported Media",
@@ -223,7 +242,8 @@ final class VideoPlayerViewModel: ObservableObject {
             let output: SourceVideoPlaybackOutput = try await playbackRuntime.loadPlayback(
                 SourceVideoPlaybackInput(
                     playPageURL: playPageURL,
-                    context: self.runtimeContext()
+                    context: self.runtimeContext(),
+                    handoff: self.reference.handoff?.selecting(playPageURL: playPageURL)
                 )
             )
 
@@ -238,7 +258,7 @@ final class VideoPlayerViewModel: ObservableObject {
             self.resetVideoAdPointTimer()
             self.prepareForPlayback()
         } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-episode-switch-error")
+            RuleExecutionErrorClassifier.log(error: error, stage: .playback, event: "video-episode-switch-error")
             AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .videoPlayback, errorCode: "video-episode-switch-error")
             CrashDiagnostics.shared.record(
                 error: error,

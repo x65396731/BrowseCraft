@@ -242,7 +242,13 @@ struct VideoRuleSourceDetailLoader {
         let chapters: [SourceChapter] = self.chapters(
             source: source,
             parsed: selectedEpisodes.parsed,
-            sort: episodeRule.sort ?? episodeRule.episodeAPI?.sort
+            sort: episodeRule.sort ?? episodeRule.episodeAPI?.sort,
+            vodID: selectedDetail.parsed.metadata.idCode
+                ?? input.itemReference?.idCode
+                ?? input.itemReference?.id
+                ?? "\(source.id)::\(title)",
+            pageID: entry.pageID,
+            listRuleID: entry.listRuleID
         )
         let diagnosticContext = SourceRuntimeDiagnosticContext(
             runtimeContext: input.context,
@@ -411,7 +417,10 @@ struct VideoRuleSourceDetailLoader {
     private func chapters(
         source: Source,
         parsed: VideoRuleParsedEpisodes,
-        sort: VideoEpisodeSort?
+        sort: VideoEpisodeSort?,
+        vodID: String,
+        pageID: String,
+        listRuleID: String
     ) -> [SourceChapter] {
         let navigationOrder: SourceChapterNavigationOrder = sort == .descending
             ? .descending
@@ -419,6 +428,14 @@ struct VideoRuleSourceDetailLoader {
         return parsed.groups.enumerated().flatMap { groupIndex, group in
             let navigationURLs: [URL] = group.episodes.map(\.playURL)
             let navigationTitles: [String?] = group.episodes.map { $0.title }
+            let sourceIndex: Int = groupIndex + 1
+            let navigationKeys: [String] = group.episodes.enumerated().map { episodeIndex, episode in
+                return episode.idCode ?? SourceVideoPlaybackReference.episodeKey(
+                    vodID: vodID,
+                    sourceIndex: sourceIndex,
+                    episodeIndex: episodeIndex + 1
+                )
+            }
             let groupKey: String
             if let idCode: String = group.idCode {
                 groupKey = "id-\(idCode)"
@@ -427,8 +444,21 @@ struct VideoRuleSourceDetailLoader {
             } else {
                 groupKey = "index-\(groupIndex)"
             }
-            return group.episodes.map { episode in
-                let episodeKey: String = episode.idCode ?? episode.playURL.absoluteString
+            return group.episodes.enumerated().map { episodeIndex, episode in
+                let episodeKey: String = navigationKeys[episodeIndex]
+                let playbackHandoff = SourceVideoPlaybackHandoff(
+                    vodID: vodID,
+                    sourceIndex: sourceIndex,
+                    episodeIndex: episodeIndex + 1,
+                    episodeKey: episodeKey,
+                    episodeTitle: episode.title,
+                    episodeURLs: navigationURLs,
+                    episodeKeys: navigationKeys,
+                    episodeTitles: navigationTitles,
+                    sourceName: group.title,
+                    pageID: pageID,
+                    listRuleID: listRuleID
+                )
                 return SourceChapter(
                     id: [
                         source.id,
@@ -443,7 +473,8 @@ struct VideoRuleSourceDetailLoader {
                     isPaid: episode.isPaid,
                     navigationChapterURLs: navigationURLs,
                     navigationChapterTitles: navigationTitles,
-                    navigationOrder: navigationOrder
+                    navigationOrder: navigationOrder,
+                    videoPlaybackHandoff: playbackHandoff
                 )
             }
         }

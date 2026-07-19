@@ -7,3 +7,4 @@ protocol VideoPlaybackRuntimeCapability: SourceRuntime {
 }
 
 extension VideoSourceRuntime: VideoPlaybackRuntimeCapability {}
+extension VideoRuleSourceRuntime: VideoPlaybackRuntimeCapability {}

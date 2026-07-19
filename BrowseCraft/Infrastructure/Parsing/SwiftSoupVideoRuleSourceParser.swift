@@ -213,6 +213,135 @@ final class SwiftSoupVideoRuleSourceParser: VideoRuleSourceParsingService {
         )
     }
 
+    func parsePlayback(
+        html: String,
+        pageURL: URL,
+        rule: VideoPlaybackRule
+    ) throws -> VideoRuleParsedPlayback {
+        let document: Document = try SwiftSoup.parse(html, pageURL.absoluteString)
+        guard try self.readyMatched(in: document, rule: rule.ready, pageURL: pageURL) else {
+            return VideoRuleParsedPlayback(
+                mediaURLs: [],
+                mediaCandidateCount: 0,
+                invalidMediaURLCount: 0,
+                iframeURLs: [],
+                iframeCandidateCount: 0,
+                invalidIframeURLCount: 0,
+                readyMatched: false
+            )
+        }
+
+        let mediaCandidates: (values: [String], count: Int) = try self.playbackCandidateValues(
+            from: document,
+            rule: rule.media?.url,
+            pageURL: pageURL
+        )
+        let iframeCandidates: (values: [String], count: Int) = try self.playbackCandidateValues(
+            from: document,
+            rule: rule.iframe?.url,
+            pageURL: pageURL
+        )
+        let mediaResult: (urls: [URL], invalidCount: Int) = self.playbackURLs(
+            mediaCandidates.values,
+            relativeTo: pageURL
+        )
+        let iframeResult: (urls: [URL], invalidCount: Int) = self.playbackURLs(
+            iframeCandidates.values,
+            relativeTo: pageURL
+        )
+        return VideoRuleParsedPlayback(
+            mediaURLs: mediaResult.urls,
+            mediaCandidateCount: mediaCandidates.count,
+            invalidMediaURLCount: mediaResult.invalidCount,
+            iframeURLs: iframeResult.urls,
+            iframeCandidateCount: iframeCandidates.count,
+            invalidIframeURLCount: iframeResult.invalidCount,
+            readyMatched: true
+        )
+    }
+
+    private func playbackCandidateValues(
+        from element: Element,
+        rule: ExtractRule?,
+        pageURL: URL
+    ) throws -> (values: [String], count: Int) {
+        guard let rule: ExtractRule else {
+            return ([], 0)
+        }
+        let selected: [Element] = try self.selectedElements(from: element, rule: rule)
+        let values: [String] = try selected.compactMap { selectedElement in
+            let value: String = try self.playbackValue(
+                from: selectedElement,
+                rule: rule,
+                pageURL: pageURL
+            ).trimmingCharacters(in: .whitespacesAndNewlines)
+            return value.isEmpty ? nil : value
+        }
+        if values.isEmpty == false {
+            return (values, selected.count)
+        }
+        for fallback: ExtractRule in rule.fallback ?? [] {
+            let fallbackValues: (values: [String], count: Int) = try self.playbackCandidateValues(
+                from: element,
+                rule: fallback,
+                pageURL: pageURL
+            )
+            if fallbackValues.values.isEmpty == false {
+                return fallbackValues
+            }
+        }
+        return ([], selected.count)
+    }
+
+    private func playbackURLs(
+        _ values: [String],
+        relativeTo pageURL: URL
+    ) -> (urls: [URL], invalidCount: Int) {
+        var urls: [URL] = []
+        var seenURLKeys: Set<String> = []
+        var invalidCount: Int = 0
+        for value: String in values {
+            guard let url: URL = self.absoluteHTTPURL(value, relativeTo: pageURL) else {
+                invalidCount += 1
+                continue
+            }
+            if seenURLKeys.insert(self.canonicalURLKey(url)).inserted {
+                urls.append(url)
+            }
+        }
+        return (urls, invalidCount)
+    }
+
+    private func playbackValue(
+        from element: Element,
+        rule: ExtractRule,
+        pageURL: URL
+    ) throws -> String {
+        let rawValue: String
+        switch rule.function {
+        case .text:
+            rawValue = try element.text()
+        case .attr:
+            rawValue = try self.attributeValue(from: element, expression: rule.param ?? "")
+        case .raw:
+            rawValue = try element.outerHtml()
+        case .url:
+            let attributeValue: String = try self.attributeValue(
+                from: element,
+                expression: rule.param ?? "href"
+            )
+            rawValue = self.absoluteURLString(attributeValue, relativeTo: pageURL)
+        case .html, .decodeBase64, .removingPercentEncoding, .addingPercentEncoding,
+             .replace, .decompressFromBase64, .reversed, .regexReplacement:
+            throw VideoRuleSourceParsingError.unsupportedFunction(rule.function)
+        }
+        return try self.applyRegex(
+            to: rawValue,
+            regex: rule.regex,
+            replacement: rule.replacement
+        )
+    }
+
     private func parseEpisodeGroup(
         in container: Element,
         groupRule: VideoEpisodeGroupDOMRule?,

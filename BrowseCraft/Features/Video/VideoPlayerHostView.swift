@@ -47,7 +47,7 @@ struct VideoPlayerHostView: View {
         case .native(let mediaURL):
             VideoNativePlayerView(
                 mediaURL: mediaURL,
-                requestConfig: self.viewModel.reference.playbackRequestConfig,
+                requestConfig: self.viewModel.resolvedPlaybackRequestConfig,
                 title: self.viewModel.displayTitle,
                 controls: {
                     self.episodeNavigationControls

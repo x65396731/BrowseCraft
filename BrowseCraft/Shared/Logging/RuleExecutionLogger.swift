@@ -8,6 +8,7 @@ enum RuleExecutionLogger {
         case list
         case search
         case detail
+        case playback
         case reader
         case image
     }

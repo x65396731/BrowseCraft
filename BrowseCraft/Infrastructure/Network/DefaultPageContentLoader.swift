@@ -9,10 +9,13 @@ final class DefaultPageContentLoader: ContextualPageContentResponseLoader, Conte
 
     init(
         httpClient: HTTPClient,
-        renderedPageContentLoader: RenderedPageContentLoader = WKWebViewHTMLLoader()
+        renderedPageContentLoader: RenderedPageContentLoader? = nil,
+        credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider()
     ) {
         self.httpClient = httpClient
-        self.renderedPageContentLoader = renderedPageContentLoader
+        self.renderedPageContentLoader = renderedPageContentLoader ?? WKWebViewHTMLLoader(
+            credentialProvider: credentialProvider
+        )
     }
 
     /// 中文注释：P1-4.3 的核心分流点；WebView 只作为页面获取能力，不改变原生列表和阅读 UI。
@@ -51,7 +54,8 @@ final class DefaultPageContentLoader: ContextualPageContentResponseLoader, Conte
         return PageContentResponse(
             content: try await self.renderedPageContentLoader.getRenderedString(
                 from: url,
-                request: request
+                request: request,
+                context: context
             ),
             finalURL: url
         )

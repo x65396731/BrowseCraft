@@ -23,11 +23,28 @@ enum WKWebViewHTMLLoaderError: LocalizedError {
 
 /// 中文注释：真实 WKWebView 实现；仅用于规则标记 needsWebView 的页面内容获取。
 final class WKWebViewHTMLLoader: RenderedPageContentLoader {
+    private let credentialProvider: any SourceCredentialProviding
+
+    init(credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider()) {
+        self.credentialProvider = credentialProvider
+    }
+
     @MainActor
     func getRenderedString(from url: URL, request: RequestConfig?) async throws -> String {
+        return try await self.getRenderedString(from: url, request: request, context: nil)
+    }
+
+    @MainActor
+    func getRenderedString(
+        from url: URL,
+        request: RequestConfig?,
+        context: SourceRequestContext?
+    ) async throws -> String {
         let operation: WKWebViewHTMLLoadOperation = WKWebViewHTMLLoadOperation(
             url: url,
-            request: request
+            request: request,
+            context: context,
+            credentialProvider: self.credentialProvider
         )
 
         return try await operation.load()
@@ -54,14 +71,23 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
 
     private let url: URL
     private let request: RequestConfig?
+    private let context: SourceRequestContext?
+    private let credentialProvider: any SourceCredentialProviding
     private let webView: WKWebView
     private var continuation: CheckedContinuation<String, Error>?
     private var hasCompleted: Bool = false
     private var isLoadingHTTPSUpgrade: Bool = false
 
-    init(url: URL, request: RequestConfig?) {
+    init(
+        url: URL,
+        request: RequestConfig?,
+        context: SourceRequestContext?,
+        credentialProvider: any SourceCredentialProviding
+    ) {
         self.url = url
         self.request = request
+        self.context = context
+        self.credentialProvider = credentialProvider
 
         let configuration: WKWebViewConfiguration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
@@ -77,7 +103,13 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 self.continuation = continuation
-                self.webView.load(self.urlRequest(for: self.url, includeBody: true))
+                let urlRequest: URLRequest = self.urlRequest(for: self.url, includeBody: true)
+                self.prepareCookieStore(from: urlRequest) {
+                    guard self.hasCompleted == false else {
+                        return
+                    }
+                    self.webView.load(urlRequest)
+                }
                 self.startTimeout()
                 self.startEarlySnapshotPollingIfNeeded()
             }
@@ -210,7 +242,10 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         let cookieHeaders: [String: String] = CookieHeaderResolver.headersByApplyingPageCookies(
             to: urlRequest.allHTTPHeaderFields ?? [:],
             url: url,
-            request: self.request
+            request: self.request,
+            credentialCookieHeader: self.context.flatMap {
+                self.credentialProvider.cookieHeader(for: $0, url: url)
+            }
         )
         cookieHeaders.forEach { key, value in
             urlRequest.setValue(value, forHTTPHeaderField: key)
@@ -224,6 +259,57 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         }
 
         return urlRequest
+    }
+
+    /// 中文注释：Source credential Cookie 先写入 WebKit store，保证 JS/iframe/媒体子请求与首个文档请求共享登录态。
+    private func prepareCookieStore(
+        from request: URLRequest,
+        completion: @escaping @MainActor () -> Void
+    ) {
+        guard let url: URL = request.url,
+              let host: String = url.host,
+              let cookieHeader: String = request.value(forHTTPHeaderField: "Cookie") else {
+            completion()
+            return
+        }
+        let cookies: [HTTPCookie] = cookieHeader.split(separator: ";").compactMap { component in
+            let pair: [Substring] = component.split(separator: "=", maxSplits: 1)
+            guard pair.count == 2 else {
+                return nil
+            }
+            let name: String = pair[0].trimmingCharacters(in: .whitespacesAndNewlines)
+            let value: String = pair[1].trimmingCharacters(in: .whitespacesAndNewlines)
+            guard name.isEmpty == false else {
+                return nil
+            }
+            var properties: [HTTPCookiePropertyKey: Any] = [
+                .domain: host,
+                .path: "/",
+                .name: name,
+                .value: value
+            ]
+            if url.scheme?.lowercased() == "https" {
+                properties[.secure] = "TRUE"
+            }
+            return HTTPCookie(properties: properties)
+        }
+        guard cookies.isEmpty == false else {
+            completion()
+            return
+        }
+        let cookieStore: WKHTTPCookieStore = self.webView.configuration.websiteDataStore.httpCookieStore
+        let group: DispatchGroup = DispatchGroup()
+        for cookie: HTTPCookie in cookies {
+            group.enter()
+            cookieStore.setCookie(cookie) {
+                group.leave()
+            }
+        }
+        group.notify(queue: .main) {
+            Task { @MainActor in
+                completion()
+            }
+        }
     }
 
     private func httpsURLIfNeeded(from url: URL) -> URL? {

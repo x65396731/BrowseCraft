@@ -7,4 +7,22 @@ protocol RenderedPageContentLoader: AnyObject {
     /// 中文注释：返回渲染完成后的 HTML 字符串；调用方仍使用既有 ComicRuleSourceParsingService 解析。
     @MainActor
     func getRenderedString(from url: URL, request: RequestConfig?) async throws -> String
+
+    @MainActor
+    func getRenderedString(
+        from url: URL,
+        request: RequestConfig?,
+        context: SourceRequestContext?
+    ) async throws -> String
+}
+
+extension RenderedPageContentLoader {
+    @MainActor
+    func getRenderedString(
+        from url: URL,
+        request: RequestConfig?,
+        context: SourceRequestContext?
+    ) async throws -> String {
+        return try await self.getRenderedString(from: url, request: request)
+    }
 }

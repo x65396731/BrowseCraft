@@ -30,7 +30,10 @@ final class AppContainer {
             let urlResolver: URLResolvingService = URLResolvingService()
             let sourceCredentialStore: SourceCredentialStoring = InMemorySourceCredentialStore()
             let httpClient: HTTPClient = AlamofireHTTPClient(credentialProvider: sourceCredentialStore)
-            let pageContentLoader: DefaultPageContentLoader = DefaultPageContentLoader(httpClient: httpClient)
+            let pageContentLoader: DefaultPageContentLoader = DefaultPageContentLoader(
+                httpClient: httpClient,
+                credentialProvider: sourceCredentialStore
+            )
             let comicRuleParser: ComicRuleSourceParsingService = SwiftSoupComicRuleSourceParser(urlResolver: urlResolver)
             let videoRuleParser: VideoRuleSourceParsingService = SwiftSoupVideoRuleSourceParser()
 
@@ -427,6 +430,7 @@ final class AppContainer {
             loadVideoWatchHistoryUseCase: loadVideoWatchHistoryUseCase,
             accumulateAdPointsUseCase: self.makeAccumulateAdPointsUseCase(),
             runtimeResolver: self.makeSourceRuntimeResolver(),
+            credentialProvider: self.sourceCredentialStore,
             userID: history.userID
         )
     }
@@ -449,7 +453,8 @@ final class AppContainer {
             runtimeResolver: self.makeSourceRuntimeResolver(),
             saveVideoWatchHistoryUseCase: saveVideoWatchHistoryUseCase,
             loadVideoWatchHistoryUseCase: loadVideoWatchHistoryUseCase,
-            accumulateAdPointsUseCase: self.makeAccumulateAdPointsUseCase()
+            accumulateAdPointsUseCase: self.makeAccumulateAdPointsUseCase(),
+            credentialProvider: self.sourceCredentialStore
         )
     }
 

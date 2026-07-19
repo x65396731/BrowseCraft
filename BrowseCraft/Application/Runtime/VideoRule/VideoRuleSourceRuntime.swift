@@ -1,13 +1,14 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：VideoRuleSourceRuntime 只执行 VideoSiteRule V2；P1-5 已接通 DOM/API 与显式空结果 fallback。
+// 中文注释：VideoRuleSourceRuntime 只执行 VideoSiteRule V2；P2-4 接通 direct/iframe/WebUI playback，不调用 legacy mapper。
 struct VideoRuleSourceRuntime: SourceRuntime {
     let source: Source
     let resolvedRule: ResolvedVideoSiteRule
 
     private let listLoader: VideoRuleSourceListLoader
     private let detailLoader: VideoRuleSourceDetailLoader?
+    private let playbackLoader: VideoRuleSourcePlaybackLoader?
     private let definitionMapper: SourceDefinitionMapper
 
     init(
@@ -15,12 +16,14 @@ struct VideoRuleSourceRuntime: SourceRuntime {
         resolvedRule: ResolvedVideoSiteRule,
         listLoader: VideoRuleSourceListLoader,
         detailLoader: VideoRuleSourceDetailLoader? = nil,
+        playbackLoader: VideoRuleSourcePlaybackLoader? = nil,
         definitionMapper: SourceDefinitionMapper = SourceDefinitionMapper()
     ) {
         self.source = source
         self.resolvedRule = resolvedRule
         self.listLoader = listLoader
         self.detailLoader = detailLoader
+        self.playbackLoader = playbackLoader
         self.definitionMapper = definitionMapper
     }
 
@@ -33,7 +36,7 @@ struct VideoRuleSourceRuntime: SourceRuntime {
         let supportsDetail: Bool = self.supportsDetail
         var limitations: [SourceRuntimeCapabilityLimitation] = [
             self.limitation(.search, "Video V2 search is not part of the P0 contract."),
-            self.limitation(.reader, "Video V2 playback rules are added after the detail/episode contract."),
+            self.limitation(.reader, "Video V2 uses VideoPlayerHostView instead of comic reader output."),
             self.limitation(.debug, "Video V2 debug output is not connected."),
             self.limitation(.candidateAnalysis, "Video V2 candidate analysis is not connected.")
         ]
@@ -77,10 +80,17 @@ struct VideoRuleSourceRuntime: SourceRuntime {
 
     private var requiresWebView: Bool {
         return self.effectiveExecutionRequests.contains { $0.needsWebView == true }
+            || self.resolvedRule.playbackEntries.contains { entry in
+                let rule: VideoPlaybackRule = self.resolvedRule.playbackRule(for: entry)
+                return rule.fallback == .webUI || rule.iframe?.strategy == .webUI
+            }
     }
 
     private var requiresCookieStore: Bool {
         return self.effectiveExecutionRequests.contains { $0.cookiePolicy != nil }
+            || self.resolvedRule.playbackEntries.contains { entry in
+                return self.resolvedRule.playbackRule(for: entry).mediaRequest?.cookiePolicy != nil
+            }
     }
 
     private var effectiveExecutionRequests: [RequestConfig] {
@@ -113,6 +123,11 @@ struct VideoRuleSourceRuntime: SourceRuntime {
                 requests.append(request)
             }
             if episodeStrategy != .domOnly, let request: RequestConfig = entry.effectiveEpisodeAPIRequest {
+                requests.append(request)
+            }
+        }
+        for entry: ResolvedVideoPlaybackEntry in self.resolvedRule.playbackEntries {
+            if let request: RequestConfig = entry.effectivePlaybackRequest {
                 requests.append(request)
             }
         }
@@ -179,6 +194,21 @@ struct VideoRuleSourceRuntime: SourceRuntime {
         throw SourceRuntimeError.unsupported(.custom("Video V2 does not produce comic reader output."))
     }
 
+    func loadPlayback(_ input: SourceVideoPlaybackInput) async throws -> SourceVideoPlaybackOutput {
+        try self.validateSource(input.context)
+        if self.resolvedRule.playbackEntries.isEmpty {
+            return try self.pageOnlyPlaybackOutput(input)
+        }
+        guard let playbackLoader: VideoRuleSourcePlaybackLoader = self.playbackLoader else {
+            throw SourceRuntimeError.notConnected("Video V2 playback loader is not assembled.")
+        }
+        return try await playbackLoader.execute(
+            source: self.source,
+            resolvedRule: self.resolvedRule,
+            input: input
+        )
+    }
+
     func debug(_ input: SourceRuntimeContext) async throws -> SourceDebugOutput {
         try self.validateSource(input)
         return SourceDebugOutput(
@@ -196,6 +226,48 @@ struct VideoRuleSourceRuntime: SourceRuntime {
                 actual: context.sourceID
             )
         }
+    }
+
+    private func pageOnlyPlaybackOutput(
+        _ input: SourceVideoPlaybackInput
+    ) throws -> SourceVideoPlaybackOutput {
+        guard let handoff: SourceVideoPlaybackHandoff = input.handoff?.selecting(
+            playPageURL: input.playPageURL
+        ) ?? input.handoff else {
+            throw SourceRuntimeError.invalidInput(
+                "Video V2 page-only playback requires the stable detail/episode handoff."
+            )
+        }
+        let requestConfig = SourcePlaybackRequestConfig(
+            headers: ["Referer": input.playPageURL.absoluteString],
+            referer: input.playPageURL,
+            userAgent: nil
+        )
+        return SourceVideoPlaybackOutput(
+            reference: SourceVideoPlaybackReference(
+                vodID: handoff.vodID,
+                sourceIndex: handoff.sourceIndex,
+                episodeIndex: handoff.episodeIndex,
+                episodeKey: handoff.episodeKey,
+                episodeTitle: handoff.episodeTitle,
+                playPageURL: input.playPageURL,
+                candidateMediaURL: nil,
+                candidateMediaKind: .unknown,
+                playbackRequestConfig: requestConfig,
+                nextEpisodeURL: handoff.nextEpisodeURL,
+                previousEpisodeURL: handoff.previousEpisodeURL,
+                sourceName: handoff.sourceName ?? self.source.name,
+                status: .pageOnly,
+                handoff: handoff
+            ),
+            diagnostics: SourceRuntimeDiagnostics.skipped(
+                message: "Video V2 source does not declare playbackRules; preserving P1 page-only playback.",
+                context: SourceRuntimeDiagnosticContext(
+                    runtimeContext: input.context,
+                    requestURL: input.playPageURL
+                )
+            )
+        )
     }
 
     private func limitation(

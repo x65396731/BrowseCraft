@@ -7,6 +7,7 @@ struct VideoEpisode: Identifiable, Hashable {
     var title: String
     var playPageURL: URL
     var sourceName: String? = nil
+    var playbackHandoff: SourceVideoPlaybackHandoff? = nil
 }
 
 // 中文注释：VideoDetailContent 是 video detail loader 的内部映射结果，UI 只读取必要字段。

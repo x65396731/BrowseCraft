@@ -66,6 +66,17 @@ struct VideoRuleParsedEpisodes: Hashable {
     }
 }
 
+/// 中文注释：播放解析分别保留 direct media 与 iframe 结果，让 loader 按合同固定顺序决策。
+struct VideoRuleParsedPlayback: Hashable {
+    var mediaURLs: [URL]
+    var mediaCandidateCount: Int
+    var invalidMediaURLCount: Int
+    var iframeURLs: [URL]
+    var iframeCandidateCount: Int
+    var invalidIframeURLCount: Int
+    var readyMatched: Bool
+}
+
 protocol VideoRuleSourceParsingService {
     func parseList(
         html: String,
@@ -84,6 +95,12 @@ protocol VideoRuleSourceParsingService {
         pageURL: URL,
         rule: VideoEpisodeRule
     ) throws -> VideoRuleParsedEpisodes
+
+    func parsePlayback(
+        html: String,
+        pageURL: URL,
+        rule: VideoPlaybackRule
+    ) throws -> VideoRuleParsedPlayback
 }
 
 enum VideoRuleSourceParsingError: LocalizedError {
