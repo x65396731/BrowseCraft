@@ -301,6 +301,20 @@ struct ComicRuleAPIResolver {
         }
     }
 
+    /// 中文注释：规则声明的状态值保持 JSON 标量类型，避免把 true、1 和 "1" 混为同一语义。
+    static func responseScalar(_ value: Any?) -> APIResponseScalar? {
+        if let string = value as? String {
+            return .string(string)
+        }
+        if let number = value as? NSNumber {
+            if CFGetTypeID(number) == CFBooleanGetTypeID() {
+                return .boolean(number.boolValue)
+            }
+            return .number(number.doubleValue)
+        }
+        return nil
+    }
+
     static func sortedValues(_ values: [(value: Any, order: Double?)], sort: ChapterSort?) -> [Any] {
         guard let sort: ChapterSort = sort,
               sort != .none,

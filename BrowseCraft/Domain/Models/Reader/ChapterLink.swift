@@ -13,6 +13,10 @@ struct ChapterLink: Hashable {
     var title: String
     var subtitle: String? = nil
     var url: String
+    /// 中文注释：nil 表示规则未声明或响应未返回，不能把未知状态猜成可访问。
+    var isRestricted: Bool? = nil
+    /// 中文注释：nil 表示付费属性未知；付费章节也可能已购买并可访问。
+    var isPaid: Bool? = nil
     /// 中文注释：详情页进入 Reader 时携带完整章节 URL 顺序，供缺少前后章链接的 reader/API 规则补齐导航。
     var navigationChapterURLs: [String] = []
     /// 中文注释：与 navigationChapterURLs 按索引对齐；nil 表示历史记录尚未保存该相邻章节标题。

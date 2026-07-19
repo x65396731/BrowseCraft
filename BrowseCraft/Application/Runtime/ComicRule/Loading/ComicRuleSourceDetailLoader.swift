@@ -307,10 +307,22 @@ struct ComicRuleSourceDetailLoader {
                     ComicRuleAPIResolver.firstJSONValue(at: path, in: itemObject)
                 )?.trimmingCharacters(in: .whitespacesAndNewlines)
             }
+            let isRestricted: Bool? = self.chapterFlag(
+                path: apiRule.restrictionPath,
+                matching: apiRule.restrictedValues,
+                in: itemObject
+            )
+            let isPaid: Bool? = self.chapterFlag(
+                path: apiRule.paidPath,
+                matching: apiRule.paidValues,
+                in: itemObject
+            )
             let chapter: ChapterLink = ChapterLink(
                 title: title,
                 subtitle: subtitle?.isEmpty == false ? subtitle : nil,
-                url: chapterURL
+                url: chapterURL,
+                isRestricted: isRestricted,
+                isPaid: isPaid
             )
             let order: Double? = apiRule.orderPath.flatMap { path in
                 return ComicRuleAPIResolver.doubleValue(
@@ -351,6 +363,23 @@ struct ComicRuleSourceDetailLoader {
             chapters: outputChapters,
             description: nil
         )
+    }
+
+    /// 中文注释：字段缺失或类型不是标量时保留 unknown；只有真实标量才与规则声明值比较。
+    private func chapterFlag(
+        path: String?,
+        matching values: [APIResponseScalar]?,
+        in itemObject: Any
+    ) -> Bool? {
+        guard let path = path?.trimmingCharacters(in: .whitespacesAndNewlines),
+              path.isEmpty == false,
+              let values,
+              values.isEmpty == false,
+              let rawValue = ComicRuleAPIResolver.firstJSONValue(at: path, in: itemObject),
+              let scalar = ComicRuleAPIResolver.responseScalar(rawValue) else {
+            return nil
+        }
+        return values.contains(scalar)
     }
 
     private func fallbackMetadata(item: ContentItem) -> ComicRuleParsedDetailMetadata {

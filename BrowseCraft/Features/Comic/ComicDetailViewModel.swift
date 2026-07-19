@@ -25,6 +25,15 @@ enum ComicReaderDestination: Hashable {
     case history(ComicChapterHistory)
 }
 
+struct ComicDetailSourceLoginPrompt: Identifiable, Hashable {
+    let state: LibrarySourceLoginState
+    let isPaid: Bool?
+
+    var id: String {
+        return state.id
+    }
+}
+
 /// 中文注释：ComicDetailViewModel 持有漫画详情页状态；ReaderViewModel 只负责具体章节阅读。
 @MainActor
 final class ComicDetailViewModel: ObservableObject {
@@ -33,6 +42,9 @@ final class ComicDetailViewModel: ObservableObject {
     @Published private(set) var latestReadingHistory: ComicChapterHistory?
     @Published private(set) var isLoading: Bool = false
     @Published private(set) var didLoad: Bool = false
+    @Published private(set) var sourceLoginPrompt: ComicDetailSourceLoginPrompt?
+    @Published private(set) var requestedSourceLogin: LibrarySourceLoginState?
+    @Published var accessMessage: String?
     @Published var errorMessage: String?
 
     let item: ContentItem
@@ -41,7 +53,9 @@ final class ComicDetailViewModel: ObservableObject {
     private let loadComicDetailUseCase: LoadComicDetailUseCase
     private let loadLatestComicChapterHistoryUseCase: LoadLatestComicChapterHistoryUseCase
     private let resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
+    private let sourceCredentialStore: (any SourceCredentialStoring)?
     private let userID: String
+    private var pendingRestrictedChapterURL: String?
 
     init(
         item: ContentItem,
@@ -49,6 +63,7 @@ final class ComicDetailViewModel: ObservableObject {
         loadComicDetailUseCase: LoadComicDetailUseCase,
         loadLatestComicChapterHistoryUseCase: LoadLatestComicChapterHistoryUseCase,
         resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase,
+        sourceCredentialStore: (any SourceCredentialStoring)? = nil,
         userID: String = AppUser.localDefaultID
     ) {
         self.item = item
@@ -56,6 +71,7 @@ final class ComicDetailViewModel: ObservableObject {
         self.loadComicDetailUseCase = loadComicDetailUseCase
         self.loadLatestComicChapterHistoryUseCase = loadLatestComicChapterHistoryUseCase
         self.resolveReaderSourcePresentationUseCase = resolveReaderSourcePresentationUseCase
+        self.sourceCredentialStore = sourceCredentialStore
         self.userID = userID
 
         #if DEBUG
@@ -191,6 +207,81 @@ final class ComicDetailViewModel: ObservableObject {
         await self.load()
     }
 
+    /// 中文注释：详情页只拦截规则明确标记为 restricted 的章节；unknown 继续沿用既有阅读流程。
+    func prepareToOpen(_ chapter: ChapterLink) -> Bool {
+        guard chapter.isRestricted == true else {
+            return true
+        }
+
+        guard let sourceCredentialStore,
+              let loginState = LibrarySourceLoginStateResolver(
+                credentialStore: sourceCredentialStore
+              ).resolve(source: self.source) else {
+            self.accessMessage = "This chapter is currently restricted, but this source has no available login page."
+            return false
+        }
+
+        guard loginState.status == .guest else {
+            self.accessMessage = self.restrictedMessage(isPaid: chapter.isPaid)
+            return false
+        }
+
+        self.pendingRestrictedChapterURL = chapter.url
+        self.sourceLoginPrompt = ComicDetailSourceLoginPrompt(
+            state: loginState,
+            isPaid: chapter.isPaid
+        )
+        return false
+    }
+
+    func requestSourceLogin(state: LibrarySourceLoginState) {
+        self.sourceLoginPrompt = nil
+        self.requestedSourceLogin = state
+    }
+
+    func hideSourceLoginPrompt() {
+        self.sourceLoginPrompt = nil
+    }
+
+    func dismissSourceLoginPrompt() {
+        self.sourceLoginPrompt = nil
+        self.pendingRestrictedChapterURL = nil
+    }
+
+    func dismissRequestedSourceLogin() {
+        self.requestedSourceLogin = nil
+        self.pendingRestrictedChapterURL = nil
+    }
+
+    /// 中文注释：登录后必须刷新详情 API 并重新读取源站逐章状态，不能假设登录必然解锁。
+    func completeRequestedSourceLogin(credential: SourceCredential) async -> ChapterLink? {
+        guard credential.sourceID == self.requestedSourceLogin?.sourceID,
+              let sourceCredentialStore else {
+            return nil
+        }
+
+        sourceCredentialStore.save(credential)
+        self.requestedSourceLogin = nil
+        let pendingURL = self.pendingRestrictedChapterURL
+        self.pendingRestrictedChapterURL = nil
+        await self.load()
+
+        guard let pendingURL,
+              let refreshedChapter = self.chapters.first(where: { $0.url == pendingURL }) else {
+            self.accessMessage = "The selected chapter is no longer available after refreshing the source."
+            return nil
+        }
+        guard refreshedChapter.isRestricted == false else {
+            if refreshedChapter.isRestricted == true {
+                self.accessMessage = self.restrictedMessage(isPaid: refreshedChapter.isPaid)
+            } else {
+                self.accessMessage = "The source did not return a readable access status for this chapter after login."
+            }
+            return nil
+        }
+        return refreshedChapter
+    }
+
     private func load() async {
         CrashDiagnostics.shared.setRuleStage(.detail)
         self.isLoading = true
@@ -211,6 +302,8 @@ final class ComicDetailViewModel: ObservableObject {
                     title: chapter.title,
                     subtitle: chapter.subtitle,
                     url: chapter.url.absoluteString,
+                    isRestricted: chapter.isRestricted,
+                    isPaid: chapter.isPaid,
                     navigationChapterURLs: chapter.navigationChapterURLs.map(\.absoluteString),
                     navigationChapterTitles: chapter.navigationChapterTitles,
                     navigationOrder: chapter.navigationOrder == .ascending ? .ascending : .descending
@@ -267,4 +360,12 @@ final class ComicDetailViewModel: ObservableObject {
         }
         return value
     }
+
+    private func restrictedMessage(isPaid: Bool?) -> String {
+        if isPaid == true {
+            return "This account cannot access this paid chapter. Purchase or VIP membership may be required."
+        }
+        return "This account cannot access this chapter. The source may require additional permission."
+    }
+
 }

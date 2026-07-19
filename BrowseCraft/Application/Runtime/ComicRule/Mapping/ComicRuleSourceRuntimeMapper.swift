@@ -31,6 +31,8 @@ struct ComicRuleSourceRuntimeMapper {
                 title: chapter.title,
                 subtitle: chapter.subtitle,
                 url: url,
+                isRestricted: chapter.isRestricted,
+                isPaid: chapter.isPaid,
                 navigationChapterURLs: chapter.navigationChapterURLs.compactMap { self.url(from: $0) },
                 navigationChapterTitles: chapter.navigationChapterTitles,
                 navigationOrder: chapter.navigationOrder == .ascending ? .ascending : .descending

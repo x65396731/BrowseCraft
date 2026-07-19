@@ -278,7 +278,8 @@ final class AppContainer {
             source: source,
             loadComicDetailUseCase: loadComicDetailUseCase,
             loadLatestComicChapterHistoryUseCase: loadLatestComicChapterHistoryUseCase,
-            resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase()
+            resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase(),
+            sourceCredentialStore: self.sourceCredentialStore
         )
     }
 

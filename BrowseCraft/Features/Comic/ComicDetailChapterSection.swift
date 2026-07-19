@@ -65,12 +65,17 @@ struct ComicDetailChapterSection: View {
                                             .foregroundStyle(.secondary)
                                             .lineLimit(2)
                                     }
+                                    if chapter.isPaid == true {
+                                        Text("Paid")
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(.orange)
+                                    }
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                                Image(systemName: "chevron.right")
+                                Image(systemName: chapter.isRestricted == true ? "lock.fill" : "chevron.right")
                                     .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.tertiary)
+                                    .foregroundStyle(chapter.isRestricted == true ? Color.orange : Color.secondary)
                             }
                             .padding(.vertical, 12)
                             .contentShape(Rectangle())

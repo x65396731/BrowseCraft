@@ -91,6 +91,42 @@ struct ComicDetailView: View {
                 self.readerDestination(for: destination)
             }
         }
+        .alert(isPresented: self.accessAlertBinding) {
+            Alert(
+                title: Text("Access Required"),
+                message: Text(self.viewModel.accessMessage ?? ""),
+                dismissButton: .default(Text("OK")) {
+                    self.viewModel.accessMessage = nil
+                }
+            )
+        }
+        .alert(item: self.sourceLoginPromptBinding) { prompt in
+            Alert(
+                title: Text("Access Required"),
+                message: Text(self.loginPromptMessage(isPaid: prompt.isPaid)),
+                primaryButton: .default(Text("Log In")) {
+                    self.viewModel.requestSourceLogin(state: prompt.state)
+                },
+                secondaryButton: .cancel(Text("Not Now")) {
+                    self.viewModel.dismissSourceLoginPrompt()
+                }
+            )
+        }
+        .fullScreenCover(item: self.requestedSourceLoginBinding) { loginState in
+            SourceLoginView(
+                state: loginState,
+                cancelAction: {
+                    self.viewModel.dismissRequestedSourceLogin()
+                },
+                completeAction: { credential in
+                    Task {
+                        if let chapter = await self.viewModel.completeRequestedSourceLogin(credential: credential) {
+                            self.openReaderDestination(chapter)
+                        }
+                    }
+                }
+            )
+        }
         .task {
             await self.viewModel.loadIfNeeded()
         }
@@ -108,6 +144,39 @@ struct ComicDetailView: View {
             set: { newValue in
                 if newValue == false {
                     self.selectedReaderDestination = nil
+                }
+            }
+        )
+    }
+
+    private var accessAlertBinding: Binding<Bool> {
+        return Binding<Bool>(
+            get: { self.viewModel.accessMessage != nil },
+            set: { isPresented in
+                if isPresented == false {
+                    self.viewModel.accessMessage = nil
+                }
+            }
+        )
+    }
+
+    private var sourceLoginPromptBinding: Binding<ComicDetailSourceLoginPrompt?> {
+        return Binding<ComicDetailSourceLoginPrompt?>(
+            get: { self.viewModel.sourceLoginPrompt },
+            set: { prompt in
+                if prompt == nil {
+                    self.viewModel.hideSourceLoginPrompt()
+                }
+            }
+        )
+    }
+
+    private var requestedSourceLoginBinding: Binding<LibrarySourceLoginState?> {
+        return Binding<LibrarySourceLoginState?>(
+            get: { self.viewModel.requestedSourceLogin },
+            set: { loginState in
+                if loginState == nil {
+                    self.viewModel.dismissRequestedSourceLogin()
                 }
             }
         )
@@ -142,6 +211,9 @@ struct ComicDetailView: View {
     }
 
     private func openReaderDestination(_ chapter: ChapterLink) {
+        guard self.viewModel.prepareToOpen(chapter) else {
+            return
+        }
         var selectedChapter: ChapterLink = chapter
         selectedChapter.navigationChapterURLs = self.viewModel.chapters.map(\.url)
         selectedChapter.navigationChapterTitles = self.viewModel.chapters.map(\.title)
@@ -154,6 +226,13 @@ struct ComicDetailView: View {
             "itemId=\(self.viewModel.item.id) chapterTitle=\(chapter.title) chapterURL=\(chapter.url)"
         )
         #endif
+    }
+
+    private func loginPromptMessage(isPaid: Bool?) -> String {
+        if isPaid == true {
+            return "This paid chapter is currently restricted. Log in to check whether your account has access. Purchase or VIP membership may still be required."
+        }
+        return "This chapter is currently restricted. Log in to check whether your account has access."
     }
 
     @ViewBuilder
