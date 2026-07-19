@@ -1,7 +1,7 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：VideoRequestConfigResolver 集中处理视频 runtime 的请求配置合并，避免 list/detail/play 三条链路各写一套。
+// 中文注释：VideoRequestConfigResolver 只选择 legacy stage 请求，合并语义统一委托给 Core。
 enum VideoRequestStage {
     case list
     case detail
@@ -9,6 +9,17 @@ enum VideoRequestStage {
 }
 
 struct VideoRequestConfigResolver {
+    private let requestConfigResolver: RequestConfigResolver
+    private let sourceRequestOverrideResolver: SourceRequestOverrideResolver
+
+    init(
+        requestConfigResolver: RequestConfigResolver = RequestConfigResolver(),
+        sourceRequestOverrideResolver: SourceRequestOverrideResolver = SourceRequestOverrideResolver()
+    ) {
+        self.requestConfigResolver = requestConfigResolver
+        self.sourceRequestOverrideResolver = sourceRequestOverrideResolver
+    }
+
     func request(
         for stage: VideoRequestStage,
         definition: VideoSourceDefinition,
@@ -24,13 +35,13 @@ struct VideoRequestConfigResolver {
             stageRequest = definition.playRequest
         }
 
-        let sharedAndStage: RequestConfig? = self.merged(
-            base: definition.sharedRequest,
-            override: stageRequest
+        let sharedAndStage: RequestConfig? = self.requestConfigResolver.resolve(
+            definition.sharedRequest,
+            stageRequest
         )
-        return self.merged(
+        return self.sourceRequestOverrideResolver.resolve(
             base: sharedAndStage,
-            override: self.requestConfig(from: context.requestOverride)
+            override: context.requestOverride
         )
     }
 
@@ -115,85 +126,4 @@ struct VideoRequestConfigResolver {
         return error
     }
 
-    private func merged(base: RequestConfig?, override: RequestConfig?) -> RequestConfig? {
-        guard let override: RequestConfig else {
-            return base
-        }
-
-        guard let base: RequestConfig else {
-            return override
-        }
-
-        if override.mergePolicy == .override {
-            return override
-        }
-
-        var headers: [String: String] = base.headers ?? [:]
-        override.headers?.forEach { key, value in
-            headers[key] = value
-        }
-
-        return RequestConfig(
-            scope: override.scope ?? base.scope,
-            mergePolicy: override.mergePolicy ?? base.mergePolicy,
-            method: override.method ?? base.method,
-            headers: headers.isEmpty ? nil : headers,
-            body: override.body ?? base.body,
-            cookiePolicy: override.cookiePolicy ?? base.cookiePolicy,
-            cookiePriority: override.cookiePriority ?? base.cookiePriority,
-            cookieScope: override.cookieScope ?? base.cookieScope,
-            charset: override.charset ?? base.charset,
-            needsWebView: override.needsWebView ?? base.needsWebView,
-            autoScroll: override.autoScroll ?? base.autoScroll,
-            imageHeaders: override.imageHeaders ?? base.imageHeaders,
-            imageRequest: override.imageRequest ?? base.imageRequest
-        )
-    }
-
-    private func requestConfig(from override: SourceRequestOverride?) -> RequestConfig? {
-        guard let override: SourceRequestOverride else {
-            return nil
-        }
-
-        return RequestConfig(
-            method: self.httpMethod(from: override.method),
-            headers: override.headers.isEmpty ? nil : override.headers,
-            body: override.body.map { value in
-                return RequestBody(value: value)
-            },
-            cookiePolicy: self.cookiePolicy(from: override.cookiePolicy),
-            charset: self.charset(from: override.charset),
-            needsWebView: override.requiresWebView,
-            autoScroll: override.autoScroll
-        )
-    }
-
-    private func httpMethod(from value: String?) -> HTTPMethod? {
-        guard let normalized: String = value?.trimmingCharacters(in: .whitespacesAndNewlines).uppercased(),
-              normalized.isEmpty == false else {
-            return nil
-        }
-
-        return HTTPMethod(rawValue: normalized)
-    }
-
-    private func charset(from value: String?) -> Charset? {
-        guard let normalized: String = value?.trimmingCharacters(in: .whitespacesAndNewlines),
-              normalized.isEmpty == false else {
-            return nil
-        }
-
-        return Charset(rawValue: normalized)
-    }
-
-    private func cookiePolicy(from value: SourceRequestCookiePolicy?) -> CookiePolicy? {
-        switch value {
-        case .some(.none):
-            return CookiePolicy.none
-        case .some(.read), .some(.write), .some(.readWrite):
-            return .browser
-        case nil:
-            return nil
-        }
-    }
 }

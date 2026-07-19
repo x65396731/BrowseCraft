@@ -24,7 +24,7 @@ struct VideoSourceRuntime: SourceRuntime {
     var capabilities: SourceRuntimeCapabilities {
         return SourceRuntimeCapabilities(
             supportsSearch: false,
-            supportsPagination: true,
+            supportsPagination: false,
             supportsDetail: true,
             supportsReader: false,
             supportsDebug: false,
@@ -34,6 +34,7 @@ struct VideoSourceRuntime: SourceRuntime {
             requiresAccount: self.definition.video?.requiresAccount ?? false,
             limitations: [
                 self.limitation(.search, "Video MVP does not support search yet."),
+                self.limitation(.pagination, "Legacy video presets do not implement pagination."),
                 self.limitation(.reader, "Video sources use VideoPlayerHostView instead of reader output."),
                 self.limitation(.debug, "Video runtime diagnostics are not available."),
                 self.limitation(.candidateAnalysis, "Video MVP uses template mappers, not selector candidate analysis.")

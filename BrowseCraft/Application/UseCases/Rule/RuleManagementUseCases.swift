@@ -53,13 +53,16 @@ struct UpdateSourceRuleUseCase {
 struct UpdateVideoSourceConfigurationUseCase {
     private let sourceRepository: SourceRepository
     private let jsonDecoder: JSONDecoder
+    private let videoRuleValidator: VideoSiteRuleValidator
 
     init(
         sourceRepository: SourceRepository,
-        jsonDecoder: JSONDecoder = JSONDecoder()
+        jsonDecoder: JSONDecoder = JSONDecoder(),
+        videoRuleValidator: VideoSiteRuleValidator = VideoSiteRuleValidator()
     ) {
         self.sourceRepository = sourceRepository
         self.jsonDecoder = jsonDecoder
+        self.videoRuleValidator = videoRuleValidator
     }
 
     func execute(source: Source, configurationJSON: String, expectedUpdatedAt: Date? = nil) throws -> Source {
@@ -78,17 +81,27 @@ struct UpdateVideoSourceConfigurationUseCase {
             throw RuleManagementError.unsupportedSourceConfiguration
         }
 
-        let configuration: VideoSourceConfiguration = try self.jsonDecoder.decode(
-            VideoSourceConfiguration.self,
-            from: Data(configurationJSON.utf8)
+        let configuration: VideoSourceConfiguration = try self.validatedConfiguration(
+            from: configurationJSON
         )
 
         var updatedSource: Source = latestSource
         updatedSource.configuration = .video(configuration)
-        updatedSource.baseURL = self.baseURLString(from: configuration.definition.entryURL)
+        switch configuration {
+        case .legacyPreset(let legacyConfiguration):
+            updatedSource.baseURL = self.baseURLString(from: legacyConfiguration.definition.entryURL)
+        case .ruleDriven(let ruleConfiguration):
+            updatedSource.name = ruleConfiguration.rule.name
+            updatedSource.baseURL = ruleConfiguration.rule.baseUrl
+        }
         updatedSource.updatedAt = Date()
         try self.sourceRepository.saveSource(updatedSource)
         return updatedSource
+    }
+
+    /// 中文注释：编辑器预检查与保存共用同一入口，避免 Codable 忽略未知 V2 字段后出现假阳性。
+    func validate(configurationJSON: String) throws {
+        _ = try self.validatedConfiguration(from: configurationJSON)
     }
 
     private func latestSource(matching source: Source) throws -> Source? {
@@ -103,6 +116,45 @@ struct UpdateVideoSourceConfigurationUseCase {
         components?.query = nil
         components?.fragment = nil
         return components?.url?.absoluteString ?? entryURL.absoluteString
+    }
+
+    private func validatedConfiguration(
+        from configurationJSON: String
+    ) throws -> VideoSourceConfiguration {
+        let configuration: VideoSourceConfiguration = try self.jsonDecoder.decode(
+            VideoSourceConfiguration.self,
+            from: Data(configurationJSON.utf8)
+        )
+        guard case .ruleDriven = configuration else {
+            return configuration
+        }
+
+        let rawRuleJSON: String = try self.ruleJSON(from: configurationJSON)
+        let validationResult: VideoSiteRuleValidationResult = self.videoRuleValidator.validate(
+            ruleJSON: rawRuleJSON
+        )
+        guard validationResult.canImport else {
+            throw RuleManagementError.videoValidationFailed(validationResult)
+        }
+        return configuration
+    }
+
+    /// 中文注释：编辑 V2 configuration 时重新取出原始 rule 对象，确保未知字段不会被 Codable 静默丢弃。
+    private func ruleJSON(from configurationJSON: String) throws -> String {
+        let rawValue: Any = try JSONSerialization.jsonObject(with: Data(configurationJSON.utf8))
+        guard let configuration: [String: Any] = rawValue as? [String: Any],
+              configuration["strategy"] as? String == VideoSourceConfigurationStrategy.ruleDriven.rawValue,
+              let rule: [String: Any] = configuration["rule"] as? [String: Any] else {
+            throw RuleManagementError.unsupportedSourceConfiguration
+        }
+        let ruleData: Data = try JSONSerialization.data(
+            withJSONObject: rule,
+            options: [.sortedKeys, .withoutEscapingSlashes]
+        )
+        guard let ruleJSON: String = String(data: ruleData, encoding: .utf8) else {
+            throw RuleManagementError.unsupportedSourceConfiguration
+        }
+        return ruleJSON
     }
 }
 
@@ -135,6 +187,7 @@ struct DuplicateSourceRuleUseCase {
 enum RuleManagementError: LocalizedError {
     case builtInSourceIsReadOnly
     case validationFailed(SiteRuleValidationResult)
+    case videoValidationFailed(VideoSiteRuleValidationResult)
     case sourceChanged
     case unsupportedSourceConfiguration
 
@@ -144,6 +197,8 @@ enum RuleManagementError: LocalizedError {
             return "Built-in rules are read-only. Duplicate the rule before editing."
         case .validationFailed(let result):
             return result.errors.first?.message ?? "Rule validation failed."
+        case .videoValidationFailed(let result):
+            return result.errors.first?.message ?? "Video V2 validation failed."
         case .sourceChanged:
             return "This source changed after the editor was opened. Reopen the editor before saving."
         case .unsupportedSourceConfiguration:

@@ -4,7 +4,7 @@ import UIKit
 // 中文注释：AppContainer.swift 属于应用装配和根导航，用于说明本文件承载的核心职责。
 
 /// 中文注释：AppContainer 不是界面，而是应用依赖装配中心。
-/// 中文注释：这里统一创建仓储、Alamofire 客户端、漫画规则解析器和各个用例。
+/// 中文注释：这里统一创建仓储、Alamofire 客户端、漫画/视频规则解析器和各个用例。
 final class AppContainer {
     private let database: AppDatabase
     private let sourceRepository: SourceRepository
@@ -32,6 +32,7 @@ final class AppContainer {
             let httpClient: HTTPClient = AlamofireHTTPClient(credentialProvider: sourceCredentialStore)
             let pageContentLoader: DefaultPageContentLoader = DefaultPageContentLoader(httpClient: httpClient)
             let comicRuleParser: ComicRuleSourceParsingService = SwiftSoupComicRuleSourceParser(urlResolver: urlResolver)
+            let videoRuleParser: VideoRuleSourceParsingService = SwiftSoupVideoRuleSourceParser()
 
             self.database = database
             self.sourceRepository = GRDBSourceRepository(database: database)
@@ -55,6 +56,10 @@ final class AppContainer {
                     pageContentLoader: pageContentLoader,
                     comicRuleParser: comicRuleParser,
                     urlResolver: urlResolver
+                ),
+                videoRuleSourceRuntimeFactory: VideoRuleSourceRuntimeFactory(
+                    pageContentLoader: pageContentLoader,
+                    parser: videoRuleParser
                 )
             )
             self.sourceSelectionStore = SourceSelectionStore()

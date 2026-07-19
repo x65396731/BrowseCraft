@@ -146,28 +146,125 @@ struct RSSSourceConfiguration: Codable, Hashable {
     var definition: RSSSourceDefinition
 }
 
-struct VideoSourceConfiguration: Codable, Hashable {
-    var definition: VideoSourceDefinition
-    var listTabs: [VideoSourceListTab]
+/// 中文注释：视频持久化显式区分 V2 rule-driven 与隔离的 V1 preset，避免 V2 被旧 adapter 静默接管。
+enum VideoSourceConfiguration: Codable, Hashable {
+    case legacyPreset(VideoLegacySourceConfiguration)
+    case ruleDriven(VideoRuleDrivenSourceConfiguration)
 
+    var strategy: VideoSourceConfigurationStrategy {
+        switch self {
+        case .legacyPreset:
+            return .legacyPreset
+        case .ruleDriven:
+            return .ruleDriven
+        }
+    }
+
+    var legacyConfiguration: VideoLegacySourceConfiguration? {
+        guard case .legacyPreset(let configuration) = self else {
+            return nil
+        }
+        return configuration
+    }
+
+    var ruleDrivenConfiguration: VideoRuleDrivenSourceConfiguration? {
+        guard case .ruleDriven(let configuration) = self else {
+            return nil
+        }
+        return configuration
+    }
+
+    /// 中文注释：保留旧构造入口，现有手动视频来源明确进入 legacyPreset，不把它误标为 V2。
     init(
         definition: VideoSourceDefinition,
         listTabs: [VideoSourceListTab] = []
     ) {
-        self.definition = definition
-        self.listTabs = listTabs
+        self = .legacyPreset(
+            VideoLegacySourceConfiguration(
+                definition: definition,
+                listTabs: listTabs
+            )
+        )
+    }
+
+    init(rule: VideoSiteRule) {
+        self = .ruleDriven(VideoRuleDrivenSourceConfiguration(rule: rule))
     }
 
     private enum CodingKeys: String, CodingKey {
+        case strategy
         case definition
         case listTabs
+        case rule
     }
 
     init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.definition = try container.decode(VideoSourceDefinition.self, forKey: .definition)
-        self.listTabs = try container.decodeIfPresent([VideoSourceListTab].self, forKey: .listTabs) ?? []
+        let container: KeyedDecodingContainer<CodingKeys> = try decoder.container(keyedBy: CodingKeys.self)
+        let strategy: VideoSourceConfigurationStrategy? = try container.decodeIfPresent(
+            VideoSourceConfigurationStrategy.self,
+            forKey: .strategy
+        )
+
+        switch strategy {
+        case .some(.legacyPreset), .none:
+            guard container.contains(.rule) == false else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .rule,
+                    in: container,
+                    debugDescription: "Legacy video configuration must not contain a V2 rule."
+                )
+            }
+            self = .legacyPreset(
+                VideoLegacySourceConfiguration(
+                    definition: try container.decode(VideoSourceDefinition.self, forKey: .definition),
+                    listTabs: try container.decodeIfPresent([VideoSourceListTab].self, forKey: .listTabs) ?? []
+                )
+            )
+        case .some(.ruleDriven):
+            guard container.contains(.definition) == false,
+                  container.contains(.listTabs) == false else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .strategy,
+                    in: container,
+                    debugDescription: "Rule-driven video configuration must not contain legacy definition/listTabs."
+                )
+            }
+            self = .ruleDriven(
+                VideoRuleDrivenSourceConfiguration(
+                    rule: try container.decode(VideoSiteRule.self, forKey: .rule)
+                )
+            )
+        }
     }
+
+    func encode(to encoder: Encoder) throws {
+        var container: KeyedEncodingContainer<CodingKeys> = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.strategy, forKey: .strategy)
+
+        switch self {
+        case .legacyPreset(let configuration):
+            try container.encode(configuration.definition, forKey: .definition)
+            if configuration.listTabs.isEmpty == false {
+                try container.encode(configuration.listTabs, forKey: .listTabs)
+            }
+        case .ruleDriven(let configuration):
+            try container.encode(configuration.rule, forKey: .rule)
+        }
+    }
+}
+
+enum VideoSourceConfigurationStrategy: String, Codable, Hashable {
+    case legacyPreset
+    case ruleDriven
+}
+
+struct VideoLegacySourceConfiguration: Hashable {
+    var definition: VideoSourceDefinition
+    var listTabs: [VideoSourceListTab]
+}
+
+struct VideoRuleDrivenSourceConfiguration: Hashable {
+    var rule: VideoSiteRule
 }
 
 struct VideoSourceListTab: Codable, Hashable, Identifiable {

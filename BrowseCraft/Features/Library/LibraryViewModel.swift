@@ -725,8 +725,8 @@ final class LibraryViewModel: ObservableObject {
     private func discoverTabsForSelectedVideoSourceIfNeeded() async {
         guard let videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase,
               let source: Source = self.selectedSource,
-              case .video(let configuration) = source.configuration,
-              configuration.listTabs.count <= 1,
+              case .video(.legacyPreset(let legacyConfiguration)) = source.configuration,
+              legacyConfiguration.listTabs.count <= 1,
               self.tabDiscoveryAttemptedSourceIDs.contains(source.id) == false else {
             return
         }
@@ -741,17 +741,17 @@ final class LibraryViewModel: ObservableObject {
         do {
             let tabs: [VideoSourceListTab] = try await videoTabDiscoveryUseCase.discoverTabs(
                 sourceID: source.id,
-                definition: configuration.definition,
-                explicitTabs: configuration.listTabs
+                definition: legacyConfiguration.definition,
+                explicitTabs: legacyConfiguration.listTabs
             )
-            guard tabs != configuration.listTabs else {
+            guard tabs != legacyConfiguration.listTabs else {
                 return
             }
 
             var updatedSource: Source = source
             updatedSource.configuration = .video(
                 VideoSourceConfiguration(
-                    definition: configuration.definition,
+                    definition: legacyConfiguration.definition,
                     listTabs: tabs
                 )
             )

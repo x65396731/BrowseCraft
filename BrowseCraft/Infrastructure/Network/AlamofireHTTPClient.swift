@@ -349,10 +349,31 @@ final class AlamofireHTTPClient: HTTPClient, ContextualPageContentResponseLoader
     }
 
     private func isAntiBotHTML(_ html: String) -> Bool {
-        return html.localizedCaseInsensitiveContains("Attention Required")
-            || html.localizedCaseInsensitiveContains("Just a moment")
-            || html.localizedCaseInsensitiveContains("cf-error-details")
-            || html.localizedCaseInsensitiveContains("challenge-platform")
-            || html.localizedCaseInsensitiveContains("cdn-cgi/challenge-platform")
+        let blockingMarkers: [String] = [
+            "Attention Required",
+            "Just a moment",
+            "cf-error-details"
+        ]
+        if blockingMarkers.contains(where: html.localizedCaseInsensitiveContains) {
+            return true
+        }
+
+        let hasChallengePlatform: Bool = html.localizedCaseInsensitiveContains("challenge-platform")
+        guard hasChallengePlatform else {
+            return false
+        }
+
+        // Cloudflare may inject its challenge-platform script into an otherwise complete page.
+        // Require an actual challenge state or prompt before classifying the response as blocked.
+        let challengeEvidence: [String] = [
+            "_cf_chl_opt",
+            "cf-chl-widget",
+            "challenge-form",
+            "cf-turnstile",
+            "Checking your browser",
+            "Verify you are human",
+            "Enable JavaScript and cookies to continue"
+        ]
+        return challengeEvidence.contains(where: html.localizedCaseInsensitiveContains)
     }
 }

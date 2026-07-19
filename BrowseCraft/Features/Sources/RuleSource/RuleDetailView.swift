@@ -130,26 +130,38 @@ struct SourceDebugView: View {
 
     private func videoSection(configuration: VideoSourceConfiguration) -> some View {
         Section("Video") {
-            let definition: VideoSourceDefinition = configuration.definition
-            LabeledContent("Adapter", value: definition.adapter.rawValue)
-            LabeledContent("Entry URL", value: definition.entryURL.absoluteString)
-            LabeledContent("Entry Kind", value: definition.entryKind.rawValue)
-            LabeledContent("Playback", value: definition.playbackPolicy.rawValue)
-            LabeledContent("Requires Account", value: definition.requiresAccount ? "Yes" : "No")
-            LabeledContent("Tabs", value: "\(configuration.listTabs.count)")
+            LabeledContent("Strategy", value: configuration.strategy.rawValue)
 
-            if let seedURL: URL = definition.seedURL {
-                LabeledContent("Seed URL", value: seedURL.absoluteString)
+            switch configuration {
+            case .legacyPreset(let legacyConfiguration):
+                let definition: VideoSourceDefinition = legacyConfiguration.definition
+                LabeledContent("Adapter", value: definition.adapter.rawValue)
+                LabeledContent("Entry URL", value: definition.entryURL.absoluteString)
+                LabeledContent("Entry Kind", value: definition.entryKind.rawValue)
+                LabeledContent("Playback", value: definition.playbackPolicy.rawValue)
+                LabeledContent("Requires Account", value: definition.requiresAccount ? "Yes" : "No")
+                LabeledContent("Tabs", value: "\(legacyConfiguration.listTabs.count)")
+
+                if let seedURL: URL = definition.seedURL {
+                    LabeledContent("Seed URL", value: seedURL.absoluteString)
+                }
+                if let seedPlayURL: URL = definition.seedPlayURL {
+                    LabeledContent("Seed Play URL", value: seedPlayURL.absoluteString)
+                }
+
+                self.requestLine("Shared Request", request: definition.sharedRequest)
+                self.requestLine("List Request", request: definition.listRequest)
+                self.requestLine("Detail Request", request: definition.detailRequest)
+                self.requestLine("Play Request", request: definition.playRequest)
+
+            case .ruleDriven(let ruleConfiguration):
+                let rule: VideoSiteRule = ruleConfiguration.rule
+                LabeledContent("Version", value: "\(rule.version)")
+                LabeledContent("Base URL", value: rule.baseUrl)
+                LabeledContent("Pages", value: "\(rule.pages.count)")
+                LabeledContent("List Rules", value: "\(rule.ruleSets.listRules.count)")
+                self.requestLine("Shared Request", request: rule.sharedRequest)
             }
-
-            if let seedPlayURL: URL = definition.seedPlayURL {
-                LabeledContent("Seed Play URL", value: seedPlayURL.absoluteString)
-            }
-
-            self.requestLine("Shared Request", request: definition.sharedRequest)
-            self.requestLine("List Request", request: definition.listRequest)
-            self.requestLine("Detail Request", request: definition.detailRequest)
-            self.requestLine("Play Request", request: definition.playRequest)
         }
     }
 

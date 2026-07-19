@@ -20,7 +20,7 @@ struct ResolveLibrarySourcePresentationUseCase {
 
     func imageRequestConfig(for source: Source, listTab: ListTabRule?) -> RequestConfig? {
         if case .video(let configuration) = source.configuration {
-            return self.videoImageRequestConfig(for: configuration)
+            return self.videoImageRequestConfig(for: configuration, listTab: listTab)
         }
 
         guard let rule: SiteRule = source.ruleConfiguration?.rule else {
@@ -30,104 +30,71 @@ struct ResolveLibrarySourcePresentationUseCase {
         return rule.request(for: listTab)
     }
 
-    private func videoImageRequestConfig(for configuration: VideoSourceConfiguration) -> RequestConfig? {
-        return self.merged(
-            base: configuration.definition.sharedRequest,
-            override: configuration.definition.listRequest
-        )
-    }
-
-    private func merged(base: RequestConfig?, override: RequestConfig?) -> RequestConfig? {
-        guard let override: RequestConfig else {
-            return base
+    private func videoImageRequestConfig(
+        for configuration: VideoSourceConfiguration,
+        listTab: ListTabRule?
+    ) -> RequestConfig? {
+        switch configuration {
+        case .legacyPreset(let legacyConfiguration):
+            return RequestConfigResolver().resolve(
+                legacyConfiguration.definition.sharedRequest,
+                legacyConfiguration.definition.listRequest
+            )
+        case .ruleDriven(let ruleConfiguration):
+            guard let resolvedRule: ResolvedVideoSiteRule = try? ResolvedVideoSiteRule(
+                validating: ruleConfiguration.rule
+            ) else {
+                return nil
+            }
+            let pageID: String? = listTab?.context?.pageId
+            let entry: ResolvedVideoListEntry? = resolvedRule.listEntries.first { entry in
+                return pageID == nil || entry.pageID == pageID
+            }
+            return entry?.effectiveRequest
         }
-
-        guard let base: RequestConfig else {
-            return override
-        }
-
-        if override.mergePolicy == .override {
-            return override
-        }
-
-        var headers: [String: String] = base.headers ?? [:]
-        override.headers?.forEach { key, value in
-            headers[key] = value
-        }
-
-        var imageHeaders: [String: String] = base.imageHeaders ?? [:]
-        override.imageHeaders?.forEach { key, value in
-            imageHeaders[key] = value
-        }
-
-        let imageRequest: ImageRequestConfig? = self.mergedImageRequest(
-            base: base.imageRequest,
-            override: override.imageRequest
-        )
-
-        return RequestConfig(
-            scope: override.scope ?? base.scope,
-            mergePolicy: override.mergePolicy ?? base.mergePolicy,
-            method: override.method ?? base.method,
-            headers: headers.isEmpty ? nil : headers,
-            body: override.body ?? base.body,
-            cookiePolicy: override.cookiePolicy ?? base.cookiePolicy,
-            cookiePriority: override.cookiePriority ?? base.cookiePriority,
-            cookieScope: override.cookieScope ?? base.cookieScope,
-            charset: override.charset ?? base.charset,
-            needsWebView: override.needsWebView ?? base.needsWebView,
-            autoScroll: override.autoScroll ?? base.autoScroll,
-            imageHeaders: imageHeaders.isEmpty ? nil : imageHeaders,
-            imageRequest: imageRequest
-        )
-    }
-
-    private func mergedImageRequest(
-        base: ImageRequestConfig?,
-        override: ImageRequestConfig?
-    ) -> ImageRequestConfig? {
-        guard let override: ImageRequestConfig else {
-            return base
-        }
-
-        guard let base: ImageRequestConfig else {
-            return override
-        }
-
-        if override.mergePolicy == .override {
-            return override
-        }
-
-        var headers: [String: String] = base.headers ?? [:]
-        override.headers?.forEach { key, value in
-            headers[key] = value
-        }
-
-        return ImageRequestConfig(
-            headers: headers.isEmpty ? nil : headers,
-            cookiePolicy: override.cookiePolicy ?? base.cookiePolicy,
-            cookiePriority: override.cookiePriority ?? base.cookiePriority,
-            cookieScope: override.cookieScope ?? base.cookieScope,
-            mergePolicy: override.mergePolicy ?? base.mergePolicy
-        )
     }
 
     private func videoListTabs(for configuration: VideoSourceConfiguration) -> [ListTabRule] {
-        let tabs: [VideoSourceListTab]
-        if configuration.listTabs.isEmpty {
-            tabs = [
-                VideoSourceListTab(
-                    id: "video.home",
-                    title: "首页",
-                    url: configuration.definition.entryURL.absoluteString
-                )
-            ]
-        } else {
-            tabs = configuration.listTabs
-        }
+        switch configuration {
+        case .legacyPreset(let legacyConfiguration):
+            let tabs: [VideoSourceListTab]
+            if legacyConfiguration.listTabs.isEmpty {
+                tabs = [
+                    VideoSourceListTab(
+                        id: "video.home",
+                        title: "首页",
+                        url: legacyConfiguration.definition.entryURL.absoluteString
+                    )
+                ]
+            } else {
+                tabs = legacyConfiguration.listTabs
+            }
+            return tabs.map(self.videoListTab(_:))
 
-        return tabs.map { tab in
-            return self.videoListTab(tab)
+        case .ruleDriven(let ruleConfiguration):
+            return ruleConfiguration.rule.pages.map { page in
+                let listRuleID: String = page.ruleRefs.list
+                return ListTabRule(
+                    id: page.id,
+                    title: page.title,
+                    list: ListRule(
+                        id: listRuleID,
+                        url: page.url,
+                        item: "",
+                        title: "",
+                        link: "",
+                        type: .video
+                    ),
+                    request: page.request,
+                    context: ListContext(
+                        pageId: page.id,
+                        tabId: page.id,
+                        sectionId: nil,
+                        listRuleId: listRuleID,
+                        sectionRole: .main
+                    )
+                )
+            }
         }
     }
 

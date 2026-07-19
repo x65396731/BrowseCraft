@@ -218,19 +218,19 @@ struct AddCatalogSourceUseCase {
 
     private func sourceWithDiscoveredVideoTabs(_ source: Source) async throws -> Source {
         guard let videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase,
-              case .video(let configuration) = source.configuration else {
+              case .video(.legacyPreset(let legacyConfiguration)) = source.configuration else {
             return source
         }
 
         var discoveredSource: Source = source
         let tabs: [VideoSourceListTab] = try await videoTabDiscoveryUseCase.discoverTabs(
             sourceID: source.id,
-            definition: configuration.definition,
-            explicitTabs: configuration.listTabs
+            definition: legacyConfiguration.definition,
+            explicitTabs: legacyConfiguration.listTabs
         )
         discoveredSource.configuration = .video(
             VideoSourceConfiguration(
-                definition: configuration.definition,
+                definition: legacyConfiguration.definition,
                 listTabs: tabs
             )
         )

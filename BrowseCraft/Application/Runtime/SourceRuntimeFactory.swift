@@ -5,15 +5,18 @@ import BrowseCraftCore
 struct SourceRuntimeFactory {
     private let pageContentLoader: PageContentLoader
     private let comicRuleSourceRuntimeFactory: ComicRuleSourceRuntimeFactory
+    private let videoRuleSourceRuntimeFactory: VideoRuleSourceRuntimeFactory
     private let videoContentMapperRegistry: VideoContentMapperRegistry
 
     init(
         pageContentLoader: PageContentLoader,
         comicRuleSourceRuntimeFactory: ComicRuleSourceRuntimeFactory,
+        videoRuleSourceRuntimeFactory: VideoRuleSourceRuntimeFactory,
         videoContentMapperRegistry: VideoContentMapperRegistry = VideoContentMapperRegistry()
     ) {
         self.pageContentLoader = pageContentLoader
         self.comicRuleSourceRuntimeFactory = comicRuleSourceRuntimeFactory
+        self.videoRuleSourceRuntimeFactory = videoRuleSourceRuntimeFactory
         self.videoContentMapperRegistry = videoContentMapperRegistry
     }
 
@@ -24,6 +27,9 @@ struct SourceRuntimeFactory {
             },
             videoRuntimeFactory: { definition in
                 return self.makeVideoSourceRuntime(definition: definition)
+            },
+            videoRuleRuntimeFactory: { source in
+                return try self.makeVideoRuleSourceRuntime(source: source)
             },
             comicRuntimeFactory: { source in
                 return self.makeComicSourceRuntime(source: source)
@@ -56,6 +62,10 @@ struct SourceRuntimeFactory {
                 mapper: mapper
             )
         )
+    }
+
+    func makeVideoRuleSourceRuntime(source: Source) throws -> VideoRuleSourceRuntime {
+        return try self.videoRuleSourceRuntimeFactory.makeRuntime(source: source)
     }
 
     private func makeVideoContentMapper(definition: SourceDefinition) -> any VideoContentMapper {

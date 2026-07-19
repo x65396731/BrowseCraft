@@ -56,7 +56,7 @@ struct SyncBuiltInSourcesUseCaseTests {
 
         let sources: [Source] = try repository.fetchSources()
         let updatedSource: Source = try #require(sources.first)
-        guard case .video(let configuration) = updatedSource.configuration else {
+        guard case .video(.legacyPreset(let configuration)) = updatedSource.configuration else {
             Issue.record("Expected upgraded ARTE source to stay a video source.")
             return
         }

@@ -60,11 +60,13 @@ struct SourceDefinitionMapper {
                 runtimeKind: .video,
                 name: name,
                 baseURL: self.baseURL(from: baseURL),
-                version: version,
+                version: videoConfiguration.ruleDrivenConfiguration?.rule.version ?? version,
                 ownership: ownership,
                 comic: nil,
                 rss: nil,
-                video: self.normalizedVideoDefinition(from: videoConfiguration),
+                video: videoConfiguration.legacyConfiguration.map { legacyConfiguration in
+                    return self.normalizedVideoDefinition(from: legacyConfiguration)
+                },
                 plugin: nil
             )
         case .plugin(let pluginConfiguration):
@@ -106,7 +108,7 @@ struct SourceDefinitionMapper {
     }
 
     private func normalizedVideoDefinition(
-        from configuration: VideoSourceConfiguration
+        from configuration: VideoLegacySourceConfiguration
     ) -> VideoSourceDefinition {
         let definition: VideoSourceDefinition = configuration.definition
         guard definition.adapter == .genericHTML,

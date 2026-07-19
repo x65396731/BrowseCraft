@@ -563,7 +563,7 @@ final class SourcesViewModel: ObservableObject {
             )
         case .video:
             do {
-                _ = try self.jsonDecoder.decode(VideoSourceConfiguration.self, from: Data(json.utf8))
+                try self.updateVideoSourceConfigurationUseCase.validate(configurationJSON: json)
                 return SourceDebugJSONValidationResult(isValid: true, message: "Video configuration JSON is valid.")
             } catch {
                 return SourceDebugJSONValidationResult(isValid: false, message: error.localizedDescription)

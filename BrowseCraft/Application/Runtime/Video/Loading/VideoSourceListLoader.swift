@@ -32,6 +32,17 @@ struct VideoSourceListLoader: VideoSourceListLoading {
         _ input: SourceListInput,
         definition: SourceDefinition
     ) async throws -> SourceListOutput {
+        guard input.page > 0 else {
+            throw SourceRuntimeError.invalidInput(
+                "Legacy video list page must be greater than zero: \(input.page)."
+            )
+        }
+        guard input.page == 1 else {
+            throw SourceRuntimeError.unsupported(
+                .custom("Legacy video presets do not implement pagination.")
+            )
+        }
+
         let url: URL = try self.listURL(for: input, definition: definition)
         guard let videoDefinition: VideoSourceDefinition = definition.video else {
             throw SourceRuntimeError.invalidInput("Video runtime requires a video source definition.")

@@ -56,58 +56,113 @@ struct CatalogSourceMaterializer {
                 updatedAt: updatedAt
             )
         case .video:
-            let videoRule: CatalogVideoRule = try self.decodeRule(CatalogVideoRule.self, from: catalogSource)
-            let importedAdapter: VideoAdapter = try self.adapter(from: videoRule.adapter)
-            let explicitRoutePatterns: VideoSourceRoutePatterns? = try self.routePatterns(from: videoRule.routePattern)
-            let routePatterns: VideoSourceRoutePatterns? = explicitRoutePatterns
-                ?? self.inferredRoutePatterns(
-                    from: videoRule,
-                    ruleJSON: catalogSource.ruleJSON,
-                    importedAdapter: importedAdapter
-                )
-            let contentAdapter: VideoAdapter = self.contentAdapter(
-                importedAdapter: importedAdapter,
-                routePatterns: routePatterns
-            )
-            let sharedRequest: RequestConfig? = importedAdapter == .webView
-                ? self.webViewRequest(videoRule.sharedRequest)
-                : videoRule.sharedRequest
             return Source(
                 id: catalogSource.id,
                 name: catalogSource.name,
                 baseURL: catalogSource.baseURL,
                 type: .html,
-                configuration: .video(
-                    VideoSourceConfiguration(
-                        definition: VideoSourceDefinition(
-                            adapter: contentAdapter,
-                            entryURL: try self.url(
-                                from: videoRule.entryURL,
-                                error: CatalogSourceImportError.invalidEntryURL
-                            ),
-                            seedURL: nil,
-                            entryKind: try self.entryKind(from: videoRule.entryKind),
-                            routePatterns: routePatterns,
-                            playbackPolicy: try self.playbackPolicy(from: videoRule.playbackPolicy),
-                            sharedRequest: sharedRequest,
-                            listRequest: videoRule.listRequest,
-                            detailRequest: videoRule.detailRequest,
-                            playRequest: videoRule.playRequest,
-                            requiresAccount: videoRule.requiresAccount,
-                            seedVodID: nil,
-                            seedSourceIndex: nil,
-                            seedEpisodeIndex: nil,
-                            seedDetailURL: nil,
-                            seedPlayURL: nil
-                        ),
-                        listTabs: videoRule.listTabs.map(self.listTab(from:))
-                    )
-                ),
+                configuration: .video(try self.videoConfiguration(from: catalogSource)),
                 enabled: enabled,
                 createdAt: createdAt,
                 updatedAt: updatedAt
             )
         }
+    }
+
+    /// 中文注释：version 是 video catalog 的唯一分流轴；V2 永不进入 adapter 推断或 legacy fallback。
+    private func videoConfiguration(
+        from catalogSource: BrowseCraftCatalogSource
+    ) throws -> VideoSourceConfiguration {
+        let versionProbe: CatalogVideoRuleVersion = try self.decodeRule(
+            CatalogVideoRuleVersion.self,
+            from: catalogSource
+        )
+
+        switch versionProbe.version {
+        case .some(2):
+            let validator: VideoSiteRuleValidator = VideoSiteRuleValidator(jsonDecoder: self.jsonDecoder)
+            let result: VideoSiteRuleValidationResult = validator.validate(
+                ruleJSON: catalogSource.ruleJSON,
+                catalogMetadata: VideoSiteRuleCatalogMetadata(
+                    name: catalogSource.name,
+                    baseURL: catalogSource.baseURL
+                )
+            )
+            guard result.canImport,
+                  let rule: VideoSiteRule = result.rule else {
+                throw CatalogSourceImportError.invalidRuleJSON(
+                    sourceID: catalogSource.id,
+                    name: catalogSource.name,
+                    kind: catalogSource.kind.rawValue,
+                    reason: self.videoValidationDescription(result)
+                )
+            }
+            return VideoSourceConfiguration(rule: rule)
+
+        case .none, .some(1):
+            return try self.legacyVideoConfiguration(from: catalogSource)
+
+        case .some(let version):
+            throw CatalogSourceImportError.unsupportedRuleValue(
+                field: "version",
+                value: String(version)
+            )
+        }
+    }
+
+    private func legacyVideoConfiguration(
+        from catalogSource: BrowseCraftCatalogSource
+    ) throws -> VideoSourceConfiguration {
+        let videoRule: CatalogVideoRule = try self.decodeRule(CatalogVideoRule.self, from: catalogSource)
+        let importedAdapter: VideoAdapter = try self.adapter(from: videoRule.adapter)
+        let explicitRoutePatterns: VideoSourceRoutePatterns? = try self.routePatterns(from: videoRule.routePattern)
+        let routePatterns: VideoSourceRoutePatterns? = explicitRoutePatterns
+            ?? self.inferredRoutePatterns(
+                from: videoRule,
+                ruleJSON: catalogSource.ruleJSON,
+                importedAdapter: importedAdapter
+            )
+        let contentAdapter: VideoAdapter = self.contentAdapter(
+            importedAdapter: importedAdapter,
+            routePatterns: routePatterns
+        )
+        let sharedRequest: RequestConfig? = importedAdapter == .webView
+            ? self.webViewRequest(videoRule.sharedRequest)
+            : videoRule.sharedRequest
+
+        return VideoSourceConfiguration(
+            definition: VideoSourceDefinition(
+                adapter: contentAdapter,
+                entryURL: try self.url(
+                    from: videoRule.entryURL,
+                    error: CatalogSourceImportError.invalidEntryURL
+                ),
+                seedURL: nil,
+                entryKind: try self.entryKind(from: videoRule.entryKind),
+                routePatterns: routePatterns,
+                playbackPolicy: try self.playbackPolicy(from: videoRule.playbackPolicy),
+                sharedRequest: sharedRequest,
+                listRequest: videoRule.listRequest,
+                detailRequest: videoRule.detailRequest,
+                playRequest: videoRule.playRequest,
+                requiresAccount: videoRule.requiresAccount,
+                seedVodID: nil,
+                seedSourceIndex: nil,
+                seedEpisodeIndex: nil,
+                seedDetailURL: nil,
+                seedPlayURL: nil
+            ),
+            listTabs: videoRule.listTabs.map(self.listTab(from:))
+        )
+    }
+
+    private func videoValidationDescription(_ result: VideoSiteRuleValidationResult) -> String {
+        let descriptions: [String] = result.errors.prefix(8).map { issue in
+            return "\(issue.path): \(issue.message)"
+        }
+        return descriptions.isEmpty
+            ? "Video V2 validation failed without a resolved rule graph."
+            : descriptions.joined(separator: " | ")
     }
 
     private func contentAdapter(
@@ -479,6 +534,11 @@ private struct CatalogRSSRule: Decodable {
         self.requiresAccount = try container.decodeIfPresent(Bool.self, forKey: .requiresAccount) ?? false
         self.refreshPolicy = try container.decodeIfPresent(String.self, forKey: .refreshPolicy) ?? "manual"
     }
+}
+
+/// 中文注释：只读取 video 版本用于 V1/V2 分流；其它字段必须由对应合同独立解码和校验。
+private struct CatalogVideoRuleVersion: Decodable {
+    let version: Int?
 }
 
 private struct CatalogVideoRule: Decodable {

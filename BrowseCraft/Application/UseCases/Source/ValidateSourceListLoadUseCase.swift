@@ -96,19 +96,23 @@ struct ValidateSourceTabsUseCase {
         guard case .video(let configuration) = source.configuration else {
             return await self.validateListRuntimeTabs(source: source)
         }
+        guard case .legacyPreset(let legacyConfiguration) = configuration else {
+            // 中文注释：V2 tab 已来自 pages，不运行 legacy WebView 自动发现。
+            return await self.validateListRuntimeTabs(source: source)
+        }
 
         var validatedSource: Source = source
         if let videoTabDiscoveryUseCase: VideoSourceTabDiscoveryUseCase {
             do {
                 let discoveredTabs: [VideoSourceListTab] = try await videoTabDiscoveryUseCase.discoverTabs(
                     sourceID: source.id,
-                    definition: configuration.definition,
-                    explicitTabs: configuration.listTabs
+                    definition: legacyConfiguration.definition,
+                    explicitTabs: legacyConfiguration.listTabs
                 )
-                if discoveredTabs != configuration.listTabs {
+                if discoveredTabs != legacyConfiguration.listTabs {
                     validatedSource.configuration = .video(
                         VideoSourceConfiguration(
-                            definition: configuration.definition,
+                            definition: legacyConfiguration.definition,
                             listTabs: discoveredTabs
                         )
                     )

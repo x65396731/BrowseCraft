@@ -82,7 +82,7 @@ struct RefreshSourceRuntimeUseCase {
         source: Source,
         listContext: ListContext?
     ) -> SourceRequestOverride? {
-        guard source.configuration.kind == .video,
+        guard case .video(.legacyPreset) = source.configuration,
               let tab: ListTabRule = self.videoListTab(source: source, listContext: listContext),
               let urlString: String = tab.list.url.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty,
               urlString.isEmpty == false,
