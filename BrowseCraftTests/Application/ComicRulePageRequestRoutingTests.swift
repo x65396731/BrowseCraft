@@ -160,12 +160,12 @@ private final class RecordingComicRoutePageContentLoader: PageContentLoader {
         self.responses = responses
     }
 
-    func getString(from url: URL, request: RequestConfig?) async throws -> String {
-        self.requests.append(RecordedRequest(url: url, request: request))
-        guard let response: String = self.responses[url.absoluteString] else {
-            throw LoaderError.missingResponse(url.absoluteString)
+    func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
+        self.requests.append(RecordedRequest(url: request.url, request: request.requestConfig))
+        guard let response: String = self.responses[request.url.absoluteString] else {
+            throw LoaderError.missingResponse(request.url.absoluteString)
         }
-        return response
+        return PageContentResponse(content: response, finalURL: request.url)
     }
 
     func request(for urlString: String) -> RequestConfig? {

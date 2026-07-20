@@ -583,7 +583,7 @@ struct ResourcePipelineExecutorTests {
     }
 }
 
-private final class RecordingResourcePipelineDataLoader: ContextualPageDataLoader {
+private final class RecordingResourcePipelineDataLoader: PageDataLoader {
     struct Request {
         let url: URL
         let request: RequestConfig?
@@ -597,19 +597,17 @@ private final class RecordingResourcePipelineDataLoader: ContextualPageDataLoade
         self.responses = responses
     }
 
-    func getData(from url: URL, request: RequestConfig?) async throws -> Data {
-        return try await self.getData(from: url, request: request, context: nil)
-    }
-
-    func getData(
-        from url: URL,
-        request: RequestConfig?,
-        context: SourceRequestContext?
-    ) async throws -> Data {
-        self.requests.append(Request(url: url, request: request, context: context))
-        guard let data: Data = self.responses[url.absoluteString] else {
+    func loadData(_ request: PageLoadRequest) async throws -> PageDataResponse {
+        self.requests.append(
+            Request(
+                url: request.url,
+                request: request.requestConfig,
+                context: request.sourceContext
+            )
+        )
+        guard let data: Data = self.responses[request.url.absoluteString] else {
             throw URLError(.fileDoesNotExist)
         }
-        return data
+        return PageDataResponse(data: data, finalURL: request.url)
     }
 }

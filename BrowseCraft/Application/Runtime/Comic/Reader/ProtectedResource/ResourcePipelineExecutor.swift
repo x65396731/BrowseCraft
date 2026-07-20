@@ -43,19 +43,6 @@ struct ResourcePipelineExecutionInput {
     }
 }
 
-protocol ResourcePipelineCryptography {
-    func hash(_ data: Data, algorithm: ResourceHashAlgorithm) throws -> Data
-
-    func decrypt(
-        _ ciphertext: Data,
-        algorithm: ResourceCipherAlgorithm,
-        mode: ResourceCipherMode,
-        padding: ResourceCipherPadding,
-        key: Data,
-        iv: Data
-    ) throws -> Data
-}
-
 enum ResourcePipelineExecutorError: LocalizedError, Equatable {
     case unsupportedVersion(Int)
     case invalidBinding(name: String, reason: String)
@@ -479,11 +466,13 @@ struct ResourcePipelineExecutor {
                 data = cachedData
             } else {
                 do {
-                    let loadedData: Data = try await self.dataLoader.getData(
-                        from: url,
-                        request: request,
-                        context: context
-                    )
+                    let loadedData: Data = try await self.dataLoader.loadData(
+                        PageLoadRequest(
+                            url: url,
+                            requestConfig: request,
+                            sourceContext: context
+                        )
+                    ).data
                     await self.requestCache.succeed(
                         loadedData,
                         for: cacheKey,

@@ -7,6 +7,9 @@ import UIKit
 
 /// 中文注释：ReaderPageImageView 是 struct，负责本模块中的对应职责。
 struct ReaderPageImageView: View {
+    @Environment(\.browserRequestHeaderProvider) private var browserRequestHeaderProvider
+    @Environment(\.systemCookieHeaderProvider) private var systemCookieHeaderProvider
+
     let resource: ReaderPageResource
     let pageNumber: Int
     let refererURLString: String?
@@ -104,7 +107,9 @@ struct ReaderPageImageView: View {
             urlString: pageURLString,
             refererURLString: self.refererURLString,
             requestConfig: self.requestConfig,
-            additionalHeaders: self.additionalHeaders
+            additionalHeaders: self.additionalHeaders,
+            browserRequestHeaderProvider: self.browserRequestHeaderProvider,
+            systemCookieHeaderProvider: self.systemCookieHeaderProvider
         ) else {
             return nil
         }

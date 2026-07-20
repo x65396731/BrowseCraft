@@ -6,15 +6,18 @@ struct ComicSourceRuntimeFactory {
     private let pageContentLoader: PageContentLoader
     private let comicRuleParser: ComicRuleSourceParsingService
     private let urlResolver: URLResolvingService
+    private let defaultUserAgent: String
 
     init(
         pageContentLoader: PageContentLoader,
         comicRuleParser: ComicRuleSourceParsingService,
-        urlResolver: URLResolvingService
+        urlResolver: URLResolvingService,
+        defaultUserAgent: String = ""
     ) {
         self.pageContentLoader = pageContentLoader
         self.comicRuleParser = comicRuleParser
         self.urlResolver = urlResolver
+        self.defaultUserAgent = defaultUserAgent
     }
 
     func makeRuntime(source: Source) throws -> ComicSourceRuntime {
@@ -35,7 +38,8 @@ struct ComicSourceRuntimeFactory {
         return ComicSourceListLoader(
             pageContentLoader: self.pageContentLoader,
             comicRuleParser: self.comicRuleParser,
-            urlResolver: self.urlResolver
+            urlResolver: self.urlResolver,
+            defaultUserAgent: self.defaultUserAgent
         )
     }
 
@@ -50,14 +54,16 @@ struct ComicSourceRuntimeFactory {
     private func makeDetailLoader() -> ComicSourceDetailLoader {
         return ComicSourceDetailLoader(
             pageContentLoader: self.pageContentLoader,
-            comicRuleParser: self.comicRuleParser
+            comicRuleParser: self.comicRuleParser,
+            defaultUserAgent: self.defaultUserAgent
         )
     }
 
     private func makeReaderLoader() -> ComicSourceReaderLoader {
         return ComicSourceReaderLoader(
             pageContentLoader: self.pageContentLoader,
-            comicRuleParser: self.comicRuleParser
+            comicRuleParser: self.comicRuleParser,
+            defaultUserAgent: self.defaultUserAgent
         )
     }
 }

@@ -140,14 +140,16 @@ struct VideoSourceListLoader {
             base: entry.effectiveListRequest,
             override: input.context.requestOverride
         )
-        let response: PageContentResponse = try await self.pageContentLoader.getStringResponse(
-            from: requestURL,
-            request: request,
-            context: SourceRequestContext(
-                sourceID: source.id,
-                baseURL: URL(string: source.baseURL),
-                purpose: .video,
-                refererURL: requestURL
+        let response: PageContentResponse = try await self.pageContentLoader.loadContent(
+            PageLoadRequest(
+                url: requestURL,
+                requestConfig: request,
+                sourceContext: SourceRequestContext(
+                    sourceID: source.id,
+                    baseURL: URL(string: source.baseURL),
+                    purpose: .video,
+                    refererURL: requestURL
+                )
             )
         )
         let renderIssues: [SourceRuntimeIssue] = try self.renderGuard.validateMappableHTML(

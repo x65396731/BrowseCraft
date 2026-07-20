@@ -238,14 +238,14 @@ private final class RSSHubDiscoveryRecordingPageDataLoader: PageDataLoader {
         self.responsesByURL = responsesByURL
     }
 
-    func getData(from url: URL, request: RequestConfig?) async throws -> Data {
-        self.requestedURLs.append(url)
+    func loadData(_ request: PageLoadRequest) async throws -> PageDataResponse {
+        self.requestedURLs.append(request.url)
 
-        if let response: Data = self.responsesByURL[url.absoluteString] {
-            return response
+        if let response: Data = self.responsesByURL[request.url.absoluteString] {
+            return PageDataResponse(data: response, finalURL: request.url)
         }
 
-        throw RSSHubDiscoveryTestError.missingMockResponse(url.absoluteString)
+        throw RSSHubDiscoveryTestError.missingMockResponse(request.url.absoluteString)
     }
 }
 

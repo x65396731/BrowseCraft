@@ -305,7 +305,7 @@ private extension VideoSourcePlaybackLoaderTests {
     }
 }
 
-private final class PlaybackPageContentLoader: ContextualPageContentResponseLoader {
+private final class PlaybackPageContentLoader: PageContentLoader {
     let html: String
     let finalURL: URL
     private(set) var lastRequest: RequestConfig?
@@ -315,31 +315,13 @@ private final class PlaybackPageContentLoader: ContextualPageContentResponseLoad
         self.finalURL = finalURL
     }
 
-    func getString(from url: URL, request: RequestConfig?) async throws -> String {
-        self.lastRequest = request
-        return self.html
-    }
-
-    func getString(
-        from url: URL,
-        request: RequestConfig?,
-        context: SourceRequestContext?
-    ) async throws -> String {
-        self.lastRequest = request
-        return self.html
-    }
-
-    func getStringResponse(
-        from url: URL,
-        request: RequestConfig?,
-        context: SourceRequestContext?
-    ) async throws -> PageContentResponse {
-        self.lastRequest = request
+    func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
+        self.lastRequest = request.requestConfig
         return PageContentResponse(content: self.html, finalURL: self.finalURL)
     }
 }
 
-private final class RoutedPlaybackPageContentLoader: ContextualPageContentResponseLoader {
+private final class RoutedPlaybackPageContentLoader: PageContentLoader {
     let responses: [String: PageContentResponse]
     private(set) var requestedURLs: [URL] = []
 
@@ -347,25 +329,9 @@ private final class RoutedPlaybackPageContentLoader: ContextualPageContentRespon
         self.responses = responses
     }
 
-    func getString(from url: URL, request: RequestConfig?) async throws -> String {
-        return try await self.getStringResponse(from: url, request: request, context: nil).content
-    }
-
-    func getString(
-        from url: URL,
-        request: RequestConfig?,
-        context: SourceRequestContext?
-    ) async throws -> String {
-        return try await self.getStringResponse(from: url, request: request, context: context).content
-    }
-
-    func getStringResponse(
-        from url: URL,
-        request: RequestConfig?,
-        context: SourceRequestContext?
-    ) async throws -> PageContentResponse {
-        self.requestedURLs.append(url)
-        guard let response: PageContentResponse = self.responses[url.absoluteString] else {
+    func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
+        self.requestedURLs.append(request.url)
+        guard let response: PageContentResponse = self.responses[request.url.absoluteString] else {
             throw SourceRuntimeError.invalidInput("Missing routed playback response.")
         }
         return response

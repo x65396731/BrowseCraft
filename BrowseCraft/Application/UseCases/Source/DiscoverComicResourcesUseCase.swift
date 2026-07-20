@@ -57,14 +57,17 @@ struct DiscoverComicResourcesUseCase {
     private let pageContentLoader: PageContentLoader
     private let urlResolver: URLResolvingService
     private let htmlScanner: HTMLDiscoveryScanner
+    private let htmlParser: HTMLDiscoveryParsingService
 
     init(
         pageContentLoader: PageContentLoader,
+        htmlParser: HTMLDiscoveryParsingService,
         urlResolver: URLResolvingService = URLResolvingService()
     ) {
         self.pageContentLoader = pageContentLoader
         self.urlResolver = urlResolver
         self.htmlScanner = HTMLDiscoveryScanner(urlResolver: urlResolver)
+        self.htmlParser = htmlParser
     }
 
     func execute(_ input: DiscoverComicResourcesInput) async throws -> [TransientComicDiscoveryItem] {
@@ -84,7 +87,9 @@ struct DiscoverComicResourcesUseCase {
         for url: URL in candidateURLs {
             let html: String
             do {
-                html = try await self.pageContentLoader.getString(from: url, request: request)
+                html = try await self.pageContentLoader.loadContent(
+                    PageLoadRequest(url: url, requestConfig: request, sourceContext: nil)
+                ).content
             } catch {
                 #if DEBUG
                 self.log("fetch-failed url=\(url.absoluteString) error=\(error.localizedDescription)")
@@ -143,13 +148,16 @@ struct DiscoverComicResourcesUseCase {
         pageURL: URL,
         keyword: String
     ) throws -> ParseItemsResult {
-        let anchors: [HTMLDiscoveryElement] = try self.htmlScanner.anchors(html: html, pageURL: pageURL)
+        let anchors: [HTMLDiscoveryAnchorSnapshot] = try self.htmlParser.parseAnchors(
+            html: html,
+            pageURL: pageURL
+        )
         let embeddedCoverURLMap: [String: String] = self.embeddedCoverURLMap(html: html, pageURL: pageURL)
         var items: [TransientComicDiscoveryItem] = []
         var seenURLs: Set<String> = Set<String>()
         var rejectionCounts: [ItemRejectionReason: Int] = [:]
 
-        for anchor: HTMLDiscoveryElement in anchors {
+        for anchor: HTMLDiscoveryAnchorSnapshot in anchors {
             let outcome: ItemParseOutcome = try self.item(
                 from: anchor,
                 pageURL: pageURL,
@@ -185,18 +193,18 @@ struct DiscoverComicResourcesUseCase {
     }
 
     private func item(
-        from anchor: HTMLDiscoveryElement,
+        from anchor: HTMLDiscoveryAnchorSnapshot,
         pageURL: URL,
         keyword: String,
         embeddedCoverURLMap: [String: String]
     ) throws -> ItemParseOutcome {
-        let rawTitle: String = self.normalizedText(try anchor.text())
+        let rawTitle: String = self.normalizedText(anchor.text)
         let title: String = self.cleanedTitle(self.htmlScanner.bestTitle(anchor: anchor, fallback: rawTitle))
         guard title.count >= 2 else {
             return .rejected(.emptyTitle)
         }
 
-        let href: String = try anchor.attr("href").trimmingCharacters(in: .whitespacesAndNewlines)
+        let href: String = anchor.href.trimmingCharacters(in: .whitespacesAndNewlines)
         guard href.isEmpty == false else {
             return .rejected(.emptyHref)
         }
@@ -289,18 +297,13 @@ struct DiscoverComicResourcesUseCase {
         return pageURL.host?.lowercased() == host
     }
 
-    private func comicScore(anchor: HTMLDiscoveryElement, title: String, detailURL: String, keyword: String) throws -> Int {
-        let parent: HTMLDiscoveryElement? = anchor.parent()
-        let grandparent: HTMLDiscoveryElement? = parent?.parent()
-        let parentText: String
-        if let parent = parent {
-            parentText = (try? parent.text()) ?? ""
-        } else {
-            parentText = ""
-        }
-        let anchorClassName: String = (try? anchor.className()) ?? ""
-        let parentClassName: String = parent.flatMap { element in try? element.className() } ?? ""
-        let grandparentClassName: String = grandparent.flatMap { element in try? element.className() } ?? ""
+    private func comicScore(anchor: HTMLDiscoveryAnchorSnapshot, title: String, detailURL: String, keyword: String) throws -> Int {
+        let parent: HTMLDiscoveryAncestorSnapshot? = anchor.ancestors.first
+        let grandparent: HTMLDiscoveryAncestorSnapshot? = anchor.ancestors.dropFirst().first
+        let parentText: String = parent?.text ?? ""
+        let anchorClassName: String = anchor.className
+        let parentClassName: String = parent?.className ?? ""
+        let grandparentClassName: String = grandparent?.className ?? ""
         let classNames: String = [
             anchorClassName,
             parentClassName,
@@ -320,7 +323,7 @@ struct DiscoverComicResourcesUseCase {
             score += 1
         }
 
-        if try anchor.select("img").isEmpty() == false {
+        if anchor.hasImage {
             score += 1
         }
 
@@ -347,18 +350,15 @@ struct DiscoverComicResourcesUseCase {
     }
 
     private func coverURL(
-        anchor: HTMLDiscoveryElement,
+        anchor: HTMLDiscoveryAnchorSnapshot,
         detailURL: String,
         pageURL: URL,
         embeddedCoverURLMap: [String: String]
     ) throws -> String? {
-        let containers: [HTMLDiscoveryElement] = self.htmlScanner.coverSearchContainers(startingAt: anchor)
-        for container: HTMLDiscoveryElement in containers {
-            if let rawURL: String = try self.htmlScanner.coverURLString(from: container) {
-                let absoluteURL: String = self.urlResolver.absoluteString(rawURL, baseURLString: pageURL.absoluteString)
-                if self.htmlScanner.isBlockedCoverURLString(absoluteURL) == false {
-                    return absoluteURL
-                }
+        for rawURL: String in anchor.coverURLCandidates {
+            let absoluteURL: String = self.urlResolver.absoluteString(rawURL, baseURLString: pageURL.absoluteString)
+            if self.htmlScanner.isBlockedCoverURLString(absoluteURL) == false {
+                return absoluteURL
             }
         }
 
@@ -448,13 +448,8 @@ struct DiscoverComicResourcesUseCase {
         }
     }
 
-    private func latestText(anchor: HTMLDiscoveryElement) throws -> String? {
-        let text: String
-        if let parent: HTMLDiscoveryElement = anchor.parent() {
-            text = (try? parent.text()) ?? ""
-        } else {
-            text = (try? anchor.text()) ?? ""
-        }
+    private func latestText(anchor: HTMLDiscoveryAnchorSnapshot) throws -> String? {
+        let text: String = anchor.ancestors.first?.text ?? anchor.text
         let markers: [String] = ["最新", "更新", "连载", "完结", "第", "话", "卷"]
         guard markers.contains(where: { marker in text.contains(marker) }) else {
             return nil

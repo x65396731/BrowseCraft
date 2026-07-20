@@ -4,6 +4,9 @@ import SwiftUI
 
 // 中文注释：ItemThumbnailImageView 只用于 Library/History item 缩略图，缓存池独立于漫画阅读页图片。
 struct ItemThumbnailImageView: View {
+    @Environment(\.browserRequestHeaderProvider) private var browserRequestHeaderProvider
+    @Environment(\.systemCookieHeaderProvider) private var systemCookieHeaderProvider
+
     let urlString: String?
     let refererURLString: String?
     let requestConfig: RequestConfig?
@@ -94,7 +97,9 @@ struct ItemThumbnailImageView: View {
         guard let request: ImageRequest = ImageRequestFactory.makeRequest(
                 urlString: urlString,
                 refererURLString: self.refererURLString,
-                requestConfig: self.requestConfig
+                requestConfig: self.requestConfig,
+                browserRequestHeaderProvider: self.browserRequestHeaderProvider,
+                systemCookieHeaderProvider: self.systemCookieHeaderProvider
               ) else {
             return nil
         }

@@ -70,16 +70,19 @@ struct LoadCatalogSourcesUseCase {
         )
         #endif
 
-        let data: Data = try await self.pageDataLoader.getData(
-            from: catalogAPIURL,
-            request: requestConfig
-        )
+        let data: Data = try await self.pageDataLoader.loadData(
+            PageLoadRequest(
+                url: catalogAPIURL,
+                requestConfig: requestConfig,
+                sourceContext: nil
+            )
+        ).data
         return try BrowseCraftSourceCatalog.sources(from: self.catalogSourceData(from: data))
     }
 
     private var requestConfig: RequestConfig {
         return RequestConfig(
-            headers: APIRequestHeaders.catalogHeaders(base: self.requestHeaders())
+            headers: SourceAPIRequestHeaders.catalogHeaders(base: self.requestHeaders())
         )
     }
 

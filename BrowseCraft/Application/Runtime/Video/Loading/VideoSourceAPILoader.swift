@@ -557,14 +557,16 @@ struct VideoSourceAPILoader {
                 reason: "\(ownerDescription) URL is invalid: \(apiURLString)"
             )
         }
-        let response: PageContentResponse = try await self.pageContentLoader.getStringResponse(
-            from: apiURL,
-            request: request,
-            context: SourceRequestContext(
-                sourceID: source.id,
-                baseURL: URL(string: source.baseURL),
-                purpose: .video,
-                refererURL: refererURL
+        let response: PageContentResponse = try await self.pageContentLoader.loadContent(
+            PageLoadRequest(
+                url: apiURL,
+                requestConfig: request,
+                sourceContext: SourceRequestContext(
+                    sourceID: source.id,
+                    baseURL: URL(string: source.baseURL),
+                    purpose: .video,
+                    refererURL: refererURL
+                )
             )
         )
         let jsonObject: Any

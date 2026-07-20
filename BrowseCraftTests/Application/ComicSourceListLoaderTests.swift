@@ -509,11 +509,11 @@ private final class RecordingListPageContentLoader: PageContentLoader {
         self.disallowedURLs = disallowedURLs
     }
 
-    func getString(from url: URL, request: RequestConfig?) async throws -> String {
-        let urlString: String = url.absoluteString
+    func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
+        let urlString: String = request.url.absoluteString
         self.requestedURLs.append(urlString)
-        if let request: RequestConfig {
-            self.requests.append(request)
+        if let requestConfig: RequestConfig = request.requestConfig {
+            self.requests.append(requestConfig)
         }
 
         if self.disallowedURLs.contains(urlString) {
@@ -524,6 +524,6 @@ private final class RecordingListPageContentLoader: PageContentLoader {
             throw LoaderError.missingResponse(urlString)
         }
 
-        return response
+        return PageContentResponse(content: response, finalURL: request.url)
     }
 }

@@ -56,20 +56,22 @@ struct VideoWebPlayerRequest: Equatable {
             || host.hasSuffix(".youtube-nocookie.com")
     }
 
-    var urlRequest: URLRequest {
+    func urlRequest(
+        browserRequestHeaderProvider: any BrowserRequestHeaderProviding
+    ) -> URLRequest {
         var request: URLRequest = URLRequest(url: self.url)
-        var allHeaders: [String: String] = BrowserRequestHeaders.Chrome.defaultHeaders(
+        var allHeaders: [String: String] = browserRequestHeaderProvider.defaultHeaders(
             for: self.url,
             referer: self.referer,
             includeOrigin: true
         )
-        allHeaders = BrowserRequestHeaders.applyingOverrides(self.headers, to: allHeaders)
+        allHeaders = RequestHeaderFields.applyingOverrides(self.headers, to: allHeaders)
         if let referer: URL = self.referer,
-           BrowserRequestHeaders.containsHeader("Referer", in: allHeaders) == false {
+           RequestHeaderFields.containsHeader("Referer", in: allHeaders) == false {
             allHeaders["Referer"] = referer.absoluteString
         }
         if let userAgent: String = self.userAgent,
-           BrowserRequestHeaders.containsHeader("User-Agent", in: allHeaders) == false {
+           RequestHeaderFields.containsHeader("User-Agent", in: allHeaders) == false {
             allHeaders["User-Agent"] = userAgent
         }
         request.allHTTPHeaderFields = allHeaders.isEmpty ? nil : allHeaders
@@ -80,6 +82,7 @@ struct VideoWebPlayerRequest: Equatable {
 // 中文注释：VideoWebPlayerView 是 WebUI/WKWebView 的物理层封装；和 VideoNativePlayerView 平行。
 struct VideoWebPlayerView<Controls: View>: View {
     @Environment(\.openURL) private var openURL
+    @Environment(\.browserRequestHeaderProvider) private var browserRequestHeaderProvider
     @StateObject private var coordinator: VideoWebPlayerCoordinator
 
     let request: VideoWebPlayerRequest
@@ -124,7 +127,11 @@ struct VideoWebPlayerView<Controls: View>: View {
                         )
                         #endif
                         self.coordinator.prepareCookies(for: self.request) {
-                            proxy.load(request: self.request.urlRequest)
+                            proxy.load(
+                                request: self.request.urlRequest(
+                                    browserRequestHeaderProvider: self.browserRequestHeaderProvider
+                                )
+                            )
                         }
                     }
                     .onChange(of: self.request) { _, newRequest in
@@ -136,7 +143,11 @@ struct VideoWebPlayerView<Controls: View>: View {
                         )
                         #endif
                         self.coordinator.prepareCookies(for: newRequest) {
-                            proxy.load(request: newRequest.urlRequest)
+                            proxy.load(
+                                request: newRequest.urlRequest(
+                                    browserRequestHeaderProvider: self.browserRequestHeaderProvider
+                                )
+                            )
                         }
                     }
                     .ignoresSafeArea(edges: .bottom)

@@ -10,7 +10,8 @@ struct ComicRuleAPITemplateResolver {
         chapterURL: String? = nil,
         page: Int? = nil,
         rootJSON: Any? = nil,
-        currentJSON: Any? = nil
+        currentJSON: Any? = nil,
+        defaultUserAgent: String = ""
     ) -> RequestConfig? {
         guard var request: RequestConfig = request else {
             return nil
@@ -26,7 +27,8 @@ struct ComicRuleAPITemplateResolver {
                     chapterURL: chapterURL,
                     page: page,
                     rootJSON: rootJSON,
-                    currentJSON: currentJSON
+                    currentJSON: currentJSON,
+                    defaultUserAgent: defaultUserAgent
                 )
             )
         }
@@ -37,7 +39,8 @@ struct ComicRuleAPITemplateResolver {
             chapterURL: chapterURL,
             page: page,
             rootJSON: rootJSON,
-            currentJSON: currentJSON
+            currentJSON: currentJSON,
+            defaultUserAgent: defaultUserAgent
         )
         request.imageHeaders = self.replacingTemplatePlaceholders(
             in: request.imageHeaders,
@@ -46,7 +49,8 @@ struct ComicRuleAPITemplateResolver {
             chapterURL: chapterURL,
             page: page,
             rootJSON: rootJSON,
-            currentJSON: currentJSON
+            currentJSON: currentJSON,
+            defaultUserAgent: defaultUserAgent
         )
         if var imageRequest: ImageRequestConfig = request.imageRequest {
             imageRequest.headers = self.replacingTemplatePlaceholders(
@@ -56,7 +60,8 @@ struct ComicRuleAPITemplateResolver {
                 chapterURL: chapterURL,
                 page: page,
                 rootJSON: rootJSON,
-                currentJSON: currentJSON
+                currentJSON: currentJSON,
+                defaultUserAgent: defaultUserAgent
             )
             request.imageRequest = imageRequest
         }
@@ -71,7 +76,8 @@ struct ComicRuleAPITemplateResolver {
         chapterURL: String? = nil,
         page: Int? = nil,
         rootJSON: Any? = nil,
-        currentJSON: Any? = nil
+        currentJSON: Any? = nil,
+        defaultUserAgent: String = ""
     ) -> String {
         var output: String = template
         let pattern: String = #"\{([^{}]+)\}"#
@@ -103,7 +109,8 @@ struct ComicRuleAPITemplateResolver {
                 chapterURL: chapterURL,
                 page: page,
                 rootJSON: rootJSON,
-                currentJSON: currentJSON
+                currentJSON: currentJSON,
+                defaultUserAgent: defaultUserAgent
             ) ?? ""
             output.replaceSubrange(fullRange, with: replacement)
         }
@@ -118,7 +125,8 @@ struct ComicRuleAPITemplateResolver {
         chapterURL: String? = nil,
         page: Int? = nil,
         rootJSON: Any? = nil,
-        currentJSON: Any? = nil
+        currentJSON: Any? = nil,
+        defaultUserAgent: String = ""
     ) -> [String: String]? {
         guard let headers: [String: String] else {
             return nil
@@ -133,7 +141,8 @@ struct ComicRuleAPITemplateResolver {
                 chapterURL: chapterURL,
                 page: page,
                 rootJSON: rootJSON,
-                currentJSON: currentJSON
+                currentJSON: currentJSON,
+                defaultUserAgent: defaultUserAgent
             )
         }
         return resolvedHeaders
@@ -202,7 +211,8 @@ struct ComicRuleAPITemplateResolver {
         chapterURL: String?,
         page: Int?,
         rootJSON: Any?,
-        currentJSON: Any?
+        currentJSON: Any?,
+        defaultUserAgent: String
     ) -> String? {
         switch token {
         case "source.id":
@@ -211,7 +221,7 @@ struct ComicRuleAPITemplateResolver {
             return source.baseURL
         case "context.userAgent":
             return self.ruleContextValue("userAgent", source: source)
-                ?? BrowserRequestHeaders.Chrome.chromeUserAgent
+                ?? defaultUserAgent
         case "context.device":
             return self.ruleContextValue("device", source: source) ?? "server"
         case "context.deviceUUID":

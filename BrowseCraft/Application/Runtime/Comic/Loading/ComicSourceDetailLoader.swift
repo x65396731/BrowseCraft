@@ -6,24 +6,16 @@ import Foundation
 struct ComicSourceDetailLoader {
     private let pageContentLoader: PageContentLoader
     private let comicRuleParser: ComicRuleSourceParsingService
+    private let defaultUserAgent: String
 
     init(
         pageContentLoader: PageContentLoader,
-        comicRuleParser: ComicRuleSourceParsingService
+        comicRuleParser: ComicRuleSourceParsingService,
+        defaultUserAgent: String = ""
     ) {
         self.pageContentLoader = pageContentLoader
         self.comicRuleParser = comicRuleParser
-    }
-
-    /// 中文注释：兼容旧测试和旧装配入口；普通 HTTP 客户端继续可直接作为页面内容加载器使用。
-    init(
-        httpClient: HTTPClient,
-        comicRuleParser: ComicRuleSourceParsingService
-    ) {
-        self.init(
-            pageContentLoader: httpClient,
-            comicRuleParser: comicRuleParser
-        )
+        self.defaultUserAgent = defaultUserAgent
     }
 
     /// 中文注释：execute 方法封装当前类型的一段业务或界面行为。
@@ -101,11 +93,13 @@ struct ComicSourceDetailLoader {
             return self.withItemFallback(apiDetail, item: item)
         }
 
-        let detailHTML: String = try await self.pageContentLoader.getString(
-            from: detailURL,
-            request: resolvedRule.primaryDetailRequest,
-            context: self.requestContext(source: source, refererURL: detailURL)
-        )
+        let detailHTML: String = try await self.pageContentLoader.loadContent(
+            PageLoadRequest(
+                url: detailURL,
+                requestConfig: resolvedRule.primaryDetailRequest,
+                sourceContext: self.requestContext(source: source, refererURL: detailURL)
+            )
+        ).content
         var parsedDetail: ComicRuleParsedDetail
         if let detailRule: DetailRule = resolvedRule.primaryDetailRule {
             parsedDetail = try self.comicRuleParser.parseDetail(
@@ -214,7 +208,8 @@ struct ComicSourceDetailLoader {
             source: source,
             item: item,
             rootJSON: nil,
-            currentJSON: nil
+            currentJSON: nil,
+            defaultUserAgent: self.defaultUserAgent
         )
 
         guard let apiURL: URL = URL(string: apiURLString) else {
@@ -244,14 +239,16 @@ struct ComicSourceDetailLoader {
             source: source,
             item: item
         )
-        let json: String = try await self.pageContentLoader.getString(
-            from: apiURL,
-            request: request,
-            context: self.requestContext(
-                source: source,
-                refererURL: URL(string: item.detailURL) ?? apiURL
+        let json: String = try await self.pageContentLoader.loadContent(
+            PageLoadRequest(
+                url: apiURL,
+                requestConfig: request,
+                sourceContext: self.requestContext(
+                    source: source,
+                    refererURL: URL(string: item.detailURL) ?? apiURL
+                )
             )
-        )
+        ).content
         let jsonObject: Any = try JSONSerialization.jsonObject(with: Data(json.utf8))
         let responseEvaluation = ComicRuleAPIResponseEvaluator.evaluate(
             json: jsonObject,
@@ -420,7 +417,8 @@ struct ComicSourceDetailLoader {
             base: fallbackRequest ?? detailRule.request,
             override: apiRule.request,
             source: source,
-            item: item
+            item: item,
+            defaultUserAgent: self.defaultUserAgent
         )
     }
 
@@ -438,7 +436,8 @@ struct ComicSourceDetailLoader {
                 source: source,
                 item: item,
                 rootJSON: rootJSON,
-                currentJSON: currentJSON
+                currentJSON: currentJSON,
+                defaultUserAgent: self.defaultUserAgent
             )
         }
 

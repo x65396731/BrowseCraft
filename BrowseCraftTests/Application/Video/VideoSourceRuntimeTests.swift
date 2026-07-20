@@ -1747,12 +1747,12 @@ private final class RecordingVideoRulePageContentLoader: PageContentLoader {
         self.html = html
     }
 
-    func getString(from url: URL, request: RequestConfig?) async throws -> String {
-        self.lastURL = url
-        self.lastRequest = request
-        self.urls.append(url)
-        self.requests.append(request)
-        return self.html
+    func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
+        self.lastURL = request.url
+        self.lastRequest = request.requestConfig
+        self.urls.append(request.url)
+        self.requests.append(request.requestConfig)
+        return PageContentResponse(content: self.html, finalURL: request.url)
     }
 }
 
@@ -1765,15 +1765,15 @@ private final class RoutingVideoRulePageContentLoader: PageContentLoader {
         self.responses = responses
     }
 
-    func getString(from url: URL, request: RequestConfig?) async throws -> String {
-        self.urls.append(url)
-        self.requests.append(request)
-        guard let response: String = self.responses[url.absoluteString] else {
+    func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
+        self.urls.append(request.url)
+        self.requests.append(request.requestConfig)
+        guard let response: String = self.responses[request.url.absoluteString] else {
             throw SourceRuntimeError.invalidInput(
-                "No test response was registered for \(url.absoluteString)."
+                "No test response was registered for \(request.url.absoluteString)."
             )
         }
-        return response
+        return PageContentResponse(content: response, finalURL: request.url)
     }
 }
 

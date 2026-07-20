@@ -41,6 +41,7 @@ final class VideoPlayerViewModel: ObservableObject {
         accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil,
         runtimeResolver: any SourceRuntimeResolving,
         credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider(),
+        systemCookieHeaderProvider: any SystemCookieHeaderProviding = EmptySystemCookieHeaderProvider(),
         userID: String = AppUser.localDefaultID,
         now: @escaping () -> Date = Date.init
     ) {
@@ -54,7 +55,8 @@ final class VideoPlayerViewModel: ObservableObject {
         self.accumulateAdPointsUseCase = accumulateAdPointsUseCase
         self.runtimeResolver = runtimeResolver
         self.playbackRequestResolver = VideoPlaybackRequestResolver(
-            credentialProvider: credentialProvider
+            credentialProvider: credentialProvider,
+            systemCookieHeaderProvider: systemCookieHeaderProvider
         )
         self.userID = userID
         self.now = now

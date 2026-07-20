@@ -14,6 +14,8 @@ struct RootView: View {
     }
 
     private let libraryContentViewModelFactory: LibraryContentViewModelFactory
+    private let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
+    private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
     @StateObject private var sourcesViewModel: SourcesViewModel
     @StateObject private var favoritesViewModel: FavoritesViewModel
     @StateObject private var libraryViewModel: LibraryViewModel
@@ -23,33 +25,9 @@ struct RootView: View {
     @State private var didResolveInitialTab: Bool = false
 
     init(container: AppContainer) {
-        self.libraryContentViewModelFactory = LibraryContentViewModelFactory(
-            makeComicDetail: { item, source in
-                return container.makeComicDetailViewModel(item: item, source: source)
-            },
-            makeReader: { item, source, chapter in
-                return container.makeReaderViewModel(
-                    item: item,
-                    source: source,
-                    selectedChapter: chapter
-                )
-            },
-            makeHistoryReader: { history, source in
-                return container.makeReaderViewModel(history: history, source: source)
-            },
-            makeRSSDetail: { item, source in
-                return container.makeRSSContentDetailViewModel(
-                    item: item,
-                    source: source
-                )
-            },
-            makeVideoDetail: { item, source in
-                return container.makeVideoDetailViewModel(
-                    item: item,
-                    source: source
-                )
-            }
-        )
+        self.browserRequestHeaderProvider = container.browserRequestHeaderProvider
+        self.systemCookieHeaderProvider = container.systemCookieHeaderProvider
+        self.libraryContentViewModelFactory = container.makeLibraryContentViewModelFactory()
         _sourcesViewModel = StateObject(wrappedValue: container.makeSourcesViewModel())
         _favoritesViewModel = StateObject(wrappedValue: container.makeFavoritesViewModel())
         _libraryViewModel = StateObject(wrappedValue: container.makeLibraryViewModel())
@@ -103,6 +81,8 @@ struct RootView: View {
                 }
                 .tag(RootTab.settings)
         }
+        .environment(\.browserRequestHeaderProvider, self.browserRequestHeaderProvider)
+        .environment(\.systemCookieHeaderProvider, self.systemCookieHeaderProvider)
         .onAppear {
             DispatchQueue.main.async {
                 self.resolveInitialTabIfNeeded()

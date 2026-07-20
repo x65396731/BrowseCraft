@@ -1,4 +1,17 @@
 import Foundation
+@testable import BrowseCraft
+
+struct SourceCloudRecord: Hashable {
+    var payload: SourceCloudPayload
+    var serverUpdatedAt: Date
+    var version: Int
+}
+
+struct FavoriteItemCloudRecord: Hashable {
+    var payload: FavoriteItemCloudPayload
+    var serverUpdatedAt: Date
+    var version: Int
+}
 
 // 中文注释：MockCloudRecordStore 模拟 CloudKit 的增量 token、保存失败和服务端版本。
 final class MockCloudRecordStore: CloudRecordStore {

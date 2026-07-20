@@ -194,13 +194,13 @@ private final class RecordingCatalogPageDataLoader: PageDataLoader {
         self.data = data
     }
 
-    func getData(from url: URL, request: RequestConfig?) async throws -> Data {
+    func loadData(_ request: PageLoadRequest) async throws -> PageDataResponse {
         self.requests.append(
             RecordedRequest(
-                url: url,
-                request: request
+                url: request.url,
+                request: request.requestConfig
             )
         )
-        return self.data
+        return PageDataResponse(data: self.data, finalURL: request.url)
     }
 }

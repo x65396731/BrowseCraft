@@ -1,10 +1,10 @@
 import Foundation
 import GRDB
 
-// 中文注释：AppDatabase 持有 SQLite 连接，并集中注册 BrowseCraft 的当前开发期 schema。
+// 中文注释：AppDatabase 持有 SQLite 连接，并直接创建 BrowseCraft 的当前开发期 schema。
 
 /// 中文注释：数据库基础设施只暴露 GRDB 队列给基础设施层仓储使用。
-/// 中文注释：当前仍处于开发阶段，schema 以当前最终形态为准，不维护生产式增量迁移兼容。
+/// 中文注释：当前仍处于开发阶段，直接创建最终 schema；结构变化后删除开发版 App/数据库重新建库。
 final class AppDatabase {
     let queue: DatabaseQueue
 
@@ -18,7 +18,11 @@ final class AppDatabase {
         }
 
         self.queue = try DatabaseQueue(path: databasePath)
-        try Self.makeMigrator().migrate(self.queue)
+        try self.queue.write { database in
+            try Self.createCurrentSchema(in: database)
+            try AppUserRecord.insertLocalDefaultUser(in: database)
+            try Self.createCurrentIndexes(in: database)
+        }
     }
 
     private static func defaultDatabasePath() throws -> String {
@@ -40,23 +44,6 @@ final class AppDatabase {
         )
 
         return browseCraftDirectory.appendingPathComponent("BrowseCraft.sqlite").path
-    }
-
-    private static func makeMigrator() -> DatabaseMigrator {
-        var migrator: DatabaseMigrator = DatabaseMigrator()
-
-        migrator.registerMigration("createCurrentSchema") { database in
-            try Self.createCurrentSchema(in: database)
-            try AppUserRecord.insertLocalDefaultUser(in: database)
-            try Self.createCurrentIndexes(in: database)
-        }
-
-        migrator.registerMigration("createTemporaryResourceHistory") { database in
-            try TemporaryResourceHistoryRecord.createTable(in: database)
-            try TemporaryResourceHistoryRecord.createIndexes(in: database)
-        }
-
-        return migrator
     }
 
     /// 中文注释：当前开发期只维护一份最终 schema；每张表的字段定义放回各自 Record，避免 AppDatabase 过长。

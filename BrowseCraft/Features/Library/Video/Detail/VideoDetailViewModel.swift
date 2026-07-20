@@ -36,6 +36,7 @@ final class VideoDetailViewModel: ObservableObject {
     private let loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase
     private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
     private let credentialProvider: any SourceCredentialProviding
+    private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
 
     init(
         item: ContentItem,
@@ -44,7 +45,8 @@ final class VideoDetailViewModel: ObservableObject {
         saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase,
         loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase,
         accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil,
-        credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider()
+        credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider(),
+        systemCookieHeaderProvider: any SystemCookieHeaderProviding = EmptySystemCookieHeaderProvider()
     ) {
         self.item = item
         self.source = source
@@ -53,6 +55,7 @@ final class VideoDetailViewModel: ObservableObject {
         self.loadVideoWatchHistoryUseCase = loadVideoWatchHistoryUseCase
         self.accumulateAdPointsUseCase = accumulateAdPointsUseCase
         self.credentialProvider = credentialProvider
+        self.systemCookieHeaderProvider = systemCookieHeaderProvider
 
         #if DEBUG
         print(
@@ -199,7 +202,8 @@ final class VideoDetailViewModel: ObservableObject {
                 loadVideoWatchHistoryUseCase: self.loadVideoWatchHistoryUseCase,
                 accumulateAdPointsUseCase: self.accumulateAdPointsUseCase,
                 runtimeResolver: self.runtimeResolver,
-                credentialProvider: self.credentialProvider
+                credentialProvider: self.credentialProvider,
+                systemCookieHeaderProvider: self.systemCookieHeaderProvider
             )
             self.playbackRoute = VideoPlaybackRoute(
                 id: [

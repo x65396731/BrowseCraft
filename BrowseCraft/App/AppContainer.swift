@@ -1,22 +1,16 @@
 import Foundation
 
-// 中文注释：AppContainer.swift 属于应用装配和根导航，用于说明本文件承载的核心职责。
-
-/// 中文注释：AppContainer 不是界面，而是应用依赖装配中心。
-/// 中文注释：这里统一创建仓储、Alamofire 客户端、漫画/视频规则解析器和各个用例。
+/// 中文注释：应用 Composition Root，只持有 App 生命周期共享对象并把 Feature 创建委托给明确 Factory。
 final class AppContainer {
-    private let database: AppDatabase
-    private let sourceRepository: SourceRepository
-    private let favoriteRepository: FavoriteRepository
-    private let httpClient: HTTPClient
-    private let sourceCredentialStore: SourceCredentialStoring
-    private let pageContentLoader: PageContentLoader
-    private let pageDataLoader: PageDataLoader
-    private let protectedResourceLoader: ReaderProtectedResourceLoader
-    private let urlResolver: URLResolvingService
-    private let sourceRuntimeFactory: SourceRuntimeFactory
-    private let sourceSelectionStore: SourceSelectionStore
-    /// 中文注释：图片缓存配置器需要和 App 生命周期一致，Settings 变更与启动配置共享同一份 DataCache 实例。
+    private let sourcesFeatureFactory: SourcesFeatureFactory
+    private let libraryFeatureFactory: LibraryFeatureFactory
+    private let favoritesFeatureFactory: FavoritesFeatureFactory
+    private let historyFeatureFactory: HistoryFeatureFactory
+    private let settingsFeatureFactory: SettingsFeatureFactory
+
+    let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
+    let systemCookieHeaderProvider: any SystemCookieHeaderProviding
+    /// 中文注释：缓存配置器与 App 生命周期一致，供启动配置和 Settings 共用。
     let imageCacheConfigurator: ImageCacheConfigurator
 
     init() {
@@ -25,59 +19,152 @@ final class AppContainer {
 
         do {
             let database: AppDatabase = try AppDatabase()
+            let sourceRepository: SourceRepository = GRDBSourceRepository(database: database)
+            let favoriteRepository: FavoriteRepository = GRDBFavoriteRepository(database: database)
             let urlResolver: URLResolvingService = URLResolvingService()
             let sourceCredentialStore: SourceCredentialStoring = InMemorySourceCredentialStore()
-            let httpClient: HTTPClient = AlamofireHTTPClient(credentialProvider: sourceCredentialStore)
-            let pageContentLoader: DefaultPageContentLoader = DefaultPageContentLoader(
-                httpClient: httpClient,
-                credentialProvider: sourceCredentialStore
+            let browserRequestHeaderProvider: any BrowserRequestHeaderProviding = ChromeRequestHeaderProvider()
+            let systemCookieHeaderProvider: any SystemCookieHeaderProviding = SharedHTTPCookieHeaderProvider()
+            let httpClient: AlamofireHTTPClient = AlamofireHTTPClient(
+                credentialProvider: sourceCredentialStore,
+                browserRequestHeaderProvider: browserRequestHeaderProvider,
+                systemCookieHeaderProvider: systemCookieHeaderProvider,
+                managedAPIURLMatcher: PortalAPIConfiguration.isManagedAPIURL
             )
-            let comicRuleParser: ComicRuleSourceParsingService = SwiftSoupComicRuleSourceParser(urlResolver: urlResolver)
-            let videoRuleParser: VideoRuleSourceParsingService = SwiftSoupVideoRuleSourceParser()
-
-            self.database = database
-            self.sourceRepository = GRDBSourceRepository(database: database)
-            self.favoriteRepository = GRDBFavoriteRepository(database: database)
-            self.httpClient = httpClient
-            self.sourceCredentialStore = sourceCredentialStore
-            self.pageContentLoader = pageContentLoader
-            self.pageDataLoader = pageContentLoader
-            self.protectedResourceLoader = ReaderProtectedResourceLoader(
-                legacyLoader: ProtectedResourceLoader(dataLoader: pageContentLoader),
-                pipelineExecutor: ResourcePipelineExecutor(
-                    dataLoader: pageContentLoader,
-                    cryptography: CommonCryptoResourcePipelineCryptography()
-                )
+            let pageLoader: DefaultPageLoader = DefaultPageLoader(
+                httpContentLoader: httpClient,
+                httpDataLoader: httpClient,
+                credentialProvider: sourceCredentialStore,
+                browserRequestHeaderProvider: browserRequestHeaderProvider,
+                systemCookieHeaderProvider: systemCookieHeaderProvider
             )
-            self.urlResolver = urlResolver
-            self.sourceRuntimeFactory = SourceRuntimeFactory(
+            let comicRuleParser: ComicRuleSourceParsingService = SwiftSoupComicRuleSourceParser(
+                urlResolver: urlResolver
+            )
+            let sourceRuntimeFactory: SourceRuntimeFactory = SourceRuntimeFactory(
                 comicSourceRuntimeFactory: ComicSourceRuntimeFactory(
-                    pageContentLoader: pageContentLoader,
+                    pageContentLoader: pageLoader,
                     comicRuleParser: comicRuleParser,
-                    urlResolver: urlResolver
+                    urlResolver: urlResolver,
+                    defaultUserAgent: browserRequestHeaderProvider.userAgent
                 ),
                 rssSourceRuntimeFactory: RSSSourceRuntimeFactory(
-                    pageContentLoader: pageContentLoader
+                    pageContentLoader: pageLoader,
+                    pageDataLoader: pageLoader
                 ),
                 videoSourceRuntimeFactory: VideoSourceRuntimeFactory(
-                    pageContentLoader: pageContentLoader,
-                    parser: videoRuleParser,
+                    pageContentLoader: pageLoader,
+                    parser: SwiftSoupVideoRuleSourceParser(),
                     credentialProvider: sourceCredentialStore
                 )
             )
-            self.sourceSelectionStore = SourceSelectionStore()
+            let protectedResourceLoader: ReaderProtectedResourceLoader = ReaderProtectedResourceLoader(
+                legacyLoader: ProtectedResourceLoader(
+                    dataLoader: pageLoader,
+                    decryptor: CommonCryptoProtectedResourceDecryptor(),
+                    defaultUserAgent: browserRequestHeaderProvider.userAgent
+                ),
+                pipelineExecutor: ResourcePipelineExecutor(
+                    dataLoader: pageLoader,
+                    cryptography: CommonCryptoResourcePipelineCryptography()
+                )
+            )
+            let sourceSelectionStore: SourceSelectionStore = SourceSelectionStore()
+            let libraryFeatureFactory: LibraryFeatureFactory = LibraryFeatureFactory(
+                database: database,
+                sourceRepository: sourceRepository,
+                favoriteRepository: favoriteRepository,
+                sourceCredentialStore: sourceCredentialStore,
+                protectedResourceLoader: protectedResourceLoader,
+                sourceRuntimeFactory: sourceRuntimeFactory,
+                sourceSelectionStore: sourceSelectionStore,
+                systemCookieHeaderProvider: systemCookieHeaderProvider,
+                prepareReaderHistoryRestoreUseCase: PrepareReaderHistoryRestoreUseCase(
+                    repository: GRDBComicChapterHistoryRepository(database: database)
+                )
+            )
+
+            self.sourcesFeatureFactory = SourcesFeatureFactory(
+                database: database,
+                sourceRepository: sourceRepository,
+                pageContentLoader: pageLoader,
+                pageDataLoader: pageLoader,
+                urlResolver: urlResolver,
+                sourceRuntimeFactory: sourceRuntimeFactory,
+                sourceSelectionStore: sourceSelectionStore
+            )
+            self.libraryFeatureFactory = libraryFeatureFactory
+            self.favoritesFeatureFactory = FavoritesFeatureFactory(
+                sourceRepository: sourceRepository,
+                favoriteRepository: favoriteRepository
+            )
+            self.historyFeatureFactory = HistoryFeatureFactory(
+                database: database,
+                sourceRepository: sourceRepository,
+                videoPlayerViewModelFactory: { history, source in
+                    libraryFeatureFactory.makeVideoPlayerViewModel(history: history, source: source)
+                }
+            )
+            self.settingsFeatureFactory = SettingsFeatureFactory(
+                database: database,
+                imageCacheConfigurator: imageCacheConfigurator
+            )
+            self.browserRequestHeaderProvider = browserRequestHeaderProvider
+            self.systemCookieHeaderProvider = systemCookieHeaderProvider
         } catch {
-            // 中文注释：DB 初始化失败时历史功能无法工作，当前阶段先保持启动期快速暴露错误。
             fatalError("Failed to build AppContainer: \(error)")
         }
 
         self.configureImageCache()
     }
 
+    func makeSourcesViewModel() -> SourcesViewModel {
+        return self.sourcesFeatureFactory.makeViewModel()
+    }
+
+    func makeLibraryViewModel() -> LibraryViewModel {
+        return self.libraryFeatureFactory.makeViewModel()
+    }
+
+    func makeFavoritesViewModel() -> FavoritesViewModel {
+        return self.favoritesFeatureFactory.makeViewModel()
+    }
+
+    func makeHistoryViewModel() -> HistoryViewModel {
+        return self.historyFeatureFactory.makeViewModel()
+    }
+
+    func makeSettingsViewModel() -> SettingsViewModel {
+        return self.settingsFeatureFactory.makeViewModel()
+    }
+
+    func makeLibraryContentViewModelFactory() -> LibraryContentViewModelFactory {
+        return LibraryContentViewModelFactory(
+            makeComicDetail: { item, source in
+                self.libraryFeatureFactory.makeComicDetailViewModel(item: item, source: source)
+            },
+            makeReader: { item, source, chapter in
+                self.libraryFeatureFactory.makeReaderViewModel(
+                    item: item,
+                    source: source,
+                    selectedChapter: chapter
+                )
+            },
+            makeHistoryReader: { history, source in
+                self.libraryFeatureFactory.makeReaderViewModel(history: history, source: source)
+            },
+            makeRSSDetail: { item, source in
+                self.libraryFeatureFactory.makeRSSContentDetailViewModel(item: item, source: source)
+            },
+            makeVideoDetail: { item, source in
+                self.libraryFeatureFactory.makeVideoDetailViewModel(item: item, source: source)
+            }
+        )
+    }
+
     private func configureImageCache() {
         do {
             let settings: ImageCacheSettings = try self.imageCacheConfigurator.configureSharedPipeline()
-            // 中文注释：启动时主动检查一次旧缓存，避免用户调小上限后旧数据长期留在磁盘。
             self.imageCacheConfigurator.trimConfiguredDataCacheIfNeeded(settings: settings)
             #if DEBUG
             print(
@@ -92,410 +179,5 @@ final class AppContainer {
             print("[BrowseCraftImageCache] configuration failed error=\(error)")
             #endif
         }
-    }
-
-    func makeSettingsViewModel() -> SettingsViewModel {
-        return SettingsViewModel(
-            imageCacheConfigurator: self.imageCacheConfigurator,
-            appUserRepository: GRDBAppUserRepository(database: self.database)
-        )
-    }
-
-    /// 中文注释：makeSourcesViewModel 方法封装当前类型的一段业务或界面行为。
-    func makeSourcesViewModel() -> SourcesViewModel {
-        let userLibraryStateRepository: UserLibraryStateRepository = GRDBUserLibraryStateRepository(
-            database: self.database
-        )
-        let syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase = SyncBuiltInSourcesUseCase(
-            sourceRepository: self.sourceRepository
-        )
-        let loadSourcesUseCase: LoadSourcesUseCase = LoadSourcesUseCase(
-            sourceRepository: self.sourceRepository
-        )
-        let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = RefreshSourceRuntimeUseCase(
-            runtimeResolver: self.sourceRuntimeFactory
-        )
-        let validateSourceTabsUseCase: ValidateSourceTabsUseCase = ValidateSourceTabsUseCase(
-            refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
-            rssFeedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader)
-        )
-        let addComicRuleSourceUseCase: AddComicRuleSourceUseCase = AddComicRuleSourceUseCase(
-            sourceRepository: self.sourceRepository,
-            refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
-        )
-        let addRSSSourceUseCase: AddRSSSourceUseCase = AddRSSSourceUseCase(
-            sourceRepository: self.sourceRepository,
-            feedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader),
-            refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
-        )
-        let loadRSSHubDiscoveryCandidatesUseCase: LoadRSSHubDiscoveryCandidatesUseCase =
-            LoadRSSHubDiscoveryCandidatesUseCase(
-                pageDataLoader: self.pageDataLoader
-            )
-        let discoverRSSFeedsUseCase: DiscoverRSSFeedsUseCase = DiscoverRSSFeedsUseCase(
-            rssFeedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader),
-            loadRSSHubDiscoveryCandidatesUseCase: loadRSSHubDiscoveryCandidatesUseCase
-        )
-        let discoverComicResourcesUseCase: DiscoverComicResourcesUseCase = DiscoverComicResourcesUseCase(
-            pageContentLoader: self.pageContentLoader,
-            urlResolver: self.urlResolver
-        )
-        let discoverVideoResourcesUseCase: DiscoverVideoResourcesUseCase = DiscoverVideoResourcesUseCase(
-            pageContentLoader: self.pageContentLoader,
-            urlResolver: self.urlResolver
-        )
-        let saveTemporaryResourceHistoryUseCase: SaveTemporaryResourceHistoryUseCase = SaveTemporaryResourceHistoryUseCase(
-            repository: GRDBTemporaryResourceHistoryRepository(database: self.database)
-        )
-        let sourceDiscoveryService: SourceDiscoveryService = SourceDiscoveryService(
-            discoverComicResourcesUseCase: discoverComicResourcesUseCase,
-            discoverVideoResourcesUseCase: discoverVideoResourcesUseCase,
-            discoverRSSFeedsUseCase: discoverRSSFeedsUseCase,
-            saveTemporaryResourceHistoryUseCase: saveTemporaryResourceHistoryUseCase
-        )
-        let deleteSourceUseCase: DeleteSourceUseCase = DeleteSourceUseCase(
-            sourceRepository: self.sourceRepository
-        )
-        let updateSourceRuleUseCase: UpdateSourceRuleUseCase = UpdateSourceRuleUseCase(
-            sourceRepository: self.sourceRepository
-        )
-        let updateVideoSourceConfigurationUseCase: UpdateVideoSourceConfigurationUseCase = UpdateVideoSourceConfigurationUseCase(
-            sourceRepository: self.sourceRepository
-        )
-        let duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase = DuplicateSourceRuleUseCase(
-            sourceRepository: self.sourceRepository
-        )
-        let exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase = ExportSourceRulePackageUseCase(
-            sourceRepository: self.sourceRepository
-        )
-        let importSourceRulePackageUseCase: ImportSourceRulePackageUseCase = ImportSourceRulePackageUseCase(
-            sourceRepository: self.sourceRepository
-        )
-        let sourceRuleEditorService: SourceRuleEditorService = SourceRuleEditorService(
-            updateSourceRuleUseCase: updateSourceRuleUseCase,
-            updateVideoSourceConfigurationUseCase: updateVideoSourceConfigurationUseCase,
-            duplicateSourceRuleUseCase: duplicateSourceRuleUseCase,
-            exportSourceRulePackageUseCase: exportSourceRulePackageUseCase,
-            importSourceRulePackageUseCase: importSourceRulePackageUseCase
-        )
-        let recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase = RecommendSourceImportOptionUseCase()
-        let addCatalogSourceUseCase: AddCatalogSourceUseCase = AddCatalogSourceUseCase(
-            sourceRepository: self.sourceRepository,
-            refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
-        )
-        let portalRequestHeaderProvider: PortalRequestHeaderProvider = PortalRequestHeaderProvider(
-            appUserRepository: GRDBAppUserRepository(database: self.database)
-        )
-        let loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase = LoadCatalogSourcesUseCase(
-            pageDataLoader: self.pageDataLoader,
-            requestHeaders: portalRequestHeaderProvider.headers
-        )
-        let sourceCatalogService: SourceCatalogService = SourceCatalogService(
-            addCatalogSourceUseCase: addCatalogSourceUseCase,
-            loadCatalogSourcesUseCase: loadCatalogSourcesUseCase
-        )
-        let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase = SaveUserLibraryStateUseCase(
-            repository: userLibraryStateRepository
-        )
-        return SourcesViewModel(
-            syncBuiltInSourcesUseCase: syncBuiltInSourcesUseCase,
-            loadSourcesUseCase: loadSourcesUseCase,
-            addComicRuleSourceUseCase: addComicRuleSourceUseCase,
-            addRSSSourceUseCase: addRSSSourceUseCase,
-            discoveryService: sourceDiscoveryService,
-            catalogService: sourceCatalogService,
-            deleteSourceUseCase: deleteSourceUseCase,
-            ruleEditorService: sourceRuleEditorService,
-            recommendSourceImportOptionUseCase: recommendSourceImportOptionUseCase,
-            refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
-            validateSourceTabsUseCase: validateSourceTabsUseCase,
-            saveUserLibraryStateUseCase: saveUserLibraryStateUseCase,
-            sourceSelectionStore: self.sourceSelectionStore
-        )
-    }
-
-    /// 中文注释：makeLibraryViewModel 方法封装当前类型的一段业务或界面行为。
-    func makeLibraryViewModel() -> LibraryViewModel {
-        let userLibraryStateRepository: UserLibraryStateRepository = GRDBUserLibraryStateRepository(
-            database: self.database
-        )
-        let syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase = SyncBuiltInSourcesUseCase(
-            sourceRepository: self.sourceRepository
-        )
-        let loadSourcesUseCase: LoadSourcesUseCase = LoadSourcesUseCase(
-            sourceRepository: self.sourceRepository
-        )
-        let toggleFavoriteUseCase: ToggleFavoriteUseCase = ToggleFavoriteUseCase(
-            favoriteRepository: self.favoriteRepository
-        )
-        let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = RefreshSourceRuntimeUseCase(
-            runtimeResolver: self.sourceRuntimeFactory
-        )
-        let loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase = LoadUserLibraryStateUseCase(
-            repository: userLibraryStateRepository
-        )
-        let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase = SaveUserLibraryStateUseCase(
-            repository: userLibraryStateRepository
-        )
-
-        return LibraryViewModel(
-            syncBuiltInSourcesUseCase: syncBuiltInSourcesUseCase,
-            loadSourcesUseCase: loadSourcesUseCase,
-            toggleFavoriteUseCase: toggleFavoriteUseCase,
-            refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
-            loadUserLibraryStateUseCase: loadUserLibraryStateUseCase,
-            saveUserLibraryStateUseCase: saveUserLibraryStateUseCase,
-            resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase(),
-            sourceCredentialStore: self.sourceCredentialStore,
-            sourceSelectionStore: self.sourceSelectionStore
-        )
-    }
-
-    func makeFavoritesViewModel() -> FavoritesViewModel {
-        let loadSourcesUseCase: LoadSourcesUseCase = LoadSourcesUseCase(
-            sourceRepository: self.sourceRepository
-        )
-        let loadFavoriteItemsUseCase: ToggleFavoriteUseCase = ToggleFavoriteUseCase(
-            favoriteRepository: self.favoriteRepository
-        )
-
-        return FavoritesViewModel(
-            loadFavoriteItemsUseCase: loadFavoriteItemsUseCase,
-            loadSourcesUseCase: loadSourcesUseCase
-        )
-    }
-
-    /// 中文注释：创建独立漫画详情状态；详情加载不再由 ReaderViewModel 承担。
-    @MainActor
-    func makeComicDetailViewModel(item: ContentItem, source: Source) -> ComicDetailViewModel {
-        let loadComicDetailUseCase: LoadComicDetailUseCase = LoadComicDetailUseCase(
-            runtimeResolver: self.sourceRuntimeFactory
-        )
-        let comicChapterHistoryRepository: ComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(
-            database: self.database
-        )
-        let loadLatestComicChapterHistoryUseCase: LoadLatestComicChapterHistoryUseCase =
-            LoadLatestComicChapterHistoryUseCase(repository: comicChapterHistoryRepository)
-
-        return ComicDetailViewModel(
-            item: item,
-            source: source,
-            loadComicDetailUseCase: loadComicDetailUseCase,
-            loadLatestComicChapterHistoryUseCase: loadLatestComicChapterHistoryUseCase,
-            resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase(),
-            sourceCredentialStore: self.sourceCredentialStore
-        )
-    }
-
-    /// 中文注释：makeReaderViewModel 方法封装当前类型的一段业务或界面行为。
-    func makeReaderViewModel(
-        item: ContentItem,
-        source: Source,
-        selectedChapter: ChapterLink? = nil,
-        restoreContext: ReaderHistoryRestoreContext? = nil
-    ) -> ReaderViewModel {
-        let loadReaderChapterUseCase: LoadReaderChapterUseCase = LoadReaderChapterUseCase(
-            runtimeResolver: self.sourceRuntimeFactory
-        )
-        let repository: ComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(
-            database: self.database
-        )
-        let saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase = SaveComicChapterHistoryUseCase(
-            repository: repository
-        )
-        let accumulateAdPointsUseCase: AccumulateAdPointsUseCase = self.makeAccumulateAdPointsUseCase()
-
-        return ReaderViewModel(
-            item: item,
-            source: source,
-            selectedChapter: selectedChapter,
-            restoreContext: restoreContext,
-            loadReaderChapterUseCase: loadReaderChapterUseCase,
-            protectedResourceLoader: self.protectedResourceLoader,
-            sourceCredentialProvider: self.sourceCredentialStore,
-            sourceCredentialStore: self.sourceCredentialStore,
-            resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase(),
-            saveComicChapterHistoryUseCase: saveComicChapterHistoryUseCase,
-            accumulateAdPointsUseCase: accumulateAdPointsUseCase
-        )
-    }
-
-    func makeReaderViewModel(history: ComicChapterHistory, source: Source) -> ReaderViewModel {
-        let repository: ComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(
-            database: self.database
-        )
-        let storedChapterTitlesByURL: [String: String] = (try? repository.fetchHistory(userID: history.userID))?
-            .filter { storedHistory in
-                return storedHistory.sourceID == history.sourceID
-                    && storedHistory.comicItemID == history.comicItemID
-            }
-            .reduce(into: [:]) { titles, storedHistory in
-                guard let chapterURL: String = storedHistory.chapterURL?.absoluteString else {
-                    return
-                }
-                titles[chapterURL] = storedHistory.chapterTitle
-            } ?? [:]
-        let readerURL: URL? = history.lastReaderPageURL ?? history.chapterURL
-        let item: ContentItem = ContentItem(
-            id: history.comicItemID,
-            sourceId: history.sourceID,
-            title: history.comicTitle,
-            detailURL: readerURL?.absoluteString ?? history.comicItemID,
-            coverURL: history.coverURL?.absoluteString,
-            type: .comic,
-            latestText: history.chapterTitle,
-            updatedAt: history.visitedAt
-        )
-        let selectedChapter: ChapterLink? = readerURL.map { url in
-            var navigationChapterURLs: [String] = []
-            var navigationChapterTitles: [String?] = []
-            let appendNavigationChapter: (URL?, String?) -> Void = { chapterURL, storedTitle in
-                guard let chapterURL: URL else {
-                    return
-                }
-                navigationChapterURLs.append(chapterURL.absoluteString)
-                navigationChapterTitles.append(
-                    storedTitle ?? storedChapterTitlesByURL[chapterURL.absoluteString]
-                )
-            }
-            appendNavigationChapter(history.nextChapterURL, history.nextChapterTitle)
-            appendNavigationChapter(url, history.chapterTitle)
-            appendNavigationChapter(history.previousChapterURL, history.previousChapterTitle)
-            return ChapterLink(
-                title: history.chapterTitle,
-                url: url.absoluteString,
-                navigationChapterURLs: navigationChapterURLs,
-                navigationChapterTitles: navigationChapterTitles
-            )
-        }
-        let restoreContext: ReaderHistoryRestoreContext = ReaderHistoryRestoreContext(
-            lastPageIndex: history.lastPageIndex,
-            lastPageImageURLString: history.lastPageImageURL?.absoluteString
-        )
-
-        return self.makeReaderViewModel(
-            item: item,
-            source: source,
-            selectedChapter: selectedChapter,
-            restoreContext: restoreContext
-        )
-    }
-
-    @MainActor
-    func makeRSSContentDetailViewModel(item: ContentItem, source: Source) -> RSSContentDetailViewModel {
-        let repository: RSSReadingHistoryRepository = GRDBRSSReadingHistoryRepository(
-            database: self.database
-        )
-        let saveRSSReadingHistoryUseCase: SaveRSSReadingHistoryUseCase = SaveRSSReadingHistoryUseCase(
-            repository: repository
-        )
-        let accumulateAdPointsUseCase: AccumulateAdPointsUseCase = self.makeAccumulateAdPointsUseCase()
-
-        return RSSContentDetailViewModel(
-            item: item,
-            source: source,
-            saveRSSReadingHistoryUseCase: saveRSSReadingHistoryUseCase,
-            accumulateAdPointsUseCase: accumulateAdPointsUseCase,
-            runtimeResolver: self.sourceRuntimeFactory
-        )
-    }
-
-    @MainActor
-    func makeVideoPlayerViewModel(history: VideoWatchHistory, source: Source) -> VideoPlayerViewModel {
-        let repository: VideoWatchHistoryRepository = GRDBVideoWatchHistoryRepository(
-            database: self.database
-        )
-        let saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase = SaveVideoWatchHistoryUseCase(
-            repository: repository
-        )
-        let loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase = LoadVideoWatchHistoryUseCase(
-            repository: repository
-        )
-        let reference: SourceVideoPlaybackReference = history.playbackReference(
-            defaultSourceName: source.name
-        )
-
-        return VideoPlayerViewModel(
-            source: source,
-            reference: reference,
-            videoTitle: history.videoTitle,
-            detailURL: history.detailURL,
-            coverURL: history.coverURL,
-            saveVideoWatchHistoryUseCase: saveVideoWatchHistoryUseCase,
-            loadVideoWatchHistoryUseCase: loadVideoWatchHistoryUseCase,
-            accumulateAdPointsUseCase: self.makeAccumulateAdPointsUseCase(),
-            runtimeResolver: self.sourceRuntimeFactory,
-            credentialProvider: self.sourceCredentialStore,
-            userID: history.userID
-        )
-    }
-
-    @MainActor
-    func makeVideoDetailViewModel(item: ContentItem, source: Source) -> VideoDetailViewModel {
-        let repository: VideoWatchHistoryRepository = GRDBVideoWatchHistoryRepository(
-            database: self.database
-        )
-        let saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase = SaveVideoWatchHistoryUseCase(
-            repository: repository
-        )
-        let loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase = LoadVideoWatchHistoryUseCase(
-            repository: repository
-        )
-
-        return VideoDetailViewModel(
-            item: item,
-            source: source,
-            runtimeResolver: self.sourceRuntimeFactory,
-            saveVideoWatchHistoryUseCase: saveVideoWatchHistoryUseCase,
-            loadVideoWatchHistoryUseCase: loadVideoWatchHistoryUseCase,
-            accumulateAdPointsUseCase: self.makeAccumulateAdPointsUseCase(),
-            credentialProvider: self.sourceCredentialStore
-        )
-    }
-
-    private func makeAccumulateAdPointsUseCase() -> AccumulateAdPointsUseCase {
-        return AccumulateAdPointsUseCase(
-            repository: GRDBAppUserRepository(database: self.database)
-        )
-    }
-
-    /// 中文注释：makeHistoryViewModel 方法封装当前类型的一段业务或界面行为。
-    func makeHistoryViewModel() -> HistoryViewModel {
-        let rssRepository: RSSReadingHistoryRepository = GRDBRSSReadingHistoryRepository(
-            database: self.database
-        )
-        let comicRepository: ComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(
-            database: self.database
-        )
-        let videoRepository: VideoWatchHistoryRepository = GRDBVideoWatchHistoryRepository(
-            database: self.database
-        )
-        let temporaryRepository: TemporaryResourceHistoryRepository = GRDBTemporaryResourceHistoryRepository(
-            database: self.database
-        )
-        let loadReadingHistoryEntriesUseCase: LoadReadingHistoryEntriesUseCase = LoadReadingHistoryEntriesUseCase(
-            rssRepository: rssRepository,
-            comicRepository: comicRepository,
-            videoRepository: videoRepository,
-            temporaryRepository: temporaryRepository
-        )
-        let deleteReadingHistoryEntryUseCase: DeleteReadingHistoryEntryUseCase = DeleteReadingHistoryEntryUseCase(
-            rssRepository: rssRepository,
-            comicRepository: comicRepository,
-            videoRepository: videoRepository,
-            temporaryRepository: temporaryRepository
-        )
-        let loadSourcesUseCase: LoadSourcesUseCase = LoadSourcesUseCase(
-            sourceRepository: self.sourceRepository
-        )
-
-        return HistoryViewModel(
-            loadReadingHistoryEntriesUseCase: loadReadingHistoryEntriesUseCase,
-            deleteReadingHistoryEntryUseCase: deleteReadingHistoryEntryUseCase,
-            loadSourcesUseCase: loadSourcesUseCase,
-            videoPlayerViewModelFactory: { history, source in
-                return self.makeVideoPlayerViewModel(history: history, source: source)
-            }
-        )
     }
 }

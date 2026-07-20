@@ -1,4 +1,3 @@
-import CommonCrypto
 import Foundation
 import BrowseCraftCore
 
@@ -104,92 +103,21 @@ private actor ProtectedResourceRequestLimiter {
     }
 }
 
-protocol ProtectedResourceDecrypting {
-    func decrypt(ciphertext: Data, rule: ProtectedResourceDecryptRule, key: Data, iv: Data?) throws -> Data
-}
-
-struct CommonCryptoProtectedResourceDecryptor: ProtectedResourceDecrypting {
-    func decrypt(ciphertext: Data, rule: ProtectedResourceDecryptRule, key: Data, iv: Data?) throws -> Data {
-        guard rule.algorithm == .aes else {
-            throw ProtectedResourceRuntimeError.unsupportedDecryptConfiguration(
-                reason: "algorithm=\(rule.algorithm.rawValue)"
-            )
-        }
-
-        guard rule.mode == .cbc else {
-            throw ProtectedResourceRuntimeError.unsupportedDecryptConfiguration(
-                reason: "mode=\(rule.mode.rawValue)"
-            )
-        }
-
-        guard [kCCKeySizeAES128, kCCKeySizeAES192, kCCKeySizeAES256].contains(key.count) else {
-            throw ProtectedResourceRuntimeError.unsupportedDecryptConfiguration(
-                reason: "invalidAESKeyLength=\(key.count)"
-            )
-        }
-
-        guard let iv: Data = iv,
-              iv.count == kCCBlockSizeAES128 else {
-            throw ProtectedResourceRuntimeError.unsupportedDecryptConfiguration(
-                reason: "invalidAESIVLength=\(iv?.count ?? 0)"
-            )
-        }
-
-        let padding: ProtectedResourcePadding = rule.padding ?? .pkcs7
-        let options: CCOptions
-        switch padding {
-        case .pkcs7:
-            options = CCOptions(kCCOptionPKCS7Padding)
-        case .none:
-            options = 0
-        }
-
-        let outputCapacity: Int = ciphertext.count + kCCBlockSizeAES128
-        var output: Data = Data(count: outputCapacity)
-        var outputLength: size_t = 0
-        let status: CCCryptorStatus = output.withUnsafeMutableBytes { outputBytes in
-            ciphertext.withUnsafeBytes { cipherBytes in
-                key.withUnsafeBytes { keyBytes in
-                    iv.withUnsafeBytes { ivBytes in
-                        CCCrypt(
-                            CCOperation(kCCDecrypt),
-                            CCAlgorithm(kCCAlgorithmAES),
-                            options,
-                            keyBytes.baseAddress,
-                            key.count,
-                            ivBytes.baseAddress,
-                            cipherBytes.baseAddress,
-                            ciphertext.count,
-                            outputBytes.baseAddress,
-                            outputCapacity,
-                            &outputLength
-                        )
-                    }
-                }
-            }
-        }
-
-        guard status == kCCSuccess else {
-            throw ProtectedResourceRuntimeError.decryptFailed(reason: "ccStatus=\(status)")
-        }
-
-        output.removeSubrange(outputLength..<output.count)
-        return output
-    }
-}
-
 struct ProtectedResourceLoader {
     private static let keyRequestLimiter: ProtectedResourceRequestLimiter = ProtectedResourceRequestLimiter(limit: 4)
 
     private let dataLoader: PageDataLoader
     private let decryptor: ProtectedResourceDecrypting
+    private let defaultUserAgent: String
 
     init(
         dataLoader: PageDataLoader,
-        decryptor: ProtectedResourceDecrypting = CommonCryptoProtectedResourceDecryptor()
+        decryptor: ProtectedResourceDecrypting,
+        defaultUserAgent: String = ""
     ) {
         self.dataLoader = dataLoader
         self.decryptor = decryptor
+        self.defaultUserAgent = defaultUserAgent
     }
 
     func load(_ input: ProtectedResourceLoadInput) async throws -> ProtectedResourceOutput {
@@ -248,7 +176,8 @@ struct ProtectedResourceLoader {
             keyResponse: keyResponseObject,
             parameters: input.parameters,
             context: input.context,
-            keyDerivationResult: keyDerivationResult
+            keyDerivationResult: keyDerivationResult,
+            defaultUserAgent: self.defaultUserAgent
         )
         let iv: Data? = try input.rule.decrypt.iv.map { ivRule in
             try ProtectedResourceValueResolver.valueData(
@@ -256,7 +185,8 @@ struct ProtectedResourceLoader {
                 keyResponse: keyResponseObject,
                 parameters: input.parameters,
                 context: input.context,
-                keyDerivationResult: keyDerivationResult
+                keyDerivationResult: keyDerivationResult,
+                defaultUserAgent: self.defaultUserAgent
             )
         }
 
@@ -425,7 +355,8 @@ struct ProtectedResourceLoader {
             keyResponse: keyResponse,
             parameters: parameters,
             context: context,
-            keyDerivationResult: nil
+            keyDerivationResult: nil,
+            defaultUserAgent: self.defaultUserAgent
         )
         let secretHashHex: String = try self.secretHashHex(secret, hash: rule.contextSecretDerivation.hash)
         let envelopeKeyHex: String = try self.hexSlice(rule.contextSecretDerivation.keyHex, from: secretHashHex)
@@ -490,14 +421,9 @@ struct ProtectedResourceLoader {
             throw ProtectedResourceRuntimeError.invalidKeyDerivation(reason: "hash=\(hash)")
         }
 
-        let data: Data = Data(secret.utf8)
-        var digest: [UInt8] = Array(repeating: 0, count: Int(CC_SHA512_DIGEST_LENGTH))
-        data.withUnsafeBytes { bytes in
-            digest.withUnsafeMutableBufferPointer { digestBuffer in
-                _ = CC_SHA512(bytes.baseAddress, CC_LONG(data.count), digestBuffer.baseAddress)
-            }
-        }
-        return digest.map { byte in String(format: "%02x", byte) }.joined()
+        return self.decryptor.sha512(Data(secret.utf8))
+            .map { byte in String(format: "%02x", byte) }
+            .joined()
     }
 
     private func hexSlice(_ expression: String, from hex: String) throws -> String {
@@ -533,7 +459,8 @@ struct ProtectedResourceLoader {
                 in: requestRule.url,
                 parameters: input.parameters
             ),
-            context: input.context
+            context: input.context,
+            defaultUserAgent: self.defaultUserAgent
         )
         guard let url: URL = URL(string: urlString) else {
             throw ProtectedResourceRuntimeError.invalidURL(urlString)
@@ -543,7 +470,8 @@ struct ProtectedResourceLoader {
             ProtectedResourceTemplateResolver.request(
                 request,
                 parameters: input.parameters,
-                context: input.context
+                context: input.context,
+                defaultUserAgent: self.defaultUserAgent
             )
         }
         let requestContext: SourceRequestContext? = input.context.map { context in
@@ -573,15 +501,13 @@ struct ProtectedResourceLoader {
         )
 
         do {
-            if let contextualDataLoader: ContextualPageDataLoader = self.dataLoader as? ContextualPageDataLoader {
-                return try await contextualDataLoader.getData(
-                    from: url,
-                    request: request,
-                    context: requestContext
+            return try await self.dataLoader.loadData(
+                PageLoadRequest(
+                    url: url,
+                    requestConfig: request,
+                    sourceContext: requestContext
                 )
-            }
-
-            return try await self.dataLoader.getData(from: url, request: request)
+            ).data
         } catch {
             throw ProtectedResourceRuntimeError.requestFailed(
                 url: url.absoluteString,
@@ -752,25 +678,46 @@ enum ProtectedResourceTemplateResolver {
         return output
     }
 
-    static func request(_ request: RequestConfig, parameters: [String: String], context: SourceRequestContext?) -> RequestConfig {
+    static func request(
+        _ request: RequestConfig,
+        parameters: [String: String],
+        context: SourceRequestContext?,
+        defaultUserAgent: String = ""
+    ) -> RequestConfig {
         var resolvedRequest: RequestConfig = request
         resolvedRequest.headers = request.headers?.mapValues { value in
-            self.replacingContext(in: self.replacingParameters(in: value, parameters: parameters), context: context)
+            self.replacingContext(
+                in: self.replacingParameters(in: value, parameters: parameters),
+                context: context,
+                defaultUserAgent: defaultUserAgent
+            )
         }
         if let body: RequestBody = request.body {
             resolvedRequest.body = RequestBody(
                 contentType: body.contentType,
-                value: self.replacingContext(in: self.replacingParameters(in: body.value, parameters: parameters), context: context)
+                value: self.replacingContext(
+                    in: self.replacingParameters(in: body.value, parameters: parameters),
+                    context: context,
+                    defaultUserAgent: defaultUserAgent
+                )
             )
         }
         return resolvedRequest
     }
 
-    static func replacingContext(in template: String, context: SourceRequestContext?) -> String {
+    static func replacingContext(
+        in template: String,
+        context: SourceRequestContext?,
+        defaultUserAgent: String = ""
+    ) -> String {
         var output: String = template
         let values: [String: String] = [
-            "context.userAgent": self.contextValue(path: "userAgent", context: context)
-                ?? BrowserRequestHeaders.Chrome.chromeUserAgent,
+            "context.userAgent": self.contextValue(
+                path: "userAgent",
+                context: context,
+                defaultUserAgent: defaultUserAgent
+            )
+                ?? defaultUserAgent,
             "context.device": self.contextValue(path: "device", context: context) ?? "server",
             "context.deviceUUID": self.contextDeviceUUID(context: context),
             "context.readerAccessToken": self.contextValue(path: "readerAccessToken", context: context) ?? ""
@@ -787,7 +734,11 @@ enum ProtectedResourceTemplateResolver {
         return output
     }
 
-    static func contextValue(path: String?, context: SourceRequestContext?) -> String? {
+    static func contextValue(
+        path: String?,
+        context: SourceRequestContext?,
+        defaultUserAgent: String = ""
+    ) -> String? {
         if let path: String,
            let value: String = context?.contextValues[path],
            value.isEmpty == false {
@@ -796,7 +747,7 @@ enum ProtectedResourceTemplateResolver {
 
         switch path {
         case "userAgent":
-            return BrowserRequestHeaders.Chrome.chromeUserAgent
+            return defaultUserAgent
         case "device":
             return "server"
         case "deviceUUID":
@@ -835,14 +786,16 @@ enum ProtectedResourceValueResolver {
         keyResponse: Any?,
         parameters: [String: String],
         context: SourceRequestContext? = nil,
-        keyDerivationResult: [String: String]? = nil
+        keyDerivationResult: [String: String]? = nil,
+        defaultUserAgent: String = ""
     ) throws -> Data {
         let rawValue: String = try self.stringValue(
             rule: rule,
             keyResponse: keyResponse,
             parameters: parameters,
             context: context,
-            keyDerivationResult: keyDerivationResult
+            keyDerivationResult: keyDerivationResult,
+            defaultUserAgent: defaultUserAgent
         )
 
         return try self.data(from: Data(rawValue.utf8), encoding: rule.encoding ?? .utf8)
@@ -853,7 +806,8 @@ enum ProtectedResourceValueResolver {
         keyResponse: Any?,
         parameters: [String: String],
         context: SourceRequestContext? = nil,
-        keyDerivationResult: [String: String]?
+        keyDerivationResult: [String: String]?,
+        defaultUserAgent: String = ""
     ) throws -> String {
         let rawValue: String?
         switch rule.source {
@@ -868,7 +822,11 @@ enum ProtectedResourceValueResolver {
         case .parameter:
             rawValue = rule.path.flatMap { parameters[$0] } ?? rule.value.flatMap { parameters[$0] }
         case .context:
-            rawValue = ProtectedResourceTemplateResolver.contextValue(path: rule.path ?? rule.value, context: context)
+            rawValue = ProtectedResourceTemplateResolver.contextValue(
+                path: rule.path ?? rule.value,
+                context: context,
+                defaultUserAgent: defaultUserAgent
+            )
         case .constant:
             rawValue = rule.value
         case .keyDerivationResult:

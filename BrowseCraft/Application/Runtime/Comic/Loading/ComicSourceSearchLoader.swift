@@ -25,19 +25,6 @@ struct ComicSourceSearchLoader {
         self.urlResolver = urlResolver
     }
 
-    /// 中文注释：兼容测试和旧装配入口；HTTPClient 本身也是 PageContentLoader。
-    init(
-        httpClient: HTTPClient,
-        comicRuleParser: ComicRuleSourceParsingService,
-        urlResolver: URLResolvingService
-    ) {
-        self.init(
-            pageContentLoader: httpClient,
-            comicRuleParser: comicRuleParser,
-            urlResolver: urlResolver
-        )
-    }
-
     func execute(
         source: Source,
         keyword: String,
@@ -101,16 +88,18 @@ struct ComicSourceSearchLoader {
             ]
         )
 
-        let html: String = try await self.pageContentLoader.getString(
-            from: url,
-            request: request,
-            context: SourceRequestContext(
-                sourceID: source.id,
-                baseURL: URL(string: source.baseURL),
-                purpose: .search,
-                refererURL: url
+        let html: String = try await self.pageContentLoader.loadContent(
+            PageLoadRequest(
+                url: url,
+                requestConfig: request,
+                sourceContext: SourceRequestContext(
+                    sourceID: source.id,
+                    baseURL: URL(string: source.baseURL),
+                    purpose: .search,
+                    refererURL: url
+                )
             )
-        )
+        ).content
         let items: [ContentItem] = try self.comicRuleParser.parseSearch(
             html: html,
             source: source,

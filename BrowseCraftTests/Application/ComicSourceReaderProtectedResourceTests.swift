@@ -374,14 +374,14 @@ private final class RecordingReaderPageContentLoader: PageContentLoader {
         self.responses = responses
     }
 
-    func getString(from url: URL, request: RequestConfig?) async throws -> String {
-        let urlString: String = url.absoluteString
+    func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
+        let urlString: String = request.url.absoluteString
         self.requestedURLs.append(urlString)
 
         guard let response: String = self.responses[urlString] else {
             throw LoaderError.missingResponse(urlString)
         }
 
-        return response
+        return PageContentResponse(content: response, finalURL: request.url)
     }
 }

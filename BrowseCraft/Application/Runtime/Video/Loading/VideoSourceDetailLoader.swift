@@ -351,14 +351,16 @@ struct VideoSourceDetailLoader {
         url: URL,
         request: RequestConfig?
     ) async throws -> LoadedDocument {
-        let response: PageContentResponse = try await self.pageContentLoader.getStringResponse(
-            from: url,
-            request: request,
-            context: SourceRequestContext(
-                sourceID: source.id,
-                baseURL: URL(string: source.baseURL),
-                purpose: .video,
-                refererURL: url
+        let response: PageContentResponse = try await self.pageContentLoader.loadContent(
+            PageLoadRequest(
+                url: url,
+                requestConfig: request,
+                sourceContext: SourceRequestContext(
+                    sourceID: source.id,
+                    baseURL: URL(string: source.baseURL),
+                    purpose: .video,
+                    refererURL: url
+                )
             )
         )
         return LoadedDocument(requestURL: url, response: response, request: request)

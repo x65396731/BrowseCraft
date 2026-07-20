@@ -7,15 +7,19 @@ struct PageContentLoaderTests {
     @Test func defaultLoaderUsesHTTPWhenWebViewIsNotRequired() async throws {
         let httpClient: RecordingPageHTTPClient = RecordingPageHTTPClient(html: "http-html")
         let renderedPageLoader: RecordingRenderedPageContentLoader = RecordingRenderedPageContentLoader(html: "webview-html")
-        let loader: DefaultPageContentLoader = DefaultPageContentLoader(
-            httpClient: httpClient,
+        let loader: DefaultPageLoader = DefaultPageLoader(
+            httpContentLoader: httpClient,
+            httpDataLoader: httpClient,
             renderedPageContentLoader: renderedPageLoader
         )
 
-        let html: String = try await loader.getString(
-            from: try #require(URL(string: "https://example.test/list")),
-            request: nil
-        )
+        let html: String = try await loader.loadContent(
+            PageLoadRequest(
+                url: try #require(URL(string: "https://example.test/list")),
+                requestConfig: nil,
+                sourceContext: nil
+            )
+        ).content
 
         // 中文注释：未声明 needsWebView 时必须继续走 HTTP，保护既存站点的默认行为。
         #expect(html == "http-html")
@@ -26,8 +30,9 @@ struct PageContentLoaderTests {
     @Test func defaultLoaderUsesWebViewWhenRuleRequiresRenderedDOM() async throws {
         let httpClient: RecordingPageHTTPClient = RecordingPageHTTPClient(html: "http-html")
         let renderedPageLoader: RecordingRenderedPageContentLoader = RecordingRenderedPageContentLoader(html: "webview-html")
-        let loader: DefaultPageContentLoader = DefaultPageContentLoader(
-            httpClient: httpClient,
+        let loader: DefaultPageLoader = DefaultPageLoader(
+            httpContentLoader: httpClient,
+            httpDataLoader: httpClient,
             renderedPageContentLoader: renderedPageLoader
         )
         let request: RequestConfig = RequestConfig(
@@ -46,71 +51,58 @@ struct PageContentLoaderTests {
             imageRequest: nil
         )
 
-        let html: String = try await loader.getString(
-            from: try #require(URL(string: "https://example.test/js-page")),
-            request: request
-        )
+        let html: String = try await loader.loadContent(
+            PageLoadRequest(
+                url: try #require(URL(string: "https://example.test/js-page")),
+                requestConfig: request,
+                sourceContext: nil
+            )
+        ).content
 
         // 中文注释：声明 needsWebView 时应绕过 HTTP，交给 WebView 渲染后再返回 HTML。
         #expect(html == "webview-html")
         #expect(httpClient.requests.isEmpty)
-        #expect(renderedPageLoader.requests.first?.request?.needsWebView == true)
-        #expect(renderedPageLoader.requests.first?.request?.autoScroll == true)
+        #expect(renderedPageLoader.requests.first?.requestConfig?.needsWebView == true)
+        #expect(renderedPageLoader.requests.first?.requestConfig?.autoScroll == true)
     }
 }
 
-private final class RecordingPageHTTPClient: HTTPClient {
-    struct RecordedRequest: Hashable {
-        var url: URL
-        var request: RequestConfig?
-    }
-
+private final class RecordingPageHTTPClient: PageContentLoader, PageDataLoader {
     private let html: String
-    private(set) var requests: [RecordedRequest] = []
+    private(set) var requests: [PageLoadRequest] = []
 
     init(html: String) {
         self.html = html
     }
 
-    func getString(from url: URL, request: RequestConfig?) async throws -> String {
-        self.requests.append(
-            RecordedRequest(
-                url: url,
-                request: request
-            )
+    func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
+        self.requests.append(request)
+        return PageContentResponse(
+            content: self.html,
+            finalURL: request.url
         )
-
-        return self.html
     }
 
-    func getData(from url: URL, request: RequestConfig?) async throws -> Data {
-        let html: String = try await self.getString(from: url, request: request)
-        return Data(html.utf8)
+    func loadData(_ request: PageLoadRequest) async throws -> PageDataResponse {
+        self.requests.append(request)
+        return PageDataResponse(data: Data(self.html.utf8), finalURL: request.url)
     }
 }
 
 private final class RecordingRenderedPageContentLoader: RenderedPageContentLoader {
-    struct RecordedRequest: Hashable {
-        var url: URL
-        var request: RequestConfig?
-    }
-
     private let html: String
-    private(set) var requests: [RecordedRequest] = []
+    private(set) var requests: [PageLoadRequest] = []
 
     init(html: String) {
         self.html = html
     }
 
     @MainActor
-    func getRenderedString(from url: URL, request: RequestConfig?) async throws -> String {
-        self.requests.append(
-            RecordedRequest(
-                url: url,
-                request: request
-            )
+    func loadRenderedContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
+        self.requests.append(request)
+        return PageContentResponse(
+            content: self.html,
+            finalURL: request.url
         )
-
-        return self.html
     }
 }

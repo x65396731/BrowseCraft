@@ -9,7 +9,7 @@ struct FavoriteItemSyncServiceTests {
         let favoriteRepository: GRDBFavoriteRepository = GRDBFavoriteRepository(database: database)
         let queueRepository: GRDBSyncQueueRepository = GRDBSyncQueueRepository(database: database)
         let cloudStore: MockCloudRecordStore = MockCloudRecordStore()
-        let service: FavoriteItemSyncService = FavoriteItemSyncService(database: database, cloudStore: cloudStore)
+        let service: FavoriteItemSyncService = Self.makeService(database: database, cloudStore: cloudStore)
 
         try favoriteRepository.setFavorite(item: Self.favoriteItem(id: "favorite-1"), isFavorite: true)
 
@@ -32,7 +32,7 @@ struct FavoriteItemSyncServiceTests {
                 )
             ]
         )
-        let service: FavoriteItemSyncService = FavoriteItemSyncService(database: database, cloudStore: cloudStore)
+        let service: FavoriteItemSyncService = Self.makeService(database: database, cloudStore: cloudStore)
 
         let result: FavoriteItemSyncResult = try service.syncFavoriteItems(limit: 10)
         let items: [FavoriteContentItem] = try favoriteRepository.fetchFavoriteItems()
@@ -46,7 +46,7 @@ struct FavoriteItemSyncServiceTests {
         let database: AppDatabase = try Self.makeDatabase()
         let favoriteRepository: GRDBFavoriteRepository = GRDBFavoriteRepository(database: database)
         let cloudStore: MockCloudRecordStore = MockCloudRecordStore()
-        let service: FavoriteItemSyncService = FavoriteItemSyncService(database: database, cloudStore: cloudStore)
+        let service: FavoriteItemSyncService = Self.makeService(database: database, cloudStore: cloudStore)
         let item: FavoriteContentItem = Self.favoriteItem(id: "favorite-1")
 
         try favoriteRepository.setFavorite(item: item, isFavorite: true)
@@ -77,7 +77,7 @@ struct FavoriteItemSyncServiceTests {
                 )
             ]
         )
-        let service: FavoriteItemSyncService = FavoriteItemSyncService(database: database, cloudStore: cloudStore)
+        let service: FavoriteItemSyncService = Self.makeService(database: database, cloudStore: cloudStore)
 
         let result: FavoriteItemSyncResult = try service.syncFavoriteItems(limit: 10)
 
@@ -97,7 +97,7 @@ struct FavoriteItemSyncServiceTests {
                 )
             ]
         )
-        let service: FavoriteItemSyncService = FavoriteItemSyncService(database: database, cloudStore: cloudStore)
+        let service: FavoriteItemSyncService = Self.makeService(database: database, cloudStore: cloudStore)
 
         let result: FavoriteItemSyncResult = try service.syncFavoriteItems(limit: 10)
 
@@ -118,7 +118,7 @@ struct FavoriteItemSyncServiceTests {
                 )
             ]
         )
-        let service: FavoriteItemSyncService = FavoriteItemSyncService(database: database, cloudStore: cloudStore)
+        let service: FavoriteItemSyncService = Self.makeService(database: database, cloudStore: cloudStore)
 
         _ = try service.syncFavoriteItems(limit: 10)
         let items: [FavoriteContentItem] = try GRDBFavoriteRepository(database: database).fetchFavoriteItems()
@@ -132,7 +132,7 @@ struct FavoriteItemSyncServiceTests {
         let queueRepository: GRDBSyncQueueRepository = GRDBSyncQueueRepository(database: database)
         let cloudStore: MockCloudRecordStore = MockCloudRecordStore()
         cloudStore.failNextSave = true
-        let service: FavoriteItemSyncService = FavoriteItemSyncService(database: database, cloudStore: cloudStore)
+        let service: FavoriteItemSyncService = Self.makeService(database: database, cloudStore: cloudStore)
 
         try favoriteRepository.setFavorite(item: Self.favoriteItem(id: "favorite-1"), isFavorite: true)
 
@@ -152,6 +152,16 @@ struct FavoriteItemSyncServiceTests {
             .appendingPathComponent("BrowseCraftFavoriteSyncTests-\(UUID().uuidString).sqlite")
             .path
         return try AppDatabase(path: path)
+    }
+
+    private static func makeService(
+        database: AppDatabase,
+        cloudStore: CloudRecordStore
+    ) -> FavoriteItemSyncService {
+        return FavoriteItemSyncService(
+            localStore: GRDBFavoriteItemSyncLocalStore(database: database),
+            cloudStore: cloudStore
+        )
     }
 
     private static func insertFavoriteItem(

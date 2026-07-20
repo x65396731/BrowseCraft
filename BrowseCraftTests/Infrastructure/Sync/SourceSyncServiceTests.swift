@@ -10,7 +10,7 @@ struct SourceSyncServiceTests {
         let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
         let queueRepository: GRDBSyncQueueRepository = GRDBSyncQueueRepository(database: database)
         let cloudStore: MockCloudRecordStore = MockCloudRecordStore()
-        let service: SourceSyncService = SourceSyncService(database: database, cloudStore: cloudStore)
+        let service: SourceSyncService = Self.makeService(database: database, cloudStore: cloudStore)
 
         try sourceRepository.saveSource(Self.makeRSSSource(id: "source-1", name: "Local Source", updatedAt: 100))
 
@@ -33,7 +33,7 @@ struct SourceSyncServiceTests {
                 )
             ]
         )
-        let service: SourceSyncService = SourceSyncService(database: database, cloudStore: cloudStore)
+        let service: SourceSyncService = Self.makeService(database: database, cloudStore: cloudStore)
 
         let result: SourceSyncResult = try service.syncSources(limit: 10)
         let sources: [Source] = try sourceRepository.fetchSources()
@@ -47,7 +47,7 @@ struct SourceSyncServiceTests {
         let database: AppDatabase = try Self.makeDatabase()
         let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
         let cloudStore: MockCloudRecordStore = MockCloudRecordStore()
-        let service: SourceSyncService = SourceSyncService(database: database, cloudStore: cloudStore)
+        let service: SourceSyncService = Self.makeService(database: database, cloudStore: cloudStore)
 
         try sourceRepository.saveSource(Self.makeRSSSource(id: "source-1", name: "Local Source", updatedAt: 100))
         try sourceRepository.deleteSource(id: "source-1")
@@ -75,7 +75,7 @@ struct SourceSyncServiceTests {
                 )
             ]
         )
-        let service: SourceSyncService = SourceSyncService(database: database, cloudStore: cloudStore)
+        let service: SourceSyncService = Self.makeService(database: database, cloudStore: cloudStore)
 
         let result: SourceSyncResult = try service.syncSources(limit: 10)
         let visibleSources: [Source] = try GRDBSourceRepository(database: database).fetchSources()
@@ -98,7 +98,7 @@ struct SourceSyncServiceTests {
                 )
             ]
         )
-        let service: SourceSyncService = SourceSyncService(database: database, cloudStore: cloudStore)
+        let service: SourceSyncService = Self.makeService(database: database, cloudStore: cloudStore)
 
         let result: SourceSyncResult = try service.syncSources(limit: 10)
 
@@ -119,7 +119,7 @@ struct SourceSyncServiceTests {
                 )
             ]
         )
-        let service: SourceSyncService = SourceSyncService(database: database, cloudStore: cloudStore)
+        let service: SourceSyncService = Self.makeService(database: database, cloudStore: cloudStore)
 
         _ = try service.syncSources(limit: 10)
         let source: Source? = try GRDBSourceRepository(database: database).fetchSources().first
@@ -133,7 +133,7 @@ struct SourceSyncServiceTests {
         let queueRepository: GRDBSyncQueueRepository = GRDBSyncQueueRepository(database: database)
         let cloudStore: MockCloudRecordStore = MockCloudRecordStore()
         cloudStore.failNextSave = true
-        let service: SourceSyncService = SourceSyncService(database: database, cloudStore: cloudStore)
+        let service: SourceSyncService = Self.makeService(database: database, cloudStore: cloudStore)
 
         try sourceRepository.saveSource(Self.makeRSSSource(id: "source-1", name: "Local Source", updatedAt: 100))
 
@@ -160,8 +160,8 @@ struct SourceSyncServiceTests {
         )
         let deviceADatabase: AppDatabase = try Self.makeDatabase()
         let deviceBDatabase: AppDatabase = try Self.makeDatabase()
-        let deviceAService: SourceSyncService = SourceSyncService(database: deviceADatabase, cloudStore: cloudStore)
-        let deviceBService: SourceSyncService = SourceSyncService(database: deviceBDatabase, cloudStore: cloudStore)
+        let deviceAService: SourceSyncService = Self.makeService(database: deviceADatabase, cloudStore: cloudStore)
+        let deviceBService: SourceSyncService = Self.makeService(database: deviceBDatabase, cloudStore: cloudStore)
         let deviceASourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: deviceADatabase)
         let deviceBSourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: deviceBDatabase)
 
@@ -182,6 +182,16 @@ struct SourceSyncServiceTests {
             .appendingPathComponent("BrowseCraftSourceSyncTests-\(UUID().uuidString).sqlite")
             .path
         return try AppDatabase(path: path)
+    }
+
+    private static func makeService(
+        database: AppDatabase,
+        cloudStore: CloudRecordStore
+    ) -> SourceSyncService {
+        return SourceSyncService(
+            localStore: GRDBSourceSyncLocalStore(database: database),
+            cloudStore: cloudStore
+        )
     }
 
     private static func insertSource(_ source: Source, into database: AppDatabase) throws {

@@ -59,7 +59,7 @@ struct LoadRSSHubDiscoveryCandidatesUseCase {
     private var requestConfig: RequestConfig {
         return RequestConfig(
             mergePolicy: .override,
-            headers: APIRequestHeaders.rssHubHeaders()
+            headers: SourceAPIRequestHeaders.rssHubHeaders()
         )
     }
 
@@ -70,10 +70,13 @@ struct LoadRSSHubDiscoveryCandidatesUseCase {
         print("[BrowseCraftRSSHub] request rules url=\(requestURL.absoluteString)")
         #endif
 
-        let data: Data = try await self.pageDataLoader.getData(
-            from: requestURL,
-            request: self.requestConfig
-        )
+        let data: Data = try await self.pageDataLoader.loadData(
+            PageLoadRequest(
+                url: requestURL,
+                requestConfig: self.requestConfig,
+                sourceContext: nil
+            )
+        ).data
         let payload: RSSHubRadarDomainPayload = try self.jsonDecoder.decode(
             RSSHubRadarDomainPayload.self,
             from: data

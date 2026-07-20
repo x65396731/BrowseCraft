@@ -8,7 +8,8 @@ enum ComicRuleAPIRequestResolver {
         source: Source,
         item: ContentItem,
         page: Int? = nil,
-        chapterURL: String? = nil
+        chapterURL: String? = nil,
+        defaultUserAgent: String = ""
     ) -> RequestConfig? {
         guard let mergedRequest: RequestConfig = RequestConfigResolver().merged(
             base: baseRequest,
@@ -22,7 +23,8 @@ enum ComicRuleAPIRequestResolver {
             source: source,
             item: item,
             chapterURL: chapterURL,
-            page: page
+            page: page,
+            defaultUserAgent: defaultUserAgent
         )
     }
 

@@ -75,14 +75,16 @@ struct VideoSourcePlaybackLoader {
         var status: SourceVideoPlaybackStatus = .failed(.mediaURLNotFound)
 
         playbackLoop: while true {
-            let response: PageContentResponse = try await self.pageContentLoader.getStringResponse(
-                from: currentURL,
-                request: request,
-                context: SourceRequestContext(
-                    sourceID: source.id,
-                    baseURL: URL(string: source.baseURL),
-                    purpose: .video,
-                    refererURL: refererURL
+            let response: PageContentResponse = try await self.pageContentLoader.loadContent(
+                PageLoadRequest(
+                    url: currentURL,
+                    requestConfig: request,
+                    sourceContext: SourceRequestContext(
+                        sourceID: source.id,
+                        baseURL: URL(string: source.baseURL),
+                        purpose: .video,
+                        refererURL: refererURL
+                    )
                 )
             )
             rootFinalURL = rootFinalURL ?? response.finalURL
@@ -272,7 +274,7 @@ struct VideoSourcePlaybackLoader {
         referer: URL
     ) -> SourcePlaybackRequestConfig {
         var headers: [String: String] = request?.headers ?? [:]
-        headers = BrowserRequestHeaders.applyingOverrides(
+        headers = RequestHeaderFields.applyingOverrides(
             ["Referer": referer.absoluteString],
             to: headers
         )
@@ -365,12 +367,12 @@ struct VideoSourcePlaybackLoader {
             } else {
                 referer = finalURL
             }
-            headers = BrowserRequestHeaders.applyingOverrides(
+            headers = RequestHeaderFields.applyingOverrides(
                 ["Referer": referer.absoluteString],
                 to: headers
             )
             let userAgent: String?
-            if BrowserRequestHeaders.containsHeader("User-Agent", in: headers) {
+            if RequestHeaderFields.containsHeader("User-Agent", in: headers) {
                 userAgent = nil
             } else if let template: String = mediaRequest?.userAgent {
                 userAgent = try self.templateResolver.resolve(template, context: templateContext)

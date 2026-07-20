@@ -22,24 +22,16 @@ enum LoadReaderChapterError: LocalizedError {
 struct ComicSourceReaderLoader {
     private let pageContentLoader: PageContentLoader
     private let comicRuleParser: ComicRuleSourceParsingService
+    private let defaultUserAgent: String
 
     init(
         pageContentLoader: PageContentLoader,
-        comicRuleParser: ComicRuleSourceParsingService
+        comicRuleParser: ComicRuleSourceParsingService,
+        defaultUserAgent: String = ""
     ) {
         self.pageContentLoader = pageContentLoader
         self.comicRuleParser = comicRuleParser
-    }
-
-    /// 中文注释：兼容旧测试和旧装配入口；后续新增 WebView 测试可改用 pageContentLoader 注入。
-    init(
-        httpClient: HTTPClient,
-        comicRuleParser: ComicRuleSourceParsingService
-    ) {
-        self.init(
-            pageContentLoader: httpClient,
-            comicRuleParser: comicRuleParser
-        )
+        self.defaultUserAgent = defaultUserAgent
     }
 
     /// 中文注释：execute 方法封装当前类型的一段业务或界面行为。
@@ -127,15 +119,17 @@ struct ComicSourceReaderLoader {
                         "imageItem": galleryRule.imageItem
                     ]
                 )
-                let html: String = try await self.pageContentLoader.getString(
-                    from: chapterURL,
-                    request: resolvedRule.primaryGalleryRequest,
-                    context: self.requestContext(
-                        source: source,
-                        purpose: .reader,
-                        refererURL: chapterURL
+                let html: String = try await self.pageContentLoader.loadContent(
+                    PageLoadRequest(
+                        url: chapterURL,
+                        requestConfig: resolvedRule.primaryGalleryRequest,
+                        sourceContext: self.requestContext(
+                            source: source,
+                            purpose: .reader,
+                            refererURL: chapterURL
+                        )
                     )
-                )
+                ).content
                 chapter = try self.comicRuleParser.parseReader(
                     html: html,
                     source: source,
@@ -213,15 +207,17 @@ struct ComicSourceReaderLoader {
             )
         }
 
-        let detailHTML: String = try await self.pageContentLoader.getString(
-            from: detailURL,
-            request: resolvedRule.primaryDetailRequest,
-            context: self.requestContext(
-                source: source,
-                purpose: .detail,
-                refererURL: detailURL
+        let detailHTML: String = try await self.pageContentLoader.loadContent(
+            PageLoadRequest(
+                url: detailURL,
+                requestConfig: resolvedRule.primaryDetailRequest,
+                sourceContext: self.requestContext(
+                    source: source,
+                    purpose: .detail,
+                    refererURL: detailURL
+                )
             )
-        )
+        ).content
         let chapters: [ChapterLink]
         if let detailRule: DetailRule = resolvedRule.primaryDetailRule {
             chapters = try self.comicRuleParser.parseDetailChapters(
@@ -357,7 +353,8 @@ struct ComicSourceReaderLoader {
             item: item,
             chapterURL: chapterURLString,
             rootJSON: nil,
-            currentJSON: nil
+            currentJSON: nil,
+            defaultUserAgent: self.defaultUserAgent
         )
 
         guard let apiURL: URL = URL(string: apiURLString) else {
@@ -388,17 +385,20 @@ struct ComicSourceReaderLoader {
             override: apiRule.request,
             source: source,
             item: item,
-            chapterURL: chapterURLString
+            chapterURL: chapterURLString,
+            defaultUserAgent: self.defaultUserAgent
         )
-        let json: String = try await self.pageContentLoader.getString(
-            from: apiURL,
-            request: request,
-            context: self.requestContext(
-                source: source,
-                purpose: .reader,
-                refererURL: URL(string: chapterURLString) ?? apiURL
+        let json: String = try await self.pageContentLoader.loadContent(
+            PageLoadRequest(
+                url: apiURL,
+                requestConfig: request,
+                sourceContext: self.requestContext(
+                    source: source,
+                    purpose: .reader,
+                    refererURL: URL(string: chapterURLString) ?? apiURL
+                )
             )
-        )
+        ).content
         let jsonObject: Any = try JSONSerialization.jsonObject(with: Data(json.utf8))
         let responseEvaluation = ComicRuleAPIResponseEvaluator.evaluate(
             json: jsonObject,
@@ -574,7 +574,8 @@ struct ComicSourceReaderLoader {
                 item: item,
                 chapterURL: chapterURLString,
                 rootJSON: rootJSON,
-                currentJSON: currentJSON
+                currentJSON: currentJSON,
+                defaultUserAgent: self.defaultUserAgent
             )
         }
 
@@ -608,7 +609,8 @@ struct ComicSourceReaderLoader {
                 item: item,
                 chapterURL: chapterURLString,
                 rootJSON: rootJSON,
-                currentJSON: currentJSON
+                currentJSON: currentJSON,
+                defaultUserAgent: self.defaultUserAgent
             )
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -724,13 +726,15 @@ struct ComicSourceReaderLoader {
                 reason: "Invalid chapter URL: \(chapterURLString)"
             )
         }
-        let response = try await self.pageContentLoader.getStringResponse(
-            from: chapterURL,
-            request: request,
-            context: self.requestContext(
-                source: source,
-                purpose: .reader,
-                refererURL: chapterURL
+        let response = try await self.pageContentLoader.loadContent(
+            PageLoadRequest(
+                url: chapterURL,
+                requestConfig: request,
+                sourceContext: self.requestContext(
+                    source: source,
+                    purpose: .reader,
+                    refererURL: chapterURL
+                )
             )
         )
         RuleExecutionLogger.log(

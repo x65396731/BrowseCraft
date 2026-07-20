@@ -196,10 +196,10 @@ private final class RecordingChapterPageContentLoader: PageContentLoader {
         self.disallowedURLs = disallowedURLs
     }
 
-    func getString(from url: URL, request: RequestConfig?) async throws -> String {
-        let urlString: String = url.absoluteString
+    func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
+        let urlString: String = request.url.absoluteString
         self.requestedURLs.append(urlString)
-        if let body: RequestBody = request?.body {
+        if let body: RequestBody = request.requestConfig?.body {
             self.requestBodies.append(body.value)
         }
 
@@ -211,6 +211,6 @@ private final class RecordingChapterPageContentLoader: PageContentLoader {
             throw LoaderError.missingResponse(urlString)
         }
 
-        return response
+        return PageContentResponse(content: response, finalURL: request.url)
     }
 }

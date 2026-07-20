@@ -105,16 +105,18 @@ struct RSSSourceRuntime: SourceRuntime, SourceDetailRuntime {
         guard let pageContentLoader: PageContentLoader = self.pageContentLoader else {
             throw SourceRuntimeError.unsupported(.custom("RSS detail page loader is not connected."))
         }
-        let html: String = try await pageContentLoader.getString(
-            from: input.detailURL,
-            request: nil,
-            context: SourceRequestContext(
-                sourceID: self.definition.id,
-                baseURL: self.definition.baseURL,
-                purpose: .rss,
-                refererURL: input.detailURL
+        let html: String = try await pageContentLoader.loadContent(
+            PageLoadRequest(
+                url: input.detailURL,
+                requestConfig: nil,
+                sourceContext: SourceRequestContext(
+                    sourceID: self.definition.id,
+                    baseURL: self.definition.baseURL,
+                    purpose: .rss,
+                    refererURL: input.detailURL
+                )
             )
-        )
+        ).content
         let detail: RSSDetailHTMLParser.DetailContent = RSSDetailHTMLParser.detailContent(
             in: html,
             pageURL: input.detailURL

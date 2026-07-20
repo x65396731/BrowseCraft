@@ -9,33 +9,35 @@ private struct HTTPDataResponse {
 }
 
 /// 中文注释：生产环境使用的 HTTP 客户端，底层由 Alamofire 实现。
-final class AlamofireHTTPClient: HTTPClient, ContextualPageContentResponseLoader, ContextualPageDataLoader {
+final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
     private let credentialProvider: SourceCredentialProviding
+    private let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
+    private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
+    private let managedAPIURLMatcher: (URL) -> Bool
 
-    init(credentialProvider: SourceCredentialProviding = EmptySourceCredentialProvider()) {
+    init(
+        credentialProvider: SourceCredentialProviding = EmptySourceCredentialProvider(),
+        browserRequestHeaderProvider: any BrowserRequestHeaderProviding = EmptyBrowserRequestHeaderProvider(),
+        systemCookieHeaderProvider: any SystemCookieHeaderProviding = EmptySystemCookieHeaderProvider(),
+        managedAPIURLMatcher: @escaping (URL) -> Bool = { _ in false }
+    ) {
         self.credentialProvider = credentialProvider
+        self.browserRequestHeaderProvider = browserRequestHeaderProvider
+        self.systemCookieHeaderProvider = systemCookieHeaderProvider
+        self.managedAPIURLMatcher = managedAPIURLMatcher
     }
 
-    /// 中文注释：getString 方法把 V2 RequestConfig 合入默认 HTML 请求头，并通过 CookieHeaderResolver 应用 Cookie 策略。
-    func getString(from url: URL, request: RequestConfig?) async throws -> String {
-        return try await self.getString(from: url, request: request, context: nil)
-    }
-
-    func getString(from url: URL, request: RequestConfig?, context: SourceRequestContext?) async throws -> String {
-        return try await self.getStringResponse(from: url, request: request, context: context).content
-    }
-
-    func getStringResponse(
-        from url: URL,
-        request: RequestConfig?,
-        context: SourceRequestContext?
-    ) async throws -> PageContentResponse {
-        let urlRequest: URLRequest = self.urlRequest(for: url, request: request, context: context)
+    /// 中文注释：把 V2 RequestConfig 合入默认 HTML 请求头，并通过 CookieHeaderResolver 应用 Cookie 策略。
+    func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
+        let url: URL = request.url
+        let requestConfig: RequestConfig? = request.requestConfig
+        let context: SourceRequestContext? = request.sourceContext
+        let urlRequest: URLRequest = self.urlRequest(for: url, request: requestConfig, context: context)
         let dataResponse: HTTPDataResponse
         let html: String
         do {
             dataResponse = try await self.performDataRequest(urlRequest)
-            html = self.string(from: dataResponse.data, request: request, response: dataResponse.response)
+            html = self.string(from: dataResponse.data, request: requestConfig, response: dataResponse.response)
         } catch {
             throw RuleExecutionError.network(
                 url: url.absoluteString,
@@ -48,9 +50,9 @@ final class AlamofireHTTPClient: HTTPClient, ContextualPageContentResponseLoader
         #if DEBUG
         print(
             "[BrowseCraftNetwork] url=\(url.absoluteString) " +
-            "requestScope=\(request?.scope?.rawValue ?? "default") " +
+            "requestScope=\(requestConfig?.scope?.rawValue ?? "default") " +
             "purpose=\(context?.purpose.rawValue ?? "none") " +
-            "needsWebView=\(request?.needsWebView?.description ?? "nil") " +
+            "needsWebView=\(requestConfig?.needsWebView?.description ?? "nil") " +
             "bytes=\(dataResponse.data.count) " +
             "cloudflareBlocked=\(cloudflareBlocked) " +
             "hasChapterLinks=\(html.contains("/cn/chapters/"))"
@@ -68,12 +70,11 @@ final class AlamofireHTTPClient: HTTPClient, ContextualPageContentResponseLoader
     }
 
     /// 中文注释：RSS/XML 需要保留服务器原始 bytes，避免先按错误字符串编码解码造成乱码。
-    func getData(from url: URL, request: RequestConfig?) async throws -> Data {
-        return try await self.getData(from: url, request: request, context: nil)
-    }
-
-    func getData(from url: URL, request: RequestConfig?, context: SourceRequestContext?) async throws -> Data {
-        let urlRequest: URLRequest = self.urlRequest(for: url, request: request, context: context)
+    func loadData(_ request: PageLoadRequest) async throws -> PageDataResponse {
+        let url: URL = request.url
+        let requestConfig: RequestConfig? = request.requestConfig
+        let context: SourceRequestContext? = request.sourceContext
+        let urlRequest: URLRequest = self.urlRequest(for: url, request: requestConfig, context: context)
         let dataResponse: HTTPDataResponse
         do {
             dataResponse = try await self.performDataRequest(urlRequest)
@@ -87,9 +88,9 @@ final class AlamofireHTTPClient: HTTPClient, ContextualPageContentResponseLoader
         #if DEBUG
         print(
             "[BrowseCraftNetwork] data url=\(url.absoluteString) " +
-            "requestScope=\(request?.scope?.rawValue ?? "default") " +
+            "requestScope=\(requestConfig?.scope?.rawValue ?? "default") " +
             "purpose=\(context?.purpose.rawValue ?? "none") " +
-            "headersMode=\(self.headersMode(for: url, request: request)) " +
+            "headersMode=\(self.headersMode(for: url, request: requestConfig)) " +
             "accept=\(urlRequest.value(forHTTPHeaderField: "Accept") ?? "nil") " +
             "contentType=\(dataResponse.response?.value(forHTTPHeaderField: "Content-Type") ?? "nil") " +
             "bytes=\(dataResponse.data.count) " +
@@ -101,7 +102,10 @@ final class AlamofireHTTPClient: HTTPClient, ContextualPageContentResponseLoader
             throw RuleExecutionError.antiBot(url: url.absoluteString)
         }
 
-        return dataResponse.data
+        return PageDataResponse(
+            data: dataResponse.data,
+            finalURL: dataResponse.response?.url ?? url
+        )
     }
 
     /// 中文注释：RSS/API 等原始 bytes 请求也复用 callback bridge，继续保留 Alamofire 的请求能力。
@@ -208,9 +212,9 @@ final class AlamofireHTTPClient: HTTPClient, ContextualPageContentResponseLoader
         let explicitHeadersOnly: Bool = self.usesExplicitHeadersOnly(url: url, request: request)
         var headers: [String: String] = explicitHeadersOnly
             ? request?.headers ?? [:]
-            : BrowserRequestHeaders.Chrome.defaultHeaders(for: url)
+            : self.browserRequestHeaderProvider.defaultHeaders(for: url)
         if explicitHeadersOnly == false {
-            headers = BrowserRequestHeaders.applyingOverrides(request?.headers, to: headers)
+            headers = RequestHeaderFields.applyingOverrides(request?.headers, to: headers)
         }
         if let context: SourceRequestContext {
             headers = self.headersByFillingMissingCredentialHeaders(
@@ -218,16 +222,17 @@ final class AlamofireHTTPClient: HTTPClient, ContextualPageContentResponseLoader
                 url: url,
                 context: context
             )
-            headers = BrowserRequestHeaders.applyingOverrides(context.additionalHeaders, to: headers)
+            headers = RequestHeaderFields.applyingOverrides(context.additionalHeaders, to: headers)
         }
         let credentialCookieHeader: String? = context.flatMap {
             self.credentialProvider.cookieHeader(for: $0, url: url)
         }
-        let hadCustomCookieHeader: Bool = BrowserRequestHeaders.containsHeader("Cookie", in: headers)
+        let hadCustomCookieHeader: Bool = RequestHeaderFields.containsHeader("Cookie", in: headers)
         headers = CookieHeaderResolver.headersByApplyingPageCookies(
             to: headers,
             url: url,
             request: request,
+            browserCookieHeader: self.systemCookieHeaderProvider.cookieHeader(for: url),
             credentialCookieHeader: credentialCookieHeader
         )
         if let context: SourceRequestContext {
@@ -239,7 +244,7 @@ final class AlamofireHTTPClient: HTTPClient, ContextualPageContentResponseLoader
                 "host=\(url.host ?? "nil") " +
                 "credentialCookie=\((credentialCookieHeader != nil).description) " +
                 "customCookie=\(hadCustomCookieHeader.description) " +
-                "finalCookie=\(BrowserRequestHeaders.containsHeader("Cookie", in: headers).description) " +
+                "finalCookie=\(RequestHeaderFields.containsHeader("Cookie", in: headers).description) " +
                 "headerCount=\(headers.count)"
             )
             #endif
@@ -274,7 +279,7 @@ final class AlamofireHTTPClient: HTTPClient, ContextualPageContentResponseLoader
         var filledHeaderNames: [String] = []
         var skippedHeaderNames: [String] = []
         credentialHeaders.forEach { key, value in
-            guard BrowserRequestHeaders.containsHeader(key, in: resolvedHeaders) == false else {
+            guard RequestHeaderFields.containsHeader(key, in: resolvedHeaders) == false else {
                 skippedHeaderNames.append(key)
                 return
             }
@@ -297,7 +302,7 @@ final class AlamofireHTTPClient: HTTPClient, ContextualPageContentResponseLoader
     }
 
     private func usesExplicitHeadersOnly(url: URL, request: RequestConfig?) -> Bool {
-        return APIRequestHeaders.isManagedAPIURL(url)
+        return self.managedAPIURLMatcher(url)
             || request?.mergePolicy == .override
     }
 
@@ -333,7 +338,7 @@ final class AlamofireHTTPClient: HTTPClient, ContextualPageContentResponseLoader
     }
 
     private static func shouldRedactDebugPreview(for url: URL) -> Bool {
-        return APIRequestHeaders.isManagedAPIURL(url)
+        return PortalAPIConfiguration.isManagedAPIURL(url)
             && url.path == "/catalog/sources"
     }
 

@@ -5,29 +5,29 @@ import Testing
 // 中文注释：RSSFeedLoaderTests 固定 feed 加载、parser 串接以及来源上下文透传。
 struct RSSFeedLoaderTests {
     @Test func loadsFeedXMLUsingRSSAcceptRequestConfig() async throws {
-        let pageContentLoader: RecordingPageContentLoader = RecordingPageContentLoader(
+        let pageDataLoader: RecordingPageDataLoader = RecordingPageDataLoader(
             response: Self.rssXML
         )
         let loader: RSSFeedLoader = RSSFeedLoader(
-            pageContentLoader: pageContentLoader
+            pageDataLoader: pageDataLoader
         )
         let url: URL = try #require(URL(string: "https://www.solidot.org/index.rss"))
 
         let feed: RSSFeed = try await loader.load(feedURL: url)
 
-        #expect(pageContentLoader.requests.count == 1)
-        #expect(pageContentLoader.requests.first?.url == url)
-        #expect(pageContentLoader.requests.first?.request?.headers?["Accept"]?.contains("application/rss+xml") == true)
+        #expect(pageDataLoader.requests.count == 1)
+        #expect(pageDataLoader.requests.first?.url == url)
+        #expect(pageDataLoader.requests.first?.request?.headers?["Accept"]?.contains("application/rss+xml") == true)
         #expect(feed.title == "Solidot")
         #expect(feed.items.first?.title == "奇客资讯")
     }
 
     @Test func rejectsHTMLAntiBotPageBeforeParsingXML() async throws {
-        let pageContentLoader: RecordingPageContentLoader = RecordingPageContentLoader(
+        let pageDataLoader: RecordingPageDataLoader = RecordingPageDataLoader(
             response: Self.antiBotHTML
         )
         let loader: RSSFeedLoader = RSSFeedLoader(
-            pageContentLoader: pageContentLoader
+            pageDataLoader: pageDataLoader
         )
         let url: URL = try #require(URL(string: "https://example.com/feed"))
 
@@ -40,10 +40,10 @@ struct RSSFeedLoaderTests {
     }
 
     @Test func forwardsSourceContextForProtectedFeedRequest() async throws {
-        let pageContentLoader: RecordingPageContentLoader = RecordingPageContentLoader(
+        let pageDataLoader: RecordingPageDataLoader = RecordingPageDataLoader(
             response: Self.rssXML
         )
-        let loader: RSSFeedLoader = RSSFeedLoader(pageContentLoader: pageContentLoader)
+        let loader: RSSFeedLoader = RSSFeedLoader(pageDataLoader: pageDataLoader)
         let url: URL = try #require(URL(string: "https://example.test/member/feed.xml"))
         let context: SourceRequestContext = SourceRequestContext(
             sourceID: "rss.member",
@@ -54,7 +54,7 @@ struct RSSFeedLoaderTests {
 
         _ = try await loader.load(feedURL: url, context: context)
 
-        #expect(pageContentLoader.requests.first?.context == context)
+        #expect(pageDataLoader.requests.first?.context == context)
     }
 
     private static let rssXML: String = """
@@ -79,7 +79,7 @@ struct RSSFeedLoaderTests {
     """
 }
 
-private final class RecordingPageContentLoader: ContextualPageContentLoader {
+private final class RecordingPageDataLoader: PageDataLoader {
     struct Request {
         var url: URL
         var request: RequestConfig?
@@ -93,22 +93,14 @@ private final class RecordingPageContentLoader: ContextualPageContentLoader {
         self.response = response
     }
 
-    func getString(from url: URL, request: RequestConfig?) async throws -> String {
-        return try await self.getString(from: url, request: request, context: nil)
-    }
-
-    func getString(
-        from url: URL,
-        request: RequestConfig?,
-        context: SourceRequestContext?
-    ) async throws -> String {
+    func loadData(_ request: PageLoadRequest) async throws -> PageDataResponse {
         self.requests.append(
             Request(
-                url: url,
-                request: request,
-                context: context
+                url: request.url,
+                request: request.requestConfig,
+                context: request.sourceContext
             )
         )
-        return self.response
+        return PageDataResponse(data: Data(self.response.utf8), finalURL: request.url)
     }
 }

@@ -11,7 +11,9 @@ enum ImageRequestFactory {
         urlString: String,
         refererURLString: String? = nil,
         requestConfig: RequestConfig? = nil,
-        additionalHeaders: [String: String]? = nil
+        additionalHeaders: [String: String]? = nil,
+        browserRequestHeaderProvider: any BrowserRequestHeaderProviding = EmptyBrowserRequestHeaderProvider(),
+        systemCookieHeaderProvider: any SystemCookieHeaderProviding = EmptySystemCookieHeaderProvider()
     ) -> ImageRequest? {
         guard let url: URL = URL(string: urlString) else {
             return nil
@@ -19,9 +21,13 @@ enum ImageRequestFactory {
 
         var urlRequest: URLRequest = URLRequest(url: url)
         let refererURL: URL? = refererURLString.flatMap(URL.init(string:))
-        var headers: [String: String] = BrowserRequestHeaders.Chrome.defaultHeaders(for: url, referer: refererURL)
-        headers = BrowserRequestHeaders.applyingOverrides(requestConfig?.imageHeaders, to: headers)
-        headers = BrowserRequestHeaders.applyingOverrides(requestConfig?.imageRequest?.headers, to: headers)
+        var headers: [String: String] = browserRequestHeaderProvider.defaultHeaders(
+            for: url,
+            referer: refererURL,
+            includeOrigin: false
+        )
+        headers = RequestHeaderFields.applyingOverrides(requestConfig?.imageHeaders, to: headers)
+        headers = RequestHeaderFields.applyingOverrides(requestConfig?.imageRequest?.headers, to: headers)
 
         if let refererURLString: String = refererURLString,
            headers["Referer"] == nil {
@@ -30,9 +36,10 @@ enum ImageRequestFactory {
         headers = CookieHeaderResolver.headersByApplyingImageCookies(
             to: headers,
             url: url,
-            request: requestConfig
+            request: requestConfig,
+            browserCookieHeader: systemCookieHeaderProvider.cookieHeader(for: url)
         )
-        headers = BrowserRequestHeaders.applyingOverrides(additionalHeaders, to: headers)
+        headers = RequestHeaderFields.applyingOverrides(additionalHeaders, to: headers)
 
         headers.forEach { key, value in
             urlRequest.setValue(value, forHTTPHeaderField: key)

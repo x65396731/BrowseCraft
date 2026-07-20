@@ -24,27 +24,28 @@ enum WKWebViewHTMLLoaderError: LocalizedError {
 /// 中文注释：真实 WKWebView 实现；仅用于规则标记 needsWebView 的页面内容获取。
 final class WKWebViewHTMLLoader: RenderedPageContentLoader {
     private let credentialProvider: any SourceCredentialProviding
+    private let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
+    private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
 
-    init(credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider()) {
+    init(
+        credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider(),
+        browserRequestHeaderProvider: any BrowserRequestHeaderProviding = EmptyBrowserRequestHeaderProvider(),
+        systemCookieHeaderProvider: any SystemCookieHeaderProviding = EmptySystemCookieHeaderProvider()
+    ) {
         self.credentialProvider = credentialProvider
+        self.browserRequestHeaderProvider = browserRequestHeaderProvider
+        self.systemCookieHeaderProvider = systemCookieHeaderProvider
     }
 
     @MainActor
-    func getRenderedString(from url: URL, request: RequestConfig?) async throws -> String {
-        return try await self.getRenderedString(from: url, request: request, context: nil)
-    }
-
-    @MainActor
-    func getRenderedString(
-        from url: URL,
-        request: RequestConfig?,
-        context: SourceRequestContext?
-    ) async throws -> String {
+    func loadRenderedContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
         let operation: WKWebViewHTMLLoadOperation = WKWebViewHTMLLoadOperation(
-            url: url,
-            request: request,
-            context: context,
-            credentialProvider: self.credentialProvider
+            url: request.url,
+            request: request.requestConfig,
+            context: request.sourceContext,
+            credentialProvider: self.credentialProvider,
+            browserRequestHeaderProvider: self.browserRequestHeaderProvider,
+            systemCookieHeaderProvider: self.systemCookieHeaderProvider
         )
 
         return try await operation.load()
@@ -73,8 +74,10 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
     private let request: RequestConfig?
     private let context: SourceRequestContext?
     private let credentialProvider: any SourceCredentialProviding
+    private let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
+    private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
     private let webView: WKWebView
-    private var continuation: CheckedContinuation<String, Error>?
+    private var continuation: CheckedContinuation<PageContentResponse, Error>?
     private var hasCompleted: Bool = false
     private var isLoadingHTTPSUpgrade: Bool = false
 
@@ -82,12 +85,16 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         url: URL,
         request: RequestConfig?,
         context: SourceRequestContext?,
-        credentialProvider: any SourceCredentialProviding
+        credentialProvider: any SourceCredentialProviding,
+        browserRequestHeaderProvider: any BrowserRequestHeaderProviding,
+        systemCookieHeaderProvider: any SystemCookieHeaderProviding
     ) {
         self.url = url
         self.request = request
         self.context = context
         self.credentialProvider = credentialProvider
+        self.browserRequestHeaderProvider = browserRequestHeaderProvider
+        self.systemCookieHeaderProvider = systemCookieHeaderProvider
 
         let configuration: WKWebViewConfiguration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
@@ -99,7 +106,7 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
     }
 
     /// 中文注释：用 checked continuation 把 WKNavigationDelegate 生命周期桥接到 async/await。
-    func load() async throws -> String {
+    func load() async throws -> PageContentResponse {
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 self.continuation = continuation
@@ -133,7 +140,7 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
 
                 try await self.waitForStableDOMLength()
                 let html: String = try await self.renderedHTML()
-                self.finish(.success(html))
+                self.finish(.success(self.response(for: html)))
             } catch {
                 self.finish(.failure(error))
             }
@@ -173,7 +180,7 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
                 }
 
                 if let html: String = try? await self.earlyRenderedHTMLIfReady() {
-                    self.finish(.success(html))
+                    self.finish(.success(self.response(for: html)))
                     return
                 }
 
@@ -231,9 +238,9 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         var urlRequest: URLRequest = URLRequest(url: url)
         urlRequest.httpMethod = self.request?.method?.rawValue ?? "GET"
 
-        let headers: [String: String] = BrowserRequestHeaders.applyingOverrides(
+        let headers: [String: String] = RequestHeaderFields.applyingOverrides(
             self.request?.headers,
-            to: BrowserRequestHeaders.Chrome.defaultHeaders(for: url)
+            to: self.browserRequestHeaderProvider.defaultHeaders(for: url)
         )
         headers.forEach { key, value in
             urlRequest.setValue(value, forHTTPHeaderField: key)
@@ -243,6 +250,7 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
             to: urlRequest.allHTTPHeaderFields ?? [:],
             url: url,
             request: self.request,
+            browserCookieHeader: self.systemCookieHeaderProvider.cookieHeader(for: url),
             credentialCookieHeader: self.context.flatMap {
                 self.credentialProvider.cookieHeader(for: $0, url: url)
             }
@@ -474,7 +482,14 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         return 0
     }
 
-    private func finish(_ result: Result<String, Error>) {
+    private func response(for html: String) -> PageContentResponse {
+        return PageContentResponse(
+            content: html,
+            finalURL: self.webView.url ?? self.url
+        )
+    }
+
+    private func finish(_ result: Result<PageContentResponse, Error>) {
         guard self.hasCompleted == false else {
             return
         }
@@ -484,8 +499,8 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         self.webView.navigationDelegate = nil
 
         switch result {
-        case .success(let html):
-            self.continuation?.resume(returning: html)
+        case .success(let response):
+            self.continuation?.resume(returning: response)
         case .failure(let error):
             self.continuation?.resume(throwing: error)
         }

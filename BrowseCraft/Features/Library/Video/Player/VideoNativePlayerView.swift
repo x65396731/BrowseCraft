@@ -6,6 +6,8 @@ import UIKit
 // 中文注释：VideoNativePlayerView 使用 KSPlayer 的 UIKit 播放器承载原生直链，避免上游 SwiftUI
 // Coordinator 在视图更新事务中同步发布状态。
 struct VideoNativePlayerView<Controls: View>: View {
+    @Environment(\.browserRequestHeaderProvider) private var browserRequestHeaderProvider
+
     let mediaURL: URL
     let requestConfig: SourcePlaybackRequestConfig?
     let title: String
@@ -36,6 +38,7 @@ struct VideoNativePlayerView<Controls: View>: View {
         NativePlayerRepresentable(
             mediaURL: self.mediaURL,
             requestConfig: self.requestConfig,
+            browserRequestHeaderProvider: self.browserRequestHeaderProvider,
             title: self.title,
             onProgress: self.onProgress,
             onReadyToPlay: self.onReadyToPlay,
@@ -58,6 +61,7 @@ private struct NativePlayerRepresentable: UIViewRepresentable {
 
     let mediaURL: URL
     let requestConfig: SourcePlaybackRequestConfig?
+    let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
     let title: String
     let onProgress: (TimeInterval, TimeInterval) -> Void
     let onReadyToPlay: (@escaping (TimeInterval) -> Void) -> Void
@@ -114,7 +118,8 @@ private struct NativePlayerRepresentable: UIViewRepresentable {
             url: self.mediaURL,
             options: Self.playbackOptions(
                 mediaURL: self.mediaURL,
-                requestConfig: self.requestConfig
+                requestConfig: self.requestConfig,
+                browserRequestHeaderProvider: self.browserRequestHeaderProvider
             )
         )
         playerView.titleLabel.text = self.title
@@ -122,29 +127,30 @@ private struct NativePlayerRepresentable: UIViewRepresentable {
 
     private static func playbackOptions(
         mediaURL: URL,
-        requestConfig: SourcePlaybackRequestConfig?
+        requestConfig: SourcePlaybackRequestConfig?,
+        browserRequestHeaderProvider: any BrowserRequestHeaderProviding
     ) -> KSOptions {
         let options: KSOptions = KSOptions()
         guard let requestConfig: SourcePlaybackRequestConfig else {
             return options
         }
 
-        var headers: [String: String] = BrowserRequestHeaders.Chrome.defaultHeaders(
+        var headers: [String: String] = browserRequestHeaderProvider.defaultHeaders(
             for: mediaURL,
             referer: requestConfig.referer,
             includeOrigin: true
         )
-        headers = BrowserRequestHeaders.applyingOverrides(requestConfig.headers, to: headers)
+        headers = RequestHeaderFields.applyingOverrides(requestConfig.headers, to: headers)
         if let referer: URL = requestConfig.referer,
-           BrowserRequestHeaders.containsHeader("Referer", in: headers) == false {
+           RequestHeaderFields.containsHeader("Referer", in: headers) == false {
             headers["Referer"] = referer.absoluteString
         }
         if let userAgent: String = requestConfig.userAgent,
-           BrowserRequestHeaders.containsHeader("User-Agent", in: headers) == false {
+           RequestHeaderFields.containsHeader("User-Agent", in: headers) == false {
             headers["User-Agent"] = userAgent
         }
-        if BrowserRequestHeaders.containsHeader("Origin", in: headers) == false,
-           let origin: String = BrowserRequestHeaders.originHeader(from: requestConfig.referer) {
+        if RequestHeaderFields.containsHeader("Origin", in: headers) == false,
+           let origin: String = RequestHeaderFields.originHeader(from: requestConfig.referer) {
             headers["Origin"] = origin
         }
 

@@ -26,7 +26,10 @@ struct ProtectedResourceRuntimeTests {
                 "https://api.example.test/binary/123/high": ciphertext
             ]
         )
-        let runtime: ProtectedResourceLoader = ProtectedResourceLoader(dataLoader: loader)
+        let runtime: ProtectedResourceLoader = ProtectedResourceLoader(
+            dataLoader: loader,
+            decryptor: CommonCryptoProtectedResourceDecryptor()
+        )
         let rule: ProtectedResourceRule = ProtectedResourceRule(
             type: .encryptedBinary,
             keyRequest: ProtectedResourceRequestRule(
@@ -87,7 +90,10 @@ struct ProtectedResourceRuntimeTests {
                 "https://api.example.test/binary/123": Data("cipher".utf8)
             ]
         )
-        let runtime: ProtectedResourceLoader = ProtectedResourceLoader(dataLoader: loader)
+        let runtime: ProtectedResourceLoader = ProtectedResourceLoader(
+            dataLoader: loader,
+            decryptor: CommonCryptoProtectedResourceDecryptor()
+        )
         let rule: ProtectedResourceRule = ProtectedResourceRule(
             type: .encryptedBinary,
             binaryRequest: ProtectedResourceRequestRule(url: "https://api.example.test/binary/{imageId}"),
@@ -129,7 +135,10 @@ struct ProtectedResourceRuntimeTests {
                 "https://api.example.test/binary/123": ciphertext
             ]
         )
-        let runtime: ProtectedResourceLoader = ProtectedResourceLoader(dataLoader: loader)
+        let runtime: ProtectedResourceLoader = ProtectedResourceLoader(
+            dataLoader: loader,
+            decryptor: CommonCryptoProtectedResourceDecryptor()
+        )
         let rule: ProtectedResourceRule = ProtectedResourceRule(
             type: .encryptedBinary,
             binaryRequest: ProtectedResourceRequestRule(url: "https://api.example.test/binary/{imageId}"),
@@ -187,7 +196,10 @@ struct ProtectedResourceRuntimeTests {
                 "https://api.example.test/binary/123/high": [ciphertext]
             ]
         )
-        let runtime: ProtectedResourceLoader = ProtectedResourceLoader(dataLoader: loader)
+        let runtime: ProtectedResourceLoader = ProtectedResourceLoader(
+            dataLoader: loader,
+            decryptor: CommonCryptoProtectedResourceDecryptor()
+        )
         let rule: ProtectedResourceRule = ProtectedResourceRule(
             type: .encryptedBinary,
             keyRequest: ProtectedResourceRequestRule(url: "https://api.example.test/key/{imageId}"),
@@ -243,7 +255,10 @@ struct ProtectedResourceRuntimeTests {
                 "https://api.example.test/binary/123": ciphertext
             ]
         )
-        let runtime: ProtectedResourceLoader = ProtectedResourceLoader(dataLoader: loader)
+        let runtime: ProtectedResourceLoader = ProtectedResourceLoader(
+            dataLoader: loader,
+            decryptor: CommonCryptoProtectedResourceDecryptor()
+        )
         let rule: ProtectedResourceRule = ProtectedResourceRule(
             type: .encryptedBinary,
             keyRequest: ProtectedResourceRequestRule(
@@ -321,7 +336,7 @@ struct ProtectedResourceRuntimeTests {
     }
 }
 
-private final class RecordingProtectedResourceDataLoader: ContextualPageDataLoader {
+private final class RecordingProtectedResourceDataLoader: PageDataLoader {
     struct RecordedRequest {
         let url: URL
         let request: RequestConfig?
@@ -342,37 +357,25 @@ private final class RecordingProtectedResourceDataLoader: ContextualPageDataLoad
         self.responseQueues = responseQueues
     }
 
-    func getData(from url: URL, request: RequestConfig?) async throws -> Data {
-        return try await self.getData(from: url, request: request, context: nil)
-    }
-
-    func getData(
-        from url: URL,
-        request: RequestConfig?,
-        context: SourceRequestContext?
-    ) async throws -> Data {
+    func loadData(_ request: PageLoadRequest) async throws -> PageDataResponse {
         self.requests.append(
             RecordedRequest(
-                url: url,
-                request: request,
-                context: context
+                url: request.url,
+                request: request.requestConfig,
+                context: request.sourceContext
             )
         )
 
-        if var queue: [Data] = self.responseQueues[url.absoluteString],
+        if var queue: [Data] = self.responseQueues[request.url.absoluteString],
            queue.isEmpty == false {
             let data: Data = queue.removeFirst()
-            self.responseQueues[url.absoluteString] = queue
-            return data
+            self.responseQueues[request.url.absoluteString] = queue
+            return PageDataResponse(data: data, finalURL: request.url)
         }
 
-        guard let data: Data = self.responses[url.absoluteString] else {
+        guard let data: Data = self.responses[request.url.absoluteString] else {
             throw URLError(.fileDoesNotExist)
         }
-        return data
-    }
-
-    func getString(from url: URL, request: RequestConfig?) async throws -> String {
-        return String(decoding: try await self.getData(from: url, request: request), as: UTF8.self)
+        return PageDataResponse(data: data, finalURL: request.url)
     }
 }

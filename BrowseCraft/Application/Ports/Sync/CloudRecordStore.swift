@@ -1,6 +1,6 @@
 import Foundation
 
-// 中文注释：CloudRecordStore 抽象云端记录存储；P6-iCloud-1 只用 mock，P6-iCloud-2 再接 CloudKit。
+// 中文注释：CloudRecordStore 抽象同步用例需要的云端记录能力；具体云服务由 Infrastructure 实现。
 protocol CloudRecordStore {
     func fetchChangedSourceRecords(since token: Data?) throws -> SourceCloudChangeSet
     func saveSourceRecords(_ records: [SourceCloudPayload]) throws
@@ -13,19 +13,7 @@ struct SourceCloudChangeSet: Hashable {
     var changeToken: Data?
 }
 
-struct SourceCloudRecord: Hashable {
-    var payload: SourceCloudPayload
-    var serverUpdatedAt: Date
-    var version: Int
-}
-
 struct FavoriteItemCloudChangeSet: Hashable {
     var records: [FavoriteItemCloudPayload]
     var changeToken: Data?
-}
-
-struct FavoriteItemCloudRecord: Hashable {
-    var payload: FavoriteItemCloudPayload
-    var serverUpdatedAt: Date
-    var version: Int
 }

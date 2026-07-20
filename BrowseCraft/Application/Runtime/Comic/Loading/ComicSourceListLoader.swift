@@ -5,28 +5,18 @@ struct ComicSourceListLoader {
     private let pageContentLoader: PageContentLoader
     private let comicRuleParser: ComicRuleSourceParsingService
     private let urlResolver: URLResolvingService
+    private let defaultUserAgent: String
 
     init(
         pageContentLoader: PageContentLoader,
         comicRuleParser: ComicRuleSourceParsingService,
-        urlResolver: URLResolvingService
+        urlResolver: URLResolvingService,
+        defaultUserAgent: String = ""
     ) {
         self.pageContentLoader = pageContentLoader
         self.comicRuleParser = comicRuleParser
         self.urlResolver = urlResolver
-    }
-
-    /// 中文注释：兼容旧测试和旧装配入口；HTTPClient 本身也是 PageContentLoader 的一种实现。
-    init(
-        httpClient: HTTPClient,
-        comicRuleParser: ComicRuleSourceParsingService,
-        urlResolver: URLResolvingService
-    ) {
-        self.init(
-            pageContentLoader: httpClient,
-            comicRuleParser: comicRuleParser,
-            urlResolver: urlResolver
-        )
+        self.defaultUserAgent = defaultUserAgent
     }
 
     func execute(source: Source, page: Int = 1) async throws -> [ContentItem] {
@@ -139,11 +129,13 @@ struct ComicSourceListLoader {
             }
         }
 
-        let html: String = try await self.pageContentLoader.getString(
-            from: url,
-            request: pageRequest,
-            context: self.requestContext(source: source, purpose: .list, refererURL: url)
-        )
+        let html: String = try await self.pageContentLoader.loadContent(
+            PageLoadRequest(
+                url: url,
+                requestConfig: pageRequest,
+                sourceContext: self.requestContext(source: source, purpose: .list, refererURL: url)
+            )
+        ).content
         let items: [ContentItem]
         do {
             items = try self.comicRuleParser.parseList(
@@ -223,7 +215,8 @@ struct ComicSourceListLoader {
             in: apiRule.url,
             source: source,
             item: templateItem,
-            page: page
+            page: page,
+            defaultUserAgent: self.defaultUserAgent
         )
 
         guard let apiURL: URL = URL(string: apiURLString) else {
@@ -239,7 +232,8 @@ struct ComicSourceListLoader {
             override: apiRule.request,
             source: source,
             item: templateItem,
-            page: page
+            page: page,
+            defaultUserAgent: self.defaultUserAgent
         )
 
         RuleExecutionLogger.log(
@@ -258,11 +252,13 @@ struct ComicSourceListLoader {
                 "headerNames": self.safeHeaderNames(request?.headers)
             ]
         )
-        let json: String = try await self.pageContentLoader.getString(
-            from: apiURL,
-            request: request,
-            context: self.requestContext(source: source, purpose: .list, refererURL: fallbackURL)
-        )
+        let json: String = try await self.pageContentLoader.loadContent(
+            PageLoadRequest(
+                url: apiURL,
+                requestConfig: request,
+                sourceContext: self.requestContext(source: source, purpose: .list, refererURL: fallbackURL)
+            )
+        ).content
         let jsonObject: Any = try JSONSerialization.jsonObject(with: Data(json.utf8))
         let responseEvaluation = ComicRuleAPIResponseEvaluator.evaluate(
             json: jsonObject,
@@ -409,7 +405,8 @@ struct ComicSourceListLoader {
                 item: templateItem,
                 page: page,
                 rootJSON: rootJSON,
-                currentJSON: currentJSON
+                currentJSON: currentJSON,
+                defaultUserAgent: self.defaultUserAgent
             )
             return self.urlResolver.absoluteString(rawURL, baseURLString: fallbackURL.absoluteString)
         }
@@ -441,7 +438,8 @@ struct ComicSourceListLoader {
                 item: templateItem,
                 page: page,
                 rootJSON: rootJSON,
-                currentJSON: currentJSON
+                currentJSON: currentJSON,
+                defaultUserAgent: self.defaultUserAgent
             )
             return self.urlResolver.absoluteString(rawURL, baseURLString: fallbackURL.absoluteString)
         }

@@ -1,5 +1,4 @@
 import Foundation
-import GRDB
 
 // 中文注释：CloudSyncService 是同步用例入口；当前只实现 Source mock 同步。
 protocol CloudSyncService {
@@ -14,18 +13,18 @@ struct SourceSyncResult: Hashable {
 }
 
 final class SourceSyncService: CloudSyncService {
-    private let database: AppDatabase
+    private let localStore: SourceSyncLocalStore
     private let cloudStore: CloudRecordStore
     private let scope: String
     private let zoneName: String
 
     init(
-        database: AppDatabase,
+        localStore: SourceSyncLocalStore,
         cloudStore: CloudRecordStore,
         scope: String = "private",
         zoneName: String = "BrowseCraftSources"
     ) {
-        self.database = database
+        self.localStore = localStore
         self.cloudStore = cloudStore
         self.scope = scope
         self.zoneName = zoneName
@@ -53,79 +52,83 @@ final class SourceSyncService: CloudSyncService {
     }
 
     private func fetchCloudChanges() throws -> SourceCloudChangeSet {
-        let token: Data? = try self.database.queue.read { database in
-            return try SyncStateRecord
-                .filter(
-                    SyncStateRecord.Columns.scope == self.scope &&
-                    SyncStateRecord.Columns.zoneName == self.zoneName
-                )
-                .fetchOne(database)?
-                .serverChangeTokenData
-        }
-
+        let token: Data? = try self.localStore.changeToken(
+            scope: self.scope,
+            zoneName: self.zoneName
+        )
         return try self.cloudStore.fetchChangedSourceRecords(since: token)
     }
 
     private func mergeCloudChanges(_ changeSet: SourceCloudChangeSet) throws -> SourceMergeResult {
-        return try self.database.queue.write { database in
-            var result: SourceMergeResult = SourceMergeResult()
+        var result: SourceMergeResult = SourceMergeResult()
+        var eligiblePayloads: [SourceCloudPayload] = []
 
-            for payload in changeSet.records {
-                guard payload.isBuiltIn == false,
-                      payload.userID == AppUser.localDefaultID,
-                      payload.schemaVersion <= SourceCloudPayload.currentSchemaVersion,
-                      payload.isUnsupportedVideoV1 == false else {
-                    result.skippedCount += 1
-                    continue
-                }
+        for payload: SourceCloudPayload in changeSet.records {
+            guard payload.isBuiltIn == false,
+                  payload.userID == AppUser.localDefaultID,
+                  payload.schemaVersion <= SourceCloudPayload.currentSchemaVersion,
+                  payload.isUnsupportedVideoV1 == false else {
+                result.skippedCount += 1
+                continue
+            }
+            eligiblePayloads.append(payload)
+        }
 
-                let existing: SourceRecord? = try SourceRecord.fetchOne(database, key: payload.sourceID)
-                if let existing: SourceRecord {
-                    if payload.lastChangedAt >= existing.lastChangedAt {
-                        var record: SourceRecord = SourceRecord(payload: payload)
-                        try record.save(database)
-                        if payload.isDeleted {
-                            result.deletedCount += 1
-                        } else {
-                            result.downloadedCount += 1
-                        }
-                    } else {
-                        try SyncQueueRecord.enqueue(
-                            entityType: .source,
-                            entityID: existing.id,
-                            operation: existing.deletedAt == nil ? .upsert : .delete,
-                            updatedAt: existing.lastChangedAt,
-                            in: database
-                        )
-                        result.skippedCount += 1
-                    }
-                } else {
-                    var record: SourceRecord = SourceRecord(payload: payload)
-                    try record.insert(database)
+        var snapshots: [String: SourceSyncLocalSnapshot] = try self.localStore.snapshots(
+            for: eligiblePayloads.map(\.sourceID)
+        )
+        var acceptedPayloads: [SourceCloudPayload] = []
+        var requeuedLocalChanges: [SourceSyncLocalChange] = []
+
+        for payload: SourceCloudPayload in eligiblePayloads {
+            if let existing: SourceSyncLocalSnapshot = snapshots[payload.sourceID] {
+                if payload.lastChangedAt >= existing.lastChangedAt {
+                    acceptedPayloads.append(payload)
+                    snapshots[payload.sourceID] = SourceSyncLocalSnapshot(
+                        sourceID: payload.sourceID,
+                        lastChangedAt: payload.lastChangedAt,
+                        isDeleted: payload.isDeleted
+                    )
                     if payload.isDeleted {
                         result.deletedCount += 1
                     } else {
                         result.downloadedCount += 1
                     }
+                } else {
+                    requeuedLocalChanges.append(
+                        SourceSyncLocalChange(
+                            sourceID: existing.sourceID,
+                            operation: existing.isDeleted ? .delete : .upsert,
+                            updatedAt: existing.lastChangedAt
+                        )
+                    )
+                    result.skippedCount += 1
+                }
+            } else {
+                acceptedPayloads.append(payload)
+                snapshots[payload.sourceID] = SourceSyncLocalSnapshot(
+                    sourceID: payload.sourceID,
+                    lastChangedAt: payload.lastChangedAt,
+                    isDeleted: payload.isDeleted
+                )
+                if payload.isDeleted {
+                    result.deletedCount += 1
+                } else {
+                    result.downloadedCount += 1
                 }
             }
-
-            if let token: Data = changeSet.changeToken {
-                let now: Date = Date()
-                var state: SyncStateRecord = SyncStateRecord(
-                    state: SyncState(
-                        scope: self.scope,
-                        zoneName: self.zoneName,
-                        serverChangeTokenData: token,
-                        lastSyncedAt: now,
-                        updatedAt: now
-                    )
-                )
-                try state.save(database)
-            }
-
-            return result
         }
+
+        try self.localStore.commit(
+            SourceSyncMergePlan(
+                acceptedPayloads: acceptedPayloads,
+                requeuedLocalChanges: requeuedLocalChanges,
+                changeToken: changeSet.changeToken
+            ),
+            scope: self.scope,
+            zoneName: self.zoneName
+        )
+        return result
     }
 
     private func uploadPendingSourceChanges(limit: Int) throws -> SourceUploadResult {
@@ -133,34 +136,19 @@ final class SourceSyncService: CloudSyncService {
             return SourceUploadResult(uploadedCount: 0, skippedCount: 0)
         }
 
-        let pending: [SyncQueueItem] = try self.database.queue.read { database in
-            let records: [SyncQueueRecord] = try SyncQueueRecord
-                .filter(SyncQueueRecord.Columns.entityType == SyncEntityType.source.rawValue)
-                .order(SyncQueueRecord.Columns.updatedAt.asc)
-                .fetchAll(database)
-
-            return records.map { record in
-                return record.domainModel()
+        let pending: [SourceSyncPendingUpload] = try self.localStore.pendingUploads()
+        let orderedPending: [SourceSyncPendingUpload] = Array(pending.sorted { lhs, rhs in
+            if lhs.queueItem.operation != rhs.queueItem.operation {
+                return lhs.queueItem.operation == .delete
             }
-        }
-
-        let orderedPending: [SyncQueueItem] = Array(pending.sorted { lhs, rhs in
-            if lhs.operation != rhs.operation {
-                return lhs.operation == .delete
-            }
-
-            return lhs.updatedAt < rhs.updatedAt
+            return lhs.queueItem.updatedAt < rhs.queueItem.updatedAt
         }.prefix(limit))
-
-        let payloads: [SourceCloudPayload] = try self.database.queue.read { database in
-            return try orderedPending.compactMap { item in
-                guard let record: SourceRecord = try SourceRecord.fetchOne(database, key: item.entityID),
-                      record.id.hasPrefix("built-in.") == false else {
-                    return nil
-                }
-
-                return SourceCloudPayload(record: record)
+        let payloads: [SourceCloudPayload] = orderedPending.compactMap { pendingUpload in
+            guard let payload: SourceCloudPayload = pendingUpload.payload,
+                  payload.isBuiltIn == false else {
+                return nil
             }
+            return payload
         }
 
         guard payloads.isEmpty == false else {
@@ -170,35 +158,18 @@ final class SourceSyncService: CloudSyncService {
         do {
             try self.cloudStore.saveSourceRecords(payloads)
         } catch {
-            try self.markFailed(orderedPending, error: error)
+            try self.localStore.markPendingUploadsFailed(
+                ids: orderedPending.map(\.queueItem.id),
+                errorMessage: String(describing: error)
+            )
             throw error
         }
 
-        try self.database.queue.write { database in
-            for item in orderedPending {
-                _ = try SyncQueueRecord.deleteOne(database, key: item.id)
-            }
-        }
-
+        try self.localStore.removePendingUploads(ids: orderedPending.map(\.queueItem.id))
         return SourceUploadResult(
             uploadedCount: payloads.count,
             skippedCount: orderedPending.count - payloads.count
         )
-    }
-
-    private func markFailed(_ items: [SyncQueueItem], error: Error) throws {
-        try self.database.queue.write { database in
-            for item in items {
-                guard var record: SyncQueueRecord = try SyncQueueRecord.fetchOne(database, key: item.id) else {
-                    continue
-                }
-
-                record.retryCount += 1
-                record.lastError = String(describing: error)
-                record.updatedAt = Date()
-                try record.save(database)
-            }
-        }
     }
 }
 
