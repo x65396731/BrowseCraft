@@ -15,8 +15,7 @@ struct LibraryView: View {
                 LibraryListTabBar(
                     source: self.viewModel.selectedSource,
                     tabs: self.viewModel.listTabStates,
-                    isInteractionDisabled: self.viewModel.isRefreshing || self.viewModel.isValidatingTabs,
-                    isValidating: self.viewModel.isValidatingTabs,
+                    isInteractionDisabled: self.viewModel.isRefreshing,
                     selectAction: { tabID in
                         await self.viewModel.selectListTab(id: tabID)
                     }
@@ -44,8 +43,7 @@ struct LibraryView: View {
                             openComic: self.openComicDestination(item:source:),
                             primaryActionTitle: self.viewModel.primaryActionTitle(for:),
                             imageRequestConfig: self.viewModel.imageRequestConfig(for:),
-                            rssContentDetailViewModelFactory: self.contentViewModelFactory.makeRSSDetail,
-                            videoDetailViewModelFactory: self.contentViewModelFactory.makeVideoDetail
+                            contentViewModelFactory: self.contentViewModelFactory
                         )
                     }
                 }
@@ -92,7 +90,7 @@ struct LibraryView: View {
                             } label: {
                                 Image(systemName: self.accountSystemImage(for: loginState.status))
                             }
-                            .disabled(self.viewModel.isRefreshing || self.viewModel.isValidatingTabs)
+                            .disabled(self.viewModel.isRefreshing)
                             .accessibilityLabel(self.accountAccessibilityLabel(for: loginState.status))
                         } else {
                             Button {
@@ -100,7 +98,7 @@ struct LibraryView: View {
                             } label: {
                                 Image(systemName: self.accountSystemImage(for: loginState.status))
                             }
-                            .disabled(self.viewModel.isRefreshing || self.viewModel.isValidatingTabs)
+                            .disabled(self.viewModel.isRefreshing)
                             .accessibilityLabel(self.accountAccessibilityLabel(for: loginState.status))
                         }
                     }
@@ -123,8 +121,7 @@ struct LibraryView: View {
                     )
                     .disabled(
                         self.viewModel.selectedSource == nil ||
-                        self.viewModel.isRefreshing ||
-                        self.viewModel.isValidatingTabs
+                        self.viewModel.isRefreshing
                     )
                     .accessibilityLabel("Refresh Selected Tab")
                 }
@@ -250,13 +247,15 @@ struct LibraryView: View {
     private func comicDestination(for item: ContentItem, source: Source) -> some View {
         if self.viewModel.shouldOpenReaderDirectly(for: source) {
             ReaderView(
-                viewModel: self.contentViewModelFactory.makeReader(item, source, nil)
+                item: item,
+                source: source,
+                factory: self.contentViewModelFactory
             )
         } else {
             ComicDetailView(
-                viewModel: self.contentViewModelFactory.makeComicDetail(item, source),
-                readerViewModelFactory: self.contentViewModelFactory.makeReader,
-                historyReaderViewModelFactory: self.contentViewModelFactory.makeHistoryReader
+                item: item,
+                source: source,
+                factory: self.contentViewModelFactory
             )
         }
     }

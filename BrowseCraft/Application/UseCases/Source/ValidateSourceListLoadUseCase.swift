@@ -39,7 +39,6 @@ struct SourceTabValidationEntry: Equatable, Identifiable {
 struct SourceTabsValidationResult: Equatable {
     let sourceID: String
     let runtimeKind: SourceRuntimeKind
-    let validatedSource: Source
     let entries: [SourceTabValidationEntry]
 }
 
@@ -74,7 +73,6 @@ struct ValidateSourceTabsUseCase {
             return SourceTabsValidationResult(
                 sourceID: source.id,
                 runtimeKind: source.configuration.kind,
-                validatedSource: source,
                 entries: [
                     SourceTabValidationEntry(
                         id: "\(source.id)::plugin",
@@ -100,7 +98,6 @@ struct ValidateSourceTabsUseCase {
             return SourceTabsValidationResult(
                 sourceID: source.id,
                 runtimeKind: source.configuration.kind,
-                validatedSource: source,
                 entries: [
                     SourceTabValidationEntry(
                         id: "\(source.id)::no-tabs",
@@ -158,7 +155,6 @@ struct ValidateSourceTabsUseCase {
         return SourceTabsValidationResult(
             sourceID: source.id,
             runtimeKind: source.configuration.kind,
-            validatedSource: source,
             entries: entries
         )
     }
@@ -199,7 +195,6 @@ struct ValidateSourceTabsUseCase {
         return SourceTabsValidationResult(
             sourceID: source.id,
             runtimeKind: source.configuration.kind,
-            validatedSource: source,
             entries: [
                 SourceTabValidationEntry(
                     id: "\(source.id)::rss-feed",

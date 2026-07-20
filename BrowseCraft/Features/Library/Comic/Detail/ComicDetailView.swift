@@ -6,17 +6,17 @@ struct ComicDetailView: View {
     @StateObject private var viewModel: ComicDetailViewModel
     @State private var selectedReaderDestination: ComicReaderDestination?
 
-    let readerViewModelFactory: (ContentItem, Source, ChapterLink?) -> ReaderViewModel
-    let historyReaderViewModelFactory: (ComicChapterHistory, Source) -> ReaderViewModel
+    let contentViewModelFactory: LibraryContentViewModelFactory
 
     init(
-        viewModel: ComicDetailViewModel,
-        readerViewModelFactory: @escaping (ContentItem, Source, ChapterLink?) -> ReaderViewModel,
-        historyReaderViewModelFactory: @escaping (ComicChapterHistory, Source) -> ReaderViewModel
+        item: ContentItem,
+        source: Source,
+        factory: LibraryContentViewModelFactory
     ) {
-        self._viewModel = StateObject(wrappedValue: viewModel)
-        self.readerViewModelFactory = readerViewModelFactory
-        self.historyReaderViewModelFactory = historyReaderViewModelFactory
+        self._viewModel = StateObject(
+            wrappedValue: factory.makeComicDetail(item, source)
+        )
+        self.contentViewModelFactory = factory
     }
 
     var body: some View {
@@ -240,19 +240,17 @@ struct ComicDetailView: View {
         switch destination {
         case .chapter(let chapter):
             ReaderView(
-                viewModel: self.readerViewModelFactory(
-                    self.viewModel.item,
-                    self.viewModel.source,
-                    chapter
-                )
+                item: self.viewModel.item,
+                source: self.viewModel.source,
+                selectedChapter: chapter,
+                factory: self.contentViewModelFactory
             )
             .id(self.readerDestinationID(for: destination))
         case .history(let history):
             ReaderView(
-                viewModel: self.historyReaderViewModelFactory(
-                    history,
-                    self.viewModel.source
-                )
+                history: history,
+                source: self.viewModel.source,
+                factory: self.contentViewModelFactory
             )
             .id(self.readerDestinationID(for: destination))
         }

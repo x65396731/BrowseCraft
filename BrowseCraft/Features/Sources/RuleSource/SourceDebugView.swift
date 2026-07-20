@@ -13,6 +13,8 @@ struct SourceDebugView: View {
         isValid: false,
         message: ""
     )
+    @State private var tabValidationResult: SourceTabsValidationResult?
+    @State private var isValidatingTabs: Bool = false
     @State private var isShowingJSONEditor: Bool = false
 
     var body: some View {
@@ -42,6 +44,7 @@ struct SourceDebugView: View {
     private func content(source: Source) -> some View {
         Form {
             self.sourceSection(source: source)
+            self.tabValidationSection(source: source)
 
             switch source.configuration {
             case .comic(let configuration):
@@ -87,6 +90,65 @@ struct SourceDebugView: View {
             LabeledContent("Runtime", value: self.runtimeTitle(for: source))
             LabeledContent("Type", value: source.type.rawValue)
             LabeledContent("Ownership", value: source.isBuiltIn ? "Built-in" : "User")
+        }
+    }
+
+    private func tabValidationSection(source: Source) -> some View {
+        Section("Tab Validation") {
+            Button {
+                Task {
+                    await self.validateAllTabs(sourceID: source.id)
+                }
+            } label: {
+                if self.isValidatingTabs {
+                    Label("Validating All Tabs", systemImage: "arrow.triangle.2.circlepath")
+                } else {
+                    Label("Validate All Tabs", systemImage: "checklist")
+                }
+            }
+            .disabled(self.isValidatingTabs)
+
+            if self.isValidatingTabs {
+                ProgressView()
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else if let result: SourceTabsValidationResult = self.tabValidationResult {
+                ForEach(result.entries) { entry in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 8) {
+                            Label(
+                                entry.title,
+                                systemImage: self.tabValidationSystemImage(entry.status)
+                            )
+                            .foregroundColor(self.tabValidationColor(entry.status))
+
+                            Spacer(minLength: 8)
+
+                            Text(self.tabValidationStatusTitle(entry.status))
+                                .font(.caption.weight(.semibold))
+                                .foregroundColor(.secondary)
+                        }
+
+                        HStack(spacing: 8) {
+                            Text(entry.tabID ?? "Source")
+                            Spacer(minLength: 8)
+                            Text("\(entry.itemCount) items")
+                        }
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                        if let detail: String = self.tabValidationDetail(entry.status) {
+                            Text(detail)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+            } else {
+                Text("Runs every configured tab only when requested. Library continues to load tabs on demand.")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+            }
         }
     }
 
@@ -230,6 +292,71 @@ struct SourceDebugView: View {
             sourceID: self.sourceID,
             json: self.draftJSON
         )
+    }
+
+    @MainActor
+    private func validateAllTabs(sourceID: String) async {
+        guard self.isValidatingTabs == false else {
+            return
+        }
+
+        self.isValidatingTabs = true
+        self.tabValidationResult = nil
+        defer {
+            self.isValidatingTabs = false
+        }
+
+        self.tabValidationResult = await self.viewModel.validateAllTabs(sourceID: sourceID)
+    }
+
+    private func tabValidationStatusTitle(_ status: SourceTabValidationStatus) -> String {
+        switch status {
+        case .valid:
+            return "Valid"
+        case .empty:
+            return "Empty"
+        case .failed:
+            return "Failed"
+        case .skipped:
+            return "Skipped"
+        }
+    }
+
+    private func tabValidationSystemImage(_ status: SourceTabValidationStatus) -> String {
+        switch status {
+        case .valid:
+            return "checkmark.circle.fill"
+        case .empty:
+            return "tray"
+        case .failed:
+            return "xmark.octagon.fill"
+        case .skipped:
+            return "arrow.right.circle"
+        }
+    }
+
+    private func tabValidationColor(_ status: SourceTabValidationStatus) -> Color {
+        switch status {
+        case .valid:
+            return .green
+        case .empty:
+            return .orange
+        case .failed:
+            return .red
+        case .skipped:
+            return .secondary
+        }
+    }
+
+    private func tabValidationDetail(_ status: SourceTabValidationStatus) -> String? {
+        switch status {
+        case .valid, .empty:
+            return nil
+        case .failed(let message):
+            return message
+        case .skipped(let reason):
+            return reason
+        }
     }
 
     private func runtimeTitle(for source: Source) -> String {

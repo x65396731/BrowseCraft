@@ -8,14 +8,16 @@ struct RSSContentListView: View {
     let favoriteItemIDs: Set<String>
     let favoriteAction: (ContentItem) -> Void
     let readAction: (ContentItem) -> Void
-    let detailViewModelFactory: (ContentItem, Source) -> RSSContentDetailViewModel
+    let contentViewModelFactory: LibraryContentViewModelFactory
 
     var body: some View {
         LazyVStack(spacing: 22) {
             ForEach(Array(self.items.enumerated()), id: \.offset) { _, item in
                 NavigationLink(
                     destination: RSSContentDetailView(
-                        viewModel: self.detailViewModelFactory(item, self.source)
+                        item: item,
+                        source: self.source,
+                        factory: self.contentViewModelFactory
                     ),
                     label: {
                         RSSContentRowView(

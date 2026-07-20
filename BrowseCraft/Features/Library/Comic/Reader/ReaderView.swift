@@ -6,26 +6,42 @@ struct ReaderView: View {
     @StateObject private var viewModel: ReaderViewModel
     @State private var didApplyRestorePage: Bool = false
 
-    init(viewModel: ReaderViewModel) {
-        self._viewModel = StateObject(wrappedValue: viewModel)
+    init(
+        item: ContentItem,
+        source: Source,
+        selectedChapter: ChapterLink? = nil,
+        factory: LibraryContentViewModelFactory
+    ) {
+        self._viewModel = StateObject(
+            wrappedValue: factory.makeReader(item, source, selectedChapter)
+        )
+    }
+
+    init(
+        history: ComicChapterHistory,
+        source: Source,
+        factory: LibraryContentViewModelFactory
+    ) {
+        self._viewModel = StateObject(
+            wrappedValue: factory.makeHistoryReader(history, source)
+        )
     }
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(spacing: 0) {
+                LazyVStack(spacing: 0) {
                     self.readerContent
                 }
             }
-            .onPreferenceChange(ReaderPageVisibilityPreferenceKey.self) { pages in
-                if let visiblePage: ReaderPageVisibility = pages.min(by: { lhs, rhs in
-                    return lhs.distanceToScreenCenter < rhs.distanceToScreenCenter
-                }) {
-                    self.viewModel.updateVisiblePage(
-                        index: visiblePage.pageIndex,
-                        imageURLString: visiblePage.pageURLString
-                    )
+            .onPreferenceChange(ReaderPageVisibilityPreferenceKey.self) { visiblePage in
+                guard let visiblePage: ReaderPageVisibility else {
+                    return
                 }
+                self.viewModel.updateVisiblePage(
+                    index: visiblePage.pageIndex,
+                    imageURLString: visiblePage.pageURLString
+                )
             }
             .onDisappear {
                 self.viewModel.saveCurrentChapterProgress(reason: "reader-disappear")
@@ -106,7 +122,7 @@ struct ReaderView: View {
             ProgressView()
                 .padding(.top, 80)
         } else if let chapter: ReaderChapter = self.viewModel.chapter,
-                  chapter.pageResources.isEmpty == false || chapter.pageImageURLs.isEmpty == false {
+                  chapter.pageResources.isEmpty == false {
             self.readerPages(for: chapter)
         } else if self.viewModel.isLoading {
             ProgressView()
@@ -150,13 +166,11 @@ struct ReaderView: View {
 
     @ViewBuilder
     private func readerPages(for chapter: ReaderChapter) -> some View {
-        let pageResources: [ReaderPageResource] = chapter.pageResources.isEmpty
-            ? chapter.pageImageURLs.map { urlString in .remoteImageURL(urlString) }
-            : chapter.pageResources
         ForEach(
-            Array(pageResources.enumerated()),
-            id: \.offset
-        ) { pageIndex, resource in
+            chapter.pageResources.indices,
+            id: \.self
+        ) { pageIndex in
+            let resource: ReaderPageResource = chapter.pageResources[pageIndex]
             let pageURLString: String = resource.displayURLString
             ReaderPageImageView(
                 resource: resource,
@@ -164,8 +178,11 @@ struct ReaderView: View {
                 refererURLString: chapter.chapterURL,
                 requestConfig: self.viewModel.readerImageRequestConfig,
                 additionalHeaders: chapter.pageImageHeaders[pageURLString] ?? [:],
-                loadProtectedImage: { reference in
-                    try await self.viewModel.loadProtectedImage(reference: reference)
+                loadProtectedImage: { reference, targetPixelWidth in
+                    try await self.viewModel.loadProtectedImage(
+                        reference: reference,
+                        targetPixelWidth: targetPixelWidth
+                    )
                 }
             )
             .id(pageIndex)
@@ -237,7 +254,7 @@ struct ReaderView: View {
             return false
         }
 
-        return chapter.pageResources.isEmpty == false || chapter.pageImageURLs.isEmpty == false
+        return chapter.pageResources.isEmpty == false
     }
 
     private func readerPageCount(_ chapter: ReaderChapter?) -> Int? {
@@ -245,7 +262,7 @@ struct ReaderView: View {
             return nil
         }
 
-        return chapter.pageResources.isEmpty ? chapter.pageImageURLs.count : chapter.pageResources.count
+        return chapter.pageResources.count
     }
 
     private var errorAlertBinding: Binding<Bool> {

@@ -8,10 +8,21 @@ struct ReaderPageVisibility: Equatable {
 }
 
 struct ReaderPageVisibilityPreferenceKey: PreferenceKey {
-    static var defaultValue: [ReaderPageVisibility] = []
+    static var defaultValue: ReaderPageVisibility?
 
-    static func reduce(value: inout [ReaderPageVisibility], nextValue: () -> [ReaderPageVisibility]) {
-        value.append(contentsOf: nextValue())
+    static func reduce(value: inout ReaderPageVisibility?, nextValue: () -> ReaderPageVisibility?) {
+        guard let nextValue: ReaderPageVisibility = nextValue() else {
+            return
+        }
+
+        guard let currentValue: ReaderPageVisibility = value else {
+            value = nextValue
+            return
+        }
+
+        if nextValue.distanceToScreenCenter < currentValue.distanceToScreenCenter {
+            value = nextValue
+        }
     }
 }
 
@@ -22,17 +33,18 @@ struct ReaderPageVisibilityReporter: View {
     var body: some View {
         GeometryReader { proxy in
             let frame: CGRect = proxy.frame(in: .global)
-            let screenCenterY: CGFloat = UIScreen.main.bounds.midY
+            let screenBounds: CGRect = UIScreen.main.bounds
+            let screenCenterY: CGFloat = screenBounds.midY
             let pageCenterY: CGFloat = frame.midY
             Color.clear.preference(
                 key: ReaderPageVisibilityPreferenceKey.self,
-                value: [
-                    ReaderPageVisibility(
+                value: frame.intersects(screenBounds)
+                    ? ReaderPageVisibility(
                         pageIndex: self.pageIndex,
                         pageURLString: self.pageURLString,
                         distanceToScreenCenter: abs(pageCenterY - screenCenterY)
                     )
-                ]
+                    : nil
             )
         }
     }

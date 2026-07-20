@@ -29,8 +29,8 @@ struct ReaderSourceLoginPrompt: Identifiable, Hashable {
 final class ReaderViewModel: ObservableObject {
     @Published private(set) var chapter: ReaderChapter?
     @Published private(set) var isLoading: Bool = false
-    @Published private(set) var currentPageIndex: Int?
-    @Published private(set) var currentPageImageURL: URL?
+    private var currentPageIndex: Int?
+    private var currentPageImageURL: URL?
     @Published private(set) var pendingRestorePageIndex: Int?
     @Published private(set) var shouldPlayAd: Bool = false
     /// 中文注释：记录最近一次章节切换方向，让 View 在新章节加载完成后决定是否需要调整滚动位置。
@@ -286,7 +286,8 @@ final class ReaderViewModel: ObservableObject {
                 item: self.item,
                 chapterURLString: chapterURLString
             )
-            let navigableChapter: ReaderChapter = self.chapterByResolvingNavigation(for: loadedChapter)
+            let displayChapter: ReaderChapter = self.chapterByPreparingPageResources(for: loadedChapter)
+            let navigableChapter: ReaderChapter = self.chapterByResolvingNavigation(for: displayChapter)
             self.chapter = navigableChapter
             self.saveComicChapterHistoryIfNeeded(chapter: navigableChapter)
             AppAnalytics.shared.logReaderOpened(source: self.source)
@@ -297,7 +298,7 @@ final class ReaderViewModel: ObservableObject {
                 "[BrowseCraftNavigation] Loaded reader " +
                 "itemId=\(self.item.id) " +
                 "chapterURL=\(loadedChapter.chapterURL) " +
-                "pageCount=\(loadedChapter.pageImageURLs.count)"
+                "pageCount=\(navigableChapter.pageResources.count)"
             )
             #endif
         } catch {
@@ -377,7 +378,10 @@ final class ReaderViewModel: ObservableObject {
         return self.resolveReaderSourcePresentationUseCase.readerImageRequestConfig(for: self.source)
     }
 
-    func loadProtectedImage(reference: ProtectedReaderImageReference) async throws -> UIImage {
+    func loadProtectedImage(
+        reference: ProtectedReaderImageReference,
+        targetPixelWidth: CGFloat
+    ) async throws -> UIImage {
         guard let protectedResourceLoader: ReaderProtectedResourceLoader = self.protectedResourceLoader else {
             throw RuleExecutionError.protectedResource(
                 stage: .image,
@@ -402,7 +406,10 @@ final class ReaderViewModel: ObservableObject {
             )
         )
 
-        guard let image: UIImage = UIImage(data: data) else {
+        guard let image: UIImage = ReaderImageDecoder.decode(
+            data: data,
+            targetPixelWidth: targetPixelWidth
+        ) else {
             throw RuleExecutionError.protectedResource(
                 stage: .image,
                 sourceID: reference.sourceID,
@@ -411,6 +418,16 @@ final class ReaderViewModel: ObservableObject {
         }
 
         return image
+    }
+
+    private func chapterByPreparingPageResources(for chapter: ReaderChapter) -> ReaderChapter {
+        guard chapter.pageResources.isEmpty else {
+            return chapter
+        }
+
+        var preparedChapter: ReaderChapter = chapter
+        preparedChapter.pageResources = chapter.pageImageURLs.map(ReaderPageResource.remoteImageURL)
+        return preparedChapter
     }
 
     private func saveComicChapterHistoryIfNeeded(chapter: ReaderChapter) {

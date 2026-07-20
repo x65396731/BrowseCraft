@@ -1,3 +1,4 @@
+import Nuke
 import NukeUI
 import SwiftUI
 import UIKit
@@ -11,7 +12,7 @@ struct ReaderPageImageView: View {
     let refererURLString: String?
     let requestConfig: RequestConfig?
     let additionalHeaders: [String: String]
-    let loadProtectedImage: (ProtectedReaderImageReference) async throws -> UIImage
+    let loadProtectedImage: (ProtectedReaderImageReference, CGFloat) async throws -> UIImage
 
     init(
         resource: ReaderPageResource,
@@ -19,7 +20,7 @@ struct ReaderPageImageView: View {
         refererURLString: String?,
         requestConfig: RequestConfig?,
         additionalHeaders: [String: String],
-        loadProtectedImage: @escaping (ProtectedReaderImageReference) async throws -> UIImage
+        loadProtectedImage: @escaping (ProtectedReaderImageReference, CGFloat) async throws -> UIImage
     ) {
         self.resource = resource
         self.pageNumber = pageNumber
@@ -42,7 +43,7 @@ struct ReaderPageImageView: View {
             refererURLString: refererURLString,
             requestConfig: requestConfig,
             additionalHeaders: additionalHeaders,
-            loadProtectedImage: { _ in
+            loadProtectedImage: { _, _ in
                 throw RuleExecutionError.protectedResource(
                     stage: .image,
                     sourceID: "unknown",
@@ -62,17 +63,14 @@ struct ReaderPageImageView: View {
                 pageNumber: self.pageNumber,
                 loadProtectedImage: self.loadProtectedImage
             )
+            .id(reference)
         }
     }
 
+    @MainActor
     @ViewBuilder
     private func remoteImage(pageURLString: String) -> some View {
-        if let request: ImageRequest = ImageRequestFactory.makeRequest(
-            urlString: pageURLString,
-            refererURLString: self.refererURLString,
-            requestConfig: self.requestConfig,
-            additionalHeaders: self.additionalHeaders
-        ) {
+        if let request: ImageRequest = self.makeImageRequest(pageURLString: pageURLString) {
             LazyImage(source: request) { state in
                 if let image = state.image {
                     // 中文注释：阅读页按图片真实宽高比排版，避免固定比例把特殊长条页压成窄条。
@@ -98,6 +96,23 @@ struct ReaderPageImageView: View {
         } else {
             self.errorView
         }
+    }
+
+    @MainActor
+    private func makeImageRequest(pageURLString: String) -> ImageRequest? {
+        guard var request: ImageRequest = ImageRequestFactory.makeRequest(
+            urlString: pageURLString,
+            refererURLString: self.refererURLString,
+            requestConfig: self.requestConfig,
+            additionalHeaders: self.additionalHeaders
+        ) else {
+            return nil
+        }
+
+        request.processors = [
+            ReaderImageProcessor(targetPixelWidth: ReaderImageSizing.targetPixelWidth)
+        ]
+        return request
     }
 
     private func aspectRatio(for imageSize: CGSize?) -> CGFloat {
@@ -142,7 +157,7 @@ struct ReaderPageImageView: View {
 private struct ProtectedReaderPageImageView: View {
     let reference: ProtectedReaderImageReference
     let pageNumber: Int
-    let loadProtectedImage: (ProtectedReaderImageReference) async throws -> UIImage
+    let loadProtectedImage: (ProtectedReaderImageReference, CGFloat) async throws -> UIImage
 
     @State private var image: UIImage?
     @State private var isLoading: Bool = false
@@ -179,7 +194,10 @@ private struct ProtectedReaderPageImageView: View {
         self.errorMessage = nil
 
         do {
-            self.image = try await self.loadProtectedImage(self.reference)
+            self.image = try await self.loadProtectedImage(
+                self.reference,
+                ReaderImageSizing.targetPixelWidth
+            )
         } catch {
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
             RuleExecutionErrorClassifier.log(error: error, stage: .image, event: "protected-reader-image-error")

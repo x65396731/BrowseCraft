@@ -115,6 +115,10 @@ final class AppContainer {
         let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = RefreshSourceRuntimeUseCase(
             runtimeResolver: self.sourceRuntimeFactory
         )
+        let validateSourceTabsUseCase: ValidateSourceTabsUseCase = ValidateSourceTabsUseCase(
+            refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
+            rssFeedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader)
+        )
         let addComicRuleSourceUseCase: AddComicRuleSourceUseCase = AddComicRuleSourceUseCase(
             sourceRepository: self.sourceRepository,
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
@@ -204,6 +208,7 @@ final class AppContainer {
             ruleEditorService: sourceRuleEditorService,
             recommendSourceImportOptionUseCase: recommendSourceImportOptionUseCase,
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
+            validateSourceTabsUseCase: validateSourceTabsUseCase,
             saveUserLibraryStateUseCase: saveUserLibraryStateUseCase,
             sourceSelectionStore: self.sourceSelectionStore
         )
@@ -226,10 +231,6 @@ final class AppContainer {
         let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = RefreshSourceRuntimeUseCase(
             runtimeResolver: self.sourceRuntimeFactory
         )
-        let validateSourceTabsUseCase: ValidateSourceTabsUseCase = ValidateSourceTabsUseCase(
-            refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
-            rssFeedLoader: RSSFeedLoader(pageContentLoader: self.pageContentLoader)
-        )
         let loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase = LoadUserLibraryStateUseCase(
             repository: userLibraryStateRepository
         )
@@ -242,7 +243,6 @@ final class AppContainer {
             loadSourcesUseCase: loadSourcesUseCase,
             toggleFavoriteUseCase: toggleFavoriteUseCase,
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
-            validateSourceTabsUseCase: validateSourceTabsUseCase,
             loadUserLibraryStateUseCase: loadUserLibraryStateUseCase,
             saveUserLibraryStateUseCase: saveUserLibraryStateUseCase,
             resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase(),

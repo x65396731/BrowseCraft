@@ -13,7 +13,7 @@ struct RootView: View {
         case settings
     }
 
-    private let container: AppContainer
+    private let libraryContentViewModelFactory: LibraryContentViewModelFactory
     @StateObject private var sourcesViewModel: SourcesViewModel
     @StateObject private var favoritesViewModel: FavoritesViewModel
     @StateObject private var libraryViewModel: LibraryViewModel
@@ -22,38 +22,34 @@ struct RootView: View {
     @State private var selectedTab: RootTab = .library
     @State private var didResolveInitialTab: Bool = false
 
-    private var libraryContentViewModelFactory: LibraryContentViewModelFactory {
-        return LibraryContentViewModelFactory(
+    init(container: AppContainer) {
+        self.libraryContentViewModelFactory = LibraryContentViewModelFactory(
             makeComicDetail: { item, source in
-                return self.container.makeComicDetailViewModel(item: item, source: source)
+                return container.makeComicDetailViewModel(item: item, source: source)
             },
             makeReader: { item, source, chapter in
-                return self.container.makeReaderViewModel(
+                return container.makeReaderViewModel(
                     item: item,
                     source: source,
                     selectedChapter: chapter
                 )
             },
             makeHistoryReader: { history, source in
-                return self.container.makeReaderViewModel(history: history, source: source)
+                return container.makeReaderViewModel(history: history, source: source)
             },
             makeRSSDetail: { item, source in
-                return self.container.makeRSSContentDetailViewModel(
+                return container.makeRSSContentDetailViewModel(
                     item: item,
                     source: source
                 )
             },
             makeVideoDetail: { item, source in
-                return self.container.makeVideoDetailViewModel(
+                return container.makeVideoDetailViewModel(
                     item: item,
                     source: source
                 )
             }
         )
-    }
-
-    init(container: AppContainer) {
-        self.container = container
         _sourcesViewModel = StateObject(wrappedValue: container.makeSourcesViewModel())
         _favoritesViewModel = StateObject(wrappedValue: container.makeFavoritesViewModel())
         _libraryViewModel = StateObject(wrappedValue: container.makeLibraryViewModel())
@@ -92,9 +88,7 @@ struct RootView: View {
 
             HistoryView(
                 viewModel: self.historyViewModel,
-                readerViewModelFactory: { history, source in
-                    return self.container.makeReaderViewModel(history: history, source: source)
-                }
+                contentViewModelFactory: self.libraryContentViewModelFactory
             )
                 .tabItem {
                     Image(systemName: "clock")

@@ -6,7 +6,7 @@ struct VideoContentGridView: View {
     let source: Source
     let favoriteItemIDs: Set<String>
     let favoriteAction: (ContentItem) -> Void
-    let detailViewModelFactory: (ContentItem, Source) -> VideoDetailViewModel
+    let contentViewModelFactory: LibraryContentViewModelFactory
     let imageRequestConfig: RequestConfig?
     @State private var selectedItem: ContentItem?
 
@@ -38,7 +38,9 @@ struct VideoContentGridView: View {
         .padding(16)
         .navigationDestination(item: self.$selectedItem) { item in
             VideoDetailView(
-                viewModel: self.detailViewModelFactory(item, self.source)
+                item: item,
+                source: self.source,
+                factory: self.contentViewModelFactory
             )
         }
         .onAppear {

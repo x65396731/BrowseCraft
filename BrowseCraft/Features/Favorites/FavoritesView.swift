@@ -69,15 +69,23 @@ struct FavoritesView: View {
         let contentItem: ContentItem = item.contentItem()
         switch item.kind {
         case .rss:
-            RSSContentDetailView(viewModel: self.contentViewModelFactory.makeRSSDetail(contentItem, source))
+            RSSContentDetailView(
+                item: contentItem,
+                source: source,
+                factory: self.contentViewModelFactory
+            )
         case .comic:
             ComicDetailView(
-                viewModel: self.contentViewModelFactory.makeComicDetail(contentItem, source),
-                readerViewModelFactory: self.contentViewModelFactory.makeReader,
-                historyReaderViewModelFactory: self.contentViewModelFactory.makeHistoryReader
+                item: contentItem,
+                source: source,
+                factory: self.contentViewModelFactory
             )
         case .videoNative, .videoWeb:
-            VideoDetailView(viewModel: self.contentViewModelFactory.makeVideoDetail(contentItem, source))
+            VideoDetailView(
+                item: contentItem,
+                source: source,
+                factory: self.contentViewModelFactory
+            )
         }
     }
 

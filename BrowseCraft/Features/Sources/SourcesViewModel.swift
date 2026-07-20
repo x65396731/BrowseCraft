@@ -34,6 +34,7 @@ final class SourcesViewModel: ObservableObject {
     private let recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase
     private let contentItemMapper: SourceListContentItemMapper
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
+    private let validateSourceTabsUseCase: ValidateSourceTabsUseCase
     private let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase
     private let sourceSelectionStore: SourceSelectionStore
     private let userID: String
@@ -52,6 +53,7 @@ final class SourcesViewModel: ObservableObject {
         ruleEditorService: SourceRuleEditorService,
         recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase,
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
+        validateSourceTabsUseCase: ValidateSourceTabsUseCase,
         saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase,
         sourceSelectionStore: SourceSelectionStore,
         userID: String = AppUser.localDefaultID,
@@ -68,6 +70,7 @@ final class SourcesViewModel: ObservableObject {
         self.recommendSourceImportOptionUseCase = recommendSourceImportOptionUseCase
         self.contentItemMapper = SourceListContentItemMapper()
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
+        self.validateSourceTabsUseCase = validateSourceTabsUseCase
         self.saveUserLibraryStateUseCase = saveUserLibraryStateUseCase
         self.sourceSelectionStore = sourceSelectionStore
         self.userID = userID
@@ -459,6 +462,16 @@ final class SourcesViewModel: ObservableObject {
         }
 
         return self.ruleEditorService.validateDebugJSON(source: source, json: json)
+    }
+
+    @MainActor
+    func validateAllTabs(sourceID: String) async -> SourceTabsValidationResult? {
+        guard let source: Source = self.source(id: sourceID) else {
+            self.errorMessage = "Source was not found."
+            return nil
+        }
+
+        return await self.validateSourceTabsUseCase.execute(source: source)
     }
 
     @MainActor

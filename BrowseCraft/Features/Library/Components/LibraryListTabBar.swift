@@ -4,7 +4,6 @@ struct LibraryListTabBar: View {
     let source: Source?
     let tabs: [LibraryListTabState]
     let isInteractionDisabled: Bool
-    let isValidating: Bool
     let selectAction: (String) async -> Void
 
     private let comicTabSelectedColor: Color = Color(red: 133 / 255, green: 153 / 255, blue: 255 / 255)
@@ -60,12 +59,7 @@ struct LibraryListTabBar: View {
                     .buttonStyle(.plain)
                     .disabled(self.isInteractionDisabled)
                 }
-
-                if self.isValidating {
-                    self.tabValidationIndicator
-                }
             }
-            .opacity(self.isValidating ? 0.58 : 1)
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
         }
@@ -108,12 +102,7 @@ struct LibraryListTabBar: View {
                     .buttonStyle(.plain)
                     .disabled(self.isInteractionDisabled)
                 }
-
-                if self.isValidating {
-                    self.tabValidationIndicator
-                }
             }
-            .opacity(self.isValidating ? 0.58 : 1)
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
         }
@@ -156,21 +145,9 @@ struct LibraryListTabBar: View {
                     .buttonStyle(.plain)
                     .disabled(self.isInteractionDisabled)
                 }
-
-                if self.isValidating {
-                    self.tabValidationIndicator
-                }
             }
-            .opacity(self.isValidating ? 0.58 : 1)
             .padding(.horizontal, 16)
         }
         .background(Color(.systemBackground))
-    }
-
-    private var tabValidationIndicator: some View {
-        ProgressView()
-            .controlSize(.small)
-            .padding(.horizontal, 4)
-            .accessibilityLabel("Validating Tabs")
     }
 }

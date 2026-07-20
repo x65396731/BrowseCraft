@@ -9,8 +9,7 @@ struct LibraryContentView: View {
     let openComic: (ContentItem, Source) -> Void
     let primaryActionTitle: (Source) -> String
     let imageRequestConfig: (Source) -> RequestConfig?
-    let rssContentDetailViewModelFactory: (ContentItem, Source) -> RSSContentDetailViewModel
-    let videoDetailViewModelFactory: (ContentItem, Source) -> VideoDetailViewModel
+    let contentViewModelFactory: LibraryContentViewModelFactory
 
     private let gridColumns: [GridItem] = [
         GridItem(.flexible(), spacing: 12),
@@ -28,7 +27,7 @@ struct LibraryContentView: View {
                 favoriteItemIDs: self.favoriteItemIDs,
                 favoriteAction: self.toggleFavorite,
                 readAction: { _ in },
-                detailViewModelFactory: self.rssContentDetailViewModelFactory
+                contentViewModelFactory: self.contentViewModelFactory
             )
         } else if let selectedSource: Source = self.selectedSource,
                   selectedSource.configuration.kind == .video {
@@ -37,7 +36,7 @@ struct LibraryContentView: View {
                 source: selectedSource,
                 favoriteItemIDs: self.favoriteItemIDs,
                 favoriteAction: self.toggleFavorite,
-                detailViewModelFactory: self.videoDetailViewModelFactory,
+                contentViewModelFactory: self.contentViewModelFactory,
                 imageRequestConfig: self.imageRequestConfig(selectedSource)
             )
         } else {

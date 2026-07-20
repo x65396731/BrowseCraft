@@ -5,7 +5,7 @@ import SwiftUI
 /// 中文注释：HistoryView 是 struct，负责本模块中的对应职责。
 struct HistoryView: View {
     @ObservedObject var viewModel: HistoryViewModel
-    let readerViewModelFactory: (ComicChapterHistory, Source) -> ReaderViewModel
+    let contentViewModelFactory: LibraryContentViewModelFactory
 
     var body: some View {
         NavigationStack {
@@ -86,7 +86,11 @@ struct HistoryView: View {
             if let history: ComicChapterHistory = entry.comicHistory,
                let source: Source = self.viewModel.source(for: history),
                history.lastReaderPageURL != nil || history.chapterURL != nil {
-                ReaderView(viewModel: self.readerViewModelFactory(history, source))
+                ReaderView(
+                    history: history,
+                    source: source,
+                    factory: self.contentViewModelFactory
+                )
             } else {
                 HistoryUnavailableView(message: "Missing comic source or chapter URL.")
             }

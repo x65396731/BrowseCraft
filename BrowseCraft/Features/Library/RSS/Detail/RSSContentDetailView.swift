@@ -9,8 +9,14 @@ struct RSSContentDetailView: View {
     @State private var isShowingOriginalWebView: Bool = false
     @State private var fullscreenMediaPlayerRequest: RSSMediaPlayerRequest?
 
-    init(viewModel: RSSContentDetailViewModel) {
-        _viewModel = StateObject(wrappedValue: viewModel)
+    init(
+        item: ContentItem,
+        source: Source,
+        factory: LibraryContentViewModelFactory
+    ) {
+        _viewModel = StateObject(
+            wrappedValue: factory.makeRSSDetail(item, source)
+        )
     }
 
     var body: some View {

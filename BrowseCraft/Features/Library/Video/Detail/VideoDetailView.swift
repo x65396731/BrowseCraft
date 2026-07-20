@@ -6,8 +6,14 @@ struct VideoDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: VideoDetailViewModel
 
-    init(viewModel: VideoDetailViewModel) {
-        _viewModel = StateObject(wrappedValue: viewModel)
+    init(
+        item: ContentItem,
+        source: Source,
+        factory: LibraryContentViewModelFactory
+    ) {
+        _viewModel = StateObject(
+            wrappedValue: factory.makeVideoDetail(item, source)
+        )
     }
 
     var body: some View {
