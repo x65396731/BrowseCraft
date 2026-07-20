@@ -5,11 +5,6 @@ import BrowseCraftRulesKit
 
 // 中文注释：SourcesViewModel.swift 属于界面功能层，用于说明本文件承载的核心职责。
 
-struct SourceDebugJSONValidationResult: Hashable {
-    var isValid: Bool
-    var message: String
-}
-
 /// 中文注释：Sources 标签页的视图模型，管理源列表、选中源、刷新状态和错误信息。
 /// 中文注释：SwiftUI 会观察这里的 @Published 属性，并在变化时刷新对应界面。
 final class SourcesViewModel: ObservableObject {
@@ -32,22 +27,12 @@ final class SourcesViewModel: ObservableObject {
     private let loadSourcesUseCase: LoadSourcesUseCase
     private let addComicRuleSourceUseCase: AddComicRuleSourceUseCase
     private let addRSSSourceUseCase: AddRSSSourceUseCase
-    private let discoverComicResourcesUseCase: DiscoverComicResourcesUseCase
-    private let discoverVideoResourcesUseCase: DiscoverVideoResourcesUseCase
-    private let discoverRSSFeedsUseCase: DiscoverRSSFeedsUseCase
-    private let saveTemporaryResourceHistoryUseCase: SaveTemporaryResourceHistoryUseCase
-    private let addCatalogSourceUseCase: AddCatalogSourceUseCase
-    private let loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase
+    private let discoveryService: SourceDiscoveryService
+    private let catalogService: SourceCatalogService
     private let deleteSourceUseCase: DeleteSourceUseCase
-    private let updateSourceRuleUseCase: UpdateSourceRuleUseCase
-    private let updateVideoSourceConfigurationUseCase: UpdateVideoSourceConfigurationUseCase
-    private let duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase
-    private let exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase
-    private let importSourceRulePackageUseCase: ImportSourceRulePackageUseCase
+    private let ruleEditorService: SourceRuleEditorService
     private let recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase
-    private let ruleValidator: SiteRuleValidator
-    private let jsonEncoder: JSONEncoder
-    private let jsonDecoder: JSONDecoder
+    private let contentItemMapper: SourceListContentItemMapper
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
     private let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase
     private let sourceSelectionStore: SourceSelectionStore
@@ -61,21 +46,11 @@ final class SourcesViewModel: ObservableObject {
         loadSourcesUseCase: LoadSourcesUseCase,
         addComicRuleSourceUseCase: AddComicRuleSourceUseCase,
         addRSSSourceUseCase: AddRSSSourceUseCase,
-        discoverComicResourcesUseCase: DiscoverComicResourcesUseCase,
-        discoverVideoResourcesUseCase: DiscoverVideoResourcesUseCase,
-        discoverRSSFeedsUseCase: DiscoverRSSFeedsUseCase,
-        saveTemporaryResourceHistoryUseCase: SaveTemporaryResourceHistoryUseCase,
-        addCatalogSourceUseCase: AddCatalogSourceUseCase,
-        loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase,
+        discoveryService: SourceDiscoveryService,
+        catalogService: SourceCatalogService,
         deleteSourceUseCase: DeleteSourceUseCase,
-        updateSourceRuleUseCase: UpdateSourceRuleUseCase,
-        updateVideoSourceConfigurationUseCase: UpdateVideoSourceConfigurationUseCase,
-        duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase,
-        exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase,
-        importSourceRulePackageUseCase: ImportSourceRulePackageUseCase,
+        ruleEditorService: SourceRuleEditorService,
         recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase,
-        ruleValidator: SiteRuleValidator = SiteRuleValidator(),
-        jsonEncoder: JSONEncoder = JSONEncoder(),
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
         saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase,
         sourceSelectionStore: SourceSelectionStore,
@@ -86,28 +61,17 @@ final class SourcesViewModel: ObservableObject {
         self.loadSourcesUseCase = loadSourcesUseCase
         self.addComicRuleSourceUseCase = addComicRuleSourceUseCase
         self.addRSSSourceUseCase = addRSSSourceUseCase
-        self.discoverComicResourcesUseCase = discoverComicResourcesUseCase
-        self.discoverVideoResourcesUseCase = discoverVideoResourcesUseCase
-        self.discoverRSSFeedsUseCase = discoverRSSFeedsUseCase
-        self.saveTemporaryResourceHistoryUseCase = saveTemporaryResourceHistoryUseCase
-        self.addCatalogSourceUseCase = addCatalogSourceUseCase
-        self.loadCatalogSourcesUseCase = loadCatalogSourcesUseCase
+        self.discoveryService = discoveryService
+        self.catalogService = catalogService
         self.deleteSourceUseCase = deleteSourceUseCase
-        self.updateSourceRuleUseCase = updateSourceRuleUseCase
-        self.updateVideoSourceConfigurationUseCase = updateVideoSourceConfigurationUseCase
-        self.duplicateSourceRuleUseCase = duplicateSourceRuleUseCase
-        self.exportSourceRulePackageUseCase = exportSourceRulePackageUseCase
-        self.importSourceRulePackageUseCase = importSourceRulePackageUseCase
+        self.ruleEditorService = ruleEditorService
         self.recommendSourceImportOptionUseCase = recommendSourceImportOptionUseCase
-        self.ruleValidator = ruleValidator
-        self.jsonEncoder = jsonEncoder
-        self.jsonDecoder = JSONDecoder()
+        self.contentItemMapper = SourceListContentItemMapper()
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
         self.saveUserLibraryStateUseCase = saveUserLibraryStateUseCase
         self.sourceSelectionStore = sourceSelectionStore
         self.userID = userID
         self.now = now
-        self.jsonEncoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         self.selectedSourceID = sourceSelectionStore.selectedSourceID
         self.bindSourceSelection()
     }
@@ -129,11 +93,9 @@ final class SourcesViewModel: ObservableObject {
     func discoverComicResources(siteURLString: String, keyword: String) async -> [TransientComicDiscoveryItem] {
         CrashDiagnostics.shared.setRuleStage(.search)
         do {
-            let results: [TransientComicDiscoveryItem] = try await self.discoverComicResourcesUseCase.execute(
-                DiscoverComicResourcesInput(
-                    siteURLString: siteURLString,
-                    keyword: keyword
-                )
+            let results: [TransientComicDiscoveryItem] = try await self.discoveryService.discoverComicResources(
+                siteURLString: siteURLString,
+                keyword: keyword
             )
             AppAnalytics.shared.logSearchSubmitted(sourceType: .comic, resultCount: results.count)
             return results
@@ -150,11 +112,9 @@ final class SourcesViewModel: ObservableObject {
     func discoverVideoResources(siteURLString: String, keyword: String) async -> [TransientVideoDiscoveryItem] {
         CrashDiagnostics.shared.setRuleStage(.search)
         do {
-            let results: [TransientVideoDiscoveryItem] = try await self.discoverVideoResourcesUseCase.execute(
-                DiscoverVideoResourcesInput(
-                    siteURLString: siteURLString,
-                    keyword: keyword
-                )
+            let results: [TransientVideoDiscoveryItem] = try await self.discoveryService.discoverVideoResources(
+                siteURLString: siteURLString,
+                keyword: keyword
             )
             AppAnalytics.shared.logSearchSubmitted(sourceType: .video, resultCount: results.count)
             return results
@@ -172,8 +132,8 @@ final class SourcesViewModel: ObservableObject {
         CrashDiagnostics.shared.setRuleStage(.rssFeed)
         self.errorMessage = nil
         do {
-            let results: [DiscoveredRSSFeedItem] = try await self.discoverRSSFeedsUseCase.execute(
-                DiscoverRSSFeedsInput(siteURLString: siteURLString)
+            let results: [DiscoveredRSSFeedItem] = try await self.discoveryService.discoverRSSFeeds(
+                siteURLString: siteURLString
             )
             AppAnalytics.shared.logSearchSubmitted(sourceType: .rss, resultCount: results.count)
             self.errorMessage = nil
@@ -190,7 +150,7 @@ final class SourcesViewModel: ObservableObject {
     @MainActor
     func saveTemporaryHistory(_ history: TemporaryResourceHistory) {
         do {
-            try self.saveTemporaryResourceHistoryUseCase.execute(history: history)
+            try self.discoveryService.saveTemporaryHistory(history)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "temporary-history-save-error")
             self.errorMessage = error.localizedDescription
@@ -211,7 +171,11 @@ final class SourcesViewModel: ObservableObject {
             let source: Source = result.source
 
             self.load()
-            let items: [ContentItem] = self.contentItems(from: result.listOutput, source: source)
+            let items: [ContentItem] = self.contentItemMapper.map(
+                output: result.listOutput,
+                source: source,
+                context: nil
+            )
             self.sourceSelectionStore.publishLibrarySnapshot(
                 source: source,
                 items: items,
@@ -244,7 +208,11 @@ final class SourcesViewModel: ObservableObject {
             let source: Source = result.source
 
             self.load()
-            let items: [ContentItem] = self.contentItems(from: result.listOutput, source: source)
+            let items: [ContentItem] = self.contentItemMapper.map(
+                output: result.listOutput,
+                source: source,
+                context: nil
+            )
             self.sourceSelectionStore.publishLibrarySnapshot(
                 source: source,
                 items: items,
@@ -275,7 +243,7 @@ final class SourcesViewModel: ObservableObject {
         }
 
         do {
-            self.catalogSources = try await self.loadCatalogSourcesUseCase.execute()
+            self.catalogSources = try await self.catalogService.loadSources()
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-source-load-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
@@ -295,7 +263,7 @@ final class SourcesViewModel: ObservableObject {
         }
 
         do {
-            self.catalogSources = try await self.loadCatalogSourcesUseCase.execute()
+            self.catalogSources = try await self.catalogService.loadSources()
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-source-refresh-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
@@ -315,11 +283,15 @@ final class SourcesViewModel: ObservableObject {
     ) async -> Bool {
         CrashDiagnostics.shared.setRuleStage(.list)
         do {
-            let result: AddCatalogSourceResult = try await self.addCatalogSourceUseCase.execute(catalogSource)
+            let result: AddCatalogSourceResult = try await self.catalogService.addSource(catalogSource)
             let source: Source = result.source
             self.load()
             if let listOutput: SourceListOutput = result.listOutput {
-                let items: [ContentItem] = self.contentItems(from: listOutput, source: source)
+                let items: [ContentItem] = self.contentItemMapper.map(
+                    output: listOutput,
+                    source: source,
+                    context: nil
+                )
                 self.sourceSelectionStore.publishLibrarySnapshot(
                     source: source,
                     items: items,
@@ -466,46 +438,19 @@ final class SourcesViewModel: ObservableObject {
     }
 
     func validateRuleJSON(_ ruleJSON: String) -> SiteRuleValidationResult {
-        return self.ruleValidator.validate(ruleJSON: ruleJSON)
+        return self.ruleEditorService.validateRuleJSON(ruleJSON)
     }
 
     func formattedRuleJSON(for rule: SiteRule) -> String {
-        do {
-            let encodedRule: Data = try self.jsonEncoder.encode(rule)
-            return String(data: encodedRule, encoding: .utf8) ?? "{}"
-        } catch {
-            return "{}"
-        }
+        return self.ruleEditorService.formattedRuleJSON(for: rule)
     }
 
     func formattedDebugJSON(for source: Source) -> String {
-        do {
-            switch source.configuration {
-            case .comic(let configuration):
-                return try self.formattedJSON(configuration.rule)
-            case .video(let configuration):
-                return try self.formattedJSON(configuration)
-            case .rss(let configuration):
-                return try self.formattedJSON(configuration)
-            case .plugin(let configuration):
-                return try self.formattedJSON(configuration)
-            }
-        } catch {
-            return "{}"
-        }
+        return self.ruleEditorService.formattedDebugJSON(for: source)
     }
 
     func canEditDebugJSON(for source: Source) -> Bool {
-        if source.isBuiltIn {
-            return false
-        }
-
-        switch source.configuration {
-        case .comic, .video:
-            return true
-        case .rss, .plugin:
-            return false
-        }
+        return self.ruleEditorService.canEditDebugJSON(for: source)
     }
 
     func validateDebugJSON(sourceID: String, json: String) -> SourceDebugJSONValidationResult {
@@ -513,29 +458,7 @@ final class SourcesViewModel: ObservableObject {
             return SourceDebugJSONValidationResult(isValid: false, message: "Source was not found.")
         }
 
-        switch source.configuration {
-        case .comic:
-            let validationResult: SiteRuleValidationResult = self.validateRuleJSON(json)
-            if validationResult.canSave {
-                return SourceDebugJSONValidationResult(isValid: true, message: "Rule JSON is valid.")
-            }
-
-            return SourceDebugJSONValidationResult(
-                isValid: false,
-                message: validationResult.errors.first?.message ?? "Rule JSON is invalid."
-            )
-        case .video:
-            do {
-                try self.updateVideoSourceConfigurationUseCase.validate(configurationJSON: json)
-                return SourceDebugJSONValidationResult(isValid: true, message: "Video configuration JSON is valid.")
-            } catch {
-                return SourceDebugJSONValidationResult(isValid: false, message: error.localizedDescription)
-            }
-        case .rss:
-            return SourceDebugJSONValidationResult(isValid: false, message: "RSS JSON is read-only.")
-        case .plugin:
-            return SourceDebugJSONValidationResult(isValid: false, message: "Plugin JSON is read-only.")
-        }
+        return self.ruleEditorService.validateDebugJSON(source: source, json: json)
     }
 
     @MainActor
@@ -546,7 +469,7 @@ final class SourcesViewModel: ObservableObject {
         }
 
         do {
-            let updatedSource: Source = try self.updateSourceRuleUseCase.execute(
+            let updatedSource: Source = try self.ruleEditorService.updateRule(
                 source: source,
                 ruleJSON: ruleJSON,
                 expectedUpdatedAt: expectedUpdatedAt
@@ -566,28 +489,16 @@ final class SourcesViewModel: ObservableObject {
             return false
         }
 
-        switch source.configuration {
-        case .comic:
-            return self.updateSourceRule(
-                sourceID: sourceID,
-                ruleJSON: json,
+        do {
+            let updatedSource: Source = try self.ruleEditorService.updateDebugJSON(
+                source: source,
+                json: json,
                 expectedUpdatedAt: expectedUpdatedAt
             )
-        case .video:
-            do {
-                let updatedSource: Source = try self.updateVideoSourceConfigurationUseCase.execute(
-                    source: source,
-                    configurationJSON: json,
-                    expectedUpdatedAt: expectedUpdatedAt
-                )
-                self.replaceSource(updatedSource)
-                return true
-            } catch {
-                self.errorMessage = error.localizedDescription
-                return false
-            }
-        case .rss, .plugin:
-            self.errorMessage = "This source JSON is read-only."
+            self.replaceSource(updatedSource)
+            return true
+        } catch {
+            self.errorMessage = error.localizedDescription
             return false
         }
     }
@@ -600,7 +511,7 @@ final class SourcesViewModel: ObservableObject {
         }
 
         do {
-            let duplicatedSource: Source = try self.duplicateSourceRuleUseCase.execute(source: source)
+            let duplicatedSource: Source = try self.ruleEditorService.duplicate(source: source)
             self.load()
             self.selectSource(id: duplicatedSource.id)
             return duplicatedSource
@@ -613,7 +524,7 @@ final class SourcesViewModel: ObservableObject {
     @MainActor
     func exportRulePackage(sourceID: String) -> RulePackageExport? {
         do {
-            return try self.exportSourceRulePackageUseCase.execute(sourceID: sourceID)
+            return try self.ruleEditorService.exportPackage(sourceID: sourceID)
         } catch {
             self.errorMessage = error.localizedDescription
             return nil
@@ -624,7 +535,7 @@ final class SourcesViewModel: ObservableObject {
     func importRulePackage(packageJSON: String) -> Source? {
         AppAnalytics.shared.logRuleImportStarted(sourceType: .unknown)
         do {
-            let importedSource: Source = try self.importSourceRulePackageUseCase.execute(packageJSON: packageJSON)
+            let importedSource: Source = try self.ruleEditorService.importPackage(packageJSON: packageJSON)
             self.load()
             self.selectSource(id: importedSource.id)
             AppAnalytics.shared.logRuleImportSucceeded(source: importedSource)
@@ -715,26 +626,7 @@ final class SourcesViewModel: ObservableObject {
             source: source,
             listContext: nil
         )
-        return self.contentItems(from: output, source: source)
-    }
-
-    private func contentItems(from output: SourceListOutput, source: Source) -> [ContentItem] {
-        return output.items.enumerated().map { index, item in
-            return ContentItem(
-                id: item.id,
-                idCode: item.idCode,
-                sourceId: source.id,
-                title: item.title,
-                detailURL: item.detailURL?.absoluteString ?? item.id,
-                coverURL: item.coverURL?.absoluteString,
-                type: self.contentType(for: source),
-                latestText: item.latestText,
-                richContent: item.richContent,
-                updatedAt: item.updatedAt,
-                listOrder: index,
-                listContext: nil
-            )
-        }
+        return self.contentItemMapper.map(output: output, source: source, context: nil)
     }
 
     private func saveLibraryStateForSelectedSource(lastRefreshAt: Date?) {
@@ -765,24 +657,6 @@ final class SourcesViewModel: ObservableObject {
             )
             #endif
         }
-    }
-
-    private func contentType(for source: Source) -> SourceContentKind {
-        switch source.configuration {
-        case .rss:
-            return .article
-        case .comic:
-            return .comic
-        case .video:
-            return .video
-        case .plugin:
-            return .article
-        }
-    }
-
-    private func formattedJSON<Value: Encodable>(_ value: Value) throws -> String {
-        let encodedValue: Data = try self.jsonEncoder.encode(value)
-        return String(data: encodedValue, encoding: .utf8) ?? "{}"
     }
 
     private func logPublishedLibrarySnapshot(

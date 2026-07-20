@@ -4,136 +4,6 @@ import BrowseCraftCore
 
 // 中文注释：LibraryViewModel 负责 Library 当前 source、runtime 刷新、当前快照和列表状态。
 
-struct LibraryListTabState: Identifiable, Hashable {
-    let id: String
-    let title: String
-    let isSelected: Bool
-}
-
-enum LibrarySourceLoginStatus: Hashable {
-    case guest
-    case authenticated
-}
-
-struct LibrarySourceLoginState: Hashable, Identifiable {
-    let sourceID: String
-    let sourceName: String
-    let baseURL: URL
-    let loginURL: URL
-    let credentialKeys: [String]
-    let status: LibrarySourceLoginStatus
-
-    var id: String {
-        return "\(self.sourceID)|\(self.loginURL.absoluteString)"
-    }
-}
-
-// 中文注释：L1 仅解析当前 Source 是否声明登录入口及已有凭据状态；WebUI 登录行为由 L2 接入。
-struct LibrarySourceLoginStateResolver {
-    let credentialStore: SourceCredentialStoring
-    let now: () -> Date
-
-    init(
-        credentialStore: SourceCredentialStoring,
-        now: @escaping () -> Date = Date.init
-    ) {
-        self.credentialStore = credentialStore
-        self.now = now
-    }
-
-    func resolve(source: Source?) -> LibrarySourceLoginState? {
-        guard let source: Source,
-              let loginURL: URL = self.loginURL(for: source),
-              let baseURL: URL = URL(string: source.baseURL) else {
-            return nil
-        }
-
-        return LibrarySourceLoginState(
-            sourceID: source.id,
-            sourceName: source.name,
-            baseURL: baseURL,
-            loginURL: loginURL,
-            credentialKeys: self.credentialKeys(for: source),
-            status: self.hasActiveCredential(for: source.id) ? .authenticated : .guest
-        )
-    }
-
-    private func loginURL(for source: Source) -> URL? {
-        guard case .comic(let configuration) = source.configuration,
-              let rawLoginURL: String = configuration.rule.site?.loginURL else {
-            return nil
-        }
-
-        let loginURLString: String = rawLoginURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard loginURLString.isEmpty == false,
-              let loginURL: URL = URL(string: loginURLString),
-              let scheme: String = loginURL.scheme?.lowercased(),
-              scheme == "http" || scheme == "https" else {
-            return nil
-        }
-
-        return loginURL
-    }
-
-    private func credentialKeys(for source: Source) -> [String] {
-        guard case .comic(let configuration) = source.configuration,
-              let context: [String: SiteRuleContextValue] = configuration.rule.context else {
-            return []
-        }
-
-        let keys: Set<String> = Set(context.values.compactMap { value in
-            return value.userValue.flatMap(self.credentialKey(from:))
-        })
-        return keys.sorted()
-    }
-
-    private func credentialKey(from template: String) -> String? {
-        var value: String = template.trimmingCharacters(in: .whitespacesAndNewlines)
-        if value.hasPrefix("{") && value.hasSuffix("}") {
-            value.removeFirst()
-            value.removeLast()
-        }
-
-        let prefix: String = "credentialStore."
-        guard value.hasPrefix(prefix) else {
-            return nil
-        }
-
-        let key: String = String(value.dropFirst(prefix.count))
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard key.isEmpty == false,
-              key.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" }) else {
-            return nil
-        }
-        return key
-    }
-
-    private func hasActiveCredential(for sourceID: String) -> Bool {
-        guard let credential: SourceCredential = self.credentialStore.credential(sourceID: sourceID),
-              credential.expiresAt.map({ $0 > self.now() }) ?? true else {
-            return false
-        }
-
-        let now: Date = self.now()
-        let hasActiveCookie: Bool = credential.cookies.contains { cookie in
-            return cookie.expiresDate.map({ $0 > now }) ?? true
-        }
-
-        return hasActiveCookie
-            || credential.headers.isEmpty == false
-            || credential.accessToken?.isEmpty == false
-            || credential.refreshToken?.isEmpty == false
-            || credential.localStorage.isEmpty == false
-            || credential.sessionStorage.isEmpty == false
-    }
-}
-
-private struct LibraryListCacheEntry {
-    let sourceID: String
-    let context: ListContext?
-    let items: [ContentItem]
-}
-
 /// 中文注释：LibraryViewModel 以 SourceRuntimeKind 作为 Library 展示和刷新入口。
 final class LibraryViewModel: ObservableObject {
     @Published private(set) var items: [ContentItem] = []
@@ -154,19 +24,18 @@ final class LibraryViewModel: ObservableObject {
     private let loadSourcesUseCase: LoadSourcesUseCase
     private let toggleFavoriteUseCase: ToggleFavoriteUseCase
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
-    private let validateSourceTabsUseCase: ValidateSourceTabsUseCase?
+    private let tabValidationCoordinator: LibraryTabValidationCoordinator
     private let loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase
     private let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase
     private let resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase
+    private let contentItemMapper: SourceListContentItemMapper
     private let sourceCredentialStore: SourceCredentialStoring
+    private let sourceLoginStateResolver: LibrarySourceLoginStateResolver
     private let sourceSelectionStore: SourceSelectionStore
     private let userID: String
     private let now: () -> Date
     private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
-    private var tabValidationAttemptedSourceIDs: Set<String> = Set<String>()
-    private var confirmedEmptyListTabKeys: Set<String> = Set<String>()
-    private var listTabErrorMessages: [String: String] = [:]
-    private var listCache: [String: LibraryListCacheEntry] = [:]
+    private var listStateStore: LibraryListStateStore = LibraryListStateStore()
     /// 中文注释：刷新令牌用于避免旧 source 的慢请求回写或提前关闭当前 source 的 loading。
     private var refreshToken: Int = 0
 
@@ -188,11 +57,18 @@ final class LibraryViewModel: ObservableObject {
         self.loadSourcesUseCase = loadSourcesUseCase
         self.toggleFavoriteUseCase = toggleFavoriteUseCase
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
-        self.validateSourceTabsUseCase = validateSourceTabsUseCase
+        self.tabValidationCoordinator = LibraryTabValidationCoordinator(
+            validateSourceTabsUseCase: validateSourceTabsUseCase
+        )
         self.loadUserLibraryStateUseCase = loadUserLibraryStateUseCase
         self.saveUserLibraryStateUseCase = saveUserLibraryStateUseCase
         self.resolveLibrarySourcePresentationUseCase = resolveLibrarySourcePresentationUseCase
+        self.contentItemMapper = SourceListContentItemMapper()
         self.sourceCredentialStore = sourceCredentialStore
+        self.sourceLoginStateResolver = LibrarySourceLoginStateResolver(
+            credentialStore: sourceCredentialStore,
+            now: now
+        )
         self.sourceSelectionStore = sourceSelectionStore
         self.userID = userID
         self.now = now
@@ -297,8 +173,8 @@ final class LibraryViewModel: ObservableObject {
             if Task.isCancelled == false,
                self.refreshToken == currentRefreshToken,
                self.isCurrentListState(sourceID: expectedSourceID, key: expectedListStateKey) {
-                let refreshedItems: [ContentItem] = self.contentItems(
-                    from: output,
+                let refreshedItems: [ContentItem] = self.contentItemMapper.map(
+                    output: output,
                     source: refreshedSelectedSource,
                     context: expectedListContext
                 )
@@ -381,22 +257,11 @@ final class LibraryViewModel: ObservableObject {
         do {
             let wasFavorite: Bool = self.favoriteItemIDs.contains(item.id)
             let source: Source? = self.source(for: item.sourceId)
-            let favoriteItem: FavoriteContentItem = FavoriteContentItem(
-                id: item.id,
-                idCode: item.idCode,
-                sourceID: item.sourceId,
-                title: item.title,
-                detailURL: item.detailURL,
-                coverURL: item.coverURL,
-                kind: self.favoriteKind(for: item),
-                latestText: item.latestText,
-                updatedAt: item.updatedAt,
-                favoritedAt: self.now(),
-                listOrder: item.listOrder,
-                listContext: item.listContext,
-                sourceSnapshot: source.map(FavoriteSourceSnapshot.init(source:))
+            self.favoriteItemIDs = try self.toggleFavoriteUseCase.execute(
+                item: item,
+                source: source,
+                favoritedAt: self.now()
             )
-            self.favoriteItemIDs = try self.toggleFavoriteUseCase.execute(item: favoriteItem)
             AppAnalytics.shared.logBookmarkChanged(isFavorite: wasFavorite == false, source: source)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "favorite-error")
@@ -424,10 +289,7 @@ final class LibraryViewModel: ObservableObject {
 
     var selectedSourceLoginState: LibrarySourceLoginState? {
         _ = self.credentialRevision
-        return LibrarySourceLoginStateResolver(
-            credentialStore: self.sourceCredentialStore,
-            now: self.now
-        ).resolve(source: self.selectedSource)
+        return self.sourceLoginStateResolver.resolve(source: self.selectedSource)
     }
 
     @MainActor
@@ -537,16 +399,7 @@ final class LibraryViewModel: ObservableObject {
 
     private var visibleListTabs: [ListTabRule] {
         let tabs: [ListTabRule] = self.listTabs
-        guard self.selectedSource?.configuration.kind == .video,
-              let sourceID: String = self.selectedSourceID else {
-            return tabs
-        }
-
-        let visibleTabs: [ListTabRule] = tabs.filter { tab in
-            return self.confirmedEmptyListTabKeys.contains(self.listTabKey(sourceID: sourceID, tabID: tab.id)) == false
-        }
-
-        return visibleTabs.isEmpty ? tabs : visibleTabs
+        return self.listStateStore.visibleTabs(tabs, source: self.selectedSource)
     }
 
     private var selectedListTab: ListTabRule? {
@@ -583,33 +436,15 @@ final class LibraryViewModel: ObservableObject {
         tabID: String?,
         itemCount: Int
     ) -> Bool {
-        guard let tabID: String else {
-            return false
-        }
-
-        let key: String = self.listTabKey(sourceID: sourceID, tabID: tabID)
-        let wasHidden: Bool = self.confirmedEmptyListTabKeys.contains(key)
-        if itemCount == 0 {
-            self.confirmedEmptyListTabKeys.insert(key)
-        } else {
-            self.confirmedEmptyListTabKeys.remove(key)
-        }
-
-        return wasHidden != self.confirmedEmptyListTabKeys.contains(key)
-    }
-
-    private func listTabKey(sourceID: String, tabID: String) -> String {
-        return "\(sourceID)::\(tabID)"
+        return self.listStateStore.updateConfirmedEmptyTab(
+            sourceID: sourceID,
+            tabID: tabID,
+            itemCount: itemCount
+        )
     }
 
     private func listStateKey(sourceID: String, context: ListContext?) -> String {
-        return [
-            sourceID,
-            context?.pageId ?? "nil",
-            context?.tabId ?? "nil",
-            context?.sectionId ?? "nil",
-            context?.listRuleId ?? "nil"
-        ].joined(separator: "::")
+        return self.listStateStore.stateKey(sourceID: sourceID, context: context)
     }
 
     private func currentListStateKey() -> String? {
@@ -625,23 +460,21 @@ final class LibraryViewModel: ObservableObject {
     }
 
     private func currentListTabErrorMessage() -> String? {
-        guard let key: String = self.currentListStateKey() else {
+        guard let selectedSourceID: String = self.selectedSourceID else {
             return nil
         }
-
-        return self.listTabErrorMessages[key]
+        return self.listStateStore.errorMessage(
+            sourceID: selectedSourceID,
+            context: self.selectedListContext
+        )
     }
 
     private func setListTabError(_ message: String?, sourceID: String, context: ListContext?) {
-        let key: String = self.listStateKey(sourceID: sourceID, context: context)
-
-        if let message: String {
-            self.listTabErrorMessages[key] = message
-        } else {
-            self.listTabErrorMessages.removeValue(forKey: key)
-        }
-
-        if self.currentListStateKey() == key {
+        self.listStateStore.setErrorMessage(message, sourceID: sourceID, context: context)
+        if self.isCurrentListState(
+            sourceID: sourceID,
+            key: self.listStateKey(sourceID: sourceID, context: context)
+        ) {
             self.selectedListTabErrorMessage = message
         }
     }
@@ -662,20 +495,19 @@ final class LibraryViewModel: ObservableObject {
 
     @MainActor
     private func validateTabsForSelectedSourceIfNeeded() async {
-        guard let validateSourceTabsUseCase: ValidateSourceTabsUseCase,
-              let source: Source = self.selectedSource,
-              source.configuration.kind != .plugin,
-              self.tabValidationAttemptedSourceIDs.contains(source.id) == false else {
+        guard let source: Source = self.selectedSource,
+              self.tabValidationCoordinator.claimValidation(for: source) else {
             return
         }
 
-        self.tabValidationAttemptedSourceIDs.insert(source.id)
         self.isValidatingTabs = true
         defer {
             self.isValidatingTabs = false
         }
         let expectedSourceID: String = source.id
-        let result: SourceTabsValidationResult = await validateSourceTabsUseCase.execute(source: source)
+        guard let result: SourceTabsValidationResult = await self.tabValidationCoordinator.validate(source: source) else {
+            return
+        }
         guard self.selectedSourceID == expectedSourceID else {
             return
         }
@@ -886,8 +718,11 @@ final class LibraryViewModel: ObservableObject {
 
     private func loadCachedItemsForSelectedTab() {
         if self.applyPreparedSnapshotIfAvailable() == false {
-            if let key: String = self.currentListStateKey(),
-               let cacheEntry: LibraryListCacheEntry = self.listCache[key] {
+            if let selectedSourceID: String = self.selectedSourceID,
+               let cacheEntry: LibraryListCacheEntry = self.listStateStore.cachedEntry(
+                   sourceID: selectedSourceID,
+                   context: self.selectedListContext
+               ) {
                 self.items = cacheEntry.items
                 self.setListTabError(nil, sourceID: cacheEntry.sourceID, context: cacheEntry.context)
                 self.logLibraryItems(
@@ -907,12 +742,7 @@ final class LibraryViewModel: ObservableObject {
     }
 
     private func cacheListItems(source: Source, items: [ContentItem], context: ListContext?) {
-        let key: String = self.listStateKey(sourceID: source.id, context: context)
-        self.listCache[key] = LibraryListCacheEntry(
-            sourceID: source.id,
-            context: context,
-            items: items
-        )
+        self.listStateStore.cacheItems(source: source, items: items, context: context)
     }
 
     private var selectedListContext: ListContext? {
@@ -998,42 +828,6 @@ final class LibraryViewModel: ObservableObject {
         }
     }
 
-    private func contentItems(
-        from output: SourceListOutput,
-        source: Source,
-        context: ListContext?
-    ) -> [ContentItem] {
-        return output.items.enumerated().map { index, item in
-            return ContentItem(
-                id: item.id,
-                idCode: item.idCode,
-                sourceId: source.id,
-                title: item.title,
-                detailURL: item.detailURL?.absoluteString ?? item.id,
-                coverURL: item.coverURL?.absoluteString,
-                type: self.contentType(for: source),
-                latestText: item.latestText,
-                richContent: item.richContent,
-                updatedAt: item.updatedAt,
-                listOrder: index,
-                listContext: context
-            )
-        }
-    }
-
-    private func contentType(for source: Source) -> SourceContentKind {
-        switch source.configuration {
-        case .rss:
-            return .article
-        case .comic:
-            return .comic
-        case .video:
-            return .video
-        case .plugin:
-            return .article
-        }
-    }
-
     private func logLibraryItems(
         origin: String,
         sourceID: String?,
@@ -1053,16 +847,4 @@ final class LibraryViewModel: ObservableObject {
         #endif
     }
 
-    private func favoriteKind(for item: ContentItem) -> FavoriteContentKind {
-        switch item.type {
-        case .article:
-            return .rss
-        case .comic:
-            return .comic
-        case .video:
-            return .videoNative
-        default:
-            return .rss
-        }
-    }
 }

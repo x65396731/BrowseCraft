@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 中文注释：ReaderView 只负责具体章节阅读；漫画作品信息和章节目录位于 Features/Comic。
+// 中文注释：ReaderView 只负责具体章节阅读；漫画作品信息和章节目录位于 Library/Comic/Detail。
 /// 中文注释：ReaderView 是 struct，负责本模块中的对应职责。
 struct ReaderView: View {
     @StateObject private var viewModel: ReaderViewModel
@@ -259,83 +259,5 @@ struct ReaderView: View {
                 }
             }
         )
-    }
-}
-
-private struct ReaderPageVisibility: Equatable {
-    let pageIndex: Int
-    let pageURLString: String
-    let distanceToScreenCenter: CGFloat
-}
-
-private struct ReaderPageVisibilityPreferenceKey: PreferenceKey {
-    static var defaultValue: [ReaderPageVisibility] = []
-
-    static func reduce(value: inout [ReaderPageVisibility], nextValue: () -> [ReaderPageVisibility]) {
-        value.append(contentsOf: nextValue())
-    }
-}
-
-private struct ReaderPageVisibilityReporter: View {
-    let pageIndex: Int
-    let pageURLString: String
-
-    var body: some View {
-        GeometryReader { proxy in
-            let frame: CGRect = proxy.frame(in: .global)
-            let screenCenterY: CGFloat = UIScreen.main.bounds.midY
-            let pageCenterY: CGFloat = frame.midY
-            Color.clear.preference(
-                key: ReaderPageVisibilityPreferenceKey.self,
-                value: [
-                    ReaderPageVisibility(
-                        pageIndex: self.pageIndex,
-                        pageURLString: self.pageURLString,
-                        distanceToScreenCenter: abs(pageCenterY - screenCenterY)
-                    )
-                ]
-            )
-        }
-    }
-}
-
-private struct ReaderChapterNavigationBar: View {
-    let previousChapterURL: String?
-    let nextChapterURL: String?
-    let loadPrevious: () async -> Void
-    let loadNext: () async -> Void
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Button {
-                Task {
-                    await self.loadPrevious()
-                }
-            } label: {
-                Label("Previous", systemImage: "chevron.left")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .disabled(self.isBlank(self.previousChapterURL))
-
-            Button {
-                Task {
-                    await self.loadNext()
-                }
-            } label: {
-                Label("Next", systemImage: "chevron.right")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(self.isBlank(self.nextChapterURL))
-        }
-    }
-
-    private func isBlank(_ value: String?) -> Bool {
-        guard let value: String = value else {
-            return true
-        }
-
-        return value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }

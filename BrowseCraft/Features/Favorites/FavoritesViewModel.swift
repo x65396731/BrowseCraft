@@ -1,9 +1,9 @@
 import Combine
 import Foundation
 
-// 中文注释：FavoriteViewModel 负责收藏页数据加载与详情入口。
+// 中文注释：FavoritesViewModel 负责收藏页数据加载与详情入口。
 
-final class FavoriteViewModel: ObservableObject {
+final class FavoritesViewModel: ObservableObject {
     @Published private(set) var favoriteItems: [FavoriteContentItem] = []
     @Published private(set) var sources: [Source] = []
     @Published var errorMessage: String?

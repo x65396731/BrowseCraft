@@ -1,5 +1,4 @@
 import Foundation
-import UIKit
 
 // 中文注释：AppContainer.swift 属于应用装配和根导航，用于说明本文件承载的核心职责。
 
@@ -144,6 +143,12 @@ final class AppContainer {
         let saveTemporaryResourceHistoryUseCase: SaveTemporaryResourceHistoryUseCase = SaveTemporaryResourceHistoryUseCase(
             repository: GRDBTemporaryResourceHistoryRepository(database: self.database)
         )
+        let sourceDiscoveryService: SourceDiscoveryService = SourceDiscoveryService(
+            discoverComicResourcesUseCase: discoverComicResourcesUseCase,
+            discoverVideoResourcesUseCase: discoverVideoResourcesUseCase,
+            discoverRSSFeedsUseCase: discoverRSSFeedsUseCase,
+            saveTemporaryResourceHistoryUseCase: saveTemporaryResourceHistoryUseCase
+        )
         let deleteSourceUseCase: DeleteSourceUseCase = DeleteSourceUseCase(
             sourceRepository: self.sourceRepository
         )
@@ -162,6 +167,13 @@ final class AppContainer {
         let importSourceRulePackageUseCase: ImportSourceRulePackageUseCase = ImportSourceRulePackageUseCase(
             sourceRepository: self.sourceRepository
         )
+        let sourceRuleEditorService: SourceRuleEditorService = SourceRuleEditorService(
+            updateSourceRuleUseCase: updateSourceRuleUseCase,
+            updateVideoSourceConfigurationUseCase: updateVideoSourceConfigurationUseCase,
+            duplicateSourceRuleUseCase: duplicateSourceRuleUseCase,
+            exportSourceRulePackageUseCase: exportSourceRulePackageUseCase,
+            importSourceRulePackageUseCase: importSourceRulePackageUseCase
+        )
         let recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase = RecommendSourceImportOptionUseCase()
         let addCatalogSourceUseCase: AddCatalogSourceUseCase = AddCatalogSourceUseCase(
             sourceRepository: self.sourceRepository,
@@ -174,6 +186,10 @@ final class AppContainer {
             pageDataLoader: self.pageDataLoader,
             requestHeaders: portalRequestHeaderProvider.headers
         )
+        let sourceCatalogService: SourceCatalogService = SourceCatalogService(
+            addCatalogSourceUseCase: addCatalogSourceUseCase,
+            loadCatalogSourcesUseCase: loadCatalogSourcesUseCase
+        )
         let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase = SaveUserLibraryStateUseCase(
             repository: userLibraryStateRepository
         )
@@ -182,18 +198,10 @@ final class AppContainer {
             loadSourcesUseCase: loadSourcesUseCase,
             addComicRuleSourceUseCase: addComicRuleSourceUseCase,
             addRSSSourceUseCase: addRSSSourceUseCase,
-            discoverComicResourcesUseCase: discoverComicResourcesUseCase,
-            discoverVideoResourcesUseCase: discoverVideoResourcesUseCase,
-            discoverRSSFeedsUseCase: discoverRSSFeedsUseCase,
-            saveTemporaryResourceHistoryUseCase: saveTemporaryResourceHistoryUseCase,
-            addCatalogSourceUseCase: addCatalogSourceUseCase,
-            loadCatalogSourcesUseCase: loadCatalogSourcesUseCase,
+            discoveryService: sourceDiscoveryService,
+            catalogService: sourceCatalogService,
             deleteSourceUseCase: deleteSourceUseCase,
-            updateSourceRuleUseCase: updateSourceRuleUseCase,
-            updateVideoSourceConfigurationUseCase: updateVideoSourceConfigurationUseCase,
-            duplicateSourceRuleUseCase: duplicateSourceRuleUseCase,
-            exportSourceRulePackageUseCase: exportSourceRulePackageUseCase,
-            importSourceRulePackageUseCase: importSourceRulePackageUseCase,
+            ruleEditorService: sourceRuleEditorService,
             recommendSourceImportOptionUseCase: recommendSourceImportOptionUseCase,
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
             saveUserLibraryStateUseCase: saveUserLibraryStateUseCase,
@@ -243,7 +251,7 @@ final class AppContainer {
         )
     }
 
-    func makeFavoriteViewModel() -> FavoriteViewModel {
+    func makeFavoritesViewModel() -> FavoritesViewModel {
         let loadSourcesUseCase: LoadSourcesUseCase = LoadSourcesUseCase(
             sourceRepository: self.sourceRepository
         )
@@ -251,7 +259,7 @@ final class AppContainer {
             favoriteRepository: self.favoriteRepository
         )
 
-        return FavoriteViewModel(
+        return FavoritesViewModel(
             loadFavoriteItemsUseCase: loadFavoriteItemsUseCase,
             loadSourcesUseCase: loadSourcesUseCase
         )
@@ -489,62 +497,5 @@ final class AppContainer {
                 return self.makeVideoPlayerViewModel(history: history, source: source)
             }
         )
-    }
-}
-
-// 中文注释：PortalRequestHeaderProvider 只给自家 Portal API 生成业务请求头，避免泄漏到第三方站点。
-private struct PortalRequestHeaderProvider {
-    private let appUserRepository: AppUserRepository
-
-    init(appUserRepository: AppUserRepository) {
-        self.appUserRepository = appUserRepository
-    }
-
-    func headers() -> [String: String] {
-        return APIRequestHeaders.portalHeaders(
-            userID: self.userID(),
-            osInfo: self.osInfo,
-            deviceInfo: self.deviceInfo,
-            appVersion: self.appVersion
-        )
-    }
-
-    private func userID() -> String {
-        do {
-            return try self.appUserRepository.fetchUser(id: AppUser.localDefaultID)?.id ?? AppUser.localDefaultID
-        } catch {
-            return AppUser.localDefaultID
-        }
-    }
-
-    private var osInfo: String {
-        let device: UIDevice = UIDevice.current
-        return "\(device.systemName) \(device.systemVersion)"
-    }
-
-    private var deviceInfo: String {
-        return Self.hardwareIdentifier() ?? UIDevice.current.model
-    }
-
-    private var appVersion: String {
-        let info: [String: Any] = Bundle.main.infoDictionary ?? [:]
-        let version: String = info["CFBundleShortVersionString"] as? String ?? "0"
-        let build: String = info["CFBundleVersion"] as? String ?? "0"
-        return "\(version)(\(build))"
-    }
-
-    private static func hardwareIdentifier() -> String? {
-        var systemInfo = utsname()
-        uname(&systemInfo)
-
-        let mirror: Mirror = Mirror(reflecting: systemInfo.machine)
-        let identifier: String = mirror.children.reduce(into: "") { result, element in
-            guard let value: Int8 = element.value as? Int8, value != 0 else {
-                return
-            }
-            result.append(String(UnicodeScalar(UInt8(value))))
-        }
-
-        return identifier.isEmpty ? nil : identifier
     }
 }

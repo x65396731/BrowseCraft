@@ -19,12 +19,56 @@ struct ToggleFavoriteUseCase {
         return try self.favoriteRepository.fetchFavoriteItems()
     }
 
-    /// 中文注释：execute 方法封装当前类型的一段业务或界面行为。
-    func execute(item: FavoriteContentItem) throws -> Set<String> {
+    /// 中文注释：收藏快照的物化属于收藏用例，不由 LibraryViewModel 或 runtime mapping 承担。
+    func execute(
+        item: ContentItem,
+        source: Source?,
+        favoritedAt: Date
+    ) throws -> Set<String> {
+        let favoriteItem: FavoriteContentItem = self.favoriteItem(
+            from: item,
+            source: source,
+            favoritedAt: favoritedAt
+        )
         let currentIDs: Set<String> = try self.favoriteRepository.fetchFavoriteItemIDs()
-        let shouldBecomeFavorite: Bool = !currentIDs.contains(item.id)
+        let shouldBecomeFavorite: Bool = !currentIDs.contains(favoriteItem.id)
 
-        try self.favoriteRepository.setFavorite(item: item, isFavorite: shouldBecomeFavorite)
+        try self.favoriteRepository.setFavorite(item: favoriteItem, isFavorite: shouldBecomeFavorite)
         return try self.favoriteRepository.fetchFavoriteItemIDs()
+    }
+
+    private func favoriteItem(
+        from item: ContentItem,
+        source: Source?,
+        favoritedAt: Date
+    ) -> FavoriteContentItem {
+        return FavoriteContentItem(
+            id: item.id,
+            idCode: item.idCode,
+            sourceID: item.sourceId,
+            title: item.title,
+            detailURL: item.detailURL,
+            coverURL: item.coverURL,
+            kind: self.favoriteKind(for: item),
+            latestText: item.latestText,
+            updatedAt: item.updatedAt,
+            favoritedAt: favoritedAt,
+            listOrder: item.listOrder,
+            listContext: item.listContext,
+            sourceSnapshot: source.map(FavoriteSourceSnapshot.init(source:))
+        )
+    }
+
+    private func favoriteKind(for item: ContentItem) -> FavoriteContentKind {
+        switch item.type {
+        case .article:
+            return .rss
+        case .comic:
+            return .comic
+        case .video:
+            return .videoNative
+        default:
+            return .rss
+        }
     }
 }

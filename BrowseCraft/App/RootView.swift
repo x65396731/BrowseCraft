@@ -15,17 +15,47 @@ struct RootView: View {
 
     private let container: AppContainer
     @StateObject private var sourcesViewModel: SourcesViewModel
-    @StateObject private var favoriteViewModel: FavoriteViewModel
+    @StateObject private var favoritesViewModel: FavoritesViewModel
     @StateObject private var libraryViewModel: LibraryViewModel
     @StateObject private var historyViewModel: HistoryViewModel
     @StateObject private var settingsViewModel: SettingsViewModel
     @State private var selectedTab: RootTab = .library
     @State private var didResolveInitialTab: Bool = false
 
+    private var libraryContentViewModelFactory: LibraryContentViewModelFactory {
+        return LibraryContentViewModelFactory(
+            makeComicDetail: { item, source in
+                return self.container.makeComicDetailViewModel(item: item, source: source)
+            },
+            makeReader: { item, source, chapter in
+                return self.container.makeReaderViewModel(
+                    item: item,
+                    source: source,
+                    selectedChapter: chapter
+                )
+            },
+            makeHistoryReader: { history, source in
+                return self.container.makeReaderViewModel(history: history, source: source)
+            },
+            makeRSSDetail: { item, source in
+                return self.container.makeRSSContentDetailViewModel(
+                    item: item,
+                    source: source
+                )
+            },
+            makeVideoDetail: { item, source in
+                return self.container.makeVideoDetailViewModel(
+                    item: item,
+                    source: source
+                )
+            }
+        )
+    }
+
     init(container: AppContainer) {
         self.container = container
         _sourcesViewModel = StateObject(wrappedValue: container.makeSourcesViewModel())
-        _favoriteViewModel = StateObject(wrappedValue: container.makeFavoriteViewModel())
+        _favoritesViewModel = StateObject(wrappedValue: container.makeFavoritesViewModel())
         _libraryViewModel = StateObject(wrappedValue: container.makeLibraryViewModel())
         _historyViewModel = StateObject(wrappedValue: container.makeHistoryViewModel())
         _settingsViewModel = StateObject(wrappedValue: container.makeSettingsViewModel())
@@ -40,33 +70,9 @@ struct RootView: View {
                 }
                 .tag(RootTab.sources)
 
-            FavoriteView(
-                viewModel: self.favoriteViewModel,
-                comicDetailViewModelFactory: { item, source in
-                    return self.container.makeComicDetailViewModel(item: item, source: source)
-                },
-                readerViewModelFactory: { item, source, chapter in
-                    return self.container.makeReaderViewModel(
-                        item: item,
-                        source: source,
-                        selectedChapter: chapter
-                    )
-                },
-                historyReaderViewModelFactory: { history, source in
-                    return self.container.makeReaderViewModel(history: history, source: source)
-                },
-                rssContentDetailViewModelFactory: { item, source in
-                    return self.container.makeRSSContentDetailViewModel(
-                        item: item,
-                        source: source
-                    )
-                },
-                videoDetailViewModelFactory: { item, source in
-                    return self.container.makeVideoDetailViewModel(
-                        item: item,
-                        source: source
-                    )
-                }
+            FavoritesView(
+                viewModel: self.favoritesViewModel,
+                contentViewModelFactory: self.libraryContentViewModelFactory
             )
                 .tabItem {
                     Image(systemName: "heart")
@@ -76,31 +82,7 @@ struct RootView: View {
 
             LibraryView(
                 viewModel: self.libraryViewModel,
-                comicDetailViewModelFactory: { item, source in
-                    return self.container.makeComicDetailViewModel(item: item, source: source)
-                },
-                readerViewModelFactory: { item, source, chapter in
-                    return self.container.makeReaderViewModel(
-                        item: item,
-                        source: source,
-                        selectedChapter: chapter
-                    )
-                },
-                historyReaderViewModelFactory: { history, source in
-                    return self.container.makeReaderViewModel(history: history, source: source)
-                },
-                rssContentDetailViewModelFactory: { item, source in
-                    return self.container.makeRSSContentDetailViewModel(
-                        item: item,
-                        source: source
-                    )
-                },
-                videoDetailViewModelFactory: { item, source in
-                    return self.container.makeVideoDetailViewModel(
-                        item: item,
-                        source: source
-                    )
-                }
+                contentViewModelFactory: self.libraryContentViewModelFactory
             )
                 .tabItem {
                     Image(systemName: "square.grid.2x2")

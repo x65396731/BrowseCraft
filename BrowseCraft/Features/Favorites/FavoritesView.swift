@@ -1,14 +1,10 @@
 import SwiftUI
 
-// 中文注释：FavoriteView 是独立收藏页，结构上和 History 页并列。
+// 中文注释：FavoritesView 是独立收藏页，结构上和 History 页并列。
 
-struct FavoriteView: View {
-    @ObservedObject var viewModel: FavoriteViewModel
-    let comicDetailViewModelFactory: (ContentItem, Source) -> ComicDetailViewModel
-    let readerViewModelFactory: (ContentItem, Source, ChapterLink?) -> ReaderViewModel
-    let historyReaderViewModelFactory: (ComicChapterHistory, Source) -> ReaderViewModel
-    let rssContentDetailViewModelFactory: (ContentItem, Source) -> RSSContentDetailViewModel
-    let videoDetailViewModelFactory: (ContentItem, Source) -> VideoDetailViewModel
+struct FavoritesView: View {
+    @ObservedObject var viewModel: FavoritesViewModel
+    let contentViewModelFactory: LibraryContentViewModelFactory
 
     var body: some View {
         NavigationStack {
@@ -73,15 +69,15 @@ struct FavoriteView: View {
         let contentItem: ContentItem = item.contentItem()
         switch item.kind {
         case .rss:
-            RSSContentDetailView(viewModel: self.rssContentDetailViewModelFactory(contentItem, source))
+            RSSContentDetailView(viewModel: self.contentViewModelFactory.makeRSSDetail(contentItem, source))
         case .comic:
             ComicDetailView(
-                viewModel: self.comicDetailViewModelFactory(contentItem, source),
-                readerViewModelFactory: self.readerViewModelFactory,
-                historyReaderViewModelFactory: self.historyReaderViewModelFactory
+                viewModel: self.contentViewModelFactory.makeComicDetail(contentItem, source),
+                readerViewModelFactory: self.contentViewModelFactory.makeReader,
+                historyReaderViewModelFactory: self.contentViewModelFactory.makeHistoryReader
             )
         case .videoNative, .videoWeb:
-            VideoDetailView(viewModel: self.videoDetailViewModelFactory(contentItem, source))
+            VideoDetailView(viewModel: self.contentViewModelFactory.makeVideoDetail(contentItem, source))
         }
     }
 
