@@ -215,12 +215,17 @@ struct SettingsView: View {
                 Text(self.adPlaybackViewModel.message ?? "")
             }
             .sheet(isPresented: self.$isShowingInAppPurchase) {
-                InAppPurchaseSheetView { transaction, plan in
-                    try self.viewModel.applyStoreKitPurchase(
-                        transaction: transaction,
-                        plan: plan
-                    )
-                }
+                InAppPurchaseSheetView(
+                    applyPurchaseAction: { transaction, plan in
+                        try self.viewModel.applyStoreKitPurchase(
+                            transaction: transaction,
+                            plan: plan
+                        )
+                    },
+                    restorePurchasesAction: {
+                        try await self.viewModel.restoreStoreKitPurchases()
+                    }
+                )
             }
             .onAppear {
                 self.viewModel.refreshDiagnosticCode()

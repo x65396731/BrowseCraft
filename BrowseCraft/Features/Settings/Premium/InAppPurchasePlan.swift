@@ -1,11 +1,18 @@
 import Foundation
 
 struct InAppPurchasePlan: Identifiable {
+    enum ProductKind: Equatable {
+        case consumable
+        case nonConsumable
+        case nonRenewingSubscription
+    }
+
     let title: String
     let subtitle: String
     let systemImage: String
     let productID: String
     let fallbackPrice: String
+    let productKind: ProductKind
     let siteSlotIncrement: Int
     let vipMonthDuration: Int
     let removesAds: Bool
@@ -20,6 +27,7 @@ struct InAppPurchasePlan: Identifiable {
         systemImage: String,
         productID: String,
         fallbackPrice: String,
+        productKind: ProductKind,
         siteSlotIncrement: Int = 0,
         vipMonthDuration: Int = 0,
         removesAds: Bool = false
@@ -29,71 +37,79 @@ struct InAppPurchasePlan: Identifiable {
         self.systemImage = systemImage
         self.productID = productID
         self.fallbackPrice = fallbackPrice
+        self.productKind = productKind
         self.siteSlotIncrement = siteSlotIncrement
         self.vipMonthDuration = vipMonthDuration
         self.removesAds = removesAds
     }
 
     static let year: InAppPurchasePlan = InAppPurchasePlan(
-        title: "1 Year",
+        title: "1 Year Premium",
         subtitle: "Best value for full access",
         systemImage: "calendar.badge.clock",
-        productID: "browsecraft.premium.year",
+        productID: "com.xiefei.AnyPortal.premium.year",
         fallbackPrice: "$19.99",
+        productKind: .nonRenewingSubscription,
         vipMonthDuration: 12
     )
 
     static let quarter: InAppPurchasePlan = InAppPurchasePlan(
-        title: "1 Quarter",
+        title: "3 Months Premium",
         subtitle: "Flexible seasonal access",
         systemImage: "calendar",
-        productID: "browsecraft.premium.quarter",
+        productID: "com.xiefei.AnyPortal.premium.quarter",
         fallbackPrice: "$6.99",
+        productKind: .nonRenewingSubscription,
         vipMonthDuration: 3
     )
 
     static let month: InAppPurchasePlan = InAppPurchasePlan(
-        title: "1 Month",
+        title: "1 Month Premium",
         subtitle: "Try premium features first",
         systemImage: "calendar.badge.plus",
-        productID: "browsecraft.premium.month",
+        productID: "com.xiefei.AnyPortal.premium.month",
         fallbackPrice: "$2.99",
+        productKind: .nonRenewingSubscription,
         vipMonthDuration: 1
     )
 
     static let siteSlot1: InAppPurchasePlan = InAppPurchasePlan(
         title: "1 Site Slot",
-        subtitle: "Add one custom site position",
+        subtitle: "Add one custom site slot",
         systemImage: "square.grid.2x2",
-        productID: "browsecraft.site.slot.1",
+        productID: "com.xiefei.AnyPortal.site.unlock.1",
         fallbackPrice: "$0.99",
+        productKind: .nonConsumable,
         siteSlotIncrement: 1
     )
 
     static let siteSlot5: InAppPurchasePlan = InAppPurchasePlan(
         title: "5 Site Slots",
-        subtitle: "Add five custom site positions",
+        subtitle: "Add five custom site slots",
         systemImage: "square.grid.3x2",
-        productID: "browsecraft.site.slot.5",
+        productID: "com.xiefei.AnyPortal.site.unlock.5",
         fallbackPrice: "$3.99",
+        productKind: .nonConsumable,
         siteSlotIncrement: 5
     )
 
     static let siteSlot10: InAppPurchasePlan = InAppPurchasePlan(
         title: "10 Site Slots",
-        subtitle: "Add ten custom site positions",
+        subtitle: "Add ten custom site slots",
         systemImage: "square.grid.3x3",
-        productID: "browsecraft.site.slot.10",
+        productID: "com.xiefei.AnyPortal.site.unlock.10",
         fallbackPrice: "$6.99",
+        productKind: .nonConsumable,
         siteSlotIncrement: 10
     )
 
     static let siteSlot30: InAppPurchasePlan = InAppPurchasePlan(
         title: "30 Site Slots",
-        subtitle: "Add thirty custom site positions",
+        subtitle: "Add thirty custom site slots",
         systemImage: "rectangle.grid.3x2",
-        productID: "browsecraft.site.slot.30",
+        productID: "com.xiefei.AnyPortal.site.unlock.30",
         fallbackPrice: "$14.99",
+        productKind: .nonConsumable,
         siteSlotIncrement: 30
     )
 
@@ -101,8 +117,9 @@ struct InAppPurchasePlan: Identifiable {
         title: "Remove Ads",
         subtitle: "Hide rewarded ad prompts permanently",
         systemImage: "nosign",
-        productID: "browsecraft.remove.ads",
+        productID: "com.xiefei.AnyPortal.remove.ads",
         fallbackPrice: "$4.99",
+        productKind: .nonConsumable,
         removesAds: true
     )
 
@@ -116,4 +133,19 @@ struct InAppPurchasePlan: Identifiable {
         .siteSlot30,
         .removeAds
     ]
+
+    static let plansByProductID: [String: InAppPurchasePlan] = Dictionary(
+        uniqueKeysWithValues: Self.allPlans.map { plan in
+            return (plan.productID, plan)
+        }
+    )
+
+    var isRestorable: Bool {
+        switch self.productKind {
+        case .consumable:
+            return false
+        case .nonConsumable, .nonRenewingSubscription:
+            return true
+        }
+    }
 }

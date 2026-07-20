@@ -6,14 +6,20 @@ final class InAppPurchaseStore: ObservableObject {
     @Published private(set) var isLoading: Bool = false
     @Published private(set) var activeProductID: String?
     @Published private(set) var productsByID: [String: Product] = [:]
+    @Published private(set) var purchasedProductIDs: Set<String> = []
     @Published var statusMessage: String?
 
     private let applyPurchaseAction: @MainActor (StoreKit.Transaction, InAppPurchasePlan) async throws -> Void
+    private let restorePurchasesAction: @MainActor () async throws -> Void
 
     init(
-        applyPurchaseAction: @escaping @MainActor (StoreKit.Transaction, InAppPurchasePlan) async throws -> Void = { _, _ in }
+        applyPurchaseAction: @escaping @MainActor (StoreKit.Transaction, InAppPurchasePlan) async throws -> Void = { _, _ in },
+        restorePurchasesAction: @escaping @MainActor () async throws -> Void = {
+            try await AppStore.sync()
+        }
     ) {
         self.applyPurchaseAction = applyPurchaseAction
+        self.restorePurchasesAction = restorePurchasesAction
     }
 
     func loadProducts() async {
@@ -37,6 +43,8 @@ final class InAppPurchaseStore: ObservableObject {
             if products.isEmpty {
                 self.statusMessage = "No StoreKit products were found. Add matching product IDs in a StoreKit configuration file for local testing."
             }
+
+            await self.refreshPurchasedProductIDs()
         } catch {
             self.statusMessage = "Products could not be loaded."
         }
@@ -73,6 +81,9 @@ final class InAppPurchaseStore: ObservableObject {
                 let transaction: StoreKit.Transaction = try self.verifiedTransaction(from: verification)
                 try await self.applyPurchaseAction(transaction, plan)
                 await transaction.finish()
+                if plan.productKind == .nonConsumable {
+                    self.purchasedProductIDs.insert(plan.productID)
+                }
                 self.statusMessage = "\(plan.title) purchase completed."
             case .pending:
                 self.statusMessage = "\(plan.title) purchase is pending."
@@ -94,7 +105,8 @@ final class InAppPurchaseStore: ObservableObject {
         }
 
         do {
-            try await AppStore.sync()
+            try await self.restorePurchasesAction()
+            await self.refreshPurchasedProductIDs()
             self.statusMessage = "Purchases restored."
         } catch {
             self.statusMessage = "Purchases could not be restored."
@@ -110,6 +122,26 @@ final class InAppPurchaseStore: ObservableObject {
         case .unverified:
             throw StoreKitVerificationError.unverifiedTransaction
         }
+    }
+
+    func isPurchased(_ plan: InAppPurchasePlan) -> Bool {
+        return plan.productKind == .nonConsumable && self.purchasedProductIDs.contains(plan.productID)
+    }
+
+    private func refreshPurchasedProductIDs() async {
+        var productIDs: Set<String> = []
+        for await verification in StoreKit.Transaction.currentEntitlements {
+            guard case .verified(let transaction) = verification,
+                  transaction.revocationDate == nil,
+                  let plan: InAppPurchasePlan = InAppPurchasePlan.plansByProductID[transaction.productID],
+                  plan.productKind == .nonConsumable else {
+                continue
+            }
+
+            productIDs.insert(transaction.productID)
+        }
+
+        self.purchasedProductIDs = productIDs
     }
 
     var statusAlertBinding: Binding<Bool> {

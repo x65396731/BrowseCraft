@@ -67,6 +67,49 @@ final class SettingsViewModel: ObservableObject {
     }
 
     @MainActor
+    func observeStoreKitTransactions() async {
+        for await verification in StoreKit.Transaction.updates {
+            guard case .verified(let transaction) = verification,
+                  let plan: InAppPurchasePlan = InAppPurchasePlan.plansByProductID[transaction.productID] else {
+                continue
+            }
+
+            do {
+                try self.applyStoreKitPurchase(transaction: transaction, plan: plan)
+                await transaction.finish()
+            } catch {
+                #if DEBUG
+                print("[AnyPortalStoreKit] transaction update failed product=\(transaction.productID) error=\(error)")
+                #endif
+            }
+        }
+    }
+
+    @MainActor
+    func restoreStoreKitPurchases() async throws {
+        try await AppStore.sync()
+
+        var restorableTransactions: [(StoreKit.Transaction, InAppPurchasePlan)] = []
+        for await verification in StoreKit.Transaction.all {
+            guard case .verified(let transaction) = verification,
+                  let plan: InAppPurchasePlan = InAppPurchasePlan.plansByProductID[transaction.productID],
+                  plan.isRestorable else {
+                continue
+            }
+
+            restorableTransactions.append((transaction, plan))
+        }
+
+        restorableTransactions.sort { lhs, rhs in
+            return lhs.0.purchaseDate < rhs.0.purchaseDate
+        }
+
+        for (transaction, plan) in restorableTransactions {
+            try self.applyStoreKitPurchase(transaction: transaction, plan: plan)
+        }
+    }
+
+    @MainActor
     func applyStoreKitPurchase(
         transaction: StoreKit.Transaction,
         plan: InAppPurchasePlan
@@ -95,7 +138,13 @@ final class SettingsViewModel: ObservableObject {
         self.recordStoreKitMetadata(transaction: transaction, user: &user)
 
         if hasProcessedTransaction == false && transaction.revocationDate == nil {
-            self.applyEntitlement(plan: plan, user: &user, now: now)
+            self.applyEntitlement(
+                plan: plan,
+                user: &user,
+                purchaseDate: transaction.purchaseDate
+            )
+        } else if plan.removesAds && transaction.revocationDate != nil {
+            user.hasRemovedAds = false
         }
 
         user.updatedAt = now
@@ -107,7 +156,11 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
-    private func applyEntitlement(plan: InAppPurchasePlan, user: inout AppUser, now: Date) {
+    private func applyEntitlement(
+        plan: InAppPurchasePlan,
+        user: inout AppUser,
+        purchaseDate: Date
+    ) {
         if plan.removesAds {
             user.hasRemovedAds = true
         }
@@ -118,7 +171,7 @@ final class SettingsViewModel: ObservableObject {
         }
 
         if plan.vipMonthDuration > 0 {
-            let baseDate: Date = max(user.vipExpiresAt ?? now, now)
+            let baseDate: Date = max(user.vipExpiresAt ?? purchaseDate, purchaseDate)
             user.vipExpiresAt = Calendar.current.date(
                 byAdding: .month,
                 value: plan.vipMonthDuration,

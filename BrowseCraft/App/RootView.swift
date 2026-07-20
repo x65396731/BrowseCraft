@@ -83,6 +83,9 @@ struct RootView: View {
         }
         .environment(\.browserRequestHeaderProvider, self.browserRequestHeaderProvider)
         .environment(\.systemCookieHeaderProvider, self.systemCookieHeaderProvider)
+        .task {
+            await self.settingsViewModel.observeStoreKitTransactions()
+        }
         .onAppear {
             DispatchQueue.main.async {
                 self.resolveInitialTabIfNeeded()

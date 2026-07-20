@@ -37,6 +37,10 @@ struct MoreInAppPurchasePlansView: View {
 
                             if self.store.activeProductID == plan.productID {
                                 ProgressView()
+                            } else if self.store.isPurchased(plan) {
+                                Text("Purchased")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundColor(.secondary)
                             } else {
                                 Text(self.store.priceText(for: plan))
                                     .font(.subheadline.weight(.semibold))
@@ -46,7 +50,11 @@ struct MoreInAppPurchasePlansView: View {
                     }
                 )
                 .buttonStyle(.plain)
-                .disabled(self.store.isLoading || self.store.activeProductID != nil)
+                .disabled(
+                    self.store.isLoading ||
+                    self.store.activeProductID != nil ||
+                    self.store.isPurchased(plan)
+                )
                 .padding(.vertical, 4)
             }
 
@@ -74,6 +82,10 @@ struct MoreInAppPurchasePlansView: View {
 
                             if self.store.activeProductID == InAppPurchasePlan.removeAds.productID {
                                 ProgressView()
+                            } else if self.store.isPurchased(.removeAds) {
+                                Text("Purchased")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundColor(.secondary)
                             } else {
                                 Text(self.store.priceText(for: .removeAds))
                                     .font(.subheadline.weight(.semibold))
@@ -83,7 +95,11 @@ struct MoreInAppPurchasePlansView: View {
                     }
                 )
                 .buttonStyle(.plain)
-                .disabled(self.store.isLoading || self.store.activeProductID != nil)
+                .disabled(
+                    self.store.isLoading ||
+                    self.store.activeProductID != nil ||
+                    self.store.isPurchased(.removeAds)
+                )
             }
         }
         .navigationTitle("More Plans")
