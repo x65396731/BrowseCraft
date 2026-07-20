@@ -95,9 +95,20 @@ targets:
       - name: Patch FFmpegKit Bundle Identifiers
         basedOnDependencyAnalysis: false
         script: |
-          FRAMEWORK_PLIST="${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Frameworks/libshaderc_combined.framework/Info.plist"
+          FRAMEWORK_PATH="${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Frameworks/libshaderc_combined.framework"
+          FRAMEWORK_PLIST="${FRAMEWORK_PATH}/Info.plist"
           if [ -f "$FRAMEWORK_PLIST" ]; then
             /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.kintan.ksplayer.libshaderc-combined" "$FRAMEWORK_PLIST"
+
+            # The framework has already been signed by the embed phase. Changing
+            # Info.plist invalidates that signature and leaves its identifier at
+            # the original underscore-based value, so sign the patched bundle again.
+            if [ -n "${EXPANDED_CODE_SIGN_IDENTITY:-}" ] && [ "${CODE_SIGNING_ALLOWED:-YES}" != "NO" ]; then
+              /usr/bin/codesign --force \
+                --sign "$EXPANDED_CODE_SIGN_IDENTITY" \
+                --preserve-metadata=entitlements,flags,runtime \
+                "$FRAMEWORK_PATH"
+            fi
           fi
 
   BrowseCraftTests:

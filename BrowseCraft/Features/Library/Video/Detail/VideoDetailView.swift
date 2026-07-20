@@ -204,7 +204,8 @@ private struct VideoDetailHeroImageView: View {
         CoverImageView(
             urlString: self.viewModel.item.coverURL,
             refererURLString: self.viewModel.item.detailURL,
-            requestConfig: nil
+            requestConfig: nil,
+            placeholderImageName: "VideoDetailPlaceholder"
         )
         .frame(maxWidth: .infinity)
         .frame(height: UIScreen.main.bounds.width * 1.05)

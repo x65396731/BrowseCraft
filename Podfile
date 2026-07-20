@@ -31,6 +31,9 @@ post_install do |installer|
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '17.0'
       config.build_settings['LIBRARY_SEARCH_PATHS'] = ['$(inherited)']
+      # TEST BrowseCraft archives with the Debug configuration. Dynamic pod
+      # frameworks still need standalone dSYMs when that archive is uploaded.
+      config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf-with-dsym'
     end
   end
 

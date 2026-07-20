@@ -10,16 +10,19 @@ struct ItemThumbnailImageView: View {
     let urlString: String?
     let refererURLString: String?
     let requestConfig: RequestConfig?
+    let placeholderImageName: String?
     @State private var candidateIndex: Int = 0
 
     init(
         urlString: String?,
         refererURLString: String? = nil,
-        requestConfig: RequestConfig? = nil
+        requestConfig: RequestConfig? = nil,
+        placeholderImageName: String? = nil
     ) {
         self.urlString = urlString
         self.refererURLString = refererURLString
         self.requestConfig = requestConfig
+        self.placeholderImageName = placeholderImageName
     }
 
     var body: some View {
@@ -107,14 +110,21 @@ struct ItemThumbnailImageView: View {
         return ItemThumbnailImageCachePlugin.thumbnailRequest(from: request)
     }
 
+    @ViewBuilder
     private var placeholder: some View {
-        ZStack {
-            Rectangle()
-                .fill(Color(.secondarySystemFill))
+        if let placeholderImageName: String = self.placeholderImageName {
+            SwiftUI.Image(placeholderImageName)
+                .resizable()
+                .scaledToFill()
+        } else {
+            ZStack {
+                Rectangle()
+                    .fill(Color(.secondarySystemFill))
 
-            SwiftUI.Image(systemName: "photo")
-                .font(.title2)
-                .foregroundColor(.secondary)
+                SwiftUI.Image(systemName: "photo")
+                    .font(.title2)
+                    .foregroundColor(.secondary)
+            }
         }
     }
 }

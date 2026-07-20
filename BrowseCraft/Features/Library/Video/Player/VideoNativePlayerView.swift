@@ -76,7 +76,7 @@ private struct NativePlayerRepresentable: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> IOSVideoPlayerView {
-        let playerView: IOSVideoPlayerView = IOSVideoPlayerView()
+        let playerView: IOSVideoPlayerView = BrowseCraftNativePlayerView()
         context.coordinator.attach(to: playerView)
         self.configure(playerView, coordinator: context.coordinator)
         return playerView
@@ -255,5 +255,37 @@ private struct NativePlayerRepresentable: UIViewRepresentable {
         func playerController(bufferedCount _: Int, consumeTime _: TimeInterval) {}
 
         func playerController(seek _: TimeInterval) {}
+    }
+}
+
+/// 中文注释：KSPlayer 默认把 25pt 宽的返回按钮放在播放器 y=0 的顶栏中。
+/// 播放器忽略 SwiftUI 安全区后，该位置会落入状态栏或灵动岛区域，因此在适配层修正布局和点击传递。
+private final class BrowseCraftNativePlayerView: IOSVideoPlayerView {
+    override func customizeUIComponents() {
+        super.customizeUIComponents()
+
+        self.backButton.accessibilityLabel = "Close Player"
+        self.backButton.accessibilityIdentifier = "video-native-player-close"
+        self.tapGesture.cancelsTouchesInView = false
+        self.updateBackButtonLayout()
+    }
+
+    override func safeAreaInsetsDidChange() {
+        super.safeAreaInsetsDidChange()
+        self.updateBackButtonLayout()
+    }
+
+    private func updateBackButtonLayout() {
+        self.navigationBar.transform = CGAffineTransform(
+            translationX: 0,
+            y: self.safeAreaInsets.top
+        )
+
+        self.backButton.constraints
+            .first(where: { constraint in
+                constraint.firstAttribute == .width
+                    && constraint.relation == .equal
+            })?
+            .constant = 44
     }
 }

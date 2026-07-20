@@ -94,7 +94,8 @@ private struct VideoLibraryCardView: View {
             ItemThumbnailImageView(
                 urlString: self.item.coverURL,
                 refererURLString: self.item.detailURL,
-                requestConfig: self.imageRequestConfig
+                requestConfig: self.imageRequestConfig,
+                placeholderImageName: "VideoListPlaceholder"
             )
             .aspectRatio(129.0 / 194.0, contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
