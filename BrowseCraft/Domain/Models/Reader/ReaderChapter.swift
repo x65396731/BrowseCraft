@@ -3,7 +3,9 @@ import BrowseCraftCore
 
 // 中文注释：ReaderChapter 是阅读器渲染章节页面时使用的标准化章节内容。
 
-enum ReaderPageResource: Hashable {
+// 中文注释：保护页关联值会携带完整资源规则；间接存储避免 Reader 的 SwiftUI
+// 深层布局在逐页传值时为最大规则关联值申请过大的真机主线程栈帧。
+indirect enum ReaderPageResource: Hashable {
     case remoteImageURL(String)
     case protectedResource(ProtectedReaderImageReference)
 
@@ -49,7 +51,8 @@ struct ProtectedReaderImageReference: Hashable {
 }
 
 /// 中文注释：Reader 只持有“如何加载受保护图片”的领域描述，不在界面层解释 Core pipeline 规则。
-enum ProtectedReaderImageExecution: Hashable {
+// 中文注释：执行描述包含 legacy 或 pipeline 完整规则，保持引用大小后再传入图片子 View。
+indirect enum ProtectedReaderImageExecution: Hashable {
     case legacy(LegacyProtectedReaderImageReference)
     case pipeline(ResourcePipelineReaderImageReference)
 }

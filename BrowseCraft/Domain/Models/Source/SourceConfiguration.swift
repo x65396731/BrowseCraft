@@ -2,7 +2,9 @@ import Foundation
 import BrowseCraftCore
 
 // 中文注释：SourceConfiguration 是长期 source config 边界；漫画配置内部仍可由网站规则驱动。
-enum SourceConfiguration: Codable, Hashable {
+// 中文注释：各 runtime 配置内含完整规则树。使用间接枚举把关联值放到堆上，
+// 避免 SwiftUI 真机深层布局传递 Source 时为最大关联值申请过大的栈帧。
+indirect enum SourceConfiguration: Codable, Hashable {
     case comic(ComicSourceConfiguration)
     case rss(RSSSourceConfiguration)
     case video(VideoSourceConfiguration)
