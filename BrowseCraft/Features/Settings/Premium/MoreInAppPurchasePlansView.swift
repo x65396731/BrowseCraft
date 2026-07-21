@@ -4,12 +4,7 @@ struct MoreInAppPurchasePlansView: View {
     @ObservedObject var store: InAppPurchaseStore
     let closeAction: () -> Void
 
-    private let plans: [InAppPurchasePlan] = [
-        .siteSlot1,
-        .siteSlot5,
-        .siteSlot10,
-        .siteSlot30
-    ]
+    private let plans: [InAppPurchasePlan] = InAppPurchasePlan.activePlans
 
     var body: some View {
         List {
@@ -42,7 +37,7 @@ struct MoreInAppPurchasePlansView: View {
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundColor(.secondary)
                             } else {
-                                Text(self.store.priceText(for: plan))
+                                Text(self.store.priceText(for: plan) ?? "Unavailable")
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundColor(.secondary)
                             }
@@ -58,49 +53,6 @@ struct MoreInAppPurchasePlansView: View {
                 .padding(.vertical, 4)
             }
 
-            Section {
-                Button(
-                    action: {
-                        Task {
-                            await self.store.purchase(.removeAds)
-                        }
-                    },
-                    label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: InAppPurchasePlan.removeAds.systemImage)
-                                .foregroundColor(.accentColor)
-                                .frame(width: 24)
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(InAppPurchasePlan.removeAds.title)
-                                Text(InAppPurchasePlan.removeAds.subtitle)
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            Spacer()
-
-                            if self.store.activeProductID == InAppPurchasePlan.removeAds.productID {
-                                ProgressView()
-                            } else if self.store.isPurchased(.removeAds) {
-                                Text("Purchased")
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundColor(.secondary)
-                            } else {
-                                Text(self.store.priceText(for: .removeAds))
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-                )
-                .buttonStyle(.plain)
-                .disabled(
-                    self.store.isLoading ||
-                    self.store.activeProductID != nil ||
-                    self.store.isPurchased(.removeAds)
-                )
-            }
         }
         .navigationTitle("More Plans")
         .navigationBarTitleDisplayMode(.inline)

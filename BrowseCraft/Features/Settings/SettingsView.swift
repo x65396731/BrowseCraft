@@ -23,8 +23,9 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
+        ZStack {
+            NavigationStack {
+                Form {
                 Section {
                     NavigationLink(
                         destination: ProfileSettingsView(
@@ -74,7 +75,11 @@ struct SettingsView: View {
 
                     Button(
                         action: {
-                            self.isShowingInAppPurchase = true
+                            var transaction: SwiftUI.Transaction = SwiftUI.Transaction(animation: nil)
+                            transaction.disablesAnimations = true
+                            withTransaction(transaction) {
+                                self.isShowingInAppPurchase = true
+                            }
                         },
                         label: {
                             SettingsRow(
@@ -214,7 +219,16 @@ struct SettingsView: View {
             } message: {
                 Text(self.adPlaybackViewModel.message ?? "")
             }
-            .sheet(isPresented: self.$isShowingInAppPurchase) {
+            .onAppear {
+                self.viewModel.refreshDiagnosticCode()
+                CrashDiagnostics.shared.setScreen(.settings)
+                AppAnalytics.shared.logScreenView(.settings)
+            }
+            }
+            .allowsHitTesting(self.isShowingInAppPurchase == false)
+            .accessibilityHidden(self.isShowingInAppPurchase)
+
+            if self.isShowingInAppPurchase {
                 InAppPurchaseSheetView(
                     applyPurchaseAction: { transaction, plan in
                         try self.viewModel.applyStoreKitPurchase(
@@ -224,15 +238,24 @@ struct SettingsView: View {
                     },
                     restorePurchasesAction: {
                         try await self.viewModel.restoreStoreKitPurchases()
+                    },
+                    closeAction: {
+                        var transaction: SwiftUI.Transaction = SwiftUI.Transaction(animation: nil)
+                        transaction.disablesAnimations = true
+                        withTransaction(transaction) {
+                            self.isShowingInAppPurchase = false
+                        }
                     }
                 )
-            }
-            .onAppear {
-                self.viewModel.refreshDiagnosticCode()
-                CrashDiagnostics.shared.setScreen(.settings)
-                AppAnalytics.shared.logScreenView(.settings)
+                .background(Color.black.ignoresSafeArea())
+                .transition(.identity)
+                .zIndex(1)
             }
         }
+        .toolbar(
+            self.isShowingInAppPurchase ? .hidden : .visible,
+            for: .tabBar
+        )
     }
 
     private var imageCacheLimitBinding: Binding<ImageCacheLimitOption> {

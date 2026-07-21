@@ -2,15 +2,20 @@ import StoreKit
 import SwiftUI
 
 struct InAppPurchaseSheetView: View {
-    @Environment(\.dismiss) private var dismiss
     @StateObject private var store: InAppPurchaseStore
+    private let animationAssets: PurchaseAnimationPlayerView.Assets
+    private let closeAction: () -> Void
 
     init(
         applyPurchaseAction: @escaping @MainActor (StoreKit.Transaction, InAppPurchasePlan) async throws -> Void = { _, _ in },
         restorePurchasesAction: @escaping @MainActor () async throws -> Void = {
             try await AppStore.sync()
-        }
+        },
+        closeAction: @escaping () -> Void = {},
+        animationResource: BundledPurchaseAnimationResource = BundledPurchaseAnimationResource()
     ) {
+        self.animationAssets = PurchaseAnimationPlayerView.Assets(resource: animationResource)
+        self.closeAction = closeAction
         _store = StateObject(
             wrappedValue: InAppPurchaseStore(
                 applyPurchaseAction: applyPurchaseAction,
@@ -20,20 +25,17 @@ struct InAppPurchaseSheetView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        ZStack {
+            PurchaseAnimationPlayerView(
+                assets: self.animationAssets,
+                isPlaybackEnabled: self.store.status.suspendsBackgroundAnimation == false
+            )
+
             InAppPurchasePlanSelectionView(
                 store: self.store,
-                closeAction: {
-                    self.dismiss()
-                }
+                closeAction: self.closeAction
             )
         }
-        .alert("In-App Purchase", isPresented: self.store.statusAlertBinding) {
-            Button("OK") {
-                self.store.statusMessage = nil
-            }
-        } message: {
-            Text(self.store.statusMessage ?? "")
-        }
+        .preferredColorScheme(.dark)
     }
 }

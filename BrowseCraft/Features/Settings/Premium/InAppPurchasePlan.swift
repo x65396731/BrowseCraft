@@ -11,7 +11,6 @@ struct InAppPurchasePlan: Identifiable {
     let subtitle: String
     let systemImage: String
     let productID: String
-    let fallbackPrice: String
     let productKind: ProductKind
     let siteSlotIncrement: Int
     let vipMonthDuration: Int
@@ -26,7 +25,6 @@ struct InAppPurchasePlan: Identifiable {
         subtitle: String,
         systemImage: String,
         productID: String,
-        fallbackPrice: String,
         productKind: ProductKind,
         siteSlotIncrement: Int = 0,
         vipMonthDuration: Int = 0,
@@ -36,7 +34,6 @@ struct InAppPurchasePlan: Identifiable {
         self.subtitle = subtitle
         self.systemImage = systemImage
         self.productID = productID
-        self.fallbackPrice = fallbackPrice
         self.productKind = productKind
         self.siteSlotIncrement = siteSlotIncrement
         self.vipMonthDuration = vipMonthDuration
@@ -48,7 +45,6 @@ struct InAppPurchasePlan: Identifiable {
         subtitle: "Best value for full access",
         systemImage: "calendar.badge.clock",
         productID: "com.xiefei.AnyPortal.premium.year",
-        fallbackPrice: "$19.99",
         productKind: .nonRenewingSubscription,
         vipMonthDuration: 12
     )
@@ -58,7 +54,6 @@ struct InAppPurchasePlan: Identifiable {
         subtitle: "Flexible seasonal access",
         systemImage: "calendar",
         productID: "com.xiefei.AnyPortal.premium.quarter",
-        fallbackPrice: "$6.99",
         productKind: .nonRenewingSubscription,
         vipMonthDuration: 3
     )
@@ -68,7 +63,6 @@ struct InAppPurchasePlan: Identifiable {
         subtitle: "Try premium features first",
         systemImage: "calendar.badge.plus",
         productID: "com.xiefei.AnyPortal.premium.month",
-        fallbackPrice: "$2.99",
         productKind: .nonRenewingSubscription,
         vipMonthDuration: 1
     )
@@ -78,7 +72,6 @@ struct InAppPurchasePlan: Identifiable {
         subtitle: "Add one custom site slot",
         systemImage: "square.grid.2x2",
         productID: "com.xiefei.AnyPortal.site.unlock.1",
-        fallbackPrice: "$0.99",
         productKind: .nonConsumable,
         siteSlotIncrement: 1
     )
@@ -88,7 +81,6 @@ struct InAppPurchasePlan: Identifiable {
         subtitle: "Add five custom site slots",
         systemImage: "square.grid.3x2",
         productID: "com.xiefei.AnyPortal.site.unlock.5",
-        fallbackPrice: "$3.99",
         productKind: .nonConsumable,
         siteSlotIncrement: 5
     )
@@ -98,7 +90,6 @@ struct InAppPurchasePlan: Identifiable {
         subtitle: "Add ten custom site slots",
         systemImage: "square.grid.3x3",
         productID: "com.xiefei.AnyPortal.site.unlock.10",
-        fallbackPrice: "$6.99",
         productKind: .nonConsumable,
         siteSlotIncrement: 10
     )
@@ -108,7 +99,6 @@ struct InAppPurchasePlan: Identifiable {
         subtitle: "Add thirty custom site slots",
         systemImage: "rectangle.grid.3x2",
         productID: "com.xiefei.AnyPortal.site.unlock.30",
-        fallbackPrice: "$14.99",
         productKind: .nonConsumable,
         siteSlotIncrement: 30
     )
@@ -118,15 +108,12 @@ struct InAppPurchasePlan: Identifiable {
         subtitle: "Hide rewarded ad prompts permanently",
         systemImage: "nosign",
         productID: "com.xiefei.AnyPortal.remove.ads",
-        fallbackPrice: "$4.99",
         productKind: .nonConsumable,
         removesAds: true
     )
 
-    static let allPlans: [InAppPurchasePlan] = [
-        .year,
-        .quarter,
-        .month,
+    /// Products that are currently available for display and new purchases.
+    static let activePlans: [InAppPurchasePlan] = [
         .siteSlot1,
         .siteSlot5,
         .siteSlot10,
@@ -134,8 +121,18 @@ struct InAppPurchasePlan: Identifiable {
         .removeAds
     ]
 
+    /// Products hidden from new purchases but retained for transaction compatibility.
+    static let inactivePlans: [InAppPurchasePlan] = [
+        .year,
+        .quarter,
+        .month
+    ]
+
+    /// Every trusted product ID that the app can recognize in existing transactions.
+    static let knownPlans: [InAppPurchasePlan] = Self.activePlans + Self.inactivePlans
+
     static let plansByProductID: [String: InAppPurchasePlan] = Dictionary(
-        uniqueKeysWithValues: Self.allPlans.map { plan in
+        uniqueKeysWithValues: Self.knownPlans.map { plan in
             return (plan.productID, plan)
         }
     )
