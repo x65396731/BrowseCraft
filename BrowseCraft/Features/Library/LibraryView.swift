@@ -6,7 +6,6 @@ import SwiftUI
 struct LibraryView: View {
     @ObservedObject var viewModel: LibraryViewModel
     let contentViewModelFactory: LibraryContentViewModelFactory
-    @State private var didLoadInitialData: Bool = false
     @State private var selectedComicDestination: LibraryComicDestination?
 
     var body: some View {
@@ -143,12 +142,9 @@ struct LibraryView: View {
             .onAppear {
                 CrashDiagnostics.shared.setScreen(.library)
                 AppAnalytics.shared.logScreenView(.library)
-                if self.didLoadInitialData == false {
-                    self.didLoadInitialData = true
-                    Task {
-                        await self.viewModel.load()
-                    }
-                }
+            }
+            .task {
+                _ = await self.viewModel.loadIfNeeded()
             }
             .alert(isPresented: self.errorAlertBinding) {
                 Alert(

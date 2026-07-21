@@ -4,6 +4,7 @@ import SwiftUI
 
 /// 中文注释：RootView 持有应用主 Tab 导航。
 /// 中文注释：每个 Tab 的 ViewModel 都通过 AppContainer 创建，并用 @StateObject 保持生命周期。
+@MainActor
 struct RootView: View {
     private enum RootTab: Hashable {
         case sources
@@ -21,21 +22,71 @@ struct RootView: View {
     @StateObject private var libraryViewModel: LibraryViewModel
     @StateObject private var historyViewModel: HistoryViewModel
     @StateObject private var settingsViewModel: SettingsViewModel
+    @StateObject private var startupCoordinator: StartupCoordinator
     @State private var selectedTab: RootTab = .library
-    @State private var didResolveInitialTab: Bool = false
 
     init(container: AppContainer) {
+        let sourcesViewModel: SourcesViewModel = container.makeSourcesViewModel()
+        let libraryViewModel: LibraryViewModel = container.makeLibraryViewModel()
+
         self.browserRequestHeaderProvider = container.browserRequestHeaderProvider
         self.systemCookieHeaderProvider = container.systemCookieHeaderProvider
         self.libraryContentViewModelFactory = container.makeLibraryContentViewModelFactory()
-        _sourcesViewModel = StateObject(wrappedValue: container.makeSourcesViewModel())
+        _sourcesViewModel = StateObject(wrappedValue: sourcesViewModel)
         _favoritesViewModel = StateObject(wrappedValue: container.makeFavoritesViewModel())
-        _libraryViewModel = StateObject(wrappedValue: container.makeLibraryViewModel())
+        _libraryViewModel = StateObject(wrappedValue: libraryViewModel)
         _historyViewModel = StateObject(wrappedValue: container.makeHistoryViewModel())
         _settingsViewModel = StateObject(wrappedValue: container.makeSettingsViewModel())
+        _startupCoordinator = StateObject(
+            wrappedValue: StartupCoordinator(
+                dependencies: StartupCoordinator.Dependencies(
+                    hasSources: {
+                        return try sourcesViewModel.loadForStartup()
+                    },
+                    loadSelectedSource: {
+                        return await libraryViewModel.loadIfNeeded()
+                    }
+                )
+            )
+        )
     }
 
     var body: some View {
+        ZStack {
+            self.mainTabView
+                .allowsHitTesting(self.startupCoordinator.phase.isDismissed)
+                .accessibilityHidden(self.startupCoordinator.phase.isDismissed == false)
+
+            if self.startupCoordinator.phase.isDismissed == false {
+                StartupAnimationView(
+                    phase: self.startupCoordinator.phase,
+                    skipAction: self.skipStartupAnimation,
+                    videoFailureAction: self.startupCoordinator.reportVideoPlaybackFailure
+                )
+                .transition(.opacity)
+                .zIndex(1)
+            }
+        }
+        .environment(\.browserRequestHeaderProvider, self.browserRequestHeaderProvider)
+        .environment(\.systemCookieHeaderProvider, self.systemCookieHeaderProvider)
+        .task {
+            self.startupCoordinator.start()
+        }
+        .task {
+            await self.settingsViewModel.observeStoreKitTransactions()
+        }
+        .onChange(of: self.sourcesViewModel.latestSourceAddID) { _, sourceID in
+            guard sourceID != nil else {
+                return
+            }
+
+            DispatchQueue.main.async {
+                self.selectedTab = .library
+            }
+        }
+    }
+
+    private var mainTabView: some View {
         TabView(selection: self.$selectedTab) {
             SourcesView(viewModel: self.sourcesViewModel)
                 .tabItem {
@@ -81,36 +132,20 @@ struct RootView: View {
                 }
                 .tag(RootTab.settings)
         }
-        .environment(\.browserRequestHeaderProvider, self.browserRequestHeaderProvider)
-        .environment(\.systemCookieHeaderProvider, self.systemCookieHeaderProvider)
-        .task {
-            await self.settingsViewModel.observeStoreKitTransactions()
-        }
-        .onAppear {
-            DispatchQueue.main.async {
-                self.resolveInitialTabIfNeeded()
-            }
-        }
-        .onChange(of: self.sourcesViewModel.latestSourceAddID) { _, sourceID in
-            guard sourceID != nil else {
+    }
+
+    private func skipStartupAnimation() {
+        withAnimation(.easeOut(duration: 0.28)) {
+            guard let destination: StartupDestination = self.startupCoordinator.skip() else {
                 return
             }
 
-            DispatchQueue.main.async {
+            switch destination {
+            case .sources:
+                self.selectedTab = .sources
+            case .library:
                 self.selectedTab = .library
             }
-        }
-    }
-
-    private func resolveInitialTabIfNeeded() {
-        if self.didResolveInitialTab {
-            return
-        }
-
-        self.didResolveInitialTab = true
-        self.sourcesViewModel.load()
-        if self.sourcesViewModel.sources.isEmpty {
-            self.selectedTab = .sources
         }
     }
 }

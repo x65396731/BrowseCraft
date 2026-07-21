@@ -4,6 +4,14 @@ import BrowseCraftCore
 
 // 中文注释：LibraryViewModel 负责 Library 当前 source、runtime 刷新、当前快照和列表状态。
 
+/// 中文注释：Library 首次加载只向 App 装配层暴露流程结果，具体错误仍由现有 Library 状态展示。
+enum LibraryInitialLoadOutcome: Equatable {
+    case noSources
+    case loaded
+    case failed
+    case cancelled
+}
+
 /// 中文注释：LibraryViewModel 以 SourceRuntimeKind 作为 Library 展示和刷新入口。
 final class LibraryViewModel: ObservableObject {
     @Published private(set) var items: [ContentItem] = []
@@ -34,6 +42,9 @@ final class LibraryViewModel: ObservableObject {
     private let now: () -> Date
     private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
     private var listStateStore: LibraryListStateStore = LibraryListStateStore()
+    /// 中文注释：启动加载使用共享 Task 合并并发调用，动画层消失不会取消实际网络加载。
+    private var initialLoadTask: Task<LibraryInitialLoadOutcome, Never>?
+    private var initialLoadOutcome: LibraryInitialLoadOutcome?
     /// 中文注释：刷新令牌用于避免旧 source 的慢请求回写或提前关闭当前 source 的 loading。
     private var refreshToken: Int = 0
 
@@ -71,8 +82,40 @@ final class LibraryViewModel: ObservableObject {
     }
 
     @MainActor
-    /// 中文注释：load 方法封装当前类型的一段业务或界面行为。
+    /// 中文注释：保留旧调用入口；实际加载由 loadIfNeeded 合并，避免启动动画和 Library 页面重复请求。
     func load() async {
+        _ = await self.loadIfNeeded()
+    }
+
+    @MainActor
+    func loadIfNeeded() async -> LibraryInitialLoadOutcome {
+        if let initialLoadOutcome: LibraryInitialLoadOutcome = self.initialLoadOutcome {
+            return initialLoadOutcome
+        }
+
+        if let initialLoadTask: Task<LibraryInitialLoadOutcome, Never> = self.initialLoadTask {
+            return await initialLoadTask.value
+        }
+
+        let initialLoadTask: Task<LibraryInitialLoadOutcome, Never> = Task { [weak self] in
+            guard let self else {
+                return .cancelled
+            }
+
+            return await self.performInitialLoad()
+        }
+        self.initialLoadTask = initialLoadTask
+
+        let outcome: LibraryInitialLoadOutcome = await initialLoadTask.value
+        self.initialLoadTask = nil
+        if outcome != .cancelled {
+            self.initialLoadOutcome = outcome
+        }
+        return outcome
+    }
+
+    @MainActor
+    private func performInitialLoad() async -> LibraryInitialLoadOutcome {
         do {
             try self.syncBuiltInSourcesUseCase.execute()
             self.sources = try self.loadSourcesUseCase.execute()
@@ -95,10 +138,17 @@ final class LibraryViewModel: ObservableObject {
             )
             #endif
 
-            await self.refreshSelectedListTab()
+            guard self.selectedSource != nil else {
+                return .noSources
+            }
+
+            return await self.refreshSelectedListTab()
+        } catch is CancellationError {
+            return .cancelled
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "library-load-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+            return .failed
         }
     }
 
@@ -121,15 +171,16 @@ final class LibraryViewModel: ObservableObject {
     }
 
     @MainActor
-    func refreshSelectedListTab() async {
+    @discardableResult
+    func refreshSelectedListTab() async -> LibraryInitialLoadOutcome {
         guard self.selectedSource != nil else {
-            return
+            return .noSources
         }
 
         CrashDiagnostics.shared.setRuleStage(.list)
         self.ensureSelectedListTab()
         guard let refreshedSelectedSource: Source = self.selectedSource else {
-            return
+            return .noSources
         }
 
         let expectedSourceID: String = refreshedSelectedSource.id
@@ -141,6 +192,7 @@ final class LibraryViewModel: ObservableObject {
         let currentRefreshToken: Int = self.refreshToken
         let requestID: Int = currentRefreshToken
         var shouldRefreshReplacementTab: Bool = false
+        var outcome: LibraryInitialLoadOutcome = .cancelled
         self.isRefreshing = true
         #if DEBUG
         print(
@@ -200,6 +252,7 @@ final class LibraryViewModel: ObservableObject {
                 )
                 #endif
                 self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs()
+                outcome = .loaded
             } else {
                 #if DEBUG
                 print(
@@ -223,6 +276,7 @@ final class LibraryViewModel: ObservableObject {
                     sourceID: expectedSourceID,
                     context: expectedListContext
                 )
+                outcome = .failed
             }
         }
 
@@ -233,8 +287,10 @@ final class LibraryViewModel: ObservableObject {
         if shouldRefreshReplacementTab,
            self.refreshToken == currentRefreshToken,
            self.selectedSourceID == expectedSourceID {
-            await self.refreshSelectedListTab()
+            return await self.refreshSelectedListTab()
         }
+
+        return outcome
     }
 
     @MainActor

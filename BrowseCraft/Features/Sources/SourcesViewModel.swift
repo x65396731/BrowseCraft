@@ -80,15 +80,27 @@ final class SourcesViewModel: ObservableObject {
     }
 
     @MainActor
-    /// 中文注释：load 方法封装当前类型的一段业务或界面行为。
+    /// 中文注释：普通页面加载沿用现有错误展示；启动层通过 loadForStartup 区分无源和读取失败。
     func load() {
+        do {
+            _ = try self.loadForStartup()
+        } catch {
+            // 中文注释：错误已经由 loadForStartup 记录并发布给 Sources 页面。
+        }
+    }
+
+    @MainActor
+    func loadForStartup() throws -> Bool {
         do {
             try self.syncBuiltInSourcesUseCase.execute()
             let loadedSources: [Source] = try self.loadSourcesUseCase.execute()
             self.sources = loadedSources
+            self.errorMessage = nil
+            return loadedSources.isEmpty == false
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-load-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+            throw error
         }
     }
 

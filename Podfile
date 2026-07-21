@@ -37,6 +37,32 @@ post_install do |installer|
     end
   end
 
+  # NukeUI 0.8 resolves Gifu 3.x, whose GIF helper still uses the
+  # MobileCoreServices UTI API deprecated in iOS 15. Keep the compatibility
+  # dependency while compiling it against UniformTypeIdentifiers instead.
+  gifu_image_source_helper = File.join(
+    installer.sandbox.root,
+    'Gifu/Sources/Gifu/Helpers/ImageSourceHelpers.swift'
+  )
+  if File.exist?(gifu_image_source_helper)
+    content = File.read(gifu_image_source_helper)
+    patched = content
+      .sub('import MobileCoreServices', 'import UniformTypeIdentifiers')
+      .sub(
+        'let isTypeGIF = UTTypeConformsTo(CGImageSourceGetType(self) ?? "" as CFString, kUTTypeGIF)',
+        <<~'SWIFT'.strip
+          let isTypeGIF = CGImageSourceGetType(self)
+            .flatMap { UTType($0 as String) }?
+            .conforms(to: .gif) == true
+        SWIFT
+      )
+      .sub(
+        'return isTypeGIF != false && imageCount > 1',
+        'return isTypeGIF && imageCount > 1'
+      )
+    File.write(gifu_image_source_helper, patched) if patched != content
+  end
+
   # Xcode 26 expands the old CocoaPods Swift runtime search path into a
   # cryptexd Metal toolchain path and reports it as a missing search path.
   Dir.glob(File.join(installer.sandbox.root, 'Target Support Files/**/*.xcconfig')).each do |xcconfig|
