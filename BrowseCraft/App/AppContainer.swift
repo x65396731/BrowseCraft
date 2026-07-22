@@ -180,7 +180,7 @@ final class AppContainer {
 
     func startCloudAccountMonitoring() async {
         await self.cloudSyncCoordinator.start()
-        await self.cloudAccountSession.start()
+        await self.cloudAccountSession.startIfPreviouslyEnabled()
     }
 
     func handleAppBecameActive() async {

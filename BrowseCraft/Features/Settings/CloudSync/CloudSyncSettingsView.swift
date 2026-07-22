@@ -33,6 +33,20 @@ struct CloudSyncSettingsView: View {
             )
             .presentationDetents([.medium, .large])
         }
+        .alert(item: self.activationIssueBinding) { issue in
+            Alert(
+                title: Text(self.activationIssueTitle(issue)),
+                message: Text(self.activationIssueMessage(issue)),
+                primaryButton: .default(Text("Check Again")) {
+                    Task {
+                        await self.viewModel.setCloudSyncEnabled(true)
+                    }
+                },
+                secondaryButton: .cancel(Text("Not Now")) {
+                    self.viewModel.dismissActivationIssue()
+                }
+            )
+        }
     }
 
     private var accountSection: some View {
@@ -220,8 +234,23 @@ struct CloudSyncSettingsView: View {
         )
     }
 
+    private var activationIssueBinding: Binding<CloudSyncSettingsViewModel.ActivationIssue?> {
+        return Binding(
+            get: {
+                return self.viewModel.activationIssue
+            },
+            set: { issue in
+                if issue == nil {
+                    self.viewModel.dismissActivationIssue()
+                }
+            }
+        )
+    }
+
     private var accountStatusTitle: String {
         switch self.viewModel.accountAvailability {
+        case .notChecked:
+            return "iCloud Not Checked"
         case .checking:
             return "Checking iCloud"
         case .available:
@@ -239,6 +268,8 @@ struct CloudSyncSettingsView: View {
 
     private var accountStatusDetail: String {
         switch self.viewModel.accountAvailability {
+        case .notChecked:
+            return "Turn on Cloud Sync to check the iCloud account on this device."
         case .checking:
             return "Checking the iCloud account configured on this device."
         case .available:
@@ -256,6 +287,8 @@ struct CloudSyncSettingsView: View {
 
     private var accountStatusIcon: String {
         switch self.viewModel.accountAvailability {
+        case .notChecked:
+            return "icloud"
         case .checking:
             return "icloud"
         case .available:
@@ -275,13 +308,15 @@ struct CloudSyncSettingsView: View {
             return .green
         case .noAccount, .restricted, .temporarilyUnavailable, .couldNotDetermine:
             return .orange
-        case .checking:
+        case .notChecked, .checking:
             return .accentColor
         }
     }
 
     private var syncPreferenceFooter: String {
         switch self.viewModel.accountAvailability {
+        case .notChecked:
+            return "Turning on Cloud Sync starts an iCloud account check and shows what will be synchronized before any cloud data is loaded."
         case .checking:
             return "Cloud Sync will be available after the iCloud account check completes."
         case .available:
@@ -294,6 +329,36 @@ struct CloudSyncSettingsView: View {
             return "Sync is paused. Local data and pending upload tasks remain unchanged."
         case .couldNotDetermine:
             return "Refresh the iCloud status before enabling Cloud Sync."
+        }
+    }
+
+    private func activationIssueTitle(
+        _ issue: CloudSyncSettingsViewModel.ActivationIssue
+    ) -> String {
+        switch issue {
+        case .signInRequired:
+            return "Sign In to iCloud"
+        case .restricted:
+            return "iCloud Is Restricted"
+        case .temporarilyUnavailable:
+            return "iCloud Is Temporarily Unavailable"
+        case .statusUnavailable:
+            return "Unable to Check iCloud"
+        }
+    }
+
+    private func activationIssueMessage(
+        _ issue: CloudSyncSettingsViewModel.ActivationIssue
+    ) -> String {
+        switch issue {
+        case .signInRequired:
+            return "Open the Settings app, sign in to your Apple Account, and enable iCloud Drive. Then return here and check again."
+        case .restricted:
+            return "iCloud access is limited by parental controls or device management settings."
+        case .temporarilyUnavailable:
+            return "Your local data is unchanged. Wait for iCloud to recover, then check again."
+        case .statusUnavailable:
+            return "The iCloud account status could not be determined. Check your connection and try again."
         }
     }
 }
@@ -310,46 +375,66 @@ private struct CloudSyncFirstEnableSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("Local data was found before this iCloud account was connected. Choose how to prepare this account for its first sync.")
+                    Text("Cloud Sync stores supported app data in the private CloudKit database of the iCloud account configured on this device.")
                 }
 
-                Section("Local Data") {
-                    LabeledContent(
-                        "Custom Sources",
-                        value: String(self.request.localDataSummary.sourceCount)
-                    )
-                    LabeledContent(
-                        "Favorites",
-                        value: String(self.request.localDataSummary.favoriteItemCount)
-                    )
+                Section("Synced Content") {
+                    Label("Custom Sources", systemImage: "rectangle.stack")
+                    Label("Favorites", systemImage: "heart")
+                    Label("Reading Progress — Not Included", systemImage: "minus.circle")
+                        .foregroundStyle(.secondary)
                 }
 
-                Section {
-                    Button {
-                        self.submit(decision: .mergeLocalData)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Label("Merge Local Data", systemImage: "arrow.triangle.merge")
-                            Text("Copy local sources and favorites into this iCloud account, then sync.")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
+                if self.request.localDataSummary.hasMergeableData {
+                    Section("Local Data") {
+                        LabeledContent(
+                            "Custom Sources",
+                            value: String(self.request.localDataSummary.sourceCount)
+                        )
+                        LabeledContent(
+                            "Favorites",
+                            value: String(self.request.localDataSummary.favoriteItemCount)
+                        )
                     }
-                    .disabled(self.isSubmitting)
 
-                    Button {
-                        self.submit(decision: .useCloudDataOnly)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Label("Use iCloud Data Only", systemImage: "icloud")
-                            Text("Leave local data in its current space and restore this account from iCloud.")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
+                    Section {
+                        Button {
+                            self.submit(decision: .mergeLocalData)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Label("Merge Local Data", systemImage: "arrow.triangle.merge")
+                                Text("Copy local sources and favorites into this iCloud account, then sync.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
+                        .disabled(self.isSubmitting)
+
+                        Button {
+                            self.submit(decision: .useCloudDataOnly)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Label("Use iCloud Data Only", systemImage: "icloud")
+                                Text("Leave local data in its current space and restore this account from iCloud.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .disabled(self.isSubmitting)
+                    } footer: {
+                        Text("Neither choice deletes the existing local data.")
                     }
-                    .disabled(self.isSubmitting)
-                } footer: {
-                    Text("Neither choice deletes the existing local data.")
+                } else {
+                    Section {
+                        Button {
+                            self.submit(decision: .useCloudDataOnly)
+                        } label: {
+                            Label("Enable Cloud Sync", systemImage: "checkmark.icloud")
+                        }
+                        .disabled(self.isSubmitting)
+                    } footer: {
+                        Text("No local sources or favorites need to be merged. Nothing is uploaded until you confirm.")
+                    }
                 }
 
                 if self.isSubmitting {

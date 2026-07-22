@@ -9,7 +9,7 @@ struct SettingsView: View {
     @ObservedObject var viewModel: SettingsViewModel
     @ObservedObject private var cloudSyncViewModel: CloudSyncSettingsViewModel
     @StateObject private var adPlaybackViewModel: AdPlaybackViewModel = AdPlaybackViewModel()
-    @AppStorage("settings.displayName") private var displayName: String = "Reader"
+    @AppStorage("settings.displayName") private var displayName: String = ""
     @AppStorage("settings.email") private var email: String = ""
     @AppStorage(CrashDiagnostics.collectionEnabledDefaultsKey) private var isDiagnosticsEnabled: Bool = CrashDiagnostics.isCollectionEnabled
 
@@ -31,7 +31,7 @@ struct SettingsView: View {
                 Section {
                     NavigationLink(
                         destination: ProfileSettingsView(
-                            displayName: self.$displayName,
+                            displayName: self.profileDisplayNameBinding,
                             email: self.$email
                         )
                     ) {
@@ -41,10 +41,10 @@ struct SettingsView: View {
                                 .foregroundColor(.accentColor)
 
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(self.displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Reader" : self.displayName)
+                                Text(self.profileDisplayName)
                                     .font(.headline)
 
-                                Text(self.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Add profile details" : self.email)
+                                Text(self.profileDetail)
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                                     .lineLimit(1)
@@ -269,6 +269,48 @@ struct SettingsView: View {
         )
     }
 
+    private var profileDisplayNameBinding: Binding<String> {
+        return Binding<String>(
+            get: {
+                if self.isUsingDefaultProfileName && self.isICloudAccountAvailable {
+                    return ""
+                }
+                return self.displayName
+            },
+            set: { newValue in
+                self.displayName = newValue
+            }
+        )
+    }
+
+    private var profileDisplayName: String {
+        if self.isUsingDefaultProfileName {
+            return self.isICloudAccountAvailable ? "iCloud User" : "Reader"
+        }
+        return self.trimmedDisplayName
+    }
+
+    private var profileDetail: String {
+        let trimmedEmail: String = self.email.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedEmail.isEmpty == false {
+            return trimmedEmail
+        }
+        return self.isICloudAccountAvailable ? "Signed in with iCloud" : "Add profile details"
+    }
+
+    private var trimmedDisplayName: String {
+        return self.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var isUsingDefaultProfileName: Bool {
+        return self.trimmedDisplayName.isEmpty ||
+            self.trimmedDisplayName.caseInsensitiveCompare("Reader") == .orderedSame
+    }
+
+    private var isICloudAccountAvailable: Bool {
+        return self.cloudSyncViewModel.accountAvailability == .available
+    }
+
     private var cacheErrorAlertBinding: Binding<Bool> {
         return Binding<Bool>(
             get: {
@@ -316,6 +358,8 @@ struct SettingsView: View {
 
     private var cloudSyncDetail: String {
         switch self.cloudSyncViewModel.accountAvailability {
+        case .notChecked:
+            return "Off"
         case .checking:
             return "Checking"
         case .available:

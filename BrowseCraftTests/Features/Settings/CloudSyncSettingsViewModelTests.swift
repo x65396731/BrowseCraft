@@ -5,6 +5,22 @@ import BrowseCraftCore
 
 @MainActor
 struct CloudSyncSettingsViewModelTests {
+    @Test func firstToggleStartsAccountAccessAndThenRequestsConfirmation() async throws {
+        let context: TestContext = try Self.makeContext()
+        let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
+        await viewModel.start()
+
+        #expect(viewModel.accountAvailability == .notChecked)
+
+        await viewModel.setCloudSyncEnabled(true)
+
+        let monitoringCalls: Int = await context.stateProvider.startMonitoringCallCount()
+        #expect(monitoringCalls == 1)
+        #expect(viewModel.accountAvailability == .available)
+        #expect(viewModel.firstEnableRequest != nil)
+        #expect(viewModel.isCloudSyncEnabled == false)
+    }
+
     @Test func enablingWithLocalDataWaitsForAFirstEnableDecision() async throws {
         let context: TestContext = try Self.makeContext()
         try context.sourceRepository.saveSource(Self.makeSource())
@@ -40,13 +56,18 @@ struct CloudSyncSettingsViewModelTests {
         #expect(try context.sourceRepository.fetchSources().map(\.id) == ["source-1"])
     }
 
-    @Test func enablingWithoutLocalDataPreparesCloudOnlyWithoutPrompting() async throws {
+    @Test func enablingWithoutLocalDataStillWaitsForExplicitConfirmation() async throws {
         let context: TestContext = try Self.makeContext()
         await context.accountSession.start()
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
         await viewModel.start()
 
         await viewModel.setCloudSyncEnabled(true)
+
+        #expect(viewModel.firstEnableRequest?.localDataSummary.hasMergeableData == false)
+        #expect(viewModel.isCloudSyncEnabled == false)
+
+        await viewModel.confirmFirstEnable(decision: .useCloudDataOnly)
 
         #expect(viewModel.firstEnableRequest == nil)
         #expect(viewModel.preparation?.decision == .useCloudDataOnly)
@@ -60,6 +81,7 @@ struct CloudSyncSettingsViewModelTests {
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
         await viewModel.start()
         await viewModel.setCloudSyncEnabled(true)
+        await viewModel.confirmFirstEnable(decision: .useCloudDataOnly)
         let revisionBeforeSync: UInt64 = viewModel.contentRevision
 
         await viewModel.synchronizeNow()
@@ -118,11 +140,12 @@ struct CloudSyncSettingsViewModelTests {
         await viewModel.setCloudSyncEnabled(true)
 
         #expect(viewModel.accountAvailability == .noAccount)
-        #expect(viewModel.canChangeCloudSyncEnabled == false)
+        #expect(viewModel.canChangeCloudSyncEnabled)
         #expect(viewModel.canSynchronizeNow == false)
         #expect(viewModel.isCloudSyncEnabled == false)
         #expect(viewModel.initialRestoreState == .notRequired)
-        #expect(viewModel.actionErrorMessage != nil)
+        #expect(viewModel.activationIssue == .signInRequired)
+        #expect(viewModel.actionErrorMessage == nil)
     }
 
     @Test func temporaryAccountOutagePausesSyncButRetainsPreferenceAndPreparation() async throws {
@@ -131,6 +154,7 @@ struct CloudSyncSettingsViewModelTests {
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
         await viewModel.start()
         await viewModel.setCloudSyncEnabled(true)
+        await viewModel.confirmFirstEnable(decision: .useCloudDataOnly)
         await context.stateProvider.setState(
             CloudAccountState(
                 availability: .temporarilyUnavailable,
@@ -142,7 +166,7 @@ struct CloudSyncSettingsViewModelTests {
 
         #expect(viewModel.accountAvailability == .temporarilyUnavailable)
         #expect(viewModel.isCloudSyncEnabled)
-        #expect(viewModel.canChangeCloudSyncEnabled == false)
+        #expect(viewModel.canChangeCloudSyncEnabled)
         #expect(viewModel.canSynchronizeNow == false)
         #expect(viewModel.initialRestoreState == .waitingForCloud)
         #expect(try context.partitionStore.preparation(for: context.cloudScope) != nil)
@@ -154,6 +178,7 @@ struct CloudSyncSettingsViewModelTests {
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
         await viewModel.start()
         await viewModel.setCloudSyncEnabled(true)
+        await viewModel.confirmFirstEnable(decision: .useCloudDataOnly)
         try context.sourceRepository.saveSource(Self.makeSource())
         let pendingBeforeDisable: [SourceSyncPendingUpload] = try context.sourceSyncLocalStore
             .pendingUploads(accountScope: context.cloudScope)
@@ -175,6 +200,7 @@ struct CloudSyncSettingsViewModelTests {
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
         await viewModel.start()
         await viewModel.setCloudSyncEnabled(true)
+        await viewModel.confirmFirstEnable(decision: .useCloudDataOnly)
         context.cloudStore.failNextFetch = true
 
         await viewModel.synchronizeNow()
@@ -206,6 +232,7 @@ struct CloudSyncSettingsViewModelTests {
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
         await viewModel.start()
         await viewModel.setCloudSyncEnabled(true)
+        await viewModel.confirmFirstEnable(decision: .useCloudDataOnly)
         try context.sourceRepository.saveSource(Self.makeSource())
         context.cloudStore.failNextSave = true
 
@@ -230,6 +257,7 @@ struct CloudSyncSettingsViewModelTests {
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
         await viewModel.start()
         await viewModel.setCloudSyncEnabled(true)
+        await viewModel.confirmFirstEnable(decision: .useCloudDataOnly)
         await viewModel.synchronizeNow()
         context.cloudStore.failNextFetch = true
         await viewModel.synchronizeNow()

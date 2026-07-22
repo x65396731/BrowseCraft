@@ -66,6 +66,11 @@ actor CloudKitAccountStateService: CloudAccountStateProviding {
     }
 
     func refresh() async {
+        if self.state.availability == .notChecked {
+            self.updateState(
+                CloudAccountState(availability: .checking, scope: .localDefault)
+            )
+        }
         do {
             let accountStatus: CKAccountStatus = try await self.loadAccountStatus()
             await self.resolve(accountStatus)

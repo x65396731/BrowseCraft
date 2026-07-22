@@ -1,7 +1,48 @@
+import Foundation
 import Testing
 @testable import BrowseCraft
 
 struct CloudAccountSessionTests {
+    @Test func legacyEnabledAccountMigratesToExplicitStartupConsent() throws {
+        let suiteName: String = "BrowseCraftCloudSyncPreferenceTests-\(UUID().uuidString)"
+        let defaults: UserDefaults = try #require(UserDefaults(suiteName: suiteName))
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+        defaults.set(true, forKey: "test.cloudSyncEnabled.cloud.legacy-account")
+        let store: UserDefaultsCloudSyncPreferenceStore = UserDefaultsCloudSyncPreferenceStore(
+            userDefaults: defaults,
+            keyPrefix: "test.cloudSyncEnabled",
+            consentKey: "test.cloudSyncUserConsent"
+        )
+
+        #expect(store.hasCloudSyncUserConsent())
+        #expect(defaults.bool(forKey: "test.cloudSyncUserConsent"))
+
+        store.setCloudSyncUserConsent(false)
+        #expect(store.hasCloudSyncUserConsent() == false)
+    }
+
+    @Test func startupDefersAccountMonitoringUntilUserHasEnabledCloudSync() async {
+        let provider: MockCloudAccountStateProvider = MockCloudAccountStateProvider()
+        let preferences: MockCloudSyncPreferenceStore = MockCloudSyncPreferenceStore()
+        let session: CloudAccountSession = CloudAccountSession(
+            stateProvider: provider,
+            preferenceStore: preferences
+        )
+
+        await session.startIfPreviouslyEnabled()
+        let callsBeforeConsent: Int = await provider.startMonitoringCallCount()
+        let snapshotBeforeConsent: CloudAccountSessionSnapshot = await session.snapshot()
+        #expect(callsBeforeConsent == 0)
+        #expect(snapshotBeforeConsent.state.availability == .notChecked)
+
+        preferences.setCloudSyncUserConsent(true)
+        await session.startIfPreviouslyEnabled()
+        let callsAfterConsent: Int = await provider.startMonitoringCallCount()
+        #expect(callsAfterConsent == 1)
+    }
+
     @Test func availableAccountEnablesOnlyItsOwnPreference() async {
         let provider: MockCloudAccountStateProvider = MockCloudAccountStateProvider()
         let preferences: MockCloudSyncPreferenceStore = MockCloudSyncPreferenceStore()
@@ -22,6 +63,7 @@ struct CloudAccountSessionTests {
         #expect(snapshot.state.scope == accountA)
         #expect(snapshot.generation == 1)
         #expect(snapshot.isSynchronizationEnabled)
+        #expect(preferences.hasCloudSyncUserConsent())
 
         await provider.setState(
             CloudAccountState(availability: .available, scope: accountB)
@@ -89,6 +131,30 @@ struct CloudAccountSessionTests {
         #expect(snapshot.state.scope == .localDefault)
         #expect(snapshot.accountPreferenceEnabled == false)
         #expect(snapshot.isSynchronizationEnabled == false)
+    }
+
+    @Test func disablingCloudSyncClearsStartupConsentEvenDuringAnAccountOutage() async {
+        let provider: MockCloudAccountStateProvider = MockCloudAccountStateProvider()
+        let preferences: MockCloudSyncPreferenceStore = MockCloudSyncPreferenceStore()
+        let session: CloudAccountSession = CloudAccountSession(
+            stateProvider: provider,
+            preferenceStore: preferences
+        )
+        let scope: CloudAccountScope = .cloud(hash: "account-a")
+
+        await provider.setState(CloudAccountState(availability: .available, scope: scope))
+        await session.refresh()
+        await session.setCloudSyncEnabled(true)
+        await provider.setState(
+            CloudAccountState(availability: .temporarilyUnavailable, scope: scope)
+        )
+        await session.refresh()
+
+        await session.setCloudSyncEnabled(false)
+        let snapshot: CloudAccountSessionSnapshot = await session.snapshot()
+
+        #expect(snapshot.accountPreferenceEnabled == false)
+        #expect(preferences.hasCloudSyncUserConsent() == false)
     }
 
     @Test func accountStateUpdatesSynchronousRepositoryScopeSnapshot() async {

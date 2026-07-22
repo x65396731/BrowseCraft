@@ -50,6 +50,23 @@ actor CloudAccountSession {
         self.apply(await self.stateProvider.currentState())
     }
 
+    /// 中文注释：只有用户曾主动开启 Cloud Sync，App 启动时才解析 CloudKit 账号身份。
+    func startIfPreviouslyEnabled() async {
+        guard self.preferenceStore.hasCloudSyncUserConsent() else {
+            return
+        }
+        await self.start()
+    }
+
+    /// 中文注释：开关或刷新按钮属于用户主动行为，可在此时启动并刷新账户监听。
+    func refreshForUserInitiatedAccess() async {
+        if self.monitoringTask == nil {
+            await self.start()
+        } else {
+            await self.refresh()
+        }
+    }
+
     func stop() async {
         self.monitoringTask?.cancel()
         self.monitoringTask = nil
@@ -78,13 +95,24 @@ actor CloudAccountSession {
         }
     }
 
-    func setCloudSyncEnabled(_ enabled: Bool) {
+    func setCloudSyncEnabled(_ enabled: Bool) async {
+        if enabled == false {
+            if self.state.scope.isCloud {
+                self.preferenceStore.setCloudSyncEnabled(false, for: self.state.scope)
+            }
+            self.preferenceStore.setCloudSyncUserConsent(false)
+            self.publishSnapshot()
+            await self.stop()
+            return
+        }
+
         guard self.state.availability == .available,
               self.state.scope.isCloud else {
             return
         }
 
-        self.preferenceStore.setCloudSyncEnabled(enabled, for: self.state.scope)
+        self.preferenceStore.setCloudSyncEnabled(true, for: self.state.scope)
+        self.preferenceStore.setCloudSyncUserConsent(true)
         self.publishSnapshot()
     }
 

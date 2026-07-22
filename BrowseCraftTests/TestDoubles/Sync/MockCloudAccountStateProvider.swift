@@ -4,6 +4,8 @@ import Foundation
 actor MockCloudAccountStateProvider: CloudAccountStateProviding {
     private var state: CloudAccountState
     private var continuations: [UUID: AsyncStream<CloudAccountState>.Continuation] = [:]
+    private var startMonitoringCalls: Int = 0
+    private var refreshCalls: Int = 0
 
     init(state: CloudAccountState = .initial) {
         self.state = state
@@ -26,11 +28,23 @@ actor MockCloudAccountStateProvider: CloudAccountStateProviding {
         }
     }
 
-    func startMonitoring() async {}
+    func startMonitoring() async {
+        self.startMonitoringCalls += 1
+    }
 
     func stopMonitoring() async {}
 
-    func refresh() async {}
+    func refresh() async {
+        self.refreshCalls += 1
+    }
+
+    func startMonitoringCallCount() -> Int {
+        return self.startMonitoringCalls
+    }
+
+    func refreshCallCount() -> Int {
+        return self.refreshCalls
+    }
 
     func setState(_ state: CloudAccountState) {
         self.state = state
@@ -47,6 +61,19 @@ actor MockCloudAccountStateProvider: CloudAccountStateProviding {
 final class MockCloudSyncPreferenceStore: CloudSyncPreferenceStoring, @unchecked Sendable {
     private let lock: NSLock = NSLock()
     private var values: [CloudAccountScope: Bool] = [:]
+    private var userConsent: Bool = false
+
+    func hasCloudSyncUserConsent() -> Bool {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.userConsent
+    }
+
+    func setCloudSyncUserConsent(_ consented: Bool) {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        self.userConsent = consented
+    }
 
     func isCloudSyncEnabled(for scope: CloudAccountScope) -> Bool {
         self.lock.lock()

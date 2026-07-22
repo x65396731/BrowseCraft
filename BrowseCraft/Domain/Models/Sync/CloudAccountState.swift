@@ -2,6 +2,7 @@ import Foundation
 
 /// 中文注释：CloudAccountAvailability 隔离 CloudKit 类型，供 Application 和 Feature 层安全使用。
 enum CloudAccountAvailability: String, Codable, Hashable, Sendable {
+    case notChecked
     case checking
     case available
     case noAccount
@@ -15,7 +16,7 @@ struct CloudAccountState: Hashable, Sendable {
     var scope: CloudAccountScope
 
     static let initial: CloudAccountState = CloudAccountState(
-        availability: .checking,
+        availability: .notChecked,
         scope: .localDefault
     )
 

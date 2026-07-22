@@ -3,6 +3,17 @@ import Foundation
 
 @MainActor
 final class CloudSyncSettingsViewModel: ObservableObject {
+    enum ActivationIssue: String, Hashable, Identifiable {
+        case signInRequired
+        case restricted
+        case temporarilyUnavailable
+        case statusUnavailable
+
+        var id: String {
+            return self.rawValue
+        }
+    }
+
     struct FirstEnableRequest: Hashable, Identifiable {
         var cloudScope: CloudAccountScope
         var localDataSummary: CloudAccountPartitionSummary
@@ -17,6 +28,7 @@ final class CloudSyncSettingsViewModel: ObservableObject {
     @Published private(set) var preparation: CloudAccountPartitionPreparation?
     @Published private(set) var localDefaultSummary: CloudAccountPartitionSummary?
     @Published private(set) var firstEnableRequest: FirstEnableRequest?
+    @Published private(set) var activationIssue: ActivationIssue?
     @Published private(set) var isRefreshingAccount: Bool = false
     @Published private(set) var isChangingCloudSyncEnabled: Bool = false
     @Published private(set) var isRequestingManualSync: Bool = false
@@ -63,9 +75,7 @@ final class CloudSyncSettingsViewModel: ObservableObject {
     }
 
     var canChangeCloudSyncEnabled: Bool {
-        return self.accountSnapshot.state.availability == .available &&
-            self.accountSnapshot.state.scope.isCloud &&
-            self.isRefreshingAccount == false &&
+        return self.isRefreshingAccount == false &&
             self.isChangingCloudSyncEnabled == false
     }
 
@@ -142,7 +152,7 @@ final class CloudSyncSettingsViewModel: ObservableObject {
             self.isRefreshingAccount = false
         }
 
-        await self.accountSession.refresh()
+        await self.accountSession.refreshForUserInitiatedAccess()
         await self.applyAccountSnapshot(self.accountSession.snapshot())
     }
 
@@ -152,6 +162,7 @@ final class CloudSyncSettingsViewModel: ObservableObject {
         }
         self.isChangingCloudSyncEnabled = true
         self.actionErrorMessage = nil
+        self.activationIssue = nil
         defer {
             self.isChangingCloudSyncEnabled = false
         }
@@ -163,10 +174,12 @@ final class CloudSyncSettingsViewModel: ObservableObject {
             return
         }
 
+        await self.accountSession.refreshForUserInitiatedAccess()
         let snapshot: CloudAccountSessionSnapshot = await self.accountSession.snapshot()
-        guard snapshot.state.availability == .available,
-              let cloudScope: CloudAccountScope = snapshot.state.synchronizationScope else {
-            self.actionErrorMessage = "iCloud is not currently available for synchronization."
+        await self.applyAccountSnapshot(snapshot)
+
+        guard let cloudScope: CloudAccountScope = snapshot.state.synchronizationScope else {
+            self.activationIssue = self.activationIssue(for: snapshot.state.availability)
             return
         }
 
@@ -181,21 +194,10 @@ final class CloudSyncSettingsViewModel: ObservableObject {
 
             let summary: CloudAccountPartitionSummary = try self.partitionStore.localDefaultSummary()
             self.localDefaultSummary = summary
-            if summary.hasMergeableData {
-                self.firstEnableRequest = FirstEnableRequest(
-                    cloudScope: cloudScope,
-                    localDataSummary: summary
-                )
-                return
-            }
-
-            _ = try self.partitionStore.prepareCloudScope(
-                cloudScope,
-                decision: .useCloudDataOnly
+            self.firstEnableRequest = FirstEnableRequest(
+                cloudScope: cloudScope,
+                localDataSummary: summary
             )
-            self.preparation = try self.partitionStore.preparation(for: cloudScope)
-            self.localDefaultSummary = nil
-            await self.enablePreparedCloudScope(cloudScope)
         } catch {
             self.actionErrorMessage = "Cloud sync setup could not be saved."
         }
@@ -233,6 +235,10 @@ final class CloudSyncSettingsViewModel: ObservableObject {
 
     func cancelFirstEnable() {
         self.firstEnableRequest = nil
+    }
+
+    func dismissActivationIssue() {
+        self.activationIssue = nil
     }
 
     func synchronizeNow() async {
@@ -279,6 +285,21 @@ final class CloudSyncSettingsViewModel: ObservableObject {
         await self.applyAccountSnapshot(self.accountSession.snapshot())
     }
 
+    private func activationIssue(
+        for availability: CloudAccountAvailability
+    ) -> ActivationIssue {
+        switch availability {
+        case .noAccount:
+            return .signInRequired
+        case .restricted:
+            return .restricted
+        case .temporarilyUnavailable:
+            return .temporarilyUnavailable
+        case .notChecked, .checking, .couldNotDetermine, .available:
+            return .statusUnavailable
+        }
+    }
+
     private func applyAccountSnapshot(_ snapshot: CloudAccountSessionSnapshot) async {
         let previousIdentity: AccountIdentity = AccountIdentity(
             scope: self.accountSnapshot.state.scope,
@@ -290,6 +311,10 @@ final class CloudSyncSettingsViewModel: ObservableObject {
         )
         let didChangeIdentity: Bool = previousIdentity != newIdentity
         self.accountSnapshot = snapshot
+
+        if snapshot.state.availability == .available {
+            self.activationIssue = nil
+        }
 
         if let request: FirstEnableRequest = self.firstEnableRequest,
            request.cloudScope != snapshot.state.synchronizationScope {
