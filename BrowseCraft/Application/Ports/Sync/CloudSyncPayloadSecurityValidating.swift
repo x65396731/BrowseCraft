@@ -13,6 +13,9 @@ enum CloudSyncPayloadSecurityIssue: String, Hashable, Sendable {
     case requestBodyLiteral
     case constantSecret
     case staticKeyMaterial
+    case localAccountIdentity
+    case urlUserInfo
+    case sensitiveURLQuery
 }
 
 struct CloudSyncPayloadSecurityError: Error, Hashable, Sendable, CustomStringConvertible {

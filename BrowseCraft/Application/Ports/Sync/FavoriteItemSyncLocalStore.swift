@@ -2,7 +2,12 @@ import Foundation
 
 struct FavoriteItemSyncKey: Hashable {
     let userID: String
+    let sourceID: String
     let itemID: String
+
+    var identity: FavoriteItemIdentity {
+        return FavoriteItemIdentity(sourceID: self.sourceID, itemID: self.itemID)
+    }
 }
 
 struct FavoriteItemSyncLocalSnapshot: Hashable {
@@ -12,6 +17,7 @@ struct FavoriteItemSyncLocalSnapshot: Hashable {
 }
 
 struct FavoriteItemSyncLocalChange: Hashable {
+    let sourceID: String
     let itemID: String
     let operation: SyncQueueOperation
     let updatedAt: Date
@@ -42,6 +48,6 @@ protocol FavoriteItemSyncLocalStore {
         zoneName: String
     ) throws
     func pendingUploads(accountScope: CloudAccountScope) throws -> [FavoriteItemSyncPendingUpload]
-    func removePendingUploads(ids: [String]) throws
-    func markPendingUploadsFailed(ids: [String], errorMessage: String) throws
+    func removePendingUploads(acknowledgements: [SyncQueueAcknowledgement]) throws
+    func markPendingUploadsFailed(_ updates: [SyncQueueFailureUpdate]) throws
 }

@@ -56,6 +56,7 @@ final class AppContainer {
                 container: CKContainer(identifier: Self.cloudKitContainerIdentifier),
                 stateStore: engineStore,
                 metadataStore: engineStore,
+                zoneRecoveryStore: engineStore,
                 securityValidator: CloudSyncPayloadSecurityValidator(),
                 accountScopeProvider: activeAccountScopeStore
             )
@@ -73,7 +74,8 @@ final class AppContainer {
                 ),
                 cloudStore: cloudRecordStore,
                 changeNotifier: cloudSyncChangeNotifier,
-                partitionStore: cloudAccountPartitionStore
+                partitionStore: cloudAccountPartitionStore,
+                retryScheduleProvider: engineStore
             )
             self.cloudSyncCoordinator = cloudSyncCoordinator
             let urlResolver: URLResolvingService = URLResolvingService()

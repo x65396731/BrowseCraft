@@ -101,7 +101,11 @@ final class FavoriteItemSyncService {
         }
 
         let keys: [FavoriteItemSyncKey] = eligiblePayloads.map { payload in
-            FavoriteItemSyncKey(userID: accountScope.rawValue, itemID: payload.itemID)
+            FavoriteItemSyncKey(
+                userID: accountScope.rawValue,
+                sourceID: payload.sourceID,
+                itemID: payload.itemID
+            )
         }
         var snapshots: [FavoriteItemSyncKey: FavoriteItemSyncLocalSnapshot] =
             try self.localStore.snapshots(accountScope: accountScope, for: keys)
@@ -111,6 +115,7 @@ final class FavoriteItemSyncService {
         for payload: FavoriteItemCloudPayload in eligiblePayloads {
             let scopedKey: FavoriteItemSyncKey = FavoriteItemSyncKey(
                 userID: accountScope.rawValue,
+                sourceID: payload.sourceID,
                 itemID: payload.itemID
             )
             if let existing: FavoriteItemSyncLocalSnapshot = snapshots[scopedKey] {
@@ -134,6 +139,7 @@ final class FavoriteItemSyncService {
                 } else {
                     requeuedLocalChanges.append(
                         FavoriteItemSyncLocalChange(
+                            sourceID: existing.key.sourceID,
                             itemID: scopedKey.itemID,
                             operation: existing.isDeleted ? .delete : .upsert,
                             updatedAt: existing.lastChangedAt
@@ -173,6 +179,7 @@ final class FavoriteItemSyncService {
         accountScope: CloudAccountScope,
         limit: Int
     ) async throws -> FavoriteItemUploadResult {
+        // 中文注释：limit 是单批上限；失败项保留到下一轮，不在本轮队列快照中重试。
         guard limit > 0 else {
             return FavoriteItemUploadResult(uploadedCount: 0, skippedCount: 0, failedCount: 0)
         }
@@ -180,54 +187,94 @@ final class FavoriteItemSyncService {
         let pending: [FavoriteItemSyncPendingUpload] = try self.localStore.pendingUploads(
             accountScope: accountScope
         )
-        let orderedPending: [FavoriteItemSyncPendingUpload] = Array(pending.sorted { lhs, rhs in
+        let orderedPending: [FavoriteItemSyncPendingUpload] = pending.sorted { lhs, rhs in
             if lhs.queueItem.operation != rhs.queueItem.operation {
                 return lhs.queueItem.operation == .delete
             }
             return lhs.queueItem.updatedAt < rhs.queueItem.updatedAt
-        }.prefix(limit))
-        let payloads: [FavoriteItemCloudPayload] = orderedPending.compactMap(\.payload)
+        }
+        var aggregate: FavoriteItemUploadResult = FavoriteItemUploadResult(
+            uploadedCount: 0,
+            skippedCount: 0,
+            failedCount: 0
+        )
+        var batchStart: Int = 0
+
+        while batchStart < orderedPending.count {
+            try self.requireCurrentAccount(accountScope)
+            let batchEnd: Int = min(batchStart + limit, orderedPending.count)
+            let batch: [FavoriteItemSyncPendingUpload] = Array(
+                orderedPending[batchStart..<batchEnd]
+            )
+            let batchResult: FavoriteItemUploadResult = try await self.uploadFavoriteItemBatch(
+                batch
+            )
+            aggregate.add(batchResult)
+            try self.requireCurrentAccount(accountScope)
+            batchStart = batchEnd
+        }
+        return aggregate
+    }
+
+    private func uploadFavoriteItemBatch(
+        _ pending: [FavoriteItemSyncPendingUpload]
+    ) async throws -> FavoriteItemUploadResult {
+        let payloads: [FavoriteItemCloudPayload] = pending.compactMap(\.payload)
 
         guard payloads.isEmpty == false else {
             return FavoriteItemUploadResult(
                 uploadedCount: 0,
-                skippedCount: orderedPending.count,
+                skippedCount: pending.count,
                 failedCount: 0
             )
         }
 
         let pendingByEntityID: [String: FavoriteItemSyncPendingUpload] = Dictionary(
-            uniqueKeysWithValues: orderedPending.map { ($0.queueItem.entityID, $0) }
+            uniqueKeysWithValues: pending.map { ($0.queueItem.entityID, $0) }
         )
         let saveResult: CloudRecordBatchSaveResult
         do {
             saveResult = try await self.cloudStore.saveFavoriteItemRecords(payloads)
         } catch {
+            let errorMessage: String = CloudSyncSafeErrorMessage.describe(error)
+            let retryAfter: TimeInterval? = (error as? CloudRecordOperationError)?.retryAfter
             try self.localStore.markPendingUploadsFailed(
-                ids: payloads.compactMap { pendingByEntityID[$0.itemID]?.queueItem.id },
-                errorMessage: CloudSyncSafeErrorMessage.describe(error)
+                payloads.compactMap { payload in
+                    pendingByEntityID[payload.identity.syncEntityID]?.queueItem
+                }.map { item in
+                    SyncQueueFailureUpdate(
+                        acknowledgement: SyncQueueAcknowledgement(item: item),
+                        errorMessage: errorMessage,
+                        retryAfter: retryAfter
+                    )
+                }
             )
             throw error
         }
 
-        let savedQueueIDs: [String] = saveResult.savedEntityIDs.compactMap { entityID in
-            return pendingByEntityID[entityID]?.queueItem.id
+        let savedQueueItems: [SyncQueueItem] = saveResult.savedEntityIDs.compactMap { entityID in
+            return pendingByEntityID[entityID]?.queueItem
         }
-        try self.localStore.removePendingUploads(ids: savedQueueIDs)
+        try self.localStore.removePendingUploads(
+            acknowledgements: savedQueueItems.map { SyncQueueAcknowledgement(item: $0) }
+        )
 
         for failure: CloudRecordSaveFailure in saveResult.failures {
-            guard let queueID: String = pendingByEntityID[failure.entityID]?.queueItem.id else {
+            guard let queueItem: SyncQueueItem = pendingByEntityID[failure.entityID]?.queueItem else {
                 continue
             }
-            try self.localStore.markPendingUploadsFailed(
-                ids: [queueID],
-                errorMessage: failure.description
-            )
+            try self.localStore.markPendingUploadsFailed([
+                SyncQueueFailureUpdate(
+                    acknowledgement: SyncQueueAcknowledgement(item: queueItem),
+                    errorMessage: failure.description,
+                    retryAfter: failure.retryAfter
+                )
+            ])
         }
 
         return FavoriteItemUploadResult(
-            uploadedCount: savedQueueIDs.count,
-            skippedCount: orderedPending.count - payloads.count,
+            uploadedCount: savedQueueItems.count,
+            skippedCount: pending.count - payloads.count,
             failedCount: saveResult.failures.count
         )
     }
@@ -280,4 +327,10 @@ private struct FavoriteItemUploadResult {
     var uploadedCount: Int
     var skippedCount: Int
     var failedCount: Int
+
+    mutating func add(_ other: FavoriteItemUploadResult) {
+        self.uploadedCount += other.uploadedCount
+        self.skippedCount += other.skippedCount
+        self.failedCount += other.failedCount
+    }
 }

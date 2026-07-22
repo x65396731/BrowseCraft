@@ -46,6 +46,7 @@ struct SyncQueueItem: Identifiable, Hashable {
     var updatedAt: Date
     var retryCount: Int
     var lastError: String?
+    var nextRetryAt: Date?
     var createdAt: Date
 
     static func makeID(
@@ -55,4 +56,22 @@ struct SyncQueueItem: Identifiable, Hashable {
     ) -> String {
         return "\(accountScope.rawValue)|\(entityType.rawValue):\(entityID)"
     }
+}
+
+struct SyncQueueAcknowledgement: Hashable {
+    var id: String
+    var operation: SyncQueueOperation
+    var updatedAt: Date
+
+    init(item: SyncQueueItem) {
+        self.id = item.id
+        self.operation = item.operation
+        self.updatedAt = item.updatedAt
+    }
+}
+
+struct SyncQueueFailureUpdate: Hashable {
+    var acknowledgement: SyncQueueAcknowledgement
+    var errorMessage: String
+    var retryAfter: TimeInterval?
 }

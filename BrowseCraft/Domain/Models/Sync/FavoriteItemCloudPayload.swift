@@ -19,6 +19,10 @@ struct FavoriteItemCloudPayload: Hashable, Codable, Sendable {
     var updatedAt: Date
     var deletedAt: Date?
 
+    var identity: FavoriteItemIdentity {
+        return FavoriteItemIdentity(sourceID: self.sourceID, itemID: self.itemID)
+    }
+
     var lastChangedAt: Date {
         return max(self.updatedAt, self.deletedAt ?? .distantPast)
     }

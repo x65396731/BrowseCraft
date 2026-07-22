@@ -51,6 +51,7 @@ struct CloudSyncCoordinatorSnapshot: Hashable, Sendable {
     var lastErrorMessage: String?
     var lastErrorAccountScope: CloudAccountScope?
     var lastDownloadCheckpoint: CloudSyncDownloadCheckpoint?
+    var nextRetryAt: Date?
 
     static let initial: CloudSyncCoordinatorSnapshot = CloudSyncCoordinatorSnapshot(
         isSynchronizing: false,
@@ -59,7 +60,8 @@ struct CloudSyncCoordinatorSnapshot: Hashable, Sendable {
         lastResult: nil,
         lastErrorMessage: nil,
         lastErrorAccountScope: nil,
-        lastDownloadCheckpoint: nil
+        lastDownloadCheckpoint: nil,
+        nextRetryAt: nil
     )
 }
 
@@ -71,10 +73,14 @@ actor CloudSyncCoordinator {
     private let cloudStore: any CloudRecordStore
     private let changeNotifier: any CloudSyncChangeNotifying
     private let partitionStore: any CloudAccountPartitioning
+    private let retryScheduleProvider: any CloudSyncRetryScheduleProviding
+    private let now: @Sendable () -> Date
+    private let retrySleeper: @Sendable (TimeInterval) async throws -> Void
 
     private var accountMonitoringTask: Task<Void, Never>?
     private var localChangeTask: Task<Void, Never>?
     private var debounceTask: Task<Void, Never>?
+    private var retryTask: Task<Void, Never>?
     private var requestTask: Task<Void, Never>?
     private var pendingTrigger: CloudSyncTrigger?
     private var isRunning: Bool = false
@@ -85,6 +91,8 @@ actor CloudSyncCoordinator {
     private(set) var lastErrorMessage: String?
     private var lastErrorAccountScope: CloudAccountScope?
     private var lastDownloadCheckpoint: CloudSyncDownloadCheckpoint?
+    private var retryAccountScope: CloudAccountScope?
+    private var nextRetryAt: Date?
     private var continuations: [UUID: AsyncStream<CloudSyncCoordinatorSnapshot>.Continuation] = [:]
 
     init(
@@ -93,7 +101,12 @@ actor CloudSyncCoordinator {
         favoriteItemService: FavoriteItemSyncService,
         cloudStore: any CloudRecordStore,
         changeNotifier: any CloudSyncChangeNotifying,
-        partitionStore: any CloudAccountPartitioning
+        partitionStore: any CloudAccountPartitioning,
+        retryScheduleProvider: any CloudSyncRetryScheduleProviding = EmptyCloudSyncRetryScheduleProvider(),
+        now: @escaping @Sendable () -> Date = { Date() },
+        retrySleeper: @escaping @Sendable (TimeInterval) async throws -> Void = { delay in
+            try await Task.sleep(for: .seconds(delay))
+        }
     ) {
         self.accountSession = accountSession
         self.sourceService = sourceService
@@ -101,6 +114,9 @@ actor CloudSyncCoordinator {
         self.cloudStore = cloudStore
         self.changeNotifier = changeNotifier
         self.partitionStore = partitionStore
+        self.retryScheduleProvider = retryScheduleProvider
+        self.now = now
+        self.retrySleeper = retrySleeper
     }
 
     func start() async {
@@ -134,6 +150,7 @@ actor CloudSyncCoordinator {
         self.accountMonitoringTask?.cancel()
         self.localChangeTask?.cancel()
         self.debounceTask?.cancel()
+        self.cancelScheduledRetry()
         self.requestTask?.cancel()
         self.accountMonitoringTask = nil
         self.localChangeTask = nil
@@ -232,6 +249,7 @@ actor CloudSyncCoordinator {
             )
             self.publishSnapshot()
 
+            // 中文注释：limit 只限制单次 CloudKit batch；Service 会排空本轮冻结的队列快照。
             let sourceUpload: SourceSyncResult = try await self.sourceService.uploadSources(
                 accountScope: accountScope,
                 limit: limit
@@ -260,12 +278,21 @@ actor CloudSyncCoordinator {
             self.lastResult = result
             self.lastErrorMessage = nil
             self.lastErrorAccountScope = nil
+            self.refreshRetrySchedule(for: accountScope)
             self.publishSnapshot()
             return result
         } catch {
             // 中文注释：任何失败都丢弃尚未 checkpoint 的内存 engine state，下次从已提交状态重拉。
             await self.cloudStore.cancelOperations()
             self.record(error: error, accountScope: accountScope)
+            let currentSnapshot: CloudAccountSessionSnapshot = await self.accountSession.snapshot()
+            if currentSnapshot.isSynchronizationEnabled,
+               currentSnapshot.state.synchronizationScope == accountScope {
+                self.refreshRetrySchedule(
+                    for: accountScope,
+                    additionalRetryAfter: (error as? CloudRecordOperationError)?.retryAfter
+                )
+            }
             throw error
         }
     }
@@ -280,9 +307,11 @@ actor CloudSyncCoordinator {
               let accountScope: CloudAccountScope = snapshot.state.synchronizationScope else {
             self.lastAutomaticallyRequestedKey = nil
             self.pendingTrigger = nil
+            self.cancelScheduledRetry()
             self.publishSnapshot()
             return
         }
+        self.refreshRetrySchedule(for: accountScope)
         let key: AutomaticRequestKey = AutomaticRequestKey(
             accountScope: accountScope,
             generation: snapshot.generation
@@ -303,6 +332,74 @@ actor CloudSyncCoordinator {
             }
             await self?.requestSync(trigger: .localChange)
         }
+    }
+
+    /// 中文注释：队列里的 nextRetryAt 是重试事实来源；协调器只持有可取消的单个最早唤醒任务。
+    private func refreshRetrySchedule(
+        for accountScope: CloudAccountScope,
+        additionalRetryAfter: TimeInterval? = nil
+    ) {
+        let persistedDate: Date? = try? self.retryScheduleProvider.earliestRetryDate(
+            for: accountScope
+        )
+        let currentDate: Date = self.now()
+        let operationRetryDate: Date? = additionalRetryAfter.map {
+            currentDate.addingTimeInterval(max(0, $0))
+        }
+        let retryDate: Date? = [persistedDate, operationRetryDate]
+            .compactMap { $0 }
+            .min()
+
+        guard let retryDate: Date else {
+            self.cancelScheduledRetry()
+            return
+        }
+
+        // 中文注释：避免服务端返回 0 或过期时间时形成无间隔的失败循环。
+        let delay: TimeInterval = max(1, retryDate.timeIntervalSince(currentDate))
+        let scheduledDate: Date = currentDate.addingTimeInterval(delay)
+        if self.retryAccountScope == accountScope,
+           self.nextRetryAt == scheduledDate,
+           self.retryTask != nil {
+            return
+        }
+
+        self.retryTask?.cancel()
+        self.retryAccountScope = accountScope
+        self.nextRetryAt = scheduledDate
+        let retrySleeper: @Sendable (TimeInterval) async throws -> Void = self.retrySleeper
+        self.retryTask = Task { [weak self] in
+            do {
+                try await retrySleeper(delay)
+            } catch {
+                return
+            }
+            guard Task.isCancelled == false else {
+                return
+            }
+            await self?.scheduledRetryDidFire(for: accountScope)
+        }
+        self.publishSnapshot()
+    }
+
+    private func scheduledRetryDidFire(for accountScope: CloudAccountScope) async {
+        self.retryTask = nil
+        self.retryAccountScope = nil
+        self.nextRetryAt = nil
+        let snapshot: CloudAccountSessionSnapshot = await self.accountSession.snapshot()
+        guard snapshot.isSynchronizationEnabled,
+              snapshot.state.synchronizationScope == accountScope else {
+            self.publishSnapshot()
+            return
+        }
+        self.requestSync(trigger: .retry)
+    }
+
+    private func cancelScheduledRetry() {
+        self.retryTask?.cancel()
+        self.retryTask = nil
+        self.retryAccountScope = nil
+        self.nextRetryAt = nil
     }
 
     private func requireCurrentSession(
@@ -350,7 +447,8 @@ actor CloudSyncCoordinator {
             lastResult: self.lastResult,
             lastErrorMessage: self.lastErrorMessage,
             lastErrorAccountScope: self.lastErrorAccountScope,
-            lastDownloadCheckpoint: self.lastDownloadCheckpoint
+            lastDownloadCheckpoint: self.lastDownloadCheckpoint,
+            nextRetryAt: self.nextRetryAt
         )
     }
 

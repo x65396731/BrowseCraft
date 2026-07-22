@@ -13,6 +13,7 @@ struct SyncQueueRecord: Codable, FetchableRecord, MutablePersistableRecord {
     var updatedAt: Date
     var retryCount: Int
     var lastError: String?
+    var nextRetryAt: Date?
     var createdAt: Date
 
     init(item: SyncQueueItem) {
@@ -24,6 +25,7 @@ struct SyncQueueRecord: Codable, FetchableRecord, MutablePersistableRecord {
         self.updatedAt = item.updatedAt
         self.retryCount = item.retryCount
         self.lastError = item.lastError
+        self.nextRetryAt = item.nextRetryAt
         self.createdAt = item.createdAt
     }
 
@@ -37,6 +39,7 @@ struct SyncQueueRecord: Codable, FetchableRecord, MutablePersistableRecord {
             updatedAt: self.updatedAt,
             retryCount: self.retryCount,
             lastError: self.lastError,
+            nextRetryAt: self.nextRetryAt,
             createdAt: self.createdAt
         )
     }
@@ -67,6 +70,7 @@ struct SyncQueueRecord: Codable, FetchableRecord, MutablePersistableRecord {
             existing.updatedAt = updatedAt
             existing.retryCount = 0
             existing.lastError = nil
+            existing.nextRetryAt = nil
             try existing.save(database)
             return
         }
@@ -84,6 +88,7 @@ struct SyncQueueRecord: Codable, FetchableRecord, MutablePersistableRecord {
             updatedAt: updatedAt,
             retryCount: 0,
             lastError: nil,
+            nextRetryAt: nil,
             createdAt: updatedAt
         )
         var record: SyncQueueRecord = SyncQueueRecord(item: item)

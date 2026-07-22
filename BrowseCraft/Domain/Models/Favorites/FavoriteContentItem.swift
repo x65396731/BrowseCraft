@@ -9,6 +9,45 @@ enum FavoriteContentKind: String, Codable, Hashable {
     case videoWeb
 }
 
+/// 中文注释：收藏的业务身份必须同时包含来源和来源内条目 ID，不能假定不同来源的 GUID/link 全局唯一。
+struct FavoriteItemIdentity: Hashable, Codable, Sendable {
+    let sourceID: String
+    let itemID: String
+
+    /// 中文注释：同步队列需要可逆键，以便从队列精确找回复合主键对应的本地记录。
+    var syncEntityID: String {
+        let sourceByteCount: Int = self.sourceID.utf8.count
+        return "\(sourceByteCount):\(self.sourceID)\(self.itemID)"
+    }
+
+    init(sourceID: String, itemID: String) {
+        self.sourceID = sourceID
+        self.itemID = itemID
+    }
+
+    init?(syncEntityID: String) {
+        guard let separator: String.Index = syncEntityID.firstIndex(of: ":"),
+              let sourceByteCount: Int = Int(syncEntityID[..<separator]),
+              sourceByteCount >= 0 else {
+            return nil
+        }
+        let payloadStart: String.Index = syncEntityID.index(after: separator)
+        let payloadData: Data = Data(syncEntityID[payloadStart...].utf8)
+        guard payloadData.count >= sourceByteCount,
+              let sourceID: String = String(
+                data: Data(payloadData.prefix(sourceByteCount)),
+                encoding: .utf8
+              ),
+              let itemID: String = String(
+                data: Data(payloadData.dropFirst(sourceByteCount)),
+                encoding: .utf8
+              ) else {
+            return nil
+        }
+        self.init(sourceID: sourceID, itemID: itemID)
+    }
+}
+
 /// 中文注释：收藏页依赖这里的快照字段直接展示内容，不反查当前列表状态。
 struct FavoriteContentItem: Identifiable, Hashable, Codable {
     var id: String
@@ -24,6 +63,10 @@ struct FavoriteContentItem: Identifiable, Hashable, Codable {
     var listOrder: Int?
     var listContext: ListContext?
     var sourceSnapshot: FavoriteSourceSnapshot?
+
+    var identity: FavoriteItemIdentity {
+        return FavoriteItemIdentity(sourceID: self.sourceID, itemID: self.id)
+    }
 
     func contentItem() -> ContentItem {
         let contentKind: SourceContentKind

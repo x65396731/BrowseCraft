@@ -18,15 +18,16 @@ final class GRDBFavoriteRepository: FavoriteRepository {
         self.changeNotifier = changeNotifier
     }
 
-    func fetchFavoriteItemIDs() throws -> Set<String> {
+    func fetchFavoriteItemIDs(sourceID: String?) throws -> Set<String> {
         let accountScope: CloudAccountScope = self.accountScopeProvider.currentScope
         return try self.database.queue.read { database in
-            guard let record: FavoriteRecord = try FavoriteRecord
-                .fetchOne(database, key: accountScope.rawValue) else {
-                return []
+            var request: QueryInterfaceRequest<FavoriteItemRecord> = FavoriteItemRecord
+                .filter(FavoriteItemRecord.Columns.userID == accountScope.rawValue)
+                .filter(FavoriteItemRecord.Columns.deletedAt == nil)
+            if let sourceID: String {
+                request = request.filter(FavoriteItemRecord.Columns.sourceID == sourceID)
             }
-
-            return Self.decodeItemIDs(record.favoriteItemIDsJSON)
+            return Set(try request.fetchAll(database).map(\.itemID))
         }
     }
 
@@ -49,34 +50,15 @@ final class GRDBFavoriteRepository: FavoriteRepository {
         try self.database.queue.write { database in
             let userID: String = accountScope.rawValue
             let now: Date = Date()
-            var record: FavoriteRecord
-
             try AppUserRecord.insertUser(id: userID, in: database)
-
-            if let existing: FavoriteRecord = try FavoriteRecord.fetchOne(database, key: userID) {
-                record = existing
-            } else {
-                record = FavoriteRecord(
-                    userID: userID,
-                    favoriteItemIDsJSON: "[]",
-                    favoriteItemsJSON: "[]",
-                    rssFavoritesJSON: nil,
-                    comicFavoritesJSON: nil,
-                    videoFavoritesJSON: nil,
-                    createdAt: now,
-                    updatedAt: now,
-                    deletedAt: nil
-                )
-            }
-
-            var itemIDs: Set<String> = Self.decodeItemIDs(record.favoriteItemIDsJSON)
-            var items: [FavoriteContentItem] = Self.decodeFavoriteItems(record.favoriteItemsJSON)
+            let recordKey: [String: String] = [
+                "userID": userID,
+                "sourceID": item.sourceID,
+                "itemID": item.id
+            ]
             if isFavorite {
                 var itemWithFavoriteDate: FavoriteContentItem = item
                 itemWithFavoriteDate.favoritedAt = now
-                itemIDs.insert(item.id)
-                items.removeAll { $0.id == item.id }
-                items.append(itemWithFavoriteDate)
                 var itemRecord: FavoriteItemRecord = try FavoriteItemRecord(
                     userID: userID,
                     item: itemWithFavoriteDate,
@@ -85,17 +67,15 @@ final class GRDBFavoriteRepository: FavoriteRepository {
                 )
                 if let existingItemRecord: FavoriteItemRecord = try FavoriteItemRecord.fetchOne(
                     database,
-                    key: ["userID": userID, "itemID": item.id]
+                    key: recordKey
                 ) {
                     itemRecord.createdAt = existingItemRecord.createdAt
                 }
                 try itemRecord.save(database)
             } else {
-                itemIDs.remove(item.id)
-                items.removeAll { $0.id == item.id }
                 if var itemRecord: FavoriteItemRecord = try FavoriteItemRecord.fetchOne(
                     database,
-                    key: ["userID": userID, "itemID": item.id]
+                    key: recordKey
                 ) {
                     itemRecord.updatedAt = now
                     itemRecord.deletedAt = now
@@ -110,41 +90,17 @@ final class GRDBFavoriteRepository: FavoriteRepository {
                     try itemRecord.insert(database)
                 }
             }
-
-            record.favoriteItemIDsJSON = Self.encodeItemIDs(itemIDs)
-            record.favoriteItemsJSON = Self.encodeFavoriteItems(items)
-            record.updatedAt = now
-            record.deletedAt = nil
-            try record.save(database)
+            try FavoriteAggregateBuilder.rebuild(userID: userID, in: database)
             try SyncQueueRecord.enqueue(
                 accountScope: accountScope,
                 entityType: .favoriteItem,
-                entityID: item.id,
+                entityID: item.identity.syncEntityID,
                 operation: isFavorite ? .upsert : .delete,
                 updatedAt: now,
                 in: database
             )
         }
         self.changeNotifier?.notifyLocalChange()
-    }
-
-    private static func decodeItemIDs(_ json: String) -> Set<String> {
-        guard let data: Data = json.data(using: .utf8),
-              let itemIDs: [String] = try? JSONDecoder().decode([String].self, from: data) else {
-            return []
-        }
-
-        return Set(itemIDs)
-    }
-
-    private static func encodeItemIDs(_ itemIDs: Set<String>) -> String {
-        let sortedIDs: [String] = itemIDs.sorted()
-        guard let data: Data = try? JSONEncoder().encode(sortedIDs),
-              let json: String = String(data: data, encoding: .utf8) else {
-            return "[]"
-        }
-
-        return json
     }
 
     private static func decodeFavoriteItems(_ json: String) -> [FavoriteContentItem] {
@@ -154,24 +110,5 @@ final class GRDBFavoriteRepository: FavoriteRepository {
         }
 
         return items
-    }
-
-    private static func encodeFavoriteItems(_ items: [FavoriteContentItem]) -> String {
-        let sortedItems: [FavoriteContentItem] = items.sorted { lhs, rhs in
-            let lhsDate: Date = lhs.favoritedAt ?? lhs.updatedAt ?? .distantPast
-            let rhsDate: Date = rhs.favoritedAt ?? rhs.updatedAt ?? .distantPast
-            if lhsDate != rhsDate {
-                return lhsDate > rhsDate
-            }
-
-            return lhs.id < rhs.id
-        }
-
-        guard let data: Data = try? JSONEncoder().encode(sortedItems),
-              let json: String = String(data: data, encoding: .utf8) else {
-            return "[]"
-        }
-
-        return json
     }
 }

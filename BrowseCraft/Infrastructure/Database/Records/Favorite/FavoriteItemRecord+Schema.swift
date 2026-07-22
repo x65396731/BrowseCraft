@@ -38,7 +38,7 @@ extension FavoriteItemRecord {
             table.column("updatedAt", .datetime).notNull()
             table.column("deletedAt", .datetime)
             table.column("createdAt", .datetime).notNull()
-            table.primaryKey(["userID", "itemID"])
+            table.primaryKey(["userID", "sourceID", "itemID"])
         }
     }
 
@@ -53,7 +53,7 @@ extension FavoriteItemRecord {
         try database.execute(
             sql: """
             CREATE INDEX IF NOT EXISTS idx_favorite_items_source
-            ON \(Self.databaseTableName)(sourceID)
+            ON \(Self.databaseTableName)(userID, sourceID, deletedAt)
             """
         )
     }

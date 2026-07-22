@@ -16,7 +16,7 @@ struct FavoriteItemCloudRecord: Hashable {
 // 中文注释：MockCloudRecordStore 模拟 CloudKit 的增量 token、保存失败和服务端版本。
 final class MockCloudRecordStore: CloudRecordStore, @unchecked Sendable {
     private var sourceRecordsByID: [String: SourceCloudRecord]
-    private var favoriteItemRecordsByID: [String: FavoriteItemCloudRecord]
+    private var favoriteItemRecordsByID: [FavoriteItemIdentity: FavoriteItemCloudRecord]
     private var currentVersion: Int
     private let now: () -> Date
     private let eventLock: NSLock = NSLock()
@@ -39,7 +39,7 @@ final class MockCloudRecordStore: CloudRecordStore, @unchecked Sendable {
         )
         self.favoriteItemRecordsByID = Dictionary(
             uniqueKeysWithValues: favoriteItemRecords.map { record in
-                return (record.payload.itemID, record)
+                return (record.payload.identity, record)
             }
         )
         self.currentVersion = (sourceRecords.map(\.version) + favoriteItemRecords.map(\.version)).max() ?? 0
@@ -123,7 +123,9 @@ final class MockCloudRecordStore: CloudRecordStore, @unchecked Sendable {
                 if lhs.version != rhs.version {
                     return lhs.version < rhs.version
                 }
-
+                if lhs.payload.sourceID != rhs.payload.sourceID {
+                    return lhs.payload.sourceID < rhs.payload.sourceID
+                }
                 return lhs.payload.itemID < rhs.payload.itemID
             }
             .map(\.payload)
@@ -145,21 +147,29 @@ final class MockCloudRecordStore: CloudRecordStore, @unchecked Sendable {
 
         let failedIDs: Set<String> = self.nextFavoriteItemSaveFailureIDs
         self.nextFavoriteItemSaveFailureIDs = []
+        let failedRecords: [FavoriteItemCloudPayload] = records.filter {
+            failedIDs.contains($0.itemID) || failedIDs.contains($0.identity.syncEntityID)
+        }
         let savedRecords: [FavoriteItemCloudPayload] = records.filter {
-            failedIDs.contains($0.itemID) == false
+            failedIDs.contains($0.itemID) == false &&
+                failedIDs.contains($0.identity.syncEntityID) == false
         }
         for payload: FavoriteItemCloudPayload in savedRecords {
             self.currentVersion += 1
-            self.favoriteItemRecordsByID[payload.itemID] = FavoriteItemCloudRecord(
+            self.favoriteItemRecordsByID[payload.identity] = FavoriteItemCloudRecord(
                 payload: payload,
                 serverUpdatedAt: self.now(),
                 version: self.currentVersion
             )
         }
         return CloudRecordBatchSaveResult(
-            savedEntityIDs: Set(savedRecords.map(\.itemID)),
-            failures: failedIDs.map {
-                CloudRecordSaveFailure(entityID: $0, code: "mockPartialFailure", retryAfter: 1)
+            savedEntityIDs: Set(savedRecords.map { $0.identity.syncEntityID }),
+            failures: failedRecords.map { payload in
+                CloudRecordSaveFailure(
+                    entityID: payload.identity.syncEntityID,
+                    code: "mockPartialFailure",
+                    retryAfter: 1
+                )
             }
         )
     }
@@ -169,7 +179,13 @@ final class MockCloudRecordStore: CloudRecordStore, @unchecked Sendable {
     }
 
     func favoriteItemRecord(id: String) -> FavoriteItemCloudRecord? {
-        return self.favoriteItemRecordsByID[id]
+        return self.favoriteItemRecordsByID.values.first { $0.payload.itemID == id }
+    }
+
+    func favoriteItemRecord(sourceID: String, itemID: String) -> FavoriteItemCloudRecord? {
+        return self.favoriteItemRecordsByID[
+            FavoriteItemIdentity(sourceID: sourceID, itemID: itemID)
+        ]
     }
 
     func events() -> [String] {

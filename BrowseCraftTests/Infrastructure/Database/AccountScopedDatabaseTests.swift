@@ -5,6 +5,15 @@ import BrowseCraftCore
 @testable import BrowseCraft
 
 struct AccountScopedDatabaseTests {
+    @Test func favoriteQueueIdentityRoundTripsUnicodeAndURLValues() {
+        let identity: FavoriteItemIdentity = FavoriteItemIdentity(
+            sourceID: "来源/🧭",
+            itemID: "https://example.test/文章?id=同一个-guid"
+        )
+
+        #expect(FavoriteItemIdentity(syncEntityID: identity.syncEntityID) == identity)
+    }
+
     @Test func freshDatabaseHasAccountScopedSourceKeyAndValidForeignKeys() throws {
         let database: AppDatabase = try Self.makeDatabase()
 
@@ -29,6 +38,26 @@ struct AccountScopedDatabaseTests {
         #expect(foreignKeyViolationCount == 0)
     }
 
+    @Test func freshDatabaseUsesSourceScopedFavoritePrimaryKey() throws {
+        let database: AppDatabase = try Self.makeDatabase()
+
+        let primaryKeyColumns: [String] = try database.queue.read { database in
+            let rows: [Row] = try Row.fetchAll(database, sql: "PRAGMA table_info(favorite_items)")
+            return rows.compactMap { row -> (position: Int, name: String)? in
+                let position: Int = row["pk"]
+                let name: String = row["name"]
+                guard position > 0 else {
+                    return nil
+                }
+                return (position, name)
+            }
+            .sorted { $0.position < $1.position }
+            .map(\.name)
+        }
+
+        #expect(primaryKeyColumns == ["userID", "sourceID", "itemID"])
+    }
+
     @Test func repositoriesKeepSameSourceIDIsolatedByAccount() throws {
         let database: AppDatabase = try Self.makeDatabase()
         let activeScope: ActiveAccountScopeStore = ActiveAccountScopeStore()
@@ -49,6 +78,43 @@ struct AccountScopedDatabaseTests {
 
         activeScope.update(accountA)
         #expect(try repository.fetchSources().map(\.name) == ["Account A"])
+    }
+
+    @Test func favoritesWithSameItemIDRemainIsolatedBySource() throws {
+        let database: AppDatabase = try Self.makeDatabase()
+        let repository: GRDBFavoriteRepository = GRDBFavoriteRepository(database: database)
+        let first: FavoriteContentItem = Self.makeFavorite(
+            sourceID: "source-a",
+            title: "Source A"
+        )
+        let second: FavoriteContentItem = Self.makeFavorite(
+            sourceID: "source-b",
+            title: "Source B"
+        )
+
+        try repository.setFavorite(item: first, isFavorite: true)
+        try repository.setFavorite(item: second, isFavorite: true)
+
+        #expect(Set(try repository.fetchFavoriteItems().map(\.identity)) == [
+            first.identity,
+            second.identity
+        ])
+        #expect(try repository.fetchFavoriteItemIDs(sourceID: "source-a") == [first.id])
+        #expect(try repository.fetchFavoriteItemIDs(sourceID: "source-b") == [second.id])
+
+        let queueEntityIDs: Set<String> = Set(
+            try GRDBSyncQueueRepository(database: database)
+                .fetchPending(limit: 10)
+                .map(\.entityID)
+        )
+        #expect(queueEntityIDs == [
+            first.identity.syncEntityID,
+            second.identity.syncEntityID
+        ])
+
+        try repository.setFavorite(item: first, isFavorite: false)
+
+        #expect(try repository.fetchFavoriteItems().map(\.identity) == [second.identity])
     }
 
     @Test func mergeCopiesLocalDataAndKeepsOriginalSpace() throws {
@@ -286,10 +352,13 @@ struct AccountScopedDatabaseTests {
         )
     }
 
-    private static func makeFavorite(title: String = "Favorite") -> FavoriteContentItem {
+    private static func makeFavorite(
+        sourceID: String = "source-1",
+        title: String = "Favorite"
+    ) -> FavoriteContentItem {
         return FavoriteContentItem(
             id: "favorite-1",
-            sourceID: "source-1",
+            sourceID: sourceID,
             title: title,
             detailURL: "https://example.test/item/1",
             coverURL: nil,

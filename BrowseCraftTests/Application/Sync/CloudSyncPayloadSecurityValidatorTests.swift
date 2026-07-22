@@ -74,6 +74,127 @@ struct CloudSyncPayloadSecurityValidatorTests {
         #expect(payload.itemMetadataJSON.contains("sourceSnapshot") == false)
     }
 
+    @Test func rejectsLocalAccountIdentityInsideFavoriteSnapshotWithoutLeakingIt() throws {
+        let localScope: String = "cloud:private-local-scope"
+        let payload: FavoriteItemCloudPayload = Self.favoritePayload(
+            sourceSnapshotJSON: """
+            {"userID":"\(localScope)","configuration":{}}
+            """
+        )
+
+        do {
+            try self.validator.validate(payload)
+            Issue.record("Expected local account identity rejection")
+        } catch let error as CloudSyncPayloadSecurityError {
+            #expect(error.issue == .localAccountIdentity)
+            #expect(error.fieldName == "userID")
+            #expect(error.description.contains(localScope) == false)
+        }
+    }
+
+    @Test func rejectsNestedCloudAccountScopeWithoutLeakingIt() throws {
+        let localScope: String = "cloud:" + String(repeating: "a", count: 64)
+        let payload: FavoriteItemCloudPayload = Self.favoritePayload(
+            sourceSnapshotJSON: """
+            {"configuration":{},"metadata":{"partition":"\(localScope)"}}
+            """
+        )
+
+        do {
+            try self.validator.validate(payload)
+            Issue.record("Expected nested local account identity rejection")
+        } catch let error as CloudSyncPayloadSecurityError {
+            #expect(error.issue == .localAccountIdentity)
+            #expect(error.path == "favorite.sourceSnapshotJSON.metadata.partition")
+            #expect(error.description.contains(localScope) == false)
+        }
+    }
+
+    @Test func rejectsURLUserInfoAndSensitiveQueryWithoutLeakingValues() throws {
+        let username: String = "private-user"
+        let password: String = "private-password"
+        var source: SourceCloudPayload = Self.sourcePayload(configJSON: "{}")
+        source.baseURL = "https://\(username):\(password)@example.test/catalog"
+
+        do {
+            try self.validator.validate(source)
+            Issue.record("Expected URL userinfo rejection")
+        } catch let error as CloudSyncPayloadSecurityError {
+            #expect(error.issue == .urlUserInfo)
+            #expect(error.path == "source.baseURL")
+            #expect(error.description.contains(username) == false)
+            #expect(error.description.contains(password) == false)
+        }
+
+        let signature: String = "private-signed-value"
+        var favorite: FavoriteItemCloudPayload = Self.favoritePayload(sourceSnapshotJSON: nil)
+        favorite.detailURL = "https://example.test/item?page=1&X-Amz-Signature=\(signature)"
+
+        do {
+            try self.validator.validate(favorite)
+            Issue.record("Expected signed URL rejection")
+        } catch let error as CloudSyncPayloadSecurityError {
+            #expect(error.issue == .sensitiveURLQuery)
+            #expect(error.path == "favorite.detailURL")
+            #expect(error.fieldName == "X-Amz-Signature")
+            #expect(error.description.contains(signature) == false)
+        }
+    }
+
+    @Test func rejectsSensitiveURLInsideBusinessIDAndNestedJSON() throws {
+        var favorite: FavoriteItemCloudPayload = Self.favoritePayload(sourceSnapshotJSON: nil)
+        favorite.itemID = "https://example.test/item?access_token=private-token"
+
+        do {
+            try self.validator.validate(favorite)
+            Issue.record("Expected item ID URL rejection")
+        } catch let error as CloudSyncPayloadSecurityError {
+            #expect(error.issue == .sensitiveURLQuery)
+            #expect(error.path == "favorite.itemID")
+            #expect(error.fieldName == "access_token")
+        }
+
+        let source: SourceCloudPayload = Self.sourcePayload(
+            configJSON: """
+            {"endpoint":"/api?credential=private-value"}
+            """
+        )
+        do {
+            try self.validator.validate(source)
+            Issue.record("Expected nested URL rejection")
+        } catch let error as CloudSyncPayloadSecurityError {
+            #expect(error.issue == .sensitiveURLQuery)
+            #expect(error.path == "source.configJSON.endpoint")
+            #expect(error.fieldName == "credential")
+        }
+    }
+
+    @Test func allowsOrdinaryURLQueriesAndDynamicSecretReferences() throws {
+        var favorite: FavoriteItemCloudPayload = Self.favoritePayload(sourceSnapshotJSON: nil)
+        favorite.itemID = "https://example.test/item?id=42&page=2"
+        favorite.detailURL = "https://example.test/item?token={credentialStore.accessToken}"
+        favorite.coverURL = "https://cdn.example.test/cover.jpg?width=640&format=webp"
+
+        try self.validator.validate(favorite)
+    }
+
+    @Test func rejectsCombinedFavoriteFieldsOverTheRecordBudget() throws {
+        let firstBlob: String = String(repeating: "a", count: 450_000)
+        let secondBlob: String = String(repeating: "b", count: 450_000)
+        var payload: FavoriteItemCloudPayload = Self.favoritePayload(
+            sourceSnapshotJSON: "{\"configuration\":{},\"blob\":\"\(secondBlob)\"}"
+        )
+        payload.itemMetadataJSON = "{\"blob\":\"\(firstBlob)\"}"
+
+        do {
+            try self.validator.validate(payload)
+            Issue.record("Expected combined record size rejection")
+        } catch let error as CloudSyncPayloadSecurityError {
+            #expect(error.issue == .payloadTooLarge)
+            #expect(error.path == "favorite")
+        }
+    }
+
     private static func sourcePayload(configJSON: String) -> SourceCloudPayload {
         return SourceCloudPayload(
             schemaVersion: 1,

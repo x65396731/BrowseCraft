@@ -12,7 +12,7 @@ struct FavoritesView: View {
         NavigationStack {
             List {
                 Section("Favorites") {
-                    ForEach(self.viewModel.favoriteItems, id: \.id) { item in
+                    ForEach(self.viewModel.favoriteItems, id: \.identity) { item in
                         if let source: Source = self.viewModel.source(for: item) {
                             NavigationLink(value: FavoriteDestination(item: item, source: source)) {
                                 FavoriteEntryRowView(

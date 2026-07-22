@@ -2,10 +2,14 @@ import CloudKit
 import Foundation
 
 /// 中文注释：每个已确认 cloud scope 使用独立的 CKSyncEngine state，所有记录共用 BrowseCraftSync zone。
+/// 中文注释：调度权只属于 CloudSyncCoordinator；CKSyncEngine 仅执行明确发起的 fetch/send。
 actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
+    static let usesAutomaticScheduling: Bool = false
+
     private let database: CKDatabase
     private let stateStore: any CloudSyncEngineStateStoring
     private let metadataStore: any CloudRecordMetadataStoring
+    private let zoneRecoveryStore: any CloudRecordZoneRecoveryStoring
     private let securityValidator: any CloudSyncPayloadSecurityValidating
     private let accountScopeProvider: any ActiveAccountScopeProviding
     private let mapper: CloudKitRecordMapper
@@ -15,9 +19,11 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
     private var latestStateSerialization: CKSyncEngine.State.Serialization?
     private var zoneReadyScopes: Set<CloudAccountScope> = []
     private var accountWasInvalidated: Bool = false
+    private var pendingZoneRecoveryStrategy: CloudRecordZoneRecoveryStrategy?
+    private var pendingChangeTokenReset: Bool = false
 
     private var fetchedSourcesByID: [String: SourceCloudPayload] = [:]
-    private var fetchedFavoriteItemsByID: [String: FavoriteItemCloudPayload] = [:]
+    private var fetchedFavoriteItemsByID: [FavoriteItemIdentity: FavoriteItemCloudPayload] = [:]
     private var sourceFetchPending: Bool = false
     private var favoriteFetchPending: Bool = false
     private var fetchedBatchHasInvalidRecord: Bool = false
@@ -29,12 +35,14 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
         container: CKContainer,
         stateStore: any CloudSyncEngineStateStoring,
         metadataStore: any CloudRecordMetadataStoring,
+        zoneRecoveryStore: any CloudRecordZoneRecoveryStoring,
         securityValidator: any CloudSyncPayloadSecurityValidating,
         accountScopeProvider: any ActiveAccountScopeProviding
     ) {
         self.database = container.privateCloudDatabase
         self.stateStore = stateStore
         self.metadataStore = metadataStore
+        self.zoneRecoveryStore = zoneRecoveryStore
         self.securityValidator = securityValidator
         self.accountScopeProvider = accountScopeProvider
         self.mapper = CloudKitRecordMapper()
@@ -44,7 +52,11 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
         _ = token
         let accountScope: CloudAccountScope = try self.currentCloudScope()
         if self.sourceFetchPending == false {
-            try await self.fetchChanges(for: accountScope)
+            do {
+                try await self.fetchChanges(for: accountScope)
+            } catch {
+                throw Self.mapCloudOperationError(error)
+            }
             self.sourceFetchPending = true
             self.favoriteFetchPending = true
         }
@@ -64,14 +76,21 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
         _ = token
         let accountScope: CloudAccountScope = try self.currentCloudScope()
         if self.favoriteFetchPending == false {
-            try await self.fetchChanges(for: accountScope)
+            do {
+                try await self.fetchChanges(for: accountScope)
+            } catch {
+                throw Self.mapCloudOperationError(error)
+            }
             self.sourceFetchPending = true
             self.favoriteFetchPending = true
         }
         try self.requireCurrentAccount(accountScope)
 
         let records: [FavoriteItemCloudPayload] = self.fetchedFavoriteItemsByID.values.sorted {
-            $0.itemID < $1.itemID
+            if $0.sourceID != $1.sourceID {
+                return $0.sourceID < $1.sourceID
+            }
+            return $0.itemID < $1.itemID
         }
         self.fetchedFavoriteItemsByID.removeAll()
         self.favoriteFetchPending = false
@@ -107,10 +126,12 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
             }
         }
 
-        let result: CloudRecordBatchSaveResult = try await self.send(
-            prepared,
-            accountScope: accountScope
-        )
+        let result: CloudRecordBatchSaveResult
+        do {
+            result = try await self.send(prepared, accountScope: accountScope)
+        } catch {
+            throw Self.mapCloudOperationError(error)
+        }
         return CloudRecordBatchSaveResult(
             savedEntityIDs: result.savedEntityIDs,
             failures: failures + result.failures
@@ -127,18 +148,21 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
         for payload: FavoriteItemCloudPayload in records {
             do {
                 try self.securityValidator.validate(payload)
-                let recordID: CKRecord.ID = self.mapper.recordID(forFavoriteItemID: payload.itemID)
+                let recordID: CKRecord.ID = self.mapper.recordID(
+                    forFavoriteSourceID: payload.sourceID,
+                    itemID: payload.itemID
+                )
                 let record: CKRecord = try self.makeRecord(
                     recordType: CloudKitRecordMapper.favoriteItemRecordType,
                     recordID: recordID,
                     accountScope: accountScope
                 )
                 try self.mapper.apply(payload, to: record)
-                prepared.append((payload.itemID, record))
+                prepared.append((payload.identity.syncEntityID, record))
             } catch {
                 failures.append(
                     CloudRecordSaveFailure(
-                        entityID: payload.itemID,
+                        entityID: payload.identity.syncEntityID,
                         code: Self.safeCode(for: error),
                         retryAfter: nil
                     )
@@ -146,10 +170,12 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
             }
         }
 
-        let result: CloudRecordBatchSaveResult = try await self.send(
-            prepared,
-            accountScope: accountScope
-        )
+        let result: CloudRecordBatchSaveResult
+        do {
+            result = try await self.send(prepared, accountScope: accountScope)
+        } catch {
+            throw Self.mapCloudOperationError(error)
+        }
         return CloudRecordBatchSaveResult(
             savedEntityIDs: result.savedEntityIDs,
             failures: failures + result.failures
@@ -180,9 +206,14 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
         self.favoriteFetchPending = false
         self.fetchedBatchHasInvalidRecord = false
         self.accountWasInvalidated = false
+        self.pendingZoneRecoveryStrategy = nil
+        self.pendingChangeTokenReset = false
     }
 
     func handleEvent(_ event: CKSyncEngine.Event, syncEngine: CKSyncEngine) async {
+        guard syncEngine === self.syncEngine else {
+            return
+        }
         switch event {
         case .stateUpdate(let update):
             self.latestStateSerialization = update.stateSerialization
@@ -197,6 +228,9 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
                 self.accountWasInvalidated = true
             }
 
+        case .fetchedDatabaseChanges(let changes):
+            self.handleFetchedDatabaseChanges(changes)
+
         case .fetchedRecordZoneChanges(let changes):
             await self.handleFetchedRecordZoneChanges(changes)
 
@@ -205,8 +239,16 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
 
         case .didFetchRecordZoneChanges(let event):
             if event.zoneID == self.mapper.zoneID,
-               event.error?.code == .changeTokenExpired {
-                self.latestStateSerialization = nil
+               let errorCode: CKError.Code = event.error?.code {
+                switch errorCode {
+                case .changeTokenExpired:
+                    self.latestStateSerialization = nil
+                    self.pendingChangeTokenReset = true
+                case .zoneNotFound:
+                    self.mergePendingZoneRecovery(.rebuildFromLocalData)
+                default:
+                    break
+                }
             }
 
         default:
@@ -241,26 +283,34 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
     }
 
     private func fetchChanges(for accountScope: CloudAccountScope) async throws {
+        if self.pendingChangeTokenReset {
+            try await self.resetExpiredChangeToken(for: accountScope)
+        }
         let engine: CKSyncEngine = try await self.engine(for: accountScope)
         self.fetchedBatchHasInvalidRecord = false
         let options: CKSyncEngine.FetchChangesOptions = CKSyncEngine.FetchChangesOptions(
             scope: .zoneIDs([self.mapper.zoneID])
         )
-        do {
-            try await engine.fetchChanges(options)
-        } catch let error as CKError where error.code == .changeTokenExpired {
-            try self.stateStore.clearState(for: accountScope)
-            await engine.cancelOperations()
-            self.syncEngine = nil
-            self.engineAccountScope = nil
-            self.latestStateSerialization = nil
+        try await self.performFetch(using: engine, options: options)
+        try await self.recoverDeletedZoneIfNeeded(for: accountScope)
+
+        if self.pendingChangeTokenReset {
+            try await self.resetExpiredChangeToken(for: accountScope)
             let resetEngine: CKSyncEngine = try await self.engine(for: accountScope)
-            try await resetEngine.fetchChanges(options)
+            try await self.performFetch(using: resetEngine, options: options)
+            try await self.recoverDeletedZoneIfNeeded(for: accountScope)
+            if self.pendingChangeTokenReset {
+                throw CloudRecordOperationError(
+                    code: "ck_changeTokenExpired",
+                    retryAfter: 5
+                )
+            }
         }
         if self.fetchedBatchHasInvalidRecord {
             await self.cancelOperations()
             throw CKSyncEngineCloudRecordStoreError.invalidFetchedRecord
         }
+        self.zoneReadyScopes.insert(accountScope)
         try self.requireCurrentAccount(accountScope)
     }
 
@@ -272,6 +322,7 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
             return CloudRecordBatchSaveResult(savedEntityIDs: [], failures: [])
         }
         let engine: CKSyncEngine = try await self.engine(for: accountScope)
+        try await self.ensureZone(for: accountScope)
         let recordIDs: [CKRecord.ID] = prepared.map { $0.record.recordID }
         let entityIDByRecordID: [CKRecord.ID: String] = Dictionary(
             uniqueKeysWithValues: prepared.map { ($0.record.recordID, $0.entityID) }
@@ -289,7 +340,12 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
         let options: CKSyncEngine.SendChangesOptions = CKSyncEngine.SendChangesOptions(
             scope: .recordIDs(recordIDs)
         )
-        try await engine.sendChanges(options)
+        do {
+            try await engine.sendChanges(options)
+        } catch let error as CKError where error.code == .zoneNotFound {
+            self.mergePendingZoneRecovery(.rebuildFromLocalData)
+        }
+        try await self.recoverDeletedZoneIfNeeded(for: accountScope)
         try self.requireCurrentAccount(accountScope)
 
         var savedEntityIDs: Set<String> = []
@@ -326,7 +382,6 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
         try self.requireCurrentAccount(accountScope)
         if self.engineAccountScope == accountScope,
            let syncEngine: CKSyncEngine = self.syncEngine {
-            try await self.ensureZone(for: accountScope)
             return syncEngine
         }
 
@@ -340,7 +395,7 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
             stateSerialization: serialization,
             delegate: self
         )
-        configuration.automaticallySync = true
+        configuration.automaticallySync = Self.usesAutomaticScheduling
         configuration.subscriptionID = "BrowseCraftSync"
 
         let syncEngine: CKSyncEngine = CKSyncEngine(configuration)
@@ -352,8 +407,98 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
         self.fetchedFavoriteItemsByID.removeAll()
         self.sourceFetchPending = false
         self.favoriteFetchPending = false
-        try await self.ensureZone(for: accountScope)
+        if serialization == nil {
+            try await self.ensureZone(for: accountScope)
+        }
         return syncEngine
+    }
+
+    private func performFetch(
+        using engine: CKSyncEngine,
+        options: CKSyncEngine.FetchChangesOptions
+    ) async throws {
+        do {
+            try await engine.fetchChanges(options)
+        } catch let error as CKError {
+            switch error.code {
+            case .changeTokenExpired:
+                self.pendingChangeTokenReset = true
+            case .zoneNotFound:
+                self.mergePendingZoneRecovery(.rebuildFromLocalData)
+            default:
+                throw error
+            }
+        }
+    }
+
+    private func resetExpiredChangeToken(for accountScope: CloudAccountScope) async throws {
+        do {
+            try self.stateStore.clearState(for: accountScope)
+        } catch {
+            throw CloudRecordOperationError(code: "local_changeTokenResetFailed", retryAfter: 5)
+        }
+        self.pendingChangeTokenReset = false
+        await self.invalidateEngine()
+    }
+
+    private func recoverDeletedZoneIfNeeded(for accountScope: CloudAccountScope) async throws {
+        guard let strategy: CloudRecordZoneRecoveryStrategy = self.pendingZoneRecoveryStrategy else {
+            return
+        }
+        do {
+            try self.zoneRecoveryStore.recoverDeletedZone(
+                for: accountScope,
+                strategy: strategy
+            )
+        } catch {
+            throw CloudRecordOperationError(code: "local_zoneRecoveryFailed", retryAfter: 5)
+        }
+
+        self.pendingZoneRecoveryStrategy = nil
+        self.pendingChangeTokenReset = false
+        self.zoneReadyScopes.remove(accountScope)
+        await self.invalidateEngine()
+        throw CloudRecordOperationError(
+            code: "ck_zoneReset_\(strategy.rawValue)",
+            retryAfter: 1
+        )
+    }
+
+    private func invalidateEngine() async {
+        await self.syncEngine?.cancelOperations()
+        self.syncEngine = nil
+        self.engineAccountScope = nil
+        self.latestStateSerialization = nil
+        self.stagedRecordsByID.removeAll()
+        self.savedRecordIDs.removeAll()
+        self.failedRecordSaves.removeAll()
+        self.fetchedSourcesByID.removeAll()
+        self.fetchedFavoriteItemsByID.removeAll()
+        self.sourceFetchPending = false
+        self.favoriteFetchPending = false
+        self.fetchedBatchHasInvalidRecord = false
+    }
+
+    private func handleFetchedDatabaseChanges(
+        _ changes: CKSyncEngine.Event.FetchedDatabaseChanges
+    ) {
+        for deletion: CKDatabase.DatabaseChange.Deletion in changes.deletions
+        where deletion.zoneID == self.mapper.zoneID {
+            switch deletion.reason {
+            case .purged:
+                self.mergePendingZoneRecovery(.purgeLocalCloudData)
+            case .deleted, .encryptedDataReset:
+                self.mergePendingZoneRecovery(.rebuildFromLocalData)
+            @unknown default:
+                self.mergePendingZoneRecovery(.rebuildFromLocalData)
+            }
+        }
+    }
+
+    private func mergePendingZoneRecovery(_ strategy: CloudRecordZoneRecoveryStrategy) {
+        if strategy == .purgeLocalCloudData || self.pendingZoneRecoveryStrategy == nil {
+            self.pendingZoneRecoveryStrategy = strategy
+        }
     }
 
     private func ensureZone(for accountScope: CloudAccountScope) async throws {
@@ -390,7 +535,7 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
                     self.fetchedSourcesByID[payload.sourceID] = payload
                 case CloudKitRecordMapper.favoriteItemRecordType:
                     let payload: FavoriteItemCloudPayload = try self.mapper.favoriteItemPayload(from: record)
-                    self.fetchedFavoriteItemsByID[payload.itemID] = payload
+                    self.fetchedFavoriteItemsByID[payload.identity] = payload
                 default:
                     continue
                 }
@@ -412,6 +557,9 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
         }
         for failedSave: CKSyncEngine.Event.SentRecordZoneChanges.FailedRecordSave in changes.failedRecordSaves {
             var failureCode: String = "ck_\(failedSave.error.code.rawValue)"
+            if failedSave.error.code == .zoneNotFound {
+                self.mergePendingZoneRecovery(.rebuildFromLocalData)
+            }
             if let serverRecord: CKRecord = failedSave.error.serverRecord {
                 do {
                     try self.bufferServerRecordForConflictResolution(serverRecord)
@@ -439,7 +587,7 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
             self.fetchedSourcesByID[payload.sourceID] = payload
         case CloudKitRecordMapper.favoriteItemRecordType:
             let payload: FavoriteItemCloudPayload = try self.mapper.favoriteItemPayload(from: record)
-            self.fetchedFavoriteItemsByID[payload.itemID] = payload
+            self.fetchedFavoriteItemsByID[payload.identity] = payload
         default:
             throw CloudKitRecordMappingError.unexpectedRecordType
         }
@@ -511,6 +659,16 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
             }
         }
         return "local_\(String(reflecting: type(of: error)))"
+    }
+
+    private static func mapCloudOperationError(_ error: any Error) -> any Error {
+        guard let cloudError: CKError = error as? CKError else {
+            return error
+        }
+        return CloudRecordOperationError(
+            code: "ck_\(cloudError.code.rawValue)",
+            retryAfter: cloudError.retryAfterSeconds
+        )
     }
 }
 

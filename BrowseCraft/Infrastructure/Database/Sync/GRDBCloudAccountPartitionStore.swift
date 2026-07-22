@@ -189,6 +189,7 @@ final class GRDBCloudAccountPartitionStore: CloudAccountPartitioning {
         for localRecord: FavoriteItemRecord in localRecords {
             let key: [String: String] = [
                 "userID": cloudScope.rawValue,
+                "sourceID": localRecord.sourceID,
                 "itemID": localRecord.itemID
             ]
             let cloudRecord: FavoriteItemRecord? = try FavoriteItemRecord.fetchOne(database, key: key)
@@ -223,7 +224,10 @@ final class GRDBCloudAccountPartitionStore: CloudAccountPartitioning {
             try SyncQueueRecord.enqueue(
                 accountScope: cloudScope,
                 entityType: .favoriteItem,
-                entityID: copiedRecord.itemID,
+                entityID: FavoriteItemIdentity(
+                    sourceID: copiedRecord.sourceID,
+                    itemID: copiedRecord.itemID
+                ).syncEntityID,
                 operation: copiedRecord.deletedAt == nil ? .upsert : .delete,
                 updatedAt: copiedRecord.lastChangedAt,
                 in: database

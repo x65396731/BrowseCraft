@@ -21,6 +21,67 @@ struct SourceSyncServiceTests {
         #expect(try queueRepository.fetchPending(limit: 10).isEmpty)
     }
 
+    @Test func drainsSourceQueueAcrossMultipleBatches() async throws {
+        let database: AppDatabase = try Self.makeDatabase()
+        let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
+        let queueRepository: GRDBSyncQueueRepository = GRDBSyncQueueRepository(database: database)
+        let cloudStore: MockCloudRecordStore = MockCloudRecordStore()
+        let service: SourceSyncService = Self.makeService(database: database, cloudStore: cloudStore)
+
+        for index: Int in 0..<205 {
+            try sourceRepository.saveSource(
+                Self.makeRSSSource(
+                    id: "source-\(index)",
+                    name: "Source \(index)",
+                    updatedAt: TimeInterval(100 + index)
+                )
+            )
+        }
+
+        let result: SourceSyncResult = try await service.syncSources(limit: 100)
+
+        #expect(result.uploadedCount == 205)
+        #expect(try queueRepository.fetchPending(limit: 300).isEmpty)
+        #expect(cloudStore.events().filter { $0 == "sourceSave" }.count == 3)
+    }
+
+    @Test func partialFailureIsNotRetriedInsideTheSameDrainRun() async throws {
+        let database: AppDatabase = try Self.makeDatabase()
+        let queueRepository: GRDBSyncQueueRepository = GRDBSyncQueueRepository(database: database)
+        let cloudStore: MockCloudRecordStore = MockCloudRecordStore()
+        cloudStore.nextSourceSaveFailureIDs = ["source-0"]
+        let service: SourceSyncService = Self.makeService(database: database, cloudStore: cloudStore)
+
+        try await database.queue.write { database in
+            for index: Int in 0..<3 {
+                let source: Source = Self.makeRSSSource(
+                    id: "source-\(index)",
+                    name: "Source \(index)",
+                    updatedAt: TimeInterval(100 + index)
+                )
+                var record: SourceRecord = try SourceRecord(source: source)
+                try record.save(database)
+                try SyncQueueRecord.enqueue(
+                    accountScope: .localDefault,
+                    entityType: .source,
+                    entityID: source.id,
+                    operation: .upsert,
+                    updatedAt: Date(timeIntervalSince1970: TimeInterval(100 + index)),
+                    in: database
+                )
+            }
+        }
+
+        let result: SourceSyncResult = try await service.syncSources(limit: 1)
+        let pending: [SyncQueueItem] = try queueRepository.fetchPending(limit: 10)
+
+        #expect(result.uploadedCount == 2)
+        #expect(result.failedCount == 1)
+        #expect(pending.map(\.entityID) == ["source-0"])
+        #expect(pending.first?.retryCount == 1)
+        #expect(cloudStore.events().filter { $0 == "sourceSave" }.count == 3)
+    }
+
     @Test func downloadsCloudSourceToLocalDatabase() async throws {
         let database: AppDatabase = try Self.makeDatabase()
         let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)

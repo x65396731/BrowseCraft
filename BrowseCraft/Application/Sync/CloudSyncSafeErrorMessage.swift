@@ -8,6 +8,9 @@ enum CloudSyncSafeErrorMessage {
         if let sessionError: CloudSyncSessionError = error as? CloudSyncSessionError {
             return sessionError.description
         }
+        if let operationError: CloudRecordOperationError = error as? CloudRecordOperationError {
+            return operationError.description
+        }
         return "Cloud synchronization failed type=\(String(reflecting: type(of: error)))"
     }
 }

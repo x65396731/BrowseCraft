@@ -67,7 +67,7 @@ final class GRDBSyncQueueRepository: SyncQueueRepository {
 
             record.retryCount += 1
             record.lastError = errorMessage
-            record.updatedAt = Date()
+            record.nextRetryAt = nil
             try record.save(database)
         }
     }

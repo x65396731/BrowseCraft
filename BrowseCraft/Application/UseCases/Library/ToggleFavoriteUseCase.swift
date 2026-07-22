@@ -11,8 +11,8 @@ struct ToggleFavoriteUseCase {
     }
 
     /// 中文注释：loadFavoriteItemIDs 方法封装当前类型的一段业务或界面行为。
-    func loadFavoriteItemIDs() throws -> Set<String> {
-        return try self.favoriteRepository.fetchFavoriteItemIDs()
+    func loadFavoriteItemIDs(sourceID: String?) throws -> Set<String> {
+        return try self.favoriteRepository.fetchFavoriteItemIDs(sourceID: sourceID)
     }
 
     func loadFavoriteItems() throws -> [FavoriteContentItem] {
@@ -30,11 +30,13 @@ struct ToggleFavoriteUseCase {
             source: source,
             favoritedAt: favoritedAt
         )
-        let currentIDs: Set<String> = try self.favoriteRepository.fetchFavoriteItemIDs()
+        let currentIDs: Set<String> = try self.favoriteRepository.fetchFavoriteItemIDs(
+            sourceID: favoriteItem.sourceID
+        )
         let shouldBecomeFavorite: Bool = !currentIDs.contains(favoriteItem.id)
 
         try self.favoriteRepository.setFavorite(item: favoriteItem, isFavorite: shouldBecomeFavorite)
-        return try self.favoriteRepository.fetchFavoriteItemIDs()
+        return try self.favoriteRepository.fetchFavoriteItemIDs(sourceID: favoriteItem.sourceID)
     }
 
     private func favoriteItem(

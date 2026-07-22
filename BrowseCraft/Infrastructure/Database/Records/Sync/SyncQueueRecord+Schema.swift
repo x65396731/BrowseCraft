@@ -10,6 +10,7 @@ extension SyncQueueRecord {
         static let updatedAt: Column = Column("updatedAt")
         static let retryCount: Column = Column("retryCount")
         static let lastError: Column = Column("lastError")
+        static let nextRetryAt: Column = Column("nextRetryAt")
         static let createdAt: Column = Column("createdAt")
     }
 
@@ -25,6 +26,7 @@ extension SyncQueueRecord {
             table.column("updatedAt", .datetime).notNull()
             table.column("retryCount", .integer).notNull().defaults(to: 0)
             table.column("lastError", .text)
+            table.column("nextRetryAt", .datetime)
             table.column("createdAt", .datetime).notNull()
             table.uniqueKey(["accountScope", "entityType", "entityID"])
         }
@@ -35,7 +37,7 @@ extension SyncQueueRecord {
         try database.execute(
             sql: """
             CREATE INDEX IF NOT EXISTS idx_sync_queue_pending
-            ON \(Self.databaseTableName)(accountScope, updatedAt ASC)
+            ON \(Self.databaseTableName)(accountScope, nextRetryAt, updatedAt ASC)
             """
         )
         try database.execute(

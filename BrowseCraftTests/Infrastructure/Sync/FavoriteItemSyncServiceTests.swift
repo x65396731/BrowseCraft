@@ -20,6 +20,70 @@ struct FavoriteItemSyncServiceTests {
         #expect(try queueRepository.fetchPending(limit: 10).isEmpty)
     }
 
+    @Test func drainsFavoriteQueueAcrossMultipleBatches() async throws {
+        let database: AppDatabase = try Self.makeDatabase()
+        let queueRepository: GRDBSyncQueueRepository = GRDBSyncQueueRepository(database: database)
+        let cloudStore: MockCloudRecordStore = MockCloudRecordStore()
+        let service: FavoriteItemSyncService = Self.makeService(
+            database: database,
+            cloudStore: cloudStore
+        )
+
+        try await database.queue.write { database in
+            for index: Int in 0..<205 {
+                let item: FavoriteContentItem = Self.favoriteItem(id: "favorite-\(index)")
+                var record: FavoriteItemRecord = try FavoriteItemRecord(
+                    userID: AppUser.localDefaultID,
+                    item: item,
+                    updatedAt: Date(timeIntervalSince1970: TimeInterval(100 + index)),
+                    deletedAt: nil
+                )
+                try record.save(database)
+                try SyncQueueRecord.enqueue(
+                    accountScope: .localDefault,
+                    entityType: .favoriteItem,
+                    entityID: item.identity.syncEntityID,
+                    operation: .upsert,
+                    updatedAt: Date(timeIntervalSince1970: TimeInterval(100 + index)),
+                    in: database
+                )
+            }
+        }
+
+        let result: FavoriteItemSyncResult = try await service.syncFavoriteItems(limit: 100)
+
+        #expect(result.uploadedCount == 205)
+        #expect(try queueRepository.fetchPending(limit: 300).isEmpty)
+        #expect(cloudStore.events().filter { $0 == "favoriteSave" }.count == 3)
+    }
+
+    @Test func uploadsSameItemIDFromDifferentSourcesAsDistinctRecords() async throws {
+        let database: AppDatabase = try Self.makeDatabase()
+        let favoriteRepository: GRDBFavoriteRepository = GRDBFavoriteRepository(database: database)
+        let cloudStore: MockCloudRecordStore = MockCloudRecordStore()
+        let service: FavoriteItemSyncService = Self.makeService(
+            database: database,
+            cloudStore: cloudStore
+        )
+        let first: FavoriteContentItem = Self.favoriteItem(
+            id: "shared-guid",
+            sourceID: "source-a"
+        )
+        let second: FavoriteContentItem = Self.favoriteItem(
+            id: "shared-guid",
+            sourceID: "source-b"
+        )
+
+        try favoriteRepository.setFavorite(item: first, isFavorite: true)
+        try favoriteRepository.setFavorite(item: second, isFavorite: true)
+
+        let result: FavoriteItemSyncResult = try await service.syncFavoriteItems(limit: 10)
+
+        #expect(result.uploadedCount == 2)
+        #expect(cloudStore.favoriteItemRecord(sourceID: "source-a", itemID: "shared-guid") != nil)
+        #expect(cloudStore.favoriteItemRecord(sourceID: "source-b", itemID: "shared-guid") != nil)
+    }
+
     @Test func downloadsCloudFavoriteItemAndRebuildsAggregate() async throws {
         let database: AppDatabase = try Self.makeDatabase()
         let favoriteRepository: GRDBFavoriteRepository = GRDBFavoriteRepository(database: database)
@@ -192,7 +256,9 @@ struct FavoriteItemSyncServiceTests {
 
         #expect(result.uploadedCount == 1)
         #expect(result.failedCount == 1)
-        #expect(pending.map(\.entityID) == ["favorite-2"])
+        #expect(pending.map(\.entityID) == [
+            FavoriteItemIdentity(sourceID: "source-1", itemID: "favorite-2").syncEntityID
+        ])
         #expect(pending.first?.retryCount == 1)
         #expect(cloudStore.favoriteItemRecord(id: "favorite-1") != nil)
         #expect(cloudStore.favoriteItemRecord(id: "favorite-2") == nil)
@@ -233,7 +299,7 @@ struct FavoriteItemSyncServiceTests {
             try SyncQueueRecord.enqueue(
                 accountScope: .localDefault,
                 entityType: .favoriteItem,
-                entityID: item.id,
+                entityID: item.identity.syncEntityID,
                 operation: deletedAt == nil ? .upsert : .delete,
                 updatedAt: Date(timeIntervalSince1970: updatedAt),
                 in: database
@@ -262,10 +328,14 @@ struct FavoriteItemSyncServiceTests {
         return try FavoriteItemCloudPayload(record: record)
     }
 
-    private static func favoriteItem(id: String, title: String? = nil) -> FavoriteContentItem {
+    private static func favoriteItem(
+        id: String,
+        sourceID: String = "source-1",
+        title: String? = nil
+    ) -> FavoriteContentItem {
         return FavoriteContentItem(
             id: id,
-            sourceID: "source-1",
+            sourceID: sourceID,
             title: title ?? "Favorite \(id.suffix(1))",
             detailURL: "https://example.test/items/\(id)",
             coverURL: nil,

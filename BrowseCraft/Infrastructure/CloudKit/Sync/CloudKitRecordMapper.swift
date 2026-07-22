@@ -1,4 +1,5 @@
 import CloudKit
+import CryptoKit
 import Foundation
 
 struct CloudKitRecordMapper: Sendable {
@@ -13,11 +14,20 @@ struct CloudKitRecordMapper: Sendable {
     }
 
     func recordID(forSourceID sourceID: String) -> CKRecord.ID {
-        return CKRecord.ID(recordName: "source:\(sourceID)", zoneID: self.zoneID)
+        return CKRecord.ID(
+            recordName: Self.hashedRecordName(prefix: "source", components: [sourceID]),
+            zoneID: self.zoneID
+        )
     }
 
-    func recordID(forFavoriteItemID itemID: String) -> CKRecord.ID {
-        return CKRecord.ID(recordName: "favorite:\(itemID)", zoneID: self.zoneID)
+    func recordID(forFavoriteSourceID sourceID: String, itemID: String) -> CKRecord.ID {
+        return CKRecord.ID(
+            recordName: Self.hashedRecordName(
+                prefix: "favorite",
+                components: [sourceID, itemID]
+            ),
+            zoneID: self.zoneID
+        )
     }
 
     func apply(_ payload: SourceCloudPayload, to record: CKRecord) throws {
@@ -38,7 +48,10 @@ struct CloudKitRecordMapper: Sendable {
     }
 
     func apply(_ payload: FavoriteItemCloudPayload, to record: CKRecord) throws {
-        guard record.recordID == self.recordID(forFavoriteItemID: payload.itemID) else {
+        guard record.recordID == self.recordID(
+            forFavoriteSourceID: payload.sourceID,
+            itemID: payload.itemID
+        ) else {
             throw CloudKitRecordMappingError.recordIDMismatch
         }
         record["schemaVersion"] = NSNumber(value: payload.schemaVersion)
@@ -85,14 +98,18 @@ struct CloudKitRecordMapper: Sendable {
             throw CloudKitRecordMappingError.unexpectedRecordType
         }
         let itemID: String = try Self.required(record, key: "itemID")
-        guard record.recordID == self.recordID(forFavoriteItemID: itemID) else {
+        let sourceID: String = try Self.required(record, key: "sourceID")
+        guard record.recordID == self.recordID(
+            forFavoriteSourceID: sourceID,
+            itemID: itemID
+        ) else {
             throw CloudKitRecordMappingError.recordIDMismatch
         }
         return FavoriteItemCloudPayload(
             schemaVersion: try Self.requiredInt(record, key: "schemaVersion"),
             userID: CloudAccountScope.localDefault.rawValue,
             itemID: itemID,
-            sourceID: try Self.required(record, key: "sourceID"),
+            sourceID: sourceID,
             kind: try Self.required(record, key: "kind"),
             title: try Self.required(record, key: "title"),
             detailURL: try Self.required(record, key: "detailURL"),
@@ -125,6 +142,16 @@ struct CloudKitRecordMapper: Sendable {
             throw CloudKitRecordMappingError.missingField(path: key)
         }
         return value.boolValue
+    }
+
+    /// 中文注释：CloudKit recordName 只使用固定长度 ASCII 摘要，原始业务 ID 仍保存在字段中校验。
+    private static func hashedRecordName(prefix: String, components: [String]) -> String {
+        let canonicalKey: String = components.map { component in
+            return "\(component.utf8.count):\(component)"
+        }.joined()
+        let digest: SHA256.Digest = SHA256.hash(data: Data(canonicalKey.utf8))
+        let hex: String = digest.map { String(format: "%02x", $0) }.joined()
+        return "\(prefix):\(hex)"
     }
 }
 

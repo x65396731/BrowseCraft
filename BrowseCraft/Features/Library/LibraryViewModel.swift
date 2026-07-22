@@ -119,7 +119,9 @@ final class LibraryViewModel: ObservableObject {
         do {
             try self.syncBuiltInSourcesUseCase.execute()
             self.sources = try self.loadSourcesUseCase.execute()
-            self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs()
+            self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs(
+                sourceID: self.selectedSourceID
+            )
 
             try self.restoreStartupLibraryState()
             if self.applyPreparedSnapshotIfAvailable() == false {
@@ -251,7 +253,9 @@ final class LibraryViewModel: ObservableObject {
                     "context=\(self.contextDescription(expectedListContext))"
                 )
                 #endif
-                self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs()
+                self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs(
+                    sourceID: self.selectedSourceID
+                )
                 outcome = .loaded
             } else {
                 #if DEBUG
@@ -623,7 +627,9 @@ final class LibraryViewModel: ObservableObject {
                     context: self.selectedListContext
                 )
             }
-            self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs()
+            self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs(
+                sourceID: self.selectedSourceID
+            )
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "switch-source-error")
             AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .list, errorCode: "switch-source-error")
@@ -646,7 +652,9 @@ final class LibraryViewModel: ObservableObject {
         }
 
         do {
-            self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs()
+            self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs(
+                sourceID: self.selectedSourceID
+            )
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "snapshot-favorite-load-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)

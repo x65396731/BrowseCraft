@@ -37,6 +37,6 @@ protocol SourceSyncLocalStore {
         zoneName: String
     ) throws
     func pendingUploads(accountScope: CloudAccountScope) throws -> [SourceSyncPendingUpload]
-    func removePendingUploads(ids: [String]) throws
-    func markPendingUploadsFailed(ids: [String], errorMessage: String) throws
+    func removePendingUploads(acknowledgements: [SyncQueueAcknowledgement]) throws
+    func markPendingUploadsFailed(_ updates: [SyncQueueFailureUpdate]) throws
 }

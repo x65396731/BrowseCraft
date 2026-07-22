@@ -17,7 +17,7 @@ extension FavoriteItemCloudPayload {
         self.coverURL = record.coverURL
         self.latestText = record.latestText
         self.itemMetadataJSON = String(data: metadataData, encoding: .utf8) ?? "{}"
-        self.sourceSnapshotJSON = record.sourceSnapshotJSON
+        self.sourceSnapshotJSON = try Self.encodeCloudSourceSnapshot(item.sourceSnapshot)
         self.favoritedAt = record.favoritedAt
         self.updatedAt = record.updatedAt
         self.deletedAt = record.deletedAt
@@ -38,13 +38,13 @@ extension FavoriteItemRecord {
         var sourceSnapshot: FavoriteSourceSnapshot?
         if let snapshotJSON: String = payload.sourceSnapshotJSON {
             guard let snapshotData: Data = snapshotJSON.data(using: .utf8),
-                  let decodedSnapshot: FavoriteSourceSnapshot = try? JSONDecoder().decode(
-                    FavoriteSourceSnapshot.self,
+                  let cloudSnapshot: FavoriteSourceCloudSnapshot = try? JSONDecoder().decode(
+                    FavoriteSourceCloudSnapshot.self,
                     from: snapshotData
                   ) else {
                 throw FavoriteItemCloudPayloadConversionError.invalidSourceSnapshot
             }
-            sourceSnapshot = decodedSnapshot
+            sourceSnapshot = cloudSnapshot.localSnapshot(userID: payload.userID)
         }
 
         let item: FavoriteContentItem = FavoriteContentItem(
@@ -67,6 +67,66 @@ extension FavoriteItemRecord {
             item: item,
             updatedAt: payload.updatedAt,
             deletedAt: payload.deletedAt
+        )
+    }
+}
+
+private extension FavoriteItemCloudPayload {
+    static func encodeCloudSourceSnapshot(
+        _ snapshot: FavoriteSourceSnapshot?
+    ) throws -> String? {
+        guard let snapshot: FavoriteSourceSnapshot else {
+            return nil
+        }
+        let cloudSnapshot: FavoriteSourceCloudSnapshot = FavoriteSourceCloudSnapshot(
+            snapshot: snapshot
+        )
+        let data: Data = try JSONEncoder().encode(cloudSnapshot)
+        guard let json: String = String(data: data, encoding: .utf8) else {
+            throw FavoriteItemCloudPayloadConversionError.invalidSourceSnapshot
+        }
+        return json
+    }
+}
+
+/// 中文注释：CloudKit 快照不包含本地 userID/account scope；下载后只绑定当前已确认分区。
+private struct FavoriteSourceCloudSnapshot: Codable {
+    var id: String
+    var name: String
+    var baseURL: String
+    var type: SourceType
+    var configuration: SourceConfiguration
+    var enabled: Bool
+    var createdAt: Date
+    var updatedAt: Date
+    var deletedAt: Date?
+
+    init(snapshot: FavoriteSourceSnapshot) {
+        self.id = snapshot.id
+        self.name = snapshot.name
+        self.baseURL = snapshot.baseURL
+        self.type = snapshot.type
+        self.configuration = snapshot.configuration
+        self.enabled = snapshot.enabled
+        self.createdAt = snapshot.createdAt
+        self.updatedAt = snapshot.updatedAt
+        self.deletedAt = snapshot.deletedAt
+    }
+
+    func localSnapshot(userID: String) -> FavoriteSourceSnapshot {
+        return FavoriteSourceSnapshot(
+            source: Source(
+                userID: userID,
+                id: self.id,
+                name: self.name,
+                baseURL: self.baseURL,
+                type: self.type,
+                configuration: self.configuration,
+                enabled: self.enabled,
+                createdAt: self.createdAt,
+                updatedAt: self.updatedAt,
+                deletedAt: self.deletedAt
+            )
         )
     }
 }

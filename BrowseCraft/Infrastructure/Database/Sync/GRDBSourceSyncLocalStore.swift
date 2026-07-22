@@ -3,9 +3,11 @@ import GRDB
 
 final class GRDBSourceSyncLocalStore: SourceSyncLocalStore {
     private let database: AppDatabase
+    private let now: () -> Date
 
-    init(database: AppDatabase) {
+    init(database: AppDatabase, now: @escaping () -> Date = Date.init) {
         self.database = database
+        self.now = now
     }
 
     func changeToken(
@@ -86,9 +88,14 @@ final class GRDBSourceSyncLocalStore: SourceSyncLocalStore {
 
     func pendingUploads(accountScope: CloudAccountScope) throws -> [SourceSyncPendingUpload] {
         return try self.database.queue.read { database in
+            let now: Date = self.now()
             let queueRecords: [SyncQueueRecord] = try SyncQueueRecord
                 .filter(SyncQueueRecord.Columns.accountScope == accountScope.rawValue)
                 .filter(SyncQueueRecord.Columns.entityType == SyncEntityType.source.rawValue)
+                .filter(
+                    SyncQueueRecord.Columns.nextRetryAt == nil ||
+                        SyncQueueRecord.Columns.nextRetryAt <= now
+                )
                 .fetchAll(database)
 
             return try queueRecords.map { queueRecord in
@@ -104,24 +111,40 @@ final class GRDBSourceSyncLocalStore: SourceSyncLocalStore {
         }
     }
 
-    func removePendingUploads(ids: [String]) throws {
+    func removePendingUploads(acknowledgements: [SyncQueueAcknowledgement]) throws {
         try self.database.queue.write { database in
-            for id: String in ids {
-                _ = try SyncQueueRecord.deleteOne(database, key: id)
+            for acknowledgement: SyncQueueAcknowledgement in acknowledgements {
+                guard let record: SyncQueueRecord = try SyncQueueRecord.fetchOne(
+                    database,
+                    key: acknowledgement.id
+                ),
+                record.operation == acknowledgement.operation.rawValue,
+                record.updatedAt == acknowledgement.updatedAt else {
+                    continue
+                }
+                _ = try SyncQueueRecord.deleteOne(database, key: acknowledgement.id)
             }
         }
     }
 
-    func markPendingUploadsFailed(ids: [String], errorMessage: String) throws {
+    func markPendingUploadsFailed(_ updates: [SyncQueueFailureUpdate]) throws {
         try self.database.queue.write { database in
-            let now: Date = Date()
-            for id: String in ids {
-                guard var record: SyncQueueRecord = try SyncQueueRecord.fetchOne(database, key: id) else {
+            let failedAt: Date = self.now()
+            for update: SyncQueueFailureUpdate in updates {
+                let acknowledgement: SyncQueueAcknowledgement = update.acknowledgement
+                guard var record: SyncQueueRecord = try SyncQueueRecord.fetchOne(
+                    database,
+                    key: acknowledgement.id
+                ),
+                record.operation == acknowledgement.operation.rawValue,
+                record.updatedAt == acknowledgement.updatedAt else {
                     continue
                 }
                 record.retryCount += 1
-                record.lastError = errorMessage
-                record.updatedAt = now
+                record.lastError = update.errorMessage
+                record.nextRetryAt = update.retryAfter.map {
+                    failedAt.addingTimeInterval(max(0, $0))
+                }
                 try record.save(database)
             }
         }

@@ -21,6 +21,9 @@ enum FavoriteAggregateBuilder {
                 return lhsDate > rhsDate
             }
 
+            if lhs.sourceID != rhs.sourceID {
+                return lhs.sourceID < rhs.sourceID
+            }
             return lhs.id < rhs.id
         }
 

@@ -10,6 +10,30 @@ protocol CloudRecordStore: Sendable {
     func cancelOperations() async
 }
 
+protocol CloudSyncRetryScheduleProviding: Sendable {
+    func earliestRetryDate(for accountScope: CloudAccountScope) throws -> Date?
+}
+
+struct EmptyCloudSyncRetryScheduleProvider: CloudSyncRetryScheduleProviding {
+    func earliestRetryDate(for accountScope: CloudAccountScope) throws -> Date? {
+        _ = accountScope
+        return nil
+    }
+}
+
+struct CloudRecordOperationError: Error, Hashable, Sendable, CustomStringConvertible {
+    var code: String
+    var retryAfter: TimeInterval?
+
+    var description: String {
+        var message: String = "Cloud operation failed code=\(self.code)"
+        if let retryAfter: TimeInterval {
+            message += " retryAfter=\(retryAfter)"
+        }
+        return message
+    }
+}
+
 struct SourceCloudChangeSet: Hashable, Sendable {
     var records: [SourceCloudPayload]
     var changeToken: Data?
