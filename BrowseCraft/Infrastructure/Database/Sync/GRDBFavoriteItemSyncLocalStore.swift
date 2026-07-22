@@ -8,10 +8,15 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
         self.database = database
     }
 
-    func changeToken(scope: String, zoneName: String) throws -> Data? {
+    func changeToken(
+        accountScope: CloudAccountScope,
+        scope: String,
+        zoneName: String
+    ) throws -> Data? {
         return try self.database.queue.read { database in
             try SyncStateRecord
                 .filter(
+                    SyncStateRecord.Columns.accountScope == accountScope.rawValue &&
                     SyncStateRecord.Columns.scope == scope &&
                     SyncStateRecord.Columns.zoneName == zoneName
                 )
@@ -21,6 +26,7 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
     }
 
     func snapshots(
+        accountScope: CloudAccountScope,
         for keys: [FavoriteItemSyncKey]
     ) throws -> [FavoriteItemSyncKey: FavoriteItemSyncLocalSnapshot] {
         return try self.database.queue.read { database in
@@ -28,7 +34,7 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
             for key: FavoriteItemSyncKey in Set(keys) {
                 guard let record: FavoriteItemRecord = try FavoriteItemRecord.fetchOne(
                     database,
-                    key: ["userID": key.userID, "itemID": key.itemID]
+                    key: ["userID": accountScope.rawValue, "itemID": key.itemID]
                 ) else {
                     continue
                 }
@@ -42,15 +48,23 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
         }
     }
 
-    func commit(_ plan: FavoriteItemSyncMergePlan, scope: String, zoneName: String) throws {
+    func commit(
+        _ plan: FavoriteItemSyncMergePlan,
+        accountScope: CloudAccountScope,
+        scope: String,
+        zoneName: String
+    ) throws {
         try self.database.queue.write { database in
+            try AppUserRecord.insertUser(id: accountScope.rawValue, in: database)
             for payload: FavoriteItemCloudPayload in plan.acceptedPayloads {
                 let key: [String: String] = [
-                    "userID": payload.userID,
+                    "userID": accountScope.rawValue,
                     "itemID": payload.itemID
                 ]
                 let existing: FavoriteItemRecord? = try FavoriteItemRecord.fetchOne(database, key: key)
-                var record: FavoriteItemRecord = FavoriteItemRecord(payload: payload)
+                var scopedPayload: FavoriteItemCloudPayload = payload
+                scopedPayload.userID = accountScope.rawValue
+                var record: FavoriteItemRecord = FavoriteItemRecord(payload: scopedPayload)
                 if let existing: FavoriteItemRecord {
                     record.createdAt = existing.createdAt
                 }
@@ -59,6 +73,7 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
 
             for change: FavoriteItemSyncLocalChange in plan.requeuedLocalChanges {
                 try SyncQueueRecord.enqueue(
+                    accountScope: accountScope,
                     entityType: .favoriteItem,
                     entityID: change.itemID,
                     operation: change.operation,
@@ -67,9 +82,10 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
                 )
             }
 
-            try FavoriteAggregateBuilder.rebuild(userID: AppUser.localDefaultID, in: database)
+            try FavoriteAggregateBuilder.rebuild(userID: accountScope.rawValue, in: database)
             try Self.saveChangeToken(
                 plan.changeToken,
+                accountScope: accountScope,
                 scope: scope,
                 zoneName: zoneName,
                 in: database
@@ -77,16 +93,17 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
         }
     }
 
-    func pendingUploads(userID: String) throws -> [FavoriteItemSyncPendingUpload] {
+    func pendingUploads(accountScope: CloudAccountScope) throws -> [FavoriteItemSyncPendingUpload] {
         return try self.database.queue.read { database in
             let queueRecords: [SyncQueueRecord] = try SyncQueueRecord
+                .filter(SyncQueueRecord.Columns.accountScope == accountScope.rawValue)
                 .filter(SyncQueueRecord.Columns.entityType == SyncEntityType.favoriteItem.rawValue)
                 .fetchAll(database)
 
             return try queueRecords.map { queueRecord in
                 let favoriteItemRecord: FavoriteItemRecord? = try FavoriteItemRecord.fetchOne(
                     database,
-                    key: ["userID": userID, "itemID": queueRecord.entityID]
+                    key: ["userID": accountScope.rawValue, "itemID": queueRecord.entityID]
                 )
                 return FavoriteItemSyncPendingUpload(
                     queueItem: queueRecord.domainModel(),
@@ -121,6 +138,7 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
 
     private static func saveChangeToken(
         _ token: Data?,
+        accountScope: CloudAccountScope,
         scope: String,
         zoneName: String,
         in database: Database
@@ -131,6 +149,7 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
         let now: Date = Date()
         var state: SyncStateRecord = SyncStateRecord(
             state: SyncState(
+                accountScope: accountScope,
                 scope: scope,
                 zoneName: zoneName,
                 serverChangeTokenData: token,

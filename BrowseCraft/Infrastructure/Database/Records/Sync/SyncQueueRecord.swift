@@ -6,6 +6,7 @@ struct SyncQueueRecord: Codable, FetchableRecord, MutablePersistableRecord {
     static let databaseTableName: String = "sync_queue"
 
     var id: String
+    var accountScope: String
     var entityType: String
     var entityID: String
     var operation: String
@@ -16,6 +17,7 @@ struct SyncQueueRecord: Codable, FetchableRecord, MutablePersistableRecord {
 
     init(item: SyncQueueItem) {
         self.id = item.id
+        self.accountScope = item.accountScope.rawValue
         self.entityType = item.entityType.rawValue
         self.entityID = item.entityID
         self.operation = item.operation.rawValue
@@ -28,6 +30,7 @@ struct SyncQueueRecord: Codable, FetchableRecord, MutablePersistableRecord {
     func domainModel() -> SyncQueueItem {
         return SyncQueueItem(
             id: self.id,
+            accountScope: CloudAccountScope(rawValue: self.accountScope),
             entityType: SyncEntityType(rawValue: self.entityType) ?? .source,
             entityID: self.entityID,
             operation: SyncQueueOperation(rawValue: self.operation) ?? .upsert,
@@ -39,6 +42,7 @@ struct SyncQueueRecord: Codable, FetchableRecord, MutablePersistableRecord {
     }
 
     static func enqueue(
+        accountScope: CloudAccountScope,
         entityType: SyncEntityType,
         entityID: String,
         operation: SyncQueueOperation,
@@ -47,6 +51,7 @@ struct SyncQueueRecord: Codable, FetchableRecord, MutablePersistableRecord {
     ) throws {
         if var existing: SyncQueueRecord = try SyncQueueRecord
             .filter(
+                Self.Columns.accountScope == accountScope.rawValue &&
                 Self.Columns.entityType == entityType.rawValue &&
                 Self.Columns.entityID == entityID
             )
@@ -67,7 +72,12 @@ struct SyncQueueRecord: Codable, FetchableRecord, MutablePersistableRecord {
         }
 
         let item: SyncQueueItem = SyncQueueItem(
-            id: SyncQueueItem.makeID(entityType: entityType, entityID: entityID),
+            id: SyncQueueItem.makeID(
+                accountScope: accountScope,
+                entityType: entityType,
+                entityID: entityID
+            ),
+            accountScope: accountScope,
             entityType: entityType,
             entityID: entityID,
             operation: operation,

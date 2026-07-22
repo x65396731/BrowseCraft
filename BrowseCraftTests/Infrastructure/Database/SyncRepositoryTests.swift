@@ -10,7 +10,10 @@ struct SyncRepositoryTests {
         let repository: GRDBSyncQueueRepository = GRDBSyncQueueRepository(database: database)
 
         try repository.enqueue(entityType: .source, entityID: "source-1", operation: .upsert)
-        try repository.markFailed(id: "source:source-1", errorMessage: "Network unavailable")
+        try repository.markFailed(
+            id: "local.default|source:source-1",
+            errorMessage: "Network unavailable"
+        )
 
         var pending: [SyncQueueItem] = try repository.fetchPending(limit: 10)
         #expect(pending.count == 1)
@@ -27,7 +30,7 @@ struct SyncRepositoryTests {
         #expect(pending[0].retryCount == 0)
         #expect(pending[0].lastError == nil)
 
-        try repository.markSynced(id: "source:source-1")
+        try repository.markSynced(id: "local.default|source:source-1")
         #expect(try repository.fetchPending(limit: 10).isEmpty)
     }
 
@@ -89,7 +92,10 @@ struct SyncRepositoryTests {
         #expect(pending[0].operation == .delete)
 
         let deletedAt: Date? = try database.queue.read { database in
-            let record: SourceRecord? = try SourceRecord.fetchOne(database, key: "user-source-1")
+            let record: SourceRecord? = try SourceRecord.fetchOne(
+                database,
+                key: ["userID": AppUser.localDefaultID, "id": "user-source-1"]
+            )
             return record?.deletedAt
         }
         #expect(deletedAt != nil)

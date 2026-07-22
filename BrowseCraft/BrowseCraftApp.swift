@@ -44,6 +44,9 @@ struct BrowseCraftApp: App {
     var body: some Scene {
         WindowGroup {
             RootView(container: self.container)
+                .task {
+                    await self.container.startCloudAccountMonitoring()
+                }
         }
     }
 }

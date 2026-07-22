@@ -5,15 +5,21 @@ import GRDB
 
 final class GRDBFavoriteRepository: FavoriteRepository {
     private let database: AppDatabase
+    private let accountScopeProvider: any ActiveAccountScopeProviding
 
-    init(database: AppDatabase) {
+    init(
+        database: AppDatabase,
+        accountScopeProvider: any ActiveAccountScopeProviding = ActiveAccountScopeStore()
+    ) {
         self.database = database
+        self.accountScopeProvider = accountScopeProvider
     }
 
     func fetchFavoriteItemIDs() throws -> Set<String> {
+        let accountScope: CloudAccountScope = self.accountScopeProvider.currentScope
         return try self.database.queue.read { database in
             guard let record: FavoriteRecord = try FavoriteRecord
-                .fetchOne(database, key: AppUser.localDefaultID) else {
+                .fetchOne(database, key: accountScope.rawValue) else {
                 return []
             }
 
@@ -22,8 +28,12 @@ final class GRDBFavoriteRepository: FavoriteRepository {
     }
 
     func fetchFavoriteItems() throws -> [FavoriteContentItem] {
+        let accountScope: CloudAccountScope = self.accountScopeProvider.currentScope
         return try self.database.queue.read { database in
-            guard let record: FavoriteRecord = try FavoriteRecord.fetchOne(database, key: AppUser.localDefaultID) else {
+            guard let record: FavoriteRecord = try FavoriteRecord.fetchOne(
+                database,
+                key: accountScope.rawValue
+            ) else {
                 return []
             }
 
@@ -32,10 +42,13 @@ final class GRDBFavoriteRepository: FavoriteRepository {
     }
 
     func setFavorite(item: FavoriteContentItem, isFavorite: Bool) throws {
+        let accountScope: CloudAccountScope = self.accountScopeProvider.currentScope
         try self.database.queue.write { database in
-            let userID: String = AppUser.localDefaultID
+            let userID: String = accountScope.rawValue
             let now: Date = Date()
             var record: FavoriteRecord
+
+            try AppUserRecord.insertUser(id: userID, in: database)
 
             if let existing: FavoriteRecord = try FavoriteRecord.fetchOne(database, key: userID) {
                 record = existing
@@ -101,6 +114,7 @@ final class GRDBFavoriteRepository: FavoriteRepository {
             record.deletedAt = nil
             try record.save(database)
             try SyncQueueRecord.enqueue(
+                accountScope: accountScope,
                 entityType: .favoriteItem,
                 entityID: item.id,
                 operation: isFavorite ? .upsert : .delete,

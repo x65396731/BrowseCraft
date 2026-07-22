@@ -180,6 +180,7 @@ struct FavoriteItemSyncServiceTests {
             try record.save(database)
             try FavoriteAggregateBuilder.rebuild(userID: AppUser.localDefaultID, in: database)
             try SyncQueueRecord.enqueue(
+                accountScope: .localDefault,
                 entityType: .favoriteItem,
                 entityID: item.id,
                 operation: deletedAt == nil ? .upsert : .delete,

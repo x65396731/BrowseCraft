@@ -15,22 +15,26 @@ struct SourceSyncResult: Hashable {
 final class SourceSyncService: CloudSyncService {
     private let localStore: SourceSyncLocalStore
     private let cloudStore: CloudRecordStore
+    private let accountScopeProvider: any ActiveAccountScopeProviding
     private let scope: String
     private let zoneName: String
 
     init(
         localStore: SourceSyncLocalStore,
         cloudStore: CloudRecordStore,
+        accountScopeProvider: any ActiveAccountScopeProviding = ActiveAccountScopeStore(),
         scope: String = "private",
         zoneName: String = "BrowseCraftSources"
     ) {
         self.localStore = localStore
         self.cloudStore = cloudStore
+        self.accountScopeProvider = accountScopeProvider
         self.scope = scope
         self.zoneName = zoneName
     }
 
     func syncSources(limit: Int = 100) throws -> SourceSyncResult {
+        let accountScope: CloudAccountScope = self.accountScopeProvider.currentScope
         var result: SourceSyncResult = SourceSyncResult(
             uploadedCount: 0,
             downloadedCount: 0,
@@ -38,34 +42,43 @@ final class SourceSyncService: CloudSyncService {
             skippedCount: 0
         )
 
-        let changeSet: SourceCloudChangeSet = try self.fetchCloudChanges()
-        let mergeResult: SourceMergeResult = try self.mergeCloudChanges(changeSet)
+        let changeSet: SourceCloudChangeSet = try self.fetchCloudChanges(accountScope: accountScope)
+        let mergeResult: SourceMergeResult = try self.mergeCloudChanges(
+            changeSet,
+            accountScope: accountScope
+        )
         result.downloadedCount += mergeResult.downloadedCount
         result.deletedCount += mergeResult.deletedCount
         result.skippedCount += mergeResult.skippedCount
 
-        let uploadResult: SourceUploadResult = try self.uploadPendingSourceChanges(limit: limit)
+        let uploadResult: SourceUploadResult = try self.uploadPendingSourceChanges(
+            accountScope: accountScope,
+            limit: limit
+        )
         result.uploadedCount += uploadResult.uploadedCount
         result.skippedCount += uploadResult.skippedCount
 
         return result
     }
 
-    private func fetchCloudChanges() throws -> SourceCloudChangeSet {
+    private func fetchCloudChanges(accountScope: CloudAccountScope) throws -> SourceCloudChangeSet {
         let token: Data? = try self.localStore.changeToken(
+            accountScope: accountScope,
             scope: self.scope,
             zoneName: self.zoneName
         )
         return try self.cloudStore.fetchChangedSourceRecords(since: token)
     }
 
-    private func mergeCloudChanges(_ changeSet: SourceCloudChangeSet) throws -> SourceMergeResult {
+    private func mergeCloudChanges(
+        _ changeSet: SourceCloudChangeSet,
+        accountScope: CloudAccountScope
+    ) throws -> SourceMergeResult {
         var result: SourceMergeResult = SourceMergeResult()
         var eligiblePayloads: [SourceCloudPayload] = []
 
         for payload: SourceCloudPayload in changeSet.records {
             guard payload.isBuiltIn == false,
-                  payload.userID == AppUser.localDefaultID,
                   payload.schemaVersion <= SourceCloudPayload.currentSchemaVersion,
                   payload.isUnsupportedVideoV1 == false else {
                 result.skippedCount += 1
@@ -75,6 +88,7 @@ final class SourceSyncService: CloudSyncService {
         }
 
         var snapshots: [String: SourceSyncLocalSnapshot] = try self.localStore.snapshots(
+            accountScope: accountScope,
             for: eligiblePayloads.map(\.sourceID)
         )
         var acceptedPayloads: [SourceCloudPayload] = []
@@ -125,18 +139,24 @@ final class SourceSyncService: CloudSyncService {
                 requeuedLocalChanges: requeuedLocalChanges,
                 changeToken: changeSet.changeToken
             ),
+            accountScope: accountScope,
             scope: self.scope,
             zoneName: self.zoneName
         )
         return result
     }
 
-    private func uploadPendingSourceChanges(limit: Int) throws -> SourceUploadResult {
+    private func uploadPendingSourceChanges(
+        accountScope: CloudAccountScope,
+        limit: Int
+    ) throws -> SourceUploadResult {
         guard limit > 0 else {
             return SourceUploadResult(uploadedCount: 0, skippedCount: 0)
         }
 
-        let pending: [SourceSyncPendingUpload] = try self.localStore.pendingUploads()
+        let pending: [SourceSyncPendingUpload] = try self.localStore.pendingUploads(
+            accountScope: accountScope
+        )
         let orderedPending: [SourceSyncPendingUpload] = Array(pending.sorted { lhs, rhs in
             if lhs.queueItem.operation != rhs.queueItem.operation {
                 return lhs.queueItem.operation == .delete

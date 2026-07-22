@@ -3,6 +3,7 @@ import GRDB
 extension SyncQueueRecord {
     enum Columns {
         static let id: Column = Column("id")
+        static let accountScope: Column = Column("accountScope")
         static let entityType: Column = Column("entityType")
         static let entityID: Column = Column("entityID")
         static let operation: Column = Column("operation")
@@ -13,10 +14,11 @@ extension SyncQueueRecord {
     }
 
     /// 中文注释：sync_queue 保存本机尚未上传到云端的变更队列。
-    /// 中文注释：entityType + entityID 唯一，保证同一业务对象的多次本地修改会合并为最后一次待同步状态。
+    /// 中文注释：accountScope + entityType + entityID 唯一，账户之间的同名记录不会合并队列。
     static func createTable(in database: Database) throws {
         try database.create(table: Self.databaseTableName, ifNotExists: true) { table in
             table.column("id", .text).primaryKey()
+            table.column("accountScope", .text).notNull()
             table.column("entityType", .text).notNull()
             table.column("entityID", .text).notNull()
             table.column("operation", .text).notNull()
@@ -24,7 +26,7 @@ extension SyncQueueRecord {
             table.column("retryCount", .integer).notNull().defaults(to: 0)
             table.column("lastError", .text)
             table.column("createdAt", .datetime).notNull()
-            table.uniqueKey(["entityType", "entityID"])
+            table.uniqueKey(["accountScope", "entityType", "entityID"])
         }
     }
 
@@ -33,13 +35,13 @@ extension SyncQueueRecord {
         try database.execute(
             sql: """
             CREATE INDEX IF NOT EXISTS idx_sync_queue_pending
-            ON \(Self.databaseTableName)(updatedAt ASC)
+            ON \(Self.databaseTableName)(accountScope, updatedAt ASC)
             """
         )
         try database.execute(
             sql: """
             CREATE INDEX IF NOT EXISTS idx_sync_queue_entity
-            ON \(Self.databaseTableName)(entityType, entityID)
+            ON \(Self.databaseTableName)(accountScope, entityType, entityID)
             """
         )
     }

@@ -4,7 +4,7 @@ import GRDB
 // 中文注释：AppDatabase 持有 SQLite 连接，并直接创建 BrowseCraft 的当前开发期 schema。
 
 /// 中文注释：数据库基础设施只暴露 GRDB 队列给基础设施层仓储使用。
-/// 中文注释：当前仍处于开发阶段，直接创建最终 schema；结构变化后删除开发版 App/数据库重新建库。
+/// 中文注释：发布前允许删除 App 重建数据库，因此当前只创建最终 schema，不兼容旧开发数据库。
 final class AppDatabase {
     let queue: DatabaseQueue
 

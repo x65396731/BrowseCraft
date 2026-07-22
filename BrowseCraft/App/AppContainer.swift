@@ -2,6 +2,8 @@ import Foundation
 
 /// 中文注释：应用 Composition Root，只持有 App 生命周期共享对象并把 Feature 创建委托给明确 Factory。
 final class AppContainer {
+    private static let cloudKitContainerIdentifier: String = "iCloud.com.xiefei.AnyPortal"
+
     private let sourcesFeatureFactory: SourcesFeatureFactory
     private let libraryFeatureFactory: LibraryFeatureFactory
     private let favoritesFeatureFactory: FavoritesFeatureFactory
@@ -12,15 +14,35 @@ final class AppContainer {
     let systemCookieHeaderProvider: any SystemCookieHeaderProviding
     /// 中文注释：缓存配置器与 App 生命周期一致，供启动配置和 Settings 共用。
     let imageCacheConfigurator: ImageCacheConfigurator
+    /// 中文注释：账户 Session 先于真实同步引擎接线，统一提供活动数据空间和账户切换世代。
+    let cloudAccountSession: CloudAccountSession
+    let activeAccountScopeStore: ActiveAccountScopeStore
+    let cloudAccountPartitionStore: any CloudAccountPartitioning
 
     init() {
         let imageCacheConfigurator: ImageCacheConfigurator = ImageCacheConfigurator()
+        let activeAccountScopeStore: ActiveAccountScopeStore = ActiveAccountScopeStore()
         self.imageCacheConfigurator = imageCacheConfigurator
+        self.activeAccountScopeStore = activeAccountScopeStore
+        self.cloudAccountSession = CloudAccountSession(
+            stateProvider: CloudKitAccountStateService(
+                containerIdentifier: Self.cloudKitContainerIdentifier
+            ),
+            preferenceStore: UserDefaultsCloudSyncPreferenceStore(),
+            activeScopeStore: activeAccountScopeStore
+        )
 
         do {
             let database: AppDatabase = try AppDatabase()
-            let sourceRepository: SourceRepository = GRDBSourceRepository(database: database)
-            let favoriteRepository: FavoriteRepository = GRDBFavoriteRepository(database: database)
+            self.cloudAccountPartitionStore = GRDBCloudAccountPartitionStore(database: database)
+            let sourceRepository: SourceRepository = GRDBSourceRepository(
+                database: database,
+                accountScopeProvider: activeAccountScopeStore
+            )
+            let favoriteRepository: FavoriteRepository = GRDBFavoriteRepository(
+                database: database,
+                accountScopeProvider: activeAccountScopeStore
+            )
             let urlResolver: URLResolvingService = URLResolvingService()
             let sourceCredentialStore: SourceCredentialStoring = InMemorySourceCredentialStore()
             let browserRequestHeaderProvider: any BrowserRequestHeaderProviding = ChromeRequestHeaderProvider()
@@ -116,6 +138,10 @@ final class AppContainer {
         }
 
         self.configureImageCache()
+    }
+
+    func startCloudAccountMonitoring() async {
+        await self.cloudAccountSession.start()
     }
 
     func makeSourcesViewModel() -> SourcesViewModel {

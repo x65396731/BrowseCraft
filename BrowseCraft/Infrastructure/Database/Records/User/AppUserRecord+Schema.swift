@@ -55,8 +55,21 @@ extension AppUserRecord {
         _ = database
     }
 
-    /// 中文注释：App 目前无登录系统，固定写入本地默认用户作为所有用户级数据的外键根。
+    /// 中文注释：保证本地默认空间存在，供未绑定 iCloud 账户时正常离线使用。
     static func insertLocalDefaultUser(in database: Database) throws {
+        try Self.insertUser(
+            id: AppUser.localDefaultID,
+            displayName: "Local Default",
+            in: database
+        )
+    }
+
+    /// 中文注释：Cloud account scope 也是本地业务用户根，但不保存或展示真实 Apple 账户信息。
+    static func insertUser(
+        id: String,
+        displayName: String? = nil,
+        in database: Database
+    ) throws {
         let now: Date = Date()
 
         try database.execute(
@@ -86,8 +99,8 @@ extension AppUserRecord {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             arguments: [
-                AppUser.localDefaultID,
-                "Local Default",
+                id,
+                displayName,
                 false,
                 0,
                 1,

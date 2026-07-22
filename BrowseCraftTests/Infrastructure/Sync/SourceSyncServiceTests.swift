@@ -203,7 +203,10 @@ struct SourceSyncServiceTests {
 
     private static func sourceRecord(id: String, in database: AppDatabase) throws -> SourceRecord? {
         return try database.queue.read { database in
-            return try SourceRecord.fetchOne(database, key: id)
+            return try SourceRecord.fetchOne(
+                database,
+                key: ["userID": AppUser.localDefaultID, "id": id]
+            )
         }
     }
 

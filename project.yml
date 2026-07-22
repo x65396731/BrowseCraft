@@ -71,14 +71,17 @@ targets:
         PRODUCT_MODULE_NAME: BrowseCraft
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: BrowseCraft/Info.plist
+        CODE_SIGN_ENTITLEMENTS: BrowseCraft/BrowseCraft.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
       configs:
         Debug:
+          APS_ENVIRONMENT: development
           BROWSECRAFT_ENVIRONMENT_NAME: TEST
           BROWSECRAFT_REWARDED_AD_UNIT_ID: ca-app-pub-4351001986548416/2887798038
           DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
         Release:
+          APS_ENVIRONMENT: production
           BROWSECRAFT_ENVIRONMENT_NAME: PROD
           BROWSECRAFT_REWARDED_AD_UNIT_ID: ""
     postBuildScripts:
