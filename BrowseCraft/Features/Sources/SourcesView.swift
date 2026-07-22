@@ -3,8 +3,10 @@ import SwiftUI
 // 中文注释：SourcesView.swift 属于界面功能层，用于说明本文件承载的核心职责。
 
 /// 中文注释：SourcesView 是 struct，负责本模块中的对应职责。
+@MainActor
 struct SourcesView: View {
     @ObservedObject var viewModel: SourcesViewModel
+    @ObservedObject var cloudSyncViewModel: CloudSyncSettingsViewModel
     @State private var isShowingAddSourceView: Bool = false
     @State private var isShowingCatalogSourceListView: Bool = false
 
@@ -58,13 +60,20 @@ struct SourcesView: View {
             }
             .overlay(
                 Group {
-                if self.viewModel.sources.isEmpty {
-                    EmptyStateView(
-                        systemImage: "tray",
-                        title: "No Sources",
-                        message: "Add a source before refreshing content."
-                    )
-                }
+                    if self.shouldShowInitialRestore {
+                        CloudSyncInitialRestoreView(
+                            state: self.cloudSyncViewModel.initialRestoreState,
+                            retryAction: {
+                                await self.cloudSyncViewModel.retrySynchronization()
+                            }
+                        )
+                    } else if self.viewModel.sources.isEmpty {
+                        EmptyStateView(
+                            systemImage: "tray",
+                            title: "No Sources",
+                            message: "Add a source before refreshing content."
+                        )
+                    }
                 }
             )
             .navigationTitle("Sources")
@@ -116,6 +125,9 @@ struct SourcesView: View {
                 DispatchQueue.main.async {
                     self.viewModel.load()
                 }
+            }
+            .onChange(of: self.cloudSyncViewModel.contentRevision) { _, _ in
+                self.viewModel.load()
             }
             .sheet(isPresented: self.$isShowingAddSourceView) {
                 AddSourceView(viewModel: self.viewModel)
@@ -174,6 +186,14 @@ struct SourcesView: View {
                 }
             }
         )
+    }
+
+    private var shouldShowInitialRestore: Bool {
+        let hasCustomSources: Bool = self.viewModel.sources.contains { source in
+            return source.id.hasPrefix("built-in.") == false
+        }
+        return hasCustomSources == false &&
+            self.cloudSyncViewModel.initialRestoreState.shouldReplaceEmptyState
     }
 
 }

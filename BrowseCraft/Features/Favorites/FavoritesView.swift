@@ -2,8 +2,10 @@ import SwiftUI
 
 // 中文注释：FavoritesView 是独立收藏页，结构上和 History 页并列。
 
+@MainActor
 struct FavoritesView: View {
     @ObservedObject var viewModel: FavoritesViewModel
+    @ObservedObject var cloudSyncViewModel: CloudSyncSettingsViewModel
     let contentViewModelFactory: LibraryContentViewModelFactory
 
     var body: some View {
@@ -34,7 +36,15 @@ struct FavoritesView: View {
             }
             .overlay(
                 Group {
-                    if self.viewModel.favoriteItems.isEmpty {
+                    if self.viewModel.favoriteItems.isEmpty &&
+                        self.cloudSyncViewModel.initialRestoreState.shouldReplaceEmptyState {
+                        CloudSyncInitialRestoreView(
+                            state: self.cloudSyncViewModel.initialRestoreState,
+                            retryAction: {
+                                await self.cloudSyncViewModel.retrySynchronization()
+                            }
+                        )
+                    } else if self.viewModel.favoriteItems.isEmpty {
                         EmptyStateView(
                             systemImage: "heart",
                             title: "No Favorites",
@@ -47,6 +57,9 @@ struct FavoritesView: View {
             .onAppear {
                 CrashDiagnostics.shared.setScreen(.favorite)
                 AppAnalytics.shared.logScreenView(.favorite)
+                self.viewModel.load()
+            }
+            .onChange(of: self.cloudSyncViewModel.contentRevision) { _, _ in
                 self.viewModel.load()
             }
             .alert(isPresented: self.errorAlertBinding) {

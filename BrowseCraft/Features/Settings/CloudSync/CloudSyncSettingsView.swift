@@ -1,44 +1,400 @@
 import SwiftUI
 
+@MainActor
 struct CloudSyncSettingsView: View {
-    @Binding var isCloudSyncEnabled: Bool
-    @Binding var shouldSyncBookmarks: Bool
-    @Binding var shouldSyncReadingProgress: Bool
+    @ObservedObject var viewModel: CloudSyncSettingsViewModel
 
     var body: some View {
         Form {
-            Section {
-                Toggle("Cloud Sync", isOn: self.$isCloudSyncEnabled)
-                    .onChange(of: self.isCloudSyncEnabled) { _, newValue in
-                        AppAnalytics.shared.logSettingChanged(
-                            name: "cloud_sync",
-                            value: String(newValue)
-                        )
-                    }
-            } footer: {
-                Text("Cloud sync stores account data, bookmarks, and reading progress when the sync service is connected.")
+            self.accountSection
+            self.syncPreferenceSection
+            self.syncContentSection
+
+            if self.viewModel.isCloudSyncEnabled {
+                self.syncActionSection
             }
 
-            Section("Sync Content") {
-                Toggle("Bookmarks", isOn: self.$shouldSyncBookmarks)
-                    .disabled(self.isCloudSyncEnabled == false)
-                    .onChange(of: self.shouldSyncBookmarks) { _, newValue in
-                        AppAnalytics.shared.logSettingChanged(
-                            name: "sync_bookmarks",
-                            value: String(newValue)
-                        )
-                    }
+            if let result: CloudSyncRunResult = self.viewModel.lastResult {
+                self.lastSyncSection(result: result)
+            }
 
-                Toggle("Reading Progress", isOn: self.$shouldSyncReadingProgress)
-                    .disabled(self.isCloudSyncEnabled == false)
-                    .onChange(of: self.shouldSyncReadingProgress) { _, newValue in
-                        AppAnalytics.shared.logSettingChanged(
-                            name: "sync_reading_progress",
-                            value: String(newValue)
-                        )
-                    }
+            if let errorMessage: String = self.viewModel.errorMessage {
+                self.errorSection(message: errorMessage)
             }
         }
         .navigationTitle("Cloud Sync")
+        .task {
+            await self.viewModel.start()
+        }
+        .sheet(item: self.firstEnableRequestBinding) { request in
+            CloudSyncFirstEnableSheet(
+                viewModel: self.viewModel,
+                request: request
+            )
+            .presentationDetents([.medium, .large])
+        }
+    }
+
+    private var accountSection: some View {
+        Section("iCloud Account") {
+            HStack(spacing: 12) {
+                Image(systemName: self.accountStatusIcon)
+                    .font(.title2)
+                    .foregroundStyle(self.accountStatusColor)
+                    .frame(width: 30)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(self.accountStatusTitle)
+                        .font(.body.weight(.medium))
+                    Text(self.accountStatusDetail)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if self.viewModel.accountAvailability == .checking ||
+                    self.viewModel.isRefreshingAccount {
+                    ProgressView()
+                }
+            }
+
+            Button {
+                Task {
+                    await self.viewModel.refreshAccount()
+                }
+            } label: {
+                Label("Refresh iCloud Status", systemImage: "arrow.clockwise")
+            }
+            .disabled(self.viewModel.isRefreshingAccount)
+        }
+    }
+
+    private var syncPreferenceSection: some View {
+        Section {
+            Toggle(isOn: self.cloudSyncEnabledBinding) {
+                HStack(spacing: 8) {
+                    Text("Cloud Sync")
+                    if self.viewModel.isChangingCloudSyncEnabled {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                }
+            }
+            .disabled(self.viewModel.canChangeCloudSyncEnabled == false)
+            .onChange(of: self.viewModel.isCloudSyncEnabled) { _, newValue in
+                AppAnalytics.shared.logSettingChanged(
+                    name: "cloud_sync",
+                    value: String(newValue)
+                )
+            }
+        } footer: {
+            Text(self.syncPreferenceFooter)
+        }
+    }
+
+    private var syncContentSection: some View {
+        Section("Synced Content") {
+            self.syncScopeRow(
+                title: "Custom Sources",
+                systemImage: "rectangle.stack",
+                isIncluded: true
+            )
+            self.syncScopeRow(
+                title: "Favorites",
+                systemImage: "heart",
+                isIncluded: true
+            )
+            self.syncScopeRow(
+                title: "Reading Progress",
+                systemImage: "book.pages",
+                isIncluded: false
+            )
+        }
+    }
+
+    private var syncActionSection: some View {
+        Section {
+            Button {
+                Task {
+                    await self.viewModel.synchronizeNow()
+                }
+            } label: {
+                HStack {
+                    Label(
+                        self.viewModel.isSynchronizing ? "Syncing…" : "Sync Now",
+                        systemImage: "arrow.triangle.2.circlepath.icloud"
+                    )
+                    Spacer()
+                    if self.viewModel.isSynchronizing {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                }
+            }
+            .disabled(self.viewModel.canSynchronizeNow == false)
+        } footer: {
+            Text("Sync downloads and merges iCloud changes before uploading pending local changes.")
+        }
+    }
+
+    private func lastSyncSection(result: CloudSyncRunResult) -> some View {
+        Section("Last Sync") {
+            LabeledContent(
+                "Completed",
+                value: result.finishedAt.formatted(date: .abbreviated, time: .standard)
+            )
+            LabeledContent("Uploaded", value: String(result.uploadedCount))
+            LabeledContent("Downloaded", value: String(result.downloadedCount))
+            LabeledContent("Deleted", value: String(result.deletedCount))
+            LabeledContent("Skipped", value: String(result.skippedCount))
+            LabeledContent("Failed", value: String(result.failedCount))
+        }
+    }
+
+    private func errorSection(message: String) -> some View {
+        Section {
+            Text(message)
+                .font(.footnote)
+                .foregroundStyle(.red)
+                .textSelection(.enabled)
+
+            if self.viewModel.isCloudSyncEnabled {
+                Button {
+                    Task {
+                        await self.viewModel.retrySynchronization()
+                    }
+                } label: {
+                    Label("Retry Sync", systemImage: "arrow.clockwise")
+                }
+                .disabled(self.viewModel.canSynchronizeNow == false)
+            }
+        } header: {
+            Label("Cloud Sync Error", systemImage: "exclamationmark.triangle")
+        } footer: {
+            Text("Sensitive request values are never included in Cloud Sync error messages.")
+        }
+    }
+
+    private func syncScopeRow(
+        title: String,
+        systemImage: String,
+        isIncluded: Bool
+    ) -> some View {
+        HStack {
+            Label(title, systemImage: systemImage)
+            Spacer()
+            Label(
+                isIncluded ? "Included" : "Not Yet Supported",
+                systemImage: isIncluded ? "checkmark.circle.fill" : "minus.circle"
+            )
+            .font(.footnote)
+            .foregroundStyle(isIncluded ? Color.green : Color.secondary)
+            .labelStyle(.titleAndIcon)
+        }
+    }
+
+    private var cloudSyncEnabledBinding: Binding<Bool> {
+        return Binding(
+            get: {
+                return self.viewModel.isCloudSyncEnabled
+            },
+            set: { enabled in
+                Task {
+                    await self.viewModel.setCloudSyncEnabled(enabled)
+                }
+            }
+        )
+    }
+
+    private var firstEnableRequestBinding: Binding<CloudSyncSettingsViewModel.FirstEnableRequest?> {
+        return Binding(
+            get: {
+                return self.viewModel.firstEnableRequest
+            },
+            set: { request in
+                if request == nil {
+                    self.viewModel.cancelFirstEnable()
+                }
+            }
+        )
+    }
+
+    private var accountStatusTitle: String {
+        switch self.viewModel.accountAvailability {
+        case .checking:
+            return "Checking iCloud"
+        case .available:
+            return "iCloud Available"
+        case .noAccount:
+            return "Not Signed In"
+        case .restricted:
+            return "iCloud Restricted"
+        case .temporarilyUnavailable:
+            return "Temporarily Unavailable"
+        case .couldNotDetermine:
+            return "Status Unavailable"
+        }
+    }
+
+    private var accountStatusDetail: String {
+        switch self.viewModel.accountAvailability {
+        case .checking:
+            return "Checking the iCloud account configured on this device."
+        case .available:
+            return "Private CloudKit storage is available for this account."
+        case .noAccount:
+            return "Sign in to iCloud in System Settings to use Cloud Sync."
+        case .restricted:
+            return "iCloud access may be limited by parental controls or device management."
+        case .temporarilyUnavailable:
+            return "Local data and pending changes are preserved until iCloud recovers."
+        case .couldNotDetermine:
+            return "The iCloud account status could not be determined. Try refreshing."
+        }
+    }
+
+    private var accountStatusIcon: String {
+        switch self.viewModel.accountAvailability {
+        case .checking:
+            return "icloud"
+        case .available:
+            return "checkmark.icloud.fill"
+        case .noAccount:
+            return "icloud.slash"
+        case .restricted, .temporarilyUnavailable:
+            return "exclamationmark.triangle"
+        case .couldNotDetermine:
+            return "questionmark.circle"
+        }
+    }
+
+    private var accountStatusColor: Color {
+        switch self.viewModel.accountAvailability {
+        case .available:
+            return .green
+        case .noAccount, .restricted, .temporarilyUnavailable, .couldNotDetermine:
+            return .orange
+        case .checking:
+            return .accentColor
+        }
+    }
+
+    private var syncPreferenceFooter: String {
+        switch self.viewModel.accountAvailability {
+        case .checking:
+            return "Cloud Sync will be available after the iCloud account check completes."
+        case .available:
+            return "When disabled, local data and pending upload tasks are retained. Nothing is deleted from iCloud."
+        case .noAccount:
+            return "The app remains available offline in its local data space."
+        case .restricted:
+            return "Cloud Sync cannot be enabled while iCloud access is restricted."
+        case .temporarilyUnavailable:
+            return "Sync is paused. Local data and pending upload tasks remain unchanged."
+        case .couldNotDetermine:
+            return "Refresh the iCloud status before enabling Cloud Sync."
+        }
+    }
+}
+
+@MainActor
+private struct CloudSyncFirstEnableSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var viewModel: CloudSyncSettingsViewModel
+    let request: CloudSyncSettingsViewModel.FirstEnableRequest
+
+    @State private var isSubmitting: Bool = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text("Local data was found before this iCloud account was connected. Choose how to prepare this account for its first sync.")
+                }
+
+                Section("Local Data") {
+                    LabeledContent(
+                        "Custom Sources",
+                        value: String(self.request.localDataSummary.sourceCount)
+                    )
+                    LabeledContent(
+                        "Favorites",
+                        value: String(self.request.localDataSummary.favoriteItemCount)
+                    )
+                }
+
+                Section {
+                    Button {
+                        self.submit(decision: .mergeLocalData)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Label("Merge Local Data", systemImage: "arrow.triangle.merge")
+                            Text("Copy local sources and favorites into this iCloud account, then sync.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .disabled(self.isSubmitting)
+
+                    Button {
+                        self.submit(decision: .useCloudDataOnly)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Label("Use iCloud Data Only", systemImage: "icloud")
+                            Text("Leave local data in its current space and restore this account from iCloud.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .disabled(self.isSubmitting)
+                } footer: {
+                    Text("Neither choice deletes the existing local data.")
+                }
+
+                if self.isSubmitting {
+                    Section {
+                        HStack {
+                            ProgressView()
+                            Text("Preparing Cloud Sync…")
+                        }
+                    }
+                }
+
+                if let errorMessage: String = self.viewModel.actionErrorMessage {
+                    Section("Setup Error") {
+                        Text(errorMessage)
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+            .navigationTitle("First Cloud Sync")
+            .navigationBarTitleDisplayMode(.inline)
+            .interactiveDismissDisabled(self.isSubmitting)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        self.viewModel.cancelFirstEnable()
+                        self.dismiss()
+                    }
+                    .disabled(self.isSubmitting)
+                }
+            }
+        }
+    }
+
+    private func submit(decision: CloudAccountLocalDataDecision) {
+        guard self.isSubmitting == false else {
+            return
+        }
+        self.isSubmitting = true
+
+        Task {
+            await self.viewModel.confirmFirstEnable(decision: decision)
+            self.isSubmitting = false
+            if self.viewModel.firstEnableRequest == nil {
+                self.dismiss()
+            }
+        }
     }
 }

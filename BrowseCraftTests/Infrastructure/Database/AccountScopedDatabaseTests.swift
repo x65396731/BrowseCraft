@@ -70,6 +70,7 @@ struct AccountScopedDatabaseTests {
         try sourceRepository.saveSource(Self.makeSource(id: "source-1", name: "Local Source"))
         try favoriteRepository.setFavorite(item: Self.makeFavorite(), isFavorite: true)
 
+        #expect(try partitionStore.preparation(for: cloudScope) == nil)
         let summary: CloudAccountPartitionSummary = try partitionStore.localDefaultSummary()
         #expect(summary.sourceCount == 1)
         #expect(summary.favoriteItemCount == 1)
@@ -80,6 +81,19 @@ struct AccountScopedDatabaseTests {
         )
         #expect(result.copiedSourceCount == 1)
         #expect(result.copiedFavoriteItemCount == 1)
+        #expect(result.wasAlreadyPrepared == false)
+        #expect(try partitionStore.preparation(for: cloudScope)?.decision == .mergeLocalData)
+        #expect(try partitionStore.preparation(for: cloudScope)?.initialSyncCompletedAt == nil)
+
+        let completedAt: Date = Date(timeIntervalSince1970: 200)
+        try partitionStore.markInitialSyncCompleted(for: cloudScope, at: completedAt)
+        try partitionStore.markInitialSyncCompleted(
+            for: cloudScope,
+            at: Date(timeIntervalSince1970: 300)
+        )
+        #expect(
+            try partitionStore.preparation(for: cloudScope)?.initialSyncCompletedAt == completedAt
+        )
 
         localScope.update(cloudScope)
         #expect(try sourceRepository.fetchSources().map(\.id) == ["source-1"])
@@ -97,6 +111,55 @@ struct AccountScopedDatabaseTests {
         #expect(try favoriteRepository.fetchFavoriteItemIDs() == ["favorite-1"])
     }
 
+    @Test func repeatedPreparationIsIdempotentAndDoesNotCopyLaterLocalData() throws {
+        let database: AppDatabase = try Self.makeDatabase()
+        let activeScope: ActiveAccountScopeStore = ActiveAccountScopeStore()
+        let repository: GRDBSourceRepository = GRDBSourceRepository(
+            database: database,
+            accountScopeProvider: activeScope
+        )
+        let partitionStore: GRDBCloudAccountPartitionStore = GRDBCloudAccountPartitionStore(
+            database: database
+        )
+        let cloudScope: CloudAccountScope = .cloud(hash: "account-a")
+
+        try repository.saveSource(Self.makeSource(id: "source-1", name: "First Local Source"))
+        _ = try partitionStore.prepareCloudScope(cloudScope, decision: .mergeLocalData)
+        try repository.saveSource(Self.makeSource(id: "source-2", name: "Later Local Source"))
+
+        let repeatedResult: CloudAccountPartitionMergeResult = try partitionStore.prepareCloudScope(
+            cloudScope,
+            decision: .mergeLocalData
+        )
+
+        #expect(repeatedResult.wasAlreadyPrepared)
+        #expect(repeatedResult.copiedSourceCount == 0)
+        #expect(repeatedResult.copiedFavoriteItemCount == 0)
+        activeScope.update(cloudScope)
+        #expect(try repository.fetchSources().map(\.id) == ["source-1"])
+    }
+
+    @Test func preparedCloudScopeRejectsAConflictingDecision() throws {
+        let database: AppDatabase = try Self.makeDatabase()
+        let partitionStore: GRDBCloudAccountPartitionStore = GRDBCloudAccountPartitionStore(
+            database: database
+        )
+        let cloudScope: CloudAccountScope = .cloud(hash: "account-a")
+
+        _ = try partitionStore.prepareCloudScope(cloudScope, decision: .mergeLocalData)
+
+        #expect(
+            throws: CloudAccountPartitionError.alreadyPrepared(
+                existingDecision: .mergeLocalData
+            )
+        ) {
+            _ = try partitionStore.prepareCloudScope(
+                cloudScope,
+                decision: .useCloudDataOnly
+            )
+        }
+    }
+
     @Test func useCloudDataOnlyDoesNotCopyOrDeleteLocalData() throws {
         let database: AppDatabase = try Self.makeDatabase()
         let localScope: ActiveAccountScopeStore = ActiveAccountScopeStore()
@@ -110,7 +173,13 @@ struct AccountScopedDatabaseTests {
         let cloudScope: CloudAccountScope = .cloud(hash: "account-a")
 
         try repository.saveSource(Self.makeSource(id: "source-1", name: "Local Source"))
-        _ = try partitionStore.prepareCloudScope(cloudScope, decision: .useCloudDataOnly)
+        let result: CloudAccountPartitionMergeResult = try partitionStore.prepareCloudScope(
+            cloudScope,
+            decision: .useCloudDataOnly
+        )
+
+        #expect(result.wasAlreadyPrepared == false)
+        #expect(try partitionStore.preparation(for: cloudScope)?.decision == .useCloudDataOnly)
 
         localScope.update(cloudScope)
         #expect(try repository.fetchSources().isEmpty)

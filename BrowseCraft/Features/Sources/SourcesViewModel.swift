@@ -95,6 +95,10 @@ final class SourcesViewModel: ObservableObject {
             try self.syncBuiltInSourcesUseCase.execute()
             let loadedSources: [Source] = try self.loadSourcesUseCase.execute()
             self.sources = loadedSources
+            if let selectedSourceID: String = self.selectedSourceID,
+               loadedSources.contains(where: { source in source.id == selectedSourceID }) == false {
+                self.selectSource(id: loadedSources.first?.id)
+            }
             self.errorMessage = nil
             return loadedSources.isEmpty == false
         } catch {

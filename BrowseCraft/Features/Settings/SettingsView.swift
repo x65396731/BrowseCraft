@@ -7,19 +7,21 @@ import UIKit
 /// 中文注释：SettingsView 是应用的用户设置页。
 struct SettingsView: View {
     @ObservedObject var viewModel: SettingsViewModel
+    @ObservedObject private var cloudSyncViewModel: CloudSyncSettingsViewModel
     @StateObject private var adPlaybackViewModel: AdPlaybackViewModel = AdPlaybackViewModel()
     @AppStorage("settings.displayName") private var displayName: String = "Reader"
     @AppStorage("settings.email") private var email: String = ""
-    @AppStorage("settings.cloudSyncEnabled") private var isCloudSyncEnabled: Bool = false
-    @AppStorage("settings.syncBookmarks") private var shouldSyncBookmarks: Bool = true
-    @AppStorage("settings.syncReadingProgress") private var shouldSyncReadingProgress: Bool = true
     @AppStorage(CrashDiagnostics.collectionEnabledDefaultsKey) private var isDiagnosticsEnabled: Bool = CrashDiagnostics.isCollectionEnabled
 
     @State private var isShowingInAppPurchase: Bool = false
     @State private var isShowingRatingAlert: Bool = false
 
-    init(viewModel: SettingsViewModel) {
+    init(
+        viewModel: SettingsViewModel,
+        cloudSyncViewModel: CloudSyncSettingsViewModel
+    ) {
         self.viewModel = viewModel
+        self.cloudSyncViewModel = cloudSyncViewModel
     }
 
     var body: some View {
@@ -54,14 +56,12 @@ struct SettingsView: View {
 
                 Section("Account") {
                     NavigationLink(destination: CloudSyncSettingsView(
-                        isCloudSyncEnabled: self.$isCloudSyncEnabled,
-                        shouldSyncBookmarks: self.$shouldSyncBookmarks,
-                        shouldSyncReadingProgress: self.$shouldSyncReadingProgress
+                        viewModel: self.cloudSyncViewModel
                     )) {
                         SettingsRow(
                             systemImage: "icloud",
                             title: "Cloud Sync",
-                            detail: self.isCloudSyncEnabled ? "On" : "Off"
+                            detail: self.cloudSyncDetail
                         )
                     }
 
@@ -313,8 +313,21 @@ struct SettingsView: View {
         let build: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
         return "\(version) (\(build))"
     }
-}
 
-#Preview {
-    SettingsView(viewModel: SettingsViewModel(imageCacheConfigurator: ImageCacheConfigurator()))
+    private var cloudSyncDetail: String {
+        switch self.cloudSyncViewModel.accountAvailability {
+        case .checking:
+            return "Checking"
+        case .available:
+            return self.cloudSyncViewModel.isCloudSyncEnabled ? "On" : "Off"
+        case .noAccount:
+            return "Sign In Required"
+        case .restricted:
+            return "Restricted"
+        case .temporarilyUnavailable:
+            return "Temporarily Unavailable"
+        case .couldNotDetermine:
+            return "Unavailable"
+        }
+    }
 }

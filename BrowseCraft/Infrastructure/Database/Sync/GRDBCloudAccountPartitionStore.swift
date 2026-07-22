@@ -26,23 +26,82 @@ final class GRDBCloudAccountPartitionStore: CloudAccountPartitioning {
         }
     }
 
+    func preparation(
+        for cloudScope: CloudAccountScope
+    ) throws -> CloudAccountPartitionPreparation? {
+        guard cloudScope.isCloud else {
+            throw CloudAccountPartitionError.invalidCloudScope
+        }
+
+        return try self.database.queue.read { database in
+            return try CloudAccountPartitionPreparationRecord
+                .fetchOne(database, key: cloudScope.rawValue)?
+                .preparation
+        }
+    }
+
+    func markInitialSyncCompleted(
+        for cloudScope: CloudAccountScope,
+        at completedAt: Date
+    ) throws {
+        guard cloudScope.isCloud else {
+            throw CloudAccountPartitionError.invalidCloudScope
+        }
+
+        try self.database.queue.write { database in
+            guard var record: CloudAccountPartitionPreparationRecord = try
+                CloudAccountPartitionPreparationRecord.fetchOne(
+                    database,
+                    key: cloudScope.rawValue
+                ) else {
+                return
+            }
+            guard record.initialSyncCompletedAt == nil else {
+                return
+            }
+            record.initialSyncCompletedAt = completedAt
+            try record.update(database)
+        }
+    }
+
     func prepareCloudScope(
         _ cloudScope: CloudAccountScope,
         decision: CloudAccountLocalDataDecision
     ) throws -> CloudAccountPartitionMergeResult {
         guard cloudScope.isCloud else {
-            throw CloudAccountPartitionStoreError.invalidCloudScope
+            throw CloudAccountPartitionError.invalidCloudScope
         }
 
         return try self.database.queue.write { database in
             try AppUserRecord.insertUser(id: cloudScope.rawValue, in: database)
 
-            switch decision {
-            case .useCloudDataOnly:
+            if let existingRecord: CloudAccountPartitionPreparationRecord = try
+                CloudAccountPartitionPreparationRecord.fetchOne(
+                    database,
+                    key: cloudScope.rawValue
+                ) {
+                guard existingRecord.decision == decision else {
+                    throw CloudAccountPartitionError.alreadyPrepared(
+                        existingDecision: existingRecord.decision
+                    )
+                }
                 return CloudAccountPartitionMergeResult(
                     copiedSourceCount: 0,
                     copiedFavoriteItemCount: 0,
-                    skippedCount: 0
+                    skippedCount: 0,
+                    wasAlreadyPrepared: true
+                )
+            }
+
+            let result: CloudAccountPartitionMergeResult
+
+            switch decision {
+            case .useCloudDataOnly:
+                result = CloudAccountPartitionMergeResult(
+                    copiedSourceCount: 0,
+                    copiedFavoriteItemCount: 0,
+                    skippedCount: 0,
+                    wasAlreadyPrepared: false
                 )
 
             case .mergeLocalData:
@@ -55,12 +114,21 @@ final class GRDBCloudAccountPartitionStore: CloudAccountPartitioning {
                     in: database
                 )
                 try FavoriteAggregateBuilder.rebuild(userID: cloudScope.rawValue, in: database)
-                return CloudAccountPartitionMergeResult(
+                result = CloudAccountPartitionMergeResult(
                     copiedSourceCount: sourceResult.copiedCount,
                     copiedFavoriteItemCount: favoriteResult.copiedCount,
-                    skippedCount: sourceResult.skippedCount + favoriteResult.skippedCount
+                    skippedCount: sourceResult.skippedCount + favoriteResult.skippedCount,
+                    wasAlreadyPrepared: false
                 )
             }
+
+            try CloudAccountPartitionPreparationRecord(
+                accountScope: cloudScope.rawValue,
+                decision: decision,
+                preparedAt: Date(),
+                initialSyncCompletedAt: nil
+            ).insert(database)
+            return result
         }
     }
 
@@ -180,11 +248,35 @@ final class GRDBCloudAccountPartitionStore: CloudAccountPartitioning {
     }
 }
 
+struct CloudAccountPartitionPreparationRecord: Codable, FetchableRecord, PersistableRecord {
+    static let databaseTableName: String = "cloud_account_partition_preparations"
+
+    var accountScope: String
+    var decision: CloudAccountLocalDataDecision
+    var preparedAt: Date
+    var initialSyncCompletedAt: Date?
+
+    var preparation: CloudAccountPartitionPreparation {
+        return CloudAccountPartitionPreparation(
+            decision: self.decision,
+            preparedAt: self.preparedAt,
+            initialSyncCompletedAt: self.initialSyncCompletedAt
+        )
+    }
+
+    static func createTable(in database: Database) throws {
+        try database.create(table: Self.databaseTableName, ifNotExists: true) { table in
+            table.column("accountScope", .text)
+                .primaryKey()
+                .references(AppUserRecord.databaseTableName, column: "id", onDelete: .cascade)
+            table.column("decision", .text).notNull()
+            table.column("preparedAt", .datetime).notNull()
+            table.column("initialSyncCompletedAt", .datetime)
+        }
+    }
+}
+
 private struct AccountPartitionCopyResult {
     var copiedCount: Int = 0
     var skippedCount: Int = 0
-}
-
-private enum CloudAccountPartitionStoreError: Error {
-    case invalidCloudScope
 }

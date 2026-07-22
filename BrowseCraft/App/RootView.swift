@@ -22,6 +22,7 @@ struct RootView: View {
     @StateObject private var libraryViewModel: LibraryViewModel
     @StateObject private var historyViewModel: HistoryViewModel
     @StateObject private var settingsViewModel: SettingsViewModel
+    @StateObject private var cloudSyncSettingsViewModel: CloudSyncSettingsViewModel
     @StateObject private var startupCoordinator: StartupCoordinator
     @State private var selectedTab: RootTab = .library
 
@@ -37,6 +38,9 @@ struct RootView: View {
         _libraryViewModel = StateObject(wrappedValue: libraryViewModel)
         _historyViewModel = StateObject(wrappedValue: container.makeHistoryViewModel())
         _settingsViewModel = StateObject(wrappedValue: container.makeSettingsViewModel())
+        _cloudSyncSettingsViewModel = StateObject(
+            wrappedValue: container.makeCloudSyncSettingsViewModel()
+        )
         _startupCoordinator = StateObject(
             wrappedValue: StartupCoordinator(
                 dependencies: StartupCoordinator.Dependencies(
@@ -75,6 +79,9 @@ struct RootView: View {
         .task {
             await self.settingsViewModel.observeStoreKitTransactions()
         }
+        .task {
+            await self.cloudSyncSettingsViewModel.start()
+        }
         .onChange(of: self.sourcesViewModel.latestSourceAddID) { _, sourceID in
             guard sourceID != nil else {
                 return
@@ -88,7 +95,10 @@ struct RootView: View {
 
     private var mainTabView: some View {
         TabView(selection: self.$selectedTab) {
-            SourcesView(viewModel: self.sourcesViewModel)
+            SourcesView(
+                viewModel: self.sourcesViewModel,
+                cloudSyncViewModel: self.cloudSyncSettingsViewModel
+            )
                 .tabItem {
                     Image(systemName: "tray.full")
                     Text("Sources")
@@ -97,6 +107,7 @@ struct RootView: View {
 
             FavoritesView(
                 viewModel: self.favoritesViewModel,
+                cloudSyncViewModel: self.cloudSyncSettingsViewModel,
                 contentViewModelFactory: self.libraryContentViewModelFactory
             )
                 .tabItem {
@@ -125,7 +136,10 @@ struct RootView: View {
                 }
                 .tag(RootTab.history)
 
-            SettingsView(viewModel: self.settingsViewModel)
+            SettingsView(
+                viewModel: self.settingsViewModel,
+                cloudSyncViewModel: self.cloudSyncSettingsViewModel
+            )
                 .tabItem {
                     Image(systemName: "gearshape")
                     Text("Settings")

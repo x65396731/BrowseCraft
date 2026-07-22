@@ -49,6 +49,7 @@ final class AppDatabase {
     /// 中文注释：当前开发期只维护一份最终 schema；每张表的字段定义放回各自 Record，避免 AppDatabase 过长。
     private static func createCurrentSchema(in database: Database) throws {
         try AppUserRecord.createTable(in: database)
+        try CloudAccountPartitionPreparationRecord.createTable(in: database)
         try SourceRecord.createTable(in: database)
         try FavoriteRecord.createTable(in: database)
         try FavoriteItemRecord.createTable(in: database)

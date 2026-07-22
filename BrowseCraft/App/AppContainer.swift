@@ -38,7 +38,9 @@ final class AppContainer {
         do {
             let database: AppDatabase = try AppDatabase()
             let cloudSyncChangeNotifier: CloudSyncChangeNotifier = CloudSyncChangeNotifier()
-            self.cloudAccountPartitionStore = GRDBCloudAccountPartitionStore(database: database)
+            let cloudAccountPartitionStore: GRDBCloudAccountPartitionStore =
+                GRDBCloudAccountPartitionStore(database: database)
+            self.cloudAccountPartitionStore = cloudAccountPartitionStore
             let sourceRepository: SourceRepository = GRDBSourceRepository(
                 database: database,
                 accountScopeProvider: activeAccountScopeStore,
@@ -57,7 +59,7 @@ final class AppContainer {
                 securityValidator: CloudSyncPayloadSecurityValidator(),
                 accountScopeProvider: activeAccountScopeStore
             )
-            self.cloudSyncCoordinator = CloudSyncCoordinator(
+            let cloudSyncCoordinator: CloudSyncCoordinator = CloudSyncCoordinator(
                 accountSession: cloudAccountSession,
                 sourceService: SourceSyncService(
                     localStore: GRDBSourceSyncLocalStore(database: database),
@@ -70,8 +72,10 @@ final class AppContainer {
                     accountScopeProvider: activeAccountScopeStore
                 ),
                 cloudStore: cloudRecordStore,
-                changeNotifier: cloudSyncChangeNotifier
+                changeNotifier: cloudSyncChangeNotifier,
+                partitionStore: cloudAccountPartitionStore
             )
+            self.cloudSyncCoordinator = cloudSyncCoordinator
             let urlResolver: URLResolvingService = URLResolvingService()
             let sourceCredentialStore: SourceCredentialStoring = InMemorySourceCredentialStore()
             let browserRequestHeaderProvider: any BrowserRequestHeaderProviding = ChromeRequestHeaderProvider()
@@ -158,7 +162,10 @@ final class AppContainer {
             )
             self.settingsFeatureFactory = SettingsFeatureFactory(
                 database: database,
-                imageCacheConfigurator: imageCacheConfigurator
+                imageCacheConfigurator: imageCacheConfigurator,
+                cloudAccountSession: cloudAccountSession,
+                cloudAccountPartitionStore: cloudAccountPartitionStore,
+                cloudSyncCoordinator: cloudSyncCoordinator
             )
             self.browserRequestHeaderProvider = browserRequestHeaderProvider
             self.systemCookieHeaderProvider = systemCookieHeaderProvider
@@ -200,6 +207,11 @@ final class AppContainer {
 
     func makeSettingsViewModel() -> SettingsViewModel {
         return self.settingsFeatureFactory.makeViewModel()
+    }
+
+    @MainActor
+    func makeCloudSyncSettingsViewModel() -> CloudSyncSettingsViewModel {
+        return self.settingsFeatureFactory.makeCloudSyncViewModel()
     }
 
     func makeLibraryContentViewModelFactory() -> LibraryContentViewModelFactory {
