@@ -2,7 +2,7 @@ import Foundation
 import BrowseCraftCore
 
 // 中文注释：SourceCloudPayload 是站点源同步的云端载荷，先服务 mock store，后续映射到 CloudKit record。
-struct SourceCloudPayload: Hashable, Codable {
+struct SourceCloudPayload: Hashable, Codable, Sendable {
     static let currentSchemaVersion: Int = 1
 
     var schemaVersion: Int

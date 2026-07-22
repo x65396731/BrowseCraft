@@ -1,15 +1,16 @@
 import Foundation
 
-// 中文注释：CloudSyncService 是同步用例入口；当前只实现 Source mock 同步。
+// 中文注释：CloudSyncService 是 Source 同步用例入口；下载和上传可由协调器分阶段调用。
 protocol CloudSyncService {
-    func syncSources(limit: Int) throws -> SourceSyncResult
+    func syncSources(limit: Int) async throws -> SourceSyncResult
 }
 
-struct SourceSyncResult: Hashable {
+struct SourceSyncResult: Hashable, Sendable {
     var uploadedCount: Int
     var downloadedCount: Int
     var deletedCount: Int
     var skippedCount: Int
+    var failedCount: Int
 }
 
 final class SourceSyncService: CloudSyncService {
@@ -24,7 +25,7 @@ final class SourceSyncService: CloudSyncService {
         cloudStore: CloudRecordStore,
         accountScopeProvider: any ActiveAccountScopeProviding = ActiveAccountScopeStore(),
         scope: String = "private",
-        zoneName: String = "BrowseCraftSources"
+        zoneName: String = "BrowseCraftSync"
     ) {
         self.localStore = localStore
         self.cloudStore = cloudStore
@@ -33,41 +34,61 @@ final class SourceSyncService: CloudSyncService {
         self.zoneName = zoneName
     }
 
-    func syncSources(limit: Int = 100) throws -> SourceSyncResult {
+    func syncSources(limit: Int = 100) async throws -> SourceSyncResult {
         let accountScope: CloudAccountScope = self.accountScopeProvider.currentScope
-        var result: SourceSyncResult = SourceSyncResult(
-            uploadedCount: 0,
-            downloadedCount: 0,
-            deletedCount: 0,
-            skippedCount: 0
-        )
-
-        let changeSet: SourceCloudChangeSet = try self.fetchCloudChanges(accountScope: accountScope)
-        let mergeResult: SourceMergeResult = try self.mergeCloudChanges(
-            changeSet,
-            accountScope: accountScope
-        )
-        result.downloadedCount += mergeResult.downloadedCount
-        result.deletedCount += mergeResult.deletedCount
-        result.skippedCount += mergeResult.skippedCount
-
-        let uploadResult: SourceUploadResult = try self.uploadPendingSourceChanges(
+        var result: SourceSyncResult = try await self.downloadSources(accountScope: accountScope)
+        let uploadResult: SourceSyncResult = try await self.uploadSources(
             accountScope: accountScope,
             limit: limit
         )
-        result.uploadedCount += uploadResult.uploadedCount
-        result.skippedCount += uploadResult.skippedCount
+        result.add(uploadResult)
 
         return result
     }
 
-    private func fetchCloudChanges(accountScope: CloudAccountScope) throws -> SourceCloudChangeSet {
+    func downloadSources(accountScope: CloudAccountScope) async throws -> SourceSyncResult {
+        try self.requireCurrentAccount(accountScope)
+        let changeSet: SourceCloudChangeSet = try await self.fetchCloudChanges(accountScope: accountScope)
+        try self.requireCurrentAccount(accountScope)
+        let mergeResult: SourceMergeResult = try self.mergeCloudChanges(
+            changeSet,
+            accountScope: accountScope
+        )
+        return SourceSyncResult(
+            uploadedCount: 0,
+            downloadedCount: mergeResult.downloadedCount,
+            deletedCount: mergeResult.deletedCount,
+            skippedCount: mergeResult.skippedCount,
+            failedCount: 0
+        )
+    }
+
+    func uploadSources(
+        accountScope: CloudAccountScope,
+        limit: Int = 100
+    ) async throws -> SourceSyncResult {
+        try self.requireCurrentAccount(accountScope)
+        let uploadResult: SourceUploadResult = try await self.uploadPendingSourceChanges(
+            accountScope: accountScope,
+            limit: limit
+        )
+        try self.requireCurrentAccount(accountScope)
+        return SourceSyncResult(
+            uploadedCount: uploadResult.uploadedCount,
+            downloadedCount: 0,
+            deletedCount: 0,
+            skippedCount: uploadResult.skippedCount,
+            failedCount: uploadResult.failedCount
+        )
+    }
+
+    private func fetchCloudChanges(accountScope: CloudAccountScope) async throws -> SourceCloudChangeSet {
         let token: Data? = try self.localStore.changeToken(
             accountScope: accountScope,
             scope: self.scope,
             zoneName: self.zoneName
         )
-        return try self.cloudStore.fetchChangedSourceRecords(since: token)
+        return try await self.cloudStore.fetchChangedSourceRecords(since: token)
     }
 
     private func mergeCloudChanges(
@@ -96,7 +117,12 @@ final class SourceSyncService: CloudSyncService {
 
         for payload: SourceCloudPayload in eligiblePayloads {
             if let existing: SourceSyncLocalSnapshot = snapshots[payload.sourceID] {
-                if payload.lastChangedAt >= existing.lastChangedAt {
+                if Self.remoteChangeWins(
+                    remoteChangedAt: payload.lastChangedAt,
+                    remoteIsDeleted: payload.isDeleted,
+                    localChangedAt: existing.lastChangedAt,
+                    localIsDeleted: existing.isDeleted
+                ) {
                     acceptedPayloads.append(payload)
                     snapshots[payload.sourceID] = SourceSyncLocalSnapshot(
                         sourceID: payload.sourceID,
@@ -149,9 +175,9 @@ final class SourceSyncService: CloudSyncService {
     private func uploadPendingSourceChanges(
         accountScope: CloudAccountScope,
         limit: Int
-    ) throws -> SourceUploadResult {
+    ) async throws -> SourceUploadResult {
         guard limit > 0 else {
-            return SourceUploadResult(uploadedCount: 0, skippedCount: 0)
+            return SourceUploadResult(uploadedCount: 0, skippedCount: 0, failedCount: 0)
         }
 
         let pending: [SourceSyncPendingUpload] = try self.localStore.pendingUploads(
@@ -172,24 +198,76 @@ final class SourceSyncService: CloudSyncService {
         }
 
         guard payloads.isEmpty == false else {
-            return SourceUploadResult(uploadedCount: 0, skippedCount: orderedPending.count)
+            return SourceUploadResult(
+                uploadedCount: 0,
+                skippedCount: orderedPending.count,
+                failedCount: 0
+            )
         }
 
+        let pendingByEntityID: [String: SourceSyncPendingUpload] = Dictionary(
+            uniqueKeysWithValues: orderedPending.map { ($0.queueItem.entityID, $0) }
+        )
+        let saveResult: CloudRecordBatchSaveResult
         do {
-            try self.cloudStore.saveSourceRecords(payloads)
+            saveResult = try await self.cloudStore.saveSourceRecords(payloads)
         } catch {
             try self.localStore.markPendingUploadsFailed(
-                ids: orderedPending.map(\.queueItem.id),
-                errorMessage: String(describing: error)
+                ids: payloads.compactMap { pendingByEntityID[$0.sourceID]?.queueItem.id },
+                errorMessage: CloudSyncSafeErrorMessage.describe(error)
             )
             throw error
         }
 
-        try self.localStore.removePendingUploads(ids: orderedPending.map(\.queueItem.id))
+        let savedQueueIDs: [String] = saveResult.savedEntityIDs.compactMap { entityID in
+            return pendingByEntityID[entityID]?.queueItem.id
+        }
+        try self.localStore.removePendingUploads(ids: savedQueueIDs)
+
+        for failure: CloudRecordSaveFailure in saveResult.failures {
+            guard let queueID: String = pendingByEntityID[failure.entityID]?.queueItem.id else {
+                continue
+            }
+            try self.localStore.markPendingUploadsFailed(
+                ids: [queueID],
+                errorMessage: failure.description
+            )
+        }
+
         return SourceUploadResult(
-            uploadedCount: payloads.count,
-            skippedCount: orderedPending.count - payloads.count
+            uploadedCount: savedQueueIDs.count,
+            skippedCount: orderedPending.count - payloads.count,
+            failedCount: saveResult.failures.count
         )
+    }
+
+    private func requireCurrentAccount(_ accountScope: CloudAccountScope) throws {
+        guard self.accountScopeProvider.currentScope == accountScope else {
+            throw CloudSyncSessionError.accountChanged
+        }
+    }
+
+    /// 中文注释：时间相同时 tombstone 优先，避免离线设备用旧内容复活已删除记录。
+    private static func remoteChangeWins(
+        remoteChangedAt: Date,
+        remoteIsDeleted: Bool,
+        localChangedAt: Date,
+        localIsDeleted: Bool
+    ) -> Bool {
+        if remoteChangedAt != localChangedAt {
+            return remoteChangedAt > localChangedAt
+        }
+        return remoteIsDeleted || localIsDeleted == false
+    }
+}
+
+extension SourceSyncResult {
+    mutating func add(_ other: SourceSyncResult) {
+        self.uploadedCount += other.uploadedCount
+        self.downloadedCount += other.downloadedCount
+        self.deletedCount += other.deletedCount
+        self.skippedCount += other.skippedCount
+        self.failedCount += other.failedCount
     }
 }
 
@@ -202,4 +280,5 @@ private struct SourceMergeResult {
 private struct SourceUploadResult {
     var uploadedCount: Int
     var skippedCount: Int
+    var failedCount: Int
 }

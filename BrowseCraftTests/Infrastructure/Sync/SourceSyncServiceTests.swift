@@ -5,7 +5,7 @@ import BrowseCraftCore
 @testable import BrowseCraft
 
 struct SourceSyncServiceTests {
-    @Test func uploadsLocalSourceAndClearsQueue() throws {
+    @Test func uploadsLocalSourceAndClearsQueue() async throws {
         let database: AppDatabase = try Self.makeDatabase()
         let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
         let queueRepository: GRDBSyncQueueRepository = GRDBSyncQueueRepository(database: database)
@@ -14,14 +14,14 @@ struct SourceSyncServiceTests {
 
         try sourceRepository.saveSource(Self.makeRSSSource(id: "source-1", name: "Local Source", updatedAt: 100))
 
-        let result: SourceSyncResult = try service.syncSources(limit: 10)
+        let result: SourceSyncResult = try await service.syncSources(limit: 10)
 
         #expect(result.uploadedCount == 1)
         #expect(cloudStore.sourceRecord(id: "source-1")?.payload.name == "Local Source")
         #expect(try queueRepository.fetchPending(limit: 10).isEmpty)
     }
 
-    @Test func downloadsCloudSourceToLocalDatabase() throws {
+    @Test func downloadsCloudSourceToLocalDatabase() async throws {
         let database: AppDatabase = try Self.makeDatabase()
         let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
         let cloudStore: MockCloudRecordStore = MockCloudRecordStore(
@@ -35,7 +35,7 @@ struct SourceSyncServiceTests {
         )
         let service: SourceSyncService = Self.makeService(database: database, cloudStore: cloudStore)
 
-        let result: SourceSyncResult = try service.syncSources(limit: 10)
+        let result: SourceSyncResult = try await service.syncSources(limit: 10)
         let sources: [Source] = try sourceRepository.fetchSources()
 
         #expect(result.downloadedCount == 1)
@@ -43,7 +43,7 @@ struct SourceSyncServiceTests {
         #expect(sources.first?.name == "Cloud Source")
     }
 
-    @Test func uploadsLocalDeleteAsCloudTombstone() throws {
+    @Test func uploadsLocalDeleteAsCloudTombstone() async throws {
         let database: AppDatabase = try Self.makeDatabase()
         let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
         let cloudStore: MockCloudRecordStore = MockCloudRecordStore()
@@ -52,13 +52,13 @@ struct SourceSyncServiceTests {
         try sourceRepository.saveSource(Self.makeRSSSource(id: "source-1", name: "Local Source", updatedAt: 100))
         try sourceRepository.deleteSource(id: "source-1")
 
-        let result: SourceSyncResult = try service.syncSources(limit: 10)
+        let result: SourceSyncResult = try await service.syncSources(limit: 10)
 
         #expect(result.uploadedCount == 1)
         #expect(cloudStore.sourceRecord(id: "source-1")?.payload.deletedAt != nil)
     }
 
-    @Test func cloudDeleteSoftDeletesLocalSource() throws {
+    @Test func cloudDeleteSoftDeletesLocalSource() async throws {
         let database: AppDatabase = try Self.makeDatabase()
         try Self.insertSource(Self.makeRSSSource(id: "source-1", name: "Local Source", updatedAt: 100), into: database)
         let cloudStore: MockCloudRecordStore = MockCloudRecordStore(
@@ -77,7 +77,7 @@ struct SourceSyncServiceTests {
         )
         let service: SourceSyncService = Self.makeService(database: database, cloudStore: cloudStore)
 
-        let result: SourceSyncResult = try service.syncSources(limit: 10)
+        let result: SourceSyncResult = try await service.syncSources(limit: 10)
         let visibleSources: [Source] = try GRDBSourceRepository(database: database).fetchSources()
         let deletedAt: Date? = try Self.sourceRecord(id: "source-1", in: database)?.deletedAt
 
@@ -86,7 +86,7 @@ struct SourceSyncServiceTests {
         #expect(deletedAt == Date(timeIntervalSince1970: 200))
     }
 
-    @Test func newerLocalSourceWinsOverOlderCloudSource() throws {
+    @Test func newerLocalSourceWinsOverOlderCloudSource() async throws {
         let database: AppDatabase = try Self.makeDatabase()
         try Self.insertSource(Self.makeRSSSource(id: "source-1", name: "Local New", updatedAt: 200), into: database)
         let cloudStore: MockCloudRecordStore = MockCloudRecordStore(
@@ -100,14 +100,14 @@ struct SourceSyncServiceTests {
         )
         let service: SourceSyncService = Self.makeService(database: database, cloudStore: cloudStore)
 
-        let result: SourceSyncResult = try service.syncSources(limit: 10)
+        let result: SourceSyncResult = try await service.syncSources(limit: 10)
 
         #expect(result.skippedCount == 1)
         #expect(result.uploadedCount == 1)
         #expect(cloudStore.sourceRecord(id: "source-1")?.payload.name == "Local New")
     }
 
-    @Test func newerCloudSourceWinsOverOlderLocalSource() throws {
+    @Test func newerCloudSourceWinsOverOlderLocalSource() async throws {
         let database: AppDatabase = try Self.makeDatabase()
         try Self.insertSource(Self.makeRSSSource(id: "source-1", name: "Local Old", updatedAt: 100), into: database)
         let cloudStore: MockCloudRecordStore = MockCloudRecordStore(
@@ -121,13 +121,40 @@ struct SourceSyncServiceTests {
         )
         let service: SourceSyncService = Self.makeService(database: database, cloudStore: cloudStore)
 
-        _ = try service.syncSources(limit: 10)
+        _ = try await service.syncSources(limit: 10)
         let source: Source? = try GRDBSourceRepository(database: database).fetchSources().first
 
         #expect(source?.name == "Cloud New")
     }
 
-    @Test func uploadFailureKeepsQueueAndIncrementsRetryCount() throws {
+    @Test func localTombstoneWinsWhenCloudSourceHasSameTimestamp() async throws {
+        let database: AppDatabase = try Self.makeDatabase()
+        try await database.queue.write { database in
+            var record: SourceRecord = try SourceRecord(
+                source: Self.makeRSSSource(id: "source-1", name: "Deleted Local", updatedAt: 100)
+            )
+            record.deletedAt = Date(timeIntervalSince1970: 200)
+            try record.save(database)
+        }
+        let cloudStore: MockCloudRecordStore = MockCloudRecordStore(
+            sourceRecords: [
+                SourceCloudRecord(
+                    payload: try Self.payload(id: "source-1", name: "Cloud Live", updatedAt: 200),
+                    serverUpdatedAt: Date(timeIntervalSince1970: 210),
+                    version: 1
+                )
+            ]
+        )
+        let service: SourceSyncService = Self.makeService(database: database, cloudStore: cloudStore)
+
+        let result: SourceSyncResult = try await service.syncSources(limit: 10)
+
+        #expect(result.skippedCount == 1)
+        #expect(cloudStore.sourceRecord(id: "source-1")?.payload.deletedAt != nil)
+        #expect(try GRDBSourceRepository(database: database).fetchSources().isEmpty)
+    }
+
+    @Test func uploadFailureKeepsQueueAndIncrementsRetryCount() async throws {
         let database: AppDatabase = try Self.makeDatabase()
         let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
         let queueRepository: GRDBSyncQueueRepository = GRDBSyncQueueRepository(database: database)
@@ -137,8 +164,8 @@ struct SourceSyncServiceTests {
 
         try sourceRepository.saveSource(Self.makeRSSSource(id: "source-1", name: "Local Source", updatedAt: 100))
 
-        #expect(throws: MockCloudRecordStoreError.saveFailed) {
-            _ = try service.syncSources(limit: 10)
+        await #expect(throws: MockCloudRecordStoreError.saveFailed) {
+            _ = try await service.syncSources(limit: 10)
         }
         let pending: [SyncQueueItem] = try queueRepository.fetchPending(limit: 10)
 
@@ -147,7 +174,28 @@ struct SourceSyncServiceTests {
         #expect(pending[0].lastError != nil)
     }
 
-    @Test func temporaryInconsistencyConvergesAfterTombstoneUpload() throws {
+    @Test func partialUploadRemovesOnlyConfirmedSourceQueueItems() async throws {
+        let database: AppDatabase = try Self.makeDatabase()
+        let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
+        let queueRepository: GRDBSyncQueueRepository = GRDBSyncQueueRepository(database: database)
+        let cloudStore: MockCloudRecordStore = MockCloudRecordStore()
+        cloudStore.nextSourceSaveFailureIDs = ["source-2"]
+        let service: SourceSyncService = Self.makeService(database: database, cloudStore: cloudStore)
+        try sourceRepository.saveSource(Self.makeRSSSource(id: "source-1", name: "One", updatedAt: 100))
+        try sourceRepository.saveSource(Self.makeRSSSource(id: "source-2", name: "Two", updatedAt: 100))
+
+        let result: SourceSyncResult = try await service.syncSources(limit: 10)
+        let pending: [SyncQueueItem] = try queueRepository.fetchPending(limit: 10)
+
+        #expect(result.uploadedCount == 1)
+        #expect(result.failedCount == 1)
+        #expect(pending.map(\.entityID) == ["source-2"])
+        #expect(pending.first?.retryCount == 1)
+        #expect(cloudStore.sourceRecord(id: "source-1") != nil)
+        #expect(cloudStore.sourceRecord(id: "source-2") == nil)
+    }
+
+    @Test func temporaryInconsistencyConvergesAfterTombstoneUpload() async throws {
         let initialPayload: SourceCloudPayload = try Self.payload(id: "source-1", name: "Cloud Source", updatedAt: 100)
         let cloudStore: MockCloudRecordStore = MockCloudRecordStore(
             sourceRecords: [
@@ -168,11 +216,11 @@ struct SourceSyncServiceTests {
         try deviceASourceRepository.saveSource(Self.makeRSSSource(id: "source-1", name: "Cloud Source", updatedAt: 100))
         try deviceASourceRepository.deleteSource(id: "source-1")
 
-        _ = try deviceBService.syncSources(limit: 10)
+        _ = try await deviceBService.syncSources(limit: 10)
         #expect(try deviceBSourceRepository.fetchSources().map(\.id) == ["source-1"])
 
-        _ = try deviceAService.syncSources(limit: 10)
-        _ = try deviceBService.syncSources(limit: 10)
+        _ = try await deviceAService.syncSources(limit: 10)
+        _ = try await deviceBService.syncSources(limit: 10)
 
         #expect(try deviceBSourceRepository.fetchSources().isEmpty)
     }

@@ -1,4 +1,5 @@
 import Foundation
+import CloudKit
 
 /// 中文注释：应用 Composition Root，只持有 App 生命周期共享对象并把 Feature 创建委托给明确 Factory。
 final class AppContainer {
@@ -18,30 +19,58 @@ final class AppContainer {
     let cloudAccountSession: CloudAccountSession
     let activeAccountScopeStore: ActiveAccountScopeStore
     let cloudAccountPartitionStore: any CloudAccountPartitioning
+    let cloudSyncCoordinator: CloudSyncCoordinator
 
     init() {
         let imageCacheConfigurator: ImageCacheConfigurator = ImageCacheConfigurator()
         let activeAccountScopeStore: ActiveAccountScopeStore = ActiveAccountScopeStore()
         self.imageCacheConfigurator = imageCacheConfigurator
         self.activeAccountScopeStore = activeAccountScopeStore
-        self.cloudAccountSession = CloudAccountSession(
+        let cloudAccountSession: CloudAccountSession = CloudAccountSession(
             stateProvider: CloudKitAccountStateService(
                 containerIdentifier: Self.cloudKitContainerIdentifier
             ),
             preferenceStore: UserDefaultsCloudSyncPreferenceStore(),
             activeScopeStore: activeAccountScopeStore
         )
+        self.cloudAccountSession = cloudAccountSession
 
         do {
             let database: AppDatabase = try AppDatabase()
+            let cloudSyncChangeNotifier: CloudSyncChangeNotifier = CloudSyncChangeNotifier()
             self.cloudAccountPartitionStore = GRDBCloudAccountPartitionStore(database: database)
             let sourceRepository: SourceRepository = GRDBSourceRepository(
                 database: database,
-                accountScopeProvider: activeAccountScopeStore
+                accountScopeProvider: activeAccountScopeStore,
+                changeNotifier: cloudSyncChangeNotifier
             )
             let favoriteRepository: FavoriteRepository = GRDBFavoriteRepository(
                 database: database,
+                accountScopeProvider: activeAccountScopeStore,
+                changeNotifier: cloudSyncChangeNotifier
+            )
+            let engineStore: GRDBCloudSyncEngineStore = GRDBCloudSyncEngineStore(database: database)
+            let cloudRecordStore: CKSyncEngineCloudRecordStore = CKSyncEngineCloudRecordStore(
+                container: CKContainer(identifier: Self.cloudKitContainerIdentifier),
+                stateStore: engineStore,
+                metadataStore: engineStore,
+                securityValidator: CloudSyncPayloadSecurityValidator(),
                 accountScopeProvider: activeAccountScopeStore
+            )
+            self.cloudSyncCoordinator = CloudSyncCoordinator(
+                accountSession: cloudAccountSession,
+                sourceService: SourceSyncService(
+                    localStore: GRDBSourceSyncLocalStore(database: database),
+                    cloudStore: cloudRecordStore,
+                    accountScopeProvider: activeAccountScopeStore
+                ),
+                favoriteItemService: FavoriteItemSyncService(
+                    localStore: GRDBFavoriteItemSyncLocalStore(database: database),
+                    cloudStore: cloudRecordStore,
+                    accountScopeProvider: activeAccountScopeStore
+                ),
+                cloudStore: cloudRecordStore,
+                changeNotifier: cloudSyncChangeNotifier
             )
             let urlResolver: URLResolvingService = URLResolvingService()
             let sourceCredentialStore: SourceCredentialStoring = InMemorySourceCredentialStore()
@@ -141,7 +170,16 @@ final class AppContainer {
     }
 
     func startCloudAccountMonitoring() async {
+        await self.cloudSyncCoordinator.start()
         await self.cloudAccountSession.start()
+    }
+
+    func handleAppBecameActive() async {
+        await self.cloudSyncCoordinator.requestSync(trigger: .foreground)
+    }
+
+    func handleCloudRemoteNotification() async throws -> CloudSyncRunResult {
+        return try await self.cloudSyncCoordinator.synchronize(trigger: .remoteNotification)
     }
 
     func makeSourcesViewModel() -> SourcesViewModel {

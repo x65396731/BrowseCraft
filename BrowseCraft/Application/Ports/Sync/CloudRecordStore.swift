@@ -1,19 +1,55 @@
 import Foundation
 
-// 中文注释：CloudRecordStore 抽象同步用例需要的云端记录能力；具体云服务由 Infrastructure 实现。
-protocol CloudRecordStore {
-    func fetchChangedSourceRecords(since token: Data?) throws -> SourceCloudChangeSet
-    func saveSourceRecords(_ records: [SourceCloudPayload]) throws
-    func fetchChangedFavoriteItemRecords(since token: Data?) throws -> FavoriteItemCloudChangeSet
-    func saveFavoriteItemRecords(_ records: [FavoriteItemCloudPayload]) throws
+// 中文注释：CloudRecordStore 以 async API 隔离 CKSyncEngine；不得用 semaphore 包装 CloudKit。
+protocol CloudRecordStore: Sendable {
+    func fetchChangedSourceRecords(since token: Data?) async throws -> SourceCloudChangeSet
+    func saveSourceRecords(_ records: [SourceCloudPayload]) async throws -> CloudRecordBatchSaveResult
+    func fetchChangedFavoriteItemRecords(since token: Data?) async throws -> FavoriteItemCloudChangeSet
+    func saveFavoriteItemRecords(_ records: [FavoriteItemCloudPayload]) async throws -> CloudRecordBatchSaveResult
+    func commitState(for accountScope: CloudAccountScope) async throws
+    func cancelOperations() async
 }
 
-struct SourceCloudChangeSet: Hashable {
+struct SourceCloudChangeSet: Hashable, Sendable {
     var records: [SourceCloudPayload]
     var changeToken: Data?
 }
 
-struct FavoriteItemCloudChangeSet: Hashable {
+struct FavoriteItemCloudChangeSet: Hashable, Sendable {
     var records: [FavoriteItemCloudPayload]
     var changeToken: Data?
+}
+
+struct CloudRecordBatchSaveResult: Hashable, Sendable {
+    var savedEntityIDs: Set<String>
+    var failures: [CloudRecordSaveFailure]
+
+    static func saved(_ entityIDs: [String]) -> CloudRecordBatchSaveResult {
+        return CloudRecordBatchSaveResult(
+            savedEntityIDs: Set(entityIDs),
+            failures: []
+        )
+    }
+}
+
+struct CloudRecordSaveFailure: Hashable, Sendable, CustomStringConvertible {
+    var entityID: String
+    var code: String
+    var retryAfter: TimeInterval?
+
+    var description: String {
+        var message: String = "Cloud record save failed code=\(self.code)"
+        if let retryAfter: TimeInterval = self.retryAfter {
+            message += " retryAfter=\(retryAfter)"
+        }
+        return message
+    }
+}
+
+extension CloudRecordStore {
+    func commitState(for accountScope: CloudAccountScope) async throws {
+        _ = accountScope
+    }
+
+    func cancelOperations() async {}
 }

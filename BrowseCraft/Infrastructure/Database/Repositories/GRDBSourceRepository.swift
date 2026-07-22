@@ -7,13 +7,16 @@ import GRDB
 final class GRDBSourceRepository: SourceRepository {
     private let database: AppDatabase
     private let accountScopeProvider: any ActiveAccountScopeProviding
+    private let changeNotifier: (any CloudSyncChangeNotifying)?
 
     init(
         database: AppDatabase,
-        accountScopeProvider: any ActiveAccountScopeProviding = ActiveAccountScopeStore()
+        accountScopeProvider: any ActiveAccountScopeProviding = ActiveAccountScopeStore(),
+        changeNotifier: (any CloudSyncChangeNotifying)? = nil
     ) {
         self.database = database
         self.accountScopeProvider = accountScopeProvider
+        self.changeNotifier = changeNotifier
     }
 
     func fetchSources() throws -> [Source] {
@@ -67,6 +70,9 @@ final class GRDBSourceRepository: SourceRepository {
                 )
             }
         }
+        if source.isBuiltIn == false {
+            self.changeNotifier?.notifyLocalChange()
+        }
     }
 
     func deleteSource(id: String) throws {
@@ -98,6 +104,9 @@ final class GRDBSourceRepository: SourceRepository {
                     in: database
                 )
             }
+        }
+        if id.hasPrefix("built-in.") == false {
+            self.changeNotifier?.notifyLocalChange()
         }
     }
 

@@ -64,7 +64,7 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
                 let existing: FavoriteItemRecord? = try FavoriteItemRecord.fetchOne(database, key: key)
                 var scopedPayload: FavoriteItemCloudPayload = payload
                 scopedPayload.userID = accountScope.rawValue
-                var record: FavoriteItemRecord = FavoriteItemRecord(payload: scopedPayload)
+                var record: FavoriteItemRecord = try FavoriteItemRecord(payload: scopedPayload)
                 if let existing: FavoriteItemRecord {
                     record.createdAt = existing.createdAt
                 }
@@ -107,7 +107,7 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
                 )
                 return FavoriteItemSyncPendingUpload(
                     queueItem: queueRecord.domainModel(),
-                    payload: favoriteItemRecord.map { FavoriteItemCloudPayload(record: $0) }
+                    payload: try favoriteItemRecord.map { try FavoriteItemCloudPayload(record: $0) }
                 )
             }
         }

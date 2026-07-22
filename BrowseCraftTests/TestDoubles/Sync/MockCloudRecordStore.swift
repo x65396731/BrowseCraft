@@ -14,14 +14,18 @@ struct FavoriteItemCloudRecord: Hashable {
 }
 
 // 中文注释：MockCloudRecordStore 模拟 CloudKit 的增量 token、保存失败和服务端版本。
-final class MockCloudRecordStore: CloudRecordStore {
+final class MockCloudRecordStore: CloudRecordStore, @unchecked Sendable {
     private var sourceRecordsByID: [String: SourceCloudRecord]
     private var favoriteItemRecordsByID: [String: FavoriteItemCloudRecord]
     private var currentVersion: Int
     private let now: () -> Date
+    private let eventLock: NSLock = NSLock()
+    private var recordedEvents: [String] = []
 
     var failNextFetch: Bool
     var failNextSave: Bool
+    var nextSourceSaveFailureIDs: Set<String>
+    var nextFavoriteItemSaveFailureIDs: Set<String>
 
     init(
         sourceRecords: [SourceCloudRecord] = [],
@@ -42,9 +46,12 @@ final class MockCloudRecordStore: CloudRecordStore {
         self.now = now
         self.failNextFetch = false
         self.failNextSave = false
+        self.nextSourceSaveFailureIDs = []
+        self.nextFavoriteItemSaveFailureIDs = []
     }
 
-    func fetchChangedSourceRecords(since token: Data?) throws -> SourceCloudChangeSet {
+    func fetchChangedSourceRecords(since token: Data?) async throws -> SourceCloudChangeSet {
+        self.recordEvent("sourceFetch")
         if self.failNextFetch {
             self.failNextFetch = false
             throw MockCloudRecordStoreError.fetchFailed
@@ -70,13 +77,21 @@ final class MockCloudRecordStore: CloudRecordStore {
         )
     }
 
-    func saveSourceRecords(_ records: [SourceCloudPayload]) throws {
+    func saveSourceRecords(
+        _ records: [SourceCloudPayload]
+    ) async throws -> CloudRecordBatchSaveResult {
+        self.recordEvent("sourceSave")
         if self.failNextSave {
             self.failNextSave = false
             throw MockCloudRecordStoreError.saveFailed
         }
 
-        for payload in records where payload.isBuiltIn == false {
+        let failedIDs: Set<String> = self.nextSourceSaveFailureIDs
+        self.nextSourceSaveFailureIDs = []
+        let savedRecords: [SourceCloudPayload] = records.filter {
+            $0.isBuiltIn == false && failedIDs.contains($0.sourceID) == false
+        }
+        for payload: SourceCloudPayload in savedRecords {
             self.currentVersion += 1
             self.sourceRecordsByID[payload.sourceID] = SourceCloudRecord(
                 payload: payload,
@@ -84,9 +99,16 @@ final class MockCloudRecordStore: CloudRecordStore {
                 version: self.currentVersion
             )
         }
+        return CloudRecordBatchSaveResult(
+            savedEntityIDs: Set(savedRecords.map(\.sourceID)),
+            failures: failedIDs.map {
+                CloudRecordSaveFailure(entityID: $0, code: "mockPartialFailure", retryAfter: 1)
+            }
+        )
     }
 
-    func fetchChangedFavoriteItemRecords(since token: Data?) throws -> FavoriteItemCloudChangeSet {
+    func fetchChangedFavoriteItemRecords(since token: Data?) async throws -> FavoriteItemCloudChangeSet {
+        self.recordEvent("favoriteFetch")
         if self.failNextFetch {
             self.failNextFetch = false
             throw MockCloudRecordStoreError.fetchFailed
@@ -112,13 +134,21 @@ final class MockCloudRecordStore: CloudRecordStore {
         )
     }
 
-    func saveFavoriteItemRecords(_ records: [FavoriteItemCloudPayload]) throws {
+    func saveFavoriteItemRecords(
+        _ records: [FavoriteItemCloudPayload]
+    ) async throws -> CloudRecordBatchSaveResult {
+        self.recordEvent("favoriteSave")
         if self.failNextSave {
             self.failNextSave = false
             throw MockCloudRecordStoreError.saveFailed
         }
 
-        for payload in records {
+        let failedIDs: Set<String> = self.nextFavoriteItemSaveFailureIDs
+        self.nextFavoriteItemSaveFailureIDs = []
+        let savedRecords: [FavoriteItemCloudPayload] = records.filter {
+            failedIDs.contains($0.itemID) == false
+        }
+        for payload: FavoriteItemCloudPayload in savedRecords {
             self.currentVersion += 1
             self.favoriteItemRecordsByID[payload.itemID] = FavoriteItemCloudRecord(
                 payload: payload,
@@ -126,6 +156,12 @@ final class MockCloudRecordStore: CloudRecordStore {
                 version: self.currentVersion
             )
         }
+        return CloudRecordBatchSaveResult(
+            savedEntityIDs: Set(savedRecords.map(\.itemID)),
+            failures: failedIDs.map {
+                CloudRecordSaveFailure(entityID: $0, code: "mockPartialFailure", retryAfter: 1)
+            }
+        )
     }
 
     func sourceRecord(id: String) -> SourceCloudRecord? {
@@ -134,6 +170,18 @@ final class MockCloudRecordStore: CloudRecordStore {
 
     func favoriteItemRecord(id: String) -> FavoriteItemCloudRecord? {
         return self.favoriteItemRecordsByID[id]
+    }
+
+    func events() -> [String] {
+        self.eventLock.lock()
+        defer { self.eventLock.unlock() }
+        return self.recordedEvents
+    }
+
+    private func recordEvent(_ event: String) {
+        self.eventLock.lock()
+        self.recordedEvents.append(event)
+        self.eventLock.unlock()
     }
 
     private static func version(from token: Data?) -> Int {

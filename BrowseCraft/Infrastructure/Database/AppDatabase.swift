@@ -55,6 +55,7 @@ final class AppDatabase {
         try UserStoreKitTransactionRecord.createTable(in: database)
         try SyncStateRecord.createTable(in: database)
         try SyncQueueRecord.createTable(in: database)
+        try CloudRecordMetadataRecord.createTable(in: database)
         try RSSReadingHistoryRecord.createTable(in: database)
         try ComicChapterHistoryRecord.createTable(in: database)
         try UserLibraryStateRecord.createTable(in: database)

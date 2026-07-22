@@ -6,13 +6,16 @@ import GRDB
 final class GRDBFavoriteRepository: FavoriteRepository {
     private let database: AppDatabase
     private let accountScopeProvider: any ActiveAccountScopeProviding
+    private let changeNotifier: (any CloudSyncChangeNotifying)?
 
     init(
         database: AppDatabase,
-        accountScopeProvider: any ActiveAccountScopeProviding = ActiveAccountScopeStore()
+        accountScopeProvider: any ActiveAccountScopeProviding = ActiveAccountScopeStore(),
+        changeNotifier: (any CloudSyncChangeNotifying)? = nil
     ) {
         self.database = database
         self.accountScopeProvider = accountScopeProvider
+        self.changeNotifier = changeNotifier
     }
 
     func fetchFavoriteItemIDs() throws -> Set<String> {
@@ -122,6 +125,7 @@ final class GRDBFavoriteRepository: FavoriteRepository {
                 in: database
             )
         }
+        self.changeNotifier?.notifyLocalChange()
     }
 
     private static func decodeItemIDs(_ json: String) -> Set<String> {

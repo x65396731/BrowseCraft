@@ -13,7 +13,7 @@ final class FavoriteItemSyncService {
         cloudStore: CloudRecordStore,
         accountScopeProvider: any ActiveAccountScopeProviding = ActiveAccountScopeStore(),
         scope: String = "private",
-        zoneName: String = "BrowseCraftFavoriteItems"
+        zoneName: String = "BrowseCraftSync"
     ) {
         self.localStore = localStore
         self.cloudStore = cloudStore
@@ -22,41 +22,67 @@ final class FavoriteItemSyncService {
         self.zoneName = zoneName
     }
 
-    func syncFavoriteItems(limit: Int = 100) throws -> FavoriteItemSyncResult {
+    func syncFavoriteItems(limit: Int = 100) async throws -> FavoriteItemSyncResult {
         let accountScope: CloudAccountScope = self.accountScopeProvider.currentScope
-        var result: FavoriteItemSyncResult = FavoriteItemSyncResult(
-            uploadedCount: 0,
-            downloadedCount: 0,
-            deletedCount: 0,
-            skippedCount: 0
-        )
-
-        let changeSet: FavoriteItemCloudChangeSet = try self.fetchCloudChanges(accountScope: accountScope)
-        let mergeResult: FavoriteItemMergeResult = try self.mergeCloudChanges(
-            changeSet,
+        var result: FavoriteItemSyncResult = try await self.downloadFavoriteItems(
             accountScope: accountScope
         )
-        result.downloadedCount += mergeResult.downloadedCount
-        result.deletedCount += mergeResult.deletedCount
-        result.skippedCount += mergeResult.skippedCount
-
-        let uploadResult: FavoriteItemUploadResult = try self.uploadPendingFavoriteItemChanges(
+        let uploadResult: FavoriteItemSyncResult = try await self.uploadFavoriteItems(
             accountScope: accountScope,
             limit: limit
         )
-        result.uploadedCount += uploadResult.uploadedCount
-        result.skippedCount += uploadResult.skippedCount
+        result.add(uploadResult)
 
         return result
     }
 
-    private func fetchCloudChanges(accountScope: CloudAccountScope) throws -> FavoriteItemCloudChangeSet {
+    func downloadFavoriteItems(
+        accountScope: CloudAccountScope
+    ) async throws -> FavoriteItemSyncResult {
+        try self.requireCurrentAccount(accountScope)
+        let changeSet: FavoriteItemCloudChangeSet = try await self.fetchCloudChanges(
+            accountScope: accountScope
+        )
+        try self.requireCurrentAccount(accountScope)
+        let mergeResult: FavoriteItemMergeResult = try self.mergeCloudChanges(
+            changeSet,
+            accountScope: accountScope
+        )
+        return FavoriteItemSyncResult(
+            uploadedCount: 0,
+            downloadedCount: mergeResult.downloadedCount,
+            deletedCount: mergeResult.deletedCount,
+            skippedCount: mergeResult.skippedCount,
+            failedCount: 0
+        )
+    }
+
+    func uploadFavoriteItems(
+        accountScope: CloudAccountScope,
+        limit: Int = 100
+    ) async throws -> FavoriteItemSyncResult {
+        try self.requireCurrentAccount(accountScope)
+        let uploadResult: FavoriteItemUploadResult = try await self.uploadPendingFavoriteItemChanges(
+            accountScope: accountScope,
+            limit: limit
+        )
+        try self.requireCurrentAccount(accountScope)
+        return FavoriteItemSyncResult(
+            uploadedCount: uploadResult.uploadedCount,
+            downloadedCount: 0,
+            deletedCount: 0,
+            skippedCount: uploadResult.skippedCount,
+            failedCount: uploadResult.failedCount
+        )
+    }
+
+    private func fetchCloudChanges(accountScope: CloudAccountScope) async throws -> FavoriteItemCloudChangeSet {
         let token: Data? = try self.localStore.changeToken(
             accountScope: accountScope,
             scope: self.scope,
             zoneName: self.zoneName
         )
-        return try self.cloudStore.fetchChangedFavoriteItemRecords(since: token)
+        return try await self.cloudStore.fetchChangedFavoriteItemRecords(since: token)
     }
 
     private func mergeCloudChanges(
@@ -88,7 +114,12 @@ final class FavoriteItemSyncService {
                 itemID: payload.itemID
             )
             if let existing: FavoriteItemSyncLocalSnapshot = snapshots[scopedKey] {
-                if payload.lastChangedAt >= existing.lastChangedAt {
+                if Self.remoteChangeWins(
+                    remoteChangedAt: payload.lastChangedAt,
+                    remoteIsDeleted: payload.isDeleted,
+                    localChangedAt: existing.lastChangedAt,
+                    localIsDeleted: existing.isDeleted
+                ) {
                     acceptedPayloads.append(payload)
                     snapshots[scopedKey] = FavoriteItemSyncLocalSnapshot(
                         key: scopedKey,
@@ -141,9 +172,9 @@ final class FavoriteItemSyncService {
     private func uploadPendingFavoriteItemChanges(
         accountScope: CloudAccountScope,
         limit: Int
-    ) throws -> FavoriteItemUploadResult {
+    ) async throws -> FavoriteItemUploadResult {
         guard limit > 0 else {
-            return FavoriteItemUploadResult(uploadedCount: 0, skippedCount: 0)
+            return FavoriteItemUploadResult(uploadedCount: 0, skippedCount: 0, failedCount: 0)
         }
 
         let pending: [FavoriteItemSyncPendingUpload] = try self.localStore.pendingUploads(
@@ -158,32 +189,85 @@ final class FavoriteItemSyncService {
         let payloads: [FavoriteItemCloudPayload] = orderedPending.compactMap(\.payload)
 
         guard payloads.isEmpty == false else {
-            return FavoriteItemUploadResult(uploadedCount: 0, skippedCount: orderedPending.count)
+            return FavoriteItemUploadResult(
+                uploadedCount: 0,
+                skippedCount: orderedPending.count,
+                failedCount: 0
+            )
         }
 
+        let pendingByEntityID: [String: FavoriteItemSyncPendingUpload] = Dictionary(
+            uniqueKeysWithValues: orderedPending.map { ($0.queueItem.entityID, $0) }
+        )
+        let saveResult: CloudRecordBatchSaveResult
         do {
-            try self.cloudStore.saveFavoriteItemRecords(payloads)
+            saveResult = try await self.cloudStore.saveFavoriteItemRecords(payloads)
         } catch {
             try self.localStore.markPendingUploadsFailed(
-                ids: orderedPending.map(\.queueItem.id),
-                errorMessage: String(describing: error)
+                ids: payloads.compactMap { pendingByEntityID[$0.itemID]?.queueItem.id },
+                errorMessage: CloudSyncSafeErrorMessage.describe(error)
             )
             throw error
         }
 
-        try self.localStore.removePendingUploads(ids: orderedPending.map(\.queueItem.id))
+        let savedQueueIDs: [String] = saveResult.savedEntityIDs.compactMap { entityID in
+            return pendingByEntityID[entityID]?.queueItem.id
+        }
+        try self.localStore.removePendingUploads(ids: savedQueueIDs)
+
+        for failure: CloudRecordSaveFailure in saveResult.failures {
+            guard let queueID: String = pendingByEntityID[failure.entityID]?.queueItem.id else {
+                continue
+            }
+            try self.localStore.markPendingUploadsFailed(
+                ids: [queueID],
+                errorMessage: failure.description
+            )
+        }
+
         return FavoriteItemUploadResult(
-            uploadedCount: payloads.count,
-            skippedCount: orderedPending.count - payloads.count
+            uploadedCount: savedQueueIDs.count,
+            skippedCount: orderedPending.count - payloads.count,
+            failedCount: saveResult.failures.count
         )
+    }
+
+    private func requireCurrentAccount(_ accountScope: CloudAccountScope) throws {
+        guard self.accountScopeProvider.currentScope == accountScope else {
+            throw CloudSyncSessionError.accountChanged
+        }
+    }
+
+    /// 中文注释：时间相同时 tombstone 优先，避免离线设备用旧内容复活已删除记录。
+    private static func remoteChangeWins(
+        remoteChangedAt: Date,
+        remoteIsDeleted: Bool,
+        localChangedAt: Date,
+        localIsDeleted: Bool
+    ) -> Bool {
+        if remoteChangedAt != localChangedAt {
+            return remoteChangedAt > localChangedAt
+        }
+        return remoteIsDeleted || localIsDeleted == false
     }
 }
 
-struct FavoriteItemSyncResult: Hashable {
+struct FavoriteItemSyncResult: Hashable, Sendable {
     var uploadedCount: Int
     var downloadedCount: Int
     var deletedCount: Int
     var skippedCount: Int
+    var failedCount: Int
+}
+
+extension FavoriteItemSyncResult {
+    mutating func add(_ other: FavoriteItemSyncResult) {
+        self.uploadedCount += other.uploadedCount
+        self.downloadedCount += other.downloadedCount
+        self.deletedCount += other.deletedCount
+        self.skippedCount += other.skippedCount
+        self.failedCount += other.failedCount
+    }
 }
 
 private struct FavoriteItemMergeResult {
@@ -195,4 +279,5 @@ private struct FavoriteItemMergeResult {
 private struct FavoriteItemUploadResult {
     var uploadedCount: Int
     var skippedCount: Int
+    var failedCount: Int
 }
