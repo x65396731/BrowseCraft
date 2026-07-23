@@ -167,7 +167,8 @@ final class SettingsViewModel: ObservableObject {
 
         if plan.siteSlotIncrement > 0 {
             user.purchasedSiteSlots += plan.siteSlotIncrement
-            user.siteSlotLimit += plan.siteSlotIncrement
+            // 中文注释：位置上限由“默认 1 个 + 已购位置”确定，避免两个累计字段发生漂移。
+            user.siteSlotLimit = SourceSlotPolicy.includedSiteSlotCount + user.purchasedSiteSlots
         }
 
         if plan.vipMonthDuration > 0 {

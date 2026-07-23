@@ -9,3 +9,33 @@ protocol SourceRepository {
     func saveSource(_ source: Source) throws
     func deleteSource(id: String) throws
 }
+
+/// 中文注释：站点位置只约束用户添加的 Source；内置 Source 不消耗购买位置。
+enum SourceSlotPolicy {
+    static let includedSiteSlotCount: Int = 1
+
+    static func effectiveLimit(storedLimit: Int) -> Int {
+        return max(Self.includedSiteSlotCount, storedLimit)
+    }
+
+    static func consumesNewSlot(
+        source: Source,
+        existingSourceIsActive: Bool
+    ) -> Bool {
+        return source.isBuiltIn == false
+            && source.deletedAt == nil
+            && existingSourceIsActive == false
+    }
+}
+
+enum SourceRepositoryError: LocalizedError, Equatable {
+    case siteSlotLimitReached(limit: Int)
+
+    var errorDescription: String? {
+        switch self {
+        case .siteSlotLimitReached(let limit):
+            let noun: String = limit == 1 ? "source" : "sources"
+            return "Your account can keep up to \(limit) custom \(noun). Purchase more site slots in Settings > Premium to add another source."
+        }
+    }
+}

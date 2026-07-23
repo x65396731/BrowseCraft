@@ -54,9 +54,46 @@ final class GRDBSourceRepository: SourceRepository {
     func saveSource(_ source: Source) throws {
         let accountScope: CloudAccountScope = self.accountScopeProvider.currentScope
         try self.database.queue.write { database in
+            try AppUserRecord.insertLocalDefaultUser(in: database)
+            try AppUserRecord.insertUser(id: accountScope.rawValue, in: database)
+
+            let existingRecord: SourceRecord? = try SourceRecord.fetchOne(
+                database,
+                key: ["userID": accountScope.rawValue, "id": source.id]
+            )
+            let existingSourceIsActive: Bool = existingRecord.map { record in
+                return record.deletedAt == nil
+            } ?? false
+            if SourceSlotPolicy.consumesNewSlot(
+                source: source,
+                existingSourceIsActive: existingSourceIsActive
+            ) {
+                let entitlementUser: AppUserRecord? = try AppUserRecord.fetchOne(
+                    database,
+                    key: AppUser.localDefaultID
+                )
+                let siteSlotLimit: Int = SourceSlotPolicy.effectiveLimit(
+                    storedLimit: entitlementUser?.siteSlotLimit ?? SourceSlotPolicy.includedSiteSlotCount
+                )
+                let occupiedSiteSlotCount: Int = try Int.fetchOne(
+                    database,
+                    sql: """
+                    SELECT COUNT(*)
+                    FROM \(SourceRecord.databaseTableName)
+                    WHERE userID = ?
+                      AND deletedAt IS NULL
+                      AND id NOT LIKE 'built-in.%'
+                    """,
+                    arguments: [accountScope.rawValue]
+                ) ?? 0
+
+                guard occupiedSiteSlotCount < siteSlotLimit else {
+                    throw SourceRepositoryError.siteSlotLimitReached(limit: siteSlotLimit)
+                }
+            }
+
             var record: SourceRecord = try SourceRecord(source: source)
             record.userID = accountScope.rawValue
-            try AppUserRecord.insertUser(id: accountScope.rawValue, in: database)
             try record.save(database)
 
             if source.isBuiltIn == false {
