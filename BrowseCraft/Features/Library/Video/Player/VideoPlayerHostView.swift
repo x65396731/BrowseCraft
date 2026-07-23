@@ -4,6 +4,7 @@ import SwiftUI
 struct VideoPlayerHostView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: VideoPlayerViewModel
+    @State private var didOpenContentSuccessfully: Bool = false
 
     init(viewModel: VideoPlayerViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -17,6 +18,10 @@ struct VideoPlayerHostView: View {
             CrashDiagnostics.shared.setSource(self.viewModel.source)
             CrashDiagnostics.shared.setRuleStage(.videoPlayback)
             self.viewModel.prepareForPlayback()
+            guard Task.isCancelled == false else {
+                return
+            }
+            self.didOpenContentSuccessfully = self.hasPlayableContent
         }
         .onDisappear {
             self.viewModel.saveOnDisappear()
@@ -39,6 +44,18 @@ struct VideoPlayerHostView: View {
                 self.viewModel.markAdPlaybackHandled()
             }
         )
+        .requestsAppReviewAfterSuccessfulContentOpen(
+            when: self.didOpenContentSuccessfully && self.viewModel.shouldPlayAd == false
+        )
+    }
+
+    private var hasPlayableContent: Bool {
+        switch self.viewModel.playbackDestination {
+        case .native, .web:
+            return true
+        case .unavailable:
+            return false
+        }
     }
 
     @ViewBuilder

@@ -5,6 +5,7 @@ import SwiftUI
 struct ReaderView: View {
     @StateObject private var viewModel: ReaderViewModel
     @State private var didApplyRestorePage: Bool = false
+    @State private var didOpenContentSuccessfully: Bool = false
 
     init(
         item: ContentItem,
@@ -57,6 +58,10 @@ struct ReaderView: View {
             }
             .task {
                 await self.viewModel.load()
+                guard Task.isCancelled == false else {
+                    return
+                }
+                self.didOpenContentSuccessfully = self.hasReadableChapter
                 await self.restoreInitialPageIfNeeded(proxy: proxy)
             }
             .onChange(of: self.viewModel.chapter?.chapterURL) { _, _ in
@@ -114,6 +119,17 @@ struct ReaderView: View {
                 self.viewModel.markAdPlaybackHandled()
             }
         )
+        .requestsAppReviewAfterSuccessfulContentOpen(
+            when: self.didOpenContentSuccessfully && self.viewModel.shouldPlayAd == false
+        )
+    }
+
+    private var hasReadableChapter: Bool {
+        guard let chapter: ReaderChapter = self.viewModel.chapter else {
+            return false
+        }
+
+        return chapter.pageResources.isEmpty == false
     }
 
     @ViewBuilder

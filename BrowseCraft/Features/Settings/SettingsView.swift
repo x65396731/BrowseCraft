@@ -6,6 +6,7 @@ import UIKit
 
 /// 中文注释：SettingsView 是应用的用户设置页。
 struct SettingsView: View {
+    @Environment(\.openURL) private var openURL
     @ObservedObject var viewModel: SettingsViewModel
     @ObservedObject private var cloudSyncViewModel: CloudSyncSettingsViewModel
     @StateObject private var adPlaybackViewModel: AdPlaybackViewModel = AdPlaybackViewModel()
@@ -14,7 +15,6 @@ struct SettingsView: View {
     @AppStorage(CrashDiagnostics.collectionEnabledDefaultsKey) private var isDiagnosticsEnabled: Bool = CrashDiagnostics.isCollectionEnabled
 
     @State private var isShowingInAppPurchase: Bool = false
-    @State private var isShowingRatingAlert: Bool = false
 
     init(
         viewModel: SettingsViewModel,
@@ -179,7 +179,10 @@ struct SettingsView: View {
 
                     Button(
                         action: {
-                            self.isShowingRatingAlert = true
+                            guard let writeReviewURL: URL = Self.writeReviewURL else {
+                                return
+                            }
+                            self.openURL(writeReviewURL)
                         },
                         label: {
                             SettingsRow(
@@ -193,11 +196,6 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
-            .alert("Rate AnyPortal", isPresented: self.$isShowingRatingAlert) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("App Store rating will be available after the App Store product ID is configured.")
-            }
             .alert("Cache", isPresented: self.cacheStatusAlertBinding) {
                 Button("OK", role: .cancel) {
                     self.viewModel.cacheStatusMessage = nil
@@ -355,6 +353,10 @@ struct SettingsView: View {
         let build: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
         return "\(version) (\(build))"
     }
+
+    private static let writeReviewURL: URL? = URL(
+        string: "https://apps.apple.com/app/id6792714387?action=write-review"
+    )
 
     private var cloudSyncDetail: String {
         switch self.cloudSyncViewModel.accountAvailability {

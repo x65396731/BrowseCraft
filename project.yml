@@ -78,12 +78,13 @@ targets:
         Debug:
           APS_ENVIRONMENT: development
           BROWSECRAFT_ENVIRONMENT_NAME: TEST
-          BROWSECRAFT_REWARDED_AD_UNIT_ID: ca-app-pub-4351001986548416/2887798038
+          BROWSECRAFT_REWARDED_AD_UNIT_ID: ca-app-pub-3940256099942544/1712485313
           DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
         Release:
           APS_ENVIRONMENT: production
           BROWSECRAFT_ENVIRONMENT_NAME: PROD
-          BROWSECRAFT_REWARDED_AD_UNIT_ID: ""
+          # TestFlight 临时使用 Google 官方测试广告；App Store 正式发布前替换为正式广告单元。
+          BROWSECRAFT_REWARDED_AD_UNIT_ID: ca-app-pub-3940256099942544/1712485313
     postBuildScripts:
       - name: Upload Crashlytics Symbols
         basedOnDependencyAnalysis: false

@@ -8,6 +8,7 @@ struct RSSContentDetailView: View {
     @State private var selectedHeroImageIndex: Int = 0
     @State private var isShowingOriginalWebView: Bool = false
     @State private var fullscreenMediaPlayerRequest: RSSMediaPlayerRequest?
+    @State private var didOpenContentSuccessfully: Bool = false
 
     init(
         item: ContentItem,
@@ -92,15 +93,23 @@ struct RSSContentDetailView: View {
             CrashDiagnostics.shared.setSource(self.viewModel.source)
             CrashDiagnostics.shared.setRuleStage(.rssFeed)
             self.viewModel.saveReadingHistoryIfNeeded()
-            Task {
-                await self.viewModel.loadDetailContentIfNeeded()
+            self.didOpenContentSuccessfully = self.hasReadableContent
+        }
+        .task {
+            await self.viewModel.loadDetailContentIfNeeded()
+            guard Task.isCancelled == false else {
+                return
             }
+            self.didOpenContentSuccessfully = self.hasReadableContent
         }
         .handlesRewardedAdPlayback(
             shouldPlayAd: self.viewModel.shouldPlayAd,
             markHandled: {
                 self.viewModel.markAdPlaybackHandled()
             }
+        )
+        .requestsAppReviewAfterSuccessfulContentOpen(
+            when: self.didOpenContentSuccessfully && self.viewModel.shouldPlayAd == false
         )
         .fullScreenCover(isPresented: self.$isShowingOriginalWebView) {
             if let originalURL: URL = self.originalWebURL {
@@ -119,6 +128,22 @@ struct RSSContentDetailView: View {
                 }
             )
         }
+    }
+
+    private var hasReadableContent: Bool {
+        let item: ContentItem = self.viewModel.displayItem
+        if let payload: RSSContentPayload = item.richContent
+            ?? RSSContentPayload.decode(from: item.latestText) {
+            if payload.blocks.isEmpty == false {
+                return payload.blocks.contains { block in
+                    return RSSContentTextFormatter.sanitizedHTML(block.text) != nil
+                }
+            }
+
+            return RSSContentTextFormatter.sanitizedHTML(payload.summary) != nil
+        }
+
+        return RSSContentTextFormatter.sanitized(item.latestText) != nil
     }
 
     private func openMedia(_ media: RSSContentPayload.Media) {
