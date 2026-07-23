@@ -1,6 +1,6 @@
 import Foundation
 
-/// 中文注释：只报告字段路径、问题类型及 Header/query 名称，绝不把疑似敏感值写入错误或日志。
+/// 中文注释：云同步只验证结构、容量和明确的本地身份泄漏，不推测站点规则常量是否敏感。
 struct CloudSyncPayloadSecurityValidator: CloudSyncPayloadSecurityValidating {
     private static let maximumJSONBytes: Int = 800_000
     private static let maximumRecordBytes: Int = 900_000
@@ -18,12 +18,13 @@ struct CloudSyncPayloadSecurityValidator: CloudSyncPayloadSecurityValidating {
             ],
             rootPath: "source"
         )
-        try self.validateURLLikeValue(payload.sourceID, path: "source.sourceID")
-        try self.validateURLLikeValue(payload.baseURL, path: "source.baseURL")
-        try self.validateConfigurationJSON(
+        try self.validateNoURLUserInfo(payload.sourceID, path: "source.sourceID")
+        try self.validateNoURLUserInfo(payload.baseURL, path: "source.baseURL")
+        try self.validateNoLocalAccountIdentity(
             payload.configJSON,
             rootPath: "source.configJSON"
         )
+        try self.validateJSON(payload.configJSON, rootPath: "source.configJSON")
     }
 
     func validate(_ payload: FavoriteItemCloudPayload) throws {
@@ -41,23 +42,22 @@ struct CloudSyncPayloadSecurityValidator: CloudSyncPayloadSecurityValidating {
             ],
             rootPath: "favorite"
         )
-        try self.validateURLLikeValue(payload.itemID, path: "favorite.itemID")
-        try self.validateURLLikeValue(payload.sourceID, path: "favorite.sourceID")
-        try self.validateURLLikeValue(payload.detailURL, path: "favorite.detailURL")
+        try self.validateNoURLUserInfo(payload.itemID, path: "favorite.itemID")
+        try self.validateNoURLUserInfo(payload.sourceID, path: "favorite.sourceID")
+        try self.validateNoURLUserInfo(payload.detailURL, path: "favorite.detailURL")
         if let coverURL: String = payload.coverURL {
-            try self.validateURLLikeValue(coverURL, path: "favorite.coverURL")
+            try self.validateNoURLUserInfo(coverURL, path: "favorite.coverURL")
         }
         try self.validateJSON(
             payload.itemMetadataJSON,
-            rootPath: "favorite.itemMetadataJSON",
-            inspectConfigurationRules: false
+            rootPath: "favorite.itemMetadataJSON"
         )
         if let sourceSnapshotJSON: String = payload.sourceSnapshotJSON {
             try self.validateNoLocalAccountIdentity(
                 sourceSnapshotJSON,
                 rootPath: "favorite.sourceSnapshotJSON"
             )
-            try self.validateConfigurationJSON(
+            try self.validateJSON(
                 sourceSnapshotJSON,
                 rootPath: "favorite.sourceSnapshotJSON"
             )
@@ -79,15 +79,7 @@ struct CloudSyncPayloadSecurityValidator: CloudSyncPayloadSecurityValidating {
         }
     }
 
-    private func validateConfigurationJSON(_ json: String, rootPath: String) throws {
-        try self.validateJSON(json, rootPath: rootPath, inspectConfigurationRules: true)
-    }
-
-    private func validateJSON(
-        _ json: String,
-        rootPath: String,
-        inspectConfigurationRules: Bool
-    ) throws {
+    private func validateJSON(_ json: String, rootPath: String) throws {
         guard json.utf8.count <= Self.maximumJSONBytes else {
             throw CloudSyncPayloadSecurityError(
                 path: rootPath,
@@ -105,10 +97,6 @@ struct CloudSyncPayloadSecurityValidator: CloudSyncPayloadSecurityValidating {
         }
 
         try self.inspectURLValues(object, path: rootPath)
-        guard inspectConfigurationRules else {
-            return
-        }
-        try self.inspect(object, path: rootPath, context: InspectionContext())
     }
 
     private func validateNoLocalAccountIdentity(
@@ -185,85 +173,6 @@ struct CloudSyncPayloadSecurityValidator: CloudSyncPayloadSecurityValidating {
         return path
     }
 
-    private func inspect(
-        _ value: Any,
-        path: String,
-        context: InspectionContext
-    ) throws {
-        if let dictionary: [String: Any] = value as? [String: Any] {
-            let source: String? = dictionary["source"] as? String
-            for key: String in dictionary.keys.sorted() {
-                guard let child: Any = dictionary[key] else {
-                    continue
-                }
-                let childPath: String = "\(path).\(key)"
-                let normalizedKey: String = key.lowercased()
-
-                if context.isHeaderDictionary && Self.isSensitiveHeaderName(key) {
-                    throw CloudSyncPayloadSecurityError(
-                        path: childPath,
-                        issue: .sensitiveHeader,
-                        fieldName: key
-                    )
-                }
-
-                if normalizedKey == "keyhex" || normalizedKey == "ivhex" {
-                    if Self.hasLiteralValue(child) {
-                        throw CloudSyncPayloadSecurityError(
-                            path: childPath,
-                            issue: .staticKeyMaterial,
-                            fieldName: key
-                        )
-                    }
-                }
-
-                if source?.lowercased() == "constant",
-                   normalizedKey == "value",
-                   Self.isClearlyPublicLiteral(child) == false {
-                    throw CloudSyncPayloadSecurityError(
-                        path: childPath,
-                        issue: .constantSecret,
-                        fieldName: nil
-                    )
-                }
-
-                if context.isInsideContext,
-                   Self.contextLiteralKeys.contains(normalizedKey),
-                   Self.isDynamicOrEmpty(child) == false {
-                    throw CloudSyncPayloadSecurityError(
-                        path: childPath,
-                        issue: .contextLiteral,
-                        fieldName: nil
-                    )
-                }
-
-                if context.isInsideRequestBody,
-                   Self.isContainer(child) == false,
-                   Self.isClearlyPublicLiteral(child) == false {
-                    throw CloudSyncPayloadSecurityError(
-                        path: childPath,
-                        issue: .requestBodyLiteral,
-                        fieldName: nil
-                    )
-                }
-
-                let childContext: InspectionContext = InspectionContext(
-                    isHeaderDictionary: normalizedKey == "headers" || normalizedKey == "imageheaders",
-                    isInsideContext: context.isInsideContext || normalizedKey == "context",
-                    isInsideRequestBody: context.isInsideRequestBody || normalizedKey == "body"
-                )
-                try self.inspect(child, path: childPath, context: childContext)
-            }
-            return
-        }
-
-        if let array: [Any] = value as? [Any] {
-            for (index, child): (Int, Any) in array.enumerated() {
-                try self.inspect(child, path: "\(path)[\(index)]", context: context)
-            }
-        }
-    }
-
     private func inspectURLValues(_ value: Any, path: String) throws {
         if let dictionary: [String: Any] = value as? [String: Any] {
             for key: String in dictionary.keys.sorted() {
@@ -282,76 +191,11 @@ struct CloudSyncPayloadSecurityValidator: CloudSyncPayloadSecurityValidating {
         }
         if let string: String = value as? String,
            Self.looksLikeURLValue(string) {
-            try self.validateURLLikeValue(string, path: path)
+            try self.validateNoURLUserInfo(string, path: path)
         }
     }
 
-    private static let contextLiteralKeys: Set<String> = [
-        "value",
-        "default",
-        "anonymousvalue",
-        "uservalue"
-    ]
-
-    private static let publicStringLiterals: Set<String> = [
-        "",
-        "true",
-        "false",
-        "null",
-        "get",
-        "post",
-        "put",
-        "patch",
-        "delete",
-        "json",
-        "form",
-        "default",
-        "server",
-        "client"
-    ]
-
-    private static let sensitiveURLQueryNames: Set<String> = [
-        "accesskey",
-        "accesskeyid",
-        "accesstoken",
-        "apikey",
-        "auth",
-        "authorization",
-        "cookie",
-        "credential",
-        "jwt",
-        "password",
-        "refreshtoken",
-        "session",
-        "sessionid",
-        "signature",
-        "signed",
-        "sig",
-        "token"
-    ]
-
-    private static func isSensitiveHeaderName(_ name: String) -> Bool {
-        let normalized: String = name
-            .lowercased()
-            .replacingOccurrences(of: "_", with: "-")
-        let exact: Set<String> = [
-            "authorization",
-            "proxy-authorization",
-            "cookie",
-            "set-cookie",
-            "x-api-key",
-            "x-auth-token",
-            "x-device-id",
-            "device-id"
-        ]
-        if exact.contains(normalized) {
-            return true
-        }
-        return ["token", "secret", "password", "credential", "device", "uuid", "api-key"]
-            .contains { normalized.contains($0) }
-    }
-
-    private func validateURLLikeValue(_ value: String, path: String) throws {
+    private func validateNoURLUserInfo(_ value: String, path: String) throws {
         if let components: URLComponents = URLComponents(string: value),
            (components.user != nil || components.password != nil) {
             throw CloudSyncPayloadSecurityError(
@@ -360,65 +204,6 @@ struct CloudSyncPayloadSecurityValidator: CloudSyncPayloadSecurityValidating {
                 fieldName: "userinfo"
             )
         }
-
-        for queryItem: URLQueryItem in Self.queryItems(in: value) {
-            guard Self.isSensitiveURLQueryName(queryItem.name),
-                  let queryValue: String = queryItem.value,
-                  queryValue.isEmpty == false,
-                  Self.isDynamicTemplate(queryValue) == false else {
-                continue
-            }
-            throw CloudSyncPayloadSecurityError(
-                path: path,
-                issue: .sensitiveURLQuery,
-                fieldName: queryItem.name
-            )
-        }
-    }
-
-    private static func queryItems(in value: String) -> [URLQueryItem] {
-        if let items: [URLQueryItem] = URLComponents(string: value)?.queryItems {
-            return items
-        }
-        guard let queryStart: String.Index = value.firstIndex(of: "?") else {
-            return []
-        }
-        let rawQueryStart: String.Index = value.index(after: queryStart)
-        let rawQuery: Substring = value[rawQueryStart...].prefix { $0 != "#" }
-        return rawQuery.split(separator: "&").map { pair in
-            let parts: [Substring] = pair.split(
-                separator: "=",
-                maxSplits: 1,
-                omittingEmptySubsequences: false
-            )
-            let name: String = String(parts[0]).removingPercentEncoding ?? String(parts[0])
-            let value: String? = parts.count > 1
-                ? String(parts[1]).removingPercentEncoding ?? String(parts[1])
-                : nil
-            return URLQueryItem(name: name, value: value)
-        }
-    }
-
-    private static func isSensitiveURLQueryName(_ name: String) -> Bool {
-        let normalized: String = name
-            .lowercased()
-            .filter { $0.isLetter || $0.isNumber }
-        if Self.sensitiveURLQueryNames.contains(normalized) {
-            return true
-        }
-        return [
-            "token",
-            "secret",
-            "signature",
-            "credential",
-            "password",
-            "authorization",
-            "cookie",
-            "session",
-            "apikey",
-            "accesskey",
-            "jwt"
-        ].contains { normalized.contains($0) }
     }
 
     private static func looksLikeURLValue(_ value: String) -> Bool {
@@ -435,51 +220,4 @@ struct CloudSyncPayloadSecurityValidator: CloudSyncPayloadSecurityValidating {
         }
         return value[value.index(after: queryStart)...].contains("=")
     }
-
-    private static func isClearlyPublicLiteral(_ value: Any) -> Bool {
-        if value is NSNull || value is NSNumber {
-            return true
-        }
-        guard let string: String = value as? String else {
-            return false
-        }
-        if Self.isDynamicTemplate(string) {
-            return true
-        }
-        if Double(string) != nil {
-            return true
-        }
-        return Self.publicStringLiterals.contains(string.lowercased())
-    }
-
-    private static func isDynamicOrEmpty(_ value: Any) -> Bool {
-        guard let string: String = value as? String else {
-            return value is NSNull
-        }
-        return string.isEmpty || Self.isDynamicTemplate(string)
-    }
-
-    private static func isDynamicTemplate(_ string: String) -> Bool {
-        return string.contains("{") && string.contains("}")
-    }
-
-    private static func hasLiteralValue(_ value: Any) -> Bool {
-        if value is NSNull {
-            return false
-        }
-        if let string: String = value as? String {
-            return string.isEmpty == false
-        }
-        return true
-    }
-
-    private static func isContainer(_ value: Any) -> Bool {
-        return value is [String: Any] || value is [Any]
-    }
-}
-
-private struct InspectionContext {
-    var isHeaderDictionary: Bool = false
-    var isInsideContext: Bool = false
-    var isInsideRequestBody: Bool = false
 }

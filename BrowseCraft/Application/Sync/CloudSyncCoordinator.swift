@@ -217,6 +217,10 @@ actor CloudSyncCoordinator {
         self.lastErrorAccountScope = nil
         self.publishSnapshot()
         let startedAt: Date = Date()
+        CloudSyncDiagnostics.logSyncStarted(
+            trigger: trigger,
+            accountScope: accountScope
+        )
         defer {
             self.isRunning = false
             self.activeTrigger = nil
@@ -280,6 +284,7 @@ actor CloudSyncCoordinator {
             self.lastErrorAccountScope = nil
             self.refreshRetrySchedule(for: accountScope)
             self.publishSnapshot()
+            CloudSyncDiagnostics.logSyncCompleted(result)
             return result
         } catch {
             // 中文注释：任何失败都丢弃尚未 checkpoint 的内存 engine state，下次从已提交状态重拉。

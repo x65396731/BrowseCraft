@@ -5,6 +5,30 @@ import BrowseCraftCore
 @testable import BrowseCraft
 
 struct CloudKitRecordMapperTests {
+    @Test func detectsZoneNotFoundInsideCloudKitPartialFailure() {
+        let zoneError: NSError = NSError(
+            domain: CKErrorDomain,
+            code: CKError.Code.zoneNotFound.rawValue
+        )
+        let partialError: NSError = NSError(
+            domain: CKErrorDomain,
+            code: CKError.Code.partialFailure.rawValue,
+            userInfo: [
+                CKPartialErrorsByItemIDKey: [
+                    "source-record": zoneError
+                ]
+            ]
+        )
+        let unrelatedError: NSError = NSError(
+            domain: CKErrorDomain,
+            code: CKError.Code.networkUnavailable.rawValue
+        )
+
+        #expect(CKSyncEngineCloudRecordStore.containsZoneNotFound(zoneError))
+        #expect(CKSyncEngineCloudRecordStore.containsZoneNotFound(partialError))
+        #expect(CKSyncEngineCloudRecordStore.containsZoneNotFound(unrelatedError) == false)
+    }
+
     @Test func sourceRoundTripDoesNotStoreLocalAccountIdentity() throws {
         let mapper: CloudKitRecordMapper = CloudKitRecordMapper()
         let payload: SourceCloudPayload = SourceCloudPayload(

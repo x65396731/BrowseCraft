@@ -8,14 +8,8 @@ protocol CloudSyncPayloadSecurityValidating: Sendable {
 enum CloudSyncPayloadSecurityIssue: String, Hashable, Sendable {
     case invalidJSON
     case payloadTooLarge
-    case sensitiveHeader
-    case contextLiteral
-    case requestBodyLiteral
-    case constantSecret
-    case staticKeyMaterial
     case localAccountIdentity
     case urlUserInfo
-    case sensitiveURLQuery
 }
 
 struct CloudSyncPayloadSecurityError: Error, Hashable, Sendable, CustomStringConvertible {

@@ -5,43 +5,65 @@ import Testing
 struct CloudSyncPayloadSecurityValidatorTests {
     private let validator: CloudSyncPayloadSecurityValidator = CloudSyncPayloadSecurityValidator()
 
-    @Test func rejectsSensitiveHeaderWithoutLeakingValue() throws {
-        let secret: String = "Bearer top-secret-value"
+    @Test func allowsStaticRuleLiteralsWithoutRewritingPayload() throws {
+        let configJSON: String = """
+        {
+          "request": {
+            "headers": {
+              "Authorization": "Bearer site-protocol-value",
+              "X-Device-ID": "site-device-id"
+            },
+            "body": {
+              "password": "site-request-value"
+            }
+          },
+          "context": {
+            "deviceUUID": {
+              "value": "site-device-uuid"
+            }
+          },
+          "derivation": {
+            "keyHex": "001122",
+            "ivHex": "aabbcc"
+          },
+          "binding": {
+            "source": "constant",
+            "value": "site-binding-value"
+          }
+        }
+        """
         let payload: SourceCloudPayload = Self.sourcePayload(
-            configJSON: """
-            {"comic":{"request":{"headers":{"Authorization":"\(secret)"}}}}
-            """
+            configJSON: configJSON
         )
 
-        do {
-            try self.validator.validate(payload)
-            Issue.record("Expected sensitive header rejection")
-        } catch let error as CloudSyncPayloadSecurityError {
-            #expect(error.issue == .sensitiveHeader)
-            #expect(error.fieldName == "Authorization")
-            #expect(error.description.contains(secret) == false)
-        }
+        try self.validator.validate(payload)
+        #expect(payload.configJSON == configJSON)
     }
 
-    @Test func rejectsContextRequestBodyAndStaticKeyLiterals() throws {
-        let cases: [(String, CloudSyncPayloadSecurityIssue)] = [
-            ("{\"context\":{\"auth\":{\"value\":\"literal-secret\"}}}", .contextLiteral),
-            ("{\"request\":{\"body\":{\"password\":\"literal-secret\"}}}", .requestBodyLiteral),
-            ("{\"derivation\":{\"keyHex\":\"001122\"}}", .staticKeyMaterial),
-            ("{\"derivation\":{\"ivHex\":\"aabbcc\"}}", .staticKeyMaterial),
-            ("{\"binding\":{\"source\":\"constant\",\"value\":\"literal-secret\"}}", .constantSecret)
-        ]
-
-        for (json, expectedIssue): (String, CloudSyncPayloadSecurityIssue) in cases {
-            #expect(throws: CloudSyncPayloadSecurityError.self) {
-                try self.validator.validate(Self.sourcePayload(configJSON: json))
+    @Test func allowsStaticRuleLiteralsInsideFavoriteSnapshot() throws {
+        let snapshotJSON: String = """
+        {
+          "configuration": {
+            "comic": {
+              "rule": {
+                "sharedRequest": {
+                  "headers": {"X-Auth-Token": "site-token"},
+                  "body": {"credential": "site-request-value"}
+                },
+                "context": {
+                  "uuid": {"default": "site-uuid"}
+                }
+              }
             }
-            do {
-                try self.validator.validate(Self.sourcePayload(configJSON: json))
-            } catch let error as CloudSyncPayloadSecurityError {
-                #expect(error.issue == expectedIssue)
-            }
+          }
         }
+        """
+        let payload: FavoriteItemCloudPayload = Self.favoritePayload(
+            sourceSnapshotJSON: snapshotJSON
+        )
+
+        try self.validator.validate(payload)
+        #expect(payload.sourceSnapshotJSON == snapshotJSON)
     }
 
     @Test func allowsDynamicReferencesAndNonSensitiveHeaders() throws {
@@ -61,17 +83,49 @@ struct CloudSyncPayloadSecurityValidatorTests {
         try self.validator.validate(payload)
     }
 
-    @Test func favoriteUsesMetadataJSONAndValidatesSnapshotWithSameRules() throws {
+    @Test func allowsKnownPublicContextLiteralForSourceAndFavoriteSnapshot() throws {
+        let source: SourceCloudPayload = Self.sourcePayload(
+            configJSON: """
+            {"comic":{"rule":{"context":{"device":{"value":"server"}}}}}
+            """
+        )
+        let favorite: FavoriteItemCloudPayload = Self.favoritePayload(
+            sourceSnapshotJSON: """
+            {"configuration":{"comic":{"rule":{"context":{"device":{"value":"server"}}}}}}
+            """
+        )
+
+        try self.validator.validate(source)
+        try self.validator.validate(favorite)
+    }
+
+    @Test func favoriteUsesMetadataJSONAndAllowsSnapshotRuleConstants() throws {
         let payload: FavoriteItemCloudPayload = Self.favoritePayload(
             sourceSnapshotJSON: """
             {"configuration":{"request":{"headers":{"X-Auth-Token":"secret"}}}}
             """
         )
 
-        #expect(throws: CloudSyncPayloadSecurityError.self) {
-            try self.validator.validate(payload)
-        }
+        try self.validator.validate(payload)
         #expect(payload.itemMetadataJSON.contains("sourceSnapshot") == false)
+    }
+
+    @Test func rejectsLocalAccountIdentityInsideSourceConfiguration() throws {
+        let localScope: String = "cloud:" + String(repeating: "b", count: 64)
+        let payload: SourceCloudPayload = Self.sourcePayload(
+            configJSON: """
+            {"configuration":{"partition":"\(localScope)"}}
+            """
+        )
+
+        do {
+            try self.validator.validate(payload)
+            Issue.record("Expected local account identity rejection")
+        } catch let error as CloudSyncPayloadSecurityError {
+            #expect(error.issue == .localAccountIdentity)
+            #expect(error.path == "source.configJSON.configuration.partition")
+            #expect(error.description.contains(localScope) == false)
+        }
     }
 
     @Test func rejectsLocalAccountIdentityInsideFavoriteSnapshotWithoutLeakingIt() throws {
@@ -110,7 +164,7 @@ struct CloudSyncPayloadSecurityValidatorTests {
         }
     }
 
-    @Test func rejectsURLUserInfoAndSensitiveQueryWithoutLeakingValues() throws {
+    @Test func rejectsURLUserInfoButAllowsStaticQueryValues() throws {
         let username: String = "private-user"
         let password: String = "private-password"
         var source: SourceCloudPayload = Self.sourcePayload(configJSON: "{}")
@@ -130,43 +184,21 @@ struct CloudSyncPayloadSecurityValidatorTests {
         var favorite: FavoriteItemCloudPayload = Self.favoritePayload(sourceSnapshotJSON: nil)
         favorite.detailURL = "https://example.test/item?page=1&X-Amz-Signature=\(signature)"
 
-        do {
-            try self.validator.validate(favorite)
-            Issue.record("Expected signed URL rejection")
-        } catch let error as CloudSyncPayloadSecurityError {
-            #expect(error.issue == .sensitiveURLQuery)
-            #expect(error.path == "favorite.detailURL")
-            #expect(error.fieldName == "X-Amz-Signature")
-            #expect(error.description.contains(signature) == false)
-        }
+        try self.validator.validate(favorite)
     }
 
-    @Test func rejectsSensitiveURLInsideBusinessIDAndNestedJSON() throws {
+    @Test func allowsStaticQueriesInsideBusinessIDAndNestedJSON() throws {
         var favorite: FavoriteItemCloudPayload = Self.favoritePayload(sourceSnapshotJSON: nil)
         favorite.itemID = "https://example.test/item?access_token=private-token"
-
-        do {
-            try self.validator.validate(favorite)
-            Issue.record("Expected item ID URL rejection")
-        } catch let error as CloudSyncPayloadSecurityError {
-            #expect(error.issue == .sensitiveURLQuery)
-            #expect(error.path == "favorite.itemID")
-            #expect(error.fieldName == "access_token")
-        }
 
         let source: SourceCloudPayload = Self.sourcePayload(
             configJSON: """
             {"endpoint":"/api?credential=private-value"}
             """
         )
-        do {
-            try self.validator.validate(source)
-            Issue.record("Expected nested URL rejection")
-        } catch let error as CloudSyncPayloadSecurityError {
-            #expect(error.issue == .sensitiveURLQuery)
-            #expect(error.path == "source.configJSON.endpoint")
-            #expect(error.fieldName == "credential")
-        }
+
+        try self.validator.validate(favorite)
+        try self.validator.validate(source)
     }
 
     @Test func allowsOrdinaryURLQueriesAndDynamicSecretReferences() throws {
@@ -192,6 +224,18 @@ struct CloudSyncPayloadSecurityValidatorTests {
         } catch let error as CloudSyncPayloadSecurityError {
             #expect(error.issue == .payloadTooLarge)
             #expect(error.path == "favorite")
+        }
+    }
+
+    @Test func rejectsInvalidJSON() throws {
+        let payload: SourceCloudPayload = Self.sourcePayload(configJSON: "{invalid")
+
+        do {
+            try self.validator.validate(payload)
+            Issue.record("Expected invalid JSON rejection")
+        } catch let error as CloudSyncPayloadSecurityError {
+            #expect(error.issue == .invalidJSON)
+            #expect(error.path == "source.configJSON")
         }
     }
 

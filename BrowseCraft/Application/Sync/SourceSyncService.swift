@@ -184,6 +184,9 @@ final class SourceSyncService: CloudSyncService {
         let pending: [SourceSyncPendingUpload] = try self.localStore.pendingUploads(
             accountScope: accountScope
         )
+        pending.forEach { pendingUpload in
+            CloudSyncDiagnostics.logPendingUpload(pendingUpload.queueItem)
+        }
         let orderedPending: [SourceSyncPendingUpload] = pending.sorted { lhs, rhs in
             if lhs.queueItem.operation != rhs.queueItem.operation {
                 return lhs.queueItem.operation == .delete

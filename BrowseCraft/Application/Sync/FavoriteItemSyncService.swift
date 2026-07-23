@@ -187,6 +187,9 @@ final class FavoriteItemSyncService {
         let pending: [FavoriteItemSyncPendingUpload] = try self.localStore.pendingUploads(
             accountScope: accountScope
         )
+        pending.forEach { pendingUpload in
+            CloudSyncDiagnostics.logPendingUpload(pendingUpload.queueItem)
+        }
         let orderedPending: [FavoriteItemSyncPendingUpload] = pending.sorted { lhs, rhs in
             if lhs.queueItem.operation != rhs.queueItem.operation {
                 return lhs.queueItem.operation == .delete
