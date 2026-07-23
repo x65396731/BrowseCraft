@@ -60,7 +60,7 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
         scope: String,
         zoneName: String
     ) throws {
-        try self.database.queue.write { database in
+        let partitionCounts: (live: Int, tombstone: Int) = try self.database.queue.write { database in
             try AppUserRecord.insertUser(id: accountScope.rawValue, in: database)
             for payload: FavoriteItemCloudPayload in plan.acceptedPayloads {
                 let key: [String: String] = [
@@ -100,7 +100,24 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
                 zoneName: zoneName,
                 in: database
             )
+
+            let liveCount: Int = try FavoriteItemRecord
+                .filter(FavoriteItemRecord.Columns.userID == accountScope.rawValue)
+                .filter(FavoriteItemRecord.Columns.deletedAt == nil)
+                .fetchCount(database)
+            let totalCount: Int = try FavoriteItemRecord
+                .filter(FavoriteItemRecord.Columns.userID == accountScope.rawValue)
+                .fetchCount(database)
+            return (live: liveCount, tombstone: totalCount - liveCount)
         }
+        CloudSyncDiagnostics.logLocalPartitionSummary(
+            entityType: .favoriteItem,
+            accountScope: accountScope,
+            acceptedCount: plan.acceptedPayloads.count,
+            requeuedCount: plan.requeuedLocalChanges.count,
+            liveCount: partitionCounts.live,
+            tombstoneCount: partitionCounts.tombstone
+        )
     }
 
     func pendingUploads(accountScope: CloudAccountScope) throws -> [FavoriteItemSyncPendingUpload] {
@@ -171,8 +188,13 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
                 }
                 record.retryCount += 1
                 record.lastError = update.errorMessage
-                record.nextRetryAt = update.retryAfter.map {
-                    failedAt.addingTimeInterval(max(0, $0))
+                record.nextRetryAt = update.retryAfter.flatMap { retryAfter in
+                    CloudSyncAutomaticRetryPolicy.delay(
+                        forFailureCount: record.retryCount,
+                        serverRetryAfter: retryAfter
+                    ).map {
+                        failedAt.addingTimeInterval($0)
+                    }
                 }
                 try record.save(database)
             }

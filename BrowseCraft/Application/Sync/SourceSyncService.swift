@@ -54,6 +54,14 @@ final class SourceSyncService: CloudSyncService {
             changeSet,
             accountScope: accountScope
         )
+        CloudSyncDiagnostics.logDownloadMergeSummary(
+            entityType: .source,
+            accountScope: accountScope,
+            receivedCount: changeSet.records.count,
+            downloadedCount: mergeResult.downloadedCount,
+            deletedCount: mergeResult.deletedCount,
+            skippedCount: mergeResult.skippedCount
+        )
         return SourceSyncResult(
             uploadedCount: 0,
             downloadedCount: mergeResult.downloadedCount,

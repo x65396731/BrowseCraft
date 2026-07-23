@@ -27,6 +27,12 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
     private var sourceFetchPending: Bool = false
     private var favoriteFetchPending: Bool = false
     private var fetchedBatchHasInvalidRecord: Bool = false
+    private var rawFetchedSourceCount: Int = 0
+    private var mappedFetchedSourceCount: Int = 0
+    private var rawFetchedFavoriteItemCount: Int = 0
+    private var mappedFetchedFavoriteItemCount: Int = 0
+    private var unknownFetchedRecordCount: Int = 0
+    private var rejectedFetchedRecordCount: Int = 0
     private var stagedRecordsByID: [CKRecord.ID: CKRecord] = [:]
     private var savedRecordIDs: Set<CKRecord.ID> = []
     private var failedRecordSaves: [CKRecord.ID: CloudRecordSaveFailure] = [:]
@@ -219,6 +225,7 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
         self.sourceFetchPending = false
         self.favoriteFetchPending = false
         self.fetchedBatchHasInvalidRecord = false
+        self.resetFetchDiagnostics()
         self.zoneReadyScopes.removeAll()
         self.accountWasInvalidated = false
         self.pendingZoneRecoveryStrategy = nil
@@ -308,13 +315,17 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
         let options: CKSyncEngine.FetchChangesOptions = CKSyncEngine.FetchChangesOptions(
             scope: .zoneIDs([self.mapper.zoneID])
         )
+        self.resetFetchDiagnostics()
         try await self.performFetch(using: engine, options: options)
+        self.logFetchDiagnostics(for: accountScope)
         try await self.recoverDeletedZoneIfNeeded(for: accountScope)
 
         if self.pendingChangeTokenReset {
             try await self.resetExpiredChangeToken(for: accountScope)
             let resetEngine: CKSyncEngine = try await self.engine(for: accountScope)
+            self.resetFetchDiagnostics()
             try await self.performFetch(using: resetEngine, options: options)
+            self.logFetchDiagnostics(for: accountScope)
             try await self.recoverDeletedZoneIfNeeded(for: accountScope)
             if self.pendingChangeTokenReset {
                 throw CloudRecordOperationError(
@@ -496,6 +507,7 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
         self.sourceFetchPending = false
         self.favoriteFetchPending = false
         self.fetchedBatchHasInvalidRecord = false
+        self.resetFetchDiagnostics()
     }
 
     private func handleFetchedDatabaseChanges(
@@ -547,22 +559,54 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
             guard record.recordID.zoneID == self.mapper.zoneID else {
                 continue
             }
+            switch record.recordType {
+            case CloudKitRecordMapper.sourceRecordType:
+                self.rawFetchedSourceCount += 1
+            case CloudKitRecordMapper.favoriteItemRecordType:
+                self.rawFetchedFavoriteItemCount += 1
+            default:
+                self.unknownFetchedRecordCount += 1
+            }
             do {
                 try self.saveSystemFields(of: record, accountScope: accountScope)
                 switch record.recordType {
                 case CloudKitRecordMapper.sourceRecordType:
                     let payload: SourceCloudPayload = try self.mapper.sourcePayload(from: record)
                     self.fetchedSourcesByID[payload.sourceID] = payload
+                    self.mappedFetchedSourceCount += 1
                 case CloudKitRecordMapper.favoriteItemRecordType:
                     let payload: FavoriteItemCloudPayload = try self.mapper.favoriteItemPayload(from: record)
                     self.fetchedFavoriteItemsByID[payload.identity] = payload
+                    self.mappedFetchedFavoriteItemCount += 1
                 default:
                     continue
                 }
             } catch {
                 self.fetchedBatchHasInvalidRecord = true
+                self.rejectedFetchedRecordCount += 1
             }
         }
+    }
+
+    private func resetFetchDiagnostics() {
+        self.rawFetchedSourceCount = 0
+        self.mappedFetchedSourceCount = 0
+        self.rawFetchedFavoriteItemCount = 0
+        self.mappedFetchedFavoriteItemCount = 0
+        self.unknownFetchedRecordCount = 0
+        self.rejectedFetchedRecordCount = 0
+    }
+
+    private func logFetchDiagnostics(for accountScope: CloudAccountScope) {
+        CloudSyncDiagnostics.logCloudFetchSummary(
+            accountScope: accountScope,
+            rawSourceCount: self.rawFetchedSourceCount,
+            mappedSourceCount: self.mappedFetchedSourceCount,
+            rawFavoriteItemCount: self.rawFetchedFavoriteItemCount,
+            mappedFavoriteItemCount: self.mappedFetchedFavoriteItemCount,
+            unknownRecordCount: self.unknownFetchedRecordCount,
+            rejectedRecordCount: self.rejectedFetchedRecordCount
+        )
     }
 
     private func handleSentRecordZoneChanges(

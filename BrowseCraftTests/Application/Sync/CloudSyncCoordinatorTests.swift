@@ -138,8 +138,180 @@ struct CloudSyncCoordinatorTests {
         )
 
         #expect(result.failedCount == 1)
-        #expect(queuedItem.nextRetryAt == now.addingTimeInterval(1))
-        #expect(snapshot.nextRetryAt == now.addingTimeInterval(1))
+        #expect(queuedItem.nextRetryAt == now.addingTimeInterval(5))
+        #expect(snapshot.nextRetryAt == now.addingTimeInterval(5))
+        await coordinator.stop()
+    }
+
+    @Test func expiredQueueRetryDoesNotOverrideRunFailureBackoff() async throws {
+        let database: AppDatabase = try Self.makeDatabase()
+        let failedAt: Date = Date(timeIntervalSince1970: 900)
+        let now: Date = Date(timeIntervalSince1970: 1_000)
+        let accountScope: CloudAccountScope = .cloud(hash: "account-a")
+        let activeScope: ActiveAccountScopeStore = ActiveAccountScopeStore()
+        let stateProvider: MockCloudAccountStateProvider = MockCloudAccountStateProvider(
+            state: CloudAccountState(availability: .available, scope: accountScope)
+        )
+        let preferences: MockCloudSyncPreferenceStore = MockCloudSyncPreferenceStore()
+        preferences.setCloudSyncEnabled(true, for: accountScope)
+        let session: CloudAccountSession = CloudAccountSession(
+            stateProvider: stateProvider,
+            preferenceStore: preferences,
+            activeScopeStore: activeScope
+        )
+        await session.start()
+
+        let cloudStore: MockCloudRecordStore = MockCloudRecordStore(now: { now })
+        cloudStore.failNextFetch = true
+        let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(
+            database: database,
+            accountScopeProvider: activeScope
+        )
+        try sourceRepository.saveSource(Self.makeSource())
+        let failedStore: GRDBSourceSyncLocalStore = GRDBSourceSyncLocalStore(
+            database: database,
+            now: { failedAt }
+        )
+        let queuedItem: SyncQueueItem = try #require(
+            failedStore.pendingUploads(accountScope: accountScope).first?.queueItem
+        )
+        try failedStore.markPendingUploadsFailed([
+            SyncQueueFailureUpdate(
+                acknowledgement: SyncQueueAcknowledgement(item: queuedItem),
+                errorMessage: "temporary failure",
+                retryAfter: 1
+            )
+        ])
+        let persistedRetryDate: Date = try #require(
+            try GRDBCloudSyncEngineStore(database: database).earliestRetryDate(
+                for: accountScope
+            )
+        )
+        #expect(persistedRetryDate == failedAt.addingTimeInterval(5))
+        #expect(persistedRetryDate < now)
+
+        let partitionStore: GRDBCloudAccountPartitionStore = GRDBCloudAccountPartitionStore(
+            database: database
+        )
+        _ = try partitionStore.prepareCloudScope(accountScope, decision: .useCloudDataOnly)
+        let coordinator: CloudSyncCoordinator = CloudSyncCoordinator(
+            accountSession: session,
+            sourceService: SourceSyncService(
+                localStore: GRDBSourceSyncLocalStore(database: database, now: { now }),
+                cloudStore: cloudStore,
+                accountScopeProvider: activeScope
+            ),
+            favoriteItemService: FavoriteItemSyncService(
+                localStore: GRDBFavoriteItemSyncLocalStore(database: database, now: { now }),
+                cloudStore: cloudStore,
+                accountScopeProvider: activeScope
+            ),
+            cloudStore: cloudStore,
+            changeNotifier: CloudSyncChangeNotifier(),
+            partitionStore: partitionStore,
+            retryScheduleProvider: GRDBCloudSyncEngineStore(database: database),
+            now: { now },
+            retrySleeper: { _ in
+                try await Task.sleep(for: .seconds(3_600))
+            }
+        )
+
+        await #expect(throws: MockCloudRecordStoreError.fetchFailed) {
+            _ = try await coordinator.synchronize(trigger: .manual)
+        }
+
+        let snapshot: CloudSyncCoordinatorSnapshot = await coordinator.snapshot()
+        #expect(snapshot.nextRetryAt == now.addingTimeInterval(5))
+        await coordinator.stop()
+    }
+
+    @Test func automaticRetryPolicyStopsAfterMaximumScheduledRetries() {
+        #expect(
+            CloudSyncAutomaticRetryPolicy.delay(
+                forFailureCount: 1,
+                serverRetryAfter: 1
+            ) == 5
+        )
+        #expect(
+            CloudSyncAutomaticRetryPolicy.delay(
+                forFailureCount: 2,
+                serverRetryAfter: nil
+            ) == 30
+        )
+        #expect(
+            CloudSyncAutomaticRetryPolicy.delay(
+                forFailureCount: 5,
+                serverRetryAfter: 1
+            ) == TimeInterval(15 * 60)
+        )
+        #expect(
+            CloudSyncAutomaticRetryPolicy.delay(
+                forFailureCount: 6,
+                serverRetryAfter: 1
+            ) == nil
+        )
+    }
+
+    @Test func repeatedRunFailuresStopSchedulingAfterMaximumRetries() async throws {
+        let database: AppDatabase = try Self.makeDatabase()
+        let now: Date = Date(timeIntervalSince1970: 1_000)
+        let accountScope: CloudAccountScope = .cloud(hash: "account-a")
+        let activeScope: ActiveAccountScopeStore = ActiveAccountScopeStore()
+        let stateProvider: MockCloudAccountStateProvider = MockCloudAccountStateProvider(
+            state: CloudAccountState(availability: .available, scope: accountScope)
+        )
+        let preferences: MockCloudSyncPreferenceStore = MockCloudSyncPreferenceStore()
+        preferences.setCloudSyncEnabled(true, for: accountScope)
+        let session: CloudAccountSession = CloudAccountSession(
+            stateProvider: stateProvider,
+            preferenceStore: preferences,
+            activeScopeStore: activeScope
+        )
+        await session.start()
+
+        let cloudStore: MockCloudRecordStore = MockCloudRecordStore(now: { now })
+        let coordinator: CloudSyncCoordinator = CloudSyncCoordinator(
+            accountSession: session,
+            sourceService: SourceSyncService(
+                localStore: GRDBSourceSyncLocalStore(database: database, now: { now }),
+                cloudStore: cloudStore,
+                accountScopeProvider: activeScope
+            ),
+            favoriteItemService: FavoriteItemSyncService(
+                localStore: GRDBFavoriteItemSyncLocalStore(database: database, now: { now }),
+                cloudStore: cloudStore,
+                accountScopeProvider: activeScope
+            ),
+            cloudStore: cloudStore,
+            changeNotifier: CloudSyncChangeNotifier(),
+            partitionStore: GRDBCloudAccountPartitionStore(database: database),
+            retryScheduleProvider: GRDBCloudSyncEngineStore(database: database),
+            now: { now },
+            retrySleeper: { _ in
+                try await Task.sleep(for: .seconds(3_600))
+            }
+        )
+        let expectedDelays: [TimeInterval?] = [
+            5,
+            30,
+            2 * 60,
+            5 * 60,
+            15 * 60,
+            nil
+        ]
+
+        for expectedDelay: TimeInterval? in expectedDelays {
+            cloudStore.failNextFetch = true
+            await #expect(throws: MockCloudRecordStoreError.fetchFailed) {
+                _ = try await coordinator.synchronize(trigger: .retry)
+            }
+            let snapshot: CloudSyncCoordinatorSnapshot = await coordinator.snapshot()
+            #expect(
+                snapshot.nextRetryAt == expectedDelay.map {
+                    now.addingTimeInterval($0)
+                }
+            )
+        }
         await coordinator.stop()
     }
 

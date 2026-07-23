@@ -93,6 +93,7 @@ actor CloudSyncCoordinator {
     private var lastDownloadCheckpoint: CloudSyncDownloadCheckpoint?
     private var retryAccountScope: CloudAccountScope?
     private var nextRetryAt: Date?
+    private var consecutiveRunFailureCounts: [CloudAccountScope: Int] = [:]
     private var continuations: [UUID: AsyncStream<CloudSyncCoordinatorSnapshot>.Continuation] = [:]
 
     init(
@@ -209,6 +210,9 @@ actor CloudSyncCoordinator {
               let accountScope: CloudAccountScope = initialSnapshot.state.synchronizationScope else {
             throw CloudSyncSessionError.synchronizationDisabled
         }
+        if trigger != .retry {
+            self.consecutiveRunFailureCounts[accountScope] = nil
+        }
 
         self.isRunning = true
         self.activeTrigger = trigger
@@ -282,21 +286,37 @@ actor CloudSyncCoordinator {
             self.lastResult = result
             self.lastErrorMessage = nil
             self.lastErrorAccountScope = nil
+            self.consecutiveRunFailureCounts[accountScope] = nil
             self.refreshRetrySchedule(for: accountScope)
             self.publishSnapshot()
             CloudSyncDiagnostics.logSyncCompleted(result)
             return result
         } catch {
+            CloudSyncDiagnostics.logSyncFailed(
+                trigger: trigger,
+                accountScope: accountScope,
+                error: error
+            )
             // 中文注释：任何失败都丢弃尚未 checkpoint 的内存 engine state，下次从已提交状态重拉。
             await self.cloudStore.cancelOperations()
             self.record(error: error, accountScope: accountScope)
             let currentSnapshot: CloudAccountSessionSnapshot = await self.accountSession.snapshot()
             if currentSnapshot.isSynchronizationEnabled,
                currentSnapshot.state.synchronizationScope == accountScope {
-                self.refreshRetrySchedule(
-                    for: accountScope,
-                    additionalRetryAfter: (error as? CloudRecordOperationError)?.retryAfter
-                )
+                let failureCount: Int =
+                    (self.consecutiveRunFailureCounts[accountScope] ?? 0) + 1
+                self.consecutiveRunFailureCounts[accountScope] = failureCount
+                if let retryDelay: TimeInterval = CloudSyncAutomaticRetryPolicy.delay(
+                    forFailureCount: failureCount,
+                    serverRetryAfter: (error as? CloudRecordOperationError)?.retryAfter
+                ) {
+                    self.refreshRetrySchedule(
+                        for: accountScope,
+                        notBeforeDelay: retryDelay
+                    )
+                } else {
+                    self.cancelScheduledRetry()
+                }
             }
             throw error
         }
@@ -312,6 +332,7 @@ actor CloudSyncCoordinator {
               let accountScope: CloudAccountScope = snapshot.state.synchronizationScope else {
             self.lastAutomaticallyRequestedKey = nil
             self.pendingTrigger = nil
+            self.consecutiveRunFailureCounts.removeAll()
             self.cancelScheduledRetry()
             self.publishSnapshot()
             return
@@ -342,18 +363,21 @@ actor CloudSyncCoordinator {
     /// 中文注释：队列里的 nextRetryAt 是重试事实来源；协调器只持有可取消的单个最早唤醒任务。
     private func refreshRetrySchedule(
         for accountScope: CloudAccountScope,
-        additionalRetryAfter: TimeInterval? = nil
+        notBeforeDelay: TimeInterval? = nil
     ) {
         let persistedDate: Date? = try? self.retryScheduleProvider.earliestRetryDate(
             for: accountScope
         )
         let currentDate: Date = self.now()
-        let operationRetryDate: Date? = additionalRetryAfter.map {
-            currentDate.addingTimeInterval(max(0, $0))
+        let retryDate: Date?
+        if let notBeforeDelay: TimeInterval {
+            let notBeforeDate: Date = currentDate.addingTimeInterval(
+                max(0, notBeforeDelay)
+            )
+            retryDate = max(persistedDate ?? notBeforeDate, notBeforeDate)
+        } else {
+            retryDate = persistedDate
         }
-        let retryDate: Date? = [persistedDate, operationRetryDate]
-            .compactMap { $0 }
-            .min()
 
         guard let retryDate: Date else {
             self.cancelScheduledRetry()

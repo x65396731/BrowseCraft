@@ -21,6 +21,30 @@ struct EmptyCloudSyncRetryScheduleProvider: CloudSyncRetryScheduleProviding {
     }
 }
 
+struct CloudSyncAutomaticRetryPolicy {
+    static let maximumScheduledRetryCount: Int = 5
+
+    private static let delays: [TimeInterval] = [
+        5,
+        30,
+        2 * 60,
+        5 * 60,
+        15 * 60
+    ]
+
+    static func delay(
+        forFailureCount failureCount: Int,
+        serverRetryAfter: TimeInterval?
+    ) -> TimeInterval? {
+        guard failureCount > 0,
+              failureCount <= Self.maximumScheduledRetryCount else {
+            return nil
+        }
+        let policyDelay: TimeInterval = Self.delays[failureCount - 1]
+        return max(policyDelay, serverRetryAfter.map { max(0, $0) } ?? 0)
+    }
+}
+
 struct CloudRecordOperationError: Error, Hashable, Sendable, CustomStringConvertible {
     var code: String
     var retryAfter: TimeInterval?

@@ -30,6 +30,61 @@ enum CloudSyncDiagnostics {
         )
     }
 
+    static func logSyncFailed(
+        trigger: CloudSyncTrigger,
+        accountScope: CloudAccountScope,
+        error: any Error
+    ) {
+        let accountHash: String = Self.hashIdentifier(accountScope.rawValue)
+        let safeError: String = CloudSyncSafeErrorMessage.describe(error)
+        Self.logger.error(
+            "sync failed trigger=\(trigger.rawValue, privacy: .public) accountHash=\(accountHash, privacy: .public) error=\(safeError, privacy: .public)"
+        )
+    }
+
+    static func logCloudFetchSummary(
+        accountScope: CloudAccountScope,
+        rawSourceCount: Int,
+        mappedSourceCount: Int,
+        rawFavoriteItemCount: Int,
+        mappedFavoriteItemCount: Int,
+        unknownRecordCount: Int,
+        rejectedRecordCount: Int
+    ) {
+        let accountHash: String = Self.hashIdentifier(accountScope.rawValue)
+        Self.logger.notice(
+            "cloud fetch summary accountHash=\(accountHash, privacy: .public) rawSourceCount=\(rawSourceCount, privacy: .public) mappedSourceCount=\(mappedSourceCount, privacy: .public) rawFavoriteItemCount=\(rawFavoriteItemCount, privacy: .public) mappedFavoriteItemCount=\(mappedFavoriteItemCount, privacy: .public) unknownRecordCount=\(unknownRecordCount, privacy: .public) rejectedRecordCount=\(rejectedRecordCount, privacy: .public)"
+        )
+    }
+
+    static func logDownloadMergeSummary(
+        entityType: SyncEntityType,
+        accountScope: CloudAccountScope,
+        receivedCount: Int,
+        downloadedCount: Int,
+        deletedCount: Int,
+        skippedCount: Int
+    ) {
+        let accountHash: String = Self.hashIdentifier(accountScope.rawValue)
+        Self.logger.notice(
+            "download merge summary entityType=\(entityType.rawValue, privacy: .public) accountHash=\(accountHash, privacy: .public) receivedCount=\(receivedCount, privacy: .public) downloadedCount=\(downloadedCount, privacy: .public) deletedCount=\(deletedCount, privacy: .public) skippedCount=\(skippedCount, privacy: .public)"
+        )
+    }
+
+    static func logLocalPartitionSummary(
+        entityType: SyncEntityType,
+        accountScope: CloudAccountScope,
+        acceptedCount: Int,
+        requeuedCount: Int,
+        liveCount: Int,
+        tombstoneCount: Int
+    ) {
+        let accountHash: String = Self.hashIdentifier(accountScope.rawValue)
+        Self.logger.notice(
+            "local partition summary entityType=\(entityType.rawValue, privacy: .public) accountHash=\(accountHash, privacy: .public) acceptedCount=\(acceptedCount, privacy: .public) requeuedCount=\(requeuedCount, privacy: .public) liveCount=\(liveCount, privacy: .public) tombstoneCount=\(tombstoneCount, privacy: .public)"
+        )
+    }
+
     static func logPendingUpload(_ item: SyncQueueItem) {
         guard let lastError: String = item.lastError else {
             return

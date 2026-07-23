@@ -48,6 +48,14 @@ final class FavoriteItemSyncService {
             changeSet,
             accountScope: accountScope
         )
+        CloudSyncDiagnostics.logDownloadMergeSummary(
+            entityType: .favoriteItem,
+            accountScope: accountScope,
+            receivedCount: changeSet.records.count,
+            downloadedCount: mergeResult.downloadedCount,
+            deletedCount: mergeResult.deletedCount,
+            skippedCount: mergeResult.skippedCount
+        )
         return FavoriteItemSyncResult(
             uploadedCount: 0,
             downloadedCount: mergeResult.downloadedCount,
