@@ -103,10 +103,9 @@ Responsibilities:
   extend `SiteRule` or the rule editor.
 - Keep `Video/VideoSourceRuntime` as the only video runtime implementation.
 - Keep Video V2 request/context replacement in `VideoRuleAPITemplateResolver`,
-  JSON Path/value/URL mapping in `VideoRuleJSONResolver`, and HTML parsing
-  contracts in `Video/Parsing/`; none of these loading boundaries may import SwiftSoup.
-- Keep video business-response evaluation in `VideoRuleAPIResponseEvaluator`.
-  Video V2 always receives an explicit policy and has no legacy evaluator.
+  while list/detail/episode API JSON response interpretation lives in Core.
+  `CoreVideoRuleSourceParser` adapts all Video V2 DOM results from Core; loading
+  boundaries do not import SwiftSoup or interpret API response JSON.
 - Keep V2 list/detail/playback loading and parsing in `Video/`; selectors,
   iframe traversal, and fallback behavior come only from the resolved rule graph.
 - Keep WebView/static HTML validation in `Video/Rendering/`; it is shared support
@@ -154,7 +153,7 @@ never the signed query, Referer value, cookie, or token.
 `responsePolicy` belongs to rule interpretation, not networking. Comic response
 policy evaluation and JSON field mapping live in `BrowseCraftCore`; the App
 passes an already loaded response body and final URL through the parser adapter.
-Video keeps its independent V2 evaluation in `VideoRuleAPIResponseEvaluator`.
+Video list/detail/episode response evaluation also lives in Core.
 
 ```text
 existing page/API loading

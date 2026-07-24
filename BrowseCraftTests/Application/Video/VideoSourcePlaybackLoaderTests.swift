@@ -12,7 +12,7 @@ struct VideoSourcePlaybackLoaderTests {
         let rule: VideoSiteRule = Self.playbackRule()
         let output: SourceVideoPlaybackOutput = try await VideoSourcePlaybackLoader(
             pageContentLoader: pageLoader,
-            parser: SwiftSoupVideoRuleSourceParser()
+            parser: CoreVideoRuleSourceParser()
         ).execute(
             source: Self.source(rule: rule),
             resolvedRule: try ResolvedVideoSiteRule(validating: rule),
@@ -46,7 +46,7 @@ struct VideoSourcePlaybackLoaderTests {
         do {
             _ = try await VideoSourcePlaybackLoader(
                 pageContentLoader: pageLoader,
-                parser: SwiftSoupVideoRuleSourceParser()
+                parser: CoreVideoRuleSourceParser()
             ).execute(
                 source: Self.source(rule: rule),
                 resolvedRule: try ResolvedVideoSiteRule(validating: rule),
@@ -70,7 +70,7 @@ struct VideoSourcePlaybackLoaderTests {
         let rule: VideoSiteRule = Self.playbackRule()
         let output: SourceVideoPlaybackOutput = try await VideoSourcePlaybackLoader(
             pageContentLoader: pageLoader,
-            parser: SwiftSoupVideoRuleSourceParser()
+            parser: CoreVideoRuleSourceParser()
         ).execute(
             source: Self.source(rule: rule),
             resolvedRule: try ResolvedVideoSiteRule(validating: rule),
@@ -98,7 +98,7 @@ struct VideoSourcePlaybackLoaderTests {
 
         let output: SourceVideoPlaybackOutput = try await VideoSourcePlaybackLoader(
             pageContentLoader: pageLoader,
-            parser: SwiftSoupVideoRuleSourceParser()
+            parser: CoreVideoRuleSourceParser()
         ).execute(
             source: Self.source(rule: rule),
             resolvedRule: try ResolvedVideoSiteRule(validating: rule),
@@ -128,7 +128,7 @@ struct VideoSourcePlaybackLoaderTests {
 
         let output: SourceVideoPlaybackOutput = try await VideoSourcePlaybackLoader(
             pageContentLoader: pageLoader,
-            parser: SwiftSoupVideoRuleSourceParser()
+            parser: CoreVideoRuleSourceParser()
         ).execute(
             source: Self.source(rule: rule),
             resolvedRule: try ResolvedVideoSiteRule(validating: rule),
@@ -153,7 +153,7 @@ struct VideoSourcePlaybackLoaderTests {
 
         let output: SourceVideoPlaybackOutput = try await VideoSourcePlaybackLoader(
             pageContentLoader: pageLoader,
-            parser: SwiftSoupVideoRuleSourceParser()
+            parser: CoreVideoRuleSourceParser()
         ).execute(
             source: Self.source(rule: rule),
             resolvedRule: try ResolvedVideoSiteRule(validating: rule),
@@ -174,7 +174,7 @@ struct VideoSourcePlaybackLoaderTests {
 
         let output: SourceVideoPlaybackOutput = try await VideoSourcePlaybackLoader(
             pageContentLoader: pageLoader,
-            parser: SwiftSoupVideoRuleSourceParser()
+            parser: CoreVideoRuleSourceParser()
         ).execute(
             source: Self.source(rule: rule),
             resolvedRule: try ResolvedVideoSiteRule(validating: rule),

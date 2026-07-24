@@ -1,7 +1,8 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：VideoRuleSourceParsingService 是 VideoSourceRuntime 的 HTML 解析边界；加载链路不得依赖 SwiftSoup。
+// 中文注释：VideoRuleSourceParsingService 是 Loader 与 Core 解析适配器之间的
+// 内部测试边界；加载链路不依赖 SwiftSoup，也不自行解释 selector。
 
 struct VideoRuleParsedListItem: Hashable {
     var idCode: String?
@@ -17,7 +18,7 @@ struct VideoRuleParsedList: Hashable {
     var droppedCount: Int
 }
 
-/// 中文注释：详情 metadata 保留规则字段 id，P1-4 再映射到 Core SourceDetailMetadata。
+/// 中文注释：字段 id 仅供 App 临时适配结果和测试定位，最终输出使用 Core metadata。
 struct VideoRuleParsedDetailAttribute: Hashable {
     var id: String
     var label: String?

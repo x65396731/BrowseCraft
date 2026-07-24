@@ -16,13 +16,13 @@ struct VideoSourceDetailLoader {
 
     private struct DetailBranch {
         let parsed: VideoRuleParsedDetail
-        let state: VideoRuleJSONPathState
+        let state: VideoRuleBranchState
         let finalURL: URL
     }
 
     private struct EpisodeBranch {
         let parsed: VideoRuleParsedEpisodes
-        let state: VideoRuleJSONPathState
+        let state: VideoRuleBranchState
         let finalURL: URL
     }
 
@@ -112,7 +112,7 @@ struct VideoSourceDetailLoader {
                     source: source,
                     rule: detailRule
                 )
-                let state: VideoRuleJSONPathState = parsed.readyMatched ? .nonEmpty : .empty
+                let state: VideoRuleBranchState = parsed.readyMatched ? .nonEmpty : .empty
                 extractionLogs.append(
                     SourceExtractionLog(
                         field: "detail.dom.title",

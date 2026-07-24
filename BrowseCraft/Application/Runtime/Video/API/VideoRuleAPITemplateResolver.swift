@@ -22,9 +22,6 @@ struct VideoRuleAPITemplateContext {
     let rule: VideoSiteRule
     let itemReference: SourceItemReference?
     let detailURL: URL?
-    let rootJSON: Any?
-    let currentJSON: Any?
-    let groupJSON: Any?
     let credentialProvider: any SourceCredentialProviding
 
     init(
@@ -32,18 +29,12 @@ struct VideoRuleAPITemplateContext {
         rule: VideoSiteRule,
         itemReference: SourceItemReference? = nil,
         detailURL: URL? = nil,
-        rootJSON: Any? = nil,
-        currentJSON: Any? = nil,
-        groupJSON: Any? = nil,
         credentialProvider: any SourceCredentialProviding
     ) {
         self.source = source
         self.rule = rule
         self.itemReference = itemReference
         self.detailURL = detailURL
-        self.rootJSON = rootJSON
-        self.currentJSON = currentJSON
-        self.groupJSON = groupJSON
         self.credentialProvider = credentialProvider
     }
 }
@@ -184,30 +175,6 @@ struct VideoRuleAPITemplateResolver {
                 return self.contextValue(
                     String(token.dropFirst("context.".count)),
                     context: context
-                )
-            }
-            if token.hasPrefix("root."), let rootJSON: Any = context.rootJSON {
-                return VideoRuleJSONResolver.stringValue(
-                    VideoRuleJSONResolver.firstJSONValue(
-                        at: String(token.dropFirst("root.".count)),
-                        in: rootJSON
-                    )
-                )
-            }
-            if token.hasPrefix("current."), let currentJSON: Any = context.currentJSON {
-                return VideoRuleJSONResolver.stringValue(
-                    VideoRuleJSONResolver.firstJSONValue(
-                        at: String(token.dropFirst("current.".count)),
-                        in: currentJSON
-                    )
-                )
-            }
-            if token.hasPrefix("group."), let groupJSON: Any = context.groupJSON {
-                return VideoRuleJSONResolver.stringValue(
-                    VideoRuleJSONResolver.firstJSONValue(
-                        at: String(token.dropFirst("group.".count)),
-                        in: groupJSON
-                    )
                 )
             }
             return nil

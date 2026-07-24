@@ -109,7 +109,7 @@ final class AppContainer {
                 ),
                 videoSourceRuntimeFactory: VideoSourceRuntimeFactory(
                     pageContentLoader: pageLoader,
-                    parser: SwiftSoupVideoRuleSourceParser(),
+                    parser: CoreVideoRuleSourceParser(),
                     credentialProvider: sourceCredentialStore
                 )
             )

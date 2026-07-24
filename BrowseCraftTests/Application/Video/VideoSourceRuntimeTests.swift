@@ -4,25 +4,8 @@ import BrowseCraftCore
 @testable import BrowseCraft
 
 struct VideoSourceRuntimeTests {
-    @Test func videoRuleAPIPathResolverPreservesAllFiveArrayStates() {
-        let json: [String: Any] = [
-            "data": [
-                "nullItems": NSNull(),
-                "objectItems": ["id": "wrong-shape"],
-                "emptyItems": [],
-                "items": [["id": "movie-1"]]
-            ]
-        ]
-
-        #expect(VideoRuleJSONResolver.arrayResolution(at: "data.missingItems[]", in: json).state == .missing)
-        #expect(VideoRuleJSONResolver.arrayResolution(at: "data.nullItems[]", in: json).state == .null)
-        #expect(VideoRuleJSONResolver.arrayResolution(at: "data.objectItems[]", in: json).state == .typeMismatch)
-        #expect(VideoRuleJSONResolver.arrayResolution(at: "data.emptyItems[]", in: json).state == .empty)
-        #expect(VideoRuleJSONResolver.arrayResolution(at: "data.items[]", in: json).state == .nonEmpty)
-    }
-
     @Test func swiftSoupVideoRuleParserExecutesStructuredExtractRules() throws {
-        let parser: SwiftSoupVideoRuleSourceParser = SwiftSoupVideoRuleSourceParser()
+        let parser: CoreVideoRuleSourceParser = CoreVideoRuleSourceParser()
         let rule: VideoListRule = Self.listRule()
         let html: String = """
         <html>
@@ -64,7 +47,7 @@ struct VideoSourceRuntimeTests {
     }
 
     @Test func swiftSoupVideoRuleParserMapsDetailMetadata() throws {
-        let parser: SwiftSoupVideoRuleSourceParser = SwiftSoupVideoRuleSourceParser()
+        let parser: CoreVideoRuleSourceParser = CoreVideoRuleSourceParser()
         let html: String = """
         <main class="detail-ready" data-id="movie-7">
           <h1>Movie Seven</h1>
@@ -126,7 +109,7 @@ struct VideoSourceRuntimeTests {
     }
 
     @Test func swiftSoupVideoRuleParserPreservesDetailReadyEmptyState() throws {
-        let parser: SwiftSoupVideoRuleSourceParser = SwiftSoupVideoRuleSourceParser()
+        let parser: CoreVideoRuleSourceParser = CoreVideoRuleSourceParser()
         let rule = VideoDetailRule(
             id: "video-detail",
             fields: VideoDetailFields(
@@ -147,7 +130,7 @@ struct VideoSourceRuntimeTests {
     }
 
     @Test func swiftSoupVideoRuleParserMapsAndSortsFlatEpisodes() throws {
-        let parser: SwiftSoupVideoRuleSourceParser = SwiftSoupVideoRuleSourceParser()
+        let parser: CoreVideoRuleSourceParser = CoreVideoRuleSourceParser()
         let html: String = """
         <main class="episode-ready">
           <a class="episode" href="/play/2" data-id="ep-2" data-order="2" data-paid="yes">
@@ -205,7 +188,7 @@ struct VideoSourceRuntimeTests {
     }
 
     @Test func swiftSoupVideoRuleParserScopesEpisodesWithinRouteGroups() throws {
-        let parser: SwiftSoupVideoRuleSourceParser = SwiftSoupVideoRuleSourceParser()
+        let parser: CoreVideoRuleSourceParser = CoreVideoRuleSourceParser()
         let html: String = """
         <section class="route" data-route="route-a">
           <h2>Route A</h2>
@@ -900,7 +883,7 @@ struct VideoSourceRuntimeTests {
 
     @Test func videoRuleDetailRuntimeReusesHTMLAndPreservesListHandoff() async throws {
         let pageLoader = RecordingVideoRulePageContentLoader(html: Self.detailHTML)
-        let parser = SwiftSoupVideoRuleSourceParser()
+        let parser = CoreVideoRuleSourceParser()
         let source: Source = Self.source(rule: Self.detailSiteRule())
         let resolvedRule = try ResolvedVideoSiteRule(
             validating: try #require(source.videoConfiguration?.rule)
@@ -972,7 +955,7 @@ struct VideoSourceRuntimeTests {
 
     @Test func videoRuleDetailRuntimeLoadsEpisodeDOMAgainWhenRequestDiffers() async throws {
         let pageLoader = RecordingVideoRulePageContentLoader(html: Self.detailHTML)
-        let parser = SwiftSoupVideoRuleSourceParser()
+        let parser = CoreVideoRuleSourceParser()
         let source: Source = Self.source(
             rule: Self.detailSiteRule(
                 episodeRequest: RequestConfig(
@@ -1018,7 +1001,7 @@ struct VideoSourceRuntimeTests {
         let source: Source = Self.source(rule: rule)
         let resolvedRule = try ResolvedVideoSiteRule(validating: rule)
         let pageLoader = RecordingVideoRulePageContentLoader(html: Self.detailHTML)
-        let parser = SwiftSoupVideoRuleSourceParser()
+        let parser = CoreVideoRuleSourceParser()
         let runtime = VideoSourceRuntime(
             source: source,
             resolvedRule: resolvedRule,
@@ -1046,7 +1029,7 @@ struct VideoSourceRuntimeTests {
             ]}}
             """
         ])
-        let parser = SwiftSoupVideoRuleSourceParser()
+        let parser = CoreVideoRuleSourceParser()
         let rule: VideoSiteRule = Self.apiDetailSiteRule()
         let source: Source = Self.source(rule: rule)
         let runtime = VideoSourceRuntime(
@@ -1119,7 +1102,7 @@ struct VideoSourceRuntimeTests {
             "https://video.example.invalid/api/detail/movie-7": "{\"data\":{\"item\":{\"id\":\"movie-7\",\"title\":\"Movie Seven API\"}}}",
             "https://video.example.invalid/api/episodes/movie-7": "{\"data\":{\"routes\":[{\"id\":\"route-a\",\"episodes\":[]}]}}"
         ])
-        let parser = SwiftSoupVideoRuleSourceParser()
+        let parser = CoreVideoRuleSourceParser()
         let rule: VideoSiteRule = Self.apiDetailSiteRule()
         let source: Source = Self.source(rule: rule)
         let runtime = VideoSourceRuntime(
@@ -1181,7 +1164,7 @@ struct VideoSourceRuntimeTests {
             </main>
             """
         )
-        let parser = SwiftSoupVideoRuleSourceParser()
+        let parser = CoreVideoRuleSourceParser()
         let rule: VideoSiteRule = Self.detailSiteRule()
         let source: Source = Self.source(rule: rule)
         let runtime = VideoSourceRuntime(
