@@ -1,5 +1,6 @@
 import Foundation
 import SwiftSoup
+import BrowseCraftCore
 
 // 中文注释：Video V2 的 CSS/DOM 实现物理隔离在 Infrastructure；上层只依赖 VideoRuleSourceParsingService。
 final class SwiftSoupVideoRuleSourceParser: VideoRuleSourceParsingService {
@@ -8,80 +9,46 @@ final class SwiftSoupVideoRuleSourceParser: VideoRuleSourceParsingService {
         pageURL: URL,
         rule: VideoListRule
     ) throws -> VideoRuleParsedList {
-        guard rule.effectiveSourceStrategy.usesDOM,
-              let itemRule: ExtractRule = rule.item,
-              let fields: VideoListFields = rule.fields else {
-            throw VideoRuleSourceParsingError.incompleteDOMRule(kind: "list", ruleID: rule.id)
-        }
-        let document: Document = try SwiftSoup.parse(html, pageURL.absoluteString)
-
-        if let readyRule: ExtractRule = rule.ready {
-            let readyValue: String = try self.extract(
-                from: document,
-                rule: readyRule,
-                pageURL: pageURL
-            )
-            guard readyValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
-                throw VideoRuleSourceParsingError.readySelectorEmpty(ruleID: rule.id)
-            }
-        }
-
-        let candidates: [Element] = try self.selectedElements(from: document, rule: itemRule)
-        var items: [VideoRuleParsedListItem] = []
-        var seenDetailURLs: Set<String> = []
-        var droppedCount: Int = 0
-
-        for candidate: Element in candidates {
-            let title: String = try self.extract(
-                from: candidate,
-                rule: fields.title,
-                pageURL: pageURL
-            ).trimmingCharacters(in: .whitespacesAndNewlines)
-            let detailURLString: String = try self.extract(
-                from: candidate,
-                rule: fields.detailURL,
-                pageURL: pageURL
-            ).trimmingCharacters(in: .whitespacesAndNewlines)
-
-            guard title.isEmpty == false,
-                  let detailURL: URL = self.absoluteHTTPURL(detailURLString, relativeTo: pageURL),
-                  seenDetailURLs.insert(detailURL.absoluteString).inserted else {
-                droppedCount += 1
-                continue
-            }
-
-            let idCode: String? = try fields.idCode.flatMap { idRule in
-                return try self.optionalExtract(from: candidate, rule: idRule, pageURL: pageURL)
-            }
-            let coverURL: URL? = try fields.cover.flatMap { coverRule in
-                guard let value: String = try self.optionalExtract(
-                    from: candidate,
-                    rule: coverRule,
-                    pageURL: pageURL
-                ) else {
-                    return nil
-                }
-                return self.absoluteHTTPURL(value, relativeTo: pageURL)
-            }
-            let latestText: String? = try fields.latestText.flatMap { latestRule in
-                return try self.optionalExtract(from: candidate, rule: latestRule, pageURL: pageURL)
-            }
-
-            items.append(
-                VideoRuleParsedListItem(
-                    idCode: idCode,
-                    title: title,
-                    detailURL: detailURL,
-                    coverURL: coverURL,
-                    latestText: latestText
+        // 中文注释：Phase 4 list DOM 解释已迁入 Core；此类型暂时只为尚未迁移的
+        // detail/episode/playback 保留 SwiftSoup，并在这些能力完成后整体删除。
+        let output = try BrowseCraftCore.DefaultVideoListRuleParser().parseList(
+            BrowseCraftCore.VideoListParsingInput(
+                document: BrowseCraftCore.SourceContentDocument(
+                    text: html,
+                    finalURL: pageURL,
+                    format: .html,
+                    mediaType: "text/html"
+                ),
+                rule: rule,
+                runtimeContext: BrowseCraftCore.SourceRuntimeContext(
+                    sourceID: "video.v2.parser",
+                    pageID: nil,
+                    tabID: nil,
+                    ruleID: rule.id,
+                    requestOverride: nil,
+                    debugMode: false,
+                    operation: .list
                 )
             )
+        )
+        let items = output.items.compactMap { item -> VideoRuleParsedListItem? in
+            guard let detailURL = item.detailURL else {
+                return nil
+            }
+            return VideoRuleParsedListItem(
+                idCode: item.idCode,
+                title: item.title,
+                detailURL: detailURL,
+                coverURL: item.coverURL,
+                latestText: item.latestText
+            )
         }
-
         return VideoRuleParsedList(
             items: items,
-            candidateCount: candidates.count,
-            droppedCount: droppedCount
+            candidateCount: output.diagnostics.candidateSummary?.totalCandidates
+                ?? items.count,
+            droppedCount: output.diagnostics.candidateSummary?.warningCount
+                ?? 0
         )
     }
 
