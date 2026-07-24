@@ -37,12 +37,12 @@ struct SourcesFeatureFactory {
         let sourceDiscoveryService: SourceDiscoveryService = SourceDiscoveryService(
             discoverComicResourcesUseCase: DiscoverComicResourcesUseCase(
                 pageContentLoader: self.pageContentLoader,
-                htmlParser: SwiftSoupHTMLDiscoveryParser(),
+                htmlParser: CoreHTMLDiscoveryParser(),
                 urlResolver: self.urlResolver
             ),
             discoverVideoResourcesUseCase: DiscoverVideoResourcesUseCase(
                 pageContentLoader: self.pageContentLoader,
-                htmlParser: SwiftSoupHTMLDiscoveryParser(),
+                htmlParser: CoreHTMLDiscoveryParser(),
                 urlResolver: self.urlResolver
             ),
             discoverRSSFeedsUseCase: DiscoverRSSFeedsUseCase(

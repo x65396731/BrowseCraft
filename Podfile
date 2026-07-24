@@ -8,7 +8,6 @@ target 'BrowseCraft' do
   pod 'Alamofire', '5.11.2'
   pod 'Nuke', '10.7.1'
   pod 'NukeUI', '0.8.0'
-  pod 'SwiftSoup', '2.11.3'
 
   target 'BrowseCraftTests' do
     inherit! :search_paths

@@ -80,6 +80,7 @@ targets:
           BROWSECRAFT_ENVIRONMENT_NAME: TEST
           BROWSECRAFT_REWARDED_AD_UNIT_ID: ca-app-pub-3940256099942544/1712485313
           DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+          "DEBUG_INFORMATION_FORMAT[sdk=iphonesimulator*]": dwarf
         Release:
           APS_ENVIRONMENT: production
           BROWSECRAFT_ENVIRONMENT_NAME: PROD

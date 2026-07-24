@@ -113,6 +113,10 @@ Responsibilities:
   iframe traversal, and fallback behavior come only from the resolved rule graph.
 - Keep WebView/static HTML validation in `Video/Rendering/`; it is shared support
   for V2 loaders, not a source adapter.
+- Keep Source Discovery network probing and import orchestration in App use cases.
+  Final HTML documents are handed to `BrowseCraftCore` for anchor/ancestor snapshots,
+  selector candidates, evidence, scoring, warnings, and deduplication. App discovery
+  adapters must not import SwiftSoup or duplicate those deterministic algorithms.
 - Keep playback request resolution in `Video/Playback/` and expose it through Core
   `SourceVideoPlaybackRuntime`, so a future plugin runtime can use the same boundary.
   Video detail uses Core `SourceDetailRuntime`; playback capability must not add a
