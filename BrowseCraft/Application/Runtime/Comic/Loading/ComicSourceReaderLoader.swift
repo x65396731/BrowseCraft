@@ -388,7 +388,7 @@ struct ComicSourceReaderLoader {
             chapterURL: chapterURLString,
             defaultUserAgent: self.defaultUserAgent
         )
-        let json: String = try await self.pageContentLoader.loadContent(
+        let response: PageContentResponse = try await self.pageContentLoader.loadContent(
             PageLoadRequest(
                 url: apiURL,
                 requestConfig: request,
@@ -398,7 +398,43 @@ struct ComicSourceReaderLoader {
                     refererURL: URL(string: chapterURLString) ?? apiURL
                 )
             )
-        ).content
+        )
+        let json: String = response.content
+        if let apiParser = self.comicRuleParser as? ComicRuleAPIResponseParsingService {
+            guard let chapterURL = URL(string: chapterURLString) else {
+                throw RuleExecutionError.ruleConfiguration(
+                    stage: .reader,
+                    sourceID: source.id,
+                    reason: "Invalid chapter URL: \(chapterURLString)"
+                )
+            }
+            let parsedChapter = try apiParser.parseImageAPIResponse(
+                json: json,
+                finalURL: response.finalURL,
+                source: source,
+                item: item,
+                apiRule: apiRule,
+                chapterURL: chapterURL,
+                chapterFinalURL: chapterFinalURL,
+                context: item.listContext
+            )
+            RuleExecutionLogger.log(
+                stage: .reader,
+                event: "image-api-parsed",
+                fields: [
+                    "source": source.id,
+                    "item": item.id,
+                    "parser": "core",
+                    "chapterURL": chapterURLString,
+                    "pageCount": parsedChapter.pageImageURLs.count,
+                    "firstImage": self.safeResourceURLDescription(
+                        parsedChapter.pageImageURLs.first
+                    )
+                ]
+            )
+            return parsedChapter.pageImageURLs.isEmpty ? nil : parsedChapter
+        }
+
         let jsonObject: Any = try JSONSerialization.jsonObject(with: Data(json.utf8))
         let responseEvaluation = ComicRuleAPIResponseEvaluator.evaluate(
             json: jsonObject,

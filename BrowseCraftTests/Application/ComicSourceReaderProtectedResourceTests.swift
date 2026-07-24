@@ -20,7 +20,7 @@ struct ComicSourceReaderProtectedResourceTests {
         )
         let loader: ComicSourceReaderLoader = ComicSourceReaderLoader(
             pageContentLoader: pageContentLoader,
-            comicRuleParser: SwiftSoupComicRuleSourceParser(urlResolver: URLResolvingService())
+            comicRuleParser: Self.coreParser()
         )
 
         let chapter: ReaderChapter = try await loader.execute(
@@ -78,7 +78,7 @@ struct ComicSourceReaderProtectedResourceTests {
         )
         let loader: ComicSourceReaderLoader = ComicSourceReaderLoader(
             pageContentLoader: pageContentLoader,
-            comicRuleParser: SwiftSoupComicRuleSourceParser(urlResolver: URLResolvingService())
+            comicRuleParser: Self.coreParser()
         )
 
         let chapter: ReaderChapter = try await loader.execute(
@@ -120,7 +120,7 @@ struct ComicSourceReaderProtectedResourceTests {
         )
         let loader = ComicSourceReaderLoader(
             pageContentLoader: pageContentLoader,
-            comicRuleParser: SwiftSoupComicRuleSourceParser(urlResolver: URLResolvingService())
+            comicRuleParser: Self.coreParser()
         )
 
         do {
@@ -261,6 +261,14 @@ struct ComicSourceReaderProtectedResourceTests {
             enabled: true,
             createdAt: Date(timeIntervalSince1970: 0),
             updatedAt: Date(timeIntervalSince1970: 0)
+        )
+    }
+
+    private static func coreParser() -> CoreComicRuleSourceParser {
+        return CoreComicRuleSourceParser(
+            fallbackParser: SwiftSoupComicRuleSourceParser(
+                urlResolver: URLResolvingService()
+            )
         )
     }
 

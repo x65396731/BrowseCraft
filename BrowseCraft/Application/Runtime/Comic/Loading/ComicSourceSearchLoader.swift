@@ -104,7 +104,9 @@ struct ComicSourceSearchLoader {
             html: html,
             source: source,
             searchRule: entry.rule,
-            context: context
+            context: context,
+            pageURL: url,
+            currentPage: page
         )
 
         RuleExecutionLogger.log(

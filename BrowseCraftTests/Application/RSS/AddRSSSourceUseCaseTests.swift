@@ -11,7 +11,7 @@ struct AddRSSSourceUseCaseTests {
         let useCase: AddRSSSourceUseCase = AddRSSSourceUseCase(
             sourceRepository: repository,
             feedLoader: AddRSSStubFeedLoader(
-                feed: RSSFeed(title: "Solidot", items: [])
+                feed: BrowseCraft.RSSFeed(title: "Solidot", items: [])
             ),
             refreshSourceRuntimeUseCase: runtimeRegistry.refreshUseCase(),
             now: { Date(timeIntervalSince1970: 1_000) },
@@ -48,7 +48,7 @@ struct AddRSSSourceUseCaseTests {
         let runtimeRegistry: AddRSSRuntimeRegistry = AddRSSRuntimeRegistry()
         let useCase: AddRSSSourceUseCase = AddRSSSourceUseCase(
             sourceRepository: repository,
-            feedLoader: AddRSSStubFeedLoader(feed: RSSFeed(title: "Solidot", items: [])),
+            feedLoader: AddRSSStubFeedLoader(feed: BrowseCraft.RSSFeed(title: "Solidot", items: [])),
             refreshSourceRuntimeUseCase: runtimeRegistry.refreshUseCase(),
             now: { Date(timeIntervalSince1970: 2_000) },
             makeID: { "rss.custom" }
@@ -71,7 +71,7 @@ struct AddRSSSourceUseCaseTests {
     @Test func rejectsInvalidFeedURL() async throws {
         let useCase: AddRSSSourceUseCase = AddRSSSourceUseCase(
             sourceRepository: RSSInMemorySourceRepository(),
-            feedLoader: AddRSSStubFeedLoader(feed: RSSFeed(title: nil, items: [])),
+            feedLoader: AddRSSStubFeedLoader(feed: BrowseCraft.RSSFeed(title: nil, items: [])),
             refreshSourceRuntimeUseCase: AddRSSRuntimeRegistry().refreshUseCase()
         )
 
@@ -85,7 +85,7 @@ struct AddRSSSourceUseCaseTests {
         let runtimeRegistry: AddRSSRuntimeRegistry = AddRSSRuntimeRegistry(outputItemCount: 0)
         let useCase: AddRSSSourceUseCase = AddRSSSourceUseCase(
             sourceRepository: repository,
-            feedLoader: AddRSSStubFeedLoader(feed: RSSFeed(title: "Empty Feed", items: [])),
+            feedLoader: AddRSSStubFeedLoader(feed: BrowseCraft.RSSFeed(title: "Empty Feed", items: [])),
             refreshSourceRuntimeUseCase: runtimeRegistry.refreshUseCase()
         )
 
@@ -115,9 +115,9 @@ private final class RSSInMemorySourceRepository: SourceRepository {
 }
 
 private struct AddRSSStubFeedLoader: RSSFeedLoading {
-    var feed: RSSFeed
+    var feed: BrowseCraft.RSSFeed
 
-    func load(feedURL: URL) async throws -> RSSFeed {
+    func load(feedURL: URL) async throws -> BrowseCraft.RSSFeed {
         return self.feed
     }
 }

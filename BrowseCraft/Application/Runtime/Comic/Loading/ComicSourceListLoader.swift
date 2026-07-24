@@ -143,7 +143,9 @@ struct ComicSourceListLoader {
                 source: source,
                 listRule: listRule,
                 context: listContext,
-                sections: listTab?.sections
+                sections: listTab?.sections,
+                pageURL: url,
+                currentPage: page
             )
         } catch {
             throw RuleExecutionError.parserDiagnostics(

@@ -19,7 +19,7 @@ struct ComicSourceDetailLoaderTests {
         )
         let loader: ComicSourceDetailLoader = ComicSourceDetailLoader(
             pageContentLoader: pageContentLoader,
-            comicRuleParser: SwiftSoupComicRuleSourceParser(urlResolver: URLResolvingService())
+            comicRuleParser: Self.coreParser()
         )
 
         let content: ChapterDetailContent = try await loader.execute(
@@ -70,7 +70,7 @@ struct ComicSourceDetailLoaderTests {
         )
         let loader: ComicSourceDetailLoader = ComicSourceDetailLoader(
             pageContentLoader: pageContentLoader,
-            comicRuleParser: SwiftSoupComicRuleSourceParser(urlResolver: URLResolvingService())
+            comicRuleParser: Self.coreParser()
         )
         var source: Source = Self.sourceWithPreferredChapterAPI()
         source.rule.detail?.fields = DetailFields(
@@ -167,6 +167,14 @@ struct ComicSourceDetailLoaderTests {
             enabled: true,
             createdAt: Date(timeIntervalSince1970: 0),
             updatedAt: Date(timeIntervalSince1970: 0)
+        )
+    }
+
+    private static func coreParser() -> CoreComicRuleSourceParser {
+        return CoreComicRuleSourceParser(
+            fallbackParser: SwiftSoupComicRuleSourceParser(
+                urlResolver: URLResolvingService()
+            )
         )
     }
 }

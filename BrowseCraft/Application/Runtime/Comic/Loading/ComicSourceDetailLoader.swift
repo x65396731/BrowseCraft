@@ -239,7 +239,7 @@ struct ComicSourceDetailLoader {
             source: source,
             item: item
         )
-        let json: String = try await self.pageContentLoader.loadContent(
+        let response: PageContentResponse = try await self.pageContentLoader.loadContent(
             PageLoadRequest(
                 url: apiURL,
                 requestConfig: request,
@@ -248,7 +248,31 @@ struct ComicSourceDetailLoader {
                     refererURL: URL(string: item.detailURL) ?? apiURL
                 )
             )
-        ).content
+        )
+        let json: String = response.content
+        if let apiParser = self.comicRuleParser as? ComicRuleAPIResponseParsingService {
+            let parsedDetail = try apiParser.parseChapterAPIResponse(
+                json: json,
+                finalURL: response.finalURL,
+                source: source,
+                item: item,
+                apiRule: apiRule,
+                context: item.listContext
+            )
+            RuleExecutionLogger.log(
+                stage: .detail,
+                event: "detail-api-parsed",
+                fields: [
+                    "source": source.id,
+                    "item": item.id,
+                    "parser": "core",
+                    "chapterCount": parsedDetail.chapters.count,
+                    "firstURL": parsedDetail.chapters.first?.url ?? "nil"
+                ]
+            )
+            return parsedDetail.chapters.isEmpty ? nil : parsedDetail
+        }
+
         let jsonObject: Any = try JSONSerialization.jsonObject(with: Data(json.utf8))
         let responseEvaluation = ComicRuleAPIResponseEvaluator.evaluate(
             json: jsonObject,

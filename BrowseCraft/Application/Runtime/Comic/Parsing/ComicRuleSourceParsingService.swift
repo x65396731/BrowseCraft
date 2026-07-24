@@ -98,11 +98,28 @@ protocol ComicRuleSourceParsingService {
         context: ListContext?,
         sections: [SectionRule]?
     ) throws -> [ContentItem]
+    func parseList(
+        html: String,
+        source: Source,
+        listRule: ListRule,
+        context: ListContext?,
+        sections: [SectionRule]?,
+        pageURL: URL,
+        currentPage: Int?
+    ) throws -> [ContentItem]
     func parseSearch(
         html: String,
         source: Source,
         searchRule: SearchRule,
         context: ListContext?
+    ) throws -> [ContentItem]
+    func parseSearch(
+        html: String,
+        source: Source,
+        searchRule: SearchRule,
+        context: ListContext?,
+        pageURL: URL,
+        currentPage: Int?
     ) throws -> [ContentItem]
     /// 中文注释：parseDetailChapters 方法封装当前类型的一段业务或界面行为。
     func parseDetailChapters(html: String, source: Source, pageURL: String) throws -> [ChapterLink]
@@ -146,6 +163,29 @@ protocol ComicRuleSourceParsingService {
         source: Source,
         galleryRule: GalleryRule,
         pageURL: String,
+        context: ListContext?
+    ) throws -> ReaderChapter
+}
+
+/// 中文注释：API 请求仍由 Loader 执行；实现此能力的 parser 只消费已经取得的 JSON 响应。
+protocol ComicRuleAPIResponseParsingService {
+    func parseChapterAPIResponse(
+        json: String,
+        finalURL: URL,
+        source: Source,
+        item: ContentItem,
+        apiRule: DetailChapterAPIRule,
+        context: ListContext?
+    ) throws -> ComicRuleParsedDetail
+
+    func parseImageAPIResponse(
+        json: String,
+        finalURL: URL,
+        source: Source,
+        item: ContentItem,
+        apiRule: ReaderImageAPIRule,
+        chapterURL: URL,
+        chapterFinalURL: URL?,
         context: ListContext?
     ) throws -> ReaderChapter
 }
@@ -206,6 +246,25 @@ extension ComicRuleSourceParsingService {
         }
     }
 
+    /// 中文注释：Core parser 需要真实最终 URL 解析相对链接；旧测试替身默认继续走既有入口。
+    func parseList(
+        html: String,
+        source: Source,
+        listRule: ListRule,
+        context: ListContext?,
+        sections: [SectionRule]?,
+        pageURL: URL,
+        currentPage: Int?
+    ) throws -> [ContentItem] {
+        return try self.parseList(
+            html: html,
+            source: source,
+            listRule: listRule,
+            context: context,
+            sections: sections
+        )
+    }
+
     /// 中文注释：P2-6.2 为搜索增加显式解析入口；默认回落到引用的 ListRule，避免一次性改动所有测试替身。
     func parseSearch(
         html: String,
@@ -226,6 +285,23 @@ extension ComicRuleSourceParsingService {
             html: html,
             source: source,
             listRule: source.rule.primaryListRule,
+            context: context
+        )
+    }
+
+    /// 中文注释：搜索文档的最终 URL 和当前页只供支持 Core 合同的 adapter 使用。
+    func parseSearch(
+        html: String,
+        source: Source,
+        searchRule: SearchRule,
+        context: ListContext?,
+        pageURL: URL,
+        currentPage: Int?
+    ) throws -> [ContentItem] {
+        return try self.parseSearch(
+            html: html,
+            source: source,
+            searchRule: searchRule,
             context: context
         )
     }
