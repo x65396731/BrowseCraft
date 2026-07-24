@@ -87,7 +87,7 @@ struct BrowseCraftApp: App {
                             return .failed
                         }
                     }
-                    await self.container.startCloudAccountMonitoring()
+                    await self.container.startApplicationServices()
                 }
                 .onChange(of: self.scenePhase) { _, phase in
                     guard phase == .active else {

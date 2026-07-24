@@ -1,5 +1,6 @@
 import Foundation
 import CloudKit
+import BrowseCraftAPIKit
 
 /// 中文注释：应用 Composition Root，只持有 App 生命周期共享对象并把 Feature 创建委托给明确 Factory。
 final class AppContainer {
@@ -18,6 +19,9 @@ final class AppContainer {
     /// 中文注释：账户 Session 先于真实同步引擎接线，统一提供活动数据空间和账户切换世代。
     let cloudAccountSession: CloudAccountSession
     let activeAccountScopeStore: ActiveAccountScopeStore
+    /// 中文注释：业务 AppUser 与 CloudKit 同步分区独立，后续认证和权益共用此稳定 UUID。
+    let activeAppUserStore: ActiveAppUserStore
+    let portalSessionCoordinator: PortalSessionCoordinator
     let cloudAccountPartitionStore: any CloudAccountPartitioning
     let cloudSyncCoordinator: CloudSyncCoordinator
 
@@ -37,6 +41,20 @@ final class AppContainer {
 
         do {
             let database: AppDatabase = try AppDatabase()
+            let appUserRepository: GRDBAppUserRepository = GRDBAppUserRepository(database: database)
+            let activeUserID: UUID = try AppUserIdentityBootstrapper(
+                identityStore: KeychainAppUserIdentityStore(),
+                appUserRepository: appUserRepository
+            ).bootstrap()
+            self.activeAppUserStore = ActiveAppUserStore(initialUserID: activeUserID)
+            self.portalSessionCoordinator = PortalSessionCoordinator(
+                activeAppUser: self.activeAppUserStore,
+                sessionStore: KeychainPortalSessionStore(),
+                authenticator: APIKitPortalIdentityAuthenticator(
+                    api: PortalIdentityAPI(client: PortalAPIClient())
+                ),
+                networkMonitor: NWPathPortalNetworkAvailabilityMonitor()
+            )
             let cloudSyncChangeNotifier: CloudSyncChangeNotifier = CloudSyncChangeNotifier()
             let cloudAccountPartitionStore: GRDBCloudAccountPartitionStore =
                 GRDBCloudAccountPartitionStore(database: database)
@@ -176,13 +194,16 @@ final class AppContainer {
         self.configureImageCache()
     }
 
-    func startCloudAccountMonitoring() async {
-        await self.cloudSyncCoordinator.start()
-        await self.cloudAccountSession.startIfPreviouslyEnabled()
+    func startApplicationServices() async {
+        async let portalSession: Void = self.portalSessionCoordinator.start()
+        async let cloudAccount: Void = self.startCloudAccountMonitoring()
+        _ = await (portalSession, cloudAccount)
     }
 
     func handleAppBecameActive() async {
-        await self.cloudSyncCoordinator.requestSync(trigger: .foreground)
+        async let portalSession: Void = self.portalSessionCoordinator.handleAppBecameActive()
+        async let cloudSync: Void = self.cloudSyncCoordinator.requestSync(trigger: .foreground)
+        _ = await (portalSession, cloudSync)
     }
 
     func handleCloudRemoteNotification() async throws -> CloudSyncRunResult {
@@ -236,6 +257,11 @@ final class AppContainer {
                 self.libraryFeatureFactory.makeVideoDetailViewModel(item: item, source: source)
             }
         )
+    }
+
+    private func startCloudAccountMonitoring() async {
+        await self.cloudSyncCoordinator.start()
+        await self.cloudAccountSession.startIfPreviouslyEnabled()
     }
 
     private func configureImageCache() {
