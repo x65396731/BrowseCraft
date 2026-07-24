@@ -276,7 +276,7 @@ struct ComicSourceListLoaderTests {
     private static func loader(pageContentLoader: PageContentLoader) -> ComicSourceListLoader {
         return ComicSourceListLoader(
             pageContentLoader: pageContentLoader,
-            comicRuleParser: SwiftSoupComicRuleSourceParser(urlResolver: URLResolvingService()),
+            comicRuleParser: CoreComicRuleSourceParser(),
             urlResolver: URLResolvingService()
         )
     }

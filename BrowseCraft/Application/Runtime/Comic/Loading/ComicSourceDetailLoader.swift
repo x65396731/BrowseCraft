@@ -93,20 +93,21 @@ struct ComicSourceDetailLoader {
             return self.withItemFallback(apiDetail, item: item)
         }
 
-        let detailHTML: String = try await self.pageContentLoader.loadContent(
+        let detailResponse = try await self.pageContentLoader.loadContent(
             PageLoadRequest(
                 url: detailURL,
                 requestConfig: resolvedRule.primaryDetailRequest,
                 sourceContext: self.requestContext(source: source, refererURL: detailURL)
             )
-        ).content
+        )
+        let detailHTML = detailResponse.content
         var parsedDetail: ComicRuleParsedDetail
         if let detailRule: DetailRule = resolvedRule.primaryDetailRule {
             parsedDetail = try self.comicRuleParser.parseDetail(
                 html: detailHTML,
                 source: source,
                 detailRule: detailRule,
-                pageURL: item.detailURL,
+                pageURL: detailResponse.finalURL.absoluteString,
                 context: item.listContext
             )
             let parsedChapters: [ChapterLink] = parsedDetail.chapters
@@ -249,158 +250,26 @@ struct ComicSourceDetailLoader {
                 )
             )
         )
-        let json: String = response.content
-        if let apiParser = self.comicRuleParser as? ComicRuleAPIResponseParsingService {
-            let parsedDetail = try apiParser.parseChapterAPIResponse(
-                json: json,
-                finalURL: response.finalURL,
-                source: source,
-                item: item,
-                apiRule: apiRule,
-                context: item.listContext
-            )
-            RuleExecutionLogger.log(
-                stage: .detail,
-                event: "detail-api-parsed",
-                fields: [
-                    "source": source.id,
-                    "item": item.id,
-                    "parser": "core",
-                    "chapterCount": parsedDetail.chapters.count,
-                    "firstURL": parsedDetail.chapters.first?.url ?? "nil"
-                ]
-            )
-            return parsedDetail.chapters.isEmpty ? nil : parsedDetail
-        }
-
-        let jsonObject: Any = try JSONSerialization.jsonObject(with: Data(json.utf8))
-        let responseEvaluation = ComicRuleAPIResponseEvaluator.evaluate(
-            json: jsonObject,
-            responsePolicy: apiRule.responsePolicy
+        let parsedDetail = try self.comicRuleParser.parseChapterAPIResponse(
+            json: response.content,
+            finalURL: response.finalURL,
+            source: source,
+            item: item,
+            apiRule: apiRule,
+            context: item.listContext
         )
-        switch responseEvaluation {
-        case .allowParsing:
-            break
-        case .businessFailure(let message):
-            throw RuleExecutionError.sourceAPI(
-                stage: .detail,
-                sourceID: source.id,
-                reason: "Detail API returned error: \(message)"
-            )
-        }
-        let itemPathResolution = ComicRuleJSONResolver.jsonArrayResolution(
-            at: apiRule.itemPath,
-            in: jsonObject
-        )
-        guard itemPathResolution.state == .empty || itemPathResolution.state == .nonEmpty else {
-            throw RuleExecutionError.apiResponseContract(
-                stage: .detail,
-                sourceID: source.id,
-                reason: "Detail API itemPath \(apiRule.itemPath) resolved as \(itemPathResolution.state.rawValue)"
-            )
-        }
-        let itemObjects: [Any] = itemPathResolution.values
-
-        var chapters: [ChapterLink] = []
-        var sortableChapters: [(chapter: ChapterLink, order: Double?)] = []
-        var seenURLs: Set<String> = Set<String>()
-
-        for itemObject: Any in itemObjects {
-            guard let title: String = ComicRuleJSONResolver.stringValue(
-                ComicRuleJSONResolver.firstJSONValue(at: apiRule.titlePath, in: itemObject)
-            )?.trimmingCharacters(in: .whitespacesAndNewlines),
-                  title.isEmpty == false,
-                  let chapterURL: String = self.chapterURL(
-                    apiRule: apiRule,
-                    source: source,
-                    item: item,
-                    rootJSON: jsonObject,
-                    currentJSON: itemObject
-                  ),
-                  chapterURL.isEmpty == false,
-                  seenURLs.contains(chapterURL) == false else {
-                continue
-            }
-
-            seenURLs.insert(chapterURL)
-            let subtitle: String? = apiRule.descriptionPath.flatMap { path in
-                ComicRuleJSONResolver.stringValue(
-                    ComicRuleJSONResolver.firstJSONValue(at: path, in: itemObject)
-                )?.trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-            let isRestricted: Bool? = self.chapterFlag(
-                path: apiRule.restrictionPath,
-                matching: apiRule.restrictedValues,
-                in: itemObject
-            )
-            let isPaid: Bool? = self.chapterFlag(
-                path: apiRule.paidPath,
-                matching: apiRule.paidValues,
-                in: itemObject
-            )
-            let chapter: ChapterLink = ChapterLink(
-                title: title,
-                subtitle: subtitle?.isEmpty == false ? subtitle : nil,
-                url: chapterURL,
-                isRestricted: isRestricted,
-                isPaid: isPaid
-            )
-            let order: Double? = apiRule.orderPath.flatMap { path in
-                return ComicRuleJSONResolver.doubleValue(
-                    ComicRuleJSONResolver.firstJSONValue(at: path, in: itemObject)
-                )
-            }
-            chapters.append(chapter)
-            sortableChapters.append((chapter: chapter, order: order))
-        }
-
-        let sortedChapters: [ChapterLink] = self.sortedAPIChapters(sortableChapters, sort: apiRule.sort)
-        let outputChapters: [ChapterLink] = sortedChapters.isEmpty ? chapters : sortedChapters
         RuleExecutionLogger.log(
             stage: .detail,
             event: "detail-api-parsed",
             fields: [
                 "source": source.id,
                 "item": item.id,
-                "itemCount": itemObjects.count,
-                "chapterCount": outputChapters.count,
-                "firstURL": outputChapters.first?.url ?? "nil"
+                "parser": "core",
+                "chapterCount": parsedDetail.chapters.count,
+                "firstURL": parsedDetail.chapters.first?.url ?? "nil"
             ]
         )
-
-        if itemObjects.isEmpty == false,
-           outputChapters.isEmpty {
-            throw RuleExecutionError.apiResponseContract(
-                stage: .detail,
-                sourceID: source.id,
-                reason: "Detail API itemPath returned \(itemObjects.count) values, but all chapter mappings failed"
-            )
-        }
-        guard outputChapters.isEmpty == false else {
-            return nil
-        }
-
-        return ComicRuleParsedDetail(
-            chapters: outputChapters,
-            description: nil
-        )
-    }
-
-    /// 中文注释：字段缺失或类型不是标量时保留 unknown；只有真实标量才与规则声明值比较。
-    private func chapterFlag(
-        path: String?,
-        matching values: [APIResponseScalar]?,
-        in itemObject: Any
-    ) -> Bool? {
-        guard let path = path?.trimmingCharacters(in: .whitespacesAndNewlines),
-              path.isEmpty == false,
-              let values,
-              values.isEmpty == false,
-              let rawValue = ComicRuleJSONResolver.firstJSONValue(at: path, in: itemObject),
-              let scalar = ComicRuleJSONResolver.responseScalar(rawValue) else {
-            return nil
-        }
-        return values.contains(scalar)
+        return parsedDetail.chapters.isEmpty ? nil : parsedDetail
     }
 
     private func fallbackMetadata(item: ContentItem) -> ComicRuleParsedDetailMetadata {
@@ -444,61 +313,6 @@ struct ComicSourceDetailLoader {
             item: item,
             defaultUserAgent: self.defaultUserAgent
         )
-    }
-
-    private func chapterURL(
-        apiRule: DetailChapterAPIRule,
-        source: Source,
-        item: ContentItem,
-        rootJSON: Any,
-        currentJSON: Any
-    ) -> String? {
-        if let urlTemplate: String = apiRule.urlTemplate,
-           urlTemplate.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            return ComicRuleAPITemplateResolver.replacingTemplatePlaceholders(
-                in: urlTemplate,
-                source: source,
-                item: item,
-                rootJSON: rootJSON,
-                currentJSON: currentJSON,
-                defaultUserAgent: self.defaultUserAgent
-            )
-        }
-
-        guard let urlPath: String = apiRule.urlPath,
-              let rawURL: String = ComicRuleJSONResolver.stringValue(
-                ComicRuleJSONResolver.firstJSONValue(at: urlPath, in: currentJSON)
-              ) else {
-            return nil
-        }
-
-        return URLResolvingService().absoluteString(rawURL, baseURLString: item.detailURL)
-    }
-
-    private func sortedAPIChapters(
-        _ chapters: [(chapter: ChapterLink, order: Double?)],
-        sort: ChapterSort?
-    ) -> [ChapterLink] {
-        guard let sort: ChapterSort = sort,
-              sort != .none,
-              chapters.contains(where: { pair in pair.order != nil }) else {
-            return []
-        }
-
-        return chapters.sorted { lhs, rhs in
-            let lhsOrder: Double = lhs.order ?? 0
-            let rhsOrder: Double = rhs.order ?? 0
-
-            switch sort {
-            case .ascending:
-                return lhsOrder < rhsOrder
-            case .descending:
-                return lhsOrder > rhsOrder
-            case .none:
-                return false
-            }
-        }
-        .map(\.chapter)
     }
 
     private func hasInvalidChapterURLs(_ chapters: [ChapterLink]) -> Bool {

@@ -95,12 +95,7 @@ final class AppContainer {
                 browserRequestHeaderProvider: browserRequestHeaderProvider,
                 systemCookieHeaderProvider: systemCookieHeaderProvider
             )
-            let legacyComicRuleParser: SwiftSoupComicRuleSourceParser = SwiftSoupComicRuleSourceParser(
-                urlResolver: urlResolver
-            )
-            let comicRuleParser: ComicRuleSourceParsingService = CoreComicRuleSourceParser(
-                fallbackParser: legacyComicRuleParser
-            )
+            let comicRuleParser: ComicRuleSourceParsingService = CoreComicRuleSourceParser()
             let sourceRuntimeFactory: SourceRuntimeFactory = SourceRuntimeFactory(
                 comicSourceRuntimeFactory: ComicSourceRuntimeFactory(
                     pageContentLoader: pageLoader,

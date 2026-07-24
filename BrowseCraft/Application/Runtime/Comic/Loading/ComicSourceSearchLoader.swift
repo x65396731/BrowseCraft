@@ -11,7 +11,6 @@ struct SearchSourceResult: Hashable {
 struct ComicSourceSearchLoader {
     private let pageContentLoader: PageContentLoader
     private let comicRuleParser: ComicRuleSourceParsingService
-    private let paginationParser: ComicRulePaginationParsingService?
     private let urlResolver: URLResolvingService
 
     init(
@@ -21,7 +20,6 @@ struct ComicSourceSearchLoader {
     ) {
         self.pageContentLoader = pageContentLoader
         self.comicRuleParser = comicRuleParser
-        self.paginationParser = comicRuleParser as? ComicRulePaginationParsingService
         self.urlResolver = urlResolver
     }
 
@@ -88,7 +86,7 @@ struct ComicSourceSearchLoader {
             ]
         )
 
-        let html: String = try await self.pageContentLoader.loadContent(
+        let response = try await self.pageContentLoader.loadContent(
             PageLoadRequest(
                 url: url,
                 requestConfig: request,
@@ -99,15 +97,16 @@ struct ComicSourceSearchLoader {
                     refererURL: url
                 )
             )
-        ).content
-        let items: [ContentItem] = try self.comicRuleParser.parseSearch(
-            html: html,
+        )
+        let parsedResult: ComicRuleParsedListResult = try self.comicRuleParser.parseSearchResult(
+            html: response.content,
             source: source,
             searchRule: entry.rule,
             context: context,
-            pageURL: url,
+            pageURL: response.finalURL,
             currentPage: page
         )
+        let items = parsedResult.items
 
         RuleExecutionLogger.log(
             stage: .search,
@@ -131,12 +130,11 @@ struct ComicSourceSearchLoader {
         }
 
         let pagination: PaginationResolution? = try self.pagination(
-            html: html,
+            parsedPagination: parsedResult.pagination,
             source: source,
             entry: entry,
             keyword: keyword,
             currentPage: page,
-            currentURL: url,
             urlOverride: urlOverride
         )
 
@@ -213,12 +211,11 @@ struct ComicSourceSearchLoader {
     }
 
     private func pagination(
-        html: String,
+        parsedPagination: PaginationResolution?,
         source: Source,
         entry: SearchRuleEntry,
         keyword: String,
         currentPage: Int,
-        currentURL: URL,
         urlOverride: String?
     ) throws -> PaginationResolution? {
         guard let pagination: PaginationRule = entry.rule.pagination else {
@@ -244,21 +241,11 @@ struct ComicSourceSearchLoader {
             pagination: pagination,
             urlOverride: urlOverride
         )
-        let extractedURL: String? = try self.paginationParser?.parseNextPageURL(
-            html: html,
-            source: source,
-            pagination: pagination,
-            currentURL: currentURL
-        )
-
-        if let extractedURL: String = self.nonEmpty(extractedURL) {
+        if let extractedURL: String = self.nonEmpty(parsedPagination?.nextURL) {
             return PaginationResolution(
                 currentPage: normalizedPage,
-                nextPage: normalizedPage + 1,
-                nextURL: self.urlResolver.absoluteString(
-                    extractedURL,
-                    baseURLString: currentURL.absoluteString
-                ),
+                nextPage: parsedPagination?.nextPage ?? normalizedPage + 1,
+                nextURL: extractedURL,
                 source: .nextPageLink
             )
         }

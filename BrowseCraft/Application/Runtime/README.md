@@ -41,9 +41,9 @@ RSS/    Loading/ Mapping/ Parsing/
 Video/  API/ Detection/ Loading/ Parsing/ Playback/ Rendering/
 ```
 
-`Parsing/` contains App-side protocols and normalized parser results. Concrete
-SwiftSoup adapters remain under `Infrastructure/Parsing/`; loaders and runtime
-factories must depend on parsing protocols instead of importing SwiftSoup.
+`Parsing/` contains App-side protocols, normalized parser results, and the
+adapter that hands loaded documents to `BrowseCraftCore`. Loaders and runtime
+factories depend on this boundary and never import SwiftSoup.
 
 Naming follows the responsibility rather than the historical folder name:
 
@@ -78,18 +78,16 @@ Responsibilities:
 - Keep `SourceDefinitionMapper` as the runtime-neutral Source-to-Core metadata
   mapping boundary.
 - Keep `Runtime/Comic/ComicSourceRuntime` as the rule-backed runtime implementation.
-- Keep comic API request/context replacement in `ComicRuleAPITemplateResolver`
-  and JSON Path/value mapping in `ComicRuleJSONResolver`.
-- Keep comic business-response evaluation in `ComicRuleAPIResponseEvaluator`.
-  Its private legacy evaluator is the only missing-policy compatibility path;
-  explicit policies never enter legacy evaluation.
+- Keep comic API request/context replacement in `ComicRuleAPITemplateResolver`.
+  App-side JSON mapping and `ComicRuleAPIResponseEvaluator` remain only for the
+  legacy `listAPI` compatibility path.
 - Keep rule-only loading in `Runtime/Comic/Loading/`; list/search/detail/reader loaders
   are runtime internals, not shared App use cases.
-- Keep comic parsing contracts and normalized parser results in `Runtime/Comic/Parsing/`,
-  behind `ComicRuleSourceParsingService`. The SwiftSoup
-  adapter converts one DOM document into `ComicRuleParsedDetailMetadata + chapters`; the detail
-  loader only orchestrates direct-chapter, DOM, and chapter-API selection. SwiftSoup types and
-  selector mechanics must not leak into the loader or `SourceRuntime`.
+- Keep comic parsing contracts and normalized parser results in
+  `Runtime/Comic/Parsing/`, behind `ComicRuleSourceParsingService`.
+  `CoreComicRuleSourceParser` delegates DOM, chapterAPI, and imageAPI response
+  interpretation to Core. App loaders only orchestrate transport, final URLs,
+  direct-chapter selection, and DOM/API routing.
 - Normalize the parser output to Core `SourceDetailOutput` only in
   `ComicSourceRuntimeMapper`. `DetailChapterAPIRule.descriptionPath` is chapter subtitle
   semantics and must not be reused as a work-level detail description.
@@ -190,8 +188,8 @@ leaving the App's existing transport implementation unchanged.
 
 Non-goals:
 
-- Do not move SwiftSoup, WebView, Nuke, or network implementations into
-  `BrowseCraftCore`.
+- Do not expose SwiftSoup types across the Core boundary or move App WebView,
+  Nuke, credential, Cookie, or network implementations into `BrowseCraftCore`.
 - Do not treat comic `SiteRule` as the App-wide source axis.
 - Do not add RSS, `VideoSiteRule`, or plugin behavior as more comic `SiteRule` fields.
 - Do not route RSS through `ComicSourceRuntime`; RSS uses `RSSSourceRuntime`.

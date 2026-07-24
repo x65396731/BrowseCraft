@@ -22,7 +22,7 @@ struct ComicRulePageRequestRoutingTests {
                 """
             ]
         )
-        let parser = SwiftSoupComicRuleSourceParser(urlResolver: URLResolvingService())
+        let parser = CoreComicRuleSourceParser()
         let source = Self.source()
         let item = ContentItem(
             id: "comic-1",

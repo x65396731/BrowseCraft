@@ -75,45 +75,46 @@ struct CoreComicRuleSourceParserTests {
         )
     }
 
-    @Test func coreAdapterKeepsLegacyEmbeddedCoverFallbackDuringMigration() throws {
-        let source = Self.embeddedCoverSource()
+    @Test func coreAdapterReturnsSearchPaginationFromCore() throws {
+        let source = try Self.v2Source()
         let parser = Self.parser()
-        let items = try parser.parseList(
+        let searchRule = SearchRule(
+            id: "search",
+            url: "https://example.test/search?q={keyword:}&page={page}",
+            listRuleRef: nil,
+            item: ExtractRule(selector: ".search-item", function: .raw),
+            fields: ListFields(
+                title: ExtractRule(selector: ".title", function: .text),
+                detailURL: ExtractRule(selector: "a", function: .url, param: "href")
+            ),
+            pagination: PaginationRule(
+                nextPage: ExtractRule(selector: "a.next", function: .url, param: "href")
+            )
+        )
+        let result = try parser.parseSearchResult(
             html: """
             <main>
-              <div class="comic-card-wrapper">
-                <a href="/comic/5571">小栗子到我家</a>
+              <div class="search-item">
+                <a class="title" href="/comic/5571">小栗子到我家</a>
               </div>
-              <script>
-                window.__DATA__ = {
-                  "items": [{
-                    "url": "/comic/5571",
-                    "title": "小栗子到我家",
-                    "imageUrl": "/images/cover-5571.jpg"
-                  }]
-                };
-              </script>
+              <a class="next" href="/search?q=test&page=2">Next</a>
             </main>
             """,
             source: source,
-            listRule: source.rule.primaryListRule,
+            searchRule: searchRule,
             context: nil,
-            sections: nil,
-            pageURL: URL(string: "https://example.test/updates")!,
+            pageURL: URL(string: "https://example.test/search?q=test&page=1")!,
             currentPage: 1
         )
 
-        #expect(items.count == 1)
-        #expect(items[0].detailURL == "https://example.test/comic/5571")
-        #expect(items[0].coverURL == "https://example.test/images/cover-5571.jpg")
+        #expect(result.items.map(\.title) == ["小栗子到我家"])
+        #expect(result.pagination?.nextPage == 2)
+        #expect(result.pagination?.nextURL == "https://example.test/search?q=test&page=2")
+        #expect(result.pagination?.source == .nextPageLink)
     }
 
     private static func parser() -> CoreComicRuleSourceParser {
-        return CoreComicRuleSourceParser(
-            fallbackParser: SwiftSoupComicRuleSourceParser(
-                urlResolver: URLResolvingService()
-            )
-        )
+        return CoreComicRuleSourceParser()
     }
 
     private static func v2Source() throws -> Source {
@@ -136,30 +137,4 @@ struct CoreComicRuleSourceParserTests {
         )
     }
 
-    private static func embeddedCoverSource() -> Source {
-        let rule = SiteRule(
-            version: 1,
-            name: "Embedded Cover",
-            baseUrl: "https://example.test",
-            list: ListRule(
-                id: "updates",
-                url: "https://example.test/updates",
-                item: ".comic-card-wrapper",
-                title: "a",
-                link: "a@href",
-                cover: "img@src",
-                type: .comic
-            )
-        )
-        return Source(
-            id: "core-adapter-legacy",
-            name: "Core Adapter Legacy",
-            baseURL: "https://example.test",
-            type: .html,
-            rule: rule,
-            enabled: true,
-            createdAt: Date(timeIntervalSince1970: 0),
-            updatedAt: Date(timeIntervalSince1970: 0)
-        )
-    }
 }

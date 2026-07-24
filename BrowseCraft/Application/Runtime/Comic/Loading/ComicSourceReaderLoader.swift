@@ -119,7 +119,7 @@ struct ComicSourceReaderLoader {
                         "imageItem": galleryRule.imageItem
                     ]
                 )
-                let html: String = try await self.pageContentLoader.loadContent(
+                let response = try await self.pageContentLoader.loadContent(
                     PageLoadRequest(
                         url: chapterURL,
                         requestConfig: resolvedRule.primaryGalleryRequest,
@@ -129,12 +129,12 @@ struct ComicSourceReaderLoader {
                             refererURL: chapterURL
                         )
                     )
-                ).content
+                )
                 chapter = try self.comicRuleParser.parseReader(
-                    html: html,
+                    html: response.content,
                     source: source,
                     galleryRule: galleryRule,
-                    pageURL: chapterURLString,
+                    pageURL: response.finalURL.absoluteString,
                     context: item.listContext
                 )
             }
@@ -207,7 +207,7 @@ struct ComicSourceReaderLoader {
             )
         }
 
-        let detailHTML: String = try await self.pageContentLoader.loadContent(
+        let detailResponse = try await self.pageContentLoader.loadContent(
             PageLoadRequest(
                 url: detailURL,
                 requestConfig: resolvedRule.primaryDetailRequest,
@@ -217,14 +217,14 @@ struct ComicSourceReaderLoader {
                     refererURL: detailURL
                 )
             )
-        ).content
+        )
         let chapters: [ChapterLink]
         if let detailRule: DetailRule = resolvedRule.primaryDetailRule {
             chapters = try self.comicRuleParser.parseDetailChapters(
-                html: detailHTML,
+                html: detailResponse.content,
                 source: source,
                 detailRule: detailRule,
-                pageURL: item.detailURL,
+                pageURL: detailResponse.finalURL.absoluteString,
                 context: item.listContext
             )
         } else {
@@ -399,345 +399,38 @@ struct ComicSourceReaderLoader {
                 )
             )
         )
-        let json: String = response.content
-        if let apiParser = self.comicRuleParser as? ComicRuleAPIResponseParsingService {
-            guard let chapterURL = URL(string: chapterURLString) else {
-                throw RuleExecutionError.ruleConfiguration(
-                    stage: .reader,
-                    sourceID: source.id,
-                    reason: "Invalid chapter URL: \(chapterURLString)"
-                )
-            }
-            let parsedChapter = try apiParser.parseImageAPIResponse(
-                json: json,
-                finalURL: response.finalURL,
-                source: source,
-                item: item,
-                apiRule: apiRule,
-                chapterURL: chapterURL,
-                chapterFinalURL: chapterFinalURL,
-                context: item.listContext
-            )
-            RuleExecutionLogger.log(
-                stage: .reader,
-                event: "image-api-parsed",
-                fields: [
-                    "source": source.id,
-                    "item": item.id,
-                    "parser": "core",
-                    "chapterURL": chapterURLString,
-                    "pageCount": parsedChapter.pageImageURLs.count,
-                    "firstImage": self.safeResourceURLDescription(
-                        parsedChapter.pageImageURLs.first
-                    )
-                ]
-            )
-            return parsedChapter.pageImageURLs.isEmpty ? nil : parsedChapter
-        }
-
-        let jsonObject: Any = try JSONSerialization.jsonObject(with: Data(json.utf8))
-        let responseEvaluation = ComicRuleAPIResponseEvaluator.evaluate(
-            json: jsonObject,
-            responsePolicy: apiRule.responsePolicy
-        )
-        switch responseEvaluation {
-        case .allowParsing:
-            break
-        case .businessFailure(let message):
-            throw RuleExecutionError.sourceAPI(
+        guard let chapterURL = URL(string: chapterURLString) else {
+            throw RuleExecutionError.ruleConfiguration(
                 stage: .reader,
                 sourceID: source.id,
-                reason: "Reader image API returned error: \(message)"
+                reason: "Invalid chapter URL: \(chapterURLString)"
             )
         }
-        let itemPathResolution = ComicRuleJSONResolver.jsonArrayResolution(
-            at: apiRule.itemPath,
-            in: jsonObject
+        let parsedChapter = try self.comicRuleParser.parseImageAPIResponse(
+            json: response.content,
+            finalURL: response.finalURL,
+            source: source,
+            item: item,
+            apiRule: apiRule,
+            chapterURL: chapterURL,
+            chapterFinalURL: chapterFinalURL,
+            context: item.listContext
         )
-        guard itemPathResolution.state == .empty || itemPathResolution.state == .nonEmpty else {
-            throw RuleExecutionError.apiResponseContract(
-                stage: .reader,
-                sourceID: source.id,
-                reason: "Reader image API itemPath \(apiRule.itemPath) resolved as \(itemPathResolution.state.rawValue)"
-            )
-        }
-        let itemObjects: [Any] = itemPathResolution.values
-
-        if itemPathResolution.state == .empty,
-           apiRule.emptyResultPolicy == .requiresAccount {
-            RuleExecutionLogger.log(
-                stage: .reader,
-                event: "image-api-access-required",
-                fields: [
-                    "source": source.id,
-                    "item": item.id,
-                    "chapterURL": chapterURLString,
-                    "itemArrayState": "empty",
-                    "policy": apiRule.emptyResultPolicy?.rawValue ?? "nil"
-                ]
-            )
-            throw RuleExecutionError.accessRequired(
-                stage: .reader,
-                sourceID: source.id,
-                url: chapterURLString
-            )
-        }
-
-        var sortableImagePages: [(url: String, headers: [String: String], resource: ReaderPageResource, order: Double?)] = []
-        var imagePages: [(url: String, headers: [String: String], resource: ReaderPageResource)] = []
-        var seenURLs: Set<String> = Set<String>()
-
-        for (itemIndex, itemObject): (Int, Any) in itemObjects.enumerated() {
-            let resolvedImageURL: String? = self.imageURL(
-                apiRule: apiRule,
-                source: source,
-                item: item,
-                chapterURLString: chapterURLString,
-                rootJSON: jsonObject,
-                currentJSON: itemObject
-            )
-            guard let resource: ReaderPageResource = try self.readerPageResource(
-                apiRule: apiRule,
-                source: source,
-                chapterURLString: chapterURLString,
-                itemIndex: itemIndex,
-                imageURL: resolvedImageURL,
-                rootJSON: jsonObject,
-                currentJSON: itemObject,
-                chapterFinalURL: chapterFinalURL
-            ) else {
-                continue
-            }
-            let imageURL: String = resource.displayURLString
-            guard imageURL.isEmpty == false,
-                  self.isNativelyLoadableImageURL(imageURL),
-                  seenURLs.contains(imageURL) == false else {
-                continue
-            }
-
-            seenURLs.insert(imageURL)
-            let imageHeaders: [String: String] = self.imageHeaders(
-                apiRule: apiRule,
-                source: source,
-                item: item,
-                chapterURLString: chapterURLString,
-                rootJSON: jsonObject,
-                currentJSON: itemObject
-            )
-            imagePages.append((url: imageURL, headers: imageHeaders, resource: resource))
-            let order: Double? = apiRule.orderPath.flatMap { path in
-                return ComicRuleJSONResolver.doubleValue(
-                    ComicRuleJSONResolver.firstJSONValue(at: path, in: itemObject)
-                )
-            }
-            sortableImagePages.append((url: imageURL, headers: imageHeaders, resource: resource, order: order))
-        }
-
-        let sortedImagePages: [(url: String, headers: [String: String], resource: ReaderPageResource)] = self.sortedImagePages(
-            sortableImagePages,
-            sort: apiRule.sort
-        )
-        let outputImagePages: [(url: String, headers: [String: String], resource: ReaderPageResource)] = sortedImagePages.isEmpty
-            ? imagePages
-            : sortedImagePages
-        let outputImageURLs: [String] = outputImagePages.map(\.url)
-        let outputResources: [ReaderPageResource] = outputImagePages.map(\.resource)
-        let outputImageHeaders: [String: [String: String]] = Dictionary(
-            uniqueKeysWithValues: outputImagePages
-                .filter { page in page.headers.isEmpty == false }
-                .map { page in (page.url, page.headers) }
-        )
-
         RuleExecutionLogger.log(
             stage: .reader,
             event: "image-api-parsed",
             fields: [
                 "source": source.id,
                 "item": item.id,
+                "parser": "core",
                 "chapterURL": chapterURLString,
-                "itemCount": itemObjects.count,
-                "pageCount": outputImageURLs.count,
-                "protectedCount": outputResources.filter { resource in
-                    if case .protectedResource = resource {
-                        return true
-                    }
-                    return false
-                }.count,
-                "imageHeaderPages": outputImageHeaders.count,
-                "firstImage": self.safeResourceURLDescription(outputImageURLs.first)
+                "pageCount": parsedChapter.pageImageURLs.count,
+                "firstImage": self.safeResourceURLDescription(
+                    parsedChapter.pageImageURLs.first
+                )
             ]
         )
-
-        if itemObjects.isEmpty == false,
-           outputImageURLs.isEmpty {
-            throw RuleExecutionError.apiResponseContract(
-                stage: .reader,
-                sourceID: source.id,
-                reason: "Reader image API itemPath returned \(itemObjects.count) values, but all image mappings failed"
-            )
-        }
-        guard outputImageURLs.isEmpty == false else {
-            return nil
-        }
-
-        return ReaderChapter(
-            sourceId: source.id,
-            comicTitle: nil,
-            chapterTitle: nil,
-            chapterURL: chapterURLString,
-            catalogURL: nil,
-            previousChapterURL: nil,
-            nextChapterURL: nil,
-            pageImageURLs: outputImageURLs,
-            pageResources: outputResources,
-            pageImageHeaders: outputImageHeaders
-        )
-    }
-
-    private func imageURL(
-        apiRule: ReaderImageAPIRule,
-        source: Source,
-        item: ContentItem,
-        chapterURLString: String,
-        rootJSON: Any,
-        currentJSON: Any
-    ) -> String? {
-        if let urlTemplate: String = apiRule.urlTemplate,
-           urlTemplate.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            return ComicRuleAPITemplateResolver.replacingTemplatePlaceholders(
-                in: urlTemplate,
-                source: source,
-                item: item,
-                chapterURL: chapterURLString,
-                rootJSON: rootJSON,
-                currentJSON: currentJSON,
-                defaultUserAgent: self.defaultUserAgent
-            )
-        }
-
-        guard let urlPath: String = apiRule.urlPath,
-              let rawURL: String = ComicRuleJSONResolver.stringValue(
-                ComicRuleJSONResolver.firstJSONValue(at: urlPath, in: currentJSON)
-              ) else {
-            return nil
-        }
-
-        return URLResolvingService().absoluteString(rawURL, baseURLString: chapterURLString)
-    }
-
-    private func imageHeaders(
-        apiRule: ReaderImageAPIRule,
-        source: Source,
-        item: ContentItem,
-        chapterURLString: String,
-        rootJSON: Any,
-        currentJSON: Any
-    ) -> [String: String] {
-        guard let headerTemplates: [String: String] = apiRule.imageHeaders,
-              headerTemplates.isEmpty == false else {
-            return [:]
-        }
-
-        return headerTemplates.reduce(into: [String: String]()) { headers, pair in
-            let value: String = ComicRuleAPITemplateResolver.replacingTemplatePlaceholders(
-                in: pair.value,
-                source: source,
-                item: item,
-                chapterURL: chapterURLString,
-                rootJSON: rootJSON,
-                currentJSON: currentJSON,
-                defaultUserAgent: self.defaultUserAgent
-            )
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-            if value.isEmpty == false {
-                headers[pair.key] = value
-            }
-        }
-    }
-
-    private func readerPageResource(
-        apiRule: ReaderImageAPIRule,
-        source: Source,
-        chapterURLString: String,
-        itemIndex: Int,
-        imageURL: String?,
-        rootJSON: Any,
-        currentJSON: Any,
-        chapterFinalURL: URL?
-    ) throws -> ReaderPageResource? {
-        if let resourcePipeline = apiRule.resourcePipeline {
-            let displayURLString: String = self.nonEmpty(imageURL)
-                ?? self.resourcePipelineDisplayURL(
-                    sourceID: source.id,
-                    chapterURLString: chapterURLString,
-                    itemIndex: itemIndex
-                )
-            let legacyFallback: LegacyProtectedReaderImageReference?
-            switch resourcePipeline.executionPolicy {
-            case .pipelineOnly:
-                legacyFallback = nil
-            case .pipelineWithLegacyFallback:
-                guard let protectedResourceRule: ProtectedResourceRule = apiRule.protectedResource,
-                      let legacyDisplayURL: String = self.nonEmpty(imageURL) else {
-                    throw RuleExecutionError.ruleConfiguration(
-                        stage: .reader,
-                        sourceID: source.id,
-                        reason: "resourcePipeline legacy fallback is missing a resolvable protected image URL"
-                    )
-                }
-                legacyFallback = self.legacyProtectedReference(
-                    apiRule: apiRule,
-                    source: source,
-                    imageURL: legacyDisplayURL,
-                    protectedResourceRule: protectedResourceRule,
-                    rootJSON: rootJSON,
-                    currentJSON: currentJSON
-                )
-            }
-
-            return .protectedResource(
-                ProtectedReaderImageReference(
-                    execution: .pipeline(
-                        ResourcePipelineReaderImageReference(
-                            displayURLString: displayURLString,
-                            sourceID: source.id,
-                            baseURL: URL(string: source.baseURL),
-                            rule: resourcePipeline.pipeline,
-                            item: try self.resourcePipelineScope(from: currentJSON),
-                            root: try self.resourcePipelineScope(from: rootJSON),
-                            context: self.resourcePipelineContext(
-                                source: source,
-                                chapterFinalURL: chapterFinalURL
-                            ),
-                            legacyFallback: legacyFallback
-                        )
-                    )
-                )
-            )
-        }
-
-        guard let imageURL: String = self.nonEmpty(imageURL) else {
-            return nil
-        }
-        guard let protectedResourceRule: ProtectedResourceRule = apiRule.protectedResource else {
-            return .remoteImageURL(imageURL)
-        }
-
-        return .protectedResource(
-            ProtectedReaderImageReference(
-                execution: .legacy(
-                    self.legacyProtectedReference(
-                        apiRule: apiRule,
-                        source: source,
-                        imageURL: imageURL,
-                        protectedResourceRule: protectedResourceRule,
-                        rootJSON: rootJSON,
-                        currentJSON: currentJSON
-                    )
-                )
-            )
-        )
+        return parsedChapter.pageImageURLs.isEmpty ? nil : parsedChapter
     }
 
     private func chapterFinalURLIfNeeded(
@@ -808,218 +501,6 @@ struct ComicSourceReaderLoader {
             )
         }
         return output
-    }
-
-    private func resourcePipelineContext(
-        source: Source,
-        chapterFinalURL: URL?
-    ) -> [String: ReaderResourcePipelineValue] {
-        var context = ComicRuleAPITemplateResolver.ruleContextValues(source: source).mapValues {
-            ReaderResourcePipelineValue.string($0)
-        }
-        guard let chapterFinalURL,
-              let components = URLComponents(url: chapterFinalURL, resolvingAgainstBaseURL: false) else {
-            return context
-        }
-        var query: [String: ReaderResourcePipelineValue] = [:]
-        var queryAbsolute: [String: ReaderResourcePipelineValue] = [:]
-        for queryItem in components.queryItems ?? [] {
-            let rawValue = queryItem.value ?? ""
-            let absoluteValue = URL(string: rawValue, relativeTo: chapterFinalURL)?.absoluteURL.absoluteString ?? rawValue
-            query[queryItem.name] = .string(rawValue)
-            queryAbsolute[queryItem.name] = .string(absoluteValue)
-        }
-        context["chapter"] = .object([
-            "finalURL": .object([
-                "absoluteString": .string(chapterFinalURL.absoluteString),
-                "query": .object(query),
-                "queryAbsolute": .object(queryAbsolute)
-            ])
-        ])
-        return context
-    }
-
-    private func legacyProtectedReference(
-        apiRule: ReaderImageAPIRule,
-        source: Source,
-        imageURL: String,
-        protectedResourceRule: ProtectedResourceRule,
-        rootJSON: Any,
-        currentJSON: Any
-    ) -> LegacyProtectedReaderImageReference {
-        let parameters: [String: String] = self.protectedResourceParameters(
-            apiRule: apiRule,
-            imageURL: imageURL,
-            protectedResourceRule: protectedResourceRule,
-            rootJSON: rootJSON,
-            currentJSON: currentJSON
-        )
-
-        return LegacyProtectedReaderImageReference(
-            displayURLString: imageURL,
-            sourceID: source.id,
-            baseURL: URL(string: source.baseURL),
-            rule: protectedResourceRule,
-            parameters: parameters
-        )
-    }
-
-    private func nonEmpty(_ value: String?) -> String? {
-        guard let value: String = value?.trimmingCharacters(in: .whitespacesAndNewlines),
-              value.isEmpty == false else {
-            return nil
-        }
-        return value
-    }
-
-    private func resourcePipelineDisplayURL(
-        sourceID: String,
-        chapterURLString: String,
-        itemIndex: Int
-    ) -> String {
-        let identity: String = [sourceID, chapterURLString]
-            .joined(separator: "|")
-            .data(using: .utf8)?
-            .base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "") ?? "reader"
-        return "resource-pipeline://reader/\(identity)/\(itemIndex)"
-    }
-
-    private func resourcePipelineScope(
-        from jsonObject: Any
-    ) throws -> [String: ReaderResourcePipelineValue] {
-        if let object: [String: Any] = jsonObject as? [String: Any] {
-            return try object.mapValues { value in
-                try self.resourcePipelineValue(from: value)
-            }
-        }
-        return ["value": try self.resourcePipelineValue(from: jsonObject)]
-    }
-
-    private func resourcePipelineValue(from jsonValue: Any) throws -> ReaderResourcePipelineValue {
-        if jsonValue is NSNull {
-            return .null
-        }
-        if let value: String = jsonValue as? String {
-            return .string(value)
-        }
-        if let value: Bool = jsonValue as? Bool {
-            return .boolean(value)
-        }
-        if let value: NSNumber = jsonValue as? NSNumber {
-            return .number(value.doubleValue)
-        }
-        if let value: [String: Any] = jsonValue as? [String: Any] {
-            return .object(try value.mapValues { nestedValue in
-                try self.resourcePipelineValue(from: nestedValue)
-            })
-        }
-        if let value: [Any] = jsonValue as? [Any] {
-            return .array(try value.map { nestedValue in
-                try self.resourcePipelineValue(from: nestedValue)
-            })
-        }
-
-        throw RuleExecutionError.ruleConfiguration(
-            stage: .reader,
-            sourceID: "unknown",
-            reason: "resourcePipeline scope contains an unsupported JSON value"
-        )
-    }
-
-    private func protectedResourceParameters(
-        apiRule: ReaderImageAPIRule,
-        imageURL: String,
-        protectedResourceRule: ProtectedResourceRule,
-        rootJSON: Any,
-        currentJSON: Any
-    ) -> [String: String] {
-        var parameters: [String: String] = [:]
-
-        if let urlTemplate: String = apiRule.urlTemplate {
-            self.templateTokens(in: urlTemplate).forEach { token in
-                if let value: String = ComicRuleJSONResolver.stringValue(
-                    ComicRuleJSONResolver.firstJSONValue(at: token, in: currentJSON)
-                ) ?? ComicRuleJSONResolver.stringValue(
-                    ComicRuleJSONResolver.firstJSONValue(at: token, in: rootJSON)
-                ),
-                   value.isEmpty == false {
-                    parameters[token] = value
-                }
-            }
-        }
-
-        if let urlComponents: URLComponents = URLComponents(string: imageURL) {
-            urlComponents.queryItems?.forEach { item in
-                if let value: String = item.value,
-                   value.isEmpty == false {
-                    parameters[item.name] = value
-                }
-            }
-        }
-
-        return parameters
-    }
-
-    private func templateTokens(in template: String) -> [String] {
-        let pattern: String = #"\{([^{}]+)\}"#
-        guard let regex: NSRegularExpression = try? NSRegularExpression(pattern: pattern) else {
-            return []
-        }
-
-        return regex.matches(
-            in: template,
-            range: NSRange(template.startIndex..<template.endIndex, in: template)
-        )
-        .compactMap { match in
-            guard match.numberOfRanges == 2,
-                  let range: Range<String.Index> = Range(match.range(at: 1), in: template) else {
-                return nil
-            }
-
-            return String(template[range])
-        }
-    }
-
-    private func sortedImagePages(
-        _ pages: [(url: String, headers: [String: String], resource: ReaderPageResource, order: Double?)],
-        sort: ChapterSort?
-    ) -> [(url: String, headers: [String: String], resource: ReaderPageResource)] {
-        guard let sort: ChapterSort = sort,
-              sort != .none,
-              pages.contains(where: { page in page.order != nil }) else {
-            return []
-        }
-
-        return pages.sorted { lhs, rhs in
-            let lhsOrder: Double = lhs.order ?? 0
-            let rhsOrder: Double = rhs.order ?? 0
-
-            switch sort {
-            case .ascending:
-                return lhsOrder < rhsOrder
-            case .descending:
-                return lhsOrder > rhsOrder
-            case .none:
-                return false
-            }
-        }
-        .map { page in
-            return (url: page.url, headers: page.headers, resource: page.resource)
-        }
-    }
-
-    private func isNativelyLoadableImageURL(_ urlString: String) -> Bool {
-        let normalizedURLString: String = urlString
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-
-        return normalizedURLString.hasPrefix("blob:") == false
-            && normalizedURLString.hasPrefix("data:") == false
-            && normalizedURLString.hasPrefix("about:") == false
-            && normalizedURLString.hasPrefix("javascript:") == false
     }
 
     /// 中文注释：Reader 图片常带临时签名，只记录 scheme/host/path，避免查询凭据进入日志。

@@ -171,11 +171,7 @@ struct ComicSourceDetailLoaderTests {
     }
 
     private static func coreParser() -> CoreComicRuleSourceParser {
-        return CoreComicRuleSourceParser(
-            fallbackParser: SwiftSoupComicRuleSourceParser(
-                urlResolver: URLResolvingService()
-            )
-        )
+        return CoreComicRuleSourceParser()
     }
 }
 

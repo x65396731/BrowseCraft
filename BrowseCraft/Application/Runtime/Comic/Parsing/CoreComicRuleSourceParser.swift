@@ -2,69 +2,12 @@ import Foundation
 import BrowseCraftCore
 
 /// 中文注释：App 只把已经加载完成的文档交给 Core；网络、Cookie、WebView 与凭据仍由 Loader 负责。
-/// 中文注释：迁移期间保留 SwiftSoup parser 作为失败/空结果回退，等 App characterization 全部稳定后再删除。
-struct CoreComicRuleSourceParser:
-    ComicRuleSourceParsingService,
-    ComicRuleAPIResponseParsingService,
-    ComicRulePaginationParsingService {
+/// 中文注释：所有确定性 comic 规则解释均由 Core 完成，App 不再保留第二套 SwiftSoup 实现。
+struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
     private let parser: BrowseCraftCore.DefaultComicRuleParser
-    private let fallbackParser: SwiftSoupComicRuleSourceParser
 
-    init(
-        parser: BrowseCraftCore.DefaultComicRuleParser = .init(),
-        fallbackParser: SwiftSoupComicRuleSourceParser
-    ) {
+    init(parser: BrowseCraftCore.DefaultComicRuleParser = .init()) {
         self.parser = parser
-        self.fallbackParser = fallbackParser
-    }
-
-    func parseList(html: String, source: Source) throws -> [ContentItem] {
-        return try self.parseList(
-            html: html,
-            source: source,
-            listRule: source.rule.primaryListRule
-        )
-    }
-
-    func parseList(
-        html: String,
-        source: Source,
-        listRule: ListRule
-    ) throws -> [ContentItem] {
-        return try self.parseList(
-            html: html,
-            source: source,
-            listRule: listRule,
-            context: nil,
-            sections: nil
-        )
-    }
-
-    func parseList(
-        html: String,
-        source: Source,
-        listRule: ListRule,
-        context: ListContext?,
-        sections: [SectionRule]?
-    ) throws -> [ContentItem] {
-        guard let pageURL = URL(string: source.baseURL) else {
-            return try self.fallbackParser.parseList(
-                html: html,
-                source: source,
-                listRule: listRule,
-                context: context,
-                sections: sections
-            )
-        }
-        return try self.parseList(
-            html: html,
-            source: source,
-            listRule: listRule,
-            context: context,
-            sections: sections,
-            pageURL: pageURL,
-            currentPage: nil
-        )
     }
 
     func parseList(
@@ -76,192 +19,64 @@ struct CoreComicRuleSourceParser:
         pageURL: URL,
         currentPage: Int?
     ) throws -> [ContentItem] {
-        do {
-            let output = try self.parser.parseList(
-                BrowseCraftCore.ComicListParsingInput(
-                    document: self.htmlDocument(html, finalURL: pageURL),
-                    rule: listRule,
-                    sections: sections,
-                    listContext: context,
-                    runtimeContext: self.runtimeContext(
-                        source: source,
-                        operation: .list,
-                        context: context,
-                        ruleID: listRule.id
-                    ),
-                    currentPage: currentPage
-                )
+        let output = try self.parser.parseList(
+            BrowseCraftCore.ComicListParsingInput(
+                document: self.htmlDocument(html, finalURL: pageURL),
+                rule: listRule,
+                sections: sections,
+                listContext: context,
+                runtimeContext: self.runtimeContext(
+                    source: source,
+                    operation: .list,
+                    context: context,
+                    ruleID: listRule.id
+                ),
+                currentPage: currentPage
             )
-            let items = self.contentItems(
-                from: output.items,
-                source: source,
-                fallbackContext: context
-            )
-            if items.isEmpty == false {
-                if items.contains(where: { $0.coverURL == nil }) {
-                    let fallbackItems = try? self.fallbackParser.parseList(
-                        html: html,
-                        source: source,
-                        listRule: listRule,
-                        context: context,
-                        sections: sections
-                    )
-                    return self.mergingListFallback(
-                        coreItems: items,
-                        fallbackItems: fallbackItems ?? []
-                    )
-                }
-                return items
-            }
-        } catch {
-            self.logFallback(
-                source: source,
-                operation: "list",
-                reason: error.localizedDescription
-            )
-        }
-
-        return try self.fallbackParser.parseList(
-            html: html,
+        )
+        return self.contentItems(
+            from: output.items,
             source: source,
-            listRule: listRule,
-            context: context,
-            sections: sections
+            fallbackContext: context
         )
     }
 
-    func parseSearch(
-        html: String,
-        source: Source,
-        searchRule: SearchRule,
-        context: ListContext?
-    ) throws -> [ContentItem] {
-        guard let pageURL = URL(string: source.baseURL) else {
-            return try self.fallbackParser.parseSearch(
-                html: html,
-                source: source,
-                searchRule: searchRule,
-                context: context
-            )
-        }
-        return try self.parseSearch(
-            html: html,
-            source: source,
-            searchRule: searchRule,
-            context: context,
-            pageURL: pageURL,
-            currentPage: nil
-        )
-    }
-
-    func parseSearch(
+    func parseSearchResult(
         html: String,
         source: Source,
         searchRule: SearchRule,
         context: ListContext?,
         pageURL: URL,
         currentPage: Int?
-    ) throws -> [ContentItem] {
-        do {
-            let referencedListRule = source.rule.ruleSets?
-                .listRule(id: searchRule.listRuleRef)
-            let output = try self.parser.parseSearch(
-                BrowseCraftCore.ComicSearchParsingInput(
-                    document: self.htmlDocument(html, finalURL: pageURL),
-                    rule: searchRule,
-                    referencedListRule: referencedListRule,
-                    listContext: context,
-                    runtimeContext: self.runtimeContext(
-                        source: source,
-                        operation: .search,
-                        context: context,
-                        ruleID: searchRule.id
-                    ),
-                    currentPage: currentPage
-                )
+    ) throws -> ComicRuleParsedListResult {
+        let referencedListRule = source.rule.ruleSets?
+            .listRule(id: searchRule.listRuleRef)
+        let output = try self.parser.parseSearch(
+            BrowseCraftCore.ComicSearchParsingInput(
+                document: self.htmlDocument(html, finalURL: pageURL),
+                rule: searchRule,
+                referencedListRule: referencedListRule,
+                listContext: context,
+                runtimeContext: self.runtimeContext(
+                    source: source,
+                    operation: .search,
+                    context: context,
+                    ruleID: searchRule.id
+                ),
+                currentPage: currentPage
             )
-            let items = self.contentItems(
+        )
+        return ComicRuleParsedListResult(
+            items: self.contentItems(
                 from: output.items,
                 source: source,
                 fallbackContext: context
+            ),
+            pagination: self.pagination(
+                from: output.pagination,
+                currentPage: currentPage
             )
-            if items.isEmpty == false {
-                if items.contains(where: { $0.coverURL == nil }) {
-                    let fallbackItems = try? self.fallbackParser.parseSearch(
-                        html: html,
-                        source: source,
-                        searchRule: searchRule,
-                        context: context
-                    )
-                    return self.mergingListFallback(
-                        coreItems: items,
-                        fallbackItems: fallbackItems ?? []
-                    )
-                }
-                return items
-            }
-        } catch {
-            self.logFallback(
-                source: source,
-                operation: "search",
-                reason: error.localizedDescription
-            )
-        }
-
-        return try self.fallbackParser.parseSearch(
-            html: html,
-            source: source,
-            searchRule: searchRule,
-            context: context
         )
-    }
-
-    func parseDetailChapters(
-        html: String,
-        source: Source,
-        pageURL: String
-    ) throws -> [ChapterLink] {
-        return try self.parseDetailChapters(
-            html: html,
-            source: source,
-            pageURL: pageURL,
-            context: nil
-        )
-    }
-
-    func parseDetailChapters(
-        html: String,
-        source: Source,
-        pageURL: String,
-        context: ListContext?
-    ) throws -> [ChapterLink] {
-        let resolvedRule = RuleResolver().resolve(source.rule)
-        guard let detailRule = resolvedRule.primaryDetailRule else {
-            return []
-        }
-        return try self.parseDetailChapters(
-            html: html,
-            source: source,
-            detailRule: detailRule,
-            pageURL: pageURL,
-            context: context
-        )
-    }
-
-    func parseDetailChapters(
-        html: String,
-        source: Source,
-        detailRule: DetailRule,
-        pageURL: String,
-        context: ListContext?
-    ) throws -> [ChapterLink] {
-        return try self.parseDetail(
-            html: html,
-            source: source,
-            detailRule: detailRule,
-            pageURL: pageURL,
-            context: context
-        ).chapters
     }
 
     func parseDetail(
@@ -272,104 +87,23 @@ struct CoreComicRuleSourceParser:
         context: ListContext?
     ) throws -> ComicRuleParsedDetail {
         guard let finalURL = URL(string: pageURL) else {
-            return try self.fallbackParser.parseDetail(
-                html: html,
-                source: source,
-                detailRule: detailRule,
-                pageURL: pageURL,
-                context: context
-            )
+            throw BrowseCraftCore.SourceParsingError.invalidURL(value: pageURL)
         }
 
-        do {
-            let output = try self.parser.parseDetail(
-                BrowseCraftCore.ComicDetailParsingInput(
-                    document: self.htmlDocument(html, finalURL: finalURL),
-                    rule: detailRule,
-                    listContext: context,
-                    runtimeContext: self.runtimeContext(
-                        source: source,
-                        operation: .detail,
-                        context: context,
-                        ruleID: detailRule.id
-                    )
+        let output = try self.parser.parseDetail(
+            BrowseCraftCore.ComicDetailParsingInput(
+                document: self.htmlDocument(html, finalURL: finalURL),
+                rule: detailRule,
+                listContext: context,
+                runtimeContext: self.runtimeContext(
+                    source: source,
+                    operation: .detail,
+                    context: context,
+                    ruleID: detailRule.id
                 )
             )
-            let detail = self.detail(from: output)
-            if detail.chapters.isEmpty == false {
-                return detail
-            }
-
-            let fallback = try self.fallbackParser.parseDetail(
-                html: html,
-                source: source,
-                detailRule: detailRule,
-                pageURL: pageURL,
-                context: context
-            )
-            return fallback.chapters.isEmpty ? detail : fallback
-        } catch {
-            self.logFallback(
-                source: source,
-                operation: "detail",
-                reason: error.localizedDescription
-            )
-            return try self.fallbackParser.parseDetail(
-                html: html,
-                source: source,
-                detailRule: detailRule,
-                pageURL: pageURL,
-                context: context
-            )
-        }
-    }
-
-    func parseDetailDescription(
-        html: String,
-        source: Source,
-        detailRule: DetailRule,
-        pageURL: String,
-        context: ListContext?
-    ) throws -> String? {
-        return try self.parseDetail(
-            html: html,
-            source: source,
-            detailRule: detailRule,
-            pageURL: pageURL,
-            context: context
-        ).description
-    }
-
-    func parseReader(
-        html: String,
-        source: Source,
-        pageURL: String
-    ) throws -> ReaderChapter {
-        return try self.parseReader(
-            html: html,
-            source: source,
-            pageURL: pageURL,
-            context: nil
         )
-    }
-
-    func parseReader(
-        html: String,
-        source: Source,
-        pageURL: String,
-        context: ListContext?
-    ) throws -> ReaderChapter {
-        let resolvedRule = RuleResolver().resolve(source.rule)
-        guard let galleryRule = resolvedRule.primaryGalleryRule else {
-            return self.emptyReaderChapter(source: source, pageURL: pageURL)
-        }
-        return try self.parseReader(
-            html: html,
-            source: source,
-            galleryRule: galleryRule,
-            pageURL: pageURL,
-            context: context
-        )
+        return self.detail(from: output)
     }
 
     func parseReader(
@@ -380,48 +114,23 @@ struct CoreComicRuleSourceParser:
         context: ListContext?
     ) throws -> ReaderChapter {
         guard let finalURL = URL(string: pageURL) else {
-            return try self.fallbackParser.parseReader(
-                html: html,
-                source: source,
-                galleryRule: galleryRule,
-                pageURL: pageURL,
-                context: context
-            )
+            throw BrowseCraftCore.SourceParsingError.invalidURL(value: pageURL)
         }
 
-        do {
-            let output = try self.parser.parseReader(
-                BrowseCraftCore.ComicReaderParsingInput(
-                    document: self.htmlDocument(html, finalURL: finalURL),
-                    rule: galleryRule,
-                    listContext: context,
-                    runtimeContext: self.runtimeContext(
-                        source: source,
-                        operation: .reader,
-                        context: context,
-                        ruleID: galleryRule.id
-                    )
+        let output = try self.parser.parseReader(
+            BrowseCraftCore.ComicReaderParsingInput(
+                document: self.htmlDocument(html, finalURL: finalURL),
+                rule: galleryRule,
+                listContext: context,
+                runtimeContext: self.runtimeContext(
+                    source: source,
+                    operation: .reader,
+                    context: context,
+                    ruleID: galleryRule.id
                 )
             )
-            let chapter = self.readerChapter(from: output.chapter)
-            if chapter.pageImageURLs.isEmpty == false {
-                return chapter
-            }
-        } catch {
-            self.logFallback(
-                source: source,
-                operation: "reader",
-                reason: error.localizedDescription
-            )
-        }
-
-        return try self.fallbackParser.parseReader(
-            html: html,
-            source: source,
-            galleryRule: galleryRule,
-            pageURL: pageURL,
-            context: context
         )
+        return self.readerChapter(from: output.chapter)
     }
 
     func parseChapterAPIResponse(
@@ -515,20 +224,6 @@ struct CoreComicRuleSourceParser:
         }
     }
 
-    func parseNextPageURL(
-        html: String,
-        source: Source,
-        pagination: PaginationRule,
-        currentURL: URL
-    ) throws -> String? {
-        return try self.fallbackParser.parseNextPageURL(
-            html: html,
-            source: source,
-            pagination: pagination,
-            currentURL: currentURL
-        )
-    }
-
     private func htmlDocument(
         _ html: String,
         finalURL: URL
@@ -600,26 +295,20 @@ struct CoreComicRuleSourceParser:
         }
     }
 
-    private func mergingListFallback(
-        coreItems: [ContentItem],
-        fallbackItems: [ContentItem]
-    ) -> [ContentItem] {
-        let fallbackByURL = Dictionary(
-            fallbackItems.map { ($0.detailURL, $0) },
-            uniquingKeysWith: { first, _ in first }
-        )
-        return coreItems.map { item in
-            guard let fallback = fallbackByURL[item.detailURL] else {
-                return item
-            }
-            var merged = item
-            merged.idCode = merged.idCode ?? fallback.idCode
-            merged.coverURL = merged.coverURL ?? fallback.coverURL
-            merged.latestText = merged.latestText ?? fallback.latestText
-            merged.richContent = merged.richContent ?? fallback.richContent
-            merged.updatedAt = merged.updatedAt ?? fallback.updatedAt
-            return merged
+    private func pagination(
+        from pagination: BrowseCraftCore.SourcePagination?,
+        currentPage: Int?
+    ) -> PaginationResolution? {
+        guard let pagination else {
+            return nil
         }
+        let nextURL = pagination.nextPageURL?.absoluteString
+        return PaginationResolution(
+            currentPage: max(currentPage ?? 1, 1),
+            nextPage: pagination.nextPage,
+            nextURL: nextURL,
+            source: nextURL == nil ? .pagePlaceholder : .nextPageLink
+        )
     }
 
     private func detail(
@@ -815,22 +504,6 @@ struct CoreComicRuleSourceParser:
         )
     }
 
-    private func emptyReaderChapter(
-        source: Source,
-        pageURL: String
-    ) -> ReaderChapter {
-        return ReaderChapter(
-            sourceId: source.id,
-            comicTitle: nil,
-            chapterTitle: nil,
-            chapterURL: pageURL,
-            catalogURL: nil,
-            previousChapterURL: nil,
-            nextChapterURL: nil,
-            pageImageURLs: []
-        )
-    }
-
     private func apiParsingError(
         _ error: Error,
         source: Source,
@@ -877,30 +550,4 @@ struct CoreComicRuleSourceParser:
         }
     }
 
-    private func logFallback(
-        source: Source,
-        operation: String,
-        reason: String
-    ) {
-        let stage: RuleExecutionLogger.Stage
-        switch operation {
-        case "search":
-            stage = .search
-        case "detail":
-            stage = .detail
-        case "reader":
-            stage = .reader
-        default:
-            stage = .list
-        }
-        RuleExecutionLogger.log(
-            stage: stage,
-            event: "core-parser-fallback",
-            fields: [
-                "source": source.id,
-                "operation": operation,
-                "reason": reason
-            ]
-        )
-    }
 }

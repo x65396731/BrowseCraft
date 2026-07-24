@@ -129,13 +129,14 @@ struct ComicSourceListLoader {
             }
         }
 
-        let html: String = try await self.pageContentLoader.loadContent(
+        let response = try await self.pageContentLoader.loadContent(
             PageLoadRequest(
                 url: url,
                 requestConfig: pageRequest,
                 sourceContext: self.requestContext(source: source, purpose: .list, refererURL: url)
             )
-        ).content
+        )
+        let html = response.content
         let items: [ContentItem]
         do {
             items = try self.comicRuleParser.parseList(
@@ -144,7 +145,7 @@ struct ComicSourceListLoader {
                 listRule: listRule,
                 context: listContext,
                 sections: listTab?.sections,
-                pageURL: url,
+                pageURL: response.finalURL,
                 currentPage: page
             )
         } catch {
