@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 /// 中文注释：统一串行化 register/refresh，并把所有模糊结果收敛为可恢复或明确阻断的状态。
 actor PortalSessionCoordinator {
@@ -43,8 +44,14 @@ actor PortalSessionCoordinator {
     }
 
     func start() async {
+        PortalSessionDiagnostics.notice(
+            "event=start hasLoadedSession=\(self.hasLoadedSession)"
+        )
         self.startNetworkMonitoringIfNeeded()
         guard self.hasLoadedSession == false else {
+            PortalSessionDiagnostics.notice(
+                "event=start action=reconcile reason=session-already-loaded"
+            )
             await self.reconcile(allowRegistrationRetry: false)
             return
         }
@@ -55,25 +62,42 @@ actor PortalSessionCoordinator {
             self.hasLoadedSession = true
 
             guard let storedSession else {
+                PortalSessionDiagnostics.notice(
+                    "event=session-load result=missing action=register"
+                )
                 self.persistedSession = PortalSessionPersistence(userID: activeUserID)
                 await self.reconcile(allowRegistrationRetry: true)
                 return
             }
             guard storedSession.userID == activeUserID else {
+                PortalSessionDiagnostics.error(
+                    "event=session-load result=account-conflict"
+                )
                 self.persistedSession = storedSession
                 self.publish(status: .accountConflict)
                 return
             }
 
+            PortalSessionDiagnostics.notice(
+                "event=session-load result=found registrationState=" +
+                    "\(storedSession.registrationState.rawValue) " +
+                    "hasCredentials=\(storedSession.credentials != nil)"
+            )
             self.persistedSession = storedSession
             await self.reconcile(allowRegistrationRetry: true)
         } catch {
             self.hasLoadedSession = true
+            PortalSessionDiagnostics.error(
+                "event=session-load result=failed error=secure-storage"
+            )
             self.publish(status: .recoveryRequired)
         }
     }
 
     func handleAppBecameActive() async {
+        PortalSessionDiagnostics.notice(
+            "event=foreground hasLoadedSession=\(self.hasLoadedSession)"
+        )
         guard self.hasLoadedSession else {
             await self.start()
             return
@@ -125,11 +149,21 @@ actor PortalSessionCoordinator {
 
         switch session.registrationState {
         case .neverAttempted:
+            PortalSessionDiagnostics.notice(
+                "event=reconcile action=register reason=never-attempted"
+            )
             await self.register()
         case .attempting, .outcomeUnknown:
             if allowRegistrationRetry {
+                PortalSessionDiagnostics.notice(
+                    "event=reconcile action=register reason=" +
+                        "\(session.registrationState.rawValue)"
+                )
                 await self.register()
             } else {
+                PortalSessionDiagnostics.notice(
+                    "event=reconcile action=wait reason=registration-outcome-unknown"
+                )
                 self.publish(status: .registrationOutcomeUnknown)
             }
         case .authenticated, .recoveryRequired:
@@ -186,12 +220,21 @@ actor PortalSessionCoordinator {
             }
             self.publish(status: .authenticated)
         } catch is CancellationError {
+            PortalSessionDiagnostics.notice(
+                "event=register result=cancelled outcome=unknown"
+            )
             session.registrationState = .outcomeUnknown
             _ = self.persist(session, failureStatus: .registrationOutcomeUnknown)
             self.publish(status: .registrationOutcomeUnknown)
         } catch let error as PortalIdentityAuthenticationError {
+            PortalSessionDiagnostics.error(
+                "event=register result=failed category=\(error.safeLogCode)"
+            )
             self.handleRegistration(error: error, session: session)
         } catch {
+            PortalSessionDiagnostics.error(
+                "event=register result=failed category=unexpected"
+            )
             session.registrationState = .outcomeUnknown
             _ = self.persist(session, failureStatus: .registrationOutcomeUnknown)
             self.publish(status: .registrationOutcomeUnknown)
@@ -213,12 +256,18 @@ actor PortalSessionCoordinator {
         let currentDate: Date = self.now()
         guard credentials.accessToken.isEmpty == false,
               credentials.refreshToken.isEmpty == false else {
+            PortalSessionDiagnostics.error(
+                "event=refresh-decision action=recovery reason=missing-token"
+            )
             session.registrationState = .recoveryRequired
             _ = self.persist(session, failureStatus: .recoveryRequired)
             self.publish(status: .recoveryRequired)
             return
         }
         guard credentials.refreshTokenExpiresAt > currentDate else {
+            PortalSessionDiagnostics.error(
+                "event=refresh-decision action=recovery reason=refresh-token-expired"
+            )
             session.registrationState = .recoveryRequired
             _ = self.persist(session, failureStatus: .recoveryRequired)
             self.publish(status: .recoveryRequired)
@@ -226,6 +275,10 @@ actor PortalSessionCoordinator {
         }
         guard credentials.accessTokenExpiresAt <=
                 currentDate.addingTimeInterval(self.refreshLeeway) else {
+            PortalSessionDiagnostics.notice(
+                "event=refresh-decision action=skip reason=access-token-valid " +
+                    "expiresAt=\(credentials.accessTokenExpiresAt.ISO8601Format())"
+            )
             self.publish(status: .authenticated)
             return
         }
@@ -260,14 +313,24 @@ actor PortalSessionCoordinator {
             }
             self.publish(status: .authenticated)
         } catch is CancellationError {
+            PortalSessionDiagnostics.notice(
+                "event=refresh result=cancelled accessTokenStillValid=" +
+                    "\(credentials.accessTokenExpiresAt > self.now())"
+            )
             self.publish(
                 status: credentials.accessTokenExpiresAt > self.now()
                     ? .authenticated
                     : .temporarilyUnavailable
             )
         } catch let error as PortalIdentityAuthenticationError {
+            PortalSessionDiagnostics.error(
+                "event=refresh result=failed category=\(error.safeLogCode)"
+            )
             self.handleRefresh(error: error, session: session)
         } catch {
+            PortalSessionDiagnostics.error(
+                "event=refresh result=failed category=unexpected"
+            )
             self.publish(status: .temporarilyUnavailable)
         }
     }
@@ -326,18 +389,29 @@ actor PortalSessionCoordinator {
             self.persistedSession = session
             return true
         } catch {
+            PortalSessionDiagnostics.error(
+                "event=session-save result=failed targetStatus=\(failureStatus.rawValue)"
+            )
             self.publish(status: failureStatus)
             return false
         }
     }
 
     private func publish(status: PortalSessionStatus) {
+        let previousStatus: PortalSessionStatus = self.currentSnapshot.status
         let credentials: PortalAuthenticationTokens? = self.persistedSession?.credentials
         self.currentSnapshot = PortalSessionSnapshot(
             status: status,
             userID: self.activeAppUser.currentUserID,
             accessTokenExpiresAt: credentials?.accessTokenExpiresAt,
             refreshTokenExpiresAt: credentials?.refreshTokenExpiresAt
+        )
+        guard previousStatus != status else {
+            return
+        }
+        PortalSessionDiagnostics.notice(
+            "event=status-change from=\(previousStatus.rawValue) to=\(status.rawValue) " +
+                "hasCredentials=\(credentials != nil)"
         )
     }
 
@@ -357,6 +431,7 @@ actor PortalSessionCoordinator {
         }
 
         let updates: AsyncStream<Bool> = networkMonitor.statusUpdates()
+        PortalSessionDiagnostics.notice("event=network-monitor action=start")
         self.networkMonitoringTask = Task { [weak self] in
             var previousAvailability: Bool?
             for await isAvailable: Bool in updates {
@@ -364,6 +439,9 @@ actor PortalSessionCoordinator {
                     return
                 }
                 if previousAvailability == false, isAvailable {
+                    PortalSessionDiagnostics.notice(
+                        "event=network-change available=true action=reconcile"
+                    )
                     await self?.handleNetworkBecameAvailable()
                 }
                 previousAvailability = isAvailable
@@ -377,5 +455,41 @@ actor PortalSessionCoordinator {
             return
         }
         await self.reconcile(allowRegistrationRetry: true)
+    }
+}
+
+enum PortalSessionDiagnostics {
+    private static let logger: Logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "BrowseCraft",
+        category: "PortalSession"
+    )
+
+    static func notice(_ message: String) {
+        Self.logger.notice("[BrowseCraftPortalSession] \(message, privacy: .public)")
+    }
+
+    static func error(_ message: String) {
+        Self.logger.error("[BrowseCraftPortalSession] \(message, privacy: .public)")
+    }
+}
+
+private extension PortalIdentityAuthenticationError {
+    var safeLogCode: String {
+        switch self {
+        case .temporarilyUnavailable:
+            return "temporarily-unavailable"
+        case .registrationAlreadyExists:
+            return "registration-already-exists"
+        case .refreshRejected:
+            return "refresh-rejected"
+        case .subjectMismatch:
+            return "subject-mismatch"
+        case .responseOutcomeUnknown:
+            return "response-outcome-unknown"
+        case .contractRejected(let code):
+            return "contract-rejected:\(code)"
+        case .clientConfiguration:
+            return "client-configuration"
+        }
     }
 }

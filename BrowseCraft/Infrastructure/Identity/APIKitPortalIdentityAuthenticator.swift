@@ -9,17 +9,45 @@ struct APIKitPortalIdentityAuthenticator: PortalIdentityAuthenticating {
     }
 
     func register(userID: UUID) async throws -> PortalAuthenticationTokens {
+        PortalSessionDiagnostics.notice(
+            "event=request-start operation=register path=\(PortalAPIPath.authRegister)"
+        )
         do {
-            return Self.tokens(from: try await self.api.register(userID: userID))
+            let response: PortalTokenResponse = try await self.api.register(userID: userID)
+            PortalSessionDiagnostics.notice(
+                "event=request-success operation=register path=\(PortalAPIPath.authRegister) " +
+                    "accessExpiresAt=\(response.expiresAt.ISO8601Format()) " +
+                    "refreshExpiresAt=\(response.refreshExpiresAt.ISO8601Format())"
+            )
+            return Self.tokens(from: response)
         } catch {
+            PortalSessionDiagnostics.error(
+                "event=request-failure operation=register path=\(PortalAPIPath.authRegister) " +
+                    Self.safeErrorDescription(error)
+            )
             throw Self.map(error, operation: .register)
         }
     }
 
     func refresh(refreshToken: String) async throws -> PortalAuthenticationTokens {
+        PortalSessionDiagnostics.notice(
+            "event=request-start operation=refresh path=\(PortalAPIPath.authRefresh)"
+        )
         do {
-            return Self.tokens(from: try await self.api.refresh(refreshToken: refreshToken))
+            let response: PortalTokenResponse = try await self.api.refresh(
+                refreshToken: refreshToken
+            )
+            PortalSessionDiagnostics.notice(
+                "event=request-success operation=refresh path=\(PortalAPIPath.authRefresh) " +
+                    "accessExpiresAt=\(response.expiresAt.ISO8601Format()) " +
+                    "refreshExpiresAt=\(response.refreshExpiresAt.ISO8601Format())"
+            )
+            return Self.tokens(from: response)
         } catch {
+            PortalSessionDiagnostics.error(
+                "event=request-failure operation=refresh path=\(PortalAPIPath.authRefresh) " +
+                    Self.safeErrorDescription(error)
+            )
             throw Self.map(error, operation: .refresh)
         }
     }
@@ -75,6 +103,33 @@ struct APIKitPortalIdentityAuthenticator: PortalIdentityAuthenticating {
             )
         case .invalidEndpoint, .requestEncodingFailed:
             return PortalIdentityAuthenticationError.clientConfiguration
+        }
+    }
+
+    private static func safeErrorDescription(_ error: any Error) -> String {
+        if error is CancellationError {
+            return "category=cancelled"
+        }
+        guard let apiError: PortalAPIError = error as? PortalAPIError else {
+            return "category=unexpected"
+        }
+
+        switch apiError {
+        case .invalidEndpoint:
+            return "category=invalid-endpoint"
+        case .invalidHTTPResponse:
+            return "category=invalid-http-response"
+        case .requestEncodingFailed:
+            return "category=request-encoding-failed"
+        case .transportFailed:
+            return "category=transport-failed"
+        case .server(let statusCode, let body):
+            return "category=server status=\(statusCode) code=\(body.code) " +
+                "requestId=\(body.requestID)"
+        case .unexpectedStatusCode(let statusCode):
+            return "category=unexpected-status status=\(statusCode)"
+        case .responseDecodingFailed:
+            return "category=response-decoding-failed"
         }
     }
 }
