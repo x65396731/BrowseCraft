@@ -1,4 +1,5 @@
 import Foundation
+import BrowseCraftCore
 
 // 中文注释：RSSFeedLoading 是 RSS runtime 对 feed loader 的最小依赖，便于 runtime 测试替换。
 protocol RSSFeedLoading {
@@ -10,17 +11,17 @@ protocol ContextualRSSFeedLoading: RSSFeedLoading {
     func load(feedURL: URL, context: SourceRequestContext) async throws -> RSSFeed
 }
 
-// 中文注释：RSSFeedLoader 负责 RSS feed 的原始 XML 加载与映射；会话合并由带来源上下文的底层 loader 统一处理。
+// 中文注释：RSSFeedLoader 只负责加载与响应校验，最终 XML 交给 BrowseCraftCore 解释。
 struct RSSFeedLoader: ContextualRSSFeedLoading {
     private let pageDataLoader: PageDataLoader
-    private let mapper: RSSFeedMapper
+    private let parser: any BrowseCraftCore.RSSFeedParsing
 
     init(
         pageDataLoader: PageDataLoader,
-        mapper: RSSFeedMapper = RSSFeedMapper()
+        parser: any BrowseCraftCore.RSSFeedParsing = BrowseCraftCore.DefaultRSSFeedParser()
     ) {
         self.pageDataLoader = pageDataLoader
-        self.mapper = mapper
+        self.parser = parser
     }
 
     func load(feedURL: URL) async throws -> RSSFeed {
@@ -37,15 +38,43 @@ struct RSSFeedLoader: ContextualRSSFeedLoading {
             headers: SourceAPIRequestHeaders.rssFeedHeaders()
         )
 
-        let data: Data = try await self.pageDataLoader.loadData(
+        let response: PageDataResponse = try await self.pageDataLoader.loadData(
             PageLoadRequest(
                 url: feedURL,
                 requestConfig: requestConfig,
                 sourceContext: context
             )
-        ).data
-        try Self.validateFeedData(data, feedURL: feedURL)
-        return try self.mapper.map(data)
+        )
+        try Self.validateFeedData(response.data, feedURL: response.finalURL)
+        return try self.parser.parseFeed(
+            BrowseCraftCore.RSSFeedParsingInput(
+                document: BrowseCraftCore.SourceContentDocument(
+                    data: response.data,
+                    finalURL: response.finalURL,
+                    format: .xml,
+                    mediaType: "application/xml"
+                ),
+                runtimeContext: Self.runtimeContext(
+                    feedURL: response.finalURL,
+                    context: context
+                )
+            )
+        )
+    }
+
+    private static func runtimeContext(
+        feedURL: URL,
+        context: SourceRequestContext?
+    ) -> BrowseCraftCore.SourceRuntimeContext {
+        return BrowseCraftCore.SourceRuntimeContext(
+            sourceID: context?.sourceID ?? feedURL.host ?? feedURL.absoluteString,
+            pageID: nil,
+            tabID: nil,
+            ruleID: nil,
+            requestOverride: nil,
+            debugMode: false,
+            operation: .list
+        )
     }
 
     private static func validateFeedData(_ data: Data, feedURL: URL) throws {

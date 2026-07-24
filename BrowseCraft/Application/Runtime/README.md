@@ -23,6 +23,7 @@ SourceRuntime
   ComicSourceRuntime <- ComicSourceRuntimeFactory
     config: SiteRule JSON
   RSSSourceRuntime <- RSSSourceRuntimeFactory
+    feed/detail parsing: BrowseCraftCore
     config: RSS / Atom definition
   VideoSourceRuntime <- VideoSourceRuntimeFactory
     config: VideoSiteRule V2
@@ -99,8 +100,10 @@ Responsibilities:
 - Keep `RSS/RSSSourceRuntime` as the RSS-backed runtime implementation for
   feed list and article detail loading. RSS rich content must not be encoded into
   `SourceContentItem.latestText`; that field is a plain list summary.
-- Keep RSS mapping/loading/parsing in `RSS/Mapping/`, `RSS/Loading/`, and `RSS/Parsing/`; RSS does not
-  extend `SiteRule` or the rule editor.
+- Keep RSS transport and response validation in `RSS/Loading/`; hand final XML/HTML
+  documents to `BrowseCraftCore` for deterministic feed and detail parsing. App-side
+  `RSSSourceRuntime` only projects Core output and applies view-facing media fallbacks.
+  RSS does not extend `SiteRule` or the rule editor.
 - Keep `Video/VideoSourceRuntime` as the only video runtime implementation.
 - Keep Video V2 request/context replacement in `VideoRuleAPITemplateResolver`,
   while list/detail/episode API JSON response interpretation lives in Core.

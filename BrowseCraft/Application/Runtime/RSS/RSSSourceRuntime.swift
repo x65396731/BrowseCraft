@@ -7,16 +7,19 @@ struct RSSSourceRuntime: SourceRuntime, SourceDetailRuntime {
 
     private let feedLoader: any RSSFeedLoading
     private let pageContentLoader: PageContentLoader?
+    private let detailParser: any BrowseCraftCore.RSSDetailParsing
     private let mediaClassifier: RSSMediaClassifier = RSSMediaClassifier()
 
     init(
         definition: SourceDefinition,
         feedLoader: any RSSFeedLoading,
-        pageContentLoader: PageContentLoader? = nil
+        pageContentLoader: PageContentLoader? = nil,
+        detailParser: any BrowseCraftCore.RSSDetailParsing = BrowseCraftCore.DefaultRSSDetailParser()
     ) {
         self.definition = definition
         self.feedLoader = feedLoader
         self.pageContentLoader = pageContentLoader
+        self.detailParser = detailParser
     }
 
     var capabilities: SourceRuntimeCapabilities {
@@ -105,7 +108,7 @@ struct RSSSourceRuntime: SourceRuntime, SourceDetailRuntime {
         guard let pageContentLoader: PageContentLoader = self.pageContentLoader else {
             throw SourceRuntimeError.unsupported(.custom("RSS detail page loader is not connected."))
         }
-        let html: String = try await pageContentLoader.loadContent(
+        let response: PageContentResponse = try await pageContentLoader.loadContent(
             PageLoadRequest(
                 url: input.detailURL,
                 requestConfig: nil,
@@ -116,29 +119,16 @@ struct RSSSourceRuntime: SourceRuntime, SourceDetailRuntime {
                     refererURL: input.detailURL
                 )
             )
-        ).content
-        let detail: RSSDetailHTMLParser.DetailContent = RSSDetailHTMLParser.detailContent(
-            in: html,
-            pageURL: input.detailURL
         )
-        let richContent: SourceRichContent? = detail.blocks.isEmpty && detail.media == nil
-            ? nil
-            : SourceRichContent(
-                summary: nil,
-                blocks: detail.blocks,
-                metadata: detail.metadata,
-                media: detail.media
-            )
-
-        return SourceDetailOutput(
-            metadata: SourceDetailMetadata(tags: detail.metadata.tags),
-            richContent: richContent,
-            chapters: [],
-            diagnostics: SourceRuntimeDiagnostics.succeeded(
-                context: SourceRuntimeDiagnosticContext(
-                    runtimeContext: input.context,
-                    requestURL: input.detailURL
-                )
+        return try self.detailParser.parseDetail(
+            BrowseCraftCore.RSSDetailParsingInput(
+                document: BrowseCraftCore.SourceContentDocument(
+                    text: response.content,
+                    finalURL: response.finalURL,
+                    format: .html,
+                    mediaType: "text/html"
+                ),
+                runtimeContext: input.context
             )
         )
     }
@@ -178,22 +168,23 @@ struct RSSSourceRuntime: SourceRuntime, SourceDetailRuntime {
     }
 
     private func richContent(from item: RSSFeedItem) -> RSSContentPayload? {
+        let feedRichContent: RSSContentPayload? = item.richContent
         let media: RSSContentPayload.Media? = self.mediaClassifier.resolvedMedia(
-            feedMedia: item.media,
+            feedMedia: feedRichContent?.media,
             link: item.link,
             coverURL: item.coverURL
         )
 
-        if item.contentBlocks.isEmpty == false || media != nil {
-            let payload: RSSContentPayload = RSSContentPayload(
-                summary: Self.plainText(from: item.summary),
-                blocks: item.contentBlocks,
-                media: media
-            )
-            return payload
+        guard feedRichContent != nil || media != nil else {
+            return nil
         }
 
-        return nil
+        return RSSContentPayload(
+            summary: feedRichContent?.summary ?? Self.plainText(from: item.summary),
+            blocks: feedRichContent?.blocks ?? [],
+            metadata: feedRichContent?.metadata,
+            media: media
+        )
     }
 
     private func validateSource(_ context: SourceRuntimeContext) throws {

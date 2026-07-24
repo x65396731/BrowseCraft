@@ -93,6 +93,52 @@ struct RSSSourceRuntimeTests {
         }
     }
 
+    @Test func loadDetailPassesFinalHTMLDocumentToCoreParser() async throws {
+        let definition: SourceDefinition = try Self.rssDefinition()
+        let requestedURL: URL = try #require(URL(string: "https://example.test/article"))
+        let finalURL: URL = try #require(URL(string: "https://example.test/articles/redirected"))
+        let runtime: RSSSourceRuntime = RSSSourceRuntime(
+            definition: definition,
+            feedLoader: StubRSSFeedLoader(
+                feed: BrowseCraft.RSSFeed(title: "Solidot", items: [])
+            ),
+            pageContentLoader: StubRSSPageContentLoader(
+                content: """
+                <html><body>
+                  <div class="article--content">
+                    <h2>Section</h2>
+                    <p>Body</p>
+                    <img src="images/hero.jpg">
+                    <div class="originalPage_labels">
+                      <a class="is_tags">Technology</a>
+                    </div>
+                  </div>
+                  <p class="commentsMana_sortTabs">共 12 条评论</p>
+                </body></html>
+                """,
+                finalURL: finalURL
+            )
+        )
+
+        let output: SourceDetailOutput = try await runtime.loadDetail(
+            SourceDetailInput(
+                detailURL: requestedURL,
+                context: Self.context(
+                    sourceID: definition.id,
+                    operation: .detail
+                )
+            )
+        )
+
+        let metadata = try #require(output.metadata)
+        #expect(metadata.tags == ["Technology"])
+        #expect(output.richContent?.metadata?.commentCount == 12)
+        #expect(
+            output.richContent?.blocks.compactMap(\.imageURL)
+                == ["https://example.test/articles/images/hero.jpg"]
+        )
+    }
+
     @Test func loadListMapsStandardMediaIntoCoreRichContent() async throws {
         let definition: SourceDefinition = try Self.rssDefinition()
         let runtime: RSSSourceRuntime = RSSSourceRuntime(
@@ -106,14 +152,18 @@ struct RSSSourceRuntimeTests {
                             link: try #require(URL(string: "https://example.test/audio")),
                             summary: "Episode summary",
                             coverURL: try #require(URL(string: "https://example.test/poster.jpg")),
-                            media: RSSContentPayload.Media(
-                                kind: .audio,
-                                playbackMode: .directMedia,
-                                url: "https://media.example.test/audio.mp3",
-                                mimeType: "audio/mpeg",
-                                duration: "12:34",
-                                posterURL: nil,
-                                sourcePageURL: nil
+                            richContent: RSSContentPayload(
+                                summary: "Episode summary",
+                                blocks: [],
+                                media: RSSContentPayload.Media(
+                                    kind: .audio,
+                                    playbackMode: .directMedia,
+                                    url: "https://media.example.test/audio.mp3",
+                                    mimeType: "audio/mpeg",
+                                    duration: "12:34",
+                                    posterURL: nil,
+                                    sourcePageURL: nil
+                                )
                             ),
                             publishedAt: nil,
                             guid: "audio-1"
@@ -221,7 +271,10 @@ struct RSSSourceRuntimeTests {
         )
     }
 
-    private static func context(sourceID: String) -> SourceRuntimeContext {
+    private static func context(
+        sourceID: String,
+        operation: SourceRuntimeOperation = .list
+    ) -> SourceRuntimeContext {
         return SourceRuntimeContext(
             sourceID: sourceID,
             pageID: nil,
@@ -229,7 +282,7 @@ struct RSSSourceRuntimeTests {
             ruleID: nil,
             requestOverride: nil,
             debugMode: false,
-            operation: .list
+            operation: operation
         )
     }
 }
@@ -239,5 +292,17 @@ private struct StubRSSFeedLoader: RSSFeedLoading {
 
     func load(feedURL: URL) async throws -> BrowseCraft.RSSFeed {
         return self.feed
+    }
+}
+
+private struct StubRSSPageContentLoader: PageContentLoader {
+    var content: String
+    var finalURL: URL
+
+    func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
+        return PageContentResponse(
+            content: self.content,
+            finalURL: self.finalURL
+        )
     }
 }
