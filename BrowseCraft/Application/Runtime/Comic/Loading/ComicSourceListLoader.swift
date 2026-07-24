@@ -255,103 +255,23 @@ struct ComicSourceListLoader {
                 "headerNames": self.safeHeaderNames(request?.headers)
             ]
         )
-        let json: String = try await self.pageContentLoader.loadContent(
+        let response: PageContentResponse = try await self.pageContentLoader.loadContent(
             PageLoadRequest(
                 url: apiURL,
                 requestConfig: request,
                 sourceContext: self.requestContext(source: source, purpose: .list, refererURL: fallbackURL)
             )
-        ).content
-        let jsonObject: Any = try JSONSerialization.jsonObject(with: Data(json.utf8))
-        let responseEvaluation = ComicRuleAPIResponseEvaluator.evaluate(
-            json: jsonObject,
-            responsePolicy: apiRule.responsePolicy
         )
-        switch responseEvaluation {
-        case .allowParsing:
-            break
-        case .businessFailure(let message):
-            throw RuleExecutionError.sourceAPI(
-                stage: .list,
-                sourceID: source.id,
-                reason: "List API returned error: \(message)"
-            )
-        }
-        let itemPathResolution = ComicRuleJSONResolver.jsonArrayResolution(
-            at: apiRule.itemPath,
-            in: jsonObject
+        let items: [ContentItem] = try self.comicRuleParser.parseListAPIResponse(
+            json: response.content,
+            finalURL: response.finalURL,
+            source: source,
+            templateItem: templateItem,
+            apiRule: apiRule,
+            listPageURL: fallbackURL,
+            currentPage: page,
+            context: listContext
         )
-        guard itemPathResolution.state == .empty || itemPathResolution.state == .nonEmpty else {
-            throw RuleExecutionError.apiResponseContract(
-                stage: .list,
-                sourceID: source.id,
-                reason: "List API itemPath \(apiRule.itemPath) resolved as \(itemPathResolution.state.rawValue)"
-            )
-        }
-        let itemObjects: [Any] = itemPathResolution.values
-        let sortableItems: [(value: Any, order: Double?)] = itemObjects.map { itemObject in
-            let order: Double? = apiRule.orderPath.flatMap { path in
-                return ComicRuleJSONResolver.doubleValue(
-                    ComicRuleJSONResolver.firstJSONValue(at: path, in: itemObject)
-                )
-            }
-            return (value: itemObject, order: order)
-        }
-        let sortedObjects: [Any] = ComicRuleJSONResolver.sortedValues(sortableItems, sort: apiRule.sort)
-        let outputObjects: [Any] = sortedObjects.isEmpty ? itemObjects : sortedObjects
-
-        var items: [ContentItem] = []
-        var seenDetailURLs: Set<String> = Set<String>()
-        for itemObject: Any in outputObjects {
-            guard let title: String = ComicRuleJSONResolver.stringValue(
-                ComicRuleJSONResolver.firstJSONValue(at: apiRule.titlePath, in: itemObject)
-            )?.trimmingCharacters(in: .whitespacesAndNewlines),
-                  title.isEmpty == false,
-                  let detailURL: String = self.listItemURL(
-                    apiRule: apiRule,
-                    source: source,
-                    templateItem: templateItem,
-                    page: page,
-                    rootJSON: jsonObject,
-                    currentJSON: itemObject,
-                    fallbackURL: fallbackURL
-                  ),
-                  detailURL.isEmpty == false,
-                  seenDetailURLs.contains(detailURL) == false else {
-                continue
-            }
-
-            seenDetailURLs.insert(detailURL)
-            let coverURL: String? = self.listItemCoverURL(
-                apiRule: apiRule,
-                source: source,
-                templateItem: templateItem,
-                page: page,
-                rootJSON: jsonObject,
-                currentJSON: itemObject,
-                fallbackURL: fallbackURL
-            )
-            let latestText: String? = apiRule.latestTextPath.flatMap { path in
-                return ComicRuleJSONResolver.stringValue(
-                    ComicRuleJSONResolver.firstJSONValue(at: path, in: itemObject)
-                )?.trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-
-            items.append(
-                ContentItem(
-                    id: Self.stableID(sourceId: source.id, urlString: detailURL),
-                    sourceId: source.id,
-                    title: title,
-                    detailURL: detailURL,
-                    coverURL: coverURL,
-                    type: listRule.type,
-                    latestText: latestText,
-                    updatedAt: Date(),
-                    listOrder: items.count,
-                    listContext: listContext
-                )
-            )
-        }
 
         RuleExecutionLogger.log(
             stage: .list,
@@ -360,20 +280,10 @@ struct ComicSourceListLoader {
                 "source": source.id,
                 "tab": listContext.tabId ?? "nil",
                 "listRule": listContext.listRuleId ?? "nil",
-                "itemCount": itemObjects.count,
                 "count": items.count,
                 "firstItem": items.first?.id ?? "nil"
             ]
         )
-
-        if itemObjects.isEmpty == false,
-           items.isEmpty {
-            throw RuleExecutionError.apiResponseContract(
-                stage: .list,
-                sourceID: source.id,
-                reason: "List API itemPath returned \(itemObjects.count) values, but all item mappings failed"
-            )
-        }
 
         return items
     }
@@ -389,73 +299,6 @@ struct ComicSourceListLoader {
             purpose: purpose,
             refererURL: refererURL
         )
-    }
-
-    private func listItemURL(
-        apiRule: ListAPIRule,
-        source: Source,
-        templateItem: ContentItem,
-        page: Int,
-        rootJSON: Any,
-        currentJSON: Any,
-        fallbackURL: URL
-    ) -> String? {
-        if let urlTemplate: String = apiRule.urlTemplate,
-           urlTemplate.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            let rawURL: String = ComicRuleAPITemplateResolver.replacingTemplatePlaceholders(
-                in: urlTemplate,
-                source: source,
-                item: templateItem,
-                page: page,
-                rootJSON: rootJSON,
-                currentJSON: currentJSON,
-                defaultUserAgent: self.defaultUserAgent
-            )
-            return self.urlResolver.absoluteString(rawURL, baseURLString: fallbackURL.absoluteString)
-        }
-
-        guard let urlPath: String = apiRule.urlPath,
-              let rawURL: String = ComicRuleJSONResolver.stringValue(
-                ComicRuleJSONResolver.firstJSONValue(at: urlPath, in: currentJSON)
-              ) else {
-            return nil
-        }
-
-        return self.urlResolver.absoluteString(rawURL, baseURLString: fallbackURL.absoluteString)
-    }
-
-    private func listItemCoverURL(
-        apiRule: ListAPIRule,
-        source: Source,
-        templateItem: ContentItem,
-        page: Int,
-        rootJSON: Any,
-        currentJSON: Any,
-        fallbackURL: URL
-    ) -> String? {
-        if let coverTemplate: String = apiRule.coverTemplate,
-           coverTemplate.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            let rawURL: String = ComicRuleAPITemplateResolver.replacingTemplatePlaceholders(
-                in: coverTemplate,
-                source: source,
-                item: templateItem,
-                page: page,
-                rootJSON: rootJSON,
-                currentJSON: currentJSON,
-                defaultUserAgent: self.defaultUserAgent
-            )
-            return self.urlResolver.absoluteString(rawURL, baseURLString: fallbackURL.absoluteString)
-        }
-
-        guard let coverPath: String = apiRule.coverPath,
-              let rawURL: String = ComicRuleJSONResolver.stringValue(
-                ComicRuleJSONResolver.firstJSONValue(at: coverPath, in: currentJSON)
-              ),
-              rawURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
-            return nil
-        }
-
-        return self.urlResolver.absoluteString(rawURL, baseURLString: fallbackURL.absoluteString)
     }
 
     private func templateItem(
@@ -513,12 +356,5 @@ struct ComicSourceListLoader {
             .replacingOccurrences(of: "\r", with: " ")
             .replacingOccurrences(of: "\t", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private static func stableID(sourceId: String, urlString: String) -> String {
-        let rawID: String = "\(sourceId):\(urlString)"
-        let data: Data? = rawID.data(using: .utf8)
-
-        return data?.base64EncodedString() ?? UUID().uuidString
     }
 }

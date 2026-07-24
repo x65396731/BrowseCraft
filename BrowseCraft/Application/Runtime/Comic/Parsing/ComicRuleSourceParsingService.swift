@@ -128,6 +128,17 @@ protocol ComicRuleSourceParsingService: ComicRuleAPIResponseParsingService {
 
 /// 中文注释：API 请求仍由 Loader 执行；实现此能力的 parser 只消费已经取得的 JSON 响应。
 protocol ComicRuleAPIResponseParsingService {
+    func parseListAPIResponse(
+        json: String,
+        finalURL: URL,
+        source: Source,
+        templateItem: ContentItem,
+        apiRule: ListAPIRule,
+        listPageURL: URL,
+        currentPage: Int?,
+        context: ListContext?
+    ) throws -> [ContentItem]
+
     func parseChapterAPIResponse(
         json: String,
         finalURL: URL,

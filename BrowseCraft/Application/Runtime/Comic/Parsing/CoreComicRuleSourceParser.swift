@@ -133,6 +133,58 @@ struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
         return self.readerChapter(from: output.chapter)
     }
 
+    func parseListAPIResponse(
+        json: String,
+        finalURL: URL,
+        source: Source,
+        templateItem: ContentItem,
+        apiRule: ListAPIRule,
+        listPageURL: URL,
+        currentPage: Int?,
+        context: ListContext?
+    ) throws -> [ContentItem] {
+        do {
+            let output = try self.parser.parseListAPIResponse(
+                BrowseCraftCore.ComicListAPIResponseParsingInput(
+                    document: self.jsonDocument(json, finalURL: finalURL),
+                    rule: apiRule,
+                    templateItemReference: self.itemReference(
+                        source: source,
+                        item: templateItem,
+                        chapterURL: nil
+                    ),
+                    listPageURL: listPageURL,
+                    sourceBaseURL: URL(string: source.baseURL),
+                    ruleContext: self.ruleContext(source: source),
+                    runtimeContext: self.runtimeContext(
+                        source: source,
+                        operation: .list,
+                        context: context,
+                        ruleID: context?.listRuleId
+                    ),
+                    currentPage: currentPage
+                )
+            )
+            let receivedAt = Date()
+            return self.contentItems(
+                from: output.items,
+                source: source,
+                fallbackContext: context
+            ).map { item in
+                var item = item
+                item.updatedAt = receivedAt
+                return item
+            }
+        } catch {
+            throw self.apiParsingError(
+                error,
+                source: source,
+                stage: .list,
+                pipelineOnly: false
+            )
+        }
+    }
+
     func parseChapterAPIResponse(
         json: String,
         finalURL: URL,

@@ -34,6 +34,7 @@ struct ComicSourceListLoaderTests {
         ])
         #expect(items.map(\.latestText) == ["连载02话", "连载19话"])
         #expect(items.map(\.listOrder) == [0, 1])
+        #expect(items.allSatisfy { $0.updatedAt != nil })
         #expect(pageContentLoader.requestedURLs == ["https://example.test/api/comics?page=1"])
     }
 
@@ -410,77 +411,6 @@ struct ComicSourceListLoaderTests {
             createdAt: Date(timeIntervalSince1970: 0),
             updatedAt: Date(timeIntervalSince1970: 0)
         )
-    }
-}
-
-struct ComicRuleAPIResponseEvaluatorTests {
-    @Test func missingPolicyPreservesLegacyCodeZeroSuccess() {
-        let json: [String: Any] = ["code": 0, "data": ["items": [Any]()]]
-        let result = ComicRuleAPIResponseEvaluator.evaluate(
-            json: json,
-            responsePolicy: nil
-        )
-
-        #expect(result == .allowParsing)
-    }
-
-    @Test func missingPolicyPreservesLegacyNonzeroCodeFailure() {
-        let json: [String: Any] = ["code": 200, "message": "legacy response"]
-        let result = ComicRuleAPIResponseEvaluator.evaluate(
-            json: json,
-            responsePolicy: nil
-        )
-
-        #expect(result == .businessFailure(message: "legacy response code=200"))
-    }
-
-    @Test func missingPolicyPreservesLegacyErrorsDetails() {
-        let extensions: [String: Any] = ["code": "LIMIT", "current": 3]
-        let legacyError: [String: Any] = [
-            "message": "rate limited",
-            "extensions": extensions
-        ]
-        let json: [String: Any] = ["errors": [legacyError]]
-        let result = ComicRuleAPIResponseEvaluator.evaluate(
-            json: json,
-            responsePolicy: nil
-        )
-
-        #expect(result == .businessFailure(message: "rate limited code=LIMIT current=3"))
-    }
-
-    @Test func explicitEnvelopeNeverRunsLegacyErrorInference() {
-        let json: [String: Any] = ["code": 200, "error": "legacy-only field"]
-        let result = ComicRuleAPIResponseEvaluator.evaluate(
-            json: json,
-            responsePolicy: APIResponsePolicy(
-                mode: .envelope,
-                businessStatusPath: "code",
-                successValues: [.number(200)]
-            )
-        )
-
-        #expect(result == .allowParsing)
-    }
-}
-
-struct ComicRuleJSONResolverArrayResolutionTests {
-    @Test func distinguishesMissingNullTypeMismatchEmptyAndValues() {
-        let root: [String: Any] = [
-            "nullItems": NSNull(),
-            "wrongItems": "not-an-array",
-            "emptyItems": [Any](),
-            "items": [["id": 1], ["id": 2]]
-        ]
-
-        #expect(ComicRuleJSONResolver.jsonArrayResolution(at: "missingItems[]", in: root).state == .missing)
-        #expect(ComicRuleJSONResolver.jsonArrayResolution(at: "nullItems[]", in: root).state == .null)
-        #expect(ComicRuleJSONResolver.jsonArrayResolution(at: "wrongItems[]", in: root).state == .typeMismatch)
-        #expect(ComicRuleJSONResolver.jsonArrayResolution(at: "emptyItems[]", in: root).state == .empty)
-
-        let values = ComicRuleJSONResolver.jsonArrayResolution(at: "items[]", in: root)
-        #expect(values.state == .nonEmpty)
-        #expect(values.values.count == 2)
     }
 }
 

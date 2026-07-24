@@ -79,13 +79,13 @@ Responsibilities:
   mapping boundary.
 - Keep `Runtime/Comic/ComicSourceRuntime` as the rule-backed runtime implementation.
 - Keep comic API request/context replacement in `ComicRuleAPITemplateResolver`.
-  App-side JSON mapping and `ComicRuleAPIResponseEvaluator` remain only for the
-  legacy `listAPI` compatibility path.
+  App loaders resolve and send `listAPI`, `chapterAPI`, and `imageAPI` requests,
+  then pass the response body and final URL to `CoreComicRuleSourceParser`.
 - Keep rule-only loading in `Runtime/Comic/Loading/`; list/search/detail/reader loaders
   are runtime internals, not shared App use cases.
 - Keep comic parsing contracts and normalized parser results in
   `Runtime/Comic/Parsing/`, behind `ComicRuleSourceParsingService`.
-  `CoreComicRuleSourceParser` delegates DOM, chapterAPI, and imageAPI response
+  `CoreComicRuleSourceParser` delegates DOM, listAPI, chapterAPI, and imageAPI response
   interpretation to Core. App loaders only orchestrate transport, final URLs,
   direct-chapter selection, and DOM/API routing.
 - Normalize the parser output to Core `SourceDetailOutput` only in
@@ -151,16 +151,15 @@ never the signed query, Referer value, cookie, or token.
 
 ## Comic API Response Semantics Boundary
 
-`responsePolicy` belongs to rule interpretation, not networking. It consumes an
-already parsed JSON value and answers only whether field parsing may continue.
-Comic and Video keep this logic in their domain-specific
-`*RuleAPIResponseEvaluator.swift` files; the evaluator files must not import or
-accept transport response types.
+`responsePolicy` belongs to rule interpretation, not networking. Comic response
+policy evaluation and JSON field mapping live in `BrowseCraftCore`; the App
+passes an already loaded response body and final URL through the parser adapter.
+Video keeps its independent V2 evaluation in `VideoRuleAPIResponseEvaluator`.
 
 ```text
 existing page/API loading
-  -> existing JSON parsing
-  -> explicit responsePolicy OR isolated legacy evaluation
+  -> Core JSON parsing
+  -> explicit responsePolicy OR Core-owned legacy evaluation
   -> itemPath
   -> field mapping
 ```
@@ -174,9 +173,9 @@ The boundary is fixed as follows:
 - A missing `responsePolicy` is the only path into the isolated legacy
   `code=0` plus `errors/error` compatibility evaluator. Explicit policies never
   fall through to legacy; endpoints whose success value is `200` must declare it.
-- The evaluator must not receive an HTTP response object or know about status
-  codes, headers, final URLs, request sending, retries, cancellation, DOM, or
-  API-to-DOM fallback.
+- Core response interpretation receives document text and final URL, but no HTTP
+  response object. It does not know about status codes, headers, request sending,
+  retries, cancellation, DOM routing, or API-to-DOM fallback.
 - `itemPath` state and field mapping happen after response semantics. A real
   empty array is a parsing result; a non-empty input that maps to no output is a
   response-contract error.
