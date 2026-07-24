@@ -1,5 +1,5 @@
 import SwiftUI
-import BrowseCraftRulesKit
+import BrowseCraftAPIKit
 
 struct CatalogSourceListView: View {
     @ObservedObject var viewModel: SourcesViewModel

@@ -1,7 +1,7 @@
 import Combine
 import Foundation
 import BrowseCraftCore
-import BrowseCraftRulesKit
+import BrowseCraftAPIKit
 
 // 中文注释：SourcesViewModel.swift 属于界面功能层，用于说明本文件承载的核心职责。
 

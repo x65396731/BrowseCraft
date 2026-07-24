@@ -1,6 +1,6 @@
 import Foundation
 import BrowseCraftCore
-import BrowseCraftRulesKit
+import BrowseCraftAPIKit
 
 // 中文注释：CatalogSourceMaterializer 把 RulesKit catalog 定义转换成 App 持久化 Source。
 struct CatalogSourceMaterializer {

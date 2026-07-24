@@ -1,6 +1,6 @@
 import Foundation
 import BrowseCraftCore
-import BrowseCraftRulesKit
+import BrowseCraftAPIKit
 
 enum CatalogSourceImportError: LocalizedError {
     case invalidBaseURL(String)

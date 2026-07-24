@@ -1,5 +1,5 @@
 import Foundation
-import BrowseCraftRulesKit
+import BrowseCraftAPIKit
 
 // 中文注释：真实 catalog 数据仍由用户手动导入；这里仅升级已存在的 catalog 源定义。
 

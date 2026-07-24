@@ -20,8 +20,8 @@ settings:
 packages:
   BrowseCraftCore:
     path: ../BrowseCraftCore
-  BrowseCraftRulesKit:
-    path: ../BrowseCraftRulesKit
+  BrowseCraftAPIKit:
+    path: ../BrowseCraftAPIKit
   KSPlayer:
     url: https://github.com/kingslay/KSPlayer.git
     branch: main
@@ -47,8 +47,8 @@ targets:
     dependencies:
       - package: BrowseCraftCore
         product: BrowseCraftCore
-      - package: BrowseCraftRulesKit
-        product: BrowseCraftRulesKit
+      - package: BrowseCraftAPIKit
+        product: BrowseCraftAPIKit
       - package: KSPlayer
         product: KSPlayer
       - package: WebUI

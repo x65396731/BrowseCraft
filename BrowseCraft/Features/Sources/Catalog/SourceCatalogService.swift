@@ -1,5 +1,5 @@
 import BrowseCraftCore
-import BrowseCraftRulesKit
+import BrowseCraftAPIKit
 
 struct SourceCatalogService {
     private let addCatalogSourceUseCase: AddCatalogSourceUseCase

@@ -166,7 +166,7 @@ extension BrowseCraftCore.SiteRule {
     }
     """
 
-    /// Built-in production rules live in the private BrowseCraftRulesKit package.
+    /// Production catalog payloads are provided through BrowseCraftAPIKit.
     /// Keep this public example generic so the app shell can be published safely.
 }
 

@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 import CryptoKit
-import BrowseCraftRulesKit
+import BrowseCraftAPIKit
 @testable import BrowseCraft
 
 struct LoadCatalogSourcesUseCaseTests {

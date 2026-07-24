@@ -1,5 +1,5 @@
 import BrowseCraftCore
-import BrowseCraftRulesKit
+import BrowseCraftAPIKit
 import Foundation
 
 struct SourceDebugJSONValidationResult: Hashable {
