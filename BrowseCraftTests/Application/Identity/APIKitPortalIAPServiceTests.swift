@@ -286,7 +286,7 @@ private actor PurchaseRefreshTestIAPService: PortalIAPServicing {
             purchasedSiteSlots: 1,
             siteSlotLimit: 2,
             hasRemovedAds: false,
-            activeProductIDs: ["com.xiefei.AnyPortal.site.unlock.1"],
+            activeProductIDs: ["com.xiefei.AnyPortal.site.unlock.v2.1"],
             revision: 1,
             verifiedAt: Date()
         )

@@ -216,6 +216,10 @@ struct InAppPurchasePlanSelectionView: View {
             return .purchased
         }
 
+        if self.store.hasUnverifiedEntitlement(plan) {
+            return .verificationRequired
+        }
+
         if let displayPrice: String = self.store.priceText(for: plan) {
             return .available(price: displayPrice)
         }
@@ -229,7 +233,7 @@ struct InAppPurchasePlanSelectionView: View {
 
     private var statusSystemImage: String {
         switch self.store.status {
-        case .purchased, .restored:
+        case .alreadyPurchased, .purchased, .restored:
             return "checkmark.circle.fill"
         case .pending:
             return "clock.badge.exclamationmark.fill"
@@ -245,6 +249,7 @@ struct InAppPurchasePlanSelectionView: View {
              .iCloudLinkRequired,
              .identityMismatch,
              .identityCheckFailed,
+             .restoreAccountMismatch,
              .unverified,
              .purchaseFailed,
              .transactionIdentityMismatch,
@@ -265,7 +270,7 @@ struct InAppPurchasePlanSelectionView: View {
 
     private var statusColor: Color {
         switch self.store.status {
-        case .purchased, .restored:
+        case .alreadyPurchased, .purchased, .restored:
             return .green
         case .pending:
             return .yellow

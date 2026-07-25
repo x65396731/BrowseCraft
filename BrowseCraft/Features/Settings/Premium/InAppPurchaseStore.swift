@@ -14,11 +14,13 @@ final class InAppPurchaseStore: ObservableObject {
         case iCloudLinkRequired
         case identityMismatch
         case identityCheckFailed
+        case restoreAccountMismatch
         case purchasing(productID: String, title: String)
         case submittingPurchase(productID: String, title: String)
         case pending(productID: String, title: String)
         case cancelled
         case unverified(title: String)
+        case alreadyPurchased(title: String)
         case purchaseFailed(title: String)
         case transactionIdentityMismatch(title: String)
         case xcodeEnvironmentUnsupported(title: String)
@@ -58,6 +60,8 @@ final class InAppPurchaseStore: ObservableObject {
                 return "The linked iCloud identity belongs to another BrowseCraft profile. Resolve it in Cloud Sync first."
             case .identityCheckFailed:
                 return "The linked iCloud identity could not be verified. Try again from Cloud Sync."
+            case .restoreAccountMismatch:
+                return "Some App Store purchases belong to another BrowseCraft profile and were not restored to this account."
             case .purchasing(_, let title):
                 return "Purchasing \(title)…"
             case .submittingPurchase(_, let title):
@@ -68,6 +72,8 @@ final class InAppPurchaseStore: ObservableObject {
                 return "Purchase cancelled. No entitlement was applied."
             case .unverified(let title):
                 return "\(title) could not be verified. No entitlement was applied."
+            case .alreadyPurchased(let title):
+                return "\(title) is already purchased. Use Restore Purchases to sync its entitlement."
             case .purchaseFailed(let title):
                 return "\(title) could not be purchased."
             case .transactionIdentityMismatch(let title):
@@ -145,6 +151,8 @@ final class InAppPurchaseStore: ObservableObject {
                 return "identity-mismatch"
             case .identityCheckFailed:
                 return "identity-check-failed"
+            case .restoreAccountMismatch:
+                return "restore-account-mismatch"
             case .purchasing:
                 return "purchasing"
             case .submittingPurchase:
@@ -155,6 +163,8 @@ final class InAppPurchaseStore: ObservableObject {
                 return "cancelled"
             case .unverified:
                 return "unverified"
+            case .alreadyPurchased:
+                return "already-purchased"
             case .purchaseFailed:
                 return "purchase-failed"
             case .transactionIdentityMismatch:
@@ -195,7 +205,9 @@ final class InAppPurchaseStore: ObservableObject {
     @Published private(set) var hasLoadedProducts: Bool = false
     @Published private(set) var activeProductID: String?
     @Published private(set) var productsByID: [String: Product] = [:]
-    @Published private(set) var purchasedProductIDs: Set<String> = []
+    @Published private(set) var storeKitOwnedProductIDs: Set<String> = []
+    @Published private(set) var unverifiedStoreKitProductIDs: Set<String> = []
+    @Published private(set) var portalEntitledProductIDs: Set<String> = []
     @Published private(set) var status: Status = .idle {
         didSet {
             guard oldValue != self.status else {
@@ -216,7 +228,9 @@ final class InAppPurchaseStore: ObservableObject {
         String,
         InAppPurchasePlan
     ) async throws -> Set<String>
-    private let restorePurchasesAction: @MainActor (UUID) async throws -> Void
+    private let restorePurchasesAction: @MainActor (
+        UUID
+    ) async throws -> Set<String>?
 
     init(
         authorizeStoreKitAction: @escaping @MainActor () async throws -> UUID = {
@@ -233,8 +247,11 @@ final class InAppPurchaseStore: ObservableObject {
             throw StoreKitPortalPurchaseSubmissionError
                 .snapshotContractMismatch
         },
-        restorePurchasesAction: @escaping @MainActor (UUID) async throws -> Void = { _ in
+        restorePurchasesAction: @escaping @MainActor (
+            UUID
+        ) async throws -> Set<String>? = { _ in
             try await AppStore.sync()
+            return nil
         }
     ) {
         self.authorizeStoreKitAction = authorizeStoreKitAction
@@ -244,16 +261,27 @@ final class InAppPurchaseStore: ObservableObject {
     }
 
     func loadProducts() async {
-        guard self.hasLoadedProducts == false else {
+        guard self.isLoading == false else {
             return
         }
 
-        IAPDiagnostics.notice("event=product-load-started")
+        let shouldLoadProducts: Bool = self.hasLoadedProducts == false
         self.isLoading = true
-        self.status = .loadingProducts
+        if shouldLoadProducts {
+            IAPDiagnostics.notice("event=product-load-started")
+            self.status = .loadingProducts
+        }
         defer {
             self.isLoading = false
-            self.hasLoadedProducts = true
+            if shouldLoadProducts {
+                self.hasLoadedProducts = true
+            }
+        }
+
+        await self.refreshStoreKitOwnedProductIDs()
+        guard Task.isCancelled == false,
+              shouldLoadProducts else {
+            return
         }
 
         do {
@@ -338,6 +366,31 @@ final class InAppPurchaseStore: ObservableObject {
             let authorizedUserID: UUID = try await self.authorizeStoreKitAction()
             try Task.checkCancellation()
 
+            let purchaseEligibility: PurchaseEligibility =
+                try await self.purchaseEligibility(
+                    for: plan
+                )
+            switch purchaseEligibility {
+            case .purchasable:
+                break
+            case .owned(let appAccountToken):
+                IAPDiagnostics.notice(
+                    "event=purchase-preflight-blocked " +
+                        "reason=already-owned productID=\(plan.productID)"
+                )
+                self.status = appAccountToken == authorizedUserID
+                    ? .alreadyPurchased(title: plan.title)
+                    : .transactionIdentityMismatch(title: plan.title)
+                return
+            case .unverified:
+                IAPDiagnostics.error(
+                    "event=purchase-preflight-blocked " +
+                        "reason=unverified productID=\(plan.productID)"
+                )
+                self.status = .unverified(title: plan.title)
+                return
+            }
+
             self.status = .purchasing(productID: plan.productID, title: plan.title)
             let result: Product.PurchaseResult = try await product.purchase(
                 options: [.appAccountToken(authorizedUserID)]
@@ -354,18 +407,23 @@ final class InAppPurchaseStore: ObservableObject {
                             "environment=\(transaction.environment.rawValue) " +
                             "hasAppAccountToken=\(transaction.appAccountToken != nil)"
                     )
+
+                    if transaction.revocationDate != nil {
+                        await transaction.finish()
+                        self.storeKitOwnedProductIDs.remove(plan.productID)
+                        self.unverifiedStoreKitProductIDs.remove(plan.productID)
+                        self.portalEntitledProductIDs.remove(plan.productID)
+                        self.status = .revoked(title: plan.title)
+                        return
+                    }
+
+                    self.storeKitOwnedProductIDs.insert(plan.productID)
+                    self.unverifiedStoreKitProductIDs.remove(plan.productID)
                     guard transaction.appAccountToken == authorizedUserID else {
                         self.status = .transactionIdentityMismatch(title: plan.title)
                         return
                     }
                     try await self.validateAuthorizedUser(authorizedUserID)
-
-                    if transaction.revocationDate != nil {
-                        await transaction.finish()
-                        self.purchasedProductIDs.remove(plan.productID)
-                        self.status = .revoked(title: plan.title)
-                        return
-                    }
 
                     self.status = .submittingPurchase(
                         productID: plan.productID,
@@ -382,7 +440,7 @@ final class InAppPurchaseStore: ObservableObject {
                         "event=storekit-transaction-finished " +
                             "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id))"
                     )
-                    self.purchasedProductIDs = Self.purchasedProductIDs(
+                    self.portalEntitledProductIDs = Self.portalEntitledProductIDs(
                         from: activeProductIDs
                     )
                     self.status = .purchased(title: plan.title)
@@ -390,6 +448,7 @@ final class InAppPurchaseStore: ObservableObject {
                     IAPDiagnostics.error(
                         "event=storekit-purchase-failed reason=unverified"
                     )
+                    self.unverifiedStoreKitProductIDs.insert(plan.productID)
                     self.status = .unverified(title: plan.title)
                 }
             case .pending:
@@ -461,11 +520,26 @@ final class InAppPurchaseStore: ObservableObject {
             try Task.checkCancellation()
 
             self.status = .restoring
-            try await self.restorePurchasesAction(authorizedUserID)
+            let activeProductIDs: Set<String>? =
+                try await self.restorePurchasesAction(authorizedUserID)
             try await self.validateAuthorizedUser(authorizedUserID)
+            if let activeProductIDs {
+                self.portalEntitledProductIDs =
+                    Self.portalEntitledProductIDs(
+                        from: activeProductIDs
+                    )
+            }
+
+            let hasIdentityMismatch: Bool =
+                await self.refreshStoreKitOwnedProductIDs(
+                    ownedBy: authorizedUserID
+                )
+            try Task.checkCancellation()
             let revokedPlan: InAppPurchasePlan? =
-                await self.refreshPurchasedProductIDs(ownedBy: authorizedUserID)
-            if let revokedPlan {
+                await self.latestRevokedPlan(ownedBy: authorizedUserID)
+            if hasIdentityMismatch {
+                self.status = .restoreAccountMismatch
+            } else if let revokedPlan {
                 self.status = .revoked(title: revokedPlan.title)
             } else {
                 self.status = .restored
@@ -475,64 +549,209 @@ final class InAppPurchaseStore: ObservableObject {
             return
         } catch let error as StoreKitPurchaseIdentityAuthorizationError {
             Self.logFailure(error, flow: "restore")
+            await self.refreshStoreKitOwnedProductIDs()
             self.status = Self.status(for: error)
         } catch let error as CloudAppUserIdentityStoreError {
             Self.logFailure(error, flow: "restore")
+            await self.refreshStoreKitOwnedProductIDs()
             self.status = .identityCheckFailed
         } catch let error as StoreKitTransactionIdentityError {
             Self.logFailure(error, flow: "restore")
-            self.status = .identityMismatch
+            await self.refreshStoreKitOwnedProductIDs()
+            self.status = .restoreAccountMismatch
         } catch let error as StoreKitPortalPurchaseSubmissionError {
             Self.logFailure(error, flow: "restore")
+            await self.refreshStoreKitOwnedProductIDs()
             self.status = Self.status(
                 for: error,
                 title: "Restore Purchases"
             )
         } catch let error as PortalPurchaseEntitlementRefreshError {
             Self.logFailure(error, flow: "restore")
+            await self.refreshStoreKitOwnedProductIDs()
             self.status = Self.status(
                 for: error,
                 title: "Restore Purchases"
             )
         } catch let error as PortalIAPServiceError {
             Self.logFailure(error, flow: "restore")
+            await self.refreshStoreKitOwnedProductIDs()
             self.status = Self.status(
                 for: error,
                 title: "Restore Purchases"
             )
         } catch {
             Self.logFailure(error, flow: "restore")
+            await self.refreshStoreKitOwnedProductIDs()
             self.status = .restoreFailed
         }
     }
 
     func isPurchased(_ plan: InAppPurchasePlan) -> Bool {
         return plan.productKind == .nonConsumable
-            && self.purchasedProductIDs.contains(plan.productID)
+            && self.storeKitOwnedProductIDs.contains(plan.productID)
     }
 
-    private func refreshPurchasedProductIDs(
-        ownedBy userID: UUID
-    ) async -> InAppPurchasePlan? {
-        var productIDs: Set<String> = []
+    func hasPortalEntitlement(_ plan: InAppPurchasePlan) -> Bool {
+        return plan.productKind == .nonConsumable
+            && self.portalEntitledProductIDs.contains(plan.productID)
+    }
 
-        for await verification in StoreKit.Transaction.currentEntitlements {
-            guard case .verified(let transaction) = verification,
-                  transaction.appAccountToken == userID,
-                  let plan: InAppPurchasePlan = InAppPurchasePlan.plansByProductID[transaction.productID],
-                  plan.productKind == .nonConsumable else {
-                continue
-            }
+    func hasUnverifiedEntitlement(_ plan: InAppPurchasePlan) -> Bool {
+        return plan.productKind == .nonConsumable
+            && self.unverifiedStoreKitProductIDs.contains(plan.productID)
+    }
 
-            if transaction.revocationDate != nil {
-                continue
-            }
-
-            productIDs.insert(transaction.productID)
+    func refreshAfterTransactionUpdate(
+        activeProductIDs: Set<String>?
+    ) async {
+        let previouslyOwnedProductIDs: Set<String> =
+            self.storeKitOwnedProductIDs
+        if let activeProductIDs {
+            self.portalEntitledProductIDs =
+                Self.portalEntitledProductIDs(
+                    from: activeProductIDs
+                )
         }
 
-        self.purchasedProductIDs = productIDs
-        return await self.latestRevokedPlan(ownedBy: userID)
+        await self.refreshStoreKitOwnedProductIDs()
+
+        if case .pending(let productID, let title) = self.status,
+           self.storeKitOwnedProductIDs.contains(productID) {
+            self.status = .alreadyPurchased(title: title)
+            return
+        }
+
+        guard self.status.isInProgress == false,
+              let revokedProductID: String =
+                previouslyOwnedProductIDs
+                    .subtracting(self.storeKitOwnedProductIDs)
+                    .first,
+              let revokedPlan: InAppPurchasePlan =
+                InAppPurchasePlan.plansByProductID[revokedProductID] else {
+            return
+        }
+
+        self.status = .revoked(title: revokedPlan.title)
+    }
+
+    @discardableResult
+    private func refreshStoreKitOwnedProductIDs(
+        ownedBy userID: UUID? = nil
+    ) async -> Bool {
+        IAPDiagnostics.notice("event=storekit-entitlements-refresh-started")
+        var ownedProductIDs: Set<String> = []
+        var unverifiedProductIDs: Set<String> = []
+        var hasIdentityMismatch: Bool = false
+
+        for await verification in StoreKit.Transaction.currentEntitlements {
+            guard Task.isCancelled == false else {
+                IAPDiagnostics.notice(
+                    "event=storekit-entitlements-refresh-cancelled"
+                )
+                return false
+            }
+
+            switch verification {
+            case .verified(let transaction):
+                guard transaction.revocationDate == nil,
+                      let plan: InAppPurchasePlan =
+                        InAppPurchasePlan.plansByProductID[transaction.productID],
+                      plan.isRestorable,
+                      plan.productKind == .nonConsumable else {
+                    continue
+                }
+
+                if let userID,
+                   transaction.appAccountToken != userID {
+                    hasIdentityMismatch = true
+                }
+                ownedProductIDs.insert(transaction.productID)
+            case .unverified(let transaction, _):
+                guard let plan: InAppPurchasePlan =
+                        InAppPurchasePlan.plansByProductID[transaction.productID],
+                      plan.isRestorable,
+                      plan.productKind == .nonConsumable else {
+                    continue
+                }
+
+                unverifiedProductIDs.insert(transaction.productID)
+            }
+        }
+
+        guard Task.isCancelled == false else {
+            IAPDiagnostics.notice(
+                "event=storekit-entitlements-refresh-cancelled"
+            )
+            return false
+        }
+
+        unverifiedProductIDs.subtract(ownedProductIDs)
+        self.storeKitOwnedProductIDs = ownedProductIDs
+        self.unverifiedStoreKitProductIDs = unverifiedProductIDs
+        IAPDiagnostics.notice(
+            "event=storekit-entitlements-refresh-completed " +
+                "ownedCount=\(ownedProductIDs.count) " +
+                "unverifiedCount=\(unverifiedProductIDs.count) " +
+                "hasIdentityMismatch=\(hasIdentityMismatch)"
+        )
+        return hasIdentityMismatch
+    }
+
+    private enum PurchaseEligibility {
+        case purchasable
+        case owned(appAccountToken: UUID?)
+        case unverified
+    }
+
+    private func purchaseEligibility(
+        for targetPlan: InAppPurchasePlan
+    ) async throws -> PurchaseEligibility {
+        var ownedProductIDs: Set<String> = []
+        var unverifiedProductIDs: Set<String> = []
+        var targetTransaction: StoreKit.Transaction?
+
+        for await verification in StoreKit.Transaction.currentEntitlements {
+            try Task.checkCancellation()
+
+            switch verification {
+            case .verified(let transaction):
+                guard transaction.revocationDate == nil,
+                      let plan: InAppPurchasePlan =
+                        InAppPurchasePlan.plansByProductID[transaction.productID],
+                      plan.productKind == .nonConsumable else {
+                    continue
+                }
+
+                ownedProductIDs.insert(transaction.productID)
+                if transaction.productID == targetPlan.productID {
+                    targetTransaction = transaction
+                }
+            case .unverified(let transaction, _):
+                guard let plan: InAppPurchasePlan =
+                        InAppPurchasePlan.plansByProductID[transaction.productID],
+                      plan.productKind == .nonConsumable else {
+                    continue
+                }
+
+                unverifiedProductIDs.insert(transaction.productID)
+            }
+        }
+
+        try Task.checkCancellation()
+        unverifiedProductIDs.subtract(ownedProductIDs)
+        self.storeKitOwnedProductIDs = ownedProductIDs
+        self.unverifiedStoreKitProductIDs = unverifiedProductIDs
+
+        if let targetTransaction {
+            return .owned(
+                appAccountToken: targetTransaction.appAccountToken
+            )
+        }
+        if unverifiedProductIDs.contains(targetPlan.productID) {
+            return .unverified
+        }
+        return .purchasable
     }
 
     private func latestRevokedPlan(ownedBy userID: UUID) async -> InAppPurchasePlan? {
@@ -619,7 +838,7 @@ final class InAppPurchaseStore: ObservableObject {
         }
     }
 
-    private static func purchasedProductIDs(
+    private static func portalEntitledProductIDs(
         from activeProductIDs: Set<String>
     ) -> Set<String> {
         return Set(

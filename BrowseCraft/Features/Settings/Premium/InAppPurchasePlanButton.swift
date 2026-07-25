@@ -8,6 +8,7 @@ struct InAppPurchasePlanButton: View {
         case purchasing
         case pending
         case purchased
+        case verificationRequired
 
         var accessibilityValue: String {
             switch self {
@@ -23,6 +24,8 @@ struct InAppPurchasePlanButton: View {
                 return "Pending approval"
             case .purchased:
                 return "Purchased"
+            case .verificationRequired:
+                return "Verification required. Restore purchases to try again."
             }
         }
 
@@ -132,6 +135,12 @@ struct InAppPurchasePlanButton: View {
                 .font(.title2)
                 .foregroundStyle(.green)
                 .frame(width: 62)
+        case .verificationRequired:
+            Text("Restore Required")
+                .font(.caption.weight(.bold))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.orange)
+                .frame(width: 82)
         case .unavailable:
             Text("Unavailable")
                 .font(.caption.weight(.bold))

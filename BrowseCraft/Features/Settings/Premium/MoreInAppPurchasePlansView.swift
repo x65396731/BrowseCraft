@@ -36,6 +36,10 @@ struct MoreInAppPurchasePlansView: View {
                                 Text("Purchased")
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundColor(.secondary)
+                            } else if self.store.hasUnverifiedEntitlement(plan) {
+                                Text("Restore Required")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundColor(.orange)
                             } else {
                                 Text(self.store.priceText(for: plan) ?? "Unavailable")
                                     .font(.subheadline.weight(.semibold))
@@ -48,7 +52,8 @@ struct MoreInAppPurchasePlansView: View {
                 .disabled(
                     self.store.isLoading ||
                     self.store.activeProductID != nil ||
-                    self.store.isPurchased(plan)
+                    self.store.isPurchased(plan) ||
+                    self.store.hasUnverifiedEntitlement(plan)
                 )
                 .padding(.vertical, 4)
             }

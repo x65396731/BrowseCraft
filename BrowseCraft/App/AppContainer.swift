@@ -405,6 +405,13 @@ final class AppContainer {
     private func processStoreKitTransactionUpdate(
         _ verification: VerificationResult<StoreKit.Transaction>
     ) async {
+        var activeProductIDs: Set<String>?
+        defer {
+            self.settingsViewModel.recordStoreKitTransactionUpdate(
+                activeProductIDs: activeProductIDs
+            )
+        }
+
         switch verification {
         case .unverified(let transaction, let error):
             IAPDiagnostics.error(
@@ -434,11 +441,13 @@ final class AppContainer {
             await self.portalSessionCoordinator.start()
 
             do {
-                try await self.settingsViewModel.processStoreKitTransactionUpdate(
-                    transaction: transaction,
-                    signedTransaction: verification.jwsRepresentation,
-                    plan: plan
-                )
+                activeProductIDs =
+                    try await self.settingsViewModel
+                        .processStoreKitTransactionUpdate(
+                            transaction: transaction,
+                            signedTransaction: verification.jwsRepresentation,
+                            plan: plan
+                        )
                 await transaction.finish()
                 IAPDiagnostics.notice(
                     "event=transaction-update-finished " +

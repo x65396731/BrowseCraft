@@ -4,6 +4,8 @@ import SwiftUI
 struct InAppPurchaseSheetView: View {
     @StateObject private var store: InAppPurchaseStore
     private let animationAssets: PurchaseAnimationPlayerView.Assets
+    private let transactionUpdateRevision: UInt64
+    private let transactionUpdateActiveProductIDs: Set<String>?
     private let closeAction: () -> Void
 
     init(
@@ -21,13 +23,21 @@ struct InAppPurchaseSheetView: View {
             throw StoreKitPortalPurchaseSubmissionError
                 .snapshotContractMismatch
         },
-        restorePurchasesAction: @escaping @MainActor (UUID) async throws -> Void = { _ in
+        restorePurchasesAction: @escaping @MainActor (
+            UUID
+        ) async throws -> Set<String>? = { _ in
             try await AppStore.sync()
+            return nil
         },
+        transactionUpdateRevision: UInt64 = 0,
+        transactionUpdateActiveProductIDs: Set<String>? = nil,
         closeAction: @escaping () -> Void = {},
         animationResource: BundledPurchaseAnimationResource = BundledPurchaseAnimationResource()
     ) {
         self.animationAssets = PurchaseAnimationPlayerView.Assets(resource: animationResource)
+        self.transactionUpdateRevision = transactionUpdateRevision
+        self.transactionUpdateActiveProductIDs =
+            transactionUpdateActiveProductIDs
         self.closeAction = closeAction
         _store = StateObject(
             wrappedValue: InAppPurchaseStore(
@@ -52,5 +62,15 @@ struct InAppPurchaseSheetView: View {
             )
         }
         .preferredColorScheme(.dark)
+        .task(id: self.transactionUpdateRevision) {
+            guard self.transactionUpdateRevision > 0 else {
+                return
+            }
+
+            await self.store.refreshAfterTransactionUpdate(
+                activeProductIDs:
+                    self.transactionUpdateActiveProductIDs
+            )
+        }
     }
 }

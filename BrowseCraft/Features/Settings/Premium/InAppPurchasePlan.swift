@@ -71,7 +71,7 @@ struct InAppPurchasePlan: Identifiable {
         title: "1 Site Slot",
         subtitle: "Add one custom site slot",
         systemImage: "square.grid.2x2",
-        productID: "com.xiefei.AnyPortal.site.unlock.1",
+        productID: "com.xiefei.AnyPortal.site.unlock.v2.1",
         productKind: .nonConsumable,
         siteSlotIncrement: 1
     )
@@ -80,7 +80,7 @@ struct InAppPurchasePlan: Identifiable {
         title: "5 Site Slots",
         subtitle: "Add five custom site slots",
         systemImage: "square.grid.3x2",
-        productID: "com.xiefei.AnyPortal.site.unlock.5",
+        productID: "com.xiefei.AnyPortal.site.unlock.v2.5",
         productKind: .nonConsumable,
         siteSlotIncrement: 5
     )
@@ -89,7 +89,7 @@ struct InAppPurchasePlan: Identifiable {
         title: "10 Site Slots",
         subtitle: "Add ten custom site slots",
         systemImage: "square.grid.3x3",
-        productID: "com.xiefei.AnyPortal.site.unlock.10",
+        productID: "com.xiefei.AnyPortal.site.unlock.v2.10",
         productKind: .nonConsumable,
         siteSlotIncrement: 10
     )
@@ -98,7 +98,7 @@ struct InAppPurchasePlan: Identifiable {
         title: "30 Site Slots",
         subtitle: "Add thirty custom site slots",
         systemImage: "rectangle.grid.3x2",
-        productID: "com.xiefei.AnyPortal.site.unlock.30",
+        productID: "com.xiefei.AnyPortal.site.unlock.v2.30",
         productKind: .nonConsumable,
         siteSlotIncrement: 30
     )

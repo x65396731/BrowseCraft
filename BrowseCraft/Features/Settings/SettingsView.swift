@@ -253,6 +253,11 @@ struct SettingsView: View {
                             for: userID
                         )
                     },
+                    transactionUpdateRevision:
+                        self.viewModel.storeKitTransactionUpdateRevision,
+                    transactionUpdateActiveProductIDs:
+                        self.viewModel
+                            .storeKitTransactionUpdateActiveProductIDs,
                     closeAction: {
                         var transaction: SwiftUI.Transaction = SwiftUI.Transaction(animation: nil)
                         transaction.disablesAnimations = true

@@ -42,6 +42,9 @@ final class SettingsViewModel: ObservableObject {
     @Published var cacheErrorMessage: String?
     @Published var cacheStatusMessage: String?
     @Published private(set) var diagnosticCode: String
+    @Published private(set) var storeKitTransactionUpdateRevision: UInt64 = 0
+    @Published private(set) var storeKitTransactionUpdateActiveProductIDs:
+        Set<String>?
 
     private let imageCacheConfigurator: ImageCacheConfigurator
     private let appUserRepository: AppUserRepository
@@ -178,7 +181,7 @@ final class SettingsViewModel: ObservableObject {
         transaction: StoreKit.Transaction,
         signedTransaction: String,
         plan: InAppPurchasePlan
-    ) async throws {
+    ) async throws -> Set<String> {
         let userID: UUID = self.activeAppUser.currentUserID
         IAPDiagnostics.notice(
             "event=transaction-update-submission-started " +
@@ -224,10 +227,21 @@ final class SettingsViewModel: ObservableObject {
                 "environment=\(environment.rawValue) " +
                 "revision=\(snapshot.revision)"
         )
+        return snapshot.activeProductIDs
     }
 
     @MainActor
-    func restoreStoreKitPurchases(for authorizedUserID: UUID) async throws {
+    func recordStoreKitTransactionUpdate(
+        activeProductIDs: Set<String>?
+    ) {
+        self.storeKitTransactionUpdateActiveProductIDs = activeProductIDs
+        self.storeKitTransactionUpdateRevision &+= 1
+    }
+
+    @MainActor
+    func restoreStoreKitPurchases(
+        for authorizedUserID: UUID
+    ) async throws -> Set<String>? {
         IAPDiagnostics.notice(
             "event=restore-started " +
                 "userHash=\(IAPDiagnostics.hash(authorizedUserID))"
@@ -241,7 +255,9 @@ final class SettingsViewModel: ObservableObject {
         var unverifiedCount: Int = 0
         var unsupportedProductCount: Int = 0
         var revokedCount: Int = 0
+        var identityMismatchCount: Int = 0
         for await verification in StoreKit.Transaction.currentEntitlements {
+            try Task.checkCancellation()
             guard case .verified(let transaction) = verification else {
                 unverifiedCount += 1
                 continue
@@ -256,10 +272,15 @@ final class SettingsViewModel: ObservableObject {
                 revokedCount += 1
                 continue
             }
-            try self.requireStoreKitTransactionOwner(
-                transaction,
-                userID: authorizedUserID
-            )
+            do {
+                try self.requireStoreKitTransactionOwner(
+                    transaction,
+                    userID: authorizedUserID
+                )
+            } catch is StoreKitTransactionIdentityError {
+                identityMismatchCount += 1
+                continue
+            }
 
             restorableTransactions.append(
                 RestorableStoreKitTransaction(
@@ -277,7 +298,8 @@ final class SettingsViewModel: ObservableObject {
                 "acceptedCount=\(restorableTransactions.count) " +
                 "unverifiedCount=\(unverifiedCount) " +
                 "unsupportedProductCount=\(unsupportedProductCount) " +
-                "revokedCount=\(revokedCount)"
+                "revokedCount=\(revokedCount) " +
+                "identityMismatchCount=\(identityMismatchCount)"
         )
 
         restorableTransactions.sort { lhs, rhs in
@@ -291,7 +313,7 @@ final class SettingsViewModel: ObservableObject {
             IAPDiagnostics.notice(
                 "event=restore-completed outcome=no-restorable-transactions"
             )
-            return
+            return nil
         }
         guard restorableTransactions.allSatisfy({ candidate in
             candidate.environment == environment
@@ -336,6 +358,7 @@ final class SettingsViewModel: ObservableObject {
                 "transactionCount=\(restorableTransactions.count) " +
                 "revision=\(snapshot.revision)"
         )
+        return snapshot.activeProductIDs
     }
 
     private func requireStoreKitTransactionOwner(
