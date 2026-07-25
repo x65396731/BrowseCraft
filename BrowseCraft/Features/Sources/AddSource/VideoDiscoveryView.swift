@@ -316,7 +316,7 @@ private struct VideoDiscoveryDetailView: View {
 
         self.viewModel.saveTemporaryHistory(
             TemporaryResourceHistory(
-                userID: AppUser.localDefaultID,
+                userID: self.viewModel.currentUserID,
                 kind: .video,
                 title: self.item.title,
                 resourceURL: resourceURL,

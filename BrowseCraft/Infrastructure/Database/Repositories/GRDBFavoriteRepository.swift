@@ -5,24 +5,27 @@ import GRDB
 
 final class GRDBFavoriteRepository: FavoriteRepository {
     private let database: AppDatabase
+    private let activeAppUser: (any ActiveAppUserProviding)?
     private let accountScopeProvider: any ActiveAccountScopeProviding
     private let changeNotifier: (any CloudSyncChangeNotifying)?
 
     init(
         database: AppDatabase,
+        activeAppUser: (any ActiveAppUserProviding)? = nil,
         accountScopeProvider: any ActiveAccountScopeProviding = ActiveAccountScopeStore(),
         changeNotifier: (any CloudSyncChangeNotifying)? = nil
     ) {
         self.database = database
+        self.activeAppUser = activeAppUser
         self.accountScopeProvider = accountScopeProvider
         self.changeNotifier = changeNotifier
     }
 
     func fetchFavoriteItemIDs(sourceID: String?) throws -> Set<String> {
-        let accountScope: CloudAccountScope = self.accountScopeProvider.currentScope
+        let userID: String = self.currentUserID
         return try self.database.queue.read { database in
             var request: QueryInterfaceRequest<FavoriteItemRecord> = FavoriteItemRecord
-                .filter(FavoriteItemRecord.Columns.userID == accountScope.rawValue)
+                .filter(FavoriteItemRecord.Columns.userID == userID)
                 .filter(FavoriteItemRecord.Columns.deletedAt == nil)
             if let sourceID: String {
                 request = request.filter(FavoriteItemRecord.Columns.sourceID == sourceID)
@@ -32,11 +35,11 @@ final class GRDBFavoriteRepository: FavoriteRepository {
     }
 
     func fetchFavoriteItems() throws -> [FavoriteContentItem] {
-        let accountScope: CloudAccountScope = self.accountScopeProvider.currentScope
+        let userID: String = self.currentUserID
         return try self.database.queue.read { database in
             guard let record: FavoriteRecord = try FavoriteRecord.fetchOne(
                 database,
-                key: accountScope.rawValue
+                key: userID
             ) else {
                 return []
             }
@@ -46,9 +49,9 @@ final class GRDBFavoriteRepository: FavoriteRepository {
     }
 
     func setFavorite(item: FavoriteContentItem, isFavorite: Bool) throws {
+        let userID: String = self.currentUserID
         let accountScope: CloudAccountScope = self.accountScopeProvider.currentScope
         try self.database.queue.write { database in
-            let userID: String = accountScope.rawValue
             let now: Date = Date()
             try AppUserRecord.insertUser(id: userID, in: database)
             let recordKey: [String: String] = [
@@ -101,6 +104,11 @@ final class GRDBFavoriteRepository: FavoriteRepository {
             )
         }
         self.changeNotifier?.notifyLocalChange()
+    }
+
+    /// 中文注释：nil 仅保留给既存隔离测试；App Composition Root 必须注入稳定业务用户。
+    private var currentUserID: String {
+        return self.activeAppUser?.currentUserID.uuidString ?? AppUser.localDefaultID
     }
 
     private static func decodeFavoriteItems(_ json: String) -> [FavoriteContentItem] {

@@ -12,7 +12,6 @@ extension CloudRecordMetadataRecord {
         try database.create(table: Self.databaseTableName, ifNotExists: true) { table in
             table.column("accountScope", .text)
                 .notNull()
-                .references(AppUserRecord.databaseTableName, column: "id", onDelete: .cascade)
             table.column("recordName", .text).notNull()
             table.column("systemFields", .blob).notNull()
             table.column("updatedAt", .datetime).notNull()

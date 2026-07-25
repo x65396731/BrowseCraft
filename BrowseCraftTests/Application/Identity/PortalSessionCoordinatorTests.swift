@@ -209,6 +209,79 @@ struct PortalSessionCoordinatorTests {
         #expect(accessToken == nil)
     }
 
+    @Test func adoptedIdentityReplacesOldCredentialsWithoutNetworkRequest() async throws {
+        let oldUserID: UUID = try Self.userID("70f4682a-eafc-4402-9610-41c81f01f9ce")
+        let adoptedUserID: UUID = try Self.userID("68ad646e-3256-4cf3-9ab5-e5e371784777")
+        let activeUser: ActiveAppUserStore = ActiveAppUserStore(
+            initialUserID: oldUserID
+        )
+        let store: InMemoryPortalSessionStore = InMemoryPortalSessionStore(
+            session: Self.session(
+                userID: oldUserID,
+                credentials: Self.tokens(
+                    userID: oldUserID,
+                    accessToken: "old-access",
+                    refreshToken: "old-refresh",
+                    accessExpiresAt: Self.now.addingTimeInterval(3_600)
+                )
+            )
+        )
+        let authenticator: MockPortalIdentityAuthenticator =
+            MockPortalIdentityAuthenticator()
+        let coordinator: PortalSessionCoordinator = PortalSessionCoordinator(
+            activeAppUser: activeUser,
+            sessionStore: store,
+            authenticator: authenticator,
+            now: { Self.now }
+        )
+        await coordinator.start()
+        activeUser.update(adoptedUserID)
+
+        try await coordinator.replaceSessionForAdoptedIdentity(adoptedUserID)
+
+        let snapshot: PortalSessionSnapshot = await coordinator.snapshot()
+        let registerCallCount: Int = await authenticator.registerCallCount
+        let refreshCallCount: Int = await authenticator.refreshCallCount
+        #expect(snapshot.userID == adoptedUserID)
+        #expect(snapshot.status == .recoveryRequired)
+        #expect(store.session?.userID == adoptedUserID)
+        #expect(store.session?.credentials == nil)
+        #expect(registerCallCount == 0)
+        #expect(refreshCallCount == 0)
+    }
+
+    @Test func manuallyRecoveredCredentialsInstallOnlyForActiveUser() async throws {
+        let userID: UUID = try Self.userID("70f4682a-eafc-4402-9610-41c81f01f9ce")
+        let store: InMemoryPortalSessionStore = InMemoryPortalSessionStore()
+        let authenticator: MockPortalIdentityAuthenticator =
+            MockPortalIdentityAuthenticator()
+        let coordinator: PortalSessionCoordinator = Self.coordinator(
+            userID: userID,
+            store: store,
+            authenticator: authenticator
+        )
+        let credentials: PortalAuthenticationTokens = Self.tokens(
+            userID: userID,
+            accessToken: "recovered-access",
+            refreshToken: "recovered-refresh",
+            accessExpiresAt: Self.now.addingTimeInterval(3_600)
+        )
+
+        try await coordinator.installRecoveredSession(
+            credentials,
+            for: userID
+        )
+
+        let snapshot: PortalSessionSnapshot = await coordinator.snapshot()
+        let registerCallCount: Int = await authenticator.registerCallCount
+        let refreshCallCount: Int = await authenticator.refreshCallCount
+        #expect(snapshot.status == .authenticated)
+        #expect(snapshot.userID == userID)
+        #expect(store.session?.credentials?.accessToken == "recovered-access")
+        #expect(registerCallCount == 0)
+        #expect(refreshCallCount == 0)
+    }
+
     private static func coordinator(
         userID: UUID,
         store: InMemoryPortalSessionStore,

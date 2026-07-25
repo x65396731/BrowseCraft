@@ -4,6 +4,7 @@ import Foundation
 
 /// 中文注释：当前 MVP 可以只有本地默认用户，但历史表必须显式挂到 userID 下。
 struct AppUser: Identifiable, Hashable {
+    /// 中文注释：仅供尚未改造的隔离测试 fixture 使用；App Composition Root 不得使用。
     static let localDefaultID: String = "local.default"
 
     var id: String

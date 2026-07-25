@@ -37,10 +37,15 @@ final class SourcesViewModel: ObservableObject {
     private let validateSourceTabsUseCase: ValidateSourceTabsUseCase
     private let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase
     private let sourceSelectionStore: SourceSelectionStore
-    private let userID: String
+    private let activeAppUser: (any ActiveAppUserProviding)?
+    private let fallbackUserID: String
     private let now: () -> Date
     private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
     private var failedRefreshAction: FailedRefreshAction?
+
+    var currentUserID: String {
+        return self.activeAppUser?.currentUserID.uuidString ?? self.fallbackUserID
+    }
 
     init(
         syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase,
@@ -56,6 +61,7 @@ final class SourcesViewModel: ObservableObject {
         validateSourceTabsUseCase: ValidateSourceTabsUseCase,
         saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase,
         sourceSelectionStore: SourceSelectionStore,
+        activeAppUser: (any ActiveAppUserProviding)? = nil,
         userID: String = AppUser.localDefaultID,
         now: @escaping () -> Date = Date.init
     ) {
@@ -73,7 +79,8 @@ final class SourcesViewModel: ObservableObject {
         self.validateSourceTabsUseCase = validateSourceTabsUseCase
         self.saveUserLibraryStateUseCase = saveUserLibraryStateUseCase
         self.sourceSelectionStore = sourceSelectionStore
-        self.userID = userID
+        self.activeAppUser = activeAppUser
+        self.fallbackUserID = userID
         self.now = now
         self.selectedSourceID = sourceSelectionStore.selectedSourceID
         self.bindSourceSelection()
@@ -169,7 +176,9 @@ final class SourcesViewModel: ObservableObject {
     @MainActor
     func saveTemporaryHistory(_ history: TemporaryResourceHistory) {
         do {
-            try self.discoveryService.saveTemporaryHistory(history)
+            var ownedHistory: TemporaryResourceHistory = history
+            ownedHistory.userID = self.currentUserID
+            try self.discoveryService.saveTemporaryHistory(ownedHistory)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "temporary-history-save-error")
             self.errorMessage = error.localizedDescription
@@ -187,7 +196,8 @@ final class SourcesViewModel: ObservableObject {
                 baseURL: baseURL,
                 ruleJSON: ruleJSON
             )
-            let source: Source = result.source
+            var source: Source = result.source
+            source.userID = self.currentUserID
 
             self.load()
             let items: [ContentItem] = self.contentItemMapper.map(
@@ -224,7 +234,8 @@ final class SourcesViewModel: ObservableObject {
                 feedURLString: feedURLString,
                 name: name
             )
-            let source: Source = result.source
+            var source: Source = result.source
+            source.userID = self.currentUserID
 
             self.load()
             let items: [ContentItem] = self.contentItemMapper.map(
@@ -303,7 +314,8 @@ final class SourcesViewModel: ObservableObject {
         CrashDiagnostics.shared.setRuleStage(.list)
         do {
             let result: AddCatalogSourceResult = try await self.catalogService.addSource(catalogSource)
-            let source: Source = result.source
+            var source: Source = result.source
+            source.userID = self.currentUserID
             self.load()
             if let listOutput: SourceListOutput = result.listOutput {
                 let items: [ContentItem] = self.contentItemMapper.map(
@@ -668,7 +680,7 @@ final class SourcesViewModel: ObservableObject {
 
     private func saveLibraryState(sourceID: String, lastRefreshAt: Date?) {
         let state: UserLibraryState = UserLibraryState(
-            userID: self.userID,
+            userID: self.currentUserID,
             selectedSourceID: sourceID,
             listContext: nil,
             lastRefreshAt: lastRefreshAt,

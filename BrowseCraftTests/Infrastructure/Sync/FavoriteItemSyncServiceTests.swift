@@ -268,7 +268,11 @@ struct FavoriteItemSyncServiceTests {
         let path: String = FileManager.default.temporaryDirectory
             .appendingPathComponent("BrowseCraftFavoriteSyncTests-\(UUID().uuidString).sqlite")
             .path
-        return try AppDatabase(path: path)
+        let database: AppDatabase = try AppDatabase(path: path)
+        try database.queue.write { database in
+            try AppUserRecord.insertLocalDefaultUser(in: database)
+        }
+        return database
     }
 
     private static func makeService(

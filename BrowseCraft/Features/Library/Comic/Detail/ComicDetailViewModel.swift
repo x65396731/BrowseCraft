@@ -54,7 +54,8 @@ final class ComicDetailViewModel: ObservableObject {
     private let loadLatestComicChapterHistoryUseCase: LoadLatestComicChapterHistoryUseCase
     private let resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
     private let sourceCredentialStore: (any SourceCredentialStoring)?
-    private let userID: String
+    private let activeAppUser: (any ActiveAppUserProviding)?
+    private let fallbackUserID: String
     private var pendingRestrictedChapterURL: String?
 
     init(
@@ -64,6 +65,7 @@ final class ComicDetailViewModel: ObservableObject {
         loadLatestComicChapterHistoryUseCase: LoadLatestComicChapterHistoryUseCase,
         resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase,
         sourceCredentialStore: (any SourceCredentialStoring)? = nil,
+        activeAppUser: (any ActiveAppUserProviding)? = nil,
         userID: String = AppUser.localDefaultID
     ) {
         self.item = item
@@ -72,7 +74,8 @@ final class ComicDetailViewModel: ObservableObject {
         self.loadLatestComicChapterHistoryUseCase = loadLatestComicChapterHistoryUseCase
         self.resolveReaderSourcePresentationUseCase = resolveReaderSourcePresentationUseCase
         self.sourceCredentialStore = sourceCredentialStore
-        self.userID = userID
+        self.activeAppUser = activeAppUser
+        self.fallbackUserID = userID
 
         #if DEBUG
         print(
@@ -336,7 +339,7 @@ final class ComicDetailViewModel: ObservableObject {
     /// 中文注释：详情页重新出现时可单独刷新历史，不必重复请求详情和章节列表。
     func refreshLatestReadingHistory() {
         self.latestReadingHistory = try? self.loadLatestComicChapterHistoryUseCase.execute(
-            userID: self.userID,
+            userID: self.currentUserID,
             sourceID: self.source.id,
             comicItemID: self.item.id
         )
@@ -366,6 +369,10 @@ final class ComicDetailViewModel: ObservableObject {
             return "This account cannot access this paid chapter. Purchase or VIP membership may be required."
         }
         return "This account cannot access this chapter. The source may require additional permission."
+    }
+
+    private var currentUserID: String {
+        return self.activeAppUser?.currentUserID.uuidString ?? self.fallbackUserID
     }
 
 }

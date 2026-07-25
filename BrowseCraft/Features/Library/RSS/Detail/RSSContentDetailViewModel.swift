@@ -19,6 +19,8 @@ final class RSSContentDetailViewModel: ObservableObject {
     private let saveRSSReadingHistoryUseCase: SaveRSSReadingHistoryUseCase
     private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
     private let runtimeResolver: any SourceRuntimeResolving
+    private let activeAppUser: (any ActiveAppUserProviding)?
+    private let fallbackUserID: String
     private let now: () -> Date
     private var didSaveReadingHistory: Bool = false
     private var didLoadDetailContent: Bool = false
@@ -29,6 +31,8 @@ final class RSSContentDetailViewModel: ObservableObject {
         saveRSSReadingHistoryUseCase: SaveRSSReadingHistoryUseCase,
         accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil,
         runtimeResolver: any SourceRuntimeResolving,
+        activeAppUser: (any ActiveAppUserProviding)? = nil,
+        userID: String = AppUser.localDefaultID,
         now: @escaping () -> Date = Date.init
     ) {
         self.item = item
@@ -37,6 +41,8 @@ final class RSSContentDetailViewModel: ObservableObject {
         self.saveRSSReadingHistoryUseCase = saveRSSReadingHistoryUseCase
         self.accumulateAdPointsUseCase = accumulateAdPointsUseCase
         self.runtimeResolver = runtimeResolver
+        self.activeAppUser = activeAppUser
+        self.fallbackUserID = userID
         self.now = now
     }
 
@@ -60,7 +66,7 @@ final class RSSContentDetailViewModel: ObservableObject {
             #if DEBUG
             print(
                 "[BrowseCraftRSSHistory] saved " +
-                "userID=\(AppUser.localDefaultID) " +
+                "userID=\(self.currentUserID) " +
                 "sourceID=\(self.source.id) " +
                 "itemID=\(self.item.id)"
             )
@@ -565,7 +571,7 @@ final class RSSContentDetailViewModel: ObservableObject {
         let timestamp: Date = self.now()
 
         return RSSReadingHistory(
-            userID: AppUser.localDefaultID,
+            userID: self.currentUserID,
             sourceID: self.source.id,
             itemID: self.item.id,
             dataType: .article,
@@ -634,5 +640,9 @@ final class RSSContentDetailViewModel: ObservableObject {
     private func trimmedNonEmpty(_ string: String?) -> String? {
         let trimmed: String = string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private var currentUserID: String {
+        return self.activeAppUser?.currentUserID.uuidString ?? self.fallbackUserID
     }
 }

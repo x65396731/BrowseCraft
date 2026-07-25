@@ -1,54 +1,81 @@
-# Account-scoped 数据库迁移备忘
+# Identity 数据归属与数据库策略备忘
 
-更新时间：2026-07-22
-状态：仅记录，当前不启用
+更新时间：2026-07-25
+状态：Identity 数据归属收口已接线；不提供旧开发数据库升级
 
 ## 当前决定
 
-BrowseCraft 尚处于允许清除开发数据的阶段。阶段 3 将 Source、Favorite、同步队列和同步状态改为按
-`local.default` / `cloud:<hash>` 隔离后，开发设备通过删除 App 重建数据库，不兼容此前的开发数据库。
+`AppUser.id` UUID 是唯一业务 `userID`。Source、Favorite、History、Library 和 StoreKit
+记录全部归属于该 UUID。
 
-因此当前 `AppDatabase` 直接创建最终 schema，不注册 account-scoped 兼容迁移。每次 schema 发生不兼容
-变更后，需要删除 App 再安装，并通过数据库 UT 检查主键、唯一键和外键完整性。
+`CloudAccountScope` 不是业务用户，只用于隔离：
 
-## 暂不采用的迁移做法
+- CloudKit 同步队列
+- change token
+- CKSyncEngine state
+- CKRecord metadata
+- 云账户首次绑定决策与账户世代
 
-此前的 `AccountScopedSyncMigration` 使用以下方式处理旧开发数据库：
+CloudKit 下载的业务数据在落库时绑定当前 `ActiveAppUser.id`，不会把
+`CloudAccountScope.rawValue` 写入业务表的 `userID`。
 
-1. 用 `PRAGMA table_info` 检查目标表是否仍为旧结构。
-2. 将旧表重命名为临时表。
-3. 按最终 schema 创建新表。
-4. 使用 `INSERT ... SELECT ...` 复制旧数据，并补充 `local.default` account scope。
-5. 将旧同步队列 ID 改为 `<accountScope>|<entityType>:<entityID>`。
-6. 删除临时表。
+## 数据库策略
 
-该方案曾覆盖：
+当前仍处于可删除 App 重建数据库的开发阶段，因此：
 
-- `sources`：把主键从 `id` 改为 `userID + id`；
-- `sync_queue`：增加 `accountScope` 并更新唯一键与队列 ID；
-- `sync_state`：增加 `accountScope` 并更新复合主键。
+- `AppDatabase` 只创建最终 schema。
+- App 启动时不创建 `local.default`。
+- Keychain 身份 bootstrap 读取或生成 UUID，再幂等创建对应 `users` 记录。
+- 不实现 `local.default -> UUID` 升级迁移。
+- 不兼容已经把 `cloud:<hash>` 写入业务 `userID` 的旧开发数据库。
+- `cloud_record_metadata.accountScope` 和
+  `cloud_account_partition_preparations.accountScope` 不引用 `users.id`。
 
-## 为什么当前不启用
+需要验证新 schema 时，删除 App 后重新安装。隔离测试若仍依赖旧身份 fixture，可以显式插入
+`local.default`，但该路径不得进入 App Composition Root。
 
-- 该实现只重建已知三张表，不是通用的外键迁移机制。
-- SQLite 重命名或重建父表时，需要逐项确认所有引用表、触发器和索引，未来新增外键后不能直接复用旧实现。
-- 当前业务表没有声明指向 `sources` 的数据库外键；现有业务外键主要是 `userID -> users.id`，但正式迁移仍需验证完整依赖图。
-- 在允许删除 App 的开发阶段，保留未经完整迁移测试的兼容代码风险高于直接重建最终 schema。
+## 当前边界
 
-## 正式发布前的恢复条件
+- 业务 owner：`ActiveAppUserProviding.currentUserID`
+- 同步 partition：`ActiveAccountScopeProviding.currentScope`
+- Portal API `userId`：活动 UUID
+- Source/Favorite Repository：活动 UUID
+- Source/Favorite Cloud sync 本地落库：活动 UUID
+- Queue/state/token/metadata：CloudAccountScope
 
-开始保留用户数据后，不再允许依赖删除 App。届时应使用 GRDB 的版本化迁移机制，并至少完成：
+CloudKit `AppUserIdentity/default` 将放在 Private Database 的 default zone。它只在用户点击
+iCloud 关联按钮后读取或创建；App 启动不自动关联、不自动切换 UUID，也不自动恢复 StoreKit
+交易或 Portal 登录。购买和恢复前由客户端确认 CloudKit UUID 与活动 Portal 用户一致。
 
-1. 盘点 `PRAGMA foreign_key_list`、索引和触发器。
-2. 为每个 schema 版本定义可重复、事务化的迁移步骤。
-3. 明确迁移期间的外键处理，并在事务结束前执行 `PRAGMA foreign_key_check`。
-4. 使用包含真实旧版本结构和数据的 fixture 执行升级 UT。
-5. 覆盖迁移成功、事务回滚、重复启动及异常数据处理。
-6. 在发布候选版本上验证升级安装，不能只验证全新安装。
+当前已完成不依赖 CloudKit SDK 的 Identity 基础合同：
 
-## 当前 UT 验证范围
+- 身份模型和 schema 字段常量
+- 手动关联状态枚举
+- 只读/缺失时创建的存储协议
+- 禁止通用覆盖既有云端 UUID 的接口边界
+- Private Database default-zone Adapter
+- 并发创建冲突后读取云端权威 UUID
+- record type、record ID、schemaVersion、UUID 和时间字段的严格映射
+- 仅由用户动作触发的 Identity 关联协调器
+- 设置页独立关联按钮和 Cloud Sync 开启前身份门禁
+- UUID 冲突的单一阻断状态
 
-- 全新数据库的 `sources` 主键必须是 `userID + id`。
-- 全新数据库执行 `PRAGMA foreign_key_check` 必须无结果。
-- Source、Favorite、同步队列和同步状态必须按账户隔离。
-- 首次合并不得删除或改写 `local.default` 数据。
+Adapter 和手动关联状态机已注入 AppContainer。App 启动、App 恢复前台和普通 iCloud 状态刷新
+不会读取 `AppUserIdentity/default`；只有独立关联按钮或用户主动开启 Cloud Sync 才会读取/创建。
+UUID 冲突进入单一确认 Sheet。用户选择 `mergeLocalData` 或 `useCloudDataOnly` 后都会采用
+CloudKit UUID B；取消则保持 A。合并会在一个 GRDB 事务内把 A 的 Source、Favorite、
+History、Library State 和临时资源历史复制到 B，并保留 A；云端优先不会复制 A 的内容。
+
+身份采用绝不复制 A 的 AppUser 权益字段或 `user_storekit_transactions`。Keychain 身份和活动
+用户切到 B 后，Portal Keychain item 原子覆盖为 B 的 `recoveryRequired` 空凭证状态。
+该流程不调用 Portal register/recover，不调用 StoreKit；旧 Portal session 也不能供 B 复用。
+
+StoreKit 的 `AppStore.sync()` 只允许由内购页面的 `Restore Purchases` 按钮触发。
+
+## 静态验证重点
+
+- 新数据库创建后不会自动出现 `local.default`。
+- Identity bootstrap 后只存在活动 UUID 用户。
+- CloudAccountScope 变化不会改变 Source/Favorite 的业务 owner。
+- 同步队列和同步状态继续按 CloudAccountScope 隔离。
+- Cloud payload 落库时统一重绑到活动 UUID。

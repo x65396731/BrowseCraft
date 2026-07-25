@@ -46,4 +46,22 @@ final class GRDBAppUserRepository: AppUserRepository {
             try transactionRecord.save(database)
         }
     }
+
+    func saveUser(
+        _ user: AppUser,
+        storeKitTransactions: [UserStoreKitTransaction]
+    ) throws {
+        var userRecord: AppUserRecord = AppUserRecord(user: user)
+        let transactionRecords: [UserStoreKitTransactionRecord] =
+            storeKitTransactions.map { transaction in
+                return UserStoreKitTransactionRecord(transaction: transaction)
+            }
+
+        try self.database.queue.write { database in
+            try userRecord.save(database)
+            for var transactionRecord: UserStoreKitTransactionRecord in transactionRecords {
+                try transactionRecord.save(database)
+            }
+        }
+    }
 }

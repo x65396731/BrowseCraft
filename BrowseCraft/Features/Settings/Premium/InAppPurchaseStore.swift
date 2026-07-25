@@ -10,11 +10,26 @@ final class InAppPurchaseStore: ObservableObject {
         case someProductsUnavailable
         case productLoadFailed
         case productUnavailable(title: String)
+        case checkingIdentity
+        case iCloudLinkRequired
+        case identityMismatch
+        case identityCheckFailed
         case purchasing(productID: String, title: String)
+        case submittingPurchase(productID: String, title: String)
         case pending(productID: String, title: String)
         case cancelled
         case unverified(title: String)
         case purchaseFailed(title: String)
+        case transactionIdentityMismatch(title: String)
+        case xcodeEnvironmentUnsupported(title: String)
+        case storeKitEnvironmentUnsupported(title: String)
+        case portalSessionUnavailable(title: String)
+        case portalTemporarilyUnavailable(title: String)
+        case portalAccountMismatch(title: String)
+        case portalTransactionClaimed(title: String)
+        case portalSubmissionRejected(title: String)
+        case portalOutcomeUnknown(title: String)
+        case portalSubmissionInterrupted(title: String)
         case purchased(title: String)
         case restoring
         case restored
@@ -35,8 +50,18 @@ final class InAppPurchaseStore: ObservableObject {
                 return "StoreKit products could not be loaded."
             case .productUnavailable(let title):
                 return "\(title) is not currently available for purchase."
+            case .checkingIdentity:
+                return "Checking the linked iCloud identity…"
+            case .iCloudLinkRequired:
+                return "Link iCloud in Cloud Sync before purchasing or restoring purchases."
+            case .identityMismatch:
+                return "The linked iCloud identity belongs to another BrowseCraft profile. Resolve it in Cloud Sync first."
+            case .identityCheckFailed:
+                return "The linked iCloud identity could not be verified. Try again from Cloud Sync."
             case .purchasing(_, let title):
                 return "Purchasing \(title)…"
+            case .submittingPurchase(_, let title):
+                return "Verifying \(title) with BrowseCraft…"
             case .pending(_, let title):
                 return "\(title) is awaiting approval. No entitlement has been applied."
             case .cancelled:
@@ -45,6 +70,26 @@ final class InAppPurchaseStore: ObservableObject {
                 return "\(title) could not be verified. No entitlement was applied."
             case .purchaseFailed(let title):
                 return "\(title) could not be purchased."
+            case .transactionIdentityMismatch(let title):
+                return "\(title) is not bound to the active BrowseCraft profile. No entitlement was applied."
+            case .xcodeEnvironmentUnsupported(let title):
+                return "\(title) is an Xcode StoreKit test purchase. It was not sent to Portal; use App Store Sandbox for server verification."
+            case .storeKitEnvironmentUnsupported(let title):
+                return "\(title) came from an unsupported StoreKit environment and was not sent to Portal."
+            case .portalSessionUnavailable(let title):
+                return "\(title) completed in the App Store, but the Portal session is unavailable. Use Restore Purchases to recover it."
+            case .portalTemporarilyUnavailable(let title):
+                return "\(title) completed in the App Store, but Portal verification is temporarily unavailable. Use Restore Purchases later."
+            case .portalAccountMismatch(let title):
+                return "\(title) was rejected because the Portal or Apple transaction account does not match this BrowseCraft profile."
+            case .portalTransactionClaimed(let title):
+                return "\(title) is already bound to another BrowseCraft profile. No entitlement was applied."
+            case .portalSubmissionRejected(let title):
+                return "\(title) was rejected by Portal. No entitlement was applied."
+            case .portalOutcomeUnknown(let title):
+                return "\(title) completed in the App Store, but its Portal entitlement result is unknown. Use Restore Purchases before buying again."
+            case .portalSubmissionInterrupted(let title):
+                return "\(title) completed in the App Store, but Portal verification was interrupted. Use Restore Purchases to continue."
             case .purchased(let title):
                 return "\(title) purchase completed."
             case .restoring:
@@ -60,7 +105,8 @@ final class InAppPurchaseStore: ObservableObject {
 
         var isInProgress: Bool {
             switch self {
-            case .loadingProducts, .purchasing, .restoring:
+            case .loadingProducts, .checkingIdentity, .purchasing,
+                 .submittingPurchase, .restoring:
                 return true
             default:
                 return false
@@ -69,10 +115,78 @@ final class InAppPurchaseStore: ObservableObject {
 
         var suspendsBackgroundAnimation: Bool {
             switch self {
-            case .purchasing, .restoring:
+            case .checkingIdentity, .purchasing, .submittingPurchase,
+                 .restoring:
                 return true
             default:
                 return false
+            }
+        }
+
+        var diagnosticCode: String {
+            switch self {
+            case .idle:
+                return "idle"
+            case .loadingProducts:
+                return "loading-products"
+            case .productsUnavailable:
+                return "products-unavailable"
+            case .someProductsUnavailable:
+                return "some-products-unavailable"
+            case .productLoadFailed:
+                return "product-load-failed"
+            case .productUnavailable:
+                return "product-unavailable"
+            case .checkingIdentity:
+                return "checking-identity"
+            case .iCloudLinkRequired:
+                return "icloud-link-required"
+            case .identityMismatch:
+                return "identity-mismatch"
+            case .identityCheckFailed:
+                return "identity-check-failed"
+            case .purchasing:
+                return "purchasing"
+            case .submittingPurchase:
+                return "submitting-purchase"
+            case .pending:
+                return "pending"
+            case .cancelled:
+                return "cancelled"
+            case .unverified:
+                return "unverified"
+            case .purchaseFailed:
+                return "purchase-failed"
+            case .transactionIdentityMismatch:
+                return "transaction-identity-mismatch"
+            case .xcodeEnvironmentUnsupported:
+                return "xcode-environment-unsupported"
+            case .storeKitEnvironmentUnsupported:
+                return "storekit-environment-unsupported"
+            case .portalSessionUnavailable:
+                return "portal-session-unavailable"
+            case .portalTemporarilyUnavailable:
+                return "portal-temporarily-unavailable"
+            case .portalAccountMismatch:
+                return "portal-account-mismatch"
+            case .portalTransactionClaimed:
+                return "portal-transaction-claimed"
+            case .portalSubmissionRejected:
+                return "portal-submission-rejected"
+            case .portalOutcomeUnknown:
+                return "portal-outcome-unknown"
+            case .portalSubmissionInterrupted:
+                return "portal-submission-interrupted"
+            case .purchased:
+                return "purchased"
+            case .restoring:
+                return "restoring"
+            case .restored:
+                return "restored"
+            case .restoreFailed:
+                return "restore-failed"
+            case .revoked:
+                return "revoked"
             }
         }
     }
@@ -82,17 +196,49 @@ final class InAppPurchaseStore: ObservableObject {
     @Published private(set) var activeProductID: String?
     @Published private(set) var productsByID: [String: Product] = [:]
     @Published private(set) var purchasedProductIDs: Set<String> = []
-    @Published private(set) var status: Status = .idle
+    @Published private(set) var status: Status = .idle {
+        didSet {
+            guard oldValue != self.status else {
+                return
+            }
+            IAPDiagnostics.notice(
+                "event=ui-status-changed " +
+                    "from=\(oldValue.diagnosticCode) " +
+                    "to=\(self.status.diagnosticCode)"
+            )
+        }
+    }
 
-    private let applyPurchaseAction: @MainActor (StoreKit.Transaction, InAppPurchasePlan) async throws -> Void
-    private let restorePurchasesAction: @MainActor () async throws -> Void
+    private let authorizeStoreKitAction: @MainActor () async throws -> UUID
+    private let validateAuthorizedUser: @MainActor (UUID) async throws -> Void
+    private let applyPurchaseAction: @MainActor (
+        StoreKit.Transaction,
+        String,
+        InAppPurchasePlan
+    ) async throws -> Set<String>
+    private let restorePurchasesAction: @MainActor (UUID) async throws -> Void
 
     init(
-        applyPurchaseAction: @escaping @MainActor (StoreKit.Transaction, InAppPurchasePlan) async throws -> Void = { _, _ in },
-        restorePurchasesAction: @escaping @MainActor () async throws -> Void = {
+        authorizeStoreKitAction: @escaping @MainActor () async throws -> UUID = {
+            throw StoreKitPurchaseIdentityAuthorizationError.notAssociated
+        },
+        validateAuthorizedUser: @escaping @MainActor (UUID) async throws -> Void = { _ in
+            throw StoreKitPurchaseIdentityAuthorizationError.activeUserChanged
+        },
+        applyPurchaseAction: @escaping @MainActor (
+            StoreKit.Transaction,
+            String,
+            InAppPurchasePlan
+        ) async throws -> Set<String> = { _, _, _ in
+            throw StoreKitPortalPurchaseSubmissionError
+                .snapshotContractMismatch
+        },
+        restorePurchasesAction: @escaping @MainActor (UUID) async throws -> Void = { _ in
             try await AppStore.sync()
         }
     ) {
+        self.authorizeStoreKitAction = authorizeStoreKitAction
+        self.validateAuthorizedUser = validateAuthorizedUser
         self.applyPurchaseAction = applyPurchaseAction
         self.restorePurchasesAction = restorePurchasesAction
     }
@@ -102,6 +248,7 @@ final class InAppPurchaseStore: ObservableObject {
             return
         }
 
+        IAPDiagnostics.notice("event=product-load-started")
         self.isLoading = true
         self.status = .loadingProducts
         defer {
@@ -117,11 +264,13 @@ final class InAppPurchaseStore: ObservableObject {
             self.productsByID = Dictionary(uniqueKeysWithValues: products.map { product in
                 return (product.id, product)
             })
+            IAPDiagnostics.notice(
+                "event=product-load-completed " +
+                    "requestedCount=\(activePlans.count) " +
+                    "receivedCount=\(products.count)"
+            )
 
-            let revokedPlan: InAppPurchasePlan? = await self.refreshPurchasedProductIDs()
-            if let revokedPlan {
-                self.status = .revoked(title: revokedPlan.title)
-            } else if products.isEmpty {
+            if products.isEmpty {
                 self.status = .productsUnavailable
             } else if products.count < activePlans.count {
                 self.status = .someProductsUnavailable
@@ -129,8 +278,13 @@ final class InAppPurchaseStore: ObservableObject {
                 self.status = .idle
             }
         } catch is CancellationError {
+            IAPDiagnostics.notice("event=product-load-cancelled")
             return
         } catch {
+            IAPDiagnostics.error(
+                "event=product-load-failed " +
+                    "error=\(IAPDiagnostics.safeErrorCode(error))"
+            )
             self.status = .productLoadFailed
         }
     }
@@ -148,6 +302,11 @@ final class InAppPurchaseStore: ObservableObject {
     }
 
     func purchase(_ plan: InAppPurchasePlan) async {
+        var hasVerifiedStoreKitPurchase: Bool = false
+        IAPDiagnostics.notice(
+            "event=purchase-button-tapped productID=\(plan.productID)"
+        )
+
         guard InAppPurchasePlan.activePlans.contains(where: { activePlan in
             return activePlan.productID == plan.productID
         }) else {
@@ -174,14 +333,33 @@ final class InAppPurchaseStore: ObservableObject {
             return
         }
 
-        self.status = .purchasing(productID: plan.productID, title: plan.title)
-
         do {
-            let result: Product.PurchaseResult = try await product.purchase()
+            self.status = .checkingIdentity
+            let authorizedUserID: UUID = try await self.authorizeStoreKitAction()
+            try Task.checkCancellation()
+
+            self.status = .purchasing(productID: plan.productID, title: plan.title)
+            let result: Product.PurchaseResult = try await product.purchase(
+                options: [.appAccountToken(authorizedUserID)]
+            )
             switch result {
             case .success(let verification):
                 switch verification {
                 case .verified(let transaction):
+                    hasVerifiedStoreKitPurchase = true
+                    IAPDiagnostics.notice(
+                        "event=storekit-transaction-verified " +
+                            "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id)) " +
+                            "productID=\(transaction.productID) " +
+                            "environment=\(transaction.environment.rawValue) " +
+                            "hasAppAccountToken=\(transaction.appAccountToken != nil)"
+                    )
+                    guard transaction.appAccountToken == authorizedUserID else {
+                        self.status = .transactionIdentityMismatch(title: plan.title)
+                        return
+                    }
+                    try await self.validateAuthorizedUser(authorizedUserID)
+
                     if transaction.revocationDate != nil {
                         await transaction.finish()
                         self.purchasedProductIDs.remove(plan.productID)
@@ -189,26 +367,79 @@ final class InAppPurchaseStore: ObservableObject {
                         return
                     }
 
-                    try await self.applyPurchaseAction(transaction, plan)
+                    self.status = .submittingPurchase(
+                        productID: plan.productID,
+                        title: plan.title
+                    )
+                    let activeProductIDs: Set<String> =
+                        try await self.applyPurchaseAction(
+                            transaction,
+                            verification.jwsRepresentation,
+                            plan
+                        )
                     await transaction.finish()
-                    if plan.productKind == .nonConsumable {
-                        self.purchasedProductIDs.insert(plan.productID)
-                    }
+                    IAPDiagnostics.notice(
+                        "event=storekit-transaction-finished " +
+                            "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id))"
+                    )
+                    self.purchasedProductIDs = Self.purchasedProductIDs(
+                        from: activeProductIDs
+                    )
                     self.status = .purchased(title: plan.title)
                 case .unverified:
+                    IAPDiagnostics.error(
+                        "event=storekit-purchase-failed reason=unverified"
+                    )
                     self.status = .unverified(title: plan.title)
                 }
             case .pending:
+                IAPDiagnostics.notice(
+                    "event=storekit-purchase-pending productID=\(plan.productID)"
+                )
                 self.status = .pending(productID: plan.productID, title: plan.title)
             case .userCancelled:
+                IAPDiagnostics.notice(
+                    "event=storekit-purchase-cancelled productID=\(plan.productID)"
+                )
                 self.status = .cancelled
             @unknown default:
+                IAPDiagnostics.error(
+                    "event=storekit-purchase-failed reason=unknown-result"
+                )
                 self.status = .purchaseFailed(title: plan.title)
             }
-        } catch is CancellationError {
-            self.status = .cancelled
+        } catch let error as CancellationError {
+            IAPDiagnostics.error(
+                "event=purchase-flow-failed " +
+                    "error=\(IAPDiagnostics.safeErrorCode(error)) " +
+                    "storeKitVerified=\(hasVerifiedStoreKitPurchase)"
+            )
+            self.status = hasVerifiedStoreKitPurchase
+                ? .portalSubmissionInterrupted(title: plan.title)
+                : .cancelled
+        } catch let error as StoreKitPurchaseIdentityAuthorizationError {
+            Self.logFailure(error, flow: "purchase")
+            self.status = Self.status(for: error)
+        } catch let error as CloudAppUserIdentityStoreError {
+            Self.logFailure(error, flow: "purchase")
+            self.status = .identityCheckFailed
+        } catch let error as StoreKitTransactionIdentityError {
+            Self.logFailure(error, flow: "purchase")
+            self.status = .transactionIdentityMismatch(title: plan.title)
+        } catch let error as StoreKitPortalPurchaseSubmissionError {
+            Self.logFailure(error, flow: "purchase")
+            self.status = Self.status(for: error, title: plan.title)
+        } catch let error as PortalPurchaseEntitlementRefreshError {
+            Self.logFailure(error, flow: "purchase")
+            self.status = Self.status(for: error, title: plan.title)
+        } catch let error as PortalIAPServiceError {
+            Self.logFailure(error, flow: "purchase")
+            self.status = Self.status(for: error, title: plan.title)
         } catch {
-            self.status = .purchaseFailed(title: plan.title)
+            Self.logFailure(error, flow: "purchase")
+            self.status = hasVerifiedStoreKitPurchase
+                ? .portalOutcomeUnknown(title: plan.title)
+                : .purchaseFailed(title: plan.title)
         }
     }
 
@@ -218,23 +449,59 @@ final class InAppPurchaseStore: ObservableObject {
             return
         }
 
+        IAPDiagnostics.notice("event=restore-button-tapped")
         self.isLoading = true
-        self.status = .restoring
         defer {
             self.isLoading = false
         }
 
         do {
-            try await self.restorePurchasesAction()
-            let revokedPlan: InAppPurchasePlan? = await self.refreshPurchasedProductIDs()
+            self.status = .checkingIdentity
+            let authorizedUserID: UUID = try await self.authorizeStoreKitAction()
+            try Task.checkCancellation()
+
+            self.status = .restoring
+            try await self.restorePurchasesAction(authorizedUserID)
+            try await self.validateAuthorizedUser(authorizedUserID)
+            let revokedPlan: InAppPurchasePlan? =
+                await self.refreshPurchasedProductIDs(ownedBy: authorizedUserID)
             if let revokedPlan {
                 self.status = .revoked(title: revokedPlan.title)
             } else {
                 self.status = .restored
             }
-        } catch is CancellationError {
+        } catch let error as CancellationError {
+            Self.logFailure(error, flow: "restore")
             return
+        } catch let error as StoreKitPurchaseIdentityAuthorizationError {
+            Self.logFailure(error, flow: "restore")
+            self.status = Self.status(for: error)
+        } catch let error as CloudAppUserIdentityStoreError {
+            Self.logFailure(error, flow: "restore")
+            self.status = .identityCheckFailed
+        } catch let error as StoreKitTransactionIdentityError {
+            Self.logFailure(error, flow: "restore")
+            self.status = .identityMismatch
+        } catch let error as StoreKitPortalPurchaseSubmissionError {
+            Self.logFailure(error, flow: "restore")
+            self.status = Self.status(
+                for: error,
+                title: "Restore Purchases"
+            )
+        } catch let error as PortalPurchaseEntitlementRefreshError {
+            Self.logFailure(error, flow: "restore")
+            self.status = Self.status(
+                for: error,
+                title: "Restore Purchases"
+            )
+        } catch let error as PortalIAPServiceError {
+            Self.logFailure(error, flow: "restore")
+            self.status = Self.status(
+                for: error,
+                title: "Restore Purchases"
+            )
         } catch {
+            Self.logFailure(error, flow: "restore")
             self.status = .restoreFailed
         }
     }
@@ -244,11 +511,14 @@ final class InAppPurchaseStore: ObservableObject {
             && self.purchasedProductIDs.contains(plan.productID)
     }
 
-    private func refreshPurchasedProductIDs() async -> InAppPurchasePlan? {
+    private func refreshPurchasedProductIDs(
+        ownedBy userID: UUID
+    ) async -> InAppPurchasePlan? {
         var productIDs: Set<String> = []
 
         for await verification in StoreKit.Transaction.currentEntitlements {
             guard case .verified(let transaction) = verification,
+                  transaction.appAccountToken == userID,
                   let plan: InAppPurchasePlan = InAppPurchasePlan.plansByProductID[transaction.productID],
                   plan.productKind == .nonConsumable else {
                 continue
@@ -262,15 +532,16 @@ final class InAppPurchaseStore: ObservableObject {
         }
 
         self.purchasedProductIDs = productIDs
-        return await self.latestRevokedPlan()
+        return await self.latestRevokedPlan(ownedBy: userID)
     }
 
-    private func latestRevokedPlan() async -> InAppPurchasePlan? {
+    private func latestRevokedPlan(ownedBy userID: UUID) async -> InAppPurchasePlan? {
         for plan in InAppPurchasePlan.activePlans {
             guard let verification: VerificationResult<StoreKit.Transaction> = await StoreKit.Transaction.latest(
                 for: plan.productID
             ),
                   case .verified(let transaction) = verification,
+                  transaction.appAccountToken == userID,
                   transaction.revocationDate != nil else {
                 continue
             }
@@ -279,5 +550,93 @@ final class InAppPurchaseStore: ObservableObject {
         }
 
         return nil
+    }
+
+    private static func status(
+        for error: StoreKitPurchaseIdentityAuthorizationError
+    ) -> Status {
+        switch error {
+        case .notAssociated:
+            return .iCloudLinkRequired
+        case .identityMismatch:
+            return .identityMismatch
+        case .activeUserChanged,
+             .unsupportedSchemaVersion:
+            return .identityCheckFailed
+        }
+    }
+
+    private static func status(
+        for error: StoreKitPortalPurchaseSubmissionError,
+        title: String
+    ) -> Status {
+        switch error {
+        case .xcodeEnvironmentUnsupported:
+            return .xcodeEnvironmentUnsupported(title: title)
+        case .unsupportedEnvironment:
+            return .storeKitEnvironmentUnsupported(title: title)
+        case .transactionProductMismatch,
+             .snapshotContractMismatch,
+             .purchasedProductMissing:
+            return .portalOutcomeUnknown(title: title)
+        }
+    }
+
+    private static func status(
+        for error: PortalPurchaseEntitlementRefreshError,
+        title: String
+    ) -> Status {
+        switch error {
+        case .activeUserChanged:
+            return .identityCheckFailed
+        case .sessionUnavailable:
+            return .portalSessionUnavailable(title: title)
+        case .snapshotMismatch:
+            return .portalOutcomeUnknown(title: title)
+        }
+    }
+
+    private static func status(
+        for error: PortalIAPServiceError,
+        title: String
+    ) -> Status {
+        switch error {
+        case .temporarilyUnavailable, .rateLimited:
+            return .portalTemporarilyUnavailable(title: title)
+        case .responseOutcomeUnknown:
+            return .portalOutcomeUnknown(title: title)
+        case .sessionRejected, .recoveryNotAllowed:
+            return .portalSessionUnavailable(title: title)
+        case .subjectMismatch, .accountTokenMissing, .accountMismatch:
+            return .portalAccountMismatch(title: title)
+        case .transactionAlreadyClaimed:
+            return .portalTransactionClaimed(title: title)
+        case .unverifiedTransaction, .bundleMismatch,
+             .environmentMismatch, .unknownProduct,
+             .revokedTransaction, .invalidRequest,
+             .contractRejected, .clientConfiguration:
+            return .portalSubmissionRejected(title: title)
+        }
+    }
+
+    private static func purchasedProductIDs(
+        from activeProductIDs: Set<String>
+    ) -> Set<String> {
+        return Set(
+            InAppPurchasePlan.activePlans.compactMap { plan in
+                guard plan.productKind == .nonConsumable,
+                      activeProductIDs.contains(plan.productID) else {
+                    return nil
+                }
+                return plan.productID
+            }
+        )
+    }
+
+    private static func logFailure(_ error: any Error, flow: String) {
+        IAPDiagnostics.error(
+            "event=\(flow)-flow-failed " +
+                "error=\(IAPDiagnostics.safeErrorCode(error))"
+        )
     }
 }

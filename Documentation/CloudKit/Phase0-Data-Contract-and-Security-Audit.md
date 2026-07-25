@@ -111,16 +111,65 @@ Device-ID
 
 ## 4. CloudKit Record 合同
 
-使用一个 Private Custom Zone：
+Identity 与内容同步使用不同 zone：
 
 ```text
-BrowseCraftSync
+Private Database / default zone
+└── AppUserIdentity/default
+
+Private Database / custom zone: BrowseCraftSync
+├── Source
+└── FavoriteItem
 ```
 
-CloudKit 中不保存本地 `userID`。Private Database 已按 iCloud 账户隔离；下载写入 GRDB 时，必须使用
-当前已确认的 `accountScope` 绑定数据，不能信任远端 payload 提供本地身份。
+Source/Favorite Cloud payload 中不保存本地 `userID`。Private Database 已按 iCloud 账户隔离；
+下载写入 GRDB 时，必须绑定到当前已确认的 `ActiveAppUser.id` UUID。`CloudAccountScope` 只用于同步
+队列、游标和账户世代，不能再写入业务记录的 `userID`，也不能信任远端 payload 提供本地身份。
 
-### 4.1 `Source` Record Type
+### 4.1 `AppUserIdentity` Record Type
+
+用户主动点击 iCloud 关联按钮后才读取或创建该记录；App 启动不得自动关联、自动切换 UUID
+或自动执行 Portal 登录恢复。
+
+客户端基础合同已落地：
+
+- `CloudAppUserIdentity` 是不依赖 CloudKit SDK 的身份值模型。
+- `CloudAppUserIdentityRecordContract` 集中维护 record type、record name 和字段名。
+- `CloudAppUserIdentityStoring` 只提供读取和“缺失时创建”，不提供可覆盖既有 UUID 的通用保存接口。
+- 并发创建时，Adapter 必须返回 CloudKit 中最终存在的权威记录，交由后续手动关联状态机比较 UUID。
+- `CloudAppUserIdentityAssociationState` 只描述用户主动关联流程，不能由 App 启动自动推进。
+- `CloudKitAppUserIdentityStore` 已注入 AppContainer，但只由设置页关联按钮或用户主动开启
+  Cloud Sync 的身份门禁调用。
+- Adapter 只使用传入 `CKContainer` 的 `privateCloudDatabase`，record ID 未指定 custom zone，
+  因而固定落在 default zone。
+- 创建使用 `ifServerRecordUnchanged`；并发冲突或服务端响应丢失时重新读取权威记录，不覆盖 UUID。
+- 下载严格校验 record type、record ID、UUID、schemaVersion 和时间字段，不接受畸形身份记录。
+- `CloudAppUserIdentityAssociationCoordinator` 只暴露用户主动关联入口；App 生命周期不调用。
+- 设置页提供独立的 `Link BrowseCraft Identity` 操作；刷新 iCloud 状态不会读取 Identity。
+- Cloud Sync 开启流程必须先通过 Identity 关联，再显示内容合并选择或启用既有分区。
+- UUID 不同时只产生单一冲突状态并保持同步关闭，等待用户选择合并本地数据、仅使用云端
+  Profile 或取消。
+- 用户确认后两种数据选择都采用云端 UUID B；合并只复制本地业务内容并保留 A，
+  `useCloudDataOnly` 不复制 A。
+- 采用过程不复制 AppUser 权益字段和 StoreKit 交易；Portal Keychain item 原子覆盖为
+  B 的 `recoveryRequired` 空凭证状态，不调用 Portal 网络接口或 StoreKit。
+
+```text
+zone: default zone
+recordType: AppUserIdentity
+recordName: default
+```
+
+| 字段 | CloudKit 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `userID` | String | 是 | 当前 iCloud 数据空间关联的 BrowseCraft UUID |
+| `schemaVersion` | Int64 | 是 | 首版为 1 |
+| `createdAt` | Date | 是 | 首次关联时间 |
+| `updatedAt` | Date | 是 | 最近确认时间 |
+
+该记录不保存 Portal Access/Refresh Token、StoreKit JWS、Apple ID、邮箱、设备标识或 recovery secret。
+
+### 4.2 `Source` Record Type
 
 Record name：`source:<SHA256(canonical sourceID)>`
 
@@ -144,7 +193,7 @@ Record name：`source:<SHA256(canonical sourceID)>`
 - 旧 schemaVersion 或不支持的视频 V1 配置不写回本地。
 - payload 超过 CloudKit 单记录安全容量时拒绝上传，不自动截断 JSON。
 
-### 4.2 `FavoriteItem` Record Type
+### 4.3 `FavoriteItem` Record Type
 
 Record name：`favorite:<SHA256(canonical sourceID + itemID)>`
 
@@ -191,6 +240,42 @@ record name 只使用固定长度 ASCII 摘要，避免 URL、Unicode 或超长�
 - CloudKit opaque user record ID 的原文
 - 本地 account scope hash
 
+## 5.1 iCloud 与内购关联边界
+
+购买和恢复只绑定同一个 BrowseCraft UUID：
+
+```text
+AppUserIdentity.userID
+== Portal Access JWS sub
+== StoreKit transaction.appAccountToken
+== PortalCore purchase owner
+```
+
+- 客户端在用户点击购买或 `Restore Purchases` 后验证 `AppUserIdentity.userID` 与活动用户一致。
+- 未关联 iCloud 或 UUID 不一致时，在调用 StoreKit/PortalCore 前阻断。
+- `AppStore.sync()` 只能由用户点击 `Restore Purchases` 触发；启动、前台恢复和 iCloud 关联不得触发。
+- 采用 CloudKit UUID 时不得把旧 UUID 的 Portal credentials、权益字段或
+  `user_storekit_transactions` 复制给新 UUID。
+- 免费用户采用 B 后可以没有 Portal session；客户端不得因为 session 缺失自动调用购买恢复。
+- PortalCore 无权访问 CloudKit Private Database，因此 CloudKit UUID 比较属于客户端门禁。
+- PortalCore 继续负责验证 `sub/request.userId/appAccountToken` 以及原始交易 owner 唯一性。
+
+### PortalCore 接口审计
+
+已只读审计 PortalCore 提交 `36dbbd7d048ae33acfabc4452a53c133e02bbd14`：
+
+- `/v1/auth/recover` 只恢复既存 AppUser，验证单笔购买 JWS 与 `appAccountToken`，成功后创建 session。
+- `/v1/iap/entitlements/refresh` 要求 Bearer Token，并强制 `sub == request.userId`。
+- IAP service 强制每笔 Apple `appAccountToken == request.userId`。
+- `(environment, originalTransactionId)` purchase owner 唯一约束会拒绝跨 UUID 重复认领。
+
+因此现有后端满足 Portal/StoreKit/owner 部分，不需要为当前规则新增接口；客户端仍必须实现
+手动 iCloud 关联和恢复前 CloudKit UUID 门禁。该提交尚未部署，生产 `6111fc7` 不能视为已提供这些接口。
+
+客户端 APIKit 已实现 `/v1/auth/recover` 与 `/v1/iap/entitlements/refresh` DTO、请求大小校验、
+Bearer 发送和稳定错误映射。AppContainer 只装配服务，不在启动、前台或 iCloud 关联时调用；
+StoreKit JWS 仍只能由后续用户主动购买/恢复状态机提交。
+
 ## 6. 冲突与删除合同
 
 - 上传必须使用 CloudKit change tag / save policy 检测服务端并发修改。
@@ -208,7 +293,7 @@ record name 只使用固定长度 ASCII 摘要，避免 URL、Unicode 或超长�
 | --- | --- |
 | 首期同步对象范围 | 已确认 |
 | CloudKit Record Type 与字段 | 已确认 |
-| 本地 `userID` 是否上传 | 已确认不上传 |
+| 本地 `userID` 是否上传 | 仅 `AppUserIdentity/default` 保存；Source/Favorite payload 不保存 |
 | Credential Store 是否自动进入 payload | 当前不会 |
 | `configJSON` 是否可直接上传 | 不可，必须增加安全门禁 |
 | Favorite JSON 是否存在重复快照 | 存在，必须拆分 `itemMetadataJSON` |

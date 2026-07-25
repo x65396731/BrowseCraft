@@ -38,7 +38,8 @@ final class LibraryViewModel: ObservableObject {
     private let sourceCredentialStore: SourceCredentialStoring
     private let sourceLoginStateResolver: LibrarySourceLoginStateResolver
     private let sourceSelectionStore: SourceSelectionStore
-    private let userID: String
+    private let activeAppUser: (any ActiveAppUserProviding)?
+    private let fallbackUserID: String
     private let now: () -> Date
     private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
     private var listStateStore: LibraryListStateStore = LibraryListStateStore()
@@ -58,6 +59,7 @@ final class LibraryViewModel: ObservableObject {
         resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase,
         sourceCredentialStore: SourceCredentialStoring,
         sourceSelectionStore: SourceSelectionStore,
+        activeAppUser: (any ActiveAppUserProviding)? = nil,
         userID: String = AppUser.localDefaultID,
         now: @escaping () -> Date = Date.init
     ) {
@@ -75,7 +77,8 @@ final class LibraryViewModel: ObservableObject {
             now: now
         )
         self.sourceSelectionStore = sourceSelectionStore
-        self.userID = userID
+        self.activeAppUser = activeAppUser
+        self.fallbackUserID = userID
         self.now = now
         self.selectedSourceID = sourceSelectionStore.selectedSourceID
         self.bindSourceSelection()
@@ -112,6 +115,27 @@ final class LibraryViewModel: ObservableObject {
             self.initialLoadOutcome = outcome
         }
         return outcome
+    }
+
+    @MainActor
+    func reloadForActiveUserChange() async {
+        self.initialLoadTask?.cancel()
+        self.initialLoadTask = nil
+        self.initialLoadOutcome = nil
+        self.refreshToken += 1
+        self.isRefreshing = false
+        self.items = []
+        self.sources = []
+        self.favoriteItemIDs = []
+        self.selectedListTabID = nil
+        self.errorMessage = nil
+        self.selectedListTabErrorMessage = nil
+        self.requestedSourceLogin = nil
+        self.preparedLibrarySnapshot = nil
+        self.sourceSelectionStore.preparingSource = nil
+        self.sourceSelectionStore.preparedLibrarySnapshot = nil
+        self.listStateStore = LibraryListStateStore()
+        _ = await self.loadIfNeeded()
     }
 
     @MainActor
@@ -742,7 +766,9 @@ final class LibraryViewModel: ObservableObject {
     }
 
     private func restoreStartupLibraryState() throws {
-        let persistedState: UserLibraryState? = try self.loadUserLibraryStateUseCase.execute(userID: self.userID)
+        let persistedState: UserLibraryState? = try self.loadUserLibraryStateUseCase.execute(
+            userID: self.currentUserID
+        )
         let persistedSource: Source? = persistedState.flatMap { state in
             guard let selectedSourceID: String = state.selectedSourceID else {
                 return nil
@@ -800,7 +826,7 @@ final class LibraryViewModel: ObservableObject {
         }
 
         let state: UserLibraryState = UserLibraryState(
-            userID: self.userID,
+            userID: self.currentUserID,
             selectedSourceID: selectedSourceID,
             listContext: self.selectedListContext,
             lastRefreshAt: lastRefreshAt,
@@ -818,6 +844,10 @@ final class LibraryViewModel: ObservableObject {
             )
             #endif
         }
+    }
+
+    private var currentUserID: String {
+        return self.activeAppUser?.currentUserID.uuidString ?? self.fallbackUserID
     }
 
     private func logLibraryItems(

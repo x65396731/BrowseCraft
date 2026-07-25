@@ -37,6 +37,8 @@ final class VideoDetailViewModel: ObservableObject {
     private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
     private let credentialProvider: any SourceCredentialProviding
     private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
+    private let activeAppUser: (any ActiveAppUserProviding)?
+    private let fallbackUserID: String
 
     init(
         item: ContentItem,
@@ -46,7 +48,9 @@ final class VideoDetailViewModel: ObservableObject {
         loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase,
         accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil,
         credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider(),
-        systemCookieHeaderProvider: any SystemCookieHeaderProviding = EmptySystemCookieHeaderProvider()
+        systemCookieHeaderProvider: any SystemCookieHeaderProviding = EmptySystemCookieHeaderProvider(),
+        activeAppUser: (any ActiveAppUserProviding)? = nil,
+        userID: String = AppUser.localDefaultID
     ) {
         self.item = item
         self.source = source
@@ -56,6 +60,8 @@ final class VideoDetailViewModel: ObservableObject {
         self.accumulateAdPointsUseCase = accumulateAdPointsUseCase
         self.credentialProvider = credentialProvider
         self.systemCookieHeaderProvider = systemCookieHeaderProvider
+        self.activeAppUser = activeAppUser
+        self.fallbackUserID = userID
 
         #if DEBUG
         print(
@@ -203,7 +209,9 @@ final class VideoDetailViewModel: ObservableObject {
                 accumulateAdPointsUseCase: self.accumulateAdPointsUseCase,
                 runtimeResolver: self.runtimeResolver,
                 credentialProvider: self.credentialProvider,
-                systemCookieHeaderProvider: self.systemCookieHeaderProvider
+                systemCookieHeaderProvider: self.systemCookieHeaderProvider,
+                activeAppUser: self.activeAppUser,
+                userID: self.currentUserID
             )
             self.playbackRoute = VideoPlaybackRoute(
                 id: [
@@ -248,5 +256,9 @@ final class VideoDetailViewModel: ObservableObject {
             debugMode: false,
             operation: operation
         )
+    }
+
+    private var currentUserID: String {
+        return self.activeAppUser?.currentUserID.uuidString ?? self.fallbackUserID
     }
 }

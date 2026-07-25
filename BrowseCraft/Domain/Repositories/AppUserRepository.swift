@@ -6,4 +6,23 @@ protocol AppUserRepository {
     func hasProcessedStoreKitTransaction(userID: String, transactionID: String) throws -> Bool
     func saveUser(_ user: AppUser) throws
     func saveUser(_ user: AppUser, storeKitTransaction: UserStoreKitTransaction) throws
+    func saveUser(
+        _ user: AppUser,
+        storeKitTransactions: [UserStoreKitTransaction]
+    ) throws
+}
+
+extension AppUserRepository {
+    func saveUser(
+        _ user: AppUser,
+        storeKitTransactions: [UserStoreKitTransaction]
+    ) throws {
+        guard storeKitTransactions.isEmpty == false else {
+            try self.saveUser(user)
+            return
+        }
+        for transaction: UserStoreKitTransaction in storeKitTransactions {
+            try self.saveUser(user, storeKitTransaction: transaction)
+        }
+    }
 }

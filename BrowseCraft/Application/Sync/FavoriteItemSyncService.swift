@@ -4,6 +4,8 @@ import Foundation
 final class FavoriteItemSyncService {
     private let localStore: FavoriteItemSyncLocalStore
     private let cloudStore: CloudRecordStore
+    private let activeAppUser: (any ActiveAppUserProviding)?
+    private let userContext: CloudSyncUserContext?
     private let accountScopeProvider: any ActiveAccountScopeProviding
     private let scope: String
     private let zoneName: String
@@ -11,12 +13,16 @@ final class FavoriteItemSyncService {
     init(
         localStore: FavoriteItemSyncLocalStore,
         cloudStore: CloudRecordStore,
+        activeAppUser: (any ActiveAppUserProviding)? = nil,
+        userContext: CloudSyncUserContext? = nil,
         accountScopeProvider: any ActiveAccountScopeProviding = ActiveAccountScopeStore(),
         scope: String = "private",
         zoneName: String = "BrowseCraftSync"
     ) {
         self.localStore = localStore
         self.cloudStore = cloudStore
+        self.activeAppUser = activeAppUser
+        self.userContext = userContext
         self.accountScopeProvider = accountScopeProvider
         self.scope = scope
         self.zoneName = zoneName
@@ -110,7 +116,7 @@ final class FavoriteItemSyncService {
 
         let keys: [FavoriteItemSyncKey] = eligiblePayloads.map { payload in
             FavoriteItemSyncKey(
-                userID: accountScope.rawValue,
+                userID: self.currentUserID,
                 sourceID: payload.sourceID,
                 itemID: payload.itemID
             )
@@ -122,7 +128,7 @@ final class FavoriteItemSyncService {
 
         for payload: FavoriteItemCloudPayload in eligiblePayloads {
             let scopedKey: FavoriteItemSyncKey = FavoriteItemSyncKey(
-                userID: accountScope.rawValue,
+                userID: self.currentUserID,
                 sourceID: payload.sourceID,
                 itemID: payload.itemID
             )
@@ -294,6 +300,13 @@ final class FavoriteItemSyncService {
         guard self.accountScopeProvider.currentScope == accountScope else {
             throw CloudSyncSessionError.accountChanged
         }
+    }
+
+    private var currentUserID: String {
+        if let synchronizedUserID: UUID = self.userContext?.currentUserID {
+            return synchronizedUserID.uuidString
+        }
+        return self.activeAppUser?.currentUserID.uuidString ?? AppUser.localDefaultID
     }
 
     /// 中文注释：时间相同时 tombstone 优先，避免离线设备用旧内容复活已删除记录。

@@ -1,5 +1,6 @@
 struct LibraryFeatureFactory {
     private let database: AppDatabase
+    private let activeAppUser: any ActiveAppUserProviding
     private let sourceRepository: SourceRepository
     private let favoriteRepository: FavoriteRepository
     private let sourceCredentialStore: SourceCredentialStoring
@@ -11,6 +12,7 @@ struct LibraryFeatureFactory {
 
     init(
         database: AppDatabase,
+        activeAppUser: any ActiveAppUserProviding,
         sourceRepository: SourceRepository,
         favoriteRepository: FavoriteRepository,
         sourceCredentialStore: SourceCredentialStoring,
@@ -21,6 +23,7 @@ struct LibraryFeatureFactory {
         prepareReaderHistoryRestoreUseCase: PrepareReaderHistoryRestoreUseCase
     ) {
         self.database = database
+        self.activeAppUser = activeAppUser
         self.sourceRepository = sourceRepository
         self.favoriteRepository = favoriteRepository
         self.sourceCredentialStore = sourceCredentialStore
@@ -56,7 +59,8 @@ struct LibraryFeatureFactory {
             ),
             resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase(),
             sourceCredentialStore: self.sourceCredentialStore,
-            sourceSelectionStore: self.sourceSelectionStore
+            sourceSelectionStore: self.sourceSelectionStore,
+            activeAppUser: self.activeAppUser
         )
     }
 
@@ -75,7 +79,8 @@ struct LibraryFeatureFactory {
                 repository: comicChapterHistoryRepository
             ),
             resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase(),
-            sourceCredentialStore: self.sourceCredentialStore
+            sourceCredentialStore: self.sourceCredentialStore,
+            activeAppUser: self.activeAppUser
         )
     }
 
@@ -103,7 +108,8 @@ struct LibraryFeatureFactory {
             saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase(
                 repository: repository
             ),
-            accumulateAdPointsUseCase: self.makeAccumulateAdPointsUseCase()
+            accumulateAdPointsUseCase: self.makeAccumulateAdPointsUseCase(),
+            activeAppUser: self.activeAppUser
         )
     }
 
@@ -134,7 +140,8 @@ struct LibraryFeatureFactory {
                 repository: repository
             ),
             accumulateAdPointsUseCase: self.makeAccumulateAdPointsUseCase(),
-            runtimeResolver: self.sourceRuntimeFactory
+            runtimeResolver: self.sourceRuntimeFactory,
+            activeAppUser: self.activeAppUser
         )
     }
 
@@ -155,6 +162,7 @@ struct LibraryFeatureFactory {
             runtimeResolver: self.sourceRuntimeFactory,
             credentialProvider: self.sourceCredentialStore,
             systemCookieHeaderProvider: self.systemCookieHeaderProvider,
+            activeAppUser: self.activeAppUser,
             userID: history.userID
         )
     }
@@ -172,13 +180,15 @@ struct LibraryFeatureFactory {
             loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase(repository: repository),
             accumulateAdPointsUseCase: self.makeAccumulateAdPointsUseCase(),
             credentialProvider: self.sourceCredentialStore,
-            systemCookieHeaderProvider: self.systemCookieHeaderProvider
+            systemCookieHeaderProvider: self.systemCookieHeaderProvider,
+            activeAppUser: self.activeAppUser
         )
     }
 
     private func makeAccumulateAdPointsUseCase() -> AccumulateAdPointsUseCase {
         return AccumulateAdPointsUseCase(
-            repository: GRDBAppUserRepository(database: self.database)
+            repository: GRDBAppUserRepository(database: self.database),
+            activeAppUser: self.activeAppUser
         )
     }
 }

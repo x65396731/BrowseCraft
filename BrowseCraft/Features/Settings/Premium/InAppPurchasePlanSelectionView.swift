@@ -156,7 +156,14 @@ struct InAppPurchasePlanSelectionView: View {
                     .background(.ultraThinMaterial, in: Circle())
             }
             .buttonStyle(.plain)
+            .disabled(self.interactionIsLocked)
+            .opacity(self.interactionIsLocked ? 0.55 : 1)
             .accessibilityLabel("Close")
+            .accessibilityHint(
+                self.interactionIsLocked
+                    ? "Available after the current StoreKit operation finishes"
+                    : "Closes the purchase screen"
+            )
         }
     }
 
@@ -228,14 +235,28 @@ struct InAppPurchasePlanSelectionView: View {
             return "clock.badge.exclamationmark.fill"
         case .cancelled:
             return "xmark.circle.fill"
-        case .idle, .loadingProducts, .purchasing, .restoring:
+        case .idle, .loadingProducts, .checkingIdentity, .purchasing,
+             .submittingPurchase, .restoring:
             return "hourglass"
         case .productsUnavailable,
              .someProductsUnavailable,
              .productLoadFailed,
              .productUnavailable,
+             .iCloudLinkRequired,
+             .identityMismatch,
+             .identityCheckFailed,
              .unverified,
              .purchaseFailed,
+             .transactionIdentityMismatch,
+             .xcodeEnvironmentUnsupported,
+             .storeKitEnvironmentUnsupported,
+             .portalSessionUnavailable,
+             .portalTemporarilyUnavailable,
+             .portalAccountMismatch,
+             .portalTransactionClaimed,
+             .portalSubmissionRejected,
+             .portalOutcomeUnknown,
+             .portalSubmissionInterrupted,
              .restoreFailed,
              .revoked:
             return "exclamationmark.triangle.fill"

@@ -12,9 +12,17 @@ final class GRDBCloudSyncEngineStore:
     private static let stateZoneName: String = "BrowseCraftSyncEngine"
 
     private let database: AppDatabase
+    private let activeAppUser: (any ActiveAppUserProviding)?
+    private let userContext: CloudSyncUserContext?
 
-    init(database: AppDatabase) {
+    init(
+        database: AppDatabase,
+        activeAppUser: (any ActiveAppUserProviding)? = nil,
+        userContext: CloudSyncUserContext? = nil
+    ) {
         self.database = database
+        self.activeAppUser = activeAppUser
+        self.userContext = userContext
     }
 
     func loadState(for accountScope: CloudAccountScope) throws -> Data? {
@@ -33,7 +41,6 @@ final class GRDBCloudSyncEngineStore:
     func saveState(_ data: Data, for accountScope: CloudAccountScope) throws {
         try self.database.queue.write { database in
             let now: Date = Date()
-            try AppUserRecord.insertUser(id: accountScope.rawValue, in: database)
             var record: SyncStateRecord = SyncStateRecord(
                 state: SyncState(
                     accountScope: accountScope,
@@ -64,6 +71,7 @@ final class GRDBCloudSyncEngineStore:
         for accountScope: CloudAccountScope,
         strategy: CloudRecordZoneRecoveryStrategy
     ) throws {
+        let userID: String = self.currentUserID
         try self.database.queue.write { database in
             _ = try SyncStateRecord
                 .filter(SyncStateRecord.Columns.accountScope == accountScope.rawValue)
@@ -78,7 +86,7 @@ final class GRDBCloudSyncEngineStore:
             switch strategy {
             case .rebuildFromLocalData:
                 let sources: [SourceRecord] = try SourceRecord
-                    .filter(SourceRecord.Columns.userID == accountScope.rawValue)
+                    .filter(SourceRecord.Columns.userID == userID)
                     .filter(SourceRecord.Columns.deletedAt == nil)
                     .fetchAll(database)
                 for source: SourceRecord in sources where source.id.hasPrefix("built-in.") == false {
@@ -93,7 +101,7 @@ final class GRDBCloudSyncEngineStore:
                 }
 
                 let favoriteItems: [FavoriteItemRecord] = try FavoriteItemRecord
-                    .filter(FavoriteItemRecord.Columns.userID == accountScope.rawValue)
+                    .filter(FavoriteItemRecord.Columns.userID == userID)
                     .filter(FavoriteItemRecord.Columns.deletedAt == nil)
                     .fetchAll(database)
                 for item: FavoriteItemRecord in favoriteItems {
@@ -111,14 +119,18 @@ final class GRDBCloudSyncEngineStore:
                 }
 
             case .purgeLocalCloudData:
-                _ = try SourceRecord
-                    .filter(SourceRecord.Columns.userID == accountScope.rawValue)
-                    .deleteAll(database)
+                try database.execute(
+                    sql: """
+                    DELETE FROM \(SourceRecord.databaseTableName)
+                    WHERE userID = ? AND id NOT LIKE 'built-in.%'
+                    """,
+                    arguments: [userID]
+                )
                 _ = try FavoriteItemRecord
-                    .filter(FavoriteItemRecord.Columns.userID == accountScope.rawValue)
+                    .filter(FavoriteItemRecord.Columns.userID == userID)
                     .deleteAll(database)
                 _ = try FavoriteRecord
-                    .filter(FavoriteRecord.Columns.userID == accountScope.rawValue)
+                    .filter(FavoriteRecord.Columns.userID == userID)
                     .deleteAll(database)
             }
         }
@@ -159,7 +171,6 @@ final class GRDBCloudSyncEngineStore:
         recordName: String
     ) throws {
         try self.database.queue.write { database in
-            try AppUserRecord.insertUser(id: accountScope.rawValue, in: database)
             var record: CloudRecordMetadataRecord = CloudRecordMetadataRecord(
                 accountScope: accountScope.rawValue,
                 recordName: recordName,
@@ -168,5 +179,12 @@ final class GRDBCloudSyncEngineStore:
             )
             try record.save(database)
         }
+    }
+
+    private var currentUserID: String {
+        if let synchronizedUserID: UUID = self.userContext?.currentUserID {
+            return synchronizedUserID.uuidString
+        }
+        return self.activeAppUser?.currentUserID.uuidString ?? AppUser.localDefaultID
     }
 }

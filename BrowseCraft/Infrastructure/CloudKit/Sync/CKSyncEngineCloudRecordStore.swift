@@ -11,6 +11,8 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
     private let metadataStore: any CloudRecordMetadataStoring
     private let zoneRecoveryStore: any CloudRecordZoneRecoveryStoring
     private let securityValidator: any CloudSyncPayloadSecurityValidating
+    private let activeAppUser: any ActiveAppUserProviding
+    private let userContext: CloudSyncUserContext?
     private let accountScopeProvider: any ActiveAccountScopeProviding
     private let mapper: CloudKitRecordMapper
 
@@ -43,6 +45,8 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
         metadataStore: any CloudRecordMetadataStoring,
         zoneRecoveryStore: any CloudRecordZoneRecoveryStoring,
         securityValidator: any CloudSyncPayloadSecurityValidating,
+        activeAppUser: any ActiveAppUserProviding,
+        userContext: CloudSyncUserContext? = nil,
         accountScopeProvider: any ActiveAccountScopeProviding
     ) {
         self.database = container.privateCloudDatabase
@@ -50,6 +54,8 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
         self.metadataStore = metadataStore
         self.zoneRecoveryStore = zoneRecoveryStore
         self.securityValidator = securityValidator
+        self.activeAppUser = activeAppUser
+        self.userContext = userContext
         self.accountScopeProvider = accountScopeProvider
         self.mapper = CloudKitRecordMapper()
     }
@@ -571,11 +577,18 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
                 try self.saveSystemFields(of: record, accountScope: accountScope)
                 switch record.recordType {
                 case CloudKitRecordMapper.sourceRecordType:
-                    let payload: SourceCloudPayload = try self.mapper.sourcePayload(from: record)
+                    let payload: SourceCloudPayload = try self.mapper.sourcePayload(
+                        from: record,
+                        userID: self.currentUserID
+                    )
                     self.fetchedSourcesByID[payload.sourceID] = payload
                     self.mappedFetchedSourceCount += 1
                 case CloudKitRecordMapper.favoriteItemRecordType:
-                    let payload: FavoriteItemCloudPayload = try self.mapper.favoriteItemPayload(from: record)
+                    let payload: FavoriteItemCloudPayload =
+                        try self.mapper.favoriteItemPayload(
+                            from: record,
+                            userID: self.currentUserID
+                        )
                     self.fetchedFavoriteItemsByID[payload.identity] = payload
                     self.mappedFetchedFavoriteItemCount += 1
                 default:
@@ -647,10 +660,16 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
     private func bufferServerRecordForConflictResolution(_ record: CKRecord) throws {
         switch record.recordType {
         case CloudKitRecordMapper.sourceRecordType:
-            let payload: SourceCloudPayload = try self.mapper.sourcePayload(from: record)
+            let payload: SourceCloudPayload = try self.mapper.sourcePayload(
+                from: record,
+                userID: self.currentUserID
+            )
             self.fetchedSourcesByID[payload.sourceID] = payload
         case CloudKitRecordMapper.favoriteItemRecordType:
-            let payload: FavoriteItemCloudPayload = try self.mapper.favoriteItemPayload(from: record)
+            let payload: FavoriteItemCloudPayload = try self.mapper.favoriteItemPayload(
+                from: record,
+                userID: self.currentUserID
+            )
             self.fetchedFavoriteItemsByID[payload.identity] = payload
         default:
             throw CloudKitRecordMappingError.unexpectedRecordType
@@ -706,6 +725,13 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
               self.accountScopeProvider.currentScope == accountScope else {
             throw CloudSyncSessionError.accountChanged
         }
+    }
+
+    private var currentUserID: String {
+        if let synchronizedUserID: UUID = self.userContext?.currentUserID {
+            return synchronizedUserID.uuidString
+        }
+        return self.activeAppUser.currentUserID.uuidString
     }
 
     private static func safeCode(for error: any Error) -> String {

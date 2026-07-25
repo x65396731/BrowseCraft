@@ -292,7 +292,7 @@ private struct ComicDiscoveryDetailView: View {
 
         self.viewModel.saveTemporaryHistory(
             TemporaryResourceHistory(
-                userID: AppUser.localDefaultID,
+                userID: self.viewModel.currentUserID,
                 kind: .comic,
                 title: self.item.title,
                 resourceURL: resourceURL,

@@ -1,6 +1,17 @@
 import Foundation
 import OSLog
 
+enum PortalSessionIdentityAdoptionError: Error, Equatable, Sendable {
+    case activeUserMismatch
+    case operationInFlight
+}
+
+enum PortalSessionRecoveryInstallationError: Error, Equatable, Sendable {
+    case activeUserMismatch
+    case credentialsInvalid
+    case operationInFlight
+}
+
 /// 中文注释：统一串行化 register/refresh，并把所有模糊结果收敛为可恢复或明确阻断的状态。
 actor PortalSessionCoordinator {
     private let activeAppUser: any ActiveAppUserProviding
@@ -107,6 +118,58 @@ actor PortalSessionCoordinator {
 
     func snapshot() -> PortalSessionSnapshot {
         return self.currentSnapshot
+    }
+
+    /// 中文注释：采用 CloudKit UUID 后原子覆盖 A 的持久化 Token；这里只落 B 的待手动恢复状态，不发网络请求。
+    func replaceSessionForAdoptedIdentity(_ userID: UUID) throws {
+        guard self.activeAppUser.currentUserID == userID else {
+            throw PortalSessionIdentityAdoptionError.activeUserMismatch
+        }
+        guard self.operationInFlight == false else {
+            throw PortalSessionIdentityAdoptionError.operationInFlight
+        }
+
+        let replacement: PortalSessionPersistence = PortalSessionPersistence(
+            userID: userID,
+            registrationState: .recoveryRequired
+        )
+        try self.sessionStore.save(replacement)
+        self.persistedSession = replacement
+        self.hasLoadedSession = true
+        self.publish(status: .recoveryRequired)
+        PortalSessionDiagnostics.notice(
+            "event=identity-adoption action=replace-session result=success"
+        )
+    }
+
+    /// 中文注释：只安装用户主动购买恢复流程已经验证并取回的 Token；本方法不调用网络或 StoreKit。
+    func installRecoveredSession(
+        _ credentials: PortalAuthenticationTokens,
+        for expectedUserID: UUID
+    ) throws {
+        guard self.activeAppUser.currentUserID == expectedUserID,
+              credentials.userID == expectedUserID else {
+            throw PortalSessionRecoveryInstallationError.activeUserMismatch
+        }
+        guard self.operationInFlight == false else {
+            throw PortalSessionRecoveryInstallationError.operationInFlight
+        }
+        guard self.credentialsAreUsable(credentials) else {
+            throw PortalSessionRecoveryInstallationError.credentialsInvalid
+        }
+
+        let recoveredSession: PortalSessionPersistence = PortalSessionPersistence(
+            userID: expectedUserID,
+            registrationState: .authenticated,
+            credentials: credentials
+        )
+        try self.sessionStore.save(recoveredSession)
+        self.persistedSession = recoveredSession
+        self.hasLoadedSession = true
+        self.publish(status: .authenticated)
+        PortalSessionDiagnostics.notice(
+            "event=iap-recovery action=install-session result=success"
+        )
     }
 
     /// 中文注释：后续受保护 API 只能通过此入口取 Token，避免绕过过期和轮换判断。

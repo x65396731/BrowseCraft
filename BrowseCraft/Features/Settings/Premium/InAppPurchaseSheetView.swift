@@ -7,8 +7,21 @@ struct InAppPurchaseSheetView: View {
     private let closeAction: () -> Void
 
     init(
-        applyPurchaseAction: @escaping @MainActor (StoreKit.Transaction, InAppPurchasePlan) async throws -> Void = { _, _ in },
-        restorePurchasesAction: @escaping @MainActor () async throws -> Void = {
+        authorizeStoreKitAction: @escaping @MainActor () async throws -> UUID = {
+            throw StoreKitPurchaseIdentityAuthorizationError.notAssociated
+        },
+        validateAuthorizedUser: @escaping @MainActor (UUID) async throws -> Void = { _ in
+            throw StoreKitPurchaseIdentityAuthorizationError.activeUserChanged
+        },
+        applyPurchaseAction: @escaping @MainActor (
+            StoreKit.Transaction,
+            String,
+            InAppPurchasePlan
+        ) async throws -> Set<String> = { _, _, _ in
+            throw StoreKitPortalPurchaseSubmissionError
+                .snapshotContractMismatch
+        },
+        restorePurchasesAction: @escaping @MainActor (UUID) async throws -> Void = { _ in
             try await AppStore.sync()
         },
         closeAction: @escaping () -> Void = {},
@@ -18,6 +31,8 @@ struct InAppPurchaseSheetView: View {
         self.closeAction = closeAction
         _store = StateObject(
             wrappedValue: InAppPurchaseStore(
+                authorizeStoreKitAction: authorizeStoreKitAction,
+                validateAuthorizedUser: validateAuthorizedUser,
                 applyPurchaseAction: applyPurchaseAction,
                 restorePurchasesAction: restorePurchasesAction
             )

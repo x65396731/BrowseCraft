@@ -69,7 +69,10 @@ struct CloudKitRecordMapper: Sendable {
         record["deletedAt"] = payload.deletedAt as CKRecordValue?
     }
 
-    func sourcePayload(from record: CKRecord) throws -> SourceCloudPayload {
+    func sourcePayload(
+        from record: CKRecord,
+        userID: String
+    ) throws -> SourceCloudPayload {
         guard record.recordType == Self.sourceRecordType else {
             throw CloudKitRecordMappingError.unexpectedRecordType
         }
@@ -79,7 +82,7 @@ struct CloudKitRecordMapper: Sendable {
         }
         return SourceCloudPayload(
             schemaVersion: try Self.requiredInt(record, key: "schemaVersion"),
-            userID: CloudAccountScope.localDefault.rawValue,
+            userID: userID,
             sourceID: sourceID,
             name: try Self.required(record, key: "name"),
             baseURL: try Self.required(record, key: "baseURL"),
@@ -93,7 +96,10 @@ struct CloudKitRecordMapper: Sendable {
         )
     }
 
-    func favoriteItemPayload(from record: CKRecord) throws -> FavoriteItemCloudPayload {
+    func favoriteItemPayload(
+        from record: CKRecord,
+        userID: String
+    ) throws -> FavoriteItemCloudPayload {
         guard record.recordType == Self.favoriteItemRecordType else {
             throw CloudKitRecordMappingError.unexpectedRecordType
         }
@@ -107,7 +113,7 @@ struct CloudKitRecordMapper: Sendable {
         }
         return FavoriteItemCloudPayload(
             schemaVersion: try Self.requiredInt(record, key: "schemaVersion"),
-            userID: CloudAccountScope.localDefault.rawValue,
+            userID: userID,
             itemID: itemID,
             sourceID: sourceID,
             kind: try Self.required(record, key: "kind"),

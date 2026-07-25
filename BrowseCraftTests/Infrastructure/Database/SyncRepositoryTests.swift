@@ -178,23 +178,23 @@ struct SyncRepositoryTests {
         let changedAt: Date = Date(timeIntervalSince1970: 1_000)
 
         try database.queue.write { database in
-            try AppUserRecord.insertUser(id: accountScope.rawValue, in: database)
+            try AppUserRecord.insertLocalDefaultUser(in: database)
             var activeSource: SourceRecord = Self.sourceRecord(
-                userID: accountScope.rawValue,
+                userID: AppUser.localDefaultID,
                 id: "source-active",
                 updatedAt: changedAt,
                 deletedAt: nil
             )
             try activeSource.insert(database)
             var deletedSource: SourceRecord = Self.sourceRecord(
-                userID: accountScope.rawValue,
+                userID: AppUser.localDefaultID,
                 id: "source-deleted",
                 updatedAt: changedAt,
                 deletedAt: changedAt
             )
             try deletedSource.insert(database)
             var builtInSource: SourceRecord = Self.sourceRecord(
-                userID: accountScope.rawValue,
+                userID: AppUser.localDefaultID,
                 id: "built-in.rss.example",
                 updatedAt: changedAt,
                 deletedAt: nil
@@ -202,14 +202,14 @@ struct SyncRepositoryTests {
             try builtInSource.insert(database)
 
             var activeFavorite: FavoriteItemRecord = try FavoriteItemRecord(
-                userID: accountScope.rawValue,
+                userID: AppUser.localDefaultID,
                 item: Self.favoriteItem(),
                 updatedAt: changedAt,
                 deletedAt: nil
             )
             try activeFavorite.insert(database)
             var deletedFavorite: FavoriteItemRecord = try FavoriteItemRecord(
-                userID: accountScope.rawValue,
+                userID: AppUser.localDefaultID,
                 item: FavoriteContentItem(
                     id: "favorite-deleted",
                     sourceID: "source-active",
@@ -272,16 +272,16 @@ struct SyncRepositoryTests {
         let changedAt: Date = Date(timeIntervalSince1970: 1_000)
 
         try database.queue.write { database in
-            try AppUserRecord.insertUser(id: accountScope.rawValue, in: database)
+            try AppUserRecord.insertLocalDefaultUser(in: database)
             var source: SourceRecord = Self.sourceRecord(
-                userID: accountScope.rawValue,
+                userID: AppUser.localDefaultID,
                 id: "source-active",
                 updatedAt: changedAt,
                 deletedAt: nil
             )
             try source.insert(database)
             var favorite: FavoriteItemRecord = try FavoriteItemRecord(
-                userID: accountScope.rawValue,
+                userID: AppUser.localDefaultID,
                 item: Self.favoriteItem(),
                 updatedAt: changedAt,
                 deletedAt: nil
@@ -306,10 +306,10 @@ struct SyncRepositoryTests {
             database in
             return (
                 sources: try SourceRecord
-                    .filter(SourceRecord.Columns.userID == accountScope.rawValue)
+                    .filter(SourceRecord.Columns.userID == AppUser.localDefaultID)
                     .fetchCount(database),
                 favorites: try FavoriteItemRecord
-                    .filter(FavoriteItemRecord.Columns.userID == accountScope.rawValue)
+                    .filter(FavoriteItemRecord.Columns.userID == AppUser.localDefaultID)
                     .fetchCount(database),
                 queue: try SyncQueueRecord
                     .filter(SyncQueueRecord.Columns.accountScope == accountScope.rawValue)
@@ -375,7 +375,11 @@ struct SyncRepositoryTests {
         let path: String = FileManager.default.temporaryDirectory
             .appendingPathComponent("BrowseCraftTests-\(UUID().uuidString).sqlite")
             .path
-        return try AppDatabase(path: path)
+        let database: AppDatabase = try AppDatabase(path: path)
+        try database.queue.write { database in
+            try AppUserRecord.insertLocalDefaultUser(in: database)
+        }
+        return database
     }
 
     private static func makeRSSSource(id: String) -> Source {

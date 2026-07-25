@@ -228,14 +228,30 @@ struct SettingsView: View {
 
             if self.isShowingInAppPurchase {
                 InAppPurchaseSheetView(
-                    applyPurchaseAction: { transaction, plan in
-                        try self.viewModel.applyStoreKitPurchase(
+                    authorizeStoreKitAction: {
+                        guard case .associated =
+                            self.cloudSyncViewModel.cloudIdentityAssociationState else {
+                            throw StoreKitPurchaseIdentityAuthorizationError
+                                .notAssociated
+                        }
+                        return try await self.viewModel
+                            .authorizeUserInitiatedStoreKitAction()
+                    },
+                    validateAuthorizedUser: { userID in
+                        try await self.viewModel
+                            .validateAuthorizedStoreKitUser(userID)
+                    },
+                    applyPurchaseAction: { transaction, signedTransaction, plan in
+                        return try await self.viewModel.submitStoreKitPurchase(
                             transaction: transaction,
+                            signedTransaction: signedTransaction,
                             plan: plan
                         )
                     },
-                    restorePurchasesAction: {
-                        try await self.viewModel.restoreStoreKitPurchases()
+                    restorePurchasesAction: { userID in
+                        try await self.viewModel.restoreStoreKitPurchases(
+                            for: userID
+                        )
                     },
                     closeAction: {
                         var transaction: SwiftUI.Transaction = SwiftUI.Transaction(animation: nil)

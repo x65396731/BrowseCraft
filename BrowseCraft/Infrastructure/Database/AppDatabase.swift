@@ -4,7 +4,7 @@ import GRDB
 // 中文注释：AppDatabase 持有 SQLite 连接，并直接创建 BrowseCraft 的当前开发期 schema。
 
 /// 中文注释：数据库基础设施只暴露 GRDB 队列给基础设施层仓储使用。
-/// 中文注释：发布前允许删除 App 重建数据库，因此当前只创建最终 schema，不兼容旧开发数据库。
+/// 中文注释：只创建最终 schema；业务用户由 Keychain 身份 bootstrap 幂等写入。
 final class AppDatabase {
     let queue: DatabaseQueue
 
@@ -20,7 +20,6 @@ final class AppDatabase {
         self.queue = try DatabaseQueue(path: databasePath)
         try self.queue.write { database in
             try Self.createCurrentSchema(in: database)
-            try AppUserRecord.insertLocalDefaultUser(in: database)
             try Self.createCurrentIndexes(in: database)
         }
     }
@@ -50,6 +49,7 @@ final class AppDatabase {
     private static func createCurrentSchema(in database: Database) throws {
         try AppUserRecord.createTable(in: database)
         try CloudAccountPartitionPreparationRecord.createTable(in: database)
+        try CloudAppUserAssociationAttestationRecord.createTable(in: database)
         try SourceRecord.createTable(in: database)
         try FavoriteRecord.createTable(in: database)
         try FavoriteItemRecord.createTable(in: database)

@@ -5,6 +5,124 @@ import BrowseCraftCore
 
 @MainActor
 struct CloudSyncSettingsViewModelTests {
+    @Test func storeKitAuthorizationDoesNotCreateMissingCloudIdentity() async {
+        let activeUserID: UUID = UUID()
+        let identityStore: MockCloudAppUserIdentityStore =
+            MockCloudAppUserIdentityStore()
+        let authorizer: StoreKitPurchaseIdentityAuthorizer =
+            StoreKitPurchaseIdentityAuthorizer(
+                identityStore: identityStore,
+                activeAppUser: ActiveAppUserStore(initialUserID: activeUserID)
+            )
+
+        await #expect(
+            throws: StoreKitPurchaseIdentityAuthorizationError.notAssociated
+        ) {
+            _ = try await authorizer.authorizeUserInitiatedStoreKitAction()
+        }
+        let fetchCallCount: Int = await identityStore.fetchCallCount()
+        let createCallCount: Int = await identityStore.createCallCount()
+        #expect(fetchCallCount == 1)
+        #expect(createCallCount == 0)
+    }
+
+    @Test func storeKitAuthorizationRejectsDifferentCloudUUID() async {
+        let activeUserID: UUID = UUID()
+        let identityStore: MockCloudAppUserIdentityStore =
+            MockCloudAppUserIdentityStore()
+        await identityStore.setIdentity(
+            .proposed(userID: UUID(), at: Date(timeIntervalSince1970: 10))
+        )
+        let authorizer: StoreKitPurchaseIdentityAuthorizer =
+            StoreKitPurchaseIdentityAuthorizer(
+                identityStore: identityStore,
+                activeAppUser: ActiveAppUserStore(initialUserID: activeUserID)
+            )
+
+        await #expect(
+            throws: StoreKitPurchaseIdentityAuthorizationError.identityMismatch
+        ) {
+            _ = try await authorizer.authorizeUserInitiatedStoreKitAction()
+        }
+        let createCallCount: Int = await identityStore.createCallCount()
+        #expect(createCallCount == 0)
+    }
+
+    @Test func storeKitAuthorizationReturnsMatchingBrowseCraftUUID() async throws {
+        let activeUserID: UUID = UUID()
+        let identityStore: MockCloudAppUserIdentityStore =
+            MockCloudAppUserIdentityStore()
+        await identityStore.setIdentity(
+            .proposed(userID: activeUserID, at: Date(timeIntervalSince1970: 10))
+        )
+        let authorizer: StoreKitPurchaseIdentityAuthorizer =
+            StoreKitPurchaseIdentityAuthorizer(
+                identityStore: identityStore,
+                activeAppUser: ActiveAppUserStore(initialUserID: activeUserID)
+            )
+
+        let authorizedUserID: UUID =
+            try await authorizer.authorizeUserInitiatedStoreKitAction()
+
+        #expect(authorizedUserID == activeUserID)
+        let createCallCount: Int = await identityStore.createCallCount()
+        #expect(createCallCount == 0)
+    }
+
+    @Test func storeKitAuthorizationRejectsUserSwitchAfterAuthorization() async throws {
+        let activeUserID: UUID = UUID()
+        let activeUser: ActiveAppUserStore = ActiveAppUserStore(
+            initialUserID: activeUserID
+        )
+        let identityStore: MockCloudAppUserIdentityStore =
+            MockCloudAppUserIdentityStore()
+        await identityStore.setIdentity(
+            .proposed(userID: activeUserID, at: Date(timeIntervalSince1970: 10))
+        )
+        let authorizer: StoreKitPurchaseIdentityAuthorizer =
+            StoreKitPurchaseIdentityAuthorizer(
+                identityStore: identityStore,
+                activeAppUser: activeUser
+            )
+        _ = try await authorizer.authorizeUserInitiatedStoreKitAction()
+        activeUser.update(UUID())
+
+        await #expect(
+            throws: StoreKitPurchaseIdentityAuthorizationError.activeUserChanged
+        ) {
+            try await authorizer.validateAuthorizedUser(activeUserID)
+        }
+    }
+
+    @Test func openingSettingsDoesNotReadOrCreateCloudIdentity() async throws {
+        let context: TestContext = try Self.makeContext()
+        let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
+
+        await viewModel.start()
+
+        let fetchCallCount: Int = await context.identityStore.fetchCallCount()
+        let createCallCount: Int = await context.identityStore.createCallCount()
+        #expect(fetchCallCount == 0)
+        #expect(createCallCount == 0)
+        #expect(viewModel.cloudIdentityAssociationState == .notAssociated)
+    }
+
+    @Test func identityLinkButtonDoesNotEnableContentSync() async throws {
+        let context: TestContext = try Self.makeContext()
+        let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
+        await viewModel.start()
+
+        await viewModel.linkCloudIdentity()
+
+        guard case .associated(let identity) = viewModel.cloudIdentityAssociationState else {
+            Issue.record("Expected the explicit link action to associate the active profile")
+            return
+        }
+        #expect(identity.userID == context.activeAppUser.currentUserID)
+        #expect(viewModel.firstEnableRequest == nil)
+        #expect(viewModel.isCloudSyncEnabled == false)
+    }
+
     @Test func firstToggleStartsAccountAccessAndThenRequestsConfirmation() async throws {
         let context: TestContext = try Self.makeContext()
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
@@ -19,6 +137,68 @@ struct CloudSyncSettingsViewModelTests {
         #expect(viewModel.accountAvailability == .available)
         #expect(viewModel.firstEnableRequest != nil)
         #expect(viewModel.isCloudSyncEnabled == false)
+        let fetchCallCount: Int = await context.identityStore.fetchCallCount()
+        let createCallCount: Int = await context.identityStore.createCallCount()
+        #expect(fetchCallCount == 1)
+        #expect(createCallCount == 1)
+        guard case .associated(let identity) = viewModel.cloudIdentityAssociationState else {
+            Issue.record("Expected the active profile to be linked before setup")
+            return
+        }
+        #expect(identity.userID == context.activeAppUser.currentUserID)
+    }
+
+    @Test func differentCloudIdentityBlocksSyncWithoutOverwrite() async throws {
+        let context: TestContext = try Self.makeContext()
+        let cloudIdentity: CloudAppUserIdentity = .proposed(
+            userID: UUID(),
+            at: Date(timeIntervalSince1970: 1)
+        )
+        await context.identityStore.setIdentity(cloudIdentity)
+        let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
+        await viewModel.start()
+
+        await viewModel.setCloudSyncEnabled(true)
+
+        #expect(viewModel.identityConflictRequest?.cloudIdentity == cloudIdentity)
+        #expect(
+            viewModel.identityConflictRequest?.localUserID ==
+                context.activeAppUser.currentUserID
+        )
+        #expect(viewModel.firstEnableRequest == nil)
+        #expect(viewModel.isCloudSyncEnabled == false)
+        let createCallCount: Int = await context.identityStore.createCallCount()
+        let storedIdentity: CloudAppUserIdentity? =
+            await context.identityStore.storedIdentity()
+        #expect(createCallCount == 0)
+        #expect(storedIdentity == cloudIdentity)
+    }
+
+    @Test func confirmedConflictAdoptsCloudUUIDWithoutPortalOrStoreKitRecovery() async throws {
+        let context: TestContext = try Self.makeContext()
+        let cloudIdentity: CloudAppUserIdentity = .proposed(
+            userID: UUID(),
+            at: Date(timeIntervalSince1970: 1)
+        )
+        await context.identityStore.setIdentity(cloudIdentity)
+        let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
+        await viewModel.start()
+        await viewModel.setCloudSyncEnabled(true)
+
+        await viewModel.confirmIdentityConflict(decision: .useCloudDataOnly)
+
+        let registerCallCount: Int = await context.portalAuthenticator.registerCallCount
+        let refreshCallCount: Int = await context.portalAuthenticator.refreshCallCount
+        #expect(context.activeAppUser.currentUserID == cloudIdentity.userID)
+        #expect(context.localIdentityStore.userID == cloudIdentity.userID)
+        #expect(context.portalSessionStore.session?.userID == cloudIdentity.userID)
+        #expect(context.portalSessionStore.session?.registrationState == .recoveryRequired)
+        #expect(registerCallCount == 0)
+        #expect(refreshCallCount == 0)
+        #expect(viewModel.cloudIdentityAssociationState == .associated(identity: cloudIdentity))
+        #expect(viewModel.identityConflictRequest == nil)
+        #expect(viewModel.isCloudSyncEnabled)
+        #expect(viewModel.identityRevision == 1)
     }
 
     @Test func enablingWithLocalDataWaitsForAFirstEnableDecision() async throws {
@@ -110,7 +290,7 @@ struct CloudSyncSettingsViewModelTests {
         #expect(try context.partitionStore.preparation(for: context.cloudScope) == nil)
     }
 
-    @Test func choosingCloudOnlyRetainsLocalDefaultDataWithoutCopyingIt() async throws {
+    @Test func choosingCloudOnlyClearsCurrentIdentityDataAcrossSyncScopes() async throws {
         let context: TestContext = try Self.makeContext()
         try context.sourceRepository.saveSource(Self.makeSource())
         await context.accountSession.start()
@@ -122,7 +302,7 @@ struct CloudSyncSettingsViewModelTests {
 
         #expect(try context.sourceRepository.fetchSources().isEmpty)
         context.activeScope.update(.localDefault)
-        #expect(try context.sourceRepository.fetchSources().map(\.id) == ["source-1"])
+        #expect(try context.sourceRepository.fetchSources().isEmpty)
         #expect(viewModel.preparation?.decision == .useCloudDataOnly)
         #expect(viewModel.isCloudSyncEnabled)
     }
@@ -293,6 +473,9 @@ struct CloudSyncSettingsViewModelTests {
             .appendingPathComponent("BrowseCraftCloudSyncSettingsTests-\(UUID().uuidString).sqlite")
             .path
         let database: AppDatabase = try AppDatabase(path: databasePath)
+        try database.queue.write { database in
+            try AppUserRecord.insertLocalDefaultUser(in: database)
+        }
         let cloudScope: CloudAccountScope = .cloud(hash: "account-a")
         let activeScope: ActiveAccountScopeStore = ActiveAccountScopeStore()
         let stateProvider: MockCloudAccountStateProvider = MockCloudAccountStateProvider(
@@ -305,11 +488,49 @@ struct CloudSyncSettingsViewModelTests {
             activeScopeStore: activeScope
         )
         let cloudStore: MockCloudRecordStore = MockCloudRecordStore()
-        let partitionStore: GRDBCloudAccountPartitionStore = GRDBCloudAccountPartitionStore(
-            database: database
+        let activeAppUser: ActiveAppUserStore = ActiveAppUserStore(
+            initialUserID: UUID()
         )
+        try database.queue.write { database in
+            try AppUserRecord.insertUser(
+                id: activeAppUser.currentUserID.uuidString,
+                in: database
+            )
+        }
+        let identityStore: MockCloudAppUserIdentityStore =
+            MockCloudAppUserIdentityStore()
+        let identityAssociationCoordinator:
+            CloudAppUserIdentityAssociationCoordinator =
+            CloudAppUserIdentityAssociationCoordinator(
+                identityStore: identityStore,
+                activeAppUser: activeAppUser,
+                now: {
+                    return Date(timeIntervalSince1970: 10)
+                }
+            )
+        let localIdentityStore: CloudSyncTestAppUserIdentityStore =
+            CloudSyncTestAppUserIdentityStore(
+                userID: activeAppUser.currentUserID
+            )
+        let portalSessionStore: CloudSyncTestPortalSessionStore =
+            CloudSyncTestPortalSessionStore()
+        let portalAuthenticator: CloudSyncTestPortalAuthenticator =
+            CloudSyncTestPortalAuthenticator()
+        let portalSessionCoordinator: PortalSessionCoordinator =
+            PortalSessionCoordinator(
+                activeAppUser: activeAppUser,
+                sessionStore: portalSessionStore,
+                authenticator: portalAuthenticator
+            )
+        let partitionStore: GRDBCloudAccountPartitionStore = GRDBCloudAccountPartitionStore(
+            database: database,
+            activeAppUser: activeAppUser
+        )
+        let userContext: CloudSyncUserContext = CloudSyncUserContext()
         let sourceSyncLocalStore: GRDBSourceSyncLocalStore = GRDBSourceSyncLocalStore(
-            database: database
+            database: database,
+            activeAppUser: activeAppUser,
+            userContext: userContext
         )
         let coordinator: CloudSyncCoordinator = CloudSyncCoordinator(
             accountSession: accountSession,
@@ -319,17 +540,43 @@ struct CloudSyncSettingsViewModelTests {
                 accountScopeProvider: activeScope
             ),
             favoriteItemService: FavoriteItemSyncService(
-                localStore: GRDBFavoriteItemSyncLocalStore(database: database),
+                localStore: GRDBFavoriteItemSyncLocalStore(
+                    database: database,
+                    activeAppUser: activeAppUser,
+                    userContext: userContext
+                ),
                 cloudStore: cloudStore,
+                activeAppUser: activeAppUser,
+                userContext: userContext,
                 accountScopeProvider: activeScope
             ),
             cloudStore: cloudStore,
             changeNotifier: CloudSyncChangeNotifier(),
-            partitionStore: partitionStore
+            partitionStore: partitionStore,
+            activeAppUser: activeAppUser,
+            associationAttestationStore: partitionStore,
+            userContext: userContext
         )
+        let identityAdoptionCoordinator: AppUserIdentityAdoptionCoordinator =
+            AppUserIdentityAdoptionCoordinator(
+                adoptionStore: GRDBAppUserIdentityAdoptionStore(
+                    database: database
+                ),
+                identityStore: localIdentityStore,
+                activeAppUser: activeAppUser,
+                portalSessionCoordinator: portalSessionCoordinator,
+                cloudSyncCoordinator: coordinator
+            )
         return TestContext(
             cloudScope: cloudScope,
             activeScope: activeScope,
+            activeAppUser: activeAppUser,
+            identityStore: identityStore,
+            identityAssociationCoordinator: identityAssociationCoordinator,
+            identityAdoptionCoordinator: identityAdoptionCoordinator,
+            localIdentityStore: localIdentityStore,
+            portalSessionStore: portalSessionStore,
+            portalAuthenticator: portalAuthenticator,
             stateProvider: stateProvider,
             preferences: preferences,
             accountSession: accountSession,
@@ -339,6 +586,7 @@ struct CloudSyncSettingsViewModelTests {
             sourceSyncLocalStore: sourceSyncLocalStore,
             sourceRepository: GRDBSourceRepository(
                 database: database,
+                activeAppUser: activeAppUser,
                 accountScopeProvider: activeScope
             )
         )
@@ -370,6 +618,13 @@ struct CloudSyncSettingsViewModelTests {
 private struct TestContext {
     var cloudScope: CloudAccountScope
     var activeScope: ActiveAccountScopeStore
+    var activeAppUser: ActiveAppUserStore
+    var identityStore: MockCloudAppUserIdentityStore
+    var identityAssociationCoordinator: CloudAppUserIdentityAssociationCoordinator
+    var identityAdoptionCoordinator: AppUserIdentityAdoptionCoordinator
+    var localIdentityStore: CloudSyncTestAppUserIdentityStore
+    var portalSessionStore: CloudSyncTestPortalSessionStore
+    var portalAuthenticator: CloudSyncTestPortalAuthenticator
     var stateProvider: MockCloudAccountStateProvider
     var preferences: MockCloudSyncPreferenceStore
     var accountSession: CloudAccountSession
@@ -384,7 +639,96 @@ private struct TestContext {
         return CloudSyncSettingsViewModel(
             accountSession: self.accountSession,
             partitionStore: self.partitionStore,
-            coordinator: self.coordinator
+            coordinator: self.coordinator,
+            identityAssociationCoordinator: self.identityAssociationCoordinator,
+            identityAdoptionCoordinator: self.identityAdoptionCoordinator,
+            associationAttestationStore: self.partitionStore,
+            activeAppUser: self.activeAppUser
         )
+    }
+}
+
+private final class CloudSyncTestAppUserIdentityStore:
+    AppUserIdentityStoring,
+    @unchecked Sendable {
+    private(set) var userID: UUID?
+
+    init(userID: UUID?) {
+        self.userID = userID
+    }
+
+    func loadUserID() throws -> UUID? {
+        return self.userID
+    }
+
+    func saveUserID(_ userID: UUID) throws {
+        self.userID = userID
+    }
+}
+
+private final class CloudSyncTestPortalSessionStore:
+    PortalSessionStoring,
+    @unchecked Sendable {
+    private(set) var session: PortalSessionPersistence?
+
+    func load() throws -> PortalSessionPersistence? {
+        return self.session
+    }
+
+    func save(_ session: PortalSessionPersistence) throws {
+        self.session = session
+    }
+}
+
+private actor CloudSyncTestPortalAuthenticator: PortalIdentityAuthenticating {
+    private(set) var registerCallCount: Int = 0
+    private(set) var refreshCallCount: Int = 0
+
+    func register(userID: UUID) async throws -> PortalAuthenticationTokens {
+        self.registerCallCount += 1
+        throw PortalIdentityAuthenticationError.temporarilyUnavailable
+    }
+
+    func refresh(refreshToken: String) async throws -> PortalAuthenticationTokens {
+        self.refreshCallCount += 1
+        throw PortalIdentityAuthenticationError.temporarilyUnavailable
+    }
+}
+
+private actor MockCloudAppUserIdentityStore: CloudAppUserIdentityStoring {
+    private var identity: CloudAppUserIdentity?
+    private var fetchCalls: Int = 0
+    private var createCalls: Int = 0
+
+    func fetchIdentity() async throws -> CloudAppUserIdentity? {
+        self.fetchCalls += 1
+        return self.identity
+    }
+
+    func createIdentityIfAbsent(
+        _ proposedIdentity: CloudAppUserIdentity
+    ) async throws -> CloudAppUserIdentity {
+        self.createCalls += 1
+        if let identity: CloudAppUserIdentity = self.identity {
+            return identity
+        }
+        self.identity = proposedIdentity
+        return proposedIdentity
+    }
+
+    func setIdentity(_ identity: CloudAppUserIdentity?) {
+        self.identity = identity
+    }
+
+    func storedIdentity() -> CloudAppUserIdentity? {
+        return self.identity
+    }
+
+    func fetchCallCount() -> Int {
+        return self.fetchCalls
+    }
+
+    func createCallCount() -> Int {
+        return self.createCalls
     }
 }

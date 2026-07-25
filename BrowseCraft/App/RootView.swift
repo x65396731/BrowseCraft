@@ -77,9 +77,6 @@ struct RootView: View {
             self.startupCoordinator.start()
         }
         .task {
-            await self.settingsViewModel.observeStoreKitTransactions()
-        }
-        .task {
             await self.cloudSyncSettingsViewModel.start()
         }
         .onChange(of: self.sourcesViewModel.latestSourceAddID) { _, sourceID in
@@ -89,6 +86,12 @@ struct RootView: View {
 
             DispatchQueue.main.async {
                 self.selectedTab = .library
+            }
+        }
+        .onChange(of: self.cloudSyncSettingsViewModel.identityRevision) { _, _ in
+            self.historyViewModel.load()
+            Task {
+                await self.libraryViewModel.reloadForActiveUserChange()
             }
         }
     }

@@ -50,12 +50,12 @@ extension AppUserRecord {
         }
     }
 
-    /// 中文注释：当前没有 users 专用索引；主键 id 已覆盖本地默认用户读取。
+    /// 中文注释：当前没有 users 专用索引；主键 id 已覆盖活动 UUID 用户读取。
     static func createIndexes(in database: Database) throws {
         _ = database
     }
 
-    /// 中文注释：保证本地默认空间存在，供未绑定 iCloud 账户时正常离线使用。
+    /// 中文注释：仅供仍使用旧身份 fixture 的隔离测试调用；App 启动路径不得创建此用户。
     static func insertLocalDefaultUser(in database: Database) throws {
         try Self.insertUser(
             id: AppUser.localDefaultID,
@@ -64,7 +64,7 @@ extension AppUserRecord {
         )
     }
 
-    /// 中文注释：Cloud account scope 也是本地业务用户根，但不保存或展示真实 Apple 账户信息。
+    /// 中文注释：这里只创建真实业务 AppUser；CloudAccountScope 不得再调用此方法。
     static func insertUser(
         id: String,
         displayName: String? = nil,

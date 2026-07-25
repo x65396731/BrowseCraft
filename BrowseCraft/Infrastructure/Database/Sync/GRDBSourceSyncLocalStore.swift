@@ -3,10 +3,19 @@ import GRDB
 
 final class GRDBSourceSyncLocalStore: SourceSyncLocalStore {
     private let database: AppDatabase
+    private let activeAppUser: (any ActiveAppUserProviding)?
+    private let userContext: CloudSyncUserContext?
     private let now: () -> Date
 
-    init(database: AppDatabase, now: @escaping () -> Date = Date.init) {
+    init(
+        database: AppDatabase,
+        activeAppUser: (any ActiveAppUserProviding)? = nil,
+        userContext: CloudSyncUserContext? = nil,
+        now: @escaping () -> Date = Date.init
+    ) {
         self.database = database
+        self.activeAppUser = activeAppUser
+        self.userContext = userContext
         self.now = now
     }
 
@@ -31,12 +40,13 @@ final class GRDBSourceSyncLocalStore: SourceSyncLocalStore {
         accountScope: CloudAccountScope,
         for sourceIDs: [String]
     ) throws -> [String: SourceSyncLocalSnapshot] {
+        let userID: String = self.currentUserID
         return try self.database.queue.read { database in
             var snapshots: [String: SourceSyncLocalSnapshot] = [:]
             for sourceID: String in Set(sourceIDs) {
                 guard let record: SourceRecord = try SourceRecord.fetchOne(
                     database,
-                    key: ["userID": accountScope.rawValue, "id": sourceID]
+                    key: ["userID": userID, "id": sourceID]
                 ) else {
                     continue
                 }
@@ -56,11 +66,12 @@ final class GRDBSourceSyncLocalStore: SourceSyncLocalStore {
         scope: String,
         zoneName: String
     ) throws {
+        let userID: String = self.currentUserID
         let partitionCounts: (live: Int, tombstone: Int) = try self.database.queue.write { database in
-            try AppUserRecord.insertUser(id: accountScope.rawValue, in: database)
+            try AppUserRecord.insertUser(id: userID, in: database)
             for payload: SourceCloudPayload in plan.acceptedPayloads {
                 var scopedPayload: SourceCloudPayload = payload
-                scopedPayload.userID = accountScope.rawValue
+                scopedPayload.userID = userID
                 var record: SourceRecord = SourceRecord(payload: scopedPayload)
                 try record.save(database)
             }
@@ -85,11 +96,11 @@ final class GRDBSourceSyncLocalStore: SourceSyncLocalStore {
             )
 
             let liveCount: Int = try SourceRecord
-                .filter(SourceRecord.Columns.userID == accountScope.rawValue)
+                .filter(SourceRecord.Columns.userID == userID)
                 .filter(SourceRecord.Columns.deletedAt == nil)
                 .fetchCount(database)
             let totalCount: Int = try SourceRecord
-                .filter(SourceRecord.Columns.userID == accountScope.rawValue)
+                .filter(SourceRecord.Columns.userID == userID)
                 .fetchCount(database)
             return (live: liveCount, tombstone: totalCount - liveCount)
         }
@@ -104,6 +115,7 @@ final class GRDBSourceSyncLocalStore: SourceSyncLocalStore {
     }
 
     func pendingUploads(accountScope: CloudAccountScope) throws -> [SourceSyncPendingUpload] {
+        let userID: String = self.currentUserID
         return try self.database.queue.read { database in
             let now: Date = self.now()
             let queueRecords: [SyncQueueRecord] = try SyncQueueRecord
@@ -118,7 +130,7 @@ final class GRDBSourceSyncLocalStore: SourceSyncLocalStore {
             return try queueRecords.map { queueRecord in
                 let sourceRecord: SourceRecord? = try SourceRecord.fetchOne(
                     database,
-                    key: ["userID": accountScope.rawValue, "id": queueRecord.entityID]
+                    key: ["userID": userID, "id": queueRecord.entityID]
                 )
                 return SourceSyncPendingUpload(
                     queueItem: queueRecord.domainModel(),
@@ -194,5 +206,12 @@ final class GRDBSourceSyncLocalStore: SourceSyncLocalStore {
             )
         )
         try state.save(database)
+    }
+
+    private var currentUserID: String {
+        if let synchronizedUserID: UUID = self.userContext?.currentUserID {
+            return synchronizedUserID.uuidString
+        }
+        return self.activeAppUser?.currentUserID.uuidString ?? AppUser.localDefaultID
     }
 }

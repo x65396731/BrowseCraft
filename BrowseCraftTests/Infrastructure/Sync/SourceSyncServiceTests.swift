@@ -290,7 +290,20 @@ struct SourceSyncServiceTests {
         let path: String = FileManager.default.temporaryDirectory
             .appendingPathComponent("BrowseCraftSourceSyncTests-\(UUID().uuidString).sqlite")
             .path
-        return try AppDatabase(path: path)
+        let database: AppDatabase = try AppDatabase(path: path)
+        try database.queue.write { database in
+            try AppUserRecord.insertLocalDefaultUser(in: database)
+            try database.execute(
+                sql: """
+                UPDATE \(AppUserRecord.databaseTableName)
+                SET siteSlotLimit = 300,
+                    purchasedSiteSlots = 299
+                WHERE id = ?
+                """,
+                arguments: [AppUser.localDefaultID]
+            )
+        }
+        return database
     }
 
     private static func makeService(

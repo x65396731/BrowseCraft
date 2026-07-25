@@ -53,6 +53,8 @@ final class ReaderViewModel: ObservableObject {
     private let resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
     private let saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase?
     private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
+    private let activeAppUser: (any ActiveAppUserProviding)?
+    private let fallbackUserID: String
     private let now: () -> Date
     private var savedChapterHistoryKeys: Set<String> = []
     private var pendingAccessChapterURLString: String?
@@ -74,6 +76,8 @@ final class ReaderViewModel: ObservableObject {
         resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase,
         saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase? = nil,
         accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil,
+        activeAppUser: (any ActiveAppUserProviding)? = nil,
+        userID: String = AppUser.localDefaultID,
         now: @escaping () -> Date = Date.init
     ) {
         self.item = item
@@ -90,6 +94,8 @@ final class ReaderViewModel: ObservableObject {
         self.resolveReaderSourcePresentationUseCase = resolveReaderSourcePresentationUseCase
         self.saveComicChapterHistoryUseCase = saveComicChapterHistoryUseCase
         self.accumulateAdPointsUseCase = accumulateAdPointsUseCase
+        self.activeAppUser = activeAppUser
+        self.fallbackUserID = userID
         self.now = now
         self.currentPageIndex = restoreContext?.lastPageIndex
         self.currentPageImageURL = restoreContext?.lastPageImageURLString.flatMap(URL.init(string:))
@@ -469,7 +475,7 @@ final class ReaderViewModel: ObservableObject {
             print(
                 "[BrowseCraftComicHistory] saved " +
                 "reason=\(reason) " +
-                "userID=\(AppUser.localDefaultID) " +
+                "userID=\(self.currentUserID) " +
                 "sourceID=\(self.source.id) " +
                 "comicItemID=\(self.item.id) " +
                 "chapterKey=\(chapterKey)"
@@ -530,7 +536,7 @@ final class ReaderViewModel: ObservableObject {
         chapterKey: String
     ) -> ComicChapterHistory {
         return ComicChapterHistory(
-            userID: AppUser.localDefaultID,
+            userID: self.currentUserID,
             sourceID: self.source.id,
             comicItemID: self.item.id,
             comicTitle: chapter.comicTitle ?? self.item.title,
@@ -649,5 +655,9 @@ final class ReaderViewModel: ObservableObject {
             normalizedURL.removeLast()
         }
         return normalizedURL
+    }
+
+    private var currentUserID: String {
+        return self.activeAppUser?.currentUserID.uuidString ?? self.fallbackUserID
     }
 }

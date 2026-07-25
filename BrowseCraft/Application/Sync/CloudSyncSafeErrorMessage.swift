@@ -42,6 +42,89 @@ enum CloudSyncDiagnostics {
         )
     }
 
+    static func logSyncPhase(
+        _ phase: String,
+        trigger: CloudSyncTrigger,
+        accountScope: CloudAccountScope
+    ) {
+        let accountHash: String = Self.hashIdentifier(accountScope.rawValue)
+        Self.logger.notice(
+            "sync phase=\(phase, privacy: .public) trigger=\(trigger.rawValue, privacy: .public) accountHash=\(accountHash, privacy: .public)"
+        )
+    }
+
+    static func logSyncRequest(
+        trigger: CloudSyncTrigger,
+        outcome: String
+    ) {
+        Self.logger.notice(
+            "sync request trigger=\(trigger.rawValue, privacy: .public) outcome=\(outcome, privacy: .public)"
+        )
+    }
+
+    static func logIdentityGateRejected(
+        accountScope: CloudAccountScope,
+        reason: String
+    ) {
+        let accountHash: String = Self.hashIdentifier(accountScope.rawValue)
+        Self.logger.error(
+            "identity gate rejected accountHash=\(accountHash, privacy: .public) reason=\(reason, privacy: .public)"
+        )
+    }
+
+    static func logIdentityAssociation(
+        event: String,
+        localUserID: UUID,
+        cloudUserID: UUID? = nil
+    ) {
+        let localUserHash: String =
+            Self.hashIdentifier(localUserID.uuidString)
+        let cloudUserHash: String = cloudUserID.map {
+            Self.hashIdentifier($0.uuidString)
+        } ?? "none"
+        Self.logger.notice(
+            "identity association event=\(event, privacy: .public) localUserHash=\(localUserHash, privacy: .public) cloudUserHash=\(cloudUserHash, privacy: .public)"
+        )
+    }
+
+    static func logIdentityAssociationFailed(
+        stage: String,
+        error: any Error
+    ) {
+        let safeError: String = CloudSyncSafeErrorMessage.describe(error)
+        Self.logger.error(
+            "identity association event=failed stage=\(stage, privacy: .public) error=\(safeError, privacy: .public)"
+        )
+    }
+
+    static func logIdentityAttestation(
+        accountScope: CloudAccountScope,
+        outcome: String
+    ) {
+        let accountHash: String = Self.hashIdentifier(accountScope.rawValue)
+        Self.logger.notice(
+            "identity attestation accountHash=\(accountHash, privacy: .public) outcome=\(outcome, privacy: .public)"
+        )
+    }
+
+    static func logIdentityChange(event: String) {
+        Self.logger.notice(
+            "identity change event=\(event, privacy: .public)"
+        )
+    }
+
+    static func logRetry(
+        accountScope: CloudAccountScope,
+        outcome: String,
+        delay: TimeInterval? = nil
+    ) {
+        let accountHash: String = Self.hashIdentifier(accountScope.rawValue)
+        let delayMilliseconds: Int = max(0, Int((delay ?? 0) * 1_000))
+        Self.logger.notice(
+            "sync retry accountHash=\(accountHash, privacy: .public) outcome=\(outcome, privacy: .public) delayMs=\(delayMilliseconds, privacy: .public)"
+        )
+    }
+
     static func logCloudFetchSummary(
         accountScope: CloudAccountScope,
         rawSourceCount: Int,
@@ -119,6 +202,45 @@ enum CloudSyncDiagnostics {
 
 enum CloudSyncSafeErrorMessage {
     static func describe(_ error: any Error) -> String {
+        if let storeError: CloudAppUserIdentityStoreError =
+            error as? CloudAppUserIdentityStoreError {
+            switch storeError {
+            case .accountUnavailable:
+                return "iCloud identity account unavailable"
+            case .accessDenied:
+                return "iCloud identity access denied"
+            case .malformedRecord:
+                return "iCloud identity record malformed"
+            case .unsupportedSchemaVersion(let version):
+                return "iCloud identity schema unsupported version=\(version)"
+            case .temporarilyUnavailable:
+                return "iCloud identity temporarily unavailable"
+            case .operationFailed:
+                return "iCloud identity operation failed"
+            }
+        }
+        if let associationError: CloudAppUserIdentityAssociationError =
+            error as? CloudAppUserIdentityAssociationError {
+            switch associationError {
+            case .activeUserChanged:
+                return "Active user changed during iCloud identity association"
+            case .unexpectedState:
+                return "Unexpected iCloud identity association state"
+            }
+        }
+        if let adoptionError: AppUserIdentityAdoptionError =
+            error as? AppUserIdentityAdoptionError {
+            switch adoptionError {
+            case .invalidCloudIdentity:
+                return "Invalid iCloud identity for adoption"
+            case .activeUserChanged:
+                return "Active user changed during identity adoption"
+            case .portalSessionResetFailed:
+                return "Portal session reset failed during identity adoption"
+            case .identityRollbackFailed:
+                return "Identity rollback failed during adoption"
+            }
+        }
         if let securityError: CloudSyncPayloadSecurityError = error as? CloudSyncPayloadSecurityError {
             return securityError.description
         }
@@ -135,6 +257,8 @@ enum CloudSyncSafeErrorMessage {
 enum CloudSyncSessionError: Error, Hashable, Sendable, CustomStringConvertible {
     case synchronizationDisabled
     case accountChanged
+    case identityNotAssociated
+    case activeUserChanged
     case alreadyRunning
 
     var description: String {
@@ -143,6 +267,10 @@ enum CloudSyncSessionError: Error, Hashable, Sendable, CustomStringConvertible {
             return "Cloud synchronization is disabled"
         case .accountChanged:
             return "Cloud account changed during synchronization"
+        case .identityNotAssociated:
+            return "The iCloud account is not linked to the active BrowseCraft profile"
+        case .activeUserChanged:
+            return "The active BrowseCraft profile changed during synchronization"
         case .alreadyRunning:
             return "Cloud synchronization is already running"
         }

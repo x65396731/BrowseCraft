@@ -8,6 +8,87 @@ struct CloudSyncCoordinatorTests {
         #expect(CKSyncEngineCloudRecordStore.usesAutomaticScheduling == false)
     }
 
+    @Test func synchronizationRequiresConfirmedScopeAndBusinessUserPair() async throws {
+        let database: AppDatabase = try Self.makeDatabase()
+        let accountScope: CloudAccountScope = .cloud(hash: "account-a")
+        let activeScope: ActiveAccountScopeStore = ActiveAccountScopeStore()
+        let activeUser: ActiveAppUserStore = ActiveAppUserStore(
+            initialUserID: UUID()
+        )
+        let otherUserID: UUID = UUID()
+        try await database.queue.write { database in
+            try AppUserRecord.insertUser(
+                id: activeUser.currentUserID.uuidString,
+                in: database
+            )
+            try AppUserRecord.insertUser(
+                id: otherUserID.uuidString,
+                in: database
+            )
+        }
+        let stateProvider: MockCloudAccountStateProvider =
+            MockCloudAccountStateProvider(
+                state: CloudAccountState(
+                    availability: .available,
+                    scope: accountScope
+                )
+            )
+        let preferences: MockCloudSyncPreferenceStore =
+            MockCloudSyncPreferenceStore()
+        preferences.setCloudSyncEnabled(true, for: accountScope)
+        let session: CloudAccountSession = CloudAccountSession(
+            stateProvider: stateProvider,
+            preferenceStore: preferences,
+            activeScopeStore: activeScope
+        )
+        await session.start()
+        let partitionStore: GRDBCloudAccountPartitionStore =
+            GRDBCloudAccountPartitionStore(
+                database: database,
+                activeAppUser: activeUser
+            )
+        try partitionStore.attestAssociation(
+            cloudScope: accountScope,
+            userID: otherUserID
+        )
+        let cloudStore: MockCloudRecordStore = MockCloudRecordStore()
+        let userContext: CloudSyncUserContext = CloudSyncUserContext()
+        let coordinator: CloudSyncCoordinator = CloudSyncCoordinator(
+            accountSession: session,
+            sourceService: SourceSyncService(
+                localStore: GRDBSourceSyncLocalStore(
+                    database: database,
+                    activeAppUser: activeUser,
+                    userContext: userContext
+                ),
+                cloudStore: cloudStore,
+                accountScopeProvider: activeScope
+            ),
+            favoriteItemService: FavoriteItemSyncService(
+                localStore: GRDBFavoriteItemSyncLocalStore(
+                    database: database,
+                    activeAppUser: activeUser,
+                    userContext: userContext
+                ),
+                cloudStore: cloudStore,
+                activeAppUser: activeUser,
+                userContext: userContext,
+                accountScopeProvider: activeScope
+            ),
+            cloudStore: cloudStore,
+            changeNotifier: CloudSyncChangeNotifier(),
+            partitionStore: partitionStore,
+            activeAppUser: activeUser,
+            associationAttestationStore: partitionStore,
+            userContext: userContext
+        )
+
+        await #expect(throws: CloudSyncSessionError.identityNotAssociated) {
+            _ = try await coordinator.synchronize(trigger: .manual)
+        }
+        #expect(cloudStore.events().isEmpty)
+    }
+
     @Test func manualSyncDownloadsBothTypesBeforeUploadingEitherQueue() async throws {
         let database: AppDatabase = try Self.makeDatabase()
         let accountScope: CloudAccountScope = .cloud(hash: "account-a")
@@ -39,7 +120,7 @@ struct CloudSyncCoordinatorTests {
         let partitionStore: GRDBCloudAccountPartitionStore = GRDBCloudAccountPartitionStore(
             database: database
         )
-        _ = try partitionStore.prepareCloudScope(accountScope, decision: .useCloudDataOnly)
+        _ = try partitionStore.prepareCloudScope(accountScope, decision: .mergeLocalData)
 
         let coordinator: CloudSyncCoordinator = CloudSyncCoordinator(
             accountSession: session,
@@ -102,7 +183,7 @@ struct CloudSyncCoordinatorTests {
         let partitionStore: GRDBCloudAccountPartitionStore = GRDBCloudAccountPartitionStore(
             database: database
         )
-        _ = try partitionStore.prepareCloudScope(accountScope, decision: .useCloudDataOnly)
+        _ = try partitionStore.prepareCloudScope(accountScope, decision: .mergeLocalData)
         let retryScheduleProvider: GRDBCloudSyncEngineStore = GRDBCloudSyncEngineStore(
             database: database
         )
@@ -319,7 +400,11 @@ struct CloudSyncCoordinatorTests {
         let path: String = FileManager.default.temporaryDirectory
             .appendingPathComponent("BrowseCraftCoordinatorTests-\(UUID().uuidString).sqlite")
             .path
-        return try AppDatabase(path: path)
+        let database: AppDatabase = try AppDatabase(path: path)
+        try database.queue.write { database in
+            try AppUserRecord.insertLocalDefaultUser(in: database)
+        }
+        return database
     }
 
     private static func makeSource() -> Source {

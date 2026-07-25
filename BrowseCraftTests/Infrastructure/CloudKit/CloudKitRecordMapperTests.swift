@@ -51,12 +51,17 @@ struct CloudKitRecordMapperTests {
         )
 
         try mapper.apply(payload, to: record)
-        let restored: SourceCloudPayload = try mapper.sourcePayload(from: record)
+        let activeUserID: String = UUID().uuidString
+        let restored: SourceCloudPayload = try mapper.sourcePayload(
+            from: record,
+            userID: activeUserID
+        )
 
         #expect(record["userID"] == nil)
         #expect(record["accountScope"] == nil)
         #expect(restored.sourceID == payload.sourceID)
         #expect(restored.configJSON == payload.configJSON)
+        #expect(restored.userID == activeUserID)
     }
 
     @Test func favoriteRoundTripUsesItemMetadataField() throws {
@@ -86,11 +91,16 @@ struct CloudKitRecordMapperTests {
         )
 
         try mapper.apply(payload, to: record)
-        let restored: FavoriteItemCloudPayload = try mapper.favoriteItemPayload(from: record)
+        let activeUserID: String = UUID().uuidString
+        let restored: FavoriteItemCloudPayload = try mapper.favoriteItemPayload(
+            from: record,
+            userID: activeUserID
+        )
 
         #expect(record["itemJSON"] == nil)
         #expect(record["itemMetadataJSON"] as? String == payload.itemMetadataJSON)
         #expect(restored.itemID == payload.itemID)
+        #expect(restored.userID == activeUserID)
     }
 
     @Test func downloadRejectsRecordNameAndBusinessIDMismatch() throws {
@@ -103,7 +113,10 @@ struct CloudKitRecordMapperTests {
         record["sourceID"] = "source-2" as CKRecordValue
 
         #expect(throws: CloudKitRecordMappingError.recordIDMismatch) {
-            _ = try mapper.sourcePayload(from: record)
+            _ = try mapper.sourcePayload(
+                from: record,
+                userID: UUID().uuidString
+            )
         }
     }
 

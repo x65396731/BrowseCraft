@@ -65,20 +65,25 @@ enum AdPointRule {
 // 中文注释：AccumulateAdPointsUseCase 集中处理广告积分阈值和去广告状态。
 struct AccumulateAdPointsUseCase {
     private let repository: AppUserRepository
+    private let activeAppUser: (any ActiveAppUserProviding)?
     private let now: () -> Date
 
     init(
         repository: AppUserRepository,
+        activeAppUser: (any ActiveAppUserProviding)? = nil,
         now: @escaping () -> Date = Date.init
     ) {
         self.repository = repository
+        self.activeAppUser = activeAppUser
         self.now = now
     }
 
     func execute(
-        userID: String = AppUser.localDefaultID,
+        userID: String? = nil,
         points: Int
     ) throws -> AdPointAccumulationResult {
+        let userID: String = userID ?? self.activeAppUser?.currentUserID.uuidString ??
+            AppUser.localDefaultID
         let now: Date = self.now()
         let addedPoints: Int = max(0, points)
         var user: AppUser = try self.repository.fetchUser(id: userID) ?? AppUser(

@@ -1,14 +1,17 @@
 struct HistoryFeatureFactory {
     private let database: AppDatabase
+    private let activeAppUser: any ActiveAppUserProviding
     private let sourceRepository: SourceRepository
     private let videoPlayerViewModelFactory: @MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel
 
     init(
         database: AppDatabase,
+        activeAppUser: any ActiveAppUserProviding,
         sourceRepository: SourceRepository,
         videoPlayerViewModelFactory: @escaping @MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel
     ) {
         self.database = database
+        self.activeAppUser = activeAppUser
         self.sourceRepository = sourceRepository
         self.videoPlayerViewModelFactory = videoPlayerViewModelFactory
     }
@@ -43,6 +46,7 @@ struct HistoryFeatureFactory {
             loadSourcesUseCase: LoadSourcesUseCase(
                 sourceRepository: self.sourceRepository
             ),
+            activeAppUser: self.activeAppUser,
             videoPlayerViewModelFactory: self.videoPlayerViewModelFactory
         )
     }

@@ -26,12 +26,9 @@ struct CloudSyncSettingsView: View {
         .task {
             await self.viewModel.start()
         }
-        .sheet(item: self.firstEnableRequestBinding) { request in
-            CloudSyncFirstEnableSheet(
-                viewModel: self.viewModel,
-                request: request
-            )
-            .presentationDetents([.medium, .large])
+        .sheet(item: self.setupRequestBinding) { request in
+            self.setupSheet(for: request)
+                .presentationDetents([.medium, .large])
         }
         .alert(item: self.activationIssueBinding) { issue in
             Alert(
@@ -39,7 +36,7 @@ struct CloudSyncSettingsView: View {
                 message: Text(self.activationIssueMessage(issue)),
                 primaryButton: .default(Text("Check Again")) {
                     Task {
-                        await self.viewModel.setCloudSyncEnabled(true)
+                        await self.viewModel.retryActivation()
                     }
                 },
                 secondaryButton: .cancel(Text("Not Now")) {
@@ -81,6 +78,32 @@ struct CloudSyncSettingsView: View {
                 Label("Refresh iCloud Status", systemImage: "arrow.clockwise")
             }
             .disabled(self.viewModel.isRefreshingAccount)
+
+            Button {
+                Task {
+                    await self.viewModel.linkCloudIdentity()
+                }
+            } label: {
+                Label(
+                    self.identityLinkButtonTitle,
+                    systemImage: "person.crop.circle.badge.checkmark"
+                )
+            }
+            .disabled(self.viewModel.canChangeCloudSyncEnabled == false)
+
+            HStack(spacing: 12) {
+                Image(systemName: self.identityStatusIcon)
+                    .foregroundStyle(self.identityStatusColor)
+                    .frame(width: 30)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(self.identityStatusTitle)
+                        .font(.body.weight(.medium))
+                    Text(self.identityStatusDetail)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
@@ -221,17 +244,35 @@ struct CloudSyncSettingsView: View {
         )
     }
 
-    private var firstEnableRequestBinding: Binding<CloudSyncSettingsViewModel.FirstEnableRequest?> {
+    private var setupRequestBinding: Binding<CloudSyncSettingsViewModel.SetupRequest?> {
         return Binding(
             get: {
-                return self.viewModel.firstEnableRequest
+                return self.viewModel.setupRequest
             },
             set: { request in
                 if request == nil {
-                    self.viewModel.cancelFirstEnable()
+                    self.viewModel.dismissSetupRequest()
                 }
             }
         )
+    }
+
+    @ViewBuilder
+    private func setupSheet(
+        for request: CloudSyncSettingsViewModel.SetupRequest
+    ) -> some View {
+        switch request {
+        case .firstEnable(let firstEnableRequest):
+            CloudSyncFirstEnableSheet(
+                viewModel: self.viewModel,
+                request: firstEnableRequest
+            )
+        case .identityConflict(let conflictRequest):
+            CloudIdentityConflictSheet(
+                viewModel: self.viewModel,
+                request: conflictRequest
+            )
+        }
     }
 
     private var activationIssueBinding: Binding<CloudSyncSettingsViewModel.ActivationIssue?> {
@@ -313,6 +354,59 @@ struct CloudSyncSettingsView: View {
         }
     }
 
+    private var identityStatusTitle: String {
+        switch self.viewModel.cloudIdentityAssociationState {
+        case .notAssociated, .readyToCreate:
+            return "BrowseCraft Identity Not Checked"
+        case .associated:
+            return "BrowseCraft Identity Linked"
+        case .requiresUserDecision:
+            return "Different BrowseCraft Profile"
+        }
+    }
+
+    private var identityStatusDetail: String {
+        switch self.viewModel.cloudIdentityAssociationState {
+        case .notAssociated, .readyToCreate:
+            return "Use the link button to verify this profile with iCloud."
+        case .associated:
+            return "This iCloud account is linked to the active BrowseCraft profile."
+        case .requiresUserDecision:
+            return "Cloud Sync remains off until the profile mismatch is resolved."
+        }
+    }
+
+    private var identityLinkButtonTitle: String {
+        switch self.viewModel.cloudIdentityAssociationState {
+        case .associated:
+            return "Check BrowseCraft Identity Again"
+        case .notAssociated, .readyToCreate, .requiresUserDecision:
+            return "Link BrowseCraft Identity"
+        }
+    }
+
+    private var identityStatusIcon: String {
+        switch self.viewModel.cloudIdentityAssociationState {
+        case .notAssociated, .readyToCreate:
+            return "person.crop.circle.badge.questionmark"
+        case .associated:
+            return "person.crop.circle.badge.checkmark"
+        case .requiresUserDecision:
+            return "person.crop.circle.badge.exclamationmark"
+        }
+    }
+
+    private var identityStatusColor: Color {
+        switch self.viewModel.cloudIdentityAssociationState {
+        case .notAssociated, .readyToCreate:
+            return .secondary
+        case .associated:
+            return .green
+        case .requiresUserDecision:
+            return .orange
+        }
+    }
+
     private var syncPreferenceFooter: String {
         switch self.viewModel.accountAvailability {
         case .notChecked:
@@ -359,6 +453,169 @@ struct CloudSyncSettingsView: View {
             return "Your local data is unchanged. Wait for iCloud to recover, then check again."
         case .statusUnavailable:
             return "The iCloud account status could not be determined. Check your connection and try again."
+        }
+    }
+}
+
+@MainActor
+private struct CloudIdentityConflictSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var viewModel: CloudSyncSettingsViewModel
+    let request: CloudSyncSettingsViewModel.IdentityConflictRequest
+
+    @State private var isSubmitting: Bool = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Label(
+                        "This iCloud account is linked to a different BrowseCraft profile.",
+                        systemImage: "person.crop.circle.badge.exclamationmark"
+                    )
+                    .foregroundStyle(.orange)
+                }
+
+                Section("Profiles") {
+                    LabeledContent(
+                        "On This Device",
+                        value: Self.shortIdentifier(self.request.localUserID)
+                    )
+                    LabeledContent(
+                        "In iCloud",
+                        value: Self.shortIdentifier(self.request.cloudIdentity.userID)
+                    )
+                }
+
+                if self.request.localDataSummary.hasMergeableData {
+                    Section("Local Data on This Device") {
+                        LabeledContent(
+                            "Custom Sources",
+                            value: String(self.request.localDataSummary.sourceCount)
+                        )
+                        LabeledContent(
+                            "Favorites",
+                            value: String(self.request.localDataSummary.favoriteItemCount)
+                        )
+                        if self.request.localDataSummary.historyCount > 0 {
+                            LabeledContent(
+                                "Reading and Watch History",
+                                value: String(self.request.localDataSummary.historyCount)
+                            )
+                        }
+                        if self.request.localDataSummary.temporaryResourceCount > 0 {
+                            LabeledContent(
+                                "Temporary Resources",
+                                value: String(
+                                    self.request.localDataSummary.temporaryResourceCount
+                                )
+                            )
+                        }
+                        if self.request.localDataSummary.hasLibraryState {
+                            LabeledContent("Library State", value: "Saved")
+                        }
+                    }
+
+                    Section {
+                        Button {
+                            self.submit(decision: .mergeLocalData)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Label(
+                                    "Merge Local Data into iCloud Profile",
+                                    systemImage: "arrow.triangle.merge"
+                                )
+                                Text("Copy local sources, favorites, history, and library state to the iCloud profile.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .disabled(self.isSubmitting)
+
+                        Button {
+                            self.submit(decision: .useCloudDataOnly)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Label(
+                                    "Use iCloud Profile Only",
+                                    systemImage: "icloud"
+                                )
+                                Text("Switch to the iCloud profile without copying this profile's local data.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .disabled(self.isSubmitting)
+                    } footer: {
+                        Text("The previous local profile is retained on this device.")
+                    }
+                } else {
+                    Section {
+                        Button {
+                            self.submit(decision: .useCloudDataOnly)
+                        } label: {
+                            Label(
+                                "Use iCloud Profile",
+                                systemImage: "person.crop.circle.badge.checkmark"
+                            )
+                        }
+                        .disabled(self.isSubmitting)
+                    }
+                }
+
+                Section {
+                    Text("Both choices adopt the iCloud UUID as the active BrowseCraft profile. The previous Portal session is removed from use.")
+                } footer: {
+                    Text("BrowseCraft does not register, recover a Portal session, or restore StoreKit purchases during this action. Purchase recovery remains available only from the purchase screen.")
+                }
+
+                if self.isSubmitting {
+                    Section {
+                        HStack {
+                            ProgressView()
+                            Text("Switching BrowseCraft profile…")
+                        }
+                    }
+                }
+
+                if let errorMessage: String = self.viewModel.actionErrorMessage {
+                    Section("Profile Error") {
+                        Text(errorMessage)
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+            .navigationTitle("Profile Mismatch")
+            .navigationBarTitleDisplayMode(.inline)
+            .interactiveDismissDisabled(self.isSubmitting)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        self.viewModel.dismissIdentityConflict()
+                        self.dismiss()
+                    }
+                    .disabled(self.isSubmitting)
+                }
+            }
+        }
+    }
+
+    private static func shortIdentifier(_ userID: UUID) -> String {
+        return String(userID.uuidString.suffix(8))
+    }
+
+    private func submit(decision: CloudAccountLocalDataDecision) {
+        guard self.isSubmitting == false else {
+            return
+        }
+        self.isSubmitting = true
+
+        Task {
+            await self.viewModel.confirmIdentityConflict(decision: decision)
+            self.isSubmitting = false
+            if self.viewModel.identityConflictRequest == nil {
+                self.dismiss()
+            }
         }
     }
 }

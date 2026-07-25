@@ -21,7 +21,13 @@ final class AppContainer {
     let activeAccountScopeStore: ActiveAccountScopeStore
     /// 中文注释：业务 AppUser 与 CloudKit 同步分区独立，后续认证和权益共用此稳定 UUID。
     let activeAppUserStore: ActiveAppUserStore
+    let cloudIdentityAssociationCoordinator: CloudAppUserIdentityAssociationCoordinator
+    let storeKitPurchaseIdentityAuthorizer: StoreKitPurchaseIdentityAuthorizer
+    let appUserIdentityAdoptionCoordinator: AppUserIdentityAdoptionCoordinator
     let portalSessionCoordinator: PortalSessionCoordinator
+    let portalIAPService: any PortalIAPServicing
+    let portalPurchaseEntitlementRefreshCoordinator:
+        PortalPurchaseEntitlementRefreshCoordinator
     let cloudAccountPartitionStore: any CloudAccountPartitioning
     let cloudSyncCoordinator: CloudSyncCoordinator
 
@@ -42,60 +48,129 @@ final class AppContainer {
         do {
             let database: AppDatabase = try AppDatabase()
             let appUserRepository: GRDBAppUserRepository = GRDBAppUserRepository(database: database)
+            let appUserIdentityStore: KeychainAppUserIdentityStore =
+                KeychainAppUserIdentityStore()
             let activeUserID: UUID = try AppUserIdentityBootstrapper(
-                identityStore: KeychainAppUserIdentityStore(),
+                identityStore: appUserIdentityStore,
                 appUserRepository: appUserRepository
             ).bootstrap()
             self.activeAppUserStore = ActiveAppUserStore(initialUserID: activeUserID)
-            self.portalSessionCoordinator = PortalSessionCoordinator(
+            let cloudKitContainer: CKContainer = CKContainer(
+                identifier: Self.cloudKitContainerIdentifier
+            )
+            let cloudIdentityStore: CloudKitAppUserIdentityStore =
+                CloudKitAppUserIdentityStore(container: cloudKitContainer)
+            let cloudIdentityAssociationCoordinator:
+                CloudAppUserIdentityAssociationCoordinator =
+                CloudAppUserIdentityAssociationCoordinator(
+                    identityStore: cloudIdentityStore,
+                    activeAppUser: self.activeAppUserStore
+                )
+            self.cloudIdentityAssociationCoordinator = cloudIdentityAssociationCoordinator
+            self.storeKitPurchaseIdentityAuthorizer =
+                StoreKitPurchaseIdentityAuthorizer(
+                    identityStore: cloudIdentityStore,
+                    activeAppUser: self.activeAppUserStore
+                )
+            let portalAPIClient: PortalAPIClient = PortalAPIClient()
+            let portalSessionCoordinator: PortalSessionCoordinator =
+                PortalSessionCoordinator(
                 activeAppUser: self.activeAppUserStore,
                 sessionStore: KeychainPortalSessionStore(),
                 authenticator: APIKitPortalIdentityAuthenticator(
-                    api: PortalIdentityAPI(client: PortalAPIClient())
+                    api: PortalIdentityAPI(client: portalAPIClient)
                 ),
                 networkMonitor: NWPathPortalNetworkAvailabilityMonitor()
             )
+            self.portalSessionCoordinator = portalSessionCoordinator
+            let portalIAPService: APIKitPortalIAPService = APIKitPortalIAPService(
+                identityAPI: PortalIdentityAPI(client: portalAPIClient),
+                iapAPI: PortalIAPAPI(client: portalAPIClient)
+            )
+            self.portalIAPService = portalIAPService
+            self.portalPurchaseEntitlementRefreshCoordinator =
+                PortalPurchaseEntitlementRefreshCoordinator(
+                    activeAppUser: self.activeAppUserStore,
+                    portalSessionCoordinator: portalSessionCoordinator,
+                    portalIAPService: portalIAPService
+                )
             let cloudSyncChangeNotifier: CloudSyncChangeNotifier = CloudSyncChangeNotifier()
+            let cloudSyncUserContext: CloudSyncUserContext =
+                CloudSyncUserContext()
             let cloudAccountPartitionStore: GRDBCloudAccountPartitionStore =
-                GRDBCloudAccountPartitionStore(database: database)
+                GRDBCloudAccountPartitionStore(
+                    database: database,
+                    activeAppUser: self.activeAppUserStore
+                )
             self.cloudAccountPartitionStore = cloudAccountPartitionStore
             let sourceRepository: SourceRepository = GRDBSourceRepository(
                 database: database,
+                activeAppUser: self.activeAppUserStore,
                 accountScopeProvider: activeAccountScopeStore,
                 changeNotifier: cloudSyncChangeNotifier
             )
             let favoriteRepository: FavoriteRepository = GRDBFavoriteRepository(
                 database: database,
+                activeAppUser: self.activeAppUserStore,
                 accountScopeProvider: activeAccountScopeStore,
                 changeNotifier: cloudSyncChangeNotifier
             )
-            let engineStore: GRDBCloudSyncEngineStore = GRDBCloudSyncEngineStore(database: database)
+            let engineStore: GRDBCloudSyncEngineStore = GRDBCloudSyncEngineStore(
+                database: database,
+                activeAppUser: self.activeAppUserStore,
+                userContext: cloudSyncUserContext
+            )
             let cloudRecordStore: CKSyncEngineCloudRecordStore = CKSyncEngineCloudRecordStore(
-                container: CKContainer(identifier: Self.cloudKitContainerIdentifier),
+                container: cloudKitContainer,
                 stateStore: engineStore,
                 metadataStore: engineStore,
                 zoneRecoveryStore: engineStore,
                 securityValidator: CloudSyncPayloadSecurityValidator(),
+                activeAppUser: self.activeAppUserStore,
+                userContext: cloudSyncUserContext,
                 accountScopeProvider: activeAccountScopeStore
             )
             let cloudSyncCoordinator: CloudSyncCoordinator = CloudSyncCoordinator(
                 accountSession: cloudAccountSession,
                 sourceService: SourceSyncService(
-                    localStore: GRDBSourceSyncLocalStore(database: database),
+                    localStore: GRDBSourceSyncLocalStore(
+                        database: database,
+                        activeAppUser: self.activeAppUserStore,
+                        userContext: cloudSyncUserContext
+                    ),
                     cloudStore: cloudRecordStore,
                     accountScopeProvider: activeAccountScopeStore
                 ),
                 favoriteItemService: FavoriteItemSyncService(
-                    localStore: GRDBFavoriteItemSyncLocalStore(database: database),
+                    localStore: GRDBFavoriteItemSyncLocalStore(
+                        database: database,
+                        activeAppUser: self.activeAppUserStore,
+                        userContext: cloudSyncUserContext
+                    ),
                     cloudStore: cloudRecordStore,
+                    activeAppUser: self.activeAppUserStore,
+                    userContext: cloudSyncUserContext,
                     accountScopeProvider: activeAccountScopeStore
                 ),
                 cloudStore: cloudRecordStore,
                 changeNotifier: cloudSyncChangeNotifier,
                 partitionStore: cloudAccountPartitionStore,
+                activeAppUser: self.activeAppUserStore,
+                associationAttestationStore: cloudAccountPartitionStore,
+                userContext: cloudSyncUserContext,
                 retryScheduleProvider: engineStore
             )
             self.cloudSyncCoordinator = cloudSyncCoordinator
+            self.appUserIdentityAdoptionCoordinator =
+                AppUserIdentityAdoptionCoordinator(
+                    adoptionStore: GRDBAppUserIdentityAdoptionStore(
+                        database: database
+                    ),
+                    identityStore: appUserIdentityStore,
+                    activeAppUser: self.activeAppUserStore,
+                    portalSessionCoordinator: portalSessionCoordinator,
+                    cloudSyncCoordinator: cloudSyncCoordinator
+                )
             let urlResolver: URLResolvingService = URLResolvingService()
             let sourceCredentialStore: SourceCredentialStoring = InMemorySourceCredentialStore()
             let browserRequestHeaderProvider: any BrowserRequestHeaderProviding = ChromeRequestHeaderProvider()
@@ -145,6 +220,7 @@ final class AppContainer {
             let sourceSelectionStore: SourceSelectionStore = SourceSelectionStore()
             let libraryFeatureFactory: LibraryFeatureFactory = LibraryFeatureFactory(
                 database: database,
+                activeAppUser: self.activeAppUserStore,
                 sourceRepository: sourceRepository,
                 favoriteRepository: favoriteRepository,
                 sourceCredentialStore: sourceCredentialStore,
@@ -159,6 +235,7 @@ final class AppContainer {
 
             self.sourcesFeatureFactory = SourcesFeatureFactory(
                 database: database,
+                activeAppUser: self.activeAppUserStore,
                 sourceRepository: sourceRepository,
                 pageContentLoader: pageLoader,
                 pageDataLoader: pageLoader,
@@ -173,6 +250,7 @@ final class AppContainer {
             )
             self.historyFeatureFactory = HistoryFeatureFactory(
                 database: database,
+                activeAppUser: self.activeAppUserStore,
                 sourceRepository: sourceRepository,
                 videoPlayerViewModelFactory: { history, source in
                     libraryFeatureFactory.makeVideoPlayerViewModel(history: history, source: source)
@@ -180,10 +258,20 @@ final class AppContainer {
             )
             self.settingsFeatureFactory = SettingsFeatureFactory(
                 database: database,
+                activeAppUser: self.activeAppUserStore,
                 imageCacheConfigurator: imageCacheConfigurator,
                 cloudAccountSession: cloudAccountSession,
                 cloudAccountPartitionStore: cloudAccountPartitionStore,
-                cloudSyncCoordinator: cloudSyncCoordinator
+                cloudAssociationAttestationStore:
+                    cloudAccountPartitionStore,
+                cloudSyncCoordinator: cloudSyncCoordinator,
+                cloudIdentityAssociationCoordinator: cloudIdentityAssociationCoordinator,
+                storeKitPurchaseIdentityAuthorizer:
+                    self.storeKitPurchaseIdentityAuthorizer,
+                portalPurchaseEntitlementRefreshCoordinator:
+                    self.portalPurchaseEntitlementRefreshCoordinator,
+                appUserIdentityAdoptionCoordinator:
+                    self.appUserIdentityAdoptionCoordinator
             )
             self.browserRequestHeaderProvider = browserRequestHeaderProvider
             self.systemCookieHeaderProvider = systemCookieHeaderProvider

@@ -4,6 +4,38 @@ import StoreKit
 
 // 中文注释：SettingsViewModel 负责设置页中需要调用应用服务的状态与动作。
 
+enum StoreKitTransactionIdentityError: Error, Equatable {
+    case missingAppAccountToken
+    case accountMismatch
+}
+
+enum StoreKitPortalPurchaseSubmissionError: Error, Equatable {
+    case xcodeEnvironmentUnsupported
+    case unsupportedEnvironment(String)
+    case transactionProductMismatch
+    case snapshotContractMismatch
+    case purchasedProductMissing
+}
+
+struct StoreKitPortalEnvironmentMapper {
+    static func map(
+        _ environment: StoreKit.AppStore.Environment
+    ) throws -> PortalPurchaseEnvironment {
+        if environment == .sandbox {
+            return .sandbox
+        }
+        if environment == .production {
+            return .production
+        }
+        if environment == .xcode {
+            throw StoreKitPortalPurchaseSubmissionError
+                .xcodeEnvironmentUnsupported
+        }
+        throw StoreKitPortalPurchaseSubmissionError
+            .unsupportedEnvironment(environment.rawValue)
+    }
+}
+
 /// 中文注释：SettingsViewModel 把 Settings UI 与 Nuke 缓存配置隔离，View 不直接操作缓存服务。
 final class SettingsViewModel: ObservableObject {
     @Published private(set) var imageCacheSettings: ImageCacheSettings
@@ -13,15 +45,27 @@ final class SettingsViewModel: ObservableObject {
 
     private let imageCacheConfigurator: ImageCacheConfigurator
     private let appUserRepository: AppUserRepository
+    private let activeAppUser: any ActiveAppUserProviding
+    private let purchaseIdentityAuthorizer: StoreKitPurchaseIdentityAuthorizer
+    private let portalPurchaseEntitlementRefreshCoordinator:
+        PortalPurchaseEntitlementRefreshCoordinator
     private let diagnosticIdentityStore: DiagnosticIdentityStore
 
     init(
         imageCacheConfigurator: ImageCacheConfigurator,
-        appUserRepository: AppUserRepository? = nil,
+        appUserRepository: AppUserRepository,
+        activeAppUser: any ActiveAppUserProviding,
+        purchaseIdentityAuthorizer: StoreKitPurchaseIdentityAuthorizer,
+        portalPurchaseEntitlementRefreshCoordinator:
+            PortalPurchaseEntitlementRefreshCoordinator,
         diagnosticIdentityStore: DiagnosticIdentityStore = .shared
     ) {
         self.imageCacheConfigurator = imageCacheConfigurator
-        self.appUserRepository = appUserRepository ?? InMemoryDefaultAppUserRepository()
+        self.appUserRepository = appUserRepository
+        self.activeAppUser = activeAppUser
+        self.purchaseIdentityAuthorizer = purchaseIdentityAuthorizer
+        self.portalPurchaseEntitlementRefreshCoordinator =
+            portalPurchaseEntitlementRefreshCoordinator
         self.diagnosticIdentityStore = diagnosticIdentityStore
         self.imageCacheSettings = ImageCacheSettings.load()
         self.diagnosticCode = diagnosticIdentityStore.identity.diagnosticCode
@@ -67,118 +111,311 @@ final class SettingsViewModel: ObservableObject {
     }
 
     @MainActor
-    func observeStoreKitTransactions() async {
-        for await verification in StoreKit.Transaction.updates {
-            guard case .verified(let transaction) = verification,
-                  let plan: InAppPurchasePlan = InAppPurchasePlan.plansByProductID[transaction.productID] else {
-                continue
-            }
-
-            do {
-                try self.applyStoreKitPurchase(transaction: transaction, plan: plan)
-                await transaction.finish()
-            } catch {
-                #if DEBUG
-                print("[AnyPortalStoreKit] transaction update failed product=\(transaction.productID) error=\(error)")
-                #endif
-            }
-        }
+    func authorizeUserInitiatedStoreKitAction() async throws -> UUID {
+        return try await self.purchaseIdentityAuthorizer
+            .authorizeUserInitiatedStoreKitAction()
     }
 
     @MainActor
-    func restoreStoreKitPurchases() async throws {
-        try await AppStore.sync()
+    func validateAuthorizedStoreKitUser(_ userID: UUID) async throws {
+        try await self.purchaseIdentityAuthorizer.validateAuthorizedUser(userID)
+    }
 
-        var restorableTransactions: [(StoreKit.Transaction, InAppPurchasePlan)] = []
-        for await verification in StoreKit.Transaction.all {
-            guard case .verified(let transaction) = verification,
-                  let plan: InAppPurchasePlan = InAppPurchasePlan.plansByProductID[transaction.productID],
-                  plan.isRestorable else {
+    @MainActor
+    func submitStoreKitPurchase(
+        transaction: StoreKit.Transaction,
+        signedTransaction: String,
+        plan: InAppPurchasePlan
+    ) async throws -> Set<String> {
+        let userID: UUID = self.activeAppUser.currentUserID
+        IAPDiagnostics.notice(
+            "event=purchase-submission-started " +
+                "userHash=\(IAPDiagnostics.hash(userID)) " +
+                "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id)) " +
+                "productID=\(transaction.productID) " +
+                "storeKitEnvironment=\(transaction.environment.rawValue)"
+        )
+        try self.requireStoreKitTransactionOwner(
+            transaction,
+            userID: userID
+        )
+        guard transaction.productID == plan.productID else {
+            throw StoreKitPortalPurchaseSubmissionError
+                .transactionProductMismatch
+        }
+
+        let environment: PortalPurchaseEnvironment =
+            try StoreKitPortalEnvironmentMapper.map(transaction.environment)
+        let snapshot: PortalEntitlementSnapshot =
+            try await self.portalPurchaseEntitlementRefreshCoordinator
+                .refreshPurchasedEntitlements(
+                    userID: userID,
+                    environment: environment,
+                    signedTransaction: signedTransaction
+                )
+
+        try await self.purchaseIdentityAuthorizer
+            .validateAuthorizedUser(userID)
+        try self.validatePortalSnapshot(
+            snapshot,
+            purchasedProductID: plan.productID
+        )
+        try self.applyPortalEntitlementSnapshot(
+            snapshot,
+            transaction: transaction
+        )
+        IAPDiagnostics.notice(
+            "event=purchase-submission-completed " +
+                "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id)) " +
+                "environment=\(environment.rawValue) " +
+                "revision=\(snapshot.revision)"
+        )
+        return snapshot.activeProductIDs
+    }
+
+    @MainActor
+    func restoreStoreKitPurchases(for authorizedUserID: UUID) async throws {
+        IAPDiagnostics.notice(
+            "event=restore-started " +
+                "userHash=\(IAPDiagnostics.hash(authorizedUserID))"
+        )
+        try await self.purchaseIdentityAuthorizer
+            .validateAuthorizedUser(authorizedUserID)
+        try await AppStore.sync()
+        IAPDiagnostics.notice("event=restore-app-store-sync-completed")
+
+        var restorableTransactions: [RestorableStoreKitTransaction] = []
+        var unverifiedCount: Int = 0
+        var unsupportedProductCount: Int = 0
+        var revokedCount: Int = 0
+        for await verification in StoreKit.Transaction.currentEntitlements {
+            guard case .verified(let transaction) = verification else {
+                unverifiedCount += 1
                 continue
             }
+            guard let plan: InAppPurchasePlan =
+                InAppPurchasePlan.plansByProductID[transaction.productID],
+                  plan.isRestorable else {
+                unsupportedProductCount += 1
+                continue
+            }
+            guard transaction.revocationDate == nil else {
+                revokedCount += 1
+                continue
+            }
+            try self.requireStoreKitTransactionOwner(
+                transaction,
+                userID: authorizedUserID
+            )
 
-            restorableTransactions.append((transaction, plan))
+            restorableTransactions.append(
+                RestorableStoreKitTransaction(
+                    transaction: transaction,
+                    signedTransaction: verification.jwsRepresentation,
+                    plan: plan,
+                    environment: try StoreKitPortalEnvironmentMapper.map(
+                        transaction.environment
+                    )
+                )
+            )
         }
+        IAPDiagnostics.notice(
+            "event=restore-entitlements-collected " +
+                "acceptedCount=\(restorableTransactions.count) " +
+                "unverifiedCount=\(unverifiedCount) " +
+                "unsupportedProductCount=\(unsupportedProductCount) " +
+                "revokedCount=\(revokedCount)"
+        )
 
         restorableTransactions.sort { lhs, rhs in
-            return lhs.0.purchaseDate < rhs.0.purchaseDate
+            return lhs.transaction.purchaseDate < rhs.transaction.purchaseDate
         }
 
-        for (transaction, plan) in restorableTransactions {
-            try self.applyStoreKitPurchase(transaction: transaction, plan: plan)
+        try await self.purchaseIdentityAuthorizer
+            .validateAuthorizedUser(authorizedUserID)
+        guard let environment: PortalPurchaseEnvironment =
+            restorableTransactions.first?.environment else {
+            IAPDiagnostics.notice(
+                "event=restore-completed outcome=no-restorable-transactions"
+            )
+            return
+        }
+        guard restorableTransactions.allSatisfy({ candidate in
+            candidate.environment == environment
+        }) else {
+            IAPDiagnostics.error(
+                "event=restore-failed reason=mixed-environments"
+            )
+            throw StoreKitPortalPurchaseSubmissionError
+                .snapshotContractMismatch
+        }
+
+        let snapshot: PortalEntitlementSnapshot =
+            try await self.portalPurchaseEntitlementRefreshCoordinator
+                .restoreEntitlements(
+                    userID: authorizedUserID,
+                    environment: environment,
+                    signedTransactions: restorableTransactions.map(
+                        \.signedTransaction
+                    ),
+                    recoveryProof: restorableTransactions[0].signedTransaction
+                )
+        try await self.purchaseIdentityAuthorizer
+            .validateAuthorizedUser(authorizedUserID)
+        try self.validatePortalSnapshot(
+            snapshot,
+            restoredProductIDs: Set(
+                restorableTransactions.map { candidate in
+                    candidate.plan.productID
+                }
+            )
+        )
+        try self.applyPortalEntitlementSnapshot(
+            snapshot,
+            transactions: restorableTransactions.map(\.transaction)
+        )
+        for candidate: RestorableStoreKitTransaction in restorableTransactions {
+            await candidate.transaction.finish()
+        }
+        IAPDiagnostics.notice(
+            "event=restore-completed " +
+                "environment=\(environment.rawValue) " +
+                "transactionCount=\(restorableTransactions.count) " +
+                "revision=\(snapshot.revision)"
+        )
+    }
+
+    private func requireStoreKitTransactionOwner(
+        _ transaction: StoreKit.Transaction,
+        userID: UUID
+    ) throws {
+        guard let appAccountToken: UUID = transaction.appAccountToken else {
+            IAPDiagnostics.error(
+                "event=transaction-owner-check-failed " +
+                    "reason=app-account-token-missing " +
+                    "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id))"
+            )
+            throw StoreKitTransactionIdentityError.missingAppAccountToken
+        }
+        guard appAccountToken == userID else {
+            IAPDiagnostics.error(
+                "event=transaction-owner-check-failed " +
+                    "reason=app-account-token-mismatch " +
+                    "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id)) " +
+                    "expectedUserHash=\(IAPDiagnostics.hash(userID)) " +
+                    "actualUserHash=\(IAPDiagnostics.hash(appAccountToken))"
+            )
+            throw StoreKitTransactionIdentityError.accountMismatch
         }
     }
 
-    @MainActor
-    func applyStoreKitPurchase(
-        transaction: StoreKit.Transaction,
-        plan: InAppPurchasePlan
+    private func validatePortalSnapshot(
+        _ snapshot: PortalEntitlementSnapshot,
+        purchasedProductID: String
+    ) throws {
+        let supportedProductIDs: Set<String> = Set(
+            InAppPurchasePlan.activePlans.map(\.productID)
+        )
+        guard snapshot.userID == self.activeAppUser.currentUserID,
+              snapshot.includedSiteSlots ==
+                SourceSlotPolicy.includedSiteSlotCount,
+              snapshot.activeProductIDs.isSubset(of: supportedProductIDs) else {
+            throw StoreKitPortalPurchaseSubmissionError
+                .snapshotContractMismatch
+        }
+        guard snapshot.activeProductIDs.contains(purchasedProductID) else {
+            throw StoreKitPortalPurchaseSubmissionError
+                .purchasedProductMissing
+        }
+    }
+
+    private func validatePortalSnapshot(
+        _ snapshot: PortalEntitlementSnapshot,
+        restoredProductIDs: Set<String>
+    ) throws {
+        let supportedProductIDs: Set<String> = Set(
+            InAppPurchasePlan.activePlans.map(\.productID)
+        )
+        guard snapshot.userID == self.activeAppUser.currentUserID,
+              snapshot.includedSiteSlots ==
+                SourceSlotPolicy.includedSiteSlotCount,
+              snapshot.activeProductIDs.isSubset(of: supportedProductIDs),
+              restoredProductIDs.isSubset(of: snapshot.activeProductIDs) else {
+            throw StoreKitPortalPurchaseSubmissionError
+                .snapshotContractMismatch
+        }
+    }
+
+    private func applyPortalEntitlementSnapshot(
+        _ snapshot: PortalEntitlementSnapshot,
+        transaction: StoreKit.Transaction
+    ) throws {
+        try self.applyPortalEntitlementSnapshot(
+            snapshot,
+            transactions: [transaction]
+        )
+    }
+
+    private func applyPortalEntitlementSnapshot(
+        _ snapshot: PortalEntitlementSnapshot,
+        transactions: [StoreKit.Transaction]
     ) throws {
         let now: Date = Date()
-        var user: AppUser = try self.appUserRepository.fetchUser(id: AppUser.localDefaultID) ?? AppUser(
-            id: AppUser.localDefaultID,
-            displayName: "Local Default",
-            hasRemovedAds: false,
-            pendingAdPoints: 0,
-            createdAt: now,
-            updatedAt: now
-        )
-
-        let transactionID: String = String(transaction.id)
-        let hasProcessedTransaction: Bool = try self.appUserRepository.hasProcessedStoreKitTransaction(
-            userID: user.id,
-            transactionID: transactionID
-        )
-        let storeKitTransaction: UserStoreKitTransaction = self.makeUserStoreKitTransaction(
-            transaction: transaction,
-            userID: user.id,
-            createdAt: now
-        )
-
-        self.recordStoreKitMetadata(transaction: transaction, user: &user)
-
-        if hasProcessedTransaction == false && transaction.revocationDate == nil {
-            self.applyEntitlement(
-                plan: plan,
-                user: &user,
-                purchaseDate: transaction.purchaseDate
+        let userID: String = snapshot.userID.uuidString
+        var user: AppUser = try self.appUserRepository.fetchUser(id: userID) ??
+            AppUser(
+                id: userID,
+                displayName: nil,
+                hasRemovedAds: false,
+                pendingAdPoints: 0,
+                createdAt: now,
+                updatedAt: now
             )
-        } else if plan.removesAds && transaction.revocationDate != nil {
-            user.hasRemovedAds = false
-        }
 
+        user.hasRemovedAds = snapshot.hasRemovedAds
+        user.purchasedSiteSlots = snapshot.purchasedSiteSlots
+        user.siteSlotLimit = snapshot.siteSlotLimit
         user.updatedAt = now
-
-        if hasProcessedTransaction {
-            try self.appUserRepository.saveUser(user)
-        } else {
-            try self.appUserRepository.saveUser(user, storeKitTransaction: storeKitTransaction)
-        }
-    }
-
-    private func applyEntitlement(
-        plan: InAppPurchasePlan,
-        user: inout AppUser,
-        purchaseDate: Date
-    ) {
-        if plan.removesAds {
-            user.hasRemovedAds = true
-        }
-
-        if plan.siteSlotIncrement > 0 {
-            user.purchasedSiteSlots += plan.siteSlotIncrement
-            // 中文注释：位置上限由“默认 1 个 + 已购位置”确定，避免两个累计字段发生漂移。
-            user.siteSlotLimit = SourceSlotPolicy.includedSiteSlotCount + user.purchasedSiteSlots
-        }
-
-        if plan.vipMonthDuration > 0 {
-            let baseDate: Date = max(user.vipExpiresAt ?? purchaseDate, purchaseDate)
-            user.vipExpiresAt = Calendar.current.date(
-                byAdding: .month,
-                value: plan.vipMonthDuration,
-                to: baseDate
+        if let latestTransaction: StoreKit.Transaction =
+            transactions.max(by: { lhs, rhs in
+                lhs.purchaseDate < rhs.purchaseDate
+            }) {
+            self.recordStoreKitMetadata(
+                transaction: latestTransaction,
+                user: &user
             )
         }
+
+        var newTransactions: [UserStoreKitTransaction] = []
+        for transaction: StoreKit.Transaction in transactions {
+            let transactionID: String = String(transaction.id)
+            guard try self.appUserRepository.hasProcessedStoreKitTransaction(
+                userID: userID,
+                transactionID: transactionID
+            ) == false else {
+                continue
+            }
+            newTransactions.append(
+                self.makeUserStoreKitTransaction(
+                    transaction: transaction,
+                    userID: userID,
+                    createdAt: now
+                )
+            )
+        }
+        try self.appUserRepository.saveUser(
+            user,
+            storeKitTransactions: newTransactions
+        )
+        IAPDiagnostics.notice(
+            "event=entitlement-snapshot-persisted " +
+                "environment=\(snapshot.environment.rawValue) " +
+                "revision=\(snapshot.revision) " +
+                "transactionCount=\(transactions.count) " +
+                "newTransactionCount=\(newTransactions.count) " +
+                "siteSlotLimit=\(snapshot.siteSlotLimit) " +
+                "hasRemovedAds=\(snapshot.hasRemovedAds)"
+        )
     }
 
     private func recordStoreKitMetadata(transaction: StoreKit.Transaction, user: inout AppUser) {
@@ -214,24 +451,9 @@ final class SettingsViewModel: ObservableObject {
     }
 }
 
-private final class InMemoryDefaultAppUserRepository: AppUserRepository {
-    private var user: AppUser?
-    private var transactionIDs: Set<String> = []
-
-    func fetchUser(id: String) throws -> AppUser? {
-        return self.user
-    }
-
-    func hasProcessedStoreKitTransaction(userID: String, transactionID: String) throws -> Bool {
-        return self.transactionIDs.contains("\(userID):\(transactionID)")
-    }
-
-    func saveUser(_ user: AppUser) throws {
-        self.user = user
-    }
-
-    func saveUser(_ user: AppUser, storeKitTransaction: UserStoreKitTransaction) throws {
-        self.user = user
-        self.transactionIDs.insert("\(storeKitTransaction.userID):\(storeKitTransaction.transactionID)")
-    }
+private struct RestorableStoreKitTransaction {
+    let transaction: StoreKit.Transaction
+    let signedTransaction: String
+    let plan: InAppPurchasePlan
+    let environment: PortalPurchaseEnvironment
 }

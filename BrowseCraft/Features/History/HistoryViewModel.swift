@@ -13,20 +13,23 @@ final class HistoryViewModel: ObservableObject {
     private let loadReadingHistoryEntriesUseCase: LoadReadingHistoryEntriesUseCase
     private let deleteReadingHistoryEntryUseCase: DeleteReadingHistoryEntryUseCase
     private let loadSourcesUseCase: LoadSourcesUseCase
-    private let userID: String
+    private let activeAppUser: (any ActiveAppUserProviding)?
+    private let fallbackUserID: String
     private let videoPlayerViewModelFactory: @MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel
 
     init(
         loadReadingHistoryEntriesUseCase: LoadReadingHistoryEntriesUseCase,
         deleteReadingHistoryEntryUseCase: DeleteReadingHistoryEntryUseCase,
         loadSourcesUseCase: LoadSourcesUseCase,
+        activeAppUser: (any ActiveAppUserProviding)? = nil,
         userID: String = AppUser.localDefaultID,
         videoPlayerViewModelFactory: @escaping @MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel
     ) {
         self.loadReadingHistoryEntriesUseCase = loadReadingHistoryEntriesUseCase
         self.deleteReadingHistoryEntryUseCase = deleteReadingHistoryEntryUseCase
         self.loadSourcesUseCase = loadSourcesUseCase
-        self.userID = userID
+        self.activeAppUser = activeAppUser
+        self.fallbackUserID = userID
         self.videoPlayerViewModelFactory = videoPlayerViewModelFactory
     }
 
@@ -36,7 +39,7 @@ final class HistoryViewModel: ObservableObject {
         do {
             self.sources = try self.loadSourcesUseCase.execute()
             self.readingHistoryEntries = self.deduplicatedVideoEntries(
-                try self.loadReadingHistoryEntriesUseCase.execute(userID: self.userID)
+                try self.loadReadingHistoryEntriesUseCase.execute(userID: self.currentUserID)
             )
         } catch {
             self.errorMessage = error.localizedDescription
@@ -117,5 +120,9 @@ final class HistoryViewModel: ObservableObject {
         return deduplicatedEntries.sorted { lhs, rhs in
             return lhs.visitedAt > rhs.visitedAt
         }
+    }
+
+    private var currentUserID: String {
+        return self.activeAppUser?.currentUserID.uuidString ?? self.fallbackUserID
     }
 }

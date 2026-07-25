@@ -1,5 +1,6 @@
 struct SourcesFeatureFactory {
     private let database: AppDatabase
+    private let activeAppUser: any ActiveAppUserProviding
     private let sourceRepository: SourceRepository
     private let pageContentLoader: PageContentLoader
     private let pageDataLoader: PageDataLoader
@@ -9,6 +10,7 @@ struct SourcesFeatureFactory {
 
     init(
         database: AppDatabase,
+        activeAppUser: any ActiveAppUserProviding,
         sourceRepository: SourceRepository,
         pageContentLoader: PageContentLoader,
         pageDataLoader: PageDataLoader,
@@ -17,6 +19,7 @@ struct SourcesFeatureFactory {
         sourceSelectionStore: SourceSelectionStore
     ) {
         self.database = database
+        self.activeAppUser = activeAppUser
         self.sourceRepository = sourceRepository
         self.pageContentLoader = pageContentLoader
         self.pageDataLoader = pageDataLoader
@@ -71,7 +74,7 @@ struct SourcesFeatureFactory {
             )
         )
         let portalRequestHeaderProvider: PortalRequestHeaderProvider = PortalRequestHeaderProvider(
-            appUserRepository: GRDBAppUserRepository(database: self.database)
+            activeAppUser: self.activeAppUser
         )
         let sourceCatalogService: SourceCatalogService = SourceCatalogService(
             addCatalogSourceUseCase: AddCatalogSourceUseCase(
@@ -115,7 +118,8 @@ struct SourcesFeatureFactory {
             saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase(
                 repository: userLibraryStateRepository
             ),
-            sourceSelectionStore: self.sourceSelectionStore
+            sourceSelectionStore: self.sourceSelectionStore,
+            activeAppUser: self.activeAppUser
         )
     }
 }

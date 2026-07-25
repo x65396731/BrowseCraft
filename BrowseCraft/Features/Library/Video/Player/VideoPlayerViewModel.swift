@@ -22,7 +22,8 @@ final class VideoPlayerViewModel: ObservableObject {
     private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
     private let runtimeResolver: any SourceRuntimeResolving
     private let playbackRequestResolver: VideoPlaybackRequestResolver
-    private let userID: String
+    private let activeAppUser: (any ActiveAppUserProviding)?
+    private let fallbackUserID: String
     private let now: () -> Date
     private var autosaveTask: Task<Void, Never>?
     private var didSeekToRestoredTime: Bool = false
@@ -42,6 +43,7 @@ final class VideoPlayerViewModel: ObservableObject {
         runtimeResolver: any SourceRuntimeResolving,
         credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider(),
         systemCookieHeaderProvider: any SystemCookieHeaderProviding = EmptySystemCookieHeaderProvider(),
+        activeAppUser: (any ActiveAppUserProviding)? = nil,
         userID: String = AppUser.localDefaultID,
         now: @escaping () -> Date = Date.init
     ) {
@@ -58,7 +60,8 @@ final class VideoPlayerViewModel: ObservableObject {
             credentialProvider: credentialProvider,
             systemCookieHeaderProvider: systemCookieHeaderProvider
         )
-        self.userID = userID
+        self.activeAppUser = activeAppUser
+        self.fallbackUserID = userID
         self.now = now
     }
 
@@ -154,7 +157,7 @@ final class VideoPlayerViewModel: ObservableObject {
 
         do {
             if let history: VideoWatchHistory = try self.loadVideoWatchHistoryUseCase.execute(
-                userID: self.userID,
+                userID: self.currentUserID,
                 sourceID: self.source.id,
                 vodID: self.reference.vodID,
                 sourceIndex: self.reference.sourceIndex,
@@ -314,7 +317,7 @@ final class VideoPlayerViewModel: ObservableObject {
 
         do {
             try self.saveVideoWatchHistoryUseCase.execute(
-                userID: self.userID,
+                userID: self.currentUserID,
                 source: self.source,
                 reference: self.reference,
                 videoTitle: self.videoTitle,
@@ -373,7 +376,7 @@ final class VideoPlayerViewModel: ObservableObject {
 
         do {
             let result: AdPointAccumulationResult = try accumulateAdPointsUseCase.execute(
-                userID: self.userID,
+                userID: self.currentUserID,
                 points: points
             )
             #if DEBUG
@@ -404,6 +407,10 @@ final class VideoPlayerViewModel: ObservableObject {
             )
             #endif
         }
+    }
+
+    private var currentUserID: String {
+        return self.activeAppUser?.currentUserID.uuidString ?? self.fallbackUserID
     }
 
     private func restrictionMessage(_ restriction: SourceVideoPlaybackRestriction) -> String {

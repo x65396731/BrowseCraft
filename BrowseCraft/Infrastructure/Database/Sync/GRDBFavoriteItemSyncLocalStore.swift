@@ -3,10 +3,19 @@ import GRDB
 
 final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
     private let database: AppDatabase
+    private let activeAppUser: (any ActiveAppUserProviding)?
+    private let userContext: CloudSyncUserContext?
     private let now: () -> Date
 
-    init(database: AppDatabase, now: @escaping () -> Date = Date.init) {
+    init(
+        database: AppDatabase,
+        activeAppUser: (any ActiveAppUserProviding)? = nil,
+        userContext: CloudSyncUserContext? = nil,
+        now: @escaping () -> Date = Date.init
+    ) {
         self.database = database
+        self.activeAppUser = activeAppUser
+        self.userContext = userContext
         self.now = now
     }
 
@@ -31,13 +40,14 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
         accountScope: CloudAccountScope,
         for keys: [FavoriteItemSyncKey]
     ) throws -> [FavoriteItemSyncKey: FavoriteItemSyncLocalSnapshot] {
+        let userID: String = self.currentUserID
         return try self.database.queue.read { database in
             var snapshots: [FavoriteItemSyncKey: FavoriteItemSyncLocalSnapshot] = [:]
             for key: FavoriteItemSyncKey in Set(keys) {
                 guard let record: FavoriteItemRecord = try FavoriteItemRecord.fetchOne(
                     database,
                     key: [
-                        "userID": accountScope.rawValue,
+                        "userID": userID,
                         "sourceID": key.sourceID,
                         "itemID": key.itemID
                     ]
@@ -60,17 +70,18 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
         scope: String,
         zoneName: String
     ) throws {
+        let userID: String = self.currentUserID
         let partitionCounts: (live: Int, tombstone: Int) = try self.database.queue.write { database in
-            try AppUserRecord.insertUser(id: accountScope.rawValue, in: database)
+            try AppUserRecord.insertUser(id: userID, in: database)
             for payload: FavoriteItemCloudPayload in plan.acceptedPayloads {
                 let key: [String: String] = [
-                    "userID": accountScope.rawValue,
+                    "userID": userID,
                     "sourceID": payload.sourceID,
                     "itemID": payload.itemID
                 ]
                 let existing: FavoriteItemRecord? = try FavoriteItemRecord.fetchOne(database, key: key)
                 var scopedPayload: FavoriteItemCloudPayload = payload
-                scopedPayload.userID = accountScope.rawValue
+                scopedPayload.userID = userID
                 var record: FavoriteItemRecord = try FavoriteItemRecord(payload: scopedPayload)
                 if let existing: FavoriteItemRecord {
                     record.createdAt = existing.createdAt
@@ -92,7 +103,7 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
                 )
             }
 
-            try FavoriteAggregateBuilder.rebuild(userID: accountScope.rawValue, in: database)
+            try FavoriteAggregateBuilder.rebuild(userID: userID, in: database)
             try Self.saveChangeToken(
                 plan.changeToken,
                 accountScope: accountScope,
@@ -102,11 +113,11 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
             )
 
             let liveCount: Int = try FavoriteItemRecord
-                .filter(FavoriteItemRecord.Columns.userID == accountScope.rawValue)
+                .filter(FavoriteItemRecord.Columns.userID == userID)
                 .filter(FavoriteItemRecord.Columns.deletedAt == nil)
                 .fetchCount(database)
             let totalCount: Int = try FavoriteItemRecord
-                .filter(FavoriteItemRecord.Columns.userID == accountScope.rawValue)
+                .filter(FavoriteItemRecord.Columns.userID == userID)
                 .fetchCount(database)
             return (live: liveCount, tombstone: totalCount - liveCount)
         }
@@ -121,6 +132,7 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
     }
 
     func pendingUploads(accountScope: CloudAccountScope) throws -> [FavoriteItemSyncPendingUpload] {
+        let userID: String = self.currentUserID
         return try self.database.queue.read { database in
             let now: Date = self.now()
             let queueRecords: [SyncQueueRecord] = try SyncQueueRecord
@@ -141,7 +153,7 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
                     favoriteItemRecord = try FavoriteItemRecord.fetchOne(
                         database,
                         key: [
-                            "userID": accountScope.rawValue,
+                            "userID": userID,
                             "sourceID": identity.sourceID,
                             "itemID": identity.itemID
                         ]
@@ -223,5 +235,12 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
             )
         )
         try state.save(database)
+    }
+
+    private var currentUserID: String {
+        if let synchronizedUserID: UUID = self.userContext?.currentUserID {
+            return synchronizedUserID.uuidString
+        }
+        return self.activeAppUser?.currentUserID.uuidString ?? AppUser.localDefaultID
     }
 }

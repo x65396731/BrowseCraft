@@ -3,10 +3,10 @@ import UIKit
 
 // 中文注释：仅为 BrowseCraft Portal API 生成业务请求头，禁止复用到第三方 source 请求。
 struct PortalRequestHeaderProvider {
-    private let appUserRepository: AppUserRepository
+    private let activeAppUser: any ActiveAppUserProviding
 
-    init(appUserRepository: AppUserRepository) {
-        self.appUserRepository = appUserRepository
+    init(activeAppUser: any ActiveAppUserProviding) {
+        self.activeAppUser = activeAppUser
     }
 
     func headers() -> [String: String] {
@@ -20,12 +20,7 @@ struct PortalRequestHeaderProvider {
     }
 
     private func userID() -> String {
-        do {
-            return try self.appUserRepository.fetchUser(id: AppUser.localDefaultID)?.id
-                ?? AppUser.localDefaultID
-        } catch {
-            return AppUser.localDefaultID
-        }
+        return self.activeAppUser.currentUserID.uuidString
     }
 
     private var osInfo: String {

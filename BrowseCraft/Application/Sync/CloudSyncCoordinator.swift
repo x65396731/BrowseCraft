@@ -73,6 +73,10 @@ actor CloudSyncCoordinator {
     private let cloudStore: any CloudRecordStore
     private let changeNotifier: any CloudSyncChangeNotifying
     private let partitionStore: any CloudAccountPartitioning
+    private let activeAppUser: (any ActiveAppUserProviding)?
+    private let associationAttestationStore:
+        (any CloudAppUserAssociationAttestationStoring)?
+    private let userContext: CloudSyncUserContext?
     private let retryScheduleProvider: any CloudSyncRetryScheduleProviding
     private let now: @Sendable () -> Date
     private let retrySleeper: @Sendable (TimeInterval) async throws -> Void
@@ -84,6 +88,7 @@ actor CloudSyncCoordinator {
     private var requestTask: Task<Void, Never>?
     private var pendingTrigger: CloudSyncTrigger?
     private var isRunning: Bool = false
+    private var isPreparingIdentityChange: Bool = false
     private var activeTrigger: CloudSyncTrigger?
     private var runningGeneration: UInt64?
     private var lastAutomaticallyRequestedKey: AutomaticRequestKey?
@@ -103,6 +108,10 @@ actor CloudSyncCoordinator {
         cloudStore: any CloudRecordStore,
         changeNotifier: any CloudSyncChangeNotifying,
         partitionStore: any CloudAccountPartitioning,
+        activeAppUser: (any ActiveAppUserProviding)? = nil,
+        associationAttestationStore:
+            (any CloudAppUserAssociationAttestationStoring)? = nil,
+        userContext: CloudSyncUserContext? = nil,
         retryScheduleProvider: any CloudSyncRetryScheduleProviding = EmptyCloudSyncRetryScheduleProvider(),
         now: @escaping @Sendable () -> Date = { Date() },
         retrySleeper: @escaping @Sendable (TimeInterval) async throws -> Void = { delay in
@@ -115,6 +124,9 @@ actor CloudSyncCoordinator {
         self.cloudStore = cloudStore
         self.changeNotifier = changeNotifier
         self.partitionStore = partitionStore
+        self.activeAppUser = activeAppUser
+        self.associationAttestationStore = associationAttestationStore
+        self.userContext = userContext
         self.retryScheduleProvider = retryScheduleProvider
         self.now = now
         self.retrySleeper = retrySleeper
@@ -180,12 +192,27 @@ actor CloudSyncCoordinator {
     }
 
     func requestSync(trigger: CloudSyncTrigger) {
+        guard self.isPreparingIdentityChange == false else {
+            CloudSyncDiagnostics.logSyncRequest(
+                trigger: trigger,
+                outcome: "blocked-identity-change"
+            )
+            return
+        }
         guard self.requestTask == nil,
               self.isRunning == false else {
             self.pendingTrigger = trigger
+            CloudSyncDiagnostics.logSyncRequest(
+                trigger: trigger,
+                outcome: "coalesced"
+            )
             self.publishSnapshot()
             return
         }
+        CloudSyncDiagnostics.logSyncRequest(
+            trigger: trigger,
+            outcome: "accepted"
+        )
         self.requestTask = Task { [weak self] in
             guard let self else {
                 return
@@ -210,6 +237,14 @@ actor CloudSyncCoordinator {
               let accountScope: CloudAccountScope = initialSnapshot.state.synchronizationScope else {
             throw CloudSyncSessionError.synchronizationDisabled
         }
+        let synchronizedUserID: UUID? = self.activeAppUser?.currentUserID
+        try self.requireAssociatedIdentity(
+            accountScope: accountScope,
+            userID: synchronizedUserID
+        )
+        if let synchronizedUserID {
+            self.userContext?.begin(userID: synchronizedUserID)
+        }
         if trigger != .retry {
             self.consecutiveRunFailureCounts[accountScope] = nil
         }
@@ -226,6 +261,9 @@ actor CloudSyncCoordinator {
             accountScope: accountScope
         )
         defer {
+            if let synchronizedUserID {
+                self.userContext?.end(userID: synchronizedUserID)
+            }
             self.isRunning = false
             self.activeTrigger = nil
             self.runningGeneration = nil
@@ -237,13 +275,28 @@ actor CloudSyncCoordinator {
             let sourceDownload: SourceSyncResult = try await self.sourceService.downloadSources(
                 accountScope: accountScope
             )
+            CloudSyncDiagnostics.logSyncPhase(
+                "source-download-completed",
+                trigger: trigger,
+                accountScope: accountScope
+            )
             try await self.requireCurrentSession(initialSnapshot)
 
             let favoriteDownload: FavoriteItemSyncResult = try await self.favoriteItemService
                 .downloadFavoriteItems(accountScope: accountScope)
+            CloudSyncDiagnostics.logSyncPhase(
+                "favorite-download-completed",
+                trigger: trigger,
+                accountScope: accountScope
+            )
             try await self.requireCurrentSession(initialSnapshot)
 
             try await self.cloudStore.commitState(for: accountScope)
+            CloudSyncDiagnostics.logSyncPhase(
+                "download-checkpoint-committed",
+                trigger: trigger,
+                accountScope: accountScope
+            )
             try await self.requireCurrentSession(initialSnapshot)
 
             let downloadCompletedAt: Date = Date()
@@ -262,13 +315,28 @@ actor CloudSyncCoordinator {
                 accountScope: accountScope,
                 limit: limit
             )
+            CloudSyncDiagnostics.logSyncPhase(
+                "source-upload-completed",
+                trigger: trigger,
+                accountScope: accountScope
+            )
             try await self.requireCurrentSession(initialSnapshot)
 
             let favoriteUpload: FavoriteItemSyncResult = try await self.favoriteItemService
                 .uploadFavoriteItems(accountScope: accountScope, limit: limit)
+            CloudSyncDiagnostics.logSyncPhase(
+                "favorite-upload-completed",
+                trigger: trigger,
+                accountScope: accountScope
+            )
             try await self.requireCurrentSession(initialSnapshot)
 
             try await self.cloudStore.commitState(for: accountScope)
+            CloudSyncDiagnostics.logSyncPhase(
+                "upload-checkpoint-committed",
+                trigger: trigger,
+                accountScope: accountScope
+            )
             try await self.requireCurrentSession(initialSnapshot)
             var sourceResult: SourceSyncResult = sourceDownload
             sourceResult.add(sourceUpload)
@@ -301,7 +369,9 @@ actor CloudSyncCoordinator {
             await self.cloudStore.cancelOperations()
             self.record(error: error, accountScope: accountScope)
             let currentSnapshot: CloudAccountSessionSnapshot = await self.accountSession.snapshot()
-            if currentSnapshot.isSynchronizationEnabled,
+            if self.isPreparingIdentityChange == false,
+               Self.shouldScheduleRetry(after: error),
+               currentSnapshot.isSynchronizationEnabled,
                currentSnapshot.state.synchronizationScope == accountScope {
                 let failureCount: Int =
                     (self.consecutiveRunFailureCounts[accountScope] ?? 0) + 1
@@ -335,6 +405,18 @@ actor CloudSyncCoordinator {
             self.consecutiveRunFailureCounts.removeAll()
             self.cancelScheduledRetry()
             self.publishSnapshot()
+            return
+        }
+        do {
+            try self.requireAssociatedIdentity(
+                accountScope: accountScope,
+                userID: self.activeAppUser?.currentUserID
+            )
+        } catch {
+            self.lastAutomaticallyRequestedKey = nil
+            self.pendingTrigger = nil
+            self.cancelScheduledRetry()
+            self.record(error: error, accountScope: accountScope)
             return
         }
         self.refreshRetrySchedule(for: accountScope)
@@ -396,6 +478,11 @@ actor CloudSyncCoordinator {
         self.retryTask?.cancel()
         self.retryAccountScope = accountScope
         self.nextRetryAt = scheduledDate
+        CloudSyncDiagnostics.logRetry(
+            accountScope: accountScope,
+            outcome: "scheduled",
+            delay: delay
+        )
         let retrySleeper: @Sendable (TimeInterval) async throws -> Void = self.retrySleeper
         self.retryTask = Task { [weak self] in
             do {
@@ -415,6 +502,10 @@ actor CloudSyncCoordinator {
         self.retryTask = nil
         self.retryAccountScope = nil
         self.nextRetryAt = nil
+        CloudSyncDiagnostics.logRetry(
+            accountScope: accountScope,
+            outcome: "fired"
+        )
         let snapshot: CloudAccountSessionSnapshot = await self.accountSession.snapshot()
         guard snapshot.isSynchronizationEnabled,
               snapshot.state.synchronizationScope == accountScope else {
@@ -440,16 +531,88 @@ actor CloudSyncCoordinator {
               current.state.synchronizationScope == initialSnapshot.state.synchronizationScope else {
             throw CloudSyncSessionError.accountChanged
         }
+        if let synchronizedUserID: UUID = self.userContext?.currentUserID {
+            guard self.activeAppUser?.currentUserID == synchronizedUserID else {
+                throw CloudSyncSessionError.activeUserChanged
+            }
+            try self.requireAssociatedIdentity(
+                accountScope: current.state.scope,
+                userID: synchronizedUserID
+            )
+        }
+    }
+
+    /// 中文注释：Identity adoption 必须先终止当前 CloudKit 操作，等待本轮固定 UUID 的同步退出。
+    func prepareForIdentityChange() async {
+        CloudSyncDiagnostics.logIdentityChange(event: "prepare-started")
+        self.isPreparingIdentityChange = true
+        self.debounceTask?.cancel()
+        self.debounceTask = nil
+        self.cancelScheduledRetry()
+        self.pendingTrigger = nil
+        self.requestTask?.cancel()
+        await self.cloudStore.cancelOperations()
+        while self.isRunning {
+            await Task.yield()
+        }
+        self.requestTask = nil
+        self.isPreparingIdentityChange = false
+        CloudSyncDiagnostics.logIdentityChange(event: "prepare-completed")
+        self.publishSnapshot()
+    }
+
+    func identityAssociationDidChange() async {
+        let snapshot: CloudAccountSessionSnapshot =
+            await self.accountSession.snapshot()
+        await self.handleAccountSnapshot(snapshot)
+    }
+
+    private func requireAssociatedIdentity(
+        accountScope: CloudAccountScope,
+        userID: UUID?
+    ) throws {
+        guard let associationAttestationStore =
+            self.associationAttestationStore else {
+            return
+        }
+        guard let userID else {
+            CloudSyncDiagnostics.logIdentityGateRejected(
+                accountScope: accountScope,
+                reason: "active-user-unavailable"
+            )
+            throw CloudSyncSessionError.identityNotAssociated
+        }
+        let associatedUserID: UUID? =
+            try associationAttestationStore.associatedUserID(
+                for: accountScope
+            )
+        guard associatedUserID == userID else {
+            CloudSyncDiagnostics.logIdentityGateRejected(
+                accountScope: accountScope,
+                reason: associatedUserID == nil
+                    ? "attestation-missing"
+                    : "attestation-user-mismatch"
+            )
+            throw CloudSyncSessionError.identityNotAssociated
+        }
     }
 
     private func record(error: any Error, accountScope: CloudAccountScope) {
         if let sessionError: CloudSyncSessionError = error as? CloudSyncSessionError,
-           sessionError == .synchronizationDisabled || sessionError == .alreadyRunning {
+           sessionError == .synchronizationDisabled ||
+            sessionError == .alreadyRunning {
             return
         }
         self.lastErrorMessage = CloudSyncSafeErrorMessage.describe(error)
         self.lastErrorAccountScope = accountScope
         self.publishSnapshot()
+    }
+
+    private static func shouldScheduleRetry(after error: any Error) -> Bool {
+        if error is CloudSyncSessionError || error is CancellationError {
+            return false
+        }
+        return true
     }
 
     private func finishRequest() {
@@ -459,7 +622,8 @@ actor CloudSyncCoordinator {
     }
 
     private func startPendingRequestIfNeeded() {
-        guard self.requestTask == nil,
+        guard self.isPreparingIdentityChange == false,
+              self.requestTask == nil,
               self.isRunning == false,
               let pendingTrigger: CloudSyncTrigger = self.pendingTrigger else {
             return
