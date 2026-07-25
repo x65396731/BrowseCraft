@@ -91,7 +91,14 @@ struct SourcesFeatureFactory {
             syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase(
                 sourceRepository: self.sourceRepository
             ),
-            loadSourcesUseCase: LoadSourcesUseCase(
+            loadSourceSlotLimitUseCase: LoadSourceSlotLimitUseCase(
+                appUserRepository: GRDBAppUserRepository(database: self.database)
+            ),
+            reconcileSourceSlotAssignmentsUseCase:
+                ReconcileSourceSlotAssignmentsUseCase(
+                    sourceRepository: self.sourceRepository
+                ),
+            activateSourceSlotUseCase: ActivateSourceSlotUseCase(
                 sourceRepository: self.sourceRepository
             ),
             addComicRuleSourceUseCase: AddComicRuleSourceUseCase(

@@ -43,9 +43,10 @@ struct HistoryFeatureFactory {
                 videoRepository: videoRepository,
                 temporaryRepository: temporaryRepository
             ),
-            loadSourcesUseCase: LoadSourcesUseCase(
-                sourceRepository: self.sourceRepository
-            ),
+            reconcileSourceSlotAssignmentsUseCase:
+                ReconcileSourceSlotAssignmentsUseCase(
+                    sourceRepository: self.sourceRepository
+                ),
             activeAppUser: self.activeAppUser,
             videoPlayerViewModelFactory: self.videoPlayerViewModelFactory
         )

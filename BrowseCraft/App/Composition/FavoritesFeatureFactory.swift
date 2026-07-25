@@ -12,9 +12,10 @@ struct FavoritesFeatureFactory {
             loadFavoriteItemsUseCase: ToggleFavoriteUseCase(
                 favoriteRepository: self.favoriteRepository
             ),
-            loadSourcesUseCase: LoadSourcesUseCase(
-                sourceRepository: self.sourceRepository
-            )
+            reconcileSourceSlotAssignmentsUseCase:
+                ReconcileSourceSlotAssignmentsUseCase(
+                    sourceRepository: self.sourceRepository
+                )
         )
     }
 }

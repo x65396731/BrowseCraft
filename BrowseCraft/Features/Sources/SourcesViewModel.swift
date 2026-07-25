@@ -22,9 +22,15 @@ final class SourcesViewModel: ObservableObject {
     @Published private(set) var latestCatalogSourceAddID: String?
     @Published private(set) var catalogSources: [BrowseCraftCatalogSource] = []
     @Published private(set) var isLoadingCatalogSources: Bool = false
+    @Published private(set) var requestedSlotActivationSource: Source?
+    @Published private(set) var sourceSlotLimit: Int =
+        SourceSlotPolicy.includedSiteSlotCount
 
     private let syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase
-    private let loadSourcesUseCase: LoadSourcesUseCase
+    private let loadSourceSlotLimitUseCase: LoadSourceSlotLimitUseCase
+    private let reconcileSourceSlotAssignmentsUseCase:
+        ReconcileSourceSlotAssignmentsUseCase
+    private let activateSourceSlotUseCase: ActivateSourceSlotUseCase
     private let addComicRuleSourceUseCase: AddComicRuleSourceUseCase
     private let addRSSSourceUseCase: AddRSSSourceUseCase
     private let discoveryService: SourceDiscoveryService
@@ -47,9 +53,36 @@ final class SourcesViewModel: ObservableObject {
         return self.activeAppUser?.currentUserID.uuidString ?? self.fallbackUserID
     }
 
+    var occupiedSourceSlotCount: Int {
+        return self.sources.filter { source in
+            return source.isBuiltIn == false
+                && source.accessState == .active
+        }.count
+    }
+
+    var lockedSourceCount: Int {
+        return self.sources.filter { source in
+            return source.accessState == .lockedBySlotLimit
+        }.count
+    }
+
+    var activeCustomSources: [Source] {
+        return self.sources.filter { source in
+            return source.isBuiltIn == false
+                && source.accessState == .active
+        }
+    }
+
+    var canActivateRequestedSourceWithoutReplacement: Bool {
+        return self.occupiedSourceSlotCount < self.sourceSlotLimit
+    }
+
     init(
         syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase,
-        loadSourcesUseCase: LoadSourcesUseCase,
+        loadSourceSlotLimitUseCase: LoadSourceSlotLimitUseCase,
+        reconcileSourceSlotAssignmentsUseCase:
+            ReconcileSourceSlotAssignmentsUseCase,
+        activateSourceSlotUseCase: ActivateSourceSlotUseCase,
         addComicRuleSourceUseCase: AddComicRuleSourceUseCase,
         addRSSSourceUseCase: AddRSSSourceUseCase,
         discoveryService: SourceDiscoveryService,
@@ -66,7 +99,10 @@ final class SourcesViewModel: ObservableObject {
         now: @escaping () -> Date = Date.init
     ) {
         self.syncBuiltInSourcesUseCase = syncBuiltInSourcesUseCase
-        self.loadSourcesUseCase = loadSourcesUseCase
+        self.loadSourceSlotLimitUseCase = loadSourceSlotLimitUseCase
+        self.reconcileSourceSlotAssignmentsUseCase =
+            reconcileSourceSlotAssignmentsUseCase
+        self.activateSourceSlotUseCase = activateSourceSlotUseCase
         self.addComicRuleSourceUseCase = addComicRuleSourceUseCase
         self.addRSSSourceUseCase = addRSSSourceUseCase
         self.discoveryService = discoveryService
@@ -100,11 +136,22 @@ final class SourcesViewModel: ObservableObject {
     func loadForStartup() throws -> Bool {
         do {
             try self.syncBuiltInSourcesUseCase.execute()
-            let loadedSources: [Source] = try self.loadSourcesUseCase.execute()
+            let loadedSources: [Source] =
+                try self.reconcileSourceSlotAssignmentsUseCase.execute()
             self.sources = loadedSources
+            self.sourceSlotLimit = try self.loadSourceSlotLimitUseCase.execute(
+                userID: self.currentUserID
+            )
             if let selectedSourceID: String = self.selectedSourceID,
-               loadedSources.contains(where: { source in source.id == selectedSourceID }) == false {
-                self.selectSource(id: loadedSources.first?.id)
+               loadedSources.contains(where: { source in
+                   return source.id == selectedSourceID
+                       && source.accessState == .active
+               }) == false {
+                self.selectSource(
+                    id: loadedSources.first(where: { source in
+                        return source.accessState == .active
+                    })?.id
+                )
             }
             self.errorMessage = nil
             return loadedSources.isEmpty == false
@@ -358,12 +405,20 @@ final class SourcesViewModel: ObservableObject {
                 try self.deleteSourceUseCase.execute(sourceId: sourceID)
             }
 
-            let loadedSources: [Source] = try self.loadSourcesUseCase.execute()
+            let loadedSources: [Source] =
+                try self.reconcileSourceSlotAssignmentsUseCase.execute()
             self.sources = loadedSources
 
             if let selectedSourceID: String = self.selectedSourceID,
-               loadedSources.contains(where: { source in source.id == selectedSourceID }) == false {
-                self.selectSource(id: loadedSources.first?.id)
+               loadedSources.contains(where: { source in
+                   return source.id == selectedSourceID
+                       && source.accessState == .active
+               }) == false {
+                self.selectSource(
+                    id: loadedSources.first(where: { source in
+                        return source.accessState == .active
+                    })?.id
+                )
             }
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-delete-error")
@@ -372,6 +427,12 @@ final class SourcesViewModel: ObservableObject {
     }
 
     func selectSource(id: String?) {
+        if let source: Source = self.source(id: id),
+           source.accessState == .lockedBySlotLimit {
+            self.requestedSlotActivationSource = source
+            return
+        }
+
         self.selectedSourceID = id
         self.sourceSelectionStore.selectedSourceID = id
         let selectedSource: Source? = self.source(id: id)
@@ -382,6 +443,11 @@ final class SourcesViewModel: ObservableObject {
 
     @MainActor
     func selectSourceAfterRefresh(_ source: Source) async {
+        guard source.accessState == .active else {
+            self.requestedSlotActivationSource = source
+            return
+        }
+
         if self.selectedSourceID == source.id || self.isRefreshing {
             return
         }
@@ -413,6 +479,48 @@ final class SourcesViewModel: ObservableObject {
 
         self.refreshingSourceID = nil
         self.isRefreshing = false
+    }
+
+    @MainActor
+    func activateRequestedSource(
+        replacingSourceID: String?
+    ) async -> Bool {
+        guard let requestedSource: Source = self.requestedSlotActivationSource else {
+            return false
+        }
+
+        do {
+            let loadedSources: [Source] = try self.activateSourceSlotUseCase.execute(
+                sourceID: requestedSource.id,
+                replacingSourceID: replacingSourceID
+            )
+            self.sources = loadedSources
+            self.requestedSlotActivationSource = nil
+
+            if let replacementSourceID: String = replacingSourceID,
+               self.selectedSourceID == replacementSourceID {
+                self.selectSource(id: nil)
+            }
+
+            guard let activatedSource: Source = self.source(id: requestedSource.id),
+                  activatedSource.accessState == .active else {
+                throw SourceRepositoryError.invalidSourceSlotReplacement
+            }
+            await self.selectSourceAfterRefresh(activatedSource)
+            return true
+        } catch {
+            RuleExecutionErrorClassifier.log(
+                error: error,
+                stage: .list,
+                event: "source-slot-activation-error"
+            )
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+            return false
+        }
+    }
+
+    func dismissRequestedSlotActivation() {
+        self.requestedSlotActivationSource = nil
     }
 
     @MainActor

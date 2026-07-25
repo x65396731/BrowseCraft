@@ -12,7 +12,8 @@ final class HistoryViewModel: ObservableObject {
 
     private let loadReadingHistoryEntriesUseCase: LoadReadingHistoryEntriesUseCase
     private let deleteReadingHistoryEntryUseCase: DeleteReadingHistoryEntryUseCase
-    private let loadSourcesUseCase: LoadSourcesUseCase
+    private let reconcileSourceSlotAssignmentsUseCase:
+        ReconcileSourceSlotAssignmentsUseCase
     private let activeAppUser: (any ActiveAppUserProviding)?
     private let fallbackUserID: String
     private let videoPlayerViewModelFactory: @MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel
@@ -20,14 +21,16 @@ final class HistoryViewModel: ObservableObject {
     init(
         loadReadingHistoryEntriesUseCase: LoadReadingHistoryEntriesUseCase,
         deleteReadingHistoryEntryUseCase: DeleteReadingHistoryEntryUseCase,
-        loadSourcesUseCase: LoadSourcesUseCase,
+        reconcileSourceSlotAssignmentsUseCase:
+            ReconcileSourceSlotAssignmentsUseCase,
         activeAppUser: (any ActiveAppUserProviding)? = nil,
         userID: String = AppUser.localDefaultID,
         videoPlayerViewModelFactory: @escaping @MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel
     ) {
         self.loadReadingHistoryEntriesUseCase = loadReadingHistoryEntriesUseCase
         self.deleteReadingHistoryEntryUseCase = deleteReadingHistoryEntryUseCase
-        self.loadSourcesUseCase = loadSourcesUseCase
+        self.reconcileSourceSlotAssignmentsUseCase =
+            reconcileSourceSlotAssignmentsUseCase
         self.activeAppUser = activeAppUser
         self.fallbackUserID = userID
         self.videoPlayerViewModelFactory = videoPlayerViewModelFactory
@@ -37,7 +40,7 @@ final class HistoryViewModel: ObservableObject {
     /// 中文注释：load 方法封装当前类型的一段业务或界面行为。
     func load() {
         do {
-            self.sources = try self.loadSourcesUseCase.execute()
+            self.sources = try self.reconcileSourceSlotAssignmentsUseCase.execute()
             self.readingHistoryEntries = self.deduplicatedVideoEntries(
                 try self.loadReadingHistoryEntriesUseCase.execute(userID: self.currentUserID)
             )

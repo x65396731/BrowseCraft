@@ -14,9 +14,7 @@ struct SourcesView: View {
         NavigationStack {
             List {
                 Section(
-                    footer: Text("Deleting a source also removes its related reading/watch history and library state.")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
+                    footer: self.sourceListFooter
                 ) {
                     ForEach(self.viewModel.sources, id: \.id) { source in
                         HStack(spacing: 8) {
@@ -100,6 +98,28 @@ struct SourcesView: View {
                     .accessibilityLabel("Add Source")
                 }
 
+                ToolbarItem(placement: .principal) {
+                    VStack(spacing: 0) {
+                        Text(
+                            "\(self.viewModel.occupiedSourceSlotCount) / " +
+                                "\(self.viewModel.sourceSlotLimit)"
+                        )
+                        .font(.headline)
+                        .monospacedDigit()
+
+                        Text("Sources Used")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .lineLimit(1)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Sources Used")
+                    .accessibilityValue(
+                        "\(self.viewModel.occupiedSourceSlotCount) of " +
+                            "\(self.viewModel.sourceSlotLimit)"
+                    )
+                }
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(
                         action: {
@@ -135,10 +155,54 @@ struct SourcesView: View {
             .sheet(isPresented: self.$isShowingCatalogSourceListView) {
                 CatalogSourceListView(viewModel: self.viewModel)
             }
+            .sheet(item: self.slotActivationBinding) { source in
+                SourceSlotActivationView(
+                    lockedSource: source,
+                    activeSources: self.viewModel.activeCustomSources,
+                    canActivateWithoutReplacement:
+                        self.viewModel.canActivateRequestedSourceWithoutReplacement,
+                    activationAction: { replacingSourceID in
+                        return await self.viewModel.activateRequestedSource(
+                            replacingSourceID: replacingSourceID
+                        )
+                    }
+                )
+            }
             .alert(isPresented: self.errorAlertBinding) {
                 self.errorAlert()
             }
         }
+    }
+
+    @ViewBuilder
+    private var sourceListFooter: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Deleting a source also removes its related reading/watch history and library state.")
+
+            if self.viewModel.lockedSourceCount > 0 {
+                Text(
+                    "\(self.viewModel.lockedSourceCount) restored " +
+                        "\(self.viewModel.lockedSourceCount == 1 ? "source is" : "sources are") " +
+                        "locked by the current source limit. Tap a locked source to replace an active source."
+                )
+                .foregroundStyle(.orange)
+            }
+        }
+        .font(.footnote)
+        .foregroundColor(.secondary)
+    }
+
+    private var slotActivationBinding: Binding<Source?> {
+        return Binding(
+            get: {
+                return self.viewModel.requestedSlotActivationSource
+            },
+            set: { source in
+                if source == nil {
+                    self.viewModel.dismissRequestedSlotActivation()
+                }
+            }
+        )
     }
 
     private func errorAlert() -> Alert {
@@ -196,4 +260,95 @@ struct SourcesView: View {
             self.cloudSyncViewModel.initialRestoreState.shouldReplaceEmptyState
     }
 
+}
+
+@MainActor
+private struct SourceSlotActivationView: View {
+    @Environment(\.dismiss) private var dismiss
+    let lockedSource: Source
+    let activeSources: [Source]
+    let canActivateWithoutReplacement: Bool
+    let activationAction: (String?) async -> Bool
+
+    @State private var isActivating: Bool = false
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(self.lockedSource.name)
+                            .font(.headline)
+
+                        Text(
+                            "This source was restored safely, but it is not currently part of your active source loadout."
+                        )
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                if self.canActivateWithoutReplacement {
+                    Section {
+                        Button("Activate Source") {
+                            self.activate(replacingSourceID: nil)
+                        }
+                    } footer: {
+                        Text("An unused source slot is available.")
+                    }
+                } else {
+                    Section {
+                        ForEach(self.activeSources, id: \.id) { source in
+                            Button {
+                                self.activate(replacingSourceID: source.id)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(source.name)
+                                    Text(source.baseURL)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                            }
+                        }
+                    } header: {
+                        Text("Replace an active source")
+                    } footer: {
+                        Text(
+                            "The replaced source remains safely stored and becomes locked. Purchase more source slots in Settings > Premium to keep more sources active."
+                        )
+                    }
+                }
+            }
+            .navigationTitle("Activate Source")
+            .navigationBarTitleDisplayMode(.inline)
+            .disabled(self.isActivating)
+            .overlay {
+                if self.isActivating {
+                    ProgressView()
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        self.dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    private func activate(replacingSourceID: String?) {
+        guard self.isActivating == false else {
+            return
+        }
+        self.isActivating = true
+
+        Task {
+            _ = await self.activationAction(replacingSourceID)
+            self.isActivating = false
+            self.dismiss()
+        }
+    }
 }

@@ -1,6 +1,7 @@
 import Foundation
 import CloudKit
 import BrowseCraftAPIKit
+import StoreKit
 
 /// 中文注释：应用 Composition Root，只持有 App 生命周期共享对象并把 Feature 创建委托给明确 Factory。
 final class AppContainer {
@@ -11,6 +12,8 @@ final class AppContainer {
     private let favoritesFeatureFactory: FavoritesFeatureFactory
     private let historyFeatureFactory: HistoryFeatureFactory
     private let settingsFeatureFactory: SettingsFeatureFactory
+    private let settingsViewModel: SettingsViewModel
+    private var storeKitTransactionUpdatesTask: Task<Void, Never>?
 
     let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
     let systemCookieHeaderProvider: any SystemCookieHeaderProviding
@@ -204,7 +207,26 @@ final class AppContainer {
                     pageContentLoader: pageLoader,
                     parser: CoreVideoRuleSourceParser(),
                     credentialProvider: sourceCredentialStore
-                )
+                ),
+                validateSourceAccess: { source in
+                    guard source.isBuiltIn == false else {
+                        return
+                    }
+                    let reconciledSources: [Source] =
+                        try sourceRepository.reconcileSourceSlotAssignments()
+                    if let persistedSource: Source =
+                        reconciledSources.first(where: { candidate in
+                            return candidate.id == source.id
+                        }) {
+                        guard persistedSource.accessState == .active else {
+                            throw SourceRepositoryError.sourceLockedBySlotLimit
+                        }
+                        return
+                    }
+                    guard source.accessState == .active else {
+                        throw SourceRepositoryError.sourceLockedBySlotLimit
+                    }
+                }
             )
             let protectedResourceLoader: ReaderProtectedResourceLoader = ReaderProtectedResourceLoader(
                 legacyLoader: ProtectedResourceLoader(
@@ -256,7 +278,8 @@ final class AppContainer {
                     libraryFeatureFactory.makeVideoPlayerViewModel(history: history, source: source)
                 }
             )
-            self.settingsFeatureFactory = SettingsFeatureFactory(
+            let settingsFeatureFactory: SettingsFeatureFactory =
+                SettingsFeatureFactory(
                 database: database,
                 activeAppUser: self.activeAppUserStore,
                 imageCacheConfigurator: imageCacheConfigurator,
@@ -273,6 +296,8 @@ final class AppContainer {
                 appUserIdentityAdoptionCoordinator:
                     self.appUserIdentityAdoptionCoordinator
             )
+            self.settingsFeatureFactory = settingsFeatureFactory
+            self.settingsViewModel = settingsFeatureFactory.makeViewModel()
             self.browserRequestHeaderProvider = browserRequestHeaderProvider
             self.systemCookieHeaderProvider = systemCookieHeaderProvider
         } catch {
@@ -282,7 +307,13 @@ final class AppContainer {
         self.configureImageCache()
     }
 
+    deinit {
+        self.storeKitTransactionUpdatesTask?.cancel()
+    }
+
+    @MainActor
     func startApplicationServices() async {
+        self.startStoreKitTransactionUpdatesListener()
         async let portalSession: Void = self.portalSessionCoordinator.start()
         async let cloudAccount: Void = self.startCloudAccountMonitoring()
         _ = await (portalSession, cloudAccount)
@@ -315,7 +346,7 @@ final class AppContainer {
     }
 
     func makeSettingsViewModel() -> SettingsViewModel {
-        return self.settingsFeatureFactory.makeViewModel()
+        return self.settingsViewModel
     }
 
     @MainActor
@@ -350,6 +381,77 @@ final class AppContainer {
     private func startCloudAccountMonitoring() async {
         await self.cloudSyncCoordinator.start()
         await self.cloudAccountSession.startIfPreviouslyEnabled()
+    }
+
+    @MainActor
+    private func startStoreKitTransactionUpdatesListener() {
+        guard self.storeKitTransactionUpdatesTask == nil else {
+            return
+        }
+
+        IAPDiagnostics.notice("event=transaction-updates-listener-started")
+        self.storeKitTransactionUpdatesTask = Task { @MainActor [weak self] in
+            for await verification in StoreKit.Transaction.updates {
+                guard Task.isCancelled == false,
+                      let self else {
+                    return
+                }
+                await self.processStoreKitTransactionUpdate(verification)
+            }
+        }
+    }
+
+    @MainActor
+    private func processStoreKitTransactionUpdate(
+        _ verification: VerificationResult<StoreKit.Transaction>
+    ) async {
+        switch verification {
+        case .unverified(let transaction, let error):
+            IAPDiagnostics.error(
+                "event=transaction-update-rejected reason=unverified " +
+                    "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id)) " +
+                    "error=\(IAPDiagnostics.safeErrorCode(error))"
+            )
+        case .verified(let transaction):
+            guard let plan: InAppPurchasePlan =
+                InAppPurchasePlan.plansByProductID[transaction.productID],
+                  plan.isRestorable else {
+                IAPDiagnostics.error(
+                    "event=transaction-update-rejected reason=unsupported-product " +
+                        "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id)) " +
+                        "productID=\(transaction.productID)"
+                )
+                return
+            }
+
+            IAPDiagnostics.notice(
+                "event=transaction-update-received " +
+                    "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id)) " +
+                    "productID=\(transaction.productID) " +
+                    "environment=\(transaction.environment.rawValue) " +
+                    "isRevoked=\(transaction.revocationDate != nil)"
+            )
+            await self.portalSessionCoordinator.start()
+
+            do {
+                try await self.settingsViewModel.processStoreKitTransactionUpdate(
+                    transaction: transaction,
+                    signedTransaction: verification.jwsRepresentation,
+                    plan: plan
+                )
+                await transaction.finish()
+                IAPDiagnostics.notice(
+                    "event=transaction-update-finished " +
+                        "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id))"
+                )
+            } catch {
+                IAPDiagnostics.error(
+                    "event=transaction-update-deferred " +
+                        "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id)) " +
+                        "error=\(IAPDiagnostics.safeErrorCode(error))"
+                )
+            }
+        }
     }
 
     private func configureImageCache() {

@@ -46,8 +46,18 @@ struct AppReviewRequestModifier: ViewModifier {
 extension View {
     @MainActor
     func requestsAppReviewAfterSuccessfulContentOpen(
+        when isContentSuccessfullyOpen: Bool
+    ) -> some View {
+        return self.requestsAppReviewAfterSuccessfulContentOpen(
+            when: isContentSuccessfullyOpen,
+            policy: .shared
+        )
+    }
+
+    @MainActor
+    func requestsAppReviewAfterSuccessfulContentOpen(
         when isContentSuccessfullyOpen: Bool,
-        policy: AppReviewPromptPolicy = .shared
+        policy: AppReviewPromptPolicy
     ) -> some View {
         return self.modifier(
             AppReviewRequestModifier(

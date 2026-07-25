@@ -9,21 +9,24 @@ final class FavoritesViewModel: ObservableObject {
     @Published var errorMessage: String?
 
     private let loadFavoriteItemsUseCase: ToggleFavoriteUseCase
-    private let loadSourcesUseCase: LoadSourcesUseCase
+    private let reconcileSourceSlotAssignmentsUseCase:
+        ReconcileSourceSlotAssignmentsUseCase
 
     init(
         loadFavoriteItemsUseCase: ToggleFavoriteUseCase,
-        loadSourcesUseCase: LoadSourcesUseCase,
+        reconcileSourceSlotAssignmentsUseCase:
+            ReconcileSourceSlotAssignmentsUseCase,
         userID _: String = AppUser.localDefaultID
     ) {
         self.loadFavoriteItemsUseCase = loadFavoriteItemsUseCase
-        self.loadSourcesUseCase = loadSourcesUseCase
+        self.reconcileSourceSlotAssignmentsUseCase =
+            reconcileSourceSlotAssignmentsUseCase
     }
 
     @MainActor
     func load() {
         do {
-            self.sources = try self.loadSourcesUseCase.execute()
+            self.sources = try self.reconcileSourceSlotAssignmentsUseCase.execute()
             self.favoriteItems = try self.loadFavoriteItemsUseCase.loadFavoriteItems()
         } catch {
             self.errorMessage = error.localizedDescription

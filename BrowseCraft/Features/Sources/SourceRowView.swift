@@ -20,6 +20,10 @@ struct SourceRowView: View {
                     if self.isLoading {
                         ProgressView()
                             .frame(width: 24, height: 24)
+                    } else if self.source.accessState == .lockedBySlotLimit {
+                        Image(systemName: "lock.fill")
+                            .foregroundStyle(.orange)
+                            .frame(width: 24, height: 24)
                     } else {
                         Image(systemName: self.isSelected ? "checkmark.circle.fill" : "circle")
                             .foregroundColor(self.isSelected ? .green : .secondary)
@@ -37,9 +41,9 @@ struct SourceRowView: View {
                             .foregroundColor(.secondary)
                             .lineLimit(1)
 
-                        Text(self.source.isBuiltIn ? "Built-in source" : "User source")
+                        Text(self.sourceStatusText)
                             .font(.caption2)
-                            .foregroundColor(self.source.isBuiltIn ? .blue : .secondary)
+                            .foregroundColor(self.sourceStatusColor)
                     }
 
                     Spacer()
@@ -50,5 +54,25 @@ struct SourceRowView: View {
         .buttonStyle(.plain)
         .disabled(self.isDisabled)
         .opacity(self.isDisabled && self.isLoading == false ? 0.55 : 1)
+    }
+
+    private var sourceStatusText: String {
+        if self.source.isBuiltIn {
+            return "Built-in source"
+        }
+        if self.source.accessState == .lockedBySlotLimit {
+            return "Locked by source limit"
+        }
+        return "Active user source"
+    }
+
+    private var sourceStatusColor: Color {
+        if self.source.isBuiltIn {
+            return .blue
+        }
+        if self.source.accessState == .lockedBySlotLimit {
+            return .orange
+        }
+        return .secondary
     }
 }

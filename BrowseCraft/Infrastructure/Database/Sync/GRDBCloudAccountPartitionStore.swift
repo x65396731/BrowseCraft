@@ -59,7 +59,7 @@ final class GRDBCloudAccountPartitionStore:
             throw CloudAccountPartitionError.invalidCloudScope
         }
         try self.database.queue.write { database in
-            var record: CloudAppUserAssociationAttestationRecord =
+            let record: CloudAppUserAssociationAttestationRecord =
                 CloudAppUserAssociationAttestationRecord(
                     accountScope: cloudScope.rawValue,
                     userID: userID.uuidString,

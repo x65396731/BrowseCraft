@@ -28,7 +28,8 @@ final class LibraryViewModel: ObservableObject {
     @Published private var credentialRevision: Int = 0
 
     private let syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase
-    private let loadSourcesUseCase: LoadSourcesUseCase
+    private let reconcileSourceSlotAssignmentsUseCase:
+        ReconcileSourceSlotAssignmentsUseCase
     private let toggleFavoriteUseCase: ToggleFavoriteUseCase
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
     private let loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase
@@ -51,7 +52,8 @@ final class LibraryViewModel: ObservableObject {
 
     init(
         syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase,
-        loadSourcesUseCase: LoadSourcesUseCase,
+        reconcileSourceSlotAssignmentsUseCase:
+            ReconcileSourceSlotAssignmentsUseCase,
         toggleFavoriteUseCase: ToggleFavoriteUseCase,
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
         loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase,
@@ -64,7 +66,8 @@ final class LibraryViewModel: ObservableObject {
         now: @escaping () -> Date = Date.init
     ) {
         self.syncBuiltInSourcesUseCase = syncBuiltInSourcesUseCase
-        self.loadSourcesUseCase = loadSourcesUseCase
+        self.reconcileSourceSlotAssignmentsUseCase =
+            reconcileSourceSlotAssignmentsUseCase
         self.toggleFavoriteUseCase = toggleFavoriteUseCase
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
         self.loadUserLibraryStateUseCase = loadUserLibraryStateUseCase
@@ -142,7 +145,7 @@ final class LibraryViewModel: ObservableObject {
     private func performInitialLoad() async -> LibraryInitialLoadOutcome {
         do {
             try self.syncBuiltInSourcesUseCase.execute()
-            self.sources = try self.loadSourcesUseCase.execute()
+            self.sources = try self.reconcileSourceSlotAssignmentsUseCase.execute()
             self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs(
                 sourceID: self.selectedSourceID
             )
@@ -354,6 +357,7 @@ final class LibraryViewModel: ObservableObject {
     var selectedSource: Source? {
         return self.sources.first { source in
             return source.id == self.selectedSourceID
+                && source.accessState == .active
         }
     }
 
@@ -774,9 +778,14 @@ final class LibraryViewModel: ObservableObject {
                 return nil
             }
 
-            return self.source(for: selectedSourceID)
+            return self.source(for: selectedSourceID).flatMap { source in
+                return source.accessState == .active ? source : nil
+            }
         }
-        let resolvedSource: Source? = persistedSource ?? self.sources.first
+        let resolvedSource: Source? = persistedSource ??
+            self.sources.first(where: { source in
+                return source.accessState == .active
+            })
 
         guard let source: Source = resolvedSource else {
             self.selectedSourceID = nil

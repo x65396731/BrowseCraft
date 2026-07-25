@@ -117,7 +117,19 @@ struct SourceSnapshot: Hashable, Codable {
     }
 }
 
+enum SourceAccessState: Equatable {
+    case active
+    case lockedBySlotLimit
+}
+
 extension Source {
+    /// 中文注释：enabled 保存用户的槽位分配；额度锁定是本地派生状态，不单独写入云端。
+    var accessState: SourceAccessState {
+        return self.isBuiltIn || self.enabled
+            ? .active
+            : .lockedBySlotLimit
+    }
+
     var comicConfiguration: ComicSourceConfiguration? {
         guard case .comic(let configuration) = self.configuration else {
             return nil

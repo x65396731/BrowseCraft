@@ -199,7 +199,8 @@ protocol PortalIAPServicing: Sendable {
     ) async throws -> PortalEntitlementSnapshot
 }
 
-/// 中文注释：只在用户主动购买流程中取得有效 Session 并提交 Apple JWS；不参与 App 生命周期。
+/// 中文注释：购买与 StoreKit 生命周期更新只使用现有 Portal Session；
+/// 只有用户主动恢复购买时才允许通过 Apple JWS 恢复 Session。
 actor PortalPurchaseEntitlementRefreshCoordinator {
     private let activeAppUser: any ActiveAppUserProviding
     private let portalSessionCoordinator: PortalSessionCoordinator
@@ -220,8 +221,35 @@ actor PortalPurchaseEntitlementRefreshCoordinator {
         environment: PortalPurchaseEnvironment,
         signedTransaction: String
     ) async throws -> PortalEntitlementSnapshot {
+        return try await self.refreshEntitlements(
+            userID: userID,
+            environment: environment,
+            signedTransaction: signedTransaction,
+            flow: "purchase"
+        )
+    }
+
+    func refreshUpdatedEntitlements(
+        userID: UUID,
+        environment: PortalPurchaseEnvironment,
+        signedTransaction: String
+    ) async throws -> PortalEntitlementSnapshot {
+        return try await self.refreshEntitlements(
+            userID: userID,
+            environment: environment,
+            signedTransaction: signedTransaction,
+            flow: "transaction-update"
+        )
+    }
+
+    private func refreshEntitlements(
+        userID: UUID,
+        environment: PortalPurchaseEnvironment,
+        signedTransaction: String,
+        flow: String
+    ) async throws -> PortalEntitlementSnapshot {
         IAPDiagnostics.notice(
-            "event=purchase-refresh-started " +
+            "event=\(flow)-refresh-started " +
                 "userHash=\(IAPDiagnostics.hash(userID)) " +
                 "environment=\(environment.rawValue)"
         )
@@ -229,7 +257,7 @@ actor PortalPurchaseEntitlementRefreshCoordinator {
         guard let accessToken: String =
             await self.portalSessionCoordinator.validAccessToken() else {
             IAPDiagnostics.error(
-                "event=purchase-refresh-failed reason=portal-session-unavailable"
+                "event=\(flow)-refresh-failed reason=portal-session-unavailable"
             )
             throw PortalPurchaseEntitlementRefreshError.sessionUnavailable
         }
@@ -247,13 +275,13 @@ actor PortalPurchaseEntitlementRefreshCoordinator {
         guard snapshot.userID == userID,
               snapshot.environment == environment else {
             IAPDiagnostics.error(
-                "event=purchase-refresh-failed reason=snapshot-mismatch " +
+                "event=\(flow)-refresh-failed reason=snapshot-mismatch " +
                     "environment=\(environment.rawValue)"
             )
             throw PortalPurchaseEntitlementRefreshError.snapshotMismatch
         }
         IAPDiagnostics.notice(
-            "event=purchase-refresh-succeeded " +
+            "event=\(flow)-refresh-succeeded " +
                 "environment=\(environment.rawValue) " +
                 "revision=\(snapshot.revision) " +
                 "activeProductCount=\(snapshot.activeProductIDs.count)"

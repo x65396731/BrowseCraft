@@ -8,6 +8,32 @@ protocol SourceRepository {
     func fetchSources() throws -> [Source]
     func saveSource(_ source: Source) throws
     func deleteSource(id: String) throws
+    func reconcileSourceSlotAssignments() throws -> [Source]
+    func activateSource(
+        id: String,
+        replacingSourceID: String?
+    ) throws -> [Source]
+}
+
+extension SourceRepository {
+    func reconcileSourceSlotAssignments() throws -> [Source] {
+        return try self.fetchSources()
+    }
+
+    func activateSource(
+        id: String,
+        replacingSourceID: String?
+    ) throws -> [Source] {
+        _ = replacingSourceID
+        guard var source: Source = try self.fetchSources().first(where: { source in
+            return source.id == id
+        }) else {
+            return try self.fetchSources()
+        }
+        source.enabled = true
+        try self.saveSource(source)
+        return try self.fetchSources()
+    }
 }
 
 /// 中文注释：站点位置只约束用户添加的 Source；内置 Source 不消耗购买位置。
@@ -20,22 +46,29 @@ enum SourceSlotPolicy {
 
     static func consumesNewSlot(
         source: Source,
-        existingSourceIsActive: Bool
+        existingSourceConsumesSlot: Bool
     ) -> Bool {
         return source.isBuiltIn == false
             && source.deletedAt == nil
-            && existingSourceIsActive == false
+            && source.enabled
+            && existingSourceConsumesSlot == false
     }
 }
 
 enum SourceRepositoryError: LocalizedError, Equatable {
     case siteSlotLimitReached(limit: Int)
+    case sourceLockedBySlotLimit
+    case invalidSourceSlotReplacement
 
     var errorDescription: String? {
         switch self {
         case .siteSlotLimitReached(let limit):
             let noun: String = limit == 1 ? "source" : "sources"
-            return "Your account can keep up to \(limit) custom \(noun). Purchase more site slots in Settings > Premium to add another source."
+            return "Your account can activate up to \(limit) custom \(noun). Purchase more site slots in Settings > Premium to activate another source."
+        case .sourceLockedBySlotLimit:
+            return "This source is restored but locked by your current source limit. Replace an active source or purchase more site slots in Settings > Premium."
+        case .invalidSourceSlotReplacement:
+            return "The selected active source could not be replaced. Reload Sources and try again."
         }
     }
 }

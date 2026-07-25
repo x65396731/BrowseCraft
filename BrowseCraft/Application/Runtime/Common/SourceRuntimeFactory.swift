@@ -7,20 +7,32 @@ struct SourceRuntimeFactory: SourceRuntimeResolving {
     private let rssSourceRuntimeFactory: RSSSourceRuntimeFactory
     private let videoSourceRuntimeFactory: VideoSourceRuntimeFactory
     private let pluginRuntimeFactory: ((Source) throws -> any SourceRuntime)?
+    private let validateSourceAccess: ((Source) throws -> Void)?
 
     init(
         comicSourceRuntimeFactory: ComicSourceRuntimeFactory,
         rssSourceRuntimeFactory: RSSSourceRuntimeFactory,
         videoSourceRuntimeFactory: VideoSourceRuntimeFactory,
-        pluginRuntimeFactory: ((Source) throws -> any SourceRuntime)? = nil
+        pluginRuntimeFactory: ((Source) throws -> any SourceRuntime)? = nil,
+        validateSourceAccess: ((Source) throws -> Void)? = nil
     ) {
         self.comicSourceRuntimeFactory = comicSourceRuntimeFactory
         self.rssSourceRuntimeFactory = rssSourceRuntimeFactory
         self.videoSourceRuntimeFactory = videoSourceRuntimeFactory
         self.pluginRuntimeFactory = pluginRuntimeFactory
+        self.validateSourceAccess = validateSourceAccess
     }
 
     func runtime(for source: Source) throws -> any SourceRuntime {
+        if let validateSourceAccess: (Source) throws -> Void =
+            self.validateSourceAccess {
+            try validateSourceAccess(source)
+        } else {
+            guard source.accessState == .active else {
+                throw SourceRepositoryError.sourceLockedBySlotLimit
+            }
+        }
+
         switch source.configuration {
         case .comic:
             return try self.comicSourceRuntimeFactory.makeRuntime(source: source)

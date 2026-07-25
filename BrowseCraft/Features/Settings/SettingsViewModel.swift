@@ -174,6 +174,59 @@ final class SettingsViewModel: ObservableObject {
     }
 
     @MainActor
+    func processStoreKitTransactionUpdate(
+        transaction: StoreKit.Transaction,
+        signedTransaction: String,
+        plan: InAppPurchasePlan
+    ) async throws {
+        let userID: UUID = self.activeAppUser.currentUserID
+        IAPDiagnostics.notice(
+            "event=transaction-update-submission-started " +
+                "userHash=\(IAPDiagnostics.hash(userID)) " +
+                "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id)) " +
+                "productID=\(transaction.productID) " +
+                "storeKitEnvironment=\(transaction.environment.rawValue) " +
+                "isRevoked=\(transaction.revocationDate != nil)"
+        )
+        try self.requireStoreKitTransactionOwner(
+            transaction,
+            userID: userID
+        )
+        guard transaction.productID == plan.productID else {
+            throw StoreKitPortalPurchaseSubmissionError
+                .transactionProductMismatch
+        }
+
+        let environment: PortalPurchaseEnvironment =
+            try StoreKitPortalEnvironmentMapper.map(transaction.environment)
+        let snapshot: PortalEntitlementSnapshot =
+            try await self.portalPurchaseEntitlementRefreshCoordinator
+                .refreshUpdatedEntitlements(
+                    userID: userID,
+                    environment: environment,
+                    signedTransaction: signedTransaction
+                )
+
+        try await self.purchaseIdentityAuthorizer
+            .validateAuthorizedUser(userID)
+        try self.validatePortalSnapshot(
+            snapshot,
+            updatedProductID: plan.productID,
+            isRevoked: transaction.revocationDate != nil
+        )
+        try self.applyPortalEntitlementSnapshot(
+            snapshot,
+            transaction: transaction
+        )
+        IAPDiagnostics.notice(
+            "event=transaction-update-submission-completed " +
+                "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id)) " +
+                "environment=\(environment.rawValue) " +
+                "revision=\(snapshot.revision)"
+        )
+    }
+
+    @MainActor
     func restoreStoreKitPurchases(for authorizedUserID: UUID) async throws {
         IAPDiagnostics.notice(
             "event=restore-started " +
@@ -341,6 +394,30 @@ final class SettingsViewModel: ObservableObject {
                 SourceSlotPolicy.includedSiteSlotCount,
               snapshot.activeProductIDs.isSubset(of: supportedProductIDs),
               restoredProductIDs.isSubset(of: snapshot.activeProductIDs) else {
+            throw StoreKitPortalPurchaseSubmissionError
+                .snapshotContractMismatch
+        }
+    }
+
+    private func validatePortalSnapshot(
+        _ snapshot: PortalEntitlementSnapshot,
+        updatedProductID: String,
+        isRevoked: Bool
+    ) throws {
+        let supportedProductIDs: Set<String> = Set(
+            InAppPurchasePlan.activePlans.map(\.productID)
+        )
+        guard snapshot.userID == self.activeAppUser.currentUserID,
+              snapshot.includedSiteSlots ==
+                SourceSlotPolicy.includedSiteSlotCount,
+              snapshot.activeProductIDs.isSubset(of: supportedProductIDs) else {
+            throw StoreKitPortalPurchaseSubmissionError
+                .snapshotContractMismatch
+        }
+
+        let containsUpdatedProduct: Bool =
+            snapshot.activeProductIDs.contains(updatedProductID)
+        guard containsUpdatedProduct != isRevoked else {
             throw StoreKitPortalPurchaseSubmissionError
                 .snapshotContractMismatch
         }

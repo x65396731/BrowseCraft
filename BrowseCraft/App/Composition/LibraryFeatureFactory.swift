@@ -42,9 +42,10 @@ struct LibraryFeatureFactory {
             syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase(
                 sourceRepository: self.sourceRepository
             ),
-            loadSourcesUseCase: LoadSourcesUseCase(
-                sourceRepository: self.sourceRepository
-            ),
+            reconcileSourceSlotAssignmentsUseCase:
+                ReconcileSourceSlotAssignmentsUseCase(
+                    sourceRepository: self.sourceRepository
+                ),
             toggleFavoriteUseCase: ToggleFavoriteUseCase(
                 favoriteRepository: self.favoriteRepository
             ),
