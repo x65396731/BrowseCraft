@@ -1,3 +1,4 @@
+import StoreKit
 import SwiftUI
 
 struct InAppPurchasePlanSelectionView: View {
@@ -20,6 +21,13 @@ struct InAppPurchasePlanSelectionView: View {
     @State private var glowPhase: Bool = false
     @State private var purchaseTask: Task<Void, Never>?
     @State private var restoreTask: Task<Void, Never>?
+
+    #if DEBUG
+    @State private var refundPreparationTask: Task<Void, Never>?
+    @State private var refundRequestTransactionID: StoreKit.Transaction.ID = 0
+    @State private var isRefundRequestPresented: Bool = false
+    @State private var refundTestMessage: String?
+    #endif
 
     private let planItems: [PlanItem] = InAppPurchasePlan.activePlans.enumerated().map { index, plan in
         return PlanItem(plan: plan, order: index)
@@ -106,6 +114,10 @@ struct InAppPurchasePlanSelectionView: View {
                     .disabled(self.interactionIsLocked)
                     .opacity(self.interactionIsLocked ? 0.55 : 1)
                     .accessibilityHint("Restores previously completed purchases")
+
+                    #if DEBUG
+                    self.refundTestControls
+                    #endif
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
@@ -113,6 +125,13 @@ struct InAppPurchasePlanSelectionView: View {
             }
             .scrollBounceBehavior(.basedOnSize)
         }
+        #if DEBUG
+        .refundRequestSheet(
+            for: self.refundRequestTransactionID,
+            isPresented: self.$isRefundRequestPresented,
+            onDismiss: self.handleRefundRequestResult
+        )
+        #endif
         .task {
             await self.presentDeckAndLoadProducts()
         }
@@ -131,8 +150,133 @@ struct InAppPurchasePlanSelectionView: View {
             self.purchaseTask = nil
             self.restoreTask?.cancel()
             self.restoreTask = nil
+            #if DEBUG
+            self.refundPreparationTask?.cancel()
+            self.refundPreparationTask = nil
+            #endif
         }
     }
+
+    #if DEBUG
+    private var refundTestControls: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Button(
+                action: {
+                    self.refundPreparationTask?.cancel()
+                    self.refundPreparationTask = Task {
+                        await self.prepareRemoveAdsRefundRequest()
+                    }
+                },
+                label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.uturn.backward.circle")
+                        Text("Request Remove Ads Refund (DEBUG)")
+                    }
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.orange)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(.ultraThinMaterial, in: Capsule())
+                }
+            )
+            .buttonStyle(.plain)
+            .disabled(
+                self.interactionIsLocked ||
+                self.store.isPurchased(.removeAds) == false
+            )
+            .opacity(
+                self.interactionIsLocked ||
+                self.store.isPurchased(.removeAds) == false
+                    ? 0.55
+                    : 1
+            )
+            .accessibilityHint(
+                "Opens Apple's refund request sheet for the verified Sandbox Remove Ads transaction"
+            )
+
+            if let refundTestMessage: String = self.refundTestMessage {
+                Text(refundTestMessage)
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.88))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    @MainActor
+    private func prepareRemoveAdsRefundRequest() async {
+        defer {
+            self.refundPreparationTask = nil
+        }
+        self.refundTestMessage = nil
+
+        do {
+            let transactionID: StoreKit.Transaction.ID? =
+                try await self.store.refundableSandboxTransactionID(
+                    for: .removeAds
+                )
+            try Task.checkCancellation()
+            guard let transactionID else {
+                self.refundTestMessage =
+                    "No verified, active Sandbox Remove Ads transaction belongs to this BrowseCraft profile."
+                return
+            }
+
+            self.refundRequestTransactionID = transactionID
+            self.isRefundRequestPresented = true
+        } catch is CancellationError {
+            return
+        } catch let error as StoreKitPurchaseIdentityAuthorizationError {
+            IAPDiagnostics.error(
+                "event=refund-test-preparation-failed " +
+                    "error=\(IAPDiagnostics.safeErrorCode(error))"
+            )
+            self.refundTestMessage =
+                "Link and verify the current iCloud identity before requesting a refund."
+        } catch {
+            IAPDiagnostics.error(
+                "event=refund-test-preparation-failed " +
+                    "error=\(IAPDiagnostics.safeErrorCode(error))"
+            )
+            self.refundTestMessage =
+                "The Sandbox refund request could not be prepared."
+        }
+    }
+
+    @MainActor
+    private func handleRefundRequestResult(
+        _ result: Result<
+            StoreKit.Transaction.RefundRequestStatus,
+            StoreKit.Transaction.RefundRequestError
+        >
+    ) {
+        switch result {
+        case .success(.success):
+            IAPDiagnostics.notice(
+                "event=refund-test-request-submitted productID=\(InAppPurchasePlan.removeAds.productID)"
+            )
+            self.refundTestMessage =
+                "Apple received the refund request. Approval and entitlement revocation are still pending."
+        case .success(.userCancelled):
+            IAPDiagnostics.notice(
+                "event=refund-test-request-cancelled productID=\(InAppPurchasePlan.removeAds.productID)"
+            )
+            self.refundTestMessage = "Refund request cancelled."
+        case .failure(let error):
+            IAPDiagnostics.error(
+                "event=refund-test-request-failed " +
+                    "error=\(IAPDiagnostics.safeErrorCode(error))"
+            )
+            self.refundTestMessage =
+                "Apple could not present or submit the refund request."
+        @unknown default:
+            IAPDiagnostics.error(
+                "event=refund-test-request-failed reason=unknown-status"
+            )
+            self.refundTestMessage =
+                "The refund request returned an unknown status."
+        }
+    }
+    #endif
 
     private var header: some View {
         HStack(alignment: .top, spacing: 16) {

@@ -292,10 +292,20 @@ final class InAppPurchaseStore: ObservableObject {
             self.productsByID = Dictionary(uniqueKeysWithValues: products.map { product in
                 return (product.id, product)
             })
+            let requestedProductIDs: Set<String> = Set(
+                activePlans.map(\.productID)
+            )
+            let receivedProductIDs: Set<String> = Set(
+                products.map(\.id)
+            )
+            let missingProductIDs: Set<String> = requestedProductIDs
+                .subtracting(receivedProductIDs)
             IAPDiagnostics.notice(
                 "event=product-load-completed " +
                     "requestedCount=\(activePlans.count) " +
-                    "receivedCount=\(products.count)"
+                    "receivedCount=\(products.count) " +
+                    "receivedProductIDs=\(receivedProductIDs.sorted()) " +
+                    "missingProductIDs=\(missingProductIDs.sorted())"
             )
 
             if products.isEmpty {
@@ -601,6 +611,42 @@ final class InAppPurchaseStore: ObservableObject {
         return plan.productKind == .nonConsumable
             && self.unverifiedStoreKitProductIDs.contains(plan.productID)
     }
+
+    #if DEBUG
+    func refundableSandboxTransactionID(
+        for targetPlan: InAppPurchasePlan
+    ) async throws -> StoreKit.Transaction.ID? {
+        IAPDiagnostics.notice(
+            "event=refund-test-transaction-search-started " +
+                "productID=\(targetPlan.productID)"
+        )
+        let authorizedUserID: UUID = try await self.authorizeStoreKitAction()
+
+        for await verification in StoreKit.Transaction.currentEntitlements {
+            try Task.checkCancellation()
+            guard case .verified(let transaction) = verification,
+                  transaction.productID == targetPlan.productID,
+                  transaction.environment == .sandbox,
+                  transaction.revocationDate == nil,
+                  transaction.appAccountToken == authorizedUserID else {
+                continue
+            }
+
+            IAPDiagnostics.notice(
+                "event=refund-test-transaction-search-completed " +
+                    "productID=\(targetPlan.productID) found=true " +
+                    "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id))"
+            )
+            return transaction.id
+        }
+
+        IAPDiagnostics.notice(
+            "event=refund-test-transaction-search-completed " +
+                "productID=\(targetPlan.productID) found=false"
+        )
+        return nil
+    }
+    #endif
 
     func refreshAfterTransactionUpdate(
         activeProductIDs: Set<String>?
