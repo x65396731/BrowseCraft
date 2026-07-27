@@ -26,6 +26,8 @@ struct LoadCatalogSourcesUseCaseTests {
 
         #expect(loader.requests.map(\.url.absoluteString) == ["https://anyportal.online/catalog/sources"])
         #expect(loader.requests.first?.request?.headers?["Accept"] == "application/json")
+        #expect(loader.requests.first?.request?.headers?["Cache-Control"] == "no-cache")
+        #expect(loader.requests.first?.cachePolicy == .reloadIgnoringLocalCacheData)
         #expect(loader.requests.first?.request?.headers?["userId"] == "local.default")
         #expect(loader.requests.first?.request?.headers?["osInfo"] == "iOS 17.0")
         #expect(loader.requests.first?.request?.headers?["deviceInfo"] == "iPhone15,3")
@@ -247,6 +249,7 @@ private final class RecordingCatalogPageDataLoader: PageDataLoader {
     struct RecordedRequest: Equatable {
         var url: URL
         var request: RequestConfig?
+        var cachePolicy: URLRequest.CachePolicy
     }
 
     private let data: Data
@@ -260,7 +263,8 @@ private final class RecordingCatalogPageDataLoader: PageDataLoader {
         self.requests.append(
             RecordedRequest(
                 url: request.url,
-                request: request.requestConfig
+                request: request.requestConfig,
+                cachePolicy: request.cachePolicy
             )
         )
         return PageDataResponse(data: self.data, finalURL: request.url)

@@ -2,6 +2,7 @@ enum SourceAPIRequestHeaders {
     static func catalogHeaders(base: [String: String]) -> [String: String] {
         var headers: [String: String] = base
         headers["Accept"] = "application/json"
+        headers["Cache-Control"] = "no-cache"
         return headers
     }
 

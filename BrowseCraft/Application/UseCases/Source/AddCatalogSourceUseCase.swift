@@ -74,7 +74,8 @@ struct LoadCatalogSourcesUseCase {
             PageLoadRequest(
                 url: catalogAPIURL,
                 requestConfig: requestConfig,
-                sourceContext: nil
+                sourceContext: nil,
+                cachePolicy: .reloadIgnoringLocalCacheData
             )
         ).data
         return try BrowseCraftSourceCatalog.sources(from: self.catalogSourceData(from: data))

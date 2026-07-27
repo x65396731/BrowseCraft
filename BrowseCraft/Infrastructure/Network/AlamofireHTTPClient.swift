@@ -32,7 +32,12 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
         let url: URL = request.url
         let requestConfig: RequestConfig? = request.requestConfig
         let context: SourceRequestContext? = request.sourceContext
-        let urlRequest: URLRequest = self.urlRequest(for: url, request: requestConfig, context: context)
+        let urlRequest: URLRequest = self.urlRequest(
+            for: url,
+            request: requestConfig,
+            context: context,
+            cachePolicy: request.cachePolicy
+        )
         let dataResponse: HTTPDataResponse
         let html: String
         do {
@@ -74,7 +79,12 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
         let url: URL = request.url
         let requestConfig: RequestConfig? = request.requestConfig
         let context: SourceRequestContext? = request.sourceContext
-        let urlRequest: URLRequest = self.urlRequest(for: url, request: requestConfig, context: context)
+        let urlRequest: URLRequest = self.urlRequest(
+            for: url,
+            request: requestConfig,
+            context: context,
+            cachePolicy: request.cachePolicy
+        )
         let dataResponse: HTTPDataResponse
         do {
             dataResponse = try await self.performDataRequest(urlRequest)
@@ -204,9 +214,10 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
     private func urlRequest(
         for url: URL,
         request: RequestConfig?,
-        context: SourceRequestContext?
+        context: SourceRequestContext?,
+        cachePolicy: URLRequest.CachePolicy
     ) -> URLRequest {
-        var urlRequest: URLRequest = URLRequest(url: url)
+        var urlRequest: URLRequest = URLRequest(url: url, cachePolicy: cachePolicy)
         urlRequest.httpMethod = request?.method?.rawValue ?? "GET"
 
         let explicitHeadersOnly: Bool = self.usesExplicitHeadersOnly(url: url, request: request)

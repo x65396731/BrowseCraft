@@ -5,14 +5,17 @@ struct PageLoadRequest {
     let url: URL
     let requestConfig: RequestConfig?
     let sourceContext: SourceRequestContext?
+    let cachePolicy: URLRequest.CachePolicy
 
     init(
         url: URL,
         requestConfig: RequestConfig?,
-        sourceContext: SourceRequestContext?
+        sourceContext: SourceRequestContext?,
+        cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
     ) {
         self.url = url
         self.requestConfig = requestConfig
         self.sourceContext = sourceContext
+        self.cachePolicy = cachePolicy
     }
 }
