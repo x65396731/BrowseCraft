@@ -462,4 +462,275 @@ enum RuleJSONFixtures {
       }
     }
     """
+
+    /// 中文注释：Runtime/Resolved Graph 测试只使用严格 V2 字段，不混入 V1 selector 字符串。
+    static let strictComicV2SiteRule: String = """
+    {
+      "version": 2,
+      "name": "Strict Comic V2 Site",
+      "baseUrl": "https://example.test",
+      "site": {
+        "name": "Strict Comic V2 Site",
+        "domain": "example.test",
+        "baseURL": "https://example.test"
+      },
+      "pages": [
+        {
+          "id": "home",
+          "title": "Home",
+          "type": "home",
+          "url": "https://example.test/list/1",
+          "request": {
+            "scope": "page",
+            "mergePolicy": "mergeHeaders",
+            "headers": { "Referer": "https://example.test/" }
+          },
+          "ruleRefs": { "list": "home-list" },
+          "tabGroup": {
+            "id": "home-tabs",
+            "selectedTabId": "discover",
+            "layout": "horizontalScroll",
+            "tabs": [
+              {
+                "id": "discover",
+                "title": "发现",
+                "listRuleRef": "home-list"
+              },
+              {
+                "id": "latest",
+                "title": "更新",
+                "url": "https://example.test/latest/1",
+                "listRuleRef": "latest-list",
+                "request": {
+                  "scope": "page",
+                  "headers": { "X-Tab": "latest" }
+                },
+                "context": { "sectionRole": "category" }
+              }
+            ]
+          },
+          "sections": [
+            {
+              "id": "main-grid",
+              "role": "main",
+              "itemLayout": "verticalGrid",
+              "listRuleRef": "home-list",
+              "container": {
+                "selector": "section.main-grid",
+                "selectorKind": "css",
+                "function": "raw"
+              }
+            },
+            {
+              "id": "recommendations",
+              "role": "recommendation",
+              "itemLayout": "horizontalRow",
+              "listRuleRef": "home-list",
+              "container": {
+                "selector": "section.recommendations",
+                "selectorKind": "css",
+                "function": "raw"
+              }
+            }
+          ]
+        },
+        {
+          "id": "detail",
+          "title": "Detail",
+          "type": "detail",
+          "url": "https://example.test/comics/{idCode:}",
+          "ruleRefs": { "detail": "detail" }
+        },
+        {
+          "id": "reader",
+          "title": "Reader",
+          "type": "reader",
+          "displayMode": "verticalReader",
+          "ruleRefs": { "gallery": "reader-gallery" }
+        },
+        {
+          "id": "search",
+          "title": "Search",
+          "type": "search",
+          "url": "https://example.test/search?q={keyword:}&page={page}",
+          "ruleRefs": { "search": "search" }
+        }
+      ],
+      "sharedRequest": {
+        "scope": "site",
+        "mergePolicy": "inherit",
+        "method": "GET",
+        "headers": { "User-Agent": "BrowseCraft" },
+        "needsWebView": false,
+        "autoScroll": false
+      },
+      "ruleSets": {
+        "listRules": [
+          {
+            "id": "home-list",
+            "url": "https://example.test/list/1",
+            "item": "",
+            "itemRule": {
+              "selector": ".card",
+              "selectorKind": "css",
+              "function": "raw"
+            },
+            "fields": {
+              "idCode": {
+                "selectorKind": "current",
+                "function": "attr",
+                "param": "data-id"
+              },
+              "title": {
+                "selector": ".title",
+                "selectorKind": "css",
+                "function": "text"
+              },
+              "cover": {
+                "selector": "img.cover",
+                "selectorKind": "css",
+                "function": "attr",
+                "param": "src"
+              },
+              "detailURL": {
+                "selector": "a.title",
+                "selectorKind": "css",
+                "function": "url",
+                "param": "href"
+              }
+            },
+            "title": "",
+            "link": "",
+            "type": "comic",
+            "request": {
+              "scope": "rule",
+              "mergePolicy": "mergeHeadersAndCookies"
+            }
+          },
+          {
+            "id": "latest-list",
+            "url": "https://example.test/latest/1",
+            "item": "",
+            "itemRule": {
+              "selector": ".card",
+              "selectorKind": "css",
+              "function": "raw"
+            },
+            "fields": {
+              "title": {
+                "selector": ".title",
+                "selectorKind": "css",
+                "function": "text"
+              },
+              "detailURL": {
+                "selector": "a.title",
+                "selectorKind": "css",
+                "function": "url",
+                "param": "href"
+              }
+            },
+            "title": "",
+            "link": "",
+            "type": "comic"
+          }
+        ],
+        "detailRules": [
+          {
+            "id": "detail",
+            "fields": {
+              "title": {
+                "selector": "h1",
+                "selectorKind": "css",
+                "function": "text"
+              }
+            },
+            "chapterRule": {
+              "item": {
+                "selector": ".chapter",
+                "selectorKind": "css",
+                "function": "raw"
+              },
+              "title": {
+                "selector": ".chapter-title",
+                "selectorKind": "css",
+                "function": "text"
+              },
+              "url": {
+                "selector": "a.chapter-link",
+                "selectorKind": "css",
+                "function": "url",
+                "param": "href"
+              }
+            }
+          }
+        ],
+        "galleryRules": [
+          {
+            "id": "reader-gallery",
+            "imageItem": "",
+            "imageUrl": "",
+            "item": {
+              "selector": "img.page",
+              "selectorKind": "css",
+              "function": "raw"
+            },
+            "image": {
+              "selectorKind": "current",
+              "function": "attr",
+              "param": "data-src"
+            },
+            "request": {
+              "scope": "rule",
+              "mergePolicy": "mergeHeaders",
+              "imageRequest": {
+                "headers": { "Referer": "https://example.test/reader" }
+              }
+            }
+          }
+        ],
+        "searchRules": [
+          {
+            "id": "search",
+            "keywordEncoding": "urlQueryAllowed",
+            "url": "https://example.test/search?q={keyword:}&page={page}",
+            "method": "GET",
+            "item": {
+              "selector": ".search-item",
+              "selectorKind": "css",
+              "function": "raw"
+            },
+            "fields": {
+              "title": {
+                "selector": ".title",
+                "selectorKind": "css",
+                "function": "text"
+              },
+              "detailURL": {
+                "selector": "a.title",
+                "selectorKind": "css",
+                "function": "url",
+                "param": "href"
+              }
+            },
+            "pagination": {
+              "nextPage": {
+                "selector": "a.next",
+                "selectorKind": "css",
+                "function": "url",
+                "param": "href"
+              },
+              "stopWhenEmpty": true
+            }
+          }
+        ]
+      },
+      "list": {
+        "url": "https://example.test/list/1",
+        "item": ".card",
+        "title": ".title",
+        "link": "a.title@href",
+        "type": "comic"
+      }
+    }
+    """
 }

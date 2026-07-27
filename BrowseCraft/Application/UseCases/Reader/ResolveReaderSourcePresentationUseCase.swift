@@ -7,7 +7,11 @@ struct ResolveReaderSourcePresentationUseCase {
             return nil
         }
 
-        return RuleResolver().resolve(rule).primaryGalleryRequest
+        return ComicSiteRuleV2Validator()
+            .validate(rule: rule)
+            .resolvedRule?
+            .primaryReaderEntry?
+            .effectiveRequest
     }
 
     func detailCoverRequestConfig(for source: Source) -> RequestConfig? {
@@ -15,6 +19,10 @@ struct ResolveReaderSourcePresentationUseCase {
             return nil
         }
 
-        return RuleResolver().resolve(rule).primaryDetailRequest
+        return ComicSiteRuleV2Validator()
+            .validate(rule: rule)
+            .resolvedRule?
+            .primaryDetailEntry?
+            .effectiveRequest
     }
 }

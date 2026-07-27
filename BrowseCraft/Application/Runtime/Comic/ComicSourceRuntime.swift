@@ -6,6 +6,7 @@ import BrowseCraftCore
 struct ComicSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDetailRuntime, SourceReaderRuntime {
     let source: Source
 
+    private let resolvedRule: ResolvedComicSiteRuleV2
     private let listLoader: ComicSourceListLoader
     private let searchLoader: ComicSourceSearchLoader
     private let detailLoader: ComicSourceDetailLoader
@@ -15,6 +16,7 @@ struct ComicSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDetailRunti
 
     init(
         source: Source,
+        resolvedRule: ResolvedComicSiteRuleV2,
         listLoader: ComicSourceListLoader,
         searchLoader: ComicSourceSearchLoader,
         detailLoader: ComicSourceDetailLoader,
@@ -23,6 +25,7 @@ struct ComicSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDetailRunti
         outputMapper: ComicSourceRuntimeMapper = ComicSourceRuntimeMapper()
     ) {
         self.source = source
+        self.resolvedRule = resolvedRule
         self.listLoader = listLoader
         self.searchLoader = searchLoader
         self.detailLoader = detailLoader
@@ -37,10 +40,10 @@ struct ComicSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDetailRunti
 
     var capabilities: SourceRuntimeCapabilities {
         return SourceRuntimeCapabilities(
-            supportsSearch: true,
+            supportsSearch: self.resolvedRule.searchEntries.isEmpty == false,
             supportsPagination: true,
-            supportsDetail: true,
-            supportsReader: true,
+            supportsDetail: self.resolvedRule.detailEntries.isEmpty == false,
+            supportsReader: self.resolvedRule.readerEntries.isEmpty == false,
             supportsPlayback: false,
             supportsDebug: false,
             supportsCandidateAnalysis: false,
@@ -71,10 +74,11 @@ struct ComicSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDetailRunti
         try self.validateSource(input.context)
         try self.validateNoURLOverride(input)
 
-        let listTab: ListTabRule? = self.listTab(for: input.context)
+        let entry: ResolvedComicListEntry = try self.listEntry(for: input.context)
         let items: [ContentItem] = try await self.listLoader.execute(
             source: self.source,
-            listTab: listTab,
+            resolvedRule: self.resolvedRule,
+            entry: entry,
             page: max(input.page, 1)
         )
 
@@ -88,8 +92,11 @@ struct ComicSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDetailRunti
         try self.validateSource(input.context)
         try self.validateSearchOverride(input)
 
+        let entry: ResolvedComicSearchEntry = try self.searchEntry(for: input.context)
         let result: SearchSourceResult = try await self.searchLoader.executeWithPagination(
             source: self.source,
+            resolvedRule: self.resolvedRule,
+            entry: entry,
             keyword: input.keyword,
             page: max(input.page, 1),
             urlOverride: input.urlOverride?.absoluteString ?? input.context.requestOverride?.url?.absoluteString
@@ -110,8 +117,11 @@ struct ComicSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDetailRunti
             context: input.context,
             reference: input.itemReference
         )
+        let entry: ResolvedComicDetailEntry = try self.detailEntry(for: input.context)
         let detailContent: ComicRuleParsedDetail = try await self.detailLoader.execute(
             source: self.source,
+            resolvedRule: self.resolvedRule,
+            entry: entry,
             item: item
         )
 
@@ -129,8 +139,12 @@ struct ComicSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDetailRunti
             context: input.context,
             reference: input.itemReference
         )
+        let readerEntry: ResolvedComicReaderEntry = try self.readerEntry(for: input.context)
         let chapter: ReaderChapter = try await self.readerLoader.execute(
             source: self.source,
+            resolvedRule: self.resolvedRule,
+            readerEntry: readerEntry,
+            detailEntry: self.resolvedRule.primaryDetailEntry,
             item: item,
             chapterURLString: input.chapterURL.absoluteString
         )
@@ -142,39 +156,75 @@ struct ComicSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDetailRunti
     }
 
     private var requiresWebView: Bool {
-        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(self.source.rule)
-
-        return self.source.rule.availableListTabs.contains { tab in
-            return self.source.rule.request(for: tab)?.needsWebView == true
-        }
-            || resolvedRule.primaryDetailRequest?.needsWebView == true
-            || resolvedRule.primaryGalleryRequest?.needsWebView == true
+        return self.resolvedRule.listEntries.contains { $0.effectiveRequest?.needsWebView == true }
+            || self.resolvedRule.searchEntries.contains { $0.effectiveRequest?.needsWebView == true }
+            || self.resolvedRule.detailEntries.contains { $0.effectiveRequest?.needsWebView == true }
+            || self.resolvedRule.readerEntries.contains { $0.effectiveRequest?.needsWebView == true }
     }
 
     private var requiresCookieStore: Bool {
-        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(self.source.rule)
-
-        return self.source.rule.availableListTabs.contains { tab in
-            return self.source.rule.request(for: tab)?.cookiePolicy != nil
-        }
-            || resolvedRule.primaryDetailRequest?.cookiePolicy != nil
-            || resolvedRule.primaryGalleryRequest?.cookiePolicy != nil
+        return self.resolvedRule.listEntries.contains { $0.effectiveRequest?.cookiePolicy != nil }
+            || self.resolvedRule.searchEntries.contains { $0.effectiveRequest?.cookiePolicy != nil }
+            || self.resolvedRule.detailEntries.contains { $0.effectiveRequest?.cookiePolicy != nil }
+            || self.resolvedRule.readerEntries.contains { $0.effectiveRequest?.cookiePolicy != nil }
     }
 
-    private func listTab(for context: SourceRuntimeContext) -> ListTabRule? {
-        let listTabs: [ListTabRule] = self.source.rule.availableListTabs
-
+    private func listEntry(for context: SourceRuntimeContext) throws -> ResolvedComicListEntry {
         if let tabID: String = context.tabID,
-           let tab: ListTabRule = listTabs.first(where: { tab in tab.id == tabID }) {
-            return tab
+           let entry: ResolvedComicListEntry = self.resolvedRule.listEntries.first(where: { entry in
+               entry.entryID == tabID
+           }) {
+            return entry
         }
 
         if let ruleID: String = context.ruleID,
-           let tab: ListTabRule = listTabs.first(where: { tab in tab.list.id == ruleID }) {
-            return tab
+           let entry: ResolvedComicListEntry = self.resolvedRule.listEntries.first(where: { entry in
+               entry.ruleID == ruleID
+           }) {
+            return entry
         }
 
-        return listTabs.first
+        if let pageID: String = context.pageID,
+           let entry: ResolvedComicListEntry = self.resolvedRule.listEntries.first(where: { entry in
+               entry.pageID == pageID || entry.entryID == pageID
+           }) {
+            return entry
+        }
+
+        guard let entry: ResolvedComicListEntry = self.resolvedRule.primaryListEntry else {
+            throw SourceRuntimeError.invalidInput("Comic V2 graph has no list entry.")
+        }
+        return entry
+    }
+
+    private func searchEntry(for context: SourceRuntimeContext) throws -> ResolvedComicSearchEntry {
+        let entry = self.resolvedRule.searchEntries.first { entry in
+            context.ruleID == entry.searchRuleID || context.pageID == entry.pageID
+        } ?? self.resolvedRule.primarySearchEntry
+        guard let entry else {
+            throw SourceRuntimeError.invalidInput("Comic V2 graph has no search entry.")
+        }
+        return entry
+    }
+
+    private func detailEntry(for context: SourceRuntimeContext) throws -> ResolvedComicDetailEntry {
+        let entry = self.resolvedRule.detailEntries.first { entry in
+            context.ruleID == entry.detailRuleID || context.pageID == entry.pageID
+        } ?? self.resolvedRule.primaryDetailEntry
+        guard let entry else {
+            throw SourceRuntimeError.invalidInput("Comic V2 graph has no detail entry.")
+        }
+        return entry
+    }
+
+    private func readerEntry(for context: SourceRuntimeContext) throws -> ResolvedComicReaderEntry {
+        let entry = self.resolvedRule.readerEntries.first { entry in
+            context.ruleID == entry.galleryRuleID || context.pageID == entry.pageID
+        } ?? self.resolvedRule.primaryReaderEntry
+        guard let entry else {
+            throw SourceRuntimeError.invalidInput("Comic V2 graph has no reader entry.")
+        }
+        return entry
     }
 
     private func contentItem(

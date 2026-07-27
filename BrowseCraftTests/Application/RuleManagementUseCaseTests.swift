@@ -119,11 +119,17 @@ struct RuleManagementUseCaseTests {
     }
 
     private static func minimalEditableV2RuleJSON(name: String, baseURL: String) -> String {
+        let domain = URL(string: baseURL)?.host ?? "example.test"
         return """
         {
           "version": 2,
           "name": "\(name)",
           "baseUrl": "\(baseURL)",
+          "site": {
+            "name": "\(name)",
+            "domain": "\(domain)",
+            "baseURL": "\(baseURL)"
+          },
           "pages": [
             {
               "id": "home",
@@ -156,26 +162,66 @@ struct RuleManagementUseCaseTests {
               {
                 "id": "home-list",
                 "url": "\(baseURL)/list",
-                "item": ".item",
-                "title": ".title",
-                "link": "a@href",
+                "item": "",
+                "itemRule": {
+                  "selector": ".item",
+                  "selectorKind": "css",
+                  "function": "raw"
+                },
+                "fields": {
+                  "title": {
+                    "selector": ".title",
+                    "selectorKind": "css",
+                    "function": "text"
+                  },
+                  "detailURL": {
+                    "selector": "a",
+                    "selectorKind": "css",
+                    "function": "url",
+                    "param": "href"
+                  }
+                },
+                "title": "",
+                "link": "",
                 "type": "comic"
               }
             ],
             "detailRules": [
               {
                 "id": "detail",
-                "chapterContainer": ".chapters",
-                "chapterItem": "a",
-                "chapterTitle": "text",
-                "chapterLink": "href"
+                "chapterRule": {
+                  "item": {
+                    "selector": ".chapters a",
+                    "selectorKind": "css",
+                    "function": "raw"
+                  },
+                  "title": {
+                    "selectorKind": "current",
+                    "function": "text"
+                  },
+                  "url": {
+                    "selectorKind": "current",
+                    "function": "url",
+                    "param": "href"
+                  }
+                }
               }
             ],
             "galleryRules": [
               {
                 "id": "reader-gallery",
-                "imageItem": "img.page",
-                "imageUrl": "src"
+                "imageItem": "",
+                "imageUrl": "",
+                "item": {
+                  "selector": "img.page",
+                  "selectorKind": "css",
+                  "function": "raw"
+                },
+                "image": {
+                  "selectorKind": "current",
+                  "function": "attr",
+                  "param": "src"
+                }
               }
             ]
           },

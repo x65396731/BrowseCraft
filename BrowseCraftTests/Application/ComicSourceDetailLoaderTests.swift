@@ -22,7 +22,7 @@ struct ComicSourceDetailLoaderTests {
             comicRuleParser: Self.coreParser()
         )
 
-        let content: ChapterDetailContent = try await loader.execute(
+        let content: ComicRuleParsedDetail = try await loader.execute(
             source: Self.sourceWithPreferredChapterAPI(),
             item: ContentItem(
                 id: "comic-5571",

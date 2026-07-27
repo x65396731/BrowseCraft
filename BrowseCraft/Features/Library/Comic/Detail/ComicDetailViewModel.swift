@@ -162,7 +162,14 @@ final class ComicDetailViewModel: ObservableObject {
     }
 
     var chapterNavigationOrder: ChapterNavigationOrder {
-        let detailRule: DetailRule? = self.source.rule.primaryDetailRule
+        let resolvedRule: ResolvedComicSiteRuleV2? = ComicSiteRuleV2Validator()
+            .validate(rule: self.source.rule)
+            .resolvedRule
+        let detailRule: ComicDetailRuleV2? = resolvedRule.flatMap { graph in
+            graph.primaryDetailEntry.map { entry in
+                graph.detailRule(for: entry)
+            }
+        }
         let chapterSort: ChapterSort? = detailRule?.chapterAPI?.sort ?? detailRule?.chapterRule?.sort
         return chapterSort == .ascending ? .ascending : .descending
     }

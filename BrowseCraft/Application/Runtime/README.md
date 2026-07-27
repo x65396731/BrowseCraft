@@ -140,8 +140,8 @@ Comic requests use one Core-owned inheritance path for DOM and API loading:
 
 ```text
 SiteRule.sharedRequest
-  -> PageRule.request / legacy list-detail-gallery request
-  -> ListRule / DetailRule / GalleryRule request
+  -> ComicPageRule.request
+  -> ComicListRuleV2 / ComicSearchRuleV2 / ComicDetailRuleV2 / ComicGalleryRuleV2 request
   -> listAPI / chapterAPI / imageAPI request
 ```
 
@@ -150,9 +150,9 @@ Each child request overrides only the fields it declares unless its
 `needsWebView: false` or `autoScroll: false` disables the shared value without
 dropping shared headers, cookies, charset, or image configuration. This lets a
 comic keep list and detail on HTTP while routing only the reader through
-WebView. Loaders must consume `SiteRule.request(for:)` or `ResolvedSiteRule`
-requests and must not read `sharedRequest` directly or add source-specific
-route branches.
+WebView. Comic loaders must consume the effective requests carried by
+`ResolvedComicSiteRuleV2` entries and must not read `sharedRequest` directly
+or add source-specific route branches.
 
 Native Reader images preserve the URL returned by the source because a signed
 CDN URL can bind its signature to the original transport. ATS exceptions must

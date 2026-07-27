@@ -25,8 +25,24 @@ struct ComicSourceRuntimeFactory {
             throw SourceRuntimeError.invalidInput("Comic runtime requires a comic source configuration.")
         }
 
+        let validation: ComicSiteRuleV2ValidationResult = ComicSiteRuleV2Validator().validate(
+            rule: source.rule
+        )
+        guard validation.canImport,
+              let resolvedRule: ResolvedComicSiteRuleV2 = validation.resolvedRule else {
+            let reason: String = validation.errors.prefix(8).map { issue in
+                return "\(issue.path): \(issue.message)"
+            }.joined(separator: " | ")
+            throw SourceRuntimeError.invalidInput(
+                reason.isEmpty
+                    ? "Comic runtime requires a resolved V2 rule graph."
+                    : reason
+            )
+        }
+
         return ComicSourceRuntime(
             source: source,
+            resolvedRule: resolvedRule,
             listLoader: self.makeListLoader(),
             searchLoader: self.makeSearchLoader(),
             detailLoader: self.makeDetailLoader(),

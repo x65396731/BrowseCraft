@@ -68,22 +68,11 @@ struct ComicRuleParsedDetail: Hashable {
         self.chapters = chapters
     }
 
-    /// 中文注释：兼容第一阶段调用点，后续调用应优先传完整 metadata。
-    init(chapters: [ChapterLink], description: String?) {
-        self.init(
-            metadata: ComicRuleParsedDetailMetadata(description: description),
-            chapters: chapters
-        )
-    }
-
     var description: String? {
         get { return self.metadata.description }
         set { self.metadata.description = newValue }
     }
 }
-
-// 中文注释：仅兼容 loader 级测试名称；跨 runtime 的详情类型始终是 Core SourceDetailOutput。
-typealias ChapterDetailContent = ComicRuleParsedDetail
 
 /// 中文注释：列表/搜索解析结果同时携带 Core 解析出的分页语义，Loader 只负责生成下一次请求。
 struct ComicRuleParsedListResult: Hashable {
@@ -96,33 +85,34 @@ protocol ComicRuleSourceParsingService: ComicRuleAPIResponseParsingService {
     func parseList(
         html: String,
         source: Source,
-        listRule: ListRule,
-        context: ListContext?,
-        sections: [SectionRule]?,
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicListEntry,
         pageURL: URL,
         currentPage: Int?
     ) throws -> [ContentItem]
     func parseSearchResult(
         html: String,
         source: Source,
-        searchRule: SearchRule,
-        context: ListContext?,
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicSearchEntry,
         pageURL: URL,
         currentPage: Int?
     ) throws -> ComicRuleParsedListResult
     func parseDetail(
         html: String,
         source: Source,
-        detailRule: DetailRule,
-        pageURL: String,
-        context: ListContext?
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicDetailEntry,
+        item: ContentItem,
+        pageURL: String
     ) throws -> ComicRuleParsedDetail
     func parseReader(
         html: String,
         source: Source,
-        galleryRule: GalleryRule,
-        pageURL: String,
-        context: ListContext?
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicReaderEntry,
+        item: ContentItem,
+        pageURL: String
     ) throws -> ReaderChapter
 }
 
@@ -132,31 +122,32 @@ protocol ComicRuleAPIResponseParsingService {
         json: String,
         finalURL: URL,
         source: Source,
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicListEntry,
+        sectionBinding: ResolvedComicSectionBinding?,
         templateItem: ContentItem,
-        apiRule: ListAPIRule,
         listPageURL: URL,
-        currentPage: Int?,
-        context: ListContext?
+        currentPage: Int?
     ) throws -> [ContentItem]
 
     func parseChapterAPIResponse(
         json: String,
         finalURL: URL,
         source: Source,
-        item: ContentItem,
-        apiRule: DetailChapterAPIRule,
-        context: ListContext?
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicDetailEntry,
+        item: ContentItem
     ) throws -> ComicRuleParsedDetail
 
     func parseImageAPIResponse(
         json: String,
         finalURL: URL,
         source: Source,
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicReaderEntry,
         item: ContentItem,
-        apiRule: ReaderImageAPIRule,
         chapterURL: URL,
-        chapterFinalURL: URL?,
-        context: ListContext?
+        chapterFinalURL: URL?
     ) throws -> ReaderChapter
 }
 
@@ -177,16 +168,18 @@ extension ComicRuleSourceParsingService {
     func parseDetailChapters(
         html: String,
         source: Source,
-        detailRule: DetailRule,
-        pageURL: String,
-        context: ListContext?
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicDetailEntry,
+        item: ContentItem,
+        pageURL: String
     ) throws -> [ChapterLink] {
         return try self.parseDetail(
             html: html,
             source: source,
-            detailRule: detailRule,
-            pageURL: pageURL,
-            context: context
+            resolvedRule: resolvedRule,
+            entry: entry,
+            item: item,
+            pageURL: pageURL
         ).chapters
     }
 }

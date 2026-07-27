@@ -5,7 +5,7 @@ import BrowseCraftAPIKit
 @testable import BrowseCraft
 
 struct CatalogSourceMaterializerTests {
-    @Test func materializesComicRuleWithEmptyChapterAPIRequestBody() throws {
+    @Test func migratesComicV1CatalogRuleBeforePersistence() throws {
         let materializer: CatalogSourceMaterializer = CatalogSourceMaterializer()
         let catalogSource: BrowseCraftCatalogSource = BrowseCraftCatalogSource(
             id: "komiic",
@@ -55,18 +55,15 @@ struct CatalogSourceMaterializerTests {
             """
         )
 
-        let source: Source = try materializer.source(
+        let source = try materializer.source(
             from: catalogSource,
             createdAt: Date(timeIntervalSince1970: 10),
             updatedAt: Date(timeIntervalSince1970: 20)
         )
 
-        guard case .comic(let configuration) = source.configuration else {
-            Issue.record("Expected catalog source to materialize as a comic source.")
-            return
-        }
-
-        #expect(configuration.rule.name == "Komiic")
+        #expect(source.rule.version == 2)
+        #expect(source.rule.flags?.contains(.migratedV1Compatibility) == true)
+        #expect(ComicSiteRuleV2Validator().validate(rule: source.rule).resolvedRule != nil)
     }
 
     @Test func materializesAndPersistsVideoV2AsRuleDrivenConfiguration() throws {

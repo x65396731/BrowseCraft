@@ -24,12 +24,17 @@ final class CoreRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
         pageID: String?,
         url: String?
     ) throws -> RuleCandidateReport {
+        let fallbackRuleID: String? = ComicSiteRuleV2Validator()
+            .validate(rule: source.rule)
+            .resolvedRule?
+            .primaryListEntry?
+            .ruleID
         return try self.report(
             html: html,
             source: source,
             operation: .list,
             pageID: pageID,
-            ruleID: (listRule ?? source.rule.primaryListRule).id,
+            ruleID: listRule?.id ?? fallbackRuleID,
             url: url,
             candidateScope: .content
         )
@@ -42,12 +47,17 @@ final class CoreRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
         pageID: String?,
         url: String?
     ) throws -> RuleCandidateReport {
+        let fallbackRuleID: String? = ComicSiteRuleV2Validator()
+            .validate(rule: source.rule)
+            .resolvedRule?
+            .primaryDetailEntry?
+            .detailRuleID
         return try self.report(
             html: html,
             source: source,
             operation: .detail,
             pageID: pageID,
-            ruleID: (detailRule ?? source.rule.primaryDetailRule)?.id,
+            ruleID: detailRule?.id ?? fallbackRuleID,
             url: url,
             candidateScope: .content
         )
@@ -60,12 +70,17 @@ final class CoreRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
         pageID: String?,
         url: String?
     ) throws -> RuleCandidateReport {
+        let fallbackRuleID: String? = ComicSiteRuleV2Validator()
+            .validate(rule: source.rule)
+            .resolvedRule?
+            .primaryReaderEntry?
+            .galleryRuleID
         return try self.report(
             html: html,
             source: source,
             operation: .reader,
             pageID: pageID,
-            ruleID: (galleryRule ?? source.rule.primaryGalleryRule)?.id,
+            ruleID: galleryRule?.id ?? fallbackRuleID,
             url: url,
             candidateScope: .content
         )

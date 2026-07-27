@@ -19,8 +19,13 @@ struct ComicSourceDetailLoader {
     }
 
     /// 中文注释：execute 方法封装当前类型的一段业务或界面行为。
-    func execute(source: Source, item: ContentItem) async throws -> ComicRuleParsedDetail {
-        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(source.rule)
+    func execute(
+        source: Source,
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicDetailEntry,
+        item: ContentItem
+    ) async throws -> ComicRuleParsedDetail {
+        let detailRule: ComicDetailRuleV2 = resolvedRule.detailRule(for: entry)
 
         RuleExecutionLogger.log(
             stage: .detail,
@@ -33,13 +38,17 @@ struct ComicSourceDetailLoader {
                 "listRule": item.listContext?.listRuleId ?? "nil",
                 "detailURL": item.detailURL,
                 "latestText": item.latestText ?? "nil",
-                "requestScope": resolvedRule.primaryDetailRequest?.scope?.rawValue ?? "nil",
-                "needsWebView": resolvedRule.primaryDetailRequest?.needsWebView?.description ?? "nil",
-                "autoScroll": resolvedRule.primaryDetailRequest?.autoScroll?.description ?? "nil"
+                "requestScope": entry.effectiveRequest?.scope?.rawValue ?? "nil",
+                "needsWebView": entry.effectiveRequest?.needsWebView?.description ?? "nil",
+                "autoScroll": entry.effectiveRequest?.autoScroll?.description ?? "nil"
             ]
         )
 
-        if shouldTreatDetailURLAsChapter(resolvedRule: resolvedRule, item: item) {
+        if shouldTreatDetailURLAsChapter(
+            resolvedRule: resolvedRule,
+            entry: entry,
+            item: item
+        ) {
             RuleExecutionLogger.log(
                 stage: .detail,
                 event: "direct-chapter",
@@ -69,14 +78,15 @@ struct ComicSourceDetailLoader {
             )
         }
 
-        if let detailRule: DetailRule = resolvedRule.primaryDetailRule,
-           self.shouldPreferDetailAPI(detailRule: detailRule),
+        if self.shouldPreferDetailAPI(detailRule: detailRule),
            self.requiresDetailDocument(detailRule: detailRule) == false,
            let apiDetail: ComicRuleParsedDetail = try await self.loadDetailAPI(
             source: source,
+            resolvedRule: resolvedRule,
+            entry: entry,
             item: item,
             detailRule: detailRule,
-            fallbackRequest: resolvedRule.primaryDetailRequest
+            fallbackRequest: entry.effectiveChapterAPIRequest
            ) {
             RuleExecutionLogger.log(
                 stage: .detail,
@@ -96,51 +106,50 @@ struct ComicSourceDetailLoader {
         let detailResponse = try await self.pageContentLoader.loadContent(
             PageLoadRequest(
                 url: detailURL,
-                requestConfig: resolvedRule.primaryDetailRequest,
+                requestConfig: entry.effectiveRequest,
                 sourceContext: self.requestContext(source: source, refererURL: detailURL)
             )
         )
         let detailHTML = detailResponse.content
         var parsedDetail: ComicRuleParsedDetail
-        if let detailRule: DetailRule = resolvedRule.primaryDetailRule {
-            parsedDetail = try self.comicRuleParser.parseDetail(
-                html: detailHTML,
-                source: source,
-                detailRule: detailRule,
-                pageURL: detailResponse.finalURL.absoluteString,
-                context: item.listContext
-            )
-            let parsedChapters: [ChapterLink] = parsedDetail.chapters
-            let validParsedChapters: [ChapterLink] = self.validChapters(parsedDetail.chapters)
+        parsedDetail = try self.comicRuleParser.parseDetail(
+            html: detailHTML,
+            source: source,
+            resolvedRule: resolvedRule,
+            entry: entry,
+            item: item,
+            pageURL: detailResponse.finalURL.absoluteString
+        )
+        let parsedChapters: [ChapterLink] = parsedDetail.chapters
+        let validParsedChapters: [ChapterLink] = self.validChapters(parsedDetail.chapters)
 
-            if self.shouldUseDetailAPI(detailRule: detailRule, parsedChapters: parsedChapters),
-               let apiDetail: ComicRuleParsedDetail = try await self.loadDetailAPI(
-                source: source,
-                item: item,
-                detailRule: detailRule,
-                fallbackRequest: resolvedRule.primaryDetailRequest
-               ) {
-                parsedDetail.chapters = apiDetail.chapters
-            } else {
-                parsedDetail.chapters = validParsedChapters
-                if parsedChapters.isEmpty == false,
-                   validParsedChapters.isEmpty,
-                   detailRule.chapterAPI == nil {
-                    RuleExecutionLogger.log(
-                        stage: .detail,
-                        event: "detail-api-missing",
-                        fields: [
-                            "source": source.id,
-                            "item": item.id,
-                            "detailURL": item.detailURL,
-                            "invalidChapterCount": parsedChapters.count,
-                            "firstInvalidURL": parsedChapters.first?.url ?? "nil"
-                        ]
-                    )
-                }
-            }
+        if self.shouldUseDetailAPI(detailRule: detailRule, parsedChapters: parsedChapters),
+           let apiDetail: ComicRuleParsedDetail = try await self.loadDetailAPI(
+            source: source,
+            resolvedRule: resolvedRule,
+            entry: entry,
+            item: item,
+            detailRule: detailRule,
+            fallbackRequest: entry.effectiveChapterAPIRequest
+           ) {
+            parsedDetail.chapters = apiDetail.chapters
         } else {
-            parsedDetail = ComicRuleParsedDetail(chapters: [], description: nil)
+            parsedDetail.chapters = validParsedChapters
+            if parsedChapters.isEmpty == false,
+               validParsedChapters.isEmpty,
+               detailRule.chapterAPI == nil {
+                RuleExecutionLogger.log(
+                    stage: .detail,
+                    event: "detail-api-missing",
+                    fields: [
+                        "source": source.id,
+                        "item": item.id,
+                        "detailURL": item.detailURL,
+                        "invalidChapterCount": parsedChapters.count,
+                        "firstInvalidURL": parsedChapters.first?.url ?? "nil"
+                    ]
+                )
+            }
         }
         parsedDetail = self.withItemFallback(parsedDetail, item: item)
 
@@ -164,14 +173,14 @@ struct ComicSourceDetailLoader {
                 stage: .detail,
                 sourceID: source.id,
                 url: item.detailURL,
-                ruleID: resolvedRule.detailEntry?.ruleID
+                ruleID: entry.detailRuleID
             )
         }
 
         return parsedDetail
     }
 
-    private func shouldUseDetailAPI(detailRule: DetailRule, parsedChapters: [ChapterLink]) -> Bool {
+    private func shouldUseDetailAPI(detailRule: ComicDetailRuleV2, parsedChapters: [ChapterLink]) -> Bool {
         guard let apiRule: DetailChapterAPIRule = detailRule.chapterAPI else {
             return false
         }
@@ -179,25 +188,21 @@ struct ComicSourceDetailLoader {
         return apiRule.preferAPI == true || parsedChapters.isEmpty || self.hasInvalidChapterURLs(parsedChapters)
     }
 
-    private func shouldPreferDetailAPI(detailRule: DetailRule) -> Bool {
+    private func shouldPreferDetailAPI(detailRule: ComicDetailRuleV2) -> Bool {
         return detailRule.chapterAPI?.preferAPI == true
     }
 
     /// 中文注释：chapterAPI 只拥有章节语义；存在详情字段时不能因为 preferAPI 而跳过详情文档。
-    private func requiresDetailDocument(detailRule: DetailRule) -> Bool {
+    private func requiresDetailDocument(detailRule: ComicDetailRuleV2) -> Bool {
         return detailRule.fields != nil
-            || self.isNonEmpty(detailRule.title)
-            || self.isNonEmpty(detailRule.cover)
-    }
-
-    private func isNonEmpty(_ value: String?) -> Bool {
-        return value?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
     }
 
     private func loadDetailAPI(
         source: Source,
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicDetailEntry,
         item: ContentItem,
-        detailRule: DetailRule,
+        detailRule: ComicDetailRuleV2,
         fallbackRequest: RequestConfig?
     ) async throws -> ComicRuleParsedDetail? {
         guard let apiRule: DetailChapterAPIRule = detailRule.chapterAPI else {
@@ -234,8 +239,6 @@ struct ComicSourceDetailLoader {
         )
 
         let request: RequestConfig? = self.detailAPIRequest(
-            apiRule: apiRule,
-            detailRule: detailRule,
             fallbackRequest: fallbackRequest,
             source: source,
             item: item
@@ -254,9 +257,9 @@ struct ComicSourceDetailLoader {
             json: response.content,
             finalURL: response.finalURL,
             source: source,
-            item: item,
-            apiRule: apiRule,
-            context: item.listContext
+            resolvedRule: resolvedRule,
+            entry: entry,
+            item: item
         )
         RuleExecutionLogger.log(
             stage: .detail,
@@ -300,15 +303,13 @@ struct ComicSourceDetailLoader {
     }
 
     private func detailAPIRequest(
-        apiRule: DetailChapterAPIRule,
-        detailRule: DetailRule,
         fallbackRequest: RequestConfig?,
         source: Source,
         item: ContentItem
     ) -> RequestConfig? {
         return ComicRuleAPIRequestResolver.request(
-            base: fallbackRequest ?? detailRule.request,
-            override: apiRule.request,
+            base: fallbackRequest,
+            override: nil,
             source: source,
             item: item,
             defaultUserAgent: self.defaultUserAgent
@@ -336,10 +337,14 @@ struct ComicSourceDetailLoader {
 
 }
 
-func shouldTreatDetailURLAsChapter(resolvedRule: ResolvedSiteRule, item: ContentItem) -> Bool {
+func shouldTreatDetailURLAsChapter(
+    resolvedRule: ResolvedComicSiteRuleV2,
+    entry: ResolvedComicDetailEntry,
+    item: ContentItem
+) -> Bool {
     if item.detailURL.contains("/chapters/") {
         return true
     }
 
-    return resolvedRule.treatsDetailURLAsChapter
+    return resolvedRule.detailRule(for: entry).treatDetailURLAsChapter
 }

@@ -33,9 +33,23 @@ struct URLResolvingService {
     }
 
     func listURL(for source: Source, listRule: ListRule, page: Int) throws -> URL {
-        let rawURL: String = self.renderURLTemplate(
-            listRule.url,
+        return try self.listURL(
+            for: source,
+            template: listRule.url,
             placeholders: source.rule.urlPatterns?.listTemplate?.placeholders,
+            page: page
+        )
+    }
+
+    func listURL(
+        for source: Source,
+        template: String,
+        placeholders: [URLPlaceholderRule]? = nil,
+        page: Int
+    ) throws -> URL {
+        let rawURL: String = self.renderURLTemplate(
+            template,
+            placeholders: placeholders,
             source: source,
             page: page,
             keyword: nil,
@@ -51,25 +65,55 @@ struct URLResolvingService {
     }
 
     func searchURL(for source: Source, searchRule: SearchRule, keyword: String, page: Int = 1) throws -> URL {
+        if let template = source.rule.urlPatterns?.searchTemplate {
+            return try self.searchURL(
+                for: source,
+                template: template.template,
+                placeholders: template.placeholders,
+                keyword: keyword,
+                keywordEncoding: searchRule.keywordEncoding,
+                page: page
+            )
+        }
+
+        return try self.searchURL(
+            for: source,
+            template: searchRule.url,
+            placeholders: source.rule.urlPatterns?.searchTemplate?.placeholders,
+            keyword: keyword,
+            keywordEncoding: searchRule.keywordEncoding,
+            page: page
+        )
+    }
+
+    func searchURL(
+        for source: Source,
+        template: String,
+        placeholders: [URLPlaceholderRule]? = nil,
+        keyword: String,
+        keywordEncoding: KeywordEncoding?,
+        page: Int = 1
+    ) throws -> URL {
         let rawURL: String
 
-        if let template: URLTemplateRule = source.rule.urlPatterns?.searchTemplate {
+        if let templateRule: URLTemplateRule = source.rule.urlPatterns?.searchTemplate,
+           templateRule.template == template {
             rawURL = self.renderURLTemplate(
-                template.template,
-                placeholders: template.placeholders,
+                templateRule.template,
+                placeholders: placeholders ?? templateRule.placeholders,
                 source: source,
                 page: page,
                 keyword: keyword,
-                keywordEncoding: searchRule.keywordEncoding
+                keywordEncoding: keywordEncoding
             )
         } else {
             rawURL = self.renderURLTemplate(
-                searchRule.url,
-                placeholders: nil,
+                template,
+                placeholders: placeholders,
                 source: source,
                 page: page,
                 keyword: keyword,
-                keywordEncoding: searchRule.keywordEncoding
+                keywordEncoding: keywordEncoding
             )
         }
 

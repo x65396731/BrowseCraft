@@ -25,12 +25,16 @@ struct ComicSourceSearchLoader {
 
     func execute(
         source: Source,
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicSearchEntry,
         keyword: String,
         page: Int = 1,
         urlOverride: String? = nil
     ) async throws -> [ContentItem] {
         let result: SearchSourceResult = try await self.executeWithPagination(
             source: source,
+            resolvedRule: resolvedRule,
+            entry: entry,
             keyword: keyword,
             page: page,
             urlOverride: urlOverride
@@ -41,17 +45,20 @@ struct ComicSourceSearchLoader {
 
     func executeWithPagination(
         source: Source,
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicSearchEntry,
         keyword: String,
         page: Int = 1,
         urlOverride: String? = nil
     ) async throws -> SearchSourceResult {
-        let entry: SearchRuleEntry = try self.searchRuleEntry(source: source)
+        let searchRule: ComicSearchRuleV2 = resolvedRule.searchRule(for: entry)
         let url: URL
 
         do {
             url = try self.searchURL(
                 source: source,
-                searchRule: entry.rule,
+                template: entry.effectiveURL,
+                searchRule: searchRule,
                 keyword: keyword,
                 page: page,
                 urlOverride: urlOverride
@@ -64,12 +71,12 @@ struct ComicSourceSearchLoader {
             )
         }
 
-        let request: RequestConfig? = entry.effectiveRequest(sharedRequest: source.rule.sharedRequest)
+        let request: RequestConfig? = entry.effectiveRequest
         let context: ListContext = ListContext(
-            pageId: entry.page?.id,
+            pageId: entry.pageID,
             tabId: nil,
             sectionId: nil,
-            listRuleId: entry.rule.listRuleRef,
+            listRuleId: entry.referencedListRuleID,
             sectionRole: nil
         )
 
@@ -79,8 +86,8 @@ struct ComicSourceSearchLoader {
             fields: [
                 "source": source.id,
                 "page": page,
-                "searchPage": entry.page?.id ?? "nil",
-                "searchRule": entry.rule.id ?? "nil",
+                "searchPage": entry.pageID,
+                "searchRule": entry.searchRuleID,
                 "keywordLength": keyword.count,
                 "url": url.absoluteString
             ]
@@ -101,8 +108,8 @@ struct ComicSourceSearchLoader {
         let parsedResult: ComicRuleParsedListResult = try self.comicRuleParser.parseSearchResult(
             html: response.content,
             source: source,
-            searchRule: entry.rule,
-            context: context,
+            resolvedRule: resolvedRule,
+            entry: entry,
             pageURL: response.finalURL,
             currentPage: page
         )
@@ -113,8 +120,8 @@ struct ComicSourceSearchLoader {
             event: "parsed",
             fields: [
                 "source": source.id,
-                "searchPage": entry.page?.id ?? "nil",
-                "searchRule": entry.rule.id ?? "nil",
+                "searchPage": entry.pageID,
+                "searchRule": entry.searchRuleID,
                 "count": items.count,
                 "firstItem": items.first?.id ?? "nil"
             ]
@@ -125,14 +132,15 @@ struct ComicSourceSearchLoader {
                 stage: .search,
                 sourceID: source.id,
                 url: url.absoluteString,
-                ruleID: entry.rule.id
+                ruleID: entry.searchRuleID
             )
         }
 
         let pagination: PaginationResolution? = try self.pagination(
             parsedPagination: parsedResult.pagination,
             source: source,
-            entry: entry,
+            template: entry.effectiveURL,
+            searchRule: searchRule,
             keyword: keyword,
             currentPage: page,
             urlOverride: urlOverride
@@ -144,37 +152,10 @@ struct ComicSourceSearchLoader {
         )
     }
 
-    private func searchRuleEntry(source: Source) throws -> SearchRuleEntry {
-        guard let ruleSets: RuleSets = source.rule.ruleSets,
-              let searchRules: [SearchRule] = ruleSets.searchRules,
-              searchRules.isEmpty == false else {
-            throw RuleExecutionError.ruleConfiguration(
-                stage: .search,
-                sourceID: source.id,
-                reason: "Missing search rule."
-            )
-        }
-
-        if let page: PageRule = source.rule.pages?.first(where: { page in
-            return page.type == .search
-        }) {
-            guard let rule: SearchRule = ruleSets.searchRule(id: page.ruleRefs?.search) else {
-                throw RuleExecutionError.ruleConfiguration(
-                    stage: .search,
-                    sourceID: source.id,
-                    reason: "Missing referenced search rule: \(page.ruleRefs?.search ?? "nil")"
-                )
-            }
-
-            return SearchRuleEntry(page: page, rule: rule)
-        }
-
-        return SearchRuleEntry(page: nil, rule: searchRules[0])
-    }
-
     private func searchURL(
         source: Source,
-        searchRule: SearchRule,
+        template: String,
+        searchRule: ComicSearchRuleV2,
         keyword: String,
         page: Int,
         urlOverride: String?
@@ -182,21 +163,18 @@ struct ComicSourceSearchLoader {
         guard let urlOverride: String = self.nonEmpty(urlOverride) else {
             return try self.urlResolver.searchURL(
                 for: source,
-                searchRule: searchRule,
+                template: template,
                 keyword: keyword,
+                keywordEncoding: searchRule.keywordEncoding,
                 page: page
             )
         }
 
-        var overrideSource: Source = source
-        overrideSource.rule.urlPatterns?.searchTemplate = nil
-        var overrideRule: SearchRule = searchRule
-        overrideRule.url = urlOverride
-
         return try self.urlResolver.searchURL(
-            for: overrideSource,
-            searchRule: overrideRule,
+            for: source,
+            template: urlOverride,
             keyword: keyword,
+            keywordEncoding: searchRule.keywordEncoding,
             page: page
         )
     }
@@ -213,12 +191,13 @@ struct ComicSourceSearchLoader {
     private func pagination(
         parsedPagination: PaginationResolution?,
         source: Source,
-        entry: SearchRuleEntry,
+        template: String,
+        searchRule: ComicSearchRuleV2,
         keyword: String,
         currentPage: Int,
         urlOverride: String?
     ) throws -> PaginationResolution? {
-        guard let pagination: PaginationRule = entry.rule.pagination else {
+        guard let pagination: PaginationRule = searchRule.pagination else {
             return nil
         }
 
@@ -235,7 +214,8 @@ struct ComicSourceSearchLoader {
 
         let placeholderURL: URL? = try self.placeholderNextPageURL(
             source: source,
-            searchRule: entry.rule,
+            template: template,
+            searchRule: searchRule,
             keyword: keyword,
             currentPage: normalizedPage,
             pagination: pagination,
@@ -269,15 +249,15 @@ struct ComicSourceSearchLoader {
 
     private func placeholderNextPageURL(
         source: Source,
-        searchRule: SearchRule,
+        template: String,
+        searchRule: ComicSearchRuleV2,
         keyword: String,
         currentPage: Int,
         pagination: PaginationRule,
         urlOverride: String?
     ) throws -> URL? {
         guard self.canUsePagePlaceholder(
-            source: source,
-            searchRule: searchRule,
+            template: template,
             pagination: pagination,
             urlOverride: urlOverride
         ) else {
@@ -292,6 +272,7 @@ struct ComicSourceSearchLoader {
 
         return try self.searchURL(
             source: source,
+            template: template,
             searchRule: searchRule,
             keyword: keyword,
             page: nextPage,
@@ -300,34 +281,16 @@ struct ComicSourceSearchLoader {
     }
 
     private func canUsePagePlaceholder(
-        source: Source,
-        searchRule: SearchRule,
+        template: String,
         pagination: PaginationRule,
         urlOverride: String?
     ) -> Bool {
-        let template: String
-
-        if let urlOverride: String = self.nonEmpty(urlOverride) {
-            template = urlOverride
-        } else if let searchTemplate: URLTemplateRule = source.rule.urlPatterns?.searchTemplate {
-            template = searchTemplate.template
-        } else {
-            template = searchRule.url
-        }
+        let template: String = self.nonEmpty(urlOverride) ?? template
 
         if let pagePlaceholder: String = self.nonEmpty(pagination.pagePlaceholder) {
             return template.contains(pagePlaceholder)
         }
 
         return template.contains("{page")
-    }
-}
-
-private struct SearchRuleEntry {
-    var page: PageRule?
-    var rule: SearchRule
-
-    func effectiveRequest(sharedRequest: RequestConfig?) -> RequestConfig? {
-        return self.rule.request ?? self.page?.request ?? sharedRequest
     }
 }

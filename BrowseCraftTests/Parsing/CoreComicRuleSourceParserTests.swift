@@ -6,20 +6,20 @@ struct CoreComicRuleSourceParserTests {
     @Test func coreAdapterParsesV2ListDetailAndReaderDocuments() throws {
         let source = try Self.v2Source()
         let parser = Self.parser()
-        let listRule = try #require(source.rule.availableListTabs.first?.list)
+        let resolvedRule = try Self.resolvedRule(for: source)
+        let listEntry = try #require(resolvedRule.primaryListEntry)
         let items = try parser.parseList(
             html: """
-            <main>
+            <main><section class="main-grid">
               <article class="card" data-id="flow-1">
                 <a class="title" href="../comics/flow-1">Core Flow</a>
                 <img class="cover" src="../images/flow-1.jpg">
               </article>
-            </main>
+            </section></main>
             """,
             source: source,
-            listRule: listRule,
-            context: nil,
-            sections: nil,
+            resolvedRule: resolvedRule,
+            entry: listEntry,
             pageURL: URL(string: "https://example.test/catalog/page/1")!,
             currentPage: 1
         )
@@ -30,9 +30,7 @@ struct CoreComicRuleSourceParserTests {
         #expect(items[0].coverURL == "https://example.test/catalog/images/flow-1.jpg")
         #expect(items[0].idCode == "flow-1")
 
-        let detailRule = try #require(
-            RuleResolver().resolve(source.rule).primaryDetailRule
-        )
+        let detailEntry = try #require(resolvedRule.primaryDetailEntry)
         let detail = try parser.parseDetail(
             html: """
             <main>
@@ -43,9 +41,10 @@ struct CoreComicRuleSourceParserTests {
             </main>
             """,
             source: source,
-            detailRule: detailRule,
-            pageURL: items[0].detailURL,
-            context: nil
+            resolvedRule: resolvedRule,
+            entry: detailEntry,
+            item: items[0],
+            pageURL: items[0].detailURL
         )
 
         #expect(detail.chapters.map(\.title) == ["第01话"])
@@ -54,9 +53,7 @@ struct CoreComicRuleSourceParserTests {
                 == ["https://example.test/chapters/flow-1"]
         )
 
-        let galleryRule = try #require(
-            RuleResolver().resolve(source.rule).primaryGalleryRule
-        )
+        let readerEntry = try #require(resolvedRule.primaryReaderEntry)
         let chapter = try parser.parseReader(
             html: """
             <main>
@@ -64,9 +61,10 @@ struct CoreComicRuleSourceParserTests {
             </main>
             """,
             source: source,
-            galleryRule: galleryRule,
-            pageURL: detail.chapters[0].url,
-            context: nil
+            resolvedRule: resolvedRule,
+            entry: readerEntry,
+            item: items[0],
+            pageURL: detail.chapters[0].url
         )
 
         #expect(
@@ -78,19 +76,8 @@ struct CoreComicRuleSourceParserTests {
     @Test func coreAdapterReturnsSearchPaginationFromCore() throws {
         let source = try Self.v2Source()
         let parser = Self.parser()
-        let searchRule = SearchRule(
-            id: "search",
-            url: "https://example.test/search?q={keyword:}&page={page}",
-            listRuleRef: nil,
-            item: ExtractRule(selector: ".search-item", function: .raw),
-            fields: ListFields(
-                title: ExtractRule(selector: ".title", function: .text),
-                detailURL: ExtractRule(selector: "a", function: .url, param: "href")
-            ),
-            pagination: PaginationRule(
-                nextPage: ExtractRule(selector: "a.next", function: .url, param: "href")
-            )
-        )
+        let resolvedRule = try Self.resolvedRule(for: source)
+        let searchEntry = try #require(resolvedRule.primarySearchEntry)
         let result = try parser.parseSearchResult(
             html: """
             <main>
@@ -101,8 +88,8 @@ struct CoreComicRuleSourceParserTests {
             </main>
             """,
             source: source,
-            searchRule: searchRule,
-            context: nil,
+            resolvedRule: resolvedRule,
+            entry: searchEntry,
             pageURL: URL(string: "https://example.test/search?q=test&page=1")!,
             currentPage: 1
         )
@@ -117,10 +104,16 @@ struct CoreComicRuleSourceParserTests {
         return CoreComicRuleSourceParser()
     }
 
+    private static func resolvedRule(for source: Source) throws -> ResolvedComicSiteRuleV2 {
+        return try #require(
+            ComicSiteRuleV2Validator().validate(rule: source.rule).resolvedRule
+        )
+    }
+
     private static func v2Source() throws -> Source {
         var rule = try JSONDecoder().decode(
             SiteRule.self,
-            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
+            from: Data(RuleJSONFixtures.strictComicV2SiteRule.utf8)
         )
         rule.list.item = ".legacy-list-should-not-match"
         rule.detail = nil

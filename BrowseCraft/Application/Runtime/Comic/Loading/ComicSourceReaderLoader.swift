@@ -37,10 +37,13 @@ struct ComicSourceReaderLoader {
     /// 中文注释：execute 方法封装当前类型的一段业务或界面行为。
     func execute(
         source: Source,
+        resolvedRule: ResolvedComicSiteRuleV2,
+        readerEntry: ResolvedComicReaderEntry,
+        detailEntry: ResolvedComicDetailEntry?,
         item: ContentItem,
         chapterURLString: String? = nil
     ) async throws -> ReaderChapter {
-        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(source.rule)
+        let galleryRule: ComicGalleryRuleV2 = resolvedRule.galleryRule(for: readerEntry)
 
         RuleExecutionLogger.log(
             stage: .reader,
@@ -53,15 +56,16 @@ struct ComicSourceReaderLoader {
                 "listRule": item.listContext?.listRuleId ?? "nil",
                 "detailURL": item.detailURL,
                 "preferredChapterURL": chapterURLString ?? "nil",
-                "requestScope": resolvedRule.primaryGalleryRequest?.scope?.rawValue ?? "nil",
-                "needsWebView": resolvedRule.primaryGalleryRequest?.needsWebView?.description ?? "nil",
-                "autoScroll": resolvedRule.primaryGalleryRequest?.autoScroll?.description ?? "nil"
+                "requestScope": readerEntry.effectiveRequest?.scope?.rawValue ?? "nil",
+                "needsWebView": readerEntry.effectiveRequest?.needsWebView?.description ?? "nil",
+                "autoScroll": readerEntry.effectiveRequest?.autoScroll?.description ?? "nil"
             ]
         )
 
         let chapterURLString: String = try await self.resolveChapterURLString(
             source: source,
             resolvedRule: resolvedRule,
+            detailEntry: detailEntry,
             item: item,
             preferredChapterURLString: chapterURLString
         )
@@ -85,61 +89,59 @@ struct ComicSourceReaderLoader {
         }
 
         let chapter: ReaderChapter
-        if let galleryRule: GalleryRule = resolvedRule.primaryGalleryRule {
-            let imageAPIRule: ReaderImageAPIRule? = try self.readerImageAPIRule(
-                source: source,
-                galleryRule: galleryRule
-            )
-            if let imageAPIRule: ReaderImageAPIRule,
-               let apiChapter: ReaderChapter = try await self.loadImageAPI(
-                source: source,
-                item: item,
-                apiRule: imageAPIRule,
-                chapterURLString: chapterURLString,
-                fallbackRequest: resolvedRule.primaryGalleryRequest
-            ) {
-                chapter = apiChapter
-            } else {
-                if imageAPIRule?.resourcePipeline?.executionPolicy == .pipelineOnly {
-                    throw RuleExecutionError.protectedResource(
-                        stage: .reader,
-                        sourceID: source.id,
-                        reason: "Reader image API returned an empty result for pipelineOnly execution"
-                    )
-                }
-                RuleExecutionLogger.log(
+        let imageAPIRule: ReaderImageAPIRule? = self.readerImageAPIRule(
+            source: source,
+            galleryRule: galleryRule
+        )
+        if let imageAPIRule: ReaderImageAPIRule,
+           let apiChapter: ReaderChapter = try await self.loadImageAPI(
+            source: source,
+            resolvedRule: resolvedRule,
+            entry: readerEntry,
+            item: item,
+            apiRule: imageAPIRule,
+            chapterURLString: chapterURLString,
+            fallbackRequest: readerEntry.effectiveImageAPIRequest
+        ) {
+            chapter = apiChapter
+        } else {
+            if imageAPIRule?.resourcePipeline?.executionPolicy == .pipelineOnly {
+                throw RuleExecutionError.protectedResource(
                     stage: .reader,
-                    event: "loader-path",
-                    fields: [
-                        "source": source.id,
-                        "item": item.id,
-                        "path": "domSelector",
-                        "hasImageAPI": (galleryRule.imageAPI != nil).description,
-                        "hasGalleryProtectedResource": (galleryRule.protectedResource != nil).description,
-                        "imageItem": galleryRule.imageItem
-                    ]
-                )
-                let response = try await self.pageContentLoader.loadContent(
-                    PageLoadRequest(
-                        url: chapterURL,
-                        requestConfig: resolvedRule.primaryGalleryRequest,
-                        sourceContext: self.requestContext(
-                            source: source,
-                            purpose: .reader,
-                            refererURL: chapterURL
-                        )
-                    )
-                )
-                chapter = try self.comicRuleParser.parseReader(
-                    html: response.content,
-                    source: source,
-                    galleryRule: galleryRule,
-                    pageURL: response.finalURL.absoluteString,
-                    context: item.listContext
+                    sourceID: source.id,
+                    reason: "Reader image API returned an empty result for pipelineOnly execution"
                 )
             }
-        } else {
-            chapter = emptyReaderChapter(source: source, pageURL: chapterURLString)
+            RuleExecutionLogger.log(
+                stage: .reader,
+                event: "loader-path",
+                fields: [
+                    "source": source.id,
+                    "item": item.id,
+                    "path": "domSelector",
+                    "hasImageAPI": (galleryRule.imageAPI != nil).description,
+                    "imageItem": galleryRule.images?.item?.selector ?? "nil"
+                ]
+            )
+            let response = try await self.pageContentLoader.loadContent(
+                PageLoadRequest(
+                    url: chapterURL,
+                    requestConfig: readerEntry.effectiveRequest,
+                    sourceContext: self.requestContext(
+                        source: source,
+                        purpose: .reader,
+                        refererURL: chapterURL
+                    )
+                )
+            )
+            chapter = try self.comicRuleParser.parseReader(
+                html: response.content,
+                source: source,
+                resolvedRule: resolvedRule,
+                entry: readerEntry,
+                item: item,
+                pageURL: response.finalURL.absoluteString
+            )
         }
 
         RuleExecutionLogger.log(
@@ -159,7 +161,7 @@ struct ComicSourceReaderLoader {
                 stage: .reader,
                 sourceID: source.id,
                 url: chapterURLString,
-                ruleID: resolvedRule.galleryEntry?.ruleID
+                ruleID: readerEntry.galleryRuleID
             )
         }
 
@@ -169,7 +171,8 @@ struct ComicSourceReaderLoader {
     /// 中文注释：resolveChapterURLString 方法封装当前类型的一段业务或界面行为。
     private func resolveChapterURLString(
         source: Source,
-        resolvedRule: ResolvedSiteRule,
+        resolvedRule: ResolvedComicSiteRuleV2,
+        detailEntry: ResolvedComicDetailEntry?,
         item: ContentItem,
         preferredChapterURLString: String?
     ) async throws -> String {
@@ -186,7 +189,11 @@ struct ComicSourceReaderLoader {
             return preferredChapterURLString
         }
 
-        if shouldTreatDetailURLAsChapter(resolvedRule: resolvedRule, item: item) {
+        if self.shouldTreatDetailURLAsChapter(
+            resolvedRule: resolvedRule,
+            detailEntry: detailEntry,
+            item: item
+        ) {
             RuleExecutionLogger.log(
                 stage: .reader,
                 event: "resolve-direct-chapter",
@@ -207,10 +214,18 @@ struct ComicSourceReaderLoader {
             )
         }
 
+        guard let detailEntry: ResolvedComicDetailEntry else {
+            throw RuleExecutionError.ruleConfiguration(
+                stage: .detail,
+                sourceID: source.id,
+                reason: "Comic V2 graph has no detail entry for chapter resolution."
+            )
+        }
+
         let detailResponse = try await self.pageContentLoader.loadContent(
             PageLoadRequest(
                 url: detailURL,
-                requestConfig: resolvedRule.primaryDetailRequest,
+                requestConfig: detailEntry.effectiveRequest,
                 sourceContext: self.requestContext(
                     source: source,
                     purpose: .detail,
@@ -218,18 +233,14 @@ struct ComicSourceReaderLoader {
                 )
             )
         )
-        let chapters: [ChapterLink]
-        if let detailRule: DetailRule = resolvedRule.primaryDetailRule {
-            chapters = try self.comicRuleParser.parseDetailChapters(
-                html: detailResponse.content,
-                source: source,
-                detailRule: detailRule,
-                pageURL: detailResponse.finalURL.absoluteString,
-                context: item.listContext
-            )
-        } else {
-            chapters = []
-        }
+        let chapters: [ChapterLink] = try self.comicRuleParser.parseDetailChapters(
+            html: detailResponse.content,
+            source: source,
+            resolvedRule: resolvedRule,
+            entry: detailEntry,
+            item: item,
+            pageURL: detailResponse.finalURL.absoluteString
+        )
 
         RuleExecutionLogger.log(
             stage: .detail,
@@ -279,8 +290,23 @@ struct ComicSourceReaderLoader {
             stage: .detail,
             sourceID: source.id,
             url: item.detailURL,
-            ruleID: resolvedRule.detailEntry?.ruleID
+            ruleID: detailEntry.detailRuleID
         )
+    }
+
+    private func shouldTreatDetailURLAsChapter(
+        resolvedRule: ResolvedComicSiteRuleV2,
+        detailEntry: ResolvedComicDetailEntry?,
+        item: ContentItem
+    ) -> Bool {
+        if item.detailURL.contains("/chapters/") {
+            return true
+        }
+
+        guard let detailEntry else {
+            return false
+        }
+        return resolvedRule.detailRule(for: detailEntry).treatDetailURLAsChapter
     }
 
     /// 中文注释：chapter 方法封装当前类型的一段业务或界面行为。
@@ -311,8 +337,8 @@ struct ComicSourceReaderLoader {
 
     private func readerImageAPIRule(
         source: Source,
-        galleryRule: GalleryRule
-    ) throws -> ReaderImageAPIRule? {
+        galleryRule: ComicGalleryRuleV2
+    ) -> ReaderImageAPIRule? {
         if let imageAPI: ReaderImageAPIRule = galleryRule.imageAPI {
             RuleExecutionLogger.log(
                 stage: .reader,
@@ -332,6 +358,8 @@ struct ComicSourceReaderLoader {
 
     private func loadImageAPI(
         source: Source,
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicReaderEntry,
         item: ContentItem,
         apiRule: ReaderImageAPIRule,
         chapterURLString: String,
@@ -382,7 +410,7 @@ struct ComicSourceReaderLoader {
 
         let request: RequestConfig? = ComicRuleAPIRequestResolver.request(
             base: fallbackRequest,
-            override: apiRule.request,
+            override: nil,
             source: source,
             item: item,
             chapterURL: chapterURLString,
@@ -410,11 +438,11 @@ struct ComicSourceReaderLoader {
             json: response.content,
             finalURL: response.finalURL,
             source: source,
+            resolvedRule: resolvedRule,
+            entry: entry,
             item: item,
-            apiRule: apiRule,
             chapterURL: chapterURL,
-            chapterFinalURL: chapterFinalURL,
-            context: item.listContext
+            chapterFinalURL: chapterFinalURL
         )
         RuleExecutionLogger.log(
             stage: .reader,
@@ -526,17 +554,4 @@ struct ComicSourceReaderLoader {
             refererURL: refererURL
         )
     }
-}
-
-private func emptyReaderChapter(source: Source, pageURL: String) -> ReaderChapter {
-    return ReaderChapter(
-        sourceId: source.id,
-        comicTitle: nil,
-        chapterTitle: nil,
-        chapterURL: pageURL,
-        catalogURL: nil,
-        previousChapterURL: nil,
-        nextChapterURL: nil,
-        pageImageURLs: []
-    )
 }

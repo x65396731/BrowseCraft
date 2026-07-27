@@ -153,7 +153,10 @@ struct SourceDebugView: View {
     }
 
     private func comicSection(rule: SiteRule) -> some View {
-        Section("Comic Rule") {
+        let resolvedRule: ResolvedComicSiteRuleV2? = ComicSiteRuleV2Validator()
+            .validate(rule: rule)
+            .resolvedRule
+        return Section("Comic Rule") {
             LabeledContent("Rule Name", value: rule.name)
             LabeledContent("Base URL", value: rule.baseUrl)
 
@@ -163,30 +166,34 @@ struct SourceDebugView: View {
                 LabeledContent("Language", value: site.language ?? "Unset")
             }
 
-            LabeledContent("Pages", value: "\(rule.pages?.count ?? 0)")
-            LabeledContent("Tabs", value: "\(rule.availableListTabs.count)")
+            LabeledContent("Pages", value: "\(resolvedRule?.raw.pages.count ?? 0)")
+            LabeledContent("Tabs", value: "\(resolvedRule?.listEntries.count ?? 0)")
         }
     }
 
     private func comicRuleSetsSection(rule: SiteRule) -> some View {
-        Section("RuleSets") {
-            let ruleSets: RuleSets? = rule.ruleSets
-            self.countLine("Series", count: ruleSets?.seriesRules?.count ?? 0)
-            self.countLine("List", count: ruleSets?.listRules?.count ?? 0)
-            self.countLine("Detail", count: ruleSets?.detailRules?.count ?? 0)
-            self.countLine("Gallery", count: ruleSets?.galleryRules?.count ?? 0)
-            self.countLine("Search", count: ruleSets?.searchRules?.count ?? 0)
+        let standardRule: ComicSiteRuleV2? = ComicSiteRuleV2Validator()
+            .validate(rule: rule)
+            .standardRule
+        return Section("RuleSets") {
+            self.countLine("Series", count: standardRule?.ruleSets.seriesRules.count ?? 0)
+            self.countLine("List", count: standardRule?.ruleSets.listRules.count ?? 0)
+            self.countLine("Detail", count: standardRule?.ruleSets.detailRules.count ?? 0)
+            self.countLine("Gallery", count: standardRule?.ruleSets.galleryRules.count ?? 0)
+            self.countLine("Search", count: standardRule?.ruleSets.searchRules.count ?? 0)
         }
     }
 
     private func comicRequestSection(rule: SiteRule) -> some View {
-        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(rule)
+        let resolvedRule: ResolvedComicSiteRuleV2? = ComicSiteRuleV2Validator()
+            .validate(rule: rule)
+            .resolvedRule
 
         return Section("Request") {
-            self.requestLine("Shared", request: rule.sharedRequest)
-            self.requestLine("List", request: rule.primaryListRequest)
-            self.requestLine("Detail", request: resolvedRule.primaryDetailRequest)
-            self.requestLine("Reader", request: resolvedRule.primaryGalleryRequest)
+            self.requestLine("Shared", request: resolvedRule?.raw.sharedRequest)
+            self.requestLine("List", request: resolvedRule?.primaryListEntry?.effectiveRequest)
+            self.requestLine("Detail", request: resolvedRule?.primaryDetailEntry?.effectiveRequest)
+            self.requestLine("Reader", request: resolvedRule?.primaryReaderEntry?.effectiveRequest)
         }
     }
 

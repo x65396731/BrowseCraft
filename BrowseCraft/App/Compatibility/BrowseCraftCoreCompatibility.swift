@@ -172,14 +172,21 @@ extension BrowseCraftCore.SiteRule {
     /// Keep this public example generic so the app shell can be published safely.
 }
 
-// MARK: - Resolved Rule Compatibility
+// MARK: - Resolved Comic V2 Compatibility
 
-typealias ResolvedSiteRule = BrowseCraftCore.ResolvedSiteRule
-typealias ResolvedDetailEntry = BrowseCraftCore.ResolvedDetailEntry
-typealias ResolvedGalleryEntry = BrowseCraftCore.ResolvedGalleryEntry
-typealias ResolvedDetailContext = BrowseCraftCore.ResolvedDetailContext
-typealias ResolvedReaderContext = BrowseCraftCore.ResolvedReaderContext
-typealias RuleResolver = BrowseCraftCore.RuleResolver
+typealias ComicSiteRuleV2 = BrowseCraftCore.ComicSiteRuleV2
+typealias ComicListRuleV2 = BrowseCraftCore.ComicListRuleV2
+typealias ComicDetailRuleV2 = BrowseCraftCore.ComicDetailRuleV2
+typealias ComicGalleryRuleV2 = BrowseCraftCore.ComicGalleryRuleV2
+typealias ComicSearchRuleV2 = BrowseCraftCore.ComicSearchRuleV2
+typealias ResolvedComicSiteRuleV2 = BrowseCraftCore.ResolvedComicSiteRuleV2
+typealias ResolvedComicListEntry = BrowseCraftCore.ResolvedComicListEntry
+typealias ResolvedComicSectionBinding = BrowseCraftCore.ResolvedComicSectionBinding
+typealias ResolvedComicSearchEntry = BrowseCraftCore.ResolvedComicSearchEntry
+typealias ResolvedComicDetailEntry = BrowseCraftCore.ResolvedComicDetailEntry
+typealias ResolvedComicReaderEntry = BrowseCraftCore.ResolvedComicReaderEntry
+typealias ComicSiteRuleV2ValidationResult = BrowseCraftCore.ComicSiteRuleV2ValidationResult
+typealias ComicSiteRuleV2Validator = BrowseCraftCore.ComicSiteRuleV2Validator
 
 // MARK: - Rule Candidate Compatibility
 

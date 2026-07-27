@@ -13,23 +13,21 @@ struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
     func parseList(
         html: String,
         source: Source,
-        listRule: ListRule,
-        context: ListContext?,
-        sections: [SectionRule]?,
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicListEntry,
         pageURL: URL,
         currentPage: Int?
     ) throws -> [ContentItem] {
         let output = try self.parser.parseList(
-            BrowseCraftCore.ComicListParsingInput(
+            BrowseCraftCore.ResolvedComicListParsingInput(
                 document: self.htmlDocument(html, finalURL: pageURL),
-                rule: listRule,
-                sections: sections,
-                listContext: context,
+                graph: resolvedRule,
+                entry: entry,
                 runtimeContext: self.runtimeContext(
                     source: source,
                     operation: .list,
-                    context: context,
-                    ruleID: listRule.id
+                    context: entry.listContext,
+                    ruleID: entry.ruleID
                 ),
                 currentPage: currentPage
             )
@@ -37,31 +35,32 @@ struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
         return self.contentItems(
             from: output.items,
             source: source,
-            fallbackContext: context
+            fallbackContext: entry.listContext
         )
     }
 
     func parseSearchResult(
         html: String,
         source: Source,
-        searchRule: SearchRule,
-        context: ListContext?,
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicSearchEntry,
         pageURL: URL,
         currentPage: Int?
     ) throws -> ComicRuleParsedListResult {
-        let referencedListRule = source.rule.ruleSets?
-            .listRule(id: searchRule.listRuleRef)
+        let context = ListContext(
+            pageId: entry.pageID,
+            listRuleId: entry.referencedListRuleID
+        )
         let output = try self.parser.parseSearch(
-            BrowseCraftCore.ComicSearchParsingInput(
+            BrowseCraftCore.ResolvedComicSearchParsingInput(
                 document: self.htmlDocument(html, finalURL: pageURL),
-                rule: searchRule,
-                referencedListRule: referencedListRule,
-                listContext: context,
+                graph: resolvedRule,
+                entry: entry,
                 runtimeContext: self.runtimeContext(
                     source: source,
                     operation: .search,
                     context: context,
-                    ruleID: searchRule.id
+                    ruleID: entry.searchRuleID
                 ),
                 currentPage: currentPage
             )
@@ -82,24 +81,30 @@ struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
     func parseDetail(
         html: String,
         source: Source,
-        detailRule: DetailRule,
-        pageURL: String,
-        context: ListContext?
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicDetailEntry,
+        item: ContentItem,
+        pageURL: String
     ) throws -> ComicRuleParsedDetail {
         guard let finalURL = URL(string: pageURL) else {
             throw BrowseCraftCore.SourceParsingError.invalidURL(value: pageURL)
         }
 
         let output = try self.parser.parseDetail(
-            BrowseCraftCore.ComicDetailParsingInput(
+            BrowseCraftCore.ResolvedComicDetailParsingInput(
                 document: self.htmlDocument(html, finalURL: finalURL),
-                rule: detailRule,
-                listContext: context,
+                graph: resolvedRule,
+                entry: entry,
+                itemReference: self.itemReference(
+                    source: source,
+                    item: item,
+                    chapterURL: nil
+                ),
                 runtimeContext: self.runtimeContext(
                     source: source,
                     operation: .detail,
-                    context: context,
-                    ruleID: detailRule.id
+                    context: item.listContext,
+                    ruleID: entry.detailRuleID
                 )
             )
         )
@@ -109,24 +114,30 @@ struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
     func parseReader(
         html: String,
         source: Source,
-        galleryRule: GalleryRule,
-        pageURL: String,
-        context: ListContext?
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicReaderEntry,
+        item: ContentItem,
+        pageURL: String
     ) throws -> ReaderChapter {
         guard let finalURL = URL(string: pageURL) else {
             throw BrowseCraftCore.SourceParsingError.invalidURL(value: pageURL)
         }
 
         let output = try self.parser.parseReader(
-            BrowseCraftCore.ComicReaderParsingInput(
+            BrowseCraftCore.ResolvedComicReaderParsingInput(
                 document: self.htmlDocument(html, finalURL: finalURL),
-                rule: galleryRule,
-                listContext: context,
+                graph: resolvedRule,
+                entry: entry,
+                itemReference: self.itemReference(
+                    source: source,
+                    item: item,
+                    chapterURL: finalURL
+                ),
                 runtimeContext: self.runtimeContext(
                     source: source,
                     operation: .reader,
-                    context: context,
-                    ruleID: galleryRule.id
+                    context: item.listContext,
+                    ruleID: entry.galleryRuleID
                 )
             )
         )
@@ -137,17 +148,20 @@ struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
         json: String,
         finalURL: URL,
         source: Source,
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicListEntry,
+        sectionBinding: ResolvedComicSectionBinding?,
         templateItem: ContentItem,
-        apiRule: ListAPIRule,
         listPageURL: URL,
-        currentPage: Int?,
-        context: ListContext?
+        currentPage: Int?
     ) throws -> [ContentItem] {
         do {
             let output = try self.parser.parseListAPIResponse(
-                BrowseCraftCore.ComicListAPIResponseParsingInput(
+                BrowseCraftCore.ResolvedComicListAPIResponseParsingInput(
                     document: self.jsonDocument(json, finalURL: finalURL),
-                    rule: apiRule,
+                    graph: resolvedRule,
+                    entry: entry,
+                    sectionBinding: sectionBinding,
                     templateItemReference: self.itemReference(
                         source: source,
                         item: templateItem,
@@ -159,8 +173,8 @@ struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
                     runtimeContext: self.runtimeContext(
                         source: source,
                         operation: .list,
-                        context: context,
-                        ruleID: context?.listRuleId
+                        context: entry.listContext,
+                        ruleID: sectionBinding?.ruleID ?? entry.ruleID
                     ),
                     currentPage: currentPage
                 )
@@ -169,7 +183,7 @@ struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
             return self.contentItems(
                 from: output.items,
                 source: source,
-                fallbackContext: context
+                fallbackContext: entry.listContext
             ).map { item in
                 var item = item
                 item.updatedAt = receivedAt
@@ -189,15 +203,16 @@ struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
         json: String,
         finalURL: URL,
         source: Source,
-        item: ContentItem,
-        apiRule: DetailChapterAPIRule,
-        context: ListContext?
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicDetailEntry,
+        item: ContentItem
     ) throws -> ComicRuleParsedDetail {
         do {
             let output = try self.parser.parseChapterAPIResponse(
-                BrowseCraftCore.ComicChapterAPIResponseParsingInput(
+                BrowseCraftCore.ResolvedComicChapterAPIResponseParsingInput(
                     document: self.jsonDocument(json, finalURL: finalURL),
-                    rule: apiRule,
+                    graph: resolvedRule,
+                    entry: entry,
                     itemReference: self.itemReference(
                         source: source,
                         item: item,
@@ -208,8 +223,8 @@ struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
                     runtimeContext: self.runtimeContext(
                         source: source,
                         operation: .detail,
-                        context: context,
-                        ruleID: nil
+                        context: item.listContext,
+                        ruleID: entry.detailRuleID
                     )
                 )
             )
@@ -228,17 +243,18 @@ struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
         json: String,
         finalURL: URL,
         source: Source,
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicReaderEntry,
         item: ContentItem,
-        apiRule: ReaderImageAPIRule,
         chapterURL: URL,
-        chapterFinalURL: URL?,
-        context: ListContext?
+        chapterFinalURL: URL?
     ) throws -> ReaderChapter {
         do {
             let output = try self.parser.parseImageAPIResponse(
-                BrowseCraftCore.ComicImageAPIResponseParsingInput(
+                BrowseCraftCore.ResolvedComicImageAPIResponseParsingInput(
                     document: self.jsonDocument(json, finalURL: finalURL),
-                    rule: apiRule,
+                    graph: resolvedRule,
+                    entry: entry,
                     itemReference: self.itemReference(
                         source: source,
                         item: item,
@@ -251,8 +267,8 @@ struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
                     runtimeContext: self.runtimeContext(
                         source: source,
                         operation: .reader,
-                        context: context,
-                        ruleID: nil
+                        context: item.listContext,
+                        ruleID: entry.galleryRuleID
                     )
                 )
             )
@@ -267,11 +283,12 @@ struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
         } catch let error as RuleExecutionError {
             throw error
         } catch {
+            let imageAPI = resolvedRule.galleryRule(for: entry).imageAPI
             throw self.apiParsingError(
                 error,
                 source: source,
                 stage: .reader,
-                pipelineOnly: apiRule.resourcePipeline?.executionPolicy == .pipelineOnly
+                pipelineOnly: imageAPI?.resourcePipeline?.executionPolicy == .pipelineOnly
             )
         }
     }

@@ -19,16 +19,21 @@ struct ComicSourceListLoader {
         self.defaultUserAgent = defaultUserAgent
     }
 
-    func execute(source: Source, page: Int = 1) async throws -> [ContentItem] {
-        return try await self.execute(source: source, listTab: source.rule.availableListTabs.first, page: page)
-    }
-
-    func execute(source: Source, listTab: ListTabRule?, page: Int = 1) async throws -> [ContentItem] {
-        let listRule: ListRule = listTab?.list ?? source.rule.list
-        let pageRequest: RequestConfig? = source.rule.request(for: listTab)
+    func execute(
+        source: Source,
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicListEntry,
+        page: Int = 1
+    ) async throws -> [ContentItem] {
+        let listRule: ComicListRuleV2 = resolvedRule.listRule(for: entry)
+        let pageRequest: RequestConfig? = entry.effectiveRequest
         let url: URL
         do {
-            url = try self.urlResolver.listURL(for: source, listRule: listRule, page: page)
+            url = try self.urlResolver.listURL(
+                for: source,
+                template: entry.effectiveURL,
+                page: page
+            )
         } catch {
             throw RuleExecutionError.ruleConfiguration(
                 stage: .list,
@@ -37,19 +42,16 @@ struct ComicSourceListLoader {
             )
         }
 
-        let listContext: ListContext = self.listContext(
-            listTab: listTab,
-            listRule: listRule
-        )
+        let listContext: ListContext = entry.listContext
 
         RuleExecutionLogger.log(
             stage: .list,
             event: "request",
             fields: [
                 "source": source.id,
-                "tab": listTab?.id ?? "default",
-                "title": listTab?.title ?? "default",
-                "listRule": listRule.id ?? "nil",
+                "tab": entry.entryID,
+                "title": entry.title,
+                "listRule": listRule.id,
                 "section": listContext.sectionId ?? "nil",
                 "page": page,
                 "url": url.absoluteString,
@@ -63,7 +65,8 @@ struct ComicSourceListLoader {
             do {
                 let apiItems: [ContentItem] = try await self.loadListAPI(
                     source: source,
-                    listTab: listTab,
+                    resolvedRule: resolvedRule,
+                    entry: entry,
                     listRule: listRule,
                     listContext: listContext,
                     page: page,
@@ -142,9 +145,8 @@ struct ComicSourceListLoader {
             items = try self.comicRuleParser.parseList(
                 html: html,
                 source: source,
-                listRule: listRule,
-                context: listContext,
-                sections: listTab?.sections,
+                resolvedRule: resolvedRule,
+                entry: entry,
                 pageURL: response.finalURL,
                 currentPage: page
             )
@@ -155,7 +157,7 @@ struct ComicSourceListLoader {
                 ruleID: listRule.id,
                 url: url.absoluteString,
                 operation: "parseList",
-                selector: listRule.item,
+                selector: listRule.extraction?.item.selector,
                 htmlPreview: Self.htmlPreview(from: html),
                 underlyingDescription: error.localizedDescription
             )
@@ -166,8 +168,8 @@ struct ComicSourceListLoader {
             event: "parsed",
             fields: [
                 "source": source.id,
-                "tab": listTab?.id ?? "default",
-                "listRule": listRule.id ?? "nil",
+                "tab": entry.entryID,
+                "listRule": listRule.id,
                 "section": listContext.sectionId ?? "nil",
                 "count": items.count,
                 "firstItem": items.first?.id ?? "nil"
@@ -198,8 +200,9 @@ struct ComicSourceListLoader {
 
     private func loadListAPI(
         source: Source,
-        listTab: ListTabRule?,
-        listRule: ListRule,
+        resolvedRule: ResolvedComicSiteRuleV2,
+        entry: ResolvedComicListEntry,
+        listRule: ComicListRuleV2,
         listContext: ListContext,
         page: Int,
         fallbackURL: URL
@@ -210,7 +213,7 @@ struct ComicSourceListLoader {
 
         let templateItem: ContentItem = self.templateItem(
             source: source,
-            listTab: listTab,
+            entry: entry,
             listRule: listRule,
             fallbackURL: fallbackURL
         )
@@ -231,8 +234,8 @@ struct ComicSourceListLoader {
         }
 
         let request: RequestConfig? = ComicRuleAPIRequestResolver.request(
-            base: source.rule.request(for: listTab),
-            override: apiRule.request,
+            base: entry.effectiveAPIRequest,
+            override: nil,
             source: source,
             item: templateItem,
             page: page,
@@ -266,11 +269,12 @@ struct ComicSourceListLoader {
             json: response.content,
             finalURL: response.finalURL,
             source: source,
+            resolvedRule: resolvedRule,
+            entry: entry,
+            sectionBinding: nil,
             templateItem: templateItem,
-            apiRule: apiRule,
             listPageURL: fallbackURL,
-            currentPage: page,
-            context: listContext
+            currentPage: page
         )
 
         RuleExecutionLogger.log(
@@ -303,13 +307,13 @@ struct ComicSourceListLoader {
 
     private func templateItem(
         source: Source,
-        listTab: ListTabRule?,
-        listRule: ListRule,
+        entry: ResolvedComicListEntry,
+        listRule: ComicListRuleV2,
         fallbackURL: URL
     ) -> ContentItem {
-        let title: String = listTab?.title ?? listRule.id ?? source.name
+        let title: String = entry.title
         return ContentItem(
-            id: "\(source.id):\(listRule.id ?? "list")",
+            id: "\(source.id):\(listRule.id)",
             sourceId: source.id,
             title: title,
             detailURL: fallbackURL.absoluteString,
@@ -317,26 +321,7 @@ struct ComicSourceListLoader {
             type: listRule.type,
             latestText: nil,
             updatedAt: nil,
-            listContext: self.listContext(listTab: listTab, listRule: listRule)
-        )
-    }
-
-    private func listContext(listTab: ListTabRule?, listRule: ListRule) -> ListContext {
-        if var context: ListContext = listTab?.context {
-            if context.listRuleId == nil {
-                context.listRuleId = listRule.id
-            }
-
-            return context
-        }
-
-        // 中文注释：旧 listTabs 没有 PageRule 上下文时，先把 tab id 作为最小入口标识保存下来。
-        return ListContext(
-            pageId: listTab?.id,
-            tabId: listTab?.id,
-            sectionId: nil,
-            listRuleId: listRule.id,
-            sectionRole: .main
+            listContext: entry.listContext
         )
     }
 

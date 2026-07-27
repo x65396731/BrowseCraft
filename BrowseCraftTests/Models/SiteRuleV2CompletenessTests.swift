@@ -116,72 +116,32 @@ struct SiteRuleV2CompletenessTests {
         #expect(rule.primaryListRule.id == "latest-list")
     }
 
-    @Test func v2ListPagesMergeAdditionalLegacyListTabs() throws {
-        var rule: SiteRule = try JSONDecoder().decode(
-            SiteRule.self,
-            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
-        )
-        let duplicateHomeListTab: ListTabRule = ListTabRule(
-            id: "legacy-home",
-            title: "Duplicate Home",
-            list: rule.primaryListRule
-        )
-        let updatedListTab: ListTabRule = ListTabRule(
-            id: "updated",
-            title: "Updated",
-            list: ListRule(
-                id: "updated-list",
-                url: "https://example.test/updated/{page}",
-                text: nil,
-                item: ".comic-card",
-                itemRule: nil,
-                fields: nil,
-                title: ".title",
-                link: "a@href",
-                cover: nil,
-                type: .comic,
-                latestText: nil,
-                pagination: nil,
-                ready: nil,
-                request: nil,
-                js: nil
-            )
-        )
-        rule.listTabs = [
-            duplicateHomeListTab,
-            updatedListTab
-        ]
-
-        let tabs: [ListTabRule] = rule.availableListTabs
-
-        // 中文注释：V2 PageRule 仍是主入口，但旧 listTabs 中不同的分类入口不能被整个丢弃。
-        #expect(tabs.map(\.id) == ["discover", "latest", "updated"])
-        #expect(tabs.map { tab in tab.list.id } == ["home-list", "latest-list", "updated-list"])
-    }
-
     @Test func v2RequestsResolveByRulePageAndSharedPriority() throws {
         var rule: SiteRule = try JSONDecoder().decode(
             SiteRule.self,
-            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
+            from: Data(RuleJSONFixtures.strictComicV2SiteRule.utf8)
         )
 
         // 中文注释：请求配置按 Site → Page → Rule 合并，子层字段覆盖父层且保留未重写的共享字段。
-        #expect(rule.primaryListRequest?.scope == .rule)
-        #expect(rule.primaryGalleryRequest?.scope == .image)
-        #expect(rule.primaryDetailRequest?.scope == .site)
-        #expect(rule.primaryListRequest?.headers?["User-Agent"] == "BrowseCraft")
+        var resolvedRule = try Self.resolvedRule(for: rule)
+        #expect(resolvedRule.primaryListEntry?.effectiveRequest?.scope == .rule)
+        #expect(resolvedRule.primaryReaderEntry?.effectiveRequest?.scope == .rule)
+        #expect(resolvedRule.primaryDetailEntry?.effectiveRequest?.scope == .site)
+        #expect(resolvedRule.primaryListEntry?.effectiveRequest?.headers?["User-Agent"] == "BrowseCraft")
 
         rule.ruleSets?.listRules?[0].request = nil
-        #expect(rule.primaryListRequest?.scope == .page)
+        resolvedRule = try Self.resolvedRule(for: rule)
+        #expect(resolvedRule.primaryListEntry?.effectiveRequest?.scope == .page)
 
         rule.pages?[0].request = nil
-        #expect(rule.primaryListRequest?.scope == .site)
+        resolvedRule = try Self.resolvedRule(for: rule)
+        #expect(resolvedRule.primaryListEntry?.effectiveRequest?.scope == .site)
     }
 
     @Test func pageRequestCanDisableSharedWebViewForDetailOnly() throws {
         var rule: SiteRule = try JSONDecoder().decode(
             SiteRule.self,
-            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
+            from: Data(RuleJSONFixtures.strictComicV2SiteRule.utf8)
         )
         rule.sharedRequest?.needsWebView = true
         rule.sharedRequest?.autoScroll = true
@@ -194,55 +154,57 @@ struct SiteRuleV2CompletenessTests {
             autoScroll: false
         )
         rule.pages?[2].request = RequestConfig(
-            scope: .reader,
+            scope: .page,
             mergePolicy: .mergeHeadersAndCookies,
             needsWebView: true,
             autoScroll: true
         )
 
-        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(rule)
+        let resolvedRule = try Self.resolvedRule(for: rule)
 
-        #expect(resolvedRule.primaryDetailRequest?.needsWebView == false)
-        #expect(resolvedRule.primaryDetailRequest?.autoScroll == false)
-        #expect(resolvedRule.primaryDetailRequest?.headers?["User-Agent"] == "BrowseCraft")
-        #expect(resolvedRule.primaryGalleryRequest?.needsWebView == true)
-        #expect(resolvedRule.primaryGalleryRequest?.autoScroll == true)
+        #expect(resolvedRule.primaryDetailEntry?.effectiveRequest?.needsWebView == false)
+        #expect(resolvedRule.primaryDetailEntry?.effectiveRequest?.autoScroll == false)
+        #expect(resolvedRule.primaryDetailEntry?.effectiveRequest?.headers?["User-Agent"] == "BrowseCraft")
+        #expect(resolvedRule.primaryReaderEntry?.effectiveRequest?.needsWebView == true)
+        #expect(resolvedRule.primaryReaderEntry?.effectiveRequest?.autoScroll == true)
     }
 
     @Test func resolvedDetailAndGalleryEntriesKeepPageRulePairing() throws {
         var rule: SiteRule = try JSONDecoder().decode(
             SiteRule.self,
-            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
+            from: Data(RuleJSONFixtures.strictComicV2SiteRule.utf8)
         )
 
-        // 中文注释：ResolvedSiteRule 应一次性固定 page 与 rule 的绑定，避免 request 和 rule 来自不同入口。
+        // 中文注释：ResolvedComicSiteRuleV2 应一次性固定 page 与 rule 的绑定。
         rule.ruleSets?.detailRules?[0].request = nil
         rule.ruleSets?.galleryRules?[0].request = nil
         let pageRequest: RequestConfig? = rule.pages?[0].request
         rule.pages?[1].request = pageRequest
         rule.pages?[2].request = pageRequest
 
-        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(rule)
+        let resolvedRule = try Self.resolvedRule(for: rule)
+        let detailEntry = try #require(resolvedRule.primaryDetailEntry)
+        let readerEntry = try #require(resolvedRule.primaryReaderEntry)
 
-        #expect(resolvedRule.detailEntry?.pageID == "detail")
-        #expect(resolvedRule.detailEntry?.ruleID == "detail")
-        #expect(resolvedRule.primaryDetailRule?.id == "detail")
-        #expect(resolvedRule.detailEntry?.effectiveRequest?.scope == .page)
-        #expect(resolvedRule.galleryEntry?.pageID == "reader")
-        #expect(resolvedRule.galleryEntry?.ruleID == "reader-gallery")
-        #expect(resolvedRule.primaryGalleryRule?.id == "reader-gallery")
-        #expect(resolvedRule.galleryEntry?.effectiveRequest?.scope == .page)
+        #expect(detailEntry.pageID == "detail")
+        #expect(detailEntry.detailRuleID == "detail")
+        #expect(resolvedRule.detailRule(for: detailEntry).id == "detail")
+        #expect(detailEntry.effectiveRequest?.scope == .page)
+        #expect(readerEntry.pageID == "reader")
+        #expect(readerEntry.galleryRuleID == "reader-gallery")
+        #expect(resolvedRule.galleryRule(for: readerEntry).id == "reader-gallery")
+        #expect(readerEntry.effectiveRequest?.scope == .page)
     }
 
     @Test func resolvedDetailAndReaderContextsExposeDebugInputsWithoutRuleTuples() throws {
         var rule: SiteRule = try JSONDecoder().decode(
             SiteRule.self,
-            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
+            from: Data(RuleJSONFixtures.strictComicV2SiteRule.utf8)
         )
 
         rule.ruleSets?.detailRules?[0].request = nil
         rule.ruleSets?.galleryRules?[0].request = RequestConfig(
-            scope: .reader,
+            scope: .rule,
             mergePolicy: .override,
             method: .post,
             headers: ["X-Reader-Rule": "1"],
@@ -257,99 +219,49 @@ struct SiteRuleV2CompletenessTests {
             imageRequest: nil
         )
 
-        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(rule)
-        let detailContext: ResolvedDetailContext = try #require(resolvedRule.primaryDetailContext)
-        let readerContext: ResolvedReaderContext = try #require(resolvedRule.primaryReaderContext)
+        let resolvedRule = try Self.resolvedRule(for: rule)
+        let detailEntry = try #require(resolvedRule.primaryDetailEntry)
+        let readerEntry = try #require(resolvedRule.primaryReaderEntry)
 
-        #expect(detailContext.pageID == "detail")
-        #expect(detailContext.ruleID == "detail")
-        #expect(detailContext.request?.scope == .site)
-        #expect(detailContext.usesLegacyRule == false)
-        #expect(resolvedRule.detailRule(for: detailContext)?.id == "detail")
+        #expect(detailEntry.pageID == "detail")
+        #expect(detailEntry.detailRuleID == "detail")
+        #expect(detailEntry.effectiveRequest?.scope == .site)
+        #expect(resolvedRule.detailRule(for: detailEntry).id == "detail")
 
-        #expect(readerContext.pageID == "reader")
-        #expect(readerContext.ruleID == "reader-gallery")
-        #expect(readerContext.request?.scope == .reader)
-        #expect(readerContext.request?.headers?["X-Reader-Rule"] == "1")
-        #expect(readerContext.usesLegacyRule == false)
-        #expect(resolvedRule.galleryRule(for: readerContext)?.id == "reader-gallery")
-    }
-
-    @Test func resolvedRuleFallsBackToLegacyDetailAndGalleryRules() throws {
-        var rule: SiteRule = try JSONDecoder().decode(
-            SiteRule.self,
-            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
-        )
-
-        // 中文注释：P2-5 迁移后仍要保留旧规则兼容；没有 V2 pages/ruleSets 时 resolved graph 应走 legacy 字段。
-        rule.pages = nil
-        rule.ruleSets = nil
-        rule.detail?.request = RequestConfig(
-            scope: .page,
-            mergePolicy: .mergeHeaders,
-            method: .get,
-            headers: ["X-Legacy-Detail": "1"],
-            body: nil,
-            cookiePolicy: nil,
-            cookiePriority: nil,
-            cookieScope: nil,
-            charset: nil,
-            needsWebView: nil,
-            autoScroll: nil,
-            imageHeaders: nil,
-            imageRequest: nil
-        )
-        rule.gallery?.request = RequestConfig(
-            scope: .image,
-            mergePolicy: .mergeHeadersAndCookies,
-            method: .get,
-            headers: ["X-Legacy-Gallery": "1"],
-            body: nil,
-            cookiePolicy: nil,
-            cookiePriority: nil,
-            cookieScope: nil,
-            charset: nil,
-            needsWebView: nil,
-            autoScroll: nil,
-            imageHeaders: nil,
-            imageRequest: nil
-        )
-
-        let resolvedRule: ResolvedSiteRule = RuleResolver().resolve(rule)
-        let detailContext: ResolvedDetailContext = try #require(resolvedRule.primaryDetailContext)
-        let readerContext: ResolvedReaderContext = try #require(resolvedRule.primaryReaderContext)
-
-        #expect(resolvedRule.detailEntry?.usesLegacyRule == true)
-        #expect(resolvedRule.galleryEntry?.usesLegacyRule == true)
-        #expect(resolvedRule.primaryDetailRule?.chapterContainer == rule.detail?.chapterContainer)
-        #expect(resolvedRule.primaryGalleryRule?.imageItem == rule.gallery?.imageItem)
-        #expect(resolvedRule.primaryDetailRequest?.headers?["X-Legacy-Detail"] == "1")
-        #expect(resolvedRule.primaryGalleryRequest?.headers?["X-Legacy-Gallery"] == "1")
-        #expect(detailContext.usesLegacyRule == true)
-        #expect(readerContext.usesLegacyRule == true)
-        #expect(resolvedRule.detailRule(for: detailContext)?.id == rule.detail?.id)
-        #expect(resolvedRule.galleryRule(for: readerContext)?.id == rule.gallery?.id)
+        #expect(readerEntry.pageID == "reader")
+        #expect(readerEntry.galleryRuleID == "reader-gallery")
+        #expect(readerEntry.effectiveRequest?.scope == .rule)
+        #expect(readerEntry.effectiveRequest?.headers?["X-Reader-Rule"] == "1")
+        #expect(resolvedRule.galleryRule(for: readerEntry).id == "reader-gallery")
     }
 
     @Test func v2DetailPageSelectsPrimaryDetailRule() throws {
         let rule: SiteRule = try JSONDecoder().decode(
             SiteRule.self,
-            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
+            from: Data(RuleJSONFixtures.strictComicV2SiteRule.utf8)
         )
 
-        // 中文注释：详情解析入口要从 PageRule.ruleRefs.detail 接到 RuleSets.detailRules，旧 detail 字段只作为兼容兜底。
-        #expect(rule.primaryDetailRule?.id == "detail")
-        #expect(rule.primaryDetailRule?.chapterRule?.title.selector == ".chapter-title")
+        let resolvedRule = try Self.resolvedRule(for: rule)
+        let entry = try #require(resolvedRule.primaryDetailEntry)
+        #expect(resolvedRule.detailRule(for: entry).id == "detail")
+        #expect(resolvedRule.detailRule(for: entry).chapterRule?.title.selector == ".chapter-title")
     }
 
     @Test func v2ReaderPageSelectsPrimaryGalleryRule() throws {
         let rule: SiteRule = try JSONDecoder().decode(
             SiteRule.self,
-            from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
+            from: Data(RuleJSONFixtures.strictComicV2SiteRule.utf8)
         )
 
-        // 中文注释：阅读页图片解析入口要从 PageRule.ruleRefs.gallery 接到 RuleSets.galleryRules，旧 gallery 字段只作为兼容兜底。
-        #expect(rule.primaryGalleryRule?.id == "reader-gallery")
-        #expect(rule.primaryGalleryRule?.imageItem == "img.page")
+        let resolvedRule = try Self.resolvedRule(for: rule)
+        let entry = try #require(resolvedRule.primaryReaderEntry)
+        #expect(resolvedRule.galleryRule(for: entry).id == "reader-gallery")
+        #expect(resolvedRule.galleryRule(for: entry).images?.item?.selector == "img.page")
+    }
+
+    private static func resolvedRule(for rule: SiteRule) throws -> ResolvedComicSiteRuleV2 {
+        return try #require(
+            ComicSiteRuleV2Validator().validate(rule: rule).resolvedRule
+        )
     }
 }

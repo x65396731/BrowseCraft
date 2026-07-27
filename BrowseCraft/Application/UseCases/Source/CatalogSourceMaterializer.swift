@@ -5,9 +5,13 @@ import BrowseCraftAPIKit
 // 中文注释：CatalogSourceMaterializer 把 RulesKit catalog 定义转换成 App 持久化 Source。
 struct CatalogSourceMaterializer {
     private let jsonDecoder: JSONDecoder
+    private let comicRuleNormalizer: ComicSiteRuleBoundaryNormalizer
 
     init(jsonDecoder: JSONDecoder = JSONDecoder()) {
         self.jsonDecoder = jsonDecoder
+        self.comicRuleNormalizer = ComicSiteRuleBoundaryNormalizer(
+            jsonDecoder: jsonDecoder
+        )
     }
 
     func source(
@@ -104,10 +108,25 @@ struct CatalogSourceMaterializer {
 
     private func rule(from catalogSource: BrowseCraftCatalogSource) throws -> SiteRule {
         do {
-            return try self.jsonDecoder.decode(
-                SiteRule.self,
-                from: self.sanitizedRuleJSONData(from: catalogSource.ruleJSON)
+            let sanitizedData = self.sanitizedRuleJSONData(
+                from: catalogSource.ruleJSON
             )
+            guard let sanitizedRuleJSON = String(data: sanitizedData, encoding: .utf8) else {
+                throw CatalogSourceImportError.invalidRuleJSON(
+                    sourceID: catalogSource.id,
+                    name: catalogSource.name,
+                    kind: catalogSource.kind.rawValue,
+                    reason: "Comic rule JSON is not UTF-8."
+                )
+            }
+            let result = try self.comicRuleNormalizer.normalize(
+                ruleJSON: sanitizedRuleJSON,
+                catalogMetadata: ComicSiteRuleCatalogMetadata(
+                    name: catalogSource.name,
+                    baseURL: catalogSource.baseURL
+                )
+            )
+            return result.serializedRule
         } catch {
             throw self.invalidRuleJSONError(for: catalogSource, underlyingError: error)
         }

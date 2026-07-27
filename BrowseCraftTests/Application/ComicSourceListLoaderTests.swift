@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import BrowseCraftCore
 @testable import BrowseCraft
 
 struct ComicSourceListLoaderTests {
@@ -456,4 +457,73 @@ private final class RecordingListPageContentLoader: PageContentLoader {
 
         return PageContentResponse(content: response, finalURL: request.url)
     }
+}
+
+extension ComicSourceListLoader {
+    func execute(source: Source, page: Int = 1) async throws -> [ContentItem] {
+        let graph = try resolvedComicGraphForLoaderTest(source)
+        guard let entry = graph.primaryListEntry else {
+            throw SourceRuntimeError.invalidInput("Test comic graph has no list entry.")
+        }
+        return try await self.execute(
+            source: source,
+            resolvedRule: graph,
+            entry: entry,
+            page: page
+        )
+    }
+}
+
+extension ComicSourceDetailLoader {
+    func execute(source: Source, item: ContentItem) async throws -> ComicRuleParsedDetail {
+        let graph = try resolvedComicGraphForLoaderTest(source)
+        guard let entry = graph.primaryDetailEntry else {
+            throw SourceRuntimeError.invalidInput("Test comic graph has no detail entry.")
+        }
+        return try await self.execute(
+            source: source,
+            resolvedRule: graph,
+            entry: entry,
+            item: item
+        )
+    }
+}
+
+extension ComicSourceReaderLoader {
+    func execute(
+        source: Source,
+        item: ContentItem,
+        chapterURLString: String? = nil
+    ) async throws -> ReaderChapter {
+        let graph = try resolvedComicGraphForLoaderTest(source)
+        guard let entry = graph.primaryReaderEntry else {
+            throw SourceRuntimeError.invalidInput("Test comic graph has no reader entry.")
+        }
+        return try await self.execute(
+            source: source,
+            resolvedRule: graph,
+            readerEntry: entry,
+            detailEntry: graph.primaryDetailEntry,
+            item: item,
+            chapterURLString: chapterURLString
+        )
+    }
+}
+
+private func resolvedComicGraphForLoaderTest(
+    _ source: Source
+) throws -> ResolvedComicSiteRuleV2 {
+    let validator = ComicSiteRuleV2Validator()
+    let validation: ComicSiteRuleV2ValidationResult
+    if source.rule.version == 1 {
+        let migrated = try BrowseCraftCore.ComicSiteRuleV1Migrator().migrate(source.rule)
+        validation = validator.validate(rule: migrated.rule)
+    } else {
+        validation = validator.validate(rule: source.rule)
+    }
+    guard validation.canImport, let graph = validation.resolvedRule else {
+        let reason = validation.errors.map { "\($0.path): \($0.message)" }.joined(separator: " | ")
+        throw SourceRuntimeError.invalidInput(reason)
+    }
+    return graph
 }

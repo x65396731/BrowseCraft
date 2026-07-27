@@ -27,7 +27,25 @@ struct ResolveLibrarySourcePresentationUseCase {
             return nil
         }
 
-        return rule.request(for: listTab)
+        guard let resolvedRule: ResolvedComicSiteRuleV2 = ComicSiteRuleV2Validator()
+            .validate(rule: rule)
+            .resolvedRule else {
+            return nil
+        }
+        let context: ListContext? = listTab?.context
+        let entry: ResolvedComicListEntry? = resolvedRule.listEntries.first { entry in
+            if let ruleID: String = context?.listRuleId {
+                return entry.ruleID == ruleID
+            }
+            if let tabID: String = context?.tabId ?? listTab?.id {
+                return entry.entryID == tabID
+            }
+            if let pageID: String = context?.pageId {
+                return entry.pageID == pageID
+            }
+            return false
+        } ?? resolvedRule.primaryListEntry
+        return entry?.effectiveRequest
     }
 
     private func videoImageRequestConfig(
@@ -77,7 +95,13 @@ struct ResolveLibrarySourcePresentationUseCase {
             return false
         }
 
-        return RuleResolver().resolve(rule).treatsDetailURLAsChapter
+        guard let resolvedRule: ResolvedComicSiteRuleV2 = ComicSiteRuleV2Validator()
+            .validate(rule: rule)
+            .resolvedRule,
+              let entry: ResolvedComicDetailEntry = resolvedRule.primaryDetailEntry else {
+            return false
+        }
+        return resolvedRule.detailRule(for: entry).treatDetailURLAsChapter
     }
 
     func listContext(from listTab: ListTabRule?) -> ListContext? {

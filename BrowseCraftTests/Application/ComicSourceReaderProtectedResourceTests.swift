@@ -82,7 +82,7 @@ struct ComicSourceReaderProtectedResourceTests {
         )
 
         let chapter: ReaderChapter = try await loader.execute(
-            source: Self.sourceWithResourcePipeline(policy: .pipelineOnly),
+            source: try Self.sourceWithResourcePipeline(policy: .pipelineOnly),
             item: ContentItem(
                 id: "comic-10",
                 sourceId: "protected-reader-source",
@@ -125,7 +125,7 @@ struct ComicSourceReaderProtectedResourceTests {
 
         do {
             _ = try await loader.execute(
-                source: Self.sourceWithResourcePipeline(policy: .pipelineOnly),
+                source: try Self.sourceWithResourcePipeline(policy: .pipelineOnly),
                 item: ContentItem(
                     id: "comic-10",
                     sourceId: "protected-reader-source",
@@ -270,7 +270,7 @@ struct ComicSourceReaderProtectedResourceTests {
 
     private static func sourceWithResourcePipeline(
         policy: ReaderImageResourcePipelineExecutionPolicy
-    ) -> Source {
+    ) throws -> Source {
         var source: Source = self.sourceWithProtectedImageAPI()
         var rule: SiteRule = source.rule
         let galleryRule: GalleryRule = GalleryRule(
@@ -289,20 +289,12 @@ struct ComicSourceReaderProtectedResourceTests {
             imageItem: "img",
             imageUrl: "this@src"
         )
-        rule.version = 2
         rule.context = [
             "readerAccessToken": SiteRuleContextValue(value: "context-secret")
         ]
-        rule.pages = [
-            PageRule(
-                id: "reader-page",
-                title: "Reader",
-                type: .reader,
-                ruleRefs: RuleRefs(gallery: "pipeline-reader")
-            )
-        ]
-        rule.ruleSets = RuleSets(galleryRules: [galleryRule])
-        source.rule = rule
+        rule.gallery = galleryRule
+        let migrated = try ComicSiteRuleV1Migrator().migrate(rule)
+        source.rule = ComicSiteRuleV2Validator().serializableRule(from: migrated.rule)
         return source
     }
 
