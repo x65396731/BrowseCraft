@@ -48,8 +48,9 @@ struct LoadCatalogSourcesUseCaseTests {
         #expect(source.id == "catalog.video.sample")
         #expect(source.baseURL == "https://example.invalid")
         #expect(source.kind == .video)
-        #expect(rule["adapter"] as? String == "genericHTML")
-        #expect(rule["entryURL"] as? String == "https://example.invalid/videos/")
+        #expect(rule["version"] as? Int == 2)
+        #expect(rule["baseUrl"] as? String == "https://example.invalid")
+        #expect(rule["adapter"] == nil)
     }
 
     @Test func loadCatalogSourcesDecryptsEncryptedPortalCoreRule() async throws {
@@ -76,9 +77,106 @@ struct LoadCatalogSourcesUseCaseTests {
         #expect(source.id == "catalog.video.encrypted")
         #expect(source.baseURL == "https://encrypted.example.invalid")
         #expect(source.kind == .video)
-        #expect(rule["adapter"] as? String == "genericHTML")
-        #expect(rule["entryURL"] as? String == "https://encrypted.example.invalid/videos/")
+        #expect(rule["version"] as? Int == 2)
+        #expect(rule["baseUrl"] as? String == "https://encrypted.example.invalid")
+        #expect(rule["adapter"] == nil)
     }
+
+    private static let sampleVideoV2RuleJSON: String = """
+    {
+      "version": 2,
+      "name": "Sample Video V2",
+      "baseUrl": "https://example.invalid",
+      "site": {
+        "name": "Sample Video V2",
+        "domain": "example.invalid",
+        "baseURL": "https://example.invalid"
+      },
+      "pages": [
+        {
+          "id": "latest",
+          "title": "Latest",
+          "type": "list",
+          "url": "/videos/",
+          "ruleRefs": {
+            "list": "video-list"
+          }
+        }
+      ],
+      "ruleSets": {
+        "listRules": [
+          {
+            "id": "video-list",
+            "item": {
+              "selector": ".video-card",
+              "selectorKind": "css",
+              "function": "raw"
+            },
+            "fields": {
+              "title": {
+                "selectorKind": "current",
+                "function": "text"
+              },
+              "detailURL": {
+                "selector": "a[href]",
+                "selectorKind": "css",
+                "function": "url",
+                "param": "href"
+              }
+            }
+          }
+        ]
+      }
+    }
+    """
+
+    private static let encryptedVideoV2RuleJSON: String = """
+    {
+      "version": 2,
+      "name": "Encrypted Video V2",
+      "baseUrl": "https://encrypted.example.invalid",
+      "site": {
+        "name": "Encrypted Video V2",
+        "domain": "encrypted.example.invalid",
+        "baseURL": "https://encrypted.example.invalid"
+      },
+      "pages": [
+        {
+          "id": "latest",
+          "title": "Latest",
+          "type": "list",
+          "url": "/videos/",
+          "ruleRefs": {
+            "list": "video-list"
+          }
+        }
+      ],
+      "ruleSets": {
+        "listRules": [
+          {
+            "id": "video-list",
+            "item": {
+              "selector": ".video-card",
+              "selectorKind": "css",
+              "function": "raw"
+            },
+            "fields": {
+              "title": {
+                "selectorKind": "current",
+                "function": "text"
+              },
+              "detailURL": {
+                "selector": "a[href]",
+                "selectorKind": "css",
+                "function": "url",
+                "param": "href"
+              }
+            }
+          }
+        ]
+      }
+    }
+    """
 
     private static let portalCoreCatalogResponse: String = """
     [
@@ -87,37 +185,13 @@ struct LoadCatalogSourcesUseCaseTests {
         "name": "Sample Video",
         "baseURL": "https://example.invalid",
         "kind": "video",
-        "ruleJSON": {
-          "adapter": "genericHTML",
-          "entryURL": "https://example.invalid/videos/",
-          "entryKind": "list",
-          "routePattern": null,
-          "playbackPolicy": "playPageFirst",
-          "sharedRequest": null,
-          "listRequest": null,
-          "detailRequest": null,
-          "playRequest": null,
-          "requiresAccount": false,
-          "listTabs": []
-        },
+        "ruleJSON": \(Self.sampleVideoV2RuleJSON),
         "payload": {
           "id": "catalog.video.sample",
           "name": "Sample Video",
           "baseURL": "https://example.invalid",
           "kind": "video",
-          "ruleJSON": {
-            "adapter": "genericHTML",
-            "entryURL": "https://example.invalid/videos/",
-            "entryKind": "list",
-            "routePattern": null,
-            "playbackPolicy": "playPageFirst",
-            "sharedRequest": null,
-            "listRequest": null,
-            "detailRequest": null,
-            "playRequest": null,
-            "requiresAccount": false,
-            "listTabs": []
-          }
+          "ruleJSON": \(Self.sampleVideoV2RuleJSON)
         },
         "createdAt": "2026-07-09T00:00:00+00:00",
         "updatedAt": "2026-07-09T00:00:00+00:00"
@@ -134,19 +208,7 @@ struct LoadCatalogSourcesUseCaseTests {
           "name": "Encrypted Video",
           "baseURL": "https://encrypted.example.invalid",
           "kind": "video",
-          "ruleJSON": {
-            "adapter": "genericHTML",
-            "entryURL": "https://encrypted.example.invalid/videos/",
-            "entryKind": "list",
-            "routePattern": null,
-            "playbackPolicy": "playPageFirst",
-            "sharedRequest": null,
-            "listRequest": null,
-            "detailRequest": null,
-            "playRequest": null,
-            "requiresAccount": false,
-            "listTabs": []
-          }
+          "ruleJSON": \(Self.encryptedVideoV2RuleJSON)
         }
         """
         let keyData: Data = try #require(Data(base64Encoded: Self.testKeyBase64))

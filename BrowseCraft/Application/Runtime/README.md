@@ -71,6 +71,12 @@ P2-6 removed the V1 `MacCMS`/`GenericHTML` adapter graph. Video catalog items
 must declare `version: 2` and pass `VideoSiteRuleValidator`; there is no adapter
 inference or V1 fallback.
 
+V1 rejection in persisted configuration and the cloud-sync skip guard are
+defensive tombstones only. They prevent stale payloads from re-entering the
+runtime and must not be used as compatibility or migration entry points. Except
+for explicit negative tests that verify rejection, catalog and transport
+fixtures must contain importable `VideoSiteRule` V2 payloads.
+
 Responsibilities:
 
 - Resolve a `Source` through `Source.configuration` to the correct concrete runtime.
