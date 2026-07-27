@@ -122,13 +122,13 @@ struct VideoSourcePlaybackLoader {
                     contentLength: response.content.utf8.count
                 )
             )
-            if let mediaRule: VideoDirectMediaRule = playbackRule.media {
+            if playbackRule.effectiveMediaCandidates.isEmpty == false {
                 extractionLogs.append(
                     SourceExtractionLog(
                         field: "playback.dom.media.depth\(depth)",
-                        selector: mediaRule.url.selector,
+                        selector: self.playbackSelector(playbackRule),
                         candidateCount: parsed.mediaCandidateCount,
-                        outputCount: parsed.mediaURLs.count
+                        outputCount: parsed.mediaCandidates.count
                     )
                 )
             }
@@ -144,10 +144,9 @@ struct VideoSourcePlaybackLoader {
             }
 
             try self.validateParsedPlayback(parsed, rule: playbackRule, sourceID: source.id)
-            if let mediaURL: URL = parsed.mediaURLs.first,
-               let mediaRule: VideoDirectMediaRule = playbackRule.media {
-                candidateMediaURL = mediaURL
-                candidateMediaKind = self.mediaKind(mediaRule.kind)
+            if let mediaCandidate: VideoRuleParsedMediaCandidate = parsed.mediaCandidates.first {
+                candidateMediaURL = mediaCandidate.url
+                candidateMediaKind = self.mediaKind(mediaCandidate.kind)
                 playbackRequestConfig = try self.playbackRequest(
                     source: source,
                     rule: resolvedRule.raw,
@@ -246,13 +245,6 @@ struct VideoSourcePlaybackLoader {
                 reason: "Video V2 playback rule \(rule.id) produced \(parsed.invalidMediaURLCount) unsupported or invalid media URL value(s)."
             )
         }
-        if parsed.mediaURLs.count > 1 {
-            throw RuleExecutionError.responseContract(
-                stage: .playback,
-                sourceID: sourceID,
-                reason: "Video V2 playback rule \(rule.id) produced multiple distinct direct media URLs."
-            )
-        }
         if parsed.invalidIframeURLCount > 0 {
             throw RuleExecutionError.ruleConfiguration(
                 stage: .playback,
@@ -288,7 +280,18 @@ struct VideoSourcePlaybackLoader {
     }
 
     private func playbackSelector(_ rule: VideoPlaybackRule) -> String {
-        return rule.media?.url.selector ?? rule.iframe?.url.selector ?? "document"
+        if rule.effectiveMediaCandidates.isEmpty == false {
+            let selectors: [String] = rule.effectiveMediaCandidates.compactMap { mediaRule in
+                guard let selector: String = mediaRule.url.selector?
+                    .trimmingCharacters(in: .whitespacesAndNewlines),
+                      selector.isEmpty == false else {
+                    return nil
+                }
+                return selector
+            }
+            return selectors.isEmpty ? "document" : selectors.joined(separator: " | ")
+        }
+        return rule.iframe?.url.selector ?? "document"
     }
 
     private func handoff(_ input: SourceVideoPlaybackInput) throws -> SourceVideoPlaybackHandoff {

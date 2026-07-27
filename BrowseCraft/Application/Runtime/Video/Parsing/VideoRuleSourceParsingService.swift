@@ -67,8 +67,16 @@ struct VideoRuleParsedEpisodes: Hashable {
     }
 }
 
-/// 中文注释：播放解析分别保留 direct media 与 iframe 结果，让 loader 按合同固定顺序决策。
+struct VideoRuleParsedMediaCandidate: Hashable {
+    var ruleID: String
+    var title: String?
+    var url: URL
+    var kind: VideoDirectMediaKind
+}
+
+/// 中文注释：播放解析保留有序强类型 direct media 与 iframe 结果，让 loader 按合同固定顺序决策。
 struct VideoRuleParsedPlayback: Hashable {
+    var mediaCandidates: [VideoRuleParsedMediaCandidate]
     var mediaURLs: [URL]
     var mediaCandidateCount: Int
     var invalidMediaURLCount: Int

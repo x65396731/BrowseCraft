@@ -4,7 +4,7 @@ import BrowseCraftCore
 @testable import BrowseCraft
 
 struct VideoSourcePlaybackLoaderTests {
-    @Test func directHLSPlaybackUsesFinalPageURLAndStableHandoff() async throws {
+    @Test func legacySingleMediaHLSPlaybackUsesFinalPageURLAndStableHandoff() async throws {
         let pageLoader = PlaybackPageContentLoader(
             html: "<html><video><source src=\"/media/master.m3u8\"></video></html>",
             finalURL: try #require(URL(string: "https://video.example.invalid/watch/final?ticket=secret"))
@@ -31,7 +31,7 @@ struct VideoSourcePlaybackLoaderTests {
         #expect(output.diagnostics.requestLogs.first?.url.query == nil)
     }
 
-    @Test func multipleDistinctDirectMediaURLsAreAResponseContractError() async throws {
+    @Test func multipleDistinctLegacyDirectMediaURLsChooseFirstInDocumentOrder() async throws {
         let pageLoader = PlaybackPageContentLoader(
             html: """
             <video>
@@ -43,23 +43,100 @@ struct VideoSourcePlaybackLoaderTests {
         )
         let rule: VideoSiteRule = Self.playbackRule()
 
-        do {
-            _ = try await VideoSourcePlaybackLoader(
-                pageContentLoader: pageLoader,
-                parser: CoreVideoRuleSourceParser()
-            ).execute(
-                source: Self.source(rule: rule),
-                resolvedRule: try ResolvedVideoSiteRule(validating: rule),
-                input: Self.input()
+        let output: SourceVideoPlaybackOutput = try await VideoSourcePlaybackLoader(
+            pageContentLoader: pageLoader,
+            parser: CoreVideoRuleSourceParser()
+        ).execute(
+            source: Self.source(rule: rule),
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            input: Self.input()
+        )
+
+        #expect(output.reference.status == .playable)
+        #expect(output.reference.candidateMediaKind == .m3u8)
+        #expect(output.reference.candidateMediaURL?.absoluteString == "https://video.example.invalid/media/one.m3u8")
+    }
+
+    @Test func coreAdapterPreservesOrderedHLSAndMP4Candidates() throws {
+        let playbackRule = VideoPlaybackRule(
+            id: "playback",
+            mediaCandidates: [
+                Self.directMediaRule(
+                    id: "preferred-hls",
+                    title: "Adaptive",
+                    selector: "source.hls[src]",
+                    kind: .hls
+                ),
+                Self.directMediaRule(
+                    id: "fallback-mp4",
+                    title: "MP4",
+                    selector: "source.mp4[src]",
+                    kind: .mp4
+                )
+            ]
+        )
+
+        let parsed: VideoRuleParsedPlayback = try CoreVideoRuleSourceParser().parsePlayback(
+            html: """
+            <video>
+              <source class="mp4" src="/media/movie.mp4">
+              <source class="hls" src="/media/master.m3u8">
+            </video>
+            """,
+            pageURL: try #require(URL(string: "https://video.example.invalid/watch/1")),
+            rule: playbackRule
+        )
+
+        #expect(parsed.mediaCandidates.map(\.ruleID) == ["preferred-hls", "fallback-mp4"])
+        #expect(parsed.mediaCandidates.map(\.title) == ["Adaptive", "MP4"])
+        #expect(parsed.mediaCandidates.map(\.kind) == [.hls, .mp4])
+        #expect(parsed.mediaURLs == parsed.mediaCandidates.map(\.url))
+    }
+
+    @Test func preferredTypedCandidateUsesItsOwnExplicitKind() async throws {
+        let pageLoader = PlaybackPageContentLoader(
+            html: """
+            <video>
+              <source class="hls" src="/media/master.m3u8">
+              <source class="mp4" src="/media/movie.mp4">
+            </video>
+            """,
+            finalURL: try #require(URL(string: "https://video.example.invalid/watch/1"))
+        )
+        var rule: VideoSiteRule = Self.playbackRule()
+        rule.ruleSets.playbackRules = [
+            VideoPlaybackRule(
+                id: "playback",
+                mediaCandidates: [
+                    Self.directMediaRule(
+                        id: "preferred-mp4",
+                        title: "MP4",
+                        selector: "source.mp4[src]",
+                        kind: .mp4
+                    ),
+                    Self.directMediaRule(
+                        id: "fallback-hls",
+                        title: "Adaptive",
+                        selector: "source.hls[src]",
+                        kind: .hls
+                    )
+                ]
             )
-            Issue.record("Expected playback response-contract error.")
-        } catch let error as RuleExecutionError {
-            guard case .responseContract(.playback, _, let reason) = error else {
-                Issue.record("Unexpected playback error: \(error.localizedDescription)")
-                return
-            }
-            #expect(reason.contains("multiple distinct direct media URLs"))
-        }
+        ]
+
+        let output: SourceVideoPlaybackOutput = try await VideoSourcePlaybackLoader(
+            pageContentLoader: pageLoader,
+            parser: CoreVideoRuleSourceParser()
+        ).execute(
+            source: Self.source(rule: rule),
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            input: Self.input()
+        )
+
+        #expect(output.reference.status == .playable)
+        #expect(output.reference.candidateMediaKind == .mp4)
+        #expect(output.reference.candidateMediaURL?.absoluteString == "https://video.example.invalid/media/movie.mp4")
+        #expect(output.diagnostics.extractionLogs.first?.selector == "source.mp4[src] | source.hls[src]")
     }
 
     @Test func emptyMediaExtractionProducesStableFailedReference() async throws {
@@ -189,6 +266,25 @@ struct VideoSourcePlaybackLoaderTests {
 }
 
 private extension VideoSourcePlaybackLoaderTests {
+    static func directMediaRule(
+        id: String,
+        title: String,
+        selector: String,
+        kind: VideoDirectMediaKind
+    ) -> VideoDirectMediaRule {
+        VideoDirectMediaRule(
+            id: id,
+            title: title,
+            url: ExtractRule(
+                selector: selector,
+                selectorKind: .css,
+                function: .attr,
+                param: "src"
+            ),
+            kind: kind
+        )
+    }
+
     static func playbackRule() -> VideoSiteRule {
         return VideoSiteRule(
             version: 2,

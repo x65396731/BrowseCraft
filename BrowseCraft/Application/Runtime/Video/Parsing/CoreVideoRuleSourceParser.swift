@@ -114,6 +114,14 @@ final class CoreVideoRuleSourceParser: VideoRuleSourceParsingService {
                 )
             )
         return VideoRuleParsedPlayback(
+            mediaCandidates: output.mediaCandidates.map { candidate in
+                VideoRuleParsedMediaCandidate(
+                    ruleID: candidate.ruleID,
+                    title: candidate.title,
+                    url: candidate.url,
+                    kind: candidate.kind
+                )
+            },
             mediaURLs: output.mediaURLs,
             mediaCandidateCount: output.mediaCandidateCount,
             invalidMediaURLCount: output.invalidMediaURLCount,
