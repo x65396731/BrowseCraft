@@ -15,7 +15,8 @@ struct ComicDetailHeroSection: View {
             CoverImageView(
                 urlString: self.coverURLString,
                 refererURLString: self.detailURLString,
-                requestConfig: self.requestConfig
+                requestConfig: self.requestConfig,
+                placeholderImageName: "ComicDetailPlaceholder"
             )
             .frame(maxWidth: .infinity)
             .frame(height: 330)
@@ -33,7 +34,8 @@ struct ComicDetailHeroSection: View {
                 CoverImageView(
                     urlString: self.coverURLString,
                     refererURLString: self.detailURLString,
-                    requestConfig: self.requestConfig
+                    requestConfig: self.requestConfig,
+                    placeholderImageName: "ComicDetailPlaceholder"
                 )
                 .frame(width: 118, height: 168)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
