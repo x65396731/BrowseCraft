@@ -2,7 +2,6 @@ import Foundation
 
 enum CloudAppUserIdentityAssociationError: Error, Equatable, Sendable {
     case activeUserChanged
-    case portalSignInRequired
     case unexpectedState
 }
 
@@ -15,28 +14,21 @@ enum StoreKitPurchaseIdentityAuthorizationError: Error, Equatable, Sendable {
 actor CloudAppUserIdentityAssociationCoordinator {
     private let identityStore: any CloudAppUserIdentityStoring
     private let activeAppUser: any ActiveAppUserProviding
-    private let portalSessionCoordinator: PortalSessionCoordinator
     private let now: @Sendable () -> Date
 
     init(
         identityStore: any CloudAppUserIdentityStoring,
         activeAppUser: any ActiveAppUserProviding,
-        portalSessionCoordinator: PortalSessionCoordinator,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.identityStore = identityStore
         self.activeAppUser = activeAppUser
-        self.portalSessionCoordinator = portalSessionCoordinator
         self.now = now
     }
 
     func associateForUserInitiatedAccess() async throws
         -> CloudAppUserIdentityAssociationState {
         let localUserID: UUID = self.activeAppUser.currentUserID
-        guard await self.portalSessionCoordinator.authenticatedUserID() ==
-                localUserID else {
-            throw CloudAppUserIdentityAssociationError.portalSignInRequired
-        }
         CloudSyncDiagnostics.logIdentityAssociation(
             event: "manual-link-started",
             localUserID: localUserID

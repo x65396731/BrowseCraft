@@ -224,8 +224,6 @@ enum CloudSyncSafeErrorMessage {
             switch associationError {
             case .activeUserChanged:
                 return "Active user changed during iCloud identity association"
-            case .portalSignInRequired:
-                return "Portal Sign in with Apple required before iCloud association"
             case .unexpectedState:
                 return "Unexpected iCloud identity association state"
             }

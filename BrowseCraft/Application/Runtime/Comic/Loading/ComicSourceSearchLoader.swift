@@ -72,13 +72,6 @@ struct ComicSourceSearchLoader {
         }
 
         let request: RequestConfig? = entry.effectiveRequest
-        let context: ListContext = ListContext(
-            pageId: entry.pageID,
-            tabId: nil,
-            sectionId: nil,
-            listRuleId: entry.referencedListRuleID,
-            sectionRole: nil
-        )
 
         RuleExecutionLogger.log(
             stage: .search,

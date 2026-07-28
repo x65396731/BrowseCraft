@@ -84,8 +84,7 @@ final class AppContainer {
                 CloudAppUserIdentityAssociationCoordinator =
                 CloudAppUserIdentityAssociationCoordinator(
                     identityStore: cloudIdentityStore,
-                    activeAppUser: self.activeAppUserStore,
-                    portalSessionCoordinator: portalSessionCoordinator
+                    activeAppUser: self.activeAppUserStore
                 )
             self.cloudIdentityAssociationCoordinator = cloudIdentityAssociationCoordinator
             let portalIAPService: APIKitPortalIAPService = APIKitPortalIAPService(

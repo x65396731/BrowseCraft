@@ -623,8 +623,6 @@ final class CloudSyncSettingsViewModel: ObservableObject {
         if let associationError: CloudAppUserIdentityAssociationError =
             error as? CloudAppUserIdentityAssociationError {
             switch associationError {
-            case .portalSignInRequired:
-                return "Sign in with Apple before linking Cloud Sync."
             case .activeUserChanged, .unexpectedState:
                 return "The active BrowseCraft profile changed before iCloud linking completed."
             }

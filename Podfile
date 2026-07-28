@@ -30,11 +30,27 @@ post_install do |installer|
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '17.0'
       config.build_settings['LIBRARY_SEARCH_PATHS'] = ['$(inherited)']
+      config.build_settings.delete('ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES')
+      config.build_settings.delete('EMBEDDED_CONTENT_CONTAINS_SWIFT')
+      config.build_settings['CODE_SIGN_IDENTITY'] = ''
+      config.build_settings['ENABLE_MODULE_VERIFIER'] = 'YES'
+      config.build_settings['MODULE_VERIFIER_SUPPORTED_LANGUAGES'] = 'objective-c objective-c++'
+      config.build_settings['MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS'] = 'gnu17 gnu++20'
       # TEST BrowseCraft archives with the Debug configuration. Dynamic pod
       # frameworks still need standalone dSYMs when that archive is uploaded.
       config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf-with-dsym'
     end
   end
+
+  installer.pods_project.build_configurations.each do |config|
+    config.build_settings['ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS'] = 'YES'
+    config.build_settings['DEAD_CODE_STRIPPING'] = 'YES'
+    config.build_settings['STRING_CATALOG_GENERATE_SYMBOLS'] = 'YES'
+    config.build_settings.delete('STRIP_INSTALLED_PRODUCT')
+    config.build_settings.delete('STRIP_STYLE')
+    config.build_settings.delete('STRIP_SWIFT_SYMBOLS')
+  end
+  installer.pods_project.root_object.attributes['BuildIndependentTargetsInParallel'] = 'YES'
 
   # NukeUI 0.8 resolves Gifu 3.x, whose GIF helper still uses the
   # MobileCoreServices UTI API deprecated in iOS 15. Keep the compatibility
@@ -66,10 +82,15 @@ post_install do |installer|
   # cryptexd Metal toolchain path and reports it as a missing search path.
   Dir.glob(File.join(installer.sandbox.root, 'Target Support Files/**/*.xcconfig')).each do |xcconfig|
     content = File.read(xcconfig)
-    cleaned = content.gsub(
-      'LIBRARY_SEARCH_PATHS = $(inherited) "${TOOLCHAIN_DIR}/usr/lib/swift/${PLATFORM_NAME}" /usr/lib/swift',
-      'LIBRARY_SEARCH_PATHS = $(inherited)'
-    )
+    cleaned = content
+      .gsub(
+        'LIBRARY_SEARCH_PATHS = $(inherited) "${TOOLCHAIN_DIR}/usr/lib/swift/${PLATFORM_NAME}" /usr/lib/swift',
+        'LIBRARY_SEARCH_PATHS = $(inherited)'
+      )
+      # Modern Xcode determines Swift runtime embedding automatically. These
+      # legacy CocoaPods settings trigger duplicate recommended-setting issues.
+      .gsub(/^ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES\r?\n/, '')
+      .gsub(/^EMBEDDED_CONTENT_CONTAINS_SWIFT = YES\r?\n/, '')
     File.write(xcconfig, cleaned) if cleaned != content
   end
 end

@@ -16,6 +16,9 @@ settings:
     CODE_SIGN_STYLE: Automatic
     TARGETED_DEVICE_FAMILY: "1,2"
     ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+    CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    STRING_CATALOG_GENERATE_SYMBOLS: YES
 
 packages:
   BrowseCraftCore:
@@ -74,6 +77,9 @@ targets:
         CODE_SIGN_ENTITLEMENTS: BrowseCraft/BrowseCraft.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        # Crashlytics and the post-embed FFmpeg bundle patch both need access
+        # outside statically declared script inputs and outputs.
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
       configs:
         Debug:
           APS_ENVIRONMENT: development
