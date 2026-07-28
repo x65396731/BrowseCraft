@@ -78,6 +78,28 @@ post_install do |installer|
     File.write(gifu_image_source_helper, patched) if patched != content
   end
 
+  # CocoaPods generates these framework umbrella headers with quoted imports.
+  # Xcode 26's module verifier requires public framework headers to use the
+  # module-qualified angle-bracket form.
+  umbrella_header_import_patches = {
+    'Target Support Files/Gifu/Gifu-umbrella.h' => {
+      '#import "Gifu.h"' => '#import <Gifu/Gifu.h>'
+    },
+    'Target Support Files/GRDB.swift/GRDB.swift-umbrella.h' => {
+      '#import "grdb_config.h"' => '#import <GRDB/grdb_config.h>'
+    }
+  }
+  umbrella_header_import_patches.each do |relative_path, replacements|
+    header = File.join(installer.sandbox.root, relative_path)
+    next unless File.exist?(header)
+
+    content = File.read(header)
+    patched = replacements.reduce(content) do |result, (quoted_import, framework_import)|
+      result.sub(quoted_import, framework_import)
+    end
+    File.write(header, patched) if patched != content
+  end
+
   # Xcode 26 expands the old CocoaPods Swift runtime search path into a
   # cryptexd Metal toolchain path and reports it as a missing search path.
   Dir.glob(File.join(installer.sandbox.root, 'Target Support Files/**/*.xcconfig')).each do |xcconfig|
