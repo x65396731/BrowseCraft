@@ -55,6 +55,23 @@ struct SettingsView: View {
                 }
 
                 Section("Account") {
+                    Button {
+                        Task {
+                            await self.viewModel.togglePortalAccount()
+                        }
+                    } label: {
+                        SettingsRow(
+                            systemImage: "person.crop.circle.badge.checkmark",
+                            title: self.viewModel.isPortalAuthenticated
+                                ? "Sign Out of BrowseCraft"
+                                : "Sign in with Apple",
+                            detail: self.viewModel.isPortalAuthenticated
+                                ? "BrowseCraft account connected"
+                                : "Required for purchases and Cloud Sync"
+                        )
+                    }
+                    .disabled(self.viewModel.isPortalAccountActionInFlight)
+
                     NavigationLink(destination: CloudSyncSettingsView(
                         viewModel: self.cloudSyncViewModel
                     )) {
@@ -219,8 +236,21 @@ struct SettingsView: View {
             }
             .onAppear {
                 self.viewModel.refreshDiagnosticCode()
+                Task {
+                    await self.viewModel.refreshPortalAccountStatus()
+                }
                 CrashDiagnostics.shared.setScreen(.settings)
                 AppAnalytics.shared.logScreenView(.settings)
+            }
+            .alert(
+                "BrowseCraft Account",
+                isPresented: self.portalAccountErrorAlertBinding
+            ) {
+                Button("OK", role: .cancel) {
+                    self.viewModel.portalAccountErrorMessage = nil
+                }
+            } message: {
+                Text(self.viewModel.portalAccountErrorMessage ?? "")
             }
             }
             .allowsHitTesting(self.isShowingInAppPurchase == false)
@@ -229,11 +259,6 @@ struct SettingsView: View {
             if self.isShowingInAppPurchase {
                 InAppPurchaseSheetView(
                     authorizeStoreKitAction: {
-                        guard case .associated =
-                            self.cloudSyncViewModel.cloudIdentityAssociationState else {
-                            throw StoreKitPurchaseIdentityAuthorizationError
-                                .notAssociated
-                        }
                         return try await self.viewModel
                             .authorizeUserInitiatedStoreKitAction()
                     },
@@ -338,6 +363,19 @@ struct SettingsView: View {
             set: { newValue in
                 if newValue == false {
                     self.viewModel.cacheErrorMessage = nil
+                }
+            }
+        )
+    }
+
+    private var portalAccountErrorAlertBinding: Binding<Bool> {
+        return Binding<Bool>(
+            get: {
+                return self.viewModel.portalAccountErrorMessage != nil
+            },
+            set: { newValue in
+                if newValue == false {
+                    self.viewModel.portalAccountErrorMessage = nil
                 }
             }
         )

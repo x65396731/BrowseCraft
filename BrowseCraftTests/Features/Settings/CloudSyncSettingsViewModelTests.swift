@@ -5,95 +5,6 @@ import BrowseCraftCore
 
 @MainActor
 struct CloudSyncSettingsViewModelTests {
-    @Test func storeKitAuthorizationDoesNotCreateMissingCloudIdentity() async {
-        let activeUserID: UUID = UUID()
-        let identityStore: MockCloudAppUserIdentityStore =
-            MockCloudAppUserIdentityStore()
-        let authorizer: StoreKitPurchaseIdentityAuthorizer =
-            StoreKitPurchaseIdentityAuthorizer(
-                identityStore: identityStore,
-                activeAppUser: ActiveAppUserStore(initialUserID: activeUserID)
-            )
-
-        await #expect(
-            throws: StoreKitPurchaseIdentityAuthorizationError.notAssociated
-        ) {
-            _ = try await authorizer.authorizeUserInitiatedStoreKitAction()
-        }
-        let fetchCallCount: Int = await identityStore.fetchCallCount()
-        let createCallCount: Int = await identityStore.createCallCount()
-        #expect(fetchCallCount == 1)
-        #expect(createCallCount == 0)
-    }
-
-    @Test func storeKitAuthorizationRejectsDifferentCloudUUID() async {
-        let activeUserID: UUID = UUID()
-        let identityStore: MockCloudAppUserIdentityStore =
-            MockCloudAppUserIdentityStore()
-        await identityStore.setIdentity(
-            .proposed(userID: UUID(), at: Date(timeIntervalSince1970: 10))
-        )
-        let authorizer: StoreKitPurchaseIdentityAuthorizer =
-            StoreKitPurchaseIdentityAuthorizer(
-                identityStore: identityStore,
-                activeAppUser: ActiveAppUserStore(initialUserID: activeUserID)
-            )
-
-        await #expect(
-            throws: StoreKitPurchaseIdentityAuthorizationError.identityMismatch
-        ) {
-            _ = try await authorizer.authorizeUserInitiatedStoreKitAction()
-        }
-        let createCallCount: Int = await identityStore.createCallCount()
-        #expect(createCallCount == 0)
-    }
-
-    @Test func storeKitAuthorizationReturnsMatchingBrowseCraftUUID() async throws {
-        let activeUserID: UUID = UUID()
-        let identityStore: MockCloudAppUserIdentityStore =
-            MockCloudAppUserIdentityStore()
-        await identityStore.setIdentity(
-            .proposed(userID: activeUserID, at: Date(timeIntervalSince1970: 10))
-        )
-        let authorizer: StoreKitPurchaseIdentityAuthorizer =
-            StoreKitPurchaseIdentityAuthorizer(
-                identityStore: identityStore,
-                activeAppUser: ActiveAppUserStore(initialUserID: activeUserID)
-            )
-
-        let authorizedUserID: UUID =
-            try await authorizer.authorizeUserInitiatedStoreKitAction()
-
-        #expect(authorizedUserID == activeUserID)
-        let createCallCount: Int = await identityStore.createCallCount()
-        #expect(createCallCount == 0)
-    }
-
-    @Test func storeKitAuthorizationRejectsUserSwitchAfterAuthorization() async throws {
-        let activeUserID: UUID = UUID()
-        let activeUser: ActiveAppUserStore = ActiveAppUserStore(
-            initialUserID: activeUserID
-        )
-        let identityStore: MockCloudAppUserIdentityStore =
-            MockCloudAppUserIdentityStore()
-        await identityStore.setIdentity(
-            .proposed(userID: activeUserID, at: Date(timeIntervalSince1970: 10))
-        )
-        let authorizer: StoreKitPurchaseIdentityAuthorizer =
-            StoreKitPurchaseIdentityAuthorizer(
-                identityStore: identityStore,
-                activeAppUser: activeUser
-            )
-        _ = try await authorizer.authorizeUserInitiatedStoreKitAction()
-        activeUser.update(UUID())
-
-        await #expect(
-            throws: StoreKitPurchaseIdentityAuthorizationError.activeUserChanged
-        ) {
-            try await authorizer.validateAuthorizedUser(activeUserID)
-        }
-    }
-
     @Test func openingSettingsDoesNotReadOrCreateCloudIdentity() async throws {
         let context: TestContext = try Self.makeContext()
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
@@ -160,11 +71,7 @@ struct CloudSyncSettingsViewModelTests {
 
         await viewModel.setCloudSyncEnabled(true)
 
-        #expect(viewModel.identityConflictRequest?.cloudIdentity == cloudIdentity)
-        #expect(
-            viewModel.identityConflictRequest?.localUserID ==
-                context.activeAppUser.currentUserID
-        )
+        #expect(viewModel.actionErrorMessage?.contains("another BrowseCraft account") == true)
         #expect(viewModel.firstEnableRequest == nil)
         #expect(viewModel.isCloudSyncEnabled == false)
         let createCallCount: Int = await context.identityStore.createCallCount()
@@ -174,7 +81,7 @@ struct CloudSyncSettingsViewModelTests {
         #expect(storedIdentity == cloudIdentity)
     }
 
-    @Test func confirmedConflictAdoptsCloudUUIDWithoutPortalOrStoreKitRecovery() async throws {
+    @Test func cloudConflictCannotAdoptAnUnauthenticatedUUID() async throws {
         let context: TestContext = try Self.makeContext()
         let cloudIdentity: CloudAppUserIdentity = .proposed(
             userID: UUID(),
@@ -185,20 +92,14 @@ struct CloudSyncSettingsViewModelTests {
         await viewModel.start()
         await viewModel.setCloudSyncEnabled(true)
 
-        await viewModel.confirmIdentityConflict(decision: .useCloudDataOnly)
-
-        let registerCallCount: Int = await context.portalAuthenticator.registerCallCount
-        let refreshCallCount: Int = await context.portalAuthenticator.refreshCallCount
-        #expect(context.activeAppUser.currentUserID == cloudIdentity.userID)
-        #expect(context.localIdentityStore.userID == cloudIdentity.userID)
-        #expect(context.portalSessionStore.session?.userID == cloudIdentity.userID)
-        #expect(context.portalSessionStore.session?.registrationState == .recoveryRequired)
-        #expect(registerCallCount == 0)
-        #expect(refreshCallCount == 0)
-        #expect(viewModel.cloudIdentityAssociationState == .associated(identity: cloudIdentity))
-        #expect(viewModel.identityConflictRequest == nil)
-        #expect(viewModel.isCloudSyncEnabled)
-        #expect(viewModel.identityRevision == 1)
+        #expect(context.activeAppUser.currentUserID != cloudIdentity.userID)
+        #expect(context.localIdentityStore.userID == context.activeAppUser.currentUserID)
+        #expect(context.portalSessionStore.session?.userID == context.activeAppUser.currentUserID)
+        #expect(viewModel.cloudIdentityAssociationState == .requiresUserDecision(
+            localUserID: context.activeAppUser.currentUserID,
+            cloudIdentity: cloudIdentity
+        ))
+        #expect(viewModel.isCloudSyncEnabled == false)
     }
 
     @Test func enablingWithLocalDataWaitsForAFirstEnableDecision() async throws {
@@ -499,21 +400,23 @@ struct CloudSyncSettingsViewModelTests {
         }
         let identityStore: MockCloudAppUserIdentityStore =
             MockCloudAppUserIdentityStore()
-        let identityAssociationCoordinator:
-            CloudAppUserIdentityAssociationCoordinator =
-            CloudAppUserIdentityAssociationCoordinator(
-                identityStore: identityStore,
-                activeAppUser: activeAppUser,
-                now: {
-                    return Date(timeIntervalSince1970: 10)
-                }
-            )
         let localIdentityStore: CloudSyncTestAppUserIdentityStore =
             CloudSyncTestAppUserIdentityStore(
                 userID: activeAppUser.currentUserID
             )
         let portalSessionStore: CloudSyncTestPortalSessionStore =
-            CloudSyncTestPortalSessionStore()
+            CloudSyncTestPortalSessionStore(
+                session: PortalSessionPersistence(
+                    userID: activeAppUser.currentUserID,
+                    credentials: PortalAuthenticationTokens(
+                        userID: activeAppUser.currentUserID,
+                        accessToken: "access-token",
+                        refreshToken: "refresh-token",
+                        accessTokenExpiresAt: Date().addingTimeInterval(3_600),
+                        refreshTokenExpiresAt: Date().addingTimeInterval(86_400)
+                    )
+                )
+            )
         let portalAuthenticator: CloudSyncTestPortalAuthenticator =
             CloudSyncTestPortalAuthenticator()
         let portalSessionCoordinator: PortalSessionCoordinator =
@@ -521,6 +424,16 @@ struct CloudSyncSettingsViewModelTests {
                 activeAppUser: activeAppUser,
                 sessionStore: portalSessionStore,
                 authenticator: portalAuthenticator
+            )
+        let identityAssociationCoordinator:
+            CloudAppUserIdentityAssociationCoordinator =
+            CloudAppUserIdentityAssociationCoordinator(
+                identityStore: identityStore,
+                activeAppUser: activeAppUser,
+                portalSessionCoordinator: portalSessionCoordinator,
+                now: {
+                    return Date(timeIntervalSince1970: 10)
+                }
             )
         let partitionStore: GRDBCloudAccountPartitionStore = GRDBCloudAccountPartitionStore(
             database: database,
@@ -557,23 +470,12 @@ struct CloudSyncSettingsViewModelTests {
             associationAttestationStore: partitionStore,
             userContext: userContext
         )
-        let identityAdoptionCoordinator: AppUserIdentityAdoptionCoordinator =
-            AppUserIdentityAdoptionCoordinator(
-                adoptionStore: GRDBAppUserIdentityAdoptionStore(
-                    database: database
-                ),
-                identityStore: localIdentityStore,
-                activeAppUser: activeAppUser,
-                portalSessionCoordinator: portalSessionCoordinator,
-                cloudSyncCoordinator: coordinator
-            )
         return TestContext(
             cloudScope: cloudScope,
             activeScope: activeScope,
             activeAppUser: activeAppUser,
             identityStore: identityStore,
             identityAssociationCoordinator: identityAssociationCoordinator,
-            identityAdoptionCoordinator: identityAdoptionCoordinator,
             localIdentityStore: localIdentityStore,
             portalSessionStore: portalSessionStore,
             portalAuthenticator: portalAuthenticator,
@@ -621,7 +523,6 @@ private struct TestContext {
     var activeAppUser: ActiveAppUserStore
     var identityStore: MockCloudAppUserIdentityStore
     var identityAssociationCoordinator: CloudAppUserIdentityAssociationCoordinator
-    var identityAdoptionCoordinator: AppUserIdentityAdoptionCoordinator
     var localIdentityStore: CloudSyncTestAppUserIdentityStore
     var portalSessionStore: CloudSyncTestPortalSessionStore
     var portalAuthenticator: CloudSyncTestPortalAuthenticator
@@ -641,7 +542,6 @@ private struct TestContext {
             partitionStore: self.partitionStore,
             coordinator: self.coordinator,
             identityAssociationCoordinator: self.identityAssociationCoordinator,
-            identityAdoptionCoordinator: self.identityAdoptionCoordinator,
             associationAttestationStore: self.partitionStore,
             activeAppUser: self.activeAppUser
         )
@@ -671,6 +571,10 @@ private final class CloudSyncTestPortalSessionStore:
     @unchecked Sendable {
     private(set) var session: PortalSessionPersistence?
 
+    init(session: PortalSessionPersistence? = nil) {
+        self.session = session
+    }
+
     func load() throws -> PortalSessionPersistence? {
         return self.session
     }
@@ -678,20 +582,40 @@ private final class CloudSyncTestPortalSessionStore:
     func save(_ session: PortalSessionPersistence) throws {
         self.session = session
     }
+
+    func clear() throws {
+        self.session = nil
+    }
 }
 
 private actor CloudSyncTestPortalAuthenticator: PortalIdentityAuthenticating {
-    private(set) var registerCallCount: Int = 0
     private(set) var refreshCallCount: Int = 0
 
-    func register(userID: UUID) async throws -> PortalAuthenticationTokens {
-        self.registerCallCount += 1
+    func issueAppleChallenge() async throws -> PortalAppleAuthenticationChallenge {
         throw PortalIdentityAuthenticationError.temporarilyUnavailable
+    }
+
+    func authenticateWithApple(
+        identityToken: String,
+        nonce: String
+    ) async throws -> PortalAuthenticationTokens {
+        _ = identityToken
+        _ = nonce
+        throw PortalIdentityAuthenticationError.appleIdentityRejected
     }
 
     func refresh(refreshToken: String) async throws -> PortalAuthenticationTokens {
         self.refreshCallCount += 1
         throw PortalIdentityAuthenticationError.temporarilyUnavailable
+    }
+
+    func logout(refreshToken: String, accessToken: String) async throws {
+        _ = refreshToken
+        _ = accessToken
+    }
+
+    func logoutAll(accessToken: String) async throws {
+        _ = accessToken
     }
 }
 

@@ -27,6 +27,7 @@ final class AppContainer {
     let cloudIdentityAssociationCoordinator: CloudAppUserIdentityAssociationCoordinator
     let storeKitPurchaseIdentityAuthorizer: StoreKitPurchaseIdentityAuthorizer
     let appUserIdentityAdoptionCoordinator: AppUserIdentityAdoptionCoordinator
+    let portalAppleSignInCoordinator: PortalAppleSignInCoordinator
     let portalSessionCoordinator: PortalSessionCoordinator
     let portalIAPService: any PortalIAPServicing
     let portalPurchaseEntitlementRefreshCoordinator:
@@ -53,6 +54,9 @@ final class AppContainer {
             let appUserRepository: GRDBAppUserRepository = GRDBAppUserRepository(database: database)
             let appUserIdentityStore: KeychainAppUserIdentityStore =
                 KeychainAppUserIdentityStore()
+            let portalIdentityOriginStore:
+                KeychainPortalAppUserIdentityOriginStore =
+                KeychainPortalAppUserIdentityOriginStore()
             let activeUserID: UUID = try AppUserIdentityBootstrapper(
                 identityStore: appUserIdentityStore,
                 appUserRepository: appUserRepository
@@ -63,31 +67,28 @@ final class AppContainer {
             )
             let cloudIdentityStore: CloudKitAppUserIdentityStore =
                 CloudKitAppUserIdentityStore(container: cloudKitContainer)
+            let portalAPIClient: PortalAPIClient = PortalAPIClient()
+            let portalSessionCoordinator: PortalSessionCoordinator =
+                PortalSessionCoordinator(
+                    activeAppUser: self.activeAppUserStore,
+                    sessionStore: KeychainPortalSessionStore(),
+                    authenticator: APIKitPortalIdentityAuthenticator(
+                        api: PortalIdentityAPI(client: portalAPIClient)
+                    ),
+                    networkMonitor: NWPathPortalNetworkAvailabilityMonitor(),
+                    identityOriginStore: portalIdentityOriginStore,
+                    entitlementCacheResetter: appUserRepository
+                )
+            self.portalSessionCoordinator = portalSessionCoordinator
             let cloudIdentityAssociationCoordinator:
                 CloudAppUserIdentityAssociationCoordinator =
                 CloudAppUserIdentityAssociationCoordinator(
                     identityStore: cloudIdentityStore,
-                    activeAppUser: self.activeAppUserStore
+                    activeAppUser: self.activeAppUserStore,
+                    portalSessionCoordinator: portalSessionCoordinator
                 )
             self.cloudIdentityAssociationCoordinator = cloudIdentityAssociationCoordinator
-            self.storeKitPurchaseIdentityAuthorizer =
-                StoreKitPurchaseIdentityAuthorizer(
-                    identityStore: cloudIdentityStore,
-                    activeAppUser: self.activeAppUserStore
-                )
-            let portalAPIClient: PortalAPIClient = PortalAPIClient()
-            let portalSessionCoordinator: PortalSessionCoordinator =
-                PortalSessionCoordinator(
-                activeAppUser: self.activeAppUserStore,
-                sessionStore: KeychainPortalSessionStore(),
-                authenticator: APIKitPortalIdentityAuthenticator(
-                    api: PortalIdentityAPI(client: portalAPIClient)
-                ),
-                networkMonitor: NWPathPortalNetworkAvailabilityMonitor()
-            )
-            self.portalSessionCoordinator = portalSessionCoordinator
             let portalIAPService: APIKitPortalIAPService = APIKitPortalIAPService(
-                identityAPI: PortalIdentityAPI(client: portalAPIClient),
                 iapAPI: PortalIAPAPI(client: portalAPIClient)
             )
             self.portalIAPService = portalIAPService
@@ -164,7 +165,8 @@ final class AppContainer {
                 retryScheduleProvider: engineStore
             )
             self.cloudSyncCoordinator = cloudSyncCoordinator
-            self.appUserIdentityAdoptionCoordinator =
+            let appUserIdentityAdoptionCoordinator:
+                AppUserIdentityAdoptionCoordinator =
                 AppUserIdentityAdoptionCoordinator(
                     adoptionStore: GRDBAppUserIdentityAdoptionStore(
                         database: database
@@ -173,6 +175,25 @@ final class AppContainer {
                     activeAppUser: self.activeAppUserStore,
                     portalSessionCoordinator: portalSessionCoordinator,
                     cloudSyncCoordinator: cloudSyncCoordinator
+                )
+            self.appUserIdentityAdoptionCoordinator =
+                appUserIdentityAdoptionCoordinator
+            let portalAppleSignInCoordinator: PortalAppleSignInCoordinator =
+                PortalAppleSignInCoordinator(
+                    activeAppUser: self.activeAppUserStore,
+                    portalSessionCoordinator: portalSessionCoordinator,
+                    appleAuthorizer:
+                        AuthenticationServicesAppleSignInAuthorizer(),
+                    identityAdoptionCoordinator:
+                        appUserIdentityAdoptionCoordinator,
+                    identityOriginStore: portalIdentityOriginStore
+                )
+            self.portalAppleSignInCoordinator = portalAppleSignInCoordinator
+            self.storeKitPurchaseIdentityAuthorizer =
+                StoreKitPurchaseIdentityAuthorizer(
+                    activeAppUser: self.activeAppUserStore,
+                    portalSessionCoordinator: portalSessionCoordinator,
+                    appleSignInCoordinator: portalAppleSignInCoordinator
                 )
             let urlResolver: URLResolvingService = URLResolvingService()
             let sourceCredentialStore: SourceCredentialStoring = InMemorySourceCredentialStore()
@@ -280,22 +301,24 @@ final class AppContainer {
             )
             let settingsFeatureFactory: SettingsFeatureFactory =
                 SettingsFeatureFactory(
-                database: database,
-                activeAppUser: self.activeAppUserStore,
-                imageCacheConfigurator: imageCacheConfigurator,
-                cloudAccountSession: cloudAccountSession,
-                cloudAccountPartitionStore: cloudAccountPartitionStore,
-                cloudAssociationAttestationStore:
-                    cloudAccountPartitionStore,
-                cloudSyncCoordinator: cloudSyncCoordinator,
-                cloudIdentityAssociationCoordinator: cloudIdentityAssociationCoordinator,
-                storeKitPurchaseIdentityAuthorizer:
-                    self.storeKitPurchaseIdentityAuthorizer,
-                portalPurchaseEntitlementRefreshCoordinator:
-                    self.portalPurchaseEntitlementRefreshCoordinator,
-                appUserIdentityAdoptionCoordinator:
-                    self.appUserIdentityAdoptionCoordinator
-            )
+                    database: database,
+                    activeAppUser: self.activeAppUserStore,
+                    imageCacheConfigurator: imageCacheConfigurator,
+                    cloudAccountSession: cloudAccountSession,
+                    cloudAccountPartitionStore: cloudAccountPartitionStore,
+                    cloudAssociationAttestationStore:
+                        cloudAccountPartitionStore,
+                    cloudSyncCoordinator: cloudSyncCoordinator,
+                    cloudIdentityAssociationCoordinator:
+                        cloudIdentityAssociationCoordinator,
+                    storeKitPurchaseIdentityAuthorizer:
+                        self.storeKitPurchaseIdentityAuthorizer,
+                    portalPurchaseEntitlementRefreshCoordinator:
+                        self.portalPurchaseEntitlementRefreshCoordinator,
+                    portalAppleSignInCoordinator:
+                        self.portalAppleSignInCoordinator,
+                    portalSessionCoordinator: portalSessionCoordinator
+                )
             self.settingsFeatureFactory = settingsFeatureFactory
             self.settingsViewModel = settingsFeatureFactory.makeViewModel()
             self.browserRequestHeaderProvider = browserRequestHeaderProvider

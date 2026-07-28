@@ -28,35 +28,19 @@ final class CloudSyncSettingsViewModel: ObservableObject {
         }
     }
 
-    struct IdentityConflictRequest: Hashable, Identifiable {
-        var cloudScope: CloudAccountScope
-        var localUserID: UUID
-        var cloudIdentity: CloudAppUserIdentity
-        var localDataSummary: AppUserIdentityLocalDataSummary
-
-        var id: String {
-            return "\(self.cloudScope.rawValue):\(self.cloudIdentity.userID.uuidString)"
-        }
-    }
-
     enum SetupRequest: Hashable, Identifiable {
         case firstEnable(FirstEnableRequest)
-        case identityConflict(IdentityConflictRequest)
 
         var id: String {
             switch self {
             case .firstEnable(let request):
                 return "first-enable:\(request.id)"
-            case .identityConflict(let request):
-                return "identity-conflict:\(request.id)"
             }
         }
 
         var cloudScope: CloudAccountScope {
             switch self {
             case .firstEnable(let request):
-                return request.cloudScope
-            case .identityConflict(let request):
                 return request.cloudScope
             }
         }
@@ -83,7 +67,6 @@ final class CloudSyncSettingsViewModel: ObservableObject {
     private let partitionStore: any CloudAccountPartitioning
     private let coordinator: CloudSyncCoordinator
     private let identityAssociationCoordinator: CloudAppUserIdentityAssociationCoordinator
-    private let identityAdoptionCoordinator: AppUserIdentityAdoptionCoordinator
     private let associationAttestationStore:
         (any CloudAppUserAssociationAttestationStoring)?
     private let activeAppUser: (any ActiveAppUserProviding)?
@@ -99,7 +82,6 @@ final class CloudSyncSettingsViewModel: ObservableObject {
         partitionStore: any CloudAccountPartitioning,
         coordinator: CloudSyncCoordinator,
         identityAssociationCoordinator: CloudAppUserIdentityAssociationCoordinator,
-        identityAdoptionCoordinator: AppUserIdentityAdoptionCoordinator,
         associationAttestationStore:
             (any CloudAppUserAssociationAttestationStoring)? = nil,
         activeAppUser: (any ActiveAppUserProviding)? = nil
@@ -108,7 +90,6 @@ final class CloudSyncSettingsViewModel: ObservableObject {
         self.partitionStore = partitionStore
         self.coordinator = coordinator
         self.identityAssociationCoordinator = identityAssociationCoordinator
-        self.identityAdoptionCoordinator = identityAdoptionCoordinator
         self.associationAttestationStore = associationAttestationStore
         self.activeAppUser = activeAppUser
         self.hasAttestedIdentityAssociation =
@@ -132,13 +113,6 @@ final class CloudSyncSettingsViewModel: ObservableObject {
 
     var firstEnableRequest: FirstEnableRequest? {
         guard case .some(.firstEnable(let request)) = self.setupRequest else {
-            return nil
-        }
-        return request
-    }
-
-    var identityConflictRequest: IdentityConflictRequest? {
-        guard case .some(.identityConflict(let request)) = self.setupRequest else {
             return nil
         }
         return request
@@ -363,120 +337,8 @@ final class CloudSyncSettingsViewModel: ObservableObject {
         self.currentUserSummary = nil
     }
 
-    func dismissIdentityConflict() {
-        guard case .some(.identityConflict(_)) = self.setupRequest else {
-            return
-        }
-        self.setupRequest = nil
-        self.currentUserSummary = nil
-        self.cloudIdentityAssociationState = .notAssociated
-        self.activationIntent = nil
-    }
-
-    func confirmIdentityConflict(decision: CloudAccountLocalDataDecision) async {
-        guard let request: IdentityConflictRequest = self.identityConflictRequest,
-              self.isChangingCloudSyncEnabled == false else {
-            return
-        }
-        self.isChangingCloudSyncEnabled = true
-        self.actionErrorMessage = nil
-        defer {
-            self.isChangingCloudSyncEnabled = false
-        }
-
-        let snapshot: CloudAccountSessionSnapshot = await self.accountSession.snapshot()
-        guard snapshot.state.availability == .available,
-              snapshot.state.synchronizationScope == request.cloudScope else {
-            self.setupRequest = nil
-            self.activationIntent = nil
-            self.actionErrorMessage =
-                "The iCloud account changed before profile adoption was completed."
-            return
-        }
-
-        let intent: ActivationIntent? = self.activationIntent
-        do {
-            _ = try await self.identityAdoptionCoordinator.adopt(
-                localUserID: request.localUserID,
-                cloudIdentity: request.cloudIdentity,
-                decision: decision
-            )
-        } catch {
-            CloudSyncDiagnostics.logIdentityAssociationFailed(
-                stage: "identity-adoption",
-                error: error
-            )
-            self.actionErrorMessage = Self.adoptionErrorMessage(for: error)
-            return
-        }
-
-        self.cloudIdentityAssociationState = .associated(
-            identity: request.cloudIdentity
-        )
-        do {
-            try self.associationAttestationStore?.attestAssociation(
-                cloudScope: request.cloudScope,
-                userID: request.cloudIdentity.userID
-            )
-            CloudSyncDiagnostics.logIdentityAttestation(
-                accountScope: request.cloudScope,
-                outcome: "saved-after-adoption"
-            )
-            self.hasAttestedIdentityAssociation = true
-            await self.coordinator.identityAssociationDidChange()
-        } catch {
-            CloudSyncDiagnostics.logIdentityAssociationFailed(
-                stage: "attestation-after-adoption",
-                error: error
-            )
-            self.actionErrorMessage =
-                "The iCloud profile was adopted, but its local association could not be saved."
-            return
-        }
-        self.setupRequest = nil
-        self.currentUserSummary = nil
-        self.activationIntent = nil
-        self.contentRevision &+= 1
-        self.identityRevision &+= 1
-
-        guard intent == .enableCloudSync else {
-            await self.loadPartitionState(for: snapshot)
-            return
-        }
-
-        do {
-            if let existingPreparation: CloudAccountPartitionPreparation =
-                try self.partitionStore.preparation(
-                    for: request.cloudScope
-                ) {
-                self.preparation = existingPreparation
-                await self.enablePreparedCloudScope(request.cloudScope)
-                return
-            }
-            _ = try self.partitionStore.prepareCloudScope(
-                request.cloudScope,
-                decision: decision
-            )
-            self.preparation = try self.partitionStore.preparation(
-                for: request.cloudScope
-            )
-            await self.enablePreparedCloudScope(request.cloudScope)
-        } catch {
-            await self.loadPartitionState(for: snapshot)
-            self.actionErrorMessage =
-                "The iCloud profile was adopted, but Cloud Sync setup could not be saved."
-        }
-    }
-
     func dismissSetupRequest() {
-        switch self.setupRequest {
-        case .some(.firstEnable(_)):
-            self.cancelFirstEnable()
-        case .some(.identityConflict(_)):
-            self.dismissIdentityConflict()
-        case nil:
-            return
-        }
+        self.cancelFirstEnable()
     }
 
     func dismissActivationIssue() {
@@ -592,22 +454,13 @@ final class CloudSyncSettingsViewModel: ObservableObject {
             return true
         case .requiresUserDecision(let localUserID, let cloudIdentity):
             CloudSyncDiagnostics.logIdentityAssociation(
-                event: "user-decision-required",
+                event: "portal-account-mismatch-blocked",
                 localUserID: localUserID,
                 cloudUserID: cloudIdentity.userID
             )
-            let summary: AppUserIdentityLocalDataSummary =
-                try await self.identityAdoptionCoordinator.localDataSummary(
-                    for: localUserID
-                )
-            self.setupRequest = .identityConflict(
-                IdentityConflictRequest(
-                    cloudScope: cloudScope,
-                    localUserID: localUserID,
-                    cloudIdentity: cloudIdentity,
-                    localDataSummary: summary
-                )
-            )
+            self.actionErrorMessage =
+                "This iCloud data belongs to another BrowseCraft account. " +
+                "Sign in with the matching Apple account before enabling Cloud Sync."
             return false
         case .notAssociated, .readyToCreate:
             throw CloudAppUserIdentityAssociationError.unexpectedState
@@ -767,29 +620,18 @@ final class CloudSyncSettingsViewModel: ObservableObject {
                 return "The iCloud BrowseCraft identity could not be linked."
             }
         }
-        if error as? CloudAppUserIdentityAssociationError != nil {
-            return "The active BrowseCraft profile changed before iCloud linking completed."
+        if let associationError: CloudAppUserIdentityAssociationError =
+            error as? CloudAppUserIdentityAssociationError {
+            switch associationError {
+            case .portalSignInRequired:
+                return "Sign in with Apple before linking Cloud Sync."
+            case .activeUserChanged, .unexpectedState:
+                return "The active BrowseCraft profile changed before iCloud linking completed."
+            }
         }
         return "Cloud sync setup could not be saved."
     }
 
-    private static func adoptionErrorMessage(for error: any Error) -> String {
-        guard let adoptionError: AppUserIdentityAdoptionError =
-            error as? AppUserIdentityAdoptionError else {
-            return "The iCloud BrowseCraft profile could not be adopted."
-        }
-
-        switch adoptionError {
-        case .invalidCloudIdentity:
-            return "The iCloud BrowseCraft profile is no longer valid."
-        case .activeUserChanged:
-            return "The active BrowseCraft profile changed before adoption completed."
-        case .portalSessionResetFailed:
-            return "The old Portal session could not be cleared. No profile was changed."
-        case .identityRollbackFailed:
-            return "The identity change could not be completed safely. Restart BrowseCraft before trying again."
-        }
-    }
 }
 
 private struct AccountIdentity: Hashable {

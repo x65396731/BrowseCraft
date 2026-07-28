@@ -10,7 +10,7 @@ struct InAppPurchaseSheetView: View {
 
     init(
         authorizeStoreKitAction: @escaping @MainActor () async throws -> UUID = {
-            throw StoreKitPurchaseIdentityAuthorizationError.notAssociated
+            throw StoreKitPurchaseIdentityAuthorizationError.signInRequired
         },
         validateAuthorizedUser: @escaping @MainActor (UUID) async throws -> Void = { _ in
             throw StoreKitPurchaseIdentityAuthorizationError.activeUserChanged

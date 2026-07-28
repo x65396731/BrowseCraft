@@ -7,7 +7,7 @@ enum AppUserIdentityAdoptionError: Error, Equatable, Sendable {
     case identityRollbackFailed
 }
 
-/// 中文注释：显式确认后才采用 CloudKit UUID；数据库副本、Keychain 身份和活动用户按可补偿顺序切换。
+/// 中文注释：采用后端签发的 Portal UUID；仅访客首次登录可迁移本地内容，账户间切换始终隔离数据。
 actor AppUserIdentityAdoptionCoordinator {
     private let adoptionStore: any AppUserIdentityAdoptionStoring
     private let identityStore: any AppUserIdentityStoring
@@ -36,10 +36,39 @@ actor AppUserIdentityAdoptionCoordinator {
         return try self.adoptionStore.summary(for: expectedUserID)
     }
 
-    func adopt(
+    /// 中文注释：Apple 登录成功后采用后端 AppUser UUID；decision 决定是否迁移访客内容，权益和交易永不复制。
+    func adoptAuthenticatedPortalUser(
+        localUserID: UUID,
+        portalUserID: UUID,
+        decision: CloudAccountLocalDataDecision,
+        sessionTransitionID: UUID
+    ) async throws -> AppUserIdentityAdoptionResult {
+        guard localUserID != portalUserID else {
+            return AppUserIdentityAdoptionResult(
+                copiedSourceCount: 0,
+                copiedFavoriteItemCount: 0,
+                copiedHistoryCount: 0,
+                copiedTemporaryResourceCount: 0,
+                copiedLibraryState: false
+            )
+        }
+        let portalIdentity: CloudAppUserIdentity = CloudAppUserIdentity.proposed(
+            userID: portalUserID,
+            at: Date()
+        )
+        return try await self.performAdoption(
+            localUserID: localUserID,
+            cloudIdentity: portalIdentity,
+            decision: decision,
+            sessionTransitionID: sessionTransitionID
+        )
+    }
+
+    private func performAdoption(
         localUserID: UUID,
         cloudIdentity: CloudAppUserIdentity,
-        decision: CloudAccountLocalDataDecision
+        decision: CloudAccountLocalDataDecision,
+        sessionTransitionID: UUID
     ) async throws -> AppUserIdentityAdoptionResult {
         CloudSyncDiagnostics.logIdentityAssociation(
             event: "adoption-started-\(decision.rawValue)",
@@ -94,7 +123,7 @@ actor AppUserIdentityAdoptionCoordinator {
         )
         do {
             try await self.portalSessionCoordinator
-                .replaceSessionForAdoptedIdentity(cloudIdentity.userID)
+                .commitAuthenticatedSessionTransition(sessionTransitionID)
         } catch {
             do {
                 try self.identityStore.saveUserID(localUserID)

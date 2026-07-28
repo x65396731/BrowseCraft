@@ -45,6 +45,9 @@ final class SettingsViewModel: ObservableObject {
     @Published private(set) var storeKitTransactionUpdateRevision: UInt64 = 0
     @Published private(set) var storeKitTransactionUpdateActiveProductIDs:
         Set<String>?
+    @Published private(set) var isPortalAuthenticated: Bool = false
+    @Published private(set) var isPortalAccountActionInFlight: Bool = false
+    @Published var portalAccountErrorMessage: String?
 
     private let imageCacheConfigurator: ImageCacheConfigurator
     private let appUserRepository: AppUserRepository
@@ -53,6 +56,9 @@ final class SettingsViewModel: ObservableObject {
     private let portalPurchaseEntitlementRefreshCoordinator:
         PortalPurchaseEntitlementRefreshCoordinator
     private let diagnosticIdentityStore: DiagnosticIdentityStore
+    private let portalSignInAction: @MainActor () async throws -> UUID
+    private let portalSignOutAction: () async throws -> Void
+    private let portalSessionSnapshotAction: () async -> PortalSessionSnapshot?
 
     init(
         imageCacheConfigurator: ImageCacheConfigurator,
@@ -61,7 +67,14 @@ final class SettingsViewModel: ObservableObject {
         purchaseIdentityAuthorizer: StoreKitPurchaseIdentityAuthorizer,
         portalPurchaseEntitlementRefreshCoordinator:
             PortalPurchaseEntitlementRefreshCoordinator,
-        diagnosticIdentityStore: DiagnosticIdentityStore = .shared
+        diagnosticIdentityStore: DiagnosticIdentityStore = .shared,
+        portalSignInAction: @escaping @MainActor () async throws -> UUID = {
+            throw StoreKitPurchaseIdentityAuthorizationError.signInRequired
+        },
+        portalSignOutAction: @escaping () async throws -> Void = {},
+        portalSessionSnapshotAction: @escaping () async -> PortalSessionSnapshot? = {
+            return nil
+        }
     ) {
         self.imageCacheConfigurator = imageCacheConfigurator
         self.appUserRepository = appUserRepository
@@ -70,6 +83,9 @@ final class SettingsViewModel: ObservableObject {
         self.portalPurchaseEntitlementRefreshCoordinator =
             portalPurchaseEntitlementRefreshCoordinator
         self.diagnosticIdentityStore = diagnosticIdentityStore
+        self.portalSignInAction = portalSignInAction
+        self.portalSignOutAction = portalSignOutAction
+        self.portalSessionSnapshotAction = portalSessionSnapshotAction
         self.imageCacheSettings = ImageCacheSettings.load()
         self.diagnosticCode = diagnosticIdentityStore.identity.diagnosticCode
     }
@@ -77,6 +93,42 @@ final class SettingsViewModel: ObservableObject {
     @MainActor
     func refreshDiagnosticCode() {
         self.diagnosticCode = self.diagnosticIdentityStore.identity.diagnosticCode
+    }
+
+    @MainActor
+    func refreshPortalAccountStatus() async {
+        let snapshot: PortalSessionSnapshot? =
+            await self.portalSessionSnapshotAction()
+        self.isPortalAuthenticated = snapshot?.status == .authenticated
+    }
+
+    @MainActor
+    func togglePortalAccount() async {
+        guard self.isPortalAccountActionInFlight == false else {
+            return
+        }
+        self.isPortalAccountActionInFlight = true
+        self.portalAccountErrorMessage = nil
+        defer {
+            self.isPortalAccountActionInFlight = false
+        }
+
+        do {
+            if self.isPortalAuthenticated {
+                try await self.portalSignOutAction()
+            } else {
+                _ = try await self.portalSignInAction()
+            }
+            await self.refreshPortalAccountStatus()
+        } catch let error as AppleSignInAuthorizationError
+            where error == .cancelled {
+            await self.refreshPortalAccountStatus()
+        } catch {
+            self.portalAccountErrorMessage = self.isPortalAuthenticated
+                ? "BrowseCraft could not sign out. Try again."
+                : "Sign in with Apple could not be completed. Try again."
+            await self.refreshPortalAccountStatus()
+        }
     }
 
     @MainActor
@@ -332,8 +384,7 @@ final class SettingsViewModel: ObservableObject {
                     environment: environment,
                     signedTransactions: restorableTransactions.map(
                         \.signedTransaction
-                    ),
-                    recoveryProof: restorableTransactions[0].signedTransaction
+                    )
                 )
         try await self.purchaseIdentityAuthorizer
             .validateAuthorizedUser(authorizedUserID)

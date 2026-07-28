@@ -13,8 +13,8 @@ struct SettingsFeatureFactory {
         StoreKitPurchaseIdentityAuthorizer
     private let portalPurchaseEntitlementRefreshCoordinator:
         PortalPurchaseEntitlementRefreshCoordinator
-    private let appUserIdentityAdoptionCoordinator:
-        AppUserIdentityAdoptionCoordinator
+    private let portalAppleSignInCoordinator: PortalAppleSignInCoordinator
+    private let portalSessionCoordinator: PortalSessionCoordinator
 
     init(
         database: AppDatabase,
@@ -29,7 +29,8 @@ struct SettingsFeatureFactory {
         storeKitPurchaseIdentityAuthorizer: StoreKitPurchaseIdentityAuthorizer,
         portalPurchaseEntitlementRefreshCoordinator:
             PortalPurchaseEntitlementRefreshCoordinator,
-        appUserIdentityAdoptionCoordinator: AppUserIdentityAdoptionCoordinator
+        portalAppleSignInCoordinator: PortalAppleSignInCoordinator,
+        portalSessionCoordinator: PortalSessionCoordinator
     ) {
         self.database = database
         self.activeAppUser = activeAppUser
@@ -44,7 +45,8 @@ struct SettingsFeatureFactory {
             storeKitPurchaseIdentityAuthorizer
         self.portalPurchaseEntitlementRefreshCoordinator =
             portalPurchaseEntitlementRefreshCoordinator
-        self.appUserIdentityAdoptionCoordinator = appUserIdentityAdoptionCoordinator
+        self.portalAppleSignInCoordinator = portalAppleSignInCoordinator
+        self.portalSessionCoordinator = portalSessionCoordinator
     }
 
     func makeViewModel() -> SettingsViewModel {
@@ -54,7 +56,16 @@ struct SettingsFeatureFactory {
             activeAppUser: self.activeAppUser,
             purchaseIdentityAuthorizer: self.storeKitPurchaseIdentityAuthorizer,
             portalPurchaseEntitlementRefreshCoordinator:
-                self.portalPurchaseEntitlementRefreshCoordinator
+                self.portalPurchaseEntitlementRefreshCoordinator,
+            portalSignInAction: {
+                return try await self.portalAppleSignInCoordinator.signIn()
+            },
+            portalSignOutAction: {
+                try await self.portalSessionCoordinator.logout()
+            },
+            portalSessionSnapshotAction: {
+                return await self.portalSessionCoordinator.snapshot()
+            }
         )
     }
 
@@ -65,7 +76,6 @@ struct SettingsFeatureFactory {
             partitionStore: self.cloudAccountPartitionStore,
             coordinator: self.cloudSyncCoordinator,
             identityAssociationCoordinator: self.cloudIdentityAssociationCoordinator,
-            identityAdoptionCoordinator: self.appUserIdentityAdoptionCoordinator,
             associationAttestationStore:
                 self.cloudAssociationAttestationStore,
             activeAppUser: self.activeAppUser

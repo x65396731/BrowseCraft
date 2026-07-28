@@ -11,7 +11,7 @@ final class InAppPurchaseStore: ObservableObject {
         case productLoadFailed
         case productUnavailable(title: String)
         case checkingIdentity
-        case iCloudLinkRequired
+        case portalSignInRequired
         case identityMismatch
         case identityCheckFailed
         case restoreAccountMismatch
@@ -53,13 +53,13 @@ final class InAppPurchaseStore: ObservableObject {
             case .productUnavailable(let title):
                 return "\(title) is not currently available for purchase."
             case .checkingIdentity:
-                return "Checking the linked iCloud identity…"
-            case .iCloudLinkRequired:
-                return "Link iCloud in Cloud Sync before purchasing or restoring purchases."
+                return "Checking your BrowseCraft account…"
+            case .portalSignInRequired:
+                return "Sign in with Apple before purchasing or restoring purchases."
             case .identityMismatch:
-                return "The linked iCloud identity belongs to another BrowseCraft profile. Resolve it in Cloud Sync first."
+                return "The active BrowseCraft account changed. Sign in again before continuing."
             case .identityCheckFailed:
-                return "The linked iCloud identity could not be verified. Try again from Cloud Sync."
+                return "The BrowseCraft account could not be verified. Sign in again and retry."
             case .restoreAccountMismatch:
                 return "Some App Store purchases belong to another BrowseCraft profile and were not restored to this account."
             case .purchasing(_, let title):
@@ -145,8 +145,8 @@ final class InAppPurchaseStore: ObservableObject {
                 return "product-unavailable"
             case .checkingIdentity:
                 return "checking-identity"
-            case .iCloudLinkRequired:
-                return "icloud-link-required"
+            case .portalSignInRequired:
+                return "portal-sign-in-required"
             case .identityMismatch:
                 return "identity-mismatch"
             case .identityCheckFailed:
@@ -234,7 +234,7 @@ final class InAppPurchaseStore: ObservableObject {
 
     init(
         authorizeStoreKitAction: @escaping @MainActor () async throws -> UUID = {
-            throw StoreKitPurchaseIdentityAuthorizationError.notAssociated
+            throw StoreKitPurchaseIdentityAuthorizationError.signInRequired
         },
         validateAuthorizedUser: @escaping @MainActor (UUID) async throws -> Void = { _ in
             throw StoreKitPurchaseIdentityAuthorizationError.activeUserChanged
@@ -489,9 +489,6 @@ final class InAppPurchaseStore: ObservableObject {
         } catch let error as StoreKitPurchaseIdentityAuthorizationError {
             Self.logFailure(error, flow: "purchase")
             self.status = Self.status(for: error)
-        } catch let error as CloudAppUserIdentityStoreError {
-            Self.logFailure(error, flow: "purchase")
-            self.status = .identityCheckFailed
         } catch let error as StoreKitTransactionIdentityError {
             Self.logFailure(error, flow: "purchase")
             self.status = .transactionIdentityMismatch(title: plan.title)
@@ -561,10 +558,6 @@ final class InAppPurchaseStore: ObservableObject {
             Self.logFailure(error, flow: "restore")
             await self.refreshStoreKitOwnedProductIDs()
             self.status = Self.status(for: error)
-        } catch let error as CloudAppUserIdentityStoreError {
-            Self.logFailure(error, flow: "restore")
-            await self.refreshStoreKitOwnedProductIDs()
-            self.status = .identityCheckFailed
         } catch let error as StoreKitTransactionIdentityError {
             Self.logFailure(error, flow: "restore")
             await self.refreshStoreKitOwnedProductIDs()
@@ -821,13 +814,10 @@ final class InAppPurchaseStore: ObservableObject {
         for error: StoreKitPurchaseIdentityAuthorizationError
     ) -> Status {
         switch error {
-        case .notAssociated:
-            return .iCloudLinkRequired
-        case .identityMismatch:
+        case .signInRequired:
+            return .portalSignInRequired
+        case .activeUserChanged:
             return .identityMismatch
-        case .activeUserChanged,
-             .unsupportedSchemaVersion:
-            return .identityCheckFailed
         }
     }
 
@@ -870,7 +860,7 @@ final class InAppPurchaseStore: ObservableObject {
             return .portalTemporarilyUnavailable(title: title)
         case .responseOutcomeUnknown:
             return .portalOutcomeUnknown(title: title)
-        case .sessionRejected, .recoveryNotAllowed:
+        case .sessionRejected:
             return .portalSessionUnavailable(title: title)
         case .subjectMismatch, .accountTokenMissing, .accountMismatch:
             return .portalAccountMismatch(title: title)

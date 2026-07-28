@@ -50,14 +50,10 @@ enum IAPDiagnostics {
         }
         if let error = error as? StoreKitPurchaseIdentityAuthorizationError {
             switch error {
-            case .notAssociated:
-                return "identity-not-associated"
-            case .identityMismatch:
-                return "identity-mismatch"
+            case .signInRequired:
+                return "portal-sign-in-required"
             case .activeUserChanged:
                 return "active-user-changed"
-            case .unsupportedSchemaVersion:
-                return "identity-schema-unsupported"
             }
         }
         if let error = error as? StoreKitTransactionIdentityError {
@@ -98,8 +94,6 @@ enum IAPDiagnostics {
                 return "portal-temporarily-unavailable"
             case .responseOutcomeUnknown:
                 return "portal-response-outcome-unknown"
-            case .recoveryNotAllowed:
-                return "portal-recovery-not-allowed"
             case .sessionRejected:
                 return "portal-session-rejected"
             case .subjectMismatch:
@@ -161,7 +155,6 @@ struct PortalEntitlementSnapshot: Equatable, Sendable {
 enum PortalIAPServiceError: Error, Equatable, Sendable {
     case temporarilyUnavailable
     case responseOutcomeUnknown
-    case recoveryNotAllowed
     case sessionRejected
     case subjectMismatch
     case unverifiedTransaction
@@ -186,11 +179,6 @@ enum PortalPurchaseEntitlementRefreshError: Error, Equatable, Sendable {
 
 /// 中文注释：只封装 Portal IAP 网络合同；调用时机必须由用户主动购买/恢复状态机决定。
 protocol PortalIAPServicing: Sendable {
-    func recoverSession(
-        userID: UUID,
-        signedTransaction: String
-    ) async throws -> PortalAuthenticationTokens
-
     func refreshEntitlements(
         userID: UUID,
         environment: PortalPurchaseEnvironment,
@@ -199,8 +187,7 @@ protocol PortalIAPServicing: Sendable {
     ) async throws -> PortalEntitlementSnapshot
 }
 
-/// 中文注释：购买与 StoreKit 生命周期更新只使用现有 Portal Session；
-/// 只有用户主动恢复购买时才允许通过 Apple JWS 恢复 Session。
+/// 中文注释：购买、恢复与 StoreKit 生命周期更新都只使用现有 Portal Session。
 actor PortalPurchaseEntitlementRefreshCoordinator {
     private let activeAppUser: any ActiveAppUserProviding
     private let portalSessionCoordinator: PortalSessionCoordinator
@@ -254,6 +241,7 @@ actor PortalPurchaseEntitlementRefreshCoordinator {
                 "environment=\(environment.rawValue)"
         )
         try self.requireActiveUser(userID)
+        try await self.requireAuthenticatedPortalUser(userID)
         guard let accessToken: String =
             await self.portalSessionCoordinator.validAccessToken() else {
             IAPDiagnostics.error(
@@ -289,12 +277,11 @@ actor PortalPurchaseEntitlementRefreshCoordinator {
         return snapshot
     }
 
-    /// 中文注释：只有用户点击 Restore Purchases 后才允许用 Apple JWS 恢复 Session 并刷新完整权益。
+    /// 中文注释：恢复购买必须先完成 Apple 登录，再把 StoreKit 可见交易提交现有 IAP 接口。
     func restoreEntitlements(
         userID: UUID,
         environment: PortalPurchaseEnvironment,
-        signedTransactions: [String],
-        recoveryProof: String
+        signedTransactions: [String]
     ) async throws -> PortalEntitlementSnapshot {
         IAPDiagnostics.notice(
             "event=restore-refresh-started " +
@@ -303,39 +290,17 @@ actor PortalPurchaseEntitlementRefreshCoordinator {
                 "transactionCount=\(signedTransactions.count)"
         )
         try self.requireActiveUser(userID)
-        guard signedTransactions.isEmpty == false,
-              recoveryProof.isEmpty == false else {
+        try await self.requireAuthenticatedPortalUser(userID)
+        guard signedTransactions.isEmpty == false else {
             IAPDiagnostics.error(
                 "event=restore-refresh-failed reason=empty-transactions"
             )
             throw PortalIAPServiceError.invalidRequest
         }
 
-        let accessToken: String
-        if let existingAccessToken: String =
-            await self.portalSessionCoordinator.validAccessToken() {
-            IAPDiagnostics.notice(
-                "event=restore-session source=existing"
-            )
-            accessToken = existingAccessToken
-        } else {
-            IAPDiagnostics.notice(
-                "event=restore-session source=recovery-request"
-            )
-            let recoveredCredentials: PortalAuthenticationTokens =
-                try await self.portalIAPService.recoverSession(
-                    userID: userID,
-                    signedTransaction: recoveryProof
-                )
-            try self.requireActiveUser(userID)
-            try await self.portalSessionCoordinator.installRecoveredSession(
-                recoveredCredentials,
-                for: userID
-            )
-            IAPDiagnostics.notice(
-                "event=restore-session source=recovery-installed"
-            )
-            accessToken = recoveredCredentials.accessToken
+        guard let accessToken: String =
+                await self.portalSessionCoordinator.validAccessToken() else {
+            throw PortalPurchaseEntitlementRefreshError.sessionUnavailable
         }
 
         try self.requireActiveUser(userID)
@@ -370,6 +335,15 @@ actor PortalPurchaseEntitlementRefreshCoordinator {
                 "event=portal-refresh-failed reason=active-user-changed"
             )
             throw PortalPurchaseEntitlementRefreshError.activeUserChanged
+        }
+    }
+
+    private func requireAuthenticatedPortalUser(
+        _ expectedUserID: UUID
+    ) async throws {
+        guard await self.portalSessionCoordinator.authenticatedUserID() ==
+                expectedUserID else {
+            throw PortalPurchaseEntitlementRefreshError.sessionUnavailable
         }
     }
 }

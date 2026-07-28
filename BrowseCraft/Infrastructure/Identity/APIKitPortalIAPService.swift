@@ -2,52 +2,10 @@ import BrowseCraftAPIKit
 import Foundation
 
 struct APIKitPortalIAPService: PortalIAPServicing {
-    private let identityAPI: PortalIdentityAPI
     private let iapAPI: PortalIAPAPI
 
-    init(
-        identityAPI: PortalIdentityAPI,
-        iapAPI: PortalIAPAPI
-    ) {
-        self.identityAPI = identityAPI
+    init(iapAPI: PortalIAPAPI) {
         self.iapAPI = iapAPI
-    }
-
-    func recoverSession(
-        userID: UUID,
-        signedTransaction: String
-    ) async throws -> PortalAuthenticationTokens {
-        PortalSessionDiagnostics.notice(
-            "event=request-start operation=iap-recover path=\(PortalAPIPath.authRecover)"
-        )
-        do {
-            let response: PortalTokenResponse = try await self.identityAPI.recover(
-                userID: userID,
-                signedTransaction: signedTransaction
-            )
-            guard response.userID == userID else {
-                throw PortalIAPServiceError.subjectMismatch
-            }
-            PortalSessionDiagnostics.notice(
-                "event=request-success operation=iap-recover " +
-                    "path=\(PortalAPIPath.authRecover)"
-            )
-            return PortalAuthenticationTokens(
-                userID: response.userID,
-                accessToken: response.accessToken,
-                refreshToken: response.refreshToken,
-                accessTokenExpiresAt: response.expiresAt,
-                refreshTokenExpiresAt: response.refreshExpiresAt
-            )
-        } catch {
-            let mappedError: any Error = Self.map(error)
-            PortalSessionDiagnostics.error(
-                "event=request-failure operation=iap-recover " +
-                    "path=\(PortalAPIPath.authRecover) " +
-                    Self.safeErrorDescription(mappedError)
-            )
-            throw mappedError
-        }
     }
 
     func refreshEntitlements(
@@ -146,8 +104,6 @@ struct APIKitPortalIAPService: PortalIAPServicing {
             return PortalIAPServiceError.responseOutcomeUnknown
         case .server(let statusCode, let body):
             switch body.code {
-            case "AUTH_FORBIDDEN":
-                return PortalIAPServiceError.recoveryNotAllowed
             case "AUTH_REQUIRED", "AUTH_ACCESS_TOKEN_EXPIRED",
                  "AUTH_ACCESS_TOKEN_INVALID":
                 return PortalIAPServiceError.sessionRejected
@@ -209,8 +165,6 @@ struct APIKitPortalIAPService: PortalIAPServicing {
             return "category=temporarily-unavailable"
         case .responseOutcomeUnknown:
             return "category=response-outcome-unknown"
-        case .recoveryNotAllowed:
-            return "category=recovery-not-allowed"
         case .sessionRejected:
             return "category=session-rejected"
         case .subjectMismatch:

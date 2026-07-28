@@ -6,6 +6,10 @@
 - 首期同步对象：自定义 Source、FavoriteItem
 - 状态：数据合同已确定；上传前安全门禁必须在真实 CloudKit 接线前实现
 
+> 2026-07-28 身份合同更新：本文关于客户端生成 AppUser UUID、`/v1/auth/register`、
+> `/v1/auth/recover` 以及购买前必须关联 iCloud UUID 的内容已经失效。当前身份与购买边界以
+> `AccountScopedDatabaseMigration-Memo.md` 为准；Cloud payload 安全审计结论继续有效。
+
 ## 1. 审计范围
 
 本次沿着以下持久化和转换链路检查 Cloud payload 的实际来源：

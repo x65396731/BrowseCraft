@@ -92,6 +92,13 @@ struct KeychainPortalSessionStore: PortalSessionStoring {
         }
     }
 
+    func clear() throws {
+        let status: OSStatus = SecItemDelete(self.baseQuery as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw KeychainPortalSessionStoreError.unexpectedStatus(status)
+        }
+    }
+
     private var baseQuery: [String: Any] {
         return [
             kSecClass as String: kSecClassGenericPassword,

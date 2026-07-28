@@ -5,17 +5,11 @@ import Testing
 struct PortalSessionCoordinatorTests {
     private static let now: Date = Date(timeIntervalSince1970: 1_785_000_000)
 
-    @Test func newIdentityRegistersAndPersistsTokens() async throws {
-        let userID: UUID = try Self.userID("7125df34-6803-47ef-af12-4ae763b1b806")
-        let response: PortalAuthenticationTokens = Self.tokens(
-            userID: userID,
-            accessToken: "access-1",
-            refreshToken: "refresh-1",
-            accessExpiresAt: Self.now.addingTimeInterval(3_600)
-        )
+    @Test func missingSessionStaysSignedOutWithoutAutomaticRegistration() async {
+        let userID: UUID = UUID()
         let store: InMemoryPortalSessionStore = InMemoryPortalSessionStore()
         let authenticator: MockPortalIdentityAuthenticator =
-            MockPortalIdentityAuthenticator(registerResult: .success(response))
+            MockPortalIdentityAuthenticator()
         let coordinator: PortalSessionCoordinator = Self.coordinator(
             userID: userID,
             store: store,
@@ -24,26 +18,24 @@ struct PortalSessionCoordinatorTests {
 
         await coordinator.start()
 
-        let snapshot: PortalSessionSnapshot = await coordinator.snapshot()
-        let registerCallCount: Int = await authenticator.registerCallCount
-        #expect(snapshot.status == .authenticated)
-        #expect(registerCallCount == 1)
-        #expect(store.session?.registrationState == .authenticated)
-        #expect(store.session?.credentials == response)
-        #expect(store.savedStates.first == .attempting)
-        #expect(store.savedStates.last == .authenticated)
+        #expect(await coordinator.snapshot().status == .signedOut)
+        #expect(await authenticator.appleAuthenticationCallCount == 0)
+        #expect(store.session == nil)
     }
 
-    @Test func validAccessTokenDoesNotRefreshAtStartup() async throws {
-        let userID: UUID = try Self.userID("1ba2eab7-8e2c-41e5-aafb-22f85794f6fe")
+    @Test func validStoredSessionDoesNotRefreshAtStartup() async {
+        let userID: UUID = UUID()
         let credentials: PortalAuthenticationTokens = Self.tokens(
             userID: userID,
-            accessToken: "still-valid",
+            accessToken: "access",
             refreshToken: "refresh",
             accessExpiresAt: Self.now.addingTimeInterval(601)
         )
         let store: InMemoryPortalSessionStore = InMemoryPortalSessionStore(
-            session: Self.session(userID: userID, credentials: credentials)
+            session: PortalSessionPersistence(
+                userID: userID,
+                credentials: credentials
+            )
         )
         let authenticator: MockPortalIdentityAuthenticator =
             MockPortalIdentityAuthenticator()
@@ -55,19 +47,18 @@ struct PortalSessionCoordinatorTests {
 
         await coordinator.start()
 
-        let snapshot: PortalSessionSnapshot = await coordinator.snapshot()
-        let refreshCallCount: Int = await authenticator.refreshCallCount
-        #expect(snapshot.status == .authenticated)
-        #expect(refreshCallCount == 0)
+        #expect(await coordinator.snapshot().status == .authenticated)
+        #expect(await authenticator.refreshCallCount == 0)
+        #expect(await coordinator.validAccessToken() == "access")
     }
 
-    @Test func tokenWithinFiveMinutesIsRefreshedAndAtomicallyReplaced() async throws {
-        let userID: UUID = try Self.userID("7a9bd1f5-e1a6-4b04-b36a-c952750385c5")
+    @Test func expiringAccessTokenRotatesAndPersistsSession() async {
+        let userID: UUID = UUID()
         let oldCredentials: PortalAuthenticationTokens = Self.tokens(
             userID: userID,
             accessToken: "old-access",
             refreshToken: "old-refresh",
-            accessExpiresAt: Self.now.addingTimeInterval(300)
+            accessExpiresAt: Self.now.addingTimeInterval(60)
         )
         let newCredentials: PortalAuthenticationTokens = Self.tokens(
             userID: userID,
@@ -76,10 +67,15 @@ struct PortalSessionCoordinatorTests {
             accessExpiresAt: Self.now.addingTimeInterval(86_400)
         )
         let store: InMemoryPortalSessionStore = InMemoryPortalSessionStore(
-            session: Self.session(userID: userID, credentials: oldCredentials)
+            session: PortalSessionPersistence(
+                userID: userID,
+                credentials: oldCredentials
+            )
         )
         let authenticator: MockPortalIdentityAuthenticator =
-            MockPortalIdentityAuthenticator(refreshResult: .success(newCredentials))
+            MockPortalIdentityAuthenticator(
+                refreshResult: .success(newCredentials)
+            )
         let coordinator: PortalSessionCoordinator = Self.coordinator(
             userID: userID,
             store: store,
@@ -88,49 +84,31 @@ struct PortalSessionCoordinatorTests {
 
         await coordinator.start()
 
-        let refreshTokens: [String] = await authenticator.receivedRefreshTokens
-        let accessToken: String? = await coordinator.validAccessToken()
-        #expect(refreshTokens == ["old-refresh"])
         #expect(store.session?.credentials == newCredentials)
-        #expect(accessToken == "new-access")
+        #expect(await coordinator.validAccessToken() == "new-access")
+        #expect(await authenticator.receivedRefreshTokens == ["old-refresh"])
     }
 
-    @Test func temporaryRefreshFailureKeepsExistingCredentials() async throws {
-        let userID: UUID = try Self.userID("632b0056-e14a-407c-bb5e-c51fb46be37e")
+    @Test func rejectedRefreshClearsLegacySession() async {
+        let userID: UUID = UUID()
         let credentials: PortalAuthenticationTokens = Self.tokens(
             userID: userID,
-            accessToken: "expired-access",
-            refreshToken: "preserved-refresh",
+            accessToken: "expired",
+            refreshToken: "rejected",
             accessExpiresAt: Self.now.addingTimeInterval(-1)
         )
         let store: InMemoryPortalSessionStore = InMemoryPortalSessionStore(
-            session: Self.session(userID: userID, credentials: credentials)
-        )
-        let authenticator: MockPortalIdentityAuthenticator = MockPortalIdentityAuthenticator(
-            refreshResult: .failure(PortalIdentityAuthenticationError.temporarilyUnavailable)
-        )
-        let coordinator: PortalSessionCoordinator = Self.coordinator(
-            userID: userID,
-            store: store,
-            authenticator: authenticator
-        )
-
-        await coordinator.start()
-
-        let snapshot: PortalSessionSnapshot = await coordinator.snapshot()
-        #expect(snapshot.status == .temporarilyUnavailable)
-        #expect(store.session?.credentials == credentials)
-        #expect(store.session?.registrationState == .authenticated)
-    }
-
-    @Test func alreadyRegisteredIdentityRequiresRecoveryAndDoesNotRetryImmediately() async throws {
-        let userID: UUID = try Self.userID("7e46f2b0-0516-474c-bad6-8561999f71e4")
-        let store: InMemoryPortalSessionStore = InMemoryPortalSessionStore()
-        let authenticator: MockPortalIdentityAuthenticator = MockPortalIdentityAuthenticator(
-            registerResult: .failure(
-                PortalIdentityAuthenticationError.registrationAlreadyExists
+            session: PortalSessionPersistence(
+                userID: userID,
+                credentials: credentials
             )
         )
+        let authenticator: MockPortalIdentityAuthenticator =
+            MockPortalIdentityAuthenticator(
+                refreshResult: .failure(
+                    PortalIdentityAuthenticationError.refreshRejected
+                )
+            )
         let coordinator: PortalSessionCoordinator = Self.coordinator(
             userID: userID,
             store: store,
@@ -138,20 +116,51 @@ struct PortalSessionCoordinatorTests {
         )
 
         await coordinator.start()
-        await coordinator.handleAppBecameActive()
 
-        let snapshot: PortalSessionSnapshot = await coordinator.snapshot()
-        let registerCallCount: Int = await authenticator.registerCallCount
-        #expect(snapshot.status == .recoveryRequired)
-        #expect(registerCallCount == 1)
-        #expect(store.session?.registrationState == .recoveryRequired)
+        #expect(store.session == nil)
+        #expect(store.clearCallCount == 1)
+        #expect(await coordinator.snapshot().status == .signedOut)
     }
 
-    @Test func storedSessionForAnotherUserIsBlockedWithoutNetworkRequest() async throws {
-        let activeUserID: UUID = try Self.userID("cc439366-c780-42e5-bc99-cfa2a8cabbd9")
-        let storedUserID: UUID = try Self.userID("cdbb53f7-429a-4e8f-ad7f-f36d35900c04")
+    @Test func appleCredentialsArePersistedOnlyAfterExplicitInstallation() async throws {
+        let userID: UUID = UUID()
+        let credentials: PortalAuthenticationTokens = Self.tokens(
+            userID: userID,
+            accessToken: "apple-access",
+            refreshToken: "apple-refresh",
+            accessExpiresAt: Self.now.addingTimeInterval(3_600)
+        )
+        let store: InMemoryPortalSessionStore = InMemoryPortalSessionStore()
+        let authenticator: MockPortalIdentityAuthenticator =
+            MockPortalIdentityAuthenticator(
+                appleAuthenticationResult: .success(credentials)
+            )
+        let coordinator: PortalSessionCoordinator = Self.coordinator(
+            userID: userID,
+            store: store,
+            authenticator: authenticator
+        )
+
+        let challenge: PortalAppleAuthenticationChallenge =
+            try await coordinator.issueAppleChallenge()
+        let exchanged: PortalAuthenticationTokens =
+            try await coordinator.authenticateWithApple(
+                identityToken: "identity-token",
+                nonce: challenge.nonce
+            )
+        #expect(store.session == nil)
+
+        try await coordinator.installAuthenticatedSession(exchanged)
+
+        #expect(store.session?.credentials == credentials)
+        #expect(await coordinator.authenticatedUserID() == userID)
+    }
+
+    @Test func storedSessionForDifferentActiveUserIsBlocked() async {
+        let activeUserID: UUID = UUID()
+        let storedUserID: UUID = UUID()
         let store: InMemoryPortalSessionStore = InMemoryPortalSessionStore(
-            session: Self.session(
+            session: PortalSessionPersistence(
                 userID: storedUserID,
                 credentials: Self.tokens(
                     userID: storedUserID,
@@ -161,125 +170,16 @@ struct PortalSessionCoordinatorTests {
                 )
             )
         )
-        let authenticator: MockPortalIdentityAuthenticator =
-            MockPortalIdentityAuthenticator()
         let coordinator: PortalSessionCoordinator = Self.coordinator(
             userID: activeUserID,
             store: store,
-            authenticator: authenticator
+            authenticator: MockPortalIdentityAuthenticator()
         )
 
         await coordinator.start()
 
-        let snapshot: PortalSessionSnapshot = await coordinator.snapshot()
-        let registerCallCount: Int = await authenticator.registerCallCount
-        let refreshCallCount: Int = await authenticator.refreshCallCount
-        #expect(snapshot.status == .accountConflict)
-        #expect(registerCallCount == 0)
-        #expect(refreshCallCount == 0)
-    }
-
-    @Test func credentialsForAnotherUserAreBlockedEvenWhenSessionOwnerMatches() async throws {
-        let activeUserID: UUID = try Self.userID("70f4682a-eafc-4402-9610-41c81f01f9ce")
-        let otherUserID: UUID = try Self.userID("68ad646e-3256-4cf3-9ab5-e5e371784777")
-        let store: InMemoryPortalSessionStore = InMemoryPortalSessionStore(
-            session: Self.session(
-                userID: activeUserID,
-                credentials: Self.tokens(
-                    userID: otherUserID,
-                    accessToken: "wrong-access",
-                    refreshToken: "wrong-refresh",
-                    accessExpiresAt: Self.now.addingTimeInterval(3_600)
-                )
-            )
-        )
-        let authenticator: MockPortalIdentityAuthenticator =
-            MockPortalIdentityAuthenticator()
-        let coordinator: PortalSessionCoordinator = Self.coordinator(
-            userID: activeUserID,
-            store: store,
-            authenticator: authenticator
-        )
-
-        await coordinator.start()
-
-        let snapshot: PortalSessionSnapshot = await coordinator.snapshot()
-        let accessToken: String? = await coordinator.validAccessToken()
-        #expect(snapshot.status == .accountConflict)
-        #expect(accessToken == nil)
-    }
-
-    @Test func adoptedIdentityReplacesOldCredentialsWithoutNetworkRequest() async throws {
-        let oldUserID: UUID = try Self.userID("70f4682a-eafc-4402-9610-41c81f01f9ce")
-        let adoptedUserID: UUID = try Self.userID("68ad646e-3256-4cf3-9ab5-e5e371784777")
-        let activeUser: ActiveAppUserStore = ActiveAppUserStore(
-            initialUserID: oldUserID
-        )
-        let store: InMemoryPortalSessionStore = InMemoryPortalSessionStore(
-            session: Self.session(
-                userID: oldUserID,
-                credentials: Self.tokens(
-                    userID: oldUserID,
-                    accessToken: "old-access",
-                    refreshToken: "old-refresh",
-                    accessExpiresAt: Self.now.addingTimeInterval(3_600)
-                )
-            )
-        )
-        let authenticator: MockPortalIdentityAuthenticator =
-            MockPortalIdentityAuthenticator()
-        let coordinator: PortalSessionCoordinator = PortalSessionCoordinator(
-            activeAppUser: activeUser,
-            sessionStore: store,
-            authenticator: authenticator,
-            now: { Self.now }
-        )
-        await coordinator.start()
-        activeUser.update(adoptedUserID)
-
-        try await coordinator.replaceSessionForAdoptedIdentity(adoptedUserID)
-
-        let snapshot: PortalSessionSnapshot = await coordinator.snapshot()
-        let registerCallCount: Int = await authenticator.registerCallCount
-        let refreshCallCount: Int = await authenticator.refreshCallCount
-        #expect(snapshot.userID == adoptedUserID)
-        #expect(snapshot.status == .recoveryRequired)
-        #expect(store.session?.userID == adoptedUserID)
-        #expect(store.session?.credentials == nil)
-        #expect(registerCallCount == 0)
-        #expect(refreshCallCount == 0)
-    }
-
-    @Test func manuallyRecoveredCredentialsInstallOnlyForActiveUser() async throws {
-        let userID: UUID = try Self.userID("70f4682a-eafc-4402-9610-41c81f01f9ce")
-        let store: InMemoryPortalSessionStore = InMemoryPortalSessionStore()
-        let authenticator: MockPortalIdentityAuthenticator =
-            MockPortalIdentityAuthenticator()
-        let coordinator: PortalSessionCoordinator = Self.coordinator(
-            userID: userID,
-            store: store,
-            authenticator: authenticator
-        )
-        let credentials: PortalAuthenticationTokens = Self.tokens(
-            userID: userID,
-            accessToken: "recovered-access",
-            refreshToken: "recovered-refresh",
-            accessExpiresAt: Self.now.addingTimeInterval(3_600)
-        )
-
-        try await coordinator.installRecoveredSession(
-            credentials,
-            for: userID
-        )
-
-        let snapshot: PortalSessionSnapshot = await coordinator.snapshot()
-        let registerCallCount: Int = await authenticator.registerCallCount
-        let refreshCallCount: Int = await authenticator.refreshCallCount
-        #expect(snapshot.status == .authenticated)
-        #expect(snapshot.userID == userID)
-        #expect(store.session?.credentials?.accessToken == "recovered-access")
-        #expect(registerCallCount == 0)
-        #expect(refreshCallCount == 0)
+        #expect(await coordinator.snapshot().status == .accountConflict)
+        #expect(await coordinator.validAccessToken() == nil)
     }
 
     private static func coordinator(
@@ -295,17 +195,6 @@ struct PortalSessionCoordinatorTests {
         )
     }
 
-    private static func session(
-        userID: UUID,
-        credentials: PortalAuthenticationTokens
-    ) -> PortalSessionPersistence {
-        return PortalSessionPersistence(
-            userID: userID,
-            registrationState: .authenticated,
-            credentials: credentials
-        )
-    }
-
     private static func tokens(
         userID: UUID,
         accessToken: String,
@@ -317,18 +206,16 @@ struct PortalSessionCoordinatorTests {
             accessToken: accessToken,
             refreshToken: refreshToken,
             accessTokenExpiresAt: accessExpiresAt,
-            refreshTokenExpiresAt: Self.now.addingTimeInterval(180 * 24 * 60 * 60)
+            refreshTokenExpiresAt: Self.now.addingTimeInterval(86_400)
         )
-    }
-
-    private static func userID(_ value: String) throws -> UUID {
-        return try #require(UUID(uuidString: value))
     }
 }
 
-private final class InMemoryPortalSessionStore: PortalSessionStoring, @unchecked Sendable {
+private final class InMemoryPortalSessionStore:
+    PortalSessionStoring,
+    @unchecked Sendable {
     private(set) var session: PortalSessionPersistence?
-    private(set) var savedStates: [PortalRegistrationState] = []
+    private(set) var clearCallCount: Int = 0
 
     init(session: PortalSessionPersistence? = nil) {
         self.session = session
@@ -340,51 +227,79 @@ private final class InMemoryPortalSessionStore: PortalSessionStoring, @unchecked
 
     func save(_ session: PortalSessionPersistence) throws {
         self.session = session
-        self.savedStates.append(session.registrationState)
+    }
+
+    func clear() throws {
+        self.clearCallCount += 1
+        self.session = nil
     }
 }
 
 private actor MockPortalIdentityAuthenticator: PortalIdentityAuthenticating {
-    private let registerResult: Result<
-        PortalAuthenticationTokens,
-        PortalIdentityAuthenticationError
+    private let challengeResult: Result<
+        PortalAppleAuthenticationChallenge,
+        any Error
     >
-    private let refreshResult: Result<
+    private let appleAuthenticationResult: Result<
         PortalAuthenticationTokens,
-        PortalIdentityAuthenticationError
+        any Error
     >
+    private let refreshResult: Result<PortalAuthenticationTokens, any Error>
 
-    private(set) var registerCallCount: Int = 0
+    private(set) var appleAuthenticationCallCount: Int = 0
     private(set) var refreshCallCount: Int = 0
     private(set) var receivedRefreshTokens: [String] = []
 
     init(
-        registerResult: Result<
-            PortalAuthenticationTokens,
-            PortalIdentityAuthenticationError
-        > = .failure(
-            PortalIdentityAuthenticationError.clientConfiguration
+        challengeResult: Result<
+            PortalAppleAuthenticationChallenge,
+            any Error
+        > = .success(
+            PortalAppleAuthenticationChallenge(
+                nonce: "challenge-nonce",
+                expiresAt: Date.distantFuture
+            )
         ),
+        appleAuthenticationResult: Result<
+            PortalAuthenticationTokens,
+            any Error
+        > = .failure(PortalIdentityAuthenticationError.appleIdentityRejected),
         refreshResult: Result<
             PortalAuthenticationTokens,
-            PortalIdentityAuthenticationError
-        > = .failure(
-            PortalIdentityAuthenticationError.clientConfiguration
-        )
+            any Error
+        > = .failure(PortalIdentityAuthenticationError.temporarilyUnavailable)
     ) {
-        self.registerResult = registerResult
+        self.challengeResult = challengeResult
+        self.appleAuthenticationResult = appleAuthenticationResult
         self.refreshResult = refreshResult
     }
 
-    func register(userID: UUID) async throws -> PortalAuthenticationTokens {
-        _ = userID
-        self.registerCallCount += 1
-        return try self.registerResult.get()
+    func issueAppleChallenge() async throws -> PortalAppleAuthenticationChallenge {
+        return try self.challengeResult.get()
+    }
+
+    func authenticateWithApple(
+        identityToken: String,
+        nonce: String
+    ) async throws -> PortalAuthenticationTokens {
+        _ = identityToken
+        _ = nonce
+        self.appleAuthenticationCallCount += 1
+        return try self.appleAuthenticationResult.get()
     }
 
     func refresh(refreshToken: String) async throws -> PortalAuthenticationTokens {
         self.refreshCallCount += 1
         self.receivedRefreshTokens.append(refreshToken)
         return try self.refreshResult.get()
+    }
+
+    func logout(refreshToken: String, accessToken: String) async throws {
+        _ = refreshToken
+        _ = accessToken
+    }
+
+    func logoutAll(accessToken: String) async throws {
+        _ = accessToken
     }
 }

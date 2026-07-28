@@ -2,7 +2,10 @@ import Foundation
 import GRDB
 
 // 中文注释：GRDBAppUserRepository 通过 SQLite 保存本地用户状态。
-final class GRDBAppUserRepository: AppUserRepository {
+final class GRDBAppUserRepository:
+    AppUserRepository,
+    PortalEntitlementCacheResetting,
+    @unchecked Sendable {
     private let database: AppDatabase
 
     init(database: AppDatabase) {
@@ -62,6 +65,25 @@ final class GRDBAppUserRepository: AppUserRepository {
             for var transactionRecord: UserStoreKitTransactionRecord in transactionRecords {
                 try transactionRecord.save(database)
             }
+        }
+    }
+
+    func resetPortalEntitlements(for userID: UUID) throws {
+        let databaseUserID: String = userID.uuidString
+        try self.database.queue.write { database in
+            try AppUserRecord.insertUser(id: databaseUserID, in: database)
+            guard var record: AppUserRecord = try AppUserRecord.fetchOne(
+                database,
+                key: databaseUserID
+            ) else {
+                return
+            }
+            record.hasRemovedAds = false
+            record.purchasedSiteSlots = 0
+            record.siteSlotLimit = SourceSlotPolicy.includedSiteSlotCount
+            record.vipExpiresAt = nil
+            record.updatedAt = Date()
+            try record.save(database)
         }
     }
 }

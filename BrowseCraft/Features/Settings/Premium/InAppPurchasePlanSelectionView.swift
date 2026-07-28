@@ -390,7 +390,7 @@ struct InAppPurchasePlanSelectionView: View {
              .someProductsUnavailable,
              .productLoadFailed,
              .productUnavailable,
-             .iCloudLinkRequired,
+             .portalSignInRequired,
              .identityMismatch,
              .identityCheckFailed,
              .restoreAccountMismatch,

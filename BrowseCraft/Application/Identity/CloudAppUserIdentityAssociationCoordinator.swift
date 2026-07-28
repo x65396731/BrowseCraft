@@ -2,35 +2,41 @@ import Foundation
 
 enum CloudAppUserIdentityAssociationError: Error, Equatable, Sendable {
     case activeUserChanged
+    case portalSignInRequired
     case unexpectedState
 }
 
 enum StoreKitPurchaseIdentityAuthorizationError: Error, Equatable, Sendable {
-    case notAssociated
-    case identityMismatch
+    case signInRequired
     case activeUserChanged
-    case unsupportedSchemaVersion(Int)
 }
 
 /// 中文注释：只有 Feature 的用户主动动作可以调用该协调器；App 生命周期不得自动调用。
 actor CloudAppUserIdentityAssociationCoordinator {
     private let identityStore: any CloudAppUserIdentityStoring
     private let activeAppUser: any ActiveAppUserProviding
+    private let portalSessionCoordinator: PortalSessionCoordinator
     private let now: @Sendable () -> Date
 
     init(
         identityStore: any CloudAppUserIdentityStoring,
         activeAppUser: any ActiveAppUserProviding,
+        portalSessionCoordinator: PortalSessionCoordinator,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.identityStore = identityStore
         self.activeAppUser = activeAppUser
+        self.portalSessionCoordinator = portalSessionCoordinator
         self.now = now
     }
 
     func associateForUserInitiatedAccess() async throws
         -> CloudAppUserIdentityAssociationState {
         let localUserID: UUID = self.activeAppUser.currentUserID
+        guard await self.portalSessionCoordinator.authenticatedUserID() ==
+                localUserID else {
+            throw CloudAppUserIdentityAssociationError.portalSignInRequired
+        }
         CloudSyncDiagnostics.logIdentityAssociation(
             event: "manual-link-started",
             localUserID: localUserID
@@ -107,51 +113,52 @@ actor CloudAppUserIdentityAssociationCoordinator {
     }
 }
 
-/// 中文注释：购买和手动恢复只能读取既有 CloudKit Identity；这里绝不隐式创建或采用 UUID。
+/// 中文注释：购买和恢复只接受当前 Portal Session 的后端 AppUser UUID，iCloud 不参与授权。
 actor StoreKitPurchaseIdentityAuthorizer {
-    private let identityStore: any CloudAppUserIdentityStoring
     private let activeAppUser: any ActiveAppUserProviding
+    private let portalSessionCoordinator: PortalSessionCoordinator
+    private let appleSignInCoordinator: PortalAppleSignInCoordinator
 
     init(
-        identityStore: any CloudAppUserIdentityStoring,
-        activeAppUser: any ActiveAppUserProviding
+        activeAppUser: any ActiveAppUserProviding,
+        portalSessionCoordinator: PortalSessionCoordinator,
+        appleSignInCoordinator: PortalAppleSignInCoordinator
     ) {
-        self.identityStore = identityStore
         self.activeAppUser = activeAppUser
+        self.portalSessionCoordinator = portalSessionCoordinator
+        self.appleSignInCoordinator = appleSignInCoordinator
     }
 
     /// 中文注释：仅由用户点击购买或恢复按钮触发，成功返回的 UUID 可安全传给 appAccountToken。
     func authorizeUserInitiatedStoreKitAction() async throws -> UUID {
-        let localUserID: UUID = self.activeAppUser.currentUserID
+        var localUserID: UUID = self.activeAppUser.currentUserID
         IAPDiagnostics.notice(
             "event=identity-authorization-started " +
                 "userHash=\(IAPDiagnostics.hash(localUserID))"
         )
-        guard let cloudIdentity: CloudAppUserIdentity =
-            try await self.identityStore.fetchIdentity() else {
-            IAPDiagnostics.error(
-                "event=identity-authorization-failed reason=not-associated"
-            )
-            throw StoreKitPurchaseIdentityAuthorizationError.notAssociated
+        var portalUserID: UUID? =
+            await self.portalSessionCoordinator.authenticatedUserID()
+        if portalUserID == nil {
+            do {
+                _ = try await self.appleSignInCoordinator.signIn()
+            } catch let error as AppleSignInAuthorizationError
+                where error == .cancelled {
+                throw StoreKitPurchaseIdentityAuthorizationError.signInRequired
+            }
+            localUserID = self.activeAppUser.currentUserID
+            portalUserID = await self.portalSessionCoordinator.authenticatedUserID()
+        }
+        guard let portalUserID else {
+            throw StoreKitPurchaseIdentityAuthorizationError.signInRequired
         }
 
         try self.requireActiveUser(localUserID)
-        guard cloudIdentity.usesSupportedSchema else {
+        guard portalUserID == localUserID else {
             IAPDiagnostics.error(
                 "event=identity-authorization-failed " +
-                    "reason=unsupported-schema version=\(cloudIdentity.schemaVersion)"
+                    "reason=portal-account-mismatch"
             )
-            throw StoreKitPurchaseIdentityAuthorizationError
-                .unsupportedSchemaVersion(cloudIdentity.schemaVersion)
-        }
-        guard cloudIdentity.userID == localUserID else {
-            IAPDiagnostics.error(
-                "event=identity-authorization-failed " +
-                    "reason=identity-mismatch " +
-                    "userHash=\(IAPDiagnostics.hash(localUserID)) " +
-                    "cloudUserHash=\(IAPDiagnostics.hash(cloudIdentity.userID))"
-            )
-            throw StoreKitPurchaseIdentityAuthorizationError.identityMismatch
+            throw StoreKitPurchaseIdentityAuthorizationError.activeUserChanged
         }
         IAPDiagnostics.notice(
             "event=identity-authorization-succeeded " +

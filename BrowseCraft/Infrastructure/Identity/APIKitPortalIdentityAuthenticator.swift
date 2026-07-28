@@ -8,24 +8,61 @@ struct APIKitPortalIdentityAuthenticator: PortalIdentityAuthenticating {
         self.api = api
     }
 
-    func register(userID: UUID) async throws -> PortalAuthenticationTokens {
+    func issueAppleChallenge() async throws -> PortalAppleAuthenticationChallenge {
         PortalSessionDiagnostics.notice(
-            "event=request-start operation=register path=\(PortalAPIPath.authRegister)"
+            "event=request-start operation=apple-challenge " +
+                "path=\(PortalAPIPath.authAppleChallenge)"
         )
         do {
-            let response: PortalTokenResponse = try await self.api.register(userID: userID)
+            let response: PortalAppleAuthChallengeResponse =
+                try await self.api.issueAppleChallenge()
             PortalSessionDiagnostics.notice(
-                "event=request-success operation=register path=\(PortalAPIPath.authRegister) " +
+                "event=request-success operation=apple-challenge " +
+                    "path=\(PortalAPIPath.authAppleChallenge) " +
+                    "expiresAt=\(response.expiresAt.ISO8601Format())"
+            )
+            return PortalAppleAuthenticationChallenge(
+                nonce: response.nonce,
+                expiresAt: response.expiresAt
+            )
+        } catch {
+            PortalSessionDiagnostics.error(
+                "event=request-failure operation=apple-challenge " +
+                    "path=\(PortalAPIPath.authAppleChallenge) " +
+                    Self.safeErrorDescription(error)
+            )
+            throw Self.map(error, operation: .appleChallenge)
+        }
+    }
+
+    func authenticateWithApple(
+        identityToken: String,
+        nonce: String
+    ) async throws -> PortalAuthenticationTokens {
+        PortalSessionDiagnostics.notice(
+            "event=request-start operation=apple-authenticate " +
+                "path=\(PortalAPIPath.authApple)"
+        )
+        do {
+            let response: PortalTokenResponse = try await self.api
+                .authenticateWithApple(
+                    identityToken: identityToken,
+                    nonce: nonce
+                )
+            PortalSessionDiagnostics.notice(
+                "event=request-success operation=apple-authenticate " +
+                    "path=\(PortalAPIPath.authApple) " +
                     "accessExpiresAt=\(response.expiresAt.ISO8601Format()) " +
                     "refreshExpiresAt=\(response.refreshExpiresAt.ISO8601Format())"
             )
             return Self.tokens(from: response)
         } catch {
             PortalSessionDiagnostics.error(
-                "event=request-failure operation=register path=\(PortalAPIPath.authRegister) " +
+                "event=request-failure operation=apple-authenticate " +
+                    "path=\(PortalAPIPath.authApple) " +
                     Self.safeErrorDescription(error)
             )
-            throw Self.map(error, operation: .register)
+            throw Self.map(error, operation: .appleAuthenticate)
         }
     }
 
@@ -49,6 +86,25 @@ struct APIKitPortalIdentityAuthenticator: PortalIdentityAuthenticating {
                     Self.safeErrorDescription(error)
             )
             throw Self.map(error, operation: .refresh)
+        }
+    }
+
+    func logout(refreshToken: String, accessToken: String) async throws {
+        do {
+            try await self.api.logout(
+                refreshToken: refreshToken,
+                accessToken: accessToken
+            )
+        } catch {
+            throw Self.map(error, operation: .logout)
+        }
+    }
+
+    func logoutAll(accessToken: String) async throws {
+        do {
+            try await self.api.logoutAll(accessToken: accessToken)
+        } catch {
+            throw Self.map(error, operation: .logoutAll)
         }
     }
 
@@ -80,12 +136,14 @@ struct APIKitPortalIdentityAuthenticator: PortalIdentityAuthenticating {
             return PortalIdentityAuthenticationError.responseOutcomeUnknown
         case .server(let statusCode, let body):
             switch body.code {
-            case "AUTH_USER_ALREADY_REGISTERED":
-                return PortalIdentityAuthenticationError.registrationAlreadyExists
+            case "AUTH_APPLE_CHALLENGE_INVALID":
+                return PortalIdentityAuthenticationError.appleChallengeRejected
+            case "AUTH_APPLE_TOKEN_INVALID", "AUTH_APPLE_TOKEN_EXPIRED":
+                return PortalIdentityAuthenticationError.appleIdentityRejected
+            case "AUTH_USER_DISABLED":
+                return PortalIdentityAuthenticationError.userDisabled
             case "AUTH_REFRESH_TOKEN_INVALID", "AUTH_REFRESH_TOKEN_EXPIRED":
                 return PortalIdentityAuthenticationError.refreshRejected
-            case "AUTH_SUBJECT_MISMATCH":
-                return PortalIdentityAuthenticationError.subjectMismatch
             default:
                 if statusCode == 404 || statusCode == 405 || statusCode == 408 ||
                     statusCode == 429 || statusCode >= 500 {
@@ -135,6 +193,9 @@ struct APIKitPortalIdentityAuthenticator: PortalIdentityAuthenticating {
 }
 
 private enum PortalIdentityOperation: String {
-    case register
+    case appleChallenge = "apple-challenge"
+    case appleAuthenticate = "apple-authenticate"
     case refresh
+    case logout
+    case logoutAll = "logout-all"
 }

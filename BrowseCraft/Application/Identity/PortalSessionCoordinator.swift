@@ -1,23 +1,21 @@
 import Foundation
 import OSLog
 
-enum PortalSessionIdentityAdoptionError: Error, Equatable, Sendable {
-    case activeUserMismatch
-    case operationInFlight
-}
-
-enum PortalSessionRecoveryInstallationError: Error, Equatable, Sendable {
+enum PortalSessionInstallationError: Error, Equatable, Sendable {
     case activeUserMismatch
     case credentialsInvalid
     case operationInFlight
+    case invalidTransition
 }
 
-/// 中文注释：统一串行化 register/refresh，并把所有模糊结果收敛为可恢复或明确阻断的状态。
+/// 中文注释：Portal Session 只接受后端签发的 AppUser UUID，不再生成 UUID 或自动注册。
 actor PortalSessionCoordinator {
     private let activeAppUser: any ActiveAppUserProviding
     private let sessionStore: any PortalSessionStoring
     private let authenticator: any PortalIdentityAuthenticating
     private let networkMonitor: (any PortalNetworkAvailabilityMonitoring)?
+    private let identityOriginStore: (any PortalAppUserIdentityOriginStoring)?
+    private let entitlementCacheResetter: (any PortalEntitlementCacheResetting)?
     private let refreshLeeway: TimeInterval
     private let now: @Sendable () -> Date
 
@@ -25,7 +23,15 @@ actor PortalSessionCoordinator {
     private var currentSnapshot: PortalSessionSnapshot
     private var hasLoadedSession: Bool = false
     private var operationInFlight: Bool = false
+    private var pendingIdentityTransition: PendingIdentityTransition?
     private var networkMonitoringTask: Task<Void, Never>?
+
+    private struct PendingIdentityTransition: Sendable {
+        let id: UUID
+        let stagedSession: PortalSessionPersistence
+        let previousSession: PortalSessionPersistence?
+        let previousSnapshot: PortalSessionSnapshot
+    }
 
     deinit {
         self.networkMonitoringTask?.cancel()
@@ -36,6 +42,8 @@ actor PortalSessionCoordinator {
         sessionStore: any PortalSessionStoring,
         authenticator: any PortalIdentityAuthenticating,
         networkMonitor: (any PortalNetworkAvailabilityMonitoring)? = nil,
+        identityOriginStore: (any PortalAppUserIdentityOriginStoring)? = nil,
+        entitlementCacheResetter: (any PortalEntitlementCacheResetting)? = nil,
         refreshLeeway: TimeInterval = 5 * 60,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
@@ -44,10 +52,12 @@ actor PortalSessionCoordinator {
         self.sessionStore = sessionStore
         self.authenticator = authenticator
         self.networkMonitor = networkMonitor
+        self.identityOriginStore = identityOriginStore
+        self.entitlementCacheResetter = entitlementCacheResetter
         self.refreshLeeway = refreshLeeway
         self.now = now
         self.currentSnapshot = PortalSessionSnapshot(
-            status: .notRegistered,
+            status: .signedOut,
             userID: userID,
             accessTokenExpiresAt: nil,
             refreshTokenExpiresAt: nil
@@ -55,124 +65,218 @@ actor PortalSessionCoordinator {
     }
 
     func start() async {
-        PortalSessionDiagnostics.notice(
-            "event=start hasLoadedSession=\(self.hasLoadedSession)"
-        )
         self.startNetworkMonitoringIfNeeded()
         guard self.hasLoadedSession == false else {
-            PortalSessionDiagnostics.notice(
-                "event=start action=reconcile reason=session-already-loaded"
-            )
-            await self.reconcile(allowRegistrationRetry: false)
+            await self.refreshIfNeeded()
             return
         }
 
-        let activeUserID: UUID = self.activeAppUser.currentUserID
         do {
             let storedSession: PortalSessionPersistence? = try self.sessionStore.load()
             self.hasLoadedSession = true
-
             guard let storedSession else {
-                PortalSessionDiagnostics.notice(
-                    "event=session-load result=missing action=register"
+                try? self.entitlementCacheResetter?.resetPortalEntitlements(
+                    for: self.activeAppUser.currentUserID
                 )
-                self.persistedSession = PortalSessionPersistence(userID: activeUserID)
-                await self.reconcile(allowRegistrationRetry: true)
+                self.publish(status: .signedOut)
                 return
             }
-            guard storedSession.userID == activeUserID else {
-                PortalSessionDiagnostics.error(
-                    "event=session-load result=account-conflict"
-                )
+            guard Self.sessionIsInternallyConsistent(storedSession),
+                  storedSession.userID == self.activeAppUser.currentUserID else {
                 self.persistedSession = storedSession
+                try? self.clearLocalSession()
                 self.publish(status: .accountConflict)
+                try? await self.authenticator.logout(
+                    refreshToken: storedSession.credentials.refreshToken,
+                    accessToken: storedSession.credentials.accessToken
+                )
                 return
             }
 
-            PortalSessionDiagnostics.notice(
-                "event=session-load result=found registrationState=" +
-                    "\(storedSession.registrationState.rawValue) " +
-                    "hasCredentials=\(storedSession.credentials != nil)"
-            )
             self.persistedSession = storedSession
-            await self.reconcile(allowRegistrationRetry: true)
+            try? self.identityOriginStore?.markPortalUserID(storedSession.userID)
+            await self.refreshIfNeeded()
         } catch {
             self.hasLoadedSession = true
-            PortalSessionDiagnostics.error(
-                "event=session-load result=failed error=secure-storage"
+            self.persistedSession = nil
+            try? self.entitlementCacheResetter?.resetPortalEntitlements(
+                for: self.activeAppUser.currentUserID
             )
-            self.publish(status: .recoveryRequired)
+            PortalSessionDiagnostics.error(
+                "event=session-load result=failed action=require-apple-sign-in"
+            )
+            self.publish(status: .signedOut)
         }
     }
 
     func handleAppBecameActive() async {
-        PortalSessionDiagnostics.notice(
-            "event=foreground hasLoadedSession=\(self.hasLoadedSession)"
-        )
         guard self.hasLoadedSession else {
             await self.start()
             return
         }
-        await self.reconcile(allowRegistrationRetry: true)
+        await self.refreshIfNeeded()
     }
 
     func snapshot() -> PortalSessionSnapshot {
         return self.currentSnapshot
     }
 
-    /// 中文注释：采用 CloudKit UUID 后原子覆盖 A 的持久化 Token；这里只落 B 的待手动恢复状态，不发网络请求。
-    func replaceSessionForAdoptedIdentity(_ userID: UUID) throws {
-        guard self.activeAppUser.currentUserID == userID else {
-            throw PortalSessionIdentityAdoptionError.activeUserMismatch
-        }
+    func issueAppleChallenge() async throws -> PortalAppleAuthenticationChallenge {
         guard self.operationInFlight == false else {
-            throw PortalSessionIdentityAdoptionError.operationInFlight
+            throw PortalSessionInstallationError.operationInFlight
         }
-
-        let replacement: PortalSessionPersistence = PortalSessionPersistence(
-            userID: userID,
-            registrationState: .recoveryRequired
-        )
-        try self.sessionStore.save(replacement)
-        self.persistedSession = replacement
-        self.hasLoadedSession = true
-        self.publish(status: .recoveryRequired)
-        PortalSessionDiagnostics.notice(
-            "event=identity-adoption action=replace-session result=success"
-        )
+        return try await self.authenticator.issueAppleChallenge()
     }
 
-    /// 中文注释：只安装用户主动购买恢复流程已经验证并取回的 Token；本方法不调用网络或 StoreKit。
-    func installRecoveredSession(
-        _ credentials: PortalAuthenticationTokens,
-        for expectedUserID: UUID
+    /// 中文注释：只交换 Apple 凭证，不切换本地数据 owner；调用方确认账户迁移后再安装 Session。
+    func authenticateWithApple(
+        identityToken: String,
+        nonce: String
+    ) async throws -> PortalAuthenticationTokens {
+        guard self.operationInFlight == false else {
+            throw PortalSessionInstallationError.operationInFlight
+        }
+
+        let previousStatus: PortalSessionStatus = self.currentSnapshot.status
+        self.operationInFlight = true
+        self.publish(status: .authenticating)
+        defer {
+            self.operationInFlight = false
+        }
+
+        do {
+            let credentials: PortalAuthenticationTokens = try await self.authenticator
+                .authenticateWithApple(
+                    identityToken: identityToken,
+                    nonce: nonce
+                )
+            guard self.credentialsAreUsable(credentials) else {
+                self.publish(status: previousStatus)
+                throw PortalSessionInstallationError.credentialsInvalid
+            }
+            return credentials
+        } catch let error as PortalIdentityAuthenticationError {
+            self.publish(
+                status: error == .userDisabled
+                    ? .userDisabled
+                    : previousStatus
+            )
+            throw error
+        } catch {
+            self.publish(status: previousStatus)
+            throw error
+        }
+    }
+
+    func installAuthenticatedSession(
+        _ credentials: PortalAuthenticationTokens
     ) throws {
-        guard self.activeAppUser.currentUserID == expectedUserID,
-              credentials.userID == expectedUserID else {
-            throw PortalSessionRecoveryInstallationError.activeUserMismatch
+        guard self.activeAppUser.currentUserID == credentials.userID else {
+            throw PortalSessionInstallationError.activeUserMismatch
         }
         guard self.operationInFlight == false else {
-            throw PortalSessionRecoveryInstallationError.operationInFlight
+            throw PortalSessionInstallationError.operationInFlight
         }
         guard self.credentialsAreUsable(credentials) else {
-            throw PortalSessionRecoveryInstallationError.credentialsInvalid
+            throw PortalSessionInstallationError.credentialsInvalid
         }
 
-        let recoveredSession: PortalSessionPersistence = PortalSessionPersistence(
-            userID: expectedUserID,
-            registrationState: .authenticated,
+        let session: PortalSessionPersistence = PortalSessionPersistence(
+            userID: credentials.userID,
             credentials: credentials
         )
-        try self.sessionStore.save(recoveredSession)
-        self.persistedSession = recoveredSession
+        try self.sessionStore.save(session)
+        self.persistedSession = session
         self.hasLoadedSession = true
         self.publish(status: .authenticated)
-        PortalSessionDiagnostics.notice(
-            "event=iap-recovery action=install-session result=success"
+    }
+
+    /// 中文注释：先把目标账户 Session 写入 Keychain，身份切换完成后只需无 I/O 提交。
+    func stageAuthenticatedSessionTransition(
+        _ credentials: PortalAuthenticationTokens,
+        from sourceUserID: UUID
+    ) throws -> UUID {
+        guard self.activeAppUser.currentUserID == sourceUserID,
+              credentials.userID != sourceUserID else {
+            throw PortalSessionInstallationError.activeUserMismatch
+        }
+        guard self.operationInFlight == false else {
+            throw PortalSessionInstallationError.operationInFlight
+        }
+        guard self.credentialsAreUsable(credentials) else {
+            throw PortalSessionInstallationError.credentialsInvalid
+        }
+
+        let stagedSession: PortalSessionPersistence = PortalSessionPersistence(
+            userID: credentials.userID,
+            credentials: credentials
+        )
+        try self.sessionStore.save(stagedSession)
+        let transition: PendingIdentityTransition = PendingIdentityTransition(
+            id: UUID(),
+            stagedSession: stagedSession,
+            previousSession: self.persistedSession,
+            previousSnapshot: self.currentSnapshot
+        )
+        self.pendingIdentityTransition = transition
+        self.operationInFlight = true
+        return transition.id
+    }
+
+    /// 中文注释：账户 UUID 已切换后，提交只更新 actor 内存，不再留下 Keychain 失败窗口。
+    func commitAuthenticatedSessionTransition(_ transitionID: UUID) throws {
+        guard let transition: PendingIdentityTransition = self.pendingIdentityTransition,
+              transition.id == transitionID,
+              self.activeAppUser.currentUserID == transition.stagedSession.userID else {
+            throw PortalSessionInstallationError.invalidTransition
+        }
+        self.persistedSession = transition.stagedSession
+        self.hasLoadedSession = true
+        self.pendingIdentityTransition = nil
+        self.operationInFlight = false
+        self.publish(status: .authenticated)
+    }
+
+    /// 中文注释：身份切换失败时先恢复旧 Keychain，再尽力注销已签发但未采用的新 Session。
+    func rollbackAuthenticatedSessionTransition(_ transitionID: UUID) async {
+        guard let transition: PendingIdentityTransition = self.pendingIdentityTransition,
+              transition.id == transitionID else {
+            return
+        }
+
+        do {
+            if let previousSession: PortalSessionPersistence = transition.previousSession {
+                try self.sessionStore.save(previousSession)
+            } else {
+                try self.sessionStore.clear()
+            }
+            self.persistedSession = transition.previousSession
+            self.currentSnapshot = transition.previousSnapshot
+        } catch {
+            try? self.sessionStore.clear()
+            self.persistedSession = nil
+            self.publish(status: .signedOut)
+        }
+        self.hasLoadedSession = true
+        self.pendingIdentityTransition = nil
+        self.operationInFlight = false
+
+        try? await self.authenticator.logout(
+            refreshToken: transition.stagedSession.credentials.refreshToken,
+            accessToken: transition.stagedSession.credentials.accessToken
         )
     }
 
-    /// 中文注释：后续受保护 API 只能通过此入口取 Token，避免绕过过期和轮换判断。
+    /// 中文注释：交换成功但本地未采用的凭据不得在服务端长期留存。
+    func discardUninstalledCredentials(
+        _ credentials: PortalAuthenticationTokens
+    ) async {
+        try? await self.authenticator.logout(
+            refreshToken: credentials.refreshToken,
+            accessToken: credentials.accessToken
+        )
+    }
+
     func validAccessToken() async -> String? {
         if self.hasLoadedSession == false {
             await self.start()
@@ -181,64 +285,29 @@ actor PortalSessionCoordinator {
         }
 
         guard let session: PortalSessionPersistence = self.persistedSession,
-              let credentials: PortalAuthenticationTokens = session.credentials,
+              Self.sessionIsInternallyConsistent(session),
               session.userID == self.activeAppUser.currentUserID,
-              credentials.userID == session.userID,
-              credentials.accessToken.isEmpty == false,
-              credentials.accessTokenExpiresAt > self.now() else {
+              session.credentials.accessToken.isEmpty == false,
+              session.credentials.accessTokenExpiresAt > self.now() else {
             return nil
         }
-        return credentials.accessToken
+        return session.credentials.accessToken
     }
 
-    private func reconcile(allowRegistrationRetry: Bool) async {
-        guard self.operationInFlight == false,
+    func authenticatedUserID() async -> UUID? {
+        guard await self.validAccessToken() != nil,
               let session: PortalSessionPersistence = self.persistedSession else {
-            return
+            return nil
         }
-        guard session.userID == self.activeAppUser.currentUserID else {
-            self.publish(status: .accountConflict)
-            return
-        }
-
-        if let credentials: PortalAuthenticationTokens = session.credentials {
-            guard credentials.userID == session.userID else {
-                self.publish(status: .accountConflict)
-                return
-            }
-            await self.refreshIfNeeded()
-            return
-        }
-
-        switch session.registrationState {
-        case .neverAttempted:
-            PortalSessionDiagnostics.notice(
-                "event=reconcile action=register reason=never-attempted"
-            )
-            await self.register()
-        case .attempting, .outcomeUnknown:
-            if allowRegistrationRetry {
-                PortalSessionDiagnostics.notice(
-                    "event=reconcile action=register reason=" +
-                        "\(session.registrationState.rawValue)"
-                )
-                await self.register()
-            } else {
-                PortalSessionDiagnostics.notice(
-                    "event=reconcile action=wait reason=registration-outcome-unknown"
-                )
-                self.publish(status: .registrationOutcomeUnknown)
-            }
-        case .authenticated, .recoveryRequired:
-            self.publish(status: .recoveryRequired)
-        case .accountConflict:
-            self.publish(status: .accountConflict)
-        }
+        return session.userID
     }
 
-    private func register() async {
-        guard self.operationInFlight == false,
-              var session: PortalSessionPersistence = self.persistedSession else {
+    func logout() async throws {
+        guard self.operationInFlight == false else {
+            throw PortalSessionInstallationError.operationInFlight
+        }
+        guard let session: PortalSessionPersistence = self.persistedSession else {
+            try self.clearLocalSession()
             return
         }
 
@@ -246,102 +315,71 @@ actor PortalSessionCoordinator {
         defer {
             self.operationInFlight = false
         }
-
-        session.registrationState = .attempting
-        if session.registrationAttemptID == nil {
-            session.registrationAttemptID = UUID()
-        }
-        guard self.persist(session, failureStatus: .recoveryRequired) else {
-            return
-        }
-        self.publish(status: .registering)
-
         do {
-            let credentials: PortalAuthenticationTokens = try await self.authenticator.register(
-                userID: session.userID
+            try await self.authenticator.logout(
+                refreshToken: session.credentials.refreshToken,
+                accessToken: session.credentials.accessToken
             )
-            guard credentials.userID == session.userID,
-                  credentials.userID == self.activeAppUser.currentUserID else {
-                session.registrationState = .accountConflict
-                session.credentials = nil
-                _ = self.persist(session, failureStatus: .accountConflict)
-                self.publish(status: .accountConflict)
-                return
-            }
-            guard self.credentialsAreUsable(credentials) else {
-                session.registrationState = .recoveryRequired
-                session.credentials = nil
-                _ = self.persist(session, failureStatus: .recoveryRequired)
-                self.publish(status: .recoveryRequired)
-                return
-            }
-
-            session.registrationState = .authenticated
-            session.credentials = credentials
-            guard self.persist(session, failureStatus: .recoveryRequired) else {
-                return
-            }
-            self.publish(status: .authenticated)
-        } catch is CancellationError {
-            PortalSessionDiagnostics.notice(
-                "event=register result=cancelled outcome=unknown"
-            )
-            session.registrationState = .outcomeUnknown
-            _ = self.persist(session, failureStatus: .registrationOutcomeUnknown)
-            self.publish(status: .registrationOutcomeUnknown)
-        } catch let error as PortalIdentityAuthenticationError {
-            PortalSessionDiagnostics.error(
-                "event=register result=failed category=\(error.safeLogCode)"
-            )
-            self.handleRegistration(error: error, session: session)
         } catch {
             PortalSessionDiagnostics.error(
-                "event=register result=failed category=unexpected"
+                "event=logout remote-revoke=failed action=clear-local-session"
             )
-            session.registrationState = .outcomeUnknown
-            _ = self.persist(session, failureStatus: .registrationOutcomeUnknown)
-            self.publish(status: .registrationOutcomeUnknown)
+        }
+        try self.clearLocalSession()
+    }
+
+    func logoutAll() async throws {
+        guard self.operationInFlight == false else {
+            throw PortalSessionInstallationError.operationInFlight
+        }
+        guard let session: PortalSessionPersistence = self.persistedSession else {
+            try self.clearLocalSession()
+            return
+        }
+
+        self.operationInFlight = true
+        defer {
+            self.operationInFlight = false
+        }
+        let remoteError: (any Error)?
+        do {
+            try await self.authenticator.logoutAll(
+                accessToken: session.credentials.accessToken
+            )
+            remoteError = nil
+        } catch {
+            remoteError = error
+        }
+        try self.clearLocalSession()
+        if let remoteError {
+            throw remoteError
         }
     }
 
     private func refreshIfNeeded() async {
         guard self.operationInFlight == false,
-              var session: PortalSessionPersistence = self.persistedSession,
-              let credentials: PortalAuthenticationTokens = session.credentials else {
+              var session: PortalSessionPersistence = self.persistedSession else {
             return
         }
-        guard session.userID == self.activeAppUser.currentUserID,
-              credentials.userID == session.userID else {
+        guard Self.sessionIsInternallyConsistent(session),
+              session.userID == self.activeAppUser.currentUserID else {
+            try? self.clearLocalSession()
             self.publish(status: .accountConflict)
+            try? await self.authenticator.logout(
+                refreshToken: session.credentials.refreshToken,
+                accessToken: session.credentials.accessToken
+            )
             return
         }
 
+        let credentials: PortalAuthenticationTokens = session.credentials
         let currentDate: Date = self.now()
-        guard credentials.accessToken.isEmpty == false,
-              credentials.refreshToken.isEmpty == false else {
-            PortalSessionDiagnostics.error(
-                "event=refresh-decision action=recovery reason=missing-token"
-            )
-            session.registrationState = .recoveryRequired
-            _ = self.persist(session, failureStatus: .recoveryRequired)
-            self.publish(status: .recoveryRequired)
-            return
-        }
         guard credentials.refreshTokenExpiresAt > currentDate else {
-            PortalSessionDiagnostics.error(
-                "event=refresh-decision action=recovery reason=refresh-token-expired"
-            )
-            session.registrationState = .recoveryRequired
-            _ = self.persist(session, failureStatus: .recoveryRequired)
-            self.publish(status: .recoveryRequired)
+            try? self.clearLocalSession()
             return
         }
         guard credentials.accessTokenExpiresAt <=
                 currentDate.addingTimeInterval(self.refreshLeeway) else {
-            PortalSessionDiagnostics.notice(
-                "event=refresh-decision action=skip reason=access-token-valid " +
-                    "expiresAt=\(credentials.accessTokenExpiresAt.ISO8601Format())"
-            )
             self.publish(status: .authenticated)
             return
         }
@@ -356,125 +394,77 @@ actor PortalSessionCoordinator {
                 refreshToken: credentials.refreshToken
             )
             guard refreshed.userID == session.userID,
-                  refreshed.userID == self.activeAppUser.currentUserID else {
-                session.registrationState = .accountConflict
-                _ = self.persist(session, failureStatus: .accountConflict)
+                  refreshed.userID == self.activeAppUser.currentUserID,
+                  self.credentialsAreUsable(refreshed) else {
+                try? self.clearLocalSession()
                 self.publish(status: .accountConflict)
-                return
-            }
-            guard self.credentialsAreUsable(refreshed) else {
-                session.registrationState = .recoveryRequired
-                _ = self.persist(session, failureStatus: .recoveryRequired)
-                self.publish(status: .recoveryRequired)
+                try? await self.authenticator.logout(
+                    refreshToken: refreshed.refreshToken,
+                    accessToken: refreshed.accessToken
+                )
                 return
             }
 
-            session.registrationState = .authenticated
             session.credentials = refreshed
-            guard self.persist(session, failureStatus: .recoveryRequired) else {
-                return
-            }
+            try self.sessionStore.save(session)
+            self.persistedSession = session
             self.publish(status: .authenticated)
         } catch is CancellationError {
-            PortalSessionDiagnostics.notice(
-                "event=refresh result=cancelled accessTokenStillValid=" +
-                    "\(credentials.accessTokenExpiresAt > self.now())"
-            )
             self.publish(
                 status: credentials.accessTokenExpiresAt > self.now()
                     ? .authenticated
                     : .temporarilyUnavailable
             )
         } catch let error as PortalIdentityAuthenticationError {
-            PortalSessionDiagnostics.error(
-                "event=refresh result=failed category=\(error.safeLogCode)"
-            )
-            self.handleRefresh(error: error, session: session)
+            switch error {
+            case .refreshRejected:
+                try? self.clearLocalSession()
+            case .userDisabled:
+                try? self.clearLocalSession()
+                self.publish(status: .userDisabled)
+            case .temporarilyUnavailable, .responseOutcomeUnknown:
+                self.publish(status: .temporarilyUnavailable)
+            case .appleChallengeRejected, .appleIdentityRejected,
+                 .contractRejected, .clientConfiguration:
+                self.publish(status: .temporarilyUnavailable)
+            }
         } catch {
-            PortalSessionDiagnostics.error(
-                "event=refresh result=failed category=unexpected"
-            )
             self.publish(status: .temporarilyUnavailable)
         }
     }
 
-    private func handleRegistration(
-        error: PortalIdentityAuthenticationError,
-        session originalSession: PortalSessionPersistence
-    ) {
-        var session: PortalSessionPersistence = originalSession
-
-        switch error {
-        case .temporarilyUnavailable, .responseOutcomeUnknown:
-            session.registrationState = .outcomeUnknown
-            _ = self.persist(session, failureStatus: .registrationOutcomeUnknown)
-            self.publish(status: .registrationOutcomeUnknown)
-        case .subjectMismatch:
-            session.registrationState = .accountConflict
-            _ = self.persist(session, failureStatus: .accountConflict)
-            self.publish(status: .accountConflict)
-        case .registrationAlreadyExists, .refreshRejected, .contractRejected,
-             .clientConfiguration:
-            session.registrationState = .recoveryRequired
-            _ = self.persist(session, failureStatus: .recoveryRequired)
-            self.publish(status: .recoveryRequired)
-        }
-    }
-
-    private func handleRefresh(
-        error: PortalIdentityAuthenticationError,
-        session originalSession: PortalSessionPersistence
-    ) {
-        var session: PortalSessionPersistence = originalSession
-
-        switch error {
-        case .temporarilyUnavailable:
-            self.publish(status: .temporarilyUnavailable)
-        case .subjectMismatch:
-            session.registrationState = .accountConflict
-            _ = self.persist(session, failureStatus: .accountConflict)
-            self.publish(status: .accountConflict)
-        case .registrationAlreadyExists, .refreshRejected, .responseOutcomeUnknown,
-             .contractRejected, .clientConfiguration:
-            session.registrationState = .recoveryRequired
-            _ = self.persist(session, failureStatus: .recoveryRequired)
-            self.publish(status: .recoveryRequired)
-        }
-    }
-
-    @discardableResult
-    private func persist(
-        _ session: PortalSessionPersistence,
-        failureStatus: PortalSessionStatus
-    ) -> Bool {
+    private func clearLocalSession() throws {
+        let userID: UUID = self.activeAppUser.currentUserID
+        var firstError: (any Error)?
         do {
-            try self.sessionStore.save(session)
-            self.persistedSession = session
-            return true
+            try self.sessionStore.clear()
         } catch {
-            PortalSessionDiagnostics.error(
-                "event=session-save result=failed targetStatus=\(failureStatus.rawValue)"
+            firstError = error
+        }
+        do {
+            try self.entitlementCacheResetter?.resetPortalEntitlements(
+                for: userID
             )
-            self.publish(status: failureStatus)
-            return false
+        } catch {
+            if firstError == nil {
+                firstError = error
+            }
+        }
+        self.persistedSession = nil
+        self.hasLoadedSession = true
+        self.publish(status: .signedOut)
+        if let firstError {
+            throw firstError
         }
     }
 
     private func publish(status: PortalSessionStatus) {
-        let previousStatus: PortalSessionStatus = self.currentSnapshot.status
         let credentials: PortalAuthenticationTokens? = self.persistedSession?.credentials
         self.currentSnapshot = PortalSessionSnapshot(
             status: status,
             userID: self.activeAppUser.currentUserID,
             accessTokenExpiresAt: credentials?.accessTokenExpiresAt,
             refreshTokenExpiresAt: credentials?.refreshTokenExpiresAt
-        )
-        guard previousStatus != status else {
-            return
-        }
-        PortalSessionDiagnostics.notice(
-            "event=status-change from=\(previousStatus.rawValue) to=\(status.rawValue) " +
-                "hasCredentials=\(credentials != nil)"
         )
     }
 
@@ -486,6 +476,13 @@ actor PortalSessionCoordinator {
             credentials.refreshTokenExpiresAt > currentDate
     }
 
+    private static func sessionIsInternallyConsistent(
+        _ session: PortalSessionPersistence
+    ) -> Bool {
+        return session.schemaVersion == PortalSessionPersistence.currentSchemaVersion &&
+            session.userID == session.credentials.userID
+    }
+
     private func startNetworkMonitoringIfNeeded() {
         guard self.networkMonitoringTask == nil,
               let networkMonitor: any PortalNetworkAvailabilityMonitoring =
@@ -494,7 +491,6 @@ actor PortalSessionCoordinator {
         }
 
         let updates: AsyncStream<Bool> = networkMonitor.statusUpdates()
-        PortalSessionDiagnostics.notice("event=network-monitor action=start")
         self.networkMonitoringTask = Task { [weak self] in
             var previousAvailability: Bool?
             for await isAvailable: Bool in updates {
@@ -502,9 +498,6 @@ actor PortalSessionCoordinator {
                     return
                 }
                 if previousAvailability == false, isAvailable {
-                    PortalSessionDiagnostics.notice(
-                        "event=network-change available=true action=reconcile"
-                    )
                     await self?.handleNetworkBecameAvailable()
                 }
                 previousAvailability = isAvailable
@@ -517,7 +510,7 @@ actor PortalSessionCoordinator {
             await self.start()
             return
         }
-        await self.reconcile(allowRegistrationRetry: true)
+        await self.refreshIfNeeded()
     }
 }
 
@@ -533,26 +526,5 @@ enum PortalSessionDiagnostics {
 
     static func error(_ message: String) {
         Self.logger.error("[BrowseCraftPortalSession] \(message, privacy: .public)")
-    }
-}
-
-private extension PortalIdentityAuthenticationError {
-    var safeLogCode: String {
-        switch self {
-        case .temporarilyUnavailable:
-            return "temporarily-unavailable"
-        case .registrationAlreadyExists:
-            return "registration-already-exists"
-        case .refreshRejected:
-            return "refresh-rejected"
-        case .subjectMismatch:
-            return "subject-mismatch"
-        case .responseOutcomeUnknown:
-            return "response-outcome-unknown"
-        case .contractRejected(let code):
-            return "contract-rejected:\(code)"
-        case .clientConfiguration:
-            return "client-configuration"
-        }
     }
 }
