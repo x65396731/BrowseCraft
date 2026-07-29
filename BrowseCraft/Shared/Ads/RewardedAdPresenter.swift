@@ -34,7 +34,7 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
     func present() async -> RewardedAdPresentationResult {
         guard self.isPresenting == false else {
             #if DEBUG
-            print("[BrowseCraftAdPlayback] presenter skipped because isPresenting=true")
+            AppDebugLog.write("[BrowseCraftAdPlayback] presenter skipped because isPresenting=true")
             #endif
             return .skipped
         }
@@ -43,7 +43,7 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
             let message: String = "GADApplicationIdentifier is missing."
             self.lastMessage = message
             #if DEBUG
-            print("[BrowseCraftAdPlayback] presenter unavailable \(message)")
+            AppDebugLog.write("[BrowseCraftAdPlayback] presenter unavailable \(message)")
             #endif
             return .unavailable(message)
         }
@@ -53,7 +53,7 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
             let message: String = "Rewarded ad unit ID is empty for \(AppAdConfiguration.environmentName)."
             self.lastMessage = message
             #if DEBUG
-            print("[BrowseCraftAdPlayback] presenter unavailable \(message)")
+            AppDebugLog.write("[BrowseCraftAdPlayback] presenter unavailable \(message)")
             #endif
             return .unavailable(message)
         }
@@ -64,7 +64,7 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
 
         do {
             #if DEBUG
-            print(
+            AppDebugLog.write(
                 "[BrowseCraftAdPlayback] presenter loading " +
                 "environment=\(AppAdConfiguration.environmentName) adUnitID=\(adUnitID)"
             )
@@ -76,7 +76,7 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
             ad.fullScreenContentDelegate = self
             self.rewardedAd = ad
             #if DEBUG
-            print("[BrowseCraftAdPlayback] presenter loaded, presenting")
+            AppDebugLog.write("[BrowseCraftAdPlayback] presenter loaded, presenting")
             #endif
 
             return await withCheckedContinuation { continuation in
@@ -93,7 +93,7 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
                         self?.didEarnReward = true
                         self?.lastMessage = "Reward earned: \(rewardText)"
                         #if DEBUG
-                        print("[BrowseCraftAdPlayback] presenter reward earned \(rewardText)")
+                        AppDebugLog.write("[BrowseCraftAdPlayback] presenter reward earned \(rewardText)")
                         #endif
                     }
                 }
@@ -104,7 +104,7 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
             let message: String = "Rewarded ad failed to load: \(error.localizedDescription)"
             self.lastMessage = message
             #if DEBUG
-            print("[BrowseCraftAdPlayback] presenter load failed \(message)")
+            AppDebugLog.write("[BrowseCraftAdPlayback] presenter load failed \(message)")
             #endif
             return .failed(message)
         }
@@ -112,7 +112,7 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
 
     func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
         #if DEBUG
-        print("[BrowseCraftAdPlayback] presenter dismissed didEarnReward=\(self.didEarnReward)")
+        AppDebugLog.write("[BrowseCraftAdPlayback] presenter dismissed didEarnReward=\(self.didEarnReward)")
         #endif
         self.finish(result: self.didEarnReward ? .completed : .skipped)
     }
@@ -124,14 +124,14 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
         let message: String = "Rewarded ad failed to present: \(error.localizedDescription)"
         self.lastMessage = message
         #if DEBUG
-        print("[BrowseCraftAdPlayback] presenter present failed \(message)")
+        AppDebugLog.write("[BrowseCraftAdPlayback] presenter present failed \(message)")
         #endif
         self.finish(result: .failed(message))
     }
 
     private func finish(result: RewardedAdPresentationResult) {
         #if DEBUG
-        print("[BrowseCraftAdPlayback] presenter finish result=\(result.debugDescription)")
+        AppDebugLog.write("[BrowseCraftAdPlayback] presenter finish result=\(result.debugDescription)")
         #endif
         self.rewardedAd = nil
         self.isPresenting = false

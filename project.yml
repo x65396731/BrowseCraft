@@ -11,6 +11,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: complete
     CURRENT_PROJECT_VERSION: "1"
     MARKETING_VERSION: "1.0"
     CODE_SIGN_STYLE: Automatic
@@ -39,6 +40,17 @@ packages:
     from: 12.0.0
 
 targets:
+  BrowseCraftDomain:
+    type: framework
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: BrowseCraftDomain
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.xiefei.BrowseCraftDomain
+        GENERATE_INFOPLIST_FILE: YES
+
   BrowseCraft:
     type: application
     platform: iOS
@@ -48,6 +60,7 @@ targets:
         excludes:
           - "**/*.md"
     dependencies:
+      - target: BrowseCraftDomain
       - package: BrowseCraftCore
         product: BrowseCraftCore
       - package: BrowseCraftAPIKit
@@ -92,6 +105,11 @@ targets:
           BROWSECRAFT_ENVIRONMENT_NAME: PROD
           # TestFlight 临时使用 Google 官方测试广告；App Store 正式发布前替换为正式广告单元。
           BROWSECRAFT_REWARDED_AD_UNIT_ID: ca-app-pub-3940256099942544/1712485313
+    preBuildScripts:
+      - name: Check Architecture Boundaries
+        basedOnDependencyAnalysis: false
+        script: |
+          "${SRCROOT}/scripts/check-architecture-boundaries.sh"
     postBuildScripts:
       - name: Upload Crashlytics Symbols
         basedOnDependencyAnalysis: false
@@ -130,6 +148,7 @@ targets:
       - path: BrowseCraftTests
     dependencies:
       - target: BrowseCraft
+      - target: BrowseCraftDomain
       - package: BrowseCraftCore
         product: BrowseCraftCore
     settings:

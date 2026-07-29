@@ -51,7 +51,7 @@ final class ComicDetailViewModel: ObservableObject {
     let source: Source
 
     private let loadComicDetailUseCase: LoadComicDetailUseCase
-    private let loadLatestComicChapterHistoryUseCase: LoadLatestComicChapterHistoryUseCase
+    private let persistenceCoordinator: ReadingActivityPersistenceCoordinator
     private let resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
     private let sourceCredentialStore: (any SourceCredentialStoring)?
     private let activeAppUser: (any ActiveAppUserProviding)?
@@ -62,7 +62,7 @@ final class ComicDetailViewModel: ObservableObject {
         item: ContentItem,
         source: Source,
         loadComicDetailUseCase: LoadComicDetailUseCase,
-        loadLatestComicChapterHistoryUseCase: LoadLatestComicChapterHistoryUseCase,
+        persistenceCoordinator: ReadingActivityPersistenceCoordinator,
         resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase,
         sourceCredentialStore: (any SourceCredentialStoring)? = nil,
         activeAppUser: (any ActiveAppUserProviding)? = nil,
@@ -71,14 +71,14 @@ final class ComicDetailViewModel: ObservableObject {
         self.item = item
         self.source = source
         self.loadComicDetailUseCase = loadComicDetailUseCase
-        self.loadLatestComicChapterHistoryUseCase = loadLatestComicChapterHistoryUseCase
+        self.persistenceCoordinator = persistenceCoordinator
         self.resolveReaderSourcePresentationUseCase = resolveReaderSourcePresentationUseCase
         self.sourceCredentialStore = sourceCredentialStore
         self.activeAppUser = activeAppUser
         self.fallbackUserID = userID
 
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftNavigation] Init ComicDetailViewModel " +
             "itemId=\(item.id) title=\(item.title) " +
             "detailURL=\(item.detailURL) sourceId=\(source.id)"
@@ -322,7 +322,7 @@ final class ComicDetailViewModel: ObservableObject {
             self.didLoad = true
 
             #if DEBUG
-            print(
+            AppDebugLog.write(
                 "[BrowseCraftNavigation] Loaded comic detail " +
                 "itemId=\(self.item.id) title=\(self.displayTitle) " +
                 "chapters=\(self.chapters.count) hasMetadata=\(self.metadata != nil)"
@@ -345,11 +345,16 @@ final class ComicDetailViewModel: ObservableObject {
 
     /// 中文注释：详情页重新出现时可单独刷新历史，不必重复请求详情和章节列表。
     func refreshLatestReadingHistory() {
-        self.latestReadingHistory = try? self.loadLatestComicChapterHistoryUseCase.execute(
-            userID: self.currentUserID,
-            sourceID: self.source.id,
-            comicItemID: self.item.id
-        )
+        let userID: String = self.currentUserID
+        let sourceID: String = self.source.id
+        let comicItemID: String = self.item.id
+        Task { [persistenceCoordinator] in
+            self.latestReadingHistory = try? await persistenceCoordinator.loadLatestComicHistory(
+                userID: userID,
+                sourceID: sourceID,
+                comicItemID: comicItemID
+            )?.value
+        }
     }
 
     private func appendRow(

@@ -58,7 +58,7 @@ struct VideoDetailView: View {
             CrashDiagnostics.shared.setSource(self.viewModel.source)
             CrashDiagnostics.shared.setRuleStage(.detail)
             #if DEBUG
-            print(
+            AppDebugLog.write(
                 "[BrowseCraftVideoDetail] view appear " +
                 "source=\(self.viewModel.source.id) " +
                 "item=\(self.viewModel.item.id) " +
@@ -68,7 +68,7 @@ struct VideoDetailView: View {
         }
         .task {
             #if DEBUG
-            print(
+            AppDebugLog.write(
                 "[BrowseCraftVideoDetail] task start " +
                 "source=\(self.viewModel.source.id) " +
                 "item=\(self.viewModel.item.id)"

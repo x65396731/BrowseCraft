@@ -37,6 +37,7 @@ struct StoreKitPortalEnvironmentMapper {
 }
 
 /// 中文注释：SettingsViewModel 把 Settings UI 与 Nuke 缓存配置隔离，View 不直接操作缓存服务。
+@MainActor
 final class SettingsViewModel: ObservableObject {
     @Published private(set) var imageCacheSettings: ImageCacheSettings
     @Published var cacheErrorMessage: String?
@@ -50,11 +51,7 @@ final class SettingsViewModel: ObservableObject {
     @Published var portalAccountErrorMessage: String?
 
     private let imageCacheConfigurator: ImageCacheConfigurator
-    private let appUserRepository: AppUserRepository
-    private let activeAppUser: any ActiveAppUserProviding
-    private let purchaseIdentityAuthorizer: StoreKitPurchaseIdentityAuthorizer
-    private let portalPurchaseEntitlementRefreshCoordinator:
-        PortalPurchaseEntitlementRefreshCoordinator
+    private let purchaseCoordinator: PortalPurchaseCoordinator
     private let diagnosticIdentityStore: DiagnosticIdentityStore
     private let portalSignInAction: @MainActor () async throws -> UUID
     private let portalSignOutAction: () async throws -> Void
@@ -62,11 +59,7 @@ final class SettingsViewModel: ObservableObject {
 
     init(
         imageCacheConfigurator: ImageCacheConfigurator,
-        appUserRepository: AppUserRepository,
-        activeAppUser: any ActiveAppUserProviding,
-        purchaseIdentityAuthorizer: StoreKitPurchaseIdentityAuthorizer,
-        portalPurchaseEntitlementRefreshCoordinator:
-            PortalPurchaseEntitlementRefreshCoordinator,
+        purchaseCoordinator: PortalPurchaseCoordinator,
         diagnosticIdentityStore: DiagnosticIdentityStore = .shared,
         portalSignInAction: @escaping @MainActor () async throws -> UUID = {
             throw StoreKitPurchaseIdentityAuthorizationError.signInRequired
@@ -77,11 +70,7 @@ final class SettingsViewModel: ObservableObject {
         }
     ) {
         self.imageCacheConfigurator = imageCacheConfigurator
-        self.appUserRepository = appUserRepository
-        self.activeAppUser = activeAppUser
-        self.purchaseIdentityAuthorizer = purchaseIdentityAuthorizer
-        self.portalPurchaseEntitlementRefreshCoordinator =
-            portalPurchaseEntitlementRefreshCoordinator
+        self.purchaseCoordinator = purchaseCoordinator
         self.diagnosticIdentityStore = diagnosticIdentityStore
         self.portalSignInAction = portalSignInAction
         self.portalSignOutAction = portalSignOutAction
@@ -146,9 +135,11 @@ final class SettingsViewModel: ObservableObject {
                 value: String(limit.megabytes)
             )
         } catch {
-            #if DEBUG
-            print("[BrowseCraftImageCache] settings update failed error=\(error)")
-            #endif
+            AppLog.error(
+                .cache,
+                event: "image-cache-settings-update-failed",
+                metadata: ["error": AppLog.safeErrorCode(error)]
+            )
             self.cacheErrorMessage = "Image cache settings could not be updated."
         }
     }
@@ -160,20 +151,17 @@ final class SettingsViewModel: ObservableObject {
         // 中文注释：Nuke DataCache 的 removeAll 是异步写入队列动作，因此文案只承诺“已开始清理”。
         self.cacheStatusMessage = "Image cache clearing has started."
 
-        #if DEBUG
-        print("[BrowseCraftImageCache] clear cache requested")
-        #endif
+        AppLog.notice(.cache, event: "image-cache-clear-requested")
     }
 
     @MainActor
     func authorizeUserInitiatedStoreKitAction() async throws -> UUID {
-        return try await self.purchaseIdentityAuthorizer
-            .authorizeUserInitiatedStoreKitAction()
+        return try await self.purchaseCoordinator.authorizeUserInitiatedAction()
     }
 
     @MainActor
     func validateAuthorizedStoreKitUser(_ userID: UUID) async throws {
-        try await self.purchaseIdentityAuthorizer.validateAuthorizedUser(userID)
+        try await self.purchaseCoordinator.validateAuthorizedUser(userID)
     }
 
     @MainActor
@@ -182,50 +170,13 @@ final class SettingsViewModel: ObservableObject {
         signedTransaction: String,
         plan: InAppPurchasePlan
     ) async throws -> Set<String> {
-        let userID: UUID = self.activeAppUser.currentUserID
-        IAPDiagnostics.notice(
-            "event=purchase-submission-started " +
-                "userHash=\(IAPDiagnostics.hash(userID)) " +
-                "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id)) " +
-                "productID=\(transaction.productID) " +
-                "storeKitEnvironment=\(transaction.environment.rawValue)"
-        )
-        try self.requireStoreKitTransactionOwner(
-            transaction,
-            userID: userID
-        )
-        guard transaction.productID == plan.productID else {
-            throw StoreKitPortalPurchaseSubmissionError
-                .transactionProductMismatch
-        }
-
         let environment: PortalPurchaseEnvironment =
             try StoreKitPortalEnvironmentMapper.map(transaction.environment)
-        let snapshot: PortalEntitlementSnapshot =
-            try await self.portalPurchaseEntitlementRefreshCoordinator
-                .refreshPurchasedEntitlements(
-                    userID: userID,
-                    environment: environment,
-                    signedTransaction: signedTransaction
-                )
-
-        try await self.purchaseIdentityAuthorizer
-            .validateAuthorizedUser(userID)
-        try self.validatePortalSnapshot(
-            snapshot,
-            purchasedProductID: plan.productID
+        return try await self.purchaseCoordinator.submitPurchase(
+            transaction: self.snapshot(transaction: transaction, environment: environment),
+            signedTransaction: signedTransaction,
+            expectedProductID: plan.productID
         )
-        try self.applyPortalEntitlementSnapshot(
-            snapshot,
-            transaction: transaction
-        )
-        IAPDiagnostics.notice(
-            "event=purchase-submission-completed " +
-                "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id)) " +
-                "environment=\(environment.rawValue) " +
-                "revision=\(snapshot.revision)"
-        )
-        return snapshot.activeProductIDs
     }
 
     @MainActor
@@ -234,52 +185,13 @@ final class SettingsViewModel: ObservableObject {
         signedTransaction: String,
         plan: InAppPurchasePlan
     ) async throws -> Set<String> {
-        let userID: UUID = self.activeAppUser.currentUserID
-        IAPDiagnostics.notice(
-            "event=transaction-update-submission-started " +
-                "userHash=\(IAPDiagnostics.hash(userID)) " +
-                "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id)) " +
-                "productID=\(transaction.productID) " +
-                "storeKitEnvironment=\(transaction.environment.rawValue) " +
-                "isRevoked=\(transaction.revocationDate != nil)"
-        )
-        try self.requireStoreKitTransactionOwner(
-            transaction,
-            userID: userID
-        )
-        guard transaction.productID == plan.productID else {
-            throw StoreKitPortalPurchaseSubmissionError
-                .transactionProductMismatch
-        }
-
         let environment: PortalPurchaseEnvironment =
             try StoreKitPortalEnvironmentMapper.map(transaction.environment)
-        let snapshot: PortalEntitlementSnapshot =
-            try await self.portalPurchaseEntitlementRefreshCoordinator
-                .refreshUpdatedEntitlements(
-                    userID: userID,
-                    environment: environment,
-                    signedTransaction: signedTransaction
-                )
-
-        try await self.purchaseIdentityAuthorizer
-            .validateAuthorizedUser(userID)
-        try self.validatePortalSnapshot(
-            snapshot,
-            updatedProductID: plan.productID,
-            isRevoked: transaction.revocationDate != nil
+        return try await self.purchaseCoordinator.submitUpdate(
+            transaction: self.snapshot(transaction: transaction, environment: environment),
+            signedTransaction: signedTransaction,
+            expectedProductID: plan.productID
         )
-        try self.applyPortalEntitlementSnapshot(
-            snapshot,
-            transaction: transaction
-        )
-        IAPDiagnostics.notice(
-            "event=transaction-update-submission-completed " +
-                "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id)) " +
-                "environment=\(environment.rawValue) " +
-                "revision=\(snapshot.revision)"
-        )
-        return snapshot.activeProductIDs
     }
 
     @MainActor
@@ -298,8 +210,7 @@ final class SettingsViewModel: ObservableObject {
             "event=restore-started " +
                 "userHash=\(IAPDiagnostics.hash(authorizedUserID))"
         )
-        try await self.purchaseIdentityAuthorizer
-            .validateAuthorizedUser(authorizedUserID)
+        try await self.purchaseCoordinator.validateAuthorizedUser(authorizedUserID)
         try await AppStore.sync()
         IAPDiagnostics.notice("event=restore-app-store-sync-completed")
 
@@ -358,8 +269,7 @@ final class SettingsViewModel: ObservableObject {
             return lhs.transaction.purchaseDate < rhs.transaction.purchaseDate
         }
 
-        try await self.purchaseIdentityAuthorizer
-            .validateAuthorizedUser(authorizedUserID)
+        try await self.purchaseCoordinator.validateAuthorizedUser(authorizedUserID)
         guard let environment: PortalPurchaseEnvironment =
             restorableTransactions.first?.environment else {
             IAPDiagnostics.notice(
@@ -377,28 +287,16 @@ final class SettingsViewModel: ObservableObject {
                 .snapshotContractMismatch
         }
 
-        let snapshot: PortalEntitlementSnapshot =
-            try await self.portalPurchaseEntitlementRefreshCoordinator
-                .restoreEntitlements(
-                    userID: authorizedUserID,
-                    environment: environment,
-                    signedTransactions: restorableTransactions.map(
-                        \.signedTransaction
-                    )
+        let activeProductIDs: Set<String> = try await self.purchaseCoordinator.restore(
+            userID: authorizedUserID,
+            environment: environment,
+            signedTransactions: restorableTransactions.map(\.signedTransaction),
+            transactions: restorableTransactions.map { candidate in
+                self.snapshot(
+                    transaction: candidate.transaction,
+                    environment: candidate.environment
                 )
-        try await self.purchaseIdentityAuthorizer
-            .validateAuthorizedUser(authorizedUserID)
-        try self.validatePortalSnapshot(
-            snapshot,
-            restoredProductIDs: Set(
-                restorableTransactions.map { candidate in
-                    candidate.plan.productID
-                }
-            )
-        )
-        try self.applyPortalEntitlementSnapshot(
-            snapshot,
-            transactions: restorableTransactions.map(\.transaction)
+            }
         )
         for candidate: RestorableStoreKitTransaction in restorableTransactions {
             await candidate.transaction.finish()
@@ -407,9 +305,9 @@ final class SettingsViewModel: ObservableObject {
             "event=restore-completed " +
                 "environment=\(environment.rawValue) " +
                 "transactionCount=\(restorableTransactions.count) " +
-                "revision=\(snapshot.revision)"
+                "activeProductCount=\(activeProductIDs.count)"
         )
-        return snapshot.activeProductIDs
+        return activeProductIDs
     }
 
     private func requireStoreKitTransactionOwner(
@@ -436,168 +334,22 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
-    private func validatePortalSnapshot(
-        _ snapshot: PortalEntitlementSnapshot,
-        purchasedProductID: String
-    ) throws {
-        let supportedProductIDs: Set<String> = Set(
-            InAppPurchasePlan.activePlans.map(\.productID)
-        )
-        guard snapshot.userID == self.activeAppUser.currentUserID,
-              snapshot.includedSiteSlots ==
-                SourceSlotPolicy.includedSiteSlotCount,
-              snapshot.activeProductIDs.isSubset(of: supportedProductIDs) else {
-            throw StoreKitPortalPurchaseSubmissionError
-                .snapshotContractMismatch
-        }
-        guard snapshot.activeProductIDs.contains(purchasedProductID) else {
-            throw StoreKitPortalPurchaseSubmissionError
-                .purchasedProductMissing
-        }
-    }
-
-    private func validatePortalSnapshot(
-        _ snapshot: PortalEntitlementSnapshot,
-        restoredProductIDs: Set<String>
-    ) throws {
-        let supportedProductIDs: Set<String> = Set(
-            InAppPurchasePlan.activePlans.map(\.productID)
-        )
-        guard snapshot.userID == self.activeAppUser.currentUserID,
-              snapshot.includedSiteSlots ==
-                SourceSlotPolicy.includedSiteSlotCount,
-              snapshot.activeProductIDs.isSubset(of: supportedProductIDs),
-              restoredProductIDs.isSubset(of: snapshot.activeProductIDs) else {
-            throw StoreKitPortalPurchaseSubmissionError
-                .snapshotContractMismatch
-        }
-    }
-
-    private func validatePortalSnapshot(
-        _ snapshot: PortalEntitlementSnapshot,
-        updatedProductID: String,
-        isRevoked: Bool
-    ) throws {
-        let supportedProductIDs: Set<String> = Set(
-            InAppPurchasePlan.activePlans.map(\.productID)
-        )
-        guard snapshot.userID == self.activeAppUser.currentUserID,
-              snapshot.includedSiteSlots ==
-                SourceSlotPolicy.includedSiteSlotCount,
-              snapshot.activeProductIDs.isSubset(of: supportedProductIDs) else {
-            throw StoreKitPortalPurchaseSubmissionError
-                .snapshotContractMismatch
-        }
-
-        let containsUpdatedProduct: Bool =
-            snapshot.activeProductIDs.contains(updatedProductID)
-        guard containsUpdatedProduct != isRevoked else {
-            throw StoreKitPortalPurchaseSubmissionError
-                .snapshotContractMismatch
-        }
-    }
-
-    private func applyPortalEntitlementSnapshot(
-        _ snapshot: PortalEntitlementSnapshot,
-        transaction: StoreKit.Transaction
-    ) throws {
-        try self.applyPortalEntitlementSnapshot(
-            snapshot,
-            transactions: [transaction]
-        )
-    }
-
-    private func applyPortalEntitlementSnapshot(
-        _ snapshot: PortalEntitlementSnapshot,
-        transactions: [StoreKit.Transaction]
-    ) throws {
-        let now: Date = Date()
-        let userID: String = snapshot.userID.uuidString
-        var user: AppUser = try self.appUserRepository.fetchUser(id: userID) ??
-            AppUser(
-                id: userID,
-                displayName: nil,
-                hasRemovedAds: false,
-                pendingAdPoints: 0,
-                createdAt: now,
-                updatedAt: now
-            )
-
-        user.hasRemovedAds = snapshot.hasRemovedAds
-        user.purchasedSiteSlots = snapshot.purchasedSiteSlots
-        user.siteSlotLimit = snapshot.siteSlotLimit
-        user.updatedAt = now
-        if let latestTransaction: StoreKit.Transaction =
-            transactions.max(by: { lhs, rhs in
-                lhs.purchaseDate < rhs.purchaseDate
-            }) {
-            self.recordStoreKitMetadata(
-                transaction: latestTransaction,
-                user: &user
-            )
-        }
-
-        var newTransactions: [UserStoreKitTransaction] = []
-        for transaction: StoreKit.Transaction in transactions {
-            let transactionID: String = String(transaction.id)
-            guard try self.appUserRepository.hasProcessedStoreKitTransaction(
-                userID: userID,
-                transactionID: transactionID
-            ) == false else {
-                continue
-            }
-            newTransactions.append(
-                self.makeUserStoreKitTransaction(
-                    transaction: transaction,
-                    userID: userID,
-                    createdAt: now
-                )
-            )
-        }
-        try self.appUserRepository.saveUser(
-            user,
-            storeKitTransactions: newTransactions
-        )
-        IAPDiagnostics.notice(
-            "event=entitlement-snapshot-persisted " +
-                "environment=\(snapshot.environment.rawValue) " +
-                "revision=\(snapshot.revision) " +
-                "transactionCount=\(transactions.count) " +
-                "newTransactionCount=\(newTransactions.count) " +
-                "siteSlotLimit=\(snapshot.siteSlotLimit) " +
-                "hasRemovedAds=\(snapshot.hasRemovedAds)"
-        )
-    }
-
-    private func recordStoreKitMetadata(transaction: StoreKit.Transaction, user: inout AppUser) {
-        user.lastStoreKitTransactionID = String(transaction.id)
-        user.lastStoreKitOriginalTransactionID = String(transaction.originalID)
-        user.lastStoreKitProductID = transaction.productID
-        user.lastStoreKitProductType = transaction.productType.rawValue
-        user.lastStoreKitEnvironment = transaction.environment.rawValue
-        user.lastStoreKitOwnershipType = transaction.ownershipType.rawValue
-        user.lastStoreKitPurchaseDate = transaction.purchaseDate
-        user.lastStoreKitExpirationDate = transaction.expirationDate
-        user.lastStoreKitRevocationDate = transaction.revocationDate
-    }
-
-    private func makeUserStoreKitTransaction(
+    private func snapshot(
         transaction: StoreKit.Transaction,
-        userID: String,
-        createdAt: Date
-    ) -> UserStoreKitTransaction {
-        return UserStoreKitTransaction(
-            userID: userID,
+        environment: PortalPurchaseEnvironment
+    ) -> StoreTransactionSnapshot {
+        return StoreTransactionSnapshot(
             transactionID: String(transaction.id),
             originalTransactionID: String(transaction.originalID),
             productID: transaction.productID,
             productType: transaction.productType.rawValue,
-            environment: transaction.environment.rawValue,
+            environment: environment,
+            environmentRawValue: transaction.environment.rawValue,
             ownershipType: transaction.ownershipType.rawValue,
+            appAccountToken: transaction.appAccountToken,
             purchaseDate: transaction.purchaseDate,
             expirationDate: transaction.expirationDate,
-            revocationDate: transaction.revocationDate,
-            createdAt: createdAt
+            revocationDate: transaction.revocationDate
         )
     }
 }

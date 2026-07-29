@@ -16,6 +16,7 @@ struct HistoryFeatureFactory {
         self.videoPlayerViewModelFactory = videoPlayerViewModelFactory
     }
 
+    @MainActor
     func makeViewModel() -> HistoryViewModel {
         let rssRepository: RSSReadingHistoryRepository = GRDBRSSReadingHistoryRepository(
             database: self.database
@@ -30,7 +31,7 @@ struct HistoryFeatureFactory {
             database: self.database
         )
 
-        return HistoryViewModel(
+        let persistenceCoordinator: HistoryPersistenceCoordinator = HistoryPersistenceCoordinator(
             loadReadingHistoryEntriesUseCase: LoadReadingHistoryEntriesUseCase(
                 rssRepository: rssRepository,
                 comicRepository: comicRepository,
@@ -45,8 +46,12 @@ struct HistoryFeatureFactory {
             ),
             reconcileSourceSlotAssignmentsUseCase:
                 ReconcileSourceSlotAssignmentsUseCase(
-                    sourceRepository: self.sourceRepository
-                ),
+                sourceRepository: self.sourceRepository
+                )
+        )
+
+        return HistoryViewModel(
+            persistenceCoordinator: persistenceCoordinator,
             activeAppUser: self.activeAppUser,
             videoPlayerViewModelFactory: self.videoPlayerViewModelFactory
         )

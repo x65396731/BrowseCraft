@@ -166,7 +166,7 @@ private struct NativePlayerRepresentable: UIViewRepresentable {
 
         #if DEBUG
         let mediaLocation: String = (mediaURL.host ?? "unknown") + mediaURL.path
-        print(
+        AppDebugLog.write(
             "[BrowseCraftVideoPlayer] playback-options " +
             "media=\(mediaLocation) " +
             "hasReferer=\(options.referer != nil) " +

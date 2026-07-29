@@ -81,7 +81,7 @@ struct RSSSourceRuntime: SourceRuntime, SourceDetailRuntime {
         }
         let maxLatestTextLength: Int = latestTextLengths.max() ?? 0
         let firstLatestTextLength: Int = latestTextLengths.first ?? 0
-        print(
+        AppDebugLog.write(
             "[BrowseCraftRSS] runtime.loadList source=\(self.definition.id) " +
             "feedTitle=\(feed.title ?? "nil") " +
             "feedItems=\(feed.items.count) " +

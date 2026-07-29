@@ -1,6 +1,6 @@
 import Foundation
 import BrowseCraftCore
-import BrowseCraftAPIKit
+import BrowseCraftDomain
 
 // 中文注释：CatalogSourceMaterializer 把 RulesKit catalog 定义转换成 App 持久化 Source。
 struct CatalogSourceMaterializer {
@@ -15,7 +15,7 @@ struct CatalogSourceMaterializer {
     }
 
     func source(
-        from catalogSource: BrowseCraftCatalogSource,
+        from catalogSource: CatalogSource,
         createdAt: Date,
         updatedAt: Date,
         enabled: Bool = true
@@ -75,7 +75,7 @@ struct CatalogSourceMaterializer {
 
     /// 中文注释：P2-6 后所有 video catalog 都必须通过 V2 合同；缺失或非 2 的版本直接拒绝。
     private func videoConfiguration(
-        from catalogSource: BrowseCraftCatalogSource
+        from catalogSource: CatalogSource
     ) throws -> VideoSourceConfiguration {
         let validator: VideoSiteRuleValidator = VideoSiteRuleValidator(jsonDecoder: self.jsonDecoder)
         let result: VideoSiteRuleValidationResult = validator.validate(
@@ -106,7 +106,7 @@ struct CatalogSourceMaterializer {
             : descriptions.joined(separator: " | ")
     }
 
-    private func rule(from catalogSource: BrowseCraftCatalogSource) throws -> SiteRule {
+    private func rule(from catalogSource: CatalogSource) throws -> SiteRule {
         do {
             let sanitizedData = self.sanitizedRuleJSONData(
                 from: catalogSource.ruleJSON
@@ -218,7 +218,7 @@ struct CatalogSourceMaterializer {
 
     private func decodeRule<Value: Decodable>(
         _ valueType: Value.Type,
-        from catalogSource: BrowseCraftCatalogSource
+        from catalogSource: CatalogSource
     ) throws -> Value {
         do {
             return try self.jsonDecoder.decode(valueType, from: Data(catalogSource.ruleJSON.utf8))
@@ -228,7 +228,7 @@ struct CatalogSourceMaterializer {
     }
 
     private func invalidRuleJSONError(
-        for catalogSource: BrowseCraftCatalogSource,
+        for catalogSource: CatalogSource,
         underlyingError: Error
     ) -> CatalogSourceImportError {
         return .invalidRuleJSON(

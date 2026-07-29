@@ -499,7 +499,7 @@ struct DiscoverComicResourcesUseCase {
     }
 
     private func log(_ message: String) {
-        print("[BrowseCraftComicDiscovery] \(message)")
+        AppDebugLog.write("[BrowseCraftComicDiscovery] \(message)")
     }
     #endif
 }

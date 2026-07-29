@@ -10,7 +10,7 @@ extension VideoWebPlayerCoordinator: WKUIDelegate {
         if navigationAction.targetFrame == nil {
             guard self.shouldAllowMainFrameNavigation(to: navigationAction.request.url) else {
                 #if DEBUG
-                print(
+                AppDebugLog.write(
                     "[BrowseCraftVideoWebPlayer] block-target-blank " +
                     "url=\(self.safeLogURL(navigationAction.request.url))"
                 )
@@ -19,7 +19,7 @@ extension VideoWebPlayerCoordinator: WKUIDelegate {
             }
 
             #if DEBUG
-            print(
+            AppDebugLog.write(
                 "[BrowseCraftVideoWebPlayer] target-blank " +
                 "url=\(self.safeLogURL(navigationAction.request.url))"
             )

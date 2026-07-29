@@ -1,18 +1,18 @@
 import Foundation
-import BrowseCraftAPIKit
+import BrowseCraftDomain
 
 // 中文注释：真实 catalog 数据仍由用户手动导入；这里仅升级已存在的 catalog 源定义。
 
 /// 中文注释：不再在启动时自动写入任何 Source，用户初始状态保持空规则列表。
 struct SyncBuiltInSourcesUseCase {
     private let sourceRepository: SourceRepository
-    private let catalogSources: [BrowseCraftCatalogSource]
+    private let catalogSources: [CatalogSource]
     private let catalogSourceMaterializer: CatalogSourceMaterializer
     private let now: () -> Date
 
     init(
         sourceRepository: SourceRepository,
-        catalogSources: [BrowseCraftCatalogSource] = [],
+        catalogSources: [CatalogSource] = [],
         catalogSourceMaterializer: CatalogSourceMaterializer = CatalogSourceMaterializer(),
         now: @escaping () -> Date = Date.init
     ) {
@@ -23,7 +23,7 @@ struct SyncBuiltInSourcesUseCase {
     }
 
     func execute() throws {
-        let catalogSourcesByID: [String: BrowseCraftCatalogSource] = Dictionary(
+        let catalogSourcesByID: [String: CatalogSource] = Dictionary(
             uniqueKeysWithValues: self.catalogSources.map { source in
                 return (source.id, source)
             }
@@ -31,7 +31,7 @@ struct SyncBuiltInSourcesUseCase {
         let existingSources: [Source] = try self.sourceRepository.fetchSources()
 
         for existingSource: Source in existingSources {
-            guard let catalogSource: BrowseCraftCatalogSource = catalogSourcesByID[existingSource.id] else {
+            guard let catalogSource: CatalogSource = catalogSourcesByID[existingSource.id] else {
                 continue
             }
 

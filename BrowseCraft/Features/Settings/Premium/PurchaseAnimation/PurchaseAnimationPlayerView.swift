@@ -29,7 +29,7 @@ struct PurchaseAnimationPlayerView: View {
         private static func logMissingResource(kind: String, error: Error?) {
             #if DEBUG
             let detail: String = error?.localizedDescription ?? "the image data could not be decoded"
-            print("[BrowseCraftPurchaseAnimation] missing \(kind): \(detail)")
+            AppDebugLog.write("[BrowseCraftPurchaseAnimation] missing \(kind): \(detail)")
             #endif
         }
     }

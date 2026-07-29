@@ -1,5 +1,5 @@
 import BrowseCraftCore
-import BrowseCraftAPIKit
+import BrowseCraftDomain
 
 struct SourceCatalogService {
     private let addCatalogSourceUseCase: AddCatalogSourceUseCase
@@ -13,11 +13,11 @@ struct SourceCatalogService {
         self.loadCatalogSourcesUseCase = loadCatalogSourcesUseCase
     }
 
-    func loadSources() async throws -> [BrowseCraftCatalogSource] {
+    func loadSources() async throws -> [CatalogSource] {
         return try await self.loadCatalogSourcesUseCase.execute()
     }
 
-    func addSource(_ catalogSource: BrowseCraftCatalogSource) async throws -> AddCatalogSourceResult {
+    func addSource(_ catalogSource: CatalogSource) async throws -> AddCatalogSourceResult {
         return try await self.addCatalogSourceUseCase.execute(catalogSource)
     }
 }

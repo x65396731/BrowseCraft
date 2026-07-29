@@ -30,7 +30,7 @@ final class DefaultPageLoader: PageContentLoader, PageDataLoader {
         }
 
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftWebView] render html " +
             "url=\(request.url.absoluteString) " +
             "scope=\(request.requestConfig?.scope?.rawValue ?? "default") " +

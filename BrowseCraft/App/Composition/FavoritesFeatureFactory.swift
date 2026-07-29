@@ -7,15 +7,17 @@ struct FavoritesFeatureFactory {
         self.favoriteRepository = favoriteRepository
     }
 
+    @MainActor
     func makeViewModel() -> FavoritesViewModel {
         return FavoritesViewModel(
-            loadFavoriteItemsUseCase: ToggleFavoriteUseCase(
-                favoriteRepository: self.favoriteRepository
-            ),
-            reconcileSourceSlotAssignmentsUseCase:
-                ReconcileSourceSlotAssignmentsUseCase(
+            persistenceCoordinator: FavoritesPersistenceCoordinator(
+                loadFavoriteItemsUseCase: ToggleFavoriteUseCase(
+                    favoriteRepository: self.favoriteRepository
+                ),
+                reconcileSourceSlotAssignmentsUseCase: ReconcileSourceSlotAssignmentsUseCase(
                     sourceRepository: self.sourceRepository
                 )
+            )
         )
     }
 }

@@ -17,9 +17,7 @@ final class VideoPlayerViewModel: ObservableObject {
     let detailURL: URL?
     let coverURL: URL?
 
-    private let saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase
-    private let loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase
-    private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
+    private let persistenceCoordinator: ReadingActivityPersistenceCoordinator
     private let runtimeResolver: any SourceRuntimeResolving
     private let playbackRequestResolver: VideoPlaybackRequestResolver
     private let activeAppUser: (any ActiveAppUserProviding)?
@@ -28,6 +26,8 @@ final class VideoPlayerViewModel: ObservableObject {
     private var autosaveTask: Task<Void, Never>?
     private var didSeekToRestoredTime: Bool = false
     private var lastSavedPlaybackTime: TimeInterval?
+    /// 中文注释：异步保存可能乱序返回；只有最新一轮保存可以更新 ViewModel 的已保存位置。
+    private var progressSaveRevision: UInt64 = 0
     private var lastVideoAdPointCheckAt: Date?
     private var accumulatedVideoAdPointInterval: TimeInterval = 0
 
@@ -37,9 +37,7 @@ final class VideoPlayerViewModel: ObservableObject {
         videoTitle: String,
         detailURL: URL?,
         coverURL: URL?,
-        saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase,
-        loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase,
-        accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil,
+        persistenceCoordinator: ReadingActivityPersistenceCoordinator,
         runtimeResolver: any SourceRuntimeResolving,
         credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider(),
         systemCookieHeaderProvider: any SystemCookieHeaderProviding = EmptySystemCookieHeaderProvider(),
@@ -52,9 +50,7 @@ final class VideoPlayerViewModel: ObservableObject {
         self.videoTitle = videoTitle
         self.detailURL = detailURL
         self.coverURL = coverURL
-        self.saveVideoWatchHistoryUseCase = saveVideoWatchHistoryUseCase
-        self.loadVideoWatchHistoryUseCase = loadVideoWatchHistoryUseCase
-        self.accumulateAdPointsUseCase = accumulateAdPointsUseCase
+        self.persistenceCoordinator = persistenceCoordinator
         self.runtimeResolver = runtimeResolver
         self.playbackRequestResolver = VideoPlaybackRequestResolver(
             credentialProvider: credentialProvider,
@@ -147,7 +143,7 @@ final class VideoPlayerViewModel: ObservableObject {
         return self.currentPlaybackTime
     }
 
-    func prepareForPlayback() {
+    func prepareForPlayback() async {
         CrashDiagnostics.shared.setRuleStage(.videoPlayback)
         if self.isPrepared {
             return
@@ -156,13 +152,13 @@ final class VideoPlayerViewModel: ObservableObject {
         self.isPrepared = true
 
         do {
-            if let history: VideoWatchHistory = try self.loadVideoWatchHistoryUseCase.execute(
+            if let history: VideoWatchHistory = try await self.persistenceCoordinator.loadVideoHistory(
                 userID: self.currentUserID,
                 sourceID: self.source.id,
                 vodID: self.reference.vodID,
                 sourceIndex: self.reference.sourceIndex,
                 episodeIndex: self.reference.episodeIndex
-            ) {
+            )?.value {
                 self.currentPlaybackTime = history.lastPlaybackTime
                 self.duration = history.duration
             }
@@ -206,7 +202,7 @@ final class VideoPlayerViewModel: ObservableObject {
 
     func markAdPlaybackHandled() {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftAdPlayback] video mark handled " +
             "sourceID=\(self.source.id) vodID=\(self.reference.vodID) " +
             "episodeKey=\(self.reference.episodeKey) previousShouldPlayAd=\(self.shouldPlayAd)"
@@ -261,7 +257,7 @@ final class VideoPlayerViewModel: ObservableObject {
             self.didSeekToRestoredTime = false
             self.lastSavedPlaybackTime = nil
             self.resetVideoAdPointTimer()
-            self.prepareForPlayback()
+            await self.prepareForPlayback()
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .playback, event: "video-episode-switch-error")
             AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .videoPlayback, errorCode: "video-episode-switch-error")
@@ -315,21 +311,25 @@ final class VideoPlayerViewModel: ObservableObject {
             return
         }
 
-        do {
-            try self.saveVideoWatchHistoryUseCase.execute(
-                userID: self.currentUserID,
-                source: self.source,
-                reference: self.reference,
-                videoTitle: self.videoTitle,
-                detailURL: self.detailURL,
-                coverURL: self.coverURL,
-                lastPlaybackTime: self.currentPlaybackTime,
-                duration: self.duration,
-                visitedAt: self.now()
-            )
-            self.lastSavedPlaybackTime = self.currentPlaybackTime
-        } catch {
-            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+        let playbackTime: TimeInterval = self.currentPlaybackTime
+        let history: VideoWatchHistoryTransfer = VideoWatchHistoryTransfer(
+            value: self.currentHistory(visitedAt: self.now())
+        )
+        self.progressSaveRevision &+= 1
+        let saveRevision: UInt64 = self.progressSaveRevision
+        Task { [persistenceCoordinator] in
+            do {
+                try await persistenceCoordinator.saveVideoHistory(history)
+                guard self.progressSaveRevision == saveRevision else {
+                    return
+                }
+                self.lastSavedPlaybackTime = playbackTime
+            } catch {
+                guard self.progressSaveRevision == saveRevision else {
+                    return
+                }
+                self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+            }
         }
     }
 
@@ -348,7 +348,7 @@ final class VideoPlayerViewModel: ObservableObject {
         self.lastVideoAdPointCheckAt = currentDate
         self.accumulatedVideoAdPointInterval += elapsed
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftAdPoints] video timer tick " +
             "sourceID=\(self.source.id) vodID=\(self.reference.vodID) " +
             "episodeKey=\(self.reference.episodeKey) elapsed=\(elapsed) " +
@@ -370,43 +370,49 @@ final class VideoPlayerViewModel: ObservableObject {
     }
 
     private func accumulateAdPoints(points: Int) {
-        guard let accumulateAdPointsUseCase: AccumulateAdPointsUseCase = self.accumulateAdPointsUseCase else {
-            return
-        }
-
-        do {
-            let result: AdPointAccumulationResult = try accumulateAdPointsUseCase.execute(
-                userID: self.currentUserID,
-                points: points
-            )
-            #if DEBUG
-            print(
-                "[BrowseCraftAdPoints] video result " +
-                "sourceID=\(self.source.id) vodID=\(self.reference.vodID) " +
-                "episodeKey=\(self.reference.episodeKey) \(result.debugDescription)"
-            )
-            #endif
-            if result.shouldPlayAd {
-                #if DEBUG
-                print(
-                    "[BrowseCraftAdPlayback] video shouldPlayAd=true " +
-                    "sourceID=\(self.source.id) vodID=\(self.reference.vodID) " +
-                    "episodeKey=\(self.reference.episodeKey)"
+        Task { [persistenceCoordinator] in
+            do {
+                let result: AdPointAccumulationResult = try await persistenceCoordinator
+                    .accumulateAdPoints(points)
+                if result.shouldPlayAd {
+                    self.shouldPlayAd = true
+                }
+            } catch {
+                AppLog.error(
+                    .sync,
+                    event: "video-ad-points-save-failed",
+                    metadata: ["error": AppLog.safeErrorCode(error)]
                 )
-                #endif
-                self.shouldPlayAd = true
             }
-        } catch {
-            #if DEBUG
-            print(
-                "[BrowseCraftAdPoints] video accumulate failed " +
-                "sourceID=\(self.source.id) " +
-                "vodID=\(self.reference.vodID) " +
-                "episodeKey=\(self.reference.episodeKey) " +
-                "error=\(error)"
-            )
-            #endif
         }
+    }
+
+    private func currentHistory(visitedAt: Date) -> VideoWatchHistory {
+        return VideoWatchHistory(
+            userID: self.currentUserID,
+            sourceID: self.source.id,
+            vodID: self.reference.vodID,
+            videoTitle: self.videoTitle,
+            episodeTitle: self.reference.episodeTitle,
+            episodeKey: self.reference.episodeKey,
+            sourceIndex: self.reference.sourceIndex,
+            episodeIndex: self.reference.episodeIndex,
+            detailURL: self.detailURL,
+            playPageURL: self.reference.playPageURL,
+            candidateMediaURL: self.reference.candidateMediaURL,
+            candidateMediaKind: self.reference.candidateMediaKind,
+            playbackStatus: self.reference.status,
+            playbackRequestConfig: self.reference.playbackRequestConfig,
+            coverURL: self.coverURL,
+            sourceName: self.reference.sourceName ?? self.source.name,
+            lastPlaybackTime: self.currentPlaybackTime,
+            duration: self.duration,
+            visitedAt: visitedAt,
+            updatedAt: visitedAt,
+            previousEpisodeURL: self.reference.previousEpisodeURL,
+            nextEpisodeURL: self.reference.nextEpisodeURL,
+            sourceSnapshot: SourceSnapshot(source: self.source)
+        )
     }
 
     private var currentUserID: String {

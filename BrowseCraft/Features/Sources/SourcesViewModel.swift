@@ -1,12 +1,13 @@
 import Combine
 import Foundation
 import BrowseCraftCore
-import BrowseCraftAPIKit
+import BrowseCraftDomain
 
 // 中文注释：SourcesViewModel.swift 属于界面功能层，用于说明本文件承载的核心职责。
 
 /// 中文注释：Sources 标签页的视图模型，管理源列表、选中源、刷新状态和错误信息。
 /// 中文注释：SwiftUI 会观察这里的 @Published 属性，并在变化时刷新对应界面。
+@MainActor
 final class SourcesViewModel: ObservableObject {
     private enum FailedRefreshAction {
         case select(sourceID: String)
@@ -20,28 +21,23 @@ final class SourcesViewModel: ObservableObject {
     @Published private(set) var refreshingSourceID: String?
     @Published private(set) var latestSourceAddID: String?
     @Published private(set) var latestCatalogSourceAddID: String?
-    @Published private(set) var catalogSources: [BrowseCraftCatalogSource] = []
+    @Published private(set) var catalogSources: [CatalogSource] = []
     @Published private(set) var isLoadingCatalogSources: Bool = false
     @Published private(set) var requestedSlotActivationSource: Source?
     @Published private(set) var sourceSlotLimit: Int =
         SourceSlotPolicy.includedSiteSlotCount
 
-    private let syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase
-    private let loadSourceSlotLimitUseCase: LoadSourceSlotLimitUseCase
-    private let reconcileSourceSlotAssignmentsUseCase:
-        ReconcileSourceSlotAssignmentsUseCase
-    private let activateSourceSlotUseCase: ActivateSourceSlotUseCase
+    private let persistenceCoordinator: SourcesPersistenceCoordinator
     private let addComicRuleSourceUseCase: AddComicRuleSourceUseCase
     private let addRSSSourceUseCase: AddRSSSourceUseCase
     private let discoveryService: SourceDiscoveryService
     private let catalogService: SourceCatalogService
-    private let deleteSourceUseCase: DeleteSourceUseCase
     private let ruleEditorService: SourceRuleEditorService
+    private let ruleEditingCoordinator: SourceRuleEditingCoordinator
     private let recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase
     private let contentItemMapper: SourceListContentItemMapper
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
     private let validateSourceTabsUseCase: ValidateSourceTabsUseCase
-    private let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase
     private let sourceSelectionStore: SourceSelectionStore
     private let activeAppUser: (any ActiveAppUserProviding)?
     private let fallbackUserID: String
@@ -78,42 +74,32 @@ final class SourcesViewModel: ObservableObject {
     }
 
     init(
-        syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase,
-        loadSourceSlotLimitUseCase: LoadSourceSlotLimitUseCase,
-        reconcileSourceSlotAssignmentsUseCase:
-            ReconcileSourceSlotAssignmentsUseCase,
-        activateSourceSlotUseCase: ActivateSourceSlotUseCase,
+        persistenceCoordinator: SourcesPersistenceCoordinator,
         addComicRuleSourceUseCase: AddComicRuleSourceUseCase,
         addRSSSourceUseCase: AddRSSSourceUseCase,
         discoveryService: SourceDiscoveryService,
         catalogService: SourceCatalogService,
-        deleteSourceUseCase: DeleteSourceUseCase,
         ruleEditorService: SourceRuleEditorService,
+        ruleEditingCoordinator: SourceRuleEditingCoordinator,
         recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase,
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
         validateSourceTabsUseCase: ValidateSourceTabsUseCase,
-        saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase,
         sourceSelectionStore: SourceSelectionStore,
         activeAppUser: (any ActiveAppUserProviding)? = nil,
         userID: String = AppUser.localDefaultID,
         now: @escaping () -> Date = Date.init
     ) {
-        self.syncBuiltInSourcesUseCase = syncBuiltInSourcesUseCase
-        self.loadSourceSlotLimitUseCase = loadSourceSlotLimitUseCase
-        self.reconcileSourceSlotAssignmentsUseCase =
-            reconcileSourceSlotAssignmentsUseCase
-        self.activateSourceSlotUseCase = activateSourceSlotUseCase
+        self.persistenceCoordinator = persistenceCoordinator
         self.addComicRuleSourceUseCase = addComicRuleSourceUseCase
         self.addRSSSourceUseCase = addRSSSourceUseCase
         self.discoveryService = discoveryService
         self.catalogService = catalogService
-        self.deleteSourceUseCase = deleteSourceUseCase
         self.ruleEditorService = ruleEditorService
+        self.ruleEditingCoordinator = ruleEditingCoordinator
         self.recommendSourceImportOptionUseCase = recommendSourceImportOptionUseCase
         self.contentItemMapper = SourceListContentItemMapper()
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
         self.validateSourceTabsUseCase = validateSourceTabsUseCase
-        self.saveUserLibraryStateUseCase = saveUserLibraryStateUseCase
         self.sourceSelectionStore = sourceSelectionStore
         self.activeAppUser = activeAppUser
         self.fallbackUserID = userID
@@ -124,24 +110,23 @@ final class SourcesViewModel: ObservableObject {
 
     @MainActor
     /// 中文注释：普通页面加载沿用现有错误展示；启动层通过 loadForStartup 区分无源和读取失败。
-    func load() {
+    func load() async {
         do {
-            _ = try self.loadForStartup()
+            _ = try await self.loadForStartup()
         } catch {
             // 中文注释：错误已经由 loadForStartup 记录并发布给 Sources 页面。
         }
     }
 
     @MainActor
-    func loadForStartup() throws -> Bool {
+    func loadForStartup() async throws -> Bool {
         do {
-            try self.syncBuiltInSourcesUseCase.execute()
-            let loadedSources: [Source] =
-                try self.reconcileSourceSlotAssignmentsUseCase.execute()
-            self.sources = loadedSources
-            self.sourceSlotLimit = try self.loadSourceSlotLimitUseCase.execute(
+            let snapshot: SourcesPersistenceSnapshot = try await self.persistenceCoordinator.load(
                 userID: self.currentUserID
             )
+            let loadedSources: [Source] = snapshot.sources
+            self.sources = loadedSources
+            self.sourceSlotLimit = snapshot.sourceSlotLimit
             if let selectedSourceID: String = self.selectedSourceID,
                loadedSources.contains(where: { source in
                    return source.id == selectedSourceID
@@ -222,13 +207,22 @@ final class SourcesViewModel: ObservableObject {
 
     @MainActor
     func saveTemporaryHistory(_ history: TemporaryResourceHistory) {
-        do {
-            var ownedHistory: TemporaryResourceHistory = history
-            ownedHistory.userID = self.currentUserID
-            try self.discoveryService.saveTemporaryHistory(ownedHistory)
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "temporary-history-save-error")
-            self.errorMessage = error.localizedDescription
+        var ownedHistory: TemporaryResourceHistory = history
+        ownedHistory.userID = self.currentUserID
+        let transfer: TemporaryResourceHistoryTransfer = TemporaryResourceHistoryTransfer(
+            value: ownedHistory
+        )
+        Task { [persistenceCoordinator] in
+            do {
+                try await persistenceCoordinator.saveTemporaryHistory(transfer)
+            } catch {
+                RuleExecutionErrorClassifier.log(
+                    error: error,
+                    stage: .list,
+                    event: "temporary-history-save-error"
+                )
+                self.errorMessage = error.localizedDescription
+            }
         }
     }
 
@@ -246,7 +240,7 @@ final class SourcesViewModel: ObservableObject {
             var source: Source = result.source
             source.userID = self.currentUserID
 
-            self.load()
+            await self.load()
             let items: [ContentItem] = self.contentItemMapper.map(
                 output: result.listOutput,
                 source: source,
@@ -284,7 +278,7 @@ final class SourcesViewModel: ObservableObject {
             var source: Source = result.source
             source.userID = self.currentUserID
 
-            self.load()
+            await self.load()
             let items: [ContentItem] = self.contentItemMapper.map(
                 output: result.listOutput,
                 source: source,
@@ -347,7 +341,7 @@ final class SourcesViewModel: ObservableObject {
         }
     }
 
-    func isCatalogSourceAdded(_ catalogSource: BrowseCraftCatalogSource) -> Bool {
+    func isCatalogSourceAdded(_ catalogSource: CatalogSource) -> Bool {
         return self.sources.contains { source in
             return source.id == catalogSource.id
         }
@@ -355,7 +349,7 @@ final class SourcesViewModel: ObservableObject {
 
     @MainActor
     func addCatalogSource(
-        _ catalogSource: BrowseCraftCatalogSource,
+        _ catalogSource: CatalogSource,
         shouldPresentError: Bool = true
     ) async -> Bool {
         CrashDiagnostics.shared.setRuleStage(.list)
@@ -363,7 +357,7 @@ final class SourcesViewModel: ObservableObject {
             let result: AddCatalogSourceResult = try await self.catalogService.addSource(catalogSource)
             var source: Source = result.source
             source.userID = self.currentUserID
-            self.load()
+            await self.load()
             if let listOutput: SourceListOutput = result.listOutput {
                 let items: [ContentItem] = self.contentItemMapper.map(
                     output: listOutput,
@@ -395,19 +389,18 @@ final class SourcesViewModel: ObservableObject {
 
     @MainActor
     /// 中文注释：deleteSources 方法封装当前类型的一段业务或界面行为。
-    func deleteSources(at offsets: IndexSet) {
+    func deleteSources(at offsets: IndexSet) async {
         do {
             let sourceIDs: [String] = offsets.map { offset in
                 return self.sources[offset].id
             }
-
-            for sourceID: String in sourceIDs {
-                try self.deleteSourceUseCase.execute(sourceId: sourceID)
-            }
-
-            let loadedSources: [Source] =
-                try self.reconcileSourceSlotAssignmentsUseCase.execute()
+            let snapshot: SourcesPersistenceSnapshot = try await self.persistenceCoordinator.delete(
+                sourceIDs: sourceIDs,
+                userID: self.currentUserID
+            )
+            let loadedSources: [Source] = snapshot.sources
             self.sources = loadedSources
+            self.sourceSlotLimit = snapshot.sourceSlotLimit
 
             if let selectedSourceID: String = self.selectedSourceID,
                loadedSources.contains(where: { source in
@@ -490,10 +483,10 @@ final class SourcesViewModel: ObservableObject {
         }
 
         do {
-            let loadedSources: [Source] = try self.activateSourceSlotUseCase.execute(
+            let loadedSources: [Source] = try await self.persistenceCoordinator.activate(
                 sourceID: requestedSource.id,
                 replacingSourceID: replacingSourceID
-            )
+            ).sources
             self.sources = loadedSources
             self.requestedSlotActivationSource = nil
 
@@ -611,18 +604,18 @@ final class SourcesViewModel: ObservableObject {
     }
 
     @MainActor
-    func updateSourceRule(sourceID: String, ruleJSON: String, expectedUpdatedAt: Date? = nil) -> Bool {
+    func updateSourceRule(sourceID: String, ruleJSON: String, expectedUpdatedAt: Date? = nil) async -> Bool {
         guard let source: Source = self.source(id: sourceID) else {
             self.errorMessage = "Source was not found."
             return false
         }
 
         do {
-            let updatedSource: Source = try self.ruleEditorService.updateRule(
-                source: source,
+            let updatedSource: Source = try await self.ruleEditingCoordinator.updateRule(
+                source: SourceTransfer(value: source),
                 ruleJSON: ruleJSON,
                 expectedUpdatedAt: expectedUpdatedAt
-            )
+            ).value
             self.replaceSource(updatedSource)
             return true
         } catch {
@@ -632,18 +625,18 @@ final class SourcesViewModel: ObservableObject {
     }
 
     @MainActor
-    func updateDebugJSON(sourceID: String, json: String, expectedUpdatedAt: Date? = nil) -> Bool {
+    func updateDebugJSON(sourceID: String, json: String, expectedUpdatedAt: Date? = nil) async -> Bool {
         guard let source: Source = self.source(id: sourceID) else {
             self.errorMessage = "Source was not found."
             return false
         }
 
         do {
-            let updatedSource: Source = try self.ruleEditorService.updateDebugJSON(
-                source: source,
+            let updatedSource: Source = try await self.ruleEditingCoordinator.updateDebugJSON(
+                source: SourceTransfer(value: source),
                 json: json,
                 expectedUpdatedAt: expectedUpdatedAt
-            )
+            ).value
             self.replaceSource(updatedSource)
             return true
         } catch {
@@ -653,17 +646,22 @@ final class SourcesViewModel: ObservableObject {
     }
 
     @MainActor
-    func duplicateSource(sourceID: String) -> Source? {
+    func duplicateSource(sourceID: String) async -> Source? {
         guard let source: Source = self.source(id: sourceID) else {
             self.errorMessage = "Source was not found."
             return nil
         }
 
         do {
-            let duplicatedSource: Source = try self.ruleEditorService.duplicate(source: source)
-            self.load()
-            self.selectSource(id: duplicatedSource.id)
-            return duplicatedSource
+            let duplicatedSource: Source = try await self.ruleEditingCoordinator
+                .duplicate(SourceTransfer(value: source)).value
+            await self.load()
+            guard let persistedSource: Source = self.source(id: duplicatedSource.id) else {
+                self.errorMessage = "The duplicated source could not be reloaded."
+                return nil
+            }
+            self.selectSource(id: persistedSource.id)
+            return persistedSource
         } catch {
             self.errorMessage = error.localizedDescription
             return nil
@@ -671,9 +669,9 @@ final class SourcesViewModel: ObservableObject {
     }
 
     @MainActor
-    func exportRulePackage(sourceID: String) -> RulePackageExport? {
+    func exportRulePackage(sourceID: String) async -> RulePackageExport? {
         do {
-            return try self.ruleEditorService.exportPackage(sourceID: sourceID)
+            return try await self.ruleEditingCoordinator.export(sourceID: sourceID).value
         } catch {
             self.errorMessage = error.localizedDescription
             return nil
@@ -681,14 +679,19 @@ final class SourcesViewModel: ObservableObject {
     }
 
     @MainActor
-    func importRulePackage(packageJSON: String) -> Source? {
+    func importRulePackage(packageJSON: String) async -> Source? {
         AppAnalytics.shared.logRuleImportStarted(sourceType: .unknown)
         do {
-            let importedSource: Source = try self.ruleEditorService.importPackage(packageJSON: packageJSON)
-            self.load()
-            self.selectSource(id: importedSource.id)
-            AppAnalytics.shared.logRuleImportSucceeded(source: importedSource)
-            return importedSource
+            let importedSource: Source = try await self.ruleEditingCoordinator
+                .importPackage(packageJSON).value
+            await self.load()
+            guard let persistedSource: Source = self.source(id: importedSource.id) else {
+                self.errorMessage = "The imported source could not be reloaded."
+                return nil
+            }
+            self.selectSource(id: persistedSource.id)
+            AppAnalytics.shared.logRuleImportSucceeded(source: persistedSource)
+            return persistedSource
         } catch {
             AppAnalytics.shared.logRuleImportFailed(sourceType: .unknown, errorCode: "rule-package-import-error")
             AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .list, errorCode: "rule-package-import-error")
@@ -720,7 +723,7 @@ final class SourcesViewModel: ObservableObject {
         guard let index: Array<Source>.Index = self.sources.firstIndex(where: { existingSource in
             return existingSource.id == source.id
         }) else {
-            self.load()
+            self.sources.append(source)
             return
         }
 
@@ -795,16 +798,18 @@ final class SourcesViewModel: ObservableObject {
             updatedAt: self.now()
         )
 
-        do {
-            try self.saveUserLibraryStateUseCase.execute(state: state)
-        } catch {
-            #if DEBUG
-            print(
-                "[BrowseCraftUserLibraryState] source save failed " +
-                "sourceID=\(sourceID) " +
-                "error=\(error)"
-            )
-            #endif
+        Task { [persistenceCoordinator] in
+            do {
+                try await persistenceCoordinator.saveLibraryState(
+                    UserLibraryStateTransfer(value: state)
+                )
+            } catch {
+                AppLog.error(
+                    .sync,
+                    event: "source-library-state-save-failed",
+                    metadata: ["error": AppLog.safeErrorCode(error)]
+                )
+            }
         }
     }
 
@@ -814,7 +819,7 @@ final class SourcesViewModel: ObservableObject {
         origin: String
     ) {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftLibraryData] origin=\(origin) " +
             "source=\(source.id) " +
             "kind=\(source.configuration.kind.rawValue) " +

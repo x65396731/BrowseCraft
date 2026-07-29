@@ -28,6 +28,7 @@ struct SourcesFeatureFactory {
         self.sourceSelectionStore = sourceSelectionStore
     }
 
+    @MainActor
     func makeViewModel() -> SourcesViewModel {
         let userLibraryStateRepository: UserLibraryStateRepository = GRDBUserLibraryStateRepository(
             database: self.database
@@ -51,9 +52,6 @@ struct SourcesFeatureFactory {
             discoverRSSFeedsUseCase: DiscoverRSSFeedsUseCase(
                 rssFeedLoader: RSSFeedLoader(pageDataLoader: self.pageDataLoader),
                 loadRSSHubDiscoveryCandidatesUseCase: loadRSSHubDiscoveryCandidatesUseCase
-            ),
-            saveTemporaryResourceHistoryUseCase: SaveTemporaryResourceHistoryUseCase(
-                repository: GRDBTemporaryResourceHistoryRepository(database: self.database)
             )
         )
         let sourceRuleEditorService: SourceRuleEditorService = SourceRuleEditorService(
@@ -86,21 +84,32 @@ struct SourcesFeatureFactory {
                 requestHeaders: portalRequestHeaderProvider.headers
             )
         )
-
-        return SourcesViewModel(
+        let persistenceCoordinator: SourcesPersistenceCoordinator = SourcesPersistenceCoordinator(
             syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase(
                 sourceRepository: self.sourceRepository
             ),
             loadSourceSlotLimitUseCase: LoadSourceSlotLimitUseCase(
                 appUserRepository: GRDBAppUserRepository(database: self.database)
             ),
-            reconcileSourceSlotAssignmentsUseCase:
-                ReconcileSourceSlotAssignmentsUseCase(
-                    sourceRepository: self.sourceRepository
-                ),
+            reconcileSourceSlotAssignmentsUseCase: ReconcileSourceSlotAssignmentsUseCase(
+                sourceRepository: self.sourceRepository
+            ),
             activateSourceSlotUseCase: ActivateSourceSlotUseCase(
                 sourceRepository: self.sourceRepository
             ),
+            deleteSourceUseCase: DeleteSourceUseCase(
+                sourceRepository: self.sourceRepository
+            ),
+            saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase(
+                repository: userLibraryStateRepository
+            ),
+            saveTemporaryResourceHistoryUseCase: SaveTemporaryResourceHistoryUseCase(
+                repository: GRDBTemporaryResourceHistoryRepository(database: self.database)
+            )
+        )
+
+        return SourcesViewModel(
+            persistenceCoordinator: persistenceCoordinator,
             addComicRuleSourceUseCase: AddComicRuleSourceUseCase(
                 sourceRepository: self.sourceRepository,
                 refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
@@ -112,18 +121,13 @@ struct SourcesFeatureFactory {
             ),
             discoveryService: sourceDiscoveryService,
             catalogService: sourceCatalogService,
-            deleteSourceUseCase: DeleteSourceUseCase(
-                sourceRepository: self.sourceRepository
-            ),
             ruleEditorService: sourceRuleEditorService,
+            ruleEditingCoordinator: SourceRuleEditingCoordinator(service: sourceRuleEditorService),
             recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase(),
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
             validateSourceTabsUseCase: ValidateSourceTabsUseCase(
                 refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
                 rssFeedLoader: RSSFeedLoader(pageDataLoader: self.pageDataLoader)
-            ),
-            saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase(
-                repository: userLibraryStateRepository
             ),
             sourceSelectionStore: self.sourceSelectionStore,
             activeAppUser: self.activeAppUser

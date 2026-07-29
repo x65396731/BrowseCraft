@@ -3,39 +3,29 @@ import Testing
 @testable import BrowseCraft
 
 struct AlamofireHTTPClientTests {
-    @Test func protectedResourceResponsePreviewIsRedacted() throws {
-        let responseData: Data = Data(
-            #"{"data":{"key":"secret-key","iv":"secret-iv","token":"secret-token"}}"#.utf8
-        )
-        let preview: String = AlamofireHTTPClient.debugPreview(
-            from: responseData,
-            url: try #require(URL(string: "https://api.example.test/book/chapter/image/1")),
-            purpose: .protectedResource
+    @Test func safeURLDropsCredentialsQueryAndFragment() throws {
+        let url: URL = try #require(
+            URL(string: "https://user:password@example.test/feed?token=secret#fragment")
         )
 
-        #expect(preview == "redacted-protected-resource")
-        #expect(preview.contains("secret-key") == false)
-        #expect(preview.contains("secret-iv") == false)
-        #expect(preview.contains("secret-token") == false)
+        #expect(AppLog.safeURL(url) == "https://example.test/feed")
     }
 
-    @Test func catalogResponsePreviewRemainsRedacted() throws {
-        let preview: String = AlamofireHTTPClient.debugPreview(
-            from: Data(#"{"encryptedRule":"catalog-secret"}"#.utf8),
-            url: try #require(URL(string: "https://anyportal.online/catalog/sources")),
-            purpose: .catalog
+    @Test func debugMessageRedactsCommonSecrets() {
+        let message: String = AppLog.sanitizedDebugMessage(
+            "authorization=Bearer-secret cookie=session-secret token=abc"
         )
 
-        #expect(preview == "redacted-catalog-api")
+        #expect(message.contains("Bearer-secret") == false)
+        #expect(message.contains("session-secret") == false)
+        #expect(message.contains("token=<redacted>"))
     }
 
-    @Test func ordinaryResponsePreviewRemainsAvailable() throws {
-        let preview: String = AlamofireHTTPClient.debugPreview(
-            from: Data("ordinary response\nwith a second line".utf8),
-            url: try #require(URL(string: "https://example.test/feed")),
-            purpose: .rss
+    @Test func debugMessageRedactsURLQuery() {
+        let message: String = AppLog.sanitizedDebugMessage(
+            "request=https://example.test/feed?token=secret"
         )
 
-        #expect(preview == "ordinary response with a second line")
+        #expect(message == "request=https://example.test/feed?<redacted>")
     }
 }

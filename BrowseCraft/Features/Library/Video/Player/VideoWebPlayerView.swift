@@ -120,7 +120,7 @@ struct VideoWebPlayerView<Controls: View>: View {
                     .refreshable()
                     .onAppear {
                         #if DEBUG
-                        print(
+                        AppDebugLog.write(
                             "[BrowseCraftVideoWebPlayer] appear/load " +
                             "url=\(Self.safeLogURL(self.request.url)) " +
                             "title=\(self.title)"
@@ -136,7 +136,7 @@ struct VideoWebPlayerView<Controls: View>: View {
                     }
                     .onChange(of: self.request) { _, newRequest in
                         #if DEBUG
-                        print(
+                        AppDebugLog.write(
                             "[BrowseCraftVideoWebPlayer] reload " +
                             "url=\(Self.safeLogURL(newRequest.url)) " +
                             "title=\(self.title)"

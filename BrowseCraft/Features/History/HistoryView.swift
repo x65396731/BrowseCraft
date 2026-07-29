@@ -34,7 +34,9 @@ struct HistoryView: View {
                         }
                     }
                     .onDelete { offsets in
-                        self.viewModel.deleteHistoryEntries(at: offsets)
+                        Task {
+                            await self.viewModel.deleteHistoryEntries(at: offsets)
+                        }
                     }
                 }
             }
@@ -53,7 +55,9 @@ struct HistoryView: View {
             .onAppear {
                 CrashDiagnostics.shared.setScreen(.history)
                 AppAnalytics.shared.logScreenView(.history)
-                self.viewModel.load()
+                Task {
+                    await self.viewModel.load()
+                }
             }
             .fullScreenCover(item: self.$viewModel.videoPlaybackRoute) { route in
                 VideoPlayerHostView(viewModel: route.viewModel)

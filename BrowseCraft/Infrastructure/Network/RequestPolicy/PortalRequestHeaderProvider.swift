@@ -1,7 +1,7 @@
 import Foundation
 import UIKit
 
-// 中文注释：仅为 BrowseCraft Portal API 生成业务请求头，禁止复用到第三方 source 请求。
+// 中文注释：平台设备信息属于 Infrastructure；仅为 BrowseCraft Portal API 生成业务请求头。
 struct PortalRequestHeaderProvider {
     private let activeAppUser: any ActiveAppUserProviding
 
@@ -11,16 +11,12 @@ struct PortalRequestHeaderProvider {
 
     func headers() -> [String: String] {
         return [
-            "userId": self.userID(),
+            "userId": self.activeAppUser.currentUserID.uuidString,
             "osInfo": self.osInfo,
             "deviceInfo": self.deviceInfo,
             "aplVersion": self.appVersion,
             "X-Request-Id": UUID().uuidString
         ]
-    }
-
-    private func userID() -> String {
-        return self.activeAppUser.currentUserID.uuidString
     }
 
     private var osInfo: String {

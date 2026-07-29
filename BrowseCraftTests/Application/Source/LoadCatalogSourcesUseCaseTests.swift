@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 import CryptoKit
-import BrowseCraftAPIKit
+import BrowseCraftDomain
 @testable import BrowseCraft
 
 struct LoadCatalogSourcesUseCaseTests {
@@ -70,8 +70,8 @@ struct LoadCatalogSourcesUseCaseTests {
             catalogRuleDecryptor: CatalogRuleDecryptor(keyProvider: keyProvider)
         )
 
-        let sources: [BrowseCraftCatalogSource] = try await useCase.execute()
-        let source: BrowseCraftCatalogSource = try #require(sources.first)
+        let sources: [CatalogSource] = try await useCase.execute()
+        let source: CatalogSource = try #require(sources.first)
         let ruleData: Data = Data(source.ruleJSON.utf8)
         let rule: [String: Any] = try #require(JSONSerialization.jsonObject(with: ruleData) as? [String: Any])
 

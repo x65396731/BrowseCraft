@@ -14,14 +14,14 @@ struct StartupAnimationView: View {
             } catch {
                 self.videoURL = nil
                 #if DEBUG
-                print("[BrowseCraftStartup] missing startup video: \(error.localizedDescription)")
+                AppDebugLog.write("[BrowseCraftStartup] missing startup video: \(error.localizedDescription)")
                 #endif
             }
 
             self.posterImage = UIImage(named: "LaunchSplash")
             if self.posterImage == nil {
                 #if DEBUG
-                print("[BrowseCraftStartup] missing LaunchSplash poster image")
+                AppDebugLog.write("[BrowseCraftStartup] missing LaunchSplash poster image")
                 #endif
             }
         }

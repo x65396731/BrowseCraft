@@ -26,7 +26,7 @@ struct RefreshSourceRuntimeUseCase {
         )
         let output: SourceListOutput = try await runtime.loadList(input)
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftRuntime] refresh output source=\(source.id) " +
             "kind=\(source.configuration.kind.rawValue) " +
             "items=\(output.items.count) " +

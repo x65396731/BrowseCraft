@@ -221,7 +221,7 @@ struct ComicDetailView: View {
         self.selectedReaderDestination = .chapter(selectedChapter)
 
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftNavigation] Select comic detail chapter " +
             "itemId=\(self.viewModel.item.id) chapterTitle=\(chapter.title) chapterURL=\(chapter.url)"
         )

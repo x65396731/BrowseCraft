@@ -32,9 +32,7 @@ final class VideoDetailViewModel: ObservableObject {
 
     private let runtimeResolver: any SourceRuntimeResolving
     private let itemReferenceMapper: SourceItemReferenceMapper = SourceItemReferenceMapper()
-    private let saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase
-    private let loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase
-    private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
+    private let persistenceCoordinator: ReadingActivityPersistenceCoordinator
     private let credentialProvider: any SourceCredentialProviding
     private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
     private let activeAppUser: (any ActiveAppUserProviding)?
@@ -44,9 +42,7 @@ final class VideoDetailViewModel: ObservableObject {
         item: ContentItem,
         source: Source,
         runtimeResolver: any SourceRuntimeResolving,
-        saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase,
-        loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase,
-        accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil,
+        persistenceCoordinator: ReadingActivityPersistenceCoordinator,
         credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider(),
         systemCookieHeaderProvider: any SystemCookieHeaderProviding = EmptySystemCookieHeaderProvider(),
         activeAppUser: (any ActiveAppUserProviding)? = nil,
@@ -55,16 +51,14 @@ final class VideoDetailViewModel: ObservableObject {
         self.item = item
         self.source = source
         self.runtimeResolver = runtimeResolver
-        self.saveVideoWatchHistoryUseCase = saveVideoWatchHistoryUseCase
-        self.loadVideoWatchHistoryUseCase = loadVideoWatchHistoryUseCase
-        self.accumulateAdPointsUseCase = accumulateAdPointsUseCase
+        self.persistenceCoordinator = persistenceCoordinator
         self.credentialProvider = credentialProvider
         self.systemCookieHeaderProvider = systemCookieHeaderProvider
         self.activeAppUser = activeAppUser
         self.fallbackUserID = userID
 
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftVideoDetail] init " +
             "source=\(source.id) " +
             "kind=\(source.configuration.kind.rawValue) " +
@@ -105,7 +99,7 @@ final class VideoDetailViewModel: ObservableObject {
         do {
             let runtime: any SourceRuntime = try self.runtimeResolver.runtime(for: self.source)
             #if DEBUG
-            print(
+            AppDebugLog.write(
                 "[BrowseCraftVideoDetail] loadEpisodes request " +
                 "source=\(self.source.id) " +
                 "item=\(self.item.id) " +
@@ -140,7 +134,7 @@ final class VideoDetailViewModel: ObservableObject {
             self.synopsis = output.metadata?.description
             self.metadataRows = output.metadata?.attributes.map(\.displayText) ?? []
             #if DEBUG
-            print(
+            AppDebugLog.write(
                 "[BrowseCraftVideoDetail] loadEpisodes runtime-result " +
                 "source=\(self.source.id) " +
                 "episodes=\(self.episodes.count) " +
@@ -176,7 +170,7 @@ final class VideoDetailViewModel: ObservableObject {
         do {
             let runtime: any SourceRuntime = try self.runtimeResolver.runtime(for: self.source)
             #if DEBUG
-            print(
+            AppDebugLog.write(
                 "[BrowseCraftVideoDetail] openEpisode request " +
                 "source=\(self.source.id) " +
                 "episode=\(episode.id) " +
@@ -204,9 +198,7 @@ final class VideoDetailViewModel: ObservableObject {
                 videoTitle: self.item.title,
                 detailURL: URL(string: self.item.detailURL),
                 coverURL: self.coverURL,
-                saveVideoWatchHistoryUseCase: self.saveVideoWatchHistoryUseCase,
-                loadVideoWatchHistoryUseCase: self.loadVideoWatchHistoryUseCase,
-                accumulateAdPointsUseCase: self.accumulateAdPointsUseCase,
+                persistenceCoordinator: self.persistenceCoordinator,
                 runtimeResolver: self.runtimeResolver,
                 credentialProvider: self.credentialProvider,
                 systemCookieHeaderProvider: self.systemCookieHeaderProvider,
@@ -222,7 +214,7 @@ final class VideoDetailViewModel: ObservableObject {
                 viewModel: playerViewModel
             )
             #if DEBUG
-            print(
+            AppDebugLog.write(
                 "[BrowseCraftVideoDetail] openEpisode playback-result " +
                 "source=\(self.source.id) " +
                 "episodeKey=\(reference.episodeKey) " +

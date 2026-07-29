@@ -146,6 +146,7 @@ final class GRDBVideoWatchHistoryRepository: VideoWatchHistoryRepository {
                 previousEpisodeURL = excluded.previousEpisodeURL,
                 nextEpisodeURL = excluded.nextEpisodeURL,
                 sourceSnapshotJSON = excluded.sourceSnapshotJSON
+            WHERE excluded.updatedAt >= \(VideoWatchHistoryRecord.databaseTableName).updatedAt
             """,
             arguments: [
                 record.userID,

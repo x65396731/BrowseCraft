@@ -1,13 +1,13 @@
 import Foundation
 import Testing
 import BrowseCraftCore
-import BrowseCraftAPIKit
+import BrowseCraftDomain
 @testable import BrowseCraft
 
 struct CatalogSourceMaterializerTests {
     @Test func migratesComicV1CatalogRuleBeforePersistence() throws {
         let materializer: CatalogSourceMaterializer = CatalogSourceMaterializer()
-        let catalogSource: BrowseCraftCatalogSource = BrowseCraftCatalogSource(
+        let catalogSource: CatalogSource = CatalogSource(
             id: "komiic",
             name: "Komiic",
             baseURL: "https://komiic.com",
@@ -68,7 +68,7 @@ struct CatalogSourceMaterializerTests {
 
     @Test func materializesAndPersistsVideoV2AsRuleDrivenConfiguration() throws {
         let materializer: CatalogSourceMaterializer = CatalogSourceMaterializer()
-        let catalogSource: BrowseCraftCatalogSource = BrowseCraftCatalogSource(
+        let catalogSource: CatalogSource = CatalogSource(
             id: "catalog.video.v2",
             name: "Video V2",
             baseURL: "https://video.example.invalid/",
@@ -153,7 +153,7 @@ struct CatalogSourceMaterializerTests {
     }
 
     @Test func rejectsVideoV1CatalogRule() throws {
-        let catalogSource: BrowseCraftCatalogSource = BrowseCraftCatalogSource(
+        let catalogSource: CatalogSource = CatalogSource(
             id: "catalog.video.v1",
             name: "Video V1",
             baseURL: "https://video.example.invalid/",

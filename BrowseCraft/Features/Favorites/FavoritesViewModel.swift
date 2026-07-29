@@ -3,31 +3,27 @@ import Foundation
 
 // 中文注释：FavoritesViewModel 负责收藏页数据加载与详情入口。
 
+@MainActor
 final class FavoritesViewModel: ObservableObject {
     @Published private(set) var favoriteItems: [FavoriteContentItem] = []
     @Published private(set) var sources: [Source] = []
     @Published var errorMessage: String?
 
-    private let loadFavoriteItemsUseCase: ToggleFavoriteUseCase
-    private let reconcileSourceSlotAssignmentsUseCase:
-        ReconcileSourceSlotAssignmentsUseCase
+    private let persistenceCoordinator: FavoritesPersistenceCoordinator
 
     init(
-        loadFavoriteItemsUseCase: ToggleFavoriteUseCase,
-        reconcileSourceSlotAssignmentsUseCase:
-            ReconcileSourceSlotAssignmentsUseCase,
+        persistenceCoordinator: FavoritesPersistenceCoordinator,
         userID _: String = AppUser.localDefaultID
     ) {
-        self.loadFavoriteItemsUseCase = loadFavoriteItemsUseCase
-        self.reconcileSourceSlotAssignmentsUseCase =
-            reconcileSourceSlotAssignmentsUseCase
+        self.persistenceCoordinator = persistenceCoordinator
     }
 
     @MainActor
-    func load() {
+    func load() async {
         do {
-            self.sources = try self.reconcileSourceSlotAssignmentsUseCase.execute()
-            self.favoriteItems = try self.loadFavoriteItemsUseCase.loadFavoriteItems()
+            let snapshot: FavoritesPersistenceSnapshot = try await self.persistenceCoordinator.load()
+            self.sources = snapshot.sources
+            self.favoriteItems = snapshot.items
         } catch {
             self.errorMessage = error.localizedDescription
         }

@@ -15,7 +15,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
             if navigationAction.targetFrame?.isMainFrame != false,
                self.shouldAllowMainFrameNavigation(to: navigationAction.request.url) == false {
                 #if DEBUG
-                print(
+                AppDebugLog.write(
                     "[BrowseCraftVideoWebPlayer] block-main-frame " +
                     "url=\(self.safeLogURL(navigationAction.request.url))"
                 )
@@ -25,7 +25,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
 
             #if DEBUG
             if navigationAction.targetFrame == nil {
-                print(
+                AppDebugLog.write(
                     "[BrowseCraftVideoWebPlayer] allow-new-frame " +
                     "url=\(self.safeLogURL(navigationAction.request.url))"
                 )
@@ -35,7 +35,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
         }
 
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftVideoWebPlayer] cancel-navigation " +
             "scheme=\(scheme) url=\(self.safeLogURL(navigationAction.request.url))"
         )
@@ -81,7 +81,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation?) {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftVideoWebPlayer] did-finish " +
             "url=\(self.safeLogURL(webView.url)) title=\(webView.title ?? "nil")"
         )
@@ -90,7 +90,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation?, withError error: Error) {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftVideoWebPlayer] did-fail " +
             "url=\(self.safeLogURL(webView.url)) error=\(error.localizedDescription)"
         )
@@ -99,7 +99,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation?, withError error: Error) {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftVideoWebPlayer] did-fail-provisional " +
             "url=\(self.safeLogURL(webView.url)) error=\(error.localizedDescription)"
         )
@@ -108,7 +108,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftVideoWebPlayer] web-content-terminated " +
             "url=\(self.safeLogURL(webView.url))"
         )

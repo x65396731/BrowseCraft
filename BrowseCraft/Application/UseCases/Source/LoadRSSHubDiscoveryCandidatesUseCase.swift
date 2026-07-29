@@ -67,7 +67,7 @@ struct LoadRSSHubDiscoveryCandidatesUseCase {
         let requestURL: URL = try self.requestURL(domain: domain)
 
         #if DEBUG
-        print("[BrowseCraftRSSHub] request rules url=\(requestURL.absoluteString)")
+        AppDebugLog.write("[BrowseCraftRSSHub] request rules url=\(requestURL.absoluteString)")
         #endif
 
         let data: Data = try await self.pageDataLoader.loadData(
@@ -154,7 +154,7 @@ struct LoadRSSHubDiscoveryCandidatesUseCase {
         }
 
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftRSSHub] matched rules " +
             "domain=\(lookup.domain) " +
             "subdomain=\(lookup.subdomain ?? "nil") " +
@@ -420,7 +420,7 @@ struct LoadRSSHubDiscoveryCandidatesUseCase {
         let lookupText: String = lookups
             .map { "\($0.domain)(subdomain=\($0.subdomain ?? "nil"))" }
             .joined(separator: " -> ")
-        print(
+        AppDebugLog.write(
             "[BrowseCraftRSSHub] discovery start " +
             "site=\(siteURL.absoluteString) host=\(host) lookups=[\(lookupText)]"
         )
@@ -429,7 +429,7 @@ struct LoadRSSHubDiscoveryCandidatesUseCase {
 
     private func logLookupStarted(_ lookup: RSSHubRadarDomainLookup) {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftRSSHub] lookup start " +
             "domain=\(lookup.domain) subdomain=\(lookup.subdomain ?? "nil")"
         )
@@ -446,7 +446,7 @@ struct LoadRSSHubDiscoveryCandidatesUseCase {
         let ruleCount: Int = rules.rulesBySubdomain.values.reduce(0) { count, rules in
             return count + rules.count
         }
-        print(
+        AppDebugLog.write(
             "[BrowseCraftRSSHub] rules loaded " +
             "domain=\(domain) bytes=\(byteCount) " +
             "name=\(rules.name ?? "nil") subdomains=\(subdomains) ruleCount=\(ruleCount)"
@@ -460,7 +460,7 @@ struct LoadRSSHubDiscoveryCandidatesUseCase {
         candidateCount: Int
     ) {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftRSSHub] discovery finish " +
             "site=\(siteURL.absoluteString) result=\(result) candidateCount=\(candidateCount)"
         )
@@ -474,7 +474,7 @@ struct LoadRSSHubDiscoveryCandidatesUseCase {
         path: String
     ) {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftRSSHub] source mismatch " +
             "title=\(title) source=\(source) template=\(sourceTemplate) path=\(path)"
         )
@@ -490,7 +490,7 @@ struct LoadRSSHubDiscoveryCandidatesUseCase {
         params: [String: String]
     ) {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftRSSHub] rule matched " +
             "title=\(title) source=\(source) template=\(sourceTemplate) " +
             "target=\(target) targetPath=\(targetPath) params=\(self.logParams(params))"
@@ -503,7 +503,7 @@ struct LoadRSSHubDiscoveryCandidatesUseCase {
         candidate: RSSHubDiscoveryCandidate
     ) {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftRSSHub] candidate generated " +
             "title=\(rule.title) feed=\(candidate.feedURL.absoluteString)"
         )
@@ -515,7 +515,7 @@ struct LoadRSSHubDiscoveryCandidatesUseCase {
         candidate: RSSHubDiscoveryCandidate
     ) {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftRSSHub] candidate duplicate " +
             "title=\(rule.title) feed=\(candidate.feedURL.absoluteString)"
         )
@@ -524,19 +524,19 @@ struct LoadRSSHubDiscoveryCandidatesUseCase {
 
     private func logRuleLoadFailed(domain: String, error: Error) {
         #if DEBUG
-        print("[BrowseCraftRSSHub] rules load failed domain=\(domain) error=\(error)")
+        AppDebugLog.write("[BrowseCraftRSSHub] rules load failed domain=\(domain) error=\(error)")
         #endif
     }
 
     private func logAllRuleLoadsFailed(host: String, error: Error) {
         #if DEBUG
-        print("[BrowseCraftRSSHub] all rules load failed host=\(host) lastError=\(error)")
+        AppDebugLog.write("[BrowseCraftRSSHub] all rules load failed host=\(host) lastError=\(error)")
         #endif
     }
 
     private func logNoSubdomainRules(domain: String, subdomain: String?) {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftRSSHub] no subdomain rules " +
             "domain=\(domain) subdomain=\(subdomain ?? "nil")"
         )
@@ -551,7 +551,7 @@ struct LoadRSSHubDiscoveryCandidatesUseCase {
         params: [String: String]
     ) {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftRSSHub] skip rule " +
             "title=\(title) source=\(source) target=\(target) " +
             "reason=\(reason) params=\(self.logParams(params))"

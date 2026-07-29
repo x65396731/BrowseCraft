@@ -38,7 +38,11 @@ struct LibraryView: View {
                             selectedSource: self.viewModel.selectedSource,
                             favoriteItemIDs: self.viewModel.favoriteItemIDs,
                             sourceForID: self.viewModel.source(for:),
-                            toggleFavorite: self.viewModel.toggleFavorite(item:),
+                            toggleFavorite: { item in
+                                Task {
+                                    await self.viewModel.toggleFavorite(item: item)
+                                }
+                            },
                             openComic: self.openComicDestination(item:source:),
                             primaryActionTitle: self.viewModel.primaryActionTitle(for:),
                             imageRequestConfig: self.viewModel.imageRequestConfig(for:),
@@ -227,7 +231,7 @@ struct LibraryView: View {
 
     private func openComicDestination(item: ContentItem, source: Source) {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftNavigation] Select Library comic destination " +
             "itemId=\(item.id) " +
             "sourceId=\(source.id) " +

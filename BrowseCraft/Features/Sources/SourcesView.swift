@@ -52,7 +52,9 @@ struct SourcesView: View {
                         )
                     }
                     .onDelete { offsets in
-                        self.viewModel.deleteSources(at: offsets)
+                        Task {
+                            await self.viewModel.deleteSources(at: offsets)
+                        }
                     }
                 }
             }
@@ -142,12 +144,14 @@ struct SourcesView: View {
             .onAppear {
                 CrashDiagnostics.shared.setScreen(.sourceList)
                 AppAnalytics.shared.logScreenView(.sourceList)
-                DispatchQueue.main.async {
-                    self.viewModel.load()
+                Task {
+                    await self.viewModel.load()
                 }
             }
             .onChange(of: self.cloudSyncViewModel.contentRevision) { _, _ in
-                self.viewModel.load()
+                Task {
+                    await self.viewModel.load()
+                }
             }
             .sheet(isPresented: self.$isShowingAddSourceView) {
                 AddSourceView(viewModel: self.viewModel)

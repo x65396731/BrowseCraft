@@ -1,6 +1,6 @@
 import Foundation
 import BrowseCraftCore
-import BrowseCraftAPIKit
+import BrowseCraftDomain
 
 enum CatalogSourceImportError: LocalizedError {
     case invalidBaseURL(String)
@@ -54,7 +54,7 @@ struct LoadCatalogSourcesUseCase {
         self.jsonEncoder = jsonEncoder
     }
 
-    func execute() async throws -> [BrowseCraftCatalogSource] {
+    func execute() async throws -> [CatalogSource] {
         guard let catalogAPIURL: URL = self.catalogAPIURL else {
             throw CatalogSourceImportError.invalidBaseURL("catalog-api")
         }
@@ -62,7 +62,7 @@ struct LoadCatalogSourcesUseCase {
         let requestConfig: RequestConfig = self.requestConfig
         #if DEBUG
         let headers: [String: String] = requestConfig.headers ?? [:]
-        print(
+        AppDebugLog.write(
             "[BrowseCraftCatalog] request " +
             "url=\(catalogAPIURL.absoluteString) " +
             "headerCount=\(headers.count) " +
@@ -78,7 +78,9 @@ struct LoadCatalogSourcesUseCase {
                 cachePolicy: .reloadIgnoringLocalCacheData
             )
         ).data
-        return try BrowseCraftSourceCatalog.sources(from: self.catalogSourceData(from: data))
+        return try CatalogSourcePayloadDecoder().decode(
+            from: self.catalogSourceData(from: data)
+        )
     }
 
     private var requestConfig: RequestConfig {
@@ -98,7 +100,7 @@ struct LoadCatalogSourcesUseCase {
         }.count
 
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftCatalog] payload " +
             "sources=\(encryptedSources.count) " +
             "encryptedRules=\(encryptedRuleCount)"
@@ -142,6 +144,134 @@ struct LoadCatalogSourcesUseCase {
     }
 }
 
+private struct CatalogSourcePayloadDecoder {
+    func decode(from data: Data) throws -> [CatalogSource] {
+        return try JSONDecoder().decode([CatalogSourcePayload].self, from: data).map { payload in
+            return CatalogSource(
+                id: payload.id,
+                name: payload.name,
+                baseURL: payload.baseURL,
+                kind: payload.kind,
+                ruleJSON: payload.ruleJSON.jsonString
+            )
+        }
+    }
+}
+
+private struct CatalogSourcePayload: Decodable {
+    let id: String
+    let name: String
+    let baseURL: String
+    let kind: CatalogSourceKind
+    let ruleJSON: CatalogSourceJSONValue
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case baseURL
+        case kind
+        case ruleJSON
+        case payload
+    }
+
+    private enum PayloadCodingKeys: String, CodingKey {
+        case ruleJSON
+    }
+
+    init(from decoder: Decoder) throws {
+        let container: KeyedDecodingContainer<CodingKeys> = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.baseURL = try container.decode(String.self, forKey: .baseURL)
+        self.kind = try container.decode(CatalogSourceKind.self, forKey: .kind)
+
+        if container.contains(.payload) {
+            let payloadDecoder: Decoder = try container.superDecoder(forKey: .payload)
+            let payloadContainer: KeyedDecodingContainer<PayloadCodingKeys> =
+                try payloadDecoder.container(keyedBy: PayloadCodingKeys.self)
+            self.ruleJSON = try payloadContainer.decode(
+                CatalogSourceJSONValue.self,
+                forKey: .ruleJSON
+            )
+            return
+        }
+
+        let outerRuleJSON: CatalogSourceJSONValue = try container.decode(
+            CatalogSourceJSONValue.self,
+            forKey: .ruleJSON
+        )
+        if case .object(let object) = outerRuleJSON,
+           let nestedRuleJSON: CatalogSourceJSONValue = object["ruleJSON"] {
+            self.ruleJSON = nestedRuleJSON
+        } else {
+            self.ruleJSON = outerRuleJSON
+        }
+    }
+}
+
+private enum CatalogSourceJSONValue: Codable {
+    case string(String)
+    case integer(Int)
+    case number(Double)
+    case boolean(Bool)
+    case object([String: CatalogSourceJSONValue])
+    case array([CatalogSourceJSONValue])
+    case null
+
+    init(from decoder: Decoder) throws {
+        let container: SingleValueDecodingContainer = try decoder.singleValueContainer()
+        if container.decodeNil() {
+            self = .null
+        } else if let value: Bool = try? container.decode(Bool.self) {
+            self = .boolean(value)
+        } else if let value: Int = try? container.decode(Int.self) {
+            self = .integer(value)
+        } else if let value: Double = try? container.decode(Double.self) {
+            self = .number(value)
+        } else if let value: String = try? container.decode(String.self) {
+            self = .string(value)
+        } else if let value: [String: CatalogSourceJSONValue] = try? container.decode(
+            [String: CatalogSourceJSONValue].self
+        ) {
+            self = .object(value)
+        } else if let value: [CatalogSourceJSONValue] = try? container.decode(
+            [CatalogSourceJSONValue].self
+        ) {
+            self = .array(value)
+        } else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unsupported catalog rule JSON value."
+            )
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container: SingleValueEncodingContainer = encoder.singleValueContainer()
+        switch self {
+        case .string(let value):
+            try container.encode(value)
+        case .integer(let value):
+            try container.encode(value)
+        case .number(let value):
+            try container.encode(value)
+        case .boolean(let value):
+            try container.encode(value)
+        case .object(let value):
+            try container.encode(value)
+        case .array(let value):
+            try container.encode(value)
+        case .null:
+            try container.encodeNil()
+        }
+    }
+
+    var jsonString: String {
+        let data: Data = (try? JSONEncoder().encode(self)) ?? Data("{}".utf8)
+        return String(decoding: data, as: UTF8.self)
+    }
+}
+
 private struct EncryptedCatalogSourcePayload: Decodable {
     let id: String
     let name: String
@@ -180,7 +310,7 @@ struct AddCatalogSourceUseCase {
         self.now = now
     }
 
-    func execute(_ catalogSource: BrowseCraftCatalogSource) async throws -> AddCatalogSourceResult {
+    func execute(_ catalogSource: CatalogSource) async throws -> AddCatalogSourceResult {
         if let existingSource: Source = try self.sourceRepository.fetchSources().first(where: { source in
             return source.id == catalogSource.id
         }) {

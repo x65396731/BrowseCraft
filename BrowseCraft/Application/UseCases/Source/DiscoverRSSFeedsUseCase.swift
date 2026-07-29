@@ -64,7 +64,7 @@ struct DiscoverRSSFeedsUseCase {
         }
 
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftRSSDiscovery] start site=\(siteURL.absoluteString) " +
             "candidateCount=\(candidates.count)"
         )
@@ -246,7 +246,7 @@ struct DiscoverRSSFeedsUseCase {
 
     private func logAccepted(_ url: URL, title: String, count: Int) {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftRSSDiscovery] accept feed=\(url.absoluteString) " +
             "title=\(title) items=\(count)"
         )
@@ -255,13 +255,13 @@ struct DiscoverRSSFeedsUseCase {
 
     private func logRejected(_ url: URL, reason: String) {
         #if DEBUG
-        print("[BrowseCraftRSSDiscovery] reject feed=\(url.absoluteString) reason=\(reason)")
+        AppDebugLog.write("[BrowseCraftRSSDiscovery] reject feed=\(url.absoluteString) reason=\(reason)")
         #endif
     }
 
     private func logDirectFeedCandidate(_ url: URL) {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftRSSDiscovery] direct feed candidate " +
             "site=\(url.absoluteString) skipRSSHub=true"
         )
@@ -270,7 +270,7 @@ struct DiscoverRSSFeedsUseCase {
 
     private func logRSSHubDiscoveryFailed(_ siteURL: URL, error: Error) {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftRSSHub] discovery failed " +
             "site=\(siteURL.absoluteString) error=\(error)"
         )

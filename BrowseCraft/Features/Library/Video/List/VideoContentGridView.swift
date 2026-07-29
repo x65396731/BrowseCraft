@@ -45,7 +45,7 @@ struct VideoContentGridView: View {
         }
         .onAppear {
             #if DEBUG
-            print(
+            AppDebugLog.write(
                 "[BrowseCraftVideoUI] grid appear " +
                 "source=\(self.source.id) " +
                 "kind=\(self.source.configuration.kind.rawValue) " +
@@ -139,7 +139,7 @@ private struct VideoLibraryCardView: View {
 
     private func openDetailDestination() {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftNavigation] Tap \(self.primaryActionTitle) " +
             "itemId=\(self.item.id) " +
             "title=\(self.item.title) " +

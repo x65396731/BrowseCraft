@@ -52,17 +52,18 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
 
         let cloudflareBlocked: Bool = self.isAntiBotHTML(html)
 
-        #if DEBUG
-        print(
-            "[BrowseCraftNetwork] url=\(url.absoluteString) " +
-            "requestScope=\(requestConfig?.scope?.rawValue ?? "default") " +
-            "purpose=\(context?.purpose.rawValue ?? "none") " +
-            "needsWebView=\(requestConfig?.needsWebView?.description ?? "nil") " +
-            "bytes=\(dataResponse.data.count) " +
-            "cloudflareBlocked=\(cloudflareBlocked) " +
-            "hasChapterLinks=\(html.contains("/cn/chapters/"))"
+        AppLog.debug(
+            .network,
+            event: "content-loaded",
+            metadata: [
+                "url": AppLog.safeURL(url),
+                "requestScope": requestConfig?.scope?.rawValue ?? "default",
+                "purpose": context?.purpose.rawValue ?? "none",
+                "needsWebView": requestConfig?.needsWebView?.description ?? "nil",
+                "bytes": String(dataResponse.data.count),
+                "antiBot": cloudflareBlocked.description
+            ]
         )
-        #endif
 
         if cloudflareBlocked {
             throw RuleExecutionError.antiBot(url: url.absoluteString)
@@ -95,18 +96,18 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
             )
         }
 
-        #if DEBUG
-        print(
-            "[BrowseCraftNetwork] data url=\(url.absoluteString) " +
-            "requestScope=\(requestConfig?.scope?.rawValue ?? "default") " +
-            "purpose=\(context?.purpose.rawValue ?? "none") " +
-            "headersMode=\(self.headersMode(for: url, request: requestConfig)) " +
-            "accept=\(urlRequest.value(forHTTPHeaderField: "Accept") ?? "nil") " +
-            "contentType=\(dataResponse.response?.value(forHTTPHeaderField: "Content-Type") ?? "nil") " +
-            "bytes=\(dataResponse.data.count) " +
-            "preview=\(Self.debugPreview(from: dataResponse.data, url: url, purpose: context?.purpose))"
+        AppLog.debug(
+            .network,
+            event: "data-loaded",
+            metadata: [
+                "url": AppLog.safeURL(url),
+                "requestScope": requestConfig?.scope?.rawValue ?? "default",
+                "purpose": context?.purpose.rawValue ?? "none",
+                "headersMode": self.headersMode(for: url, request: requestConfig),
+                "contentType": dataResponse.response?.value(forHTTPHeaderField: "Content-Type") ?? "nil",
+                "bytes": String(dataResponse.data.count)
+            ]
         )
-        #endif
 
         if self.isAntiBotData(dataResponse.data) {
             throw RuleExecutionError.antiBot(url: url.absoluteString)
@@ -248,7 +249,7 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
         )
         if let context: SourceRequestContext {
             #if DEBUG
-            print(
+            AppDebugLog.write(
                 "[BrowseCraftCredential] request context " +
                 "sourceID=\(context.sourceID ?? "nil") " +
                 "purpose=\(context.purpose.rawValue) " +
@@ -299,7 +300,7 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
         }
 
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftCredential] fill headers " +
             "sourceID=\(context.sourceID ?? "nil") " +
             "purpose=\(context.purpose.rawValue) " +
@@ -319,38 +320,6 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
 
     private func headersMode(for url: URL, request: RequestConfig?) -> String {
         return self.usesExplicitHeadersOnly(url: url, request: request) ? "explicit" : "browser"
-    }
-
-    static func debugPreview(
-        from data: Data,
-        url: URL,
-        purpose: SourceRequestPurpose?
-    ) -> String {
-        if purpose == .protectedResource {
-            return "redacted-protected-resource"
-        }
-
-        if Self.shouldRedactDebugPreview(for: url) {
-            return "redacted-catalog-api"
-        }
-
-        let raw: String
-        if let string: String = String(data: data.prefix(160), encoding: .utf8) {
-            raw = string
-        } else {
-            raw = String(decoding: data.prefix(160), as: UTF8.self)
-        }
-
-        return raw
-            .replacingOccurrences(of: "\n", with: " ")
-            .replacingOccurrences(of: "\r", with: " ")
-            .replacingOccurrences(of: "\t", with: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private static func shouldRedactDebugPreview(for url: URL) -> Bool {
-        return PortalAPIConfiguration.isManagedAPIURL(url)
-            && url.path == "/catalog/sources"
     }
 
     private func isAntiBotData(_ data: Data) -> Bool {

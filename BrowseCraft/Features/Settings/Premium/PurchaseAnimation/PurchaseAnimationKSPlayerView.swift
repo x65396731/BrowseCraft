@@ -158,7 +158,7 @@ struct PurchaseAnimationKSPlayerView: UIViewRepresentable {
             }
 
             #if DEBUG
-            print("[BrowseCraftPurchaseAnimation] playback failed: \(detail)")
+            AppDebugLog.write("[BrowseCraftPurchaseAnimation] playback failed: \(detail)")
             #endif
 
             self.didReportFailure = true

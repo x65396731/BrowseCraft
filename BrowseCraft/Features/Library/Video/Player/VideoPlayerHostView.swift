@@ -17,7 +17,7 @@ struct VideoPlayerHostView: View {
             AppAnalytics.shared.logScreenView(.videoPlayer)
             CrashDiagnostics.shared.setSource(self.viewModel.source)
             CrashDiagnostics.shared.setRuleStage(.videoPlayback)
-            self.viewModel.prepareForPlayback()
+            await self.viewModel.prepareForPlayback()
             guard Task.isCancelled == false else {
                 return
             }

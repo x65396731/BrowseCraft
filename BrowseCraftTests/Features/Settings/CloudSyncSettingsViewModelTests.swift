@@ -430,7 +430,6 @@ struct CloudSyncSettingsViewModelTests {
             CloudAppUserIdentityAssociationCoordinator(
                 identityStore: identityStore,
                 activeAppUser: activeAppUser,
-                portalSessionCoordinator: portalSessionCoordinator,
                 now: {
                     return Date(timeIntervalSince1970: 10)
                 }

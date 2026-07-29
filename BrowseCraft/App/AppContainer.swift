@@ -4,6 +4,7 @@ import BrowseCraftAPIKit
 import StoreKit
 
 /// 中文注释：应用 Composition Root，只持有 App 生命周期共享对象并把 Feature 创建委托给明确 Factory。
+@MainActor
 final class AppContainer {
     private static let cloudKitContainerIdentifier: String = "iCloud.com.xiefei.AnyPortal"
 
@@ -35,7 +36,7 @@ final class AppContainer {
     let cloudAccountPartitionStore: any CloudAccountPartitioning
     let cloudSyncCoordinator: CloudSyncCoordinator
 
-    init() {
+    init(bootstrap: AppBootstrapDependencies) throws {
         let imageCacheConfigurator: ImageCacheConfigurator = ImageCacheConfigurator()
         let activeAccountScopeStore: ActiveAccountScopeStore = ActiveAccountScopeStore()
         self.imageCacheConfigurator = imageCacheConfigurator
@@ -49,18 +50,14 @@ final class AppContainer {
         )
         self.cloudAccountSession = cloudAccountSession
 
-        do {
-            let database: AppDatabase = try AppDatabase()
+        let database: AppDatabase = bootstrap.database
             let appUserRepository: GRDBAppUserRepository = GRDBAppUserRepository(database: database)
             let appUserIdentityStore: KeychainAppUserIdentityStore =
                 KeychainAppUserIdentityStore()
             let portalIdentityOriginStore:
                 KeychainPortalAppUserIdentityOriginStore =
                 KeychainPortalAppUserIdentityOriginStore()
-            let activeUserID: UUID = try AppUserIdentityBootstrapper(
-                identityStore: appUserIdentityStore,
-                appUserRepository: appUserRepository
-            ).bootstrap()
+            let activeUserID: UUID = bootstrap.activeUserID
             self.activeAppUserStore = ActiveAppUserStore(initialUserID: activeUserID)
             let cloudKitContainer: CKContainer = CKContainer(
                 identifier: Self.cloudKitContainerIdentifier
@@ -322,9 +319,6 @@ final class AppContainer {
             self.settingsViewModel = settingsFeatureFactory.makeViewModel()
             self.browserRequestHeaderProvider = browserRequestHeaderProvider
             self.systemCookieHeaderProvider = systemCookieHeaderProvider
-        } catch {
-            fatalError("Failed to build AppContainer: \(error)")
-        }
 
         self.configureImageCache()
     }
@@ -490,7 +484,7 @@ final class AppContainer {
             let settings: ImageCacheSettings = try self.imageCacheConfigurator.configureSharedPipeline()
             self.imageCacheConfigurator.trimConfiguredDataCacheIfNeeded(settings: settings)
             #if DEBUG
-            print(
+            AppDebugLog.write(
                 "[BrowseCraftImageCache] configured " +
                 "limit=\(settings.displayTitle) " +
                 "limitBytes=\(settings.limitBytes) " +
@@ -499,7 +493,7 @@ final class AppContainer {
             #endif
         } catch {
             #if DEBUG
-            print("[BrowseCraftImageCache] configuration failed error=\(error)")
+            AppDebugLog.write("[BrowseCraftImageCache] configuration failed error=\(error)")
             #endif
         }
     }

@@ -1,5 +1,5 @@
 import SwiftUI
-import BrowseCraftAPIKit
+import BrowseCraftDomain
 
 struct CatalogSourceListView: View {
     @ObservedObject var viewModel: SourcesViewModel
@@ -49,7 +49,7 @@ struct CatalogSourceListView: View {
         }
     }
 
-    private func add(_ catalogSource: BrowseCraftCatalogSource) {
+    private func add(_ catalogSource: CatalogSource) {
         if self.addingSourceIDs.contains(catalogSource.id)
             || self.viewModel.isCatalogSourceAdded(catalogSource) {
             return
@@ -76,7 +76,7 @@ struct CatalogSourceListView: View {
 }
 
 private struct CatalogSourceRowView: View {
-    let catalogSource: BrowseCraftCatalogSource
+    let catalogSource: CatalogSource
     let isAdded: Bool
     let isAdding: Bool
     let didFail: Bool

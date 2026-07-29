@@ -40,6 +40,7 @@ final class GRDBUserLibraryStateRepository: UserLibraryStateRepository {
                 listContextJSON = excluded.listContextJSON,
                 lastRefreshAt = excluded.lastRefreshAt,
                 updatedAt = excluded.updatedAt
+            WHERE excluded.updatedAt >= \(UserLibraryStateRecord.databaseTableName).updatedAt
             """,
             arguments: [
                 record.userID,

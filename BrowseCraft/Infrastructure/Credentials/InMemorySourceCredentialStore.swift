@@ -11,19 +11,20 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring {
 
         self.credentialsBySourceID[credential.sourceID] = credential
 
-        #if DEBUG
-        print(
-            "[BrowseCraftCredential] save " +
-            "sourceID=\(credential.sourceID) " +
-            "hasBaseURL=\((credential.baseURL != nil).description) " +
-            "cookieCount=\(credential.cookies.count) " +
-            "headerCount=\(credential.headers.count) " +
-            "hasAccessToken=\((credential.accessToken != nil).description) " +
-            "localStorageCount=\(credential.localStorage.count) " +
-            "sessionStorageCount=\(credential.sessionStorage.count) " +
-            "origin=\(credential.origin.rawValue)"
+        AppLog.debug(
+            .credential,
+            event: "saved",
+            metadata: [
+                "sourceID": credential.sourceID,
+                "hasBaseURL": (credential.baseURL != nil).description,
+                "cookieCount": String(credential.cookies.count),
+                "headerCount": String(credential.headers.count),
+                "hasAccessToken": (credential.accessToken != nil).description,
+                "localStorageCount": String(credential.localStorage.count),
+                "sessionStorageCount": String(credential.sessionStorage.count),
+                "origin": credential.origin.rawValue
+            ]
         )
-        #endif
     }
 
     func removeCredential(sourceID: String) {
@@ -32,13 +33,14 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring {
 
         let removedCredential: SourceCredential? = self.credentialsBySourceID.removeValue(forKey: sourceID)
 
-        #if DEBUG
-        print(
-            "[BrowseCraftCredential] remove " +
-            "sourceID=\(sourceID) " +
-            "removed=\((removedCredential != nil).description)"
+        AppLog.debug(
+            .credential,
+            event: "removed",
+            metadata: [
+                "sourceID": sourceID,
+                "removed": (removedCredential != nil).description
+            ]
         )
-        #endif
     }
 
     func credential(sourceID: String) -> SourceCredential? {
@@ -62,27 +64,25 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring {
         }
 
         guard matchingCookies.isEmpty == false else {
-            #if DEBUG
-            print(
-                "[BrowseCraftCredential] cookie miss " +
-                "sourceID=\(context.sourceID ?? "nil") " +
-                "purpose=\(context.purpose.rawValue) " +
-                "host=\(url.host ?? "nil") " +
-                "reason=noMatchingCookie"
+            AppLog.debug(
+                .credential,
+                event: "cookie-miss",
+                metadata: self.metadata(context: context, url: url).merging(
+                    ["reason": "noMatchingCookie"],
+                    uniquingKeysWith: { _, new in new }
+                )
             )
-            #endif
             return nil
         }
 
-        #if DEBUG
-        print(
-            "[BrowseCraftCredential] cookie hit " +
-            "sourceID=\(credential.sourceID) " +
-            "purpose=\(context.purpose.rawValue) " +
-            "host=\(url.host ?? "nil") " +
-            "matchedCookieCount=\(matchingCookies.count)"
+        AppLog.debug(
+            .credential,
+            event: "cookie-hit",
+            metadata: self.metadata(context: context, url: url).merging(
+                ["matchedCookieCount": String(matchingCookies.count)],
+                uniquingKeysWith: { _, new in new }
+            )
         )
-        #endif
 
         return HTTPCookie
             .requestHeaderFields(with: matchingCookies)["Cookie"]
@@ -101,15 +101,14 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring {
             return key.caseInsensitiveCompare("Cookie") != .orderedSame
         }
 
-        #if DEBUG
-        print(
-            "[BrowseCraftCredential] headers hit " +
-            "sourceID=\(credential.sourceID) " +
-            "purpose=\(context.purpose.rawValue) " +
-            "host=\(url.host ?? "nil") " +
-            "headerCount=\(headers.count)"
+        AppLog.debug(
+            .credential,
+            event: "headers-hit",
+            metadata: self.metadata(context: context, url: url).merging(
+                ["headerCount": String(headers.count)],
+                uniquingKeysWith: { _, new in new }
+            )
         )
-        #endif
 
         return headers
     }
@@ -117,13 +116,11 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring {
     func token(for sourceID: String, key: String) -> String? {
         guard let credential: SourceCredential = self.credential(sourceID: sourceID),
               self.isExpired(credential) == false else {
-            #if DEBUG
-            print(
-                "[BrowseCraftCredential] token miss " +
-                "sourceID=\(sourceID) " +
-                "key=\(key)"
+            AppLog.debug(
+                .credential,
+                event: "token-miss",
+                metadata: ["sourceID": sourceID]
             )
-            #endif
             return nil
         }
 
@@ -137,14 +134,14 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring {
             value = nil
         }
 
-        #if DEBUG
-        print(
-            "[BrowseCraftCredential] token lookup " +
-            "sourceID=\(sourceID) " +
-            "key=\(key) " +
-            "hit=\((value != nil).description)"
+        AppLog.debug(
+            .credential,
+            event: "token-lookup",
+            metadata: [
+                "sourceID": sourceID,
+                "hit": (value != nil).description
+            ]
         )
-        #endif
 
         return value
     }
@@ -152,14 +149,14 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring {
     func storageValue(for sourceID: String, storage: SourceCredentialStorage, key: String) -> String? {
         guard let credential: SourceCredential = self.credential(sourceID: sourceID),
               self.isExpired(credential) == false else {
-            #if DEBUG
-            print(
-                "[BrowseCraftCredential] storage miss " +
-                "sourceID=\(sourceID) " +
-                "storage=\(storage.rawValue) " +
-                "key=\(key)"
+            AppLog.debug(
+                .credential,
+                event: "storage-miss",
+                metadata: [
+                    "sourceID": sourceID,
+                    "storage": storage.rawValue
+                ]
             )
-            #endif
             return nil
         }
 
@@ -171,15 +168,15 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring {
             value = credential.sessionStorage[key]
         }
 
-        #if DEBUG
-        print(
-            "[BrowseCraftCredential] storage lookup " +
-            "sourceID=\(sourceID) " +
-            "storage=\(storage.rawValue) " +
-            "key=\(key) " +
-            "hit=\((value != nil).description)"
+        AppLog.debug(
+            .credential,
+            event: "storage-lookup",
+            metadata: [
+                "sourceID": sourceID,
+                "storage": storage.rawValue,
+                "hit": (value != nil).description
+            ]
         )
-        #endif
 
         return value
     }
@@ -259,12 +256,22 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring {
         url: URL,
         operation: String
     ) {
-        print(
-            "[BrowseCraftCredential] \(operation) miss " +
-            "sourceID=\(context.sourceID ?? "nil") " +
-            "purpose=\(context.purpose.rawValue) " +
-            "host=\(url.host ?? "nil")"
+        AppLog.debug(
+            .credential,
+            event: "\(operation)-miss",
+            metadata: self.metadata(context: context, url: url)
         )
     }
     #endif
+
+    private func metadata(
+        context: SourceRequestContext,
+        url: URL
+    ) -> [String: String] {
+        return [
+            "sourceID": context.sourceID ?? "nil",
+            "purpose": context.purpose.rawValue,
+            "host": url.host ?? "nil"
+        ]
+    }
 }

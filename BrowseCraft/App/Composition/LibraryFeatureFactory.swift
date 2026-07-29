@@ -9,6 +9,7 @@ struct LibraryFeatureFactory {
     private let sourceSelectionStore: SourceSelectionStore
     private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
     private let prepareReaderHistoryRestoreUseCase: PrepareReaderHistoryRestoreUseCase
+    private let readingActivityPersistenceCoordinator: ReadingActivityPersistenceCoordinator
 
     init(
         database: AppDatabase,
@@ -32,31 +33,41 @@ struct LibraryFeatureFactory {
         self.sourceSelectionStore = sourceSelectionStore
         self.systemCookieHeaderProvider = systemCookieHeaderProvider
         self.prepareReaderHistoryRestoreUseCase = prepareReaderHistoryRestoreUseCase
+        self.readingActivityPersistenceCoordinator = ReadingActivityPersistenceCoordinator(
+            rssRepository: GRDBRSSReadingHistoryRepository(database: database),
+            comicRepository: GRDBComicChapterHistoryRepository(database: database),
+            videoRepository: GRDBVideoWatchHistoryRepository(database: database),
+            appUserRepository: GRDBAppUserRepository(database: database),
+            activeAppUser: activeAppUser
+        )
     }
 
+    @MainActor
     func makeViewModel() -> LibraryViewModel {
         let userLibraryStateRepository: UserLibraryStateRepository = GRDBUserLibraryStateRepository(
             database: self.database
         )
         return LibraryViewModel(
-            syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase(
-                sourceRepository: self.sourceRepository
-            ),
-            reconcileSourceSlotAssignmentsUseCase:
-                ReconcileSourceSlotAssignmentsUseCase(
+            persistenceCoordinator: LibraryPersistenceCoordinator(
+                syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase(
                     sourceRepository: self.sourceRepository
                 ),
-            toggleFavoriteUseCase: ToggleFavoriteUseCase(
-                favoriteRepository: self.favoriteRepository
+                reconcileSourceSlotAssignmentsUseCase:
+                    ReconcileSourceSlotAssignmentsUseCase(
+                        sourceRepository: self.sourceRepository
+                    ),
+                toggleFavoriteUseCase: ToggleFavoriteUseCase(
+                    favoriteRepository: self.favoriteRepository
+                ),
+                loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase(
+                    repository: userLibraryStateRepository
+                ),
+                saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase(
+                    repository: userLibraryStateRepository
+                )
             ),
             refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase(
                 runtimeResolver: self.sourceRuntimeFactory
-            ),
-            loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase(
-                repository: userLibraryStateRepository
-            ),
-            saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase(
-                repository: userLibraryStateRepository
             ),
             resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase(),
             sourceCredentialStore: self.sourceCredentialStore,
@@ -67,33 +78,26 @@ struct LibraryFeatureFactory {
 
     @MainActor
     func makeComicDetailViewModel(item: ContentItem, source: Source) -> ComicDetailViewModel {
-        let comicChapterHistoryRepository: ComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(
-            database: self.database
-        )
         return ComicDetailViewModel(
             item: item,
             source: source,
             loadComicDetailUseCase: LoadComicDetailUseCase(
                 runtimeResolver: self.sourceRuntimeFactory
             ),
-            loadLatestComicChapterHistoryUseCase: LoadLatestComicChapterHistoryUseCase(
-                repository: comicChapterHistoryRepository
-            ),
+            persistenceCoordinator: self.readingActivityPersistenceCoordinator,
             resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase(),
             sourceCredentialStore: self.sourceCredentialStore,
             activeAppUser: self.activeAppUser
         )
     }
 
+    @MainActor
     func makeReaderViewModel(
         item: ContentItem,
         source: Source,
         selectedChapter: ChapterLink? = nil,
         restoreContext: ReaderHistoryRestoreContext? = nil
     ) -> ReaderViewModel {
-        let repository: ComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(
-            database: self.database
-        )
         return ReaderViewModel(
             item: item,
             source: source,
@@ -106,14 +110,12 @@ struct LibraryFeatureFactory {
             sourceCredentialProvider: self.sourceCredentialStore,
             sourceCredentialStore: self.sourceCredentialStore,
             resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase(),
-            saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase(
-                repository: repository
-            ),
-            accumulateAdPointsUseCase: self.makeAccumulateAdPointsUseCase(),
+            persistenceCoordinator: self.readingActivityPersistenceCoordinator,
             activeAppUser: self.activeAppUser
         )
     }
 
+    @MainActor
     func makeReaderViewModel(history: ComicChapterHistory, source: Source) -> ReaderViewModel {
         let plan: ReaderHistoryRestorePlan = self.prepareReaderHistoryRestoreUseCase.execute(
             history: history
@@ -131,16 +133,10 @@ struct LibraryFeatureFactory {
 
     @MainActor
     func makeRSSContentDetailViewModel(item: ContentItem, source: Source) -> RSSContentDetailViewModel {
-        let repository: RSSReadingHistoryRepository = GRDBRSSReadingHistoryRepository(
-            database: self.database
-        )
         return RSSContentDetailViewModel(
             item: item,
             source: source,
-            saveRSSReadingHistoryUseCase: SaveRSSReadingHistoryUseCase(
-                repository: repository
-            ),
-            accumulateAdPointsUseCase: self.makeAccumulateAdPointsUseCase(),
+            persistenceCoordinator: self.readingActivityPersistenceCoordinator,
             runtimeResolver: self.sourceRuntimeFactory,
             activeAppUser: self.activeAppUser
         )
@@ -148,18 +144,13 @@ struct LibraryFeatureFactory {
 
     @MainActor
     func makeVideoPlayerViewModel(history: VideoWatchHistory, source: Source) -> VideoPlayerViewModel {
-        let repository: VideoWatchHistoryRepository = GRDBVideoWatchHistoryRepository(
-            database: self.database
-        )
         return VideoPlayerViewModel(
             source: source,
             reference: history.playbackReference(defaultSourceName: source.name),
             videoTitle: history.videoTitle,
             detailURL: history.detailURL,
             coverURL: history.coverURL,
-            saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase(repository: repository),
-            loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase(repository: repository),
-            accumulateAdPointsUseCase: self.makeAccumulateAdPointsUseCase(),
+            persistenceCoordinator: self.readingActivityPersistenceCoordinator,
             runtimeResolver: self.sourceRuntimeFactory,
             credentialProvider: self.sourceCredentialStore,
             systemCookieHeaderProvider: self.systemCookieHeaderProvider,
@@ -170,26 +161,15 @@ struct LibraryFeatureFactory {
 
     @MainActor
     func makeVideoDetailViewModel(item: ContentItem, source: Source) -> VideoDetailViewModel {
-        let repository: VideoWatchHistoryRepository = GRDBVideoWatchHistoryRepository(
-            database: self.database
-        )
         return VideoDetailViewModel(
             item: item,
             source: source,
             runtimeResolver: self.sourceRuntimeFactory,
-            saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase(repository: repository),
-            loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase(repository: repository),
-            accumulateAdPointsUseCase: self.makeAccumulateAdPointsUseCase(),
+            persistenceCoordinator: self.readingActivityPersistenceCoordinator,
             credentialProvider: self.sourceCredentialStore,
             systemCookieHeaderProvider: self.systemCookieHeaderProvider,
             activeAppUser: self.activeAppUser
         )
     }
 
-    private func makeAccumulateAdPointsUseCase() -> AccumulateAdPointsUseCase {
-        return AccumulateAdPointsUseCase(
-            repository: GRDBAppUserRepository(database: self.database),
-            activeAppUser: self.activeAppUser
-        )
-    }
 }

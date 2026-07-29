@@ -103,20 +103,32 @@ struct ResourcePipelineExecutor {
     private let dataLoader: PageDataLoader
     private let cryptography: ResourcePipelineCryptography
     private let requestCache: ResourcePipelineRequestCache
+    private let compiler: ResourcePipelineCompiler
+    private let planCache: ResourcePipelinePlanCache
 
-    init(dataLoader: PageDataLoader, cryptography: ResourcePipelineCryptography) {
+    init(
+        dataLoader: PageDataLoader,
+        cryptography: ResourcePipelineCryptography,
+        compiler: ResourcePipelineCompiler = ResourcePipelineCompiler(),
+        planCache: ResourcePipelinePlanCache = ResourcePipelinePlanCache()
+    ) {
         self.dataLoader = dataLoader
         self.cryptography = cryptography
         self.requestCache = ResourcePipelineRequestCache()
+        self.compiler = compiler
+        self.planCache = planCache
     }
 
     func execute(_ input: ResourcePipelineExecutionInput) async throws -> ResourcePipelineExecutionOutput {
-        try self.validate(input.rule)
+        let plan: CompiledResourcePipeline = try await self.planCache.plan(
+            for: input.rule,
+            compiler: self.compiler
+        )
 
         let bindings: [String: ResourcePipelineRuntimeValue] = try self.resolveBindings(input)
         var stepValues: [String: ResourcePipelineRuntimeValue] = [:]
 
-        for step: ResourcePipelineStepRule in input.rule.steps {
+        for step: ResourcePipelineStepRule in plan.rule.steps {
             let value: ResourcePipelineRuntimeValue = try await self.execute(
                 step,
                 input: input,
@@ -127,158 +139,14 @@ struct ResourcePipelineExecutor {
         }
 
         let outputValue: ResourcePipelineRuntimeValue = try self.resolve(
-            input.rule.output.value,
+            plan.rule.output.value,
             bindings: bindings,
             stepValues: stepValues
         )
         return ResourcePipelineExecutionOutput(
             data: try outputValue.dataValue(),
-            contentType: input.rule.output.contentType
+            contentType: plan.rule.output.contentType
         )
-    }
-
-    private func validate(_ rule: ResourcePipelineRule) throws {
-        guard rule.version == 2 else {
-            throw ResourcePipelineExecutorError.unsupportedVersion(rule.version)
-        }
-
-        for (name, binding): (String, ResourceBindingRule) in rule.bindings {
-            guard name.isEmpty == false else {
-                throw ResourcePipelineExecutorError.invalidBinding(name: name, reason: "empty name")
-            }
-            switch binding.source {
-            case .constant:
-                guard binding.value != nil else {
-                    throw ResourcePipelineExecutorError.invalidBinding(name: name, reason: "missing value")
-                }
-            case .item, .root, .context:
-                guard let path: String = binding.path,
-                      path.isEmpty == false else {
-                    throw ResourcePipelineExecutorError.invalidBinding(name: name, reason: "missing path")
-                }
-            }
-        }
-
-        let bindingNames: Set<String> = Set(rule.bindings.keys)
-        var availableSteps: Set<String> = []
-        for step: ResourcePipelineStepRule in rule.steps {
-            guard step.id.isEmpty == false else {
-                throw ResourcePipelineExecutorError.invalidStep(id: step.id, reason: "empty id")
-            }
-            guard availableSteps.contains(step.id) == false else {
-                throw ResourcePipelineExecutorError.duplicateStepID(step.id)
-            }
-            guard bindingNames.contains(step.id) == false else {
-                throw ResourcePipelineExecutorError.ambiguousName(step.id)
-            }
-
-            try self.validate(
-                step.operation,
-                stepID: step.id,
-                bindingNames: bindingNames,
-                availableSteps: availableSteps
-            )
-            for reference: ResourceValueReferenceRule in self.references(in: step.operation) {
-                try self.validate(
-                    reference,
-                    bindingNames: bindingNames,
-                    availableSteps: availableSteps
-                )
-            }
-            availableSteps.insert(step.id)
-        }
-
-        try self.validate(
-            rule.output.value,
-            bindingNames: bindingNames,
-            availableSteps: availableSteps
-        )
-    }
-
-    private func validate(
-        _ operation: ResourcePipelineOperationRule,
-        stepID: String,
-        bindingNames: Set<String>,
-        availableSteps: Set<String>
-    ) throws {
-        switch operation {
-        case .request(let rule):
-            guard rule.urlTemplate.isEmpty == false else {
-                throw ResourcePipelineExecutorError.invalidStep(id: stepID, reason: "empty URL template")
-            }
-            for token: String in ResourcePipelineTemplateResolver.tokens(in: rule) {
-                if token.hasPrefix("binding.") {
-                    let name: String = String(token.dropFirst("binding.".count))
-                    guard bindingNames.contains(name) else {
-                        throw ResourcePipelineExecutorError.unresolvedTemplateToken(token)
-                    }
-                    continue
-                }
-                if token.hasPrefix("step.") {
-                    let stepPath: String = String(token.dropFirst("step.".count))
-                    let name: String = stepPath.split(separator: ".", maxSplits: 1).first.map(String.init) ?? ""
-                    guard availableSteps.contains(name) else {
-                        throw ResourcePipelineExecutorError.unresolvedTemplateToken(token)
-                    }
-                    continue
-                }
-                throw ResourcePipelineExecutorError.unresolvedTemplateToken(token)
-            }
-        case .extract(let rule):
-            guard rule.path.isEmpty == false else {
-                throw ResourcePipelineExecutorError.invalidStep(id: stepID, reason: "empty extract path")
-            }
-        case .slice(let rule):
-            guard rule.offset >= 0,
-                  rule.length.map({ $0 >= 0 }) ?? true else {
-                throw ResourcePipelineExecutorError.invalidStep(id: stepID, reason: "negative slice")
-            }
-        case .split(let rule):
-            guard rule.delimiter.isEmpty == false,
-                  rule.fields.isEmpty == false,
-                  Set(rule.fields).count == rule.fields.count,
-                  rule.fields.allSatisfy({ $0.isEmpty == false }) else {
-                throw ResourcePipelineExecutorError.invalidStep(id: stepID, reason: "invalid split declaration")
-            }
-        case .decode, .hash, .decrypt:
-            break
-        }
-    }
-
-    private func validate(
-        _ reference: ResourceValueReferenceRule,
-        bindingNames: Set<String>,
-        availableSteps: Set<String>
-    ) throws {
-        switch reference.source {
-        case .binding:
-            guard bindingNames.contains(reference.name) else {
-                throw ResourcePipelineExecutorError.missingReference(source: .binding, name: reference.name)
-            }
-        case .step:
-            guard availableSteps.contains(reference.name) else {
-                throw ResourcePipelineExecutorError.missingReference(source: .step, name: reference.name)
-            }
-        }
-    }
-
-    private func references(in operation: ResourcePipelineOperationRule) -> [ResourceValueReferenceRule] {
-        switch operation {
-        case .request:
-            return []
-        case .extract(let rule):
-            return [rule.input]
-        case .decode(let rule):
-            return [rule.input]
-        case .hash(let rule):
-            return [rule.input]
-        case .slice(let rule):
-            return [rule.input]
-        case .split(let rule):
-            return [rule.input]
-        case .decrypt(let rule):
-            return [rule.input, rule.key, rule.iv]
-        }
     }
 
     private func resolveBindings(
@@ -950,7 +818,7 @@ private enum ResourcePipelineCodec {
     }
 }
 
-private enum ResourcePipelineTemplateResolver {
+enum ResourcePipelineTemplateResolver {
     static func tokens(in rule: ResourceRequestOperationRule) -> Set<String> {
         var templates: [String] = [rule.urlTemplate]
         if let request: RequestConfig = rule.request {

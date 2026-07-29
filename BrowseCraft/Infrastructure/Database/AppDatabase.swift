@@ -1,12 +1,14 @@
 import Foundation
 import GRDB
 
-// 中文注释：AppDatabase 持有 SQLite 连接，并直接创建 BrowseCraft 的当前开发期 schema。
+// 中文注释：AppDatabase 持有 SQLite 连接，并通过版本化迁移维护 BrowseCraft schema。
 
 /// 中文注释：数据库基础设施只暴露 GRDB 队列给基础设施层仓储使用。
-/// 中文注释：只创建最终 schema；业务用户由 Keychain 身份 bootstrap 幂等写入。
-final class AppDatabase {
-    let queue: DatabaseQueue
+/// 中文注释：业务用户由 Keychain 身份 bootstrap 幂等写入；schema 只能通过迁移演进。
+final class AppDatabase: @unchecked Sendable {
+    static let currentSchemaMigrationIdentifier: String = "v1.initial-schema"
+    /// 中文注释：DatabasePool 使用 WAL，让 UI 读取不必等待 Cloud Sync 等后台读取完成。
+    let queue: DatabasePool
 
     init(path: String? = nil) throws {
         let databasePath: String
@@ -17,11 +19,8 @@ final class AppDatabase {
             databasePath = try Self.defaultDatabasePath()
         }
 
-        self.queue = try DatabaseQueue(path: databasePath)
-        try self.queue.write { database in
-            try Self.createCurrentSchema(in: database)
-            try Self.createCurrentIndexes(in: database)
-        }
+        self.queue = try DatabasePool(path: databasePath)
+        try Self.makeMigrator().migrate(self.queue)
     }
 
     private static func defaultDatabasePath() throws -> String {
@@ -45,7 +44,17 @@ final class AppDatabase {
         return browseCraftDirectory.appendingPathComponent("BrowseCraft.sqlite").path
     }
 
-    /// 中文注释：当前开发期只维护一份最终 schema；每张表的字段定义放回各自 Record，避免 AppDatabase 过长。
+    /// 中文注释：v1 固化当前 schema。已有同结构开发数据库会由 ifNotExists 安全纳入迁移账本。
+    private static func makeMigrator() -> DatabaseMigrator {
+        var migrator: DatabaseMigrator = DatabaseMigrator()
+        migrator.registerMigration(Self.currentSchemaMigrationIdentifier) { database in
+            try Self.createCurrentSchema(in: database)
+            try Self.createCurrentIndexes(in: database)
+        }
+        return migrator
+    }
+
+    /// 中文注释：每张表的字段、约束和索引定义继续由对应 Record 持有。
     private static func createCurrentSchema(in database: Database) throws {
         try AppUserRecord.createTable(in: database)
         try CloudAccountPartitionPreparationRecord.createTable(in: database)

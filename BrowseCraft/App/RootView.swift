@@ -45,7 +45,7 @@ struct RootView: View {
             wrappedValue: StartupCoordinator(
                 dependencies: StartupCoordinator.Dependencies(
                     hasSources: {
-                        return try sourcesViewModel.loadForStartup()
+                        return try await sourcesViewModel.loadForStartup()
                     },
                     loadSelectedSource: {
                         return await libraryViewModel.loadIfNeeded()
@@ -89,8 +89,8 @@ struct RootView: View {
             }
         }
         .onChange(of: self.cloudSyncSettingsViewModel.identityRevision) { _, _ in
-            self.historyViewModel.load()
             Task {
+                await self.historyViewModel.load()
                 await self.libraryViewModel.reloadForActiveUserChange()
             }
         }

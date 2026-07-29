@@ -4,33 +4,25 @@ import Foundation
 // 中文注释：HistoryViewModel.swift 属于界面功能层，用于说明本文件承载的核心职责。
 
 /// 中文注释：HistoryViewModel 是 final class，负责本模块中的对应职责。
+@MainActor
 final class HistoryViewModel: ObservableObject {
     @Published private(set) var readingHistoryEntries: [ReadingHistoryEntry] = []
     @Published private(set) var sources: [Source] = []
     @Published var videoPlaybackRoute: VideoPlaybackRoute?
     @Published var errorMessage: String?
 
-    private let loadReadingHistoryEntriesUseCase: LoadReadingHistoryEntriesUseCase
-    private let deleteReadingHistoryEntryUseCase: DeleteReadingHistoryEntryUseCase
-    private let reconcileSourceSlotAssignmentsUseCase:
-        ReconcileSourceSlotAssignmentsUseCase
+    private let persistenceCoordinator: HistoryPersistenceCoordinator
     private let activeAppUser: (any ActiveAppUserProviding)?
     private let fallbackUserID: String
     private let videoPlayerViewModelFactory: @MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel
 
     init(
-        loadReadingHistoryEntriesUseCase: LoadReadingHistoryEntriesUseCase,
-        deleteReadingHistoryEntryUseCase: DeleteReadingHistoryEntryUseCase,
-        reconcileSourceSlotAssignmentsUseCase:
-            ReconcileSourceSlotAssignmentsUseCase,
+        persistenceCoordinator: HistoryPersistenceCoordinator,
         activeAppUser: (any ActiveAppUserProviding)? = nil,
         userID: String = AppUser.localDefaultID,
         videoPlayerViewModelFactory: @escaping @MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel
     ) {
-        self.loadReadingHistoryEntriesUseCase = loadReadingHistoryEntriesUseCase
-        self.deleteReadingHistoryEntryUseCase = deleteReadingHistoryEntryUseCase
-        self.reconcileSourceSlotAssignmentsUseCase =
-            reconcileSourceSlotAssignmentsUseCase
+        self.persistenceCoordinator = persistenceCoordinator
         self.activeAppUser = activeAppUser
         self.fallbackUserID = userID
         self.videoPlayerViewModelFactory = videoPlayerViewModelFactory
@@ -38,11 +30,14 @@ final class HistoryViewModel: ObservableObject {
 
     @MainActor
     /// 中文注释：load 方法封装当前类型的一段业务或界面行为。
-    func load() {
+    func load() async {
         do {
-            self.sources = try self.reconcileSourceSlotAssignmentsUseCase.execute()
+            let snapshot: HistoryPersistenceSnapshot = try await self.persistenceCoordinator.load(
+                userID: self.currentUserID
+            )
+            self.sources = snapshot.sources
             self.readingHistoryEntries = self.deduplicatedVideoEntries(
-                try self.loadReadingHistoryEntriesUseCase.execute(userID: self.currentUserID)
+                snapshot.entries
             )
         } catch {
             self.errorMessage = error.localizedDescription
@@ -78,7 +73,7 @@ final class HistoryViewModel: ObservableObject {
     }
 
     @MainActor
-    func deleteHistoryEntries(at offsets: IndexSet) {
+    func deleteHistoryEntries(at offsets: IndexSet) async {
         let entriesToDelete: [ReadingHistoryEntry] = offsets.compactMap { index in
             guard self.readingHistoryEntries.indices.contains(index) else {
                 return nil
@@ -88,15 +83,15 @@ final class HistoryViewModel: ObservableObject {
         }
 
         do {
-            for entry: ReadingHistoryEntry in entriesToDelete {
-                try self.deleteReadingHistoryEntryUseCase.execute(entry)
-            }
+            try await self.persistenceCoordinator.delete(
+                ReadingHistoryEntriesTransfer(values: entriesToDelete)
+            )
             for index: Int in offsets.sorted(by: >) where self.readingHistoryEntries.indices.contains(index) {
                 self.readingHistoryEntries.remove(at: index)
             }
         } catch {
             self.errorMessage = error.localizedDescription
-            self.load()
+            await self.load()
         }
     }
 

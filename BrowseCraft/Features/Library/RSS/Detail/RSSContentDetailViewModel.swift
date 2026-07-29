@@ -16,8 +16,7 @@ final class RSSContentDetailViewModel: ObservableObject {
     let item: ContentItem
     let source: Source
 
-    private let saveRSSReadingHistoryUseCase: SaveRSSReadingHistoryUseCase
-    private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
+    private let persistenceCoordinator: ReadingActivityPersistenceCoordinator
     private let runtimeResolver: any SourceRuntimeResolving
     private let activeAppUser: (any ActiveAppUserProviding)?
     private let fallbackUserID: String
@@ -28,8 +27,7 @@ final class RSSContentDetailViewModel: ObservableObject {
     init(
         item: ContentItem,
         source: Source,
-        saveRSSReadingHistoryUseCase: SaveRSSReadingHistoryUseCase,
-        accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil,
+        persistenceCoordinator: ReadingActivityPersistenceCoordinator,
         runtimeResolver: any SourceRuntimeResolving,
         activeAppUser: (any ActiveAppUserProviding)? = nil,
         userID: String = AppUser.localDefaultID,
@@ -38,8 +36,7 @@ final class RSSContentDetailViewModel: ObservableObject {
         self.item = item
         self.displayItem = item
         self.source = source
-        self.saveRSSReadingHistoryUseCase = saveRSSReadingHistoryUseCase
-        self.accumulateAdPointsUseCase = accumulateAdPointsUseCase
+        self.persistenceCoordinator = persistenceCoordinator
         self.runtimeResolver = runtimeResolver
         self.activeAppUser = activeAppUser
         self.fallbackUserID = userID
@@ -57,35 +54,30 @@ final class RSSContentDetailViewModel: ObservableObject {
 
         self.didSaveReadingHistory = true
 
-        do {
-            try self.saveRSSReadingHistoryUseCase.execute(
-                history: self.readingHistory()
-            )
-            self.accumulateAdPoints(points: AdPointRule.rssPoints)
-            AppAnalytics.shared.logReaderOpened(source: self.source)
-            #if DEBUG
-            print(
-                "[BrowseCraftRSSHistory] saved " +
-                "userID=\(self.currentUserID) " +
-                "sourceID=\(self.source.id) " +
-                "itemID=\(self.item.id)"
-            )
-            #endif
-        } catch {
-            #if DEBUG
-            print(
-                "[BrowseCraftRSSHistory] save failed " +
-                "sourceID=\(self.source.id) " +
-                "itemID=\(self.item.id) " +
-                "error=\(error)"
-            )
-            #endif
+        let history: RSSReadingHistoryTransfer = RSSReadingHistoryTransfer(
+            value: self.readingHistory()
+        )
+        Task { [persistenceCoordinator] in
+            do {
+                let result: AdPointAccumulationResult = try await persistenceCoordinator.saveRSSHistory(
+                    history,
+                    adPoints: AdPointRule.rssPoints
+                )
+                self.shouldPlayAd = result.shouldPlayAd
+                AppAnalytics.shared.logReaderOpened(source: self.source)
+            } catch {
+                AppLog.error(
+                    .sync,
+                    event: "rss-history-save-failed",
+                    metadata: ["error": AppLog.safeErrorCode(error)]
+                )
+            }
         }
     }
 
     func markAdPlaybackHandled() {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftAdPlayback] RSS mark handled " +
             "sourceID=\(self.source.id) itemID=\(self.item.id) previousShouldPlayAd=\(self.shouldPlayAd)"
         )
@@ -182,7 +174,7 @@ final class RSSContentDetailViewModel: ObservableObject {
             self.displayItem = updatedItem
 
             #if DEBUG
-            print(
+            AppDebugLog.write(
                 "[BrowseCraftRSSDetail] loaded detail content " +
                 "itemID=\(self.item.id) " +
                 "runtimeDetail=true " +
@@ -199,7 +191,7 @@ final class RSSContentDetailViewModel: ObservableObject {
             #endif
         } catch {
             #if DEBUG
-            print(
+            AppDebugLog.write(
                 "[BrowseCraftRSSDetail] load detail content failed " +
                 "itemID=\(self.item.id) " +
                 "url=\(detailURL.absoluteString) " +
@@ -216,7 +208,7 @@ final class RSSContentDetailViewModel: ObservableObject {
 
     private func logEmptyDetailContent(htmlLength: Int, url: URL) {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftRSSDetail] empty detail content " +
             "itemID=\(self.item.id) " +
             "htmlLength=\(htmlLength) " +
@@ -233,7 +225,7 @@ final class RSSContentDetailViewModel: ObservableObject {
         url: URL
     ) {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftRSSDetail] skip oversized detail content " +
             "itemID=\(self.item.id) " +
             "stage=\(stage) " +
@@ -555,7 +547,7 @@ final class RSSContentDetailViewModel: ObservableObject {
             block.kind == .image
         }.count
         let rejectedImageCount: Int = rejectedImageReasons.values.reduce(0, +)
-        print(
+        AppDebugLog.write(
             "[BrowseCraftRSSDetail] image filter " +
             "itemID=\(self.item.id) " +
             "rawDetailImages=\(rawDetailImageCount) " +
@@ -600,41 +592,6 @@ final class RSSContentDetailViewModel: ObservableObject {
         }
 
         return configuration.definition.feedURL
-    }
-
-    private func accumulateAdPoints(points: Int) {
-        guard let accumulateAdPointsUseCase: AccumulateAdPointsUseCase = self.accumulateAdPointsUseCase else {
-            return
-        }
-
-        do {
-            let result: AdPointAccumulationResult = try accumulateAdPointsUseCase.execute(points: points)
-            #if DEBUG
-            print(
-                "[BrowseCraftAdPoints] RSS result " +
-                "sourceID=\(self.source.id) itemID=\(self.item.id) " +
-                "\(result.debugDescription)"
-            )
-            #endif
-            if result.shouldPlayAd {
-                #if DEBUG
-                print(
-                    "[BrowseCraftAdPlayback] RSS shouldPlayAd=true " +
-                    "sourceID=\(self.source.id) itemID=\(self.item.id)"
-                )
-                #endif
-                self.shouldPlayAd = true
-            }
-        } catch {
-            #if DEBUG
-            print(
-                "[BrowseCraftAdPoints] RSS accumulate failed " +
-                "sourceID=\(self.source.id) " +
-                "itemID=\(self.item.id) " +
-                "error=\(error)"
-            )
-            #endif
-        }
     }
 
     private func trimmedNonEmpty(_ string: String?) -> String? {

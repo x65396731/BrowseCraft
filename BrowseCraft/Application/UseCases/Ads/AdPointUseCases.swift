@@ -1,6 +1,6 @@
 import Foundation
 
-enum AdPointAccumulationResult: Equatable {
+enum AdPointAccumulationResult: Equatable, Sendable {
     case noAdNeeded(
         previousPoints: Int,
         addedPoints: Int,
@@ -104,7 +104,7 @@ struct AccumulateAdPointsUseCase {
             }
 
             #if DEBUG
-            print(
+            AppDebugLog.write(
                 "[BrowseCraftAdPoints] skipped because ads removed " +
                 "userID=\(userID) previous=\(previousPoints) added=\(addedPoints) pending=0"
             )
@@ -129,7 +129,7 @@ struct AccumulateAdPointsUseCase {
         try self.repository.saveUser(user)
 
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftAdPoints] accumulated " +
             "userID=\(userID) previous=\(previousPoints) added=\(addedPoints) " +
             "accumulated=\(accumulatedPoints) pending=\(user.pendingAdPoints) " +

@@ -520,7 +520,7 @@ struct DiscoverVideoResourcesUseCase {
     }
 
     private func log(_ message: String) {
-        print("[BrowseCraftVideoDiscovery] \(message)")
+        AppDebugLog.write("[BrowseCraftVideoDiscovery] \(message)")
     }
     #endif
 }

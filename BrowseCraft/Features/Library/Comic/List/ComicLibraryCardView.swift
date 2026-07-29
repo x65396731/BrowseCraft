@@ -85,7 +85,7 @@ struct ComicLibraryCardView: View {
 
     private func openReaderDestination() {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftNavigation] Tap \(self.primaryActionTitle) " +
             "itemId=\(self.item.id) " +
             "title=\(self.item.title) " +

@@ -57,46 +57,59 @@ struct BrowseCraftApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @Environment(\.scenePhase) private var scenePhase
 
-    private let container: AppContainer = AppContainer()
+    @State private var bootstrapState: AppBootstrapState = .loading
 
     init() {
         if AppAdConfiguration.hasAdMobApplicationID {
             MobileAds.shared.start()
         } else {
             #if DEBUG
-            print("[BrowseCraftAds] skip MobileAds.start because GADApplicationIdentifier is missing")
+            AppDebugLog.write("[BrowseCraftAds] skip MobileAds.start because GADApplicationIdentifier is missing")
             #endif
         }
     }
 
     var body: some Scene {
         WindowGroup {
-            RootView(container: self.container)
-                .task {
-                    self.delegate.setCloudRemoteNotificationHandler {
-                        do {
-                            let result: CloudSyncRunResult = try await self.container
-                                .handleCloudRemoteNotification()
-                            return result.downloadedCount > 0 || result.deletedCount > 0
-                                ? .newData
-                                : .noData
-                        } catch let error as CloudSyncSessionError
-                            where error == .synchronizationDisabled || error == .alreadyRunning {
-                            return .noData
-                        } catch {
-                            return .failed
+            switch self.bootstrapState {
+            case .loading:
+                ProgressView("Opening BrowseCraft…")
+                    .task {
+                        guard case .loading = self.bootstrapState else {
+                            return
+                        }
+                        self.bootstrapState = await AppBootstrapState.bootstrap()
+                    }
+            case .ready(let container):
+                RootView(container: container)
+                    .task {
+                        self.delegate.setCloudRemoteNotificationHandler {
+                            do {
+                                let result: CloudSyncRunResult = try await container
+                                    .handleCloudRemoteNotification()
+                                return result.downloadedCount > 0 || result.deletedCount > 0
+                                    ? .newData
+                                    : .noData
+                            } catch let error as CloudSyncSessionError
+                                where error == .synchronizationDisabled || error == .alreadyRunning {
+                                return .noData
+                            } catch {
+                                return .failed
+                            }
+                        }
+                        await container.startApplicationServices()
+                    }
+                    .onChange(of: self.scenePhase) { _, phase in
+                        guard phase == .active else {
+                            return
+                        }
+                        Task {
+                            await container.handleAppBecameActive()
                         }
                     }
-                    await self.container.startApplicationServices()
-                }
-                .onChange(of: self.scenePhase) { _, phase in
-                    guard phase == .active else {
-                        return
-                    }
-                    Task {
-                        await self.container.handleAppBecameActive()
-                    }
-                }
+            case .failed(let failure):
+                AppBootstrapFailureView(failure: failure)
+            }
         }
     }
 }

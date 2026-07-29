@@ -1,9 +1,8 @@
 # 数据库说明
 
-BrowseCraft 当前仍处于开发阶段。数据库层优先保持“当前最终 schema”清晰可读，暂不兼容旧开发数据库。
-阶段 3 修改 schema 后，需要删除开发设备上的 App，再由 `AppDatabase` 创建完整的新数据库。
-未来正式发布时采用的 account-scoped 迁移方案记录在
-`Documentation/CloudKit/AccountScopedDatabaseMigration-Memo.md`。
+BrowseCraft 使用 GRDB `DatabaseMigrator` 管理本地 schema。`v1.initial-schema` 固化了首次正式迁移基线；
+后续任何字段、约束或索引变化都必须注册新的、只追加不改名的迁移。已有同结构开发数据库会通过
+`ifNotExists` 纳入 v1 迁移账本，但不承诺修复早期任意形态的开发数据库。
 
 ## 文件组织
 
@@ -30,7 +29,8 @@ BrowseCraft 当前仍处于开发阶段。数据库层优先保持“当前最�
 - `cloud_record_metadata` 保存 CKRecord system fields/change tag，并按账户与 record name 隔离。
 - Source、Favorite 和同步账本 Repository 在每次事务开始前捕获活动 account scope。
 - 首次合并只复制 `local.default` 到目标 cloud scope，不删除或改写匿名空间。
-- 当前开发阶段不执行旧库迁移；删除 App 后必须用 UT 的 `foreign_key_check` 验证新 schema 完整性。
+- 禁止修改已发布迁移的实现或标识；schema 变化必须追加新迁移。
+- 每次新增迁移都必须覆盖“上一正式版本数据库升级”与全新数据库创建，并执行 `foreign_key_check`。
 
 ## Source 删除规则
 

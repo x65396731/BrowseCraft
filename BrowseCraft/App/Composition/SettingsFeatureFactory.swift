@@ -49,14 +49,17 @@ struct SettingsFeatureFactory {
         self.portalSessionCoordinator = portalSessionCoordinator
     }
 
+    @MainActor
     func makeViewModel() -> SettingsViewModel {
         return SettingsViewModel(
             imageCacheConfigurator: self.imageCacheConfigurator,
-            appUserRepository: GRDBAppUserRepository(database: self.database),
-            activeAppUser: self.activeAppUser,
-            purchaseIdentityAuthorizer: self.storeKitPurchaseIdentityAuthorizer,
-            portalPurchaseEntitlementRefreshCoordinator:
-                self.portalPurchaseEntitlementRefreshCoordinator,
+            purchaseCoordinator: PortalPurchaseCoordinator(
+                appUserRepository: GRDBAppUserRepository(database: self.database),
+                activeAppUser: self.activeAppUser,
+                identityAuthorizer: self.storeKitPurchaseIdentityAuthorizer,
+                entitlementRefreshCoordinator: self.portalPurchaseEntitlementRefreshCoordinator,
+                supportedProductIDs: Set(InAppPurchasePlan.activePlans.map(\.productID))
+            ),
             portalSignInAction: {
                 return try await self.portalAppleSignInCoordinator.signIn()
             },

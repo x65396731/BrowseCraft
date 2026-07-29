@@ -179,7 +179,7 @@ struct StartupVideoPlayerView: UIViewRepresentable {
             }
 
             #if DEBUG
-            print("[BrowseCraftStartup] video playback failed: \(detail)")
+            AppDebugLog.write("[BrowseCraftStartup] video playback failed: \(detail)")
             #endif
 
             self.didReportFailure = true
@@ -208,7 +208,7 @@ struct StartupVideoPlayerView: UIViewRepresentable {
                 self.didActivateAudioSession = true
             } catch {
                 #if DEBUG
-                print("[BrowseCraftStartup] ambient audio session activation failed: \(error.localizedDescription)")
+                AppDebugLog.write("[BrowseCraftStartup] ambient audio session activation failed: \(error.localizedDescription)")
                 #endif
             }
         }
@@ -226,7 +226,7 @@ struct StartupVideoPlayerView: UIViewRepresentable {
                 )
             } catch {
                 #if DEBUG
-                print("[BrowseCraftStartup] audio session deactivation failed: \(error.localizedDescription)")
+                AppDebugLog.write("[BrowseCraftStartup] audio session deactivation failed: \(error.localizedDescription)")
                 #endif
             }
         }

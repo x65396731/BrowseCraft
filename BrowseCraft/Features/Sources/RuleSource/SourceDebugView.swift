@@ -268,12 +268,14 @@ struct SourceDebugView: View {
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        if self.viewModel.updateDebugJSON(
-                            sourceID: self.sourceID,
-                            json: self.draftJSON,
-                            expectedUpdatedAt: self.draftSourceUpdatedAt
-                        ) {
-                            self.isShowingJSONEditor = false
+                        Task {
+                            if await self.viewModel.updateDebugJSON(
+                                sourceID: self.sourceID,
+                                json: self.draftJSON,
+                                expectedUpdatedAt: self.draftSourceUpdatedAt
+                            ) {
+                                self.isShowingJSONEditor = false
+                            }
                         }
                     }
                     .disabled(self.validationResult.isValid == false)

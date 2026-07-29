@@ -13,6 +13,7 @@ enum LibraryInitialLoadOutcome: Equatable {
 }
 
 /// 中文注释：LibraryViewModel 以 SourceRuntimeKind 作为 Library 展示和刷新入口。
+@MainActor
 final class LibraryViewModel: ObservableObject {
     @Published private(set) var items: [ContentItem] = []
     @Published private(set) var sources: [Source] = []
@@ -27,13 +28,8 @@ final class LibraryViewModel: ObservableObject {
     @Published private(set) var requestedSourceLogin: LibrarySourceLoginState?
     @Published private var credentialRevision: Int = 0
 
-    private let syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase
-    private let reconcileSourceSlotAssignmentsUseCase:
-        ReconcileSourceSlotAssignmentsUseCase
-    private let toggleFavoriteUseCase: ToggleFavoriteUseCase
+    private let persistenceCoordinator: LibraryPersistenceCoordinator
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
-    private let loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase
-    private let saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase
     private let resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase
     private let contentItemMapper: SourceListContentItemMapper
     private let sourceCredentialStore: SourceCredentialStoring
@@ -51,13 +47,8 @@ final class LibraryViewModel: ObservableObject {
     private var refreshToken: Int = 0
 
     init(
-        syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase,
-        reconcileSourceSlotAssignmentsUseCase:
-            ReconcileSourceSlotAssignmentsUseCase,
-        toggleFavoriteUseCase: ToggleFavoriteUseCase,
+        persistenceCoordinator: LibraryPersistenceCoordinator,
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
-        loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase,
-        saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase,
         resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase,
         sourceCredentialStore: SourceCredentialStoring,
         sourceSelectionStore: SourceSelectionStore,
@@ -65,13 +56,8 @@ final class LibraryViewModel: ObservableObject {
         userID: String = AppUser.localDefaultID,
         now: @escaping () -> Date = Date.init
     ) {
-        self.syncBuiltInSourcesUseCase = syncBuiltInSourcesUseCase
-        self.reconcileSourceSlotAssignmentsUseCase =
-            reconcileSourceSlotAssignmentsUseCase
-        self.toggleFavoriteUseCase = toggleFavoriteUseCase
+        self.persistenceCoordinator = persistenceCoordinator
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
-        self.loadUserLibraryStateUseCase = loadUserLibraryStateUseCase
-        self.saveUserLibraryStateUseCase = saveUserLibraryStateUseCase
         self.resolveLibrarySourcePresentationUseCase = resolveLibrarySourcePresentationUseCase
         self.contentItemMapper = SourceListContentItemMapper()
         self.sourceCredentialStore = sourceCredentialStore
@@ -144,13 +130,14 @@ final class LibraryViewModel: ObservableObject {
     @MainActor
     private func performInitialLoad() async -> LibraryInitialLoadOutcome {
         do {
-            try self.syncBuiltInSourcesUseCase.execute()
-            self.sources = try self.reconcileSourceSlotAssignmentsUseCase.execute()
-            self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs(
-                sourceID: self.selectedSourceID
+            let snapshot: LibraryPersistenceSnapshot = try await self.persistenceCoordinator.load(
+                userID: self.currentUserID,
+                selectedSourceID: self.selectedSourceID
             )
+            self.sources = snapshot.sources
+            self.favoriteItemIDs = snapshot.favoriteItemIDs
 
-            try self.restoreStartupLibraryState()
+            self.restoreStartupLibraryState(snapshot.libraryState)
             if self.applyPreparedSnapshotIfAvailable() == false {
                 self.items = []
                 self.logLibraryItems(
@@ -160,7 +147,7 @@ final class LibraryViewModel: ObservableObject {
                 )
             }
             #if DEBUG
-            print(
+            AppDebugLog.write(
                 "[BrowseCraftLibrary] load source=\(self.selectedSourceID ?? "nil") " +
                 "items=\(self.items.count) " +
                 "context=\(self.contextDescription(self.selectedListContext))"
@@ -224,7 +211,7 @@ final class LibraryViewModel: ObservableObject {
         var outcome: LibraryInitialLoadOutcome = .cancelled
         self.isRefreshing = true
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftLibraryRefresh] event=start " +
             "requestID=\(requestID) " +
             "source=\(expectedSourceID) " +
@@ -273,20 +260,20 @@ final class LibraryViewModel: ObservableObject {
                 )
                 self.saveCurrentLibraryState(lastRefreshAt: self.now())
                 #if DEBUG
-                print(
+                AppDebugLog.write(
                     "[BrowseCraftLibrary] reload after refresh source=\(expectedSourceID) " +
                     "requestID=\(requestID) " +
                     "items=\(self.items.count) " +
                     "context=\(self.contextDescription(expectedListContext))"
                 )
                 #endif
-                self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs(
+                self.favoriteItemIDs = try await self.persistenceCoordinator.favoriteItemIDs(
                     sourceID: self.selectedSourceID
                 )
                 outcome = .loaded
             } else {
                 #if DEBUG
-                print(
+                AppDebugLog.write(
                     "[BrowseCraftLibraryRefresh] event=stale-result " +
                     "requestID=\(requestID) " +
                     "source=\(expectedSourceID) " +
@@ -326,14 +313,16 @@ final class LibraryViewModel: ObservableObject {
 
     @MainActor
     /// 中文注释：toggleFavorite 方法封装当前类型的一段业务或界面行为。
-    func toggleFavorite(item: ContentItem) {
+    func toggleFavorite(item: ContentItem) async {
         do {
             let wasFavorite: Bool = self.favoriteItemIDs.contains(item.id)
             let source: Source? = self.source(for: item.sourceId)
-            self.favoriteItemIDs = try self.toggleFavoriteUseCase.execute(
-                item: item,
-                source: source,
-                favoritedAt: self.now()
+            self.favoriteItemIDs = try await self.persistenceCoordinator.toggleFavorite(
+                LibraryFavoriteMutation(
+                    item: item,
+                    source: source,
+                    favoritedAt: self.now()
+                )
             )
             AppAnalytics.shared.logBookmarkChanged(isFavorite: wasFavorite == false, source: source)
         } catch {
@@ -577,7 +566,7 @@ final class LibraryViewModel: ObservableObject {
         }
         .joined(separator: ", ")
 
-        print(
+        AppDebugLog.write(
             "[BrowseCraftLibraryTabs] origin=\(origin) " +
             "source=\(source?.id ?? "nil") " +
             "kind=\(source?.configuration.kind.rawValue ?? "nil") " +
@@ -645,24 +634,16 @@ final class LibraryViewModel: ObservableObject {
         self.selectedListTabErrorMessage = self.currentListTabErrorMessage()
         self.saveCurrentLibraryState(lastRefreshAt: nil)
 
-        do {
-            // 中文注释：优先展示 Sources 入口刚请求到的当前结果；没有当前快照时保持空态，不从持久化缓存补数据。
-            if self.applyPreparedSnapshotIfAvailable() == false {
-                self.items = []
-                self.logLibraryItems(
-                    origin: "empty-after-source-switch-no-snapshot",
-                    sourceID: selectedSourceID,
-                    context: self.selectedListContext
-                )
-            }
-            self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs(
-                sourceID: self.selectedSourceID
+        // 中文注释：优先展示 Sources 入口刚请求到的当前结果；没有当前快照时保持空态，不从持久化缓存补数据。
+        if self.applyPreparedSnapshotIfAvailable() == false {
+            self.items = []
+            self.logLibraryItems(
+                origin: "empty-after-source-switch-no-snapshot",
+                sourceID: selectedSourceID,
+                context: self.selectedListContext
             )
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "switch-source-error")
-            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .list, errorCode: "switch-source-error")
-            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
+        self.reloadFavoriteItemIDs(event: "switch-source-error")
     }
 
     private func applyPreparedLibrarySnapshot(_ snapshot: SourceLibrarySnapshot?) {
@@ -679,14 +660,7 @@ final class LibraryViewModel: ObservableObject {
             return
         }
 
-        do {
-            self.favoriteItemIDs = try self.toggleFavoriteUseCase.loadFavoriteItemIDs(
-                sourceID: self.selectedSourceID
-            )
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "snapshot-favorite-load-error")
-            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
-        }
+        self.reloadFavoriteItemIDs(event: "snapshot-favorite-load-error")
     }
 
     private func applyPreparedSnapshotIfAvailable() -> Bool {
@@ -769,10 +743,7 @@ final class LibraryViewModel: ObservableObject {
         return self.resolveLibrarySourcePresentationUseCase.listContext(from: self.selectedListTab)
     }
 
-    private func restoreStartupLibraryState() throws {
-        let persistedState: UserLibraryState? = try self.loadUserLibraryStateUseCase.execute(
-            userID: self.currentUserID
-        )
+    private func restoreStartupLibraryState(_ persistedState: UserLibraryState?) {
         let persistedSource: Source? = persistedState.flatMap { state in
             guard let selectedSourceID: String = state.selectedSourceID else {
                 return nil
@@ -842,16 +813,43 @@ final class LibraryViewModel: ObservableObject {
             updatedAt: self.now()
         )
 
-        do {
-            try self.saveUserLibraryStateUseCase.execute(state: state)
-        } catch {
-            #if DEBUG
-            print(
-                "[BrowseCraftUserLibraryState] save failed " +
-                "sourceID=\(selectedSourceID) " +
-                "error=\(error)"
-            )
-            #endif
+        Task {
+            do {
+                try await self.persistenceCoordinator.save(
+                    UserLibraryStateTransfer(value: state)
+                )
+            } catch {
+                AppLog.error(
+                    .app,
+                    event: "library-state-save-failed",
+                    metadata: [
+                        "sourceID": selectedSourceID,
+                        "error": AppLog.safeErrorCode(error)
+                    ]
+                )
+            }
+        }
+    }
+
+    private func reloadFavoriteItemIDs(event: String) {
+        let expectedSourceID: String? = self.selectedSourceID
+        Task {
+            do {
+                let favoriteItemIDs: Set<String> = try await self.persistenceCoordinator
+                    .favoriteItemIDs(sourceID: expectedSourceID)
+                guard self.selectedSourceID == expectedSourceID else {
+                    return
+                }
+                self.favoriteItemIDs = favoriteItemIDs
+            } catch {
+                RuleExecutionErrorClassifier.log(error: error, stage: .list, event: event)
+                AppAnalytics.shared.logDiagnosticFailure(
+                    error: error,
+                    stage: .list,
+                    errorCode: event
+                )
+                self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+            }
         }
     }
 
@@ -867,7 +865,7 @@ final class LibraryViewModel: ObservableObject {
     ) {
         #if DEBUG
         let requestDescription: String = requestID.map { " requestID=\($0)" } ?? ""
-        print(
+        AppDebugLog.write(
             "[BrowseCraftLibraryData] origin=\(origin) " +
             "source=\(sourceID ?? "nil") " +
             "\(requestDescription) " +

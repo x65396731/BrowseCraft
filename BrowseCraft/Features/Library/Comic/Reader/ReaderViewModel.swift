@@ -26,6 +26,7 @@ struct ReaderSourceLoginPrompt: Identifiable, Hashable {
 }
 
 /// 中文注释：ReaderViewModel 是 final class，负责本模块中的对应职责。
+@MainActor
 final class ReaderViewModel: ObservableObject {
     @Published private(set) var chapter: ReaderChapter?
     @Published private(set) var isLoading: Bool = false
@@ -51,8 +52,7 @@ final class ReaderViewModel: ObservableObject {
     private let sourceCredentialProvider: any SourceCredentialProviding
     private let sourceCredentialStore: (any SourceCredentialStoring)?
     private let resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
-    private let saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase?
-    private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase?
+    private let persistenceCoordinator: ReadingActivityPersistenceCoordinator
     private let activeAppUser: (any ActiveAppUserProviding)?
     private let fallbackUserID: String
     private let now: () -> Date
@@ -74,8 +74,7 @@ final class ReaderViewModel: ObservableObject {
         sourceCredentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider(),
         sourceCredentialStore: (any SourceCredentialStoring)? = nil,
         resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase,
-        saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase? = nil,
-        accumulateAdPointsUseCase: AccumulateAdPointsUseCase? = nil,
+        persistenceCoordinator: ReadingActivityPersistenceCoordinator,
         activeAppUser: (any ActiveAppUserProviding)? = nil,
         userID: String = AppUser.localDefaultID,
         now: @escaping () -> Date = Date.init
@@ -92,8 +91,7 @@ final class ReaderViewModel: ObservableObject {
         self.sourceCredentialProvider = sourceCredentialProvider
         self.sourceCredentialStore = sourceCredentialStore
         self.resolveReaderSourcePresentationUseCase = resolveReaderSourcePresentationUseCase
-        self.saveComicChapterHistoryUseCase = saveComicChapterHistoryUseCase
-        self.accumulateAdPointsUseCase = accumulateAdPointsUseCase
+        self.persistenceCoordinator = persistenceCoordinator
         self.activeAppUser = activeAppUser
         self.fallbackUserID = userID
         self.now = now
@@ -102,7 +100,7 @@ final class ReaderViewModel: ObservableObject {
         self.pendingRestorePageIndex = restoreContext?.lastPageIndex
 
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftNavigation] Init ReaderViewModel " +
             "itemId=\(item.id) " +
             "title=\(item.title) " +
@@ -117,7 +115,7 @@ final class ReaderViewModel: ObservableObject {
     func load() async {
         if self.chapter != nil {
             #if DEBUG
-            print(
+            AppDebugLog.write(
                 "[BrowseCraftNavigation] Skip ReaderViewModel load because chapter already exists " +
                 "itemId=\(self.item.id) chapterURL=\(self.chapter?.chapterURL ?? "nil")"
             )
@@ -126,7 +124,7 @@ final class ReaderViewModel: ObservableObject {
         }
 
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftNavigation] Load reader " +
             "itemId=\(self.item.id) " +
             "title=\(self.item.title) " +
@@ -183,7 +181,7 @@ final class ReaderViewModel: ObservableObject {
         self.currentPageImageURL = URL(string: imageURLString)
 
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftComicHistory] visible page " +
             "sourceID=\(self.source.id) " +
             "comicItemID=\(self.item.id) " +
@@ -219,7 +217,7 @@ final class ReaderViewModel: ObservableObject {
     @MainActor
     func markAdPlaybackHandled() {
         #if DEBUG
-        print(
+        AppDebugLog.write(
             "[BrowseCraftAdPlayback] comic mark handled " +
             "sourceID=\(self.source.id) comicItemID=\(self.item.id) previousShouldPlayAd=\(self.shouldPlayAd)"
         )
@@ -300,7 +298,7 @@ final class ReaderViewModel: ObservableObject {
             AppAnalytics.shared.logChapterOpened(source: self.source)
 
             #if DEBUG
-            print(
+            AppDebugLog.write(
                 "[BrowseCraftNavigation] Loaded reader " +
                 "itemId=\(self.item.id) " +
                 "chapterURL=\(loadedChapter.chapterURL) " +
@@ -331,7 +329,7 @@ final class ReaderViewModel: ObservableObject {
             let classifiedMessage: String = RuleExecutionErrorClassifier.userMessage(for: classifiedError)
 
             #if DEBUG
-            print(
+            AppDebugLog.write(
                 "[BrowseCraftNavigation] Reader error " +
                 "itemId=\(self.item.id) " +
                 "detailURL=\(self.item.detailURL) " +
@@ -453,10 +451,6 @@ final class ReaderViewModel: ObservableObject {
         shouldSkipIfSaved: Bool,
         shouldAccumulateAdPoints: Bool
     ) {
-        guard let saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase = self.saveComicChapterHistoryUseCase else {
-            return
-        }
-
         if shouldSkipIfSaved,
            self.savedChapterHistoryKeys.contains(chapterKey) {
             return
@@ -464,70 +458,30 @@ final class ReaderViewModel: ObservableObject {
 
         self.savedChapterHistoryKeys.insert(chapterKey)
 
-        do {
-            try saveComicChapterHistoryUseCase.execute(
-                history: self.comicChapterHistory(chapter: chapter, chapterKey: chapterKey)
-            )
-            if shouldAccumulateAdPoints {
-                self.accumulateAdPoints(points: AdPointRule.comicPoints, chapterKey: chapterKey)
-            }
-            #if DEBUG
-            print(
-                "[BrowseCraftComicHistory] saved " +
-                "reason=\(reason) " +
-                "userID=\(self.currentUserID) " +
-                "sourceID=\(self.source.id) " +
-                "comicItemID=\(self.item.id) " +
-                "chapterKey=\(chapterKey)"
-            )
-            #endif
-        } catch {
-            #if DEBUG
-            print(
-                "[BrowseCraftComicHistory] save failed " +
-                "reason=\(reason) " +
-                "sourceID=\(self.source.id) " +
-                "comicItemID=\(self.item.id) " +
-                "chapterKey=\(chapterKey) " +
-                "error=\(error)"
-            )
-            #endif
-        }
-    }
-
-    private func accumulateAdPoints(points: Int, chapterKey: String) {
-        guard let accumulateAdPointsUseCase: AccumulateAdPointsUseCase = self.accumulateAdPointsUseCase else {
-            return
-        }
-
-        do {
-            let result: AdPointAccumulationResult = try accumulateAdPointsUseCase.execute(points: points)
-            #if DEBUG
-            print(
-                "[BrowseCraftAdPoints] comic result " +
-                "sourceID=\(self.source.id) comicItemID=\(self.item.id) " +
-                "chapterKey=\(chapterKey) \(result.debugDescription)"
-            )
-            #endif
-            if result.shouldPlayAd {
-                #if DEBUG
-                print(
-                    "[BrowseCraftAdPlayback] comic shouldPlayAd=true " +
-                    "sourceID=\(self.source.id) comicItemID=\(self.item.id) chapterKey=\(chapterKey)"
+        let history: ComicChapterHistoryTransfer = ComicChapterHistoryTransfer(
+            value: self.comicChapterHistory(chapter: chapter, chapterKey: chapterKey)
+        )
+        Task { [persistenceCoordinator] in
+            do {
+                let result: AdPointAccumulationResult? = try await persistenceCoordinator.saveComicHistory(
+                    history,
+                    adPoints: shouldAccumulateAdPoints ? AdPointRule.comicPoints : nil
                 )
-                #endif
-                self.shouldPlayAd = true
+                if result?.shouldPlayAd == true {
+                    self.shouldPlayAd = true
+                }
+                AppLog.debug(
+                    .sync,
+                    event: "comic-history-saved",
+                    metadata: ["reason": reason, "chapterKey": chapterKey]
+                )
+            } catch {
+                AppLog.error(
+                    .sync,
+                    event: "comic-history-save-failed",
+                    metadata: ["error": AppLog.safeErrorCode(error)]
+                )
             }
-        } catch {
-            #if DEBUG
-            print(
-                "[BrowseCraftAdPoints] comic accumulate failed " +
-                "sourceID=\(self.source.id) " +
-                "comicItemID=\(self.item.id) " +
-                "chapterKey=\(chapterKey) " +
-                "error=\(error)"
-            )
-            #endif
         }
     }
 

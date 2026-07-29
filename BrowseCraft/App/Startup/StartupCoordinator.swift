@@ -6,14 +6,15 @@ import Foundation
 @MainActor
 final class StartupCoordinator: ObservableObject {
     struct Dependencies {
-        let hasSources: @MainActor () throws -> Bool
-        let loadSelectedSource: @MainActor () async -> LibraryInitialLoadOutcome
+        let hasSources: @MainActor @Sendable () async throws -> Bool
+        let loadSelectedSource: @MainActor @Sendable () async -> LibraryInitialLoadOutcome
     }
 
     @Published private(set) var phase: StartupPhase = .checkingSources
 
     private let policy: StartupPolicy
     private let dependencies: Dependencies
+    private var sourceCheckTask: Task<Void, Never>?
     private var timeoutTask: Task<Void, Never>?
     private var sourceLoadTask: Task<Void, Never>?
     private var hasStarted: Bool = false
@@ -28,6 +29,7 @@ final class StartupCoordinator: ObservableObject {
     }
 
     deinit {
+        self.sourceCheckTask?.cancel()
         self.timeoutTask?.cancel()
         self.sourceLoadTask?.cancel()
     }
@@ -40,22 +42,33 @@ final class StartupCoordinator: ObservableObject {
 
         self.hasStarted = true
 
-        do {
-            guard try self.dependencies.hasSources() else {
-                self.phase = .noSources
+        let hasSources: @MainActor @Sendable () async throws -> Bool = self.dependencies.hasSources
+        self.sourceCheckTask = Task { [weak self] in
+            do {
+                guard try await hasSources() else {
+                    self?.sourceCheckTask = nil
+                    self?.phase = .noSources
+                    return
+                }
+
+                guard Task.isCancelled == false else {
+                    return
+                }
+
+                self?.sourceCheckTask = nil
+                if self?.didVideoPlaybackFail == true {
+                    self?.phase = .videoPlaybackFailed(destination: .library)
+                } else {
+                    self?.phase = .loadingSource
+                    self?.startTimeout()
+                }
+                self?.startSourceLoad()
+            } catch is CancellationError {
                 return
+            } catch {
+                self?.sourceCheckTask = nil
+                self?.phase = .sourceCheckFailed
             }
-
-            if self.didVideoPlaybackFail {
-                self.phase = .videoPlaybackFailed(destination: .library)
-            } else {
-                self.phase = .loadingSource
-                self.startTimeout()
-            }
-
-            self.startSourceLoad()
-        } catch {
-            self.phase = .sourceCheckFailed
         }
     }
 
@@ -103,7 +116,7 @@ final class StartupCoordinator: ObservableObject {
     }
 
     private func startSourceLoad() {
-        let loadSelectedSource: @MainActor () async -> LibraryInitialLoadOutcome = self.dependencies.loadSelectedSource
+        let loadSelectedSource: @MainActor @Sendable () async -> LibraryInitialLoadOutcome = self.dependencies.loadSelectedSource
 
         self.sourceLoadTask = Task { [weak self] in
             let outcome: LibraryInitialLoadOutcome = await loadSelectedSource()

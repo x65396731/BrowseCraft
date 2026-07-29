@@ -57,10 +57,14 @@ struct FavoritesView: View {
             .onAppear {
                 CrashDiagnostics.shared.setScreen(.favorite)
                 AppAnalytics.shared.logScreenView(.favorite)
-                self.viewModel.load()
+                Task {
+                    await self.viewModel.load()
+                }
             }
             .onChange(of: self.cloudSyncViewModel.contentRevision) { _, _ in
-                self.viewModel.load()
+                Task {
+                    await self.viewModel.load()
+                }
             }
             .alert(isPresented: self.errorAlertBinding) {
                 Alert(

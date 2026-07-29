@@ -34,7 +34,7 @@ struct RSSContentListView: View {
                 .simultaneousGesture(
                     TapGesture().onEnded {
                         #if DEBUG
-                        print(
+                        AppDebugLog.write(
                             "[BrowseCraftNavigation] Tap RSS article " +
                             "itemId=\(item.id) " +
                             "title=\(item.title) " +
