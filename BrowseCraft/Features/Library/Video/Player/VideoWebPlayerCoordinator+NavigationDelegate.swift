@@ -23,6 +23,10 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
                 return (.cancel, preferences)
             }
 
+            if navigationAction.targetFrame?.isMainFrame == true {
+                self.resetMobileAdaptation(in: webView)
+            }
+
             #if DEBUG
             if navigationAction.targetFrame == nil {
                 AppDebugLog.write(
@@ -63,6 +67,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
         return host == initialHost
             || host.hasSuffix(".\(initialHost)")
             || initialHost.hasSuffix(".\(host)")
+            || self.isAllowedMobileAlternateHost(host)
     }
 
     private func isYouTubeHost(_ host: String) -> Bool {
@@ -85,8 +90,55 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
             "[BrowseCraftVideoWebPlayer] did-finish " +
             "url=\(self.safeLogURL(webView.url)) title=\(webView.title ?? "nil")"
         )
+        self.logViewportMetrics(webView)
         #endif
+
+        self.scheduleMobileAdaptation(in: webView)
     }
+
+    #if DEBUG
+    private func logViewportMetrics(_ webView: WKWebView) {
+        Task { @MainActor in
+            do {
+                let value: Any = try await webView.evaluateJavaScript(
+                    """
+                    (() => ({
+                      innerWidth: window.innerWidth || 0,
+                      documentWidth: document.documentElement
+                        ? document.documentElement.clientWidth
+                        : 0,
+                      scrollWidth: document.documentElement
+                        ? document.documentElement.scrollWidth
+                        : 0,
+                      visualWidth: window.visualViewport
+                        ? window.visualViewport.width
+                        : 0,
+                      viewport: document.querySelector('meta[name="viewport"]')
+                        ?.getAttribute('content') || "missing"
+                    }))();
+                    """
+                )
+                guard let metrics: [String: Any] = value as? [String: Any] else {
+                    return
+                }
+                AppDebugLog.write(
+                    "[BrowseCraftVideoWebPlayer] viewport " +
+                    "innerWidth=\(String(describing: metrics["innerWidth"] ?? "nil")) " +
+                    "documentWidth=\(String(describing: metrics["documentWidth"] ?? "nil")) " +
+                    "scrollWidth=\(String(describing: metrics["scrollWidth"] ?? "nil")) " +
+                    "visualWidth=\(String(describing: metrics["visualWidth"] ?? "nil")) " +
+                    "pageZoom=\(webView.pageZoom) " +
+                    "meta=\(String(describing: metrics["viewport"] ?? "nil"))"
+                )
+            } catch {
+                AppDebugLog.write(
+                    "[BrowseCraftVideoWebPlayer] viewport-read-failed " +
+                    "error=\(error.localizedDescription)"
+                )
+            }
+        }
+    }
+    #endif
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation?, withError error: Error) {
         #if DEBUG

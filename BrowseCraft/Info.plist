@@ -28,6 +28,9 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-4351001986548416~2480603928</string>
+	<!-- 中文注释：未接入 first-party on-device conversion，显式关闭以避免 SDK 反复探测不可用服务。 -->
+	<key>GOOGLE_ADS_ON_DEVICE_CONVERSION_EVENT_DATA_ENABLED</key>
+	<false/>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

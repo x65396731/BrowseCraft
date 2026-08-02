@@ -53,9 +53,8 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring {
     func cookieHeader(for context: SourceRequestContext, url: URL) -> String? {
         guard let credential: SourceCredential = self.cookieCredential(for: context),
               credential.cookies.isEmpty == false else {
-            #if DEBUG
-            self.debugCredentialMiss(context: context, url: url, operation: "cookie")
-            #endif
+            // 中文注释：公开/匿名规则没有凭据是正常路径，不为每个资源请求输出 miss。
+            // 已存在 Cookie 但无法匹配目标 URL 时，下面仍会记录可诊断的 miss。
             return nil
         }
 
@@ -91,9 +90,6 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring {
     func headerOverrides(for context: SourceRequestContext, url: URL) -> [String: String] {
         guard let credential: SourceCredential = self.headerCredential(for: context, url: url),
               self.isExpired(credential) == false else {
-            #if DEBUG
-            self.debugCredentialMiss(context: context, url: url, operation: "headers")
-            #endif
             return [:]
         }
 
@@ -249,20 +245,6 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring {
 
         return hostMatches && pathMatches
     }
-
-    #if DEBUG
-    private func debugCredentialMiss(
-        context: SourceRequestContext,
-        url: URL,
-        operation: String
-    ) {
-        AppLog.debug(
-            .credential,
-            event: "\(operation)-miss",
-            metadata: self.metadata(context: context, url: url)
-        )
-    }
-    #endif
 
     private func metadata(
         context: SourceRequestContext,

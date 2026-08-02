@@ -88,7 +88,9 @@ targets:
       - package: Firebase
         product: FirebaseCrashlytics
       - package: Firebase
-        product: FirebaseAnalytics
+        # 中文注释：应用未申请 ATT/IDFA；使用 Analytics Core，避免链接广告身份
+        # 支持后又缺少 IdentitySupport 所产生的启动警告。
+        product: FirebaseAnalyticsCore
     configFiles:
       Debug: Config/CatalogEncryption.debug.xcconfig
       Release: Config/CatalogEncryption.release.xcconfig
