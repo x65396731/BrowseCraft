@@ -2,11 +2,22 @@ import Foundation
 import UIKit
 
 // 中文注释：平台设备信息属于 Infrastructure；仅为 BrowseCraft Portal API 生成业务请求头。
-struct PortalRequestHeaderProvider {
+struct PortalRequestHeaderProvider: Sendable {
     private let activeAppUser: any ActiveAppUserProviding
+    private let osInfo: String
+    private let deviceInfo: String
+    private let appVersion: String
 
+    @MainActor
     init(activeAppUser: any ActiveAppUserProviding) {
         self.activeAppUser = activeAppUser
+        let device: UIDevice = UIDevice.current
+        self.osInfo = "\(device.systemName) \(device.systemVersion)"
+        self.deviceInfo = Self.hardwareIdentifier() ?? device.model
+        let info: [String: Any] = Bundle.main.infoDictionary ?? [:]
+        let version: String = info["CFBundleShortVersionString"] as? String ?? "0"
+        let build: String = info["CFBundleVersion"] as? String ?? "0"
+        self.appVersion = "\(version)(\(build))"
     }
 
     func headers() -> [String: String] {
@@ -17,22 +28,6 @@ struct PortalRequestHeaderProvider {
             "aplVersion": self.appVersion,
             "X-Request-Id": UUID().uuidString
         ]
-    }
-
-    private var osInfo: String {
-        let device: UIDevice = UIDevice.current
-        return "\(device.systemName) \(device.systemVersion)"
-    }
-
-    private var deviceInfo: String {
-        return Self.hardwareIdentifier() ?? UIDevice.current.model
-    }
-
-    private var appVersion: String {
-        let info: [String: Any] = Bundle.main.infoDictionary ?? [:]
-        let version: String = info["CFBundleShortVersionString"] as? String ?? "0"
-        let build: String = info["CFBundleVersion"] as? String ?? "0"
-        return "\(version)(\(build))"
     }
 
     private static func hardwareIdentifier() -> String? {

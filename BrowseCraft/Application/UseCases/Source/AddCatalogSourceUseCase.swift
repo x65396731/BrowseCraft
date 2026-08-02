@@ -33,7 +33,7 @@ struct AddCatalogSourceResult {
 struct LoadCatalogSourcesUseCase {
     private let pageDataLoader: PageDataLoader
     private let catalogAPIURL: URL?
-    private let requestHeaders: () -> [String: String]
+    private let requestHeaders: @Sendable () -> [String: String]
     private let catalogRuleDecryptor: CatalogRuleDecryptor
     private let jsonDecoder: JSONDecoder
     private let jsonEncoder: JSONEncoder
@@ -41,7 +41,7 @@ struct LoadCatalogSourcesUseCase {
     init(
         pageDataLoader: PageDataLoader,
         catalogAPIURL: URL? = URL(string: "https://anyportal.online/catalog/sources"),
-        requestHeaders: @escaping () -> [String: String] = { [:] },
+        requestHeaders: @escaping @Sendable () -> [String: String] = { [:] },
         catalogRuleDecryptor: CatalogRuleDecryptor = CatalogRuleDecryptor(),
         jsonDecoder: JSONDecoder = JSONDecoder(),
         jsonEncoder: JSONEncoder = JSONEncoder()
@@ -337,7 +337,7 @@ struct AddCatalogSourceUseCase {
         let defaultListContext: ListContext? = nil
         let listOutput: SourceListOutput = try await self.refreshSourceRuntimeUseCase.execute(
             source: source,
-            listContext: defaultListContext
+            listContext: ListContextTransfer(value: defaultListContext)
         )
         try self.validateSourceListLoadUseCase.execute(listOutput)
         try self.sourceRepository.saveSource(source)

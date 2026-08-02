@@ -1,5 +1,5 @@
 import Foundation
-import Nuke
+@preconcurrency import Nuke
 
 // 中文注释：ImageCacheConfigurator 负责把应用设置转换成 Nuke 图片缓存配置。
 

@@ -1,7 +1,7 @@
 import Foundation
 
 // 中文注释：FavoriteItemSyncService 只同步 favorite_items 明细，不直接同步 favorites 聚合 JSON。
-final class FavoriteItemSyncService {
+final class FavoriteItemSyncService: @unchecked Sendable {
     private let localStore: FavoriteItemSyncLocalStore
     private let cloudStore: CloudRecordStore
     private let activeAppUser: (any ActiveAppUserProviding)?

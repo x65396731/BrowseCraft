@@ -9,7 +9,7 @@ struct DiagnosticIdentity {
     let sessionId: String
 }
 
-final class DiagnosticIdentityStore {
+final class DiagnosticIdentityStore: @unchecked Sendable {
     static let shared: DiagnosticIdentityStore = DiagnosticIdentityStore()
 
     private enum Key {
@@ -20,6 +20,7 @@ final class DiagnosticIdentityStore {
     private let keychain: DiagnosticKeychainStore
     private let fallbackDefaults: UserDefaults
     private let sessionId: String
+    private let lock: NSLock = NSLock()
 
     private init(
         keychain: DiagnosticKeychainStore = DiagnosticKeychainStore(),
@@ -50,6 +51,11 @@ final class DiagnosticIdentityStore {
     }
 
     private func stableValue(key: String, makeValue: () -> String) -> String {
+        self.lock.lock()
+        defer {
+            self.lock.unlock()
+        }
+
         if let keychainValue: String = self.keychain.string(forKey: key), keychainValue.isEmpty == false {
             return keychainValue
         }

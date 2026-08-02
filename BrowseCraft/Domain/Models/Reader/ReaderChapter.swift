@@ -19,7 +19,7 @@ indirect enum ReaderPageResource: Hashable {
     }
 }
 
-struct ProtectedReaderImageReference: Hashable {
+struct ProtectedReaderImageReference: Hashable, @unchecked Sendable {
     var displayURLString: String {
         switch self.execution {
         case .legacy(let reference):

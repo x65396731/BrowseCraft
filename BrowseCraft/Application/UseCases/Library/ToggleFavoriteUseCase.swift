@@ -3,7 +3,7 @@ import Foundation
 // 中文注释：ToggleFavoriteUseCase.swift 属于应用用例层，用于说明本文件承载的核心职责。
 
 /// 中文注释：读取并切换单个内容条目的收藏状态。
-struct ToggleFavoriteUseCase {
+struct ToggleFavoriteUseCase: @unchecked Sendable {
     private let favoriteRepository: FavoriteRepository
 
     init(favoriteRepository: FavoriteRepository) {

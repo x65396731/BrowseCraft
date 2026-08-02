@@ -119,8 +119,11 @@ struct StartupVideoPlayerView: UIViewRepresentable {
             self.statusObservation = player.observe(\.status, options: [.initial, .new]) { [weak self] player, _ in
                 let status: AVPlayer.Status = player.status
                 let errorDescription: String? = player.error?.localizedDescription
+                guard let coordinator: Coordinator = self else {
+                    return
+                }
                 DispatchQueue.main.async {
-                    self?.handlePlayerStatus(status, errorDescription: errorDescription)
+                    coordinator.handlePlayerStatus(status, errorDescription: errorDescription)
                 }
             }
         }
@@ -128,8 +131,11 @@ struct StartupVideoPlayerView: UIViewRepresentable {
         private func observeCurrentItem(of player: AVQueuePlayer) {
             self.currentItemObservation = player.observe(\.currentItem, options: [.initial, .new]) { [weak self] player, _ in
                 let currentItem: AVPlayerItem? = player.currentItem
+                guard let coordinator: Coordinator = self else {
+                    return
+                }
                 DispatchQueue.main.async {
-                    self?.observeStatus(of: currentItem)
+                    coordinator.observeStatus(of: currentItem)
                 }
             }
         }
@@ -147,8 +153,11 @@ struct StartupVideoPlayerView: UIViewRepresentable {
                 }
 
                 let detail: String = item.error?.localizedDescription ?? "AVPlayerItem entered the failed state"
+                guard let coordinator: Coordinator = self else {
+                    return
+                }
                 DispatchQueue.main.async {
-                    self?.reportFailure(detail: detail)
+                    coordinator.reportFailure(detail: detail)
                 }
             }
         }

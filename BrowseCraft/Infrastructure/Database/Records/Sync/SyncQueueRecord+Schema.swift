@@ -1,4 +1,4 @@
-import GRDB
+@preconcurrency import GRDB
 
 extension SyncQueueRecord {
     enum Columns {

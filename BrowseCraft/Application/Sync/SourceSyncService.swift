@@ -13,7 +13,7 @@ struct SourceSyncResult: Hashable, Sendable {
     var failedCount: Int
 }
 
-final class SourceSyncService: CloudSyncService {
+final class SourceSyncService: CloudSyncService, @unchecked Sendable {
     private let localStore: SourceSyncLocalStore
     private let cloudStore: CloudRecordStore
     private let accountScopeProvider: any ActiveAccountScopeProviding

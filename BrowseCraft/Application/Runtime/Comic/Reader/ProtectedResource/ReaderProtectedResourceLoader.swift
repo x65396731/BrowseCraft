@@ -2,7 +2,7 @@ import Foundation
 
 // 中文注释：ReaderProtectedResourceLoader 是 Reader 唯一的受保护图片执行边界，集中处理 V2 与 legacy 双轨策略。
 
-struct ReaderProtectedResourceLoader {
+struct ReaderProtectedResourceLoader: @unchecked Sendable {
     typealias LegacyLoad = (ProtectedResourceLoadInput) async throws -> ProtectedResourceOutput
     typealias PipelineExecute = (ResourcePipelineExecutionInput) async throws -> ResourcePipelineExecutionOutput
 

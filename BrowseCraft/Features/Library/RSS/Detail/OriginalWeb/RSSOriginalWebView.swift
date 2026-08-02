@@ -119,19 +119,17 @@ private final class RSSOriginalWebCoordinator: NSObject, ObservableObject, WKUID
 
     func webView(
         _ webView: WKWebView,
-        decidePolicyFor navigationAction: WKNavigationAction,
-        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
-    ) {
+        decidePolicyFor navigationAction: WKNavigationAction
+    ) async -> WKNavigationActionPolicy {
         guard navigationAction.targetFrame?.isMainFrame == true,
               let navigationURL: URL = navigationAction.request.url,
               let upgradedURL: URL = Self.httpsURLIfNeeded(from: navigationURL) else {
-            decisionHandler(.allow)
-            return
+            return .allow
         }
 
         self.isLoadingHTTPSUpgrade = true
-        decisionHandler(.cancel)
         webView.load(URLRequest(url: upgradedURL))
+        return .cancel
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation?) {

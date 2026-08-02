@@ -43,7 +43,7 @@ struct SourceTabsValidationResult: Equatable {
 }
 
 // 中文注释：P5 tab 验证按 source kind 分流；RSS 只验证 feed，不进入 listRule 链路。
-struct ValidateSourceTabsUseCase {
+struct ValidateSourceTabsUseCase: @unchecked Sendable {
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
     private let rssFeedLoader: (any RSSFeedLoading)?
     private let sourcePresentationResolver: ResolveLibrarySourcePresentationUseCase
@@ -119,7 +119,7 @@ struct ValidateSourceTabsUseCase {
             do {
                 let output: SourceListOutput = try await self.refreshSourceRuntimeUseCase.execute(
                     source: source,
-                    listContext: context
+                    listContext: ListContextTransfer(value: context)
                 )
                 do {
                     try self.validateSourceListLoadUseCase.execute(output)

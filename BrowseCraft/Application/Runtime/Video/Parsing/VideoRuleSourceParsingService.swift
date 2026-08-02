@@ -112,7 +112,7 @@ protocol VideoRuleSourceParsingService {
     ) throws -> VideoRuleParsedPlayback
 }
 
-enum VideoRuleSourceParsingError: LocalizedError {
+enum VideoRuleSourceParsingError: LocalizedError, @unchecked Sendable {
     case unsupportedSelectorKind(SelectorKind)
     case unsupportedFunction(ExtractFunction)
     case readySelectorEmpty(ruleID: String)

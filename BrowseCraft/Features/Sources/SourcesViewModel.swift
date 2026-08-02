@@ -1,6 +1,6 @@
 import Combine
 import Foundation
-import BrowseCraftCore
+@preconcurrency import BrowseCraftCore
 import BrowseCraftDomain
 
 // 中文注释：SourcesViewModel.swift 属于界面功能层，用于说明本文件承载的核心职责。
@@ -776,7 +776,7 @@ final class SourcesViewModel: ObservableObject {
         // Sources 页的刷新只针对默认入口；非默认 tab 由 Library 按当前 ListContext 单独刷新。
         let output: SourceListOutput = try await self.refreshSourceRuntimeUseCase.execute(
             source: source,
-            listContext: nil
+            listContext: ListContextTransfer(value: nil)
         )
         return self.contentItemMapper.map(output: output, source: source, context: nil)
     }

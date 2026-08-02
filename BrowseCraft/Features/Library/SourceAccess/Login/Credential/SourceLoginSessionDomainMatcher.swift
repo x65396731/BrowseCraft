@@ -11,6 +11,7 @@ enum SourceLoginSessionDomainMatcher {
         }
     }
 
+    @MainActor
     static func matches(record: WKWebsiteDataRecord, state: LibrarySourceLoginState) -> Bool {
         let recordDomain: String = record.displayName
             .trimmingCharacters(in: CharacterSet(charactersIn: "."))

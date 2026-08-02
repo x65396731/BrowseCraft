@@ -100,7 +100,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
     private func logViewportMetrics(_ webView: WKWebView) {
         Task { @MainActor in
             do {
-                let value: Any = try await webView.evaluateJavaScript(
+                let value: Any? = try await webView.evaluateJavaScript(
                     """
                     (() => ({
                       innerWidth: window.innerWidth || 0,

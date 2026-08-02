@@ -1,6 +1,6 @@
 import Foundation
 
-struct SourceDiscoveryService {
+struct SourceDiscoveryService: @unchecked Sendable {
     private let discoverComicResourcesUseCase: DiscoverComicResourcesUseCase
     private let discoverVideoResourcesUseCase: DiscoverVideoResourcesUseCase
     private let discoverRSSFeedsUseCase: DiscoverRSSFeedsUseCase

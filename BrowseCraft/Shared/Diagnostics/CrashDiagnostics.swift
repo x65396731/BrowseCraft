@@ -1,10 +1,9 @@
 import FirebaseCrashlytics
 import Foundation
-import UIKit
 
 // 中文注释：CrashDiagnostics 封装 Crashlytics 写入点，业务层只更新诊断上下文。
 
-final class CrashDiagnostics {
+final class CrashDiagnostics: @unchecked Sendable {
     static let shared: CrashDiagnostics = CrashDiagnostics()
     static let collectionEnabledDefaultsKey: String = "settings.diagnosticsEnabled"
 
@@ -38,7 +37,10 @@ final class CrashDiagnostics {
         crashlytics.setCustomValue(Self.appVersion, forKey: Key.appVersion)
         crashlytics.setCustomValue(Self.buildNumber, forKey: Key.buildNumber)
         crashlytics.setCustomValue(Self.deviceModel, forKey: Key.deviceModel)
-        crashlytics.setCustomValue(UIDevice.current.systemVersion, forKey: Key.systemVersion)
+        crashlytics.setCustomValue(
+            ProcessInfo.processInfo.operatingSystemVersionString,
+            forKey: Key.systemVersion
+        )
     }
 
     func setScreen(_ screen: DiagnosticScreen) {
@@ -115,6 +117,6 @@ final class CrashDiagnostics {
             result.append(String(UnicodeScalar(UInt8(value))))
         }
 
-        return identifier.isEmpty ? UIDevice.current.model : identifier
+        return identifier.isEmpty ? "unknown" : identifier
     }
 }

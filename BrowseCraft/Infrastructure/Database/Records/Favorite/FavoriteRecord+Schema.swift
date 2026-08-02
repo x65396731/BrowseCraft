@@ -1,4 +1,4 @@
-import GRDB
+@preconcurrency import GRDB
 
 extension FavoriteRecord {
     enum Columns {

@@ -12,7 +12,7 @@ enum AppleSignInAuthorizationError: Error, Equatable, Sendable {
 }
 
 @MainActor
-protocol AppleSignInAuthorizing: AnyObject {
+protocol AppleSignInAuthorizing: AnyObject, Sendable {
     func authorize(nonce: String) async throws -> String
 }
 

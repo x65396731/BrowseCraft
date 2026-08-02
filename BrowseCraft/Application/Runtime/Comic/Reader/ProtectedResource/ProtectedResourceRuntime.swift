@@ -27,7 +27,7 @@ struct ProtectedResourceLoadInput {
     }
 }
 
-enum ProtectedResourceRuntimeError: LocalizedError, Equatable {
+enum ProtectedResourceRuntimeError: LocalizedError, Equatable, @unchecked Sendable {
     case invalidURL(String)
     case requestFailed(url: String, reason: String)
     case invalidKeyResponse(reason: String)

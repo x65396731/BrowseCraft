@@ -7,7 +7,7 @@ struct AddRSSSourceResult {
     let listOutput: SourceListOutput
 }
 
-struct AddRSSSourceUseCase {
+struct AddRSSSourceUseCase: @unchecked Sendable {
     private let sourceRepository: SourceRepository
     private let feedLoader: any RSSFeedLoading
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
@@ -56,7 +56,7 @@ struct AddRSSSourceUseCase {
 
         let listOutput: SourceListOutput = try await self.refreshSourceRuntimeUseCase.execute(
             source: source,
-            listContext: nil
+            listContext: ListContextTransfer(value: nil)
         )
         try self.validateSourceListLoadUseCase.execute(listOutput)
         try self.sourceRepository.saveSource(source)

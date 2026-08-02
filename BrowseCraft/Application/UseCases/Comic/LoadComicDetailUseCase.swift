@@ -2,7 +2,7 @@ import Foundation
 import BrowseCraftCore
 
 /// 中文注释：漫画详情入口依赖 Core 的详情能力协议；具体规则加载和解析由 runtime 内部完成。
-struct LoadComicDetailUseCase {
+struct LoadComicDetailUseCase: @unchecked Sendable {
     private let runtimeResolver: any SourceRuntimeResolving
     private let itemReferenceMapper: SourceItemReferenceMapper = SourceItemReferenceMapper()
 

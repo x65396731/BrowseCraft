@@ -22,7 +22,7 @@ enum WKWebViewHTMLLoaderError: LocalizedError {
 }
 
 /// 中文注释：真实 WKWebView 实现；仅用于规则标记 needsWebView 的页面内容获取。
-final class WKWebViewHTMLLoader: RenderedPageContentLoader {
+final class WKWebViewHTMLLoader: RenderedPageContentLoader, @unchecked Sendable {
     private let credentialProvider: any SourceCredentialProviding
     private let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
     private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
@@ -146,21 +146,17 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
 
     func webView(
         _ webView: WKWebView,
-        decidePolicyFor navigationAction: WKNavigationAction,
-        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
-    ) {
+        decidePolicyFor navigationAction: WKNavigationAction
+    ) async -> WKNavigationActionPolicy {
         guard navigationAction.targetFrame?.isMainFrame == true,
               let navigationURL: URL = navigationAction.request.url,
               let upgradedURL: URL = self.httpsURLIfNeeded(from: navigationURL) else {
-            decisionHandler(.allow)
-            return
+            return .allow
         }
 
         self.isLoadingHTTPSUpgrade = true
-        decisionHandler(.cancel)
-        Task { @MainActor in
-            webView.load(self.urlRequest(for: upgradedURL, includeBody: false))
-        }
+        webView.load(self.urlRequest(for: upgradedURL, includeBody: false))
+        return .cancel
     }
 
     private func startTimeout() {

@@ -54,23 +54,9 @@ struct SourcesFeatureFactory {
                 loadRSSHubDiscoveryCandidatesUseCase: loadRSSHubDiscoveryCandidatesUseCase
             )
         )
-        let sourceRuleEditorService: SourceRuleEditorService = SourceRuleEditorService(
-            updateSourceRuleUseCase: UpdateSourceRuleUseCase(
-                sourceRepository: self.sourceRepository
-            ),
-            updateVideoSourceConfigurationUseCase: UpdateVideoSourceConfigurationUseCase(
-                sourceRepository: self.sourceRepository
-            ),
-            duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase(
-                sourceRepository: self.sourceRepository
-            ),
-            exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase(
-                sourceRepository: self.sourceRepository
-            ),
-            importSourceRulePackageUseCase: ImportSourceRulePackageUseCase(
-                sourceRepository: self.sourceRepository
-            )
-        )
+        let sourceRuleEditorService: SourceRuleEditorService = self.makeSourceRuleEditorService()
+        let sourceRuleEditingCoordinator: SourceRuleEditingCoordinator =
+            SourceRuleEditingCoordinator(service: self.makeSourceRuleEditorService())
         let portalRequestHeaderProvider: PortalRequestHeaderProvider = PortalRequestHeaderProvider(
             activeAppUser: self.activeAppUser
         )
@@ -81,7 +67,9 @@ struct SourcesFeatureFactory {
             ),
             loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase(
                 pageDataLoader: self.pageDataLoader,
-                requestHeaders: portalRequestHeaderProvider.headers
+                requestHeaders: {
+                    return portalRequestHeaderProvider.headers()
+                }
             )
         )
         let persistenceCoordinator: SourcesPersistenceCoordinator = SourcesPersistenceCoordinator(
@@ -122,7 +110,7 @@ struct SourcesFeatureFactory {
             discoveryService: sourceDiscoveryService,
             catalogService: sourceCatalogService,
             ruleEditorService: sourceRuleEditorService,
-            ruleEditingCoordinator: SourceRuleEditingCoordinator(service: sourceRuleEditorService),
+            ruleEditingCoordinator: sourceRuleEditingCoordinator,
             recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase(),
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
             validateSourceTabsUseCase: ValidateSourceTabsUseCase(
@@ -131,6 +119,26 @@ struct SourcesFeatureFactory {
             ),
             sourceSelectionStore: self.sourceSelectionStore,
             activeAppUser: self.activeAppUser
+        )
+    }
+
+    private func makeSourceRuleEditorService() -> SourceRuleEditorService {
+        return SourceRuleEditorService(
+            updateSourceRuleUseCase: UpdateSourceRuleUseCase(
+                sourceRepository: self.sourceRepository
+            ),
+            updateVideoSourceConfigurationUseCase: UpdateVideoSourceConfigurationUseCase(
+                sourceRepository: self.sourceRepository
+            ),
+            duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase(
+                sourceRepository: self.sourceRepository
+            ),
+            exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase(
+                sourceRepository: self.sourceRepository
+            ),
+            importSourceRulePackageUseCase: ImportSourceRulePackageUseCase(
+                sourceRepository: self.sourceRepository
+            )
         )
     }
 }

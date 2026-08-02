@@ -2,7 +2,11 @@ import Foundation
 import BrowseCraftCore
 
 // 中文注释：根据 Source 配置选择对应 runtime，并加载 Sources/Library 页面展示的列表内容。
-struct RefreshSourceRuntimeUseCase {
+struct ListContextTransfer: @unchecked Sendable {
+    let value: ListContext?
+}
+
+struct RefreshSourceRuntimeUseCase: @unchecked Sendable {
     private let runtimeResolver: any SourceRuntimeResolving
 
     init(
@@ -13,14 +17,15 @@ struct RefreshSourceRuntimeUseCase {
 
     func execute(
         source: Source,
-        listContext: ListContext?,
+        listContext: ListContextTransfer,
         page: Int = 1,
         debugMode: Bool = false
     ) async throws -> SourceListOutput {
+        let context: ListContext? = listContext.value
         let runtime: any SourceRuntime = try self.runtimeResolver.runtime(for: source)
         let input: SourceListInput = self.listInput(
             source: source,
-            listContext: listContext,
+            listContext: context,
             page: page,
             debugMode: debugMode
         )
@@ -30,7 +35,7 @@ struct RefreshSourceRuntimeUseCase {
             "[BrowseCraftRuntime] refresh output source=\(source.id) " +
             "kind=\(source.configuration.kind.rawValue) " +
             "items=\(output.items.count) " +
-            "context=\(self.contextDescription(listContext))"
+            "context=\(self.contextDescription(context))"
         )
         #endif
         return output

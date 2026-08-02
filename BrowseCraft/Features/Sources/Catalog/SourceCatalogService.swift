@@ -1,7 +1,7 @@
 import BrowseCraftCore
 import BrowseCraftDomain
 
-struct SourceCatalogService {
+struct SourceCatalogService: @unchecked Sendable {
     private let addCatalogSourceUseCase: AddCatalogSourceUseCase
     private let loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase
 

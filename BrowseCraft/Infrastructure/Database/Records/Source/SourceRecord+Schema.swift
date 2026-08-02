@@ -1,4 +1,4 @@
-import GRDB
+@preconcurrency import GRDB
 
 extension SourceRecord {
     enum Columns {

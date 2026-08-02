@@ -8,7 +8,7 @@ struct ReaderPageVisibility: Equatable {
 }
 
 struct ReaderPageVisibilityPreferenceKey: PreferenceKey {
-    static var defaultValue: ReaderPageVisibility?
+    static let defaultValue: ReaderPageVisibility? = nil
 
     static func reduce(value: inout ReaderPageVisibility?, nextValue: () -> ReaderPageVisibility?) {
         guard let nextValue: ReaderPageVisibility = nextValue() else {

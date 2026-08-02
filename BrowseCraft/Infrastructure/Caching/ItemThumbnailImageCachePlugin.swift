@@ -1,8 +1,8 @@
 import Foundation
-import Nuke
+@preconcurrency import Nuke
 
 // 中文注释：ItemThumbnailImageCachePlugin 为 Library item 缩略图提供独立于漫画阅读图的缓存池。
-final class ItemThumbnailImageCachePlugin: ImagePipelineDelegate {
+final class ItemThumbnailImageCachePlugin: ImagePipelineDelegate, @unchecked Sendable {
     static let shared: ItemThumbnailImageCachePlugin = ItemThumbnailImageCachePlugin()
 
     private enum Constants {

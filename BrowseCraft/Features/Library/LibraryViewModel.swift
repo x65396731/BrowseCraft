@@ -1,6 +1,6 @@
 import Combine
 import Foundation
-import BrowseCraftCore
+@preconcurrency import BrowseCraftCore
 
 // 中文注释：LibraryViewModel 负责 Library 当前 source、runtime 刷新、当前快照和列表状态。
 
@@ -222,7 +222,7 @@ final class LibraryViewModel: ObservableObject {
         do {
             let output: SourceListOutput = try await self.refreshSourceRuntimeUseCase.execute(
                 source: refreshedSelectedSource,
-                listContext: expectedListContext
+                listContext: ListContextTransfer(value: expectedListContext)
             )
             if Task.isCancelled == false,
                self.refreshToken == currentRefreshToken,

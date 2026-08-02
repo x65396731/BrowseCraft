@@ -5,7 +5,7 @@ import Foundation
 /// 中文注释：用户添加的内容源模型。
 /// 中文注释：Source 是 App 持久化实体；执行语义由 SourceRuntime 决定。
 /// 中文注释：Source 的主配置入口是 SourceConfiguration；rule 访问器只用于迁移期兼容旧调用点。
-struct Source: Identifiable, Hashable {
+struct Source: Identifiable, Hashable, @unchecked Sendable {
     var userID: String
     var id: String
     var name: String

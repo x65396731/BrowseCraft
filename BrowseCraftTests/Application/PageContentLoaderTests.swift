@@ -89,7 +89,7 @@ private final class RecordingPageHTTPClient: PageContentLoader, PageDataLoader {
     }
 }
 
-private final class RecordingRenderedPageContentLoader: RenderedPageContentLoader {
+private final class RecordingRenderedPageContentLoader: RenderedPageContentLoader, @unchecked Sendable {
     private let html: String
     private(set) var requests: [PageLoadRequest] = []
 

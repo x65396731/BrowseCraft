@@ -1,6 +1,6 @@
 import Combine
 import Foundation
-import BrowseCraftCore
+@preconcurrency import BrowseCraftCore
 
 // 中文注释：RSSContentDetailViewModel 负责 RSS 详情页的业务行为。
 
