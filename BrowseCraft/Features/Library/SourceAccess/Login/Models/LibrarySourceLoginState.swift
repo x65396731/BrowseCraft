@@ -50,8 +50,7 @@ struct LibrarySourceLoginStateResolver {
     }
 
     private func loginURL(for source: Source) -> URL? {
-        guard case .comic(let configuration) = source.configuration,
-              let rawLoginURL: String = configuration.rule.site?.loginURL else {
+        guard let rawLoginURL: String = self.rawLoginURL(for: source) else {
             return nil
         }
 
@@ -67,8 +66,7 @@ struct LibrarySourceLoginStateResolver {
     }
 
     private func credentialKeys(for source: Source) -> [String] {
-        guard case .comic(let configuration) = source.configuration,
-              let context: [String: SiteRuleContextValue] = configuration.rule.context else {
+        guard let context: [String: SiteRuleContextValue] = self.context(for: source) else {
             return []
         }
 
@@ -97,6 +95,28 @@ struct LibrarySourceLoginStateResolver {
             return nil
         }
         return key
+    }
+
+    private func rawLoginURL(for source: Source) -> String? {
+        switch source.configuration {
+        case .comic(let configuration):
+            return configuration.rule.site?.loginURL
+        case .video(let configuration):
+            return configuration.rule.site.loginURL
+        case .rss, .plugin:
+            return nil
+        }
+    }
+
+    private func context(for source: Source) -> [String: SiteRuleContextValue]? {
+        switch source.configuration {
+        case .comic(let configuration):
+            return configuration.rule.context
+        case .video(let configuration):
+            return configuration.rule.context
+        case .rss, .plugin:
+            return nil
+        }
     }
 
     private func hasActiveCredential(for sourceID: String) -> Bool {

@@ -9,6 +9,7 @@ final class VideoPlayerViewModel: ObservableObject {
     @Published private(set) var isPrepared: Bool = false
     @Published private(set) var isLoadingEpisodeSwitch: Bool = false
     @Published private(set) var shouldPlayAd: Bool = false
+    @Published private(set) var requestedSourceLogin: LibrarySourceLoginState?
     @Published var errorMessage: String?
 
     let source: Source
@@ -20,12 +21,14 @@ final class VideoPlayerViewModel: ObservableObject {
     private let persistenceCoordinator: ReadingActivityPersistenceCoordinator
     private let runtimeResolver: any SourceRuntimeResolving
     private let playbackRequestResolver: VideoPlaybackRequestResolver
+    private let sourceCredentialStore: (any SourceCredentialStoring)?
     private let activeAppUser: (any ActiveAppUserProviding)?
     private let fallbackUserID: String
     private let now: () -> Date
     private var autosaveTask: Task<Void, Never>?
     private var didSeekToRestoredTime: Bool = false
     private var lastSavedPlaybackTime: TimeInterval?
+    private var credentialRevision: Int = 0
     /// 中文注释：异步保存可能乱序返回；只有最新一轮保存可以更新 ViewModel 的已保存位置。
     private var progressSaveRevision: UInt64 = 0
     private var lastVideoAdPointCheckAt: Date?
@@ -56,6 +59,7 @@ final class VideoPlayerViewModel: ObservableObject {
             credentialProvider: credentialProvider,
             systemCookieHeaderProvider: systemCookieHeaderProvider
         )
+        self.sourceCredentialStore = credentialProvider as? any SourceCredentialStoring
         self.activeAppUser = activeAppUser
         self.fallbackUserID = userID
         self.now = now
@@ -139,6 +143,18 @@ final class VideoPlayerViewModel: ObservableObject {
         }
     }
 
+    var restrictedLoginState: LibrarySourceLoginState? {
+        _ = self.credentialRevision
+        guard case .restricted(.requiresLogin) = self.reference.status,
+              let sourceCredentialStore: any SourceCredentialStoring = self.sourceCredentialStore else {
+            return nil
+        }
+
+        return LibrarySourceLoginStateResolver(
+            credentialStore: sourceCredentialStore
+        ).resolve(source: self.source)
+    }
+
     var restoredPlaybackTime: TimeInterval {
         return self.currentPlaybackTime
     }
@@ -200,6 +216,26 @@ final class VideoPlayerViewModel: ObservableObject {
         self.saveCurrentProgress(force: true)
     }
 
+    func requestSourceLogin() {
+        self.requestedSourceLogin = self.restrictedLoginState
+    }
+
+    func dismissRequestedSourceLogin() {
+        self.requestedSourceLogin = nil
+    }
+
+    func completeRequestedSourceLogin(credential: SourceCredential) async {
+        guard credential.sourceID == self.requestedSourceLogin?.sourceID,
+              let sourceCredentialStore: any SourceCredentialStoring = self.sourceCredentialStore else {
+            return
+        }
+
+        sourceCredentialStore.save(credential)
+        self.credentialRevision += 1
+        self.requestedSourceLogin = nil
+        await self.reloadPlaybackAfterLogin()
+    }
+
     func markAdPlaybackHandled() {
         #if DEBUG
         AppDebugLog.write(
@@ -227,6 +263,30 @@ final class VideoPlayerViewModel: ObservableObject {
         }
 
         self.saveCurrentProgress(force: true)
+        await self.loadPlayback(
+            playPageURL: playPageURL,
+            handoff: self.reference.handoff?.selecting(playPageURL: playPageURL),
+            failureEvent: "video-episode-switch-error"
+        )
+    }
+
+    private func reloadPlaybackAfterLogin() async {
+        guard self.isLoadingEpisodeSwitch == false else {
+            return
+        }
+
+        await self.loadPlayback(
+            playPageURL: self.reference.playPageURL,
+            handoff: self.reference.handoff,
+            failureEvent: "video-login-playback-refresh-error"
+        )
+    }
+
+    private func loadPlayback(
+        playPageURL: URL,
+        handoff: SourceVideoPlaybackHandoff?,
+        failureEvent: String
+    ) async {
         self.isLoadingEpisodeSwitch = true
         defer {
             self.isLoadingEpisodeSwitch = false
@@ -244,7 +304,7 @@ final class VideoPlayerViewModel: ObservableObject {
                 SourceVideoPlaybackInput(
                     playPageURL: playPageURL,
                     context: self.runtimeContext(),
-                    handoff: self.reference.handoff?.selecting(playPageURL: playPageURL)
+                    handoff: handoff
                 )
             )
 
@@ -259,13 +319,13 @@ final class VideoPlayerViewModel: ObservableObject {
             self.resetVideoAdPointTimer()
             await self.prepareForPlayback()
         } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .playback, event: "video-episode-switch-error")
-            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .videoPlayback, errorCode: "video-episode-switch-error")
+            RuleExecutionErrorClassifier.log(error: error, stage: .playback, event: failureEvent)
+            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .videoPlayback, errorCode: failureEvent)
             CrashDiagnostics.shared.record(
                 error: error,
                 category: .playback,
-                errorCode: "video-episode-switch-error",
-                event: "video-episode-switch-error"
+                errorCode: failureEvent,
+                event: failureEvent
             )
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }

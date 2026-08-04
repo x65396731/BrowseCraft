@@ -38,6 +38,19 @@ struct VideoPlayerHostView: View {
                 )
             )
         }
+        .fullScreenCover(item: self.requestedSourceLoginBinding) { loginState in
+            SourceLoginView(
+                state: loginState,
+                cancelAction: {
+                    self.viewModel.dismissRequestedSourceLogin()
+                },
+                completeAction: { credential in
+                    Task {
+                        await self.viewModel.completeRequestedSourceLogin(credential: credential)
+                    }
+                }
+            )
+        }
         .handlesRewardedAdPlayback(
             shouldPlayAd: self.viewModel.shouldPlayAd,
             markHandled: {
@@ -145,6 +158,13 @@ struct VideoPlayerHostView: View {
                     .multilineTextAlignment(.center)
             }
 
+            if let loginState: LibrarySourceLoginState = self.viewModel.restrictedLoginState {
+                Button(loginState.status == .authenticated ? "Open Login Page" : "Sign In to This Source") {
+                    self.viewModel.requestSourceLogin()
+                }
+                .buttonStyle(.borderedProminent)
+            }
+
             self.episodeNavigationControls
 
             Spacer(minLength: 0)
@@ -201,6 +221,19 @@ struct VideoPlayerHostView: View {
             set: { newValue in
                 if newValue == false {
                     self.viewModel.errorMessage = nil
+                }
+            }
+        )
+    }
+
+    private var requestedSourceLoginBinding: Binding<LibrarySourceLoginState?> {
+        return Binding<LibrarySourceLoginState?>(
+            get: {
+                return self.viewModel.requestedSourceLogin
+            },
+            set: { loginState in
+                if loginState == nil {
+                    self.viewModel.dismissRequestedSourceLogin()
                 }
             }
         )
