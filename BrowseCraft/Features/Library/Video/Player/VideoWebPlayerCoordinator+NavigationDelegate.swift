@@ -14,6 +14,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
         if ["http", "https", "blob", "file", "about", "data"].contains(scheme) {
             if navigationAction.targetFrame?.isMainFrame != false,
                self.shouldAllowMainFrameNavigation(to: navigationAction.request.url) == false {
+                self.markExpectedInterruptedMainFrameNavigation()
                 #if DEBUG
                 AppDebugLog.write(
                     "[BrowseCraftVideoWebPlayer] block-main-frame " +
@@ -44,6 +45,9 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
             "scheme=\(scheme) url=\(self.safeLogURL(navigationAction.request.url))"
         )
         #endif
+        if navigationAction.targetFrame?.isMainFrame != false {
+            self.markExpectedInterruptedMainFrameNavigation()
+        }
         return (.cancel, preferences)
     }
 
@@ -141,6 +145,10 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
     #endif
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation?, withError error: Error) {
+        guard self.shouldIgnoreInterruptedNavigation(error) == false else {
+            return
+        }
+
         #if DEBUG
         AppDebugLog.write(
             "[BrowseCraftVideoWebPlayer] did-fail " +
@@ -150,6 +158,10 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation?, withError error: Error) {
+        guard self.shouldIgnoreInterruptedNavigation(error) == false else {
+            return
+        }
+
         #if DEBUG
         AppDebugLog.write(
             "[BrowseCraftVideoWebPlayer] did-fail-provisional " +

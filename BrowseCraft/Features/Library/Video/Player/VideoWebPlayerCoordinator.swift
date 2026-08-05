@@ -43,6 +43,7 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
     let initialHost: String?
     private var allowedMobileAlternateHosts: Set<String> = []
     private var attemptedMobileAlternateURLs: Set<String> = []
+    private var expectedInterruptedMainFrameNavigationCount: Int = 0
     private var mobileAdaptationTask: Task<Void, Never>?
 
     init(request: VideoWebPlayerRequest) {
@@ -77,6 +78,29 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
     func resetMobileAdaptation(in webView: WKWebView) {
         self.mobileAdaptationTask?.cancel()
         webView.pageZoom = 1
+    }
+
+    /// 中文注释：我们主动 cancel 的主框架跳转会回调 WebKitErrorDomain 102；
+    /// 这里记账，避免把预期中的广告/跨站拦截误记成播放器失败。
+    func markExpectedInterruptedMainFrameNavigation() {
+        self.expectedInterruptedMainFrameNavigationCount += 1
+    }
+
+    func shouldIgnoreInterruptedNavigation(_ error: Error) -> Bool {
+        guard self.expectedInterruptedMainFrameNavigationCount > 0 else {
+            return false
+        }
+
+        let nsError: NSError = error as NSError
+        let isInterruptedNavigation: Bool =
+            (nsError.domain == "WebKitErrorDomain" && nsError.code == 102)
+            || (nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled)
+        guard isInterruptedNavigation else {
+            return false
+        }
+
+        self.expectedInterruptedMainFrameNavigationCount -= 1
+        return true
     }
 
     /// 中文注释：优先遵循页面自己声明的移动入口。支持同域路径，以及从普通主机

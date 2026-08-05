@@ -262,6 +262,8 @@ extension BrowseCraftCore.ExtractFunction {
             return .raw
         case .url:
             return .url
+        case .documentURL:
+            return .documentURL
         case .decodeBase64:
             return .decodeBase64
         case .removingPercentEncoding:
