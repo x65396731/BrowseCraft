@@ -36,13 +36,20 @@ struct VideoWebPlayerRequest: Equatable {
 
     private static func webPlaybackURL(for reference: SourceVideoPlaybackReference) -> URL {
         guard reference.candidateMediaKind == .iframePlayer,
-              let candidateMediaURL: URL = reference.candidateMediaURL,
-              Self.isYouTubeURL(candidateMediaURL),
-              Self.isYouTubeURL(reference.playPageURL) else {
+              let candidateMediaURL: URL = reference.candidateMediaURL else {
             return reference.candidateMediaURL ?? reference.playPageURL
         }
 
-        return reference.playPageURL
+        if reference.status == .pageOnly {
+            return reference.playPageURL
+        }
+
+        if Self.isYouTubeURL(candidateMediaURL),
+           Self.isYouTubeURL(reference.playPageURL) {
+            return reference.playPageURL
+        }
+
+        return candidateMediaURL
     }
 
     private static func isYouTubeURL(_ url: URL) -> Bool {
