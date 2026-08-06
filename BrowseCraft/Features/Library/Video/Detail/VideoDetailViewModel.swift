@@ -24,6 +24,8 @@ struct VideoPlaybackRoute: Identifiable {
 // 中文注释：VideoDetailViewModel 负责加载视频剧集列表，并把单集解析成播放器入口。
 @MainActor
 final class VideoDetailViewModel: ObservableObject {
+    private static let sourceDetectionLexicon: SourceDetectionLexicon = .default
+
     @Published private(set) var episodes: [VideoEpisode] = []
     @Published private(set) var synopsis: String?
     @Published private(set) var metadataRows: [String] = []
@@ -79,37 +81,6 @@ final class VideoDetailViewModel: ObservableObject {
 
     var coverURL: URL? {
         return self.item.coverURL.flatMap(URL.init(string:))
-    }
-
-    static func normalizedEpisodeSubtitles(
-        from chapters: [SourceChapter]
-    ) -> [String?] {
-        let subtitles: [String?] = chapters.map { chapter in
-            let trimmed: String = chapter.subtitle?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            return trimmed.isEmpty ? nil : trimmed
-        }
-
-        let subtitleCounts: [String: Int] = subtitles.reduce(into: [:]) { result, subtitle in
-            guard let subtitle else {
-                return
-            }
-            result[subtitle, default: 0] += 1
-        }
-        let repeatedSubtitles: Set<String> = Set(
-            subtitleCounts.compactMap { subtitle, count in
-                count > 1 ? subtitle : nil
-            }
-        )
-
-        guard repeatedSubtitles.count == 1,
-              let repeatedSubtitle: String = repeatedSubtitles.first else {
-            return subtitles
-        }
-
-        return subtitles.map { subtitle in
-            subtitle == repeatedSubtitle ? nil : subtitle
-        }
     }
 
     static func filteredEpisodeChapters(
@@ -173,6 +144,10 @@ final class VideoDetailViewModel: ObservableObject {
         _ candidate: VideoEpisodeDisplayGroup,
         among groups: [VideoEpisodeDisplayGroup]
     ) -> Bool {
+        if self.isSingletonDuplicateEntryGroup(candidate, among: groups) {
+            return false
+        }
+
         guard self.isSuspiciousEpisodeGroupTitle(candidate.subtitle),
               candidate.chapters.count >= 2 else {
             return true
@@ -207,31 +182,38 @@ final class VideoDetailViewModel: ObservableObject {
         return true
     }
 
+    private static func isSingletonDuplicateEntryGroup(
+        _ candidate: VideoEpisodeDisplayGroup,
+        among groups: [VideoEpisodeDisplayGroup]
+    ) -> Bool {
+        guard candidate.chapters.count == 1,
+              let candidateURL: URL = candidate.chapters.first?.url else {
+            return false
+        }
+
+        for other in groups {
+            guard other != candidate,
+                  other.chapters.count >= 2 else {
+                continue
+            }
+
+            if other.chapters.contains(where: { $0.url == candidateURL }) {
+                return true
+            }
+        }
+
+        return false
+    }
+
     private static func isSuspiciousEpisodeGroupTitle(_ subtitle: String?) -> Bool {
         guard let subtitle: String = self.trimmedSubtitle(subtitle) else {
             return false
         }
 
-        let normalizedSubtitle: String = subtitle.lowercased()
-        let markers: [String] = [
-            "ad",
-            "ads",
-            "demo",
-            "sample",
-            "sponsor",
-            "sponsored",
-            "test",
-            "说明",
-            "广告",
-            "推广",
-            "教程",
-            "测试",
-            "演示",
-            "赞助"
-        ]
-        return markers.contains { marker in
-            normalizedSubtitle.contains(marker)
-        }
+        return self.sourceDetectionLexicon.containsMarker(
+            in: subtitle,
+            category: .episodeGroupNoise
+        )
     }
 
     private static func normalizedEpisodeTitle(_ value: String) -> String? {
@@ -300,14 +282,16 @@ final class VideoDetailViewModel: ObservableObject {
                 )
             }
             let output: SourceDetailOutput = try await detailRuntime.loadDetail(input)
+            #if DEBUG
+            self.logEpisodeGroupDiagnostics(chapters: output.chapters)
+            #endif
             let filteredChapters: [SourceChapter] = Self.filteredEpisodeChapters(from: output.chapters)
-            let subtitles: [String?] = Self.normalizedEpisodeSubtitles(from: filteredChapters)
-            self.episodes = zip(filteredChapters, subtitles).map { chapter, subtitle in
+            self.episodes = filteredChapters.map { chapter in
                 return VideoEpisode(
                     id: chapter.id,
                     title: chapter.title,
                     playPageURL: chapter.url,
-                    sourceName: subtitle,
+                    sourceName: chapter.subtitle,
                     playbackHandoff: chapter.videoPlaybackHandoff
                 )
             }
@@ -335,6 +319,78 @@ final class VideoDetailViewModel: ObservableObject {
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
     }
+
+    #if DEBUG
+    private func logEpisodeGroupDiagnostics(chapters: [SourceChapter]) {
+        let groups: [VideoEpisodeDisplayGroup] = Self.displayGroups(from: chapters)
+        guard groups.isEmpty == false else {
+            return
+        }
+
+        AppDebugLog.write(
+            "[BrowseCraftVideoDetail] group-diagnostics " +
+            "source=\(self.source.id) " +
+            "item=\(self.item.id) " +
+            "groupCount=\(groups.count)"
+        )
+
+        for (index, group) in groups.prefix(4).enumerated() {
+            let bestMatch: (index: Int, overlap: Double)? = self.bestOverlap(for: index, in: groups)
+            let kept: Bool = Self.shouldKeepEpisodeGroup(group, among: groups)
+            let titlePreview: String = group.chapters
+                .prefix(6)
+                .map(\.title)
+                .joined(separator: " | ")
+            let urlPreview: String = group.chapters
+                .prefix(3)
+                .map { $0.url.absoluteString }
+                .joined(separator: " | ")
+
+            AppDebugLog.write(
+                "[BrowseCraftVideoDetail] group[\(index)] " +
+                "subtitle=\(group.subtitle ?? "nil") " +
+                "chapterCount=\(group.chapters.count) " +
+                "kept=\(kept) " +
+                "bestMatchIndex=\(bestMatch?.index.description ?? "nil") " +
+                "bestOverlap=\(bestMatch.map { String(format: "%.2f", $0.overlap) } ?? "nil") " +
+                "titles=\(titlePreview) " +
+                "urls=\(urlPreview)"
+            )
+        }
+    }
+
+    private func bestOverlap(
+        for candidateIndex: Int,
+        in groups: [VideoEpisodeDisplayGroup]
+    ) -> (index: Int, overlap: Double)? {
+        let candidate: VideoEpisodeDisplayGroup = groups[candidateIndex]
+        let candidateTitles: Set<String> = Set(
+            candidate.chapters.compactMap { Self.normalizedEpisodeTitle($0.title) }
+        )
+        guard candidateTitles.isEmpty == false else {
+            return nil
+        }
+
+        var best: (index: Int, overlap: Double)?
+        for (otherIndex, other) in groups.enumerated() where otherIndex != candidateIndex {
+            let otherTitles: Set<String> = Set(
+                other.chapters.compactMap { Self.normalizedEpisodeTitle($0.title) }
+            )
+            guard otherTitles.isEmpty == false else {
+                continue
+            }
+
+            let overlapCount: Int = candidateTitles.intersection(otherTitles).count
+            let overlapRatio: Double = Double(overlapCount) / Double(min(candidateTitles.count, otherTitles.count))
+            if let best, best.overlap >= overlapRatio {
+                continue
+            }
+            best = (index: otherIndex, overlap: overlapRatio)
+        }
+
+        return best
+    }
+    #endif
 
     func openEpisode(_ episode: VideoEpisode) async {
         CrashDiagnostics.shared.setRuleStage(.videoPlayback)

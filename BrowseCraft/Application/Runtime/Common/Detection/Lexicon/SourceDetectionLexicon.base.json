@@ -149,6 +149,15 @@
     "private api",
     "privateapi"
   ],
+  "episodeGroupNoise": [
+    "ad",
+    "ads",
+    "demo",
+    "sample",
+    "sponsor",
+    "sponsored",
+    "test"
+  ],
   "feedStructure": [
     "rss",
     "atom",

@@ -37,5 +37,12 @@
     "support",
     "signup",
     "register"
+  ],
+  "episodeGroupNoise": [
+    "description",
+    "guide",
+    "instruction",
+    "promo",
+    "tutorial"
   ]
 }

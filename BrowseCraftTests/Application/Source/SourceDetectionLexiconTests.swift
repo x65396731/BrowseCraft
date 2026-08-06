@@ -20,7 +20,10 @@ struct SourceDetectionLexiconTests {
         #expect(japanese.containsMarker(in: "login", category: .accountNavigation) == false)
 
         #expect(baseOnly.containsMarker(in: "<iframe src=\"/embed/1\"></iframe>", category: .iframePlayback))
+        #expect(baseOnly.containsMarker(in: "sample route", category: .episodeGroupNoise))
         #expect(baseOnly.containsMarker(in: "login", category: .accountNavigation) == false)
+        #expect(simplifiedChinese.containsMarker(in: "播放测试说明", category: .episodeGroupNoise))
+        #expect(japanese.containsMarker(in: "スポンサー再生", category: .episodeGroupNoise))
     }
 
     @Test func resolvesSupportedPreferredLanguages() {

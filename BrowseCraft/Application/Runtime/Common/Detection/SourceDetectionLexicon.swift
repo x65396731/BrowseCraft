@@ -52,6 +52,7 @@ struct SourceDetectionLexicon: Hashable {
         case payRestriction
         case accountRestriction
         case navigationReject
+        case episodeGroupNoise
         case feedStructure
         case comicStructure
     }
