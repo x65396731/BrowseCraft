@@ -60,6 +60,10 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
             return true
         }
 
+        if self.shouldBlockLikelyNoiseNavigation(url) {
+            return false
+        }
+
         if self.isYouTubeHost(host), self.isYouTubeHost(initialHost) {
             return true
         }

@@ -10,6 +10,11 @@ struct VideoEpisode: Identifiable, Hashable {
     var playbackHandoff: SourceVideoPlaybackHandoff? = nil
 }
 
+private struct VideoEpisodeDisplayGroup: Hashable {
+    let subtitle: String?
+    let chapters: [SourceChapter]
+}
+
 // 中文注释：VideoPlaybackRoute 承载视频详情页进入播放器时需要的 ViewModel。
 struct VideoPlaybackRoute: Identifiable {
     let id: String
@@ -76,6 +81,179 @@ final class VideoDetailViewModel: ObservableObject {
         return self.item.coverURL.flatMap(URL.init(string:))
     }
 
+    static func normalizedEpisodeSubtitles(
+        from chapters: [SourceChapter]
+    ) -> [String?] {
+        let subtitles: [String?] = chapters.map { chapter in
+            let trimmed: String = chapter.subtitle?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return trimmed.isEmpty ? nil : trimmed
+        }
+
+        let subtitleCounts: [String: Int] = subtitles.reduce(into: [:]) { result, subtitle in
+            guard let subtitle else {
+                return
+            }
+            result[subtitle, default: 0] += 1
+        }
+        let repeatedSubtitles: Set<String> = Set(
+            subtitleCounts.compactMap { subtitle, count in
+                count > 1 ? subtitle : nil
+            }
+        )
+
+        guard repeatedSubtitles.count == 1,
+              let repeatedSubtitle: String = repeatedSubtitles.first else {
+            return subtitles
+        }
+
+        return subtitles.map { subtitle in
+            subtitle == repeatedSubtitle ? nil : subtitle
+        }
+    }
+
+    static func filteredEpisodeChapters(
+        from chapters: [SourceChapter]
+    ) -> [SourceChapter] {
+        let groups: [VideoEpisodeDisplayGroup] = self.displayGroups(from: chapters)
+        guard groups.count > 1 else {
+            return chapters
+        }
+
+        return groups
+            .filter { candidate in
+                self.shouldKeepEpisodeGroup(candidate, among: groups)
+            }
+            .flatMap(\.chapters)
+    }
+
+    private static func displayGroups(
+        from chapters: [SourceChapter]
+    ) -> [VideoEpisodeDisplayGroup] {
+        var groups: [VideoEpisodeDisplayGroup] = []
+        var currentSubtitle: String?
+        var currentChapters: [SourceChapter] = []
+
+        func flushCurrentGroup() {
+            guard currentChapters.isEmpty == false else {
+                return
+            }
+            groups.append(
+                VideoEpisodeDisplayGroup(
+                    subtitle: currentSubtitle,
+                    chapters: currentChapters
+                )
+            )
+            currentChapters = []
+        }
+
+        for chapter in chapters {
+            let normalizedSubtitle: String? = self.trimmedSubtitle(chapter.subtitle)
+            if currentChapters.isEmpty {
+                currentSubtitle = normalizedSubtitle
+                currentChapters = [chapter]
+                continue
+            }
+
+            if normalizedSubtitle == currentSubtitle {
+                currentChapters.append(chapter)
+                continue
+            }
+
+            flushCurrentGroup()
+            currentSubtitle = normalizedSubtitle
+            currentChapters = [chapter]
+        }
+
+        flushCurrentGroup()
+        return groups
+    }
+
+    private static func shouldKeepEpisodeGroup(
+        _ candidate: VideoEpisodeDisplayGroup,
+        among groups: [VideoEpisodeDisplayGroup]
+    ) -> Bool {
+        guard self.isSuspiciousEpisodeGroupTitle(candidate.subtitle),
+              candidate.chapters.count >= 2 else {
+            return true
+        }
+
+        let candidateTitles: Set<String> = Set(
+            candidate.chapters.compactMap { self.normalizedEpisodeTitle($0.title) }
+        )
+        guard candidateTitles.isEmpty == false else {
+            return true
+        }
+
+        for other in groups {
+            guard other != candidate else {
+                continue
+            }
+
+            let otherTitles: Set<String> = Set(
+                other.chapters.compactMap { self.normalizedEpisodeTitle($0.title) }
+            )
+            guard otherTitles.isEmpty == false else {
+                continue
+            }
+
+            let overlapCount: Int = candidateTitles.intersection(otherTitles).count
+            let overlapRatio: Double = Double(overlapCount) / Double(min(candidateTitles.count, otherTitles.count))
+            if overlapRatio >= 0.7 {
+                return false
+            }
+        }
+
+        return true
+    }
+
+    private static func isSuspiciousEpisodeGroupTitle(_ subtitle: String?) -> Bool {
+        guard let subtitle: String = self.trimmedSubtitle(subtitle) else {
+            return false
+        }
+
+        let normalizedSubtitle: String = subtitle.lowercased()
+        let markers: [String] = [
+            "ad",
+            "ads",
+            "demo",
+            "sample",
+            "sponsor",
+            "sponsored",
+            "test",
+            "说明",
+            "广告",
+            "推广",
+            "教程",
+            "测试",
+            "演示",
+            "赞助"
+        ]
+        return markers.contains { marker in
+            normalizedSubtitle.contains(marker)
+        }
+    }
+
+    private static func normalizedEpisodeTitle(_ value: String) -> String? {
+        let normalized: String = value
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(
+                of: #"[^a-z0-9\u4e00-\u9fff]+"#,
+                with: "",
+                options: .regularExpression
+            )
+        return normalized.isEmpty ? nil : normalized
+    }
+
+    private static func trimmedSubtitle(_ subtitle: String?) -> String? {
+        guard let subtitle else {
+            return nil
+        }
+        let trimmed: String = subtitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     func loadEpisodesIfNeeded() async {
         if self.episodes.isEmpty == false || self.isLoadingEpisodes {
             return
@@ -122,12 +300,14 @@ final class VideoDetailViewModel: ObservableObject {
                 )
             }
             let output: SourceDetailOutput = try await detailRuntime.loadDetail(input)
-            self.episodes = output.chapters.map { chapter in
+            let filteredChapters: [SourceChapter] = Self.filteredEpisodeChapters(from: output.chapters)
+            let subtitles: [String?] = Self.normalizedEpisodeSubtitles(from: filteredChapters)
+            self.episodes = zip(filteredChapters, subtitles).map { chapter, subtitle in
                 return VideoEpisode(
                     id: chapter.id,
                     title: chapter.title,
                     playPageURL: chapter.url,
-                    sourceName: chapter.subtitle,
+                    sourceName: subtitle,
                     playbackHandoff: chapter.videoPlaybackHandoff
                 )
             }

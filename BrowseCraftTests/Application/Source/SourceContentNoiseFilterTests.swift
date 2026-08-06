@@ -87,4 +87,42 @@ struct SourceContentNoiseFilterTests {
         #expect(decision.action == .discard)
         #expect(decision.reasons.contains(.accountNavigation))
     }
+
+    @Test func discardsRedirectNavigationWithAdSignals() throws {
+        let filter: SourceContentNoiseFilter = SourceContentNoiseFilter()
+        let decision: SourceContentNoiseDecision = filter.decision(
+            for: SourceContentNoiseCandidate(
+                url: try #require(
+                    URL(
+                        string: "https://video.example.test/redirect?" +
+                            "utm_source=banner&target=https%3A%2F%2Fpromo.example.test%2Fpopup"
+                    )
+                ),
+                context: .playbackCandidate
+            )
+        )
+
+        #expect(decision.action == .discard)
+        #expect(decision.reasons.contains(.navigationReject))
+    }
+
+    @Test func keepsPlaybackNavigationEvenWithPromoQuery() throws {
+        let filter: SourceContentNoiseFilter = SourceContentNoiseFilter()
+        let decision: SourceContentNoiseDecision = filter.decision(
+            for: SourceContentNoiseCandidate(
+                url: try #require(
+                    URL(
+                        string: "https://video.example.test/player/embed/movie-1?" +
+                            "utm_source=promo&ref=homepage"
+                    )
+                ),
+                attributes: [
+                    "src": "https://video.example.test/player/embed/movie-1"
+                ],
+                context: .playbackCandidate
+            )
+        )
+
+        #expect(decision.action == .keep)
+    }
 }

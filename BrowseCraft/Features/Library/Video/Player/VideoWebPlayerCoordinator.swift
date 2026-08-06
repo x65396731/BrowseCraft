@@ -41,6 +41,7 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
 
     let configuration: WKWebViewConfiguration
     let initialHost: String?
+    private let mainFrameNavigationNoiseFilter: SourceContentNoiseFilter = SourceContentNoiseFilter()
     private var allowedMobileAlternateHosts: Set<String> = []
     private var attemptedMobileAlternateURLs: Set<String> = []
     private var expectedInterruptedMainFrameNavigationCount: Int = 0
@@ -101,6 +102,18 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
 
         self.expectedInterruptedMainFrameNavigationCount -= 1
         return true
+    }
+
+    /// 中文注释：主框架导航先走通用噪声过滤，拦住广告、推广、登录等非播放页跳转；
+    /// 之后再执行同域/移动别名白名单，避免误放跨站主页面替换。
+    func shouldBlockLikelyNoiseNavigation(_ url: URL) -> Bool {
+        let decision: SourceContentNoiseDecision = self.mainFrameNavigationNoiseFilter.decision(
+            for: SourceContentNoiseCandidate(
+                url: url,
+                context: .playbackCandidate
+            )
+        )
+        return decision.action == .discard
     }
 
     /// 中文注释：优先遵循页面自己声明的移动入口。支持同域路径，以及从普通主机

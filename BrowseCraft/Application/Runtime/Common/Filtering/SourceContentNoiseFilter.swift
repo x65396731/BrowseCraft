@@ -22,6 +22,7 @@ enum SourceContentNoiseReason: String, Hashable {
     case tracking
     case accountNavigation
     case externalPromotion
+    case navigationReject
 }
 
 struct SourceContentNoiseCandidate: Hashable {
@@ -109,6 +110,10 @@ struct SourceContentNoiseFilter: SourceContentNoiseFiltering {
             reasons.append(.externalPromotion)
         }
 
+        if self.shouldTreatAsRejectedNavigation(candidate, searchableText: searchableText) {
+            reasons.append(.navigationReject)
+        }
+
         guard reasons.isEmpty == false else {
             return .keep
         }
@@ -168,6 +173,166 @@ struct SourceContentNoiseFilter: SourceContentNoiseFiltering {
                 .joined(separator: " "),
             category: .playbackStructure
         )
+    }
+
+    private func shouldTreatAsRejectedNavigation(
+        _ candidate: SourceContentNoiseCandidate,
+        searchableText: String
+    ) -> Bool {
+        guard candidate.context == .navigationLink || candidate.context == .playbackCandidate,
+              self.hasPlaybackSignal(candidate) == false else {
+            return false
+        }
+
+        if self.lexicon.containsMarker(in: searchableText, category: .navigationReject) {
+            return true
+        }
+
+        guard let url: URL = candidate.url else {
+            return false
+        }
+
+        return self.hasSuspiciousNavigationURLSignals(url)
+    }
+
+    private func hasSuspiciousNavigationURLSignals(_ url: URL) -> Bool {
+        guard let components: URLComponents = URLComponents(
+            url: url,
+            resolvingAgainstBaseURL: false
+        ) else {
+            return false
+        }
+
+        let suspiciousHostTokens: Set<String> = [
+            "ad",
+            "ads",
+            "adservice",
+            "adserver",
+            "analytics",
+            "beacon",
+            "doubleclick",
+            "popup",
+            "promo",
+            "tracking",
+            "tracker"
+        ]
+        let suspiciousPathTokens: Set<String> = [
+            "ad",
+            "ads",
+            "advert",
+            "advertisement",
+            "banner",
+            "click",
+            "interstitial",
+            "overlay",
+            "popup",
+            "promo",
+            "promotion",
+            "redirect",
+            "sponsor",
+            "sponsored",
+            "track",
+            "tracker",
+            "tracking"
+        ]
+        let suspiciousQueryKeys: Set<String> = [
+            "ad",
+            "ads",
+            "adurl",
+            "aff",
+            "aff_id",
+            "affiliate",
+            "clickid",
+            "fbclid",
+            "gclid",
+            "msclkid",
+            "redirect",
+            "redirect_url",
+            "ref",
+            "referrer",
+            "target",
+            "target_url",
+            "url"
+        ]
+        let suspiciousQueryValueTokens: Set<String> = [
+            "ad",
+            "ads",
+            "appstore",
+            "banner",
+            "discord",
+            "download-app",
+            "interstitial",
+            "overlay",
+            "playstore",
+            "popup",
+            "promo",
+            "redirect",
+            "sponsor",
+            "telegram",
+            "track",
+            "tracker"
+        ]
+
+        var score: Int = 0
+
+        let hostHits: Int = Set(
+            (components.host ?? "")
+                .split(separator: ".")
+                .map { self.normalizedNavigationToken(String($0)) }
+                .filter { suspiciousHostTokens.contains($0) }
+        ).count
+        score += min(2, hostHits * 2)
+
+        let pathHits: Int = Set(
+            components.path
+                .split(separator: "/")
+                .map { self.normalizedNavigationToken(String($0)) }
+                .filter { suspiciousPathTokens.contains($0) }
+        ).count
+        score += min(2, pathHits)
+
+        let queryItems: [URLQueryItem] = components.queryItems ?? []
+        let queryKeyHits: Int = queryItems.reduce(into: 0) { result, item in
+            let key: String = self.normalizedNavigationToken(item.name)
+            if suspiciousQueryKeys.contains(key) || key.hasPrefix("utm_") {
+                result += 1
+            }
+        }
+        score += min(2, queryKeyHits)
+
+        let queryValueHits: Int = queryItems.reduce(into: 0) { result, item in
+            let values: [String] = [
+                item.value,
+                item.value?.removingPercentEncoding
+            ]
+                .compactMap { $0 }
+            for value in values {
+                let normalizedValue: String = self.normalizedNavigationToken(value)
+                if suspiciousQueryValueTokens.contains(normalizedValue) {
+                    result += 1
+                    continue
+                }
+
+                if value.lowercased().contains("app store")
+                    || value.lowercased().contains("play store") {
+                    result += 1
+                }
+            }
+        }
+        score += min(2, queryValueHits)
+
+        return score >= 2
+    }
+
+    private func normalizedNavigationToken(_ value: String) -> String {
+        return value
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(
+                of: #"[^a-z0-9_]+"#,
+                with: "",
+                options: .regularExpression
+            )
     }
 
     private func searchableText(for candidate: SourceContentNoiseCandidate) -> String {
