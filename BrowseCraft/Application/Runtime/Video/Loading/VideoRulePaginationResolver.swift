@@ -57,54 +57,76 @@ struct VideoRulePaginationResolver {
             listRule: listRule,
             sourceID: sourceID
         )
-        if let maxPages: Int = contract.maxPages,
-           requestedPage > maxPages {
-            throw SourceRuntimeError.invalidInput(
-                "Video V2 requested page \(requestedPage) exceeds maxPages=\(maxPages) for list rule \(listRule.id)."
-            )
-        }
-
-        let configuredPageURL: URL = try self.pageURL(
-            self.replacingPage(
-                in: page.url,
-                placeholder: contract.placeholder,
-                page: requestedPage
-            ),
-            baseURL: baseURL,
-            sourceID: sourceID
-        )
-        let nextPage: SourcePagination?
-        if let maxPages: Int = contract.maxPages,
-           requestedPage >= maxPages {
-            nextPage = nil
-        } else {
-            guard requestedPage < Int.max else {
-                throw SourceRuntimeError.invalidInput(
-                    "Video V2 requested page cannot advance beyond Int.max for list rule \(listRule.id)."
+        switch contract {
+        case .singlePage(let url):
+            guard requestedPage == 1 else {
+                throw SourceRuntimeError.unsupported(
+                    .custom(
+                        "Video page \(page.id) disables inherited pagination; page \(requestedPage) cannot be requested."
+                    )
                 )
             }
-            let nextPageNumber: Int = requestedPage + 1
-            let nextPageURL: URL = try self.pageURL(
+
+            return VideoRulePaginationResolution(
+                currentPage: requestedPage,
+                configuredPageURL: try self.pageURL(
+                    url,
+                    baseURL: baseURL,
+                    sourceID: sourceID
+                ),
+                nextPage: nil,
+                stopWhenEmpty: nil
+            )
+        case .paginated(let template, let placeholder, let maxPages, let stopWhenEmpty):
+            if let maxPages,
+               requestedPage > maxPages {
+                throw SourceRuntimeError.invalidInput(
+                    "Video V2 requested page \(requestedPage) exceeds maxPages=\(maxPages) for list rule \(listRule.id)."
+                )
+            }
+
+            let configuredPageURL: URL = try self.pageURL(
                 self.replacingPage(
-                    in: page.url,
-                    placeholder: contract.placeholder,
-                    page: nextPageNumber
+                    in: template,
+                    placeholder: placeholder,
+                    page: requestedPage
                 ),
                 baseURL: baseURL,
                 sourceID: sourceID
             )
-            nextPage = SourcePagination.next(
-                nextPageURL: nextPageURL,
-                nextPage: nextPageNumber
+            let nextPage: SourcePagination?
+            if let maxPages,
+               requestedPage >= maxPages {
+                nextPage = nil
+            } else {
+                guard requestedPage < Int.max else {
+                    throw SourceRuntimeError.invalidInput(
+                        "Video V2 requested page cannot advance beyond Int.max for list rule \(listRule.id)."
+                    )
+                }
+                let nextPageNumber: Int = requestedPage + 1
+                let nextPageURL: URL = try self.pageURL(
+                    self.replacingPage(
+                        in: template,
+                        placeholder: placeholder,
+                        page: nextPageNumber
+                    ),
+                    baseURL: baseURL,
+                    sourceID: sourceID
+                )
+                nextPage = SourcePagination.next(
+                    nextPageURL: nextPageURL,
+                    nextPage: nextPageNumber
+                )
+            }
+
+            return VideoRulePaginationResolution(
+                currentPage: requestedPage,
+                configuredPageURL: configuredPageURL,
+                nextPage: nextPage,
+                stopWhenEmpty: stopWhenEmpty
             )
         }
-
-        return VideoRulePaginationResolution(
-            currentPage: requestedPage,
-            configuredPageURL: configuredPageURL,
-            nextPage: nextPage,
-            stopWhenEmpty: contract.stopWhenEmpty
-        )
     }
 
     private func contract(
@@ -141,15 +163,36 @@ struct VideoRulePaginationResolver {
             )
         }
 
-        let occurrenceCount: Int = page.url.components(separatedBy: placeholder).count - 1
+        let rawPageURLTemplate: String? = page.pageURLTemplate?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if page.pageURLTemplate != nil,
+           rawPageURLTemplate?.isEmpty != false {
+            return .singlePage(url: page.url)
+        }
+        let pageURLTemplate: String? = rawPageURLTemplate?.isEmpty == false
+            ? rawPageURLTemplate
+            : nil
+        let rawListURLTemplate: String? = pagination.urlTemplate?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let listURLTemplate: String? = rawListURLTemplate?.isEmpty == false
+            ? rawListURLTemplate
+            : nil
+        let template: String = pageURLTemplate ?? listURLTemplate ?? page.url
+
+        let occurrenceCount: Int = template.components(separatedBy: placeholder).count - 1
         guard occurrenceCount == 1 else {
             throw self.ruleConfigurationError(
                 sourceID: sourceID,
-                reason: "Video page \(page.id) must contain pagination placeholder \(placeholder) exactly once."
+                reason: pageURLTemplate == nil && listURLTemplate == nil
+                    ? "Video page \(page.id) must contain pagination placeholder \(placeholder) exactly once."
+                    : pageURLTemplate != nil
+                        ? "Video page \(page.id) pageURLTemplate must contain pagination placeholder \(placeholder) exactly once."
+                        : "Video list rule \(listRule.id) urlTemplate must contain pagination placeholder \(placeholder) exactly once."
             )
         }
 
-        return PaginationContract(
+        return .paginated(
+            template: template,
             placeholder: placeholder,
             maxPages: pagination.maxPages,
             stopWhenEmpty: stopWhenEmpty
@@ -197,8 +240,12 @@ struct VideoRulePaginationResolver {
     }
 }
 
-private struct PaginationContract {
-    let placeholder: String
-    let maxPages: Int?
-    let stopWhenEmpty: Bool
+private enum PaginationContract {
+    case singlePage(url: String)
+    case paginated(
+        template: String,
+        placeholder: String,
+        maxPages: Int?,
+        stopWhenEmpty: Bool
+    )
 }

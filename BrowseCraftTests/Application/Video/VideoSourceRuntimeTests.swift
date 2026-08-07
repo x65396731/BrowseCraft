@@ -46,6 +46,40 @@ struct VideoSourceRuntimeTests {
         #expect(result.items.map(\.latestText) == ["Episode 1", nil])
     }
 
+    @Test func swiftSoupVideoRuleParserFallsBackWhenListReadySelectorMissesButItemsExist() throws {
+        let parser: CoreVideoRuleSourceParser = CoreVideoRuleSourceParser()
+        var rule: VideoListRule = Self.listRule()
+        rule.ready = ExtractRule(
+            selector: ".release-schedule-list.d-flex.align-items-start > .v-c",
+            selectorKind: .css,
+            function: .raw
+        )
+        let html: String = """
+        <html>
+          <body>
+            <section class="drama-grid">
+              <a class="video-card" href="/watch/drama-one" data-id="drama-one">
+                <span class="title">Drama One</span>
+              </a>
+            </section>
+          </body>
+        </html>
+        """
+
+        let result: VideoRuleParsedList = try parser.parseList(
+            html: html,
+            pageURL: try #require(URL(string: "https://video.example.invalid/list/drama?page=1")),
+            rule: rule
+        )
+
+        #expect(result.candidateCount == 1)
+        #expect(result.droppedCount == 0)
+        #expect(result.items.map(\.title) == ["Drama One"])
+        #expect(result.items.map(\.detailURL.absoluteString) == [
+            "https://video.example.invalid/watch/drama-one"
+        ])
+    }
+
     @Test func swiftSoupVideoRuleParserMapsDetailMetadata() throws {
         let parser: CoreVideoRuleSourceParser = CoreVideoRuleSourceParser()
         let html: String = """
@@ -689,6 +723,57 @@ struct VideoSourceRuntimeTests {
         #expect(output.diagnostics.issues.contains { issue in
             return issue.id == "video.v2.emptyPageContinues" && issue.severity == .info
         })
+    }
+
+    @Test func videoRuleNonDefaultCategoryCanDisableInheritedPagination() async throws {
+        let pageLoader: RecordingVideoRulePageContentLoader = RecordingVideoRulePageContentLoader(
+            html: "<html><body><article>Category page</article></body></html>"
+        )
+        let parser: RecordingVideoRuleParser = RecordingVideoRuleParser(
+            result: try Self.parsedListResult(idCode: "category-page-1")
+        )
+        let source: Source = Self.source(rule: Self.paginatedSiteRuleWithSinglePageCategory())
+        let resolvedRule: ResolvedVideoSiteRule = try ResolvedVideoSiteRule(
+            validating: try #require(source.videoConfiguration?.rule)
+        )
+        let runtime: VideoSourceRuntime = VideoSourceRuntime(
+            source: source,
+            resolvedRule: resolvedRule,
+            listLoader: VideoSourceListLoader(
+                pageContentLoader: pageLoader,
+                parser: parser
+            )
+        )
+
+        let firstPageOutput: SourceListOutput = try await runtime.loadList(
+            SourceListInput(
+                page: 1,
+                urlOverride: nil,
+                context: Self.context(sourceID: source.id, pageID: "category", ruleID: "video-list")
+            )
+        )
+
+        #expect(pageLoader.lastURL?.absoluteString == "https://video.example.invalid/videos/category/action/")
+        #expect(firstPageOutput.pagination == nil)
+
+        do {
+            _ = try await runtime.loadList(
+                SourceListInput(
+                    page: 2,
+                    urlOverride: nil,
+                    context: Self.context(sourceID: source.id, pageID: "category", ruleID: "video-list")
+                )
+            )
+            Issue.record("Expected single-page category to reject page 2.")
+        } catch let error as SourceRuntimeError {
+            guard case .unsupported(.custom(let message)) = error else {
+                Issue.record("Expected unsupported pagination error, got \(error)")
+                return
+            }
+            #expect(message.contains("disables inherited pagination"))
+        } catch {
+            Issue.record("Unexpected error: \(error.localizedDescription)")
+        }
     }
 
     @Test func videoRuleFirstPageEmptyThrowsSelectorContractError() async throws {
@@ -1589,6 +1674,21 @@ struct VideoSourceRuntimeTests {
             pagePlaceholder: "{page}",
             maxPages: maxPages,
             stopWhenEmpty: stopWhenEmpty
+        )
+        return rule
+    }
+
+    private static func paginatedSiteRuleWithSinglePageCategory() -> VideoSiteRule {
+        var rule: VideoSiteRule = Self.paginatedSiteRule()
+        rule.pages.append(
+            VideoPageRule(
+                id: "category",
+                title: "Category",
+                type: .list,
+                url: "/videos/category/action/",
+                pageURLTemplate: "",
+                ruleRefs: VideoRuleRefs(list: "video-list")
+            )
         )
         return rule
     }

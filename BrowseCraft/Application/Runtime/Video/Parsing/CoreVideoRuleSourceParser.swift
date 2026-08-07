@@ -9,15 +9,15 @@ final class CoreVideoRuleSourceParser: VideoRuleSourceParsingService {
         pageURL: URL,
         rule: VideoListRule
     ) throws -> VideoRuleParsedList {
-        let output = try BrowseCraftCore.DefaultVideoListRuleParser().parseList(
-            BrowseCraftCore.VideoListParsingInput(
-                document: Self.document(html: html, pageURL: pageURL),
-                rule: rule,
-                runtimeContext: Self.context(
-                    ruleID: rule.id,
-                    operation: .list
-                )
-            )
+        let document: SourceContentDocument = Self.document(html: html, pageURL: pageURL)
+        let runtimeContext: SourceRuntimeContext = Self.context(
+            ruleID: rule.id,
+            operation: .list
+        )
+        let output: SourceListOutput = try self.parseListOutput(
+            document: document,
+            rule: rule,
+            runtimeContext: runtimeContext
         )
         let items = output.items.compactMap { item -> VideoRuleParsedListItem? in
             guard let detailURL = item.detailURL else {
@@ -38,6 +38,43 @@ final class CoreVideoRuleSourceParser: VideoRuleSourceParsingService {
             droppedCount: output.diagnostics.candidateSummary?
                 .warningCount ?? 0
         )
+    }
+
+    private func parseListOutput(
+        document: SourceContentDocument,
+        rule: VideoListRule,
+        runtimeContext: SourceRuntimeContext
+    ) throws -> SourceListOutput {
+        let parser = BrowseCraftCore.DefaultVideoListRuleParser()
+        do {
+            return try parser.parseList(
+                BrowseCraftCore.VideoListParsingInput(
+                    document: document,
+                    rule: rule,
+                    runtimeContext: runtimeContext
+                )
+            )
+        } catch let error as SourceParsingError {
+            guard self.shouldRetryWithoutReady(error: error, rule: rule) else {
+                throw error
+            }
+
+            var fallbackRule: VideoListRule = rule
+            fallbackRule.ready = nil
+            let fallbackOutput: SourceListOutput = try parser.parseList(
+                BrowseCraftCore.VideoListParsingInput(
+                    document: document,
+                    rule: fallbackRule,
+                    runtimeContext: runtimeContext
+                )
+            )
+            let candidateCount: Int = fallbackOutput.diagnostics.candidateSummary?
+                .totalCandidates ?? fallbackOutput.items.count
+            if candidateCount > 0 {
+                return fallbackOutput
+            }
+            throw error
+        }
     }
 
     func parseDetail(
@@ -191,5 +228,18 @@ final class CoreVideoRuleSourceParser: VideoRuleSourceParsingService {
         let normalized = value?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return normalized?.isEmpty == false ? normalized : nil
+    }
+
+    private func shouldRetryWithoutReady(
+        error: SourceParsingError,
+        rule: VideoListRule
+    ) -> Bool {
+        guard rule.ready != nil else {
+            return false
+        }
+        guard case .responseContract(let reason) = error else {
+            return false
+        }
+        return reason == "Video V2 list readiness selector produced no output for rule \(rule.id)."
     }
 }
