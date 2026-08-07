@@ -14,48 +14,24 @@ struct LibraryView: View {
                 LibraryListTabBar(
                     source: self.viewModel.selectedSource,
                     tabs: self.viewModel.listTabStates,
-                    isInteractionDisabled: self.viewModel.isRefreshing,
+                    isInteractionDisabled: self.isInteractionLocked,
                     selectAction: { tabID in
                         await self.viewModel.selectListTab(id: tabID)
                     }
                 )
 
                 ScrollView {
-                    if self.shouldShowLoadingView {
-                        LibraryLoadingView(
-                            title: self.viewModel.loadingTitle,
-                            message: self.viewModel.loadingMessage
-                        )
-                    } else {
-                        if let selectedListTabErrorMessage: String = self.viewModel.selectedListTabErrorMessage {
-                            LibraryTabErrorBanner(message: selectedListTabErrorMessage)
-                                .padding(.horizontal, 16)
-                                .padding(.top, 12)
-                        }
-
-                        LibraryContentView(
-                            items: self.viewModel.items,
-                            selectedSource: self.viewModel.selectedSource,
-                            favoriteItemIDs: self.viewModel.favoriteItemIDs,
-                            sourceForID: self.viewModel.source(for:),
-                            toggleFavorite: { item in
-                                Task {
-                                    await self.viewModel.toggleFavorite(item: item)
-                                }
-                            },
-                            openComic: self.openComicDestination(item:source:),
-                            primaryActionTitle: self.viewModel.primaryActionTitle(for:),
-                            imageRequestConfig: self.viewModel.imageRequestConfig(for:),
-                            contentViewModelFactory: self.contentViewModelFactory
-                        )
-                    }
+                    self.libraryContent
                 }
             }
-            .allowsHitTesting(self.viewModel.isRefreshing == false)
+            .disabled(self.isInteractionLocked)
             .overlay(
                 Group {
-                    if self.viewModel.isRefreshing && self.shouldShowLoadingView == false {
+                    if self.viewModel.isRefreshing &&
+                        self.shouldShowLoadingView == false {
                         self.loadingOverlay
+                    } else if self.viewModel.isLoadingNextPage {
+                        self.loadingInteractionBlocker
                     } else if self.viewModel.items.isEmpty {
                         EmptyStateView(
                             systemImage: self.emptyStateSystemImage,
@@ -65,6 +41,13 @@ struct LibraryView: View {
                     }
                 }
             )
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if self.viewModel.shouldShowPaginationStatus {
+                    LibraryPaginationStatusView(
+                        statusText: self.viewModel.paginationStatusText
+                    )
+                }
+            }
             .navigationTitle(self.libraryNavigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(item: self.$selectedComicDestination) { destination in
@@ -93,7 +76,7 @@ struct LibraryView: View {
                             } label: {
                                 Image(systemName: self.accountSystemImage(for: loginState.status))
                             }
-                            .disabled(self.viewModel.isRefreshing)
+                            .disabled(self.isInteractionLocked)
                             .accessibilityLabel(self.accountAccessibilityLabel(for: loginState.status))
                         } else {
                             Button {
@@ -101,7 +84,7 @@ struct LibraryView: View {
                             } label: {
                                 Image(systemName: self.accountSystemImage(for: loginState.status))
                             }
-                            .disabled(self.viewModel.isRefreshing)
+                            .disabled(self.isInteractionLocked)
                             .accessibilityLabel(self.accountAccessibilityLabel(for: loginState.status))
                         }
                     }
@@ -124,7 +107,7 @@ struct LibraryView: View {
                     )
                     .disabled(
                         self.viewModel.selectedSource == nil ||
-                        self.viewModel.isRefreshing
+                        self.isInteractionLocked
                     )
                     .accessibilityLabel("Refresh Selected Tab")
                 }
@@ -187,6 +170,47 @@ struct LibraryView: View {
         return self.viewModel.isShowingSourceLoading
     }
 
+    private var isInteractionLocked: Bool {
+        return self.viewModel.isRefreshing || self.viewModel.isLoadingNextPage
+    }
+
+    @ViewBuilder
+    private var libraryContent: some View {
+        if self.shouldShowLoadingView {
+            LibraryLoadingView(
+                title: self.viewModel.loadingTitle,
+                message: self.viewModel.loadingMessage
+            )
+        } else {
+            if let selectedListTabErrorMessage: String = self.viewModel.selectedListTabErrorMessage {
+                LibraryTabErrorBanner(message: selectedListTabErrorMessage)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+            }
+
+            LibraryContentView(
+                items: self.viewModel.items,
+                selectedSource: self.viewModel.selectedSource,
+                favoriteItemIDs: self.viewModel.favoriteItemIDs,
+                sourceForID: self.viewModel.source(for:),
+                toggleFavorite: { item in
+                    Task {
+                        await self.viewModel.toggleFavorite(item: item)
+                    }
+                },
+                openComic: self.openComicDestination(item:source:),
+                primaryActionTitle: self.viewModel.primaryActionTitle(for:),
+                imageRequestConfig: self.viewModel.imageRequestConfig(for:),
+                videoItemDidAppear: { index, item in
+                    Task {
+                        await self.viewModel.loadNextPageIfNeeded(afterItemAt: index, item: item)
+                    }
+                },
+                contentViewModelFactory: self.contentViewModelFactory
+            )
+        }
+    }
+
     private var libraryNavigationTitle: String {
         return self.viewModel.selectedSource?.name ?? "Library"
     }
@@ -227,6 +251,12 @@ struct LibraryView: View {
             .background(.regularMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
+    }
+
+    private var loadingInteractionBlocker: some View {
+        Color.clear
+            .contentShape(Rectangle())
+            .ignoresSafeArea()
     }
 
     private func openComicDestination(item: ContentItem, source: Source) {
@@ -284,5 +314,32 @@ struct LibraryView: View {
                 }
             }
         )
+    }
+}
+
+private struct LibraryPaginationStatusView: View {
+    let statusText: String
+
+    var body: some View {
+        HStack {
+            Spacer(minLength: 0)
+
+            Text(self.statusText)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.white)
+                .lineLimit(1)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(Color.black.opacity(0.72))
+                )
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
+        .background(Color.clear)
     }
 }

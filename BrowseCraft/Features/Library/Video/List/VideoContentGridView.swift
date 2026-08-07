@@ -6,6 +6,7 @@ struct VideoContentGridView: View {
     let source: Source
     let favoriteItemIDs: Set<String>
     let favoriteAction: (ContentItem) -> Void
+    let itemDidAppear: (Int, ContentItem) -> Void
     let contentViewModelFactory: LibraryContentViewModelFactory
     let imageRequestConfig: RequestConfig?
     @State private var selectedItem: ContentItem?
@@ -19,7 +20,7 @@ struct VideoContentGridView: View {
     var body: some View {
         VStack(spacing: 0) {
             LazyVGrid(columns: self.gridColumns, spacing: 16) {
-                ForEach(Array(self.items.enumerated()), id: \.offset) { _, item in
+                ForEach(Array(self.items.enumerated()), id: \.offset) { index, item in
                     VideoLibraryCardView(
                         item: item,
                         primaryActionTitle: "Episodes",
@@ -32,6 +33,9 @@ struct VideoContentGridView: View {
                         },
                         imageRequestConfig: self.imageRequestConfig
                     )
+                    .onAppear {
+                        self.itemDidAppear(index, item)
+                    }
                 }
             }
         }
