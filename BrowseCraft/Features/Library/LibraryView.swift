@@ -201,9 +201,10 @@ struct LibraryView: View {
                 openComic: self.openComicDestination(item:source:),
                 primaryActionTitle: self.viewModel.primaryActionTitle(for:),
                 imageRequestConfig: self.viewModel.imageRequestConfig(for:),
-                videoItemDidAppear: { index, item in
+                videoNextPage: self.viewModel.nextListPage,
+                videoLoadNextPage: {
                     Task {
-                        await self.viewModel.loadNextPageIfNeeded(afterItemAt: index, item: item)
+                        await self.viewModel.loadNextPageIfNeeded()
                     }
                 },
                 contentViewModelFactory: self.contentViewModelFactory

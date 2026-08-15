@@ -6,7 +6,8 @@ struct VideoContentGridView: View {
     let source: Source
     let favoriteItemIDs: Set<String>
     let favoriteAction: (ContentItem) -> Void
-    let itemDidAppear: (Int, ContentItem) -> Void
+    let nextPage: Int?
+    let loadNextPage: () -> Void
     let contentViewModelFactory: LibraryContentViewModelFactory
     let imageRequestConfig: RequestConfig?
     @State private var selectedItem: ContentItem?
@@ -20,7 +21,7 @@ struct VideoContentGridView: View {
     var body: some View {
         VStack(spacing: 0) {
             LazyVGrid(columns: self.gridColumns, spacing: 16) {
-                ForEach(Array(self.items.enumerated()), id: \.offset) { index, item in
+                ForEach(self.items, id: \.id) { item in
                     VideoLibraryCardView(
                         item: item,
                         primaryActionTitle: "Episodes",
@@ -33,9 +34,15 @@ struct VideoContentGridView: View {
                         },
                         imageRequestConfig: self.imageRequestConfig
                     )
-                    .onAppear {
-                        self.itemDidAppear(index, item)
-                    }
+                }
+
+                if let nextPage: Int = self.nextPage {
+                    Color.clear
+                        .frame(height: 1)
+                        .id("video-pagination-\(self.source.id)-\(nextPage)")
+                        .onAppear {
+                            self.loadNextPage()
+                        }
                 }
             }
         }

@@ -9,7 +9,8 @@ struct LibraryContentView: View {
     let openComic: (ContentItem, Source) -> Void
     let primaryActionTitle: (Source) -> String
     let imageRequestConfig: (Source) -> RequestConfig?
-    let videoItemDidAppear: (Int, ContentItem) -> Void
+    let videoNextPage: Int?
+    let videoLoadNextPage: () -> Void
     let contentViewModelFactory: LibraryContentViewModelFactory
 
     private let gridColumns: [GridItem] = [
@@ -37,7 +38,8 @@ struct LibraryContentView: View {
                 source: selectedSource,
                 favoriteItemIDs: self.favoriteItemIDs,
                 favoriteAction: self.toggleFavorite,
-                itemDidAppear: self.videoItemDidAppear,
+                nextPage: self.videoNextPage,
+                loadNextPage: self.videoLoadNextPage,
                 contentViewModelFactory: self.contentViewModelFactory,
                 imageRequestConfig: self.imageRequestConfig(selectedSource)
             )

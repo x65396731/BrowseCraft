@@ -9,6 +9,11 @@ import BrowseCraftDomain
 /// 中文注释：SwiftUI 会观察这里的 @Published 属性，并在变化时刷新对应界面。
 @MainActor
 final class SourcesViewModel: ObservableObject {
+    private struct RefreshedListPage {
+        let items: [ContentItem]
+        let nextPage: Int?
+    }
+
     private enum FailedRefreshAction {
         case select(sourceID: String)
         case refresh(sourceID: String)
@@ -249,7 +254,8 @@ final class SourcesViewModel: ObservableObject {
             self.sourceSelectionStore.publishLibrarySnapshot(
                 source: source,
                 items: items,
-                listContext: nil
+                listContext: nil,
+                nextPage: result.listOutput.pagination?.nextPage
             )
             self.logPublishedLibrarySnapshot(source: source, items: items, origin: "rule-source-add")
             self.selectSource(id: source.id)
@@ -287,7 +293,8 @@ final class SourcesViewModel: ObservableObject {
             self.sourceSelectionStore.publishLibrarySnapshot(
                 source: source,
                 items: items,
-                listContext: nil
+                listContext: nil,
+                nextPage: result.listOutput.pagination?.nextPage
             )
             self.logPublishedLibrarySnapshot(source: source, items: items, origin: "rss-source-add")
             self.selectSource(id: source.id)
@@ -367,7 +374,8 @@ final class SourcesViewModel: ObservableObject {
                 self.sourceSelectionStore.publishLibrarySnapshot(
                     source: source,
                     items: items,
-                    listContext: nil
+                    listContext: nil,
+                    nextPage: listOutput.pagination?.nextPage
                 )
                 self.logPublishedLibrarySnapshot(source: source, items: items, origin: "catalog-source-add")
             }
@@ -453,13 +461,14 @@ final class SourcesViewModel: ObservableObject {
         }
 
         do {
-            let items: [ContentItem] = try await self.refreshSourceForSelection(source)
+            let page: RefreshedListPage = try await self.refreshSourceForSelection(source)
             self.sourceSelectionStore.publishLibrarySnapshot(
                 source: source,
-                items: items,
-                listContext: nil
+                items: page.items,
+                listContext: nil,
+                nextPage: page.nextPage
             )
-            self.logPublishedLibrarySnapshot(source: source, items: items, origin: "select-source-refresh")
+            self.logPublishedLibrarySnapshot(source: source, items: page.items, origin: "select-source-refresh")
             self.failedRefreshAction = nil
             self.selectSource(id: source.id)
             self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
@@ -744,13 +753,14 @@ final class SourcesViewModel: ObservableObject {
         }
 
         do {
-            let items: [ContentItem] = try await self.refreshSourceForSelection(source)
+            let page: RefreshedListPage = try await self.refreshSourceForSelection(source)
             self.sourceSelectionStore.publishLibrarySnapshot(
                 source: source,
-                items: items,
-                listContext: nil
+                items: page.items,
+                listContext: nil,
+                nextPage: page.nextPage
             )
-            self.logPublishedLibrarySnapshot(source: source, items: items, origin: "manual-refresh")
+            self.logPublishedLibrarySnapshot(source: source, items: page.items, origin: "manual-refresh")
             self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
             self.failedRefreshAction = nil
         } catch {
@@ -771,14 +781,17 @@ final class SourcesViewModel: ObservableObject {
     }
 
 
-    private func refreshSourceForSelection(_ source: Source) async throws -> [ContentItem] {
+    private func refreshSourceForSelection(_ source: Source) async throws -> RefreshedListPage {
         CrashDiagnostics.shared.setRuleStage(.list)
         // Sources 页的刷新只针对默认入口；非默认 tab 由 Library 按当前 ListContext 单独刷新。
         let output: SourceListOutput = try await self.refreshSourceRuntimeUseCase.execute(
             source: source,
             listContext: ListContextTransfer(value: nil)
         )
-        return self.contentItemMapper.map(output: output, source: source, context: nil)
+        return RefreshedListPage(
+            items: self.contentItemMapper.map(output: output, source: source, context: nil),
+            nextPage: output.pagination?.nextPage
+        )
     }
 
     private func saveLibraryStateForSelectedSource(lastRefreshAt: Date?) {

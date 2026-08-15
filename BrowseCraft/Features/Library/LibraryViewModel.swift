@@ -12,11 +12,6 @@ enum LibraryInitialLoadOutcome: Equatable {
     case cancelled
 }
 
-private struct LibraryListPaginationState: Equatable {
-    let currentPage: Int
-    let nextPage: Int?
-}
-
 /// 中文注释：LibraryViewModel 以 SourceRuntimeKind 作为 Library 展示和刷新入口。
 @MainActor
 final class LibraryViewModel: ObservableObject {
@@ -53,7 +48,6 @@ final class LibraryViewModel: ObservableObject {
     private var initialLoadOutcome: LibraryInitialLoadOutcome?
     /// 中文注释：刷新令牌用于避免旧 source 的慢请求回写或提前关闭当前 source 的 loading。
     private var refreshToken: Int = 0
-    private var paginationStateStore: [String: LibraryListPaginationState] = [:]
 
     init(
         persistenceCoordinator: LibraryPersistenceCoordinator,
@@ -134,8 +128,7 @@ final class LibraryViewModel: ObservableObject {
         self.sourceSelectionStore.preparingSource = nil
         self.sourceSelectionStore.preparedLibrarySnapshot = nil
         self.listStateStore = LibraryListStateStore()
-        self.paginationStateStore = [:]
-        self.applyPaginationState(nil)
+        self.applyListCacheEntry(nil)
         _ = await self.loadIfNeeded()
     }
 
@@ -192,7 +185,6 @@ final class LibraryViewModel: ObservableObject {
             self.selectedListTabID = tabID
             self.selectedListTabErrorMessage = self.currentListTabErrorMessage()
             self.loadCachedItemsForSelectedTab()
-            self.restorePaginationStateForSelectedList()
             self.saveCurrentLibraryState(lastRefreshAt: nil)
         }
 
@@ -209,14 +201,12 @@ final class LibraryViewModel: ObservableObject {
     }
 
     @MainActor
-    func loadNextPageIfNeeded(afterItemAt index: Int, item: ContentItem) async {
-        let lastIndex: Int = self.items.indices.last ?? -1
+    func loadNextPageIfNeeded() async {
         guard self.selectedSource?.configuration.kind == .video,
               self.items.isEmpty == false,
               self.isLoadingNextPage == false,
               self.isRefreshing == false,
-              self.canLoadNextPage,
-              index == lastIndex else {
+              self.canLoadNextPage else {
             return
         }
 
@@ -225,14 +215,21 @@ final class LibraryViewModel: ObservableObject {
             "[BrowseCraftLibraryRefresh] event=load-next-page-if-needed " +
             "source=\(self.selectedSourceID ?? "nil") " +
             "currentPage=\(self.currentListPage) " +
-            "nextPage=\(self.nextPageForSelectedList.map(String.init) ?? "nil") " +
-            "triggerIndex=\(index) " +
-            "lastIndex=\(lastIndex) " +
-            "lastItem=\(item.id)"
+            "nextPage=\(self.nextPageForSelectedList.map(String.init) ?? "nil")"
         )
         #endif
 
         _ = await self.loadNextPage()
+    }
+
+    var nextListPage: Int? {
+        guard self.selectedSource?.configuration.kind == .video,
+              self.isRefreshing == false,
+              self.isLoadingNextPage == false,
+              self.canLoadNextPage else {
+            return nil
+        }
+        return self.nextPageForSelectedList
     }
 
     var shouldShowPaginationStatus: Bool {
@@ -292,8 +289,10 @@ final class LibraryViewModel: ObservableObject {
         let expectedSourceID: String = refreshedSelectedSource.id
         let expectedTabID: String? = self.selectedListTabID
         let expectedListContext: ListContext? = self.selectedListContext
-        let expectedListStateKey: String = self.listStateKey(sourceID: expectedSourceID, context: expectedListContext)
-        let previousPage: Int = self.currentListPage
+        let expectedListStateKey: LibraryListStateKey = self.listStateKey(
+            sourceID: expectedSourceID,
+            context: expectedListContext
+        )
         self.setListTabError(nil, sourceID: expectedSourceID, context: expectedListContext)
         self.refreshToken += 1
         let currentRefreshToken: Int = self.refreshToken
@@ -327,51 +326,38 @@ final class LibraryViewModel: ObservableObject {
                     source: refreshedSelectedSource,
                     context: expectedListContext
                 )
-                let refreshedItems: [ContentItem]
-                let resolvedCurrentPage: Int
-                let resolvedNextPage: Int?
+                let entry: LibraryListCacheEntry
                 switch mode {
                 case .replace:
-                    refreshedItems = loadedItems
-                    resolvedCurrentPage = page
-                    resolvedNextPage = output.pagination?.nextPage
-                case .append:
-                    if loadedItems.isEmpty {
-                        refreshedItems = self.items
-                        resolvedCurrentPage = previousPage
-                        resolvedNextPage = nil
-                    } else {
-                        refreshedItems = self.items + loadedItems
-                        resolvedCurrentPage = page
-                        resolvedNextPage = output.pagination?.nextPage
-                    }
-                }
-                self.items = refreshedItems
-                self.storePaginationState(
-                    sourceID: expectedSourceID,
-                    context: expectedListContext,
-                    state: LibraryListPaginationState(
-                        currentPage: resolvedCurrentPage,
-                        nextPage: resolvedNextPage
+                    entry = self.listStateStore.replaceWithFirstPage(
+                        source: refreshedSelectedSource,
+                        items: loadedItems,
+                        nextPage: output.pagination?.nextPage,
+                        context: expectedListContext
                     )
-                )
-                self.cacheListItems(
-                    source: refreshedSelectedSource,
-                    items: refreshedItems,
-                    context: expectedListContext
-                )
+                case .append:
+                    entry = self.listStateStore.storePage(
+                        source: refreshedSelectedSource,
+                        pageNumber: page,
+                        items: loadedItems,
+                        nextPage: output.pagination?.nextPage,
+                        context: expectedListContext
+                    )
+                }
+                self.applyListCacheEntry(entry)
                 self.setListTabError(nil, sourceID: expectedSourceID, context: expectedListContext)
-                if self.updateConfirmedEmptyListTab(
+                if mode == .replace,
+                   self.updateConfirmedEmptyListTab(
                     sourceID: expectedSourceID,
                     tabID: expectedTabID,
-                    itemCount: refreshedItems.count
+                    itemCount: loadedItems.count
                 ) {
                     self.ensureSelectedListTab()
                     shouldRefreshReplacementTab = self.selectedListTabID != expectedTabID
                 }
                 self.sourceSelectionStore.publishLibrarySnapshot(
                     source: refreshedSelectedSource,
-                    items: self.items,
+                    pages: entry.snapshotPages,
                     listContext: expectedListContext
                 )
                 self.logLibraryItems(
@@ -382,12 +368,17 @@ final class LibraryViewModel: ObservableObject {
                 )
                 self.saveCurrentLibraryState(lastRefreshAt: self.now())
                 #if DEBUG
+                let pageState: LibraryListPageState? = entry.pages[page]
                 AppDebugLog.write(
                     "[BrowseCraftLibrary] reload after refresh source=\(expectedSourceID) " +
                     "requestID=\(requestID) " +
                     "items=\(self.items.count) " +
-                    "resolvedPage=\(resolvedCurrentPage) " +
-                    "nextPage=\(resolvedNextPage.map(String.init) ?? "nil") " +
+                    "pageRawItems=\(pageState?.items.count ?? loadedItems.count) " +
+                    "pageAcceptedItems=\(pageState?.visibleItems.count ?? loadedItems.count) " +
+                    "pageDuplicateItems=\(pageState?.duplicateCount ?? 0) " +
+                    "pageOutcome=\(pageState?.outcome.rawValue ?? "unknown") " +
+                    "resolvedPage=\(entry.currentPage) " +
+                    "nextPage=\(entry.nextPage.map(String.init) ?? "nil") " +
                     "context=\(self.contextDescription(expectedListContext))"
                 )
                 #endif
@@ -402,7 +393,7 @@ final class LibraryViewModel: ObservableObject {
                     "requestID=\(requestID) " +
                     "source=\(expectedSourceID) " +
                     "context=\(self.contextDescription(expectedListContext)) " +
-                    "current=\(self.currentListStateKey() ?? "nil")"
+                    "current=\(self.currentListStateKey()?.description ?? "nil")"
                 )
                 #endif
             }
@@ -644,11 +635,14 @@ final class LibraryViewModel: ObservableObject {
         )
     }
 
-    private func listStateKey(sourceID: String, context: ListContext?) -> String {
+    private func listStateKey(
+        sourceID: String,
+        context: ListContext?
+    ) -> LibraryListStateKey {
         return self.listStateStore.stateKey(sourceID: sourceID, context: context)
     }
 
-    private func currentListStateKey() -> String? {
+    private func currentListStateKey() -> LibraryListStateKey? {
         guard let selectedSourceID: String = self.selectedSourceID else {
             return nil
         }
@@ -656,7 +650,10 @@ final class LibraryViewModel: ObservableObject {
         return self.listStateKey(sourceID: selectedSourceID, context: self.selectedListContext)
     }
 
-    private func isCurrentListState(sourceID: String, key: String) -> Bool {
+    private func isCurrentListState(
+        sourceID: String,
+        key: LibraryListStateKey
+    ) -> Bool {
         return self.selectedSourceID == sourceID && self.currentListStateKey() == key
     }
 
@@ -770,7 +767,7 @@ final class LibraryViewModel: ObservableObject {
         self.requestedSourceLogin = nil
         self.items = []
         self.ensureSelectedListTab()
-        self.restorePaginationStateForSelectedList()
+        self.applyListCacheEntry(nil)
         self.selectedListTabErrorMessage = self.currentListTabErrorMessage()
         self.saveCurrentLibraryState(lastRefreshAt: nil)
 
@@ -811,13 +808,23 @@ final class LibraryViewModel: ObservableObject {
         }
 
         self.upsertSource(snapshot.source)
-        self.items = snapshot.items
         let cacheContext: ListContext? = snapshot.listContext ?? self.selectedListContext
-        self.cacheListItems(
-            source: snapshot.source,
-            items: snapshot.items,
+        let existingEntry: LibraryListCacheEntry? = self.listStateStore.cachedEntry(
+            sourceID: snapshot.sourceID,
             context: cacheContext
         )
+        if existingEntry?.snapshotPages != snapshot.pages {
+            // 中文注释：外部页面快照是这个列表的新世代；旧请求不能继续向新快照追加数据。
+            self.refreshToken += 1
+            self.isRefreshing = false
+            self.isLoadingNextPage = false
+        }
+        let entry: LibraryListCacheEntry = self.listStateStore.cacheSnapshot(
+            source: snapshot.source,
+            pages: snapshot.pages,
+            context: cacheContext
+        )
+        self.applyListCacheEntry(entry)
         self.setListTabError(nil, sourceID: snapshot.sourceID, context: self.selectedListContext)
         self.logLibraryItems(
             origin: "current-snapshot",
@@ -857,27 +864,23 @@ final class LibraryViewModel: ObservableObject {
                    sourceID: selectedSourceID,
                    context: self.selectedListContext
                ) {
-                self.items = cacheEntry.items
+                self.applyListCacheEntry(cacheEntry)
                 self.setListTabError(nil, sourceID: cacheEntry.sourceID, context: cacheEntry.context)
                 self.logLibraryItems(
                     origin: "tab-cache-hit",
                     sourceID: cacheEntry.sourceID,
                     context: cacheEntry.context
                 )
-                self.restorePaginationStateForSelectedList()
                 return
             }
 
+            self.applyListCacheEntry(nil)
             self.logLibraryItems(
-                origin: "tab-switch-no-snapshot-retain-current",
+                origin: "tab-switch-no-snapshot-clear-current",
                 sourceID: self.selectedSourceID,
                 context: self.selectedListContext
             )
         }
-    }
-
-    private func cacheListItems(source: Source, items: [ContentItem], context: ListContext?) {
-        self.listStateStore.cacheItems(source: source, items: items, context: context)
     }
 
     private var selectedListContext: ListContext? {
@@ -924,7 +927,7 @@ final class LibraryViewModel: ObservableObject {
         guard let context: ListContext = context else {
             self.selectedListTabID = nil
             self.ensureSelectedListTab()
-            self.restorePaginationStateForSelectedList()
+            self.restoreSelectedListState()
             return
         }
 
@@ -936,7 +939,7 @@ final class LibraryViewModel: ObservableObject {
                 tab.list.id == context.listRuleId
         }?.id
         self.ensureSelectedListTab()
-        self.restorePaginationStateForSelectedList()
+        self.restoreSelectedListState()
 
         if self.selectedListContext != context {
             self.saveCurrentLibraryState(lastRefreshAt: nil)
@@ -948,40 +951,29 @@ final class LibraryViewModel: ObservableObject {
             return nil
         }
 
-        return self.paginationStateStore[
-            self.listStateKey(sourceID: selectedSourceID, context: self.selectedListContext)
-        ]?.nextPage
+        return self.listStateStore.cachedEntry(
+            sourceID: selectedSourceID,
+            context: self.selectedListContext
+        )?.nextPage
     }
 
-    private func restorePaginationStateForSelectedList() {
+    private func restoreSelectedListState() {
         guard let selectedSourceID: String = self.selectedSourceID else {
-            self.applyPaginationState(nil)
+            self.applyListCacheEntry(nil)
             return
         }
 
-        let state: LibraryListPaginationState? = self.paginationStateStore[
-            self.listStateKey(sourceID: selectedSourceID, context: self.selectedListContext)
-        ]
-        self.applyPaginationState(state)
+        let entry: LibraryListCacheEntry? = self.listStateStore.cachedEntry(
+            sourceID: selectedSourceID,
+            context: self.selectedListContext
+        )
+        self.applyListCacheEntry(entry)
     }
 
-    private func storePaginationState(
-        sourceID: String,
-        context: ListContext?,
-        state: LibraryListPaginationState
-    ) {
-        self.paginationStateStore[self.listStateKey(sourceID: sourceID, context: context)] = state
-        if self.isCurrentListState(
-            sourceID: sourceID,
-            key: self.listStateKey(sourceID: sourceID, context: context)
-        ) {
-            self.applyPaginationState(state)
-        }
-    }
-
-    private func applyPaginationState(_ state: LibraryListPaginationState?) {
-        self.currentListPage = state?.currentPage ?? 1
-        self.canLoadNextPage = state?.nextPage != nil
+    private func applyListCacheEntry(_ entry: LibraryListCacheEntry?) {
+        self.items = entry?.items ?? []
+        self.currentListPage = entry?.currentPage ?? 1
+        self.canLoadNextPage = entry?.nextPage != nil
     }
 
     private func saveCurrentLibraryState(lastRefreshAt: Date?) {
