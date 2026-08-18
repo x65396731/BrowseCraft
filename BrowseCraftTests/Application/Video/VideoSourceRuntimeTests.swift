@@ -1038,6 +1038,65 @@ struct VideoSourceRuntimeTests {
         #expect(output.diagnostics.requestLogs.count == 1)
     }
 
+    @Test func videoRuleDetailTerminalReturnsMetadataWithoutEpisodeExecution() async throws {
+        let pageLoader = RecordingVideoRulePageContentLoader(html: Self.detailHTML)
+        let parser = CoreVideoRuleSourceParser()
+        let source: Source = Self.source(rule: Self.detailOnlySiteRule(directPlayback: false))
+        let resolvedRule = try ResolvedVideoSiteRule(
+            validating: try #require(source.videoConfiguration?.rule)
+        )
+        let runtime = VideoSourceRuntime(
+            source: source,
+            resolvedRule: resolvedRule,
+            listLoader: VideoSourceListLoader(pageContentLoader: pageLoader, parser: parser),
+            detailLoader: VideoSourceDetailLoader(pageContentLoader: pageLoader, parser: parser)
+        )
+
+        let output: SourceDetailOutput = try await runtime.loadDetail(
+            SourceDetailInput(
+                detailURL: try #require(URL(string: "https://video.example.invalid/detail/movie-7")),
+                context: Self.context(sourceID: source.id, pageID: "latest", ruleID: "video-list")
+            )
+        )
+
+        #expect(resolvedRule.detailEntries.first?.route == .detailTerminal)
+        #expect(pageLoader.urls.count == 1)
+        #expect(output.metadata?.title == "Movie Seven")
+        #expect(output.chapters.isEmpty)
+        #expect(output.videoPlaybackAction == nil)
+    }
+
+    @Test func videoRuleDetailOwnedPlaybackReturnsPrimaryPlaybackAction() async throws {
+        let pageLoader = RecordingVideoRulePageContentLoader(html: Self.detailHTML)
+        let parser = CoreVideoRuleSourceParser()
+        let source: Source = Self.source(rule: Self.detailOnlySiteRule(directPlayback: true))
+        let resolvedRule = try ResolvedVideoSiteRule(
+            validating: try #require(source.videoConfiguration?.rule)
+        )
+        let runtime = VideoSourceRuntime(
+            source: source,
+            resolvedRule: resolvedRule,
+            listLoader: VideoSourceListLoader(pageContentLoader: pageLoader, parser: parser),
+            detailLoader: VideoSourceDetailLoader(pageContentLoader: pageLoader, parser: parser)
+        )
+
+        let output: SourceDetailOutput = try await runtime.loadDetail(
+            SourceDetailInput(
+                detailURL: try #require(URL(string: "https://video.example.invalid/detail/movie-7")),
+                context: Self.context(sourceID: source.id, pageID: "latest", ruleID: "video-list")
+            )
+        )
+
+        let action = try #require(output.videoPlaybackAction)
+        #expect(resolvedRule.detailEntries.first?.route == .detailPlayback)
+        #expect(resolvedRule.playbackEntries.first?.owner == .detail)
+        #expect(output.chapters.isEmpty)
+        #expect(action.title == "Movie Seven")
+        #expect(action.playPageURL.absoluteString == "https://video.example.invalid/detail/movie-7")
+        #expect(action.handoff.pageID == "latest")
+        #expect(action.handoff.listRuleID == "video-list")
+    }
+
     @Test func videoRuleDetailRuntimeLoadsEpisodeDOMAgainWhenRequestDiffers() async throws {
         let pageLoader = RecordingVideoRulePageContentLoader(html: Self.detailHTML)
         let parser = CoreVideoRuleSourceParser()
@@ -1378,6 +1437,33 @@ struct VideoSourceRuntimeTests {
                 request: episodeRequest
             )
         ]
+        return rule
+    }
+
+    private static func detailOnlySiteRule(
+        directPlayback: Bool
+    ) -> VideoSiteRule {
+        var rule: VideoSiteRule = Self.detailSiteRule()
+        rule.pages[0].ruleRefs = VideoRuleRefs(
+            list: "video-list",
+            detail: "video-detail",
+            playback: directPlayback ? "video-playback" : nil
+        )
+        rule.ruleSets.episodeRules = nil
+        rule.ruleSets.playbackRules = directPlayback ? [
+            VideoPlaybackRule(
+                id: "video-playback",
+                media: VideoDirectMediaRule(
+                    url: ExtractRule(
+                        selector: "video source[src]",
+                        selectorKind: .css,
+                        function: .attr,
+                        param: "src"
+                    ),
+                    kind: .mp4
+                )
+            )
+        ] : nil
         return rule
     }
 

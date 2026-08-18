@@ -1,7 +1,7 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：P1-5 detail loader 分别执行 detail 与 episode 的显式 sourceStrategy；V2 永不调用 legacy mapper。
+// 中文注释：detail loader 先执行 Detail，再按 resolved route 终止、直达 Playback 或继续 Episode；V2 永不调用 legacy mapper。
 struct VideoSourceDetailLoader {
     private enum BranchKind {
         case dom
@@ -60,7 +60,7 @@ struct VideoSourceDetailLoader {
             resolvedRule: resolvedRule
         )
         let detailRule: VideoDetailRule = resolvedRule.detailRule(for: entry)
-        let episodeRule: VideoEpisodeRule = resolvedRule.episodeRule(for: entry)
+        let episodeRule: VideoEpisodeRule? = resolvedRule.episodeRuleIfPresent(for: entry)
         let override: SourceRequestOverride? = input.context.requestOverride
             ?? input.itemReference?.requestOverride
         let requestURL: URL = try self.requestURL(input: input, override: override)
@@ -68,7 +68,7 @@ struct VideoSourceDetailLoader {
             base: entry.effectiveDetailRequest,
             override: override
         )
-        let episodeDOMRequest: RequestConfig? = self.sourceRequestOverrideResolver.resolve(
+        let episodeDOMRequest: RequestConfig? = episodeRule == nil ? nil : self.sourceRequestOverrideResolver.resolve(
             base: entry.effectiveEpisodeRequest,
             override: override
         )
@@ -164,6 +164,43 @@ struct VideoSourceDetailLoader {
                 sourceID: source.id,
                 reason: "Video V2 detail rule \(detailRule.id) did not produce the required title field."
             )
+        }
+
+        if episodeRule == nil {
+            let action: SourceVideoDetailPlaybackAction?
+            if entry.route == .detailPlayback {
+                action = self.detailPlaybackAction(
+                    source: source,
+                    input: input,
+                    entry: entry,
+                    title: title,
+                    playPageURL: selectedDetail.finalURL,
+                    idCode: selectedDetail.parsed.metadata.idCode
+                )
+            } else {
+                action = nil
+            }
+            return SourceDetailOutput(
+                metadata: self.metadata(
+                    parsed: selectedDetail.parsed,
+                    itemReference: input.itemReference,
+                    title: title
+                ),
+                chapters: [],
+                videoPlaybackAction: action,
+                diagnostics: SourceRuntimeDiagnostics.succeeded(
+                    requestLogs: requestLogs,
+                    extractionLogs: extractionLogs,
+                    issues: issues,
+                    context: SourceRuntimeDiagnosticContext(
+                        runtimeContext: input.context,
+                        requestURL: selectedDetail.finalURL
+                    )
+                )
+            )
+        }
+        guard let episodeRule else {
+            throw SourceRuntimeError.invalidInput("Video V2 resolved route lost its episode rule.")
         }
 
         var selectedEpisodes: EpisodeBranch?
@@ -271,14 +308,10 @@ struct VideoSourceDetailLoader {
             )
         }
         return SourceDetailOutput(
-            metadata: SourceDetailMetadata(
-                idCode: selectedDetail.parsed.metadata.idCode ?? input.itemReference?.idCode,
-                title: title,
-                coverURL: selectedDetail.parsed.metadata.coverURL,
-                description: selectedDetail.parsed.metadata.description,
-                attributes: selectedDetail.parsed.metadata.attributes.map { attribute in
-                    return SourceDetailAttribute(label: attribute.label, value: attribute.value)
-                }
+            metadata: self.metadata(
+                parsed: selectedDetail.parsed,
+                itemReference: input.itemReference,
+                title: title
             ),
             chapters: chapters,
             diagnostics: diagnostics
@@ -312,10 +345,64 @@ struct VideoSourceDetailLoader {
         }
         guard let entry: ResolvedVideoDetailEntry = candidates.first else {
             throw SourceRuntimeError.unsupported(
-                .custom("This Video V2 source does not declare a detail/episode rule chain.")
+                .custom("This Video V2 source does not declare a detail rule chain.")
             )
         }
         return entry
+    }
+
+    private func metadata(
+        parsed: VideoRuleParsedDetail,
+        itemReference: SourceItemReference?,
+        title: String
+    ) -> SourceDetailMetadata {
+        return SourceDetailMetadata(
+            idCode: parsed.metadata.idCode ?? itemReference?.idCode,
+            title: title,
+            coverURL: parsed.metadata.coverURL,
+            description: parsed.metadata.description,
+            attributes: parsed.metadata.attributes.map { attribute in
+                return SourceDetailAttribute(label: attribute.label, value: attribute.value)
+            }
+        )
+    }
+
+    private func detailPlaybackAction(
+        source: Source,
+        input: SourceDetailInput,
+        entry: ResolvedVideoDetailEntry,
+        title: String,
+        playPageURL: URL,
+        idCode: String?
+    ) -> SourceVideoDetailPlaybackAction {
+        let vodID: String = idCode
+            ?? input.itemReference?.idCode
+            ?? input.itemReference?.id
+            ?? "\(source.id)::\(title)"
+        let key: String = SourceVideoPlaybackReference.episodeKey(
+            vodID: vodID,
+            sourceIndex: 1,
+            episodeIndex: 1
+        )
+        let handoff = SourceVideoPlaybackHandoff(
+            vodID: vodID,
+            sourceIndex: 1,
+            episodeIndex: 1,
+            episodeKey: key,
+            episodeTitle: title,
+            episodeURLs: [playPageURL],
+            episodeKeys: [key],
+            episodeTitles: [title],
+            sourceName: nil,
+            pageID: entry.pageID,
+            listRuleID: entry.listRuleID
+        )
+        return SourceVideoDetailPlaybackAction(
+            id: key,
+            title: title,
+            playPageURL: playPageURL,
+            handoff: handoff
+        )
     }
 
     private func branchOrder(_ strategy: VideoRuleDataSourceStrategy) -> [BranchKind] {

@@ -117,14 +117,14 @@ struct VideoSourceRuntime: SourceRuntime, SourceDetailRuntime, SourceVideoPlayba
             if detailStrategy != .domOnly, let request: RequestConfig = entry.effectiveDetailAPIRequest {
                 requests.append(request)
             }
-            let episodeStrategy: VideoRuleDataSourceStrategy = self.resolvedRule
-                .episodeRule(for: entry)
-                .effectiveSourceStrategy
-            if episodeStrategy != .apiOnly, let request: RequestConfig = entry.effectiveEpisodeRequest {
-                requests.append(request)
-            }
-            if episodeStrategy != .domOnly, let request: RequestConfig = entry.effectiveEpisodeAPIRequest {
-                requests.append(request)
+            if let episodeRule: VideoEpisodeRule = self.resolvedRule.episodeRuleIfPresent(for: entry) {
+                let episodeStrategy: VideoRuleDataSourceStrategy = episodeRule.effectiveSourceStrategy
+                if episodeStrategy != .apiOnly, let request: RequestConfig = entry.effectiveEpisodeRequest {
+                    requests.append(request)
+                }
+                if episodeStrategy != .domOnly, let request: RequestConfig = entry.effectiveEpisodeAPIRequest {
+                    requests.append(request)
+                }
             }
         }
         for entry: ResolvedVideoPlaybackEntry in self.resolvedRule.playbackEntries {
@@ -147,13 +147,13 @@ struct VideoSourceRuntime: SourceRuntime, SourceDetailRuntime, SourceVideoPlayba
             return SourceRuntimeCapabilityLimitation(
                 capability: .detail,
                 reason: .unsupportedBySource,
-                message: "This Video V2 source does not declare a detail/episode rule chain."
+                message: "This Video V2 source does not declare a detail rule chain."
             )
         }
         return SourceRuntimeCapabilityLimitation(
             capability: .detail,
             reason: .unsupportedBySource,
-            message: "This Video V2 source does not expose an executable detail/episode rule chain."
+            message: "This Video V2 source does not expose an executable detail rule chain."
         )
     }
 
@@ -216,7 +216,7 @@ struct VideoSourceRuntime: SourceRuntime, SourceDetailRuntime, SourceVideoPlayba
             playPageURL: input.playPageURL
         ) ?? input.handoff else {
             throw SourceRuntimeError.invalidInput(
-                "Video V2 page-only playback requires the stable detail/episode handoff."
+                "Video V2 page-only playback requires the stable detail or episode handoff."
             )
         }
         let requestConfig = SourcePlaybackRequestConfig(

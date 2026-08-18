@@ -299,7 +299,7 @@ struct VideoSourcePlaybackLoader {
             playPageURL: input.playPageURL
         ) ?? input.handoff else {
             throw SourceRuntimeError.invalidInput(
-                "Video V2 playback requires the stable detail/episode handoff."
+                "Video V2 playback requires the stable detail or episode handoff."
             )
         }
         return handoff
@@ -322,8 +322,8 @@ struct VideoSourcePlaybackLoader {
         guard entries.count == 1, let entry: ResolvedVideoPlaybackEntry = entries.first else {
             throw SourceRuntimeError.invalidInput(
                 entries.isEmpty
-                    ? "Video V2 playback rule chain was not found for the episode handoff."
-                    : "Video V2 playback rule chain is ambiguous for the episode handoff."
+                    ? "Video V2 playback rule chain was not found for the detail or episode handoff."
+                    : "Video V2 playback rule chain is ambiguous for the detail or episode handoff."
             )
         }
         return entry

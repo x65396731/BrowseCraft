@@ -295,6 +295,17 @@ final class VideoDetailViewModel: ObservableObject {
                     playbackHandoff: chapter.videoPlaybackHandoff
                 )
             }
+            if self.episodes.isEmpty, let action: SourceVideoDetailPlaybackAction = output.videoPlaybackAction {
+                self.episodes = [
+                    VideoEpisode(
+                        id: action.id,
+                        title: action.title,
+                        playPageURL: action.playPageURL,
+                        sourceName: action.sourceName,
+                        playbackHandoff: action.handoff
+                    )
+                ]
+            }
             self.synopsis = output.metadata?.description
             self.metadataRows = output.metadata?.attributes.map(\.displayText) ?? []
             #if DEBUG

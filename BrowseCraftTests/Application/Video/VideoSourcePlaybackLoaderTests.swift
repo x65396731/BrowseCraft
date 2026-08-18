@@ -31,6 +31,42 @@ struct VideoSourcePlaybackLoaderTests {
         #expect(output.diagnostics.requestLogs.first?.url.query == nil)
     }
 
+    @Test func detailOwnedPlaybackUsesTheSameLoaderWithoutEpisodeRule() async throws {
+        let pageLoader = PlaybackPageContentLoader(
+            html: "<html><video><source src=\"/media/detail.mp4\"></video></html>",
+            finalURL: try #require(URL(string: "https://video.example.invalid/detail/movie-1"))
+        )
+        var rule: VideoSiteRule = Self.playbackRule()
+        rule.pages[0].ruleRefs.episode = nil
+        rule.ruleSets.episodeRules = nil
+        var playbackRules: [VideoPlaybackRule] = rule.ruleSets.playbackRules ?? []
+        playbackRules[0].media = VideoDirectMediaRule(
+            url: ExtractRule(
+                selector: "video source[src]",
+                selectorKind: .css,
+                function: .attr,
+                param: "src"
+            ),
+            kind: .mp4
+        )
+        rule.ruleSets.playbackRules = playbackRules
+        let resolvedRule = try ResolvedVideoSiteRule(validating: rule)
+
+        let output: SourceVideoPlaybackOutput = try await VideoSourcePlaybackLoader(
+            pageContentLoader: pageLoader,
+            parser: CoreVideoRuleSourceParser()
+        ).execute(
+            source: Self.source(rule: rule),
+            resolvedRule: resolvedRule,
+            input: Self.input()
+        )
+
+        #expect(resolvedRule.playbackEntries.first?.owner == .detail)
+        #expect(output.reference.status == .playable)
+        #expect(output.reference.candidateMediaKind == .mp4)
+        #expect(output.reference.candidateMediaURL?.absoluteString == "https://video.example.invalid/media/detail.mp4")
+    }
+
     @Test func multipleDistinctLegacyDirectMediaURLsChooseFirstInDocumentOrder() async throws {
         let pageLoader = PlaybackPageContentLoader(
             html: """
