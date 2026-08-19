@@ -176,7 +176,11 @@ struct VideoSourceListLoader {
                 underlyingDescription: error.localizedDescription
             )
         }
-        let items: [SourceContentItem] = self.contentItems(source: source, parsed: parsed)
+        let items: [SourceContentItem] = self.contentItems(
+            source: source,
+            parsed: parsed,
+            listPageURL: response.finalURL
+        )
         if parsed.candidateCount > 0, items.isEmpty {
             throw RuleExecutionError.ruleConfiguration(
                 stage: .list,
@@ -254,7 +258,11 @@ struct VideoSourceListLoader {
             input: input,
             refererURL: refererURL
         )
-        let items: [SourceContentItem] = self.contentItems(source: source, parsed: branch.value)
+        let items: [SourceContentItem] = self.contentItems(
+            source: source,
+            parsed: branch.value,
+            listPageURL: branch.finalURL
+        )
         var issues: [SourceRuntimeIssue] = []
         if branch.value.droppedCount > 0 {
             issues.append(
@@ -325,10 +333,19 @@ struct VideoSourceListLoader {
 
     private func contentItems(
         source: Source,
-        parsed: VideoRuleParsedList
+        parsed: VideoRuleParsedList,
+        listPageURL: URL
     ) -> [SourceContentItem] {
         return parsed.items.map { item in
-            let stableID: String = item.idCode ?? item.detailURL.absoluteString
+            let normalizedIDCode: String? = item.idCode.flatMap { value in
+                let trimmed: String = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed.isEmpty ? nil : trimmed
+            }
+            let stableID: String = normalizedIDCode
+                ?? self.canonicalDetailIdentity(
+                    item.detailURL,
+                    listPageURL: listPageURL
+                )
             return SourceContentItem(
                 id: "\(source.id).video.v2.\(stableID)",
                 idCode: item.idCode,
@@ -338,6 +355,49 @@ struct VideoSourceListLoader {
                 latestText: item.latestText
             )
         }
+    }
+
+    /// 中文注释：详情链接常携带当前列表的 category/page/viewtype 等导航参数。
+    /// 它们会随分页变化，却不属于视频身份；只从 ID 投影中移除与列表 URL 完全相同的参数，
+    /// 实际 detailURL 保持原样，继续用于详情请求。
+    private func canonicalDetailIdentity(
+        _ detailURL: URL,
+        listPageURL: URL
+    ) -> String {
+        guard var detailComponents: URLComponents = URLComponents(
+            url: detailURL,
+            resolvingAgainstBaseURL: false
+        ) else {
+            return detailURL.absoluteString
+        }
+        detailComponents.fragment = nil
+
+        guard let listComponents: URLComponents = URLComponents(
+            url: listPageURL,
+            resolvingAgainstBaseURL: false
+        ),
+              detailComponents.host?.lowercased() == listComponents.host?.lowercased(),
+              let listQueryItems: [URLQueryItem] = listComponents.queryItems,
+              listQueryItems.isEmpty == false,
+              let detailQueryItems: [URLQueryItem] = detailComponents.queryItems else {
+            return detailComponents.url?.absoluteString ?? detailURL.absoluteString
+        }
+
+        let listQueryPairs: Set<String> = Set(listQueryItems.map(self.queryPairKey))
+        let identityQueryItems: [URLQueryItem] = detailQueryItems
+            .filter { listQueryPairs.contains(self.queryPairKey($0)) == false }
+            .sorted { lhs, rhs in
+                if lhs.name != rhs.name {
+                    return lhs.name < rhs.name
+                }
+                return (lhs.value ?? "") < (rhs.value ?? "")
+            }
+        detailComponents.queryItems = identityQueryItems.isEmpty ? nil : identityQueryItems
+        return detailComponents.url?.absoluteString ?? detailURL.absoluteString
+    }
+
+    private func queryPairKey(_ item: URLQueryItem) -> String {
+        return item.name + "\u{0}" + (item.value ?? "")
     }
 
     private func branchOrder(
