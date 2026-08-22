@@ -155,7 +155,9 @@ struct SourceContentNoiseFilter: SourceContentNoiseFiltering {
         let urlText: String?
         switch candidate.context {
         case .playbackCandidate:
-            urlText = candidate.url?.absoluteString
+            // The host may contain broad words such as "video". Treating the
+            // full URL as playback evidence can hide redirect/ad paths.
+            urlText = candidate.url?.path
         case .listItem, .navigationLink, .feedItem, .chapterLink:
             urlText = candidate.url?.path
         }

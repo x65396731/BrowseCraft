@@ -173,7 +173,7 @@ struct SourceRuntimeMappingTests {
 
         _ = try await useCase.execute(
             source: source,
-            listContext: context,
+            listContext: ListContextTransfer(value: context),
             page: 3,
             debugMode: true
         )

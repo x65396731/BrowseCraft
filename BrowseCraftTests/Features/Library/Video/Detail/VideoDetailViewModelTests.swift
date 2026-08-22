@@ -3,6 +3,7 @@ import Testing
 import BrowseCraftCore
 @testable import BrowseCraft
 
+@MainActor
 struct VideoDetailViewModelTests {
     @Test func dropsSingletonDuplicateEntryGroup() {
         let chapters: [SourceChapter] = VideoDetailViewModel.filteredEpisodeChapters(
@@ -58,10 +59,12 @@ struct VideoDetailViewModelTests {
     }
 
     private static func chapter(title: String, subtitle: String?, url: String? = nil) -> SourceChapter {
+        let urlString: String = url ?? "https://video.example.invalid/\(title)"
         return SourceChapter(
+            id: urlString,
             title: title,
             subtitle: subtitle,
-            url: url ?? "https://video.example.invalid/\(title)"
+            url: URL(string: urlString)!
         )
     }
 }
