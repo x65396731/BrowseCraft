@@ -36,7 +36,7 @@ struct AddSourceView: View {
                 ComicDiscoveryView(viewModel: self.viewModel)
             }
             .sheet(isPresented: self.$isShowingVideoDiscovery) {
-                VideoDiscoveryView(viewModel: self.viewModel)
+                VideoGenerationInputView(viewModel: self.viewModel)
             }
             .sheet(isPresented: self.$isShowingRSSDiscovery) {
                 RSSDiscoveryView(

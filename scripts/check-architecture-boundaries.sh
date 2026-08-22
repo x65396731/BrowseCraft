@@ -109,7 +109,8 @@ if [[ -d "$CORE_ROOT" ]]; then
     exclude_matches \
       "$swift_soup_matches" \
       '/Parsing/Document/HTML/SwiftSoupHTMLDocumentParser.swift:' \
-      '/Parsing/Discovery/DefaultSourceDiscoveryAnalyzer.swift:'
+      '/Parsing/Discovery/DefaultSourceDiscoveryAnalyzer.swift:' \
+      '/Parsing/Discovery/DefaultSourceListStructureObserver.swift:'
   )"
   if [[ -n "$swift_soup_violations" ]]; then
     echo 'Architecture boundary violation: SwiftSoup escaped its named Core adapters.'

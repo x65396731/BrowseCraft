@@ -29,6 +29,7 @@ final class SourcesViewModel: ObservableObject {
     @Published private(set) var catalogSources: [CatalogSource] = []
     @Published private(set) var isLoadingCatalogSources: Bool = false
     @Published private(set) var requestedSlotActivationSource: Source?
+    @Published private(set) var videoGenerationInputProgress: VideoGenerationInputPreflightProgress?
     @Published private(set) var sourceSlotLimit: Int =
         SourceSlotPolicy.includedSiteSlotCount
 
@@ -49,6 +50,7 @@ final class SourcesViewModel: ObservableObject {
     private let now: () -> Date
     private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
     private var failedRefreshAction: FailedRefreshAction?
+    private var videoGenerationAssessmentID: UUID?
 
     var currentUserID: String {
         return self.activeAppUser?.currentUserID.uuidString ?? self.fallbackUserID
@@ -187,6 +189,46 @@ final class SourcesViewModel: ObservableObject {
             AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .search, errorCode: "video-discovery-error")
             self.errorMessage = error.localizedDescription
             return []
+        }
+    }
+
+    @MainActor
+    func assessVideoGenerationInput(
+        siteURLString: String
+    ) async throws -> VideoGenerationInputPreflight {
+        let assessmentID: UUID = UUID()
+        self.videoGenerationAssessmentID = assessmentID
+        self.errorMessage = nil
+        self.videoGenerationInputProgress = .validatingInput
+        do {
+            let result: VideoGenerationInputPreflight = try await self.discoveryService
+                .assessVideoGenerationInput(
+                    siteURLString: siteURLString,
+                    progress: { [weak self] progress in
+                        guard self?.videoGenerationAssessmentID == assessmentID else {
+                            return
+                        }
+                        self?.videoGenerationInputProgress = progress
+                    }
+                )
+            if self.videoGenerationAssessmentID == assessmentID {
+                self.videoGenerationInputProgress = nil
+                self.videoGenerationAssessmentID = nil
+            }
+            return result
+        } catch is CancellationError {
+            if self.videoGenerationAssessmentID == assessmentID {
+                self.videoGenerationInputProgress = nil
+                self.videoGenerationAssessmentID = nil
+            }
+            throw CancellationError()
+        } catch {
+            if self.videoGenerationAssessmentID == assessmentID {
+                self.videoGenerationInputProgress = nil
+                self.videoGenerationAssessmentID = nil
+                self.errorMessage = error.localizedDescription
+            }
+            throw error
         }
     }
 

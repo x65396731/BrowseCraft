@@ -1,3 +1,5 @@
+import BrowseCraftCore
+
 struct SourcesFeatureFactory {
     private let database: AppDatabase
     private let activeAppUser: any ActiveAppUserProviding
@@ -38,6 +40,15 @@ struct SourcesFeatureFactory {
         )
         let loadRSSHubDiscoveryCandidatesUseCase: LoadRSSHubDiscoveryCandidatesUseCase =
             LoadRSSHubDiscoveryCandidatesUseCase(pageDataLoader: self.pageDataLoader)
+        let publicURLPolicy: PublicURLPolicy = PublicURLPolicy()
+        let assessVideoGenerationInputUseCase: AssessVideoGenerationInputUseCase =
+            AssessVideoGenerationInputUseCase(
+                publicURLPolicy: publicURLPolicy,
+                httpLoader: PreflightHTTPPageLoader(publicURLPolicy: publicURLPolicy),
+                renderedLoader: PreflightRenderedPageLoader(publicURLPolicy: publicURLPolicy),
+                structureObserver: DefaultSourceListStructureObserver(),
+                familyAssessor: DefaultSourceListFamilyAssessor()
+            )
         let sourceDiscoveryService: SourceDiscoveryService = SourceDiscoveryService(
             discoverComicResourcesUseCase: DiscoverComicResourcesUseCase(
                 pageContentLoader: self.pageContentLoader,
@@ -52,7 +63,8 @@ struct SourcesFeatureFactory {
             discoverRSSFeedsUseCase: DiscoverRSSFeedsUseCase(
                 rssFeedLoader: RSSFeedLoader(pageDataLoader: self.pageDataLoader),
                 loadRSSHubDiscoveryCandidatesUseCase: loadRSSHubDiscoveryCandidatesUseCase
-            )
+            ),
+            assessVideoGenerationInputUseCase: assessVideoGenerationInputUseCase
         )
         let sourceRuleEditorService: SourceRuleEditorService = self.makeSourceRuleEditorService()
         let sourceRuleEditingCoordinator: SourceRuleEditingCoordinator =
