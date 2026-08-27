@@ -31,6 +31,20 @@ struct VideoSourcePlaybackLoader {
         resolvedRule: ResolvedVideoSiteRule,
         input: SourceVideoPlaybackInput
     ) async throws -> SourceVideoPlaybackOutput {
+        let session: VideoPreparedPlaybackExecutionSession = try self.prepare(
+            source: source,
+            resolvedRule: resolvedRule,
+            input: input
+        )
+        return try await self.execute(session)
+    }
+
+    // 中文注释：只在这里解析 handoff、owner、request 与规则；后续 audit 不得重复物化第二份执行状态。
+    func prepare(
+        source: Source,
+        resolvedRule: ResolvedVideoSiteRule,
+        input: SourceVideoPlaybackInput
+    ) throws -> VideoPreparedPlaybackExecutionSession {
         let handoff: SourceVideoPlaybackHandoff = try self.handoff(input)
         let entry: ResolvedVideoPlaybackEntry = try self.entry(
             input: input,
@@ -60,12 +74,48 @@ struct VideoSourcePlaybackLoader {
                 reason: error.localizedDescription
             )
         }
+        return VideoPreparedPlaybackExecutionSession(
+            source: source,
+            input: input,
+            siteRule: resolvedRule.raw,
+            handoff: handoff,
+            entry: entry,
+            playbackRule: playbackRule,
+            detailReadyDeclared: resolvedRule.detailRule(for: entry).ready != nil,
+            requestURL: requestURL,
+            request: request
+        )
+    }
+
+    func execute(
+        _ session: VideoPreparedPlaybackExecutionSession
+    ) async throws -> SourceVideoPlaybackOutput {
+        return try await self.executeWithRouteFacts(session).output
+    }
+
+    // 中文注释：routeFacts 只保留本次内存中的前置路线事实；普通播放输出不会持久化 URL 或把它升级为 runtime evidence。
+    func executeWithRouteFacts(
+        _ session: VideoPreparedPlaybackExecutionSession
+    ) async throws -> VideoPreparedPlaybackExecutionResult {
+        let source: Source = session.source
+        let input: SourceVideoPlaybackInput = session.input
+        let handoff: SourceVideoPlaybackHandoff = session.handoff
+        let playbackRule: VideoPlaybackRule = session.playbackRule
+        let requestURL: URL = session.requestURL
+        let request: RequestConfig? = session.request
 
         var currentURL: URL = requestURL
         var refererURL: URL = requestURL
         var rootFinalURL: URL?
+        var lastResponseFinalURL: URL?
         var depth: Int = 0
         var visitedURLKeys: Set<String> = [self.canonicalURLKey(requestURL)]
+        var resolvingIframeRoute: Bool = false
+        var iframeActivationURL: URL?
+        var selectedRouteSlot: VideoRuntimeEvidenceRouteSlot?
+        var routeFactsBySlot: [VideoRuntimeEvidenceRouteSlot: VideoPreparedPlaybackRouteFact] = [:]
+        var knownEncryptedMediaFingerprints: Set<VideoRuntimeEvidenceFingerprint> = []
+        var hasUnidentifiedKnownEncryptedMedia: Bool = false
         var requestLogs: [SourceRequestLog] = []
         var extractionLogs: [SourceExtractionLog] = []
         var issues: [SourceRuntimeIssue] = []
@@ -88,6 +138,7 @@ struct VideoSourcePlaybackLoader {
                 )
             )
             rootFinalURL = rootFinalURL ?? response.finalURL
+            lastResponseFinalURL = response.finalURL
             issues += try self.renderGuard.validateMappableHTML(
                 url: response.finalURL,
                 html: response.content,
@@ -144,43 +195,168 @@ struct VideoSourcePlaybackLoader {
             }
 
             try self.validateParsedPlayback(parsed, rule: playbackRule, sourceID: source.id)
-            if let mediaCandidate: VideoRuleParsedMediaCandidate = parsed.mediaCandidates.first {
-                candidateMediaURL = mediaCandidate.url
-                candidateMediaKind = self.mediaKind(mediaCandidate.kind)
-                playbackRequestConfig = try self.playbackRequest(
-                    source: source,
-                    rule: resolvedRule.raw,
-                    mediaRequest: playbackRule.mediaRequest,
-                    finalURL: response.finalURL
-                )
-                status = .playable
-                break playbackLoop
-            }
 
-            if let iframeURL: URL = parsed.iframeURLs.first,
-               let iframeRule: VideoIframePlaybackRule = playbackRule.iframe {
-                switch iframeRule.strategy {
-                case .webUI:
-                    candidateMediaURL = iframeURL
-                    candidateMediaKind = .iframePlayer
-                    playbackRequestConfig = self.webPlaybackRequest(
-                        request: request,
-                        referer: response.finalURL
-                    )
-                    status = .pageOnly
+            let mediaCandidate: VideoRuleParsedMediaCandidate? = parsed.mediaCandidates.first
+
+            if resolvingIframeRoute {
+                if let mediaCandidate, mediaCandidate.kind == .mp4 {
+                    if self.isIndependentFromKnownEncryptedMedia(
+                        kind: .mp4,
+                        url: mediaCandidate.url,
+                        knownFingerprints: knownEncryptedMediaFingerprints,
+                        hasUnidentifiedKnownEncryptedMedia: hasUnidentifiedKnownEncryptedMedia
+                    ) {
+                        candidateMediaURL = mediaCandidate.url
+                        candidateMediaKind = .mp4
+                        playbackRequestConfig = try self.playbackRequest(
+                            source: source,
+                            rule: session.siteRule,
+                            mediaRequest: playbackRule.mediaRequest,
+                            finalURL: response.finalURL
+                        )
+                        status = .playable
+                        selectedRouteSlot = .iframe
+                        routeFactsBySlot[.iframe] = VideoPreparedPlaybackRouteFact(
+                            routeSlot: .iframe,
+                            executionMode: .iframeResolve,
+                            disposition: .selectedForPlayer,
+                            routeActivationURL: iframeActivationURL,
+                            candidateMediaURL: mediaCandidate.url,
+                            candidateMediaKind: .mp4,
+                            reason: nil
+                        )
+                    } else {
+                        status = .failed(.unsupportedMediaKind)
+                        routeFactsBySlot[.iframe] = VideoPreparedPlaybackRouteFact(
+                            routeSlot: .iframe,
+                            executionMode: .iframeResolve,
+                            disposition: .rejectedBeforePlayer,
+                            routeActivationURL: iframeActivationURL,
+                            candidateMediaURL: mediaCandidate.url,
+                            candidateMediaKind: .mp4,
+                            reason: .knownEncryptedMedia
+                        )
+                    }
                     break playbackLoop
-                case .resolve:
+                }
+
+                if let mediaCandidate {
+                    let resolvedPlaybackRequest: SourcePlaybackRequestConfig? = try self.playbackRequest(
+                        source: source,
+                        rule: session.siteRule,
+                        mediaRequest: playbackRule.mediaRequest,
+                        finalURL: response.finalURL
+                    )
+                    let mediaFingerprint: VideoRuntimeEvidenceFingerprint? = self.mediaFingerprint(
+                        kind: .hls,
+                        url: mediaCandidate.url
+                    )
+                    if self.isIndependentFromKnownEncryptedMedia(
+                        fingerprint: mediaFingerprint,
+                        knownFingerprints: knownEncryptedMediaFingerprints,
+                        hasUnidentifiedKnownEncryptedMedia: hasUnidentifiedKnownEncryptedMedia
+                    ) == false {
+                        status = .failed(.unsupportedMediaKind)
+                        routeFactsBySlot[.iframe] = VideoPreparedPlaybackRouteFact(
+                            routeSlot: .iframe,
+                            executionMode: .iframeResolve,
+                            disposition: .rejectedBeforePlayer,
+                            routeActivationURL: iframeActivationURL,
+                            candidateMediaURL: mediaCandidate.url,
+                            candidateMediaKind: .hls,
+                            reason: .knownEncryptedMedia
+                        )
+                        break playbackLoop
+                    }
+
+                    let inspection: VideoHLSInitialManifestInspection = try await self.inspectInitialHLSManifest(
+                        mediaURL: mediaCandidate.url,
+                        source: source,
+                        playbackRequestConfig: resolvedPlaybackRequest
+                    )
+                    switch inspection.classification {
+                    case .encrypted:
+                        status = .failed(.unsupportedMediaKind)
+                        self.recordKnownEncryptedHLS(
+                            candidateURL: mediaCandidate.url,
+                            observedFinalURL: inspection.observedFinalURL,
+                            knownFingerprints: &knownEncryptedMediaFingerprints,
+                            hasUnidentifiedKnownEncryptedMedia: &hasUnidentifiedKnownEncryptedMedia
+                        )
+                        routeFactsBySlot[.iframe] = VideoPreparedPlaybackRouteFact(
+                            routeSlot: .iframe,
+                            executionMode: .iframeResolve,
+                            disposition: .rejectedBeforePlayer,
+                            routeActivationURL: iframeActivationURL,
+                            candidateMediaURL: mediaCandidate.url,
+                            candidateMediaKind: .hls,
+                            reason: .encryptedHLS
+                        )
+                    case .unknown:
+                        if knownEncryptedMediaFingerprints.isEmpty == false,
+                           self.isIndependentFromKnownEncryptedMedia(
+                               kind: .hls,
+                               url: inspection.observedFinalURL,
+                               knownFingerprints: knownEncryptedMediaFingerprints,
+                               hasUnidentifiedKnownEncryptedMedia: hasUnidentifiedKnownEncryptedMedia
+                           ) == false {
+                            status = .failed(.unsupportedMediaKind)
+                            routeFactsBySlot[.iframe] = VideoPreparedPlaybackRouteFact(
+                                routeSlot: .iframe,
+                                executionMode: .iframeResolve,
+                                disposition: .rejectedBeforePlayer,
+                                routeActivationURL: iframeActivationURL,
+                                candidateMediaURL: mediaCandidate.url,
+                                candidateMediaKind: .hls,
+                                reason: .knownEncryptedMedia
+                            )
+                        } else {
+                            candidateMediaURL = mediaCandidate.url
+                            candidateMediaKind = .m3u8
+                            playbackRequestConfig = resolvedPlaybackRequest
+                            status = .playable
+                            selectedRouteSlot = .iframe
+                            routeFactsBySlot[.iframe] = VideoPreparedPlaybackRouteFact(
+                                routeSlot: .iframe,
+                                executionMode: .iframeResolve,
+                                disposition: .selectedForPlayer,
+                                routeActivationURL: iframeActivationURL,
+                                candidateMediaURL: mediaCandidate.url,
+                                candidateMediaKind: .hls,
+                                reason: nil
+                            )
+                        }
+                    }
+                    break playbackLoop
+                }
+
+                if let iframeURL: URL = parsed.iframeURLs.first,
+                   let iframeRule: VideoIframePlaybackRule = playbackRule.iframe {
                     let maxDepth: Int = iframeRule.maxDepth ?? 3
                     guard depth < maxDepth else {
-                        candidateMediaURL = iframeURL
-                        candidateMediaKind = .iframePlayer
                         status = .failed(.iframePlayerDepthExceeded)
+                        routeFactsBySlot[.iframe] = VideoPreparedPlaybackRouteFact(
+                            routeSlot: .iframe,
+                            executionMode: .iframeResolve,
+                            disposition: .rejectedBeforePlayer,
+                            routeActivationURL: iframeActivationURL,
+                            candidateMediaURL: nil,
+                            candidateMediaKind: .unknown,
+                            reason: .iframeDepthExceeded
+                        )
                         break playbackLoop
                     }
                     guard visitedURLKeys.insert(self.canonicalURLKey(iframeURL)).inserted else {
-                        candidateMediaURL = iframeURL
-                        candidateMediaKind = .iframePlayer
                         status = .failed(.iframePlayerLoopDetected)
+                        routeFactsBySlot[.iframe] = VideoPreparedPlaybackRouteFact(
+                            routeSlot: .iframe,
+                            executionMode: .iframeResolve,
+                            disposition: .rejectedBeforePlayer,
+                            routeActivationURL: iframeActivationURL,
+                            candidateMediaURL: nil,
+                            candidateMediaKind: .unknown,
+                            reason: .iframeLoopDetected
+                        )
                         break playbackLoop
                     }
                     depth += 1
@@ -188,18 +364,248 @@ struct VideoSourcePlaybackLoader {
                     currentURL = iframeURL
                     continue playbackLoop
                 }
+
+                status = .failed(.mediaURLNotFound)
+                routeFactsBySlot[.iframe] = VideoPreparedPlaybackRouteFact(
+                    routeSlot: .iframe,
+                    executionMode: .iframeResolve,
+                    disposition: .rejectedBeforePlayer,
+                    routeActivationURL: iframeActivationURL,
+                    candidateMediaURL: nil,
+                    candidateMediaKind: .unknown,
+                    reason: .noCandidate
+                )
+                break playbackLoop
             }
 
-            if playbackRule.fallback == .webUI {
-                candidateMediaURL = response.finalURL
+            if playbackRule.effectiveMediaCandidates.isEmpty == false {
+                if let mediaCandidate, mediaCandidate.kind == .mp4 {
+                    candidateMediaURL = mediaCandidate.url
+                    candidateMediaKind = .mp4
+                    playbackRequestConfig = try self.playbackRequest(
+                        source: source,
+                        rule: session.siteRule,
+                        mediaRequest: playbackRule.mediaRequest,
+                        finalURL: response.finalURL
+                    )
+                    status = .playable
+                    selectedRouteSlot = .media
+                    routeFactsBySlot[.media] = VideoPreparedPlaybackRouteFact(
+                        routeSlot: .media,
+                        executionMode: .directMedia,
+                        disposition: .selectedForPlayer,
+                        routeActivationURL: response.finalURL,
+                        candidateMediaURL: mediaCandidate.url,
+                        candidateMediaKind: .mp4,
+                        reason: nil
+                    )
+                    break playbackLoop
+                }
+
+                if let mediaCandidate {
+                    let resolvedPlaybackRequest: SourcePlaybackRequestConfig? = try self.playbackRequest(
+                        source: source,
+                        rule: session.siteRule,
+                        mediaRequest: playbackRule.mediaRequest,
+                        finalURL: response.finalURL
+                    )
+                    let inspection: VideoHLSInitialManifestInspection = try await self.inspectInitialHLSManifest(
+                        mediaURL: mediaCandidate.url,
+                        source: source,
+                        playbackRequestConfig: resolvedPlaybackRequest
+                    )
+                    switch inspection.classification {
+                    case .encrypted:
+                        status = .failed(.unsupportedMediaKind)
+                        self.recordKnownEncryptedHLS(
+                            candidateURL: mediaCandidate.url,
+                            observedFinalURL: inspection.observedFinalURL,
+                            knownFingerprints: &knownEncryptedMediaFingerprints,
+                            hasUnidentifiedKnownEncryptedMedia: &hasUnidentifiedKnownEncryptedMedia
+                        )
+                        routeFactsBySlot[.media] = VideoPreparedPlaybackRouteFact(
+                            routeSlot: .media,
+                            executionMode: .directMedia,
+                            disposition: .rejectedBeforePlayer,
+                            routeActivationURL: response.finalURL,
+                            candidateMediaURL: mediaCandidate.url,
+                            candidateMediaKind: .hls,
+                            reason: .encryptedHLS
+                        )
+                    case .unknown:
+                        candidateMediaURL = mediaCandidate.url
+                        candidateMediaKind = .m3u8
+                        playbackRequestConfig = resolvedPlaybackRequest
+                        status = .playable
+                        selectedRouteSlot = .media
+                        routeFactsBySlot[.media] = VideoPreparedPlaybackRouteFact(
+                            routeSlot: .media,
+                            executionMode: .directMedia,
+                            disposition: .selectedForPlayer,
+                            routeActivationURL: response.finalURL,
+                            candidateMediaURL: mediaCandidate.url,
+                            candidateMediaKind: .hls,
+                            reason: nil
+                        )
+                        break playbackLoop
+                    }
+                } else {
+                    routeFactsBySlot[.media] = VideoPreparedPlaybackRouteFact(
+                        routeSlot: .media,
+                        executionMode: .directMedia,
+                        disposition: .rejectedBeforePlayer,
+                        routeActivationURL: response.finalURL,
+                        candidateMediaURL: nil,
+                        candidateMediaKind: self.declaredRuntimeMediaKind(playbackRule),
+                        reason: .noCandidate
+                    )
+                }
+            }
+
+            if let iframeRule: VideoIframePlaybackRule = playbackRule.iframe {
+                guard let iframeURL: URL = parsed.iframeURLs.first else {
+                    routeFactsBySlot[.iframe] = VideoPreparedPlaybackRouteFact(
+                        routeSlot: .iframe,
+                        executionMode: iframeRule.strategy == .resolve ? .iframeResolve : .webUI,
+                        disposition: .rejectedBeforePlayer,
+                        routeActivationURL: response.finalURL,
+                        candidateMediaURL: nil,
+                        candidateMediaKind: .unknown,
+                        reason: .noCandidate
+                    )
+                    break playbackLoop
+                }
+
+                iframeActivationURL = iframeURL
+                switch iframeRule.strategy {
+                case .webUI:
+                    if knownEncryptedMediaFingerprints.isEmpty == false
+                        || hasUnidentifiedKnownEncryptedMedia {
+                        status = .failed(.unsupportedMediaKind)
+                        routeFactsBySlot[.iframe] = VideoPreparedPlaybackRouteFact(
+                            routeSlot: .iframe,
+                            executionMode: .webUI,
+                            disposition: .rejectedBeforePlayer,
+                            routeActivationURL: iframeURL,
+                            candidateMediaURL: nil,
+                            candidateMediaKind: .unknown,
+                            reason: .finalMediaObservationUnavailable
+                        )
+                    } else {
+                        candidateMediaURL = iframeURL
+                        candidateMediaKind = .iframePlayer
+                        playbackRequestConfig = self.webPlaybackRequest(
+                            request: request,
+                            referer: response.finalURL
+                        )
+                        status = .pageOnly
+                        selectedRouteSlot = .iframe
+                        routeFactsBySlot[.iframe] = VideoPreparedPlaybackRouteFact(
+                            routeSlot: .iframe,
+                            executionMode: .webUI,
+                            disposition: .selectedForPlayer,
+                            routeActivationURL: iframeURL,
+                            candidateMediaURL: nil,
+                            candidateMediaKind: .unknown,
+                            reason: nil
+                        )
+                    }
+                    break playbackLoop
+                case .resolve:
+                    let maxDepth: Int = iframeRule.maxDepth ?? 3
+                    guard depth < maxDepth else {
+                        status = .failed(.iframePlayerDepthExceeded)
+                        routeFactsBySlot[.iframe] = VideoPreparedPlaybackRouteFact(
+                            routeSlot: .iframe,
+                            executionMode: .iframeResolve,
+                            disposition: .rejectedBeforePlayer,
+                            routeActivationURL: iframeURL,
+                            candidateMediaURL: nil,
+                            candidateMediaKind: .unknown,
+                            reason: .iframeDepthExceeded
+                        )
+                        break playbackLoop
+                    }
+                    guard visitedURLKeys.insert(self.canonicalURLKey(iframeURL)).inserted else {
+                        status = .failed(.iframePlayerLoopDetected)
+                        routeFactsBySlot[.iframe] = VideoPreparedPlaybackRouteFact(
+                            routeSlot: .iframe,
+                            executionMode: .iframeResolve,
+                            disposition: .rejectedBeforePlayer,
+                            routeActivationURL: iframeURL,
+                            candidateMediaURL: nil,
+                            candidateMediaKind: .unknown,
+                            reason: .iframeLoopDetected
+                        )
+                        break playbackLoop
+                    }
+                    resolvingIframeRoute = true
+                    depth += 1
+                    refererURL = response.finalURL
+                    currentURL = iframeURL
+                    continue playbackLoop
+                }
+            }
+
+            break playbackLoop
+        }
+
+        if selectedRouteSlot == nil, playbackRule.fallback == .webUI {
+            let fallbackURL: URL = lastResponseFinalURL ?? rootFinalURL ?? requestURL
+            if knownEncryptedMediaFingerprints.isEmpty == false
+                || hasUnidentifiedKnownEncryptedMedia {
+                status = .failed(.unsupportedMediaKind)
+                routeFactsBySlot[.fallback] = VideoPreparedPlaybackRouteFact(
+                    routeSlot: .fallback,
+                    executionMode: .webUI,
+                    disposition: .rejectedBeforePlayer,
+                    routeActivationURL: fallbackURL,
+                    candidateMediaURL: nil,
+                    candidateMediaKind: .unknown,
+                    reason: .finalMediaObservationUnavailable
+                )
+            } else {
+                candidateMediaURL = fallbackURL
                 candidateMediaKind = .iframePlayer
                 playbackRequestConfig = self.webPlaybackRequest(
                     request: request,
-                    referer: response.finalURL
+                    referer: fallbackURL
                 )
                 status = .pageOnly
+                selectedRouteSlot = .fallback
+                routeFactsBySlot[.fallback] = VideoPreparedPlaybackRouteFact(
+                    routeSlot: .fallback,
+                    executionMode: .webUI,
+                    disposition: .selectedForPlayer,
+                    routeActivationURL: fallbackURL,
+                    candidateMediaURL: nil,
+                    candidateMediaKind: .unknown,
+                    reason: nil
+                )
             }
-            break playbackLoop
+        }
+
+        if selectedRouteSlot != nil {
+            for route in session.declaredRoutes where routeFactsBySlot[route.routeSlot] == nil {
+                routeFactsBySlot[route.routeSlot] = VideoPreparedPlaybackRouteFact(
+                    routeSlot: route.routeSlot,
+                    executionMode: route.executionMode,
+                    disposition: .skipped,
+                    routeActivationURL: nil,
+                    candidateMediaURL: nil,
+                    candidateMediaKind: .unknown,
+                    reason: .priorRouteSelected
+                )
+            }
+        }
+
+        let routeFacts: [VideoPreparedPlaybackRouteFact] = try session.declaredRoutes.map { route in
+            guard let fact: VideoPreparedPlaybackRouteFact = routeFactsBySlot[route.routeSlot] else {
+                throw SourceRuntimeError.invalidInput(
+                    "Prepared playback route state is incomplete for \(route.routeSlot.rawValue)."
+                )
+            }
+            return fact
         }
 
         let finalPlayPageURL: URL = rootFinalURL ?? requestURL
@@ -219,7 +625,7 @@ struct VideoSourcePlaybackLoader {
             status: status,
             handoff: handoff
         )
-        return SourceVideoPlaybackOutput(
+        let output = SourceVideoPlaybackOutput(
             reference: reference,
             diagnostics: SourceRuntimeDiagnostics.succeeded(
                 requestLogs: requestLogs,
@@ -230,6 +636,10 @@ struct VideoSourcePlaybackLoader {
                     requestURL: self.safeLogURL(finalPlayPageURL)
                 )
             )
+        )
+        return VideoPreparedPlaybackExecutionResult(
+            output: output,
+            routeFacts: routeFacts
         )
     }
 
@@ -258,6 +668,134 @@ struct VideoSourcePlaybackLoader {
                 sourceID: sourceID,
                 reason: "Video V2 playback rule \(rule.id) produced multiple distinct iframe URLs."
             )
+        }
+    }
+
+    // 中文注释：只检查规则已解析出的初始 HLS manifest；失败或未命中 key tag 均保持 unknown。
+    private func inspectInitialHLSManifest(
+        mediaURL: URL,
+        source: Source,
+        playbackRequestConfig: SourcePlaybackRequestConfig?
+    ) async throws -> VideoHLSInitialManifestInspection {
+        do {
+            let response: PageContentResponse = try await self.pageContentLoader.loadContent(
+                PageLoadRequest(
+                    url: mediaURL,
+                    requestConfig: self.initialHLSManifestRequest(playbackRequestConfig),
+                    sourceContext: SourceRequestContext(
+                        sourceID: source.id,
+                        baseURL: URL(string: source.baseURL),
+                        purpose: .video,
+                        refererURL: playbackRequestConfig?.referer
+                    ),
+                    cachePolicy: .reloadIgnoringLocalCacheData
+                )
+            )
+            return VideoHLSInitialManifestInspection(
+                classification: VideoHLSManifestEncryptionClassifier.classify(response.content),
+                observedFinalURL: response.finalURL
+            )
+        } catch {
+            try Task.checkCancellation()
+            return VideoHLSInitialManifestInspection(
+                classification: .unknown,
+                observedFinalURL: nil
+            )
+        }
+    }
+
+    private func initialHLSManifestRequest(
+        _ playbackRequestConfig: SourcePlaybackRequestConfig?
+    ) -> RequestConfig {
+        var headers: [String: String] = playbackRequestConfig?.headers ?? [:]
+        if let referer: URL = playbackRequestConfig?.referer,
+           RequestHeaderFields.containsHeader("Referer", in: headers) == false {
+            headers["Referer"] = referer.absoluteString
+        }
+        if let referer: URL = playbackRequestConfig?.referer,
+           RequestHeaderFields.containsHeader("Origin", in: headers) == false,
+           let origin: String = RequestHeaderFields.originHeader(from: referer) {
+            headers["Origin"] = origin
+        }
+        if let userAgent: String = playbackRequestConfig?.userAgent,
+           RequestHeaderFields.containsHeader("User-Agent", in: headers) == false {
+            headers["User-Agent"] = userAgent
+        }
+        return RequestConfig(
+            scope: .rule,
+            mergePolicy: .mergeHeadersAndCookies,
+            method: .get,
+            headers: headers.isEmpty ? nil : headers,
+            cookiePolicy: playbackRequestConfig?.cookiePolicy,
+            cookiePriority: playbackRequestConfig?.cookiePriority,
+            needsWebView: false,
+            autoScroll: false
+        )
+    }
+
+    private func mediaFingerprint(
+        kind: VideoRuntimeEvidenceMediaKind,
+        url: URL
+    ) -> VideoRuntimeEvidenceFingerprint? {
+        return try? VideoRuntimeEvidenceFingerprintFactory.media(
+            kind: kind,
+            resourceURL: url
+        )
+    }
+
+    private func isIndependentFromKnownEncryptedMedia(
+        kind: VideoRuntimeEvidenceMediaKind,
+        url: URL?,
+        knownFingerprints: Set<VideoRuntimeEvidenceFingerprint>,
+        hasUnidentifiedKnownEncryptedMedia: Bool
+    ) -> Bool {
+        guard let url else {
+            return false
+        }
+        return self.isIndependentFromKnownEncryptedMedia(
+            fingerprint: self.mediaFingerprint(kind: kind, url: url),
+            knownFingerprints: knownFingerprints,
+            hasUnidentifiedKnownEncryptedMedia: hasUnidentifiedKnownEncryptedMedia
+        )
+    }
+
+    private func isIndependentFromKnownEncryptedMedia(
+        fingerprint: VideoRuntimeEvidenceFingerprint?,
+        knownFingerprints: Set<VideoRuntimeEvidenceFingerprint>,
+        hasUnidentifiedKnownEncryptedMedia: Bool
+    ) -> Bool {
+        guard hasUnidentifiedKnownEncryptedMedia == false else {
+            return false
+        }
+        guard knownFingerprints.isEmpty == false else {
+            return true
+        }
+        guard let fingerprint else {
+            return false
+        }
+        return knownFingerprints.contains(fingerprint) == false
+    }
+
+    private func recordKnownEncryptedHLS(
+        candidateURL: URL,
+        observedFinalURL: URL?,
+        knownFingerprints: inout Set<VideoRuntimeEvidenceFingerprint>,
+        hasUnidentifiedKnownEncryptedMedia: inout Bool
+    ) {
+        guard let candidateFingerprint: VideoRuntimeEvidenceFingerprint = self.mediaFingerprint(
+            kind: .hls,
+            url: candidateURL
+        ) else {
+            hasUnidentifiedKnownEncryptedMedia = true
+            return
+        }
+        knownFingerprints.insert(candidateFingerprint)
+        if let observedFinalURL,
+           let finalFingerprint: VideoRuntimeEvidenceFingerprint = self.mediaFingerprint(
+               kind: .hls,
+               url: observedFinalURL
+           ) {
+            knownFingerprints.insert(finalFingerprint)
         }
     }
 
@@ -410,12 +948,20 @@ struct VideoSourcePlaybackLoader {
         return url
     }
 
-    private func mediaKind(_ kind: VideoDirectMediaKind) -> SourceVideoMediaKind {
+    private func declaredRuntimeMediaKind(
+        _ rule: VideoPlaybackRule
+    ) -> VideoRuntimeEvidenceMediaKind {
+        let kinds: Set<VideoDirectMediaKind> = Set(
+            rule.effectiveMediaCandidates.map(\.kind)
+        )
+        guard kinds.count == 1, let kind: VideoDirectMediaKind = kinds.first else {
+            return .unknown
+        }
         switch kind {
         case .mp4:
             return .mp4
         case .hls:
-            return .m3u8
+            return .hls
         }
     }
 
@@ -458,6 +1004,77 @@ struct VideoSourcePlaybackLoader {
             shape = "text"
         }
         return "shape=\(shape) bytes=\(html.utf8.count)"
+    }
+}
+
+enum VideoHLSInitialManifestClassification: Hashable, Sendable {
+    case unknown
+    case encrypted
+}
+
+struct VideoHLSInitialManifestInspection: Hashable, Sendable {
+    let classification: VideoHLSInitialManifestClassification
+    let observedFinalURL: URL?
+}
+
+// 中文注释：这里只做有界、纯文本 tag 分类；永不请求 key/IV，也永不把未命中升级为 unencrypted。
+enum VideoHLSManifestEncryptionClassifier {
+    static let maximumAnalyzedByteCount: Int = 256 * 1_024
+
+    static func classify(_ manifest: String) -> VideoHLSInitialManifestClassification {
+        let boundedManifest: String = String(
+            decoding: manifest.utf8.prefix(self.maximumAnalyzedByteCount),
+            as: UTF8.self
+        )
+        let lines: [Substring] = boundedManifest.split(
+            omittingEmptySubsequences: true,
+            whereSeparator: \.isNewline
+        )
+        let firstLineCharacterSet: CharacterSet = .whitespacesAndNewlines.union(
+            CharacterSet(charactersIn: "\u{feff}")
+        )
+        guard let firstLine: Substring = lines.first,
+              String(firstLine).trimmingCharacters(in: firstLineCharacterSet) == "#EXTM3U" else {
+            return .unknown
+        }
+
+        for rawLine: Substring in lines.dropFirst() {
+            let line: String = String(rawLine).trimmingCharacters(in: .whitespacesAndNewlines)
+            if self.hasNonemptyAttributes(line, tag: "#EXT-X-SESSION-KEY:") {
+                return .encrypted
+            }
+            if let method: String = self.attribute("METHOD", in: line, tag: "#EXT-X-KEY:"),
+               method.caseInsensitiveCompare("NONE") != .orderedSame {
+                return .encrypted
+            }
+        }
+        return .unknown
+    }
+
+    private static func hasNonemptyAttributes(_ line: String, tag: String) -> Bool {
+        guard line.hasPrefix(tag) else {
+            return false
+        }
+        return line.dropFirst(tag.count).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+    }
+
+    private static func attribute(_ name: String, in line: String, tag: String) -> String? {
+        guard line.hasPrefix(tag) else {
+            return nil
+        }
+        let attributes: Substring = line.dropFirst(tag.count)
+        for rawAttribute: Substring in attributes.split(separator: ",") {
+            let pair: [Substring] = rawAttribute.split(separator: "=", maxSplits: 1)
+            guard pair.count == 2,
+                  pair[0].trimmingCharacters(in: .whitespacesAndNewlines)
+                    .caseInsensitiveCompare(name) == .orderedSame else {
+                continue
+            }
+            let value: String = pair[1].trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+            return value.isEmpty ? nil : value
+        }
+        return nil
     }
 }
 

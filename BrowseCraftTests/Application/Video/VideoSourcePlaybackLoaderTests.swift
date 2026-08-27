@@ -27,7 +27,13 @@ struct VideoSourcePlaybackLoaderTests {
         #expect(output.reference.playbackRequestConfig?.userAgent == "Fixture/catalog.video.playback")
         #expect(output.reference.episodeKey == "episode-1")
         #expect(output.reference.nextEpisodeURL?.absoluteString == "https://video.example.invalid/watch/2")
-        #expect(pageLoader.lastRequest?.headers?["X-Playback"] == "rule")
+        #expect(pageLoader.lastRequest?.headers?["X-Region"] == "jp")
+        #expect(pageLoader.lastRequest?.headers?["Referer"] == "https://video.example.invalid/watch/final?ticket=secret")
+        #expect(pageLoader.lastRequest?.headers?["Origin"] == "https://video.example.invalid")
+        #expect(pageLoader.lastRequest?.headers?["User-Agent"] == "Fixture/catalog.video.playback")
+        #expect(pageLoader.lastRequest?.headers?["X-Playback"] == nil)
+        #expect(pageLoader.lastRequest?.needsWebView == false)
+        #expect(pageLoader.lastRequest?.autoScroll == false)
         #expect(output.diagnostics.requestLogs.first?.url.query == nil)
     }
 
@@ -252,7 +258,8 @@ struct VideoSourcePlaybackLoaderTests {
         #expect(output.reference.candidateMediaURL?.absoluteString == "https://video.example.invalid/media/master.m3u8")
         #expect(pageLoader.requestedURLs.map(\.absoluteString) == [
             "https://video.example.invalid/watch/1",
-            "https://video.example.invalid/embed/player"
+            "https://video.example.invalid/embed/player",
+            "https://video.example.invalid/media/master.m3u8"
         ])
     }
 
@@ -298,6 +305,247 @@ struct VideoSourcePlaybackLoaderTests {
         #expect(output.reference.playbackRequestConfig?.headers.keys.contains(where: {
             $0.caseInsensitiveCompare("Cookie") == .orderedSame
         }) == false)
+    }
+
+    @Test func hlsManifestClassifierRejectsExplicitEncryptionTags() {
+        #expect(
+            VideoHLSManifestEncryptionClassifier.classify(
+                "#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI=\"https://keys.example.invalid/a\""
+            ) == .encrypted
+        )
+        #expect(
+            VideoHLSManifestEncryptionClassifier.classify(
+                "#EXTM3U\n#EXT-X-KEY:METHOD=SAMPLE-AES,URI=\"skd://asset\""
+            ) == .encrypted
+        )
+        #expect(
+            VideoHLSManifestEncryptionClassifier.classify(
+                "#EXTM3U\n#EXT-X-SESSION-KEY:METHOD=AES-128,URI=\"https://keys.example.invalid/session\""
+            ) == .encrypted
+        )
+    }
+
+    @Test func hlsManifestClassifierKeepsUnprovenInputsUnknown() {
+        let truncatedBeforeEncryptionTag: String = "#EXTM3U\n"
+            + String(repeating: "# bounded-padding\n", count: 20_000)
+            + "#EXT-X-KEY:METHOD=AES-128,URI=\"https://keys.example.invalid/late\""
+
+        #expect(
+            VideoHLSManifestEncryptionClassifier.classify(
+                "#EXTM3U\n#EXT-X-KEY:METHOD=NONE\n#EXTINF:10,\nsegment.ts"
+            ) == .unknown
+        )
+        #expect(
+            VideoHLSManifestEncryptionClassifier.classify(
+                "#EXTM3U\n#EXT-X-TARGETDURATION:10\n#EXTINF:10,\nsegment.ts"
+            ) == .unknown
+        )
+        #expect(VideoHLSManifestEncryptionClassifier.classify("<html>not hls</html>") == .unknown)
+        #expect(VideoHLSManifestEncryptionClassifier.classify(truncatedBeforeEncryptionTag) == .unknown)
+    }
+
+    @Test func unknownHLSUsesResolvedRequestAndSkipsDeclaredFallback() async throws {
+        let pageURL: URL = try #require(URL(string: "https://video.example.invalid/watch/1"))
+        let mediaURL: URL = try #require(URL(string: "https://video.example.invalid/media/master.m3u8"))
+        let pageLoader = RoutedPlaybackPageContentLoader(
+            responses: [
+                pageURL.absoluteString: PageContentResponse(
+                    content: #"<video><source src="/media/master.m3u8"></video>"#,
+                    finalURL: pageURL
+                ),
+                mediaURL.absoluteString: PageContentResponse(
+                    content: "#EXTM3U\n#EXT-X-TARGETDURATION:10\n#EXTINF:10,\nsegment.ts",
+                    finalURL: mediaURL
+                )
+            ]
+        )
+        var rule: VideoSiteRule = Self.playbackRule()
+        rule.ruleSets.playbackRules?[0].fallback = .webUI
+        rule.ruleSets.playbackRules?[0].mediaRequest?.cookiePolicy = .browser
+        let loader = VideoSourcePlaybackLoader(
+            pageContentLoader: pageLoader,
+            parser: CoreVideoRuleSourceParser()
+        )
+        let session: VideoPreparedPlaybackExecutionSession = try loader.prepare(
+            source: Self.source(rule: rule),
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            input: Self.input()
+        )
+
+        let result: VideoPreparedPlaybackExecutionResult = try await loader.executeWithRouteFacts(session)
+
+        #expect(result.output.reference.status == .playable)
+        #expect(result.output.reference.candidateMediaURL == mediaURL)
+        #expect(result.routeFacts.map(\.routeSlot) == [.media, .fallback])
+        #expect(result.routeFacts[0].disposition == .selectedForPlayer)
+        #expect(result.routeFacts[0].reason == nil)
+        #expect(result.routeFacts[1].disposition == .skipped)
+        #expect(result.routeFacts[1].reason == .priorRouteSelected)
+        let manifestRequest: RequestConfig? = pageLoader.requests.last?.requestConfig
+        #expect(manifestRequest?.headers?["X-Region"] == "jp")
+        #expect(manifestRequest?.headers?["Referer"] == pageURL.absoluteString)
+        #expect(manifestRequest?.headers?["Origin"] == "https://video.example.invalid")
+        #expect(manifestRequest?.headers?["User-Agent"] == "Fixture/catalog.video.playback")
+        #expect(manifestRequest?.cookiePolicy == .browser)
+        #expect(manifestRequest?.headers?.keys.contains(where: {
+            $0.caseInsensitiveCompare("Cookie") == .orderedSame
+        }) == false)
+        #expect(manifestRequest?.needsWebView == false)
+        #expect(manifestRequest?.autoScroll == false)
+    }
+
+    @Test func failedManifestInspectionKeepsHLSPlayable() async throws {
+        let pageURL: URL = try #require(URL(string: "https://video.example.invalid/watch/1"))
+        let mediaURL: URL = try #require(URL(string: "https://video.example.invalid/media/master.m3u8"))
+        let pageLoader = RoutedPlaybackPageContentLoader(
+            responses: [
+                pageURL.absoluteString: PageContentResponse(
+                    content: #"<video><source src="/media/master.m3u8"></video>"#,
+                    finalURL: pageURL
+                )
+            ]
+        )
+        let rule: VideoSiteRule = Self.playbackRule()
+
+        let output: SourceVideoPlaybackOutput = try await VideoSourcePlaybackLoader(
+            pageContentLoader: pageLoader,
+            parser: CoreVideoRuleSourceParser()
+        ).execute(
+            source: Self.source(rule: rule),
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            input: Self.input()
+        )
+
+        #expect(output.reference.status == .playable)
+        #expect(output.reference.candidateMediaURL == mediaURL)
+        #expect(pageLoader.requestedURLs == [pageURL, mediaURL])
+    }
+
+    @Test func encryptedHLSRejectsUnobservableWebUIFallback() async throws {
+        let pageURL: URL = try #require(URL(string: "https://video.example.invalid/watch/1"))
+        let mediaURL: URL = try #require(URL(string: "https://video.example.invalid/media/master.m3u8"))
+        let pageLoader = RoutedPlaybackPageContentLoader(
+            responses: [
+                pageURL.absoluteString: PageContentResponse(
+                    content: #"<video><source src="/media/master.m3u8"></video>"#,
+                    finalURL: pageURL
+                ),
+                mediaURL.absoluteString: PageContentResponse(
+                    content: "#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI=\"https://keys.example.invalid/key\"",
+                    finalURL: mediaURL
+                )
+            ]
+        )
+        var rule: VideoSiteRule = Self.playbackRule()
+        rule.ruleSets.playbackRules?[0].fallback = .webUI
+        let loader = VideoSourcePlaybackLoader(
+            pageContentLoader: pageLoader,
+            parser: CoreVideoRuleSourceParser()
+        )
+        let session: VideoPreparedPlaybackExecutionSession = try loader.prepare(
+            source: Self.source(rule: rule),
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            input: Self.input()
+        )
+
+        let result: VideoPreparedPlaybackExecutionResult = try await loader.executeWithRouteFacts(session)
+
+        #expect(result.output.reference.status == .failed(.unsupportedMediaKind))
+        #expect(result.output.reference.candidateMediaURL == nil)
+        #expect(result.routeFacts.map(\.routeSlot) == [.media, .fallback])
+        #expect(result.routeFacts[0].disposition == .rejectedBeforePlayer)
+        #expect(result.routeFacts[0].reason == .encryptedHLS)
+        #expect(result.routeFacts[1].disposition == .rejectedBeforePlayer)
+        #expect(result.routeFacts[1].reason == .finalMediaObservationUnavailable)
+    }
+
+    @Test func encryptedHLSAllowsIndependentDeclaredIframeHLS() async throws {
+        let pageURL: URL = try #require(URL(string: "https://video.example.invalid/watch/1"))
+        let iframeURL: URL = try #require(URL(string: "https://video.example.invalid/embed/player"))
+        let encryptedMediaURL: URL = try #require(URL(string: "https://video.example.invalid/media/master.m3u8"))
+        let fallbackMediaURL: URL = try #require(URL(string: "https://video.example.invalid/media/independent.m3u8"))
+        let pageLoader = RoutedPlaybackPageContentLoader(
+            responses: [
+                pageURL.absoluteString: PageContentResponse(
+                    content: #"<video><source src="/media/master.m3u8"></video><iframe src="/embed/player"></iframe>"#,
+                    finalURL: pageURL
+                ),
+                encryptedMediaURL.absoluteString: PageContentResponse(
+                    content: "#EXTM3U\n#EXT-X-KEY:METHOD=SAMPLE-AES,URI=\"skd://asset\"",
+                    finalURL: encryptedMediaURL
+                ),
+                iframeURL.absoluteString: PageContentResponse(
+                    content: #"<video><source src="/media/independent.m3u8"></video>"#,
+                    finalURL: iframeURL
+                ),
+                fallbackMediaURL.absoluteString: PageContentResponse(
+                    content: "#EXTM3U\n#EXT-X-TARGETDURATION:10\n#EXTINF:10,\nsegment.ts",
+                    finalURL: fallbackMediaURL
+                )
+            ]
+        )
+        var rule: VideoSiteRule = Self.playbackRule()
+        rule.ruleSets.playbackRules?[0].iframe = Self.iframeRule(strategy: .resolve, maxDepth: 2)
+        let loader = VideoSourcePlaybackLoader(
+            pageContentLoader: pageLoader,
+            parser: CoreVideoRuleSourceParser()
+        )
+        let session: VideoPreparedPlaybackExecutionSession = try loader.prepare(
+            source: Self.source(rule: rule),
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            input: Self.input()
+        )
+
+        let result: VideoPreparedPlaybackExecutionResult = try await loader.executeWithRouteFacts(session)
+
+        #expect(result.output.reference.status == .playable)
+        #expect(result.output.reference.candidateMediaURL == fallbackMediaURL)
+        #expect(result.routeFacts.map(\.routeSlot) == [.media, .iframe])
+        #expect(result.routeFacts[0].reason == .encryptedHLS)
+        #expect(result.routeFacts[1].disposition == .selectedForPlayer)
+        #expect(result.routeFacts[1].reason == nil)
+        #expect(pageLoader.requestedURLs == [pageURL, encryptedMediaURL, iframeURL, fallbackMediaURL])
+    }
+
+    @Test func encryptedHLSRejectsTheSameMediaThroughDeclaredIframe() async throws {
+        let pageURL: URL = try #require(URL(string: "https://video.example.invalid/watch/1"))
+        let iframeURL: URL = try #require(URL(string: "https://video.example.invalid/embed/player"))
+        let mediaURL: URL = try #require(URL(string: "https://video.example.invalid/media/master.m3u8"))
+        let pageLoader = RoutedPlaybackPageContentLoader(
+            responses: [
+                pageURL.absoluteString: PageContentResponse(
+                    content: #"<video><source src="/media/master.m3u8"></video><iframe src="/embed/player"></iframe>"#,
+                    finalURL: pageURL
+                ),
+                mediaURL.absoluteString: PageContentResponse(
+                    content: "#EXTM3U\n#EXT-X-SESSION-KEY:METHOD=AES-128,URI=\"https://keys.example.invalid/session\"",
+                    finalURL: mediaURL
+                ),
+                iframeURL.absoluteString: PageContentResponse(
+                    content: #"<video><source src="/media/master.m3u8"></video>"#,
+                    finalURL: iframeURL
+                )
+            ]
+        )
+        var rule: VideoSiteRule = Self.playbackRule()
+        rule.ruleSets.playbackRules?[0].iframe = Self.iframeRule(strategy: .resolve, maxDepth: 2)
+        let loader = VideoSourcePlaybackLoader(
+            pageContentLoader: pageLoader,
+            parser: CoreVideoRuleSourceParser()
+        )
+        let session: VideoPreparedPlaybackExecutionSession = try loader.prepare(
+            source: Self.source(rule: rule),
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            input: Self.input()
+        )
+
+        let result: VideoPreparedPlaybackExecutionResult = try await loader.executeWithRouteFacts(session)
+
+        #expect(result.output.reference.status == .failed(.unsupportedMediaKind))
+        #expect(result.routeFacts.map(\.routeSlot) == [.media, .iframe])
+        #expect(result.routeFacts[0].reason == .encryptedHLS)
+        #expect(result.routeFacts[1].reason == .knownEncryptedMedia)
+        #expect(pageLoader.requestedURLs == [pageURL, mediaURL, iframeURL])
     }
 }
 
@@ -456,6 +704,7 @@ private final class PlaybackPageContentLoader: PageContentLoader {
 private final class RoutedPlaybackPageContentLoader: PageContentLoader {
     let responses: [String: PageContentResponse]
     private(set) var requestedURLs: [URL] = []
+    private(set) var requests: [PageLoadRequest] = []
 
     init(responses: [String: PageContentResponse]) {
         self.responses = responses
@@ -463,6 +712,7 @@ private final class RoutedPlaybackPageContentLoader: PageContentLoader {
 
     func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
         self.requestedURLs.append(request.url)
+        self.requests.append(request)
         guard let response: PageContentResponse = self.responses[request.url.absoluteString] else {
             throw SourceRuntimeError.invalidInput("Missing routed playback response.")
         }
