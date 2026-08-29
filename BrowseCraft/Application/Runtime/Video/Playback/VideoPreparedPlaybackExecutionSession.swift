@@ -67,6 +67,9 @@ enum VideoPreparedPlaybackRouteDisposition: Hashable, Sendable {
 
 enum VideoPreparedPlaybackRouteReason: Hashable, Sendable {
     case noCandidate
+    /// 中文注释：与 `noCandidate` 区分开（`BC-EVIDENCE-073`）：规则匹配到了候选，
+    /// 但全部候选被运行期噪声过滤丢弃。两者的处置相同，成因不同，审计不得混为一谈。
+    case allCandidatesFilteredAsNoise
     case encryptedHLS
     case knownEncryptedMedia
     case finalMediaObservationUnavailable

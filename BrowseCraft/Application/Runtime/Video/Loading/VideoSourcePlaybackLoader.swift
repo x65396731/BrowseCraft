@@ -9,6 +9,7 @@ struct VideoSourcePlaybackLoader {
     private let sourceRequestOverrideResolver: SourceRequestOverrideResolver
     private let credentialProvider: any SourceCredentialProviding
     private let templateResolver: BrowseCraftCore.VideoPlaybackTemplateResolver
+    private let noiseFilter: SourceContentNoiseFiltering
 
     init(
         pageContentLoader: PageContentLoader,
@@ -16,7 +17,8 @@ struct VideoSourcePlaybackLoader {
         renderGuard: VideoHTMLRenderGuard = VideoHTMLRenderGuard(),
         sourceRequestOverrideResolver: SourceRequestOverrideResolver = SourceRequestOverrideResolver(),
         credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider(),
-        templateResolver: BrowseCraftCore.VideoPlaybackTemplateResolver = .init()
+        templateResolver: BrowseCraftCore.VideoPlaybackTemplateResolver = .init(),
+        noiseFilter: SourceContentNoiseFiltering = SourceContentNoiseFilter()
     ) {
         self.pageContentLoader = pageContentLoader
         self.parser = parser
@@ -24,6 +26,7 @@ struct VideoSourcePlaybackLoader {
         self.sourceRequestOverrideResolver = sourceRequestOverrideResolver
         self.credentialProvider = credentialProvider
         self.templateResolver = templateResolver
+        self.noiseFilter = noiseFilter
     }
 
     func execute(
@@ -196,7 +199,19 @@ struct VideoSourcePlaybackLoader {
 
             try self.validateParsedPlayback(parsed, rule: playbackRule, sourceID: source.id)
 
-            let mediaCandidate: VideoRuleParsedMediaCandidate? = parsed.mediaCandidates.first
+            // 中文注释：运行期噪声过滤只挂在这一处（`BC-EVIDENCE-073`）——规则良构性复核
+            // 之后、任何路线判定之前。下游 media → iframe → fallback 决策树读到的已是过滤
+            // 后的候选集，不为此新增分支。
+            let admission: VideoPlaybackNoiseAdmission = self.admitted(
+                parsed,
+                rule: playbackRule,
+                depth: depth
+            )
+            let admitted: VideoRuleParsedPlayback = admission.playback
+            extractionLogs += admission.extractionLogs
+            issues += admission.issues
+
+            let mediaCandidate: VideoRuleParsedMediaCandidate? = admitted.mediaCandidates.first
 
             if resolvingIframeRoute {
                 if let mediaCandidate, mediaCandidate.kind == .mp4 {
@@ -330,7 +345,7 @@ struct VideoSourcePlaybackLoader {
                     break playbackLoop
                 }
 
-                if let iframeURL: URL = parsed.iframeURLs.first,
+                if let iframeURL: URL = admitted.iframeURLs.first,
                    let iframeRule: VideoIframePlaybackRule = playbackRule.iframe {
                     let maxDepth: Int = iframeRule.maxDepth ?? 3
                     guard depth < maxDepth else {
@@ -373,7 +388,7 @@ struct VideoSourcePlaybackLoader {
                     routeActivationURL: iframeActivationURL,
                     candidateMediaURL: nil,
                     candidateMediaKind: .unknown,
-                    reason: .noCandidate
+                    reason: admission.absentCandidateReason
                 )
                 break playbackLoop
             }
@@ -457,13 +472,13 @@ struct VideoSourcePlaybackLoader {
                         routeActivationURL: response.finalURL,
                         candidateMediaURL: nil,
                         candidateMediaKind: self.declaredRuntimeMediaKind(playbackRule),
-                        reason: .noCandidate
+                        reason: admission.absentMediaReason
                     )
                 }
             }
 
             if let iframeRule: VideoIframePlaybackRule = playbackRule.iframe {
-                guard let iframeURL: URL = parsed.iframeURLs.first else {
+                guard let iframeURL: URL = admitted.iframeURLs.first else {
                     routeFactsBySlot[.iframe] = VideoPreparedPlaybackRouteFact(
                         routeSlot: .iframe,
                         executionMode: iframeRule.strategy == .resolve ? .iframeResolve : .webUI,
@@ -471,7 +486,7 @@ struct VideoSourcePlaybackLoader {
                         routeActivationURL: response.finalURL,
                         candidateMediaURL: nil,
                         candidateMediaKind: .unknown,
-                        reason: .noCandidate
+                        reason: admission.absentIframeReason
                     )
                     break playbackLoop
                 }
@@ -641,6 +656,105 @@ struct VideoSourcePlaybackLoader {
             output: output,
             routeFacts: routeFacts
         )
+    }
+
+    // 中文注释：`BC-EVIDENCE-073` 的唯一实现点。送进过滤器的候选**只带 URL**：source id、
+    // 规则 id 与 selector 是规则自身的文字，不是候选的身份证据，让它们参与词表匹配会使同一个
+    // 候选因规则写法不同而得到不同裁决（`BC-EVIDENCE-072`）。它们只作为审计上下文进入
+    // extraction log 与 issue。
+    private func admitted(
+        _ parsed: VideoRuleParsedPlayback,
+        rule: VideoPlaybackRule,
+        depth: Int
+    ) -> VideoPlaybackNoiseAdmission {
+        let media = self.admissible(parsed.mediaCandidates, url: \.url)
+        let iframe = self.admissible(parsed.iframeURLs, url: { $0 })
+
+        var playback: VideoRuleParsedPlayback = parsed
+        playback.mediaCandidates = media.candidates
+        playback.mediaURLs = media.candidates.map(\.url)
+        playback.iframeURLs = iframe.candidates
+
+        var extractionLogs: [SourceExtractionLog] = []
+        if media.discardedCount > 0 {
+            extractionLogs.append(
+                SourceExtractionLog(
+                    field: "playback.dom.media.depth\(depth).admitted",
+                    selector: self.playbackSelector(rule),
+                    candidateCount: parsed.mediaCandidates.count,
+                    outputCount: media.candidates.count
+                )
+            )
+        }
+        if iframe.discardedCount > 0 {
+            extractionLogs.append(
+                SourceExtractionLog(
+                    field: "playback.dom.iframe.depth\(depth).admitted",
+                    selector: rule.iframe?.url.selector,
+                    candidateCount: parsed.iframeURLs.count,
+                    outputCount: iframe.candidates.count
+                )
+            )
+        }
+
+        let discardedCount: Int = media.discardedCount + iframe.discardedCount
+        var issues: [SourceRuntimeIssue] = []
+        if discardedCount > 0 {
+            // 中文注释：只记录条数与理由枚举，不记录 URL（`BC-EVIDENCE-073`）。
+            let reasons: String = Set(media.reasons + iframe.reasons)
+                .map(\.rawValue)
+                .sorted()
+                .joined(separator: ",")
+            issues.append(
+                SourceRuntimeIssue(
+                    id: "video.v2.playbackCandidatesFilteredAsNoise",
+                    severity: .warning,
+                    message: "Video V2 playback rule \(rule.id) discarded \(discardedCount) "
+                        + "rule-matched playback candidate(s) as runtime noise [\(reasons)]."
+                )
+            )
+        }
+
+        return VideoPlaybackNoiseAdmission(
+            playback: playback,
+            discardedMediaCount: media.discardedCount,
+            discardedIframeCount: iframe.discardedCount,
+            extractionLogs: extractionLogs,
+            issues: issues
+        )
+    }
+
+    // 中文注释：`discard` 移出候选集，`deprioritize` 保留但排到末尾（稳定分区）。
+    private func admissible<Candidate>(
+        _ candidates: [Candidate],
+        url: (Candidate) -> URL
+    ) -> (candidates: [Candidate], discardedCount: Int, reasons: [SourceContentNoiseReason]) {
+        var kept: [Candidate] = []
+        var deprioritized: [Candidate] = []
+        var discardedCount: Int = 0
+        var reasons: [SourceContentNoiseReason] = []
+
+        for candidate in candidates {
+            let decision: SourceContentNoiseDecision = self.noiseFilter.decision(
+                for: SourceContentNoiseCandidate(
+                    url: url(candidate),
+                    sourceKind: .video,
+                    playbackAssurance: .ruleDeclared,
+                    context: .playbackCandidate
+                )
+            )
+            switch decision.action {
+            case .keep:
+                kept.append(candidate)
+            case .deprioritize:
+                deprioritized.append(candidate)
+            case .discard:
+                discardedCount += 1
+                reasons += decision.reasons
+            }
+        }
+
+        return (kept + deprioritized, discardedCount, reasons)
     }
 
     private func validateParsedPlayback(
@@ -1083,5 +1197,33 @@ private enum VideoPlaybackRequestError: LocalizedError {
 
     var errorDescription: String? {
         return "mediaRequest.referer must resolve to an absolute HTTP(S) URL."
+    }
+}
+
+// 中文注释：一次运行期噪声过滤的结果（`BC-EVIDENCE-073`）。它只描述「哪些规则匹配结果被准入」，
+// 不改变规则本身，也不冒充最终媒体响应或 owner binding。
+struct VideoPlaybackNoiseAdmission {
+    let playback: VideoRuleParsedPlayback
+    let discardedMediaCount: Int
+    let discardedIframeCount: Int
+    let extractionLogs: [SourceExtractionLog]
+    let issues: [SourceRuntimeIssue]
+
+    var absentMediaReason: VideoPreparedPlaybackRouteReason {
+        return Self.reason(discarded: self.discardedMediaCount)
+    }
+
+    var absentIframeReason: VideoPreparedPlaybackRouteReason {
+        return Self.reason(discarded: self.discardedIframeCount)
+    }
+
+    /// 中文注释：iframe-resolve 途中「既没有 media 也没有 iframe」时用这一个，
+    /// 因为两类候选都可能是被过滤掉的。
+    var absentCandidateReason: VideoPreparedPlaybackRouteReason {
+        return Self.reason(discarded: self.discardedMediaCount + self.discardedIframeCount)
+    }
+
+    private static func reason(discarded: Int) -> VideoPreparedPlaybackRouteReason {
+        return discarded > 0 ? .allCandidatesFilteredAsNoise : .noCandidate
     }
 }

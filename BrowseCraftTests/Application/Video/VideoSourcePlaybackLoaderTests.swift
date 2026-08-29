@@ -569,6 +569,162 @@ private extension VideoSourcePlaybackLoaderTests {
         )
     }
 
+    // 中文注释：`BC-EVIDENCE-073`。规则匹配到的广告媒体地址不得进入播放；候选全部被丢弃时
+    // 走既有 fallback 语义，且 fallback 的地址是播放页自身，不是被丢弃的地址。
+    @Test func advertisingMediaCandidateIsDiscardedAndFallsBackToDeclaredWebUI() async throws {
+        let pageURL: URL = try #require(URL(string: "https://video.example.invalid/watch/1"))
+        let pageLoader = PlaybackPageContentLoader(
+            html: #"<video><source src="https://ads.example.test/ads/preroll/spot.m3u8"></video>"#,
+            finalURL: pageURL
+        )
+        var rule: VideoSiteRule = Self.playbackRule()
+        rule.ruleSets.playbackRules?[0].fallback = .webUI
+        let loader = VideoSourcePlaybackLoader(
+            pageContentLoader: pageLoader,
+            parser: CoreVideoRuleSourceParser()
+        )
+        let session: VideoPreparedPlaybackExecutionSession = try loader.prepare(
+            source: Self.source(rule: rule),
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            input: Self.input()
+        )
+
+        let result: VideoPreparedPlaybackExecutionResult = try await loader.executeWithRouteFacts(session)
+
+        #expect(result.output.reference.status == .pageOnly)
+        #expect(result.output.reference.candidateMediaKind == .iframePlayer)
+        #expect(result.output.reference.candidateMediaURL == pageURL)
+        #expect(result.routeFacts.map(\.routeSlot) == [.media, .fallback])
+        #expect(result.routeFacts[0].disposition == .rejectedBeforePlayer)
+        #expect(result.routeFacts[0].reason == .allCandidatesFilteredAsNoise)
+        #expect(result.routeFacts[1].disposition == .selectedForPlayer)
+        #expect(
+            result.output.diagnostics.issues.contains {
+                $0.id == "video.v2.playbackCandidatesFilteredAsNoise"
+            }
+        )
+        #expect(
+            result.output.diagnostics.issues.contains {
+                $0.message.contains("ads.example.test")
+            } == false
+        )
+    }
+
+    @Test func filteredMediaCandidatesFailWithTheirOwnReasonWhenNoFallbackIsDeclared() async throws {
+        let pageLoader = PlaybackPageContentLoader(
+            html: #"<video><source src="https://ads.example.test/ads/preroll/spot.m3u8"></video>"#,
+            finalURL: try #require(URL(string: "https://video.example.invalid/watch/1"))
+        )
+        let rule: VideoSiteRule = Self.playbackRule()
+        let loader = VideoSourcePlaybackLoader(
+            pageContentLoader: pageLoader,
+            parser: CoreVideoRuleSourceParser()
+        )
+        let session: VideoPreparedPlaybackExecutionSession = try loader.prepare(
+            source: Self.source(rule: rule),
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            input: Self.input()
+        )
+
+        let result: VideoPreparedPlaybackExecutionResult = try await loader.executeWithRouteFacts(session)
+
+        #expect(result.output.reference.status == .failed(.mediaURLNotFound))
+        #expect(result.output.reference.candidateMediaURL == nil)
+        #expect(result.routeFacts.map(\.routeSlot) == [.media])
+        #expect(result.routeFacts[0].reason == .allCandidatesFilteredAsNoise)
+    }
+
+    @Test func unmatchedMediaRuleKeepsNoCandidateReason() async throws {
+        let pageLoader = PlaybackPageContentLoader(
+            html: "<html><body><p>no media here</p></body></html>",
+            finalURL: try #require(URL(string: "https://video.example.invalid/watch/1"))
+        )
+        let rule: VideoSiteRule = Self.playbackRule()
+        let loader = VideoSourcePlaybackLoader(
+            pageContentLoader: pageLoader,
+            parser: CoreVideoRuleSourceParser()
+        )
+        let session: VideoPreparedPlaybackExecutionSession = try loader.prepare(
+            source: Self.source(rule: rule),
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            input: Self.input()
+        )
+
+        let result: VideoPreparedPlaybackExecutionResult = try await loader.executeWithRouteFacts(session)
+
+        #expect(result.routeFacts[0].reason == .noCandidate)
+        #expect(
+            result.output.diagnostics.issues.contains {
+                $0.id == "video.v2.playbackCandidatesFilteredAsNoise"
+            } == false
+        )
+    }
+
+    @Test func advertisingIframeCandidateIsDiscardedBeforeWebUIHandoff() async throws {
+        let pageURL: URL = try #require(URL(string: "https://video.example.invalid/watch/1"))
+        let pageLoader = PlaybackPageContentLoader(
+            html: #"<iframe src="https://ads.example.test/ads/frame"></iframe>"#,
+            finalURL: pageURL
+        )
+        var rule: VideoSiteRule = Self.playbackRule()
+        rule.ruleSets.playbackRules = [
+            VideoPlaybackRule(
+                id: "playback",
+                iframe: Self.iframeRule(strategy: .webUI),
+                fallback: .webUI
+            )
+        ]
+        let loader = VideoSourcePlaybackLoader(
+            pageContentLoader: pageLoader,
+            parser: CoreVideoRuleSourceParser()
+        )
+        let session: VideoPreparedPlaybackExecutionSession = try loader.prepare(
+            source: Self.source(rule: rule),
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            input: Self.input()
+        )
+
+        let result: VideoPreparedPlaybackExecutionResult = try await loader.executeWithRouteFacts(session)
+
+        #expect(result.output.reference.status == .pageOnly)
+        #expect(result.output.reference.candidateMediaURL == pageURL)
+        #expect(result.routeFacts.map(\.routeSlot) == [.iframe, .fallback])
+        #expect(result.routeFacts[0].reason == .allCandidatesFilteredAsNoise)
+    }
+
+    // 中文注释：`deprioritize` 只改顺序、不丢弃（`BC-EVIDENCE-073`）。当前词表不产生该动作，
+    // 因此用注入的过滤器覆盖。
+    @Test func deprioritizedCandidateIsKeptButOrderedLast() async throws {
+        let pageLoader = PlaybackPageContentLoader(
+            html: """
+            <video>
+              <source src="/media/one.m3u8">
+              <source src="/media/two.m3u8">
+            </video>
+            """,
+            finalURL: try #require(URL(string: "https://video.example.invalid/watch/1"))
+        )
+        let rule: VideoSiteRule = Self.playbackRule()
+
+        let output: SourceVideoPlaybackOutput = try await VideoSourcePlaybackLoader(
+            pageContentLoader: pageLoader,
+            parser: CoreVideoRuleSourceParser(),
+            noiseFilter: StubSourceContentNoiseFilter(
+                actionsByURLSubstring: ["/media/one.m3u8": .deprioritize]
+            )
+        ).execute(
+            source: Self.source(rule: rule),
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            input: Self.input()
+        )
+
+        #expect(output.reference.status == .playable)
+        #expect(
+            output.reference.candidateMediaURL?.absoluteString
+                == "https://video.example.invalid/media/two.m3u8"
+        )
+    }
+
     static func playbackRule() -> VideoSiteRule {
         return VideoSiteRule(
             version: 2,
@@ -717,5 +873,18 @@ private final class RoutedPlaybackPageContentLoader: PageContentLoader {
             throw SourceRuntimeError.invalidInput("Missing routed playback response.")
         }
         return response
+    }
+}
+
+/// 中文注释：只有注入的过滤器才能产生 `deprioritize`——当前词表不会。
+private struct StubSourceContentNoiseFilter: SourceContentNoiseFiltering {
+    let actionsByURLSubstring: [String: SourceContentNoiseAction]
+
+    func decision(for candidate: SourceContentNoiseCandidate) -> SourceContentNoiseDecision {
+        let text: String = candidate.url?.absoluteString ?? ""
+        for (substring, action) in self.actionsByURLSubstring where text.contains(substring) {
+            return SourceContentNoiseDecision(action: action, reasons: [.advertising])
+        }
+        return .keep
     }
 }

@@ -9,6 +9,15 @@ enum SourceContentNoiseContext: String, Hashable {
     case chapterLink
 }
 
+/// 中文注释：候选的播放身份是猜出来的还是规则声明的（`BC-EVIDENCE-071`）。
+/// `inferred`：App 手上只有一个 URL，只能从候选自身文字推断，播放词构成广告豁免；
+/// `ruleDeclared`：站点规则已声明它是播放目标，再从它自身文字推断一次必然为真
+/// （媒体候选的 path 必然含 m3u8/mp4），零信息量，不得压过广告证据。
+enum SourceContentPlaybackAssurance: String, Hashable {
+    case inferred
+    case ruleDeclared
+}
+
 enum SourceContentNoiseAction: String, Hashable {
     case keep
     case discard
@@ -34,6 +43,7 @@ struct SourceContentNoiseCandidate: Hashable {
     var tagName: String?
     var attributes: [String: String]
     var sourceKind: SourceRuntimeKind?
+    var playbackAssurance: SourceContentPlaybackAssurance
     var context: SourceContentNoiseContext
 
     init(
@@ -45,6 +55,7 @@ struct SourceContentNoiseCandidate: Hashable {
         tagName: String? = nil,
         attributes: [String: String] = [:],
         sourceKind: SourceRuntimeKind? = nil,
+        playbackAssurance: SourceContentPlaybackAssurance = .inferred,
         context: SourceContentNoiseContext
     ) {
         self.title = title
@@ -55,6 +66,7 @@ struct SourceContentNoiseCandidate: Hashable {
         self.tagName = tagName
         self.attributes = attributes
         self.sourceKind = sourceKind
+        self.playbackAssurance = playbackAssurance
         self.context = context
     }
 }
@@ -152,15 +164,16 @@ struct SourceContentNoiseFilter: SourceContentNoiseFiltering {
     }
 
     private func hasPlaybackSignal(_ candidate: SourceContentNoiseCandidate) -> Bool {
-        let urlText: String?
-        switch candidate.context {
-        case .playbackCandidate:
-            // The host may contain broad words such as "video". Treating the
-            // full URL as playback evidence can hide redirect/ad paths.
-            urlText = candidate.url?.path
-        case .listItem, .navigationLink, .feedItem, .chapterLink:
-            urlText = candidate.url?.path
+        // 中文注释：规则已经声明播放身份时不再推断一次（`BC-EVIDENCE-071`）。规则匹配到的
+        // 媒体候选，其 path 必然含 m3u8/mp4——那正是它被选中的原因，作为豁免恒成立、
+        // 零信息量，却会压过真正有判别力的广告证据。
+        guard candidate.playbackAssurance == .inferred else {
+            return false
         }
+
+        // The host may contain broad words such as "video". Treating the
+        // full URL as playback evidence can hide redirect/ad paths.
+        let urlText: String? = candidate.url?.path
 
         return self.lexicon.containsMarker(
             in: [
@@ -337,10 +350,26 @@ struct SourceContentNoiseFilter: SourceContentNoiseFiltering {
             )
     }
 
+    // 中文注释：query 与 fragment 不参与词表子串匹配（`BC-EVIDENCE-072`）：签名 token 与
+    // hash 会随机命中 "ad-"/"-ad"/"_ad" 这类短标记，构成与站点内容无关的假阳性。query 的
+    // 判别由 hasSuspiciousNavigationURLSignals 的结构化计分独占，同一判断只有一处解释。
+    private func urlEvidenceText(_ url: URL) -> String {
+        guard var components: URLComponents = URLComponents(
+            url: url,
+            resolvingAgainstBaseURL: false
+        ) else {
+            return url.absoluteString
+        }
+
+        components.query = nil
+        components.fragment = nil
+        return components.url?.absoluteString ?? url.absoluteString
+    }
+
     private func searchableText(for candidate: SourceContentNoiseCandidate) -> String {
         return [
             candidate.title,
-            candidate.url?.absoluteString,
+            candidate.url.map(self.urlEvidenceText),
             candidate.text,
             candidate.cssClass,
             candidate.elementID,
