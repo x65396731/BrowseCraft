@@ -38,6 +38,9 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
     @Published var dialog: Dialog?
     @Published var isShowingDialog: Bool = false
     @Published var promptInput: String = ""
+    /// 中文注释：外部播放源（embed 提供方）不可达/被拦截时的持久错误态；
+    /// 主文档 commit 时清空，重试由视图层清空后 reload。
+    @Published var providerFailure: VideoPlaybackProviderFailure?
 
     let configuration: WKWebViewConfiguration
     let initialHost: String?
@@ -46,6 +49,8 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
     private var attemptedMobileAlternateURLs: Set<String> = []
     private var expectedInterruptedMainFrameNavigationCount: Int = 0
     private var mobileAdaptationTask: Task<Void, Never>?
+    private var embedProbeTask: Task<Void, Never>?
+    private var embedProbeCompletedURL: URL?
 
     init(request: VideoWebPlayerRequest) {
         let configuration: WKWebViewConfiguration = WKWebViewConfiguration()
@@ -114,6 +119,182 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
             )
         )
         return decision.action == .discard
+    }
+
+    // MARK: - 外部播放源失败检测
+
+    /// 中文注释：主文档开始渲染即离开错误态；随后到达的子 frame 失败会重新报告。
+    func clearProviderFailureForNewDocument() {
+        guard self.providerFailure != nil else {
+            return
+        }
+        self.providerFailure = nil
+    }
+
+    /// 中文注释：HTTP 层失败分类。主 frame 失败一律报告（此时主文档往往就是
+    /// embed 提供方或播放页本身）；子 frame 只报告"疑似播放器"的跨站文档——
+    /// 同站 iframe 与广告噪声不属于播放源失败。
+    func reportHTTPFailure(statusCode: Int, url: URL, isMainFrame: Bool) {
+        guard statusCode >= 400 else {
+            return
+        }
+        if isMainFrame == false {
+            guard self.isLikelyExternalPlayerFrameURL(url) else {
+                return
+            }
+        }
+        let kind: VideoPlaybackProviderFailure.Kind
+        switch statusCode {
+        case 403, 503:
+            kind = .blocked(statusCode: statusCode)
+        case 404, 410:
+            kind = .sourceInvalid(statusCode: statusCode)
+        default:
+            kind = .providerError(statusCode: statusCode)
+        }
+        self.reportProviderFailure(VideoPlaybackProviderFailure(kind: kind, url: url))
+    }
+
+    /// 中文注释：连接层失败（超时/DNS/重置）——被网络屏蔽的典型形态。
+    func reportConnectionFailure(_ error: Error, fallbackURL: URL?) {
+        let nsError: NSError = error as NSError
+        guard nsError.domain == NSURLErrorDomain else {
+            return
+        }
+        let unreachableCodes: Set<Int> = [
+            NSURLErrorTimedOut,
+            NSURLErrorCannotFindHost,
+            NSURLErrorCannotConnectToHost,
+            NSURLErrorNetworkConnectionLost,
+            NSURLErrorSecureConnectionFailed
+        ]
+        guard unreachableCodes.contains(nsError.code) else {
+            return
+        }
+        let failingURL: URL? = (nsError.userInfo[NSURLErrorFailingURLErrorKey] as? URL)
+            ?? fallbackURL
+        guard let failingURL else {
+            return
+        }
+        self.reportProviderFailure(
+            VideoPlaybackProviderFailure(kind: .unreachable, url: failingURL)
+        )
+    }
+
+    /// 中文注释：首个失败胜出——Cloudflare 拦截页自身的子资源可能继续产生
+    /// 4xx，后续报告不得覆盖首因。
+    private func reportProviderFailure(_ failure: VideoPlaybackProviderFailure) {
+        guard self.providerFailure == nil else {
+            return
+        }
+        self.providerFailure = failure
+        #if DEBUG
+        AppDebugLog.write(
+            "[BrowseCraftVideoWebPlayer] provider-failure " +
+            "kind=\(failure.kind) url=\(self.safeLogURL(failure.url))"
+        )
+        #endif
+    }
+
+    /// 中文注释：WKWebView 对被 CSP/X-Frame-Options 终止的子 frame（如
+    /// Cloudflare 403 拦截页）不触发任何公开回调——kinogo/pelisplushd 实测。
+    /// 因此主文档完成后，从页面提取外部播放器 URL，用同一 WebKit 栈的隐藏
+    /// 探针 WebView 以主 frame 方式探测：主 frame 状态可靠可见，且指纹与
+    /// 真实播放一致，不会产生 URLSession 式误报。
+    func scheduleEmbedProbe(in webView: WKWebView) {
+        guard self.providerFailure == nil, self.embedProbeCompletedURL != webView.url else {
+            return
+        }
+        self.embedProbeTask?.cancel()
+        let pageURL: URL? = webView.url
+        self.embedProbeTask = Task { @MainActor [weak self, weak webView] in
+            guard let self, let webView else {
+                return
+            }
+            guard let candidateURL: URL = await self.firstExternalPlayerEmbedURL(in: webView) else {
+                return
+            }
+            guard Task.isCancelled == false else {
+                return
+            }
+            let failureKind: VideoPlaybackProviderFailure.Kind? =
+                await VideoWebPlayerEmbedProbe(
+                    configuration: self.configuration
+                ).probe(url: candidateURL, referer: pageURL)
+            guard Task.isCancelled == false, webView.url == pageURL else {
+                return
+            }
+            self.embedProbeCompletedURL = pageURL
+            if let failureKind {
+                self.reportProviderFailure(
+                    VideoPlaybackProviderFailure(kind: failureKind, url: candidateURL)
+                )
+            }
+            #if DEBUG
+            AppDebugLog.write(
+                "[BrowseCraftVideoWebPlayer] embed-probe " +
+                "url=\(self.safeLogURL(candidateURL)) " +
+                "result=\(failureKind.map { String(describing: $0) } ?? "ok")"
+            )
+            #endif
+        }
+    }
+
+    func cancelEmbedProbe() {
+        self.embedProbeTask?.cancel()
+        self.embedProbeTask = nil
+    }
+
+    /// 中文注释：候选来源与生成侧同一形状语义——`iframe[src]` 与非图像元素的
+    /// `data-src` 携源；跨站、非噪声的第一个即外部播放器。
+    private func firstExternalPlayerEmbedURL(in webView: WKWebView) async -> URL? {
+        let script: String = #"""
+        (() => {
+          const urls = [];
+          for (const frame of document.querySelectorAll("iframe[src]")) {
+            urls.push(frame.src);
+          }
+          const skip = new Set(["IMG", "SOURCE", "VIDEO", "SCRIPT", "IFRAME", "LINK"]);
+          for (const element of document.querySelectorAll("[data-src]")) {
+            if (skip.has(element.tagName)) continue;
+            const value = String(element.getAttribute("data-src") || "");
+            if (/^https?:\/\//i.test(value)) urls.push(value);
+          }
+          return urls.slice(0, 12);
+        })();
+        """#
+        guard let value: Any = try? await webView.evaluateJavaScript(script),
+              let rawURLs: [Any] = value as? [Any] else {
+            return nil
+        }
+        for rawURL: Any in rawURLs {
+            guard let urlString: String = rawURL as? String,
+                  let url: URL = URL(string: urlString),
+                  let scheme: String = url.scheme?.lowercased(),
+                  scheme == "http" || scheme == "https",
+                  self.isLikelyExternalPlayerFrameURL(url) else {
+                continue
+            }
+            return url
+        }
+        return nil
+    }
+
+    /// 中文注释：跨站（相对播放页主域）且未被噪声过滤丢弃的子 frame 文档
+    /// 才视为外部播放器。embed 聚合器几乎总是跨站；广告 iframe 由噪声过滤排除。
+    private func isLikelyExternalPlayerFrameURL(_ url: URL) -> Bool {
+        guard let host: String = url.host?.lowercased() else {
+            return false
+        }
+        if let initialHost: String = self.initialHost {
+            let isSameSiteFamily: Bool = host == initialHost
+                || host.hasSuffix(".\(initialHost)")
+                || initialHost.hasSuffix(".\(host)")
+            if isSameSiteFamily {
+                return false
+            }
+        }
+        return self.shouldBlockLikelyNoiseNavigation(url) == false
     }
 
     /// 中文注释：优先遵循页面自己声明的移动入口。支持同域路径，以及从普通主机
@@ -446,5 +627,147 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
     func showDialog(_ dialog: Dialog) {
         self.dialog = dialog
         self.isShowingDialog = true
+    }
+}
+
+/// 中文注释：外部播放源失败的类型化状态。403/503 是"源站防护拦截当前出口"，
+/// 连接层失败是"疑似网络屏蔽"，404/410 是片源失效——三者的用户动作不同，
+/// 文案必须区分，不得合并成一句"加载失败"。
+struct VideoPlaybackProviderFailure: Equatable {
+    enum Kind: Equatable {
+        case blocked(statusCode: Int)
+        case unreachable
+        case sourceInvalid(statusCode: Int)
+        case providerError(statusCode: Int)
+    }
+
+    var kind: Kind
+    var url: URL
+
+    var host: String {
+        return self.url.host ?? "未知主机"
+    }
+
+    var title: String {
+        switch self.kind {
+        case .blocked, .unreachable:
+            return "播放源无法访问"
+        case .sourceInvalid:
+            return "片源已失效"
+        case .providerError:
+            return "播放源出错"
+        }
+    }
+
+    var message: String {
+        switch self.kind {
+        case .blocked(let statusCode):
+            return "此内容由第三方播放源 \(self.host) 提供，" +
+                "当前网络访问它时被源站安全服务拦截（HTTP \(statusCode)）。" +
+                "这与应用无关，通常是网络出口被对方屏蔽。"
+        case .unreachable:
+            return "无法连接第三方播放源 \(self.host)（连接超时或被重置），" +
+                "可能被当前网络屏蔽。"
+        case .sourceInvalid(let statusCode):
+            return "播放源 \(self.host) 返回 HTTP \(statusCode)，" +
+                "该片源可能已被移除。"
+        case .providerError(let statusCode):
+            return "播放源 \(self.host) 返回 HTTP \(statusCode)。"
+        }
+    }
+
+    var hint: String? {
+        switch self.kind {
+        case .blocked, .unreachable:
+            return "可尝试：切换到蜂窝数据或更换网络环境后重试"
+        case .sourceInvalid:
+            return "可尝试：返回上一页选择其它片源"
+        case .providerError:
+            return nil
+        }
+    }
+}
+
+/// 中文注释：隐藏探针 WebView——以主 frame 方式加载外部播放器 URL，
+/// 读取其 HTTP 状态或连接失败。与播放 WebView 同一 configuration
+/// （同 Cookie store、同 UA 指纹），判决与真实播放一致。
+@MainActor
+private final class VideoWebPlayerEmbedProbe: NSObject, WKNavigationDelegate {
+    private let webView: WKWebView
+    private var continuation: CheckedContinuation<VideoPlaybackProviderFailure.Kind?, Never>?
+
+    init(configuration: WKWebViewConfiguration) {
+        self.webView = WKWebView(
+            frame: CGRect(x: 0, y: 0, width: 1, height: 1),
+            configuration: configuration
+        )
+        super.init()
+        self.webView.navigationDelegate = self
+    }
+
+    func probe(url: URL, referer: URL?) async -> VideoPlaybackProviderFailure.Kind? {
+        var request: URLRequest = URLRequest(
+            url: url,
+            cachePolicy: .reloadIgnoringLocalCacheData,
+            timeoutInterval: 12
+        )
+        if let referer: URL {
+            request.setValue(referer.absoluteString, forHTTPHeaderField: "Referer")
+        }
+        return await withCheckedContinuation { continuation in
+            self.continuation = continuation
+            self.webView.load(request)
+        }
+    }
+
+    private func finish(_ kind: VideoPlaybackProviderFailure.Kind?) {
+        guard let continuation = self.continuation else {
+            return
+        }
+        self.continuation = nil
+        self.webView.stopLoading()
+        continuation.resume(returning: kind)
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationResponse: WKNavigationResponse
+    ) async -> WKNavigationResponsePolicy {
+        guard navigationResponse.isForMainFrame,
+              let httpResponse: HTTPURLResponse = navigationResponse.response as? HTTPURLResponse else {
+            return .allow
+        }
+        switch httpResponse.statusCode {
+        case ..<400:
+            self.finish(nil)
+        case 403, 503:
+            self.finish(.blocked(statusCode: httpResponse.statusCode))
+        case 404, 410:
+            self.finish(.sourceInvalid(statusCode: httpResponse.statusCode))
+        default:
+            self.finish(.providerError(statusCode: httpResponse.statusCode))
+        }
+        return .cancel
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        didFailProvisionalNavigation navigation: WKNavigation?,
+        withError error: Error
+    ) {
+        let nsError: NSError = error as NSError
+        guard nsError.domain == NSURLErrorDomain, nsError.code != NSURLErrorCancelled else {
+            self.finish(nil)
+            return
+        }
+        self.finish(.unreachable)
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation?) {
+        self.finish(nil)
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation?, withError error: Error) {
+        self.finish(nil)
     }
 }

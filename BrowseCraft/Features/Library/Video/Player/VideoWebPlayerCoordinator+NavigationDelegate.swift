@@ -92,6 +92,38 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
             || host.hasSuffix(".abyss.to")
     }
 
+    /// 中文注释：`BC` 外部播放源失败检测——WKWebView 的主 frame 错误回调看不到
+    /// 子 frame（embed iframe），但本回调对子 frame 文档同样触发，是唯一能读到
+    /// embed 提供方 HTTP 状态（如 Cloudflare 403）的位置。始终放行，不改变导航行为。
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationResponse: WKNavigationResponse
+    ) async -> WKNavigationResponsePolicy {
+        #if DEBUG
+        AppDebugLog.write(
+            "[BrowseCraftVideoWebPlayer] nav-response " +
+            "mainFrame=\(navigationResponse.isForMainFrame) " +
+            "status=\((navigationResponse.response as? HTTPURLResponse)?.statusCode ?? -1) " +
+            "url=\(self.safeLogURL(navigationResponse.response.url))"
+        )
+        #endif
+        if let httpResponse: HTTPURLResponse = navigationResponse.response as? HTTPURLResponse,
+           httpResponse.statusCode >= 400,
+           let url: URL = httpResponse.url {
+            self.reportHTTPFailure(
+                statusCode: httpResponse.statusCode,
+                url: url,
+                isMainFrame: navigationResponse.isForMainFrame
+            )
+        }
+        return .allow
+    }
+
+    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation?) {
+        self.cancelEmbedProbe()
+        self.clearProviderFailureForNewDocument()
+    }
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation?) {
         #if DEBUG
         AppDebugLog.write(
@@ -102,6 +134,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
         #endif
 
         self.scheduleMobileAdaptation(in: webView)
+        self.scheduleEmbedProbe(in: webView)
     }
 
     #if DEBUG
@@ -165,6 +198,9 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
         guard self.shouldIgnoreInterruptedNavigation(error) == false else {
             return
         }
+
+        // 中文注释：主文档连接层失败（超时/DNS/重置）——疑似网络屏蔽形态。
+        self.reportConnectionFailure(error, fallbackURL: webView.url)
 
         #if DEBUG
         AppDebugLog.write(

@@ -35,9 +35,13 @@ struct VideoGenerationOneHopPlanner: Sendable {
         observation: SourceListStructureObservation,
         decisions: [VideoGenerationOneHopURLDecision]
     ) -> VideoGenerationOneHopPlan {
-        let decisionByMemberID: [String: VideoGenerationOneHopURLDecision] = Dictionary(
-            uniqueKeysWithValues: decisions.map { decision in
-                (decision.memberID, decision)
+        // 中文注释：同一 member 可以同时属于多个结构组（嵌套/重叠组各出一条
+        // 决策），memberID 不是唯一键——决策的真实粒度是（ownerID, memberID）。
+        // 用 grouping 聚合后按所属组核对，不得用 uniqueKeysWithValues（会崩溃）。
+        let decisionsByMemberID: [String: [VideoGenerationOneHopURLDecision]] = Dictionary(
+            grouping: decisions,
+            by: { decision in
+                return decision.memberID
             }
         )
         let groups: [SourceListStructuralGroup] = observation.groups.filter { group in
@@ -53,16 +57,19 @@ struct VideoGenerationOneHopPlanner: Sendable {
             return lhs.id < rhs.id
         }
 
+        // 中文注释：groups 已按 (ownerFingerprint, id) 确定性排序；若上游出现
+        // 重复 group.id，保留首个而不是崩溃。
         let eligibleMembersByGroupID: [String: [SourceListStructuralMember]] = Dictionary(
-            uniqueKeysWithValues: groups.map { group in
+            groups.map { group in
                 let members: [SourceListStructuralMember] = group.members.filter { member in
-                    guard let decision: VideoGenerationOneHopURLDecision = decisionByMemberID[member.id] else {
-                        return false
+                    let memberDecisions: [VideoGenerationOneHopURLDecision] =
+                        decisionsByMemberID[member.id] ?? []
+                    return memberDecisions.contains { decision in
+                        return decision.ownerID == group.ownerID
+                            && decision.isPublic
+                            && decision.isSameSite
+                            && member.targetURL == decision.url
                     }
-                    return decision.ownerID == group.ownerID
-                        && decision.isPublic
-                        && decision.isSameSite
-                        && member.targetURL == decision.url
                 }.sorted { lhs, rhs in
                     if lhs.positionBucket != rhs.positionBucket {
                         return lhs.positionBucket < rhs.positionBucket
@@ -70,6 +77,9 @@ struct VideoGenerationOneHopPlanner: Sendable {
                     return lhs.id < rhs.id
                 }
                 return (group.id, members)
+            },
+            uniquingKeysWith: { first, _ in
+                return first
             }
         )
 
