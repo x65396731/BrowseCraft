@@ -21,13 +21,31 @@ struct VideoRuntimeAuditWebUIObservation: Hashable, Sendable {
 
 /// 中文注释：audit 驱动器请求前台观察的唯一端口；无实现（headless）时行为与批次 3 相同。
 protocol VideoRuntimeAuditWebUIObserving: AnyObject, Sendable {
+    /// - Parameter activationSelector: `BC-EVIDENCE-078.1`——catalog 已声明的携源元素 CSS 选择器；
+    ///   nil 表示不做滚入视口激活。
     @MainActor
     func observe(
         reference: SourceVideoPlaybackReference,
         requestConfig: SourcePlaybackRequestConfig?,
         sessionToken: String,
-        timeout: TimeInterval
+        timeout: TimeInterval,
+        activationSelector: String?
     ) async -> VideoRuntimeAuditWebUIObservation
+}
+
+/// 中文注释：`BC-EVIDENCE-078.1` 的选择器来源——只取 catalog 声明的 css 选择器，其它 selectorKind
+/// 或空选择器不激活。纯函数、可单测。
+enum VideoRuntimeAuditActivationSelector {
+    static func cssSelector(selector: String?, selectorKind: String?) -> String? {
+        guard let selector: String = selector?.trimmingCharacters(in: .whitespacesAndNewlines),
+              selector.isEmpty == false else {
+            return nil
+        }
+        if let selectorKind: String, selectorKind.lowercased() != "css" {
+            return nil
+        }
+        return selector
+    }
 }
 
 /// 中文注释：BC-EVIDENCE-021 的操作化，纯函数、可单测。
@@ -109,18 +127,24 @@ final class VideoRuntimeAuditMediaEventHandler: NSObject, WKScriptMessageHandler
     static let messageName: String = "brgAuditMedia"
 
     let sessionToken: String
+    /// 中文注释：`BC-EVIDENCE-078.1` 携源元素选择器；nil 不做滚入视口。
+    let activationSelector: String?
     private(set) var events: [VideoRuntimeAuditMediaPlayingEvent] = []
     private var candidateContinuation: CheckedContinuation<Void, Never>?
     private weak var attachedController: WKUserContentController?
 
-    init(sessionToken: String) {
+    init(sessionToken: String, activationSelector: String? = nil) {
         self.sessionToken = sessionToken
+        self.activationSelector = activationSelector
         super.init()
     }
 
     var userScript: WKUserScript {
         return WKUserScript(
-            source: Self.script(sessionToken: self.sessionToken),
+            source: Self.script(
+                sessionToken: self.sessionToken,
+                activationSelector: self.activationSelector
+            ),
             injectionTime: .atDocumentStart,
             forMainFrameOnly: false
         )
@@ -216,19 +240,62 @@ final class VideoRuntimeAuditMediaEventHandler: NSObject, WKScriptMessageHandler
         }
     }
 
-    private static func script(sessionToken: String) -> String {
+    /// 中文注释：`BC-EVIDENCE-078.2` 的界限——每元素最多 2 次 `play()`、间隔 ≥1 秒、总循环有界。
+    static let maximumPlayAttemptsPerElement: Int = 2
+    static let activationLoopIterations: Int = 30
+
+    private static func script(sessionToken: String, activationSelector: String?) -> String {
         let tokenLiteral: String = sessionToken
             .replacingOccurrences(of: "\\", with: "")
             .replacingOccurrences(of: "\"", with: "")
+        let selectorLiteral: String
+        if let activationSelector: String,
+           let data: Data = try? JSONSerialization.data(
+               withJSONObject: activationSelector,
+               options: [.fragmentsAllowed]
+           ),
+           let json: String = String(data: data, encoding: .utf8) {
+            selectorLiteral = json
+        } else {
+            selectorLiteral = "null"
+        }
         return """
         (() => {
           if (window.__brgAuditMediaInstalled) { return; }
           window.__brgAuditMediaInstalled = true;
           const token = "\(tokenLiteral)";
+          const activationSelector = \(selectorLiteral);
+          const maxPlayAttempts = \(Self.maximumPlayAttemptsPerElement);
+          const maxLoops = \(Self.activationLoopIterations);
           const frameID = Math.random().toString(36).slice(2, 10);
           const ordinals = new WeakMap();
           const attached = new WeakSet();
+          const playAttempts = new WeakMap();
+          let loops = 0;
+          let scrolled = false;
           let nextOrdinal = 0;
+          const isCandidateSource = (element) => {
+            const source = String(element.currentSrc || element.src || "").trim();
+            return source.length > 0 && !/^data:/i.test(source);
+          };
+          // BC-EVIDENCE-078.1：声明携源元素滚入视口（一次）；078.2：绑定候选媒体元素 play()（每元素 ≤2 次）。
+          const activate = () => {
+            loops += 1;
+            if (loops > maxLoops) { return; }
+            if (!scrolled && activationSelector) {
+              try {
+                const carrier = document.querySelector(activationSelector);
+                if (carrier) { scrolled = true; carrier.scrollIntoView({ block: "center" }); }
+              } catch (error) {}
+            }
+            document.querySelectorAll("video, audio").forEach((element) => {
+              if (!element.paused || !isCandidateSource(element)) { return; }
+              const attempts = playAttempts.get(element) || 0;
+              if (attempts >= maxPlayAttempts) { return; }
+              playAttempts.set(element, attempts + 1);
+              try { const result = element.play(); if (result && result.catch) { result.catch(() => {}); } } catch (error) {}
+            });
+          };
           const report = (element) => {
             if (!ordinals.has(element)) { nextOrdinal += 1; ordinals.set(element, nextOrdinal); }
             try {
@@ -257,6 +324,8 @@ final class VideoRuntimeAuditMediaEventHandler: NSObject, WKScriptMessageHandler
           scan();
           try { new MutationObserver(scheduleScan).observe(document, { childList: true, subtree: true }); } catch (error) {}
           setInterval(scan, 1000);
+          setTimeout(activate, 1500);
+          setInterval(activate, 1000);
         })();
         """
     }

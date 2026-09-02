@@ -124,6 +124,15 @@ struct VideoRuntimeAuditWebUIBindingReducerTests {
         #expect(VideoRuntimeAuditWebUIBindingReducer.isBindingCandidate("   ") == false)
     }
 
+    // 中文注释：BC-EVIDENCE-078.1——激活选择器只来自 catalog 声明的 css 选择器。
+    @Test func activationSelectorOnlyAcceptsDeclaredCSS() {
+        #expect(VideoRuntimeAuditActivationSelector.cssSelector(selector: "li.current[data-src]", selectorKind: "css") == "li.current[data-src]")
+        #expect(VideoRuntimeAuditActivationSelector.cssSelector(selector: " li.current ", selectorKind: nil) == "li.current")
+        #expect(VideoRuntimeAuditActivationSelector.cssSelector(selector: "//li", selectorKind: "xpath") == nil)
+        #expect(VideoRuntimeAuditActivationSelector.cssSelector(selector: "", selectorKind: "css") == nil)
+        #expect(VideoRuntimeAuditActivationSelector.cssSelector(selector: nil, selectorKind: "css") == nil)
+    }
+
     @Test func emptySourceIsMissing() {
         let observation = VideoRuntimeAuditWebUIBindingReducer.reduce(
             events: [VideoRuntimeAuditMediaPlayingEvent(elementID: "f1:1", currentSrc: "")],

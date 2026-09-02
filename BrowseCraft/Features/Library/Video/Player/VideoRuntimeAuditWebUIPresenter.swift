@@ -21,13 +21,15 @@ final class VideoRuntimeAuditWebUIPresenter: ObservableObject, VideoRuntimeAudit
         reference: SourceVideoPlaybackReference,
         requestConfig: SourcePlaybackRequestConfig?,
         sessionToken: String,
-        timeout: TimeInterval
+        timeout: TimeInterval,
+        activationSelector: String?
     ) async -> VideoRuntimeAuditWebUIObservation {
         guard self.activeSession == nil else {
             return VideoRuntimeAuditWebUIBindingReducer.reduce(events: [], timedOut: false)
         }
         let handler: VideoRuntimeAuditMediaEventHandler = VideoRuntimeAuditMediaEventHandler(
-            sessionToken: sessionToken
+            sessionToken: sessionToken,
+            activationSelector: activationSelector
         )
         self.activeSession = ActiveSession(
             id: sessionToken,

@@ -548,6 +548,7 @@ struct VideoRuntimeAuditService {
                 routeFingerprint: routeFingerprint,
                 playbackReference: playbackReference,
                 playbackRequestConfig: playbackRequestConfig,
+                playbackRule: session.playbackRule,
                 priorRoutePassed: priorRoutePassed,
                 priorSelectionFailed: priorSelectionFailed,
                 executionAvailable: execution.result != nil
@@ -583,6 +584,7 @@ struct VideoRuntimeAuditService {
         routeFingerprint: VideoRuntimeEvidenceFingerprint,
         playbackReference: SourceVideoPlaybackReference?,
         playbackRequestConfig: SourcePlaybackRequestConfig?,
+        playbackRule: VideoPlaybackRule,
         priorRoutePassed: Bool,
         priorSelectionFailed: Bool,
         executionAvailable: Bool
@@ -640,7 +642,8 @@ struct VideoRuntimeAuditService {
                     declared: declared,
                     routeFingerprint: routeFingerprint,
                     playbackReference: playbackReference,
-                    playbackRequestConfig: playbackRequestConfig
+                    playbackRequestConfig: playbackRequestConfig,
+                    playbackRule: playbackRule
                 )
             }
             return await self.observedAttempt(
@@ -683,11 +686,24 @@ struct VideoRuntimeAuditService {
 
     /// 中文注释：BC-EVIDENCE-077——WebUI 路线：前台观察 → 021 归约 → unique 时对 currentSrc
     /// 做 076.4 同一有界验收。无观察端口（headless）时与批次 3 逐字节相同。
+    /// 中文注释：`BC-EVIDENCE-078.1`——激活对象只来自 catalog 声明：iframe.url 的 css 选择器，
+    /// 无 iframe 规则时取 media.url；非 css 或为空则不激活。
+    static func activationSelector(playbackRule: VideoPlaybackRule) -> String? {
+        let extractRule: ExtractRule? = playbackRule.iframe?.url
+            ?? playbackRule.media?.url
+            ?? playbackRule.effectiveMediaCandidates.first?.url
+        return VideoRuntimeAuditActivationSelector.cssSelector(
+            selector: extractRule?.selector,
+            selectorKind: extractRule?.selectorKind?.rawValue
+        )
+    }
+
     private func observedWebUIAttempt(
         declared: VideoPreparedPlaybackDeclaredRoute,
         routeFingerprint: VideoRuntimeEvidenceFingerprint,
         playbackReference: SourceVideoPlaybackReference?,
-        playbackRequestConfig: SourcePlaybackRequestConfig?
+        playbackRequestConfig: SourcePlaybackRequestConfig?,
+        playbackRule: VideoPlaybackRule
     ) async -> VideoRuntimeRouteAttemptEvidence {
         guard let observer: any VideoRuntimeAuditWebUIObserving = self.webUIObserver,
               let reference: SourceVideoPlaybackReference = playbackReference else {
@@ -703,7 +719,8 @@ struct VideoRuntimeAuditService {
             reference: reference,
             requestConfig: playbackRequestConfig,
             sessionToken: playbackSessionID.uuidString.lowercased(),
-            timeout: Self.webUIObservationTimeout
+            timeout: Self.webUIObservationTimeout,
+            activationSelector: Self.activationSelector(playbackRule: playbackRule)
         )
         switch observation.bindingStatus {
         case .missing:
