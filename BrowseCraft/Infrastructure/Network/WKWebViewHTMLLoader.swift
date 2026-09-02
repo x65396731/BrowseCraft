@@ -62,10 +62,6 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         static let defaultTimeoutSeconds: Double = 12
         static let autoScrollTimeoutNanoseconds: UInt64 = 24_000_000_000
         static let autoScrollTimeoutSeconds: Double = 24
-        // 中文注释：`BC-EVIDENCE-081`——首次读到挑战过渡页后，把总时限一次性延至 30 秒，
-        // 等待挑战脚本触发的后续主帧导航；仍是过渡页则 typed 失败。
-        static let challengeTimeoutNanoseconds: UInt64 = 30_000_000_000
-        static let challengeTimeoutSeconds: Double = 30
         static let postFinishDelayNanoseconds: UInt64 = 500_000_000
         static let postScrollDelayNanoseconds: UInt64 = 500_000_000
         static let domStableDelayNanoseconds: UInt64 = 300_000_000
@@ -86,7 +82,8 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
     private var hasCompleted: Bool = false
     private var isLoadingHTTPSUpgrade: Bool = false
     private var timeoutTask: Task<Void, Never>?
-    private var challengeInterstitialObserved: Bool = false
+    // 中文注释：`BC-EVIDENCE-081`——过渡页 / 文档决策只消费这个状态机。
+    private var challengeGate: WKWebViewChallengeInterstitialGate = WKWebViewChallengeInterstitialGate()
 
     init(
         url: URL,
@@ -146,36 +143,33 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
 
                 try await self.waitForStableDOMLength()
                 let html: String = try await self.renderedHTML()
+                guard self.hasCompleted == false else {
+                    return
+                }
                 // 中文注释：`BC-EVIDENCE-081`——挑战过渡页不是文档。Cloudflare JS 挑战先以一份
                 // 稳定 DOM 完成首次导航，脚本跑完后才二次导航到真页；这里不返回过渡页，
                 // 只在首次检测时把时限一次性延长，然后等待下一次 didFinish 复判。
-                if self.hasCompleted == false,
-                   HTMLChallengeInterstitialDetector.isChallengeInterstitial(html) {
-                    self.noteChallengeInterstitial()
-                    return
+                switch self.challengeGate.evaluate(renderedHTML: html) {
+                case .document:
+                    self.finish(.success(self.response(for: html)))
+                case .waitForNextNavigation(let extendTimeoutSeconds):
+                    if let seconds: Double = extendTimeoutSeconds {
+                        #if DEBUG
+                        AppDebugLog.write(
+                            "[BrowseCraftWebView] challenge interstitial observed, waiting up to " +
+                            "\(seconds)s url=\(self.url.absoluteString)"
+                        )
+                        #endif
+                        self.startTimeout(
+                            nanoseconds: UInt64(seconds * 1_000_000_000),
+                            seconds: seconds
+                        )
+                    }
                 }
-                self.finish(.success(self.response(for: html)))
             } catch {
                 self.finish(.failure(error))
             }
         }
-    }
-
-    private func noteChallengeInterstitial() {
-        guard self.challengeInterstitialObserved == false else {
-            return
-        }
-        self.challengeInterstitialObserved = true
-        #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftWebView] challenge interstitial observed, waiting up to " +
-            "\(Timing.challengeTimeoutSeconds)s url=\(self.url.absoluteString)"
-        )
-        #endif
-        self.startTimeout(
-            nanoseconds: Timing.challengeTimeoutNanoseconds,
-            seconds: Timing.challengeTimeoutSeconds
-        )
     }
 
     func webView(
@@ -211,10 +205,9 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
             guard let self else {
                 return
             }
-            let error: WKWebViewHTMLLoaderError = self.challengeInterstitialObserved
-                ? .challengeInterstitialUnresolved(url: self.url, seconds: seconds)
-                : .timedOut(url: self.url, seconds: seconds)
-            self.finish(.failure(error))
+            self.finish(
+                .failure(self.challengeGate.timeoutError(url: self.url, seconds: seconds))
+            )
         }
     }
 
