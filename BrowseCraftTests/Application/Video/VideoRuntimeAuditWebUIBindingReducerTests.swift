@@ -83,6 +83,47 @@ struct VideoRuntimeAuditWebUIBindingReducerTests {
         #expect(observation.bindingStatus == .unique)
     }
 
+    // 中文注释：播放器解锁自动播放用的内联 data: 假视频没有网络请求，不参与绑定（kinogo 实测）。
+    @Test func dataURIDummyOnlyIsMissingButStarted() {
+        let observation = VideoRuntimeAuditWebUIBindingReducer.reduce(
+            events: [
+                VideoRuntimeAuditMediaPlayingEvent(
+                    elementID: "unlock:1",
+                    currentSrc: "data:video/mp4;base64,AAAAIGZ0eXBpc29t"
+                )
+            ],
+            timedOut: true
+        )
+        #expect(observation.playerStarted == true)
+        #expect(observation.bindingStatus == .missing)
+        #expect(observation.mediaURL == nil)
+    }
+
+    @Test func dataURIDummyDoesNotMakeRealSourceAmbiguous() {
+        let observation = VideoRuntimeAuditWebUIBindingReducer.reduce(
+            events: [
+                VideoRuntimeAuditMediaPlayingEvent(
+                    elementID: "unlock:1",
+                    currentSrc: "data:video/mp4;base64,AAAAIGZ0eXBpc29t"
+                ),
+                VideoRuntimeAuditMediaPlayingEvent(
+                    elementID: "player:1",
+                    currentSrc: "https://cdn.example.invalid/hls/master.m3u8"
+                )
+            ],
+            timedOut: false
+        )
+        #expect(observation.bindingStatus == .unique)
+        #expect(observation.mediaURL?.host == "cdn.example.invalid")
+    }
+
+    @Test func bindingCandidatePredicateExcludesDataAndEmpty() {
+        #expect(VideoRuntimeAuditWebUIBindingReducer.isBindingCandidate("https://a.invalid/x.m3u8"))
+        #expect(VideoRuntimeAuditWebUIBindingReducer.isBindingCandidate("blob:https://a.invalid/1"))
+        #expect(VideoRuntimeAuditWebUIBindingReducer.isBindingCandidate("DATA:video/mp4;base64,AA") == false)
+        #expect(VideoRuntimeAuditWebUIBindingReducer.isBindingCandidate("   ") == false)
+    }
+
     @Test func emptySourceIsMissing() {
         let observation = VideoRuntimeAuditWebUIBindingReducer.reduce(
             events: [VideoRuntimeAuditMediaPlayingEvent(elementID: "f1:1", currentSrc: "")],

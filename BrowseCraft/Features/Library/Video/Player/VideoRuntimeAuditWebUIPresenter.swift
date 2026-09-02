@@ -12,7 +12,7 @@ final class VideoRuntimeAuditWebUIPresenter: ObservableObject, VideoRuntimeAudit
         let handler: VideoRuntimeAuditMediaEventHandler
     }
 
-    /// 中文注释：首个 playing 之后再等一小段，捕捉同 session 的第二个媒体元素（广告 + 正片）。
+    /// 中文注释：首个绑定候选元素 playing 之后再等一小段，捕捉同 session 的第二个媒体元素（广告 + 正片）。
     static let settleInterval: TimeInterval = 3
 
     @Published private(set) var activeSession: ActiveSession?
@@ -41,7 +41,7 @@ final class VideoRuntimeAuditWebUIPresenter: ObservableObject, VideoRuntimeAudit
             handler.detach()
             self.activeSession = nil
         }
-        let timedOut: Bool = await handler.waitForFirstPlaying(timeout: timeout)
+        let timedOut: Bool = await handler.waitForFirstBindingCandidatePlaying(timeout: timeout)
         if timedOut == false {
             try? await Task.sleep(
                 nanoseconds: UInt64(Self.settleInterval * 1_000_000_000)

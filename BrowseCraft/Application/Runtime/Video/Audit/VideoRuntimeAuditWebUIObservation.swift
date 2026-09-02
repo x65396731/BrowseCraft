@@ -30,27 +30,31 @@ protocol VideoRuntimeAuditWebUIObserving: AnyObject, Sendable {
     ) async -> VideoRuntimeAuditWebUIObservation
 }
 
-/// 中文注释：BC-EVIDENCE-021 的操作化，纯函数、可单测：
-/// 恰好一个元素 playing 且 currentSrc 为 http(s) → unique；
-/// currentSrc 为 blob:/data:/空 → missing；≥2 个不同源的元素 playing → ambiguous。
+/// 中文注释：BC-EVIDENCE-021 的操作化，纯函数、可单测。
+/// - `data:` 源没有网络请求，按定义不可能是「最终播放媒体请求」（播放器解锁自动播放/
+///   探测拦截用的内联假视频），不参与绑定，只贡献 playerStarted；
+/// - 其余源中恰好一个元素 playing 且 currentSrc 为 http(s) → unique；
+///   `blob:`/空（MSE、不可观察）→ missing；≥2 个不同源 → ambiguous。
 enum VideoRuntimeAuditWebUIBindingReducer {
     static func reduce(
         events: [VideoRuntimeAuditMediaPlayingEvent],
         timedOut: Bool
     ) -> VideoRuntimeAuditWebUIObservation {
-        guard events.isEmpty == false else {
+        let playerStarted: Bool = events.isEmpty == false
+        var sourceByElement: [String: String] = [:]
+        for event: VideoRuntimeAuditMediaPlayingEvent in events
+        where Self.isBindingCandidate(event.currentSrc) {
+            sourceByElement[event.elementID] = event.currentSrc
+        }
+        let distinctSources: Set<String> = Set(sourceByElement.values)
+        guard distinctSources.isEmpty == false else {
             return VideoRuntimeAuditWebUIObservation(
-                playerStarted: false,
+                playerStarted: playerStarted,
                 bindingStatus: .missing,
                 mediaURL: nil,
                 timedOut: timedOut
             )
         }
-        var sourceByElement: [String: String] = [:]
-        for event: VideoRuntimeAuditMediaPlayingEvent in events {
-            sourceByElement[event.elementID] = event.currentSrc
-        }
-        let distinctSources: Set<String> = Set(sourceByElement.values)
         guard distinctSources.count == 1,
               let source: String = distinctSources.first else {
             return VideoRuntimeAuditWebUIObservation(
@@ -76,6 +80,15 @@ enum VideoRuntimeAuditWebUIBindingReducer {
         )
     }
 
+    /// 中文注释：非空且不是 `data:` 的源才是绑定候选（http(s) 可 unique，blob: 只能 missing）。
+    static func isBindingCandidate(_ raw: String) -> Bool {
+        let trimmed: String = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false else {
+            return false
+        }
+        return trimmed.lowercased().hasPrefix("data:") == false
+    }
+
     private static func httpURL(_ raw: String) -> URL? {
         guard let url: URL = URL(string: raw),
               let scheme: String = url.scheme?.lowercased(),
@@ -88,7 +101,8 @@ enum VideoRuntimeAuditWebUIBindingReducer {
 }
 
 /// 中文注释：只在 audit 模式挂到 WKUserContentController 的 playing 观察者。
-/// 脚本在 document start 注入全部 frame，捕获阶段监听 HTMLMediaElement 的 playing；
+/// 脚本在 document start 注入全部 frame，用 MutationObserver + 轮询发现媒体元素并把
+/// `playing` 监听**直接挂在元素上**（实测 WebKit 上 document/window 级捕获收不到媒体事件）；
 /// 上报只含 session token、元素 id 与 currentSrc，不含页面内容。
 @MainActor
 final class VideoRuntimeAuditMediaEventHandler: NSObject, WKScriptMessageHandler {
@@ -96,7 +110,7 @@ final class VideoRuntimeAuditMediaEventHandler: NSObject, WKScriptMessageHandler
 
     let sessionToken: String
     private(set) var events: [VideoRuntimeAuditMediaPlayingEvent] = []
-    private var firstEventContinuation: CheckedContinuation<Void, Never>?
+    private var candidateContinuation: CheckedContinuation<Void, Never>?
     private weak var attachedController: WKUserContentController?
 
     init(sessionToken: String) {
@@ -121,18 +135,25 @@ final class VideoRuntimeAuditMediaEventHandler: NSObject, WKScriptMessageHandler
     func detach() {
         self.attachedController?.removeScriptMessageHandler(forName: Self.messageName)
         self.attachedController = nil
-        self.resumeFirstEventWaiter()
+        self.resumeCandidateWaiter()
     }
 
-    /// 中文注释：等待首个 playing 事件；返回是否超时。超时或取消都不会让 continuation 悬挂。
-    func waitForFirstPlaying(timeout: TimeInterval) async -> Bool {
-        if self.events.isEmpty == false {
+    private var hasBindingCandidateEvent: Bool {
+        return self.events.contains { event in
+            VideoRuntimeAuditWebUIBindingReducer.isBindingCandidate(event.currentSrc)
+        }
+    }
+
+    /// 中文注释：等待首个**绑定候选**（非 data: 源）元素的 playing；返回是否超时。
+    /// 假视频的 playing 只记 playerStarted，不结束等待。超时或取消都不会让 continuation 悬挂。
+    func waitForFirstBindingCandidatePlaying(timeout: TimeInterval) async -> Bool {
+        if self.hasBindingCandidateEvent {
             return false
         }
         return await withTaskGroup(of: Bool.self) { group in
             group.addTask { @MainActor in
-                await self.firstEvent()
-                return self.events.isEmpty
+                await self.firstCandidateEvent()
+                return self.hasBindingCandidateEvent == false
             }
             group.addTask {
                 try? await Task.sleep(nanoseconds: UInt64(max(0, timeout) * 1_000_000_000))
@@ -144,27 +165,27 @@ final class VideoRuntimeAuditMediaEventHandler: NSObject, WKScriptMessageHandler
         }
     }
 
-    private func firstEvent() async {
+    private func firstCandidateEvent() async {
         await withTaskCancellationHandler {
             await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                if self.events.isEmpty == false {
+                if self.hasBindingCandidateEvent {
                     continuation.resume()
                 } else {
-                    self.firstEventContinuation = continuation
+                    self.candidateContinuation = continuation
                 }
             }
         } onCancel: {
             Task { @MainActor in
-                self.resumeFirstEventWaiter()
+                self.resumeCandidateWaiter()
             }
         }
     }
 
-    private func resumeFirstEventWaiter() {
-        guard let continuation: CheckedContinuation<Void, Never> = self.firstEventContinuation else {
+    private func resumeCandidateWaiter() {
+        guard let continuation: CheckedContinuation<Void, Never> = self.candidateContinuation else {
             return
         }
-        self.firstEventContinuation = nil
+        self.candidateContinuation = nil
         continuation.resume()
     }
 
@@ -189,7 +210,9 @@ final class VideoRuntimeAuditMediaEventHandler: NSObject, WKScriptMessageHandler
                     currentSrc: currentSrc
                 )
             )
-            self.resumeFirstEventWaiter()
+            if VideoRuntimeAuditWebUIBindingReducer.isBindingCandidate(currentSrc) {
+                self.resumeCandidateWaiter()
+            }
         }
     }
 
@@ -204,19 +227,36 @@ final class VideoRuntimeAuditMediaEventHandler: NSObject, WKScriptMessageHandler
           const token = "\(tokenLiteral)";
           const frameID = Math.random().toString(36).slice(2, 10);
           const ordinals = new WeakMap();
+          const attached = new WeakSet();
           let nextOrdinal = 0;
-          document.addEventListener("playing", (event) => {
-            const target = event.target;
-            if (!target || typeof HTMLMediaElement === "undefined" || !(target instanceof HTMLMediaElement)) { return; }
-            if (!ordinals.has(target)) { nextOrdinal += 1; ordinals.set(target, nextOrdinal); }
+          const report = (element) => {
+            if (!ordinals.has(element)) { nextOrdinal += 1; ordinals.set(element, nextOrdinal); }
             try {
               window.webkit.messageHandlers.\(Self.messageName).postMessage({
                 token: token,
-                elementID: frameID + ":" + ordinals.get(target),
-                currentSrc: String(target.currentSrc || target.src || "")
+                elementID: frameID + ":" + ordinals.get(element),
+                currentSrc: String(element.currentSrc || element.src || "")
               });
             } catch (error) {}
-          }, true);
+          };
+          const scan = () => {
+            if (!document.querySelectorAll) { return; }
+            document.querySelectorAll("video, audio").forEach((element) => {
+              if (attached.has(element)) { return; }
+              attached.add(element);
+              element.addEventListener("playing", () => report(element));
+              if (!element.paused && !element.ended && element.currentTime > 0) { report(element); }
+            });
+          };
+          let scanPending = false;
+          const scheduleScan = () => {
+            if (scanPending) { return; }
+            scanPending = true;
+            setTimeout(() => { scanPending = false; scan(); }, 250);
+          };
+          scan();
+          try { new MutationObserver(scheduleScan).observe(document, { childList: true, subtree: true }); } catch (error) {}
+          setInterval(scan, 1000);
         })();
         """
     }
