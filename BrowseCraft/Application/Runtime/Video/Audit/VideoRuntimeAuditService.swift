@@ -279,8 +279,12 @@ struct VideoRuntimeAuditService {
             && groupRecords.count == selected.groups.count
             && groupRecords.allSatisfy(\.passed)
 
-        // 中文注释：sampleSelection 的 attempts 摘要——selected attempt 的 playbackPassed 以
-        // 全部 expected group 的独立通过为准（exporter 会复核这一等式）。
+        // 中文注释：`BC-EVIDENCE-013`（09-03 修订）——attempt 级 `playbackPassed` 对每个 attempt
+        // 只有一种语义：该链首 group 独立通过（本 service 每 group 只执行首样本，故即 group 1
+        // 首样本；选样与提前停止本来就按此判定）。
+        // 全部 expected group 的结论只在 playback stage 级（`passed`/`coverageComplete`）。此前
+        // 把 selected attempt 事后改写成「全部 group 通过」，让同一字段两种语义、与 exporter /
+        // 归约器的 earliest-best 复核冲突（kpkuang webkit 路线 09-03 实测拒绝导出）。
         let attempts: [VideoRuntimeDetailSampleAttemptEvidence] = probes.map { probe in
             VideoRuntimeDetailSampleAttemptEvidence(
                 attempt: probe.attempt,
@@ -291,9 +295,7 @@ struct VideoRuntimeAuditService {
                 detailCoverPassed: probe.detailCoverPassed,
                 episodeGroupTitleStatus: probe.episodeGroupTitleStatus,
                 episodePassed: probe.episodePassed,
-                playbackPassed: probe.attempt == selected.attempt
-                    ? allGroupsPassed
-                    : (probe.groupOneExecution?.passed ?? false)
+                playbackPassed: probe.groupOneExecution?.passed ?? false
             )
         }
         let sampleSelection: VideoRuntimeDetailSampleSelectionEvidence =

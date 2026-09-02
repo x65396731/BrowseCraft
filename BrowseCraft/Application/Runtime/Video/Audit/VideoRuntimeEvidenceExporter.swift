@@ -270,8 +270,15 @@ private struct VideoRuntimeEvidenceV2Validator {
         let selectedAttempt = playback.sampleSelection.attempts[
             playback.sampleSelection.selectedAttempt - 1
         ]
-        guard selectedAttempt.playbackPassed == allGroupsPassed else {
-            throw Self.invalid(path, "selected Detail playbackPassed disagrees with group routes")
+        // 中文注释：`BC-EVIDENCE-013`（09-03 修订）——attempt 级 `playbackPassed` 只有一种语义：
+        // 该链首 group（expectedGroupOwnerIDs[0]）独立通过；判定与 stage 级「每个 group 独立通过」
+        // 同一函数（`independentlyPassingGroupOwners`），只是范围限定在 group 1。
+        // 全部 group 的结论只在 stage 级复核（下方）。
+        let groupOnePassed: Bool = playback.expectedGroupOwnerIDs.first.map { ownerID in
+            independentlyPassingGroups.contains(ownerID)
+        } ?? false
+        guard selectedAttempt.playbackPassed == groupOnePassed else {
+            throw Self.invalid(path, "selected Detail playbackPassed disagrees with group 1 routes")
         }
         if stage.coverageComplete && allGroupsPassed == false {
             throw Self.invalid(path, "coverageComplete requires every group to pass")
