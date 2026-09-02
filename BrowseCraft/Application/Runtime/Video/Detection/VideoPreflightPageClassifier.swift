@@ -18,12 +18,8 @@ struct VideoPreflightPageClassifier: Sendable {
         let html: String = self.decode(page.data, encodingName: page.textEncodingName)
         let normalized: String = html.lowercased()
 
-        let antiBotMarkers: [String] = [
-            "cf-chl-", "cloudflare challenge", "just a moment",
-            "captcha", "verify you are human", "access denied"
-        ]
-        if antiBotMarkers.filter({ normalized.contains($0) }).count >= 2
-            || normalized.contains("cf-chl-") {
+        // 中文注释：挑战页判据只消费 `HTMLChallengeInterstitialDetector`（`BC-EVIDENCE-081`）。
+        if HTMLChallengeInterstitialDetector.isChallengeInterstitial(html) {
             return .antiBotChallenge
         }
 

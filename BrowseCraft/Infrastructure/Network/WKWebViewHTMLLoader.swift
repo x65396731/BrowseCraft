@@ -8,6 +8,7 @@ enum WKWebViewHTMLLoaderError: LocalizedError {
     case emptyHTML(url: URL)
     case unexpectedJavaScriptResult(url: URL)
     case timedOut(url: URL, seconds: Double)
+    case challengeInterstitialUnresolved(url: URL, seconds: Double)
 
     var errorDescription: String? {
         switch self {
@@ -17,6 +18,8 @@ enum WKWebViewHTMLLoaderError: LocalizedError {
             return "WebView returned unexpected JavaScript result: \(url.absoluteString)"
         case .timedOut(let url, let seconds):
             return "WebView rendering timed out after \(seconds) seconds: \(url.absoluteString)"
+        case .challengeInterstitialUnresolved(let url, let seconds):
+            return "WebView still showed an anti-bot challenge interstitial after \(seconds) seconds: \(url.absoluteString)"
         }
     }
 }
@@ -59,6 +62,10 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         static let defaultTimeoutSeconds: Double = 12
         static let autoScrollTimeoutNanoseconds: UInt64 = 24_000_000_000
         static let autoScrollTimeoutSeconds: Double = 24
+        // 中文注释：`BC-EVIDENCE-081`——首次读到挑战过渡页后，把总时限一次性延至 30 秒，
+        // 等待挑战脚本触发的后续主帧导航；仍是过渡页则 typed 失败。
+        static let challengeTimeoutNanoseconds: UInt64 = 30_000_000_000
+        static let challengeTimeoutSeconds: Double = 30
         static let postFinishDelayNanoseconds: UInt64 = 500_000_000
         static let postScrollDelayNanoseconds: UInt64 = 500_000_000
         static let domStableDelayNanoseconds: UInt64 = 300_000_000
@@ -78,6 +85,8 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
     private var continuation: CheckedContinuation<PageContentResponse, Error>?
     private var hasCompleted: Bool = false
     private var isLoadingHTTPSUpgrade: Bool = false
+    private var timeoutTask: Task<Void, Never>?
+    private var challengeInterstitialObserved: Bool = false
 
     init(
         url: URL,
@@ -137,11 +146,36 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
 
                 try await self.waitForStableDOMLength()
                 let html: String = try await self.renderedHTML()
+                // 中文注释：`BC-EVIDENCE-081`——挑战过渡页不是文档。Cloudflare JS 挑战先以一份
+                // 稳定 DOM 完成首次导航，脚本跑完后才二次导航到真页；这里不返回过渡页，
+                // 只在首次检测时把时限一次性延长，然后等待下一次 didFinish 复判。
+                if self.hasCompleted == false,
+                   HTMLChallengeInterstitialDetector.isChallengeInterstitial(html) {
+                    self.noteChallengeInterstitial()
+                    return
+                }
                 self.finish(.success(self.response(for: html)))
             } catch {
                 self.finish(.failure(error))
             }
         }
+    }
+
+    private func noteChallengeInterstitial() {
+        guard self.challengeInterstitialObserved == false else {
+            return
+        }
+        self.challengeInterstitialObserved = true
+        #if DEBUG
+        AppDebugLog.write(
+            "[BrowseCraftWebView] challenge interstitial observed, waiting up to " +
+            "\(Timing.challengeTimeoutSeconds)s url=\(self.url.absoluteString)"
+        )
+        #endif
+        self.startTimeout(
+            nanoseconds: Timing.challengeTimeoutNanoseconds,
+            seconds: Timing.challengeTimeoutSeconds
+        )
     }
 
     func webView(
@@ -160,18 +194,27 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
     }
 
     private func startTimeout() {
-        let timeoutNanoseconds: UInt64 = self.timeoutNanoseconds
-        let timeoutSeconds: Double = self.timeoutSeconds
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: timeoutNanoseconds)
-            self.finish(
-                .failure(
-                    WKWebViewHTMLLoaderError.timedOut(
-                        url: self.url,
-                        seconds: timeoutSeconds
-                    )
-                )
-            )
+        self.startTimeout(
+            nanoseconds: self.timeoutNanoseconds,
+            seconds: self.timeoutSeconds
+        )
+    }
+
+    private func startTimeout(nanoseconds: UInt64, seconds: Double) {
+        self.timeoutTask?.cancel()
+        self.timeoutTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: nanoseconds)
+            } catch {
+                return
+            }
+            guard let self else {
+                return
+            }
+            let error: WKWebViewHTMLLoaderError = self.challengeInterstitialObserved
+                ? .challengeInterstitialUnresolved(url: self.url, seconds: seconds)
+                : .timedOut(url: self.url, seconds: seconds)
+            self.finish(.failure(error))
         }
     }
 
@@ -433,6 +476,8 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         }
 
         self.hasCompleted = true
+        self.timeoutTask?.cancel()
+        self.timeoutTask = nil
         self.webView.stopLoading()
         self.webView.navigationDelegate = nil
 

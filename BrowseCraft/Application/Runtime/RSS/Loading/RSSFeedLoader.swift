@@ -104,12 +104,13 @@ struct RSSFeedLoader: ContextualRSSFeedLoading {
         throw RSSFeedLoaderError.nonFeedResponse(Self.preview(from: trimmedPrefix))
     }
 
+    // 中文注释：Cloudflare 一类挑战页判据只消费 `HTMLChallengeInterstitialDetector`
+    // （`BC-EVIDENCE-081`）；下面保留的是 RSS 源站自定义的拦截文案与 cf 错误页。
     private static func isAntiBotHTML(_ html: String) -> Bool {
-        return html.localizedCaseInsensitiveContains("Attention Required")
+        return HTMLChallengeInterstitialDetector.isChallengeInterstitial(html)
+            || html.localizedCaseInsensitiveContains("Attention Required")
             || html.localizedCaseInsensitiveContains("Just a moment")
             || html.localizedCaseInsensitiveContains("cf-error-details")
-            || html.localizedCaseInsensitiveContains("challenge-platform")
-            || html.localizedCaseInsensitiveContains("cdn-cgi/challenge-platform")
             || html.localizedCaseInsensitiveContains("访问被拒绝")
             || html.localizedCaseInsensitiveContains("安全策略拦截")
             || html.localizedCaseInsensitiveContains("客官您被拦下")
