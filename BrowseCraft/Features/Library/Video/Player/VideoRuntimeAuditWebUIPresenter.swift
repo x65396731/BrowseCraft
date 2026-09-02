@@ -51,7 +51,8 @@ final class VideoRuntimeAuditWebUIPresenter: ObservableObject, VideoRuntimeAudit
         }
         return VideoRuntimeAuditWebUIBindingReducer.reduce(
             events: handler.events,
-            timedOut: timedOut
+            timedOut: timedOut,
+            activation: handler.activation
         )
     }
 

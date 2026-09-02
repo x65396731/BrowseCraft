@@ -773,12 +773,11 @@ struct VideoRuntimeAuditService {
         )
         switch observation.bindingStatus {
         case .missing:
+            // 中文注释：`BC-EVIDENCE-078.5`——原因码的唯一定义点在 observation 上。
             return self.failedAttempt(
                 declared: declared,
                 routeFingerprint: routeFingerprint,
-                reason: observation.timedOut
-                    ? "player-session-timeout"
-                    : "final-media-observation-unavailable",
+                reason: observation.missingBindingRejectionReason,
                 playerStarted: observation.playerStarted
             )
         case .ambiguous:

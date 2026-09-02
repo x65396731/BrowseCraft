@@ -12,11 +12,50 @@ struct VideoRuntimeAuditMediaPlayingEvent: Hashable, Sendable {
     let currentSrc: String
 }
 
+/// 中文注释：`BC-EVIDENCE-078.5`（09-03 修订）——激活循环的可观察事实，由注入脚本逐轮上报：
+/// 观察窗内出现过多少个带 http(s) 源的媒体元素、对它们调用了几次 `play()`、携源元素是否滚入。
+/// 只用于把「播放器根本没露出媒体元素」与「元素出现、按合同激活过但始终没开始播」分开；
+/// 不解释站点意图，不构成 playerStarted。
+struct VideoRuntimeAuditActivationSnapshot: Hashable, Sendable {
+    let candidateElementCount: Int
+    let playAttemptCount: Int
+    let carrierScrolled: Bool
+
+    static let none: VideoRuntimeAuditActivationSnapshot = VideoRuntimeAuditActivationSnapshot(
+        candidateElementCount: 0,
+        playAttemptCount: 0,
+        carrierScrolled: false
+    )
+
+    func merging(_ other: VideoRuntimeAuditActivationSnapshot) -> VideoRuntimeAuditActivationSnapshot {
+        return VideoRuntimeAuditActivationSnapshot(
+            candidateElementCount: max(self.candidateElementCount, other.candidateElementCount),
+            playAttemptCount: max(self.playAttemptCount, other.playAttemptCount),
+            carrierScrolled: self.carrierScrolled || other.carrierScrolled
+        )
+    }
+}
+
 struct VideoRuntimeAuditWebUIObservation: Hashable, Sendable {
     let playerStarted: Bool
     let bindingStatus: VideoRuntimeEvidenceMediaBindingStatus
     let mediaURL: URL?
     let timedOut: Bool
+    let activation: VideoRuntimeAuditActivationSnapshot
+
+    /// 中文注释：binding `missing` 时的 typed 原因码——唯一定义点（`BC-EVIDENCE-078.5`）。
+    /// - 窗口内已按 078.2 对带源媒体元素调用过 `play()` 仍无 `playing` → `player-activation-not-started`
+    ///   （已做完合同允许的全部激活，播放器仍未开始；常见于需人工点击 / 反自动化门控的第三方嵌入播放器）；
+    /// - 窗口内没有任何带源媒体元素可激活 → `player-session-timeout`；
+    /// - 未超时但无最终媒体观察点 → `final-media-observation-unavailable`。
+    var missingBindingRejectionReason: String {
+        guard self.timedOut else {
+            return "final-media-observation-unavailable"
+        }
+        return self.activation.playAttemptCount > 0
+            ? "player-activation-not-started"
+            : "player-session-timeout"
+    }
 }
 
 /// 中文注释：audit 驱动器请求前台观察的唯一端口；无实现（headless）时行为与批次 3 相同。
@@ -56,7 +95,8 @@ enum VideoRuntimeAuditActivationSelector {
 enum VideoRuntimeAuditWebUIBindingReducer {
     static func reduce(
         events: [VideoRuntimeAuditMediaPlayingEvent],
-        timedOut: Bool
+        timedOut: Bool,
+        activation: VideoRuntimeAuditActivationSnapshot = .none
     ) -> VideoRuntimeAuditWebUIObservation {
         let playerStarted: Bool = events.isEmpty == false
         var sourceByElement: [String: String] = [:]
@@ -70,7 +110,8 @@ enum VideoRuntimeAuditWebUIBindingReducer {
                 playerStarted: playerStarted,
                 bindingStatus: .missing,
                 mediaURL: nil,
-                timedOut: timedOut
+                timedOut: timedOut,
+                activation: activation
             )
         }
         guard distinctSources.count == 1,
@@ -79,7 +120,8 @@ enum VideoRuntimeAuditWebUIBindingReducer {
                 playerStarted: true,
                 bindingStatus: .ambiguous,
                 mediaURL: nil,
-                timedOut: timedOut
+                timedOut: timedOut,
+                activation: activation
             )
         }
         guard let mediaURL: URL = Self.httpURL(source) else {
@@ -87,14 +129,16 @@ enum VideoRuntimeAuditWebUIBindingReducer {
                 playerStarted: true,
                 bindingStatus: .missing,
                 mediaURL: nil,
-                timedOut: timedOut
+                timedOut: timedOut,
+                activation: activation
             )
         }
         return VideoRuntimeAuditWebUIObservation(
             playerStarted: true,
             bindingStatus: .unique,
             mediaURL: mediaURL,
-            timedOut: timedOut
+            timedOut: timedOut,
+            activation: activation
         )
     }
 
@@ -130,6 +174,8 @@ final class VideoRuntimeAuditMediaEventHandler: NSObject, WKScriptMessageHandler
     /// 中文注释：`BC-EVIDENCE-078.1` 携源元素选择器；nil 不做滚入视口。
     let activationSelector: String?
     private(set) var events: [VideoRuntimeAuditMediaPlayingEvent] = []
+    /// 中文注释：`BC-EVIDENCE-078.5`——激活循环上报的事实，按轮取最大值合并。
+    private(set) var activation: VideoRuntimeAuditActivationSnapshot = .none
     private var candidateContinuation: CheckedContinuation<Void, Never>?
     private weak var attachedController: WKUserContentController?
 
@@ -219,8 +265,24 @@ final class VideoRuntimeAuditMediaEventHandler: NSObject, WKScriptMessageHandler
     ) {
         guard message.name == Self.messageName,
               let body: [String: Any] = message.body as? [String: Any],
-              let token: String = body["token"] as? String,
-              let elementID: String = body["elementID"] as? String,
+              let token: String = body["token"] as? String else {
+            return
+        }
+        if body["kind"] as? String == "activation" {
+            let snapshot: VideoRuntimeAuditActivationSnapshot = VideoRuntimeAuditActivationSnapshot(
+                candidateElementCount: max(0, (body["candidates"] as? Int) ?? 0),
+                playAttemptCount: max(0, (body["playAttempts"] as? Int) ?? 0),
+                carrierScrolled: (body["scrolled"] as? Bool) ?? false
+            )
+            Task { @MainActor in
+                guard token == self.sessionToken else {
+                    return
+                }
+                self.activation = self.activation.merging(snapshot)
+            }
+            return
+        }
+        guard let elementID: String = body["elementID"] as? String,
               let currentSrc: String = body["currentSrc"] as? String else {
             return
         }
@@ -279,6 +341,7 @@ final class VideoRuntimeAuditMediaEventHandler: NSObject, WKScriptMessageHandler
             return source.length > 0 && !/^data:/i.test(source);
           };
           // BC-EVIDENCE-078.1：声明携源元素滚入视口（一次）；078.2：绑定候选媒体元素 play()（每元素 ≤2 次）。
+          let totalPlayAttempts = 0;
           const activate = () => {
             loops += 1;
             if (loops > maxLoops) { return; }
@@ -288,19 +351,34 @@ final class VideoRuntimeAuditMediaEventHandler: NSObject, WKScriptMessageHandler
                 if (carrier) { scrolled = true; carrier.scrollIntoView({ block: "center" }); }
               } catch (error) {}
             }
+            let candidates = 0;
             document.querySelectorAll("video, audio").forEach((element) => {
-              if (!element.paused || !isCandidateSource(element)) { return; }
+              if (!isCandidateSource(element)) { return; }
+              candidates += 1;
+              if (!element.paused) { return; }
               const attempts = playAttempts.get(element) || 0;
               if (attempts >= maxPlayAttempts) { return; }
               playAttempts.set(element, attempts + 1);
+              totalPlayAttempts += 1;
               try { const result = element.play(); if (result && result.catch) { result.catch(() => {}); } } catch (error) {}
             });
+            // BC-EVIDENCE-078.5：逐轮上报激活事实（不解释站点意图）。
+            try {
+              window.webkit.messageHandlers.\(Self.messageName).postMessage({
+                token: token,
+                kind: "activation",
+                candidates: candidates,
+                playAttempts: totalPlayAttempts,
+                scrolled: scrolled
+              });
+            } catch (error) {}
           };
           const report = (element) => {
             if (!ordinals.has(element)) { nextOrdinal += 1; ordinals.set(element, nextOrdinal); }
             try {
               window.webkit.messageHandlers.\(Self.messageName).postMessage({
                 token: token,
+                kind: "playing",
                 elementID: frameID + ":" + ordinals.get(element),
                 currentSrc: String(element.currentSrc || element.src || "")
               });

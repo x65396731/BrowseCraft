@@ -142,3 +142,63 @@ struct VideoRuntimeAuditWebUIBindingReducerTests {
         #expect(observation.bindingStatus == .missing)
     }
 }
+
+// 中文注释：BC-EVIDENCE-078.5——激活事实与 missing 时原因码的唯一定义点。
+struct VideoRuntimeAuditActivationReasonTests {
+    @Test func timeoutWithoutAnyCandidateElementStaysSessionTimeout() {
+        let observation = VideoRuntimeAuditWebUIBindingReducer.reduce(
+            events: [],
+            timedOut: true,
+            activation: VideoRuntimeAuditActivationSnapshot(
+                candidateElementCount: 0,
+                playAttemptCount: 0,
+                carrierScrolled: true
+            )
+        )
+        #expect(observation.bindingStatus == .missing)
+        #expect(observation.missingBindingRejectionReason == "player-session-timeout")
+    }
+
+    @Test func timeoutAfterPlayAttemptsIsActivationNotStarted() {
+        let observation = VideoRuntimeAuditWebUIBindingReducer.reduce(
+            events: [],
+            timedOut: true,
+            activation: VideoRuntimeAuditActivationSnapshot(
+                candidateElementCount: 1,
+                playAttemptCount: 2,
+                carrierScrolled: false
+            )
+        )
+        #expect(observation.playerStarted == false)
+        #expect(observation.missingBindingRejectionReason == "player-activation-not-started")
+    }
+
+    @Test func notTimedOutMissingIsObservationUnavailable() {
+        let observation = VideoRuntimeAuditWebUIBindingReducer.reduce(
+            events: [
+                VideoRuntimeAuditMediaPlayingEvent(elementID: "f1:1", currentSrc: "blob:https://x/1")
+            ],
+            timedOut: false,
+            activation: VideoRuntimeAuditActivationSnapshot(
+                candidateElementCount: 1,
+                playAttemptCount: 1,
+                carrierScrolled: false
+            )
+        )
+        #expect(observation.bindingStatus == .missing)
+        #expect(observation.missingBindingRejectionReason == "final-media-observation-unavailable")
+    }
+
+    @Test func snapshotsMergeByMaximum() {
+        let merged = VideoRuntimeAuditActivationSnapshot(
+            candidateElementCount: 1, playAttemptCount: 1, carrierScrolled: false
+        ).merging(
+            VideoRuntimeAuditActivationSnapshot(
+                candidateElementCount: 0, playAttemptCount: 2, carrierScrolled: true
+            )
+        )
+        #expect(merged.candidateElementCount == 1)
+        #expect(merged.playAttemptCount == 2)
+        #expect(merged.carrierScrolled == true)
+    }
+}
