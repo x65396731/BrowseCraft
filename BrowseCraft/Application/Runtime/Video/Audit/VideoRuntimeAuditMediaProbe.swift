@@ -134,6 +134,12 @@ struct VideoRuntimeAuditMediaProbe {
             return .failure(.mediaResponseUnreadable)
         }
         guard response.contentType.lowercased().contains("mp4") else {
+            #if DEBUG
+            // 中文注释：只记录 Content-Type 值用于归因，不记录 URL。
+            AppDebugLog.write(
+                "[BrowseCraftRuntimeAudit] mp4 probe content-type mismatch: \(response.contentType)"
+            )
+            #endif
             return .failure(.contentTypeMismatch)
         }
         guard Self.hasFtypSignature(response.data) else {

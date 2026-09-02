@@ -45,7 +45,8 @@ struct VideoRuntimeAuditService {
 
     func run(catalogInput: VideoRuntimeAuditCatalogInput) async throws -> Data {
         let catalogSource: CatalogSource = try Self.catalogSource(from: catalogInput)
-        // 中文注释：本里程碑不支持登录态 catalog；发现 loginURL/userValue 即拒绝而非伪造 login 证据。
+        // 中文注释：本里程碑不支持凭据注入；实际引用 userValue 的 catalog 整体拒绝，
+        // 只声明 site.loginURL 的零凭据 catalog 按 BC-EVIDENCE-076.6 输出 login 形状结论。
         try Self.rejectCredentialCatalog(catalogInput)
 
         let now: Date = Date()
@@ -58,6 +59,12 @@ struct VideoRuntimeAuditService {
         let recorder: VideoRuntimeAuditRecorder = VideoRuntimeAuditRecorder(
             catalogInput: catalogInput
         )
+        if let login: VideoRuntimeLoginEvidence = Self.loginShapeEvidence(
+            catalogInput: catalogInput,
+            baseURL: catalogSource.baseURL
+        ) {
+            await recorder.recordLogin(login)
+        }
         var playbackContracts: [VideoRuntimePlaybackExportContract] = []
 
         for pageID: String in Self.orderedUniquePageIDs(runtime.resolvedRule) {
@@ -185,6 +192,8 @@ struct VideoRuntimeAuditService {
             ? detailEntry.effectiveDetailAPIRequest
             : detailEntry.effectiveDetailRequest
         let detailReadyApplicable: Bool = detailBranch == .dom && detailRule.ready != nil
+        // 中文注释：BC-EVIDENCE-076.7——评分布尔只复验 catalog 已声明的字段。
+        let detailCoverDeclared: Bool = detailRule.fields?.cover != nil
         let episodeDeclared: Bool = resolvedRule.episodeRuleIfPresent(for: detailEntry) != nil
 
         let candidates: [SourceContentItem] = listItems.filter { $0.detailURL != nil }
@@ -202,6 +211,7 @@ struct VideoRuntimeAuditService {
                 runtime: runtime,
                 catalogInput: catalogInput,
                 detailReadyApplicable: detailReadyApplicable,
+                detailCoverDeclared: detailCoverDeclared,
                 episodeDeclared: episodeDeclared
             )
             probes.append(probe)
@@ -349,6 +359,7 @@ struct VideoRuntimeAuditService {
         runtime: VideoSourceRuntime,
         catalogInput: VideoRuntimeAuditCatalogInput,
         detailReadyApplicable: Bool,
+        detailCoverDeclared: Bool,
         episodeDeclared: Bool
     ) async throws -> DetailChainProbe {
         guard let detailURL: URL = item.detailURL else {
@@ -427,7 +438,7 @@ struct VideoRuntimeAuditService {
             groups: groups,
             detailPassed: detailLoadSucceeded && metadata != nil,
             detailTitlePassed: Self.nonemptyText(metadata?.title),
-            detailCoverPassed: metadata?.coverURL != nil,
+            detailCoverPassed: detailCoverDeclared ? metadata?.coverURL != nil : true,
             detailReadyStatus: readyStatus,
             episodeGroupTitleStatus: groupTitleStatus,
             episodePassed: episodePassed,
@@ -1016,21 +1027,73 @@ struct VideoRuntimeAuditService {
     }
 
     private static func containsCredentialMarker(_ value: Any) -> Bool {
+        return Self.containsKey(value, key: "userValue")
+    }
+
+    private static func containsKey(_ value: Any, key: String) -> Bool {
         if let object: [String: Any] = value as? [String: Any] {
-            for (key, child) in object {
-                if key == "loginURL" || key == "userValue" {
+            for (childKey, child) in object {
+                if childKey == key {
                     return true
                 }
-                if Self.containsCredentialMarker(child) {
+                if Self.containsKey(child, key: key) {
                     return true
                 }
             }
             return false
         }
         if let array: [Any] = value as? [Any] {
-            return array.contains(where: Self.containsCredentialMarker)
+            return array.contains { Self.containsKey($0, key: key) }
         }
         return false
+    }
+
+    // 中文注释：BC-EVIDENCE-076.6——零凭据 catalog 的 login 形状结论。cookie 发送链与
+    // credentialStore 引用的验证对象为空集时为真；存在验证对象而本里程碑未验证时如实为 false。
+    private static func loginShapeEvidence(
+        catalogInput: VideoRuntimeAuditCatalogInput,
+        baseURL: String
+    ) -> VideoRuntimeLoginEvidence? {
+        guard let root: Any = try? JSONSerialization.jsonObject(
+            with: catalogInput.rawCatalogData
+        ), let rootObject: [String: Any] = root as? [String: Any],
+        let ruleJSON: [String: Any] = rootObject["ruleJSON"] as? [String: Any] else {
+            return nil
+        }
+        guard let site: [String: Any] = ruleJSON["site"] as? [String: Any],
+              let loginURLString: String = site["loginURL"] as? String else {
+            return nil
+        }
+        let loginURLMatched: Bool = Self.loginURLMatchesCatalog(
+            loginURLString,
+            baseURL: baseURL
+        )
+        let hasCookiePolicy: Bool = Self.containsKey(ruleJSON, key: "cookiePolicy")
+        let hasCredentialStoreReference: Bool = String(
+            decoding: catalogInput.rawCatalogData,
+            as: UTF8.self
+        ).contains("{credentialStore.")
+        return VideoRuntimeLoginEvidence(
+            required: true,
+            loginURLMatchedCatalog: loginURLMatched,
+            cookieDomainValidated: hasCookiePolicy == false,
+            credentialReferencesValidated: hasCredentialStoreReference == false,
+            valuesRedacted: true
+        )
+    }
+
+    private static func loginURLMatchesCatalog(
+        _ loginURLString: String,
+        baseURL: String
+    ) -> Bool {
+        guard let loginURL: URL = URL(string: loginURLString),
+              let loginScheme: String = loginURL.scheme?.lowercased(),
+              loginScheme == "http" || loginScheme == "https",
+              let loginHost: String = loginURL.host?.lowercased(),
+              let baseHost: String = URL(string: baseURL)?.host?.lowercased() else {
+            return false
+        }
+        return loginHost == baseHost || loginHost.hasSuffix("." + baseHost)
     }
 
     private static func nonemptyText(_ value: String?) -> Bool {
