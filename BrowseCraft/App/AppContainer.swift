@@ -15,6 +15,8 @@ final class AppContainer {
     private let settingsFeatureFactory: SettingsFeatureFactory
     private let settingsViewModel: SettingsViewModel
     private var storeKitTransactionUpdatesTask: Task<Void, Never>?
+    /// 中文注释：显式 runtime audit 入口（BC-EVIDENCE-076.2）；无 launch environment 时完全惰性。
+    private let videoRuntimeAuditLauncher: VideoRuntimeAuditLauncher
 
     let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
     let systemCookieHeaderProvider: any SystemCookieHeaderProviding
@@ -245,6 +247,15 @@ final class AppContainer {
                     }
                 }
             )
+            // 中文注释：audit launcher 与正常视频链共用同一 pageLoader/parser/credential 组件，
+            // 不建第二套装配（BC-EVIDENCE-076.1）。
+            self.videoRuntimeAuditLauncher = VideoRuntimeAuditLauncher(
+                runtimeFactory: VideoSourceRuntimeFactory(
+                    pageContentLoader: pageLoader,
+                    parser: CoreVideoRuleSourceParser(),
+                    credentialProvider: sourceCredentialStore
+                )
+            )
             let protectedResourceLoader: ReaderProtectedResourceLoader = ReaderProtectedResourceLoader(
                 legacyLoader: ProtectedResourceLoader(
                     dataLoader: pageLoader,
@@ -330,6 +341,12 @@ final class AppContainer {
     @MainActor
     func startApplicationServices() async {
         self.startStoreKitTransactionUpdatesListener()
+        // 中文注释：显式 runtime audit 只在 launch environment 齐备时运行，独立于其他服务，
+        // 不阻塞正常启动路径（BC-EVIDENCE-076.2）。
+        let videoRuntimeAuditLauncher: VideoRuntimeAuditLauncher = self.videoRuntimeAuditLauncher
+        Task {
+            await videoRuntimeAuditLauncher.runIfRequested()
+        }
         async let portalSession: Void = self.portalSessionCoordinator.start()
         async let cloudAccount: Void = self.startCloudAccountMonitoring()
         _ = await (portalSession, cloudAccount)

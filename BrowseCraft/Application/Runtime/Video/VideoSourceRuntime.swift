@@ -200,6 +200,35 @@ struct VideoSourceRuntime: SourceRuntime, SourceDetailRuntime, SourceVideoPlayba
         )
     }
 
+    // 中文注释：显式 runtime audit 入口（BC-EVIDENCE-076.1）：与 loadPlayback 共用同一
+    // playback loader 与单一 prepared session，只额外暴露路线事实；不改变正常播放语义。
+    // loader 执行阶段抛出时保留 session 并把 result 置 nil，由 audit 侧如实记 failed。
+    func auditPlaybackWithRouteFacts(
+        _ input: SourceVideoPlaybackInput
+    ) async throws -> VideoAuditPlaybackExecution {
+        try self.validateSource(input.context)
+        guard self.resolvedRule.playbackEntries.isEmpty == false else {
+            throw SourceRuntimeError.notConnected(
+                "Video V2 source does not declare playbackRules; audit requires a playback rule chain."
+            )
+        }
+        guard let playbackLoader: VideoSourcePlaybackLoader = self.playbackLoader else {
+            throw SourceRuntimeError.notConnected("Video V2 playback loader is not assembled.")
+        }
+        let session: VideoPreparedPlaybackExecutionSession = try playbackLoader.prepare(
+            source: self.source,
+            resolvedRule: self.resolvedRule,
+            input: input
+        )
+        do {
+            let result: VideoPreparedPlaybackExecutionResult =
+                try await playbackLoader.executeWithRouteFacts(session)
+            return VideoAuditPlaybackExecution(session: session, result: result)
+        } catch {
+            return VideoAuditPlaybackExecution(session: session, result: nil)
+        }
+    }
+
     private func validateSource(_ context: SourceRuntimeContext) throws {
         guard context.sourceID == self.source.id else {
             throw SourceRuntimeError.sourceMismatch(

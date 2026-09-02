@@ -391,10 +391,12 @@ private struct VideoRuntimeEvidenceV2Validator {
                 passedSlots.append(attempt.routeSlot)
                 priorRoutePassed = true
             }
+            // 中文注释：BC-EVIDENCE-026——只有明确 encrypted 反向否决同 fingerprint；
+            // unknown 失败样本不污染同 fingerprint 的其他样本。
             if attempt.attempted,
                attempt.passed == false,
                attempt.resolvedMediaKind == .hls,
-               attempt.encryptionStatus == .encrypted || attempt.encryptionStatus == .unknown {
+               attempt.encryptionStatus == .encrypted {
                 rejectedHLSRouteFingerprints.insert(attempt.routeFingerprint)
                 if let mediaFingerprint = attempt.resolvedMediaFingerprint {
                     rejectedHLSMediaFingerprints.insert(mediaFingerprint)
@@ -508,9 +510,11 @@ private struct VideoRuntimeEvidenceV2Validator {
         }
 
         if attempt.passed {
+            // 中文注释：BC-EVIDENCE-022/029——HLS 只有明确 encrypted 才不得通过；unknown 在
+            // manifest/首媒体引用/bytes 证据齐备时可通过，且必须保持 unknown 不改写。
             guard attempt.rejectionReason == nil,
                   mediaKind != .unknown,
-                  mediaKind != .hls || encryptionStatus == .unencrypted else {
+                  mediaKind != .hls || encryptionStatus != .encrypted else {
                 throw Self.invalid(path, "passing route is not independently safe")
             }
         } else if attempt.rejectionReason == nil {
@@ -528,12 +532,14 @@ private struct VideoRuntimeEvidenceV2Validator {
         var passingGroups: Set<String> = []
         for (ownerID, groupRoutes) in grouped {
             let attempts: [VideoRuntimeRouteAttemptEvidence] = groupRoutes.flatMap(\.routeAttempts)
+            // 中文注释：BC-EVIDENCE-026——跨样本媒体身份归约同样只以明确 encrypted 为毒化条件；
+            // unknown 本身不污染，同 fingerprint 一旦被任一样本判为 encrypted 才整体否决。
             let rejectedHLSMedia: Set<VideoRuntimeEvidenceFingerprint> = Set(
                 attempts.compactMap { attempt in
                     guard attempt.attempted,
                           attempt.passed == false,
                           attempt.resolvedMediaKind == .hls,
-                          attempt.encryptionStatus == .encrypted || attempt.encryptionStatus == .unknown else {
+                          attempt.encryptionStatus == .encrypted else {
                         return nil
                     }
                     return attempt.resolvedMediaFingerprint
