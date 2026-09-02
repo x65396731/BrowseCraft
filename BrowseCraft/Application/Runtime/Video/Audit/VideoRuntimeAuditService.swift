@@ -39,12 +39,16 @@ struct VideoRuntimeAuditService {
 
     init(
         runtimeFactory: VideoSourceRuntimeFactory,
-        mediaProbe: VideoRuntimeAuditMediaProbe = VideoRuntimeAuditMediaProbe(),
+        mediaProbe: VideoRuntimeAuditMediaProbe? = nil,
         materializer: CatalogSourceMaterializer = CatalogSourceMaterializer(),
-        webUIObserver: (any VideoRuntimeAuditWebUIObserving)? = nil
+        webUIObserver: (any VideoRuntimeAuditWebUIObserving)? = nil,
+        browserRequestHeaderProvider: (any BrowserRequestHeaderProviding)? = nil
     ) {
         self.runtimeFactory = runtimeFactory
-        self.mediaProbe = mediaProbe
+        // 中文注释：BC-EVIDENCE-079.4——探针默认带上与播放器同源的请求头提供者。
+        self.mediaProbe = mediaProbe ?? VideoRuntimeAuditMediaProbe(
+            browserRequestHeaderProvider: browserRequestHeaderProvider
+        )
         self.materializer = materializer
         self.webUIObserver = webUIObserver
     }
@@ -82,7 +86,10 @@ struct VideoRuntimeAuditService {
             for stage: VideoRuntimeStageEvidenceV2 in pageAudit.stages {
                 try await recorder.record(stage)
             }
-            playbackContracts.append(pageAudit.playbackContract)
+            // 中文注释：BC-EVIDENCE-079.3——页级失败局部化后该页没有 playback 阶段，也就没有合同。
+            if let contract: VideoRuntimePlaybackExportContract = pageAudit.playbackContract {
+                playbackContracts.append(contract)
+            }
         }
 
         let evidence: VideoRuntimeEvidenceV2 = await recorder.snapshot()
@@ -97,7 +104,8 @@ struct VideoRuntimeAuditService {
 
     private struct PageAuditResult {
         let stages: [VideoRuntimeStageEvidenceV2]
-        let playbackContract: VideoRuntimePlaybackExportContract
+        /// 中文注释：nil = 该页在 detail 阶段已局部失败，没有 playback 阶段（BC-EVIDENCE-079.3）。
+        let playbackContract: VideoRuntimePlaybackExportContract?
     }
 
     private struct EpisodeGroup {
@@ -204,7 +212,23 @@ struct VideoRuntimeAuditService {
 
         let candidates: [SourceContentItem] = listItems.filter { $0.detailURL != nil }
         guard candidates.isEmpty == false else {
-            throw VideoRuntimeAuditServiceError.pageHasNoUsableDetailSample(pageID)
+            // 中文注释：BC-EVIDENCE-079.3——没有可用 detail 样本只让本页 detail 阶段失败，
+            // 不产出 episode/playback 阶段与合同，audit 继续其它页。
+            let failedDetailStage: VideoRuntimeStageEvidenceV2 = Self.dataStage(
+                pageID: pageID,
+                stage: .detail,
+                branch: detailBranch,
+                request: detailRequest,
+                requestMatchedCatalog: false,
+                parserContractPassed: false,
+                passed: false,
+                coverageComplete: false,
+                sampleCount: 0
+            )
+            return PageAuditResult(
+                stages: [listStage, failedDetailStage],
+                playbackContract: nil
+            )
         }
 
         var probes: [DetailChainProbe] = []
@@ -245,12 +269,11 @@ struct VideoRuntimeAuditService {
             )
             groupRecords.append(record)
         }
-        guard let contractSession: VideoPreparedPlaybackExecutionSession =
-            groupRecords.first?.session else {
-            throw VideoRuntimeAuditServiceError.playbackSessionUnavailable(pageID)
-        }
-        let playbackContract: VideoRuntimePlaybackExportContract =
-            try contractSession.runtimePlaybackExportContract(detailBranch: detailBranch)
+        // 中文注释：BC-EVIDENCE-079.3——没有任何 group 的 playback session（detail 未给出 group）
+        // 时，本页只到 detail/episode 阶段并如实失败，不产出 playback 阶段与合同。
+        let contractSession: VideoPreparedPlaybackExecutionSession? = groupRecords.first?.session
+        let playbackContract: VideoRuntimePlaybackExportContract? =
+            try contractSession?.runtimePlaybackExportContract(detailBranch: detailBranch)
 
         let allGroupsPassed: Bool = selected.groups.isEmpty == false
             && groupRecords.count == selected.groups.count
@@ -329,8 +352,19 @@ struct VideoRuntimeAuditService {
             )
         }
 
+        guard let contractSession: VideoPreparedPlaybackExecutionSession,
+              let playbackContract: VideoRuntimePlaybackExportContract else {
+            return PageAuditResult(stages: stages, playbackContract: nil)
+        }
         let playbackNeedsWebView: Bool = contractSession.request?.needsWebView == true
         let routes: [VideoRuntimePlaybackRouteEvidence] = groupRecords.map(\.record)
+        // 中文注释：BC-EVIDENCE-079.1——route 是实际到达的最终路线：任一 attempted 的 WebUI
+        // attempt 即 webkit；resolvedNeedsWebView 保持 catalog owner 链的静态解析，两者可不同。
+        let reachedWebUI: Bool = routes.contains { route in
+            route.routeAttempts.contains { attempt in
+                attempt.attempted && attempt.executionMode == .webUI
+            }
+        }
         stages.append(
             VideoRuntimeStageEvidenceV2(
                 pageID: pageID,
@@ -338,7 +372,7 @@ struct VideoRuntimeAuditService {
                 branch: .playback,
                 environment: .browseCraftApp,
                 runtimeEquivalent: true,
-                route: playbackNeedsWebView ? .webKit : .http,
+                route: (playbackNeedsWebView || reachedWebUI) ? .webKit : .http,
                 resolvedNeedsWebView: playbackNeedsWebView,
                 requestMatchedCatalog: true,
                 parserContractPassed: allGroupsPassed,
@@ -631,6 +665,19 @@ struct VideoRuntimeAuditService {
                 reason: "route-not-reached"
             )
         case .rejectedBeforePlayer:
+            // 中文注释：BC-EVIDENCE-079.2——loader 判为明确加密的直连媒体，仍对候选做 076.4 同一有界
+            // 读取，输出 hls/encrypted 与完整媒体事实（passed=false），让归约得出 encrypted-media。
+            if (fact.reason == .encryptedHLS || fact.reason == .knownEncryptedMedia),
+               declared.executionMode != .webUI,
+               fact.candidateMediaURL != nil,
+               fact.candidateMediaKind != .unknown {
+                return await self.observedAttempt(
+                    declared: declared,
+                    fact: fact,
+                    routeFingerprint: routeFingerprint,
+                    playbackRequestConfig: playbackRequestConfig
+                )
+            }
             return self.failedAttempt(
                 declared: declared,
                 routeFingerprint: routeFingerprint,

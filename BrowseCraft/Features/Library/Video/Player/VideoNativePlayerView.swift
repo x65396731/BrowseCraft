@@ -135,24 +135,12 @@ private struct NativePlayerRepresentable: UIViewRepresentable {
             return options
         }
 
-        var headers: [String: String] = browserRequestHeaderProvider.defaultHeaders(
-            for: mediaURL,
-            referer: requestConfig.referer,
-            includeOrigin: true
+        // 中文注释：BC-EVIDENCE-079.4——与显式 audit 探针共用同一份请求头组合。
+        let headers: [String: String] = VideoPlaybackRequestHeaders.compose(
+            mediaURL: mediaURL,
+            requestConfig: requestConfig,
+            browserRequestHeaderProvider: browserRequestHeaderProvider
         )
-        headers = RequestHeaderFields.applyingOverrides(requestConfig.headers, to: headers)
-        if let referer: URL = requestConfig.referer,
-           RequestHeaderFields.containsHeader("Referer", in: headers) == false {
-            headers["Referer"] = referer.absoluteString
-        }
-        if let userAgent: String = requestConfig.userAgent,
-           RequestHeaderFields.containsHeader("User-Agent", in: headers) == false {
-            headers["User-Agent"] = userAgent
-        }
-        if RequestHeaderFields.containsHeader("Origin", in: headers) == false,
-           let origin: String = RequestHeaderFields.originHeader(from: requestConfig.referer) {
-            headers["Origin"] = origin
-        }
 
         if headers.isEmpty == false {
             options.appendHeader(headers)

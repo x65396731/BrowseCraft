@@ -44,9 +44,15 @@ struct VideoRuntimeAuditMediaProbe {
     static let maximumReadByteCount: Int = 256 * 1_024
 
     private let session: URLSession
+    /// 中文注释：BC-EVIDENCE-079.4——探针请求头与原生播放器同源；nil 只在单测里出现。
+    private let browserRequestHeaderProvider: (any BrowserRequestHeaderProviding)?
 
-    init(session: URLSession = URLSession(configuration: .ephemeral)) {
+    init(
+        session: URLSession = URLSession(configuration: .ephemeral),
+        browserRequestHeaderProvider: (any BrowserRequestHeaderProviding)? = nil
+    ) {
         self.session = session
+        self.browserRequestHeaderProvider = browserRequestHeaderProvider
     }
 
     func observe(
@@ -91,7 +97,7 @@ struct VideoRuntimeAuditMediaProbe {
                 playbackRequestConfig: playbackRequestConfig
             )
         }
-        if response.contentType.lowercased().contains("mp4") || Self.hasFtypSignature(response.data) {
+        if Self.contentTypeAllowsMP4(response.contentType) || Self.hasFtypSignature(response.data) {
             return self.observeMP4(response: response)
         }
         return .failure(.unsupportedMediaKind)
@@ -179,7 +185,10 @@ struct VideoRuntimeAuditMediaProbe {
         guard response.data.isEmpty == false else {
             return .failure(.mediaResponseUnreadable)
         }
-        guard response.contentType.lowercased().contains("mp4") else {
+        // 中文注释：BC-EVIDENCE-079.6——`application/octet-stream` 是 CDN 常见的通用二进制类型，
+        // 与 mp4 不矛盾（91porn 实测三种请求头形态均为 200/octet-stream/读满 256 KiB）；
+        // 此时以 `ftyp` 签名作为媒体类型一致性的证据。
+        guard Self.contentTypeAllowsMP4(response.contentType) else {
             #if DEBUG
             // 中文注释：只记录 Content-Type 值用于归因，不记录 URL。
             AppDebugLog.write(
@@ -217,16 +226,28 @@ struct VideoRuntimeAuditMediaProbe {
         var request: URLRequest = URLRequest(url: url)
         request.httpMethod = "GET"
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        for (name, value) in playbackRequestConfig?.headers ?? [:] {
+        let headers: [String: String]
+        if let provider: any BrowserRequestHeaderProviding = self.browserRequestHeaderProvider {
+            // 中文注释：BC-EVIDENCE-079.4——与原生播放器同一份请求头组合（唯一定义点）。
+            headers = VideoPlaybackRequestHeaders.compose(
+                mediaURL: url,
+                requestConfig: playbackRequestConfig,
+                browserRequestHeaderProvider: provider
+            )
+        } else {
+            var fallback: [String: String] = playbackRequestConfig?.headers ?? [:]
+            if let referer: URL = playbackRequestConfig?.referer,
+               RequestHeaderFields.containsHeader("Referer", in: fallback) == false {
+                fallback["Referer"] = referer.absoluteString
+            }
+            if let userAgent: String = playbackRequestConfig?.userAgent,
+               RequestHeaderFields.containsHeader("User-Agent", in: fallback) == false {
+                fallback["User-Agent"] = userAgent
+            }
+            headers = fallback
+        }
+        for (name, value) in headers {
             request.setValue(value, forHTTPHeaderField: name)
-        }
-        if let referer: URL = playbackRequestConfig?.referer,
-           request.value(forHTTPHeaderField: "Referer") == nil {
-            request.setValue(referer.absoluteString, forHTTPHeaderField: "Referer")
-        }
-        if let userAgent: String = playbackRequestConfig?.userAgent,
-           request.value(forHTTPHeaderField: "User-Agent") == nil {
-            request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         }
 
         do {
@@ -260,16 +281,26 @@ struct VideoRuntimeAuditMediaProbe {
     }
 
     private static func contentTypeMatchesHLS(_ contentType: String) -> Bool {
-        let mediaType: String = contentType
+        let mediaType: String = Self.mediaType(of: contentType)
+        return mediaType.contains("mpegurl") || mediaType.contains("m3u8")
+    }
+
+    /// 中文注释：BC-EVIDENCE-079.6——mp4 或通用二进制类型（octet-stream）都允许进入 ftyp 校验。
+    static func contentTypeAllowsMP4(_ contentType: String) -> Bool {
+        let mediaType: String = Self.mediaType(of: contentType)
+        return mediaType.contains("mp4") || mediaType == "application/octet-stream"
+    }
+
+    private static func mediaType(of contentType: String) -> String {
+        return contentType
             .lowercased()
             .split(separator: ";", maxSplits: 1)
             .first
             .map(String.init)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return mediaType.contains("mpegurl") || mediaType.contains("m3u8")
     }
 
-    private static func hasFtypSignature(_ data: Data) -> Bool {
+    static func hasFtypSignature(_ data: Data) -> Bool {
         guard data.count >= 12 else {
             return false
         }

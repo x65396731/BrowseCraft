@@ -31,13 +31,17 @@ struct VideoRuntimeAuditLauncher {
     private let runtimeFactory: VideoSourceRuntimeFactory
     /// 中文注释：BC-EVIDENCE-077.1——前台 WebUI 观察端口由 composition root 注入；nil 即 headless。
     private let webUIObserver: (any VideoRuntimeAuditWebUIObserving)?
+    /// 中文注释：BC-EVIDENCE-079.4——探针与播放器共用的请求头提供者。
+    private let browserRequestHeaderProvider: (any BrowserRequestHeaderProviding)?
 
     init(
         runtimeFactory: VideoSourceRuntimeFactory,
-        webUIObserver: (any VideoRuntimeAuditWebUIObserving)? = nil
+        webUIObserver: (any VideoRuntimeAuditWebUIObserving)? = nil,
+        browserRequestHeaderProvider: (any BrowserRequestHeaderProviding)? = nil
     ) {
         self.runtimeFactory = runtimeFactory
         self.webUIObserver = webUIObserver
+        self.browserRequestHeaderProvider = browserRequestHeaderProvider
     }
 
     /// 中文注释：audit 结束（成功或失败）都写一份结果标记文件（`<outputPath>.status`），
@@ -57,7 +61,8 @@ struct VideoRuntimeAuditLauncher {
                 try VideoRuntimeAuditCatalogInput(rawCatalogData: rawCatalogData)
             let service: VideoRuntimeAuditService = VideoRuntimeAuditService(
                 runtimeFactory: self.runtimeFactory,
-                webUIObserver: self.webUIObserver
+                webUIObserver: self.webUIObserver,
+                browserRequestHeaderProvider: self.browserRequestHeaderProvider
             )
             let evidenceData: Data = try await service.run(catalogInput: catalogInput)
             try evidenceData.write(

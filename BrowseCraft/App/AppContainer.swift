@@ -260,7 +260,8 @@ final class AppContainer {
                     parser: CoreVideoRuleSourceParser(),
                     credentialProvider: sourceCredentialStore
                 ),
-                webUIObserver: videoRuntimeAuditWebUIPresenter
+                webUIObserver: videoRuntimeAuditWebUIPresenter,
+                browserRequestHeaderProvider: browserRequestHeaderProvider
             )
             let protectedResourceLoader: ReaderProtectedResourceLoader = ReaderProtectedResourceLoader(
                 legacyLoader: ProtectedResourceLoader(

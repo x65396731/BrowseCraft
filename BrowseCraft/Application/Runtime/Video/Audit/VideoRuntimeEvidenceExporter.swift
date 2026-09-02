@@ -154,8 +154,10 @@ private struct VideoRuntimeEvidenceV2Validator {
                       stage.runtimeEquivalent else {
                     throw Self.invalid(path, "playback must use the BrowseCraft App runtime")
                 }
-                guard (stage.route == .webKit) == stage.resolvedNeedsWebView else {
-                    throw Self.invalid(path, "route and resolvedNeedsWebView disagree")
+                // 中文注释：BC-EVIDENCE-079.1——resolvedNeedsWebView 是 catalog 静态解析，route 是实际
+                // 最终路线（到达 WebUI 即 webkit）；只要求静态需要 WebView 时路线必为 webkit。
+                guard stage.resolvedNeedsWebView == false || stage.route == .webKit else {
+                    throw Self.invalid(path, "resolvedNeedsWebView requires route=webkit")
                 }
                 guard let contract = self.playbackContracts[pageID] else {
                     throw Self.invalid(path, "has no prepared playback export contract")
@@ -674,7 +676,8 @@ private struct VideoRuntimeEvidenceV2Validator {
         case .hls:
             return value.contains("mpegurl") || value.contains("m3u8")
         case .mp4:
-            return value.contains("mp4")
+            // 中文注释：BC-EVIDENCE-079.6——与探针同一判定：mp4 或 octet-stream（ftyp 已由探针校验）。
+            return VideoRuntimeAuditMediaProbe.contentTypeAllowsMP4(contentType)
         case .unknown:
             return false
         }
