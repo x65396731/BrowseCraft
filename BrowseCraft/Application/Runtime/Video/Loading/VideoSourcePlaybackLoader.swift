@@ -1152,17 +1152,41 @@ enum VideoHLSManifestEncryptionClassifier {
             return .unknown
         }
 
+        // 中文注释：BC-EVIDENCE-080——只有播放器无法独立解密的保护才是 encrypted：
+        // SAMPLE-AES(-CTR)，或 KEYFORMAT 非 identity 的 DRM 形态（FairPlay skd、urn:uuid…）。
+        // 标准 AES-128 + identity key URI 是可播放的内容保护，保持 unknown；不请求 key。
         for rawLine: Substring in lines.dropFirst() {
             let line: String = String(rawLine).trimmingCharacters(in: .whitespacesAndNewlines)
-            if self.hasNonemptyAttributes(line, tag: "#EXT-X-SESSION-KEY:") {
-                return .encrypted
-            }
-            if let method: String = self.attribute("METHOD", in: line, tag: "#EXT-X-KEY:"),
-               method.caseInsensitiveCompare("NONE") != .orderedSame {
-                return .encrypted
+            for tag: String in ["#EXT-X-KEY:", "#EXT-X-SESSION-KEY:"] {
+                guard line.hasPrefix(tag) else {
+                    continue
+                }
+                if self.isPlayerUnplayableProtection(line, tag: tag) {
+                    return .encrypted
+                }
             }
         }
         return .unknown
+    }
+
+    static func isPlayerUnplayableProtection(_ line: String, tag: String) -> Bool {
+        guard let method: String = self.attribute("METHOD", in: line, tag: tag),
+              method.caseInsensitiveCompare("NONE") != .orderedSame else {
+            return false
+        }
+        let upperMethod: String = method.uppercased()
+        if upperMethod.hasPrefix("SAMPLE-AES") {
+            return true
+        }
+        if let keyFormat: String = self.attribute("KEYFORMAT", in: line, tag: tag),
+           keyFormat.caseInsensitiveCompare("identity") != .orderedSame {
+            return true
+        }
+        if let uri: String = self.attribute("URI", in: line, tag: tag),
+           uri.lowercased().hasPrefix("skd://") {
+            return true
+        }
+        return false
     }
 
     private static func hasNonemptyAttributes(_ line: String, tag: String) -> Bool {

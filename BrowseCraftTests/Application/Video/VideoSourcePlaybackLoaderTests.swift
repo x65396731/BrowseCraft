@@ -307,12 +307,8 @@ struct VideoSourcePlaybackLoaderTests {
         }) == false)
     }
 
-    @Test func hlsManifestClassifierRejectsExplicitEncryptionTags() {
-        #expect(
-            VideoHLSManifestEncryptionClassifier.classify(
-                "#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI=\"https://keys.example.invalid/a\""
-            ) == .encrypted
-        )
+    // 中文注释：BC-EVIDENCE-080——只有播放器无法独立解密的保护才是 encrypted。
+    @Test func hlsManifestClassifierRejectsOnlyPlayerUnplayableProtection() {
         #expect(
             VideoHLSManifestEncryptionClassifier.classify(
                 "#EXTM3U\n#EXT-X-KEY:METHOD=SAMPLE-AES,URI=\"skd://asset\""
@@ -320,8 +316,37 @@ struct VideoSourcePlaybackLoaderTests {
         )
         #expect(
             VideoHLSManifestEncryptionClassifier.classify(
-                "#EXTM3U\n#EXT-X-SESSION-KEY:METHOD=AES-128,URI=\"https://keys.example.invalid/session\""
+                "#EXTM3U\n#EXT-X-KEY:METHOD=SAMPLE-AES-CTR,URI=\"https://drm.example.invalid/k\""
             ) == .encrypted
+        )
+        #expect(
+            VideoHLSManifestEncryptionClassifier.classify(
+                "#EXTM3U\n#EXT-X-SESSION-KEY:METHOD=AES-128,URI=\"https://keys.example.invalid/session\",KEYFORMAT=\"urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed\""
+            ) == .encrypted
+        )
+        #expect(
+            VideoHLSManifestEncryptionClassifier.classify(
+                "#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI=\"skd://asset\""
+            ) == .encrypted
+        )
+    }
+
+    @Test func hlsManifestClassifierKeepsStandardAES128Playable() {
+        // 中文注释：kpkuang 实测形态——标准 AES-128 + identity key URI，任何 HLS 播放器都直接播。
+        #expect(
+            VideoHLSManifestEncryptionClassifier.classify(
+                "#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI=\"enc.key\",IV=0x00000000000000000000000000000000\n#EXTINF:3.96,\nplist0.ts"
+            ) == .unknown
+        )
+        #expect(
+            VideoHLSManifestEncryptionClassifier.classify(
+                "#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI=\"https://keys.example.invalid/a\",KEYFORMAT=\"identity\""
+            ) == .unknown
+        )
+        #expect(
+            VideoHLSManifestEncryptionClassifier.classify(
+                "#EXTM3U\n#EXT-X-SESSION-KEY:METHOD=AES-128,URI=\"https://keys.example.invalid/session\""
+            ) == .unknown
         )
     }
 
@@ -431,7 +456,7 @@ struct VideoSourcePlaybackLoaderTests {
                     finalURL: pageURL
                 ),
                 mediaURL.absoluteString: PageContentResponse(
-                    content: "#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI=\"https://keys.example.invalid/key\"",
+                    content: "#EXTM3U\n#EXT-X-KEY:METHOD=SAMPLE-AES,URI=\"skd://keys.example.invalid/key\"",
                     finalURL: mediaURL
                 )
             ]
@@ -518,7 +543,7 @@ struct VideoSourcePlaybackLoaderTests {
                     finalURL: pageURL
                 ),
                 mediaURL.absoluteString: PageContentResponse(
-                    content: "#EXTM3U\n#EXT-X-SESSION-KEY:METHOD=AES-128,URI=\"https://keys.example.invalid/session\"",
+                    content: "#EXTM3U\n#EXT-X-SESSION-KEY:METHOD=SAMPLE-AES,URI=\"skd://keys.example.invalid/session\"",
                     finalURL: mediaURL
                 ),
                 iframeURL.absoluteString: PageContentResponse(
