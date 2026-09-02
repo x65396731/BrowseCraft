@@ -100,6 +100,7 @@ struct VideoWebPlayerView<Controls: View>: View {
     init(
         request: VideoWebPlayerRequest,
         title: String,
+        auditMediaEventHandler: VideoRuntimeAuditMediaEventHandler? = nil,
         @ViewBuilder controls: @escaping () -> Controls,
         onClose: @escaping () -> Void
     ) {
@@ -107,7 +108,12 @@ struct VideoWebPlayerView<Controls: View>: View {
         self.title = title
         self.controls = controls
         self.onClose = onClose
-        _coordinator = StateObject(wrappedValue: VideoWebPlayerCoordinator(request: request))
+        _coordinator = StateObject(
+            wrappedValue: VideoWebPlayerCoordinator(
+                request: request,
+                auditMediaEventHandler: auditMediaEventHandler
+            )
+        )
     }
 
     var body: some View {

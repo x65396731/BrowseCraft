@@ -28,19 +28,25 @@ enum VideoRuntimeAuditServiceError: Error, Equatable {
 // 无法建立唯一 owner binding 的路线如实输出 ambiguous/missing 并 failed，不伪造 unique。
 struct VideoRuntimeAuditService {
     private static let maximumDetailAttempts: Int = 3
+    /// 中文注释：BC-EVIDENCE-077.5——每个 group 首样本只做一次前台观察，等待上限 25 秒。
+    static let webUIObservationTimeout: TimeInterval = 25
 
     private let runtimeFactory: VideoSourceRuntimeFactory
     private let mediaProbe: VideoRuntimeAuditMediaProbe
     private let materializer: CatalogSourceMaterializer
+    /// 中文注释：BC-EVIDENCE-077.1——前台 WebUI 观察端口；nil 即 headless，行为与批次 3 相同。
+    private let webUIObserver: (any VideoRuntimeAuditWebUIObserving)?
 
     init(
         runtimeFactory: VideoSourceRuntimeFactory,
         mediaProbe: VideoRuntimeAuditMediaProbe = VideoRuntimeAuditMediaProbe(),
-        materializer: CatalogSourceMaterializer = CatalogSourceMaterializer()
+        materializer: CatalogSourceMaterializer = CatalogSourceMaterializer(),
+        webUIObserver: (any VideoRuntimeAuditWebUIObserving)? = nil
     ) {
         self.runtimeFactory = runtimeFactory
         self.mediaProbe = mediaProbe
         self.materializer = materializer
+        self.webUIObserver = webUIObserver
     }
 
     func run(catalogInput: VideoRuntimeAuditCatalogInput) async throws -> Data {
@@ -519,8 +525,9 @@ struct VideoRuntimeAuditService {
             )
         )
         let session: VideoPreparedPlaybackExecutionSession = execution.session
+        let playbackReference: SourceVideoPlaybackReference? = execution.result?.output.reference
         let playbackRequestConfig: SourcePlaybackRequestConfig? =
-            execution.result?.output.reference.playbackRequestConfig
+            playbackReference?.playbackRequestConfig
 
         var attempts: [VideoRuntimeRouteAttemptEvidence] = []
         var priorRoutePassed: Bool = false
@@ -539,6 +546,7 @@ struct VideoRuntimeAuditService {
                 declared: declared,
                 fact: execution.result?.routeFacts.first { $0.routeSlot == declared.routeSlot },
                 routeFingerprint: routeFingerprint,
+                playbackReference: playbackReference,
                 playbackRequestConfig: playbackRequestConfig,
                 priorRoutePassed: priorRoutePassed,
                 priorSelectionFailed: priorSelectionFailed,
@@ -573,6 +581,7 @@ struct VideoRuntimeAuditService {
         declared: VideoPreparedPlaybackDeclaredRoute,
         fact: VideoPreparedPlaybackRouteFact?,
         routeFingerprint: VideoRuntimeEvidenceFingerprint,
+        playbackReference: SourceVideoPlaybackReference?,
         playbackRequestConfig: SourcePlaybackRequestConfig?,
         priorRoutePassed: Bool,
         priorSelectionFailed: Bool,
@@ -626,6 +635,14 @@ struct VideoRuntimeAuditService {
                 reason: Self.rejectionCode(for: fact.reason)
             )
         case .selectedForPlayer:
+            if declared.executionMode == .webUI {
+                return await self.observedWebUIAttempt(
+                    declared: declared,
+                    routeFingerprint: routeFingerprint,
+                    playbackReference: playbackReference,
+                    playbackRequestConfig: playbackRequestConfig
+                )
+            }
             return await self.observedAttempt(
                 declared: declared,
                 fact: fact,
@@ -641,16 +658,6 @@ struct VideoRuntimeAuditService {
         routeFingerprint: VideoRuntimeEvidenceFingerprint,
         playbackRequestConfig: SourcePlaybackRequestConfig?
     ) async -> VideoRuntimeRouteAttemptEvidence {
-        if declared.executionMode == .webUI {
-            // 中文注释：headless audit 没有 player session 观察点；playerStarted 如实为 false，
-            // binding 保持 missing，不伪造 unique（BC-EVIDENCE-021）。
-            return self.failedAttempt(
-                declared: declared,
-                routeFingerprint: routeFingerprint,
-                reason: "player-session-binding-unavailable",
-                playerStarted: false
-            )
-        }
         guard let mediaURL: URL = fact.candidateMediaURL,
               fact.candidateMediaKind != .unknown else {
             return self.failedAttempt(
@@ -665,18 +672,101 @@ struct VideoRuntimeAuditService {
                 kind: fact.candidateMediaKind,
                 playbackRequestConfig: playbackRequestConfig
             )
+        return self.observedMediaAttempt(
+            declared: declared,
+            routeFingerprint: routeFingerprint,
+            probeResult: probeResult,
+            playbackSessionID: UUID(),
+            playerStarted: nil
+        )
+    }
+
+    /// 中文注释：BC-EVIDENCE-077——WebUI 路线：前台观察 → 021 归约 → unique 时对 currentSrc
+    /// 做 076.4 同一有界验收。无观察端口（headless）时与批次 3 逐字节相同。
+    private func observedWebUIAttempt(
+        declared: VideoPreparedPlaybackDeclaredRoute,
+        routeFingerprint: VideoRuntimeEvidenceFingerprint,
+        playbackReference: SourceVideoPlaybackReference?,
+        playbackRequestConfig: SourcePlaybackRequestConfig?
+    ) async -> VideoRuntimeRouteAttemptEvidence {
+        guard let observer: any VideoRuntimeAuditWebUIObserving = self.webUIObserver,
+              let reference: SourceVideoPlaybackReference = playbackReference else {
+            return self.failedAttempt(
+                declared: declared,
+                routeFingerprint: routeFingerprint,
+                reason: "player-session-binding-unavailable",
+                playerStarted: false
+            )
+        }
+        let playbackSessionID: UUID = UUID()
+        let observation: VideoRuntimeAuditWebUIObservation = await observer.observe(
+            reference: reference,
+            requestConfig: playbackRequestConfig,
+            sessionToken: playbackSessionID.uuidString.lowercased(),
+            timeout: Self.webUIObservationTimeout
+        )
+        switch observation.bindingStatus {
+        case .missing:
+            return self.failedAttempt(
+                declared: declared,
+                routeFingerprint: routeFingerprint,
+                reason: observation.timedOut
+                    ? "player-session-timeout"
+                    : "final-media-observation-unavailable",
+                playerStarted: observation.playerStarted
+            )
+        case .ambiguous:
+            return self.failedAttempt(
+                declared: declared,
+                routeFingerprint: routeFingerprint,
+                reason: "final-media-binding-ambiguous",
+                playerStarted: observation.playerStarted,
+                bindingStatus: .ambiguous
+            )
+        case .unique:
+            guard let mediaURL: URL = observation.mediaURL else {
+                return self.failedAttempt(
+                    declared: declared,
+                    routeFingerprint: routeFingerprint,
+                    reason: "final-media-observation-unavailable",
+                    playerStarted: observation.playerStarted
+                )
+            }
+            let probeResult: Result<VideoRuntimeAuditMediaObservation, VideoRuntimeAuditMediaProbeFailure> =
+                await self.mediaProbe.observeSniffingKind(
+                    mediaURL: mediaURL,
+                    playbackRequestConfig: playbackRequestConfig
+                )
+            return self.observedMediaAttempt(
+                declared: declared,
+                routeFingerprint: routeFingerprint,
+                probeResult: probeResult,
+                playbackSessionID: playbackSessionID,
+                playerStarted: true
+            )
+        }
+    }
+
+    private func observedMediaAttempt(
+        declared: VideoPreparedPlaybackDeclaredRoute,
+        routeFingerprint: VideoRuntimeEvidenceFingerprint,
+        probeResult: Result<VideoRuntimeAuditMediaObservation, VideoRuntimeAuditMediaProbeFailure>,
+        playbackSessionID: UUID,
+        playerStarted: Bool?
+    ) -> VideoRuntimeRouteAttemptEvidence {
         switch probeResult {
         case .failure(let failure):
             return self.failedAttempt(
                 declared: declared,
                 routeFingerprint: routeFingerprint,
-                reason: failure.rejectionReasonCode
+                reason: failure.rejectionReasonCode,
+                playerStarted: playerStarted
             )
         case .success(let observation):
             let ownerFingerprint: VideoRuntimeEvidenceFingerprint? =
                 try? VideoRuntimeEvidenceFingerprintFactory.owner(
                     routeFingerprint: routeFingerprint,
-                    playbackSessionID: UUID()
+                    playbackSessionID: playbackSessionID
                 )
             let mediaFingerprint: VideoRuntimeEvidenceFingerprint? =
                 try? VideoRuntimeEvidenceFingerprintFactory.media(
@@ -688,7 +778,8 @@ struct VideoRuntimeAuditService {
                 return self.failedAttempt(
                     declared: declared,
                     routeFingerprint: routeFingerprint,
-                    reason: "media-identity-unavailable"
+                    reason: "media-identity-unavailable",
+                    playerStarted: playerStarted
                 )
             }
             let encrypted: Bool = observation.encryptionStatus == .encrypted
@@ -711,6 +802,7 @@ struct VideoRuntimeAuditService {
                 contentType: observation.contentType,
                 manifestPassed: observation.manifestPassed,
                 firstMediaReferencePassed: observation.firstMediaReferencePassed,
+                playerStarted: declared.executionMode == .webUI ? (playerStarted ?? true) : nil,
                 rejectionReason: encrypted
                     ? Self.rejectionReason("encrypted-hls-manifest")
                     : nil
@@ -722,7 +814,8 @@ struct VideoRuntimeAuditService {
         declared: VideoPreparedPlaybackDeclaredRoute,
         routeFingerprint: VideoRuntimeEvidenceFingerprint,
         reason: String,
-        playerStarted: Bool? = nil
+        playerStarted: Bool? = nil,
+        bindingStatus: VideoRuntimeEvidenceMediaBindingStatus = .missing
     ) -> VideoRuntimeRouteAttemptEvidence {
         let resolvedPlayerStarted: Bool? = declared.executionMode == .webUI
             ? (playerStarted ?? false)
@@ -735,7 +828,7 @@ struct VideoRuntimeAuditService {
             routeFingerprint: routeFingerprint,
             resolvedMediaKind: .unknown,
             resolvedMediaBinding: VideoRuntimeMediaBindingEvidence(
-                status: .missing,
+                status: bindingStatus,
                 method: Self.bindingMethod(for: declared.executionMode)
             ),
             encryptionStatus: .unknown,

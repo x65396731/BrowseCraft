@@ -70,6 +70,33 @@ struct VideoRuntimeAuditMediaProbe {
         }
     }
 
+    /// 中文注释：BC-EVIDENCE-077.4——WebUI 路线的最终媒体 URL 来自播放中元素的 currentSrc，
+    /// 没有 catalog 声明的种类；这里按**响应内容**嗅探（HLS Content-Type 或 `#EXTM3U`；
+    /// MP4 Content-Type 或 `ftyp`），不用扩展名词表，随后走与 076.4 完全相同的有界验收。
+    func observeSniffingKind(
+        mediaURL: URL,
+        playbackRequestConfig: SourcePlaybackRequestConfig?
+    ) async -> Result<VideoRuntimeAuditMediaObservation, VideoRuntimeAuditMediaProbeFailure> {
+        guard let response = await self.boundedGET(
+            url: mediaURL,
+            playbackRequestConfig: playbackRequestConfig
+        ) else {
+            return .failure(.mediaResponseUnreadable)
+        }
+        let firstLine: String = String(decoding: response.data.prefix(16), as: UTF8.self)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "\u{feff}"))
+        if Self.contentTypeMatchesHLS(response.contentType) || firstLine.hasPrefix("#EXTM3U") {
+            return await self.observeHLS(
+                manifestResponse: response,
+                playbackRequestConfig: playbackRequestConfig
+            )
+        }
+        if response.contentType.lowercased().contains("mp4") || Self.hasFtypSignature(response.data) {
+            return self.observeMP4(response: response)
+        }
+        return .failure(.unsupportedMediaKind)
+    }
+
     private func observeHLS(
         manifestURL: URL,
         playbackRequestConfig: SourcePlaybackRequestConfig?
@@ -80,6 +107,16 @@ struct VideoRuntimeAuditMediaProbe {
         ) else {
             return .failure(.mediaResponseUnreadable)
         }
+        return await self.observeHLS(
+            manifestResponse: manifestResponse,
+            playbackRequestConfig: playbackRequestConfig
+        )
+    }
+
+    private func observeHLS(
+        manifestResponse: BoundedResponse,
+        playbackRequestConfig: SourcePlaybackRequestConfig?
+    ) async -> Result<VideoRuntimeAuditMediaObservation, VideoRuntimeAuditMediaProbeFailure> {
         guard Self.contentTypeMatchesHLS(manifestResponse.contentType) else {
             return .failure(.contentTypeMismatch)
         }
@@ -130,7 +167,16 @@ struct VideoRuntimeAuditMediaProbe {
         guard let response = await self.boundedGET(
             url: mediaURL,
             playbackRequestConfig: playbackRequestConfig
-        ), response.data.isEmpty == false else {
+        ) else {
+            return .failure(.mediaResponseUnreadable)
+        }
+        return self.observeMP4(response: response)
+    }
+
+    private func observeMP4(
+        response: BoundedResponse
+    ) -> Result<VideoRuntimeAuditMediaObservation, VideoRuntimeAuditMediaProbeFailure> {
+        guard response.data.isEmpty == false else {
             return .failure(.mediaResponseUnreadable)
         }
         guard response.contentType.lowercased().contains("mp4") else {

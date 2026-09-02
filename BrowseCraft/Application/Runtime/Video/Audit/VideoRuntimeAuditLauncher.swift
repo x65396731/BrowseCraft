@@ -29,9 +29,15 @@ struct VideoRuntimeAuditLaunchRequest {
 
 struct VideoRuntimeAuditLauncher {
     private let runtimeFactory: VideoSourceRuntimeFactory
+    /// 中文注释：BC-EVIDENCE-077.1——前台 WebUI 观察端口由 composition root 注入；nil 即 headless。
+    private let webUIObserver: (any VideoRuntimeAuditWebUIObserving)?
 
-    init(runtimeFactory: VideoSourceRuntimeFactory) {
+    init(
+        runtimeFactory: VideoSourceRuntimeFactory,
+        webUIObserver: (any VideoRuntimeAuditWebUIObserving)? = nil
+    ) {
         self.runtimeFactory = runtimeFactory
+        self.webUIObserver = webUIObserver
     }
 
     /// 中文注释：audit 结束（成功或失败）都写一份结果标记文件（`<outputPath>.status`），
@@ -50,7 +56,8 @@ struct VideoRuntimeAuditLauncher {
             let catalogInput: VideoRuntimeAuditCatalogInput =
                 try VideoRuntimeAuditCatalogInput(rawCatalogData: rawCatalogData)
             let service: VideoRuntimeAuditService = VideoRuntimeAuditService(
-                runtimeFactory: self.runtimeFactory
+                runtimeFactory: self.runtimeFactory,
+                webUIObserver: self.webUIObserver
             )
             let evidenceData: Data = try await service.run(catalogInput: catalogInput)
             try evidenceData.write(

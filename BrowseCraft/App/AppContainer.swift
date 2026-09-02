@@ -17,6 +17,8 @@ final class AppContainer {
     private var storeKitTransactionUpdatesTask: Task<Void, Never>?
     /// 中文注释：显式 runtime audit 入口（BC-EVIDENCE-076.2）；无 launch environment 时完全惰性。
     private let videoRuntimeAuditLauncher: VideoRuntimeAuditLauncher
+    /// 中文注释：BC-EVIDENCE-077.1——audit 的前台 WebUI 承载者，由根视图覆盖层观察；无 audit 时空闲。
+    let videoRuntimeAuditWebUIPresenter: VideoRuntimeAuditWebUIPresenter
 
     let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
     let systemCookieHeaderProvider: any SystemCookieHeaderProviding
@@ -249,12 +251,16 @@ final class AppContainer {
             )
             // 中文注释：audit launcher 与正常视频链共用同一 pageLoader/parser/credential 组件，
             // 不建第二套装配（BC-EVIDENCE-076.1）。
+            let videoRuntimeAuditWebUIPresenter: VideoRuntimeAuditWebUIPresenter =
+                VideoRuntimeAuditWebUIPresenter()
+            self.videoRuntimeAuditWebUIPresenter = videoRuntimeAuditWebUIPresenter
             self.videoRuntimeAuditLauncher = VideoRuntimeAuditLauncher(
                 runtimeFactory: VideoSourceRuntimeFactory(
                     pageContentLoader: pageLoader,
                     parser: CoreVideoRuleSourceParser(),
                     credentialProvider: sourceCredentialStore
-                )
+                ),
+                webUIObserver: videoRuntimeAuditWebUIPresenter
             )
             let protectedResourceLoader: ReaderProtectedResourceLoader = ReaderProtectedResourceLoader(
                 legacyLoader: ProtectedResourceLoader(

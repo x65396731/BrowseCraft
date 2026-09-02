@@ -52,7 +52,10 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
     private var embedProbeTask: Task<Void, Never>?
     private var embedProbeCompletedURL: URL?
 
-    init(request: VideoWebPlayerRequest) {
+    init(
+        request: VideoWebPlayerRequest,
+        auditMediaEventHandler: VideoRuntimeAuditMediaEventHandler? = nil
+    ) {
         let configuration: WKWebViewConfiguration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
         configuration.allowsInlineMediaPlayback = true
@@ -62,6 +65,11 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
         // 中文注释：首个文档必须在 WKWebView 创建时就采用移动内容模式；只在导航
         // delegate 中修改偏好会晚于部分站点的 viewport 初始化，导致桌面宽度被裁切。
         configuration.defaultWebpagePreferences.preferredContentMode = .mobile
+        // 中文注释：BC-EVIDENCE-077.2——只有 audit 模式才注入 playing 观察脚本与消息通道；
+        // 正常播放的 configuration 与本改动前逐字节相同。
+        if let auditMediaEventHandler: VideoRuntimeAuditMediaEventHandler {
+            auditMediaEventHandler.attach(to: configuration.userContentController)
+        }
         self.configuration = configuration
         self.initialHost = request.url.host?.lowercased()
         super.init()

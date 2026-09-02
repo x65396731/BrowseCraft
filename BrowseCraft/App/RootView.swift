@@ -17,6 +17,7 @@ struct RootView: View {
     private let libraryContentViewModelFactory: LibraryContentViewModelFactory
     private let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
     private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
+    private let videoRuntimeAuditWebUIPresenter: VideoRuntimeAuditWebUIPresenter
     @StateObject private var sourcesViewModel: SourcesViewModel
     @StateObject private var favoritesViewModel: FavoritesViewModel
     @StateObject private var libraryViewModel: LibraryViewModel
@@ -32,6 +33,7 @@ struct RootView: View {
 
         self.browserRequestHeaderProvider = container.browserRequestHeaderProvider
         self.systemCookieHeaderProvider = container.systemCookieHeaderProvider
+        self.videoRuntimeAuditWebUIPresenter = container.videoRuntimeAuditWebUIPresenter
         self.libraryContentViewModelFactory = container.makeLibraryContentViewModelFactory()
         _sourcesViewModel = StateObject(wrappedValue: sourcesViewModel)
         _favoritesViewModel = StateObject(wrappedValue: container.makeFavoritesViewModel())
@@ -70,6 +72,11 @@ struct RootView: View {
                 .transition(.opacity)
                 .zIndex(1)
             }
+
+            // 中文注释：BC-EVIDENCE-077.6——显式 runtime audit 的前台 WebUI 覆盖层位于启动动画之上；
+            // 无 audit session 时不渲染。
+            VideoRuntimeAuditWebUIOverlay(presenter: self.videoRuntimeAuditWebUIPresenter)
+                .zIndex(2)
         }
         .environment(\.browserRequestHeaderProvider, self.browserRequestHeaderProvider)
         .environment(\.systemCookieHeaderProvider, self.systemCookieHeaderProvider)
