@@ -33,7 +33,8 @@ packages:
     path: ../BrowseCraftAPIKit
   KSPlayer:
     url: https://github.com/kingslay/KSPlayer.git
-    branch: main
+    # 中文注释：KSPlayer 不打 tag，锁定到具体 commit；升级时改这里并同步 Package.resolved。
+    revision: 10a40a1c0001d75307ad5922d1d1bc0cb01c89b4
   WebUI:
     url: https://github.com/cybozu/WebUI.git
     exactVersion: 4.4.0

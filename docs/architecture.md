@@ -20,4 +20,6 @@ Database schema evolves only through `Infrastructure/Database/Migrations/AppData
 
 The explicit video runtime audit (`Application/Runtime/Video/Audit`, the `VideoRuntimeAuditWebUIPresenter` overlay and the WebKit media-event handler in `Features/Library/Video/Player`) compiles only in Debug; Release and TestFlight builds contain none of it. The evidence value types (`VideoRuntimeEvidenceV2`, `VideoRuntimeEvidenceFingerprint`) stay in every build because the playback loader uses them.
 
+Third-party dependencies are locked in two files that are both committed: `Podfile.lock` for CocoaPods and `BrowseCraft.xcworkspace/xcshareddata/swiftpm/Package.resolved` for SwiftPM (the rest of the generated workspace stays ignored). `project.yml` pins KSPlayer to a specific commit because that repository publishes no tags; upgrading it means changing the `revision` there and letting Xcode rewrite `Package.resolved`. `BrowseCraftCore` and `BrowseCraftAPIKit` are still path dependencies on sibling checkouts and are not versioned yet.
+
 `BrowseCraftCore` remains the rule-semantics package. SwiftSoup is confined to its explicitly named DOM/discovery adapters; RSS and rule-loading paths must continue to use their boundary protocols and must not import SwiftSoup.
