@@ -76,12 +76,24 @@ final class VideoGenerationPreflightArchiveFixtureTests: XCTestCase {
     private final class FactsBox: @unchecked Sendable {
         private let lock = NSLock()
         private var text: String = "-"
+        private var groups: String = ""
 
-        func record(_ assessment: SourceListFamilyAssessment) {
+        func record(_ input: SourceListFamilyAssessmentInput, _ assessment: SourceListFamilyAssessment) {
             var codes: [String: Int] = [:]
             for fact in assessment.unresolvedFacts {
                 codes["\(fact.code)", default: 0] += 1
             }
+            // 入口页每个内容组：区域 / 发布 / 集合 / 成员数 / 有图数 / 一跳与 detail 观测数 / 指向它的事实码。
+            let entry = input.inputObservation
+            var groupLines: [String] = []
+            for group in entry.groups where group.region == .content && group.nestedGroupIDs.isEmpty {
+                let oneHop = input.oneHopObservations.filter { $0.parentOwnerID == group.ownerID }.count
+                let details = input.detailObservations.filter { $0.parentOwnerID == group.ownerID }.count
+                let factCodes = assessment.unresolvedFacts.filter { $0.ownerID == group.ownerID && $0.documentIdentity == entry.documentIdentity }
+                    .reduce(into: [String: Int]()) { $0["\($1.code)", default: 0] += 1 }
+                groupLines.append("      group \(group.id.suffix(8)) pub=\(group.canOwnPublicationItems ? 1 : 0) col=\(group.canOwnCollectionChildren ? 1 : 0) n=\(group.members.count) img=\(group.members.filter(\.hasImage).count) oneHop=\(oneHop) detail=\(details) facts=\(factCodes) e.g. \(group.members.first?.targetURL?.path ?? "-")")
+            }
+            self.lock.lock(); self.groups = groupLines.joined(separator: "\n"); self.lock.unlock()
             let facts = assessment.entryShapeFacts
             let families = assessment.families.map { family in
                 "\(family.familyID.suffix(6)):\(family.coveredPublicationUnitIDs.count)"
@@ -102,7 +114,7 @@ final class VideoGenerationPreflightArchiveFixtureTests: XCTestCase {
         func summary() -> String {
             self.lock.lock()
             defer { self.lock.unlock() }
-            return self.text
+            return self.text + "\n" + self.groups
         }
     }
 
@@ -129,6 +141,20 @@ final class VideoGenerationPreflightArchiveFixtureTests: XCTestCase {
         return SourceListDetailShapePolicy(rawValue: raw) ?? .legacy
     }
 
+    /// 测量开关：`TEST_RUNNER_PREFLIGHT_OVERLAP=recordOnly`（子项 1）。
+    private static var overlapPolicy: SourceListOverlapPolicy {
+        let raw: String = ProcessInfo.processInfo.environment["PREFLIGHT_OVERLAP"] ?? "legacy"
+        return SourceListOverlapPolicy(rawValue: raw) ?? .legacy
+    }
+
+    private static var publicationOwnerPolicy: SourceListPublicationOwnerPolicy {
+        SourceListPublicationOwnerPolicy(rawValue: ProcessInfo.processInfo.environment["PREFLIGHT_PUBLICATION_OWNER"] ?? "legacy") ?? .legacy
+    }
+
+    private static var chromePolicy: SourceListChromePolicy {
+        SourceListChromePolicy(rawValue: ProcessInfo.processInfo.environment["PREFLIGHT_CHROME"] ?? "legacy") ?? .legacy
+    }
+
     private static let fixtureSites: [String] = [
         "site-a", "site-b", "site-c", "site-d", "site-e", "site-f-films", "site-f-home"
     ]
@@ -149,10 +175,10 @@ final class VideoGenerationPreflightArchiveFixtureTests: XCTestCase {
                 publicURLPolicy: SameHostPolicy(),
                 httpLoader: loader,
                 renderedLoader: RenderedUnavailable(),
-                structureObserver: DefaultSourceListStructureObserver(detailShapePolicy: Self.detailShapePolicy),
-                familyAssessor: DefaultSourceListFamilyAssessor(),
-                assessmentObserver: { assessment in
-                    factsBox.record(assessment)
+                structureObserver: DefaultSourceListStructureObserver(detailShapePolicy: Self.detailShapePolicy, overlapPolicy: Self.overlapPolicy, publicationOwnerPolicy: Self.publicationOwnerPolicy),
+                familyAssessor: DefaultSourceListFamilyAssessor(chromePolicy: Self.chromePolicy),
+                assessmentObserver: { input, assessment in
+                    factsBox.record(input, assessment)
                 }
             )
             let result: VideoGenerationInputPreflight = try await useCase.execute(
@@ -191,7 +217,7 @@ final class VideoGenerationPreflightArchiveFixtureTests: XCTestCase {
             }
         }
         // 中文注释：整份报告总是打印，供归因；只有与验收矩阵不符的站计为失败。
-        print("PreflightArchiveFixtureReport policy=\(Self.detailShapePolicy.rawValue)\n" + report.joined(separator: "\n"))
+        print("PreflightArchiveFixtureReport policy=\(Self.detailShapePolicy.rawValue) overlap=\(Self.overlapPolicy.rawValue) pub=\(Self.publicationOwnerPolicy.rawValue) chrome=\(Self.chromePolicy.rawValue)\n" + report.joined(separator: "\n"))
         XCTAssertTrue(failures.isEmpty, "与 §13.15 预期不符：\n" + failures.joined(separator: "\n"))
     }
 

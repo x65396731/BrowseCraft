@@ -56,7 +56,7 @@ struct AssessVideoGenerationInputUseCase: Sendable {
     private let samplingPolicy: VideoGenerationInputSamplingPolicy
     private let identityGenerator: @Sendable () -> String
     /// 中文注释：只供特征化测试读取归约事实（fact code 直方图），不参与判定、不进产物。
-    private let assessmentObserver: (@Sendable (SourceListFamilyAssessment) -> Void)?
+    private let assessmentObserver: (@Sendable (SourceListFamilyAssessmentInput, SourceListFamilyAssessment) -> Void)?
 
     init(
         normalizer: VideoGenerationInputURLNormalizer = VideoGenerationInputURLNormalizer(),
@@ -71,7 +71,7 @@ struct AssessVideoGenerationInputUseCase: Sendable {
         reducer: VideoGenerationInputReducer = VideoGenerationInputReducer(),
         samplingPolicy: VideoGenerationInputSamplingPolicy = VideoGenerationInputSamplingPolicy(),
         identityGenerator: @escaping @Sendable () -> String = { UUID().uuidString },
-        assessmentObserver: (@Sendable (SourceListFamilyAssessment) -> Void)? = nil
+        assessmentObserver: (@Sendable (SourceListFamilyAssessmentInput, SourceListFamilyAssessment) -> Void)? = nil
     ) {
         self.assessmentObserver = assessmentObserver
         self.normalizer = normalizer
@@ -373,15 +373,14 @@ struct AssessVideoGenerationInputUseCase: Sendable {
         }
 
         await progress?(.reducingResult)
-        let assessment: SourceListFamilyAssessment = self.familyAssessor.assess(
-            SourceListFamilyAssessmentInput(
-                inputObservation: inputObservation,
-                oneHopObservations: oneHopObservations,
-                detailObservations: detailObservations,
-                missingObservations: missingObservations
-            )
+        let assessmentInput: SourceListFamilyAssessmentInput = SourceListFamilyAssessmentInput(
+            inputObservation: inputObservation,
+            oneHopObservations: oneHopObservations,
+            detailObservations: detailObservations,
+            missingObservations: missingObservations
         )
-        self.assessmentObserver?(assessment)
+        let assessment: SourceListFamilyAssessment = self.familyAssessor.assess(assessmentInput)
+        self.assessmentObserver?(assessmentInput, assessment)
         let entryShape: VideoGenerationEntryShape = self.capabilityPolicy.entryShape(
             from: assessment
         )
