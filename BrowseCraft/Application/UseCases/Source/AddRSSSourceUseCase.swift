@@ -1,6 +1,7 @@
 import Foundation
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftRuntime
 
 // 中文注释：AddRSSSourceUseCase 负责把公开 RSS feed 保存为 rss-backed Source，不处理账号或凭据。
 struct AddRSSSourceResult {

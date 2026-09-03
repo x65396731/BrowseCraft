@@ -3,15 +3,15 @@ import BrowseCraftCore
 import BrowseCraftDomain
 
 // 中文注释：RSSSourceRuntime 是 RSS feed 的独立 SourceRuntime，不复用 SiteRule 解析 DSL。
-struct RSSSourceRuntime: SourceRuntime, SourceDetailRuntime {
-    let definition: SourceDefinition
+public struct RSSSourceRuntime: SourceRuntime, SourceDetailRuntime {
+    public let definition: SourceDefinition
 
     private let feedLoader: any RSSFeedLoading
     private let pageContentLoader: PageContentLoader?
     private let detailParser: any BrowseCraftCore.RSSDetailParsing
     private let mediaClassifier: RSSMediaClassifier = RSSMediaClassifier()
 
-    init(
+    public init(
         definition: SourceDefinition,
         feedLoader: any RSSFeedLoading,
         pageContentLoader: PageContentLoader? = nil,
@@ -23,7 +23,7 @@ struct RSSSourceRuntime: SourceRuntime, SourceDetailRuntime {
         self.detailParser = detailParser
     }
 
-    var capabilities: SourceRuntimeCapabilities {
+    public var capabilities: SourceRuntimeCapabilities {
         let supportsDetail: Bool = self.pageContentLoader != nil
         var limitations: [SourceRuntimeCapabilityLimitation] = [
             self.limitation(.search, "RSS MVP does not support search."),
@@ -54,7 +54,7 @@ struct RSSSourceRuntime: SourceRuntime, SourceDetailRuntime {
         )
     }
 
-    func loadList(_ input: SourceListInput) async throws -> SourceListOutput {
+    public func loadList(_ input: SourceListInput) async throws -> SourceListOutput {
         try self.validateSource(input.context)
 
         guard let rssDefinition: RSSSourceDefinition = self.definition.rss else {
@@ -82,7 +82,7 @@ struct RSSSourceRuntime: SourceRuntime, SourceDetailRuntime {
         }
         let maxLatestTextLength: Int = latestTextLengths.max() ?? 0
         let firstLatestTextLength: Int = latestTextLengths.first ?? 0
-        AppDebugLog.write(
+        RuleRuntimeDebugLog.shared.write(
             "[BrowseCraftRSS] runtime.loadList source=\(self.definition.id) " +
             "feedTitle=\(feed.title ?? "nil") " +
             "feedItems=\(feed.items.count) " +
@@ -104,7 +104,7 @@ struct RSSSourceRuntime: SourceRuntime, SourceDetailRuntime {
         )
     }
 
-    func loadDetail(_ input: SourceDetailInput) async throws -> SourceDetailOutput {
+    public func loadDetail(_ input: SourceDetailInput) async throws -> SourceDetailOutput {
         try self.validateSource(input.context)
         guard let pageContentLoader: PageContentLoader = self.pageContentLoader else {
             throw SourceRuntimeError.unsupported(.custom("RSS detail page loader is not connected."))

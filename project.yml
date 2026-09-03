@@ -79,6 +79,28 @@ targets:
         TestFlight:
           DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
 
+  BrowseCraftRuntime:
+    type: framework
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: BrowseCraftRuntime
+    dependencies:
+      - target: BrowseCraftDomain
+      - package: BrowseCraftCore
+        product: BrowseCraftCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.xiefei.BrowseCraftRuntime
+        GENERATE_INFOPLIST_FILE: YES
+      configs:
+        Debug:
+          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+        Release:
+          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+        TestFlight:
+          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+
   BrowseCraft:
     type: application
     platform: iOS
@@ -89,6 +111,7 @@ targets:
           - "**/*.md"
     dependencies:
       - target: BrowseCraftDomain
+      - target: BrowseCraftRuntime
       - package: BrowseCraftCore
         product: BrowseCraftCore
       - package: BrowseCraftAPIKit
@@ -207,6 +230,7 @@ targets:
     dependencies:
       - target: BrowseCraft
       - target: BrowseCraftDomain
+      - target: BrowseCraftRuntime
       - package: BrowseCraftCore
         product: BrowseCraftCore
       - package: GRDB

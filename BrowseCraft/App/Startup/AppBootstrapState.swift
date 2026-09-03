@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import Foundation
 
 enum AppBootstrapState {
@@ -9,6 +10,12 @@ enum AppBootstrapState {
     static func bootstrap(
         loader: AppBootstrapLoader = AppBootstrapLoader()
     ) async -> AppBootstrapState {
+        // 中文注释：内核/runtime 的调试日志经 sink 汇入 App 既有的 AppDebugLog，
+        // 让包内代码不必依赖 App 的日志分类。
+        RuleRuntimeDebugLog.shared.install { message in
+            AppDebugLog.write(message)
+        }
+
         do {
             let dependencies: AppBootstrapDependencies = try await loader.load()
             return .ready(try AppContainer(bootstrap: dependencies))

@@ -3,12 +3,12 @@ import BrowseCraftCore
 import BrowseCraftDomain
 
 // 中文注释：RSSSourceRuntimeFactory 只装配 RSS/Atom runtime，不依赖漫画规则或 SwiftSoup。
-struct RSSSourceRuntimeFactory {
+public struct RSSSourceRuntimeFactory {
     private let pageContentLoader: PageContentLoader
     private let pageDataLoader: PageDataLoader
     private let definitionMapper: SourceDefinitionMapper
 
-    init(
+    public init(
         pageContentLoader: PageContentLoader,
         pageDataLoader: PageDataLoader,
         definitionMapper: SourceDefinitionMapper = SourceDefinitionMapper()
@@ -18,7 +18,7 @@ struct RSSSourceRuntimeFactory {
         self.definitionMapper = definitionMapper
     }
 
-    func makeRuntime(source: Source) throws -> RSSSourceRuntime {
+    public func makeRuntime(source: Source) throws -> RSSSourceRuntime {
         guard case .rss = source.configuration else {
             throw SourceRuntimeError.invalidInput("RSS runtime requires an RSS source configuration.")
         }

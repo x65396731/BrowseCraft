@@ -3,6 +3,7 @@ import Testing
 import BrowseCraftCore
 @testable import BrowseCraft
 import BrowseCraftDomain
+import BrowseCraftRuntime
 
 // 中文注释：AddRSSSourceUseCaseTests 固定 P4.9.5 RSS Source 保存入口和公开 feed 边界。
 struct AddRSSSourceUseCaseTests {

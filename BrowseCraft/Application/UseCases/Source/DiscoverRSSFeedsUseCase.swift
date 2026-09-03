@@ -1,4 +1,6 @@
 import BrowseCraftCore
+import BrowseCraftDomain
+import BrowseCraftRuntime
 import Foundation
 
 struct DiscoverRSSFeedsInput {

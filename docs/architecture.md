@@ -12,7 +12,8 @@ interpret a rule, and who may touch the network.
 | `BrowseCraft` | app target | ~62k lines | Everything in §2 |
 | `BrowseCraftCore` | sibling SwiftPM package | ~29k lines | Rule models, validation, resolved graphs, deterministic parsing |
 | `BrowseCraftAPIKit` | sibling SwiftPM package | ~1.3k lines | The BrowseCraft backend contract (endpoints, DTOs, transport) |
-| `BrowseCraftDomain` | in-repo framework | ~1.2k lines | Domain kernel: the values and identifiers shared by the app and the rule runtime |
+| `BrowseCraftDomain` | in-repo framework | ~1.6k lines | Domain kernel: values, ports and diagnostics shared by the app and the rule runtime |
+| `BrowseCraftRuntime` | in-repo framework | ~0.6k lines | The rule runtime; RSS today, Comic and Video to follow |
 
 **Core's rule models are this app's domain model.** `SiteRule`, `VideoSiteRule`, `ListContext`,
 `RequestConfig` and the resolved graphs are used directly by `Domain`, `Application` and
@@ -55,6 +56,11 @@ Dependency arrows point inward. Nothing below may reference anything above it.
   preflight values, and `AppUserIdentity.localDefaultID`.
 - **Ports** (`BrowseCraftDomain/Ports`) — the contracts the runtime consumes and the app
   implements: content and data loading, credentials, cryptography, request headers.
+- **Diagnostics** (`BrowseCraftDomain/Diagnostics`) — `RuleExecutionStage`, `RuleExecutionError`,
+  and `RuleRuntimeDebugLog`, whose sink the app installs at startup so packaged code never
+  depends on the app's OSLog categories. `RuleExecutionErrorClassifier` (user-facing messages and
+  logging) stays in the app.
+- **Mapping** — `SourceDefinitionMapper`, which both the runtime and the app's use cases need.
 
 It depends on `BrowseCraftCore` (a `Source`'s configuration embeds a rule) and on nothing else.
 
@@ -64,9 +70,10 @@ the runtime need it**, not merely because it feels domain-ish. Entities that onl
 
 ### The rule runtime
 
-`Application/Runtime` (15.1k lines: Video 8.1k, Comic 5.5k, RSS 0.6k, Common 0.9k) turns a
-resolved rule plus fetched bytes into domain values. It is the largest single thing in the app and
-is being extracted into its own package in stages; the domain kernel above was the first stage.
+The rule runtime turns a resolved rule plus fetched bytes into domain values. It is being moved
+into `BrowseCraftRuntime` in stages: the domain kernel was the first, RSS the second. What remains
+in `Application/Runtime` is Comic (5.5k), Video (8.1k, including the Debug-only audit) and Common
+(0.8k); `SourceRuntimeFactory` moves last because it wires all three.
 It already imports nothing but Foundation, `BrowseCraftCore` and `BrowseCraftDomain`, and its
 collaborators (`PageContentLoader`, `SourceCredentialProviding`, …) are Foundation-only protocols.
 Slot-limit decisions are not runtime semantics: `SourceRuntimeFactory` takes an injected
@@ -171,10 +178,10 @@ occur for them.
   it is at least visible, but the UI layer reading `SiteRule` directly means a rule-format change
   can ripple into views. Narrowing this to presentation values resolved in `Application` is worth
   doing incrementally; it is not a blocker for anything.
-- **The runtime is still inside the app target.** The remaining stages are: move the ports it
-  needs, inject logging instead of calling `AppLog`/`RuleExecutionLogger` statically (44 sites),
-  then move RSS, Comic and Video, with `SourceRuntimeFactory` last. 67 of the runtime's 159 types
-  are referenced from outside it and will need `public`.
+- **Comic and Video are still inside the app target.** Remaining stages: replace the ~43 static
+  `AppDebugLog`/`RuleExecutionLogger` calls in those runtimes with the injected sink, then move
+  Comic, then Video and `SourceRuntimeFactory`. Types referenced from outside the runtime need
+  `public` and, for structs, an explicit `public init`.
 - **Core and APIKit are unversioned path dependencies** (see §1).
 - **`AppContainer` changes on nearly every feature** — it constructs ~40 objects in one `init` and
   is the most-churned file in the repo. Splitting it into identity / sync / runtime sub-containers

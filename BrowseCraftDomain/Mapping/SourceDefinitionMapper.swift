@@ -1,10 +1,11 @@
 import Foundation
 import BrowseCraftCore
-import BrowseCraftDomain
 
 // 中文注释：SourceDefinitionMapper 是 runtime-neutral 映射边界；具体执行配置仍留在 SourceConfiguration。
-struct SourceDefinitionMapper {
-    func definition(from source: Source) -> SourceDefinition {
+public struct SourceDefinitionMapper {
+    public init() {}
+
+    public func definition(from source: Source) -> SourceDefinition {
         return self.definition(
             id: source.id,
             name: source.name,
@@ -15,7 +16,7 @@ struct SourceDefinitionMapper {
         )
     }
 
-    func definition(
+    public func definition(
         id: String,
         name: String,
         baseURL: String,

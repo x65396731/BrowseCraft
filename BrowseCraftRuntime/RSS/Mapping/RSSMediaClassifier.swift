@@ -1,9 +1,12 @@
+import BrowseCraftCore
 import BrowseCraftDomain
 import Foundation
 
 // 中文注释：RSSMediaClassifier 在 RSS 映射边界内收敛标准媒体字段与少量已知播放页链接分类。
-struct RSSMediaClassifier {
-    func resolvedMedia(
+public struct RSSMediaClassifier {
+    public init() {}
+
+    public func resolvedMedia(
         feedMedia: RSSContentPayload.Media?,
         link: URL?,
         coverURL: URL?
@@ -50,7 +53,7 @@ struct RSSMediaClassifier {
         return nil
     }
 
-    static func directMediaKind(mimeType: String?, url: URL?) -> RSSContentPayload.MediaKind? {
+    public static func directMediaKind(mimeType: String?, url: URL?) -> RSSContentPayload.MediaKind? {
         let normalizedMimeType: String = mimeType?.lowercased() ?? ""
         if normalizedMimeType.hasPrefix("audio/") {
             return .audio
@@ -66,7 +69,7 @@ struct RSSMediaClassifier {
         return Self.directMediaKind(for: url)
     }
 
-    static func directMediaKind(for url: URL) -> RSSContentPayload.MediaKind? {
+    public static func directMediaKind(for url: URL) -> RSSContentPayload.MediaKind? {
         let pathExtension: String = url.pathExtension.lowercased()
         if Self.audioExtensions.contains(pathExtension) {
             return .audio
@@ -78,7 +81,7 @@ struct RSSMediaClassifier {
         return nil
     }
 
-    static func imageKind(mimeType: String?, url: URL?) -> Bool {
+    public static func imageKind(mimeType: String?, url: URL?) -> Bool {
         let normalizedMimeType: String = mimeType?.lowercased() ?? ""
         if normalizedMimeType.hasPrefix("image/") {
             return true
@@ -91,7 +94,7 @@ struct RSSMediaClassifier {
         return Self.imageExtensions.contains(url.pathExtension.lowercased())
     }
 
-    static func mimeType(for url: URL) -> String? {
+    public static func mimeType(for url: URL) -> String? {
         switch url.pathExtension.lowercased() {
         case "mp3":
             return "audio/mpeg"
@@ -162,12 +165,12 @@ struct RSSMediaClassifier {
 }
 
 private struct KnownPlaybackPagePattern {
-    var hosts: Set<String> = []
-    var hostSuffixes: Set<String> = []
-    var pathPrefixes: [String]
-    var kind: RSSContentPayload.MediaKind
+    public var hosts: Set<String> = []
+    public var hostSuffixes: Set<String> = []
+    public var pathPrefixes: [String]
+    public var kind: RSSContentPayload.MediaKind
 
-    func matches(_ url: URL) -> Bool {
+    public func matches(_ url: URL) -> Bool {
         let host: String = url.host?.lowercased() ?? ""
         let path: String = url.path.lowercased()
 

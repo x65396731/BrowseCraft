@@ -1,6 +1,7 @@
 import Foundation
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftRuntime
 
 // 中文注释：SourceRuntimeFactory 是 SourceConfiguration 到领域 runtime 的唯一分发入口。
 struct SourceRuntimeFactory: SourceRuntimeResolving {

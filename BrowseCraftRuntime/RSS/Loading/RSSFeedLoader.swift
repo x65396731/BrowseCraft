@@ -3,21 +3,21 @@ import BrowseCraftCore
 import BrowseCraftDomain
 
 // 中文注释：RSSFeedLoading 是 RSS runtime 对 feed loader 的最小依赖，便于 runtime 测试替换。
-protocol RSSFeedLoading: Sendable {
+public protocol RSSFeedLoading: Sendable {
     func load(feedURL: URL) async throws -> RSSFeed
 }
 
 /// 中文注释：支持来源上下文的 RSS loader 会把 L3 会话带入 feed 请求。
-protocol ContextualRSSFeedLoading: RSSFeedLoading, Sendable {
+public protocol ContextualRSSFeedLoading: RSSFeedLoading, Sendable {
     func load(feedURL: URL, context: SourceRequestContext) async throws -> RSSFeed
 }
 
 // 中文注释：RSSFeedLoader 只负责加载与响应校验，最终 XML 交给 BrowseCraftCore 解释。
-struct RSSFeedLoader: ContextualRSSFeedLoading {
+public struct RSSFeedLoader: ContextualRSSFeedLoading {
     private let pageDataLoader: PageDataLoader
     private let parser: any BrowseCraftCore.RSSFeedParsing
 
-    init(
+    public init(
         pageDataLoader: PageDataLoader,
         parser: any BrowseCraftCore.RSSFeedParsing = BrowseCraftCore.DefaultRSSFeedParser()
     ) {
@@ -25,11 +25,11 @@ struct RSSFeedLoader: ContextualRSSFeedLoading {
         self.parser = parser
     }
 
-    func load(feedURL: URL) async throws -> RSSFeed {
+    public func load(feedURL: URL) async throws -> RSSFeed {
         return try await self.load(feedURL: feedURL, context: nil)
     }
 
-    func load(feedURL: URL, context: SourceRequestContext) async throws -> RSSFeed {
+    public func load(feedURL: URL, context: SourceRequestContext) async throws -> RSSFeed {
         return try await self.load(feedURL: feedURL, context: Optional(context))
     }
 
@@ -127,10 +127,10 @@ struct RSSFeedLoader: ContextualRSSFeedLoading {
     }
 }
 
-enum RSSFeedLoaderError: LocalizedError, Equatable {
+public enum RSSFeedLoaderError: LocalizedError, Equatable {
     case nonFeedResponse(String)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .nonFeedResponse(let preview):
             return "The feed URL returned a non-RSS page: \(preview)"

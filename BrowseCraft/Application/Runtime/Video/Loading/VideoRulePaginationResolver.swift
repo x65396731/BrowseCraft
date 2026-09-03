@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：VideoRulePaginationResolver 只解释 Video V2 P0 数字 placeholder 分页合同。
 // 它不发起请求、不解析 DOM，也不猜测 next-link/API/cursor 分页。

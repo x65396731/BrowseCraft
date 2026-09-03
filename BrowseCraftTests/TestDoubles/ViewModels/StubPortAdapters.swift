@@ -2,6 +2,7 @@ import Foundation
 import BrowseCraftCore
 @testable import BrowseCraft
 import BrowseCraftDomain
+import BrowseCraftRuntime
 
 // 中文注释：ViewModel 测试不碰网络；这些端口替身要么按脚本返回，要么直接失败。
 struct TestPortError: Error, Equatable {
