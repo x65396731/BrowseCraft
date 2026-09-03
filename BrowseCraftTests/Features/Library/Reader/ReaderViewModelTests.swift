@@ -2,6 +2,7 @@ import Foundation
 import Testing
 import BrowseCraftCore
 @testable import BrowseCraft
+import BrowseCraftDomain
 
 // 中文注释：ReaderViewModel 状态机测试——脚本 reader runtime + 真实 GRDB 阅读历史/广告积分，
 // 覆盖章节加载与历史落库、导航解析、失败、账号访问限制的登录提示与重试、阅读进度保存、广告积分阈值。

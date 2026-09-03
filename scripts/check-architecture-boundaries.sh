@@ -74,8 +74,8 @@ fail_if_imported \
 
 fail_if_imported \
   "$DOMAIN_FRAMEWORK_ROOT" \
-  'UIKit|SwiftUI|StoreKit|GRDB|Alamofire|Nuke|SwiftSoup|BrowseCraftAPIKit|BrowseCraftCore' \
-  'BrowseCraftDomain must remain dependency-free beyond Foundation.'
+  'UIKit|SwiftUI|StoreKit|GRDB|Alamofire|Nuke|SwiftSoup|BrowseCraftAPIKit|WebKit|AVFoundation|CloudKit|Combine' \
+  'BrowseCraftDomain may depend only on Foundation and BrowseCraftCore.'
 
 fail_if_imported \
   "$APP_ROOT/Application" \

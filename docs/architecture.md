@@ -12,7 +12,7 @@ interpret a rule, and who may touch the network.
 | `BrowseCraft` | app target | ~62k lines | Everything in §2 |
 | `BrowseCraftCore` | sibling SwiftPM package | ~29k lines | Rule models, validation, resolved graphs, deterministic parsing |
 | `BrowseCraftAPIKit` | sibling SwiftPM package | ~1.3k lines | The BrowseCraft backend contract (endpoints, DTOs, transport) |
-| `BrowseCraftDomain` | in-repo framework | 30 lines | Catalog transport contract, isolated from APIKit at compile time |
+| `BrowseCraftDomain` | in-repo framework | ~1.2k lines | Domain kernel: the values and identifiers shared by the app and the rule runtime |
 
 **Core's rule models are this app's domain model.** `SiteRule`, `VideoSiteRule`, `ListContext`,
 `RequestConfig` and the resolved graphs are used directly by `Domain`, `Application` and
@@ -46,13 +46,27 @@ Dependency arrows point inward. Nothing below may reference anything above it.
 `App/AppContainer.swift` is the only place allowed to assemble concrete adapters, and — besides
 `Infrastructure` — the only place allowed to see `BrowseCraftAPIKit`.
 
+### The domain kernel
+
+`BrowseCraftDomain` holds the domain values that both the app and the rule runtime need:
+`Source` and its configuration, `ContentItem`, `ReaderChapter` and the protected-resource
+references, `ChapterLink`, `URLResolvingService`, the video-generation preflight values, and
+`AppUserIdentity.localDefaultID`. It depends on `BrowseCraftCore` (a `Source`'s configuration
+embeds a rule) and on nothing else.
+
+The rule for what belongs here is narrow: **a type moves into the kernel when both the app and
+the runtime need it**, not merely because it feels domain-ish. Entities that only the app uses —
+`AppUser`, favourites, history, the repository protocols — stay in `BrowseCraft/Domain`.
+
 ### The rule runtime
 
 `Application/Runtime` (15.1k lines: Video 8.1k, Comic 5.5k, RSS 0.6k, Common 0.9k) turns a
 resolved rule plus fetched bytes into domain values. It is the largest single thing in the app and
-a candidate for extraction into its own package: it already imports nothing but Foundation and
-`BrowseCraftCore`, and its collaborators (`PageContentLoader`, `SourceCredentialProviding`, …) are
-Foundation-only protocols.
+is being extracted into its own package in stages; the domain kernel above was the first stage.
+It already imports nothing but Foundation, `BrowseCraftCore` and `BrowseCraftDomain`, and its
+collaborators (`PageContentLoader`, `SourceCredentialProviding`, …) are Foundation-only protocols.
+Slot-limit decisions are not runtime semantics: `SourceRuntimeFactory` takes an injected
+`validateSourceAccess` closure, and its own fallback raises a plain `SourceRuntimeError`.
 
 `SourceRuntime` and its capability protocols are declared in **Core**; the app implements them.
 Contract in the package, implementation in the app — preserve this shape.
@@ -153,9 +167,10 @@ occur for them.
   it is at least visible, but the UI layer reading `SiteRule` directly means a rule-format change
   can ripple into views. Narrowing this to presentation values resolved in `Application` is worth
   doing incrementally; it is not a blocker for anything.
-- **`BrowseCraftDomain` is 30 lines and has not grown since July.** Either migrate stable domain
-  values into it on a schedule, or delete it so it stops implying a compile-time boundary that does
-  not exist.
+- **The runtime is still inside the app target.** The remaining stages are: move the ports it
+  needs, inject logging instead of calling `AppLog`/`RuleExecutionLogger` statically (44 sites),
+  then move RSS, Comic and Video, with `SourceRuntimeFactory` last. 67 of the runtime's 159 types
+  are referenced from outside it and will need `public`.
 - **Core and APIKit are unversioned path dependencies** (see §1).
 - **`AppContainer` changes on nearly every feature** — it constructs ~40 objects in one `init` and
   is the most-churned file in the repo. Splitting it into identity / sync / runtime sub-containers

@@ -64,6 +64,9 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: BrowseCraftDomain
+    dependencies:
+      - package: BrowseCraftCore
+        product: BrowseCraftCore
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.xiefei.BrowseCraftDomain

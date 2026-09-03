@@ -2,6 +2,7 @@ import BrowseCraftCore
 import Foundation
 import XCTest
 @testable import BrowseCraft
+import BrowseCraftDomain
 
 /// 归档形态验收（设计书 §13.15，开发计划 Phase 6）：用 `Resources/PreflightFixtures/<site>/manifest.json`
 /// 描述的匿名文档驱动真实 use case（真实 observer / assessor / reducer），只桩掉网络。

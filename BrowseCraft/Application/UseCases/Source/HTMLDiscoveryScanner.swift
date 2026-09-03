@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import Foundation
 
 // 中文注释：HTMLDiscoveryScanner 只保留 URL、文本和候选过滤等纯 Application 逻辑。

@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import Foundation
 
 // 中文注释：诊断枚举集中定义 Firebase 字段取值，避免散落字符串造成查询口径不一致。

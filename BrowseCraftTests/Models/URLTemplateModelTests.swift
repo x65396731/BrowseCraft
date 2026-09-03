@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import BrowseCraft
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：URL 模板模型测试，覆盖旧字符串 URL 和结构化占位符模板。
 struct URLTemplateModelTests {

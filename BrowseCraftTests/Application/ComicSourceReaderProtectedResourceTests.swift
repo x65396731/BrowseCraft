@@ -2,6 +2,7 @@ import Foundation
 import Testing
 import BrowseCraftCore
 @testable import BrowseCraft
+import BrowseCraftDomain
 
 // 中文注释：ComicSourceReaderProtectedResourceTests 验证漫画 reader 能把 imageAPI 条目映射成受保护图片引用。
 struct ComicSourceReaderProtectedResourceTests {

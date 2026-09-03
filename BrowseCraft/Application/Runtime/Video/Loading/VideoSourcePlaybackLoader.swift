@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：P2-4 playback loader 固定执行 direct media → iframe → 显式 WebUI fallback；不调用 legacy mapper。
 struct VideoSourcePlaybackLoader {

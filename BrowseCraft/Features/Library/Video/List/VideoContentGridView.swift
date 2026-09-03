@@ -1,4 +1,5 @@
 import BrowseCraftCore
+import BrowseCraftDomain
 import SwiftUI
 
 // 中文注释：VideoContentGridView 是 Library 的视频源列表，不复用漫画卡片入口。

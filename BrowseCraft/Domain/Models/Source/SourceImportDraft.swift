@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：SourceImportDraft 表达“添加来源”流程中的临时草稿；runtime 入口只记录 configurationKind。
 struct SourceImportDraft: Codable, Hashable, Sendable {

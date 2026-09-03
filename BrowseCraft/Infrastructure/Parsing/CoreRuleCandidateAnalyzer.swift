@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 /// 中文注释：保留 App 的候选分析端口，确定性 DOM 分析、评分和去重全部委托给 Core。
 final class CoreRuleCandidateAnalyzer: RuleCandidateAnalyzingService {

@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import BrowseCraft
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：P2-2 规则包测试，覆盖 BrowseCraft 自有导入/导出 envelope 与 checksum 边界。
 struct RulePackageUseCaseTests {

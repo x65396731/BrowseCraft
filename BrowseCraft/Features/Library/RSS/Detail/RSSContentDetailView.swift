@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import SwiftUI
 
 // 中文注释：RSSContentDetailView 是 RSS 新闻详情画面。

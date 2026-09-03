@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import SwiftUI
 
 // 中文注释：RSSContentListView 是 RSS 源在 Library 中的独立列表画面。

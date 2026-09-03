@@ -2,6 +2,7 @@ import Foundation
 import GRDB
 import BrowseCraftCore
 @testable import BrowseCraft
+import BrowseCraftDomain
 
 // 中文注释：ViewModel 测试的装配根。持久化走临时 SQLite 上的真实 GRDB 仓储与真实用例，
 // 只有网络/runtime 边界用 ScriptedSourceRuntime 与 Stub 端口替换，

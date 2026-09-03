@@ -2,6 +2,7 @@ import Foundation
 import Testing
 import BrowseCraftCore
 @testable import BrowseCraft
+import BrowseCraftDomain
 
 // 中文注释：LibraryViewModel 状态机测试——真实 GRDB 持久化 + 脚本 runtime，
 // 覆盖首次加载、失败、收藏、状态恢复、Tab 切换和跨页面 source 切换。

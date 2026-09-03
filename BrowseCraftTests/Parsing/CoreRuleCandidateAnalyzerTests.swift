@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import BrowseCraft
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：App 只验证 Source/rule 上下文到 Core Discovery 合同的接线。
 struct CoreRuleCandidateAnalyzerTests {

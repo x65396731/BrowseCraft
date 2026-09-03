@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import SwiftUI
 
 // 中文注释：ReaderView 只负责具体章节阅读；漫画作品信息和章节目录位于 Library/Comic/Detail。

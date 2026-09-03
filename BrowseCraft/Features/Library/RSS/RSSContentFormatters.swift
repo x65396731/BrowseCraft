@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import Foundation
 
 // 中文注释：RSSContentFormatters 放置 RSS 画面层复用的文本和日期格式化逻辑。

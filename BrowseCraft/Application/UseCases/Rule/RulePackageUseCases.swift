@@ -1,4 +1,5 @@
 import BrowseCraftCore
+import BrowseCraftDomain
 import Foundation
 
 // 中文注释：RulePackageUseCases.swift 承载 P2-2 规则导入/导出的自有包格式与编解码边界。

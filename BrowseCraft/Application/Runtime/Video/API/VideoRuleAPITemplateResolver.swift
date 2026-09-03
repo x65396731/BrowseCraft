@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：VideoRuleAPITemplateResolver 只处理视频 API 请求模板、上下文和请求字段替换。
 

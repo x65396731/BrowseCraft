@@ -1,4 +1,5 @@
 import BrowseCraftCore
+import BrowseCraftDomain
 import Foundation
 
 // 中文注释：ResolveReaderSourcePresentationUseCase 是 Reader 展示层边界，不执行 rule runtime。

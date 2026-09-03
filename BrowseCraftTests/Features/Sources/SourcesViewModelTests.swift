@@ -2,6 +2,7 @@ import Foundation
 import Testing
 import BrowseCraftCore
 @testable import BrowseCraft
+import BrowseCraftDomain
 
 // 中文注释：SourcesViewModel 状态机测试——真实 GRDB 持久化 + 脚本 runtime / feed loader，
 // 覆盖启动读取、添加 RSS 源、删除、选源刷新与重试、槽位锁定与替换。

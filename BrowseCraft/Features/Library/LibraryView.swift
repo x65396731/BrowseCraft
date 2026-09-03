@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import SwiftUI
 
 // 中文注释：LibraryView 根据当前 SourceRuntimeKind 选择 RSS、视频或漫画展示层。

@@ -3,6 +3,7 @@ import GRDB
 import Testing
 import BrowseCraftCore
 @testable import BrowseCraft
+import BrowseCraftDomain
 
 struct AccountScopedDatabaseTests {
     @Test func appDatabaseDoesNotSeedLegacyUser() throws {

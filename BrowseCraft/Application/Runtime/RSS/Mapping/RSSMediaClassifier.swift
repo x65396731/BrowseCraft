@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import Foundation
 
 // 中文注释：RSSMediaClassifier 在 RSS 映射边界内收敛标准媒体字段与少量已知播放页链接分类。

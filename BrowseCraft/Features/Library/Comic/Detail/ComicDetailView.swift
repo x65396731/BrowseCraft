@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import SwiftUI
 
 /// 中文注释：漫画详情页展示作品信息和章节目录；只有章节选择后才创建 Reader。

@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 typealias VideoGenerationInputProgressHandler = @MainActor @Sendable (
     VideoGenerationInputPreflightProgress

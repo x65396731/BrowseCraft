@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import Foundation
 
 // 中文注释：BuiltInSource 声明应用随包来源，并为每个来源提供明确 runtime 配置。

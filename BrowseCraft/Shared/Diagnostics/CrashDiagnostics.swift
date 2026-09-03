@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import FirebaseCrashlytics
 import Foundation
 

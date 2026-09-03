@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：SourceRuntimeFactory 是 SourceConfiguration 到领域 runtime 的唯一分发入口。
 struct SourceRuntimeFactory: SourceRuntimeResolving {
@@ -28,8 +29,12 @@ struct SourceRuntimeFactory: SourceRuntimeResolving {
             self.validateSourceAccess {
             try validateSourceAccess(source)
         } else {
+            // 中文注释：槽位额度是 App 的决策，不属于 runtime 语义；组合根注入 validateSourceAccess
+            // 时由它抛出具体错误，这里只表达"该 source 当前不可执行"。
             guard source.accessState == .active else {
-                throw SourceRepositoryError.sourceLockedBySlotLimit
+                throw SourceRuntimeError.unsupported(
+                    .custom("Source \(source.id) is not active.")
+                )
             }
         }
 

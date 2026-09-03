@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 struct ComicSourceRuntimeMapper {
     func contentItem(from item: ContentItem) -> SourceContentItem {

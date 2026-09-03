@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：VideoSourceRuntime 是 P2-6 后唯一视频 runtime，执行 VideoSiteRule V2 的 list/detail/playback 图。
 struct VideoSourceRuntime: SourceRuntime, SourceDetailRuntime, SourceVideoPlaybackRuntime {

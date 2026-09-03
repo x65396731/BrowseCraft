@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 struct ComicDetailMetadataRow: Identifiable, Hashable {
     let label: String

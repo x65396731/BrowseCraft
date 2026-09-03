@@ -2,6 +2,7 @@ import BrowseCraftCore
 import Foundation
 import XCTest
 @testable import BrowseCraft
+import BrowseCraftDomain
 
 /// v3 用例：只采集输入页；三态由 Core 入口页归约决定。
 final class AssessVideoGenerationInputUseCaseTests: XCTestCase {

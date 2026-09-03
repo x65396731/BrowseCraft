@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：正常播放与显式 runtime audit 共用这一份已解析执行输入，不再各自重选规则或合并请求。
 struct VideoPreparedPlaybackExecutionSession {

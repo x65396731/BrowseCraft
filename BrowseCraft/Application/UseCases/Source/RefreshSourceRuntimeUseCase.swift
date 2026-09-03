@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：根据 Source 配置选择对应 runtime，并加载 Sources/Library 页面展示的列表内容。
 struct ListContextTransfer: Sendable {

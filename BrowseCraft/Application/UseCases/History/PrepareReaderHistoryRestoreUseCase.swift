@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import Foundation
 
 struct ReaderHistoryRestorePlan {

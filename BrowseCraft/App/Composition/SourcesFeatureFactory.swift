@@ -1,4 +1,5 @@
 import BrowseCraftCore
+import BrowseCraftDomain
 
 struct SourcesFeatureFactory {
     private let database: AppDatabase

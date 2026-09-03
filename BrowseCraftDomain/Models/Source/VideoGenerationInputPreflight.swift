@@ -1,20 +1,20 @@
 import Foundation
 
-enum VideoGenerationInputPreflightStatus: String, Codable, Hashable, Sendable {
+public enum VideoGenerationInputPreflightStatus: String, Codable, Hashable, Sendable {
     case accepted
     case rejected
     case inconclusive
 }
 
 /// `BC-PREFLIGHT` §7.1（v3）：只看入口页。
-enum VideoGenerationEntryShape: String, Codable, Hashable, Sendable {
+public enum VideoGenerationEntryShape: String, Codable, Hashable, Sendable {
     case directListOwner
     case multipleListFamilies
     case noListFamily
     case ambiguous
 }
 
-enum VideoGenerationInputPreflightReason: String, Codable, Hashable, Sendable {
+public enum VideoGenerationInputPreflightReason: String, Codable, Hashable, Sendable {
     case multipleIndependentListFamilies
     case noExecutableListFamily
     case requiredCapabilityUnsupported
@@ -25,14 +25,14 @@ enum VideoGenerationInputPreflightReason: String, Codable, Hashable, Sendable {
     case preflightIsolationUnavailable
 }
 
-struct VideoGenerationInputPreflightAudit: Codable, Hashable, Sendable {
-    let inputAcquisitionCount: Int
-    let publicationGroupCount: Int
-    let listCount: Int
-    let familyCount: Int
-    let scanTruncated: Bool
+public struct VideoGenerationInputPreflightAudit: Codable, Hashable, Sendable {
+    public let inputAcquisitionCount: Int
+    public let publicationGroupCount: Int
+    public let listCount: Int
+    public let familyCount: Int
+    public let scanTruncated: Bool
 
-    init(
+    public init(
         inputAcquisitionCount: Int = 1,
         publicationGroupCount: Int = 0,
         listCount: Int = 0,
@@ -47,25 +47,25 @@ struct VideoGenerationInputPreflightAudit: Codable, Hashable, Sendable {
     }
 }
 
-struct VideoGenerationInputPreflight: Codable, Hashable, Sendable {
+public struct VideoGenerationInputPreflight: Codable, Hashable, Sendable {
     /// `BC-PREFLIGHT-012/013`：v3 = 入口页单 family 判定（用户 2026-09-03 裁决）。
-    static let currentSchemaVersion: Int = 3
-    static let currentGeneratorPolicyVersion: String = "video-input-preflight-v3"
+    public static let currentSchemaVersion: Int = 3
+    public static let currentGeneratorPolicyVersion: String = "video-input-preflight-v3"
 
-    let schemaVersion: Int
-    let generatorPolicyVersion: String
-    let status: VideoGenerationInputPreflightStatus
-    let reason: VideoGenerationInputPreflightReason?
-    let evaluatedInputURL: URL
-    let submissionString: String
-    let entryShape: VideoGenerationEntryShape
-    let audit: VideoGenerationInputPreflightAudit
+    public let schemaVersion: Int
+    public let generatorPolicyVersion: String
+    public let status: VideoGenerationInputPreflightStatus
+    public let reason: VideoGenerationInputPreflightReason?
+    public let evaluatedInputURL: URL
+    public let submissionString: String
+    public let entryShape: VideoGenerationEntryShape
+    public let audit: VideoGenerationInputPreflightAudit
 
-    var canSubmit: Bool {
+    public var canSubmit: Bool {
         return self.status == .accepted
     }
 
-    init(
+    public init(
         status: VideoGenerationInputPreflightStatus,
         reason: VideoGenerationInputPreflightReason?,
         evaluatedInputURL: URL,
@@ -85,14 +85,14 @@ struct VideoGenerationInputPreflight: Codable, Hashable, Sendable {
     }
 }
 
-enum VideoGenerationInputPreflightProgress: Equatable, Sendable {
+public enum VideoGenerationInputPreflightProgress: Equatable, Sendable {
     case validatingInput
     case acquiringInput
     case observingEntryShape
     case reducingResult
 }
 
-enum VideoGenerationInputPreflightExecutionIssue: Error, Equatable, Sendable {
+public enum VideoGenerationInputPreflightExecutionIssue: Error, Equatable, Sendable {
     case unsafeURL
     case unsupportedContent
     case requestFailed

@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：AddComicRuleSourceUseCase 是漫画网站规则导入路径；保存结果是 comic runtime 入口。
 

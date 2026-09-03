@@ -1,4 +1,5 @@
 import BrowseCraftCore
+import BrowseCraftDomain
 import Foundation
 
 // 中文注释：RSSReadingHistory 保存用户进入过的 RSS 详情页快照。

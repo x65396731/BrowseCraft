@@ -1,4 +1,5 @@
 import BrowseCraftCore
+import BrowseCraftDomain
 import Combine
 import Foundation
 

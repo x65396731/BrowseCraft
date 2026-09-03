@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import SwiftUI
 
 struct RSSHeroCarouselView: View {

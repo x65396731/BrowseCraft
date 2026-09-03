@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import Foundation
 
 // 中文注释：SourceRepository 提供 Source 的读取、保存和删除入口。

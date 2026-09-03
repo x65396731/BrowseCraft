@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：Video V2 list loader 在 P1-5 按 sourceStrategy 编排 DOM/API；只有合法 empty 可进入下一分支。
 struct VideoSourceListLoader {

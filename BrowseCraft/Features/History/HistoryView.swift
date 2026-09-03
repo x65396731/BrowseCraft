@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import SwiftUI
 
 // 中文注释：HistoryView.swift 属于界面功能层，用于说明本文件承载的核心职责。

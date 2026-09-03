@@ -1,3 +1,5 @@
+import BrowseCraftDomain
+
 struct HistoryFeatureFactory {
     private let database: AppDatabase
     private let activeAppUser: any ActiveAppUserProviding

@@ -1,4 +1,5 @@
 import BrowseCraftCore
+import BrowseCraftDomain
 import Foundation
 
 // 中文注释：ComicSourceSearchLoader 是 ComicSourceRuntime 内部搜索执行链路，只解释 SiteRule-backed source。

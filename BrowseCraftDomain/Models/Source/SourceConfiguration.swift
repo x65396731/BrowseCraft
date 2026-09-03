@@ -4,13 +4,13 @@ import BrowseCraftCore
 // 中文注释：SourceConfiguration 是长期 source config 边界；漫画配置内部仍可由网站规则驱动。
 // 中文注释：各 runtime 配置内含完整规则树。使用间接枚举把关联值放到堆上，
 // 避免 SwiftUI 真机深层布局传递 Source 时为最大关联值申请过大的栈帧。
-indirect enum SourceConfiguration: Codable, Hashable, Sendable {
+public indirect enum SourceConfiguration: Codable, Hashable, Sendable {
     case comic(ComicSourceConfiguration)
     case rss(RSSSourceConfiguration)
     case video(VideoSourceConfiguration)
     case plugin(PluginSourceConfiguration)
 
-    var kind: SourceRuntimeKind {
+    public var kind: SourceRuntimeKind {
         switch self {
         case .comic:
             return .comic
@@ -31,7 +31,7 @@ indirect enum SourceConfiguration: Codable, Hashable, Sendable {
         case plugin
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
         if let configuration: ComicSourceConfiguration = try Self.decodeAssociatedValue(
@@ -87,7 +87,7 @@ indirect enum SourceConfiguration: Codable, Hashable, Sendable {
         )
     }
 
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
 
         switch self {
@@ -125,36 +125,54 @@ indirect enum SourceConfiguration: Codable, Hashable, Sendable {
 }
 
 private struct LegacyAssociatedValue<Value: Decodable>: Decodable {
-    let value: Value
+    public let value: Value
 
     private enum CodingKeys: String, CodingKey {
         case value = "_0"
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.value = try container.decode(Value.self, forKey: .value)
     }
 }
 
-struct ComicSourceConfiguration: Codable, Hashable, Sendable {
-    var rule: SiteRule
-    var schemaVersion: Int
-    var packageMetadata: BrowseCraftCore.RulePackageMetadata?
-    var isEditable: Bool
+public struct ComicSourceConfiguration: Codable, Hashable, Sendable {
+    public init(
+        rule: SiteRule,
+        schemaVersion: Int,
+        packageMetadata: BrowseCraftCore.RulePackageMetadata? = nil,
+        isEditable: Bool
+    ) {
+        self.rule = rule
+        self.schemaVersion = schemaVersion
+        self.packageMetadata = packageMetadata
+        self.isEditable = isEditable
+    }
+
+    public var rule: SiteRule
+    public var schemaVersion: Int
+    public var packageMetadata: BrowseCraftCore.RulePackageMetadata?
+    public var isEditable: Bool
 }
 
-struct RSSSourceConfiguration: Codable, Hashable, Sendable {
-    var definition: RSSSourceDefinition
+public struct RSSSourceConfiguration: Codable, Hashable, Sendable {
+    public init(
+        definition: RSSSourceDefinition
+    ) {
+        self.definition = definition
+    }
+
+    public var definition: RSSSourceDefinition
 }
 
 /// 中文注释：P2-6 后视频来源只有 V2 rule-driven 持久化形态；旧 preset 会在数据库迁移中移除。
-struct VideoSourceConfiguration: Codable, Hashable, Sendable {
-    static let strategy: String = "ruleDriven"
+public struct VideoSourceConfiguration: Codable, Hashable, Sendable {
+    public static let strategy: String = "ruleDriven"
 
-    var rule: VideoSiteRule
+    public var rule: VideoSiteRule
 
-    init(rule: VideoSiteRule) {
+    public init(rule: VideoSiteRule) {
         self.rule = rule
     }
 
@@ -163,7 +181,7 @@ struct VideoSourceConfiguration: Codable, Hashable, Sendable {
         case rule
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container: KeyedDecodingContainer<CodingKeys> = try decoder.container(keyedBy: CodingKeys.self)
         let strategy: String? = try container.decodeIfPresent(
             String.self,
@@ -180,13 +198,19 @@ struct VideoSourceConfiguration: Codable, Hashable, Sendable {
         self.rule = try container.decode(VideoSiteRule.self, forKey: .rule)
     }
 
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         var container: KeyedEncodingContainer<CodingKeys> = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(Self.strategy, forKey: .strategy)
         try container.encode(self.rule, forKey: .rule)
     }
 }
 
-struct PluginSourceConfiguration: Codable, Hashable, Sendable {
-    var definition: PluginSourceDefinition
+public struct PluginSourceConfiguration: Codable, Hashable, Sendable {
+    public init(
+        definition: PluginSourceDefinition
+    ) {
+        self.definition = definition
+    }
+
+    public var definition: PluginSourceDefinition
 }

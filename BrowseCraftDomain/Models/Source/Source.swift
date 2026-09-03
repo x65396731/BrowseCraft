@@ -6,20 +6,20 @@ import Foundation
 /// 中文注释：用户添加的内容源模型。
 /// 中文注释：Source 是 App 持久化实体；执行语义由 SourceRuntime 决定。
 /// 中文注释：Source 的主配置入口是 SourceConfiguration；rule 访问器只用于迁移期兼容旧调用点。
-struct Source: Identifiable, Hashable, Sendable {
-    var userID: String
-    var id: String
-    var name: String
-    var baseURL: String
-    var type: SourceType
-    var configuration: SourceConfiguration
-    var enabled: Bool
-    var createdAt: Date
-    var updatedAt: Date
-    var deletedAt: Date?
+public struct Source: Identifiable, Hashable, Sendable {
+    public var userID: String
+    public var id: String
+    public var name: String
+    public var baseURL: String
+    public var type: SourceType
+    public var configuration: SourceConfiguration
+    public var enabled: Bool
+    public var createdAt: Date
+    public var updatedAt: Date
+    public var deletedAt: Date?
 
-    init(
-        userID: String = AppUser.localDefaultID,
+    public init(
+        userID: String = AppUserIdentity.localDefaultID,
         id: String,
         name: String,
         baseURL: String,
@@ -42,8 +42,8 @@ struct Source: Identifiable, Hashable, Sendable {
         self.deletedAt = deletedAt
     }
 
-    init(
-        userID: String = AppUser.localDefaultID,
+    public init(
+        userID: String = AppUserIdentity.localDefaultID,
         id: String,
         name: String,
         baseURL: String,
@@ -77,19 +77,19 @@ struct Source: Identifiable, Hashable, Sendable {
 }
 
 // 中文注释：SourceSnapshot 保存脱离 sources 表后仍可恢复运行所需的来源配置快照。
-struct SourceSnapshot: Hashable, Codable, Sendable {
-    var userID: String?
-    var id: String
-    var name: String
-    var baseURL: String
-    var type: SourceType
-    var configuration: SourceConfiguration
-    var enabled: Bool
-    var createdAt: Date
-    var updatedAt: Date
-    var deletedAt: Date?
+public struct SourceSnapshot: Hashable, Codable, Sendable {
+    public var userID: String?
+    public var id: String
+    public var name: String
+    public var baseURL: String
+    public var type: SourceType
+    public var configuration: SourceConfiguration
+    public var enabled: Bool
+    public var createdAt: Date
+    public var updatedAt: Date
+    public var deletedAt: Date?
 
-    init(source: Source) {
+    public init(source: Source) {
         self.userID = source.userID
         self.id = source.id
         self.name = source.name
@@ -102,9 +102,9 @@ struct SourceSnapshot: Hashable, Codable, Sendable {
         self.deletedAt = source.deletedAt
     }
 
-    func source() -> Source {
+    public func source() -> Source {
         return Source(
-            userID: self.userID ?? AppUser.localDefaultID,
+            userID: self.userID ?? AppUserIdentity.localDefaultID,
             id: self.id,
             name: self.name,
             baseURL: self.baseURL,
@@ -118,12 +118,12 @@ struct SourceSnapshot: Hashable, Codable, Sendable {
     }
 }
 
-enum SourceAccessState: Equatable, Sendable {
+public enum SourceAccessState: Equatable, Sendable {
     case active
     case lockedBySlotLimit
 }
 
-extension Source {
+public extension Source {
     /// 中文注释：enabled 保存用户的槽位分配；额度锁定是本地派生状态，不单独写入云端。
     var accessState: SourceAccessState {
         return self.isBuiltIn || self.enabled

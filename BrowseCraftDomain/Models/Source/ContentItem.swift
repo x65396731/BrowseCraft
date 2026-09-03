@@ -5,28 +5,56 @@ import BrowseCraftCore
 
 /// 中文注释：BrowseCraft 在 Library 中展示的标准化内容条目。
 /// 中文注释：原始来源可以是网页、RSS、JSON 或 XML，App 在 runtime 边界把 Core 输出投影为此模型。
-struct ContentItem: Identifiable, Hashable, Sendable {
-    var id: String
+public struct ContentItem: Identifiable, Hashable, Sendable {
+    public init(
+        id: String,
+        idCode: String? = nil,
+        sourceId: String,
+        title: String,
+        detailURL: String,
+        coverURL: String? = nil,
+        type: SourceContentKind,
+        latestText: String? = nil,
+        richContent: SourceRichContent? = nil,
+        updatedAt: Date? = nil,
+        listOrder: Int? = nil,
+        listContext: ListContext? = nil
+    ) {
+        self.id = id
+        self.idCode = idCode
+        self.sourceId = sourceId
+        self.title = title
+        self.detailURL = detailURL
+        self.coverURL = coverURL
+        self.type = type
+        self.latestText = latestText
+        self.richContent = richContent
+        self.updatedAt = updatedAt
+        self.listOrder = listOrder
+        self.listContext = listContext
+    }
+
+    public var id: String
     /// 中文注释：源站原始业务 id 必须跨 list → detail/episode 保留，不能从展示 id 反推。
-    var idCode: String? = nil
-    var sourceId: String
-    var title: String
-    var detailURL: String
-    var coverURL: String?
-    var type: SourceContentKind
-    var latestText: String?
+    public var idCode: String? = nil
+    public var sourceId: String
+    public var title: String
+    public var detailURL: String
+    public var coverURL: String?
+    public var type: SourceContentKind
+    public var latestText: String?
     /// 中文注释：来源详情富内容使用 Core 合同传递；latestText 仅保留列表摘要和旧缓存兼容。
-    var richContent: SourceRichContent? = nil
-    var updatedAt: Date?
+    public var richContent: SourceRichContent? = nil
+    public var updatedAt: Date?
     /// 中文注释：记录当前列表快照内的展示顺序，缓存读取时用它恢复规则解析出的网页顺序。
-    var listOrder: Int? = nil
+    public var listOrder: Int? = nil
     /// 中文注释：记录列表项来自哪个页面、Tab 或 Section，后续详情/阅读页可用它缩小解析范围。
-    var listContext: ListContext? = nil
+    public var listContext: ListContext? = nil
 }
 
-typealias RSSContentPayload = SourceRichContent
+public typealias RSSContentPayload = SourceRichContent
 
-extension SourceRichContent {
+public extension SourceRichContent {
     var summaryText: String? {
         if let summary: String = self.summary?.trimmedNonEmpty {
             return summary

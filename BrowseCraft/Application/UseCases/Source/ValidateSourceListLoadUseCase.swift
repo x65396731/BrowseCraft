@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 enum SourceListLoadValidationError: LocalizedError, Equatable {
     case emptyList

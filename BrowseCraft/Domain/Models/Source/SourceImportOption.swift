@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：SourceImportOption 表达添加来源流程中用户可选择的入口方式，并给出默认 runtime kind。
 struct SourceImportOption: Identifiable, Codable, Hashable, Sendable {

@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 @preconcurrency import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：LibraryViewModel 负责 Library 当前 source、runtime 刷新、当前快照和列表状态。
 

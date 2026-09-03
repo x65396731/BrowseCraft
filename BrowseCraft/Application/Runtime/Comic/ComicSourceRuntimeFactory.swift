@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：ComicSourceRuntimeFactory 只组装漫画 SiteRule-backed source 的 runtime 和 loader。
 struct ComicSourceRuntimeFactory {

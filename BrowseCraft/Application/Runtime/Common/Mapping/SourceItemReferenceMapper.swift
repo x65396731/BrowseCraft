@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 /// Maps App navigation state into the Core handoff contract shared by all runtimes.
 struct SourceItemReferenceMapper {

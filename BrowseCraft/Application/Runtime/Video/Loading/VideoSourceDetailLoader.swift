@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：detail loader 先执行 Detail，再按 resolved route 终止、直达 Playback 或继续 Episode；V2 永不调用 legacy mapper。
 struct VideoSourceDetailLoader {

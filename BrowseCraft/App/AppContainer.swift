@@ -2,6 +2,7 @@ import Foundation
 import CloudKit
 import BrowseCraftAPIKit
 import StoreKit
+import BrowseCraftDomain
 
 /// 中文注释：应用 Composition Root，只持有 App 生命周期共享对象并把 Feature 创建委托给明确 Factory。
 @MainActor

@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import SwiftUI
 
 // 中文注释：RSSContentRowView 展示单条 RSS 新闻条目。

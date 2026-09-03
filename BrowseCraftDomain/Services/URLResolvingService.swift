@@ -4,10 +4,10 @@ import Foundation
 // 中文注释：URLResolvingService.swift 属于领域服务协议层，用于说明本文件承载的核心职责。
 
 /// 中文注释：URLResolvingError 是 enum，负责本模块中的对应职责。
-enum URLResolvingError: LocalizedError, Sendable {
+public enum URLResolvingError: LocalizedError, Sendable {
     case invalidURL(String)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .invalidURL(let rawURL):
             return "Invalid URL: \(rawURL)"
@@ -17,7 +17,9 @@ enum URLResolvingError: LocalizedError, Sendable {
 
 /// 中文注释：URL 辅助服务，集中处理相对地址转绝对地址的逻辑。
 /// 中文注释：这样 SwiftUI 和解析器不需要各自重复拼接 URL。
-struct URLResolvingService: Sendable {
+public struct URLResolvingService: Sendable {
+    public init() {}
+
     private static let placeholderPattern: NSRegularExpression? = {
         return try? NSRegularExpression(pattern: "\\{([^{}]+)\\}")
     }()
@@ -29,11 +31,11 @@ struct URLResolvingService: Sendable {
     }()
 
     /// 中文注释：listURL 方法封装当前类型的一段业务或界面行为。
-    func listURL(for source: Source, page: Int) throws -> URL {
+    public func listURL(for source: Source, page: Int) throws -> URL {
         return try self.listURL(for: source, listRule: source.rule.list, page: page)
     }
 
-    func listURL(for source: Source, listRule: ListRule, page: Int) throws -> URL {
+    public func listURL(for source: Source, listRule: ListRule, page: Int) throws -> URL {
         return try self.listURL(
             for: source,
             template: listRule.url,
@@ -42,7 +44,7 @@ struct URLResolvingService: Sendable {
         )
     }
 
-    func listURL(
+    public func listURL(
         for source: Source,
         template: String,
         placeholders: [URLPlaceholderRule]? = nil,
@@ -65,7 +67,7 @@ struct URLResolvingService: Sendable {
         return url
     }
 
-    func searchURL(for source: Source, searchRule: SearchRule, keyword: String, page: Int = 1) throws -> URL {
+    public func searchURL(for source: Source, searchRule: SearchRule, keyword: String, page: Int = 1) throws -> URL {
         if let template = source.rule.urlPatterns?.searchTemplate {
             return try self.searchURL(
                 for: source,
@@ -87,7 +89,7 @@ struct URLResolvingService: Sendable {
         )
     }
 
-    func searchURL(
+    public func searchURL(
         for source: Source,
         template: String,
         placeholders: [URLPlaceholderRule]? = nil,
@@ -127,7 +129,7 @@ struct URLResolvingService: Sendable {
         return url
     }
 
-    func templateURL(
+    public func templateURL(
         for source: Source,
         template: URLTemplateRule,
         page: Int = 1,
@@ -152,7 +154,7 @@ struct URLResolvingService: Sendable {
     }
 
     /// 中文注释：absoluteString 方法封装当前类型的一段业务或界面行为。
-    func absoluteString(_ rawURLString: String, baseURLString: String) -> String {
+    public func absoluteString(_ rawURLString: String, baseURLString: String) -> String {
         if let url: URL = URL(string: rawURLString), url.scheme != nil {
             return rawURLString
         }

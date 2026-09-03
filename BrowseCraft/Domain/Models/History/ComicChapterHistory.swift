@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import Foundation
 
 // 中文注释：ComicChapterHistory 保存用户实际阅读过的漫画章节。

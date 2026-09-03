@@ -1,4 +1,5 @@
 import BrowseCraftCore
+import BrowseCraftDomain
 import Nuke
 import NukeUI
 import SwiftUI

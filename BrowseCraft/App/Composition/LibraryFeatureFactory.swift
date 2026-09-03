@@ -1,3 +1,5 @@
+import BrowseCraftDomain
+
 struct LibraryFeatureFactory {
     private let database: AppDatabase
     private let activeAppUser: any ActiveAppUserProviding

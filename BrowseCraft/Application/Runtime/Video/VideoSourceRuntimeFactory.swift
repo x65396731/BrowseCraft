@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：VideoSourceRuntimeFactory 只装配 VideoSiteRule V2，不持有或推断站点 adapter。
 struct VideoSourceRuntimeFactory {

@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import Foundation
 
 // 中文注释：RuleExecutionError.swift 统一规则执行链路的错误分类，避免 UI 只能显示底层错误字符串。

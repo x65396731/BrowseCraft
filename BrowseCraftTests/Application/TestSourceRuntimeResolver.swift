@@ -1,6 +1,7 @@
 import Foundation
 import BrowseCraftCore
 @testable import BrowseCraft
+import BrowseCraftDomain
 
 // 中文注释：测试专用闭包 resolver，避免生产 Runtime 为测试注入保留第二套分发实现。
 struct TestSourceRuntimeResolver: SourceRuntimeResolving {

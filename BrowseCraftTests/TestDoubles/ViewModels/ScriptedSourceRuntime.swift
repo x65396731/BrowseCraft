@@ -1,6 +1,7 @@
 import Foundation
 import BrowseCraftCore
 @testable import BrowseCraft
+import BrowseCraftDomain
 
 // 中文注释：ViewModel 测试用的可编排 runtime：list / reader 行为由闭包决定，并记录每次输入，
 // 让测试既能断言 ViewModel 状态，也能断言它向 runtime 发出的请求。

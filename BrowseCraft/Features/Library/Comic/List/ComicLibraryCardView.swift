@@ -1,4 +1,5 @@
 import BrowseCraftCore
+import BrowseCraftDomain
 import SwiftUI
 
 // 中文注释：ComicLibraryCardView.swift 属于 Library 漫画展示层，用于展示漫画封面和章节入口。

@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import Combine
 import Foundation
 

@@ -1,4 +1,5 @@
 import BrowseCraftCore
+import BrowseCraftDomain
 import Foundation
 
 // 中文注释：RuleManagementUseCases.swift 承载 P2-1 规则管理的校验、更新和复制用例。

@@ -2,6 +2,7 @@ import Foundation
 import Testing
 import BrowseCraftCore
 @testable import BrowseCraft
+import BrowseCraftDomain
 
 // 中文注释：RSSSourceRuntimeTests 固定 P4.9.3 RSS runtime 的 loadList 映射和能力边界。
 struct RSSSourceRuntimeTests {

@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import SwiftUI
 
 // 中文注释：FavoritesView 是独立收藏页，结构上和 History 页并列。

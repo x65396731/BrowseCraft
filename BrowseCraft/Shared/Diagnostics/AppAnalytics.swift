@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import CryptoKit
 import FirebaseAnalytics
 import Foundation

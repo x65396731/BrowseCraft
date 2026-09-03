@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：SourceImportRecommendation 记录系统对添加来源草稿的推荐；推荐结果以 SourceRuntimeKind 为入口轴。
 struct SourceImportRecommendation: Codable, Hashable, Sendable {

@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import Foundation
 
 // 中文注释：Source 列表读写用例，供来源管理、书架和历史页面读取本地 Source 状态。

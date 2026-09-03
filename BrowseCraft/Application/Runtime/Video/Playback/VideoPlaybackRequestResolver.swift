@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：播放器请求只在真正播放时读取 Cookie；SourceVideoPlaybackReference 仅持久化策略，不持久化登录态值。
 struct VideoPlaybackRequestResolver {

@@ -1,17 +1,17 @@
 import Foundation
 
-struct VideoGenerationInputURL: Codable, Hashable, Sendable {
-    let evaluatedURL: URL
-    let submissionString: String
+public struct VideoGenerationInputURL: Codable, Hashable, Sendable {
+    public let evaluatedURL: URL
+    public let submissionString: String
 
-    init(evaluatedURL: URL, submissionString: String) {
+    public init(evaluatedURL: URL, submissionString: String) {
         precondition(evaluatedURL.absoluteString == submissionString)
         self.evaluatedURL = evaluatedURL
         self.submissionString = submissionString
     }
 }
 
-enum VideoGenerationInputURLValidationError: Error, Equatable, Sendable {
+public enum VideoGenerationInputURLValidationError: Error, Equatable, Sendable {
     case empty
     case invalidURL
     case unsupportedScheme
@@ -19,8 +19,10 @@ enum VideoGenerationInputURLValidationError: Error, Equatable, Sendable {
     case missingHost
 }
 
-struct VideoGenerationInputURLNormalizer: Sendable {
-    func normalize(_ input: String) throws -> VideoGenerationInputURL {
+public struct VideoGenerationInputURLNormalizer: Sendable {
+    public init() {}
+
+    public func normalize(_ input: String) throws -> VideoGenerationInputURL {
         let trimmedInput: String = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmedInput.isEmpty == false else {
             throw VideoGenerationInputURLValidationError.empty

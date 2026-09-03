@@ -1,4 +1,5 @@
 import BrowseCraftCore
+import BrowseCraftDomain
 import Foundation
 
 struct LibraryListStateKey: Hashable, CustomStringConvertible {
