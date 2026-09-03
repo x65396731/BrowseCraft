@@ -123,6 +123,12 @@ final class VideoGenerationPreflightArchiveFixtureTests: XCTestCase {
 
     /// 中文注释：目录名只用 alias，真实主机名不进生产分支（开发计划 Phase 6）；
     /// alias ↔ 站点映射只存在于 fwq `scripts/export_preflight_fixtures.py`。
+    /// 测量开关：`TEST_RUNNER_PREFLIGHT_DETAIL_SHAPE=lineageAware`（章程 2026-09-03 core-detail-document-shape）。
+    private static var detailShapePolicy: SourceListDetailShapePolicy {
+        let raw: String = ProcessInfo.processInfo.environment["PREFLIGHT_DETAIL_SHAPE"] ?? "legacy"
+        return SourceListDetailShapePolicy(rawValue: raw) ?? .legacy
+    }
+
     private static let fixtureSites: [String] = [
         "site-a", "site-b", "site-c", "site-d", "site-e", "site-f-films", "site-f-home"
     ]
@@ -143,7 +149,7 @@ final class VideoGenerationPreflightArchiveFixtureTests: XCTestCase {
                 publicURLPolicy: SameHostPolicy(),
                 httpLoader: loader,
                 renderedLoader: RenderedUnavailable(),
-                structureObserver: DefaultSourceListStructureObserver(),
+                structureObserver: DefaultSourceListStructureObserver(detailShapePolicy: Self.detailShapePolicy),
                 familyAssessor: DefaultSourceListFamilyAssessor(),
                 assessmentObserver: { assessment in
                     factsBox.record(assessment)
@@ -185,7 +191,7 @@ final class VideoGenerationPreflightArchiveFixtureTests: XCTestCase {
             }
         }
         // 中文注释：整份报告总是打印，供归因；只有与验收矩阵不符的站计为失败。
-        print("PreflightArchiveFixtureReport\n" + report.joined(separator: "\n"))
+        print("PreflightArchiveFixtureReport policy=\(Self.detailShapePolicy.rawValue)\n" + report.joined(separator: "\n"))
         XCTAssertTrue(failures.isEmpty, "与 §13.15 预期不符：\n" + failures.joined(separator: "\n"))
     }
 
