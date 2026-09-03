@@ -38,10 +38,11 @@ struct CoverImageView: View {
                 browserRequestHeaderProvider: self.browserRequestHeaderProvider,
                 systemCookieHeaderProvider: self.systemCookieHeaderProvider
                ) {
-                LazyImage(source: request) { state in
+                LazyImage(request: request) { state in
                     if let image = state.image {
                         image
-                            .resizingMode(.aspectFill)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
                     } else if state.error != nil {
                         self.placeholder
                             .onAppear {

@@ -74,12 +74,13 @@ struct ReaderPageImageView: View {
     @ViewBuilder
     private func remoteImage(pageURLString: String) -> some View {
         if let request: ImageRequest = self.makeImageRequest(pageURLString: pageURLString) {
-            LazyImage(source: request) { state in
+            LazyImage(request: request) { state in
                 if let image = state.image {
                     // 中文注释：阅读页按图片真实宽高比排版，避免固定比例把特殊长条页压成窄条。
                     ZStack {
                         image
-                            .resizingMode(.aspectFit)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                     .frame(maxWidth: .infinity)

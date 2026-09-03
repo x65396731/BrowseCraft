@@ -12,7 +12,7 @@ BrowseCraft is an iOS reader app driven by custom source rules.
 
 ## Project Regeneration
 
-Use the project script instead of running `xcodegen generate` and `pod install` manually:
+Dependencies are managed with Swift Package Manager. Regenerate the project after adding, moving or removing source files:
 
 ```sh
 ./scripts/regenerate-project.sh

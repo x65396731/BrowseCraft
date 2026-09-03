@@ -15,19 +15,15 @@ DerivedData/
 **/*.xcresult/
 TestResults/*.md
 
-# XcodeGen generated project
-*.xcodeproj/
-
-# CocoaPods installed dependencies (Podfile.lock is the lock file and is tracked)
-Pods/
-
-# CocoaPods generated workspace; only the SwiftPM lock file inside it is tracked
-BrowseCraft.xcworkspace/*
-!BrowseCraft.xcworkspace/xcshareddata/
-BrowseCraft.xcworkspace/xcshareddata/*
-!BrowseCraft.xcworkspace/xcshareddata/swiftpm/
-BrowseCraft.xcworkspace/xcshareddata/swiftpm/*
-!BrowseCraft.xcworkspace/xcshareddata/swiftpm/Package.resolved
+# XcodeGen writes the project; only the SwiftPM lock file inside it is tracked
+BrowseCraft.xcodeproj/*
+!BrowseCraft.xcodeproj/project.xcworkspace/
+BrowseCraft.xcodeproj/project.xcworkspace/*
+!BrowseCraft.xcodeproj/project.xcworkspace/xcshareddata/
+BrowseCraft.xcodeproj/project.xcworkspace/xcshareddata/*
+!BrowseCraft.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+BrowseCraft.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/*
+!BrowseCraft.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 web-analysis/
 
 # Local production build settings

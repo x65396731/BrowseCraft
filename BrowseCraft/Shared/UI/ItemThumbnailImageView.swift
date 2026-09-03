@@ -30,10 +30,11 @@ struct ItemThumbnailImageView: View {
         Group {
             if let urlString: String = Self.urlCandidate(at: self.candidateIndex, in: urlCandidates),
                let request: ImageRequest = self.thumbnailRequest(urlString: urlString) {
-                LazyImage(source: request) { state in
+                LazyImage(request: request) { state in
                     if let image = state.image {
                         image
-                            .resizingMode(.aspectFill)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
                     } else if state.error != nil {
                         self.placeholder
                             .onAppear {

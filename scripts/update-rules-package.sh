@@ -9,9 +9,7 @@ MODE="update"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-WORKSPACE_PATH="${APP_ROOT}/BrowseCraft.xcworkspace"
 PROJECT_RESOLVED="${APP_ROOT}/BrowseCraft.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
-WORKSPACE_RESOLVED="${APP_ROOT}/BrowseCraft.xcworkspace/xcshareddata/swiftpm/Package.resolved"
 LOCAL_RULES_REPO="${APP_ROOT}/../BrowseCraftRulesKit"
 
 usage() {
@@ -21,8 +19,8 @@ Usage:
   ./scripts/update-rules-package.sh --dry-run
   ./scripts/update-rules-package.sh --check
 
-中文注释：默认模式会更新两处 Package.resolved、执行 package resolve、再执行 pod install。
-中文注释：--dry-run / --check 只检查远端 SHA、本地 RulesKit HEAD 和两处 Package.resolved，不写文件、不跑 xcodebuild、不跑 pod install。
+中文注释：默认模式会更新 Package.resolved 并执行 package resolve；依赖已全部走 SPM，没有 pod install。
+中文注释：--dry-run / --check 只检查远端 SHA、本地 RulesKit HEAD 和 Package.resolved，不写文件、不跑 xcodebuild。
 EOF
 }
 
@@ -68,9 +66,7 @@ if [ "$MODE" = "update" ]; then
   require_command pod
 fi
 
-[ -d "$WORKSPACE_PATH" ] || fail "Workspace not found: $WORKSPACE_PATH"
 [ -f "$PROJECT_RESOLVED" ] || fail "Package.resolved not found: $PROJECT_RESOLVED"
-[ -f "$WORKSPACE_RESOLVED" ] || fail "Package.resolved not found: $WORKSPACE_RESOLVED"
 
 if [ -d "${LOCAL_RULES_REPO}/.git" ]; then
   dirty_status="$(git -C "$LOCAL_RULES_REPO" status --porcelain)"
@@ -98,7 +94,7 @@ fi
 
 log "Target BrowseCraftRulesKit revision: ${target_revision}"
 
-python3 - "$RULES_PACKAGE_IDENTITY" "$RULES_REPO_URL" "$target_revision" "$MODE" "$PROJECT_RESOLVED" "$WORKSPACE_RESOLVED" <<'PY'
+python3 - "$RULES_PACKAGE_IDENTITY" "$RULES_REPO_URL" "$target_revision" "$MODE" "$PROJECT_RESOLVED" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -138,19 +134,19 @@ for resolved_path in resolved_paths:
 PY
 
 if [ "$MODE" = "check" ]; then
-  log "Dry run complete. No files changed. No xcodebuild or pod install was run."
+  log "Dry run complete. No files changed. No xcodebuild was run."
   exit 0
 fi
 
-log "Updated Package.resolved files"
+log "Updated Package.resolved"
 
 xcodebuild \
-  -workspace "$WORKSPACE_PATH" \
+  -project "${APP_ROOT}/BrowseCraft.xcodeproj" \
   -scheme "$SCHEME_NAME" \
   -resolvePackageDependencies \
   -disablePackageRepositoryCache
 
-python3 - "$RULES_PACKAGE_IDENTITY" "$RULES_REPO_URL" "$target_revision" "$PROJECT_RESOLVED" "$WORKSPACE_RESOLVED" <<'PY'
+python3 - "$RULES_PACKAGE_IDENTITY" "$RULES_REPO_URL" "$target_revision" "$PROJECT_RESOLVED" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -177,9 +173,4 @@ PY
 
 log "Verified Package.resolved revision: ${target_revision}"
 
-(
-  cd "$APP_ROOT"
-  env -u GEM_HOME -u GEM_PATH pod install
-)
-
-log "Done. Package updated and pods installed. No build was run."
+log "Done. Package updated. No build was run."

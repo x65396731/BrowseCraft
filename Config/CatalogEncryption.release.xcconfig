@@ -1,3 +1,2 @@
-#include "../Pods/Target Support Files/Pods-BrowseCraft/Pods-BrowseCraft.release.xcconfig"
 BROWSECRAFT_CATALOG_ENCRYPTION_KEYS =
 #include? "CatalogEncryption.release.local.xcconfig"

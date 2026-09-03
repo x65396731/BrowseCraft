@@ -44,6 +44,18 @@ packages:
   Firebase:
     url: https://github.com/firebase/firebase-ios-sdk.git
     from: 12.0.0
+  Alamofire:
+    url: https://github.com/Alamofire/Alamofire.git
+    exactVersion: 5.11.2
+  # 中文注释：6.24.1 的 SPM target 在当前工具链上缺 strcmp 声明（CocoaPods 变体没这问题）；
+  # 6.29.3 显式 import Darwin/string_h 修复，仍在 6.x 内，API 兼容。
+  GRDB:
+    url: https://github.com/groue/GRDB.swift.git
+    exactVersion: 6.29.3
+  # 中文注释：Nuke 12 起 NukeUI 是同一个包内的 target，不再依赖 Gifu。
+  Nuke:
+    url: https://github.com/kean/Nuke.git
+    exactVersion: 12.8.0
 
 targets:
   BrowseCraftDomain:
@@ -92,6 +104,14 @@ targets:
         # 中文注释：应用未申请 ATT/IDFA；使用 Analytics Core，避免链接广告身份
         # 支持后又缺少 IdentitySupport 所产生的启动警告。
         product: FirebaseAnalyticsCore
+      - package: Alamofire
+        product: Alamofire
+      - package: GRDB
+        product: GRDB
+      - package: Nuke
+        product: Nuke
+      - package: Nuke
+        product: NukeUI
     configFiles:
       Debug: Config/CatalogEncryption.debug.xcconfig
       Release: Config/CatalogEncryption.release.xcconfig
@@ -131,11 +151,6 @@ targets:
           DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
           ENABLE_DEBUG_DYLIB: NO
     preBuildScripts:
-      # 中文注释：XcodeGen 重生成后若 pod install 未完成，工程没有 [CP] 阶段，会打出不内嵌 Pod 框架的坏包；先于一切检查。
-      - name: Check Pods Integration
-        basedOnDependencyAnalysis: false
-        script: |
-          "${SRCROOT}/scripts/check-pods-integration.sh"
       - name: Check Architecture Boundaries
         basedOnDependencyAnalysis: false
         script: |
@@ -191,6 +206,10 @@ targets:
       - target: BrowseCraftDomain
       - package: BrowseCraftCore
         product: BrowseCraftCore
+      - package: GRDB
+        product: GRDB
+      - package: Nuke
+        product: Nuke
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: xiefei.BrowseCraftTests
