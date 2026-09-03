@@ -1,6 +1,8 @@
 import Foundation
 import XCTest
 @testable import BrowseCraft
+import BrowseCraftDomain
+import BrowseCraftRuntime
 
 final class VideoPreflightPageClassifierTests: XCTestCase {
     func testScriptOnlyShellRequiresRenderedFallback() {

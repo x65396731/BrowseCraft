@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import BrowseCraft
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：CookieHeaderResolver 测试，确认 RequestConfig 的 Cookie 策略在不依赖真实浏览器状态时也能稳定验证。
 struct CookieHeaderResolverTests {

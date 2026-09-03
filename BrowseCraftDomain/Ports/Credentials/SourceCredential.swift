@@ -1,6 +1,6 @@
 import Foundation
 
-public enum SourceCredentialOrigin: String {
+public enum SourceCredentialOrigin: String, Sendable {
     case webView
     case manual
     case apiLogin
@@ -8,12 +8,12 @@ public enum SourceCredentialOrigin: String {
     case memory
 }
 
-public enum SourceCredentialStorage: String {
+public enum SourceCredentialStorage: String, Sendable {
     case localStorage
     case sessionStorage
 }
 
-public struct SourceCredential {
+public struct SourceCredential: Sendable {
     public let sourceID: String
     public let baseURL: URL?
     public let cookies: [HTTPCookie]

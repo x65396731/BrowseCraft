@@ -3,7 +3,7 @@ import BrowseCraftDomain
 import Foundation
 
 // 中文注释：ComicRuleAPITemplateResolver 只处理漫画 API 请求模板、上下文和请求字段替换。
-public struct ComicRuleAPITemplateResolver {
+public struct ComicRuleAPITemplateResolver: Sendable {
     public init() {}
 
 

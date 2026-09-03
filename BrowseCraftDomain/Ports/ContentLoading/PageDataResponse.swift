@@ -1,6 +1,6 @@
 import Foundation
 
-public struct PageDataResponse {
+public struct PageDataResponse: Sendable {
     public init(
         data: Data,
         finalURL: URL

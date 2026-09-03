@@ -4,7 +4,7 @@ import Foundation
 // 它随规则执行代码留在内核，输出经 RuleRuntimeDebugLog 的 sink 汇入 App 的日志实现。
 
 /// 中文注释：Debug 环境下记录列表、详情、阅读页和图片请求的关键规则命中信息。
-public enum RuleExecutionLogger {
+public enum RuleExecutionLogger: Sendable {
     /// 中文注释：真值是 RuleExecutionStage；保留别名让既有调用点 `RuleExecutionLogger.Stage` 不变。
     public typealias Stage = RuleExecutionStage
 

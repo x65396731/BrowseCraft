@@ -20,7 +20,7 @@ public extension BrowserRequestHeaderProviding {
     }
 }
 
-public struct EmptyBrowserRequestHeaderProvider: BrowserRequestHeaderProviding {
+public struct EmptyBrowserRequestHeaderProvider: BrowserRequestHeaderProviding, Sendable {
     public init() {}
 
     public let userAgent: String = ""

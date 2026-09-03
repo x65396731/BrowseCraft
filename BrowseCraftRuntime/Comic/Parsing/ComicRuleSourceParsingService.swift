@@ -5,7 +5,7 @@ import Foundation
 // 中文注释：ComicRuleSourceParsingService 属于 ComicSourceRuntime 的解析边界，只服务 SiteRule-backed source。
 
 /// 中文注释：漫画规则详情解析的内部标准化元数据；它隔离 DOM/API 字段，不跨越 SourceRuntime 公共边界。
-public struct ComicRuleParsedDetailMetadata: Hashable {
+public struct ComicRuleParsedDetailMetadata: Hashable, Sendable {
     public var idCode: String?
     public var title: String?
     public var coverURL: String?
@@ -58,7 +58,7 @@ public struct ComicRuleParsedDetailMetadata: Hashable {
 }
 
 /// 中文注释：解析 adapter 的完整详情输出；loader 只负责请求和 DOM/API 编排。
-public struct ComicRuleParsedDetail: Hashable {
+public struct ComicRuleParsedDetail: Hashable, Sendable {
     public var metadata: ComicRuleParsedDetailMetadata
     public var chapters: [ChapterLink]
 
@@ -77,7 +77,7 @@ public struct ComicRuleParsedDetail: Hashable {
 }
 
 /// 中文注释：列表/搜索解析结果同时携带 Core 解析出的分页语义，Loader 只负责生成下一次请求。
-public struct ComicRuleParsedListResult: Hashable {
+public struct ComicRuleParsedListResult: Hashable, Sendable {
     public init(
         items: [ContentItem],
         pagination: PaginationResolution? = nil
@@ -162,7 +162,7 @@ public protocol ComicRuleAPIResponseParsingService: Sendable {
 }
 
 /// 中文注释：分页解析结果只描述“下一步可以请求哪里”，不触发自动翻页。
-public struct PaginationResolution: Hashable {
+public struct PaginationResolution: Hashable, Sendable {
     public init(
         currentPage: Int,
         nextPage: Int? = nil,
@@ -181,7 +181,7 @@ public struct PaginationResolution: Hashable {
     public var source: PaginationResolutionSource?
 }
 
-public enum PaginationResolutionSource: String, Hashable {
+public enum PaginationResolutionSource: String, Hashable, Sendable {
     case pagePlaceholder
     case nextPageLink
 }

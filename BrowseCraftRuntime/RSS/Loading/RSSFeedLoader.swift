@@ -13,7 +13,7 @@ public protocol ContextualRSSFeedLoading: RSSFeedLoading, Sendable {
 }
 
 // 中文注释：RSSFeedLoader 只负责加载与响应校验，最终 XML 交给 BrowseCraftCore 解释。
-public struct RSSFeedLoader: ContextualRSSFeedLoading {
+public struct RSSFeedLoader: ContextualRSSFeedLoading, Sendable {
     private let pageDataLoader: PageDataLoader
     private let parser: any BrowseCraftCore.RSSFeedParsing
 
@@ -127,7 +127,7 @@ public struct RSSFeedLoader: ContextualRSSFeedLoading {
     }
 }
 
-public enum RSSFeedLoaderError: LocalizedError, Equatable {
+public enum RSSFeedLoaderError: LocalizedError, Equatable, Sendable {
     case nonFeedResponse(String)
 
     public var errorDescription: String? {

@@ -2,6 +2,7 @@ import Foundation
 import XCTest
 @testable import BrowseCraft
 import BrowseCraftDomain
+import BrowseCraftRuntime
 
 /// `BC-PREFLIGHT` §8.1（v3）归约。
 final class VideoGenerationInputReducerTests: XCTestCase {

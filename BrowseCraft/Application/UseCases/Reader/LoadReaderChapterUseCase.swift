@@ -1,6 +1,7 @@
 import Foundation
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftRuntime
 
 // 中文注释：Reader 入口只依赖 Core 的阅读能力协议；App 模型是界面投影，不再是加载合同。
 struct LoadReaderChapterUseCase: Sendable {

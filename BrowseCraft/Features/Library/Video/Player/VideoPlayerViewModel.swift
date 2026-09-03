@@ -1,6 +1,7 @@
 import Foundation
 @preconcurrency import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftRuntime
 
 // 中文注释：VideoPlayerViewModel 管理单集播放历史的初始保存、自动保存和退出保存。
 @MainActor

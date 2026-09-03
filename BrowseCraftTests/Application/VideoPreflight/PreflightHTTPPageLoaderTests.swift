@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 @testable import BrowseCraft
+import BrowseCraftDomain
 
 final class PreflightHTTPPageLoaderTests: XCTestCase {
     func testBodyBufferRejectsDeclaredAndStreamedResponsesAboveLimit() throws {

@@ -1,6 +1,7 @@
 import Foundation
 @preconcurrency import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftRuntime
 
 // 中文注释：VideoEpisode 是 Video V2 详情页内部剧集模型，不属于已删除的 V1 runtime。
 struct VideoEpisode: Identifiable, Hashable {

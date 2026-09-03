@@ -3,7 +3,7 @@ import BrowseCraftCore
 import BrowseCraftDomain
 
 // 中文注释：RSSSourceRuntime 是 RSS feed 的独立 SourceRuntime，不复用 SiteRule 解析 DSL。
-public struct RSSSourceRuntime: SourceRuntime, SourceDetailRuntime {
+public struct RSSSourceRuntime: SourceRuntime, SourceDetailRuntime, Sendable {
     public let definition: SourceDefinition
 
     private let feedLoader: any RSSFeedLoading

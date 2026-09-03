@@ -2,7 +2,7 @@ import Foundation
 import BrowseCraftCore
 import BrowseCraftDomain
 
-public struct ComicSourceRuntimeMapper {
+public struct ComicSourceRuntimeMapper: Sendable {
     public init() {}
 
     public func contentItem(from item: ContentItem) -> SourceContentItem {

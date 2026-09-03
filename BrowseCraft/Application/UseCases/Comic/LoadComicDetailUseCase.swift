@@ -1,6 +1,7 @@
 import Foundation
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftRuntime
 
 /// 中文注释：漫画详情入口依赖 Core 的详情能力协议；具体规则加载和解析由 runtime 内部完成。
 struct LoadComicDetailUseCase: Sendable {

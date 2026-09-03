@@ -4,7 +4,7 @@ import BrowseCraftDomain
 
 // 中文注释：ComicSourceRuntime 只解释 SiteRule JSON 这种 rule-backed source；
 // App 总主轴是 SourceRuntime，RSS/Plugin 后续应走各自 runtime，不继续扩张 SiteRule。
-public struct ComicSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDetailRuntime, SourceReaderRuntime {
+public struct ComicSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDetailRuntime, SourceReaderRuntime, Sendable {
     public let source: Source
 
     private let resolvedRule: ResolvedComicSiteRuleV2

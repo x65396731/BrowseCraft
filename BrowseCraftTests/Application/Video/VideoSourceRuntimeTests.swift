@@ -3,6 +3,7 @@ import Testing
 import BrowseCraftCore
 @testable import BrowseCraft
 import BrowseCraftDomain
+import BrowseCraftRuntime
 
 struct VideoSourceRuntimeTests {
     @Test func swiftSoupVideoRuleParserExecutesStructuredExtractRules() throws {

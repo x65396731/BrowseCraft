@@ -5,7 +5,7 @@ import Foundation
 // 中文注释：ComicSourceReaderLoader 是 ComicSourceRuntime 内部阅读页加载边界，只处理 SiteRule-backed source。
 
 /// 中文注释：LoadReaderChapterError 是 enum，负责本模块中的对应职责。
-public enum LoadReaderChapterError: LocalizedError {
+public enum LoadReaderChapterError: LocalizedError, Sendable {
     case noChapterFound(detailURLString: String)
     case noPageImagesFound(chapterURLString: String)
 
@@ -21,7 +21,7 @@ public enum LoadReaderChapterError: LocalizedError {
 
 /// 中文注释：加载一个阅读章节页面，并解析出所有分页图片地址。
 /// 中文注释：网络请求留在应用层，具体 HTML 解析通过 ComicRuleSourceParsingService 隔离。
-public struct ComicSourceReaderLoader {
+public struct ComicSourceReaderLoader: Sendable {
     private let pageContentLoader: PageContentLoader
     private let comicRuleParser: ComicRuleSourceParsingService
     private let defaultUserAgent: String

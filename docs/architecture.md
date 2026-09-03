@@ -12,8 +12,8 @@ interpret a rule, and who may touch the network.
 | `BrowseCraft` | app target | ~62k lines | Everything in §2 |
 | `BrowseCraftCore` | sibling SwiftPM package | ~29k lines | Rule models, validation, resolved graphs, deterministic parsing |
 | `BrowseCraftAPIKit` | sibling SwiftPM package | ~1.3k lines | The BrowseCraft backend contract (endpoints, DTOs, transport) |
-| `BrowseCraftDomain` | in-repo framework | ~1.8k lines | Domain kernel: values, ports and diagnostics shared by the app and the rule runtime |
-| `BrowseCraftRuntime` | in-repo framework | ~6.2k lines | The rule runtime; RSS and Comic today, Video to follow |
+| `BrowseCraftDomain` | in-repo framework | ~2.1k lines | Domain kernel: values, ports, policies and diagnostics shared by the app and the rule runtime |
+| `BrowseCraftRuntime` | in-repo framework | ~15k lines | The whole rule runtime: Comic, RSS, Video and the shared dispatch |
 
 **Core's rule models are this app's domain model.** `SiteRule`, `VideoSiteRule`, `ListContext`,
 `RequestConfig` and the resolved graphs are used directly by `Domain`, `Application` and
@@ -70,10 +70,15 @@ the runtime need it**, not merely because it feels domain-ish. Entities that onl
 
 ### The rule runtime
 
-The rule runtime turns a resolved rule plus fetched bytes into domain values. It is being moved
-into `BrowseCraftRuntime` in stages: the domain kernel, then RSS, then Comic. What remains in
-`Application/Runtime` is Video (8.1k, including the Debug-only audit) and Common (0.8k);
-`SourceRuntimeFactory` moves last because it wires all three.
+The rule runtime turns a resolved rule plus fetched bytes into domain values, and now lives
+entirely in `BrowseCraftRuntime`. It imports nothing but Foundation, `BrowseCraftCore` and
+`BrowseCraftDomain`; the app supplies every loader, credential store and header provider through
+kernel ports. `SourceDetectionLexicon` reads its JSON from the framework's own bundle
+(`Bundle(for:)`), so those resources must stay inside `BrowseCraftRuntime`.
+
+The Debug-only runtime audit is a developer tool, not runtime semantics, so it stays in the app at
+`Application/Diagnostics/VideoRuntimeAudit` — it drives the runtime and depends on app use cases.
+Only the evidence value types the playback loader itself uses live in the framework.
 
 Extraction turns up two mechanical consequences worth knowing: a `public` struct no longer gets
 `Sendable` inferred, so it must declare the conformance explicitly; and members of a `private`
@@ -192,8 +197,6 @@ occur for them.
   SwiftPM packages (`Packages/…`) needs no source changes — only moving them from `targets:` to
   `packages:` — and is deferred until the runtime extraction is finished.
 
-- **Video and Common are still inside the app target.** The last stage moves Video (including the
-  Debug-only audit, which must stay compiled out of Release) and then `SourceRuntimeFactory`.
 - **Core and APIKit are unversioned path dependencies** (see §1).
 - **`AppContainer` changes on nearly every feature** — it constructs ~40 objects in one `init` and
   is the most-churned file in the repo. Splitting it into identity / sync / runtime sub-containers

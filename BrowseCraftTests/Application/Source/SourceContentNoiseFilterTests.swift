@@ -2,6 +2,7 @@ import Foundation
 import Testing
 import BrowseCraftCore
 @testable import BrowseCraft
+import BrowseCraftRuntime
 
 struct SourceContentNoiseFilterTests {
     @Test func discardsObviousAdvertisingListItem() throws {

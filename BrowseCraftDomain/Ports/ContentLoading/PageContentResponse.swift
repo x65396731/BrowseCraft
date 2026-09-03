@@ -1,6 +1,6 @@
 import Foundation
 
-public struct PageContentResponse {
+public struct PageContentResponse: Sendable {
     public init(
         content: String,
         finalURL: URL

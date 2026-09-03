@@ -3,7 +3,7 @@ import BrowseCraftDomain
 import Foundation
 
 // 中文注释：ComicSourceListLoader 是 ComicSourceRuntime 内部列表刷新实现，只处理 SiteRule-backed source。
-public struct ComicSourceListLoader {
+public struct ComicSourceListLoader: Sendable {
     private let pageContentLoader: PageContentLoader
     private let comicRuleParser: ComicRuleSourceParsingService
     private let urlResolver: URLResolvingService

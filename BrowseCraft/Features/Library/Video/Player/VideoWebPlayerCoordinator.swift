@@ -1,3 +1,4 @@
+import BrowseCraftRuntime
 import Foundation
 import SwiftUI
 import WebKit

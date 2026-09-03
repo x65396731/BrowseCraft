@@ -1,4 +1,4 @@
-public enum SourceAPIRequestHeaders {
+public enum SourceAPIRequestHeaders: Sendable {
     public static func catalogHeaders(base: [String: String]) -> [String: String] {
         var headers: [String: String] = base
         headers["Accept"] = "application/json"

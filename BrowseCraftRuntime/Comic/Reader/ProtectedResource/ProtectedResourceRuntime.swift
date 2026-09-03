@@ -4,7 +4,7 @@ import BrowseCraftDomain
 
 // 中文注释：ProtectedResourceRuntime.swift 实现受保护资源的请求编排和白名单解密，不接具体 reader UI。
 
-public struct ProtectedResourceOutput {
+public struct ProtectedResourceOutput: Sendable {
     public init(
         data: Data,
         contentType: ProtectedResourceOutputContentType
@@ -17,7 +17,7 @@ public struct ProtectedResourceOutput {
     public let contentType: ProtectedResourceOutputContentType
 }
 
-public struct ProtectedResourceLoadInput {
+public struct ProtectedResourceLoadInput: Sendable {
     public let rule: ProtectedResourceRule
     public let sourceID: String
     public let parameters: [String: String]
@@ -679,7 +679,7 @@ public struct ProtectedResourceLoader: Sendable {
     }
 }
 
-public enum ProtectedResourceTemplateResolver {
+public enum ProtectedResourceTemplateResolver: Sendable {
     public static func replacingParameters(in template: String, parameters: [String: String]) -> String {
         var output: String = template
         parameters.forEach { key, value in
@@ -790,7 +790,7 @@ public enum ProtectedResourceTemplateResolver {
     }
 }
 
-public enum ProtectedResourceValueResolver {
+public enum ProtectedResourceValueResolver: Sendable {
     public static func valueData(
         rule: ProtectedResourceValueRule,
         keyResponse: Any?,

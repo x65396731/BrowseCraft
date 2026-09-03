@@ -1,6 +1,6 @@
 import Foundation
 
-public struct EmptySourceCredentialProvider: SourceCredentialProviding {
+public struct EmptySourceCredentialProvider: SourceCredentialProviding, Sendable {
     public init() {}
 
     public func cookieHeader(for context: SourceRequestContext, url: URL) -> String? {

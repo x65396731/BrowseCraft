@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import BrowseCraft
+import BrowseCraftRuntime
 
 struct SourceDetectionLexiconTests {
     @Test func loadsBaseAndRequestedLanguageOnly() {

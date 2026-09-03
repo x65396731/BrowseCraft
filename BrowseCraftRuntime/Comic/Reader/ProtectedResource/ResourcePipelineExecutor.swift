@@ -4,7 +4,7 @@ import BrowseCraftDomain
 
 // 中文注释：ResourcePipelineExecutor 只负责解释 Core 中的 pipeline 合同；网络和密码学能力均由协议注入。
 
-public struct ResourcePipelineExecutionOutput {
+public struct ResourcePipelineExecutionOutput: Sendable {
     public init(
         data: Data,
         contentType: ResourcePipelineContentType
@@ -17,7 +17,7 @@ public struct ResourcePipelineExecutionOutput {
     public let contentType: ResourcePipelineContentType
 }
 
-public indirect enum ResourcePipelineInputValue: Hashable {
+public indirect enum ResourcePipelineInputValue: Hashable, Sendable {
     case string(String)
     case data(Data)
     case number(Double)
@@ -27,7 +27,7 @@ public indirect enum ResourcePipelineInputValue: Hashable {
     case null
 }
 
-public struct ResourcePipelineExecutionInput {
+public struct ResourcePipelineExecutionInput: Sendable {
     public let rule: ResourcePipelineRule
     public let sourceID: String
     public let item: [String: ResourcePipelineInputValue]
@@ -52,7 +52,7 @@ public struct ResourcePipelineExecutionInput {
     }
 }
 
-public enum ResourcePipelineExecutorError: LocalizedError, Equatable {
+public enum ResourcePipelineExecutorError: LocalizedError, Equatable, Sendable {
     case unsupportedVersion(Int)
     case invalidBinding(name: String, reason: String)
     case invalidStep(id: String, reason: String)
@@ -828,7 +828,7 @@ private enum ResourcePipelineCodec {
     }
 }
 
-public enum ResourcePipelineTemplateResolver {
+public enum ResourcePipelineTemplateResolver: Sendable {
     public static func tokens(in rule: ResourceRequestOperationRule) -> Set<String> {
         var templates: [String] = [rule.urlTemplate]
         if let request: RequestConfig = rule.request {

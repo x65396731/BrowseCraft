@@ -3,7 +3,8 @@ import BrowseCraftCore
 import BrowseCraftDomain
 
 // 中文注释：RSSSourceRuntimeFactory 只装配 RSS/Atom runtime，不依赖漫画规则或 SwiftSoup。
-public struct RSSSourceRuntimeFactory {
+// 中文注释：public 类型不再由编译器推断 Sendable；成员均为不可变值或 Sendable 端口，显式声明。
+public struct RSSSourceRuntimeFactory: Sendable {
     private let pageContentLoader: PageContentLoader
     private let pageDataLoader: PageDataLoader
     private let definitionMapper: SourceDefinitionMapper

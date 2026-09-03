@@ -3,7 +3,8 @@ import BrowseCraftCore
 import BrowseCraftDomain
 
 // 中文注释：ComicSourceRuntimeFactory 只组装漫画 SiteRule-backed source 的 runtime 和 loader。
-public struct ComicSourceRuntimeFactory {
+// 中文注释：public 类型不再由编译器推断 Sendable；成员均为不可变值或 Sendable 端口，显式声明。
+public struct ComicSourceRuntimeFactory: Sendable {
     private let pageContentLoader: PageContentLoader
     private let comicRuleParser: ComicRuleSourceParsingService
     private let urlResolver: URLResolvingService
