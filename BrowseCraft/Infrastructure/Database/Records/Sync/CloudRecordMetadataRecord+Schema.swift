@@ -7,15 +7,4 @@ extension CloudRecordMetadataRecord {
         static let systemFields: Column = Column("systemFields")
         static let updatedAt: Column = Column("updatedAt")
     }
-
-    static func createTable(in database: Database) throws {
-        try database.create(table: Self.databaseTableName, ifNotExists: true) { table in
-            table.column("accountScope", .text)
-                .notNull()
-            table.column("recordName", .text).notNull()
-            table.column("systemFields", .blob).notNull()
-            table.column("updatedAt", .datetime).notNull()
-            table.primaryKey(["accountScope", "recordName"])
-        }
-    }
 }

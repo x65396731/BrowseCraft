@@ -303,23 +303,6 @@ struct CloudAccountPartitionPreparationRecord: Codable, FetchableRecord, Persist
             initialSyncCompletedAt: self.initialSyncCompletedAt
         )
     }
-
-    static func createTable(in database: Database) throws {
-        try database.create(table: Self.databaseTableName, ifNotExists: true) { table in
-            table.column("accountScope", .text)
-                .primaryKey()
-            table.column("userID", .text)
-                .notNull()
-                .references(
-                    AppUserRecord.databaseTableName,
-                    onDelete: .cascade,
-                    onUpdate: .cascade
-                )
-            table.column("decision", .text).notNull()
-            table.column("preparedAt", .datetime).notNull()
-            table.column("initialSyncCompletedAt", .datetime)
-        }
-    }
 }
 
 struct CloudAppUserAssociationAttestationRecord:
@@ -332,18 +315,4 @@ struct CloudAppUserAssociationAttestationRecord:
     var accountScope: String
     var userID: String
     var associatedAt: Date
-
-    static func createTable(in database: Database) throws {
-        try database.create(table: Self.databaseTableName, ifNotExists: true) { table in
-            table.column("accountScope", .text).primaryKey()
-            table.column("userID", .text)
-                .notNull()
-                .references(
-                    AppUserRecord.databaseTableName,
-                    onDelete: .cascade,
-                    onUpdate: .cascade
-                )
-            table.column("associatedAt", .datetime).notNull()
-        }
-    }
 }

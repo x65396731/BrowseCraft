@@ -24,37 +24,6 @@ extension AppUserRecord {
         static let updatedAt: Column = Column("updatedAt")
     }
 
-    /// 中文注释：users 是本地业务用户根表，保存权益快照和最近一次 StoreKit 交易摘要。
-    /// 中文注释：完整交易明细放在 user_storekit_transactions，避免 users 表无限增长。
-    static func createTable(in database: Database) throws {
-        try database.create(table: Self.databaseTableName, ifNotExists: true) { table in
-            table.column("id", .text).primaryKey()
-            table.column("displayName", .text)
-            table.column("hasRemovedAds", .boolean).notNull().defaults(to: false)
-            table.column("pendingAdPoints", .integer).notNull().defaults(to: 0)
-            table.column("siteSlotLimit", .integer).notNull().defaults(to: 1)
-            table.column("purchasedSiteSlots", .integer).notNull().defaults(to: 0)
-            table.column("vipExpiresAt", .datetime)
-            table.column("processedStoreKitTransactionIDsJSON", .text)
-            table.column("lastStoreKitTransactionID", .text)
-            table.column("lastStoreKitOriginalTransactionID", .text)
-            table.column("lastStoreKitProductID", .text)
-            table.column("lastStoreKitProductType", .text)
-            table.column("lastStoreKitEnvironment", .text)
-            table.column("lastStoreKitOwnershipType", .text)
-            table.column("lastStoreKitPurchaseDate", .datetime)
-            table.column("lastStoreKitExpirationDate", .datetime)
-            table.column("lastStoreKitRevocationDate", .datetime)
-            table.column("createdAt", .datetime).notNull()
-            table.column("updatedAt", .datetime).notNull()
-        }
-    }
-
-    /// 中文注释：当前没有 users 专用索引；主键 id 已覆盖活动 UUID 用户读取。
-    static func createIndexes(in database: Database) throws {
-        _ = database
-    }
-
     /// 中文注释：仅供仍使用旧身份 fixture 的隔离测试调用；App 启动路径不得创建此用户。
     static func insertLocalDefaultUser(in database: Database) throws {
         try Self.insertUser(

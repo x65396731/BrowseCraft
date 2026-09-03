@@ -15,7 +15,7 @@ struct AppDatabaseMigrationTests {
             )
         }
 
-        #expect(identifiers == [AppDatabase.currentSchemaMigrationIdentifier])
+        #expect(identifiers == AppDatabaseMigrations.identifiers.sorted())
     }
 
     @Test func reopeningDatabaseIsIdempotentAndPreservesMigrationLedger() throws {
@@ -30,7 +30,7 @@ struct AppDatabaseMigrationTests {
             ) ?? 0
         }
 
-        #expect(migrationCount == 1)
+        #expect(migrationCount == AppDatabaseMigrations.identifiers.count)
     }
 
     private static func temporaryDatabasePath() -> String {

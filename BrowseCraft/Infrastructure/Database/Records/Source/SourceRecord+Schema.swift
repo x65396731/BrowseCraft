@@ -14,36 +14,4 @@ extension SourceRecord {
         static let updatedAt: Column = Column("updatedAt")
         static let deletedAt: Column = Column("deletedAt")
     }
-
-    /// 中文注释：sources 保存用户可选择的站点来源配置；不保存列表内容、详情内容或缓存文件。
-    /// 中文注释：userID + id 允许不同本地账户空间保存相同业务 Source ID。
-    /// 中文注释：deletedAt 用于软删除，便于未来 iCloud 把删除动作同步到其他设备。
-    static func createTable(in database: Database) throws {
-        try database.create(table: Self.databaseTableName, ifNotExists: true) { table in
-            table.column("userID", .text)
-                .notNull()
-                .references(AppUserRecord.databaseTableName, column: "id", onDelete: .cascade)
-            table.column("id", .text).notNull()
-            table.column("name", .text).notNull()
-            table.column("baseURL", .text).notNull()
-            table.column("type", .text).notNull()
-            table.column("kind", .text).notNull()
-            table.column("configJSON", .text).notNull()
-            table.column("enabled", .boolean).notNull().defaults(to: true)
-            table.column("createdAt", .datetime).notNull()
-            table.column("updatedAt", .datetime).notNull()
-            table.column("deletedAt", .datetime)
-            table.primaryKey(["userID", "id"])
-        }
-    }
-
-    /// 中文注释：来源列表只展示未软删除记录，并按最近更新时间排序。
-    static func createIndexes(in database: Database) throws {
-        try database.execute(
-            sql: """
-            CREATE INDEX IF NOT EXISTS idx_sources_user_updated_at
-            ON \(Self.databaseTableName)(userID, deletedAt, updatedAt DESC)
-            """
-        )
-    }
 }
