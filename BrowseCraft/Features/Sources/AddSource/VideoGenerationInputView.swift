@@ -143,18 +143,6 @@ struct VideoGenerationInputView: View {
             return NSLocalizedString("video_preflight_progress_acquiring", comment: "")
         case .observingEntryShape:
             return NSLocalizedString("video_preflight_progress_observing", comment: "")
-        case .checkingOneHop(let completed, let budget):
-            return String(
-                format: NSLocalizedString("video_preflight_progress_one_hop", comment: ""),
-                completed,
-                budget
-            )
-        case .samplingDetails(let completed, let budget):
-            return String(
-                format: NSLocalizedString("video_preflight_progress_detail", comment: ""),
-                completed,
-                budget
-            )
         case .reducingResult:
             return NSLocalizedString("video_preflight_progress_reducing", comment: "")
         }
@@ -423,15 +411,13 @@ private struct VideoGenerationInputOutcomeView: View {
 private extension VideoGenerationInputPreflightReason {
     var localizedDescription: String {
         switch self {
-        case .inputURLRequiresDeeperDiscovery:
-            return NSLocalizedString("video_preflight_reason_deeper", comment: "")
         case .multipleIndependentListFamilies:
             return NSLocalizedString("video_preflight_reason_multiple_families", comment: "")
         case .noExecutableListFamily:
             return NSLocalizedString("video_preflight_reason_no_family", comment: "")
         case .requiredCapabilityUnsupported:
             return NSLocalizedString("video_preflight_reason_capability", comment: "")
-        case .entryShapeAmbiguous, .familyIdentityUnresolved:
+        case .entryShapeAmbiguous:
             return NSLocalizedString("video_preflight_reason_insufficient", comment: "")
         case .requiresUserSession:
             return NSLocalizedString("video_preflight_reason_session", comment: "")

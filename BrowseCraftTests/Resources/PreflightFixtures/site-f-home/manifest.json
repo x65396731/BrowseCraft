@@ -7,9 +7,9 @@
     "status": "accepted",
     "entryShape": "directListOwner"
   },
-  "acceptance": "pending",
-  "pendingReason": "判据修正后不再误判登录态；规划器采样 12 个分类导航/分页缺失，待定向补采与观测器归因",
-  "note": "混类首页 / 直接 List owner（BC-LIST-090 + BC-PAGE-047 后后端可交付）",
+  "acceptance": "ready",
+  "pendingReason": "",
+  "note": "v3：混类首页主列表 /films/{value} 支配，其余附属",
   "documents": [
     {
       "name": "site-f-home-entry-1",

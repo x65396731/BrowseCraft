@@ -52,8 +52,7 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
             reason: status == .accepted ? nil : .entryShapeAmbiguous,
             evaluatedInputURL: URL(string: submission)!,
             submissionString: submission,
-            entryShape: .directListOwner,
-            familyCoverageState: status == .accepted ? .oneFamilyCoversAll : .unresolved,
+            entryShape: status == .accepted ? .directListOwner : .ambiguous,
             audit: VideoGenerationInputPreflightAudit()
         )
     }

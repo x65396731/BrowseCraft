@@ -7,9 +7,9 @@
     "status": "accepted",
     "entryShape": "directListOwner"
   },
-  "acceptance": "pending",
-  "pendingReason": "规划器把 /year/* /generos/* 导航当一跳组采样（11 条缺失），待定向采集与观测器归因",
-  "note": "受限分类入口 /generos/accion 直接 List owner",
+  "acceptance": "ready",
+  "pendingReason": "",
+  "note": "v3：受限分类入口一个卡片列表",
   "documents": [
     {
       "name": "site-c-entry-1",

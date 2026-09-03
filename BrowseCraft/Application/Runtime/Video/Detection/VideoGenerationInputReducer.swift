@@ -10,68 +10,31 @@ enum VideoGenerationPreflightAcquisitionState: Equatable, Sendable {
 struct VideoGenerationInputReducerInput: Sendable {
     let inputURL: VideoGenerationInputURL
     let entryShape: VideoGenerationEntryShape
-    let familyCoverageState: VideoGenerationFamilyCoverageState
     let acquisitionState: VideoGenerationPreflightAcquisitionState
     let budgetExhausted: Bool
     let audit: VideoGenerationInputPreflightAudit
 }
 
+/// `BC-PREFLIGHT` §8.1（v3）归约顺序：可用性 → deadline → family 数三态。
 struct VideoGenerationInputReducer: Sendable {
     func reduce(_ input: VideoGenerationInputReducerInput) -> VideoGenerationInputPreflight {
-        if input.entryShape == .deeperDiscoveryRequired {
-            return self.result(
-                status: .rejected,
-                reason: .inputURLRequiresDeeperDiscovery,
-                input: input
-            )
-        }
         if let acquisitionReason: VideoGenerationInputPreflightReason = self.reason(
             for: input.acquisitionState
         ) {
-            return self.result(
-                status: .inconclusive,
-                reason: acquisitionReason,
-                input: input
-            )
+            return self.result(status: .inconclusive, reason: acquisitionReason, input: input)
         }
         if input.budgetExhausted {
             return self.result(status: .inconclusive, reason: .budgetExhausted, input: input)
         }
-
         switch input.entryShape {
+        case .directListOwner:
+            return self.result(status: .accepted, reason: nil, input: input)
+        case .multipleListFamilies:
+            return self.result(status: .rejected, reason: .multipleIndependentListFamilies, input: input)
+        case .noListFamily:
+            return self.result(status: .rejected, reason: .noExecutableListFamily, input: input)
         case .ambiguous:
             return self.result(status: .inconclusive, reason: .entryShapeAmbiguous, input: input)
-        case .directListOwner, .oneHopListIndex, .deeperDiscoveryRequired:
-            break
-        }
-
-        switch input.familyCoverageState {
-        case .oneFamilyCoversAll:
-            return self.result(status: .accepted, reason: nil, input: input)
-        case .multipleFamiliesRequired:
-            return self.result(
-                status: .rejected,
-                reason: .multipleIndependentListFamilies,
-                input: input
-            )
-        case .noExecutableFamily:
-            return self.result(
-                status: .rejected,
-                reason: .noExecutableListFamily,
-                input: input
-            )
-        case .capabilityUnsupported:
-            return self.result(
-                status: .rejected,
-                reason: .requiredCapabilityUnsupported,
-                input: input
-            )
-        case .unresolved:
-            return self.result(
-                status: .inconclusive,
-                reason: .familyIdentityUnresolved,
-                input: input
-            )
         }
     }
 
@@ -101,7 +64,6 @@ struct VideoGenerationInputReducer: Sendable {
             evaluatedInputURL: input.inputURL.evaluatedURL,
             submissionString: input.inputURL.submissionString,
             entryShape: input.entryShape,
-            familyCoverageState: input.familyCoverageState,
             audit: input.audit
         )
     }

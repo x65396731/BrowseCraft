@@ -40,10 +40,10 @@
 "video_preflight_outcome_accepted" = "可以生成";
 "video_preflight_outcome_rejected" = "当前 URL 不可使用";
 "video_preflight_outcome_inconclusive" = "页面证据不足";
-"video_preflight_reason_accepted" = "当前精确输入 URL 已通过本地单 List family 预检。";
+"video_preflight_reason_accepted" = "当前精确输入 URL 的页面恰好包含一个列表 family。";
 "video_preflight_reason_deeper" = "当前入口需要更深层发现，请输入更具体的分类或 List 页面。";
-"video_preflight_reason_multiple_families" = "当前输入范围包含多个独立 List 模板。";
-"video_preflight_reason_no_family" = "当前输入范围没有可执行的 List family。";
+"video_preflight_reason_multiple_families" = "当前页面包含多个独立列表，请改用具体分类页的 URL。";
+"video_preflight_reason_no_family" = "当前页面没有可用的列表。";
 "video_preflight_reason_capability" = "网站存在当前生成器无法表达的必需能力。";
 "video_preflight_reason_insufficient" = "页面结构或 List family 证据尚未闭合，请稍后重试。";
 "video_preflight_reason_session" = "页面需要个人登录态，隔离预检无法完成判断。";

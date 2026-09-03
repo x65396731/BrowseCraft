@@ -2,99 +2,64 @@ import Foundation
 import XCTest
 @testable import BrowseCraft
 
+/// `BC-PREFLIGHT` §8.1（v3）归约。
 final class VideoGenerationInputReducerTests: XCTestCase {
-    func testDirectSingleFamilyIsAccepted() throws {
-        let result: VideoGenerationInputPreflight = VideoGenerationInputReducer().reduce(
-            self.input(entryShape: .directListOwner, family: .oneFamilyCoversAll)
+    private func input(
+        _ shape: VideoGenerationEntryShape,
+        acquisition: VideoGenerationPreflightAcquisitionState = .available,
+        budgetExhausted: Bool = false
+    ) throws -> VideoGenerationInputReducerInput {
+        let url: VideoGenerationInputURL = try VideoGenerationInputURLNormalizer().normalize("https://example.com/films/?page=2")
+        return VideoGenerationInputReducerInput(
+            inputURL: url,
+            entryShape: shape,
+            acquisitionState: acquisition,
+            budgetExhausted: budgetExhausted,
+            audit: VideoGenerationInputPreflightAudit(familyCount: shape == .directListOwner ? 1 : 0)
         )
+    }
 
+    func testSingleFamilyIsAcceptedWithExactInput() throws {
+        let result = VideoGenerationInputReducer().reduce(try self.input(.directListOwner))
         XCTAssertEqual(result.status, .accepted)
-        XCTAssertTrue(result.canSubmit)
         XCTAssertNil(result.reason)
+        XCTAssertTrue(result.canSubmit)
+        XCTAssertEqual(result.submissionString, "https://example.com/films/?page=2")
+        XCTAssertEqual(result.schemaVersion, 3)
+        XCTAssertEqual(result.generatorPolicyVersion, "video-input-preflight-v3")
     }
 
-    func testOneHopSingleFamilyIsAcceptedWithoutChangingInputURL() throws {
-        let result: VideoGenerationInputPreflight = VideoGenerationInputReducer().reduce(
-            self.input(entryShape: .oneHopListIndex, family: .oneFamilyCoversAll)
-        )
-
-        XCTAssertEqual(result.status, .accepted)
-        XCTAssertEqual(result.evaluatedInputURL.absoluteString, "https://example.com/root?x=1")
-        XCTAssertEqual(result.submissionString, "https://example.com/root?x=1")
-    }
-
-    func testDeeperEntryRejectsBeforeFamilyCoverage() throws {
-        let result: VideoGenerationInputPreflight = VideoGenerationInputReducer().reduce(
-            self.input(entryShape: .deeperDiscoveryRequired, family: .oneFamilyCoversAll)
-        )
-
+    func testMultipleFamiliesAreRejectedAndCannotSubmit() throws {
+        let result = VideoGenerationInputReducer().reduce(try self.input(.multipleListFamilies))
         XCTAssertEqual(result.status, .rejected)
-        XCTAssertEqual(result.reason, .inputURLRequiresDeeperDiscovery)
+        XCTAssertEqual(result.reason, .multipleIndependentListFamilies)
         XCTAssertFalse(result.canSubmit)
     }
 
-    func testProvenDeeperEntryRejectsBeforeIncompleteAcquisitionOverlays() throws {
-        let url: URL = URL(string: "https://example.com/root?x=1")!
-        let result: VideoGenerationInputPreflight = VideoGenerationInputReducer().reduce(
-            VideoGenerationInputReducerInput(
-                inputURL: VideoGenerationInputURL(
-                    evaluatedURL: url,
-                    submissionString: url.absoluteString
-                ),
-                entryShape: .deeperDiscoveryRequired,
-                familyCoverageState: .unresolved,
-                acquisitionState: .antiBotChallenge,
-                budgetExhausted: true,
-                audit: VideoGenerationInputPreflightAudit()
-            )
-        )
-
+    func testNoListFamilyIsRejected() throws {
+        let result = VideoGenerationInputReducer().reduce(try self.input(.noListFamily))
         XCTAssertEqual(result.status, .rejected)
-        XCTAssertEqual(result.reason, .inputURLRequiresDeeperDiscovery)
+        XCTAssertEqual(result.reason, .noExecutableListFamily)
     }
 
-    func testAmbiguousEntryIsInconclusive() throws {
-        let result: VideoGenerationInputPreflight = VideoGenerationInputReducer().reduce(
-            self.input(entryShape: .ambiguous, family: .oneFamilyCoversAll)
-        )
-
+    func testAmbiguousIsInconclusive() throws {
+        let result = VideoGenerationInputReducer().reduce(try self.input(.ambiguous))
         XCTAssertEqual(result.status, .inconclusive)
         XCTAssertEqual(result.reason, .entryShapeAmbiguous)
     }
 
-    func testFiveFamilyStatesRemainDistinct() throws {
-        let cases: [(VideoGenerationFamilyCoverageState, VideoGenerationInputPreflightStatus, VideoGenerationInputPreflightReason?)] = [
-            (.oneFamilyCoversAll, .accepted, nil),
-            (.multipleFamiliesRequired, .rejected, .multipleIndependentListFamilies),
-            (.noExecutableFamily, .rejected, .noExecutableListFamily),
-            (.capabilityUnsupported, .rejected, .requiredCapabilityUnsupported),
-            (.unresolved, .inconclusive, .familyIdentityUnresolved)
+    func testAcquisitionStateAndDeadlinePrecedeEntryShape() throws {
+        let cases: [(VideoGenerationPreflightAcquisitionState, VideoGenerationInputPreflightReason)] = [
+            (.antiBotChallenge, .antiBotChallenge),
+            (.requiresUserSession, .requiresUserSession),
+            (.isolationUnavailable, .preflightIsolationUnavailable)
         ]
-
-        for (family, status, reason) in cases {
-            let result: VideoGenerationInputPreflight = VideoGenerationInputReducer().reduce(
-                self.input(entryShape: .directListOwner, family: family)
-            )
-            XCTAssertEqual(result.status, status)
+        for (state, reason) in cases {
+            let result = VideoGenerationInputReducer().reduce(try self.input(.directListOwner, acquisition: state))
+            XCTAssertEqual(result.status, .inconclusive)
             XCTAssertEqual(result.reason, reason)
         }
-    }
-
-    private func input(
-        entryShape: VideoGenerationEntryShape,
-        family: VideoGenerationFamilyCoverageState
-    ) -> VideoGenerationInputReducerInput {
-        let url: URL = URL(string: "https://example.com/root?x=1")!
-        return VideoGenerationInputReducerInput(
-            inputURL: VideoGenerationInputURL(
-                evaluatedURL: url,
-                submissionString: url.absoluteString
-            ),
-            entryShape: entryShape,
-            familyCoverageState: family,
-            acquisitionState: .available,
-            budgetExhausted: false,
-            audit: VideoGenerationInputPreflightAudit()
-        )
+        let deadline = VideoGenerationInputReducer().reduce(try self.input(.directListOwner, budgetExhausted: true))
+        XCTAssertEqual(deadline.reason, .budgetExhausted)
     }
 }

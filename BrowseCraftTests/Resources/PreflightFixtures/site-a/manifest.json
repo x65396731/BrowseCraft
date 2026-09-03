@@ -4,12 +4,12 @@
   "alias": "site-a.example",
   "entryURL": "https://site-a.example/index.php",
   "expected": {
-    "status": "rejected",
-    "entryShape": "deeperDiscoveryRequired"
+    "status": "accepted",
+    "entryShape": "directListOwner"
   },
-  "acceptance": "pending",
-  "pendingReason": "判据修正后不再误判 antiBot；规划器把导航/搜索/登录链接当一跳候选采样，归档缺 11 条（含 view_video 详情），待定向补采与观测器归因",
-  "note": "根页/index feed：直接子级是 Watch collection shell → deeper（§13.15）",
+  "acceptance": "ready",
+  "pendingReason": "",
+  "note": "v3：/index.php 一个卡片列表 → accepted",
   "documents": [
     {
       "name": "site-a-entry-1",

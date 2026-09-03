@@ -73,48 +73,21 @@ final class VideoGenerationPreflightArchiveFixtureTests: XCTestCase {
     }
 
     /// 归约事实直方图（只读诊断，供 B.3 归因）。
+    /// 入口页归约事实（只读诊断）。
     private final class FactsBox: @unchecked Sendable {
         private let lock = NSLock()
         private var text: String = "-"
-        private var groups: String = ""
 
-        func record(_ input: SourceListFamilyAssessmentInput, _ assessment: SourceListFamilyAssessment) {
-            var codes: [String: Int] = [:]
-            for fact in assessment.unresolvedFacts {
-                codes["\(fact.code)", default: 0] += 1
-            }
-            // 入口页每个内容组：区域 / 发布 / 集合 / 成员数 / 有图数 / 一跳与 detail 观测数 / 指向它的事实码。
-            let entry = input.inputObservation
-            var groupLines: [String] = []
-            for group in entry.groups where group.region == .content && group.nestedGroupIDs.isEmpty {
-                let oneHop = input.oneHopObservations.filter { $0.parentOwnerID == group.ownerID }.count
-                let details = input.detailObservations.filter { $0.parentOwnerID == group.ownerID }.count
-                let factCodes = assessment.unresolvedFacts.filter { $0.ownerID == group.ownerID && $0.documentIdentity == entry.documentIdentity }
-                    .reduce(into: [String: Int]()) { $0["\($1.code)", default: 0] += 1 }
-                groupLines.append("      group \(group.id.suffix(8)) pub=\(group.canOwnPublicationItems ? 1 : 0) col=\(group.canOwnCollectionChildren ? 1 : 0) n=\(group.members.count) img=\(group.members.filter(\.hasImage).count) oneHop=\(oneHop) detail=\(details) facts=\(factCodes) e.g. \(group.members.first?.targetURL?.path ?? "-")")
-            }
-            self.lock.lock(); self.groups = groupLines.joined(separator: "\n"); self.lock.unlock()
-            let facts = assessment.entryShapeFacts
-            let families = assessment.families.map { family in
-                "\(family.familyID.suffix(6)):\(family.coveredPublicationUnitIDs.count)"
-            }
-            let dispositions = assessment.requiredPublicationUnits.reduce(into: [String: Int]()) { acc, unit in
-                acc["\(unit.disposition)", default: 0] += 1
-            }
-            let summary: String = "direct=\(facts.directPublicationUnitIDs.count) " +
-                "oneHopLeaf=\(facts.oneHopLeafPublicationUnitIDs.count) " +
-                "deeper=\(facts.deeperCollectionMemberIDs.count) " +
-                "ambiguousMembers=\(facts.ambiguousMemberIDs.count) " +
-                "units=\(dispositions) families=\(families) codes=\(codes)"
-            self.lock.lock()
-            self.text = summary
-            self.lock.unlock()
+        func record(_ observation: SourceListStructureObservation, _ assessment: SourceListEntryFamilyAssessment) {
+            let families = assessment.families.map { "\($0.routeShape)×\($0.memberCount)" }
+            let summary: String = "main=\(assessment.mainListGroupID?.suffix(8) ?? "-") families=\(families) " +
+                "attached=\(assessment.attachedWidgetGroupIDs.count) issues=\(observation.issues.map { $0.code.rawValue })"
+            self.lock.lock(); self.text = summary; self.lock.unlock()
         }
 
         func summary() -> String {
-            self.lock.lock()
-            defer { self.lock.unlock() }
-            return self.text + "\n" + self.groups
+            self.lock.lock(); defer { self.lock.unlock() }
+            return self.text
         }
     }
 
@@ -135,26 +108,6 @@ final class VideoGenerationPreflightArchiveFixtureTests: XCTestCase {
 
     /// 中文注释：目录名只用 alias，真实主机名不进生产分支（开发计划 Phase 6）；
     /// alias ↔ 站点映射只存在于 fwq `scripts/export_preflight_fixtures.py`。
-    /// 测量开关：`TEST_RUNNER_PREFLIGHT_DETAIL_SHAPE=lineageAware`（章程 2026-09-03 core-detail-document-shape）。
-    private static var detailShapePolicy: SourceListDetailShapePolicy {
-        let raw: String = ProcessInfo.processInfo.environment["PREFLIGHT_DETAIL_SHAPE"] ?? "legacy"
-        return SourceListDetailShapePolicy(rawValue: raw) ?? .legacy
-    }
-
-    /// 测量开关：`TEST_RUNNER_PREFLIGHT_OVERLAP=recordOnly`（子项 1）。
-    private static var overlapPolicy: SourceListOverlapPolicy {
-        let raw: String = ProcessInfo.processInfo.environment["PREFLIGHT_OVERLAP"] ?? "legacy"
-        return SourceListOverlapPolicy(rawValue: raw) ?? .legacy
-    }
-
-    private static var publicationOwnerPolicy: SourceListPublicationOwnerPolicy {
-        SourceListPublicationOwnerPolicy(rawValue: ProcessInfo.processInfo.environment["PREFLIGHT_PUBLICATION_OWNER"] ?? "legacy") ?? .legacy
-    }
-
-    private static var chromePolicy: SourceListChromePolicy {
-        SourceListChromePolicy(rawValue: ProcessInfo.processInfo.environment["PREFLIGHT_CHROME"] ?? "legacy") ?? .legacy
-    }
-
     private static let fixtureSites: [String] = [
         "site-a", "site-b", "site-c", "site-d", "site-e", "site-f-films", "site-f-home"
     ]
@@ -175,10 +128,10 @@ final class VideoGenerationPreflightArchiveFixtureTests: XCTestCase {
                 publicURLPolicy: SameHostPolicy(),
                 httpLoader: loader,
                 renderedLoader: RenderedUnavailable(),
-                structureObserver: DefaultSourceListStructureObserver(detailShapePolicy: Self.detailShapePolicy, overlapPolicy: Self.overlapPolicy, publicationOwnerPolicy: Self.publicationOwnerPolicy),
-                familyAssessor: DefaultSourceListFamilyAssessor(chromePolicy: Self.chromePolicy),
-                assessmentObserver: { input, assessment in
-                    factsBox.record(input, assessment)
+                structureObserver: DefaultSourceListStructureObserver(),
+                entryFamilyAssessor: DefaultSourceListEntryFamilyAssessor(),
+                assessmentObserver: { observation, assessment in
+                    factsBox.record(observation, assessment)
                 }
             )
             let result: VideoGenerationInputPreflight = try await useCase.execute(
@@ -187,14 +140,9 @@ final class VideoGenerationPreflightArchiveFixtureTests: XCTestCase {
             )
             let missing: [String] = await loader.missingURLs()
             let line: String = "\(site): status=\(result.status.rawValue) " +
-                "entryShape=\(result.entryShape.rawValue) " +
-                "coverage=\(result.familyCoverageState.rawValue) " +
-                "reason=\(result.reason?.rawValue ?? "-") " +
-                "oneHop=\(result.audit.oneHopObservedGroupCount)/" +
-                "\(result.audit.oneHopAcquiredRepresentativeCount)/" +
-                "\(result.audit.oneHopQualifiedLeafCount) " +
-                "detail=\(result.audit.detailAcquiredRepresentativeCount) " +
-                "unresolved=\(result.audit.unresolvedFactCount) missing=\(missing.count)"
+                "entryShape=\(result.entryShape.rawValue) reason=\(result.reason?.rawValue ?? "-") " +
+                "pub=\(result.audit.publicationGroupCount) lists=\(result.audit.listCount) families=\(result.audit.familyCount) " +
+                "truncated=\(result.audit.scanTruncated) missing=\(missing.count)"
             report.append(line)
             report.append("  facts: " + factsBox.summary())
             XCTAssertEqual(
@@ -217,7 +165,7 @@ final class VideoGenerationPreflightArchiveFixtureTests: XCTestCase {
             }
         }
         // 中文注释：整份报告总是打印，供归因；只有与验收矩阵不符的站计为失败。
-        print("PreflightArchiveFixtureReport policy=\(Self.detailShapePolicy.rawValue) overlap=\(Self.overlapPolicy.rawValue) pub=\(Self.publicationOwnerPolicy.rawValue) chrome=\(Self.chromePolicy.rawValue)\n" + report.joined(separator: "\n"))
+        print("PreflightArchiveFixtureReport v3\n" + report.joined(separator: "\n"))
         XCTAssertTrue(failures.isEmpty, "与 §13.15 预期不符：\n" + failures.joined(separator: "\n"))
     }
 

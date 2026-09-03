@@ -4,12 +4,12 @@
   "alias": "site-b.example",
   "entryURL": "https://site-b.example/",
   "expected": {
-    "status": "accepted",
-    "entryShape": "oneHopListIndex"
+    "status": "rejected",
+    "entryShape": "multipleListFamilies"
   },
-  "acceptance": "pending",
-  "pendingReason": "规划器采样的 /videos/* 详情页不在归档（7 条），待定向采集",
-  "note": "根页直接 Tag 子级是一跳叶子 List，单族全覆盖（§13.15）",
+  "acceptance": "ready",
+  "pendingReason": "",
+  "note": "v3：根页影片卡片 + 分类缩略图两 family → rejected，用户改用分类页",
   "documents": [
     {
       "name": "site-b-entry-1",

@@ -4,12 +4,12 @@
   "alias": "site-e.example",
   "entryURL": "https://site-e.example/movie",
   "expected": {
-    "status": "accepted",
-    "entryShape": "directListOwner"
+    "status": "rejected",
+    "entryShape": "multipleListFamilies"
   },
-  "acceptance": "pending",
-  "pendingReason": "规划器采样 /anime /help /game /play/* 等 13 条缺失，待定向采集与观测器归因",
-  "note": "受限分类入口 /movie 直接 List owner（根页 multi-family 另测）",
+  "acceptance": "ready",
+  "pendingReason": "",
+  "note": "v3：/movie 的 VIP 横幅 5 条被判第二 family（两可，用户改 /list/movie 即 accepted）",
   "documents": [
     {
       "name": "site-e-entry-1",

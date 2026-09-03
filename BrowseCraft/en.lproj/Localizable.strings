@@ -40,10 +40,10 @@
 "video_preflight_outcome_accepted" = "Can Generate";
 "video_preflight_outcome_rejected" = "This URL Cannot Be Used";
 "video_preflight_outcome_inconclusive" = "Not Enough Evidence";
-"video_preflight_reason_accepted" = "This exact input URL passed the local single-List-family preflight.";
+"video_preflight_reason_accepted" = "This exact input URL contains exactly one list family.";
 "video_preflight_reason_deeper" = "This entry needs deeper discovery. Enter a more specific category or List page.";
-"video_preflight_reason_multiple_families" = "Multiple independent List templates were detected in this input scope.";
-"video_preflight_reason_no_family" = "No executable List family was found in this input scope.";
+"video_preflight_reason_multiple_families" = "This page contains several independent lists. Enter the URL of a specific category page instead.";
+"video_preflight_reason_no_family" = "No usable list was found on this page.";
 "video_preflight_reason_capability" = "A required website capability is not supported by the current generator.";
 "video_preflight_reason_insufficient" = "The page structure or List-family evidence is incomplete. Please retry later.";
 "video_preflight_reason_session" = "This page requires a personal session, so isolated preflight cannot decide.";

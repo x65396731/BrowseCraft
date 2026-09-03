@@ -53,7 +53,7 @@ struct SourcesFeatureFactory {
                 httpLoader: PreflightHTTPPageLoader(publicURLPolicy: publicURLPolicy),
                 renderedLoader: PreflightRenderedPageLoader(publicURLPolicy: publicURLPolicy),
                 structureObserver: DefaultSourceListStructureObserver(),
-                familyAssessor: DefaultSourceListFamilyAssessor()
+                entryFamilyAssessor: DefaultSourceListEntryFamilyAssessor()
             )
         let sourceDiscoveryService: SourceDiscoveryService = SourceDiscoveryService(
             discoverComicResourcesUseCase: DiscoverComicResourcesUseCase(

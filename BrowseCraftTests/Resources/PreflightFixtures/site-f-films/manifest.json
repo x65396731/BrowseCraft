@@ -7,9 +7,9 @@
     "status": "accepted",
     "entryShape": "directListOwner"
   },
-  "acceptance": "pending",
-  "pendingReason": "判据修正后不再误判登录态；规划器采样 6 个分类导航页缺失（/films-2026/ /thriller/ 等），待定向补采与观测器归因",
-  "note": "/films/ 直接 List owner",
+  "acceptance": "ready",
+  "pendingReason": "",
+  "note": "v3：/films/ 主列表 + 侧栏剧集小组件（附属）",
   "documents": [
     {
       "name": "site-f-films-entry-1",

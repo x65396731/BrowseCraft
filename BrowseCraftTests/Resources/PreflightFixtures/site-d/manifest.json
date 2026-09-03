@@ -5,11 +5,11 @@
   "entryURL": "https://site-d.example/",
   "expected": {
     "status": "accepted",
-    "entryShape": "oneHopListIndex"
+    "entryShape": "directListOwner"
   },
-  "acceptance": "pending",
-  "pendingReason": "判据修正后不再误判 antiBot；规划器采样 vodsearch/label/vodshow/voddetail 等 14 条缺失，待定向补采与观测器归因",
-  "note": "根页一跳 /vodtype/* 叶子单族",
+  "acceptance": "ready",
+  "pendingReason": "",
+  "note": "v3：根页多个同形状 voddetail 区块并入一 family（外站组不算列表）",
   "documents": [
     {
       "name": "site-d-entry-1",
