@@ -124,6 +124,72 @@
       "stage": "detail",
       "url": "https://site-c.example/serie/el-conde-de-montecristo-Xct9R9",
       "file": "site-c-detail-8.html"
+    },
+    {
+      "name": "site-c-list-11",
+      "stage": "list",
+      "url": "https://site-c.example/year/2020",
+      "file": "site-c-list-11.html"
+    },
+    {
+      "name": "site-c-list-12",
+      "stage": "list",
+      "url": "https://site-c.example/generos/comedia",
+      "file": "site-c-list-12.html"
+    },
+    {
+      "name": "site-c-list-13",
+      "stage": "list",
+      "url": "https://site-c.example/year/1988",
+      "file": "site-c-list-13.html"
+    },
+    {
+      "name": "site-c-list-14",
+      "stage": "list",
+      "url": "https://site-c.example/year/1985",
+      "file": "site-c-list-14.html"
+    },
+    {
+      "name": "site-c-list-15",
+      "stage": "list",
+      "url": "https://site-c.example/generos/western",
+      "file": "site-c-list-15.html"
+    },
+    {
+      "name": "site-c-list-16",
+      "stage": "list",
+      "url": "https://site-c.example/generos/crimen",
+      "file": "site-c-list-16.html"
+    },
+    {
+      "name": "site-c-list-17",
+      "stage": "list",
+      "url": "https://site-c.example/peliculas/populares",
+      "file": "site-c-list-17.html"
+    },
+    {
+      "name": "site-c-list-18",
+      "stage": "list",
+      "url": "https://site-c.example/series/populares",
+      "file": "site-c-list-18.html"
+    },
+    {
+      "name": "site-c-detail-9",
+      "stage": "detail",
+      "url": "https://site-c.example/pelicula/-VWOCM6",
+      "file": "site-c-detail-9.html"
+    },
+    {
+      "name": "site-c-list-19",
+      "stage": "list",
+      "url": "https://site-c.example/generos/accion/peliculas",
+      "file": "site-c-list-19.html"
+    },
+    {
+      "name": "site-c-list-20",
+      "stage": "list",
+      "url": "https://site-c.example/animes/populares",
+      "file": "site-c-list-20.html"
     }
   ]
 }

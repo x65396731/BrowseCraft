@@ -72,6 +72,40 @@ final class VideoGenerationPreflightArchiveFixtureTests: XCTestCase {
         }
     }
 
+    /// 归约事实直方图（只读诊断，供 B.3 归因）。
+    private final class FactsBox: @unchecked Sendable {
+        private let lock = NSLock()
+        private var text: String = "-"
+
+        func record(_ assessment: SourceListFamilyAssessment) {
+            var codes: [String: Int] = [:]
+            for fact in assessment.unresolvedFacts {
+                codes["\(fact.code)", default: 0] += 1
+            }
+            let facts = assessment.entryShapeFacts
+            let families = assessment.families.map { family in
+                "\(family.familyID.suffix(6)):\(family.coveredPublicationUnitIDs.count)"
+            }
+            let dispositions = assessment.requiredPublicationUnits.reduce(into: [String: Int]()) { acc, unit in
+                acc["\(unit.disposition)", default: 0] += 1
+            }
+            let summary: String = "direct=\(facts.directPublicationUnitIDs.count) " +
+                "oneHopLeaf=\(facts.oneHopLeafPublicationUnitIDs.count) " +
+                "deeper=\(facts.deeperCollectionMemberIDs.count) " +
+                "ambiguousMembers=\(facts.ambiguousMemberIDs.count) " +
+                "units=\(dispositions) families=\(families) codes=\(codes)"
+            self.lock.lock()
+            self.text = summary
+            self.lock.unlock()
+        }
+
+        func summary() -> String {
+            self.lock.lock()
+            defer { self.lock.unlock() }
+            return self.text
+        }
+    }
+
     private struct RenderedUnavailable: PreflightRenderedPageAcquiring {
         @MainActor
         func acquireRendered(_ request: PreflightPageRequest) async throws -> PreflightAcquiredPage {
@@ -104,12 +138,16 @@ final class VideoGenerationPreflightArchiveFixtureTests: XCTestCase {
                 pages[ArchiveLoader.key(URL(string: document.url)!)] = data
             }
             let loader = ArchiveLoader(pages: pages)
+            let factsBox = FactsBox()
             let useCase = AssessVideoGenerationInputUseCase(
                 publicURLPolicy: SameHostPolicy(),
                 httpLoader: loader,
                 renderedLoader: RenderedUnavailable(),
                 structureObserver: DefaultSourceListStructureObserver(),
-                familyAssessor: DefaultSourceListFamilyAssessor()
+                familyAssessor: DefaultSourceListFamilyAssessor(),
+                assessmentObserver: { assessment in
+                    factsBox.record(assessment)
+                }
             )
             let result: VideoGenerationInputPreflight = try await useCase.execute(
                 siteURLString: manifest.entryURL,
@@ -126,6 +164,7 @@ final class VideoGenerationPreflightArchiveFixtureTests: XCTestCase {
                 "detail=\(result.audit.detailAcquiredRepresentativeCount) " +
                 "unresolved=\(result.audit.unresolvedFactCount) missing=\(missing.count)"
             report.append(line)
+            report.append("  facts: " + factsBox.summary())
             XCTAssertEqual(
                 result.submissionString,
                 manifest.entryURL,

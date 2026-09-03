@@ -55,6 +55,8 @@ struct AssessVideoGenerationInputUseCase: Sendable {
     private let reducer: VideoGenerationInputReducer
     private let samplingPolicy: VideoGenerationInputSamplingPolicy
     private let identityGenerator: @Sendable () -> String
+    /// 中文注释：只供特征化测试读取归约事实（fact code 直方图），不参与判定、不进产物。
+    private let assessmentObserver: (@Sendable (SourceListFamilyAssessment) -> Void)?
 
     init(
         normalizer: VideoGenerationInputURLNormalizer = VideoGenerationInputURLNormalizer(),
@@ -68,8 +70,10 @@ struct AssessVideoGenerationInputUseCase: Sendable {
         capabilityPolicy: VideoGenerationCapabilityPolicy = VideoGenerationCapabilityPolicy(),
         reducer: VideoGenerationInputReducer = VideoGenerationInputReducer(),
         samplingPolicy: VideoGenerationInputSamplingPolicy = VideoGenerationInputSamplingPolicy(),
-        identityGenerator: @escaping @Sendable () -> String = { UUID().uuidString }
+        identityGenerator: @escaping @Sendable () -> String = { UUID().uuidString },
+        assessmentObserver: (@Sendable (SourceListFamilyAssessment) -> Void)? = nil
     ) {
+        self.assessmentObserver = assessmentObserver
         self.normalizer = normalizer
         self.publicURLPolicy = publicURLPolicy
         self.httpLoader = httpLoader
@@ -377,6 +381,7 @@ struct AssessVideoGenerationInputUseCase: Sendable {
                 missingObservations: missingObservations
             )
         )
+        self.assessmentObserver?(assessment)
         let entryShape: VideoGenerationEntryShape = self.capabilityPolicy.entryShape(
             from: assessment
         )
@@ -385,9 +390,22 @@ struct AssessVideoGenerationInputUseCase: Sendable {
         let qualifiedLeafCount: Int = oneHopObservations.filter { linkedObservation in
             linkedObservation.observation.documentShape.kind == .leafList
         }.count
-        let budgetExhausted: Bool = plan.observedGroupCount
+        // 中文注释：设计书 §7.4——「达到预算**且**未决结果可能改变 entry shape 或 single-family 结论」才是
+        // budgetExhausted；只超预算而未采样成员已被同 owner 代表闭合（Core 不出 unresolved）时不算。
+        let budgetReached: Bool = plan.observedGroupCount
             > self.samplingPolicy.maximumOneHopPrimary
             || detailPlan.totalOwnerCount > self.samplingPolicy.maximumDetailPrimary
+        let budgetSensitiveFacts: Bool = assessment.unresolvedFacts.contains { fact in
+            switch fact.code {
+            case .budgetLimited, .oneHopMemberUnobserved, .detailCompatibilityUnobserved:
+                return true
+            case .oneHopMemberConflicting, .detailCompatibilityConflicting, .familyIdentityUnresolved,
+                 .publicationIdentityUnresolved, .acquisitionFailed, .isolationUnavailable,
+                 .entryShapeAmbiguous:
+                return false
+            }
+        }
+        let budgetExhausted: Bool = budgetReached && budgetSensitiveFacts
         let audit: VideoGenerationInputPreflightAudit = VideoGenerationInputPreflightAudit(
             oneHopObservedGroupCount: plan.observedGroupCount,
             oneHopAcquiredRepresentativeCount: acquiredOneHopPages.count,

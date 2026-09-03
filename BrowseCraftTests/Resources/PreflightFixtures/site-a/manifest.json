@@ -118,6 +118,54 @@
       "stage": "detail",
       "url": "https://site-a.example/view_video.php",
       "file": "site-a-detail-1.html"
+    },
+    {
+      "name": "site-a-list-17",
+      "stage": "list",
+      "url": "https://site-a.example/signup.php",
+      "file": "site-a-list-17.html"
+    },
+    {
+      "name": "site-a-list-18",
+      "stage": "list",
+      "url": "https://site-a.example/search_result.php?search_id=%E7%86%9F%E5%A5%B3",
+      "file": "site-a-list-18.html"
+    },
+    {
+      "name": "site-a-list-19",
+      "stage": "list",
+      "url": "https://site-a.example/search_result.php?search_id=%E4%B8%9D%E8%A2%9C",
+      "file": "site-a-list-19.html"
+    },
+    {
+      "name": "site-a-list-20",
+      "stage": "list",
+      "url": "https://site-a.example/login.php",
+      "file": "site-a-list-20.html"
+    },
+    {
+      "name": "site-a-list-21",
+      "stage": "list",
+      "url": "https://site-a.example/privacy.php",
+      "file": "site-a-list-21.html"
+    },
+    {
+      "name": "site-a-detail-2",
+      "stage": "detail",
+      "url": "https://site-a.example/view_video.php?viewkey=ddedf7694d1db82ea8a1&c=znida&viewtype=&category=",
+      "file": "site-a-detail-2.html"
+    },
+    {
+      "name": "site-a-list-22",
+      "stage": "list",
+      "url": "https://site-a.example/faq.php",
+      "file": "site-a-list-22.html"
+    },
+    {
+      "name": "site-a-detail-3",
+      "stage": "detail",
+      "url": "https://site-a.example/view_video.php?viewkey=608732384&c=znida&viewtype=&category=",
+      "file": "site-a-detail-3.html"
     }
   ]
 }

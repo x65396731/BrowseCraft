@@ -40,6 +40,78 @@
       "stage": "detail",
       "url": "https://site-f.example/detective/34464-kamenskaya-6.html",
       "file": "site-f-home-detail-1.html"
+    },
+    {
+      "name": "site-f-home-list-4",
+      "stage": "list",
+      "url": "https://site-f.example/cartoons/",
+      "file": "site-f-home-list-4.html"
+    },
+    {
+      "name": "site-f-home-list-5",
+      "stage": "list",
+      "url": "https://site-f.example/films-2026/",
+      "file": "site-f-home-list-5.html"
+    },
+    {
+      "name": "site-f-home-list-6",
+      "stage": "list",
+      "url": "https://site-f.example/page/5/",
+      "file": "site-f-home-list-6.html"
+    },
+    {
+      "name": "site-f-home-list-7",
+      "stage": "list",
+      "url": "https://site-f.example/horror/",
+      "file": "site-f-home-list-7.html"
+    },
+    {
+      "name": "site-f-home-list-8",
+      "stage": "list",
+      "url": "https://site-f.example/comedy/",
+      "file": "site-f-home-list-8.html"
+    },
+    {
+      "name": "site-f-home-list-9",
+      "stage": "list",
+      "url": "https://site-f.example/zarubezhnye_serialy/",
+      "file": "site-f-home-list-9.html"
+    },
+    {
+      "name": "site-f-home-list-10",
+      "stage": "list",
+      "url": "https://site-f.example/turezkie_serialy/",
+      "file": "site-f-home-list-10.html"
+    },
+    {
+      "name": "site-f-home-list-11",
+      "stage": "list",
+      "url": "https://site-f.example/films/",
+      "file": "site-f-home-list-11.html"
+    },
+    {
+      "name": "site-f-home-list-12",
+      "stage": "list",
+      "url": "https://site-f.example/action/",
+      "file": "site-f-home-list-12.html"
+    },
+    {
+      "name": "site-f-home-list-13",
+      "stage": "list",
+      "url": "https://site-f.example/russkye_serialy/",
+      "file": "site-f-home-list-13.html"
+    },
+    {
+      "name": "site-f-home-list-14",
+      "stage": "list",
+      "url": "https://site-f.example/thriller/",
+      "file": "site-f-home-list-14.html"
+    },
+    {
+      "name": "site-f-home-list-15",
+      "stage": "list",
+      "url": "https://site-f.example/melodrama/",
+      "file": "site-f-home-list-15.html"
     }
   ]
 }

@@ -1,0 +1,1659 @@
+<!DOCTYPE html><html style="background: #333"><head>
+    <link rel="preconnect" href="https://sads.adsboosters.xyz" crossorigin="">
+
+<link rel="preconnect" href="https://scripts.cleverwebserver.com" crossorigin="">
+
+<script async="" src="https://scripts.clarity.ms/0.8.69/clarity.js"></script><script async="" src="https://www.clarity.ms/tag/ebfwn517cf?ref=bwt"></script><script>
+(function () {
+    'use strict';
+
+    var ALLOWED_HOSTS = [
+        'site-d.example',
+        'site-d.example',
+        'site-d.example',
+        'site-d.example',
+        'site-d.example',
+        'site-d.example',
+        'site-d.example',
+        'site-d.example',
+        'site-d.example',
+        'site-d.example',
+        'site-d.example',
+        'kuang1.cfd',
+        'kuang2.cfd',
+        'kuang3.cfd',
+        'kuang4.cfd',
+        'kuang5.cfd',
+        'kuang6.cfd'
+    ];
+
+    var currentHost = location.hostname
+        .toLowerCase()
+        .replace(/^www\./, '');
+
+    if (ALLOWED_HOSTS.indexOf(currentHost) === -1) {
+        console.log('ignored: ' + currentHost);
+        return;
+    }
+
+    var GEO_KEY = 'g13_geo_v1';
+    var GEO_TTL = 3 * 24 * 60 * 60 * 1000; // 3 days
+
+    function getCachedGeo() {
+        try {
+            var raw = localStorage.getItem(GEO_KEY);
+
+            if (!raw) {
+                return null;
+            }
+
+            var data = JSON.parse(raw);
+
+            if (
+                !data ||
+                !data.c ||
+                !data.e ||
+                Date.now() >= data.e
+            ) {
+                localStorage.removeItem(GEO_KEY);
+                return null;
+            }
+
+            return String(data.c).toUpperCase();
+
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function saveGeo(country) {
+        try {
+            localStorage.setItem(
+                GEO_KEY,
+                JSON.stringify({
+                    c: country,
+                    e: Date.now() + GEO_TTL
+                })
+            );
+        } catch (e) {
+            // localStorage unavailable; ignore
+        }
+    }
+
+    function load106077() {
+        if (document.getElementById('AdsCoreLoader106077')) {
+            return;
+        }
+
+        var s = document.createElement('script');
+
+        s.id = 'AdsCoreLoader106077';
+        s.type = 'text/javascript';
+        s.async = true;
+        s.setAttribute('data-cfasync', 'false');
+
+        s.src =
+            'https://sads.adsboosters.xyz/' +
+            '0f256593b857bc97b3148940ed8bd0de.js';
+
+        (document.head || document.documentElement).appendChild(s);
+    }
+
+    function load106351() {
+        if (document.getElementById('CleverCoreLoader106351')) {
+            return;
+        }
+
+        var c = document.createElement('script');
+        var f = window.frameElement;
+
+        c.id = 'CleverCoreLoader106351';
+
+        c.src =
+            'https://scripts.cleverwebserver.com/' +
+            'd32a08696426afe5945aa25afc04a90a.js';
+
+        c.async = true;
+        c.type = 'text/javascript';
+
+        c.setAttribute(
+            'data-target',
+            window.name || (f && f.getAttribute('id'))
+        );
+
+        c.setAttribute(
+            'data-callback',
+            'put-your-callback-function-here'
+        );
+
+        c.setAttribute(
+            'data-callback-url-click',
+            'put-your-click-macro-here'
+        );
+
+        c.setAttribute(
+            'data-callback-url-view',
+            'put-your-view-macro-here'
+        );
+
+        (document.head || document.documentElement).appendChild(c);
+    }
+
+    function loadAds(country) {
+        console.log('geo:'+country);
+        switch (country) {
+
+            case 'CN':
+            case 'JP':
+                load106077();
+                console.log('load106077');
+                return;
+
+            case 'MY':
+            case 'TW':
+            case 'SG':                
+                load106351();
+                console.log('load106351');
+                return;
+
+            default:
+                console.log('loadnone');
+                return;
+        }
+    }
+
+    function detectGeo() {
+        fetch('/__geo', {
+            method: 'GET',
+            cache: 'no-store',
+            credentials: 'omit'
+        })
+        .then(function (response) {
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status);
+            }
+
+            return response.text();
+        })
+        .then(function (country) {
+            country = String(country || '')
+                .trim()
+                .toUpperCase();
+
+            if (!/^[A-Z0-9]{2}$/.test(country)) {
+                return;
+            }
+
+            saveGeo(country);
+            loadAds(country);
+        })
+        .catch(function () {
+            // GEO lookup failed.
+            // Do not load a potentially incorrect campaign.
+        });
+    }
+
+    var country = getCachedGeo();
+
+    if (country) {
+        console.log('getCachedGeo:'+country);
+        loadAds(country);
+    } else {
+        console.log('detectGeo');
+        detectGeo();
+    }
+
+})();
+</script>
+    <!-- Google tag (gtag.js) -->
+    <script async="" src="https://www.googletagmanager.com/gtag/js?id=G-W1GJYGVEGE"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+
+        gtag('config', 'G-W1GJYGVEGE');
+    </script>
+    <script>
+        (function(c,l,a,r,i,t,y){
+            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i+"?ref=bwt";
+            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        })(window, document, "clarity", "script", "ebfwn517cf");
+    </script>
+    <!-- Matomo -->
+    <!-- <script>
+        var _paq = window._paq = window._paq || [];
+        /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+        _paq.push(['trackPageView']);
+        _paq.push(['enableLinkTracking']);
+        (function() {
+            var u="//mystats.flixfiend.top/";
+            _paq.push(['setTrackerUrl', u+'vnex.php']);
+            _paq.push(['setSiteId', '1']);
+            var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+            g.async=true; g.src=u+'vnex.js'; s.parentNode.insertBefore(g,s);
+        })();
+    </script> -->
+    <!-- End Matomo Code -->
+
+    <!--<script type="text/javascript" src="//api.tongjiniao.com/c?_=618402127289782272" async></script>-->
+<meta name="renderer" content="webkit">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="apple-mobile-web-app-title" content="看片狂人">
+<meta name="yandex-verification" content="f7f8b078f1239f6b">
+<meta name="viewport" content="initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no">
+    <script type="application/javascript">
+        function loadBackup(url) {
+            var backups = {
+                'https://cdn.staticfile.org/jquery_lazyload/1.9.7/jquery.lazyload.min.js': 'https://cdnjs.cloudflare.com/ajax/libs/jquery_lazyload/1.9.7/lazyload.min.js',
+                'https://cdn.staticfile.org/Swiper/3.4.2/js/swiper.min.js': 'https://cdnjs.cloudflare.com/ajax/libs/Swiper/3.4.2/js/swiper.min.js',
+                'https://cdn.staticfile.org/layer/3.1.1/layer.min.js': 'https://cdnjs.cloudflare.com/ajax/libs/layer/3.1.1/layer.min.js',
+                'https://cdn.staticfile.org/jquery-backstretch/2.1.18/jquery.backstretch.min.js': 'https://cdnjs.cloudflare.com/ajax/libs/jquery-backstretch/2.1.18/jquery.backstretch.min.js',
+                'https://cdn.staticfile.org/crypto-js/4.1.1/crypto-js.min.js': 'https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js',
+                'https://cdn.staticfile.org/font-awesome/6.4.0/js/all.min.js': 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js',
+                'https://cdn.staticfile.org/font-awesome/6.4.0/css/all.min.css': 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+                'https://cdn.staticfile.org/lz-string/1.4.4/lz-string.min.js': 'https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js',
+                'https://cdn.staticfile.org/uikit/3.2.3/css/uikit.min.css': 'https://cdnjs.cloudflare.com/ajax/libs/uikit/3.2.3/css/uikit.min.css',
+                'https://cdn.staticfile.org/uikit/3.2.3/js/uikit.min.js': 'https://cdnjs.cloudflare.com/ajax/libs/uikit/3.2.3/js/uikit.min.js',
+                'https://cdn.staticfile.org/uikit/3.15.12/js/uikit-icons.min.js': 'https://cdnjs.cloudflare.com/ajax/libs/uikit/3.2.3/js/uikit-icons.min.js',
+                'https://cdn.staticfile.org/jquery/1.12.3/jquery.min.js': 'https://cdnjs.cloudflare.com/ajax/libs/jquery/1.12.3/jquery.min.js',
+                'https://cdn.staticfile.org/js-cookie/3.0.1/js.cookie.min.js': 'https://cdnjs.cloudflare.com/ajax/libs/js-cookie/3.0.1/js.cookie.min.js',
+            };
+            var backupUrl = backups[url];
+            if (backupUrl) {
+                var isJS = url.endsWith('.js');
+                var isCSS = url.endsWith('.css');
+
+                if (isJS) {
+                    var script = document.createElement('script');
+                    script.src = backupUrl;
+                    document.head.appendChild(script);
+                } else if (isCSS) {
+                    var link = document.createElement('link');
+                    link.rel = 'stylesheet';
+                    link.href = backupUrl;
+                    document.head.appendChild(link);
+                }
+            }
+        }
+    </script>
+
+<link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="/rss/index.xml">
+    <!-- UIkit CSS -->
+    <link href="https://unpkg.com/uikit@3.2.3/dist/css/uikit.min.css" type="text/css" rel="stylesheet">
+    <!--<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.11.1/css/uikit.min.css" integrity="sha512-4zIHwpUAq+H1BmiVSX3pdrIewjWaffQzXtAjo5ElVcQ1B6GlElz3yeSoWqeoDRrmaSvimMF//JxOO95u8Dx05w==" crossorigin="anonymous" referrerpolicy="no-referrer" />-->
+
+<!--[if lt IE 9]><script type="text/javascript">window.location.href = '/map.html';</script><![endif]-->
+<link href="/upload/site/20191223-1/2c9a52af085be96d716679409b453460.png" rel="apple-touch-icon-precomposed">
+<link href="/upload/site/20191223-1/2c9a52af085be96d716679409b453460.png" rel="shortcut icon" type="image/ico">
+<!--<link rel="stylesheet" type="text/css" href="/template/vfed/asset/css/style.css?v=3.1.48" />-->
+<link rel="stylesheet" type="text/css" href="/template/vfed/asset/css/style.css?v=3.1.48">
+<!--<link rel="stylesheet" type="text/css" href="/template/vfed/asset/css/black.css?v=3.1.48" id="fed-colo-color" />-->
+<link rel="stylesheet" type="text/css" href="/template/vfed/asset/css/black.css?v=3.1.48" id="fed-colo-color">
+<!--<style type="text/css">.fed-list-pics{background-image:url("/upload/site/20220519-1/3d63c9d1ef7bde1bd7a20251889ff0ca.gif");background-position: 50% 50%;background-size: cover}</style>-->
+<style type="text/css">.fed-list-pics{background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' style='margin:auto;background:%23f1f2f3;display:block;z-index:1;position:relative' width='174' height='261' preserveAspectRatio='xMidYMid' viewBox='0 0 174 261'%3E%3Cg transform='translate(87,130.5) scale(1,1) translate(-87,-130.5)'%3E%3Cdefs%3E%3ClinearGradient id='lg-0.28195277618845116' x1='0' x2='0' y1='0' y2='1'%3E%3Cstop stop-color='%230a0a0a' offset='0.7000000000000001'%3E%3C/stop%3E%3Cstop stop-color='%2328292f' offset='0.8500000000000001'%3E%3C/stop%3E%3Cstop stop-color='%2328292f' offset='1'%3E%3C/stop%3E%3C/linearGradient%3E%3ClinearGradient id='fg-lg-0.28195277618845116' x1='0' x2='0' y1='0' y2='1'%3E%3Cstop stop-color='%230a0a0a' stop-opacity='1' offset='0.7000000000000001'%3E%3C/stop%3E%3Cstop stop-color='%2328292f' stop-opacity='0.66' offset='0.8500000000000001'%3E%3C/stop%3E%3Cstop stop-color='%2328292f' stop-opacity='0' offset='1'%3E%3C/stop%3E%3C/linearGradient%3E%3Cstyle type='text/css'%3E path %7B fill: none; stroke: %23ffffff; stroke-width: 1px %7D%0A%3C/style%3E%3C/defs%3E%3Crect x='0' y='0' width='174' height='261' fill='url(%23lg-0.28195277618845116)'%3E%3C/rect%3E%3Cpath d='M0 182.70000000000002 L-1218 261'%3E%3C/path%3E%3Cpath d='M1.3384615384615384 182.70000000000002 L-1197.923076923077 261'%3E%3C/path%3E%3Cpath d='M2.6769230769230767 182.70000000000002 L-1177.8461538461538 261'%3E%3C/path%3E%3Cpath d='M4.015384615384615 182.70000000000002 L-1157.7692307692307 261'%3E%3C/path%3E%3Cpath d='M5.3538461538461535 182.70000000000002 L-1137.6923076923076 261'%3E%3C/path%3E%3Cpath d='M6.6923076923076925 182.70000000000002 L-1117.6153846153845 261'%3E%3C/path%3E%3Cpath d='M8.03076923076923 182.70000000000002 L-1097.5384615384614 261'%3E%3C/path%3E%3Cpath d='M9.36923076923077 182.70000000000002 L-1077.4615384615386 261'%3E%3C/path%3E%3Cpath d='M10.707692307692307 182.70000000000002 L-1057.3846153846155 261'%3E%3C/path%3E%3Cpath d='M12.046153846153846 182.70000000000002 L-1037.3076923076924 261'%3E%3C/path%3E%3Cpath d='M13.384615384615385 182.70000000000002 L-1017.2307692307693 261'%3E%3C/path%3E%3Cpath d='M14.723076923076922 182.70000000000002 L-997.1538461538462 261'%3E%3C/path%3E%3Cpath d='M16.06153846153846 182.70000000000002 L-977.0769230769231 261'%3E%3C/path%3E%3Cpath d='M17.4 182.70000000000002 L-957 261'%3E%3C/path%3E%3Cpath d='M18.73846153846154 182.70000000000002 L-936.9230769230769 261'%3E%3C/path%3E%3Cpath d='M20.076923076923077 182.70000000000002 L-916.8461538461538 261'%3E%3C/path%3E%3Cpath d='M21.415384615384614 182.70000000000002 L-896.7692307692307 261'%3E%3C/path%3E%3Cpath d='M22.753846153846155 182.70000000000002 L-876.6923076923076 261'%3E%3C/path%3E%3Cpath d='M24.092307692307692 182.70000000000002 L-856.6153846153846 261'%3E%3C/path%3E%3Cpath d='M25.43076923076923 182.70000000000002 L-836.5384615384615 261'%3E%3C/path%3E%3Cpath d='M26.76923076923077 182.70000000000002 L-816.4615384615385 261'%3E%3C/path%3E%3Cpath d='M28.107692307692307 182.70000000000002 L-796.3846153846154 261'%3E%3C/path%3E%3Cpath d='M29.446153846153845 182.70000000000002 L-776.3076923076924 261'%3E%3C/path%3E%3Cpath d='M30.784615384615385 182.70000000000002 L-756.2307692307693 261'%3E%3C/path%3E%3Cpath d='M32.12307692307692 182.70000000000002 L-736.1538461538462 261'%3E%3C/path%3E%3Cpath d='M33.46153846153846 182.70000000000002 L-716.0769230769231 261'%3E%3C/path%3E%3Cpath d='M34.8 182.70000000000002 L-696 261'%3E%3C/path%3E%3Cpath d='M36.13846153846154 182.70000000000002 L-675.9230769230769 261'%3E%3C/path%3E%3Cpath d='M37.47692307692308 182.70000000000002 L-655.8461538461538 261'%3E%3C/path%3E%3Cpath d='M38.815384615384616 182.70000000000002 L-635.7692307692307 261'%3E%3C/path%3E%3Cpath d='M40.15384615384615 182.70000000000002 L-615.6923076923077 261'%3E%3C/path%3E%3Cpath d='M41.49230769230769 182.70000000000002 L-595.6153846153846 261'%3E%3C/path%3E%3Cpath d='M42.83076923076923 182.70000000000002 L-575.5384615384615 261'%3E%3C/path%3E%3Cpath d='M44.16923076923077 182.70000000000002 L-555.4615384615385 261'%3E%3C/path%3E%3Cpath d='M45.50769230769231 182.70000000000002 L-535.3846153846154 261'%3E%3C/path%3E%3Cpath d='M46.84615384615385 182.70000000000002 L-515.3076923076923 261'%3E%3C/path%3E%3Cpath d='M48.184615384615384 182.70000000000002 L-495.2307692307693 261'%3E%3C/path%3E%3Cpath d='M49.52307692307692 182.70000000000002 L-475.1538461538462 261'%3E%3C/path%3E%3Cpath d='M50.86153846153846 182.70000000000002 L-455.0769230769231 261'%3E%3C/path%3E%3Cpath d='M52.2 182.70000000000002 L-435 261'%3E%3C/path%3E%3Cpath d='M53.53846153846154 182.70000000000002 L-414.9230769230769 261'%3E%3C/path%3E%3Cpath d='M54.87692307692308 182.70000000000002 L-394.8461538461538 261'%3E%3C/path%3E%3Cpath d='M56.215384615384615 182.70000000000002 L-374.7692307692307 261'%3E%3C/path%3E%3Cpath d='M57.55384615384615 182.70000000000002 L-354.69230769230774 261'%3E%3C/path%3E%3Cpath d='M58.89230769230769 182.70000000000002 L-334.61538461538464 261'%3E%3C/path%3E%3Cpath d='M60.23076923076923 182.70000000000002 L-314.53846153846155 261'%3E%3C/path%3E%3Cpath d='M61.56923076923077 182.70000000000002 L-294.46153846153845 261'%3E%3C/path%3E%3Cpath d='M62.90769230769231 182.70000000000002 L-274.38461538461536 261'%3E%3C/path%3E%3Cpath d='M64.24615384615385 182.70000000000002 L-254.30769230769226 261'%3E%3C/path%3E%3Cpath d='M65.58461538461539 182.70000000000002 L-234.23076923076928 261'%3E%3C/path%3E%3Cpath d='M66.92307692307692 182.70000000000002 L-214.1538461538462 261'%3E%3C/path%3E%3Cpath d='M68.26153846153846 182.70000000000002 L-194.0769230769231 261'%3E%3C/path%3E%3Cpath d='M69.6 182.70000000000002 L-174 261'%3E%3C/path%3E%3Cpath d='M70.93846153846154 182.70000000000002 L-153.9230769230769 261'%3E%3C/path%3E%3Cpath d='M72.27692307692308 182.70000000000002 L-133.8461538461538 261'%3E%3C/path%3E%3Cpath d='M73.61538461538461 182.70000000000002 L-113.76923076923072 261'%3E%3C/path%3E%3Cpath d='M74.95384615384616 182.70000000000002 L-93.69230769230762 261'%3E%3C/path%3E%3Cpath d='M76.29230769230769 182.70000000000002 L-73.61538461538453 261'%3E%3C/path%3E%3Cpath d='M77.63076923076923 182.70000000000002 L-53.53846153846143 261'%3E%3C/path%3E%3Cpath d='M78.96923076923076 182.70000000000002 L-33.46153846153857 261'%3E%3C/path%3E%3Cpath d='M80.3076923076923 182.70000000000002 L-13.384615384615472 261'%3E%3C/path%3E%3Cpath d='M81.64615384615385 182.70000000000002 L6.692307692307622 261'%3E%3C/path%3E%3Cpath d='M82.98461538461538 182.70000000000002 L26.769230769230717 261'%3E%3C/path%3E%3Cpath d='M84.32307692307693 182.70000000000002 L46.84615384615381 261'%3E%3C/path%3E%3Cpath d='M85.66153846153846 182.70000000000002 L66.9230769230769 261'%3E%3C/path%3E%3Cpath d='M87 182.70000000000002 L87 261'%3E%3C/path%3E%3Cpath d='M88.33846153846154 182.70000000000002 L107.0769230769231 261'%3E%3C/path%3E%3Cpath d='M89.67692307692307 182.70000000000002 L127.15384615384619 261'%3E%3C/path%3E%3Cpath d='M91.01538461538462 182.70000000000002 L147.23076923076928 261'%3E%3C/path%3E%3Cpath d='M92.35384615384615 182.70000000000002 L167.30769230769238 261'%3E%3C/path%3E%3Cpath d='M93.6923076923077 182.70000000000002 L187.38461538461547 261'%3E%3C/path%3E%3Cpath d='M95.03076923076924 182.70000000000002 L207.46153846153857 261'%3E%3C/path%3E%3Cpath d='M96.36923076923077 182.70000000000002 L227.53846153846143 261'%3E%3C/path%3E%3Cpath d='M97.70769230769231 182.70000000000002 L247.61538461538453 261'%3E%3C/path%3E%3Cpath d='M99.04615384615384 182.70000000000002 L267.6923076923076 261'%3E%3C/path%3E%3Cpath d='M100.38461538461539 182.70000000000002 L287.7692307692307 261'%3E%3C/path%3E%3Cpath d='M101.72307692307692 182.70000000000002 L307.8461538461538 261'%3E%3C/path%3E%3Cpath d='M103.06153846153846 182.70000000000002 L327.9230769230769 261'%3E%3C/path%3E%3Cpath d='M104.4 182.70000000000002 L348 261'%3E%3C/path%3E%3Cpath d='M105.73846153846154 182.70000000000002 L368.0769230769231 261'%3E%3C/path%3E%3Cpath d='M107.07692307692308 182.70000000000002 L388.1538461538462 261'%3E%3C/path%3E%3Cpath d='M108.41538461538461 182.70000000000002 L408.2307692307693 261'%3E%3C/path%3E%3Cpath d='M109.75384615384615 182.70000000000002 L428.3076923076924 261'%3E%3C/path%3E%3Cpath d='M111.0923076923077 182.70000000000002 L448.3846153846155 261'%3E%3C/path%3E%3Cpath d='M112.43076923076923 182.70000000000002 L468.46153846153857 261'%3E%3C/path%3E%3Cpath d='M113.76923076923077 182.70000000000002 L488.53846153846143 261'%3E%3C/path%3E%3Cpath d='M115.1076923076923 182.70000000000002 L508.6153846153845 261'%3E%3C/path%3E%3Cpath d='M116.44615384615385 182.70000000000002 L528.6923076923076 261'%3E%3C/path%3E%3Cpath d='M117.78461538461538 182.70000000000002 L548.7692307692307 261'%3E%3C/path%3E%3Cpath d='M119.12307692307692 182.70000000000002 L568.8461538461538 261'%3E%3C/path%3E%3Cpath d='M120.46153846153847 182.70000000000002 L588.9230769230769 261'%3E%3C/path%3E%3Cpath d='M121.8 182.70000000000002 L609 261'%3E%3C/path%3E%3Cpath d='M123.13846153846154 182.70000000000002 L629.0769230769231 261'%3E%3C/path%3E%3Cpath d='M124.47692307692307 182.70000000000002 L649.1538461538462 261'%3E%3C/path%3E%3Cpath d='M125.81538461538462 182.70000000000002 L669.2307692307693 261'%3E%3C/path%3E%3Cpath d='M127.15384615384616 182.70000000000002 L689.3076923076924 261'%3E%3C/path%3E%3Cpath d='M128.4923076923077 182.70000000000002 L709.3846153846155 261'%3E%3C/path%3E%3Cpath d='M129.83076923076922 182.70000000000002 L729.4615384615386 261'%3E%3C/path%3E%3Cpath d='M131.16923076923078 182.70000000000002 L749.5384615384614 261'%3E%3C/path%3E%3Cpath d='M132.5076923076923 182.70000000000002 L769.6153846153845 261'%3E%3C/path%3E%3Cpath d='M133.84615384615384 182.70000000000002 L789.6923076923076 261'%3E%3C/path%3E%3Cpath d='M135.1846153846154 182.70000000000002 L809.7692307692307 261'%3E%3C/path%3E%3Cpath d='M136.52307692307693 182.70000000000002 L829.8461538461538 261'%3E%3C/path%3E%3Cpath d='M137.86153846153846 182.70000000000002 L849.9230769230771 261'%3E%3C/path%3E%3Cpath d='M139.2 182.70000000000002 L870 261'%3E%3C/path%3E%3Cpath d='M140.53846153846155 182.70000000000002 L890.0769230769229 261'%3E%3C/path%3E%3Cpath d='M141.87692307692308 182.70000000000002 L910.1538461538462 261'%3E%3C/path%3E%3Cpath d='M143.2153846153846 182.70000000000002 L930.230769230769 261'%3E%3C/path%3E%3Cpath d='M144.55384615384617 182.70000000000002 L950.3076923076924 261'%3E%3C/path%3E%3Cpath d='M145.8923076923077 182.70000000000002 L970.3846153846152 261'%3E%3C/path%3E%3Cpath d='M147.23076923076923 182.70000000000002 L990.4615384615386 261'%3E%3C/path%3E%3Cpath d='M148.56923076923076 182.70000000000002 L1010.5384615384614 261'%3E%3C/path%3E%3Cpath d='M149.90769230769232 182.70000000000002 L1030.6153846153848 261'%3E%3C/path%3E%3Cpath d='M151.24615384615385 182.70000000000002 L1050.6923076923076 261'%3E%3C/path%3E%3Cpath d='M152.58461538461538 182.70000000000002 L1070.769230769231 261'%3E%3C/path%3E%3Cpath d='M153.92307692307693 182.70000000000002 L1090.8461538461538 261'%3E%3C/path%3E%3Cpath d='M155.26153846153846 182.70000000000002 L1110.9230769230771 261'%3E%3C/path%3E%3Cpath d='M156.6 182.70000000000002 L1131 261'%3E%3C/path%3E%3Cpath d='M157.93846153846152 182.70000000000002 L1151.0769230769229 261'%3E%3C/path%3E%3Cpath d='M159.27692307692308 182.70000000000002 L1171.1538461538462 261'%3E%3C/path%3E%3Cpath d='M160.6153846153846 182.70000000000002 L1191.230769230769 261'%3E%3C/path%3E%3Cpath d='M161.95384615384614 182.70000000000002 L1211.3076923076924 261'%3E%3C/path%3E%3Cpath d='M163.2923076923077 182.70000000000002 L1231.3846153846152 261'%3E%3C/path%3E%3Cpath d='M164.63076923076923 182.70000000000002 L1251.4615384615386 261'%3E%3C/path%3E%3Cpath d='M165.96923076923076 182.70000000000002 L1271.5384615384614 261'%3E%3C/path%3E%3Cpath d='M167.30769230769232 182.70000000000002 L1291.6153846153848 261'%3E%3C/path%3E%3Cpath d='M168.64615384615385 182.70000000000002 L1311.6923076923076 261'%3E%3C/path%3E%3Cpath d='M169.98461538461538 182.70000000000002 L1331.769230769231 261'%3E%3C/path%3E%3Cpath d='M171.3230769230769 182.70000000000002 L1351.8461538461538 261'%3E%3C/path%3E%3Cpath d='M172.66153846153847 182.70000000000002 L1371.9230769230771 261'%3E%3C/path%3E%3Cpath d='M174 182.70000000000002 L1392 261'%3E%3C/path%3E%3Cg%3E%3Cpath d='M0 182.70000000000002 L174 182.70000000000002'%3E%3C/path%3E%3CanimateTransform attributeName='transform' type='translate' repeatCount='indefinite' calcMode='linear' keyTimes='0;1' values='0 0;0 0.593041420118343' begin='0s' dur='0.8333333333333334s'%3E%3C/animateTransform%3E%3C/g%3E%3Cg%3E%3Cpath d='M0 183.29304142011836 L174 183.29304142011836'%3E%3C/path%3E%3CanimateTransform attributeName='transform' type='translate' repeatCount='indefinite' calcMode='linear' keyTimes='0;1' values='0 0;0 1.1860828402366859' begin='0s' dur='0.8333333333333334s'%3E%3C/animateTransform%3E%3C/g%3E%3Cg%3E%3Cpath d='M0 184.47912426035504 L174 184.47912426035504'%3E%3C/path%3E%3CanimateTransform attributeName='transform' type='translate' repeatCount='indefinite' calcMode='linear' keyTimes='0;1' values='0 0;0 1.779124260355029' begin='0s' dur='0.8333333333333334s'%3E%3C/animateTransform%3E%3C/g%3E%3Cg%3E%3Cpath d='M0 186.25824852071005 L174 186.25824852071005'%3E%3C/path%3E%3CanimateTransform attributeName='transform' type='translate' repeatCount='indefinite' calcMode='linear' keyTimes='0;1' values='0 0;0 2.372165680473372' begin='0s' dur='0.8333333333333334s'%3E%3C/animateTransform%3E%3C/g%3E%3Cg%3E%3Cpath d='M0 188.6304142011834 L174 188.6304142011834'%3E%3C/path%3E%3CanimateTransform attributeName='transform' type='translate' repeatCount='indefinite' calcMode='linear' keyTimes='0;1' values='0 0;0 2.9652071005917153' begin='0s' dur='0.8333333333333334s'%3E%3C/animateTransform%3E%3C/g%3E%3Cg%3E%3Cpath d='M0 191.59562130177514 L174 191.59562130177514'%3E%3C/path%3E%3CanimateTransform attributeName='transform' type='translate' repeatCount='indefinite' calcMode='linear' keyTimes='0;1' values='0 0;0 3.558248520710058' begin='0s' dur='0.8333333333333334s'%3E%3C/animateTransform%3E%3C/g%3E%3Cg%3E%3Cpath d='M0 195.1538698224852 L174 195.1538698224852'%3E%3C/path%3E%3CanimateTransform attributeName='transform' type='translate' repeatCount='indefinite' calcMode='linear' keyTimes='0;1' values='0 0;0 4.151289940828401' begin='0s' dur='0.8333333333333334s'%3E%3C/animateTransform%3E%3C/g%3E%3Cg%3E%3Cpath d='M0 199.3051597633136 L174 199.3051597633136'%3E%3C/path%3E%3CanimateTransform attributeName='transform' type='translate' repeatCount='indefinite' calcMode='linear' keyTimes='0;1' values='0 0;0 4.744331360946744' begin='0s' dur='0.8333333333333334s'%3E%3C/animateTransform%3E%3C/g%3E%3Cg%3E%3Cpath d='M0 204.04949112426036 L174 204.04949112426036'%3E%3C/path%3E%3CanimateTransform attributeName='transform' type='translate' repeatCount='indefinite' calcMode='linear' keyTimes='0;1' values='0 0;0 5.3373727810650875' begin='0s' dur='0.8333333333333334s'%3E%3C/animateTransform%3E%3C/g%3E%3Cg%3E%3Cpath d='M0 209.38686390532544 L174 209.38686390532544'%3E%3C/path%3E%3CanimateTransform attributeName='transform' type='translate' repeatCount='indefinite' calcMode='linear' keyTimes='0;1' values='0 0;0 5.930414201183431' begin='0s' dur='0.8333333333333334s'%3E%3C/animateTransform%3E%3C/g%3E%3Cg%3E%3Cpath d='M0 215.31727810650887 L174 215.31727810650887'%3E%3C/path%3E%3CanimateTransform attributeName='transform' type='translate' repeatCount='indefinite' calcMode='linear' keyTimes='0;1' values='0 0;0 6.523455621301774' begin='0s' dur='0.8333333333333334s'%3E%3C/animateTransform%3E%3C/g%3E%3Cg%3E%3Cpath d='M0 221.84073372781063 L174 221.84073372781063'%3E%3C/path%3E%3CanimateTransform attributeName='transform' type='translate' repeatCount='indefinite' calcMode='linear' keyTimes='0;1' values='0 0;0 7.116497041420117' begin='0s' dur='0.8333333333333334s'%3E%3C/animateTransform%3E%3C/g%3E%3Cg%3E%3Cpath d='M0 228.95723076923073 L174 228.95723076923073'%3E%3C/path%3E%3CanimateTransform attributeName='transform' type='translate' repeatCount='indefinite' calcMode='linear' keyTimes='0;1' values='0 0;0 7.709538461538459' begin='0s' dur='0.8333333333333334s'%3E%3C/animateTransform%3E%3C/g%3E%3Cg%3E%3Cpath d='M0 236.6667692307692 L174 236.6667692307692'%3E%3C/path%3E%3CanimateTransform attributeName='transform' type='translate' repeatCount='indefinite' calcMode='linear' keyTimes='0;1' values='0 0;0 8.302579881656802' begin='0s' dur='0.8333333333333334s'%3E%3C/animateTransform%3E%3C/g%3E%3Cg%3E%3Cpath d='M0 244.96934911242602 L174 244.96934911242602'%3E%3C/path%3E%3CanimateTransform attributeName='transform' type='translate' repeatCount='indefinite' calcMode='linear' keyTimes='0;1' values='0 0;0 8.895621301775146' begin='0s' dur='0.8333333333333334s'%3E%3C/animateTransform%3E%3C/g%3E%3Cg%3E%3Cpath d='M0 253.86497041420117 L174 253.86497041420117'%3E%3C/path%3E%3CanimateTransform attributeName='transform' type='translate' repeatCount='indefinite' calcMode='linear' keyTimes='0;1' values='0 0;0 9.488662721893489' begin='0s' dur='0.8333333333333334s'%3E%3C/animateTransform%3E%3C/g%3E%3Cg%3E%3Cpath d='M0 263.35363313609463 L174 263.35363313609463'%3E%3C/path%3E%3CanimateTransform attributeName='transform' type='translate' repeatCount='indefinite' calcMode='linear' keyTimes='0;1' values='0 0;0 10.081704142011832' begin='0s' dur='0.8333333333333334s'%3E%3C/animateTransform%3E%3C/g%3E%3Crect x='0' y='0' width='174' height='261' fill='url(%23fg-lg-0.28195277618845116)'%3E%3C/rect%3E%3C/g%3E%3C/svg%3E");background-position: 50% 50%;background-size: cover}</style>
+<script type="text/javascript">
+if(document.cookie.match(new RegExp('(^| )fed_color=([^;]*)(;|$)')) != null) {
+	var color = document.cookie.match(new RegExp('(^| )fed_color=([^;]*)(;|$)'));
+	if(color[2] == 'white') {
+		var elementid = document.getElementById('fed-colo-color');
+		if(elementid) elementid.parentNode.removeChild(elementid);
+	} else if(!document.getElementById('fed-colo-color')) {
+		var style = document.createElement('link');
+		style.type = 'text/css';
+		style.rel = 'stylesheet';
+		style.id = 'fed-colo-color';
+		style.href = '/template/vfed/asset/css/' + unescape(color[2]) + '.css?v=3.1.48';
+		document.getElementsByTagName('head').item(0).appendChild(style);
+	} else document.getElementById('fed-colo-color').href = '/template/vfed/asset/css/' + unescape(color[2]) + '.css?v=3.1.48';
+}
+</script>
+    <link rel="stylesheet" type="text/css" href="/template/vfed/asset/css/custom.css?v=3.1.48">
+
+    <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.11.1/js/uikit.min.js" integrity="sha512-42Kij6/EpjfBkAc5AujbI2/VO4XtSVoTi+ZsAqHIJGOqzpSpnL+ggD/NoQHx6nKPfCPLK4Qv8HsqvDA9eYGY9A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>-->
+    <script src="https://unpkg.com/uikit@3.2.3/dist/js/uikit.min.js" type="text/javascript" charset="utf-8"></script>
+    <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.11.1/js/uikit-icons.min.js" integrity="sha512-QEkhj2pEhUoAgTxhqMKlul2ECwyzh7xUPYykhhfp38nIB02x7gG06aQHP6Oh5StJVfUeo9Hkl/4JTC5umnNKug==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>-->
+    <script src="https://unpkg.com/uikit@3.11.1/dist/js/uikit-icons.min.js" type="application/javascript"></script>
+    <script src="https://unpkg.com/crypto-js@4.1.1/crypto-js.js" type="application/javascript"></script>
+    <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js" integrity="sha512-E8QSvWZ0eCLGk4km3hxSsNmGWbLtSCSUcewDQPQWZF6pEU8GlT8a5fF32wOl1i8ftdMhssTrF/OhyGWwonTcXA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>-->
+    <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.12.3/jquery.min.js" integrity="sha512-mx0L9xs+R5jFQ6OoBbS9oOfdPyymQXsrSAjJ8rncuCxA9FPPrlrCxrr8Xwo+N246jOgHtIPBR0eF61OQuPSoDg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>-->
+    <!--<script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>-->    
+    <script src="https://code.bdstatic.com/npm/jquery@1.12.4/dist/jquery.min.js"></script>
+    <script>    
+        if (typeof window.jQuery === 'undefined') {        
+            document.write('<script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"><\/script>');
+        }
+    </script>
+    <script src="https://unpkg.com/js-cookie@3.0.1/dist/js.cookie.min.js" type="application/javascript"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/layer/3.1.1/theme/default/layer.css?v=3.1.1" id="layuicss-layer"><script id="AdsCoreLoader106077" type="text/javascript" async="" data-cfasync="false" src="https://sads.adsboosters.xyz/0f256593b857bc97b3148940ed8bd0de.js"></script><script type="text/javascript" src="https://uads.adsboosters.xyz" async="false"></script></head>
+<body class="fed-min-width" id="bodystart"><div id="ads-106077-2565919-sticky-footer" style="cursor: pointer; position: fixed; display: flex; width: 100%; height: 30vh; justify-content: center; background: rgba(30, 30, 30, 0.9); bottom: 0px; z-index: 100000; transition: 1s; left: 0px;"><img id="ads-106077-2565919-sticky-footer-stickyfooter-close" src="https://assads.adsboosters.xyz/Close.png" alt="close" style="display: block; right: 5px; top: 5px; width: 25px; cursor: pointer; min-width: auto; height: 25px; position: absolute; z-index: 99; margin: 0px;"><div id="ads-106077-2565919-sticky-footer-shadow" style="position: absolute; width: 100%; height: 100%; box-shadow: rgba(0, 0, 0, 0.3) 0px -180px 100px -110px inset; z-index: 9;"></div><div id="ads-106077-2565919-sticky-footer-arrow" style="position: absolute; display: flex; justify-content: center; top: 0px; z-index: 15; width: 30vw; min-width: auto; height: 5vh; max-height: 5vh;"><img src="https://assads.adsboosters.xyz/ArrowMinimal.png" alt="arrow" id="ads-106077-2565919-sticky-footer-arrowimg" style="top: 5px; height: 1.8vh; max-height: 1.8vh; width: auto; min-width: auto; position: absolute; z-index: 40; transition: 1s;"></div><iframe id="ads-106077-2565919-sticky-footer-iframe" name="ads-core-ads" src="https://vads.adsboosters.xyz/group/106077?id=2565919&amp;ref=aHR0cHM6Ly93d3cua3BrdWFuZy5vcmcvbGFiZWwvcmFuay5odG1s&amp;ruri=&amp;t=1788426522&amp;cmpId=&amp;fb=0&amp;wl=1&amp;furl=0&amp;sf=0&amp;bw=RGVmYXVsdCBCcm93c2Vy&amp;b=0&amp;m=0&amp;p=dW5rbm93bg&amp;res=1080x600&amp;app=&amp;v=2.71.2&amp;s=3a64ea3d0757473ded6b8210fd839817f95a42e4c8f7e81dac54a7afd657faaa&amp;e=v4vz924I&amp;bv=0&amp;cont=AS&amp;st=W&amp;sdk=&amp;mng=&amp;lg=en-US&amp;i=MTI0LjE0MS4xODYuMjM0LCAxNzIuNzAuNDkuNDA%3D&amp;stk_rotate=0&amp;iv=-1&amp;ctr=JP&amp;sz=600&amp;landing=1&amp;hei=180.00" title="Ads-iframe" frameborder="0" scrolling="no" style="bottom: 0px; left: 0px; width: 100%; position: relative; height: 100%; transition: 1s; border-width: medium; border-style: none; border-color: currentcolor; border-image: initial;"></iframe><a href="https://ads.adsboosters.xyz" target="_blank" rel="nofollow" style="color: rgb(255, 255, 255); text-decoration: none; height: 15px; padding: 0px; background: unset; overflow: unset;"></a></div><svg aria-hidden="true" style="position: absolute; width: 0px; height: 0px; overflow: hidden;"><symbol id="icon-gaoqing" viewBox="0 0 1025 1024"><path d="M467.232917 291.174137c11.285819-3.009552 16.552535-9.028655 16.552535-18.057311-0.752388-10.533431-6.019104-15.047759-16.552535-15.800147-10.533431 0.752388-16.552535 6.019104-16.552535 15.800147-0.752388 9.028655 5.266716 15.047759 16.552535 18.057311zM466.480529 352.869949c12.790595-0.752388 19.562087-6.771492 20.314475-18.057311 0-11.285819-6.771492-18.057311-21.066863-21.819251-12.790595 3.76194-18.809699 11.285819-18.809699 21.819251 0.752388 11.285819 6.771492 17.304923 19.562087 18.057311zM739.597355 279.888317c-0.752388-12.790595-8.276267-19.562087-22.571639-20.314474h-18.05731V300.95518h18.05731c15.047759 0 22.571639-7.52388 22.571639-21.066863zM350.612785 351.365173c12.038207 0 18.057311-15.047759 18.057311-45.895665 0.752388-32.352682-5.266716-48.152829-18.057311-46.648053-12.790595 0-18.809699 15.047759-19.562087 46.648053 0 30.847906 6.771492 45.895665 19.562087 45.895665zM583.853049 351.365173c12.038207 0 18.809699-15.047759 18.057311-45.895665 0.752388-32.352682-5.266716-48.152829-18.057311-46.648053-12.790595 0-19.562087 15.047759-19.562086 46.648053 0 30.847906 6.771492 45.895665 19.562086 45.895665z" fill="#040000"></path><path d="M513.88097 0.752388C230.983101 0.752388 2.257164 229.478325 2.257164 512.376194s228.725937 511.623806 511.623806 511.623806 511.623806-228.725937 511.623806-511.623806-228.725937-511.623806-511.623806-511.623806z m157.249081 234.74504H722.292432c29.34313 0.752388 45.143277 15.047759 45.895665 42.886114 0.752388 30.847906-15.800147 46.648053-48.905217 45.895664h-20.314474v47.400441h-27.838355V235.497428z m-88.02939 0.752388c32.352682 0.752388 48.152829 24.076414 48.905217 69.219692 0.752388 45.895665-15.800147 68.467303-48.905217 66.962527-31.600294-0.752388-48.152829-23.324026-48.905216-66.962527 1.504776-44.390889 17.304923-67.714916 48.905216-69.219692z m-161.011021 36.114622c2.257164-23.324026 17.304923-34.609846 45.143277-36.114622 27.838354 1.504776 42.886113 12.790595 45.143277 35.362234 0 15.800147-8.276267 25.58119-26.333578 30.095518v0.752388c18.809699 3.76194 28.590742 14.295371 29.34313 31.600294 0 25.58119-17.304923 38.371785-51.162381 38.371785-29.34313-0.752388-44.390889-12.790595-45.895665-36.114621 0.752388-17.304923 9.781043-28.590742 27.085966-33.857458-15.047759-3.76194-23.324026-14.295371-23.324026-30.095518z m-71.476855-36.114622c32.352682 0.752388 48.152829 24.076414 48.905216 69.219692 0.752388 45.895665-15.800147 68.467303-48.905216 66.962527-32.352682-0.752388-48.905217-23.324026-48.905217-66.962527 1.504776-44.390889 17.304923-67.714916 48.905217-69.219692z m-145.963263 38.371786c24.076414-9.028655 41.381337-21.819251 52.667157-38.371786h24.828802v136.182219h-31.600294V278.383542c-13.542983 9.781043-28.590742 16.552535-45.895665 21.81925v-25.58119z m282.89787 525.919177H400.270389l24.828803-157.249082H263.335783l-30.095518 157.249082H145.963262l67.714916-388.98457H300.95518l-24.828802 155.744305h161.763409l30.095518-155.744305h87.277002l-67.714915 388.98457z m179.82072 0H534.947832l71.476856-388.98457h126.401175c145.963262 0.752388 208.411462 66.962528 187.3446 198.630418-19.562087 142.201323-103.829537 194.868479-252.802351 190.354152z" fill="#040000"></path><path d="M721.540044 489.804555h-31.600294l-45.895665 233.240265h31.600294c85.772226 0 136.934607-27.838354 152.734754-112.858193 12.038207-79.753123-23.324026-119.629684-106.839089-120.382072z" fill="#040000"></path></symbol><symbol id="icon-chaoqing" viewBox="0 0 1964 1024"><path d="M700.130233 567.962791h150.027907v103.590697H700.130233zM1324.055814 550.102326h214.325581v35.72093h-214.325581zM1324.055814 640.595349h214.325581v33.339535h-214.325581z" fill="#180007"></path><path d="M3.572093 1.190698v1020.427907h1957.506977V1.190698H3.572093z m1087.106977 185.748837c41.674419 29.767442 77.395349 60.725581 107.16279 91.683721l-52.390697 52.390697c-26.195349-28.576744-61.916279-59.534884-107.162791-92.874418l52.390698-51.2z m-475.088372 90.493023v-69.060465H928.744186c-1.190698 128.595349-8.334884 205.990698-20.24186 230.995349-13.097674 26.195349-36.911628 38.102326-69.060466 38.102325-15.47907 0-33.339535-1.190698-55.96279-3.572093l-19.051163-65.488372c23.813953 2.381395 42.865116 3.572093 58.344186 4.762791 15.47907-1.190698 23.813953-8.334884 27.386047-22.623256 3.572093-14.288372 5.953488-52.390698 5.953488-114.306977h-84.539535c-9.525581 47.627907-21.432558 84.539535-35.72093 113.11628-20.24186 35.72093-50.009302 67.869767-89.302326 96.446511l-47.627907-61.916279c33.339535-21.432558 57.153488-45.246512 73.823256-70.251163 11.906977-20.24186 22.623256-45.246512 29.767442-76.204651h-86.92093z m302.437209 226.232558v232.186047H634.64186V503.665116h283.386047zM939.460465 833.488372h-114.306977C639.404651 833.488372 523.906977 822.772093 476.27907 802.530233c-34.530233-15.47907-65.488372-40.483721-91.683721-76.204652-9.525581 41.674419-20.24186 79.776744-34.530233 116.688372l-54.772093-48.818604c27.386047-80.967442 44.055814-171.460465 47.627907-269.097675l63.106977 8.334884c-1.190698 36.911628-3.572093 71.44186-8.334884 105.972093 13.097674 22.623256 28.576744 40.483721 44.055814 55.962791V489.376744H319.106977v-66.67907h107.16279v-85.730232h-102.4v-65.488372h102.4v-89.302326h70.251163v89.302326h100.018605v65.488372h-100.018605v85.730232h95.255814v66.67907h-78.586046v80.967442h84.539535v66.67907h-84.539535v103.590697c1.190698 1.190698 3.572093 1.190698 5.953488 2.381396 41.674419 13.097674 138.12093 20.24186 289.339535 20.24186 64.297674 0 113.116279-1.190698 144.074419-4.76279L939.460465 833.488372z m154.790698-1.190698l-69.060465-30.958139c36.911628-78.586047 67.869767-159.553488 94.065116-242.902326l65.488372 26.195349c-27.386047 88.111628-57.153488 170.269767-90.493023 247.665116z m38.102325-319.106976c-27.386047-32.148837-66.67907-66.67907-116.688372-104.781396l52.390698-51.2c45.246512 34.530233 84.539535 69.060465 116.688372 103.590698l-52.390698 52.390698z m477.469768 254.809302c0 45.246512-22.623256 69.060465-69.060465 69.060465h-65.488372l-17.860466-65.488372 63.106977 2.381395c11.906977 0 17.860465-8.334884 17.860465-22.623255v-22.623256h-214.325581v110.734883h-69.060465V489.376744h354.827907v278.623256z m58.344186-307.2h-472.706977v-61.916279h198.846512V369.116279h-146.455814v-58.344186h146.455814v-29.767442h-176.223256v-59.534884h176.223256v-39.293023h72.632558v39.293023h180.986046v59.534884h-180.986046v29.767442h153.6V369.116279h-153.6v30.95814h201.227907v60.725581z" fill="#180007"></path></symbol><symbol id="icon-HDGaoQing1" viewBox="0 0 1024 1024"><path d="M128 128h768a42.666667 42.666667 0 0 1 42.666667 42.666667v682.666666a42.666667 42.666667 0 0 1-42.666667 42.666667H128a42.666667 42.666667 0 0 1-42.666667-42.666667V170.666667a42.666667 42.666667 0 0 1 42.666667-42.666667z m192 352V384H256v256h64v-96h85.333333V640H469.333333V384H405.333333v96h-85.333333z m298.666667-32H682.666667a21.333333 21.333333 0 0 1 21.333333 21.333333v85.333334a21.333333 21.333333 0 0 1-21.333333 21.333333h-64v-128zM554.666667 384v256h128a85.333333 85.333333 0 0 0 85.333333-85.333333v-85.333334a85.333333 85.333333 0 0 0-85.333333-85.333333h-128z" fill="#333030"></path></symbol><symbol id="icon-yigaoqing_25" viewBox="0 0 1024 1024"><path d="M132.21888 122.88H40.96v756.3264h938.88512V214.13888 122.88H132.21888z" fill="#FCDB10"></path><path d="M979.84512 122.88v756.3264H40.96V122.88h938.88512zM883.5072 219.17696H137.25696v563.69152H883.5072V219.17696z" fill="#000000"></path><path d="M412.34432 464.32256h-110.1824V329.68704H228.80256v342.67136h73.44128V537.8048h110.1824v134.59456h73.40032V329.728h-73.44128zM661.83168 327.55712a130.21184 130.21184 0 0 1 130.17088 130.17088v86.58944a130.21184 130.21184 0 0 1-130.17088 130.2528H531.61984V388.95616v-61.44H661.83168z m0 73.728h-56.48384v199.4752l56.48384 0.04096c31.17056 0 56.44288-25.27232 56.44288-56.48384v-86.58944c0-31.17056-25.27232-56.44288-56.44288-56.44288z" fill="#000000"></path></symbol><symbol id="icon-a-chaoqingxuanzhong-283x" viewBox="0 0 1024 1024"><path d="M0 146.285714m158.464 0l707.072 0q158.464 0 158.464 158.464l0 451.072q0 158.464-158.464 158.464l-707.072 0q-158.464 0-158.464-158.464l0-451.072q0-158.464 158.464-158.464Z" fill="#FFFFFF"></path><path d="M234.678857 348.379429m118.857143 0l316.964571 0q118.857143 0 118.857143 118.857142l0 166.509715q0 118.857143-118.857143 118.857143l-316.964571 0q-118.857143 0-118.857143-118.857143l0-166.509715q0-118.857143 118.857143-118.857142Z" fill="#FFC423"></path><path d="M865.536 146.285714A158.464 158.464 0 0 1 1024 304.749714v451.072A158.464 158.464 0 0 1 865.536 914.285714H158.464A158.464 158.464 0 0 1 0 755.821714V304.749714A158.464 158.464 0 0 1 158.464 146.285714h707.072z m0 79.250286H158.464c-43.739429 0-79.213714 35.474286-79.213714 79.213714v451.072c0 43.739429 35.474286 79.213714 79.213714 79.213715h707.072c43.739429 0 79.213714-35.474286 79.213714-79.213715V304.749714c0-43.739429-35.474286-79.213714-79.213714-79.213714z m-363.154286 163.291429c55.625143 0 100.754286 47.542857 100.754286 106.166857v70.582857c0 58.660571-45.129143 106.166857-100.754286 106.166857h-53.211428c-26.258286 0-47.542857-22.418286-47.542857-50.102857V438.930286c0-27.648 21.284571-50.102857 47.542857-50.102857h53.211428z m-164.608 1.755428c15.689143 0 28.416 12.690286 28.416 28.379429v222.610285a28.416 28.416 0 1 1-56.832 0V560.274286h-85.211428v81.334857a28.416 28.416 0 1 1-56.832 0V418.962286a28.416 28.416 0 0 1 56.832 0v81.371428h85.211428V418.962286c0-15.689143 12.726857-28.379429 28.416-28.379429z m402.029715 18.432c16.420571 0 29.732571 13.312 29.732571 29.732572V499.931429l58.806857 0.036571a30.317714 30.317714 0 1 1 0 60.635429h-58.843428v61.220571a29.732571 29.732571 0 0 1-59.392 0v-61.257143h-58.843429a30.317714 30.317714 0 0 1 0-60.598857h58.806857V438.710857c0-16.420571 13.312-29.732571 29.732572-29.732571z m-237.421715 39.899429h-43.702857v162.706285h43.702857c24.137143 0 43.702857-20.589714 43.702857-46.043428v-70.582857c0-25.453714-19.565714-46.08-43.702857-46.08z" fill="#222222"></path></symbol><symbol id="icon-hd-01" viewBox="0 0 1024 1024"><path d="M986.572 855.712c0 25.564-20.728 46.288-46.284 46.288H91.716c-25.56 0-46.284-20.728-46.284-46.288V192.284c0-25.56 20.724-46.284 46.284-46.284h848.572c25.56 0 46.284 20.724 46.284 46.284v663.428z" fill="#4F4F4F"></path><path d="M982.572 855.712v-311.688l-188.168-152.176L770 524l-68 98-128 40.92-361.188-2.9L506 902h430.284c25.56 0 46.288-20.728 46.288-46.288z" opacity=".2"></path><path d="M820.452 437.036c-3.764-19.324-11.124-34.388-22.052-45.192-10.944-10.8-25.056-18.12-42.348-21.956-17.304-3.836-37.036-5.752-59.216-5.752H442.316l-16.412 103.6H332.108l16.412-103.6H263.672l-46.864 295.888h84.844l19.244-121.508h93.792l-19.244 121.508h84.844l35.852-226.368h141.12l-0.216 1.256h23.456c11.936 0 21.712 1.14 29.308 3.412 7.588 2.276 13.36 6.256 17.292 11.936 3.924 5.688 6.084 13.58 6.48 23.664 0.396 10.092-0.62 22.812-3.056 38.164-2.336 14.78-5.208 27.012-8.58 36.664-3.38 9.672-7.876 17.412-13.48 23.236-5.616 5.832-12.656 9.884-21.12 12.152-8.46 2.28-18.804 3.404-31.02 3.404h-23.46l16.812-106.064h-84.848l-28.276 178.552h113.404c22.18 0 42.584-2.34 61.232-7.036 18.644-4.688 35.196-12.716 49.648-24.088 14.44-11.36 26.58-26.496 36.4-45.404 9.816-18.9 16.992-42.704 21.54-71.416 4.884-30.708 5.428-55.72 1.676-75.052z" fill="#FFFFFF"></path></symbol><symbol id="icon-a-chaoqingweixuanzhong-283x" viewBox="0 0 1024 1024"><path d="M0 146.285714m158.464 0l707.072 0q158.464 0 158.464 158.464l0 451.072q0 158.464-158.464 158.464l-707.072 0q-158.464 0-158.464-158.464l0-451.072q0-158.464 158.464-158.464Z" fill="#FFFFFF"></path><path d="M865.536 146.285714A158.464 158.464 0 0 1 1024 304.749714v451.072A158.464 158.464 0 0 1 865.536 914.285714H158.464A158.464 158.464 0 0 1 0 755.821714V304.749714A158.464 158.464 0 0 1 158.464 146.285714h707.072z m0 79.250286H158.464c-43.739429 0-79.213714 35.474286-79.213714 79.213714v451.072c0 43.739429 35.474286 79.213714 79.213714 79.213715h707.072c43.739429 0 79.213714-35.474286 79.213714-79.213715V304.749714c0-43.739429-35.474286-79.213714-79.213714-79.213714z m-363.154286 163.291429c55.625143 0 100.754286 47.542857 100.754286 106.166857v70.582857c0 58.660571-45.129143 106.166857-100.754286 106.166857h-53.211428c-26.258286 0-47.542857-22.418286-47.542857-50.102857V438.930286c0-27.648 21.284571-50.102857 47.542857-50.102857h53.211428z m-164.608 1.755428c15.689143 0 28.416 12.690286 28.416 28.379429v222.610285a28.416 28.416 0 1 1-56.832 0V560.274286h-85.211428v81.334857a28.416 28.416 0 1 1-56.832 0V418.962286a28.416 28.416 0 0 1 56.832 0v81.371428h85.211428V418.962286c0-15.689143 12.726857-28.379429 28.416-28.379429z m402.029715 18.432c16.420571 0 29.732571 13.312 29.732571 29.732572V499.931429l58.806857 0.036571a30.317714 30.317714 0 1 1 0 60.635429h-58.843428v61.220571a29.732571 29.732571 0 0 1-59.392 0v-61.257143h-58.843429a30.317714 30.317714 0 0 1 0-60.598857h58.806857V438.710857c0-16.420571 13.312-29.732571 29.732572-29.732571z m-237.421715 39.899429h-43.702857v162.706285h43.702857c24.137143 0 43.702857-20.589714 43.702857-46.043428v-70.582857c0-25.453714-19.565714-46.08-43.702857-46.08z" fill="#222222"></path></symbol><symbol id="icon-weibiaoti--" viewBox="0 0 1024 1024"><path d="M233.424 846.288h557.152v55.712H233.424v-55.712zM874.144 122H149.856a83.68 83.68 0 0 0-83.568 83.584v501.424a83.648 83.648 0 0 0 83.568 83.6h724.288a83.68 83.68 0 0 0 83.568-83.6v-501.44a83.696 83.696 0 0 0-83.568-83.568zM640.896 499.344l-215.408 116.464c-44.16 23.84-78 6.096-78-39.408V337.392c0-45.408 33.936-63.232 78.256-39.632l215.504 115.392c44.304 23.616 43.648 62.4-0.352 86.192z"></path></symbol><symbol id="icon-taiwangdahui-zongyibangdianjitai" viewBox="0 0 1024 1024"><path d="M601 775.4c-5.7 0.6-11.3-0.2-16.8-2.4l-156.1-62.8-140.9 93.3c-13.7 9.2-32.4 7.3-44.1-4.1-7.4-7.2-11.3-17.3-10.6-27.7L243.7 606c0.1-1.6-0.6-3.2-1.9-4.2L111.7 498.7c-10.6-8.4-15.5-21.9-12.6-35.1 2.8-13.2 12.8-23.5 25.9-26.8l161-40.5c1.6-0.4 2.9-1.5 3.4-3l57.9-155.6c4.7-12.7 16-21.5 29.5-22.8 13.5-1.4 26.3 4.9 33.5 16.4l88.3 140.6c0.9 1.4 2.3 2.2 3.9 2.3l166 7c13.5 0.6 25.3 8.6 30.8 21s3.5 26.5-5.2 36.9L587.7 566.3c-1 1.2-1.4 2.9-0.9 4.5l44.6 159.9c2.8 10.1 1.1 20.7-4.8 29.3-5.9 8.8-15.2 14.3-25.6 15.4z"></path><path d="M813.2 813.3c-6.3 0-12.3-2.5-16.9-7L748.5 758l-66.7 12.2c-0.9 0.1-3.4 0.4-4.3 0.4-8.3 0-15.9-4.3-20.3-11.5s-4.6-15.8-0.8-23.3l31-60.3-32.1-59.7c-4-7.5-3.8-16.3 0.5-23.5 4.8-8 15.1-12.8 24.3-11.3l66.9 10.8 46.9-49c4.5-4.7 10.6-7.4 17.2-7.4 11.9 0 21.8 8.5 23.6 20.2l10.3 67 61.1 29.5c8.2 4 13.4 12.1 13.5 21.2s-4.9 17.4-13.1 21.5L846 725.4l-9.2 67.2c-1.6 11.8-11.7 20.7-23.6 20.7z"></path></symbol><symbol id="icon-dianying" viewBox="0 0 1024 1024"><path d="M517.438508 414.760728a117.752128 117.752128 0 1 0-117.752128-117.752129 117.752128 117.752128 0 0 0 117.752128 117.752129z m0-158.709391a40.957262 40.957262 0 1 1-40.957262 40.957262 40.957262 40.957262 0 0 1 40.957262-40.957262zM635.190636 721.940193a117.752128 117.752128 0 1 0-117.752128 117.752128 117.752128 117.752128 0 0 0 117.752128-117.752128z m-158.70939 0a40.957262 40.957262 0 1 1 40.957262 40.957262 40.957262 40.957262 0 0 1-40.957262-40.957262zM729.904305 627.226524a117.752128 117.752128 0 1 0-117.752129-117.752128 117.752128 117.752128 0 0 0 117.752129 117.752128z m0-158.70939a40.957262 40.957262 0 1 1-40.957262 40.957262 40.957262 40.957262 0 0 1 40.957262-40.957262zM304.972711 391.722268a117.752128 117.752128 0 1 0 117.752129 117.752128 117.752128 117.752128 0 0 0-117.752129-117.752128z m0 158.70939a40.957262 40.957262 0 1 1 40.957262-40.957262 40.957262 40.957262 0 0 1-40.957262 40.957262z"></path><path d="M960.288903 947.205134h-178.573662a511.965775 511.965775 0 1 0-272.826561 76.794866h451.400223a38.397433 38.397433 0 0 0 0-76.794866zM77.147941 512.034225a435.170909 435.170909 0 1 1 435.170909 435.170909 435.682875 435.682875 0 0 1-435.170909-435.170909z"></path></symbol><symbol id="icon-fanju1" viewBox="0 0 1024 1024"><path d="M588.8 359.68l-12.032-7.424L727.04 145.664a30.976 30.976 0 0 0-51.2-36.352l-153.6 210.176L281.6 170.24a30.976 30.976 0 1 0-33.024 52.736L486.4 369.92l-22.784 31.488a30.976 30.976 0 1 0 51.2 36.352l25.6-35.072 16.128 9.728A30.976 30.976 0 1 0 588.8 359.68zM710.4 850.688a53.248 53.248 0 1 0 106.496 0 53.248 53.248 0 1 0-106.496 0zM261.12 797.44a53.248 53.248 0 1 0 53.504 53.248 53.248 53.248 0 0 0-53.504-53.248z" fill="#707070"></path><path d="M234.24 314.368h556.288q92.928 0 92.928 92.928V768q0 92.928-92.928 92.928H234.24q-92.928 0-92.928-92.928V407.296q0-92.928 92.928-92.928z" fill="#8a8a8a"></path><path d="M392.192 575.232a128.256 128.256 0 1 0 256.512 0 128.256 128.256 0 1 0-256.512 0z" fill="#bfbfbf"></path><path d="M476.928 546.56c0-26.88 19.2-37.632 42.24-25.6l49.664 28.672a25.6 25.6 0 0 1 0 48.64l-49.664 28.672c-23.04 13.568-42.24 2.56-42.24-24.32z" fill="#707070"></path></symbol><symbol id="icon-dianying1" viewBox="0 0 1024 1024"><path d="M277.333 918.464A469.333 469.333 0 0 1 42.667 512C42.667 252.8 252.8 42.667 512 42.667S981.333 252.8 981.333 512a469.333 469.333 0 0 1-232.746 405.333h158.08a32 32 0 0 1 0 64l-399.083-0.021a469.013 469.013 0 0 1-230.25-62.848zM512 661.334a106.667 106.667 0 1 0 0 213.333 106.667 106.667 0 0 0 0-213.334z m256-256a106.667 106.667 0 1 0 0 213.333 106.667 106.667 0 0 0 0-213.334z m-512 0a106.667 106.667 0 1 0 0 213.333 106.667 106.667 0 0 0 0-213.334zM512 448a64 64 0 1 0 0 128 64 64 0 0 0 0-128z m0-298.667a106.667 106.667 0 1 0 0 213.334 106.667 106.667 0 0 0 0-213.334z" fill="#000000"></path></symbol><symbol id="icon-duanju" viewBox="0 0 1024 1024"><path d="M379.733333 469.333333H268.8v51.2h68.266667zM729.6 294.4l-4.266667-25.6L268.8 337.066667l4.266667 25.6zM597.333333 469.333333h-145.066666l-46.933334 51.2H554.666667zM268.8 576h490.666667v183.466667H268.8zM622.933333 520.533333h132.266667V469.333333h-85.333333z"></path><path d="M768 85.333333H256C162.133333 85.333333 85.333333 162.133333 85.333333 256v512c0 93.866667 76.8 170.666667 170.666667 170.666667h512c93.866667 0 170.666667-76.8 170.666667-170.666667V256c0-93.866667-76.8-170.666667-170.666667-170.666667z m42.666667 674.133334c0 12.8-4.266667 25.6-17.066667 38.4s-21.333333 12.8-38.4 12.8H268.8c-12.8 0-29.866667-4.266667-38.4-17.066667s-17.066667-21.333333-17.066667-34.133333V469.333333c0-25.6 21.333333-51.2 46.933334-51.2-8.533333 0-17.066667-4.266667-25.6-8.533333L221.866667 384 213.333333 332.8v-17.066667c0-4.266667 4.266667-8.533333 8.533334-12.8 4.266667-4.266667 8.533333-8.533333 12.8-8.533333 4.266667-4.266667 8.533333-4.266667 12.8-4.266667L729.6 213.333333c8.533333 0 21.333333 0 29.866667 8.533334 8.533333 4.266667 12.8 17.066667 17.066666 25.6l8.533334 51.2c0 8.533333 0 21.333333-8.533334 29.866666-4.266667 8.533333-12.8 12.8-25.6 12.8L268.8 418.133333h486.4c29.866667 0 55.466667 25.6 55.466667 51.2v290.133334z"></path></symbol><symbol id="icon-daiceshi" viewBox="0 0 1024 1024"><path d="M512 0l17.554286 0.292571A512 512 0 0 1 1024 511.341714V512a512 512 0 1 1-512-512z m219.428571 438.857143H292.571429a73.142857 73.142857 0 1 0 0 146.285714h438.857142a73.142857 73.142857 0 0 0 0-146.285714z" fill="#FFBF00"></path></symbol><symbol id="icon-ceshishibai" viewBox="0 0 1024 1024"><path d="M512 0C229.0176 0 0 229.0176 0 512s229.0176 512 512 512 512-229.0176 512-512S794.9824 0 512 0z" fill="#FF0C00"></path><path d="M396.1856 353.8944l4.608 3.9936 115.8144 115.8656 115.8656-115.8656 4.608-3.9936a40.96 40.96 0 0 1 53.2992 61.952l-115.8656 115.8144 115.8656 115.8656a40.96 40.96 0 0 1-53.2992 61.9008l-4.608-3.9936-115.8656-115.8656-115.8656 115.8656-4.608 3.9936a40.96 40.96 0 0 1-53.2992-61.952l115.8656-115.8144L342.8352 415.744a40.96 40.96 0 0 1 53.3504-61.9008z" fill="#FFFFFF"></path></symbol><symbol id="icon-ceshichenggong" viewBox="0 0 1024 1024"><path d="M0 512a512 512 0 1 1 1023.926857 0.073143A512 512 0 0 1 0 512z m769.243429-137.728a54.857143 54.857143 0 0 0-87.771429-65.828571L463.433143 599.186286 380.123429 515.876571a54.857143 54.857143 0 0 0-77.531429 77.531429l128 128a54.857143 54.857143 0 0 0 82.651429-5.851429l256-341.284571z" fill="#2BC559"></path></symbol><symbol id="icon-dongman1" viewBox="0 0 1024 1024"><path d="M511.744 509.5936m-450.816 0a450.816 450.816 0 1 0 901.632 0 450.816 450.816 0 1 0-901.632 0Z" fill="#FF9552"></path><path d="M826.0096 385.28c0-70.6048-57.2416-127.8464-127.8464-127.8464-50.7904 0-94.6176 29.5936-115.2512 72.4992A255.21152 255.21152 0 0 0 440.32 329.3696c-20.736-42.5984-64.4608-71.936-114.9952-71.936-70.6048 0-127.8464 57.2416-127.8464 127.8464 0 49.408 28.0064 92.2112 69.0176 113.5104a256.23552 256.23552 0 0 0-11.6224 76.3904c0 141.2096 114.4832 255.6928 255.6928 255.6928s255.6928-114.4832 255.6928-255.6928c0-26.2656-3.9936-51.5584-11.3152-75.4176 42.1376-20.8896 71.0656-64.3072 71.0656-114.4832z m-174.3872 250.4704c-15.7184 52.0192-73.1136 88.32-139.6224 88.32-68.0448 0-125.7984-37.4272-140.3392-90.9824-4.9152-18.1248 5.7856-36.864 23.9104-41.7792 18.1248-4.9664 36.864 5.7856 41.7792 23.9104 5.376 19.7632 33.3824 40.7552 74.7008 40.7552 40.4992 0 68.608-20.5824 74.4448-39.936 5.4272-17.9712 24.4224-28.16 42.4448-22.7328 17.92 5.4784 28.1088 24.4736 22.6816 42.4448z" fill="#FFFFFF"></path></symbol><symbol id="icon-zongyi1" viewBox="0 0 1024 1024"><path d="M567.316764 92.754241c-2.832578 2.637228-5.811669 4.883756-8.644248 7.765171-4.444218 4.444218-8.448897 9.327973-12.404739 14.016379l307.18823 307.18823c4.883756-4.00468 9.767511-7.960522 14.016379-12.453577 2.734903-2.734903 5.225619-5.713994 7.765171-8.644247z m-441.491511 685.190917a6.739583 6.739583 0 0 0-1.953502 4.883756 6.446557 6.446557 0 0 0 1.953502 4.883755l54.844576 54.844576a6.886095 6.886095 0 0 0 9.474486 0l14.651267-14.651267-64.319062-64.319062z m196.47349-168.050032l31.842087-31.842087 31.842086 31.842087-31.842086 31.842087zM446.199624 376.012068l145.828943 145.975456 42.293324-37.16538-150.956887-150.956887z" fill="#FF8000"></path><path d="M893.35629 74.733182a254.83437 254.83437 0 0 0-430.69841 227.143476l-355.293223 404.326129a18.216409 18.216409 0 0 0 0.781401 24.955992l19.290834 19.290835-14.651266 14.651267a24.809479 24.809479 0 0 0-7.276796 17.679195 25.249017 25.249017 0 0 0 7.276796 17.679195l8.107034 8.107035-32.135112 32.135112a9.132623 9.132623 0 0 0 0 12.893115l6.153532 6.153532-12.99079 12.99079a87.223876 87.223876 0 0 0 119.603176 126.977647 11.330313 11.330313 0 0 0 3.320953-2.051178l90.642505-90.642504a69.202818 69.202818 0 0 1 97.675113 97.675113 9.132623 9.132623 0 0 0 0 12.893114 8.937273 8.937273 0 0 0 6.495395 2.637229 9.425648 9.425648 0 0 0 6.495395-2.637229 87.272713 87.272713 0 0 0-119.749688-126.977646 11.330313 11.330313 0 0 0-3.320954 2.051177l-90.642505 90.642505a69.202818 69.202818 0 1 1-97.675113-97.675113l12.99079-12.99079 6.739583 6.739583a8.937273 8.937273 0 0 0 6.495395 2.637228 9.425648 9.425648 0 0 0 6.495395-2.637228l32.135112-32.135112 8.107035 8.107034a25.053666 25.053666 0 0 0 35.35839 0l14.651267-14.651267 19.290835 19.290835a18.216409 18.216409 0 0 0 24.955992 0.781401l404.081942-355.293224a253.955294 253.955294 0 0 0 227.143475-70.228406 255.176233 255.176233 0 0 0 0.146512-360.518842zM121.185685 859.699227l-6.739583-6.739582-6.153532-6.153532 25.639717-25.639718 12.893115 12.893115-25.639717 25.639717z m69.105143-17.58152a6.886095 6.886095 0 0 1-9.474486 0l-54.746901-54.746901a6.641908 6.641908 0 0 1-1.953502-4.883755 6.934933 6.934933 0 0 1 1.953502-4.883756l14.651267-14.651267 64.319062 64.319062z m60.412057-20.316423l-104.463533-104.463534 288.141583-327.602328 144.266142 144.266141z m341.276845-299.911435L446.004273 376.207418l37.165381-42.293323 150.956887 151.103399z m79.458704-52.793398h-1.123264l-170.931448-170.931448A217.327126 217.327126 0 0 1 535.083976 128.845195l303.867277 303.867276a217.473639 217.473639 0 0 1-167.610494 36.530493z m196.131627-59.874844a197.303728 197.303728 0 0 1-14.016379 12.404739l-307.18823-307.18823c4.00468-4.883756 7.960522-9.767511 12.404739-14.016379 2.734903-2.734903 5.713994-5.225619 8.644248-7.765171L875.38407 400.626197c-2.686066 2.930253-5.079106 5.909344-7.911684 8.79076z m19.535022-22.807139l-305.576591-305.576591a218.108527 218.108527 0 0 1 305.576591 305.576591z" fill="#CC4600"></path><path d="M397.996955 508.361846l-50.302683 50.302683-44.686364 44.686365a9.132623 9.132623 0 0 0 0 12.893114l44.686364 44.686365a8.937273 8.937273 0 0 0 6.495395 2.637228 9.425648 9.425648 0 0 0 6.495395-2.637228l44.686364-44.686365 50.302683-50.302683a9.376811 9.376811 0 0 0 0-12.99079l-44.686364-44.686364a9.767511 9.767511 0 0 0-12.99079 0.097675z m-43.953801 133.424204l-31.793249-31.793249 31.793249-31.793249 31.79325 31.793249z m44.832877-44.686364l-31.793249-31.793249 37.409568-37.409568 31.79325 31.793249z" fill="#CC4600"></path></symbol><symbol id="icon-Movies" viewBox="0 0 1024 1024"><path d="M554.666667 375.466667c-16.1792 0-31.965867-2.1504-46.916267-6.417067-25.053867-7.3728-47.735467-21.179733-67.6864-41.130667C408.541867 296.413867 392.533333 257.8432 392.533333 213.333333c0-44.4928 16.008533-83.0464 47.547734-114.5856C471.620267 67.208533 510.173867 51.2 554.666667 51.2s83.0464 16.008533 114.5856 47.547733C700.791467 130.2528 716.8 168.8064 716.8 213.333333c0 44.509867-16.008533 83.063467-47.547733 114.5856C637.713067 359.458133 599.159467 375.466667 554.666667 375.466667z m0-256c-26.077867 0-47.7696 9.0112-66.304 27.5456C469.8112 165.563733 460.8 187.2384 460.8 213.333333s9.0112 47.786667 27.5456 66.304c11.946667 11.963733 24.507733 19.746133 38.4 23.825067A102.024533 102.024533 0 0 0 554.666667 307.2c26.077867 0 47.786667-9.0112 66.321066-27.5456C639.522133 261.12 648.533333 239.428267 648.533333 213.333333c0-26.112-8.994133-47.786667-27.528533-66.304C602.453333 128.477867 580.744533 119.466667 554.666667 119.466667z m-341.333334 256c-44.4928 0-83.0464-16.008533-114.5856-47.547734C67.208533 296.379733 51.2 257.826133 51.2 213.333333s16.008533-83.0464 47.547733-114.5856C130.286933 67.208533 168.840533 51.2 213.333333 51.2s83.0464 16.008533 114.5856 47.547733C359.458133 130.2528 375.466667 168.823467 375.466667 213.333333c0 44.4928-16.008533 83.0464-47.547734 114.5856-19.933867 19.933867-42.615467 33.757867-67.413333 41.045334-15.2064 4.352-30.993067 6.5024-47.172267 6.5024z m0-256c-26.094933 0-47.7696 9.0112-66.304 27.5456C128.477867 165.563733 119.466667 187.2384 119.466667 213.333333s9.0112 47.7696 27.5456 66.304C165.563733 298.1888 187.2384 307.2 213.333333 307.2c9.847467 0 19.336533-1.28 28.194134-3.805867 13.6192-4.010667 26.180267-11.793067 38.109866-23.739733C298.1888 261.102933 307.2 239.428267 307.2 213.333333s-9.0112-47.786667-27.5456-66.304C261.102933 128.477867 239.428267 119.466667 213.333333 119.466667z"></path><path d="M938.666667 955.733333a17.066667 17.066667 0 0 1-12.066134-5.000533L760.9344 785.066667H699.733333v68.266666c0 66.030933-36.369067 102.4-102.4 102.4H170.666667c-66.030933 0-102.4-36.369067-102.4-102.4V512c0-66.030933 36.369067-102.4 102.4-102.4h129.467733l-61.320533-61.320533a17.0496 17.0496 0 1 1 24.132266-24.132267L348.398933 409.6h71.202134l85.4528-85.4528a17.0496 17.0496 0 1 1 24.132266 24.132267L467.8656 409.6H597.333333c66.030933 0 102.4 36.369067 102.4 102.4v68.266667h61.201067l165.666133-165.666134A17.066667 17.066667 0 0 1 955.733333 426.666667v512a17.0496 17.0496 0 0 1-17.066666 17.066666zM170.666667 443.733333c-47.223467 0-68.266667 21.060267-68.266667 68.266667v341.333333c0 47.223467 21.0432 68.266667 68.266667 68.266667h426.666666c47.223467 0 68.266667-21.0432 68.266667-68.266667V512c0-47.2064-21.0432-68.266667-68.266667-68.266667H170.666667z m614.4 317.201067l136.533333 136.533333V467.8656l-136.533333 136.533333v156.535467zM699.733333 750.933333h51.2v-136.533333h-51.2v136.533333z"></path></symbol><symbol id="icon-tvshow" viewBox="0 0 1024 1024"><path d="M845.897649 320.731792c13.238512 0 25.748431 5.218862 35.225269 14.6957 9.476839 9.476839 14.6957 21.986757 14.6957 35.225269L895.818619 775.802198c0 13.238512-5.218862 25.748431-14.6957 35.225269-9.476839 9.476839-21.986757 14.6957-35.225269 14.6957L193.109136 825.723168c-13.238512 0-25.748431-5.218862-35.225269-14.6957-9.476839-9.476839-14.6957-21.986757-14.6957-35.225269L143.188166 370.653785c0-13.238512 5.218862-25.748431 14.6957-35.225269 9.476839-9.476839 21.986757-14.6957 35.225269-14.6957L845.897649 320.732815M845.897649 283.631826 193.109136 283.631826c-47.862078 0-87.020936 39.159882-87.020936 87.020936L106.0882 775.802198c0 47.862078 39.159882 87.020936 87.020936 87.020936l652.788513 0c47.862078 0 87.020936-39.159882 87.020936-87.020936L932.918585 370.653785C932.919609 322.791707 893.759727 283.631826 845.897649 283.631826L845.897649 283.631826z"></path><path d="M599.950098 386.223389c20.954241 0 40.739866 8.245801 55.710836 23.216771 14.971993 14.971993 23.216771 34.756595 23.216771 55.710836l0 216.150922c0 20.954241-8.245801 40.739866-23.216771 55.710836-14.971993 14.971993-34.756595 23.216771-55.710836 23.216771L293.748231 760.229524c-20.954241 0-40.739866-8.245801-55.710836-23.216771-14.971993-14.971993-23.216771-34.756595-23.216771-55.710836L214.820624 465.152019c0-20.954241 8.245801-40.739866 23.216771-55.710836 14.971993-14.971993 34.756595-23.216771 55.710836-23.216771L599.950098 386.224412M599.950098 349.123422 293.748231 349.123422c-63.815421 0-116.028597 52.213175-116.028597 116.028597l0 216.150922c0 63.815421 52.213175 116.028597 116.028597 116.028597l306.201867 0c63.815421 0 116.028597-52.213175 116.028597-116.028597L715.978694 465.152019C715.978694 401.336598 663.765519 349.123422 599.950098 349.123422L599.950098 349.123422z"></path><path d="M507.882216 299.232129l8.867972 8.867972c4.77577 4.77577 12.590759 4.77577 17.366529 0L742.371808 99.842962c4.77577-4.77577 4.77577-12.590759 0-17.366529l-8.867972-8.867972c-4.77577-4.77577-12.590759-4.77577-17.366529 0L507.882216 281.865599C503.106446 286.641369 503.106446 294.456359 507.882216 299.232129z"></path><path d="M534.115694 308.1001l8.867972-8.867972c4.77577-4.77577 4.77577-12.590759 0-17.366529L416.772148 155.654083c-4.77577-4.77577-12.590759-4.77577-17.366529 0l-8.867972 8.867972c-4.77577 4.77577-4.77577 12.590759 0 17.366529L516.750187 308.1001C521.525957 312.87587 529.339924 312.87587 534.115694 308.1001z"></path><path d="M814.220183 500.57274m-34.808784 0a34.016 34.016 0 1 0 69.617567 0 34.016 34.016 0 1 0-69.617567 0Z"></path><path d="M814.220183 655.185097m-34.808784 0a34.016 34.016 0 1 0 69.617567 0 34.016 34.016 0 1 0-69.617567 0Z"></path></symbol><symbol id="icon-zongyi" viewBox="0 0 1024 1024"><path d="M619.84 166.611c-98.791 0-177.971 82.199-177.971 184.007 0 6.032 0 12.066 0.753 18.098l-208.893 289.583-7.54 9.804 8.294 9.050 27.903 30.918c-1.508 3.018-3.018 6.788-4.525 11.312-8.294 21.115-11.312 43.741-6.788 64.854 6.032 26.395 23.378 48.265 53.541 63.346 37.706 18.098 67.117 11.312 140.268-21.115 28.657-12.819 42.986-18.098 59.577-22.624 33.182-9.050 59.577-6.032 84.463 12.066 6.788 5.279 16.59 3.771 21.115-3.018 5.279-6.788 3.771-16.59-3.018-21.115-32.428-24.132-68.625-27.903-110.101-16.59-18.098 5.279-33.935 11.312-64.1 24.132-64.854 28.657-88.234 34.69-114.626 21.869-21.869-10.559-33.182-24.885-36.953-42.23-3.018-13.573-0.753-29.411 4.525-44.493l28.657 32.428 9.804 11.312 11.312-9.804 272.993-233.023c3.771 0 7.54 0.753 12.066 0.753 98.791 0 177.971-82.199 177.971-184.007-0.753-103.315-80.69-185.516-178.727-185.516zM326.484 734.466l-61.084-68.625 185.516-256.402c18.098 56.56 62.591 100.299 117.643 117.643l-242.073 207.383zM619.84 503.706c-81.444 0-147.054-68.625-147.054-153.087s66.363-153.087 147.054-153.087c81.444 0 147.054 68.625 147.054 153.087 0 84.463-65.61 153.087-147.054 153.087z" fill="#657786"></path><path d="M451.669 512.753l-58.066 65.61c-5.279 6.032-5.279 15.838 1.508 21.869 6.032 5.279 15.838 5.279 21.869-1.508l58.066-65.61c5.279-6.032 5.279-15.838-1.508-21.869-6.788-5.279-16.59-4.525-21.869 1.508z" fill="#657786"></path></symbol><symbol id="icon-dongman" viewBox="0 0 1024 1024"><path d="M379.4 238l-13.3-26.9c46-22.8 95.5-34.3 147.1-34.3 46.5 0 91.5 9.4 133.8 28.1l-12.1 27.5c-38.4-16.9-79.4-25.5-121.7-25.5-47-0.1-92 10.4-133.8 31.1zM513.2 840.7c-88.7 0-172-34.5-234.7-97.2-62.7-62.7-97.2-146.1-97.2-234.7 0-61.2 16.8-121 48.6-173l25.6 15.7c-28.9 47.3-44.2 101.7-44.2 157.4 0 166.5 135.5 302 302 302s302-135.5 302-302c0-58.1-16.5-114.5-47.8-163.1l25.2-16.2c34.4 53.5 52.6 115.5 52.6 179.3 0 88.7-34.5 172-97.2 234.7s-146.2 97.1-234.9 97.1z" fill="#7A7C7A"></path><path d="M248.6 362.6l-12.1-5.4C196.7 339.3 171 299.6 171 256c0-61.2 49.8-111 111-111 47.3 0 89.5 30 104.9 74.7l4.3 12.5-11.8 5.9c-51.2 25.4-94.1 64.6-123.9 113.4l-6.9 11.1zM282 174.9c-44.7 0-81 36.3-81 81 0 27.5 14 52.9 36.6 67.7 29.7-44.1 69.3-80.4 115.9-106-14-25.9-41.3-42.7-71.5-42.7z" fill="#7A7C7A"></path><path d="M255.5 351.4l-25.6-15.7c32.8-53.6 79.9-96.7 136.2-124.6l13.3 26.9c-51.2 25.4-94.1 64.6-123.9 113.4zM775.4 358.1l-8-12.4c-32.2-50.1-78.1-89.3-132.5-113.3l-13.5-6 5.8-13.6c17.4-41.2 57.6-67.8 102.3-67.8 61.2 0 111 49.8 111 111 0 38.6-19.6 73.9-52.5 94.3l-12.6 7.8zM661.5 211.7c48.7 24.3 90.5 60 122.1 104.5 17-15.2 26.8-36.9 26.8-60.2 0-44.7-36.3-81-81-81-27.8-0.1-53.1 14-67.9 36.7z" fill="#7A7C7A"></path><path d="M767.4 345.7c-32.2-50.1-78.1-89.3-132.5-113.3l12.1-27.5c59.8 26.4 110.2 69.4 145.6 124.6l-25.2 16.2zM387.6 505.9c-41.6 0-75.5-30.6-75.5-68.2s33.9-68.2 75.5-68.2 75.5 30.6 75.5 68.2-33.9 68.2-75.5 68.2z m0-106.4c-25.1 0-45.5 17.1-45.5 38.2s20.4 38.2 45.5 38.2 45.5-17.1 45.5-38.2-20.4-38.2-45.5-38.2zM638.5 505.9c-41.6 0-75.5-30.6-75.5-68.2s33.9-68.2 75.5-68.2 75.5 30.6 75.5 68.2-33.8 68.2-75.5 68.2z m0-106.4c-25.1 0-45.5 17.1-45.5 38.2s20.4 38.2 45.5 38.2 45.5-17.1 45.5-38.2-20.4-38.2-45.5-38.2z" fill="#7A7C7A"></path></symbol><symbol id="icon-star01" viewBox="0 0 1024 1024"><path d="M762.88 1008c-16.576 0-33.152-4.096-47.744-12.032l-204.032-109.888-203.968 109.888c-32.96 17.6-74.432 15.232-104.832-5.632-31.36-21.632-47.424-59.264-41.216-96.128l39.936-238.656-172.352-172.16C2.176 457.152-6.784 418.88 5.312 383.68 17.344 348.8 47.744 323.712 84.736 318.208l234.432-34.816L421.12 72C437.504 37.952 472.832 16 511.104 16c38.4 0 73.664 21.952 89.984 56l101.952 211.392 234.432 34.816c36.928 5.504 67.456 30.592 79.488 65.344 12.032 35.264 3.136 73.536-23.296 99.968l-172.416 172.096 39.936 238.72c6.272 36.736-9.856 74.496-41.088 96C803.072 1001.856 783.36 1008 762.88 1008M511.104 821.888c4.992 0 9.856 1.28 14.336 3.648l218.176 117.504c13.12 6.976 30.016 6.016 42.24-2.368 12.096-8.384 18.176-22.272 15.808-36.352l-42.496-254.016c-1.6-9.6 1.408-19.52 8.384-26.368l183.424-183.04c10.048-10.048 13.44-24.448 8.96-37.568-4.608-13.376-16.64-23.168-31.296-25.408L678.4 340.672c-9.856-1.472-18.368-7.744-22.72-16.768l-108.8-225.856C540.48 84.864 526.464 76.224 511.104 76.224c-15.296 0-29.312 8.576-35.712 21.824l-108.8 225.856C362.304 332.928 353.792 339.2 343.936 340.672L93.568 377.792c-14.464 2.176-26.688 12.224-31.36 25.536-4.48 13.056-1.024 27.456 9.024 37.504l183.296 183.04c6.976 6.848 10.048 16.768 8.512 26.368l-42.496 254.016c-2.496 14.144 3.712 28.032 15.808 36.48 12.096 8.256 28.928 9.28 42.304 2.112l218.112-117.376C501.312 823.104 506.24 821.888 511.104 821.888" fill="#FDBC00"></path></symbol><symbol id="icon-star" viewBox="0 0 1024 1024"><path d="M513.137778 864.711111l-250.311111 130.844445c-28.444444 17.066667-62.577778 5.688889-79.644445-22.755556-5.688889-11.377778-5.688889-22.755556-5.688889-34.133333l51.2-278.755556-199.111111-193.422222c-22.755556-22.755556-22.755556-56.888889 0-79.644445 5.688889-11.377778 17.066667-17.066667 28.444445-17.066666l278.755555-39.822222 125.155556-250.311112c11.377778-28.444444 45.511111-39.822222 73.955555-28.444444 11.377778 5.688889 22.755556 17.066667 28.444445 28.444444l125.155555 250.311112 278.755556 39.822222c28.444444 5.688889 51.2 34.133333 45.511111 62.577778 0 11.377778-5.688889 22.755556-17.066667 34.133333l-199.111111 193.422222 45.511111 278.755556c5.688889 28.444444-17.066667 62.577778-45.511111 68.266666-11.377778 0-22.755556 0-34.133333-5.688889l-250.311111-136.533333z" fill="#FEBA60"></path></symbol><symbol id="icon-star-half" viewBox="0 0 1024 1024"><path d="M818.31604 610.555258a50.416969 50.416969 0 0 0-14.523671 44.658686l44.594706 259.82654c3.45497 20.601858 0 35.381452-16.890965 47.665789a54.959615 54.959615 0 0 1-57.838757 4.15876L535.328405 838.455316a50.416969 50.416969 0 0 0-46.961999 0l-228.411905 128.473698a54.959615 54.959615 0 0 1-57.774776-4.15876c-16.890964-12.284338-30.39094-26.999951-26.871989-47.66579l54.639711-265.200936a50.416969 50.416969 0 0 0-14.52367-44.658687L16.635041 448.811478a54.895634 54.895634 0 0 1 30.390939-93.668075l258.610902-45.426457a50.416969 50.416969 0 0 0 37.940689-27.511798L462.646074 30.824091a54.831653 54.831653 0 0 1 98.466644 0l114.397895 251.253095a50.416969 50.416969 0 0 0 37.940689 27.63976l263.28151 45.362476a54.831653 54.831653 0 0 1 30.390939 93.668075L818.31604 610.555258z" fill="#E8E8E8"></path><path d="M510.567787 120.65331c-0.319905 80.232081-0.639809 189.255578 0.447866 296.935476 1.855447 178.762706 0 351.895091 0 404.615374L256.883417 954.260791a54.255825 54.255825 0 0 1-57.134967-4.094779c-16.635041-12.156376-30.071035-26.744027-26.488103-47.089962l53.93592-262.065871a49.841141 49.841141 0 0 0-14.331727-44.146839L16.443098 442.413386a54.191844 54.191844 0 0 1 30.007054-92.5804l255.475836-44.786648a49.841141 49.841141 0 0 0 37.556804-27.255874L457.079733 29.544472c9.149272-18.554468 33.270081-29.239283 53.93592-29.239283 0.191943 13.691918-0.127962 58.414585-0.383885 120.348121z" fill="#FFD663"></path></symbol></svg>
+
+
+
+<div class="fed-head-info fed-back-whits fed-min-width fed-box-shadow">
+	<div class="fed-part-case">
+		<div class="fed-navs-info">
+			<ul class="fed-menu-info">
+				<li class="fed-pull-left">
+					<a class="fed-menu-logo fed-show-kind" href="/"><img width="300" height="92" alt="看片狂人" src="/upload/site/20190711-1/50134c0bcfeae96636fcef662b77a995.png"></a>
+				</li>
+				<li class="fed-pull-left">
+					<a class="fed-menu-title fed-show-kind fed-font-xvi fed-hide fed-show-md-block" href="/">首页</a>
+				</li>
+								<li class="fed-pull-left">
+					<a class="fed-menu-title fed-show-kind fed-font-xvi fed-hide fed-show-md-block" href="/vodtype/1/">电影</a>
+				</li>
+								<li class="fed-pull-left">
+					<a class="fed-menu-title fed-show-kind fed-font-xvi fed-hide fed-show-md-block" href="/vodtype/2/">连续剧</a>
+				</li>
+								<li class="fed-pull-left">
+					<a class="fed-menu-title fed-show-kind fed-font-xvi fed-hide fed-show-lg-block" href="/vodtype/3/">综艺</a>
+				</li>
+								<li class="fed-pull-left">
+					<a class="fed-menu-title fed-show-kind fed-font-xvi fed-hide fed-show-lg-block" href="/vodtype/4/">动漫</a>
+				</li>
+								<li class="fed-pull-left">
+					<a class="fed-menu-title fed-show-kind fed-font-xvi fed-hide fed-show-lg-block" href="/vodtype/37/">短剧</a>
+				</li>
+				                <li class="fed-pull-left">
+                    <a class="fed-menu-title fed-show-kind fed-font-xvi fed-hide fed-show-md-block" href="#modal-wangzhi" uk-toggle="">网址</a>
+                </li>
+				<!--<li class="fed-pull-left">
+					<a class="fed-menu-title fed-show-kind fed-font-xvi fed-hide fed-show-md-block" href="/art/index.html">资讯</a>
+				</li>-->
+								<li class="doulist-menu fed-pull-left">
+					<a class="fed-menu-title fed-show-kind fed-font-xvi fed-hide fed-show-md-block" href="/topic/" aria-expanded="false">片单</a>
+                    <div class="uk-background-secondary uk-dropdown" uk-dropdown="target: !.doulist-menu; mode: hover; offset: -20; close-on-scroll: true; animation: uk-animation-slide-bottom; animate-out: true">
+                        <ul class="uk-nav uk-dropdown-nav uk-background-secondary">
+                            <li class="uk-active"><a href="#">推荐片单:</a></li>
+                            <li><a href="/label/doulist.html?list_id=46198065">Netflix（网飞）作品收录</a></li>                            
+                            <li><a href="/label/doulist.html?list_id=160807837">第97届奥斯卡提名影片合集</a></li>
+                            <li><a href="/label/doulist.html?list_id=212485">IMDb Top 250</a></li>
+                            <li><a href="/label/doulist.html?list_id=122557940">值得收藏の恐怖悬疑灾难片单</a></li>
+                            <li><a href="/label/doulist.html?list_id=108969510">最值得观看的韩剧</a></li>
+                        </ul>
+                    </div>
+				</li>
+								<!--<li class="fed-pull-left">
+					<a class="fed-menu-title fed-show-kind fed-font-xvi fed-hide fed-show-md-block" href="/gbook.html">留言</a>
+				</li>-->
+								<li class="fed-pull-left">
+					<a class="fed-menu-title fed-show-kind fed-font-xvi fed-navs-navbar fed-event fed-hide fed-show-sm-block" href="javascript:;">导航<span class="fed-part-move fed-edge-info fed-edge-bottom"></span></a>
+				</li>
+			</ul>
+			<div class="fed-navs-search fed-back-whits fed-hidden fed-conceal fed-show-sm-block">
+				<a class="fed-navs-close fed-conceal fed-hide-sm" href="javascript:;">取消</a>
+				<form id="searchbarform2" class="fed-navs-form" autocomplete="off" onkeydown="if(event.keyCode==13){return false}" aria-expanded="false">
+										<div class="fed-navs-cuts fed-event">
+						<a class="fed-navs-btns" href="javascript:;">
+														<span class="fed-navs-name" data-type="1" data-href="/vodsearch/-------------.html">视频</span><span class="fed-part-move fed-edge-info fed-edge-bottom"></span> 						</a>
+					</div>
+					<input id="kw2" class="fed-navs-input fed-back-ashen fed-event" type="search" placeholder="请输入关键字">
+					<a class="fed-navs-submit fed-back-ashen"><i class="fed-icon-font fed-icon-sousuo"></i></a>
+									</form>
+				<div id="searchresult2" class="uk-card uk-card-body uk-card-default uk-drop uk-drop-bottom-right" uk-drop="mode: click; pos: bottom-justify; boundary: ! #searchbarform2;  stretch: true" style="background: rgb(0, 0, 0); padding: 0px;margin-top: 40px;">
+					<ul id="result-body2" class="uk-list">
+					</ul>
+				</div>
+			</div>
+			<div class="fed-navs-right">
+				<a class="fed-navs-route fed-text-black fed-event fed-hidden fed-hide-sm" href="javascript:;"></a>
+								<a class="fed-navs-button fed-text-black fed-event fed-hide-sm fed-icon-font fed-icon-sousuo" href="javascript:;"></a>
+								<a class="fed-navs-record fed-text-black fed-event fed-hide-xs fed-show-sm-block" href="javascript:;">看过<span class="fed-part-move fed-edge-info fed-edge-bottom"></span></a>
+								<a class="fed-navs-login fed-text-black fed-hide-xs fed-show-sm-block" href="javascript:;">登录</a>
+								<a class="fed-navs-record fed-text-black fed-event fed-hide-sm fed-icon-font fed-icon-lishi" href="javascript:;"></a>
+							</div>
+		</div>
+		<div class="fed-pops-navbar fed-box-shadow fed-min-width fed-hidden fed-conceal fed-anim">
+			<div class="fed-pops-channel fed-back-whits fed-part-rows fed-line-top fed-hidden">选择频道</div>
+			<a class="fed-pops-btns fed-back-whits fed-text-black fed-text-center fed-event fed-hide-sm fed-icon-font fed-icon-fenlei" href="javascript:;"></a>
+			<ul class="fed-pops-list fed-font-size fed-back-whits fed-part-rows">
+				<li class="fed-col-sm2">
+					<a class="fed-part-eone" href="/">首页</a>
+				</li>
+								<li class="fed-col-sm2">
+					<a class="fed-part-eone" href="/voddetail/1065374/">寒战1994</a>
+				</li>
+								<li class="fed-col-sm2">
+					<a class="fed-part-eone" href="/vodtype/1/">电影</a>
+				</li>
+								<li class="fed-col-sm2">
+					<a class="fed-part-eone" href="/vodtype/2/">连续剧</a>
+				</li>
+								<li class="fed-col-sm2">
+					<a class="fed-part-eone" href="/vodtype/3/">综艺</a>
+				</li>
+								<li class="fed-col-sm2">
+					<a class="fed-part-eone" href="/vodtype/4/">动漫</a>
+				</li>
+								<li class="fed-col-sm2">
+					<a class="fed-part-eone" href="/vodtype/37/">短剧</a>
+				</li>
+				                <li class="fed-col-sm2">
+                    <a class="fed-part-eone" href="#modal-wangzhi" uk-toggle="">网址</a>
+                </li>
+                				<li class="fed-col-sm2">
+					<a class="fed-part-eone" href="#modal-doulist" uk-toggle="">片单</a>
+				</li>
+							</ul>
+		</div>
+        <div id="modal-doulist" uk-modal="" class="uk-modal">
+            <div class="uk-modal-dialog uk-modal-body uk-background-secondary">
+                <button class="uk-modal-close-default uk-close-large uk-icon uk-close" type="button" uk-close=""><svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" data-svg="close-large"><line fill="none" stroke="#000" stroke-width="1.4" x1="1" y1="1" x2="19" y2="19"></line><line fill="none" stroke="#000" stroke-width="1.4" x1="19" y1="1" x2="1" y2="19"></line></svg></button>
+                <ul class="uk-nav uk-dropdown-nav uk-background-secondary">
+                    <li class="uk-nav-header"><a href="/topic/">进入片单首页</a></li>
+                    <li class="uk-nav-divider"></li>
+                    <li class="uk-active"><a href="#">推荐片单:</a></li>
+                    <li></li><li><a href="/label/doulist.html?list_id=46198065">Netflix（网飞）作品收录</a></li>
+                    <li><a href="/label/doulist.html?list_id=160807837">第97届奥斯卡提名影片合集</a></li>
+                    <li><a href="/label/doulist.html?list_id=212485">IMDb Top 250</a></li>
+                    <li><a href="/label/doulist.html?list_id=122557940">值得收藏の恐怖悬疑灾难片单</a></li>
+                    <li><a href="/label/doulist.html?list_id=108969510">最值得观看的韩剧</a></li>
+                </ul>
+            </div>
+        </div>
+		<div class="fed-pops-search fed-hidden fed-conceal fed-anim fed-anim-upbit">
+			<div class="fed-pops-case fed-line-top fed-back-ashen fed-box-shadow" style="display: none">
+				<div class="fed-pops-key"></div>
+				<div class="fed-pops-box">
+					<div class="fed-pops-hot">
+						<div class="fed-pops-title fed-back-whits fed-part-rows fed-line-bottom">热门搜索</div>
+						<ul class="fed-pops-list fed-back-whits fed-part-rows">
+														<li class="fed-col-xs6">
+								<a class="fed-event fed-part-eone" href="/vodsearch/%E5%B0%8F%E4%B8%91-------------.html"><span class="fed-part-nums fed-part-num1">1</span><span class="fed-name">小丑</span></a>
+							</li>
+														<li class="fed-col-xs6">
+								<a class="fed-event fed-part-eone" href="/vodsearch/%E5%B0%8F%E5%B0%8F%E7%9A%84%E6%84%BF%E6%9C%9B-------------.html"><span class="fed-part-nums fed-part-num2">2</span><span class="fed-name">小小的愿望</span></a>
+							</li>
+														<li class="fed-col-xs6">
+								<a class="fed-event fed-part-eone" href="/vodsearch/%E7%BD%97%E5%B0%8F%E9%BB%91%E6%88%98%E8%AE%B0-------------.html"><span class="fed-part-nums fed-part-num3">3</span><span class="fed-name">罗小黑战记</span></a>
+							</li>
+														<li class="fed-col-xs6">
+								<a class="fed-event fed-part-eone" href="/vodsearch/%E7%BB%AD%E5%91%BD%E4%B9%8B%E5%BE%92%EF%BC%9A%E7%BB%9D%E5%91%BD%E6%AF%92%E5%B8%88%E7%94%B5%E5%BD%B1-------------.html"><span class="fed-part-nums fed-part-num4">4</span><span class="fed-name">续命之徒：绝命毒师电影</span></a>
+							</li>
+														<li class="fed-col-xs6">
+								<a class="fed-event fed-part-eone" href="/vodsearch/%E5%A5%87%E8%91%A9%E8%AF%B4+%E7%AC%AC%E5%85%AD%E5%AD%A3-------------.html"><span class="fed-part-nums fed-part-num5">5</span><span class="fed-name">奇葩说 第六季</span></a>
+							</li>
+														<li class="fed-col-xs6">
+								<a class="fed-event fed-part-eone" href="/vodsearch/%E9%B9%A4%E5%94%B3%E5%8D%8E%E4%BA%AD-------------.html"><span class="fed-part-nums fed-part-num6">6</span><span class="fed-name">鹤唳华亭</span></a>
+							</li>
+														<li class="fed-col-xs6">
+								<a class="fed-event fed-part-eone" href="/vodsearch/%E5%81%B6%E7%84%B6%E5%8F%91%E7%8E%B0%E7%9A%84%E4%B8%80%E5%A4%A9-------------.html"><span class="fed-part-nums fed-part-num7">7</span><span class="fed-name">偶然发现的一天</span></a>
+							</li>
+														<li class="fed-col-xs6">
+								<a class="fed-event fed-part-eone" href="/vodsearch/%E5%8A%A8%E7%89%A9%E7%8B%82%E6%83%B3%E6%9B%B2-------------.html"><span class="fed-part-nums fed-part-num8">8</span><span class="fed-name">动物狂想曲</span></a>
+							</li>
+														<li class="fed-col-xs6">
+								<a class="fed-event fed-part-eone" href="/vodsearch/%E6%B5%B7%E8%B4%BC%E7%8E%8B-------------.html"><span class="fed-part-nums fed-part-num9">9</span><span class="fed-name">海贼王</span></a>
+							</li>
+													</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="fed-pops-record fed-box-shadow fed-hidden fed-conceal fed-anim fed-anim-upbit">
+			<div class="fed-pops-title fed-back-whits fed-line-top fed-line-bottom fed-part-rows"><span class="fed-col-xs9">观看记录</span>
+				<a class="fed-clear fed-event fed-text-right fed-col-xs3" href="javascript:;">清空</a>
+			</div>
+			<ul class="fed-pops-list fed-back-whits"><li class="fed-part-rows fed-line-bottom"><a class="fed-part-rows" href="javascript:;">暂无观看记录</a></li></ul>
+		</div>
+		<div class="fed-pops-cuts fed-line-top fed-hidden fed-conceal fed-anim fed-anim-upbit">
+			<ul class="fed-part-rows fed-box-shadow fed-back-whits fed-padding">
+				<li data-type="1" data-href="/vodsearch/-------------.html" class="fed-padding fed-part-curs fed-text-center fed-event fed-text-green">视频</li>
+								<li data-type="2" data-href="/artsearch/-------.html" class="fed-padding fed-part-curs fed-text-center fed-event">资讯</li>
+							</ul>
+		</div>
+				<div class="fed-pops-user fed-box-shadow fed-back-whits fed-hidden fed-conceal fed-anim fed-anim-upbit">
+			<ul class="fed-pops-list fed-font-size fed-back-whits">
+				<li>
+					<a href="/user/index.html">游客</a>
+				</li>
+				<li>
+					<a href="/user/info.html">修改资料</a>
+				</li>
+				<li>
+					<a href="/user/favs.html">我的收藏</a>
+				</li>
+				<li>
+					<a href="/user/plays.html">播放记录</a>
+				</li>
+				<li>
+					<a href="/user/downs.html">下载记录</a>
+				</li>
+				<li>
+					<a href="/user/plog.html">积分记录</a>
+				</li>
+				<li>
+					<a href="/user/orders.html">充值记录</a>
+				</li>
+				<li>
+					<a href="/user/cash.html">积分提现</a>
+				</li>
+				<li>
+					<a href="/user/buy.html">在线充值</a>
+				</li>
+				<li>
+					<a href="/user/upgrade.html">升级会员</a>
+				</li>
+				<li>
+					<a href="/user/reward.html">三级分销</a>
+				</li>
+				<li>
+					<a href="/user/popedom.html">我的权限</a>
+				</li>
+				<li>
+					<a href="/user/logout.html">退出登录</a>
+				</li>
+			</ul>
+		</div>
+	</div>
+</div>
+<script>
+	var prevkw2 = "";
+	var searchbar_show2 = 0;
+	var result_show2 = 0;
+	var stimer2;
+	var protocol2 = window.location.protocol;
+	var hostname2 = window.location.hostname;
+    var prevsearchtime2 = 0;
+	const typelist2 = {
+		1:"电影",
+		2:"连续剧",
+		3:"综艺",
+		4:"动漫",
+		7:"喜剧片",
+		6:"动作片",
+		8:"爱情片",
+		9:"科幻片",
+		10:"恐怖片",
+		11:"剧情片",
+		12:"战争片",
+		13:"国产剧",
+		14:"港剧",
+		15:"日剧",
+		16:"欧美剧",
+		20:"台剧",
+		21:"泰剧",
+		22:"越南剧",
+		23:"韩剧",
+		26:"考驾照",
+		29:"纪录片",
+		30:"海外剧",
+		31:"卡通片"
+	};
+	var isSubmitting2 = false;
+	var queue2 = "";
+
+	UIkit.util.on('#searchresult2', 'show', function () {
+		console.log('result2 show');
+		result_show2 = 1;
+	});
+	UIkit.util.on('#searchresult2', 'hidden', function () {
+		console.log('result2 hide');
+		result_show2 = 0;
+	});
+
+	$('#kw2').click(function() {
+		console.log('kw2 clicked');
+		setTimeout(function() {
+			if (result_show2 == 0) {
+				UIkit.dropdown("#searchresult2").show();
+			}
+		}, 100);
+
+	});
+
+	$("#kw2").on("input", function() {
+		var keyword = $(this).val();
+		if (keyword !== prevkw2 && checkinput2(keyword) == true) {
+			clearTimeout(stimer2);
+			stimer2 = setTimeout(function() {
+				search2(keyword);
+			}, 500);
+		}
+	});
+
+
+
+	function checkinput2(keyword) {
+		var trimmedInput = keyword.trim();
+		if ((trimmedInput.match(/[\u4e00-\u9fa5]/g) || []).length >= 2 || trimmedInput.length >= 5) {
+			return true;
+		}
+		console.log('keyword is short');
+		return false;
+	}
+
+
+	function search2(keyword) {
+		console.log('start to esearch '+keyword);
+		prevkw2 = keyword;
+		var timestamp = new Date().getTime();
+        if (isSubmitting2 == true && timestamp-prevsearchtime2>10000) isSubmitting2=false;
+		if (!isSubmitting2) {
+			isSubmitting2 = true;
+			queue2 = "";
+            prevsearchtime2 = timestamp;
+			$.ajax({
+				url: "https://kpdata.flixfiend.top/esearch/index?kw=" + keyword + "&ts=" + timestamp,
+				dataType: 'jsonp',
+                timeout: 8000,
+				success: function (data) {
+                    if (data.code==1) {
+                        console.log('api call success, call jsoutput2');
+                        jsoutput2(data);
+                        UIkit.dropdown("#searchresult2").show();
+                        handle_queue2();
+                    } else {
+                        console.log('empty search result');
+                        handle_queue();
+                    }
+
+				},
+				error: function (xhr, status, error) {
+					// 处理错误
+					console.log('api return error');
+					console.log(error);
+					handle_queue2();
+				}
+			});
+		} else {
+			console.log('searching not completed, keyword added to queue');
+			queue2 = keyword;
+		}
+	}
+
+	function handle_queue2() {
+		isSubmitting2 = false;
+		if (queue2.length > 0) {
+			console.log('handle queued keyword '+queue2);
+			search2(queue2);
+		}
+	}
+
+	function jsoutput2(data) {
+		jsonstr = CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(data.js));
+		//console.log('json:'+jsonstr)
+		data = JSON.parse(jsonstr);
+		$("#result-body2").empty();
+		for (var i = 0; i < data.length; i++) {
+			var id = data[i].id;
+			var vod_name = data[i].high.vod_name || data[i].data.vod_name;
+			var vod_year = data[i].high.vod_year || data[i].data.vod_year;
+			var vod_area = data[i].data.vod_area;
+			var vod_name_org = data[i].high.vod_name_org || data[i].data.vod_name_org;
+			var aka = data[i].high.aka || data[i].data.aka;
+			var vod_actor = data[i].high.vod_actor || data[i].data.vod_actor;
+			var vod_director = data[i].high.vod_director || data[i].data.vod_director;
+			var vod_writer = data[i].high.vod_writer || data[i].data.vod_writer;
+			var type_name = typelist2[data[i].data.type_id];
+			var vod_pic = data[i].data.vod_imdb_poster || data[i].data.vod_douban_cover || protocol2 + '//' + hostname2 + '/' + data[i].data.vod_pic;
+			var vod_url = protocol2 + '//' + hostname2 + '/voddetail/' + id;
+			var li = $("<li></li>");
+			var card = $("<div class='uk-card uk-card-small uk-child-width-expand uk-card-secondary uk-margin' uk-grid style='margin-left:0px;box-shadow: 0 5px 15px rgba(255, 255, 255, 0.08)'></div>");
+			var rdiv=$("<div class='uk-width-4-5' style='margin-top:10px;padding-left:10px'></div>");
+			var rbody=$("<div class='uk-card-body' style='padding: 0px 10px 10px 10px;'></div>");
+			var title = $("<h6 style='margin-bottom: 5px;'></h3>").html("<a href='" + vod_url + "'>" + vod_name + " (" + vod_year + ")" + "</a>");
+			var cover="<div class=\"uk-card-media-left uk-cover-container\" style='padding-left:10px'>" +
+					"<div tabindex=\"0\" class=\"uk-inline-clip uk-transition-toggle\"><a href='"+vod_url+"'><img src=\""+vod_pic+"\" referrerpolicy=\"no-referrer\" alt=\"\" style=\"margin: 10px;\" class=\"uk-height-max-medium\"></a></div>"
+					+"</div>";
+			var name_org = vod_name_org ? "<p>"+vod_name_org+"</p>" : '';
+			var info = $("<p></p>").html((vod_area ? vod_area + " " : "") + type_name);
+			rbody.append(title).append(name_org).append(info);
+			rdiv.append(rbody);
+			card.append(cover).append(rdiv);
+			li.append(card);
+			$("#result-body2").append(li);
+		}
+	}
+</script>
+<div class="fed-tabr-info fed-back-whits fed-min-width fed-line-top fed-hide-sm">
+	<ul class="fed-part-rows">
+		<li class="fed-text-center"><a class="fed-visible" href="/"><i class="fed-icon-font fed-icon-shouye"></i><span class="fed-font-xii">首页</span></a></li>
+				<li class="fed-text-center"><a class="fed-visible" href="/vodtype/1/">
+			<svg class="myicon" aria-hidden="true"><use xlink:href="#icon-dianying"></use></svg>
+						<span class="fed-font-xii">电影</span></a></li>
+				<li class="fed-text-center"><a class="fed-visible" href="/vodtype/2/">
+			<svg class="myicon" aria-hidden="true"><use xlink:href="#icon-weibiaoti--"></use></svg>
+						<span class="fed-font-xii">连续剧</span></a></li>
+				<li class="fed-text-center"><a class="fed-visible" href="/vodtype/3/">
+			<svg class="myicon" aria-hidden="true"><use xlink:href="#icon-taiwangdahui-zongyibangdianjitai"></use></svg>
+						<span class="fed-font-xii">综艺</span></a></li>
+				<li class="fed-text-center"><a class="fed-visible" href="/vodtype/4/">
+			<svg class="myicon" aria-hidden="true"><use xlink:href="#icon-fanju1"></use></svg>
+            			<span class="fed-font-xii">动漫</span></a></li>
+				<li class="fed-text-center"><a class="fed-visible" href="/vodtype/37/">
+			<svg class="myicon" aria-hidden="true"><use xlink:href="#icon-duanju"></use></svg>
+						<span class="fed-font-xii">短剧</span></a></li>
+				<li class="fed-text-center"><a class="fed-visible" href="/user/login.html"><i class="fed-icon-font fed-icon-yonghu"></i><span class="fed-font-xii">我的</span></a></li>
+			</ul>
+</div>
+
+<div class="fed-main-info fed-min-width">
+    <div class="fed-part-case">
+
+<title>本周热门 - 看片狂人</title>
+<div class="fed-part-case fed-part-rows">
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">电影<a class="fed-part-tips fed-font-xiv" href="/vodtype/1/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/584260/"><span class="fed-part-nums fed-part-num1">1</span>女豹<span class="fed-part-tips fed-text-green">723.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/971278/"><span class="fed-part-nums fed-part-num2">2</span>欢迎来龙餐馆<span class="fed-part-tips fed-text-green">336.2k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1065415/"><span class="fed-part-nums fed-part-num3">3</span>给阿嬷的情书<span class="fed-part-tips fed-text-green">96.6k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/260788/"><span class="fed-part-nums fed-part-num4">4</span>世上最不安的人II<span class="fed-part-tips fed-text-green">87.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1018516/"><span class="fed-part-nums fed-part-num5">5</span>夜王<span class="fed-part-tips fed-text-green">73.2k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1110558/"><span class="fed-part-nums fed-part-num6">6</span>蜘蛛侠：崭新之日<span class="fed-part-tips fed-text-green">53.8k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1122536/"><span class="fed-part-nums fed-part-num7">7</span>怒之杀<span class="fed-part-tips fed-text-green">49.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/625066/"><span class="fed-part-nums fed-part-num8">8</span>黛比达拉斯<span class="fed-part-tips fed-text-green">37.5k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/996017/"><span class="fed-part-nums fed-part-num9">9</span>奥德赛<span class="fed-part-tips fed-text-green">33.5k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">连续剧<a class="fed-part-tips fed-font-xiv" href="/vodtype/2/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/1127035/"><span class="fed-part-nums fed-part-num1">1</span>早春晴朗<span class="fed-part-tips fed-text-green">497.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1122147/"><span class="fed-part-nums fed-part-num2">2</span>师兄太稳健<span class="fed-part-tips fed-text-green">323.8k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1121071/"><span class="fed-part-nums fed-part-num3">3</span>藏锋<span class="fed-part-tips fed-text-green">229.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1126508/"><span class="fed-part-nums fed-part-num4">4</span>金色<span class="fed-part-tips fed-text-green">191.5k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1127236/"><span class="fed-part-nums fed-part-num5">5</span>醒来<span class="fed-part-tips fed-text-green">186.2k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1114835/"><span class="fed-part-nums fed-part-num6">6</span>花开锦绣<span class="fed-part-tips fed-text-green">177k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1130492/"><span class="fed-part-nums fed-part-num7">7</span>重案六组：消失的警号<span class="fed-part-tips fed-text-green">151k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1115983/"><span class="fed-part-nums fed-part-num8">8</span>重器<span class="fed-part-tips fed-text-green">131.7k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1110549/"><span class="fed-part-nums fed-part-num9">9</span>九门<span class="fed-part-tips fed-text-green">95.5k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">综艺<a class="fed-part-tips fed-font-xiv" href="/vodtype/3/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/1110859/"><span class="fed-part-nums fed-part-num1">1</span>心动的信号 第九季<span class="fed-part-tips fed-text-green">76k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1090062/"><span class="fed-part-nums fed-part-num2">2</span>地球超新鲜 第二季<span class="fed-part-tips fed-text-green">59.5k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/796779/"><span class="fed-part-nums fed-part-num3">3</span>我家那小子·好好生活季<span class="fed-part-tips fed-text-green">58.2k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1088234/"><span class="fed-part-nums fed-part-num4">4</span>脱口秀和Ta的朋友们 第三季<span class="fed-part-tips fed-text-green">46k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1118549/"><span class="fed-part-nums fed-part-num5">5</span>大哥小助理<span class="fed-part-tips fed-text-green">36.6k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/408447/"><span class="fed-part-nums fed-part-num6">6</span>乘风破浪的姐姐 第二季<span class="fed-part-tips fed-text-green">35.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/411941/"><span class="fed-part-nums fed-part-num7">7</span>创造营2021<span class="fed-part-tips fed-text-green">34.5k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1095923/"><span class="fed-part-nums fed-part-num8">8</span>喜剧之王单口季 第三季<span class="fed-part-tips fed-text-green">28k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1109155/"><span class="fed-part-nums fed-part-num9">9</span>一饭封神2<span class="fed-part-tips fed-text-green">26.4k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">动漫<a class="fed-part-tips fed-font-xiv" href="/vodtype/4/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/108920/"><span class="fed-part-nums fed-part-num1">1</span>XL上司<span class="fed-part-tips fed-text-green">161.7k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/755874/"><span class="fed-part-nums fed-part-num2">2</span>牧神记<span class="fed-part-tips fed-text-green">75k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/975268/"><span class="fed-part-nums fed-part-num3">3</span>仙逆 年番1<span class="fed-part-tips fed-text-green">59.8k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/973719/"><span class="fed-part-nums fed-part-num4">4</span>光阴之外<span class="fed-part-tips fed-text-green">53.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/343043/"><span class="fed-part-nums fed-part-num5">5</span>凡人修仙传：风起天南<span class="fed-part-tips fed-text-green">40.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/444762/"><span class="fed-part-nums fed-part-num6">6</span>鬼父<span class="fed-part-tips fed-text-green">32.8k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/20912/"><span class="fed-part-nums fed-part-num7">7</span>甜蜜惩罚 我是看守专用宠物<span class="fed-part-tips fed-text-green">30.8k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/640630/"><span class="fed-part-nums fed-part-num8">8</span>沉睡万古：出世横推诸天动态漫画<span class="fed-part-tips fed-text-green">28.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1108940/"><span class="fed-part-nums fed-part-num9">9</span>八仙！<span class="fed-part-tips fed-text-green">28.7k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">短剧<a class="fed-part-tips fed-font-xiv" href="/vodtype/37/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/810614/"><span class="fed-part-nums fed-part-num1">1</span>直男改造计划<span class="fed-part-tips fed-text-green">26.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/851853/"><span class="fed-part-nums fed-part-num2">2</span>午夜公交车<span class="fed-part-tips fed-text-green">17k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1116662/"><span class="fed-part-nums fed-part-num3">3</span>十三路末班车<span class="fed-part-tips fed-text-green">16.8k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/919213/"><span class="fed-part-nums fed-part-num4">4</span>野狗吻月亮<span class="fed-part-tips fed-text-green">14.5k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/802750/"><span class="fed-part-nums fed-part-num5">5</span>财神请归位<span class="fed-part-tips fed-text-green">14.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/681146/"><span class="fed-part-nums fed-part-num6">6</span>北境风云<span class="fed-part-tips fed-text-green">14k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1017923/"><span class="fed-part-nums fed-part-num7">7</span>穿越礼教标杆我野翻了<span class="fed-part-tips fed-text-green">13.7k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/685620/"><span class="fed-part-nums fed-part-num8">8</span>爱你欲言又止<span class="fed-part-tips fed-text-green">13.4k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1023425/"><span class="fed-part-nums fed-part-num9">9</span>重生七零，带着妹妹下东北当知青<span class="fed-part-tips fed-text-green">13k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">动作片<a class="fed-part-tips fed-font-xiv" href="/vodtype/6/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/1110558/"><span class="fed-part-nums fed-part-num1">1</span>蜘蛛侠：崭新之日<span class="fed-part-tips fed-text-green">53.8k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1122536/"><span class="fed-part-nums fed-part-num2">2</span>怒之杀<span class="fed-part-tips fed-text-green">49.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/996017/"><span class="fed-part-nums fed-part-num3">3</span>奥德赛<span class="fed-part-tips fed-text-green">33.5k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1130208/"><span class="fed-part-nums fed-part-num4">4</span>猫鼬<span class="fed-part-tips fed-text-green">26.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1070766/"><span class="fed-part-nums fed-part-num5">5</span>火遮眼<span class="fed-part-tips fed-text-green">14k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1015032/"><span class="fed-part-nums fed-part-num6">6</span>镖人：风起大漠<span class="fed-part-tips fed-text-green">10.4k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1038859/"><span class="fed-part-nums fed-part-num7">7</span>超级少女<span class="fed-part-tips fed-text-green">8.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/17110/"><span class="fed-part-nums fed-part-num8">8</span>钢铁侠2<span class="fed-part-tips fed-text-green">6.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1126590/"><span class="fed-part-nums fed-part-num9">9</span>群狼绝境<span class="fed-part-tips fed-text-green">6.7k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">喜剧片<a class="fed-part-tips fed-font-xiv" href="/vodtype/7/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/1018516/"><span class="fed-part-nums fed-part-num1">1</span>夜王<span class="fed-part-tips fed-text-green">73.2k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1102613/"><span class="fed-part-nums fed-part-num2">2</span>功夫女足<span class="fed-part-tips fed-text-green">16.7k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1100790/"><span class="fed-part-nums fed-part-num3">3</span>牢笼鬼魂<span class="fed-part-tips fed-text-green">10.7k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/43432/"><span class="fed-part-nums fed-part-num4">4</span>西门官人别这样<span class="fed-part-tips fed-text-green">8.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1111005/"><span class="fed-part-nums fed-part-num5">5</span>我要你的性<span class="fed-part-tips fed-text-green">7.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/216442/"><span class="fed-part-nums fed-part-num6">6</span>厨房春光<span class="fed-part-tips fed-text-green">6.8k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/357966/"><span class="fed-part-nums fed-part-num7">7</span>两大一小三俘虏<span class="fed-part-tips fed-text-green">6.4k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1118745/"><span class="fed-part-nums fed-part-num8">8</span>年会不能停！2<span class="fed-part-tips fed-text-green">6k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/2066/"><span class="fed-part-nums fed-part-num9">9</span>A计划<span class="fed-part-tips fed-text-green">6k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">爱情片<a class="fed-part-tips fed-font-xiv" href="/vodtype/8/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/332924/"><span class="fed-part-nums fed-part-num1">1</span>红<span class="fed-part-tips fed-text-green">21.4k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/40676/"><span class="fed-part-nums fed-part-num2">2</span>人间中毒<span class="fed-part-tips fed-text-green">9.2k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/2055/"><span class="fed-part-nums fed-part-num3">3</span>倩女幽魂<span class="fed-part-tips fed-text-green">6.8k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1127191/"><span class="fed-part-nums fed-part-num4">4</span>最后的日出<span class="fed-part-tips fed-text-green">5.8k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/272706/"><span class="fed-part-nums fed-part-num5">5</span>火口的两人<span class="fed-part-tips fed-text-green">4.8k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/216390/"><span class="fed-part-nums fed-part-num6">6</span>娃娃脸<span class="fed-part-tips fed-text-green">4.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/13743/"><span class="fed-part-nums fed-part-num7">7</span>超时空要爱<span class="fed-part-tips fed-text-green">4k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1120051/"><span class="fed-part-nums fed-part-num8">8</span>追踪者游戏W 水鱼交融<span class="fed-part-tips fed-text-green">3.6k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/613462/"><span class="fed-part-nums fed-part-num9">9</span>查理<span class="fed-part-tips fed-text-green">2.7k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">科幻片<a class="fed-part-tips fed-font-xiv" href="/vodtype/9/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/656180/"><span class="fed-part-nums fed-part-num1">1</span>旺卡<span class="fed-part-tips fed-text-green">33.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1129633/"><span class="fed-part-nums fed-part-num2">2</span>末世行者<span class="fed-part-tips fed-text-green">13.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1077538/"><span class="fed-part-nums fed-part-num3">3</span>后室<span class="fed-part-tips fed-text-green">6.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/678085/"><span class="fed-part-nums fed-part-num4">4</span>AR物语<span class="fed-part-tips fed-text-green">5.2k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/60202/"><span class="fed-part-nums fed-part-num5">5</span>星际旅行6：未来之城<span class="fed-part-tips fed-text-green">5.2k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/213898/"><span class="fed-part-nums fed-part-num6">6</span>绝世战魂<span class="fed-part-tips fed-text-green">4.5k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/2139/"><span class="fed-part-nums fed-part-num7">7</span>钢铁侠<span class="fed-part-tips fed-text-green">4k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/646463/"><span class="fed-part-nums fed-part-num8">8</span>57秒<span class="fed-part-tips fed-text-green">3.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1084097/"><span class="fed-part-nums fed-part-num9">9</span>揭秘日<span class="fed-part-tips fed-text-green">3.8k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">恐怖片<a class="fed-part-tips fed-font-xiv" href="/vodtype/10/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/260788/"><span class="fed-part-nums fed-part-num1">1</span>世上最不安的人II<span class="fed-part-tips fed-text-green">87.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1130036/"><span class="fed-part-nums fed-part-num2">2</span>邪蛛海滩<span class="fed-part-tips fed-text-green">17.7k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1101297/"><span class="fed-part-nums fed-part-num3">3</span>鬼玩人6：炼狱<span class="fed-part-tips fed-text-green">9.5k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1073750/"><span class="fed-part-nums fed-part-num4">4</span>群体<span class="fed-part-tips fed-text-green">8.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1114214/"><span class="fed-part-nums fed-part-num5">5</span>卖冰淇淋的人<span class="fed-part-tips fed-text-green">7.4k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1070697/"><span class="fed-part-nums fed-part-num6">6</span>痴迷<span class="fed-part-tips fed-text-green">7.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1129499/"><span class="fed-part-nums fed-part-num7">7</span>顺风车杀手<span class="fed-part-tips fed-text-green">6.6k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1114752/"><span class="fed-part-nums fed-part-num8">8</span>异界魔盒<span class="fed-part-tips fed-text-green">5.2k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/17500/"><span class="fed-part-nums fed-part-num9">9</span>双瞳<span class="fed-part-tips fed-text-green">4.8k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">剧情片<a class="fed-part-tips fed-font-xiv" href="/vodtype/11/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/971278/"><span class="fed-part-nums fed-part-num1">1</span>欢迎来龙餐馆<span class="fed-part-tips fed-text-green">336.2k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1065415/"><span class="fed-part-nums fed-part-num2">2</span>给阿嬷的情书<span class="fed-part-tips fed-text-green">96.6k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1119375/"><span class="fed-part-nums fed-part-num3">3</span>抓特务<span class="fed-part-tips fed-text-green">31k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1065374/"><span class="fed-part-nums fed-part-num4">4</span>寒战1994<span class="fed-part-tips fed-text-green">26.8k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/511234/"><span class="fed-part-nums fed-part-num5">5</span>温柔乡<span class="fed-part-tips fed-text-green">26.2k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/13935/"><span class="fed-part-nums fed-part-num6">6</span>琅琊榜<span class="fed-part-tips fed-text-green">24.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/176863/"><span class="fed-part-nums fed-part-num7">7</span>禁忌2<span class="fed-part-tips fed-text-green">17.5k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/494900/"><span class="fed-part-nums fed-part-num8">8</span>挽救计划<span class="fed-part-tips fed-text-green">16.7k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/565071/"><span class="fed-part-nums fed-part-num9">9</span>千金肉奴隶<span class="fed-part-tips fed-text-green">14.5k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">战争片<a class="fed-part-tips fed-font-xiv" href="/vodtype/12/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/1079756/"><span class="fed-part-nums fed-part-num1">1</span>诺曼底72小时<span class="fed-part-tips fed-text-green">9.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1119999/"><span class="fed-part-nums fed-part-num2">2</span>核战边缘<span class="fed-part-tips fed-text-green">6.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/789/"><span class="fed-part-nums fed-part-num3">3</span>拯救大兵瑞恩<span class="fed-part-tips fed-text-green">5.8k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1125105/"><span class="fed-part-nums fed-part-num4">4</span>怒海营救<span class="fed-part-tips fed-text-green">2.4k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/53787/"><span class="fed-part-nums fed-part-num5">5</span>与墨索里尼喝茶<span class="fed-part-tips fed-text-green">2.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/288960/"><span class="fed-part-nums fed-part-num6">6</span>将军之夜·上部<span class="fed-part-tips fed-text-green">2.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1121717/"><span class="fed-part-nums fed-part-num7">7</span>最后运输船<span class="fed-part-tips fed-text-green">1.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/397319/"><span class="fed-part-nums fed-part-num8">8</span>罗马之战·第一部<span class="fed-part-tips fed-text-green">1.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/284909/"><span class="fed-part-nums fed-part-num9">9</span>芬兰战争<span class="fed-part-tips fed-text-green">1.5k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">纪录片<a class="fed-part-tips fed-font-xiv" href="/vodtype/29/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/654318/"><span class="fed-part-nums fed-part-num1">1</span>创新进行时<span class="fed-part-tips fed-text-green">5.8k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/492430/"><span class="fed-part-nums fed-part-num2">2</span>蠢蛋搞怪到永远<span class="fed-part-tips fed-text-green">4.7k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/629385/"><span class="fed-part-nums fed-part-num3">3</span>记住乡愁<span class="fed-part-tips fed-text-green">4.4k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1127285/"><span class="fed-part-nums fed-part-num4">4</span>奥德赛 - 真实的故事<span class="fed-part-tips fed-text-green">4.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/873788/"><span class="fed-part-nums fed-part-num5">5</span>我的妈妈，简<span class="fed-part-tips fed-text-green">3.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/597776/"><span class="fed-part-nums fed-part-num6">6</span>地球风暴<span class="fed-part-tips fed-text-green">3.8k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/624947/"><span class="fed-part-nums fed-part-num7">7</span>一路百年<span class="fed-part-tips fed-text-green">3.6k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/658918/"><span class="fed-part-nums fed-part-num8">8</span>向上<span class="fed-part-tips fed-text-green">3.6k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/477660/"><span class="fed-part-nums fed-part-num9">9</span>希特勒的最后一战 第二季<span class="fed-part-tips fed-text-green">3.4k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">动画片<a class="fed-part-tips fed-font-xiv" href="/vodtype/31/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/1091569/"><span class="fed-part-nums fed-part-num1">1</span>小黄人与大怪兽<span class="fed-part-tips fed-text-green">15.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1087052/"><span class="fed-part-nums fed-part-num2">2</span>玩具总动员5<span class="fed-part-tips fed-text-green">13.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1119280/"><span class="fed-part-nums fed-part-num3">3</span>牛来<span class="fed-part-tips fed-text-green">11.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1073871/"><span class="fed-part-nums fed-part-num4">4</span>哆啦A梦：新·大雄的海底鬼岩城<span class="fed-part-tips fed-text-green">7.5k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/576457/"><span class="fed-part-nums fed-part-num5">5</span>名侦探柯南：大怪兽哥美拉VS假面超人<span class="fed-part-tips fed-text-green">6.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1060582/"><span class="fed-part-nums fed-part-num6">6</span>名侦探柯南：高速公路的堕天使<span class="fed-part-tips fed-text-green">4.6k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/640956/"><span class="fed-part-nums fed-part-num7">7</span>超级飞侠：乐迪加速<span class="fed-part-tips fed-text-green">4.5k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1118641/"><span class="fed-part-nums fed-part-num8">8</span>去你的岛<span class="fed-part-tips fed-text-green">3.6k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1129330/"><span class="fed-part-nums fed-part-num9">9</span>银魂吉原大炎上<span class="fed-part-tips fed-text-green">3.4k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">国产剧<a class="fed-part-tips fed-font-xiv" href="/vodtype/13/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/1127035/"><span class="fed-part-nums fed-part-num1">1</span>早春晴朗<span class="fed-part-tips fed-text-green">497.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1122147/"><span class="fed-part-nums fed-part-num2">2</span>师兄太稳健<span class="fed-part-tips fed-text-green">323.8k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1121071/"><span class="fed-part-nums fed-part-num3">3</span>藏锋<span class="fed-part-tips fed-text-green">229.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1126508/"><span class="fed-part-nums fed-part-num4">4</span>金色<span class="fed-part-tips fed-text-green">191.5k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1127236/"><span class="fed-part-nums fed-part-num5">5</span>醒来<span class="fed-part-tips fed-text-green">186.2k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1114835/"><span class="fed-part-nums fed-part-num6">6</span>花开锦绣<span class="fed-part-tips fed-text-green">177k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1130492/"><span class="fed-part-nums fed-part-num7">7</span>重案六组：消失的警号<span class="fed-part-tips fed-text-green">151k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1115983/"><span class="fed-part-nums fed-part-num8">8</span>重器<span class="fed-part-tips fed-text-green">131.7k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1110549/"><span class="fed-part-nums fed-part-num9">9</span>九门<span class="fed-part-tips fed-text-green">95.5k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">港剧<a class="fed-part-tips fed-font-xiv" href="/vodtype/14/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/73027/"><span class="fed-part-nums fed-part-num1">1</span>天下太平<span class="fed-part-tips fed-text-green">34.4k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/50344/"><span class="fed-part-nums fed-part-num2">2</span>珠光宝气(粤语)<span class="fed-part-tips fed-text-green">25.2k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/65545/"><span class="fed-part-nums fed-part-num3">3</span>天师斗妖姬<span class="fed-part-tips fed-text-green">16.8k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/100358/"><span class="fed-part-nums fed-part-num4">4</span>惊艳一枪<span class="fed-part-tips fed-text-green">12.7k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/102042/"><span class="fed-part-nums fed-part-num5">5</span>万水千山总是情<span class="fed-part-tips fed-text-green">11.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/97156/"><span class="fed-part-nums fed-part-num6">6</span>法网群英<span class="fed-part-tips fed-text-green">9.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/147183/"><span class="fed-part-nums fed-part-num7">7</span>毕打自己人<span class="fed-part-tips fed-text-green">8.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/65227/"><span class="fed-part-nums fed-part-num8">8</span>澳门街<span class="fed-part-tips fed-text-green">7.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/249095/"><span class="fed-part-nums fed-part-num9">9</span>中原镖局<span class="fed-part-tips fed-text-green">7.8k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">日剧<a class="fed-part-tips fed-font-xiv" href="/vodtype/15/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/1109998/"><span class="fed-part-nums fed-part-num1">1</span>别班 第二季<span class="fed-part-tips fed-text-green">17.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/879254/"><span class="fed-part-nums fed-part-num2">2</span>假面骑士ZEZTZ<span class="fed-part-tips fed-text-green">14.4k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/676188/"><span class="fed-part-nums fed-part-num3">3</span>绝对会变成BL的世界VS绝不想变成BL的男人 第三季<span class="fed-part-tips fed-text-green">6.4k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/979948/"><span class="fed-part-nums fed-part-num4">4</span>丰臣兄弟！<span class="fed-part-tips fed-text-green">5.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/896173/"><span class="fed-part-nums fed-part-num5">5</span>独眼龙政宗<span class="fed-part-tips fed-text-green">5.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1099020/"><span class="fed-part-nums fed-part-num6">6</span>我的虚构<span class="fed-part-tips fed-text-green">4.2k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/210012/"><span class="fed-part-nums fed-part-num7">7</span>相棒 第十季<span class="fed-part-tips fed-text-green">4.2k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1099402/"><span class="fed-part-nums fed-part-num8">8</span>明明已经杀了丈夫<span class="fed-part-tips fed-text-green">4.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1095633/"><span class="fed-part-nums fed-part-num9">9</span>今晚也要和连环杀手约会<span class="fed-part-tips fed-text-green">3.7k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">欧美剧<a class="fed-part-tips fed-font-xiv" href="/vodtype/16/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/18318/"><span class="fed-part-nums fed-part-num1">1</span>无耻之徒(美版) 第一季<span class="fed-part-tips fed-text-green">41.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/102617/"><span class="fed-part-nums fed-part-num2">2</span>辛普森一家 第二十二季<span class="fed-part-tips fed-text-green">25k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/559244/"><span class="fed-part-nums fed-part-num3">3</span>怪奇物语 第四季<span class="fed-part-tips fed-text-green">22.6k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1069582/"><span class="fed-part-nums fed-part-num4">4</span>校园之外 第一季<span class="fed-part-tips fed-text-green">13.8k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1120595/"><span class="fed-part-nums fed-part-num5">5</span>绿灯军团<span class="fed-part-tips fed-text-green">13.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/31730/"><span class="fed-part-nums fed-part-num6">6</span>无耻之徒 第一季<span class="fed-part-tips fed-text-green">12.7k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1117349/"><span class="fed-part-nums fed-part-num7">7</span>侠探杰克 第四季<span class="fed-part-tips fed-text-green">12.5k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1086476/"><span class="fed-part-nums fed-part-num8">8</span>龙之家族 第三季<span class="fed-part-tips fed-text-green">9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/631885/"><span class="fed-part-nums fed-part-num9">9</span>鲜血淋漓 第五季<span class="fed-part-tips fed-text-green">8.8k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">韩剧<a class="fed-part-tips fed-font-xiv" href="/vodtype/23/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/1128315/"><span class="fed-part-nums fed-part-num1">1</span>鼠惑<span class="fed-part-tips fed-text-green">24.5k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1110975/"><span class="fed-part-nums fed-part-num2">2</span>杀手妈咪<span class="fed-part-tips fed-text-green">23.4k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1110858/"><span class="fed-part-nums fed-part-num3">3</span>现在不是出轨的问题<span class="fed-part-tips fed-text-green">15.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1108899/"><span class="fed-part-nums fed-part-num4">4</span>杀人者的购物中心2<span class="fed-part-tips fed-text-green">14.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/383404/"><span class="fed-part-nums fed-part-num5">5</span>顶层公寓<span class="fed-part-tips fed-text-green">14.4k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1091578/"><span class="fed-part-nums fed-part-num6">6</span>检察官室的提案<span class="fed-part-tips fed-text-green">12k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/659582/"><span class="fed-part-nums fed-part-num7">7</span>请和我的老公结婚<span class="fed-part-tips fed-text-green">9.2k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1092197/"><span class="fed-part-nums fed-part-num8">8</span>金特务：本色回归<span class="fed-part-tips fed-text-green">9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1025018/"><span class="fed-part-nums fed-part-num9">9</span>总会再相见<span class="fed-part-tips fed-text-green">8.9k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">越南剧<a class="fed-part-tips fed-font-xiv" href="/vodtype/22/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/371633/"><span class="fed-part-nums fed-part-num1">1</span>爱我你再亲亲我<span class="fed-part-tips fed-text-green">0.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/332536/"><span class="fed-part-nums fed-part-num2">2</span>圆梦达卡<span class="fed-part-tips fed-text-green">0.2k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/370120/"><span class="fed-part-nums fed-part-num3">3</span>传奇的巨型建筑0<span class="fed-part-tips fed-text-green">0.2k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/197163/"><span class="fed-part-nums fed-part-num4">4</span>你是我兄弟<span class="fed-part-tips fed-text-green">0.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/344280/"><span class="fed-part-nums fed-part-num5">5</span>叛逆姐姐爱上我<span class="fed-part-tips fed-text-green">0.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/382924/"><span class="fed-part-nums fed-part-num6">6</span>美丽女人<span class="fed-part-tips fed-text-green">0.1k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">泰剧<a class="fed-part-tips fed-font-xiv" href="/vodtype/21/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/652529/"><span class="fed-part-nums fed-part-num1">1</span>正排老公<span class="fed-part-tips fed-text-green">10.8k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/752103/"><span class="fed-part-nums fed-part-num2">2</span>冥王星爱恋<span class="fed-part-tips fed-text-green">9.7k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1089129/"><span class="fed-part-nums fed-part-num3">3</span>偿还<span class="fed-part-tips fed-text-green">8.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1056819/"><span class="fed-part-nums fed-part-num4">4</span>女校风云<span class="fed-part-tips fed-text-green">8.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/15554/"><span class="fed-part-nums fed-part-num5">5</span>逆阳之境<span class="fed-part-tips fed-text-green">8.2k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/771305/"><span class="fed-part-nums fed-part-num6">6</span>孔雀诡计<span class="fed-part-tips fed-text-green">6.7k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/710221/"><span class="fed-part-nums fed-part-num7">7</span>游戏大作战<span class="fed-part-tips fed-text-green">6.5k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/855361/"><span class="fed-part-nums fed-part-num8">8</span>泰版幸福<span class="fed-part-tips fed-text-green">6k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/421569/"><span class="fed-part-nums fed-part-num9">9</span>苦甜之恋<span class="fed-part-tips fed-text-green">5.2k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">海外剧<a class="fed-part-tips fed-font-xiv" href="/vodtype/30/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/1111354/"><span class="fed-part-nums fed-part-num1">1</span>母狮 第三季<span class="fed-part-tips fed-text-green">16.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/493401/"><span class="fed-part-nums fed-part-num2">2</span>与爱同居 第一季<span class="fed-part-tips fed-text-green">8.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/637122/"><span class="fed-part-nums fed-part-num3">3</span>EDA记忆清除公司<span class="fed-part-tips fed-text-green">4.7k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/409517/"><span class="fed-part-nums fed-part-num4">4</span>不同的星星<span class="fed-part-tips fed-text-green">3.7k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/710419/"><span class="fed-part-nums fed-part-num5">5</span>女警出更<span class="fed-part-tips fed-text-green">2.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/307506/"><span class="fed-part-nums fed-part-num6">6</span>三生三世诡中计<span class="fed-part-tips fed-text-green">2.8k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/252233/"><span class="fed-part-nums fed-part-num7">7</span>福尔摩斯探案集 第六季<span class="fed-part-tips fed-text-green">2.7k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1125867/"><span class="fed-part-nums fed-part-num8">8</span>家的守护星<span class="fed-part-tips fed-text-green">2.7k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/644127/"><span class="fed-part-nums fed-part-num9">9</span>错位教育<span class="fed-part-tips fed-text-green">2.6k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">台剧<a class="fed-part-tips fed-font-xiv" href="/vodtype/20/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/780422/"><span class="fed-part-nums fed-part-num1">1</span>全面管控<span class="fed-part-tips fed-text-green">15.4k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/27501/"><span class="fed-part-nums fed-part-num2">2</span>第8号当铺<span class="fed-part-tips fed-text-green">7.7k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/136779/"><span class="fed-part-nums fed-part-num3">3</span>想见你<span class="fed-part-tips fed-text-green">7.5k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/47751/"><span class="fed-part-nums fed-part-num4">4</span>鉴证实录<span class="fed-part-tips fed-text-green">5.7k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/100866/"><span class="fed-part-nums fed-part-num5">5</span>萌学园之时空战役<span class="fed-part-tips fed-text-green">5.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/393502/"><span class="fed-part-nums fed-part-num6">6</span>粉红色时光<span class="fed-part-tips fed-text-green">5.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/68055/"><span class="fed-part-nums fed-part-num7">7</span>美味关系<span class="fed-part-tips fed-text-green">4.7k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/626052/"><span class="fed-part-nums fed-part-num8">8</span>女兵日记：女力报到<span class="fed-part-tips fed-text-green">4.5k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/13096/"><span class="fed-part-nums fed-part-num9">9</span>霹雳开天记之创神篇下阕<span class="fed-part-tips fed-text-green">4.2k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+		<div class="fed-rank-info fed-part-layout fed-part-rows fed-back-whits fed-col-sm6 fed-col-md4">
+		<div class="fed-list-info fed-list-rank fed-part-rows fed-padding">
+			<h2 class="fed-list-head fed-part-rows fed-font-xvi">爽文短剧<a class="fed-part-tips fed-font-xiv" href="/vodtype/36/">更多</a></h2>
+			<ul class="fed-part-rows">
+								<li class="fed-part-eone">
+					<a href="/voddetail/810614/"><span class="fed-part-nums fed-part-num1">1</span>直男改造计划<span class="fed-part-tips fed-text-green">26.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/775509/"><span class="fed-part-nums fed-part-num2">2</span>裁员裁到大动脉，我创业你哭什么<span class="fed-part-tips fed-text-green">6k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/1053679/"><span class="fed-part-nums fed-part-num3">3</span>替嫁夫妻：从逢场作戏到情深<span class="fed-part-tips fed-text-green">5.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/814452/"><span class="fed-part-nums fed-part-num4">4</span>男生宿舍里的女人<span class="fed-part-tips fed-text-green">5.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/777573/"><span class="fed-part-nums fed-part-num5">5</span>天降女儿国<span class="fed-part-tips fed-text-green">4.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/741994/"><span class="fed-part-nums fed-part-num6">6</span>崽崽被欺负，顶级大佬们坐不住啦<span class="fed-part-tips fed-text-green">4.3k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/682038/"><span class="fed-part-nums fed-part-num7">7</span>萌娃逆袭神助攻<span class="fed-part-tips fed-text-green">4.1k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/681953/"><span class="fed-part-nums fed-part-num8">8</span>超级黄金手<span class="fed-part-tips fed-text-green">3.9k</span></a>
+				</li>
+								<li class="fed-part-eone">
+					<a href="/voddetail/681937/"><span class="fed-part-nums fed-part-num9">9</span>妈妈，再爱我一次<span class="fed-part-tips fed-text-green">3.7k</span></a>
+				</li>
+							</ul>
+		</div>
+	</div>
+	</div>
+</div></div><div class="fed-goto-info">
+
+	<a id="history_btn" class="fed-navs-record fed-event fed-visible fed-text-center fed-back-whits fed-icon-font " href="javascript:;"><img src="/template/vfed/asset/img/history.png"></a>
+	
+		<!--	<a class="fed-goto-share fed-visible fed-text-center fed-back-whits fed-icon-font fed-icon-fenxiang" href="javascript:;"></a>
+	-->
+		<a class="fed-goto-color fed-visible fed-text-center fed-back-whits fed-icon-font fed-icon-fengge fed-event" href="javascript:;"></a>
+		<a class="fed-goto-toper fed-hidden fed-text-center fed-back-whits fed-icon-font fed-icon-top" href="javascript:;"></a>
+</div><script type="text/javascript"> var vfed = { 'path': '/', 'tips': 'CJzMTI3LjAuMC4xPTE1NjE0OTEzMTY=', 'ver': '3.1.48', 'tpl': '/template/vfed/', 'mid': '7', 'aid': '7', 'did': '', 'sid': '', 'nid': '', 'wap': 'site-d.example', 'mob': '2', 'not': '1' }; </script>
+<!--<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery_lazyload/1.9.7/jquery.lazyload.min.js" integrity="sha512-yP/50WfAXV8JyDvqj8+kX3F/JVSYK4U6PYCriyH4xJvc5YtXbcBLaO2e/4ebu/obGWIObxDKkQQAfzRs0L121A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>-->
+<script src="https://unpkg.com/jquery-lazyload@1.9.7/jquery.lazyload.js" type="application/javascript"></script>
+<!--<script src="https://cdnjs.cloudflare.com/ajax/libs/Swiper/3.4.2/js/swiper.min.js" integrity="sha512-e5+6GpPHJLxT4d1OJ+WVNEMAdjRt3HOyT8txybfLgxMhpw/6OHlxhfcQjuZKGPH6CM8rfM8tv8A+dnsjGHgUxQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>-->
+<script src="https://unpkg.com/swiper@3.4.2/dist/js/swiper.min.js" type="application/javascript"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/layer/3.1.1/layer.min.js" integrity="sha512-0YosS8GSyQIZd2uWWNHG95QgN8kPN6WBmjjzakoTRfdCt0YCmJs2HHiiF6tmGwngN/fZ+JH93zFSkW2cv5uGWw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+
+<!--<script src="/template/vfed/asset/js/jquery.js?v=3.1.48" type="text/javascript" charset="utf-8"></script>-->
+<script>
+    fed_r = Cookies.get('fed_record');
+    if (fed_r != undefined) {
+        try {
+            test_fed_r = eval(fed_r);
+        } catch (e) {
+            console.log('error to get fed_record:'+e);
+            Cookies.remove('fed_record');
+        }
+    }
+    fed_h = Cookies.get('fed_history');
+    if (fed_h != undefined) {
+        try {
+            test_fed_h = eval(fed_h);
+        } catch (e) {
+            console.log('error to get fed_history:'+e);
+            Cookies.remove('fed_history');
+        }
+    }
+    function fed_decode($url) {
+        return CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse($url.slice(3)));
+    }
+</script>
+    <script src="/template/vfed/asset/js/global_dec.js?v=3.1.48" type="text/javascript" charset="utf-8"></script>
+<script src="/template/vfed/asset/js/custom.js?v=3.1.48" type="text/javascript" charset="utf-8"></script>
+<script src="https://unpkg.com/jquery-backstretch@2.1.18/jquery.backstretch.min.js" type="application/javascript"></script>
+<!--<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-backstretch/2.1.18/jquery.backstretch.min.js" integrity="sha512-bXc1hnpHIf7iKIkKlTX4x0A0zwTiD/FjGTy7rxUERPZIkHgznXrN/2qipZuKp/M3MIcVIdjF4siFugoIc2fL0A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>-->
+<script src="/template/vfed/asset/js/iconfont.js?v=3.1.48"></script>
+<div class="fed-foot-info fed-part-layout fed-back-whits">
+    <div class="fed-part-case">
+        <p class="fed-text-center fed-text-black">声明：看片狂人所有影视资源均由机器人从互联网采集而来，相关链接已注明来源。看片狂人一切电影视频资源仅用于测试和学习交流，一切版权归原创者所有。站长邮箱loma2gm@gmail.com</p>
+        <p class="fed-text-center fed-text-black"></p>
+        <p class="fed-text-center fed-text-black fed-foot-maps fed-font-size">
+            <a class="fed-font-xiv" href="/rss/index.xml" target="_blank">RSS订阅</a>
+            <span class="fed-font-xiv">&nbsp;-&nbsp;</span>
+            <a class="fed-font-xiv" href="/rss/baidu.xml" target="_blank">百度蜘蛛</a>
+            <span class="fed-font-xiv">&nbsp;-&nbsp;</span>
+            <a class="fed-font-xiv" href="/rss/google.xml" target="_blank">谷歌地图</a>
+            <span class="fed-font-xiv">&nbsp;-&nbsp;</span>
+            <a class="fed-font-xiv" href="/rss/sm.xml" target="_blank">神马爬虫</a>
+            <span class="fed-font-xiv fed-hide-xs">&nbsp;-&nbsp;</span>
+            <a class="fed-font-xiv fed-hide-xs" href="/rss/sogou.xml" target="_blank">搜狗蜘蛛</a>
+            <span class="fed-font-xiv fed-hide-xs">&nbsp;-&nbsp;</span>
+            <a class="fed-font-xiv fed-hide-xs" href="/rss/so.xml" target="_blank">奇虎地图</a>
+            <span class="fed-font-xiv fed-hide-xs">&nbsp;-&nbsp;</span>
+            <a class="fed-font-xiv fed-hide-xs" href="/rss/bing.xml" target="_blank">必应爬虫</a>
+        </p>
+                <p class="fed-text-center fed-text-black">©&nbsp;2026&nbsp;site-d.example&nbsp;Theme&nbsp;by&nbsp;<a class="fed-font-xiv" href="/" target="_blank">vfed&nbsp;3.1.48</a>
+
+        </p>
+
+    </div>
+</div>
+
+
+
+<div id="modal-wangzhi" uk-modal="" class="uk-modal">
+    <div class="uk-modal-dialog">
+        <button class="uk-modal-close-default uk-icon uk-close" type="button" uk-close=""><svg width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg" data-svg="close-icon"><line fill="none" stroke="#000" stroke-width="1.1" x1="1" y1="1" x2="13" y2="13"></line><line fill="none" stroke="#000" stroke-width="1.1" x1="13" y1="1" x2="1" y2="13"></line></svg></button>
+        <div class="uk-modal-body uk-overflow-auto" uk-overflow-auto="" style="min-height: 150px; max-height: 150px;">
+            <div class="uk-card uk-card-primary uk-card-body" style="padding:15px;margin-top:15px;margin-bottom: 10px;">
+                <h3 class="uk-card-title">本站最新地址</h3>
+                <p>
+                    2026.4.30<br>
+                    推荐入口：<a href="https://codepen.io/KungfuF-Loma/full/GgNKJOM" target="_blank">传送门1</a> / <a href="https://jsfiddle.net/quakerv/q8c2e4fk/" target="_blank">传送门2</a> / <a href="https://jsrun.net/zTrKp/" target="_blank">传送门3</a><br>
+                    可用域名：<a href="https://site-d.example" target="_blank">域名1</a> / <a href="https://site-d.example" target="_blank">域名2</a> / <a href="https://site-d.example" target="_blank">域名3</a><br>
+                    <br>
+                    1:<a href="https://sway.office.com/I7shpE33Fu3XIxb6?ref=Link" target="_blank"><span class="uk-text-bold">&gt;&gt;地址发布页1&lt;&lt;</span></a>建议收藏;<br>
+                    2:<a href="https://result.dabblet.com/gist/362cd46e0d887b4a6c33b4b7546ae49d/4e8858c10d3fb9ae0d8eb40040fd11d3aead0dff" target="_blank"><span class="uk-text-bold">&gt;&gt;地址发布页2&lt;&lt;</span></a>建议收藏;<br>
+                    3:<a href="https://codepen.io/KungfuF-Loma/full/vEyBdbJ" target="_blank"><span class="uk-text-bold">&gt;&gt;地址发布页3&lt;&lt;</span></a>建议收藏;<br>
+                    4:<a href="https://jsfiddle.net/quakerv/Ldb8rpgx/" target="_blank"><span class="uk-text-bold">&gt;&gt;地址发布页4&lt;&lt;</span></a>建议收藏;<br>
+                    5:发邮件给<a href="mailto:loma2gm@gmail.com" target="_blank">loma2gm@gmail.com</a>，会自动回复包含最新地址信息的邮件;<br>
+                </p>
+                <br>
+                <p class="uk-visible@l">
+                    设置安全dns能有效防止域名被屏蔽：<a href="https://cloud.tencent.com/document/product/302/110788#47ea7793-edbc-47b1-8ebd-917ff99c63d1" target="_blank" class="uk-label uk-text-warning">Chrome设置教程</a> <a href="https://cloud.tencent.com/document/product/302/110788#8eb91e68-1ae5-40ff-a08a-f5acd839d7e7" target="_blank" class="uk-label uk-text-warning">Edge设置教程</a> <a href="https://cloud.tencent.com/document/product/302/110788#c131862c-c9f1-4269-9b0a-0733e41f3db7" target="_blank" class="uk-label uk-text-warning">火狐设置教程</a><br>
+                </p>
+            </div>
+            <div class="uk-card uk-card-default uk-card-body uk-hidden@l" style="padding:15px;margin-top:-15px;margin-bottom: 10px;">
+                <p>
+                    本站目前没有推出任何app，其他以看片狂人为名的app均非本站发布，请谨慎下载使用<br>
+                    手机端推荐使用 <a href="https://a.app.qq.com/o/simple.jsp?pkgname=com.android.chrome" target="_blank" class="uk-label uk-text-default">谷歌浏览器</a> 或 <a href="https://sj.qq.com/appdetail/org.mozilla.firefox" target="_blank" class="uk-label uk-text-default">火狐浏览器</a><br>
+                </p>
+            </div>
+        </div>
+        <div class="uk-modal-footer uk-text-right">
+            <button class="uk-button uk-button-default uk-modal-close" type="button">关闭</button>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v3d52b47920f24c319d37e2661827c42b1787588026925" integrity="sha512-d9sL6GJLXn6fInD1+TVXhTcQOsmxeHfmHAvwGDIxp5TO+uo1fiWW7mHomMj4MLRlCsJDTqXzWLHJFFlPCEIj/A==" data-cf-beacon="{&quot;version&quot;:&quot;2024.11.0&quot;,&quot;token&quot;:&quot;a7b33ad27dbd4ea68176015d4f7c7a38&quot;,&quot;r&quot;:1}" crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3539c790955e37c',t:'MTc4ODQyNjUyMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><iframe height="1" width="1" style="position: absolute; top: 0px; left: 0px; border-width: medium; border-style: none; border-color: currentcolor; border-image: initial; visibility: hidden;"></iframe>
+</body><!-- Bidvertiser2092416 --></html>

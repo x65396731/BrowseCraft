@@ -100,6 +100,84 @@
       "stage": "detail",
       "url": "https://site-e.example/play/xZySN2hkjL0",
       "file": "site-e-detail-6.html"
+    },
+    {
+      "name": "site-e-list-9",
+      "stage": "list",
+      "url": "https://site-e.example/anime",
+      "file": "site-e-list-9.html"
+    },
+    {
+      "name": "site-e-detail-7",
+      "stage": "detail",
+      "url": "https://site-e.example/play/Na5mm0pFZzP",
+      "file": "site-e-detail-7.html"
+    },
+    {
+      "name": "site-e-list-10",
+      "stage": "list",
+      "url": "https://site-e.example/help/faq",
+      "file": "site-e-list-10.html"
+    },
+    {
+      "name": "site-e-list-11",
+      "stage": "list",
+      "url": "https://site-e.example/game",
+      "file": "site-e-list-11.html"
+    },
+    {
+      "name": "site-e-detail-8",
+      "stage": "detail",
+      "url": "https://site-e.example/play/6rCfqz37jLG",
+      "file": "site-e-detail-8.html"
+    },
+    {
+      "name": "site-e-list-12",
+      "stage": "list",
+      "url": "https://site-e.example/help/job-offers",
+      "file": "site-e-list-12.html"
+    },
+    {
+      "name": "site-e-list-13",
+      "stage": "list",
+      "url": "https://site-e.example/list/movie-20",
+      "file": "site-e-list-13.html"
+    },
+    {
+      "name": "site-e-detail-9",
+      "stage": "detail",
+      "url": "https://site-e.example/play/whCIspzcdzI",
+      "file": "site-e-detail-9.html"
+    },
+    {
+      "name": "site-e-detail-10",
+      "stage": "detail",
+      "url": "https://site-e.example/play/L9Iz5Iyd85n",
+      "file": "site-e-detail-10.html"
+    },
+    {
+      "name": "site-e-detail-11",
+      "stage": "detail",
+      "url": "https://site-e.example/challenge?return=%2Fplay%2FREa6ifMTvn9&triggerindex=%E8%AE%BF%E9%97%AE%E8%BF%87%E9%87%8F",
+      "file": "site-e-detail-11.html"
+    },
+    {
+      "name": "site-e-detail-12",
+      "stage": "detail",
+      "url": "https://site-e.example/challenge?return=%2Fplay%2Flj5GvO6Ieo8&triggerindex=%E8%AE%BF%E9%97%AE%E8%BF%87%E9%87%8F",
+      "file": "site-e-detail-12.html"
+    },
+    {
+      "name": "site-e-detail-13",
+      "stage": "detail",
+      "url": "https://site-e.example/challenge?return=%2Fplay%2FHtgBK9xGj30&triggerindex=%E8%AE%BF%E9%97%AE%E8%BF%87%E9%87%8F",
+      "file": "site-e-detail-13.html"
+    },
+    {
+      "name": "site-e-list-14",
+      "stage": "list",
+      "url": "https://site-e.example/vip-center/index?r=1",
+      "file": "site-e-list-14.html"
     }
   ]
 }

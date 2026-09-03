@@ -148,6 +148,48 @@
       "stage": "detail",
       "url": "https://site-b.example/videos/mida-737/",
       "file": "site-b-detail-7.html"
+    },
+    {
+      "name": "site-b-detail-8",
+      "stage": "detail",
+      "url": "https://site-b.example/videos/adn-806/",
+      "file": "site-b-detail-8.html"
+    },
+    {
+      "name": "site-b-detail-9",
+      "stage": "detail",
+      "url": "https://site-b.example/videos/adn-802/",
+      "file": "site-b-detail-9.html"
+    },
+    {
+      "name": "site-b-detail-10",
+      "stage": "detail",
+      "url": "https://site-b.example/videos/cawb-041/",
+      "file": "site-b-detail-10.html"
+    },
+    {
+      "name": "site-b-detail-11",
+      "stage": "detail",
+      "url": "https://site-b.example/videos/cawb-038/",
+      "file": "site-b-detail-11.html"
+    },
+    {
+      "name": "site-b-detail-12",
+      "stage": "detail",
+      "url": "https://site-b.example/videos/cawb-037/",
+      "file": "site-b-detail-12.html"
+    },
+    {
+      "name": "site-b-detail-13",
+      "stage": "detail",
+      "url": "https://site-b.example/videos/mngs-066/",
+      "file": "site-b-detail-13.html"
+    },
+    {
+      "name": "site-b-detail-14",
+      "stage": "detail",
+      "url": "https://site-b.example/videos/cawb-036/",
+      "file": "site-b-detail-14.html"
     }
   ]
 }

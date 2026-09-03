@@ -378,7 +378,29 @@ private struct PreflightTestFamilyAssessor: SourceListFamilyAssessing {
                     )
                 ],
                 redundantObservations: [],
-                unresolvedFacts: []
+                // 中文注释：与 Core `unresolvedMissingObservations` 同口径——未采到/采失败的成员出 typed 事实，
+                // 让「达到预算且未决结果可能改变结论」（§7.4）在桩上也成立。
+                unresolvedFacts: input.missingObservations.map { missing in
+                    let code: SourceListUnresolvedFactCode
+                    switch missing.reason {
+                    case .budgetLimited:
+                        code = .budgetLimited
+                    case .isolationUnavailable:
+                        code = .isolationUnavailable
+                    case .acquisitionFailed, .cancelled:
+                        code = .acquisitionFailed
+                    case .notSelected:
+                        code = missing.kind == .oneHopChild
+                            ? .oneHopMemberUnobserved
+                            : .detailCompatibilityUnobserved
+                    }
+                    return SourceListUnresolvedFact(
+                        code: code,
+                        documentIdentity: missing.parentDocumentIdentity,
+                        ownerID: missing.parentOwnerID,
+                        memberID: missing.parentMemberID
+                    )
+                }
             )
         case .multipleFamilies:
             let units: [SourceListPublicationUnit] = ["unit-1", "unit-2"].map { unitID in

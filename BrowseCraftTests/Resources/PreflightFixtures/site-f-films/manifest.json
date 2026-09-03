@@ -28,6 +28,42 @@
       "stage": "detail",
       "url": "https://site-f.example/films/45060-chelovek-pauk-4-novy-den-2026.html",
       "file": "site-f-films-detail-1.html"
+    },
+    {
+      "name": "site-f-films-list-2",
+      "stage": "list",
+      "url": "https://site-f.example/films-2026/",
+      "file": "site-f-films-list-2.html"
+    },
+    {
+      "name": "site-f-films-list-3",
+      "stage": "list",
+      "url": "https://site-f.example/turezkie_serialy/",
+      "file": "site-f-films-list-3.html"
+    },
+    {
+      "name": "site-f-films-list-4",
+      "stage": "list",
+      "url": "https://site-f.example/thriller/",
+      "file": "site-f-films-list-4.html"
+    },
+    {
+      "name": "site-f-films-list-5",
+      "stage": "list",
+      "url": "https://site-f.example/russkye_serialy/",
+      "file": "site-f-films-list-5.html"
+    },
+    {
+      "name": "site-f-films-list-6",
+      "stage": "list",
+      "url": "https://site-f.example/action/",
+      "file": "site-f-films-list-6.html"
+    },
+    {
+      "name": "site-f-films-list-7",
+      "stage": "list",
+      "url": "https://site-f.example/amerikanskye_filmy/",
+      "file": "site-f-films-list-7.html"
     }
   ]
 }

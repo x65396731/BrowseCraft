@@ -142,6 +142,60 @@
       "stage": "detail",
       "url": "https://site-d.example/vodplay/1122983-28-1.html",
       "file": "site-d-detail-13.html"
+    },
+    {
+      "name": "site-d-list-9",
+      "stage": "list",
+      "url": "https://site-d.example/label/rank.html",
+      "file": "site-d-list-9.html"
+    },
+    {
+      "name": "site-d-detail-14",
+      "stage": "detail",
+      "url": "https://site-d.example/voddetail/1126508/",
+      "file": "site-d-detail-14.html"
+    },
+    {
+      "name": "site-d-detail-15",
+      "stage": "detail",
+      "url": "https://site-d.example/voddetail/986379/",
+      "file": "site-d-detail-15.html"
+    },
+    {
+      "name": "site-d-detail-16",
+      "stage": "detail",
+      "url": "https://site-d.example/voddetail/1100577/",
+      "file": "site-d-detail-16.html"
+    },
+    {
+      "name": "site-d-detail-17",
+      "stage": "detail",
+      "url": "https://site-d.example/voddetail/1047005/",
+      "file": "site-d-detail-17.html"
+    },
+    {
+      "name": "site-d-detail-18",
+      "stage": "detail",
+      "url": "https://site-d.example/voddetail/1102955/",
+      "file": "site-d-detail-18.html"
+    },
+    {
+      "name": "site-d-detail-19",
+      "stage": "detail",
+      "url": "https://site-d.example/voddetail/1099149/",
+      "file": "site-d-detail-19.html"
+    },
+    {
+      "name": "site-d-detail-20",
+      "stage": "detail",
+      "url": "https://site-d.example/voddetail/1111236/",
+      "file": "site-d-detail-20.html"
+    },
+    {
+      "name": "site-d-detail-21",
+      "stage": "detail",
+      "url": "https://site-d.example/voddetail/1097754/",
+      "file": "site-d-detail-21.html"
     }
   ]
 }
