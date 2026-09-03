@@ -90,12 +90,14 @@ struct AssessVideoGenerationInputUseCase: Sendable {
         progress: VideoGenerationInputProgressHandler?
     ) async throws -> VideoGenerationInputPreflight {
         await progress?(.acquiringInput)
+        let startedAt: Date = Date()
         let inputPage: PreflightAcquiredPage
         do {
             inputPage = try await self.acquireUsablePage(inputURL.evaluatedURL)
         } catch let issue as EvidenceIssue {
             return self.earlyEvidenceResult(issue: issue, inputURL: inputURL)
         }
+        let acquiredAt: Date = Date()
 
         await progress?(.observingEntryShape)
         let identity: String = self.identityGenerator()
@@ -107,10 +109,25 @@ struct AssessVideoGenerationInputUseCase: Sendable {
                 purpose: .exactInput
             )
         )
+        let observedAt: Date = Date()
 
         await progress?(.reducingResult)
         let assessment: SourceListEntryFamilyAssessment = self.entryFamilyAssessor.assess(observation)
         self.assessmentObserver?(observation, assessment)
+        // 中文注释：只记耗时与计数（`BC-PREFLIGHT-042`：不记 URL 正文、Cookie、selector）。
+        AppLog.notice(
+            .discovery,
+            event: "video-preflight-timing",
+            metadata: [
+                "acquireMs": String(Int(acquiredAt.timeIntervalSince(startedAt) * 1000)),
+                "observeMs": String(Int(observedAt.timeIntervalSince(acquiredAt) * 1000)),
+                "reduceMs": String(Int(Date().timeIntervalSince(observedAt) * 1000)),
+                "bytes": String(inputPage.byteCount),
+                "source": inputPage.source.rawValue,
+                "groups": String(observation.groups.count),
+                "families": String(assessment.familyCount)
+            ]
+        )
 
         // 中文注释：截断只在截掉了内容区域时才是 ambiguous（§7.4）——有主列表即视为内容区域已观测到。
         let truncatedContent: Bool = assessment.scanTruncated && assessment.mainListGroupID == nil
