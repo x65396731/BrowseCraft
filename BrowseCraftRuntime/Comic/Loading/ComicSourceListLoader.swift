@@ -3,13 +3,13 @@ import BrowseCraftDomain
 import Foundation
 
 // 中文注释：ComicSourceListLoader 是 ComicSourceRuntime 内部列表刷新实现，只处理 SiteRule-backed source。
-struct ComicSourceListLoader {
+public struct ComicSourceListLoader {
     private let pageContentLoader: PageContentLoader
     private let comicRuleParser: ComicRuleSourceParsingService
     private let urlResolver: URLResolvingService
     private let defaultUserAgent: String
 
-    init(
+    public init(
         pageContentLoader: PageContentLoader,
         comicRuleParser: ComicRuleSourceParsingService,
         urlResolver: URLResolvingService,
@@ -21,7 +21,7 @@ struct ComicSourceListLoader {
         self.defaultUserAgent = defaultUserAgent
     }
 
-    func execute(
+    public func execute(
         source: Source,
         resolvedRule: ResolvedComicSiteRuleV2,
         entry: ResolvedComicListEntry,

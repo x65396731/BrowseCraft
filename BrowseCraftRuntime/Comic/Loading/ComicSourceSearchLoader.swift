@@ -5,17 +5,25 @@ import Foundation
 // 中文注释：ComicSourceSearchLoader 是 ComicSourceRuntime 内部搜索执行链路，只解释 SiteRule-backed source。
 // 中文注释：它不写入 Library 列表缓存，RSS/Plugin 后续应走各自 runtime。
 
-struct SearchSourceResult: Hashable {
-    var items: [ContentItem]
-    var pagination: PaginationResolution?
+public struct SearchSourceResult: Hashable {
+    public init(
+        items: [ContentItem],
+        pagination: PaginationResolution? = nil
+    ) {
+        self.items = items
+        self.pagination = pagination
+    }
+
+    public var items: [ContentItem]
+    public var pagination: PaginationResolution?
 }
 
-struct ComicSourceSearchLoader {
+public struct ComicSourceSearchLoader {
     private let pageContentLoader: PageContentLoader
     private let comicRuleParser: ComicRuleSourceParsingService
     private let urlResolver: URLResolvingService
 
-    init(
+    public init(
         pageContentLoader: PageContentLoader,
         comicRuleParser: ComicRuleSourceParsingService,
         urlResolver: URLResolvingService
@@ -25,7 +33,7 @@ struct ComicSourceSearchLoader {
         self.urlResolver = urlResolver
     }
 
-    func execute(
+    public func execute(
         source: Source,
         resolvedRule: ResolvedComicSiteRuleV2,
         entry: ResolvedComicSearchEntry,
@@ -45,7 +53,7 @@ struct ComicSourceSearchLoader {
         return result.items
     }
 
-    func executeWithPagination(
+    public func executeWithPagination(
         source: Source,
         resolvedRule: ResolvedComicSiteRuleV2,
         entry: ResolvedComicSearchEntry,

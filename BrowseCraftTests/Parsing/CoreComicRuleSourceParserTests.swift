@@ -3,6 +3,7 @@ import Testing
 @testable import BrowseCraft
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftRuntime
 
 struct CoreComicRuleSourceParserTests {
     @Test func coreAdapterParsesV2ListDetailAndReaderDocuments() throws {

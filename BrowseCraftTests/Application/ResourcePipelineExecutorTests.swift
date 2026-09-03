@@ -4,6 +4,7 @@ import Testing
 import BrowseCraftCore
 @testable import BrowseCraft
 import BrowseCraftDomain
+import BrowseCraftRuntime
 
 // 中文注释：ResourcePipelineExecutorTests 验证 V2 通用 pipeline，不通过 Reader 或旧 ProtectedResourceLoader 接线。
 struct ResourcePipelineExecutorTests {

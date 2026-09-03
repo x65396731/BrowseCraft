@@ -2,12 +2,14 @@ import Foundation
 
 // 中文注释：App 仅保留受保护资源与请求模板所需的 JSON Path/字符串读取。
 // 中文注释：漫画 API 响应合同、数组状态、排序和字段映射统一由 BrowseCraftCore 解释。
-struct ComicRuleJSONResolver {
-    static func firstJSONValue(at path: String, in object: Any) -> Any? {
+public struct ComicRuleJSONResolver {
+    public init() {}
+
+    public static func firstJSONValue(at path: String, in object: Any) -> Any? {
         return self.jsonValues(at: path, in: object).first
     }
 
-    static func jsonValues(at path: String, in object: Any) -> [Any] {
+    public static func jsonValues(at path: String, in object: Any) -> [Any] {
         let segments: [String] = path
             .split(separator: ".")
             .map(String.init)
@@ -37,7 +39,7 @@ struct ComicRuleJSONResolver {
         }
     }
 
-    static func stringValue(_ value: Any?) -> String? {
+    public static func stringValue(_ value: Any?) -> String? {
         switch value {
         case let string as String:
             return string

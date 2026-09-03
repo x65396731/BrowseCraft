@@ -3,6 +3,7 @@ import Testing
 import BrowseCraftCore
 @testable import BrowseCraft
 import BrowseCraftDomain
+import BrowseCraftRuntime
 
 struct ComicSourceListLoaderTests {
     @Test func preferredListAPILoadsItemsBeforeListHTML() async throws {

@@ -4,6 +4,7 @@ import Testing
 import BrowseCraftCore
 @testable import BrowseCraft
 import BrowseCraftDomain
+import BrowseCraftRuntime
 
 // 中文注释：ProtectedResourceRuntime 测试，覆盖 key 请求、二进制请求、AES 解密和错误分类。
 struct ProtectedResourceRuntimeTests {

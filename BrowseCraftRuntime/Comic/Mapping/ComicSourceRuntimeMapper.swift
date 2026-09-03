@@ -2,8 +2,10 @@ import Foundation
 import BrowseCraftCore
 import BrowseCraftDomain
 
-struct ComicSourceRuntimeMapper {
-    func contentItem(from item: ContentItem) -> SourceContentItem {
+public struct ComicSourceRuntimeMapper {
+    public init() {}
+
+    public func contentItem(from item: ContentItem) -> SourceContentItem {
         return SourceContentItem(
             id: item.id,
             title: item.title,
@@ -15,13 +17,13 @@ struct ComicSourceRuntimeMapper {
         )
     }
 
-    func contentItems(from items: [ContentItem]) -> [SourceContentItem] {
+    public func contentItems(from items: [ContentItem]) -> [SourceContentItem] {
         return items.map { item in
             return self.contentItem(from: item)
         }
     }
 
-    func chapters(from chapters: [ChapterLink]) -> [SourceChapter] {
+    public func chapters(from chapters: [ChapterLink]) -> [SourceChapter] {
         return chapters.compactMap { chapter in
             guard let url: URL = self.url(from: chapter.url) else {
                 return nil
@@ -41,7 +43,7 @@ struct ComicSourceRuntimeMapper {
         }
     }
 
-    func readerChapter(from chapter: ReaderChapter) -> SourceReaderChapter {
+    public func readerChapter(from chapter: ReaderChapter) -> SourceReaderChapter {
         let chapterURL: URL = self.url(from: chapter.chapterURL)
             ?? URL(string: "about:blank")!
         return SourceReaderChapter(
@@ -64,7 +66,7 @@ struct ComicSourceRuntimeMapper {
         )
     }
 
-    func listOutput(
+    public func listOutput(
         items: [ContentItem],
         pagination: SourcePagination? = nil,
         diagnostics: SourceRuntimeDiagnostics
@@ -76,7 +78,7 @@ struct ComicSourceRuntimeMapper {
         )
     }
 
-    func detailOutput(
+    public func detailOutput(
         detail: ComicRuleParsedDetail,
         diagnostics: SourceRuntimeDiagnostics
     ) -> SourceDetailOutput {
@@ -104,7 +106,7 @@ struct ComicSourceRuntimeMapper {
         )
     }
 
-    func readerOutput(
+    public func readerOutput(
         chapter: ReaderChapter,
         diagnostics: SourceRuntimeDiagnostics
     ) -> SourceReaderOutput {

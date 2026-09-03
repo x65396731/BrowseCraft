@@ -4,8 +4,8 @@ import BrowseCraftDomain
 
 // 中文注释：ComicSourceRuntime 只解释 SiteRule JSON 这种 rule-backed source；
 // App 总主轴是 SourceRuntime，RSS/Plugin 后续应走各自 runtime，不继续扩张 SiteRule。
-struct ComicSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDetailRuntime, SourceReaderRuntime {
-    let source: Source
+public struct ComicSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDetailRuntime, SourceReaderRuntime {
+    public let source: Source
 
     private let resolvedRule: ResolvedComicSiteRuleV2
     private let listLoader: ComicSourceListLoader
@@ -15,7 +15,7 @@ struct ComicSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDetailRunti
     private let definitionMapper: SourceDefinitionMapper
     private let outputMapper: ComicSourceRuntimeMapper
 
-    init(
+    public init(
         source: Source,
         resolvedRule: ResolvedComicSiteRuleV2,
         listLoader: ComicSourceListLoader,
@@ -35,11 +35,11 @@ struct ComicSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDetailRunti
         self.outputMapper = outputMapper
     }
 
-    var definition: SourceDefinition {
+    public var definition: SourceDefinition {
         return self.definitionMapper.definition(from: self.source)
     }
 
-    var capabilities: SourceRuntimeCapabilities {
+    public var capabilities: SourceRuntimeCapabilities {
         return SourceRuntimeCapabilities(
             supportsSearch: self.resolvedRule.searchEntries.isEmpty == false,
             supportsPagination: true,
@@ -71,7 +71,7 @@ struct ComicSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDetailRunti
         )
     }
 
-    func loadList(_ input: SourceListInput) async throws -> SourceListOutput {
+    public func loadList(_ input: SourceListInput) async throws -> SourceListOutput {
         try self.validateSource(input.context)
         try self.validateNoURLOverride(input)
 
@@ -89,7 +89,7 @@ struct ComicSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDetailRunti
         )
     }
 
-    func search(_ input: SourceSearchInput) async throws -> SourceListOutput {
+    public func search(_ input: SourceSearchInput) async throws -> SourceListOutput {
         try self.validateSource(input.context)
         try self.validateSearchOverride(input)
 
@@ -110,7 +110,7 @@ struct ComicSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDetailRunti
         )
     }
 
-    func loadDetail(_ input: SourceDetailInput) async throws -> SourceDetailOutput {
+    public func loadDetail(_ input: SourceDetailInput) async throws -> SourceDetailOutput {
         try self.validateSource(input.context)
 
         let item: ContentItem = self.contentItem(
@@ -132,7 +132,7 @@ struct ComicSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDetailRunti
         )
     }
 
-    func loadReader(_ input: SourceReaderInput) async throws -> SourceReaderOutput {
+    public func loadReader(_ input: SourceReaderInput) async throws -> SourceReaderOutput {
         try self.validateSource(input.context)
 
         let item: ContentItem = self.contentItem(

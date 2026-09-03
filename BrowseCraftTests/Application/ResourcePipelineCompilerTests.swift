@@ -1,6 +1,7 @@
 import Testing
 import BrowseCraftCore
 @testable import BrowseCraft
+import BrowseCraftRuntime
 
 struct ResourcePipelineCompilerTests {
     @Test func cacheStoresOneCompiledPlanForEquivalentRule() async throws {

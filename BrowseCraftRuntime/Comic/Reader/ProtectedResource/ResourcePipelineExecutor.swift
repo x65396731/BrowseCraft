@@ -4,12 +4,20 @@ import BrowseCraftDomain
 
 // 中文注释：ResourcePipelineExecutor 只负责解释 Core 中的 pipeline 合同；网络和密码学能力均由协议注入。
 
-struct ResourcePipelineExecutionOutput {
-    let data: Data
-    let contentType: ResourcePipelineContentType
+public struct ResourcePipelineExecutionOutput {
+    public init(
+        data: Data,
+        contentType: ResourcePipelineContentType
+    ) {
+        self.data = data
+        self.contentType = contentType
+    }
+
+    public let data: Data
+    public let contentType: ResourcePipelineContentType
 }
 
-indirect enum ResourcePipelineInputValue: Hashable {
+public indirect enum ResourcePipelineInputValue: Hashable {
     case string(String)
     case data(Data)
     case number(Double)
@@ -19,15 +27,15 @@ indirect enum ResourcePipelineInputValue: Hashable {
     case null
 }
 
-struct ResourcePipelineExecutionInput {
-    let rule: ResourcePipelineRule
-    let sourceID: String
-    let item: [String: ResourcePipelineInputValue]
-    let root: [String: ResourcePipelineInputValue]
-    let context: [String: ResourcePipelineInputValue]
-    let requestContext: SourceRequestContext?
+public struct ResourcePipelineExecutionInput {
+    public let rule: ResourcePipelineRule
+    public let sourceID: String
+    public let item: [String: ResourcePipelineInputValue]
+    public let root: [String: ResourcePipelineInputValue]
+    public let context: [String: ResourcePipelineInputValue]
+    public let requestContext: SourceRequestContext?
 
-    init(
+    public init(
         rule: ResourcePipelineRule,
         sourceID: String,
         item: [String: ResourcePipelineInputValue] = [:],
@@ -44,7 +52,7 @@ struct ResourcePipelineExecutionInput {
     }
 }
 
-enum ResourcePipelineExecutorError: LocalizedError, Equatable {
+public enum ResourcePipelineExecutorError: LocalizedError, Equatable {
     case unsupportedVersion(Int)
     case invalidBinding(name: String, reason: String)
     case invalidStep(id: String, reason: String)
@@ -62,7 +70,7 @@ enum ResourcePipelineExecutorError: LocalizedError, Equatable {
     case invalidSplit(expected: Int, actual: Int)
     case cryptographyFailed(stepID: String, reason: String)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .unsupportedVersion(let version):
             return "Unsupported resource pipeline version: \(version)"
@@ -100,14 +108,15 @@ enum ResourcePipelineExecutorError: LocalizedError, Equatable {
     }
 }
 
-struct ResourcePipelineExecutor {
+// 中文注释：成员都是 Sendable 端口与 actor；public 后编译器不再推断 Sendable，需显式声明。
+public struct ResourcePipelineExecutor: Sendable {
     private let dataLoader: PageDataLoader
     private let cryptography: ResourcePipelineCryptography
     private let requestCache: ResourcePipelineRequestCache
     private let compiler: ResourcePipelineCompiler
     private let planCache: ResourcePipelinePlanCache
 
-    init(
+    public init(
         dataLoader: PageDataLoader,
         cryptography: ResourcePipelineCryptography,
         compiler: ResourcePipelineCompiler = ResourcePipelineCompiler(),
@@ -120,7 +129,7 @@ struct ResourcePipelineExecutor {
         self.planCache = planCache
     }
 
-    func execute(_ input: ResourcePipelineExecutionInput) async throws -> ResourcePipelineExecutionOutput {
+    public func execute(_ input: ResourcePipelineExecutionInput) async throws -> ResourcePipelineExecutionOutput {
         let plan: CompiledResourcePipeline = try await self.planCache.plan(
             for: input.rule,
             compiler: self.compiler
@@ -438,7 +447,7 @@ struct ResourcePipelineExecutor {
 }
 
 private actor ResourcePipelineRequestCache {
-    struct Key: Hashable, Sendable {
+    public struct Key: Hashable, Sendable {
         let url: URL
         let request: RequestConfig?
         let context: SourceRequestContext
@@ -457,7 +466,7 @@ private actor ResourcePipelineRequestCache {
     private var waiters: [Key: [CheckedContinuation<Data, any Error>]] = [:]
 
     /// 中文注释：返回 nil 表示调用者取得加载权；相同请求的其它调用者挂起并共享该次结果。
-    func valueOrReserve(for key: Key) async throws -> Data? {
+    public func valueOrReserve(for key: Key) async throws -> Data? {
         let now: Date = Date()
         if let cached: CachedResponse = self.completed[key] {
             if cached.expiresAt > now {
@@ -478,7 +487,7 @@ private actor ResourcePipelineRequestCache {
         return nil
     }
 
-    func succeed(_ data: Data, for key: Key, cacheCompleted: Bool) {
+    public func succeed(_ data: Data, for key: Key, cacheCompleted: Bool) {
         let pendingWaiters: [CheckedContinuation<Data, any Error>] = self.waiters.removeValue(forKey: key) ?? []
 
         if cacheCompleted,
@@ -494,7 +503,7 @@ private actor ResourcePipelineRequestCache {
         pendingWaiters.forEach { $0.resume(returning: data) }
     }
 
-    func fail(for key: Key, error: any Error) {
+    public func fail(for key: Key, error: any Error) {
         let pendingWaiters: [CheckedContinuation<Data, any Error>] = self.waiters.removeValue(forKey: key) ?? []
         pendingWaiters.forEach { $0.resume(throwing: error) }
     }
@@ -518,7 +527,7 @@ private enum ResourcePipelineRuntimeValue {
     case json(Any)
     case fields([String: ResourcePipelineRuntimeValue])
 
-    func dataValue() throws -> Data {
+    public func dataValue() throws -> Data {
         switch self {
         case .data(let data):
             return data
@@ -538,7 +547,7 @@ private enum ResourcePipelineRuntimeValue {
         }
     }
 
-    func stringValue() throws -> String {
+    public func stringValue() throws -> String {
         switch self {
         case .data(let data):
             guard let value: String = String(data: data, encoding: .utf8) else {
@@ -557,7 +566,7 @@ private enum ResourcePipelineRuntimeValue {
         }
     }
 
-    func value(at path: String) throws -> ResourcePipelineRuntimeValue {
+    public func value(at path: String) throws -> ResourcePipelineRuntimeValue {
         switch self {
         case .json(let object):
             guard let value: Any = ResourcePipelineJSONPath.value(at: path, in: object) else {
@@ -579,7 +588,7 @@ private enum ResourcePipelineRuntimeValue {
         }
     }
 
-    func slice(
+    public func slice(
         offset: Int,
         length: Int?,
         unit: ResourceSliceUnit
@@ -692,7 +701,7 @@ private extension ResourcePipelineInputValue {
 }
 
 private enum ResourcePipelineJSONPath {
-    static func components(_ path: String) -> [String] {
+    public static func components(_ path: String) -> [String] {
         return path
             .replacingOccurrences(of: "[", with: ".")
             .replacingOccurrences(of: "]", with: "")
@@ -700,7 +709,7 @@ private enum ResourcePipelineJSONPath {
             .map(String.init)
     }
 
-    static func value(at path: String, in object: Any) -> Any? {
+    public static func value(at path: String, in object: Any) -> Any? {
         return self.components(path).reduce(Optional(object)) { partial, component in
             guard let partial: Any else {
                 return nil
@@ -717,7 +726,7 @@ private enum ResourcePipelineJSONPath {
         }
     }
 
-    static func scalarString(_ object: Any) -> String? {
+    public static func scalarString(_ object: Any) -> String? {
         switch object {
         case let value as String:
             return value
@@ -732,7 +741,7 @@ private enum ResourcePipelineJSONPath {
 }
 
 private enum ResourcePipelineCodec {
-    static func decode(
+    public static func decode(
         _ value: ResourcePipelineRuntimeValue,
         encoding: ResourceDataEncoding
     ) throws -> ResourcePipelineRuntimeValue {
@@ -752,7 +761,7 @@ private enum ResourcePipelineCodec {
         }
     }
 
-    static func encodeHash(
+    public static func encodeHash(
         _ data: Data,
         encoding: ResourceDataEncoding
     ) throws -> ResourcePipelineRuntimeValue {
@@ -819,8 +828,8 @@ private enum ResourcePipelineCodec {
     }
 }
 
-enum ResourcePipelineTemplateResolver {
-    static func tokens(in rule: ResourceRequestOperationRule) -> Set<String> {
+public enum ResourcePipelineTemplateResolver {
+    public static func tokens(in rule: ResourceRequestOperationRule) -> Set<String> {
         var templates: [String] = [rule.urlTemplate]
         if let request: RequestConfig = rule.request {
             templates.append(contentsOf: request.headers?.values ?? Dictionary<String, String>().values)
@@ -849,7 +858,7 @@ enum ResourcePipelineTemplateResolver {
         }
     }
 
-    static func resolve(_ template: String, values: [String: String]) throws -> String {
+    public static func resolve(_ template: String, values: [String: String]) throws -> String {
         let regex: NSRegularExpression = try NSRegularExpression(pattern: #"\{([^{}]+)\}"#)
         var output: String = template
         let matches: [NSTextCheckingResult] = regex.matches(
@@ -878,7 +887,7 @@ enum ResourcePipelineTemplateResolver {
         return token.hasPrefix("binding.") || token.hasPrefix("step.")
     }
 
-    static func resolve(_ request: RequestConfig, values: [String: String]) throws -> RequestConfig {
+    public static func resolve(_ request: RequestConfig, values: [String: String]) throws -> RequestConfig {
         var result: RequestConfig = request
         result.headers = try request.headers?.mapValues { try self.resolve($0, values: values) }
         result.imageHeaders = try request.imageHeaders?.mapValues { try self.resolve($0, values: values) }

@@ -3,6 +3,7 @@ import Foundation
 import UIKit
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftRuntime
 
 // 中文注释：ReaderViewModel.swift 属于界面功能层，用于说明本文件承载的核心职责。
 

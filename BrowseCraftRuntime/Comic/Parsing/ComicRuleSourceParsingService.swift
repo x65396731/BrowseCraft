@@ -5,24 +5,24 @@ import Foundation
 // 中文注释：ComicRuleSourceParsingService 属于 ComicSourceRuntime 的解析边界，只服务 SiteRule-backed source。
 
 /// 中文注释：漫画规则详情解析的内部标准化元数据；它隔离 DOM/API 字段，不跨越 SourceRuntime 公共边界。
-struct ComicRuleParsedDetailMetadata: Hashable {
-    var idCode: String?
-    var title: String?
-    var coverURL: String?
-    var description: String?
-    var author: String?
-    var status: String?
-    var category: String?
-    var tags: [String]
-    var language: String?
-    var publishedAt: String?
-    var updatedAt: String?
-    var license: String?
-    var totalImages: Int?
-    var photoAlbumURL: String?
-    var secondLevelPageURL: String?
+public struct ComicRuleParsedDetailMetadata: Hashable {
+    public var idCode: String?
+    public var title: String?
+    public var coverURL: String?
+    public var description: String?
+    public var author: String?
+    public var status: String?
+    public var category: String?
+    public var tags: [String]
+    public var language: String?
+    public var publishedAt: String?
+    public var updatedAt: String?
+    public var license: String?
+    public var totalImages: Int?
+    public var photoAlbumURL: String?
+    public var secondLevelPageURL: String?
 
-    init(
+    public init(
         idCode: String? = nil,
         title: String? = nil,
         coverURL: String? = nil,
@@ -58,11 +58,11 @@ struct ComicRuleParsedDetailMetadata: Hashable {
 }
 
 /// 中文注释：解析 adapter 的完整详情输出；loader 只负责请求和 DOM/API 编排。
-struct ComicRuleParsedDetail: Hashable {
-    var metadata: ComicRuleParsedDetailMetadata
-    var chapters: [ChapterLink]
+public struct ComicRuleParsedDetail: Hashable {
+    public var metadata: ComicRuleParsedDetailMetadata
+    public var chapters: [ChapterLink]
 
-    init(
+    public init(
         metadata: ComicRuleParsedDetailMetadata = ComicRuleParsedDetailMetadata(),
         chapters: [ChapterLink]
     ) {
@@ -70,20 +70,28 @@ struct ComicRuleParsedDetail: Hashable {
         self.chapters = chapters
     }
 
-    var description: String? {
+    public var description: String? {
         get { return self.metadata.description }
         set { self.metadata.description = newValue }
     }
 }
 
 /// 中文注释：列表/搜索解析结果同时携带 Core 解析出的分页语义，Loader 只负责生成下一次请求。
-struct ComicRuleParsedListResult: Hashable {
-    var items: [ContentItem]
-    var pagination: PaginationResolution?
+public struct ComicRuleParsedListResult: Hashable {
+    public init(
+        items: [ContentItem],
+        pagination: PaginationResolution? = nil
+    ) {
+        self.items = items
+        self.pagination = pagination
+    }
+
+    public var items: [ContentItem]
+    public var pagination: PaginationResolution?
 }
 
 /// 中文注释：ComicSourceRuntime 专用解析协议；App 只传入已加载文档，确定性规则解释统一由 Core 完成。
-protocol ComicRuleSourceParsingService: ComicRuleAPIResponseParsingService, Sendable {
+public protocol ComicRuleSourceParsingService: ComicRuleAPIResponseParsingService, Sendable {
     func parseList(
         html: String,
         source: Source,
@@ -119,7 +127,7 @@ protocol ComicRuleSourceParsingService: ComicRuleAPIResponseParsingService, Send
 }
 
 /// 中文注释：API 请求仍由 Loader 执行；实现此能力的 parser 只消费已经取得的 JSON 响应。
-protocol ComicRuleAPIResponseParsingService: Sendable {
+public protocol ComicRuleAPIResponseParsingService: Sendable {
     func parseListAPIResponse(
         json: String,
         finalURL: URL,
@@ -154,19 +162,31 @@ protocol ComicRuleAPIResponseParsingService: Sendable {
 }
 
 /// 中文注释：分页解析结果只描述“下一步可以请求哪里”，不触发自动翻页。
-struct PaginationResolution: Hashable {
-    var currentPage: Int
-    var nextPage: Int?
-    var nextURL: String?
-    var source: PaginationResolutionSource?
+public struct PaginationResolution: Hashable {
+    public init(
+        currentPage: Int,
+        nextPage: Int? = nil,
+        nextURL: String? = nil,
+        source: PaginationResolutionSource? = nil
+    ) {
+        self.currentPage = currentPage
+        self.nextPage = nextPage
+        self.nextURL = nextURL
+        self.source = source
+    }
+
+    public var currentPage: Int
+    public var nextPage: Int?
+    public var nextURL: String?
+    public var source: PaginationResolutionSource?
 }
 
-enum PaginationResolutionSource: String, Hashable {
+public enum PaginationResolutionSource: String, Hashable {
     case pagePlaceholder
     case nextPageLink
 }
 
-extension ComicRuleSourceParsingService {
+public extension ComicRuleSourceParsingService {
     func parseDetailChapters(
         html: String,
         source: Source,

@@ -3,9 +3,11 @@ import BrowseCraftDomain
 import Foundation
 
 // 中文注释：ComicRuleAPITemplateResolver 只处理漫画 API 请求模板、上下文和请求字段替换。
-struct ComicRuleAPITemplateResolver {
+public struct ComicRuleAPITemplateResolver {
+    public init() {}
 
-    static func request(
+
+    public static func request(
         from request: RequestConfig?,
         source: Source,
         item: ContentItem,
@@ -71,7 +73,7 @@ struct ComicRuleAPITemplateResolver {
         return request
     }
 
-    static func replacingTemplatePlaceholders(
+    public static func replacingTemplatePlaceholders(
         in template: String,
         source: Source,
         item: ContentItem,
@@ -120,7 +122,7 @@ struct ComicRuleAPITemplateResolver {
         return output
     }
 
-    static func replacingTemplatePlaceholders(
+    public static func replacingTemplatePlaceholders(
         in headers: [String: String]?,
         source: Source,
         item: ContentItem,
@@ -161,7 +163,7 @@ struct ComicRuleAPITemplateResolver {
         }
     }
 
-    static func detailSlug(from detailURL: String) -> String? {
+    public static func detailSlug(from detailURL: String) -> String? {
         guard let url: URL = URL(string: detailURL) else {
             return nil
         }
@@ -185,7 +187,7 @@ struct ComicRuleAPITemplateResolver {
         return lastPathComponent.isEmpty ? nil : lastPathComponent
     }
 
-    static func pathComponent(after marker: String, in urlString: String) -> String? {
+    public static func pathComponent(after marker: String, in urlString: String) -> String? {
         guard let url: URL = URL(string: urlString) else {
             return nil
         }
@@ -301,7 +303,7 @@ struct ComicRuleAPITemplateResolver {
         return String(padded.prefix(32))
     }
 
-    static func ruleContextValues(
+    public static func ruleContextValues(
         source: Source,
         credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider()
     ) -> [String: String] {

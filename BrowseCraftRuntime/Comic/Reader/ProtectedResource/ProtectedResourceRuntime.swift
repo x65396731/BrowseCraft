@@ -4,18 +4,26 @@ import BrowseCraftDomain
 
 // 中文注释：ProtectedResourceRuntime.swift 实现受保护资源的请求编排和白名单解密，不接具体 reader UI。
 
-struct ProtectedResourceOutput {
-    let data: Data
-    let contentType: ProtectedResourceOutputContentType
+public struct ProtectedResourceOutput {
+    public init(
+        data: Data,
+        contentType: ProtectedResourceOutputContentType
+    ) {
+        self.data = data
+        self.contentType = contentType
+    }
+
+    public let data: Data
+    public let contentType: ProtectedResourceOutputContentType
 }
 
-struct ProtectedResourceLoadInput {
-    let rule: ProtectedResourceRule
-    let sourceID: String
-    let parameters: [String: String]
-    let context: SourceRequestContext?
+public struct ProtectedResourceLoadInput {
+    public let rule: ProtectedResourceRule
+    public let sourceID: String
+    public let parameters: [String: String]
+    public let context: SourceRequestContext?
 
-    init(
+    public init(
         rule: ProtectedResourceRule,
         sourceID: String,
         parameters: [String: String] = [:],
@@ -28,7 +36,7 @@ struct ProtectedResourceLoadInput {
     }
 }
 
-enum ProtectedResourceRuntimeError: LocalizedError, Equatable, Sendable {
+public enum ProtectedResourceRuntimeError: LocalizedError, Equatable, Sendable {
     case invalidURL(String)
     case requestFailed(url: String, reason: String)
     case invalidKeyResponse(reason: String)
@@ -38,7 +46,7 @@ enum ProtectedResourceRuntimeError: LocalizedError, Equatable, Sendable {
     case decryptFailed(reason: String)
     case invalidKeyDerivation(reason: String)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .invalidURL(let url):
             return "Invalid protected resource URL: \(url)"
@@ -61,8 +69,8 @@ enum ProtectedResourceRuntimeError: LocalizedError, Equatable, Sendable {
 }
 
 private enum ProtectedResourceOutputFormat {
-    static let raw: Set<String> = ["", "raw", "binary"]
-    static let base64Image: Set<String> = [
+    public static let raw: Set<String> = ["", "raw", "binary"]
+    public static let base64Image: Set<String> = [
         "base64",
         "base64image",
         "base64url",
@@ -78,11 +86,11 @@ private actor ProtectedResourceRequestLimiter {
     private var inFlight: Int = 0
     private var waiters: [CheckedContinuation<Void, Never>] = []
 
-    init(limit: Int) {
+    public init(limit: Int) {
         self.limit = limit
     }
 
-    func acquire() async {
+    public func acquire() async {
         if self.inFlight < self.limit {
             self.inFlight += 1
             return
@@ -93,7 +101,7 @@ private actor ProtectedResourceRequestLimiter {
         }
     }
 
-    func release() {
+    public func release() {
         if self.waiters.isEmpty {
             self.inFlight = max(0, self.inFlight - 1)
             return
@@ -104,14 +112,15 @@ private actor ProtectedResourceRequestLimiter {
     }
 }
 
-struct ProtectedResourceLoader {
+// 中文注释：成员都是 Sendable 端口与 actor；public 后编译器不再推断 Sendable，需显式声明。
+public struct ProtectedResourceLoader: Sendable {
     private static let keyRequestLimiter: ProtectedResourceRequestLimiter = ProtectedResourceRequestLimiter(limit: 4)
 
     private let dataLoader: PageDataLoader
     private let decryptor: ProtectedResourceDecrypting
     private let defaultUserAgent: String
 
-    init(
+    public init(
         dataLoader: PageDataLoader,
         decryptor: ProtectedResourceDecrypting,
         defaultUserAgent: String = ""
@@ -121,7 +130,7 @@ struct ProtectedResourceLoader {
         self.defaultUserAgent = defaultUserAgent
     }
 
-    func load(_ input: ProtectedResourceLoadInput) async throws -> ProtectedResourceOutput {
+    public func load(_ input: ProtectedResourceLoadInput) async throws -> ProtectedResourceOutput {
         do {
             return try await self.loadProtectedResource(input)
         } catch let error as RuleExecutionError {
@@ -670,8 +679,8 @@ struct ProtectedResourceLoader {
     }
 }
 
-enum ProtectedResourceTemplateResolver {
-    static func replacingParameters(in template: String, parameters: [String: String]) -> String {
+public enum ProtectedResourceTemplateResolver {
+    public static func replacingParameters(in template: String, parameters: [String: String]) -> String {
         var output: String = template
         parameters.forEach { key, value in
             output = output.replacingOccurrences(of: "{\(key)}", with: value)
@@ -679,7 +688,7 @@ enum ProtectedResourceTemplateResolver {
         return output
     }
 
-    static func request(
+    public static func request(
         _ request: RequestConfig,
         parameters: [String: String],
         context: SourceRequestContext?,
@@ -706,7 +715,7 @@ enum ProtectedResourceTemplateResolver {
         return resolvedRequest
     }
 
-    static func replacingContext(
+    public static func replacingContext(
         in template: String,
         context: SourceRequestContext?,
         defaultUserAgent: String = ""
@@ -735,7 +744,7 @@ enum ProtectedResourceTemplateResolver {
         return output
     }
 
-    static func contextValue(
+    public static func contextValue(
         path: String?,
         context: SourceRequestContext?,
         defaultUserAgent: String = ""
@@ -781,8 +790,8 @@ enum ProtectedResourceTemplateResolver {
     }
 }
 
-enum ProtectedResourceValueResolver {
-    static func valueData(
+public enum ProtectedResourceValueResolver {
+    public static func valueData(
         rule: ProtectedResourceValueRule,
         keyResponse: Any?,
         parameters: [String: String],
@@ -802,7 +811,7 @@ enum ProtectedResourceValueResolver {
         return try self.data(from: Data(rawValue.utf8), encoding: rule.encoding ?? .utf8)
     }
 
-    static func stringValue(
+    public static func stringValue(
         rule: ProtectedResourceValueRule,
         keyResponse: Any?,
         parameters: [String: String],
@@ -845,7 +854,7 @@ enum ProtectedResourceValueResolver {
         return rawValue
     }
 
-    static func data(from data: Data, encoding: ProtectedResourceDataEncoding) throws -> Data {
+    public static func data(from data: Data, encoding: ProtectedResourceDataEncoding) throws -> Data {
         switch encoding {
         case .raw:
             return data

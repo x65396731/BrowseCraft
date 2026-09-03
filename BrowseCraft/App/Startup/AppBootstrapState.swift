@@ -12,8 +12,14 @@ enum AppBootstrapState {
     ) async -> AppBootstrapState {
         // 中文注释：内核/runtime 的调试日志经 sink 汇入 App 既有的 AppDebugLog，
         // 让包内代码不必依赖 App 的日志分类。
-        RuleRuntimeDebugLog.shared.install { message in
-            AppDebugLog.write(message)
+        RuleRuntimeDebugLog.shared.install { record in
+            guard let stage: RuleExecutionStage = record.stage else {
+                AppDebugLog.write(record.fields["message"] ?? record.event)
+                return
+            }
+            var metadata: [String: String] = record.fields
+            metadata["stage"] = stage.rawValue
+            AppLog.debug(.rule, event: record.event, metadata: metadata)
         }
 
         do {

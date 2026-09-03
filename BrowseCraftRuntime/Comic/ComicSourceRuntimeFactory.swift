@@ -3,13 +3,13 @@ import BrowseCraftCore
 import BrowseCraftDomain
 
 // 中文注释：ComicSourceRuntimeFactory 只组装漫画 SiteRule-backed source 的 runtime 和 loader。
-struct ComicSourceRuntimeFactory {
+public struct ComicSourceRuntimeFactory {
     private let pageContentLoader: PageContentLoader
     private let comicRuleParser: ComicRuleSourceParsingService
     private let urlResolver: URLResolvingService
     private let defaultUserAgent: String
 
-    init(
+    public init(
         pageContentLoader: PageContentLoader,
         comicRuleParser: ComicRuleSourceParsingService,
         urlResolver: URLResolvingService,
@@ -21,7 +21,7 @@ struct ComicSourceRuntimeFactory {
         self.defaultUserAgent = defaultUserAgent
     }
 
-    func makeRuntime(source: Source) throws -> ComicSourceRuntime {
+    public func makeRuntime(source: Source) throws -> ComicSourceRuntime {
         guard case .comic = source.configuration else {
             throw SourceRuntimeError.invalidInput("Comic runtime requires a comic source configuration.")
         }

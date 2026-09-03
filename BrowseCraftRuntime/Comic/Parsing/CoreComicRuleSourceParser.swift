@@ -4,14 +4,14 @@ import BrowseCraftDomain
 
 /// 中文注释：App 只把已经加载完成的文档交给 Core；网络、Cookie、WebView 与凭据仍由 Loader 负责。
 /// 中文注释：所有确定性 comic 规则解释均由 Core 完成，App 不再保留第二套 SwiftSoup 实现。
-struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
+public struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
     private let parser: BrowseCraftCore.DefaultComicRuleParser
 
-    init(parser: BrowseCraftCore.DefaultComicRuleParser = .init()) {
+    public init(parser: BrowseCraftCore.DefaultComicRuleParser = .init()) {
         self.parser = parser
     }
 
-    func parseList(
+    public func parseList(
         html: String,
         source: Source,
         resolvedRule: ResolvedComicSiteRuleV2,
@@ -40,7 +40,7 @@ struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
         )
     }
 
-    func parseSearchResult(
+    public func parseSearchResult(
         html: String,
         source: Source,
         resolvedRule: ResolvedComicSiteRuleV2,
@@ -79,7 +79,7 @@ struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
         )
     }
 
-    func parseDetail(
+    public func parseDetail(
         html: String,
         source: Source,
         resolvedRule: ResolvedComicSiteRuleV2,
@@ -112,7 +112,7 @@ struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
         return self.detail(from: output)
     }
 
-    func parseReader(
+    public func parseReader(
         html: String,
         source: Source,
         resolvedRule: ResolvedComicSiteRuleV2,
@@ -145,7 +145,7 @@ struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
         return self.readerChapter(from: output.chapter)
     }
 
-    func parseListAPIResponse(
+    public func parseListAPIResponse(
         json: String,
         finalURL: URL,
         source: Source,
@@ -200,7 +200,7 @@ struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
         }
     }
 
-    func parseChapterAPIResponse(
+    public func parseChapterAPIResponse(
         json: String,
         finalURL: URL,
         source: Source,
@@ -240,7 +240,7 @@ struct CoreComicRuleSourceParser: ComicRuleSourceParsingService {
         }
     }
 
-    func parseImageAPIResponse(
+    public func parseImageAPIResponse(
         json: String,
         finalURL: URL,
         source: Source,

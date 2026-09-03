@@ -4,6 +4,7 @@ import WebKit
 @testable import BrowseCraft
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftRuntime
 
 // 中文注释：SourceCredentialStore 测试，锁定登录态基础抽象的命中、过滤和过期行为。
 struct SourceCredentialStoreTests {

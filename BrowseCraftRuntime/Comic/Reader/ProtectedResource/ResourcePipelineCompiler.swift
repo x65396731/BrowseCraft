@@ -2,12 +2,20 @@ import BrowseCraftCore
 import Foundation
 
 /// 经过完整结构检查、可直接交给执行器运行的不可变计划。
-struct CompiledResourcePipeline: Sendable {
-    let rule: ResourcePipelineRule
+public struct CompiledResourcePipeline: Sendable {
+    public init(
+        rule: ResourcePipelineRule
+    ) {
+        self.rule = rule
+    }
+
+    public let rule: ResourcePipelineRule
 }
 
-struct ResourcePipelineCompiler: Sendable {
-    func compile(_ rule: ResourcePipelineRule) throws -> CompiledResourcePipeline {
+public struct ResourcePipelineCompiler: Sendable {
+    public init() {}
+
+    public func compile(_ rule: ResourcePipelineRule) throws -> CompiledResourcePipeline {
         guard rule.version == 2 else {
             throw ResourcePipelineExecutorError.unsupportedVersion(rule.version)
         }
@@ -155,20 +163,20 @@ struct ResourcePipelineCompiler: Sendable {
     }
 }
 
-actor ResourcePipelinePlanCache {
+public actor ResourcePipelinePlanCache {
     private let maximumEntryCount: Int
     private var plans: [ResourcePipelineRule: CompiledResourcePipeline] = [:]
     private var order: [ResourcePipelineRule] = []
 
-    init(maximumEntryCount: Int = 64) {
+    public init(maximumEntryCount: Int = 64) {
         self.maximumEntryCount = max(1, maximumEntryCount)
     }
 
-    var cachedPlanCount: Int {
+    public var cachedPlanCount: Int {
         return self.plans.count
     }
 
-    func plan(
+    public func plan(
         for rule: ResourcePipelineRule,
         compiler: ResourcePipelineCompiler
     ) throws -> CompiledResourcePipeline {

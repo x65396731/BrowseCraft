@@ -3,14 +3,14 @@ import Foundation
 
 // 中文注释：ReaderProtectedResourceLoader 是 Reader 唯一的受保护图片执行边界，集中处理 V2 与 legacy 双轨策略。
 
-struct ReaderProtectedResourceLoader: Sendable {
-    typealias LegacyLoad = @Sendable (ProtectedResourceLoadInput) async throws -> ProtectedResourceOutput
-    typealias PipelineExecute = @Sendable (ResourcePipelineExecutionInput) async throws -> ResourcePipelineExecutionOutput
+public struct ReaderProtectedResourceLoader: Sendable {
+    public typealias LegacyLoad = @Sendable (ProtectedResourceLoadInput) async throws -> ProtectedResourceOutput
+    public typealias PipelineExecute = @Sendable (ResourcePipelineExecutionInput) async throws -> ResourcePipelineExecutionOutput
 
     private let loadLegacy: LegacyLoad
     private let executePipeline: PipelineExecute
 
-    init(
+    public init(
         legacyLoader: ProtectedResourceLoader,
         pipelineExecutor: ResourcePipelineExecutor
     ) {
@@ -24,7 +24,7 @@ struct ReaderProtectedResourceLoader: Sendable {
         )
     }
 
-    init(
+    public init(
         loadLegacy: @escaping LegacyLoad,
         executePipeline: @escaping PipelineExecute
     ) {
@@ -32,7 +32,7 @@ struct ReaderProtectedResourceLoader: Sendable {
         self.executePipeline = executePipeline
     }
 
-    func load(
+    public func load(
         _ reference: ProtectedReaderImageReference,
         context: SourceRequestContext
     ) async throws -> Data {

@@ -5,12 +5,12 @@ import Foundation
 // 中文注释：ComicSourceDetailLoader 是 ComicSourceRuntime 的完整详情加载边界，只处理 SiteRule-backed source。
 
 /// 中文注释：加载并编排单个 Library 条目的完整详情。
-struct ComicSourceDetailLoader {
+public struct ComicSourceDetailLoader {
     private let pageContentLoader: PageContentLoader
     private let comicRuleParser: ComicRuleSourceParsingService
     private let defaultUserAgent: String
 
-    init(
+    public init(
         pageContentLoader: PageContentLoader,
         comicRuleParser: ComicRuleSourceParsingService,
         defaultUserAgent: String = ""
@@ -21,7 +21,7 @@ struct ComicSourceDetailLoader {
     }
 
     /// 中文注释：execute 方法封装当前类型的一段业务或界面行为。
-    func execute(
+    public func execute(
         source: Source,
         resolvedRule: ResolvedComicSiteRuleV2,
         entry: ResolvedComicDetailEntry,
