@@ -6,15 +6,15 @@ struct SourceRuntimeFactory: SourceRuntimeResolving {
     private let comicSourceRuntimeFactory: ComicSourceRuntimeFactory
     private let rssSourceRuntimeFactory: RSSSourceRuntimeFactory
     private let videoSourceRuntimeFactory: VideoSourceRuntimeFactory
-    private let pluginRuntimeFactory: ((Source) throws -> any SourceRuntime)?
-    private let validateSourceAccess: ((Source) throws -> Void)?
+    private let pluginRuntimeFactory: (@Sendable (Source) throws -> any SourceRuntime)?
+    private let validateSourceAccess: (@Sendable (Source) throws -> Void)?
 
     init(
         comicSourceRuntimeFactory: ComicSourceRuntimeFactory,
         rssSourceRuntimeFactory: RSSSourceRuntimeFactory,
         videoSourceRuntimeFactory: VideoSourceRuntimeFactory,
-        pluginRuntimeFactory: ((Source) throws -> any SourceRuntime)? = nil,
-        validateSourceAccess: ((Source) throws -> Void)? = nil
+        pluginRuntimeFactory: (@Sendable (Source) throws -> any SourceRuntime)? = nil,
+        validateSourceAccess: (@Sendable (Source) throws -> Void)? = nil
     ) {
         self.comicSourceRuntimeFactory = comicSourceRuntimeFactory
         self.rssSourceRuntimeFactory = rssSourceRuntimeFactory
@@ -24,7 +24,7 @@ struct SourceRuntimeFactory: SourceRuntimeResolving {
     }
 
     func runtime(for source: Source) throws -> any SourceRuntime {
-        if let validateSourceAccess: (Source) throws -> Void =
+        if let validateSourceAccess: @Sendable (Source) throws -> Void =
             self.validateSourceAccess {
             try validateSourceAccess(source)
         } else {
@@ -41,7 +41,7 @@ struct SourceRuntimeFactory: SourceRuntimeResolving {
         case .video:
             return try self.videoSourceRuntimeFactory.makeRuntime(source: source)
         case .plugin:
-            guard let pluginRuntimeFactory: (Source) throws -> any SourceRuntime = self.pluginRuntimeFactory else {
+            guard let pluginRuntimeFactory: @Sendable (Source) throws -> any SourceRuntime = self.pluginRuntimeFactory else {
                 throw SourceRuntimeError.unsupported(
                     .custom("Plugin source runtime is not connected in SourceRuntimeFactory.")
                 )

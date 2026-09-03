@@ -24,7 +24,7 @@ struct SourceSyncPendingUpload: Hashable {
 }
 
 /// 中文注释：Source 同步用例需要的本地原子操作；实现细节和 GRDB Record 留在 Infrastructure。
-protocol SourceSyncLocalStore {
+protocol SourceSyncLocalStore: Sendable {
     func changeToken(accountScope: CloudAccountScope, scope: String, zoneName: String) throws -> Data?
     func snapshots(
         accountScope: CloudAccountScope,

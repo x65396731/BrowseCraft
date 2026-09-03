@@ -5,7 +5,7 @@ import BrowseCraftCore
 
 // 中文注释：保护页关联值会携带完整资源规则；间接存储避免 Reader 的 SwiftUI
 // 深层布局在逐页传值时为最大规则关联值申请过大的真机主线程栈帧。
-indirect enum ReaderPageResource: Hashable {
+indirect enum ReaderPageResource: Hashable, Sendable {
     case remoteImageURL(String)
     case protectedResource(ProtectedReaderImageReference)
 
@@ -19,7 +19,7 @@ indirect enum ReaderPageResource: Hashable {
     }
 }
 
-struct ProtectedReaderImageReference: Hashable, @unchecked Sendable {
+struct ProtectedReaderImageReference: Hashable, Sendable {
     var displayURLString: String {
         switch self.execution {
         case .legacy(let reference):
@@ -52,12 +52,12 @@ struct ProtectedReaderImageReference: Hashable, @unchecked Sendable {
 
 /// 中文注释：Reader 只持有“如何加载受保护图片”的领域描述，不在界面层解释 Core pipeline 规则。
 // 中文注释：执行描述包含 legacy 或 pipeline 完整规则，保持引用大小后再传入图片子 View。
-indirect enum ProtectedReaderImageExecution: Hashable {
+indirect enum ProtectedReaderImageExecution: Hashable, Sendable {
     case legacy(LegacyProtectedReaderImageReference)
     case pipeline(ResourcePipelineReaderImageReference)
 }
 
-struct LegacyProtectedReaderImageReference: Hashable {
+struct LegacyProtectedReaderImageReference: Hashable, Sendable {
     var displayURLString: String
     var sourceID: String
     var baseURL: URL?
@@ -65,7 +65,7 @@ struct LegacyProtectedReaderImageReference: Hashable {
     var parameters: [String: String]
 }
 
-struct ResourcePipelineReaderImageReference: Hashable {
+struct ResourcePipelineReaderImageReference: Hashable, Sendable {
     var displayURLString: String
     var sourceID: String
     var baseURL: URL?
@@ -78,7 +78,7 @@ struct ResourcePipelineReaderImageReference: Hashable {
 }
 
 /// 中文注释：JSON scope 的稳定值合同放在 Domain，避免 Reader 依赖 Application 执行器内部类型。
-indirect enum ReaderResourcePipelineValue: Hashable {
+indirect enum ReaderResourcePipelineValue: Hashable, Sendable {
     case string(String)
     case number(Double)
     case boolean(Bool)
@@ -89,7 +89,7 @@ indirect enum ReaderResourcePipelineValue: Hashable {
 
 /// 中文注释：标准化的阅读页解析结果。
 /// 中文注释：它表示某一章的阅读内容，上层不需要关心来源是 HTML、JSON 还是其他格式。
-struct ReaderChapter: Hashable {
+struct ReaderChapter: Hashable, Sendable {
     var sourceId: String
     var comicTitle: String?
     var chapterTitle: String?

@@ -1,6 +1,6 @@
 import Foundation
 
-struct AppBootstrapDependencies: @unchecked Sendable {
+struct AppBootstrapDependencies: Sendable {
     let database: AppDatabase
     let activeUserID: UUID
 }

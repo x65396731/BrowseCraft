@@ -5,13 +5,13 @@ final class GRDBFavoriteItemSyncLocalStore: FavoriteItemSyncLocalStore {
     private let database: AppDatabase
     private let activeAppUser: (any ActiveAppUserProviding)?
     private let userContext: CloudSyncUserContext?
-    private let now: () -> Date
+    private let now: @Sendable () -> Date
 
     init(
         database: AppDatabase,
         activeAppUser: (any ActiveAppUserProviding)? = nil,
         userContext: CloudSyncUserContext? = nil,
-        now: @escaping () -> Date = Date.init
+        now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.database = database
         self.activeAppUser = activeAppUser

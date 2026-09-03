@@ -7,21 +7,21 @@ struct AddRSSSourceResult {
     let listOutput: SourceListOutput
 }
 
-struct AddRSSSourceUseCase: @unchecked Sendable {
+struct AddRSSSourceUseCase: Sendable {
     private let sourceRepository: SourceRepository
     private let feedLoader: any RSSFeedLoading
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
     private let validateSourceListLoadUseCase: ValidateSourceListLoadUseCase
-    private let now: () -> Date
-    private let makeID: () -> String
+    private let now: @Sendable () -> Date
+    private let makeID: @Sendable () -> String
 
     init(
         sourceRepository: SourceRepository,
         feedLoader: any RSSFeedLoading,
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
         validateSourceListLoadUseCase: ValidateSourceListLoadUseCase = ValidateSourceListLoadUseCase(),
-        now: @escaping () -> Date = Date.init,
-        makeID: @escaping () -> String = { UUID().uuidString }
+        now: @escaping @Sendable () -> Date = { Date() },
+        makeID: @escaping @Sendable () -> String = { UUID().uuidString }
     ) {
         self.sourceRepository = sourceRepository
         self.feedLoader = feedLoader

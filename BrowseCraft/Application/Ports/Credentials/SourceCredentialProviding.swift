@@ -1,6 +1,6 @@
 import Foundation
 
-protocol SourceCredentialProviding {
+protocol SourceCredentialProviding: Sendable {
     func cookieHeader(for context: SourceRequestContext, url: URL) -> String?
     func headerOverrides(for context: SourceRequestContext, url: URL) -> [String: String]
     func token(for sourceID: String, key: String) -> String?

@@ -1,7 +1,7 @@
 import Foundation
 import BrowseCraftCore
 
-protocol ResourcePipelineCryptography {
+protocol ResourcePipelineCryptography: Sendable {
     func hash(_ data: Data, algorithm: ResourceHashAlgorithm) throws -> Data
 
     func decrypt(

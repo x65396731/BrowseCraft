@@ -351,7 +351,7 @@ private enum StubResourcePipelineError: Error {
     case failed
 }
 
-private final class RecordingReaderPageContentLoader: PageContentLoader {
+private final class RecordingReaderPageContentLoader: PageContentLoader, @unchecked Sendable {
     private enum LoaderError: LocalizedError {
         case missingResponse(String)
 

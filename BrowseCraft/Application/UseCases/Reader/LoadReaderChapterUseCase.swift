@@ -2,7 +2,7 @@ import Foundation
 import BrowseCraftCore
 
 // 中文注释：Reader 入口只依赖 Core 的阅读能力协议；App 模型是界面投影，不再是加载合同。
-struct LoadReaderChapterUseCase: @unchecked Sendable {
+struct LoadReaderChapterUseCase: Sendable {
     private let runtimeResolver: any SourceRuntimeResolving
     private let itemReferenceMapper: SourceItemReferenceMapper = SourceItemReferenceMapper()
 

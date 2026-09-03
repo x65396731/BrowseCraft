@@ -79,7 +79,7 @@ struct RSSFeedLoaderTests {
     """
 }
 
-private final class RecordingPageDataLoader: PageDataLoader {
+private final class RecordingPageDataLoader: PageDataLoader, @unchecked Sendable {
     struct Request {
         var url: URL
         var request: RequestConfig?

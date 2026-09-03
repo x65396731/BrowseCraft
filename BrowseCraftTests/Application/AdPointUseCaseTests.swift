@@ -96,7 +96,7 @@ struct AdPointUseCaseTests {
     }
 }
 
-private final class InMemoryAppUserRepository: AppUserRepository {
+private final class InMemoryAppUserRepository: AppUserRepository, @unchecked Sendable {
     private var user: AppUser?
     private var transactionIDs: Set<String> = []
     private(set) var savedUser: AppUser?

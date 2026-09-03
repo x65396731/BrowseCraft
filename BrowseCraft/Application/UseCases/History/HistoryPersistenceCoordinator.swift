@@ -1,11 +1,11 @@
 import Foundation
 
-struct HistoryPersistenceSnapshot: @unchecked Sendable {
+struct HistoryPersistenceSnapshot: Sendable {
     let entries: [ReadingHistoryEntry]
     let sources: [Source]
 }
 
-struct ReadingHistoryEntriesTransfer: @unchecked Sendable {
+struct ReadingHistoryEntriesTransfer: Sendable {
     let values: [ReadingHistoryEntry]
 }
 

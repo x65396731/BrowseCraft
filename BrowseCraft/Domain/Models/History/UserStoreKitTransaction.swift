@@ -1,7 +1,7 @@
 import Foundation
 
 // 中文注释：UserStoreKitTransaction 记录本地用户和 StoreKit 交易之间的一对多关联。
-struct UserStoreKitTransaction: Hashable {
+struct UserStoreKitTransaction: Hashable, Sendable {
     var userID: String
     var transactionID: String
     var originalTransactionID: String

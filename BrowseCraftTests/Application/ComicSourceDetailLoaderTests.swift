@@ -175,7 +175,7 @@ struct ComicSourceDetailLoaderTests {
     }
 }
 
-private final class RecordingChapterPageContentLoader: PageContentLoader {
+private final class RecordingChapterPageContentLoader: PageContentLoader, @unchecked Sendable {
     private enum LoaderError: LocalizedError {
         case disallowedURL(String)
         case missingResponse(String)

@@ -1,7 +1,7 @@
 import Foundation
 
 // 中文注释：临时漫画发现结果只用于当前页面展示，不会写入 Source DB。
-struct TransientComicDiscoveryItem: Identifiable, Hashable {
+struct TransientComicDiscoveryItem: Identifiable, Hashable, Sendable {
     var id: String
     var title: String
     var detailURL: String

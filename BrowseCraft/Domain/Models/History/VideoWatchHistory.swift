@@ -3,7 +3,7 @@ import Foundation
 // 中文注释：VideoWatchHistory 保存用户看过的视频作品和上次播放位置。
 
 /// 中文注释：一条记录对应同一影片；History 展示依赖这里的快照字段，不重新请求网络。
-struct VideoWatchHistory: Identifiable, Hashable {
+struct VideoWatchHistory: Identifiable, Hashable, Sendable {
     var id: String {
         return [
             self.userID,

@@ -6,8 +6,8 @@ final class CoreRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
     private let analyzer: BrowseCraftCore.DefaultSourceDiscoveryAnalyzer
 
     init(
-        now: @escaping () -> Date = Date.init,
-        idGenerator: @escaping () -> String = {
+        now: @escaping @Sendable () -> Date = { Date() },
+        idGenerator: @escaping @Sendable () -> String = {
             return UUID().uuidString
         }
     ) {

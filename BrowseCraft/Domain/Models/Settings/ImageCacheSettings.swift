@@ -3,7 +3,7 @@ import Foundation
 // 中文注释：ImageCacheSettings 集中定义图片缓存档位、持久化 key 和自动清理目标。
 
 /// 中文注释：图片缓存上限只允许产品确认过的固定档位，避免 Settings 中出现任意 MB 裸数。
-enum ImageCacheLimitOption: Int, CaseIterable, Hashable, Identifiable {
+enum ImageCacheLimitOption: Int, CaseIterable, Hashable, Identifiable, Sendable {
     case megabytes512 = 512
     case gigabytes1 = 1024
     case gigabytes2 = 2048
@@ -36,7 +36,7 @@ enum ImageCacheLimitOption: Int, CaseIterable, Hashable, Identifiable {
     }
 }
 
-struct ImageCacheSettings: Equatable {
+struct ImageCacheSettings: Equatable, Sendable {
     static let userDefaultsKey: String = "settings.imageCacheLimit"
     static let defaultLimit: ImageCacheLimitOption = .megabytes512
     /// 中文注释：主动清理目标低于上限，避免缓存刚被清到临界值后又频繁触发下一次清理。

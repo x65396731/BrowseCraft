@@ -3,7 +3,7 @@ import Foundation
 // 中文注释：ComicChapterHistory 保存用户实际阅读过的漫画章节。
 
 /// 中文注释：一条记录对应某部漫画的某一话/章节，例如第 100 话，而不是整部漫画列表项。
-struct ComicChapterHistory: Identifiable, Hashable {
+struct ComicChapterHistory: Identifiable, Hashable, Sendable {
     var id: String {
         return [
             self.userID,

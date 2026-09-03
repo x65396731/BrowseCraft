@@ -13,13 +13,13 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
     private let credentialProvider: SourceCredentialProviding
     private let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
     private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
-    private let managedAPIURLMatcher: (URL) -> Bool
+    private let managedAPIURLMatcher: @Sendable (URL) -> Bool
 
     init(
         credentialProvider: SourceCredentialProviding = EmptySourceCredentialProvider(),
         browserRequestHeaderProvider: any BrowserRequestHeaderProviding = EmptyBrowserRequestHeaderProvider(),
         systemCookieHeaderProvider: any SystemCookieHeaderProviding = EmptySystemCookieHeaderProvider(),
-        managedAPIURLMatcher: @escaping (URL) -> Bool = { _ in false }
+        managedAPIURLMatcher: @escaping @Sendable (URL) -> Bool = { _ in false }
     ) {
         self.credentialProvider = credentialProvider
         self.browserRequestHeaderProvider = browserRequestHeaderProvider

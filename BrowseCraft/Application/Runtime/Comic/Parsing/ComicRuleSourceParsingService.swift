@@ -81,7 +81,7 @@ struct ComicRuleParsedListResult: Hashable {
 }
 
 /// 中文注释：ComicSourceRuntime 专用解析协议；App 只传入已加载文档，确定性规则解释统一由 Core 完成。
-protocol ComicRuleSourceParsingService: ComicRuleAPIResponseParsingService {
+protocol ComicRuleSourceParsingService: ComicRuleAPIResponseParsingService, Sendable {
     func parseList(
         html: String,
         source: Source,
@@ -117,7 +117,7 @@ protocol ComicRuleSourceParsingService: ComicRuleAPIResponseParsingService {
 }
 
 /// 中文注释：API 请求仍由 Loader 执行；实现此能力的 parser 只消费已经取得的 JSON 响应。
-protocol ComicRuleAPIResponseParsingService {
+protocol ComicRuleAPIResponseParsingService: Sendable {
     func parseListAPIResponse(
         json: String,
         finalURL: URL,

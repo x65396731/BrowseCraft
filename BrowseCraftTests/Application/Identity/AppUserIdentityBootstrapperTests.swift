@@ -146,7 +146,7 @@ private final class MockAppUserIdentityStore: AppUserIdentityStoring, @unchecked
     }
 }
 
-private final class IdentityBootstrapAppUserRepository: AppUserRepository {
+private final class IdentityBootstrapAppUserRepository: AppUserRepository, @unchecked Sendable {
     private(set) var user: AppUser?
     private(set) var saveCallCount: Int = 0
     private let events: IdentityBootstrapEvents?

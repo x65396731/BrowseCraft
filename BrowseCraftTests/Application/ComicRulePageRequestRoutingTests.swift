@@ -136,7 +136,7 @@ struct ComicRulePageRequestRoutingTests {
     }
 }
 
-private final class RecordingComicRoutePageContentLoader: PageContentLoader {
+private final class RecordingComicRoutePageContentLoader: PageContentLoader, @unchecked Sendable {
     struct RecordedRequest {
         let url: URL
         let request: RequestConfig?

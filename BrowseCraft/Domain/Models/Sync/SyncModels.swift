@@ -1,18 +1,18 @@
 import Foundation
 
 // 中文注释：同步模型只描述本地同步账本，不直接依赖 CloudKit。
-enum SyncEntityType: String, Codable, Hashable {
+enum SyncEntityType: String, Codable, Hashable, Sendable {
     case source
     case favorite
     case favoriteItem
 }
 
-enum SyncQueueOperation: String, Codable, Hashable {
+enum SyncQueueOperation: String, Codable, Hashable, Sendable {
     case upsert
     case delete
 }
 
-struct SyncState: Hashable {
+struct SyncState: Hashable, Sendable {
     var accountScope: CloudAccountScope
     var scope: String
     var zoneName: String
@@ -37,7 +37,7 @@ struct SyncState: Hashable {
     }
 }
 
-struct SyncQueueItem: Identifiable, Hashable {
+struct SyncQueueItem: Identifiable, Hashable, Sendable {
     var id: String
     var accountScope: CloudAccountScope
     var entityType: SyncEntityType
@@ -58,7 +58,7 @@ struct SyncQueueItem: Identifiable, Hashable {
     }
 }
 
-struct SyncQueueAcknowledgement: Hashable {
+struct SyncQueueAcknowledgement: Hashable, Sendable {
     var id: String
     var operation: SyncQueueOperation
     var updatedAt: Date
@@ -70,7 +70,7 @@ struct SyncQueueAcknowledgement: Hashable {
     }
 }
 
-struct SyncQueueFailureUpdate: Hashable {
+struct SyncQueueFailureUpdate: Hashable, Sendable {
     var acknowledgement: SyncQueueAcknowledgement
     var errorMessage: String
     var retryAfter: TimeInterval?

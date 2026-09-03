@@ -3,7 +3,7 @@ import Foundation
 // 中文注释：ReadingHistoryEntry 是 History 页面未来展示 RSS/漫画历史的聚合行模型。
 
 /// 中文注释：该模型只聚合 DB 历史记录，不反查 Library 当前快照，也不触发网络请求。
-struct ReadingHistoryEntry: Identifiable, Hashable {
+struct ReadingHistoryEntry: Identifiable, Hashable, Sendable {
     enum Kind: String, Hashable {
         case rss
         case comic

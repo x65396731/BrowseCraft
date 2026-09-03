@@ -5,7 +5,7 @@ import Foundation
 /// 中文注释：用户添加的内容源模型。
 /// 中文注释：Source 是 App 持久化实体；执行语义由 SourceRuntime 决定。
 /// 中文注释：Source 的主配置入口是 SourceConfiguration；rule 访问器只用于迁移期兼容旧调用点。
-struct Source: Identifiable, Hashable, @unchecked Sendable {
+struct Source: Identifiable, Hashable, Sendable {
     var userID: String
     var id: String
     var name: String
@@ -76,7 +76,7 @@ struct Source: Identifiable, Hashable, @unchecked Sendable {
 }
 
 // 中文注释：SourceSnapshot 保存脱离 sources 表后仍可恢复运行所需的来源配置快照。
-struct SourceSnapshot: Hashable, Codable {
+struct SourceSnapshot: Hashable, Codable, Sendable {
     var userID: String?
     var id: String
     var name: String
@@ -117,7 +117,7 @@ struct SourceSnapshot: Hashable, Codable {
     }
 }
 
-enum SourceAccessState: Equatable {
+enum SourceAccessState: Equatable, Sendable {
     case active
     case lockedBySlotLimit
 }

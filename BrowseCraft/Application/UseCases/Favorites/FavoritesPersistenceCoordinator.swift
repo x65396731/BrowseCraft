@@ -1,6 +1,6 @@
 import Foundation
 
-struct FavoritesPersistenceSnapshot: @unchecked Sendable {
+struct FavoritesPersistenceSnapshot: Sendable {
     let items: [FavoriteContentItem]
     let sources: [Source]
 }

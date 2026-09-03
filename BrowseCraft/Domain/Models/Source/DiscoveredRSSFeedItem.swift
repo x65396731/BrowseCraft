@@ -1,6 +1,6 @@
 import Foundation
 
-struct DiscoveredRSSFeedItem: Identifiable, Hashable {
+struct DiscoveredRSSFeedItem: Identifiable, Hashable, Sendable {
     let id: String
     let feedURL: URL
     let siteURL: URL

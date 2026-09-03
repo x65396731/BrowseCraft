@@ -32,7 +32,7 @@ struct FavoriteItemCloudPayload: Hashable, Codable, Sendable {
     }
 }
 
-struct FavoriteItemCloudMetadata: Hashable, Codable {
+struct FavoriteItemCloudMetadata: Hashable, Codable, Sendable {
     var idCode: String?
     var itemUpdatedAt: Date?
     var listOrder: Int?

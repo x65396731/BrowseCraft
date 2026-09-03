@@ -1,18 +1,18 @@
 import Foundation
 
-struct LibraryPersistenceSnapshot: @unchecked Sendable {
+struct LibraryPersistenceSnapshot: Sendable {
     let sources: [Source]
     let favoriteItemIDs: Set<String>
     let libraryState: UserLibraryState?
 }
 
-struct LibraryFavoriteMutation: @unchecked Sendable {
+struct LibraryFavoriteMutation: Sendable {
     let item: ContentItem
     let source: Source?
     let favoritedAt: Date
 }
 
-struct UserLibraryStateTransfer: @unchecked Sendable {
+struct UserLibraryStateTransfer: Sendable {
     let value: UserLibraryState
 }
 

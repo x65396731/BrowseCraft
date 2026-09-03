@@ -2,12 +2,12 @@ import Foundation
 import BrowseCraftCore
 
 // 中文注释：RSSFeedLoading 是 RSS runtime 对 feed loader 的最小依赖，便于 runtime 测试替换。
-protocol RSSFeedLoading {
+protocol RSSFeedLoading: Sendable {
     func load(feedURL: URL) async throws -> RSSFeed
 }
 
 /// 中文注释：支持来源上下文的 RSS loader 会把 L3 会话带入 feed 请求。
-protocol ContextualRSSFeedLoading: RSSFeedLoading {
+protocol ContextualRSSFeedLoading: RSSFeedLoading, Sendable {
     func load(feedURL: URL, context: SourceRequestContext) async throws -> RSSFeed
 }
 

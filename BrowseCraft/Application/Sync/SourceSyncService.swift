@@ -1,7 +1,7 @@
 import Foundation
 
 // 中文注释：CloudSyncService 是 Source 同步用例入口；下载和上传可由协调器分阶段调用。
-protocol CloudSyncService {
+protocol CloudSyncService: Sendable {
     func syncSources(limit: Int) async throws -> SourceSyncResult
 }
 

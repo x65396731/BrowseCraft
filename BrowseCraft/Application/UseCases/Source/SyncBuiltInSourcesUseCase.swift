@@ -4,17 +4,17 @@ import BrowseCraftDomain
 // 中文注释：真实 catalog 数据仍由用户手动导入；这里仅升级已存在的 catalog 源定义。
 
 /// 中文注释：不再在启动时自动写入任何 Source，用户初始状态保持空规则列表。
-struct SyncBuiltInSourcesUseCase: @unchecked Sendable {
+struct SyncBuiltInSourcesUseCase: Sendable {
     private let sourceRepository: SourceRepository
     private let catalogSources: [CatalogSource]
     private let catalogSourceMaterializer: CatalogSourceMaterializer
-    private let now: () -> Date
+    private let now: @Sendable () -> Date
 
     init(
         sourceRepository: SourceRepository,
         catalogSources: [CatalogSource] = [],
         catalogSourceMaterializer: CatalogSourceMaterializer = CatalogSourceMaterializer(),
-        now: @escaping () -> Date = Date.init
+        now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.sourceRepository = sourceRepository
         self.catalogSources = catalogSources

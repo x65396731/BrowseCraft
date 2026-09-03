@@ -583,7 +583,7 @@ struct ResourcePipelineExecutorTests {
     }
 }
 
-private final class RecordingResourcePipelineDataLoader: PageDataLoader {
+private final class RecordingResourcePipelineDataLoader: PageDataLoader, @unchecked Sendable {
     struct Request {
         let url: URL
         let request: RequestConfig?

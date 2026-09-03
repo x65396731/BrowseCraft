@@ -17,7 +17,7 @@ enum SourceRuleEditorServiceError: LocalizedError {
     }
 }
 
-struct SourceRuleEditorService: @unchecked Sendable {
+struct SourceRuleEditorService: Sendable {
     private let updateSourceRuleUseCase: UpdateSourceRuleUseCase
     private let updateVideoSourceConfigurationUseCase: UpdateVideoSourceConfigurationUseCase
     private let duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase

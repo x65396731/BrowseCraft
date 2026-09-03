@@ -1,12 +1,12 @@
 import Foundation
 
-enum TransientVideoPlaybackKind: Hashable {
+enum TransientVideoPlaybackKind: Hashable, Sendable {
     case webPage
     case directMedia
 }
 
 // 中文注释：临时影视发现结果只用于当前页面展示，不会写入 Source DB。
-struct TransientVideoDiscoveryItem: Identifiable, Hashable {
+struct TransientVideoDiscoveryItem: Identifiable, Hashable, Sendable {
     var id: String
     var title: String
     var detailURL: String

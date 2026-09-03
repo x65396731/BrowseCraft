@@ -167,7 +167,7 @@ struct DuplicateSourceRuleUseCase {
     }
 }
 
-enum RuleManagementError: LocalizedError, @unchecked Sendable {
+enum RuleManagementError: LocalizedError, Sendable {
     case builtInSourceIsReadOnly
     case validationFailed(SiteRuleValidationResult)
     case videoValidationFailed(VideoSiteRuleValidationResult)

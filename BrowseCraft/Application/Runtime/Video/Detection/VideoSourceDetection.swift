@@ -28,7 +28,7 @@ enum VideoPlaybackMode: String, Codable, Hashable {
     case unresolved
 }
 
-protocol VideoSourceDetecting {
+protocol VideoSourceDetecting: Sendable {
     func detect(_ input: VideoSourceDetectionInput) -> VideoSourceDetection
 }
 

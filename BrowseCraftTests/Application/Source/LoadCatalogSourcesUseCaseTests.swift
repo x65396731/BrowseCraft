@@ -245,7 +245,7 @@ struct LoadCatalogSourcesUseCaseTests {
     }
 }
 
-private final class RecordingCatalogPageDataLoader: PageDataLoader {
+private final class RecordingCatalogPageDataLoader: PageDataLoader, @unchecked Sendable {
     struct RecordedRequest: Equatable {
         var url: URL
         var request: RequestConfig?

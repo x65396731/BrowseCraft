@@ -3,7 +3,7 @@ import Foundation
 // 中文注释：URLResolvingService.swift 属于领域服务协议层，用于说明本文件承载的核心职责。
 
 /// 中文注释：URLResolvingError 是 enum，负责本模块中的对应职责。
-enum URLResolvingError: LocalizedError {
+enum URLResolvingError: LocalizedError, Sendable {
     case invalidURL(String)
 
     var errorDescription: String? {
@@ -16,7 +16,7 @@ enum URLResolvingError: LocalizedError {
 
 /// 中文注释：URL 辅助服务，集中处理相对地址转绝对地址的逻辑。
 /// 中文注释：这样 SwiftUI 和解析器不需要各自重复拼接 URL。
-struct URLResolvingService {
+struct URLResolvingService: Sendable {
     private static let placeholderPattern: NSRegularExpression? = {
         return try? NSRegularExpression(pattern: "\\{([^{}]+)\\}")
     }()

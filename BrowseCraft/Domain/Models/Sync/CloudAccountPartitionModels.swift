@@ -44,7 +44,7 @@ struct CloudAccountPartitionMergeResult: Hashable, Sendable {
     var wasAlreadyPrepared: Bool
 }
 
-enum CloudAccountPartitionError: Error, Equatable {
+enum CloudAccountPartitionError: Error, Equatable, Sendable {
     case invalidCloudScope
     case alreadyPrepared(existingDecision: CloudAccountLocalDataDecision)
 }

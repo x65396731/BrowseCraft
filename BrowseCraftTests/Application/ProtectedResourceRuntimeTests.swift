@@ -336,7 +336,7 @@ struct ProtectedResourceRuntimeTests {
     }
 }
 
-private final class RecordingProtectedResourceDataLoader: PageDataLoader {
+private final class RecordingProtectedResourceDataLoader: PageDataLoader, @unchecked Sendable {
     struct RecordedRequest {
         let url: URL
         let request: RequestConfig?

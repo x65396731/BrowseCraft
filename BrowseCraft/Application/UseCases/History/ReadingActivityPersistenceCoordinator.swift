@@ -1,14 +1,14 @@
 import Foundation
 
-struct ComicChapterHistoryTransfer: @unchecked Sendable {
+struct ComicChapterHistoryTransfer: Sendable {
     let value: ComicChapterHistory
 }
 
-struct RSSReadingHistoryTransfer: @unchecked Sendable {
+struct RSSReadingHistoryTransfer: Sendable {
     let value: RSSReadingHistory
 }
 
-struct VideoWatchHistoryTransfer: @unchecked Sendable {
+struct VideoWatchHistoryTransfer: Sendable {
     let value: VideoWatchHistory
 }
 

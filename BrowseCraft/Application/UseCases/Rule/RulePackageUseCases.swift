@@ -72,17 +72,17 @@ struct ExportSourceRulePackageUseCase {
 }
 
 /// 中文注释：从规则包导入为用户 Source；不会覆盖本机已有 Source。
-struct ImportSourceRulePackageUseCase {
+struct ImportSourceRulePackageUseCase: Sendable {
     private let sourceRepository: SourceRepository
     private let coder: RulePackageCoder
-    private let now: () -> Date
-    private let idGenerator: () -> String
+    private let now: @Sendable () -> Date
+    private let idGenerator: @Sendable () -> String
 
     init(
         sourceRepository: SourceRepository,
         coder: RulePackageCoder = RulePackageCoder(),
-        now: @escaping () -> Date = Date.init,
-        idGenerator: @escaping () -> String = {
+        now: @escaping @Sendable () -> Date = { Date() },
+        idGenerator: @escaping @Sendable () -> String = {
             return UUID().uuidString
         }
     ) {

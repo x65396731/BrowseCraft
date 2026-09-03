@@ -205,7 +205,7 @@ final class AppContainer {
                 credentialProvider: sourceCredentialStore,
                 browserRequestHeaderProvider: browserRequestHeaderProvider,
                 systemCookieHeaderProvider: systemCookieHeaderProvider,
-                managedAPIURLMatcher: PortalAPIConfiguration.isManagedAPIURL
+                managedAPIURLMatcher: { url in PortalAPIConfiguration.isManagedAPIURL(url) }
             )
             let pageLoader: DefaultPageLoader = DefaultPageLoader(
                 httpContentLoader: httpClient,

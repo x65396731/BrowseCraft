@@ -2,7 +2,7 @@ import Foundation
 import BrowseCraftCore
 
 // 中文注释：SourceImportRecommendation 记录系统对添加来源草稿的推荐；推荐结果以 SourceRuntimeKind 为入口轴。
-struct SourceImportRecommendation: Codable, Hashable {
+struct SourceImportRecommendation: Codable, Hashable, Sendable {
     var optionKind: SourceImportOptionKind?
     var sourceType: SourceType?
     var configurationKind: SourceRuntimeKind
@@ -27,7 +27,7 @@ struct SourceImportRecommendation: Codable, Hashable {
     }
 }
 
-enum SourceImportRecommendationConfidence: String, Codable, CaseIterable, Identifiable, Hashable {
+enum SourceImportRecommendationConfidence: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
     case low
     case medium
     case high
@@ -37,7 +37,7 @@ enum SourceImportRecommendationConfidence: String, Codable, CaseIterable, Identi
     }
 }
 
-enum SourceImportRecommendationReason: String, Codable, CaseIterable, Identifiable, Hashable {
+enum SourceImportRecommendationReason: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
     case userSelectedOption
     case urlLooksLikeRSS
     case headerLooksLikeRSS

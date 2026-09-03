@@ -230,7 +230,7 @@ struct RSSHubDiscoveryUseCaseTests {
     """
 }
 
-private final class RSSHubDiscoveryRecordingPageDataLoader: PageDataLoader {
+private final class RSSHubDiscoveryRecordingPageDataLoader: PageDataLoader, @unchecked Sendable {
     private let responsesByURL: [String: Data]
     private(set) var requestedURLs: [URL] = []
 
@@ -249,7 +249,7 @@ private final class RSSHubDiscoveryRecordingPageDataLoader: PageDataLoader {
     }
 }
 
-private final class RSSHubDiscoveryRecordingFeedLoader: RSSFeedLoading {
+private final class RSSHubDiscoveryRecordingFeedLoader: RSSFeedLoading, @unchecked Sendable {
     private let feedsByURL: [String: RSSFeed]
     private(set) var requestedURLs: [URL] = []
 

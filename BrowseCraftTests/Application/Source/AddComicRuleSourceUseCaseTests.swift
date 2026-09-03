@@ -73,7 +73,7 @@ private enum AddComicRuntimeTestError: Error, Equatable {
     case listLoadFailed
 }
 
-private final class ComicRuleInMemorySourceRepository: SourceRepository {
+private final class ComicRuleInMemorySourceRepository: SourceRepository, @unchecked Sendable {
     var savedSources: [String: Source] = [:]
 
     func fetchSources() throws -> [Source] {

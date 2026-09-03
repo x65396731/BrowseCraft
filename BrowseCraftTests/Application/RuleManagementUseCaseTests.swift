@@ -247,7 +247,7 @@ struct RuleManagementUseCaseTests {
     }
 }
 
-private final class InMemorySourceRepository: SourceRepository {
+private final class InMemorySourceRepository: SourceRepository, @unchecked Sendable {
     var savedSources: [String: Source] = [:]
 
     func fetchSources() throws -> [Source] {

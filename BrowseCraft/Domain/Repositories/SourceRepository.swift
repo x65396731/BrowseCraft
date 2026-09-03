@@ -4,7 +4,7 @@ import Foundation
 
 /// 中文注释：面向领域层的源仓储协议，负责源规则的读取、保存和删除。
 /// 中文注释：删除 Source 时只清理当前选择等运行状态；历史和收藏快照独立保留。
-protocol SourceRepository {
+protocol SourceRepository: Sendable {
     func fetchSources() throws -> [Source]
     func saveSource(_ source: Source) throws
     func deleteSource(id: String) throws
@@ -37,7 +37,7 @@ extension SourceRepository {
 }
 
 /// 中文注释：站点位置只约束用户添加的 Source；内置 Source 不消耗购买位置。
-enum SourceSlotPolicy {
+enum SourceSlotPolicy: Sendable {
     static let includedSiteSlotCount: Int = 1
 
     static func effectiveLimit(storedLimit: Int) -> Int {
@@ -55,7 +55,7 @@ enum SourceSlotPolicy {
     }
 }
 
-enum SourceRepositoryError: LocalizedError, Equatable {
+enum SourceRepositoryError: LocalizedError, Equatable, Sendable {
     case siteSlotLimitReached(limit: Int)
     case sourceLockedBySlotLimit
     case invalidSourceSlotReplacement

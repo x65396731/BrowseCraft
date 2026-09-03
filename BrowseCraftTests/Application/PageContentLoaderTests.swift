@@ -67,7 +67,7 @@ struct PageContentLoaderTests {
     }
 }
 
-private final class RecordingPageHTTPClient: PageContentLoader, PageDataLoader {
+private final class RecordingPageHTTPClient: PageContentLoader, PageDataLoader, @unchecked Sendable {
     private let html: String
     private(set) var requests: [PageLoadRequest] = []
 

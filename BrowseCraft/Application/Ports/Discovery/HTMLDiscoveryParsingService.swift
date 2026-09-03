@@ -5,6 +5,6 @@ typealias HTMLDiscoveryAncestorSnapshot = BrowseCraftCore.SourceDiscoveryAncesto
 typealias HTMLDiscoveryAnchorSnapshot = BrowseCraftCore.SourceDiscoveryAnchorSnapshot
 
 /// 中文注释：仅把 HTML 转成 Discovery 用快照，不向 Application 暴露 DOM 查询能力。
-protocol HTMLDiscoveryParsingService {
+protocol HTMLDiscoveryParsingService: Sendable {
     func parseAnchors(html: String, pageURL: URL) throws -> [HTMLDiscoveryAnchorSnapshot]
 }

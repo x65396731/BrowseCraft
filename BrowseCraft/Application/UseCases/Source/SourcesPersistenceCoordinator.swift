@@ -1,15 +1,15 @@
 import Foundation
 
-struct SourcesPersistenceSnapshot: @unchecked Sendable {
+struct SourcesPersistenceSnapshot: Sendable {
     let sources: [Source]
     let sourceSlotLimit: Int
 }
 
-struct TemporaryResourceHistoryTransfer: @unchecked Sendable {
+struct TemporaryResourceHistoryTransfer: Sendable {
     let value: TemporaryResourceHistory
 }
 
-struct SourcesListSnapshot: @unchecked Sendable {
+struct SourcesListSnapshot: Sendable {
     let sources: [Source]
 }
 

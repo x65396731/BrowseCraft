@@ -1,7 +1,7 @@
 import Foundation
 
 /// 中文注释：首次绑定只决定当前 AppUser 数据如何进入选定 CloudAccountScope；scope 不是业务 userID。
-protocol CloudAccountPartitioning {
+protocol CloudAccountPartitioning: Sendable {
     func currentUserSummary() throws -> CloudAccountPartitionSummary
     func preparation(
         for cloudScope: CloudAccountScope

@@ -1861,7 +1861,7 @@ struct VideoSourceRuntimeTests {
     }
 }
 
-private final class RecordingVideoRuleParser: VideoRuleSourceParsingService {
+private final class RecordingVideoRuleParser: VideoRuleSourceParsingService, @unchecked Sendable {
     let result: VideoRuleParsedList
     private(set) var lastPageURL: URL?
     private(set) var lastRule: VideoListRule?
@@ -1905,7 +1905,7 @@ private final class RecordingVideoRuleParser: VideoRuleSourceParsingService {
     }
 }
 
-private final class RecordingVideoRulePageContentLoader: PageContentLoader {
+private final class RecordingVideoRulePageContentLoader: PageContentLoader, @unchecked Sendable {
     let html: String
     private(set) var lastURL: URL?
     private(set) var lastRequest: RequestConfig?
@@ -1925,7 +1925,7 @@ private final class RecordingVideoRulePageContentLoader: PageContentLoader {
     }
 }
 
-private final class RoutingVideoRulePageContentLoader: PageContentLoader {
+private final class RoutingVideoRulePageContentLoader: PageContentLoader, @unchecked Sendable {
     let responses: [String: String]
     private(set) var urls: [URL] = []
     private(set) var requests: [RequestConfig?] = []

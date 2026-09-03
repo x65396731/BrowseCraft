@@ -98,7 +98,7 @@ struct AddRSSSourceUseCaseTests {
     }
 }
 
-private final class RSSInMemorySourceRepository: SourceRepository {
+private final class RSSInMemorySourceRepository: SourceRepository, @unchecked Sendable {
     var savedSources: [String: Source] = [:]
 
     func fetchSources() throws -> [Source] {

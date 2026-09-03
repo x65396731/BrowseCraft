@@ -289,19 +289,19 @@ private struct PlainCatalogSourcePayload: Encodable {
 }
 
 // 中文注释：Catalog 来源必须先通过既存 runtime 加载流程，加载成功后才写入本地 DB。
-struct AddCatalogSourceUseCase {
+struct AddCatalogSourceUseCase: Sendable {
     private let sourceRepository: SourceRepository
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
     private let validateSourceListLoadUseCase: ValidateSourceListLoadUseCase
     private let catalogSourceMaterializer: CatalogSourceMaterializer
-    private let now: () -> Date
+    private let now: @Sendable () -> Date
 
     init(
         sourceRepository: SourceRepository,
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
         validateSourceListLoadUseCase: ValidateSourceListLoadUseCase = ValidateSourceListLoadUseCase(),
         catalogSourceMaterializer: CatalogSourceMaterializer = CatalogSourceMaterializer(),
-        now: @escaping () -> Date = Date.init
+        now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.sourceRepository = sourceRepository
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase

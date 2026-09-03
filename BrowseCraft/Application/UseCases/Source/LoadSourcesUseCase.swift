@@ -32,7 +32,7 @@ struct LoadSourceSlotLimitUseCase {
 }
 
 /// 中文注释：云恢复或权益变化后，把同步的 enabled 分配收敛到当前用户额度。
-struct ReconcileSourceSlotAssignmentsUseCase: @unchecked Sendable {
+struct ReconcileSourceSlotAssignmentsUseCase: Sendable {
     private let sourceRepository: SourceRepository
 
     init(sourceRepository: SourceRepository) {
@@ -45,7 +45,7 @@ struct ReconcileSourceSlotAssignmentsUseCase: @unchecked Sendable {
 }
 
 /// 中文注释：在一个事务中启用锁定源，并在额度已满时替换指定的活动源。
-struct ActivateSourceSlotUseCase: @unchecked Sendable {
+struct ActivateSourceSlotUseCase: Sendable {
     private let sourceRepository: SourceRepository
 
     init(sourceRepository: SourceRepository) {
@@ -64,7 +64,7 @@ struct ActivateSourceSlotUseCase: @unchecked Sendable {
 }
 
 /// 中文注释：从本地存储删除一个 Source；当前由 Sources 页面侧滑删除触发。
-struct DeleteSourceUseCase: @unchecked Sendable {
+struct DeleteSourceUseCase: Sendable {
     private let sourceRepository: SourceRepository
 
     init(sourceRepository: SourceRepository) {

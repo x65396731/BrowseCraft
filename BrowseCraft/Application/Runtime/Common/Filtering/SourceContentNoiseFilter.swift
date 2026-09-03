@@ -81,7 +81,7 @@ struct SourceContentNoiseDecision: Hashable {
     )
 }
 
-protocol SourceContentNoiseFiltering {
+protocol SourceContentNoiseFiltering: Sendable {
     func decision(for candidate: SourceContentNoiseCandidate) -> SourceContentNoiseDecision
 }
 

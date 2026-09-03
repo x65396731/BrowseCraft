@@ -1,10 +1,10 @@
 import Foundation
 
-struct SourceTransfer: @unchecked Sendable {
+struct SourceTransfer: Sendable {
     let value: Source
 }
 
-struct RulePackageExportTransfer: @unchecked Sendable {
+struct RulePackageExportTransfer: Sendable {
     let value: RulePackageExport
 }
 

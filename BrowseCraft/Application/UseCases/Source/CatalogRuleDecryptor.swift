@@ -27,7 +27,7 @@ enum CatalogRuleDecryptionError: LocalizedError {
     }
 }
 
-protocol CatalogRuleDecryptionKeyProviding {
+protocol CatalogRuleDecryptionKeyProviding: Sendable {
     func key(for keyID: String) -> SymmetricKey?
 }
 

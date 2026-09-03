@@ -1,7 +1,8 @@
 import Foundation
 
 // 中文注释：站点登录态的内存实现，保留现有凭证匹配、Cookie 生成和调试行为。
-final class InMemorySourceCredentialStore: SourceCredentialStoring {
+// 中文注释：字典由 NSLock 保护，Sendable 由锁保证。
+final class InMemorySourceCredentialStore: SourceCredentialStoring, @unchecked Sendable {
     private let lock: NSLock = NSLock()
     private var credentialsBySourceID: [String: SourceCredential] = [:]
 

@@ -10,7 +10,7 @@ struct AddComicRuleSourceResult {
 
 /// 中文注释：根据网站规则 JSON 新增一个由规则驱动的漫画 Source。
 /// 中文注释：该用例是网站规则导入路径，不代表通用添加来源流程。
-struct AddComicRuleSourceUseCase: @unchecked Sendable {
+struct AddComicRuleSourceUseCase: Sendable {
     private let sourceRepository: SourceRepository
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
     private let validateSourceListLoadUseCase: ValidateSourceListLoadUseCase

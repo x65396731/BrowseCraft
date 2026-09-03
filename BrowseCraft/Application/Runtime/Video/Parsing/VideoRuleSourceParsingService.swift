@@ -86,7 +86,7 @@ struct VideoRuleParsedPlayback: Hashable {
     var readyMatched: Bool
 }
 
-protocol VideoRuleSourceParsingService {
+protocol VideoRuleSourceParsingService: Sendable {
     func parseList(
         html: String,
         pageURL: URL,
@@ -112,7 +112,7 @@ protocol VideoRuleSourceParsingService {
     ) throws -> VideoRuleParsedPlayback
 }
 
-enum VideoRuleSourceParsingError: LocalizedError, @unchecked Sendable {
+enum VideoRuleSourceParsingError: LocalizedError, Sendable {
     case unsupportedSelectorKind(SelectorKind)
     case unsupportedFunction(ExtractFunction)
     case readySelectorEmpty(ruleID: String)

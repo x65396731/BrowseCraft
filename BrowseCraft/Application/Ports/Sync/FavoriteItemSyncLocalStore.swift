@@ -35,7 +35,7 @@ struct FavoriteItemSyncPendingUpload: Hashable {
 }
 
 /// 中文注释：FavoriteItem 同步用例需要的本地原子操作；聚合重建由 GRDB 实现的提交事务负责。
-protocol FavoriteItemSyncLocalStore {
+protocol FavoriteItemSyncLocalStore: Sendable {
     func changeToken(accountScope: CloudAccountScope, scope: String, zoneName: String) throws -> Data?
     func snapshots(
         accountScope: CloudAccountScope,

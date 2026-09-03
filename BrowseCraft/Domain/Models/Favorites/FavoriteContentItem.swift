@@ -2,7 +2,7 @@ import Foundation
 
 // 中文注释：FavoriteContentItem 保存收藏页需要展示的内容快照。
 
-enum FavoriteContentKind: String, Codable, Hashable {
+enum FavoriteContentKind: String, Codable, Hashable, Sendable {
     case rss
     case comic
     case videoNative
@@ -49,7 +49,7 @@ struct FavoriteItemIdentity: Hashable, Codable, Sendable {
 }
 
 /// 中文注释：收藏页依赖这里的快照字段直接展示内容，不反查当前列表状态。
-struct FavoriteContentItem: Identifiable, Hashable, Codable {
+struct FavoriteContentItem: Identifiable, Hashable, Codable, Sendable {
     var id: String
     var idCode: String? = nil
     var sourceID: String

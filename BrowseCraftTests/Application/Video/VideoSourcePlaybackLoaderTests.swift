@@ -866,7 +866,7 @@ private extension VideoSourcePlaybackLoaderTests {
     }
 }
 
-private final class PlaybackPageContentLoader: PageContentLoader {
+private final class PlaybackPageContentLoader: PageContentLoader, @unchecked Sendable {
     let html: String
     let finalURL: URL
     private(set) var lastRequest: RequestConfig?
@@ -882,7 +882,7 @@ private final class PlaybackPageContentLoader: PageContentLoader {
     }
 }
 
-private final class RoutedPlaybackPageContentLoader: PageContentLoader {
+private final class RoutedPlaybackPageContentLoader: PageContentLoader, @unchecked Sendable {
     let responses: [String: PageContentResponse]
     private(set) var requestedURLs: [URL] = []
     private(set) var requests: [PageLoadRequest] = []

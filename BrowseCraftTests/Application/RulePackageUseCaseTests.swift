@@ -209,7 +209,7 @@ struct RulePackageUseCaseTests {
     }
 }
 
-private final class RulePackageInMemorySourceRepository: SourceRepository {
+private final class RulePackageInMemorySourceRepository: SourceRepository, @unchecked Sendable {
     var savedSources: [String: Source] = [:]
 
     func fetchSources() throws -> [Source] {

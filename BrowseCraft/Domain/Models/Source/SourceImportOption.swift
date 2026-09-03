@@ -2,7 +2,7 @@ import Foundation
 import BrowseCraftCore
 
 // 中文注释：SourceImportOption 表达添加来源流程中用户可选择的入口方式，并给出默认 runtime kind。
-struct SourceImportOption: Identifiable, Codable, Hashable {
+struct SourceImportOption: Identifiable, Codable, Hashable, Sendable {
     var kind: SourceImportOptionKind
     var defaultSourceType: SourceType?
     var defaultConfigurationKind: SourceRuntimeKind?
@@ -22,7 +22,7 @@ struct SourceImportOption: Identifiable, Codable, Hashable {
     }
 }
 
-enum SourceImportOptionKind: String, Codable, CaseIterable, Identifiable, Hashable {
+enum SourceImportOptionKind: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
     case comicSource
     case videoSource
     case rssFeedURL
