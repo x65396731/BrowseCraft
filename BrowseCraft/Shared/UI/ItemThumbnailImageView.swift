@@ -33,9 +33,16 @@ struct ItemThumbnailImageView: View {
                let request: ImageRequest = self.thumbnailRequest(urlString: urlString) {
                 LazyImage(request: request) { state in
                     if let image = state.image {
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
+                        // 中文注释：aspectFill 必须由中立容器承载并裁剪——直接放大图片会让它的
+                        // 布局尺寸超出单元格，外层 clipShape 裁的是撑大后的边界，结果溢出到相邻 item。
+                        // NukeUI 0.8 的 resizingMode(.aspectFill) 内部等价于 scaleAspectFill + clipsToBounds。
+                        Color.clear
+                            .overlay {
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                            }
+                            .clipped()
                     } else if state.error != nil {
                         self.placeholder
                             .onAppear {
