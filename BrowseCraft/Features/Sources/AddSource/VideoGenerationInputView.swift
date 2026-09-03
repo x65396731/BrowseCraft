@@ -13,6 +13,7 @@ struct VideoGenerationInputView: View {
     @State private var isChecking: Bool = false
     @State private var submissionState: VideoGenerationTaskSubmissionState = .idle
     @State private var submissionTask: Task<Void, Never>?
+    @State private var reusedRuleImportFailed: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -74,6 +75,7 @@ struct VideoGenerationInputView: View {
                     VideoGenerationInputOutcomeView(
                         result: result,
                         submissionState: self.submissionState,
+                        reusedRuleImportFailed: self.reusedRuleImportFailed,
                         canSubmit: self.viewModel.canSubmitVideoGenerationTasks,
                         retry: {
                             self.startAssessment()
@@ -203,12 +205,21 @@ struct VideoGenerationInputView: View {
         }
         self.submissionTask?.cancel()
         self.submissionState = .submitting
+        self.reusedRuleImportFailed = false
         self.submissionTask = Task { @MainActor in
             do {
                 let outcome: VideoGenerationTaskSubmissionOutcome = try await self.viewModel
                     .submitVideoGenerationTask(preflight: preflight)
                 guard Task.isCancelled == false else {
                     return
+                }
+                // 中文注释：服务端复用的规则按 Catalog 同一落地路径直接添加（`BC-PREFLIGHT-055`）。
+                if case .reused(let rule) = outcome {
+                    let added: Bool = await self.viewModel.addCatalogSource(rule.catalogSource)
+                    guard Task.isCancelled == false else {
+                        return
+                    }
+                    self.reusedRuleImportFailed = (added == false)
                 }
                 self.submissionState = .finished(outcome)
             } catch is CancellationError {
@@ -227,6 +238,7 @@ struct VideoGenerationInputView: View {
         self.submissionTask?.cancel()
         self.submissionTask = nil
         self.submissionState = .idle
+        self.reusedRuleImportFailed = false
     }
 
     private func message(for error: Error) -> String {
@@ -275,6 +287,7 @@ enum VideoGenerationTaskSubmissionState: Equatable {
 private struct VideoGenerationInputOutcomeView: View {
     let result: VideoGenerationInputPreflight
     let submissionState: VideoGenerationTaskSubmissionState
+    let reusedRuleImportFailed: Bool
     let canSubmit: Bool
     let retry: () -> Void
     let submit: () -> Void
@@ -340,6 +353,25 @@ private struct VideoGenerationInputOutcomeView: View {
             )
             .font(.footnote)
             .foregroundStyle(.secondary)
+        case .reused(let rule):
+            Label(
+                NSLocalizedString("video_preflight_reused", comment: ""),
+                systemImage: "checkmark.seal.fill"
+            )
+            .foregroundStyle(.green)
+            Text(
+                String(
+                    format: NSLocalizedString(
+                        self.reusedRuleImportFailed
+                            ? "video_preflight_reused_import_failed"
+                            : "video_preflight_reused_detail",
+                        comment: ""
+                    ),
+                    rule.catalogSource.name
+                )
+            )
+            .font(.footnote)
+            .foregroundStyle(self.reusedRuleImportFailed ? .orange : .secondary)
         case .authRequired:
             Label(
                 NSLocalizedString("video_preflight_submit_auth_required", comment: ""),

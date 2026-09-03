@@ -16,7 +16,7 @@ protocol VideoGenerationTaskCreating: Sendable {
     func createVideoTask(
         entryURL: String,
         accessToken: String
-    ) async throws -> VideoGenerationTaskReceipt
+    ) async throws -> VideoGenerationTaskCreation
 }
 
 /// 任务提交所需的会话凭据来源（`BC-PREFLIGHT-045`）。

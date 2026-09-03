@@ -55,6 +55,9 @@
 "video_preflight_submitting" = "Submitting the generation task…";
 "video_preflight_submitted" = "Generation task submitted";
 "video_preflight_submitted_job" = "Job %@. The rule will appear in the catalog once generation finishes.";
+"video_preflight_reused" = "Rule already exists";
+"video_preflight_reused_detail" = "%@ was generated earlier and has been added to your sources.";
+"video_preflight_reused_import_failed" = "%@ was generated earlier but could not be added. Check the Sources list and try again.";
 "video_preflight_submit_auth_required" = "Sign in to submit a generation task.";
 "video_preflight_submit_active_job_limit" = "You already have the maximum number of active generation tasks. Wait for one to finish.";
 "video_preflight_submit_failed" = "Submission failed (%@). Please try again later.";

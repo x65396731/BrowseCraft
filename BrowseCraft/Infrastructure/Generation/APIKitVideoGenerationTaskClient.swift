@@ -12,24 +12,49 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
     func createVideoTask(
         entryURL: String,
         accessToken: String
-    ) async throws -> VideoGenerationTaskReceipt {
+    ) async throws -> VideoGenerationTaskCreation {
         PortalSessionDiagnostics.notice(
             "event=request-start operation=rule-generation-submit " +
                 "path=\(PortalAPIPath.ruleGenerations)"
         )
         do {
-            let response: PortalRuleGenerationAcceptedResponse = try await self.api.submitVideo(
+            let submit: PortalRuleGenerationSubmitResponse = try await self.api.submitVideo(
                 entryURL: entryURL,
                 accessToken: accessToken
             )
-            PortalSessionDiagnostics.notice(
-                "event=request-success operation=rule-generation-submit " +
-                    "jobId=\(response.jobID.uuidString) status=\(response.status)"
-            )
-            return VideoGenerationTaskReceipt(
-                jobID: response.jobID,
-                submittedEntryURL: entryURL
-            )
+            switch submit {
+            case .accepted(let response):
+                PortalSessionDiagnostics.notice(
+                    "event=request-success operation=rule-generation-submit " +
+                        "jobId=\(response.jobID.uuidString) status=\(response.status)"
+                )
+                return .queued(
+                    VideoGenerationTaskReceipt(
+                        jobID: response.jobID,
+                        submittedEntryURL: entryURL
+                    )
+                )
+            case .cached(let response):
+                PortalSessionDiagnostics.notice(
+                    "event=request-success operation=rule-generation-submit " +
+                        "status=\(response.status) catalogSourceId=\(response.catalogSourceID)"
+                )
+                return .reused(
+                    VideoGenerationReusedCatalogSource(
+                        catalogSourceID: response.catalogSourceID,
+                        entryURL: entryURL,
+                        name: response.source.name,
+                        baseURL: response.source.baseURL,
+                        kind: response.source.kind,
+                        encryptedRule: EncryptedCatalogRule(
+                            version: response.source.encryptedRule.version,
+                            keyId: response.source.encryptedRule.keyID,
+                            nonce: response.source.encryptedRule.nonce,
+                            ciphertext: response.source.encryptedRule.ciphertext
+                        )
+                    )
+                )
+            }
         } catch is CancellationError {
             throw CancellationError()
         } catch let error as PortalAPIError {

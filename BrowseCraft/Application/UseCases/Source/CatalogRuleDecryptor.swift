@@ -27,7 +27,7 @@ enum CatalogRuleDecryptionError: LocalizedError {
     }
 }
 
-struct EncryptedCatalogRule: Decodable {
+struct EncryptedCatalogRule: Decodable, Hashable, Sendable {
     let version: Int
     let keyId: String
     let nonce: String

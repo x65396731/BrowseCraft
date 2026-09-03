@@ -55,6 +55,9 @@
 "video_preflight_submitting" = "正在提交生成任务…";
 "video_preflight_submitted" = "生成任务已提交";
 "video_preflight_submitted_job" = "任务 %@。生成完成后规则会出现在目录里。";
+"video_preflight_reused" = "规则已存在";
+"video_preflight_reused_detail" = "%@ 之前已生成过，已直接添加到你的来源。";
+"video_preflight_reused_import_failed" = "%@ 之前已生成过，但这次未能添加。请在来源列表检查后重试。";
 "video_preflight_submit_auth_required" = "请先登录后再提交生成任务。";
 "video_preflight_submit_active_job_limit" = "进行中的生成任务已达上限，请等待完成后再试。";
 "video_preflight_submit_failed" = "提交失败（%@），请稍后重试。";
