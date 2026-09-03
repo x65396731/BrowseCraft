@@ -4,19 +4,6 @@ import StoreKit
 
 // 中文注释：SettingsViewModel 负责设置页中需要调用应用服务的状态与动作。
 
-enum StoreKitTransactionIdentityError: Error, Equatable {
-    case missingAppAccountToken
-    case accountMismatch
-}
-
-enum StoreKitPortalPurchaseSubmissionError: Error, Equatable {
-    case xcodeEnvironmentUnsupported
-    case unsupportedEnvironment(String)
-    case transactionProductMismatch
-    case snapshotContractMismatch
-    case purchasedProductMissing
-}
-
 struct StoreKitPortalEnvironmentMapper {
     static func map(
         _ environment: StoreKit.AppStore.Environment

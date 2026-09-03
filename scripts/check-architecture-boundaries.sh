@@ -69,7 +69,7 @@ fail_if_imported() {
 
 fail_if_imported \
   "$APP_ROOT/Domain" \
-  'UIKit|SwiftUI|StoreKit|GRDB|Alamofire|Nuke|SwiftSoup|BrowseCraftAPIKit' \
+  'UIKit|SwiftUI|StoreKit|GRDB|Alamofire|Nuke|SwiftSoup|BrowseCraftAPIKit|WebKit|AVFoundation|CloudKit|Combine' \
   'Domain must remain framework-agnostic.'
 
 fail_if_imported \
@@ -79,8 +79,65 @@ fail_if_imported \
 
 fail_if_imported \
   "$APP_ROOT/Application" \
-  'UIKit|SwiftUI|StoreKit|GRDB|Alamofire|Nuke|SwiftSoup|BrowseCraftAPIKit' \
+  'UIKit|SwiftUI|StoreKit|GRDB|Alamofire|Nuke|SwiftSoup|BrowseCraftAPIKit|WebKit|AVFoundation|CloudKit|Combine' \
   'Application must depend on ports and domain values, not UI or infrastructure frameworks.'
+
+# Import checks cannot see references between layers of the same module, so the
+# type names declared at top level in one layer are also searched in layers that
+# may not depend on it. Comments and string literals are stripped before matching.
+declared_types() {
+  local directory="$1"
+  /usr/bin/grep -R -h -o -E --include='*.swift' \
+    '^(public |internal |private |fileprivate |final |indirect |@MainActor |@frozen )*(final )?(class|struct|enum|protocol|actor) [A-Z][A-Za-z0-9_]+' \
+    "$directory" 2>/dev/null | awk '{print $NF}' | sort -u
+}
+
+fail_if_types_referenced() {
+  local owner_directory="$1"
+  local user_directory="$2"
+  local label="$3"
+  local owner_types user_types pattern matches
+
+  owner_types="$(declared_types "$owner_directory")"
+  [[ -z "$owner_types" ]] && return 0
+  user_types="$(declared_types "$user_directory")"
+  if [[ -n "$user_types" ]]; then
+    # A name declared in both layers resolves to the local declaration.
+    owner_types="$(comm -23 <(printf '%s\n' "$owner_types") <(printf '%s\n' "$user_types"))"
+  fi
+  [[ -z "$owner_types" ]] && return 0
+
+  pattern="($(printf '%s\n' "$owner_types" | paste -s -d '|' -))"
+  matches="$(
+    /usr/bin/grep -R -n -H -w -E --include='*.swift' "$pattern" "$user_directory" 2>/dev/null \
+      | sed -E 's/"([^"\\]|\\.)*"//g; s#//.*$##' \
+      | /usr/bin/grep -w -E "$pattern" || true
+  )"
+  if [[ -n "$matches" ]]; then
+    echo "Architecture boundary violation: $label"
+    echo "$matches"
+    exit 1
+  fi
+}
+
+for layer in Application Infrastructure Features App Shared; do
+  fail_if_types_referenced "$APP_ROOT/$layer" "$APP_ROOT/Domain" \
+    "Domain must not reference $layer types."
+done
+for layer in Features Infrastructure App; do
+  fail_if_types_referenced "$APP_ROOT/$layer" "$APP_ROOT/Application" \
+    "Application must not reference $layer types; move the contract into Application or Domain."
+done
+for layer in Features App; do
+  fail_if_types_referenced "$APP_ROOT/$layer" "$APP_ROOT/Infrastructure" \
+    "Infrastructure must not reference $layer types."
+done
+fail_if_types_referenced "$APP_ROOT/App" "$APP_ROOT/Features" \
+  'Features must not reference composition-root (App) types.'
+fail_if_types_referenced "$APP_ROOT/App" "$APP_ROOT/Shared" \
+  'Shared must not reference composition-root (App) types.'
+fail_if_types_referenced "$APP_ROOT/Features" "$APP_ROOT/Shared" \
+  'Shared must not reference Feature types.'
 
 matches="$(search_swift "$APP_ROOT" '(^|[^[:alnum:]_])print[[:space:]]*\(')"
 if [[ -n "$matches" ]]; then

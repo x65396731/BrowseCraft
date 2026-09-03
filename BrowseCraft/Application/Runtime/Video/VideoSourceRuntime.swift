@@ -200,6 +200,7 @@ struct VideoSourceRuntime: SourceRuntime, SourceDetailRuntime, SourceVideoPlayba
         )
     }
 
+    #if DEBUG
     // 中文注释：显式 runtime audit 入口（BC-EVIDENCE-076.1）：与 loadPlayback 共用同一
     // playback loader 与单一 prepared session，只额外暴露路线事实；不改变正常播放语义。
     // loader 执行阶段抛出时保留 session 并把 result 置 nil，由 audit 侧如实记 failed。
@@ -228,6 +229,7 @@ struct VideoSourceRuntime: SourceRuntime, SourceDetailRuntime, SourceVideoPlayba
             return VideoAuditPlaybackExecution(session: session, result: nil)
         }
     }
+    #endif
 
     private func validateSource(_ context: SourceRuntimeContext) throws {
         guard context.sourceID == self.source.id else {

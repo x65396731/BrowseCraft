@@ -2,20 +2,6 @@ import AuthenticationServices
 import Foundation
 import UIKit
 
-enum AppleSignInAuthorizationError: Error, Equatable, Sendable {
-    case operationInFlight
-    case cancelled
-    case missingIdentityToken
-    case invalidIdentityTokenEncoding
-    case authorizationFailed
-    case presentationUnavailable
-}
-
-@MainActor
-protocol AppleSignInAuthorizing: AnyObject, Sendable {
-    func authorize(nonce: String) async throws -> String
-}
-
 /// 中文注释：只负责原生 Apple 授权 UI；不读取 Apple user 字段，也不持久化 Identity Token。
 @MainActor
 final class AuthenticationServicesAppleSignInAuthorizer:

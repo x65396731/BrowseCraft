@@ -44,3 +44,28 @@ pin state.
 ./scripts/update-rules-package.sh --dry-run
 ./scripts/update-rules-package.sh --check
 ```
+
+## check-architecture-boundaries.sh
+
+Runs as a pre-build phase of the `BrowseCraft` target. It rejects forbidden
+framework imports in `Domain` and `Application`, APIKit imports outside
+`Infrastructure`/`AppContainer`, raw `print` logging, SwiftSoup outside its named
+Core adapters, and top-level type references that point against the layer
+direction (for example a `Features` type used from `Application`, or an `App`
+type used from `Features`).
+
+中文注释：同一模块内 import 检查看不见跨层类型引用，所以脚本会把每层顶层声明的类型名拿去别的层搜索；注释和字符串字面量会先被剥掉。
+
+```sh
+./scripts/check-architecture-boundaries.sh
+```
+
+## check-ad-configuration.sh
+
+Runs as a pre-build phase of the `BrowseCraft` target. A PROD archive
+(`ACTION=install`) that still uses Google's sample rewarded ad unit fails; every
+other build only prints a warning.
+
+```sh
+BROWSECRAFT_ENVIRONMENT_NAME=PROD ACTION=install ./scripts/check-ad-configuration.sh
+```

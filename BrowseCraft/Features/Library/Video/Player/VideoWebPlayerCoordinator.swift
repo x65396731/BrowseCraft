@@ -2,6 +2,14 @@ import Foundation
 import SwiftUI
 import WebKit
 
+/// 中文注释：只有 audit 模式才向 WKUserContentController 注入观察脚本；正常播放传 nil。
+/// 具体 handler 随 Debug 编译，Coordinator 只依赖这个最小合同。
+@MainActor
+protocol VideoWebPlayerUserContentAttaching: AnyObject {
+    func attach(to controller: WKUserContentController)
+    func detach()
+}
+
 @MainActor
 final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
     private struct MobileLayoutMetrics {
@@ -54,7 +62,7 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
 
     init(
         request: VideoWebPlayerRequest,
-        auditMediaEventHandler: VideoRuntimeAuditMediaEventHandler? = nil
+        auditMediaEventHandler: (any VideoWebPlayerUserContentAttaching)? = nil
     ) {
         let configuration: WKWebViewConfiguration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
@@ -67,7 +75,7 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
         configuration.defaultWebpagePreferences.preferredContentMode = .mobile
         // 中文注释：BC-EVIDENCE-077.2——只有 audit 模式才注入 playing 观察脚本与消息通道；
         // 正常播放的 configuration 与本改动前逐字节相同。
-        if let auditMediaEventHandler: VideoRuntimeAuditMediaEventHandler {
+        if let auditMediaEventHandler {
             auditMediaEventHandler.attach(to: configuration.userContentController)
         }
         self.configuration = configuration

@@ -15,10 +15,12 @@ final class AppContainer {
     private let settingsFeatureFactory: SettingsFeatureFactory
     private let settingsViewModel: SettingsViewModel
     private var storeKitTransactionUpdatesTask: Task<Void, Never>?
+    #if DEBUG
     /// 中文注释：显式 runtime audit 入口（BC-EVIDENCE-076.2）；无 launch environment 时完全惰性。
     private let videoRuntimeAuditLauncher: VideoRuntimeAuditLauncher
     /// 中文注释：BC-EVIDENCE-077.1——audit 的前台 WebUI 承载者，由根视图覆盖层观察；无 audit 时空闲。
     let videoRuntimeAuditWebUIPresenter: VideoRuntimeAuditWebUIPresenter
+    #endif
 
     let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
     let systemCookieHeaderProvider: any SystemCookieHeaderProviding
@@ -249,6 +251,7 @@ final class AppContainer {
                     }
                 }
             )
+            #if DEBUG
             // 中文注释：audit launcher 与正常视频链共用同一 pageLoader/parser/credential 组件，
             // 不建第二套装配（BC-EVIDENCE-076.1）。
             let videoRuntimeAuditWebUIPresenter: VideoRuntimeAuditWebUIPresenter =
@@ -263,6 +266,7 @@ final class AppContainer {
                 webUIObserver: videoRuntimeAuditWebUIPresenter,
                 browserRequestHeaderProvider: browserRequestHeaderProvider
             )
+            #endif
             let protectedResourceLoader: ReaderProtectedResourceLoader = ReaderProtectedResourceLoader(
                 legacyLoader: ProtectedResourceLoader(
                     dataLoader: pageLoader,
@@ -353,12 +357,14 @@ final class AppContainer {
     @MainActor
     func startApplicationServices() async {
         self.startStoreKitTransactionUpdatesListener()
+        #if DEBUG
         // 中文注释：显式 runtime audit 只在 launch environment 齐备时运行，独立于其他服务，
         // 不阻塞正常启动路径（BC-EVIDENCE-076.2）。
         let videoRuntimeAuditLauncher: VideoRuntimeAuditLauncher = self.videoRuntimeAuditLauncher
         Task {
             await videoRuntimeAuditLauncher.runIfRequested()
         }
+        #endif
         async let portalSession: Void = self.portalSessionCoordinator.start()
         async let cloudAccount: Void = self.startCloudAccountMonitoring()
         _ = await (portalSession, cloudAccount)

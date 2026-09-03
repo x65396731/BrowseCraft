@@ -118,7 +118,8 @@ targets:
         Release:
           APS_ENVIRONMENT: production
           BROWSECRAFT_ENVIRONMENT_NAME: PROD
-          # TestFlight 临时使用 Google 官方测试广告；App Store 正式发布前替换为正式广告单元。
+          # 仍是 Google 官方测试广告；scripts/check-ad-configuration.sh 会在 PROD archive 时拒绝
+          # 这个值，App Store 正式发布前必须替换为正式广告单元。
           BROWSECRAFT_REWARDED_AD_UNIT_ID: ca-app-pub-3940256099942544/1712485313
         TestFlight:
           # Store-distributed test builds need Release-style linking and the
@@ -133,6 +134,10 @@ targets:
         basedOnDependencyAnalysis: false
         script: |
           "${SRCROOT}/scripts/check-architecture-boundaries.sh"
+      - name: Check Ad Configuration
+        basedOnDependencyAnalysis: false
+        script: |
+          "${SRCROOT}/scripts/check-ad-configuration.sh"
     postBuildScripts:
       - name: Upload Crashlytics Symbols
         basedOnDependencyAnalysis: false

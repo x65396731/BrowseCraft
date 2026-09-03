@@ -1,3 +1,5 @@
+// 中文注释：显式 runtime audit 只随 Debug 构建编译；Release/TestFlight 不含审计代码。
+#if DEBUG
 import Foundation
 
 // 中文注释：只在显式 audit session 内使用（BC-EVIDENCE-076.4）：对既有执行链解析出的最终媒体
@@ -308,3 +310,4 @@ struct VideoRuntimeAuditMediaProbe {
         return signature == Data("ftyp".utf8)
     }
 }
+#endif

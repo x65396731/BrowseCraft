@@ -100,7 +100,7 @@ struct VideoWebPlayerView<Controls: View>: View {
     init(
         request: VideoWebPlayerRequest,
         title: String,
-        auditMediaEventHandler: VideoRuntimeAuditMediaEventHandler? = nil,
+        auditMediaEventHandler: (any VideoWebPlayerUserContentAttaching)? = nil,
         @ViewBuilder controls: @escaping () -> Controls,
         onClose: @escaping () -> Void
     ) {

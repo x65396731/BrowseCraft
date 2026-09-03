@@ -1,3 +1,5 @@
+// 中文注释：显式 runtime audit 只随 Debug 构建编译；Release/TestFlight 不含审计代码。
+#if DEBUG
 import Foundation
 import BrowseCraftCore
 import BrowseCraftDomain
@@ -1261,3 +1263,4 @@ struct VideoRuntimeAuditService {
         return value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
     }
 }
+#endif

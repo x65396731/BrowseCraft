@@ -27,13 +27,6 @@ enum CatalogRuleDecryptionError: LocalizedError {
     }
 }
 
-struct EncryptedCatalogRule: Decodable, Hashable, Sendable {
-    let version: Int
-    let keyId: String
-    let nonce: String
-    let ciphertext: String
-}
-
 protocol CatalogRuleDecryptionKeyProviding {
     func key(for keyID: String) -> SymmetricKey?
 }

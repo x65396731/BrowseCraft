@@ -12,6 +12,10 @@ The first compile-time slice is `BrowseCraftDomain`, which owns the API-independ
 
 Synchronous persistence use cases are owned by feature-specific actors. View models await immutable snapshots and only mutate published state on `MainActor`. StoreKit transactions are converted to `StoreTransactionSnapshot` before Portal validation and database persistence.
 
-The build runs `scripts/check-architecture-boundaries.sh` to prevent framework imports from leaking into `Domain` or `Application`, prevent APIKit from escaping adapters/composition, and prevent new raw `print` logging.
+The build runs `scripts/check-architecture-boundaries.sh` to prevent framework imports (UI, persistence, networking, WebKit, CloudKit, Combine) from leaking into `Domain` or `Application`, prevent APIKit from escaping adapters/composition, and prevent new raw `print` logging. Because every layer lives in one module, the script also searches for top-level type names across layers: `Domain` may not reference any other layer, `Application` may not reference `Features`/`Infrastructure`/`App`, `Infrastructure` and `Features` may not reference `App`, and `Shared` may not reference `App` or `Features`. Contracts that both sides need (ports, error enums, shared observable stores) belong to the lower layer.
+
+`scripts/check-ad-configuration.sh` fails a PROD archive that still carries Google's sample rewarded ad unit and only warns everywhere else.
+
+The explicit video runtime audit (`Application/Runtime/Video/Audit`, the `VideoRuntimeAuditWebUIPresenter` overlay and the WebKit media-event handler in `Features/Library/Video/Player`) compiles only in Debug; Release and TestFlight builds contain none of it. The evidence value types (`VideoRuntimeEvidenceV2`, `VideoRuntimeEvidenceFingerprint`) stay in every build because the playback loader uses them.
 
 `BrowseCraftCore` remains the rule-semantics package. SwiftSoup is confined to its explicitly named DOM/discovery adapters; RSS and rule-loading paths must continue to use their boundary protocols and must not import SwiftSoup.
