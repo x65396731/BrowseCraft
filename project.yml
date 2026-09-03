@@ -130,6 +130,11 @@ targets:
           DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
           ENABLE_DEBUG_DYLIB: NO
     preBuildScripts:
+      # 中文注释：XcodeGen 重生成后若 pod install 未完成，工程没有 [CP] 阶段，会打出不内嵌 Pod 框架的坏包；先于一切检查。
+      - name: Check Pods Integration
+        basedOnDependencyAnalysis: false
+        script: |
+          "${SRCROOT}/scripts/check-pods-integration.sh"
       - name: Check Architecture Boundaries
         basedOnDependencyAnalysis: false
         script: |

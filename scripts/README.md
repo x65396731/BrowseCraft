@@ -19,6 +19,15 @@ env -u GEM_HOME -u GEM_PATH pod install
 
 It does not build the app.
 
+中文注释：如果 Xcode 正开着工作区，重生成后 Xcode 可能提示"文件已被修改"——务必选"使用磁盘版本"（或先关掉工作区再跑脚本）。保留 Xcode 内存里的旧版本会丢掉 CocoaPods 集成，打出的包不内嵌 Alamofire/GRDB/Nuke 等框架。
+
+## check-pods-integration.sh
+
+Runs first among the `BrowseCraft` pre-build phases. It fails the build when the
+project file has no `[CP] Embed Pods Frameworks` phase or `Pods/Manifest.lock`
+is missing, i.e. when XcodeGen regenerated the project but `pod install` did
+not finish.
+
 ## update-rules-package.sh
 
 Use this script after `BrowseCraftRulesKit` has been committed and pushed to `main`.
