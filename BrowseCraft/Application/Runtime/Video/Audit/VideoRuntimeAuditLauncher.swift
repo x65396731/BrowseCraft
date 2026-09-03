@@ -1,5 +1,6 @@
 // 中文注释：显式 runtime audit 只随 Debug 构建编译；Release/TestFlight 不含审计代码。
 #if DEBUG
+import BrowseCraftDomain
 import Foundation
 
 // 中文注释：显式 runtime audit 的唯一入口（BC-EVIDENCE-076.2）：只有

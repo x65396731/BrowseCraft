@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import Foundation
 
 /// 中文注释：`BC-EVIDENCE-081` 的加载器决策状态机——渲染出的 DOM 是文档还是挑战过渡页。

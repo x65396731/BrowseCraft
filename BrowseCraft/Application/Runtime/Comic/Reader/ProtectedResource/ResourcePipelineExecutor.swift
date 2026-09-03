@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：ResourcePipelineExecutor 只负责解释 Core 中的 pipeline 合同；网络和密码学能力均由协议注入。
 

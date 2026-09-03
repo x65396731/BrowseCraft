@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 @testable import BrowseCraft
+import BrowseCraftDomain
 
 /// 中文注释：`BC-EVIDENCE-081`——挑战过渡页判据的唯一定义点。
 /// 09-03 jable detail 实测：`403` + `<title>Just a moment...</title>` + `cf_chl_opt` + `challenge-platform`。

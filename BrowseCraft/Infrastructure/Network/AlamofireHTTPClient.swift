@@ -1,5 +1,6 @@
 import Alamofire
 import BrowseCraftCore
+import BrowseCraftDomain
 import Foundation
 
 // 中文注释：AlamofireHTTPClient.swift 属于网络实现层，用于说明本文件承载的核心职责。

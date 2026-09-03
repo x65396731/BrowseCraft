@@ -2,6 +2,7 @@ import Foundation
 import Testing
 import BrowseCraftCore
 @testable import BrowseCraft
+import BrowseCraftDomain
 
 // 中文注释：BC-EVIDENCE-079.4——探针与原生播放器共用的请求头组合。
 struct VideoPlaybackRequestHeadersTests {

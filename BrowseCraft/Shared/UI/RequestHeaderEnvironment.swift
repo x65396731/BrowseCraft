@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import SwiftUI
 
 private struct BrowserRequestHeaderProviderEnvironmentKey: EnvironmentKey {

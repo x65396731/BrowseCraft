@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：BC-EVIDENCE-079.4——媒体请求头组合的唯一定义点：浏览器默认头 → catalog 覆盖 →
 // Referer / User-Agent / Origin 补齐。原生播放器（KSPlayer options）与显式 audit 的有界探针

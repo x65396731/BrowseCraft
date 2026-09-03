@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import SwiftUI
 
 // 中文注释：RootView.swift 属于应用装配和根导航，用于说明本文件承载的核心职责。

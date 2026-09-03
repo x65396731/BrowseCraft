@@ -1,6 +1,7 @@
 import CommonCrypto
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：CommonCryptoResourcePipelineCryptography 是 Infrastructure 对 V2 pipeline 密码学协议的唯一实现。
 

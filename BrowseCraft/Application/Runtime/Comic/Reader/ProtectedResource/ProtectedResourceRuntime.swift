@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：ProtectedResourceRuntime.swift 实现受保护资源的请求编排和白名单解密，不接具体 reader UI。
 

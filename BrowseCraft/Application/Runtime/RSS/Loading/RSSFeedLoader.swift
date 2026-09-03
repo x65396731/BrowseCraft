@@ -1,5 +1,6 @@
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 // 中文注释：RSSFeedLoading 是 RSS runtime 对 feed loader 的最小依赖，便于 runtime 测试替换。
 protocol RSSFeedLoading: Sendable {

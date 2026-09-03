@@ -1,6 +1,6 @@
 import Foundation
 
-protocol BrowserRequestHeaderProviding: Sendable {
+public protocol BrowserRequestHeaderProviding: Sendable {
     var userAgent: String { get }
 
     func defaultHeaders(
@@ -10,7 +10,7 @@ protocol BrowserRequestHeaderProviding: Sendable {
     ) -> [String: String]
 }
 
-extension BrowserRequestHeaderProviding {
+public extension BrowserRequestHeaderProviding {
     func defaultHeaders(for url: URL) -> [String: String] {
         return self.defaultHeaders(for: url, referer: nil, includeOrigin: false)
     }
@@ -20,10 +20,12 @@ extension BrowserRequestHeaderProviding {
     }
 }
 
-struct EmptyBrowserRequestHeaderProvider: BrowserRequestHeaderProviding {
-    let userAgent: String = ""
+public struct EmptyBrowserRequestHeaderProvider: BrowserRequestHeaderProviding {
+    public init() {}
 
-    func defaultHeaders(
+    public let userAgent: String = ""
+
+    public func defaultHeaders(
         for url: URL,
         referer: URL?,
         includeOrigin: Bool

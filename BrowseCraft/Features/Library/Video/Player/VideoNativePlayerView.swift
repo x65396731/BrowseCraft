@@ -1,4 +1,5 @@
 import BrowseCraftCore
+import BrowseCraftDomain
 import KSPlayer
 import SwiftUI
 import UIKit

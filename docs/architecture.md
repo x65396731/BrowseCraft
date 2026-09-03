@@ -37,7 +37,7 @@ Dependency arrows point inward. Nothing below may reference anything above it.
 | Layer | Size | Owns |
 | --- | --- | --- |
 | `Domain` | 2.4k / 46 files | Entities, 10 repository protocols, pure domain services |
-| `Application` | 26.2k / 152 files | 42 use cases, 39 port files, coordinators, and the rule runtime |
+| `Application` | ~25.9k / 136 files | 42 use cases, the remaining ports, coordinators, and the rule runtime |
 | `Infrastructure` | 9.7k / 79 files | GRDB, CloudKit, StoreKit, Alamofire, WebKit, Keychain adapters |
 | `Features` | 20.7k / 101 files | `@MainActor` view models and SwiftUI views |
 | `Shared` | 1.7k / 18 files | Logging, diagnostics, ads, common image views |
@@ -48,11 +48,15 @@ Dependency arrows point inward. Nothing below may reference anything above it.
 
 ### The domain kernel
 
-`BrowseCraftDomain` holds the domain values that both the app and the rule runtime need:
-`Source` and its configuration, `ContentItem`, `ReaderChapter` and the protected-resource
-references, `ChapterLink`, `URLResolvingService`, the video-generation preflight values, and
-`AppUserIdentity.localDefaultID`. It depends on `BrowseCraftCore` (a `Source`'s configuration
-embeds a rule) and on nothing else.
+`BrowseCraftDomain` holds what both the app and the rule runtime need:
+
+- **Domain values** — `Source` and its configuration, `ContentItem`, `ReaderChapter` and the
+  protected-resource references, `ChapterLink`, `URLResolvingService`, the video-generation
+  preflight values, and `AppUserIdentity.localDefaultID`.
+- **Ports** (`BrowseCraftDomain/Ports`) — the contracts the runtime consumes and the app
+  implements: content and data loading, credentials, cryptography, request headers.
+
+It depends on `BrowseCraftCore` (a `Source`'s configuration embeds a rule) and on nothing else.
 
 The rule for what belongs here is narrow: **a type moves into the kernel when both the app and
 the runtime need it**, not merely because it feels domain-ish. Entities that only the app uses —

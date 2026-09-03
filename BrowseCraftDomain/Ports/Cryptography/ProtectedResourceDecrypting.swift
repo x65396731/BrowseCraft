@@ -1,7 +1,7 @@
 import Foundation
 import BrowseCraftCore
 
-protocol ProtectedResourceDecrypting: Sendable {
+public protocol ProtectedResourceDecrypting: Sendable {
     func sha512(_ data: Data) -> Data
 
     func decrypt(

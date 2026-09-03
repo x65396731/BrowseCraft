@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import Foundation
 
 // 中文注释：DefaultPageLoader 是页面加载的生产分流器，统一选择 HTTP 或 WebView 路径。

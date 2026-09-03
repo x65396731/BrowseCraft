@@ -1,6 +1,7 @@
 import CommonCrypto
 import Foundation
 import BrowseCraftCore
+import BrowseCraftDomain
 
 /// 中文注释：受保护资源旧链路的 CommonCrypto adapter，保持原有错误类型与校验顺序。
 struct CommonCryptoProtectedResourceDecryptor: ProtectedResourceDecrypting {

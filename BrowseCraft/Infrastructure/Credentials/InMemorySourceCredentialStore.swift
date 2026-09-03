@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import Foundation
 
 // 中文注释：站点登录态的内存实现，保留现有凭证匹配、Cookie 生成和调试行为。

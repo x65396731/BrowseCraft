@@ -1,6 +1,6 @@
 import Foundation
 
-enum SourceCredentialOrigin: String {
+public enum SourceCredentialOrigin: String {
     case webView
     case manual
     case apiLogin
@@ -8,24 +8,24 @@ enum SourceCredentialOrigin: String {
     case memory
 }
 
-enum SourceCredentialStorage: String {
+public enum SourceCredentialStorage: String {
     case localStorage
     case sessionStorage
 }
 
-struct SourceCredential {
-    let sourceID: String
-    let baseURL: URL?
-    let cookies: [HTTPCookie]
-    let headers: [String: String]
-    let accessToken: String?
-    let refreshToken: String?
-    let localStorage: [String: String]
-    let sessionStorage: [String: String]
-    let expiresAt: Date?
-    let origin: SourceCredentialOrigin
+public struct SourceCredential {
+    public let sourceID: String
+    public let baseURL: URL?
+    public let cookies: [HTTPCookie]
+    public let headers: [String: String]
+    public let accessToken: String?
+    public let refreshToken: String?
+    public let localStorage: [String: String]
+    public let sessionStorage: [String: String]
+    public let expiresAt: Date?
+    public let origin: SourceCredentialOrigin
 
-    init(
+    public init(
         sourceID: String,
         baseURL: URL? = nil,
         cookies: [HTTPCookie] = [],
