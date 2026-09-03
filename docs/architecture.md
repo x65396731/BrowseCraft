@@ -14,6 +14,13 @@ interpret a rule, and who may touch the network.
 | `BrowseCraftAPIKit` | sibling SwiftPM package | ~1.3k lines | The BrowseCraft backend contract (endpoints, DTOs, transport) |
 | `BrowseCraftDomain` | in-repo framework | 30 lines | Catalog transport contract, isolated from APIKit at compile time |
 
+**Core's rule models are this app's domain model.** `SiteRule`, `VideoSiteRule`, `ListContext`,
+`RequestConfig` and the resolved graphs are used directly by `Domain`, `Application` and
+`Features`; every call site says `import BrowseCraftCore`, so the dependency is visible to the
+compiler and to the boundary checks. There is no re-export shim and no parallel app-side copy of
+the rule model — a parallel copy would also have to be persisted, since a rule's `Codable` form is
+what lands in `sources.configJSON` and syncs through CloudKit.
+
 Dependency direction is `App → Core` and `App → APIKit`; Core and APIKit never reference each
 other. `BrowseCraftCore/Documentation/CoreParsingBoundary.md` is the authoritative statement of
 what Core may do. The short version: Core is a deterministic function from (bytes + rule +
@@ -142,13 +149,10 @@ occur for them.
 
 ## 9. Known debt
 
-- **`App/Compatibility/BrowseCraftCoreCompatibility.swift`** re-exports 156 Core types as
-  `typealias`es into the app's global namespace. As a result `Application` (52 files), `Features`
-  (9), `Domain` (7) and `Infrastructure` (4) use Core rule models directly, mostly without an
-  `import BrowseCraftCore` — so import-based boundary checks are blind to that coupling. Either
-  accept that Core's rule models *are* the domain model (delete the shim, make imports explicit) or
-  map Core output to app types at the runtime boundary. Deciding this is a prerequisite for
-  extracting `Application/Runtime` into its own package.
+- **`Features` touches Core rule models in 24 files.** Now that the dependency is explicit (§1)
+  it is at least visible, but the UI layer reading `SiteRule` directly means a rule-format change
+  can ripple into views. Narrowing this to presentation values resolved in `Application` is worth
+  doing incrementally; it is not a blocker for anything.
 - **`BrowseCraftDomain` is 30 lines and has not grown since July.** Either migrate stable domain
   values into it on a schedule, or delete it so it stops implying a compile-time boundary that does
   not exist.

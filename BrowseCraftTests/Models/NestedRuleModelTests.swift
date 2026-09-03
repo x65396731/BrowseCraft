@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import BrowseCraft
+import BrowseCraftCore
 
 // 中文注释：嵌套规则模型测试，覆盖标签、评论和视频等详情页子结构。
 struct NestedRuleModelTests {

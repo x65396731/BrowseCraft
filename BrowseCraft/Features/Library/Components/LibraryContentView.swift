@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import SwiftUI
 
 struct LibraryContentView: View {

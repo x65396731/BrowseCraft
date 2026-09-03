@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import Foundation
 
 // 中文注释：ReadingHistoryUseCases 承接 RSS、漫画和视频历史保存与读取用例。

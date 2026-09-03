@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import BrowseCraft
+import BrowseCraftCore
 
 // 中文注释：P2-1 规则管理测试，覆盖 JSON 校验、内置只读、用户规则保存和复制边界。
 struct RuleManagementUseCaseTests {

@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import Foundation
 
 // 中文注释：漫画 API 请求会叠加站点/页面请求和 API 专属请求，避免固定头被局部 request 覆盖丢失。

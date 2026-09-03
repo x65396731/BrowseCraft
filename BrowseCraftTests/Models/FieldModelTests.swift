@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import BrowseCraft
+import BrowseCraftCore
 
 // 中文注释：字段模型测试，覆盖列表、详情、章节字段的扩展解码能力。
 struct FieldModelTests {

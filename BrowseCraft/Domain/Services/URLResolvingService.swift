@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import Foundation
 
 // 中文注释：URLResolvingService.swift 属于领域服务协议层，用于说明本文件承载的核心职责。

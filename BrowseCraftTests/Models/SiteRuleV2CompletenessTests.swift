@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import BrowseCraft
+import BrowseCraftCore
 
 // 中文注释：完整 V2 规则模型测试，确认各子模型组合后仍能和旧规则字段共存。
 struct SiteRuleV2CompletenessTests {

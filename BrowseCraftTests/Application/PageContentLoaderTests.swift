@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import BrowseCraft
+import BrowseCraftCore
 
 // 中文注释：页面内容加载器测试，确认 P1-4.3 的 HTTP/WebView 分流不会改变默认抓取路径。
 struct PageContentLoaderTests {

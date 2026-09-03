@@ -3,6 +3,7 @@ import Testing
 import CryptoKit
 import BrowseCraftDomain
 @testable import BrowseCraft
+import BrowseCraftCore
 
 struct LoadCatalogSourcesUseCaseTests {
     @Test func loadCatalogSourcesUsesPluralPortalCoreEndpoint() async throws {

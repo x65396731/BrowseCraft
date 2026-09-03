@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import Foundation
 
 // RuleCandidateAnalyzingService keeps candidate discovery behind a domain-facing protocol.

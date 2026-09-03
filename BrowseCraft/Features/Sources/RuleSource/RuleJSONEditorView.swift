@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import SwiftUI
 
 // 中文注释：RuleJSONEditorView.swift 提供可复用的规则 JSON 编辑与校验区块。

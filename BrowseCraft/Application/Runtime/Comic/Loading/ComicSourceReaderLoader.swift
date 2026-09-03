@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import Foundation
 
 // 中文注释：ComicSourceReaderLoader 是 ComicSourceRuntime 内部阅读页加载边界，只处理 SiteRule-backed source。

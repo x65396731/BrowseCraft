@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import BrowseCraft
+import BrowseCraftCore
 
 // 中文注释：ExtractRule 模型测试，覆盖旧单函数形态和新选择器/函数链形态。
 struct ExtractRuleModelTests {

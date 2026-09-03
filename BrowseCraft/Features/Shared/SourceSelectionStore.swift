@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import Combine
 import Foundation
 

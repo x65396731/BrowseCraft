@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import Foundation
 
 // 中文注释：ResolveLibrarySourcePresentationUseCase 是 Library 展示层边界，不执行 rule runtime。

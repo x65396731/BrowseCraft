@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import BrowseCraft
+import BrowseCraftCore
 
 struct ComicRulePageRequestRoutingTests {
     @Test func listAndDetailUseHTTPWhileReaderUsesWebView() async throws {

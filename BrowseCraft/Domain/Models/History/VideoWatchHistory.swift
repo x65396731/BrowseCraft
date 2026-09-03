@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import Foundation
 
 // 中文注释：VideoWatchHistory 保存用户看过的视频作品和上次播放位置。

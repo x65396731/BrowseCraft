@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import Foundation
 
 // 中文注释：UserLibraryState 保存用户启动时 Library 应恢复的当前请求入口。

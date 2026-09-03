@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import Foundation
 
 // 中文注释：FavoriteContentItem 保存收藏页需要展示的内容快照。

@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import Foundation
 
 // 中文注释：FavoriteItemCloudPayload 是单条收藏 item 的云端载荷。

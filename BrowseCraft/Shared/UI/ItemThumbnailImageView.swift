@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import Nuke
 import NukeUI
 import SwiftUI

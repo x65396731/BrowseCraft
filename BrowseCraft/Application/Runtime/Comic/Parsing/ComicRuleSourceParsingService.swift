@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import Foundation
 
 // 中文注释：ComicRuleSourceParsingService 属于 ComicSourceRuntime 的解析边界，只服务 SiteRule-backed source。

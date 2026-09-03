@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import BrowseCraft
+import BrowseCraftCore
 
 struct ComicSourceDetailLoaderTests {
     @Test func preferredChapterAPILoadsBeforeDetailHTML() async throws {

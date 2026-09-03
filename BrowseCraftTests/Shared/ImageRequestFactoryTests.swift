@@ -2,6 +2,7 @@ import Foundation
 import Nuke
 import Testing
 @testable import BrowseCraft
+import BrowseCraftCore
 
 // 中文注释：图片请求工厂测试，确认规则中的 imageHeaders/imageRequest.headers 能进入 Nuke URLRequest。
 struct ImageRequestFactoryTests {

@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import Foundation
 
 // 中文注释：CookieHeaderResolver 只合并调用方提供的 Cookie Header，不读取系统 Cookie 或其他外部状态。

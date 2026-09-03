@@ -10,10 +10,10 @@ struct RSSSourceRuntimeTests {
         let runtime: RSSSourceRuntime = RSSSourceRuntime(
             definition: definition,
             feedLoader: StubRSSFeedLoader(
-                feed: BrowseCraft.RSSFeed(
+                feed: RSSFeed(
                     title: "Solidot",
                     items: [
-                        BrowseCraft.RSSFeedItem(
+                        RSSFeedItem(
                             title: "奇客资讯一",
                             link: try #require(URL(string: "https://www.solidot.org/story?sid=100001")),
                             summary: "第一条摘要",
@@ -21,7 +21,7 @@ struct RSSSourceRuntimeTests {
                             publishedAt: nil,
                             guid: "solidot-100001"
                         ),
-                        BrowseCraft.RSSFeedItem(
+                        RSSFeedItem(
                             title: "奇客资讯二",
                             link: try #require(URL(string: "https://www.solidot.org/story?sid=100002")),
                             summary: nil,
@@ -56,7 +56,7 @@ struct RSSSourceRuntimeTests {
     @Test func capabilitiesOnlyAdvertiseRSSMVPListSupport() throws {
         let runtime: RSSSourceRuntime = RSSSourceRuntime(
             definition: try Self.rssDefinition(),
-            feedLoader: StubRSSFeedLoader(feed: BrowseCraft.RSSFeed(title: "Solidot", items: []))
+            feedLoader: StubRSSFeedLoader(feed: RSSFeed(title: "Solidot", items: []))
         )
 
         #expect(runtime.capabilities.supportsSearch == false)
@@ -73,7 +73,7 @@ struct RSSSourceRuntimeTests {
     @Test func loadListRejectsSourceMismatch() async throws {
         let runtime: RSSSourceRuntime = RSSSourceRuntime(
             definition: try Self.rssDefinition(),
-            feedLoader: StubRSSFeedLoader(feed: BrowseCraft.RSSFeed(title: "Solidot", items: []))
+            feedLoader: StubRSSFeedLoader(feed: RSSFeed(title: "Solidot", items: []))
         )
 
         do {
@@ -100,7 +100,7 @@ struct RSSSourceRuntimeTests {
         let runtime: RSSSourceRuntime = RSSSourceRuntime(
             definition: definition,
             feedLoader: StubRSSFeedLoader(
-                feed: BrowseCraft.RSSFeed(title: "Solidot", items: [])
+                feed: RSSFeed(title: "Solidot", items: [])
             ),
             pageContentLoader: StubRSSPageContentLoader(
                 content: """
@@ -144,10 +144,10 @@ struct RSSSourceRuntimeTests {
         let runtime: RSSSourceRuntime = RSSSourceRuntime(
             definition: definition,
             feedLoader: StubRSSFeedLoader(
-                feed: BrowseCraft.RSSFeed(
+                feed: RSSFeed(
                     title: "Podcast",
                     items: [
-                        BrowseCraft.RSSFeedItem(
+                        RSSFeedItem(
                             title: "Audio",
                             link: try #require(URL(string: "https://example.test/audio")),
                             summary: "Episode summary",
@@ -198,10 +198,10 @@ struct RSSSourceRuntimeTests {
         let runtime: RSSSourceRuntime = RSSSourceRuntime(
             definition: definition,
             feedLoader: StubRSSFeedLoader(
-                feed: BrowseCraft.RSSFeed(
+                feed: RSSFeed(
                     title: "Mixed links",
                     items: [
-                        BrowseCraft.RSSFeedItem(
+                        RSSFeedItem(
                             title: "Known audio page",
                             link: try #require(URL(string: "https://www.gcores.com/radios/216726")),
                             summary: "Radio summary",
@@ -209,7 +209,7 @@ struct RSSSourceRuntimeTests {
                             publishedAt: nil,
                             guid: "radio"
                         ),
-                        BrowseCraft.RSSFeedItem(
+                        RSSFeedItem(
                             title: "Known video page",
                             link: try #require(URL(string: "https://www.gcores.com/videos/217000")),
                             summary: "Video summary",
@@ -217,7 +217,7 @@ struct RSSSourceRuntimeTests {
                             publishedAt: nil,
                             guid: "video"
                         ),
-                        BrowseCraft.RSSFeedItem(
+                        RSSFeedItem(
                             title: "Known article page",
                             link: try #require(URL(string: "https://www.gcores.com/articles/216999")),
                             summary: "Article summary",
@@ -288,9 +288,9 @@ struct RSSSourceRuntimeTests {
 }
 
 private struct StubRSSFeedLoader: RSSFeedLoading {
-    var feed: BrowseCraft.RSSFeed
+    var feed: RSSFeed
 
-    func load(feedURL: URL) async throws -> BrowseCraft.RSSFeed {
+    func load(feedURL: URL) async throws -> RSSFeed {
         return self.feed
     }
 }

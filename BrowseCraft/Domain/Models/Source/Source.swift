@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import Foundation
 
 // 中文注释：Source 是 App 侧持久化来源实体，运行入口由 SourceConfiguration 决定。

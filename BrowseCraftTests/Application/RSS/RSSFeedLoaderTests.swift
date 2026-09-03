@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import BrowseCraft
+import BrowseCraftCore
 
 // 中文注释：RSSFeedLoaderTests 固定 feed 加载、parser 串接以及来源上下文透传。
 struct RSSFeedLoaderTests {

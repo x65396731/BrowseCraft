@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import SwiftUI
 
 // 中文注释：RuleBasicFieldsEditorView 提供 P2-1.4 的基础字段表单，深层抽取规则仍交给 JSON 编辑器。

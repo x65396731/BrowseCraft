@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import Foundation
 
 // 中文注释：ComicSourceListLoader 是 ComicSourceRuntime 内部列表刷新实现，只处理 SiteRule-backed source。

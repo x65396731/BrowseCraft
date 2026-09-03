@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import Foundation
 import Nuke
 

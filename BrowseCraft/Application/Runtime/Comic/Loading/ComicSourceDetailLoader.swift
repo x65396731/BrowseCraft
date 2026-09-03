@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import Foundation
 
 // 中文注释：ComicSourceDetailLoader 是 ComicSourceRuntime 的完整详情加载边界，只处理 SiteRule-backed source。

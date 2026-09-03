@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import BrowseCraft
+import BrowseCraftCore
 
 // 中文注释：请求配置模型测试，覆盖请求层级、合并策略、Cookie 优先级和图片请求配置。
 struct RequestConfigModelTests {
