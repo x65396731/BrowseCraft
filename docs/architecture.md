@@ -178,6 +178,16 @@ occur for them.
   it is at least visible, but the UI layer reading `SiteRule` directly means a rule-format change
   can ripple into views. Narrowing this to presentation values resolved in `Application` is worth
   doing incrementally; it is not a blocker for anything.
+- **`BrowseCraftDomain` and `BrowseCraftRuntime` are Xcode framework targets, not SwiftPM
+  packages.** `BrowseCraftCore` and `BrowseCraftAPIKit` are sibling SwiftPM repositories; these two
+  are declared in `project.yml` under `targets:` and live at the repository root. Module boundaries
+  are enforced identically (separate module, `public` + `import` required), but a framework target
+  cannot be reused by another repository, cannot be built or tested on its own with `swift build`,
+  and carries no version. The reason is mechanical: a SwiftPM package cannot depend on an Xcode
+  target, and `BrowseCraftRuntime` depends on `BrowseCraftDomain`. Converting both into local
+  SwiftPM packages (`Packages/…`) needs no source changes — only moving them from `targets:` to
+  `packages:` — and is deferred until the runtime extraction is finished.
+
 - **Comic and Video are still inside the app target.** Remaining stages: replace the ~43 static
   `AppDebugLog`/`RuleExecutionLogger` calls in those runtimes with the injected sink, then move
   Comic, then Video and `SourceRuntimeFactory`. Types referenced from outside the runtime need
