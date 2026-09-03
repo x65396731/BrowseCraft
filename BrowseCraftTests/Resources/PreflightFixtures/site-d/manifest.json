@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "fixtureID": "site-d",
+  "alias": "site-d.example",
+  "entryURL": "https://site-d.example/",
+  "expected": {
+    "status": "accepted",
+    "entryShape": "oneHopListIndex"
+  },
+  "acceptance": "pending",
+  "pendingReason": "判据修正后不再误判 antiBot；规划器采样 vodsearch/label/vodshow/voddetail 等 14 条缺失，待定向补采与观测器归因",
+  "note": "根页一跳 /vodtype/* 叶子单族",
+  "documents": [
+    {
+      "name": "site-d-entry-1",
+      "stage": "entry",
+      "url": "https://site-d.example/",
+      "file": "site-d-entry-1.html"
+    },
+    {
+      "name": "site-d-list-1",
+      "stage": "list",
+      "url": "https://site-d.example/vodtype/1/",
+      "file": "site-d-list-1.html"
+    },
+    {
+      "name": "site-d-list-2",
+      "stage": "list",
+      "url": "https://site-d.example/vodtype/3/",
+      "file": "site-d-list-2.html"
+    },
+    {
+      "name": "site-d-list-3",
+      "stage": "list",
+      "url": "https://site-d.example/vodtype/2/",
+      "file": "site-d-list-3.html"
+    },
+    {
+      "name": "site-d-list-4",
+      "stage": "list",
+      "url": "https://site-d.example/vodtype/4/",
+      "file": "site-d-list-4.html"
+    },
+    {
+      "name": "site-d-list-5",
+      "stage": "list",
+      "url": "https://site-d.example/vodtype/37/",
+      "file": "site-d-list-5.html"
+    },
+    {
+      "name": "site-d-list-6",
+      "stage": "list",
+      "url": "https://site-d.example/topic/",
+      "file": "site-d-list-6.html"
+    },
+    {
+      "name": "site-d-list-7",
+      "stage": "list",
+      "url": "https://site-d.example/index-3",
+      "file": "site-d-list-7.html"
+    },
+    {
+      "name": "site-d-list-8",
+      "stage": "list",
+      "url": "https://site-d.example/index-6",
+      "file": "site-d-list-8.html"
+    },
+    {
+      "name": "site-d-detail-1",
+      "stage": "detail",
+      "url": "https://site-d.example/voddetail/1132423/",
+      "file": "site-d-detail-1.html"
+    },
+    {
+      "name": "site-d-detail-2",
+      "stage": "detail",
+      "url": "https://site-d.example/voddetail/1132425/",
+      "file": "site-d-detail-2.html"
+    },
+    {
+      "name": "site-d-detail-3",
+      "stage": "detail",
+      "url": "https://site-d.example/voddetail/1114214/",
+      "file": "site-d-detail-3.html"
+    },
+    {
+      "name": "site-d-detail-4",
+      "stage": "detail",
+      "url": "https://site-d.example/voddetail/1131178/",
+      "file": "site-d-detail-4.html"
+    },
+    {
+      "name": "site-d-detail-5",
+      "stage": "detail",
+      "url": "https://site-d.example/voddetail/1122983/",
+      "file": "site-d-detail-5.html"
+    },
+    {
+      "name": "site-d-detail-6",
+      "stage": "detail",
+      "url": "https://site-d.example/voddetail/1127236/",
+      "file": "site-d-detail-6.html"
+    },
+    {
+      "name": "site-d-detail-7",
+      "stage": "detail",
+      "url": "https://site-d.example/voddetail/1132410/",
+      "file": "site-d-detail-7.html"
+    },
+    {
+      "name": "site-d-detail-8",
+      "stage": "detail",
+      "url": "https://site-d.example/voddetail/1132424/",
+      "file": "site-d-detail-8.html"
+    },
+    {
+      "name": "site-d-detail-9",
+      "stage": "detail",
+      "url": "https://site-d.example/vodplay/1114214-20-1.html",
+      "file": "site-d-detail-9.html"
+    },
+    {
+      "name": "site-d-detail-10",
+      "stage": "detail",
+      "url": "https://site-d.example/vodplay/1122983-9-1.html",
+      "file": "site-d-detail-10.html"
+    },
+    {
+      "name": "site-d-detail-11",
+      "stage": "detail",
+      "url": "https://site-d.example/vodplay/1131178-4-1.html",
+      "file": "site-d-detail-11.html"
+    },
+    {
+      "name": "site-d-detail-12",
+      "stage": "detail",
+      "url": "https://site-d.example/vodplay/1114214-16-1.html",
+      "file": "site-d-detail-12.html"
+    },
+    {
+      "name": "site-d-detail-13",
+      "stage": "detail",
+      "url": "https://site-d.example/vodplay/1122983-28-1.html",
+      "file": "site-d-detail-13.html"
+    }
+  ]
+}

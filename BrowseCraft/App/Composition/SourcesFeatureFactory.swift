@@ -9,6 +9,8 @@ struct SourcesFeatureFactory {
     private let urlResolver: URLResolvingService
     private let sourceRuntimeFactory: SourceRuntimeFactory
     private let sourceSelectionStore: SourceSelectionStore
+    private let videoGenerationTaskClient: any VideoGenerationTaskCreating
+    private let portalAccessTokenProvider: any PortalAccessTokenProviding
 
     init(
         database: AppDatabase,
@@ -18,8 +20,12 @@ struct SourcesFeatureFactory {
         pageDataLoader: PageDataLoader,
         urlResolver: URLResolvingService,
         sourceRuntimeFactory: SourceRuntimeFactory,
-        sourceSelectionStore: SourceSelectionStore
+        sourceSelectionStore: SourceSelectionStore,
+        videoGenerationTaskClient: any VideoGenerationTaskCreating,
+        portalAccessTokenProvider: any PortalAccessTokenProviding
     ) {
+        self.videoGenerationTaskClient = videoGenerationTaskClient
+        self.portalAccessTokenProvider = portalAccessTokenProvider
         self.database = database
         self.activeAppUser = activeAppUser
         self.sourceRepository = sourceRepository
@@ -66,6 +72,12 @@ struct SourcesFeatureFactory {
             ),
             assessVideoGenerationInputUseCase: assessVideoGenerationInputUseCase
         )
+        // 中文注释：任务提交是独立用例，预检 use case 不持有它（`BC-PREFLIGHT-048`）。
+        let createVideoGenerationTaskUseCase: CreateVideoGenerationTaskUseCase =
+            CreateVideoGenerationTaskUseCase(
+                taskClient: self.videoGenerationTaskClient,
+                accessTokenProvider: self.portalAccessTokenProvider
+            )
         let sourceRuleEditorService: SourceRuleEditorService = self.makeSourceRuleEditorService()
         let sourceRuleEditingCoordinator: SourceRuleEditingCoordinator =
             SourceRuleEditingCoordinator(service: self.makeSourceRuleEditorService())
@@ -120,6 +132,7 @@ struct SourcesFeatureFactory {
                 refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
             ),
             discoveryService: sourceDiscoveryService,
+            createVideoGenerationTaskUseCase: createVideoGenerationTaskUseCase,
             catalogService: sourceCatalogService,
             ruleEditorService: sourceRuleEditorService,
             ruleEditingCoordinator: sourceRuleEditingCoordinator,

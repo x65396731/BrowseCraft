@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "fixtureID": "site-f-home",
+  "alias": "site-f.example",
+  "entryURL": "https://site-f.example/",
+  "expected": {
+    "status": "accepted",
+    "entryShape": "directListOwner"
+  },
+  "acceptance": "pending",
+  "pendingReason": "判据修正后不再误判登录态；规划器采样 12 个分类导航/分页缺失，待定向补采与观测器归因",
+  "note": "混类首页 / 直接 List owner（BC-LIST-090 + BC-PAGE-047 后后端可交付）",
+  "documents": [
+    {
+      "name": "site-f-home-entry-1",
+      "stage": "entry",
+      "url": "https://site-f.example/",
+      "file": "site-f-home-entry-1.html"
+    },
+    {
+      "name": "site-f-home-list-1",
+      "stage": "list",
+      "url": "https://site-f.example/serialy-2026/31754-mazhor-5-sezon-228.html",
+      "file": "site-f-home-list-1.html"
+    },
+    {
+      "name": "site-f-home-list-2",
+      "stage": "list",
+      "url": "https://site-f.example/cartoons/2564-tachki-hdtv-v26.html",
+      "file": "site-f-home-list-2.html"
+    },
+    {
+      "name": "site-f-home-list-3",
+      "stage": "list",
+      "url": "https://site-f.example/anime/42066-domashniy-repetitor-gercogini.html",
+      "file": "site-f-home-list-3.html"
+    },
+    {
+      "name": "site-f-home-detail-1",
+      "stage": "detail",
+      "url": "https://site-f.example/detective/34464-kamenskaya-6.html",
+      "file": "site-f-home-detail-1.html"
+    }
+  ]
+}

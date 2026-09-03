@@ -52,6 +52,12 @@
 "video_preflight_reason_isolation" = "The page could not be checked with the required isolation.";
 "video_preflight_generate_button" = "Generate Rule";
 "video_preflight_transport_unavailable" = "Local preflight passed. Generation submission is not connected yet.";
+"video_preflight_submitting" = "Submitting the generation task…";
+"video_preflight_submitted" = "Generation task submitted";
+"video_preflight_submitted_job" = "Job %@. The rule will appear in the catalog once generation finishes.";
+"video_preflight_submit_auth_required" = "Sign in to submit a generation task.";
+"video_preflight_submit_active_job_limit" = "You already have the maximum number of active generation tasks. Wait for one to finish.";
+"video_preflight_submit_failed" = "Submission failed (%@). Please try again later.";
 "video_preflight_error_invalid_url" = "Enter a valid website URL.";
 "video_preflight_error_scheme" = "Only public HTTP or HTTPS URLs are supported.";
 "video_preflight_error_unsafe_url" = "This URL is not allowed by the public-network safety policy.";

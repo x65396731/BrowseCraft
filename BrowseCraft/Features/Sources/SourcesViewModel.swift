@@ -37,6 +37,7 @@ final class SourcesViewModel: ObservableObject {
     private let addComicRuleSourceUseCase: AddComicRuleSourceUseCase
     private let addRSSSourceUseCase: AddRSSSourceUseCase
     private let discoveryService: SourceDiscoveryService
+    private let createVideoGenerationTaskUseCase: CreateVideoGenerationTaskUseCase?
     private let catalogService: SourceCatalogService
     private let ruleEditorService: SourceRuleEditorService
     private let ruleEditingCoordinator: SourceRuleEditingCoordinator
@@ -85,6 +86,7 @@ final class SourcesViewModel: ObservableObject {
         addComicRuleSourceUseCase: AddComicRuleSourceUseCase,
         addRSSSourceUseCase: AddRSSSourceUseCase,
         discoveryService: SourceDiscoveryService,
+        createVideoGenerationTaskUseCase: CreateVideoGenerationTaskUseCase? = nil,
         catalogService: SourceCatalogService,
         ruleEditorService: SourceRuleEditorService,
         ruleEditingCoordinator: SourceRuleEditingCoordinator,
@@ -100,6 +102,7 @@ final class SourcesViewModel: ObservableObject {
         self.addComicRuleSourceUseCase = addComicRuleSourceUseCase
         self.addRSSSourceUseCase = addRSSSourceUseCase
         self.discoveryService = discoveryService
+        self.createVideoGenerationTaskUseCase = createVideoGenerationTaskUseCase
         self.catalogService = catalogService
         self.ruleEditorService = ruleEditorService
         self.ruleEditingCoordinator = ruleEditingCoordinator
@@ -230,6 +233,22 @@ final class SourcesViewModel: ObservableObject {
             }
             throw error
         }
+    }
+
+    /// 中文注释：未接线任务客户端时 UI 不得出现可点的「生成」（`BC-PREFLIGHT-048`）。
+    var canSubmitVideoGenerationTasks: Bool {
+        return self.createVideoGenerationTaskUseCase != nil
+    }
+
+    @MainActor
+    func submitVideoGenerationTask(
+        preflight: VideoGenerationInputPreflight
+    ) async throws -> VideoGenerationTaskSubmissionOutcome {
+        guard let useCase: CreateVideoGenerationTaskUseCase =
+            self.createVideoGenerationTaskUseCase else {
+            throw VideoGenerationTaskSubmissionRejection.preflightNotAccepted(preflight.status)
+        }
+        return try await useCase.execute(preflight: preflight)
     }
 
     @MainActor

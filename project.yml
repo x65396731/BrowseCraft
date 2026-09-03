@@ -169,6 +169,12 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: BrowseCraftTests
+        excludes:
+          - "Resources/PreflightFixtures/**"
+      # 中文注释：归档 fixture 以 folder reference 进 bundle，保留 site-*/ 子目录，避免 manifest.json 平铺撞名。
+      - path: BrowseCraftTests/Resources/PreflightFixtures
+        type: folder
+        buildPhase: resources
     dependencies:
       - target: BrowseCraft
       - target: BrowseCraftDomain

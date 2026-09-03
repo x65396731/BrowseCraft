@@ -23,15 +23,6 @@ struct VideoPreflightPageClassifier: Sendable {
             return .antiBotChallenge
         }
 
-        let hasPasswordField: Bool = normalized.contains("type=\"password\"")
-            || normalized.contains("type='password'")
-        let sessionMarkers: [String] = ["sign in", "log in", "login", "登录", "登入"]
-        if hasPasswordField && sessionMarkers.contains(where: { marker in
-            normalized.contains(marker)
-        }) {
-            return .requiresUserSession
-        }
-
         let bodyTextEstimate: String = normalized
             .replacingOccurrences(of: #"<script[\s\S]*?</script>"#, with: "", options: .regularExpression)
             .replacingOccurrences(of: #"<style[\s\S]*?</style>"#, with: "", options: .regularExpression)
@@ -40,6 +31,20 @@ struct VideoPreflightPageClassifier: Sendable {
             .joined(separator: " ")
         let scriptCount: Int = normalized.components(separatedBy: "<script").count - 1
         let anchorCount: Int = normalized.components(separatedBy: "<a ").count - 1
+
+        // 中文注释：`BC-PREFLIGHT-049`——「登录页」= 密码字段 + 登录文案，且文档没有可供结构观测的正文
+        // （可见文本 < 400 字符或锚点 < 10）。带登录小组件的内容页归 usableHTML，由结构观测决定。
+        let hasPasswordField: Bool = normalized.contains("type=\"password\"")
+            || normalized.contains("type='password'")
+        let sessionMarkers: [String] = ["sign in", "log in", "login", "登录", "登入"]
+        let hasSessionMarker: Bool = sessionMarkers.contains(where: { marker in
+            normalized.contains(marker)
+        })
+        let lacksObservableBody: Bool = bodyTextEstimate.count < 400 || anchorCount < 10
+        if hasPasswordField && hasSessionMarker && lacksObservableBody {
+            return .requiresUserSession
+        }
+
         if bodyTextEstimate.count < 80 && anchorCount < 2 && scriptCount > 0 {
             return .technicalShell
         }

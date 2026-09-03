@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "fixtureID": "site-c",
+  "alias": "site-c.example",
+  "entryURL": "https://site-c.example/generos/accion",
+  "expected": {
+    "status": "accepted",
+    "entryShape": "directListOwner"
+  },
+  "acceptance": "pending",
+  "pendingReason": "规划器把 /year/* /generos/* 导航当一跳组采样（11 条缺失），待定向采集与观测器归因",
+  "note": "受限分类入口 /generos/accion 直接 List owner",
+  "documents": [
+    {
+      "name": "site-c-entry-1",
+      "stage": "entry",
+      "url": "https://site-c.example/generos/accion",
+      "file": "site-c-entry-1.html"
+    },
+    {
+      "name": "site-c-list-1",
+      "stage": "list",
+      "url": "https://site-c.example/generos/accion",
+      "file": "site-c-list-1.html"
+    },
+    {
+      "name": "site-c-list-2",
+      "stage": "list",
+      "url": "https://site-c.example/",
+      "file": "site-c-list-2.html"
+    },
+    {
+      "name": "site-c-list-3",
+      "stage": "list",
+      "url": "https://site-c.example/year/2025",
+      "file": "site-c-list-3.html"
+    },
+    {
+      "name": "site-c-list-4",
+      "stage": "list",
+      "url": "https://site-c.example/generos/accion",
+      "file": "site-c-list-4.html"
+    },
+    {
+      "name": "site-c-list-5",
+      "stage": "list",
+      "url": "https://site-c.example/peliculas",
+      "file": "site-c-list-5.html"
+    },
+    {
+      "name": "site-c-list-6",
+      "stage": "list",
+      "url": "https://site-c.example/peliculas",
+      "file": "site-c-list-6.html"
+    },
+    {
+      "name": "site-c-list-7",
+      "stage": "list",
+      "url": "https://site-c.example/generos/accion",
+      "file": "site-c-list-7.html"
+    },
+    {
+      "name": "site-c-list-8",
+      "stage": "list",
+      "url": "https://site-c.example/series",
+      "file": "site-c-list-8.html"
+    },
+    {
+      "name": "site-c-list-9",
+      "stage": "list",
+      "url": "https://site-c.example/peliculas",
+      "file": "site-c-list-9.html"
+    },
+    {
+      "name": "site-c-list-10",
+      "stage": "list",
+      "url": "https://site-c.example/year/2025",
+      "file": "site-c-list-10.html"
+    },
+    {
+      "name": "site-c-detail-1",
+      "stage": "detail",
+      "url": "https://site-c.example/pelicula/pinocho-esta-desquiciado-i7P5BY",
+      "file": "site-c-detail-1.html"
+    },
+    {
+      "name": "site-c-detail-2",
+      "stage": "detail",
+      "url": "https://site-c.example/serie/leanne-UDuzjD",
+      "file": "site-c-detail-2.html"
+    },
+    {
+      "name": "site-c-detail-3",
+      "stage": "detail",
+      "url": "https://site-c.example/pelicula/age-of-kill-fdhGBc",
+      "file": "site-c-detail-3.html"
+    },
+    {
+      "name": "site-c-detail-4",
+      "stage": "detail",
+      "url": "https://site-c.example/pelicula/la-teniente-oneil-euI8WB",
+      "file": "site-c-detail-4.html"
+    },
+    {
+      "name": "site-c-detail-5",
+      "stage": "detail",
+      "url": "https://site-c.example/pelicula/cuatro-cachorros-para-salvar-L44dPI",
+      "file": "site-c-detail-5.html"
+    },
+    {
+      "name": "site-c-detail-6",
+      "stage": "detail",
+      "url": "https://site-c.example/pelicula/kokuho-el-maestro-del-kabuki-JzhxHL",
+      "file": "site-c-detail-6.html"
+    },
+    {
+      "name": "site-c-detail-7",
+      "stage": "detail",
+      "url": "https://site-c.example/anime/you-and-i-are-polar-opposites-96zHT8/temporada/2/capitulo/6",
+      "file": "site-c-detail-7.html"
+    },
+    {
+      "name": "site-c-detail-8",
+      "stage": "detail",
+      "url": "https://site-c.example/serie/el-conde-de-montecristo-Xct9R9",
+      "file": "site-c-detail-8.html"
+    }
+  ]
+}

@@ -52,6 +52,12 @@
 "video_preflight_reason_isolation" = "当前页面无法在要求的隔离环境中完成检查。";
 "video_preflight_generate_button" = "生成规则";
 "video_preflight_transport_unavailable" = "本地预检已通过，但生成任务提交尚未接入。";
+"video_preflight_submitting" = "正在提交生成任务…";
+"video_preflight_submitted" = "生成任务已提交";
+"video_preflight_submitted_job" = "任务 %@。生成完成后规则会出现在目录里。";
+"video_preflight_submit_auth_required" = "请先登录后再提交生成任务。";
+"video_preflight_submit_active_job_limit" = "进行中的生成任务已达上限，请等待完成后再试。";
+"video_preflight_submit_failed" = "提交失败（%@），请稍后重试。";
 "video_preflight_error_invalid_url" = "请输入有效的网站 URL。";
 "video_preflight_error_scheme" = "只支持公开的 HTTP 或 HTTPS URL。";
 "video_preflight_error_unsafe_url" = "该 URL 未通过公网安全策略。";

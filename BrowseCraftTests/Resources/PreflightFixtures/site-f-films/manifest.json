@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "fixtureID": "site-f-films",
+  "alias": "site-f.example",
+  "entryURL": "https://site-f.example/films/",
+  "expected": {
+    "status": "accepted",
+    "entryShape": "directListOwner"
+  },
+  "acceptance": "pending",
+  "pendingReason": "判据修正后不再误判登录态；规划器采样 6 个分类导航页缺失（/films-2026/ /thriller/ 等），待定向补采与观测器归因",
+  "note": "/films/ 直接 List owner",
+  "documents": [
+    {
+      "name": "site-f-films-entry-1",
+      "stage": "entry",
+      "url": "https://site-f.example/films/",
+      "file": "site-f-films-entry-1.html"
+    },
+    {
+      "name": "site-f-films-list-1",
+      "stage": "list",
+      "url": "https://site-f.example/films/page/2/",
+      "file": "site-f-films-list-1.html"
+    },
+    {
+      "name": "site-f-films-detail-1",
+      "stage": "detail",
+      "url": "https://site-f.example/films/45060-chelovek-pauk-4-novy-den-2026.html",
+      "file": "site-f-films-detail-1.html"
+    }
+  ]
+}

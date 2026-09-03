@@ -33,6 +33,18 @@ final class HTMLChallengeInterstitialDetectorTests: XCTestCase {
         XCTAssertTrue(HTMLChallengeInterstitialDetector.isChallengeInterstitial(double))
     }
 
+    /// `BC-EVIDENCE-081` 09-03 晚修订：Cloudflare JSD 探针脚本出现在每个正常页上，不是过渡页。
+    func testCloudflareJSDBeaconOnContentPageIsNotInterstitial() {
+        let html: String = """
+        <html><head><title>Movies</title></head><body>
+        <div class="list"><a href="/v/1">One</a><a href="/v/2">Two</a></div>
+        <script>(function(){var a=document.createElement('script');\
+        a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.head.appendChild(a);})();</script>
+        </body></html>
+        """
+        XCTAssertFalse(HTMLChallengeInterstitialDetector.isChallengeInterstitial(html))
+    }
+
     func testOrdinaryDetailPageIsNotInterstitial() {
         let html: String = """
         <html><head><title>ATID-636 - Jable</title></head><body>

@@ -11,6 +11,8 @@ struct VideoGenerationInputView: View {
     @State private var assessmentTask: Task<Void, Never>?
     @State private var assessmentID: UUID?
     @State private var isChecking: Bool = false
+    @State private var submissionState: VideoGenerationTaskSubmissionState = .idle
+    @State private var submissionTask: Task<Void, Never>?
 
     var body: some View {
         NavigationStack {
@@ -69,9 +71,17 @@ struct VideoGenerationInputView: View {
                     self.progressSection
                 }
                 if let result: VideoGenerationInputPreflight = self.result {
-                    VideoGenerationInputOutcomeView(result: result) {
-                        self.startAssessment()
-                    }
+                    VideoGenerationInputOutcomeView(
+                        result: result,
+                        submissionState: self.submissionState,
+                        canSubmit: self.viewModel.canSubmitVideoGenerationTasks,
+                        retry: {
+                            self.startAssessment()
+                        },
+                        submit: {
+                            self.startSubmission(result)
+                        }
+                    )
                 }
                 if let errorMessage: String = self.errorMessage {
                     Section(NSLocalizedString("video_preflight_status_title", comment: "")) {
@@ -94,11 +104,13 @@ struct VideoGenerationInputView: View {
             }
             .onChange(of: self.siteURL) { _, _ in
                 self.cancelAssessment()
+                self.cancelSubmission()
                 self.result = nil
                 self.errorMessage = nil
             }
             .onDisappear {
                 self.cancelAssessment()
+                self.cancelSubmission()
             }
         }
     }
@@ -196,6 +208,39 @@ struct VideoGenerationInputView: View {
         self.isChecking = false
     }
 
+    /// 中文注释：只有 accepted 结果能走到这里；提交串由用例从 `submissionString` 取（`BC-PREFLIGHT-047`）。
+    private func startSubmission(_ preflight: VideoGenerationInputPreflight) {
+        guard preflight.canSubmit, self.submissionState.isSubmitting == false else {
+            return
+        }
+        self.submissionTask?.cancel()
+        self.submissionState = .submitting
+        self.submissionTask = Task { @MainActor in
+            do {
+                let outcome: VideoGenerationTaskSubmissionOutcome = try await self.viewModel
+                    .submitVideoGenerationTask(preflight: preflight)
+                guard Task.isCancelled == false else {
+                    return
+                }
+                self.submissionState = .finished(outcome)
+            } catch is CancellationError {
+                self.submissionState = .idle
+            } catch {
+                guard Task.isCancelled == false else {
+                    return
+                }
+                self.submissionState = .finished(.failed(code: "local-rejection"))
+            }
+            self.submissionTask = nil
+        }
+    }
+
+    private func cancelSubmission() {
+        self.submissionTask?.cancel()
+        self.submissionTask = nil
+        self.submissionState = .idle
+    }
+
     private func message(for error: Error) -> String {
         if let validationError: VideoGenerationInputURLValidationError =
             error as? VideoGenerationInputURLValidationError {
@@ -226,9 +271,25 @@ struct VideoGenerationInputView: View {
     }
 }
 
+enum VideoGenerationTaskSubmissionState: Equatable {
+    case idle
+    case submitting
+    case finished(VideoGenerationTaskSubmissionOutcome)
+
+    var isSubmitting: Bool {
+        if case .submitting = self {
+            return true
+        }
+        return false
+    }
+}
+
 private struct VideoGenerationInputOutcomeView: View {
     let result: VideoGenerationInputPreflight
+    let submissionState: VideoGenerationTaskSubmissionState
+    let canSubmit: Bool
     let retry: () -> Void
+    let submit: () -> Void
 
     var body: some View {
         Section(NSLocalizedString("video_preflight_status_title", comment: "")) {
@@ -238,15 +299,82 @@ private struct VideoGenerationInputOutcomeView: View {
                 .foregroundStyle(.secondary)
 
             if self.result.status == .accepted {
-                Button(NSLocalizedString("video_preflight_generate_button", comment: "")) {}
-                    .disabled(true)
-                Text(NSLocalizedString("video_preflight_transport_unavailable", comment: ""))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                self.submissionRows
             } else if self.result.status == .inconclusive {
                 Button(NSLocalizedString("video_preflight_retry_button", comment: "")) {
                     self.retry()
                 }
+            }
+        }
+    }
+
+    /// 中文注释：任务客户端未接线时保持不可点（`BC-PREFLIGHT-048`）；接线后 accepted 才可提交。
+    @ViewBuilder
+    private var submissionRows: some View {
+        if self.canSubmit == false {
+            Button(NSLocalizedString("video_preflight_generate_button", comment: "")) {}
+                .disabled(true)
+            Text(NSLocalizedString("video_preflight_transport_unavailable", comment: ""))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        } else {
+            switch self.submissionState {
+            case .idle:
+                Button(NSLocalizedString("video_preflight_generate_button", comment: "")) {
+                    self.submit()
+                }
+            case .submitting:
+                HStack {
+                    ProgressView()
+                    Text(NSLocalizedString("video_preflight_submitting", comment: ""))
+                        .foregroundStyle(.secondary)
+                }
+            case .finished(let outcome):
+                self.outcomeRows(outcome)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func outcomeRows(_ outcome: VideoGenerationTaskSubmissionOutcome) -> some View {
+        switch outcome {
+        case .submitted(let receipt):
+            Label(
+                NSLocalizedString("video_preflight_submitted", comment: ""),
+                systemImage: "paperplane.fill"
+            )
+            .foregroundStyle(.green)
+            Text(
+                String(
+                    format: NSLocalizedString("video_preflight_submitted_job", comment: ""),
+                    receipt.jobID.uuidString
+                )
+            )
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        case .authRequired:
+            Label(
+                NSLocalizedString("video_preflight_submit_auth_required", comment: ""),
+                systemImage: "person.crop.circle.badge.exclamationmark"
+            )
+            .foregroundStyle(.orange)
+        case .activeJobLimit:
+            Label(
+                NSLocalizedString("video_preflight_submit_active_job_limit", comment: ""),
+                systemImage: "hourglass"
+            )
+            .foregroundStyle(.orange)
+        case .failed(let code):
+            Label(
+                String(
+                    format: NSLocalizedString("video_preflight_submit_failed", comment: ""),
+                    code
+                ),
+                systemImage: "exclamationmark.triangle.fill"
+            )
+            .foregroundStyle(.red)
+            Button(NSLocalizedString("video_preflight_generate_button", comment: "")) {
+                self.submit()
             }
         }
     }

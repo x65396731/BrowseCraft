@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "fixtureID": "site-b",
+  "alias": "site-b.example",
+  "entryURL": "https://site-b.example/",
+  "expected": {
+    "status": "accepted",
+    "entryShape": "oneHopListIndex"
+  },
+  "acceptance": "pending",
+  "pendingReason": "规划器采样的 /videos/* 详情页不在归档（7 条），待定向采集",
+  "note": "根页直接 Tag 子级是一跳叶子 List，单族全覆盖（§13.15）",
+  "documents": [
+    {
+      "name": "site-b-entry-1",
+      "stage": "entry",
+      "url": "https://site-b.example/",
+      "file": "site-b-entry-1.html"
+    },
+    {
+      "name": "site-b-list-1",
+      "stage": "list",
+      "url": "https://site-b.example/categories/",
+      "file": "site-b-list-1.html"
+    },
+    {
+      "name": "site-b-list-2",
+      "stage": "list",
+      "url": "https://site-b.example/tags/black-pantyhose/",
+      "file": "site-b-list-2.html"
+    },
+    {
+      "name": "site-b-list-3",
+      "stage": "list",
+      "url": "https://site-b.example/tags/suntan/",
+      "file": "site-b-list-3.html"
+    },
+    {
+      "name": "site-b-list-4",
+      "stage": "list",
+      "url": "https://site-b.example/tags/facial/",
+      "file": "site-b-list-4.html"
+    },
+    {
+      "name": "site-b-list-5",
+      "stage": "list",
+      "url": "https://site-b.example/tags/outdoor/",
+      "file": "site-b-list-5.html"
+    },
+    {
+      "name": "site-b-list-6",
+      "stage": "list",
+      "url": "https://site-b.example/tags/black/",
+      "file": "site-b-list-6.html"
+    },
+    {
+      "name": "site-b-list-7",
+      "stage": "list",
+      "url": "https://site-b.example/tags/club-hostess-and-sex-worker/",
+      "file": "site-b-list-7.html"
+    },
+    {
+      "name": "site-b-list-8",
+      "stage": "list",
+      "url": "https://site-b.example/tags/magic-mirror/",
+      "file": "site-b-list-8.html"
+    },
+    {
+      "name": "site-b-list-9",
+      "stage": "list",
+      "url": "https://site-b.example/tags/black-pantyhose/2/",
+      "file": "site-b-list-9.html"
+    },
+    {
+      "name": "site-b-list-10",
+      "stage": "list",
+      "url": "https://site-b.example/tags/suntan/2/",
+      "file": "site-b-list-10.html"
+    },
+    {
+      "name": "site-b-list-11",
+      "stage": "list",
+      "url": "https://site-b.example/tags/facial/2/",
+      "file": "site-b-list-11.html"
+    },
+    {
+      "name": "site-b-list-12",
+      "stage": "list",
+      "url": "https://site-b.example/tags/outdoor/2/",
+      "file": "site-b-list-12.html"
+    },
+    {
+      "name": "site-b-list-13",
+      "stage": "list",
+      "url": "https://site-b.example/tags/black/2/",
+      "file": "site-b-list-13.html"
+    },
+    {
+      "name": "site-b-list-14",
+      "stage": "list",
+      "url": "https://site-b.example/tags/club-hostess-and-sex-worker/2/",
+      "file": "site-b-list-14.html"
+    },
+    {
+      "name": "site-b-list-15",
+      "stage": "list",
+      "url": "https://site-b.example/tags/magic-mirror/2/",
+      "file": "site-b-list-15.html"
+    },
+    {
+      "name": "site-b-detail-1",
+      "stage": "detail",
+      "url": "https://site-b.example/videos/atid-636/",
+      "file": "site-b-detail-1.html"
+    },
+    {
+      "name": "site-b-detail-2",
+      "stage": "detail",
+      "url": "https://site-b.example/videos/apns-419/",
+      "file": "site-b-detail-2.html"
+    },
+    {
+      "name": "site-b-detail-3",
+      "stage": "detail",
+      "url": "https://site-b.example/videos/adn-785/",
+      "file": "site-b-detail-3.html"
+    },
+    {
+      "name": "site-b-detail-4",
+      "stage": "detail",
+      "url": "https://site-b.example/videos/mvg-171/",
+      "file": "site-b-detail-4.html"
+    },
+    {
+      "name": "site-b-detail-5",
+      "stage": "detail",
+      "url": "https://site-b.example/videos/cawb-033/",
+      "file": "site-b-detail-5.html"
+    },
+    {
+      "name": "site-b-detail-6",
+      "stage": "detail",
+      "url": "https://site-b.example/videos/sdmm-234/",
+      "file": "site-b-detail-6.html"
+    },
+    {
+      "name": "site-b-detail-7",
+      "stage": "detail",
+      "url": "https://site-b.example/videos/mida-737/",
+      "file": "site-b-detail-7.html"
+    }
+  ]
+}

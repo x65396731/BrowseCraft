@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "fixtureID": "site-a",
+  "alias": "site-a.example",
+  "entryURL": "https://site-a.example/index.php",
+  "expected": {
+    "status": "rejected",
+    "entryShape": "deeperDiscoveryRequired"
+  },
+  "acceptance": "pending",
+  "pendingReason": "判据修正后不再误判 antiBot；规划器把导航/搜索/登录链接当一跳候选采样，归档缺 11 条（含 view_video 详情），待定向补采与观测器归因",
+  "note": "根页/index feed：直接子级是 Watch collection shell → deeper（§13.15）",
+  "documents": [
+    {
+      "name": "site-a-entry-1",
+      "stage": "entry",
+      "url": "https://site-a.example/index.php",
+      "file": "site-a-entry-1.html"
+    },
+    {
+      "name": "site-a-list-1",
+      "stage": "list",
+      "url": "https://site-a.example/v.php",
+      "file": "site-a-list-1.html"
+    },
+    {
+      "name": "site-a-list-2",
+      "stage": "list",
+      "url": "https://site-a.example/pay.php",
+      "file": "site-a-list-2.html"
+    },
+    {
+      "name": "site-a-list-3",
+      "stage": "list",
+      "url": "https://site-a.example/v.php",
+      "file": "site-a-list-3.html"
+    },
+    {
+      "name": "site-a-list-4",
+      "stage": "list",
+      "url": "https://site-a.example/v.php",
+      "file": "site-a-list-4.html"
+    },
+    {
+      "name": "site-a-list-5",
+      "stage": "list",
+      "url": "https://site-a.example/v.php",
+      "file": "site-a-list-5.html"
+    },
+    {
+      "name": "site-a-list-6",
+      "stage": "list",
+      "url": "https://site-a.example/v.php",
+      "file": "site-a-list-6.html"
+    },
+    {
+      "name": "site-a-list-7",
+      "stage": "list",
+      "url": "https://site-a.example/v.php",
+      "file": "site-a-list-7.html"
+    },
+    {
+      "name": "site-a-list-8",
+      "stage": "list",
+      "url": "https://site-a.example/v.php",
+      "file": "site-a-list-8.html"
+    },
+    {
+      "name": "site-a-list-9",
+      "stage": "list",
+      "url": "https://site-a.example/v.php",
+      "file": "site-a-list-9.html"
+    },
+    {
+      "name": "site-a-list-10",
+      "stage": "list",
+      "url": "https://site-a.example/v.php",
+      "file": "site-a-list-10.html"
+    },
+    {
+      "name": "site-a-list-11",
+      "stage": "list",
+      "url": "https://site-a.example/v.php",
+      "file": "site-a-list-11.html"
+    },
+    {
+      "name": "site-a-list-12",
+      "stage": "list",
+      "url": "https://site-a.example/v.php",
+      "file": "site-a-list-12.html"
+    },
+    {
+      "name": "site-a-list-13",
+      "stage": "list",
+      "url": "https://site-a.example/v.php",
+      "file": "site-a-list-13.html"
+    },
+    {
+      "name": "site-a-list-14",
+      "stage": "list",
+      "url": "https://site-a.example/v.php",
+      "file": "site-a-list-14.html"
+    },
+    {
+      "name": "site-a-list-15",
+      "stage": "list",
+      "url": "https://site-a.example/v.php",
+      "file": "site-a-list-15.html"
+    },
+    {
+      "name": "site-a-list-16",
+      "stage": "list",
+      "url": "https://site-a.example/v.php",
+      "file": "site-a-list-16.html"
+    },
+    {
+      "name": "site-a-detail-1",
+      "stage": "detail",
+      "url": "https://site-a.example/view_video.php",
+      "file": "site-a-detail-1.html"
+    }
+  ]
+}

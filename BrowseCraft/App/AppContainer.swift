@@ -298,7 +298,12 @@ final class AppContainer {
                 pageDataLoader: pageLoader,
                 urlResolver: urlResolver,
                 sourceRuntimeFactory: sourceRuntimeFactory,
-                sourceSelectionStore: sourceSelectionStore
+                sourceSelectionStore: sourceSelectionStore,
+                // 中文注释：APIKit 只在组合根出现；Feature 工厂只见 Application 端口（架构边界脚本）。
+                videoGenerationTaskClient: APIKitVideoGenerationTaskClient(
+                    api: PortalRuleGenerationAPI(client: portalAPIClient)
+                ),
+                portalAccessTokenProvider: portalSessionCoordinator
             )
             self.libraryFeatureFactory = libraryFeatureFactory
             self.favoritesFeatureFactory = FavoritesFeatureFactory(

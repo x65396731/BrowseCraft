@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "fixtureID": "site-e",
+  "alias": "site-e.example",
+  "entryURL": "https://site-e.example/movie",
+  "expected": {
+    "status": "accepted",
+    "entryShape": "directListOwner"
+  },
+  "acceptance": "pending",
+  "pendingReason": "规划器采样 /anime /help /game /play/* 等 13 条缺失，待定向采集与观测器归因",
+  "note": "受限分类入口 /movie 直接 List owner（根页 multi-family 另测）",
+  "documents": [
+    {
+      "name": "site-e-entry-1",
+      "stage": "entry",
+      "url": "https://site-e.example/movie",
+      "file": "site-e-entry-1.html"
+    },
+    {
+      "name": "site-e-list-1",
+      "stage": "list",
+      "url": "https://site-e.example/list/movie",
+      "file": "site-e-list-1.html"
+    },
+    {
+      "name": "site-e-list-2",
+      "stage": "list",
+      "url": "https://site-e.example/list/movie-21",
+      "file": "site-e-list-2.html"
+    },
+    {
+      "name": "site-e-list-3",
+      "stage": "list",
+      "url": "https://site-e.example/list/movie-22",
+      "file": "site-e-list-3.html"
+    },
+    {
+      "name": "site-e-list-4",
+      "stage": "list",
+      "url": "https://site-e.example/list/movie-23",
+      "file": "site-e-list-4.html"
+    },
+    {
+      "name": "site-e-list-5",
+      "stage": "list",
+      "url": "https://site-e.example/list/movie-24",
+      "file": "site-e-list-5.html"
+    },
+    {
+      "name": "site-e-list-6",
+      "stage": "list",
+      "url": "https://site-e.example/list/movie-25",
+      "file": "site-e-list-6.html"
+    },
+    {
+      "name": "site-e-list-7",
+      "stage": "list",
+      "url": "https://site-e.example/list/movie-26",
+      "file": "site-e-list-7.html"
+    },
+    {
+      "name": "site-e-list-8",
+      "stage": "list",
+      "url": "https://site-e.example/list/movie-123",
+      "file": "site-e-list-8.html"
+    },
+    {
+      "name": "site-e-detail-1",
+      "stage": "detail",
+      "url": "https://site-e.example/play/ITn1IAzfr8T",
+      "file": "site-e-detail-1.html"
+    },
+    {
+      "name": "site-e-detail-2",
+      "stage": "detail",
+      "url": "https://site-e.example/play/qldO2sQdp16",
+      "file": "site-e-detail-2.html"
+    },
+    {
+      "name": "site-e-detail-3",
+      "stage": "detail",
+      "url": "https://site-e.example/play/n06rQ4Blen9",
+      "file": "site-e-detail-3.html"
+    },
+    {
+      "name": "site-e-detail-4",
+      "stage": "detail",
+      "url": "https://site-e.example/play/WqQf6hyJvgV",
+      "file": "site-e-detail-4.html"
+    },
+    {
+      "name": "site-e-detail-5",
+      "stage": "detail",
+      "url": "https://site-e.example/play/zVEkoopYQnL",
+      "file": "site-e-detail-5.html"
+    },
+    {
+      "name": "site-e-detail-6",
+      "stage": "detail",
+      "url": "https://site-e.example/play/xZySN2hkjL0",
+      "file": "site-e-detail-6.html"
+    }
+  ]
+}

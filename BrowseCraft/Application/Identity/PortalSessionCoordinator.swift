@@ -528,3 +528,6 @@ enum PortalSessionDiagnostics {
         Self.logger.error("[BrowseCraftPortalSession] \(message, privacy: .public)")
     }
 }
+
+/// 中文注释：任务提交只借用已存在的 `validAccessToken()`，不新增凭据通道（`BC-PREFLIGHT-045`）。
+extension PortalSessionCoordinator: PortalAccessTokenProviding {}
