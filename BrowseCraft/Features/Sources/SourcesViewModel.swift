@@ -1,3 +1,4 @@
+import Observation
 import Combine
 import Foundation
 @preconcurrency import BrowseCraftCore
@@ -9,7 +10,8 @@ import BrowseCraftRuntime
 /// 中文注释：Sources 标签页的视图模型，管理源列表、选中源、刷新状态和错误信息。
 /// 中文注释：SwiftUI 会观察这里的 @Published 属性，并在变化时刷新对应界面。
 @MainActor
-final class SourcesViewModel: ObservableObject {
+@Observable
+final class SourcesViewModel {
     private struct RefreshedListPage {
         let items: [ContentItem]
         let nextPage: Int?
@@ -20,18 +22,18 @@ final class SourcesViewModel: ObservableObject {
         case refresh(sourceID: String)
     }
 
-    @Published private(set) var sources: [Source] = []
-    @Published private(set) var selectedSourceID: String?
-    @Published var errorMessage: String?
-    @Published private(set) var isRefreshing: Bool = false
-    @Published private(set) var refreshingSourceID: String?
-    @Published private(set) var latestSourceAddID: String?
-    @Published private(set) var latestCatalogSourceAddID: String?
-    @Published private(set) var catalogSources: [CatalogSource] = []
-    @Published private(set) var isLoadingCatalogSources: Bool = false
-    @Published private(set) var requestedSlotActivationSource: Source?
-    @Published private(set) var videoGenerationInputProgress: VideoGenerationInputPreflightProgress?
-    @Published private(set) var sourceSlotLimit: Int =
+    private(set) var sources: [Source] = []
+    private(set) var selectedSourceID: String?
+    var errorMessage: String?
+    private(set) var isRefreshing: Bool = false
+    private(set) var refreshingSourceID: String?
+    private(set) var latestSourceAddID: String?
+    private(set) var latestCatalogSourceAddID: String?
+    private(set) var catalogSources: [CatalogSource] = []
+    private(set) var isLoadingCatalogSources: Bool = false
+    private(set) var requestedSlotActivationSource: Source?
+    private(set) var videoGenerationInputProgress: VideoGenerationInputPreflightProgress?
+    private(set) var sourceSlotLimit: Int =
         SourceSlotPolicy.includedSiteSlotCount
 
     private let persistenceCoordinator: SourcesPersistenceCoordinator

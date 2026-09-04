@@ -4,7 +4,7 @@ import SwiftUI
 // 中文注释：ReaderView 只负责具体章节阅读；漫画作品信息和章节目录位于 Library/Comic/Detail。
 /// 中文注释：ReaderView 是 struct，负责本模块中的对应职责。
 struct ReaderView: View {
-    @StateObject private var viewModel: ReaderViewModel
+    @State private var viewModel: ReaderViewModel
     @State private var didApplyRestorePage: Bool = false
     @State private var didOpenContentSuccessfully: Bool = false
 
@@ -14,7 +14,7 @@ struct ReaderView: View {
         selectedChapter: ChapterLink? = nil,
         factory: LibraryContentViewModelFactory
     ) {
-        self._viewModel = StateObject(
+        self._viewModel = State(
             wrappedValue: factory.makeReader(item, source, selectedChapter)
         )
     }
@@ -24,7 +24,7 @@ struct ReaderView: View {
         source: Source,
         factory: LibraryContentViewModelFactory
     ) {
-        self._viewModel = StateObject(
+        self._viewModel = State(
             wrappedValue: factory.makeHistoryReader(history, source)
         )
     }

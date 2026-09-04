@@ -2,7 +2,7 @@ import SwiftUI
 import BrowseCraftDomain
 
 struct CatalogSourceListView: View {
-    @ObservedObject var viewModel: SourcesViewModel
+    @Bindable var viewModel: SourcesViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var addingSourceIDs: Set<String> = []
     @State private var failedSourceIDs: Set<String> = []

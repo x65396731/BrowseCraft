@@ -21,13 +21,13 @@ struct RootView: View {
     #if DEBUG
     private let videoRuntimeAuditWebUIPresenter: VideoRuntimeAuditWebUIPresenter
     #endif
-    @StateObject private var sourcesViewModel: SourcesViewModel
-    @StateObject private var favoritesViewModel: FavoritesViewModel
-    @StateObject private var libraryViewModel: LibraryViewModel
-    @StateObject private var historyViewModel: HistoryViewModel
-    @StateObject private var settingsViewModel: SettingsViewModel
-    @StateObject private var cloudSyncSettingsViewModel: CloudSyncSettingsViewModel
-    @StateObject private var startupCoordinator: StartupCoordinator
+    @State private var sourcesViewModel: SourcesViewModel
+    @State private var favoritesViewModel: FavoritesViewModel
+    @State private var libraryViewModel: LibraryViewModel
+    @State private var historyViewModel: HistoryViewModel
+    @State private var settingsViewModel: SettingsViewModel
+    @State private var cloudSyncSettingsViewModel: CloudSyncSettingsViewModel
+    @State private var startupCoordinator: StartupCoordinator
     @State private var selectedTab: RootTab = .library
 
     init(container: AppContainer) {
@@ -40,15 +40,15 @@ struct RootView: View {
         self.videoRuntimeAuditWebUIPresenter = container.videoRuntimeAuditWebUIPresenter
         #endif
         self.libraryContentViewModelFactory = container.makeLibraryContentViewModelFactory()
-        _sourcesViewModel = StateObject(wrappedValue: sourcesViewModel)
-        _favoritesViewModel = StateObject(wrappedValue: container.makeFavoritesViewModel())
-        _libraryViewModel = StateObject(wrappedValue: libraryViewModel)
-        _historyViewModel = StateObject(wrappedValue: container.makeHistoryViewModel())
-        _settingsViewModel = StateObject(wrappedValue: container.makeSettingsViewModel())
-        _cloudSyncSettingsViewModel = StateObject(
+        _sourcesViewModel = State(wrappedValue: sourcesViewModel)
+        _favoritesViewModel = State(wrappedValue: container.makeFavoritesViewModel())
+        _libraryViewModel = State(wrappedValue: libraryViewModel)
+        _historyViewModel = State(wrappedValue: container.makeHistoryViewModel())
+        _settingsViewModel = State(wrappedValue: container.makeSettingsViewModel())
+        _cloudSyncSettingsViewModel = State(
             wrappedValue: container.makeCloudSyncSettingsViewModel()
         )
-        _startupCoordinator = StateObject(
+        _startupCoordinator = State(
             wrappedValue: StartupCoordinator(
                 dependencies: StartupCoordinator.Dependencies(
                     hasSources: {

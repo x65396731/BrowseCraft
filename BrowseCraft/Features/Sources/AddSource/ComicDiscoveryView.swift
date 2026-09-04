@@ -18,7 +18,7 @@ struct ComicDiscoveryView: View {
         }
     }
 
-    @ObservedObject var viewModel: SourcesViewModel
+    @Bindable var viewModel: SourcesViewModel
     @Environment(\.dismiss) private var dismiss
 
     @State private var siteURL: String = ""
@@ -240,7 +240,7 @@ private struct ComicDiscoveryResultRow: View {
 
 private struct ComicDiscoveryDetailView: View {
     let item: TransientComicDiscoveryItem
-    @ObservedObject var viewModel: SourcesViewModel
+    @Bindable var viewModel: SourcesViewModel
 
     var body: some View {
         Form {

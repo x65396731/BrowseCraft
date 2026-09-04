@@ -4,7 +4,7 @@ import SwiftUI
 // 中文注释：AddSourceView.swift 是中性的添加来源入口，具体导入能力由 SourceImportOption 决定。
 
 struct AddSourceView: View {
-    @ObservedObject var viewModel: SourcesViewModel
+    @Bindable var viewModel: SourcesViewModel
     @Environment(\.dismiss) private var dismiss
 
     @State private var runtimeSourceKind: RuntimeSourceImportKind?

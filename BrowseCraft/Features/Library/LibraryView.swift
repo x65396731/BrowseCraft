@@ -5,7 +5,7 @@ import SwiftUI
 
 /// 中文注释：LibraryView 只负责展示 Library 状态，数据加载与切源逻辑在 LibraryViewModel。
 struct LibraryView: View {
-    @ObservedObject var viewModel: LibraryViewModel
+    @Bindable var viewModel: LibraryViewModel
     let contentViewModelFactory: LibraryContentViewModelFactory
     @State private var selectedComicDestination: LibraryComicDestination?
 

@@ -139,7 +139,15 @@ services, the WebKit and URLSession delegates. A new `@unchecked` needs a commen
 synchronisation it relies on.
 
 Synchronous persistence is owned by 22 actors (the `*PersistenceCoordinator` family). View models
-await immutable snapshots and mutate published state only on `MainActor`. StoreKit transactions
+await immutable snapshots and mutate observable state only on `MainActor`.
+
+View models are `@Observable` (iOS 17 Observation), observed by views with `@State` for ownership
+and `@Bindable` where a binding projection is needed. Six types deliberately stay
+`ObservableObject`: `SourceSelectionStore`, because `LibraryViewModel` and `SourcesViewModel`
+subscribe to its `$` publishers to coordinate across tabs, and the five `NSObject`-based WebView /
+ad-presenter coordinators that also serve as UIKit delegates. Task handles touched in `deinit` are
+marked `@ObservationIgnored` — the macro turns stored properties into computed ones, which a
+nonisolated `deinit` may not read. StoreKit transactions
 become `StoreTransactionSnapshot` before Portal validation or database writes.
 
 ## 5. Persistence

@@ -13,7 +13,7 @@ struct InAppPurchasePlanSelectionView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    @ObservedObject var store: InAppPurchaseStore
+    @Bindable var store: InAppPurchaseStore
     let closeAction: () -> Void
 
     @State private var isDeckPresented: Bool = false

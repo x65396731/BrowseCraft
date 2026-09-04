@@ -2,7 +2,7 @@ import StoreKit
 import SwiftUI
 
 struct InAppPurchaseSheetView: View {
-    @StateObject private var store: InAppPurchaseStore
+    @State private var store: InAppPurchaseStore
     private let animationAssets: PurchaseAnimationPlayerView.Assets
     private let transactionUpdateRevision: UInt64
     private let transactionUpdateActiveProductIDs: Set<String>?
@@ -39,7 +39,7 @@ struct InAppPurchaseSheetView: View {
         self.transactionUpdateActiveProductIDs =
             transactionUpdateActiveProductIDs
         self.closeAction = closeAction
-        _store = StateObject(
+        _store = State(
             wrappedValue: InAppPurchaseStore(
                 authorizeStoreKitAction: authorizeStoreKitAction,
                 validateAuthorizedUser: validateAuthorizedUser,

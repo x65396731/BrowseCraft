@@ -5,8 +5,8 @@ import SwiftUI
 
 @MainActor
 struct FavoritesView: View {
-    @ObservedObject var viewModel: FavoritesViewModel
-    @ObservedObject var cloudSyncViewModel: CloudSyncSettingsViewModel
+    @Bindable var viewModel: FavoritesViewModel
+    @Bindable var cloudSyncViewModel: CloudSyncSettingsViewModel
     let contentViewModelFactory: LibraryContentViewModelFactory
 
     var body: some View {

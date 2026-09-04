@@ -5,7 +5,7 @@ import SwiftUI
 
 struct RSSContentDetailView: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var viewModel: RSSContentDetailViewModel
+    @State private var viewModel: RSSContentDetailViewModel
     @State private var selectedHeroImageIndex: Int = 0
     @State private var isShowingOriginalWebView: Bool = false
     @State private var fullscreenMediaPlayerRequest: RSSMediaPlayerRequest?
@@ -16,7 +16,7 @@ struct RSSContentDetailView: View {
         source: Source,
         factory: LibraryContentViewModelFactory
     ) {
-        _viewModel = StateObject(
+        _viewModel = State(
             wrappedValue: factory.makeRSSDetail(item, source)
         )
     }

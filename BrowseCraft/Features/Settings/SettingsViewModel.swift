@@ -1,3 +1,4 @@
+import Observation
 import Combine
 import Foundation
 import StoreKit
@@ -25,17 +26,18 @@ struct StoreKitPortalEnvironmentMapper {
 
 /// 中文注释：SettingsViewModel 把 Settings UI 与 Nuke 缓存配置隔离，View 不直接操作缓存服务。
 @MainActor
-final class SettingsViewModel: ObservableObject {
-    @Published private(set) var imageCacheSettings: ImageCacheSettings
-    @Published var cacheErrorMessage: String?
-    @Published var cacheStatusMessage: String?
-    @Published private(set) var diagnosticCode: String
-    @Published private(set) var storeKitTransactionUpdateRevision: UInt64 = 0
-    @Published private(set) var storeKitTransactionUpdateActiveProductIDs:
+@Observable
+final class SettingsViewModel {
+    private(set) var imageCacheSettings: ImageCacheSettings
+    var cacheErrorMessage: String?
+    var cacheStatusMessage: String?
+    private(set) var diagnosticCode: String
+    private(set) var storeKitTransactionUpdateRevision: UInt64 = 0
+    private(set) var storeKitTransactionUpdateActiveProductIDs:
         Set<String>?
-    @Published private(set) var isPortalAuthenticated: Bool = false
-    @Published private(set) var isPortalAccountActionInFlight: Bool = false
-    @Published var portalAccountErrorMessage: String?
+    private(set) var isPortalAuthenticated: Bool = false
+    private(set) var isPortalAccountActionInFlight: Bool = false
+    var portalAccountErrorMessage: String?
 
     private let imageCacheConfigurator: ImageCacheConfigurator
     private let purchaseCoordinator: PortalPurchaseCoordinator

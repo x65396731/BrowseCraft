@@ -3,11 +3,11 @@ import SwiftUI
 // 中文注释：VideoPlayerHostView 是视频播放页，不复用漫画 Reader UI。
 struct VideoPlayerHostView: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var viewModel: VideoPlayerViewModel
+    @State private var viewModel: VideoPlayerViewModel
     @State private var didOpenContentSuccessfully: Bool = false
 
     init(viewModel: VideoPlayerViewModel) {
-        _viewModel = StateObject(wrappedValue: viewModel)
+        _viewModel = State(wrappedValue: viewModel)
     }
 
     var body: some View {

@@ -16,7 +16,7 @@ struct VideoDiscoveryView: View {
         }
     }
 
-    @ObservedObject var viewModel: SourcesViewModel
+    @Bindable var viewModel: SourcesViewModel
     @Environment(\.dismiss) private var dismiss
 
     @State private var siteURL: String = ""
@@ -247,7 +247,7 @@ private struct VideoDiscoveryResultRow: View {
 
 private struct VideoDiscoveryDetailView: View {
     let item: TransientVideoDiscoveryItem
-    @ObservedObject var viewModel: SourcesViewModel
+    @Bindable var viewModel: SourcesViewModel
 
     var body: some View {
         Form {

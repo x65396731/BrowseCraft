@@ -1,3 +1,4 @@
+import Observation
 import Combine
 import Foundation
 import UIKit
@@ -29,18 +30,19 @@ struct ReaderSourceLoginPrompt: Identifiable, Hashable {
 
 /// 中文注释：ReaderViewModel 是 final class，负责本模块中的对应职责。
 @MainActor
-final class ReaderViewModel: ObservableObject {
-    @Published private(set) var chapter: ReaderChapter?
-    @Published private(set) var isLoading: Bool = false
+@Observable
+final class ReaderViewModel {
+    private(set) var chapter: ReaderChapter?
+    private(set) var isLoading: Bool = false
     private var currentPageIndex: Int?
     private var currentPageImageURL: URL?
-    @Published private(set) var pendingRestorePageIndex: Int?
-    @Published private(set) var shouldPlayAd: Bool = false
+    private(set) var pendingRestorePageIndex: Int?
+    private(set) var shouldPlayAd: Bool = false
     /// 中文注释：记录最近一次章节切换方向，让 View 在新章节加载完成后决定是否需要调整滚动位置。
-    @Published private(set) var pendingChapterNavigationDirection: ReaderChapterNavigationDirection?
-    @Published private(set) var sourceLoginPrompt: ReaderSourceLoginPrompt?
-    @Published private(set) var requestedSourceLogin: LibrarySourceLoginState?
-    @Published var errorMessage: String?
+    private(set) var pendingChapterNavigationDirection: ReaderChapterNavigationDirection?
+    private(set) var sourceLoginPrompt: ReaderSourceLoginPrompt?
+    private(set) var requestedSourceLogin: LibrarySourceLoginState?
+    var errorMessage: String?
 
     let item: ContentItem
     private let source: Source

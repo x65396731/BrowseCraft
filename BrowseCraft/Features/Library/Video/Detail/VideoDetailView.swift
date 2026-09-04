@@ -5,14 +5,14 @@ import UIKit
 // 中文注释：VideoDetailView 是视频详情和选集页，和漫画章节/Reader 流程分离。
 struct VideoDetailView: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var viewModel: VideoDetailViewModel
+    @State private var viewModel: VideoDetailViewModel
 
     init(
         item: ContentItem,
         source: Source,
         factory: LibraryContentViewModelFactory
     ) {
-        _viewModel = StateObject(
+        _viewModel = State(
             wrappedValue: factory.makeVideoDetail(item, source)
         )
     }
@@ -191,7 +191,7 @@ struct VideoDetailView: View {
 }
 
 private struct VideoDetailHeaderView: View {
-    @ObservedObject var viewModel: VideoDetailViewModel
+    @Bindable var viewModel: VideoDetailViewModel
 
     var body: some View {
         VideoDetailHeroImageView(viewModel: self.viewModel)
@@ -199,7 +199,7 @@ private struct VideoDetailHeaderView: View {
 }
 
 private struct VideoDetailHeroImageView: View {
-    @ObservedObject var viewModel: VideoDetailViewModel
+    @Bindable var viewModel: VideoDetailViewModel
 
     var body: some View {
         CoverImageView(
@@ -217,7 +217,7 @@ private struct VideoDetailHeroImageView: View {
 }
 
 private struct VideoDetailSummaryView: View {
-    @ObservedObject var viewModel: VideoDetailViewModel
+    @Bindable var viewModel: VideoDetailViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {

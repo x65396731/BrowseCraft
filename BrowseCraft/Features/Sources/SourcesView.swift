@@ -6,8 +6,8 @@ import SwiftUI
 /// 中文注释：SourcesView 是 struct，负责本模块中的对应职责。
 @MainActor
 struct SourcesView: View {
-    @ObservedObject var viewModel: SourcesViewModel
-    @ObservedObject var cloudSyncViewModel: CloudSyncSettingsViewModel
+    @Bindable var viewModel: SourcesViewModel
+    @Bindable var cloudSyncViewModel: CloudSyncSettingsViewModel
     @State private var isShowingAddSourceView: Bool = false
     @State private var isShowingCatalogSourceListView: Bool = false
 

@@ -1,21 +1,29 @@
+import Observation
 import Combine
 import Foundation
 
 // 中文注释：StartupCoordinator 只协调启动状态、超时和跳过，不负责渲染或控制视频循环。
 
 @MainActor
-final class StartupCoordinator: ObservableObject {
+@Observable
+final class StartupCoordinator {
     struct Dependencies {
         let hasSources: @MainActor @Sendable () async throws -> Bool
         let loadSelectedSource: @MainActor @Sendable () async -> LibraryInitialLoadOutcome
     }
 
-    @Published private(set) var phase: StartupPhase = .checkingSources
+    private(set) var phase: StartupPhase = .checkingSources
 
     private let policy: StartupPolicy
     private let dependencies: Dependencies
+    /// 中文注释：任务句柄不是界面状态，且 deinit 需要直接触碰存储属性——排除观察。
+    @ObservationIgnored
     private var sourceCheckTask: Task<Void, Never>?
+    /// 中文注释：任务句柄不是界面状态，且 deinit 需要直接触碰存储属性——排除观察。
+    @ObservationIgnored
     private var timeoutTask: Task<Void, Never>?
+    /// 中文注释：任务句柄不是界面状态，且 deinit 需要直接触碰存储属性——排除观察。
+    @ObservationIgnored
     private var sourceLoadTask: Task<Void, Never>?
     private var hasStarted: Bool = false
     private var didVideoPlaybackFail: Bool = false

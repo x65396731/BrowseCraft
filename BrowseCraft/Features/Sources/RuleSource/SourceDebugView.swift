@@ -5,7 +5,7 @@ import BrowseCraftDomain
 // 中文注释：SourceDebugView 是统一调试入口；漫画和视频可编辑 JSON，RSS/插件保持只读。
 
 struct SourceDebugView: View {
-    @ObservedObject var viewModel: SourcesViewModel
+    @Bindable var viewModel: SourcesViewModel
     let sourceID: String
 
     @State private var draftJSON: String = ""

@@ -1,3 +1,4 @@
+import Observation
 import Foundation
 @preconcurrency import BrowseCraftCore
 import BrowseCraftDomain
@@ -25,16 +26,17 @@ struct VideoPlaybackRoute: Identifiable {
 
 // 中文注释：VideoDetailViewModel 负责加载视频剧集列表，并把单集解析成播放器入口。
 @MainActor
-final class VideoDetailViewModel: ObservableObject {
+@Observable
+final class VideoDetailViewModel {
     private static let sourceDetectionLexicon: SourceDetectionLexicon = .default
 
-    @Published private(set) var episodes: [VideoEpisode] = []
-    @Published private(set) var synopsis: String?
-    @Published private(set) var metadataRows: [String] = []
-    @Published private(set) var isLoadingEpisodes: Bool = false
-    @Published private(set) var isLoadingPlayback: Bool = false
-    @Published var playbackRoute: VideoPlaybackRoute?
-    @Published var errorMessage: String?
+    private(set) var episodes: [VideoEpisode] = []
+    private(set) var synopsis: String?
+    private(set) var metadataRows: [String] = []
+    private(set) var isLoadingEpisodes: Bool = false
+    private(set) var isLoadingPlayback: Bool = false
+    var playbackRoute: VideoPlaybackRoute?
+    var errorMessage: String?
 
     let item: ContentItem
     let source: Source

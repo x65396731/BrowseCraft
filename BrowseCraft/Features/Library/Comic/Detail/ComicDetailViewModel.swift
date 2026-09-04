@@ -1,3 +1,4 @@
+import Observation
 import Combine
 import Foundation
 import BrowseCraftCore
@@ -37,16 +38,17 @@ struct ComicDetailSourceLoginPrompt: Identifiable, Hashable {
 
 /// 中文注释：ComicDetailViewModel 持有漫画详情页状态；ReaderViewModel 只负责具体章节阅读。
 @MainActor
-final class ComicDetailViewModel: ObservableObject {
-    @Published private(set) var metadata: SourceDetailMetadata?
-    @Published private(set) var chapters: [ChapterLink] = []
-    @Published private(set) var latestReadingHistory: ComicChapterHistory?
-    @Published private(set) var isLoading: Bool = false
-    @Published private(set) var didLoad: Bool = false
-    @Published private(set) var sourceLoginPrompt: ComicDetailSourceLoginPrompt?
-    @Published private(set) var requestedSourceLogin: LibrarySourceLoginState?
-    @Published var accessMessage: String?
-    @Published var errorMessage: String?
+@Observable
+final class ComicDetailViewModel {
+    private(set) var metadata: SourceDetailMetadata?
+    private(set) var chapters: [ChapterLink] = []
+    private(set) var latestReadingHistory: ComicChapterHistory?
+    private(set) var isLoading: Bool = false
+    private(set) var didLoad: Bool = false
+    private(set) var sourceLoginPrompt: ComicDetailSourceLoginPrompt?
+    private(set) var requestedSourceLogin: LibrarySourceLoginState?
+    var accessMessage: String?
+    var errorMessage: String?
 
     let item: ContentItem
     let source: Source

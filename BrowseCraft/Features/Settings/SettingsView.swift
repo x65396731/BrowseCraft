@@ -7,9 +7,9 @@ import UIKit
 /// 中文注释：SettingsView 是应用的用户设置页。
 struct SettingsView: View {
     @Environment(\.openURL) private var openURL
-    @ObservedObject var viewModel: SettingsViewModel
-    @ObservedObject private var cloudSyncViewModel: CloudSyncSettingsViewModel
-    @StateObject private var adPlaybackViewModel: AdPlaybackViewModel = AdPlaybackViewModel()
+    @Bindable var viewModel: SettingsViewModel
+    @Bindable private var cloudSyncViewModel: CloudSyncSettingsViewModel
+    @State private var adPlaybackViewModel: AdPlaybackViewModel = AdPlaybackViewModel()
     @AppStorage("settings.displayName") private var displayName: String = ""
     @AppStorage("settings.email") private var email: String = ""
     @AppStorage(CrashDiagnostics.collectionEnabledDefaultsKey) private var isDiagnosticsEnabled: Bool = CrashDiagnostics.isCollectionEnabled

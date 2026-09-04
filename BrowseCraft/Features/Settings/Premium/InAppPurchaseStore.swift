@@ -1,18 +1,20 @@
+import Observation
 import StoreKit
 import SwiftUI
 
 @MainActor
-final class InAppPurchaseStore: ObservableObject {
+@Observable
+final class InAppPurchaseStore {
     typealias Status = InAppPurchaseStatus
 
-    @Published private(set) var isLoading: Bool = false
-    @Published private(set) var hasLoadedProducts: Bool = false
-    @Published private(set) var activeProductID: String?
-    @Published private(set) var productsByID: [String: Product] = [:]
-    @Published private(set) var storeKitOwnedProductIDs: Set<String> = []
-    @Published private(set) var unverifiedStoreKitProductIDs: Set<String> = []
-    @Published private(set) var portalEntitledProductIDs: Set<String> = []
-    @Published private(set) var status: Status = .idle {
+    private(set) var isLoading: Bool = false
+    private(set) var hasLoadedProducts: Bool = false
+    private(set) var activeProductID: String?
+    private(set) var productsByID: [String: Product] = [:]
+    private(set) var storeKitOwnedProductIDs: Set<String> = []
+    private(set) var unverifiedStoreKitProductIDs: Set<String> = []
+    private(set) var portalEntitledProductIDs: Set<String> = []
+    private(set) var status: Status = .idle {
         didSet {
             guard oldValue != self.status else {
                 return

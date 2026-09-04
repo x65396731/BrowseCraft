@@ -2,7 +2,7 @@ import SwiftUI
 
 @MainActor
 struct CloudSyncSettingsView: View {
-    @ObservedObject var viewModel: CloudSyncSettingsViewModel
+    @Bindable var viewModel: CloudSyncSettingsViewModel
 
     var body: some View {
         Form {
@@ -455,7 +455,7 @@ struct CloudSyncSettingsView: View {
 @MainActor
 private struct CloudSyncFirstEnableSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject var viewModel: CloudSyncSettingsViewModel
+    @Bindable var viewModel: CloudSyncSettingsViewModel
     let request: CloudSyncSettingsViewModel.FirstEnableRequest
 
     @State private var isSubmitting: Bool = false

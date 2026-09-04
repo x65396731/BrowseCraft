@@ -3,7 +3,7 @@ import Foundation
 import SwiftUI
 
 struct VideoGenerationInputView: View {
-    @ObservedObject var viewModel: SourcesViewModel
+    @Bindable var viewModel: SourcesViewModel
     @Environment(\.dismiss) private var dismiss
 
     @State private var siteURL: String = ""

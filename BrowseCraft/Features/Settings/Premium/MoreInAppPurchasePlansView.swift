@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MoreInAppPurchasePlansView: View {
-    @ObservedObject var store: InAppPurchaseStore
+    @Bindable var store: InAppPurchaseStore
     let closeAction: () -> Void
 
     private let plans: [InAppPurchasePlan] = InAppPurchasePlan.activePlans

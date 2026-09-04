@@ -21,7 +21,7 @@ struct RuntimeSourceImportView: View {
         }
     }
 
-    @ObservedObject var viewModel: SourcesViewModel
+    @Bindable var viewModel: SourcesViewModel
     let kind: RuntimeSourceImportKind
     let completion: () -> Void
     @Environment(\.dismiss) private var dismiss

@@ -5,7 +5,7 @@ import SwiftUI
 
 /// 中文注释：HistoryView 是 struct，负责本模块中的对应职责。
 struct HistoryView: View {
-    @ObservedObject var viewModel: HistoryViewModel
+    @Bindable var viewModel: HistoryViewModel
     let contentViewModelFactory: LibraryContentViewModelFactory
 
     var body: some View {

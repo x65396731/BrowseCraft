@@ -1,3 +1,4 @@
+import Observation
 import Foundation
 @preconcurrency import BrowseCraftCore
 import BrowseCraftDomain
@@ -5,17 +6,18 @@ import BrowseCraftRuntime
 
 // 中文注释：VideoPlayerViewModel 管理单集播放历史的初始保存、自动保存和退出保存。
 @MainActor
-final class VideoPlayerViewModel: ObservableObject {
-    @Published private(set) var currentPlaybackTime: TimeInterval = 0
-    @Published private(set) var duration: TimeInterval?
-    @Published private(set) var isPrepared: Bool = false
-    @Published private(set) var isLoadingEpisodeSwitch: Bool = false
-    @Published private(set) var shouldPlayAd: Bool = false
-    @Published private(set) var requestedSourceLogin: LibrarySourceLoginState?
-    @Published var errorMessage: String?
+@Observable
+final class VideoPlayerViewModel {
+    private(set) var currentPlaybackTime: TimeInterval = 0
+    private(set) var duration: TimeInterval?
+    private(set) var isPrepared: Bool = false
+    private(set) var isLoadingEpisodeSwitch: Bool = false
+    private(set) var shouldPlayAd: Bool = false
+    private(set) var requestedSourceLogin: LibrarySourceLoginState?
+    var errorMessage: String?
 
     let source: Source
-    @Published private(set) var reference: SourceVideoPlaybackReference
+    private(set) var reference: SourceVideoPlaybackReference
     let videoTitle: String
     let detailURL: URL?
     let coverURL: URL?
@@ -27,6 +29,8 @@ final class VideoPlayerViewModel: ObservableObject {
     private let activeAppUser: (any ActiveAppUserProviding)?
     private let fallbackUserID: String
     private let now: () -> Date
+    /// 中文注释：任务句柄不是界面状态，且 deinit 需要直接触碰存储属性——排除观察。
+    @ObservationIgnored
     private var autosaveTask: Task<Void, Never>?
     private var didSeekToRestoredTime: Bool = false
     private var lastSavedPlaybackTime: TimeInterval?

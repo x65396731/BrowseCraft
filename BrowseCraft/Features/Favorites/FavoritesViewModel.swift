@@ -1,3 +1,4 @@
+import Observation
 import BrowseCraftDomain
 import Combine
 import Foundation
@@ -5,10 +6,11 @@ import Foundation
 // 中文注释：FavoritesViewModel 负责收藏页数据加载与详情入口。
 
 @MainActor
-final class FavoritesViewModel: ObservableObject {
-    @Published private(set) var favoriteItems: [FavoriteContentItem] = []
-    @Published private(set) var sources: [Source] = []
-    @Published var errorMessage: String?
+@Observable
+final class FavoritesViewModel {
+    private(set) var favoriteItems: [FavoriteContentItem] = []
+    private(set) var sources: [Source] = []
+    var errorMessage: String?
 
     private let persistenceCoordinator: FavoritesPersistenceCoordinator
 

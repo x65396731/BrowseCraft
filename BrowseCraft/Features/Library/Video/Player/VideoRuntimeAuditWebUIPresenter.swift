@@ -1,5 +1,6 @@
 // 中文注释：显式 runtime audit 只随 Debug 构建编译；Release/TestFlight 不含审计代码。
 #if DEBUG
+import Observation
 import BrowseCraftCore
 import SwiftUI
 
@@ -7,7 +8,8 @@ import SwiftUI
 // 它用**同一个** VideoWebPlayerView / VideoWebPlayerRequest(reference:requestConfig:) 在根视图
 // 之上展示 WebUI 路线，等待 playing 观察，结束即关闭；一次只承载一个 session。
 @MainActor
-final class VideoRuntimeAuditWebUIPresenter: ObservableObject, VideoRuntimeAuditWebUIObserving {
+@Observable
+final class VideoRuntimeAuditWebUIPresenter: VideoRuntimeAuditWebUIObserving {
     struct ActiveSession: Identifiable {
         let id: String
         let request: VideoWebPlayerRequest
@@ -17,7 +19,7 @@ final class VideoRuntimeAuditWebUIPresenter: ObservableObject, VideoRuntimeAudit
     /// 中文注释：首个绑定候选元素 playing 之后再等一小段，捕捉同 session 的第二个媒体元素（广告 + 正片）。
     static let settleInterval: TimeInterval = 3
 
-    @Published private(set) var activeSession: ActiveSession?
+    private(set) var activeSession: ActiveSession?
 
     func observe(
         reference: SourceVideoPlaybackReference,
@@ -66,7 +68,7 @@ final class VideoRuntimeAuditWebUIPresenter: ObservableObject, VideoRuntimeAudit
 
 /// 中文注释：根视图之上的 audit 覆盖层；无 active session 时不渲染任何东西。
 struct VideoRuntimeAuditWebUIOverlay: View {
-    @ObservedObject var presenter: VideoRuntimeAuditWebUIPresenter
+    @Bindable var presenter: VideoRuntimeAuditWebUIPresenter
 
     var body: some View {
         if let session: VideoRuntimeAuditWebUIPresenter.ActiveSession = self.presenter.activeSession {

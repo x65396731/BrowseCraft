@@ -1,8 +1,10 @@
+import Observation
 import Combine
 import Foundation
 
 @MainActor
-final class CloudSyncSettingsViewModel: ObservableObject {
+@Observable
+final class CloudSyncSettingsViewModel {
     enum ActivationIssue: String, Hashable, Identifiable {
         case signInRequired
         case restricted
@@ -46,22 +48,22 @@ final class CloudSyncSettingsViewModel: ObservableObject {
         }
     }
 
-    @Published private(set) var accountSnapshot: CloudAccountSessionSnapshot
-    @Published private(set) var coordinatorSnapshot: CloudSyncCoordinatorSnapshot
-    @Published private(set) var preparation: CloudAccountPartitionPreparation?
-    @Published private(set) var currentUserSummary: CloudAccountPartitionSummary?
-    @Published private(set) var setupRequest: SetupRequest?
-    @Published private(set) var cloudIdentityAssociationState:
+    private(set) var accountSnapshot: CloudAccountSessionSnapshot
+    private(set) var coordinatorSnapshot: CloudSyncCoordinatorSnapshot
+    private(set) var preparation: CloudAccountPartitionPreparation?
+    private(set) var currentUserSummary: CloudAccountPartitionSummary?
+    private(set) var setupRequest: SetupRequest?
+    private(set) var cloudIdentityAssociationState:
         CloudAppUserIdentityAssociationState = .notAssociated
-    @Published private(set) var activationIssue: ActivationIssue?
-    @Published private(set) var isRefreshingAccount: Bool = false
-    @Published private(set) var isChangingCloudSyncEnabled: Bool = false
-    @Published private(set) var isRequestingManualSync: Bool = false
-    @Published private(set) var actionErrorMessage: String?
-    @Published private(set) var initialRestoreState: CloudSyncInitialRestoreState = .notRequired
-    @Published private(set) var contentRevision: UInt64 = 0
-    @Published private(set) var identityRevision: UInt64 = 0
-    @Published private(set) var hasAttestedIdentityAssociation: Bool = false
+    private(set) var activationIssue: ActivationIssue?
+    private(set) var isRefreshingAccount: Bool = false
+    private(set) var isChangingCloudSyncEnabled: Bool = false
+    private(set) var isRequestingManualSync: Bool = false
+    private(set) var actionErrorMessage: String?
+    private(set) var initialRestoreState: CloudSyncInitialRestoreState = .notRequired
+    private(set) var contentRevision: UInt64 = 0
+    private(set) var identityRevision: UInt64 = 0
+    private(set) var hasAttestedIdentityAssociation: Bool = false
 
     private let accountSession: CloudAccountSession
     private let partitionStore: any CloudAccountPartitioning
@@ -72,7 +74,11 @@ final class CloudSyncSettingsViewModel: ObservableObject {
     private let activeAppUser: (any ActiveAppUserProviding)?
 
     private var isStarted: Bool = false
+    /// 中文注释：任务句柄不是界面状态，且 deinit 需要直接触碰存储属性——排除观察。
+    @ObservationIgnored
     private var accountObservationTask: Task<Void, Never>?
+    /// 中文注释：任务句柄不是界面状态，且 deinit 需要直接触碰存储属性——排除观察。
+    @ObservationIgnored
     private var coordinatorObservationTask: Task<Void, Never>?
     private var lastHandledDownloadCheckpoint: CloudSyncDownloadCheckpoint?
     private var activationIntent: ActivationIntent?

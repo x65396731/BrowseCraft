@@ -1,3 +1,4 @@
+import Observation
 import Combine
 import Foundation
 @preconcurrency import BrowseCraftCore
@@ -8,12 +9,13 @@ import BrowseCraftRuntime
 
 /// 中文注释：RSS 阅读历史保存放在 ViewModel，View 只负责展示与触发生命周期。
 @MainActor
-final class RSSContentDetailViewModel: ObservableObject {
+@Observable
+final class RSSContentDetailViewModel {
     private static let maxAcceptedDetailBlockCount: Int = 300
     private static let maxAcceptedDetailImageCount: Int = 80
 
-    @Published private(set) var shouldPlayAd: Bool = false
-    @Published private(set) var displayItem: ContentItem
+    private(set) var shouldPlayAd: Bool = false
+    private(set) var displayItem: ContentItem
 
     let item: ContentItem
     let source: Source

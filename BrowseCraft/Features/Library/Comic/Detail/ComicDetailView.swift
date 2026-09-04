@@ -4,7 +4,7 @@ import SwiftUI
 /// 中文注释：漫画详情页展示作品信息和章节目录；只有章节选择后才创建 Reader。
 struct ComicDetailView: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var viewModel: ComicDetailViewModel
+    @State private var viewModel: ComicDetailViewModel
     @State private var selectedReaderDestination: ComicReaderDestination?
 
     let contentViewModelFactory: LibraryContentViewModelFactory
@@ -14,7 +14,7 @@ struct ComicDetailView: View {
         source: Source,
         factory: LibraryContentViewModelFactory
     ) {
-        self._viewModel = StateObject(
+        self._viewModel = State(
             wrappedValue: factory.makeComicDetail(item, source)
         )
         self.contentViewModelFactory = factory

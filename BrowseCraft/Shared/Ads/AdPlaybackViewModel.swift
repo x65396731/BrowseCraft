@@ -1,10 +1,12 @@
+import Observation
 import Foundation
 
 // 中文注释：AdPlaybackViewModel 用于手动触发一次广告加载和播放。
 @MainActor
-final class AdPlaybackViewModel: ObservableObject {
-    @Published private(set) var isLoading: Bool = false
-    @Published var message: String?
+@Observable
+final class AdPlaybackViewModel {
+    private(set) var isLoading: Bool = false
+    var message: String?
 
     private let presenter: RewardedAdPresenter = RewardedAdPresenter()
 

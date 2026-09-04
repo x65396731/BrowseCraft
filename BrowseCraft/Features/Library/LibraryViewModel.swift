@@ -1,3 +1,4 @@
+import Observation
 import Combine
 import Foundation
 @preconcurrency import BrowseCraftCore
@@ -16,22 +17,23 @@ enum LibraryInitialLoadOutcome: Equatable {
 
 /// 中文注释：LibraryViewModel 以 SourceRuntimeKind 作为 Library 展示和刷新入口。
 @MainActor
-final class LibraryViewModel: ObservableObject {
-    @Published private(set) var items: [ContentItem] = []
-    @Published private(set) var sources: [Source] = []
-    @Published private(set) var favoriteItemIDs: Set<String> = []
-    @Published private(set) var selectedSourceID: String?
-    @Published var selectedListTabID: String?
-    @Published var errorMessage: String?
-    @Published private(set) var selectedListTabErrorMessage: String?
-    @Published private(set) var isRefreshing: Bool = false
-    @Published private(set) var isLoadingNextPage: Bool = false
-    @Published private(set) var preparingSource: SourceLoadingState?
-    @Published private(set) var preparedLibrarySnapshot: SourceLibrarySnapshot?
-    @Published private(set) var requestedSourceLogin: LibrarySourceLoginState?
-    @Published private(set) var currentListPage: Int = 1
-    @Published private(set) var canLoadNextPage: Bool = false
-    @Published private var credentialRevision: Int = 0
+@Observable
+final class LibraryViewModel {
+    private(set) var items: [ContentItem] = []
+    private(set) var sources: [Source] = []
+    private(set) var favoriteItemIDs: Set<String> = []
+    private(set) var selectedSourceID: String?
+    var selectedListTabID: String?
+    var errorMessage: String?
+    private(set) var selectedListTabErrorMessage: String?
+    private(set) var isRefreshing: Bool = false
+    private(set) var isLoadingNextPage: Bool = false
+    private(set) var preparingSource: SourceLoadingState?
+    private(set) var preparedLibrarySnapshot: SourceLibrarySnapshot?
+    private(set) var requestedSourceLogin: LibrarySourceLoginState?
+    private(set) var currentListPage: Int = 1
+    private(set) var canLoadNextPage: Bool = false
+    private var credentialRevision: Int = 0
 
     private let persistenceCoordinator: LibraryPersistenceCoordinator
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
@@ -736,9 +738,13 @@ final class LibraryViewModel: ObservableObject {
             }
             .store(in: &self.cancellables)
 
+        // 中文注释：@Observable 没有 $ 投影，assign(to:) 不再可用；改为 sink 赋值，语义不变。
         self.sourceSelectionStore.$preparingSource
             .receive(on: DispatchQueue.main)
-            .assign(to: &self.$preparingSource)
+            .sink { [weak self] preparingSource in
+                self?.preparingSource = preparingSource
+            }
+            .store(in: &self.cancellables)
 
         self.sourceSelectionStore.$preparedLibrarySnapshot
             .receive(on: DispatchQueue.main)

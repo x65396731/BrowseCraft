@@ -1,3 +1,4 @@
+import Observation
 import BrowseCraftDomain
 import Combine
 import Foundation
@@ -6,11 +7,12 @@ import Foundation
 
 /// 中文注释：HistoryViewModel 是 final class，负责本模块中的对应职责。
 @MainActor
-final class HistoryViewModel: ObservableObject {
-    @Published private(set) var readingHistoryEntries: [ReadingHistoryEntry] = []
-    @Published private(set) var sources: [Source] = []
-    @Published var videoPlaybackRoute: VideoPlaybackRoute?
-    @Published var errorMessage: String?
+@Observable
+final class HistoryViewModel {
+    private(set) var readingHistoryEntries: [ReadingHistoryEntry] = []
+    private(set) var sources: [Source] = []
+    var videoPlaybackRoute: VideoPlaybackRoute?
+    var errorMessage: String?
 
     private let persistenceCoordinator: HistoryPersistenceCoordinator
     private let activeAppUser: (any ActiveAppUserProviding)?
