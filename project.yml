@@ -20,6 +20,9 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     MARKETING_VERSION: "1.0"
     CODE_SIGN_STYLE: Automatic
+    # 中文注释：团队 ID 必须写在这里。XcodeGen 每次重新生成都会覆盖 project.pbxproj，
+    # 在 Xcode 界面里设的团队会被抹掉，下次归档就会报 "requires a development team"。
+    DEVELOPMENT_TEAM: SG84FDK26C
     TARGETED_DEVICE_FAMILY: "1,2"
     ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
     CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED: YES

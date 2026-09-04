@@ -10,6 +10,8 @@ Regenerate the Xcode project after adding, moving or removing source files.
 
 中文注释：依赖全部由 Swift Package Manager 管理，工程只需要 `xcodegen generate`，没有 CocoaPods 步骤。如果 Xcode 正开着工程并提示"文件已被修改"，选"使用磁盘版本"。
 
+中文注释：工程文件是生成物且不入库，因此签名团队等设置必须写在 `project.yml`（`settings.base.DEVELOPMENT_TEAM`）。在 Xcode 的 Signing & Capabilities 里改只在下次重新生成前有效。
+
 It does not build the app.
 
 ## update-rules-package.sh

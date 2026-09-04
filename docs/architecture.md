@@ -134,7 +134,14 @@ Contract in the package, implementation in the app — preserve this shape.
   it; RSS and rule-loading paths go through their boundary protocols.
 
 `scripts/check-ad-configuration.sh` fails a PROD archive that still carries Google's sample
-rewarded ad unit, and only warns elsewhere.
+rewarded ad unit, and only warns elsewhere. Archiving for TestFlight therefore uses the
+**TEST BrowseCraft** scheme (archive config `TestFlight`, environment TEST); the plain
+**BrowseCraft** and **PROD BrowseCraft** schemes archive `Release` as PROD and will refuse to
+build until `BROWSECRAFT_REWARDED_AD_UNIT_ID` is a real ad unit.
+
+Signing settings, including `DEVELOPMENT_TEAM`, must live in `project.yml`. `project.pbxproj` is
+generated and git-ignored, so anything set through Xcode's Signing & Capabilities editor is wiped
+by the next `scripts/regenerate-project.sh`.
 
 ## 4. Concurrency
 
