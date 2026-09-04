@@ -15,6 +15,9 @@ DerivedData/
 **/*.xcresult/
 TestResults/*.md
 
+# CocoaPods 时代的 workspace 已废弃；Xcode 若重新生成同名目录一律忽略
+*.xcworkspace/
+
 # XcodeGen writes the project; only the SwiftPM lock file inside it is tracked
 BrowseCraft.xcodeproj/*
 !BrowseCraft.xcodeproj/project.xcworkspace/
