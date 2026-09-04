@@ -12,8 +12,8 @@ interpret a rule, and who may touch the network.
 | `BrowseCraft` | app target | ~62k lines | Everything in §2 |
 | `BrowseCraftCore` | sibling SwiftPM package | ~29k lines | Rule models, validation, resolved graphs, deterministic parsing |
 | `BrowseCraftAPIKit` | sibling SwiftPM package | ~1.3k lines | The BrowseCraft backend contract (endpoints, DTOs, transport) |
-| `BrowseCraftDomain` | in-repo framework | ~2.1k lines | Domain kernel: values, ports, policies and diagnostics shared by the app and the rule runtime |
-| `BrowseCraftRuntime` | in-repo framework | ~15k lines | The whole rule runtime: Comic, RSS, Video and the shared dispatch |
+| `BrowseCraftDomain` | sibling SwiftPM package | ~2.1k lines | Domain kernel: values, ports, policies and diagnostics shared by the app and the rule runtime |
+| `BrowseCraftRuntime` | sibling SwiftPM package | ~13k lines | The whole rule runtime: Comic, RSS, Video and the shared dispatch |
 
 **Core's rule models are this app's domain model.** `SiteRule`, `VideoSiteRule`, `ListContext`,
 `RequestConfig` and the resolved graphs are used directly by `Domain`, `Application` and
@@ -28,8 +28,18 @@ what Core may do. The short version: Core is a deterministic function from (byte
 context) to normalised output, and never performs requests, holds cookies, creates a `WKWebView`,
 or knows about the current user.
 
-Core and APIKit are consumed as **path dependencies on sibling checkouts** and carry no version
-tags. This is known debt: the app's `main` only builds against the sibling repos' `main`.
+All four packages are consumed as **path dependencies on sibling checkouts** and carry no version
+tags. This is known debt: the app's `main` only builds against the sibling repos' `main`, and a
+fresh machine has to clone all five repositories side by side:
+
+```
+Desktop/
+  BrowseCraft/            # the app
+  BrowseCraftCore/
+  BrowseCraftDomain/
+  BrowseCraftRuntime/
+  BrowseCraftAPIKit/
+```
 
 ## 2. Layers inside the app target
 
@@ -85,8 +95,10 @@ the runtime need it**, not merely because it feels domain-ish. Entities that onl
 The rule runtime turns a resolved rule plus fetched bytes into domain values, and now lives
 entirely in `BrowseCraftRuntime`. It imports nothing but Foundation, `BrowseCraftCore` and
 `BrowseCraftDomain`; the app supplies every loader, credential store and header provider through
-kernel ports. `SourceDetectionLexicon` reads its JSON from the framework's own bundle
-(`Bundle(for:)`), so those resources must stay inside `BrowseCraftRuntime`.
+kernel ports. `SourceDetectionLexicon` reads its JSON from the package's resource bundle (`Bundle.module`,
+declared as `.process` in `Package.swift`). `Bundle(for:)` would resolve to the app bundle once the
+package links statically, find nothing, and silently fall back — so resource lookup in a package
+must always go through `Bundle.module`.
 
 The Debug-only runtime audit is a developer tool, not runtime semantics, so it stays in the app at
 `Application/Diagnostics/VideoRuntimeAudit` — it drives the runtime and depends on app use cases.
@@ -207,16 +219,6 @@ occur for them.
   it is at least visible, but the UI layer reading `SiteRule` directly means a rule-format change
   can ripple into views. Narrowing this to presentation values resolved in `Application` is worth
   doing incrementally; it is not a blocker for anything.
-- **`BrowseCraftDomain` and `BrowseCraftRuntime` are Xcode framework targets, not SwiftPM
-  packages.** `BrowseCraftCore` and `BrowseCraftAPIKit` are sibling SwiftPM repositories; these two
-  are declared in `project.yml` under `targets:` and live at the repository root. Module boundaries
-  are enforced identically (separate module, `public` + `import` required), but a framework target
-  cannot be reused by another repository, cannot be built or tested on its own with `swift build`,
-  and carries no version. The reason is mechanical: a SwiftPM package cannot depend on an Xcode
-  target, and `BrowseCraftRuntime` depends on `BrowseCraftDomain`. Converting both into local
-  SwiftPM packages (`Packages/…`) needs no source changes — only moving them from `targets:` to
-  `packages:` — and is deferred until the runtime extraction is finished.
-
 - **Core and APIKit are unversioned path dependencies** (see §1).
 - **`Shared` mixes concerns** — Firebase, AdMob, logging, image views and review prompts, with four
   `.shared` singletons that have no port and cannot be substituted in tests.

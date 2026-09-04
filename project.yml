@@ -29,6 +29,10 @@ settings:
 packages:
   BrowseCraftCore:
     path: ../BrowseCraftCore
+  BrowseCraftDomain:
+    path: ../BrowseCraftDomain
+  BrowseCraftRuntime:
+    path: ../BrowseCraftRuntime
   BrowseCraftAPIKit:
     path: ../BrowseCraftAPIKit
   KSPlayer:
@@ -58,49 +62,6 @@ packages:
     exactVersion: 12.8.0
 
 targets:
-  BrowseCraftDomain:
-    type: framework
-    platform: iOS
-    deploymentTarget: "17.0"
-    sources:
-      - path: BrowseCraftDomain
-    dependencies:
-      - package: BrowseCraftCore
-        product: BrowseCraftCore
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.xiefei.BrowseCraftDomain
-        GENERATE_INFOPLIST_FILE: YES
-      configs:
-        Debug:
-          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
-        Release:
-          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
-        TestFlight:
-          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
-
-  BrowseCraftRuntime:
-    type: framework
-    platform: iOS
-    deploymentTarget: "17.0"
-    sources:
-      - path: BrowseCraftRuntime
-    dependencies:
-      - target: BrowseCraftDomain
-      - package: BrowseCraftCore
-        product: BrowseCraftCore
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.xiefei.BrowseCraftRuntime
-        GENERATE_INFOPLIST_FILE: YES
-      configs:
-        Debug:
-          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
-        Release:
-          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
-        TestFlight:
-          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
-
   BrowseCraft:
     type: application
     platform: iOS
@@ -110,10 +71,12 @@ targets:
         excludes:
           - "**/*.md"
     dependencies:
-      - target: BrowseCraftDomain
-      - target: BrowseCraftRuntime
       - package: BrowseCraftCore
         product: BrowseCraftCore
+      - package: BrowseCraftDomain
+        product: BrowseCraftDomain
+      - package: BrowseCraftRuntime
+        product: BrowseCraftRuntime
       - package: BrowseCraftAPIKit
         product: BrowseCraftAPIKit
       - package: KSPlayer
@@ -229,10 +192,12 @@ targets:
         buildPhase: resources
     dependencies:
       - target: BrowseCraft
-      - target: BrowseCraftDomain
-      - target: BrowseCraftRuntime
       - package: BrowseCraftCore
         product: BrowseCraftCore
+      - package: BrowseCraftDomain
+        product: BrowseCraftDomain
+      - package: BrowseCraftRuntime
+        product: BrowseCraftRuntime
       - package: GRDB
         product: GRDB
       - package: Nuke

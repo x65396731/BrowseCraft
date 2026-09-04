@@ -4,7 +4,7 @@ set -euo pipefail
 
 REPOSITORY_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP_ROOT="$REPOSITORY_ROOT/BrowseCraft"
-DOMAIN_FRAMEWORK_ROOT="$REPOSITORY_ROOT/BrowseCraftDomain"
+DOMAIN_PACKAGE_ROOT="$REPOSITORY_ROOT/../BrowseCraftDomain/Sources/BrowseCraftDomain"
 
 search_swift() {
   local directory="$1"
@@ -72,10 +72,12 @@ fail_if_imported \
   'UIKit|SwiftUI|StoreKit|GRDB|Alamofire|Nuke|SwiftSoup|BrowseCraftAPIKit|WebKit|AVFoundation|CloudKit|Combine' \
   'Domain must remain framework-agnostic.'
 
+if [[ -d "$DOMAIN_PACKAGE_ROOT" ]]; then
 fail_if_imported \
-  "$DOMAIN_FRAMEWORK_ROOT" \
+  "$DOMAIN_PACKAGE_ROOT" \
   'UIKit|SwiftUI|StoreKit|GRDB|Alamofire|Nuke|SwiftSoup|BrowseCraftAPIKit|WebKit|AVFoundation|CloudKit|Combine' \
   'BrowseCraftDomain may depend only on Foundation and BrowseCraftCore.'
+fi
 
 fail_if_imported \
   "$APP_ROOT/Application" \
