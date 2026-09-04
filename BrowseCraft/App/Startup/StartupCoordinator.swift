@@ -1,5 +1,4 @@
 import Observation
-import Combine
 import Foundation
 
 // 中文注释：StartupCoordinator 只协调启动状态、超时和跳过，不负责渲染或控制视频循环。

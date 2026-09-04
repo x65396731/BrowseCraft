@@ -1,6 +1,5 @@
 import Observation
 import BrowseCraftDomain
-import Combine
 import Foundation
 
 // 中文注释：FavoritesViewModel 负责收藏页数据加载与详情入口。

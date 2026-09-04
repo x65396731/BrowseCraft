@@ -1,6 +1,5 @@
 import Observation
 import BrowseCraftDomain
-import Combine
 import Foundation
 
 // 中文注释：HistoryViewModel.swift 属于界面功能层，用于说明本文件承载的核心职责。
