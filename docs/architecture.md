@@ -44,8 +44,20 @@ Dependency arrows point inward. Nothing below may reference anything above it.
 | `Shared` | 1.7k / 18 files | Logging, diagnostics, ads, common image views |
 | `App` | 1.8k / 12 files | Composition root, feature factories, startup |
 
-`App/AppContainer.swift` is the only place allowed to assemble concrete adapters, and — besides
-`Infrastructure` — the only place allowed to see `BrowseCraftAPIKit`.
+`App/Composition` is the composition root: the only place allowed to assemble concrete adapters,
+and — besides `Infrastructure` — the only place allowed to see `BrowseCraftAPIKit`. It is split by
+what owns the objects rather than by layer:
+
+- `AccountComposition` — business identity, Portal session and entitlements, CloudKit sync
+  partitioning, and the two repositories whose writes notify sync. Identity and sync are grouped
+  because they genuinely depend on each other (the sync coordinator needs the active user; the
+  identity-adoption coordinator needs the sync coordinator), so splitting them would only produce
+  back-references.
+- `SourceRuntimeComposition` — the network carriers and the three runtime factories, i.e. wiring
+  the app's concrete adapters onto the kernel ports the runtime consumes.
+- `FeatureComposition` — the per-screen factories, the only place that knows which screen needs what.
+- `AppContainer` holds those three and keeps what is genuinely app-lifecycle: the StoreKit
+  transaction listener, image-cache configuration, and the Debug-only audit entry point.
 
 ### The domain kernel
 
@@ -198,8 +210,5 @@ occur for them.
   `packages:` — and is deferred until the runtime extraction is finished.
 
 - **Core and APIKit are unversioned path dependencies** (see §1).
-- **`AppContainer` changes on nearly every feature** — it constructs ~40 objects in one `init` and
-  is the most-churned file in the repo. Splitting it into identity / sync / runtime sub-containers
-  would decouple those axes.
 - **`Shared` mixes concerns** — Firebase, AdMob, logging, image views and review prompts, with four
   `.shared` singletons that have no port and cannot be substituted in tests.

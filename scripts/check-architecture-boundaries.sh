@@ -151,7 +151,7 @@ api_kit_violations="$(
   exclude_matches \
     "$api_kit_matches" \
     '/Infrastructure/' \
-    '/App/AppContainer.swift:'
+    '/App/Composition/'
 )"
 if [[ -n "$api_kit_violations" ]]; then
   echo 'Architecture boundary violation: BrowseCraftAPIKit escaped its adapter/composition boundary.'
