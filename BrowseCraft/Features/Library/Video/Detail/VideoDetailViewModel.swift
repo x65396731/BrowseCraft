@@ -472,6 +472,24 @@ final class VideoDetailViewModel {
                 "mediaKind=\(reference.candidateMediaKind.rawValue) " +
                 "status=\(reference.status)"
             )
+            // 中文注释：为什么没走直接媒体——把 Runtime 的抽取计数与诊断 issue 原样打出来，
+            // 不在 App 里再做一遍判断（用户 2026-09-05 要求 HLS 探测原因可见）。
+            let extractionSummary: String = output.diagnostics.extractionLogs.map { log in
+                "\(log.field)=\(log.candidateCount)/\(log.outputCount)"
+            }.joined(separator: " ")
+            AppDebugLog.write(
+                "[BrowseCraftVideoDetail] openEpisode playback-diagnostics " +
+                "source=\(self.source.id) " +
+                "episodeKey=\(reference.episodeKey) " +
+                "extraction=[\(extractionSummary)]"
+            )
+            for issue in output.diagnostics.issues {
+                AppDebugLog.write(
+                    "[BrowseCraftVideoDetail] openEpisode playback-issue " +
+                    "source=\(self.source.id) " +
+                    "id=\(issue.id) severity=\(issue.severity.rawValue) message=\(issue.message)"
+                )
+            }
             #endif
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .playback, event: "video-playback-error")
