@@ -1120,6 +1120,8 @@ struct VideoRuntimeAuditService {
             return "iframe-depth-exceeded"
         case .iframeLoopDetected:
             return "iframe-loop-detected"
+        case .ambiguousIframeCandidates:
+            return "ambiguous-iframe-candidates"
         case .priorRouteSelected:
             return "route-not-reached"
         case nil:
