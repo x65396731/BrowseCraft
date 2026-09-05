@@ -215,13 +215,21 @@ enum CatalogRuleJSONValue: Codable, Equatable {
         }
     }
 
+    /// 解到规则本体为止。
+    ///
+    /// 中文注释：服务端 `catalog_sources.rule_json` 存的是带 `id/name/baseURL/kind/ruleJSON` 的
+    /// 信封，加密时又包了一层 source——所以密文里可能有两层 `ruleJSON`。目录列表路径此前靠
+    /// `CatalogSourcePayload` 再解一次才对；`/outcomes` 与「已有规则直接复用」只解一次，
+    /// 拿到的是信封，校验器报 `$.id / $.ruleJSON` 未知字段（09-05 真机）。这里统一递归解到
+    /// 不再有嵌套 `ruleJSON` 对象为止，三条路径同一语义。
     var importRuleJSON: CatalogRuleJSONValue {
-        guard case .object(let object) = self,
-              let nestedRuleJSON: CatalogRuleJSONValue = object["ruleJSON"] else {
-            return self
+        var current: CatalogRuleJSONValue = self
+        while case .object(let object) = current,
+              let nestedRuleJSON: CatalogRuleJSONValue = object["ruleJSON"],
+              case .object = nestedRuleJSON {
+            current = nestedRuleJSON
         }
-
-        return nestedRuleJSON
+        return current
     }
 }
 
