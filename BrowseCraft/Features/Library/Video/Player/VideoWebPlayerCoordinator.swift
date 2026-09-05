@@ -662,43 +662,54 @@ struct VideoPlaybackProviderFailure: Equatable {
     var url: URL
 
     var host: String {
-        return self.url.host ?? "未知主机"
+        return self.url.host ?? NSLocalizedString("video_player_provider_unknown_host", comment: "")
     }
 
     var title: String {
         switch self.kind {
         case .blocked, .unreachable:
-            return "播放源无法访问"
+            return NSLocalizedString("video_player_provider_title_unreachable", comment: "")
         case .sourceInvalid:
-            return "片源已失效"
+            return NSLocalizedString("video_player_provider_title_source_invalid", comment: "")
         case .providerError:
-            return "播放源出错"
+            return NSLocalizedString("video_player_provider_title_error", comment: "")
         }
     }
 
     var message: String {
         switch self.kind {
         case .blocked(let statusCode):
-            return "此内容由第三方播放源 \(self.host) 提供，" +
-                "当前网络访问它时被源站安全服务拦截（HTTP \(statusCode)）。" +
-                "这与应用无关，通常是网络出口被对方屏蔽。"
+            return String(
+                format: NSLocalizedString("video_player_provider_message_blocked", comment: ""),
+                self.host,
+                statusCode
+            )
         case .unreachable:
-            return "无法连接第三方播放源 \(self.host)（连接超时或被重置），" +
-                "可能被当前网络屏蔽。"
+            return String(
+                format: NSLocalizedString("video_player_provider_message_unreachable", comment: ""),
+                self.host
+            )
         case .sourceInvalid(let statusCode):
-            return "播放源 \(self.host) 返回 HTTP \(statusCode)，" +
-                "该片源可能已被移除。"
+            return String(
+                format: NSLocalizedString("video_player_provider_message_source_invalid", comment: ""),
+                self.host,
+                statusCode
+            )
         case .providerError(let statusCode):
-            return "播放源 \(self.host) 返回 HTTP \(statusCode)。"
+            return String(
+                format: NSLocalizedString("video_player_provider_message_provider_error", comment: ""),
+                self.host,
+                statusCode
+            )
         }
     }
 
     var hint: String? {
         switch self.kind {
         case .blocked, .unreachable:
-            return "可尝试：切换到蜂窝数据或更换网络环境后重试"
+            return NSLocalizedString("video_player_provider_hint_change_network", comment: "")
         case .sourceInvalid:
-            return "可尝试：返回上一页选择其它片源"
+            return NSLocalizedString("video_player_provider_hint_pick_another_source", comment: "")
         case .providerError:
             return nil
         }

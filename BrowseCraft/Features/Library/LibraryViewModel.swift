@@ -246,14 +246,17 @@ final class LibraryViewModel {
     }
 
     var paginationStatusText: String {
-        let base: String = "第 \(self.currentListPage) 页"
+        let base: String = String(
+            format: NSLocalizedString("library_pagination_page", comment: ""),
+            self.currentListPage
+        )
         if self.isLoadingNextPage {
-            return "\(base) · 正在加载下一页"
+            return String(format: NSLocalizedString("library_pagination_loading_next", comment: ""), base)
         }
         if self.canLoadNextPage {
-            return "\(base) · 滑到底部继续加载"
+            return String(format: NSLocalizedString("library_pagination_scroll_for_more", comment: ""), base)
         }
-        return "\(base) · 已加载到底"
+        return String(format: NSLocalizedString("library_pagination_end", comment: ""), base)
     }
 
     private enum ListPageLoadMode {

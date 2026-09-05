@@ -327,3 +327,21 @@
 "source_error_slot_limit_reached" = "你的账户最多可启用 %d 个自定义来源。到「设置 › 高级版」购买更多站点位置后再启用。";
 "source_error_locked_by_slot_limit" = "该来源已恢复，但受当前来源数量限制而被锁定。请替换一个已启用的来源，或到「设置 › 高级版」购买更多站点位置。";
 "source_error_invalid_slot_replacement" = "无法替换所选的已启用来源。请重新加载来源后再试。";
+
+
+/* Video player: third-party playback provider failures (VideoPlaybackProviderFailure). %1$@ is the provider host, %2$ld the HTTP status. */
+"video_player_provider_unknown_host" = "未知主机";
+"video_player_provider_title_unreachable" = "播放源无法访问";
+"video_player_provider_title_source_invalid" = "片源已失效";
+"video_player_provider_title_error" = "播放源出错";
+"video_player_provider_message_blocked" = "此内容由第三方播放源 %1$@ 提供，当前网络访问它时被源站安全服务拦截（HTTP %2$ld）。这与应用无关，通常是网络出口被对方屏蔽。";
+"video_player_provider_message_unreachable" = "无法连接第三方播放源 %@（连接超时或被重置），可能被当前网络屏蔽。";
+"video_player_provider_message_source_invalid" = "播放源 %1$@ 返回 HTTP %2$ld，该片源可能已被移除。";
+"video_player_provider_message_provider_error" = "播放源 %1$@ 返回 HTTP %2$ld。";
+"video_player_provider_hint_change_network" = "可尝试：切换到蜂窝数据或更换网络环境后重试";
+"video_player_provider_hint_pick_another_source" = "可尝试：返回上一页选择其它片源";
+/* Library: video list pagination status. %@ is the localized "Page N" prefix. */
+"library_pagination_page" = "第 %ld 页";
+"library_pagination_loading_next" = "%@ · 正在加载下一页";
+"library_pagination_scroll_for_more" = "%@ · 滑到底部继续加载";
+"library_pagination_end" = "%@ · 已加载到底";

@@ -248,7 +248,7 @@ private struct VideoPlaybackProviderFailureCard: View {
                 Button {
                     self.retryAction()
                 } label: {
-                    Label("重试", systemImage: "arrow.clockwise")
+                    Label("Retry", systemImage: "arrow.clockwise")
                 }
                 .buttonStyle(.borderedProminent)
 

@@ -327,3 +327,21 @@
 "source_error_slot_limit_reached" = "Your account can activate up to %d custom sources. Purchase more site slots in Settings › Premium to activate another one.";
 "source_error_locked_by_slot_limit" = "This source is restored but locked by your current source limit. Replace an active source or purchase more site slots in Settings › Premium.";
 "source_error_invalid_slot_replacement" = "The selected active source could not be replaced. Reload Sources and try again.";
+
+
+/* Video player: third-party playback provider failures (VideoPlaybackProviderFailure). %1$@ is the provider host, %2$ld the HTTP status. */
+"video_player_provider_unknown_host" = "unknown host";
+"video_player_provider_title_unreachable" = "Playback source unavailable";
+"video_player_provider_title_source_invalid" = "This source is no longer available";
+"video_player_provider_title_error" = "Playback source error";
+"video_player_provider_message_blocked" = "This content is served by the third-party playback source %1$@. The site's security service blocked access from your current network (HTTP %2$ld). This is unrelated to the app; the network's outbound address is usually what is being blocked.";
+"video_player_provider_message_unreachable" = "Could not connect to the third-party playback source %@ (the connection timed out or was reset). It may be blocked on your current network.";
+"video_player_provider_message_source_invalid" = "The playback source %1$@ returned HTTP %2$ld. This source may have been removed.";
+"video_player_provider_message_provider_error" = "The playback source %1$@ returned HTTP %2$ld.";
+"video_player_provider_hint_change_network" = "Try switching to cellular data or another network, then retry";
+"video_player_provider_hint_pick_another_source" = "Try going back and choosing another source";
+/* Library: video list pagination status. %@ is the localized "Page N" prefix. */
+"library_pagination_page" = "Page %ld";
+"library_pagination_loading_next" = "%@ · Loading next page";
+"library_pagination_scroll_for_more" = "%@ · Scroll to the bottom to load more";
+"library_pagination_end" = "%@ · No more pages";
