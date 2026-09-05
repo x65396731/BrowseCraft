@@ -17,7 +17,7 @@ settings:
   base:
     SWIFT_VERSION: "5.0"
     SWIFT_STRICT_CONCURRENCY: complete
-    CURRENT_PROJECT_VERSION: "15"
+    CURRENT_PROJECT_VERSION: "16"
     MARKETING_VERSION: "1.0"
     CODE_SIGN_STYLE: Automatic
     # 中文注释：团队 ID 必须写在这里。XcodeGen 每次重新生成都会覆盖 project.pbxproj，
