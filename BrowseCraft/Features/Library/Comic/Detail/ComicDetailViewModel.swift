@@ -154,11 +154,11 @@ final class ComicDetailViewModel {
 
         var links: [ComicDetailRelatedLink] = []
         if let photoAlbumURL: URL = metadata.photoAlbumURL {
-            links.append(ComicDetailRelatedLink(title: "Photo Album", url: photoAlbumURL))
+            links.append(ComicDetailRelatedLink(title: NSLocalizedString("Photo Album", comment: ""), url: photoAlbumURL))
         }
         if let secondLevelPageURL: URL = metadata.secondLevelPageURL,
            secondLevelPageURL != metadata.photoAlbumURL {
-            links.append(ComicDetailRelatedLink(title: "Related Page", url: secondLevelPageURL))
+            links.append(ComicDetailRelatedLink(title: NSLocalizedString("Related Page", comment: ""), url: secondLevelPageURL))
         }
         return links
     }

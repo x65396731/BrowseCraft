@@ -255,7 +255,7 @@ private struct VideoPlaybackProviderFailureCard: View {
                 Button {
                     self.openInBrowserAction()
                 } label: {
-                    Label("在浏览器中打开", systemImage: "safari")
+                    Label("Open in Browser", systemImage: "safari")
                 }
                 .buttonStyle(.bordered)
             }

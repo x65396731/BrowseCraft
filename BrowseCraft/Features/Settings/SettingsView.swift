@@ -77,7 +77,7 @@ struct SettingsView: View {
                     )) {
                         SettingsRow(
                             systemImage: "icloud",
-                            title: "Cloud Sync",
+                            title: NSLocalizedString("Cloud Sync", comment: ""),
                             detail: self.cloudSyncDetail
                         )
                     }
@@ -85,7 +85,7 @@ struct SettingsView: View {
                     NavigationLink(destination: BookmarksSettingsView()) {
                         SettingsRow(
                             systemImage: "bookmark",
-                            title: "Bookmarks",
+                            title: NSLocalizedString("Bookmarks", comment: ""),
                             detail: "Favorites and saved items"
                         )
                     }
@@ -101,7 +101,7 @@ struct SettingsView: View {
                         label: {
                             SettingsRow(
                                 systemImage: "sparkles",
-                                title: "Premium",
+                                title: NSLocalizedString("Premium", comment: ""),
                                 detail: "Unlock paid features"
                             )
                         }
@@ -134,7 +134,7 @@ struct SettingsView: View {
                     )) {
                         SettingsRow(
                             systemImage: "externaldrive",
-                            title: "Cache",
+                            title: NSLocalizedString("Cache", comment: ""),
                             detail: self.viewModel.imageCacheSettings.displayTitle
                         )
                     }
@@ -145,7 +145,7 @@ struct SettingsView: View {
                         Toggle(isOn: self.$isDiagnosticsEnabled) {
                             SettingsRow(
                                 systemImage: "waveform.path.ecg",
-                                title: "Send Crash Diagnostics",
+                                title: NSLocalizedString("Send Crash Diagnostics", comment: ""),
                                 detail: self.isDiagnosticsEnabled ? "On" : "Off"
                             )
                         }
@@ -159,7 +159,7 @@ struct SettingsView: View {
 
                         SettingsRow(
                             systemImage: "stethoscope",
-                            title: "Diagnostic Code",
+                            title: NSLocalizedString("Diagnostic Code", comment: ""),
                             detail: self.viewModel.diagnosticCode
                         )
                         .contextMenu {
@@ -175,7 +175,7 @@ struct SettingsView: View {
                             label: {
                                 SettingsRow(
                                     systemImage: "doc.on.doc",
-                                    title: "Copy Diagnostic Code",
+                                    title: NSLocalizedString("Copy Diagnostic Code", comment: ""),
                                     detail: nil
                                 )
                             }
@@ -190,7 +190,7 @@ struct SettingsView: View {
                 Section("App") {
                     SettingsRow(
                         systemImage: "number",
-                        title: "Version",
+                        title: NSLocalizedString("Version", comment: ""),
                         detail: Self.versionText
                     )
 
@@ -204,7 +204,7 @@ struct SettingsView: View {
                         label: {
                             SettingsRow(
                                 systemImage: "star",
-                                title: "Rate AnyPortal",
+                                title: NSLocalizedString("Rate AnyPortal", comment: ""),
                                 detail: nil
                             )
                         }

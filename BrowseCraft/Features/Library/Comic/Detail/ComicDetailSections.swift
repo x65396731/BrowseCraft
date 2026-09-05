@@ -155,7 +155,7 @@ struct ComicDetailDescriptionSection: View {
     let description: String
 
     var body: some View {
-        ComicDetailCard(title: "About", systemImage: "text.alignleft") {
+        ComicDetailCard(title: NSLocalizedString("About", comment: ""), systemImage: "text.alignleft") {
             Text(self.description)
                 .font(.body)
                 .foregroundStyle(.secondary)
@@ -169,7 +169,7 @@ struct ComicDetailInformationSection: View {
     let links: [ComicDetailRelatedLink]
 
     var body: some View {
-        ComicDetailCard(title: "Information", systemImage: "info.circle") {
+        ComicDetailCard(title: NSLocalizedString("Information", comment: ""), systemImage: "info.circle") {
             VStack(spacing: 0) {
                 ForEach(Array(self.rows.enumerated()), id: \.offset) { index, row in
                     HStack(alignment: .top, spacing: 16) {

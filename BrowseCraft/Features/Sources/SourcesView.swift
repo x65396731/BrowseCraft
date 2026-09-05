@@ -71,8 +71,8 @@ struct SourcesView: View {
                     } else if self.viewModel.sources.isEmpty {
                         EmptyStateView(
                             systemImage: "tray",
-                            title: "No Sources",
-                            message: "Add a source before refreshing content."
+                            title: NSLocalizedString("No Sources", comment: ""),
+                            message: NSLocalizedString("Add a source before refreshing content.", comment: "")
                         )
                     }
                 }

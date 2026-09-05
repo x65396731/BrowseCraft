@@ -46,8 +46,8 @@ struct HistoryView: View {
                     if self.viewModel.readingHistoryEntries.isEmpty {
                         EmptyStateView(
                             systemImage: "clock",
-                            title: "No History",
-                            message: "Opened feed items and read chapters will appear here."
+                            title: NSLocalizedString("No History", comment: ""),
+                            message: NSLocalizedString("Opened feed items and read chapters will appear here.", comment: "")
                         )
                     }
                 }
@@ -85,7 +85,7 @@ struct HistoryView: View {
             if let history: RSSReadingHistory = entry.rssHistory {
                 RSSHistoryDetailView(history: history)
             } else {
-                HistoryUnavailableView(message: "Missing feed history.")
+                HistoryUnavailableView(message: NSLocalizedString("Missing feed history.", comment: ""))
             }
         case .comic:
             if let history: ComicChapterHistory = entry.comicHistory,
@@ -97,15 +97,15 @@ struct HistoryView: View {
                     factory: self.contentViewModelFactory
                 )
             } else {
-                HistoryUnavailableView(message: "Missing comic source or chapter URL.")
+                HistoryUnavailableView(message: NSLocalizedString("Missing comic source or chapter URL.", comment: ""))
             }
         case .video:
-            HistoryUnavailableView(message: "Video history opens with the full-screen player.")
+            HistoryUnavailableView(message: NSLocalizedString("Video history opens with the full-screen player.", comment: ""))
         case .temporary:
             if let history: TemporaryResourceHistory = entry.temporaryHistory {
                 TemporaryHistoryDetailView(history: history)
             } else {
-                HistoryUnavailableView(message: "Missing temporary history.")
+                HistoryUnavailableView(message: NSLocalizedString("Missing temporary history.", comment: ""))
             }
         }
     }

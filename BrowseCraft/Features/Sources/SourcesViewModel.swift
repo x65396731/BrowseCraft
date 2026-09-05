@@ -882,7 +882,7 @@ final class SourcesViewModel {
 
     func validateDebugJSON(sourceID: String, json: String) -> SourceDebugJSONValidationResult {
         guard let source: Source = self.source(id: sourceID) else {
-            return SourceDebugJSONValidationResult(isValid: false, message: "Source was not found.")
+            return SourceDebugJSONValidationResult(isValid: false, message: NSLocalizedString("Source was not found.", comment: ""))
         }
 
         return self.ruleEditorService.validateDebugJSON(source: source, json: json)

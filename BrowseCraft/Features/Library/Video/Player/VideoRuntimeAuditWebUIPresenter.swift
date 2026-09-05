@@ -74,7 +74,7 @@ struct VideoRuntimeAuditWebUIOverlay: View {
         if let session: VideoRuntimeAuditWebUIPresenter.ActiveSession = self.presenter.activeSession {
             VideoWebPlayerView(
                 request: session.request,
-                title: "Runtime audit",
+                title: NSLocalizedString("Runtime audit", comment: ""),
                 auditMediaEventHandler: session.handler,
                 controls: {
                     EmptyView()

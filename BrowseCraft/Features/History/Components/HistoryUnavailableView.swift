@@ -6,7 +6,7 @@ struct HistoryUnavailableView: View {
     var body: some View {
         EmptyStateView(
             systemImage: "exclamationmark.triangle",
-            title: "Unavailable",
+            title: NSLocalizedString("Unavailable", comment: ""),
             message: self.message
         )
         .navigationTitle("History")

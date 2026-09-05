@@ -223,7 +223,7 @@ private struct VideoDetailSummaryView: View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 12) {
                 self.summaryItem(
-                    title: "Description",
+                    title: NSLocalizedString("Description", comment: ""),
                     value: self.descriptionText,
                     lineLimit: nil
                 )
@@ -231,7 +231,7 @@ private struct VideoDetailSummaryView: View {
                 Divider()
 
                 self.summaryItem(
-                    title: "Last",
+                    title: NSLocalizedString("Last", comment: ""),
                     value: self.viewModel.item.latestText ?? "Unknown",
                     lineLimit: 2
                 )
@@ -240,7 +240,7 @@ private struct VideoDetailSummaryView: View {
                     Divider()
 
                     self.summaryItem(
-                        title: "Info",
+                        title: NSLocalizedString("Info", comment: ""),
                         value: self.metadataText,
                         lineLimit: nil
                     )

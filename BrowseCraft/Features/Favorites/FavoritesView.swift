@@ -48,8 +48,8 @@ struct FavoritesView: View {
                     } else if self.viewModel.favoriteItems.isEmpty {
                         EmptyStateView(
                             systemImage: "heart",
-                            title: "No Favorites",
-                            message: "Items you favorite will appear here."
+                            title: NSLocalizedString("No Favorites", comment: ""),
+                            message: NSLocalizedString("Items you favorite will appear here.", comment: "")
                         )
                     }
                 }

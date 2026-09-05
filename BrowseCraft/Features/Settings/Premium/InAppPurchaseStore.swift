@@ -373,21 +373,21 @@ final class InAppPurchaseStore {
             await self.refreshStoreKitOwnedProductIDs()
             self.status = Self.status(
                 for: error,
-                title: "Restore Purchases"
+                title: NSLocalizedString("Restore Purchases", comment: "")
             )
         } catch let error as PortalPurchaseEntitlementRefreshError {
             Self.logFailure(error, flow: "restore")
             await self.refreshStoreKitOwnedProductIDs()
             self.status = Self.status(
                 for: error,
-                title: "Restore Purchases"
+                title: NSLocalizedString("Restore Purchases", comment: "")
             )
         } catch let error as PortalIAPServiceError {
             Self.logFailure(error, flow: "restore")
             await self.refreshStoreKitOwnedProductIDs()
             self.status = Self.status(
                 for: error,
-                title: "Restore Purchases"
+                title: NSLocalizedString("Restore Purchases", comment: "")
             )
         } catch {
             Self.logFailure(error, flow: "restore")

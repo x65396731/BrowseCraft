@@ -236,7 +236,7 @@ private struct CatalogSourceRowView: View {
     @ViewBuilder
     private var trailingControl: some View {
         if self.isAdded {
-            Label("已添加", systemImage: "checkmark.circle")
+            Label("Added", systemImage: "checkmark.circle")
                 .font(.caption)
                 .foregroundColor(.secondary)
         } else if self.isAdding {
@@ -259,11 +259,11 @@ private struct CatalogSourceRowView: View {
     private var kindTitle: String {
         switch self.catalogSource.kind {
         case .comic:
-            return "漫画"
+            return NSLocalizedString("Comics", comment: "")
         case .rss:
-            return "RSS"
+            return NSLocalizedString("RSS", comment: "")
         case .video:
-            return "视频"
+            return NSLocalizedString("Video", comment: "")
         }
     }
 }

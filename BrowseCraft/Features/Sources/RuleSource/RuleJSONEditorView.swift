@@ -51,8 +51,8 @@ struct RuleJSONEditorView: View {
                 Label("Rule JSON is valid.", systemImage: "checkmark.circle.fill")
                     .foregroundColor(.green)
             } else {
-                self.issueGroup(title: "Errors", issues: self.validationResult.errors)
-                self.issueGroup(title: "Warnings", issues: self.validationResult.warnings)
+                self.issueGroup(title: NSLocalizedString("Errors", comment: ""), issues: self.validationResult.errors)
+                self.issueGroup(title: NSLocalizedString("Warnings", comment: ""), issues: self.validationResult.warnings)
             }
         }
     }

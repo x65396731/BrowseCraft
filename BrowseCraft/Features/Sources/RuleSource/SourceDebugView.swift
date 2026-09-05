@@ -25,8 +25,8 @@ struct SourceDebugView: View {
             } else {
                 EmptyStateView(
                     systemImage: "questionmark.folder",
-                    title: "Source Not Found",
-                    message: "The source may have been deleted."
+                    title: NSLocalizedString("Source Not Found", comment: ""),
+                    message: NSLocalizedString("The source may have been deleted.", comment: "")
                 )
             }
         }

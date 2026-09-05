@@ -133,17 +133,17 @@ struct CloudSyncSettingsView: View {
     private var syncContentSection: some View {
         Section("Synced Content") {
             self.syncScopeRow(
-                title: "Custom Sources",
+                title: NSLocalizedString("Custom Sources", comment: ""),
                 systemImage: "rectangle.stack",
                 isIncluded: true
             )
             self.syncScopeRow(
-                title: "Favorites",
+                title: NSLocalizedString("Favorites", comment: ""),
                 systemImage: "heart",
                 isIncluded: true
             )
             self.syncScopeRow(
-                title: "Reading Progress",
+                title: NSLocalizedString("Reading Progress", comment: ""),
                 systemImage: "book.pages",
                 isIncluded: false
             )

@@ -281,7 +281,7 @@ struct InAppPurchasePlanSelectionView: View {
     private var header: some View {
         HStack(alignment: .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 5) {
-                Text("啊？哥们你真买啊")
+                Text("Really buying it?")
                     .font(.largeTitle.weight(.black))
                     .foregroundStyle(.white)
 

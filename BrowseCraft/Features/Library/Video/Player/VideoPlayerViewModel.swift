@@ -130,19 +130,19 @@ final class VideoPlayerViewModel {
             )
         case .playable:
             return .unavailable(
-                title: "Unsupported Media",
-                message: "This episode did not expose a direct mp4 or m3u8 URL.",
+                title: NSLocalizedString("Unsupported Media", comment: ""),
+                message: NSLocalizedString("This episode did not expose a direct mp4 or m3u8 URL.", comment: ""),
                 systemImage: "play.slash"
             )
         case .restricted(let restriction):
             return .unavailable(
-                title: "Playback Restricted",
+                title: NSLocalizedString("Playback Restricted", comment: ""),
                 message: self.restrictionMessage(restriction),
                 systemImage: "lock.fill"
             )
         case .failed(let failure):
             return .unavailable(
-                title: "Playback Unavailable",
+                title: NSLocalizedString("Playback Unavailable", comment: ""),
                 message: self.failureMessage(failure),
                 systemImage: "exclamationmark.triangle.fill"
             )

@@ -42,7 +42,7 @@ struct RuleBasicFieldsEditorView: View {
                 .keyboardType(.URL)
             TextField("Language", text: self.optionalSiteTextBinding(\.language))
             self.displayModePicker(
-                title: "Display",
+                title: NSLocalizedString("Display", comment: ""),
                 selection: self.siteDisplayModeBinding()
             )
         }

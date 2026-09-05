@@ -12,14 +12,14 @@ struct CloudSyncInitialRestoreView: View {
             switch self.state {
             case .waitingForCloud:
                 self.progressContent(
-                    title: "Waiting for iCloud",
-                    message: "Your sources and favorites will appear after iCloud becomes available."
+                    title: NSLocalizedString("Waiting for iCloud", comment: ""),
+                    message: NSLocalizedString("Your sources and favorites will appear after iCloud becomes available.", comment: "")
                 )
 
             case .restoring:
                 self.progressContent(
-                    title: "Restoring from iCloud",
-                    message: "Downloading and merging your saved data."
+                    title: NSLocalizedString("Restoring from iCloud", comment: ""),
+                    message: NSLocalizedString("Downloading and merging your saved data.", comment: "")
                 )
 
             case .failed(let message):
