@@ -61,9 +61,11 @@ struct CatalogSourceListView: View {
                 ForEach(self.viewModel.personalCatalogSources, id: \.id) { catalogSource in
                     VStack(alignment: .leading, spacing: 4) {
                         self.row(for: catalogSource)
-                        Text(self.remainingText(for: catalogSource))
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                        if let remainingText: String = self.remainingText(for: catalogSource) {
+                            Text(remainingText)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         Button(role: .destructive) {
@@ -91,8 +93,11 @@ struct CatalogSourceListView: View {
         }
     }
 
-    private func remainingText(for catalogSource: CatalogSource) -> String {
-        let remaining: (days: Int, hours: Int) = self.viewModel.personalRuleRemainingComponents(for: catalogSource)
+    private func remainingText(for catalogSource: CatalogSource) -> String? {
+        guard let remaining: (days: Int, hours: Int) =
+            self.viewModel.personalRuleRemainingComponents(for: catalogSource) else {
+            return nil
+        }
         if remaining.days == 0 && remaining.hours == 0 {
             return NSLocalizedString("catalog_personal_remaining_none", comment: "")
         }

@@ -149,8 +149,11 @@ struct SourcesFeatureFactory {
                 outcomesClient: self.videoGenerationOutcomesClient,
                 accessTokenProvider: self.portalAccessTokenProvider
             ),
+            hideVideoGenerationOutcomeUseCase: HideVideoGenerationOutcomeUseCase(
+                outcomesClient: self.videoGenerationOutcomesClient,
+                accessTokenProvider: self.portalAccessTokenProvider
+            ),
             outcomeRefreshRequests: self.outcomeRefreshRequests,
-            personalRuleReceiptStore: UserDefaultsPersonalRuleReceiptStore(),
             catalogService: sourceCatalogService,
             ruleEditorService: sourceRuleEditorService,
             ruleEditingCoordinator: sourceRuleEditingCoordinator,

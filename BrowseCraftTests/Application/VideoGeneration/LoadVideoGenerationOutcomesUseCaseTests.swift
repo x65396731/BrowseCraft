@@ -20,6 +20,8 @@ struct LoadVideoGenerationOutcomesUseCaseTests {
             self.accessTokens.append(accessToken)
             return try self.result.get()
         }
+
+        func hideOutcome(jobID: UUID, accessToken: String) async throws {}
     }
 
     private static let outcome: VideoGenerationOutcome = VideoGenerationOutcome(

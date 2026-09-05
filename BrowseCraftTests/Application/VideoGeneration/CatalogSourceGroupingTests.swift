@@ -11,34 +11,34 @@ struct CatalogSourceGroupingTests {
     private static func outcome(
         entryURL: String,
         status: String,
-        catalogSourceID: String? = nil,
+        catalogSource: CatalogSource? = nil,
         reason: String? = nil,
         reasonDetail: String? = nil
     ) -> VideoGenerationOutcome {
-        return VideoGenerationOutcome(
+        var outcome: VideoGenerationOutcome = VideoGenerationOutcome(
             jobID: UUID(),
             entryURL: entryURL,
             status: status,
             finishedAt: nil,
-            catalogSourceID: catalogSourceID,
+            catalogSourceID: catalogSource?.id,
             reason: reason,
             reasonDetail: reasonDetail
         )
+        outcome.catalogSource = catalogSource
+        return outcome
     }
 
-    @Test func succeededOutcomesMoveTheirSourcesIntoThePersonalGroup() {
-        let sources: [CatalogSource] = [Self.source("gimy-tv"), Self.source("kpkuang-org"), Self.source("jable-tv")]
+    @Test func succeededOutcomesFormThePersonalGroup() {
+        let gimy: CatalogSource = Self.source("gimy-tv--browse-2-html")
         let grouping: CatalogSourceGrouping = CatalogSourceGrouping.make(
-            catalogSources: sources,
-            outcomes: [
-                Self.outcome(entryURL: "https://gimy.tv/browse/1.html", status: "succeeded", catalogSourceID: "gimy-tv")
-            ]
+            catalogSources: [Self.source("kpkuang-org"), Self.source("jable-tv")],
+            outcomes: [Self.outcome(entryURL: "https://gimy.tv/browse/2.html", status: "succeeded", catalogSource: gimy)]
         )
 
-        #expect(grouping.personalSources.map(\.id) == ["gimy-tv"])
+        #expect(grouping.personalSources.map(\.id) == ["gimy-tv--browse-2-html"])
         #expect(grouping.defaultSources.map(\.id) == ["kpkuang-org", "jable-tv"])
         #expect(grouping.failedOutcomes.isEmpty)
-        #expect(grouping.personalEntryURLs["gimy-tv"] == "https://gimy.tv/browse/1.html")
+        #expect(grouping.personalEntryURLs["gimy-tv--browse-2-html"] == "https://gimy.tv/browse/2.html")
     }
 
     @Test func withoutOutcomesEverythingIsDefault() {
@@ -63,10 +63,10 @@ struct CatalogSourceGroupingTests {
         #expect(grouping.failedOutcomes.first?.reasonDetail == "episodeLayoutUnsupported")
     }
 
-    @Test func succeededOutcomeWhoseSourceIsNotInTheCatalogIsIgnored() {
+    @Test func succeededOutcomeWithoutDecryptedSourceIsNotListed() {
         let grouping: CatalogSourceGrouping = CatalogSourceGrouping.make(
             catalogSources: [Self.source("a")],
-            outcomes: [Self.outcome(entryURL: "https://z.invalid/", status: "succeeded", catalogSourceID: "gone")]
+            outcomes: [Self.outcome(entryURL: "https://z.invalid/", status: "succeeded", catalogSource: nil)]
         )
 
         #expect(grouping.personalSources.isEmpty)

@@ -16,7 +16,8 @@ struct SourcesViewModelOutcomeRefreshTests {
 
     private actor ScriptedOutcomesClient: VideoGenerationOutcomesFetching {
         private(set) var callCount: Int = 0
-        private let outcomes: [VideoGenerationOutcome]
+        private(set) var hiddenJobIDs: [UUID] = []
+        private var outcomes: [VideoGenerationOutcome]
 
         init(outcomes: [VideoGenerationOutcome]) {
             self.outcomes = outcomes
@@ -25,6 +26,12 @@ struct SourcesViewModelOutcomeRefreshTests {
         func fetchOutcomes(accessToken: String) async throws -> [VideoGenerationOutcome] {
             self.callCount += 1
             return self.outcomes
+        }
+
+        /// 中文注释：模拟服务端软删除——之后的读取不再返回该条。
+        func hideOutcome(jobID: UUID, accessToken: String) async throws {
+            self.hiddenJobIDs.append(jobID)
+            self.outcomes.removeAll { $0.jobID == jobID }
         }
     }
 
@@ -100,77 +107,51 @@ struct SourcesViewModelOutcomeRefreshTests {
         #expect(await client.callCount == 0)
     }
 
-    private final class InMemoryReceiptStore: PersonalRuleReceiptStoring, @unchecked Sendable {
-        var receiptsByUser: [String: [String: Date]] = [:]
-        var hiddenByUser: [String: Set<String>] = [:]
-
-        func receipts(userID: String) -> [PersonalRuleReceipt] {
-            return (self.receiptsByUser[userID] ?? [:]).map { PersonalRuleReceipt(catalogSourceID: $0.key, receivedAt: $0.value) }
-        }
-        func recordReceiptIfAbsent(catalogSourceID: String, userID: String, receivedAt: Date) {
-            if self.receiptsByUser[userID, default: [:]][catalogSourceID] == nil {
-                self.receiptsByUser[userID, default: [:]][catalogSourceID] = receivedAt
-            }
-        }
-        func hiddenIDs(userID: String) -> Set<String> { return self.hiddenByUser[userID] ?? [] }
-        func hide(id: String, userID: String) {
-            self.hiddenByUser[userID, default: []].insert(id)
-            self.receiptsByUser[userID]?.removeValue(forKey: id)
-        }
-    }
-
-    @Test func deletingAFailedOutcomeHidesItLocally() async throws {
+    @Test func deletingAFailedOutcomeHidesItOnTheServerAndReloads() async throws {
         let database: AppDatabase = try Harness.makeDatabase()
-        let store: InMemoryReceiptStore = InMemoryReceiptStore()
         let client: ScriptedOutcomesClient = ScriptedOutcomesClient(outcomes: [Self.failedOutcome])
+        let tokens: StubTokenProvider = StubTokenProvider(token: "access")
         let viewModel: SourcesViewModel = Harness.makeSourcesViewModel(
             database: database,
             resolver: Harness.resolver(),
-            loadVideoGenerationOutcomesUseCase: LoadVideoGenerationOutcomesUseCase(
-                outcomesClient: client,
-                accessTokenProvider: StubTokenProvider(token: "access")
-            ),
-            personalRuleReceiptStore: store
+            loadVideoGenerationOutcomesUseCase: LoadVideoGenerationOutcomesUseCase(outcomesClient: client, accessTokenProvider: tokens),
+            hideVideoGenerationOutcomeUseCase: HideVideoGenerationOutcomeUseCase(outcomesClient: client, accessTokenProvider: tokens)
         )
         await viewModel.refreshCatalogSources()
         #expect(viewModel.failedGenerationOutcomes.count == 1)
 
         await viewModel.deleteFailedGenerationOutcome(jobID: Self.failedOutcome.jobID)
 
+        #expect(await client.hiddenJobIDs == [Self.failedOutcome.jobID])
         #expect(viewModel.failedGenerationOutcomes.isEmpty)
-        #expect(store.hiddenIDs(userID: viewModel.currentUserID).contains(Self.failedOutcome.jobID.uuidString))
-
-        // 中文注释：再次刷新，隐藏仍然生效（来自 store）。
-        await viewModel.refreshCatalogSources()
-        #expect(viewModel.failedGenerationOutcomes.isEmpty)
+        // 中文注释：Harness 的目录加载器是 stub，会留下目录刷新错误；删除本身不能再叠加错误。
+        #expect(viewModel.errorMessage != NSLocalizedString("rule_error_unknown", comment: ""))
     }
 
-    @Test func expiredReceiptHidesThePersonalRuleOnRefresh() async throws {
+    @Test func remainingTimeComesFromServerExpiresAt() async throws {
         let database: AppDatabase = try Harness.makeDatabase()
-        let store: InMemoryReceiptStore = InMemoryReceiptStore()
-        let userID: String = "expiry-user"
         let now: Date = Date(timeIntervalSince1970: 1_800_000_000)
-        // 中文注释：目录来自 StubPageDataLoader，为空；这里只验证到期回执会被隐藏并清理。
-        store.receiptsByUser["expiry"] = [:]
+        let mine: CatalogSource = CatalogSource(id: "mine", name: "mine", baseURL: "https://m.invalid", kind: .video, ruleJSON: "{}")
+        var succeeded: VideoGenerationOutcome = VideoGenerationOutcome(
+            jobID: UUID(), entryURL: "https://m.invalid/list", status: "succeeded", finishedAt: nil,
+            catalogSourceID: "mine", reason: nil, reasonDetail: nil
+        )
+        succeeded.expiresAt = now.addingTimeInterval(6 * 24 * 3600 + 23 * 3600)
+        succeeded.catalogSource = mine
+        let client: ScriptedOutcomesClient = ScriptedOutcomesClient(outcomes: [succeeded])
         let viewModel: SourcesViewModel = Harness.makeSourcesViewModel(
             database: database,
             resolver: Harness.resolver(),
-            personalRuleReceiptStore: store,
+            loadVideoGenerationOutcomesUseCase: LoadVideoGenerationOutcomesUseCase(outcomesClient: client, accessTokenProvider: StubTokenProvider(token: "access")),
             now: { now }
         )
-        store.recordReceiptIfAbsent(catalogSourceID: "old-rule", userID: viewModel.currentUserID, receivedAt: now.addingTimeInterval(-8 * 24 * 3600))
-        store.recordReceiptIfAbsent(catalogSourceID: "fresh-rule", userID: viewModel.currentUserID, receivedAt: now.addingTimeInterval(-3600))
-        _ = userID
 
         await viewModel.refreshCatalogSources()
 
-        #expect(viewModel.hiddenPersonalRuleIDs.contains("old-rule"))
-        #expect(viewModel.hiddenPersonalRuleIDs.contains("fresh-rule") == false)
-        #expect(viewModel.personalRuleReceipts["fresh-rule"] != nil)
-        let remaining: (days: Int, hours: Int) = viewModel.personalRuleRemainingComponents(
-            for: CatalogSource(id: "fresh-rule", name: "f", baseURL: "https://f.invalid", kind: .video, ruleJSON: "{}")
-        )
-        #expect(remaining.days == 6 && remaining.hours == 23)
+        #expect(viewModel.personalCatalogSources == [mine])
+        let remaining: (days: Int, hours: Int)? = viewModel.personalRuleRemainingComponents(for: mine)
+        #expect(remaining?.days == 6 && remaining?.hours == 23)
+        #expect(viewModel.personalRuleEntryURL(for: mine) == "https://m.invalid/list")
     }
 
     @Test func outcomeTextFallsBackForUnknownValues() {
