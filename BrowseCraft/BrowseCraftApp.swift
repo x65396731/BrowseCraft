@@ -126,27 +126,35 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 extension AppDelegate: UNUserNotificationCenterDelegate {
     /// 中文注释：App 在前台时系统默认不显示横幅；规则生成完成的通知在前台同样要可见，
     /// 且到达即刷新目录（用户不必再点横幅）。
+    ///
+    /// 用 completionHandler 形式而不是 async：async 形式在 `await MainActor.run` 之后回到
+    /// 后台执行器结束，系统桥接的 completion 便在后台线程被调，UIKit 随即以
+    /// `Call must be made on main thread` 断言崩溃（09-05 真机点开推送时复现）。
+    /// completion 必须在主线程调用。
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification
-    ) async -> UNNotificationPresentationOptions {
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
         _ = center
         let userInfo: [AnyHashable: Any] = notification.request.content.userInfo
-        await MainActor.run {
+        DispatchQueue.main.async {
             self.handleRuleGenerationPush(userInfo: userInfo, event: "outcome-push-presented")
+            completionHandler([.banner, .list, .sound])
         }
-        return [.banner, .list, .sound]
     }
 
     /// 中文注释：用户点开推送（后台或已退出）→ 刷新目录，让新规则出现在「我的生成」里。
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
         _ = center
         let userInfo: [AnyHashable: Any] = response.notification.request.content.userInfo
-        await MainActor.run {
+        DispatchQueue.main.async {
             self.handleRuleGenerationPush(userInfo: userInfo, event: "outcome-push-opened")
+            completionHandler()
         }
     }
 }
