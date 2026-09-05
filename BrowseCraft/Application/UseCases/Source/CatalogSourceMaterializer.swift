@@ -18,7 +18,8 @@ struct CatalogSourceMaterializer {
         from catalogSource: CatalogSource,
         createdAt: Date,
         updatedAt: Date,
-        enabled: Bool = true
+        enabled: Bool = true,
+        origin: SourceOrigin? = nil
     ) throws -> Source {
         guard URL(string: catalogSource.baseURL) != nil else {
             throw CatalogSourceImportError.invalidBaseURL(catalogSource.baseURL)
@@ -34,7 +35,8 @@ struct CatalogSourceMaterializer {
                 rule: try self.rule(from: catalogSource),
                 enabled: enabled,
                 createdAt: createdAt,
-                updatedAt: updatedAt
+                updatedAt: updatedAt,
+                origin: origin
             )
         case .rss:
             let rssRule: CatalogRSSRule = try self.decodeRule(CatalogRSSRule.self, from: catalogSource)
@@ -57,7 +59,8 @@ struct CatalogSourceMaterializer {
                 ),
                 enabled: enabled,
                 createdAt: createdAt,
-                updatedAt: updatedAt
+                updatedAt: updatedAt,
+                origin: origin
             )
         case .video:
             return Source(
@@ -68,7 +71,8 @@ struct CatalogSourceMaterializer {
                 configuration: .video(try self.videoConfiguration(from: catalogSource)),
                 enabled: enabled,
                 createdAt: createdAt,
-                updatedAt: updatedAt
+                updatedAt: updatedAt,
+                origin: origin
             )
         }
     }

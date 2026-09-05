@@ -17,7 +17,10 @@ struct SourceCatalogService: Sendable {
         return try await self.loadCatalogSourcesUseCase.execute()
     }
 
-    func addSource(_ catalogSource: CatalogSource) async throws -> AddCatalogSourceResult {
-        return try await self.addCatalogSourceUseCase.execute(catalogSource)
+    func addSource(
+        _ catalogSource: CatalogSource,
+        origin: SourceOrigin? = nil
+    ) async throws -> AddCatalogSourceResult {
+        return try await self.addCatalogSourceUseCase.execute(catalogSource, origin: origin)
     }
 }

@@ -169,4 +169,122 @@ struct SourcesViewModelOutcomeRefreshTests {
                 == NSLocalizedString("video_generation_outcome_detail_episodeLayoutUnsupported", comment: "")
         )
     }
+
+    // MARK: - 本地副本随服务器裁决清理
+
+    private struct FailingOutcomesClient: VideoGenerationOutcomesFetching {
+        func fetchOutcomes(accessToken: String) async throws -> [VideoGenerationOutcome] {
+            throw URLError(.notConnectedToInternet)
+        }
+
+        func hideOutcome(jobID: UUID, accessToken: String) async throws {}
+    }
+
+    private static func succeededOutcome(catalogSourceID: String) -> VideoGenerationOutcome {
+        return VideoGenerationOutcome(
+            jobID: UUID(),
+            entryURL: "https://www.kpkuang.org/vodtype/1/",
+            status: VideoGenerationOutcome.succeededStatus,
+            finishedAt: "2026-09-05T10:00:00+00:00",
+            catalogSourceID: catalogSourceID,
+            reason: nil,
+            reasonDetail: nil
+        )
+    }
+
+    /// 种两条来源：一条记「来自个人生成」，一条普通；返回数据库供视图模型使用。
+    private static func seedSources(personalID: String, plainID: String) throws -> AppDatabase {
+        let database: AppDatabase = try Harness.makeDatabase()
+        let repository: GRDBSourceRepository = GRDBSourceRepository(database: database)
+        var personal: Source = try Harness.makeComicSource(id: personalID, name: "Personal")
+        personal.origin = .personalGeneration
+        try repository.saveSource(personal)
+        // 中文注释：测试用户只有 1 个站点位；普通来源停用着种进去，只当「不该被删」的对照。
+        var plain: Source = try Harness.makeComicSource(id: plainID, name: "Plain")
+        plain.enabled = false
+        try repository.saveSource(plain)
+        return database
+    }
+
+    private static func makeViewModel(
+        database: AppDatabase,
+        client: any VideoGenerationOutcomesFetching,
+        requests: RuleGenerationOutcomeRefreshRequests
+    ) -> SourcesViewModel {
+        return Harness.makeSourcesViewModel(
+            database: database,
+            resolver: Harness.resolver(),
+            loadVideoGenerationOutcomesUseCase: LoadVideoGenerationOutcomesUseCase(
+                outcomesClient: client,
+                accessTokenProvider: StubTokenProvider(token: "access")
+            ),
+            outcomeRefreshRequests: requests
+        )
+    }
+
+    @Test func personalSourceMissingFromOutcomesIsRemovedLocally() async throws {
+        let database: AppDatabase = try Self.seedSources(personalID: "kpkuang-org--vodtype-1", plainID: "plain.one")
+        let requests: RuleGenerationOutcomeRefreshRequests = RuleGenerationOutcomeRefreshRequests()
+        let viewModel: SourcesViewModel = Self.makeViewModel(
+            database: database,
+            client: ScriptedOutcomesClient(outcomes: []),
+            requests: requests
+        )
+        await viewModel.load()
+        #expect(viewModel.sources.contains(where: { $0.id == "kpkuang-org--vodtype-1" }))
+
+        requests.request(.presented)
+
+        let removed: Bool = await Harness.waitUntil {
+            viewModel.sources.contains(where: { $0.id == "kpkuang-org--vodtype-1" }) == false
+        }
+        #expect(removed)
+        // 中文注释：普通来源不受影响；数据库里也确实删了，不只是内存列表。
+        #expect(viewModel.sources.contains(where: { $0.id == "plain.one" }))
+        let persisted: [Source] = try GRDBSourceRepository(database: database).fetchSources()
+        #expect(persisted.contains(where: { $0.id == "kpkuang-org--vodtype-1" }) == false)
+        #expect(persisted.contains(where: { $0.id == "plain.one" }))
+    }
+
+    @Test func personalSourceStillListedInOutcomesIsKept() async throws {
+        let database: AppDatabase = try Self.seedSources(personalID: "kpkuang-org--vodtype-1", plainID: "plain.one")
+        let requests: RuleGenerationOutcomeRefreshRequests = RuleGenerationOutcomeRefreshRequests()
+        let viewModel: SourcesViewModel = Self.makeViewModel(
+            database: database,
+            client: ScriptedOutcomesClient(outcomes: [Self.succeededOutcome(catalogSourceID: "kpkuang-org--vodtype-1")]),
+            requests: requests
+        )
+        await viewModel.load()
+
+        requests.request(.presented)
+
+        let loaded: Bool = await Harness.waitUntil {
+            if case .loaded = viewModel.videoGenerationOutcomesLoad { return true }
+            return false
+        }
+        #expect(loaded)
+        #expect(viewModel.sources.contains(where: { $0.id == "kpkuang-org--vodtype-1" }))
+        #expect(viewModel.sources.contains(where: { $0.id == "plain.one" }))
+    }
+
+    @Test func outcomesLoadFailureNeverRemovesPersonalSources() async throws {
+        let database: AppDatabase = try Self.seedSources(personalID: "kpkuang-org--vodtype-1", plainID: "plain.one")
+        let requests: RuleGenerationOutcomeRefreshRequests = RuleGenerationOutcomeRefreshRequests()
+        let viewModel: SourcesViewModel = Self.makeViewModel(
+            database: database,
+            client: FailingOutcomesClient(),
+            requests: requests
+        )
+        await viewModel.load()
+
+        requests.request(.presented)
+
+        let failed: Bool = await Harness.waitUntil {
+            if case .failed = viewModel.videoGenerationOutcomesLoad { return true }
+            return false
+        }
+        #expect(failed)
+        #expect(viewModel.sources.contains(where: { $0.id == "kpkuang-org--vodtype-1" }))
+        #expect(viewModel.sources.contains(where: { $0.id == "plain.one" }))
+    }
 }

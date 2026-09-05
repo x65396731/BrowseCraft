@@ -18,6 +18,8 @@ struct SourceCloudPayload: Hashable, Codable, Sendable {
     var createdAt: Date
     var updatedAt: Date
     var deletedAt: Date?
+    /// 中文注释：`SourceOrigin.rawValue`，可选、可缺省——旧客户端写的记录没有这一项。
+    var origin: String? = nil
 
     var lastChangedAt: Date {
         return max(self.updatedAt, self.deletedAt ?? .distantPast)

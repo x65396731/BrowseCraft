@@ -14,6 +14,7 @@ extension SourceCloudPayload {
         self.createdAt = record.createdAt
         self.updatedAt = record.updatedAt
         self.deletedAt = record.deletedAt
+        self.origin = record.origin
     }
 }
 
@@ -30,7 +31,8 @@ extension SourceRecord {
             enabled: payload.enabled,
             createdAt: payload.createdAt,
             updatedAt: payload.updatedAt,
-            deletedAt: payload.deletedAt
+            deletedAt: payload.deletedAt,
+            origin: payload.origin
         )
     }
 }

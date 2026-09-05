@@ -45,6 +45,7 @@ struct CloudKitRecordMapper: Sendable {
         record["createdAt"] = payload.createdAt as CKRecordValue
         record["updatedAt"] = payload.updatedAt as CKRecordValue
         record["deletedAt"] = payload.deletedAt as CKRecordValue?
+        record["origin"] = payload.origin as CKRecordValue?
     }
 
     func apply(_ payload: FavoriteItemCloudPayload, to record: CKRecord) throws {
@@ -92,7 +93,8 @@ struct CloudKitRecordMapper: Sendable {
             enabled: try Self.requiredBool(record, key: "enabled"),
             createdAt: try Self.required(record, key: "createdAt"),
             updatedAt: try Self.required(record, key: "updatedAt"),
-            deletedAt: record["deletedAt"] as? Date
+            deletedAt: record["deletedAt"] as? Date,
+            origin: record["origin"] as? String
         )
     }
 

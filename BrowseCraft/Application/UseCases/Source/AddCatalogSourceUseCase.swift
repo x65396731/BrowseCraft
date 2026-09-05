@@ -310,7 +310,11 @@ struct AddCatalogSourceUseCase: Sendable {
         self.now = now
     }
 
-    func execute(_ catalogSource: CatalogSource) async throws -> AddCatalogSourceResult {
+    /// - Parameter origin: 来源出身；从「我的生成」添加时传 `.personalGeneration`，本地副本才会随服务器裁决清理。
+    func execute(
+        _ catalogSource: CatalogSource,
+        origin: SourceOrigin? = nil
+    ) async throws -> AddCatalogSourceResult {
         if let existingSource: Source = try self.sourceRepository.fetchSources().first(where: { source in
             return source.id == catalogSource.id
         }) {
@@ -318,7 +322,8 @@ struct AddCatalogSourceUseCase: Sendable {
                 from: catalogSource,
                 createdAt: existingSource.createdAt,
                 updatedAt: self.now(),
-                enabled: existingSource.enabled
+                enabled: existingSource.enabled,
+                origin: origin ?? existingSource.origin
             )
             if currentCatalogSource != existingSource {
                 try self.sourceRepository.saveSource(currentCatalogSource)
@@ -331,7 +336,8 @@ struct AddCatalogSourceUseCase: Sendable {
         let source: Source = try self.catalogSourceMaterializer.source(
             from: catalogSource,
             createdAt: createdAt,
-            updatedAt: createdAt
+            updatedAt: createdAt,
+            origin: origin
         )
         // Catalog 导入只验证默认入口。其它 tab 由 Library 按当前 tab 独立加载并记录失败状态。
         let defaultListContext: ListContext? = nil

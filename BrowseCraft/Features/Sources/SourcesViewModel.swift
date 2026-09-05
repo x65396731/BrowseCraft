@@ -617,6 +617,47 @@ final class SourcesViewModel {
             AppLog.notice(.push, event: "outcomes-auth-required")
         }
         self.videoGenerationOutcomesLoad = load
+        if case .loaded(let outcomes) = load {
+            await self.removePersonalSourcesMissingFromOutcomes(outcomes)
+        }
+    }
+
+    /// 中文注释：个人规则的存活由服务器裁决（7 天可见期、软删除）。标记为「来自个人生成」的本地来源
+    /// 一旦不在 `/outcomes` 的成功任务里，本地副本随之删除。只在读取成功时执行——读取失败或未登录时
+    /// 保留，避免离线或掉线把用户的来源清空。按 `catalogSourceID` 比对而不是按解密后的规则，
+    /// 解密失败不会误删。
+    @MainActor
+    private func removePersonalSourcesMissingFromOutcomes(_ outcomes: [VideoGenerationOutcome]) async {
+        let liveSourceIDs: Set<String> = Set(
+            outcomes.filter(\.didSucceed).compactMap(\.catalogSourceID)
+        )
+        let expiredSourceIDs: [String] = self.sources
+            .filter { source in
+                return source.origin == .personalGeneration && liveSourceIDs.contains(source.id) == false
+            }
+            .map(\.id)
+        guard expiredSourceIDs.isEmpty == false else {
+            return
+        }
+        do {
+            let snapshot: SourcesPersistenceSnapshot = try await self.persistenceCoordinator.delete(
+                sourceIDs: expiredSourceIDs,
+                userID: self.currentUserID
+            )
+            self.sources = snapshot.sources
+            self.sourceSlotLimit = snapshot.sourceSlotLimit
+            if let selectedSourceID: String = self.selectedSourceID,
+               expiredSourceIDs.contains(selectedSourceID) {
+                self.selectSource(id: snapshot.sources.first(where: { $0.accessState == .active })?.id)
+            }
+            AppLog.notice(
+                .push,
+                event: "personal-sources-expired",
+                metadata: ["count": String(expiredSourceIDs.count)]
+            )
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "personal-source-expire-error")
+        }
     }
 
     func isCatalogSourceAdded(_ catalogSource: CatalogSource) -> Bool {
@@ -632,8 +673,16 @@ final class SourcesViewModel {
     ) async -> Bool {
         CrashDiagnostics.shared.setRuleStage(.list)
         self.catalogSourceAddFailureMessages.removeValue(forKey: catalogSource.id)
+        // 中文注释：来自「我的生成」分组的规则记出身，之后服务器不再返回时本地副本随之删除；
+        // 公共目录与「已生成过、直接复用」的规则不记——它们不在本人的 /outcomes 里，记了会被误删。
+        let origin: SourceOrigin? = self.catalogSourceGrouping.personalOutcomes[catalogSource.id] == nil
+            ? nil
+            : .personalGeneration
         do {
-            let result: AddCatalogSourceResult = try await self.catalogService.addSource(catalogSource)
+            let result: AddCatalogSourceResult = try await self.catalogService.addSource(
+                catalogSource,
+                origin: origin
+            )
             var source: Source = result.source
             source.userID = self.currentUserID
             await self.load()

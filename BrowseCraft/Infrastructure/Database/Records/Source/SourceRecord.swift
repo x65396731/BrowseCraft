@@ -20,6 +20,8 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
     var createdAt: Date
     var updatedAt: Date
     var deletedAt: Date?
+    /// 中文注释：`SourceOrigin.rawValue`；v2 迁移新增列，旧行为 NULL。
+    var origin: String?
 
     init(
         userID: String,
@@ -32,7 +34,8 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
         enabled: Bool,
         createdAt: Date,
         updatedAt: Date,
-        deletedAt: Date?
+        deletedAt: Date?,
+        origin: String? = nil
     ) {
         self.userID = userID
         self.id = id
@@ -45,6 +48,7 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.deletedAt = deletedAt
+        self.origin = origin
     }
 
     init(source: Source) throws {
@@ -61,6 +65,7 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
         self.createdAt = source.createdAt
         self.updatedAt = source.updatedAt
         self.deletedAt = source.deletedAt
+        self.origin = source.origin?.rawValue
     }
 
     func domainModel() throws -> Source {
@@ -74,7 +79,8 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
             enabled: self.enabled,
             createdAt: self.createdAt,
             updatedAt: self.updatedAt,
-            deletedAt: self.deletedAt
+            deletedAt: self.deletedAt,
+            origin: self.origin.flatMap(SourceOrigin.init(rawValue:))
         )
     }
 

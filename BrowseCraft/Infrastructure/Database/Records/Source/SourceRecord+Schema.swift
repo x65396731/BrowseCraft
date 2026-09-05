@@ -13,5 +13,6 @@ extension SourceRecord {
         static let createdAt: Column = Column("createdAt")
         static let updatedAt: Column = Column("updatedAt")
         static let deletedAt: Column = Column("deletedAt")
+        static let origin: Column = Column("origin")
     }
 }

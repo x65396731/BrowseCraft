@@ -63,6 +63,39 @@ struct CloudKitRecordMapperTests {
         #expect(restored.sourceID == payload.sourceID)
         #expect(restored.configJSON == payload.configJSON)
         #expect(restored.userID == activeUserID)
+        // 中文注释：旧客户端写的记录没有 origin，读回为 nil，而不是失败。
+        #expect(record["origin"] == nil)
+        #expect(restored.origin == nil)
+    }
+
+    @Test func sourceRoundTripKeepsPersonalGenerationOrigin() throws {
+        let mapper: CloudKitRecordMapper = CloudKitRecordMapper()
+        let payload: SourceCloudPayload = SourceCloudPayload(
+            schemaVersion: 1,
+            userID: "cloud:private-local-scope",
+            sourceID: "kpkuang-org--vodtype-1",
+            name: "kpkuang",
+            baseURL: "https://www.kpkuang.org",
+            type: "html",
+            kind: "video",
+            configJSON: "{}",
+            enabled: true,
+            createdAt: Date(timeIntervalSince1970: 1),
+            updatedAt: Date(timeIntervalSince1970: 2),
+            deletedAt: nil,
+            origin: SourceOrigin.personalGeneration.rawValue
+        )
+        let record: CKRecord = CKRecord(
+            recordType: CloudKitRecordMapper.sourceRecordType,
+            recordID: mapper.recordID(forSourceID: payload.sourceID)
+        )
+
+        try mapper.apply(payload, to: record)
+        let restored: SourceCloudPayload = try mapper.sourcePayload(from: record, userID: UUID().uuidString)
+
+        #expect(record["origin"] as? String == "personal-generation")
+        #expect(restored.origin == "personal-generation")
+        #expect(SourceRecord(payload: restored).origin == "personal-generation")
     }
 
     @Test func favoriteRoundTripUsesItemMetadataField() throws {
