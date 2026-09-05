@@ -9,14 +9,15 @@ struct RuleGenerationOutcomeRefreshRequestsTests {
         requests.request()
         requests.request()
 
-        var iterator: AsyncStream<Void>.Iterator = requests.requests.makeAsyncIterator()
-        let first: Void? = await iterator.next()
+        var iterator: AsyncStream<RuleGenerationOutcomeRefreshTrigger>.Iterator =
+            requests.requests.makeAsyncIterator()
+        let first: RuleGenerationOutcomeRefreshTrigger? = await iterator.next()
 
-        #expect(first != nil)
+        #expect(first == .presented)
         // 中文注释：bufferingNewest(1) 只留最后一条；再要一条必须等新的 request()。
-        requests.request()
-        let second: Void? = await iterator.next()
-        #expect(second != nil)
+        requests.request(.opened)
+        let second: RuleGenerationOutcomeRefreshTrigger? = await iterator.next()
+        #expect(second == .opened)
     }
 
     @Test func onlyPayloadsWithAJobIDCountAsRuleGenerationOutcomes() {

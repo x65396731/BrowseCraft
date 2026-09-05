@@ -11,9 +11,12 @@ struct CatalogSourceGrouping: Hashable, Sendable {
     let personalSources: [CatalogSource]
     let failedOutcomes: [VideoGenerationOutcome]
 
+    /// `hiddenIDs`：用户删除或已到期的个人规则（catalogSourceId）与失败记录（jobId），
+    /// 两组都不再显示——服务器目录仍有它，但对这个用户它已经「删掉」了。
     static func make(
         catalogSources: [CatalogSource],
-        outcomes: [VideoGenerationOutcome]
+        outcomes: [VideoGenerationOutcome],
+        hiddenIDs: Set<String> = []
     ) -> CatalogSourceGrouping {
         let personalIDs: Set<String> = Set(
             outcomes.compactMap { outcome in
@@ -21,15 +24,18 @@ struct CatalogSourceGrouping: Hashable, Sendable {
             }
         )
         let personalSources: [CatalogSource] = catalogSources.filter { source in
-            return personalIDs.contains(source.id)
+            return personalIDs.contains(source.id) && hiddenIDs.contains(source.id) == false
         }
         let defaultSources: [CatalogSource] = catalogSources.filter { source in
-            return personalIDs.contains(source.id) == false
+            return personalIDs.contains(source.id) == false && hiddenIDs.contains(source.id) == false
         }
         // 中文注释：同一入口 URL 只保留最近一次失败——服务端按终结时间倒序返回，取首个。
         var seenEntryURLs: Set<String> = []
         var failedOutcomes: [VideoGenerationOutcome] = []
         for outcome in outcomes where outcome.didSucceed == false {
+            if hiddenIDs.contains(outcome.jobID.uuidString) {
+                continue
+            }
             let key: String = outcome.entryURL ?? outcome.jobID.uuidString
             if seenEntryURLs.insert(key).inserted {
                 failedOutcomes.append(outcome)

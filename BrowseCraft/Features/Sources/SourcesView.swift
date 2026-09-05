@@ -78,6 +78,11 @@ struct SourcesView: View {
                 }
             )
             .navigationTitle("Sources")
+            // 中文注释：点开生成推送 → 打开「规则目录」让用户直接看到「我的生成」。
+            .onChange(of: self.viewModel.catalogPresentationRevision) { _, _ in
+                self.isShowingAddSourceView = false
+                self.isShowingCatalogSourceListView = true
+            }
             .toolbar {
                 ToolbarItemGroup(placement: .navigationBarLeading) {
                     Button(

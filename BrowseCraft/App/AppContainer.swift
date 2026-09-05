@@ -107,9 +107,9 @@ final class AppContainer {
         await self.account.pushDeviceRegistrationCoordinator.updateDeviceToken(deviceToken)
     }
 
-    /// 规则生成推送到达或被点开：让目录列表刷新默认数据与个人生成结果。
-    func handleRuleGenerationPushNotification() {
-        self.account.ruleGenerationOutcomeRefreshRequests.request()
+    /// 规则生成推送到达或被点开：让目录列表刷新默认数据与个人生成结果；点开时还要导航到结果。
+    func handleRuleGenerationPushNotification(opened: Bool) {
+        self.account.ruleGenerationOutcomeRefreshRequests.request(opened ? .opened : .presented)
     }
 
     func handleCloudRemoteNotification() async throws -> CloudSyncRunResult {

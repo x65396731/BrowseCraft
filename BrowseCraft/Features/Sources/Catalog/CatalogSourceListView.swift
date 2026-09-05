@@ -54,15 +54,56 @@ struct CatalogSourceListView: View {
             }
         } else if self.viewModel.personalCatalogSources.isEmpty == false
             || self.viewModel.failedGenerationOutcomes.isEmpty == false {
-            Section(header: Text(NSLocalizedString("catalog_section_personal", comment: ""))) {
+            Section(
+                header: Text(NSLocalizedString("catalog_section_personal", comment: "")),
+                footer: Text(NSLocalizedString("catalog_personal_retention_hint", comment: ""))
+            ) {
                 ForEach(self.viewModel.personalCatalogSources, id: \.id) { catalogSource in
-                    self.row(for: catalogSource)
+                    VStack(alignment: .leading, spacing: 4) {
+                        self.row(for: catalogSource)
+                        Text(self.remainingText(for: catalogSource))
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            Task {
+                                await self.viewModel.deletePersonalRule(catalogSourceID: catalogSource.id)
+                            }
+                        } label: {
+                            Label(NSLocalizedString("catalog_personal_delete", comment: ""), systemImage: "trash")
+                        }
+                    }
                 }
                 ForEach(self.viewModel.failedGenerationOutcomes, id: \.jobID) { outcome in
                     FailedGenerationOutcomeRowView(outcome: outcome)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                Task {
+                                    await self.viewModel.deleteFailedGenerationOutcome(jobID: outcome.jobID)
+                                }
+                            } label: {
+                                Label(NSLocalizedString("catalog_personal_delete", comment: ""), systemImage: "trash")
+                            }
+                        }
                 }
             }
         }
+    }
+
+    private func remainingText(for catalogSource: CatalogSource) -> String {
+        let remaining: (days: Int, hours: Int) = self.viewModel.personalRuleRemainingComponents(for: catalogSource)
+        if remaining.days == 0 && remaining.hours == 0 {
+            return NSLocalizedString("catalog_personal_remaining_none", comment: "")
+        }
+        if remaining.days == 0 {
+            return String(format: NSLocalizedString("catalog_personal_remaining_hours", comment: ""), remaining.hours)
+        }
+        return String(
+            format: NSLocalizedString("catalog_personal_remaining_days_hours", comment: ""),
+            remaining.days,
+            remaining.hours
+        )
     }
 
     private func row(for catalogSource: CatalogSource) -> some View {

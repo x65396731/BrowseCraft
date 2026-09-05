@@ -150,6 +150,7 @@ struct SourcesFeatureFactory {
                 accessTokenProvider: self.portalAccessTokenProvider
             ),
             outcomeRefreshRequests: self.outcomeRefreshRequests,
+            personalRuleReceiptStore: UserDefaultsPersonalRuleReceiptStore(),
             catalogService: sourceCatalogService,
             ruleEditorService: sourceRuleEditorService,
             ruleEditingCoordinator: sourceRuleEditingCoordinator,

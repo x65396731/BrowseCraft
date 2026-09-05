@@ -102,6 +102,10 @@ struct RootView: View {
                 self.selectedTab = .library
             }
         }
+        // 中文注释：点开生成推送时先切到 Sources 标签，SourcesView 再打开「规则目录」。
+        .onChange(of: self.sourcesViewModel.catalogPresentationRevision) { _, _ in
+            self.selectedTab = .sources
+        }
         .onChange(of: self.cloudSyncSettingsViewModel.identityRevision) { _, _ in
             Task {
                 await self.historyViewModel.load()

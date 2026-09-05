@@ -162,7 +162,9 @@ enum ViewModelTestHarness {
         selectionStore: SourceSelectionStore = SourceSelectionStore(),
         rssFeedLoader: any RSSFeedLoading = ScriptedRSSFeedLoader(),
         loadVideoGenerationOutcomesUseCase: LoadVideoGenerationOutcomesUseCase? = nil,
-        outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests? = nil
+        outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests? = nil,
+        personalRuleReceiptStore: (any PersonalRuleReceiptStoring)? = nil,
+        now: @escaping () -> Date = { Self.fixedNow }
     ) -> SourcesViewModel {
         let sourceRepository: SourceRepository = GRDBSourceRepository(database: database)
         let userLibraryStateRepository: UserLibraryStateRepository =
@@ -232,6 +234,7 @@ enum ViewModelTestHarness {
             createVideoGenerationTaskUseCase: nil,
             loadVideoGenerationOutcomesUseCase: loadVideoGenerationOutcomesUseCase,
             outcomeRefreshRequests: outcomeRefreshRequests,
+            personalRuleReceiptStore: personalRuleReceiptStore,
             catalogService: SourceCatalogService(
                 addCatalogSourceUseCase: AddCatalogSourceUseCase(
                     sourceRepository: sourceRepository,
@@ -248,7 +251,7 @@ enum ViewModelTestHarness {
                 rssFeedLoader: rssFeedLoader
             ),
             sourceSelectionStore: selectionStore,
-            now: { Self.fixedNow }
+            now: now
         )
     }
 

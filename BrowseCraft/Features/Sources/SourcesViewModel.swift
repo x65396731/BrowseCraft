@@ -33,6 +33,11 @@ final class SourcesViewModel {
     private(set) var isLoadingCatalogSources: Bool = false
     /// 当前用户的生成终态；nil 表示尚未读取。
     private(set) var videoGenerationOutcomesLoad: VideoGenerationOutcomesLoad?
+    /// 用户点开生成推送的次数；视图据此切到 Sources 标签并打开「规则目录」。
+    private(set) var catalogPresentationRevision: Int = 0
+    /// 个人规则的本地回执（catalogSourceId → 收到时刻）与本地隐藏集合。
+    private(set) var personalRuleReceipts: [String: Date] = [:]
+    private(set) var hiddenPersonalRuleIDs: Set<String> = []
     private(set) var requestedSlotActivationSource: Source?
     private(set) var videoGenerationInputProgress: VideoGenerationInputPreflightProgress?
     private(set) var sourceSlotLimit: Int =
@@ -46,6 +51,7 @@ final class SourcesViewModel {
     private let pushNotificationAuthorizer: (any PushNotificationAuthorizing)?
     private let loadVideoGenerationOutcomesUseCase: LoadVideoGenerationOutcomesUseCase?
     private let outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests?
+    private let personalRuleReceiptStore: (any PersonalRuleReceiptStoring)?
     private var outcomeRefreshTask: Task<Void, Never>?
     private let catalogService: SourceCatalogService
     private let ruleEditorService: SourceRuleEditorService
@@ -98,7 +104,76 @@ final class SourcesViewModel {
         } else {
             outcomes = []
         }
-        return CatalogSourceGrouping.make(catalogSources: self.catalogSources, outcomes: outcomes)
+        return CatalogSourceGrouping.make(
+            catalogSources: self.catalogSources,
+            outcomes: outcomes,
+            hiddenIDs: self.hiddenPersonalRuleIDs
+        )
+    }
+
+    /// 个人规则的剩余保留时间；还没有回执（本次刚出现、尚未记录）时按整段保留期显示。
+    func personalRuleRemainingComponents(for catalogSource: CatalogSource) -> (days: Int, hours: Int) {
+        let receivedAt: Date = self.personalRuleReceipts[catalogSource.id] ?? self.now()
+        return PersonalRuleRetentionPolicy.remainingComponents(receivedAt: receivedAt, now: self.now())
+    }
+
+    /// 用户删除个人规则：本地隐藏 + 删掉已添加的本地副本；服务器目录不动。
+    @MainActor
+    func deletePersonalRule(catalogSourceID: String) async {
+        await self.hidePersonalRule(id: catalogSourceID, reason: "user-delete")
+    }
+
+    /// 用户删除失败记录：只做本地隐藏。
+    @MainActor
+    func deleteFailedGenerationOutcome(jobID: UUID) async {
+        await self.hidePersonalRule(id: jobID.uuidString, reason: "user-delete")
+    }
+
+    @MainActor
+    private func hidePersonalRule(id: String, reason: String) async {
+        self.hiddenPersonalRuleIDs.insert(id)
+        self.personalRuleReceipts.removeValue(forKey: id)
+        self.personalRuleReceiptStore?.hide(id: id, userID: self.currentUserID)
+        AppLog.notice(.push, event: "personal-rule-hidden", metadata: ["reason": reason])
+        if self.sources.contains(where: { source in source.id == id }) {
+            do {
+                let snapshot: SourcesPersistenceSnapshot = try await self.persistenceCoordinator.delete(
+                    sourceIDs: [id],
+                    userID: self.currentUserID
+                )
+                self.sources = snapshot.sources
+                self.sourceSlotLimit = snapshot.sourceSlotLimit
+                if self.selectedSourceID == id {
+                    self.selectSource(id: snapshot.sources.first(where: { $0.accessState == .active })?.id)
+                }
+            } catch {
+                RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "personal-rule-delete-error")
+                self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+            }
+        }
+    }
+
+    /// 中文注释：读取回执，为新出现的个人规则记回执，并把到期的按「删除」处理（`PersonalRuleRetentionPolicy`）。
+    @MainActor
+    private func applyPersonalRuleRetention() async {
+        guard let store: any PersonalRuleReceiptStoring = self.personalRuleReceiptStore else {
+            return
+        }
+        let userID: String = self.currentUserID
+        self.hiddenPersonalRuleIDs = store.hiddenIDs(userID: userID)
+        let now: Date = self.now()
+        for source in self.catalogSourceGrouping.personalSources {
+            store.recordReceiptIfAbsent(catalogSourceID: source.id, userID: userID, receivedAt: now)
+        }
+        var receipts: [String: Date] = [:]
+        for receipt in store.receipts(userID: userID) {
+            receipts[receipt.catalogSourceID] = receipt.receivedAt
+        }
+        self.personalRuleReceipts = receipts
+        for (catalogSourceID, receivedAt) in receipts
+        where PersonalRuleRetentionPolicy.isExpired(receivedAt: receivedAt, now: now) {
+            await self.hidePersonalRule(id: catalogSourceID, reason: "expired")
+        }
     }
 
     var defaultCatalogSources: [CatalogSource] {
@@ -127,6 +202,7 @@ final class SourcesViewModel {
         pushNotificationAuthorizer: (any PushNotificationAuthorizing)? = nil,
         loadVideoGenerationOutcomesUseCase: LoadVideoGenerationOutcomesUseCase? = nil,
         outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests? = nil,
+        personalRuleReceiptStore: (any PersonalRuleReceiptStoring)? = nil,
         catalogService: SourceCatalogService,
         ruleEditorService: SourceRuleEditorService,
         ruleEditingCoordinator: SourceRuleEditingCoordinator,
@@ -146,6 +222,7 @@ final class SourcesViewModel {
         self.pushNotificationAuthorizer = pushNotificationAuthorizer
         self.loadVideoGenerationOutcomesUseCase = loadVideoGenerationOutcomesUseCase
         self.outcomeRefreshRequests = outcomeRefreshRequests
+        self.personalRuleReceiptStore = personalRuleReceiptStore
         self.catalogService = catalogService
         self.ruleEditorService = ruleEditorService
         self.ruleEditingCoordinator = ruleEditingCoordinator
@@ -169,11 +246,18 @@ final class SourcesViewModel {
             return
         }
         self.outcomeRefreshTask = Task { [weak self] in
-            for await _ in outcomeRefreshRequests.requests {
+            for await trigger in outcomeRefreshRequests.requests {
                 guard let self else {
                     return
                 }
-                AppLog.notice(.push, event: "outcome-refresh-requested")
+                AppLog.notice(
+                    .push,
+                    event: "outcome-refresh-requested",
+                    metadata: ["trigger": trigger.rawValue]
+                )
+                if trigger == .opened {
+                    self.catalogPresentationRevision += 1
+                }
                 await self.refreshCatalogSources()
             }
         }
@@ -465,6 +549,7 @@ final class SourcesViewModel {
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
         await outcomes
+        await self.applyPersonalRuleRetention()
     }
 
     @MainActor
@@ -487,6 +572,7 @@ final class SourcesViewModel {
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
         await outcomes
+        await self.applyPersonalRuleRetention()
     }
 
     /// 读取当前用户的生成终态；失败只记日志，不覆盖目录的错误提示。
