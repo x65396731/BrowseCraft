@@ -504,6 +504,18 @@ final class SourcesViewModel {
             }
             return
         }
+        if case .loaded(let outcomes) = load {
+            AppLog.notice(
+                .push,
+                event: "outcomes-loaded",
+                metadata: [
+                    "count": String(outcomes.count),
+                    "succeeded": String(outcomes.filter(\.didSucceed).count)
+                ]
+            )
+        } else {
+            AppLog.notice(.push, event: "outcomes-auth-required")
+        }
         self.videoGenerationOutcomesLoad = load
     }
 
