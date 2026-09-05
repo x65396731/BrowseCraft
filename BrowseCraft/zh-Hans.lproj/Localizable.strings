@@ -61,6 +61,9 @@
 "video_preflight_submit_auth_required" = "请先登录后再提交生成任务。";
 "video_preflight_submit_active_job_limit" = "进行中的生成任务已达上限，请等待完成后再试。";
 "video_preflight_submit_failed" = "提交失败（%@），请稍后重试。";
+"video_preflight_submit_previous_job_active" = "上一个生成任务（%@）还没有完成，等它成功或失败后再提交新的。";
+"video_preflight_submit_previous_job_active_generic" = "上一个生成任务还没有完成，等它成功或失败后再提交新的。";
+"video_preflight_submit_rate_limited" = "这一小时内的提交次数已达上限，请稍后再试。";
 "video_preflight_error_invalid_url" = "请输入有效的网站 URL。";
 "video_preflight_error_scheme" = "只支持公开的 HTTP 或 HTTPS URL。";
 "video_preflight_error_unsafe_url" = "该 URL 未通过公网安全策略。";

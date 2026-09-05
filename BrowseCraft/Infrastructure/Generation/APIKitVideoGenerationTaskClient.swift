@@ -70,6 +70,17 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
     private static func map(_ error: PortalAPIError) -> VideoGenerationTaskClientError {
         switch error {
         case .server(let statusCode, let body):
+            // 中文注释：两道并列闸门分开说：409 是「上一个还没生成完」，429 限流码是「本小时次数用完」。
+            if body.code == PortalRuleGenerationErrorCode.previousJobActive || statusCode == 409 {
+                var entryURL: String?
+                if case .string(let value)? = body.details["entryURL"] {
+                    entryURL = value
+                }
+                return .previousJobActive(entryURL: entryURL)
+            }
+            if body.code == PortalRuleGenerationErrorCode.submitRateLimit {
+                return .rateLimited
+            }
             if statusCode == 429 || body.code == PortalRuleGenerationErrorCode.activeJobLimit {
                 return .activeJobLimit
             }
@@ -80,6 +91,9 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
         case .unexpectedStatusCode(let statusCode):
             if statusCode == 401 {
                 return .authRequired
+            }
+            if statusCode == 409 {
+                return .previousJobActive(entryURL: nil)
             }
             if statusCode == 429 {
                 return .activeJobLimit

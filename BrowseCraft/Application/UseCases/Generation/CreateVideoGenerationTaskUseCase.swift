@@ -56,6 +56,10 @@ struct CreateVideoGenerationTaskUseCase: Sendable {
                 return .authRequired
             case .activeJobLimit:
                 return .activeJobLimit
+            case .previousJobActive(let entryURL):
+                return .previousJobActive(entryURL: entryURL)
+            case .rateLimited:
+                return .rateLimited
             case .server(let code):
                 return .failed(code: code)
             case .transport:

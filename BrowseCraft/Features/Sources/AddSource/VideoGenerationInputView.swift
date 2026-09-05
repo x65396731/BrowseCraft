@@ -385,6 +385,18 @@ private struct VideoGenerationInputOutcomeView: View {
                 systemImage: "hourglass"
             )
             .foregroundStyle(.orange)
+        case .previousJobActive(let entryURL):
+            Label(
+                VideoGenerationInputView.previousJobActiveMessage(entryURL: entryURL),
+                systemImage: "hourglass"
+            )
+            .foregroundStyle(.orange)
+        case .rateLimited:
+            Label(
+                NSLocalizedString("video_preflight_submit_rate_limited", comment: ""),
+                systemImage: "clock.badge.exclamationmark"
+            )
+            .foregroundStyle(.orange)
         case .failed(let code):
             Label(
                 String(
@@ -461,5 +473,20 @@ private extension VideoGenerationInputPreflightReason {
         case .preflightIsolationUnavailable:
             return NSLocalizedString("video_preflight_reason_isolation", comment: "")
         }
+    }
+}
+
+extension VideoGenerationInputView {
+    /// 中文注释：指出是哪一个任务还没生成完——有入口 URL 就显示它的主机名，没有就用泛化文案。
+    static func previousJobActiveMessage(entryURL: String?) -> String {
+        guard let entryURL: String,
+              entryURL.isEmpty == false else {
+            return NSLocalizedString("video_preflight_submit_previous_job_active_generic", comment: "")
+        }
+        let display: String = URL(string: entryURL)?.host ?? entryURL
+        return String(
+            format: NSLocalizedString("video_preflight_submit_previous_job_active", comment: ""),
+            display
+        )
     }
 }

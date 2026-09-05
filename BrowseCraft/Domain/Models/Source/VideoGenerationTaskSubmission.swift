@@ -36,6 +36,8 @@ enum VideoGenerationTaskSubmissionOutcome: Hashable, Sendable {
     case reused(VideoGenerationReusedRule)
     case authRequired
     case activeJobLimit
+    case previousJobActive(entryURL: String?)
+    case rateLimited
     case failed(code: String)
 }
 

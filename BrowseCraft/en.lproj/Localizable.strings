@@ -61,6 +61,9 @@
 "video_preflight_submit_auth_required" = "Sign in to submit a generation task.";
 "video_preflight_submit_active_job_limit" = "You already have the maximum number of active generation tasks. Wait for one to finish.";
 "video_preflight_submit_failed" = "Submission failed (%@). Please try again later.";
+"video_preflight_submit_previous_job_active" = "Your previous generation task (%@) has not finished yet. Wait for it to succeed or fail before submitting another.";
+"video_preflight_submit_previous_job_active_generic" = "Your previous generation task has not finished yet. Wait for it to succeed or fail before submitting another.";
+"video_preflight_submit_rate_limited" = "You have reached the hourly submission limit. Please try again later.";
 "video_preflight_error_invalid_url" = "Enter a valid website URL.";
 "video_preflight_error_scheme" = "Only public HTTP or HTTPS URLs are supported.";
 "video_preflight_error_unsafe_url" = "This URL is not allowed by the public-network safety policy.";

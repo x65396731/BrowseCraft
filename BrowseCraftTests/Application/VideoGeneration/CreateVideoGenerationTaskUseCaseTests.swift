@@ -127,6 +127,9 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
     func testClientErrorsMapToTypedOutcomes() async throws {
         let expectations: [(VideoGenerationTaskClientError, VideoGenerationTaskSubmissionOutcome)] = [
             (.activeJobLimit, .activeJobLimit),
+            (.previousJobActive(entryURL: "https://gimy.tv/browse/1.html"),
+             .previousJobActive(entryURL: "https://gimy.tv/browse/1.html")),
+            (.rateLimited, .rateLimited),
             (.authRequired, .authRequired),
             (.server(code: "RULE_GENERATION_PERSISTENCE_ERROR"),
              .failed(code: "RULE_GENERATION_PERSISTENCE_ERROR")),
