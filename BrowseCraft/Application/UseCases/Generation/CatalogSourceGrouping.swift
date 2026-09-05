@@ -10,6 +10,8 @@ struct CatalogSourceGrouping: Hashable, Sendable {
     let defaultSources: [CatalogSource]
     let personalSources: [CatalogSource]
     let failedOutcomes: [VideoGenerationOutcome]
+    /// 个人规则的入口 URL（catalogSourceId → entryURL），用于和默认数据里同站的规则区分。
+    let personalEntryURLs: [String: String]
 
     /// `hiddenIDs`：用户删除或已到期的个人规则（catalogSourceId）与失败记录（jobId），
     /// 两组都不再显示——服务器目录仍有它，但对这个用户它已经「删掉」了。
@@ -18,7 +20,15 @@ struct CatalogSourceGrouping: Hashable, Sendable {
         outcomes: [VideoGenerationOutcome],
         hiddenIDs: Set<String> = []
     ) -> CatalogSourceGrouping {
-        let personalIDs: Set<String> = Set(
+        var personalEntryURLs: [String: String] = [:]
+        for outcome in outcomes where outcome.didSucceed {
+            if let catalogSourceID: String = outcome.catalogSourceID,
+               let entryURL: String = outcome.entryURL,
+               personalEntryURLs[catalogSourceID] == nil {
+                personalEntryURLs[catalogSourceID] = entryURL
+            }
+        }
+        let personalIDs: Set<String> = Set(personalEntryURLs.keys).union(
             outcomes.compactMap { outcome in
                 return outcome.didSucceed ? outcome.catalogSourceID : nil
             }
@@ -44,7 +54,8 @@ struct CatalogSourceGrouping: Hashable, Sendable {
         return CatalogSourceGrouping(
             defaultSources: defaultSources,
             personalSources: personalSources,
-            failedOutcomes: failedOutcomes
+            failedOutcomes: failedOutcomes,
+            personalEntryURLs: personalEntryURLs
         )
     }
 }

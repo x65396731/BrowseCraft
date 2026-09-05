@@ -109,9 +109,13 @@ struct CatalogSourceListView: View {
     private func row(for catalogSource: CatalogSource) -> some View {
         return CatalogSourceRowView(
             catalogSource: catalogSource,
+            subtitleURL: self.viewModel.personalRuleEntryURL(for: catalogSource) ?? catalogSource.baseURL,
             isAdded: self.viewModel.isCatalogSourceAdded(catalogSource),
             isAdding: self.addingSourceIDs.contains(catalogSource.id),
-            didFail: self.failedSourceIDs.contains(catalogSource.id),
+            failureMessage: self.failedSourceIDs.contains(catalogSource.id)
+                ? (self.viewModel.catalogSourceAddFailureMessages[catalogSource.id]
+                    ?? NSLocalizedString("catalog_add_failed", comment: ""))
+                : nil,
             addAction: {
                 self.add(catalogSource)
             }
@@ -162,6 +166,9 @@ private struct FailedGenerationOutcomeRowView: View {
                     .foregroundColor(.secondary)
             }
         }
+        .alignmentGuide(.listRowSeparatorLeading) { dimensions in
+            return dimensions[.leading]
+        }
     }
 }
 
@@ -193,9 +200,10 @@ enum VideoGenerationOutcomeText {
 
 private struct CatalogSourceRowView: View {
     let catalogSource: CatalogSource
+    let subtitleURL: String
     let isAdded: Bool
     let isAdding: Bool
-    let didFail: Bool
+    let failureMessage: String?
     let addAction: () -> Void
 
     var body: some View {
@@ -207,8 +215,8 @@ private struct CatalogSourceRowView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
 
-                if self.didFail {
-                    Text("加载失败")
+                if let failureMessage: String = self.failureMessage {
+                    Text(failureMessage)
                         .font(.caption)
                         .foregroundColor(.red)
                 }
@@ -217,6 +225,11 @@ private struct CatalogSourceRowView: View {
             Spacer(minLength: 12)
 
             self.trailingControl
+        }
+        // 中文注释：List 默认把分隔线对齐到行里第一段文字；「已添加」那行的 Label 会把它推到
+        // 右侧只剩一小截（09-05 真机截图）。钉到行的 leading，分隔线通栏。
+        .alignmentGuide(.listRowSeparatorLeading) { dimensions in
+            return dimensions[.leading]
         }
     }
 
@@ -240,7 +253,7 @@ private struct CatalogSourceRowView: View {
     }
 
     private var subtitle: String {
-        return "\(self.kindTitle) · \(self.catalogSource.baseURL)"
+        return "\(self.kindTitle) · \(self.subtitleURL)"
     }
 
     private var kindTitle: String {

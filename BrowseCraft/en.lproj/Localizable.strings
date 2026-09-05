@@ -98,10 +98,10 @@
 "video_generation_outcome_failed_unknown" = "Generation failed. Please try again later.";
 "video_generation_outcome_detail_noPlaybackCarrier" = "No video playback was found on this site.";
 "video_generation_outcome_detail_episodeLayoutUnsupported" = "The site has video pages, but this episode layout isn't supported yet.";
-\n
 /* Personal rules are kept locally for 7 days after they are first received; deleting hides them locally and removes the added source. */
 "catalog_personal_retention_hint" = "Rules you generated are kept on this device for 7 days after they arrive. Swipe left to delete one earlier.";
 "catalog_personal_delete" = "Delete";
 "catalog_personal_remaining_days_hours" = "%d days %d hours left";
 "catalog_personal_remaining_hours" = "%d hours left";
 "catalog_personal_remaining_none" = "Expiring";
+"catalog_add_failed" = "Could not add";

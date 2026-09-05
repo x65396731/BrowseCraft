@@ -38,6 +38,7 @@ struct CatalogSourceGroupingTests {
         #expect(grouping.personalSources.map(\.id) == ["gimy-tv"])
         #expect(grouping.defaultSources.map(\.id) == ["kpkuang-org", "jable-tv"])
         #expect(grouping.failedOutcomes.isEmpty)
+        #expect(grouping.personalEntryURLs["gimy-tv"] == "https://gimy.tv/browse/1.html")
     }
 
     @Test func withoutOutcomesEverythingIsDefault() {

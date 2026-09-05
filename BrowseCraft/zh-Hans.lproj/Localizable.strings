@@ -98,10 +98,10 @@
 "video_generation_outcome_failed_unknown" = "生成失败，请稍后重试。";
 "video_generation_outcome_detail_noPlaybackCarrier" = "该网站上没有找到视频播放。";
 "video_generation_outcome_detail_episodeLayoutUnsupported" = "该网站有视频页面，但这种剧集布局暂不支持。";
-\n
 /* 个人规则本地保留 7 天；删除只在本地隐藏并移除已添加的来源。 */
 "catalog_personal_retention_hint" = "你生成的规则在本机保留 7 天（从收到时起算），左滑可提前删除。";
 "catalog_personal_delete" = "删除";
 "catalog_personal_remaining_days_hours" = "剩余 %d 天 %d 小时";
 "catalog_personal_remaining_hours" = "剩余 %d 小时";
 "catalog_personal_remaining_none" = "即将到期";
+"catalog_add_failed" = "添加失败";

@@ -44,6 +44,8 @@ final class SourcesViewModel {
     /// 个人规则的本地回执（catalogSourceId → 收到时刻）与本地隐藏集合。
     private(set) var personalRuleReceipts: [String: Date] = [:]
     private(set) var hiddenPersonalRuleIDs: Set<String> = []
+    /// 目录里某条规则添加失败的具体原因（按 catalogSourceId），成功或刷新后清除。
+    private(set) var catalogSourceAddFailureMessages: [String: String] = [:]
     private(set) var requestedSlotActivationSource: Source?
     private(set) var videoGenerationInputProgress: VideoGenerationInputPreflightProgress?
     private(set) var sourceSlotLimit: Int =
@@ -203,6 +205,10 @@ final class SourcesViewModel {
 
     var failedGenerationOutcomes: [VideoGenerationOutcome] {
         return self.catalogSourceGrouping.failedOutcomes
+    }
+
+    func personalRuleEntryURL(for catalogSource: CatalogSource) -> String? {
+        return self.catalogSourceGrouping.personalEntryURLs[catalogSource.id]
     }
 
     /// 个人分组需要登录才有内容；未接入 outcomes 用例（测试替身）时视为不需要。
@@ -581,6 +587,7 @@ final class SourcesViewModel {
         defer {
             self.isLoadingCatalogSources = false
         }
+        self.catalogSourceAddFailureMessages.removeAll()
 
         async let outcomes: Void = self.loadVideoGenerationOutcomes()
         do {
@@ -635,6 +642,7 @@ final class SourcesViewModel {
         shouldPresentError: Bool = true
     ) async -> Bool {
         CrashDiagnostics.shared.setRuleStage(.list)
+        self.catalogSourceAddFailureMessages.removeValue(forKey: catalogSource.id)
         do {
             let result: AddCatalogSourceResult = try await self.catalogService.addSource(catalogSource)
             var source: Source = result.source
@@ -663,8 +671,11 @@ final class SourcesViewModel {
             return true
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-source-add-error")
+            let message: String = RuleExecutionErrorClassifier.userMessage(for: error)
+            // 中文注释：不弹全局错误时也要把原因留在那一行——只写「加载失败」用户无从下手。
+            self.catalogSourceAddFailureMessages[catalogSource.id] = message
             if shouldPresentError {
-                self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+                self.errorMessage = message
             }
             return false
         }
