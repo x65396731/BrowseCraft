@@ -9,7 +9,7 @@ enum SourceListLoadValidationError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .emptyList:
-            return "The source loaded successfully but returned no items."
+            return NSLocalizedString("source_error_empty_list", comment: "")
         }
     }
 }

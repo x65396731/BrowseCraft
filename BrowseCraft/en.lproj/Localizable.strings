@@ -299,3 +299,31 @@
 "Waiting for iCloud" = "Waiting for iCloud";
 "Warnings" = "Warnings";
 "Your sources and favorites will appear after iCloud becomes available." = "Your sources and favorites will appear after iCloud becomes available.";
+
+/* User-facing failure reasons (rule execution categories, catalog import/decryption, source slots). Diagnostic detail stays in logs. */
+"rule_error_network" = "The network request failed.";
+"rule_error_anti_bot" = "The site returned an anti-bot verification page.";
+"rule_error_access_required" = "This content requires a site account.";
+"rule_error_selector_empty" = "The rule did not match any content.";
+"rule_error_rule_configuration" = "The rule is misconfigured.";
+"rule_error_response_contract" = "The site response does not match the rule.";
+"rule_error_api_response_contract" = "The site API response does not match the rule.";
+"rule_error_source_api" = "The site API returned an error.";
+"rule_error_protected_resource" = "The protected resource could not be processed.";
+"rule_error_parser" = "The rule could not be parsed.";
+"rule_error_unknown" = "Loading failed.";
+"catalog_import_error_invalid_base_url" = "Invalid site base URL: %@";
+"catalog_import_error_invalid_feed_url" = "Invalid RSS feed URL: %@";
+"catalog_import_error_invalid_entry_url" = "Invalid video entry URL: %@";
+"catalog_import_error_invalid_rule_json" = "Invalid rule JSON for “%@”: %@";
+"catalog_import_error_unsupported_value" = "Unsupported value for rule field %@: %@";
+"catalog_decrypt_error_unsupported_version" = "Unsupported rule encryption version: %d";
+"catalog_decrypt_error_missing_key" = "Missing rule decryption key: %@";
+"catalog_decrypt_error_invalid_field" = "Invalid encrypted rule field: %@";
+"catalog_decrypt_error_invalid_ciphertext" = "Invalid rule ciphertext.";
+"catalog_decrypt_error_failed" = "The rule could not be decrypted.";
+"catalog_decrypt_error_invalid_plaintext" = "The decrypted rule payload is invalid.";
+"source_error_empty_list" = "The source loaded successfully but returned no items.";
+"source_error_slot_limit_reached" = "Your account can activate up to %d custom sources. Purchase more site slots in Settings › Premium to activate another one.";
+"source_error_locked_by_slot_limit" = "This source is restored but locked by your current source limit. Replace an active source or purchase more site slots in Settings › Premium.";
+"source_error_invalid_slot_replacement" = "The selected active source could not be replaced. Reload Sources and try again.";

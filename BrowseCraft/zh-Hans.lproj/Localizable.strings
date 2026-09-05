@@ -299,3 +299,31 @@
 "Waiting for iCloud" = "正在等待 iCloud";
 "Warnings" = "警告";
 "Your sources and favorites will appear after iCloud becomes available." = "iCloud 可用后会显示你的来源和收藏。";
+
+/* User-facing failure reasons (rule execution categories, catalog import/decryption, source slots). Diagnostic detail stays in logs. */
+"rule_error_network" = "网络请求失败。";
+"rule_error_anti_bot" = "源站返回了反爬验证页面。";
+"rule_error_access_required" = "此内容需要源站账号才能访问。";
+"rule_error_selector_empty" = "规则没有匹配到内容。";
+"rule_error_rule_configuration" = "规则配置错误。";
+"rule_error_response_contract" = "源站响应与规则不匹配。";
+"rule_error_api_response_contract" = "源站接口响应与规则不匹配。";
+"rule_error_source_api" = "源站接口返回错误。";
+"rule_error_protected_resource" = "受保护资源处理失败。";
+"rule_error_parser" = "规则解析出错。";
+"rule_error_unknown" = "加载失败。";
+"catalog_import_error_invalid_base_url" = "站点地址无效：%@";
+"catalog_import_error_invalid_feed_url" = "RSS 订阅地址无效：%@";
+"catalog_import_error_invalid_entry_url" = "视频入口地址无效：%@";
+"catalog_import_error_invalid_rule_json" = "规则「%@」的 JSON 无效：%@";
+"catalog_import_error_unsupported_value" = "规则字段 %@ 的取值不受支持：%@";
+"catalog_decrypt_error_unsupported_version" = "不支持的规则加密版本：%d";
+"catalog_decrypt_error_missing_key" = "缺少规则解密密钥：%@";
+"catalog_decrypt_error_invalid_field" = "规则加密字段无效：%@";
+"catalog_decrypt_error_invalid_ciphertext" = "规则密文无效。";
+"catalog_decrypt_error_failed" = "规则解密失败。";
+"catalog_decrypt_error_invalid_plaintext" = "解密后的规则内容无效。";
+"source_error_empty_list" = "来源加载成功，但没有返回任何条目。";
+"source_error_slot_limit_reached" = "你的账户最多可启用 %d 个自定义来源。到「设置 › 高级版」购买更多站点位置后再启用。";
+"source_error_locked_by_slot_limit" = "该来源已恢复，但受当前来源数量限制而被锁定。请替换一个已启用的来源，或到「设置 › 高级版」购买更多站点位置。";
+"source_error_invalid_slot_replacement" = "无法替换所选的已启用来源。请重新加载来源后再试。";

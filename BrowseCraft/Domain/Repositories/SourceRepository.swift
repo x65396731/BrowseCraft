@@ -64,12 +64,11 @@ enum SourceRepositoryError: LocalizedError, Equatable, Sendable {
     var errorDescription: String? {
         switch self {
         case .siteSlotLimitReached(let limit):
-            let noun: String = limit == 1 ? "source" : "sources"
-            return "Your account can activate up to \(limit) custom \(noun). Purchase more site slots in Settings > Premium to activate another source."
+            return String(format: NSLocalizedString("source_error_slot_limit_reached", comment: ""), limit)
         case .sourceLockedBySlotLimit:
-            return "This source is restored but locked by your current source limit. Replace an active source or purchase more site slots in Settings > Premium."
+            return NSLocalizedString("source_error_locked_by_slot_limit", comment: "")
         case .invalidSourceSlotReplacement:
-            return "The selected active source could not be replaced. Reload Sources and try again."
+            return NSLocalizedString("source_error_invalid_slot_replacement", comment: "")
         }
     }
 }

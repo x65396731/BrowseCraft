@@ -12,17 +12,17 @@ enum CatalogRuleDecryptionError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unsupportedVersion(let version):
-            return "Unsupported catalog rule encryption version: \(version)."
+            return String(format: NSLocalizedString("catalog_decrypt_error_unsupported_version", comment: ""), version)
         case .missingKey(let keyID):
-            return "Missing catalog rule decryption key: \(keyID)."
+            return String(format: NSLocalizedString("catalog_decrypt_error_missing_key", comment: ""), keyID)
         case .invalidBase64(let field):
-            return "Invalid catalog rule encrypted field: \(field)."
+            return String(format: NSLocalizedString("catalog_decrypt_error_invalid_field", comment: ""), field)
         case .invalidCiphertext:
-            return "Invalid catalog rule ciphertext."
+            return NSLocalizedString("catalog_decrypt_error_invalid_ciphertext", comment: "")
         case .decryptionFailed:
-            return "Failed to decrypt catalog rule."
+            return NSLocalizedString("catalog_decrypt_error_failed", comment: "")
         case .invalidPlaintext:
-            return "Invalid decrypted catalog rule payload."
+            return NSLocalizedString("catalog_decrypt_error_invalid_plaintext", comment: "")
         }
     }
 }

@@ -59,8 +59,41 @@ enum RuleExecutionErrorClassifier {
         return .unknown(underlyingDescription: description)
     }
 
+    /// 中文注释：给用户看的是按类别的本地化短句，`stage=… source=…` 这类诊断细节只进日志
+    /// （`log(error:stage:event:)` 仍记完整 `localizedDescription`）。
     static func userMessage(for error: Error) -> String {
-        return Self.classified(error).localizedDescription
+        let classifiedError: RuleExecutionError = Self.classified(error)
+        func localized(_ key: String) -> String {
+            return NSLocalizedString(key, comment: "")
+        }
+        func withReason(_ key: String, _ reason: String) -> String {
+            let trimmed: String = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? localized(key) : "\(localized(key))\n\(trimmed)"
+        }
+        switch classifiedError {
+        case .network(_, let underlyingDescription):
+            return withReason("rule_error_network", underlyingDescription)
+        case .antiBot:
+            return localized("rule_error_anti_bot")
+        case .accessRequired:
+            return localized("rule_error_access_required")
+        case .selectorEmpty:
+            return localized("rule_error_selector_empty")
+        case .ruleConfiguration(_, _, let reason):
+            return withReason("rule_error_rule_configuration", reason)
+        case .responseContract(_, _, let reason):
+            return withReason("rule_error_response_contract", reason)
+        case .apiResponseContract(_, _, let reason):
+            return withReason("rule_error_api_response_contract", reason)
+        case .sourceAPI(_, _, let reason):
+            return withReason("rule_error_source_api", reason)
+        case .protectedResource(_, _, let reason):
+            return withReason("rule_error_protected_resource", reason)
+        case .parserDiagnostics:
+            return localized("rule_error_parser")
+        case .unknown(let underlyingDescription):
+            return withReason("rule_error_unknown", underlyingDescription)
+        }
     }
 
     /// 中文注释：Debug 日志记录分类结果，UI 仍只展示简短错误文案。

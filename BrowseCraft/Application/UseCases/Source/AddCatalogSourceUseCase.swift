@@ -12,15 +12,15 @@ enum CatalogSourceImportError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidBaseURL(let urlString):
-            return "Invalid source base URL: \(urlString)."
+            return String(format: NSLocalizedString("catalog_import_error_invalid_base_url", comment: ""), urlString)
         case .invalidFeedURL(let urlString):
-            return "Invalid RSS feed URL: \(urlString)."
+            return String(format: NSLocalizedString("catalog_import_error_invalid_feed_url", comment: ""), urlString)
         case .invalidEntryURL(let urlString):
-            return "Invalid video entry URL: \(urlString)."
-        case .invalidRuleJSON(let sourceID, let name, let kind, let reason):
-            return "Invalid catalog rule JSON: source=\(sourceID) name=\(name) kind=\(kind) reason=\(reason)"
+            return String(format: NSLocalizedString("catalog_import_error_invalid_entry_url", comment: ""), urlString)
+        case .invalidRuleJSON(_, let name, _, let reason):
+            return String(format: NSLocalizedString("catalog_import_error_invalid_rule_json", comment: ""), name, reason)
         case .unsupportedRuleValue(let field, let value):
-            return "Unsupported catalog rule value \(field)=\(value)."
+            return String(format: NSLocalizedString("catalog_import_error_unsupported_value", comment: ""), field, value)
         }
     }
 }
