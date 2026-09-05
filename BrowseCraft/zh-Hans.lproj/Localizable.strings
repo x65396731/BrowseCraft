@@ -345,3 +345,11 @@
 "library_pagination_loading_next" = "%@ · 正在加载下一页";
 "library_pagination_scroll_for_more" = "%@ · 滑到底部继续加载";
 "library_pagination_end" = "%@ · 已加载到底";
+
+/* Library: in-source search (menu entry shared with the account/login entry, search sheet). */
+"Search" = "搜索";
+"Search this source" = "搜索这个来源";
+"No results" = "没有找到结果";
+"Try another keyword." = "换个关键词试试。";
+"Enter a keyword to search this source." = "输入关键词，在这个来源里搜索。";
+"Clear" = "清除";

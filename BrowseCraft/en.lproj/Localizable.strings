@@ -345,3 +345,11 @@
 "library_pagination_loading_next" = "%@ · Loading next page";
 "library_pagination_scroll_for_more" = "%@ · Scroll to the bottom to load more";
 "library_pagination_end" = "%@ · No more pages";
+
+/* Library: in-source search (menu entry shared with the account/login entry, search sheet). */
+"Search" = "Search";
+"Search this source" = "Search this source";
+"No results" = "No results";
+"Try another keyword." = "Try another keyword.";
+"Enter a keyword to search this source." = "Enter a keyword to search this source.";
+"Clear" = "Clear";

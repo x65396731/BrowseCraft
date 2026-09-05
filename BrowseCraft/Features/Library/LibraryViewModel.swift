@@ -31,12 +31,20 @@ final class LibraryViewModel {
     private(set) var preparingSource: SourceLoadingState?
     private(set) var preparedLibrarySnapshot: SourceLibrarySnapshot?
     private(set) var requestedSourceLogin: LibrarySourceLoginState?
+    // 中文注释：来源内搜索状态（`BC-SEARCH-007` App 侧）。结果与列表同型，条目点开走同一条详情链。
+    private(set) var isPresentingSearch: Bool = false
+    var searchKeyword: String = ""
+    private(set) var searchResults: [ContentItem] = []
+    private(set) var isSearching: Bool = false
+    private(set) var searchErrorMessage: String?
+    private(set) var hasSearched: Bool = false
     private(set) var currentListPage: Int = 1
     private(set) var canLoadNextPage: Bool = false
     private var credentialRevision: Int = 0
 
     private let persistenceCoordinator: LibraryPersistenceCoordinator
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
+    private let searchSourceContentUseCase: SearchSourceContentUseCase?
     private let resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase
     private let contentItemMapper: SourceListContentItemMapper
     private let sourceCredentialStore: SourceCredentialStoring
@@ -60,11 +68,13 @@ final class LibraryViewModel {
         sourceCredentialStore: SourceCredentialStoring,
         sourceSelectionStore: SourceSelectionStore,
         activeAppUser: (any ActiveAppUserProviding)? = nil,
+        searchSourceContentUseCase: SearchSourceContentUseCase? = nil,
         userID: String = AppUser.localDefaultID,
         now: @escaping () -> Date = Date.init
     ) {
         self.persistenceCoordinator = persistenceCoordinator
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
+        self.searchSourceContentUseCase = searchSourceContentUseCase
         self.resolveLibrarySourcePresentationUseCase = resolveLibrarySourcePresentationUseCase
         self.contentItemMapper = SourceListContentItemMapper()
         self.sourceCredentialStore = sourceCredentialStore
@@ -495,6 +505,56 @@ final class LibraryViewModel {
     @MainActor
     func dismissRequestedSourceLogin() {
         self.requestedSourceLogin = nil
+    }
+
+    // MARK: - 来源内搜索
+
+    /// 由规则声明：runtime 能力里 `supportsSearch` 为真才显示搜索入口。
+    var selectedSourceSupportsSearch: Bool {
+        guard let source: Source = self.selectedSource,
+              let useCase: SearchSourceContentUseCase = self.searchSourceContentUseCase else {
+            return false
+        }
+        return useCase.supportsSearch(source: source)
+    }
+
+    @MainActor
+    func presentSearch() {
+        guard self.selectedSourceSupportsSearch else {
+            return
+        }
+        self.isPresentingSearch = true
+    }
+
+    @MainActor
+    func dismissSearch() {
+        self.isPresentingSearch = false
+    }
+
+    @MainActor
+    func performSearch() async {
+        guard let source: Source = self.selectedSource,
+              let useCase: SearchSourceContentUseCase = self.searchSourceContentUseCase else {
+            return
+        }
+        let keyword: String = self.searchKeyword.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard keyword.isEmpty == false else {
+            return
+        }
+        self.isSearching = true
+        self.searchErrorMessage = nil
+        defer {
+            self.isSearching = false
+            self.hasSearched = true
+        }
+        do {
+            let output: SourceListOutput = try await useCase.execute(source: source, keyword: keyword)
+            self.searchResults = self.contentItemMapper.map(output: output, source: source, context: nil)
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-search-error")
+            self.searchResults = []
+            self.searchErrorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+        }
     }
 
     @MainActor

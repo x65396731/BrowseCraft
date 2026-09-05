@@ -59,35 +59,61 @@ struct LibraryView: View {
                 .id(destination.id)
             }
             .toolbar {
-                if let loginState: LibrarySourceLoginState = self.viewModel.selectedSourceLoginState {
+                // 中文注释：搜索与登录共用左上角一个入口：任一可用就显示菜单，两个都没有就不占位。
+                if let loginState: LibrarySourceLoginState = self.viewModel.selectedSourceLoginState,
+                   self.viewModel.selectedSourceSupportsSearch == false,
+                   loginState.status != .authenticated {
                     ToolbarItem(placement: .navigationBarLeading) {
-                        if loginState.status == .authenticated {
-                            Menu {
-                                Button("Open Login Page") {
-                                    self.viewModel.requestSelectedSourceLogin()
+                        Button {
+                            self.viewModel.requestSelectedSourceLogin()
+                        } label: {
+                            Image(systemName: self.accountSystemImage(for: loginState.status))
+                        }
+                        .disabled(self.isInteractionLocked)
+                        .accessibilityLabel(self.accountAccessibilityLabel(for: loginState.status))
+                    }
+                } else if self.viewModel.selectedSourceLoginState != nil
+                    || self.viewModel.selectedSourceSupportsSearch {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Menu {
+                            if self.viewModel.selectedSourceSupportsSearch {
+                                Button {
+                                    self.viewModel.presentSearch()
+                                } label: {
+                                    Label("Search", systemImage: "magnifyingglass")
                                 }
-
-                                Button("Log Out", role: .destructive) {
-                                    Task {
-                                        await SourceLoginSessionCleaner().clear(state: loginState)
-                                        self.viewModel.removeSelectedSourceCredential()
-                                        await self.viewModel.refreshSelectedListTab()
+                            }
+                            if let loginState: LibrarySourceLoginState = self.viewModel.selectedSourceLoginState {
+                                Button {
+                                    self.viewModel.requestSelectedSourceLogin()
+                                } label: {
+                                    Label("Open Login Page", systemImage: "person.crop.circle")
+                                }
+                                if loginState.status == .authenticated {
+                                    Button(role: .destructive) {
+                                        Task {
+                                            await SourceLoginSessionCleaner().clear(state: loginState)
+                                            self.viewModel.removeSelectedSourceCredential()
+                                            await self.viewModel.refreshSelectedListTab()
+                                        }
+                                    } label: {
+                                        Label("Log Out", systemImage: "rectangle.portrait.and.arrow.right")
                                     }
                                 }
-                            } label: {
-                                Image(systemName: self.accountSystemImage(for: loginState.status))
                             }
-                            .disabled(self.isInteractionLocked)
-                            .accessibilityLabel(self.accountAccessibilityLabel(for: loginState.status))
-                        } else {
-                            Button {
-                                self.viewModel.requestSelectedSourceLogin()
-                            } label: {
+                        } label: {
+                            if let loginState: LibrarySourceLoginState = self.viewModel.selectedSourceLoginState {
                                 Image(systemName: self.accountSystemImage(for: loginState.status))
+                            } else {
+                                Image(systemName: "magnifyingglass")
                             }
-                            .disabled(self.isInteractionLocked)
-                            .accessibilityLabel(self.accountAccessibilityLabel(for: loginState.status))
                         }
+                        .disabled(self.isInteractionLocked)
+                        .accessibilityLabel(
+                            self.viewModel.selectedSourceLoginState.map { loginState in
+                                self.accountAccessibilityLabel(for: loginState.status)
+                            } ?? "Search"
+                        )
                     }
                 }
 
@@ -125,6 +151,12 @@ struct LibraryView: View {
                             await self.viewModel.refreshSelectedListTab()
                         }
                     }
+                )
+            }
+            .sheet(isPresented: self.searchPresentationBinding) {
+                LibrarySearchView(
+                    viewModel: self.viewModel,
+                    contentViewModelFactory: self.contentViewModelFactory
                 )
             }
             .onAppear {
@@ -300,6 +332,17 @@ struct LibraryView: View {
             set: { newValue in
                 if newValue == false {
                     self.viewModel.errorMessage = nil
+                }
+            }
+        )
+    }
+
+    private var searchPresentationBinding: Binding<Bool> {
+        return Binding<Bool>(
+            get: { self.viewModel.isPresentingSearch },
+            set: { isPresented in
+                if isPresented == false {
+                    self.viewModel.dismissSearch()
                 }
             }
         )

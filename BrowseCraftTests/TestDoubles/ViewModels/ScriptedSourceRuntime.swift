@@ -5,8 +5,15 @@ import BrowseCraftDomain
 
 // 中文注释：ViewModel 测试用的可编排 runtime：list / reader 行为由闭包决定，并记录每次输入，
 // 让测试既能断言 ViewModel 状态，也能断言它向 runtime 发出的请求。
-final class ScriptedSourceRuntime: SourceRuntime, SourceReaderRuntime, @unchecked Sendable {
+final class ScriptedSourceRuntime: SourceRuntime, SourceReaderRuntime, SourceSearchRuntime, @unchecked Sendable {
     typealias ListHandler = @Sendable (SourceListInput) async throws -> SourceListOutput
+    typealias SearchHandler = @Sendable (SourceSearchInput) async throws -> SourceListOutput
+    /// 中文注释：默认不支持搜索；测试按需打开并挂上 searchHandler。
+    var supportsSearch: Bool = false
+    private var searchHandler: SearchHandler = { input in
+        throw SourceRuntimeError.unsupported(.custom("Search is not scripted for \(input.keyword)."))
+    }
+    private var recordedSearchInputs: [SourceSearchInput] = []
     typealias ReaderHandler = @Sendable (SourceReaderInput) async throws -> SourceReaderOutput
 
     let definition: SourceDefinition
@@ -48,7 +55,7 @@ final class ScriptedSourceRuntime: SourceRuntime, SourceReaderRuntime, @unchecke
 
     var capabilities: SourceRuntimeCapabilities {
         return SourceRuntimeCapabilities(
-            supportsSearch: false,
+            supportsSearch: self.supportsSearch,
             supportsPagination: true,
             supportsDetail: false,
             supportsReader: true,
@@ -88,6 +95,26 @@ final class ScriptedSourceRuntime: SourceRuntime, SourceReaderRuntime, @unchecke
         self.lock.lock()
         self.recordedListInputs.append(input)
         let handler: ListHandler = self.listHandler
+        self.lock.unlock()
+        return try await handler(input)
+    }
+
+    func setSearchHandler(_ handler: @escaping SearchHandler) {
+        self.lock.lock()
+        self.searchHandler = handler
+        self.lock.unlock()
+    }
+
+    var searchInputs: [SourceSearchInput] {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.recordedSearchInputs
+    }
+
+    func search(_ input: SourceSearchInput) async throws -> SourceListOutput {
+        self.lock.lock()
+        self.recordedSearchInputs.append(input)
+        let handler: SearchHandler = self.searchHandler
         self.lock.unlock()
         return try await handler(input)
     }

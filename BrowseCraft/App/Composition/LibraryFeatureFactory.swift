@@ -75,7 +75,10 @@ struct LibraryFeatureFactory {
             resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase(),
             sourceCredentialStore: self.sourceCredentialStore,
             sourceSelectionStore: self.sourceSelectionStore,
-            activeAppUser: self.activeAppUser
+            activeAppUser: self.activeAppUser,
+            searchSourceContentUseCase: SearchSourceContentUseCase(
+                runtimeResolver: self.sourceRuntimeFactory
+            )
         )
     }
 

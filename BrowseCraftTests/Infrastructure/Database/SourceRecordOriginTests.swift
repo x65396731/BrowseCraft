@@ -33,7 +33,9 @@ struct SourceRecordOriginTests {
         let repository: GRDBSourceRepository = GRDBSourceRepository(database: database)
         var personal: Source = try Harness.makeComicSource(id: "personal.one", name: "Personal")
         personal.origin = .personalGeneration
-        let plain: Source = try Harness.makeComicSource(id: "plain.one", name: "Plain")
+        // 中文注释：测试用户只有 1 个站点位；对照来源停用着种进去。
+        var plain: Source = try Harness.makeComicSource(id: "plain.one", name: "Plain")
+        plain.enabled = false
 
         try repository.saveSource(personal)
         try repository.saveSource(plain)
