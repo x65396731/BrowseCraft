@@ -33,8 +33,14 @@ final class SourcesViewModel {
     private(set) var isLoadingCatalogSources: Bool = false
     /// 当前用户的生成终态；nil 表示尚未读取。
     private(set) var videoGenerationOutcomesLoad: VideoGenerationOutcomesLoad?
-    /// 用户点开生成推送的次数；视图据此切到 Sources 标签并打开「规则目录」。
+    /// 用户点开生成推送的次数（请求信号）。
     private(set) var catalogPresentationRevision: Int = 0
+    /// 中文注释：点开推送 → 待处理的导航。冷启动时主界面还在启动动画后面，`onChange` 没有
+    /// 观察者、tab 也会被启动目的地覆盖，所以不能在收到时直接导航；RootView 在启动动画
+    /// 结束后再消费这个标记（09-05 真机反馈）。
+    private(set) var pendingCatalogPresentation: Bool = false
+    /// 「规则目录」应当打开的次数；只在主界面就绪、RootView 已切到 Sources 之后递增。
+    private(set) var catalogSheetRevision: Int = 0
     /// 个人规则的本地回执（catalogSourceId → 收到时刻）与本地隐藏集合。
     private(set) var personalRuleReceipts: [String: Date] = [:]
     private(set) var hiddenPersonalRuleIDs: Set<String> = []
@@ -109,6 +115,17 @@ final class SourcesViewModel {
             outcomes: outcomes,
             hiddenIDs: self.hiddenPersonalRuleIDs
         )
+    }
+
+    /// RootView 在主界面就绪且已切到 Sources 后调用：消费待处理导航，让「规则目录」打开。
+    @discardableResult
+    func presentCatalogSheetIfPending() -> Bool {
+        guard self.pendingCatalogPresentation else {
+            return false
+        }
+        self.pendingCatalogPresentation = false
+        self.catalogSheetRevision += 1
+        return true
     }
 
     /// 个人规则的剩余保留时间；还没有回执（本次刚出现、尚未记录）时按整段保留期显示。
@@ -256,6 +273,7 @@ final class SourcesViewModel {
                     metadata: ["trigger": trigger.rawValue]
                 )
                 if trigger == .opened {
+                    self.pendingCatalogPresentation = true
                     self.catalogPresentationRevision += 1
                 }
                 await self.refreshCatalogSources()

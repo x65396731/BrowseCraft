@@ -67,6 +67,13 @@ struct SourcesViewModelOutcomeRefreshTests {
             viewModel.catalogPresentationRevision == 1
         }
         #expect(navigated)
+        // 中文注释：点开只记「待处理」，表单要等 RootView 确认主界面就绪后才打开。
+        #expect(viewModel.pendingCatalogPresentation)
+        #expect(viewModel.catalogSheetRevision == 0)
+        #expect(viewModel.presentCatalogSheetIfPending())
+        #expect(viewModel.pendingCatalogPresentation == false)
+        #expect(viewModel.catalogSheetRevision == 1)
+        #expect(viewModel.presentCatalogSheetIfPending() == false)
         #expect(viewModel.failedGenerationOutcomes.first?.reasonDetail == "episodeLayoutUnsupported")
         #expect(viewModel.personalCatalogSources.isEmpty)
         #expect(viewModel.isPersonalCatalogSignInRequired == false)
