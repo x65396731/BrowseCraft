@@ -44,6 +44,24 @@ struct PushDeviceRegistrationCoordinatorTests {
         )
     }
 
+    @Test func concurrentSynchronizeRegistersOnlyOnce() async {
+        let userID: UUID = UUID()
+        let registrar: SpyPushDeviceRegistrar = SpyPushDeviceRegistrar(registerDelayNanoseconds: 50_000_000)
+        let coordinator: PushDeviceRegistrationCoordinator = Self.coordinator(
+            registrar: registrar,
+            userID: userID,
+            session: Self.session(userID: userID)
+        )
+
+        // 中文注释：启动对齐与 token 回调同时进来（真机日志里出现过两条 device-registered）。
+        async let first: Void = coordinator.updateDeviceToken(Self.deviceToken)
+        async let second: Void = coordinator.synchronizeRegistration()
+        async let third: Void = coordinator.synchronizeRegistration()
+        _ = await (first, second, third)
+
+        #expect(await registrar.registrations.count == 1)
+    }
+
     @Test func failedRegistrationIsRetriedOnNextSynchronize() async {
         let userID: UUID = UUID()
         let registrar: SpyPushDeviceRegistrar = SpyPushDeviceRegistrar(
@@ -135,11 +153,16 @@ private actor SpyPushDeviceRegistrar: PushDeviceRegistering {
     }
 
     private var registerResults: [Result<Void, any Error>]
+    private let registerDelayNanoseconds: UInt64
     private(set) var registrations: [Call] = []
     private(set) var unregistrations: [Call] = []
 
-    init(registerResults: [Result<Void, any Error>] = []) {
+    init(
+        registerResults: [Result<Void, any Error>] = [],
+        registerDelayNanoseconds: UInt64 = 0
+    ) {
         self.registerResults = registerResults
+        self.registerDelayNanoseconds = registerDelayNanoseconds
     }
 
     func register(
@@ -150,6 +173,9 @@ private actor SpyPushDeviceRegistrar: PushDeviceRegistering {
         self.registrations.append(
             Call(deviceToken: deviceToken, environment: environment, accessToken: accessToken)
         )
+        if self.registerDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: self.registerDelayNanoseconds)
+        }
         guard self.registerResults.isEmpty == false else {
             return
         }

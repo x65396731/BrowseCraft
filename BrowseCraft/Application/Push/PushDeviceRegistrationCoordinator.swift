@@ -12,6 +12,9 @@ actor PushDeviceRegistrationCoordinator {
 
     private var deviceToken: String?
     private var registration: Registration?
+    /// 中文注释：actor 在 await 期间可重入——启动对齐与 token 回调同时到达时，第一次还在等网络，
+    /// 第二次看到 `registration == nil` 会再发一遍。记下在途目标，重复目标直接跳过。
+    private var inFlightRegistration: Registration?
 
     private struct Registration: Equatable, Sendable {
         let deviceToken: String
@@ -47,8 +50,12 @@ actor PushDeviceRegistrationCoordinator {
             return
         }
         let target: Registration = Registration(deviceToken: deviceToken, userID: userID)
-        guard target != self.registration else {
+        guard target != self.registration, target != self.inFlightRegistration else {
             return
+        }
+        self.inFlightRegistration = target
+        defer {
+            self.inFlightRegistration = nil
         }
         do {
             try await self.registrar.register(
