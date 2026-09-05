@@ -91,12 +91,25 @@ final class AppContainer {
         async let portalSession: Void = self.account.portalSessionCoordinator.start()
         async let cloudAccount: Void = self.account.startCloudAccountMonitoring()
         _ = await (portalSession, cloudAccount)
+        // 中文注释：会话就绪后再对齐推送设备注册；无 token 或未登录时它自行跳过。
+        await self.account.pushDeviceRegistrationCoordinator.synchronizeRegistration()
     }
 
     func handleAppBecameActive() async {
         async let portalSession: Void = self.account.portalSessionCoordinator.handleAppBecameActive()
         async let cloudSync: Void = self.account.cloudSyncCoordinator.requestSync(trigger: .foreground)
         _ = await (portalSession, cloudSync)
+        await self.account.pushDeviceRegistrationCoordinator.synchronizeRegistration()
+    }
+
+    /// APNs 交回 device token；注册与否由协调器按会话状态决定。
+    func handlePushDeviceToken(_ deviceToken: String) async {
+        await self.account.pushDeviceRegistrationCoordinator.updateDeviceToken(deviceToken)
+    }
+
+    /// 规则生成推送到达或被点开：让目录列表刷新默认数据与个人生成结果。
+    func handleRuleGenerationPushNotification() {
+        self.account.ruleGenerationOutcomeRefreshRequests.request()
     }
 
     func handleCloudRemoteNotification() async throws -> CloudSyncRunResult {

@@ -13,6 +13,9 @@ struct SourcesFeatureFactory {
     private let sourceSelectionStore: SourceSelectionStore
     private let videoGenerationTaskClient: any VideoGenerationTaskCreating
     private let portalAccessTokenProvider: any PortalAccessTokenProviding
+    private let pushNotificationAuthorizer: any PushNotificationAuthorizing
+    private let videoGenerationOutcomesClient: any VideoGenerationOutcomesFetching
+    private let outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests
 
     init(
         database: AppDatabase,
@@ -24,10 +27,16 @@ struct SourcesFeatureFactory {
         sourceRuntimeFactory: SourceRuntimeFactory,
         sourceSelectionStore: SourceSelectionStore,
         videoGenerationTaskClient: any VideoGenerationTaskCreating,
-        portalAccessTokenProvider: any PortalAccessTokenProviding
+        portalAccessTokenProvider: any PortalAccessTokenProviding,
+        pushNotificationAuthorizer: any PushNotificationAuthorizing,
+        videoGenerationOutcomesClient: any VideoGenerationOutcomesFetching,
+        outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests
     ) {
         self.videoGenerationTaskClient = videoGenerationTaskClient
         self.portalAccessTokenProvider = portalAccessTokenProvider
+        self.pushNotificationAuthorizer = pushNotificationAuthorizer
+        self.videoGenerationOutcomesClient = videoGenerationOutcomesClient
+        self.outcomeRefreshRequests = outcomeRefreshRequests
         self.database = database
         self.activeAppUser = activeAppUser
         self.sourceRepository = sourceRepository
@@ -135,6 +144,12 @@ struct SourcesFeatureFactory {
             ),
             discoveryService: sourceDiscoveryService,
             createVideoGenerationTaskUseCase: createVideoGenerationTaskUseCase,
+            pushNotificationAuthorizer: self.pushNotificationAuthorizer,
+            loadVideoGenerationOutcomesUseCase: LoadVideoGenerationOutcomesUseCase(
+                outcomesClient: self.videoGenerationOutcomesClient,
+                accessTokenProvider: self.portalAccessTokenProvider
+            ),
+            outcomeRefreshRequests: self.outcomeRefreshRequests,
             catalogService: sourceCatalogService,
             ruleEditorService: sourceRuleEditorService,
             ruleEditingCoordinator: sourceRuleEditingCoordinator,

@@ -1,3 +1,5 @@
+import Foundation
+
 struct SettingsFeatureFactory {
     private let database: AppDatabase
     private let activeAppUser: any ActiveAppUserProviding
@@ -15,6 +17,7 @@ struct SettingsFeatureFactory {
         PortalPurchaseEntitlementRefreshCoordinator
     private let portalAppleSignInCoordinator: PortalAppleSignInCoordinator
     private let portalSessionCoordinator: PortalSessionCoordinator
+    private let pushDeviceRegistrationCoordinator: PushDeviceRegistrationCoordinator
 
     init(
         database: AppDatabase,
@@ -30,7 +33,8 @@ struct SettingsFeatureFactory {
         portalPurchaseEntitlementRefreshCoordinator:
             PortalPurchaseEntitlementRefreshCoordinator,
         portalAppleSignInCoordinator: PortalAppleSignInCoordinator,
-        portalSessionCoordinator: PortalSessionCoordinator
+        portalSessionCoordinator: PortalSessionCoordinator,
+        pushDeviceRegistrationCoordinator: PushDeviceRegistrationCoordinator
     ) {
         self.database = database
         self.activeAppUser = activeAppUser
@@ -47,6 +51,7 @@ struct SettingsFeatureFactory {
             portalPurchaseEntitlementRefreshCoordinator
         self.portalAppleSignInCoordinator = portalAppleSignInCoordinator
         self.portalSessionCoordinator = portalSessionCoordinator
+        self.pushDeviceRegistrationCoordinator = pushDeviceRegistrationCoordinator
     }
 
     @MainActor
@@ -61,9 +66,14 @@ struct SettingsFeatureFactory {
                 supportedProductIDs: Set(InAppPurchasePlan.activePlans.map(\.productID))
             ),
             portalSignInAction: {
-                return try await self.portalAppleSignInCoordinator.signIn()
+                let userID: UUID = try await self.portalAppleSignInCoordinator.signIn()
+                // 中文注释：登录成功后把已缓存的 device token 挂到新用户名下。
+                await self.pushDeviceRegistrationCoordinator.synchronizeRegistration()
+                return userID
             },
             portalSignOutAction: {
+                // 中文注释：必须在 logout 之前——注销设备要用还没被撤销的 access token。
+                await self.pushDeviceRegistrationCoordinator.unregisterCurrentDevice()
                 try await self.portalSessionCoordinator.logout()
             },
             portalSessionSnapshotAction: {

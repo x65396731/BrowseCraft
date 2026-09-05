@@ -19,6 +19,8 @@ final class AccountComposition {
     let portalIAPService: any PortalIAPServicing
     let portalPurchaseEntitlementRefreshCoordinator: PortalPurchaseEntitlementRefreshCoordinator
     let portalAppleSignInCoordinator: PortalAppleSignInCoordinator
+    let pushDeviceRegistrationCoordinator: PushDeviceRegistrationCoordinator
+    let ruleGenerationOutcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests
     let appUserIdentityAdoptionCoordinator: AppUserIdentityAdoptionCoordinator
     let storeKitPurchaseIdentityAuthorizer: StoreKitPurchaseIdentityAuthorizer
     let sourceRepository: SourceRepository
@@ -66,6 +68,22 @@ final class AccountComposition {
             entitlementCacheResetter: appUserRepository
         )
         self.portalSessionCoordinator = portalSessionCoordinator
+
+        // 中文注释：推送环境跟随 project.yml 的 APS_ENVIRONMENT——Debug 是 development（sandbox），
+        // Release / TestFlight 是 production；服务端按设备逐条记录，选错一边就收不到。
+        #if DEBUG
+        let pushEnvironment: PushEnvironment = .sandbox
+        #else
+        let pushEnvironment: PushEnvironment = .production
+        #endif
+        self.pushDeviceRegistrationCoordinator = PushDeviceRegistrationCoordinator(
+            environment: pushEnvironment,
+            registrar: APIKitPushDeviceClient(
+                api: PortalPushAPI(client: portalAPIClient)
+            ),
+            sessionCoordinator: portalSessionCoordinator
+        )
+        self.ruleGenerationOutcomeRefreshRequests = RuleGenerationOutcomeRefreshRequests()
 
         self.cloudIdentityAssociationCoordinator = CloudAppUserIdentityAssociationCoordinator(
             identityStore: CloudKitAppUserIdentityStore(container: cloudKitContainer),

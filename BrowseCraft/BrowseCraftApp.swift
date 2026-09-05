@@ -8,17 +8,58 @@
 import SwiftUI
 import GoogleMobileAds
 import FirebaseCore
+import UserNotifications
 
 // 中文注释：BrowseCraftApp.swift 属于应用源码，用于说明本文件承载的核心职责。
 
 @MainActor
 final class AppDelegate: NSObject, UIApplicationDelegate {
     private var cloudRemoteNotificationHandler: (() async -> UIBackgroundFetchResult)?
+    private var pushDeviceTokenHandler: ((String) async -> Void)?
+    private var ruleGenerationPushHandler: (() -> Void)?
+    /// 中文注释：推送可能在容器装配前就被点开（冷启动）；先记下，handler 接上时补发一次。
+    private var hasPendingRuleGenerationPush: Bool = false
+    /// 中文注释：APNs 通常在容器装配完成前就交回 token；先暂存，handler 接上时补发一次。
+    private var latestPushDeviceToken: String?
 
     func setCloudRemoteNotificationHandler(
         _ handler: @escaping () async -> UIBackgroundFetchResult
     ) {
         self.cloudRemoteNotificationHandler = handler
+    }
+
+    func setRuleGenerationPushHandler(_ handler: @escaping () -> Void) {
+        self.ruleGenerationPushHandler = handler
+        if self.hasPendingRuleGenerationPush {
+            self.hasPendingRuleGenerationPush = false
+            handler()
+        }
+    }
+
+    private func handleRuleGenerationPush(userInfo: [AnyHashable: Any], event: String) {
+        guard RuleGenerationPushPayload.isRuleGenerationOutcome(userInfo) else {
+            return
+        }
+        AppLog.notice(
+            .push,
+            event: event,
+            metadata: ["status": (userInfo[RuleGenerationPushPayload.statusKey] as? String) ?? "unknown"]
+        )
+        guard let handler: () -> Void = self.ruleGenerationPushHandler else {
+            self.hasPendingRuleGenerationPush = true
+            return
+        }
+        handler()
+    }
+
+    func setPushDeviceTokenHandler(_ handler: @escaping (String) async -> Void) {
+        self.pushDeviceTokenHandler = handler
+        guard let deviceToken: String = self.latestPushDeviceToken else {
+            return
+        }
+        Task { @MainActor in
+            await handler(deviceToken)
+        }
     }
 
     func application(
@@ -29,8 +70,39 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         CrashDiagnostics.shared.configure()
         AppAnalytics.shared.configure()
         AppAnalytics.shared.logAppOpen()
+        // 中文注释：delegate 必须在启动完成前设好，否则前台收到的 alert 推送不会显示。
+        UNUserNotificationCenter.current().delegate = self
         application.registerForRemoteNotifications()
         return true
+    }
+
+    /// 中文注释：token 转小写十六进制，与 PortalCore `/v1/push/devices` 的校验形状一致；
+    /// token 是设备标识，不进日志（AGENTS.md §2.6）。
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        _ = application
+        let token: String = deviceToken.map { String(format: "%02x", $0) }.joined()
+        self.latestPushDeviceToken = token
+        guard let handler: (String) async -> Void = self.pushDeviceTokenHandler else {
+            return
+        }
+        Task { @MainActor in
+            await handler(token)
+        }
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFailToRegisterForRemoteNotificationsWithError error: any Error
+    ) {
+        _ = application
+        AppLog.error(
+            .push,
+            event: "remote-notification-registration-failed",
+            metadata: ["error": AppLog.safeErrorCode(error)]
+        )
     }
 
     func application(
@@ -47,6 +119,34 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         }
         Task { @MainActor in
             completionHandler(await cloudRemoteNotificationHandler())
+        }
+    }
+}
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    /// 中文注释：App 在前台时系统默认不显示横幅；规则生成完成的通知在前台同样要可见，
+    /// 且到达即刷新目录（用户不必再点横幅）。
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        _ = center
+        let userInfo: [AnyHashable: Any] = notification.request.content.userInfo
+        await MainActor.run {
+            self.handleRuleGenerationPush(userInfo: userInfo, event: "outcome-push-presented")
+        }
+        return [.banner, .list, .sound]
+    }
+
+    /// 中文注释：用户点开推送（后台或已退出）→ 刷新目录，让新规则出现在「我的生成」里。
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        _ = center
+        let userInfo: [AnyHashable: Any] = response.notification.request.content.userInfo
+        await MainActor.run {
+            self.handleRuleGenerationPush(userInfo: userInfo, event: "outcome-push-opened")
         }
     }
 }
@@ -96,6 +196,12 @@ struct BrowseCraftApp: App {
                             } catch {
                                 return .failed
                             }
+                        }
+                        self.delegate.setPushDeviceTokenHandler { deviceToken in
+                            await container.handlePushDeviceToken(deviceToken)
+                        }
+                        self.delegate.setRuleGenerationPushHandler {
+                            container.handleRuleGenerationPushNotification()
                         }
                         await container.startApplicationServices()
                     }

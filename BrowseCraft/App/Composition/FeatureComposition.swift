@@ -52,7 +52,12 @@ final class FeatureComposition {
             videoGenerationTaskClient: APIKitVideoGenerationTaskClient(
                 api: PortalRuleGenerationAPI(client: account.portalAPIClient)
             ),
-            portalAccessTokenProvider: account.portalSessionCoordinator
+            portalAccessTokenProvider: account.portalSessionCoordinator,
+            pushNotificationAuthorizer: UserNotificationsPushAuthorizationService(),
+            videoGenerationOutcomesClient: APIKitVideoGenerationOutcomesClient(
+                api: PortalRuleGenerationAPI(client: account.portalAPIClient)
+            ),
+            outcomeRefreshRequests: account.ruleGenerationOutcomeRefreshRequests
         )
 
         self.favoritesFeatureFactory = FavoritesFeatureFactory(
@@ -81,7 +86,8 @@ final class FeatureComposition {
             storeKitPurchaseIdentityAuthorizer: account.storeKitPurchaseIdentityAuthorizer,
             portalPurchaseEntitlementRefreshCoordinator: account.portalPurchaseEntitlementRefreshCoordinator,
             portalAppleSignInCoordinator: account.portalAppleSignInCoordinator,
-            portalSessionCoordinator: account.portalSessionCoordinator
+            portalSessionCoordinator: account.portalSessionCoordinator,
+            pushDeviceRegistrationCoordinator: account.pushDeviceRegistrationCoordinator
         )
         self.settingsFeatureFactory = settingsFeatureFactory
         self.settingsViewModel = settingsFeatureFactory.makeViewModel()

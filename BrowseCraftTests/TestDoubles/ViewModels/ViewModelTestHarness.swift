@@ -160,7 +160,9 @@ enum ViewModelTestHarness {
         database: AppDatabase,
         resolver: any SourceRuntimeResolving,
         selectionStore: SourceSelectionStore = SourceSelectionStore(),
-        rssFeedLoader: any RSSFeedLoading = ScriptedRSSFeedLoader()
+        rssFeedLoader: any RSSFeedLoading = ScriptedRSSFeedLoader(),
+        loadVideoGenerationOutcomesUseCase: LoadVideoGenerationOutcomesUseCase? = nil,
+        outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests? = nil
     ) -> SourcesViewModel {
         let sourceRepository: SourceRepository = GRDBSourceRepository(database: database)
         let userLibraryStateRepository: UserLibraryStateRepository =
@@ -228,6 +230,8 @@ enum ViewModelTestHarness {
             ),
             discoveryService: discoveryService,
             createVideoGenerationTaskUseCase: nil,
+            loadVideoGenerationOutcomesUseCase: loadVideoGenerationOutcomesUseCase,
+            outcomeRefreshRequests: outcomeRefreshRequests,
             catalogService: SourceCatalogService(
                 addCatalogSourceUseCase: AddCatalogSourceUseCase(
                     sourceRepository: sourceRepository,

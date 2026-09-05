@@ -66,3 +66,35 @@
 "video_preflight_error_unsafe_url" = "该 URL 未通过公网安全策略。";
 "video_preflight_error_unsupported_content" = "该 URL 未返回受支持的 HTML 页面。";
 "video_preflight_error_request" = "页面暂时无法检查，请稍后重试。";
+
+/* Rule generation push notifications. Keys are dictated by PortalCore's notifier
+   (app/modules/push/notifier.py): title-loc-key + loc-key, loc-args[0] = entry URL.
+   The failed_* suffix is RuleGenerationOutcomeReason and must stay in sync. */
+"push_generation_title" = "规则生成";
+"push_generation_succeeded" = "%@ 的规则已生成，可以在来源列表中使用了。";
+"push_generation_failed_siteRejectedFetcher" = "%@ 拒绝了我们的采集请求，请稍后或换个网络环境再试。";
+"push_generation_failed_siteNotSupported" = "暂不支持为 %@ 生成规则。";
+"push_generation_failed_siteUnreachable" = "无法访问 %@，请确认网站可用后再试。";
+"push_generation_failed_inputInvalid" = "%@ 不是可用的入口地址，请换一个页面重试。";
+"push_generation_failed_evidenceInsufficient" = "无法从 %@ 提取到足够信息，请换一个入口页面重试。";
+"push_generation_failed_temporaryFailure" = "生成 %@ 的规则时出了点问题，请稍后重试。";
+
+/* 目录列表的两个分组：网站默认数据，与登录用户自己的生成结果。 */
+"catalog_title" = "规则目录";
+"catalog_loading" = "加载中…";
+"catalog_empty" = "暂无目录数据";
+"catalog_section_default" = "默认数据";
+"catalog_section_personal" = "我的生成";
+"catalog_personal_sign_in_hint" = "登录后可查看你提交生成的规则。";
+
+/* App 内的生成结果（GET /v1/rule-generations/outcomes）。reason 后缀与上面的推送键同一套；
+   reasonDetail 是 siteNotSupported 之下的可选细分。 */
+"video_generation_outcome_failed_siteRejectedFetcher" = "该网站拒绝了我们的采集请求，请稍后或换个网络环境再试。";
+"video_generation_outcome_failed_siteNotSupported" = "暂不支持为该网站生成规则。";
+"video_generation_outcome_failed_siteUnreachable" = "无法访问该网站，请确认网站可用后再试。";
+"video_generation_outcome_failed_inputInvalid" = "这不是可用的入口地址，请换一个页面重试。";
+"video_generation_outcome_failed_evidenceInsufficient" = "无法从该页面提取到足够信息，请换一个入口页面重试。";
+"video_generation_outcome_failed_temporaryFailure" = "我们这边出了点问题，请稍后重试。";
+"video_generation_outcome_failed_unknown" = "生成失败，请稍后重试。";
+"video_generation_outcome_detail_noPlaybackCarrier" = "该网站上没有找到视频播放。";
+"video_generation_outcome_detail_episodeLayoutUnsupported" = "该网站有视频页面，但这种剧集布局暂不支持。";

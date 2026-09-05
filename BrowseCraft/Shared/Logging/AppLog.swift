@@ -9,6 +9,7 @@ enum AppLog {
         case discovery
         case network
         case purchase
+        case push
         case rule
         case startup
         case sync

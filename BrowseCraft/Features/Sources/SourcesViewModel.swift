@@ -31,6 +31,8 @@ final class SourcesViewModel {
     private(set) var latestCatalogSourceAddID: String?
     private(set) var catalogSources: [CatalogSource] = []
     private(set) var isLoadingCatalogSources: Bool = false
+    /// 当前用户的生成终态；nil 表示尚未读取。
+    private(set) var videoGenerationOutcomesLoad: VideoGenerationOutcomesLoad?
     private(set) var requestedSlotActivationSource: Source?
     private(set) var videoGenerationInputProgress: VideoGenerationInputPreflightProgress?
     private(set) var sourceSlotLimit: Int =
@@ -41,6 +43,10 @@ final class SourcesViewModel {
     private let addRSSSourceUseCase: AddRSSSourceUseCase
     private let discoveryService: SourceDiscoveryService
     private let createVideoGenerationTaskUseCase: CreateVideoGenerationTaskUseCase?
+    private let pushNotificationAuthorizer: (any PushNotificationAuthorizing)?
+    private let loadVideoGenerationOutcomesUseCase: LoadVideoGenerationOutcomesUseCase?
+    private let outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests?
+    private var outcomeRefreshTask: Task<Void, Never>?
     private let catalogService: SourceCatalogService
     private let ruleEditorService: SourceRuleEditorService
     private let ruleEditingCoordinator: SourceRuleEditingCoordinator
@@ -84,12 +90,43 @@ final class SourcesViewModel {
         return self.occupiedSourceSlotCount < self.sourceSlotLimit
     }
 
+    /// 目录两分组：网站默认数据 + 按当前用户生成结果挑出的个人数据。
+    var catalogSourceGrouping: CatalogSourceGrouping {
+        let outcomes: [VideoGenerationOutcome]
+        if case .loaded(let loaded) = self.videoGenerationOutcomesLoad {
+            outcomes = loaded
+        } else {
+            outcomes = []
+        }
+        return CatalogSourceGrouping.make(catalogSources: self.catalogSources, outcomes: outcomes)
+    }
+
+    var defaultCatalogSources: [CatalogSource] {
+        return self.catalogSourceGrouping.defaultSources
+    }
+
+    var personalCatalogSources: [CatalogSource] {
+        return self.catalogSourceGrouping.personalSources
+    }
+
+    var failedGenerationOutcomes: [VideoGenerationOutcome] {
+        return self.catalogSourceGrouping.failedOutcomes
+    }
+
+    /// 个人分组需要登录才有内容；未接入 outcomes 用例（测试替身）时视为不需要。
+    var isPersonalCatalogSignInRequired: Bool {
+        return self.videoGenerationOutcomesLoad == .authRequired
+    }
+
     init(
         persistenceCoordinator: SourcesPersistenceCoordinator,
         addComicRuleSourceUseCase: AddComicRuleSourceUseCase,
         addRSSSourceUseCase: AddRSSSourceUseCase,
         discoveryService: SourceDiscoveryService,
         createVideoGenerationTaskUseCase: CreateVideoGenerationTaskUseCase? = nil,
+        pushNotificationAuthorizer: (any PushNotificationAuthorizing)? = nil,
+        loadVideoGenerationOutcomesUseCase: LoadVideoGenerationOutcomesUseCase? = nil,
+        outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests? = nil,
         catalogService: SourceCatalogService,
         ruleEditorService: SourceRuleEditorService,
         ruleEditingCoordinator: SourceRuleEditingCoordinator,
@@ -106,6 +143,9 @@ final class SourcesViewModel {
         self.addRSSSourceUseCase = addRSSSourceUseCase
         self.discoveryService = discoveryService
         self.createVideoGenerationTaskUseCase = createVideoGenerationTaskUseCase
+        self.pushNotificationAuthorizer = pushNotificationAuthorizer
+        self.loadVideoGenerationOutcomesUseCase = loadVideoGenerationOutcomesUseCase
+        self.outcomeRefreshRequests = outcomeRefreshRequests
         self.catalogService = catalogService
         self.ruleEditorService = ruleEditorService
         self.ruleEditingCoordinator = ruleEditingCoordinator
@@ -119,6 +159,24 @@ final class SourcesViewModel {
         self.now = now
         self.selectedSourceID = sourceSelectionStore.selectedSourceID
         self.bindSourceSelection()
+        self.observeOutcomeRefreshRequests()
+    }
+
+    /// 中文注释：推送到达或被点开 → 刷新目录与个人生成结果（`BC-PREFLIGHT-058` App 侧）。
+    private func observeOutcomeRefreshRequests() {
+        guard let outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests =
+            self.outcomeRefreshRequests else {
+            return
+        }
+        self.outcomeRefreshTask = Task { [weak self] in
+            for await _ in outcomeRefreshRequests.requests {
+                guard let self else {
+                    return
+                }
+                AppLog.notice(.push, event: "outcome-refresh-requested")
+                await self.refreshCatalogSources()
+            }
+        }
     }
 
     @MainActor
@@ -251,7 +309,18 @@ final class SourcesViewModel {
             self.createVideoGenerationTaskUseCase else {
             throw VideoGenerationTaskSubmissionRejection.preflightNotAccepted(preflight.status)
         }
-        return try await useCase.execute(preflight: preflight)
+        let outcome: VideoGenerationTaskSubmissionOutcome = try await useCase.execute(
+            preflight: preflight
+        )
+        // 中文注释：任务排队成功是用户最能理解「为什么要通知权限」的时刻——终态靠推送告知。
+        // 只在这一刻请求，且不阻塞提交结果的展示；已决定过的系统不会再弹。
+        if case .submitted = outcome,
+           let authorizer: any PushNotificationAuthorizing = self.pushNotificationAuthorizer {
+            Task {
+                _ = await authorizer.requestAuthorizationIfNeeded()
+            }
+        }
+        return outcome
     }
 
     @MainActor
@@ -376,6 +445,9 @@ final class SourcesViewModel {
     func loadCatalogSourcesIfNeeded() async {
         CrashDiagnostics.shared.setRuleStage(.list)
         if self.catalogSources.isEmpty == false || self.isLoadingCatalogSources {
+            if self.videoGenerationOutcomesLoad == nil {
+                await self.loadVideoGenerationOutcomes()
+            }
             return
         }
 
@@ -384,12 +456,15 @@ final class SourcesViewModel {
             self.isLoadingCatalogSources = false
         }
 
+        // 中文注释：目录与个人终态并行读取；个人终态失败不影响默认分组的展示。
+        async let outcomes: Void = self.loadVideoGenerationOutcomes()
         do {
             self.catalogSources = try await self.catalogService.loadSources()
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-source-load-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
+        await outcomes
     }
 
     @MainActor
@@ -404,12 +479,32 @@ final class SourcesViewModel {
             self.isLoadingCatalogSources = false
         }
 
+        async let outcomes: Void = self.loadVideoGenerationOutcomes()
         do {
             self.catalogSources = try await self.catalogService.loadSources()
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-source-refresh-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
+        await outcomes
+    }
+
+    /// 读取当前用户的生成终态；失败只记日志，不覆盖目录的错误提示。
+    @MainActor
+    private func loadVideoGenerationOutcomes() async {
+        guard let useCase: LoadVideoGenerationOutcomesUseCase = self.loadVideoGenerationOutcomesUseCase else {
+            return
+        }
+        let load: VideoGenerationOutcomesLoad = await useCase.execute()
+        if case .failed(let code) = load {
+            AppLog.error(.push, event: "outcomes-load-failed", metadata: ["code": code])
+            // 中文注释：读取失败时保留上一次的结果，不把个人分组清空。
+            if self.videoGenerationOutcomesLoad == nil {
+                self.videoGenerationOutcomesLoad = load
+            }
+            return
+        }
+        self.videoGenerationOutcomesLoad = load
     }
 
     func isCatalogSourceAdded(_ catalogSource: CatalogSource) -> Bool {

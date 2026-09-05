@@ -11,27 +11,20 @@ struct CatalogSourceListView: View {
         NavigationStack {
             List {
                 if self.viewModel.isLoadingCatalogSources && self.viewModel.catalogSources.isEmpty {
-                    ProgressView("加载中")
+                    ProgressView(NSLocalizedString("catalog_loading", comment: ""))
                 } else if self.viewModel.catalogSources.isEmpty {
-                    Text("暂无测试数据")
+                    Text(NSLocalizedString("catalog_empty", comment: ""))
                         .foregroundColor(.secondary)
                 } else {
-                    Section {
-                        ForEach(self.viewModel.catalogSources, id: \.id) { catalogSource in
-                            CatalogSourceRowView(
-                                catalogSource: catalogSource,
-                                isAdded: self.viewModel.isCatalogSourceAdded(catalogSource),
-                                isAdding: self.addingSourceIDs.contains(catalogSource.id),
-                                didFail: self.failedSourceIDs.contains(catalogSource.id),
-                                addAction: {
-                                    self.add(catalogSource)
-                                }
-                            )
+                    self.personalSection
+                    Section(header: Text(NSLocalizedString("catalog_section_default", comment: ""))) {
+                        ForEach(self.viewModel.defaultCatalogSources, id: \.id) { catalogSource in
+                            self.row(for: catalogSource)
                         }
                     }
                 }
             }
-            .navigationTitle("测试数据")
+            .navigationTitle(NSLocalizedString("catalog_title", comment: ""))
             .task {
                 await self.viewModel.loadCatalogSourcesIfNeeded()
             }
@@ -47,6 +40,41 @@ struct CatalogSourceListView: View {
                 }
             }
         }
+    }
+
+    /// 中文注释：个人分组 = 当前用户成功生成的规则（按 `/outcomes` 的 catalogSourceId 挑出）
+    /// + 失败任务的成因说明；未登录时给登录提示，登录了但没有任务时不显示该分组。
+    @ViewBuilder
+    private var personalSection: some View {
+        if self.viewModel.isPersonalCatalogSignInRequired {
+            Section(header: Text(NSLocalizedString("catalog_section_personal", comment: ""))) {
+                Text(NSLocalizedString("catalog_personal_sign_in_hint", comment: ""))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        } else if self.viewModel.personalCatalogSources.isEmpty == false
+            || self.viewModel.failedGenerationOutcomes.isEmpty == false {
+            Section(header: Text(NSLocalizedString("catalog_section_personal", comment: ""))) {
+                ForEach(self.viewModel.personalCatalogSources, id: \.id) { catalogSource in
+                    self.row(for: catalogSource)
+                }
+                ForEach(self.viewModel.failedGenerationOutcomes, id: \.jobID) { outcome in
+                    FailedGenerationOutcomeRowView(outcome: outcome)
+                }
+            }
+        }
+    }
+
+    private func row(for catalogSource: CatalogSource) -> some View {
+        return CatalogSourceRowView(
+            catalogSource: catalogSource,
+            isAdded: self.viewModel.isCatalogSourceAdded(catalogSource),
+            isAdding: self.addingSourceIDs.contains(catalogSource.id),
+            didFail: self.failedSourceIDs.contains(catalogSource.id),
+            addAction: {
+                self.add(catalogSource)
+            }
+        )
     }
 
     private func add(_ catalogSource: CatalogSource) {
@@ -72,6 +100,53 @@ struct CatalogSourceListView: View {
                 }
             }
         }
+    }
+}
+
+/// 失败的生成任务：入口 URL + 面向用户的成因（`reason`），有细分时再补一句（`reasonDetail`）。
+private struct FailedGenerationOutcomeRowView: View {
+    let outcome: VideoGenerationOutcome
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(self.outcome.entryURL ?? self.outcome.jobID.uuidString)
+                .font(.body)
+                .lineLimit(1)
+            Text(VideoGenerationOutcomeText.reasonText(for: self.outcome))
+                .font(.caption)
+                .foregroundColor(.secondary)
+            if let detail: String = VideoGenerationOutcomeText.reasonDetailText(for: self.outcome) {
+                Text(detail)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+}
+
+/// 成因 → 本地化文案。键与推送的 `push_generation_failed_*` 同一套 reason 后缀，
+/// 两条通道对同一次失败说同一句话；未知值降级到通用文案。
+enum VideoGenerationOutcomeText {
+    static let knownReasons: Set<String> = [
+        "siteRejectedFetcher", "siteNotSupported", "siteUnreachable",
+        "inputInvalid", "evidenceInsufficient", "temporaryFailure"
+    ]
+    static let knownReasonDetails: Set<String> = [
+        "noPlaybackCarrier", "episodeLayoutUnsupported"
+    ]
+
+    static func reasonText(for outcome: VideoGenerationOutcome) -> String {
+        guard let reason: String = outcome.reason, Self.knownReasons.contains(reason) else {
+            return NSLocalizedString("video_generation_outcome_failed_unknown", comment: "")
+        }
+        return NSLocalizedString("video_generation_outcome_failed_\(reason)", comment: "")
+    }
+
+    static func reasonDetailText(for outcome: VideoGenerationOutcome) -> String? {
+        guard let detail: String = outcome.reasonDetail, Self.knownReasonDetails.contains(detail) else {
+            return nil
+        }
+        return NSLocalizedString("video_generation_outcome_detail_\(detail)", comment: "")
     }
 }
 

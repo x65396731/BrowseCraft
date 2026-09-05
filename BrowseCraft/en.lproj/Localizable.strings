@@ -66,3 +66,35 @@
 "video_preflight_error_unsafe_url" = "This URL is not allowed by the public-network safety policy.";
 "video_preflight_error_unsupported_content" = "The URL did not return a supported HTML page.";
 "video_preflight_error_request" = "The page could not be checked. Please try again later.";
+
+/* Rule generation push notifications. Keys are dictated by PortalCore's notifier
+   (app/modules/push/notifier.py): title-loc-key + loc-key, loc-args[0] = entry URL.
+   The failed_* suffix is RuleGenerationOutcomeReason and must stay in sync. */
+"push_generation_title" = "Rule generation";
+"push_generation_succeeded" = "The rule for %@ is ready. You can use it from your Sources.";
+"push_generation_failed_siteRejectedFetcher" = "%@ rejected our fetcher. Try again later or from a different network.";
+"push_generation_failed_siteNotSupported" = "Rules can't be generated for %@ yet.";
+"push_generation_failed_siteUnreachable" = "%@ could not be reached. Check that the site is up and try again.";
+"push_generation_failed_inputInvalid" = "%@ isn't a usable entry URL. Try a different page.";
+"push_generation_failed_evidenceInsufficient" = "Not enough could be learned from %@. Try a different entry page.";
+"push_generation_failed_temporaryFailure" = "Something went wrong while generating the rule for %@. Please try again later.";
+
+/* Catalog list: two groups — the site's default data and the signed-in user's own generation results. */
+"catalog_title" = "Catalog";
+"catalog_loading" = "Loading…";
+"catalog_empty" = "No catalog data yet";
+"catalog_section_default" = "Default";
+"catalog_section_personal" = "My Generations";
+"catalog_personal_sign_in_hint" = "Sign in to see the rules generated from your submissions.";
+
+/* In-app rule generation outcomes (GET /v1/rule-generations/outcomes). Reason suffixes match the push keys above;
+   reasonDetail is the optional refinement under siteNotSupported. */
+"video_generation_outcome_failed_siteRejectedFetcher" = "The site rejected our fetcher. Try again later or from a different network.";
+"video_generation_outcome_failed_siteNotSupported" = "Rules can't be generated for this site yet.";
+"video_generation_outcome_failed_siteUnreachable" = "The site could not be reached. Check that it is up and try again.";
+"video_generation_outcome_failed_inputInvalid" = "This isn't a usable entry URL. Try a different page.";
+"video_generation_outcome_failed_evidenceInsufficient" = "Not enough could be learned from this page. Try a different entry page.";
+"video_generation_outcome_failed_temporaryFailure" = "Something went wrong on our side. Please try again later.";
+"video_generation_outcome_failed_unknown" = "Generation failed. Please try again later.";
+"video_generation_outcome_detail_noPlaybackCarrier" = "No video playback was found on this site.";
+"video_generation_outcome_detail_episodeLayoutUnsupported" = "The site has video pages, but this episode layout isn't supported yet.";
