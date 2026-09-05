@@ -88,26 +88,23 @@ struct VideoWebPlayerRequest: Equatable {
 }
 
 // 中文注释：VideoWebPlayerView 是 WebUI/WKWebView 的物理层封装；和 VideoNativePlayerView 平行。
-struct VideoWebPlayerView<Controls: View>: View {
+struct VideoWebPlayerView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.browserRequestHeaderProvider) private var browserRequestHeaderProvider
     @StateObject private var coordinator: VideoWebPlayerCoordinator
 
     let request: VideoWebPlayerRequest
     let title: String
-    let controls: () -> Controls
     let onClose: () -> Void
 
     init(
         request: VideoWebPlayerRequest,
         title: String,
         auditMediaEventHandler: (any VideoWebPlayerUserContentAttaching)? = nil,
-        @ViewBuilder controls: @escaping () -> Controls,
         onClose: @escaping () -> Void
     ) {
         self.request = request
         self.title = title
-        self.controls = controls
         self.onClose = onClose
         _coordinator = StateObject(
             wrappedValue: VideoWebPlayerCoordinator(
@@ -180,11 +177,6 @@ struct VideoWebPlayerView<Controls: View>: View {
                     }
                 }
                 .ignoresSafeArea(edges: .bottom)
-
-                self.controls()
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .background(.bar)
             }
             .background(Color(.systemBackground))
         }

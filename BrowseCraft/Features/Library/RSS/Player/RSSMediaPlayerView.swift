@@ -35,9 +35,6 @@ struct RSSMediaPlayerView: View {
                 VideoWebPlayerView(
                     request: request,
                     title: self.title,
-                    controls: {
-                        EmptyView()
-                    },
                     onClose: self.onClose
                 )
             } else {
@@ -48,9 +45,6 @@ struct RSSMediaPlayerView: View {
                 mediaURL: mediaURL,
                 requestConfig: self.playbackRequestConfig(),
                 title: self.title,
-                controls: {
-                    EmptyView()
-                },
                 onProgress: { _, _ in },
                 onReadyToPlay: { _ in },
                 onClose: self.onClose
@@ -69,9 +63,6 @@ struct RSSMediaPlayerView: View {
             VideoWebPlayerView(
                 request: VideoWebPlayerRequest(url: mediaURL),
                 title: self.title,
-                controls: {
-                    EmptyView()
-                },
                 onClose: self.onClose
             )
         }

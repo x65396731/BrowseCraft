@@ -76,9 +76,6 @@ struct VideoRuntimeAuditWebUIOverlay: View {
                 request: session.request,
                 title: NSLocalizedString("Runtime audit", comment: ""),
                 auditMediaEventHandler: session.handler,
-                controls: {
-                    EmptyView()
-                },
                 onClose: {
                     self.presenter.cancelActiveSession()
                 }

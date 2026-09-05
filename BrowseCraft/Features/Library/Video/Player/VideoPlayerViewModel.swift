@@ -28,6 +28,10 @@ final class VideoPlayerViewModel {
     private let sourceCredentialStore: (any SourceCredentialStoring)?
     private let activeAppUser: (any ActiveAppUserProviding)?
     private let fallbackUserID: String
+    /// 中文注释：从历史打开时为 true——先按播放页规则重新解析，拿到当前有效的媒体地址再播；
+    /// 存下的直链只在解析失败时作为最后备选。
+    private let resolvesPlaybackOnPrepare: Bool
+    private var didAttemptPlaybackRecovery: Bool = false
     private let now: () -> Date
     /// 中文注释：任务句柄不是界面状态，且 deinit 需要直接触碰存储属性——排除观察。
     @ObservationIgnored
@@ -51,11 +55,13 @@ final class VideoPlayerViewModel {
         credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider(),
         systemCookieHeaderProvider: any SystemCookieHeaderProviding = EmptySystemCookieHeaderProvider(),
         activeAppUser: (any ActiveAppUserProviding)? = nil,
+        resolvesPlaybackOnPrepare: Bool = false,
         userID: String = AppUser.localDefaultID,
         now: @escaping () -> Date = Date.init
     ) {
         self.source = source
         self.reference = reference
+        self.resolvesPlaybackOnPrepare = resolvesPlaybackOnPrepare
         self.videoTitle = videoTitle
         self.detailURL = detailURL
         self.coverURL = coverURL
@@ -83,14 +89,6 @@ final class VideoPlayerViewModel {
         }
 
         return "\(self.videoTitle) - \(episodeTitle)"
-    }
-
-    var canOpenPreviousEpisode: Bool {
-        return self.reference.previousEpisodeURL != nil && self.isLoadingEpisodeSwitch == false
-    }
-
-    var canOpenNextEpisode: Bool {
-        return self.reference.nextEpisodeURL != nil && self.isLoadingEpisodeSwitch == false
     }
 
     var nativeMediaURL: URL? {
@@ -173,6 +171,10 @@ final class VideoPlayerViewModel {
 
         self.isPrepared = true
 
+        if self.resolvesPlaybackOnPrepare {
+            _ = await self.resolvePlaybackFromRule(failureEvent: "video-history-playback-resolve-error")
+        }
+
         do {
             if let history: VideoWatchHistory = try await self.persistenceCoordinator.loadVideoHistory(
                 userID: self.currentUserID,
@@ -253,27 +255,21 @@ final class VideoPlayerViewModel {
         self.shouldPlayAd = false
     }
 
-    func openPreviousEpisode() async {
-        await self.openEpisode(playPageURL: self.reference.previousEpisodeURL)
-    }
-
-    func openNextEpisode() async {
-        await self.openEpisode(playPageURL: self.reference.nextEpisodeURL)
-    }
-
-    private func openEpisode(playPageURL: URL?) async {
-        CrashDiagnostics.shared.setRuleStage(.videoPlayback)
-        guard let playPageURL: URL = playPageURL,
-              self.isLoadingEpisodeSwitch == false else {
+    /// 中文注释：直链播放失败（DNS、404、被拒）时按播放页规则重新解析一次；只重试一次，仍失败才报错。
+    /// 历史里存的直链会过期换线路，站点上的这一集往往还在。
+    @MainActor
+    func handleNativePlaybackFailure(_ error: Error) async {
+        RuleExecutionErrorClassifier.log(error: error, stage: .playback, event: "video-native-playback-failed")
+        guard self.didAttemptPlaybackRecovery == false, self.isLoadingEpisodeSwitch == false else {
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
             return
         }
-
-        self.saveCurrentProgress(force: true)
-        await self.loadPlayback(
-            playPageURL: playPageURL,
-            handoff: self.reference.handoff?.selecting(playPageURL: playPageURL),
-            failureEvent: "video-episode-switch-error"
-        )
+        self.didAttemptPlaybackRecovery = true
+        let previousMediaURL: URL? = self.reference.candidateMediaURL
+        let resolved: Bool = await self.resolvePlaybackFromRule(failureEvent: "video-playback-recovery-error")
+        if resolved == false || self.reference.candidateMediaURL == previousMediaURL {
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+        }
     }
 
     private func reloadPlaybackAfterLogin() async {
@@ -286,6 +282,34 @@ final class VideoPlayerViewModel {
             handoff: self.reference.handoff,
             failureEvent: "video-login-playback-refresh-error"
         )
+    }
+
+    /// 用播放页 URL 走一次规则链，成功则替换当前引用；失败只记日志、保留原引用，返回 false。
+    private func resolvePlaybackFromRule(failureEvent: String) async -> Bool {
+        self.isLoadingEpisodeSwitch = true
+        defer {
+            self.isLoadingEpisodeSwitch = false
+        }
+        do {
+            let runtime: any SourceRuntime = try self.runtimeResolver.runtime(for: self.source)
+            guard let playbackRuntime: any SourceVideoPlaybackRuntime = runtime as? any SourceVideoPlaybackRuntime else {
+                throw SourceRuntimeError.unsupported(
+                    .custom("Selected source does not expose video playback runtime.")
+                )
+            }
+            let output: SourceVideoPlaybackOutput = try await playbackRuntime.loadPlayback(
+                SourceVideoPlaybackInput(
+                    playPageURL: self.reference.playPageURL,
+                    context: self.runtimeContext(),
+                    handoff: self.reference.handoff
+                )
+            )
+            self.reference = output.reference
+            return true
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .playback, event: failureEvent)
+            return false
+        }
     }
 
     private func loadPlayback(

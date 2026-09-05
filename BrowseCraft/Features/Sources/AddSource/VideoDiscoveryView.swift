@@ -340,9 +340,6 @@ private struct VideoDiscoveryWebPlayerScreen: View {
         VideoWebPlayerView(
             request: VideoWebPlayerRequest(url: self.url),
             title: self.title,
-            controls: {
-                EmptyView()
-            },
             onClose: {
                 self.dismiss()
             }
@@ -362,9 +359,6 @@ private struct VideoDiscoveryNativePlayerScreen: View {
             mediaURL: self.mediaURL,
             requestConfig: nil,
             title: self.title,
-            controls: {
-                EmptyView()
-            },
             onProgress: { _, _ in },
             onReadyToPlay: { _ in },
             onClose: {

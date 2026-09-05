@@ -7,32 +7,32 @@ import UIKit
 
 // 中文注释：VideoNativePlayerView 使用 KSPlayer 的 UIKit 播放器承载原生直链，避免上游 SwiftUI
 // Coordinator 在视图更新事务中同步发布状态。
-struct VideoNativePlayerView<Controls: View>: View {
+struct VideoNativePlayerView: View {
     @Environment(\.browserRequestHeaderProvider) private var browserRequestHeaderProvider
 
     let mediaURL: URL
     let requestConfig: SourcePlaybackRequestConfig?
     let title: String
-    let controls: () -> Controls
     let onProgress: (TimeInterval, TimeInterval) -> Void
     let onReadyToPlay: (@escaping (TimeInterval) -> Void) -> Void
+    let onPlaybackFailure: (Error) -> Void
     let onClose: () -> Void
 
     init(
         mediaURL: URL,
         requestConfig: SourcePlaybackRequestConfig?,
         title: String,
-        @ViewBuilder controls: @escaping () -> Controls,
         onProgress: @escaping (TimeInterval, TimeInterval) -> Void,
         onReadyToPlay: @escaping (@escaping (TimeInterval) -> Void) -> Void,
+        onPlaybackFailure: @escaping (Error) -> Void = { _ in },
         onClose: @escaping () -> Void
     ) {
         self.mediaURL = mediaURL
         self.requestConfig = requestConfig
         self.title = title
-        self.controls = controls
         self.onProgress = onProgress
         self.onReadyToPlay = onReadyToPlay
+        self.onPlaybackFailure = onPlaybackFailure
         self.onClose = onClose
     }
 
@@ -44,13 +44,9 @@ struct VideoNativePlayerView<Controls: View>: View {
             title: self.title,
             onProgress: self.onProgress,
             onReadyToPlay: self.onReadyToPlay,
+            onPlaybackFailure: self.onPlaybackFailure,
             onClose: self.onClose
         )
-        .overlay(alignment: .bottom) {
-            self.controls()
-                .padding(.horizontal, 28)
-                .padding(.bottom, 76)
-        }
         .ignoresSafeArea()
     }
 }
@@ -67,12 +63,14 @@ private struct NativePlayerRepresentable: UIViewRepresentable {
     let title: String
     let onProgress: (TimeInterval, TimeInterval) -> Void
     let onReadyToPlay: (@escaping (TimeInterval) -> Void) -> Void
+    let onPlaybackFailure: (Error) -> Void
     let onClose: () -> Void
 
     func makeCoordinator() -> Coordinator {
         return Coordinator(
             onProgress: self.onProgress,
             onReadyToPlay: self.onReadyToPlay,
+            onPlaybackFailure: self.onPlaybackFailure,
             onClose: self.onClose
         )
     }
@@ -88,6 +86,7 @@ private struct NativePlayerRepresentable: UIViewRepresentable {
         context.coordinator.updateCallbacks(
             onProgress: self.onProgress,
             onReadyToPlay: self.onReadyToPlay,
+            onPlaybackFailure: self.onPlaybackFailure,
             onClose: self.onClose
         )
         self.configure(playerView, coordinator: context.coordinator)
@@ -175,15 +174,18 @@ private struct NativePlayerRepresentable: UIViewRepresentable {
         private weak var playerView: IOSVideoPlayerView?
         private var onProgress: (TimeInterval, TimeInterval) -> Void
         private var onReadyToPlay: (@escaping (TimeInterval) -> Void) -> Void
+        private var onPlaybackFailure: (Error) -> Void
         private var onClose: () -> Void
 
         init(
             onProgress: @escaping (TimeInterval, TimeInterval) -> Void,
             onReadyToPlay: @escaping (@escaping (TimeInterval) -> Void) -> Void,
+            onPlaybackFailure: @escaping (Error) -> Void,
             onClose: @escaping () -> Void
         ) {
             self.onProgress = onProgress
             self.onReadyToPlay = onReadyToPlay
+            self.onPlaybackFailure = onPlaybackFailure
             self.onClose = onClose
         }
 
@@ -200,10 +202,12 @@ private struct NativePlayerRepresentable: UIViewRepresentable {
         func updateCallbacks(
             onProgress: @escaping (TimeInterval, TimeInterval) -> Void,
             onReadyToPlay: @escaping (@escaping (TimeInterval) -> Void) -> Void,
+            onPlaybackFailure: @escaping (Error) -> Void,
             onClose: @escaping () -> Void
         ) {
             self.onProgress = onProgress
             self.onReadyToPlay = onReadyToPlay
+            self.onPlaybackFailure = onPlaybackFailure
             self.onClose = onClose
         }
 
@@ -236,7 +240,17 @@ private struct NativePlayerRepresentable: UIViewRepresentable {
             }
         }
 
-        func playerController(finish _: Error?) {}
+        /// 中文注释：直链失效（DNS 解析失败、404、被拒）时把错误交回视图模型，由它按播放页重新解析一次。
+        /// `finish` 带 nil 表示正常播完，不算失败。
+        func playerController(finish error: Error?) {
+            guard let error else {
+                return
+            }
+            let onPlaybackFailure: (Error) -> Void = self.onPlaybackFailure
+            DispatchQueue.main.async {
+                onPlaybackFailure(error)
+            }
+        }
 
         func playerController(maskShow _: Bool) {}
 

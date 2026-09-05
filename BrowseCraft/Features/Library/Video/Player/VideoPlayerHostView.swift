@@ -79,9 +79,6 @@ struct VideoPlayerHostView: View {
                 mediaURL: mediaURL,
                 requestConfig: self.viewModel.resolvedPlaybackRequestConfig,
                 title: self.viewModel.displayTitle,
-                controls: {
-                    self.episodeNavigationControls
-                },
                 onProgress: { currentTime, totalTime in
                     self.viewModel.recordPlaybackProgress(
                         currentTime: currentTime,
@@ -91,6 +88,11 @@ struct VideoPlayerHostView: View {
                 onReadyToPlay: { seek in
                     self.viewModel.markReadyToPlay(seek: seek)
                 },
+                onPlaybackFailure: { error in
+                    Task {
+                        await self.viewModel.handleNativePlaybackFailure(error)
+                    }
+                },
                 onClose: {
                     self.closePlayer()
                 }
@@ -99,9 +101,6 @@ struct VideoPlayerHostView: View {
             VideoWebPlayerView(
                 request: request,
                 title: self.viewModel.displayTitle,
-                controls: {
-                    self.episodeNavigationControls
-                },
                 onClose: {
                     self.closePlayer()
                 }
@@ -165,52 +164,10 @@ struct VideoPlayerHostView: View {
                 .buttonStyle(.borderedProminent)
             }
 
-            self.episodeNavigationControls
-
             Spacer(minLength: 0)
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var episodeNavigationControls: some View {
-        HStack(spacing: 20) {
-            Button {
-                Task {
-                    await self.viewModel.openPreviousEpisode()
-                }
-            } label: {
-                Label("Previous Episode", systemImage: "backward.end.fill")
-                    .labelStyle(.iconOnly)
-                    .font(.title3.weight(.semibold))
-                    .frame(width: 46, height: 46)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(self.viewModel.canOpenPreviousEpisode == false)
-            .opacity(self.viewModel.canOpenPreviousEpisode ? 1 : 0.42)
-
-            if self.viewModel.isLoadingEpisodeSwitch {
-                ProgressView()
-                    .tint(.white)
-                    .frame(width: 46, height: 46)
-            }
-
-            Button {
-                Task {
-                    await self.viewModel.openNextEpisode()
-                }
-            } label: {
-                Label("Next Episode", systemImage: "forward.end.fill")
-                    .labelStyle(.iconOnly)
-                    .font(.title3.weight(.semibold))
-                    .frame(width: 46, height: 46)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(self.viewModel.canOpenNextEpisode == false)
-            .opacity(self.viewModel.canOpenNextEpisode ? 1 : 0.42)
-        }
-        .tint(.white.opacity(0.9))
-        .accessibilityElement(children: .contain)
     }
 
     private var errorAlertBinding: Binding<Bool> {

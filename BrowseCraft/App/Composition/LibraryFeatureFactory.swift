@@ -161,6 +161,7 @@ struct LibraryFeatureFactory {
             credentialProvider: self.sourceCredentialStore,
             systemCookieHeaderProvider: self.systemCookieHeaderProvider,
             activeAppUser: self.activeAppUser,
+            resolvesPlaybackOnPrepare: true,
             userID: history.userID
         )
     }
