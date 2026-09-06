@@ -367,7 +367,9 @@ struct VideoSourcePlaybackLoaderTests {
                 "#EXTM3U\n#EXT-X-TARGETDURATION:10\n#EXTINF:10,\nsegment.ts"
             ) == .unknown
         )
-        #expect(VideoHLSManifestEncryptionClassifier.classify("<html>not hls</html>") == .unknown)
+        // 中文注释：2026-09-06——不是清单的正文是「有证据不是媒体」，不再混进 unknown。
+        #expect(VideoHLSManifestEncryptionClassifier.classify("<html>not hls</html>") == .notManifest)
+        #expect(VideoHLSManifestEncryptionClassifier.classify("") == .notManifest)
         #expect(VideoHLSManifestEncryptionClassifier.classify(truncatedBeforeEncryptionTag) == .unknown)
     }
 
@@ -445,6 +447,84 @@ struct VideoSourcePlaybackLoaderTests {
 
         #expect(output.reference.status == .playable)
         #expect(output.reference.candidateMediaURL == mediaURL)
+        #expect(pageLoader.requestedURLs == [pageURL, mediaURL])
+    }
+
+    // 中文注释：2026-09-06 真机（kpkuang 睿映HD 线）：CDN 按地区返回 403 HTML，此前被判 playable，
+    // KSPlayer 吃 403 后按规则重解析再吃一次，两集各四次无效播放。正文不是清单就让媒体路线出局，
+    // 走规则声明的 webUI 兜底；诊断里要能看到正文形状。
+    @Test func nonManifestBodyRejectsDirectMediaAndUsesDeclaredWebUIFallback() async throws {
+        let pageURL: URL = try #require(URL(string: "https://video.example.invalid/watch/1"))
+        let mediaURL: URL = try #require(URL(string: "https://video.example.invalid/media/master.m3u8"))
+        let pageLoader = RoutedPlaybackPageContentLoader(
+            responses: [
+                pageURL.absoluteString: PageContentResponse(
+                    content: #"<video><source src="/media/master.m3u8"></video>"#,
+                    finalURL: pageURL
+                ),
+                mediaURL.absoluteString: PageContentResponse(
+                    content: "<!DOCTYPE html>\n<html><head><title>403 Forbidden</title></head>"
+                        + "<body><h1>403 Forbidden</h1><p>The region has been denied.</p></body></html>",
+                    finalURL: mediaURL
+                )
+            ]
+        )
+        var rule: VideoSiteRule = Self.playbackRule()
+        rule.ruleSets.playbackRules?[0].fallback = .webUI
+        let loader = VideoSourcePlaybackLoader(
+            pageContentLoader: pageLoader,
+            parser: CoreVideoRuleSourceParser()
+        )
+        let session: VideoPreparedPlaybackExecutionSession = try loader.prepare(
+            source: Self.source(rule: rule),
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            input: Self.input()
+        )
+
+        let result: VideoPreparedPlaybackExecutionResult = try await loader.executeWithRouteFacts(session)
+
+        #expect(result.output.reference.status == .pageOnly)
+        #expect(result.output.reference.candidateMediaKind == .iframePlayer)
+        #expect(result.output.reference.candidateMediaURL == pageURL)
+        #expect(result.routeFacts[0].routeSlot == .media)
+        #expect(result.routeFacts[0].disposition == .rejectedBeforePlayer)
+        #expect(result.routeFacts[0].reason == .manifestNotHLS)
+        #expect(pageLoader.requestedURLs == [pageURL, mediaURL])
+        let inspection: SourceRuntimeIssue? = result.output.diagnostics.issues.first { issue in
+            issue.id == "video.v2.hlsInitialManifestInspection"
+        }
+        #expect(inspection?.message.contains("classification=notManifest") == true)
+        #expect(inspection?.message.contains("body=shape=html") == true)
+    }
+
+    @Test func nonManifestBodyWithoutFallbackFailsInsteadOfHandingPlayerAnHTMLPage() async throws {
+        let pageURL: URL = try #require(URL(string: "https://video.example.invalid/watch/1"))
+        let mediaURL: URL = try #require(URL(string: "https://video.example.invalid/media/master.m3u8"))
+        let pageLoader = RoutedPlaybackPageContentLoader(
+            responses: [
+                pageURL.absoluteString: PageContentResponse(
+                    content: #"<video><source src="/media/master.m3u8"></video>"#,
+                    finalURL: pageURL
+                ),
+                mediaURL.absoluteString: PageContentResponse(
+                    content: "<html><body>Access denied</body></html>",
+                    finalURL: mediaURL
+                )
+            ]
+        )
+        let rule: VideoSiteRule = Self.playbackRule()
+
+        let output: SourceVideoPlaybackOutput = try await VideoSourcePlaybackLoader(
+            pageContentLoader: pageLoader,
+            parser: CoreVideoRuleSourceParser()
+        ).execute(
+            source: Self.source(rule: rule),
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            input: Self.input()
+        )
+
+        #expect(output.reference.status == .failed(.unsupportedMediaKind))
+        #expect(output.reference.candidateMediaURL == nil)
         #expect(pageLoader.requestedURLs == [pageURL, mediaURL])
     }
 

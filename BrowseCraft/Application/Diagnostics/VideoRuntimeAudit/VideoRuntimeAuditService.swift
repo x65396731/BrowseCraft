@@ -1112,6 +1112,8 @@ struct VideoRuntimeAuditService {
             return "all-candidates-filtered-as-noise"
         case .encryptedHLS:
             return "encrypted-hls-manifest"
+        case .manifestNotHLS:
+            return "manifest-not-hls"
         case .knownEncryptedMedia:
             return "known-encrypted-media"
         case .finalMediaObservationUnavailable:
