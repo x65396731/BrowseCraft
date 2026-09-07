@@ -21,6 +21,7 @@
 
 /* Video generation input preflight */
 "video_preflight_navigation_title" = "Video";
+"comic_preflight_navigation_title" = "Comic";
 "video_preflight_website_title" = "Website";
 "video_preflight_url_placeholder" = "List or category URL";
 "video_preflight_scope_footer" = "Checks only this URL and its bounded direct structure. No replacement URL will be searched for or recommended.";

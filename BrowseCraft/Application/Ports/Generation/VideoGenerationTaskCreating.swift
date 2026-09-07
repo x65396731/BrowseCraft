@@ -16,9 +16,11 @@ enum VideoGenerationTaskClientError: Error, Hashable, Sendable {
 /// 创建规则生成任务的 Application 端口（`BC-PREFLIGHT-048`）。
 ///
 /// 中文注释：`entryURL` 是预检的精确 `submissionString`，实现不得改写；调用方负责
-/// 只在 accepted 时调用（`BC-PREFLIGHT-047`）。
+/// 只在 accepted 时调用（`BC-PREFLIGHT-047`）。`sourceKind` 决定服务端走哪条生成链，
+/// 两种 kind 共用这一个端口（类型名里的 Video 是历史遗留，在遗留命名清单上）。
 protocol VideoGenerationTaskCreating: Sendable {
     func createVideoTask(
+        sourceKind: RuleGenerationSourceKind,
         entryURL: String,
         accessToken: String
     ) async throws -> VideoGenerationTaskCreation

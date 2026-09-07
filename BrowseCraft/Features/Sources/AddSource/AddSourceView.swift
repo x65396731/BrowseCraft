@@ -8,8 +8,8 @@ struct AddSourceView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var runtimeSourceKind: RuntimeSourceImportKind?
-    @State private var isShowingComicDiscovery: Bool = false
-    @State private var isShowingVideoDiscovery: Bool = false
+    @State private var isShowingComicGeneration: Bool = false
+    @State private var isShowingVideoGeneration: Bool = false
     @State private var isShowingRSSDiscovery: Bool = false
     @State private var unavailableOption: SourceImportOptionKind?
 
@@ -32,11 +32,14 @@ struct AddSourceView: View {
                     }
                 }
             }
-            .sheet(isPresented: self.$isShowingComicDiscovery) {
-                ComicDiscoveryView(viewModel: self.viewModel)
+            // 中文注释：漫画与视频都指向服务端规则生成入口，两种 kind 的交互完全对称。
+            // 本地关键词发现 `ComicDiscoveryView` 就此不再从这里进入，与视频侧的
+            // `VideoDiscoveryView` 同一处置。
+            .sheet(isPresented: self.$isShowingComicGeneration) {
+                VideoGenerationInputView(viewModel: self.viewModel, sourceKind: .comic)
             }
-            .sheet(isPresented: self.$isShowingVideoDiscovery) {
-                VideoGenerationInputView(viewModel: self.viewModel)
+            .sheet(isPresented: self.$isShowingVideoGeneration) {
+                VideoGenerationInputView(viewModel: self.viewModel, sourceKind: .video)
             }
             .sheet(isPresented: self.$isShowingRSSDiscovery) {
                 RSSDiscoveryView(
@@ -92,9 +95,9 @@ struct AddSourceView: View {
     private func select(_ option: SourceImportOption) {
         switch option.kind {
         case .comicSource:
-            self.isShowingComicDiscovery = true
+            self.isShowingComicGeneration = true
         case .videoSource:
-            self.isShowingVideoDiscovery = true
+            self.isShowingVideoGeneration = true
         case .rssFeedURL:
             self.isShowingRSSDiscovery = true
         case .scriptSource:

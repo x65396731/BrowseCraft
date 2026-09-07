@@ -22,8 +22,13 @@ struct CreateVideoGenerationTaskUseCase: Sendable {
     }
 
     /// 只接受 `canSubmit == true` 且版本未漂移的预检结果；提交串只取 `submissionString`。
+    ///
+    /// 中文注释：预检本身是中性的（只看列表族数量、发布组、截断与反爬登录，无任何视频
+    /// 语义词），因此两种 kind 共用同一份 accepted 结果；`sourceKind` 只决定提交给
+    /// 服务端的生成链，不参与预检判定。
     func execute(
-        preflight: VideoGenerationInputPreflight
+        preflight: VideoGenerationInputPreflight,
+        sourceKind: RuleGenerationSourceKind
     ) async throws -> VideoGenerationTaskSubmissionOutcome {
         guard preflight.canSubmit else {
             throw VideoGenerationTaskSubmissionRejection.preflightNotAccepted(preflight.status)
@@ -41,6 +46,7 @@ struct CreateVideoGenerationTaskUseCase: Sendable {
         }
         do {
             let creation: VideoGenerationTaskCreation = try await self.taskClient.createVideoTask(
+                sourceKind: sourceKind,
                 entryURL: preflight.submissionString,
                 accessToken: accessToken
             )

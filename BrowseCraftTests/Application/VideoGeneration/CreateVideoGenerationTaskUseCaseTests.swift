@@ -8,6 +8,7 @@ import XCTest
 final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
     private actor RecordingTaskClient: VideoGenerationTaskCreating {
         struct Call: Equatable {
+            let sourceKind: RuleGenerationSourceKind
             let entryURL: String
             let accessToken: String
         }
@@ -36,10 +37,17 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
         }
 
         func createVideoTask(
+            sourceKind: RuleGenerationSourceKind,
             entryURL: String,
             accessToken: String
         ) async throws -> VideoGenerationTaskCreation {
-            self.calls.append(Call(entryURL: entryURL, accessToken: accessToken))
+            self.calls.append(
+                Call(
+                    sourceKind: sourceKind,
+                    entryURL: entryURL,
+                    accessToken: accessToken
+                )
+            )
             return try self.result.get()
         }
 
@@ -80,14 +88,36 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
             accessTokenProvider: StaticTokenProvider(token: "access-1")
         )
 
-        let outcome = try await useCase.execute(preflight: self.preflight(status: .accepted))
+        let outcome = try await useCase.execute(preflight: self.preflight(status: .accepted), sourceKind: .video)
 
         XCTAssertEqual(
             outcome,
             .submitted(VideoGenerationTaskReceipt(jobID: jobID, submittedEntryURL: Self.watchURL))
         )
         let calls = await client.recordedCalls()
-        XCTAssertEqual(calls, [.init(entryURL: Self.watchURL, accessToken: "access-1")])
+        XCTAssertEqual(
+            calls,
+            [.init(sourceKind: .video, entryURL: Self.watchURL, accessToken: "access-1")]
+        )
+    }
+
+    /// `sourceKind` 必须原样到达客户端：预检是中性的，选哪条生成链只由这个参数决定。
+    func testSourceKindReachesTheTaskClientUnchanged() async throws {
+        for kind in RuleGenerationSourceKind.allCases {
+            let client = RecordingTaskClient(result: .success(UUID()))
+            let useCase = CreateVideoGenerationTaskUseCase(
+                taskClient: client,
+                accessTokenProvider: StaticTokenProvider(token: "access-1")
+            )
+
+            _ = try await useCase.execute(
+                preflight: self.preflight(status: .accepted),
+                sourceKind: kind
+            )
+
+            let calls = await client.recordedCalls()
+            XCTAssertEqual(calls.map(\.sourceKind), [kind])
+        }
     }
 
     func testRejectedAndInconclusiveNeverReachTheClient() async {
@@ -98,7 +128,7 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
                 accessTokenProvider: StaticTokenProvider(token: "access-1")
             )
             do {
-                _ = try await useCase.execute(preflight: self.preflight(status: status))
+                _ = try await useCase.execute(preflight: self.preflight(status: status), sourceKind: .video)
                 XCTFail("\(status) must be rejected before the client")
             } catch let rejection as VideoGenerationTaskSubmissionRejection {
                 XCTAssertEqual(rejection, .preflightNotAccepted(status))
@@ -117,7 +147,7 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
             accessTokenProvider: StaticTokenProvider(token: nil)
         )
 
-        let outcome = try await useCase.execute(preflight: self.preflight(status: .accepted))
+        let outcome = try await useCase.execute(preflight: self.preflight(status: .accepted), sourceKind: .video)
 
         XCTAssertEqual(outcome, .authRequired)
         let calls = await client.recordedCalls()
@@ -140,7 +170,7 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
                 taskClient: RecordingTaskClient(result: .failure(error)),
                 accessTokenProvider: StaticTokenProvider(token: "access-1")
             )
-            let outcome = try await useCase.execute(preflight: self.preflight(status: .accepted))
+            let outcome = try await useCase.execute(preflight: self.preflight(status: .accepted), sourceKind: .video)
             XCTAssertEqual(outcome, expected)
         }
     }
@@ -192,7 +222,7 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
             catalogRuleDecryptor: self.decryptor()
         )
 
-        let outcome = try await useCase.execute(preflight: self.preflight(status: .accepted))
+        let outcome = try await useCase.execute(preflight: self.preflight(status: .accepted), sourceKind: .video)
 
         guard case .reused(let reused) = outcome else {
             return XCTFail("expected reused outcome, got \(outcome)")
@@ -232,7 +262,7 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
             )
         )
 
-        let outcome = try await useCase.execute(preflight: self.preflight(status: .accepted))
+        let outcome = try await useCase.execute(preflight: self.preflight(status: .accepted), sourceKind: .video)
 
         XCTAssertEqual(
             outcome,

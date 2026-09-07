@@ -21,6 +21,7 @@
 
 /* Video generation input preflight */
 "video_preflight_navigation_title" = "视频";
+"comic_preflight_navigation_title" = "漫画";
 "video_preflight_website_title" = "网站";
 "video_preflight_url_placeholder" = "List 或分类页面 URL";
 "video_preflight_scope_footer" = "只检查当前 URL 及其有界直接结构，不搜索或推荐替代 URL。";

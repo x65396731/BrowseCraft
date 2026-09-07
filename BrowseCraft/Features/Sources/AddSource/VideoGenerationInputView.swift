@@ -4,6 +4,9 @@ import SwiftUI
 
 struct VideoGenerationInputView: View {
     @Bindable var viewModel: SourcesViewModel
+    /// 中文注释：预检是中性的，两种 kind 走同一套输入与判定；`sourceKind` 只决定
+    /// 标题文案与提交给服务端的生成链。
+    let sourceKind: RuleGenerationSourceKind
     @Environment(\.dismiss) private var dismiss
 
     @State private var siteURL: String = ""
@@ -96,7 +99,7 @@ struct VideoGenerationInputView: View {
                     }
                 }
             }
-            .navigationTitle(NSLocalizedString("video_preflight_navigation_title", comment: ""))
+            .navigationTitle(NSLocalizedString(self.navigationTitleKey, comment: ""))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(NSLocalizedString("video_preflight_close_button", comment: "")) {
@@ -115,6 +118,15 @@ struct VideoGenerationInputView: View {
                 self.cancelAssessment()
                 self.cancelSubmission()
             }
+        }
+    }
+
+    private var navigationTitleKey: String {
+        switch self.sourceKind {
+        case .video:
+            return "video_preflight_navigation_title"
+        case .comic:
+            return "comic_preflight_navigation_title"
         }
     }
 
@@ -210,7 +222,10 @@ struct VideoGenerationInputView: View {
         self.submissionTask = Task { @MainActor in
             do {
                 let outcome: VideoGenerationTaskSubmissionOutcome = try await self.viewModel
-                    .submitVideoGenerationTask(preflight: preflight)
+                    .submitVideoGenerationTask(
+                        preflight: preflight,
+                        sourceKind: self.sourceKind
+                    )
                 guard Task.isCancelled == false else {
                     return
                 }

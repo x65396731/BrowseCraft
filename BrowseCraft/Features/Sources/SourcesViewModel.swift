@@ -402,14 +402,16 @@ final class SourcesViewModel {
 
     @MainActor
     func submitVideoGenerationTask(
-        preflight: VideoGenerationInputPreflight
+        preflight: VideoGenerationInputPreflight,
+        sourceKind: RuleGenerationSourceKind
     ) async throws -> VideoGenerationTaskSubmissionOutcome {
         guard let useCase: CreateVideoGenerationTaskUseCase =
             self.createVideoGenerationTaskUseCase else {
             throw VideoGenerationTaskSubmissionRejection.preflightNotAccepted(preflight.status)
         }
         let outcome: VideoGenerationTaskSubmissionOutcome = try await useCase.execute(
-            preflight: preflight
+            preflight: preflight,
+            sourceKind: sourceKind
         )
         // 中文注释：任务排队成功是用户最能理解「为什么要通知权限」的时刻——终态靠推送告知。
         // 只在这一刻请求，且不阻塞提交结果的展示；已决定过的系统不会再弹。

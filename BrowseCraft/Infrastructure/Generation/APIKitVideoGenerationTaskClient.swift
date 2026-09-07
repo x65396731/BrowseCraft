@@ -10,15 +10,17 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
     }
 
     func createVideoTask(
+        sourceKind: RuleGenerationSourceKind,
         entryURL: String,
         accessToken: String
     ) async throws -> VideoGenerationTaskCreation {
         PortalSessionDiagnostics.notice(
             "event=request-start operation=rule-generation-submit " +
-                "path=\(PortalAPIPath.ruleGenerations)"
+                "path=\(PortalAPIPath.ruleGenerations) sourceKind=\(sourceKind.rawValue)"
         )
         do {
-            let submit: PortalRuleGenerationSubmitResponse = try await self.api.submitVideo(
+            let submit: PortalRuleGenerationSubmitResponse = try await self.api.submit(
+                sourceKind: Self.portalSourceKind(sourceKind),
                 entryURL: entryURL,
                 accessToken: accessToken
             )
@@ -64,6 +66,19 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
             throw Self.map(error)
         } catch {
             throw VideoGenerationTaskClientError.transport
+        }
+    }
+
+    /// 中文注释：App 与 APIKit 各有一份 kind 枚举——APIKit 是传输合同，App 侧不该被它
+    /// 的取值集合绑住。两边都只有 video / comic，`switch` 保证任一边新增取值时编译期报错。
+    private static func portalSourceKind(
+        _ kind: RuleGenerationSourceKind
+    ) -> PortalRuleGenerationSourceKind {
+        switch kind {
+        case .video:
+            return .video
+        case .comic:
+            return .comic
         }
     }
 
