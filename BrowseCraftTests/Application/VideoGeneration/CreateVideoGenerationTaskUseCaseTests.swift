@@ -10,6 +10,7 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
         struct Call: Equatable {
             let sourceKind: RuleGenerationSourceKind
             let entryURL: String
+            let refresh: Bool
             let accessToken: String
         }
 
@@ -39,12 +40,14 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
         func createVideoTask(
             sourceKind: RuleGenerationSourceKind,
             entryURL: String,
+            refresh: Bool,
             accessToken: String
         ) async throws -> VideoGenerationTaskCreation {
             self.calls.append(
                 Call(
                     sourceKind: sourceKind,
                     entryURL: entryURL,
+                    refresh: refresh,
                     accessToken: accessToken
                 )
             )
@@ -97,7 +100,7 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
         let calls = await client.recordedCalls()
         XCTAssertEqual(
             calls,
-            [.init(sourceKind: .video, entryURL: Self.watchURL, accessToken: "access-1")]
+            [.init(sourceKind: .video, entryURL: Self.watchURL, refresh: false, accessToken: "access-1")]
         )
     }
 
@@ -269,4 +272,46 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
             .failed(code: CreateVideoGenerationTaskUseCase.reusedRuleDecryptionFailedCode)
         )
     }
+
+    /// 缺省不刷新——加 `refresh` 不得改变既有调用方的行为。
+    func testExecuteDefaultsToNotRefreshing() async throws {
+        let client = RecordingTaskClient(result: .success(UUID()))
+        let useCase = CreateVideoGenerationTaskUseCase(
+            taskClient: client,
+            accessTokenProvider: StaticTokenProvider(token: "access-1")
+        )
+
+        _ = try await useCase.execute(
+            preflight: self.preflight(status: .accepted),
+            sourceKind: .video
+        )
+
+        let calls = await client.recordedCalls()
+        XCTAssertEqual(calls.first?.refresh, false)
+    }
+
+    /// `refresh` 必须原样传到任务客户端——它是「重来」这个动作的唯一入口。
+    ///
+    /// 中文注释：服务端一直支持这个字段，此前是 APIKit 的请求模型没有表达它，于是规则
+    /// 生成是单向的：同一入口的规则在服务端复用窗口（30 天）内怎么提都直返旧规则，
+    /// 站点改版或规则生成错了，用户只能等窗口过期。
+    func testExecuteCarriesRefresh() async throws {
+        let client = RecordingTaskClient(result: .success(UUID()))
+        let useCase = CreateVideoGenerationTaskUseCase(
+            taskClient: client,
+            accessTokenProvider: StaticTokenProvider(token: "access-1")
+        )
+
+        _ = try await useCase.execute(
+            preflight: self.preflight(status: .accepted),
+            sourceKind: .comic,
+            refresh: true
+        )
+
+        let calls = await client.recordedCalls()
+        XCTAssertEqual(calls.count, 1)
+        XCTAssertEqual(calls.first?.refresh, true)
+        XCTAssertEqual(calls.first?.sourceKind, .comic)
+    }
+
 }

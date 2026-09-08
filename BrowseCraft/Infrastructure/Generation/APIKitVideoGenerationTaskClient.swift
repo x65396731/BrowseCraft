@@ -12,16 +12,19 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
     func createVideoTask(
         sourceKind: RuleGenerationSourceKind,
         entryURL: String,
+        refresh: Bool,
         accessToken: String
     ) async throws -> VideoGenerationTaskCreation {
         PortalSessionDiagnostics.notice(
             "event=request-start operation=rule-generation-submit " +
-                "path=\(PortalAPIPath.ruleGenerations) sourceKind=\(sourceKind.rawValue)"
+                "path=\(PortalAPIPath.ruleGenerations) sourceKind=\(sourceKind.rawValue) " +
+                "refresh=\(refresh)"
         )
         do {
             let submit: PortalRuleGenerationSubmitResponse = try await self.api.submit(
                 sourceKind: Self.portalSourceKind(sourceKind),
                 entryURL: entryURL,
+                refresh: refresh,
                 accessToken: accessToken
             )
             switch submit {

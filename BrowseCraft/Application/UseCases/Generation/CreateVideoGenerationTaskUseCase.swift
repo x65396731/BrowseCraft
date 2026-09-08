@@ -28,7 +28,8 @@ struct CreateVideoGenerationTaskUseCase: Sendable {
     /// 服务端的生成链，不参与预检判定。
     func execute(
         preflight: VideoGenerationInputPreflight,
-        sourceKind: RuleGenerationSourceKind
+        sourceKind: RuleGenerationSourceKind,
+        refresh: Bool = false
     ) async throws -> VideoGenerationTaskSubmissionOutcome {
         guard preflight.canSubmit else {
             throw VideoGenerationTaskSubmissionRejection.preflightNotAccepted(preflight.status)
@@ -48,6 +49,7 @@ struct CreateVideoGenerationTaskUseCase: Sendable {
             let creation: VideoGenerationTaskCreation = try await self.taskClient.createVideoTask(
                 sourceKind: sourceKind,
                 entryURL: preflight.submissionString,
+                refresh: refresh,
                 accessToken: accessToken
             )
             switch creation {

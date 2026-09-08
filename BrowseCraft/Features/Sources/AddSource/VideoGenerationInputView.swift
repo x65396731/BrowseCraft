@@ -86,6 +86,9 @@ struct VideoGenerationInputView: View {
                         },
                         submit: {
                             self.startSubmission(result)
+                        },
+                        regenerate: {
+                            self.startSubmission(result, refresh: true)
                         }
                     )
                 }
@@ -212,7 +215,10 @@ struct VideoGenerationInputView: View {
     }
 
     /// 中文注释：只有 accepted 结果能走到这里；提交串由用例从 `submissionString` 取（`BC-PREFLIGHT-047`）。
-    private func startSubmission(_ preflight: VideoGenerationInputPreflight) {
+    private func startSubmission(
+        _ preflight: VideoGenerationInputPreflight,
+        refresh: Bool = false
+    ) {
         guard preflight.canSubmit, self.submissionState.isSubmitting == false else {
             return
         }
@@ -224,7 +230,8 @@ struct VideoGenerationInputView: View {
                 let outcome: VideoGenerationTaskSubmissionOutcome = try await self.viewModel
                     .submitVideoGenerationTask(
                         preflight: preflight,
-                        sourceKind: self.sourceKind
+                        sourceKind: self.sourceKind,
+                        refresh: refresh
                     )
                 guard Task.isCancelled == false else {
                     return
@@ -307,6 +314,10 @@ private struct VideoGenerationInputOutcomeView: View {
     let canSubmit: Bool
     let retry: () -> Void
     let submit: () -> Void
+    /// 中文注释：命中服务端已生成的规则时，让用户能强制重来一次。
+    /// 没有这个入口，同一入口的规则在服务端复用窗口（30 天）内无法重新生成——
+    /// 站点改版或规则生成错了，用户只能干等。
+    let regenerate: () -> Void
 
     var body: some View {
         Section(NSLocalizedString("video_preflight_status_title", comment: "")) {
@@ -388,6 +399,11 @@ private struct VideoGenerationInputOutcomeView: View {
             )
             .font(.footnote)
             .foregroundStyle(self.reusedRuleImportFailed ? .orange : .secondary)
+            Button(
+                NSLocalizedString("video_preflight_regenerate", comment: ""),
+                action: self.regenerate
+            )
+            .disabled(self.submissionState.isSubmitting)
         case .authRequired:
             Label(
                 NSLocalizedString("video_preflight_submit_auth_required", comment: ""),
