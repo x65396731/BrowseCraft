@@ -948,18 +948,46 @@ private extension VideoSourcePlaybackLoaderTests {
     }
 }
 
+/// 中文注释：播放页桩。**`.m3u8` 请求要回清单，不能回播放页正文**——
+/// `VideoSourcePlaybackLoader` 在把 HLS 候选交给播放器之前会先探一次首个清单
+/// （2026-09-06 真机：CDN 按地区返回 403 HTML 时不能判 playable），首行不是 `#EXTM3U`
+/// 即判 `notManifest` 出局。桩若对清单 URL 也回 HTML，等于每条用例都在模拟被 CDN 拒绝。
+/// 要量「正文不是清单」那条路的用例，把 `manifest` 显式换成非清单正文。
+///
+/// `lastRequest` 仍按原样记**每一次**请求——播放页之后紧跟着清单探测，所以它拿到的是
+/// 探测请求；`legacySingleMediaHLSPlaybackUsesFinalPageURLAndStableHandoff` 断言的
+/// `X-Region` / `Referer` / `User-Agent` 与「不带 `X-Playback`」问的正是这一次媒体请求。
 private final class PlaybackPageContentLoader: PageContentLoader, @unchecked Sendable {
+    static let defaultManifest: String = """
+        #EXTM3U
+        #EXT-X-VERSION:3
+        #EXTINF:9.0,
+        segment-1.ts
+        #EXT-X-ENDLIST
+        """
+
     let html: String
+    let manifest: String
     let finalURL: URL
     private(set) var lastRequest: RequestConfig?
+    private(set) var manifestRequests: [PageLoadRequest] = []
 
-    init(html: String, finalURL: URL) {
+    init(
+        html: String,
+        finalURL: URL,
+        manifest: String = PlaybackPageContentLoader.defaultManifest
+    ) {
         self.html = html
         self.finalURL = finalURL
+        self.manifest = manifest
     }
 
     func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
         self.lastRequest = request.requestConfig
+        if request.url.pathExtension.lowercased() == "m3u8" {
+            self.manifestRequests.append(request)
+            return PageContentResponse(content: self.manifest, finalURL: request.url)
+        }
         return PageContentResponse(content: self.html, finalURL: self.finalURL)
     }
 }
