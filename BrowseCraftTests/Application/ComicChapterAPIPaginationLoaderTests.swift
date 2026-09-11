@@ -36,6 +36,59 @@ struct ComicChapterAPIPaginationLoaderTests {
         #expect(content.chapters.map(\.title) == ["第01话"])
     }
 
+    // MARK: - `item.idCode`：漫画按作品参数化的唯一出路
+
+    /// 中文注释：`chapterAPI` 是**整个 source 共用**的一条规则，App 对每一部作品都用它。
+    /// 站点接口要的作品号因此只能写成模板令牌，由运行期按当前作品替换。
+    ///
+    /// Core 的 V2 校验器拒收 `detailSlug`/`comicId` 这类按 URL 形状推断的令牌
+    /// （`template-implicit-inference`），并在报错文案里指名要用 `item.idCode`——
+    /// 所以它是漫画这条路上唯一可用的令牌。而漫画侧的模板解析器此前**没有这个 case**
+    /// （影视侧有），未命中的令牌被替换成空串，规则会发出 `id=`，拿回空目录。
+    @Test func idCodeTokenResolvesFromTheItem() async throws {
+        let loader: PagedChapterAPIStub = PagedChapterAPIStub(
+            pages: ["1": Self.page(["第01话"], startingAt: 1)]
+        )
+        let sut: ComicSourceDetailLoader = ComicSourceDetailLoader(
+            pageContentLoader: loader,
+            comicRuleParser: CoreComicRuleSourceParser()
+        )
+
+        _ = try await sut.execute(
+            source: Self.source(
+                url: "https://example.test/api/chapters?page=1",
+                bodyValue: "id={item.idCode}",
+                pagination: nil
+            ),
+            item: Self.item(idCode: "1221036")
+        )
+
+        #expect(loader.requestBodies == ["id=1221036"])
+    }
+
+    /// 中文注释：取不到 idCode 时回落成空串——与其它未命中令牌同一行为，不特殊。
+    /// 钉住它是为了说明「发出 `id=`」是**可观察的失败形态**，而不是悄悄换个值。
+    @Test func idCodeTokenFallsBackToEmptyWhenAbsent() async throws {
+        let loader: PagedChapterAPIStub = PagedChapterAPIStub(
+            pages: ["1": Self.page(["第01话"], startingAt: 1)]
+        )
+        let sut: ComicSourceDetailLoader = ComicSourceDetailLoader(
+            pageContentLoader: loader,
+            comicRuleParser: CoreComicRuleSourceParser()
+        )
+
+        _ = try await sut.execute(
+            source: Self.source(
+                url: "https://example.test/api/chapters?page=1",
+                bodyValue: "id={item.idCode}",
+                pagination: nil
+            ),
+            item: Self.item()
+        )
+
+        #expect(loader.requestBodies == ["id="])
+    }
+
     // MARK: - 占位串在 URL 上
 
     @Test func paginationWalksPagesUntilAnEmptyOne() async throws {
@@ -197,9 +250,10 @@ struct ComicChapterAPIPaginationLoaderTests {
         return "{\"chapters\":[\(items.joined(separator: ","))]}"
     }
 
-    private static func item() -> ContentItem {
+    private static func item(idCode: String? = nil) -> ContentItem {
         return ContentItem(
             id: "comic-7",
+            idCode: idCode,
             sourceId: "paged-api-source",
             title: "分页目录",
             detailURL: "https://example.test/comic/7",
