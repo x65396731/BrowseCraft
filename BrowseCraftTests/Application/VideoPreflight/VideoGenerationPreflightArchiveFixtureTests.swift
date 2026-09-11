@@ -109,8 +109,14 @@ final class VideoGenerationPreflightArchiveFixtureTests: XCTestCase {
 
     /// 中文注释：目录名只用 alias，真实主机名不进生产分支（开发计划 Phase 6）；
     /// alias ↔ 站点映射只存在于 fwq `scripts/export_preflight_fixtures.py`。
+    /// 中文注释：`site-g-comic` 是 2026-09-12 真机加源失败（`families=0 groups=24`）逼出来的。
+    /// 前七个全是影视站，而且卡片都是扁平的；这一份同时带着两种它们都没有的形状——
+    /// 条目内含元信息 `<ul>`（卡片组因此非叶子）、列表容器内同时放着导航与分页。
+    /// **两种形状各自触发一个预检缺陷**，所以它必须留在回归里：谁再把
+    /// `groups.sort` 的深度键提回第一位、或把 `contentGroups` 改回只收叶子，这一条会红。
     private static let fixtureSites: [String] = [
-        "site-a", "site-b", "site-c", "site-d", "site-e", "site-f-films", "site-f-home"
+        "site-a", "site-b", "site-c", "site-d", "site-e", "site-f-films", "site-f-home",
+        "site-g-comic"
     ]
 
     func testArchiveFixturesMatchAcceptanceMatrixRow15() async throws {

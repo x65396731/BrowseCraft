@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "fixtureID": "site-g-comic",
+  "alias": "site-g.example",
+  "entryURL": "https://site-g.example/comic/category.html",
+  "expected": {
+    "status": "accepted",
+    "entryShape": "directListOwner"
+  },
+  "acceptance": "ready",
+  "pendingReason": "",
+  "note": "漫画分类页：20 张卡片，每张卡里有元信息 <ul>（卡片组因此非叶子），列表容器 div.mainBody 里同时放着导航与分页。两处形状各自触发一个预检缺陷，两处都修好之前本站 families=0；修好后 families=1 → accepted。",
+  "documents": [
+    {
+      "name": "site-g-comic-entry-1",
+      "stage": "entry",
+      "url": "https://site-g.example/comic/category.html",
+      "file": "site-g-comic-entry-1.html"
+    }
+  ]
+}
