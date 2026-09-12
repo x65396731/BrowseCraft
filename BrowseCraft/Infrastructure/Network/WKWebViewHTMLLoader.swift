@@ -207,10 +207,33 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
             guard let self else {
                 return
             }
-            self.finish(
-                .failure(self.challengeGate.timeoutError(url: self.url, seconds: seconds))
-            )
+            await self.finishAfterTimeout(seconds: seconds)
         }
+    }
+
+    /// 中文注释：`didFinish` 等的是整页子资源——漫画阅读页动辄几十张分镜图，移动网络下 12 秒
+    /// 常常还没下完，而 DOM 早就齐了（`<img src>` 不需要图片下载完才存在）。2026-09-13 真机：
+    /// manmanapp 53 张图的章节两次超时、32 张的那章能过。到时限时先把当前 DOM 拿出来，
+    /// 是真页就按成功交出去；只有拿不到 DOM、或仍在挑战过渡页时才报超时。
+    private func finishAfterTimeout(seconds: Double) async {
+        guard self.hasCompleted == false else {
+            return
+        }
+        if self.challengeGate.challengeInterstitialObserved == false,
+           let html: String = try? await self.renderedHTML(),
+           case .document = self.challengeGate.evaluate(renderedHTML: html) {
+            #if DEBUG
+            AppDebugLog.write(
+                "[BrowseCraftWebView] timeout after \(seconds)s, using current DOM " +
+                "length=\(html.count) url=\(self.url.absoluteString)"
+            )
+            #endif
+            self.finish(.success(self.response(for: html)))
+            return
+        }
+        self.finish(
+            .failure(self.challengeGate.timeoutError(url: self.url, seconds: seconds))
+        )
     }
 
     private var timeoutNanoseconds: UInt64 {
