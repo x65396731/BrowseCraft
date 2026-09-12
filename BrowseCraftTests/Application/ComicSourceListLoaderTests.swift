@@ -462,6 +462,20 @@ private final class RecordingListPageContentLoader: PageContentLoader, @unchecke
 }
 
 extension ComicSourceListLoader {
+    /// 中文注释：`BC-COMIC-123` 的测试入口，与上面的 `execute` 同一套图解析。
+    func executeWithPagination(source: Source, page: Int = 1) async throws -> ListSourceResult {
+        let graph = try resolvedComicGraphForLoaderTest(source)
+        guard let entry = graph.primaryListEntry else {
+            throw SourceRuntimeError.invalidInput("Test comic graph has no list entry.")
+        }
+        return try await self.executeWithPagination(
+            source: source,
+            resolvedRule: graph,
+            entry: entry,
+            page: page
+        )
+    }
+
     func execute(source: Source, page: Int = 1) async throws -> [ContentItem] {
         let graph = try resolvedComicGraphForLoaderTest(source)
         guard let entry = graph.primaryListEntry else {
