@@ -214,9 +214,18 @@ final class LibraryViewModel {
         )
     }
 
+    /// 中文注释：列表翻页只看 Runtime 报没报下一页，与 kind 无关；RSS 没有列表分页合同，仍然排除。
+    /// 2026-09-12 之前这里写死 `.video`——漫画列表的 Runtime 已经报出 `nextPage`，UI 却从不去取。
+    private var selectedSourceSupportsListPagination: Bool {
+        guard let kind: SourceRuntimeKind = self.selectedSource?.configuration.kind else {
+            return false
+        }
+        return kind == .video || kind == .comic
+    }
+
     @MainActor
     func loadNextPageIfNeeded() async {
-        guard self.selectedSource?.configuration.kind == .video,
+        guard self.selectedSourceSupportsListPagination,
               self.items.isEmpty == false,
               self.isLoadingNextPage == false,
               self.isRefreshing == false,
@@ -237,7 +246,7 @@ final class LibraryViewModel {
     }
 
     var nextListPage: Int? {
-        guard self.selectedSource?.configuration.kind == .video,
+        guard self.selectedSourceSupportsListPagination,
               self.isRefreshing == false,
               self.isLoadingNextPage == false,
               self.canLoadNextPage else {
@@ -247,7 +256,7 @@ final class LibraryViewModel {
     }
 
     var shouldShowPaginationStatus: Bool {
-        guard self.selectedSource?.configuration.kind == .video,
+        guard self.selectedSourceSupportsListPagination,
               self.items.isEmpty == false || self.isLoadingNextPage else {
             return false
         }

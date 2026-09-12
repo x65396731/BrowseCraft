@@ -234,4 +234,86 @@ struct LibraryViewModelTests {
         let expectedItemID: String = otherSourceID == comic.id ? "comic-1" : "rss-1"
         #expect(viewModel.items.map(\.id) == [expectedItemID])
     }
+
+    // MARK: - 列表分页（2026-09-12 真机「漫画不翻页」倒查：ViewModel 与内容视图把翻页写死成只有影视）
+
+    @Test func comicListAdvancesToTheNextPageWhenRuntimeReportsOne() async throws {
+        let database: AppDatabase = try Harness.makeDatabase()
+        let source: Source = try Harness.makeComicSource()
+        try GRDBSourceRepository(database: database).saveSource(source)
+        let runtime: ScriptedSourceRuntime = ScriptedSourceRuntime(source: source, list: { input in
+            switch input.page {
+            case 1:
+                return ScriptedSourceRuntime.listOutput(ids: ["a", "b"], nextPage: 2)
+            case 2:
+                return ScriptedSourceRuntime.listOutput(ids: ["c"], nextPage: nil)
+            default:
+                throw TestPortError(reason: "unexpected page \(input.page)")
+            }
+        })
+        let viewModel: LibraryViewModel = Harness.makeLibraryViewModel(
+            database: database,
+            resolver: Harness.resolver([source.id: runtime])
+        )
+
+        let outcome: LibraryInitialLoadOutcome = await viewModel.loadIfNeeded()
+
+        #expect(outcome == .loaded)
+        #expect(viewModel.items.map(\.id) == ["a", "b"])
+        #expect(viewModel.canLoadNextPage)
+        #expect(viewModel.nextListPage == 2)
+        #expect(viewModel.shouldShowPaginationStatus)
+
+        await viewModel.loadNextPageIfNeeded()
+
+        #expect(viewModel.items.map(\.id) == ["a", "b", "c"])
+        #expect(viewModel.currentListPage == 2)
+        #expect(viewModel.canLoadNextPage == false)
+        #expect(viewModel.nextListPage == nil)
+        #expect(viewModel.isLoadingNextPage == false)
+        #expect(runtime.listInputs.map(\.page) == [1, 2])
+    }
+
+    @Test func comicListWithoutPaginationNeverAsksForANextPage() async throws {
+        let database: AppDatabase = try Harness.makeDatabase()
+        let source: Source = try Harness.makeComicSource()
+        try GRDBSourceRepository(database: database).saveSource(source)
+        let runtime: ScriptedSourceRuntime = ScriptedSourceRuntime(source: source, list: { _ in
+            ScriptedSourceRuntime.listOutput(ids: ["a"])
+        })
+        let viewModel: LibraryViewModel = Harness.makeLibraryViewModel(
+            database: database,
+            resolver: Harness.resolver([source.id: runtime])
+        )
+
+        _ = await viewModel.loadIfNeeded()
+        #expect(viewModel.canLoadNextPage == false)
+        #expect(viewModel.nextListPage == nil)
+
+        await viewModel.loadNextPageIfNeeded()
+
+        #expect(viewModel.items.map(\.id) == ["a"])
+        #expect(runtime.listInputs.map(\.page) == [1])
+    }
+
+    @Test func rssListIgnoresRuntimePagination() async throws {
+        let database: AppDatabase = try Harness.makeDatabase()
+        let source: Source = Harness.makeRSSSource()
+        try GRDBSourceRepository(database: database).saveSource(source)
+        let runtime: ScriptedSourceRuntime = ScriptedSourceRuntime(source: source, list: { _ in
+            ScriptedSourceRuntime.listOutput(ids: ["rss-1"], nextPage: 2)
+        })
+        let viewModel: LibraryViewModel = Harness.makeLibraryViewModel(
+            database: database,
+            resolver: Harness.resolver([source.id: runtime])
+        )
+
+        _ = await viewModel.loadIfNeeded()
+        #expect(viewModel.nextListPage == nil)
+        #expect(viewModel.shouldShowPaginationStatus == false)
+
+        await viewModel.loadNextPageIfNeeded()
+
+        #expect(runtime.listInputs.map(\.page) == [1])
+    }
 }
