@@ -215,6 +215,159 @@ struct ComicChapterAPIPaginationLoaderTests {
         #expect(loader.requestBodies.allSatisfy { $0.hasPrefix("id=7&") })
     }
 
+    // MARK: - 越界页把已聚合的目录一起丢掉（manmanapp 真实形状）
+
+    /// 中文注释：**越界页不是合同违规，是翻到头了。**
+    ///
+    /// 2026-09-12 真机实测：manmanapp 的 `works/comic-list-ajax.html` 在越界页回
+    /// `{"code":0}`——`data` 键**整个不存在**（10 字节）。解析层按 `itemPath` 判为 `missing`
+    /// 并抛合同错，这个错此前会冲出翻页循环，把**已经聚合好的前几页连同整次详情加载一起丢掉**，
+    /// 详情页因此显示「0 Chapters」。
+    ///
+    /// 本用例的三份响应都是从站点真取回来的字节：页 1 / 页 2 的 `id` 与 `title` 逐字取自
+    /// `id=1221036&page=1|2`（只去掉规则不读的 `cover_image_url` / `publish_time` /
+    /// `likes` / `is_read` 四个字段），越界页则是原样的 `{"code":0}`。
+    @Test func outOfRangePageWithoutDataKeyEndsPaginationAndKeepsAggregated() async throws {
+        let loader: PagedChapterAPIStub = PagedChapterAPIStub(
+            pages: [
+                "1": Self.manmanPage(Self.realPageOne),
+                "2": Self.manmanPage(Self.realPageTwo),
+                "3": Self.realOutOfRangePayload
+            ]
+        )
+        let sut: ComicSourceDetailLoader = ComicSourceDetailLoader(
+            pageContentLoader: loader,
+            comicRuleParser: CoreComicRuleSourceParser()
+        )
+
+        let content: ComicRuleParsedDetail = try await sut.execute(
+            source: Self.manmanSource(),
+            item: Self.item(idCode: "1221036")
+        )
+
+        #expect(content.chapters.count == 20)
+        #expect(content.chapters.first?.title == "完结篇 吻")
+        #expect(content.chapters.first?.url == "https://manmanapp.com/comic/detail-1439783.html")
+        #expect(content.chapters.last?.title == "第154话 好人有好报")
+        #expect(loader.requestBodies == [
+            "id=1221036&page=1",
+            "id=1221036&page=2",
+            "id=1221036&page=3"
+        ])
+    }
+
+    /// 中文注释：**第一页就抛合同错仍然是真错误**——那说明规则本身不对，不是翻到头了。
+    /// 这一条守住 `iteration > 0` 那一格：越界判定不能把「这条规则从来就取不到章节」
+    /// 吞成一份空目录。
+    @Test func contractErrorOnTheFirstPageStillThrows() async throws {
+        let loader: PagedChapterAPIStub = PagedChapterAPIStub(
+            pages: ["1": Self.realOutOfRangePayload]
+        )
+        let sut: ComicSourceDetailLoader = ComicSourceDetailLoader(
+            pageContentLoader: loader,
+            comicRuleParser: CoreComicRuleSourceParser()
+        )
+
+        await #expect(throws: (any Error).self) {
+            _ = try await sut.execute(
+                source: Self.manmanSource(),
+                item: Self.item(idCode: "1221036")
+            )
+        }
+    }
+
+    /// 中文注释：**网络类错误不算翻到头**，哪怕已经聚合到过条目也要往上抛。
+    /// 把它吞成「到头了」会让用户看到一份被静默截短的目录，却没有任何东西告诉他为什么少了。
+    @Test func networkErrorMidPaginationStillThrows() async throws {
+        let loader: FailingSecondPageStub = FailingSecondPageStub(
+            firstPage: Self.manmanPage(Self.realPageOne)
+        )
+        let sut: ComicSourceDetailLoader = ComicSourceDetailLoader(
+            pageContentLoader: loader,
+            comicRuleParser: CoreComicRuleSourceParser()
+        )
+
+        await #expect(throws: URLError.self) {
+            _ = try await sut.execute(
+                source: Self.manmanSource(),
+                item: Self.item(idCode: "1221036")
+            )
+        }
+    }
+
+    // MARK: - manmanapp 夹具（字节来自站点真实响应）
+
+    private static let realPageOne: [(String, String)] = [
+        ("1439783", "完结篇 吻"),
+        ("1439464", "番外篇 关于孩子"),
+        ("1439205", "番外篇 爱豆夏与小助理"),
+        ("1438741", "番外篇 父母爱情（下）"),
+        ("1438234", "番外篇 父母爱情（上）"),
+        ("1437407", "第168话 番外×2"),
+        ("1437125", "第167话 竹马"),
+        ("1436815", "第166话 雄鹰与种子（下）"),
+        ("1436480", "第165话 雄鹰与种子（上）"),
+        ("1436105", "第164话 没有完结")
+    ]
+
+    private static let realPageTwo: [(String, String)] = [
+        ("1435701", "第163话 大家的结局"),
+        ("1435176", "第162话 想要的幸福"),
+        ("1434497", "第161话 送礼物原来很简单"),
+        ("1433337", "第160话 我喜欢上你了！"),
+        ("1432772", "第159话 真相"),
+        ("1432495", "第158话 虚惊"),
+        ("1432175", "第157话 再遇"),
+        ("1430987", "第156话 夏商的愤怒"),
+        ("1430462", "第155话 逃脱与救援"),
+        ("1430021", "第154话 好人有好报")
+    ]
+
+    /// 中文注释：越界页的原文，10 字节，`data` 键不存在——这一串就是整条缺陷的源头。
+    private static let realOutOfRangePayload: String = #"{"code":0}"#
+
+    private static func manmanPage(_ chapters: [(String, String)]) -> String {
+        let items: [String] = chapters.map { id, title in
+            return #"{"id":"\#(id)","title":"\#(title)"}"#
+        }
+        return #"{"code":0,"data":[\#(items.joined(separator: ","))]}"#
+    }
+
+    /// 中文注释：逐项照抄 2026-09-11 发布的那份规则的 `detail.chapterAPI`
+    /// （`prototype-output-bc058-20260911`）：页码占位串在表单体上、章节地址由
+    /// `urlTemplate` 拼、响应按 `transportOnly` 判。
+    private static func manmanSource(maxPages: Int = 200) -> Source {
+        let chapterAPI: DetailChapterAPIRule = DetailChapterAPIRule(
+            url: "https://manmanapp.com/works/comic-list-ajax.html",
+            request: RequestConfig(
+                method: .post,
+                headers: [
+                    "Accept": "application/json, text/javascript, */*; q=0.01",
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Referer": "{item.detailURL}",
+                    "X-Requested-With": "XMLHttpRequest"
+                ],
+                body: RequestBody(
+                    contentType: "application/x-www-form-urlencoded",
+                    value: "id={item.idCode}&page={page}"
+                )
+            ),
+            itemPath: "data[]",
+            titlePath: "title",
+            urlTemplate: "https://manmanapp.com/comic/detail-{id}.html",
+            preferAPI: true,
+            responsePolicy: APIResponsePolicy(mode: .transportOnly),
+            pagination: ChapterAPIPaginationRule(
+                pageToken: "{page}",
+                start: 1,
+                stopWhen: ChapterAPIPaginationStopCondition.emptyItems,
+                count: nil,
+                maxPages: maxPages
+            )
+        )
+        return Self.source(chapterAPI: chapterAPI)
+    }
+
     // MARK: - 夹具
 
     private static func urlPagedSource(maxPages: Int = 5) -> Source {
@@ -284,6 +437,10 @@ struct ComicChapterAPIPaginationLoaderTests {
             preferAPI: true,
             pagination: pagination
         )
+        return Self.source(chapterAPI: chapterAPI)
+    }
+
+    private static func source(chapterAPI: DetailChapterAPIRule) -> Source {
         let rule: SiteRule = SiteRule(
             version: 1,
             site: nil,
@@ -383,5 +540,25 @@ private final class PagedChapterAPIStub: PageContentLoader, @unchecked Sendable 
             .split(separator: "&")
             .first { $0.hasPrefix("page=") }
             .map { String($0.dropFirst("page=".count)) }
+    }
+}
+
+/// 中文注释：第一页正常回内容，第二页抛网络错——用来钉「非合同类错误不算翻到头」。
+/// 不复用 `PagedChapterAPIStub` 的「夹具缺页」错误，是因为那个错的语义是夹具没写全，
+/// 与「站点断线」不是一回事，混用会让这条用例证明不了它要证的事。
+private final class FailingSecondPageStub: PageContentLoader, @unchecked Sendable {
+    private let firstPage: String
+    private(set) var requestCount: Int = 0
+
+    init(firstPage: String) {
+        self.firstPage = firstPage
+    }
+
+    func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
+        self.requestCount += 1
+        if self.requestCount == 1 {
+            return PageContentResponse(content: self.firstPage, finalURL: request.url)
+        }
+        throw URLError(.networkConnectionLost)
     }
 }
