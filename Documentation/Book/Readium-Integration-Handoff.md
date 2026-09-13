@@ -100,8 +100,8 @@ scripts/check-swiftsoup-override.sh
 xcodebuild -resolvePackageDependencies -project BrowseCraft.xcodeproj -scheme BrowseCraft
 ```
 
-尚未做过的验证：整包 build。Readium 3.11.0 要求 tools 5.10、iOS 15，本机 Xcode 26.6 理论满足，
-但 Readium 与 KSPlayer、Firebase 等在同一目标里链接是否有符号或资源冲突，要等第一次 build 才知道。
+整包 build 已于 2026-09-13 深夜通过一次（`xcodebuild -project BrowseCraft.xcodeproj -scheme BrowseCraft`，模拟器 iPhone 16 Pro，Debug，0 error）：
+Readium 与 KSPlayer、Firebase 在同一目标里链接没有符号或资源冲突。影视线与漫画线的真机复核（第五节第 5 条）仍待用户。
 
 ## 五、服务器接口就绪后的推进顺序
 
