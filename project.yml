@@ -63,6 +63,17 @@ packages:
   Nuke:
     url: https://github.com/kean/Nuke.git
     exactVersion: 12.8.0
+  # 中文注释：Readium 只用于读书 kind（EPUB/PDF/有声书 Navigator + Locator 书签）；漫画线仍是自研阅读器，
+  # 不接 ReadiumNavigator 的 CBZ 分支。锁定 3.x 稳定 tag，不跟 develop/4.0 alpha。
+  Readium:
+    url: https://github.com/readium/swift-toolkit.git
+    exactVersion: 3.11.0
+  # 中文注释：SwiftSoup 本地覆盖包。BrowseCraftCore 按 commit 锁定自家 fork（上游 2.13.5+ 的 text() 空白 bug
+  # 已修），而 Readium 依赖官方 scinfu/SwiftSoup，两者同标识不同 URL 会让 SPM 报冲突；Xcode 对同标识的本地包
+  # 会覆盖整张依赖图里的远程引用，于是 Readium 也被指到 fork。本地 checkout 必须与 Core 锁定的 commit 一致，
+  # 由 scripts/check-swiftsoup-override.sh 把关。它不被任何目标 import，SwiftSoup 的边界规则不变。
+  SwiftSoup:
+    path: ../SwiftSoup
 
 targets:
   BrowseCraft:
@@ -104,6 +115,15 @@ targets:
         product: Nuke
       - package: Nuke
         product: NukeUI
+      - package: Readium
+        product: ReadiumShared
+      - package: Readium
+        product: ReadiumStreamer
+      - package: Readium
+        product: ReadiumNavigator
+      # 中文注释：EPUB Navigator 需要本地 HTTP 服务承载资源，Readium 3.x 由这个 adapter 提供 GCDHTTPServer。
+      - package: Readium
+        product: ReadiumAdapterGCDWebServer
     configFiles:
       Debug: Config/CatalogEncryption.debug.xcconfig
       Release: Config/CatalogEncryption.release.xcconfig
@@ -151,6 +171,12 @@ targets:
         basedOnDependencyAnalysis: false
         script: |
           "${SRCROOT}/scripts/check-ad-configuration.sh"
+      # 中文注释：../SwiftSoup 本地覆盖包必须与 BrowseCraftCore 锁定的 fork commit 一致，否则 Xcode 构建
+      # 与 swift test 用的不是同一份解析器。
+      - name: Check SwiftSoup Override
+        basedOnDependencyAnalysis: false
+        script: |
+          "${SRCROOT}/scripts/check-swiftsoup-override.sh"
     postBuildScripts:
       - name: Upload Crashlytics Symbols
         basedOnDependencyAnalysis: false

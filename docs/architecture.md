@@ -133,6 +133,9 @@ Contract in the package, implementation in the app — preserve this shape.
 - **SwiftSoup containment in Core** — only the explicitly named DOM/discovery adapters may import
   it; RSS and rule-loading paths go through their boundary protocols.
 
+`scripts/check-swiftsoup-override.sh` runs next to it and fails the build when the local
+`../SwiftSoup` override is missing, dirty, or not at the commit BrowseCraftCore pins (§8).
+
 `scripts/check-ad-configuration.sh` fails a PROD archive that still carries Google's sample
 rewarded ad unit, and only warns elsewhere. Archiving for TestFlight therefore uses the
 **TEST BrowseCraft** scheme (archive config `TestFlight`, environment TEST); the plain
@@ -214,7 +217,27 @@ Every third-party dependency is a Swift package. There is no CocoaPods step,
 `project.yml` declares the packages;
 `BrowseCraft.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` is the committed
 lock file, and the rest of the generated project stays ignored. Everything is pinned to an exact
-version except KSPlayer, which is pinned to a commit because that repository publishes no tags.
+version except KSPlayer, which is pinned to a commit because that repository publishes no tags,
+and SwiftSoup, which is pinned to a commit of our own fork (below).
+
+**Readium** (`readium/swift-toolkit`, exact 3.x tag) serves the book kind only: EPUB/PDF/audiobook
+navigators and the `Locator` model for bookmarks and resume positions. The comic reader stays the
+in-house SwiftUI reader; Readium's CBZ navigator is not wired. The app links `ReadiumShared`,
+`ReadiumStreamer`, `ReadiumNavigator` and `ReadiumAdapterGCDWebServer` (the local HTTP server the
+EPUB navigator needs).
+
+**SwiftSoup fork and local override.** Readium requires SwiftSoup ≥ 2.13.5, but upstream 2.13.5
+through master (as of 2026-09-13) drops the whitespace between adjacent inline elements whenever the
+preceding text is non-ASCII (`appendNormalisedWhitespaceBytes` returns early without resetting
+`lastWasWhite`), which glues together tag/cast lists on every CJK site. BrowseCraftCore therefore
+pins `x65396731/SwiftSoup` (upstream master + a three-line fix) by commit. Because Readium refers to
+`scinfu/SwiftSoup` by URL and SwiftPM refuses two URLs for the same package identity, `project.yml`
+also adds `../SwiftSoup` as a local package: Xcode lets a local package override every remote
+reference to the same identity, so Readium is served by the fork too. The local checkout must sit
+at the commit Core pins; `scripts/check-swiftsoup-override.sh` verifies that (and a clean working
+tree) as a pre-build phase. When upstream ships the fix, switch Core back to the official URL,
+remove the local package and the script; the inline-whitespace gate test in
+`RuleExtractionEngineTests` guards the behaviour either way.
 
 Alamofire, GRDB and Nuke link statically into the app binary, so no `@rpath` framework embedding is
 involved — the "linked but not embedded" failure mode (ITMS-90863, dyld crash on launch) cannot
