@@ -7,7 +7,7 @@ import SwiftUI
 struct LibraryView: View {
     @Bindable var viewModel: LibraryViewModel
     let contentViewModelFactory: LibraryContentViewModelFactory
-    /// 中文注释：本地书架不走 Source 分流轴，从工具栏的「Books」进入（Documentation/Book/Local-Book-Import-Design.md）。
+    /// 中文注释：本地书架不走 Source 分流轴；入口已藏（Documentation/Book/Local-Book-Import-Design.md 第八节），这两个参数留给站点抓取路接线时使用。
     var bookShelfViewModel: BookShelfViewModel? = nil
     var makeBookReaderViewModel: (@MainActor (LocalBook) -> BookReaderViewModel)? = nil
     @State private var selectedComicDestination: LibraryComicDestination?
@@ -64,15 +64,8 @@ struct LibraryView: View {
             .navigationDestination(for: LibraryBookRoute.self) { route in
                 self.bookDestination(for: route)
             }
-            .toolbar {
-                if self.bookShelfViewModel != nil {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        NavigationLink(value: LibraryBookRoute.shelf) {
-                            Label("Books", systemImage: "books.vertical")
-                        }
-                    }
-                }
-            }
+            // 中文注释：本地书架入口按用户 2026-09-14 裁决不对用户暴露（Documentation/Book/Local-Book-Import-Design.md 第八节）；
+            // LibraryBookRoute 与阅读器保留给站点抓取路复用，RootView 不再装配 bookShelfViewModel。
             .toolbar {
                 // 中文注释：搜索与登录共用左上角一个入口：任一可用就显示菜单，两个都没有就不占位。
                 if let loginState: LibrarySourceLoginState = self.viewModel.selectedSourceLoginState,
