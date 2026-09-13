@@ -1,7 +1,7 @@
 # 读书 kind（book）App 侧接线（立项，待拍板）
 
 更新时间：2026-09-13
-状态：**立项，未实施**——本文只定范围、顺序、改动清单、兼容风险与验收；每一批实施各自另拍板
+状态：**立项，未实施**——顺序与发布策略已由用户裁决（第四、五节）；每一批实施各自另拍板
 影响范围：BrowseCraftAPIKit、BrowseCraftDomain、BrowseCraftCore、BrowseCraftRuntime、BrowseCraft 五个仓库；影视线与漫画线代码零改动
 前置：服务器接线已部署（PortalCore `b9fc2ff`，2026-09-13 深夜），`POST /v1/rule-generations` 已接受 `sourceKind: book`；Readium 3.11.0 依赖已入库（BrowseCraft `7ad27044`），**整包尚未 build 过**
 
@@ -51,11 +51,11 @@
 
 **不在范围**：本地文件导入（EPUB / PDF / M4B）、PDF Navigator、`text-api` 站（生成侧只有合成固定输入）、带签名音频、VIP 章正文为空的处理（`BC-BOOK-039` 无正例）。
 
-## 四、顺序上的一个待裁决
+## 四、顺序（用户 2026-09-13 裁决：先本地文件导入闭合阅读器）
 
-交接单第五节建议**先做本地文件导入把阅读器与书签闭合，再接站点抓取**。本文按「直接接站点抓取」写，理由是本地文件导入不在用户立的项里，且 RWPM 装配是两条路共用的中间层——先做批次 A / B 不妨碍以后补本地导入。若用户裁决先做本地导入，则批次 B 的装配器改为先接本地 `Publication`，站点路后补。
+交接单第五节建议**先做本地文件导入把阅读器与书签闭合，再接站点抓取**。**用户裁决按交接单的顺序：先用本地 EPUB / M4B 把 Readium 阅读器与 `Locator` 书签跑通，站点抓取路后补。**因此实施顺序改为：① 首次整包 build（Readium 链接进来后从未 build 过）→ ② 本地文件导入（另出设计节：文件来源、`Publication` 打开、EPUB 与 Audio Navigator、书签落库）→ ③ 本文批次 A → B → C。批次 B 的装配器先接本地 `Publication`，站点路复用同一个 Navigator 与书签模型。
 
-## 五、兼容与发布策略（待裁决）
+## 五、兼容与发布策略（用户 2026-09-13 裁决：不发布 + 服务器加 `kinds` 过滤）
 
 目录列表接口在旧版 App 里整表解码、kind 封闭，book 一旦发布即让旧版目录整体失效。三条路：
 
@@ -63,7 +63,7 @@
 2. **服务器过滤**：PortalCore 目录接口加 `kinds` 查询参数，缺省只返回 `video, comic`；新版 App 显式带 `kinds=video,comic,book`。改动在 PortalCore（无鉴权端点，属用户有意设计，参数不改变这一点）。
 3. **两者都做**：先 1 后 2。
 
-推荐 3：1 立即生效、零改动；2 让旧版永远安全，不依赖用户升级。
+**用户裁决第 3 条**：1 立即生效（book catalog 不发布进目录，已是现状）；2 由 PortalCore 立项实施——目录接口加 `kinds` 查询参数，缺省只返回 `video, comic`，新版 App 显式带 `kinds=video,comic,book`（设计与实施记录在 PortalCore `docs/architecture/rule-generation-migration-plan.md` §14）。
 
 ## 六、验证命令
 
