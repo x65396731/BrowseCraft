@@ -69,19 +69,19 @@ fail_if_imported() {
 
 fail_if_imported \
   "$APP_ROOT/Domain" \
-  'UIKit|SwiftUI|StoreKit|GRDB|Alamofire|Nuke|SwiftSoup|BrowseCraftAPIKit|WebKit|AVFoundation|CloudKit|Combine' \
+  'UIKit|SwiftUI|StoreKit|GRDB|Alamofire|Nuke|SwiftSoup|BrowseCraftAPIKit|WebKit|AVFoundation|CloudKit|Combine|ReadiumShared|ReadiumStreamer|ReadiumNavigator|ReadiumAdapterGCDWebServer|MediaPlayer' \
   'Domain must remain framework-agnostic.'
 
 if [[ -d "$DOMAIN_PACKAGE_ROOT" ]]; then
 fail_if_imported \
   "$DOMAIN_PACKAGE_ROOT" \
-  'UIKit|SwiftUI|StoreKit|GRDB|Alamofire|Nuke|SwiftSoup|BrowseCraftAPIKit|WebKit|AVFoundation|CloudKit|Combine' \
+  'UIKit|SwiftUI|StoreKit|GRDB|Alamofire|Nuke|SwiftSoup|BrowseCraftAPIKit|WebKit|AVFoundation|CloudKit|Combine|ReadiumShared|ReadiumStreamer|ReadiumNavigator|ReadiumAdapterGCDWebServer|MediaPlayer' \
   'BrowseCraftDomain may depend only on Foundation and BrowseCraftCore.'
 fi
 
 fail_if_imported \
   "$APP_ROOT/Application" \
-  'UIKit|SwiftUI|StoreKit|GRDB|Alamofire|Nuke|SwiftSoup|BrowseCraftAPIKit|WebKit|AVFoundation|CloudKit|Combine' \
+  'UIKit|SwiftUI|StoreKit|GRDB|Alamofire|Nuke|SwiftSoup|BrowseCraftAPIKit|WebKit|AVFoundation|CloudKit|Combine|ReadiumShared|ReadiumStreamer|ReadiumNavigator|ReadiumAdapterGCDWebServer|MediaPlayer' \
   'Application must depend on ports and domain values, not UI or infrastructure frameworks.'
 
 # Import checks cannot see references between layers of the same module, so the

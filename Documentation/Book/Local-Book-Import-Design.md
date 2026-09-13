@@ -1,7 +1,7 @@
 # 本地书籍导入与 Readium 阅读器（设计，待拍板）
 
 更新时间：2026-09-13
-状态：**设计，未实施**——用户裁决「先本地文件导入把阅读器与 `Locator` 书签闭合，站点抓取路后补」；本文按批次拆，每批单独拍板
+状态：**B0 实施中**（2026-09-13 用户裁决开始 B0；待裁决第 1、2 项已定：History 页 B2 不纳入、进度与书签首批不上 CloudKit）；其余批次单独拍板
 影响范围：BrowseCraft 五层（Domain / Application / Infrastructure / Features / App）与 `scripts/check-architecture-boundaries.sh`；BrowseCraftCore、Domain 包、Runtime、APIKit **零改动**；漫画线与影视线代码零改动
 前置：Readium 3.11.0 依赖已入库且首次整包 build 已通过（2026-09-13，0 error）；影视线与漫画线的真机复核仍待用户
 
@@ -99,8 +99,8 @@ xcodebuild -project BrowseCraft.xcodeproj -scheme BrowseCraft -destination 'plat
 
 ## 六、待裁决
 
-1. **History 页是否纳入本地书**：`ReadingHistoryEntry.Kind` 加 `.book` 会牵动 `HistoryView` / `HistoryEntryRowView` 等既有分流点。建议 B2 不纳入，站点路接上时一起做。
-2. **进度与书签是否上 CloudKit**：建议首批不上（第 3.3 节的理由）。
+1. **History 页是否纳入本地书**：**用户裁决 B2 不纳入**，站点路接上时一起做（`ReadingHistoryEntry.Kind` 加 `.book` 会牵动 `HistoryView` / `HistoryEntryRowView` 等既有分流点）。
+2. **进度与书签是否上 CloudKit**：**用户裁决首批不上**（第 3.3 节的理由）。
 3. **站点书与本地书的作品标识**：站点书没有 `LocalBook`，进度表的外键要从 `bookID: UUID` 扩为「本地 UUID 或 `sourceID + itemID`」——建议在批次 A 时改，本文先按本地 UUID。
 4. **PDF**：本地 PDF 用 `PDFNavigatorViewController` 成本很低，但读书规范把 PDF 排除在站点路之外；是否作为本地专属格式接，由用户定。
 

@@ -120,7 +120,9 @@ Contract in the package, implementation in the app — preserve this shape.
 `scripts/check-architecture-boundaries.sh` runs as a pre-build phase and fails the build on:
 
 - **Framework leaks** — `Domain` and `Application` may not import UIKit, SwiftUI, StoreKit, GRDB,
-  Alamofire, Nuke, SwiftSoup, WebKit, AVFoundation, CloudKit, Combine, or APIKit.
+  Alamofire, Nuke, SwiftSoup, WebKit, AVFoundation, CloudKit, Combine, MediaPlayer, the Readium
+  modules (`ReadiumShared` / `ReadiumStreamer` / `ReadiumNavigator` / `ReadiumAdapterGCDWebServer`),
+  or APIKit. Readium `Locator` values cross those layers only as opaque JSON strings.
 - **APIKit escape** — `import BrowseCraftAPIKit` is allowed only under `Infrastructure/` and in
   `AppContainer.swift`.
 - **Cross-layer type references** — every layer lives in one module, so import checks are blind to

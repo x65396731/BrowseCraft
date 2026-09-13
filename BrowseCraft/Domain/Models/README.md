@@ -8,6 +8,7 @@ Domain models are grouped by the business area that owns the data shape.
 - `Library/`: persisted library state.
 - `Rule/`: rule-backed source and candidate analysis data contracts.
 - `Settings/`: persisted or selectable app settings models.
+- `Book/`: locally imported books (EPUB / audiobook), their reading progress and bookmarks; positions are opaque Readium `Locator` JSON.
 
 Naming rules:
 
