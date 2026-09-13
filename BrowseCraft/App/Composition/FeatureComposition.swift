@@ -9,6 +9,7 @@ final class FeatureComposition {
     let sourceSelectionStore: SourceSelectionStore
     let sourcesFeatureFactory: SourcesFeatureFactory
     let libraryFeatureFactory: LibraryFeatureFactory
+    let bookFeatureFactory: BookFeatureFactory
     let favoritesFeatureFactory: FavoritesFeatureFactory
     let historyFeatureFactory: HistoryFeatureFactory
     let settingsFeatureFactory: SettingsFeatureFactory
@@ -38,6 +39,10 @@ final class FeatureComposition {
             )
         )
         self.libraryFeatureFactory = libraryFeatureFactory
+        self.bookFeatureFactory = BookFeatureFactory(
+            database: database,
+            activeAppUser: account.activeAppUserStore
+        )
 
         self.sourcesFeatureFactory = SourcesFeatureFactory(
             database: database,

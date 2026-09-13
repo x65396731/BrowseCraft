@@ -358,3 +358,20 @@
 "Try another keyword." = "换个关键词试试。";
 "Enter a keyword to search this source." = "输入关键词，在这个来源里搜索。";
 "Clear" = "清除";
+
+/* 本地书籍（书架、导入、EPUB 阅读器） */
+"Books" = "书籍";
+"Import Book" = "导入书籍";
+"No books yet" = "还没有书籍";
+"Import EPUB or audiobook files from Files." = "从「文件」导入 EPUB 或有声书文件。";
+"Importing…" = "正在导入…";
+"Import failed" = "导入失败";
+"Unsupported file" = "不支持的文件";
+"Protected book" = "受保护的书籍";
+"Open failed" = "打开失败";
+"Audiobook" = "有声书";
+"Audiobook player is coming in a later batch." = "有声书播放器在后续批次接入。";
+"Contents" = "目录";
+"Add Bookmark" = "添加书签";
+"Add a bookmark at the current page." = "在当前页添加一个书签。";
+"Delete" = "删除";

@@ -124,6 +124,16 @@ final class AppContainer {
         return self.features.libraryFeatureFactory.makeViewModel()
     }
 
+    @MainActor
+    func makeBookShelfViewModel() -> BookShelfViewModel {
+        return self.features.bookFeatureFactory.makeShelfViewModel()
+    }
+
+    @MainActor
+    func makeBookReaderViewModel(book: LocalBook) -> BookReaderViewModel {
+        return self.features.bookFeatureFactory.makeReaderViewModel(book: book)
+    }
+
     func makeFavoritesViewModel() -> FavoritesViewModel {
         return self.features.favoritesFeatureFactory.makeViewModel()
     }

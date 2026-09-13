@@ -358,3 +358,20 @@
 "Try another keyword." = "Try another keyword.";
 "Enter a keyword to search this source." = "Enter a keyword to search this source.";
 "Clear" = "Clear";
+
+/* 本地书籍（书架、导入、EPUB 阅读器） */
+"Books" = "Books";
+"Import Book" = "Import Book";
+"No books yet" = "No books yet";
+"Import EPUB or audiobook files from Files." = "Import EPUB or audiobook files from Files.";
+"Importing…" = "Importing…";
+"Import failed" = "Import failed";
+"Unsupported file" = "Unsupported file";
+"Protected book" = "Protected book";
+"Open failed" = "Open failed";
+"Audiobook" = "Audiobook";
+"Audiobook player is coming in a later batch." = "Audiobook player is coming in a later batch.";
+"Contents" = "Contents";
+"Add Bookmark" = "Add Bookmark";
+"Add a bookmark at the current page." = "Add a bookmark at the current page.";
+"Delete" = "Delete";

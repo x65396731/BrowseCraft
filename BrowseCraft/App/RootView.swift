@@ -24,6 +24,8 @@ struct RootView: View {
     @State private var sourcesViewModel: SourcesViewModel
     @State private var favoritesViewModel: FavoritesViewModel
     @State private var libraryViewModel: LibraryViewModel
+    @State private var bookShelfViewModel: BookShelfViewModel
+    private let makeBookReaderViewModel: @MainActor (LocalBook) -> BookReaderViewModel
     @State private var historyViewModel: HistoryViewModel
     @State private var settingsViewModel: SettingsViewModel
     @State private var cloudSyncSettingsViewModel: CloudSyncSettingsViewModel
@@ -43,6 +45,10 @@ struct RootView: View {
         _sourcesViewModel = State(wrappedValue: sourcesViewModel)
         _favoritesViewModel = State(wrappedValue: container.makeFavoritesViewModel())
         _libraryViewModel = State(wrappedValue: libraryViewModel)
+        _bookShelfViewModel = State(wrappedValue: container.makeBookShelfViewModel())
+        self.makeBookReaderViewModel = { book in
+            return container.makeBookReaderViewModel(book: book)
+        }
         _historyViewModel = State(wrappedValue: container.makeHistoryViewModel())
         _settingsViewModel = State(wrappedValue: container.makeSettingsViewModel())
         _cloudSyncSettingsViewModel = State(
@@ -145,7 +151,9 @@ struct RootView: View {
 
             LibraryView(
                 viewModel: self.libraryViewModel,
-                contentViewModelFactory: self.libraryContentViewModelFactory
+                contentViewModelFactory: self.libraryContentViewModelFactory,
+                bookShelfViewModel: self.bookShelfViewModel,
+                makeBookReaderViewModel: self.makeBookReaderViewModel
             )
                 .tabItem {
                     Image(systemName: "square.grid.2x2")

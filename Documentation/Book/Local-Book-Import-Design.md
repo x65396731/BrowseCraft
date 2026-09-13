@@ -1,7 +1,7 @@
 # 本地书籍导入与 Readium 阅读器（设计，待拍板）
 
 更新时间：2026-09-13
-状态：**B0、B1 已落地**（2026-09-13；待裁决第 1、2 项已定：History 页 B2 不纳入、进度与书签首批不上 CloudKit）；B2 起单独拍板。B1 备注：嗅探器保留原文件扩展名（m4a / m4b 不改成 Readium 的规范名 mp4）；`ReadiumBookEnvironment.shared` 持有 HTTP 客户端、资产取回器、打开器与懒建的 `GCDHTTPServer`；夹具在 `BrowseCraftTests/Resources/Book/`（最小 EPUB、2 秒 mp3、带元数据 m4a）
+状态：**B0、B1、B2 已落地**（2026-09-13 ~ 09-14；待裁决第 1、2 项已定：History 页 B2 不纳入、进度与书签首批不上 CloudKit）；B3 另拍板。B2 在模拟器上走通了导入 → 书架 → 阅读器 → 目录跳转 → 书签 → 退出重开续读（iPhone 16 Pro），**真机验收仍待用户**。B2 教训：书架与阅读器的两级目的地必须合成一个路由枚举在 Library 栈根声明一次（`LibraryBookRoute`）——书架用 `isPresented` 推入后在内部再声明第二级 `navigationDestination`，SwiftUI 报「declared earlier on the stack」并把推入弹回。B1 备注：嗅探器保留原文件扩展名（m4a / m4b 不改成 Readium 的规范名 mp4）；`ReadiumBookEnvironment.shared` 持有 HTTP 客户端、资产取回器、打开器与懒建的 `GCDHTTPServer`；夹具在 `BrowseCraftTests/Resources/Book/`（最小 EPUB、2 秒 mp3、带元数据 m4a）
 影响范围：BrowseCraft 五层（Domain / Application / Infrastructure / Features / App）与 `scripts/check-architecture-boundaries.sh`；BrowseCraftCore、Domain 包、Runtime、APIKit **零改动**；漫画线与影视线代码零改动
 前置：Readium 3.11.0 依赖已入库且首次整包 build 已通过（2026-09-13，0 error）；影视线与漫画线的真机复核仍待用户
 
@@ -68,7 +68,7 @@ BookBookmark         id: UUID, bookID: UUID, userID: String, locatorJSON: String
 
 ### 3.4 Features
 
-- `Features/Library/Book/`：`BookShelfView`（Library 新增一栏；`fileImporter` 允许的 `UTType`：`epub`、`mp3`、`mpeg4Audio`（`m4a / m4b`）、`zip`，多选）、`BookShelfViewModel`。
+- `Features/Library/Book/`：`BookShelfView`（从 Library 工具栏的「Books」进入；`fileImporter` 允许的 `UTType`：`epub`、`mp3`、`mpeg4Audio`（`m4a / m4b`）、`zip`，多选）、`BookShelfViewModel`、`LibraryBookRoute`（书架 / 某本书两级路由，只在 `LibraryView` 栈根声明）。
 - `Features/Library/Book/Reader/BookReaderView`：`UIViewControllerRepresentable` 承载 `EPUBNavigatorViewController`；`navigator(_:locationDidChange:)` 节流（1 秒）后调保存用例，退出时再保存一次；工具栏：目录、书签、字号 / 主题（`EPUBPreferences`）。
 - `Features/Library/Book/Player/AudiobookPlayerView`：自建 UI 包 `AudioNavigator`——播放 / 暂停、进度条（`playbackInfo`）、±15 秒、章节列表（`readingOrder`）、倍速（`AudioPreferences`）；后台播放要在 `project.yml` 加 `UIBackgroundModes: audio`，并接 `MPRemoteCommandCenter` / Now Playing（Infrastructure 适配，AVFoundation 只许在 Infrastructure / Features）。
 - 书签：两种阅读器共用 `BookBookmarksSheet`，点选即 `go(to:)`。

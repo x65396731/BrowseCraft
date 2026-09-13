@@ -7,6 +7,9 @@ import SwiftUI
 struct LibraryView: View {
     @Bindable var viewModel: LibraryViewModel
     let contentViewModelFactory: LibraryContentViewModelFactory
+    /// 中文注释：本地书架不走 Source 分流轴，从工具栏的「Books」进入（Documentation/Book/Local-Book-Import-Design.md）。
+    var bookShelfViewModel: BookShelfViewModel? = nil
+    var makeBookReaderViewModel: (@MainActor (LocalBook) -> BookReaderViewModel)? = nil
     @State private var selectedComicDestination: LibraryComicDestination?
 
     var body: some View {
@@ -57,6 +60,18 @@ struct LibraryView: View {
                     source: destination.source
                 )
                 .id(destination.id)
+            }
+            .navigationDestination(for: LibraryBookRoute.self) { route in
+                self.bookDestination(for: route)
+            }
+            .toolbar {
+                if self.bookShelfViewModel != nil {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        NavigationLink(value: LibraryBookRoute.shelf) {
+                            Label("Books", systemImage: "books.vertical")
+                        }
+                    }
+                }
             }
             .toolbar {
                 // 中文注释：搜索与登录共用左上角一个入口：任一可用就显示菜单，两个都没有就不占位。
@@ -305,6 +320,33 @@ struct LibraryView: View {
         #endif
 
         self.selectedComicDestination = LibraryComicDestination(item: item, source: source)
+    }
+
+    /// 中文注释：本地书的两级目的地都在这里解析（书架 → 某本书），见 LibraryBookRoute 的注释。
+    @ViewBuilder
+    private func bookDestination(for route: LibraryBookRoute) -> some View {
+        switch route {
+        case .shelf:
+            if let bookShelfViewModel: BookShelfViewModel = self.bookShelfViewModel {
+                BookShelfView(viewModel: bookShelfViewModel)
+            }
+        case .book(let book):
+            switch book.format {
+            case .epub:
+                if let makeBookReaderViewModel: @MainActor (LocalBook) -> BookReaderViewModel = self.makeBookReaderViewModel {
+                    BookReaderView(viewModel: makeBookReaderViewModel(book))
+                        .id(book.id)
+                }
+            case .audiobook:
+                // 中文注释：有声书播放器在 B3 接入（Documentation/Book/Local-Book-Import-Design.md 第四节）。
+                EmptyStateView(
+                    systemImage: "headphones",
+                    title: NSLocalizedString("Audiobook", comment: "有声书"),
+                    message: NSLocalizedString("Audiobook player is coming in a later batch.", comment: "有声书播放器待接入")
+                )
+                .navigationTitle(book.title)
+            }
+        }
     }
 
     @ViewBuilder
