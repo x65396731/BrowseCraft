@@ -34,7 +34,7 @@ struct BookReaderView: View {
                 }
             }
         }
-        .navigationTitle(self.viewModel.book.title)
+        .navigationTitle(self.viewModel.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .toolbar {

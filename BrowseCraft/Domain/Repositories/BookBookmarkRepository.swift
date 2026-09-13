@@ -6,4 +6,5 @@ protocol BookBookmarkRepository: Sendable {
     func fetchBookmarks(bookID: UUID, userID: String) throws -> [BookBookmark]
     func saveBookmark(_ bookmark: BookBookmark) throws
     func deleteBookmark(id: UUID, userID: String) throws
+    func deleteBookmarks(bookID: UUID, userID: String) throws
 }

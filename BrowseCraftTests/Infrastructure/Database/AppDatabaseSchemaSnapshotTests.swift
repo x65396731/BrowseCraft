@@ -62,10 +62,10 @@ struct AppDatabaseSchemaSnapshotTests {
     }
 
     // 中文注释：v1.initial-schema 快照（取自 GRDB 6.24.1 生成的 sqlite_master），叠加 v2.sources-add-origin
-    // （SQLite 的 ALTER TABLE ADD COLUMN 把新列插在列定义末尾、表约束之前）与 v3.local-books（三张表、三个索引）。
+    // （SQLite 的 ALTER TABLE ADD COLUMN 把新列插在列定义末尾、表约束之前）与 v3.local-books（三张表、三个索引）、v4.book-progress-detached-from-local-books（进度与书签两张表重建、去掉对 local_books 的外键）。
     private static let expectedSchema: String = """
-table|book_bookmarks|CREATE TABLE "book_bookmarks" ("id" TEXT PRIMARY KEY, "bookID" TEXT NOT NULL REFERENCES "local_books"("id") ON DELETE CASCADE, "userID" TEXT NOT NULL REFERENCES "users"("id") ON DELETE CASCADE, "locatorJSON" TEXT NOT NULL, "title" TEXT, "snippet" TEXT, "createdAt" DATETIME NOT NULL)
-table|book_reading_progress|CREATE TABLE "book_reading_progress" ("bookID" TEXT NOT NULL REFERENCES "local_books"("id") ON DELETE CASCADE, "userID" TEXT NOT NULL REFERENCES "users"("id") ON DELETE CASCADE, "locatorJSON" TEXT NOT NULL, "totalProgression" DOUBLE, "updatedAt" DATETIME NOT NULL, PRIMARY KEY ("bookID", "userID"))
+table|book_bookmarks|CREATE TABLE "book_bookmarks" ("id" TEXT PRIMARY KEY, "bookID" TEXT NOT NULL, "userID" TEXT NOT NULL REFERENCES "users"("id") ON DELETE CASCADE, "locatorJSON" TEXT NOT NULL, "title" TEXT, "snippet" TEXT, "createdAt" DATETIME NOT NULL)
+table|book_reading_progress|CREATE TABLE "book_reading_progress" ("bookID" TEXT NOT NULL, "userID" TEXT NOT NULL REFERENCES "users"("id") ON DELETE CASCADE, "locatorJSON" TEXT NOT NULL, "totalProgression" DOUBLE, "updatedAt" DATETIME NOT NULL, PRIMARY KEY ("bookID", "userID"))
 table|cloud_account_partition_preparations|CREATE TABLE "cloud_account_partition_preparations" ("accountScope" TEXT PRIMARY KEY, "userID" TEXT NOT NULL REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE, "decision" TEXT NOT NULL, "preparedAt" DATETIME NOT NULL, "initialSyncCompletedAt" DATETIME)
 table|cloud_app_user_association_attestations|CREATE TABLE "cloud_app_user_association_attestations" ("accountScope" TEXT PRIMARY KEY, "userID" TEXT NOT NULL REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE, "associatedAt" DATETIME NOT NULL)
 table|cloud_record_metadata|CREATE TABLE "cloud_record_metadata" ("accountScope" TEXT NOT NULL, "recordName" TEXT NOT NULL, "systemFields" BLOB NOT NULL, "updatedAt" DATETIME NOT NULL, PRIMARY KEY ("accountScope", "recordName"))

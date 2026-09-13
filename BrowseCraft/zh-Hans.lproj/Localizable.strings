@@ -376,3 +376,8 @@
 "Add a bookmark at the current page." = "在当前页添加一个书签。";
 "Delete" = "删除";
 "book_preflight_navigation_title" = "书籍";
+"Chapters" = "章节";
+"Start Reading" = "开始阅读";
+"Continue Reading" = "继续阅读";
+"Loading chapters…" = "正在加载章节…";
+"Book sources can be added from the Book source form." = "书籍来源请从书籍来源表单添加。";

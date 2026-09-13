@@ -10,7 +10,8 @@ enum AppDatabaseMigrations {
     static let identifiers: [String] = [
         AppDatabaseSchemaV1.identifier,
         Self.sourcesAddOriginIdentifier,
-        Self.localBooksIdentifier
+        Self.localBooksIdentifier,
+        Self.bookProgressDetachedIdentifier
     ]
 
     /// 中文注释：v2——sources 增加 `origin` 列，记「来自个人生成」等出身，本地副本才能随服务器裁决清理。
@@ -19,6 +20,10 @@ enum AppDatabaseMigrations {
     /// 中文注释：v3——本地书三张表（书、续读位置、书签），见 Documentation/Book/Local-Book-Import-Design.md。
     /// 本地书不是 Source，也不进 CloudKit；位置字段是 Readium Locator 的 JSON。
     static let localBooksIdentifier: String = "v3.local-books"
+
+    /// 中文注释：v4——续读位置与书签不再外键到 local_books：站点书（规则来源里的作品）没有 local_books 行，
+    /// 作品标识改为「本地 UUID 或 sourceID + 作品地址派生的 UUID」（设计第六节第 3 条）。SQLite 去外键只能重建表。
+    static let bookProgressDetachedIdentifier: String = "v4.book-progress-detached-from-local-books"
 
     static func makeMigrator() -> DatabaseMigrator {
         var migrator: DatabaseMigrator = DatabaseMigrator()
@@ -88,6 +93,53 @@ enum AppDatabaseMigrations {
                 table.column("snippet", .text)
                 table.column("createdAt", .datetime).notNull()
             }
+            try database.execute(
+                sql: """
+                CREATE INDEX idx_book_bookmarks_book_created_at
+                ON book_bookmarks(bookID, createdAt DESC)
+                """
+            )
+        }
+
+        migrator.registerMigration(Self.bookProgressDetachedIdentifier) { database in
+            try database.create(table: "book_reading_progress_v4") { table in
+                table.column("bookID", .text).notNull()
+                table.column("userID", .text)
+                    .notNull()
+                    .references("users", column: "id", onDelete: .cascade)
+                table.column("locatorJSON", .text).notNull()
+                table.column("totalProgression", .double)
+                table.column("updatedAt", .datetime).notNull()
+                table.primaryKey(["bookID", "userID"])
+            }
+            try database.execute(
+                sql: """
+                INSERT INTO book_reading_progress_v4 (bookID, userID, locatorJSON, totalProgression, updatedAt)
+                SELECT bookID, userID, locatorJSON, totalProgression, updatedAt FROM book_reading_progress
+                """
+            )
+            try database.drop(table: "book_reading_progress")
+            try database.rename(table: "book_reading_progress_v4", to: "book_reading_progress")
+
+            try database.create(table: "book_bookmarks_v4") { table in
+                table.column("id", .text).primaryKey()
+                table.column("bookID", .text).notNull()
+                table.column("userID", .text)
+                    .notNull()
+                    .references("users", column: "id", onDelete: .cascade)
+                table.column("locatorJSON", .text).notNull()
+                table.column("title", .text)
+                table.column("snippet", .text)
+                table.column("createdAt", .datetime).notNull()
+            }
+            try database.execute(
+                sql: """
+                INSERT INTO book_bookmarks_v4 (id, bookID, userID, locatorJSON, title, snippet, createdAt)
+                SELECT id, bookID, userID, locatorJSON, title, snippet, createdAt FROM book_bookmarks
+                """
+            )
+            try database.drop(table: "book_bookmarks")
+            try database.rename(table: "book_bookmarks_v4", to: "book_bookmarks")
             try database.execute(
                 sql: """
                 CREATE INDEX idx_book_bookmarks_book_created_at

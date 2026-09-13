@@ -41,7 +41,8 @@ final class FeatureComposition {
         self.libraryFeatureFactory = libraryFeatureFactory
         self.bookFeatureFactory = BookFeatureFactory(
             database: database,
-            activeAppUser: account.activeAppUserStore
+            activeAppUser: account.activeAppUserStore,
+            runtimeResolver: runtime.sourceRuntimeFactory
         )
 
         self.sourcesFeatureFactory = SourcesFeatureFactory(
@@ -118,6 +119,12 @@ final class FeatureComposition {
             },
             makeVideoDetail: { [libraryFeatureFactory] item, source in
                 libraryFeatureFactory.makeVideoDetailViewModel(item: item, source: source)
+            },
+            makeBookSiteDetail: { [bookFeatureFactory] item, source in
+                bookFeatureFactory.makeSiteDetailViewModel(item: item, source: source)
+            },
+            makeBookSiteReader: { [bookFeatureFactory] selection in
+                bookFeatureFactory.makeSiteReaderViewModel(selection: selection)
             }
         )
     }

@@ -64,9 +64,11 @@ struct BookReaderViewModelTests {
         let progress: ReaderInMemoryProgressRepository = ReaderInMemoryProgressRepository()
         let bookmarks: ReaderInMemoryBookmarkRepository = ReaderInMemoryBookmarkRepository()
         let viewModel: BookReaderViewModel = BookReaderViewModel(
-            book: book,
+            subject: .local(book),
             userID: "u1",
-            openUseCase: OpenLocalBookUseCase(repository: books, progressRepository: progress, fileStore: store, opener: ReadiumBookPublicationOpener()),
+            openLocalUseCase: OpenLocalBookUseCase(repository: books, progressRepository: progress, fileStore: store, opener: ReadiumBookPublicationOpener()),
+            loadSitePublicationUseCase: nil,
+            loadProgressUseCase: LoadBookReadingProgressUseCase(progressRepository: progress),
             saveProgressUseCase: SaveBookReadingProgressUseCase(progressRepository: progress),
             addBookmarkUseCase: AddBookBookmarkUseCase(repository: bookmarks),
             listBookmarksUseCase: ListBookBookmarksUseCase(repository: bookmarks),
@@ -90,14 +92,16 @@ struct BookReaderViewModelTests {
         )
         let bookmarks: ReaderInMemoryBookmarkRepository = ReaderInMemoryBookmarkRepository()
         return BookReaderViewModel(
-            book: book,
+            subject: .local(book),
             userID: "u1",
-            openUseCase: OpenLocalBookUseCase(
+            openLocalUseCase: OpenLocalBookUseCase(
                 repository: ReaderInMemoryLocalBookRepository(book: book),
                 progressRepository: progress,
                 fileStore: ReaderStubFileStore(),
                 opener: ReaderFailingOpener()
             ),
+            loadSitePublicationUseCase: nil,
+            loadProgressUseCase: LoadBookReadingProgressUseCase(progressRepository: progress),
             saveProgressUseCase: SaveBookReadingProgressUseCase(progressRepository: progress),
             addBookmarkUseCase: AddBookBookmarkUseCase(repository: bookmarks),
             listBookmarksUseCase: ListBookBookmarksUseCase(repository: bookmarks),
@@ -147,6 +151,7 @@ private final class ReaderInMemoryProgressRepository: BookReadingProgressReposit
     private(set) var saved: [BookReadingProgress] = []
     func fetchProgress(bookID: UUID, userID: String) throws -> BookReadingProgress? { return self.saved.last }
     func saveProgress(_ progress: BookReadingProgress) throws { self.saved.append(progress) }
+    func deleteProgress(bookID: UUID, userID: String) throws { self.saved.removeAll { $0.bookID == bookID } }
 }
 
 private final class ReaderInMemoryBookmarkRepository: BookBookmarkRepository, @unchecked Sendable {
@@ -154,4 +159,5 @@ private final class ReaderInMemoryBookmarkRepository: BookBookmarkRepository, @u
     func fetchBookmarks(bookID: UUID, userID: String) throws -> [BookBookmark] { return self.bookmarks.sorted { $0.createdAt > $1.createdAt } }
     func saveBookmark(_ bookmark: BookBookmark) throws { self.bookmarks.append(bookmark) }
     func deleteBookmark(id: UUID, userID: String) throws { self.bookmarks.removeAll { $0.id == id } }
+    func deleteBookmarks(bookID: UUID, userID: String) throws { self.bookmarks.removeAll { $0.bookID == bookID } }
 }

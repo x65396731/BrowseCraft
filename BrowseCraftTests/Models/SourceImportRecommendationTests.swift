@@ -8,9 +8,11 @@ struct SourceImportRecommendationTests {
     @Test func defaultImportOptionsUseUserFacingKindsAndInternalConfigKinds() {
         let options: [SourceImportOption] = SourceImportOption.defaultOptions
 
+        // 中文注释：读书 kind 2026-09-14 接入（批次 C），与漫画 / 视频同为服务端规则生成入口。
         #expect(options.map(\.kind) == [
             .comicSource,
             .videoSource,
+            .bookSource,
             .rssFeedURL
         ])
 
@@ -18,9 +20,12 @@ struct SourceImportRecommendationTests {
         #expect(options[0].defaultConfigurationKind == .comic)
         #expect(options[1].defaultSourceType == .html)
         #expect(options[1].defaultConfigurationKind == .video)
-        #expect(options[2].requiresURLInput == true)
-        #expect(options[2].defaultSourceType == .rss)
-        #expect(options[2].defaultConfigurationKind == .rss)
+        #expect(options[2].requiresURLInput == false)
+        #expect(options[2].defaultSourceType == .html)
+        #expect(options[2].defaultConfigurationKind == .book)
+        #expect(options[3].requiresURLInput == true)
+        #expect(options[3].defaultSourceType == .rss)
+        #expect(options[3].defaultConfigurationKind == .rss)
     }
 
     @Test func recommendationAppliesInternalAxesWithoutOverwritingDraftText() {

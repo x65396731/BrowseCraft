@@ -10,6 +10,7 @@ struct AddSourceView: View {
     @State private var runtimeSourceKind: RuntimeSourceImportKind?
     @State private var isShowingComicGeneration: Bool = false
     @State private var isShowingVideoGeneration: Bool = false
+    @State private var isShowingBookGeneration: Bool = false
     @State private var isShowingRSSDiscovery: Bool = false
     @State private var unavailableOption: SourceImportOptionKind?
 
@@ -21,6 +22,7 @@ struct AddSourceView: View {
                 Section("Source") {
                     self.optionButton(for: .comicSource)
                     self.optionButton(for: .videoSource)
+                    self.optionButton(for: .bookSource)
                     self.optionButton(for: .rssFeedURL)
                 }
             }
@@ -40,6 +42,10 @@ struct AddSourceView: View {
             }
             .sheet(isPresented: self.$isShowingVideoGeneration) {
                 VideoGenerationInputView(viewModel: self.viewModel, sourceKind: .video)
+            }
+            // 中文注释：读书 kind 与漫画 / 视频同一条服务端规则生成入口（PortalCore 2026-09-13 起接受 sourceKind: book）。
+            .sheet(isPresented: self.$isShowingBookGeneration) {
+                VideoGenerationInputView(viewModel: self.viewModel, sourceKind: .book)
             }
             .sheet(isPresented: self.$isShowingRSSDiscovery) {
                 RSSDiscoveryView(
@@ -98,6 +104,8 @@ struct AddSourceView: View {
             self.isShowingComicGeneration = true
         case .videoSource:
             self.isShowingVideoGeneration = true
+        case .bookSource:
+            self.isShowingBookGeneration = true
         case .rssFeedURL:
             self.isShowingRSSDiscovery = true
         case .scriptSource:
@@ -124,6 +132,8 @@ struct AddSourceView: View {
             return "Comic sources can be added from the Comics source form."
         case .videoSource:
             return "Video sources can be added from the Video source form."
+        case .bookSource:
+            return "Book sources can be added from the Book source form."
         case .scriptSource:
             return "Script Source is closed. Use Website Rule JSON or URL-based source search instead."
         case .rssFeedURL, nil:
@@ -139,6 +149,8 @@ private extension SourceImportOptionKind {
             return "Comics"
         case .videoSource:
             return "Video"
+        case .bookSource:
+            return "Books"
         case .rssFeedURL:
             return "RSS Feed"
         case .scriptSource:
@@ -152,6 +164,8 @@ private extension SourceImportOptionKind {
             return "book.pages"
         case .videoSource:
             return "play.rectangle"
+        case .bookSource:
+            return "text.book.closed"
         case .rssFeedURL:
             return "dot.radiowaves.left.and.right"
         case .scriptSource:

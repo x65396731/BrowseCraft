@@ -11,6 +11,7 @@ struct LibraryView: View {
     var bookShelfViewModel: BookShelfViewModel? = nil
     var makeBookReaderViewModel: (@MainActor (LocalBook) -> BookReaderViewModel)? = nil
     @State private var selectedComicDestination: LibraryComicDestination?
+    @State private var selectedSiteBookDestination: LibrarySiteBookDestination?
 
     var body: some View {
         NavigationStack {
@@ -63,6 +64,10 @@ struct LibraryView: View {
             }
             .navigationDestination(for: LibraryBookRoute.self) { route in
                 self.bookDestination(for: route)
+            }
+            .navigationDestination(item: self.$selectedSiteBookDestination) { destination in
+                BookSiteDetailView(viewModel: self.contentViewModelFactory.makeBookSiteDetail(destination.item, destination.source))
+                    .id(destination.id)
             }
             // 中文注释：本地书架入口按用户 2026-09-14 裁决不对用户暴露（Documentation/Book/Local-Book-Import-Design.md 第八节）；
             // LibraryBookRoute 与阅读器保留给站点抓取路复用，RootView 不再装配 bookShelfViewModel。
@@ -312,6 +317,11 @@ struct LibraryView: View {
         )
         #endif
 
+        // 中文注释：读书 kind 的列表复用漫画网格；点开走站点书详情，不走漫画详情 / 阅读器。
+        if source.configuration.kind == .book {
+            self.selectedSiteBookDestination = LibrarySiteBookDestination(item: item, source: source)
+            return
+        }
         self.selectedComicDestination = LibraryComicDestination(item: item, source: source)
     }
 
@@ -331,7 +341,7 @@ struct LibraryView: View {
                         .id(book.id)
                 }
             case .audiobook:
-                // 中文注释：有声书播放器在 B3 接入（Documentation/Book/Local-Book-Import-Design.md 第四节）。
+                // 中文注释：有声书播放器在后续批次接入（Documentation/Book/Local-Book-Import-Design.md 第四节）。
                 EmptyStateView(
                     systemImage: "headphones",
                     title: NSLocalizedString("Audiobook", comment: "有声书"),
@@ -339,6 +349,9 @@ struct LibraryView: View {
                 )
                 .navigationTitle(book.title)
             }
+        case .siteChapter(let selection):
+            BookReaderView(viewModel: self.contentViewModelFactory.makeBookSiteReader(selection))
+                .id(selection)
         }
     }
 

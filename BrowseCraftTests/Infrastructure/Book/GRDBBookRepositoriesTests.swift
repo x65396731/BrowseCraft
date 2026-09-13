@@ -31,7 +31,7 @@ struct GRDBBookRepositoriesTests {
         #expect(try repository.fetchBooks(userID: "u1").count == 2)
     }
 
-    @Test func deletingBookCascadesProgressAndBookmarks() throws {
+    @Test func progressAndBookmarksAreDeletedExplicitlyAndSurviveBookDeletionOtherwise() throws {
         let database: AppDatabase = try Self.makeDatabase()
         let books: GRDBLocalBookRepository = GRDBLocalBookRepository(database: database)
         let progress: GRDBBookReadingProgressRepository = GRDBBookReadingProgressRepository(database: database)
@@ -51,10 +51,19 @@ struct GRDBBookRepositoriesTests {
         try bookmarks.deleteBookmark(id: first.id, userID: "u1")
         #expect(try bookmarks.fetchBookmarks(bookID: book.id, userID: "u1") == [second])
 
+        // 中文注释：v4 起进度与书签不外键到 local_books（站点书没有那一行）：删书不级联，由用例显式删。
         try books.deleteBook(id: book.id, userID: "u1")
         #expect(try books.fetchBook(id: book.id, userID: "u1") == nil)
+        #expect(try progress.fetchProgress(bookID: book.id, userID: "u1") != nil)
+        try progress.deleteProgress(bookID: book.id, userID: "u1")
+        try bookmarks.deleteBookmarks(bookID: book.id, userID: "u1")
         #expect(try progress.fetchProgress(bookID: book.id, userID: "u1") == nil)
         #expect(try bookmarks.fetchBookmarks(bookID: book.id, userID: "u1").isEmpty)
+
+        // 站点书的作品标识没有 local_books 行也能存进度
+        let siteBookID: UUID = SiteBookIdentity.bookID(sourceID: "biquhua", detailURL: "https://www.biquhua.com/book/0/110/")
+        try progress.saveProgress(BookReadingProgress(bookID: siteBookID, userID: "u1", locatorJSON: "{}", totalProgression: 0.1, updatedAt: Self.now))
+        #expect(try progress.fetchProgress(bookID: siteBookID, userID: "u1")?.totalProgression == 0.1)
     }
 
     @Test func rowsWithUnknownFormatAreSkippedNotGuessed() throws {

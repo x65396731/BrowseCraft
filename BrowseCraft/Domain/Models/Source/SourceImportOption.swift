@@ -26,6 +26,7 @@ struct SourceImportOption: Identifiable, Codable, Hashable, Sendable {
 enum SourceImportOptionKind: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
     case comicSource
     case videoSource
+    case bookSource
     case rssFeedURL
     case scriptSource
 
@@ -47,6 +48,11 @@ extension SourceImportOption {
             defaultConfigurationKind: .video
         ),
         SourceImportOption(
+            kind: .bookSource,
+            defaultSourceType: .html,
+            defaultConfigurationKind: .book
+        ),
+        SourceImportOption(
             kind: .rssFeedURL,
             defaultSourceType: .rss,
             defaultConfigurationKind: .rss
@@ -57,14 +63,14 @@ extension SourceImportOption {
         switch self.kind {
         case .rssFeedURL:
             return true
-        case .comicSource, .videoSource, .scriptSource:
+        case .comicSource, .videoSource, .bookSource, .scriptSource:
             return false
         }
     }
 
     var acceptsRuleJSONInput: Bool {
         switch self.kind {
-        case .comicSource, .videoSource, .rssFeedURL, .scriptSource:
+        case .comicSource, .videoSource, .bookSource, .rssFeedURL, .scriptSource:
             return false
         }
     }

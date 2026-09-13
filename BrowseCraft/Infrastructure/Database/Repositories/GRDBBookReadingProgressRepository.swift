@@ -26,4 +26,13 @@ final class GRDBBookReadingProgressRepository: BookReadingProgressRepository {
             try record.save(database)
         }
     }
+
+    func deleteProgress(bookID: UUID, userID: String) throws {
+        try self.database.queue.write { database in
+            try database.execute(
+                sql: "DELETE FROM \(BookReadingProgressRecord.databaseTableName) WHERE bookID = ? AND userID = ?",
+                arguments: [bookID.uuidString, userID]
+            )
+        }
+    }
 }

@@ -126,6 +126,15 @@ struct RecommendSourceImportOptionUseCase {
                 reasons: [.userSelectedOption],
                 warnings: ["Comic sources use the rule-backed source runtime."]
             )
+        case .bookSource:
+            return SourceImportRecommendation(
+                optionKind: .bookSource,
+                sourceType: .html,
+                configurationKind: .book,
+                confidence: .medium,
+                reasons: [.userSelectedOption],
+                warnings: ["Book sources use the rule-backed source runtime."]
+            )
         case .videoSource:
             return SourceImportRecommendation(
                 optionKind: .videoSource,

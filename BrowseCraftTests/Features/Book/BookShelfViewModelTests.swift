@@ -68,7 +68,12 @@ struct BookShelfViewModelTests {
                 opener: ShelfStubOpener(metadata: metadata),
                 repository: repository
             ),
-            deleteUseCase: DeleteLocalBookUseCase(repository: repository, fileStore: store),
+            deleteUseCase: DeleteLocalBookUseCase(
+                repository: repository,
+                progressRepository: progress,
+                bookmarkRepository: ShelfInMemoryBookmarkRepository(),
+                fileStore: store
+            ),
             fileStore: store,
             userID: "u1"
         )
@@ -119,4 +124,12 @@ private final class ShelfInMemoryLocalBookRepository: LocalBookRepository, @unch
 private final class ShelfInMemoryProgressRepository: BookReadingProgressRepository, @unchecked Sendable {
     func fetchProgress(bookID: UUID, userID: String) throws -> BookReadingProgress? { return nil }
     func saveProgress(_ progress: BookReadingProgress) throws {}
+    func deleteProgress(bookID: UUID, userID: String) throws {}
+}
+
+private final class ShelfInMemoryBookmarkRepository: BookBookmarkRepository, @unchecked Sendable {
+    func fetchBookmarks(bookID: UUID, userID: String) throws -> [BookBookmark] { return [] }
+    func saveBookmark(_ bookmark: BookBookmark) throws {}
+    func deleteBookmark(id: UUID, userID: String) throws {}
+    func deleteBookmarks(bookID: UUID, userID: String) throws {}
 }

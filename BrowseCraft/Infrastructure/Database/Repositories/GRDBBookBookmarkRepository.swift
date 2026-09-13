@@ -36,4 +36,13 @@ final class GRDBBookBookmarkRepository: BookBookmarkRepository {
             )
         }
     }
+
+    func deleteBookmarks(bookID: UUID, userID: String) throws {
+        try self.database.queue.write { database in
+            try database.execute(
+                sql: "DELETE FROM \(BookBookmarkRecord.databaseTableName) WHERE bookID = ? AND userID = ?",
+                arguments: [bookID.uuidString, userID]
+            )
+        }
+    }
 }

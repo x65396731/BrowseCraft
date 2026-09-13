@@ -1,10 +1,11 @@
+import BrowseCraftDomain
 import Foundation
 import Observation
 import ReadiumNavigator
 import ReadiumShared
 
-// 中文注释：BookReaderViewModel 打开一本本地书，把 Navigator 报来的位置节流后写成续读进度，管理书签与目录。
-// Readium 类型只在这里与 Representable 里出现；落库的是 Locator 的 JSON。
+// 中文注释：BookReaderViewModel 打开一本书（本地文件或站点作品），把 Navigator 报来的位置节流后写成续读进度，管理书签与目录。
+// Readium 类型只在这里、Representable 与 Infrastructure 出现；落库的是 Locator 的 JSON。
 
 @MainActor
 @Observable
@@ -15,7 +16,7 @@ final class BookReaderViewModel {
         case failed(String)
     }
 
-    let book: LocalBook
+    let subject: BookReaderSubject
     private(set) var state: State = .loading
     private(set) var publication: Publication?
     private(set) var initialLocator: Locator?
@@ -25,7 +26,10 @@ final class BookReaderViewModel {
     /// 中文注释：视图层把 Navigator 的跳转能力挂在这里；VM 只发跳转请求。
     let navigatorProxy: BookNavigatorProxy = BookNavigatorProxy()
 
-    private let openUseCase: OpenLocalBookUseCase
+    private let openLocalUseCase: OpenLocalBookUseCase?
+    private let loadSitePublicationUseCase: LoadBookPublicationUseCase?
+    private let sitePublicationBuilder: ReadiumSitePublicationBuilder
+    private let loadProgressUseCase: LoadBookReadingProgressUseCase
     private let saveProgressUseCase: SaveBookReadingProgressUseCase
     private let addBookmarkUseCase: AddBookBookmarkUseCase
     private let listBookmarksUseCase: ListBookBookmarksUseCase
@@ -34,19 +38,33 @@ final class BookReaderViewModel {
     private let throttleNanoseconds: UInt64
     private var pendingSave: Task<Void, Never>?
 
+    var title: String {
+        return self.subject.title
+    }
+
+    var bookID: UUID {
+        return self.subject.bookID
+    }
+
     init(
-        book: LocalBook,
+        subject: BookReaderSubject,
         userID: String,
-        openUseCase: OpenLocalBookUseCase,
+        openLocalUseCase: OpenLocalBookUseCase?,
+        loadSitePublicationUseCase: LoadBookPublicationUseCase?,
+        sitePublicationBuilder: ReadiumSitePublicationBuilder = ReadiumSitePublicationBuilder(),
+        loadProgressUseCase: LoadBookReadingProgressUseCase,
         saveProgressUseCase: SaveBookReadingProgressUseCase,
         addBookmarkUseCase: AddBookBookmarkUseCase,
         listBookmarksUseCase: ListBookBookmarksUseCase,
         removeBookmarkUseCase: RemoveBookBookmarkUseCase,
         throttleNanoseconds: UInt64 = 1_000_000_000
     ) {
-        self.book = book
+        self.subject = subject
         self.userID = userID
-        self.openUseCase = openUseCase
+        self.openLocalUseCase = openLocalUseCase
+        self.loadSitePublicationUseCase = loadSitePublicationUseCase
+        self.sitePublicationBuilder = sitePublicationBuilder
+        self.loadProgressUseCase = loadProgressUseCase
         self.saveProgressUseCase = saveProgressUseCase
         self.addBookmarkUseCase = addBookmarkUseCase
         self.listBookmarksUseCase = listBookmarksUseCase
@@ -59,15 +77,13 @@ final class BookReaderViewModel {
             return
         }
         do {
-            let opened: OpenedLocalBook = try await self.openUseCase.execute(bookID: self.book.id, userID: self.userID)
-            guard let handle: ReadiumBookPublicationHandle = opened.publication as? ReadiumBookPublicationHandle else {
-                self.state = .failed("unexpected-publication-handle")
-                return
+            switch self.subject {
+            case .local(let book):
+                try await self.openLocal(book)
+            case .site(let selection):
+                try await self.openSite(selection)
             }
-            self.publication = handle.publication
-            self.initialLocator = opened.initialLocatorJSON.flatMap(Self.locator(fromJSON:))
-            self.currentLocator = self.initialLocator
-            if case .success(let links) = await handle.publication.tableOfContents() {
+            if let publication: Publication = self.publication, case .success(let links) = await publication.tableOfContents() {
                 self.tableOfContents = links
             }
             self.loadBookmarks()
@@ -75,6 +91,41 @@ final class BookReaderViewModel {
         } catch {
             self.state = .failed(error.localizedDescription)
         }
+    }
+
+    private func openLocal(_ book: LocalBook) async throws {
+        guard let openLocalUseCase: OpenLocalBookUseCase = self.openLocalUseCase else {
+            throw BookReaderError.subjectNotSupported
+        }
+        let opened: OpenedLocalBook = try await openLocalUseCase.execute(bookID: book.id, userID: self.userID)
+        guard let handle: ReadiumBookPublicationHandle = opened.publication as? ReadiumBookPublicationHandle else {
+            throw BookReaderError.unexpectedPublicationHandle
+        }
+        self.publication = handle.publication
+        self.initialLocator = opened.initialLocatorJSON.flatMap(Self.locator(fromJSON:))
+        self.currentLocator = self.initialLocator
+    }
+
+    /// 中文注释：站点书——详情 → manifest → Readium 出版物；起点优先续读位置，其次点开的章节，最后第一章。有声作品的播放器在后续批次。
+    private func openSite(_ selection: SiteBookChapterSelection) async throws {
+        guard let loadSitePublicationUseCase: LoadBookPublicationUseCase = self.loadSitePublicationUseCase,
+              let detailURL: URL = URL(string: selection.item.detailURL) else {
+            throw BookReaderError.subjectNotSupported
+        }
+        let loaded: LoadedBookPublication = try await loadSitePublicationUseCase.execute(source: selection.source, detailURL: detailURL)
+        if loaded.manifest.isAudiobook {
+            throw BookReaderError.audiobookNotSupportedYet
+        }
+        let publication: Publication = self.sitePublicationBuilder.build(manifest: loaded.manifest, contentProvider: loaded.contentProvider)
+        self.publication = publication
+        let saved: Locator? = try self.loadProgressUseCase.execute(bookID: self.bookID, userID: self.userID)
+            .flatMap { Self.locator(fromJSON: $0.locatorJSON) }
+        let chapterLocator: Locator? = selection.chapterURL
+            .flatMap { chapterURL in loaded.manifest.items.first { $0.chapterURL == chapterURL } }
+            .flatMap { item in AnyURL(string: item.href).map { Locator(href: $0, mediaType: .xhtml, title: item.title) } }
+        // 中文注释：明确点了某一章就去那一章；没点（从「继续阅读」进来）才用续读位置。
+        self.initialLocator = chapterLocator ?? saved
+        self.currentLocator = self.initialLocator
     }
 
     /// 中文注释：Navigator 每翻一页都会报位置；这里只记最新的，1 秒后写一次库。
@@ -106,7 +157,7 @@ final class BookReaderViewModel {
         }
         do {
             try self.addBookmarkUseCase.execute(
-                bookID: self.book.id,
+                bookID: self.bookID,
                 userID: self.userID,
                 locatorJSON: json,
                 title: locator.title,
@@ -139,7 +190,7 @@ final class BookReaderViewModel {
     }
 
     private func loadBookmarks() {
-        self.bookmarks = (try? self.listBookmarksUseCase.execute(bookID: self.book.id, userID: self.userID)) ?? []
+        self.bookmarks = (try? self.listBookmarksUseCase.execute(bookID: self.bookID, userID: self.userID)) ?? []
     }
 
     private func persistCurrentLocation() {
@@ -147,7 +198,7 @@ final class BookReaderViewModel {
             return
         }
         try? self.saveProgressUseCase.execute(
-            bookID: self.book.id,
+            bookID: self.bookID,
             userID: self.userID,
             locatorJSON: json,
             totalProgression: locator.locations.totalProgression
@@ -163,6 +214,23 @@ final class BookReaderViewModel {
 
     static func json(from locator: Locator) -> String? {
         return try? locator.jsonString()
+    }
+}
+
+enum BookReaderError: LocalizedError, Equatable {
+    case subjectNotSupported
+    case unexpectedPublicationHandle
+    case audiobookNotSupportedYet
+
+    var errorDescription: String? {
+        switch self {
+        case .subjectNotSupported:
+            return "This book cannot be opened here."
+        case .unexpectedPublicationHandle:
+            return "Unexpected publication handle."
+        case .audiobookNotSupportedYet:
+            return NSLocalizedString("Audiobook player is coming in a later batch.", comment: "有声书播放器待接入")
+        }
     }
 }
 

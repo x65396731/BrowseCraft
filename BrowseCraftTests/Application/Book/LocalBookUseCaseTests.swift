@@ -180,9 +180,21 @@ struct LocalBookUseCaseTests {
         book.coverRelativePath = "cover.jpg"
         try repository.saveBook(book)
 
-        try await DeleteLocalBookUseCase(repository: repository, fileStore: store).execute(bookID: Self.bookID, userID: "u1")
+        let progressRepository: InMemoryBookReadingProgressRepository = InMemoryBookReadingProgressRepository()
+        let bookmarkRepository: InMemoryBookBookmarkRepository = InMemoryBookBookmarkRepository()
+        try progressRepository.saveProgress(BookReadingProgress(bookID: Self.bookID, userID: "u1", locatorJSON: "{}", totalProgression: 0.2, updatedAt: Self.now))
+        try bookmarkRepository.saveBookmark(BookBookmark(id: UUID(), bookID: Self.bookID, userID: "u1", locatorJSON: "{}", title: nil, snippet: nil, createdAt: Self.now))
+
+        try await DeleteLocalBookUseCase(
+            repository: repository,
+            progressRepository: progressRepository,
+            bookmarkRepository: bookmarkRepository,
+            fileStore: store
+        ).execute(bookID: Self.bookID, userID: "u1")
 
         #expect(repository.books.isEmpty)
+        #expect(progressRepository.progress[Self.bookID] == nil, "v4 起进度不再级联，用例显式删")
+        #expect(try bookmarkRepository.fetchBookmarks(bookID: Self.bookID, userID: "u1").isEmpty)
         #expect(store.removedRelativePaths == [book.fileRelativePath, "cover.jpg"])
     }
 
@@ -332,6 +344,10 @@ private final class InMemoryBookReadingProgressRepository: BookReadingProgressRe
     func saveProgress(_ progress: BookReadingProgress) throws {
         self.progress[progress.bookID] = progress
     }
+
+    func deleteProgress(bookID: UUID, userID: String) throws {
+        self.progress[bookID] = nil
+    }
 }
 
 private final class InMemoryBookBookmarkRepository: BookBookmarkRepository, @unchecked Sendable {
@@ -347,5 +363,9 @@ private final class InMemoryBookBookmarkRepository: BookBookmarkRepository, @unc
 
     func deleteBookmark(id: UUID, userID: String) throws {
         self.bookmarks.removeAll { $0.id == id && $0.userID == userID }
+    }
+
+    func deleteBookmarks(bookID: UUID, userID: String) throws {
+        self.bookmarks.removeAll { $0.bookID == bookID && $0.userID == userID }
     }
 }

@@ -1,7 +1,7 @@
 # 读书 kind（book）App 侧接线（立项，待拍板）
 
 更新时间：2026-09-13
-状态：**批次 A 已落地（2026-09-14）**，B / C 另拍板；顺序与发布策略已由用户裁决（第四、五节）。本地文件导入线的入口已按用户裁决藏起（[本地书籍导入](Local-Book-Import-Design.md) 第八节），其阅读器 / 书签 / 三张表留给批次 B / C 复用
+状态：**批次 A、B、C 已落地（2026-09-14）**；有声作品的播放器与四个接口变体另立项；顺序与发布策略已由用户裁决（第四、五节）。本地文件导入线的入口已按用户裁决藏起（[本地书籍导入](Local-Book-Import-Design.md) 第八节），其阅读器 / 书签 / 三张表留给批次 B / C 复用
 影响范围：BrowseCraftAPIKit、BrowseCraftDomain、BrowseCraftCore、BrowseCraftRuntime、BrowseCraft 五个仓库；影视线与漫画线代码零改动
 前置：服务器接线已部署（PortalCore `b9fc2ff`，2026-09-13 深夜），`POST /v1/rule-generations` 已接受 `sourceKind: book`；Readium 3.11.0 依赖已入库（BrowseCraft `7ad27044`），**首次整包 build 已于 2026-09-13 深夜通过**（`xcodebuild -scheme BrowseCraft` 模拟器 iPhone 16 Pro，0 error；影视线与漫画线的真机复核仍待用户）
 
@@ -108,3 +108,16 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
 
 验收：`BookSourceRuntimeEndToEndTests`——真实 catalog → Source → Runtime（网页由夹具桩）→ 详情 / 章节 / 正文或音频 → manifest → Publication，两站各一条；正文资源读出来是带 `<p>` 的 XHTML，mp3 出边不取页。
 **还没有**：Features 入口（批次 C）；站点书的进度 / 书签落库（本地书三张表的作品标识扩展，第六节第 3 条）；listAPI / chapterAPI / text-api / mediaAPI（无语料）。
+
+## 十、批次 C 落地记录（2026-09-14）
+
+| 处 | 改动 |
+|---|---|
+| 添加来源 | `SourceImportOptionKind.bookSource`（`defaultOptions` 第三项，`.html` / `.book`）；`AddSourceView` 的「Books」入口走同一个 `VideoGenerationInputView(sourceKind: .book)`；`RecommendSourceImportOptionUseCase` 的 book 推荐。 |
+| Library | 读书来源的列表复用漫画网格；点开走 `LibrarySiteBookDestination` → `BookSiteDetailView`（头部、开始 / 继续阅读、章节列表）；章节 `NavigationLink(value: LibraryBookRoute.siteChapter(...))` 推入共用的 `BookReaderView`。所有 book 路由仍只在 `LibraryView` 栈根声明一次。 |
+| 阅读器 | `BookReaderViewModel` 改为按 `BookReaderSubject`（`.local(LocalBook)` / `.site(SiteBookChapterSelection)`）打开；站点书：`LoadBookPublicationUseCase` → `ReadiumSitePublicationBuilder` → 起点 = 点开的章节，否则续读位置。有声作品先抛「播放器在后续批次」。 |
+| 作品标识 | `SiteBookIdentity.bookID(sourceID:detailURL:)`（SHA-256 前 16 字节，v5 版本位）；迁移 `v4.book-progress-detached-from-local-books` 重建进度与书签两张表去掉对 `local_books` 的外键（保留对 users 的级联）；`DeleteLocalBookUseCase` 显式删进度与书签。 |
+| 装配 | `BookFeatureFactory` 拿 `SourceRuntimeResolving`；`LibraryContentViewModelFactory` 加 `makeBookSiteDetail` / `makeBookSiteReader`。 |
+
+验收：视图模型固定输入（作品标识稳定、详情列 112 章并按续读位置定起点、阅读器按主体打开站点书到 ready）；全量测试 + 边界脚本；模拟器走通 添加来源 → 生成 → 目录 → Library → 详情 → 阅读 需要真实生成任务，**真机验收由用户做**。
+**还没有**：站点有声作品的播放器；listAPI / chapterAPI / text-api / mediaAPI（无语料）；History 页纳入书籍（用户裁决 B2 不纳入）。

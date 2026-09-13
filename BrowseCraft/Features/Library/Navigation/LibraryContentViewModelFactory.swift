@@ -8,4 +8,7 @@ struct LibraryContentViewModelFactory {
     let makeHistoryReader: (ComicChapterHistory, Source) -> ReaderViewModel
     let makeRSSDetail: @MainActor (ContentItem, Source) -> RSSContentDetailViewModel
     let makeVideoDetail: @MainActor (ContentItem, Source) -> VideoDetailViewModel
+    /// 中文注释：读书 kind（站点书）：详情页与共用的 EPUB 阅读器。
+    let makeBookSiteDetail: @MainActor (ContentItem, Source) -> BookSiteDetailViewModel
+    let makeBookSiteReader: @MainActor (SiteBookChapterSelection) -> BookReaderViewModel
 }

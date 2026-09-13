@@ -376,3 +376,8 @@
 "Add a bookmark at the current page." = "Add a bookmark at the current page.";
 "Delete" = "Delete";
 "book_preflight_navigation_title" = "Book";
+"Chapters" = "Chapters";
+"Start Reading" = "Start Reading";
+"Continue Reading" = "Continue Reading";
+"Loading chapters…" = "Loading chapters…";
+"Book sources can be added from the Book source form." = "Book sources can be added from the Book source form.";
