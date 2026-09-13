@@ -38,9 +38,22 @@ struct LoadCatalogSourcesUseCase {
     private let jsonDecoder: JSONDecoder
     private let jsonEncoder: JSONEncoder
 
+    /// 中文注释：本版本认得的目录 kind；请求时显式带 `kinds=`（PortalCore §14.6：缺省只回 video / comic / rss，book 要声明）。
+    /// 用 switch 穷举 CatalogSourceKind，新增 case 时编译期报缺，不会漏声明。
+    static let requestedKinds: [CatalogSourceKind] = [.comic, .rss, .video, .book].filter { kind in
+        switch kind {
+        case .comic, .rss, .video, .book:
+            return true
+        }
+    }
+
+    static let defaultCatalogAPIURL: URL? = URL(
+        string: "https://anyportal.online/catalog/sources?kinds=" + Self.requestedKinds.map(\.rawValue).joined(separator: ",")
+    )
+
     init(
         pageDataLoader: PageDataLoader,
-        catalogAPIURL: URL? = URL(string: "https://anyportal.online/catalog/sources"),
+        catalogAPIURL: URL? = LoadCatalogSourcesUseCase.defaultCatalogAPIURL,
         requestHeaders: @escaping @Sendable () -> [String: String] = { [:] },
         catalogRuleDecryptor: CatalogRuleDecryptor = CatalogRuleDecryptor(),
         jsonDecoder: JSONDecoder = JSONDecoder(),
@@ -145,13 +158,18 @@ struct LoadCatalogSourcesUseCase {
 }
 
 private struct CatalogSourcePayloadDecoder {
+    /// 中文注释：kind 逐条判定，本版本不认得的条目跳过并记日志，不让一条新 kind 拖垮整个目录（2026-09-14 核对的旧版整表失效问题）。
     func decode(from data: Data) throws -> [CatalogSource] {
-        return try JSONDecoder().decode([CatalogSourcePayload].self, from: data).map { payload in
+        return try JSONDecoder().decode([CatalogSourcePayload].self, from: data).compactMap { payload in
+            guard let kind: CatalogSourceKind = CatalogSourceKind(rawValue: payload.kind) else {
+                AppLog.debug(.app, event: "catalog-skipped-unknown-kind", metadata: ["id": payload.id, "kind": payload.kind])
+                return nil
+            }
             return CatalogSource(
                 id: payload.id,
                 name: payload.name,
                 baseURL: payload.baseURL,
-                kind: payload.kind,
+                kind: kind,
                 ruleJSON: payload.ruleJSON.jsonString
             )
         }
@@ -162,7 +180,7 @@ private struct CatalogSourcePayload: Decodable {
     let id: String
     let name: String
     let baseURL: String
-    let kind: CatalogSourceKind
+    let kind: String
     let ruleJSON: CatalogSourceJSONValue
 
     private enum CodingKeys: String, CodingKey {
@@ -183,7 +201,7 @@ private struct CatalogSourcePayload: Decodable {
         self.id = try container.decode(String.self, forKey: .id)
         self.name = try container.decode(String.self, forKey: .name)
         self.baseURL = try container.decode(String.self, forKey: .baseURL)
-        self.kind = try container.decode(CatalogSourceKind.self, forKey: .kind)
+        self.kind = try container.decode(String.self, forKey: .kind)
 
         if container.contains(.payload) {
             let payloadDecoder: Decoder = try container.superDecoder(forKey: .payload)

@@ -9,8 +9,8 @@ enum LibraryBookRoute: Hashable {
     case shelf
     /// 中文注释：本地书阅读器。
     case book(LocalBook)
-    /// 中文注释：规则来源里一部作品的某一章（或从续读位置继续）。
-    case siteChapter(SiteBookChapterSelection)
+    // 中文注释：站点书的章节不走这里——详情页是 item 式推入的，章节也用详情页自己的 item 式推入
+    // （BookSiteDetailView），value 式与 item 式混用会打乱栈序（2026-09-14 模拟器实测）。
 }
 
 /// 中文注释：Library 列表点开一部站点书时的目的地（与 LibraryComicDestination 同形）。

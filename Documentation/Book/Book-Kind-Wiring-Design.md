@@ -114,10 +114,25 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
 | 处 | 改动 |
 |---|---|
 | 添加来源 | `SourceImportOptionKind.bookSource`（`defaultOptions` 第三项，`.html` / `.book`）；`AddSourceView` 的「Books」入口走同一个 `VideoGenerationInputView(sourceKind: .book)`；`RecommendSourceImportOptionUseCase` 的 book 推荐。 |
-| Library | 读书来源的列表复用漫画网格；点开走 `LibrarySiteBookDestination` → `BookSiteDetailView`（头部、开始 / 继续阅读、章节列表）；章节 `NavigationLink(value: LibraryBookRoute.siteChapter(...))` 推入共用的 `BookReaderView`。所有 book 路由仍只在 `LibraryView` 栈根声明一次。 |
+| Library | 读书来源的列表复用漫画网格；点开走 `LibrarySiteBookDestination` → `BookSiteDetailView`（头部、开始 / 继续阅读、章节列表）；章节推入共用的 `BookReaderView`（推入方式见第十二节的修正——批次 C 原写法是 `NavigationLink(value: LibraryBookRoute.siteChapter(...))`，模拟器实测栈序错乱后改成详情页自有的 item 式推入）。 |
 | 阅读器 | `BookReaderViewModel` 改为按 `BookReaderSubject`（`.local(LocalBook)` / `.site(SiteBookChapterSelection)`）打开；站点书：`LoadBookPublicationUseCase` → `ReadiumSitePublicationBuilder` → 起点 = 点开的章节，否则续读位置。有声作品先抛「播放器在后续批次」。 |
 | 作品标识 | `SiteBookIdentity.bookID(sourceID:detailURL:)`（SHA-256 前 16 字节，v5 版本位）；迁移 `v4.book-progress-detached-from-local-books` 重建进度与书签两张表去掉对 `local_books` 的外键（保留对 users 的级联）；`DeleteLocalBookUseCase` 显式删进度与书签。 |
 | 装配 | `BookFeatureFactory` 拿 `SourceRuntimeResolving`；`LibraryContentViewModelFactory` 加 `makeBookSiteDetail` / `makeBookSiteReader`。 |
 
 验收：视图模型固定输入（作品标识稳定、详情列 112 章并按续读位置定起点、阅读器按主体打开站点书到 ready）；全量测试 + 边界脚本；模拟器走通 添加来源 → 生成 → 目录 → Library → 详情 → 阅读 需要真实生成任务，**真机验收由用户做**。
 **还没有**：站点有声作品的播放器；listAPI / chapterAPI / text-api / mediaAPI（无语料）；History 页纳入书籍（用户裁决 B2 不纳入）。
+
+## 十一、模拟器全流程走查（2026-09-14）
+
+- 预检通过后提交生成要求 Portal 登录（Apple 登录），模拟器无会话，生成路走不通；用户裁决改走**发布路**：把规则仓库第三次真跑的 biquhua catalog 经 `POST /catalog/sources` 发布进公共目录（服务器已部署 `kinds` 过滤，旧版缺省仍 26 条；`kinds=book` 1 条；全集 27 条）。
+- 逮到一处：App 取公共目录的 `LoadCatalogSourcesUseCase` 自己拼地址、自己解码，**没走 APIKit**——批次 A 加在 `PortalCatalogAPI` 上的 `?kinds=` 与宽容解码都没覆盖到它，服务器访问日志里 App 的请求不带参数、缺省拿不到 book。修法：缺省地址带 `kinds=comic,rss,video,book`（用 switch 穷举 `CatalogSourceKind`，新增 case 编译期报缺）；解码时未知 kind 逐条跳过并记日志。固定输入 `LoadCatalogSourcesUseCaseTests`。
+- 走查结果（模拟器 iPhone 16 Pro，服务器目录）：目录顶部出现「笔趣阁 · 书籍」→「+」添加成功 → Library 书籍网格出封面 → 详情页（标题、作者「沙拉古斯 著」头部未显示但正文出版物标题带「[玄幻]」前缀、112 章）→ 点章节 → 阅读器渲染正文（章标题 + 段落）→ 左滑翻页（一章三页）→ 返回详情出现「继续阅读」与章节行书签标记 → 「继续阅读」落回第三页。**这是模拟器、家用网络出口的结果；真机验收仍由用户做。**
+- 走查中逮到并已修：章节推入的栈序错乱（第十二节）。
+- 走查中看见、没动：biquhua 正文里带站点自己的分页标记「第(1/3)页」（规则 `content.text` 把它当段落取了，属规则侧内容清洗，回 fwq 处理）；阅读器标题用的是作品原标题「[玄幻]普罗之主」，详情页用的是清洗后的 manifest 标题，两处不一致。
+
+## 十二、章节推入的栈序修正（2026-09-14，模拟器实测）
+
+- **现象**：详情页点章节后，屏幕上还是详情页（返回键变成「返回」、底栏消失）；按返回反而看见阅读器，再按一次才回 Library。栈变成了「Library → 阅读器 → 详情」。
+- **成因**：`LibraryView` 用 `navigationDestination(item:)` 推详情（与漫画同款），详情里的章节却用 `NavigationLink(value:)` 走栈根的 `navigationDestination(for: LibraryBookRoute.self)`。栈上没有显式 path 绑定时，value 式推入进的是栈的内部 path，item 式推入是独立的呈现元素，两者混用后 SwiftUI 把 item 式的详情重新排到了最上面。
+- **修法**：与 `ComicDetailView` 同款——`BookSiteDetailView` 自己持有 `selectedChapter` 并声明 `navigationDestination(item:)`，章节行改成 Button 设值；`LibraryBookRoute.siteChapter` 删除，`LibraryView` 把 `makeBookSiteReader` 作为闭包传给详情页。行字用 `Color.primary` 压回正文色（List 里的 Button 标签缺省染 tint）。
+- **对第八节结论的补充**：「多级 `navigationDestination(for:)` 必须在栈根声明一次」仍成立；本节补的是另一条——**同一条推入链上不要混用 value 式与 item 式**，一条链选定一种。

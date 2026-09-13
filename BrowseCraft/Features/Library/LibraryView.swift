@@ -66,8 +66,11 @@ struct LibraryView: View {
                 self.bookDestination(for: route)
             }
             .navigationDestination(item: self.$selectedSiteBookDestination) { destination in
-                BookSiteDetailView(viewModel: self.contentViewModelFactory.makeBookSiteDetail(destination.item, destination.source))
-                    .id(destination.id)
+                BookSiteDetailView(
+                    viewModel: self.contentViewModelFactory.makeBookSiteDetail(destination.item, destination.source),
+                    makeReaderViewModel: self.contentViewModelFactory.makeBookSiteReader
+                )
+                .id(destination.id)
             }
             // 中文注释：本地书架入口按用户 2026-09-14 裁决不对用户暴露（Documentation/Book/Local-Book-Import-Design.md 第八节）；
             // LibraryBookRoute 与阅读器保留给站点抓取路复用，RootView 不再装配 bookShelfViewModel。
@@ -349,9 +352,6 @@ struct LibraryView: View {
                 )
                 .navigationTitle(book.title)
             }
-        case .siteChapter(let selection):
-            BookReaderView(viewModel: self.contentViewModelFactory.makeBookSiteReader(selection))
-                .id(selection)
         }
     }
 
