@@ -1,7 +1,7 @@
 # 本地书籍导入与 Readium 阅读器（设计，待拍板）
 
 更新时间：2026-09-13
-状态：**B0 实施中**（2026-09-13 用户裁决开始 B0；待裁决第 1、2 项已定：History 页 B2 不纳入、进度与书签首批不上 CloudKit）；其余批次单独拍板
+状态：**B0、B1 已落地**（2026-09-13；待裁决第 1、2 项已定：History 页 B2 不纳入、进度与书签首批不上 CloudKit）；B2 起单独拍板。B1 备注：嗅探器保留原文件扩展名（m4a / m4b 不改成 Readium 的规范名 mp4）；`ReadiumBookEnvironment.shared` 持有 HTTP 客户端、资产取回器、打开器与懒建的 `GCDHTTPServer`；夹具在 `BrowseCraftTests/Resources/Book/`（最小 EPUB、2 秒 mp3、带元数据 m4a）
 影响范围：BrowseCraft 五层（Domain / Application / Infrastructure / Features / App）与 `scripts/check-architecture-boundaries.sh`；BrowseCraftCore、Domain 包、Runtime、APIKit **零改动**；漫画线与影视线代码零改动
 前置：Readium 3.11.0 依赖已入库且首次整包 build 已通过（2026-09-13，0 error）；影视线与漫画线的真机复核仍待用户
 
