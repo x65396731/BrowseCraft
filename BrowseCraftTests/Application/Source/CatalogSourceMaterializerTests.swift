@@ -175,3 +175,78 @@ struct CatalogSourceMaterializerTests {
         }
     }
 }
+
+// 中文注释：book catalog（规则仓库真跑产物）物化成 `.book` 配置；非法 ruleJSON 按 BookSiteRuleValidator 的问题清单报错。
+struct BookCatalogSourceMaterializerTests {
+    @Test func materializesRealBookCatalogIntoBookConfiguration() throws {
+        let materializer: CatalogSourceMaterializer = CatalogSourceMaterializer()
+        let catalogSource: CatalogSource = try Self.catalogSource(fixture: "biquhua-catalog")
+
+        let source: Source = try materializer.source(from: catalogSource, createdAt: Date(), updatedAt: Date())
+
+        #expect(source.id == "biquhua-com--top-all-0-1-html")
+        #expect(source.type == .html)
+        #expect(source.configuration.kind == .book)
+        guard case .book(let configuration) = source.configuration else {
+            Issue.record("expected .book configuration")
+            return
+        }
+        #expect(configuration.schemaVersion == 2)
+        #expect(configuration.rule.name == "笔趣阁")
+        #expect(configuration.rule.ruleSets.readerRules.first?.variant == .textDOM)
+        #expect(configuration.isEditable == false)
+    }
+
+    @Test func audiobookCatalogMaterializesToo() throws {
+        let source: Source = try CatalogSourceMaterializer().source(
+            from: try Self.catalogSource(fixture: "loyalbooks-catalog"),
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+        guard case .book(let configuration) = source.configuration else {
+            Issue.record("expected .book configuration")
+            return
+        }
+        #expect(configuration.rule.ruleSets.readerRules.first?.variant == .audioMedia)
+        #expect(configuration.rule.ruleSets.listRules.first?.pagination?.urlTemplate?.contains("{page}") == true)
+    }
+
+    @Test func invalidBookRuleJSONIsRejectedWithValidatorPaths() throws {
+        let catalogSource: CatalogSource = CatalogSource(
+            id: "bad-book",
+            name: "Bad",
+            baseURL: "https://bad.invalid/",
+            kind: .book,
+            ruleJSON: "{\"version\": 2, \"name\": \"Bad\", \"baseUrl\": \"https://bad.invalid/\", \"pages\": [], \"ruleSets\": {\"listRules\": [], \"detailRules\": [], \"readerRules\": []}}"
+        )
+        #expect(throws: CatalogSourceImportError.self) {
+            _ = try CatalogSourceMaterializer().source(from: catalogSource, createdAt: Date(), updatedAt: Date())
+        }
+        do {
+            _ = try CatalogSourceMaterializer().source(from: catalogSource, createdAt: Date(), updatedAt: Date())
+        } catch let error as CatalogSourceImportError {
+            guard case .invalidRuleJSON(_, _, let kind, let reason) = error else {
+                Issue.record("expected invalidRuleJSON, got \(error)")
+                return
+            }
+            #expect(kind == "book")
+            #expect(reason.contains("$.ruleSets.listRules"))
+            #expect(reason.contains("$.pages"))
+        }
+    }
+
+    private static func catalogSource(fixture: String) throws -> CatalogSource {
+        let url: URL = try #require(Bundle(for: BookCatalogFixtureMarker.self).url(forResource: fixture, withExtension: "json"))
+        let catalog: [String: Any] = try #require(JSONSerialization.jsonObject(with: try Data(contentsOf: url)) as? [String: Any])
+        let ruleJSON: Data = try JSONSerialization.data(withJSONObject: try #require(catalog["ruleJSON"]))
+        return CatalogSource(
+            id: try #require(catalog["id"] as? String),
+            name: try #require(catalog["name"] as? String),
+            baseURL: try #require(catalog["baseURL"] as? String),
+            kind: .book,
+            ruleJSON: String(decoding: ruleJSON, as: UTF8.self)
+        )
+    }
+}
+
+private final class BookCatalogFixtureMarker {}

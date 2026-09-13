@@ -269,6 +269,8 @@ private struct CatalogSourceRowView: View {
             return NSLocalizedString("RSS", comment: "")
         case .video:
             return NSLocalizedString("Video", comment: "")
+        case .book:
+            return NSLocalizedString("Books", comment: "")
         }
     }
 }

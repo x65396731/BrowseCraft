@@ -1,0 +1,175 @@
+{
+  "id": "loyalbooks-com--genre-adventure",
+  "name": "Loyal Books",
+  "baseURL": "https://www.loyalbooks.com/",
+  "ruleJSON": {
+    "version": 2,
+    "name": "Loyal Books",
+    "baseUrl": "https://www.loyalbooks.com/",
+    "site": {
+      "name": "Loyal Books",
+      "domain": "www.loyalbooks.com",
+      "baseURL": "https://www.loyalbooks.com/",
+      "language": ""
+    },
+    "pages": [
+      {
+        "id": "page-b7e8a62a9d74",
+        "title": "Adventure - Download Audiobooks & eBooks for iPhone, Android, Kindle and more!",
+        "type": "list",
+        "ruleRefs": {
+          "detail": "detail-1744c4799aae",
+          "list": "list-fbab437a1797",
+          "reader": "playback-012cc630a501"
+        },
+        "url": "https://www.loyalbooks.com/genre/Adventure"
+      }
+    ],
+    "ruleSets": {
+      "listRules": [
+        {
+          "id": "list-fbab437a1797",
+          "url": "https://www.loyalbooks.com/genre/Adventure?page={page}",
+          "itemRule": {
+            "function": "raw",
+            "selector": ".list-li",
+            "selectorKind": "css"
+          },
+          "fields": {
+            "cover": {
+              "fallback": [
+                {
+                  "function": "url",
+                  "param": "data-src",
+                  "selector": "img[src]",
+                  "selectorKind": "css"
+                },
+                {
+                  "function": "url",
+                  "param": "data-lazy-src",
+                  "selector": "img[src]",
+                  "selectorKind": "css"
+                },
+                {
+                  "function": "url",
+                  "param": "data-bg",
+                  "selector": "img[src]",
+                  "selectorKind": "css"
+                },
+                {
+                  "function": "url",
+                  "param": "style",
+                  "selector": "img[src]",
+                  "selectorKind": "css"
+                },
+                {
+                  "function": "url",
+                  "param": "src",
+                  "selector": "img[src]",
+                  "selectorKind": "css"
+                },
+                {
+                  "function": "url",
+                  "param": "data-manga-src",
+                  "selector": "img[src]",
+                  "selectorKind": "css"
+                }
+              ],
+              "function": "url",
+              "param": "data-original",
+              "selector": "img[src]",
+              "selectorKind": "css"
+            },
+            "detailURL": {
+              "function": "url",
+              "param": "href",
+              "selector": "a[href]",
+              "selectorKind": "css"
+            },
+            "title": {
+              "function": "text",
+              "selector": ".title",
+              "selectorKind": "css"
+            }
+          },
+          "type": "book",
+          "pagination": {
+            "pagePlaceholder": "{page}",
+            "stopWhenEmpty": true,
+            "urlTemplate": "https://www.loyalbooks.com/genre/Adventure?page={page}"
+          }
+        }
+      ],
+      "detailRules": [
+        {
+          "id": "detail-1744c4799aae",
+          "fields": {
+            "cover": {
+              "function": "url",
+              "param": "content",
+              "selector": "meta[property='og:image'][content]",
+              "selectorKind": "css"
+            },
+            "title": {
+              "function": "text",
+              "selector": "div > h3 > span",
+              "selectorKind": "css"
+            }
+          },
+          "chapterRule": {
+            "item": {
+              "function": "raw",
+              "selector": "ul#book-play-ul a[href][href*='/download/']",
+              "selectorKind": "css"
+            },
+            "title": {
+              "function": "text",
+              "selectorKind": "current"
+            },
+            "readerURL": {
+              "function": "url",
+              "param": "href",
+              "selectorKind": "current"
+            }
+          }
+        }
+      ],
+      "readerRules": [
+        {
+          "id": "playback-012cc630a501",
+          "variant": "audio-media",
+          "contentType": "audio",
+          "media": {
+            "url": {
+              "function": "url",
+              "selectorKind": "current",
+              "param": "href"
+            },
+            "item": {
+              "function": "raw",
+              "selectorKind": "css",
+              "selector": "ul#book-play-ul a[href]"
+            }
+          }
+        }
+      ]
+    },
+    "sharedRequest": {
+      "scope": "site",
+      "mergePolicy": "mergeHeadersAndCookies",
+      "method": "GET",
+      "headers": {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
+      },
+      "cookiePolicy": "browserThenCustom",
+      "cookiePriority": "browser",
+      "cookieScope": "site",
+      "charset": "utf8",
+      "needsWebView": false,
+      "autoScroll": false
+    }
+  },
+  "kind": "book"
+}

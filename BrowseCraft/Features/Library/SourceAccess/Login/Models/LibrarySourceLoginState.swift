@@ -104,6 +104,8 @@ struct LibrarySourceLoginStateResolver {
             return configuration.rule.site?.loginURL
         case .video(let configuration):
             return configuration.rule.site.loginURL
+        case .book(let configuration):
+            return configuration.rule.site?.loginURL
         case .rss, .plugin:
             return nil
         }
@@ -115,7 +117,7 @@ struct LibrarySourceLoginStateResolver {
             return configuration.rule.context
         case .video(let configuration):
             return configuration.rule.context
-        case .rss, .plugin:
+        case .rss, .plugin, .book:
             return nil
         }
     }

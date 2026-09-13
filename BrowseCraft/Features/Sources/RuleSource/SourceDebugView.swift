@@ -58,6 +58,8 @@ struct SourceDebugView: View {
                 self.rssSection(configuration: configuration)
             case .plugin(let configuration):
                 self.pluginSection(configuration: configuration)
+            case .book(let configuration):
+                self.bookSection(configuration: configuration)
             }
 
             self.jsonPreviewSection(source: source)
@@ -379,6 +381,20 @@ struct SourceDebugView: View {
             return "RSS"
         case .plugin:
             return "Plugin"
+        case .book:
+            return "Book"
+        }
+    }
+
+    /// 中文注释：book 规则树的结构概览（原生 V2，无 V1 层）；正文 / 音频取值在 Runtime 批次 B 接入。
+    @ViewBuilder
+    private func bookSection(configuration: BookSourceConfiguration) -> some View {
+        Section("Book") {
+            self.countLine("Pages", count: configuration.rule.pages.count)
+            self.countLine("List rules", count: configuration.rule.ruleSets.listRules.count)
+            self.countLine("Detail rules", count: configuration.rule.ruleSets.detailRules.count)
+            self.countLine("Reader rules", count: configuration.rule.ruleSets.readerRules.count)
+            LabeledContent("Reader variants", value: configuration.rule.ruleSets.readerRules.map(\.variant.rawValue).joined(separator: ", "))
         }
     }
 

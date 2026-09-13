@@ -86,6 +86,22 @@ struct ValidateSourceTabsUseCase: Sendable {
                     )
                 ]
             )
+        case .book:
+            // 中文注释：book 的 Runtime 在读书 kind 接线批次 B 接入；此前不能按规则取列表，明确记为跳过而不是失败。
+            return SourceTabsValidationResult(
+                sourceID: source.id,
+                runtimeKind: source.configuration.kind,
+                entries: [
+                    SourceTabValidationEntry(
+                        id: "\(source.id)::book",
+                        tabID: nil,
+                        title: source.name,
+                        context: nil,
+                        status: .skipped("Book sources are validated once the book runtime is connected."),
+                        itemCount: 0
+                    )
+                ]
+            )
         }
     }
 

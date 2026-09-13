@@ -130,6 +130,8 @@ struct VideoGenerationInputView: View {
             return "video_preflight_navigation_title"
         case .comic:
             return "comic_preflight_navigation_title"
+        case .book:
+            return "book_preflight_navigation_title"
         }
     }
 

@@ -375,3 +375,4 @@
 "Add Bookmark" = "添加书签";
 "Add a bookmark at the current page." = "在当前页添加一个书签。";
 "Delete" = "删除";
+"book_preflight_navigation_title" = "书籍";

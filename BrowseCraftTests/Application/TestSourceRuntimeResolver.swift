@@ -68,6 +68,10 @@ struct TestSourceRuntimeResolver: SourceRuntimeResolving {
                 )
             }
             return try videoRuntimeFactory(source)
+        case .book:
+            throw SourceRuntimeError.unsupported(
+                .custom("Book source runtime is not connected in this test resolver.")
+            )
         case .plugin:
             guard let pluginRuntimeFactory: (SourceDefinition) -> any SourceRuntime = self.pluginRuntimeFactory else {
                 throw SourceRuntimeError.unsupported(

@@ -1,7 +1,7 @@
 # 读书 kind（book）App 侧接线（立项，待拍板）
 
 更新时间：2026-09-13
-状态：**立项，未实施**——顺序与发布策略已由用户裁决（第四、五节）；每一批实施各自另拍板
+状态：**批次 A 已落地（2026-09-14）**，B / C 另拍板；顺序与发布策略已由用户裁决（第四、五节）。本地文件导入线的入口已按用户裁决藏起（[本地书籍导入](Local-Book-Import-Design.md) 第八节），其阅读器 / 书签 / 三张表留给批次 B / C 复用
 影响范围：BrowseCraftAPIKit、BrowseCraftDomain、BrowseCraftCore、BrowseCraftRuntime、BrowseCraft 五个仓库；影视线与漫画线代码零改动
 前置：服务器接线已部署（PortalCore `b9fc2ff`，2026-09-13 深夜），`POST /v1/rule-generations` 已接受 `sourceKind: book`；Readium 3.11.0 依赖已入库（BrowseCraft `7ad27044`），**首次整包 build 已于 2026-09-13 深夜通过**（`xcodebuild -scheme BrowseCraft` 模拟器 iPhone 16 Pro，0 error；影视线与漫画线的真机复核仍待用户）
 
@@ -82,3 +82,16 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
 - 规则合同：规则仓库 `docs/rules/book-catalog-profile.md`（App 消费的接口定稿）、`docs/rules/book-generation-design.md` `BC-BOOK-048`（本文即其 App 部分的立项）。
 - 服务器接线：PortalCore `docs/architecture/rule-generation-migration-plan.md` §14。
 - Readium 依赖与 SwiftSoup fork：本目录 `Readium-Integration-Handoff.md`。
+
+## 八、批次 A 落地记录（2026-09-14）
+
+| 仓库 | 改动 | 验证 |
+|---|---|---|
+| BrowseCraftAPIKit | `PortalRuleGenerationSourceKind.book`；`BrowseCraftCatalogSourceKind.book`；目录列表改为**逐条解码、未知 kind 跳过并记录**（`BrowseCraftSourceCatalog.decode` 返回 `skipped`）；目录请求显式带 `?kinds=comic,rss,video,book`（PortalCore §14.6，旧服务端忽略该参数） | `swift test` 33 项，含新增 3 项 |
+| BrowseCraftCore | `SourceRuntimeKind.book`；`SourceDefinition.book`（缺省 nil）；`BookSiteRule` 模型（原生 V2、三变体）与 `BookSiteRuleValidator`（BC-BOOK-001 ~ 008 的结构与引用约束，按 JSON path 报问题）；两份真实 catalog 作固定输入 | `swift test` 225 项，含新增 7 项（两份真实 catalog 原样通过，六类反例各一） |
+| BrowseCraftDomain | `CatalogSourceKind.book`；`SourceConfiguration.book(BookSourceConfiguration)`（编码键 `book`）；`SourceDefinitionMapper` 的 book 分支 | `swift build`（包无测试目标） |
+| BrowseCraftRuntime | `SourceRuntimeFactory` 对 book **明确抛不支持**（批次 B 接入）；列表映射暂按文章形态 | `swift build` |
+| BrowseCraft | `RuleGenerationSourceKind.book` 与生成客户端映射；`CatalogSourceMaterializer` 的 book 分支（经 `BookSiteRuleValidator`）；诊断枚举加 `book`；调试视图、规则编辑服务、登录状态、目录列表、列表校验、测试解析器各补 book 分支；`book_preflight_navigation_title` 文案 | 全量测试 + 边界脚本 |
+
+**这一批之后 App 能做什么**：解码含 book 的公共目录（旧版整表失效的问题已闭合）、把 book catalog 物化成 `Source`、向服务器提交 `sourceKind: book` 的生成请求（入口在批次 C）。
+**还不能做什么**：按规则取正文 / 音频（Runtime 批次 B）、显示书籍入口与阅读（批次 C）。

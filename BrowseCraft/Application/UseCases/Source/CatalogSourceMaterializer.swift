@@ -74,7 +74,45 @@ struct CatalogSourceMaterializer {
                 updatedAt: updatedAt,
                 origin: origin
             )
+        case .book:
+            return Source(
+                id: catalogSource.id,
+                name: catalogSource.name,
+                baseURL: catalogSource.baseURL,
+                type: .html,
+                configuration: .book(try self.bookConfiguration(from: catalogSource)),
+                enabled: enabled,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                origin: origin
+            )
         }
+    }
+
+    /// 中文注释：book catalog 只有原生 V2，经 BookSiteRuleValidator（BC-BOOK-011 的 App 侧）放行才落成配置。
+    private func bookConfiguration(
+        from catalogSource: CatalogSource
+    ) throws -> BookSourceConfiguration {
+        let validator: BookSiteRuleValidator = BookSiteRuleValidator(jsonDecoder: self.jsonDecoder)
+        let result: BookSiteRuleValidationResult = validator.validate(
+            ruleJSON: catalogSource.ruleJSON,
+            catalogMetadata: BookSiteRuleCatalogMetadata(
+                name: catalogSource.name,
+                baseURL: catalogSource.baseURL
+            )
+        )
+        guard result.canImport, let rule: BookSiteRule = result.rule else {
+            let descriptions: [String] = result.issues.prefix(8).map { issue in
+                return "\(issue.path): \(issue.message)"
+            }
+            throw CatalogSourceImportError.invalidRuleJSON(
+                sourceID: catalogSource.id,
+                name: catalogSource.name,
+                kind: catalogSource.kind.rawValue,
+                reason: descriptions.isEmpty ? "Book V2 validation failed." : descriptions.joined(separator: " | ")
+            )
+        }
+        return BookSourceConfiguration(rule: rule)
     }
 
     /// 中文注释：P2-6 后所有 video catalog 都必须通过 V2 合同；缺失或非 2 的版本直接拒绝。

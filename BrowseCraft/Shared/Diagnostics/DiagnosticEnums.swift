@@ -23,6 +23,7 @@ enum DiagnosticSourceType: String {
     case comic
     case video
     case rss
+    case book
     case unknown
 }
 
@@ -65,6 +66,8 @@ extension Source {
             return .rss
         case .plugin:
             return .unknown
+        case .book:
+            return .book
         }
     }
 }

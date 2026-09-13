@@ -73,7 +73,7 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
     }
 
     /// 中文注释：App 与 APIKit 各有一份 kind 枚举——APIKit 是传输合同，App 侧不该被它
-    /// 的取值集合绑住。两边都只有 video / comic，`switch` 保证任一边新增取值时编译期报错。
+    /// 的取值集合绑住。两边都是 video / comic / book，`switch` 保证任一边新增取值时编译期报错。
     private static func portalSourceKind(
         _ kind: RuleGenerationSourceKind
     ) -> PortalRuleGenerationSourceKind {
@@ -82,6 +82,8 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
             return .video
         case .comic:
             return .comic
+        case .book:
+            return .book
         }
     }
 
