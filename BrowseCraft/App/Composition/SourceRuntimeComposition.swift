@@ -58,6 +58,11 @@ final class SourceRuntimeComposition {
                 pageLoader: pageLoader,
                 sourceCredentialStore: sourceCredentialStore
             ),
+            // 中文注释：读书 kind 的运行时（批次 B）：列表 / 详情 / 章节正文或音频都按 BookSiteRule 走同一个 pageLoader。
+            bookSourceRuntimeFactory: BookSourceRuntimeFactory(
+                pageContentLoader: pageLoader,
+                defaultUserAgent: browserRequestHeaderProvider.userAgent
+            ),
             // 中文注释：槽位额度是 App 的决策，runtime 只调用注入的校验；
             // 这里以持久化状态为准，避免用内存里可能过期的 Source 判断。
             validateSourceAccess: { source in

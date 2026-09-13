@@ -95,3 +95,16 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
 
 **这一批之后 App 能做什么**：解码含 book 的公共目录（旧版整表失效的问题已闭合）、把 book catalog 物化成 `Source`、向服务器提交 `sourceKind: book` 的生成请求（入口在批次 C）。
 **还不能做什么**：按规则取正文 / 音频（Runtime 批次 B）、显示书籍入口与阅读（批次 C）。
+
+## 九、批次 B 落地记录（2026-09-14）
+
+| 仓库 | 改动 |
+|---|---|
+| BrowseCraftCore | `DefaultBookRuleParser`（Parsing/Book）：走与 comic / video 同一条内部 ExtractRule 管线；`parseList`（title / detailURL 必填，分页模板算下一页、空页停）、`parseDetail`（title 必填，chapterRule 章节去重）、`parseTextContent`（`elements` 取段落元素文本；`lineBreaks` 取容器 HTML 按 `<br>` 切、去标签、解实体）、`parseMedia`。`SourceBookContentRuntime` 合同（`SourceBookContentInput / Output`，`SourceBookChapterContent = text(title, paragraphs) | audio([items])`）。固定输入：两站五份 HTTP 形状语料（biquhua 30 条 / 112 章 / ≥12 段；loyalbooks 分页 `?page=2` / 17 条 mp3）。 |
+| BrowseCraftRuntime | `BookSourceRuntime` + `BookSourceRuntimeFactory`（Book/）：`loadList`（page → list 规则，第 N 页用分页模板）、`loadDetail`（chapterRule；chapterAPI 抛不支持）、`loadBookContent`（text-dom 按 `content.next` 逐页拼、最多 50 页；audio-media 出边是音频地址就不取页，否则按 `media` 规则取；text-api / mediaAPI 抛不支持——无语料）。`SourceRuntimeFactory` 加 `bookSourceRuntimeFactory` 参数。 |
+| BrowseCraft Application | `BookPublicationManifest`（纯值，BC-BOOK-012 对应表）、`BookPublicationAssembler`（章节出边是音频 → 有声出版物；否则正文出版物，href `chapters/0001.xhtml`）、`BookXHTMLRenderer`（转义 + 包装）、`LoadBookPublicationUseCase`（详情 → manifest + 按需取内容的 provider）。 |
+| BrowseCraft Infrastructure | `ReadiumSitePublicationBuilder`：manifest → `Publication(manifest:container:)`；`SiteBookChapterContainer` 只承载正文章节，每个 href 是按需取正文并装 XHTML 的 `DataResource`；音频章节是远程 href，`conformsTo: [.audiobook]`。 |
+| BrowseCraft 组合根 | `SourceRuntimeComposition` 装配 `BookSourceRuntimeFactory(pageContentLoader:defaultUserAgent:)`。 |
+
+验收：`BookSourceRuntimeEndToEndTests`——真实 catalog → Source → Runtime（网页由夹具桩）→ 详情 / 章节 / 正文或音频 → manifest → Publication，两站各一条；正文资源读出来是带 `<p>` 的 XHTML，mp3 出边不取页。
+**还没有**：Features 入口（批次 C）；站点书的进度 / 书签落库（本地书三张表的作品标识扩展，第六节第 3 条）；listAPI / chapterAPI / text-api / mediaAPI（无语料）。

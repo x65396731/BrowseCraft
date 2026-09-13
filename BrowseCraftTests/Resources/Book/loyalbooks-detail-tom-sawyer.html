@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html xmlns:og="http://opengraphprotocol.org/schema/" xmlns:fb="http://ogp.me/ns/fb#"> 
+<head>
+<meta charset="utf-8">
+
+
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link rel="stylesheet" type="text/css" href="/mobile-swatches3.css">
+
+
+<link rel="stylesheet" href="https://code.jquery.com/mobile/1.1.1/jquery.mobile-1.1.1.min.css">
+<script src="https://code.jquery.com/jquery-1.7.1.min.js"></script>
+<script type="text/javascript">
+$(document).bind("mobileinit", function(){
+	$.mobile.ajaxEnabled = false;
+	$.mobile.pushStateEnabled = false;
+});
+</script>
+
+<script src="/jquery/jquery.mobile-1.1.1.min.noscroll.js"></script>
+
+<link rel="stylesheet" type="text/css" href="/mobile3.css">
+
+<script type="text/javascript">
+$(document).ready(function(){
+	$('.toggle-a').click(function(){
+		$(".toggle-div2").hide();
+		$(".toggle-div1").slideToggle();
+	});
+	$('.toggle-b').click(function(){
+		$(".toggle-div1").hide();
+		$(".toggle-div2").slideToggle();
+	});
+});
+</script>
+
+<title>The Adventures of Tom Sawyer by Mark Twain - Free at Loyal Books</title>
+<meta name="description" content="The Adventures of Tom Sawyer by Mark Twain. Free audio book that you can download in mp3, iPod and iTunes format for your portable audio player. Audio previews, convenient categories and excellent search functionality make BooksShouldBeFree.com your best source for free audio books. Download a free audio book for yourself today!">
+<meta name="keywords" content="The Adventures of Tom Sawyer,Mark Twain,audio books,free audio books,free audio book downloads,ebooks,mp3,ipod,itunes,books,audio,download,free,adventure,children,comedy,fairy tales,fantasy,fiction,historical fiction,history,humor,literature,mystery,non-fiction,philosophy,poetry,romance,religion,science fiction,short stories,teen,young adult">
+<link rel="canonical" href="https://www.loyalbooks.com/book/tom-sawyer-by-mark-twain">
+<meta property="og:title" content="The Adventures of Tom Sawyer">
+<meta property="og:type" content="article">
+<meta property="fb:app_id" content="130567253662565">
+<meta property="og:url" content="https://www.loyalbooks.com/book/tom-sawyer-by-mark-twain">
+<meta property="og:image" content="https://www.loyalbooks.com/image/layout2/49.jpg">
+<meta property="og:site_name" content="Loyal Books">
+
+<link href="/jplayer/skin/jplayer.blue.monday.css" rel="stylesheet" type="text/css">
+<script type="text/javascript" src="/jplayer/jquery.jplayer.min.js"></script>
+<script type="text/javascript">
+window.jQuery&&function(a){if(a.browser.msie)try{document.execCommand("BackgroundImageCache",!1,!0)}catch(b){}a.fn.rating=function(b){if(this.length==0)return this;if(typeof arguments[0]=="string"){if(this.length>1){var c=arguments;return this.each(function(){a.fn.rating.apply(a(this),c)})}return a.fn.rating[arguments[0]].apply(this,a.makeArray(arguments).slice(1)||[]),this}var b=a.extend({},a.fn.rating.options,b||{});return a.fn.rating.calls++,this.not(".star-rating-applied").addClass("star-rating-applied").each(function(){var c,d=a(this),e=(this.name||"unnamed-rating").replace(/\[|\]/g,"_").replace(/^\_+|\_+$/g,""),f=a(this.form||document.body),g=f.data("rating");if(!g||g.call!=a.fn.rating.calls)g={count:0,call:a.fn.rating.calls};var h=g[e];h&&(c=h.data("rating")),h&&c?c.count++:(c=a.extend({},b||{},(a.metadata?d.metadata():a.meta?d.data():null)||{},{count:0,stars:[],inputs:[]}),c.serial=g.count++,h=a('<span class="star-rating-control"/>'),d.before(h),h.addClass("rating-to-be-drawn"),d.hasClass("required")&&(c.required=!0));var i=a('<div class="star-rating rater-'+c.serial+'"><a title="'+(this.title||this.value)+'">'+this.value+"</a></div>");h.append(i),this.id&&i.attr("id",this.id),this.className&&i.addClass(this.className),i.addClass("star-rating-live").mouseover(function(){a(this).rating("fill"),a(this).rating("focus")}).mouseout(function(){a(this).rating("draw"),a(this).rating("blur")}).click(function(){a(this).rating("select")}),this.checked&&(c.current=i),this.nodeName=="A"&&a(this).hasClass("selected")&&(c.current=i),d.hide(),d.change(function(){a(this).rating("select")}),i.data("rating.input",d.data("rating.star",i)),c.stars[c.stars.length]=i[0],c.inputs[c.inputs.length]=d[0],c.rater=g[e]=h,c.context=f,d.data("rating",c),h.data("rating",c),i.data("rating",c),f.data("rating",g)}),a(".rating-to-be-drawn").rating("draw").removeClass("rating-to-be-drawn"),this},a.extend(a.fn.rating,{calls:0,focus:function(){var b=this.data("rating");if(!b)return this;if(!b.focus)return this;var c=a(this).data("rating.input")||a(this.tagName=="INPUT"?this:null);b.focus&&b.focus.apply(c[0],[c.val(),a("a",c.data("rating.star"))[0]])},blur:function(){var b=this.data("rating");if(!b)return this;if(!b.blur)return this;var c=a(this).data("rating.input")||a(this.tagName=="INPUT"?this:null);b.blur&&b.blur.apply(c[0],[c.val(),a("a",c.data("rating.star"))[0]])},fill:function(){var a=this.data("rating");if(!a)return this;this.rating("drain"),this.prevAll().andSelf().filter(".rater-"+a.serial).addClass("star-rating-hover")},drain:function(){var a=this.data("rating");if(!a)return this;a.rater.children().filter(".rater-"+a.serial).removeClass("star-rating-on").removeClass("star-rating-hover")},draw:function(){var b=this.data("rating");if(!b)return this;this.rating("drain"),b.current?(b.current.data("rating.input").attr("checked","checked"),b.current.prevAll().andSelf().filter(".rater-"+b.serial).addClass("star-rating-on")):a(b.inputs).removeAttr("checked")},select:function(b,c){var d=this.data("rating");if(!d)return this;d.current=null;if(typeof b!="undefined"){if(typeof b=="number")return a(d.stars[b]).rating("select",undefined,c);typeof b=="string"&&a.each(d.stars,function(){a(this).data("rating.input").val()==b&&a(this).rating("select",undefined,c)})}else d.current=this[0].tagName=="INPUT"?this.data("rating.star"):this.is(".rater-"+d.serial)?this:null;this.data("rating",d),this.rating("draw");var e=a(d.current?d.current.data("rating.input"):null);(c||c==undefined)&&d.callback&&d.callback.apply(e[0],[e.val(),a("a",d.current)[0]])}}),a.fn.rating.options={starWidth:16},a(function(){a("input[type=radio].star").rating()})}(jQuery)
+</script>
+
+
+
+
+
+
+
+<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<script>
+  (adsbygoogle = window.adsbygoogle || []).push({
+    google_ad_client: "ca-pub-5879764092668092",
+    enable_page_level_ads: true
+  });
+</script>
+
+
+ 
+</head>
+
+<body>
+
+<script src="/smart-app-banner/smart-app-banner.js"></script>
+<script type="text/javascript">
+  new SmartBanner({
+	  daysHidden: 15,   // days to hide banner after close button is clicked (defaults to 15)
+	  daysReminder: 90, // days to hide banner after "VIEW" button is clicked (defaults to 90)
+	  appStoreLanguage: 'us', // language code for the App Store (defaults to user's browser language)
+	  title: 'Loyal Books App',
+	  author: 'Twist Idea LLC',
+	  button: 'VIEW',
+	  store: {
+		  ios: 'On the App Store',
+		  android: 'In Google Play',
+		  windows: 'In Windows store'
+	  },
+	  price: {
+		  ios: 'FREE',
+		  android: 'FREE',
+		  windows: 'FREE'
+	  }
+	  // , force: 'ios' // Uncomment for platform emulation
+  });
+</script>
+
+
+
+
+
+
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-819143-4"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-819143-4');
+</script>
+
+<div data-role="page">
+<div data-theme="a" data-role="header">
+
+<p class="header-title">
+<a href="/" class="header-title" rel="external">
+<img src="/image/ui/logo.png" class="header-logo">
+Loyal Books
+</a>
+</p>
+
+
+<a href="/language-menu" data-icon="gear" class="ui-btn-right" rel="external">Language</a>
+<div data-role="navbar" class="nav-icons-big" data-grid="b" >
+<ul>
+
+<li><a href="#" class="toggle-a" id="genre" data-theme="b" data-icon="custom" rel="external">Genres</a></li>
+
+<li><a href="/Top_100" id="top" data-theme="b" data-icon="custom" rel="external">Top Books</a></li>
+<li><a href="#" class="toggle-b" id="search" data-theme="b" data-icon="custom" rel="external">Search</a></li>
+</ul>
+</div>
+</div>
+
+
+<div class="ui-bar ui-bar-l toggle-div1">
+<div class="ui-grid-a">
+	<div class="ui-block-a">
+		<ul id="genre-ul" data-role="listview" data-inset="true" class="margin-r-5">
+		<li data-icon="false"><a href="/genre/Adventure" rel="external"><div id="Adventure" class="g-s ui-li-icon"></div>Adventure</a></li>
+		<li data-icon="false"><a href="/genre/Children" rel="external"><div id="Children" class="g-s ui-li-icon"></div>Kids</a></li>
+		<li data-icon="false"><a href="/genre/Comedy" rel="external"><div id="Comedy" class="g-s ui-li-icon"></div>Comedy</a></li>
+		<li data-icon="false"><a href="/genre/Fantasy" rel="external"><div id="Fantasy" class="g-s ui-li-icon"></div>Fantasy</a></li>
+		<li data-icon="false"><a href="/genre/Fiction" rel="external"><div id="Fiction" class="g-s ui-li-icon"></div>Fiction</a></li>
+		<li data-icon="false"><a href="/genre/History" rel="external"><div id="History" class="g-s ui-li-icon"></div>History</a></li>
+		</ul>	
+	</div>
+	<div class="ui-block-b">
+		<ul id="genre-ul" data-role="listview" data-inset="true" class="margin-l-5">
+		<li data-icon="false"><a href="/genre/Mystery" rel="external"><div id="Mystery" class="g-s ui-li-icon"></div>Mystery</a></li>
+		<li data-icon="false"><a href="/genre/Non-fiction" rel="external"><div id="Non-fiction" class="g-s ui-li-icon"></div>Non-fiction</a></li>
+		<li data-icon="false"><a href="/genre/Romance" rel="external"><div id="Romance" class="g-s ui-li-icon"></div>Romance</a></li>
+		<li data-icon="false"><a href="/genre/Science_fiction" rel="external"><div id="Science_fiction" class="g-s ui-li-icon"></div>Science fiction</a></li>
+		<li data-icon="false"><a href="/genre/Teen_Young_adult" rel="external"><div id="Teen_Young_adult" class="g-s ui-li-icon"></div>Teen/Young adult</a></li>
+		<li data-icon="false"><a href="/paid" rel="external"><div id="Literature" class="g-s ui-li-icon"></div>Paid Best Sellers</a></li>
+		</ul>
+	</div>
+</div>
+<a href="/genre-menu" data-role="button" data-theme="l" data-icon="arrow-r" data-iconpos="right" rel="external">More Genres</a>
+</div>
+
+
+
+
+
+<div class="ui-bar ui-bar-g toggle-div2">
+<p>
+Search all books by: Title, Author or Keyword
+
+<script type="text/javascript" src="https://www.google.com/jsapi"></script>
+<script type="text/javascript">
+  google.load('search', '1');
+  google.setOnLoadCallback(function() {
+    google.search.CustomSearchControl.attachAutoCompletion(
+            document.getElementById('q'),
+      'cse-search-box');
+  });
+</script>
+<form action="https://www.loyalbooks.com/search" id="cse-search-box" class="collapse">
+<div>
+<input type="hidden" name="cof" value="FORID:10">
+<input type="hidden" name="ie" value="UTF-8">
+<input type="text" name="q" id="q" autocomplete="off" size="31" class="google-search-box">
+<input type="submit" name="sa" value="Search" class="google-search-button">
+</div>
+</form>
+<script type="text/javascript" src="https://www.google.com/cse/brand?form=cse-search-box&lang=en"></script>
+</p>
+
+<script async src="https://cse.google.com/cse.js?cx=71dbe754842244413">
+</script>
+
+
+</div>
+
+
+
+
+
+<div data-role="content">
+<div itemscope itemtype="http://schema.org/Book">
+<br>
+<h3><div id="star5" class="s-title"></div>
+<span itemprop="name">The Adventures of Tom Sawyer</span> &nbsp;<font class="book-author">By: <a href="/author?author=Mark+Twain" itemprop="author">Mark Twain</a> (1835-1910)</font></h3>
+
+<div class="ui-body ui-body-c pad-lr-0">
+<p><div class="center-text"><img src="/image/detail/49.jpg" alt="The Adventures of Tom Sawyer by Mark Twain" itemprop="image" class="cover">
+</div>
+</div><p>
+
+<div class="center-text"><div class="goog-rectangle">
+
+
+
+<style>
+.bsbf-mr-book-top { width: 300px; height: 250px; }
+@media(min-width: 336px) { .bsbf-mr-book-top { width: 336px; height: 280px; } }
+</style>
+<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<!-- BSBF-mr Book Top -->
+<ins class="adsbygoogle bsbf-mr-book-top"
+     style="display:inline-block"
+     data-ad-client="ca-pub-5879764092668092"
+     data-ad-slot="1527344077"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+</div></div>
+<div class="ui-body ui-body-c">
+<h3>Description</h3>
+<span itemprop="description">If ever there was a story written based unabashedly on adventure and trouble, this is it.<p>
+
+There are treasure hunts and murderers on the run in this book that will keep you spellbound. Tom and his half-brother, Sid, lived with their aunt, Polly. Tom was a boisterous young fellow who constantly found himself in rather awkward situations that landed him into trouble. These situations were however exceedingly hilarious.<p>
+
+On one occasion, Tom dirtied his clothes in a fight and his punishment was to whitewash the fence the following day. He cunningly got his friends to not only beg to do the work for him but also to pay him for the privilege!<p>
+
+Tom and his friend, Huckleberry Finn visited the graveyard one night and witnessed the murder of Dr. Robinson. In fear they ran away to an island but soon came back home when they learned that their parents thought they were dead. But what became of the murderer on the run?<p>
+
+Tom Sawyer is a story told in such an engaging manner that you'll want to read it all in one sitting. The characters are vibrant and alive and the language simple, fun and engaging. If you have the stomach for such a story full of humor and horror, this book will not disappoint.</span>
+</div><p>
+
+<div data-role="collapsible-set">
+<div data-role="collapsible" data-collapsed="false" data-theme="m" data-content-theme="l">
+<h3>Play streaming audiobook</h3>
+<p>
+<div class="scroll-mp3">
+<ul id="book-play-ul" data-role="listview" class="scroll-margin">
+<li><a href="http://www.archive.org/download/tom_sawyer_librivox/TSawyer_01-02_twain_64kb.mp3" target="_blank" rel="external"><div id="play" class="s-book ui-li-icon"></div>
+<div class="overflow">Chapters 01 to 02</div></a></li>
+<li><a href="http://www.archive.org/download/tom_sawyer_librivox/TSawyer_03-04_twain_64kb.mp3" target="_blank" rel="external"><div id="play" class="s-book ui-li-icon"></div>
+<div class="overflow">Chapters 03 to 04</div></a></li>
+<li><a href="http://www.archive.org/download/tom_sawyer_librivox/TSawyer_05-06_twain_64kb.mp3" target="_blank" rel="external"><div id="play" class="s-book ui-li-icon"></div>
+<div class="overflow">Chapters 05 to 06</div></a></li>
+<li><a href="http://www.archive.org/download/tom_sawyer_librivox/TSawyer_07-08_twain_64kb.mp3" target="_blank" rel="external"><div id="play" class="s-book ui-li-icon"></div>
+<div class="overflow">Chapters 07 to 08</div></a></li>
+<li><a href="http://www.archive.org/download/tom_sawyer_librivox/TSawyer_09-10_twain_64kb.mp3" target="_blank" rel="external"><div id="play" class="s-book ui-li-icon"></div>
+<div class="overflow">Chapters 09 to 10</div></a></li>
+<li><a href="http://www.archive.org/download/tom_sawyer_librivox/TSawyer_11-12_twain_64kb.mp3" target="_blank" rel="external"><div id="play" class="s-book ui-li-icon"></div>
+<div class="overflow">Chapters 11 to 12</div></a></li>
+<li><a href="http://www.archive.org/download/tom_sawyer_librivox/TSawyer_13-14-15_twain_64kb.mp3" target="_blank" rel="external"><div id="play" class="s-book ui-li-icon"></div>
+<div class="overflow">Chapters 13 to 15</div></a></li>
+<li><a href="http://www.archive.org/download/tom_sawyer_librivox/TSawyer_16-17_twain_64kb.mp3" target="_blank" rel="external"><div id="play" class="s-book ui-li-icon"></div>
+<div class="overflow">Chapters 16 to 17</div></a></li>
+<li><a href="http://www.archive.org/download/tom_sawyer_librivox/TSawyer_18-19-20_twain_64kb.mp3" target="_blank" rel="external"><div id="play" class="s-book ui-li-icon"></div>
+<div class="overflow">Chapters 18 to 20</div></a></li>
+<li><a href="http://www.archive.org/download/tom_sawyer_librivox/TSawyer_21-22-23_twain_64kb.mp3" target="_blank" rel="external"><div id="play" class="s-book ui-li-icon"></div>
+<div class="overflow">Chapters 21 to 23</div></a></li>
+<li><a href="http://www.archive.org/download/tom_sawyer_librivox/TSawyer_24-25_twain_64kb.mp3" target="_blank" rel="external"><div id="play" class="s-book ui-li-icon"></div>
+<div class="overflow">Chapters 24 to 25</div></a></li>
+<li><a href="http://www.archive.org/download/tom_sawyer_librivox/TSawyer_26_twain_64kb.mp3" target="_blank" rel="external"><div id="play" class="s-book ui-li-icon"></div>
+<div class="overflow">Chapter 26</div></a></li>
+<li><a href="http://www.archive.org/download/tom_sawyer_librivox/TSawyer_27-28_twain_64kb.mp3" target="_blank" rel="external"><div id="play" class="s-book ui-li-icon"></div>
+<div class="overflow">Chapters 27 to 28</div></a></li>
+<li><a href="http://www.archive.org/download/tom_sawyer_librivox/TSawyer_29_twain_64kb.mp3" target="_blank" rel="external"><div id="play" class="s-book ui-li-icon"></div>
+<div class="overflow">Chapter 29</div></a></li>
+<li><a href="http://www.archive.org/download/tom_sawyer_librivox/TSawyer_30_twain_64kb.mp3" target="_blank" rel="external"><div id="play" class="s-book ui-li-icon"></div>
+<div class="overflow">Chapter 30</div></a></li>
+<li><a href="http://www.archive.org/download/tom_sawyer_librivox/TSawyer_31-32_twain_64kb.mp3" target="_blank" rel="external"><div id="play" class="s-book ui-li-icon"></div>
+<div class="overflow">Chapters 31 to 32</div></a></li>
+<li><a href="http://www.archive.org/download/tom_sawyer_librivox/TSawyer_33-34-35_twain_64kb.mp3" target="_blank" rel="external"><div id="play" class="s-book ui-li-icon"></div>
+<div class="overflow">Chapters 33 to 35</div></a></li>
+</ul></div></p></div>
+
+<div data-role="collapsible" data-theme="r" data-content-theme="c">
+<h3>Desktop audiobook downloads</h3>
+<p><ul id="book-ul" data-role="listview">
+<li><a href="http://www.archive.org/download/LibrivoxM4bCollectionAudiobooks4/AdventuresOfTomSawyer-64kb-Part1.m4b" rel="external"><div id="ipod" class="s-book ui-li-thumb"></div>
+<h3>iPod/iPhone M4b Audiobook</h3>
+<p class="overflow">Audio Book File in .m4b format</p>
+</a></li>
+<li><a href="http://www.archive.org/download/LibrivoxM4bCollectionAudiobooks4/AdventuresOfTomSawyer-64kb-Part2.m4b" class="ipod-small" rel="external"><div id="ipod-small" class="s-book ui-li-thumb"></div>
+iPod/iPhone M4b Audiobook Part: 2
+</a></li>
+
+
+<li><a href="http://www.archive.org/download/tom_sawyer_librivox/tom_sawyer_librivox_64kb_mp3.zip" rel="external">
+<div id="zip" class="s-book ui-li-thumb"></div>
+<h3>MP3 Download</h3>
+<p class="overflow">Download mp3 files for each chapter of this book in one zip file
+ (195.1MB)</p>
+</a></li>
+<li><a href="https://www.loyalbooks.com/book/tom-sawyer-by-mark-twain/feed" rel="external">
+<div id="rss" class="s-book ui-li-thumb"></div>
+<h3>RSS Feed</h3>
+<p class="overflow">Listen from your RSS reader
+</p>
+</a></li>
+</ul></p></div></div><p>
+
+<ul data-role="listview" data-divider-theme="l" data-theme="l" id="book-ul" data-inset="true">
+<li data-role="list-divider">iTunes Poscast<a href="/articles/podcasts/" class="help-a"><div class="s-book" id="help"></div></a></li>
+<li><a href="https://itunes.apple.com/us/podcast/adventures-tom-sawyer-by-mark/id726845329?at=11lmUj" rel="external">
+<div id="itunes" class="s-book ui-li-thumb"></div>
+<h3>Podcast</h3><p class="overflow">Listen from the Podcast App
+</p></a></li>
+</ul><p>
+
+<ul data-divider-theme="o" data-theme="o" id="book-ul" data-role="listview" data-inset="true"><li data-role="list-divider">
+eBook downloads
+</li>
+<li><a href="/download/epub/Tom-Sawyer-by-Mark-Twain.epub" rel="external noreferrer" target="_blank">
+<div id="epub" class="s-book-wide ui-li-thumb"></div>
+<h3 class="s-book-pad">ePUB eBook</h3>
+<p class="s-book-pad">iPhone and iPad (iBooks)</p>
+<p class="s-book-pad">Nook & Sony Reader</p>
+</a></li>
+<li><a href="/download/mobi/Tom-Sawyer-by-Mark-Twain.mobi" rel="external noreferrer" target="_blank">
+<div id="kindle" class="s-book ui-li-thumb"></div>
+<h3>Kindle eBook</h3>
+<p>Mobi file format for Kindle</p>
+</a></li>
+<li><a href="http://www.gutenberg.org/dirs/7/74/74-h/74-h.htm" rel="external noreferrer" target="_blank">
+<div id="read" class="s-book ui-li-thumb"></div>
+<h3>Read eBook</h3>
+<p>Load eBook in browser</p>
+</a></li>
+<li><a href="/download/text/Tom-Sawyer-by-Mark-Twain.txt" rel="external" target="_blank">
+<div id="text" class="s-book ui-li-thumb"></div>
+<h3>Text File eBook</h3>
+<p>Computers</p>
+<p>Windows / Mac</p>
+</a></li>
+</ul>
+
+<ul data-role="listview" data-divider-theme="g" data-theme="g" data-inset="true"><li data-role="list-divider">
+Links related to this book</li>
+<li><a href="https://en.wikipedia.org/wiki/Mark_twain" target="_blank" rel="external"><div class="overflow">Wikipedia – Mark Twain</div></a></li>
+<li><a href="https://en.wikipedia.org/wiki/The_Adventures_of_Tom_Sawyer" target="_blank" rel="external"><div class="overflow">Wikipedia – The Adventures of Tom Sawyer</div></a></li>
+</ul><p>
+
+<ul data-divider-theme="g" data-theme="g" id="genre-ul" data-role="listview" data-inset="true"><li data-role="list-divider">
+Genres for this book</li>
+<li><a href="/genre/Children" class="genre-margin" rel="external"><div id="Children" class="g-s ui-li-icon"></div>Kids</a></li>
+<li><a href="/genre/Fiction" class="genre-margin" rel="external"><div id="Fiction" class="g-s ui-li-icon"></div>Fiction</a></li>
+<li><a href="/genre/Humor" class="genre-margin" rel="external"><div id="Humor" class="g-s ui-li-icon"></div>Humor</a></li>
+<li><a href="/genre/Literature" class="genre-margin" rel="external"><div id="Literature" class="g-s ui-li-icon"></div>Literature</a></li>
+<li><a href="/genre/Dramatic_Works" class="genre-margin" rel="external"><div id="Dramatic_Works" class="g-s ui-li-icon"></div>Dramatic Works</a></li>
+<li><a href="/genre/Adventure" class="genre-margin" rel="external"><div id="Adventure" class="g-s ui-li-icon"></div>Adventure</a></li>
+</ul><p>
+
+<a name="review"></a><ul data-role="listview" data-divider-theme="f" data-theme="c" data-inset="true"><li data-role="list-divider">
+Reviews
+<span itemprop="aggregateRating" itemscope itemtype="http://schema.org/AggregateRating">
+<font style="font-size:12px;font-weight:normal">
+ (Rated: <span itemprop="ratingValue">5</span> Stars - 
+<span itemprop="reviewCount">50</span> reviews)
+</font>
+</span></li>
+<li><form id="reviewform" action="" method="POST"><div class="rating-contain">
+<input name="rating-stars" type="radio" class="star" value="1">
+<input name="rating-stars" type="radio" class="star" value="2">
+<input name="rating-stars" type="radio" class="star" value="3">
+<input name="rating-stars" type="radio" class="star" value="4">
+<input name="rating-stars" type="radio" class="star" value="5" checked="checked">
+</div>
+<input type="text" name="rating-name" placeholder="Name" data-mini="true"><input type="text" name="rating-subject" placeholder="Subject" data-mini="true"><textarea rows="1" name="rating-review" placeholder="Review" data-mini="true"></textarea><input type="submit" value="Submit" data-mini="true" data-theme="f"></form></li><li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Patrick Mahomes II</span> - <meta itemprop="datePublished" content="2021-06-03">June 3, 2021</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">GREAT FOR DA BOYS</span></p>
+<p class="overflow" itemprop="reviewBody">great for long trips to play different teams in the nfl</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Carl weezer</span> - <meta itemprop="datePublished" content="2021-05-12">May 12, 2021</p>
+<p class="overflow" itemprop="reviewBody">I really liked it</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">User</span> - <meta itemprop="datePublished" content="2021-04-16">April 16, 2021</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Narrator</span></p>
+<p class="overflow" itemprop="reviewBody">The Narrator is really stupid and not nice</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Megan </span> - <meta itemprop="datePublished" content="2021-03-31">March 31, 2021</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Novy</span></p>
+<p class="overflow" itemprop="reviewBody">I LOVE all the free books!!!</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">MRDiggerJR</span> - <meta itemprop="datePublished" content="2020-10-27">October 27, 2020</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Book and Narrator</span></p>
+<p class="overflow" itemprop="reviewBody">Great Narration! the narrator made the book come to life and made me enjoy the book even more if I had just read it myself. 10/10 for adventure, plot twists, and over all great story.</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Zoey</span> - <meta itemprop="datePublished" content="2020-10-07">October 7, 2020</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Narrator - voice</span></p>
+<p class="overflow" itemprop="reviewBody">His voice sounds amazing and he keeps my interest by the way he reads.</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">noone</span> - <meta itemprop="datePublished" content="2020-09-25">September 25, 2020</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">narrator</span></p>
+<p class="overflow" itemprop="reviewBody">Tell me all the books he narrates there the best.</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">noone</span> - <meta itemprop="datePublished" content="2020-09-09">September 9, 2020</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">book</span></p>
+<p class="overflow" itemprop="reviewBody">Best book ever.</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">kani</span> - <meta itemprop="datePublished" content="2020-06-29">June 29, 2020</p>
+<p class="overflow" itemprop="reviewBody">really good narrator</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Pawel Szulc</span> - <meta itemprop="datePublished" content="2020-06-10">June 10, 2020</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Narrator and Story</span></p>
+<p class="overflow" itemprop="reviewBody">Beautiful. Simply beautiful! I absolutely love the Narrator - Great phrasing of words, distinguishable dialogue, and he really suits well to the type of book this is. And the story. Just Wow. What a great influence has Mark Twain been to me. This audio book introduced me to a new author which is definitely interfered (in a good way) part of my mental collection of favourite authors and the Narrator is indubitably great! Proceed the great work! </p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">PRAKASH Reddy</span> - <meta itemprop="datePublished" content="2020-04-25">April 25, 2020</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Narrator </span></p>
+<p class="overflow" itemprop="reviewBody">I have been addicted to the way he narrates </p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">adrian</span> - <meta itemprop="datePublished" content="2020-02-21">February 21, 2020</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">narrator</span></p>
+<p class="overflow" itemprop="reviewBody">the narrator is so good</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Kate</span> - <meta itemprop="datePublished" content="2018-10-03">October 3, 2018</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Narrator</span></p>
+<p class="overflow" itemprop="reviewBody">I like the way how he narrates the story.</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">fckghvhg</span> - <meta itemprop="datePublished" content="2018-05-24">May 24, 2018</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Narrator</span></p>
+<p class="overflow" itemprop="reviewBody">the narrator reads really slow and I read a lot faster by myself so pick up the pace.</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Rob Gronkowski</span> - <meta itemprop="datePublished" content="2018-05-16">May 16, 2018</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">GREAT FOR THE BOIS</span></p>
+<p class="overflow" itemprop="reviewBody">As my fellow player said TomSawyer is a great book by mark Twain. Its great for the boys on road trips.</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">danielarceo</span> - <meta itemprop="datePublished" content="2018-02-05">February 5, 2018</p>
+<p class="overflow" itemprop="reviewBody">this book is  good but it takes forever to to finsh but in move is better and that good that he like at the and she just wont that money and that guy an cort throw a knife at hime </p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">abdulhamed</span> - <meta itemprop="datePublished" content="2017-11-15">November 15, 2017</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Narrator</span></p>
+<p class="overflow" itemprop="reviewBody">i like the Narrator and the all story it,s really great story</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">User</span> - <meta itemprop="datePublished" content="2017-09-28">September 28, 2017</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">book</span></p>
+<p class="overflow" itemprop="reviewBody">good book it was a mix of battfeild 1 and goat sim</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Ian</span> - <meta itemprop="datePublished" content="2017-06-06">June 6, 2017</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Narrator</span></p>
+<p class="overflow" itemprop="reviewBody">I love the Narrator!</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">D.RAVICHANDRA</span> - <meta itemprop="datePublished" content="2017-05-28">May 28, 2017</p>
+<p class="overflow" itemprop="reviewBody">I like it the way the narrator tells the story</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">tom brady</span> - <meta itemprop="datePublished" content="2017-05-25">May 25, 2017</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">good book</span></p>
+<p class="overflow" itemprop="reviewBody">good for long roadtrips with the team</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="1">
+<div id="star1" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">ryan fitzpatrick</span> - <meta itemprop="datePublished" content="2017-05-03">May 3, 2017</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">book</span></p>
+<p class="overflow" itemprop="reviewBody">I loved this book</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="1">
+<div id="star1" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Tom Brady</span> - <meta itemprop="datePublished" content="2017-04-11">April 11, 2017</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">book</span></p>
+<p class="overflow" itemprop="reviewBody">I didnt like this book</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">LukasK</span> - <meta itemprop="datePublished" content="2017-02-03">February 3, 2017</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">I saw her hot vid</span></p>
+<p class="overflow" itemprop="reviewBody">Fellas i saw naughty video with her, search in google for: amateur nude Litemia</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Mai Thanh</span> - <meta itemprop="datePublished" content="2016-11-25">November 25, 2016</p>
+<p class="overflow" itemprop="reviewBody">I love this book and your voice! Thank you so much!</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">bill gate</span> - <meta itemprop="datePublished" content="2016-05-23">May 23, 2016</p>
+<p class="overflow" itemprop="reviewBody">it was good 10/10</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Hunter</span> - <meta itemprop="datePublished" content="2016-03-11">March 11, 2016</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">teen/Young adult</span></p>
+<p class="overflow" itemprop="reviewBody">love this book as a kid, and listening to it was even better. Thanks so much for this!!! Makesyou wanna read it again an again. It is fun </p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Judy</span> - <meta itemprop="datePublished" content="2015-12-26">December 26, 2015</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">so interesting!!</span></p>
+<p class="overflow" itemprop="reviewBody">I loved this book as a kid, and listening to it was even better. Thanks so much for this!! Makes you wanna read it again and again. </p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Christian</span> - <meta itemprop="datePublished" content="2015-06-04">June 4, 2015</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Reviewer</span></p>
+<p class="overflow" itemprop="reviewBody">Great book and the reader is super. One of my favorite books.</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Mila, St.Petersburg, Russia</span> - <meta itemprop="datePublished" content="2015-05-12">May 12, 2015</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Reader</span></p>
+<p class="overflow" itemprop="reviewBody">The best performance of the best book ever, a real one-actor-theatre! SUPER!!</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Susan</span> - <meta itemprop="datePublished" content="2015-04-07">April 7, 2015</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Fabulous Treat</span></p>
+<p class="overflow" itemprop="reviewBody">Not only is this a classic, all-time favorite of mine, but the reader was phenomenal. Very well paced, good inflections, and high energy. Excellent job. He did the subject justice!</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">User</span> - <meta itemprop="datePublished" content="2015-03-27">March 27, 2015</p>
+<p class="overflow" itemprop="reviewBody">this is what i am looking forward to </p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Joel</span> - <meta itemprop="datePublished" content="2015-02-05">February 5, 2015</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Tom Sawrey</span></p>
+<p class="overflow" itemprop="reviewBody">It is a good book read this book:-) :-) :-) :-) :-) :-) :-) :-) :-) :-) </p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Jacklyn </span> - <meta itemprop="datePublished" content="2015-01-12">January 12, 2015</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Book</span></p>
+<p class="overflow" itemprop="reviewBody">This is such a Masterpiece!! What an amazing book! I never thought that I could enjoy Children's Literature so much!! Thank you so much for reading this so beautifully. </p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Jacklyn </span> - <meta itemprop="datePublished" content="2015-01-07">January 7, 2015</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Intertaining </span></p>
+<p class="overflow" itemprop="reviewBody">Loving this narrator! He does an amazing job portraying the characters and their personalities! :) Thank you for this website!! I love being able to listen to books. </p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Park</span> - <meta itemprop="datePublished" content="2014-07-17">July 17, 2014</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">good</span></p>
+<p class="overflow" itemprop="reviewBody">l love this narrator. Good to listen, nice.</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">A.Z.</span> - <meta itemprop="datePublished" content="2014-05-06">May 6, 2014</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Cosmic</span></p>
+<p class="overflow" itemprop="reviewBody">One of the all time greats. EPIC!</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Alex</span> - <meta itemprop="datePublished" content="2014-04-28">April 28, 2014</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Awsome</span></p>
+<p class="overflow" itemprop="reviewBody">Very interesting and I love the voices.</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Sammich</span> - <meta itemprop="datePublished" content="2014-03-17">March 17, 2014</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Great!</span></p>
+<p class="overflow" itemprop="reviewBody">Narration was wonderful, made this a fun listen!</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Angel</span> - <meta itemprop="datePublished" content="2014-03-16">March 16, 2014</p>
+<p class="overflow" itemprop="reviewBody">Really great book.  This is the first Mark Twain story I've had the pleasure of listening to and its left an impression on me. Narrator does a really good job as well.</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Sékou</span> - <meta itemprop="datePublished" content="2014-02-19">February 19, 2014</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Useful</span></p>
+<p class="overflow" itemprop="reviewBody">It's useful for me to have such audio books, I can improve my listening and I love the voices.</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Jia</span> - <meta itemprop="datePublished" content="2013-12-24">December 24, 2013</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Wonderful </span></p>
+<p class="overflow" itemprop="reviewBody">My husband and I enjoyed this audio book very much on a long trip. The narrator is great and "does the voices" without trying too hard or sounding silly. I recommend this.</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Scott</span> - <meta itemprop="datePublished" content="2013-11-18">November 18, 2013</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Review</span></p>
+<p class="overflow" itemprop="reviewBody">Great book great reader. Thanks. It makes my trip to and from work (1 hour each) shorter. </p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Adam</span> - <meta itemprop="datePublished" content="2013-08-26">August 26, 2013</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Reader</span></p>
+<p class="overflow" itemprop="reviewBody">Great Reader! I think he reads a Connecticut Yankee in king Arthurs court!</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Liz</span> - <meta itemprop="datePublished" content="2013-07-26">July 26, 2013</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Narrator</span></p>
+<p class="overflow" itemprop="reviewBody">I just love this narrator! He has such a good voice for this book. Great impressions!</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">User</span> - <meta itemprop="datePublished" content="2013-07-15">July 15, 2013</p>
+<p class="overflow" itemprop="reviewBody">I absolutely love the narrator!</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Sergei</span> - <meta itemprop="datePublished" content="2013-05-31">May 31, 2013</p>
+<p class="overflow" itemprop="reviewBody">Great narrator! </p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">User</span> - <meta itemprop="datePublished" content="2013-05-03">May 3, 2013</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Great story for everyone</span></p>
+<p class="overflow" itemprop="reviewBody">Great story, great reader</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">Julie</span> - <meta itemprop="datePublished" content="2013-03-12">March 12, 2013</p>
+<p class="overflow" itemprop="reviewBody">EXCELLENT job of reading this marvelous book! Couldn't put it down. Thank you. :0)</p></div></div></li>
+<li>
+<div itemprop="review" itemscope itemtype="http://schema.org/Review">
+<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+<meta itemprop="ratingValue" content="5">
+<div id="star5" class="s-grid review-star ui-li-thumb"></div>
+</span><div class="s-list-margin"><p class="overflow"><b>Reviewer:</b> <span itemprop="author">loredana</span> - <meta itemprop="datePublished" content="2013-02-28">February 28, 2013</p>
+<p class="overflow"><b>Subject:</b> <span itemprop="name">Great story, great reader</span></p>
+<p class="overflow" itemprop="reviewBody">The best voice I've ever heard ... I want more books read by the same person. The story was really great. I played it for my 3 months old son, but I enjoyed it too.</p></div></div></li>
+</ul><p>
+
+</div></div><div class="center-text goog-book-3 width-100">
+
+
+
+<style>
+.bsbf-mr-book-bottom-horizontal { width: 320px; height: 100px; }
+@media(min-width: 500px) { .bsbf-mr-book-bottom-horizontal { width: 468px; height: 60px; } }
+@media(min-width: 768px) { .bsbf-mr-book-bottom-horizontal { width: 728px; height: 90px; } }
+@media(min-width: 1200px) { .bsbf-mr-book-bottom-horizontal { width: 970px; height: 90px; } }
+</style>
+<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<!-- BSBF-mr Book Bottom Horizontal -->
+<ins class="adsbygoogle bsbf-mr-book-bottom-horizontal"
+     style="display:inline-block"
+     data-ad-client="ca-pub-5879764092668092"
+     data-ad-slot="1108541672"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+
+
+
+</div><div data-role="content"><iframe src="/book/carousel?book=tom-sawyer-by-mark-twain" scrolling="no" class="carousel-frame"></iframe>
+
+
+</div>
+
+<div data-theme="a" data-role="footer">
+
+
+<form action="" method="post" data-ajax="false"> 
+
+<p class="footer-center">
+<font style="font-size:16px;"><a href="/app" rel="external">iPhone App</a></font>&nbsp; | &nbsp;
+
+<font style="font-size:16px;"><a href="/articles/" rel="external">Articles</a></font>&nbsp; |
+
+ <input type="hidden" name="isMobile" value="0">
+<input type="submit" class="desktop-button" value="Desktop View" data-role="none">
+
+|&nbsp; &copy;2026 Loyal Books
+ | &nbsp;<a href="/about" style="font-weight:normal; text-decoration:none; color:#fff; font-size:;">About</a>
+  | &nbsp;<a href="/privacy" style="font-weight:normal; text-decoration:none; color:#fff; font-size:;">Privacy</a>
+
+</p>
+</form>
+
+
+</div></div>
+
+
+
+
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"f01015c95e214d5ab92124800f0d66dd","r":1,"spa":2}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3a5b3c4bdef31a1',t:'MTc4OTI4NzMwNg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
