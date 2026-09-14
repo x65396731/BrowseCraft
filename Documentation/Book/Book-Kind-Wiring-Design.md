@@ -271,3 +271,21 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
 - **固定输入**：`BookSiteDetailViewModelTests.detailAndReaderShareOnePublicationLoad`（详情 + 阅读器共用缓存，作品页只取 1 次）、
   `publicationCacheExpiresAndSkipsOtherBooks`（同书二次命中、他源不命中、过期后重取）。
 - **验证**：全量 510 / 89 过、架构边界干净。**2026-09-15 真机通过（用户日志）**：783159 开书，作品页 `book.sfacg.com/Novel/783159/` 与目录页 `m.sfacg.com/i/783159/` 各 1 次，随后只取章节。
+
+## 二十二、站点书搜索：由规则声明、与漫画 / 影视同一条合同（2026-09-15，用户问「设计书里没有搜索能力吗？book 应该和漫画影视一样才对」，裁决「两侧一起做」）
+
+- **核实**：规则仓库设计早有（`BC-BOOK-045`：搜索发现与验证三 kind 共用，book 只投影 `ruleSets.searchRules[]` + 一页 `type="search"`），
+  三个书站的真跑也都走了搜索发现，只是没有一次验证通过（biquhua 核验关键词带分类前缀「[历史]迷魂阵」站内搜 0 条；loyalbooks / sfacg 结果页 JS 渲染）。
+  App 侧则从来没接：`BookSourceRuntime` 写死 `supportsSearch: false`、无 `search()`；更早一格，Core `BookPageRule.url` 必填、页型只认 `list`——
+  引擎一旦真的写出搜索页（无 url），整份 catalog 在 App 会解码失败。
+- **引擎侧**（fwq，同日）：核验关键词按条目取「列表标题与详情标题互相包含取较短」（`BC-SEARCH-004` 续，与第十九节同一条规则），零 token 测量 17 份真跑无误伤后落地。
+- **Core**：`BookPageRule.url` 改可选；`BookSearchRule` 按引擎交付形状建模（`url` 带 `{keyword}`、`method`、`keywordEncoding`、`item`（引擎键名，不是 `itemRule`）、`fields`、`listRuleRef`、`pagination`、`request`）；
+  校验器认 `type="search"` 页（只要求 `ruleRefs.search` 可解析），并校验搜索规则（`url` 含 `{keyword}`；`listRuleRef` 可解析，或自带 `item + fields.title/detailURL`）。
+- **Runtime**：`BookSourceRuntime: SourceSearchRuntime`。`supportsSearch` = 存在 `type="search"` 页且其引用可解析；`search()` 把关键词按 `keywordEncoding` 编进 `{keyword}`
+  （复用 `VideoSourceListLoader.searchURL`），第 N 页要 `pagination.urlTemplate`；条目取法借 `listRuleRef` 目标的 `itemRule / fields`（自带的覆盖），解析与输出映射复用 `loadList`。
+  `page(for:)` 无 pageID 时取第一页**列表页**——搜索页与列表页并列写在 `pages[]`，不能拿到搜索页。
+- **App**：`LibrarySearchView` 的结果点击按 kind 分流——读书 kind 进 `BookSiteDetailView`（此前无条件走漫画目的地，与 2026-09-13 漫画搜索的同型问题）。
+- **固定输入**：Core `testSearchPageAndSearchRulesImport` / `testSearchRuleWithoutKeywordPlaceholderOrDanglingRefsIsRejected`；
+  App `biquhuaSearchIsDeclaredByRuleAndParsesTheResultPage`（夹具 `biquhua-catalog-search.json` 按引擎交付形状构造 + `biquhua-search-mihunzhen.html` 真实结果页：1 条「[历史]迷魂阵」→ `/book/130/130817/`；
+  列表仍落列表页；未声明搜索的 catalog 不支持；第 2 页无模板抛错）。
+- **验证**：Core 234 过（4 跳过）、Runtime 编译过、App 全量见提交说明。**未真机**：要等 biquhua 用新判据真跑出带搜索的 catalog、替换线上规则后，由用户真机验搜索。

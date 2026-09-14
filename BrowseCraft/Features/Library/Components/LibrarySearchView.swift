@@ -13,6 +13,7 @@ struct LibrarySearchView: View {
     let contentViewModelFactory: LibraryContentViewModelFactory
     @FocusState private var isKeywordFocused: Bool
     @State private var selectedComicDestination: LibraryComicDestination?
+    @State private var selectedSiteBookDestination: LibrarySiteBookDestination?
 
     var body: some View {
         NavigationStack {
@@ -67,6 +68,13 @@ struct LibrarySearchView: View {
             .navigationDestination(item: self.$selectedComicDestination) { destination in
                 self.comicDestination(for: destination.item, source: destination.source)
             }
+            .navigationDestination(item: self.$selectedSiteBookDestination) { destination in
+                BookSiteDetailView(
+                    viewModel: self.contentViewModelFactory.makeBookSiteDetail(destination.item, destination.source),
+                    makeReaderViewModel: self.contentViewModelFactory.makeBookSiteReader
+                )
+                .id(destination.id)
+            }
         }
     }
 
@@ -119,6 +127,11 @@ struct LibrarySearchView: View {
                         "itemId=\(item.id) sourceId=\(source.id) title=\(item.title) detailURL=\(item.detailURL)"
                     )
                     #endif
+                    // 中文注释：与 `LibraryView.openComicDestination` 同一分流——读书 kind 的搜索结果进站点书详情（2026-09-15 book 搜索接线）。
+                    if source.configuration.kind == .book {
+                        self.selectedSiteBookDestination = LibrarySiteBookDestination(item: item, source: source)
+                        return
+                    }
                     self.selectedComicDestination = LibraryComicDestination(item: item, source: source)
                 },
                 primaryActionTitle: self.viewModel.primaryActionTitle(for:),

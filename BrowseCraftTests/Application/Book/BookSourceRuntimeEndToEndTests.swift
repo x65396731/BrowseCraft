@@ -76,6 +76,45 @@ struct BookSourceRuntimeEndToEndTests {
         #expect(loader.requestedURLs.filter { $0 == chapterURL.absoluteString }.count == 2, "运行时一次 + 出版物按需一次")
     }
 
+    // 中文注释：BC-BOOK-045 的 App 侧：搜索由规则声明（`type="search"` 页 + `searchRules[]`，`listRuleRef` 借列表取法），
+    // 关键词按 `keywordEncoding` 编进 `{keyword}`；结果页与列表同构，条目落到站点书详情。夹具是 biquhua 真实搜索结果页（2026-09-15 抓取）。
+    @Test func biquhuaSearchIsDeclaredByRuleAndParsesTheResultPage() async throws {
+        let loader: FixturePageContentLoader = FixturePageContentLoader(fixtures: [
+            "https://www.biquhua.com/search.php?q=%E8%BF%B7%E9%AD%82%E9%98%B5": "biquhua-search-mihunzhen",
+        ])
+        let source: Source = try BookRuntimeFixtures.source(fixture: "biquhua-catalog-search")
+        let runtime: BookSourceRuntime = try BookSourceRuntimeFactory(pageContentLoader: loader).makeRuntime(source: source)
+        let context: SourceRuntimeContext = BookRuntimeFixtures.context(sourceID: source.id)
+
+        #expect(runtime.capabilities.supportsSearch)
+        #expect(runtime is SourceSearchRuntime)
+
+        let output: SourceListOutput = try await runtime.search(SourceSearchInput(keyword: " 迷魂阵 ", page: 1, urlOverride: nil, context: context))
+        #expect(loader.requestedURLs == ["https://www.biquhua.com/search.php?q=%E8%BF%B7%E9%AD%82%E9%98%B5"])
+        #expect(output.items.count == 1)
+        #expect(output.items.first?.title == "[历史]迷魂阵")
+        #expect(output.items.first?.detailURL?.absoluteString == "https://www.biquhua.com/book/130/130817/")
+        #expect(output.items.first?.itemReference?.contentType == .article)
+        #expect(output.items.first?.itemReference?.listContext?.pageID == "search")
+        #expect(output.pagination == nil)
+
+        // 中文注释：搜索页排在 pages[] 里，列表取页仍要落到列表页（不能把搜索页当第一页）。
+        let list: SourceListOutput = try await BookSourceRuntimeFactory(
+            pageContentLoader: FixturePageContentLoader(fixtures: ["https://www.biquhua.com/top/all_0_1.html": "biquhua-list-p1"])
+        ).makeRuntime(source: source).loadList(SourceListInput(page: 1, urlOverride: nil, context: context))
+        #expect(list.items.count == 30)
+
+        // 中文注释：没声明搜索的 catalog 仍然不支持搜索。
+        let plain: BookSourceRuntime = try BookSourceRuntimeFactory(pageContentLoader: loader).makeRuntime(source: try BookRuntimeFixtures.source(fixture: "biquhua-catalog"))
+        #expect(plain.capabilities.supportsSearch == false)
+        await #expect(throws: SourceRuntimeError.self) {
+            _ = try await plain.search(SourceSearchInput(keyword: "x", page: 1, urlOverride: nil, context: context))
+        }
+        await #expect(throws: SourceRuntimeError.self) {
+            _ = try await runtime.search(SourceSearchInput(keyword: "迷魂阵", page: 2, urlOverride: nil, context: context))
+        }
+    }
+
     @Test func loyalbooksAudiobookFlowsToAudioPublicationWithoutFetchingMedia() async throws {
         let loader: FixturePageContentLoader = FixturePageContentLoader(fixtures: [
             // 中文注释：第 1 页是页面自己的地址，不代入模板（`?page=1` 会被站点 302 到 http）。
