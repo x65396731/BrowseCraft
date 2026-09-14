@@ -223,3 +223,20 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
 - **修法二**：两处改用 `CoverImageView`，不开全局 ATS 例外（与第十七节跳转升级、第十六节 mp3 同一纪律）。
 - **模拟器实测（iPhone 16 Pro，本机家用出口）**：sfacg《大傩》（7 章）点开第七章 → 章节取页恰为 3 次（第五、六、七章），修前应为 7 次；正文正常显示；
   作品页封面出图、日志无 `-1022`。全量 506 / 89 过，架构边界干净。**真机待用户验。**
+
+## 十九、站点书展示标题：列表标题与详情标题互相包含时取较短的（2026-09-15，用户裁决「互相包含取较短」）
+
+- **现象**：sfacg 详情页与阅读器标题显示「大傩目录列表 - 小说频道 - SF轻小说」。
+- **成因**：`BC-BOOK-050` 合同下详情字段在**目录页**（`m.sfacg.com/i/N/`）上取，而目录页上**没有任何元素的文字是书名**（无 h1–h3、无 og:title），
+  引擎只能学到 `<title>`（run9 / run10 同为 `title` 选择器）。干净书名只在作品页 `ul.book_info span.book_newtitle` 与列表条目里。
+- **为什么不是「优先用列表条目标题」**：第十五节已按用户裁决改为用 manifest 标题——biquhua 列表条目带分类前缀「[玄幻]普罗之主」、详情是「普罗之主」。
+  两个站方向相反，单边优先必然弄坏另一个。
+- **判据**：`SiteBookTitle.preferred(itemTitle:detailTitle:)`（`Application/UseCases/Book/BookPublicationAssembler.swift`）——两串去空白后，
+  一个包含另一个取较短的；互不包含用详情标题；任一边为空取另一边。三站实际形状：biquhua → 「普罗之主」、sfacg → 「大傩」、loyalbooks 两边相同。
+  不认站点、不认后缀词表。代价：详情标题比列表多出有用信息（如「大傩（第二部）」）时会取到较短的列表标题。
+- **落点**：`BookSiteDetailViewModel.displayTitle`（导航栏与头部）、`BookReaderViewModel.openSite`（`loadedTitle`）。规则、引擎、服务器不动。
+- **固定输入**：`BookSourceRuntimeEndToEndTests.siteBookTitlePrefersTheContainedTitle`（三站形状 + 互不包含 / 空值）、
+  sfacg 端到端用例加断言（展示标题含书名、不含「目录列表」「SF轻小说」）。
+- **验证**：全量 507 / 89 过、架构边界干净；biquhua 端到端用例加断言（夹具真实列表条目标题带前缀、展示标题 = 「普罗之主」），套件 8 / 8 过。
+  模拟器（iPhone 16 Pro，本机家用出口）：sfacg《在鱼塘钓鱼的两人》详情页导航栏 / 头部与阅读器标题都是干净书名（修前是「…目录列表 - 小说频道 - SF轻小说」）。
+  biquhua 未在模拟器上看（来源位 1/1 被 sfacg 占用，换源要删来源并清历史），以夹具断言代替。**真机待用户验。**

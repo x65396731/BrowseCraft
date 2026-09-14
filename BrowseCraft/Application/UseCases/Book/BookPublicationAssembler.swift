@@ -5,6 +5,30 @@ import Foundation
 // 中文注释：BookPublicationAssembler 把 Runtime 的详情输出装成 BookPublicationManifest：
 // 章节即音频（BC-BOOK-051）的作品装成有声出版物；其余章节装成正文出版物，href 按顺序编号。
 
+/// 中文注释：站点书展示标题——列表条目标题与详情规则标题**一个包含另一个时取较短的**，否则用详情标题。
+/// 两边各有一种站点把书名包在多余文字里：biquhua 列表带分类前缀「[玄幻]普罗之主」、详情是「普罗之主」；
+/// sfacg 详情规则只能取目录页 `<title>`「大傩目录列表 - 小说频道 - SF轻小说」、列表是「大傩」（目录页上没有书名元素）。
+/// loyalbooks 两边相同。只看两串的包含关系，不认站点、不认后缀词表（2026-09-15 用户裁决）。
+enum SiteBookTitle {
+    static func preferred(itemTitle: String, detailTitle: String?) -> String {
+        let item: String = itemTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let detail: String = (detailTitle ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if detail.isEmpty {
+            return item
+        }
+        if item.isEmpty {
+            return detail
+        }
+        if detail.contains(item) {
+            return item
+        }
+        if item.contains(detail) {
+            return detail
+        }
+        return detail
+    }
+}
+
 struct BookPublicationAssembler: Sendable {
     func assemble(source: Source, detailURL: URL, detail: SourceDetailOutput) -> BookPublicationManifest {
         let audioExtensions: Set<String> = ["mp3", "m4a", "m4b", "mp4", "aac", "m3u8"]

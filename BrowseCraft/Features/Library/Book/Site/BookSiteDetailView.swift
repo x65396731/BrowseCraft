@@ -66,7 +66,7 @@ struct BookSiteDetailView: View {
                 }
             }
         }
-        .navigationTitle(self.viewModel.manifest?.title ?? self.viewModel.item.title)
+        .navigationTitle(self.viewModel.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await self.viewModel.loadIfNeeded()
@@ -102,7 +102,7 @@ struct BookSiteDetailView: View {
             .frame(width: 72, height: 100)
             .clipShape(RoundedRectangle(cornerRadius: 6))
             VStack(alignment: .leading, spacing: 6) {
-                Text(self.viewModel.manifest?.title ?? self.viewModel.item.title)
+                Text(self.viewModel.displayTitle)
                     .font(.headline)
                 if let author: String = self.viewModel.manifest?.author, author.isEmpty == false {
                     Text(author).font(.subheadline).foregroundStyle(.secondary)

@@ -41,6 +41,11 @@ final class BookSiteDetailViewModel {
         return self.manifest?.items ?? []
     }
 
+    /// 中文注释：导航栏与头部标题，规则见 `SiteBookTitle`（与阅读器同一个）。
+    var displayTitle: String {
+        return SiteBookTitle.preferred(itemTitle: self.item.title, detailTitle: self.manifest?.title)
+    }
+
     var isAudiobook: Bool {
         return self.manifest?.isAudiobook ?? false
     }

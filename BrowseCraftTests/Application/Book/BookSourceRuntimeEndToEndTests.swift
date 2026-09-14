@@ -48,6 +48,10 @@ struct BookSourceRuntimeEndToEndTests {
         let loaded: LoadedBookPublication = try await LoadBookPublicationUseCase(runtimeResolver: SingleRuntimeResolver(runtime: runtime))
             .execute(source: source, detailURL: URL(string: "https://www.biquhua.com/book/0/110/")!)
         #expect(loaded.manifest.title == "普罗之主")
+        // 中文注释：展示标题用夹具里的真实列表条目标题——列表带分类前缀，取详情那一边（与 sfacg 方向相反，同一条规则）。
+        let itemTitle: String = try #require(list.items.first { $0.detailURL?.absoluteString == "https://www.biquhua.com/book/0/110/" }?.title)
+        #expect(itemTitle != "普罗之主", "列表条目标题应带前缀，否则这条断言测不到方向")
+        #expect(SiteBookTitle.preferred(itemTitle: itemTitle, detailTitle: loaded.manifest.title) == "普罗之主")
         #expect(loaded.manifest.items.count == 112)
         #expect(loaded.manifest.items.first?.href == "chapters/0001.xhtml")
         #expect(loaded.manifest.isAudiobook == false)
@@ -160,6 +164,23 @@ struct BookSourceRuntimeEndToEndTests {
         let loaded: LoadedBookPublication = try await LoadBookPublicationUseCase(runtimeResolver: SingleRuntimeResolver(runtime: runtime))
             .execute(source: source, detailURL: detailURL)
         #expect(loaded.manifest.items.count == 415)
+        // 中文注释：目录页没有书名元素，详情规则只能取 `<title>`；展示标题落到列表条目的干净书名。
+        let itemTitle: String = try #require(list.items.first { $0.detailURL?.absoluteString == "https://book.sfacg.com/Novel/743628/" }?.title)
+        let shown: String = SiteBookTitle.preferred(itemTitle: itemTitle, detailTitle: loaded.manifest.title)
+        #expect(shown.contains("非实然档案：现代魔法"))
+        #expect(shown.contains("目录列表") == false)
+        #expect(shown.contains("SF轻小说") == false)
+    }
+
+    @Test func siteBookTitlePrefersTheContainedTitle() {
+        // 中文注释：三个书站的实际形状。
+        #expect(SiteBookTitle.preferred(itemTitle: "[玄幻]普罗之主", detailTitle: "普罗之主") == "普罗之主")
+        #expect(SiteBookTitle.preferred(itemTitle: "大傩", detailTitle: "大傩目录列表 - 小说频道 - SF轻小说") == "大傩")
+        #expect(SiteBookTitle.preferred(itemTitle: "The Adventures of Tom Sawyer", detailTitle: "The Adventures of Tom Sawyer") == "The Adventures of Tom Sawyer")
+        // 中文注释：互不包含时照旧用详情标题；任一边为空取另一边。
+        #expect(SiteBookTitle.preferred(itemTitle: "列表名", detailTitle: "完全不同的名字") == "完全不同的名字")
+        #expect(SiteBookTitle.preferred(itemTitle: " 普罗之主 ", detailTitle: nil) == "普罗之主")
+        #expect(SiteBookTitle.preferred(itemTitle: "", detailTitle: "普罗之主") == "普罗之主")
     }
 
     @Test func xhtmlRendererEscapesAndSkipsEmptyParagraphs() {
