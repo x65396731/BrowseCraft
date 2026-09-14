@@ -103,9 +103,65 @@ struct BookSiteDetailViewModelTests {
         #expect(progress.saved.last?.bookID == viewModel.bookID)
     }
 
+    // 中文注释：2026-09-15 真机日志——开书时详情页取一遍作品页，进阅读器又取一遍。共用缓存后只取一次。
+    @Test func detailAndReaderShareOnePublicationLoad() async throws {
+        let (source, runtime, loader): (Source, BookSourceRuntime, DetailFixturePageContentLoader) = try Self.biquhuaWithLoader()
+        let item: ContentItem = Self.item(source: source)
+        let cache: BookPublicationCache = BookPublicationCache()
+        let resolver: DetailSingleRuntimeResolver = DetailSingleRuntimeResolver(runtime: runtime)
+        let progress: DetailInMemoryProgressRepository = DetailInMemoryProgressRepository()
+        let bookmarks: DetailInMemoryBookmarkRepository = DetailInMemoryBookmarkRepository()
+        let detail: BookSiteDetailViewModel = BookSiteDetailViewModel(
+            item: item,
+            source: source,
+            loadPublicationUseCase: LoadBookPublicationUseCase(runtimeResolver: resolver, cache: cache),
+            loadProgressUseCase: LoadBookReadingProgressUseCase(progressRepository: progress),
+            userID: "u1"
+        )
+        await detail.loadIfNeeded()
+        let reader: BookReaderViewModel = BookReaderViewModel(
+            subject: .site(detail.selection(for: detail.chapters.first)),
+            userID: "u1",
+            openLocalUseCase: nil,
+            loadSitePublicationUseCase: LoadBookPublicationUseCase(runtimeResolver: resolver, cache: cache),
+            loadProgressUseCase: LoadBookReadingProgressUseCase(progressRepository: progress),
+            saveProgressUseCase: SaveBookReadingProgressUseCase(progressRepository: progress),
+            addBookmarkUseCase: AddBookBookmarkUseCase(repository: bookmarks),
+            listBookmarksUseCase: ListBookBookmarksUseCase(repository: bookmarks),
+            removeBookmarkUseCase: RemoveBookBookmarkUseCase(repository: bookmarks)
+        )
+        await reader.open()
+
+        #expect(reader.state == .ready)
+        #expect(reader.publication?.readingOrder.count == 112)
+        #expect(loader.requestedURLs.filter { $0 == item.detailURL }.count == 1, "作品页只取一次")
+    }
+
+    @Test func publicationCacheExpiresAndSkipsOtherBooks() async throws {
+        let (source, runtime, loader): (Source, BookSourceRuntime, DetailFixturePageContentLoader) = try Self.biquhuaWithLoader()
+        let detailURL: URL = try #require(URL(string: Self.item(source: source).detailURL))
+        let clock: DetailTestClock = DetailTestClock()
+        let cache: BookPublicationCache = BookPublicationCache(lifetime: 300, now: { clock.now })
+        let useCase: LoadBookPublicationUseCase = LoadBookPublicationUseCase(runtimeResolver: DetailSingleRuntimeResolver(runtime: runtime), cache: cache)
+
+        _ = try await useCase.execute(source: source, detailURL: detailURL)
+        _ = try await useCase.execute(source: source, detailURL: detailURL)
+        #expect(loader.requestedURLs.filter { $0 == detailURL.absoluteString }.count == 1)
+        #expect(cache.publication(sourceID: "other-source", detailURL: detailURL) == nil)
+
+        clock.now = clock.now.addingTimeInterval(301)
+        _ = try await useCase.execute(source: source, detailURL: detailURL)
+        #expect(loader.requestedURLs.filter { $0 == detailURL.absoluteString }.count == 2, "过期后重取")
+    }
+
     // MARK: - Helpers
 
     private static func biquhua() throws -> (Source, BookSourceRuntime) {
+        let (source, runtime, _): (Source, BookSourceRuntime, DetailFixturePageContentLoader) = try Self.biquhuaWithLoader()
+        return (source, runtime)
+    }
+
+    private static func biquhuaWithLoader() throws -> (Source, BookSourceRuntime, DetailFixturePageContentLoader) {
         let loader: DetailFixturePageContentLoader = DetailFixturePageContentLoader(fixtures: [
             "https://www.biquhua.com/book/0/110/": "biquhua-detail-110",
             "https://www.biquhua.com/book/0/110/129023.html": "biquhua-reader-110-129023",
@@ -124,7 +180,7 @@ struct BookSiteDetailViewModelTests {
             createdAt: Date(),
             updatedAt: Date()
         )
-        return (source, try BookSourceRuntimeFactory(pageContentLoader: loader).makeRuntime(source: source))
+        return (source, try BookSourceRuntimeFactory(pageContentLoader: loader).makeRuntime(source: source), loader)
     }
 
     private static func item(source: Source) -> ContentItem {
@@ -147,8 +203,10 @@ private struct DetailSingleRuntimeResolver: SourceRuntimeResolving {
 
 private final class DetailFixturePageContentLoader: PageContentLoader, @unchecked Sendable {
     private let fixtures: [String: String]
+    private(set) var requestedURLs: [String] = []
     init(fixtures: [String: String]) { self.fixtures = fixtures }
     func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
+        self.requestedURLs.append(request.url.absoluteString)
         guard let name: String = self.fixtures[request.url.absoluteString],
               let url: URL = Bundle(for: DetailFixtureMarker.self).url(forResource: name, withExtension: "html") else {
             throw NSError(domain: "DetailFixturePageContentLoader", code: 404, userInfo: [NSLocalizedDescriptionKey: "no fixture for \(request.url)"])
@@ -170,4 +228,8 @@ private final class DetailInMemoryBookmarkRepository: BookBookmarkRepository, @u
     func saveBookmark(_ bookmark: BookBookmark) throws { self.bookmarks.append(bookmark) }
     func deleteBookmark(id: UUID, userID: String) throws { self.bookmarks.removeAll { $0.id == id } }
     func deleteBookmarks(bookID: UUID, userID: String) throws { self.bookmarks.removeAll { $0.bookID == bookID } }
+}
+
+private final class DetailTestClock: @unchecked Sendable {
+    var now: Date = Date(timeIntervalSince1970: 1_800_000_000)
 }

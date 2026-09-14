@@ -12,6 +12,8 @@ struct BookFeatureFactory {
     private let fileStore: any BookFileStoring
     private let inspector: any BookFileInspecting
     private let opener: any BookPublicationOpening
+    /// 中文注释：站点书出版物缓存——详情页与阅读器共用，开书不再把作品页 + 目录页各取两遍（2026-09-15 真机日志）。
+    private let publicationCache: BookPublicationCache = BookPublicationCache()
 
     init(database: AppDatabase, activeAppUser: any ActiveAppUserProviding, runtimeResolver: any SourceRuntimeResolving) {
         self.database = database
@@ -62,7 +64,7 @@ struct BookFeatureFactory {
         return BookSiteDetailViewModel(
             item: item,
             source: source,
-            loadPublicationUseCase: LoadBookPublicationUseCase(runtimeResolver: self.runtimeResolver),
+            loadPublicationUseCase: LoadBookPublicationUseCase(runtimeResolver: self.runtimeResolver, cache: self.publicationCache),
             loadProgressUseCase: LoadBookReadingProgressUseCase(progressRepository: GRDBBookReadingProgressRepository(database: self.database)),
             userID: self.userID
         )
@@ -87,7 +89,7 @@ struct BookFeatureFactory {
                 fileStore: self.fileStore,
                 opener: self.opener
             ),
-            loadSitePublicationUseCase: LoadBookPublicationUseCase(runtimeResolver: self.runtimeResolver),
+            loadSitePublicationUseCase: LoadBookPublicationUseCase(runtimeResolver: self.runtimeResolver, cache: self.publicationCache),
             loadProgressUseCase: LoadBookReadingProgressUseCase(progressRepository: progress),
             saveProgressUseCase: SaveBookReadingProgressUseCase(progressRepository: progress),
             addBookmarkUseCase: AddBookBookmarkUseCase(repository: bookmarks),

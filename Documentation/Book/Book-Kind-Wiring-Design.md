@@ -257,3 +257,17 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
   固定输入：App `emptyChapterContentRendersANoticeInsteadOfATitleOnlyPage`。
 - **验证**：Core 232 过（4 跳过）、Runtime 编译过、App 508 / 89 过、架构边界干净。模拟器未走（开屏「跳过」需人工）；**2026-09-15 真机通过（用户确认）**：
   784586 首章开头是「看见面前手的那瞬间……」；767172 章节显示说明页。
+
+## 二十一、开书时作品页与目录页各取两遍（2026-09-15，真机日志，用户裁决「做这一项」）
+
+- **现象**：每次打开站点书，日志里作品页（`book.sfacg.com/Novel/N/`）与目录页（`m.sfacg.com/i/N/`）各出现两次——
+  详情页 `BookSiteDetailViewModel.load` 取一遍，点章节进阅读器 `BookReaderViewModel.openSite` 又原样取一遍。
+- **成因**：`BookFeatureFactory` 给详情页与阅读器各建一个 `LoadBookPublicationUseCase`，两边互不知情。
+- **为什么不把出版物塞进 `SiteBookChapterSelection` 往下传**：它是 `navigationDestination(item:)` 与 `.id(selection)` 的键，必须 Hashable；
+  出版物带内容取数闭包，不可 Hashable。
+- **修法**：`BookPublicationCache`（`Application/UseCases/Book/LoadBookPublicationUseCase.swift`）——工厂持有一份、传给两处用例；
+  按「来源 id + 作品地址」为键，只缓存成功结果（详情页「重试」照常重取），5 分钟过期以跟上站点新增章节。
+  不经过详情页的入口（历史里「继续阅读」）缓存未命中，照常取。
+- **固定输入**：`BookSiteDetailViewModelTests.detailAndReaderShareOnePublicationLoad`（详情 + 阅读器共用缓存，作品页只取 1 次）、
+  `publicationCacheExpiresAndSkipsOtherBooks`（同书二次命中、他源不命中、过期后重取）。
+- **验证**：全量 510 / 89 过、架构边界干净。**真机待用户验**：开一本书，日志里作品页与目录页应各只出现一次。
