@@ -670,6 +670,28 @@ final class SourcesViewModel {
         }
     }
 
+    /// 中文注释：已添加的来源，目录里的规则是否比本地新（2026-09-14 biquhua 复验倒查：服务器替换了规则，
+    /// 目录刷新只重拉列表、「已添加」行没有动作，老用户只能删掉重加、连历史一起丢）。
+    /// 判据是**规则本体不同**：把目录条目按本地来源的 createdAt / updatedAt / enabled / origin 物化后，
+    /// 比较名称、站点地址与配置；物化失败（规则不合法）按「无更新」处理，交给添加路径报错。
+    func catalogSourceHasRuleUpdate(_ catalogSource: CatalogSource) -> Bool {
+        guard let existing: Source = self.sources.first(where: { $0.id == catalogSource.id }) else {
+            return false
+        }
+        guard let candidate: Source = try? CatalogSourceMaterializer().source(
+            from: catalogSource,
+            createdAt: existing.createdAt,
+            updatedAt: existing.updatedAt,
+            enabled: existing.enabled,
+            origin: existing.origin
+        ) else {
+            return false
+        }
+        return candidate.name != existing.name
+            || candidate.baseURL != existing.baseURL
+            || candidate.configuration != existing.configuration
+    }
+
     @MainActor
     func addCatalogSource(
         _ catalogSource: CatalogSource,

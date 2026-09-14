@@ -86,6 +86,7 @@
 
 /* Catalog list: two groups — the site's default data and the signed-in user's own generation results. */
 "catalog_title" = "Catalog";
+"catalog_update_rule" = "Update";
 "catalog_loading" = "Loading…";
 "catalog_empty" = "No catalog data yet";
 "catalog_section_default" = "Default";

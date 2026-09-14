@@ -94,6 +94,38 @@ struct SourcesViewModelTests {
         #expect(configuration.definition.feedURL.absoluteString == "https://example.test/feed.xml")
     }
 
+    // 中文注释：2026-09-14 biquhua 复验倒查——服务器替换了规则，已添加的来源拿不到新版本。
+    // 目录条目与本地规则同形 → 无更新；服务器版多了 content.next → 有更新；更新后本地规则换新、createdAt 不动。
+    @Test func catalogSourceWithNewerRuleOffersAnUpdateAndAppliesItInPlace() async throws {
+        let database: AppDatabase = try Harness.makeDatabase()
+        let existing: Source = try Harness.makeBookSource()
+        try GRDBSourceRepository(database: database).saveSource(existing)
+        let viewModel: SourcesViewModel = Harness.makeSourcesViewModel(
+            database: database,
+            resolver: Harness.resolver()
+        )
+        _ = try await viewModel.loadForStartup()
+
+        let same: CatalogSource = try Harness.makeBookCatalogSource(fixture: "biquhua-catalog")
+        let newer: CatalogSource = try Harness.makeBookCatalogSource(fixture: "biquhua-catalog-next")
+        #expect(viewModel.isCatalogSourceAdded(same))
+        #expect(viewModel.catalogSourceHasRuleUpdate(same) == false)
+        #expect(viewModel.catalogSourceHasRuleUpdate(newer))
+
+        let didUpdate: Bool = await viewModel.addCatalogSource(newer, shouldPresentError: false)
+
+        #expect(didUpdate)
+        #expect(viewModel.catalogSourceHasRuleUpdate(newer) == false)
+        #expect(viewModel.catalogSourceHasRuleUpdate(same))
+        let stored: Source = try #require(try GRDBSourceRepository(database: database).fetchSources().first { $0.id == existing.id })
+        #expect(stored.createdAt == existing.createdAt)
+        guard case .book(let configuration) = stored.configuration else {
+            Issue.record("expected .book configuration")
+            return
+        }
+        #expect(configuration.rule.ruleSets.readerRules.first?.content?.next != nil)
+    }
+
     @Test func addRSSSourceFailureKeepsListUntouchedAndReportsError() async throws {
         let database: AppDatabase = try Harness.makeDatabase()
         let feedLoader: ScriptedRSSFeedLoader = ScriptedRSSFeedLoader(

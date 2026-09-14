@@ -86,6 +86,7 @@
 
 /* 目录列表的两个分组：网站默认数据，与登录用户自己的生成结果。 */
 "catalog_title" = "规则目录";
+"catalog_update_rule" = "更新";
 "catalog_loading" = "加载中…";
 "catalog_empty" = "暂无目录数据";
 "catalog_section_default" = "默认数据";

@@ -116,6 +116,7 @@ struct CatalogSourceListView: View {
             catalogSource: catalogSource,
             subtitleURL: self.viewModel.personalRuleEntryURL(for: catalogSource) ?? catalogSource.baseURL,
             isAdded: self.viewModel.isCatalogSourceAdded(catalogSource),
+            hasUpdate: self.viewModel.catalogSourceHasRuleUpdate(catalogSource),
             isAdding: self.addingSourceIDs.contains(catalogSource.id),
             failureMessage: self.failedSourceIDs.contains(catalogSource.id)
                 ? (self.viewModel.catalogSourceAddFailureMessages[catalogSource.id]
@@ -128,8 +129,9 @@ struct CatalogSourceListView: View {
     }
 
     private func add(_ catalogSource: CatalogSource) {
+        let isUpdate: Bool = self.viewModel.isCatalogSourceAdded(catalogSource)
         if self.addingSourceIDs.contains(catalogSource.id)
-            || self.viewModel.isCatalogSourceAdded(catalogSource) {
+            || (isUpdate && self.viewModel.catalogSourceHasRuleUpdate(catalogSource) == false) {
             return
         }
 
@@ -137,6 +139,8 @@ struct CatalogSourceListView: View {
         self.failedSourceIDs.remove(catalogSource.id)
 
         Task {
+            // 中文注释：更新与首次添加走同一条路——`AddCatalogSourceUseCase` 遇到同 id 直接保存新规则，
+            // createdAt / enabled / origin 与阅读历史都不动。更新完留在目录页，让那一行变回「已添加」。
             let didAdd: Bool = await self.viewModel.addCatalogSource(
                 catalogSource,
                 shouldPresentError: false
@@ -144,7 +148,9 @@ struct CatalogSourceListView: View {
             await MainActor.run {
                 self.addingSourceIDs.remove(catalogSource.id)
                 if didAdd {
-                    self.dismiss()
+                    if isUpdate == false {
+                        self.dismiss()
+                    }
                 } else {
                     self.failedSourceIDs.insert(catalogSource.id)
                 }
@@ -207,6 +213,7 @@ private struct CatalogSourceRowView: View {
     let catalogSource: CatalogSource
     let subtitleURL: String
     let isAdded: Bool
+    let hasUpdate: Bool
     let isAdding: Bool
     let failureMessage: String?
     let addAction: () -> Void
@@ -240,12 +247,20 @@ private struct CatalogSourceRowView: View {
 
     @ViewBuilder
     private var trailingControl: some View {
-        if self.isAdded {
+        if self.isAdding {
+            ProgressView()
+        } else if self.isAdded && self.hasUpdate {
+            // 中文注释：目录里的规则比本地新——点一下覆盖本地规则，不必删掉重加。
+            Button(action: self.addAction) {
+                Label(NSLocalizedString("catalog_update_rule", comment: ""), systemImage: "arrow.triangle.2.circlepath")
+                    .font(.caption)
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("Update \(self.catalogSource.name)")
+        } else if self.isAdded {
             Label("Added", systemImage: "checkmark.circle")
                 .font(.caption)
                 .foregroundColor(.secondary)
-        } else if self.isAdding {
-            ProgressView()
         } else {
             Button(
                 action: self.addAction,
