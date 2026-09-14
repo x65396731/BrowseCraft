@@ -270,4 +270,4 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
   不经过详情页的入口（历史里「继续阅读」）缓存未命中，照常取。
 - **固定输入**：`BookSiteDetailViewModelTests.detailAndReaderShareOnePublicationLoad`（详情 + 阅读器共用缓存，作品页只取 1 次）、
   `publicationCacheExpiresAndSkipsOtherBooks`（同书二次命中、他源不命中、过期后重取）。
-- **验证**：全量 510 / 89 过、架构边界干净。**真机待用户验**：开一本书，日志里作品页与目录页应各只出现一次。
+- **验证**：全量 510 / 89 过、架构边界干净。**2026-09-15 真机通过（用户日志）**：783159 开书，作品页 `book.sfacg.com/Novel/783159/` 与目录页 `m.sfacg.com/i/783159/` 各 1 次，随后只取章节。
