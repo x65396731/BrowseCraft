@@ -44,10 +44,31 @@ struct ReadiumSitePublicationBuilder: Sendable {
         let container: Container = audioEntries.isEmpty
             ? siteContainer
             : CompositeContainer(siteContainer, HTTPContainer(client: siteContainer.audioHTTPClient.client, entries: audioEntries))
+        // 中文注释：2026-09-14 sfacg 真机倒查：出版物不带 positions 时，Readium 拿到的是「每章 0 个 position」，`hasPositions` 却判真，
+        // 预加载「后 6 前 2 个 position」按 0 递减永远凑不满——打开一章就把前后所有章节逐个取页、各建一个 WebView。
+        // 每章记 1 个 position，预加载回到前 2 章、后 6 章。有声作品走 AudioNavigator，不加。
+        let positions: [[Locator]] = Self.onePositionPerChapter(readingOrder)
+        let servicesBuilder: PublicationServicesBuilder = manifest.isAudiobook
+            ? PublicationServicesBuilder()
+            : PublicationServicesBuilder(positions: { _ in InMemoryPositionsService(positionsByReadingOrder: positions) })
         return Publication(
             manifest: Manifest(metadata: metadata, readingOrder: readingOrder, tableOfContents: readingOrder),
-            container: container
+            container: container,
+            servicesBuilder: servicesBuilder
         )
+    }
+
+    /// 中文注释：每章一个 position（第 i 章 position = i + 1、totalProgression = i / 章数），只用来让 Navigator 的预加载按章计数。
+    static func onePositionPerChapter(_ readingOrder: [Link]) -> [[Locator]] {
+        let count: Int = max(readingOrder.count, 1)
+        return readingOrder.enumerated().map { index, link in
+            return [Locator(
+                href: link.url(),
+                mediaType: link.mediaType ?? .xhtml,
+                title: link.title,
+                locations: Locator.Locations(progression: 0, totalProgression: Double(index) / Double(count), position: index + 1)
+            )]
+        }
     }
 }
 

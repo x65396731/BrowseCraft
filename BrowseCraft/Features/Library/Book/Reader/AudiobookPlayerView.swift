@@ -11,12 +11,10 @@ struct AudiobookPlayerView: View {
         VStack(spacing: 24) {
             Spacer()
             if let coverURL: URL = self.viewModel.coverURL {
-                AsyncImage(url: coverURL) { image in
-                    image.resizable().aspectRatio(contentMode: .fit)
-                } placeholder: {
-                    Image(systemName: "headphones").font(.system(size: 64)).foregroundStyle(.secondary)
-                }
-                .frame(maxHeight: 280)
+                // 中文注释：同 BookSiteDetailView——共享 CoverImageView 负责 http → https，系统 AsyncImage 直连会被 ATS 拒。
+                CoverImageView(urlString: coverURL.absoluteString)
+                    .aspectRatio(1, contentMode: .fit)
+                    .frame(maxHeight: 280)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
                 Image(systemName: "headphones").font(.system(size: 64)).foregroundStyle(.secondary)

@@ -55,6 +55,12 @@ struct BookSourceRuntimeEndToEndTests {
         let publication: Publication = ReadiumSitePublicationBuilder().build(manifest: loaded.manifest, contentProvider: loaded.contentProvider)
         #expect(publication.readingOrder.count == 112)
         #expect(publication.metadata.title == "普罗之主")
+        // 中文注释：每章一个 position——没有它 Readium 预加载按 0 计数，打开一章就把全书逐章取页（2026-09-14 sfacg 真机）。
+        let positions: [[Locator]] = try await publication.positionsByReadingOrder().get()
+        #expect(positions.count == 112)
+        #expect(positions.allSatisfy { $0.count == 1 })
+        #expect(positions.last?.first?.locations.position == 112)
+        #expect(positions.first?.first?.href == publication.readingOrder.first?.url())
         let firstChapter: Link = try #require(publication.readingOrder.first { $0.title?.isEmpty == false })
         let index: Int = try #require(loaded.manifest.items.firstIndex { $0.chapterURL == chapterURL })
         let resource: Resource = try #require(publication.get(publication.readingOrder[index]))

@@ -93,16 +93,12 @@ struct BookSiteDetailView: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: 12) {
-            AsyncImage(url: (self.viewModel.manifest?.coverURL ?? self.viewModel.item.coverURL.flatMap(URL.init(string:)))) { phase in
-                if let image: Image = phase.image {
-                    image.resizable().scaledToFill()
-                } else {
-                    ZStack {
-                        Color.secondary.opacity(0.15)
-                        Image(systemName: "book.closed").foregroundStyle(.secondary)
-                    }
-                }
-            }
+            // 中文注释：封面走共享的 CoverImageView（http → https 候选、带 Referer），不用系统 AsyncImage——sfacg 列表页封面是
+            // `http://rs.sfacg.com/…`，AsyncImage 直连被 ATS 拒（2026-09-14 真机 -1022）；列表网格本就走共享组件，所以列表有图。
+            CoverImageView(
+                urlString: self.viewModel.manifest?.coverURL?.absoluteString ?? self.viewModel.item.coverURL,
+                refererURLString: self.viewModel.item.detailURL
+            )
             .frame(width: 72, height: 100)
             .clipShape(RoundedRectangle(cornerRadius: 6))
             VStack(alignment: .leading, spacing: 6) {

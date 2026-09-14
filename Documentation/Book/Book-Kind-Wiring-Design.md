@@ -207,3 +207,19 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
   处置与有声书 mp3 同一纪律：`AlamofireHTTPClient` 加 `httpsUpgradingRedirector`（Alamofire `Redirector(.modify)`），跳转目标是 http 就升成 https
   （站点本就在 https 上服务），不开全局 ATS 例外；单元测试 `AlamofireHTTPClientRedirectTests`。
 - **模拟器**：sfacg catalog 发布进公共目录后走通：添加 → 列表 → 作品 → 章节 → 正文（见规则仓库 HANDOFF 0.0.A25 续五）。
+
+## 十八、站点书打开一章就把全书逐章取页 + 作品页封面被 ATS 拒（2026-09-14，sfacg 真机日志倒查，用户裁决「两处一起修」）
+
+- **现象（真机日志）**：点开一章后，从该章起按阅读顺序连续取几十到上百个 `m.sfacg.com/c/…`（38380 上百章），同时成批创建 / 销毁 WebContent 进程；
+  作品页头部封面报 `NSURLErrorDomain -1022`（`http://rs.sfacg.com/…NovelCover…`）。
+- **成因一（Readium 预加载永不停止）**：`ReadiumSitePublicationBuilder` 手建的 `Publication` 没有 positions 服务，`positionsByReadingOrder()` 退到
+  `positionsFromManifest` → 每章一个**空**数组；`EPUBNavigatorViewController` 用 `!positionsByReadingOrder.isEmpty` 判 `hasPositions`，外层非空即真；
+  `PaginationView.scheduleLoadPages` 按「后 6 前 2 个 position」递减，每个 spread 贡献 0，永远凑不满，直到书头书尾——每章一个 WebView、一次取页。
+  所有站点文字书都受影响（biquhua 同样）；本地 EPUB 走 Streamer 自带 positions，不受影响。
+- **修法一**：文字书出版物带 `InMemoryPositionsService`，每章 1 个 position（`position = i + 1`、`totalProgression = i / 章数`）；预加载回到前 2 章、后 6 章。
+  有声作品走 `AudioNavigator`，不加。固定输入：`BookSourceRuntimeEndToEndTests.biquhuaTextBookFlowsFromListToPublication` 断言 112 章各 1 个 position。
+- **成因二（封面绕过共享图片通道）**：sfacg 桌面列表页封面是 `http://`；列表网格走共享 `CoverImageView`（http → https 候选、带 Referer）所以有图，
+  `BookSiteDetailView` 头部与 `AudiobookPlayerView` 用系统 `AsyncImage` 直连，被 ATS 拒。
+- **修法二**：两处改用 `CoverImageView`，不开全局 ATS 例外（与第十七节跳转升级、第十六节 mp3 同一纪律）。
+- **模拟器实测（iPhone 16 Pro，本机家用出口）**：sfacg《大傩》（7 章）点开第七章 → 章节取页恰为 3 次（第五、六、七章），修前应为 7 次；正文正常显示；
+  作品页封面出图、日志无 `-1022`。全量 506 / 89 过，架构边界干净。**真机待用户验。**
