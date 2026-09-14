@@ -46,7 +46,13 @@ final class BookSiteDetailViewModel {
     }
 
     func loadIfNeeded() async {
-        guard self.manifest == nil, self.isLoading == false else {
+        guard self.isLoading == false else {
+            return
+        }
+        if let manifest: BookPublicationManifest = self.manifest {
+            // 中文注释：从阅读器 / 播放页退回来时 manifest 还在，但续读位置已经变了——只重读进度，不重取详情
+            //（2026-09-14 loyalbooks 模拟器复验：播到第 03–04 章退回详情页仍显示「Start Listening」）。
+            self.lastReadChapterURL = self.resolveLastReadChapter(in: manifest)
             return
         }
         await self.load()

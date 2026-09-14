@@ -25,12 +25,16 @@ struct BookSiteDetailView: View {
                 self.header
             }
             Section {
-                if let primary: BookPublicationItem = self.viewModel.primaryChapter, self.viewModel.isAudiobook == false {
+                if let primary: BookPublicationItem = self.viewModel.primaryChapter {
                     Button {
                         self.selectedChapter = self.viewModel.selection(for: self.viewModel.hasReadingProgress ? nil : primary)
                     } label: {
                         self.chevronRow {
-                            Label(self.viewModel.hasReadingProgress ? "Continue Reading" : "Start Reading", systemImage: "book")
+                            if self.viewModel.isAudiobook {
+                                Label(self.viewModel.hasReadingProgress ? "Continue Listening" : "Start Listening", systemImage: "headphones")
+                            } else {
+                                Label(self.viewModel.hasReadingProgress ? "Continue Reading" : "Start Reading", systemImage: "book")
+                            }
                         }
                     }
                 }
@@ -44,11 +48,6 @@ struct BookSiteDetailView: View {
                         Button("Retry") {
                             Task { await self.viewModel.load() }
                         }
-                    }
-                } else if self.viewModel.isAudiobook {
-                    Text("Audiobook player is coming in a later batch.").foregroundStyle(.secondary)
-                    ForEach(self.viewModel.chapters, id: \.href) { chapter in
-                        Text(chapter.title)
                     }
                 } else {
                     ForEach(self.viewModel.chapters, id: \.href) { chapter in

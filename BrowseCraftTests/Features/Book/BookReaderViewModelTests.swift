@@ -1,3 +1,5 @@
+import BrowseCraftDomain
+import BrowseCraftRuntime
 import Foundation
 import ReadiumShared
 import Testing
@@ -81,6 +83,57 @@ struct BookReaderViewModelTests {
         #expect(viewModel.publication?.readingOrder.count == 2)
         #expect(viewModel.tableOfContents.map { $0.title } == ["Chapter 1", "Chapter 2"])
         #expect(viewModel.initialLocator == nil)
+    }
+
+    // 中文注释：站点有声作品：详情 → manifest（17 条 mp3）→ AudioNavigator 建成、起点是点开的那一章；不触发播放（不碰网络）。
+    @Test func openingSiteAudiobookBuildsAnAudioNavigator() async throws {
+        let loader: FixturePageContentLoader = FixturePageContentLoader(fixtures: [
+            "https://www.loyalbooks.com/book/tom-sawyer-by-mark-twain": "loyalbooks-detail-tom-sawyer",
+        ])
+        let source: Source = try BookRuntimeFixtures.source(fixture: "loyalbooks-catalog")
+        let runtime: BookSourceRuntime = try BookSourceRuntimeFactory(pageContentLoader: loader).makeRuntime(source: source)
+        let item: ContentItem = ContentItem(
+            id: "tom-sawyer", sourceId: source.id, title: "Tom Sawyer", detailURL: "https://www.loyalbooks.com/book/tom-sawyer-by-mark-twain",
+            coverURL: nil, type: .article, latestText: nil
+        )
+        let progress: ReaderInMemoryProgressRepository = ReaderInMemoryProgressRepository()
+        let bookmarks: ReaderInMemoryBookmarkRepository = ReaderInMemoryBookmarkRepository()
+        let viewModel: BookReaderViewModel = BookReaderViewModel(
+            subject: .site(SiteBookChapterSelection(source: source, item: item, chapterURL: nil, chapterTitle: nil)),
+            userID: "u1",
+            openLocalUseCase: nil,
+            loadSitePublicationUseCase: LoadBookPublicationUseCase(runtimeResolver: SingleRuntimeResolver(runtime: runtime)),
+            loadProgressUseCase: LoadBookReadingProgressUseCase(progressRepository: progress),
+            saveProgressUseCase: SaveBookReadingProgressUseCase(progressRepository: progress),
+            addBookmarkUseCase: AddBookBookmarkUseCase(repository: bookmarks),
+            listBookmarksUseCase: ListBookBookmarksUseCase(repository: bookmarks),
+            removeBookmarkUseCase: RemoveBookBookmarkUseCase(repository: bookmarks)
+        )
+
+        await viewModel.open()
+
+        #expect(viewModel.state == .ready)
+        #expect(viewModel.isAudiobook)
+        #expect(viewModel.audioNavigator != nil)
+        #expect(viewModel.publication?.readingOrder.count == 17)
+        #expect(viewModel.tableOfContents.count == 17)
+        #expect(viewModel.initialLocator == nil, "没点具体章节、没有续听位置时从头开始")
+
+        let secondChapter: URL = try #require(viewModel.publication?.readingOrder[1].url().url)
+        let chapterViewModel: BookReaderViewModel = BookReaderViewModel(
+            subject: .site(SiteBookChapterSelection(source: source, item: item, chapterURL: secondChapter, chapterTitle: nil)),
+            userID: "u1",
+            openLocalUseCase: nil,
+            loadSitePublicationUseCase: LoadBookPublicationUseCase(runtimeResolver: SingleRuntimeResolver(runtime: runtime)),
+            loadProgressUseCase: LoadBookReadingProgressUseCase(progressRepository: progress),
+            saveProgressUseCase: SaveBookReadingProgressUseCase(progressRepository: progress),
+            addBookmarkUseCase: AddBookBookmarkUseCase(repository: bookmarks),
+            listBookmarksUseCase: ListBookBookmarksUseCase(repository: bookmarks),
+            removeBookmarkUseCase: RemoveBookBookmarkUseCase(repository: bookmarks)
+        )
+        await chapterViewModel.open()
+        #expect(chapterViewModel.initialLocator?.href.string == secondChapter.absoluteString)
+        #expect(chapterViewModel.initialLocator?.mediaType == .mp3)
     }
 
     // MARK: - Helpers

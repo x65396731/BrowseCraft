@@ -3,6 +3,7 @@ import BrowseCraftDomain
 import BrowseCraftRuntime
 import Foundation
 import ReadiumShared
+import ReadiumNavigator
 import Testing
 @testable import BrowseCraft
 
@@ -16,9 +17,9 @@ struct BookSourceRuntimeEndToEndTests {
             "https://www.biquhua.com/book/0/110/": "biquhua-detail-110",
             "https://www.biquhua.com/book/0/110/129023.html": "biquhua-reader-110-129023",
         ])
-        let source: Source = try Self.source(fixture: "biquhua-catalog")
+        let source: Source = try BookRuntimeFixtures.source(fixture: "biquhua-catalog")
         let runtime: BookSourceRuntime = try BookSourceRuntimeFactory(pageContentLoader: loader).makeRuntime(source: source)
-        let context: SourceRuntimeContext = Self.context(sourceID: source.id)
+        let context: SourceRuntimeContext = BookRuntimeFixtures.context(sourceID: source.id)
 
         #expect(runtime.capabilities.supportsDetail)
         #expect(runtime.capabilities.supportsReader == false)
@@ -67,18 +68,20 @@ struct BookSourceRuntimeEndToEndTests {
 
     @Test func loyalbooksAudiobookFlowsToAudioPublicationWithoutFetchingMedia() async throws {
         let loader: FixturePageContentLoader = FixturePageContentLoader(fixtures: [
-            "https://www.loyalbooks.com/genre/Adventure?page=1": "loyalbooks-list-adventure-p1",
+            // 中文注释：第 1 页是页面自己的地址，不代入模板（`?page=1` 会被站点 302 到 http）。
+            "https://www.loyalbooks.com/genre/Adventure": "loyalbooks-list-adventure-p1",
             "https://www.loyalbooks.com/book/tom-sawyer-by-mark-twain": "loyalbooks-detail-tom-sawyer",
         ])
-        let source: Source = try Self.source(fixture: "loyalbooks-catalog")
+        let source: Source = try BookRuntimeFixtures.source(fixture: "loyalbooks-catalog")
         let runtime: BookSourceRuntime = try BookSourceRuntimeFactory(pageContentLoader: loader).makeRuntime(source: source)
-        let context: SourceRuntimeContext = Self.context(sourceID: source.id)
+        let context: SourceRuntimeContext = BookRuntimeFixtures.context(sourceID: source.id)
 
         #expect(runtime.capabilities.supportsPagination)
         let list: SourceListOutput = try await runtime.loadList(SourceListInput(page: 1, urlOverride: nil, context: context))
         #expect(list.items.count > 10)
         #expect(list.pagination?.nextPage == 2)
         #expect(list.pagination?.nextPageURL?.absoluteString == "https://www.loyalbooks.com/genre/Adventure?page=2")
+        #expect(loader.requestedURLs.first == "https://www.loyalbooks.com/genre/Adventure", "第 1 页用入口地址，不代入模板")
 
         let detailURL: URL = URL(string: "https://www.loyalbooks.com/book/tom-sawyer-by-mark-twain")!
         let detail: SourceDetailOutput = try await runtime.loadDetail(SourceDetailInput(detailURL: detailURL, context: context, itemReference: nil))
@@ -103,6 +106,10 @@ struct BookSourceRuntimeEndToEndTests {
         #expect(publication.readingOrder.count == 17)
         #expect(publication.readingOrder.first?.mediaType?.isAudio == true)
         #expect(publication.metadata.conformsTo.contains(.audiobook))
+        // 中文注释：AudioNavigator 只播 publication.get(link) 给得出资源的 href——远程 mp3 由 HTTPContainer 承接。
+        #expect(publication.get(publication.readingOrder[0]) != nil)
+        let navigator: AudioNavigator = AudioNavigator(publication: publication)
+        #expect(navigator.publication.readingOrder.count == 17)
     }
 
     @Test func xhtmlRendererEscapesAndSkipsEmptyParagraphs() {
@@ -124,18 +131,18 @@ struct BookSourceRuntimeEndToEndTests {
         ])
         let chapterURL: URL = URL(string: "https://www.biquhua.com/book/0/110/129023.html")!
 
-        let plainSource: Source = try Self.source(fixture: "biquhua-catalog")
+        let plainSource: Source = try BookRuntimeFixtures.source(fixture: "biquhua-catalog")
         let plainRuntime: BookSourceRuntime = try BookSourceRuntimeFactory(pageContentLoader: loader).makeRuntime(source: plainSource)
-        let plain: SourceBookContentOutput = try await plainRuntime.loadBookContent(SourceBookContentInput(chapterURL: chapterURL, context: Self.context(sourceID: plainSource.id)))
+        let plain: SourceBookContentOutput = try await plainRuntime.loadBookContent(SourceBookContentInput(chapterURL: chapterURL, context: BookRuntimeFixtures.context(sourceID: plainSource.id)))
         guard case .text(_, let singlePageParagraphs) = plain.content else {
             Issue.record("expected text content")
             return
         }
         #expect(loader.requestedURLs == [chapterURL.absoluteString], "没有 content.next 时只取第一页")
 
-        let source: Source = try Self.source(fixture: "biquhua-catalog-next")
+        let source: Source = try BookRuntimeFixtures.source(fixture: "biquhua-catalog-next")
         let runtime: BookSourceRuntime = try BookSourceRuntimeFactory(pageContentLoader: loader).makeRuntime(source: source)
-        let content: SourceBookContentOutput = try await runtime.loadBookContent(SourceBookContentInput(chapterURL: chapterURL, context: Self.context(sourceID: source.id)))
+        let content: SourceBookContentOutput = try await runtime.loadBookContent(SourceBookContentInput(chapterURL: chapterURL, context: BookRuntimeFixtures.context(sourceID: source.id)))
         guard case .text(_, let paragraphs) = content.content else {
             Issue.record("expected text content")
             return
@@ -177,56 +184,5 @@ struct BookSourceRuntimeEndToEndTests {
         #expect(BookSourceRuntime.isInChapterPage(URL(string: "https://www.biquhua.com/book/0/110/129023_3.html")!, chapterURL: paged), "本章地址自己带页码时按词干算")
         let directoryChapter: URL = URL(string: "https://book.sfacg.com/Novel/784270/1042434/9919505/")!
         #expect(BookSourceRuntime.isInChapterPage(URL(string: "https://book.sfacg.com/Novel/784270/1042434/9919507/")!, chapterURL: directoryChapter) == false, "sfacg 的下一章")
-    }
-
-    // MARK: - Helpers
-
-    private static func source(fixture: String) throws -> Source {
-        let url: URL = try #require(Bundle(for: BookRuntimeFixtureMarker.self).url(forResource: fixture, withExtension: "json"))
-        let catalog: [String: Any] = try #require(JSONSerialization.jsonObject(with: try Data(contentsOf: url)) as? [String: Any])
-        let ruleJSON: Data = try JSONSerialization.data(withJSONObject: try #require(catalog["ruleJSON"]))
-        let catalogSource: CatalogSource = CatalogSource(
-            id: try #require(catalog["id"] as? String),
-            name: try #require(catalog["name"] as? String),
-            baseURL: try #require(catalog["baseURL"] as? String),
-            kind: .book,
-            ruleJSON: String(decoding: ruleJSON, as: UTF8.self)
-        )
-        return try CatalogSourceMaterializer().source(from: catalogSource, createdAt: Date(), updatedAt: Date())
-    }
-
-    private static func context(sourceID: String) -> SourceRuntimeContext {
-        return SourceRuntimeContext(sourceID: sourceID, pageID: nil, tabID: nil, ruleID: nil, requestOverride: nil, debugMode: false)
-    }
-}
-
-private final class BookRuntimeFixtureMarker {}
-
-private struct SingleRuntimeResolver: SourceRuntimeResolving {
-    let runtime: BookSourceRuntime
-    func runtime(for source: Source) throws -> any SourceRuntime {
-        return self.runtime
-    }
-}
-
-/// 中文注释：按 URL 回夹具 HTML；没备的 URL 直接报错，避免测试静默走到网络。
-private final class FixturePageContentLoader: PageContentLoader, @unchecked Sendable {
-    private let fixtures: [String: String]
-    private(set) var requestedURLs: [String] = []
-    private let lock: NSLock = NSLock()
-
-    init(fixtures: [String: String]) {
-        self.fixtures = fixtures
-    }
-
-    func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
-        self.lock.lock()
-        self.requestedURLs.append(request.url.absoluteString)
-        self.lock.unlock()
-        guard let name: String = self.fixtures[request.url.absoluteString],
-              let url: URL = Bundle(for: BookRuntimeFixtureMarker.self).url(forResource: name, withExtension: "html") else {
-            throw NSError(domain: "FixturePageContentLoader", code: 404, userInfo: [NSLocalizedDescriptionKey: "no fixture for \(request.url)"])
-        }
-        return PageContentResponse(content: try String(contentsOf: url, encoding: .utf8), finalURL: request.url)
     }
 }

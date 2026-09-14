@@ -20,7 +20,11 @@ struct BookReaderView: View {
             case .failed(let message):
                 EmptyStateView(systemImage: "exclamationmark.triangle", title: NSLocalizedString("Open failed", comment: "打开失败"), message: message)
             case .ready:
-                if let publication: Publication = self.viewModel.publication {
+                if self.viewModel.isAudiobook {
+                    AudiobookPlayerView(viewModel: self.viewModel)
+                        .onAppear { self.viewModel.startAudioPlayback() }
+                        .onDisappear { self.viewModel.stopAudioPlayback() }
+                } else if let publication: Publication = self.viewModel.publication {
                     EPUBNavigatorRepresentable(
                         publication: publication,
                         initialLocation: self.viewModel.initialLocator,

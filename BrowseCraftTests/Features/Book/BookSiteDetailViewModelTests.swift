@@ -45,6 +45,30 @@ struct BookSiteDetailViewModelTests {
         #expect(selection.item.detailURL == item.detailURL)
     }
 
+    // 中文注释：从阅读器退回详情页时 manifest 已在，续读位置要重读（不重取详情）。
+    @Test func returningToDetailRefreshesReadingProgressWithoutReloading() async throws {
+        let (source, runtime): (Source, BookSourceRuntime) = try Self.biquhua()
+        let item: ContentItem = Self.item(source: source)
+        let progress: DetailInMemoryProgressRepository = DetailInMemoryProgressRepository()
+        let bookID: UUID = SiteBookIdentity.bookID(sourceID: source.id, detailURL: item.detailURL)
+        let viewModel: BookSiteDetailViewModel = BookSiteDetailViewModel(
+            item: item,
+            source: source,
+            loadPublicationUseCase: LoadBookPublicationUseCase(runtimeResolver: DetailSingleRuntimeResolver(runtime: runtime)),
+            loadProgressUseCase: LoadBookReadingProgressUseCase(progressRepository: progress),
+            userID: "u1"
+        )
+        await viewModel.loadIfNeeded()
+        #expect(viewModel.hasReadingProgress == false)
+
+        try progress.saveProgress(BookReadingProgress(bookID: bookID, userID: "u1", locatorJSON: "{\"href\":\"chapters/0004.xhtml\",\"type\":\"application/xhtml+xml\"}", totalProgression: 0.03, updatedAt: Date()))
+        await viewModel.loadIfNeeded()
+
+        #expect(viewModel.hasReadingProgress)
+        #expect(viewModel.lastReadChapterURL == viewModel.chapters[3].chapterURL)
+        #expect(viewModel.chapters.count == 112)
+    }
+
     @Test func readerOpensSiteBookAtChosenChapter() async throws {
         let (source, runtime): (Source, BookSourceRuntime) = try Self.biquhua()
         let item: ContentItem = Self.item(source: source)

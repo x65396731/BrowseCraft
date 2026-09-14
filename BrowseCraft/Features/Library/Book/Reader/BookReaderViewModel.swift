@@ -3,6 +3,7 @@ import Foundation
 import Observation
 import ReadiumNavigator
 import ReadiumShared
+import UIKit
 
 // 中文注释：BookReaderViewModel 打开一本书（本地文件或站点作品），把 Navigator 报来的位置节流后写成续读进度，管理书签与目录。
 // Readium 类型只在这里、Representable 与 Infrastructure 出现；落库的是 Locator 的 JSON。
@@ -41,6 +42,16 @@ final class BookReaderViewModel {
     /// 中文注释：站点书加载出版物后，标题用 manifest 的（详情规则清洗后的作品名，与详情页同一个），
     /// 不再用列表条目的原标题（biquhua 列表标题带分类前缀「[玄幻]普罗之主」，详情页是「普罗之主」，两处曾不一致）。
     private(set) var loadedTitle: String?
+    /// 中文注释：有声作品：Readium AudioNavigator 负责播放、seek、章节切换与 Locator；界面只是它的壳。
+    private(set) var audioNavigator: AudioNavigator?
+    private(set) var audioPlayback: MediaPlaybackInfo = MediaPlaybackInfo()
+    private(set) var coverURL: URL?
+    private var audioBridge: AudioNavigatorBridge?
+    private var remoteControls: AudiobookRemoteControls?
+
+    var isAudiobook: Bool {
+        return self.audioNavigator != nil
+    }
 
     var title: String {
         return self.loadedTitle ?? self.subject.title
@@ -117,23 +128,82 @@ final class BookReaderViewModel {
             throw BookReaderError.subjectNotSupported
         }
         let loaded: LoadedBookPublication = try await loadSitePublicationUseCase.execute(source: selection.source, detailURL: detailURL)
-        if loaded.manifest.isAudiobook {
-            throw BookReaderError.audiobookNotSupportedYet
-        }
         let manifestTitle: String = loaded.manifest.title.trimmingCharacters(in: .whitespacesAndNewlines)
         if manifestTitle.isEmpty == false {
             self.loadedTitle = manifestTitle
         }
+        self.coverURL = loaded.manifest.coverURL
         let publication: Publication = self.sitePublicationBuilder.build(manifest: loaded.manifest, contentProvider: loaded.contentProvider)
         self.publication = publication
         let saved: Locator? = try self.loadProgressUseCase.execute(bookID: self.bookID, userID: self.userID)
             .flatMap { Self.locator(fromJSON: $0.locatorJSON) }
         let chapterLocator: Locator? = selection.chapterURL
             .flatMap { chapterURL in loaded.manifest.items.first { $0.chapterURL == chapterURL } }
-            .flatMap { item in AnyURL(string: item.href).map { Locator(href: $0, mediaType: .xhtml, title: item.title) } }
+            .flatMap { item in AnyURL(string: item.href).map { Locator(href: $0, mediaType: Self.mediaType(for: item), title: item.title) } }
         // 中文注释：明确点了某一章就去那一章；没点（从「继续阅读」进来）才用续读位置。
         self.initialLocator = chapterLocator ?? saved
         self.currentLocator = self.initialLocator
+        if loaded.manifest.isAudiobook {
+            // 中文注释：有声作品不走 EPUB Navigator——播放内核用 Readium 的 AudioNavigator（AVPlayer + Locator），
+            // 位置回调与文字书同一条进度 / 书签链路；播放由视图出现时触发（`startAudioPlayback`）。
+            let navigator: AudioNavigator = AudioNavigator(publication: publication, initialLocation: self.initialLocator)
+            let bridge: AudioNavigatorBridge = AudioNavigatorBridge(
+                onPlaybackChange: { [weak self] info in
+                    self?.audioPlayback = info
+                    self?.remoteControls?.update(info: info)
+                },
+                onLocationChange: { [weak self] locator in
+                    self?.navigatorDidChangeLocation(locator)
+                }
+            )
+            navigator.delegate = bridge
+            self.audioBridge = bridge
+            self.audioNavigator = navigator
+            self.navigatorProxy.navigator = navigator
+        }
+    }
+
+    private static func mediaType(for item: BookPublicationItem) -> MediaType {
+        switch item.kind {
+        case .text:
+            return .xhtml
+        case .audio(let mediaType, _):
+            return mediaType.flatMap { MediaType($0) } ?? .mp3
+        }
+    }
+
+    // MARK: - 有声播放
+
+    /// 中文注释：播放页出现时开始播放并挂锁屏 / 耳机控制；离开时暂停、卸下控制并落一次进度。
+    func startAudioPlayback() {
+        guard let navigator: AudioNavigator = self.audioNavigator, let publication: Publication = self.publication else {
+            return
+        }
+        if self.remoteControls == nil {
+            let controls: AudiobookRemoteControls = AudiobookRemoteControls(navigator: navigator, title: self.title, chapterCount: publication.readingOrder.count)
+            controls.attach()
+            self.remoteControls = controls
+        }
+        navigator.play()
+    }
+
+    func stopAudioPlayback() {
+        self.audioNavigator?.pause()
+        self.remoteControls?.detach()
+        self.remoteControls = nil
+        self.flush()
+    }
+
+    /// 中文注释：当前正在播的章节标题（AudioNavigator 报的资源序号对应 readingOrder）。
+    var audioChapterTitle: String? {
+        guard let publication: Publication = self.publication else {
+            return nil
+        }
+        let index: Int = self.audioPlayback.resourceIndex
+        guard publication.readingOrder.indices.contains(index) else {
+            return nil
+        }
+        return publication.readingOrder[index].title
     }
 
     /// 中文注释：Navigator 每翻一页都会报位置；这里只记最新的，1 秒后写一次库。
@@ -228,7 +298,6 @@ final class BookReaderViewModel {
 enum BookReaderError: LocalizedError, Equatable {
     case subjectNotSupported
     case unexpectedPublicationHandle
-    case audiobookNotSupportedYet
 
     var errorDescription: String? {
         switch self {
@@ -236,9 +305,33 @@ enum BookReaderError: LocalizedError, Equatable {
             return "This book cannot be opened here."
         case .unexpectedPublicationHandle:
             return "Unexpected publication handle."
-        case .audiobookNotSupportedYet:
-            return NSLocalizedString("Audiobook player is coming in a later batch.", comment: "有声书播放器待接入")
         }
+    }
+}
+
+/// 中文注释：AudioNavigator 的代理桥：播放状态与位置变化转成闭包回给 VM（VM 是 @Observable 类，不直接做代理）。
+@MainActor
+final class AudioNavigatorBridge: NSObject, AudioNavigatorDelegate {
+    private let onPlaybackChange: @MainActor (MediaPlaybackInfo) -> Void
+    private let onLocationChange: @MainActor (Locator) -> Void
+
+    init(onPlaybackChange: @escaping @MainActor (MediaPlaybackInfo) -> Void, onLocationChange: @escaping @MainActor (Locator) -> Void) {
+        self.onPlaybackChange = onPlaybackChange
+        self.onLocationChange = onLocationChange
+    }
+
+    func navigator(_ navigator: AudioNavigator, playbackDidChange info: MediaPlaybackInfo) {
+        self.onPlaybackChange(info)
+    }
+
+    func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
+        self.onLocationChange(locator)
+    }
+
+    func navigator(_ navigator: Navigator, presentError error: NavigatorError) {}
+
+    func navigator(_ navigator: Navigator, presentExternalURL url: URL) {
+        UIApplication.shared.open(url)
     }
 }
 

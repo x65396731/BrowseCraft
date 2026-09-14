@@ -28,11 +28,22 @@ struct ReadiumSitePublicationBuilder: Sendable {
             languages: manifest.language.map { [$0] } ?? [],
             authors: manifest.author.map { [Contributor(name: $0)] } ?? []
         )
-        let container: SiteBookChapterContainer = SiteBookChapterContainer(
+        let siteContainer: SiteBookChapterContainer = SiteBookChapterContainer(
             manifest: manifest,
             renderer: self.renderer,
             contentProvider: contentProvider
         )
+        // 中文注释：AudioNavigator 的媒体加载器只播 `publication.get(link)` 给得出资源的 href；远程 mp3 由 Readium 自带的
+        // HTTPContainer 按 Range 取（HTTPResource 的构造器不对外），正文容器与它组合，正文章节仍走前者。
+        let audioEntries: Set<AnyURL> = Set(manifest.items.compactMap { item in
+            guard case .audio = item.kind else {
+                return nil
+            }
+            return AnyURL(string: item.href)
+        })
+        let container: Container = audioEntries.isEmpty
+            ? siteContainer
+            : CompositeContainer(siteContainer, HTTPContainer(client: siteContainer.audioHTTPClient.client, entries: audioEntries))
         return Publication(
             manifest: Manifest(metadata: metadata, readingOrder: readingOrder, tableOfContents: readingOrder),
             container: container
@@ -48,6 +59,8 @@ final class SiteBookChapterContainer: Container, @unchecked Sendable {
     private let language: String?
     private let renderer: BookXHTMLRenderer
     private let contentProvider: BookChapterContentProvider
+    /// 中文注释：音频请求客户端（含 http → https 升级代理）；DefaultHTTPClient 对代理是弱引用，由本容器持有。
+    let audioHTTPClient: SiteBookAudioHTTPClient = SiteBookAudioHTTPClient()
 
     init(manifest: BookPublicationManifest, renderer: BookXHTMLRenderer, contentProvider: @escaping BookChapterContentProvider) {
         var byHref: [String: BookPublicationItem] = [:]

@@ -162,3 +162,23 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
   出版物加载后 `BookReaderViewModel.title` 改用 manifest 标题，加载前仍用列表标题占位。
 - **固定输入**：`BookSourceRuntimeEndToEndTests.pageMarkersAreStrippedOnlyWhenTheyMatchTheJoinedPages`（七个形状 + 拼接）；
   三页拼接用例断言拼接后无标记、单页取法保留。
+
+## 十六、站点有声作品的播放器（2026-09-14，用户裁决「先照抄，接起来再说，后面再改 UI」）
+
+- **内核**：Readium `AudioNavigator`（AVPlayer + Locator）——播放 / 暂停 / seek / 上一章下一章 / 倍速 / AudioSession 全在 SDK 里；
+  SDK **不带界面**，界面照抄 Readium TestApp 的 `AudiobookReader`（封面、进度条、快退 10 秒 / 上一章 / 播放暂停 / 下一章 / 快进 30 秒），
+  落在 `AudiobookPlayerView`；锁屏 / 控制中心 / 耳机命令照抄其命令中心部分，落在 `AudiobookRemoteControls`（Now Playing 用 SDK 的 `NowPlayingInfo`）。
+- **接线**：`BookReaderViewModel.openSite` 遇到有声 manifest 不再抛错——建 `AudioNavigator`，代理桥 `AudioNavigatorBridge` 把播放状态与位置回给 VM，
+  位置走文字书同一条进度 / 书签链路；`BookReaderView` 在 `isAudiobook` 时切到播放页，出现即播、离开即停并落进度；详情页「Start / Continue Listening」、章节可点。
+  `Info.plist` 的 `UIBackgroundModes` 加 `audio`。
+- **两处只有接起来才逮到的缺口**：
+  ① `AudioNavigator` 的媒体加载器只播 `publication.get(link)` 给得出资源的 href，远程 mp3 之前容器不认——`ReadiumSitePublicationBuilder` 用 `CompositeContainer` 把正文容器与 SDK 的 `HTTPContainer` 组合；
+  ② 规则产出的 mp3 是 `http://www.archive.org/…`，App 没有全局 ATS 例外，URLSession 报 -1022——AVFoundation 只看 Readium 的自定义 scheme，真正发请求的是 `DefaultHTTPClient`，
+  在其 `willStartRequest` 里 http → https（`SiteBookAudioHTTPClient`；代理是弱引用，由正文容器持有）。
+- **顺带修的两处**：Runtime 列表第 1 页永远用页面自己的地址，不把 1 代进模板（loyalbooks `?page=1` 被站点 302 到 http）；
+  详情页从阅读器 / 播放页退回时只重读续读位置、不重取详情（此前 manifest 已在就直接返回，「Continue Listening」出不来）。
+- **模拟器实测（iPhone 16 Pro，服务器目录，家用出口）**：loyalbooks catalog 发布进公共目录（用户裁决）→ 添加 → 32 本出封面 → 《Tom Sawyer》17 章 →
+  Start Listening → 起播 00:36 / 26:38 → 下一章 03–04 → 退回详情「Continue Listening」带续听标记 → 再进从 01:05 继续。
+- **固定输入**：`BookReaderViewModelTests.openingSiteAudiobookBuildsAnAudioNavigator`、`BookSourceRuntimeEndToEndTests`（音频 href 有资源、第 1 页用入口地址）、
+  `SiteBookAudioHTTPClientTests`、`BookSiteDetailViewModelTests.returningToDetailRefreshesReadingProgressWithoutReloading`。
+- **后面再改的**：界面样式；倍速与偏好入口（SDK 有 `AudioPreferences`，界面没露）；`mediaAPI` 与带签名音频仍无语料。
