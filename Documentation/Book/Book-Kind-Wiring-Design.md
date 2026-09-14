@@ -182,3 +182,13 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
 - **固定输入**：`BookReaderViewModelTests.openingSiteAudiobookBuildsAnAudioNavigator`、`BookSourceRuntimeEndToEndTests`（音频 href 有资源、第 1 页用入口地址）、
   `SiteBookAudioHTTPClientTests`、`BookSiteDetailViewModelTests.returningToDetailRefreshesReadingProgressWithoutReloading`。
 - **后面再改的**：界面样式；倍速与偏好入口（SDK 有 `AudioPreferences`，界面没露）；`mediaAPI` 与带签名音频仍无语料。
+
+## 十七、`chapterListURL`：章节列表在从作品页单跳到达的目录页（2026-09-14 立项，待拍板后实施）
+
+- **背景**：sfacg 的作品页只带「点击阅读」（指向 `MainIndex/`）与最新一章，完整章节在目录页。规则合同 `detailRules[]` 只有 `chapterRule` / `chapterAPI`，
+  表达不了这一跳。规则仓库设计书 6.1 节定了合同：`detailRules[].chapterListURL`（可选 `ExtractRule`，`url`），在作品页上取目录页地址。
+- **App 侧改动**：Core `BookDetailRule.chapterListURL: ExtractRule?`（Codable，缺省 nil）；`BookSiteRuleValidator`：`chapterListURL` 只能与 `chapterRule` 搭配；
+  `DefaultBookRuleParser.parseDetail` 多出 `chapterListURL: URL?`；Runtime `loadDetail`：章节为空且 `chapterListURL` 非空 → 取目录页 → 在目录页上按 `chapterRule` 解析章节；
+  两次取页都算 `purpose: .detail`。取不到目录页时报「章节列表不可用」，不回退猜地址。
+- **固定输入**：`BookSourceRuntimeEndToEndTests` 加 sfacg（语料：作品页、目录页、免费章正文），断言详情 8 章、取页序列「作品页 → 目录页」、正文 `#ChapterBody` ≥ 12 段。
+- **模拟器**：sfacg catalog 发布进公共目录后走通：添加 → 列表 → 作品 → 章节 → 正文。
