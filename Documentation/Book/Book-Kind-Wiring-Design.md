@@ -152,3 +152,13 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
 - **修法**：加 `.book`。固定输入 `LibraryViewModelTests.bookListAdvancesToTheNextPageWhenRuntimeReportsOne`（与漫画同款：第 1 页报 nextPage=2 → 触底取第 2 页 → 报 nil 即停）；`TestSourceRuntimeResolver` 补 `bookRuntimeFactory`，`Harness.makeBookSource()` 用 biquhua-catalog 夹具物化。
 - **模拟器复验（iPhone 16 Pro，服务器目录，家用出口）**：删掉重加笔趣阁后，榜单滑到底自动取 `all_0_2.html`、`all_0_3.html`（30 → 60 → 90 条，状态条「第 3 页」）；打开《绍宋》任一章，正文取页序列为 `X.html → X_2.html → X_3.html` 后停，相邻章节各自独立取页，没有一章吞下一章。
 - **待补的缺口**：规则目录里「已添加」的来源没有任何动作，服务器上更新了规则的用户拿不到新版本，只能删掉重加；应给已添加来源提供「更新规则」（同 id 再添加即覆盖本地规则，`AddCatalogSourceUseCase` 已支持）。
+
+## 十五、页码标记清洗与阅读器标题（2026-09-14，用户裁决「App 拼页时剔除 + 统一标题」）
+
+- **页码标记**：biquhua 每页正文首尾各一行「第(1/3)页」，规则 `content` 把它当段落。清洗放在 Runtime 拼页处（`joinedParagraphs(pages:)`），
+  不放引擎：拼页时 App 知道「本章共 m 页、这段在第 k 页」，剔除条件是**整段只有「第 k/m 页」这一行且 k、m 与实际拼接页数对得上**，
+  对不上（只取到一页、取页中途失败、正文原文提到「第 2/3 页」）原样保留。引擎侧要给规则 DSL 加剥除槽位、四处合同都要动，重得多。
+- **阅读器标题**：此前用列表条目标题（带分类前缀「[玄幻]普罗之主」），详情页用 manifest 标题（详情规则清洗后「普罗之主」）。
+  出版物加载后 `BookReaderViewModel.title` 改用 manifest 标题，加载前仍用列表标题占位。
+- **固定输入**：`BookSourceRuntimeEndToEndTests.pageMarkersAreStrippedOnlyWhenTheyMatchTheJoinedPages`（七个形状 + 拼接）；
+  三页拼接用例断言拼接后无标记、单页取法保留。

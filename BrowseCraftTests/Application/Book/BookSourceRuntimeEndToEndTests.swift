@@ -141,11 +141,26 @@ struct BookSourceRuntimeEndToEndTests {
             return
         }
         #expect(paragraphs.count > singlePageParagraphs.count, "三页拼接后段落数必须多于单页")
+        #expect(singlePageParagraphs.contains { $0.contains("第(1/3)页") }, "单页取法保留站点标记（页数对不上，不剔）")
+        #expect(paragraphs.contains { $0.contains("页") && $0.contains("/3)") } == false, "三页拼接后页码标记全部剔除")
         #expect(Array(loader.requestedURLs.dropFirst()) == [
             "https://www.biquhua.com/book/0/110/129023.html",
             "https://www.biquhua.com/book/0/110/129023_2.html",
             "https://www.biquhua.com/book/0/110/129023_3.html",
         ], "第三页的 a#next 指向下一章 129024.html，必须停在本章末页")
+    }
+
+    @Test func pageMarkersAreStrippedOnlyWhenTheyMatchTheJoinedPages() {
+        #expect(BookSourceRuntime.isPageMarker("    第(1/3)页", page: 1, of: 3))
+        #expect(BookSourceRuntime.isPageMarker("第（2/3）页", page: 2, of: 3))
+        #expect(BookSourceRuntime.isPageMarker("(3/3)", page: 3, of: 3))
+        #expect(BookSourceRuntime.isPageMarker("第(1/3)页", page: 2, of: 3) == false, "页序对不上")
+        #expect(BookSourceRuntime.isPageMarker("第(1/3)页", page: 1, of: 2) == false, "总页数对不上")
+        #expect(BookSourceRuntime.isPageMarker("第(1/3)页 他说。", page: 1, of: 3) == false, "不是整段")
+        #expect(BookSourceRuntime.isPageMarker("翻到第(1/3)页", page: 1, of: 3) == false)
+        let joined: [String] = BookSourceRuntime.joinedParagraphs(pages: [["第(1/3)页", "甲", "第(1/3)页"], ["第(2/3)页", "乙"], ["丙", "第(3/3)页"]])
+        #expect(joined == ["甲", "乙", "丙"])
+        #expect(BookSourceRuntime.joinedParagraphs(pages: [["第(1/3)页", "甲"]]) == ["第(1/3)页", "甲"], "只取到一页时页数对不上，保留")
     }
 
     @Test func inChapterPageGuardOnlyAcceptsSiblingPagesOfTheChapter() {

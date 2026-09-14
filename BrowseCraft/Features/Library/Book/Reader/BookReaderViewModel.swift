@@ -38,8 +38,12 @@ final class BookReaderViewModel {
     private let throttleNanoseconds: UInt64
     private var pendingSave: Task<Void, Never>?
 
+    /// 中文注释：站点书加载出版物后，标题用 manifest 的（详情规则清洗后的作品名，与详情页同一个），
+    /// 不再用列表条目的原标题（biquhua 列表标题带分类前缀「[玄幻]普罗之主」，详情页是「普罗之主」，两处曾不一致）。
+    private(set) var loadedTitle: String?
+
     var title: String {
-        return self.subject.title
+        return self.loadedTitle ?? self.subject.title
     }
 
     var bookID: UUID {
@@ -115,6 +119,10 @@ final class BookReaderViewModel {
         let loaded: LoadedBookPublication = try await loadSitePublicationUseCase.execute(source: selection.source, detailURL: detailURL)
         if loaded.manifest.isAudiobook {
             throw BookReaderError.audiobookNotSupportedYet
+        }
+        let manifestTitle: String = loaded.manifest.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if manifestTitle.isEmpty == false {
+            self.loadedTitle = manifestTitle
         }
         let publication: Publication = self.sitePublicationBuilder.build(manifest: loaded.manifest, contentProvider: loaded.contentProvider)
         self.publication = publication
