@@ -1,0 +1,174 @@
+{
+ "id": "biquhua-com--top-all-0-1-html",
+ "name": "笔趣阁",
+ "baseURL": "https://www.biquhua.com/",
+ "ruleJSON": {
+  "version": 2,
+  "name": "笔趣阁",
+  "baseUrl": "https://www.biquhua.com/",
+  "site": {
+   "name": "笔趣阁",
+   "domain": "www.biquhua.com",
+   "baseURL": "https://www.biquhua.com/",
+   "loginURL": "https://www.biquhua.com/login.php",
+   "language": "zh-Hans"
+  },
+  "pages": [
+   {
+    "id": "page-04301c22783e",
+    "title": "最新小说总榜",
+    "type": "list",
+    "ruleRefs": {
+     "detail": "detail-963853c3eb6f",
+     "list": "list-f6450ae18a1e",
+     "reader": "playback-afe3c801065c"
+    },
+    "url": "https://www.biquhua.com/top/all_0_1.html"
+   }
+  ],
+  "ruleSets": {
+   "listRules": [
+    {
+     "id": "list-f6450ae18a1e",
+     "url": "https://www.biquhua.com/top/all_0_1.html",
+     "itemRule": {
+      "function": "raw",
+      "selector": ".hot > .row > .col-12",
+      "selectorKind": "css"
+     },
+     "fields": {
+      "cover": {
+       "fallback": [
+        {
+         "function": "url",
+         "param": "data-src",
+         "selector": "img[src]",
+         "selectorKind": "css"
+        },
+        {
+         "function": "url",
+         "param": "data-lazy-src",
+         "selector": "img[src]",
+         "selectorKind": "css"
+        },
+        {
+         "function": "url",
+         "param": "data-bg",
+         "selector": "img[src]",
+         "selectorKind": "css"
+        },
+        {
+         "function": "url",
+         "param": "style",
+         "selector": "img[src]",
+         "selectorKind": "css"
+        },
+        {
+         "function": "url",
+         "param": "src",
+         "selector": "img[src]",
+         "selectorKind": "css"
+        },
+        {
+         "function": "url",
+         "param": "data-manga-src",
+         "selector": "img[src]",
+         "selectorKind": "css"
+        }
+       ],
+       "function": "url",
+       "param": "data-original",
+       "selector": "img[src]",
+       "selectorKind": "css"
+      },
+      "detailURL": {
+       "function": "url",
+       "param": "href",
+       "selector": "h3 a[href]",
+       "selectorKind": "css"
+      },
+      "title": {
+       "function": "text",
+       "selector": "h3 a",
+       "selectorKind": "css"
+      }
+     },
+     "type": "book"
+    }
+   ],
+   "detailRules": [
+    {
+     "id": "detail-963853c3eb6f",
+     "fields": {
+      "cover": {
+       "function": "url",
+       "param": "content",
+       "selector": "meta[property='og:image'][content]",
+       "selectorKind": "css"
+      },
+      "title": {
+       "function": "text",
+       "selector": "div.row.book_info > div.col-9.col-md-10 > h1",
+       "selectorKind": "css"
+      }
+     },
+     "chapterRule": {
+      "item": {
+       "function": "raw",
+       "selector": "li.col-md-3 > a[href][href*='/book/']",
+       "selectorKind": "css"
+      },
+      "title": {
+       "function": "attr",
+       "param": "ownText",
+       "selectorKind": "current"
+      },
+      "readerURL": {
+       "function": "url",
+       "param": "href",
+       "selectorKind": "current"
+      }
+     }
+    }
+   ],
+   "readerRules": [
+    {
+     "id": "playback-afe3c801065c",
+     "variant": "text-dom",
+     "contentType": "text",
+     "content": {
+      "container": {
+       "function": "raw",
+       "selectorKind": "css",
+       "selector": "article.font_max"
+      },
+      "segmentation": "lineBreaks",
+      "next": {
+       "function": "url",
+       "param": "href",
+       "selector": "a#next",
+       "selectorKind": "css"
+      }
+     }
+    }
+   ]
+  },
+  "sharedRequest": {
+   "scope": "site",
+   "mergePolicy": "mergeHeadersAndCookies",
+   "method": "GET",
+   "headers": {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
+   },
+   "cookiePolicy": "browserThenCustom",
+   "cookiePriority": "browser",
+   "cookieScope": "site",
+   "charset": "utf8",
+   "needsWebView": false,
+   "autoScroll": false
+  }
+ },
+ "kind": "book"
+}

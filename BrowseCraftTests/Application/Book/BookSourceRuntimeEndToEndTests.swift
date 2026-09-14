@@ -114,6 +114,56 @@ struct BookSourceRuntimeEndToEndTests {
         #expect(xhtml.contains("xml:lang=\"zh-Hans\""))
     }
 
+    // 中文注释：BC-BOOK-036 的两半在 App 侧的固定输入（2026-09-14 biquhua 真机倒查）：
+    // ① 章内三页按 content.next 拼成一份；② 末页的 a#next 指向下一章 129024.html，运行时必须停下、不取下一章。
+    @Test func biquhuaInChapterPagesAreJoinedAndStopAtNextChapter() async throws {
+        let loader: FixturePageContentLoader = FixturePageContentLoader(fixtures: [
+            "https://www.biquhua.com/book/0/110/129023.html": "biquhua-reader-110-129023",
+            "https://www.biquhua.com/book/0/110/129023_2.html": "biquhua-reader-110-129023-p2",
+            "https://www.biquhua.com/book/0/110/129023_3.html": "biquhua-reader-110-129023-p3",
+        ])
+        let chapterURL: URL = URL(string: "https://www.biquhua.com/book/0/110/129023.html")!
+
+        let plainSource: Source = try Self.source(fixture: "biquhua-catalog")
+        let plainRuntime: BookSourceRuntime = try BookSourceRuntimeFactory(pageContentLoader: loader).makeRuntime(source: plainSource)
+        let plain: SourceBookContentOutput = try await plainRuntime.loadBookContent(SourceBookContentInput(chapterURL: chapterURL, context: Self.context(sourceID: plainSource.id)))
+        guard case .text(_, let singlePageParagraphs) = plain.content else {
+            Issue.record("expected text content")
+            return
+        }
+        #expect(loader.requestedURLs == [chapterURL.absoluteString], "没有 content.next 时只取第一页")
+
+        let source: Source = try Self.source(fixture: "biquhua-catalog-next")
+        let runtime: BookSourceRuntime = try BookSourceRuntimeFactory(pageContentLoader: loader).makeRuntime(source: source)
+        let content: SourceBookContentOutput = try await runtime.loadBookContent(SourceBookContentInput(chapterURL: chapterURL, context: Self.context(sourceID: source.id)))
+        guard case .text(_, let paragraphs) = content.content else {
+            Issue.record("expected text content")
+            return
+        }
+        #expect(paragraphs.count > singlePageParagraphs.count, "三页拼接后段落数必须多于单页")
+        #expect(Array(loader.requestedURLs.dropFirst()) == [
+            "https://www.biquhua.com/book/0/110/129023.html",
+            "https://www.biquhua.com/book/0/110/129023_2.html",
+            "https://www.biquhua.com/book/0/110/129023_3.html",
+        ], "第三页的 a#next 指向下一章 129024.html，必须停在本章末页")
+    }
+
+    @Test func inChapterPageGuardOnlyAcceptsSiblingPagesOfTheChapter() {
+        let chapter: URL = URL(string: "https://www.biquhua.com/book/0/110/129023.html")!
+        #expect(BookSourceRuntime.isInChapterPage(URL(string: "https://www.biquhua.com/book/0/110/129023_2.html")!, chapterURL: chapter))
+        #expect(BookSourceRuntime.isInChapterPage(URL(string: "https://www.biquhua.com/book/0/110/129023-3.html")!, chapterURL: chapter))
+        #expect(BookSourceRuntime.isInChapterPage(URL(string: "https://www.biquhua.com/book/0/110/129024.html")!, chapterURL: chapter) == false, "下一章")
+        #expect(BookSourceRuntime.isInChapterPage(URL(string: "https://www.biquhua.com/book/0/110/")!, chapterURL: chapter) == false, "目录")
+        #expect(BookSourceRuntime.isInChapterPage(URL(string: "https://m.biquhua.com/book/0/110/129023_2.html")!, chapterURL: chapter) == false, "别的主机")
+        #expect(BookSourceRuntime.isInChapterPage(URL(string: "https://www.biquhua.com/book/0/111/129023_2.html")!, chapterURL: chapter) == false, "别的目录")
+        #expect(BookSourceRuntime.isInChapterPage(URL(string: "https://www.biquhua.com/book/0/110/129023_2.php")!, chapterURL: chapter) == false, "扩展名不同")
+        #expect(BookSourceRuntime.isInChapterPage(URL(string: "https://www.biquhua.com/book/0/110/129023_1.html")!, chapterURL: chapter) == false, "页码从 2 起")
+        let paged: URL = URL(string: "https://www.biquhua.com/book/0/110/129023_2.html")!
+        #expect(BookSourceRuntime.isInChapterPage(URL(string: "https://www.biquhua.com/book/0/110/129023_3.html")!, chapterURL: paged), "本章地址自己带页码时按词干算")
+        let directoryChapter: URL = URL(string: "https://book.sfacg.com/Novel/784270/1042434/9919505/")!
+        #expect(BookSourceRuntime.isInChapterPage(URL(string: "https://book.sfacg.com/Novel/784270/1042434/9919507/")!, chapterURL: directoryChapter) == false, "sfacg 的下一章")
+    }
+
     // MARK: - Helpers
 
     private static func source(fixture: String) throws -> Source {
