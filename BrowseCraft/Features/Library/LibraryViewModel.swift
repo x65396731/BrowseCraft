@@ -220,7 +220,9 @@ final class LibraryViewModel {
         guard let kind: SourceRuntimeKind = self.selectedSource?.configuration.kind else {
             return false
         }
-        return kind == .video || kind == .comic
+        // 中文注释：2026-09-14 biquhua 模拟器复验——规则已带分页模板、Runtime 报出 nextPage=2，
+        // 这里却只认 video / comic，book 的触底哨兵永远不挂。三种按页取的 kind 都要在这里登记。
+        return kind == .video || kind == .comic || kind == .book
     }
 
     @MainActor

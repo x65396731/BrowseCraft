@@ -296,6 +296,44 @@ struct LibraryViewModelTests {
         #expect(runtime.listInputs.map(\.page) == [1])
     }
 
+    // 中文注释：2026-09-14 biquhua 模拟器复验——规则带分页模板、Runtime 报 nextPage=2，
+    // 但 `selectedSourceSupportsListPagination` 只认 video / comic，book 的触底哨兵永远不挂。
+    @Test func bookListAdvancesToTheNextPageWhenRuntimeReportsOne() async throws {
+        let database: AppDatabase = try Harness.makeDatabase()
+        let source: Source = try Harness.makeBookSource()
+        try GRDBSourceRepository(database: database).saveSource(source)
+        let runtime: ScriptedSourceRuntime = ScriptedSourceRuntime(source: source, list: { input in
+            switch input.page {
+            case 1:
+                return ScriptedSourceRuntime.listOutput(ids: ["a", "b"], nextPage: 2)
+            case 2:
+                return ScriptedSourceRuntime.listOutput(ids: ["c"], nextPage: nil)
+            default:
+                throw TestPortError(reason: "unexpected page \(input.page)")
+            }
+        })
+        let viewModel: LibraryViewModel = Harness.makeLibraryViewModel(
+            database: database,
+            resolver: Harness.resolver([source.id: runtime])
+        )
+
+        let outcome: LibraryInitialLoadOutcome = await viewModel.loadIfNeeded()
+        #expect(viewModel.selectedSource?.id == source.id)
+        #expect(viewModel.errorMessage == nil)
+        #expect(viewModel.selectedListTabErrorMessage == nil)
+        #expect(outcome == .loaded)
+        #expect(viewModel.canLoadNextPage)
+        #expect(viewModel.nextListPage == 2)
+        #expect(viewModel.shouldShowPaginationStatus)
+
+        await viewModel.loadNextPageIfNeeded()
+
+        #expect(viewModel.items.map(\.id) == ["a", "b", "c"])
+        #expect(viewModel.currentListPage == 2)
+        #expect(viewModel.nextListPage == nil)
+        #expect(runtime.listInputs.map(\.page) == [1, 2])
+    }
+
     @Test func rssListIgnoresRuntimePagination() async throws {
         let database: AppDatabase = try Harness.makeDatabase()
         let source: Source = Harness.makeRSSSource()

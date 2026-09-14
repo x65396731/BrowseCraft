@@ -144,3 +144,11 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
 - **修法**：加第三条停止条件 `isInChapterPage(candidate, chapterURL:)`——候选地址必须是本章地址的**兄弟页**：同主机、同目录、同扩展名，末段 = 本章词干 + 非字母数字分隔符 + 页码（≥ 2）；本章地址自己已带页码时词干去掉「分隔符 + 页码」后算。与引擎 `_FUSED_PAGE_SEGMENT`（`BC-LIST-093`）同一形状。只看 URL 形状，不看链接文字。
 - **不覆盖**：query 形的章内分页（`?page=2`）——首批语料没有样本，量到再加。
 - **固定输入**：`BookSourceRuntimeEndToEndTests.biquhuaInChapterPagesAreJoinedAndStopAtNextChapter`（三页夹具 `biquhua-reader-110-129023{,-p2,-p3}.html` + 带 `next` 的 `biquhua-catalog-next.json`：拼接后段落多于单页、取页序列恰为三页、不取 `129024.html`）与 `inChapterPageGuardOnlyAcceptsSiblingPagesOfTheChapter`（十个形状用例）。
+
+## 十四、book 列表分页在 ViewModel 被 kind 门挡住（2026-09-14，模拟器复验）
+
+- **现象**：规则已带分页模板、Runtime 报出 `nextPage=2`，库页却不挂触底哨兵、不显示「第 1 页」状态条。
+- **成因**：`LibraryViewModel.selectedSourceSupportsListPagination` 写的是 `kind == .video || kind == .comic`——09-12 从只认影视放宽到漫画时的形状，book 后来接入没跟上。
+- **修法**：加 `.book`。固定输入 `LibraryViewModelTests.bookListAdvancesToTheNextPageWhenRuntimeReportsOne`（与漫画同款：第 1 页报 nextPage=2 → 触底取第 2 页 → 报 nil 即停）；`TestSourceRuntimeResolver` 补 `bookRuntimeFactory`，`Harness.makeBookSource()` 用 biquhua-catalog 夹具物化。
+- **模拟器复验（iPhone 16 Pro，服务器目录，家用出口）**：删掉重加笔趣阁后，榜单滑到底自动取 `all_0_2.html`、`all_0_3.html`（30 → 60 → 90 条，状态条「第 3 页」）；打开《绍宋》任一章，正文取页序列为 `X.html → X_2.html → X_3.html` 后停，相邻章节各自独立取页，没有一章吞下一章。
+- **待补的缺口**：规则目录里「已添加」的来源没有任何动作，服务器上更新了规则的用户拿不到新版本，只能删掉重加；应给已添加来源提供「更新规则」（同 id 再添加即覆盖本地规则，`AddCatalogSourceUseCase` 已支持）。

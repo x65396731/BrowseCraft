@@ -50,6 +50,27 @@ enum ViewModelTestHarness {
         )
     }
 
+    /// 中文注释：book 来源用真实 catalog 夹具物化（与 BookCatalogSourceMaterializerTests 同一份 biquhua-catalog）。
+    static func makeBookSource() throws -> Source {
+        guard let url: URL = Bundle(for: ViewModelTestHarnessMarker.self).url(forResource: "biquhua-catalog", withExtension: "json"),
+              let catalog: [String: Any] = try JSONSerialization.jsonObject(with: try Data(contentsOf: url)) as? [String: Any],
+              let id: String = catalog["id"] as? String,
+              let name: String = catalog["name"] as? String,
+              let baseURL: String = catalog["baseURL"] as? String,
+              let ruleObject: Any = catalog["ruleJSON"] else {
+            throw TestPortError(reason: "biquhua-catalog fixture missing or malformed")
+        }
+        let ruleJSON: Data = try JSONSerialization.data(withJSONObject: ruleObject)
+        let catalogSource: CatalogSource = CatalogSource(
+            id: id,
+            name: name,
+            baseURL: baseURL,
+            kind: .book,
+            ruleJSON: String(decoding: ruleJSON, as: UTF8.self)
+        )
+        return try CatalogSourceMaterializer().source(from: catalogSource, createdAt: Self.fixedNow, updatedAt: Self.fixedNow)
+    }
+
     static func makeRSSSource(id: String = "rss.test", name: String = "RSS Test") -> Source {
         return Source(
             id: id,
@@ -95,6 +116,9 @@ enum ViewModelTestHarness {
         return TestSourceRuntimeResolver(
             rssRuntimeFactory: { definition in
                 return runtimes[definition.id] ?? fallback ?? ScriptedSourceRuntime(definition: definition)
+            },
+            bookRuntimeFactory: { source in
+                return runtimes[source.id] ?? fallback ?? ScriptedSourceRuntime(source: source)
             },
             comicRuntimeFactory: { source in
                 return runtimes[source.id] ?? fallback ?? ScriptedSourceRuntime(source: source)
@@ -287,3 +311,5 @@ enum ViewModelTestHarness {
         )
     }
 }
+
+private final class ViewModelTestHarnessMarker {}

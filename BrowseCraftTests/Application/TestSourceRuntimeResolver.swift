@@ -11,12 +11,14 @@ struct TestSourceRuntimeResolver: SourceRuntimeResolving {
     private let rssRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)?
     private let videoRuntimeFactory: ((Source) throws -> any SourceRuntime)?
     private let pluginRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)?
+    private let bookRuntimeFactory: ((Source) -> any SourceRuntime)?
 
     init(
         definitionMapper: SourceDefinitionMapper = SourceDefinitionMapper(),
         rssRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)? = nil,
         videoRuntimeFactory: ((Source) throws -> any SourceRuntime)? = nil,
         pluginRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)? = nil,
+        bookRuntimeFactory: ((Source) -> any SourceRuntime)? = nil,
         comicRuntimeFactory: @escaping (Source) -> any SourceRuntime
     ) {
         self.definitionMapper = definitionMapper
@@ -24,6 +26,7 @@ struct TestSourceRuntimeResolver: SourceRuntimeResolving {
         self.rssRuntimeFactory = rssRuntimeFactory
         self.videoRuntimeFactory = videoRuntimeFactory
         self.pluginRuntimeFactory = pluginRuntimeFactory
+        self.bookRuntimeFactory = bookRuntimeFactory
     }
 
     func runtime(for source: Source) throws -> any SourceRuntime {
@@ -69,9 +72,13 @@ struct TestSourceRuntimeResolver: SourceRuntimeResolving {
             }
             return try videoRuntimeFactory(source)
         case .book:
-            throw SourceRuntimeError.unsupported(
-                .custom("Book source runtime is not connected in this test resolver.")
-            )
+            guard let source: Source,
+                  let bookRuntimeFactory: (Source) -> any SourceRuntime = self.bookRuntimeFactory else {
+                throw SourceRuntimeError.unsupported(
+                    .custom("Book source runtime is not connected in this test resolver.")
+                )
+            }
+            return bookRuntimeFactory(source)
         case .plugin:
             guard let pluginRuntimeFactory: (SourceDefinition) -> any SourceRuntime = self.pluginRuntimeFactory else {
                 throw SourceRuntimeError.unsupported(
