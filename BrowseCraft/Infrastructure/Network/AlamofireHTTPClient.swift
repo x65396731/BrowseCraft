@@ -121,10 +121,35 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
         )
     }
 
+    /// 中文注释：BC-BOOK-050 模拟器逮到：sfacg 把 `https://book.sfacg.com/Novel/N/` 302 到 **http://** 的移动站再 301 回 https，
+    /// URLSession 在 http 那一跳被 ATS 拒（规则生成引擎的 HTTP 客户端无 ATS、跟得过去）。与有声书 mp3 的处置同一纪律：
+    /// 客户端里把跳转目标的 http 升成 https（站点本就在 https 上服务），不开全局 ATS 例外。
+    static let httpsUpgradingRedirector: Redirector = Redirector(behavior: .modify { _, request, _ in
+        guard let url: URL = request.url, let upgraded: URL = AlamofireHTTPClient.httpsUpgraded(url) else {
+            return request
+        }
+        var redirected: URLRequest = request
+        redirected.url = upgraded
+        return redirected
+    })
+
+    /// 中文注释：`http://` 地址升成 `https://`；本来就是 https 或不是 http(s) 即 nil（原样跟随）。
+    static func httpsUpgraded(_ url: URL) -> URL? {
+        guard url.scheme?.lowercased() == "http",
+              var components: URLComponents = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+        components.scheme = "https"
+        if components.port == 80 {
+            components.port = nil
+        }
+        return components.url
+    }
+
     /// 中文注释：RSS/API 等原始 bytes 请求也复用 callback bridge，继续保留 Alamofire 的请求能力。
     private func performDataRequest(_ urlRequest: URLRequest) async throws -> HTTPDataResponse {
         return try await withCheckedThrowingContinuation { continuation in
-            AF.request(urlRequest).responseData { response in
+            AF.request(urlRequest).redirect(using: Self.httpsUpgradingRedirector).responseData { response in
                 switch response.result {
                 case .success(let data):
                     continuation.resume(

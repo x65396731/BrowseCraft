@@ -202,4 +202,8 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
   夹具切到 `sfacg-m-*`（引擎 UA `curl` 取得的移动站四页），`FixturePageContentLoader` 加 `redirects:` 模拟 302。
 - **段落选择器相对容器**：Core `parseTextContent` 在容器元素上 `select(paragraph)`，容器之外的祖先不可见；引擎侧已把 `div.yuedu > div p` 这类
   抄了容器路径的答法归一为 `p`、重放改在脱离副本上 select（规则仓库设计书 6.1 更正 9）——这条差异是 Core 夹具测试先逮到的，App 侧不改语义。
+- **模拟器逮到的传输层缺口（2026-09-14）**：sfacg 把 `https://book.sfacg.com/Novel/N/` 302 到 **`http://`** 的移动站、再 301 回 https；
+  引擎的 HTTP 客户端无 ATS 跟得过去，App 的 URLSession 在 http 那一跳被 ATS 拒（详情页「网络请求失败 … App Transport Security」）。
+  处置与有声书 mp3 同一纪律：`AlamofireHTTPClient` 加 `httpsUpgradingRedirector`（Alamofire `Redirector(.modify)`），跳转目标是 http 就升成 https
+  （站点本就在 https 上服务），不开全局 ATS 例外；单元测试 `AlamofireHTTPClientRedirectTests`。
 - **模拟器**：sfacg catalog 发布进公共目录后走通：添加 → 列表 → 作品 → 章节 → 正文（见规则仓库 HANDOFF 0.0.A25 续五）。
