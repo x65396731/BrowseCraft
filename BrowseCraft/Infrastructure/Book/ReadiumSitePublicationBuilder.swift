@@ -118,6 +118,10 @@ final class SiteBookChapterContainer: Container, @unchecked Sendable {
                 case .audio:
                     return .failure(.decoding(BookPublicationContentError.unexpectedContent(chapterURL: item.chapterURL)))
                 }
+            } catch SourceRuntimeError.emptyContent {
+                // 中文注释：章节页在、正文为空（站点只在自家 App 内给正文等）——渲染一页说明，而不是空白或只有标题。
+                let notice: String = NSLocalizedString("book_reader_chapter_no_web_content", comment: "")
+                return .success(Data(renderer.render(title: item.title, paragraphs: [notice], language: language).utf8))
             } catch {
                 return .failure(.access(.other(error)))
             }

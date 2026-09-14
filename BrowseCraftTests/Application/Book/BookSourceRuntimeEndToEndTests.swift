@@ -172,6 +172,26 @@ struct BookSourceRuntimeEndToEndTests {
         #expect(shown.contains("SF轻小说") == false)
     }
 
+    // 中文注释：正文为空的章节（sfacg 互动小说）渲染说明页，不再只有标题。
+    @Test func emptyChapterContentRendersANoticeInsteadOfATitleOnlyPage() async throws {
+        let chapterURL: URL = URL(string: "https://m.sfacg.com/c/9555423/")!
+        let manifest: BookPublicationManifest = BookPublicationManifest(
+            identifier: "sfacg::empty",
+            title: "她靠马甲杀回，权贵圈争着喊夫人",
+            author: nil,
+            language: "zh-Hans",
+            coverURL: nil,
+            items: [BookPublicationItem(href: "chapters/0001.xhtml", title: "你介意当豪门赘婿吗？", chapterURL: chapterURL, kind: .text)]
+        )
+        let publication: Publication = ReadiumSitePublicationBuilder().build(manifest: manifest) { url in
+            throw SourceRuntimeError.emptyContent(chapterURL: url)
+        }
+        let resource: Resource = try #require(publication.get(publication.readingOrder[0]))
+        let xhtml: String = try await resource.readAsString().get()
+        #expect(xhtml.contains("<h1>你介意当豪门赘婿吗？</h1>"))
+        #expect(xhtml.contains("<p>\(NSLocalizedString("book_reader_chapter_no_web_content", comment: ""))</p>"))
+    }
+
     @Test func siteBookTitlePrefersTheContainedTitle() {
         // 中文注释：三个书站的实际形状。
         #expect(SiteBookTitle.preferred(itemTitle: "[玄幻]普罗之主", detailTitle: "普罗之主") == "普罗之主")

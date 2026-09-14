@@ -382,3 +382,4 @@
 "Continue Reading" = "Continue Reading";
 "Loading chapters…" = "Loading chapters…";
 "Book sources can be added from the Book source form." = "Book sources can be added from the Book source form.";
+"book_reader_chapter_no_web_content" = "This chapter has no text on the website. The site may only provide this work inside its own app.";

@@ -240,3 +240,20 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
 - **验证**：全量 507 / 89 过、架构边界干净；biquhua 端到端用例加断言（夹具真实列表条目标题带前缀、展示标题 = 「普罗之主」），套件 8 / 8 过。
   模拟器（iPhone 16 Pro，本机家用出口）：sfacg《在鱼塘钓鱼的两人》详情页导航栏 / 头部与阅读器标题都是干净书名（修前是「…目录列表 - 小说频道 - SF轻小说」）。
   biquhua 未在模拟器上看（来源位 1/1 被 sfacg 占用，换源要删来源并清历史），以夹具断言代替。**真机待用户验。**
+
+## 二十、正文开头一段被丢 + 网页端没有正文的章节只显示标题（2026-09-15，sfacg 真机「只有标题没有内容」倒查，用户裁决「App Core 补取裸文本」「显示空章说明」）
+
+- **现象一（开头丢段）**：sfacg 正文页 `div.yuedu > div` 里首句是第一个 `<p>` 之前的裸文本；规则 `segmentation: elements` + `paragraph: p`，
+  Core 只取 `p`。已测 6 份正文页（run10 采集 4、语料 1、真机书 784586 一章）**6 份都丢开头**（「——2025年4月1日，魔女岛监狱宅邸——」「“求求你，救我……”」等）。
+- **修法一（BrowseCraftCore，规则不动）**：段落规则是纯 CSS 选择器（无 functions / param / regex / replacement / fallback）时，
+  经 `HTMLDocumentParsing.orderedTextBlocks` 按子节点文档顺序取块：直接子级非空裸文本、匹配选择器的元素各一块，
+  含匹配元素的包裹层向下展开，其余元素（菜单、广告块）忽略。其他段落规则走原路径。biquhua 是 `lineBreaks`，不经过此路径。
+  固定输入：Core `testSfacgChapterListURL…`（首段 = 「“求求你，救我，我真的已经……”」、无「上一章 / 下一章」）、`testElementsSegmentationKeepsBareTextInDocumentOrder`。
+- **现象二（空章）**：《她靠马甲杀回，权贵圈争着喊夫人》（767172，签约作品）每章移动站页约 9.8KB、正文容器为空；
+  桌面章节页 `#ChapterBody` 只有「全新的沉浸式互动小说…只能在APP上观看哦,扫码下载APP观看吧~」。不是付费、不是登录——**站点只在自家 App 内给正文**，任何规则都取不到。
+  此前 Runtime 交出 0 段正文，阅读器只渲染章节标题，用户无从知道原因。
+- **修法二**：Core 新增 `SourceRuntimeError.emptyContent(chapterURL:)`；Runtime `loadText` 拼页后 0 段即抛；
+  `SiteBookChapterContainer` 接住它渲染说明页（章节标题 + `book_reader_chapter_no_web_content`：「这一章在网页上没有正文。站点可能只在自家 App 内提供这部作品的内容。」）。不认站点。
+  固定输入：App `emptyChapterContentRendersANoticeInsteadOfATitleOnlyPage`。
+- **验证**：Core 232 过（4 跳过）、Runtime 编译过、App 508 / 89 过、架构边界干净。模拟器未走（开屏「跳过」需人工）；**真机待用户验**
+  （784586 首章开头应是「看见面前手的那瞬间……」；767172 任一章应显示说明而非空白）。

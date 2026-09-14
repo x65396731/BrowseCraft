@@ -382,3 +382,4 @@
 "Continue Reading" = "继续阅读";
 "Loading chapters…" = "正在加载章节…";
 "Book sources can be added from the Book source form." = "书籍来源请从书籍来源表单添加。";
+"book_reader_chapter_no_web_content" = "这一章在网页上没有正文。站点可能只在自家 App 内提供这部作品的内容。";
