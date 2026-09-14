@@ -112,6 +112,50 @@ struct BookSourceRuntimeEndToEndTests {
         #expect(navigator.publication.readingOrder.count == 17)
     }
 
+    // 中文注释：BC-BOOK-050：sfacg 作品页只有标题与「点击阅读」，章节在单跳之后的目录页。引擎与 App 都用 iPhone UA，
+    // 站点把 `book.sfacg.com/Novel/N/` 302 到移动站 `m.sfacg.com/b/N/`，目录 `/i/N/`、章节 `/c/N/`——夹具就是引擎看到的这套形状。
+    // 运行时按 `chapterListURL` 先取作品页（落在移动站）、再取目录页，详情字段与章节都在目录页上解析；正文 `div.yuedu > div` 按 `<p>` 分段。
+    @Test func sfacgChaptersLiveOnTheCatalogPageOneHopAfterTheWorkPage() async throws {
+        let loader: FixturePageContentLoader = FixturePageContentLoader(
+            fixtures: [
+                "https://book.sfacg.com/List/": "sfacg-m-list",
+                "https://book.sfacg.com/Novel/743628/": "sfacg-m-detail-743628",
+                "https://m.sfacg.com/i/743628/": "sfacg-m-catalog-743628",
+                "https://m.sfacg.com/c/9077052/": "sfacg-m-reader-9077052",
+            ],
+            redirects: ["https://book.sfacg.com/Novel/743628/": "https://m.sfacg.com/b/743628/"]
+        )
+        let source: Source = try BookRuntimeFixtures.source(fixture: "sfacg-catalog")
+        let runtime: BookSourceRuntime = try BookSourceRuntimeFactory(pageContentLoader: loader).makeRuntime(source: source)
+        let context: SourceRuntimeContext = BookRuntimeFixtures.context(sourceID: source.id)
+
+        let list: SourceListOutput = try await runtime.loadList(SourceListInput(page: 1, urlOverride: nil, context: context))
+        #expect(list.items.count == 20)
+        #expect(list.items.contains { $0.detailURL?.absoluteString == "https://book.sfacg.com/Novel/743628/" })
+
+        let detailURL: URL = URL(string: "https://book.sfacg.com/Novel/743628/")!
+        let detail: SourceDetailOutput = try await runtime.loadDetail(SourceDetailInput(detailURL: detailURL, context: context, itemReference: nil))
+        #expect(detail.metadata?.title?.contains("非实然档案：现代魔法") == true)
+        #expect(detail.chapters.count == 415)
+        #expect(detail.chapters.first?.url.absoluteString == "https://m.sfacg.com/c/9077052/")
+        #expect(Array(loader.requestedURLs.dropFirst()) == [
+            "https://book.sfacg.com/Novel/743628/",
+            "https://m.sfacg.com/i/743628/",
+        ], "取页序列：作品页（302 到移动站）→ 目录页（相对落点解析）")
+
+        let chapterURL: URL = try #require(detail.chapters.first?.url)
+        let content: SourceBookContentOutput = try await runtime.loadBookContent(SourceBookContentInput(chapterURL: chapterURL, context: context))
+        guard case .text(_, let paragraphs) = content.content else {
+            Issue.record("expected text content")
+            return
+        }
+        #expect(paragraphs.count >= 100)
+
+        let loaded: LoadedBookPublication = try await LoadBookPublicationUseCase(runtimeResolver: SingleRuntimeResolver(runtime: runtime))
+            .execute(source: source, detailURL: detailURL)
+        #expect(loaded.manifest.items.count == 415)
+    }
+
     @Test func xhtmlRendererEscapesAndSkipsEmptyParagraphs() {
         let xhtml: String = BookXHTMLRenderer().render(title: "A <b> & \"c\"", paragraphs: ["one", "", "<two>"], language: "zh-Hans")
         #expect(xhtml.contains("<h1>A &lt;b&gt; &amp; &quot;c&quot;</h1>"))

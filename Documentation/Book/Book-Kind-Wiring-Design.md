@@ -183,12 +183,23 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
   `SiteBookAudioHTTPClientTests`、`BookSiteDetailViewModelTests.returningToDetailRefreshesReadingProgressWithoutReloading`。
 - **后面再改的**：界面样式；倍速与偏好入口（SDK 有 `AudioPreferences`，界面没露）；`mediaAPI` 与带签名音频仍无语料。
 
-## 十七、`chapterListURL`：章节列表在从作品页单跳到达的目录页（2026-09-14 立项，待拍板后实施）
+## 十七、`chapterListURL`：章节列表在从作品页单跳到达的目录页（2026-09-14 立项，用户裁决「按设计实施」，同日实施）
 
 - **背景**：sfacg 的作品页只带「点击阅读」（指向 `MainIndex/`）与最新一章，完整章节在目录页。规则合同 `detailRules[]` 只有 `chapterRule` / `chapterAPI`，
   表达不了这一跳。规则仓库设计书 6.1 节定了合同：`detailRules[].chapterListURL`（可选 `ExtractRule`，`url`），在作品页上取目录页地址。
-- **App 侧改动**：Core `BookDetailRule.chapterListURL: ExtractRule?`（Codable，缺省 nil）；`BookSiteRuleValidator`：`chapterListURL` 只能与 `chapterRule` 搭配；
-  `DefaultBookRuleParser.parseDetail` 多出 `chapterListURL: URL?`；Runtime `loadDetail`：章节为空且 `chapterListURL` 非空 → 取目录页 → 在目录页上按 `chapterRule` 解析章节；
-  两次取页都算 `purpose: .detail`。取不到目录页时报「章节列表不可用」，不回退猜地址。
-- **固定输入**：`BookSourceRuntimeEndToEndTests` 加 sfacg（语料：作品页、目录页、免费章正文），断言详情 8 章、取页序列「作品页 → 目录页」、正文 `#ChapterBody` ≥ 12 段。
-- **模拟器**：sfacg catalog 发布进公共目录后走通：添加 → 列表 → 作品 → 章节 → 正文。
+- **合同语义（实施时定下，与立项文字不同处以本条为准）**：给了 `chapterListURL`，**`fields` 与 `chapterRule` 都在目录页上应用**——规则生成侧把目录页当作这次
+  列表交接的详情文档（以作品页为 `requested_url` 取回，与重定向同一表达），标题等字段的选择器是在目录页上学到的（sfacg：`h1.story-title`）。
+  作品页只用来取 `chapterListURL`。只与 `chapterRule` 搭配（Core 校验 `detail.chapterListURL`）。
+- **App 侧改动（已落地）**：Core `BookDetailRule.chapterListURL: ExtractRule?`（Codable，缺省 nil，老 catalog 不受影响）；`BookSiteRuleValidator` 配对校验；
+  `DefaultBookRuleParser.parseChapterListURL(document:rule:runtimeContext:) -> URL?`（规则没给即 nil；给了却取不到即 `missingRequiredValue`，不猜地址）；
+  Runtime `loadDetail`：取作品页 → 有 `chapterListURL` 就取目录页（两次都算 `purpose: .detail`、referer 作品页）→ 在该页上 `parseDetail`。
+- **固定输入**：Core `DefaultBookRuleParserTests.testSfacgChapterListURLOnTheWorkPageAndChaptersOnTheCatalogPage`（作品页 → `MainIndex/`；目录页 8 章；正文 ≥ 12 段）、
+  `BookSiteRuleValidatorTests.testChapterListURLPairsOnlyWithChapterRule`；App `BookSourceRuntimeEndToEndTests.sfacgChaptersLiveOnTheCatalogPageOneHopAfterTheWorkPage`
+  （列表 20 本、取页序列「作品页 → 目录页」、详情 8 章、正文、manifest 8 项）。夹具 `sfacg-catalog.json` 先取自规则仓库固定输入链的编译产物，真跑产出后替换。
+- **引擎真跑逮到的形状（2026-09-14 第三次真跑）**：引擎与 App 都用 iPhone UA，sfacg 把 `book.sfacg.com/Novel/N/` 302 到移动站 `m.sfacg.com/b/N/`，
+  目录 `/i/N/`、章节 `/c/N/`。规则因此是在移动站上学的：`chapterListURL` = `.book_Catalog > a:nth-of-type(2)`（相对**落点**解析，
+  `document.finalURL` 是移动站地址）、`chapterRule.item` = `ul.mulu_list > a[href][href*='/c/']`、正文 `div.yuedu > div` + 段落 `p`。
+  夹具切到 `sfacg-m-*`（引擎 UA `curl` 取得的移动站四页），`FixturePageContentLoader` 加 `redirects:` 模拟 302。
+- **段落选择器相对容器**：Core `parseTextContent` 在容器元素上 `select(paragraph)`，容器之外的祖先不可见；引擎侧已把 `div.yuedu > div p` 这类
+  抄了容器路径的答法归一为 `p`、重放改在脱离副本上 select（规则仓库设计书 6.1 更正 9）——这条差异是 Core 夹具测试先逮到的，App 侧不改语义。
+- **模拟器**：sfacg catalog 发布进公共目录后走通：添加 → 列表 → 作品 → 章节 → 正文（见规则仓库 HANDOFF 0.0.A25 续五）。

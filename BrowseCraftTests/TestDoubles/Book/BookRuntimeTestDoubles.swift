@@ -40,11 +40,14 @@ struct SingleRuntimeResolver: SourceRuntimeResolving {
 /// 中文注释：按 URL 回夹具 HTML；没备的 URL 直接报错，避免测试静默走到网络。
 final class FixturePageContentLoader: PageContentLoader, @unchecked Sendable {
     private let fixtures: [String: String]
+    /// 中文注释：站点 302（sfacg 作品页 → 移动站）：请求地址 → 落点地址；夹具按请求地址取，`finalURL` 给落点。
+    private let redirects: [String: String]
     private(set) var requestedURLs: [String] = []
     private let lock: NSLock = NSLock()
 
-    init(fixtures: [String: String]) {
+    init(fixtures: [String: String], redirects: [String: String] = [:]) {
         self.fixtures = fixtures
+        self.redirects = redirects
     }
 
     func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
@@ -55,6 +58,7 @@ final class FixturePageContentLoader: PageContentLoader, @unchecked Sendable {
               let url: URL = Bundle(for: BookRuntimeFixtureMarker.self).url(forResource: name, withExtension: "html") else {
             throw NSError(domain: "FixturePageContentLoader", code: 404, userInfo: [NSLocalizedDescriptionKey: "no fixture for \(request.url)"])
         }
-        return PageContentResponse(content: try String(contentsOf: url, encoding: .utf8), finalURL: request.url)
+        let finalURL: URL = self.redirects[request.url.absoluteString].flatMap { URL(string: $0) } ?? request.url
+        return PageContentResponse(content: try String(contentsOf: url, encoding: .utf8), finalURL: finalURL)
     }
 }
