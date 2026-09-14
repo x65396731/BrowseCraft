@@ -255,5 +255,5 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
 - **修法二**：Core 新增 `SourceRuntimeError.emptyContent(chapterURL:)`；Runtime `loadText` 拼页后 0 段即抛；
   `SiteBookChapterContainer` 接住它渲染说明页（章节标题 + `book_reader_chapter_no_web_content`：「这一章在网页上没有正文。站点可能只在自家 App 内提供这部作品的内容。」）。不认站点。
   固定输入：App `emptyChapterContentRendersANoticeInsteadOfATitleOnlyPage`。
-- **验证**：Core 232 过（4 跳过）、Runtime 编译过、App 508 / 89 过、架构边界干净。模拟器未走（开屏「跳过」需人工）；**真机待用户验**
-  （784586 首章开头应是「看见面前手的那瞬间……」；767172 任一章应显示说明而非空白）。
+- **验证**：Core 232 过（4 跳过）、Runtime 编译过、App 508 / 89 过、架构边界干净。模拟器未走（开屏「跳过」需人工）；**2026-09-15 真机通过（用户确认）**：
+  784586 首章开头是「看见面前手的那瞬间……」；767172 章节显示说明页。
