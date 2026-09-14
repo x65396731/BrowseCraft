@@ -14,13 +14,13 @@
     },
     "pages": [
       {
-        "id": "page-4abf28ae8fae",
+        "id": "page-074c37a64efd",
         "title": "全部小说列表",
         "type": "list",
         "ruleRefs": {
           "detail": "detail-0e1ed1bdbf95",
           "list": "list-a05067006d8f",
-          "reader": "playback-0db20acc9910"
+          "reader": "playback-8611472ef66d"
         },
         "url": "https://book.sfacg.com/List/"
       }
@@ -138,7 +138,7 @@
       ],
       "readerRules": [
         {
-          "id": "playback-0db20acc9910",
+          "id": "playback-8611472ef66d",
           "variant": "text-dom",
           "contentType": "text",
           "content": {
