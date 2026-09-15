@@ -5,10 +5,11 @@ import Foundation
 // 中文注释：FavoriteContentItem 保存收藏页需要展示的内容快照。
 
 enum FavoriteContentKind: String, Codable, Hashable, Sendable {
-    case rss
     case comic
     case videoNative
     case videoWeb
+    /// 中文注释：站点书（2026-09-16 起；此前书籍收藏被记成已下线的 rss）。
+    case book
 }
 
 /// 中文注释：收藏的业务身份必须同时包含来源和来源内条目 ID，不能假定不同来源的 GUID/link 全局唯一。
@@ -73,7 +74,7 @@ struct FavoriteContentItem: Identifiable, Hashable, Codable, Sendable {
     func contentItem() -> ContentItem {
         let contentKind: SourceContentKind
         switch self.kind {
-        case .rss:
+        case .book:
             contentKind = .article
         case .comic:
             contentKind = .comic
@@ -102,8 +103,8 @@ struct FavoriteContentItem: Identifiable, Hashable, Codable, Sendable {
 
     var displayKindTitle: String {
         switch self.kind {
-        case .rss:
-            return "RSS"
+        case .book:
+            return "Book"
         case .comic:
             return "Comic"
         case .videoNative:

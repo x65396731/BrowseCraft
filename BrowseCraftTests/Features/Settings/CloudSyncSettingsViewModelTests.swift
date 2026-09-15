@@ -500,16 +500,8 @@ struct CloudSyncSettingsViewModelTests {
             id: "source-1",
             name: "Source",
             baseURL: "https://example.test",
-            type: .rss,
-            configuration: .rss(
-                RSSSourceConfiguration(
-                    definition: RSSSourceDefinition(
-                        feedURL: URL(string: "https://example.test/feed.xml")!,
-                        requiresAccount: false,
-                        refreshPolicy: .manual
-                    )
-                )
-            ),
+            type: .html,
+            configuration: TestSourceFixtures.pluginConfiguration(),
             enabled: true,
             createdAt: now,
             updatedAt: now

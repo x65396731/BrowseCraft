@@ -129,16 +129,8 @@ struct AccountScopedDatabaseTests {
                     id: "source-a",
                     name: "Local A",
                     baseURL: "https://example.test",
-                    type: .rss,
-                    configuration: .rss(
-                        RSSSourceConfiguration(
-                            definition: RSSSourceDefinition(
-                                feedURL: URL(string: "https://example.test/feed.xml")!,
-                                requiresAccount: false,
-                                refreshPolicy: .manual
-                            )
-                        )
-                    ),
+                    type: .html,
+                    configuration: TestSourceFixtures.pluginConfiguration(),
                     enabled: true,
                     createdAt: timestamp,
                     updatedAt: timestamp
@@ -319,8 +311,8 @@ struct AccountScopedDatabaseTests {
                         sourceID: "source-a",
                         name: "Pinned Source",
                         baseURL: "https://example.test",
-                        type: SourceType.rss.rawValue,
-                        kind: SourceRuntimeKind.rss.rawValue,
+                        type: SourceType.html.rawValue,
+                        kind: SourceRuntimeKind.comic.rawValue,
                         configJSON: "{}",
                         enabled: true,
                         createdAt: timestamp,
@@ -639,16 +631,8 @@ struct AccountScopedDatabaseTests {
             id: id,
             name: name,
             baseURL: "https://example.test",
-            type: .rss,
-            configuration: .rss(
-                RSSSourceConfiguration(
-                    definition: RSSSourceDefinition(
-                        feedURL: URL(string: "https://example.test/feed.xml")!,
-                        requiresAccount: false,
-                        refreshPolicy: .manual
-                    )
-                )
-            ),
+            type: .html,
+            configuration: TestSourceFixtures.pluginConfiguration(),
             enabled: true,
             createdAt: now,
             updatedAt: now
@@ -665,7 +649,7 @@ struct AccountScopedDatabaseTests {
             title: title,
             detailURL: "https://example.test/item/1",
             coverURL: nil,
-            kind: .rss,
+            kind: .comic,
             latestText: nil,
             updatedAt: Date(timeIntervalSince1970: 100),
             favoritedAt: nil,

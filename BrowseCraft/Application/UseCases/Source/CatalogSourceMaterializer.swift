@@ -38,30 +38,6 @@ struct CatalogSourceMaterializer {
                 updatedAt: updatedAt,
                 origin: origin
             )
-        case .rss:
-            let rssRule: CatalogRSSRule = try self.decodeRule(CatalogRSSRule.self, from: catalogSource)
-            return Source(
-                id: catalogSource.id,
-                name: catalogSource.name,
-                baseURL: catalogSource.baseURL,
-                type: .rss,
-                configuration: .rss(
-                    RSSSourceConfiguration(
-                        definition: RSSSourceDefinition(
-                            feedURL: try self.url(
-                                from: rssRule.feedURL,
-                                error: CatalogSourceImportError.invalidFeedURL
-                            ),
-                            requiresAccount: rssRule.requiresAccount,
-                            refreshPolicy: try self.refreshPolicy(from: rssRule.refreshPolicy)
-                        )
-                    )
-                ),
-                enabled: enabled,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-                origin: origin
-            )
         case .video:
             return Source(
                 id: catalogSource.id,
@@ -309,45 +285,4 @@ struct CatalogSourceMaterializer {
         return codingPath.map(\.stringValue).joined(separator: ".")
     }
 
-    private func url(
-        from urlString: String,
-        error: (String) -> CatalogSourceImportError
-    ) throws -> URL {
-        guard let url: URL = URL(string: urlString) else {
-            throw error(urlString)
-        }
-
-        return url
-    }
-
-    private func refreshPolicy(from refreshPolicy: String) throws -> SourceRefreshPolicy {
-        switch refreshPolicy {
-        case "manual":
-            return .manual
-        case "periodic":
-            return .periodic
-        default:
-            throw CatalogSourceImportError.unsupportedRuleValue(field: "refreshPolicy", value: refreshPolicy)
-        }
-    }
-
-}
-
-private struct CatalogRSSRule: Decodable {
-    let feedURL: String
-    let requiresAccount: Bool
-    let refreshPolicy: String
-
-    private enum CodingKeys: String, CodingKey {
-        case feedURL
-        case requiresAccount
-        case refreshPolicy
-    }
-
-    init(from decoder: Decoder) throws {
-        let container: KeyedDecodingContainer<CodingKeys> = try decoder.container(keyedBy: CodingKeys.self)
-        self.feedURL = try container.decode(String.self, forKey: .feedURL)
-        self.requiresAccount = try container.decodeIfPresent(Bool.self, forKey: .requiresAccount) ?? false
-        self.refreshPolicy = try container.decodeIfPresent(String.self, forKey: .refreshPolicy) ?? "manual"
-    }
 }

@@ -20,9 +20,6 @@ final class GRDBAppUserIdentityAdoptionStore:
             let favoriteItemCount: Int = try FavoriteItemRecord
                 .filter(FavoriteItemRecord.Columns.userID == databaseUserID)
                 .fetchCount(database)
-            let rssHistoryCount: Int = try RSSReadingHistoryRecord
-                .filter(RSSReadingHistoryRecord.Columns.userID == databaseUserID)
-                .fetchCount(database)
             let comicHistoryCount: Int = try ComicChapterHistoryRecord
                 .filter(ComicChapterHistoryRecord.Columns.userID == databaseUserID)
                 .fetchCount(database)
@@ -33,7 +30,7 @@ final class GRDBAppUserIdentityAdoptionStore:
                 .filter(BookReadingHistoryRecord.Columns.userID == databaseUserID)
                 .fetchCount(database)
             let historyCount: Int =
-                rssHistoryCount + comicHistoryCount + videoHistoryCount + bookHistoryCount
+                comicHistoryCount + videoHistoryCount + bookHistoryCount
             let temporaryResourceCount: Int = try TemporaryResourceHistoryRecord
                 .filter(TemporaryResourceHistoryRecord.Columns.userID == databaseUserID)
                 .fetchCount(database)
@@ -90,11 +87,6 @@ final class GRDBAppUserIdentityAdoptionStore:
                 to: cloudID,
                 in: database
             )
-            let copiedRSSHistoryCount: Int = try Self.copyRSSHistory(
-                from: localID,
-                to: cloudID,
-                in: database
-            )
             let copiedComicHistoryCount: Int = try Self.copyComicHistory(
                 from: localID,
                 to: cloudID,
@@ -111,7 +103,6 @@ final class GRDBAppUserIdentityAdoptionStore:
                 in: database
             )
             let copiedHistoryCount: Int =
-                copiedRSSHistoryCount +
                 copiedComicHistoryCount +
                 copiedVideoHistoryCount +
                 copiedBookHistoryCount
@@ -184,40 +175,6 @@ final class GRDBAppUserIdentityAdoptionStore:
             }
             record.userID = cloudID
             try record.save(database)
-            copiedCount += 1
-        }
-        return copiedCount
-    }
-
-    private static func copyRSSHistory(
-        from localID: String,
-        to cloudID: String,
-        in database: Database
-    ) throws -> Int {
-        let records: [RSSReadingHistoryRecord] = try RSSReadingHistoryRecord
-            .filter(RSSReadingHistoryRecord.Columns.userID == localID)
-            .fetchAll(database)
-        var copiedCount: Int = 0
-
-        for var record: RSSReadingHistoryRecord in records {
-            let key: [String: String] = [
-                "userID": cloudID,
-                "sourceID": record.sourceID,
-                "itemID": record.itemID
-            ]
-            if let existing: RSSReadingHistoryRecord = try RSSReadingHistoryRecord.fetchOne(
-                database,
-                key: key
-            ), existing.visitedAt >= record.visitedAt {
-                continue
-            }
-            _ = try RSSReadingHistoryRecord
-                .filter(RSSReadingHistoryRecord.Columns.userID == cloudID)
-                .filter(RSSReadingHistoryRecord.Columns.sourceID == record.sourceID)
-                .filter(RSSReadingHistoryRecord.Columns.itemID == record.itemID)
-                .deleteAll(database)
-            record.userID = cloudID
-            try record.insert(database)
             copiedCount += 1
         }
         return copiedCount

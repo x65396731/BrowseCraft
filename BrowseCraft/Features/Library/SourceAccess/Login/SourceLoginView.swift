@@ -3,7 +3,7 @@ import SwiftUI
 import WebKit
 import WebUI
 
-// 中文注释：SourceLoginView 是漫画、影视、RSS 共用的站点登录 WebUI，并在用户确认后采集当前 Source 会话。
+// 中文注释：SourceLoginView 是漫画、影视、书籍共用的站点登录 WebUI，并在用户确认后采集当前 Source 会话。
 struct SourceLoginView: View {
     @StateObject private var coordinator: SourceLoginWebCoordinator = SourceLoginWebCoordinator()
     @State private var didLoadInitialURL: Bool = false

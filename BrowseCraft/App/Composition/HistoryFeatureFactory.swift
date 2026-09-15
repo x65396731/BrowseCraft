@@ -20,9 +20,6 @@ struct HistoryFeatureFactory {
 
     @MainActor
     func makeViewModel() -> HistoryViewModel {
-        let rssRepository: RSSReadingHistoryRepository = GRDBRSSReadingHistoryRepository(
-            database: self.database
-        )
         let comicRepository: ComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(
             database: self.database
         )
@@ -38,14 +35,12 @@ struct HistoryFeatureFactory {
 
         let persistenceCoordinator: HistoryPersistenceCoordinator = HistoryPersistenceCoordinator(
             loadReadingHistoryEntriesUseCase: LoadReadingHistoryEntriesUseCase(
-                rssRepository: rssRepository,
                 comicRepository: comicRepository,
                 videoRepository: videoRepository,
                 bookRepository: bookRepository,
                 temporaryRepository: temporaryRepository
             ),
             deleteReadingHistoryEntryUseCase: DeleteReadingHistoryEntryUseCase(
-                rssRepository: rssRepository,
                 comicRepository: comicRepository,
                 videoRepository: videoRepository,
                 bookRepository: bookRepository,

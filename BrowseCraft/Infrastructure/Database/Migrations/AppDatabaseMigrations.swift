@@ -12,7 +12,8 @@ enum AppDatabaseMigrations {
         Self.sourcesAddOriginIdentifier,
         Self.localBooksIdentifier,
         Self.bookProgressDetachedIdentifier,
-        Self.bookReadingHistoryIdentifier
+        Self.bookReadingHistoryIdentifier,
+        Self.removeRSSIdentifier
     ]
 
     /// 中文注释：v2——sources 增加 `origin` 列，记「来自个人生成」等出身，本地副本才能随服务器裁决清理。
@@ -29,6 +30,13 @@ enum AppDatabaseMigrations {
     /// 中文注释：v5——站点书阅读历史，一本书一条；History 页与漫画、视频同列（Documentation/Book/Book-Kind-Wiring-Design.md 第二十三节）。
     /// 续读位置仍在 book_reading_progress，这张表只记书名、封面、最后读到的章节与访问时间。
     static let bookReadingHistoryIdentifier: String = "v5.book-reading-history"
+
+    /// 中文注释：v6——RSS 整体下线（2026-09-16，用户裁决「App 全删，服务器也下线」）。App 已不认 rss 来源、rss 历史与 rss 收藏：
+    /// 来源表里任何一行解码失败都会让整张来源列表读取抛错，所以必须在迁移里清掉，不能留给运行时。
+    /// 书籍收藏此前被记成 rss（条目形态是 article），属于书籍来源的改记 book 保留，其余 rss 收藏删除。
+    /// 不给云端排删除：旧版设备上的 RSS 数据不动；新版下行时按 kind 跳过（SourceCloudPayload / FavoriteItemSyncService）。
+    /// favorites 聚合表的 rssFavoritesJSON 列从未写入过值，留作死列，不为它重建表。
+    static let removeRSSIdentifier: String = "v6.remove-rss"
 
     static func makeMigrator() -> DatabaseMigrator {
         var migrator: DatabaseMigrator = DatabaseMigrator()
@@ -175,6 +183,48 @@ enum AppDatabaseMigrations {
                 ON book_reading_history(userID, visitedAt DESC)
                 """
             )
+        }
+
+        migrator.registerMigration(Self.removeRSSIdentifier) { database in
+            try database.execute(
+                sql: """
+                DELETE FROM sync_queue
+                WHERE entityType = 'source'
+                  AND entityID IN (SELECT id FROM sources WHERE kind = 'rss')
+                """
+            )
+            try database.execute(
+                sql: """
+                UPDATE favorite_items
+                SET kind = 'book',
+                    itemJSON = replace(itemJSON, '"kind":"rss"', '"kind":"book"')
+                WHERE kind = 'rss'
+                  AND EXISTS (
+                    SELECT 1 FROM sources
+                    WHERE sources.userID = favorite_items.userID
+                      AND sources.id = favorite_items.sourceID
+                      AND sources.kind = 'book'
+                  )
+                """
+            )
+            // 中文注释：收藏的同步实体 id 是「sourceID 的 UTF-8 字节数:sourceID + itemID」（FavoriteItemIdentity.syncEntityID）。
+            try database.execute(
+                sql: """
+                DELETE FROM sync_queue
+                WHERE entityType = 'favoriteItem'
+                  AND entityID IN (
+                    SELECT length(CAST(sourceID AS BLOB)) || ':' || sourceID || itemID
+                    FROM favorite_items WHERE kind = 'rss'
+                  )
+                """
+            )
+            try database.execute(sql: "DELETE FROM favorite_items WHERE kind = 'rss'")
+            try database.execute(sql: "DELETE FROM sources WHERE kind = 'rss'")
+            try database.drop(table: "rss_reading_history")
+            let favoriteUserIDs: [String] = try String.fetchAll(database, sql: "SELECT userID FROM favorites")
+            for userID: String in favoriteUserIDs {
+                try FavoriteAggregateBuilder.rebuild(userID: userID, in: database)
+            }
         }
 
         // 中文注释：下一次 schema 变更从这里开始，例如：

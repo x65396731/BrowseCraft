@@ -343,7 +343,7 @@ struct FavoriteItemSyncServiceTests {
             title: title ?? "Favorite \(id.suffix(1))",
             detailURL: "https://example.test/items/\(id)",
             coverURL: nil,
-            kind: .rss,
+            kind: .comic,
             latestText: nil,
             updatedAt: Date(timeIntervalSince1970: 100),
             favoritedAt: Date(timeIntervalSince1970: 100),

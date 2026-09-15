@@ -38,8 +38,8 @@ struct CloudKitRecordMapperTests {
             sourceID: "source-1",
             name: "Source",
             baseURL: "https://example.test",
-            type: "rss",
-            kind: "rss",
+            type: "html",
+            kind: "comic",
             configJSON: "{}",
             enabled: true,
             createdAt: Date(timeIntervalSince1970: 1),
@@ -105,7 +105,7 @@ struct CloudKitRecordMapperTests {
             userID: "cloud:private-local-scope",
             itemID: "favorite-1",
             sourceID: "source-1",
-            kind: FavoriteContentKind.rss.rawValue,
+            kind: FavoriteContentKind.comic.rawValue,
             title: "Favorite",
             detailURL: "https://example.test/item",
             coverURL: nil,
@@ -178,14 +178,14 @@ struct CloudKitRecordMapperTests {
     @Test func favoriteCloudSnapshotOmitsLocalIdentityAndRebindsTheCurrentScope() throws {
         let originalScope: String = "cloud:originating-device-scope"
         let currentScope: String = "cloud:current-device-scope"
-        let source: Source = Self.makeRSSSource(userID: originalScope)
+        let source: Source = Self.makePluginSource(userID: originalScope)
         let item: FavoriteContentItem = FavoriteContentItem(
             id: "favorite-1",
             sourceID: source.id,
             title: "Favorite",
             detailURL: "https://example.test/item",
             coverURL: nil,
-            kind: .rss,
+            kind: .comic,
             latestText: nil,
             updatedAt: Date(timeIntervalSince1970: 2),
             favoritedAt: Date(timeIntervalSince1970: 3),
@@ -222,22 +222,14 @@ struct CloudKitRecordMapperTests {
         #expect(downloadedRecord.favoriteItem()?.sourceSnapshot?.userID == currentScope)
     }
 
-    private static func makeRSSSource(userID: String) -> Source {
+    private static func makePluginSource(userID: String) -> Source {
         return Source(
             userID: userID,
             id: "source-1",
             name: "Source",
             baseURL: "https://example.test",
-            type: .rss,
-            configuration: .rss(
-                RSSSourceConfiguration(
-                    definition: RSSSourceDefinition(
-                        feedURL: URL(string: "https://example.test/feed.xml")!,
-                        requiresAccount: false,
-                        refreshPolicy: .manual
-                    )
-                )
-            ),
+            type: .html,
+            configuration: TestSourceFixtures.pluginConfiguration(),
             enabled: true,
             createdAt: Date(timeIntervalSince1970: 1),
             updatedAt: Date(timeIntervalSince1970: 2)

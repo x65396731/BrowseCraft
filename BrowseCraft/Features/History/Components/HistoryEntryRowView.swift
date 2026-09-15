@@ -40,8 +40,6 @@ struct HistoryEntryRowView: View {
 
     private var iconName: String {
         switch self.entry.kind {
-        case .rss:
-            return "dot.radiowaves.left.and.right"
         case .comic:
             return "book.pages"
         case .video:
@@ -59,8 +57,6 @@ struct HistoryEntryRowView: View {
 
     private var detailText: String? {
         switch self.entry.kind {
-        case .rss:
-            return self.entry.rssHistory?.dataContent
         case .comic:
             return self.entry.comicHistory?.chapterURL?.absoluteString
         case .video:

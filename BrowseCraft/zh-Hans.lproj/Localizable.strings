@@ -198,7 +198,6 @@
 "Merge Local Data" = "合并本地数据";
 "Missing book source." = "缺少书籍来源。";
 "Missing comic source or chapter URL." = "缺少漫画来源或章节地址。";
-"Missing feed history." = "缺少订阅历史。";
 "Missing temporary history." = "缺少临时历史。";
 "More Plans" = "更多方案";
 "Native Player needs a direct mp4/m3u8 URL" = "原生播放器需要直连的 mp4/m3u8 地址";
@@ -220,7 +219,7 @@
 "Open Original Page" = "打开原始页面";
 "Open Resource" = "打开资源";
 "Open the original page to continue." = "打开原始页面以继续。";
-"Opened feed items and read chapters will appear here." = "打开过的条目和读过的章节会显示在这里。";
+"Read chapters, books and watched videos will appear here." = "读过的漫画、书和看过的视频会显示在这里。";
 "Paid" = "已付费";
 "Permanent upgrades for your BrowseCraft loadout" = "为你的 BrowseCraft 配置永久升级";
 "Photo Album" = "图集";
@@ -251,8 +250,6 @@
 "Restoring from iCloud" = "正在从 iCloud 恢复";
 "Retry" = "重试";
 "Retry Sync" = "重试同步";
-"RSS" = "RSS";
-"RSS Feed" = "RSS 订阅";
 "Rule JSON is valid." = "规则 JSON 有效。";
 "Rule Name" = "规则名称";
 "Runs every configured tab only when requested. Library continues to load tabs on demand." = "仅在你要求时逐个运行已配置的标签；库仍按需加载标签。";
@@ -260,7 +257,6 @@
 "Save" = "保存";
 "Saved bookmark folders can be added after the bookmark model is introduced." = "引入书签模型后即可添加已保存的书签文件夹。";
 "Search keyword" = "搜索关键词";
-"Search RSS" = "搜索 RSS";
 "Search Rule Ref" = "搜索规则引用";
 "Searching comic-like resources on this website..." = "正在该网站上查找漫画类资源…";
 "Searching video-like resources on this website..." = "正在该网站上查找视频类资源…";
@@ -320,7 +316,6 @@
 "rule_error_parser" = "规则解析出错。";
 "rule_error_unknown" = "加载失败。";
 "catalog_import_error_invalid_base_url" = "站点地址无效：%@";
-"catalog_import_error_invalid_feed_url" = "RSS 订阅地址无效：%@";
 "catalog_import_error_invalid_entry_url" = "视频入口地址无效：%@";
 "catalog_import_error_invalid_rule_json" = "规则「%@」的 JSON 无效：%@";
 "catalog_import_error_unsupported_value" = "规则字段 %@ 的取值不受支持：%@";

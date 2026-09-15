@@ -5,7 +5,7 @@ import BrowseCraftCore
 import BrowseCraftDomain
 
 // 中文注释：SourcesViewModel 状态机测试——真实 GRDB 持久化 + 脚本 runtime / feed loader，
-// 覆盖启动读取、添加 RSS 源、删除、选源刷新与重试、槽位锁定与替换。
+// 覆盖启动读取、删除、选源刷新与重试、槽位锁定与替换。
 @MainActor
 struct SourcesViewModelTests {
     private typealias Harness = ViewModelTestHarness
@@ -28,7 +28,7 @@ struct SourcesViewModelTests {
 
     @Test func startupSelectsTheFirstActiveSource() async throws {
         let database: AppDatabase = try Harness.makeDatabase()
-        let source: Source = Harness.makeRSSSource()
+        let source: Source = try Harness.makeComicSource()
         try GRDBSourceRepository(database: database).saveSource(source)
         let store: SourceSelectionStore = SourceSelectionStore()
         let viewModel: SourcesViewModel = Harness.makeSourcesViewModel(
@@ -50,48 +50,6 @@ struct SourcesViewModelTests {
         #expect(mirrored)
         #expect(viewModel.occupiedSourceSlotCount == 1)
         #expect(viewModel.lockedSourceCount == 0)
-    }
-
-    @Test func addRSSSourcePersistsSelectsAndPublishesSnapshot() async throws {
-        let database: AppDatabase = try Harness.makeDatabase()
-        let feedLoader: ScriptedRSSFeedLoader = ScriptedRSSFeedLoader(
-            result: .success(RSSFeed(title: "Example Feed", items: []))
-        )
-        let runtime: ScriptedSourceRuntime = ScriptedSourceRuntime(
-            source: Harness.makeRSSSource(id: "placeholder"),
-            list: { _ in
-                ScriptedSourceRuntime.listOutput(ids: ["1", "2"])
-            }
-        )
-        let store: SourceSelectionStore = SourceSelectionStore()
-        let viewModel: SourcesViewModel = Harness.makeSourcesViewModel(
-            database: database,
-            resolver: Harness.resolver(fallback: runtime),
-            selectionStore: store,
-            rssFeedLoader: feedLoader
-        )
-
-        let added: Source? = await viewModel.addRSSSource(feedURLString: "https://example.test/feed.xml")
-
-        let addedSource: Source = try #require(added)
-        #expect(viewModel.errorMessage == nil)
-        #expect(feedLoader.requestedFeedURLs == [URL(string: "https://example.test/feed.xml")!])
-        #expect(viewModel.sources.map(\.id) == [addedSource.id])
-        #expect(viewModel.selectedSourceID == addedSource.id)
-        #expect(viewModel.latestSourceAddID == addedSource.id)
-        #expect(store.selectedSourceID == addedSource.id)
-        #expect(store.preparedLibrarySnapshot?.sourceID == addedSource.id)
-        #expect(store.preparedLibrarySnapshot?.items.map(\.id) == ["1", "2"])
-        #expect(runtime.listInputs.count == 1)
-
-        let persisted: [Source] = try GRDBSourceRepository(database: database).fetchSources()
-        #expect(persisted.map(\.id) == [addedSource.id])
-        #expect(persisted.first?.configuration.kind == .rss)
-        guard case .rss(let configuration)? = persisted.first?.configuration else {
-            Issue.record("Expected an RSS configuration for the added source.")
-            return
-        }
-        #expect(configuration.definition.feedURL.absoluteString == "https://example.test/feed.xml")
     }
 
     // 中文注释：2026-09-14 biquhua 复验倒查——服务器替换了规则，已添加的来源拿不到新版本。
@@ -126,33 +84,13 @@ struct SourcesViewModelTests {
         #expect(configuration.rule.ruleSets.readerRules.first?.content?.next != nil)
     }
 
-    @Test func addRSSSourceFailureKeepsListUntouchedAndReportsError() async throws {
-        let database: AppDatabase = try Harness.makeDatabase()
-        let feedLoader: ScriptedRSSFeedLoader = ScriptedRSSFeedLoader(
-            result: .failure(TestPortError(reason: "feed unreachable"))
-        )
-        let viewModel: SourcesViewModel = Harness.makeSourcesViewModel(
-            database: database,
-            resolver: Harness.resolver(),
-            rssFeedLoader: feedLoader
-        )
-
-        let added: Source? = await viewModel.addRSSSource(feedURLString: "https://example.test/feed.xml")
-
-        #expect(added == nil)
-        #expect(viewModel.errorMessage != nil)
-        #expect(viewModel.sources.isEmpty)
-        #expect(viewModel.latestSourceAddID == nil)
-        #expect(try GRDBSourceRepository(database: database).fetchSources().isEmpty)
-    }
-
     @Test func deletingTheSelectedSourceMovesSelectionToTheRemainingOne() async throws {
         let database: AppDatabase = try Harness.makeDatabase()
         let comic: Source = try Harness.makeComicSource(id: "built-in.comic")
-        let rss: Source = Harness.makeRSSSource(id: "rss.custom")
+        let custom: Source = try Harness.makeComicSource(id: "comic.custom")
         let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
         try sourceRepository.saveSource(comic)
-        try sourceRepository.saveSource(rss)
+        try sourceRepository.saveSource(custom)
         let viewModel: SourcesViewModel = Harness.makeSourcesViewModel(
             database: database,
             resolver: Harness.resolver()
@@ -161,7 +99,7 @@ struct SourcesViewModelTests {
         viewModel.selectSource(id: comic.id)
         let selectedID: String = try #require(viewModel.selectedSourceID)
         let selectedIndex: Int = try #require(viewModel.sources.firstIndex { source in source.id == selectedID })
-        let remainingID: String = selectedID == comic.id ? rss.id : comic.id
+        let remainingID: String = selectedID == comic.id ? custom.id : comic.id
 
         await viewModel.deleteSources(at: IndexSet(integer: selectedIndex))
 
@@ -174,27 +112,27 @@ struct SourcesViewModelTests {
     @Test func selectSourceAfterRefreshPublishesSnapshotAndRetriesAfterFailure() async throws {
         let database: AppDatabase = try Harness.makeDatabase()
         let comic: Source = try Harness.makeComicSource(id: "built-in.comic")
-        let rss: Source = Harness.makeRSSSource(id: "rss.custom")
+        let custom: Source = try Harness.makeComicSource(id: "comic.custom")
         let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
         try sourceRepository.saveSource(comic)
-        try sourceRepository.saveSource(rss)
+        try sourceRepository.saveSource(custom)
         let comicRuntime: ScriptedSourceRuntime = ScriptedSourceRuntime(source: comic, list: { _ in
             throw TestPortError(reason: "first attempt fails")
         })
-        let rssRuntime: ScriptedSourceRuntime = ScriptedSourceRuntime(source: rss, list: { _ in
+        let customRuntime: ScriptedSourceRuntime = ScriptedSourceRuntime(source: custom, list: { _ in
             throw TestPortError(reason: "first attempt fails")
         })
         let store: SourceSelectionStore = SourceSelectionStore()
         let viewModel: SourcesViewModel = Harness.makeSourcesViewModel(
             database: database,
-            resolver: Harness.resolver([comic.id: comicRuntime, rss.id: rssRuntime]),
+            resolver: Harness.resolver([comic.id: comicRuntime, custom.id: customRuntime]),
             selectionStore: store
         )
         _ = try await viewModel.loadForStartup()
         viewModel.selectSource(id: comic.id)
         let initialID: String = try #require(viewModel.selectedSourceID)
         let target: Source = try #require(viewModel.sources.first { source in source.id != initialID })
-        let targetRuntime: ScriptedSourceRuntime = target.id == comic.id ? comicRuntime : rssRuntime
+        let targetRuntime: ScriptedSourceRuntime = target.id == comic.id ? comicRuntime : customRuntime
 
         await viewModel.selectSourceAfterRefresh(target)
 

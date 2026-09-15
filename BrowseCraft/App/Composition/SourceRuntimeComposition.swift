@@ -50,10 +50,6 @@ final class SourceRuntimeComposition {
                 urlResolver: urlResolver,
                 defaultUserAgent: browserRequestHeaderProvider.userAgent
             ),
-            rssSourceRuntimeFactory: RSSSourceRuntimeFactory(
-                pageContentLoader: pageLoader,
-                pageDataLoader: pageLoader
-            ),
             videoSourceRuntimeFactory: Self.makeVideoRuntimeFactory(
                 pageLoader: pageLoader,
                 sourceCredentialStore: sourceCredentialStore

@@ -47,7 +47,7 @@ struct HistoryView: View {
                         EmptyStateView(
                             systemImage: "clock",
                             title: NSLocalizedString("No History", comment: ""),
-                            message: NSLocalizedString("Opened feed items and read chapters will appear here.", comment: "")
+                            message: NSLocalizedString("Read chapters, books and watched videos will appear here.", comment: "")
                         )
                     }
                 }
@@ -81,12 +81,6 @@ struct HistoryView: View {
     @ViewBuilder
     private func destination(for entry: ReadingHistoryEntry) -> some View {
         switch entry.kind {
-        case .rss:
-            if let history: RSSReadingHistory = entry.rssHistory {
-                RSSHistoryDetailView(history: history)
-            } else {
-                HistoryUnavailableView(message: NSLocalizedString("Missing feed history.", comment: ""))
-            }
         case .comic:
             if let history: ComicChapterHistory = entry.comicHistory,
                let source: Source = self.viewModel.source(for: history),

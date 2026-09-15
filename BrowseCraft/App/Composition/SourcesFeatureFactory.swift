@@ -55,8 +55,6 @@ struct SourcesFeatureFactory {
         let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = RefreshSourceRuntimeUseCase(
             runtimeResolver: self.sourceRuntimeFactory
         )
-        let loadRSSHubDiscoveryCandidatesUseCase: LoadRSSHubDiscoveryCandidatesUseCase =
-            LoadRSSHubDiscoveryCandidatesUseCase(pageDataLoader: self.pageDataLoader)
         let publicURLPolicy: PublicURLPolicy = PublicURLPolicy()
         let assessVideoGenerationInputUseCase: AssessVideoGenerationInputUseCase =
             AssessVideoGenerationInputUseCase(
@@ -76,10 +74,6 @@ struct SourcesFeatureFactory {
                 pageContentLoader: self.pageContentLoader,
                 htmlParser: CoreHTMLDiscoveryParser(),
                 urlResolver: self.urlResolver
-            ),
-            discoverRSSFeedsUseCase: DiscoverRSSFeedsUseCase(
-                rssFeedLoader: RSSFeedLoader(pageDataLoader: self.pageDataLoader),
-                loadRSSHubDiscoveryCandidatesUseCase: loadRSSHubDiscoveryCandidatesUseCase
             ),
             assessVideoGenerationInputUseCase: assessVideoGenerationInputUseCase
         )
@@ -137,11 +131,6 @@ struct SourcesFeatureFactory {
                 sourceRepository: self.sourceRepository,
                 refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
             ),
-            addRSSSourceUseCase: AddRSSSourceUseCase(
-                sourceRepository: self.sourceRepository,
-                feedLoader: RSSFeedLoader(pageDataLoader: self.pageDataLoader),
-                refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
-            ),
             discoveryService: sourceDiscoveryService,
             createVideoGenerationTaskUseCase: createVideoGenerationTaskUseCase,
             pushNotificationAuthorizer: self.pushNotificationAuthorizer,
@@ -160,8 +149,7 @@ struct SourcesFeatureFactory {
             recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase(),
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
             validateSourceTabsUseCase: ValidateSourceTabsUseCase(
-                refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
-                rssFeedLoader: RSSFeedLoader(pageDataLoader: self.pageDataLoader)
+                refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
             ),
             sourceSelectionStore: self.sourceSelectionStore,
             activeAppUser: self.activeAppUser

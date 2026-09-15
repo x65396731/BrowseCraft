@@ -8,14 +8,12 @@ import BrowseCraftRuntime
 struct TestSourceRuntimeResolver: SourceRuntimeResolving {
     private let definitionMapper: SourceDefinitionMapper
     private let comicRuntimeFactory: (Source) -> any SourceRuntime
-    private let rssRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)?
     private let videoRuntimeFactory: ((Source) throws -> any SourceRuntime)?
     private let pluginRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)?
     private let bookRuntimeFactory: ((Source) -> any SourceRuntime)?
 
     init(
         definitionMapper: SourceDefinitionMapper = SourceDefinitionMapper(),
-        rssRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)? = nil,
         videoRuntimeFactory: ((Source) throws -> any SourceRuntime)? = nil,
         pluginRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)? = nil,
         bookRuntimeFactory: ((Source) -> any SourceRuntime)? = nil,
@@ -23,7 +21,6 @@ struct TestSourceRuntimeResolver: SourceRuntimeResolving {
     ) {
         self.definitionMapper = definitionMapper
         self.comicRuntimeFactory = comicRuntimeFactory
-        self.rssRuntimeFactory = rssRuntimeFactory
         self.videoRuntimeFactory = videoRuntimeFactory
         self.pluginRuntimeFactory = pluginRuntimeFactory
         self.bookRuntimeFactory = bookRuntimeFactory
@@ -52,13 +49,6 @@ struct TestSourceRuntimeResolver: SourceRuntimeResolving {
                 )
             }
             return self.comicRuntimeFactory(source)
-        case .rss:
-            guard let rssRuntimeFactory: (SourceDefinition) -> any SourceRuntime = self.rssRuntimeFactory else {
-                throw SourceRuntimeError.unsupported(
-                    .custom("RSS source runtime is not connected in this test resolver.")
-                )
-            }
-            return rssRuntimeFactory(definition)
         case .video:
             guard let source: Source else {
                 throw SourceRuntimeError.invalidInput(

@@ -13,7 +13,7 @@ struct SourceSyncServiceTests {
         let cloudStore: MockCloudRecordStore = MockCloudRecordStore()
         let service: SourceSyncService = Self.makeService(database: database, cloudStore: cloudStore)
 
-        try sourceRepository.saveSource(Self.makeRSSSource(id: "source-1", name: "Local Source", updatedAt: 100))
+        try sourceRepository.saveSource(Self.makePluginSource(id: "source-1", name: "Local Source", updatedAt: 100))
 
         let result: SourceSyncResult = try await service.syncSources(limit: 10)
 
@@ -31,7 +31,7 @@ struct SourceSyncServiceTests {
 
         for index: Int in 0..<205 {
             try sourceRepository.saveSource(
-                Self.makeRSSSource(
+                Self.makePluginSource(
                     id: "source-\(index)",
                     name: "Source \(index)",
                     updatedAt: TimeInterval(100 + index)
@@ -55,7 +55,7 @@ struct SourceSyncServiceTests {
 
         try await database.queue.write { database in
             for index: Int in 0..<3 {
-                let source: Source = Self.makeRSSSource(
+                let source: Source = Self.makePluginSource(
                     id: "source-\(index)",
                     name: "Source \(index)",
                     updatedAt: TimeInterval(100 + index)
@@ -111,7 +111,7 @@ struct SourceSyncServiceTests {
         let cloudStore: MockCloudRecordStore = MockCloudRecordStore()
         let service: SourceSyncService = Self.makeService(database: database, cloudStore: cloudStore)
 
-        try sourceRepository.saveSource(Self.makeRSSSource(id: "source-1", name: "Local Source", updatedAt: 100))
+        try sourceRepository.saveSource(Self.makePluginSource(id: "source-1", name: "Local Source", updatedAt: 100))
         try sourceRepository.deleteSource(id: "source-1")
 
         let result: SourceSyncResult = try await service.syncSources(limit: 10)
@@ -122,7 +122,7 @@ struct SourceSyncServiceTests {
 
     @Test func cloudDeleteSoftDeletesLocalSource() async throws {
         let database: AppDatabase = try Self.makeDatabase()
-        try Self.insertSource(Self.makeRSSSource(id: "source-1", name: "Local Source", updatedAt: 100), into: database)
+        try Self.insertSource(Self.makePluginSource(id: "source-1", name: "Local Source", updatedAt: 100), into: database)
         let cloudStore: MockCloudRecordStore = MockCloudRecordStore(
             sourceRecords: [
                 SourceCloudRecord(
@@ -150,7 +150,7 @@ struct SourceSyncServiceTests {
 
     @Test func newerLocalSourceWinsOverOlderCloudSource() async throws {
         let database: AppDatabase = try Self.makeDatabase()
-        try Self.insertSource(Self.makeRSSSource(id: "source-1", name: "Local New", updatedAt: 200), into: database)
+        try Self.insertSource(Self.makePluginSource(id: "source-1", name: "Local New", updatedAt: 200), into: database)
         let cloudStore: MockCloudRecordStore = MockCloudRecordStore(
             sourceRecords: [
                 SourceCloudRecord(
@@ -171,7 +171,7 @@ struct SourceSyncServiceTests {
 
     @Test func newerCloudSourceWinsOverOlderLocalSource() async throws {
         let database: AppDatabase = try Self.makeDatabase()
-        try Self.insertSource(Self.makeRSSSource(id: "source-1", name: "Local Old", updatedAt: 100), into: database)
+        try Self.insertSource(Self.makePluginSource(id: "source-1", name: "Local Old", updatedAt: 100), into: database)
         let cloudStore: MockCloudRecordStore = MockCloudRecordStore(
             sourceRecords: [
                 SourceCloudRecord(
@@ -193,7 +193,7 @@ struct SourceSyncServiceTests {
         let database: AppDatabase = try Self.makeDatabase()
         try await database.queue.write { database in
             var record: SourceRecord = try SourceRecord(
-                source: Self.makeRSSSource(id: "source-1", name: "Deleted Local", updatedAt: 100)
+                source: Self.makePluginSource(id: "source-1", name: "Deleted Local", updatedAt: 100)
             )
             record.deletedAt = Date(timeIntervalSince1970: 200)
             try record.save(database)
@@ -224,7 +224,7 @@ struct SourceSyncServiceTests {
         cloudStore.failNextSave = true
         let service: SourceSyncService = Self.makeService(database: database, cloudStore: cloudStore)
 
-        try sourceRepository.saveSource(Self.makeRSSSource(id: "source-1", name: "Local Source", updatedAt: 100))
+        try sourceRepository.saveSource(Self.makePluginSource(id: "source-1", name: "Local Source", updatedAt: 100))
 
         await #expect(throws: MockCloudRecordStoreError.saveFailed) {
             _ = try await service.syncSources(limit: 10)
@@ -243,8 +243,8 @@ struct SourceSyncServiceTests {
         let cloudStore: MockCloudRecordStore = MockCloudRecordStore()
         cloudStore.nextSourceSaveFailureIDs = ["source-2"]
         let service: SourceSyncService = Self.makeService(database: database, cloudStore: cloudStore)
-        try sourceRepository.saveSource(Self.makeRSSSource(id: "source-1", name: "One", updatedAt: 100))
-        try sourceRepository.saveSource(Self.makeRSSSource(id: "source-2", name: "Two", updatedAt: 100))
+        try sourceRepository.saveSource(Self.makePluginSource(id: "source-1", name: "One", updatedAt: 100))
+        try sourceRepository.saveSource(Self.makePluginSource(id: "source-2", name: "Two", updatedAt: 100))
 
         let result: SourceSyncResult = try await service.syncSources(limit: 10)
         let pending: [SyncQueueItem] = try queueRepository.fetchPending(limit: 10)
@@ -275,7 +275,7 @@ struct SourceSyncServiceTests {
         let deviceASourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: deviceADatabase)
         let deviceBSourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: deviceBDatabase)
 
-        try deviceASourceRepository.saveSource(Self.makeRSSSource(id: "source-1", name: "Cloud Source", updatedAt: 100))
+        try deviceASourceRepository.saveSource(Self.makePluginSource(id: "source-1", name: "Cloud Source", updatedAt: 100))
         try deviceASourceRepository.deleteSource(id: "source-1")
 
         _ = try await deviceBService.syncSources(limit: 10)
@@ -339,27 +339,19 @@ struct SourceSyncServiceTests {
         updatedAt: TimeInterval,
         deletedAt: TimeInterval? = nil
     ) throws -> SourceCloudPayload {
-        let record: SourceRecord = try SourceRecord(source: Self.makeRSSSource(id: id, name: name, updatedAt: updatedAt))
+        let record: SourceRecord = try SourceRecord(source: Self.makePluginSource(id: id, name: name, updatedAt: updatedAt))
         var payload: SourceCloudPayload = SourceCloudPayload(record: record)
         payload.deletedAt = deletedAt.map(Date.init(timeIntervalSince1970:))
         return payload
     }
 
-    private static func makeRSSSource(id: String, name: String, updatedAt: TimeInterval) -> Source {
+    private static func makePluginSource(id: String, name: String, updatedAt: TimeInterval) -> Source {
         return Source(
             id: id,
             name: name,
             baseURL: "https://example.test",
-            type: .rss,
-            configuration: .rss(
-                RSSSourceConfiguration(
-                    definition: RSSSourceDefinition(
-                        feedURL: URL(string: "https://example.test/feed.xml") ?? URL(fileURLWithPath: "/"),
-                        requiresAccount: false,
-                        refreshPolicy: .manual
-                    )
-                )
-            ),
+            type: .html,
+            configuration: TestSourceFixtures.pluginConfiguration(),
             enabled: true,
             createdAt: Date(timeIntervalSince1970: 50),
             updatedAt: Date(timeIntervalSince1970: updatedAt)

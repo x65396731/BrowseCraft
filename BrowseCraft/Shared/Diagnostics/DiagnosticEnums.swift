@@ -13,8 +13,6 @@ enum DiagnosticScreen: String {
     case history
     case settings
     case comicReader
-    case rssList
-    case rssDetail
     case videoDetail
     case videoPlayer
 }
@@ -22,7 +20,6 @@ enum DiagnosticScreen: String {
 enum DiagnosticSourceType: String {
     case comic
     case video
-    case rss
     case book
     case unknown
 }
@@ -34,7 +31,6 @@ enum DiagnosticRuleStage: String {
     case chapter
     case reader
     case videoPlayback
-    case rssFeed
     case unknown
 }
 
@@ -62,8 +58,6 @@ extension Source {
             return .comic
         case .video:
             return .video
-        case .rss:
-            return .rss
         case .plugin:
             return .unknown
         case .book:

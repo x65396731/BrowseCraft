@@ -21,36 +21,6 @@ struct StubPageContentLoader: PageContentLoader {
     }
 }
 
-final class ScriptedRSSFeedLoader: RSSFeedLoading, @unchecked Sendable {
-    private let lock: NSLock = NSLock()
-    private var result: Result<RSSFeed, Error>
-    private var recordedFeedURLs: [URL] = []
-
-    init(result: Result<RSSFeed, Error> = .failure(TestPortError(reason: "Feed is not scripted."))) {
-        self.result = result
-    }
-
-    var requestedFeedURLs: [URL] {
-        self.lock.lock()
-        defer { self.lock.unlock() }
-        return self.recordedFeedURLs
-    }
-
-    func setResult(_ result: Result<RSSFeed, Error>) {
-        self.lock.lock()
-        defer { self.lock.unlock() }
-        self.result = result
-    }
-
-    func load(feedURL: URL) async throws -> RSSFeed {
-        self.lock.lock()
-        self.recordedFeedURLs.append(feedURL)
-        let result: Result<RSSFeed, Error> = self.result
-        self.lock.unlock()
-        return try result.get()
-    }
-}
-
 struct StubPublicURLPolicy: PublicURLChecking {
     func validate(_ url: URL) throws {}
 

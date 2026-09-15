@@ -107,7 +107,10 @@ final class FavoriteItemSyncService: @unchecked Sendable {
         var eligiblePayloads: [FavoriteItemCloudPayload] = []
 
         for payload: FavoriteItemCloudPayload in changeSet.records {
-            guard payload.schemaVersion <= FavoriteItemCloudPayload.currentSchemaVersion else {
+            // 中文注释：kind 认不得的（已下线的 rss、或更新版本才有的类型）逐条跳过；
+            // 否则 FavoriteItemRecord(payload:) 会抛错，拖垮整批合并。
+            guard payload.schemaVersion <= FavoriteItemCloudPayload.currentSchemaVersion,
+                  FavoriteContentKind(rawValue: payload.kind) != nil else {
                 result.skippedCount += 1
                 continue
             }

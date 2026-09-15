@@ -2,20 +2,7 @@ import BrowseCraftCore
 import BrowseCraftDomain
 import Foundation
 
-// 中文注释：ReadingHistoryUseCases 承接 RSS、漫画和视频历史保存与读取用例。
-
-/// 中文注释：保存 RSS 详情页历史；具体触发点会在 RSS 详情页接入小节处理。
-struct SaveRSSReadingHistoryUseCase {
-    private let repository: RSSReadingHistoryRepository
-
-    init(repository: RSSReadingHistoryRepository) {
-        self.repository = repository
-    }
-
-    func execute(history: RSSReadingHistory) throws {
-        try self.repository.save(history)
-    }
-}
+// 中文注释：ReadingHistoryUseCases 承接漫画、视频和站点书历史保存与读取用例。
 
 /// 中文注释：保存漫画章节阅读历史；具体触发点会在 Reader 接入小节处理。
 struct SaveComicChapterHistoryUseCase {
@@ -155,22 +142,19 @@ struct LoadVideoWatchHistoryUseCase {
     }
 }
 
-/// 中文注释：聚合 RSS、漫画、视频和站点书历史，供 History 页面按访问时间倒序展示。
+/// 中文注释：聚合漫画、视频和站点书历史，供 History 页面按访问时间倒序展示。
 struct LoadReadingHistoryEntriesUseCase {
-    private let rssRepository: RSSReadingHistoryRepository
     private let comicRepository: ComicChapterHistoryRepository
     private let videoRepository: VideoWatchHistoryRepository
     private let bookRepository: BookReadingHistoryRepository
     private let temporaryRepository: TemporaryResourceHistoryRepository
 
     init(
-        rssRepository: RSSReadingHistoryRepository,
         comicRepository: ComicChapterHistoryRepository,
         videoRepository: VideoWatchHistoryRepository,
         bookRepository: BookReadingHistoryRepository,
         temporaryRepository: TemporaryResourceHistoryRepository
     ) {
-        self.rssRepository = rssRepository
         self.comicRepository = comicRepository
         self.videoRepository = videoRepository
         self.bookRepository = bookRepository
@@ -178,11 +162,6 @@ struct LoadReadingHistoryEntriesUseCase {
     }
 
     func execute(userID: String) throws -> [ReadingHistoryEntry] {
-        let rssEntries: [ReadingHistoryEntry] = try self.rssRepository
-            .fetchHistory(userID: userID)
-            .map { history in
-                return ReadingHistoryEntry(rssHistory: history)
-            }
         let comicEntries: [ReadingHistoryEntry] = self.latestComicHistoriesByComic(
             try self.comicRepository.fetchHistory(userID: userID)
         )
@@ -207,7 +186,7 @@ struct LoadReadingHistoryEntriesUseCase {
                 return ReadingHistoryEntry(temporaryHistory: history)
             }
 
-        return (rssEntries + comicEntries + videoEntries + bookEntries + temporaryEntries).sorted { lhs, rhs in
+        return (comicEntries + videoEntries + bookEntries + temporaryEntries).sorted { lhs, rhs in
             return lhs.visitedAt > rhs.visitedAt
         }
     }
@@ -241,20 +220,17 @@ struct LoadReadingHistoryEntriesUseCase {
 
 /// 中文注释：删除单条历史记录，只影响该记录所在历史表，不删除 Source。
 struct DeleteReadingHistoryEntryUseCase {
-    private let rssRepository: RSSReadingHistoryRepository
     private let comicRepository: ComicChapterHistoryRepository
     private let videoRepository: VideoWatchHistoryRepository
     private let bookRepository: BookReadingHistoryRepository
     private let temporaryRepository: TemporaryResourceHistoryRepository
 
     init(
-        rssRepository: RSSReadingHistoryRepository,
         comicRepository: ComicChapterHistoryRepository,
         videoRepository: VideoWatchHistoryRepository,
         bookRepository: BookReadingHistoryRepository,
         temporaryRepository: TemporaryResourceHistoryRepository
     ) {
-        self.rssRepository = rssRepository
         self.comicRepository = comicRepository
         self.videoRepository = videoRepository
         self.bookRepository = bookRepository
@@ -263,10 +239,6 @@ struct DeleteReadingHistoryEntryUseCase {
 
     func execute(_ entry: ReadingHistoryEntry) throws {
         switch entry.kind {
-        case .rss:
-            if let history: RSSReadingHistory = entry.rssHistory {
-                try self.rssRepository.delete(history)
-            }
         case .comic:
             if let history: ComicChapterHistory = entry.comicHistory {
                 try self.comicRepository.delete(history)

@@ -1,12 +1,11 @@
 /// 中文注释：集中描述 Library 所拥有的内容消费页面装配入口。
-/// Favorites 可以复用这些入口，但不拥有或复制 Comic、RSS、Video 的实现。
+/// Favorites 可以复用这些入口，但不拥有或复制 Comic、Video、Book 的实现。
 import BrowseCraftDomain
 
 struct LibraryContentViewModelFactory {
     let makeComicDetail: @MainActor (ContentItem, Source) -> ComicDetailViewModel
     let makeReader: (ContentItem, Source, ChapterLink?) -> ReaderViewModel
     let makeHistoryReader: (ComicChapterHistory, Source) -> ReaderViewModel
-    let makeRSSDetail: @MainActor (ContentItem, Source) -> RSSContentDetailViewModel
     let makeVideoDetail: @MainActor (ContentItem, Source) -> VideoDetailViewModel
     /// 中文注释：读书 kind（站点书）：详情页与共用的 EPUB 阅读器。
     let makeBookSiteDetail: @MainActor (ContentItem, Source) -> BookSiteDetailViewModel

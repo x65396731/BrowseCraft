@@ -57,7 +57,6 @@ enum AdPointAccumulationResult: Equatable, Sendable {
 
 enum AdPointRule {
     static let threshold: Int = 100
-    static let rssPoints: Int = 10
     static let comicPoints: Int = 20
     static let videoPoints: Int = 50
 }

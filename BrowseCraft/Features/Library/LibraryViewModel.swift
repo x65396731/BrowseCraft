@@ -214,7 +214,7 @@ final class LibraryViewModel {
         )
     }
 
-    /// 中文注释：列表翻页只看 Runtime 报没报下一页，与 kind 无关；RSS 没有列表分页合同，仍然排除。
+    /// 中文注释：列表翻页只看 Runtime 报没报下一页，与 kind 无关。
     /// 2026-09-12 之前这里写死 `.video`——漫画列表的 Runtime 已经报出 `nextPage`，UI 却从不去取。
     private var selectedSourceSupportsListPagination: Bool {
         guard let kind: SourceRuntimeKind = self.selectedSource?.configuration.kind else {
@@ -599,10 +599,6 @@ final class LibraryViewModel {
     }
 
     var loadingTitle: String {
-        if self.preparingSource?.runtimeKind == .rss || self.selectedSource?.configuration.kind == .rss {
-            return "Loading RSS"
-        }
-
         if self.preparingSource != nil {
             return "Loading Source"
         }

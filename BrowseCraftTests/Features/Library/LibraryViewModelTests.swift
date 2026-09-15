@@ -135,35 +135,35 @@ struct LibraryViewModelTests {
     @Test func persistedLibraryStateRestoresTheSelectedSource() async throws {
         let database: AppDatabase = try Harness.makeDatabase()
         let comic: Source = try Harness.makeComicSource(id: "built-in.comic")
-        let rss: Source = Harness.makeRSSSource(id: "rss.custom")
+        let custom: Source = try Harness.makeComicSource(id: "comic.custom")
         let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
         try sourceRepository.saveSource(comic)
-        try sourceRepository.saveSource(rss)
+        try sourceRepository.saveSource(custom)
         try GRDBUserLibraryStateRepository(database: database).save(
             UserLibraryState(
                 userID: AppUser.localDefaultID,
-                selectedSourceID: rss.id,
+                selectedSourceID: custom.id,
                 listContext: nil,
                 lastRefreshAt: nil,
                 updatedAt: Harness.fixedNow
             )
         )
         let comicRuntime: ScriptedSourceRuntime = ScriptedSourceRuntime(source: comic)
-        let rssRuntime: ScriptedSourceRuntime = ScriptedSourceRuntime(source: rss, list: { _ in
-            ScriptedSourceRuntime.listOutput(ids: ["rss-1"])
+        let customRuntime: ScriptedSourceRuntime = ScriptedSourceRuntime(source: custom, list: { _ in
+            ScriptedSourceRuntime.listOutput(ids: ["custom-1"])
         })
         let viewModel: LibraryViewModel = Harness.makeLibraryViewModel(
             database: database,
-            resolver: Harness.resolver([comic.id: comicRuntime, rss.id: rssRuntime])
+            resolver: Harness.resolver([comic.id: comicRuntime, custom.id: customRuntime])
         )
 
         let outcome: LibraryInitialLoadOutcome = await viewModel.loadIfNeeded()
 
         #expect(outcome == .loaded)
-        #expect(viewModel.selectedSourceID == rss.id)
-        #expect(viewModel.items.map(\.id) == ["rss-1"])
-        #expect(viewModel.items.first?.type == .article)
-        #expect(rssRuntime.listInputs.count == 1)
+        #expect(viewModel.selectedSourceID == custom.id)
+        #expect(viewModel.items.map(\.id) == ["custom-1"])
+        #expect(viewModel.items.first?.type == .comic)
+        #expect(customRuntime.listInputs.count == 1)
         #expect(comicRuntime.listInputs.isEmpty)
     }
 
@@ -198,25 +198,25 @@ struct LibraryViewModelTests {
     @Test func selectionStoreSwitchClearsItemsAndRefreshesTheNewSource() async throws {
         let database: AppDatabase = try Harness.makeDatabase()
         let comic: Source = try Harness.makeComicSource(id: "built-in.comic")
-        let rss: Source = Harness.makeRSSSource(id: "rss.custom")
+        let custom: Source = try Harness.makeComicSource(id: "comic.custom")
         let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
         try sourceRepository.saveSource(comic)
-        try sourceRepository.saveSource(rss)
+        try sourceRepository.saveSource(custom)
         let comicRuntime: ScriptedSourceRuntime = ScriptedSourceRuntime(source: comic, list: { _ in
             ScriptedSourceRuntime.listOutput(ids: ["comic-1"])
         })
-        let rssRuntime: ScriptedSourceRuntime = ScriptedSourceRuntime(source: rss, list: { _ in
-            ScriptedSourceRuntime.listOutput(ids: ["rss-1"])
+        let customRuntime: ScriptedSourceRuntime = ScriptedSourceRuntime(source: custom, list: { _ in
+            ScriptedSourceRuntime.listOutput(ids: ["custom-1"])
         })
         let store: SourceSelectionStore = SourceSelectionStore()
         let viewModel: LibraryViewModel = Harness.makeLibraryViewModel(
             database: database,
-            resolver: Harness.resolver([comic.id: comicRuntime, rss.id: rssRuntime]),
+            resolver: Harness.resolver([comic.id: comicRuntime, custom.id: customRuntime]),
             selectionStore: store
         )
         _ = await viewModel.loadIfNeeded()
         let initialSourceID: String = try #require(viewModel.selectedSourceID)
-        let otherSourceID: String = initialSourceID == comic.id ? rss.id : comic.id
+        let otherSourceID: String = initialSourceID == comic.id ? custom.id : comic.id
         #expect(viewModel.items.count == 1)
 
         store.selectedSourceID = otherSourceID
@@ -231,7 +231,7 @@ struct LibraryViewModelTests {
         let outcome: LibraryInitialLoadOutcome = await viewModel.refreshSelectedListTab()
 
         #expect(outcome == .loaded)
-        let expectedItemID: String = otherSourceID == comic.id ? "comic-1" : "rss-1"
+        let expectedItemID: String = otherSourceID == comic.id ? "comic-1" : "custom-1"
         #expect(viewModel.items.map(\.id) == [expectedItemID])
     }
 
@@ -334,24 +334,4 @@ struct LibraryViewModelTests {
         #expect(runtime.listInputs.map(\.page) == [1, 2])
     }
 
-    @Test func rssListIgnoresRuntimePagination() async throws {
-        let database: AppDatabase = try Harness.makeDatabase()
-        let source: Source = Harness.makeRSSSource()
-        try GRDBSourceRepository(database: database).saveSource(source)
-        let runtime: ScriptedSourceRuntime = ScriptedSourceRuntime(source: source, list: { _ in
-            ScriptedSourceRuntime.listOutput(ids: ["rss-1"], nextPage: 2)
-        })
-        let viewModel: LibraryViewModel = Harness.makeLibraryViewModel(
-            database: database,
-            resolver: Harness.resolver([source.id: runtime])
-        )
-
-        _ = await viewModel.loadIfNeeded()
-        #expect(viewModel.nextListPage == nil)
-        #expect(viewModel.shouldShowPaginationStatus == false)
-
-        await viewModel.loadNextPageIfNeeded()
-
-        #expect(runtime.listInputs.map(\.page) == [1])
-    }
 }

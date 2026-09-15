@@ -44,21 +44,18 @@ struct SourceTabsValidationResult: Equatable {
     let entries: [SourceTabValidationEntry]
 }
 
-// 中文注释：P5 tab 验证按 source kind 分流；RSS 只验证 feed，不进入 listRule 链路。
+// 中文注释：P5 tab 验证按 source kind 分流。
 struct ValidateSourceTabsUseCase: Sendable {
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
-    private let rssFeedLoader: (any RSSFeedLoading)?
     private let sourcePresentationResolver: ResolveLibrarySourcePresentationUseCase
     private let validateSourceListLoadUseCase: ValidateSourceListLoadUseCase
 
     init(
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
-        rssFeedLoader: (any RSSFeedLoading)? = nil,
         sourcePresentationResolver: ResolveLibrarySourcePresentationUseCase = ResolveLibrarySourcePresentationUseCase(),
         validateSourceListLoadUseCase: ValidateSourceListLoadUseCase = ValidateSourceListLoadUseCase()
     ) {
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
-        self.rssFeedLoader = rssFeedLoader
         self.sourcePresentationResolver = sourcePresentationResolver
         self.validateSourceListLoadUseCase = validateSourceListLoadUseCase
     }
@@ -69,8 +66,6 @@ struct ValidateSourceTabsUseCase: Sendable {
             return await self.validateListRuntimeTabs(source: source)
         case .video:
             return await self.validateVideoTabs(source: source)
-        case .rss(let configuration):
-            return await self.validateRSSFeed(source: source, configuration: configuration)
         case .plugin:
             return SourceTabsValidationResult(
                 sourceID: source.id,
@@ -174,55 +169,6 @@ struct ValidateSourceTabsUseCase: Sendable {
             sourceID: source.id,
             runtimeKind: source.configuration.kind,
             entries: entries
-        )
-    }
-
-    private func validateRSSFeed(
-        source: Source,
-        configuration: RSSSourceConfiguration
-    ) async -> SourceTabsValidationResult {
-        guard let rssFeedLoader = self.rssFeedLoader else {
-            return self.rssResult(
-                source: source,
-                status: .skipped("RSS feed loader is unavailable."),
-                itemCount: 0
-            )
-        }
-
-        do {
-            let feed: RSSFeed = try await rssFeedLoader.load(feedURL: configuration.definition.feedURL)
-            return self.rssResult(
-                source: source,
-                status: feed.items.isEmpty ? .empty : .valid,
-                itemCount: feed.items.count
-            )
-        } catch {
-            return self.rssResult(
-                source: source,
-                status: .failed(RuleExecutionErrorClassifier.userMessage(for: error)),
-                itemCount: 0
-            )
-        }
-    }
-
-    private func rssResult(
-        source: Source,
-        status: SourceTabValidationStatus,
-        itemCount: Int
-    ) -> SourceTabsValidationResult {
-        return SourceTabsValidationResult(
-            sourceID: source.id,
-            runtimeKind: source.configuration.kind,
-            entries: [
-                SourceTabValidationEntry(
-                    id: "\(source.id)::rss-feed",
-                    tabID: nil,
-                    title: source.name,
-                    context: nil,
-                    status: status,
-                    itemCount: itemCount
-                )
-            ]
         )
     }
 

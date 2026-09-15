@@ -4,17 +4,12 @@ struct ComicChapterHistoryTransfer: Sendable {
     let value: ComicChapterHistory
 }
 
-struct RSSReadingHistoryTransfer: Sendable {
-    let value: RSSReadingHistory
-}
-
 struct VideoWatchHistoryTransfer: Sendable {
     let value: VideoWatchHistory
 }
 
 /// Serializes reading-history and ad-point writes outside MainActor.
 actor ReadingActivityPersistenceCoordinator {
-    private let saveRSSReadingHistoryUseCase: SaveRSSReadingHistoryUseCase
     private let saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase
     private let loadLatestComicChapterHistoryUseCase: LoadLatestComicChapterHistoryUseCase
     private let saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase
@@ -22,13 +17,11 @@ actor ReadingActivityPersistenceCoordinator {
     private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase
 
     init(
-        rssRepository: RSSReadingHistoryRepository,
         comicRepository: ComicChapterHistoryRepository,
         videoRepository: VideoWatchHistoryRepository,
         appUserRepository: AppUserRepository,
         activeAppUser: any ActiveAppUserProviding
     ) {
-        self.saveRSSReadingHistoryUseCase = SaveRSSReadingHistoryUseCase(repository: rssRepository)
         self.saveComicChapterHistoryUseCase = SaveComicChapterHistoryUseCase(repository: comicRepository)
         self.loadLatestComicChapterHistoryUseCase = LoadLatestComicChapterHistoryUseCase(
             repository: comicRepository
@@ -61,14 +54,6 @@ actor ReadingActivityPersistenceCoordinator {
         return try adPoints.map { points in
             try self.accumulateAdPointsUseCase.execute(points: points)
         }
-    }
-
-    func saveRSSHistory(
-        _ history: RSSReadingHistoryTransfer,
-        adPoints: Int
-    ) throws -> AdPointAccumulationResult {
-        try self.saveRSSReadingHistoryUseCase.execute(history: history.value)
-        return try self.accumulateAdPointsUseCase.execute(points: adPoints)
     }
 
     func loadVideoHistory(

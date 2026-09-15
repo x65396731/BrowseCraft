@@ -4,18 +4,15 @@ import Foundation
 struct SourceDiscoveryService: Sendable {
     private let discoverComicResourcesUseCase: DiscoverComicResourcesUseCase
     private let discoverVideoResourcesUseCase: DiscoverVideoResourcesUseCase
-    private let discoverRSSFeedsUseCase: DiscoverRSSFeedsUseCase
     private let assessVideoGenerationInputUseCase: AssessVideoGenerationInputUseCase
 
     init(
         discoverComicResourcesUseCase: DiscoverComicResourcesUseCase,
         discoverVideoResourcesUseCase: DiscoverVideoResourcesUseCase,
-        discoverRSSFeedsUseCase: DiscoverRSSFeedsUseCase,
         assessVideoGenerationInputUseCase: AssessVideoGenerationInputUseCase
     ) {
         self.discoverComicResourcesUseCase = discoverComicResourcesUseCase
         self.discoverVideoResourcesUseCase = discoverVideoResourcesUseCase
-        self.discoverRSSFeedsUseCase = discoverRSSFeedsUseCase
         self.assessVideoGenerationInputUseCase = assessVideoGenerationInputUseCase
     }
 
@@ -40,12 +37,6 @@ struct SourceDiscoveryService: Sendable {
                 siteURLString: siteURLString,
                 keyword: keyword
             )
-        )
-    }
-
-    func discoverRSSFeeds(siteURLString: String) async throws -> [DiscoveredRSSFeedItem] {
-        return try await self.discoverRSSFeedsUseCase.execute(
-            DiscoverRSSFeedsInput(siteURLString: siteURLString)
         )
     }
 

@@ -37,7 +37,6 @@ struct LibraryFeatureFactory {
         self.systemCookieHeaderProvider = systemCookieHeaderProvider
         self.prepareReaderHistoryRestoreUseCase = prepareReaderHistoryRestoreUseCase
         self.readingActivityPersistenceCoordinator = ReadingActivityPersistenceCoordinator(
-            rssRepository: GRDBRSSReadingHistoryRepository(database: database),
             comicRepository: GRDBComicChapterHistoryRepository(database: database),
             videoRepository: GRDBVideoWatchHistoryRepository(database: database),
             appUserRepository: GRDBAppUserRepository(database: database),
@@ -134,17 +133,6 @@ struct LibraryFeatureFactory {
                 lastPageIndex: plan.lastPageIndex,
                 lastPageImageURLString: plan.lastPageImageURLString
             )
-        )
-    }
-
-    @MainActor
-    func makeRSSContentDetailViewModel(item: ContentItem, source: Source) -> RSSContentDetailViewModel {
-        return RSSContentDetailViewModel(
-            item: item,
-            source: source,
-            persistenceCoordinator: self.readingActivityPersistenceCoordinator,
-            runtimeResolver: self.sourceRuntimeFactory,
-            activeAppUser: self.activeAppUser
         )
     }
 

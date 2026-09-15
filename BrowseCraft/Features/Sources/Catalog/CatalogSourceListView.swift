@@ -280,8 +280,6 @@ private struct CatalogSourceRowView: View {
         switch self.catalogSource.kind {
         case .comic:
             return NSLocalizedString("Comics", comment: "")
-        case .rss:
-            return NSLocalizedString("RSS", comment: "")
         case .video:
             return NSLocalizedString("Video", comment: "")
         case .book:

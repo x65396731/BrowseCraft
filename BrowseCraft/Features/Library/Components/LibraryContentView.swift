@@ -25,17 +25,7 @@ struct LibraryContentView: View {
     @ViewBuilder
     var body: some View {
         if let selectedSource: Source = self.selectedSource,
-           selectedSource.configuration.kind == .rss {
-            RSSContentListView(
-                items: self.items,
-                source: selectedSource,
-                favoriteItemIDs: self.favoriteItemIDs,
-                favoriteAction: self.toggleFavorite,
-                readAction: { _ in },
-                contentViewModelFactory: self.contentViewModelFactory
-            )
-        } else if let selectedSource: Source = self.selectedSource,
-                  selectedSource.configuration.kind == .video {
+           selectedSource.configuration.kind == .video {
             VideoContentGridView(
                 items: self.items,
                 source: selectedSource,

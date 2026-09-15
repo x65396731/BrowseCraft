@@ -27,7 +27,6 @@ enum SourceImportOptionKind: String, Codable, CaseIterable, Identifiable, Hashab
     case comicSource
     case videoSource
     case bookSource
-    case rssFeedURL
     case scriptSource
 
     var id: String {
@@ -51,18 +50,11 @@ extension SourceImportOption {
             kind: .bookSource,
             defaultSourceType: .html,
             defaultConfigurationKind: .book
-        ),
-        SourceImportOption(
-            kind: .rssFeedURL,
-            defaultSourceType: .rss,
-            defaultConfigurationKind: .rss
         )
     ]
 
     var requiresURLInput: Bool {
         switch self.kind {
-        case .rssFeedURL:
-            return true
         case .comicSource, .videoSource, .bookSource, .scriptSource:
             return false
         }
@@ -70,7 +62,7 @@ extension SourceImportOption {
 
     var acceptsRuleJSONInput: Bool {
         switch self.kind {
-        case .comicSource, .videoSource, .bookSource, .rssFeedURL, .scriptSource:
+        case .comicSource, .videoSource, .bookSource, .scriptSource:
             return false
         }
     }

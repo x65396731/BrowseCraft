@@ -63,15 +63,14 @@ struct ToggleFavoriteUseCase: Sendable {
     }
 
     private func favoriteKind(for item: ContentItem) -> FavoriteContentKind {
+        // 中文注释：站点书条目的内容形态是 article（SourceListContentItemMapper）；RSS 下线后 article 只剩书籍。
         switch item.type {
         case .article:
-            return .rss
-        case .comic:
+            return .book
+        case .comic, .gallery:
             return .comic
         case .video:
             return .videoNative
-        default:
-            return .rss
         }
     }
 }

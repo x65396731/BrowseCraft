@@ -61,8 +61,6 @@ struct SourceRuleEditorService: Sendable {
                 return try self.formattedJSON(configuration.rule)
             case .video(let configuration):
                 return try self.formattedJSON(configuration)
-            case .rss(let configuration):
-                return try self.formattedJSON(configuration)
             case .plugin(let configuration):
                 return try self.formattedJSON(configuration)
             case .book(let configuration):
@@ -81,7 +79,7 @@ struct SourceRuleEditorService: Sendable {
         switch source.configuration {
         case .comic, .video:
             return true
-        case .rss, .plugin, .book:
+        case .plugin, .book:
             return false
         }
     }
@@ -108,8 +106,6 @@ struct SourceRuleEditorService: Sendable {
             } catch {
                 return SourceDebugJSONValidationResult(isValid: false, message: error.localizedDescription)
             }
-        case .rss:
-            return SourceDebugJSONValidationResult(isValid: false, message: "RSS JSON is read-only.")
         case .plugin:
             return SourceDebugJSONValidationResult(isValid: false, message: "Plugin JSON is read-only.")
         case .book:
@@ -147,7 +143,7 @@ struct SourceRuleEditorService: Sendable {
                 configurationJSON: json,
                 expectedUpdatedAt: expectedUpdatedAt
             )
-        case .rss, .plugin, .book:
+        case .plugin, .book:
             throw SourceRuleEditorServiceError.readOnlySource
         }
     }

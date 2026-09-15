@@ -86,12 +86,10 @@ struct GRDBBookRepositoriesTests {
         #expect(try histories.fetchHistory(userID: "u1") == [again, other])
         #expect(try histories.fetchHistory(userID: "someone-else").isEmpty)
 
-        let rss: GRDBRSSReadingHistoryRepository = GRDBRSSReadingHistoryRepository(database: database)
         let comic: GRDBComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(database: database)
         let video: GRDBVideoWatchHistoryRepository = GRDBVideoWatchHistoryRepository(database: database)
         let temporary: GRDBTemporaryResourceHistoryRepository = GRDBTemporaryResourceHistoryRepository(database: database)
         let entries: [ReadingHistoryEntry] = try LoadReadingHistoryEntriesUseCase(
-            rssRepository: rss,
             comicRepository: comic,
             videoRepository: video,
             bookRepository: histories,
@@ -105,7 +103,6 @@ struct GRDBBookRepositoriesTests {
         let bookID: UUID = SiteBookIdentity.bookID(sourceID: "biquhua", detailURL: detailURL)
         try progress.saveProgress(BookReadingProgress(bookID: bookID, userID: "u1", locatorJSON: "{}", totalProgression: 0.3, updatedAt: Self.now))
         try DeleteReadingHistoryEntryUseCase(
-            rssRepository: rss,
             comicRepository: comic,
             videoRepository: video,
             bookRepository: histories,

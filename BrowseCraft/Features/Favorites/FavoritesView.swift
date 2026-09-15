@@ -86,11 +86,11 @@ struct FavoritesView: View {
     private func destination(for item: FavoriteContentItem, source: Source) -> some View {
         let contentItem: ContentItem = item.contentItem()
         switch item.kind {
-        case .rss:
-            RSSContentDetailView(
-                item: contentItem,
-                source: source,
-                factory: self.contentViewModelFactory
+        case .book:
+            // 中文注释：与 Library 点开站点书同一个详情页（RSS 下线前书籍收藏被记成 rss、点开进的是 RSS 详情）。
+            BookSiteDetailView(
+                viewModel: self.contentViewModelFactory.makeBookSiteDetail(contentItem, source),
+                makeReaderViewModel: self.contentViewModelFactory.makeBookSiteReader
             )
         case .comic:
             ComicDetailView(
@@ -172,8 +172,8 @@ private struct FavoriteEntryRowView: View {
 
     private var iconName: String {
         switch self.item.kind {
-        case .rss:
-            return "dot.radiowaves.left.and.right"
+        case .book:
+            return "book"
         case .comic:
             return "book.pages"
         case .videoNative, .videoWeb:

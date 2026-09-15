@@ -4,7 +4,6 @@ import BrowseCraftDomain
 
 enum CatalogSourceImportError: LocalizedError {
     case invalidBaseURL(String)
-    case invalidFeedURL(String)
     case invalidEntryURL(String)
     case invalidRuleJSON(sourceID: String, name: String, kind: String, reason: String)
     case unsupportedRuleValue(field: String, value: String)
@@ -13,8 +12,6 @@ enum CatalogSourceImportError: LocalizedError {
         switch self {
         case .invalidBaseURL(let urlString):
             return String(format: NSLocalizedString("catalog_import_error_invalid_base_url", comment: ""), urlString)
-        case .invalidFeedURL(let urlString):
-            return String(format: NSLocalizedString("catalog_import_error_invalid_feed_url", comment: ""), urlString)
         case .invalidEntryURL(let urlString):
             return String(format: NSLocalizedString("catalog_import_error_invalid_entry_url", comment: ""), urlString)
         case .invalidRuleJSON(_, let name, _, let reason):
@@ -38,11 +35,11 @@ struct LoadCatalogSourcesUseCase {
     private let jsonDecoder: JSONDecoder
     private let jsonEncoder: JSONEncoder
 
-    /// 中文注释：本版本认得的目录 kind；请求时显式带 `kinds=`（PortalCore §14.6：缺省只回 video / comic / rss，book 要声明）。
+    /// 中文注释：本版本认得的目录 kind；请求时显式带 `kinds=`（PortalCore §14.6：缺省只回 video / comic，book 要声明；RSS 已于 2026-09-16 下线）。
     /// 用 switch 穷举 CatalogSourceKind，新增 case 时编译期报缺，不会漏声明。
-    static let requestedKinds: [CatalogSourceKind] = [.comic, .rss, .video, .book].filter { kind in
+    static let requestedKinds: [CatalogSourceKind] = [.comic, .video, .book].filter { kind in
         switch kind {
-        case .comic, .rss, .video, .book:
+        case .comic, .video, .book:
             return true
         }
     }

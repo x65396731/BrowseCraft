@@ -79,27 +79,6 @@ enum ViewModelTestHarness {
         )
     }
 
-    static func makeRSSSource(id: String = "rss.test", name: String = "RSS Test") -> Source {
-        return Source(
-            id: id,
-            name: name,
-            baseURL: "https://example.test",
-            type: .rss,
-            configuration: .rss(
-                RSSSourceConfiguration(
-                    definition: RSSSourceDefinition(
-                        feedURL: URL(string: "https://example.test/feed.xml")!,
-                        requiresAccount: false,
-                        refreshPolicy: .manual
-                    )
-                )
-            ),
-            enabled: true,
-            createdAt: Self.fixedNow,
-            updatedAt: Self.fixedNow
-        )
-    }
-
     static func makeItem(
         id: String,
         sourceID: String,
@@ -122,9 +101,6 @@ enum ViewModelTestHarness {
         fallback: ScriptedSourceRuntime? = nil
     ) -> TestSourceRuntimeResolver {
         return TestSourceRuntimeResolver(
-            rssRuntimeFactory: { definition in
-                return runtimes[definition.id] ?? fallback ?? ScriptedSourceRuntime(definition: definition)
-            },
             bookRuntimeFactory: { source in
                 return runtimes[source.id] ?? fallback ?? ScriptedSourceRuntime(source: source)
             },
@@ -208,7 +184,6 @@ enum ViewModelTestHarness {
         database: AppDatabase,
         resolver: any SourceRuntimeResolving,
         selectionStore: SourceSelectionStore = SourceSelectionStore(),
-        rssFeedLoader: any RSSFeedLoading = ScriptedRSSFeedLoader(),
         loadVideoGenerationOutcomesUseCase: LoadVideoGenerationOutcomesUseCase? = nil,
         outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests? = nil,
         hideVideoGenerationOutcomeUseCase: HideVideoGenerationOutcomeUseCase? = nil,
@@ -243,12 +218,6 @@ enum ViewModelTestHarness {
                 pageContentLoader: StubPageContentLoader(),
                 htmlParser: CoreHTMLDiscoveryParser()
             ),
-            discoverRSSFeedsUseCase: DiscoverRSSFeedsUseCase(
-                rssFeedLoader: rssFeedLoader,
-                loadRSSHubDiscoveryCandidatesUseCase: LoadRSSHubDiscoveryCandidatesUseCase(
-                    pageDataLoader: StubPageDataLoader()
-                )
-            ),
             assessVideoGenerationInputUseCase: AssessVideoGenerationInputUseCase(
                 publicURLPolicy: StubPublicURLPolicy(),
                 httpLoader: StubPreflightPageLoader(),
@@ -272,12 +241,6 @@ enum ViewModelTestHarness {
                 sourceRepository: sourceRepository,
                 refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
             ),
-            addRSSSourceUseCase: AddRSSSourceUseCase(
-                sourceRepository: sourceRepository,
-                feedLoader: rssFeedLoader,
-                refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
-                now: { Self.fixedNow }
-            ),
             discoveryService: discoveryService,
             createVideoGenerationTaskUseCase: nil,
             loadVideoGenerationOutcomesUseCase: loadVideoGenerationOutcomesUseCase,
@@ -295,8 +258,7 @@ enum ViewModelTestHarness {
             recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase(),
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
             validateSourceTabsUseCase: ValidateSourceTabsUseCase(
-                refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
-                rssFeedLoader: rssFeedLoader
+                refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
             ),
             sourceSelectionStore: selectionStore,
             now: now
@@ -324,7 +286,6 @@ enum ViewModelTestHarness {
             sourceCredentialStore: credentialStore,
             resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase(),
             persistenceCoordinator: ReadingActivityPersistenceCoordinator(
-                rssRepository: GRDBRSSReadingHistoryRepository(database: database),
                 comicRepository: GRDBComicChapterHistoryRepository(database: database),
                 videoRepository: GRDBVideoWatchHistoryRepository(database: database),
                 appUserRepository: GRDBAppUserRepository(database: database),

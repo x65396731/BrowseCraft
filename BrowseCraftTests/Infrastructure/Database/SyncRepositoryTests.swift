@@ -196,7 +196,7 @@ struct SyncRepositoryTests {
             try deletedSource.insert(database)
             var builtInSource: SourceRecord = Self.sourceRecord(
                 userID: AppUser.localDefaultID,
-                id: "built-in.rss.example",
+                id: "built-in.plugin.example",
                 updatedAt: changedAt,
                 deletedAt: nil
             )
@@ -217,7 +217,7 @@ struct SyncRepositoryTests {
                     title: "Deleted",
                     detailURL: "https://example.test/deleted",
                     coverURL: nil,
-                    kind: .rss,
+                    kind: .comic,
                     latestText: nil,
                     updatedAt: changedAt,
                     favoritedAt: changedAt,
@@ -326,7 +326,7 @@ struct SyncRepositoryTests {
         let database: AppDatabase = try Self.makeDatabase()
         let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
         let queueRepository: GRDBSyncQueueRepository = GRDBSyncQueueRepository(database: database)
-        let source: Source = Self.makeRSSSource(id: "user-source-1")
+        let source: Source = Self.makePluginSource(id: "user-source-1")
 
         try sourceRepository.saveSource(source)
 
@@ -383,22 +383,14 @@ struct SyncRepositoryTests {
         return database
     }
 
-    private static func makeRSSSource(id: String) -> Source {
+    private static func makePluginSource(id: String) -> Source {
         let now: Date = Date(timeIntervalSince1970: 100)
         return Source(
             id: id,
-            name: "Example RSS",
+            name: "Example Source",
             baseURL: "https://example.test",
-            type: .rss,
-            configuration: .rss(
-                RSSSourceConfiguration(
-                    definition: RSSSourceDefinition(
-                        feedURL: URL(string: "https://example.test/feed.xml") ?? URL(fileURLWithPath: "/"),
-                        requiresAccount: false,
-                        refreshPolicy: .manual
-                    )
-                )
-            ),
+            type: .html,
+            configuration: TestSourceFixtures.pluginConfiguration(),
             enabled: true,
             createdAt: now,
             updatedAt: now
@@ -412,7 +404,7 @@ struct SyncRepositoryTests {
             title: "Favorite Item",
             detailURL: "https://example.test/item/1",
             coverURL: nil,
-            kind: .rss,
+            kind: .comic,
             latestText: nil,
             updatedAt: Date(timeIntervalSince1970: 100),
             favoritedAt: nil,
@@ -433,8 +425,8 @@ struct SyncRepositoryTests {
             id: id,
             name: id,
             baseURL: "https://example.test",
-            type: SourceType.rss.rawValue,
-            kind: SourceRuntimeKind.rss.rawValue,
+            type: SourceType.html.rawValue,
+            kind: SourceRuntimeKind.comic.rawValue,
             configJSON: "{}",
             enabled: true,
             createdAt: updatedAt,

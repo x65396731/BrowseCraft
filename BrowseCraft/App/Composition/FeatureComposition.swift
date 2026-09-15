@@ -114,9 +114,6 @@ final class FeatureComposition {
             makeHistoryReader: { [libraryFeatureFactory] history, source in
                 libraryFeatureFactory.makeReaderViewModel(history: history, source: source)
             },
-            makeRSSDetail: { [libraryFeatureFactory] item, source in
-                libraryFeatureFactory.makeRSSContentDetailViewModel(item: item, source: source)
-            },
             makeVideoDetail: { [libraryFeatureFactory] item, source in
                 libraryFeatureFactory.makeVideoDetailViewModel(item: item, source: source)
             },

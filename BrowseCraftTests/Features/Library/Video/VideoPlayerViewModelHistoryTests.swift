@@ -107,7 +107,6 @@ struct VideoPlayerViewModelHistoryTests {
             detailURL: nil,
             coverURL: nil,
             persistenceCoordinator: ReadingActivityPersistenceCoordinator(
-                rssRepository: GRDBRSSReadingHistoryRepository(database: database),
                 comicRepository: GRDBComicChapterHistoryRepository(database: database),
                 videoRepository: GRDBVideoWatchHistoryRepository(database: database),
                 appUserRepository: GRDBAppUserRepository(database: database),

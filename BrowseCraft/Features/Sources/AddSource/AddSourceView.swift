@@ -7,11 +7,9 @@ struct AddSourceView: View {
     @Bindable var viewModel: SourcesViewModel
     @Environment(\.dismiss) private var dismiss
 
-    @State private var runtimeSourceKind: RuntimeSourceImportKind?
     @State private var isShowingComicGeneration: Bool = false
     @State private var isShowingVideoGeneration: Bool = false
     @State private var isShowingBookGeneration: Bool = false
-    @State private var isShowingRSSDiscovery: Bool = false
     @State private var unavailableOption: SourceImportOptionKind?
 
     private let options: [SourceImportOption] = SourceImportOption.defaultOptions
@@ -23,7 +21,6 @@ struct AddSourceView: View {
                     self.optionButton(for: .comicSource)
                     self.optionButton(for: .videoSource)
                     self.optionButton(for: .bookSource)
-                    self.optionButton(for: .rssFeedURL)
                 }
             }
             .navigationTitle("Add Source")
@@ -46,23 +43,6 @@ struct AddSourceView: View {
             // 中文注释：读书 kind 与漫画 / 视频同一条服务端规则生成入口（PortalCore 2026-09-13 起接受 sourceKind: book）。
             .sheet(isPresented: self.$isShowingBookGeneration) {
                 VideoGenerationInputView(viewModel: self.viewModel, sourceKind: .book)
-            }
-            .sheet(isPresented: self.$isShowingRSSDiscovery) {
-                RSSDiscoveryView(
-                    viewModel: self.viewModel,
-                    completion: {
-                        self.dismiss()
-                    }
-                )
-            }
-            .sheet(item: self.$runtimeSourceKind) { kind in
-                RuntimeSourceImportView(
-                    viewModel: self.viewModel,
-                    kind: kind,
-                    completion: {
-                        self.dismiss()
-                    }
-                )
             }
             .alert(
                 "Source Type Unavailable",
@@ -106,8 +86,6 @@ struct AddSourceView: View {
             self.isShowingVideoGeneration = true
         case .bookSource:
             self.isShowingBookGeneration = true
-        case .rssFeedURL:
-            self.isShowingRSSDiscovery = true
         case .scriptSource:
             self.unavailableOption = option.kind
         }
@@ -136,7 +114,7 @@ struct AddSourceView: View {
             return "Book sources can be added from the Book source form."
         case .scriptSource:
             return "Script Source is closed. Use Website Rule JSON or URL-based source search instead."
-        case .rssFeedURL, nil:
+        case nil:
             return "This source type is not available yet."
         }
     }
@@ -151,8 +129,6 @@ private extension SourceImportOptionKind {
             return "Video"
         case .bookSource:
             return "Books"
-        case .rssFeedURL:
-            return "RSS Feed"
         case .scriptSource:
             return "Script Source"
         }
@@ -166,8 +142,6 @@ private extension SourceImportOptionKind {
             return "play.rectangle"
         case .bookSource:
             return "text.book.closed"
-        case .rssFeedURL:
-            return "dot.radiowaves.left.and.right"
         case .scriptSource:
             return "terminal"
         }

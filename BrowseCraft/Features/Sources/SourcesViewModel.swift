@@ -50,7 +50,6 @@ final class SourcesViewModel {
 
     private let persistenceCoordinator: SourcesPersistenceCoordinator
     private let addComicRuleSourceUseCase: AddComicRuleSourceUseCase
-    private let addRSSSourceUseCase: AddRSSSourceUseCase
     private let discoveryService: SourceDiscoveryService
     private let createVideoGenerationTaskUseCase: CreateVideoGenerationTaskUseCase?
     private let pushNotificationAuthorizer: (any PushNotificationAuthorizing)?
@@ -216,7 +215,6 @@ final class SourcesViewModel {
     init(
         persistenceCoordinator: SourcesPersistenceCoordinator,
         addComicRuleSourceUseCase: AddComicRuleSourceUseCase,
-        addRSSSourceUseCase: AddRSSSourceUseCase,
         discoveryService: SourceDiscoveryService,
         createVideoGenerationTaskUseCase: CreateVideoGenerationTaskUseCase? = nil,
         pushNotificationAuthorizer: (any PushNotificationAuthorizing)? = nil,
@@ -236,7 +234,6 @@ final class SourcesViewModel {
     ) {
         self.persistenceCoordinator = persistenceCoordinator
         self.addComicRuleSourceUseCase = addComicRuleSourceUseCase
-        self.addRSSSourceUseCase = addRSSSourceUseCase
         self.discoveryService = discoveryService
         self.createVideoGenerationTaskUseCase = createVideoGenerationTaskUseCase
         self.pushNotificationAuthorizer = pushNotificationAuthorizer
@@ -433,26 +430,6 @@ final class SourcesViewModel {
     }
 
     @MainActor
-    func discoverRSSFeeds(siteURLString: String) async -> [DiscoveredRSSFeedItem] {
-        CrashDiagnostics.shared.setRuleStage(.rssFeed)
-        self.errorMessage = nil
-        do {
-            let results: [DiscoveredRSSFeedItem] = try await self.discoveryService.discoverRSSFeeds(
-                siteURLString: siteURLString
-            )
-            AppAnalytics.shared.logSearchSubmitted(sourceType: .rss, resultCount: results.count)
-            self.errorMessage = nil
-            return results
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "rss-discovery-error")
-            AppAnalytics.shared.logSearchSubmitted(sourceType: .rss, resultCount: 0)
-            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .rssFeed, errorCode: "rss-discovery-error")
-            self.errorMessage = error.localizedDescription
-            return []
-        }
-    }
-
-    @MainActor
     func saveTemporaryHistory(_ history: TemporaryResourceHistory) {
         var ownedHistory: TemporaryResourceHistory = history
         ownedHistory.userID = self.currentUserID
@@ -511,42 +488,6 @@ final class SourcesViewModel {
             AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .list, errorCode: "rule-source-add-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
             return false
-        }
-    }
-
-    @MainActor
-    /// 中文注释：addRSSSource 方法封装公开 RSS Feed 导入路径。
-    func addRSSSource(feedURLString: String, name: String? = nil) async -> Source? {
-        CrashDiagnostics.shared.setRuleStage(.rssFeed)
-        do {
-            let result: AddRSSSourceResult = try await self.addRSSSourceUseCase.execute(
-                feedURLString: feedURLString,
-                name: name
-            )
-            var source: Source = result.source
-            source.userID = self.currentUserID
-
-            await self.load()
-            let items: [ContentItem] = self.contentItemMapper.map(
-                output: result.listOutput,
-                source: source,
-                context: nil
-            )
-            self.sourceSelectionStore.publishLibrarySnapshot(
-                source: source,
-                items: items,
-                listContext: nil,
-                nextPage: result.listOutput.pagination?.nextPage
-            )
-            self.logPublishedLibrarySnapshot(source: source, items: items, origin: "rss-source-add")
-            self.selectSource(id: source.id)
-            self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
-            self.latestSourceAddID = source.id
-            return source
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "rss-source-add-error")
-            self.errorMessage = error.localizedDescription
-            return nil
         }
     }
 

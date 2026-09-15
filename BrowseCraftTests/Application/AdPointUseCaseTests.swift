@@ -12,20 +12,20 @@ struct AdPointUseCaseTests {
             now: { Self.now }
         )
 
-        let result: AdPointAccumulationResult = try useCase.execute(points: AdPointRule.rssPoints)
+        let result: AdPointAccumulationResult = try useCase.execute(points: AdPointRule.comicPoints)
 
         #expect(result.shouldPlayAd == false)
-        #expect(result.pendingPoints == 30)
+        #expect(result.pendingPoints == 40)
         #expect(
             result == .noAdNeeded(
                 previousPoints: 20,
-                addedPoints: AdPointRule.rssPoints,
-                pendingPoints: 30,
+                addedPoints: AdPointRule.comicPoints,
+                pendingPoints: 40,
                 threshold: AdPointRule.threshold,
                 hasRemovedAds: false
             )
         )
-        #expect(repository.savedUser?.pendingAdPoints == 30)
+        #expect(repository.savedUser?.pendingAdPoints == 40)
     }
 
     @Test func triggersAdAtThresholdAndResetsPoints() throws {

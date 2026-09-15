@@ -298,7 +298,7 @@ struct SourceCredentialStoreTests {
         let context: SourceRequestContext = SourceRequestContext(
             sourceID: "example",
             baseURL: try #require(URL(string: "https://example.test")),
-            purpose: .rss
+            purpose: .list
         )
         store.save(
             SourceCredential(

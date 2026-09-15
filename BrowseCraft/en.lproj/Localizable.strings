@@ -198,7 +198,6 @@
 "Merge Local Data" = "Merge Local Data";
 "Missing book source." = "Missing book source.";
 "Missing comic source or chapter URL." = "Missing comic source or chapter URL.";
-"Missing feed history." = "Missing feed history.";
 "Missing temporary history." = "Missing temporary history.";
 "More Plans" = "More Plans";
 "Native Player needs a direct mp4/m3u8 URL" = "Native Player needs a direct mp4/m3u8 URL";
@@ -220,7 +219,7 @@
 "Open Original Page" = "Open Original Page";
 "Open Resource" = "Open Resource";
 "Open the original page to continue." = "Open the original page to continue.";
-"Opened feed items and read chapters will appear here." = "Opened feed items and read chapters will appear here.";
+"Read chapters, books and watched videos will appear here." = "Read chapters, books and watched videos will appear here.";
 "Paid" = "Paid";
 "Permanent upgrades for your BrowseCraft loadout" = "Permanent upgrades for your BrowseCraft loadout";
 "Photo Album" = "Photo Album";
@@ -251,8 +250,6 @@
 "Restoring from iCloud" = "Restoring from iCloud";
 "Retry" = "Retry";
 "Retry Sync" = "Retry Sync";
-"RSS" = "RSS";
-"RSS Feed" = "RSS Feed";
 "Rule JSON is valid." = "Rule JSON is valid.";
 "Rule Name" = "Rule Name";
 "Runs every configured tab only when requested. Library continues to load tabs on demand." = "Runs every configured tab only when requested. Library continues to load tabs on demand.";
@@ -260,7 +257,6 @@
 "Save" = "Save";
 "Saved bookmark folders can be added after the bookmark model is introduced." = "Saved bookmark folders can be added after the bookmark model is introduced.";
 "Search keyword" = "Search keyword";
-"Search RSS" = "Search RSS";
 "Search Rule Ref" = "Search Rule Ref";
 "Searching comic-like resources on this website..." = "Searching comic-like resources on this website...";
 "Searching video-like resources on this website..." = "Searching video-like resources on this website...";
@@ -320,7 +316,6 @@
 "rule_error_parser" = "The rule could not be parsed.";
 "rule_error_unknown" = "Loading failed.";
 "catalog_import_error_invalid_base_url" = "Invalid site base URL: %@";
-"catalog_import_error_invalid_feed_url" = "Invalid RSS feed URL: %@";
 "catalog_import_error_invalid_entry_url" = "Invalid video entry URL: %@";
 "catalog_import_error_invalid_rule_json" = "Invalid rule JSON for “%@”: %@";
 "catalog_import_error_unsupported_value" = "Unsupported value for rule field %@: %@";

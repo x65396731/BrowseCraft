@@ -50,8 +50,8 @@ struct SourceImportDraftTests {
         let draft: SourceImportDraft = SourceImportDraft(
             name: "Feed",
             entryURL: "https://example.test/rss.xml",
-            sourceType: .rss,
-            configurationKind: .rss,
+            sourceType: .xml,
+            configurationKind: .video,
             ruleJSON: nil
         )
 

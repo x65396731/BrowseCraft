@@ -2,7 +2,7 @@ import SwiftUI
 import BrowseCraftCore
 import BrowseCraftDomain
 
-// 中文注释：SourceDebugView 是统一调试入口；漫画和视频可编辑 JSON，RSS/插件保持只读。
+// 中文注释：SourceDebugView 是统一调试入口；漫画和视频可编辑 JSON，插件与书籍保持只读。
 
 struct SourceDebugView: View {
     @Bindable var viewModel: SourcesViewModel
@@ -54,8 +54,6 @@ struct SourceDebugView: View {
                 self.comicRequestSection(rule: configuration.rule)
             case .video(let configuration):
                 self.videoSection(configuration: configuration)
-            case .rss(let configuration):
-                self.rssSection(configuration: configuration)
             case .plugin(let configuration):
                 self.pluginSection(configuration: configuration)
             case .book(let configuration):
@@ -209,14 +207,6 @@ struct SourceDebugView: View {
             LabeledContent("Pages", value: "\(rule.pages.count)")
             LabeledContent("List Rules", value: "\(rule.ruleSets.listRules.count)")
             self.requestLine("Shared Request", request: rule.sharedRequest)
-        }
-    }
-
-    private func rssSection(configuration: RSSSourceConfiguration) -> some View {
-        Section("RSS") {
-            LabeledContent("Feed URL", value: configuration.definition.feedURL.absoluteString)
-            LabeledContent("Refresh", value: configuration.definition.refreshPolicy.rawValue)
-            LabeledContent("Requires Account", value: configuration.definition.requiresAccount ? "Yes" : "No")
         }
     }
 
@@ -377,8 +367,6 @@ struct SourceDebugView: View {
             return "Comic"
         case .video:
             return "Video"
-        case .rss:
-            return "RSS"
         case .plugin:
             return "Plugin"
         case .book:

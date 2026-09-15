@@ -77,7 +77,7 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
         )
     }
 
-    /// 中文注释：RSS/XML 需要保留服务器原始 bytes，避免先按错误字符串编码解码造成乱码。
+    /// 中文注释：XML/JSON 等需要保留服务器原始 bytes，避免先按错误字符串编码解码造成乱码。
     func loadData(_ request: PageLoadRequest) async throws -> PageDataResponse {
         let url: URL = request.url
         let requestConfig: RequestConfig? = request.requestConfig
@@ -146,7 +146,7 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
         return components.url
     }
 
-    /// 中文注释：RSS/API 等原始 bytes 请求也复用 callback bridge，继续保留 Alamofire 的请求能力。
+    /// 中文注释：API 等原始 bytes 请求也复用 callback bridge，继续保留 Alamofire 的请求能力。
     private func performDataRequest(_ urlRequest: URLRequest) async throws -> HTTPDataResponse {
         return try await withCheckedThrowingContinuation { continuation in
             AF.request(urlRequest).redirect(using: Self.httpsUpgradingRedirector).responseData { response in

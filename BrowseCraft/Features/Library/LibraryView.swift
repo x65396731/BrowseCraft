@@ -1,7 +1,7 @@
 import BrowseCraftDomain
 import SwiftUI
 
-// 中文注释：LibraryView 根据当前 SourceRuntimeKind 选择 RSS、视频或漫画展示层。
+// 中文注释：LibraryView 根据当前 SourceRuntimeKind 选择视频、漫画或书籍展示层。
 
 /// 中文注释：LibraryView 只负责展示 Library 状态，数据加载与切源逻辑在 LibraryViewModel。
 struct LibraryView: View {

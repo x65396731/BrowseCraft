@@ -8,7 +8,7 @@ import Testing
 
 struct LoadCatalogSourcesUseCaseTests {
     @Test func defaultURLDeclaresEveryKnownKind() {
-        #expect(LoadCatalogSourcesUseCase.defaultCatalogAPIURL?.absoluteString == "https://anyportal.online/catalog/sources?kinds=comic,rss,video,book")
+        #expect(LoadCatalogSourcesUseCase.defaultCatalogAPIURL?.absoluteString == "https://anyportal.online/catalog/sources?kinds=comic,video,book")
     }
 
     @Test func unknownKindIsSkippedAndBookDecodes() async throws {
@@ -27,7 +27,7 @@ struct LoadCatalogSourcesUseCaseTests {
 
         #expect(sources.map(\.id) == ["c1", "b1"])
         #expect(sources.map(\.kind) == [.comic, .book])
-        #expect(loader.requestedURL?.query == "kinds=comic,rss,video,book")
+        #expect(loader.requestedURL?.query == "kinds=comic,video,book")
     }
 }
 

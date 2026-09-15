@@ -40,9 +40,6 @@ enum SourceImportRecommendationConfidence: String, Codable, CaseIterable, Identi
 
 enum SourceImportRecommendationReason: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
     case userSelectedOption
-    case urlLooksLikeRSS
-    case headerLooksLikeRSS
-    case htmlContainsRSSLink
     case htmlContainsVideoElement
     case ruleJSONDetected
     case rulePackageDetected

@@ -9,7 +9,7 @@ import BrowseCraftRuntime
 struct SourceRuntimeMappingTests {
     @Test func sourceRuntimeResolverReturnsComicRuntimeFromSourceRuntimeKind() throws {
         var source: Source = try Self.source(id: "user.example")
-        source.type = .rss
+        source.type = .json
         let resolver = TestSourceRuntimeResolver { source in
             return StubSourceRuntime(definition: SourceDefinitionMapper().definition(from: source))
         }
@@ -21,30 +21,11 @@ struct SourceRuntimeMappingTests {
         #expect(runtime.capabilities.supportsReader)
     }
 
-    @Test func sourceRuntimeResolverConnectsRSSFactoryAndKeepsPluginDisconnected() throws {
+    @Test func sourceRuntimeResolverKeepsPluginDisconnected() throws {
         let resolver = TestSourceRuntimeResolver(
-            rssRuntimeFactory: { definition in
-                return StubSourceRuntime(definition: definition)
-            },
             comicRuntimeFactory: { source in
                 return StubSourceRuntime(definition: SourceDefinitionMapper().definition(from: source))
             }
-        )
-        let rssDefinition: SourceDefinition = SourceDefinitionMapper().definition(
-            id: "rss.example",
-            name: "RSS Example",
-            baseURL: "https://example.test",
-            version: nil,
-            ownership: .user,
-            configuration: .rss(
-                RSSSourceConfiguration(
-                    definition: RSSSourceDefinition(
-                        feedURL: try #require(URL(string: "https://example.test/feed.xml")),
-                        requiresAccount: false,
-                        refreshPolicy: .manual
-                    )
-                )
-            )
         )
         let pluginDefinition: SourceDefinition = SourceDefinitionMapper().definition(
             id: "plugin.example",
@@ -52,26 +33,8 @@ struct SourceRuntimeMappingTests {
             baseURL: "https://plugin.example",
             version: 1,
             ownership: .imported,
-            configuration: .plugin(
-                PluginSourceConfiguration(
-                    definition: PluginSourceDefinition(
-                        id: "plugin.example",
-                        manifestVersion: 1,
-                        displayName: "Plugin Example",
-                        runtime: .javaScript,
-                        entrypoint: "index.js",
-                        permissions: [.network],
-                        checksum: "checksum",
-                        isExecutable: false,
-                        disabledReason: "P3-8 does not execute plugins."
-                    )
-                )
-            )
+            configuration: TestSourceFixtures.pluginConfiguration(id: "plugin.example")
         )
-
-        let rssRuntime: any SourceRuntime = try resolver.runtime(for: rssDefinition)
-        #expect(rssRuntime.definition.runtimeKind == .rss)
-        #expect(rssRuntime.definition.rss?.feedURL.absoluteString == "https://example.test/feed.xml")
 
         do {
             _ = try resolver.runtime(for: pluginDefinition)
@@ -86,9 +49,6 @@ struct SourceRuntimeMappingTests {
 
     @Test func architectureGuardKeepsRuntimeSlotsIndependentFromSiteRulePayload() throws {
         let resolver = TestSourceRuntimeResolver(
-            rssRuntimeFactory: { definition in
-                return StubSourceRuntime(definition: definition)
-            },
             pluginRuntimeFactory: { definition in
                 return StubSourceRuntime(definition: definition)
             },
@@ -97,22 +57,6 @@ struct SourceRuntimeMappingTests {
             }
         )
         let mapper = SourceDefinitionMapper()
-        let rssDefinition = mapper.definition(
-            id: "rss.example",
-            name: "RSS Example",
-            baseURL: "https://example.test",
-            version: nil,
-            ownership: .user,
-            configuration: .rss(
-                RSSSourceConfiguration(
-                    definition: RSSSourceDefinition(
-                        feedURL: try #require(URL(string: "https://example.test/feed.xml")),
-                        requiresAccount: false,
-                        refreshPolicy: .manual
-                    )
-                )
-            )
-        )
         let pluginDefinition = mapper.definition(
             id: "plugin.example",
             name: "Plugin Example",
@@ -137,12 +81,8 @@ struct SourceRuntimeMappingTests {
         )
         let comicDefinition = mapper.definition(from: try Self.source(id: "comic.example"))
 
-        let rssRuntime: any SourceRuntime = try resolver.runtime(for: rssDefinition)
         let pluginRuntime: any SourceRuntime = try resolver.runtime(for: pluginDefinition)
 
-        #expect(rssRuntime.definition.runtimeKind == .rss)
-        #expect(rssRuntime.definition.comic == nil)
-        #expect(rssRuntime.definition.rss?.feedURL.absoluteString == "https://example.test/feed.xml")
         #expect(pluginRuntime.definition.runtimeKind == .plugin)
         #expect(pluginRuntime.definition.comic == nil)
         #expect(pluginRuntime.definition.plugin?.entrypoint == "index.js")
@@ -213,7 +153,6 @@ struct SourceRuntimeMappingTests {
         #expect(builtInDefinition.comic?.ruleID == "built-in.example")
         #expect(builtInDefinition.comic?.schemaVersion == 2)
         #expect(builtInDefinition.comic?.isEditable == false)
-        #expect(builtInDefinition.rss == nil)
         #expect(builtInDefinition.plugin == nil)
 
         #expect(userDefinition.ownership == .user)
@@ -223,22 +162,6 @@ struct SourceRuntimeMappingTests {
 
     @Test func sourceDefinitionMapperMapsRuntimeSpecificConfigurationsWithoutRuleFallback() throws {
         let mapper: SourceDefinitionMapper = SourceDefinitionMapper()
-        let rssDefinition: SourceDefinition = mapper.definition(
-            id: "rss.example",
-            name: "RSS Example",
-            baseURL: "https://example.test",
-            version: nil,
-            ownership: .user,
-            configuration: .rss(
-                RSSSourceConfiguration(
-                    definition: RSSSourceDefinition(
-                        feedURL: try #require(URL(string: "https://example.test/feed.xml")),
-                        requiresAccount: false,
-                        refreshPolicy: .manual
-                    )
-                )
-            )
-        )
         let pluginDefinition: SourceDefinition = mapper.definition(
             id: "plugin.example",
             name: "Plugin Example",
@@ -262,16 +185,8 @@ struct SourceRuntimeMappingTests {
             )
         )
 
-        #expect(rssDefinition.runtimeKind == .rss)
-        #expect(rssDefinition.comic == nil)
-        #expect(rssDefinition.rss?.feedURL.absoluteString == "https://example.test/feed.xml")
-        #expect(rssDefinition.rss?.requiresAccount == false)
-        #expect(rssDefinition.rss?.refreshPolicy == .manual)
-        #expect(rssDefinition.plugin == nil)
-
         #expect(pluginDefinition.runtimeKind == .plugin)
         #expect(pluginDefinition.comic == nil)
-        #expect(pluginDefinition.rss == nil)
         #expect(pluginDefinition.plugin?.id == "plugin.example")
         #expect(pluginDefinition.plugin?.entrypoint == "index.js")
         #expect(pluginDefinition.plugin?.isExecutable == false)

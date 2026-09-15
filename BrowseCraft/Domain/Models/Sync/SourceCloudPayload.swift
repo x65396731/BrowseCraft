@@ -33,6 +33,12 @@ struct SourceCloudPayload: Hashable, Codable, Sendable {
         return self.sourceID.hasPrefix("built-in.")
     }
 
+    /// 中文注释：RSS 于 2026-09-16 整体下线（迁移 v6.remove-rss）：旧版设备同步上去的 rss 来源不能写回本地——
+    /// 本地来源表任何一行解码失败都会让整张来源列表读取抛错。
+    var isRemovedRSS: Bool {
+        return self.kind == "rss"
+    }
+
     /// 中文注释：P2-6 后云端旧 V1 video payload 不能重新写回本地数据库。
     var isUnsupportedVideoV1: Bool {
         guard self.kind == SourceRuntimeKind.video.rawValue,
