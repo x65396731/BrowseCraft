@@ -94,7 +94,8 @@ struct BookFeatureFactory {
             saveProgressUseCase: SaveBookReadingProgressUseCase(progressRepository: progress),
             addBookmarkUseCase: AddBookBookmarkUseCase(repository: bookmarks),
             listBookmarksUseCase: ListBookBookmarksUseCase(repository: bookmarks),
-            removeBookmarkUseCase: RemoveBookBookmarkUseCase(repository: bookmarks)
+            removeBookmarkUseCase: RemoveBookBookmarkUseCase(repository: bookmarks),
+            saveHistoryUseCase: SaveBookReadingHistoryUseCase(repository: GRDBBookReadingHistoryRepository(database: self.database))
         )
     }
 }

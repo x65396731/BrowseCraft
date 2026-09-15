@@ -196,6 +196,7 @@
 "Login Required" = "需要登录";
 "Media Unavailable" = "媒体不可用";
 "Merge Local Data" = "合并本地数据";
+"Missing book source." = "缺少书籍来源。";
 "Missing comic source or chapter URL." = "缺少漫画来源或章节地址。";
 "Missing feed history." = "缺少订阅历史。";
 "Missing temporary history." = "缺少临时历史。";

@@ -60,6 +60,10 @@ final class HistoryViewModel {
         return self.source(for: history.sourceID) ?? history.fallbackSource()
     }
 
+    func source(for history: BookReadingHistory) -> Source? {
+        return self.source(for: history.sourceID) ?? history.fallbackSource()
+    }
+
     @MainActor
     func openVideoHistory(_ history: VideoWatchHistory) {
         guard let source: Source = self.source(for: history) else {

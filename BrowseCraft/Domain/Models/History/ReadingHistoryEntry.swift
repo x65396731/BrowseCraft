@@ -8,6 +8,7 @@ struct ReadingHistoryEntry: Identifiable, Hashable, Sendable {
         case rss
         case comic
         case video
+        case book
         case temporary
     }
 
@@ -21,6 +22,7 @@ struct ReadingHistoryEntry: Identifiable, Hashable, Sendable {
     var rssHistory: RSSReadingHistory?
     var comicHistory: ComicChapterHistory?
     var videoHistory: VideoWatchHistory?
+    var bookHistory: BookReadingHistory?
     var temporaryHistory: TemporaryResourceHistory?
 
     init(rssHistory: RSSReadingHistory) {
@@ -34,6 +36,7 @@ struct ReadingHistoryEntry: Identifiable, Hashable, Sendable {
         self.rssHistory = rssHistory
         self.comicHistory = nil
         self.videoHistory = nil
+        self.bookHistory = nil
         self.temporaryHistory = nil
     }
 
@@ -48,6 +51,7 @@ struct ReadingHistoryEntry: Identifiable, Hashable, Sendable {
         self.rssHistory = nil
         self.comicHistory = comicHistory
         self.videoHistory = nil
+        self.bookHistory = nil
         self.temporaryHistory = nil
     }
 
@@ -62,6 +66,22 @@ struct ReadingHistoryEntry: Identifiable, Hashable, Sendable {
         self.rssHistory = nil
         self.comicHistory = nil
         self.videoHistory = videoHistory
+        self.bookHistory = nil
+        self.temporaryHistory = nil
+    }
+
+    init(bookHistory: BookReadingHistory) {
+        self.id = "book::\(bookHistory.id)"
+        self.kind = .book
+        self.userID = bookHistory.userID
+        self.sourceID = bookHistory.sourceID
+        self.title = bookHistory.bookTitle
+        self.subtitle = bookHistory.chapterTitle
+        self.visitedAt = bookHistory.visitedAt
+        self.rssHistory = nil
+        self.comicHistory = nil
+        self.videoHistory = nil
+        self.bookHistory = bookHistory
         self.temporaryHistory = nil
     }
 
@@ -76,6 +96,7 @@ struct ReadingHistoryEntry: Identifiable, Hashable, Sendable {
         self.rssHistory = nil
         self.comicHistory = nil
         self.videoHistory = nil
+        self.bookHistory = nil
         self.temporaryHistory = temporaryHistory
     }
 }

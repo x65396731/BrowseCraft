@@ -11,7 +11,8 @@ enum AppDatabaseMigrations {
         AppDatabaseSchemaV1.identifier,
         Self.sourcesAddOriginIdentifier,
         Self.localBooksIdentifier,
-        Self.bookProgressDetachedIdentifier
+        Self.bookProgressDetachedIdentifier,
+        Self.bookReadingHistoryIdentifier
     ]
 
     /// 中文注释：v2——sources 增加 `origin` 列，记「来自个人生成」等出身，本地副本才能随服务器裁决清理。
@@ -24,6 +25,10 @@ enum AppDatabaseMigrations {
     /// 中文注释：v4——续读位置与书签不再外键到 local_books：站点书（规则来源里的作品）没有 local_books 行，
     /// 作品标识改为「本地 UUID 或 sourceID + 作品地址派生的 UUID」（设计第六节第 3 条）。SQLite 去外键只能重建表。
     static let bookProgressDetachedIdentifier: String = "v4.book-progress-detached-from-local-books"
+
+    /// 中文注释：v5——站点书阅读历史，一本书一条；History 页与漫画、视频同列（Documentation/Book/Book-Kind-Wiring-Design.md 第二十三节）。
+    /// 续读位置仍在 book_reading_progress，这张表只记书名、封面、最后读到的章节与访问时间。
+    static let bookReadingHistoryIdentifier: String = "v5.book-reading-history"
 
     static func makeMigrator() -> DatabaseMigrator {
         var migrator: DatabaseMigrator = DatabaseMigrator()
@@ -144,6 +149,30 @@ enum AppDatabaseMigrations {
                 sql: """
                 CREATE INDEX idx_book_bookmarks_book_created_at
                 ON book_bookmarks(bookID, createdAt DESC)
+                """
+            )
+        }
+
+        migrator.registerMigration(Self.bookReadingHistoryIdentifier) { database in
+            try database.create(table: "book_reading_history") { table in
+                table.column("userID", .text)
+                    .notNull()
+                    .references("users", column: "id", onDelete: .cascade)
+                table.column("sourceID", .text).notNull()
+                table.column("detailURL", .text).notNull()
+                table.column("bookItemID", .text).notNull()
+                table.column("bookTitle", .text).notNull()
+                table.column("coverURL", .text)
+                table.column("chapterTitle", .text)
+                table.column("chapterURL", .text)
+                table.column("visitedAt", .datetime).notNull()
+                table.column("sourceSnapshotJSON", .text)
+                table.primaryKey(["userID", "sourceID", "detailURL"])
+            }
+            try database.execute(
+                sql: """
+                CREATE INDEX idx_book_reading_history_user_visited_at
+                ON book_reading_history(userID, visitedAt DESC)
                 """
             )
         }

@@ -196,6 +196,7 @@
 "Login Required" = "Login Required";
 "Media Unavailable" = "Media Unavailable";
 "Merge Local Data" = "Merge Local Data";
+"Missing book source." = "Missing book source.";
 "Missing comic source or chapter URL." = "Missing comic source or chapter URL.";
 "Missing feed history." = "Missing feed history.";
 "Missing temporary history." = "Missing temporary history.";

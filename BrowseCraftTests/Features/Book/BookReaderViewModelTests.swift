@@ -136,6 +136,64 @@ struct BookReaderViewModelTests {
         #expect(chapterViewModel.initialLocator?.mediaType == .mp3)
     }
 
+    // 中文注释：站点书进历史：打开写一条（还没有位置时记第一章），换章后落进度更新同一条；
+    // 从历史重建的阅读主体不带章节、作品身份与原来一致（续读位置与书签才接得上）。
+    @Test func openingSiteBookRecordsOneHistoryRowThatFollowsTheChapter() async throws {
+        let loader: FixturePageContentLoader = FixturePageContentLoader(fixtures: [
+            "https://www.loyalbooks.com/book/tom-sawyer-by-mark-twain": "loyalbooks-detail-tom-sawyer",
+        ])
+        let source: Source = try BookRuntimeFixtures.source(fixture: "loyalbooks-catalog")
+        let runtime: BookSourceRuntime = try BookSourceRuntimeFactory(pageContentLoader: loader).makeRuntime(source: source)
+        let item: ContentItem = ContentItem(
+            id: "tom-sawyer", sourceId: source.id, title: "Tom Sawyer", detailURL: "https://www.loyalbooks.com/book/tom-sawyer-by-mark-twain",
+            coverURL: nil, type: .article, latestText: nil
+        )
+        let progress: ReaderInMemoryProgressRepository = ReaderInMemoryProgressRepository()
+        let bookmarks: ReaderInMemoryBookmarkRepository = ReaderInMemoryBookmarkRepository()
+        let histories: ReaderInMemoryHistoryRepository = ReaderInMemoryHistoryRepository()
+        let viewModel: BookReaderViewModel = BookReaderViewModel(
+            subject: .site(SiteBookChapterSelection(source: source, item: item, chapterURL: nil, chapterTitle: nil)),
+            userID: "u1",
+            openLocalUseCase: nil,
+            loadSitePublicationUseCase: LoadBookPublicationUseCase(runtimeResolver: SingleRuntimeResolver(runtime: runtime)),
+            loadProgressUseCase: LoadBookReadingProgressUseCase(progressRepository: progress),
+            saveProgressUseCase: SaveBookReadingProgressUseCase(progressRepository: progress),
+            addBookmarkUseCase: AddBookBookmarkUseCase(repository: bookmarks),
+            listBookmarksUseCase: ListBookBookmarksUseCase(repository: bookmarks),
+            removeBookmarkUseCase: RemoveBookBookmarkUseCase(repository: bookmarks),
+            saveHistoryUseCase: SaveBookReadingHistoryUseCase(repository: histories),
+            throttleNanoseconds: 60_000_000_000
+        )
+
+        await viewModel.open()
+
+        #expect(viewModel.state == .ready)
+        let readingOrder: [Link] = try #require(viewModel.publication?.readingOrder)
+        #expect(histories.rows.count == 1)
+        let opened: BookReadingHistory = try #require(histories.rows.last)
+        #expect(opened.sourceID == source.id)
+        #expect(opened.detailURL == item.detailURL)
+        #expect(opened.bookItemID == item.id)
+        #expect(opened.bookTitle == viewModel.title)
+        #expect(opened.chapterURL == readingOrder[0].url().url)
+        #expect(opened.chapterTitle != nil)
+        #expect(opened.sourceSnapshot?.id == source.id)
+
+        let third: URL = try #require(readingOrder[2].url().url)
+        viewModel.navigatorDidChangeLocation(Locator(href: AnyURL(url: third), mediaType: .mp3, title: nil))
+        viewModel.flush()
+
+        #expect(histories.rows.count == 1, "一本书一条")
+        let moved: BookReadingHistory = try #require(histories.rows.last)
+        #expect(moved.chapterURL == third)
+        #expect(moved.chapterTitle != nil)
+        #expect(moved.chapterTitle != opened.chapterTitle)
+
+        let reopened: SiteBookChapterSelection = SiteBookChapterSelection(history: moved, source: source)
+        #expect(reopened.chapterURL == nil)
+        #expect(BookReaderSubject.site(reopened).bookID == viewModel.bookID)
+    }
+
     // MARK: - Helpers
 
     private static func makeViewModel(progress: ReaderInMemoryProgressRepository, throttleNanoseconds: UInt64) -> BookReaderViewModel {
@@ -205,6 +263,16 @@ private final class ReaderInMemoryProgressRepository: BookReadingProgressReposit
     func fetchProgress(bookID: UUID, userID: String) throws -> BookReadingProgress? { return self.saved.last }
     func saveProgress(_ progress: BookReadingProgress) throws { self.saved.append(progress) }
     func deleteProgress(bookID: UUID, userID: String) throws { self.saved.removeAll { $0.bookID == bookID } }
+}
+
+private final class ReaderInMemoryHistoryRepository: BookReadingHistoryRepository, @unchecked Sendable {
+    private(set) var rows: [BookReadingHistory] = []
+    func save(_ history: BookReadingHistory) throws {
+        self.rows.removeAll { $0.id == history.id }
+        self.rows.append(history)
+    }
+    func fetchHistory(userID: String) throws -> [BookReadingHistory] { return self.rows.filter { $0.userID == userID } }
+    func delete(_ history: BookReadingHistory) throws { self.rows.removeAll { $0.id == history.id } }
 }
 
 private final class ReaderInMemoryBookmarkRepository: BookBookmarkRepository, @unchecked Sendable {

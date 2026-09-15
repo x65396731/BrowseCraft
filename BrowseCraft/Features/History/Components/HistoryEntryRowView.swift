@@ -46,6 +46,8 @@ struct HistoryEntryRowView: View {
             return "book.pages"
         case .video:
             return "play.rectangle"
+        case .book:
+            return "book"
         case .temporary:
             if self.entry.temporaryHistory?.kind == .comic {
                 return "book.pages"
@@ -63,6 +65,8 @@ struct HistoryEntryRowView: View {
             return self.entry.comicHistory?.chapterURL?.absoluteString
         case .video:
             return self.entry.videoHistory?.playPageURL.absoluteString
+        case .book:
+            return self.entry.bookHistory.map { $0.chapterURL?.absoluteString ?? $0.detailURL }
         case .temporary:
             return self.entry.temporaryHistory?.resourceURL.absoluteString
         }

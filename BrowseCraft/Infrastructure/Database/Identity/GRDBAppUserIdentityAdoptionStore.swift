@@ -29,8 +29,11 @@ final class GRDBAppUserIdentityAdoptionStore:
             let videoHistoryCount: Int = try VideoWatchHistoryRecord
                 .filter(VideoWatchHistoryRecord.Columns.userID == databaseUserID)
                 .fetchCount(database)
+            let bookHistoryCount: Int = try BookReadingHistoryRecord
+                .filter(BookReadingHistoryRecord.Columns.userID == databaseUserID)
+                .fetchCount(database)
             let historyCount: Int =
-                rssHistoryCount + comicHistoryCount + videoHistoryCount
+                rssHistoryCount + comicHistoryCount + videoHistoryCount + bookHistoryCount
             let temporaryResourceCount: Int = try TemporaryResourceHistoryRecord
                 .filter(TemporaryResourceHistoryRecord.Columns.userID == databaseUserID)
                 .fetchCount(database)
@@ -102,10 +105,16 @@ final class GRDBAppUserIdentityAdoptionStore:
                 to: cloudID,
                 in: database
             )
+            let copiedBookHistoryCount: Int = try Self.copyBookHistory(
+                from: localID,
+                to: cloudID,
+                in: database
+            )
             let copiedHistoryCount: Int =
                 copiedRSSHistoryCount +
                 copiedComicHistoryCount +
-                copiedVideoHistoryCount
+                copiedVideoHistoryCount +
+                copiedBookHistoryCount
             let copiedTemporaryResourceCount: Int = try Self.copyTemporaryHistory(
                 from: localID,
                 to: cloudID,
@@ -245,6 +254,40 @@ final class GRDBAppUserIdentityAdoptionStore:
                         record.comicItemID
                 )
                 .filter(ComicChapterHistoryRecord.Columns.chapterKey == record.chapterKey)
+                .deleteAll(database)
+            record.userID = cloudID
+            try record.insert(database)
+            copiedCount += 1
+        }
+        return copiedCount
+    }
+
+    private static func copyBookHistory(
+        from localID: String,
+        to cloudID: String,
+        in database: Database
+    ) throws -> Int {
+        let records: [BookReadingHistoryRecord] = try BookReadingHistoryRecord
+            .filter(BookReadingHistoryRecord.Columns.userID == localID)
+            .fetchAll(database)
+        var copiedCount: Int = 0
+
+        for var record: BookReadingHistoryRecord in records {
+            let key: [String: String] = [
+                "userID": cloudID,
+                "sourceID": record.sourceID,
+                "detailURL": record.detailURL
+            ]
+            if let existing: BookReadingHistoryRecord = try BookReadingHistoryRecord.fetchOne(
+                database,
+                key: key
+            ), existing.visitedAt >= record.visitedAt {
+                continue
+            }
+            _ = try BookReadingHistoryRecord
+                .filter(BookReadingHistoryRecord.Columns.userID == cloudID)
+                .filter(BookReadingHistoryRecord.Columns.sourceID == record.sourceID)
+                .filter(BookReadingHistoryRecord.Columns.detailURL == record.detailURL)
                 .deleteAll(database)
             record.userID = cloudID
             try record.insert(database)

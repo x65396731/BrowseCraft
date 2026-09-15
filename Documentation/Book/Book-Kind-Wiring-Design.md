@@ -120,7 +120,7 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
 | 装配 | `BookFeatureFactory` 拿 `SourceRuntimeResolving`；`LibraryContentViewModelFactory` 加 `makeBookSiteDetail` / `makeBookSiteReader`。 |
 
 验收：视图模型固定输入（作品标识稳定、详情列 112 章并按续读位置定起点、阅读器按主体打开站点书到 ready）；全量测试 + 边界脚本；模拟器走通 添加来源 → 生成 → 目录 → Library → 详情 → 阅读 需要真实生成任务，**真机验收由用户做**。
-**还没有**：站点有声作品的播放器；listAPI / chapterAPI / text-api / mediaAPI（无语料）；History 页纳入书籍（用户裁决 B2 不纳入）。
+**还没有**：站点有声作品的播放器；listAPI / chapterAPI / text-api / mediaAPI（无语料）；History 页纳入书籍（用户裁决 B2 不纳入；**2026-09-16 用户改裁决纳入，见第二十三节**）。
 
 ## 十一、模拟器全流程走查（2026-09-14）
 
@@ -289,3 +289,21 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
   App `biquhuaSearchIsDeclaredByRuleAndParsesTheResultPage`（夹具 `biquhua-catalog-search.json` 按引擎交付形状构造 + `biquhua-search-mihunzhen.html` 真实结果页：1 条「[历史]迷魂阵」→ `/book/130/130817/`；
   列表仍落列表页；未声明搜索的 catalog 不支持；第 2 页无模板抛错）。
 - **验证**：Core 234 过（4 跳过）、Runtime 编译过、App 全量见提交说明。**未真机**：要等 biquhua 用新判据真跑出带搜索的 catalog、替换线上规则后，由用户真机验搜索。
+
+## 二十三、站点书进 History 页：与漫画、视频同列（2026-09-16，用户「book 的浏览记录目前不在历史里再次打开，我需要你做成和漫画、视频一样的」）
+
+- **现状**：批次 C 时用户裁决 B2「History 页不纳入书籍」（第十节）。站点书只有续读位置表 `book_reading_progress`（作品标识 + Locator + 时间），
+  没有书名、来源、封面、章节，History 页拼不出一行，也重建不出阅读器的打开参数。本节按用户新裁决推翻 B2。
+- **数据**：迁移 `v5.book-reading-history` 新表 `book_reading_history`，主键 `(userID, sourceID, detailURL)`——**一本书一条**，与漫画在历史页按作品聚合后的形状一致；
+  作品身份与 `SiteBookIdentity`（sourceID + 作品地址）同源。列：`bookItemID`、`bookTitle`、`coverURL`、`chapterTitle`、`chapterURL`、`visitedAt`、`sourceSnapshotJSON`（来源被删后仍能打开，与漫画 / 视频历史同一个兜底）。
+  续读位置仍只在 `book_reading_progress`，历史表不重复存 Locator。索引 `(userID, visitedAt DESC)`。外键只到 `users`（级联）。
+- **写入点**：`BookReaderViewModel`（注入 `SaveBookReadingHistoryUseCase`，缺省 nil）。站点书打开成功写一次；之后每次落进度（节流 1 秒、离开阅读器 `flush`）同步 upsert，
+  章节取当前 Locator 所在的那一章（对法与详情页找续读章节相同：相对 href、补前导斜杠、或有声章节的远程地址），还没有位置时记第一章。**本地导入书不写**（入口已藏）。
+- **展示与重开**：`ReadingHistoryEntry.Kind.book`，行标题 = 书名、副标题 = 最后读到的章节、图标 `book`。点开进与 Library 相同的 `BookReaderView`，
+  主体由 `SiteBookChapterSelection(history:source:)` 重建——**不带章节**，阅读器按续读位置接着读（没有续读位置才从第一章开始）；来源取当前来源，没有则取快照。
+  左滑删除只删历史行，**不删续读位置与书签**（从目录再点开仍接着读）。
+- **账户合并**：`GRDBAppUserIdentityAdoptionStore` 的历史计数与合并复制加上这张表（同键保留较新的 `visitedAt`，与漫画历史同法）。历史表不进 CloudKit，与其它历史表一致。
+- **固定输入**：`GRDBBookRepositoriesTests.bookReadingHistoryIsOnePerBookAndDeletingItKeepsProgress`（同书二次保存只更新一行、按访问时间倒序、历史用例并列出 `.book`、删除后续读位置仍在）；
+  `BookReaderViewModelTests.openingSiteBookRecordsOneHistoryRowThatFollowsTheChapter`（loyalbooks 夹具：打开记第一章、换到第 3 章 flush 后同一行更新、从历史重建的作品标识不变）；
+  `AppDatabaseSchemaSnapshotTests` 快照加一表一索引。
+- **验证**：iPhone 16 Pro 模拟器（iOS 18.5）App 全量 517 项 / 89 组 + XCTest 39 项全过，架构边界干净。**未真机**：读一本站点书 → History 出现该书与最后读到的章节 → 点开从续读位置接着读 → 左滑删除后从目录再点开仍接着读，由用户真机验。

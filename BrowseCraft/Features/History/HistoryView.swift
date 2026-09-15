@@ -101,6 +101,18 @@ struct HistoryView: View {
             }
         case .video:
             HistoryUnavailableView(message: NSLocalizedString("Video history opens with the full-screen player.", comment: ""))
+        case .book:
+            // 中文注释：与 Library 里点开章节进的是同一个阅读器；不带章节，按续读位置接着读。
+            if let history: BookReadingHistory = entry.bookHistory,
+               let source: Source = self.viewModel.source(for: history) {
+                BookReaderView(
+                    viewModel: self.contentViewModelFactory.makeBookSiteReader(
+                        SiteBookChapterSelection(history: history, source: source)
+                    )
+                )
+            } else {
+                HistoryUnavailableView(message: NSLocalizedString("Missing book source.", comment: ""))
+            }
         case .temporary:
             if let history: TemporaryResourceHistory = entry.temporaryHistory {
                 TemporaryHistoryDetailView(history: history)

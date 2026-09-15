@@ -29,6 +29,9 @@ struct HistoryFeatureFactory {
         let videoRepository: VideoWatchHistoryRepository = GRDBVideoWatchHistoryRepository(
             database: self.database
         )
+        let bookRepository: BookReadingHistoryRepository = GRDBBookReadingHistoryRepository(
+            database: self.database
+        )
         let temporaryRepository: TemporaryResourceHistoryRepository = GRDBTemporaryResourceHistoryRepository(
             database: self.database
         )
@@ -38,12 +41,14 @@ struct HistoryFeatureFactory {
                 rssRepository: rssRepository,
                 comicRepository: comicRepository,
                 videoRepository: videoRepository,
+                bookRepository: bookRepository,
                 temporaryRepository: temporaryRepository
             ),
             deleteReadingHistoryEntryUseCase: DeleteReadingHistoryEntryUseCase(
                 rssRepository: rssRepository,
                 comicRepository: comicRepository,
                 videoRepository: videoRepository,
+                bookRepository: bookRepository,
                 temporaryRepository: temporaryRepository
             ),
             reconcileSourceSlotAssignmentsUseCase:

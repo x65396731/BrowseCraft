@@ -11,6 +11,25 @@ struct SiteBookChapterSelection: Hashable, Sendable {
     let chapterTitle: String?
 }
 
+extension SiteBookChapterSelection {
+    /// 中文注释：从历史重开：作品身份（sourceID + 作品地址）与当初一致，续读位置与书签才接得上；不带章节，阅读器按续读位置接着读。
+    init(history: BookReadingHistory, source: Source) {
+        self.init(
+            source: source,
+            item: ContentItem(
+                id: history.bookItemID,
+                sourceId: history.sourceID,
+                title: history.bookTitle,
+                detailURL: history.detailURL,
+                coverURL: history.coverURL?.absoluteString,
+                type: .article
+            ),
+            chapterURL: nil,
+            chapterTitle: nil
+        )
+    }
+}
+
 enum BookReaderSubject: Hashable, Sendable {
     case local(LocalBook)
     case site(SiteBookChapterSelection)

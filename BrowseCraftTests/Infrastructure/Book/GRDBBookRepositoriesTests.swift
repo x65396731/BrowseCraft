@@ -66,6 +66,55 @@ struct GRDBBookRepositoriesTests {
         #expect(try progress.fetchProgress(bookID: siteBookID, userID: "u1")?.totalProgression == 0.1)
     }
 
+    // 中文注释：站点书阅读历史一本书一条：再读同一本只更新章节与访问时间；历史用例把它与别的历史并列、按访问时间倒序；
+    // 删除只删历史行，续读位置还在（从目录再点开仍接着读）。
+    @Test func bookReadingHistoryIsOnePerBookAndDeletingItKeepsProgress() throws {
+        let database: AppDatabase = try Self.makeDatabase()
+        let histories: GRDBBookReadingHistoryRepository = GRDBBookReadingHistoryRepository(database: database)
+        let progress: GRDBBookReadingProgressRepository = GRDBBookReadingProgressRepository(database: database)
+        let detailURL: String = "https://www.biquhua.com/book/0/110/"
+        let first: BookReadingHistory = Self.history(detailURL: detailURL, chapterTitle: "第一章", visitedAt: Self.now.addingTimeInterval(-120))
+        try histories.save(first)
+        var again: BookReadingHistory = first
+        again.chapterTitle = "第二章"
+        again.chapterURL = URL(string: detailURL + "2.html")
+        again.visitedAt = Self.now
+        try histories.save(again)
+        let other: BookReadingHistory = Self.history(detailURL: "https://www.biquhua.com/book/0/111/", chapterTitle: "序", visitedAt: Self.now.addingTimeInterval(-60))
+        try histories.save(other)
+
+        #expect(try histories.fetchHistory(userID: "u1") == [again, other])
+        #expect(try histories.fetchHistory(userID: "someone-else").isEmpty)
+
+        let rss: GRDBRSSReadingHistoryRepository = GRDBRSSReadingHistoryRepository(database: database)
+        let comic: GRDBComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(database: database)
+        let video: GRDBVideoWatchHistoryRepository = GRDBVideoWatchHistoryRepository(database: database)
+        let temporary: GRDBTemporaryResourceHistoryRepository = GRDBTemporaryResourceHistoryRepository(database: database)
+        let entries: [ReadingHistoryEntry] = try LoadReadingHistoryEntriesUseCase(
+            rssRepository: rss,
+            comicRepository: comic,
+            videoRepository: video,
+            bookRepository: histories,
+            temporaryRepository: temporary
+        ).execute(userID: "u1")
+        #expect(entries.map(\.kind) == [.book, .book])
+        #expect(entries.first?.title == "普罗之主")
+        #expect(entries.first?.subtitle == "第二章")
+        #expect(entries.first?.bookHistory == again)
+
+        let bookID: UUID = SiteBookIdentity.bookID(sourceID: "biquhua", detailURL: detailURL)
+        try progress.saveProgress(BookReadingProgress(bookID: bookID, userID: "u1", locatorJSON: "{}", totalProgression: 0.3, updatedAt: Self.now))
+        try DeleteReadingHistoryEntryUseCase(
+            rssRepository: rss,
+            comicRepository: comic,
+            videoRepository: video,
+            bookRepository: histories,
+            temporaryRepository: temporary
+        ).execute(entries[0])
+        #expect(try histories.fetchHistory(userID: "u1") == [other])
+        #expect(try progress.fetchProgress(bookID: bookID, userID: "u1") != nil, "删历史不删续读位置")
+    }
+
     @Test func rowsWithUnknownFormatAreSkippedNotGuessed() throws {
         let database: AppDatabase = try Self.makeDatabase()
         let repository: GRDBLocalBookRepository = GRDBLocalBookRepository(database: database)
@@ -85,6 +134,20 @@ struct GRDBBookRepositoriesTests {
             AppUser(id: "u1", displayName: nil, hasRemovedAds: false, pendingAdPoints: 0, createdAt: Self.now, updatedAt: Self.now)
         )
         return database
+    }
+
+    private static func history(detailURL: String, chapterTitle: String, visitedAt: Date) -> BookReadingHistory {
+        return BookReadingHistory(
+            userID: "u1",
+            sourceID: "biquhua",
+            detailURL: detailURL,
+            bookItemID: detailURL,
+            bookTitle: "普罗之主",
+            coverURL: URL(string: "https://www.biquhua.com/cover/110.jpg"),
+            chapterTitle: chapterTitle,
+            chapterURL: URL(string: detailURL + "1.html"),
+            visitedAt: visitedAt
+        )
     }
 
     private static func book(sha256: String, importedAt: Date) -> LocalBook {

@@ -35,6 +35,7 @@ final class BookReaderViewModel {
     private let addBookmarkUseCase: AddBookBookmarkUseCase
     private let listBookmarksUseCase: ListBookBookmarksUseCase
     private let removeBookmarkUseCase: RemoveBookBookmarkUseCase
+    private let saveHistoryUseCase: SaveBookReadingHistoryUseCase?
     private let userID: String
     private let throttleNanoseconds: UInt64
     private var pendingSave: Task<Void, Never>?
@@ -46,6 +47,8 @@ final class BookReaderViewModel {
     private(set) var audioNavigator: AudioNavigator?
     private(set) var audioPlayback: MediaPlaybackInfo = MediaPlaybackInfo()
     private(set) var coverURL: URL?
+    /// 中文注释：站点书的章节表，写阅读历史时把位置 href 对回章节标题与地址。
+    private var siteManifest: BookPublicationManifest?
     private var audioBridge: AudioNavigatorBridge?
     private var remoteControls: AudiobookRemoteControls?
 
@@ -72,6 +75,7 @@ final class BookReaderViewModel {
         addBookmarkUseCase: AddBookBookmarkUseCase,
         listBookmarksUseCase: ListBookBookmarksUseCase,
         removeBookmarkUseCase: RemoveBookBookmarkUseCase,
+        saveHistoryUseCase: SaveBookReadingHistoryUseCase? = nil,
         throttleNanoseconds: UInt64 = 1_000_000_000
     ) {
         self.subject = subject
@@ -84,6 +88,7 @@ final class BookReaderViewModel {
         self.addBookmarkUseCase = addBookmarkUseCase
         self.listBookmarksUseCase = listBookmarksUseCase
         self.removeBookmarkUseCase = removeBookmarkUseCase
+        self.saveHistoryUseCase = saveHistoryUseCase
         self.throttleNanoseconds = throttleNanoseconds
     }
 
@@ -97,6 +102,7 @@ final class BookReaderViewModel {
                 try await self.openLocal(book)
             case .site(let selection):
                 try await self.openSite(selection)
+                self.recordSiteHistory()
             }
             if let publication: Publication = self.publication, case .success(let links) = await publication.tableOfContents() {
                 self.tableOfContents = links
@@ -133,6 +139,7 @@ final class BookReaderViewModel {
             self.loadedTitle = resolvedTitle
         }
         self.coverURL = loaded.manifest.coverURL
+        self.siteManifest = loaded.manifest
         let publication: Publication = self.sitePublicationBuilder.build(manifest: loaded.manifest, contentProvider: loaded.contentProvider)
         self.publication = publication
         let saved: Locator? = try self.loadProgressUseCase.execute(bookID: self.bookID, userID: self.userID)
@@ -281,6 +288,39 @@ final class BookReaderViewModel {
             locatorJSON: json,
             totalProgression: locator.locations.totalProgression
         )
+        self.recordSiteHistory()
+    }
+
+    /// 中文注释：站点书写一条阅读历史（一本书一条，upsert），章节取当前位置所在的那一章；本地书不进历史。
+    /// 打开时写一次、之后随进度落库一起更新，所以历史里的章节与访问时间跟着最近一次阅读走。
+    private func recordSiteHistory() {
+        guard case .site(let selection) = self.subject,
+              let saveHistoryUseCase: SaveBookReadingHistoryUseCase = self.saveHistoryUseCase else {
+            return
+        }
+        let chapter: BookPublicationItem? = self.currentLocator.map { self.siteChapter(forHref: $0.href.string) }
+            ?? self.siteManifest?.items.first
+        try? saveHistoryUseCase.execute(
+            history: BookReadingHistory(
+                userID: self.userID,
+                sourceID: selection.source.id,
+                detailURL: selection.item.detailURL,
+                bookItemID: selection.item.id,
+                bookTitle: self.title,
+                coverURL: self.coverURL ?? selection.item.coverURL.flatMap(URL.init(string:)),
+                chapterTitle: chapter?.title ?? self.currentLocator?.title ?? selection.chapterTitle,
+                chapterURL: chapter?.chapterURL ?? selection.chapterURL,
+                visitedAt: Date(),
+                sourceSnapshot: SourceSnapshot(source: selection.source)
+            )
+        )
+    }
+
+    /// 中文注释：与详情页找续读章节同一条对法：出版物内相对 href（Navigator 可能补前导斜杠），有声章节的 href 就是远程地址。
+    private func siteChapter(forHref href: String) -> BookPublicationItem? {
+        return self.siteManifest?.items.first { item in
+            return item.href == href || "/" + item.href == href || item.chapterURL.absoluteString == href
+        }
     }
 
     static func locator(fromJSON json: String) -> Locator? {
