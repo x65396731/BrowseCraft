@@ -20,6 +20,10 @@ struct RootView: View {
     private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
     #if DEBUG
     private let videoRuntimeAuditWebUIPresenter: VideoRuntimeAuditWebUIPresenter
+    /// 中文注释：仅 DEBUG——模拟器注入的 tap 打不到开屏「跳过」按钮；带启动参数
+    /// `-BrowseCraftSkipStartupAnimation` 时，跳过一解锁就自动走与按钮相同的 skip 路径，供模拟器验证。
+    private static let skipsStartupAnimationWhenUnlocked: Bool =
+        ProcessInfo.processInfo.arguments.contains("-BrowseCraftSkipStartupAnimation")
     #endif
     @State private var sourcesViewModel: SourcesViewModel
     @State private var favoritesViewModel: FavoritesViewModel
@@ -112,6 +116,13 @@ struct RootView: View {
                 self.navigateToCatalogIfPending()
             }
         }
+        #if DEBUG
+        .onChange(of: self.startupCoordinator.phase.canSkip) { _, canSkip in
+            if canSkip && Self.skipsStartupAnimationWhenUnlocked {
+                self.skipStartupAnimation()
+            }
+        }
+        #endif
         .onChange(of: self.cloudSyncSettingsViewModel.identityRevision) { _, _ in
             Task {
                 await self.historyViewModel.load()
