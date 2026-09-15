@@ -152,6 +152,22 @@ enum ViewModelTestHarness {
         return condition()
     }
 
+    /// 中文注释：条件需要 `await` 时用这个（例如读 actor 测试替身的调用计数）；语义同 `waitUntil`。
+    @MainActor
+    static func waitUntilAsync(
+        timeoutSeconds: TimeInterval = 3,
+        _ condition: @MainActor () async -> Bool
+    ) async -> Bool {
+        let deadline: Date = Date().addingTimeInterval(timeoutSeconds)
+        while Date() < deadline {
+            if await condition() {
+                return true
+            }
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        return await condition()
+    }
+
     // MARK: - ViewModels
 
     @MainActor

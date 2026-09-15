@@ -84,7 +84,12 @@ struct SourcesViewModelOutcomeRefreshTests {
         #expect(viewModel.failedGenerationOutcomes.first?.reasonDetail == "episodeLayoutUnsupported")
         #expect(viewModel.personalCatalogSources.isEmpty)
         #expect(viewModel.isPersonalCatalogSignInRequired == false)
-        // 中文注释：到达一次 + 点开一次 = 两次刷新。
+        // 中文注释：到达一次 + 点开一次 = 两次刷新。点开时导航标记同步 +1，第二次刷新随后才异步发出，
+        // 所以要等到请求真正到达替身再断言次数，否则会偶发读到 1。
+        let refreshedTwice: Bool = await Harness.waitUntilAsync {
+            await client.callCount >= 2
+        }
+        #expect(refreshedTwice)
         #expect(await client.callCount == 2)
     }
 
