@@ -202,6 +202,12 @@ final class SourcesViewModel {
         return self.catalogSourceGrouping.personalEntryURLs[catalogSource.id]
     }
 
+    /// 目录行副标题用的入口：个人规则取任务入口；公共目录同一主机有多条时取各自规则的入口；都没有返回 nil（视图显示 `baseURL`）。
+    func catalogEntryURL(for catalogSource: CatalogSource) -> String? {
+        let grouping: CatalogSourceGrouping = self.catalogSourceGrouping
+        return grouping.personalEntryURLs[catalogSource.id] ?? grouping.defaultEntryURLs[catalogSource.id]
+    }
+
     /// 个人分组需要登录才有内容；未接入 outcomes 用例（测试替身）时视为不需要。
     var isPersonalCatalogSignInRequired: Bool {
         return self.videoGenerationOutcomesLoad == .authRequired

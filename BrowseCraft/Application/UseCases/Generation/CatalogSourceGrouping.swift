@@ -12,6 +12,11 @@ struct CatalogSourceGrouping: Hashable, Sendable {
     let failedOutcomes: [VideoGenerationOutcome]
     /// catalogSourceId → 该规则对应的成功终态（入口 URL、到期时间）。
     let personalOutcomes: [String: VideoGenerationOutcome]
+    /// catalogSourceId → 公共目录里「同一主机有多条来源」时各自规则的入口 URL。
+    ///
+    /// 中文注释：同站多入口（sfacg「全部小说」与分类 tid=21、动漫嗨手写与生成）名字与 `baseURL` 都相同，
+    /// 目录行无从区分；只对这种来源给出入口，单独一条的站保持显示 `baseURL`。
+    var defaultEntryURLs: [String: String] = [:]
 
     var personalEntryURLs: [String: String] {
         return self.personalOutcomes.compactMapValues { $0.entryURL }
@@ -49,7 +54,47 @@ struct CatalogSourceGrouping: Hashable, Sendable {
             defaultSources: defaultSources,
             personalSources: personalSources,
             failedOutcomes: failedOutcomes,
-            personalOutcomes: personalOutcomes
+            personalOutcomes: personalOutcomes,
+            defaultEntryURLs: Self.sameHostEntryURLs(defaultSources)
         )
+    }
+
+    /// 中文注释：按主机分组，一个主机出现两条及以上时，逐条取规则里的入口 URL；取不到的不写，视图退回 `baseURL`。
+    private static func sameHostEntryURLs(_ sources: [CatalogSource]) -> [String: String] {
+        var sourcesByHost: [String: [CatalogSource]] = [:]
+        for source in sources {
+            guard let host: String = URL(string: source.baseURL)?.host?.lowercased() else {
+                continue
+            }
+            sourcesByHost[host, default: []].append(source)
+        }
+        var entryURLs: [String: String] = [:]
+        for group in sourcesByHost.values where group.count > 1 {
+            for source in group {
+                if let entryURL: String = Self.ruleEntryURL(ruleJSON: source.ruleJSON, baseURL: source.baseURL) {
+                    entryURLs[source.id] = entryURL
+                }
+            }
+        }
+        return entryURLs
+    }
+
+    /// 规则 `pages[]` 里第一个可展示的入口：跳过缺失与带占位符的模板（`?page={page}`），相对路径按 `baseURL` 补全。
+    static func ruleEntryURL(ruleJSON: String, baseURL: String) -> String? {
+        guard let data: Data = ruleJSON.data(using: .utf8),
+              let object: [String: Any] = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let pages: [[String: Any]] = object["pages"] as? [[String: Any]] else {
+            return nil
+        }
+        for page in pages {
+            guard let rawURL: String = page["url"] as? String,
+                  rawURL.isEmpty == false,
+                  rawURL.contains("{") == false,
+                  let resolved: URL = URL(string: rawURL, relativeTo: URL(string: baseURL)) else {
+                continue
+            }
+            return resolved.absoluteURL.absoluteString
+        }
+        return nil
     }
 }

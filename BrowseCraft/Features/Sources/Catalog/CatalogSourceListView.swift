@@ -114,7 +114,7 @@ struct CatalogSourceListView: View {
     private func row(for catalogSource: CatalogSource) -> some View {
         return CatalogSourceRowView(
             catalogSource: catalogSource,
-            subtitleURL: self.viewModel.personalRuleEntryURL(for: catalogSource) ?? catalogSource.baseURL,
+            subtitleURL: self.viewModel.catalogEntryURL(for: catalogSource) ?? catalogSource.baseURL,
             isAdded: self.viewModel.isCatalogSourceAdded(catalogSource),
             hasUpdate: self.viewModel.catalogSourceHasRuleUpdate(catalogSource),
             isAdding: self.addingSourceIDs.contains(catalogSource.id),
