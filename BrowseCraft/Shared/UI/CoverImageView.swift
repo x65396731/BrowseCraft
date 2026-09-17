@@ -16,6 +16,8 @@ struct CoverImageView: View {
     let requestConfig: RequestConfig?
     let placeholderImageName: String?
     @State private var candidateIndex: Int = 0
+    @State private var displaySize: CGSize = .zero
+    @State private var request: ImageRequest?
 
     init(
         urlString: String?,
@@ -31,15 +33,10 @@ struct CoverImageView: View {
 
     var body: some View {
         let urlCandidates: [String] = Self.urlCandidates(from: self.urlString)
+        let candidate: String? = Self.urlCandidate(at: self.candidateIndex, in: urlCandidates)
         Group {
-            if let urlString: String = Self.urlCandidate(at: self.candidateIndex, in: urlCandidates),
-               let request: ImageRequest = ImageRequestFactory.makeRequest(
-                urlString: urlString,
-                refererURLString: self.refererURLString,
-                requestConfig: self.requestConfig,
-                browserRequestHeaderProvider: self.browserRequestHeaderProvider,
-                systemCookieHeaderProvider: self.systemCookieHeaderProvider
-               ) {
+            if let urlString: String = candidate,
+               let request: ImageRequest = self.request {
                 LazyImage(request: request) { state in
                     if let image = state.image {
                         // 中文注释：aspectFill 必须由中立容器承载并裁剪——直接放大图片会让它的
@@ -66,9 +63,33 @@ struct CoverImageView: View {
                 self.placeholder
             }
         }
+        .measuringDisplaySize(into: self.$displaySize)
+        .task(id: self.requestIdentity(for: candidate)) {
+            // 中文注释：请求只在「地址 / Referer / 规则 / 显示尺寸」变化时构造一次，不在 body 里重复扫 Cookie 与合并请求头。
+            self.request = self.requestIdentity(for: candidate).flatMap { identity in
+                RemoteImageRequestBuilder.makeRequest(
+                    identity,
+                    browserRequestHeaderProvider: self.browserRequestHeaderProvider,
+                    systemCookieHeaderProvider: self.systemCookieHeaderProvider
+                )
+            }
+        }
         .onChange(of: self.urlString) {
             self.candidateIndex = 0
         }
+    }
+
+    private func requestIdentity(for candidate: String?) -> RemoteImageRequestIdentity? {
+        guard let candidate else {
+            return nil
+        }
+        return RemoteImageRequestIdentity(
+            urlString: candidate,
+            refererURLString: self.refererURLString,
+            requestConfig: self.requestConfig,
+            additionalHeaders: nil,
+            displaySize: self.displaySize
+        )
     }
 
     private func advanceToNextCandidateIfAvailable(candidateCount: Int) {

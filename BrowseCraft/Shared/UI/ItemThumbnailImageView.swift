@@ -14,6 +14,8 @@ struct ItemThumbnailImageView: View {
     let requestConfig: RequestConfig?
     let placeholderImageName: String?
     @State private var candidateIndex: Int = 0
+    @State private var displaySize: CGSize = .zero
+    @State private var request: ImageRequest?
 
     init(
         urlString: String?,
@@ -29,9 +31,10 @@ struct ItemThumbnailImageView: View {
 
     var body: some View {
         let urlCandidates: [String] = Self.urlCandidates(from: self.urlString)
+        let candidate: String? = Self.urlCandidate(at: self.candidateIndex, in: urlCandidates)
         Group {
-            if let urlString: String = Self.urlCandidate(at: self.candidateIndex, in: urlCandidates),
-               let request: ImageRequest = self.thumbnailRequest(urlString: urlString) {
+            if let urlString: String = candidate,
+               let request: ImageRequest = self.request {
                 LazyImage(request: request) { state in
                     if let image = state.image {
                         // 中文注释：aspectFill 必须由中立容器承载并裁剪——直接放大图片会让它的
@@ -59,9 +62,34 @@ struct ItemThumbnailImageView: View {
                 self.placeholder
             }
         }
+        .measuringDisplaySize(into: self.$displaySize)
+        .task(id: self.requestIdentity(for: candidate)) {
+            // 中文注释：同 CoverImageView——请求只在标识变化时构造一次；缩略图池的缓存键与低优先级在 thumbnailRequest 里加。
+            self.request = self.requestIdentity(for: candidate).flatMap { identity in
+                RemoteImageRequestBuilder.makeRequest(
+                    identity,
+                    browserRequestHeaderProvider: self.browserRequestHeaderProvider,
+                    systemCookieHeaderProvider: self.systemCookieHeaderProvider
+                )
+            }
+            .map(ItemThumbnailImageCachePlugin.thumbnailRequest(from:))
+        }
         .onChange(of: self.urlString) {
             self.candidateIndex = 0
         }
+    }
+
+    private func requestIdentity(for candidate: String?) -> RemoteImageRequestIdentity? {
+        guard let candidate else {
+            return nil
+        }
+        return RemoteImageRequestIdentity(
+            urlString: candidate,
+            refererURLString: self.refererURLString,
+            requestConfig: self.requestConfig,
+            additionalHeaders: nil,
+            displaySize: self.displaySize
+        )
     }
 
     private func advanceToNextCandidateIfAvailable(candidateCount: Int) {
@@ -104,20 +132,6 @@ struct ItemThumbnailImageView: View {
         }
 
         return [httpsURLString, urlString]
-    }
-
-    private func thumbnailRequest(urlString: String) -> ImageRequest? {
-        guard let request: ImageRequest = ImageRequestFactory.makeRequest(
-                urlString: urlString,
-                refererURLString: self.refererURLString,
-                requestConfig: self.requestConfig,
-                browserRequestHeaderProvider: self.browserRequestHeaderProvider,
-                systemCookieHeaderProvider: self.systemCookieHeaderProvider
-              ) else {
-            return nil
-        }
-
-        return ItemThumbnailImageCachePlugin.thumbnailRequest(from: request)
     }
 
     @ViewBuilder
