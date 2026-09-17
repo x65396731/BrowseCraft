@@ -14,6 +14,23 @@ Regenerate the Xcode project after adding, moving or removing source files.
 
 It does not build the app.
 
+## check-architecture-boundaries.sh
+
+Pre-build gate for layer boundaries. It runs on every build and never modifies anything.
+
+```sh
+./scripts/check-architecture-boundaries.sh
+```
+
+中文注释：2026-09-18 起闸门覆盖以下内容，以「今天的取值」为基线，阻止继续漂移：
+
+- import 检查匹配所有写法：`import X`、`@preconcurrency import X`、`@_exported import X`、`import struct X.Y`、`import X.Sub`。
+- 类型引用方向新增 Features→Infrastructure、Shared→Application、Shared→Infrastructure；`declared_types` 识别 `@Observable`、`nonisolated`、`package`、`open` 等修饰。
+- `print(` 与 `try!` 禁用扩展到 App 与四个包（Core / Domain / Runtime / APIKit）的 Sources。
+
+已存在的命中登记在 `scripts/architecture-boundary-exemptions.txt`，每行「路径 标识」（路径相对仓库根，包用 `../BrowseCraftXxx/...`）。
+豁免只允许收敛、不允许新增未经审阅的条目；删掉一行即恢复对该处的检查。
+
 ## check-swiftsoup-override.sh
 
 Verify that the local SwiftSoup override package (`../SwiftSoup`) sits at the exact commit

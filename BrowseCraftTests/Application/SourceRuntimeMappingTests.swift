@@ -485,7 +485,8 @@ private struct StubSourceRuntime: SourceRuntime, SourceSearchRuntime, SourceDeta
     }
 }
 
-private final class RecordingSourceRuntime: SourceRuntime {
+// 中文注释：SourceRuntime 契约要求 Sendable；录制替身只在单个测试 Task 内顺序使用，自证安全。
+private final class RecordingSourceRuntime: SourceRuntime, @unchecked Sendable {
     let definition: SourceDefinition
     private(set) var listInputs: [SourceListInput] = []
 

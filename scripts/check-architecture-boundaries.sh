@@ -4,7 +4,19 @@ set -euo pipefail
 
 REPOSITORY_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP_ROOT="$REPOSITORY_ROOT/BrowseCraft"
+CORE_ROOT="$REPOSITORY_ROOT/../BrowseCraftCore/Sources/BrowseCraftCore"
 DOMAIN_PACKAGE_ROOT="$REPOSITORY_ROOT/../BrowseCraftDomain/Sources/BrowseCraftDomain"
+RUNTIME_PACKAGE_ROOT="$REPOSITORY_ROOT/../BrowseCraftRuntime/Sources/BrowseCraftRuntime"
+API_KIT_PACKAGE_ROOT="$REPOSITORY_ROOT/../BrowseCraftAPIKit/Sources/BrowseCraftAPIKit"
+EXEMPTIONS_FILE="$REPOSITORY_ROOT/scripts/architecture-boundary-exemptions.txt"
+
+# Every spelling of an import statement that brings module X into a file:
+#   import X            @preconcurrency import X      @_exported import X
+#   import struct X.Y   import X.Submodule            @testable import X
+# The old check matched only the bare `^import X$` form, which let the
+# annotated and scoped forms through unnoticed.
+IMPORT_PREFIX='^[[:space:]]*(@preconcurrency[[:space:]]+|@_exported[[:space:]]+|@_implementationOnly[[:space:]]+|@testable[[:space:]]+|@_spi\([A-Za-z0-9_]+\)[[:space:]]+)*import([[:space:]]+(struct|class|enum|protocol|actor|func|var|let|typealias))?[[:space:]]+'
+IMPORT_SUFFIX='(\.[A-Za-z_][A-Za-z0-9_.]*)?[[:space:]]*$'
 
 search_swift() {
   local directory="$1"
@@ -53,13 +65,39 @@ exclude_matches() {
   printf '%s' "$output"
 }
 
+# Reads grep-style `path:line:content` matches on stdin and blanks out every
+# token that the exemptions file registers for that path, so a line whose only
+# offending references are registered no longer matches the caller's pattern.
+# Paths in the exemptions file are relative to the repository root; package
+# paths use `../BrowseCraftXxx/...`, which is how the roots above are spelled.
+apply_exemptions() {
+  local script=''
+  local file token
+
+  if [[ ! -f "$EXEMPTIONS_FILE" ]]; then
+    cat
+    return 0
+  fi
+
+  while read -r file token; do
+    [[ -z "$file" || "$file" == \#* ]] && continue
+    script+="\\#^${REPOSITORY_ROOT}/${file}:#s/(^|[^A-Za-z0-9_])${token}([^A-Za-z0-9_]|\$)/\\1\\2/g;"
+  done < "$EXEMPTIONS_FILE"
+
+  if [[ -z "$script" ]]; then
+    cat
+    return 0
+  fi
+  sed -E "$script"
+}
+
 fail_if_imported() {
   local directory="$1"
   local pattern="$2"
   local label="$3"
   local matches
 
-  matches="$(search_swift "$directory" "^import ($pattern)$")"
+  matches="$(search_swift "$directory" "${IMPORT_PREFIX}(${pattern})${IMPORT_SUFFIX}")"
   if [[ -n "$matches" ]]; then
     echo "Architecture boundary violation: $label"
     echo "$matches"
@@ -67,21 +105,23 @@ fail_if_imported() {
   fi
 }
 
+FORBIDDEN_FRAMEWORKS='UIKit|SwiftUI|StoreKit|GRDB|Alamofire|Nuke|SwiftSoup|BrowseCraftAPIKit|WebKit|AVFoundation|CloudKit|Combine|ReadiumShared|ReadiumStreamer|ReadiumNavigator|ReadiumAdapterGCDWebServer|MediaPlayer'
+
 fail_if_imported \
   "$APP_ROOT/Domain" \
-  'UIKit|SwiftUI|StoreKit|GRDB|Alamofire|Nuke|SwiftSoup|BrowseCraftAPIKit|WebKit|AVFoundation|CloudKit|Combine|ReadiumShared|ReadiumStreamer|ReadiumNavigator|ReadiumAdapterGCDWebServer|MediaPlayer' \
+  "$FORBIDDEN_FRAMEWORKS" \
   'Domain must remain framework-agnostic.'
 
 if [[ -d "$DOMAIN_PACKAGE_ROOT" ]]; then
 fail_if_imported \
   "$DOMAIN_PACKAGE_ROOT" \
-  'UIKit|SwiftUI|StoreKit|GRDB|Alamofire|Nuke|SwiftSoup|BrowseCraftAPIKit|WebKit|AVFoundation|CloudKit|Combine|ReadiumShared|ReadiumStreamer|ReadiumNavigator|ReadiumAdapterGCDWebServer|MediaPlayer' \
+  "$FORBIDDEN_FRAMEWORKS" \
   'BrowseCraftDomain may depend only on Foundation and BrowseCraftCore.'
 fi
 
 fail_if_imported \
   "$APP_ROOT/Application" \
-  'UIKit|SwiftUI|StoreKit|GRDB|Alamofire|Nuke|SwiftSoup|BrowseCraftAPIKit|WebKit|AVFoundation|CloudKit|Combine|ReadiumShared|ReadiumStreamer|ReadiumNavigator|ReadiumAdapterGCDWebServer|MediaPlayer' \
+  "$FORBIDDEN_FRAMEWORKS" \
   'Application must depend on ports and domain values, not UI or infrastructure frameworks.'
 
 # Import checks cannot see references between layers of the same module, so the
@@ -90,7 +130,7 @@ fail_if_imported \
 declared_types() {
   local directory="$1"
   /usr/bin/grep -R -h -o -E --include='*.swift' \
-    '^(public |internal |private |fileprivate |final |indirect |@MainActor |@frozen )*(final )?(class|struct|enum|protocol|actor) [A-Z][A-Za-z0-9_]+' \
+    '^(public |internal |private |fileprivate |package |open |final |indirect |nonisolated |@MainActor |@frozen |@Observable |@propertyWrapper |@dynamicMemberLookup |@objc |@objcMembers |@usableFromInline )*(final )?(class|struct|enum|protocol|actor) [A-Z][A-Za-z0-9_]+' \
     "$directory" 2>/dev/null | awk '{print $NF}' | sort -u
 }
 
@@ -113,6 +153,7 @@ fail_if_types_referenced() {
   matches="$(
     /usr/bin/grep -R -n -H -w -E --include='*.swift' "$pattern" "$user_directory" 2>/dev/null \
       | sed -E 's/"([^"\\]|\\.)*"//g; s#//.*$##' \
+      | apply_exemptions \
       | /usr/bin/grep -w -E "$pattern" || true
   )"
   if [[ -n "$matches" ]]; then
@@ -136,19 +177,42 @@ for layer in Features App; do
 done
 fail_if_types_referenced "$APP_ROOT/App" "$APP_ROOT/Features" \
   'Features must not reference composition-root (App) types.'
+fail_if_types_referenced "$APP_ROOT/Infrastructure" "$APP_ROOT/Features" \
+  'Features must not construct Infrastructure types; inject them through Application ports.'
 fail_if_types_referenced "$APP_ROOT/App" "$APP_ROOT/Shared" \
   'Shared must not reference composition-root (App) types.'
 fail_if_types_referenced "$APP_ROOT/Features" "$APP_ROOT/Shared" \
   'Shared must not reference Feature types.'
+fail_if_types_referenced "$APP_ROOT/Application" "$APP_ROOT/Shared" \
+  'Shared must not reference Application types; it sits below Application.'
+fail_if_types_referenced "$APP_ROOT/Infrastructure" "$APP_ROOT/Shared" \
+  'Shared must not reference Infrastructure types.'
 
-matches="$(search_swift "$APP_ROOT" '(^|[^[:alnum:]_])print[[:space:]]*\(')"
-if [[ -n "$matches" ]]; then
-  echo 'Architecture boundary violation: use AppLog/AppDebugLog instead of print.'
-  echo "$matches"
-  exit 1
-fi
+# Token bans apply to the app and to every package source tree.
+fail_if_token_used() {
+  local pattern="$1"
+  local label="$2"
+  local directory matches all_matches=''
 
-api_kit_matches="$(search_swift "$APP_ROOT" '^import BrowseCraftAPIKit$')"
+  for directory in "$APP_ROOT" "$CORE_ROOT" "$DOMAIN_PACKAGE_ROOT" "$RUNTIME_PACKAGE_ROOT" "$API_KIT_PACKAGE_ROOT"; do
+    [[ -d "$directory" ]] || continue
+    matches="$(search_swift "$directory" "$pattern" | apply_exemptions | /usr/bin/grep -E "$pattern" || true)"
+    if [[ -n "$matches" ]]; then
+      all_matches+="$matches"$'\n'
+    fi
+  done
+
+  if [[ -n "$all_matches" ]]; then
+    echo "Architecture boundary violation: $label"
+    printf '%s' "$all_matches"
+    exit 1
+  fi
+}
+
+fail_if_token_used '(^|[^[:alnum:]_])print[[:space:]]*\(' 'use AppLog/AppDebugLog instead of print.'
+fail_if_token_used '(^|[^[:alnum:]_])try!' 'do not use try!; propagate or handle the error (register a reviewed literal-pattern exception in scripts/architecture-boundary-exemptions.txt).'
+
+api_kit_matches="$(search_swift "$APP_ROOT" "${IMPORT_PREFIX}BrowseCraftAPIKit${IMPORT_SUFFIX}")"
 api_kit_violations="$(
   exclude_matches \
     "$api_kit_matches" \
@@ -161,9 +225,8 @@ if [[ -n "$api_kit_violations" ]]; then
   exit 1
 fi
 
-CORE_ROOT="$REPOSITORY_ROOT/../BrowseCraftCore/Sources/BrowseCraftCore"
 if [[ -d "$CORE_ROOT" ]]; then
-  swift_soup_matches="$(search_swift "$CORE_ROOT" '^import SwiftSoup$')"
+  swift_soup_matches="$(search_swift "$CORE_ROOT" "${IMPORT_PREFIX}SwiftSoup${IMPORT_SUFFIX}")"
   swift_soup_violations="$(
     exclude_matches \
       "$swift_soup_matches" \

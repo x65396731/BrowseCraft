@@ -1,0 +1,23 @@
+# 中文注释：check-architecture-boundaries.sh 的豁免清单。每行「路径 标识」，路径相对本仓库根目录
+# （包用 ../BrowseCraftXxx/...），标识是被引用的类型名或被禁用的记号（print( / try!）。
+# 这里登记的是 2026-09-18 扩展闸门时已经存在的命中，目的是先把今天的取值固化成基线、阻止继续漂移；
+# 每条都应逐个收敛后删除，不得新增未经审阅的条目。
+
+# Features → Infrastructure：Features 直接构造基础设施类型，应改经 Application port 注入。
+BrowseCraft/Features/Settings/SettingsViewModel.swift ImageCacheConfigurator
+BrowseCraft/Features/Settings/Premium/InAppPurchaseSheetView.swift BundledPurchaseAnimationResource
+BrowseCraft/Features/Settings/Premium/PurchaseAnimation/PurchaseAnimationPlayerView.swift BundledPurchaseAnimationResource
+BrowseCraft/Features/Library/Book/Reader/BookReaderViewModel.swift ReadiumSitePublicationBuilder
+BrowseCraft/Features/Library/Book/Reader/BookReaderViewModel.swift ReadiumBookPublicationHandle
+BrowseCraft/Features/Library/Book/Reader/EPUBNavigatorRepresentable.swift ReadiumBookEnvironment
+BrowseCraft/Features/Startup/StartupAnimationView.swift BundledStartupAnimationResource
+
+# Shared → Application：错误分类器认识 Application 的错误类型，应下沉到 Application 或改为协议。
+BrowseCraft/Shared/Errors/RuleExecutionError.swift CatalogSourceImportError
+BrowseCraft/Shared/Errors/RuleExecutionError.swift SourceListLoadValidationError
+
+# Shared → Infrastructure：缩略图视图直接取缓存插件单例，应经 Environment 注入。
+BrowseCraft/Shared/UI/ItemThumbnailImageView.swift ItemThumbnailImageCachePlugin
+
+# try!：字面量正则的 static let，模式固定不会失败；保留登记以防新增。
+../BrowseCraftRuntime/Sources/BrowseCraftRuntime/Book/BookSourceRuntime.swift try!
