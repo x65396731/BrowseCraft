@@ -396,9 +396,10 @@ struct SourceRuntimeMappingTests {
             url: "https://example.test/chapters/1"
         )
 
+        let chapterURL: URL = try #require(URL(string: chapter.url))
         let reference: SourceItemReference = mapper.reference(
             from: item,
-            chapterURL: try #require(URL(string: chapter.url)),
+            chapterURL: chapterURL,
             intent: .directReader,
             requestOverride: requestOverride
         )

@@ -5,19 +5,20 @@ import BrowseCraftDomain
 import BrowseCraftRuntime
 
 // 中文注释：测试专用闭包 resolver，避免生产 Runtime 为测试注入保留第二套分发实现。
+// resolver 是 Sendable（跨 Task 共享），因此工厂闭包必须是 @Sendable；SourceRuntime 本身已要求 Sendable。
 struct TestSourceRuntimeResolver: SourceRuntimeResolving {
     private let definitionMapper: SourceDefinitionMapper
-    private let comicRuntimeFactory: (Source) -> any SourceRuntime
-    private let videoRuntimeFactory: ((Source) throws -> any SourceRuntime)?
-    private let pluginRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)?
-    private let bookRuntimeFactory: ((Source) -> any SourceRuntime)?
+    private let comicRuntimeFactory: @Sendable (Source) -> any SourceRuntime
+    private let videoRuntimeFactory: (@Sendable (Source) throws -> any SourceRuntime)?
+    private let pluginRuntimeFactory: (@Sendable (SourceDefinition) -> any SourceRuntime)?
+    private let bookRuntimeFactory: (@Sendable (Source) -> any SourceRuntime)?
 
     init(
         definitionMapper: SourceDefinitionMapper = SourceDefinitionMapper(),
-        videoRuntimeFactory: ((Source) throws -> any SourceRuntime)? = nil,
-        pluginRuntimeFactory: ((SourceDefinition) -> any SourceRuntime)? = nil,
-        bookRuntimeFactory: ((Source) -> any SourceRuntime)? = nil,
-        comicRuntimeFactory: @escaping (Source) -> any SourceRuntime
+        videoRuntimeFactory: (@Sendable (Source) throws -> any SourceRuntime)? = nil,
+        pluginRuntimeFactory: (@Sendable (SourceDefinition) -> any SourceRuntime)? = nil,
+        bookRuntimeFactory: (@Sendable (Source) -> any SourceRuntime)? = nil,
+        comicRuntimeFactory: @escaping @Sendable (Source) -> any SourceRuntime
     ) {
         self.definitionMapper = definitionMapper
         self.comicRuntimeFactory = comicRuntimeFactory
@@ -55,7 +56,7 @@ struct TestSourceRuntimeResolver: SourceRuntimeResolving {
                     "Video test runtime resolution requires an App Source payload."
                 )
             }
-            guard let videoRuntimeFactory: (Source) throws -> any SourceRuntime = self.videoRuntimeFactory else {
+            guard let videoRuntimeFactory: @Sendable (Source) throws -> any SourceRuntime = self.videoRuntimeFactory else {
                 throw SourceRuntimeError.unsupported(
                     .custom("Video source runtime is not connected in this test resolver.")
                 )
@@ -63,14 +64,14 @@ struct TestSourceRuntimeResolver: SourceRuntimeResolving {
             return try videoRuntimeFactory(source)
         case .book:
             guard let source: Source,
-                  let bookRuntimeFactory: (Source) -> any SourceRuntime = self.bookRuntimeFactory else {
+                  let bookRuntimeFactory: @Sendable (Source) -> any SourceRuntime = self.bookRuntimeFactory else {
                 throw SourceRuntimeError.unsupported(
                     .custom("Book source runtime is not connected in this test resolver.")
                 )
             }
             return bookRuntimeFactory(source)
         case .plugin:
-            guard let pluginRuntimeFactory: (SourceDefinition) -> any SourceRuntime = self.pluginRuntimeFactory else {
+            guard let pluginRuntimeFactory: @Sendable (SourceDefinition) -> any SourceRuntime = self.pluginRuntimeFactory else {
                 throw SourceRuntimeError.unsupported(
                     .custom("Plugin source runtime is not connected in this test resolver.")
                 )

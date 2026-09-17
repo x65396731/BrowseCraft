@@ -213,7 +213,8 @@ struct CloudKitRecordMapperTests {
         // 中文注释：兼容已存在的旧开发记录，但绝不信任其中携带的本地身份。
         snapshotObject["userID"] = originalScope
         let legacyData: Data = try JSONSerialization.data(withJSONObject: snapshotObject)
-        payload.sourceSnapshotJSON = try #require(String(data: legacyData, encoding: .utf8))
+        let legacyJSON: String = try #require(String(data: legacyData, encoding: .utf8))
+        payload.sourceSnapshotJSON = legacyJSON
         payload.userID = currentScope
 
         let downloadedRecord: FavoriteItemRecord = try FavoriteItemRecord(payload: payload)

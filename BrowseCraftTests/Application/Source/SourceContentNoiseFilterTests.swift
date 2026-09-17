@@ -10,7 +10,7 @@ struct SourceContentNoiseFilterTests {
         let decision: SourceContentNoiseDecision = filter.decision(
             for: SourceContentNoiseCandidate(
                 title: "Sponsored banner",
-                url: try #require(URL(string: "https://ads.example.test/campaign")),
+                url: URL(string: "https://ads.example.test/campaign"),
                 text: "Install app now",
                 cssClass: "ad-banner sponsored",
                 elementID: "top-ad",
@@ -29,7 +29,7 @@ struct SourceContentNoiseFilterTests {
         let decision: SourceContentNoiseDecision = filter.decision(
             for: SourceContentNoiseCandidate(
                 title: nil,
-                url: try #require(URL(string: "https://player.example.test/embed/movie-1")),
+                url: URL(string: "https://player.example.test/embed/movie-1"),
                 text: nil,
                 cssClass: "responsive-player",
                 elementID: "main-player",
@@ -51,7 +51,7 @@ struct SourceContentNoiseFilterTests {
         let decision: SourceContentNoiseDecision = filter.decision(
             for: SourceContentNoiseCandidate(
                 title: nil,
-                url: try #require(URL(string: "https://analytics.example.test/pixel")),
+                url: URL(string: "https://analytics.example.test/pixel"),
                 text: nil,
                 cssClass: "tracking-pixel",
                 elementID: "analytics-frame",
@@ -75,7 +75,7 @@ struct SourceContentNoiseFilterTests {
         let decision: SourceContentNoiseDecision = filter.decision(
             for: SourceContentNoiseCandidate(
                 title: "登录",
-                url: try #require(URL(string: "https://video.example.test/login")),
+                url: URL(string: "https://video.example.test/login"),
                 text: "登录",
                 cssClass: "account-link",
                 elementID: nil,
@@ -93,11 +93,9 @@ struct SourceContentNoiseFilterTests {
         let filter: SourceContentNoiseFilter = SourceContentNoiseFilter()
         let decision: SourceContentNoiseDecision = filter.decision(
             for: SourceContentNoiseCandidate(
-                url: try #require(
-                    URL(
-                        string: "https://video.example.test/redirect?" +
-                            "utm_source=banner&target=https%3A%2F%2Fpromo.example.test%2Fpopup"
-                    )
+                url: URL(
+                    string: "https://video.example.test/redirect?" +
+                        "utm_source=banner&target=https%3A%2F%2Fpromo.example.test%2Fpopup"
                 ),
                 context: .playbackCandidate
             )
@@ -111,11 +109,9 @@ struct SourceContentNoiseFilterTests {
         let filter: SourceContentNoiseFilter = SourceContentNoiseFilter()
         let decision: SourceContentNoiseDecision = filter.decision(
             for: SourceContentNoiseCandidate(
-                url: try #require(
-                    URL(
-                        string: "https://video.example.test/player/embed/movie-1?" +
-                            "utm_source=promo&ref=homepage"
-                    )
+                url: URL(
+                    string: "https://video.example.test/player/embed/movie-1?" +
+                        "utm_source=promo&ref=homepage"
                 ),
                 attributes: [
                     "src": "https://video.example.test/player/embed/movie-1"
@@ -160,7 +156,7 @@ struct SourceContentNoiseFilterTests {
         let filter: SourceContentNoiseFilter = SourceContentNoiseFilter()
         let decision: SourceContentNoiseDecision = filter.decision(
             for: SourceContentNoiseCandidate(
-                url: try #require(URL(string: "https://adserver.example.test/vast/preroll.m3u8")),
+                url: URL(string: "https://adserver.example.test/vast/preroll.m3u8"),
                 sourceKind: .video,
                 playbackAssurance: .ruleDeclared,
                 context: .playbackCandidate
@@ -176,11 +172,9 @@ struct SourceContentNoiseFilterTests {
         let filter: SourceContentNoiseFilter = SourceContentNoiseFilter()
         let decision: SourceContentNoiseDecision = filter.decision(
             for: SourceContentNoiseCandidate(
-                url: try #require(
-                    URL(
-                        string: "https://media.example.test/mp43/864729.mp4?"
-                            + "st=4p5tNZQpVWVWyy3QAD-55w&e=1787275282"
-                    )
+                url: URL(
+                    string: "https://media.example.test/mp43/864729.mp4?"
+                        + "st=4p5tNZQpVWVWyy3QAD-55w&e=1787275282"
                 ),
                 sourceKind: .video,
                 playbackAssurance: .ruleDeclared,
@@ -195,7 +189,7 @@ struct SourceContentNoiseFilterTests {
         let filter: SourceContentNoiseFilter = SourceContentNoiseFilter()
         let decision: SourceContentNoiseDecision = filter.decision(
             for: SourceContentNoiseCandidate(
-                url: try #require(URL(string: "https://cdn.example.test/hls/61610/index.m3u8")),
+                url: URL(string: "https://cdn.example.test/hls/61610/index.m3u8"),
                 sourceKind: .video,
                 playbackAssurance: .ruleDeclared,
                 context: .playbackCandidate

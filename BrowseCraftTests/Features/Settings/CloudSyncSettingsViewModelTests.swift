@@ -420,12 +420,12 @@ struct CloudSyncSettingsViewModelTests {
             )
         let portalAuthenticator: CloudSyncTestPortalAuthenticator =
             CloudSyncTestPortalAuthenticator()
-        let portalSessionCoordinator: PortalSessionCoordinator =
-            PortalSessionCoordinator(
-                activeAppUser: activeAppUser,
-                sessionStore: portalSessionStore,
-                authenticator: portalAuthenticator
-            )
+        // 中文注释：该用例不经过 Portal 会话协调器；保留构造以覆盖装配路径，但不持有引用。
+        _ = PortalSessionCoordinator(
+            activeAppUser: activeAppUser,
+            sessionStore: portalSessionStore,
+            authenticator: portalAuthenticator
+        )
         let identityAssociationCoordinator:
             CloudAppUserIdentityAssociationCoordinator =
             CloudAppUserIdentityAssociationCoordinator(

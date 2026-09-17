@@ -1,8 +1,8 @@
 import BrowseCraftDomain
 import Foundation
 import Observation
-import ReadiumNavigator
-import ReadiumShared
+@preconcurrency import ReadiumNavigator
+@preconcurrency import ReadiumShared
 import UIKit
 
 // 中文注释：BookReaderViewModel 打开一本书（本地文件或站点作品），把 Navigator 报来的位置节流后写成续读进度，管理书签与目录。

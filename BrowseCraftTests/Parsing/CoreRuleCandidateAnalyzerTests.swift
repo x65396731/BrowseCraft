@@ -8,13 +8,10 @@ import BrowseCraftDomain
 struct CoreRuleCandidateAnalyzerTests {
     @Test func listAnalysisForwardsSourceAndRuleContextToCore() throws {
         let source = try Self.source()
-        var nextID = 0
+        let candidateIDs = SequentialCandidateIDGenerator()
         let analyzer = CoreRuleCandidateAnalyzer(
             now: { Date(timeIntervalSince1970: 7_200) },
-            idGenerator: {
-                nextID += 1
-                return "candidate-\(nextID)"
-            }
+            idGenerator: { candidateIDs.next() }
         )
 
         let report = try analyzer.analyzeList(
@@ -67,5 +64,18 @@ struct CoreRuleCandidateAnalyzerTests {
             createdAt: Date(timeIntervalSince1970: 0),
             updatedAt: Date(timeIntervalSince1970: 0)
         )
+    }
+}
+
+/// 中文注释：`idGenerator` 是 `@Sendable` 闭包，不能捕获并修改局部 var；用加锁计数器给出确定的候选 id 序列。
+private final class SequentialCandidateIDGenerator: @unchecked Sendable {
+    private let lock: NSLock = NSLock()
+    private var nextID: Int = 0
+
+    func next() -> String {
+        return self.lock.withLock {
+            self.nextID += 1
+            return "candidate-\(self.nextID)"
+        }
     }
 }

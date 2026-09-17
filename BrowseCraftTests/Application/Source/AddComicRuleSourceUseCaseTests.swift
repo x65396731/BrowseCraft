@@ -90,10 +90,16 @@ private final class ComicRuleInMemorySourceRepository: SourceRepository, @unchec
     }
 }
 
-private final class AddComicRuntimeRegistry {
+// 中文注释：工厂闭包是 @Sendable（resolver 跨 Task 共享），注册表被闭包捕获，因此用锁保护 runtimes 并自证 Sendable。
+private final class AddComicRuntimeRegistry: @unchecked Sendable {
     private let loadError: Error?
     private let outputItemCount: Int
-    private(set) var runtimes: [AddComicRecordingRuntime] = []
+    private let lock: NSLock = NSLock()
+    private var recordedRuntimes: [AddComicRecordingRuntime] = []
+
+    var runtimes: [AddComicRecordingRuntime] {
+        return self.lock.withLock { self.recordedRuntimes }
+    }
 
     init(loadError: Error? = nil, outputItemCount: Int = 1) {
         self.loadError = loadError
@@ -108,7 +114,7 @@ private final class AddComicRuntimeRegistry {
                     loadError: self.loadError,
                     outputItemCount: self.outputItemCount
                 )
-                self.runtimes.append(runtime)
+                self.lock.withLock { self.recordedRuntimes.append(runtime) }
                 return runtime
             }
         )

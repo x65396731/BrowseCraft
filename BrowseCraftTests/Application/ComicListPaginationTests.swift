@@ -30,11 +30,8 @@ struct ComicListPaginationTests {
         #expect(result.pagination?.source == .pagePlaceholder)
     }
 
+    /// 中文注释：不声明分页的规则行为逐字不变——这是本改动的边界守卫。
     @Test func ruleWithoutPaginationYieldsNoNextPage() async throws {
-        """
-        中文注释：不声明分页的规则行为逐字不变——这是本改动的边界守卫。
-        """
-
         let loader: PagedListStub = PagedListStub()
         let sut: ComicSourceListLoader = Self.listLoader(loader)
 

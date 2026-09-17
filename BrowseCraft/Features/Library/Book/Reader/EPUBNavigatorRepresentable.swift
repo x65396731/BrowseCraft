@@ -1,5 +1,5 @@
-import ReadiumNavigator
-import ReadiumShared
+@preconcurrency import ReadiumNavigator
+@preconcurrency import ReadiumShared
 import SwiftUI
 import UIKit
 
@@ -18,10 +18,10 @@ struct EPUBNavigatorRepresentable: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> UIViewController {
         do {
+            // 中文注释：Readium 3.x 的 EPUB Navigator 不再需要本地 HTTP 服务，资源由 Publication 直接供给。
             let navigator: EPUBNavigatorViewController = try EPUBNavigatorViewController(
                 publication: self.publication,
-                initialLocation: self.initialLocation,
-                httpServer: ReadiumBookEnvironment.shared.httpServer
+                initialLocation: self.initialLocation
             )
             navigator.delegate = context.coordinator
             self.proxy.navigator = navigator

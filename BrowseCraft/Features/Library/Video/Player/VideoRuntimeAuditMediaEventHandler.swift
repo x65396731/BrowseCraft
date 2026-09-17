@@ -62,19 +62,18 @@ final class VideoRuntimeAuditMediaEventHandler: NSObject, WKScriptMessageHandler
         if self.hasBindingCandidateEvent {
             return false
         }
-        return await withTaskGroup(of: Bool.self) { group in
-            group.addTask { @MainActor in
-                await self.firstCandidateEvent()
-                return self.hasBindingCandidateEvent == false
+        // 中文注释：超时用同在主 actor 上的守卫 Task 唤醒等待者，而不是 TaskGroup 竞速——
+        // 全部状态都在主 actor，不需要跨隔离域传 self。
+        let timeoutGuard: Task<Void, Never> = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(max(0, timeout) * 1_000_000_000))
+            guard Task.isCancelled == false else {
+                return
             }
-            group.addTask {
-                try? await Task.sleep(nanoseconds: UInt64(max(0, timeout) * 1_000_000_000))
-                return true
-            }
-            let timedOut: Bool = await group.next() ?? true
-            group.cancelAll()
-            return timedOut
+            self.resumeCandidateWaiter()
         }
+        await self.firstCandidateEvent()
+        timeoutGuard.cancel()
+        return self.hasBindingCandidateEvent == false
     }
 
     private func firstCandidateEvent() async {
@@ -101,13 +100,16 @@ final class VideoRuntimeAuditMediaEventHandler: NSObject, WKScriptMessageHandler
         continuation.resume()
     }
 
-    nonisolated func userContentController(
+    /// 中文注释：`WKScriptMessageHandler` 在 SDK 里标为主 actor（WK_SWIFT_UI_ACTOR），回调本就在主线程，
+    /// 直接读 `message` 与改自身状态，不再另起 Task。
+    func userContentController(
         _ userContentController: WKUserContentController,
         didReceive message: WKScriptMessage
     ) {
         guard message.name == Self.messageName,
               let body: [String: Any] = message.body as? [String: Any],
-              let token: String = body["token"] as? String else {
+              let token: String = body["token"] as? String,
+              token == self.sessionToken else {
             return
         }
         if body["kind"] as? String == "activation" {
@@ -116,31 +118,21 @@ final class VideoRuntimeAuditMediaEventHandler: NSObject, WKScriptMessageHandler
                 playAttemptCount: max(0, (body["playAttempts"] as? Int) ?? 0),
                 carrierScrolled: (body["scrolled"] as? Bool) ?? false
             )
-            Task { @MainActor in
-                guard token == self.sessionToken else {
-                    return
-                }
-                self.activation = self.activation.merging(snapshot)
-            }
+            self.activation = self.activation.merging(snapshot)
             return
         }
         guard let elementID: String = body["elementID"] as? String,
               let currentSrc: String = body["currentSrc"] as? String else {
             return
         }
-        Task { @MainActor in
-            guard token == self.sessionToken else {
-                return
-            }
-            self.events.append(
-                VideoRuntimeAuditMediaPlayingEvent(
-                    elementID: elementID,
-                    currentSrc: currentSrc
-                )
+        self.events.append(
+            VideoRuntimeAuditMediaPlayingEvent(
+                elementID: elementID,
+                currentSrc: currentSrc
             )
-            if VideoRuntimeAuditWebUIBindingReducer.isBindingCandidate(currentSrc) {
-                self.resumeCandidateWaiter()
-            }
+        )
+        if VideoRuntimeAuditWebUIBindingReducer.isBindingCandidate(currentSrc) {
+            self.resumeCandidateWaiter()
         }
     }
 

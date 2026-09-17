@@ -55,7 +55,6 @@ private final class PreflightRenderedPageOperation: NSObject, WKNavigationDelega
 
         let configuration: WKWebViewConfiguration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
-        configuration.processPool = WKProcessPool()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         let webView: WKWebView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = self

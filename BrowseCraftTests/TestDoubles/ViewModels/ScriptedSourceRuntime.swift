@@ -92,10 +92,11 @@ final class ScriptedSourceRuntime: SourceRuntime, SourceReaderRuntime, SourceSea
     }
 
     func loadList(_ input: SourceListInput) async throws -> SourceListOutput {
-        self.lock.lock()
-        self.recordedListInputs.append(input)
-        let handler: ListHandler = self.listHandler
-        self.lock.unlock()
+        // 中文注释：async 函数里不能直接 lock()/unlock()（跨 await 持锁风险），用作用域锁一次取出快照。
+        let handler: ListHandler = self.lock.withLock {
+            self.recordedListInputs.append(input)
+            return self.listHandler
+        }
         return try await handler(input)
     }
 
@@ -112,18 +113,18 @@ final class ScriptedSourceRuntime: SourceRuntime, SourceReaderRuntime, SourceSea
     }
 
     func search(_ input: SourceSearchInput) async throws -> SourceListOutput {
-        self.lock.lock()
-        self.recordedSearchInputs.append(input)
-        let handler: SearchHandler = self.searchHandler
-        self.lock.unlock()
+        let handler: SearchHandler = self.lock.withLock {
+            self.recordedSearchInputs.append(input)
+            return self.searchHandler
+        }
         return try await handler(input)
     }
 
     func loadReader(_ input: SourceReaderInput) async throws -> SourceReaderOutput {
-        self.lock.lock()
-        self.recordedReaderInputs.append(input)
-        let handler: ReaderHandler = self.readerHandler
-        self.lock.unlock()
+        let handler: ReaderHandler = self.lock.withLock {
+            self.recordedReaderInputs.append(input)
+            return self.readerHandler
+        }
         return try await handler(input)
     }
 

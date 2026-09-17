@@ -152,14 +152,14 @@ struct SourceCredentialStoreTests {
         )
         let context: SourceRequestContext = SourceRequestContext(
             sourceID: "example",
-            baseURL: try #require(URL(string: "https://example.test")),
+            baseURL: URL(string: "https://example.test"),
             purpose: .reader
         )
 
         store.save(
             SourceCredential(
                 sourceID: "example",
-                baseURL: try #require(URL(string: "https://example.test")),
+                baseURL: URL(string: "https://example.test"),
                 cookies: [cookie]
             )
         )
@@ -196,7 +196,7 @@ struct SourceCredentialStoreTests {
         store.save(
             SourceCredential(
                 sourceID: "example",
-                baseURL: try #require(URL(string: "https://example.test")),
+                baseURL: URL(string: "https://example.test"),
                 cookies: [matchingCookie, pathMismatchCookie, domainMismatchCookie]
             )
         )
@@ -204,7 +204,7 @@ struct SourceCredentialStoreTests {
         let cookieHeader: String? = store.cookieHeader(
             for: SourceRequestContext(
                 sourceID: "example",
-                baseURL: try #require(URL(string: "https://example.test")),
+                baseURL: URL(string: "https://example.test"),
                 purpose: .image
             ),
             url: try #require(URL(string: "https://example.test/reader/1.jpg"))
@@ -218,7 +218,7 @@ struct SourceCredentialStoreTests {
         store.save(
             SourceCredential(
                 sourceID: "example",
-                baseURL: try #require(URL(string: "https://example.test")),
+                baseURL: URL(string: "https://example.test"),
                 cookies: [
                     try self.makeCookie(
                         name: "session",
@@ -233,7 +233,7 @@ struct SourceCredentialStoreTests {
         let sourceMismatchCookie: String? = store.cookieHeader(
             for: SourceRequestContext(
                 sourceID: "other",
-                baseURL: try #require(URL(string: "https://example.test")),
+                baseURL: URL(string: "https://example.test"),
                 purpose: .detail
             ),
             url: try #require(URL(string: "https://example.test/detail"))
@@ -241,7 +241,7 @@ struct SourceCredentialStoreTests {
         let baseURLMismatchCookie: String? = store.cookieHeader(
             for: SourceRequestContext(
                 sourceID: "example",
-                baseURL: try #require(URL(string: "https://other.test")),
+                baseURL: URL(string: "https://other.test"),
                 purpose: .detail
             ),
             url: try #require(URL(string: "https://other.test/detail"))
@@ -255,13 +255,13 @@ struct SourceCredentialStoreTests {
         let store: InMemorySourceCredentialStore = InMemorySourceCredentialStore()
         let context: SourceRequestContext = SourceRequestContext(
             sourceID: "example",
-            baseURL: try #require(URL(string: "https://example.test")),
+            baseURL: URL(string: "https://example.test"),
             purpose: .list
         )
         store.save(
             SourceCredential(
                 sourceID: "example",
-                baseURL: try #require(URL(string: "https://example.test")),
+                baseURL: URL(string: "https://example.test"),
                 cookies: [
                     try self.makeCookie(
                         name: "session",
@@ -297,13 +297,13 @@ struct SourceCredentialStoreTests {
         let store: InMemorySourceCredentialStore = InMemorySourceCredentialStore()
         let context: SourceRequestContext = SourceRequestContext(
             sourceID: "example",
-            baseURL: try #require(URL(string: "https://example.test")),
+            baseURL: URL(string: "https://example.test"),
             purpose: .list
         )
         store.save(
             SourceCredential(
                 sourceID: "example",
-                baseURL: try #require(URL(string: "https://example.test")),
+                baseURL: URL(string: "https://example.test"),
                 headers: [
                     "Authorization": "Bearer secret",
                     "Cookie": "session=secret"

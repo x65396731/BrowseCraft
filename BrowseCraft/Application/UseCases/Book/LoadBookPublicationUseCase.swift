@@ -28,7 +28,7 @@ final class BookPublicationCache: @unchecked Sendable {
     private let lifetime: TimeInterval
     private let now: @Sendable () -> Date
 
-    init(lifetime: TimeInterval = 300, now: @escaping @Sendable () -> Date = Date.init) {
+    init(lifetime: TimeInterval = 300, now: @escaping @Sendable () -> Date = { Date() }) {
         self.lifetime = lifetime
         self.now = now
     }

@@ -68,7 +68,7 @@ struct BookSourceRuntimeEndToEndTests {
         let firstChapter: Link = try #require(publication.readingOrder.first { $0.title?.isEmpty == false })
         let index: Int = try #require(loaded.manifest.items.firstIndex { $0.chapterURL == chapterURL })
         let resource: Resource = try #require(publication.get(publication.readingOrder[index]))
-        let xhtml: String = try await resource.readAsString().get()
+        let xhtml: String = try await resource.read().asString().get()
         #expect(xhtml.contains("<p>"))
         #expect(xhtml.contains("xmlns=\"http://www.w3.org/1999/xhtml\""))
         #expect(xhtml.contains("<br") == false)
@@ -87,7 +87,9 @@ struct BookSourceRuntimeEndToEndTests {
         let context: SourceRuntimeContext = BookRuntimeFixtures.context(sourceID: source.id)
 
         #expect(runtime.capabilities.supportsSearch)
-        #expect(runtime is SourceSearchRuntime)
+        // 中文注释：静态类型已知时 `is` 恒真；按存在类型检查才是「运行时能力可被发现」的断言。
+        let erased: any SourceRuntime = runtime
+        #expect(erased is any SourceSearchRuntime)
 
         let output: SourceListOutput = try await runtime.search(SourceSearchInput(keyword: " 迷魂阵 ", page: 1, urlOverride: nil, context: context))
         #expect(loader.requestedURLs == ["https://www.biquhua.com/search.php?q=%E8%BF%B7%E9%AD%82%E9%98%B5"])
@@ -226,7 +228,7 @@ struct BookSourceRuntimeEndToEndTests {
             throw SourceRuntimeError.emptyContent(chapterURL: url)
         }
         let resource: Resource = try #require(publication.get(publication.readingOrder[0]))
-        let xhtml: String = try await resource.readAsString().get()
+        let xhtml: String = try await resource.read().asString().get()
         #expect(xhtml.contains("<h1>你介意当豪门赘婿吗？</h1>"))
         #expect(xhtml.contains("<p>\(NSLocalizedString("book_reader_chapter_no_web_content", comment: ""))</p>"))
     }

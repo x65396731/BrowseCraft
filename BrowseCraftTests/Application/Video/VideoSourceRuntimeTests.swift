@@ -946,10 +946,10 @@ struct VideoSourceRuntimeTests {
 
     @Test func sourceRuntimeResolverRoutesVideoToV2Runtime() throws {
         let source: Source = Self.source(rule: Self.siteRule())
-        var didUseRuleRuntime: Bool = false
+        let didUseRuleRuntime: SendableFlag = SendableFlag()
         let resolver: TestSourceRuntimeResolver = TestSourceRuntimeResolver(
             videoRuntimeFactory: { source in
-                didUseRuleRuntime = true
+                didUseRuleRuntime.set()
                 return VideoRuleStubRuntime(
                     definition: SourceDefinitionMapper().definition(from: source)
                 )
@@ -963,7 +963,7 @@ struct VideoSourceRuntimeTests {
 
         let runtime: any SourceRuntime = try resolver.runtime(for: source)
 
-        #expect(didUseRuleRuntime)
+        #expect(didUseRuleRuntime.isSet)
         #expect(runtime.definition.runtimeKind == .video)
         #expect(runtime.definition.comic == nil)
     }
@@ -1989,5 +1989,19 @@ private struct VideoRuleStubRuntime: SourceRuntime {
         return SourceDebugOutput(
             diagnostics: SourceRuntimeDiagnostics.skipped(message: "Stub runtime.")
         )
+    }
+}
+
+/// 中文注释：@Sendable 工厂闭包不能捕获修改局部 var；用加锁标志记录「是否走过该分支」。
+private final class SendableFlag: @unchecked Sendable {
+    private let lock: NSLock = NSLock()
+    private var value: Bool = false
+
+    var isSet: Bool {
+        return self.lock.withLock { self.value }
+    }
+
+    func set() {
+        self.lock.withLock { self.value = true }
     }
 }

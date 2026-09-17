@@ -1,4 +1,4 @@
-import ReadiumNavigator
+@preconcurrency import ReadiumNavigator
 import SwiftUI
 
 // 中文注释：有声作品播放页——照抄 Readium TestApp 的 AudiobookReader（封面、进度条、快退 10 秒 / 上一章 / 播放暂停 / 下一章 / 快进 30 秒），

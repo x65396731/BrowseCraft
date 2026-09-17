@@ -196,6 +196,17 @@ App 全量构建复核（`xcodebuild build-for-testing`，generic iOS 设备，�
 | F1-10 | 测试替身里 `NSLock.lock()/unlock()` 出现在 async 函数内的 10 处改为 `withLock {}` | BrowseCraftTests/TestDoubles/ViewModels/ScriptedSourceRuntime.swift、TestDoubles/Book/BookRuntimeTestDoubles.swift、Features/Library/Video/VideoPlayerViewModelHistoryTests.swift | 10 条消失 |
 | F1-11 | 24 处对非可选 `URL(string: "字面量")` 的 `#require` 改为直接构造或 `XCTUnwrap`；`CoreRuleCandidateAnalyzerTests` 的 `nextID` 捕获改用与 Core 测试相同的加锁计数器；其余 deprecated/未使用值逐条清理 | BrowseCraftTests 下 12 个文件 | 测试目标 0 警告 |
 
+实施记录（2026-09-18，阶段 1）：App 目标与测试目标 **均为 0 条编译器警告**（`xcodebuild build-for-testing`，generic iOS，Xcode 26 / Swift 6.4）。剩余两条非编译器提示为设计使然：广告测试单元提示与 AppIntents 元数据提示。边界脚本清洁。测试只编译未运行。
+
+- F1-2/F1-3/F1-5：按清单落地。
+- F1-4：`Date.ISO8601FormatStyle` 替换 formatter 静态实例。固定输入对照（`+00:00`、`Z`、`+0800`、带/不带小数秒、非法串）结果与原 formatter 一致，仅小数秒保留到微秒而非毫秒。
+- F1-6：EPUB Navigator 改用不带 `httpServer` 的 init；`ReadiumBookEnvironment.httpServer` 与 `ReadiumAdapterGCDWebServer` 依赖一并移除，工程已重新生成。**待真机复核：打开一本 EPUB 翻页正常。**
+- F1-7：五个 Readium 边界文件 `@preconcurrency import ReadiumNavigator` / `ReadiumShared`，15 条 sending 警告与 `audioSpecifications` 一条随之消失。
+- F1-8：推送负载在系统回调的 nonisolated 上下文里先解成 Sendable 的 `RuleGenerationPushOutcome`（新增于 `Application/Push/RuleGenerationOutcomeRefreshRequests.swift`），再 `Task { @MainActor }` 处理并回调 completion；completion 参数声明为 `@Sendable`，编译器接受该 ObjC 协议 witness。语义与原 `DispatchQueue.main.async` 一致（completion 仍在主线程调用）。**待真机复核：前台收推送、点开推送两条路径不崩且目录刷新。**
+- F1-9：`WKScriptMessageHandler` 在 SDK 里标为主 actor，去掉 `nonisolated` 后直接读消息、改状态；超时等待改为主 actor 上的守卫 Task 唤醒等待者，不再用 TaskGroup 竞速。
+- F1-10：测试替身 5 处 `lock()/unlock()` 改 `withLock`。
+- F1-11：24 处 `#require` 冗余——它们都出现在参数类型为 Optional 的位置，`#require` 无事可做：字面量 URL 直接构造（20 处），非字面量先 `#require` 绑定再传（3 处），`AnyURL.url` 本身非可选（1 处）。`readAsString()` 改 `read().asString()`；`HTTPURL ==` 改 `isEquivalentTo`；`is` 恒真改按存在类型断言；未使用值与游离字符串各一处。`TestSourceRuntimeResolver` 的工厂闭包改 `@Sendable`（resolver 本身 Sendable），随之修正两个测试里被捕获修改的局部变量与注册表（加锁标志 / 加锁注册表）。
+
 ### 阶段 2：性能（不触碰影视线共用默认值的项优先）
 
 | # | 修正 | 文件 | 影响范围 | 验证 |

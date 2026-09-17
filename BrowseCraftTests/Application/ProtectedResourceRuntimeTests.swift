@@ -70,7 +70,7 @@ struct ProtectedResourceRuntimeTests {
                 ],
                 context: SourceRequestContext(
                     sourceID: "example",
-                    baseURL: try #require(URL(string: "https://example.test")),
+                    baseURL: URL(string: "https://example.test"),
                     purpose: .image
                 )
             )

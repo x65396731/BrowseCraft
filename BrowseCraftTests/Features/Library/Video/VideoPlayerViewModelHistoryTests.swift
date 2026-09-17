@@ -34,10 +34,10 @@ struct VideoPlayerViewModelHistoryTests {
         }
 
         func loadPlayback(_ input: SourceVideoPlaybackInput) async throws -> SourceVideoPlaybackOutput {
-            self.lock.lock()
-            self.inputs.append(input)
-            let handler = self.handler
-            self.lock.unlock()
+            let handler = self.lock.withLock {
+                self.inputs.append(input)
+                return self.handler
+            }
             return try await handler(input)
         }
     }

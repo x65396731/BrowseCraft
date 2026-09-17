@@ -1,7 +1,7 @@
 import Foundation
 import MediaPlayer
-import ReadiumNavigator
-import ReadiumShared
+@preconcurrency import ReadiumNavigator
+@preconcurrency import ReadiumShared
 
 // 中文注释：锁屏 / 控制中心 / 耳机按键 → AudioNavigator；Now Playing 元数据由 Readium 自带的 NowPlayingInfo 写。
 // 照抄 Readium TestApp 的 AudiobookViewController 命令中心部分；attach / detach 成对，避免命令目标泄漏。

@@ -179,7 +179,7 @@ struct BookReaderViewModelTests {
         #expect(opened.chapterTitle != nil)
         #expect(opened.sourceSnapshot?.id == source.id)
 
-        let third: URL = try #require(readingOrder[2].url().url)
+        let third: URL = readingOrder[2].url().url
         viewModel.navigatorDidChangeLocation(Locator(href: AnyURL(url: third), mediaType: .mp3, title: nil))
         viewModel.flush()
 

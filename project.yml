@@ -121,9 +121,6 @@ targets:
         product: ReadiumStreamer
       - package: Readium
         product: ReadiumNavigator
-      # 中文注释：EPUB Navigator 需要本地 HTTP 服务承载资源，Readium 3.x 由这个 adapter 提供 GCDHTTPServer。
-      - package: Readium
-        product: ReadiumAdapterGCDWebServer
     configFiles:
       Debug: Config/CatalogEncryption.debug.xcconfig
       Release: Config/CatalogEncryption.release.xcconfig

@@ -36,14 +36,14 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         }
     }
 
-    private func handleRuleGenerationPush(userInfo: [AnyHashable: Any], opened: Bool) {
-        guard RuleGenerationPushPayload.isRuleGenerationOutcome(userInfo) else {
+    private func handleRuleGenerationPush(_ outcome: RuleGenerationPushOutcome?, opened: Bool) {
+        guard let outcome else {
             return
         }
         AppLog.notice(
             .push,
             event: opened ? "outcome-push-opened" : "outcome-push-presented",
-            metadata: ["status": (userInfo[RuleGenerationPushPayload.statusKey] as? String) ?? "unknown"]
+            metadata: ["status": outcome.status ?? "unknown"]
         )
         guard let handler: (Bool) -> Void = self.ruleGenerationPushHandler else {
             // 中文注释：点开优先于到达——冷启动时两者都可能先于装配到来。
@@ -132,15 +132,20 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     /// 后台执行器结束，系统桥接的 completion 便在后台线程被调，UIKit 随即以
     /// `Call must be made on main thread` 断言崩溃（09-05 真机点开推送时复现）。
     /// completion 必须在主线程调用。
+    ///
+    /// 负载在回调所在的 nonisolated 上下文里先解成 Sendable 的 `RuleGenerationPushOutcome`，
+    /// 再进主线程 Task；`[AnyHashable: Any]` 与非 Sendable 闭包都不跨隔离域。
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
-        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+        withCompletionHandler completionHandler: @escaping @Sendable (UNNotificationPresentationOptions) -> Void
     ) {
         _ = center
-        let userInfo: [AnyHashable: Any] = notification.request.content.userInfo
-        DispatchQueue.main.async {
-            self.handleRuleGenerationPush(userInfo: userInfo, opened: false)
+        let outcome: RuleGenerationPushOutcome? = RuleGenerationPushPayload.outcome(
+            from: notification.request.content.userInfo
+        )
+        Task { @MainActor in
+            self.handleRuleGenerationPush(outcome, opened: false)
             completionHandler([.banner, .list, .sound])
         }
     }
@@ -149,12 +154,14 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
-        withCompletionHandler completionHandler: @escaping () -> Void
+        withCompletionHandler completionHandler: @escaping @Sendable () -> Void
     ) {
         _ = center
-        let userInfo: [AnyHashable: Any] = response.notification.request.content.userInfo
-        DispatchQueue.main.async {
-            self.handleRuleGenerationPush(userInfo: userInfo, opened: true)
+        let outcome: RuleGenerationPushOutcome? = RuleGenerationPushPayload.outcome(
+            from: response.notification.request.content.userInfo
+        )
+        Task { @MainActor in
+            self.handleRuleGenerationPush(outcome, opened: true)
             completionHandler()
         }
     }

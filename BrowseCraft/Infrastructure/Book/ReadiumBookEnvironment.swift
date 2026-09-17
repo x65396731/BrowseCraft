@@ -1,10 +1,11 @@
 import Foundation
-import ReadiumAdapterGCDWebServer
-import ReadiumShared
+// 中文注释：Readium 的 Publication / FormatSpecification 等类型尚未标注 Sendable，按前并发模块导入；
+// 升级到标注了隔离的 Readium 版本后去掉 @preconcurrency 即可复查。
+@preconcurrency import ReadiumShared
 import ReadiumStreamer
 
-// 中文注释：ReadiumBookEnvironment 是进程里唯一的一组 Readium 基础对象：HTTP 客户端、资产取回器、
-// 出版物打开器与给 EPUB Navigator 用的本地 HTTP 服务。嗅探器、打开器、以后的阅读器都从这里拿，避免各建一份。
+// 中文注释：ReadiumBookEnvironment 是进程里唯一的一组 Readium 基础对象：HTTP 客户端、资产取回器与
+// 出版物打开器。嗅探器、打开器、以后的阅读器都从这里拿，避免各建一份。Readium 3.x 的 Navigator 不再需要本地 HTTP 服务。
 
 final class ReadiumBookEnvironment: @unchecked Sendable {
     static let shared: ReadiumBookEnvironment = ReadiumBookEnvironment()
@@ -12,8 +13,6 @@ final class ReadiumBookEnvironment: @unchecked Sendable {
     let httpClient: DefaultHTTPClient
     let assetRetriever: AssetRetriever
     let publicationOpener: PublicationOpener
-    /// 中文注释：EPUB Navigator 需要的本地服务；懒建，只有真正打开 EPUB 阅读器时才起端口。
-    private(set) lazy var httpServer: GCDHTTPServer = GCDHTTPServer(assetRetriever: self.assetRetriever)
 
     init() {
         let httpClient: DefaultHTTPClient = DefaultHTTPClient(configuration: .ephemeral)

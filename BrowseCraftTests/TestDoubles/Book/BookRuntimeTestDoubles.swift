@@ -51,9 +51,9 @@ final class FixturePageContentLoader: PageContentLoader, @unchecked Sendable {
     }
 
     func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
-        self.lock.lock()
-        self.requestedURLs.append(request.url.absoluteString)
-        self.lock.unlock()
+        self.lock.withLock {
+            self.requestedURLs.append(request.url.absoluteString)
+        }
         guard let name: String = self.fixtures[request.url.absoluteString],
               let url: URL = Bundle(for: BookRuntimeFixtureMarker.self).url(forResource: name, withExtension: "html") else {
             throw NSError(domain: "FixturePageContentLoader", code: 404, userInfo: [NSLocalizedDescriptionKey: "no fixture for \(request.url)"])

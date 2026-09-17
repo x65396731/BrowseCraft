@@ -36,9 +36,21 @@ enum RuleGenerationPushPayload {
 
     /// 只认带 `jobId` 的负载；CloudKit 静默推送与其它通知不触发列表刷新。
     static func isRuleGenerationOutcome(_ userInfo: [AnyHashable: Any]) -> Bool {
-        guard let jobID: String = userInfo[Self.jobIDKey] as? String else {
-            return false
-        }
-        return jobID.isEmpty == false
+        return Self.outcome(from: userInfo) != nil
     }
+
+    /// 中文注释：在系统回调所在的 nonisolated 上下文里把 `[AnyHashable: Any]` 解成 Sendable 值，
+    /// 再切主线程；`userInfo` 本身不可跨隔离域传递。非生成结果负载返回 nil。
+    static func outcome(from userInfo: [AnyHashable: Any]) -> RuleGenerationPushOutcome? {
+        guard let jobID: String = userInfo[Self.jobIDKey] as? String, jobID.isEmpty == false else {
+            return nil
+        }
+        return RuleGenerationPushOutcome(jobID: jobID, status: userInfo[Self.statusKey] as? String)
+    }
+}
+
+/// 中文注释：推送负载里 App 侧真正用到的两个字段；解出来后即可安全跨隔离域。
+struct RuleGenerationPushOutcome: Sendable, Equatable {
+    let jobID: String
+    let status: String?
 }

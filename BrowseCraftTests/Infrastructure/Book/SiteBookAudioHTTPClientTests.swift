@@ -11,7 +11,7 @@ struct SiteBookAudioHTTPClientTests {
         #expect(upgraded.url.url.absoluteString == "https://www.archive.org/download/a/b_64kb.mp3?x=1")
 
         let https: HTTPURL = try #require(HTTPURL(url: URL(string: "https://archive.org/download/a/b.mp3")!))
-        #expect(SiteBookAudioHTTPClient.upgradedToHTTPS(HTTPRequest(url: https)).url == https)
+        #expect(SiteBookAudioHTTPClient.upgradedToHTTPS(HTTPRequest(url: https)).url.isEquivalentTo(https))
     }
 
     @Test func clientKeepsItsDelegateAlive() {
