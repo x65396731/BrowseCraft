@@ -41,13 +41,13 @@ struct BookReaderViewModelTests {
         let viewModel: BookReaderViewModel = Self.makeViewModel(progress: ReaderInMemoryProgressRepository(), throttleNanoseconds: 60_000_000_000)
         viewModel.navigatorDidChangeLocation(Self.locator(href: "/c1", progression: 0.3, title: "Chapter 1"))
 
-        viewModel.addBookmarkAtCurrentLocation()
+        await viewModel.addBookmarkAtCurrentLocation()
 
         #expect(viewModel.bookmarks.count == 1)
         #expect(viewModel.bookmarks.first?.title == "Chapter 1")
         let restored: Locator = try #require(BookReaderViewModel.locator(fromJSON: viewModel.bookmarks[0].locatorJSON))
         #expect(restored.locations.totalProgression == 0.3)
-        viewModel.removeBookmark(viewModel.bookmarks[0])
+        await viewModel.removeBookmark(viewModel.bookmarks[0])
         #expect(viewModel.bookmarks.isEmpty)
     }
 

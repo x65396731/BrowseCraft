@@ -45,7 +45,7 @@ struct BookShelfViewModelTests {
         )
         try repository.saveBook(book)
         let viewModel: BookShelfViewModel = Self.makeViewModel(repository: repository, inspection: .unsupported, metadata: nil)
-        viewModel.load()
+        await viewModel.load()
         #expect(viewModel.items.count == 1)
 
         await viewModel.delete(book)

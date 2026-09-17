@@ -102,8 +102,12 @@ struct BookReaderView: View {
                         }
                     }
                     .onDelete { offsets in
-                        for index: Int in offsets {
-                            self.viewModel.removeBookmark(self.viewModel.bookmarks[index])
+                        // 中文注释：先按当前列表取出要删的书签，再逐个异步删除；删除后 VM 会重载列表。
+                        let bookmarks: [BookBookmark] = offsets.map { self.viewModel.bookmarks[$0] }
+                        Task {
+                            for bookmark: BookBookmark in bookmarks {
+                                await self.viewModel.removeBookmark(bookmark)
+                            }
                         }
                     }
                 }
@@ -122,7 +126,7 @@ struct BookReaderView: View {
                     }
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Add Bookmark") {
-                            self.viewModel.addBookmarkAtCurrentLocation()
+                            Task { await self.viewModel.addBookmarkAtCurrentLocation() }
                         }
                         .disabled(self.viewModel.currentLocator == nil)
                     }

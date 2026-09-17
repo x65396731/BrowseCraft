@@ -10,7 +10,7 @@ final class BookShelfViewModel {
     private(set) var isImporting: Bool = false
     var errorMessage: String?
 
-    private let listUseCase: ListLocalBooksUseCase
+    private let persistence: BookShelfPersistenceCoordinator
     private let importUseCase: ImportLocalBookUseCase
     private let deleteUseCase: DeleteLocalBookUseCase
     private let fileStore: any BookFileStoring
@@ -25,7 +25,7 @@ final class BookShelfViewModel {
         activeAppUser: (any ActiveAppUserProviding)? = nil,
         userID: String = AppUser.localDefaultID
     ) {
-        self.listUseCase = listUseCase
+        self.persistence = BookShelfPersistenceCoordinator(listUseCase: listUseCase)
         self.importUseCase = importUseCase
         self.deleteUseCase = deleteUseCase
         self.fileStore = fileStore
@@ -37,9 +37,9 @@ final class BookShelfViewModel {
         return self.activeAppUser?.currentUserID.uuidString ?? self.fallbackUserID
     }
 
-    func load() {
+    func load() async {
         do {
-            self.items = try self.listUseCase.execute(userID: self.currentUserID)
+            self.items = try await self.persistence.shelfItems(userID: self.currentUserID)
         } catch {
             self.errorMessage = error.localizedDescription
         }
@@ -62,7 +62,7 @@ final class BookShelfViewModel {
                 failures.append("\(url.lastPathComponent): \(error.localizedDescription)")
             }
         }
-        self.load()
+        await self.load()
         if failures.isEmpty == false {
             self.errorMessage = failures.joined(separator: "\n")
         }
@@ -71,7 +71,7 @@ final class BookShelfViewModel {
     func delete(_ book: LocalBook) async {
         do {
             try await self.deleteUseCase.execute(bookID: book.id, userID: self.currentUserID)
-            self.load()
+            await self.load()
         } catch {
             self.errorMessage = error.localizedDescription
         }

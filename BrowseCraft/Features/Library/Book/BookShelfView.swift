@@ -78,7 +78,7 @@ struct BookShelfView: View {
             Text(self.viewModel.errorMessage ?? "")
         }
         .task {
-            self.viewModel.load()
+            await self.viewModel.load()
         }
     }
 

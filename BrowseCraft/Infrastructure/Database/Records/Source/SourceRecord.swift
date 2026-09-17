@@ -85,8 +85,13 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
     }
 
     func sourceConfiguration() throws -> SourceConfiguration {
-        let data: Data = Data(self.configJSON.utf8)
-        let configuration: SourceConfiguration = try JSONDecoder().decode(SourceConfiguration.self, from: data)
+        // 中文注释：同一条记录的 configJSON 在多次读取之间通常不变（每次进列表、历史、收藏都要解一遍全部来源），
+        // 按「用户 + id」缓存解码结果并用 JSON 原文比对命中，避免重复 JSONDecoder。
+        let configuration: SourceConfiguration = try SourceConfigurationDecodingCache.shared.configuration(
+            userID: self.userID,
+            sourceID: self.id,
+            configJSON: self.configJSON
+        )
 
         guard self.matchesStoredKind(configuration.kind) else {
             throw SourceRecordDecodingError.mismatchedConfigurationKind
@@ -110,4 +115,42 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
 
 enum SourceRecordDecodingError: Error {
     case mismatchedConfigurationKind
+}
+
+/// 中文注释：SourceConfiguration 的解码缓存。键是用户 + 来源 id，命中条件是 JSON 原文逐字相等
+/// （字符串比较远比解码便宜，也不会像哈希那样有碰撞风险）；有界，超限整体清空。
+final class SourceConfigurationDecodingCache: @unchecked Sendable {
+    static let shared: SourceConfigurationDecodingCache = SourceConfigurationDecodingCache()
+
+    private struct Entry {
+        let configJSON: String
+        let configuration: SourceConfiguration
+    }
+
+    private let lock: NSLock = NSLock()
+    private var entries: [String: Entry] = [:]
+    private let entryLimit: Int
+
+    init(entryLimit: Int = 256) {
+        self.entryLimit = max(1, entryLimit)
+    }
+
+    func configuration(userID: String, sourceID: String, configJSON: String) throws -> SourceConfiguration {
+        let key: String = "\(userID)\u{1F}\(sourceID)"
+        if let cached: Entry = self.lock.withLock({ self.entries[key] }), cached.configJSON == configJSON {
+            return cached.configuration
+        }
+        let decoded: SourceConfiguration = try JSONDecoder().decode(SourceConfiguration.self, from: Data(configJSON.utf8))
+        self.lock.withLock {
+            if self.entries.count >= self.entryLimit {
+                self.entries.removeAll(keepingCapacity: true)
+            }
+            self.entries[key] = Entry(configJSON: configJSON, configuration: decoded)
+        }
+        return decoded
+    }
+
+    func removeAll() {
+        self.lock.withLock { self.entries.removeAll() }
+    }
 }

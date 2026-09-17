@@ -235,6 +235,16 @@ App 全量构建复核（`xcodebuild build-for-testing`，generic iOS 设备，�
 - **预取（F2-3 后半）暂缓**：`LazyVGrid` 本就提前实例化下一屏单元格，`LazyImage` 随之开始加载；显式 `ImagePrefetcher` 需要在单元格存在前就算出带请求头与尺寸的请求，收益未经测量前不加机制。列为后续项，待真机滚动帧率与缓存命中数据。
 - 收益估算（沿用 F2-2 的固定输入测量方法）：缩略图单元格 64×88pt（@3x 约 192×264px）对 600×900 的封面，解码像素从 54 万降到约 5 万，内存缓存里一张封面从约 2 MB 降到约 0.2 MB，64 MB 上限可容纳约 300 张而非约 30 张。**待真机复核：列表滚动帧率、缩略图缓存命中率、详情页封面清晰度（大图位置测得尺寸大，解码尺寸随之变大）。**
 
+实施记录（2026-09-18，阶段 2 第三批：F2-5、F2-6）：
+
+- **F2-5 列表加载读写收敛**（`Infrastructure/Database/Repositories/GRDBSourceRepository.swift`、`Records/Source/SourceRecord.swift`、`Application/UseCases/Source/SyncBuiltInSourcesUseCase.swift`）：
+  - `SyncBuiltInSourcesUseCase.execute()` 在目录为空时直接返回。当前所有装配点（Library / Sources 工厂）都以默认空目录构造它，此前每次进列表都白读一遍并解码全部来源。
+  - `reconcileSourceSlotAssignments()` 改为先读后写：读事务里判断「用户行存在且没有来源需要翻转启用状态」，成立则直接返回同一次读事务里解出的来源；否则才进入原有写事务（含 `insertUser`、翻转、清选择、入同步队列），保持「归置后用户行必定存在」与「有变化才通知 CloudSync」两条不变量。读判断与写归置共用同一份候选 SQL 与槽位上限计算。
+  - `SourceRecord.sourceConfiguration()` 经 `SourceConfigurationDecodingCache`（用户 + id 键控、JSON 原文逐字比对命中、有界 256 条）解码，Library / History / Favorites / Sources 每次进页面解码全部来源的重复 `JSONDecoder` 被消掉；JSON 变了即失效，无陈旧风险。
+  - 每次进列表的数据库事务：之前 1 读（sync）+ 1 写（reconcile）+ 1 读（fetchSources）+ 收藏读 + 状态读；之后 1 读 + 收藏读 + 状态读，稳态下不再开写事务、不再与 CloudSync 写者争 WAL 写锁，来源 JSON 解码从每次 2N 次降到 0 次（命中）。
+- **F2-6 读书线读库离开主线程**（`Application/UseCases/Book/BookPersistenceCoordinator.swift`）：新增 `BookShelfPersistenceCoordinator`（列本地书）与 `BookReaderPersistenceCoordinator`（续读位置、书签列/加/删）两个 actor，与 Library / History / Favorites 同一模式；`BookShelfViewModel.load()`、`BookReaderViewModel` 的续读位置读取、书签加载与增删改为 `async` 经 actor 执行，视图与测试调用点相应 `await`。VM 的 init 签名不变（actor 由 VM 用注入的用例构造），工厂与三个测试文件无需改装配。进度节流落库（`persistCurrentLocation` / `flush`）保持同步：离开阅读器时 flush 必须立即完成，且测试断言依赖其同步语义；它是单行 upsert，留作后续观察项。
+- 验证：App 与测试目标构建通过、0 警告，边界闸门干净；测试只编译未运行。**待真机复核：进列表 / 历史 / 收藏的耗时（Instruments SQLite 事务数），书架、书签增删、续读位置正常。**
+
 ### 阶段 3：结构
 
 | # | 修正 | 验证 |

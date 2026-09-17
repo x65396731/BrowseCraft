@@ -30,11 +30,9 @@ final class BookReaderViewModel {
     private let openLocalUseCase: OpenLocalBookUseCase?
     private let loadSitePublicationUseCase: LoadBookPublicationUseCase?
     private let sitePublicationBuilder: ReadiumSitePublicationBuilder
-    private let loadProgressUseCase: LoadBookReadingProgressUseCase
+    /// 中文注释：续读位置与书签的读写在专用 actor 上执行，主线程不做 SQLite I/O；进度节流落库仍同步（flush 必须立即完成）。
+    private let persistence: BookReaderPersistenceCoordinator
     private let saveProgressUseCase: SaveBookReadingProgressUseCase
-    private let addBookmarkUseCase: AddBookBookmarkUseCase
-    private let listBookmarksUseCase: ListBookBookmarksUseCase
-    private let removeBookmarkUseCase: RemoveBookBookmarkUseCase
     private let saveHistoryUseCase: SaveBookReadingHistoryUseCase?
     private let userID: String
     private let throttleNanoseconds: UInt64
@@ -83,11 +81,13 @@ final class BookReaderViewModel {
         self.openLocalUseCase = openLocalUseCase
         self.loadSitePublicationUseCase = loadSitePublicationUseCase
         self.sitePublicationBuilder = sitePublicationBuilder
-        self.loadProgressUseCase = loadProgressUseCase
+        self.persistence = BookReaderPersistenceCoordinator(
+            loadProgressUseCase: loadProgressUseCase,
+            addBookmarkUseCase: addBookmarkUseCase,
+            listBookmarksUseCase: listBookmarksUseCase,
+            removeBookmarkUseCase: removeBookmarkUseCase
+        )
         self.saveProgressUseCase = saveProgressUseCase
-        self.addBookmarkUseCase = addBookmarkUseCase
-        self.listBookmarksUseCase = listBookmarksUseCase
-        self.removeBookmarkUseCase = removeBookmarkUseCase
         self.saveHistoryUseCase = saveHistoryUseCase
         self.throttleNanoseconds = throttleNanoseconds
     }
@@ -107,7 +107,7 @@ final class BookReaderViewModel {
             if let publication: Publication = self.publication, case .success(let links) = await publication.tableOfContents() {
                 self.tableOfContents = links
             }
-            self.loadBookmarks()
+            await self.loadBookmarks()
             self.state = .ready
         } catch {
             self.state = .failed(error.localizedDescription)
@@ -142,7 +142,7 @@ final class BookReaderViewModel {
         self.siteManifest = loaded.manifest
         let publication: Publication = self.sitePublicationBuilder.build(manifest: loaded.manifest, contentProvider: loaded.contentProvider)
         self.publication = publication
-        let saved: Locator? = try self.loadProgressUseCase.execute(bookID: self.bookID, userID: self.userID)
+        let saved: Locator? = try await self.persistence.readingProgress(bookID: self.bookID, userID: self.userID)
             .flatMap { Self.locator(fromJSON: $0.locatorJSON) }
         let chapterLocator: Locator? = selection.chapterURL
             .flatMap { chapterURL in loaded.manifest.items.first { $0.chapterURL == chapterURL } }
@@ -236,28 +236,28 @@ final class BookReaderViewModel {
         self.persistCurrentLocation()
     }
 
-    func addBookmarkAtCurrentLocation() {
+    func addBookmarkAtCurrentLocation() async {
         guard let locator: Locator = self.currentLocator, let json: String = Self.json(from: locator) else {
             return
         }
         do {
-            try self.addBookmarkUseCase.execute(
+            try await self.persistence.addBookmark(
                 bookID: self.bookID,
                 userID: self.userID,
                 locatorJSON: json,
                 title: locator.title,
                 snippet: locator.text.highlight ?? locator.text.before
             )
-            self.loadBookmarks()
+            await self.loadBookmarks()
         } catch {
             self.state = .failed(error.localizedDescription)
         }
     }
 
-    func removeBookmark(_ bookmark: BookBookmark) {
+    func removeBookmark(_ bookmark: BookBookmark) async {
         do {
-            try self.removeBookmarkUseCase.execute(bookmarkID: bookmark.id, userID: self.userID)
-            self.loadBookmarks()
+            try await self.persistence.removeBookmark(bookmarkID: bookmark.id, userID: self.userID)
+            await self.loadBookmarks()
         } catch {
             self.state = .failed(error.localizedDescription)
         }
@@ -274,8 +274,8 @@ final class BookReaderViewModel {
         _ = await self.navigatorProxy.go(to: link)
     }
 
-    private func loadBookmarks() {
-        self.bookmarks = (try? self.listBookmarksUseCase.execute(bookID: self.bookID, userID: self.userID)) ?? []
+    private func loadBookmarks() async {
+        self.bookmarks = (try? await self.persistence.bookmarks(bookID: self.bookID, userID: self.userID)) ?? []
     }
 
     private func persistCurrentLocation() {

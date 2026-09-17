@@ -23,6 +23,10 @@ struct SyncBuiltInSourcesUseCase: Sendable {
     }
 
     func execute() throws {
+        // 中文注释：目录为空（当前所有装配点都不再注入内置目录）时没有可升级的对象，不必读出并解码全部来源。
+        guard self.catalogSources.isEmpty == false else {
+            return
+        }
         let catalogSourcesByID: [String: CatalogSource] = Dictionary(
             uniqueKeysWithValues: self.catalogSources.map { source in
                 return (source.id, source)

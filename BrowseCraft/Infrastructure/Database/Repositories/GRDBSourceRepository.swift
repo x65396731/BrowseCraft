@@ -26,16 +26,50 @@ final class GRDBSourceRepository: SourceRepository {
     func fetchSources() throws -> [Source] {
         let userID: String = self.currentUserID
         return try self.database.queue.read { database in
-            let records: [SourceRecord] = try SourceRecord
-                .filter(SourceRecord.Columns.userID == userID)
-                .filter(SourceRecord.Columns.deletedAt == nil)
-                .order(SourceRecord.Columns.updatedAt.desc)
-                .fetchAll(database)
-
-            return try records.map { record in
-                return try record.domainModel()
-            }
+            return try Self.fetchDomainSources(userID: userID, in: database)
         }
+    }
+
+    private static func fetchDomainSources(userID: String, in database: Database) throws -> [Source] {
+        let records: [SourceRecord] = try SourceRecord
+            .filter(SourceRecord.Columns.userID == userID)
+            .filter(SourceRecord.Columns.deletedAt == nil)
+            .order(SourceRecord.Columns.updatedAt.desc)
+            .fetchAll(database)
+
+        return try records.map { record in
+            return try record.domainModel()
+        }
+    }
+
+    /// 中文注释：槽位归置用的候选查询——非内置、未删除，按启用、更新时间、id 排序；读判断与写归置共用同一份 SQL。
+    private static func fetchSlotCandidateRecords(userID: String, in database: Database) throws -> [SourceRecord] {
+        return try SourceRecord.fetchAll(
+            database,
+            sql: """
+            SELECT *
+            FROM \(SourceRecord.databaseTableName)
+            WHERE userID = ?
+              AND deletedAt IS NULL
+              AND id NOT LIKE 'built-in.%'
+            ORDER BY enabled DESC, updatedAt DESC, id ASC
+            """,
+            arguments: [userID]
+        )
+    }
+
+    private static func siteSlotLimit(userID: String, in database: Database) throws -> Int {
+        let entitlementUser: AppUserRecord? = try AppUserRecord.fetchOne(database, key: userID)
+        return SourceSlotPolicy.effectiveLimit(
+            storedLimit: entitlementUser?.siteSlotLimit ?? SourceSlotPolicy.includedSiteSlotCount
+        )
+    }
+
+    private enum ReconcileReadOutcome {
+        /// 已按槽位规则就位，且用户行存在：直接返回同一次读事务里解出的来源。
+        case settled([Source])
+        /// 有来源的启用状态需要翻转，或用户行尚不存在：进入写事务。
+        case needsWrite
     }
 
     func saveSource(_ source: Source) throws {
@@ -107,28 +141,32 @@ final class GRDBSourceRepository: SourceRepository {
         let accountScope: CloudAccountScope = self.accountScopeProvider.currentScope
         var changedSourceCount: Int = 0
 
+        // 中文注释：每次进列表都会调用。先在读事务里判断是否真的需要归置；多数情况下没有任何来源
+        // 需要翻转启用状态，此时直接返回这次读出的来源，不开写事务（写事务会与 CloudSync 写者争 WAL 写锁），
+        // 也不再第二次读出并解码全部来源。用户行不存在时仍走写路径，保持「归置后用户行必定存在」的不变量。
+        let readOutcome: ReconcileReadOutcome = try self.database.queue.read { database in
+            guard try AppUserRecord.exists(database, key: userID) else {
+                return .needsWrite
+            }
+            let siteSlotLimit: Int = try Self.siteSlotLimit(userID: userID, in: database)
+            let records: [SourceRecord] = try Self.fetchSlotCandidateRecords(userID: userID, in: database)
+            let activeSourceIDs: Set<String> = Set(records.prefix(siteSlotLimit).map(\.id))
+            let needsChange: Bool = records.contains { record in
+                return record.enabled != activeSourceIDs.contains(record.id)
+            }
+            guard needsChange == false else {
+                return .needsWrite
+            }
+            return .settled(try Self.fetchDomainSources(userID: userID, in: database))
+        }
+        if case .settled(let sources) = readOutcome {
+            return sources
+        }
+
         try self.database.queue.write { database in
             try AppUserRecord.insertUser(id: userID, in: database)
-            let entitlementUser: AppUserRecord? = try AppUserRecord.fetchOne(
-                database,
-                key: userID
-            )
-            let siteSlotLimit: Int = SourceSlotPolicy.effectiveLimit(
-                storedLimit: entitlementUser?.siteSlotLimit ??
-                    SourceSlotPolicy.includedSiteSlotCount
-            )
-            let records: [SourceRecord] = try SourceRecord.fetchAll(
-                database,
-                sql: """
-                SELECT *
-                FROM \(SourceRecord.databaseTableName)
-                WHERE userID = ?
-                  AND deletedAt IS NULL
-                  AND id NOT LIKE 'built-in.%'
-                ORDER BY enabled DESC, updatedAt DESC, id ASC
-                """,
-                arguments: [userID]
-            )
+            let siteSlotLimit: Int = try Self.siteSlotLimit(userID: userID, in: database)
+            let records: [SourceRecord] = try Self.fetchSlotCandidateRecords(userID: userID, in: database)
             let activeSourceIDs: Set<String> = Set(
                 records.prefix(siteSlotLimit).map(\.id)
             )
