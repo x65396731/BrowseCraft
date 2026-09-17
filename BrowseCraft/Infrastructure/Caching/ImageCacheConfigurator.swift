@@ -28,6 +28,8 @@ final class ImageCacheConfigurator {
         let dataCache: DataCache = try self.makeDataCache(settings: settings)
         var configuration: ImagePipeline.Configuration = .withDataCache
         configuration.dataCache = dataCache
+        // 中文注释：请求声明了目标像素宽度就按宽度降采样解码，否则走 Nuke 默认解码器。
+        configuration.makeImageDecoder = DownsamplingImageDecoding.makeDecoder
         ImagePipeline.shared = ImagePipeline(configuration: configuration)
         self.dataCache = dataCache
     }

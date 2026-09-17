@@ -223,6 +223,11 @@ App 全量构建复核（`xcodebuild build-for-testing`，generic iOS 设备，�
 | F2-10 | 预检复用 WKWebView 与数据存储 | Infrastructure/Preflight/PreflightRenderedPageLoader.swift | 规则生成预检 | 预检耗时 |
 | F2-11 | 历史批量删除合并事务；占位图按单元格分辨率导出；视频转 HEVC；文本块提取用集合 | HistoryPersistenceCoordinator.swift、Assets、Resources、SwiftSoupHTMLDocumentParser.swift:104-114 | 低 | 包体与耗时 |
 
+实施记录（2026-09-18，阶段 2 第一批：F2-1、F2-2）：
+
+- **F2-1 正则缓存**：新增 `BrowseCraftCore/Sources/BrowseCraftCore/Support/RegularExpressionCache.swift`——按 `pattern + options` 键控、`NSLock` 保护、上限 512 条（超限整体清空）的进程级缓存，`regex(pattern:options:)` 与 `NSRegularExpression(pattern:options:)` 同签名、同错误语义。Core 与 Runtime 共 20 处临时编译点全部改走缓存（Core 13：提取引擎、视频/漫画/书解析器、模板解析、发现分析器、两套规则校验；Runtime 7：API 模板解析、视频检测、保护资源流水线与运行时）。`BookSourceRuntime` 两处 `static let` 字面量正则本就只编译一次，保持不变。固定输入测量（4 个规则里常见的 pattern 轮换、4000 次 = 25 页 × 40 条目 × 4 字段）：逐次编译 11.66 µs/次，缓存 0.95 µs/次，纯匹配 0.85 µs/次；即缓存后每次调用的开销≈纯匹配，一页列表少约 1.7 ms（Debug、M 系列 Mac；真机比例相同）。Core 全量测试目标编译通过（未运行）。
+- **F2-2 降采样解码**：解码目标宽度成为 ImageRequest 上的显式声明（`ImageRequest.downsampleTargetPixelWidth`，`Shared/UI/DownsampledImageDecoder.swift`），共享 pipeline 的 `makeImageDecoder` 对声明了宽度的请求返回 `DownsamplingImageDecoder`（CGImageSource 缩略图接口按宽度解码，动图交还 Nuke 默认解码器），未声明的请求走默认解码器，行为不变。阅读器只在请求上声明宽度（`ReaderPageImageView`），`ReaderImageProcessor` 删除；受保护资源解密后的内存数据继续走同一个 `DownsampledImageDecoder.decode`，输出规格一致。固定输入测量（JPEG，目标宽 1179px）：源 2400×16000 时全尺寸解码再缩小 172 ms、缩略图解码 93 ms；源 3000×4200 时 54 ms 对 30 ms；源 1200×16000（≈目标宽）两者相同（168 对 184 ms，噪声内）。中间位图：全尺寸路径 2400×16000×4 ≈ 154 MB，缩略图路径直接输出 1179×7860×4 ≈ 37 MB；收益与「源宽/目标宽」的平方成正比，源宽≈目标宽时无收益也无损失。已知取舍：解码后的内存缓存键不含目标宽度（当前只有阅读器使用、宽度为屏幕宽度，横竖屏切换复用另一宽度位图仅影响缩放质量），已在代码注释中声明。**待真机复核：长条漫画阅读内存峰值前后对比、GIF 页仍可播放、受保护资源页正常。**
+
 ### 阶段 3：结构
 
 | # | 修正 | 验证 |

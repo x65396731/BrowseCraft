@@ -117,9 +117,8 @@ struct ReaderPageImageView: View {
             return nil
         }
 
-        request.processors = [
-            ReaderImageProcessor(targetPixelWidth: ReaderImageSizing.targetPixelWidth)
-        ]
+        // 中文注释：在请求上声明目标宽度，共享 pipeline 的降采样解码器按此宽度解码，不再先解全尺寸再缩小。
+        request.downsampleTargetPixelWidth = ReaderImageSizing.targetPixelWidth
         return request
     }
 

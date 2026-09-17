@@ -2,46 +2,77 @@ import ImageIO
 import Nuke
 import UIKit
 
-// 中文注释：Reader 图片统一在后台按显示宽度缩放并转为标准色彩空间，避免保留超大原图和不兼容 PNG 色彩空间。
-enum ReaderImageSizing {
-    static let maximumPixelDimension: CGFloat = 16_384
+// 中文注释：「按目标宽度降采样解码」是通用机制：任何 kind 只要在 ImageRequest 上声明目标像素宽度，
+// 共享 pipeline 就用 CGImageSource 缩略图接口按该宽度解码，不再先解出全尺寸位图再缩小。
+// 长条漫画一页可达几十 MB 位图，先全尺寸解码再缩小会让内存与 CPU 瞬时翻倍；这是阅读器接入它的原因。
+// 未声明目标宽度的请求走 Nuke 默认解码器，行为不变。
 
-    @MainActor
-    static var targetPixelWidth: CGFloat {
-        let screen: UIScreen = UIScreen.main
-        return max(1, screen.bounds.width * screen.scale)
+extension ImageRequest.UserInfoKey {
+    /// 中文注释：请求级声明——解码输出的目标像素宽度（CGFloat）。
+    static let downsampleTargetPixelWidth: ImageRequest.UserInfoKey = "com.browsecraft.image.downsampleTargetPixelWidth"
+}
+
+extension ImageRequest {
+    /// 中文注释：解码输出的目标像素宽度；nil 表示不降采样。
+    /// 注意：解码后的内存缓存键不含该宽度——同一地址在同一进程内按首次声明的宽度缓存，
+    /// 当前只有阅读器使用且宽度为屏幕宽度，横竖屏切换时复用另一宽度的位图只影响缩放质量，不影响正确性。
+    var downsampleTargetPixelWidth: CGFloat? {
+        get {
+            return self.userInfo[.downsampleTargetPixelWidth] as? CGFloat
+        }
+        set {
+            self.userInfo[.downsampleTargetPixelWidth] = newValue
+        }
     }
 }
 
-struct ReaderImageProcessor: ImageProcessing, Hashable {
+/// 中文注释：Nuke 解码器工厂——由 ImageCacheConfigurator 装进共享 pipeline 的 `makeImageDecoder`。
+enum DownsamplingImageDecoding {
+    @Sendable static func makeDecoder(for context: ImageDecodingContext) -> (any ImageDecoding)? {
+        guard let targetPixelWidth: CGFloat = context.request.downsampleTargetPixelWidth else {
+            return ImageDecoderRegistry.shared.decoder(for: context)
+        }
+        return DownsamplingImageDecoder(targetPixelWidth: targetPixelWidth)
+    }
+}
+
+/// 中文注释：只在数据完整后解码（不做渐进预览）；动图交还 Nuke 默认解码器以保留帧数据。
+struct DownsamplingImageDecoder: ImageDecoding {
     let targetPixelWidth: CGFloat
 
-    func process(_ image: UIImage) -> UIImage? {
-        return ReaderImageRenderer.normalizedImage(
-            image,
-            targetPixelWidth: self.targetPixelWidth
-        )
-    }
-
-    var identifier: String {
-        return "com.browsecraft.reader.image?" +
-            "width=\(Int(self.targetPixelWidth.rounded()))&" +
-            "max=\(Int(ReaderImageSizing.maximumPixelDimension))"
-    }
-
-    var hashableIdentifier: AnyHashable {
-        return self
+    func decode(_ data: Data) throws -> ImageContainer {
+        if DownsampledImageDecoder.isAnimated(data: data) {
+            return try ImageDecoders.Default().decode(data)
+        }
+        guard let image: UIImage = DownsampledImageDecoder.decode(data: data, targetPixelWidth: self.targetPixelWidth) else {
+            throw ImageDecodingError.unknown
+        }
+        return ImageContainer(image: image)
     }
 }
 
-enum ReaderImageDecoder {
+/// 中文注释：与 Nuke 无关的解码函数；受保护资源解密后的内存数据也走这里，与 pipeline 路径同一套输出规格。
+enum DownsampledImageDecoder {
+    /// 中文注释：任何一边都不超过这个像素数，避免超长条图触发 UIKit 纹理上限。
+    static let maximumPixelDimension: CGFloat = 16_384
+
+    static func isAnimated(data: Data) -> Bool {
+        guard let source: CGImageSource = CGImageSourceCreateWithData(
+            data as CFData,
+            [kCGImageSourceShouldCache: false] as CFDictionary
+        ) else {
+            return false
+        }
+        return CGImageSourceGetCount(source) > 1
+    }
+
     static func decode(data: Data, targetPixelWidth: CGFloat) -> UIImage? {
         guard let source: CGImageSource = CGImageSourceCreateWithData(
             data as CFData,
             [kCGImageSourceShouldCache: false] as CFDictionary
         ) else {
             return UIImage(data: data).flatMap { image in
-                ReaderImageRenderer.normalizedImage(
+                DownsampledImageRenderer.normalizedImage(
                     image,
                     targetPixelWidth: targetPixelWidth
                 )
@@ -54,12 +85,12 @@ enum ReaderImageDecoder {
 
         let sourceSize: CGSize? = Self.orientedPixelSize(source: source)
         let maximumPixelSize: CGFloat = sourceSize.map { size in
-            ReaderImageRenderer.outputSize(
+            DownsampledImageRenderer.outputSize(
                 sourcePixelSize: size,
                 targetPixelWidth: targetPixelWidth
             )
             .maximumDimension
-        } ?? ReaderImageSizing.maximumPixelDimension
+        } ?? Self.maximumPixelDimension
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailFromImageIfAbsent: true,
@@ -76,7 +107,7 @@ enum ReaderImageDecoder {
             return nil
         }
 
-        return ReaderImageRenderer.normalizedImage(
+        return DownsampledImageRenderer.normalizedImage(
             UIImage(cgImage: cgImage),
             targetPixelWidth: targetPixelWidth
         )
@@ -108,7 +139,8 @@ enum ReaderImageDecoder {
     }
 }
 
-private enum ReaderImageRenderer {
+/// 中文注释：统一转成标准色彩空间并按目标宽度定尺，避免保留超大原图和不兼容 PNG 色彩空间。
+private enum DownsampledImageRenderer {
     static func normalizedImage(_ image: UIImage, targetPixelWidth: CGFloat) -> UIImage? {
         guard image.images == nil,
               image.size.width > 0,
@@ -145,7 +177,7 @@ private enum ReaderImageRenderer {
         }
 
         let widthScale: CGFloat = max(1, targetPixelWidth) / sourcePixelSize.width
-        let dimensionScale: CGFloat = ReaderImageSizing.maximumPixelDimension /
+        let dimensionScale: CGFloat = DownsampledImageDecoder.maximumPixelDimension /
             max(sourcePixelSize.width, sourcePixelSize.height)
         let scale: CGFloat = min(1, widthScale, dimensionScale)
         return CGSize(

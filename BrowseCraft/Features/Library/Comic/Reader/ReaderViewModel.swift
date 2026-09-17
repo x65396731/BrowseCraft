@@ -413,7 +413,7 @@ final class ReaderViewModel {
             )
         )
 
-        guard let image: UIImage = ReaderImageDecoder.decode(
+        guard let image: UIImage = DownsampledImageDecoder.decode(
             data: data,
             targetPixelWidth: targetPixelWidth
         ) else {
