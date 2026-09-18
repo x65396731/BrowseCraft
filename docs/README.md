@@ -31,7 +31,7 @@
 发生冲突时按以下顺序处理：
 
 1. 当前 BrowseCraftCore 的 Swift 模型、严格校验器、resolved graph 与 parser 定义内层运行时合同；
-   `BrowseCraftCore/Documentation/CoreParsingBoundary.md` 是 Core 可做什么的权威陈述。
+   `BrowseCraftCore/docs/design/CoreParsingBoundary.md` 是 Core 可做什么的权威陈述。
 2. 本目录的 C 类文档定义 App 侧的架构与实施约束。
 3. fwq 仓库 `docs/rules/` 定义规则生成与 catalog 发布规范。App 侧只引用，不复述（见第 4 节）。
 4. 真机日志与构建产物只证明当时观察到的事实。

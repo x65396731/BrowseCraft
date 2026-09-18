@@ -23,17 +23,33 @@ def rglob(pattern):
     return sorted(p[n:] for p in glob(os.path.join(ROOT, pattern)))
 
 
+def sibling(pkg, pattern):
+    """兄弟包里的文档。包不在同级目录时返回空——闸门跳过而不是报错。"""
+    base = os.path.join(os.path.dirname(ROOT), pkg)
+    if not os.path.isdir(base):
+        return []
+    n = len(ROOT) + 1
+    return sorted(os.path.relpath(x, ROOT) for x in glob(os.path.join(base, pattern)))
+
+
+# 五个仓库共用一套条款命名空间、一张状态表、一个闸门，不各建一份。
+# 兄弟包的 C 类文档进同一个扫描集；它们的条款定义点也在同一个 BCA-* 号段里。
+SIBLING_DOC_PACKAGES = ["BrowseCraftCore"]
+
 C_FILES = (
     ["AGENTS.md", "README.md", "docs/README.md", "docs/architecture.md", "scripts/README.md"]
     + rglob("docs/design/*.md")
     + rglob("BrowseCraft/*/README.md")
     + rglob("BrowseCraft/*/*/README.md")
+    + [f for pkg in SIBLING_DOC_PACKAGES
+       for f in sibling(pkg, "docs/README.md") + sibling(pkg, "docs/design/*.md")]
 )
 S_FILES = ["docs/STATUS.md"]
 # HANDOFF.md 按 BCA-DOC-011 属 H 类：不适用 C 类形态约束，但参与 A1（不得承载定义点）、
 # A2（引用的 ID 要有定义点）、A7（链接可解析）与 A9（只承载四样东西，规模是信号）。
 HANDOFF = "HANDOFF.md"
-H_FILES = rglob("docs/history/*.md") + [HANDOFF]
+H_FILES = (rglob("docs/history/*.md") + [HANDOFF]
+           + [f for pkg in SIBLING_DOC_PACKAGES for f in sibling(pkg, "docs/history/*.md")])
 ALL_FILES = C_FILES + S_FILES + H_FILES
 
 # BCA-DOC-011 的规模阈值。唯一声明点在此，文档只说「有上限」不复述数值——写两处必然漂移。
@@ -45,6 +61,8 @@ EXTERNAL_SYMBOLS_FILE = "scripts/docs-external-symbols.txt"
 # 至少两个驼峰节，避免把 RUNTIME、HTTP、JSON 这类全大写词与单节词当成类型名。
 CAMEL_RE = re.compile(r"\b([A-Z][a-z0-9]+(?:[A-Z][a-z0-9]+)+)\b")
 INLINE_SPAN_RE = re.compile(r"`([^`]+)`")
+# 路径形状的记号不是类型名：迁移对照表会列已不存在的旧路径，那是历史事实不是漂移。
+PATH_SPAN_RE = re.compile(r"[\w./-]+\.(?:swift|md|sh|py|yml|json|plist|strings|txt)\b|^[\w.-]+/")
 SOURCE_GLOBS = [
     "BrowseCraft/**/*.swift", "BrowseCraftTests/**/*.swift", "BrowseCraftUITests/**/*.swift",
     "project.yml",
@@ -290,6 +308,8 @@ def check_symbols(rep):
     for rel in C_FILES:
         for n, line in lines_outside_fences(read(rel)):
             for span in INLINE_SPAN_RE.findall(line):
+                if PATH_SPAN_RE.search(span):
+                    continue
                 wildcard = span.lstrip("`").startswith("*")
                 for name in CAMEL_RE.findall(span):
                     seen.setdefault((name, wildcard), f"{rel}:{n}")

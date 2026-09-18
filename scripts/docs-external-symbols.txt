@@ -25,6 +25,14 @@ UIBackgroundModes                    # Info.plist 键，不是 Swift 符号
 
 # ---- 已删除、文档有意提及的符号 ----
 RSSReadingHistoryRecord              # 随 RSS 于 2026-09-16 删除；文档在「该节已归档且现已不成立」的注里提它
+RuleResolver                         # Core 漫画 V2 迁移删掉的旧 DTO helper；合同在「已删除」一节点名它
+VideoAdapter                         # Core Video P2-6 删掉的 V1 适配层；合同在「Core 删除」一句里点名它
+VideoSourceDefinition                # 同上，V1 的视频来源定义，已由 RuleBackedSourceDefinition 取代
+VideoPlaybackRuntimeCapability       # P2-3 阶段的计划名，未落地；合同在阶段范围一句里点名它
+
+# ---- 被 v3 裁决删除、Core 预检文档正文仍在描述的组件（STATUS 有挂账）----
+DefaultSourceListFamilyAssessor      # 2026-09-03 v3 裁决删除 family coverage 归约后不再存在
+VideoGenerationOneHopPlanner         # 同上，一跳采样路径已删
 
 # ---- 未实现的计划名（设计留档，见 STATUS 对应行）----
 BookBookmarksSheet                   # 本地导入设计 3.4 节的计划名；入口已藏，该 UI 未建

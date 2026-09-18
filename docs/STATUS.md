@@ -79,7 +79,8 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | D5 `HANDOFF.md` 会话入口：四样内容，只记现查口径不记数字，只记纯 App 侧的工作 | `BCA-DOC-011` | required | approved | implemented | targeted-passed | a2adece | 2026-09-19 |
 | 2026-09-18 代码审计第 5 节修正清单的逐条状态尚未归到本表——要判断还剩什么必须读原文 | 未编号 | optional | draft | not-started | not-run | a2adece | 2026-09-19 |
 | fwq `docs/rules/` 两份 C 类与 `STATUS.md` 里的旧文档路径是否同步更正 | 未编号 | optional | draft | not-started | not-run | 2ce6b99 | 2026-09-19 |
-| `BrowseCraftCore/Documentation/` 的十份文档是否一并迁移（`Phase*` 属 H 类） | 未编号 | optional | draft | not-started | not-run | 2ce6b99 | 2026-09-19 |
+| `BrowseCraftCore` 文档迁移：十份进 `docs/design` 与 `docs/history`，建索引，三份混装按节三分 | `BCA-DOC-009` | required | approved | implemented | static-audit-passed | 69233d1 | 2026-09-19 |
+| Core 预检合同仍在描述 v3 裁决已删除的一跳采样与 family coverage（`VideoGenerationOneHopPlanner` / `DefaultSourceListFamilyAssessor`）——正文待过一遍 | 未编号 | required | draft | not-started | not-run | 69233d1 | 2026-09-19 |
 | A10 文档点名的代码符号必须存在（fwq `BC-DOC-028` 那类）：白名单只许收敛，识别家族通配与路径段 | `BCA-DOC-014` | required | approved | implemented | targeted-passed | 15394c2 | 2026-09-19 |
 | `scripts/update-rules-package.sh` 指向的 `BrowseCraftRulesKit` 不在当前五仓布局里——脚本是否已死待核 | 未编号 | optional | draft | not-started | not-run | 09d2af1 | 2026-09-19 |
 | `BookBookmarksSheet` 是本地导入设计里未实现的计划名——入口已藏，该节是未建代码的设计留档 | 未编号 | optional | approved | not-started | not-run | 09d2af1 | 2026-09-19 |

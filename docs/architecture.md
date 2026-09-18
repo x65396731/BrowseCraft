@@ -23,7 +23,7 @@ the rule model — a parallel copy would also have to be persisted, since a rule
 what lands in `sources.configJSON` and syncs through CloudKit.
 
 Dependency direction is `App → Core` and `App → APIKit`; Core and APIKit never reference each
-other. `BrowseCraftCore/Documentation/CoreParsingBoundary.md` is the authoritative statement of
+other. `BrowseCraftCore/docs/design/CoreParsingBoundary.md` is the authoritative statement of
 what Core may do. The short version: Core is a deterministic function from (bytes + rule +
 context) to normalised output, and never performs requests, holds cookies, creates a `WKWebView`,
 or knows about the current user.
