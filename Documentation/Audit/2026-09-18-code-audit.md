@@ -548,6 +548,31 @@ F0-3 建闸门时登记了 11 条现存命中作为基线。本次把 **Features
 所以接线层「非 CSS 回 nil」这一档在漫画路径上永远到不了，只由 Runtime 单测覆盖；接线层测试改测校验放行、
 但对整页无意义的当前节点标记。首轮用例把 `<script>` 源码里的字面量也数了进去（得 6 而非 3），已改为只数渲染出的 `<ul>` 内容。
 
+**真实站点联网测量（同日第四步）**。前三步都跑在固定输入上（`data:` URL 与记录型加载器）。
+这一步用线上来源 `manga18-club--list-manga`（manga18.club）的**真实规则 JSON**，经真实严格校验器解析、
+真实 `DefaultPageLoader`（`.baseline` 策略）打真实网络，只在「声明与不声明 `ready`」之间对比，其余逐字相同。
+该站列表原本 `needsWebView: false`，为测量机制本身把列表的 `request` 改成 `needsWebView: true`、
+`scope: "rule"`（规则级请求必须声明 `scope: rule`，否则严格校验器直接拒绝，路径 `$.ruleSets.listRules[0].request.scope`）。
+
+| 轮次 | 不声明 `ready` | 声明 `ready: .col-xs-6` | 解析出的条目数 |
+|---|---|---|---|
+| 第一轮 | 5,016 ms | **2,509 ms** | 两者都是 20 |
+| 第二轮 | 5,533 ms | **1,904 ms** | 两者都是 20 |
+
+模拟器统一日志里捕获到的判定原因，是这条链路最直接的证据：
+
+```
+dom-stability reason=exhaustedChecks waitedMs=3438 checks=12 selector=none     matched=-  url=.../list-manga/1
+dom-stability reason=selectorReady   waitedMs=314  checks=2  selector=declared matched=20 url=.../list-manga/1
+```
+
+不声明时走满 12 轮、等 3,438 ms；声明后第 2 轮即返回、等 314 ms，且 `matched=20` 与随后解析出的条目数一致——
+**等待时间降到约十分之一，内容一条不少**。两轮端到端耗时都减半以上。
+
+一个附带发现：这条线上规则里**唯一 `needsWebView: true` 的位置是阅读页（gallery）**，
+而阅读页正是我们判定为不安全、故意没有接线的一档（图片分批追加）。所以这条规则在不改 `needsWebView` 的前提下，
+没有可以安全声明 `ready` 的位置。要在真机上看到收益，需要一条列表或详情本身就走 WebView 的规则。
+
 **剩余两件都不在 App 侧**：(1) 挑一两条已知要 WebView 的规则写上 `ready`（同一选择器写 `item` 与 `ready` 即可），
 真机看日志 `dom-stability reason=selectorReady` 与耗时——影视线的必须真机；(2) 「`ready` = WebView 就绪选择器」
 这一语义补进正规化合同，按你的决定放到 fwq 侧立项完成后同步到服务器版本，本次不改合同文件。
