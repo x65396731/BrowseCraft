@@ -77,10 +77,38 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | C 类里的散文硬条款一次扫完编号：逐行分类后确认真条款 22 条，其余是描述句、章节标题与已编号条款的续行 | `BCA-DOC-002` | required | approved | implemented | static-audit-passed | c0a72fe | 2026-09-19 |
 | D4 机器闸门 `scripts/check-docs.py`：A1–A10 十项，每项经反向植入验证会红 | `BCA-DOC-010` | required | approved | implemented | targeted-passed | a330927 | 2026-09-19 |
 | D5 `HANDOFF.md` 会话入口：四样内容，只记现查口径不记数字，只记纯 App 侧的工作 | `BCA-DOC-011` | required | approved | implemented | targeted-passed | a2adece | 2026-09-19 |
-| 2026-09-18 代码审计第 5 节修正清单的逐条状态尚未归到本表——要判断还剩什么必须读原文 | 未编号 | optional | draft | not-started | not-run | a2adece | 2026-09-19 |
 | fwq 可写文件里指向 App 文档的九处旧路径已更正；`docs/history/` 十一处按只读归档未动，查迁移对照表 | 未编号 | required | approved | implemented | static-audit-passed | 4fd6087 | 2026-09-19 |
 | `BrowseCraftCore` 文档迁移：十份进 `docs/design` 与 `docs/history`，建索引，三份混装按节三分 | `BCA-DOC-009` | required | approved | implemented | static-audit-passed | 69233d1 | 2026-09-19 |
 | Core 预检合同按 v3 收敛：一跳与 family coverage 归档，组件名对齐代码，白名单两条撤回 | `BC-PREFLIGHT-030` | required | approved | implemented | static-audit-passed | 6f6dc80 | 2026-09-19 |
 | A10 文档点名的代码符号必须存在（fwq `BC-DOC-028` 那类）：白名单只许收敛，识别家族通配与路径段 | `BCA-DOC-014` | required | approved | implemented | targeted-passed | 15394c2 | 2026-09-19 |
 | `scripts/update-rules-package.sh` 指向的 `BrowseCraftRulesKit` 不在当前五仓布局里——脚本是否已死待核 | 未编号 | optional | draft | not-started | not-run | 09d2af1 | 2026-09-19 |
 | `BookBookmarksSheet` 是本地导入设计里未实现的计划名——入口已藏，该节是未建代码的设计留档 | 未编号 | optional | approved | not-started | not-run | 09d2af1 | 2026-09-19 |
+
+## 6. 代码审计（2026-09-18）
+
+原始清单与逐项论证在 [history/2026-09-18-code-audit.md](history/2026-09-18-code-audit.md) 第 5 节。
+本节只承载状态：**要判断「今天还剩什么」看本节即可，不必读原文**。
+「前提被测量推翻」的条目记为 `决策=rejected` + `验证=targeted-passed`——测量做过且是结论的依据，
+条目本身不实施。
+
+| 工作项 | 条款 | 决策 | 设计 | 实施 | 验证 | 检查点 | 更新日期 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 阶段 0 闸门基线（F0-1~4）：四包严格并发、边界脚本 import 写法与三个引用方向、`print`/`try!` 扩到四包 | `BCA-ARCH-004` | required | approved | implemented | static-audit-passed | 1febbf1 | 2026-09-18 |
+| 阶段 1 清零 37 条编译器警告（F1-1~11）：App 与测试目标均 0 条 | `BCA-ARCH-007` | required | approved | implemented | static-audit-passed | 3af597e | 2026-09-18 |
+| F2-1 正则缓存、F2-2 按目标宽度降采样解码成为共享 pipeline 的通用机制 | 未编号 | required | approved | implemented | static-audit-passed | 305895f | 2026-09-18 |
+| F2-3 前半与 F2-4：封面请求按标识变化只构造一次，按测得单元格尺寸声明 thumbnail 解码 | 未编号 | required | approved | implemented | static-audit-passed | 718ea07 | 2026-09-18 |
+| F2-3 后半：显式 `ImagePrefetcher` 预取——`LazyVGrid` 本就提前实例化下一屏，收益未测到，暂缓 | 未编号 | optional | approved | not-started | not-run | 718ea07 | 2026-09-18 |
+| F2-5 进列表先读后写与来源配置解码缓存、F2-6 读书线读库经 actor 离开主线程 | 未编号 | required | approved | implemented | not-run | 0baf3e3 | 2026-09-18 |
+| F2-7 WebView 稳定判定改 MutationObserver 静默窗口——前提被固定输入测量推翻，条目关闭 | 未编号 | rejected | superseded | not-started | targeted-passed | 3286951 | 2026-09-18 |
+| F2-8 发现分析器传 `Document` 不传 `html`、F2-12/F2-13 历史批量删除合并写事务 | 未编号 | required | approved | implemented | static-audit-passed | 5d5e421 | 2026-09-18 |
+| F2-9 `MobileAds.start()` 延后到引导完成——**已实施后回退**：必须早于 `FirebaseApp.configure`，否则覆盖 Crashlytics 信号处理器 | 未编号 | required | superseded | reverted | targeted-passed | 810c9ce | 2026-09-18 |
+| F2-10 预检复用 WKWebView 与数据存储——判定不动：每次取样各自一个非持久存储是隔离前提 | 未编号 | rejected | approved | not-started | not-run | 5d5e421 | 2026-09-18 |
+| F2-11 资产瘦身：占位图砍冗余 scale 槽位 + 按渲染宽度选有损，内购背景转 HEVC | `BCA-BUILD-006` | required | approved | implemented | targeted-passed | 7ac3d47 | 2026-09-18 |
+| 阶段 3 F3-3 Core 拆「规则模型 / 解析」两 target、F3-4 退役候选合同别名 | `BCA-ARCH-002` | required | approved | implemented | static-audit-passed | 473e8c7 | 2026-09-18 |
+| 阶段 3 F3-1 包侧加 `Tests/`——前提被测量否定：104 个 App 测试文件里 101 个 `@testable import` App | 未编号 | rejected | superseded | not-started | targeted-passed | 473e8c7 | 2026-09-18 |
+| 阶段 3 F3-2 `DefaultRuleExtractionEngine` 的默认构造改注入——判定不再需要：与解析器同在一个 target | 未编号 | rejected | superseded | not-started | not-run | 473e8c7 | 2026-09-18 |
+| 引导失败诊断：错误类型自己声明可安全记录的摘要，Keychain 的 `OSStatus` 可见 | `BCA-SYNC-001` | required | approved | implemented | static-audit-passed | 367da97 | 2026-09-18 |
+| 边界豁免收敛：`Features→Infrastructure` 七条与 `Shared` 两个方向清掉，豁免清单降到 1 条 | `BCA-BUILD-005` | required | approved | implemented | static-audit-passed | b1c60e7 | 2026-09-18 |
+| WebView 就绪选择器：加载器按「规则要提取的内容到了没」提前返回，等待 3438 ms → 314 ms | `APP-MEMO-016` | required | approved | implemented | device-passed | 54e2df3 | 2026-09-18 |
+| Swift 6 语言模式：App 与四个包切换，并加闸门把「警告为零」固化成编译错误 | `BCA-ARCH-007` | required | approved | implemented | static-audit-passed | 2f769ae | 2026-09-18 |
+| 封面请求重复构造——代价测量否掉：重复的只是请求构造，改发布时序要动两个 ViewModel，条目关闭 | 未编号 | rejected | superseded | not-started | targeted-passed | 70b2700 | 2026-09-18 |
