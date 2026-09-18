@@ -2,21 +2,14 @@ import SwiftUI
 import BrowseCraftCore
 import BrowseCraftDomain
 
-// 中文注释：SourceDebugView 是统一调试入口；漫画和视频可编辑 JSON，插件与书籍保持只读。
+// 中文注释：SourceDebugView 是统一调试入口，规则一律只读——规则只经服务端目录下发，App 内不提供编辑。
 
 struct SourceDebugView: View {
     @Bindable var viewModel: SourcesViewModel
     let sourceID: String
 
-    @State private var draftJSON: String = ""
-    @State private var draftSourceUpdatedAt: Date?
-    @State private var validationResult: SourceDebugJSONValidationResult = SourceDebugJSONValidationResult(
-        isValid: false,
-        message: ""
-    )
     @State private var tabValidationResult: SourceTabsValidationResult?
     @State private var isValidatingTabs: Bool = false
-    @State private var isShowingJSONEditor: Bool = false
 
     var body: some View {
         Group {
@@ -35,10 +28,6 @@ struct SourceDebugView: View {
             CrashDiagnostics.shared.setScreen(.ruleEditor)
             AppAnalytics.shared.logScreenView(.ruleEditor)
             CrashDiagnostics.shared.setSource(self.viewModel.source(id: self.sourceID))
-            self.resetDraftIfNeeded()
-        }
-        .sheet(isPresented: self.$isShowingJSONEditor) {
-            self.editorSheet()
         }
     }
 
@@ -63,23 +52,11 @@ struct SourceDebugView: View {
             self.jsonPreviewSection(source: source)
 
             Section {
-                if self.viewModel.canEditDebugJSON(for: source) {
-                    Button(
-                        action: {
-                            self.resetDraft(source: source)
-                            self.isShowingJSONEditor = true
-                        },
-                        label: {
-                            Label("Edit JSON", systemImage: "pencil")
-                        }
-                    )
-                } else {
-                    Label(
-                        source.isBuiltIn ? "Built-in source JSON is read-only." : "This source JSON is read-only.",
-                        systemImage: "lock"
-                    )
-                    .foregroundColor(.secondary)
-                }
+                Label(
+                    NSLocalizedString("Source JSON is read-only.", comment: ""),
+                    systemImage: "lock"
+                )
+                .foregroundColor(.secondary)
             }
         }
     }
@@ -226,74 +203,6 @@ struct SourceDebugView: View {
                 .lineLimit(12)
                 .textSelection(.enabled)
         }
-    }
-
-    private func editorSheet() -> some View {
-        NavigationStack {
-            Form {
-                Section("JSON") {
-                    Label(
-                        self.validationResult.message,
-                        systemImage: self.validationResult.isValid ? "checkmark.circle.fill" : "xmark.octagon.fill"
-                    )
-                    .foregroundColor(self.validationResult.isValid ? .green : .red)
-
-                    TextEditor(text: self.$draftJSON)
-                        .font(.system(.body, design: .monospaced))
-                        .frame(minHeight: 360)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                }
-            }
-            .navigationTitle("Edit JSON")
-            .onAppear {
-                self.validateDraftJSON()
-            }
-            .onChange(of: self.draftJSON) { _, _ in
-                self.validateDraftJSON()
-            }
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        self.isShowingJSONEditor = false
-                    }
-                }
-
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        Task {
-                            if await self.viewModel.updateDebugJSON(
-                                sourceID: self.sourceID,
-                                json: self.draftJSON,
-                                expectedUpdatedAt: self.draftSourceUpdatedAt
-                            ) {
-                                self.isShowingJSONEditor = false
-                            }
-                        }
-                    }
-                    .disabled(self.validationResult.isValid == false)
-                }
-            }
-        }
-    }
-
-    private func resetDraftIfNeeded() {
-        if self.draftJSON.isEmpty, let source: Source = self.viewModel.source(id: self.sourceID) {
-            self.resetDraft(source: source)
-        }
-    }
-
-    private func resetDraft(source: Source) {
-        self.draftJSON = self.viewModel.formattedDebugJSON(for: source)
-        self.draftSourceUpdatedAt = source.updatedAt
-        self.validateDraftJSON()
-    }
-
-    private func validateDraftJSON() {
-        self.validationResult = self.viewModel.validateDebugJSON(
-            sourceID: self.sourceID,
-            json: self.draftJSON
-        )
     }
 
     @MainActor

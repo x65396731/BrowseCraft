@@ -85,6 +85,9 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | A10 文档点名的代码符号必须存在（fwq `BC-DOC-028` 那类）：白名单只许收敛，识别家族通配与路径段 | `BCA-DOC-014` | required | approved | implemented | targeted-passed | 15394c2 | 2026-09-19 |
 | `scripts/update-rules-package.sh` 指向的 `BrowseCraftRulesKit` 不在当前五仓布局里——脚本是否已死待核 | 未编号 | optional | draft | not-started | not-run | 09d2af1 | 2026-09-19 |
 | `BookBookmarksSheet` 是本地导入设计里未实现的计划名——入口已藏，该节是未建代码的设计留档 | 未编号 | optional | approved | not-started | not-run | 09d2af1 | 2026-09-19 |
+| 规则编辑入口下线：`SourceDebugView` 的「Edit JSON」摘除、两个零引用编辑视图删除，规则一律只读 | 未编号 | required | approved | implemented | not-run | 60f91a0 | 2026-09-19 |
+| 上一项遗留的死代码链待清：`SourcesViewModel` 六个方法（`updateSourceRule` / `validateRuleJSON` / `formattedRuleJSON` / `canEditDebugJSON` / `validateDebugJSON` / `updateDebugJSON`）与 Coordinator、Service 的对应成员——要动工厂与测试替身，须在可 build 时做 | 未编号 | required | draft | not-started | not-run | 60f91a0 | 2026-09-19 |
+| **9 条 `BCA-*` 定义点只在被 `.gitignore` 的 `AGENTS.md` 里，仓库中不存在**——定义点不得放在不跟踪的文件里，须迁到 C 类文档 | `BCA-DOC-002` | required | draft | not-started | not-run | 60f91a0 | 2026-09-19 |
 
 ## 6. 代码审计（2026-09-18）
 
