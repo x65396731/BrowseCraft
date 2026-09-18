@@ -78,7 +78,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | D4 机器闸门 `scripts/check-docs.py`：A1–A10 十项，每项经反向植入验证会红 | `BCA-DOC-010` | required | approved | implemented | targeted-passed | a330927 | 2026-09-19 |
 | D5 `HANDOFF.md` 会话入口：四样内容，只记现查口径不记数字，只记纯 App 侧的工作 | `BCA-DOC-011` | required | approved | implemented | targeted-passed | a2adece | 2026-09-19 |
 | 2026-09-18 代码审计第 5 节修正清单的逐条状态尚未归到本表——要判断还剩什么必须读原文 | 未编号 | optional | draft | not-started | not-run | a2adece | 2026-09-19 |
-| fwq `docs/rules/` 两份 C 类与 `STATUS.md` 里的旧文档路径是否同步更正 | 未编号 | optional | draft | not-started | not-run | 2ce6b99 | 2026-09-19 |
+| fwq 可写文件里指向 App 文档的九处旧路径已更正；`docs/history/` 十一处按只读归档未动，查迁移对照表 | 未编号 | required | approved | implemented | static-audit-passed | 4fd6087 | 2026-09-19 |
 | `BrowseCraftCore` 文档迁移：十份进 `docs/design` 与 `docs/history`，建索引，三份混装按节三分 | `BCA-DOC-009` | required | approved | implemented | static-audit-passed | 69233d1 | 2026-09-19 |
 | Core 预检合同仍在描述 v3 裁决已删除的一跳采样与 family coverage（`VideoGenerationOneHopPlanner` / `DefaultSourceListFamilyAssessor`）——正文待过一遍 | 未编号 | required | draft | not-started | not-run | 69233d1 | 2026-09-19 |
 | A10 文档点名的代码符号必须存在（fwq `BC-DOC-028` 那类）：白名单只许收敛，识别家族通配与路径段 | `BCA-DOC-014` | required | approved | implemented | targeted-passed | 15394c2 | 2026-09-19 |
