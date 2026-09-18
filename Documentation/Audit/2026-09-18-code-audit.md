@@ -254,7 +254,7 @@ App 全量构建复核（`xcodebuild build-for-testing`，generic iOS 设备，�
 - **F2-10 判定不动**：`PreflightRenderedPageLoader` 的文档明确声明「每次取样各自一个非持久数据存储与 WKWebView，互不共享 Cookie / 凭据 / 导航状态」是隔离不变量，复用 WebView 会破坏它；`processPool` 一行已在阶段 1 删除。剩余的固定 300 ms 快照延迟与 F2-7 是同一机制（静默窗口），并入 F2-7 专项。
 - **F2-11 判定不动**：占位图像素尺寸（视频详情 @3x 1320×1386、漫画列表 @3x 600×900）接近其最大显示分辨率，缩小收益小；两段 mp4（6.5 MB、5.9 MB）转 HEVC 是视觉资产取舍，由你决定，建议目标：HEVC 同码率下体积约减半。
 - **F2-7 待专项**：触及影视线共用默认值，按既定要求需固定站点集合测量与真机复核后单独实施；机制设计已定（MutationObserver 静默窗口 + 按请求声明的窗口时长，当前 500 ms + 6×300 ms 作基线）。
-- 验证：Core/Runtime 构建、Core 测试目标编译、App 与测试目标构建均通过、0 警告，边界闸门干净。模拟器（iPhone 17 Pro，iOS 26.5）冒烟：正常签名的 Debug 包引导成功、启动动画播放、进程稳定；用 `CODE_SIGNING_ALLOWED=NO` 构建的包会在引导阶段以 `KeychainAppUserIdentityStoreError` 失败（无 application-identifier 时 Keychain 写入被拒），属于构建方式问题、不是代码回归——顺带发现引导失败页只把错误类型名哈希成诊断码、底层 OSStatus 没有进任何日志，列为后续项。**待真机复核：规则生成的发现分析结果与改前一致（同一页候选集合相同）、清空历史。**
+- 验证：Core/Runtime 构建、Core 测试目标编译、App 与测试目标构建均通过、0 警告，边界闸门干净。模拟器（iPhone 17 Pro，iOS 26.5）冒烟：正常签名的 Debug 包引导成功、启动动画播放、进程稳定；配合 `-BrowseCraftSkipStartupAnimation` 与新增的 `-BrowseCraftInitialTab <标签>` 逐页检查了五个 tab（来源、收藏、库、历史、设置），全部渲染空态、无崩溃、无应用级报错（唯一 error 是未登录 Apple 账号的 `session-load result=failed`，属预期）；用 `CODE_SIGNING_ALLOWED=NO` 构建的包会在引导阶段以 `KeychainAppUserIdentityStoreError` 失败（无 application-identifier 时 Keychain 写入被拒），属于构建方式问题、不是代码回归——顺带发现引导失败页只把错误类型名哈希成诊断码、底层 OSStatus 没有进任何日志，列为后续项。**待真机复核：规则生成的发现分析结果与改前一致（同一页候选集合相同）、清空历史。**
 
 ### 阶段 3：结构
 
@@ -273,6 +273,9 @@ App 全量构建复核（`xcodebuild build-for-testing`，generic iOS 设备，�
 - **F3-1 测试目标**：前提测量否定了「迁移只依赖包的用例」——104 个 App 测试文件里 101 个 `@testable import BrowseCraft`。因此改为新建 `BrowseCraftDomainTests`（Cookie 合并策略 5 例）与 `BrowseCraftRuntimeTests`（检测词典资源随包发布与加载 4 例、模板地址切片 2 例），三包 `swift build --build-tests` 通过；`RegularExpressionCache` 在 Core 测试里补 4 例。App 侧用例的迁移需要先把它们对 App 类型（`SourceDefinitionMapper`、`TestSourceRuntimeResolver` 等）的依赖改掉，列为后续项。
 - **F3-4 退役别名**：`App/Compatibility/CoreRuleCandidateNaming.swift` 的 13 个 typealias 删除，3 个使用文件改用 Core 原名（`SourceRuleCandidate*`、`SourceRuleCandidateDraftApplier`），文件只保留 App 需要的 Core 类型扩展。
 - 测试运行结果（2026-09-18，用户授权后）：`swift test` Core 228 例（4 例按设计跳过）、Domain 5 例、Runtime 6 例、APIKit 通过，全部 0 失败；App 测试套件在 iPhone 17 Pro（iOS 26.5）模拟器上 XCTest 39 例 + Swift Testing 493 例（86 个套件）全部通过。Runtime 新用例里一处反例假设有误（带空格字符串在新版 Foundation 仍可构成 URL），已改为根地址反例。
+
+
+模拟器验证辅助（2026-09-18）：`App/RootView.swift` 新增 DEBUG 专用启动参数 `-BrowseCraftInitialTab <标签>`，标签即 `RootTab` 的原始值（sources/favorites/library/history/settings），跳过开屏后停在指定 tab。它与既有的 `-BrowseCraftSkipStartupAnimation` 同一模式、同为 `#if DEBUG`，Release 不含；新增 tab 无需改动该参数的实现。引入原因：模拟器注入 tap 需要设备授权，而该授权在本次会话中未获响应。
 
 ## 6. 附：编译器警告按文件计数
 

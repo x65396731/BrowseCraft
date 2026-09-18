@@ -7,7 +7,7 @@ import SwiftUI
 /// 中文注释：每个 Tab 的 ViewModel 都通过 AppContainer 创建，并用 @StateObject 保持生命周期。
 @MainActor
 struct RootView: View {
-    private enum RootTab: Hashable {
+    private enum RootTab: String, Hashable {
         case sources
         case favorites
         case library
@@ -24,6 +24,20 @@ struct RootView: View {
     /// `-BrowseCraftSkipStartupAnimation` 时，跳过一解锁就自动走与按钮相同的 skip 路径，供模拟器验证。
     private static let skipsStartupAnimationWhenUnlocked: Bool =
         ProcessInfo.processInfo.arguments.contains("-BrowseCraftSkipStartupAnimation")
+    /// 中文注释：仅 DEBUG——`-BrowseCraftInitialTab <标签>` 指定跳过开屏后停在哪个 tab，标签即 `RootTab` 的原始值，
+    /// 因此新增 tab 不必改这里。模拟器注入的 tap 需要设备授权，这个参数让逐页验证不依赖授权；
+    /// 未传参或标签无效时保持既有落点。
+    private static let debugInitialTab: RootTab? = {
+        let arguments: [String] = ProcessInfo.processInfo.arguments
+        guard let flagIndex: Int = arguments.firstIndex(of: "-BrowseCraftInitialTab") else {
+            return nil
+        }
+        let valueIndex: Int = arguments.index(after: flagIndex)
+        guard valueIndex < arguments.endIndex else {
+            return nil
+        }
+        return RootTab(rawValue: arguments[valueIndex])
+    }()
     #endif
     @State private var sourcesViewModel: SourcesViewModel
     @State private var favoritesViewModel: FavoritesViewModel
@@ -197,6 +211,12 @@ struct RootView: View {
             case .library:
                 self.selectedTab = .library
             }
+
+            #if DEBUG
+            if let initialTab: RootTab = Self.debugInitialTab {
+                self.selectedTab = initialTab
+            }
+            #endif
         }
         self.navigateToCatalogIfPending()
     }
