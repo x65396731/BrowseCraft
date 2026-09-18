@@ -253,7 +253,7 @@ App 全量构建复核（`xcodebuild build-for-testing`，generic iOS 设备，�
 - **F2-13 文本块提取用集合**：`SwiftSoupHTMLDocumentParser.orderedTextBlocks` 先一次性算出被选节点与其全部祖先两个 `ObjectIdentifier` 集合，遍历时每个子节点 O(1) 判断；原为 O(children × selected × depth)。
 - **F2-10 判定不动**：`PreflightRenderedPageLoader` 的文档明确声明「每次取样各自一个非持久数据存储与 WKWebView，互不共享 Cookie / 凭据 / 导航状态」是隔离不变量，复用 WebView 会破坏它；`processPool` 一行已在阶段 1 删除。剩余的固定 300 ms 快照延迟与 F2-7 是同一机制（静默窗口），并入 F2-7 专项。
 - **F2-11 判定不动**：占位图像素尺寸（视频详情 @3x 1320×1386、漫画列表 @3x 600×900）接近其最大显示分辨率，缩小收益小；两段 mp4（6.5 MB、5.9 MB）转 HEVC 是视觉资产取舍，由你决定，建议目标：HEVC 同码率下体积约减半。
-- **F2-7 待专项**：触及影视线共用默认值，按既定要求需固定站点集合测量与真机复核后单独实施；机制设计已定（MutationObserver 静默窗口 + 按请求声明的窗口时长，当前 500 ms + 6×300 ms 作基线）。
+- **F2-7 已于同日专项测量并关闭**：前提被固定输入测量推翻，详见第 5.1 节。
 - 验证：Core/Runtime 构建、Core 测试目标编译、App 与测试目标构建均通过、0 警告，边界闸门干净。模拟器（iPhone 17 Pro，iOS 26.5）冒烟：正常签名的 Debug 包引导成功、启动动画播放、进程稳定；配合 `-BrowseCraftSkipStartupAnimation` 与新增的 `-BrowseCraftInitialTab <标签>` 逐页检查了五个 tab（来源、收藏、库、历史、设置），全部渲染空态、无崩溃、无应用级报错（唯一 error 是未登录 Apple 账号的 `session-load result=failed`，属预期）；用 `CODE_SIGNING_ALLOWED=NO` 构建的包会在引导阶段以 `KeychainAppUserIdentityStoreError` 失败（无 application-identifier 时 Keychain 写入被拒），属于构建方式问题、不是代码回归——顺带发现引导失败页只把错误类型名哈希成诊断码、底层 OSStatus 没有进任何日志，列为后续项。**待真机复核：规则生成的发现分析结果与改前一致（同一页候选集合相同）、清空历史。**
 
 ### 阶段 3：结构
@@ -276,6 +276,43 @@ App 全量构建复核（`xcodebuild build-for-testing`，generic iOS 设备，�
 
 
 模拟器验证辅助（2026-09-18）：`App/RootView.swift` 新增 DEBUG 专用启动参数 `-BrowseCraftInitialTab <标签>`，标签即 `RootTab` 的原始值（sources/favorites/library/history/settings），跳过开屏后停在指定 tab。它与既有的 `-BrowseCraftSkipStartupAnimation` 同一模式、同为 `#if DEBUG`，Release 不含；新增 tab 无需改动该参数的实现。引入原因：模拟器注入 tap 需要设备授权，而该授权在本次会话中未获响应。
+
+
+## 5.1 F2-7 专项结论（2026-09-18）：前提被测量推翻，条目关闭
+
+固定输入测量（`BrowseCraftTests/Infrastructure/Network/WKWebViewDOMStabilityMeasurementTests.swift`，
+`loadHTMLString` 注入合成页面，不访问真实站点，iPhone 17 Pro / iOS 26.5 模拟器）：
+
+| 测量项 | 结果 |
+|---|---|
+| 安静小页面的基线等待 | 1,553 ms，6 轮观察 |
+| 正文延迟 800 ms 写入时的基线等待 | 1,872 ms，7 轮；返回时正文已在 DOM 里（长度 4,208） |
+| 离屏 WebView 内 `setTimeout(50ms)` 的实际间隔 | 153 ms |
+| 662 KB DOM 上 6 次整页 `outerHTML.length` | 合计 7 ms（扣掉 6 次空调用后净开销 6 ms） |
+
+三条结论，推翻了审计第 4.2 节 P1 的两个前提：
+
+1. **那约 1,500 ms 不是浪费，是一条没写下来的不变量。** 页面可能在 `didFinish` 之后先安静一段，再用定时器写入正文。
+   「最少观察 6 轮」形成的下限恰好盖住这种情况。实测：把判定改成「连续 300 ms 无变更即稳定」后，
+   在正文 800 ms 才出现的页面上 **307 ms 就判定稳定并会交出空正文**。削减这条下限是正确性回归，不是优化。
+2. **整页 DOM 序列化不构成开销。** 原以为「每轮序列化整棵 DOM」是主要成本，实测 662 KB 的文档 6 次合计 6 ms。
+   按此量级，去掉它最多省下个位数毫秒。
+3. **离屏 WKWebView 会节流页面内的定时器**（请求 50 ms、实际 153 ms），因此任何「把等待循环放进页面」的方案
+   都无法稳定控制节奏；判定节奏必须留在 Swift 侧。实测中基于页面内计时的静默窗口在 5 个夹具里有 3 个比基线更慢。
+
+因此 **F2-7 关闭，不做机制替换**。本次保留三项成果：
+
+- `Infrastructure/Network/WKWebViewDOMStability.swift`：把原先埋在 `WKWebViewHTMLLoader` 私有常量里的判定策略
+  提成显式声明值 `WKWebViewDOMStabilityPolicy`，由装配点（`SourceRuntimeComposition`）写明使用 `.baseline`；
+  `minimumObservationChecks` 上写明它是晚到内容的保护下限。此前这组数字没有任何地方说明其作用。
+- 上述测量用例常驻，把两条不变量固化为闸门：判定稳定的时刻不得早于正文写入；序列化开销维持在个位数毫秒量级。
+- `project.yml`：测试目标补上 `BrowseCraftRuleModels` 产品依赖。这是 F3-3 拆分留下的真实缺口，此前被未重新生成的
+  工程文件掩盖，重新生成后表现为 `PaginationRule` 等符号链接失败。
+
+唯一还可能有收益的方向（未实施，需你定夺）：把「稳定」的判据从「DOM 不再变化」换成
+**「规则自己的列表/详情选择器已能取到节点」**，命中即返回、未命中才等到下限。这能让快页面在约 100 ms 内返回，
+且比时间下限更能保证正文存在；代价是加载器要知道规则的选择器，跨越了当前加载器与规则层的边界，
+且直接影响影视线，需要先设计边界再动手。
 
 ## 6. 附：编译器警告按文件计数
 

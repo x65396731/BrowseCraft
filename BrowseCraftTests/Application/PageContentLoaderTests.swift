@@ -12,7 +12,9 @@ struct PageContentLoaderTests {
         let loader: DefaultPageLoader = DefaultPageLoader(
             httpContentLoader: httpClient,
             httpDataLoader: httpClient,
-            renderedPageContentLoader: renderedPageLoader
+            renderedPageContentLoader: renderedPageLoader,
+            // 中文注释：注入了 rendered loader，策略不参与本用例；仍显式声明，避免出现隐藏默认值。
+            domStabilityPolicy: .baseline
         )
 
         let html: String = try await loader.loadContent(
@@ -35,7 +37,9 @@ struct PageContentLoaderTests {
         let loader: DefaultPageLoader = DefaultPageLoader(
             httpContentLoader: httpClient,
             httpDataLoader: httpClient,
-            renderedPageContentLoader: renderedPageLoader
+            renderedPageContentLoader: renderedPageLoader,
+            // 中文注释：注入了 rendered loader，策略不参与本用例；仍显式声明，避免出现隐藏默认值。
+            domStabilityPolicy: .baseline
         )
         let request: RequestConfig = RequestConfig(
             scope: .page,

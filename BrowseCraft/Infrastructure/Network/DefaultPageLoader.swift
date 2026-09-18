@@ -14,14 +14,16 @@ final class DefaultPageLoader: PageContentLoader, PageDataLoader {
         renderedPageContentLoader: RenderedPageContentLoader? = nil,
         credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider(),
         browserRequestHeaderProvider: any BrowserRequestHeaderProviding = EmptyBrowserRequestHeaderProvider(),
-        systemCookieHeaderProvider: any SystemCookieHeaderProviding = EmptySystemCookieHeaderProvider()
+        systemCookieHeaderProvider: any SystemCookieHeaderProviding = EmptySystemCookieHeaderProvider(),
+        domStabilityPolicy: WKWebViewDOMStabilityPolicy
     ) {
         self.httpContentLoader = httpContentLoader
         self.httpDataLoader = httpDataLoader
         self.renderedPageContentLoader = renderedPageContentLoader ?? WKWebViewHTMLLoader(
             credentialProvider: credentialProvider,
             browserRequestHeaderProvider: browserRequestHeaderProvider,
-            systemCookieHeaderProvider: systemCookieHeaderProvider
+            systemCookieHeaderProvider: systemCookieHeaderProvider,
+            domStabilityPolicy: domStabilityPolicy
         )
     }
 

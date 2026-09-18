@@ -220,6 +220,10 @@ targets:
       - target: BrowseCraft
       - package: BrowseCraftCore
         product: BrowseCraftCore
+      # 中文注释：Core 拆分后规则模型在独立 target 里，`import BrowseCraftCore` 经 @_exported 能看见这些类型，
+      # 但测试目标仍要显式链接这个库，否则 PaginationRule 等符号在链接期找不到。
+      - package: BrowseCraftCore
+        product: BrowseCraftRuleModels
       - package: BrowseCraftDomain
         product: BrowseCraftDomain
       - package: BrowseCraftRuntime

@@ -31,15 +31,19 @@ final class WKWebViewHTMLLoader: RenderedPageContentLoader, @unchecked Sendable 
     private let credentialProvider: any SourceCredentialProviding
     private let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
     private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
+    /// 中文注释：DOM 稳定判定策略由装配点显式声明，不再是本文件里的私有常量（见 WKWebViewDOMStability.swift）。
+    private let domStabilityPolicy: WKWebViewDOMStabilityPolicy
 
     init(
         credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider(),
         browserRequestHeaderProvider: any BrowserRequestHeaderProviding = EmptyBrowserRequestHeaderProvider(),
-        systemCookieHeaderProvider: any SystemCookieHeaderProviding = EmptySystemCookieHeaderProvider()
+        systemCookieHeaderProvider: any SystemCookieHeaderProviding = EmptySystemCookieHeaderProvider(),
+        domStabilityPolicy: WKWebViewDOMStabilityPolicy
     ) {
         self.credentialProvider = credentialProvider
         self.browserRequestHeaderProvider = browserRequestHeaderProvider
         self.systemCookieHeaderProvider = systemCookieHeaderProvider
+        self.domStabilityPolicy = domStabilityPolicy
     }
 
     @MainActor
@@ -50,7 +54,8 @@ final class WKWebViewHTMLLoader: RenderedPageContentLoader, @unchecked Sendable 
             context: request.sourceContext,
             credentialProvider: self.credentialProvider,
             browserRequestHeaderProvider: self.browserRequestHeaderProvider,
-            systemCookieHeaderProvider: self.systemCookieHeaderProvider
+            systemCookieHeaderProvider: self.systemCookieHeaderProvider,
+            domStabilityPolicy: self.domStabilityPolicy
         )
 
         return try await operation.load()
@@ -66,11 +71,6 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         static let autoScrollTimeoutSeconds: Double = 24
         static let postFinishDelayNanoseconds: UInt64 = 500_000_000
         static let postScrollDelayNanoseconds: UInt64 = 500_000_000
-        static let domStableDelayNanoseconds: UInt64 = 300_000_000
-        static let domStableChecks: Int = 12
-        static let domMinimumObservationChecks: Int = 6
-        static let domRequiredConsecutiveStableChecks: Int = 3
-        static let stableLengthDelta: Int = 32
     }
 
     private let url: URL
@@ -79,6 +79,7 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
     private let credentialProvider: any SourceCredentialProviding
     private let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
     private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
+    private let domStabilityPolicy: WKWebViewDOMStabilityPolicy
     private let webView: WKWebView
     private var continuation: CheckedContinuation<PageContentResponse, Error>?
     private var hasCompleted: Bool = false
@@ -93,7 +94,8 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         context: SourceRequestContext?,
         credentialProvider: any SourceCredentialProviding,
         browserRequestHeaderProvider: any BrowserRequestHeaderProviding,
-        systemCookieHeaderProvider: any SystemCookieHeaderProviding
+        systemCookieHeaderProvider: any SystemCookieHeaderProviding,
+        domStabilityPolicy: WKWebViewDOMStabilityPolicy
     ) {
         self.url = url
         self.request = request
@@ -101,6 +103,7 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         self.credentialProvider = credentialProvider
         self.browserRequestHeaderProvider = browserRequestHeaderProvider
         self.systemCookieHeaderProvider = systemCookieHeaderProvider
+        self.domStabilityPolicy = domStabilityPolicy
 
         let configuration: WKWebViewConfiguration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
@@ -143,7 +146,7 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
                     try await Task.sleep(nanoseconds: Timing.postScrollDelayNanoseconds)
                 }
 
-                try await self.waitForStableDOMLength()
+                try await self.waitForStableDOM()
                 let html: String = try await self.renderedHTML()
                 guard self.hasCompleted == false else {
                     return
@@ -421,46 +424,19 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         return 0
     }
 
-    private func waitForStableDOMLength() async throws {
-        var previousLength: Int?
-        var consecutiveStableChecks: Int = 0
-
-        for checkIndex in 0..<Timing.domStableChecks {
-            let currentLength: Int = try await self.renderedHTMLLength()
-            if let previousLength: Int,
-               abs(currentLength - previousLength) <= Timing.stableLengthDelta {
-                consecutiveStableChecks += 1
-            } else {
-                consecutiveStableChecks = 0
-            }
-
-            let observedCheckCount: Int = checkIndex + 1
-            if observedCheckCount >= Timing.domMinimumObservationChecks,
-               consecutiveStableChecks >= Timing.domRequiredConsecutiveStableChecks {
-                return
-            }
-
-            previousLength = currentLength
-            if observedCheckCount < Timing.domStableChecks {
-                try await Task.sleep(nanoseconds: Timing.domStableDelayNanoseconds)
-            }
-        }
-    }
-
-    private func renderedHTMLLength() async throws -> Int {
-        let result: Any? = try await self.webView.evaluateJavaScript(
-            "document.documentElement.outerHTML.length"
+    private func waitForStableDOM() async throws {
+        let waiter: WKWebViewDOMStabilityWaiter = WKWebViewDOMStabilityWaiter(
+            policy: self.domStabilityPolicy,
+            url: self.url
         )
-
-        if let length: Int = result as? Int {
-            return length
-        }
-
-        if let length: Double = result as? Double {
-            return Int(length)
-        }
-
-        throw WKWebViewHTMLLoaderError.unexpectedJavaScriptResult(url: self.url)
+        let outcome: WKWebViewDOMStabilityWaiter.Outcome = try await waiter.waitForStableDOM(in: self.webView)
+        #if DEBUG
+        AppDebugLog.write(
+            "[BrowseCraftWebView] dom-stability reason=\(outcome.reason.rawValue) " +
+            "waitedMs=\(outcome.waited.milliseconds) checks=\(outcome.observedChecks) " +
+            "url=\(self.url.absoluteString)"
+        )
+        #endif
     }
 
     /// 中文注释：didFinish 与 DOM 稳定检查完成后读取整页 DOM；正文为空仍是合法页面结果，

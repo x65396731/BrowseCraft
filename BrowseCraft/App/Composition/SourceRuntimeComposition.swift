@@ -39,7 +39,11 @@ final class SourceRuntimeComposition {
             httpDataLoader: httpClient,
             credentialProvider: sourceCredentialStore,
             browserRequestHeaderProvider: browserRequestHeaderProvider,
-            systemCookieHeaderProvider: systemCookieHeaderProvider
+            systemCookieHeaderProvider: systemCookieHeaderProvider,
+            // 中文注释：needsWebView 页面的 DOM 稳定判定策略在此显式声明。`baseline` 是历史机制与历史取值
+            // （轮询整页 outerHTML 长度，最小等待 6 次测量 + 5 × 300ms）。影视线已闭合并经真机复核，
+            // 切换到 `.mutationQuietWindow` 需要先完成固定站点集合测量与真机复核，是一次显式改动。
+            domStabilityPolicy: .baseline
         )
         self.pageLoader = pageLoader
 
