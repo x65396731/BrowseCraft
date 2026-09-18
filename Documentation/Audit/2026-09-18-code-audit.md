@@ -607,6 +607,39 @@ dom-stability reason=selectorReady   waitedMs=314  checks=2  selector=declared m
 真机看日志 `dom-stability reason=selectorReady` 与耗时——影视线的必须真机；(2) 「`ready` = WebView 就绪选择器」
 这一语义补进正规化合同，按你的决定放到 fwq 侧立项完成后同步到服务器版本，本次不改合同文件。
 
+## 5.6 Swift 6 语言模式（2026-09-18）：把「警告为零」固化成编译错误
+
+阶段 1 清零 37 条编译器警告、阶段 0 给四个包补上 complete 严格并发之后，剩下的风险不是「现在有问题」，
+而是**这个状态只靠警告维持**——下一个人加一处非 Sendable 的共享可变状态，最多得到一条警告，
+而警告不会让任何构建失败。切到 Swift 6 语言模式后这类问题直接是编译错误。
+
+**先量代价，再决定**（零成本固定输入，改动当时已还原）：
+
+| 目标 | Swift 6 语言模式下 |
+|---|---|
+| 四个包（`swift build -Xswiftc -swift-version -Xswiftc 6`） | 各 0 错误 |
+| App 与测试目标（`SWIFT_VERSION=6.0` 写在工程设置里） | 0 错误、0 编译器警告 |
+
+中途用命令行把设置压到所有依赖上时，第三方的 Fuzi 报 2 条错（`xmlFree`、`XPathNodeSet` 的全局可变状态）。
+那是命令行写法的问题：按工程设置写只作用于自己的目标，SwiftPM 依赖各自按自己的 tools-version 编译。
+
+**实施**：四个包的 `swift-tools-version` 由 5.9 提到 6.0，`swiftSettings` 由
+`.enableExperimentalFeature("StrictConcurrency")` 换成**显式**的 `.swiftLanguageMode(.v6)`
+（tools-version 6.0 的默认语言模式本就是 v6，但隐含默认改了没人看得出来，所以显式声明一次）；
+工程 `SWIFT_VERSION` 由 5.0 改为 6.0。
+
+**真实切换只暴露一处**，在测试代码里：`VideoSiteRulePlaybackValidationTests` 的
+`static let iframeWebUIRule: [String: Any]` 被判为可共享可变状态（`[String: Any]` 不是 Sendable）。
+它本身是只读夹具，改为计算属性即无共享状态，取值逐字不变。产品代码一处没改。
+
+**验证**：Core 228 例（4 例按设计跳过）、Domain 5 例、Runtime 10 例、APIKit 33 例全部通过；
+App 499 例 Swift Testing + 62 例 XCTest 通过，编译错误 0、编译器警告 0。
+
+**新增闸门**（`scripts/check-architecture-boundaries.sh`，随每次构建跑）：工程的 `SWIFT_VERSION` 必须是 6.0，
+四个包必须各自声明 `swift-tools-version: 6.0` 与显式的 `.swiftLanguageMode(.v6)`。
+用三种反证验过：把工程调回 5.0、拆掉某个包的显式声明、把某个包的 tools-version 调回 5.9，都被挡住。
+闸门要的是**显式声明**而不是隐含默认，理由与上面同一条。
+
 ## 6. 附：编译器警告按文件计数
 
 | 文件 | 条数 |

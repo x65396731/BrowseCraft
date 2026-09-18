@@ -15,7 +15,10 @@ configs:
 
 settings:
   base:
-    SWIFT_VERSION: "5.0"
+    # 中文注释：Swift 6 语言模式。四个包同日一并切到 `.swiftLanguageMode(.v6)`；
+    # 切换前已量过代价为零（四个包各 0 错误，App 与测试目标 0 错误 0 编译器警告）。
+    # 它把此前「complete 严格并发 + 警告为零」这一当下状态固化成编译错误，防止悄悄漂回去。
+    SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
     CURRENT_PROJECT_VERSION: "19"
     MARKETING_VERSION: "1.0"

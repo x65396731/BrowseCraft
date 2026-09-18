@@ -251,4 +251,29 @@ if [[ -d "$CORE_ROOT" ]]; then
   fi
 fi
 
+# 中文注释：Swift 6 语言模式闸门（2026-09-18）。切换前已量过代价为零，它把此前
+# 「complete 严格并发 + 警告为零」这一当下状态固化成编译错误。这个取值一旦被调回
+# 5.x，全部数据竞争诊断会退回警告，而警告不会让任何构建失败——没人会发现。
+# 因此把它写成显式声明加闸门：工程与四个包各自声明一次，这里逐一核对。
+app_swift_version="$(sed -n 's/^ *SWIFT_VERSION: *"\(.*\)"/\1/p' "$REPOSITORY_ROOT/project.yml" | head -1)"
+if [[ "$app_swift_version" != "6.0" ]]; then
+  echo "Architecture boundary violation: project.yml 的 SWIFT_VERSION 是 '${app_swift_version}'，应为 6.0。"
+  echo '调低语言模式会把数据竞争诊断降级为警告；要改必须连同理由一起改这条闸门。'
+  exit 1
+fi
+
+for package_name in BrowseCraftCore BrowseCraftDomain BrowseCraftRuntime BrowseCraftAPIKit; do
+  package_manifest="$REPOSITORY_ROOT/../$package_name/Package.swift"
+  [[ -f "$package_manifest" ]] || continue
+  if ! grep -q '^// swift-tools-version: 6\.0' "$package_manifest"; then
+    echo "Architecture boundary violation: $package_name 的 swift-tools-version 不是 6.0。"
+    exit 1
+  fi
+  if ! grep -q 'swiftLanguageMode(\.v6)' "$package_manifest"; then
+    echo "Architecture boundary violation: $package_name 没有显式声明 .swiftLanguageMode(.v6)。"
+    echo '这里要的是显式声明而不是靠 tools-version 6.0 的隐含默认——隐含默认改了没人看得出来。'
+    exit 1
+  fi
+done
+
 echo 'Architecture boundaries are clean.'
