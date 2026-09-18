@@ -132,11 +132,12 @@ BROWSECRAFT_ENVIRONMENT_NAME=PROD ACTION=install ./scripts/check-ad-configuratio
 python3 scripts/check-docs.py
 ```
 
-八项检查：A1 定义点唯一、域在受控词表内、H 类归档不承载定义点；A2 引用到的 ID 都有定义点
+九项检查：A1 定义点唯一、域在受控词表内、H 类归档不承载定义点；A2 引用到的 ID 都有定义点
 （`BCA-*` 查本仓库，`BC-*` 查 fwq 的 C 类）；A3 不为 fwq 已定义的 ID 另写定义点；A4 C 类无状态串头部行；
 A5 C 类无 commit 哈希与测试计数；A6 C 类无带日期的章节标题；A7 链接可解析、无绝对主机路径；
-A8 `docs/STATUS.md` 每格落枚举或形态。
+A8 `docs/STATUS.md` 每格落枚举或形态；A9 根 `HANDOFF.md` 只承载四样东西（行数与 commit 哈希数是信号，
+阈值的唯一声明点在脚本里，文档不复述数值）。
 
-围栏代码块在 A1、A4–A7 前一律剥掉——里面的 ID 是语法示例、哈希是命令输出、`[](…)` 不会被渲染成链接。
+围栏代码块在 A1、A4–A7 与 A9 前一律剥掉——里面的 ID 是语法示例、哈希是命令输出、`[](…)` 不会被渲染成链接。
 A2 与 A3 要读 fwq 仓库（缺省 `~/Desktop/fwq`，用 `--fwq` 改）；**fwq 不可达时这两项跳过并如实报告跳过，
 不静默通过**。它不接进 pre-build 阶段：文档闸门失败不应阻断代码 build。

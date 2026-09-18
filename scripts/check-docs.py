@@ -2,7 +2,7 @@
 """BrowseCraft 文档闸门。
 
 形态与条款规则的定义点在 docs/README.md 第 3–5 节；本脚本只执行，不定义。
-八项检查 A1–A8 的口径见 docs/history/2026-09-19-docs-architecture-audit.md 第 6 节 D4。
+九项检查 A1–A9 的口径见 docs/history/2026-09-19-docs-architecture-audit.md 第 6 节 D4。
 提交任何 C 类文档、docs/STATUS.md 或 AGENTS.md 的改动前跑一次；任一项失败即不得提交。
 
 用法：python3 scripts/check-docs.py [--fwq <path>]
@@ -30,8 +30,15 @@ C_FILES = (
     + rglob("BrowseCraft/*/*/README.md")
 )
 S_FILES = ["docs/STATUS.md"]
-H_FILES = rglob("docs/history/*.md")
+# HANDOFF.md 按 BCA-DOC-011 属 H 类：不适用 C 类形态约束，但参与 A1（不得承载定义点）、
+# A2（引用的 ID 要有定义点）、A7（链接可解析）与 A9（只承载四样东西，规模是信号）。
+HANDOFF = "HANDOFF.md"
+H_FILES = rglob("docs/history/*.md") + [HANDOFF]
 ALL_FILES = C_FILES + S_FILES + H_FILES
+
+# BCA-DOC-011 的规模阈值。唯一声明点在此，文档只说「有上限」不复述数值——写两处必然漂移。
+HANDOFF_MAX_LINES = 250
+HANDOFF_MAX_HASHES = 5
 
 # ---- docs/README.md 第 4 节的受控词表。新增域必须先改那里，再改这里。----
 DOMAINS = {"ARCH", "BUILD", "RUNTIME", "PARSE", "DB", "SYNC", "BOOK", "UI", "DOC"}
@@ -195,6 +202,23 @@ def check_links(rep):
     rep.note("A7", f"{total} 条仓库内链接")
 
 
+def check_handoff(rep):
+    """A9：HANDOFF.md 只承载四样东西，规模超限即说明它开始承载别的（BCA-DOC-011）。
+
+    阈值是信号不是精确边界，故意留有余量。定义点归属由 A1 管，这里只看规模。
+    """
+    text = read(HANDOFF)
+    n_lines = len(text.split("\n"))
+    n_hashes = sum(len(HASH_RE.findall(line)) for _, line in lines_outside_fences(text))
+    if n_lines > HANDOFF_MAX_LINES:
+        rep.fail("A9", HANDOFF,
+                 f"{n_lines} 行超过 {HANDOFF_MAX_LINES}：它只许承载四样东西，超限说明又开始记别的了")
+    if n_hashes > HANDOFF_MAX_HASHES:
+        rep.fail("A9", HANDOFF,
+                 f"{n_hashes} 个 commit 哈希超过 {HANDOFF_MAX_HASHES}：状态性数字应现查，不该记死在这里")
+    rep.note("A9", f"{n_lines} 行 / {n_hashes} 个哈希")
+
+
 def check_status(rep):
     """A8：STATUS.md 每格取值落枚举或形态，枚举列禁止 / 拼接。"""
     rows = 0
@@ -249,6 +273,7 @@ def main():
     check_c_form(rep)
     check_links(rep)
     check_status(rep)
+    check_handoff(rep)
 
     titles = {
         "A1": "定义点唯一、域在词表内、H 类不承载定义点",
@@ -259,6 +284,7 @@ def main():
         "A6": "C 类无带日期的章节标题",
         "A7": "链接可解析、无绝对主机路径",
         "A8": "STATUS.md 每格落枚举",
+        "A9": "HANDOFF.md 只承载四样东西",
     }
     failed = {c for c, _, _ in rep.failures}
     skipped = {c for c, _ in rep.skipped}
