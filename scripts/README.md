@@ -10,7 +10,7 @@ Regenerate the Xcode project after adding, moving or removing source files.
 
 中文注释：依赖全部由 Swift Package Manager 管理，工程只需要 `xcodegen generate`，没有 CocoaPods 步骤。如果 Xcode 正开着工程并提示"文件已被修改"，选"使用磁盘版本"。
 
-中文注释：工程文件是生成物且不入库，因此签名团队等设置必须写在 `project.yml`（`settings.base.DEVELOPMENT_TEAM`）。在 Xcode 的 Signing & Capabilities 里改只在下次重新生成前有效。
+中文注释：工程设置写在 `project.yml`（`settings.base.DEVELOPMENT_TEAM`），条款见 `BCA-BUILD-004`。在 Xcode 的 Signing & Capabilities 里改只在下次重新生成前有效。
 
 It does not build the app.
 
@@ -29,7 +29,8 @@ Pre-build gate for layer boundaries. It runs on every build and never modifies a
 - `print(` 与 `try!` 禁用扩展到 App 与四个包（Core / Domain / Runtime / APIKit）的 Sources。
 
 已存在的命中登记在 `scripts/architecture-boundary-exemptions.txt`，每行「路径 标识」（路径相对仓库根，包用 `../BrowseCraftXxx/...`）。
-豁免只允许收敛、不允许新增未经审阅的条目；删掉一行即恢复对该处的检查。
+- `BCA-BUILD-005` `scripts/architecture-boundary-exemptions.txt` 的豁免只允许收敛、不允许新增未经审阅的条目；
+  删掉一行即恢复对该处的检查。
 
 ## check-swiftsoup-override.sh
 
@@ -42,7 +43,7 @@ and only checks; it never modifies anything.
 ```
 
 中文注释：SwiftSoup 走两条路——Core 按 commit 锁定自家 fork（`swift test` 用这条），工程用 `../SwiftSoup`
-本地包覆盖整张依赖图（Xcode 构建用这条，Readium 也被指到 fork）。两条路必须是同一个 commit，否则
+本地包覆盖整张依赖图（Xcode 构建用这条，Readium 也被指到 fork）。两条路必须是同一个 commit（`BCA-BUILD-002`），否则
 `swift test` 和 Xcode 看到的解析器不是同一份。首次拉取本地覆盖包：
 
 ```sh
@@ -101,10 +102,10 @@ Pre-build gate for bundled bitmap assets. It runs on every build and never modif
 中文注释：资产目录里的位图不被任何既有用例覆盖——改错格式的表现是界面空白而不是报错，多带几档冗余
 scale 槽位的表现是包体悄悄变大而没人发现。闸门按 `scripts/bundled-image-asset-budgets.txt` 的显式声明检查：
 
-- 资产目录里的每个 `imageset` / `appiconset` 都必须在声明文件里登记，新增资产会因为没登记而失败；
-- 声明里的每个条目都必须真的存在，源字节不超上限，像素尺寸符合声明；
-- 单档形态还要求恰好一张 `.png`、`Contents.json` 不带 scale 槽位，并且 `compression-type: lossy`
-  标记与声明的形态双向一致——声明为 lossy 的必须标，声明为无损的不许标。
+- `BCA-BUILD-006` 资产目录里的每个 `imageset` / `appiconset` 都必须在声明文件里登记，新增资产会因为没登记
+  而失败；声明里的每个条目都必须真的存在，源字节不超上限，像素尺寸符合声明；
+- `BCA-BUILD-007` 单档形态还要求恰好一张 `.png`、`Contents.json` 不带 scale 槽位，并且
+  `compression-type: lossy` 标记与声明的形态双向一致——声明为 lossy 的必须标，声明为无损的不许标。
 
 形态怎么选有实测依据，逐项数据在审计报告 5.4.1：占位图一律被缩放到版面框，多档槽位无收益；
 渲染宽度远小于原生分辨率的图标 lossy 后在真实渲染宽度上的 SSIM 仍有 0.990 以上，

@@ -29,14 +29,14 @@
 - `cloud_record_metadata` 保存 CKRecord system fields/change tag，并按账户与 record name 隔离。
 - Source、Favorite 和同步账本 Repository 在每次事务开始前捕获活动 account scope。
 - 首次合并只复制 `local.default` 到目标 cloud scope，不删除或改写匿名空间。
-- 禁止修改已发布迁移的实现或标识；schema 变化必须追加新迁移。
-- 每次新增迁移都必须覆盖“上一正式版本数据库升级”与全新数据库创建，并执行 `foreign_key_check`。
+- `BCA-DB-002` 禁止修改已发布迁移的实现或标识；schema 变化必须追加新迁移。
+- `BCA-DB-003` 每次新增迁移都必须覆盖“上一正式版本数据库升级”与全新数据库创建，并执行 `foreign_key_check`。
 
 ## Source 删除规则
 
 - `sources.userID + sources.id` 只拥有来源自身配置，以及同一用户空间的 Library 当前选择状态。
 - 删除 Source 使用软删除：写入 `sources.deletedAt`，并把删除动作写入 `sync_queue`。
-- 删除 Source 不删除 `rss_reading_history`、`comic_chapter_history`、`video_watch_history`。
-- 删除 Source 必须在当前选择匹配时清空 `user_library_state.selectedSourceID`、`listContextJSON`、`lastRefreshAt`。
+- 删除 Source 不删除 `comic_chapter_history`、`video_watch_history`、`book_reading_history`。（`rss_reading_history` 已由 `v6.remove-rss` 删表。）
+- `BCA-DB-004` 删除 Source 必须在当前选择匹配时清空 `user_library_state.selectedSourceID`、`listContextJSON`、`lastRefreshAt`。
 - 不删除 `users`。
 - 不删除 `favorites` 或阅读历史；这些用户快照独立于来源生命周期。

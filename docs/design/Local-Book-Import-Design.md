@@ -14,7 +14,7 @@
 2. `BCA-BOOK-002` 文件**复制进 App 容器**（`Application Support/Books/<uuid>.<ext>`），不用安全作用域书签引用外部文件——iCloud Drive 与「文件」App 里的文件会被移动、被按需卸载，引用会在第二次打开时失效。
 3. `BCA-BOOK-003` `Locator` 在 Domain 里是**不透明 JSON 字符串**（Domain 与 Application 禁止依赖框架，Readium 的 `Locator` 只在 Infrastructure 与 Features 出现）；Readium 提供 `Locator.jsonString()` 与从 JSON 还原，续读位置、书签都存它，进度条用 `locations.totalProgression`。
 4. 书架是 Library 里**独立于 Source 的一栏**：本地书不是 `Source`，不进 `SourceConfiguration`，不进 CloudKit 同步（首批）。等站点抓取路接上时，站点书与本地书共用同一个阅读器与同一张进度 / 书签表（外键从 `localBookID` 扩为「作品标识」，第 六节）。
-5. 架构边界脚本要**先加一条**：`Domain` 与 `Application` 禁止 `import ReadiumShared / ReadiumStreamer / ReadiumNavigator / ReadiumAdapterGCDWebServer`（现在脚本的禁用清单里没有 Readium，靠自觉）。
+5. Readium 模块进不了 `Domain` 与 `Application`，由架构边界脚本执行：`BCA-ARCH-002`。
 
 ## 二、Readium 3.11.0 的能力（从源码核对，不凭记忆）
 
@@ -102,7 +102,7 @@ xcodebuild -project BrowseCraft.xcodeproj -scheme BrowseCraft -destination 'plat
 ## 七、风险
 
 - `GCDHTTPServer` 监听本机端口，与 App 既有的 Alamofire / WebKit 层无冲突，但要确认 App Transport Security 对 `http://127.0.0.1` 的例外（Readium 自带处理，build 后核）。
-- 后台音频需要新的 capability（`UIBackgroundModes`），必须写在 `project.yml`（`pbxproj` 是生成的，Xcode 里改会被下次 regenerate 冲掉）。
+- 后台音频需要新的 capability（`UIBackgroundModes`），按 `BCA-BUILD-004` 写在 `project.yml`。
 - iCloud Drive 里未下载的文件：`fileImporter` 给的 URL 可能是占位，复制前要 `startDownloadingUbiquitousItem` 或提示用户。
 - 大文件（数百 MB 的 m4b）：复制与 SHA-256 要在后台任务里做，书架显示「导入中」。
 

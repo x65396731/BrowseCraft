@@ -62,8 +62,8 @@
 | --- | --- |
 | `keep` / `discard` / `deprioritize` | 复用 `SourceContentNoiseDecision` |
 
-`discard` 的候选不得进入播放；若全部候选被 discard，按既有 `fallback` 语义处理，
-不得静默播放被判为广告的地址。
+- `BCA-RUNTIME-003` `discard` 的候选不得进入播放；若全部候选被 discard，按既有 `fallback` 语义处理，
+  不得静默播放被判为广告的地址。
 
 ## 四之二、实施时被测量推翻的两条默认假设
 

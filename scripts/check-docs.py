@@ -195,7 +195,7 @@ def check_links(rep):
                 total += 1
                 where = f"{rel}:{n}"
                 if target.startswith("/"):
-                    rep.fail("A7", where, f"绝对主机路径：{target}（BCA-DOC-005 要求仓库相对路径）")
+                    rep.fail("A7", where, f"绝对主机路径：{target}（BCA-DOC-013 要求仓库相对路径）")
                     continue
                 if not os.path.exists(os.path.join(base, target.split("#")[0])):
                     rep.fail("A7", where, f"链接解析不到：{target}")

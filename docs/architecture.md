@@ -97,16 +97,18 @@ entirely in `BrowseCraftRuntime`. It imports nothing but Foundation, `BrowseCraf
 `BrowseCraftDomain`; the app supplies every loader, credential store and header provider through
 kernel ports. `SourceDetectionLexicon` reads its JSON from the package's resource bundle (`Bundle.module`,
 declared as `.process` in `Package.swift`). `Bundle(for:)` would resolve to the app bundle once the
-package links statically, find nothing, and silently fall back — so resource lookup in a package
-must always go through `Bundle.module`.
+package links statically, find nothing, and silently fall back.
+
+- `BCA-ARCH-006` Resource lookup inside a SwiftPM package must always go through `Bundle.module`.
 
 The Debug-only runtime audit is a developer tool, not runtime semantics, so it stays in the app at
 `Application/Diagnostics/VideoRuntimeAudit` — it drives the runtime and depends on app use cases.
 Only the evidence value types the playback loader itself uses live in the framework.
 
-Extraction turns up two mechanical consequences worth knowing: a `public` struct no longer gets
-`Sendable` inferred, so it must declare the conformance explicitly; and members of a `private`
-extension must not carry `public`.
+Extraction turns up two mechanical consequences worth knowing:
+
+- `BCA-ARCH-007` A `public` struct in a package no longer gets `Sendable` inferred, so it must
+  declare the conformance explicitly; and members of a `private` extension must not carry `public`.
 It already imports nothing but Foundation, `BrowseCraftCore` and `BrowseCraftDomain`, and its
 collaborators (`PageContentLoader`, `SourceCredentialProviding`, …) are Foundation-only protocols.
 Slot-limit decisions are not runtime semantics: `SourceRuntimeFactory` takes an injected
@@ -162,7 +164,10 @@ Three more scripts guard the build:
   uses the **TEST BrowseCraft** scheme (archive config `TestFlight`, environment TEST); the plain
   **BrowseCraft** and **PROD BrowseCraft** schemes archive `Release` as PROD and will refuse to
   build until `BROWSECRAFT_REWARDED_AD_UNIT_ID` is a real ad unit.
-- `BCA-BUILD-004` Signing settings, including `DEVELOPMENT_TEAM`, must live in `project.yml`.
+- `BCA-BUILD-004` Project settings must live in `project.yml` — signing (including
+  `DEVELOPMENT_TEAM`) and capabilities such as `UIBackgroundModes` alike. `project.pbxproj` is
+  generated and git-ignored, so anything set through Xcode's editors is wiped by the next
+  `scripts/regenerate-project.sh`.
 
 `project.pbxproj` is generated and git-ignored, so anything set through Xcode's Signing &
 Capabilities editor is wiped by the next `scripts/regenerate-project.sh`.
@@ -188,9 +193,12 @@ View models are `@Observable` (iOS 17 Observation), observed by views with `@Sta
 and `@Bindable` where a binding projection is needed. Six types deliberately stay
 `ObservableObject`: `SourceSelectionStore`, because `LibraryViewModel` and `SourcesViewModel`
 subscribe to its `$` publishers to coordinate across tabs, and the five `NSObject`-based WebView /
-ad-presenter coordinators that also serve as UIKit delegates. Task handles touched in `deinit` are
-marked `@ObservationIgnored` — the macro turns stored properties into computed ones, which a
-nonisolated `deinit` may not read. StoreKit transactions
+ad-presenter coordinators that also serve as UIKit delegates. The macro turns stored properties into computed ones, which a
+nonisolated `deinit` may not read:
+
+- `BCA-ARCH-008` Task handles touched in `deinit` must be marked `@ObservationIgnored`.
+
+ StoreKit transactions
 become `StoreTransactionSnapshot` before Portal validation or database writes.
 
 ## 5. Persistence
@@ -199,8 +207,9 @@ Schema evolves **only** through `Infrastructure/Database/Migrations/AppDatabaseM
 
 `AppDatabaseSchemaV1` is a frozen, literal copy of the `v1.initial-schema` migration that shipped
 devices have already recorded — table and column names are string literals, so evolving a `Record`
-type cannot silently rewrite history. It is never edited. Every later change is appended as a new
-`vN.description` migration expressed with `ALTER`/`CREATE`.
+type cannot silently rewrite history. It is never edited, and every later change is appended as a
+new `vN.description` migration expressed with `ALTER`/`CREATE` — the clause is `BCA-DB-002`,
+defined in `BrowseCraft/Infrastructure/Database/README.md`.
 
 `AppDatabaseSchemaSnapshotTests` runs the migration chain against a fresh database and compares
 the resulting `sqlite_master` to a checked-in snapshot, so a schema change without a migration —
