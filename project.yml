@@ -172,6 +172,12 @@ targets:
         basedOnDependencyAnalysis: false
         script: |
           "${SRCROOT}/scripts/check-ad-configuration.sh"
+      # 中文注释：随包位图资产没有任何既有用例覆盖——换错格式是界面空白，多带冗余 scale 槽位是包体
+      # 悄悄变大。闸门按 scripts/bundled-image-asset-budgets.txt 的显式声明检查。
+      - name: Check Bundled Image Assets
+        basedOnDependencyAnalysis: false
+        script: |
+          "${SRCROOT}/scripts/check-bundled-image-assets.sh"
       # 中文注释：../SwiftSoup 本地覆盖包必须与 BrowseCraftCore 锁定的 fork commit 一致，否则 Xcode 构建
       # 与 swift test 用的不是同一份解析器。
       - name: Check SwiftSoup Override

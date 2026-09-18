@@ -90,6 +90,29 @@ type used from `Features`).
 ./scripts/check-architecture-boundaries.sh
 ```
 
+## check-bundled-image-assets.sh
+
+Pre-build gate for bundled bitmap assets. It runs on every build and never modifies anything.
+
+```sh
+./scripts/check-bundled-image-assets.sh
+```
+
+中文注释：资产目录里的位图不被任何既有用例覆盖——改错格式的表现是界面空白而不是报错，多带几档冗余
+scale 槽位的表现是包体悄悄变大而没人发现。闸门按 `scripts/bundled-image-asset-budgets.txt` 的显式声明检查：
+
+- 资产目录里的每个 `imageset` / `appiconset` 都必须在声明文件里登记，新增资产会因为没登记而失败；
+- 声明里的每个条目都必须真的存在，源字节不超上限，像素尺寸符合声明；
+- 单档形态还要求恰好一张 `.png`、`Contents.json` 不带 scale 槽位，并且 `compression-type: lossy`
+  标记与声明的形态双向一致——声明为 lossy 的必须标，声明为无损的不许标。
+
+形态怎么选有实测依据，逐项数据在审计报告 5.4.1：占位图一律被缩放到版面框，多档槽位无收益；
+渲染宽度远小于原生分辨率的图标 lossy 后在真实渲染宽度上的 SSIM 仍有 0.990 以上，
+而按接近原生分辨率铺满屏幕的图（视频详情占位图）只剩 0.964，因此保持无损。
+
+运行期那一半由 `BrowseCraftTests/Shared/Resources/BundledImageAssetTests.swift` 把关：它读同一份声明，
+验证编译进 App 之后每张资产还能解出 `CGImage` 且像素尺寸与声明一致。两处共用一份声明，不会互相漂移。
+
 ## check-ad-configuration.sh
 
 Runs as a pre-build phase of the `BrowseCraft` target. A PROD archive

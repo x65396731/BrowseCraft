@@ -1,0 +1,32 @@
+# 随包位图资产声明（scripts/check-bundled-image-assets.sh 读取，BundledImageAssetTests 复用同一份）
+#
+# 中文注释：资产目录里的位图没有任何既有用例会看，改错了表现是界面空白，多带冗余槽位是包体悄悄变大，
+# 所以把「今天的取值」在这里显式声明成闸门基线。每行四列，用空格分隔：
+#
+#   <imageset 名> <源字节上限> <像素宽>x<像素高> <形态>
+#
+# 形态取值：
+#   single-scale-png        单档 PNG，不加有损压缩。用于**在真机上按接近原生分辨率渲染**的图。
+#   single-scale-lossy-png  单档 PNG + Contents.json 里的 `"compression-type": "lossy"`。
+#                           用于**渲染宽度远小于原生分辨率**的图：缩放本身就会抹平压缩块，
+#                           实测这类图在真实渲染宽度上的 SSIM 仍有 0.990 以上。
+#   keep-as-is              维持现状。
+#
+# 「单档」对所有占位图成立：它们一律经 ItemThumbnailImageView 的 `.resizable().scaledToFill()`
+# 缩放到版面框，多档 scale 槽位不产生任何收益。三条判定都是 2026-09-18 实测的（编译产物 Assets.car）：
+#
+#   原始三档 PNG                        6,353,656 字节
+#   砍成单档、全部无损                   4,202,168
+#   四张占位图全部 lossy                 3,367,784   但视频详情按 1290px 渲染只剩 SSIM 0.964，是详情页主视觉
+#   三张 lossy + 视频详情无损（当前）     3,726,440   相对原始省 2.63 MB
+#
+# 也试过把源换成 HEIC：actool 会解码后重编码，Assets.car 反而比 PNG 大 41KB，白丢画质，已放弃。
+# 新增 imageset 必须在这里登记，否则闸门失败——这条是为了让下一个人被迫做一次显式判断。
+# 源字节上限约束的是输入，真正随包的大小由 actool 决定，逐项数据记在审计报告 5.4.1。
+
+ComicListPlaceholder    962000    600x900    single-scale-lossy-png
+VideoListPlaceholder    943000    600x900    single-scale-lossy-png
+ComicDetailPlaceholder  310000    354x504    single-scale-lossy-png
+VideoDetailPlaceholder  2399000   1320x1386  single-scale-png
+LaunchSplash            854000    720x1280   keep-as-is
+AppIcon                 80000     1024x1024  keep-as-is

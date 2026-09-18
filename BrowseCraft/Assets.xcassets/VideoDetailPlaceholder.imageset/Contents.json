@@ -1,23 +1,12 @@
 {
-  "images" : [
+  "images": [
     {
-      "filename" : "video-detail-placeholder.png",
-      "idiom" : "universal",
-      "scale" : "1x"
-    },
-    {
-      "filename" : "video-detail-placeholder@2x.png",
-      "idiom" : "universal",
-      "scale" : "2x"
-    },
-    {
-      "filename" : "video-detail-placeholder@3x.png",
-      "idiom" : "universal",
-      "scale" : "3x"
+      "filename": "video-detail-placeholder.png",
+      "idiom": "universal"
     }
   ],
-  "info" : {
-    "author" : "xcode",
-    "version" : 1
+  "info": {
+    "author": "xcode",
+    "version": 1
   }
 }
