@@ -252,7 +252,7 @@ App 全量构建复核（`xcodebuild build-for-testing`，generic iOS 设备，�
 - **F2-12 历史批量删除合并事务**：四个历史仓库协议新增 `delete(_ histories: [T])`，协议扩展给出逐条默认实现（测试替身零改动），GRDB 实现在一个写事务里循环 DELETE；`DeleteReadingHistoryEntryUseCase` 新增按表分组的批量入口，`HistoryPersistenceCoordinator.delete` 改用它。清理 N 条历史从 N 个写事务降到最多 4 个。
 - **F2-13 文本块提取用集合**：`SwiftSoupHTMLDocumentParser.orderedTextBlocks` 先一次性算出被选节点与其全部祖先两个 `ObjectIdentifier` 集合，遍历时每个子节点 O(1) 判断；原为 O(children × selected × depth)。
 - **F2-10 判定不动**：`PreflightRenderedPageLoader` 的文档明确声明「每次取样各自一个非持久数据存储与 WKWebView，互不共享 Cookie / 凭据 / 导航状态」是隔离不变量，复用 WebView 会破坏它；`processPool` 一行已在阶段 1 删除。剩余的固定 300 ms 快照延迟与 F2-7 是同一机制（静默窗口），并入 F2-7 专项。
-- **F2-11 判定不动**：占位图像素尺寸（视频详情 @3x 1320×1386、漫画列表 @3x 600×900）接近其最大显示分辨率，缩小收益小；两段 mp4（6.5 MB、5.9 MB）转 HEVC 是视觉资产取舍，由你决定，建议目标：HEVC 同码率下体积约减半。
+- **F2-11 已于同日测量并部分实施**：启动动画本就是 HEVC 且音轨有意播放（不动）；内购背景转 HEVC 省 4.46 MB（已做）；占位图逐张核算后只有两张列表图约 1.6 倍过大。详见第 5.4 节。
 - **F2-7 已于同日专项测量并关闭**：前提被固定输入测量推翻，详见第 5.1 节。
 - 验证：Core/Runtime 构建、Core 测试目标编译、App 与测试目标构建均通过、0 警告，边界闸门干净。模拟器（iPhone 17 Pro，iOS 26.5）冒烟：正常签名的 Debug 包引导成功、启动动画播放、进程稳定；配合 `-BrowseCraftSkipStartupAnimation` 与新增的 `-BrowseCraftInitialTab <标签>` 逐页检查了五个 tab（来源、收藏、库、历史、设置），全部渲染空态、无崩溃、无应用级报错（唯一 error 是未登录 Apple 账号的 `session-load result=failed`，属预期）；用 `CODE_SIGNING_ALLOWED=NO` 构建的包会在引导阶段以 `KeychainAppUserIdentityStoreError` 失败（无 application-identifier 时 Keychain 写入被拒），属于构建方式问题、不是代码回归——顺带发现引导失败页只把错误类型名哈希成诊断码、底层 OSStatus 没有进任何日志，列为后续项。**待真机复核：规则生成的发现分析结果与改前一致（同一页候选集合相同）、清空历史。**
 
@@ -398,6 +398,44 @@ F0-3 建闸门时登记了 11 条现存命中作为基线。本次把 **Features
 重启模拟器后全量通过；与代码改动无关，属今天多次运行后的模拟器资源状态。
 
 验证：App 与测试目标 0 警告；模拟器全量 XCTest 43 例 + Swift Testing 496 例通过；闸门干净且反向注入会失败。
+
+
+## 5.4 资产瘦身（2026-09-18）：F2-11 的判定被测量部分推翻
+
+审计第 4.2 节 P11 与 5.1 节把这条记为「判定不动」，理由是「占位图尺寸接近最大显示分辨率」「两段 mp4 转 HEVC 约减半」。
+实测两条都需要修正。
+
+**两段视频：只有一段需要转。**
+
+| 资产 | 原编码 | 尺寸 / 时长 | 结论 |
+|---|---|---|---|
+| `startup-animation.mp4` | **已是 HEVC** 720×1280 24fps 3.3Mbps | 6.2 MB / 15.1s | 不动。它还带一条 128kbps AAC 音轨，而 `StartupVideoPlayerView` 显式设 `isMuted = false`、`volume = 1` 并激活 ambient 会话，**音轨是有意播放的，不能剥** |
+| `purchase-background.mp4` | H.264 1080×1920 30fps 5.9Mbps | 5.94 MB / 8.07s | 转 HEVC |
+
+内购背景的转码对照（`ffmpeg -c:v libx265 -tag:v hvc1 -an`，SSIM 对原片）：
+
+| 编码 | 字节 | 相对源 | SSIM |
+|---|---|---|---|
+| 源 H.264 | 5,936,112 | 100% | - |
+| HEVC CRF 28 | 1,479,380 | 25% | 0.9902 |
+| HEVC CRF 30 | 1,187,453 | 20% | 0.9886 |
+| HEVC CRF 34 | 787,452 | 13% | 0.9838 |
+
+取 **CRF 28**（三者中画质最高，仍省 75%）：**包体减少 4.46 MB**。同时抽同一帧做了肉眼对照，无可见差异。
+`avconvert` 的 HEVC 预设在本机不可用，改用 libx265 并打 `hvc1` 标记以保证 iOS 播放。
+
+**占位图：原判定基本成立，但理由不同。** 逐张按实际显示尺寸核算后：
+
+- `VideoDetailPlaceholder` @3x 1320×1386 —— 显示为全屏宽 × 宽×1.05，430pt 设备 @3x 即 1290×1355，**尺寸正好**，不该缩。
+- `ComicDetailPlaceholder` @3x 354×504 —— 小图位（118×168pt）正好；但它同时用在全宽 × 330pt 的大图位上，
+  那里其实是**被放大**的，属另一类问题（清晰度），不是体积问题。
+- `ComicListPlaceholder` / `VideoListPlaceholder` @3x 600×900 —— 三列网格单元约 125pt 宽，@3x 约 375×562，
+  **约 1.6 倍过大**，缩到 400×600 合计约省 1 MB。这一步要重采样美术资产，留给你决定，不由我改。
+
+**新增常驻闸门**：`BrowseCraftTests/Shared/Resources/BundledAnimationAssetTests.swift` 4 例——
+两段视频都必须 `isPlayable` 且能真解出一帧（只判 `isPlayable` 无法发现「编码标记正确但解码器拿不到画面」），
+内购背景的海报图必须存在，启动动画必须保留音轨。装饰性资产重新编码不会被任何既有用例发现，
+一旦编码不被接受，表现是界面一片空白而不是报错，所以这条闸门是必要的。
 
 ## 6. 附：编译器警告按文件计数
 
