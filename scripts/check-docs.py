@@ -2,7 +2,7 @@
 """BrowseCraft 文档闸门。
 
 形态与条款规则的定义点在 docs/README.md 第 3–5 节；本脚本只执行，不定义。
-九项检查 A1–A9 的口径见 docs/history/2026-09-19-docs-architecture-audit.md 第 6 节 D4。
+十项检查 A1–A10 的口径见 docs/history/2026-09-19-docs-architecture-audit.md 第 6 节 D4。
 提交任何 C 类文档、docs/STATUS.md 或 AGENTS.md 的改动前跑一次；任一项失败即不得提交。
 
 用法：python3 scripts/check-docs.py [--fwq <path>]
@@ -39,6 +39,17 @@ ALL_FILES = C_FILES + S_FILES + H_FILES
 # BCA-DOC-011 的规模阈值。唯一声明点在此，文档只说「有上限」不复述数值——写两处必然漂移。
 HANDOFF_MAX_LINES = 250
 HANDOFF_MAX_HASHES = 5
+
+# A10：C 类文档点名的代码符号必须真的存在。白名单只许收敛，见文件头部。
+EXTERNAL_SYMBOLS_FILE = "scripts/docs-external-symbols.txt"
+# 至少两个驼峰节，避免把 RUNTIME、HTTP、JSON 这类全大写词与单节词当成类型名。
+CAMEL_RE = re.compile(r"\b([A-Z][a-z0-9]+(?:[A-Z][a-z0-9]+)+)\b")
+INLINE_SPAN_RE = re.compile(r"`([^`]+)`")
+SOURCE_GLOBS = [
+    "BrowseCraft/**/*.swift", "BrowseCraftTests/**/*.swift", "BrowseCraftUITests/**/*.swift",
+    "project.yml",
+]
+SIBLING_PACKAGES = ["BrowseCraftCore", "BrowseCraftDomain", "BrowseCraftRuntime", "BrowseCraftAPIKit"]
 
 # ---- docs/README.md 第 4 节的受控词表。新增域必须先改那里，再改这里。----
 DOMAINS = {"ARCH", "BUILD", "RUNTIME", "PARSE", "DB", "SYNC", "BOOK", "UI", "DOC"}
@@ -219,6 +230,86 @@ def check_handoff(rep):
     rep.note("A9", f"{n_lines} 行 / {n_hashes} 个哈希")
 
 
+def load_source_symbols():
+    """本仓库与四个兄弟包里出现过的全部标识符。只读源码，不读构建产物。"""
+    files = []
+    for pattern in SOURCE_GLOBS:
+        files += sorted(glob(os.path.join(ROOT, pattern), recursive=True))
+    for pkg in SIBLING_PACKAGES:
+        base = os.path.join(os.path.dirname(ROOT), pkg)
+        if not os.path.isdir(base):
+            return None, pkg
+        files += sorted(glob(os.path.join(base, "Sources/**/*.swift"), recursive=True))
+        files += sorted(glob(os.path.join(base, "Tests/**/*.swift"), recursive=True))
+        files.append(os.path.join(base, "Package.swift"))
+    words = set()
+    token = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+    # 路径段与文件名也算数据源：文档引用 `TestDoubles/`、`UseCases/`、`RuntimeAdFilter-Design.md`
+    # 这类目录名与文件名是合法的，它们不是类型名。
+    for base in [ROOT] + [os.path.join(os.path.dirname(ROOT), p) for p in SIBLING_PACKAGES]:
+        for dirpath, dirnames, filenames in os.walk(base):
+            if any(x in dirpath for x in (".git", ".build", ".derivedData", "node_modules")):
+                dirnames[:] = []
+                continue
+            for name in dirnames + filenames:
+                words.update(token.findall(name))
+    for f in files:
+        try:
+            with open(f, encoding="utf-8") as fh:
+                words.update(token.findall(fh.read()))
+        except OSError:
+            continue
+    return words, None
+
+
+def load_external_whitelist():
+    path = os.path.join(ROOT, EXTERNAL_SYMBOLS_FILE)
+    if not os.path.exists(path):
+        return set()
+    out = set()
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.split("#")[0].strip()
+            if line:
+                out.add(line.split()[0])
+    return out
+
+
+def check_symbols(rep):
+    """A10：C 类文档反引号内点名的类型必须在源码里存在，或登记在白名单里。
+
+    这一类漂移 A1–A9 一个都抓不到：2026-09-19 手工扫出 BCA-ARCH-001 正文点名了三个
+    全仓零命中的类型，而九项闸门全绿。
+    """
+    symbols, missing_pkg = load_source_symbols()
+    if symbols is None:
+        rep.skip("A10", f"兄弟包 {missing_pkg} 不在同级目录，未核对文档点名的符号")
+        return
+    allowed = load_external_whitelist()
+    seen = {}
+    for rel in C_FILES:
+        for n, line in lines_outside_fences(read(rel)):
+            for span in INLINE_SPAN_RE.findall(line):
+                wildcard = span.lstrip("`").startswith("*")
+                for name in CAMEL_RE.findall(span):
+                    seen.setdefault((name, wildcard), f"{rel}:{n}")
+    suffixed = None
+    bad = 0
+    for (name, wildcard), where in sorted(seen.items()):
+        if name in symbols or name in allowed:
+            continue
+        if wildcard:
+            # `*Foo` 是家族通配，不是某一个类型名：源码里有任一以它结尾的符号即成立。
+            if suffixed is None:
+                suffixed = symbols
+            if any(w.endswith(name) for w in suffixed):
+                continue
+        rep.fail("A10", where,
+                 f"文档点名的 `{name}` 在源码里零命中；若确属外部符号，登记到 {EXTERNAL_SYMBOLS_FILE}")
+        bad += 1
+    rep.note("A10", f"{len(seen)} 个记号 / 白名单 {len(allowed)} 条")
+
+
 def check_status(rep):
     """A8：STATUS.md 每格取值落枚举或形态，枚举列禁止 / 拼接。"""
     rows = 0
@@ -274,6 +365,7 @@ def main():
     check_links(rep)
     check_status(rep)
     check_handoff(rep)
+    check_symbols(rep)
 
     titles = {
         "A1": "定义点唯一、域在词表内、H 类不承载定义点",
@@ -285,10 +377,11 @@ def main():
         "A7": "链接可解析、无绝对主机路径",
         "A8": "STATUS.md 每格落枚举",
         "A9": "HANDOFF.md 只承载四样东西",
+        "A10": "文档点名的代码符号都存在",
     }
     failed = {c for c, _, _ in rep.failures}
     skipped = {c for c, _ in rep.skipped}
-    for code in sorted(titles):
+    for code in sorted(titles, key=lambda c: int(c[1:])):
         if code in failed:
             mark = "FAIL"
         elif code in skipped:

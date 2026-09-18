@@ -75,11 +75,11 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | D3 条款编号与混装拆分：分配 `BCA-*` ID，fwq 已定义的改引用点，拆混装文档 | `BCA-DOC-001` `BCA-DOC-002` | required | approved | implemented | static-audit-passed | 812fde5 | 2026-09-19 |
 | fwq 的 `protectedResource` 与 `executionPolicy` 两条约束只有正文没有稳定 ID，本仓库只能按文档引用——是否请 fwq 分配 ID | `BCA-DOC-001` | optional | draft | not-started | not-run | 812fde5 | 2026-09-19 |
 | C 类里的散文硬条款一次扫完编号：逐行分类后确认真条款 22 条，其余是描述句、章节标题与已编号条款的续行 | `BCA-DOC-002` | required | approved | implemented | static-audit-passed | c0a72fe | 2026-09-19 |
-| D4 机器闸门 `scripts/check-docs.py`：A1–A8 八项，每项经反向植入验证会红 | `BCA-DOC-010` | required | approved | implemented | targeted-passed | a330927 | 2026-09-19 |
+| D4 机器闸门 `scripts/check-docs.py`：A1–A10 十项，每项经反向植入验证会红 | `BCA-DOC-010` | required | approved | implemented | targeted-passed | a330927 | 2026-09-19 |
 | D5 `HANDOFF.md` 会话入口：四样内容，只记现查口径不记数字，只记纯 App 侧的工作 | `BCA-DOC-011` | required | approved | implemented | targeted-passed | a2adece | 2026-09-19 |
 | 2026-09-18 代码审计第 5 节修正清单的逐条状态尚未归到本表——要判断还剩什么必须读原文 | 未编号 | optional | draft | not-started | not-run | a2adece | 2026-09-19 |
 | fwq `docs/rules/` 两份 C 类与 `STATUS.md` 里的旧文档路径是否同步更正 | 未编号 | optional | draft | not-started | not-run | 2ce6b99 | 2026-09-19 |
 | `BrowseCraftCore/Documentation/` 的十份文档是否一并迁移（`Phase*` 属 H 类） | 未编号 | optional | draft | not-started | not-run | 2ce6b99 | 2026-09-19 |
-| 闸门缺一项「文档点名的代码符号必须存在」（fwq `BC-DOC-028` 那类）——系统扫出 3 个不存在的类名写在 `BCA-ARCH-001` 正文里 | `BCA-DOC-002` | required | draft | not-started | not-run | 09d2af1 | 2026-09-19 |
+| A10 文档点名的代码符号必须存在（fwq `BC-DOC-028` 那类）：白名单只许收敛，识别家族通配与路径段 | `BCA-DOC-014` | required | approved | implemented | targeted-passed | 15394c2 | 2026-09-19 |
 | `scripts/update-rules-package.sh` 指向的 `BrowseCraftRulesKit` 不在当前五仓布局里——脚本是否已死待核 | 未编号 | optional | draft | not-started | not-run | 09d2af1 | 2026-09-19 |
 | `BookBookmarksSheet` 是本地导入设计里未实现的计划名——入口已藏，该节是未建代码的设计留档 | 未编号 | optional | approved | not-started | not-run | 09d2af1 | 2026-09-19 |

@@ -1,0 +1,37 @@
+# A10 的外部符号白名单：文档里点名、但本仓库与四个包的源码里不存在的标识符。
+#
+# 每行「标识符  # 理由」。**只允许收敛，不允许新增未经审阅的条目**——删掉一行即恢复对它的检查。
+# 加一行之前先确认它真的不是本仓库的代码：写错的类名混进来，A10 就白建了。
+#
+# 判据：A10 扫 C 类文档反引号内的 CamelCase 记号（至少两个驼峰节），对照 App 与
+# BrowseCraftCore / Domain / Runtime / APIKit 的 Sources 与 Tests 下全部 .swift、
+# 加 Package.swift 与 project.yml。命中不了又不在本表的，即判失败。
+
+# ---- Readium Swift Toolkit 3.11.0 的 SDK 符号 ----
+AVAudioPublicationManifestAugmentor  # Readium：从音频元数据补章节
+AudioPreferences                     # Readium：有声播放偏好
+EPUBPreferences                      # Readium：EPUB 阅读偏好
+FormatSniffer                        # Readium：格式嗅探
+GCDHTTPServer                        # ReadiumAdapterGCDWebServer：EPUB Navigator 的本地 HTTP 服务
+AudioSession                         # Readium：有声播放的 AudioSession.shared
+JSONObjectEncodable                  # ReadiumShared：Locator 的编码协议
+PaginationView                       # Readium EPUB Navigator 内部的分页视图（scheduleLoadPages）
+PublicationOpenError                 # Readium：PublicationOpener.open 的错误类型
+PDFNavigatorViewController           # Readium：PDF Navigator，本仓库不接
+ReadiumAdapterGCDWebServer           # Readium 模块名，出现在禁用清单里
+
+# ---- iOS / Foundation 的键与类型 ----
+UIBackgroundModes                    # Info.plist 键，不是 Swift 符号
+
+# ---- 已删除、文档有意提及的符号 ----
+RSSReadingHistoryRecord              # 随 RSS 于 2026-09-16 删除；文档在「该节已归档且现已不成立」的注里提它
+
+# ---- 未实现的计划名（设计留档，见 STATUS 对应行）----
+BookBookmarksSheet                   # 本地导入设计 3.4 节的计划名；入口已藏，该 UI 未建
+BookSourceReaderLoader               # 读书接线批次 B 的计划名；实际由 BookSourceRuntime 承担
+
+# ---- 文档里的占位记号 ----
+BrowseCraftXxx                       # scripts/README 里表示「四个兄弟包之一」的占位写法
+
+# ---- 其它仓库 ----
+BrowseCraftRulesKit                  # update-rules-package.sh 指向的规则包，不在当前五仓布局里（STATUS 有挂账）
