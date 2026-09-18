@@ -17,8 +17,9 @@
 - `BCA-DOC-009` `docs/history/` 不构成生产约束，不参与逐条核对，不得被引用为实施依据。它只保存「当时为什么这么改」
   的事实，只追加、不修改。把其中任何文本恢复为约束，必须重新走批准流程并写入 C 类文档。
 
-查文档的机器闸门 `scripts/check-docs.sh` 尚未建立，属迁移的 D4 阶段
-（见 [history/2026-09-19-docs-architecture-audit.md](history/2026-09-19-docs-architecture-audit.md) 第 6 节）。
+- `BCA-DOC-010` 本节与第 4、5 节的规则由 `python3 scripts/check-docs.py` 执行。改动任何 C 类文档、
+  `docs/STATUS.md` 或 `AGENTS.md` 后，提交前必须跑一次；任一项失败即不得提交。它**不接进 pre-build**——
+  文档闸门失败不应阻断代码 build。跨仓的 A2、A3 在 fwq 不可达时跳过并如实报告跳过，不得静默通过。
 
 ## 2. 权威层级
 

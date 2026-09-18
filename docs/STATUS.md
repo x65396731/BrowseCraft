@@ -75,7 +75,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | D3 条款编号与混装拆分：分配 `BCA-*` ID，fwq 已定义的改引用点，拆混装文档 | `BCA-DOC-001` `BCA-DOC-002` | required | approved | implemented | static-audit-passed | 812fde5 | 2026-09-19 |
 | fwq 的 `protectedResource` 与 `executionPolicy` 两条约束只有正文没有稳定 ID，本仓库只能按文档引用——是否请 fwq 分配 ID | `BCA-DOC-001` | optional | draft | not-started | not-run | 812fde5 | 2026-09-19 |
 | 设计文档里尚未编号的散文硬条款——遇到就地补号，不做一次性大扫 | `BCA-DOC-002` | optional | approved | in-progress | not-run | 812fde5 | 2026-09-19 |
-| D4 机器闸门 `scripts/check-docs.sh`：A1–A8 八项 | 未编号 | required | draft | not-started | not-run | 2ce6b99 | 2026-09-19 |
+| D4 机器闸门 `scripts/check-docs.py`：A1–A8 八项，每项经反向植入验证会红 | `BCA-DOC-010` | required | approved | implemented | targeted-passed | a330927 | 2026-09-19 |
 | D5 `HANDOFF.md` 会话入口 | 未编号 | required | draft | not-started | not-run | 2ce6b99 | 2026-09-19 |
 | fwq `docs/rules/` 两份 C 类与 `STATUS.md` 里的旧文档路径是否同步更正 | 未编号 | optional | draft | not-started | not-run | 2ce6b99 | 2026-09-19 |
 | `BrowseCraftCore/Documentation/` 的十份文档是否一并迁移（`Phase*` 属 H 类） | 未编号 | optional | draft | not-started | not-run | 2ce6b99 | 2026-09-19 |
