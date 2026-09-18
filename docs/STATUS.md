@@ -80,7 +80,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 2026-09-18 代码审计第 5 节修正清单的逐条状态尚未归到本表——要判断还剩什么必须读原文 | 未编号 | optional | draft | not-started | not-run | a2adece | 2026-09-19 |
 | fwq 可写文件里指向 App 文档的九处旧路径已更正；`docs/history/` 十一处按只读归档未动，查迁移对照表 | 未编号 | required | approved | implemented | static-audit-passed | 4fd6087 | 2026-09-19 |
 | `BrowseCraftCore` 文档迁移：十份进 `docs/design` 与 `docs/history`，建索引，三份混装按节三分 | `BCA-DOC-009` | required | approved | implemented | static-audit-passed | 69233d1 | 2026-09-19 |
-| Core 预检合同仍在描述 v3 裁决已删除的一跳采样与 family coverage（`VideoGenerationOneHopPlanner` / `DefaultSourceListFamilyAssessor`）——正文待过一遍 | 未编号 | required | draft | not-started | not-run | 69233d1 | 2026-09-19 |
+| Core 预检合同按 v3 收敛：一跳与 family coverage 归档，组件名对齐代码，白名单两条撤回 | `BC-PREFLIGHT-030` | required | approved | implemented | static-audit-passed | 6f6dc80 | 2026-09-19 |
 | A10 文档点名的代码符号必须存在（fwq `BC-DOC-028` 那类）：白名单只许收敛，识别家族通配与路径段 | `BCA-DOC-014` | required | approved | implemented | targeted-passed | 15394c2 | 2026-09-19 |
 | `scripts/update-rules-package.sh` 指向的 `BrowseCraftRulesKit` 不在当前五仓布局里——脚本是否已死待核 | 未编号 | optional | draft | not-started | not-run | 09d2af1 | 2026-09-19 |
 | `BookBookmarksSheet` 是本地导入设计里未实现的计划名——入口已藏，该节是未建代码的设计留档 | 未编号 | optional | approved | not-started | not-run | 09d2af1 | 2026-09-19 |
