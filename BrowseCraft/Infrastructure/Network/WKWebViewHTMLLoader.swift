@@ -52,6 +52,7 @@ final class WKWebViewHTMLLoader: RenderedPageContentLoader, @unchecked Sendable 
             url: request.url,
             request: request.requestConfig,
             context: request.sourceContext,
+            readinessSelector: request.readinessSelector,
             credentialProvider: self.credentialProvider,
             browserRequestHeaderProvider: self.browserRequestHeaderProvider,
             systemCookieHeaderProvider: self.systemCookieHeaderProvider,
@@ -76,6 +77,7 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
     private let url: URL
     private let request: RequestConfig?
     private let context: SourceRequestContext?
+    private let readinessSelector: String?
     private let credentialProvider: any SourceCredentialProviding
     private let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
     private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
@@ -92,6 +94,7 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         url: URL,
         request: RequestConfig?,
         context: SourceRequestContext?,
+        readinessSelector: String?,
         credentialProvider: any SourceCredentialProviding,
         browserRequestHeaderProvider: any BrowserRequestHeaderProviding,
         systemCookieHeaderProvider: any SystemCookieHeaderProviding,
@@ -100,6 +103,7 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         self.url = url
         self.request = request
         self.context = context
+        self.readinessSelector = readinessSelector
         self.credentialProvider = credentialProvider
         self.browserRequestHeaderProvider = browserRequestHeaderProvider
         self.systemCookieHeaderProvider = systemCookieHeaderProvider
@@ -429,11 +433,16 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
             policy: self.domStabilityPolicy,
             url: self.url
         )
-        let outcome: WKWebViewDOMStabilityWaiter.Outcome = try await waiter.waitForStableDOM(in: self.webView)
+        let outcome: WKWebViewDOMStabilityWaiter.Outcome = try await waiter.waitForStableDOM(
+            in: self.webView,
+            readinessSelector: self.readinessSelector
+        )
         #if DEBUG
         AppDebugLog.write(
             "[BrowseCraftWebView] dom-stability reason=\(outcome.reason.rawValue) " +
             "waitedMs=\(outcome.waited.milliseconds) checks=\(outcome.observedChecks) " +
+            "selector=\(self.readinessSelector == nil ? "none" : "declared") " +
+            "matched=\(outcome.matchedCount.map(String.init) ?? "-") " +
             "url=\(self.url.absoluteString)"
         )
         #endif
