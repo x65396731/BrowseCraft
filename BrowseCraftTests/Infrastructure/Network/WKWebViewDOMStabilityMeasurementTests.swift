@@ -82,7 +82,14 @@ final class WKWebViewDOMStabilityMeasurementTests: XCTestCase {
     }
 
     /// 中文注释：量化每轮整页 `outerHTML.length` 的代价——这是历史机制唯一可去掉的开销。
+    ///
+    /// 断言取「文档越大、整页序列化越贵」这条不变量，而不是「序列化比空转 JS 贵」。
+    /// 后者 2026-09-18 在小页面上翻转过一次（1ms 对 2ms）：两者都由 JS 桥往返的固定开销主导，
+    /// 毫秒取整之后谁大谁小是噪声。**`Duration.milliseconds` 的注释本就写明「只用于日志与测量输出，
+    /// 不参与判断」，那条断言违反了它自己的约定。** 现在改为直接比较两个夹具的 `Duration`：
+    /// JS 桥的固定开销在两边相同、会被抵消，剩下的差异只来自文档大小。
     func testRepeatedOuterHTMLSerialisationCost() async throws {
+        var serialisationByFixture: [String: Duration] = [:]
         for (label, html) in [("smallDOM", Fixture.quiet), ("largeDOM", Fixture.largeQuietDOM)] {
             let webView: WKWebView = try await self.loadedWebView(html)
             let documentLength: Int = try await Self.outerHTMLLength(in: webView)
@@ -104,8 +111,12 @@ final class WKWebViewDOMStabilityMeasurementTests: XCTestCase {
                 "sixOuterHTMLLengthEvals=\(serialisation.milliseconds)ms sixTrivialEvals=\(trivial.milliseconds)ms " +
                 "serialisationOverhead=\(serialisation.milliseconds - trivial.milliseconds)ms"
             )
-            XCTAssertGreaterThanOrEqual(serialisation.milliseconds, trivial.milliseconds)
+            serialisationByFixture[label] = serialisation
         }
+
+        let small: Duration = try XCTUnwrap(serialisationByFixture["smallDOM"])
+        let large: Duration = try XCTUnwrap(serialisationByFixture["largeDOM"])
+        XCTAssertGreaterThan(large, small, "1500 行的文档整页序列化必须比小页面贵")
     }
 
     /// 中文注释：小页面上历史机制的等待时长，作为下限基线记录。
