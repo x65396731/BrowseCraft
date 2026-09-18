@@ -437,7 +437,7 @@ F0-3 建闸门时登记了 11 条现存命中作为基线。本次把 **Features
 一旦编码不被接受，表现是界面一片空白而不是报错，所以这条闸门是必要的。
 
 
-## 5.5 WebView 就绪选择器（2026-09-18）：机制已实现并测量，Runtime 尚未填值
+## 5.5 WebView 就绪选择器（2026-09-18）：机制已实现并测量，Runtime 已消费 `ready` 字段，模拟器已验证整链
 
 第 5.1 节关闭 F2-7 时留下的唯一可行方向。它把「页面稳定了没」换成「规则要提取的东西到了没」，
 因而既去掉盲等，又不丢晚到的内容。
@@ -477,8 +477,25 @@ F0-3 建闸门时登记了 11 条现存命中作为基线。本次把 **Features
 **接线本身对所有现有规则零变化**；收益在规则作者给某条规则显式写上 `ready` 后逐条出现，影视线不写就完全不动。
 
 验证：Runtime 包测试 10 例（新增 `ReadinessSelectorTests` 4 例）通过；App 与测试目标 0 警告；闸门干净。
-**下一步由你决定**：挑一两条已知要 WebView 的规则写上 `ready`（同一选择器写 `item` 与 `ready` 即可），
-真机看日志 `dom-stability reason=selectorReady` 与耗时；并把「`ready` = WebView 就绪选择器」这一语义补进 fwq 侧的正规化合同。
+
+**模拟器验证整链（同日第三步，iPhone 17 Pro 模拟器）**。5.5 前半的测量只驱动 `WKWebViewDOMStabilityWaiter`，
+没有经过真正的加载器；接线又只有 Runtime 单测。这一步补上两段，合起来就是「规则 `ready` → 加载器提前返回」整链：
+
+| 用例 | 驱动的真实对象 | 结果 |
+|---|---|---|
+| `WKWebViewHTMLLoaderReadinessTests`：静态 3 条列表 | `WKWebViewHTMLLoader(.baseline).loadRenderedContent`，`data:` URL、`needsWebView` 请求 | 不声明 2,416 ms → 声明 `.item` **1,139 ms**（两轮均复现：2,358 → 1,132） |
+| 同上：800 ms 后才写入 3 条 | 同上 | 2,100 ms 返回，返回的 HTML 里 `<ul id="list">` 内恰有 3 条 |
+| `ComicListReadinessSelectorWiringTests`：3 例 | `ComicSourceListLoader` + `CoreComicRuleSourceParser`，记录型页面加载器截住 `PageLoadRequest` | 声明 `ready: .card` → 请求带 `.card`；不声明 → `nil`；声明 `this` → `nil` |
+
+两点值得记下：加载器整链的绝对耗时比只驱动 waiter 高约 800 ms（WebView 创建、cookie 同步与导航），
+这是加载器固定成本，与就绪选择器无关，节省量（约 1.2 s）与 waiter 层测得的一致。
+其二，漫画 V2 严格校验在更上游就拒绝 XPath 的 `ready`（`comic-v2-extract-xpath-*`），
+所以接线层「非 CSS 回 nil」这一档在漫画路径上永远到不了，只由 Runtime 单测覆盖；接线层测试改测校验放行、
+但对整页无意义的当前节点标记。首轮用例把 `<script>` 源码里的字面量也数了进去（得 6 而非 3），已改为只数渲染出的 `<ul>` 内容。
+
+**剩余两件都不在 App 侧**：(1) 挑一两条已知要 WebView 的规则写上 `ready`（同一选择器写 `item` 与 `ready` 即可），
+真机看日志 `dom-stability reason=selectorReady` 与耗时——影视线的必须真机；(2) 「`ready` = WebView 就绪选择器」
+这一语义补进正规化合同，按你的决定放到 fwq 侧立项完成后同步到服务器版本，本次不改合同文件。
 
 ## 6. 附：编译器警告按文件计数
 
