@@ -32,6 +32,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 站点有声作品的播放器（AudioNavigator 内核、远程 mp3 经 HTTPContainer、锁屏控制） | `BC-BOOK-012` | required | approved | implemented | simulator-passed | 11821b6 | 2026-09-14 |
 | 站点书搜索：由规则声明，与漫画 / 影视同一条合同 | `BC-SEARCH-004` | required | approved | implemented | full-suite-passed | 84af71b | 2026-09-15 |
 | 站点书进 History 页：与漫画、视频同列 | 未编号 | required | approved | implemented | full-suite-passed | 79512a9 | 2026-09-16 |
+| book catalog 不发布进公共目录——2026-09-14 用户裁决发布 biquhua 后被取代，当前靠服务器 `kinds` 缺省不回 book | `BC-BOOK-001` | rejected | superseded | reverted | not-run | 43dfef2 | 2026-09-14 |
 | 四个接口变体（list / detail / reader 的 API 形态）——无语料，另立项 | `BC-BOOK-012` | optional | draft | not-started | not-run | 8b280ff | 2026-09-14 |
 | 本地书籍导入 B0：Domain 模型、三个仓储协议、六用例、迁移 v3 与边界脚本禁 Readium | 未编号 | required | approved | implemented | full-suite-passed | 4811cb1 | 2026-09-13 |
 | 本地书籍导入 B1：Readium 环境 / 嗅探器 / 打开器、容器内文件存储、三个 GRDB Record 与仓储 | 未编号 | required | approved | implemented | full-suite-passed | 8a5b8a9 | 2026-09-13 |
@@ -70,8 +71,10 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | D0 冻结基线：现状量化、逐份 C/S/H/E 判定、五处 RSS 漂移 | `BCA-DOC-001` | required | approved | implemented | static-audit-passed | 2ce6b99 | 2026-09-19 |
 | D1 建索引 + 只移动文件：12 份迁入 `docs/`，新建索引，修五处 RSS 漂移 | `BCA-DOC-002` `BCA-DOC-003` | required | approved | implemented | static-audit-passed | 2ce6b99 | 2026-09-19 |
-| D2 状态出设计文档：四份 C 类的状态头与两处验证节按三分法分流 | `BCA-DOC-007` `BCA-DOC-008` | required | approved | in-progress | not-run | 2ce6b99 | 2026-09-19 |
-| D3 条款编号与混装拆分：分配 `BCA-*` ID，fwq 已定义的改引用点，拆三份混装文档 | `BCA-DOC-001` `BCA-DOC-002` | required | approved | not-started | not-run | 2ce6b99 | 2026-09-19 |
+| D2 状态出设计文档：四份 C 类的状态头与两处验证节按三分法分流 | `BCA-DOC-007` `BCA-DOC-008` | required | approved | implemented | static-audit-passed | 812fde5 | 2026-09-19 |
+| D3 条款编号与混装拆分：分配 `BCA-*` ID，fwq 已定义的改引用点，拆混装文档 | `BCA-DOC-001` `BCA-DOC-002` | required | approved | implemented | static-audit-passed | 812fde5 | 2026-09-19 |
+| fwq 的 `protectedResource` 与 `executionPolicy` 两条约束只有正文没有稳定 ID，本仓库只能按文档引用——是否请 fwq 分配 ID | `BCA-DOC-001` | optional | draft | not-started | not-run | 812fde5 | 2026-09-19 |
+| 设计文档里尚未编号的散文硬条款——遇到就地补号，不做一次性大扫 | `BCA-DOC-002` | optional | approved | in-progress | not-run | 812fde5 | 2026-09-19 |
 | D4 机器闸门 `scripts/check-docs.sh`：A1–A8 八项 | 未编号 | required | draft | not-started | not-run | 2ce6b99 | 2026-09-19 |
 | D5 `HANDOFF.md` 会话入口 | 未编号 | required | draft | not-started | not-run | 2ce6b99 | 2026-09-19 |
 | fwq `docs/rules/` 两份 C 类与 `STATUS.md` 里的旧文档路径是否同步更正 | 未编号 | optional | draft | not-started | not-run | 2ce6b99 | 2026-09-19 |

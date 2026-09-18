@@ -4,7 +4,7 @@
 
 ## 当前决定
 
-`AppUser.id` 仍是 Source、Favorite、History、Library、Portal Session 和 IAP 的业务
+- `BCA-SYNC-001` `AppUser.id` 仍是 Source、Favorite、History、Library、Portal Session 和 IAP 的业务
 `userID`，但永久 ID 只能来自 PortalCore 的 Sign in with Apple 响应。客户端启动时生成的本地
 UUID 只允许作为登录前的临时数据空间，不能提交 `/v1/auth/**`，也不能作为 StoreKit
 `appAccountToken`。

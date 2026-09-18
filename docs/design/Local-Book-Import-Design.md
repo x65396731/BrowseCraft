@@ -2,23 +2,21 @@
 
 影响范围：BrowseCraft 五层（Domain / Application / Infrastructure / Features / App）与 `scripts/check-architecture-boundaries.sh`；BrowseCraftCore、Domain 包、Runtime、APIKit **零改动**；漫画线与影视线代码零改动。书架 / 阅读器 / 书签 / 三张表与仓储保留给站点抓取路（[读书 kind App 侧接线](Book-Kind-Wiring-Design.md) 批次 A ~ C）复用；B3（有声书播放器）不做。
 
-B2 教训：书架与阅读器的两级目的地必须合成一个路由枚举在 Library 栈根声明一次（`LibraryBookRoute`）——书架用 `isPresented` 推入后在内部再声明第二级 `navigationDestination`，SwiftUI 报「declared earlier on the stack」并把推入弹回。
+- `BCA-UI-001` 书架与阅读器的两级目的地必须合成一个路由枚举在 Library 栈根声明一次（`LibraryBookRoute`）——书架用 `isPresented` 推入后在内部再声明第二级 `navigationDestination`，SwiftUI 报「declared earlier on the stack」并把推入弹回。
 
-B1 备注：嗅探器保留原文件扩展名（m4a / m4b 不改成 Readium 的规范名 mp4）；`ReadiumBookEnvironment.shared` 持有 HTTP 客户端、资产取回器、打开器与懒建的 `GCDHTTPServer`；夹具在 `BrowseCraftTests/Resources/Book/`（最小 EPUB、2 秒 mp3、带元数据 m4a）。
+- B1 备注：嗅探器保留原文件扩展名（m4a / m4b 不改成 Readium 的规范名 mp4）；`ReadiumBookEnvironment.shared` 持有 HTTP 客户端、资产取回器、打开器与懒建的 `GCDHTTPServer`；夹具在 `BrowseCraftTests/Resources/Book/`（最小 EPUB、2 秒 mp3、带元数据 m4a）。
 
 > 实施与验证状态见 [STATUS.md](../STATUS.md)；分批落地与裁决的叙事事实见 [status-log.md](../history/status-log.md)。
 
 ## 一、结论
 
 1. 首批只接两种本地文件：**EPUB** 与**音频书**（单个 `mp3 / m4a / m4b` 文件，或 `zip / zab` 音频包）。PDF 不接（读书规范 `BC-BOOK-012`：不为 PDF 生成规则；本地 PDF 可以以后单独立项），CBZ 不接（漫画线保持自研阅读器，AGENTS.md）。LCP 加密的 EPUB 不接，打开失败按错误提示。
-2. 文件**复制进 App 容器**（`Application Support/Books/<uuid>.<ext>`），不用安全作用域书签引用外部文件——iCloud Drive 与「文件」App 里的文件会被移动、被按需卸载，引用会在第二次打开时失效。
-3. `Locator` 在 Domain 里是**不透明 JSON 字符串**（Domain 与 Application 禁止依赖框架，Readium 的 `Locator` 只在 Infrastructure 与 Features 出现）；Readium 提供 `Locator.jsonString()` 与从 JSON 还原，续读位置、书签都存它，进度条用 `locations.totalProgression`。
+2. `BCA-BOOK-002` 文件**复制进 App 容器**（`Application Support/Books/<uuid>.<ext>`），不用安全作用域书签引用外部文件——iCloud Drive 与「文件」App 里的文件会被移动、被按需卸载，引用会在第二次打开时失效。
+3. `BCA-BOOK-003` `Locator` 在 Domain 里是**不透明 JSON 字符串**（Domain 与 Application 禁止依赖框架，Readium 的 `Locator` 只在 Infrastructure 与 Features 出现）；Readium 提供 `Locator.jsonString()` 与从 JSON 还原，续读位置、书签都存它，进度条用 `locations.totalProgression`。
 4. 书架是 Library 里**独立于 Source 的一栏**：本地书不是 `Source`，不进 `SourceConfiguration`，不进 CloudKit 同步（首批）。等站点抓取路接上时，站点书与本地书共用同一个阅读器与同一张进度 / 书签表（外键从 `localBookID` 扩为「作品标识」，第 六节）。
 5. 架构边界脚本要**先加一条**：`Domain` 与 `Application` 禁止 `import ReadiumShared / ReadiumStreamer / ReadiumNavigator / ReadiumAdapterGCDWebServer`（现在脚本的禁用清单里没有 Readium，靠自觉）。
 
-## 二、已核对的事实（2026-09-13，只读）
-
-### Readium 3.11.0（从 DerivedData 里的源码核对，不凭记忆）
+## 二、Readium 3.11.0 的能力（从源码核对，不凭记忆）
 
 | 能力 | API | 说明 |
 |---|---|---|
@@ -28,14 +26,8 @@ B1 备注：嗅探器保留原文件扩展名（m4a / m4b 不改成 Readium 的�
 | 有声播放 | `AudioNavigator(publication:initialLocation:config:audioSession:)`：`play / pause / playPause / seek(to:) / seek(by:) / go(to:) / goForward / goBackward`、`playbackInfo`、`currentLocation` | **无 UI**，播放器界面自建；`audioSession` 缺省 `AudioSession.shared` |
 | 位置 | `Navigator.currentLocation: Locator?`；`Locator` 是 `JSONObjectEncodable`（`jsonString()` / `jsonObject`），可从 JSON 还原 | 续读与书签都存 JSON |
 
-### App 现状
-
-- **没有任何文件导入入口**（全仓无 `fileImporter` / `UIDocumentPicker`）。
-- 阅读历史按 kind 各一张表（`ComicChapterHistoryRecord` / `RSSReadingHistoryRecord` / `VideoWatchHistoryRecord`），Domain 用 `ReadingHistoryEntry.Kind`（`rss / comic / video / temporary`）聚合；漫画的续读位置存 `lastReaderPageURL`。
-- 数据库只经 `AppDatabaseMigrations` 追加 `vN.描述` 迁移演进，`AppDatabaseSchemaSnapshotTests` 比对 `sqlite_master` 快照——**加表必须同时更新快照**。数据库文件在 `Application Support`。
-- 分层不变量由 `scripts/check-architecture-boundaries.sh` 在预构建阶段强制：Domain / Application 禁框架 import，`BrowseCraftAPIKit` 只许 Infrastructure 与 `AppContainer`，跨层类型引用按层名扫描。
-- 阅读器入口：`Features/Library/Comic/Reader/ReaderView`，由 `LibraryView`、`ComicDetailView`、`HistoryView` 三处打开；视频播放在 `Features/Library/Video/Player/`。
-- Library 的分流轴是 `Source.configuration.kind`（`SourceRuntimeKind`），本地书不在这条轴上。
+2026-09-13 立项前核对的 App 现状已归档，见 [history/status-log.md](../history/status-log.md)——
+其中「全仓无 `fileImporter`」与 `RSSReadingHistoryRecord` 两处**现已不成立**。
 
 ## 三、设计
 
@@ -114,10 +106,7 @@ xcodebuild -project BrowseCraft.xcodeproj -scheme BrowseCraft -destination 'plat
 - iCloud Drive 里未下载的文件：`fileImporter` 给的 URL 可能是占位，复制前要 `startDownloadingUbiquitousItem` 或提示用户。
 - 大文件（数百 MB 的 m4b）：复制与 SHA-256 要在后台任务里做，书架显示「导入中」。
 
-## 八、入口已藏（用户 2026-09-14 裁决）
-
-用户在 B2 落地后问「为什么有本地存储的功能，这个功能和漫画有什么关系」：本地导入来自交接单第五节的建议顺序，与漫画无关，也不涉及规则生成，
-对主线（通用网站规则生成 → App 消费 book catalog）只是垫脚石。裁决：**保留代码、去掉入口**。
+## 八、入口已藏
 
 - 去掉：`LibraryView` 工具栏的「Books」`NavigationLink`；`RootView` 不再创建 `BookShelfViewModel` 与阅读器工厂闭包（`LibraryView` 的两个可选参数缺省为 nil）。
 - 保留：`BookShelfView` / `BookShelfViewModel`（含 `fileImporter`，不可达）、`BookReaderView` / `BookReaderViewModel` / `EPUBNavigatorRepresentable`、`LibraryBookRoute` 与 `LibraryView.bookDestination`、

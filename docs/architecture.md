@@ -117,36 +117,55 @@ Contract in the package, implementation in the app — preserve this shape.
 
 ## 3. Enforced invariants
 
+Each clause below is its single definition point in this repository (`BCA-DOC-002`); `AGENTS.md`
+and the design documents reference them by ID and do not restate the text.
+
 `scripts/check-architecture-boundaries.sh` runs as a pre-build phase and fails the build on:
 
-- **Framework leaks** — `Domain` and `Application` may not import UIKit, SwiftUI, StoreKit, GRDB,
-  Alamofire, Nuke, SwiftSoup, WebKit, AVFoundation, CloudKit, Combine, MediaPlayer, the Readium
-  modules (`ReadiumShared` / `ReadiumStreamer` / `ReadiumNavigator` / `ReadiumAdapterGCDWebServer`),
-  or APIKit. Readium `Locator` values cross those layers only as opaque JSON strings.
-- **APIKit escape** — `import BrowseCraftAPIKit` is allowed only under `Infrastructure/` and in
-  `AppContainer.swift`.
-- **Cross-layer type references** — every layer lives in one module, so import checks are blind to
-  them. The script also searches each layer's top-level type names in the layers that must not
-  depend on it: `Domain` may reference no other layer; `Application` may not reference
-  `Features`/`Infrastructure`/`App`; `Infrastructure` and `Features` may not reference `App`;
-  `Shared` may not reference `App` or `Features`. When both sides need a contract (a port, an error
-  enum, a shared observable store), it belongs to the lower layer.
-- **Raw `print`** — use `AppLog` / `AppDebugLog`.
-- **SwiftSoup containment in Core** — only the explicitly named DOM/discovery adapters may import
-  it; rule-loading paths go through their boundary protocols.
+- `BCA-ARCH-001` **SwiftSoup containment.** `Domain`, `Application` and `Features` may not
+  `import SwiftSoup`, and neither may the rule-loading chain: `RuleSourceRuntime`'s loading,
+  assembly, request, rule materialisation, error classification and video entry dispatch depend
+  only on boundary protocols such as `RuleSourceParsingService`. CSS selector and DOM parsing stay
+  inside `SwiftSoupRuleSourceParser`, `SwiftSoupRuleSelectorFinder` or an explicitly named
+  dedicated adapter — in Core, only those named DOM/discovery adapters may import it. Readium's
+  own internal use of SwiftSoup is not a breach of this clause.
+- `BCA-ARCH-002` **No framework leaks.** `Domain` and `Application` may not import UIKit, SwiftUI,
+  StoreKit, GRDB, Alamofire, Nuke, SwiftSoup, WebKit, AVFoundation, CloudKit, Combine, MediaPlayer,
+  the Readium modules (`ReadiumShared` / `ReadiumStreamer` / `ReadiumNavigator` /
+  `ReadiumAdapterGCDWebServer`), or APIKit. Readium `Locator` values cross those layers only as
+  opaque JSON strings.
+- `BCA-ARCH-003` **No APIKit escape.** `import BrowseCraftAPIKit` is allowed only under
+  `Infrastructure/` and in `AppContainer.swift`.
+- `BCA-ARCH-004` **No cross-layer type references.** Every layer lives in one module, so import
+  checks are blind to them. The script also searches each layer's top-level type names in the
+  layers that must not depend on it: `Domain` may reference no other layer; `Application` may not
+  reference `Features`/`Infrastructure`/`App`; `Infrastructure` and `Features` may not reference
+  `App`; `Shared` may not reference `App` or `Features`. When both sides need a contract (a port,
+  an error enum, a shared observable store), it belongs to the lower layer.
+- `BCA-ARCH-005` **No raw `print`.** Use `AppLog` / `AppDebugLog`.
 
-`scripts/check-swiftsoup-override.sh` runs next to it and fails the build when the local
-`../SwiftSoup` override is missing, dirty, or not at the commit BrowseCraftCore pins (§8).
+Three more scripts guard the build:
 
-`scripts/check-ad-configuration.sh` fails a PROD archive that still carries Google's sample
-rewarded ad unit, and only warns elsewhere. Archiving for TestFlight therefore uses the
-**TEST BrowseCraft** scheme (archive config `TestFlight`, environment TEST); the plain
-**BrowseCraft** and **PROD BrowseCraft** schemes archive `Release` as PROD and will refuse to
-build until `BROWSECRAFT_REWARDED_AD_UNIT_ID` is a real ad unit.
+- `BCA-BUILD-001` The project is managed with XcodeGen. When `.xcodeproj` errors come from added,
+  moved or removed source files, run `scripts/regenerate-project.sh` before continuing with
+  whatever test or build was asked for.
+- `BCA-BUILD-002` SwiftSoup is pinned to the in-house fork `x65396731/SwiftSoup` (upstream 2.13.5+
+  carries a `text()` whitespace bug): BrowseCraftCore pins it by commit and the project overrides
+  the whole dependency graph with the local `../SwiftSoup` package to resolve the identity clash
+  with Readium. Both must sit on the same commit.
+  `scripts/check-swiftsoup-override.sh` runs next to the boundary script and fails the build when
+  the local override is missing, dirty, or not at the commit BrowseCraftCore pins (§8). Before
+  upgrading or moving back to the official package, run the inline-whitespace gate case in
+  `RuleExtractionEngineTests`.
+- `BCA-BUILD-003` `scripts/check-ad-configuration.sh` fails a PROD archive that still carries
+  Google's sample rewarded ad unit, and only warns elsewhere. Archiving for TestFlight therefore
+  uses the **TEST BrowseCraft** scheme (archive config `TestFlight`, environment TEST); the plain
+  **BrowseCraft** and **PROD BrowseCraft** schemes archive `Release` as PROD and will refuse to
+  build until `BROWSECRAFT_REWARDED_AD_UNIT_ID` is a real ad unit.
+- `BCA-BUILD-004` Signing settings, including `DEVELOPMENT_TEAM`, must live in `project.yml`.
 
-Signing settings, including `DEVELOPMENT_TEAM`, must live in `project.yml`. `project.pbxproj` is
-generated and git-ignored, so anything set through Xcode's Signing & Capabilities editor is wiped
-by the next `scripts/regenerate-project.sh`.
+`project.pbxproj` is generated and git-ignored, so anything set through Xcode's Signing &
+Capabilities editor is wiped by the next `scripts/regenerate-project.sh`.
 
 ## 4. Concurrency
 

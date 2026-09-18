@@ -9,13 +9,13 @@
 
 | 类 | 位置 | 在闭包内 | 时态 |
 | --- | --- | --- | --- |
-| **C 合同** | `docs/README.md`、`docs/architecture.md`、`docs/design/*.md` | **是** | 只用现在时陈述 |
+| **C 合同** | `AGENTS.md`、`docs/README.md`、`docs/architecture.md`、`docs/design/*.md`、包内 `README.md` | **是** | 只用现在时陈述 |
 | **S 状态** | `docs/STATUS.md` | **仅该工作项对应的行** | 受控枚举 |
 | H 历史 | `docs/history/*.md` | 否 | 只追加，不修改 |
 | E 证据 | 真机日志、构建日志、测试产物 | 否 | 只追加 |
 
-`docs/history/` 不构成生产约束，不参与逐条核对，不得被引用为实施依据。它只保存「当时为什么这么改」的事实。
-把其中任何文本恢复为约束，必须重新走批准流程并写入 C 类文档。
+- `BCA-DOC-009` `docs/history/` 不构成生产约束，不参与逐条核对，不得被引用为实施依据。它只保存「当时为什么这么改」
+  的事实，只追加、不修改。把其中任何文本恢复为约束，必须重新走批准流程并写入 C 类文档。
 
 查文档的机器闸门 `scripts/check-docs.sh` 尚未建立，属迁移的 D4 阶段
 （见 [history/2026-09-19-docs-architecture-audit.md](history/2026-09-19-docs-architecture-audit.md) 第 6 节）。
@@ -70,7 +70,8 @@ App 侧的硬条款按**触发源**分属两个命名空间：
 - `BCA-DOC-003` **过程纪律不编号。** `AGENTS.md` 开头「不要主动跑测试」「不要自动 build」这类约束的是会话行为
   而非代码形态，没有第二个定义点的风险；给它们编号只会让 ID 空间充满不可机检的条目。
 
-条款编号本身尚未开始，属迁移的 D3 阶段：当前 C 类文档里的硬条款仍是无 ID 的散文。
+条款编号已在 D3 开始：`AGENTS.md` 与 `docs/architecture.md` 第 3 节的硬条款已全部编号，
+设计文档里编号的是各自最承重的几条。其余仍是无 ID 的散文，遇到就地补号，号段按本节的受控词表取。
 
 ## 5. STATUS.md 的列与取值
 

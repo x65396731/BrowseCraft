@@ -1,6 +1,6 @@
 # 数据库说明
 
-BrowseCraft 使用 GRDB `DatabaseMigrator` 管理本地 schema。`v1.initial-schema` 固化了首次正式迁移基线；
+- `BCA-DB-001` BrowseCraft 使用 GRDB `DatabaseMigrator` 管理本地 schema。`v1.initial-schema` 固化了首次正式迁移基线；
 后续任何字段、约束或索引变化都必须注册新的、只追加不改名的迁移。已有同结构开发数据库会通过
 `ifNotExists` 纳入 v1 迁移账本，但不承诺修复早期任意形态的开发数据库。
 

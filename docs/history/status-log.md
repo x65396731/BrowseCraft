@@ -1,6 +1,6 @@
 # 状态变更流水
 
-本文属 H 类（`BCA-DOC-006`），**只追加，不修改**。它不构成生产约束，不参与逐条核对，
+本文属 H 类（`BCA-DOC-009`），**只追加，不修改**。它不构成生产约束，不参与逐条核对，
 不得被引用为实施依据。它保存两类内容：
 
 1. 被 [STATUS.md](../STATUS.md) 覆盖的旧值，格式为「日期 + 工作项 + 旧值 → 新值 + 原因」；
@@ -108,3 +108,30 @@
 
 本轮是 `STATUS.md` 的首次建立，没有被覆盖的旧值。此后每次改状态格，按
 `BCA-DOC-006` 在本节追加一行。
+
+## 2026-09-19 D3：本地导入入口已藏的裁决原文
+
+原 `docs/design/Local-Book-Import-Design.md` 第八节开头，逐字保留。该节的「去掉 / 保留 / 不做 / 迁移不回退」
+四条是仍然有效的范围声明，按 `BCA-DOC-007` 留在了原设计文档。归约去向：`STATUS.md` 第 1 节
+「本地导入入口已藏」与「本地书籍导入 B3」两行。
+
+```text
+用户在 B2 落地后问「为什么有本地存储的功能，这个功能和漫画有什么关系」：本地导入来自交接单第五节的建议顺序，与漫画无关，也不涉及规则生成，
+对主线（通用网站规则生成 → App 消费 book catalog）只是垫脚石。裁决：**保留代码、去掉入口**。
+```
+
+## 2026-09-19 D3：本地书籍导入立项前的 App 现状
+
+原 `docs/design/Local-Book-Import-Design.md` 第二节「App 现状」，逐字保留。它记的是 2026-09-13 的代码形状，
+**不是当前事实**：B1 之后 App 有了 `fileImporter`，`RSSReadingHistoryRecord` 已随 RSS 于 2026-09-16 删除。
+
+```text
+### App 现状
+
+- **没有任何文件导入入口**（全仓无 `fileImporter` / `UIDocumentPicker`）。
+- 阅读历史按 kind 各一张表（`ComicChapterHistoryRecord` / `RSSReadingHistoryRecord` / `VideoWatchHistoryRecord`），Domain 用 `ReadingHistoryEntry.Kind`（`rss / comic / video / temporary`）聚合；漫画的续读位置存 `lastReaderPageURL`。
+- 数据库只经 `AppDatabaseMigrations` 追加 `vN.描述` 迁移演进，`AppDatabaseSchemaSnapshotTests` 比对 `sqlite_master` 快照——**加表必须同时更新快照**。数据库文件在 `Application Support`。
+- 分层不变量由 `scripts/check-architecture-boundaries.sh` 在预构建阶段强制：Domain / Application 禁框架 import，`BrowseCraftAPIKit` 只许 Infrastructure 与 `AppContainer`，跨层类型引用按层名扫描。
+- 阅读器入口：`Features/Library/Comic/Reader/ReaderView`，由 `LibraryView`、`ComicDetailView`、`HistoryView` 三处打开；视频播放在 `Features/Library/Video/Player/`。
+- Library 的分流轴是 `Source.configuration.kind`（`SourceRuntimeKind`），本地书不在这条轴上。
+```
