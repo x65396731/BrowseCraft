@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import Foundation
 import WebKit
 
@@ -41,12 +42,32 @@ struct WKWebViewDOMStabilityPolicy: Sendable, Equatable {
         static let `default`: SelectorReadiness = SelectorReadiness(requiredConsecutiveStableChecks: 1)
     }
 
+    /// 中文注释：`APP-MEMO-016` / `BC-COMIC-127` ⑤——调用方在 `PageLoadRequest.settleCondition` 上声明了
+    /// 结构安定条件时的判定取值。判据与规则生成引擎注入浏览器的谓词**逐条对齐**（引擎常量见
+    /// `layered/acquisition_surface.py` 的 `SETTLE_CONDITION_*`）：每 1 s 采一次带地址属性的 `<img>` 总数，
+    /// 连续 2 次不再增长即安定，最多等 12 s。两侧只共享条件，不共享秒数的实现方式。
+    struct ImageGroupStability: Sendable, Equatable {
+        var sampleInterval: Duration
+        /// 中文注释：连续多少次「总数不增长」算安定。与引擎的 `SETTLE_CONDITION_STABLE_SAMPLES` 同值。
+        var requiredNonIncreasingSamples: Int
+        /// 中文注释：保护性上限；到点即交出当前 DOM，并在结果里记明是超时而不是安定。
+        var maximumWait: Duration
+
+        static let baseline: ImageGroupStability = ImageGroupStability(
+            sampleInterval: .milliseconds(1_000),
+            requiredNonIncreasingSamples: 2,
+            maximumWait: .seconds(12)
+        )
+    }
+
     enum Mechanism: Sendable, Equatable {
         case renderedLengthPolling(RenderedLengthPolling)
     }
 
     var mechanism: Mechanism
     var selectorReadiness: SelectorReadiness
+    /// 中文注释：调用方声明结构安定条件时用的取值；没有声明的请求一律不走这条路径。
+    var imageGroupStability: ImageGroupStability
 
     /// 中文注释：闸门基线——历史机制、历史取值。2026-09-18 的固定输入测量（见
     /// `WKWebViewDOMStabilityMeasurementTests`）表明这组取值不该被当成冗余削减，理由记在
@@ -54,7 +75,8 @@ struct WKWebViewDOMStabilityPolicy: Sendable, Equatable {
     /// 不是翻转一个隐藏默认值。
     static let baseline: WKWebViewDOMStabilityPolicy = WKWebViewDOMStabilityPolicy(
         mechanism: .renderedLengthPolling(.baseline),
-        selectorReadiness: .default
+        selectorReadiness: .default,
+        imageGroupStability: .baseline
     )
 }
 
@@ -66,8 +88,12 @@ struct WKWebViewDOMStabilityWaiter {
         enum Reason: String, Sendable {
             /// 中文注释：调用方声明的就绪选择器有命中且数量已稳定。
             case selectorReady
+            /// 中文注释：声明的结构安定条件已满足（带地址属性的 `<img>` 总数连续不再增长）。
+            case settled
             case quiet
             case exhaustedChecks
+            /// 中文注释：结构安定条件到了保护性上限仍未安定，交出当前 DOM。
+            case settleTimedOut
         }
 
         var reason: Reason
@@ -81,7 +107,19 @@ struct WKWebViewDOMStabilityWaiter {
     /// 中文注释：只用于把 JavaScript 结果异常归因到具体页面，与既有错误类型保持一致。
     let url: URL
 
-    func waitForStableDOM(in webView: WKWebView, readinessSelector: String? = nil) async throws -> Outcome {
+    func waitForStableDOM(
+        in webView: WKWebView,
+        readinessSelector: String? = nil,
+        settleCondition: PageContentSettleCondition? = nil
+    ) async throws -> Outcome {
+        // 中文注释：声明了结构安定条件的层（漫画阅读页）按条件判定——它管的是「内容到齐没有」，
+        // 比就绪选择器的适用面更基本：规则给不出 `ready` 时选择器为 nil，长度判稳会早取。
+        if let settleCondition {
+            switch settleCondition {
+            case .imageGroupStable:
+                return try await self.waitForImageGroupStability(self.policy.imageGroupStability, in: webView)
+            }
+        }
         switch self.policy.mechanism {
         case .renderedLengthPolling(let configuration):
             if let readinessSelector, readinessSelector.isEmpty == false {
@@ -165,6 +203,75 @@ struct WKWebViewDOMStabilityWaiter {
             observedChecks: polling.maximumChecks,
             matchedCount: previousCount
         )
+    }
+
+    // MARK: - 结构安定条件（`APP-MEMO-016`）
+
+    /// 中文注释：每 `sampleInterval` 采一次「带地址属性的 `<img>` 总数」，连续
+    /// `requiredNonIncreasingSamples` 次不增长即安定；到 `maximumWait` 仍未安定就交出当前 DOM 并记明超时。
+    ///
+    /// 判据与引擎侧谓词逐条对齐，包括两处容易写反的细节：① 比较用「不增长」（`total <= last`）而不是相等，
+    /// 站点回收占位图时总数会掉，掉也算安定；② 至少要采两次才可能返回，避免首次采样恰好等于初值就判安定。
+    /// 零张图的页面同样在两次采样后安定（0 不大于 0），不会白等满上限。
+    private func waitForImageGroupStability(
+        _ configuration: WKWebViewDOMStabilityPolicy.ImageGroupStability,
+        in webView: WKWebView
+    ) async throws -> Outcome {
+        let start: ContinuousClock.Instant = ContinuousClock.now
+        var lastCount: Int = -1
+        var nonIncreasingSamples: Int = 0
+        var observedSamples: Int = 0
+
+        while true {
+            let count: Int = try await self.addressedImageCount(in: webView)
+            observedSamples += 1
+            if count <= lastCount {
+                nonIncreasingSamples += 1
+            } else {
+                nonIncreasingSamples = 0
+            }
+            lastCount = count
+
+            if observedSamples > 1, nonIncreasingSamples >= configuration.requiredNonIncreasingSamples {
+                return Outcome(
+                    reason: .settled,
+                    waited: ContinuousClock.now - start,
+                    observedChecks: observedSamples,
+                    matchedCount: count
+                )
+            }
+            if ContinuousClock.now - start >= configuration.maximumWait {
+                return Outcome(
+                    reason: .settleTimedOut,
+                    waited: ContinuousClock.now - start,
+                    observedChecks: observedSamples,
+                    matchedCount: count
+                )
+            }
+            try await Task.sleep(for: configuration.sampleInterval)
+        }
+    }
+
+    /// 中文注释：只数带地址属性的 `<img>`——`src` / `data-src` / `data-original`。
+    /// 盯总数而不是「最大同容器图组」是引擎实施期改过的一次：静态评论头像组会把「最大组」骗住。
+    private func addressedImageCount(in webView: WKWebView) async throws -> Int {
+        let result: Any? = try await webView.evaluateJavaScript(
+            """
+            (() => {
+              let total = 0;
+              for (const image of document.images) {
+                if (image.getAttribute('src') || image.getAttribute('data-src') || image.getAttribute('data-original')) {
+                  total += 1;
+                }
+              }
+              return total;
+            })();
+            """
+        )
+        guard let count: Int = Self.intValue(result) else {
+            throw WKWebViewHTMLLoaderError.unexpectedJavaScriptResult(url: self.url)
+        }
+        return count
     }
 
     private struct ReadinessSample {
