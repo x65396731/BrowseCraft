@@ -125,12 +125,15 @@ and the design documents reference them by ID and do not restate the text.
 `scripts/check-architecture-boundaries.sh` runs as a pre-build phase and fails the build on:
 
 - `BCA-ARCH-001` **SwiftSoup containment.** `Domain`, `Application` and `Features` may not
-  `import SwiftSoup`, and neither may the rule-loading chain: `RuleSourceRuntime`'s loading,
-  assembly, request, rule materialisation, error classification and video entry dispatch depend
-  only on boundary protocols such as `RuleSourceParsingService`. CSS selector and DOM parsing stay
-  inside `SwiftSoupRuleSourceParser`, `SwiftSoupRuleSelectorFinder` or an explicitly named
-  dedicated adapter — in Core, only those named DOM/discovery adapters may import it. Readium's
-  own internal use of SwiftSoup is not a breach of this clause.
+  `import SwiftSoup`, and neither may the rule-loading chain: the source runtimes
+  (`ComicSourceRuntime`, `VideoSourceRuntime`, `BookSourceRuntime` in `BrowseCraftRuntime`) do
+  their loading, assembly, request, rule materialisation, error classification and entry dispatch
+  through boundary protocols only — `VideoRuleSourceParsingService`, `HTMLDocumentParsing`,
+  `ResolvedComicRuleParsing` and their siblings. CSS selector and DOM parsing stay inside the
+  explicitly named adapters that may import SwiftSoup, which in Core are exactly three:
+  `SwiftSoupHTMLDocumentParser`, `DefaultSourceListStructureObserver` and
+  `DefaultSourceDiscoveryAnalyzer`. Readium's own internal use of SwiftSoup is not a breach of
+  this clause.
 - `BCA-ARCH-002` **No framework leaks.** `Domain` and `Application` may not import UIKit, SwiftUI,
   StoreKit, GRDB, Alamofire, Nuke, SwiftSoup, WebKit, AVFoundation, CloudKit, Combine, MediaPlayer,
   the Readium modules (`ReadiumShared` / `ReadiumStreamer` / `ReadiumNavigator` /
