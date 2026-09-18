@@ -148,6 +148,10 @@ and the design documents reference them by ID and do not restate the text.
   `App`; `Shared` may not reference `App` or `Features`. When both sides need a contract (a port,
   an error enum, a shared observable store), it belongs to the lower layer.
 - `BCA-ARCH-005` **No raw `print`.** Use `AppLog` / `AppDebugLog`.
+- `BCA-UI-003` The app exposes no entry point that creates or edits a source rule. Rules arrive
+  only through the server catalog (`PortalCatalogAPI`, stored encrypted in the snapshot);
+  `SourceDebugView` shows them read-only. Rule generation, normalisation and catalog publication
+  contracts therefore live entirely in the fwq repository and are neither defined nor referenced here.
 
 Three more scripts guard the build:
 

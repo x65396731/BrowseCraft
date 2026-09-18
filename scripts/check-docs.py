@@ -2,7 +2,7 @@
 """BrowseCraft 文档闸门。
 
 形态与条款规则的定义点在 docs/README.md 第 3–5 节；本脚本只执行，不定义。
-十项检查 A1–A10 的口径见 docs/history/2026-09-19-docs-architecture-audit.md 第 6 节 D4。
+十一项检查 A1–A11 的口径见 docs/history/2026-09-19-docs-architecture-audit.md 第 6 节 D4。
 提交任何 C 类文档、docs/STATUS.md 或 AGENTS.md 的改动前跑一次；任一项失败即不得提交。
 
 用法：python3 scripts/check-docs.py [--fwq <path>]
@@ -248,6 +248,53 @@ def check_handoff(rep):
     rep.note("A9", f"{n_lines} 行 / {n_hashes} 个哈希")
 
 
+def load_tracked_files():
+    """本仓库与兄弟包里被 git 跟踪的文档路径（仓库相对）。git 不可用时返回 None。"""
+    import subprocess
+    tracked = set()
+    repos = [(ROOT, "")] + [
+        (os.path.join(os.path.dirname(ROOT), pkg), os.path.join("..", pkg))
+        for pkg in SIBLING_DOC_PACKAGES
+    ]
+    for base, prefix in repos:
+        if not os.path.isdir(os.path.join(base, ".git")):
+            continue
+        try:
+            out = subprocess.run(
+                ["git", "-C", base, "ls-files", "--", "*.md"],
+                capture_output=True, text=True, check=True
+            ).stdout
+        except (OSError, subprocess.CalledProcessError):
+            return None
+        for line in out.split("\n"):
+            if line.strip():
+                tracked.add(os.path.normpath(os.path.join(prefix, line.strip())))
+    return tracked or None
+
+
+def check_tracked(rep, defs):
+    """A11：承载定义点的文档必须被 git 跟踪（BCA-DOC-015）。
+
+    2026-09-19 实测：九条 BCA 定义点写在被 .gitignore 的 AGENTS.md 里，A1–A10 全绿而
+    仓库里那九条合同根本不存在。不被跟踪的文档只能写引用点。
+    """
+    tracked = load_tracked_files()
+    if tracked is None:
+        rep.skip("A11", "git 不可用，未核对承载定义点的文档是否被跟踪")
+        return
+    untracked_with_defs = {}
+    for cid, where in defs.items():
+        rel = os.path.normpath(where.rsplit(":", 1)[0])
+        if rel not in tracked:
+            untracked_with_defs.setdefault(rel, []).append(cid)
+    for rel, ids in sorted(untracked_with_defs.items()):
+        rep.fail("A11", rel,
+                 f"未被 git 跟踪却承载 {len(ids)} 个定义点（{', '.join(sorted(ids)[:4])}…）"
+                 f"——它在别的机器上不存在，只能写引用点")
+    scanned = {os.path.normpath(f) for f in C_FILES + S_FILES}
+    rep.note("A11", f"{len(scanned & tracked)}/{len(scanned)} 份 C/S 类被跟踪")
+
+
 def load_source_symbols():
     """本仓库与四个兄弟包里出现过的全部标识符。只读源码，不读构建产物。"""
     files = []
@@ -386,6 +433,7 @@ def main():
     check_status(rep)
     check_handoff(rep)
     check_symbols(rep)
+    check_tracked(rep, defs)
 
     titles = {
         "A1": "定义点唯一、域在词表内、H 类不承载定义点",
@@ -398,6 +446,7 @@ def main():
         "A8": "STATUS.md 每格落枚举",
         "A9": "HANDOFF.md 只承载四样东西",
         "A10": "文档点名的代码符号都存在",
+        "A11": "承载定义点的文档被 git 跟踪",
     }
     failed = {c for c, _, _ in rep.failures}
     skipped = {c for c, _ in rep.skipped}
