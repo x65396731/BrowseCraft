@@ -14,8 +14,32 @@ struct RemoteImageRequestIdentity: Hashable {
     let refererURLString: String?
     let requestConfig: RequestConfig?
     let additionalHeaders: [String: String]?
-    /// 中文注释：视图实际布局尺寸（pt）；未测量到时为 zero，此时不声明缩略尺寸、按原图解码。
+    /// 中文注释：视图实际布局尺寸（pt），恒为正——见下面的可失败构造。
     let displaySize: CGSize
+
+    /// 中文注释：**尺寸没测到就不构造标识**（2026-09-18 真机日志逼出来的）。
+    /// `displaySize` 由 `onGeometryChange` 回填，初值是 zero，所以 `.task(id:)` 会先带着零尺寸
+    /// 触发一次、再在测量后触发第二次：真机日志里同一张封面的 `stage=image` 请求出现 2 到 3 行。
+    /// 零尺寸那次**不声明缩略选项，等于按原图解码**，正好抵消掉按单元格尺寸降采样的第一屏收益，
+    /// 而且构造本身要扫 Cookie 存储、合并三层请求头、写日志，全部白做一遍。
+    /// 因此零尺寸直接返回 nil：调用方的 `.task(id:)` 拿到 nil 就不发请求，占位图继续显示，
+    /// 等布局尺寸到位后只构造一次、并且一次就是正确的解码尺寸。
+    init?(
+        urlString: String,
+        refererURLString: String?,
+        requestConfig: RequestConfig?,
+        additionalHeaders: [String: String]?,
+        displaySize: CGSize
+    ) {
+        guard displaySize.width > 0, displaySize.height > 0 else {
+            return nil
+        }
+        self.urlString = urlString
+        self.refererURLString = refererURLString
+        self.requestConfig = requestConfig
+        self.additionalHeaders = additionalHeaders
+        self.displaySize = displaySize
+    }
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(self.urlString)
@@ -43,14 +67,14 @@ enum RemoteImageRequestBuilder {
         ) else {
             return nil
         }
-        if identity.displaySize.width > 0, identity.displaySize.height > 0 {
-            // 中文注释：aspectFill 语义下按单元格尺寸解码；不足单元格的原图不放大（Nuke 默认）。
-            request.userInfo[.thumbnailKey] = ImageRequest.ThumbnailOptions(
-                size: identity.displaySize,
-                unit: .points,
-                contentMode: .aspectFill
-            )
-        }
+        // 中文注释：标识只有在尺寸为正时才构造得出来，所以这里必然声明缩略尺寸——
+        // 「先按原图解码一次、再按单元格尺寸解码一次」的旧路径不再存在。
+        // aspectFill 语义下按单元格尺寸解码；不足单元格的原图不放大（Nuke 默认）。
+        request.userInfo[.thumbnailKey] = ImageRequest.ThumbnailOptions(
+            size: identity.displaySize,
+            unit: .points,
+            contentMode: .aspectFill
+        )
         return request
     }
 }

@@ -607,6 +607,26 @@ dom-stability reason=selectorReady   waitedMs=314  checks=2  selector=declared m
 真机看日志 `dom-stability reason=selectorReady` 与耗时——影视线的必须真机；(2) 「`ready` = WebView 就绪选择器」
 这一语义补进正规化合同，按你的决定放到 fwq 侧立项完成后同步到服务器版本，本次不改合同文件。
 
+## 5.5.2 真机复核（2026-09-18，iPhone 15 / iOS 26）：影视线通过
+
+标准规矩要求影视线的改动必须真机复核。Debug 包装到 iPhone 15，打开**爱壹帆**（`yifan-tv`，
+三条已声明 `ready` 的线上视频规则里唯一列表层就走 WebView 的），真机日志：
+
+```
+dom-stability reason=selectorReady waitedMs=338 checks=2 selector=declared matched=36
+[BrowseCraftRuntime] refresh output source=yifan-tv kind=video items=36
+```
+
+**第 2 轮采样即返回、等待 338 ms，命中数 36 与随后解析出的条目数 36 完全一致**——提前返回没有丢内容。
+这条规则的 `ready` 是 `#list-page > .v-c`，2026-09-18 之前 App 从不消费它，接线后无需任何服务端改动即生效。
+
+一次走错的弯路值得记下：最初让用户开 **178漫画网** 复核，日志里两条请求都是 `needsWebView=false`，
+整条就绪判定路径根本没执行。原因是我读的是 fwq 仓库里的 `site-research/patternrecognition.cn/…catalog.json`，
+那份归档写着 `sharedRequest.needsWebView: true`，而**线上已发布的规则是 false**。
+**归档不等于线上**；按层核实要以线上规则或真机日志为准。
+
+真机同时暴露了一个模拟器没暴露的问题，见 5.7。
+
 ## 5.5.1 就绪选择器该取什么值（2026-09-18）：判据由测量定死
 
 5.5 把机制与接线做完后，剩下的问题是「规则里的 `ready` 该写什么」。这不是风格问题——**取错会丢内容**。
@@ -667,6 +687,26 @@ App 499 例 Swift Testing + 62 例 XCTest 通过，编译错误 0、编译器警
 四个包必须各自声明 `swift-tools-version: 6.0` 与显式的 `.swiftLanguageMode(.v6)`。
 用三种反证验过：把工程调回 5.0、拆掉某个包的显式声明、把某个包的 tools-version 调回 5.9，都被挡住。
 闸门要的是**显式声明**而不是隐含默认，理由与上面同一条。
+
+## 5.7 封面请求重复构造（2026-09-18，真机日志逼出来的）
+
+F2-3 让封面按单元格尺寸解码后，模拟器上一切正常。真机日志却显示**同一张封面的 `stage=image`
+请求出现 2 到 3 行**（178 列表页，`/upload/book/8.jpg` 等各三次）。
+
+成因：`displaySize` 由 `onGeometryChange` 回填、初值是 zero，所以 `.task(id:)` 先带着零尺寸触发一次、
+测量后再触发一次。**零尺寸那次不声明缩略选项，等于按原图解码**，正好抵消掉按单元格尺寸降采样的
+第一屏收益；而构造本身要扫 Cookie 存储、合并三层请求头、写日志，全部白做一遍。
+
+修法是把 `RemoteImageRequestIdentity` 改为**可失败构造**：尺寸为零就返回 nil，调用方的 `.task(id:)`
+拿到 nil 就不发请求，占位图继续显示，等布局尺寸到位后只构造一次、且一次就是正确的解码尺寸。
+两个调用点（`CoverImageView`、`ItemThumbnailImageView`）本就返回可选，无需改动。
+构造器里那句「尺寸为正才声明缩略选项」的条件因此恒真，改为直接声明并注明理由。
+
+**真机复核通过**：同一台 iPhone 15 重装后再看 178 列表，每个 `urlPath` 只剩一行。
+
+**新增常驻用例** `BrowseCraftTests/Shared/UI/RemoteImageRequestIdentityTests.swift` 4 例：
+零尺寸不构造、只测到一边不构造、测到后可构造、尺寸参与标识（保证同一地址在不同尺寸的位置
+各自解码、互不串用）。
 
 ## 6. 附：编译器警告按文件计数
 
