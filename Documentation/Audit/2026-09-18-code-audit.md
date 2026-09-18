@@ -248,13 +248,13 @@ App 全量构建复核（`xcodebuild build-for-testing`，generic iOS 设备，�
 实施记录（2026-09-18，阶段 2 第四批：F2-8、F2-9、F2-12、F2-13；F2-10、F2-11 判定不动；F2-7 待专项）：
 
 - **F2-8 发现分析只解析一次**：`DefaultSourceDiscoveryAnalyzer` 的列表/详情/阅读/分页四个子分析改为接收 `Document` 而非 `html: String`，与主分析共用一份解析结果。前提已核对：四处原本都以 `input.document.finalURL` 作 base URL，且子分析对 DOM 只读不改（全文件无 remove/empty/attr 写入调用）。同一页的 SwiftSoup 解析次数从 2 到 3 次降到 1 次。`DefaultSourceListStructureObserver` 是独立公开入口，保持不变。
-- **F2-9 广告 SDK 延后启动**：`MobileAds.shared.start()` 从 `App.init` 挪到引导完成、主界面出现后的 `.task`（与 `startApplicationServices` 同一时机）。激励广告只在用户主动触发时加载，届时 SDK 早已就绪。
+- **F2-9 广告 SDK 延后启动——已回退**：曾把 `MobileAds.shared.start()` 从 `App.init` 挪到主界面出现后。模拟器冒烟检查发现回归：Crashlytics 在启动日志里报 7 条 `The signal SIGABRT has a non-Crashlytics handler (GADRegisterSignalHandlers)`（旧构建 0 条）——广告 SDK 晚于 Crashlytics 启动时会用自己的信号处理器覆盖 Crashlytics 的，信号类崩溃将无法上报。`disableSDKCrashReporting()` 只关异常处理器、管不到信号处理器（实测仍 7 条）。因此恢复到 `App.init` 里启动，并把「广告 SDK 必须早于 `FirebaseApp.configure()`」写成代码注释里的顺序不变量；恢复后警告 0 条。首帧收益让位于崩溃上报的正确性。
 - **F2-12 历史批量删除合并事务**：四个历史仓库协议新增 `delete(_ histories: [T])`，协议扩展给出逐条默认实现（测试替身零改动），GRDB 实现在一个写事务里循环 DELETE；`DeleteReadingHistoryEntryUseCase` 新增按表分组的批量入口，`HistoryPersistenceCoordinator.delete` 改用它。清理 N 条历史从 N 个写事务降到最多 4 个。
 - **F2-13 文本块提取用集合**：`SwiftSoupHTMLDocumentParser.orderedTextBlocks` 先一次性算出被选节点与其全部祖先两个 `ObjectIdentifier` 集合，遍历时每个子节点 O(1) 判断；原为 O(children × selected × depth)。
 - **F2-10 判定不动**：`PreflightRenderedPageLoader` 的文档明确声明「每次取样各自一个非持久数据存储与 WKWebView，互不共享 Cookie / 凭据 / 导航状态」是隔离不变量，复用 WebView 会破坏它；`processPool` 一行已在阶段 1 删除。剩余的固定 300 ms 快照延迟与 F2-7 是同一机制（静默窗口），并入 F2-7 专项。
 - **F2-11 判定不动**：占位图像素尺寸（视频详情 @3x 1320×1386、漫画列表 @3x 600×900）接近其最大显示分辨率，缩小收益小；两段 mp4（6.5 MB、5.9 MB）转 HEVC 是视觉资产取舍，由你决定，建议目标：HEVC 同码率下体积约减半。
 - **F2-7 待专项**：触及影视线共用默认值，按既定要求需固定站点集合测量与真机复核后单独实施；机制设计已定（MutationObserver 静默窗口 + 按请求声明的窗口时长，当前 500 ms + 6×300 ms 作基线）。
-- 验证：Core/Runtime 构建、Core 测试目标编译、App 与测试目标构建均通过、0 警告，边界闸门干净；测试只编译未运行。**待真机复核：规则生成的发现分析结果与改前一致（同一页候选集合相同）、首帧时间、清空历史。**
+- 验证：Core/Runtime 构建、Core 测试目标编译、App 与测试目标构建均通过、0 警告，边界闸门干净。模拟器（iPhone 17 Pro，iOS 26.5）冒烟：正常签名的 Debug 包引导成功、启动动画播放、进程稳定；用 `CODE_SIGNING_ALLOWED=NO` 构建的包会在引导阶段以 `KeychainAppUserIdentityStoreError` 失败（无 application-identifier 时 Keychain 写入被拒），属于构建方式问题、不是代码回归——顺带发现引导失败页只把错误类型名哈希成诊断码、底层 OSStatus 没有进任何日志，列为后续项。**待真机复核：规则生成的发现分析结果与改前一致（同一页候选集合相同）、清空历史。**
 
 ### 阶段 3：结构
 
@@ -272,7 +272,7 @@ App 全量构建复核（`xcodebuild build-for-testing`，generic iOS 设备，�
 - **F3-2 判定不再需要**：`DefaultRuleExtractionEngine` 与 `SwiftSoupHTMLDocumentParser` 同在解析 target，默认构造不跨模块；SwiftSoup 的 import 白名单未变。
 - **F3-1 测试目标**：前提测量否定了「迁移只依赖包的用例」——104 个 App 测试文件里 101 个 `@testable import BrowseCraft`。因此改为新建 `BrowseCraftDomainTests`（Cookie 合并策略 5 例）与 `BrowseCraftRuntimeTests`（检测词典资源随包发布与加载 4 例、模板地址切片 2 例），三包 `swift build --build-tests` 通过；`RegularExpressionCache` 在 Core 测试里补 4 例。App 侧用例的迁移需要先把它们对 App 类型（`SourceDefinitionMapper`、`TestSourceRuntimeResolver` 等）的依赖改掉，列为后续项。
 - **F3-4 退役别名**：`App/Compatibility/CoreRuleCandidateNaming.swift` 的 13 个 typealias 删除，3 个使用文件改用 Core 原名（`SourceRuleCandidate*`、`SourceRuleCandidateDraftApplier`），文件只保留 App 需要的 Core 类型扩展。
-- 测试只编译未运行。**待跑：三包 `swift test` 与 App 测试套件。**
+- 测试运行结果（2026-09-18，用户授权后）：`swift test` Core 228 例（4 例按设计跳过）、Domain 5 例、Runtime 6 例、APIKit 通过，全部 0 失败；App 测试套件在 iPhone 17 Pro（iOS 26.5）模拟器上 XCTest 39 例 + Swift Testing 493 例（86 个套件）全部通过。Runtime 新用例里一处反例假设有误（带空格字符串在新版 Foundation 仍可构成 URL），已改为根地址反例。
 
 ## 6. 附：编译器警告按文件计数
 

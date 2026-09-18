@@ -175,8 +175,15 @@ struct BrowseCraftApp: App {
 
     @State private var bootstrapState: AppBootstrapState = .loading
 
-    /// 中文注释：广告 SDK 启动放在引导完成、主界面出现之后（与其它应用服务同一时机），不再在 `App.init` 里
-    /// 同步执行、拖后首帧。激励广告只在用户主动触发时加载，届时 SDK 早已就绪。
+    init() {
+        Self.startMobileAdsIfConfigured()
+    }
+
+    /// 中文注释：广告 SDK 必须在 `App.init` 里、早于 AppDelegate 的 `FirebaseApp.configure()` 启动：
+    /// 它会安装自己的信号处理器，若晚于 Crashlytics 启动就会覆盖 Crashlytics 的处理器
+    /// （模拟器日志：`The signal SIGABRT has a non-Crashlytics handler (GADRegisterSignalHandlers)`），
+    /// `disableSDKCrashReporting` 只关异常处理器、管不到信号处理器。顺序不变量优先于首帧收益，
+    /// 因此不把它延后到主界面出现之后。
     private static func startMobileAdsIfConfigured() {
         if AppAdConfiguration.hasAdMobApplicationID {
             MobileAds.shared.start()
@@ -221,7 +228,6 @@ struct BrowseCraftApp: App {
                         self.delegate.setRuleGenerationPushHandler { opened in
                             container.handleRuleGenerationPushNotification(opened: opened)
                         }
-                        Self.startMobileAdsIfConfigured()
                         await container.startApplicationServices()
                     }
                     .onChange(of: self.scenePhase) { _, phase in
