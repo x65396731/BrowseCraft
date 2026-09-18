@@ -573,6 +573,36 @@ dom-stability reason=selectorReady   waitedMs=314  checks=2  selector=declared m
 而阅读页正是我们判定为不安全、故意没有接线的一档（图片分批追加）。所以这条规则在不改 `needsWebView` 的前提下，
 没有可以安全声明 `ready` 的位置。要在真机上看到收益，需要一条列表或详情本身就走 WebView 的规则。
 
+**线上规则盘点（同日第五步，最重要的一条）**。原以为「给规则写 `ready`」是一件待办的服务端工作。
+实际盘完 fwq 侧的目录规则后结论相反：**多条线上规则早就声明了 `ready`，只是 App 从不消费**。
+
+| 线上来源 | kind | 列表的 `ready` | App 请求实际携带 |
+|---|---|---|---|
+| yifan-tv（爱壹帆） | video | `#list-page > .v-c` | 一致 |
+| jable-tv | video | `.pb-3 > .row > .col-6` | 一致 |
+| kinogomy-net | video | `.lcomm` | 一致 |
+
+核对方式：把 fwq 仓库里这三站的明文 `ruleJSON` 包成 App 的 `SourceConfiguration`，经 App 自己的解码、
+`ResolvedVideoSiteRule` 校验与真实 `VideoSourceListLoader`，用记录型页面加载器截住 `PageLoadRequest`。
+三站的列表与详情 `ready` 都是 `selectorKind: "css"`，本次接线全部采纳；剧集的 `ready` 是
+`selectorKind: "current"`，接线按设计拒绝（当前节点对整页没有意义）——**声明的两种形态都落在预期行为上**。
+
+因此这三条**不需要任何服务端改动**，收益随 App 这次发版自动出现。
+
+还缺 `ready` 的两条，是真正需要服务端补的：
+
+| 线上来源 | kind | 缺口 | 该写的值 |
+|---|---|---|---|
+| patternrecognition-cn（178漫画网） | comic | 列表与详情都走 WebView（`sharedRequest.needsWebView: true`），无 `ready` | 列表可用其条目选择器 `.mh-list > li > .mh-item` |
+| 91porn-com | video | 详情 `needsWebView: true`，无 `ready` | 待按该层实际条目定 |
+
+补这两条要走 fwq 的正规化闸门与发布通道（video 走 `publish-video-catalog`，comic 走生成器发布），
+按 fwq 的 `AGENTS.md`「Catalog Source 发布默认关闭」，每次发布都需要显式授权。
+
+**一条不能做的事**：本节第四步那份强制 `needsWebView: true` 的 manga18.club 规则是**测量用的人工制品**，
+不可发布。该站列表走普通 HTTP 只要 0.21 s，改走 WebView 即使声明了 `ready` 也要 1.9–2.5 s，
+发上去等于让该来源慢 9 到 12 倍。`ready` 只在该层**本来就必须走 WebView** 时才有意义。
+
 **剩余两件都不在 App 侧**：(1) 挑一两条已知要 WebView 的规则写上 `ready`（同一选择器写 `item` 与 `ready` 即可），
 真机看日志 `dom-stability reason=selectorReady` 与耗时——影视线的必须真机；(2) 「`ready` = WebView 就绪选择器」
 这一语义补进正规化合同，按你的决定放到 fwq 侧立项完成后同步到服务器版本，本次不改合同文件。
