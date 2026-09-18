@@ -314,6 +314,37 @@ App 全量构建复核（`xcodebuild build-for-testing`，generic iOS 设备，�
 且比时间下限更能保证正文存在；代价是加载器要知道规则的选择器，跨越了当前加载器与规则层的边界，
 且直接影响影视线，需要先设计边界再动手。
 
+
+## 5.2 引导失败诊断（2026-09-18）
+
+起因：本次会话在模拟器上遇到一次引导失败，页面只给出 `BOOT-FD717BA7D8AB6500`。该诊断码仅由**错误类型名**
+做 FNV 哈希而来，底层原因不进任何日志，只能把代码库里所有错误类型名逐个哈希去反推，才对上
+`KeychainAppUserIdentityStoreError`；而它携带的 `OSStatus`（真正原因）在任何地方都看不到。用户报一个码过来，
+排查路径完全相同。
+
+改动（`Shared/Diagnostics/ErrorDiagnostics.swift`）：
+
+- 新增 `DiagnosticSummaryProviding`：**由错误类型自己声明可安全记录的摘要**。不实现它的错误只记类型名与
+  `NSError` 的 domain:code。之所以不直接 dump `String(describing:)`：任意错误的描述里可能带 Cookie、token、
+  授权头、设备标识、密钥材料或用户路径，AGENTS.md 明确禁止记录。由类型自己声明，等于把「什么可以外泄」
+  变成显式、可审阅的决定。摘要仍过一遍既有的 `AppLog.sanitizedDebugMessage` 脱敏。
+- 两处声明：`KeychainAppUserIdentityStoreError` 交出 `OSStatus`（只状态码，不含 service / account / 条目内容）；
+  `GRDB.DatabaseError` 交出 SQLite 结果码与扩展结果码（不含 SQL 文本与绑定参数）。
+- `AppBootstrapFailure` 增加 `diagnosticDetail`，诊断码本身保持不变（对用户是稳定引用）；
+  `AppBootstrapState.bootstrap` 的 catch 里以 `startup` 分类记一条 `bootstrap-failed`，内容与页面可复制的一致。
+- 失败页增加「Copy Diagnostics」按钮，整段复制码与摘要，省掉用户转述。
+
+端到端复核（未签名构建正好复现该失败）：日志现在直接给出
+`type=BrowseCraft.KeychainAppUserIdentityStoreError code=…:0 detail=unexpectedStatus(-34018)`
+（-34018 即 `errSecMissingEntitlement`），与此前靠反推得到的结论一致。失败页按钮渲染正常。
+
+测试：`AppBootstrapFailureTests` 补 3 例，分别守住「未声明摘要的错误负载不进诊断信息」（默认安全）、
+「声明了摘要的错误状态码必须可见」、以及 Keychain 那一条。
+
+顺带修掉一处测试稳定性问题：F2-7 的测量用例创建的 WKWebView 未释放，一次全量运行里测试宿主被 SIGKILL
+（`Test crashed with signal kill`），随机牵连到当时正在跑的 `VideoGenerationPreflightArchiveFixtureTests`。
+已加显式 tearDown 释放 WebView 并把大 DOM 夹具从 4000 行缩到 1500 行；重跑全量通过。
+
 ## 6. 附：编译器警告按文件计数
 
 | 文件 | 条数 |

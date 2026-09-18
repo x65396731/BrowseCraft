@@ -6,6 +6,19 @@ enum KeychainAppUserIdentityStoreError: Error, Equatable {
     case unexpectedStatus(OSStatus)
 }
 
+// 中文注释：OSStatus 是这条失败的唯一有效线索（例如 -34018 表示缺 keychain 授权、-25300 表示条目不存在），
+// 只记状态码，不记 service、account 或条目内容。
+extension KeychainAppUserIdentityStoreError: DiagnosticSummaryProviding {
+    var diagnosticSummary: String {
+        switch self {
+        case .invalidStoredUserID:
+            return "invalidStoredUserID"
+        case .unexpectedStatus(let status):
+            return "unexpectedStatus(\(status))"
+        }
+    }
+}
+
 /// 中文注释：业务 AppUser UUID 使用独立 Keychain service，不能复用匿名诊断身份或 UserDefaults。
 struct KeychainAppUserIdentityStore: AppUserIdentityStoring {
     private static let account: String = "app-user-id"

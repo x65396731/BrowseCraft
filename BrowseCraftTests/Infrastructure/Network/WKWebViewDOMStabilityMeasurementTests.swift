@@ -32,9 +32,10 @@ final class WKWebViewDOMStabilityMeasurementTests: XCTestCase {
         </body></html>
         """
 
-        /// 中文注释：约 4000 个节点、约 500KB 的 DOM，用来量化整页序列化的代价。
+        /// 中文注释：约 1500 个节点、约 250KB 的 DOM，用来量化整页序列化的代价。
+        /// 不取更大：测量用例与整套测试同进程，WebView 越多越容易把测试宿主推到内存上限被 SIGKILL。
         static let largeQuietDOM: String = {
-            let rows: String = (0..<4_000).map { index in
+            let rows: String = (0..<1_500).map { index in
                 "<p class=\"row\" data-index=\"\(index)\">row \(index) " + String(repeating: "z", count: 120) + "</p>"
             }.joined()
             return "<html><body><div id=\"content\">" + rows + "</div></body></html>"
@@ -134,17 +135,32 @@ final class WKWebViewDOMStabilityMeasurementTests: XCTestCase {
         return Int(try XCTUnwrap(result as? Double))
     }
 
+    /// 中文注释：每个 WebView 用完即拆——测量用例与整套测试同进程，残留的 WebContent 进程会累积内存，
+    /// 此前一次全量运行里测试宿主被 SIGKILL，随机牵连到当时正在跑的其它用例。
+    override func tearDown() async throws {
+        for webView: WKWebView in self.activeWebViews {
+            webView.stopLoading()
+            webView.navigationDelegate = nil
+            webView.loadHTMLString("", baseURL: nil)
+        }
+        self.activeWebViews.removeAll()
+        self.retainedObservers.removeAll()
+        try await super.tearDown()
+    }
+
     private func loadedWebView(_ html: String) async throws -> WKWebView {
         let webView: WKWebView = WKWebView(frame: .zero)
         let navigation: NavigationObserver = NavigationObserver()
         webView.navigationDelegate = navigation
         self.retainedObservers.append(navigation)
+        self.activeWebViews.append(webView)
         webView.loadHTMLString(html, baseURL: URL(string: "https://measurement.test/page"))
         try await navigation.waitForFinish()
         return webView
     }
 
     private var retainedObservers: [NavigationObserver] = []
+    private var activeWebViews: [WKWebView] = []
 
     /// 中文注释：把 didFinish 桥接成一次 await，测量只从「页面加载完成」那一刻开始计时。
     @MainActor
