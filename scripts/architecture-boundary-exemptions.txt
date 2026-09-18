@@ -4,13 +4,11 @@
 # 每条都应逐个收敛后删除，不得新增未经审阅的条目。
 
 # Features → Infrastructure：Features 直接构造基础设施类型，应改经 Application port 注入。
-BrowseCraft/Features/Settings/SettingsViewModel.swift ImageCacheConfigurator
-BrowseCraft/Features/Settings/Premium/InAppPurchaseSheetView.swift BundledPurchaseAnimationResource
-BrowseCraft/Features/Settings/Premium/PurchaseAnimation/PurchaseAnimationPlayerView.swift BundledPurchaseAnimationResource
-BrowseCraft/Features/Library/Book/Reader/BookReaderViewModel.swift ReadiumSitePublicationBuilder
-BrowseCraft/Features/Library/Book/Reader/BookReaderViewModel.swift ReadiumBookPublicationHandle
-BrowseCraft/Features/Library/Book/Reader/EPUBNavigatorRepresentable.swift ReadiumBookEnvironment
-BrowseCraft/Features/Startup/StartupAnimationView.swift BundledStartupAnimationResource
+# 2026-09-18 已收敛：ImageCacheConfigurator 改经 Application 端口 ImageCacheManaging 注入；
+# 两个 Bundled*AnimationResource 只是只读的 bundle 资源查找、无副作用，已归位到 Shared/Resources；
+# EPUBNavigatorRepresentable 对 ReadiumBookEnvironment 的引用随「去掉本地 HTTP 服务」一并消失；
+# 两个 Readium 类型改为由阅读器自己声明协议（BookReaderPublicationPorts.swift），符合性挂在装配根。
+# 本方向已全部收敛，若再出现命中说明是新引入的，应当失败而不是登记豁免。
 
 # Shared → Application：错误分类器认识 Application 的错误类型，应下沉到 Application 或改为协议。
 BrowseCraft/Shared/Errors/RuleExecutionError.swift CatalogSourceImportError

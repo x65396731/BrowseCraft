@@ -87,6 +87,10 @@ targets:
     dependencies:
       - package: BrowseCraftCore
         product: BrowseCraftCore
+      # 中文注释：Core 拆分后规则模型在独立 target 里，`import BrowseCraftCore` 经 @_exported 能看见这些类型，
+      # 但链接期仍要显式带上这个库（界面层直接用到 BookReaderRule 等）。
+      - package: BrowseCraftCore
+        product: BrowseCraftRuleModels
       - package: BrowseCraftDomain
         product: BrowseCraftDomain
       - package: BrowseCraftRuntime

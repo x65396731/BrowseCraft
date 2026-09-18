@@ -345,6 +345,40 @@ App 全量构建复核（`xcodebuild build-for-testing`，generic iOS 设备，�
 （`Test crashed with signal kill`），随机牵连到当时正在跑的 `VideoGenerationPreflightArchiveFixtureTests`。
 已加显式 tearDown 释放 WebView 并把大 DOM 夹具从 4000 行缩到 1500 行；重跑全量通过。
 
+
+## 5.3 边界豁免收敛（2026-09-18）
+
+F0-3 建闸门时登记了 11 条现存命中作为基线。本次把 **Features → Infrastructure 这一整个方向的 7 条全部消掉**，
+删除豁免后重跑闸门仍然干净，并做了反向注入验证（Features 重新引用 `ReadiumSitePublicationBuilder` 会失败）。
+
+按命中性质分三类处理，而不是一律套同一种改法：
+
+1. **确实该走 Application 端口的（1 条）**：`SettingsViewModel` 直接持有 `ImageCacheConfigurator`。
+   新增端口 `Application/Ports/Settings/ImageCacheManaging.swift`，只声明界面真正用到的三个动作
+   （应用设置、按新上限裁剪、清空），`ImageCacheConfigurator` 实现它，装配点注入。
+   端口**刻意不标 `@MainActor`**：标了会让实现类型整体被推断为主 actor 隔离，而它内部有磁盘裁剪的队列工作
+   （实测会产生 `call to main actor-isolated static method in a synchronous nonisolated context` 警告）。
+2. **分类本身放错了的（3 条）**：两个 `Bundled*AnimationResource` 只是从 App bundle 里按名字找资源，
+   没有网络、数据库、keychain 这类副作用，和 `Shared/UI` 里直接读资产目录的代码同一性质。
+   已从 `Infrastructure/{InAppPurchase,Startup}` 归位到 `Shared/Resources`，三处引用随之合规，无需任何注入管道。
+3. **需要依赖倒置的（2 条）**：`BookReaderViewModel` 引用 `ReadiumSitePublicationBuilder` 与
+   `ReadiumBookPublicationHandle`。这两条没有现成的落点——Application 明确禁止 `import Readium`，
+   而 Shared 不得引用 Application 类型（协议签名里要用 `BookPublicationManifest`）。
+   因此由阅读器自己声明 `SiteReadiumPublicationBuilding` 与 `ReadiumPublicationProviding`
+   （`Features/Library/Book/Reader/BookReaderPublicationPorts.swift`），符合性写在唯一同时认识两层的装配根
+   （`App/Composition/ReadiumPublicationCompositionAdapters.swift`）。阅读器对句柄的向下转型改为转到协议。
+
+另有 1 条随阶段 1 的改动自然失效：`EPUBNavigatorRepresentable` 对 `ReadiumBookEnvironment` 的引用在去掉
+本地 HTTP 服务后已不存在，直接删除。
+
+同时补上 F3-3 拆分的另一半缺口：**应用目标**也要显式链接 `BrowseCraftRuleModels` 产品（界面层直接用到
+`BookReaderRule` 等类型）。此前只补了测试目标；重新生成工程后应用目标同样链接失败。
+
+剩余 4 条豁免与它们的性质：Shared 的错误分类器认识两个 Application 错误类型（2 条，应下沉或改协议）、
+缩略图视图直接取缓存插件单例（1 条，应经 Environment 注入）、Runtime 两处字面量正则 `try!`（1 条，模式固定不会失败）。
+
+验证：App 与测试目标 0 警告；模拟器全量 XCTest 43 例 + Swift Testing 496 例通过；闸门干净且反向注入会失败。
+
 ## 6. 附：编译器警告按文件计数
 
 | 文件 | 条数 |

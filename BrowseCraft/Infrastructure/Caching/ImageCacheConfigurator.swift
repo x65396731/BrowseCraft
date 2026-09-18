@@ -4,7 +4,8 @@ import Foundation
 // 中文注释：ImageCacheConfigurator 负责把应用设置转换成 Nuke 图片缓存配置。
 
 /// 中文注释：对外保持 ImageCache 命名，内部才接触 Nuke 的 ImagePipeline/DataCache 细节。
-final class ImageCacheConfigurator {
+/// 界面层经 `ImageCacheManaging` 端口使用它，不直接持有本类型。
+final class ImageCacheConfigurator: ImageCacheManaging {
     private let userDefaults: UserDefaults
     private let dataCacheName: String
     private(set) var dataCache: DataCache?

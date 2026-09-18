@@ -29,7 +29,7 @@ final class BookReaderViewModel {
 
     private let openLocalUseCase: OpenLocalBookUseCase?
     private let loadSitePublicationUseCase: LoadBookPublicationUseCase?
-    private let sitePublicationBuilder: ReadiumSitePublicationBuilder
+    private let sitePublicationBuilder: any SiteReadiumPublicationBuilding
     /// 中文注释：续读位置与书签的读写在专用 actor 上执行，主线程不做 SQLite I/O；进度节流落库仍同步（flush 必须立即完成）。
     private let persistence: BookReaderPersistenceCoordinator
     private let saveProgressUseCase: SaveBookReadingProgressUseCase
@@ -67,7 +67,7 @@ final class BookReaderViewModel {
         userID: String,
         openLocalUseCase: OpenLocalBookUseCase?,
         loadSitePublicationUseCase: LoadBookPublicationUseCase?,
-        sitePublicationBuilder: ReadiumSitePublicationBuilder = ReadiumSitePublicationBuilder(),
+        sitePublicationBuilder: any SiteReadiumPublicationBuilding,
         loadProgressUseCase: LoadBookReadingProgressUseCase,
         saveProgressUseCase: SaveBookReadingProgressUseCase,
         addBookmarkUseCase: AddBookBookmarkUseCase,
@@ -119,7 +119,7 @@ final class BookReaderViewModel {
             throw BookReaderError.subjectNotSupported
         }
         let opened: OpenedLocalBook = try await openLocalUseCase.execute(bookID: book.id, userID: self.userID)
-        guard let handle: ReadiumBookPublicationHandle = opened.publication as? ReadiumBookPublicationHandle else {
+        guard let handle: any ReadiumPublicationProviding = opened.publication as? any ReadiumPublicationProviding else {
             throw BookReaderError.unexpectedPublicationHandle
         }
         self.publication = handle.publication

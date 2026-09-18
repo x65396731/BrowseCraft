@@ -90,6 +90,7 @@ struct BookFeatureFactory {
                 opener: self.opener
             ),
             loadSitePublicationUseCase: LoadBookPublicationUseCase(runtimeResolver: self.runtimeResolver, cache: self.publicationCache),
+            sitePublicationBuilder: ReadiumSitePublicationBuilderAdapter(),
             loadProgressUseCase: LoadBookReadingProgressUseCase(progressRepository: progress),
             saveProgressUseCase: SaveBookReadingProgressUseCase(progressRepository: progress),
             addBookmarkUseCase: AddBookBookmarkUseCase(repository: bookmarks),

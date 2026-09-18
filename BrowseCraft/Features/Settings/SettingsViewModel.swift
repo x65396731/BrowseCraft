@@ -38,7 +38,7 @@ final class SettingsViewModel {
     private(set) var isPortalAccountActionInFlight: Bool = false
     var portalAccountErrorMessage: String?
 
-    private let imageCacheConfigurator: ImageCacheConfigurator
+    private let imageCacheManager: any ImageCacheManaging
     private let purchaseCoordinator: PortalPurchaseCoordinator
     private let diagnosticIdentityStore: DiagnosticIdentityStore
     private let portalSignInAction: @MainActor () async throws -> UUID
@@ -46,7 +46,7 @@ final class SettingsViewModel {
     private let portalSessionSnapshotAction: () async -> PortalSessionSnapshot?
 
     init(
-        imageCacheConfigurator: ImageCacheConfigurator,
+        imageCacheManager: any ImageCacheManaging,
         purchaseCoordinator: PortalPurchaseCoordinator,
         diagnosticIdentityStore: DiagnosticIdentityStore = .shared,
         portalSignInAction: @escaping @MainActor () async throws -> UUID = {
@@ -57,7 +57,7 @@ final class SettingsViewModel {
             return nil
         }
     ) {
-        self.imageCacheConfigurator = imageCacheConfigurator
+        self.imageCacheManager = imageCacheManager
         self.purchaseCoordinator = purchaseCoordinator
         self.diagnosticIdentityStore = diagnosticIdentityStore
         self.portalSignInAction = portalSignInAction
@@ -113,8 +113,8 @@ final class SettingsViewModel {
         let settings: ImageCacheSettings = ImageCacheSettings(limit: limit)
 
         do {
-            try self.imageCacheConfigurator.apply(settings: settings)
-            self.imageCacheConfigurator.trimConfiguredDataCacheIfNeeded(settings: settings)
+            try self.imageCacheManager.apply(settings: settings)
+            self.imageCacheManager.trimConfiguredDataCacheIfNeeded(settings: settings)
             self.imageCacheSettings = settings
             self.cacheErrorMessage = nil
             self.cacheStatusMessage = nil
@@ -134,7 +134,7 @@ final class SettingsViewModel {
 
     @MainActor
     func clearImageCache() {
-        self.imageCacheConfigurator.clearConfiguredCaches()
+        self.imageCacheManager.clearConfiguredCaches()
         self.cacheErrorMessage = nil
         // 中文注释：Nuke DataCache 的 removeAll 是异步写入队列动作，因此文案只承诺“已开始清理”。
         self.cacheStatusMessage = "Image cache clearing has started."

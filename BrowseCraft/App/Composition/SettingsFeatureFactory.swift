@@ -57,7 +57,7 @@ struct SettingsFeatureFactory {
     @MainActor
     func makeViewModel() -> SettingsViewModel {
         return SettingsViewModel(
-            imageCacheConfigurator: self.imageCacheConfigurator,
+            imageCacheManager: self.imageCacheConfigurator,
             purchaseCoordinator: PortalPurchaseCoordinator(
                 appUserRepository: GRDBAppUserRepository(database: self.database),
                 activeAppUser: self.activeAppUser,

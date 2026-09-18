@@ -1,5 +1,7 @@
 import Foundation
 
+// 中文注释：只读的 App bundle 资源查找，没有网络、数据库或 keychain 这类副作用，因此归在 Shared 而非
+// Infrastructure：界面层可以直接使用，不必再经 Application 端口注入（2026-09-18 收敛边界豁免时归位）。
 struct BundledPurchaseAnimationResource {
     enum ResourceError: LocalizedError {
         case missingResource(fileName: String)
