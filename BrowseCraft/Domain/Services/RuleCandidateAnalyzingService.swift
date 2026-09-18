@@ -11,7 +11,7 @@ protocol RuleCandidateAnalyzingService: Sendable {
         listRule: ListRule?,
         pageID: String?,
         url: String?
-    ) throws -> RuleCandidateReport
+    ) throws -> SourceRuleCandidateReport
 
     func analyzeDetail(
         html: String,
@@ -19,7 +19,7 @@ protocol RuleCandidateAnalyzingService: Sendable {
         detailRule: DetailRule?,
         pageID: String?,
         url: String?
-    ) throws -> RuleCandidateReport
+    ) throws -> SourceRuleCandidateReport
 
     func analyzeReader(
         html: String,
@@ -27,7 +27,7 @@ protocol RuleCandidateAnalyzingService: Sendable {
         galleryRule: GalleryRule?,
         pageID: String?,
         url: String?
-    ) throws -> RuleCandidateReport
+    ) throws -> SourceRuleCandidateReport
 
     func analyzePagination(
         html: String,
@@ -38,5 +38,5 @@ protocol RuleCandidateAnalyzingService: Sendable {
         ruleID: String?,
         currentURL: String?,
         urlTemplate: String?
-    ) throws -> RuleCandidateReport
+    ) throws -> SourceRuleCandidateReport
 }

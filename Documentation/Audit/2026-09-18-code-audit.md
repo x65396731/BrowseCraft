@@ -265,6 +265,15 @@ App 全量构建复核（`xcodebuild build-for-testing`，generic iOS 设备，�
 | F3-3 | Core 拆为「规则模型」与「解析」两个 target；Domain 只依赖前者 | Domain 与 App 不再传递链接 SwiftSoup；增量编译时间对比 |
 | F3-4 | 退役 `App/Compatibility/CoreRuleCandidateNaming.swift`，2 个外部使用者改直接 `import BrowseCraftCore` | build 通过 |
 
+
+实施记录（2026-09-18，阶段 3）：
+
+- **F3-3 Core 拆为两个 target**：`BrowseCraftCore` 包新增 `BrowseCraftRuleModels` target（`Rule/`、`Source/`、`Runtime/`、`Diagnostics/`、`Serialization/`、`Support/`、`Document/`，纯 Foundation），`BrowseCraftCore` target 只剩 `Parsing/` 并 `@_exported import BrowseCraftRuleModels`，因此 App、Runtime 的 `import BrowseCraftCore` 与模块限定名 `BrowseCraftCore.X` 全部不变。编译驱动地把三样被模型侧引用的东西挪进模型层：`LegacyComicExpressionAdapter` / `LegacyComicListRuleAdapter`（迁移操作用）、`SourceParsingError`（模型与解析共用的错误合同）、`SourceContentDocument`（文档数据模型）。交叉引用原本就全是 public，无需 `package` 访问级。`BrowseCraftDomain` 改为只依赖 `BrowseCraftRuleModels` 产品（10 处 import 与 4 处限定名改名），不再链接 SwiftSoup。边界脚本新增闸门：`BrowseCraftRuleModels` 目录禁止 `import SwiftSoup` 与 `import BrowseCraftCore`（反向注入验证会失败）。Core、Domain、Runtime、App 与测试目标全部 0 警告构建通过。
+- **F3-2 判定不再需要**：`DefaultRuleExtractionEngine` 与 `SwiftSoupHTMLDocumentParser` 同在解析 target，默认构造不跨模块；SwiftSoup 的 import 白名单未变。
+- **F3-1 测试目标**：前提测量否定了「迁移只依赖包的用例」——104 个 App 测试文件里 101 个 `@testable import BrowseCraft`。因此改为新建 `BrowseCraftDomainTests`（Cookie 合并策略 5 例）与 `BrowseCraftRuntimeTests`（检测词典资源随包发布与加载 4 例、模板地址切片 2 例），三包 `swift build --build-tests` 通过；`RegularExpressionCache` 在 Core 测试里补 4 例。App 侧用例的迁移需要先把它们对 App 类型（`SourceDefinitionMapper`、`TestSourceRuntimeResolver` 等）的依赖改掉，列为后续项。
+- **F3-4 退役别名**：`App/Compatibility/CoreRuleCandidateNaming.swift` 的 13 个 typealias 删除，3 个使用文件改用 Core 原名（`SourceRuleCandidate*`、`SourceRuleCandidateDraftApplier`），文件只保留 App 需要的 Core 类型扩展。
+- 测试只编译未运行。**待跑：三包 `swift test` 与 App 测试套件。**
+
 ## 6. 附：编译器警告按文件计数
 
 | 文件 | 条数 |

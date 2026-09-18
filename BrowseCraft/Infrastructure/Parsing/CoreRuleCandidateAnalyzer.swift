@@ -24,7 +24,7 @@ final class CoreRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
         listRule: ListRule?,
         pageID: String?,
         url: String?
-    ) throws -> RuleCandidateReport {
+    ) throws -> SourceRuleCandidateReport {
         let fallbackRuleID: String? = ComicSiteRuleV2Validator()
             .validate(rule: source.rule)
             .resolvedRule?
@@ -47,7 +47,7 @@ final class CoreRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
         detailRule: DetailRule?,
         pageID: String?,
         url: String?
-    ) throws -> RuleCandidateReport {
+    ) throws -> SourceRuleCandidateReport {
         let fallbackRuleID: String? = ComicSiteRuleV2Validator()
             .validate(rule: source.rule)
             .resolvedRule?
@@ -70,7 +70,7 @@ final class CoreRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
         galleryRule: GalleryRule?,
         pageID: String?,
         url: String?
-    ) throws -> RuleCandidateReport {
+    ) throws -> SourceRuleCandidateReport {
         let fallbackRuleID: String? = ComicSiteRuleV2Validator()
             .validate(rule: source.rule)
             .resolvedRule?
@@ -96,7 +96,7 @@ final class CoreRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
         ruleID: String?,
         currentURL: String?,
         urlTemplate: String?
-    ) throws -> RuleCandidateReport {
+    ) throws -> SourceRuleCandidateReport {
         return try self.report(
             html: html,
             source: source,
@@ -120,7 +120,7 @@ final class CoreRuleCandidateAnalyzer: RuleCandidateAnalyzingService {
         pagination: PaginationRule? = nil,
         urlTemplate: String? = nil,
         candidateScope: BrowseCraftCore.SourceDiscoveryCandidateScope
-    ) throws -> RuleCandidateReport {
+    ) throws -> SourceRuleCandidateReport {
         let pageURL = try self.pageURL(url ?? source.baseURL)
         let analysis = try self.analyzer.analyze(
             BrowseCraftCore.SourceDiscoveryAnalysisInput(

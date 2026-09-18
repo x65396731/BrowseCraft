@@ -5,7 +5,7 @@ import BrowseCraftCore
 
 struct RuleCandidateDraftApplierTests {
     @Test func canApplyMatchesSupportedStageFields() {
-        let applier: RuleCandidateDraftApplier = RuleCandidateDraftApplier()
+        let applier: SourceRuleCandidateDraftApplier = SourceRuleCandidateDraftApplier()
 
         #expect(applier.canApply(candidate: Self.candidate(field: .item, stage: .list), stage: .list))
         #expect(applier.canApply(candidate: Self.candidate(field: .nextPage, stage: .list), stage: .list))
@@ -22,7 +22,7 @@ struct RuleCandidateDraftApplierTests {
 
     @Test func listCandidateUpdatesLegacyListAndTargetRuleSetList() throws {
         var rule: SiteRule = Self.rule()
-        let applier: RuleCandidateDraftApplier = RuleCandidateDraftApplier()
+        let applier: SourceRuleCandidateDraftApplier = SourceRuleCandidateDraftApplier()
 
         let applied: Bool = applier.apply(
             candidate: Self.candidate(field: .title, stage: .list, selector: "a.name", function: .text),
@@ -46,7 +46,7 @@ struct RuleCandidateDraftApplierTests {
 
     @Test func listNextPageManualSeedUpdatesPagePlaceholder() throws {
         var rule: SiteRule = Self.rule()
-        let applier: RuleCandidateDraftApplier = RuleCandidateDraftApplier()
+        let applier: SourceRuleCandidateDraftApplier = SourceRuleCandidateDraftApplier()
 
         let applied: Bool = applier.apply(
             candidate: Self.candidate(
@@ -75,7 +75,7 @@ struct RuleCandidateDraftApplierTests {
 
     @Test func detailCandidateUpdatesStructuredChapterRuleBeforeLegacyFallback() throws {
         var rule: SiteRule = Self.rule()
-        let applier: RuleCandidateDraftApplier = RuleCandidateDraftApplier()
+        let applier: SourceRuleCandidateDraftApplier = SourceRuleCandidateDraftApplier()
 
         let applied: Bool = applier.apply(
             candidate: Self.candidate(
@@ -101,7 +101,7 @@ struct RuleCandidateDraftApplierTests {
 
     @Test func detailCandidateFallsBackToLegacyDetailWhenRuleSetTargetIsMissing() throws {
         var rule: SiteRule = Self.rule()
-        let applier: RuleCandidateDraftApplier = RuleCandidateDraftApplier()
+        let applier: SourceRuleCandidateDraftApplier = SourceRuleCandidateDraftApplier()
 
         let applied: Bool = applier.apply(
             candidate: Self.candidate(field: .chapterContainer, stage: .detail, selector: "ol.fallback"),
@@ -117,7 +117,7 @@ struct RuleCandidateDraftApplierTests {
 
     @Test func readerCandidateUpdatesV2AndLegacyGalleryFields() throws {
         var rule: SiteRule = Self.rule()
-        let applier: RuleCandidateDraftApplier = RuleCandidateDraftApplier()
+        let applier: SourceRuleCandidateDraftApplier = SourceRuleCandidateDraftApplier()
 
         let applied: Bool = applier.apply(
             candidate: Self.candidate(
@@ -147,7 +147,7 @@ struct RuleCandidateDraftApplierTests {
 
     @Test func searchNextPageCandidateUpdatesTargetSearchRule() throws {
         var rule: SiteRule = Self.rule()
-        let applier: RuleCandidateDraftApplier = RuleCandidateDraftApplier()
+        let applier: SourceRuleCandidateDraftApplier = SourceRuleCandidateDraftApplier()
 
         let applied: Bool = applier.apply(
             candidate: Self.candidate(
@@ -175,7 +175,7 @@ struct RuleCandidateDraftApplierTests {
     @Test func unsupportedCandidateDoesNotMutateDraft() {
         var rule: SiteRule = Self.rule()
         let originalRule: SiteRule = rule
-        let applier: RuleCandidateDraftApplier = RuleCandidateDraftApplier()
+        let applier: SourceRuleCandidateDraftApplier = SourceRuleCandidateDraftApplier()
 
         let applied: Bool = applier.apply(
             candidate: Self.candidate(field: .image, stage: .list, selector: "img.page"),
@@ -189,15 +189,15 @@ struct RuleCandidateDraftApplierTests {
     }
 
     private static func candidate(
-        field: RuleCandidateField,
+        field: SourceRuleField,
         stage: RuleAnalysisStage,
         selector: String = ".candidate",
         selectorKind: SelectorKind = .css,
         function: ExtractFunction = .text,
         param: String? = nil,
-        source: RuleCandidateSource = .repeatedDOMStructure
-    ) -> RuleCandidate {
-        return RuleCandidate(
+        source: SourceRuleCandidateSource = .repeatedDOMStructure
+    ) -> SourceRuleCandidate {
+        return SourceRuleCandidate(
             id: "\(stage.rawValue)-\(field.rawValue)",
             field: field,
             stage: stage,
@@ -205,8 +205,8 @@ struct RuleCandidateDraftApplierTests {
             selectorKind: selectorKind,
             function: function,
             param: param,
-            score: RuleCandidateScore(value: 0.9, confidence: .high, reasons: []),
-            evidence: RuleCandidateEvidence(
+            score: SourceRuleCandidateScore(value: 0.9, confidence: .high, reasons: []),
+            evidence: SourceRuleCandidateEvidence(
                 candidateCount: 1,
                 matchedCount: 1,
                 sampleValues: [],

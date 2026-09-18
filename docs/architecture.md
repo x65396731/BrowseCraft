@@ -84,7 +84,7 @@ what owns the objects rather than by layer:
   OSLog categories. `RuleExecutionErrorClassifier` (user-facing messages) stays in the app.
 - **Mapping** — `SourceDefinitionMapper`, which both the runtime and the app's use cases need.
 
-It depends on `BrowseCraftCore` (a `Source`'s configuration embeds a rule) and on nothing else.
+It depends on `BrowseCraftRuleModels` (the rule-model target of the `BrowseCraftCore` package; a `Source`'s configuration embeds a rule) and on nothing else, so it never links SwiftSoup.
 
 The rule for what belongs here is narrow: **a type moves into the kernel when both the app and
 the runtime need it**, not merely because it feels domain-ish. Entities that only the app uses —

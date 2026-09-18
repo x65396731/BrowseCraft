@@ -5,6 +5,7 @@ set -euo pipefail
 REPOSITORY_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP_ROOT="$REPOSITORY_ROOT/BrowseCraft"
 CORE_ROOT="$REPOSITORY_ROOT/../BrowseCraftCore/Sources/BrowseCraftCore"
+RULE_MODELS_ROOT="$REPOSITORY_ROOT/../BrowseCraftCore/Sources/BrowseCraftRuleModels"
 DOMAIN_PACKAGE_ROOT="$REPOSITORY_ROOT/../BrowseCraftDomain/Sources/BrowseCraftDomain"
 RUNTIME_PACKAGE_ROOT="$REPOSITORY_ROOT/../BrowseCraftRuntime/Sources/BrowseCraftRuntime"
 API_KIT_PACKAGE_ROOT="$REPOSITORY_ROOT/../BrowseCraftAPIKit/Sources/BrowseCraftAPIKit"
@@ -194,7 +195,7 @@ fail_if_token_used() {
   local label="$2"
   local directory matches all_matches=''
 
-  for directory in "$APP_ROOT" "$CORE_ROOT" "$DOMAIN_PACKAGE_ROOT" "$RUNTIME_PACKAGE_ROOT" "$API_KIT_PACKAGE_ROOT"; do
+  for directory in "$APP_ROOT" "$CORE_ROOT" "$RULE_MODELS_ROOT" "$DOMAIN_PACKAGE_ROOT" "$RUNTIME_PACKAGE_ROOT" "$API_KIT_PACKAGE_ROOT"; do
     [[ -d "$directory" ]] || continue
     matches="$(search_swift "$directory" "$pattern" | apply_exemptions | /usr/bin/grep -E "$pattern" || true)"
     if [[ -n "$matches" ]]; then
@@ -223,6 +224,15 @@ if [[ -n "$api_kit_violations" ]]; then
   echo 'Architecture boundary violation: BrowseCraftAPIKit escaped its adapter/composition boundary.'
   echo "$api_kit_violations"
   exit 1
+fi
+
+# BrowseCraftRuleModels is the SwiftSoup-free model layer that BrowseCraftDomain links; no
+# file in it may import SwiftSoup or reach into the parsing target.
+if [[ -d "$RULE_MODELS_ROOT" ]]; then
+  fail_if_imported \
+    "$RULE_MODELS_ROOT" \
+    'SwiftSoup|BrowseCraftCore' \
+    'BrowseCraftRuleModels must stay free of SwiftSoup and of the parsing target.'
 fi
 
 if [[ -d "$CORE_ROOT" ]]; then

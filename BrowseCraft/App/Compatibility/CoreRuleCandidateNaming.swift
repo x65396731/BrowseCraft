@@ -1,11 +1,10 @@
 import Foundation
 import BrowseCraftCore
 
-// 中文注释：Core 的规则模型就是本应用的领域模型，调用点直接 `import BrowseCraftCore`，
-// 不再经由 typealias 隐式注入全局命名空间（否则基于 import 的架构边界检查看不见这层依赖）。
-// 这里只保留两类内容：App 侧另起名字的 candidate 合同别名，以及 App 需要的 Core 类型扩展。
+// 中文注释：Core 的规则模型就是本应用的领域模型，调用点直接 `import BrowseCraftCore` 并使用 Core 的原名
+// （SourceRuleCandidate* / BrowseCraftRulePackageMetadata），不再经由 typealias 隐式注入全局命名空间
+// （否则基于 import 的架构边界检查看不见这层依赖）。这里只保留 App 需要的 Core 类型扩展。
 
-typealias RulePackageMetadata = BrowseCraftCore.BrowseCraftRulePackageMetadata
 
 extension BrowseCraftCore.SiteRule {
     /// 中文注释：这里提供给用户参考的是通用网站规则 JSON 示例。
@@ -46,19 +45,6 @@ extension BrowseCraftCore.SiteRule {
 
 // MARK: - Resolved Comic V2 Compatibility
 
-// MARK: - Rule Candidate Compatibility
-
-typealias RuleCandidateReport = SourceRuleCandidateReport
-typealias RuleCandidateSummary = SourceRuleCandidateSummary
-typealias RuleCandidate = SourceRuleCandidate
-typealias RuleCandidateField = SourceRuleField
-typealias RuleCandidateScore = SourceRuleCandidateScore
-typealias RuleCandidateConfidence = SourceRuleCandidateConfidence
-typealias RuleCandidateEvidence = SourceRuleCandidateEvidence
-typealias RuleCandidateWarning = SourceRuleCandidateWarning
-typealias RuleCandidateWarningSeverity = SourceRuleCandidateWarningSeverity
-typealias RuleCandidateWarningCategory = SourceRuleCandidateWarningCategory
-typealias RuleCandidateSource = SourceRuleCandidateSource
 
 extension RuleAnalysisStage {
     var sourceRuntimeOperation: SourceRuntimeOperation {
@@ -150,8 +136,8 @@ extension SourceRuleCandidateReport {
         ruleID: String?,
         url: String?,
         generatedAt: Date,
-        candidates: [RuleCandidate],
-        summary: RuleCandidateSummary
+        candidates: [SourceRuleCandidate],
+        summary: SourceRuleCandidateSummary
     ) {
         self.init(
             id: id,
@@ -175,16 +161,16 @@ extension SourceRuleCandidateReport {
 extension SourceRuleCandidate {
     init(
         id: String,
-        field: RuleCandidateField,
+        field: SourceRuleField,
         stage: RuleAnalysisStage,
         selector: String,
         selectorKind: SelectorKind,
         function: ExtractFunction,
         param: String?,
-        score: RuleCandidateScore,
-        evidence: RuleCandidateEvidence,
-        warnings: [RuleCandidateWarning],
-        source: RuleCandidateSource
+        score: SourceRuleCandidateScore,
+        evidence: SourceRuleCandidateEvidence,
+        warnings: [SourceRuleCandidateWarning],
+        source: SourceRuleCandidateSource
     ) {
         self.init(
             id: id,
@@ -208,14 +194,13 @@ extension SourceRuleCandidate {
 
 // MARK: - Rule Candidate Draft Applier Compatibility
 
-typealias RuleCandidateDraftApplier = SourceRuleCandidateDraftApplier
 
 extension SourceRuleCandidateDraftApplier {
-    func canApply(candidate: RuleCandidate, stage: RuleAnalysisStage?) -> Bool {
+    func canApply(candidate: SourceRuleCandidate, stage: RuleAnalysisStage?) -> Bool {
         self.canApply(candidate: candidate, operation: stage?.sourceRuntimeOperation)
     }
 
-    func apply(candidate: RuleCandidate, stage: RuleAnalysisStage?, ruleID: String?, rule: inout SiteRule) -> Bool {
+    func apply(candidate: SourceRuleCandidate, stage: RuleAnalysisStage?, ruleID: String?, rule: inout SiteRule) -> Bool {
         self.apply(candidate: candidate, operation: stage?.sourceRuntimeOperation, ruleID: ruleID, rule: &rule)
     }
 }
