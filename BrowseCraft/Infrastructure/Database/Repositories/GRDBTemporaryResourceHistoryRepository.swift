@@ -31,18 +31,28 @@ final class GRDBTemporaryResourceHistoryRepository: TemporaryResourceHistoryRepo
     }
 
     func delete(_ history: TemporaryResourceHistory) throws {
+        try self.delete([history])
+    }
+
+    /// 中文注释：批量删除在一个写事务里完成，不再每条一个事务。
+    func delete(_ histories: [TemporaryResourceHistory]) throws {
+        guard histories.isEmpty == false else {
+            return
+        }
         try self.database.queue.write { database in
-            try database.execute(
-                sql: """
-                DELETE FROM \(TemporaryResourceHistoryRecord.databaseTableName)
-                WHERE userID = ? AND kind = ? AND resourceURL = ?
-                """,
-                arguments: [
-                    history.userID,
-                    history.kind.rawValue,
-                    history.resourceURL.absoluteString
-                ]
-            )
+            for history: TemporaryResourceHistory in histories {
+                try database.execute(
+                    sql: """
+                    DELETE FROM \(TemporaryResourceHistoryRecord.databaseTableName)
+                    WHERE userID = ? AND kind = ? AND resourceURL = ?
+                    """,
+                    arguments: [
+                        history.userID,
+                        history.kind.rawValue,
+                        history.resourceURL.absoluteString
+                    ]
+                )
+            }
         }
     }
 

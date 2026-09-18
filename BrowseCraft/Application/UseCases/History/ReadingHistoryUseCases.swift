@@ -238,23 +238,26 @@ struct DeleteReadingHistoryEntryUseCase {
     }
 
     func execute(_ entry: ReadingHistoryEntry) throws {
-        switch entry.kind {
-        case .comic:
-            if let history: ComicChapterHistory = entry.comicHistory {
-                try self.comicRepository.delete(history)
-            }
-        case .video:
-            if let history: VideoWatchHistory = entry.videoHistory {
-                try self.videoRepository.delete(history)
-            }
-        case .book:
-            if let history: BookReadingHistory = entry.bookHistory {
-                try self.bookRepository.delete(history)
-            }
-        case .temporary:
-            if let history: TemporaryResourceHistory = entry.temporaryHistory {
-                try self.temporaryRepository.delete(history)
-            }
+        try self.execute([entry])
+    }
+
+    /// 中文注释：按历史表分组后批量删除，每张表最多一个写事务；单条删除只是它的特例。
+    func execute(_ entries: [ReadingHistoryEntry]) throws {
+        let comicHistories: [ComicChapterHistory] = entries.compactMap { $0.kind == .comic ? $0.comicHistory : nil }
+        let videoHistories: [VideoWatchHistory] = entries.compactMap { $0.kind == .video ? $0.videoHistory : nil }
+        let bookHistories: [BookReadingHistory] = entries.compactMap { $0.kind == .book ? $0.bookHistory : nil }
+        let temporaryHistories: [TemporaryResourceHistory] = entries.compactMap { $0.kind == .temporary ? $0.temporaryHistory : nil }
+        if comicHistories.isEmpty == false {
+            try self.comicRepository.delete(comicHistories)
+        }
+        if videoHistories.isEmpty == false {
+            try self.videoRepository.delete(videoHistories)
+        }
+        if bookHistories.isEmpty == false {
+            try self.bookRepository.delete(bookHistories)
+        }
+        if temporaryHistories.isEmpty == false {
+            try self.temporaryRepository.delete(temporaryHistories)
         }
     }
 }

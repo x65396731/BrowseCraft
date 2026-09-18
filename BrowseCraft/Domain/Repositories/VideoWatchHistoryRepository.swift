@@ -7,6 +7,8 @@ protocol VideoWatchHistoryRepository: Sendable {
     func save(_ history: VideoWatchHistory) throws
     func fetchHistory(userID: String) throws -> [VideoWatchHistory]
     func delete(_ history: VideoWatchHistory) throws
+    /// 中文注释：批量删除；实现应在一个事务内完成，默认实现逐条调用 delete。
+    func delete(_ histories: [VideoWatchHistory]) throws
     func fetchHistory(
         userID: String,
         sourceID: String,
@@ -14,4 +16,12 @@ protocol VideoWatchHistoryRepository: Sendable {
         sourceIndex: Int,
         episodeIndex: Int
     ) throws -> VideoWatchHistory?
+}
+
+extension VideoWatchHistoryRepository {
+    func delete(_ histories: [VideoWatchHistory]) throws {
+        for history: VideoWatchHistory in histories {
+            try self.delete(history)
+        }
+    }
 }

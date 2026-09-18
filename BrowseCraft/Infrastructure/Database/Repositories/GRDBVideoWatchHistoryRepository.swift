@@ -37,20 +37,30 @@ final class GRDBVideoWatchHistoryRepository: VideoWatchHistoryRepository {
     }
 
     func delete(_ history: VideoWatchHistory) throws {
-        let record: VideoWatchHistoryRecord = VideoWatchHistoryRecord(history: history)
+        try self.delete([history])
+    }
+
+    /// 中文注释：批量删除在一个写事务里完成，不再每条一个事务。
+    func delete(_ histories: [VideoWatchHistory]) throws {
+        guard histories.isEmpty == false else {
+            return
+        }
+        let records: [VideoWatchHistoryRecord] = histories.map(VideoWatchHistoryRecord.init(history:))
 
         try self.database.queue.write { database in
-            try database.execute(
-                sql: """
-                DELETE FROM \(VideoWatchHistoryRecord.databaseTableName)
-                WHERE userID = ? AND sourceID = ? AND workKey = ?
-                """,
-                arguments: [
-                    record.userID,
-                    record.sourceID,
-                    record.workKey
-                ]
-            )
+            for record: VideoWatchHistoryRecord in records {
+                try database.execute(
+                    sql: """
+                    DELETE FROM \(VideoWatchHistoryRecord.databaseTableName)
+                    WHERE userID = ? AND sourceID = ? AND workKey = ?
+                    """,
+                    arguments: [
+                        record.userID,
+                        record.sourceID,
+                        record.workKey
+                    ]
+                )
+            }
         }
     }
 

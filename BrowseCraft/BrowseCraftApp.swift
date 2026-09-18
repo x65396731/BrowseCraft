@@ -175,7 +175,9 @@ struct BrowseCraftApp: App {
 
     @State private var bootstrapState: AppBootstrapState = .loading
 
-    init() {
+    /// 中文注释：广告 SDK 启动放在引导完成、主界面出现之后（与其它应用服务同一时机），不再在 `App.init` 里
+    /// 同步执行、拖后首帧。激励广告只在用户主动触发时加载，届时 SDK 早已就绪。
+    private static func startMobileAdsIfConfigured() {
         if AppAdConfiguration.hasAdMobApplicationID {
             MobileAds.shared.start()
         } else {
@@ -219,6 +221,7 @@ struct BrowseCraftApp: App {
                         self.delegate.setRuleGenerationPushHandler { opened in
                             container.handleRuleGenerationPushNotification(opened: opened)
                         }
+                        Self.startMobileAdsIfConfigured()
                         await container.startApplicationServices()
                     }
                     .onChange(of: self.scenePhase) { _, phase in

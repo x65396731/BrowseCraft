@@ -12,4 +12,14 @@ protocol ComicChapterHistoryRepository: Sendable {
         comicItemID: String
     ) throws -> ComicChapterHistory?
     func delete(_ history: ComicChapterHistory) throws
+    /// 中文注释：批量删除；实现应在一个事务内完成，默认实现逐条调用 delete。
+    func delete(_ histories: [ComicChapterHistory]) throws
+}
+
+extension ComicChapterHistoryRepository {
+    func delete(_ histories: [ComicChapterHistory]) throws {
+        for history: ComicChapterHistory in histories {
+            try self.delete(history)
+        }
+    }
 }

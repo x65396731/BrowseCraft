@@ -33,8 +33,6 @@ actor HistoryPersistenceCoordinator {
     }
 
     func delete(_ entries: ReadingHistoryEntriesTransfer) throws {
-        for entry: ReadingHistoryEntry in entries.values {
-            try self.deleteReadingHistoryEntryUseCase.execute(entry)
-        }
+        try self.deleteReadingHistoryEntryUseCase.execute(entries.values)
     }
 }

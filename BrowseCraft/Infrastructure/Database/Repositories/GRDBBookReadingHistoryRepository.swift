@@ -33,18 +33,28 @@ final class GRDBBookReadingHistoryRepository: BookReadingHistoryRepository {
     }
 
     func delete(_ history: BookReadingHistory) throws {
+        try self.delete([history])
+    }
+
+    /// 中文注释：批量删除在一个写事务里完成，不再每条一个事务。
+    func delete(_ histories: [BookReadingHistory]) throws {
+        guard histories.isEmpty == false else {
+            return
+        }
         try self.database.queue.write { database in
-            try database.execute(
-                sql: """
-                DELETE FROM \(BookReadingHistoryRecord.databaseTableName)
-                WHERE userID = ? AND sourceID = ? AND detailURL = ?
-                """,
-                arguments: [
-                    history.userID,
-                    history.sourceID,
-                    history.detailURL
-                ]
-            )
+            for history: BookReadingHistory in histories {
+                try database.execute(
+                    sql: """
+                    DELETE FROM \(BookReadingHistoryRecord.databaseTableName)
+                    WHERE userID = ? AND sourceID = ? AND detailURL = ?
+                    """,
+                    arguments: [
+                        history.userID,
+                        history.sourceID,
+                        history.detailURL
+                    ]
+                )
+            }
         }
     }
 }

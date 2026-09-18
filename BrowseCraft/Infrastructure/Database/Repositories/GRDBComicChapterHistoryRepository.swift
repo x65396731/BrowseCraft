@@ -50,21 +50,31 @@ final class GRDBComicChapterHistoryRepository: ComicChapterHistoryRepository {
     }
 
     func delete(_ history: ComicChapterHistory) throws {
-        let record: ComicChapterHistoryRecord = ComicChapterHistoryRecord(history: history)
+        try self.delete([history])
+    }
+
+    /// 中文注释：批量删除在一个写事务里完成，不再每条一个事务。
+    func delete(_ histories: [ComicChapterHistory]) throws {
+        guard histories.isEmpty == false else {
+            return
+        }
+        let records: [ComicChapterHistoryRecord] = histories.map(ComicChapterHistoryRecord.init(history:))
 
         try self.database.queue.write { database in
-            try database.execute(
-                sql: """
-                DELETE FROM \(ComicChapterHistoryRecord.databaseTableName)
-                WHERE userID = ? AND sourceID = ? AND comicItemID = ? AND chapterKey = ?
-                """,
-                arguments: [
-                    record.userID,
-                    record.sourceID,
-                    record.comicItemID,
-                    record.chapterKey
-                ]
-            )
+            for record: ComicChapterHistoryRecord in records {
+                try database.execute(
+                    sql: """
+                    DELETE FROM \(ComicChapterHistoryRecord.databaseTableName)
+                    WHERE userID = ? AND sourceID = ? AND comicItemID = ? AND chapterKey = ?
+                    """,
+                    arguments: [
+                        record.userID,
+                        record.sourceID,
+                        record.comicItemID,
+                        record.chapterKey
+                    ]
+                )
+            }
         }
     }
 
