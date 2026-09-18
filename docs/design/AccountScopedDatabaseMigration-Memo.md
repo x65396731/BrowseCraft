@@ -54,3 +54,12 @@ CloudKit `AppUserIdentity/default` 只能记录已经通过 Portal 登录的后�
 不能静默复用。开发环境可清理 App、CloudKit development 数据和旧 StoreKit 测试交易。
 
 - `BCA-SYNC-007` 存在真实生产购买时，必须先设计服务端迁移，不能直接发布该身份切换。
+
+## 云同步上传前门禁
+
+- `BCA-SYNC-008` 生成待上传的 Cloud record 前必须执行 `CloudSyncPayloadSecurityValidator`：按整条 record 的
+  全部字符串字段合计校验大小预算、拒绝 URL userinfo、拒绝本地 `cloud:<64 hex>` account scope 泄漏。
+  检出时只拒绝该条记录上传，保留 `sync_queue`；错误只含 JSON path 与问题类型，不含疑似敏感值。
+  它**不推测站点规则常量是否敏感**——不扫描 Header 名称、`context.*` 取值、Request Body 字面量或
+  `keyHex` / `ivHex`。该取值由 `CloudSyncPayloadSecurityValidatorTests` 的 13 例固定输入钉住；
+  要改成全面扫描须先过 `docs/STATUS.md` 第 4 节那一行的裁决。
