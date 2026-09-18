@@ -1,7 +1,6 @@
 # Identity 数据归属与数据库策略备忘
 
-更新时间：2026-07-28
-状态：已切换到 Sign in with Apple 与后端生成 AppUser UUID
+> 实施与验证状态见 [STATUS.md](../STATUS.md)。
 
 ## 当前决定
 

@@ -1,10 +1,9 @@
 # 运行期广告过滤承接规则匹配结果（设计）
 
-更新时间：2026-08-29  
-状态：**已实施并验证**——`BrowseCraftTests` 全目标通过
-（Swift Testing 353 项 / 58 suites + XCTest 27 项，0 失败），含本设计新增的 9 项判定用例  
 影响源：全部 Video 源（触发场景来自 `jable-tv`）  
 问题类型：广告过滤职责在生成器与 App 之间重复且划分不清
+
+> 实施与验证状态见 [STATUS.md](../STATUS.md)；验收过程与命令见 [status-log.md](../history/status-log.md)。
 
 ## 一、结论
 
@@ -115,26 +114,18 @@ route facts 仍只留内存，未触碰 evidence 导出 schema。
    这一缺口在后端合同里已如实写明（`BC-PLAYBACK-049`），
    补上它的唯一途径是 App 侧的判定用例。
 
-## 六、验收
+## 六、验收覆盖面
 
-- App 侧：9 项用例（`SourceContentNoiseFilterTests` 4 项、
-  `VideoSourcePlaybackLoaderTests` 5 项）**全部通过**，覆盖广告 host / `/ads/` 路径的 `.m3u8`
+- 覆盖广告 host / `/ads/` 路径的 `.m3u8`
   被丢弃、带签名 query 的正常 `.m3u8` 保留、全部候选被 discard 时按 fallback 走页面播放且不播放
   被丢弃的地址、无 fallback 时带独立 reason 失败、广告 iframe 被丢弃、`deprioritize` 只改顺序。
-  同一次运行里 `BrowseCraftTests` 全目标通过（Swift Testing 353 项 + XCTest 27 项），
-  既有噪声过滤与播放 loader 用例无回归，改动文件零编译警告。
-
-  `xcode-select` 指向 CommandLineTools，用环境变量覆盖即可，不需要 sudo：
-
-  ```bash
-  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test -workspace BrowseCraft.xcworkspace -scheme BrowseCraft -destination 'platform=iOS Simulator,id=C612B32B-9D17-4C9A-B82E-8036D535E59F' -derivedDataPath .derivedData -only-testing:BrowseCraftTests
-  ```
-- 后端侧：取消排除要求后 `jable.tv` 与 `kpkuang.org` 复跑，
-  分别报告 `normalizationStatus` 与 `runtimeValidationStatus`。
-- 上述用例已跑通，规则仓库的 `APP-MEMO-008` 现记实施 `implemented` /
-  验证 `full-suite-passed`，**本项对发布的阻塞已解除**。发布本身仍需用户单独授权。
-  `runtimeValidationStatus` 仍是 `candidate-only`，原因是 `BC-EVIDENCE-047` 规定的
+  用例在 `SourceContentNoiseFilterTests` 与 `VideoSourcePlaybackLoaderTests`。
+- 发布本身仍需用户单独授权。
+- `runtimeValidationStatus` 仍是 `candidate-only`，原因是 `BC-EVIDENCE-047` 规定的
   「没有独立 App runtime evidence 就不得声称 runtime-validated」，与广告过滤无关。
+
+> 实施与验证状态见 [STATUS.md](../STATUS.md)；验收当次的用例数、全目标读数与所用命令见
+> [status-log.md](../history/status-log.md)。
 
 ## 七、边界
 

@@ -30,7 +30,4 @@ sfacg 桌面分类 `tid=21` 作为新来源 `sfacg-com--list-tid-21` 发布进�
 - `BrowseCraft/Features/Sources/SourcesViewModel.swift`：`catalogEntryURL(for:)`（个人入口优先，其次同站多条入口）。
 - `BrowseCraft/Features/Sources/Catalog/CatalogSourceListView.swift`：目录行 `subtitleURL` 改用 `catalogEntryURL(for:)`。
 
-## 五、真机验证
-
-2026-09-15 用户真机确认：规则目录里两条 sfacg 副标题分别显示 `https://book.sfacg.com/List/` 与
-`https://book.sfacg.com/List/?tid=21`，动漫嗨手写 / 生成两条也能区分。
+> 真机验证状态见 [STATUS.md](../STATUS.md)；验证当日的读数见 [status-log.md](../history/status-log.md)。

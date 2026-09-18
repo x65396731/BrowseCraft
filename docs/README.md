@@ -1,7 +1,7 @@
 # BrowseCraft 文档索引
 
 本目录是 App 仓库文档的唯一入口。`docs/design/` 与本文、[architecture.md](architecture.md) 保留当前可执行的规范与
-设计约束；`docs/history/` 只保存批次记录、审计纪事与已闭合的交接单。文档的组织形式与条款标识由第 3、4 节定义。
+设计约束；`docs/history/` 只保存批次记录、审计纪事与已闭合的交接单。文档的组织形式、条款标识与状态承载由第 3–5 节定义。
 
 ## 1. 合规闭包
 
@@ -17,8 +17,8 @@
 `docs/history/` 不构成生产约束，不参与逐条核对，不得被引用为实施依据。它只保存「当时为什么这么改」的事实。
 把其中任何文本恢复为约束，必须重新走批准流程并写入 C 类文档。
 
-`docs/STATUS.md` 与查文档的机器闸门 `scripts/check-docs.sh` 尚未建立，分别属迁移的 D2 与 D4 阶段
-（见 `docs/history/2026-09-19-docs-architecture-audit.md` 第 6 节）。在它们落地之前，本节第二行的 S 类位置是声明，不是现状。
+查文档的机器闸门 `scripts/check-docs.sh` 尚未建立，属迁移的 D4 阶段
+（见 [history/2026-09-19-docs-architecture-audit.md](history/2026-09-19-docs-architecture-audit.md) 第 6 节）。
 
 ## 2. 权威层级
 
@@ -72,7 +72,46 @@ App 侧的硬条款按**触发源**分属两个命名空间：
 
 条款编号本身尚未开始，属迁移的 D3 阶段：当前 C 类文档里的硬条款仍是无 ID 的散文。
 
-## 5. 按任务读取
+## 5. STATUS.md 的列与取值
+
+[STATUS.md](STATUS.md) 是瞬时状态的唯一承载。它是一张表，一行一个工作项。C 类设计文档不再承载
+`implemented` / `pending` / `passed` 这类状态。
+
+| 列 | 取值 |
+| --- | --- |
+| 工作项 | 自由文本，短名 |
+| 条款 | 该工作项影响的 `BCA-*` 或 `APP-MEMO-*` ID 列表；尚未编号时写 `未编号` |
+| 决策 | `required` \| `optional` \| `rejected` |
+| 设计 | `draft` \| `pending-review` \| `approved` \| `superseded` |
+| 实施 | `not-started` \| `in-progress` \| `implemented` \| `reverted` |
+| 验证 | `not-run` \| `static-audit-passed` \| `targeted-passed` \| `full-suite-passed` \| `simulator-passed` \| `device-passed` \| `failed` |
+| 检查点 | 单个 commit 短哈希 |
+| 更新日期 | `YYYY-MM-DD` |
+
+- `BCA-DOC-004` 每格恰好一个值。禁止用 `/` 拼接多值，禁止自造状态词。
+- `BCA-DOC-005` 一个工作项同时存在多种验证事实时，必须拆成多行工作项，而不是拼接一格。
+- `BCA-DOC-006` 旧值不在 `STATUS.md` 中保留。每次变更把被覆盖的行追加到
+  [history/status-log.md](history/status-log.md)，格式为「日期 + 工作项 + 旧值 → 新值 + 原因」。
+
+验证列比 fwq 多 `simulator-passed` 与 `device-passed` 两档，少 `fresh-passed` 与 `regression-passed`：
+App 侧的验证事实主要分「离线测试通过」「模拟器走通」「真机验收通过」三级，而模拟器通过**不等于**真机通过
+（`APP-MEMO-016` 就是同一条规则在引擎、模拟器、真机上给出三个不同张数的实例）。把这两档合进 `full-suite-passed`
+会让「待真机」这个最常见的挂起状态无法表达。
+
+### 5.1 状态段落的三分法
+
+- `BCA-DOC-007` 把状态从 C 类文档搬出时，必须逐句分流为三个去向，不得整段搬移：
+
+  | 句子性质 | 去向 | 判定 |
+  | --- | --- | --- |
+  | 可归约为第 5 节枚举的状态 | `STATUS.md` 表格行 | 决策/设计/实施/验证/检查点 |
+  | 叙事事实（某日跑了什么、拿到什么结果、哪次提交做了什么） | `history/status-log.md` | 过去时、带日期或哈希 |
+  | 仍然有效的约束或范围声明 | 留在原 C 类文档 | 含 `必须` / `不得` / `禁止` / `不允许`，或声明影响范围与复用关系 |
+
+- `BCA-DOC-008` 三分的验收方式不是「纯移动」，而是**字节守恒**：三个去向新增的字节之和，
+  加上留在原处的字节，等于原段落字节。分流过程不得改写任何句子，只允许整句搬移。
+
+## 6. 按任务读取
 
 第一次接触本仓库的阅读顺序：本文 → [architecture.md](architecture.md) 第 1–3 节（模块、层、被脚本执行的不变量）
 → 改到哪一层再读对应的设计文档。
@@ -95,10 +134,11 @@ App 侧的硬条款按**触发源**分属两个命名空间：
 `design/Book-Kind-Wiring-Design.md`、`design/Local-Book-Import-Design.md` 与 `design/RuntimeAdFilter-Design.md`
 当前仍混装了合同与批次记录，拆分属 D3。读它们时以现在时陈述的章节为合同，带日期的落地/倒查章节按 H 类看待。
 
-## 6. 归档索引
+## 7. 归档索引
 
 | 文档 | 内容 |
 | --- | --- |
+| [history/status-log.md](history/status-log.md) | 状态变更流水：被 STATUS.md 覆盖的旧值，与三分法从 C 类搬出的叙事事实 |
 | [history/2026-09-19-docs-architecture-audit.md](history/2026-09-19-docs-architecture-audit.md) | 本文档架构的审计与迁移提案，含迁移前的量化基线 |
 | [history/2026-09-18-code-audit.md](history/2026-09-18-code-audit.md) | 五仓代码审计：警告清单、架构、性能热点与逐项修正纪事 |
 | [history/RSS-Removal.md](history/RSS-Removal.md) | RSS 从 App 五仓整体下线的执行记录与保留清单 |
@@ -106,7 +146,7 @@ App 侧的硬条款按**触发源**分属两个命名空间：
 | [history/JablePlaybackRule-Handoff.md](history/JablePlaybackRule-Handoff.md) | jable.tv M3U8 抽取失败的根因交接（结论已由 fwq `BC-PLAYBACK-049` 承接） |
 | [history/Phase0-Data-Contract-and-Security-Audit.md](history/Phase0-Data-Contract-and-Security-Audit.md) | CloudKit 阶段 0 的数据合同与 payload 安全审计（身份部分已失效，见其文首注） |
 
-## 7. 迁移对照表
+## 8. 迁移对照表
 
 2026-09-19 的 D1 阶段把文档从 `Documentation/` 迁入 `docs/`，只移动、未改写。外部文档（含 fwq 仓库的只读归档）
 里的旧路径按下表换算：
