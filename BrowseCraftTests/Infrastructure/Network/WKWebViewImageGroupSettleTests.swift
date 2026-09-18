@@ -119,6 +119,16 @@ final class WKWebViewImageGroupSettleTests: XCTestCase {
         XCTAssertEqual(outcome.matchedCount, 1)
     }
 
+    /// 中文注释：安定上限必须严格小于声明了条件时的总超时——否则等待被外层超时抢跑。
+    /// 2026-09-18 真机日志两行同时出现（`timeout after 12.0s, using current DOM` 与
+    /// `dom-stability reason=settled waitedMs=11397`）就是两者同为 12 s 的后果。
+    func testSettleCapLeavesHeadroomUnderTheLoaderTimeout() {
+        let cap: Int = WKWebViewDOMStabilityPolicy.ImageGroupStability.baseline.maximumWait.milliseconds
+        XCTAssertEqual(cap, 12_000)
+        XCTAssertLessThan(cap, Int(WKWebViewHTMLLoaderTimingProbe.settleConditionTimeoutSeconds * 1_000))
+        XCTAssertEqual(WKWebViewHTMLLoaderTimingProbe.settleConditionTimeoutSeconds, 17)
+    }
+
     /// 中文注释：取值与规则生成引擎的常量同值——两侧是同一条结构条件，不是各调各的秒数。
     func testBaselineMatchesTheEngineConstants() {
         let baseline: WKWebViewDOMStabilityPolicy.ImageGroupStability = .baseline

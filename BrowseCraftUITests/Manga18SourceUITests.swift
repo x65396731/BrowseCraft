@@ -26,28 +26,40 @@ final class Manga18SourceUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 12)
         print("=== HOME images=\(app.images.count) buttons=\(app.buttons.count) statics=\(app.staticTexts.count)")
 
-        // ① 点第一部作品（日志里 firstItem 是 rooftop-sex-king）
-        let title = app.staticTexts["Rooftop Sex King"]
-        let fallback = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Island Girl")).firstMatch
-        let target = title.waitForExistence(timeout: 25) ? title : fallback
-        XCTAssertTrue(target.waitForExistence(timeout: 25), "列表里应能看到作品标题")
-        print("=== TAP-COMIC: \(target.label)")
-        target.tap()
+        // ① 点第一部作品。列表条目是按钮，标签形如「标题、标题 Chapter N 43 minutes ago …」；
+        // 站点内容天天变，所以不认标题，只认「带章节信息且不是收藏/标签页」的条目按钮。
+        let item = app.buttons.matching(
+            NSPredicate(
+                format: "label CONTAINS %@ AND NOT (label BEGINSWITH %@) AND NOT (label CONTAINS %@)",
+                "Chapter", "Read Latest", "Add Favorite"
+            )
+        ).firstMatch
+        XCTAssertTrue(item.waitForExistence(timeout: 30), "列表里应有作品条目")
+        print("=== TAP-COMIC: \(item.label.prefix(48)) hittable=\(item.isHittable)")
+        if item.isHittable {
+            item.tap()
+        } else {
+            item.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        }
         Thread.sleep(forTimeInterval: 18)
         dump(app, "DETAIL")
         print("=== DETAIL images=\(app.images.count) buttons=\(app.buttons.count) statics=\(app.staticTexts.count)")
 
         // ② 章节 → 阅读页：章节行是「1、Chapter 83」这种按钮；顶部另有「Read Latest · Chapter 83」
-        let chapterRow = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "1、")).firstMatch
+        // 「Read Latest · Chapter N」最稳：详情页头部固定存在，直接进阅读页。
         let readLatest = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Read Latest")).firstMatch
-        if chapterRow.waitForExistence(timeout: 25) {
-            print("=== TAP-CHAPTER-ROW: \(chapterRow.label)")
-            chapterRow.tap()
-        } else if readLatest.waitForExistence(timeout: 10) {
+        let chapterRow = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "1、")).firstMatch
+        if readLatest.waitForExistence(timeout: 30) {
             print("=== TAP-READ-LATEST: \(readLatest.label)")
             readLatest.tap()
+        } else if chapterRow.waitForExistence(timeout: 15) {
+            print("=== TAP-CHAPTER-ROW: \(chapterRow.label)")
+            chapterRow.tap()
         } else {
-            print("=== CHAPTER-NOT-FOUND")
+            print("=== CHAPTER-NOT-FOUND buttons=\(app.buttons.count)")
+            for index in 0..<min(app.buttons.count, 12) {
+                print("===   button[\(index)]: \(app.buttons.element(boundBy: index).label)")
+            }
         }
         Thread.sleep(forTimeInterval: 30)
         dump(app, "READER")

@@ -64,15 +64,41 @@ final class WKWebViewHTMLLoader: RenderedPageContentLoader, @unchecked Sendable 
     }
 }
 
+/// 中文注释：只为用例暴露两个计时取值——`APP-MEMO-016` 的不变量「安定上限 < 声明条件时的总超时」
+/// 必须能被固定输入钉住，而 `Timing` 是加载操作的私有实现细节。这里不复制取值，直接转发。
+enum WKWebViewHTMLLoaderTimingProbe {
+    static var settleConditionTimeoutSeconds: Double {
+        return WKWebViewHTMLLoadOperation.settleConditionTimeoutSecondsForTests
+    }
+
+    static var defaultTimeoutSeconds: Double {
+        return WKWebViewHTMLLoadOperation.defaultTimeoutSecondsForTests
+    }
+}
+
 @MainActor
-private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
+final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
     private enum Timing {
         static let defaultTimeoutNanoseconds: UInt64 = 12_000_000_000
         static let defaultTimeoutSeconds: Double = 12
         static let autoScrollTimeoutNanoseconds: UInt64 = 24_000_000_000
         static let autoScrollTimeoutSeconds: Double = 24
+        /// 中文注释：声明了结构安定条件（`APP-MEMO-016`）时的总超时。它必须**严格大于**安定条件自己的上限，
+        /// 否则等待还没交卷、外层就按超时把当前 DOM 交出去——2026-09-18 真机日志同时出现
+        /// 「timeout after 12.0s, using current DOM」与「dom-stability reason=settled waitedMs=11397」，
+        /// 就是两者同为 12 s 撞在一起。余量取 5 s，与规则生成引擎同构（谓词上限 12 s、crawl4ai 超时 17 s）。
+        static let settleConditionTimeoutSeconds: Double = 17
+        static let settleConditionTimeoutNanoseconds: UInt64 = 17_000_000_000
         static let postFinishDelayNanoseconds: UInt64 = 500_000_000
         static let postScrollDelayNanoseconds: UInt64 = 500_000_000
+    }
+
+    nonisolated static var settleConditionTimeoutSecondsForTests: Double {
+        return Timing.settleConditionTimeoutSeconds
+    }
+
+    nonisolated static var defaultTimeoutSecondsForTests: Double {
+        return Timing.defaultTimeoutSeconds
     }
 
     private let url: URL
@@ -248,15 +274,22 @@ private final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
     }
 
     private var timeoutNanoseconds: UInt64 {
-        return self.request?.autoScroll == true
-            ? Timing.autoScrollTimeoutNanoseconds
-            : Timing.defaultTimeoutNanoseconds
+        if self.request?.autoScroll == true {
+            return Timing.autoScrollTimeoutNanoseconds
+        }
+        // 中文注释：声明了结构安定条件的请求要给等待留余量，见 `Timing.settleConditionTimeoutSeconds`。
+        return self.settleCondition == nil
+            ? Timing.defaultTimeoutNanoseconds
+            : Timing.settleConditionTimeoutNanoseconds
     }
 
     private var timeoutSeconds: Double {
-        return self.request?.autoScroll == true
-            ? Timing.autoScrollTimeoutSeconds
-            : Timing.defaultTimeoutSeconds
+        if self.request?.autoScroll == true {
+            return Timing.autoScrollTimeoutSeconds
+        }
+        return self.settleCondition == nil
+            ? Timing.defaultTimeoutSeconds
+            : Timing.settleConditionTimeoutSeconds
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation?, withError error: Error) {
