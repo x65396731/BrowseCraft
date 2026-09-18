@@ -19,7 +19,7 @@ enum AppDatabaseMigrations {
     /// 中文注释：v2——sources 增加 `origin` 列，记「来自个人生成」等出身，本地副本才能随服务器裁决清理。
     static let sourcesAddOriginIdentifier: String = "v2.sources-add-origin"
 
-    /// 中文注释：v3——本地书三张表（书、续读位置、书签），见 Documentation/Book/Local-Book-Import-Design.md。
+    /// 中文注释：v3——本地书三张表（书、续读位置、书签），见 docs/design/Local-Book-Import-Design.md。
     /// 本地书不是 Source，也不进 CloudKit；位置字段是 Readium Locator 的 JSON。
     static let localBooksIdentifier: String = "v3.local-books"
 
@@ -27,7 +27,7 @@ enum AppDatabaseMigrations {
     /// 作品标识改为「本地 UUID 或 sourceID + 作品地址派生的 UUID」（设计第六节第 3 条）。SQLite 去外键只能重建表。
     static let bookProgressDetachedIdentifier: String = "v4.book-progress-detached-from-local-books"
 
-    /// 中文注释：v5——站点书阅读历史，一本书一条；History 页与漫画、视频同列（Documentation/Book/Book-Kind-Wiring-Design.md 第二十三节）。
+    /// 中文注释：v5——站点书阅读历史，一本书一条；History 页与漫画、视频同列（docs/design/Book-Kind-Wiring-Design.md 第二十三节）。
     /// 续读位置仍在 book_reading_progress，这张表只记书名、封面、最后读到的章节与访问时间。
     static let bookReadingHistoryIdentifier: String = "v5.book-reading-history"
 

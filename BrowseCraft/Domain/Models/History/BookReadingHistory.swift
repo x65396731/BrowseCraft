@@ -4,7 +4,7 @@ import Foundation
 // 中文注释：BookReadingHistory 保存用户读过的站点书（规则来源里的一部作品）。
 
 /// 中文注释：一本书一条（与漫画按作品聚合后的历史行同形），记最后读到的章节；续读位置在 book_reading_progress，这里不重复存 Locator。
-/// 本地导入书的入口已藏起（Documentation/Book/Local-Book-Import-Design.md 第八节），不进历史。
+/// 本地导入书的入口已藏起（docs/design/Local-Book-Import-Design.md 第八节），不进历史。
 struct BookReadingHistory: Identifiable, Hashable, Sendable {
     var id: String {
         return [

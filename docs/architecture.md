@@ -13,7 +13,7 @@ interpret a rule, and who may touch the network.
 | `BrowseCraftCore` | sibling SwiftPM package | ~29k lines | Rule models, validation, resolved graphs, deterministic parsing |
 | `BrowseCraftAPIKit` | sibling SwiftPM package | ~1.3k lines | The BrowseCraft backend contract (endpoints, DTOs, transport) |
 | `BrowseCraftDomain` | sibling SwiftPM package | ~2.1k lines | Domain kernel: values, ports, policies and diagnostics shared by the app and the rule runtime |
-| `BrowseCraftRuntime` | sibling SwiftPM package | ~13k lines | The whole rule runtime: Comic, RSS, Video and the shared dispatch |
+| `BrowseCraftRuntime` | sibling SwiftPM package | ~13k lines | The whole rule runtime: Book, Comic, Video and the shared dispatch |
 
 **Core's rule models are this app's domain model.** `SiteRule`, `VideoSiteRule`, `ListContext`,
 `RequestConfig` and the resolved graphs are used directly by `Domain`, `Application` and
@@ -133,7 +133,7 @@ Contract in the package, implementation in the app — preserve this shape.
   enum, a shared observable store), it belongs to the lower layer.
 - **Raw `print`** — use `AppLog` / `AppDebugLog`.
 - **SwiftSoup containment in Core** — only the explicitly named DOM/discovery adapters may import
-  it; RSS and rule-loading paths go through their boundary protocols.
+  it; rule-loading paths go through their boundary protocols.
 
 `scripts/check-swiftsoup-override.sh` runs next to it and fails the build when the local
 `../SwiftSoup` override is missing, dirty, or not at the commit BrowseCraftCore pins (§8).
@@ -195,7 +195,7 @@ mapping; they no longer create tables.
 ViewModel tests are assembled by `BrowseCraftTests/TestDoubles/ViewModels/ViewModelTestHarness.swift`:
 real use cases and persistence coordinators on top of real GRDB repositories against a temporary
 SQLite file, with only the network-facing boundaries replaced (`ScriptedSourceRuntime`,
-`ScriptedRSSFeedLoader`, stub page/preflight loaders). Extend the harness rather than mocking use
+`StubPageContentLoader`, `StubPreflightPageLoader`, `StubPageDataLoader`). Extend the harness rather than mocking use
 cases per test, so a ViewModel test exercises the orchestration the app actually ships.
 
 Archived preflight fixtures enter the bundle as a folder reference to preserve their `site-*/`

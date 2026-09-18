@@ -1,7 +1,7 @@
 import Foundation
 
 // 中文注释：LocalBook 是用户从「文件」导入的一本本地书（EPUB 或音频书）。
-// 它不是 Source，不进 SourceConfiguration，也不参与 CloudKit 同步（首批，见 Documentation/Book/Local-Book-Import-Design.md）。
+// 它不是 Source，不进 SourceConfiguration，也不参与 CloudKit 同步（首批，见 docs/design/Local-Book-Import-Design.md）。
 
 /// 中文注释：首批只接两种文件形态；PDF、CBZ、LCP 加密 EPUB 都不在范围内。
 enum LocalBookFormat: String, Codable, CaseIterable, Hashable, Sendable {

@@ -7,6 +7,8 @@ BrowseCraft is an iOS reader app driven by custom source rules.
 - `BrowseCraft/`: App source code.
 - `BrowseCraftTests/`: Unit tests.
 - `BrowseCraftUITests/`: UI tests.
+- `docs/`: Documentation. Start at [docs/README.md](docs/README.md) — it defines which documents
+  are binding contracts, which are read-only archives, and how clause IDs are scoped.
 - `scripts/`: Project maintenance scripts.
 - `TestResults/`: Markdown summaries for retained test runs.
 

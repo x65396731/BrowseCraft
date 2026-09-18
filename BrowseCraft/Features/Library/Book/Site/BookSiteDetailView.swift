@@ -4,7 +4,7 @@ import SwiftUI
 // 中文注释：BookSiteDetailView：站点作品的详情页——头部、开始 / 继续阅读、章节列表；章节推入共用的 EPUB 阅读器。
 // 章节用本视图自己的 navigationDestination(item:) 推入（与 ComicDetailView 同款），不能用 NavigationLink(value:)
 // 走栈根的 LibraryBookRoute：详情本身是 item 式推入的，两种推入混用时栈序会变成「库 → 阅读器 → 详情」
-// （2026-09-14 模拟器实测，见 Documentation/Book/Book-Kind-Wiring-Design.md 第十二节）。
+// （2026-09-14 模拟器实测，见 docs/design/Book-Kind-Wiring-Design.md 第十二节）。
 
 struct BookSiteDetailView: View {
     @State private var viewModel: BookSiteDetailViewModel
