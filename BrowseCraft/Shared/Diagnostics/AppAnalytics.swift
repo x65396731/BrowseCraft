@@ -139,14 +139,15 @@ final class AppAnalytics: @unchecked Sendable {
         )
     }
 
-    func logDiagnosticFailure(error: Error, stage: DiagnosticRuleStage, errorCode: String) {
-        let classifiedError: RuleExecutionError = RuleExecutionErrorClassifier.classified(error)
+    /// 中文注释：只按已判定的类别选事件桶。判定由 Application 的 `RuleExecutionErrorClassifier` 完成——
+    /// Shared 在 Application 之下，不得反向引用它的错误类型。
+    func logDiagnosticFailure(kind: DiagnosticFailureKind, stage: DiagnosticRuleStage, errorCode: String) {
         let event: Event
 
-        switch classifiedError {
-        case .network, .antiBot:
+        switch kind {
+        case .network:
             event = .networkRequestFailed
-        case .accessRequired, .selectorEmpty, .ruleConfiguration, .responseContract, .apiResponseContract, .sourceAPI, .protectedResource, .parserDiagnostics, .unknown:
+        case .parse:
             event = .parseFailed
         }
 

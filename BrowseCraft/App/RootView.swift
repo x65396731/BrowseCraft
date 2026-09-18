@@ -104,6 +104,7 @@ struct RootView: View {
             #endif
         }
         .environment(\.browserRequestHeaderProvider, self.browserRequestHeaderProvider)
+        .environment(\.itemThumbnailImagePipeline, ItemThumbnailImageCachePlugin.shared)
         .environment(\.systemCookieHeaderProvider, self.systemCookieHeaderProvider)
         .task {
             self.startupCoordinator.start()

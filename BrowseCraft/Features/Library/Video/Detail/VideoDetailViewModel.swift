@@ -324,7 +324,7 @@ final class VideoDetailViewModel {
             #endif
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-detail-error")
-            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .detail, errorCode: "video-detail-error")
+            AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .detail, errorCode: "video-detail-error")
             CrashDiagnostics.shared.record(
                 error: error,
                 category: .parser,
@@ -493,7 +493,7 @@ final class VideoDetailViewModel {
             #endif
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .playback, event: "video-playback-error")
-            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .videoPlayback, errorCode: "video-playback-error")
+            AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .videoPlayback, errorCode: "video-playback-error")
             CrashDiagnostics.shared.record(
                 error: error,
                 category: .playback,

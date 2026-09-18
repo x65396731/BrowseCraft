@@ -8,6 +8,7 @@ import SwiftUI
 struct ItemThumbnailImageView: View {
     @Environment(\.browserRequestHeaderProvider) private var browserRequestHeaderProvider
     @Environment(\.systemCookieHeaderProvider) private var systemCookieHeaderProvider
+    @Environment(\.itemThumbnailImagePipeline) private var thumbnailImagePipeline
 
     let urlString: String?
     let refererURLString: String?
@@ -56,7 +57,7 @@ struct ItemThumbnailImageView: View {
                         self.placeholder
                     }
                 }
-                .pipeline(ItemThumbnailImageCachePlugin.shared.pipeline)
+                .pipeline(self.thumbnailImagePipeline.pipeline)
                 .id(urlString)
             } else {
                 self.placeholder
@@ -72,7 +73,7 @@ struct ItemThumbnailImageView: View {
                     systemCookieHeaderProvider: self.systemCookieHeaderProvider
                 )
             }
-            .map(ItemThumbnailImageCachePlugin.thumbnailRequest(from:))
+            .map(self.thumbnailImagePipeline.thumbnailRequest(from:))
         }
         .onChange(of: self.urlString) {
             self.candidateIndex = 0

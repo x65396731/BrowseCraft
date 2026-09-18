@@ -432,7 +432,7 @@ final class LibraryViewModel {
                self.isCurrentListState(sourceID: expectedSourceID, key: expectedListStateKey) {
                 let event: String = mode == .append ? "library-pagination-error" : "library-refresh-error"
                 RuleExecutionErrorClassifier.log(error: error, stage: .list, event: event)
-                AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .list, errorCode: event)
+                AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .list, errorCode: event)
                 if mode == .append {
                     self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
                 } else {
@@ -1098,7 +1098,7 @@ final class LibraryViewModel {
             } catch {
                 RuleExecutionErrorClassifier.log(error: error, stage: .list, event: event)
                 AppAnalytics.shared.logDiagnosticFailure(
-                    error: error,
+                    kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
                     stage: .list,
                     errorCode: event
                 )

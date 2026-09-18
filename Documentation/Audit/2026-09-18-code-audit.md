@@ -374,8 +374,28 @@ F0-3 建闸门时登记了 11 条现存命中作为基线。本次把 **Features
 同时补上 F3-3 拆分的另一半缺口：**应用目标**也要显式链接 `BrowseCraftRuleModels` 产品（界面层直接用到
 `BookReaderRule` 等类型）。此前只补了测试目标；重新生成工程后应用目标同样链接失败。
 
-剩余 4 条豁免与它们的性质：Shared 的错误分类器认识两个 Application 错误类型（2 条，应下沉或改协议）、
-缩略图视图直接取缓存插件单例（1 条，应经 Environment 注入）、Runtime 两处字面量正则 `try!`（1 条，模式固定不会失败）。
+接着（同日第二批）把 Shared 的两个方向也收敛掉，豁免清单降到 1 条：
+
+- **错误分类器下沉**：`RuleExecutionErrorClassifier` 从 `Shared/Errors` 移到 `Application/Diagnostics`。
+  它的分支要认 `CatalogSourceImportError` 与 `SourceListLoadValidationError`（Application 类型），
+  而 Application 自己也用它（`ValidateSourceListLoadUseCase`），所以既不能留在 Shared 也不能搬去 Features。
+  归位后两个方向同时成立。文件名同时纠正为类型名（原名 `RuleExecutionError.swift` 误导，那个枚举在 Domain）。
+- **上报入口不再自己分类**：移动后暴露出同方向的第二处引用——`Shared/Diagnostics/AppAnalytics.swift`
+  也在调分类器，只为在两个 Firebase 事件桶之间选一个。改为 Shared 只接收已判定的 `DiagnosticFailureKind`
+  （新增于 `Shared/Diagnostics/DiagnosticEnums.swift`，纯取值、不含判定），判定逻辑归到分类器的
+  `diagnosticFailureKind(for:)` 一处，13 个 Features 调用点随之改传类别。
+- **缩略图缓存池改注入**：池子与请求改写都带 Nuke 类型，进不了 Application 端口；新增
+  `ItemThumbnailImagePipelineProviding` 与 Environment 键（`Shared/UI/ItemThumbnailImagePipelineEnvironment.swift`），
+  与本层既有的请求头 provider 同一模式，装配根注入 `ItemThumbnailImageCachePlugin.shared`。
+  协议需声明 `Sendable`，否则 `EnvironmentKey.defaultValue` 在严格并发下报非并发安全。
+
+反向注入验证：Shared 重新引用 `CatalogSourceImportError` 或 `ItemThumbnailImageCachePlugin` 均按预期失败。
+
+**豁免清单现仅剩 1 条**：Runtime 两处字面量正则 `try!`（模式固定不会失败）。建议长期保留为已审阅例外——
+清单归零后，任何新命中都是真正的新违规，闸门才真正起作用。
+
+期间遇到一次 `Test crashed with signal kill before establishing connection`（测试宿主在建立连接前被杀），
+重启模拟器后全量通过；与代码改动无关，属今天多次运行后的模拟器资源状态。
 
 验证：App 与测试目标 0 警告；模拟器全量 XCTest 43 例 + Swift Testing 496 例通过；闸门干净且反向注入会失败。
 

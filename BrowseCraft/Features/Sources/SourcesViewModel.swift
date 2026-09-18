@@ -333,7 +333,7 @@ final class SourcesViewModel {
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "comic-discovery-error")
             AppAnalytics.shared.logSearchSubmitted(sourceType: .comic, resultCount: 0)
-            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .search, errorCode: "comic-discovery-error")
+            AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .search, errorCode: "comic-discovery-error")
             self.errorMessage = error.localizedDescription
             return []
         }
@@ -352,7 +352,7 @@ final class SourcesViewModel {
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "video-discovery-error")
             AppAnalytics.shared.logSearchSubmitted(sourceType: .video, resultCount: 0)
-            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .search, errorCode: "video-discovery-error")
+            AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .search, errorCode: "video-discovery-error")
             self.errorMessage = error.localizedDescription
             return []
         }
@@ -485,7 +485,7 @@ final class SourcesViewModel {
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "rule-source-add-error")
             AppAnalytics.shared.logRuleImportFailed(sourceType: .comic, errorCode: "rule-source-add-error")
-            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .list, errorCode: "rule-source-add-error")
+            AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .list, errorCode: "rule-source-add-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
             return false
         }
@@ -772,7 +772,7 @@ final class SourcesViewModel {
         } catch {
             self.failedRefreshAction = .select(sourceID: source.id)
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-select-refresh-error")
-            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .list, errorCode: "source-select-refresh-error")
+            AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .list, errorCode: "source-select-refresh-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
 
@@ -1000,7 +1000,7 @@ final class SourcesViewModel {
             return persistedSource
         } catch {
             AppAnalytics.shared.logRuleImportFailed(sourceType: .unknown, errorCode: "rule-package-import-error")
-            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .list, errorCode: "rule-package-import-error")
+            AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .list, errorCode: "rule-package-import-error")
             self.errorMessage = error.localizedDescription
             return nil
         }
@@ -1063,7 +1063,7 @@ final class SourcesViewModel {
         } catch {
             self.failedRefreshAction = .refresh(sourceID: source.id)
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-refresh-error")
-            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .list, errorCode: "source-refresh-error")
+            AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .list, errorCode: "source-refresh-error")
             CrashDiagnostics.shared.record(
                 error: error,
                 category: .parser,

@@ -65,3 +65,11 @@ extension Source {
         }
     }
 }
+
+/// 中文注释：诊断上报只需要区分「网络类」与「解析类」两个桶。判定规则错误属于哪一桶要认
+/// `RuleExecutionError`，那是 Application 的分类器的职责；Shared 只接收已判定的结果，
+/// 因此本枚举是纯取值、不含任何判定逻辑。（2026-09-18 收敛边界豁免时引入。）
+enum DiagnosticFailureKind: String {
+    case network
+    case parse
+}

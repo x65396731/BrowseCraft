@@ -1,6 +1,12 @@
 import BrowseCraftDomain
 import Foundation
 
+// 中文注释：本文件原在 Shared/Errors。它的分类分支要认 `CatalogSourceImportError` 与
+// `SourceListLoadValidationError` 这两个 Application 层的错误类型，而 Shared 位于 Application 之下、
+// 不得反向引用；同时 Application 自己也要用它（`ValidateSourceListLoadUseCase`），所以也不能搬去 Features。
+// 归位到 Application 后两个方向同时成立：认识自己的错误类型合规，Features 调用 Application 同样合规。
+// （2026-09-18 收敛边界豁免时下沉。）
+
 /// 中文注释：把底层错误归一成 RuleExecutionError，同时为 UI 提供稳定的用户可读文案。
 enum RuleExecutionErrorClassifier {
     static func classified(_ error: Error) -> RuleExecutionError {
@@ -93,6 +99,17 @@ enum RuleExecutionErrorClassifier {
             return localized("rule_error_parser")
         case .unknown(let underlyingDescription):
             return withReason("rule_error_unknown", underlyingDescription)
+        }
+    }
+
+    /// 中文注释：诊断上报的类别判定。分类逻辑只此一处，Shared 的上报入口只接收结果。
+    static func diagnosticFailureKind(for error: Error) -> DiagnosticFailureKind {
+        switch Self.classified(error) {
+        case .network, .antiBot:
+            return .network
+        case .accessRequired, .selectorEmpty, .ruleConfiguration, .responseContract,
+             .apiResponseContract, .sourceAPI, .protectedResource, .parserDiagnostics, .unknown:
+            return .parse
         }
     }
 

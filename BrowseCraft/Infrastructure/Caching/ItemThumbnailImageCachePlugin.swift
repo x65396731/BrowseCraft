@@ -2,7 +2,8 @@ import Foundation
 @preconcurrency import Nuke
 
 // 中文注释：ItemThumbnailImageCachePlugin 为 Library item 缩略图提供独立于漫画阅读图的缓存池。
-final class ItemThumbnailImageCachePlugin: ImagePipelineDelegate, @unchecked Sendable {
+// 界面层经 `ItemThumbnailImagePipelineProviding` 使用它，不直接引用本类型。
+final class ItemThumbnailImageCachePlugin: ImagePipelineDelegate, ItemThumbnailImagePipelineProviding, @unchecked Sendable {
     static let shared: ItemThumbnailImageCachePlugin = ItemThumbnailImageCachePlugin()
 
     private enum Constants {
@@ -60,6 +61,10 @@ final class ItemThumbnailImageCachePlugin: ImagePipelineDelegate, @unchecked Sen
             "accept=\(acceptHeader)",
             "cookie=\(cookieHeader)"
         ].joined(separator: "|")
+    }
+
+    func thumbnailRequest(from request: ImageRequest) -> ImageRequest {
+        return Self.thumbnailRequest(from: request)
     }
 
     static func thumbnailRequest(

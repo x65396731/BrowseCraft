@@ -316,7 +316,7 @@ final class ReaderViewModel {
                 // 中文注释：账号访问限制是预期业务状态，不作为解析失败上报 Crashlytics。
                 break
             default:
-                AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .reader, errorCode: "reader-load-error")
+                AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .reader, errorCode: "reader-load-error")
                 CrashDiagnostics.shared.record(
                     error: error,
                     category: .parser,

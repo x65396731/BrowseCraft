@@ -350,7 +350,7 @@ final class VideoPlayerViewModel {
             await self.prepareForPlayback()
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .playback, event: failureEvent)
-            AppAnalytics.shared.logDiagnosticFailure(error: error, stage: .videoPlayback, errorCode: failureEvent)
+            AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .videoPlayback, errorCode: failureEvent)
             CrashDiagnostics.shared.record(
                 error: error,
                 category: .playback,

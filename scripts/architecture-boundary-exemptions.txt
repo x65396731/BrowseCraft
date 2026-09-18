@@ -10,12 +10,11 @@
 # 两个 Readium 类型改为由阅读器自己声明协议（BookReaderPublicationPorts.swift），符合性挂在装配根。
 # 本方向已全部收敛，若再出现命中说明是新引入的，应当失败而不是登记豁免。
 
-# Shared → Application：错误分类器认识 Application 的错误类型，应下沉到 Application 或改为协议。
-BrowseCraft/Shared/Errors/RuleExecutionError.swift CatalogSourceImportError
-BrowseCraft/Shared/Errors/RuleExecutionError.swift SourceListLoadValidationError
+# Shared → Application / Shared → Infrastructure：2026-09-18 已全部收敛。
+# 错误分类器下沉到 Application/Diagnostics（它要认 Application 的错误类型，且 Application 自己也用它）；
+# 缩略图缓存池改经 Environment 注入（池子带 Nuke 类型，进不了 Application 端口）。
+# 这两个方向已无豁免，若再出现命中说明是新引入的，应当失败而不是登记豁免。
 
-# Shared → Infrastructure：缩略图视图直接取缓存插件单例，应经 Environment 注入。
-BrowseCraft/Shared/UI/ItemThumbnailImageView.swift ItemThumbnailImageCachePlugin
 
 # try!：字面量正则的 static let，模式固定不会失败；保留登记以防新增。
 ../BrowseCraftRuntime/Sources/BrowseCraftRuntime/Book/BookSourceRuntime.swift try!
