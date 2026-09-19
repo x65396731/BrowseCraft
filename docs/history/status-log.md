@@ -202,3 +202,23 @@ commit 哈希，属纪事，留在归档。
 按 `STATUS.md` 第 0 节的纪律，这种应当明确记成不做，而不是留在 `not-started` 里，
 否则几天后会被当成待办重新捡起——该节点名的两次踩坑就是这么来的。
 
+## 2026-09-19 规则编辑下线遗留死代码第二批
+
+新增工作项「规则编辑下线遗留死代码第二批」（`af2e331`），不覆盖 2026-09-19 的第一批那行——
+两批清的是不同文件，按 `BCA-DOC-005` 各占一行。
+
+第一批（`4527def`）清的是规则编辑视图那五个文件 207 行。设计书与代码一致性核验发现
+Application 层还剩一整条零 UI 入口的链：`UpdateSourceRuleUseCase` 生产侧零引用、
+`UpdateVideoSourceConfigurationUseCase` 连测试都没有、`RulePackageExport` 一族与
+`SourceRuleEditingCoordinator` 的 duplicate / export / importPackage 三个方法同样零入口，
+`SourceRuleEditorService` 还带着一个从未被使用的 `ruleValidator` 字段。两个测试文件
+（`RuleManagementUseCaseTests` / `RulePackageUseCaseTests`）钉的全是这些用例，其中
+`duplicateSourceCreatesEditableUserRule` 钉的正是「复制产生可编辑用户规则」。
+
+`BCA-UI-003` 本身没有被违反——这条链没有任何 View 入口，用户看不到创建或编辑规则的地方；
+清它的理由是「App 里不应当还存在能造出新规则的代码路径」，以及 `SourceRuleEditorService`
+这个名字在只剩只读格式化之后会误导下一个读它的人，因此改名为 `SourceRuleDebugJSONFormatter`。
+
+验证只做到 `static-audit-passed`：xcodegen 重新生成工程、架构边界与文档闸门都过、被删符号
+全仓零残留的 grep 复核。按 `AGENTS.md` 的会话纪律未 build、未跑测试。
+
