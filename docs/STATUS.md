@@ -87,7 +87,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | `BookBookmarksSheet` 是设计里不存在的类型名——书签功能已实现，呈现层内联在 `BookReaderView`；文档已按实际改写，白名单撤回 | `BCA-DOC-014` | required | approved | implemented | static-audit-passed | 2b4bd07 | 2026-09-19 |
 | 规则编辑入口下线：`SourceDebugView` 的「Edit JSON」摘除、两个零引用编辑视图删除，规则一律只读 | `BCA-UI-003` | required | approved | implemented | static-audit-passed | 1b990b5 | 2026-09-19 |
 | 规则编辑下线遗留的死代码链已清：五个文件 207 行，含 Service 的两个注入依赖与组合根、测试替身的装配 | 未编号 | required | approved | implemented | full-suite-passed | 4527def | 2026-09-19 |
-| 规则编辑下线遗留死代码第二批：更新 / 复制 / 导入 / 导出四类用例、Coordinator 与两个测试文件整链删除 958 行，只读格式化独立为 `SourceRuleDebugJSONFormatter` | `BCA-UI-003` | required | approved | implemented | static-audit-passed | af2e331 | 2026-09-19 |
+| 规则编辑下线遗留死代码第二批：更新 / 复制 / 导入 / 导出四类用例、Coordinator 与两个测试文件整链删除 958 行，只读格式化独立为 `SourceRuleDebugJSONFormatter` | `BCA-UI-003` | required | approved | implemented | full-suite-passed | af2e331 | 2026-09-19 |
 | `scripts/regenerate-project.sh` 已恢复：CLT 升到 27.0、arm64 xcodegen 2.46.0 从源码装好，`/usr/local/bin` 的 x86_64 旧链接已移除，bash 与 zsh 下都命中 arm64 版 | `BCA-BUILD-001` | required | approved | implemented | targeted-passed | af931e1 | 2026-09-19 |
 | 模拟器 `build-for-testing` 链接失败已修：`BrowseCraftRuntime` 的 `Package.swift` 缺对 `BrowseCraftRuleModels` 的 product 声明，动态链接时符号解析不到；generic destination 静态链接下不暴露 | `BCA-ARCH-002` | required | approved | implemented | full-suite-passed | 4527def | 2026-09-19 |
 | iOS 18.5 模拟器运行时跑不了测试（缺 `libswiftWebKit.dylib`）——裁决不修，测试口径统一到 iOS 26 及以上；`HANDOFF.md` 与设计文档的命令已改 iPhone 17 Pro | 未编号 | rejected | approved | not-started | targeted-passed | af931e1 | 2026-09-19 |

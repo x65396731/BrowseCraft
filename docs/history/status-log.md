@@ -222,3 +222,25 @@ Application 层还剩一整条零 UI 入口的链：`UpdateSourceRuleUseCase` �
 验证只做到 `static-audit-passed`：xcodegen 重新生成工程、架构边界与文档闸门都过、被删符号
 全仓零残留的 grep 复核。按 `AGENTS.md` 的会话纪律未 build、未跑测试。
 
+## 2026-09-19 第二批死代码清理的验证升级
+
+工作项「规则编辑下线遗留死代码第二批」
+
+| 列 | 旧值 | 新值 |
+| --- | --- | --- |
+| 验证 | `static-audit-passed` | `full-suite-passed` |
+
+原因：清完代码时按 `AGENTS.md` 的会话纪律没有 build、没有跑测试，只做到静态核对；
+用户随后明确要求 build 与测试，两项都跑了。
+
+`xcodebuild build`（iPhone 17 Pro / iOS 26.5）`BUILD SUCCEEDED`，零警告，构建过程清掉了
+`SourceRuleEditorService` 与 `SourceRuleEditingCoordinator` 的 stale 产物。
+`xcodebuild test -only-testing:BrowseCraftTests` 通过 559、失败 0、跳过 0，
+其中 Swift Testing 493 项 / 86 套。四个包 `swift test` 全过：Domain 5、APIKit 33、
+Runtime 10、Core 228（4 跳过）。
+
+App 侧用例数从 503 / 88 套降到 493 / 86 套，**少的正好是删掉的两个测试文件**
+（`RuleManagementUseCaseTests` / `RulePackageUseCaseTests`）里的 10 项、2 套，
+XCTest 的 66 项不受影响——不是回归。测试期间有一条 QoS 优先级反转的运行期告警，
+是既有现象，与本次删除无关。
+
