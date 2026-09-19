@@ -15,8 +15,14 @@ import Foundation
 /// `zh-CN,zh;q=0.9,zh-TW;q=0.8,en;q=0.7`，于是繁中用户也会被按简中对待——
 /// WEBTOON 对简中返回的是 `Error Language` 页，对繁中才返回正文。
 struct DeviceAcceptLanguage {
-    /// 最多带几个语言标签。浏览器通常 2–4 个；服务端上限 200 字符，取 4 个留足余量。
-    static let maximumTags: Int = 4
+    /// 最多取几个**系统偏好**标签。展开降级链之后条目会翻两三倍，因此这里取得少。
+    static let maximumPreferredTags: Int = 3
+
+    /// 权重档位：首个不带 `q`，其后 0.9 … 0.1，因此最多 10 条。
+    static let maximumEntries: Int = 10
+
+    /// 服务端（`accept_language.py`）的长度上限。超出即 400，因此在客户端按整条截断。
+    static let maximumLength: Int = 200
 
     /// 服务端（`accept_language.py`）接受的字符集。设备标签理论上都在里面，
     /// 但取值来自系统、不是我们造的，因此在出口再过一道——不合的标签整条丢掉，
@@ -31,26 +37,60 @@ struct DeviceAcceptLanguage {
         self.preferredLanguages = preferredLanguages
     }
 
-    /// 组装成 `Accept-Language`：首选标签不带权重，其后每个递减 0.1。
+    /// 组装成 `Accept-Language`：首个标签不带权重，其后每个递减 0.1。
     ///
-    /// 例：`["zh-Hant-TW", "en-US"]` → `zh-Hant-TW,en-US;q=0.9`。
+    /// 例：`["zh-Hant-JP"]` → `zh-Hant-JP,zh-Hant;q=0.9,zh;q=0.8`。
+    ///
+    /// 中文注释：**每个标签都要展开它的 BCP-47 前缀降级链**（RFC 4647 lookup）。
+    /// iOS 的 `Locale.preferredLanguages` 返回的是「语言偏好 × 设备地区」的组合——
+    /// 设备语言繁中、地区日本时给出的是 `zh-Hant-JP`。这种标签对网站几乎没有意义：
+    /// 站点做语言协商时匹配的是 `zh-Hant` / `zh` 这一级，`zh-Hant-JP` 在严格匹配下
+    /// 一个都命不中，站点会当成「没有可用语言」回落到它的默认语言，甚至回错误页。
+    /// 2026-09-19 真机日志逮到：发出去的是 `zh-Hant-JP,zh-Hans-JP;q=0.9,en-JP;q=0.8,ja-JP;q=0.7`，
+    /// 整串没有一条能被按语言匹配的站认出来。
+    ///
+    /// 降级链只取**真前缀**（`zh-Hant-JP` → `zh-Hant` → `zh`），不做地区映射——
+    /// 把「繁中」映射成 `zh-TW` 那种是词表判据，本项目不采纳。
+    ///
     /// 一个可用标签都没有时返回 `nil`——**宁可不发，也不发一个编出来的地区**：
     /// 服务端字段可选，不发时引擎退回它自己的默认值。
     func value() -> String? {
-        let tags: [String] = self.preferredLanguages
+        let entries: [String] = self.preferredLanguages
             .compactMap(Self.sanitized)
-            .reduced(to: Self.maximumTags)
-        guard tags.isEmpty == false else {
+            .reduced(to: Self.maximumPreferredTags)
+            .flatMap(Self.prefixChain)
+            .reduced(to: Self.maximumEntries)
+        guard entries.isEmpty == false else {
             return nil
         }
-        return tags.enumerated().map { index, tag in
-            guard index > 0 else {
-                return tag
+        var assembled: String = ""
+        for (index, tag): (Int, String) in entries.enumerated() {
+            let piece: String
+            if index == 0 {
+                piece = tag
+            } else {
+                // 0.9, 0.8, 0.7 …… 与浏览器发出的形状一致。
+                let weight: Double = 1.0 - (Double(index) * 0.1)
+                piece = ",\(tag);q=\(String(format: "%.1f", weight))"
             }
-            // 0.9, 0.8, 0.7 —— 与浏览器发出的形状一致。
-            let weight: Double = 1.0 - (Double(index) * 0.1)
-            return "\(tag);q=\(String(format: "%.1f", weight))"
-        }.joined(separator: ",")
+            // 服务端超长即 400，因此按**整条**截断，不留半截标签。
+            guard assembled.count + piece.count <= Self.maximumLength else {
+                break
+            }
+            assembled += piece
+        }
+        return assembled.isEmpty ? nil : assembled
+    }
+
+    /// `zh-Hant-JP` → `["zh-Hant-JP", "zh-Hant", "zh"]`。只取真前缀，不猜地区。
+    static func prefixChain(_ tag: String) -> [String] {
+        let parts: [Substring] = tag.split(separator: "-")
+        guard parts.count > 1 else {
+            return [tag]
+        }
+        return (0..<parts.count).reversed().map { index in
+            parts[0...index].joined(separator: "-")
+        }
     }
 
     private static func sanitized(_ tag: String) -> String? {
