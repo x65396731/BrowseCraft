@@ -37,19 +37,19 @@ python3 scripts/check-docs.py
 
 以下都在 `docs/STATUS.md` 里有行；挑活前按该文件第 0 节的三步核对，不要只看名字就开工。
 
-- **等用户裁决的四项**：fwq 的 `protectedResource` 与 `executionPolicy` 两条约束没有稳定 ID，是否请 fwq 分配；
-  fwq `docs/rules/` 两份 C 类与 `STATUS.md` 里的旧文档路径是否同步更正；
-  `BrowseCraftCore/Documentation/` 十份文档是否一并迁移（`Phase*` 属 H 类，与当前合同混放）；
-  设计文档里尚未编号的散文硬条款是否一次扫完（当前是「遇到就地补号」）。
-- **已批准未实施**：CloudKit 上传前的安全门禁（Header 拦截、非 Header 路径检查、记录大小预算）。
+**`required` 未完成：0 条。** 剩下的全是 `optional` 或已裁决不做。
+
+- **等用户裁决**：fwq 的 `protectedResource` 与 `executionPolicy` 两条约束只有正文没有稳定 ID，
+  本仓库只能按文档引用，是否请 fwq 分配 ID。
+- **待核**：`scripts/update-rules-package.sh` 指向的 `BrowseCraftRulesKit` 不在当前五仓布局里，脚本是否已死。
+- **无语料、等样本**：读书 kind 的四个接口变体（list / detail / reader 的 API 形态）。
+- **已登记、无行动价值**：`BookBookmarksSheet` 是本地导入设计里未实现的计划名（入口已藏，该节是
+  未建代码的设计留档）；F2-3 后半的显式 `ImagePrefetcher` 预取（`LazyVGrid` 本就提前实例化下一屏，
+  收益未测到，暂缓）。
 - **明确不做**（`rejected` / `superseded`，按名字跳过，不是待办）：本地书 B3 有声书播放器、PDF 与 CBZ、
   目录刷新时静默覆盖本地规则、jable.tv 播放根因（已由 fwq `BC-PLAYBACK-049` 承接）、
-  book catalog 不发布进目录（2026-09-14 被后续裁决取代）。
-- **无语料、等样本**：读书 kind 的四个接口变体（list / detail / reader 的 API 形态）。
-
-**一处已知的账没进 STATUS**：[`docs/history/2026-09-18-code-audit.md`](docs/history/2026-09-18-code-audit.md)
-第 5 节的修正清单（阶段 0–3）逐条状态还没归到 `docs/STATUS.md`。该文档自身记了各条的实施与被测量推翻的
-结论，但要判断「今天还剩什么」必须读原文，不能从 `STATUS.md` 查到。要用时先补这批行。
+  CloudKit 门禁的字面量全面扫描（有意收窄，见 `BCA-SYNC-008`）、iOS 18.5 模拟器运行时、
+  代码审计里四条被测量推翻的条目（F2-7、F2-10、F3-1、F3-2 与封面请求重复构造）。
 
 ## 2. 环境与命令速查
 
@@ -62,6 +62,9 @@ python3 scripts/check-docs.py
   SwiftSoup/              # 自家 fork，整张依赖图的本地覆盖（BCA-BUILD-002）
   fwq/                    # 规则生成引擎，BC-* 与 APP-MEMO-* 的定义点在这里
 ```
+
+工具链要点：`xcodegen` 只保留 `/opt/homebrew` 下的 arm64 版（x86_64 那份已删，它在本机跑不了）；
+Homebrew 从源码编译要求独立的 Command Line Tools 与 Xcode 同版本，只装 Xcode.app 不够。
 
 ```bash
 # 工程文件不同步时先重新生成（BCA-BUILD-001）。project.yml 不引用任何文档路径，
