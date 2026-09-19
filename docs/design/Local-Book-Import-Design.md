@@ -88,8 +88,8 @@ B2 之后再回到 [读书 kind App 侧接线](Book-Kind-Wiring-Design.md) 的�
 
 ```bash
 scripts/check-architecture-boundaries.sh
-scripts/regenerate-project.sh && xcodebuild -project BrowseCraft.xcodeproj -scheme BrowseCraft -destination 'platform=iOS Simulator,id=135E66FA-674C-4FE7-8813-3099C857420E' build
-xcodebuild -project BrowseCraft.xcodeproj -scheme BrowseCraft -destination 'platform=iOS Simulator,id=135E66FA-674C-4FE7-8813-3099C857420E' test -only-testing:BrowseCraftTests
+scripts/regenerate-project.sh && xcodebuild -project BrowseCraft.xcodeproj -scheme BrowseCraft -destination 'platform=iOS Simulator,OS=26.5,name=iPhone 17 Pro' build
+xcodebuild -project BrowseCraft.xcodeproj -scheme BrowseCraft -destination 'platform=iOS Simulator,OS=26.5,name=iPhone 17 Pro' test -only-testing:BrowseCraftTests
 ```
 
 ## 六、待裁决

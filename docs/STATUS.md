@@ -87,9 +87,9 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | `BookBookmarksSheet` 是本地导入设计里未实现的计划名——入口已藏，该节是未建代码的设计留档 | 未编号 | optional | approved | not-started | not-run | 09d2af1 | 2026-09-19 |
 | 规则编辑入口下线：`SourceDebugView` 的「Edit JSON」摘除、两个零引用编辑视图删除，规则一律只读 | `BCA-UI-003` | required | approved | implemented | static-audit-passed | 1b990b5 | 2026-09-19 |
 | 规则编辑下线遗留的死代码链已清：五个文件 207 行，含 Service 的两个注入依赖与组合根、测试替身的装配 | 未编号 | required | approved | implemented | full-suite-passed | 4527def | 2026-09-19 |
-| `scripts/regenerate-project.sh` 已恢复：CLT 升到 27.0、arm64 xcodegen 2.46.0 从源码装好；但 `PATH` 里 `/usr/local/bin` 的 x86_64 旧版仍排在前面，要么删它要么调 `PATH` | `BCA-BUILD-001` | required | approved | implemented | static-audit-passed | ed6daa5 | 2026-09-19 |
+| `scripts/regenerate-project.sh` 已恢复：CLT 升到 27.0、arm64 xcodegen 2.46.0 从源码装好，`/usr/local/bin` 的 x86_64 旧链接已移除，bash 与 zsh 下都命中 arm64 版 | `BCA-BUILD-001` | required | approved | implemented | targeted-passed | af931e1 | 2026-09-19 |
 | 模拟器 `build-for-testing` 链接失败已修：`BrowseCraftRuntime` 的 `Package.swift` 缺对 `BrowseCraftRuleModels` 的 product 声明，动态链接时符号解析不到；generic destination 静态链接下不暴露 | `BCA-ARCH-002` | required | approved | implemented | full-suite-passed | 4527def | 2026-09-19 |
-| iOS 18.5 模拟器运行时跑不了测试：测试包加载报缺 `libswiftWebKit.dylib`，该 overlay 产物与 Xcode 里都没有、由运行时提供；iOS 26.5 上全过。用 Xcode 27 SDK 构建配旧运行时的错配 | 未编号 | required | draft | not-started | not-run | b9b71ce | 2026-09-19 |
+| iOS 18.5 模拟器运行时跑不了测试（缺 `libswiftWebKit.dylib`）——裁决不修，测试口径统一到 iOS 26 及以上；`HANDOFF.md` 与设计文档的命令已改 iPhone 17 Pro | 未编号 | rejected | approved | not-started | targeted-passed | af931e1 | 2026-09-19 |
 | 9 条 `BCA-*` 定义点曾只在被 `.gitignore` 的 `AGENTS.md` 里——已迁入跟踪的 C 类文档，`AGENTS.md` 收成纪律与指针（与 fwq 同构），闸门加 A11 守住 | `BCA-DOC-015` | required | approved | implemented | static-audit-passed | 30f9713 | 2026-09-19 |
 
 ## 6. 代码审计（2026-09-18）

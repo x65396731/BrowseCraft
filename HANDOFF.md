@@ -75,12 +75,14 @@ scripts/check-ad-configuration.sh            # BCA-BUILD-003
 scripts/check-bundled-image-assets.sh
 python3 scripts/check-docs.py                # BCA-DOC-010
 
-# build 与测试（AGENTS.md：只有用户明确要求时才跑）。模拟器按名字指定，
-# 不写 UDID——UDID 换机器就失效。
+# build 与测试（AGENTS.md：只有用户明确要求时才跑）。destination 按「OS + 名字」指定：
+# 不写 UDID（换机器就失效），也不能只写 name——裸 name 解析不到，必须带 OS。
+# 运行时用 iOS 26 及以上：iOS 18.5 上测试包加载会缺 libswiftWebKit.dylib（Xcode 27 SDK
+# 配旧运行时的错配），build 不受影响但跑不了测试。
 xcodebuild -project BrowseCraft.xcodeproj -scheme BrowseCraft \
-  -destination 'platform=iOS Simulator,name=iPhone 16 Pro' build
+  -destination 'platform=iOS Simulator,OS=26.5,name=iPhone 17 Pro' build
 xcodebuild -project BrowseCraft.xcodeproj -scheme BrowseCraft \
-  -destination 'platform=iOS Simulator,name=iPhone 16 Pro' test -only-testing:BrowseCraftTests
+  -destination 'platform=iOS Simulator,OS=26.5,name=iPhone 17 Pro' test -only-testing:BrowseCraftTests
 
 # 包各自的测试
 for d in BrowseCraftCore BrowseCraftDomain BrowseCraftRuntime BrowseCraftAPIKit; do
