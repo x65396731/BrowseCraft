@@ -226,11 +226,6 @@ enum ViewModelTestHarness {
                 entryFamilyAssessor: DefaultSourceListEntryFamilyAssessor()
             )
         )
-        let ruleEditorService: SourceRuleEditorService = SourceRuleEditorService(
-            duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase(sourceRepository: sourceRepository),
-            exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase(sourceRepository: sourceRepository),
-            importSourceRulePackageUseCase: ImportSourceRulePackageUseCase(sourceRepository: sourceRepository)
-        )
         return SourcesViewModel(
             persistenceCoordinator: persistenceCoordinator,
             addComicRuleSourceUseCase: AddComicRuleSourceUseCase(
@@ -249,8 +244,7 @@ enum ViewModelTestHarness {
                 ),
                 loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase(pageDataLoader: StubPageDataLoader())
             ),
-            ruleEditorService: ruleEditorService,
-            ruleEditingCoordinator: SourceRuleEditingCoordinator(service: ruleEditorService),
+            ruleDebugJSONFormatter: SourceRuleDebugJSONFormatter(),
             recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase(),
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
             validateSourceTabsUseCase: ValidateSourceTabsUseCase(

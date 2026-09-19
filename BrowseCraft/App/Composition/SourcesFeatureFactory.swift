@@ -83,9 +83,7 @@ struct SourcesFeatureFactory {
                 taskClient: self.videoGenerationTaskClient,
                 accessTokenProvider: self.portalAccessTokenProvider
             )
-        let sourceRuleEditorService: SourceRuleEditorService = self.makeSourceRuleEditorService()
-        let sourceRuleEditingCoordinator: SourceRuleEditingCoordinator =
-            SourceRuleEditingCoordinator(service: self.makeSourceRuleEditorService())
+        let sourceRuleDebugJSONFormatter: SourceRuleDebugJSONFormatter = SourceRuleDebugJSONFormatter()
         let portalRequestHeaderProvider: PortalRequestHeaderProvider = PortalRequestHeaderProvider(
             activeAppUser: self.activeAppUser
         )
@@ -144,8 +142,7 @@ struct SourcesFeatureFactory {
             ),
             outcomeRefreshRequests: self.outcomeRefreshRequests,
             catalogService: sourceCatalogService,
-            ruleEditorService: sourceRuleEditorService,
-            ruleEditingCoordinator: sourceRuleEditingCoordinator,
+            ruleDebugJSONFormatter: sourceRuleDebugJSONFormatter,
             recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase(),
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
             validateSourceTabsUseCase: ValidateSourceTabsUseCase(
@@ -153,20 +150,6 @@ struct SourcesFeatureFactory {
             ),
             sourceSelectionStore: self.sourceSelectionStore,
             activeAppUser: self.activeAppUser
-        )
-    }
-
-    private func makeSourceRuleEditorService() -> SourceRuleEditorService {
-        return SourceRuleEditorService(
-            duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase(
-                sourceRepository: self.sourceRepository
-            ),
-            exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase(
-                sourceRepository: self.sourceRepository
-            ),
-            importSourceRulePackageUseCase: ImportSourceRulePackageUseCase(
-                sourceRepository: self.sourceRepository
-            )
         )
     }
 }

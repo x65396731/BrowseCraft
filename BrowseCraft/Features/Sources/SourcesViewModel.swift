@@ -58,8 +58,7 @@ final class SourcesViewModel {
     private let hideVideoGenerationOutcomeUseCase: HideVideoGenerationOutcomeUseCase?
     private var outcomeRefreshTask: Task<Void, Never>?
     private let catalogService: SourceCatalogService
-    private let ruleEditorService: SourceRuleEditorService
-    private let ruleEditingCoordinator: SourceRuleEditingCoordinator
+    private let ruleDebugJSONFormatter: SourceRuleDebugJSONFormatter
     private let recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase
     private let contentItemMapper: SourceListContentItemMapper
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
@@ -222,8 +221,7 @@ final class SourcesViewModel {
         hideVideoGenerationOutcomeUseCase: HideVideoGenerationOutcomeUseCase? = nil,
         outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests? = nil,
         catalogService: SourceCatalogService,
-        ruleEditorService: SourceRuleEditorService,
-        ruleEditingCoordinator: SourceRuleEditingCoordinator,
+        ruleDebugJSONFormatter: SourceRuleDebugJSONFormatter,
         recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase,
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
         validateSourceTabsUseCase: ValidateSourceTabsUseCase,
@@ -241,8 +239,7 @@ final class SourcesViewModel {
         self.outcomeRefreshRequests = outcomeRefreshRequests
         self.hideVideoGenerationOutcomeUseCase = hideVideoGenerationOutcomeUseCase
         self.catalogService = catalogService
-        self.ruleEditorService = ruleEditorService
-        self.ruleEditingCoordinator = ruleEditingCoordinator
+        self.ruleDebugJSONFormatter = ruleDebugJSONFormatter
         self.recommendSourceImportOptionUseCase = recommendSourceImportOptionUseCase
         self.contentItemMapper = SourceListContentItemMapper()
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
@@ -876,7 +873,7 @@ final class SourcesViewModel {
     }
 
     func formattedDebugJSON(for source: Source) -> String {
-        return self.ruleEditorService.formattedDebugJSON(for: source)
+        return self.ruleDebugJSONFormatter.formattedDebugJSON(for: source)
     }
 
     @MainActor
@@ -887,61 +884,6 @@ final class SourcesViewModel {
         }
 
         return await self.validateSourceTabsUseCase.execute(source: source)
-    }
-
-    @MainActor
-    func duplicateSource(sourceID: String) async -> Source? {
-        guard let source: Source = self.source(id: sourceID) else {
-            self.errorMessage = "Source was not found."
-            return nil
-        }
-
-        do {
-            let duplicatedSource: Source = try await self.ruleEditingCoordinator
-                .duplicate(SourceTransfer(value: source)).value
-            await self.load()
-            guard let persistedSource: Source = self.source(id: duplicatedSource.id) else {
-                self.errorMessage = "The duplicated source could not be reloaded."
-                return nil
-            }
-            self.selectSource(id: persistedSource.id)
-            return persistedSource
-        } catch {
-            self.errorMessage = error.localizedDescription
-            return nil
-        }
-    }
-
-    @MainActor
-    func exportRulePackage(sourceID: String) async -> RulePackageExport? {
-        do {
-            return try await self.ruleEditingCoordinator.export(sourceID: sourceID).value
-        } catch {
-            self.errorMessage = error.localizedDescription
-            return nil
-        }
-    }
-
-    @MainActor
-    func importRulePackage(packageJSON: String) async -> Source? {
-        AppAnalytics.shared.logRuleImportStarted(sourceType: .unknown)
-        do {
-            let importedSource: Source = try await self.ruleEditingCoordinator
-                .importPackage(packageJSON).value
-            await self.load()
-            guard let persistedSource: Source = self.source(id: importedSource.id) else {
-                self.errorMessage = "The imported source could not be reloaded."
-                return nil
-            }
-            self.selectSource(id: persistedSource.id)
-            AppAnalytics.shared.logRuleImportSucceeded(source: persistedSource)
-            return persistedSource
-        } catch {
-            AppAnalytics.shared.logRuleImportFailed(sourceType: .unknown, errorCode: "rule-package-import-error")
-            AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .list, errorCode: "rule-package-import-error")
-            self.errorMessage = error.localizedDescription
-            return nil
-        }
     }
 
     var selectedSource: Source? {
