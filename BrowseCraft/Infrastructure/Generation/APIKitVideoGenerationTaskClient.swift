@@ -4,9 +4,19 @@ import Foundation
 /// `VideoGenerationTaskCreating` 的 PortalCore 适配器（`BC-PREFLIGHT-044`）。
 struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
     private let api: PortalRuleGenerationAPI
+    /// `BC-ACQ-062`：随请求发给服务端的地区。取值与预检、运行时同源——
+    /// 三处都读 `DeviceAcceptLanguage`，因此三端到达同一个页面。
+    /// `nil` 表示设备给不出可用标签，此时不发该字段，服务端退回引擎默认值。
+    private let acceptLanguage: @Sendable () -> String?
 
-    init(api: PortalRuleGenerationAPI) {
+    init(
+        api: PortalRuleGenerationAPI,
+        acceptLanguage: @escaping @Sendable () -> String? = {
+            DeviceAcceptLanguage().value()
+        }
+    ) {
         self.api = api
+        self.acceptLanguage = acceptLanguage
     }
 
     func createVideoTask(
@@ -15,16 +25,18 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
         refresh: Bool,
         accessToken: String
     ) async throws -> VideoGenerationTaskCreation {
+        let acceptLanguage: String? = self.acceptLanguage()
         PortalSessionDiagnostics.notice(
             "event=request-start operation=rule-generation-submit " +
                 "path=\(PortalAPIPath.ruleGenerations) sourceKind=\(sourceKind.rawValue) " +
-                "refresh=\(refresh)"
+                "refresh=\(refresh) acceptLanguage=\(acceptLanguage ?? "-")"
         )
         do {
             let submit: PortalRuleGenerationSubmitResponse = try await self.api.submit(
                 sourceKind: Self.portalSourceKind(sourceKind),
                 entryURL: entryURL,
                 refresh: refresh,
+                acceptLanguage: acceptLanguage,
                 accessToken: accessToken
             )
             switch submit {
