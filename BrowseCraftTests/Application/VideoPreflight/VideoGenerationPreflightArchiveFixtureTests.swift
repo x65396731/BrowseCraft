@@ -116,7 +116,7 @@ final class VideoGenerationPreflightArchiveFixtureTests: XCTestCase {
     /// `groups.sort` 的深度键提回第一位、或把 `contentGroups` 改回只收叶子，这一条会红。
     private static let fixtureSites: [String] = [
         "site-a", "site-b", "site-c", "site-d", "site-e", "site-f-films", "site-f-home",
-        "site-g-comic"
+        "site-g-comic", "site-h-comic-home"
     ]
 
     func testArchiveFixturesMatchAcceptanceMatrixRow15() async throws {

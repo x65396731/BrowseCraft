@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "fixtureID": "site-h-comic-home",
+  "alias": "site-h.example",
+  "entryURL": "https://site-h.example/",
+  "expected": {
+    "status": "accepted",
+    "entryShape": "directListOwner"
+  },
+  "acceptance": "pending",
+  "pendingReason": "BC-ACQ-060 归因固定输入：预检与引擎问的不是同一个问题，本站实测坐实了这一点。预检实测 pub=9 lists=9 families=1 attached=3，主列表 /web/topic/{n}×50，导航栏 15 个 /tag/{n} 因 15×2 < 50 被记进 attachedWidgetGroupIDs（与侧栏榜单同类，只记录不计 family），故 entryShape=directListOwner、status=accepted——**按「这一页自己是不是单 list 页」问，这是对的**。而引擎在站点模式下要的是「能不能发现顶层页」：整条主导航被 BC-PAGE-047 的内容路由排除集合判成 content-route，顶层页候选为空、listFamilyTaskScope 为 coverage-unresolved，同一个入口在引擎侧生成失败。标 pending 是因为本行的预期取值取决于 BC-ACQ-060 怎么定：若预检在根入口下也要判顶层页发现能力，本站应转为 rejected；在那条判据定下来之前不作断言，只保留实测。",
+  "note": "漫画站根入口（桌面模板，2026-09-19 实测抓取）：导航栏 15 个 /tag/{n} 分类 + 首页 50+ 个 /web/topic/{n} 作品卡片混排的发现页。它是「预检放行、引擎失败」这一族的第一个固定输入。",
+  "documents": [
+    {
+      "name": "site-h-comic-home-entry-1",
+      "stage": "entry",
+      "url": "https://site-h.example/",
+      "file": "site-h-comic-home-entry-1.html"
+    }
+  ]
+}
