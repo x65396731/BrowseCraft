@@ -32,11 +32,7 @@ VideoPlaybackRuntimeCapability       # P2-3 阶段的计划名，未落地；合
 
 
 # ---- 未实现的计划名（设计留档，见 STATUS 对应行）----
-BookBookmarksSheet                   # 本地导入设计 3.4 节的计划名；入口已藏，该 UI 未建
 BookSourceReaderLoader               # 读书接线批次 B 的计划名；实际由 BookSourceRuntime 承担
 
 # ---- 文档里的占位记号 ----
 BrowseCraftXxx                       # scripts/README 里表示「四个兄弟包之一」的占位写法
-
-# ---- 其它仓库 ----
-BrowseCraftRulesKit                  # update-rules-package.sh 指向的规则包，不在当前五仓布局里（STATUS 有挂账）

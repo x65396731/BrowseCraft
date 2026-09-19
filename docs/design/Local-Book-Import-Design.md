@@ -66,7 +66,9 @@ BookBookmark         id: UUID, bookID: UUID, userID: String, locatorJSON: String
 - `Features/Library/Book/`：`BookShelfView`（从 Library 工具栏的「Books」进入；`fileImporter` 允许的 `UTType`：`epub`、`mp3`、`mpeg4Audio`（`m4a / m4b`）、`zip`，多选）、`BookShelfViewModel`、`LibraryBookRoute`（书架 / 某本书两级路由，只在 `LibraryView` 栈根声明）。
 - `Features/Library/Book/Reader/BookReaderView`：`UIViewControllerRepresentable` 承载 `EPUBNavigatorViewController`；`navigator(_:locationDidChange:)` 节流（1 秒）后调保存用例，退出时再保存一次；工具栏：目录、书签、字号 / 主题（`EPUBPreferences`）。
 - `Features/Library/Book/Player/AudiobookPlayerView`：自建 UI 包 `AudioNavigator`——播放 / 暂停、进度条（`playbackInfo`）、±15 秒、章节列表（`readingOrder`）、倍速（`AudioPreferences`）；后台播放要在 `project.yml` 加 `UIBackgroundModes: audio`，并接 `MPRemoteCommandCenter` / Now Playing（Infrastructure 适配，AVFoundation 只许在 Infrastructure / Features）。
-- 书签：两种阅读器共用 `BookBookmarksSheet`，点选即 `go(to:)`。
+- 书签：两种阅读器共用同一张书签表与同一组用例（`BookBookmark`、`AddBookBookmarkUseCase` /
+  `ListBookBookmarksUseCase` / `RemoveBookBookmarkUseCase`），点选即 `go(to:)`；
+  呈现层内联在 `BookReaderView` 的 `.sheet` 里，没有独立的 sheet 类型。
 - `App/Composition/FeatureComposition` 加 `makeBookShelf`，`SourceRuntimeComposition` 不动。
 
 ### 3.5 边界脚本

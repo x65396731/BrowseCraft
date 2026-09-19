@@ -83,8 +83,8 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | `BrowseCraftCore` 文档迁移：十份进 `docs/design` 与 `docs/history`，建索引，三份混装按节三分 | `BCA-DOC-009` | required | approved | implemented | static-audit-passed | 69233d1 | 2026-09-19 |
 | Core 预检合同按 v3 收敛：一跳与 family coverage 归档，组件名对齐代码，白名单两条撤回 | `BC-PREFLIGHT-030` | required | approved | implemented | static-audit-passed | 6f6dc80 | 2026-09-19 |
 | A10 文档点名的代码符号必须存在（fwq `BC-DOC-028` 那类）：白名单只许收敛，识别家族通配与路径段 | `BCA-DOC-014` | required | approved | implemented | targeted-passed | 15394c2 | 2026-09-19 |
-| `scripts/update-rules-package.sh` 指向的 `BrowseCraftRulesKit` 不在当前五仓布局里——脚本是否已死待核 | 未编号 | optional | draft | not-started | not-run | 09d2af1 | 2026-09-19 |
-| `BookBookmarksSheet` 是本地导入设计里未实现的计划名——入口已藏，该节是未建代码的设计留档 | 未编号 | optional | approved | not-started | not-run | 09d2af1 | 2026-09-19 |
+| `scripts/update-rules-package.sh` 已确认是死脚本并删除：`BrowseCraftRulesKit` 仓库不存在、`project.yml` 零引用、`Package.resolved` 零命中 | 未编号 | required | approved | implemented | static-audit-passed | 2b4bd07 | 2026-09-19 |
+| `BookBookmarksSheet` 是设计里不存在的类型名——书签功能已实现，呈现层内联在 `BookReaderView`；文档已按实际改写，白名单撤回 | `BCA-DOC-014` | required | approved | implemented | static-audit-passed | 2b4bd07 | 2026-09-19 |
 | 规则编辑入口下线：`SourceDebugView` 的「Edit JSON」摘除、两个零引用编辑视图删除，规则一律只读 | `BCA-UI-003` | required | approved | implemented | static-audit-passed | 1b990b5 | 2026-09-19 |
 | 规则编辑下线遗留的死代码链已清：五个文件 207 行，含 Service 的两个注入依赖与组合根、测试替身的装配 | 未编号 | required | approved | implemented | full-suite-passed | 4527def | 2026-09-19 |
 | `scripts/regenerate-project.sh` 已恢复：CLT 升到 27.0、arm64 xcodegen 2.46.0 从源码装好，`/usr/local/bin` 的 x86_64 旧链接已移除，bash 与 zsh 下都命中 arm64 版 | `BCA-BUILD-001` | required | approved | implemented | targeted-passed | af931e1 | 2026-09-19 |

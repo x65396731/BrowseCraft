@@ -41,10 +41,8 @@ python3 scripts/check-docs.py
 
 - **等用户裁决**：fwq 的 `protectedResource` 与 `executionPolicy` 两条约束只有正文没有稳定 ID，
   本仓库只能按文档引用，是否请 fwq 分配 ID。
-- **待核**：`scripts/update-rules-package.sh` 指向的 `BrowseCraftRulesKit` 不在当前五仓布局里，脚本是否已死。
 - **无语料、等样本**：读书 kind 的四个接口变体（list / detail / reader 的 API 形态）。
-- **已登记、无行动价值**：`BookBookmarksSheet` 是本地导入设计里未实现的计划名（入口已藏，该节是
-  未建代码的设计留档）；F2-3 后半的显式 `ImagePrefetcher` 预取（`LazyVGrid` 本就提前实例化下一屏，
+- **已登记、无行动价值**：F2-3 后半的显式 `ImagePrefetcher` 预取（`LazyVGrid` 本就提前实例化下一屏，
   收益未测到，暂缓）。
 - **明确不做**（`rejected` / `superseded`，按名字跳过，不是待办）：本地书 B3 有声书播放器、PDF 与 CBZ、
   目录刷新时静默覆盖本地规则、jable.tv 播放根因（已由 fwq `BC-PLAYBACK-049` 承接）、
