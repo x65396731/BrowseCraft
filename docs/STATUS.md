@@ -105,7 +105,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 阶段 1 清零 37 条编译器警告（F1-1~11）：App 与测试目标均 0 条 | `BCA-ARCH-007` | required | approved | implemented | static-audit-passed | 3af597e | 2026-09-18 |
 | F2-1 正则缓存、F2-2 按目标宽度降采样解码成为共享 pipeline 的通用机制 | 未编号 | required | approved | implemented | static-audit-passed | 305895f | 2026-09-18 |
 | F2-3 前半与 F2-4：封面请求按标识变化只构造一次，按测得单元格尺寸声明 thumbnail 解码 | 未编号 | required | approved | implemented | static-audit-passed | 718ea07 | 2026-09-18 |
-| F2-3 后半：显式 `ImagePrefetcher` 预取——`LazyVGrid` 本就提前实例化下一屏，收益未测到，暂缓 | 未编号 | optional | approved | not-started | not-run | 718ea07 | 2026-09-18 |
+| F2-3 后半：显式 `ImagePrefetcher` 预取——不做：`LazyVGrid` 本就提前实例化下一屏单元格、`LazyImage` 随之开始加载，显式预取的增量收益没有测到 | 未编号 | rejected | superseded | not-started | not-run | 718ea07 | 2026-09-19 |
 | F2-5 进列表先读后写与来源配置解码缓存、F2-6 读书线读库经 actor 离开主线程 | 未编号 | required | approved | implemented | not-run | 0baf3e3 | 2026-09-18 |
 | F2-7 WebView 稳定判定改 MutationObserver 静默窗口——前提被固定输入测量推翻，条目关闭 | 未编号 | rejected | superseded | not-started | targeted-passed | 3286951 | 2026-09-18 |
 | F2-8 发现分析器传 `Document` 不传 `html`、F2-12/F2-13 历史批量删除合并写事务 | 未编号 | required | approved | implemented | static-audit-passed | 5d5e421 | 2026-09-18 |

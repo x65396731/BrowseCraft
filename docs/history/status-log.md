@@ -188,3 +188,17 @@ commit 哈希，属纪事，留在归档。
 
 按 `BCA-DOC-009`，`Phase0-Data-Contract-and-Security-Audit.md` 一字未改。
 
+## 2026-09-19：F2-3 后半（`ImagePrefetcher` 预取）结案
+
+| 列 | 旧值 | 新值 |
+| --- | --- | --- |
+| 决策 | `optional` | `rejected` |
+| 设计 | `approved` | `superseded` |
+
+原因：该项自 2026-09-18 起一直挂 `not-started`，但没有人打算做，也没有测量支持它值得做——
+`LazyVGrid` 本就提前实例化下一屏单元格、`LazyImage` 随之开始加载，显式 `ImagePrefetcher`
+的增量收益从未测到，实现上还要在单元格之外再引入一层预取调度。`ImagePrefetcher` 在全仓零引用。
+
+按 `STATUS.md` 第 0 节的纪律，这种应当明确记成不做，而不是留在 `not-started` 里，
+否则几天后会被当成待办重新捡起——该节点名的两次踩坑就是这么来的。
+

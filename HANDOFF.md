@@ -42,12 +42,11 @@ python3 scripts/check-docs.py
 - **等用户裁决**：fwq 的 `protectedResource` 与 `executionPolicy` 两条约束只有正文没有稳定 ID，
   本仓库只能按文档引用，是否请 fwq 分配 ID。
 - **无语料、等样本**：读书 kind 的四个接口变体（list / detail / reader 的 API 形态）。
-- **已登记、无行动价值**：F2-3 后半的显式 `ImagePrefetcher` 预取（`LazyVGrid` 本就提前实例化下一屏，
-  收益未测到，暂缓）。
 - **明确不做**（`rejected` / `superseded`，按名字跳过，不是待办）：本地书 B3 有声书播放器、PDF 与 CBZ、
   目录刷新时静默覆盖本地规则、jable.tv 播放根因（已由 fwq `BC-PLAYBACK-049` 承接）、
   CloudKit 门禁的字面量全面扫描（有意收窄，见 `BCA-SYNC-008`）、iOS 18.5 模拟器运行时、
-  代码审计里四条被测量推翻的条目（F2-7、F2-10、F3-1、F3-2 与封面请求重复构造）。
+  代码审计里四条被测量推翻的条目（F2-7、F2-10、F3-1、F3-2 与封面请求重复构造）、
+  F2-3 后半的显式 `ImagePrefetcher` 预取。
 
 ## 2. 环境与命令速查
 
