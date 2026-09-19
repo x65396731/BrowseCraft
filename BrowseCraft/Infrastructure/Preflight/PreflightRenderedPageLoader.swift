@@ -75,10 +75,14 @@ private final class PreflightRenderedPageOperation: NSObject, WKNavigationDelega
                     timeoutInterval: request.timeoutSeconds
                 )
                 urlRequest.httpMethod = "GET"
-                urlRequest.setValue(
-                    "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
-                    forHTTPHeaderField: "Accept"
-                )
+                // `BC-ACQ-060`：与 HTTP 路径同一套头，取自运行时的提供者。
+                for (field, value): (String, String) in ChromeRequestHeaderProvider().defaultHeaders(
+                    for: request.url,
+                    referer: nil,
+                    includeOrigin: false
+                ) {
+                    urlRequest.setValue(value, forHTTPHeaderField: field)
+                }
                 webView.load(urlRequest)
                 self.startTimeout(seconds: request.timeoutSeconds)
             }

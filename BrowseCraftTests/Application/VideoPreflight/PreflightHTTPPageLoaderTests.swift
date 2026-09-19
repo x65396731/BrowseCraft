@@ -27,6 +27,40 @@ final class PreflightHTTPPageLoaderTests: XCTestCase {
         }
     }
 
+    /// `BC-ACQ-060`：预检取页的执行面必须等于引擎采集入口页的执行面。
+    ///
+    /// 中文注释：预检在规则存在之前取页，没有 `sharedRequest` 可遵循；此前它不声明 UA、
+    /// 走 URLSession 默认的 CFNetwork UA，于是与引擎去的不是同一页（快看：引擎被 302 到
+    /// `m.` 子站、站内出边 1，预检留在 `www`、出边 99）。取值必须来自运行时同一个提供者。
+    ///
+    /// 这是**弱装置**：它只证明 loader 会向注入的提供者要头，挡得住「接线被整段拆掉」，
+    /// 挡不住「拿到头之后没塞进请求」。引擎侧第十二闸门从本仓源码核对取值本身。
+    func testPreflightAsksTheRuntimeHeaderProviderForItsHeaders() async throws {
+        let recorder = HeaderProviderRecorder()
+        let url: URL = try XCTUnwrap(URL(string: "https://example.invalid/list"))
+        let loader = PreflightHTTPPageLoader(
+            publicURLPolicy: AllowAllPublicURLPolicy(),
+            browserRequestHeaderProvider: recorder
+        )
+        _ = try? await loader.acquire(
+            PreflightPageRequest(url: url, timeoutSeconds: 1)
+        )
+        let requested: [URL] = await recorder.requestedURLs
+        XCTAssertEqual(requested, [url])
+    }
+
+    /// 默认提供者就是运行时那一个——三端同源的落点在这里。
+    func testDefaultHeaderProviderIsTheRuntimeOne() throws {
+        let runtime = ChromeRequestHeaderProvider()
+        let headers: [String: String] = runtime.defaultHeaders(
+            for: try XCTUnwrap(URL(string: "https://example.com/")),
+            referer: nil,
+            includeOrigin: false
+        )
+        XCTAssertEqual(headers["User-Agent"], runtime.userAgent)
+        XCTAssertFalse(runtime.userAgent.contains("iPhone"), "运行时默认头不是移动 UA")
+    }
+
     func testUnsafeRedirectIsCancelledBeforeURLSessionFollowsIt() throws {
         let sourceURL: URL = try XCTUnwrap(URL(string: "https://example.com/list"))
         let privateTargetURL: URL = try XCTUnwrap(URL(string: "http://127.0.0.1/admin"))
@@ -132,6 +166,34 @@ private struct RedirectTestPublicURLPolicy: PublicURLChecking {
             throw PublicURLCheckError.nonPublicAddress
         }
     }
+
+    func isSameSite(_ candidate: URL, as inputURL: URL) -> Bool {
+        return candidate.host == inputURL.host
+    }
+}
+
+/// 记录被问过哪些 URL 的请求头提供者替身。
+private actor HeaderProviderRecorder: BrowserRequestHeaderProviding {
+    private(set) var requestedURLs: [URL] = []
+
+    nonisolated var userAgent: String { "recorder" }
+
+    nonisolated func defaultHeaders(
+        for url: URL,
+        referer: URL?,
+        includeOrigin: Bool
+    ) -> [String: String] {
+        Task { await self.record(url) }
+        return ["User-Agent": "recorder"]
+    }
+
+    private func record(_ url: URL) {
+        self.requestedURLs.append(url)
+    }
+}
+
+private struct AllowAllPublicURLPolicy: PublicURLChecking {
+    func validate(_ url: URL) throws {}
 
     func isSameSite(_ candidate: URL, as inputURL: URL) -> Bool {
         return candidate.host == inputURL.host

@@ -4,13 +4,24 @@ import Foundation
 struct PreflightHTTPPageLoader: PreflightPageAcquiring {
     private let publicURLPolicy: any PublicURLChecking
     private let maximumResponseBytes: Int
+    /// `BC-ACQ-060`：预检取页的执行面必须等于引擎采集入口页的执行面。
+    ///
+    /// 中文注释：预检在**规则还不存在**的时候取页面，因此没有 `sharedRequest` 可以遵循。
+    /// 此前它既不声明 UA、又自带一套窄 `Accept`，于是走 URLSession 默认的 CFNetwork UA——
+    /// 三端里唯一的异类。快看漫画即此例：引擎（项目 UA）被站点 302 到 `m.` 子站、
+    /// 站内出边 1，预检（CFNetwork UA）留在 `www`、站内出边 99，两侧判的不是同一页。
+    /// 取值因此来自与运行时同一个提供者，引擎侧的常量由第十二闸门从本文件的源码核对。
+    private let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
 
     init(
         publicURLPolicy: any PublicURLChecking,
-        maximumResponseBytes: Int = 5_000_000
+        maximumResponseBytes: Int = 5_000_000,
+        browserRequestHeaderProvider: any BrowserRequestHeaderProviding =
+            ChromeRequestHeaderProvider()
     ) {
         self.publicURLPolicy = publicURLPolicy
         self.maximumResponseBytes = maximumResponseBytes
+        self.browserRequestHeaderProvider = browserRequestHeaderProvider
     }
 
     func acquire(_ request: PreflightPageRequest) async throws -> PreflightAcquiredPage {
@@ -44,11 +55,14 @@ struct PreflightHTTPPageLoader: PreflightPageAcquiring {
             timeoutInterval: request.timeoutSeconds
         )
         urlRequest.httpMethod = "GET"
-        urlRequest.setValue(
-            "text/html,application/xhtml+xml;q=0.9,text/plain;q=0.7,*/*;q=0.1",
-            forHTTPHeaderField: "Accept"
-        )
-        urlRequest.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+        // `BC-ACQ-060`：整套头取自运行时同一个提供者，不在这里另写一份。
+        for (field, value): (String, String) in self.browserRequestHeaderProvider.defaultHeaders(
+            for: request.url,
+            referer: nil,
+            includeOrigin: false
+        ) {
+            urlRequest.setValue(value, forHTTPHeaderField: field)
+        }
 
         do {
             let (bytes, response): (URLSession.AsyncBytes, URLResponse) =
