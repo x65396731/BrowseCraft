@@ -64,7 +64,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 身份边界切换到 Sign in with Apple 与后端生成的 AppUser UUID | 未编号 | required | approved | implemented | full-suite-passed | eeb288e | 2026-07-28 |
 | CloudKit 上传前的安全门禁——记录大小预算（900 KB / 800 KB / 8 KB）、URL userinfo、本地 account scope 泄漏：`CloudSyncPayloadSecurityValidator` 已实施并接线 | `BCA-SYNC-008` | required | approved | implemented | full-suite-passed | bed4ab3 | 2026-07-25 |
 | CloudKit 门禁的 Header 名称拦截与 `context.*` / Request Body / `keyHex` / `ivHex` / constant value 字面量扫描——实现有意收窄为「不推测站点规则常量是否敏感」，13 例固定输入钉住该取值 | `BCA-SYNC-008` | optional | superseded | not-started | full-suite-passed | bed4ab3 | 2026-07-25 |
-| 上一行的收窄从未写回设计：Phase0 审计第 3.2 / 3.3 节仍按全面扫描写，且该节现在在 H 类归档里——有效的安全结论应提升为 C 并与实现对齐 | 未编号 | required | draft | not-started | not-run | 4da86c6 | 2026-09-19 |
+| Phase0 审计的安全结论已提升为 C：排除数据、冲突与删除、凭据引用三条成 `BCA-SYNC-009` ~ `011`，未实施的全面扫描部分显式声明为有意收窄 | `BCA-SYNC-009` `BCA-SYNC-010` `BCA-SYNC-011` | required | approved | implemented | static-audit-passed | 69779bb | 2026-09-19 |
 | RSS 整体下线：删功能、迁移 v6 清存量、同步跳过 rss、书籍收藏改记 book | 未编号 | required | approved | implemented | full-suite-passed | f263274 | 2026-09-16 |
 
 ## 5. 文档架构迁移

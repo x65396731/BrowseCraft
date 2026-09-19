@@ -169,3 +169,22 @@ Swift Testing 503 项 / 88 套、XCTest 66 项、48 项跳过，全部 0 失败�
 `HANDOFF.md` 开头「任何状态性数字在复述前必须现查，不得照抄本文」讲的就是这个，
 而我这次照抄的是一份 H 类归档里更早的数字，还把出处记错了一层。
 
+## 2026-09-19：CloudKit 阶段 0 审计的安全结论提升为 C
+
+2026-07-22 的阶段 0 审计一直在 `docs/history/` 里，而它的安全策略是活的合同，实现也已落地——
+设计与实现各说各话，谁算数没人知道。本轮逐条对照代码核实后提升：
+
+- 第 5 节「明确排除的数据」→ `BCA-SYNC-009`。核实依据：`SourceCloudPayload` 与
+  `FavoriteItemCloudPayload` 的字段表里没有 Cookie、token、历史、StoreKit 交易或缓存。
+- 第 6 节「冲突与删除合同」→ `BCA-SYNC-010`。核实依据：`max(updatedAt, deletedAt)` 真在
+  `SourceRecord.swift:112` 与 `FavoriteItemRecord.swift:59`；`ifServerRecordUnchanged`、
+  `savePolicy`、`tombstone`、`CloudSyncCoordinator`、`sync_queue` 在代码里都有。
+- 第 3.1 节里「动态引用可留、解析后的 credential 值绝不写回」一条 → `BCA-SYNC-011`。
+
+**没有提升的部分**：第 3.2、3.3 节的 Header 名称拦截与字面量全面扫描。它们没有实施，
+把未实施的东西提升为 C 类条款就是制造一条假合同。改为在同一节显式声明收窄事实、依据与
+改回去的前置条件。第 4 节的身份记录合同（约 115 行）与 PortalCore 接口只读审计带日期和
+commit 哈希，属纪事，留在归档。
+
+按 `BCA-DOC-009`，`Phase0-Data-Contract-and-Security-Audit.md` 一字未改。
+

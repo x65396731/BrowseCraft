@@ -63,3 +63,31 @@ CloudKit `AppUserIdentity/default` 只能记录已经通过 Portal 登录的后�
   它**不推测站点规则常量是否敏感**——不扫描 Header 名称、`context.*` 取值、Request Body 字面量或
   `keyHex` / `ivHex`。该取值由 `CloudSyncPayloadSecurityValidatorTests` 的 13 例固定输入钉住；
   要改成全面扫描须先过 `docs/STATUS.md` 第 4 节那一行的裁决。
+
+## 云同步数据合同
+
+以下三条由 2026-07-22 的 CloudKit 阶段 0 审计提出，实现已落地，2026-09-19 逐条对照代码核实后
+提升为合同。该审计的其余部分（身份合同、PortalCore 接口只读审计、阶段 0 验收结果）仍留在
+[history/Phase0-Data-Contract-and-Security-Audit.md](../history/Phase0-Data-Contract-and-Security-Audit.md)：
+前者已被本文首节取代，后两者带日期与 commit 哈希，属纪事。
+
+- `BCA-SYNC-009` 以下数据不得进入 CloudKit schema：Cookie、Authorization、token 与登录凭证；
+  localStorage 与 sessionStorage；实际 AES key、IV 与其他密钥材料；图片、网页、音视频缓存；
+  阅读进度与历史记录；内置 Source；StoreKit 交易、购买凭证与权益状态；CloudKit opaque user
+  record ID 的原文；本地 account scope hash。新增 Cloud payload 字段前按本条逐项核对。
+- `BCA-SYNC-010` 上传用 `ifServerRecordUnchanged` 检测服务端并发修改。业务合并比较
+  `max(updatedAt, deletedAt)`，时间相同时 tombstone 优先，不得只依赖设备时间判断冲突。
+  只有服务端确认保存成功才移除对应 `sync_queue` 项；partial failure 按记录更新队列，
+  不得整批删除。同步调度以 `CloudSyncCoordinator` 为唯一入口，CKSyncEngine 的自动调度保持关闭。
+  Zone deletion 必须清除持久化 engine state 与 record system fields。
+- `BCA-SYNC-011` 配置里的动态 credential 引用与模板引用可以保留并上传；**解析后的 credential
+  值绝不写回配置或 payload**。门禁检出问题时只拒绝该条记录上传、不改写 payload，也不静默删除
+  或替换规则字段——同步后规则语义必须与本地一致。
+
+### 阶段 0 设计里未实施的部分
+
+阶段 0 审计第 3.2、3.3 节列出的 Header 名称拦截与 `context.*` / Request Body / `keyHex` / `ivHex` /
+constant value 的字面量扫描**没有实施**，并且这不是遗漏：实现有意收窄为「不推测站点规则常量是否
+敏感」，取值由 `BCA-SYNC-008` 声明、由 13 例固定输入钉住。收窄的依据是规则只经服务端目录下发
+（`BCA-UI-003`），生成侧已由 fwq `BC-COMIC-016` 禁止把凭据写进 catalog。要改回全面扫描须先过
+`docs/STATUS.md` 里对应那一行的裁决，不得在实现里悄悄放宽或收紧。
