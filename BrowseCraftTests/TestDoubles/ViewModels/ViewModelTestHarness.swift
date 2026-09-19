@@ -227,10 +227,6 @@ enum ViewModelTestHarness {
             )
         )
         let ruleEditorService: SourceRuleEditorService = SourceRuleEditorService(
-            updateSourceRuleUseCase: UpdateSourceRuleUseCase(sourceRepository: sourceRepository),
-            updateVideoSourceConfigurationUseCase: UpdateVideoSourceConfigurationUseCase(
-                sourceRepository: sourceRepository
-            ),
             duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase(sourceRepository: sourceRepository),
             exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase(sourceRepository: sourceRepository),
             importSourceRulePackageUseCase: ImportSourceRulePackageUseCase(sourceRepository: sourceRepository)

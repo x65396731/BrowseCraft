@@ -2,25 +2,7 @@ import BrowseCraftCore
 import BrowseCraftDomain
 import Foundation
 
-struct SourceDebugJSONValidationResult: Hashable {
-    var isValid: Bool
-    var message: String
-}
-
-enum SourceRuleEditorServiceError: LocalizedError {
-    case readOnlySource
-
-    var errorDescription: String? {
-        switch self {
-        case .readOnlySource:
-            return "This source JSON is read-only."
-        }
-    }
-}
-
 struct SourceRuleEditorService: Sendable {
-    private let updateSourceRuleUseCase: UpdateSourceRuleUseCase
-    private let updateVideoSourceConfigurationUseCase: UpdateVideoSourceConfigurationUseCase
     private let duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase
     private let exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase
     private let importSourceRulePackageUseCase: ImportSourceRulePackageUseCase
@@ -28,30 +10,18 @@ struct SourceRuleEditorService: Sendable {
     private let jsonEncoder: JSONEncoder
 
     init(
-        updateSourceRuleUseCase: UpdateSourceRuleUseCase,
-        updateVideoSourceConfigurationUseCase: UpdateVideoSourceConfigurationUseCase,
         duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase,
         exportSourceRulePackageUseCase: ExportSourceRulePackageUseCase,
         importSourceRulePackageUseCase: ImportSourceRulePackageUseCase,
         ruleValidator: SiteRuleValidator = SiteRuleValidator(),
         jsonEncoder: JSONEncoder = JSONEncoder()
     ) {
-        self.updateSourceRuleUseCase = updateSourceRuleUseCase
-        self.updateVideoSourceConfigurationUseCase = updateVideoSourceConfigurationUseCase
         self.duplicateSourceRuleUseCase = duplicateSourceRuleUseCase
         self.exportSourceRulePackageUseCase = exportSourceRulePackageUseCase
         self.importSourceRulePackageUseCase = importSourceRulePackageUseCase
         self.ruleValidator = ruleValidator
         self.jsonEncoder = jsonEncoder
         self.jsonEncoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-    }
-
-    func validateRuleJSON(_ ruleJSON: String) -> SiteRuleValidationResult {
-        return self.ruleValidator.validate(ruleJSON: ruleJSON)
-    }
-
-    func formattedRuleJSON(for rule: SiteRule) -> String {
-        return (try? self.formattedJSON(rule)) ?? "{}"
     }
 
     func formattedDebugJSON(for source: Source) -> String {
@@ -68,83 +38,6 @@ struct SourceRuleEditorService: Sendable {
             }
         } catch {
             return "{}"
-        }
-    }
-
-    func canEditDebugJSON(for source: Source) -> Bool {
-        guard source.isBuiltIn == false else {
-            return false
-        }
-
-        switch source.configuration {
-        case .comic, .video:
-            return true
-        case .plugin, .book:
-            return false
-        }
-    }
-
-    func validateDebugJSON(source: Source, json: String) -> SourceDebugJSONValidationResult {
-        switch source.configuration {
-        case .comic:
-            let validationResult: SiteRuleValidationResult = self.validateRuleJSON(json)
-            if validationResult.canSave {
-                return SourceDebugJSONValidationResult(isValid: true, message: "Rule JSON is valid.")
-            }
-
-            return SourceDebugJSONValidationResult(
-                isValid: false,
-                message: validationResult.errors.first?.message ?? "Rule JSON is invalid."
-            )
-        case .video:
-            do {
-                try self.updateVideoSourceConfigurationUseCase.validate(configurationJSON: json)
-                return SourceDebugJSONValidationResult(
-                    isValid: true,
-                    message: "Video configuration JSON is valid."
-                )
-            } catch {
-                return SourceDebugJSONValidationResult(isValid: false, message: error.localizedDescription)
-            }
-        case .plugin:
-            return SourceDebugJSONValidationResult(isValid: false, message: "Plugin JSON is read-only.")
-        case .book:
-            return SourceDebugJSONValidationResult(isValid: false, message: "Book JSON is read-only.")
-        }
-    }
-
-    func updateRule(
-        source: Source,
-        ruleJSON: String,
-        expectedUpdatedAt: Date?
-    ) throws -> Source {
-        return try self.updateSourceRuleUseCase.execute(
-            source: source,
-            ruleJSON: ruleJSON,
-            expectedUpdatedAt: expectedUpdatedAt
-        )
-    }
-
-    func updateDebugJSON(
-        source: Source,
-        json: String,
-        expectedUpdatedAt: Date?
-    ) throws -> Source {
-        switch source.configuration {
-        case .comic:
-            return try self.updateRule(
-                source: source,
-                ruleJSON: json,
-                expectedUpdatedAt: expectedUpdatedAt
-            )
-        case .video:
-            return try self.updateVideoSourceConfigurationUseCase.execute(
-                source: source,
-                configurationJSON: json,
-                expectedUpdatedAt: expectedUpdatedAt
-            )
-        case .plugin, .book:
-            throw SourceRuleEditorServiceError.readOnlySource
         }
     }
 

@@ -158,12 +158,6 @@ struct SourcesFeatureFactory {
 
     private func makeSourceRuleEditorService() -> SourceRuleEditorService {
         return SourceRuleEditorService(
-            updateSourceRuleUseCase: UpdateSourceRuleUseCase(
-                sourceRepository: self.sourceRepository
-            ),
-            updateVideoSourceConfigurationUseCase: UpdateVideoSourceConfigurationUseCase(
-                sourceRepository: self.sourceRepository
-            ),
             duplicateSourceRuleUseCase: DuplicateSourceRuleUseCase(
                 sourceRepository: self.sourceRepository
             ),

@@ -16,34 +16,6 @@ actor SourceRuleEditingCoordinator {
         self.service = service
     }
 
-    func updateRule(
-        source: SourceTransfer,
-        ruleJSON: String,
-        expectedUpdatedAt: Date?
-    ) throws -> SourceTransfer {
-        return SourceTransfer(
-            value: try self.service.updateRule(
-                source: source.value,
-                ruleJSON: ruleJSON,
-                expectedUpdatedAt: expectedUpdatedAt
-            )
-        )
-    }
-
-    func updateDebugJSON(
-        source: SourceTransfer,
-        json: String,
-        expectedUpdatedAt: Date?
-    ) throws -> SourceTransfer {
-        return SourceTransfer(
-            value: try self.service.updateDebugJSON(
-                source: source.value,
-                json: json,
-                expectedUpdatedAt: expectedUpdatedAt
-            )
-        )
-    }
-
     func duplicate(_ source: SourceTransfer) throws -> SourceTransfer {
         return SourceTransfer(value: try self.service.duplicate(source: source.value))
     }

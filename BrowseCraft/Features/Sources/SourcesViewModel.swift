@@ -875,28 +875,8 @@ final class SourcesViewModel {
         )
     }
 
-    func validateRuleJSON(_ ruleJSON: String) -> SiteRuleValidationResult {
-        return self.ruleEditorService.validateRuleJSON(ruleJSON)
-    }
-
-    func formattedRuleJSON(for rule: SiteRule) -> String {
-        return self.ruleEditorService.formattedRuleJSON(for: rule)
-    }
-
     func formattedDebugJSON(for source: Source) -> String {
         return self.ruleEditorService.formattedDebugJSON(for: source)
-    }
-
-    func canEditDebugJSON(for source: Source) -> Bool {
-        return self.ruleEditorService.canEditDebugJSON(for: source)
-    }
-
-    func validateDebugJSON(sourceID: String, json: String) -> SourceDebugJSONValidationResult {
-        guard let source: Source = self.source(id: sourceID) else {
-            return SourceDebugJSONValidationResult(isValid: false, message: NSLocalizedString("Source was not found.", comment: ""))
-        }
-
-        return self.ruleEditorService.validateDebugJSON(source: source, json: json)
     }
 
     @MainActor
@@ -907,48 +887,6 @@ final class SourcesViewModel {
         }
 
         return await self.validateSourceTabsUseCase.execute(source: source)
-    }
-
-    @MainActor
-    func updateSourceRule(sourceID: String, ruleJSON: String, expectedUpdatedAt: Date? = nil) async -> Bool {
-        guard let source: Source = self.source(id: sourceID) else {
-            self.errorMessage = "Source was not found."
-            return false
-        }
-
-        do {
-            let updatedSource: Source = try await self.ruleEditingCoordinator.updateRule(
-                source: SourceTransfer(value: source),
-                ruleJSON: ruleJSON,
-                expectedUpdatedAt: expectedUpdatedAt
-            ).value
-            self.replaceSource(updatedSource)
-            return true
-        } catch {
-            self.errorMessage = error.localizedDescription
-            return false
-        }
-    }
-
-    @MainActor
-    func updateDebugJSON(sourceID: String, json: String, expectedUpdatedAt: Date? = nil) async -> Bool {
-        guard let source: Source = self.source(id: sourceID) else {
-            self.errorMessage = "Source was not found."
-            return false
-        }
-
-        do {
-            let updatedSource: Source = try await self.ruleEditingCoordinator.updateDebugJSON(
-                source: SourceTransfer(value: source),
-                json: json,
-                expectedUpdatedAt: expectedUpdatedAt
-            ).value
-            self.replaceSource(updatedSource)
-            return true
-        } catch {
-            self.errorMessage = error.localizedDescription
-            return false
-        }
     }
 
     @MainActor
