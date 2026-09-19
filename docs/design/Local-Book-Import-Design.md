@@ -11,7 +11,7 @@
 ## 一、结论
 
 1. 首批只接两种本地文件：**EPUB** 与**音频书**（单个 `mp3 / m4a / m4b` 文件，或 `zip / zab` 音频包）。PDF 不接（读书规范 `BC-BOOK-012`：不为 PDF 生成规则；本地 PDF 可以以后单独立项），CBZ 不接（漫画线保持自研阅读器，AGENTS.md）。LCP 加密的 EPUB 不接，打开失败按错误提示。
-2. `BCA-BOOK-002` 文件**复制进 App 容器**（`Application Support/Books/<uuid>.<ext>`），不用安全作用域书签引用外部文件——iCloud Drive 与「文件」App 里的文件会被移动、被按需卸载，引用会在第二次打开时失效。
+2. `BCA-BOOK-002` 文件**复制进 App 容器**（`Application Support/BrowseCraft/Books/<uuid>.<ext>`，与 AppDatabase 同一个 `BrowseCraft` 目录），不用安全作用域书签引用外部文件——iCloud Drive 与「文件」App 里的文件会被移动、被按需卸载，引用会在第二次打开时失效。
 3. `BCA-BOOK-003` `Locator` 在 Domain 里是**不透明 JSON 字符串**（Domain 与 Application 禁止依赖框架，Readium 的 `Locator` 只在 Infrastructure 与 Features 出现）；Readium 提供 `Locator.jsonString()` 与从 JSON 还原，续读位置、书签都存它，进度条用 `locations.totalProgression`。
 4. 书架是 Library 里**独立于 Source 的一栏**：本地书不是 `Source`，不进 `SourceConfiguration`，不进 CloudKit 同步（首批）。等站点抓取路接上时，站点书与本地书共用同一个阅读器与同一张进度 / 书签表（外键从 `localBookID` 扩为「作品标识」，第 六节）。
 5. Readium 模块进不了 `Domain` 与 `Application`，由架构边界脚本执行：`BCA-ARCH-002`。
