@@ -42,7 +42,7 @@ struct InAppPurchasePlan: Identifiable {
 
     static let year: InAppPurchasePlan = InAppPurchasePlan(
         title: NSLocalizedString("1 Year Premium", comment: ""),
-        subtitle: "Best value for full access",
+        subtitle: NSLocalizedString("Best value for full access", comment: ""),
         systemImage: "calendar.badge.clock",
         productID: "com.xiefei.AnyPortal.premium.year",
         productKind: .nonRenewingSubscription,
@@ -51,7 +51,7 @@ struct InAppPurchasePlan: Identifiable {
 
     static let quarter: InAppPurchasePlan = InAppPurchasePlan(
         title: NSLocalizedString("3 Months Premium", comment: ""),
-        subtitle: "Flexible seasonal access",
+        subtitle: NSLocalizedString("Flexible seasonal access", comment: ""),
         systemImage: "calendar",
         productID: "com.xiefei.AnyPortal.premium.quarter",
         productKind: .nonRenewingSubscription,
@@ -60,7 +60,7 @@ struct InAppPurchasePlan: Identifiable {
 
     static let month: InAppPurchasePlan = InAppPurchasePlan(
         title: NSLocalizedString("1 Month Premium", comment: ""),
-        subtitle: "Try premium features first",
+        subtitle: NSLocalizedString("Try premium features first", comment: ""),
         systemImage: "calendar.badge.plus",
         productID: "com.xiefei.AnyPortal.premium.month",
         productKind: .nonRenewingSubscription,
@@ -69,7 +69,7 @@ struct InAppPurchasePlan: Identifiable {
 
     static let siteSlot1: InAppPurchasePlan = InAppPurchasePlan(
         title: NSLocalizedString("1 Site Slot", comment: ""),
-        subtitle: "Add one custom site slot",
+        subtitle: NSLocalizedString("Add one custom site slot", comment: ""),
         systemImage: "square.grid.2x2",
         productID: "com.xiefei.AnyPortal.site.unlock.v2.1",
         productKind: .nonConsumable,
@@ -78,7 +78,7 @@ struct InAppPurchasePlan: Identifiable {
 
     static let siteSlot5: InAppPurchasePlan = InAppPurchasePlan(
         title: NSLocalizedString("5 Site Slots", comment: ""),
-        subtitle: "Add five custom site slots",
+        subtitle: NSLocalizedString("Add five custom site slots", comment: ""),
         systemImage: "square.grid.3x2",
         productID: "com.xiefei.AnyPortal.site.unlock.v2.5",
         productKind: .nonConsumable,
@@ -87,7 +87,7 @@ struct InAppPurchasePlan: Identifiable {
 
     static let siteSlot10: InAppPurchasePlan = InAppPurchasePlan(
         title: NSLocalizedString("10 Site Slots", comment: ""),
-        subtitle: "Add ten custom site slots",
+        subtitle: NSLocalizedString("Add ten custom site slots", comment: ""),
         systemImage: "square.grid.3x3",
         productID: "com.xiefei.AnyPortal.site.unlock.v2.10",
         productKind: .nonConsumable,
@@ -96,7 +96,7 @@ struct InAppPurchasePlan: Identifiable {
 
     static let siteSlot30: InAppPurchasePlan = InAppPurchasePlan(
         title: NSLocalizedString("30 Site Slots", comment: ""),
-        subtitle: "Add thirty custom site slots",
+        subtitle: NSLocalizedString("Add thirty custom site slots", comment: ""),
         systemImage: "rectangle.grid.3x2",
         productID: "com.xiefei.AnyPortal.site.unlock.v2.30",
         productKind: .nonConsumable,
@@ -105,7 +105,7 @@ struct InAppPurchasePlan: Identifiable {
 
     static let removeAds: InAppPurchasePlan = InAppPurchasePlan(
         title: NSLocalizedString("Remove Ads", comment: ""),
-        subtitle: "Hide rewarded ad prompts permanently",
+        subtitle: NSLocalizedString("Hide rewarded ad prompts permanently", comment: ""),
         systemImage: "nosign",
         productID: "com.xiefei.AnyPortal.remove.ads",
         productKind: .nonConsumable,

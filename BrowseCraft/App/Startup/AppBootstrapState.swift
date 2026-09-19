@@ -54,9 +54,9 @@ struct AppBootstrapFailure: Equatable {
     init(error: any Error) {
         self.diagnosticCode = Self.diagnosticCode(for: error)
         self.diagnosticDetail = ErrorDiagnostics.summary(for: error)
-        self.title = "BrowseCraft couldn’t start"
-        self.message = "The app couldn’t open its local data safely. Your data was not deleted or reset."
-        self.recoverySuggestion = "Quit and reopen the app. If the problem continues, include the diagnostic code when requesting support."
+        self.title = NSLocalizedString("bootstrap_failure_title", comment: "启动失败标题")
+        self.message = NSLocalizedString("bootstrap_failure_message", comment: "启动失败说明")
+        self.recoverySuggestion = NSLocalizedString("bootstrap_failure_recovery", comment: "启动失败的下一步")
     }
 
     /// 中文注释：交给支持人员的整段内容，与 `bootstrap-failed` 日志一致。

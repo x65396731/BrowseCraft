@@ -38,38 +38,38 @@ enum InAppPurchaseStatus: Equatable {
     var message: String? {
         switch self {
         case .idle: return nil
-        case .loadingProducts: return "Loading StoreKit products…"
-        case .productsUnavailable: return "No StoreKit products are currently available."
-        case .someProductsUnavailable: return "Some StoreKit products are currently unavailable."
-        case .productLoadFailed: return "StoreKit products could not be loaded."
-        case .productUnavailable(let title): return "\(title) is not currently available for purchase."
-        case .checkingIdentity: return "Checking your BrowseCraft account…"
-        case .portalSignInRequired: return "Sign in with Apple before purchasing or restoring purchases."
-        case .identityMismatch: return "The active BrowseCraft account changed. Sign in again before continuing."
-        case .identityCheckFailed: return "The BrowseCraft account could not be verified. Sign in again and retry."
-        case .restoreAccountMismatch: return "Some App Store purchases belong to another BrowseCraft profile and were not restored to this account."
-        case .purchasing(_, let title): return "Purchasing \(title)…"
-        case .submittingPurchase(_, let title): return "Verifying \(title) with BrowseCraft…"
-        case .pending(_, let title): return "\(title) is awaiting approval. No entitlement has been applied."
-        case .cancelled: return "Purchase cancelled. No entitlement was applied."
-        case .unverified(let title): return "\(title) could not be verified. No entitlement was applied."
-        case .alreadyPurchased(let title): return "\(title) is already purchased. Use Restore Purchases to sync its entitlement."
-        case .purchaseFailed(let title): return "\(title) could not be purchased."
-        case .transactionIdentityMismatch(let title): return "\(title) is not bound to the active BrowseCraft profile. No entitlement was applied."
-        case .xcodeEnvironmentUnsupported(let title): return "\(title) is an Xcode StoreKit test purchase. It was not sent to Portal; use App Store Sandbox for server verification."
-        case .storeKitEnvironmentUnsupported(let title): return "\(title) came from an unsupported StoreKit environment and was not sent to Portal."
-        case .portalSessionUnavailable(let title): return "\(title) completed in the App Store, but the Portal session is unavailable. Use Restore Purchases to recover it."
-        case .portalTemporarilyUnavailable(let title): return "\(title) completed in the App Store, but Portal verification is temporarily unavailable. Use Restore Purchases later."
-        case .portalAccountMismatch(let title): return "\(title) was rejected because the Portal or Apple transaction account does not match this BrowseCraft profile."
-        case .portalTransactionClaimed(let title): return "\(title) is already bound to another BrowseCraft profile. No entitlement was applied."
-        case .portalSubmissionRejected(let title): return "\(title) was rejected by Portal. No entitlement was applied."
-        case .portalOutcomeUnknown(let title): return "\(title) completed in the App Store, but its Portal entitlement result is unknown. Use Restore Purchases before buying again."
-        case .portalSubmissionInterrupted(let title): return "\(title) completed in the App Store, but Portal verification was interrupted. Use Restore Purchases to continue."
-        case .purchased(let title): return "\(title) purchase completed."
-        case .restoring: return "Restoring purchases…"
-        case .restored: return "Purchases restored."
-        case .restoreFailed: return "Purchases could not be restored."
-        case .revoked(let title): return "\(title) was revoked or refunded."
+        case .loadingProducts: return NSLocalizedString("iap_status_loading_products", comment: "")
+        case .productsUnavailable: return NSLocalizedString("iap_status_products_unavailable", comment: "")
+        case .someProductsUnavailable: return NSLocalizedString("iap_status_some_products_unavailable", comment: "")
+        case .productLoadFailed: return NSLocalizedString("iap_status_product_load_failed", comment: "")
+        case .productUnavailable(let title): return String(format: NSLocalizedString("iap_status_product_unavailable", comment: ""), title)
+        case .checkingIdentity: return NSLocalizedString("iap_status_checking_identity", comment: "")
+        case .portalSignInRequired: return NSLocalizedString("iap_status_portal_sign_in_required", comment: "")
+        case .identityMismatch: return NSLocalizedString("iap_status_identity_mismatch", comment: "")
+        case .identityCheckFailed: return NSLocalizedString("iap_status_identity_check_failed", comment: "")
+        case .restoreAccountMismatch: return NSLocalizedString("iap_status_restore_account_mismatch", comment: "")
+        case .purchasing(_, let title): return String(format: NSLocalizedString("iap_status_purchasing", comment: ""), title)
+        case .submittingPurchase(_, let title): return String(format: NSLocalizedString("iap_status_submitting_purchase", comment: ""), title)
+        case .pending(_, let title): return String(format: NSLocalizedString("iap_status_pending", comment: ""), title)
+        case .cancelled: return NSLocalizedString("iap_status_cancelled", comment: "")
+        case .unverified(let title): return String(format: NSLocalizedString("iap_status_unverified", comment: ""), title)
+        case .alreadyPurchased(let title): return String(format: NSLocalizedString("iap_status_already_purchased", comment: ""), title)
+        case .purchaseFailed(let title): return String(format: NSLocalizedString("iap_status_purchase_failed", comment: ""), title)
+        case .transactionIdentityMismatch(let title): return String(format: NSLocalizedString("iap_status_transaction_identity_mismatch", comment: ""), title)
+        case .xcodeEnvironmentUnsupported(let title): return String(format: NSLocalizedString("iap_status_xcode_environment_unsupported", comment: ""), title)
+        case .storeKitEnvironmentUnsupported(let title): return String(format: NSLocalizedString("iap_status_storekit_environment_unsupported", comment: ""), title)
+        case .portalSessionUnavailable(let title): return String(format: NSLocalizedString("iap_status_portal_session_unavailable", comment: ""), title)
+        case .portalTemporarilyUnavailable(let title): return String(format: NSLocalizedString("iap_status_portal_temporarily_unavailable", comment: ""), title)
+        case .portalAccountMismatch(let title): return String(format: NSLocalizedString("iap_status_portal_account_mismatch", comment: ""), title)
+        case .portalTransactionClaimed(let title): return String(format: NSLocalizedString("iap_status_portal_transaction_claimed", comment: ""), title)
+        case .portalSubmissionRejected(let title): return String(format: NSLocalizedString("iap_status_portal_submission_rejected", comment: ""), title)
+        case .portalOutcomeUnknown(let title): return String(format: NSLocalizedString("iap_status_portal_outcome_unknown", comment: ""), title)
+        case .portalSubmissionInterrupted(let title): return String(format: NSLocalizedString("iap_status_portal_submission_interrupted", comment: ""), title)
+        case .purchased(let title): return String(format: NSLocalizedString("iap_status_purchased", comment: ""), title)
+        case .restoring: return NSLocalizedString("iap_status_restoring", comment: "")
+        case .restored: return NSLocalizedString("iap_status_restored", comment: "")
+        case .restoreFailed: return NSLocalizedString("iap_status_restore_failed", comment: "")
+        case .revoked(let title): return String(format: NSLocalizedString("iap_status_revoked", comment: ""), title)
         }
     }
 

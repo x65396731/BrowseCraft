@@ -25,9 +25,9 @@ final class AdPlaybackViewModel {
     private func message(for result: RewardedAdPresentationResult) -> String {
         switch result {
         case .completed:
-            return self.presenter.lastMessage ?? "Ad playback completed."
+            return self.presenter.lastMessage ?? NSLocalizedString("ad_playback_completed", comment: "广告播放完成")
         case .skipped:
-            return "Ad playback dismissed."
+            return NSLocalizedString("ad_playback_dismissed", comment: "广告播放被关闭")
         case .unavailable(let message), .failed(let message):
             return message
         }

@@ -104,7 +104,7 @@ struct LibrarySearchView: View {
         } else if let message: String = self.viewModel.searchErrorMessage {
             EmptyStateView(
                 systemImage: "exclamationmark.triangle",
-                title: "Search",
+                title: NSLocalizedString("Search", comment: "搜索"),
                 message: message
             )
             .padding(.top, 32)
@@ -145,15 +145,15 @@ struct LibrarySearchView: View {
         } else if self.viewModel.hasSearched {
             EmptyStateView(
                 systemImage: "magnifyingglass",
-                title: "No results",
-                message: "Try another keyword."
+                title: NSLocalizedString("No results", comment: "搜索无结果"),
+                message: NSLocalizedString("Try another keyword.", comment: "换个关键词")
             )
             .padding(.top, 32)
         } else {
             EmptyStateView(
                 systemImage: "magnifyingglass",
-                title: "Search",
-                message: "Enter a keyword to search this source."
+                title: NSLocalizedString("Search", comment: "搜索"),
+                message: NSLocalizedString("Enter a keyword to search this source.", comment: "搜索提示")
             )
             .padding(.top, 32)
         }

@@ -342,9 +342,9 @@ enum BookReaderError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .subjectNotSupported:
-            return "This book cannot be opened here."
+            return NSLocalizedString("book_reader_error_subject_not_supported", comment: "这本书打不开")
         case .unexpectedPublicationHandle:
-            return "Unexpected publication handle."
+            return NSLocalizedString("book_reader_error_unexpected_handle", comment: "出版物句柄异常")
         }
     }
 }

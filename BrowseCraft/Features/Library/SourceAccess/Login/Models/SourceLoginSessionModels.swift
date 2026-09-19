@@ -8,11 +8,11 @@ enum SourceLoginSessionError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .webViewUnavailable:
-            return "Wait for the login page to finish loading before saving."
+            return NSLocalizedString("source_login_error_webview_unavailable", comment: "登录页未加载完")
         case .noCredentialMaterial:
-            return "No login Cookie or configured token was found. Complete login before tapping Done."
+            return NSLocalizedString("source_login_error_no_credential", comment: "没抓到登录凭据")
         case .invalidStorageResult:
-            return "The login page returned an unreadable storage result."
+            return NSLocalizedString("source_login_error_invalid_storage", comment: "存储结果不可读")
         }
     }
 }
