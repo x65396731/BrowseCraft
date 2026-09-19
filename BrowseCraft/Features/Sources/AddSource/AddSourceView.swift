@@ -35,14 +35,26 @@ struct AddSourceView: View {
             // 本地关键词发现 `ComicDiscoveryView` 就此不再从这里进入，与视频侧的
             // `VideoDiscoveryView` 同一处置。
             .sheet(isPresented: self.$isShowingComicGeneration) {
-                VideoGenerationInputView(viewModel: self.viewModel, sourceKind: .comic)
+                VideoGenerationInputView(
+                    viewModel: self.viewModel,
+                    sourceKind: .comic,
+                    onGenerationSubmitted: self.returnToSources
+                )
             }
             .sheet(isPresented: self.$isShowingVideoGeneration) {
-                VideoGenerationInputView(viewModel: self.viewModel, sourceKind: .video)
+                VideoGenerationInputView(
+                    viewModel: self.viewModel,
+                    sourceKind: .video,
+                    onGenerationSubmitted: self.returnToSources
+                )
             }
             // 中文注释：读书 kind 与漫画 / 视频同一条服务端规则生成入口（PortalCore 2026-09-13 起接受 sourceKind: book）。
             .sheet(isPresented: self.$isShowingBookGeneration) {
-                VideoGenerationInputView(viewModel: self.viewModel, sourceKind: .book)
+                VideoGenerationInputView(
+                    viewModel: self.viewModel,
+                    sourceKind: .book,
+                    onGenerationSubmitted: self.returnToSources
+                )
             }
             .alert(
                 "Source Type Unavailable",
@@ -59,6 +71,13 @@ struct AddSourceView: View {
                 AppAnalytics.shared.logScreenView(.addSource)
             }
         }
+    }
+
+    /// 中文注释：生成请求提交成功后，两层 sheet 一起收起回到来源页——用户已经拿到任务回执，
+    /// 规则生成完会自己出现在目录里，没有留在这一屏继续点的事。关掉最外层的
+    /// `AddSourceView` 会连带收掉它呈现的预检 sheet。
+    private func returnToSources() {
+        self.dismiss()
     }
 
     @ViewBuilder

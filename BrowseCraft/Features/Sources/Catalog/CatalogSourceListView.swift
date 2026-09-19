@@ -177,9 +177,7 @@ private struct FailedGenerationOutcomeRowView: View {
                     .foregroundColor(.secondary)
             }
         }
-        .alignmentGuide(.listRowSeparatorLeading) { dimensions in
-            return dimensions[.leading]
-        }
+        .listRowSeparatorAlignedToRowLeading()
     }
 }
 
@@ -238,11 +236,9 @@ private struct CatalogSourceRowView: View {
 
             self.trailingControl
         }
-        // 中文注释：List 默认把分隔线对齐到行里第一段文字；「已添加」那行的 Label 会把它推到
-        // 右侧只剩一小截（09-05 真机截图）。钉到行的 leading，分隔线通栏。
-        .alignmentGuide(.listRowSeparatorLeading) { dimensions in
-            return dimensions[.leading]
-        }
+        // 中文注释：「已添加」那行的 Label 会把分隔线推到右侧只剩一小截（09-05 真机截图），
+        // 钉到行的 leading 让分隔线通栏；取值点在 `ListRowSeparatorAlignment.swift`。
+        .listRowSeparatorAlignedToRowLeading()
     }
 
     @ViewBuilder

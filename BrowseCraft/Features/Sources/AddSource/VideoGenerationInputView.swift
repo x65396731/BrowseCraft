@@ -7,6 +7,9 @@ struct VideoGenerationInputView: View {
     /// 中文注释：预检是中性的，两种 kind 走同一套输入与判定；`sourceKind` 只决定
     /// 标题文案与提交给服务端的生成链。
     let sourceKind: RuleGenerationSourceKind
+    /// 中文注释：生成请求提交成功后由宿主决定去哪儿——这里只报告「成功了」，
+    /// 关闭哪几层 sheet 是 `AddSourceView` 的事。
+    let onGenerationSubmitted: () -> Void
     @Environment(\.dismiss) private var dismiss
 
     @State private var siteURL: String = ""
@@ -18,6 +21,11 @@ struct VideoGenerationInputView: View {
     @State private var submissionState: VideoGenerationTaskSubmissionState = .idle
     @State private var submissionTask: Task<Void, Never>?
     @State private var reusedRuleImportFailed: Bool = false
+    @State private var returnTask: Task<Void, Never>?
+
+    /// 中文注释：提交成功后停留这么久再回来源页——让「生成任务已提交」这句确认被看见，
+    /// 又不必让用户自己点两层关闭。
+    private static let submittedReturnDelay: Duration = .milliseconds(1200)
 
     var body: some View {
         NavigationStack {
@@ -61,6 +69,7 @@ struct VideoGenerationInputView: View {
                         }
                     }
                     .disabled(self.canStartAssessment == false)
+                    .listRowSeparatorAlignedToRowLeading()
 
                     if self.isChecking {
                         Button(
@@ -96,6 +105,7 @@ struct VideoGenerationInputView: View {
                     Section(NSLocalizedString("video_preflight_status_title", comment: "")) {
                         Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
+                            .listRowSeparatorAlignedToRowLeading()
                         Button(NSLocalizedString("video_preflight_retry_button", comment: "")) {
                             self.startAssessment()
                         }
@@ -148,6 +158,7 @@ struct VideoGenerationInputView: View {
         Section(NSLocalizedString("video_preflight_progress_title", comment: "")) {
             Label(self.progressText, systemImage: "waveform.path.ecg")
                 .foregroundStyle(.secondary)
+                .listRowSeparatorAlignedToRowLeading()
         }
     }
 
@@ -247,6 +258,9 @@ struct VideoGenerationInputView: View {
                     self.reusedRuleImportFailed = (added == false)
                 }
                 self.submissionState = .finished(outcome)
+                if case .submitted = outcome {
+                    self.scheduleReturnToSources()
+                }
             } catch is CancellationError {
                 self.submissionState = .idle
             } catch {
@@ -262,8 +276,24 @@ struct VideoGenerationInputView: View {
     private func cancelSubmission() {
         self.submissionTask?.cancel()
         self.submissionTask = nil
+        self.returnTask?.cancel()
+        self.returnTask = nil
         self.submissionState = .idle
         self.reusedRuleImportFailed = false
+    }
+
+    /// 中文注释：只有 `.submitted` 走自动返回——那一条是「生成请求成功」的唯一形态。
+    /// `.reused` 命中的是服务端已有的规则，那一屏还挂着「重新生成」入口，自动退出会把它吞掉。
+    private func scheduleReturnToSources() {
+        self.returnTask?.cancel()
+        self.returnTask = Task { @MainActor in
+            try? await Task.sleep(for: Self.submittedReturnDelay)
+            guard Task.isCancelled == false else {
+                return
+            }
+            self.returnTask = nil
+            self.onGenerationSubmitted()
+        }
     }
 
     private func message(for error: Error) -> String {
@@ -325,6 +355,7 @@ private struct VideoGenerationInputOutcomeView: View {
         Section(NSLocalizedString("video_preflight_status_title", comment: "")) {
             Label(self.title, systemImage: self.systemImage)
                 .foregroundStyle(self.color)
+                .listRowSeparatorAlignedToRowLeading()
             Text(self.detail)
                 .foregroundStyle(.secondary)
 
@@ -359,6 +390,7 @@ private struct VideoGenerationInputOutcomeView: View {
                     Text(NSLocalizedString("video_preflight_submitting", comment: ""))
                         .foregroundStyle(.secondary)
                 }
+                .listRowSeparatorAlignedToRowLeading()
             case .finished(let outcome):
                 self.outcomeRows(outcome)
             }
@@ -374,6 +406,7 @@ private struct VideoGenerationInputOutcomeView: View {
                 systemImage: "paperplane.fill"
             )
             .foregroundStyle(.green)
+            .listRowSeparatorAlignedToRowLeading()
             Text(
                 String(
                     format: NSLocalizedString("video_preflight_submitted_job", comment: ""),
@@ -388,6 +421,7 @@ private struct VideoGenerationInputOutcomeView: View {
                 systemImage: "checkmark.seal.fill"
             )
             .foregroundStyle(.green)
+            .listRowSeparatorAlignedToRowLeading()
             Text(
                 String(
                     format: NSLocalizedString(
@@ -412,24 +446,28 @@ private struct VideoGenerationInputOutcomeView: View {
                 systemImage: "person.crop.circle.badge.exclamationmark"
             )
             .foregroundStyle(.orange)
+            .listRowSeparatorAlignedToRowLeading()
         case .activeJobLimit:
             Label(
                 NSLocalizedString("video_preflight_submit_active_job_limit", comment: ""),
                 systemImage: "hourglass"
             )
             .foregroundStyle(.orange)
+            .listRowSeparatorAlignedToRowLeading()
         case .previousJobActive(let entryURL):
             Label(
                 VideoGenerationInputView.previousJobActiveMessage(entryURL: entryURL),
                 systemImage: "hourglass"
             )
             .foregroundStyle(.orange)
+            .listRowSeparatorAlignedToRowLeading()
         case .rateLimited:
             Label(
                 NSLocalizedString("video_preflight_submit_rate_limited", comment: ""),
                 systemImage: "clock.badge.exclamationmark"
             )
             .foregroundStyle(.orange)
+            .listRowSeparatorAlignedToRowLeading()
         case .failed(let code):
             Label(
                 String(
@@ -439,6 +477,7 @@ private struct VideoGenerationInputOutcomeView: View {
                 systemImage: "exclamationmark.triangle.fill"
             )
             .foregroundStyle(.red)
+            .listRowSeparatorAlignedToRowLeading()
             Button(NSLocalizedString("video_preflight_generate_button", comment: "")) {
                 self.submit()
             }
