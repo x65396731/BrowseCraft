@@ -154,6 +154,7 @@ final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
             try await withCheckedThrowingContinuation { continuation in
                 self.continuation = continuation
                 let urlRequest: URLRequest = self.urlRequest(for: self.url, includeBody: true)
+                self.applyUserAgent(from: urlRequest)
                 self.prepareCookieStore(from: urlRequest) {
                     guard self.hasCompleted == false else {
                         return
@@ -222,7 +223,9 @@ final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         }
 
         self.isLoadingHTTPSUpgrade = true
-        webView.load(self.urlRequest(for: upgradedURL, includeBody: false))
+        let upgradedRequest: URLRequest = self.urlRequest(for: upgradedURL, includeBody: false)
+        self.applyUserAgent(from: upgradedRequest)
+        webView.load(upgradedRequest)
         return .cancel
     }
 
@@ -306,6 +309,29 @@ final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         }
 
         self.finish(.failure(error))
+    }
+
+    /// `BC-ACQ-044` 的请求头轴在 WKWebView 路径上要靠 `customUserAgent` 才成立。
+    ///
+    /// 中文注释：**WebKit 会用自己的 UA 覆盖 `URLRequest` 上的 `User-Agent`**，
+    /// 所以 `urlRequest(for:)` 里 `setValue` 的那一行对渲染路径是无效的——只有
+    /// `customUserAgent` 能改。设计书 23.6 当初写下的「App 两条路发出的都是规则里那个串」
+    /// 对 URLSession 成立、对这条路不成立，当时没有实测渲染路径。
+    ///
+    /// 2026-09-19 真机逮到：`BC-ACQ-059` 把采集面换成桌面 UA 之后，引擎在 178 的阅读页上
+    /// 学到桌面模板选择器 `div.comicpage img`（同一章节页桌面 76 KB / 35 张图），
+    /// 而 WKWebView 仍发 iOS Safari UA、拿到移动模板（15.7 KB，容器是 `div#cp_img`），
+    /// 于是 `dom-stability matched=40` 但 `pageCount=0`、`selectorEmpty`。
+    /// 改之前两边**碰巧**一致（引擎也用 iPhone UA），不是设计如此。
+    private func applyUserAgent(from urlRequest: URLRequest) {
+        let userAgent: String? = urlRequest.allHTTPHeaderFields?.first { key, _ in
+            key.caseInsensitiveCompare("User-Agent") == .orderedSame
+        }?.value
+        // 中文注释：取不到就不动——保持 WKWebView 自己的 UA，与本改动之前逐字相同。
+        guard let userAgent: String, userAgent.isEmpty == false else {
+            return
+        }
+        self.webView.customUserAgent = userAgent
     }
 
     /// 中文注释：WebView 使用同一份 RequestConfig header/body 语义，避免 HTTP 与 WebView 路径请求差异过大。
