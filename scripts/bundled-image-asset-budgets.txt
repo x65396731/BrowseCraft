@@ -29,4 +29,13 @@ VideoListPlaceholder    943000    600x900    single-scale-lossy-png
 ComicDetailPlaceholder  310000    354x504    single-scale-lossy-png
 VideoDetailPlaceholder  2399000   1320x1386  single-scale-png
 LaunchSplash            854000    720x1280   keep-as-is
-AppIcon                 80000     1024x1024  keep-as-is
+AppIcon                 950000    1024x1024  keep-as-is
+
+# 2026-09-20 两处改动的理由：
+#
+# AppIcon 上限 80000 → 950000。旧图标是 icons8 的扁平色块占位图（75KB，PNG 压得极狠）；
+# 新图标是即梦生成的品牌徽记，带对角渐变、六边形网格与光晕，PNG 无损压不动，默认外观
+# 564,496 字节，另加 iOS 18 着色外观一张 318,844 字节，合计 883,340。两张都是 1024×1024
+# 不透明（着色版先经 Generic Gray 去色再转回 sRGB，逐像素 R=G=B）。这里约束的是输入字节，
+# 随包大小由 actool 决定——appiconset 只产出一套图标资源，不进 ItemThumbnailImageView 那条缩放链路。
+#
