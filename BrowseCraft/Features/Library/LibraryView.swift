@@ -138,28 +138,6 @@ struct LibraryView: View {
                         )
                     }
                 }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(
-                        action: {
-                            Task {
-                                await self.viewModel.refreshSelectedListTab()
-                            }
-                        },
-                        label: {
-                            if self.viewModel.isRefreshing {
-                                ProgressView()
-                            } else {
-                                Image(systemName: "arrow.clockwise")
-                            }
-                        }
-                    )
-                    .disabled(
-                        self.viewModel.selectedSource == nil ||
-                        self.isInteractionLocked
-                    )
-                    .accessibilityLabel("Refresh Selected Tab")
-                }
             }
             .fullScreenCover(item: self.requestedSourceLoginBinding) { loginState in
                 SourceLoginView(
