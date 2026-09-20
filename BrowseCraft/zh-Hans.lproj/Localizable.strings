@@ -71,6 +71,10 @@
 "video_preflight_error_unsafe_url" = "该 URL 未通过公网安全策略。";
 "video_preflight_error_unsupported_content" = "该 URL 未返回受支持的 HTML 页面。";
 "video_preflight_error_request" = "页面暂时无法检查，请稍后重试。";
+"video_preflight_error_not_found" = "这个网址在该网站上不存在，请检查后重试。";
+"video_preflight_error_forbidden" = "该网站拒绝了这次访问，可能需要登录或它不接受我们的请求。";
+"video_preflight_error_rate_limited" = "该网站暂时限制了访问频率，请稍后再试。";
+"video_preflight_error_site_error" = "该网站暂时出错了，请稍后再试。";
 
 /* Rule generation push notifications. Keys are dictated by PortalCore's notifier
    (app/modules/push/notifier.py): title-loc-key + loc-key, loc-args[0] = entry URL.

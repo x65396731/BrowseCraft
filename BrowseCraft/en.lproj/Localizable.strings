@@ -71,6 +71,10 @@
 "video_preflight_error_unsafe_url" = "This URL is not allowed by the public-network safety policy.";
 "video_preflight_error_unsupported_content" = "The URL did not return a supported HTML page.";
 "video_preflight_error_request" = "The page could not be checked. Please try again later.";
+"video_preflight_error_not_found" = "That URL does not exist on this site. Check the address and try again.";
+"video_preflight_error_forbidden" = "The site refused this request. It may require signing in, or it does not accept our requests.";
+"video_preflight_error_rate_limited" = "The site is rate limiting requests right now. Try again later.";
+"video_preflight_error_site_error" = "The site is having trouble right now. Try again later.";
 
 /* Rule generation push notifications. Keys are dictated by PortalCore's notifier
    (app/modules/push/notifier.py): title-loc-key + loc-key, loc-args[0] = entry URL.

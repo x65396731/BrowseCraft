@@ -330,7 +330,36 @@ struct VideoGenerationInputView: View {
                 break
             }
         }
+        if let acquisitionError: PreflightPageAcquisitionError =
+            error as? PreflightPageAcquisitionError,
+            case let .rejectedStatus(statusCode) = acquisitionError {
+            return NSLocalizedString(
+                Self.messageKey(forRejectedStatus: statusCode),
+                comment: ""
+            )
+        }
         return NSLocalizedString("video_preflight_error_request", comment: "")
+    }
+
+    /// `BC-PREFLIGHT-062`：站点按状态码拒绝时，文案按状态码族分。
+    ///
+    /// 中文注释：只分**用户的下一步不同**的那几档。404 落到「稍后重试」兜底是错的
+    /// 两处——它不是暂时的，重试多少次都一样；「稍后重试」还把用户引向没用的动作，
+    /// 该做的是检查网址。状态码是站点自己给的事实，这里不按 host 或路径分支
+    /// （`BC-PREFLIGHT-040` / `BC-PREFLIGHT-043`）。
+    private static func messageKey(forRejectedStatus statusCode: Int) -> String {
+        switch statusCode {
+        case 404, 410:
+            return "video_preflight_error_not_found"
+        case 401, 403:
+            return "video_preflight_error_forbidden"
+        case 429:
+            return "video_preflight_error_rate_limited"
+        case 500..<600:
+            return "video_preflight_error_site_error"
+        default:
+            return "video_preflight_error_request"
+        }
     }
 }
 
