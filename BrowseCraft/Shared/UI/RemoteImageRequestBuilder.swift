@@ -52,10 +52,14 @@ struct RemoteImageRequestIdentity: Hashable {
 }
 
 enum RemoteImageRequestBuilder {
+    /// 中文注释：`diagnosticViewID` **只进日志，绝不进 `RemoteImageRequestIdentity`**——
+    /// 它每个视图实例一个值，混进 identity 会让 `.task(id:)` 的 id 永不相等，
+    /// 那样就不是在观测重复构造，而是在制造重复构造。
     static func makeRequest(
         _ identity: RemoteImageRequestIdentity,
         browserRequestHeaderProvider: any BrowserRequestHeaderProviding,
-        systemCookieHeaderProvider: any SystemCookieHeaderProviding
+        systemCookieHeaderProvider: any SystemCookieHeaderProviding,
+        diagnosticViewID: String
     ) -> ImageRequest? {
         guard var request: ImageRequest = ImageRequestFactory.makeRequest(
             urlString: identity.urlString,
@@ -87,7 +91,12 @@ enum RemoteImageRequestBuilder {
             fields: [
                 "urlPath": request.url?.path ?? "nil",
                 "width": Int(identity.displaySize.width.rounded()),
-                "height": Int(identity.displaySize.height.rounded())
+                "height": Int(identity.displaySize.height.rounded()),
+                // 中文注释：`viewID` 随 `@State` 与视图身份同生死。同一 urlPath 的多行里
+                // **ID 不同 = 视图被重建了**（`@State` 连同 displaySize 一起重置，task 随之重跑）；
+                // **ID 相同 = 同一个视图实例跑了多次**，那是 `.task(id:)` 的 id 不稳定。
+                // 两者的修法完全不同，所以必须先分开。
+                "viewID": diagnosticViewID
             ]
         )
         return request

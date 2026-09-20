@@ -15,6 +15,9 @@ struct CoverImageView: View {
     let refererURLString: String?
     let requestConfig: RequestConfig?
     let placeholderImageName: String?
+    // 中文注释：诊断用——`@State` 的初值只在视图身份首次建立时被采用，
+    // 因此同一个视图实例恒为同一个 ID，视图一旦被重建就换一个。只进日志。
+    @State private var diagnosticViewID: String = String(UUID().uuidString.prefix(8))
     @State private var candidateIndex: Int = 0
     @State private var displaySize: CGSize = .zero
     @State private var request: ImageRequest?
@@ -77,7 +80,8 @@ struct CoverImageView: View {
                 RemoteImageRequestBuilder.makeRequest(
                     identity,
                     browserRequestHeaderProvider: self.browserRequestHeaderProvider,
-                    systemCookieHeaderProvider: self.systemCookieHeaderProvider
+                    systemCookieHeaderProvider: self.systemCookieHeaderProvider,
+                    diagnosticViewID: self.diagnosticViewID
                 )
             }
         }
