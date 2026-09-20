@@ -75,6 +75,21 @@ enum RemoteImageRequestBuilder {
             unit: .points,
             contentMode: .aspectFill
         )
+        // 中文注释：解码尺寸必须随请求一起可见。`.task(id:)` 的 id 含 `displaySize`，
+        // 因此同一张图被构造几次、每次按什么尺寸解码，是这条链路上唯一会变的量——
+        // 2026-09-20 真机日志里同一 urlPath 的 `event=request` 出现 2 到 3 行，
+        // 而 `event=request` 本身不带尺寸，光看它分不出「尺寸变了」还是「视图重建了」。
+        // 零尺寸那一格已由 `RemoteImageRequestIdentity` 的可失败构造挡掉（见其注释），
+        // 所以这里记到的必然是两个以上**不同的正尺寸**，或者同一尺寸被重复构造。
+        RuleExecutionLogger.log(
+            stage: .image,
+            event: "request-decode-size",
+            fields: [
+                "urlPath": request.url?.path ?? "nil",
+                "width": Int(identity.displaySize.width.rounded()),
+                "height": Int(identity.displaySize.height.rounded())
+            ]
+        )
         return request
     }
 }
