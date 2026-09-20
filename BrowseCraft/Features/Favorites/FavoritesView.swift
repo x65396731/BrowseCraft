@@ -49,7 +49,8 @@ struct FavoritesView: View {
                         EmptyStateView(
                             systemImage: "heart",
                             title: NSLocalizedString("No Favorites", comment: ""),
-                            message: NSLocalizedString("Items you favorite will appear here.", comment: "")
+                            message: NSLocalizedString("Items you favorite will appear here.", comment: ""),
+                            illustration: "EmptyStateFavorites"
                         )
                     }
                 }

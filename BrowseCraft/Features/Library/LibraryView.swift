@@ -221,7 +221,8 @@ struct LibraryView: View {
                 systemImage: "square.grid.2x2",
                 title: NSLocalizedString("library_body_empty_title", comment: "库列表空态标题"),
                 message: NSLocalizedString("library_body_empty_message", comment: "库列表空态说明"),
-                pullHint: NSLocalizedString("library_body_pull_hint", comment: "空态下拉刷新提示")
+                pullHint: NSLocalizedString("library_body_pull_hint", comment: "空态下拉刷新提示"),
+                illustration: "EmptyStateSearch"
             )
 
         case .failed(let message):
@@ -229,7 +230,8 @@ struct LibraryView: View {
                 systemImage: "exclamationmark.triangle",
                 title: NSLocalizedString("library_body_failed_title", comment: "库列表失败态标题"),
                 message: message,
-                pullHint: NSLocalizedString("library_body_retry_pull_hint", comment: "失败态下拉重试提示")
+                pullHint: NSLocalizedString("library_body_retry_pull_hint", comment: "失败态下拉重试提示"),
+                illustration: "EmptyStateOffline"
             )
 
         case .content, .switchingSource:

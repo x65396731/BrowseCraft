@@ -14,15 +14,15 @@ struct LibraryPlaceholderView: View {
     let title: String
     let message: String
     let pullHint: String
+    /// 中文注释：同 `EmptyStateView`——给了插画就画插画，没给退回系统符号。
+    var illustration: String?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion: Bool
     @State private var isHintLowered: Bool = false
 
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: self.systemImage)
-                .font(.system(size: 42, weight: .regular))
-                .foregroundColor(.secondary)
+            EmptyStateIconView(systemImage: self.systemImage, illustration: self.illustration)
 
             Text(self.title)
                 .font(.headline)

@@ -47,7 +47,8 @@ struct HistoryView: View {
                         EmptyStateView(
                             systemImage: "clock",
                             title: NSLocalizedString("No History", comment: ""),
-                            message: NSLocalizedString("Read chapters, books and watched videos will appear here.", comment: "")
+                            message: NSLocalizedString("Read chapters, books and watched videos will appear here.", comment: ""),
+                            illustration: "EmptyStateHistory"
                         )
                     }
                 }
