@@ -77,6 +77,7 @@
    The failed_* suffix is RuleGenerationOutcomeReason and must stay in sync. */
 "push_generation_title" = "規則生成";
 "push_generation_succeeded" = "%@ 的規則已生成，可以在來源清單裡使用了。";
+"push_generation_merged" = "%@ 的規則已併入既有來源，新增了一個分類。";
 "push_generation_failed_siteRejectedFetcher" = "%@ 拒絕了我們的擷取請求，請稍後或換個網路環境再試。";
 "push_generation_failed_siteNotSupported" = "暫時無法為 %@ 生成規則。";
 "push_generation_failed_siteUnreachable" = "無法連上 %@，請確認網站可用後再試。";
