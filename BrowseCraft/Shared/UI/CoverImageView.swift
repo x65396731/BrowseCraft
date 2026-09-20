@@ -49,9 +49,16 @@ struct CoverImageView: View {
                                     .aspectRatio(contentMode: .fill)
                             }
                             .clipped()
-                    } else if state.error != nil {
+                    } else if let error: Error = state.error {
                         self.placeholder
                             .onAppear {
+                                // 中文注释：`BC-CATALOG-022`——先留错误再换候选地址。
+                                // 换候选会把上一个地址的失败盖掉，不先记就永远不知道它为什么失败。
+                                ImageRequestFactory.logFailure(
+                                    urlString: urlString,
+                                    error: error,
+                                    event: "cover-failure"
+                                )
                                 self.advanceToNextCandidateIfAvailable(candidateCount: urlCandidates.count)
                             }
                     } else {

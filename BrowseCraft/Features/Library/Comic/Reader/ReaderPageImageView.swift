@@ -90,8 +90,17 @@ struct ReaderPageImageView: View {
                         self.aspectRatio(for: state.imageContainer?.image.size),
                         contentMode: .fit
                     )
-                } else if state.error != nil {
+                } else if let error: Error = state.error {
+                    // 中文注释：`BC-CATALOG-022`——阅读页与缩略图、封面同一个缺口：
+                    // 失败只换成 errorView，Nuke 的错误被丢掉。本处没有既有的一次性钩子，补 onAppear。
                     self.errorView
+                        .onAppear {
+                            ImageRequestFactory.logFailure(
+                                urlString: pageURLString,
+                                error: error,
+                                event: "reader-image-failure"
+                            )
+                        }
                 } else {
                     self.loadingView
                 }
