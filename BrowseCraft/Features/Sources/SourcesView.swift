@@ -127,25 +127,6 @@ struct SourcesView: View {
                             "\(self.viewModel.sourceSlotLimit)"
                     )
                 }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(
-                        action: {
-                            Task {
-                                await self.viewModel.refreshSelectedSource()
-                            }
-                        },
-                        label: {
-                            if self.viewModel.isRefreshing {
-                                ProgressView()
-                            } else {
-                                Image(systemName: "arrow.clockwise")
-                            }
-                        }
-                    )
-                    .disabled(self.viewModel.selectedSource == nil || self.viewModel.isRefreshing)
-                    .accessibilityLabel("Refresh Selected Source")
-                }
             }
             .onAppear {
                 CrashDiagnostics.shared.setScreen(.sourceList)

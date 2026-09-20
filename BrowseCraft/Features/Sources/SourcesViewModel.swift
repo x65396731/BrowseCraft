@@ -869,16 +869,6 @@ final class SourcesViewModel {
     }
 
     @MainActor
-    /// 中文注释：refreshSelectedSource 方法封装当前类型的一段业务或界面行为。
-    func refreshSelectedSource() async {
-        guard let selectedSource: Source = self.selectedSource else {
-            return
-        }
-
-        await self.refreshSource(selectedSource)
-    }
-
-    @MainActor
     func retryFailedRefresh() async {
         let failedRefreshAction: FailedRefreshAction? = self.failedRefreshAction
         self.errorMessage = nil
