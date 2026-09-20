@@ -105,13 +105,44 @@ enum RemoteImageRequestBuilder {
 
 extension View {
     /// 中文注释：把视图的布局尺寸回写到 binding；封面/缩略图用它决定解码尺寸。
+    ///
+    /// **回写必须是稳定的**：`displaySize` 是 `RemoteImageRequestIdentity` 的成分，
+    /// 它一动 `.task(id:)` 就重跑、请求就重新构造一遍（扫系统 Cookie、合并三层请求头）。
+    /// 2026-09-20 真机日志实测：同一张缩略图被构造 **3 次**，`viewID` 全程不变
+    /// （即视图没有被重建），三次的宽是 `113 / 113 / 112`——
+    /// SwiftUI 报告的尺寸有亚像素抖动，取整后跨了整数边界就产生一个新 identity。
+    /// 首屏 55 张图即上百次无谓的 Cookie 扫描与请求头合并，
+    /// 且 113 与 112 是两个不同的解码尺寸，在缩略图池里各占一份内存缓存。
+    ///
+    /// 两道闸各挡一个成因：
+    /// 1. **忽略归零**——一旦测到过正尺寸，零就是布局中间态而不是新尺寸。
+    ///    `RemoteImageRequestIdentity` 的可失败构造会把零变成 `nil` id，
+    ///    于是 id 走 `A → nil → A`、task 白跑两次，而且零那次不产生日志、查不出来。
+    /// 2. **滞后阈值**——变化小于 `displaySizeHysteresis` 就不算新尺寸。
+    ///    这里**不用固定分桶**：实测的 112 与 113 在 4pt 桶里分属 112 与 116、
+    ///    在 8pt 桶里分属 112 与 120，任何固定桶都有边界问题，只是把抖动挪个位置；
+    ///    滞后没有边界，真实的布局变化（旋屏、分栏）远大于阈值，照常生效。
     func measuringDisplaySize(into size: Binding<CGSize>) -> some View {
         return self.onGeometryChange(for: CGSize.self) { proxy in
             return proxy.size
         } action: { newSize in
-            if size.wrappedValue != newSize {
+            guard newSize.width > 0, newSize.height > 0 else {
+                return
+            }
+
+            let currentSize: CGSize = size.wrappedValue
+            let isUnmeasured: Bool = currentSize.width <= 0 || currentSize.height <= 0
+            let isMeaningfulChange: Bool =
+                abs(currentSize.width - newSize.width) >= displaySizeHysteresis
+                || abs(currentSize.height - newSize.height) >= displaySizeHysteresis
+
+            if isUnmeasured || isMeaningfulChange {
                 size.wrappedValue = newSize
             }
         }
     }
 }
+
+/// 中文注释：小于这个点数的尺寸变化不算新尺寸。实测的抖动是 1pt（113 ↔ 112），
+/// 4pt 足以吞掉它，又远小于任何真实的布局变化。
+private let displaySizeHysteresis: CGFloat = 4
