@@ -29,13 +29,16 @@ struct EmptyStateView: View {
     }
 }
 
-/// 中文注释：空态的图面。插画按 180pt 高渲染——资产是 540px 高，正好是 @3x 的原生分辨率；
+/// 中文注释：空态的图面。插画默认按 180pt 高渲染——那批资产是 540px 高，正好是 @3x 的原生分辨率；
 /// 宽度随各张自己的宽高比走（0.51 到 0.94），所以用 `.scaledToFit()` 装进等高的框，
 /// 窄的那几张左右留白多一些，而不是把它们拉宽。
+/// `height` 可调是给内容更密的屏用的（合格入口页引导屏用 150pt，它下面还有三段要读），
+/// 换高度时记得同步换一张对应像素高的资产，别让 @3x 去缩放别的尺寸。
 /// 插画自身不含说明性内容，读屏时由外层 `title` / `message` 承担，因此对辅助功能隐藏。
 struct EmptyStateIconView: View {
     let systemImage: String
     let illustration: String?
+    var height: CGFloat = 180
 
     var body: some View {
         if let name: String = self.illustration {
@@ -43,7 +46,7 @@ struct EmptyStateIconView: View {
                 .resizable()
                 .interpolation(.high)
                 .scaledToFit()
-                .frame(height: 180)
+                .frame(height: self.height)
                 .accessibilityHidden(true)
         } else {
             Image(systemName: self.systemImage)

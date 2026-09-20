@@ -38,6 +38,7 @@ EmptyStateFavorites     210000    447x540    single-scale-png
 EmptyStateHistory       220000    387x540    single-scale-png
 EmptyStateSearch        215000    274x540    single-scale-png
 EmptyStateOffline       233000    506x540    single-scale-png
+EntryGuideUnsupportedPage 185000  395x450    single-scale-png
 
 # 2026-09-20 两处改动的理由：
 #
@@ -63,3 +64,8 @@ EmptyStateOffline       233000    506x540    single-scale-png
 # 背景是用洪水填充从画面四边抠掉纯白得到的：只去掉与边界连通的白，
 # 角色身上被轮廓包住的白（过膝袜、胸甲护板、白色长摆）因此不受影响。
 # 这也是生成时要求「人物与道具不得接触画面四条边」的原因——一旦接触，白色会顺缺口漏进去。
+#
+# EntryGuideUnsupportedPage 是同一批里的第六张，登记 450px 高（= 150pt @3x）而不是 540：
+# 它是合格入口页引导屏的引题图，那一屏下面还有三段要读，引题图占掉半屏就本末倒置了。
+# 画面里她指着的那块卡片画的就是反例——几块区块拼起来、底部没有页码，
+# 与第一段「两条要求」说的是同一件事，所以它放在最上面当引题，而不是当装饰。

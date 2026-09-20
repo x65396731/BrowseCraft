@@ -44,6 +44,21 @@ struct EntryPageGuideView: View {
 
     var body: some View {
         Form {
+            // 中文注释：引题图。她指着的那块卡片画的就是反例——几块区块拼起来、底部没有页码，
+            // 与下面第一段「两条要求」说的是同一件事，所以它在最上面先把问题摆出来，
+            // 而不是当装饰挂在某处。行背景清掉，让它读起来像 Form 的页眉而不是又一张分组卡片。
+            Section {
+                EmptyStateIconView(
+                    systemImage: "questionmark.circle",
+                    illustration: "EntryGuideUnsupportedPage",
+                    height: 150
+                )
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+            }
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+
             Section {
                 self.requirementRow(
                     systemImage: "list.number",
