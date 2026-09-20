@@ -38,14 +38,14 @@ struct AddSourceView: View {
                 VideoGenerationInputView(
                     viewModel: self.viewModel,
                     sourceKind: .comic,
-                    onGenerationSubmitted: self.returnToSources
+                    onFinished: self.returnToSources
                 )
             }
             .sheet(isPresented: self.$isShowingVideoGeneration) {
                 VideoGenerationInputView(
                     viewModel: self.viewModel,
                     sourceKind: .video,
-                    onGenerationSubmitted: self.returnToSources
+                    onFinished: self.returnToSources
                 )
             }
             // 中文注释：读书 kind 与漫画 / 视频同一条服务端规则生成入口（PortalCore 2026-09-13 起接受 sourceKind: book）。
@@ -53,7 +53,7 @@ struct AddSourceView: View {
                 VideoGenerationInputView(
                     viewModel: self.viewModel,
                     sourceKind: .book,
-                    onGenerationSubmitted: self.returnToSources
+                    onFinished: self.returnToSources
                 )
             }
             .alert(
@@ -73,9 +73,10 @@ struct AddSourceView: View {
         }
     }
 
-    /// 中文注释：生成请求提交成功后，两层 sheet 一起收起回到来源页——用户已经拿到任务回执，
-    /// 规则生成完会自己出现在目录里，没有留在这一屏继续点的事。关掉最外层的
-    /// `AddSourceView` 会连带收掉它呈现的预检 sheet。
+    /// 中文注释：预检页无论怎么结束（提交成功自动返回、按「关闭」、下滑关掉）都回到来源页，
+    /// 三种关法一个落点。提交成功的那次用户已经拿到任务回执，规则生成完会自己出现在目录里，
+    /// 没有留在这一屏继续点的事。关掉最外层的 `AddSourceView` 会连带收掉它呈现的预检 sheet；
+    /// 自动返回已经收掉这一层时，后到的那次 `dismiss()` 是空操作。
     private func returnToSources() {
         self.dismiss()
     }

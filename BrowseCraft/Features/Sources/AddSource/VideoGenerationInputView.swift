@@ -7,10 +7,9 @@ struct VideoGenerationInputView: View {
     /// 中文注释：预检是中性的，两种 kind 走同一套输入与判定；`sourceKind` 只决定
     /// 标题文案与提交给服务端的生成链。
     let sourceKind: RuleGenerationSourceKind
-    /// 中文注释：生成请求提交成功后由宿主决定去哪儿——这里只报告「成功了」，
-    /// 关闭哪几层 sheet 是 `AddSourceView` 的事。
-    let onGenerationSubmitted: () -> Void
-    @Environment(\.dismiss) private var dismiss
+    /// 中文注释：这一屏结束时交回宿主决定落点——提交成功自动返回、按「关闭」、下滑关掉，
+    /// 三条出口共用这一个回调，三种关法落在同一页；关闭哪几层 sheet 是 `AddSourceView` 的事。
+    let onFinished: () -> Void
 
     @State private var siteURL: String = ""
     @State private var result: VideoGenerationInputPreflight?
@@ -117,7 +116,7 @@ struct VideoGenerationInputView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(NSLocalizedString("video_preflight_close_button", comment: "")) {
                         self.cancelAssessment()
-                        self.dismiss()
+                        self.onFinished()
                     }
                 }
             }
@@ -130,6 +129,7 @@ struct VideoGenerationInputView: View {
             .onDisappear {
                 self.cancelAssessment()
                 self.cancelSubmission()
+                self.onFinished()
             }
         }
     }
@@ -185,6 +185,7 @@ struct VideoGenerationInputView: View {
             return
         }
         self.assessmentTask?.cancel()
+        self.cancelPendingReturn()
         self.result = nil
         self.errorMessage = nil
         self.isChecking = true
@@ -276,23 +277,30 @@ struct VideoGenerationInputView: View {
     private func cancelSubmission() {
         self.submissionTask?.cancel()
         self.submissionTask = nil
-        self.returnTask?.cancel()
-        self.returnTask = nil
+        self.cancelPendingReturn()
         self.submissionState = .idle
         self.reusedRuleImportFailed = false
+    }
+
+    /// 中文注释：自动返回那 1.2 秒里这一屏仍然可点，用户的任何新动作都优先——
+    /// 重新检查、改 URL、自己关掉，都先撤掉待返回，免得定时器晚一步把用户刚起的新动作
+    /// （比如正在跑的下一次预检）连窗口一起关掉。
+    private func cancelPendingReturn() {
+        self.returnTask?.cancel()
+        self.returnTask = nil
     }
 
     /// 中文注释：只有 `.submitted` 走自动返回——那一条是「生成请求成功」的唯一形态。
     /// `.reused` 命中的是服务端已有的规则，那一屏还挂着「重新生成」入口，自动退出会把它吞掉。
     private func scheduleReturnToSources() {
-        self.returnTask?.cancel()
+        self.cancelPendingReturn()
         self.returnTask = Task { @MainActor in
             try? await Task.sleep(for: Self.submittedReturnDelay)
             guard Task.isCancelled == false else {
                 return
             }
             self.returnTask = nil
-            self.onGenerationSubmitted()
+            self.onFinished()
         }
     }
 
