@@ -10,6 +10,9 @@
 #   single-scale-lossy-png  单档 PNG + Contents.json 里的 `"compression-type": "lossy"`。
 #                           用于**渲染宽度远小于原生分辨率**的图：缩放本身就会抹平压缩块，
 #                           实测这类图在真实渲染宽度上的 SSIM 仍有 0.990 以上。
+#   multi-scale-png         1x / 2x / 3x 三档 PNG。用于**按 pt 尺寸原生渲染、不经 .resizable() 缩放**的图，
+#                           例如底栏图标——单档会被当成 @1x，75px 的图就渲染成 75pt，撑爆底栏。
+#                           尺寸那一列写 @1x 的像素（闸门取排序后的第一个文件量）。
 #   keep-as-is              维持现状。
 #
 # 「单档」对所有占位图成立：它们一律经 ItemThumbnailImageView 的 `.resizable().scaledToFill()`
@@ -39,6 +42,11 @@ EmptyStateHistory       220000    387x540    single-scale-png
 EmptyStateSearch        215000    274x540    single-scale-png
 EmptyStateOffline       233000    506x540    single-scale-png
 EntryGuideUnsupportedPage 185000  395x450    single-scale-png
+TabSources              5000      25x25      multi-scale-png
+TabFavorites            4200      25x25      multi-scale-png
+TabLibrary              5200      25x25      multi-scale-png
+TabHistory              5600      25x25      multi-scale-png
+TabSettings             5400      25x25      multi-scale-png
 
 # 2026-09-20 两处改动的理由：
 #
@@ -69,3 +77,18 @@ EntryGuideUnsupportedPage 185000  395x450    single-scale-png
 # 它是合格入口页引导屏的引题图，那一屏下面还有三段要读，引题图占掉半屏就本末倒置了。
 # 画面里她指着的那块卡片画的就是反例——几块区块拼起来、底部没有页码，
 # 与第一段「两条要求」说的是同一件事，所以它放在最上面当引题，而不是当装饰。
+#
+# 底栏五图标：25 / 50 / 75 三档（25pt），Contents.json 里标
+# "template-rendering-intent": "template"。这是整套里唯一走模板渲染的一组——
+# tabItem 的 Image 默认就只取 alpha 再填 tint 色，所以图画成纯黑剪影，
+# 选中/未选中的着色交给系统，行为与原来的 SF Symbols 一致，代码侧不写 .renderingMode。
+# 反过来做（彩色图 + .renderingMode(.original)）会让两种状态长得一模一样，
+# 得自己维护两套图，那条路已经验证不通。
+#
+# 做成三档是 2026-09-20 真机上试出来的：先按单档 75x75 做，底栏里图标撑满了整条、
+# 把文字标签挤住——单档会被当成 @1x，75px 就渲染成 75pt。底栏图标按 pt 原生渲染，
+# 不经 .resizable()，所以它与占位图那一段的结论正好相反，必须给足三档。
+#
+# 五个图标先各自裁边，再按五者中最大的那条边（206px）统一装进 222x222 的画布居中，
+# 最后一起缩到 75。这样保住了它们在原图里的相对大小——那一版的视觉重量差是 1.27 倍
+# （最重历史、最轻设置），按各自包围盒分别缩放会把这个平衡破坏掉。

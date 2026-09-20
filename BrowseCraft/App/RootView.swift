@@ -146,6 +146,10 @@ struct RootView: View {
         }
     }
 
+    /// 中文注释：底栏五图标是自绘的纯黑剪影，走资产目录里标好的模板渲染——
+    /// `tabItem` 的 `Image` 本来就只取 alpha 再填 tint 色，所以选中/未选中的着色仍由系统负责，
+    /// 行为与换掉的那五个 SF Symbol 一致，这里不写 `.renderingMode`。
+    /// 代价是位图不跟 Dynamic Type 缩放——换来的是形状归自己。
     private var mainTabView: some View {
         TabView(selection: self.$selectedTab) {
             SourcesView(
@@ -153,7 +157,7 @@ struct RootView: View {
                 cloudSyncViewModel: self.cloudSyncSettingsViewModel
             )
                 .tabItem {
-                    Image(systemName: "tray.full")
+                    Image("TabSources")
                     Text("Sources")
                 }
                 .tag(RootTab.sources)
@@ -164,7 +168,7 @@ struct RootView: View {
                 contentViewModelFactory: self.libraryContentViewModelFactory
             )
                 .tabItem {
-                    Image(systemName: "heart")
+                    Image("TabFavorites")
                     Text("Favorites")
                 }
                 .tag(RootTab.favorites)
@@ -173,7 +177,7 @@ struct RootView: View {
                 viewModel: self.libraryViewModel,
                 contentViewModelFactory: self.libraryContentViewModelFactory)
                 .tabItem {
-                    Image(systemName: "square.grid.2x2")
+                    Image("TabLibrary")
                     Text("Library")
                 }
                 .tag(RootTab.library)
@@ -183,7 +187,7 @@ struct RootView: View {
                 contentViewModelFactory: self.libraryContentViewModelFactory
             )
                 .tabItem {
-                    Image(systemName: "clock")
+                    Image("TabHistory")
                     Text("History")
                 }
                 .tag(RootTab.history)
@@ -193,7 +197,7 @@ struct RootView: View {
                 cloudSyncViewModel: self.cloudSyncSettingsViewModel
             )
                 .tabItem {
-                    Image(systemName: "gearshape")
+                    Image("TabSettings")
                     Text("Settings")
                 }
                 .tag(RootTab.settings)
