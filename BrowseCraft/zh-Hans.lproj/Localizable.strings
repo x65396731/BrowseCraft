@@ -105,6 +105,10 @@
 "video_generation_outcome_failed_unknown" = "生成失败，请稍后重试。";
 "video_generation_outcome_detail_noPlaybackCarrier" = "该网站上没有找到视频播放。";
 "video_generation_outcome_detail_episodeLayoutUnsupported" = "该网站有视频页面，但这种剧集布局暂不支持。";
+"video_generation_outcome_detail_entryPageWithoutPagination" = "这个页面的翻页地址推不出来，只能取到第一屏。请换一个翻页停留在同一套地址上的分类页。";
+"video_generation_outcome_detail_entryPageMultipleListFamilies" = "这个页面上有好几组互不相干的列表，请换一个只列一类内容的分类页。";
+"video_generation_outcome_detail_entryPageNoListFamily" = "这个页面上没有找到内容列表，请换一个分类页或列表页。";
+"video_generation_outcome_detail_entryPageShapeAmbiguous" = "这个页面的结构没看清，请换一个分类页再试一次。";
 /* 个人规则本地保留 7 天；删除只在本地隐藏并移除已添加的来源。 */
 "catalog_personal_retention_hint" = "你生成的规则在本机保留 7 天（从收到时起算），左滑可提前删除。";
 "catalog_personal_delete" = "删除";

@@ -189,7 +189,11 @@ enum VideoGenerationOutcomeText {
         "inputInvalid", "evidenceInsufficient", "temporaryFailure"
     ]
     static let knownReasonDetails: Set<String> = [
-        "noPlaybackCarrier", "episodeLayoutUnsupported"
+        "noPlaybackCarrier", "episodeLayoutUnsupported",
+        // `BC-PAGE-060` 的四种入口页拒因（服务端 `BC-PREFLIGHT-056` 2026-09-20 修订）。
+        // 不在这张表里的细分一律不显示，只留 `reason` 的通用文案——服务端先于 App 上线新值是常态。
+        "entryPageWithoutPagination", "entryPageMultipleListFamilies",
+        "entryPageNoListFamily", "entryPageShapeAmbiguous"
     ]
 
     static func reasonText(for outcome: VideoGenerationOutcome) -> String {

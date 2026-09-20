@@ -105,6 +105,10 @@
 "video_generation_outcome_failed_unknown" = "生成失敗，請稍後再試。";
 "video_generation_outcome_detail_noPlaybackCarrier" = "這個網站上找不到影片播放。";
 "video_generation_outcome_detail_episodeLayoutUnsupported" = "這個網站有影片頁面，但這種劇集排版暫時不支援。";
+"video_generation_outcome_detail_entryPageWithoutPagination" = "這個頁面的翻頁網址推不出來，只能取到第一屏。請換一個翻頁停留在同一套網址上的分類頁。";
+"video_generation_outcome_detail_entryPageMultipleListFamilies" = "這個頁面上有好幾組互不相干的清單，請換一個只列一類內容的分類頁。";
+"video_generation_outcome_detail_entryPageNoListFamily" = "這個頁面上沒有找到內容清單，請換一個分類頁或清單頁。";
+"video_generation_outcome_detail_entryPageShapeAmbiguous" = "這個頁面的結構沒看清，請換一個分類頁再試一次。";
 /* 個人規則在本機保留 7 天；刪除只會在本機隱藏，並移除已加入的來源。 */
 "catalog_personal_retention_hint" = "你生成的規則會在本機保留 7 天（從收到時算起），向左滑可以提前刪除。";
 "catalog_personal_delete" = "刪除";
