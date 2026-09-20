@@ -28,6 +28,12 @@ struct LibraryView: View {
                 ScrollView {
                     self.libraryContent
                 }
+                // 中文注释：顶部拉动刷新当前 tab 的第 1 页。切 tab 不再自动重取之后
+                // （取过就一直沿用，不设过期时间），这是用户要新内容的唯一入口。
+                // 与底部的触底加载下一页互不相干：那条路走 `loadNextPageIfNeeded`，这条走 replace。
+                .refreshable {
+                    await self.viewModel.refreshSelectedListTab()
+                }
             }
             .disabled(self.isInteractionLocked)
             .overlay(

@@ -204,16 +204,15 @@ final class LibraryViewModel {
 
         // 中文注释：缓存本来就按 tab 分开存，只是此前切过去之后**无条件**再 replace 刷一次，
         // 于是 `tab-cache-hit` 刚显示出来的内容立刻被一次网络取回顶掉（2026-09-20 真机日志：
-        // 命中 40 条 → 紧接着 `/browse/13-1.html` 又取一遍）。缓存新鲜就不重取；
-        // 下拉刷新走的是 `refreshSelectedListTab`，不受这里影响，任何时候都强制刷。
+        // 命中 40 条 → 紧接着 `/browse/13-1.html` 又取一遍）。取到过就不重取，**不设过期时间**；
+        // 要新内容由用户自己的刷新动作触发（走 `refreshSelectedListTab`，不受这里影响）。
         if let selectedSourceID: String = self.selectedSourceID,
-           self.listStateStore.isCacheFresh(
+           self.listStateStore.hasLoaded(
                sourceID: selectedSourceID,
-               context: self.selectedListContext,
-               now: self.now()
+               context: self.selectedListContext
            ) {
             self.logLibraryItems(
-                origin: "tab-switch-cache-fresh-skip-refresh",
+                origin: "tab-switch-cached-skip-refresh",
                 sourceID: selectedSourceID,
                 context: self.selectedListContext
             )
@@ -390,11 +389,10 @@ final class LibraryViewModel {
                         context: expectedListContext
                     )
                 }
-                // 中文注释：只有真从站点取回才记时刻——读缓存不算，否则缓存会自己把自己续命。
-                self.listStateStore.markRefreshed(
+                // 中文注释：只有真从站点取回才记——读缓存不算。
+                self.listStateStore.markLoaded(
                     sourceID: refreshedSelectedSource.id,
-                    context: expectedListContext,
-                    at: self.now()
+                    context: expectedListContext
                 )
                 self.applyListCacheEntry(entry)
                 self.setListTabError(nil, sourceID: expectedSourceID, context: expectedListContext)
