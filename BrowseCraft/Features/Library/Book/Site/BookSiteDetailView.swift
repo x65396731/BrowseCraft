@@ -97,7 +97,8 @@ struct BookSiteDetailView: View {
             // `http://rs.sfacg.com/…`，AsyncImage 直连被 ATS 拒（2026-09-14 真机 -1022）；列表网格本就走共享组件，所以列表有图。
             CoverImageView(
                 urlString: self.viewModel.manifest?.coverURL?.absoluteString ?? self.viewModel.item.coverURL,
-                refererURLString: self.viewModel.item.detailURL
+                refererURLString: self.viewModel.item.detailURL,
+                placeholderImageName: "BookCoverPlaceholder"
             )
             .frame(width: 72, height: 100)
             .clipShape(RoundedRectangle(cornerRadius: 6))

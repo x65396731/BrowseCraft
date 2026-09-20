@@ -30,6 +30,7 @@
 ComicListPlaceholder    962000    600x900    single-scale-lossy-png
 VideoListPlaceholder    943000    600x900    single-scale-lossy-png
 ComicDetailPlaceholder  310000    354x504    single-scale-lossy-png
+BookCoverPlaceholder    95000     216x300    single-scale-png
 VideoDetailPlaceholder  2399000   1320x1386  single-scale-png
 LaunchSplash            854000    720x1280   keep-as-is
 AppIcon                 950000    1024x1024  keep-as-is
@@ -92,3 +93,11 @@ TabSettings             5400      25x25      multi-scale-png
 # 五个图标先各自裁边，再按五者中最大的那条边（206px）统一装进 222x222 的画布居中，
 # 最后一起缩到 75。这样保住了它们在原图里的相对大小——那一版的视觉重量差是 1.27 倍
 # （最重历史、最轻设置），按各自包围盒分别缩放会把这个平衡破坏掉。
+#
+# BookCoverPlaceholder 与 video / comic 那四张占位图不同，是一张「书的封面」而不是场景插画，
+# 而且一张两处通用。2026-09-20 量过显示尺寸才定下来的：book 的封面框是书架行 44x60pt
+# 与详情头部 72x100pt，comic / video 则是三列网格里的 115x173pt——前者不到后者一半，
+# 比例也不同（book 约 3:4，另两者是 129:194 的 2:3）。满场景插画在那个尺寸里糊成一团，
+# 所以改成书封设计；book 自己那两处比例几乎一样，因此不像另两种那样分列表与详情两张。
+# 登记 216x300（= 详情框 72x100pt 在 @3x 上的原生像素，也是它最大的使用尺寸），
+# 无损而非 lossy：它按接近原生的分辨率渲染，不属于「渲染宽度远小于原生」那一类。

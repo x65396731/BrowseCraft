@@ -134,11 +134,12 @@ private struct BookShelfRowView: View {
                 .resizable()
                 .scaledToFill()
         } else {
-            ZStack {
-                Color.secondary.opacity(0.15)
-                Image(systemName: self.item.book.format == .epub ? "book.closed" : "headphones")
-                    .foregroundStyle(.secondary)
-            }
+            // 中文注释：本地书没有封面文件时落到这张书封插画，与 video / comic 的占位图同一套视觉。
+            // 原来这里按格式分了 book.closed / headphones 两个符号，但同一行里已经有
+            // 「EPUB / Audiobook」的文字标注，图上再分一次是冗余的。
+            Image("BookCoverPlaceholder")
+                .resizable()
+                .scaledToFill()
         }
     }
 }
