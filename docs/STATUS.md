@@ -121,3 +121,11 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | WebView 就绪选择器：加载器按「规则要提取的内容到了没」提前返回，等待 3438 ms → 314 ms | `APP-MEMO-016` | required | approved | implemented | device-passed | 54e2df3 | 2026-09-18 |
 | Swift 6 语言模式：App 与四个包切换，并加闸门把「警告为零」固化成编译错误 | `BCA-ARCH-007` | required | approved | implemented | static-audit-passed | 2f769ae | 2026-09-18 |
 | 封面请求重复构造——代价测量否掉：重复的只是请求构造，改发布时序要动两个 ViewModel，条目关闭 | 未编号 | rejected | superseded | not-started | targeted-passed | 70b2700 | 2026-09-18 |
+
+## 7. 规则生成入口
+
+| 工作项 | 条款 | 决策 | 设计 | 实施 | 验证 | 检查点 | 更新日期 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 合格入口页引导屏：两个要素做成添加来源的首次必过一屏，输入页留常驻回看入口，四种入口页拒因的失败行挂教程入口 | `BC-PAGE-060` | required | approved | implemented | static-audit-passed | 90bd347 | 2026-09-20 |
+| 引导屏做成输入页上的常驻折叠段（不拦路）——用户 2026-09-20 裁定用首次必过一屏，折叠态大概率没人展开 | `BC-PAGE-060` | rejected | superseded | not-started | not-run | 90bd347 | 2026-09-20 |
+| 输入框「这看起来是网站首页」的本地软提示——用户 2026-09-20 裁定不做：服务器真实提交 34 条里根入口只有 5 条，且单 list 带分页的首页本就合格，提示会对那类页面说错话 | 未编号 | rejected | approved | not-started | targeted-passed | 90bd347 | 2026-09-20 |
