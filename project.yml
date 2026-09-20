@@ -141,6 +141,14 @@ targets:
         INFOPLIST_FILE: BrowseCraft/Info.plist
         CODE_SIGN_ENTITLEMENTS: BrowseCraft/BrowseCraft.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # 中文注释：这一行设的是 UIKit 的 window tintColor 与 IB 预览，对纯 SwiftUI 的
+        # Color.accentColor **不自动生效**——后者读的是环境值，默认就是系统蓝，
+        # 除非在根视图上显式 .tint(...)。BrowseCraftApp 里没有那一句，所以
+        # AccentColor.colorset 的取值从来没有被画出来过。
+        # 2026-09-20 实测：界面上所有 .accentColor 处都是 #0088FF 系统蓝（色相 208°），
+        # 而当时 colorset 里写的是 #AF86C6 紫（277°）——那是配早期紫色 bitmoji 图标留下的，
+        # 已改成系统蓝的标准取值，免得下一个人以为改它就能换主题色。
+        # 真要换主题色，得同时做两件事：改这里的 colorset，并在根视图加 .tint(Color("AccentColor"))。
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         # Crashlytics and the post-embed FFmpeg bundle patch both need access
         # outside statically declared script inputs and outputs.
