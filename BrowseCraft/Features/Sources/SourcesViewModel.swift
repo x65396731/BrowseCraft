@@ -567,7 +567,48 @@ final class SourcesViewModel {
         self.videoGenerationOutcomesLoad = load
         if case .loaded(let outcomes) = load {
             await self.removePersonalSourcesMissingFromOutcomes(outcomes)
+            await self.refreshPersonalSourcesFromOutcomes(outcomes)
         }
+    }
+
+    /// 中文注释：个人规则的**内容**同样由服务器裁决。上面那个方法做的是「服务端说它没了就删本地」，
+    /// 本方法是对称的另一半：「服务端说它变了就更新本地」。
+    ///
+    /// 缺了这一半，用户自己刚生成的规则要等他去来源列表点一次「更新规则」才生效，而推送已经
+    /// 告诉他成功了。`BC-CATALOG-071` 让第二个入口并进已有来源之后这条缝更明显——「成功」的
+    /// 表现形式是已有来源多一个分类，而不是列表多一条，用户回到库里会觉得什么都没发生。
+    ///
+    /// **只作用于 `origin == .personalGeneration` 的来源**：公共目录的官方规则保持手动更新是
+    /// 有意设计（`catalogSourceHasRuleUpdate` 那行注释的由来），不该在用户背后换掉别人维护的规则。
+    @MainActor
+    private func refreshPersonalSourcesFromOutcomes(_ outcomes: [VideoGenerationOutcome]) async {
+        var refreshedCount: Int = 0
+        for outcome: VideoGenerationOutcome in outcomes where outcome.didSucceed {
+            guard let catalogSource: CatalogSource = outcome.catalogSource,
+                  let existing: Source = self.sources.first(where: { source in
+                      return source.id == catalogSource.id
+                  }),
+                  existing.origin == .personalGeneration,
+                  self.catalogSourceHasRuleUpdate(catalogSource) else {
+                continue
+            }
+            let updated: Bool = await self.addCatalogSource(
+                catalogSource,
+                shouldPresentError: false,
+                preserveSelection: true
+            )
+            if updated {
+                refreshedCount += 1
+            }
+        }
+        guard refreshedCount > 0 else {
+            return
+        }
+        AppLog.notice(
+            .push,
+            event: "personal-sources-refreshed",
+            metadata: ["count": String(refreshedCount)]
+        )
     }
 
     /// 中文注释：个人规则的存活由服务器裁决（7 天可见期、软删除）。标记为「来自个人生成」的本地来源
@@ -637,9 +678,12 @@ final class SourcesViewModel {
     }
 
     @MainActor
+    /// - Parameter preserveSelection: 自动更新已添加来源时为真——**不得把用户从他正在看的来源上拽走**。
+    ///   为真时只有当这条来源就是当前选中的那条，才重建库快照；其余情况只覆盖数据、不动界面。
     func addCatalogSource(
         _ catalogSource: CatalogSource,
-        shouldPresentError: Bool = true
+        shouldPresentError: Bool = true,
+        preserveSelection: Bool = false
     ) async -> Bool {
         CrashDiagnostics.shared.setRuleStage(.list)
         self.catalogSourceAddFailureMessages.removeValue(forKey: catalogSource.id)
@@ -655,7 +699,12 @@ final class SourcesViewModel {
             )
             var source: Source = result.source
             source.userID = self.currentUserID
+            let wasSelected: Bool = self.selectedSourceID == source.id
             await self.load()
+            if preserveSelection && wasSelected == false {
+                // 中文注释：后台自动更新一条用户没在看的来源——数据已经覆盖，界面一个字不动。
+                return true
+            }
             if let listOutput: SourceListOutput = result.listOutput {
                 let items: [ContentItem] = self.contentItemMapper.map(
                     output: listOutput,
