@@ -30,6 +30,9 @@ ComicDetailPlaceholder  310000    354x504    single-scale-lossy-png
 VideoDetailPlaceholder  2399000   1320x1386  single-scale-png
 LaunchSplash            854000    720x1280   keep-as-is
 AppIcon                 950000    1024x1024  keep-as-is
+VideoKindBadge          12000     96x96      single-scale-png
+ComicKindBadge          12000     96x96      single-scale-png
+BookKindBadge           12000     96x96      single-scale-png
 
 # 2026-09-20 两处改动的理由：
 #
@@ -39,3 +42,8 @@ AppIcon                 950000    1024x1024  keep-as-is
 # 不透明（着色版先经 Generic Gray 去色再转回 sRGB，逐像素 R=G=B）。这里约束的是输入字节，
 # 随包大小由 actool 决定——appiconset 只产出一套图标资源，不进 ItemThumbnailImageView 那条缩放链路。
 #
+# 三枚 KindBadge 是 video / comic / book 的类型标识圆形徽章，登记为单档 96×96 无损。
+# 单档的理由与占位图那一段相同：它们经 `.resizable()` 缩放到 24pt 版面框（AddSourceView 的
+# 类型选择行），多档 scale 槽位不产生收益。96px 对 24pt@3x（72px）留了余量，够将来放大到 32pt。
+# 不用 lossy：圆形徽章靠边缘的抗锯齿过渡带保证没有白边，有损压缩正会伤这一圈，而 9KB 的图
+# 压不压都不影响包体。

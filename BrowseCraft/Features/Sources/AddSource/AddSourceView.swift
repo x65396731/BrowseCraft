@@ -92,12 +92,30 @@ struct AddSourceView: View {
                     self.select(option)
                 },
                 label: {
-                    Label(
-                        option.kind.displayTitle,
-                        systemImage: option.kind.systemImageName
-                    )
+                    Label {
+                        Text(option.kind.displayTitle)
+                    } icon: {
+                        self.optionIcon(for: option.kind)
+                    }
                 }
             )
+        }
+    }
+
+    /// 中文注释：三种可生成的 kind 改用自绘的圆形徽章——SF Symbols 里没有能把「漫画」和「图书」
+    /// 分开的符号，此前漫画用 `book.pages`、图书用 `text.book.closed`，两个都是书的形状，
+    /// 用户在这一屏选类型时分不出哪个是哪个。`scriptSource` 不是生成 kind，没有对应徽章，
+    /// 继续走系统符号。
+    @ViewBuilder
+    private func optionIcon(for kind: SourceImportOptionKind) -> some View {
+        if let assetName: String = kind.badgeAssetName {
+            Image(assetName)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 24, height: 24)
+                .accessibilityHidden(true)
+        } else {
+            Image(systemName: kind.systemImageName)
         }
     }
 
@@ -154,6 +172,21 @@ private extension SourceImportOptionKind {
             return "Books"
         case .scriptSource:
             return "Script Source"
+        }
+    }
+
+    /// 中文注释：三种生成 kind 各有一枚圆形徽章资源（青蓝=视频、紫=漫画、金=图书），
+    /// 颜色本身就是类型编码，因此不跟随 tintColor。没有徽章的 kind 返回 nil，回退到 `systemImageName`。
+    var badgeAssetName: String? {
+        switch self {
+        case .comicSource:
+            return "ComicKindBadge"
+        case .videoSource:
+            return "VideoKindBadge"
+        case .bookSource:
+            return "BookKindBadge"
+        case .scriptSource:
+            return nil
         }
     }
 
