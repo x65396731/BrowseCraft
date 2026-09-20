@@ -214,9 +214,9 @@ enum VideoGenerationOutcomeText {
     ]
     // `BC-PAGE-060` 的四种入口页拒因（服务端 `BC-PREFLIGHT-056` 2026-09-20 修订）并进这张表。
     // 不在表里的细分一律不显示，只留 `reason` 的通用文案——服务端先于 App 上线新值是常态。
-    static let knownReasonDetails: Set<String> = [
+    static let knownReasonDetails: Set<String> = Set<String>([
         "noPlaybackCarrier", "episodeLayoutUnsupported"
-    ].union(VideoGenerationOutcomeText.entryPageRejectionDetails)
+    ]).union(Self.entryPageRejectionDetails)
 
     static func reasonText(for outcome: VideoGenerationOutcome) -> String {
         guard let reason: String = outcome.reason, Self.knownReasons.contains(reason) else {
