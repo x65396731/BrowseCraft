@@ -143,6 +143,16 @@ struct LibraryListStateStore {
     private var confirmedEmptyTabKeys: Set<String> = []
     private var errorMessages: [LibraryListStateKey: String] = [:]
     private var cache: [LibraryListStateKey: LibraryListCacheEntry] = [:]
+    /// 中文注释：每个 tab 各自的「上次真取到数据的时刻」。缓存本来就按 tab 分开存，
+    /// 缺的只是新鲜度——没有它就没法回答「切回这个 tab 要不要重取」，
+    /// 于是切 tab 只能无条件刷一次，缓存命中了也白命中（2026-09-20 真机日志）。
+    private var refreshedAt: [LibraryListStateKey: Date] = [:]
+
+    /// 一个 tab 的数据最多沿用多久；超过就在切回来时重取一次。
+    ///
+    /// 中文注释：取 5 分钟——来回切 tab 不再重新加载，离开久了回来仍然能看到新内容。
+    /// 下拉刷新与「刷新」动作不看它，任何时候都强制重取。
+    static let cacheFreshnessSeconds: TimeInterval = 300
 
     func visibleTabs(_ tabs: [ListTabRule], source: Source?) -> [ListTabRule] {
         guard source?.configuration.kind == .video,
@@ -207,6 +217,23 @@ struct LibraryListStateStore {
 
     func cachedEntry(sourceID: String, context: ListContext?) -> LibraryListCacheEntry? {
         return self.cache[self.stateKey(sourceID: sourceID, context: context)]
+    }
+
+    /// 这个 tab 的缓存还新鲜吗——新鲜就不必在切过去时重取。
+    ///
+    /// 中文注释：没有取数记录时一律返回 false（宁可多取一次，也不给用户看一份来路不明的旧数据）。
+    func isCacheFresh(sourceID: String, context: ListContext?, now: Date) -> Bool {
+        let key: LibraryListStateKey = self.stateKey(sourceID: sourceID, context: context)
+        guard self.cache[key] != nil,
+              let refreshedAt: Date = self.refreshedAt[key] else {
+            return false
+        }
+        return now.timeIntervalSince(refreshedAt) < Self.cacheFreshnessSeconds
+    }
+
+    /// 记下这个 tab 刚取到数据的时刻。只有**真从站点取回**才调用，读缓存不算。
+    mutating func markRefreshed(sourceID: String, context: ListContext?, at: Date) {
+        self.refreshedAt[self.stateKey(sourceID: sourceID, context: context)] = at
     }
 
     @discardableResult
