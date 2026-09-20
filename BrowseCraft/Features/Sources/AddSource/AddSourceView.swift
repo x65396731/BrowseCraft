@@ -31,18 +31,21 @@ struct AddSourceView: View {
                     }
                 }
             }
+            // 中文注释：三种 kind 都先进合格入口页引导屏（`EntryPageGuideFlowView`，首次必过一屏），
+            // 再进预检输入页——`BC-PAGE-060` 的两个要素此前在 App 里没有任何说明，
+            // 要素一还不在预检的判定范围内（只有服务端判），用户只能等生成失败才知道。
             // 中文注释：漫画与视频都指向服务端规则生成入口，两种 kind 的交互完全对称。
             // 本地关键词发现 `ComicDiscoveryView` 就此不再从这里进入，与视频侧的
             // `VideoDiscoveryView` 同一处置。
             .sheet(isPresented: self.$isShowingComicGeneration) {
-                VideoGenerationInputView(
+                EntryPageGuideFlowView(
                     viewModel: self.viewModel,
                     sourceKind: .comic,
                     onFinished: self.returnToSources
                 )
             }
             .sheet(isPresented: self.$isShowingVideoGeneration) {
-                VideoGenerationInputView(
+                EntryPageGuideFlowView(
                     viewModel: self.viewModel,
                     sourceKind: .video,
                     onFinished: self.returnToSources
@@ -50,7 +53,7 @@ struct AddSourceView: View {
             }
             // 中文注释：读书 kind 与漫画 / 视频同一条服务端规则生成入口（PortalCore 2026-09-13 起接受 sourceKind: book）。
             .sheet(isPresented: self.$isShowingBookGeneration) {
-                VideoGenerationInputView(
+                EntryPageGuideFlowView(
                     viewModel: self.viewModel,
                     sourceKind: .book,
                     onFinished: self.returnToSources

@@ -19,12 +19,35 @@
 "video_source_import_plugin_session_flow_required" = "此来源需要 session 或 cookie 流程处理。请在后续 Plugin 模块中使用。";
 "video_source_import_plugin_private_api_required" = "此来源需要私有 API 处理。请在后续 Plugin 模块中使用。";
 
+/* Entry page guide (BC-PAGE-060) */
+"entry_guide_title" = "怎样的页面能生成";
+"entry_guide_subtitle" = "在浏览器里找到这样一页，再把它的地址贴进来。";
+"entry_guide_requirements_title" = "两条要求";
+"entry_guide_rule_pagination_title" = "页底有页码";
+"entry_guide_rule_pagination_detail" = "拉到底能看到 1 2 3 … 或「下一页」，而且翻页停留在同一套地址上。";
+"entry_guide_rule_single_list_title" = "整页只有一种列表";
+"entry_guide_rule_single_list_detail" = "一种卡片铺满整页，不是「最新 / 热门 / 排行」几块拼起来的。";
+"entry_guide_examples_title" = "例子";
+"entry_guide_example_bad" = "网站首页：多半是几块拼起来的，也没有页码。";
+"entry_guide_example_good_video" = "某个分类或频道的列表页，底部带页码。";
+"entry_guide_example_good_comic" = "某个分类或题材的列表页，底部带页码。";
+"entry_guide_example_good_book" = "分类页或排行榜页，底部带页码。";
+"entry_guide_example_good_generic" = "某个分类或排行榜的列表页，底部带页码。";
+"entry_guide_steps_title" = "怎么找";
+"entry_guide_step_1" = "1. 在浏览器里打开这个网站";
+"entry_guide_step_2" = "2. 点进一个分类或排行榜";
+"entry_guide_step_3" = "3. 拉到底确认有页码，复制地址栏里的地址";
+"entry_guide_continue_button" = "我找到了这样的页面";
+"entry_guide_dismiss_button" = "知道了";
+"entry_guide_reopen_link" = "怎样的页面能生成？";
+"entry_guide_open_from_failure" = "看看怎样的页面能生成";
+
 /* Video generation input preflight */
 "video_preflight_navigation_title" = "视频";
 "comic_preflight_navigation_title" = "漫画";
 "video_preflight_website_title" = "网站";
-"video_preflight_url_placeholder" = "List 或分类页面 URL";
-"video_preflight_scope_footer" = "只检查当前 URL 及其有界直接结构，不搜索或推荐替代 URL。";
+"video_preflight_url_placeholder" = "带页码的分类或列表页 URL";
+"video_preflight_scope_footer" = "这一页要有页码，而且整页只有一种列表。只检查当前 URL 及其有界直接结构，不搜索或推荐替代 URL。";
 "video_preflight_check_button" = "检查网站";
 "video_preflight_checking_button" = "正在检查…";
 "video_preflight_cancel_button" = "取消检查";

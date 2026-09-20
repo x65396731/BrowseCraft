@@ -19,12 +19,35 @@
 "video_source_import_plugin_session_flow_required" = "This source requires session or cookie flow handling. Please use the Plugin module later.";
 "video_source_import_plugin_private_api_required" = "This source requires private API handling. Please use the Plugin module later.";
 
+/* Entry page guide (BC-PAGE-060) */
+"entry_guide_title" = "What page works";
+"entry_guide_subtitle" = "Find a page like this in your browser, then paste its address.";
+"entry_guide_requirements_title" = "Two requirements";
+"entry_guide_rule_pagination_title" = "Page numbers at the bottom";
+"entry_guide_rule_pagination_detail" = "Scroll to the bottom and you see 1 2 3 … or a next-page link, and paging stays on the same address pattern.";
+"entry_guide_rule_single_list_title" = "One list on the whole page";
+"entry_guide_rule_single_list_detail" = "One kind of card fills the page, not several blocks such as latest, popular and ranking stacked together.";
+"entry_guide_examples_title" = "Examples";
+"entry_guide_example_bad" = "A site's home page: usually several blocks, and no page numbers.";
+"entry_guide_example_good_video" = "A category or channel listing page with page numbers at the bottom.";
+"entry_guide_example_good_comic" = "A category or genre listing page with page numbers at the bottom.";
+"entry_guide_example_good_book" = "A category or ranking page with page numbers at the bottom.";
+"entry_guide_example_good_generic" = "A category or ranking listing page with page numbers at the bottom.";
+"entry_guide_steps_title" = "How to find one";
+"entry_guide_step_1" = "1. Open the site in your browser";
+"entry_guide_step_2" = "2. Go into a category or a ranking";
+"entry_guide_step_3" = "3. Scroll to the bottom, check for page numbers, then copy the address";
+"entry_guide_continue_button" = "I found a page like this";
+"entry_guide_dismiss_button" = "Got it";
+"entry_guide_reopen_link" = "What page works?";
+"entry_guide_open_from_failure" = "See what page works";
+
 /* Video generation input preflight */
 "video_preflight_navigation_title" = "Video";
 "comic_preflight_navigation_title" = "Comic";
 "video_preflight_website_title" = "Website";
-"video_preflight_url_placeholder" = "List or category URL";
-"video_preflight_scope_footer" = "Checks only this URL and its bounded direct structure. No replacement URL will be searched for or recommended.";
+"video_preflight_url_placeholder" = "Category or list URL with page numbers";
+"video_preflight_scope_footer" = "This page needs page numbers and just one list. Checks only this URL and its bounded direct structure. No replacement URL will be searched for or recommended.";
 "video_preflight_check_button" = "Check Website";
 "video_preflight_checking_button" = "Checking…";
 "video_preflight_cancel_button" = "Cancel Check";

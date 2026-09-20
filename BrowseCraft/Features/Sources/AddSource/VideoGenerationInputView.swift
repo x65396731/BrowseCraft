@@ -21,6 +21,7 @@ struct VideoGenerationInputView: View {
     @State private var submissionTask: Task<Void, Never>?
     @State private var reusedRuleImportFailed: Bool = false
     @State private var returnTask: Task<Void, Never>?
+    @State private var isShowingGuide: Bool = false
 
     /// 中文注释：提交成功后停留这么久再回来源页——让「生成任务已提交」这句确认被看见，
     /// 又不必让用户自己点两层关闭。
@@ -78,6 +79,13 @@ struct VideoGenerationInputView: View {
                             self.cancelAssessment()
                         }
                     }
+
+                    // 中文注释：引导屏首次必过之后就不再拦路（`EntryPageGuide.seenVersionKey`），
+                    // 这一行是它唯一的常驻回看入口。叠一层 sheet 而不是退回上一页——
+                    // 退回会触发本视图的 `onDisappear`，那条绑着 `onFinished()`，整个流程会被关掉。
+                    Button(NSLocalizedString("entry_guide_reopen_link", comment: "")) {
+                        self.isShowingGuide = true
+                    }
                 }
 
                 if self.isChecking {
@@ -130,6 +138,18 @@ struct VideoGenerationInputView: View {
                 self.cancelAssessment()
                 self.cancelSubmission()
                 self.onFinished()
+            }
+            .sheet(isPresented: self.$isShowingGuide) {
+                NavigationStack {
+                    EntryPageGuideView(
+                        sourceKind: self.sourceKind,
+                        primaryTitleKey: "entry_guide_dismiss_button",
+                        primaryAction: {
+                            self.isShowingGuide = false
+                        },
+                        cancelAction: nil
+                    )
+                }
             }
         }
     }

@@ -19,12 +19,35 @@
 "video_source_import_plugin_session_flow_required" = "這個來源需要 session 或 cookie 流程處理。請在後續的 Plugin 模組中使用。";
 "video_source_import_plugin_private_api_required" = "這個來源需要私有 API 處理。請在後續的 Plugin 模組中使用。";
 
+/* Entry page guide (BC-PAGE-060) */
+"entry_guide_title" = "怎樣的頁面能生成";
+"entry_guide_subtitle" = "在瀏覽器裡找到這樣一頁，再把它的網址貼進來。";
+"entry_guide_requirements_title" = "兩條要求";
+"entry_guide_rule_pagination_title" = "頁底有頁碼";
+"entry_guide_rule_pagination_detail" = "滑到底能看到 1 2 3 … 或「下一頁」，而且翻頁停留在同一套網址上。";
+"entry_guide_rule_single_list_title" = "整頁只有一種列表";
+"entry_guide_rule_single_list_detail" = "一種卡片鋪滿整頁，不是「最新 / 熱門 / 排行」幾塊拼起來的。";
+"entry_guide_examples_title" = "例子";
+"entry_guide_example_bad" = "網站首頁：多半是幾塊拼起來的，也沒有頁碼。";
+"entry_guide_example_good_video" = "某個分類或頻道的列表頁，底部帶頁碼。";
+"entry_guide_example_good_comic" = "某個分類或題材的列表頁，底部帶頁碼。";
+"entry_guide_example_good_book" = "分類頁或排行榜頁，底部帶頁碼。";
+"entry_guide_example_good_generic" = "某個分類或排行榜的列表頁，底部帶頁碼。";
+"entry_guide_steps_title" = "怎麼找";
+"entry_guide_step_1" = "1. 在瀏覽器裡打開這個網站";
+"entry_guide_step_2" = "2. 點進一個分類或排行榜";
+"entry_guide_step_3" = "3. 滑到底確認有頁碼，複製網址列的網址";
+"entry_guide_continue_button" = "我找到了這樣的頁面";
+"entry_guide_dismiss_button" = "知道了";
+"entry_guide_reopen_link" = "怎樣的頁面能生成？";
+"entry_guide_open_from_failure" = "看看怎樣的頁面能生成";
+
 /* Video generation input preflight */
 "video_preflight_navigation_title" = "影片";
 "comic_preflight_navigation_title" = "漫畫";
 "video_preflight_website_title" = "網站";
-"video_preflight_url_placeholder" = "List 或分類頁面 URL";
-"video_preflight_scope_footer" = "只檢查目前的 URL 及其有界的直接結構，不會搜尋或推薦其他 URL。";
+"video_preflight_url_placeholder" = "帶頁碼的分類或列表頁網址";
+"video_preflight_scope_footer" = "這一頁要有頁碼，而且整頁只有一種列表。只檢查目前的 URL 及其有界的直接結構，不會搜尋或推薦其他 URL。";
 "video_preflight_check_button" = "檢查網站";
 "video_preflight_checking_button" = "正在檢查…";
 "video_preflight_cancel_button" = "取消檢查";

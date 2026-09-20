@@ -163,6 +163,8 @@ struct CatalogSourceListView: View {
 private struct FailedGenerationOutcomeRowView: View {
     let outcome: VideoGenerationOutcome
 
+    @State private var isShowingGuide: Bool = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(self.outcome.entryURL ?? self.outcome.jobID.uuidString)
@@ -176,8 +178,30 @@ private struct FailedGenerationOutcomeRowView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
+            // 中文注释：入口页资格拒因（`BC-PAGE-060` 的四种）说的就是「这一页不合格」，
+            // 下一步是换一个合格的页面——把教程接在这里，用户不必自己去添加来源里翻。
+            if VideoGenerationOutcomeText.isEntryPageRejection(self.outcome) {
+                Button(NSLocalizedString("entry_guide_open_from_failure", comment: "")) {
+                    self.isShowingGuide = true
+                }
+                .font(.caption)
+                .buttonStyle(.borderless)
+            }
         }
         .listRowSeparatorAlignedToRowLeading()
+        .sheet(isPresented: self.$isShowingGuide) {
+            NavigationStack {
+                // 中文注释：`/outcomes` 不带 sourceKind，这里只能传 nil，举例走 kind 中性那句。
+                EntryPageGuideView(
+                    sourceKind: nil,
+                    primaryTitleKey: "entry_guide_dismiss_button",
+                    primaryAction: {
+                        self.isShowingGuide = false
+                    },
+                    cancelAction: nil
+                )
+            }
+        }
     }
 }
 
@@ -188,19 +212,30 @@ enum VideoGenerationOutcomeText {
         "siteRejectedFetcher", "siteNotSupported", "siteUnreachable",
         "inputInvalid", "evidenceInsufficient", "temporaryFailure"
     ]
+    // `BC-PAGE-060` 的四种入口页拒因（服务端 `BC-PREFLIGHT-056` 2026-09-20 修订）并进这张表。
+    // 不在表里的细分一律不显示，只留 `reason` 的通用文案——服务端先于 App 上线新值是常态。
     static let knownReasonDetails: Set<String> = [
-        "noPlaybackCarrier", "episodeLayoutUnsupported",
-        // `BC-PAGE-060` 的四种入口页拒因（服务端 `BC-PREFLIGHT-056` 2026-09-20 修订）。
-        // 不在这张表里的细分一律不显示，只留 `reason` 的通用文案——服务端先于 App 上线新值是常态。
-        "entryPageWithoutPagination", "entryPageMultipleListFamilies",
-        "entryPageNoListFamily", "entryPageShapeAmbiguous"
-    ]
+        "noPlaybackCarrier", "episodeLayoutUnsupported"
+    ].union(VideoGenerationOutcomeText.entryPageRejectionDetails)
 
     static func reasonText(for outcome: VideoGenerationOutcome) -> String {
         guard let reason: String = outcome.reason, Self.knownReasons.contains(reason) else {
             return NSLocalizedString("video_generation_outcome_failed_unknown", comment: "")
         }
         return NSLocalizedString("video_generation_outcome_failed_\(reason)", comment: "")
+    }
+
+    /// `BC-PAGE-060` 的四种入口页拒因——它们都指向同一件事：换一个合格的入口页。
+    static let entryPageRejectionDetails: Set<String> = [
+        "entryPageWithoutPagination", "entryPageMultipleListFamilies",
+        "entryPageNoListFamily", "entryPageShapeAmbiguous"
+    ]
+
+    static func isEntryPageRejection(_ outcome: VideoGenerationOutcome) -> Bool {
+        guard let detail: String = outcome.reasonDetail else {
+            return false
+        }
+        return Self.entryPageRejectionDetails.contains(detail)
     }
 
     static func reasonDetailText(for outcome: VideoGenerationOutcome) -> String? {
