@@ -352,6 +352,14 @@
 "library_pagination_loading_next" = "%@ · 正在加载下一页";
 "library_pagination_scroll_for_more" = "%@ · 滑到底部继续加载";
 "library_pagination_end" = "%@ · 已加载到底";
+"library_body_empty_title" = "还没有内容";
+"library_body_empty_message" = "这个分类这次没有取到任何条目。";
+"library_body_pull_hint" = "下拉可重新载入";
+"library_body_failed_title" = "载入失败";
+"library_body_retry_pull_hint" = "下拉重试";
+"library_body_loading_accessibility" = "正在载入";
+"library_switching_source_title" = "正在切换来源";
+"library_switching_source_message" = "正在从 %@ 取最新内容。";
 
 /* Library: in-source search (menu entry shared with the account/login entry, search sheet). */
 "Search" = "搜索";

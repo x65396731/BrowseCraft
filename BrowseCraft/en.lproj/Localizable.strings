@@ -352,6 +352,14 @@
 "library_pagination_loading_next" = "%@ · Loading next page";
 "library_pagination_scroll_for_more" = "%@ · Scroll to the bottom to load more";
 "library_pagination_end" = "%@ · No more pages";
+"library_body_empty_title" = "Nothing here yet";
+"library_body_empty_message" = "This tab returned no items.";
+"library_body_pull_hint" = "Pull down to reload";
+"library_body_failed_title" = "Load failed";
+"library_body_retry_pull_hint" = "Pull down to retry";
+"library_body_loading_accessibility" = "Loading";
+"library_switching_source_title" = "Switching source";
+"library_switching_source_message" = "Fetching the latest items from %@.";
 
 /* Library: in-source search (menu entry shared with the account/login entry, search sheet). */
 "Search" = "Search";

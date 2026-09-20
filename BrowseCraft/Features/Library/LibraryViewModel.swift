@@ -612,28 +612,31 @@ final class LibraryViewModel {
         self.requestedSourceLogin = nil
     }
 
-    var isShowingSourceLoading: Bool {
-        if self.preparingSource != nil {
-            return true
-        }
-
-        return self.isRefreshing && self.items.isEmpty
-    }
-
-    var loadingTitle: String {
-        if self.preparingSource != nil {
-            return "Loading Source"
-        }
-
-        return "Loading Tab"
-    }
-
-    var loadingMessage: String {
+    /// 中文注释：Library 正文的唯一状态轴。判定顺序就是优先级，互斥由 `switch` 保证——
+    /// 此前加载态与空态是两条互不知情的 if 链，两边都看 `items.isEmpty`，冷启动必然同时渲染。
+    ///
+    /// 切源只有在屏上**还留着旧列表**时才走遮罩：遮罩是为了挡住旧数据，不是为了表示正在加载。
+    /// 旧列表本来就是空的，就和普通首屏一样走骨架。
+    var bodyState: LibraryBodyState {
         if let preparingSource: SourceLoadingState = self.preparingSource {
-            return "Fetching the latest items from \(preparingSource.sourceName)."
+            return self.items.isEmpty
+                ? .loadingFirstPage
+                : .switchingSource(sourceName: preparingSource.sourceName)
         }
 
-        return "Fetching the latest items for this tab."
+        if self.items.isEmpty {
+            if self.isRefreshing {
+                return .loadingFirstPage
+            }
+
+            if let selectedListTabErrorMessage: String = self.selectedListTabErrorMessage {
+                return .failed(message: selectedListTabErrorMessage)
+            }
+
+            return .empty
+        }
+
+        return .content
     }
 
     var listTabStates: [LibraryListTabState] {

@@ -26,8 +26,16 @@ struct LibraryView: View {
                 )
 
                 ScrollView {
-                    self.libraryContent
+                    self.libraryBody
+                        .animation(
+                            .easeInOut(duration: 0.2),
+                            value: self.viewModel.bodyState
+                        )
                 }
+                // 中文注释：内容不满屏时 ScrollView 默认也回弹，空态和失败态因此同样能下拉。
+                // 这里把它显式钉成 `.always`：下拉是这两种状态唯一的重载入口（导航栏刷新按钮已在
+                // 9d22cb2 删掉），谁要是改成 `.basedOnSize`，不满屏就不回弹，入口会静默失效。
+                .scrollBounceBehavior(.always)
                 // 中文注释：顶部拉动刷新当前 tab 的第 1 页。切 tab 不再自动重取之后
                 // （取过就一直沿用，不设过期时间），这是用户要新内容的唯一入口。
                 // 与底部的触底加载下一页互不相干：那条路走 `loadNextPageIfNeeded`，这条走 replace。
@@ -36,22 +44,13 @@ struct LibraryView: View {
                 }
             }
             .disabled(self.isInteractionLocked)
-            .overlay(
-                Group {
-                    if self.viewModel.isRefreshing &&
-                        self.shouldShowLoadingView == false {
-                        self.loadingOverlay
-                    } else if self.viewModel.isLoadingNextPage {
-                        self.loadingInteractionBlocker
-                    } else if self.viewModel.items.isEmpty {
-                        EmptyStateView(
-                            systemImage: self.emptyStateSystemImage,
-                            title: self.emptyStateTitle,
-                            message: self.emptyStateMessage
-                        )
-                    }
+            // 中文注释：只剩切源要遮罩，而且只在旧列表还留在屏上时才有（见 LibraryViewModel.bodyState）。
+            // 刷新有系统的下拉刷新控件、翻页有底部分页状态条，都不再另外盖一层。
+            .overlay {
+                if case .switchingSource(let sourceName) = self.viewModel.bodyState {
+                    self.switchingSourceOverlay(sourceName: sourceName)
                 }
-            )
+            }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if self.viewModel.shouldShowPaginationStatus {
                     LibraryPaginationStatusView(
@@ -199,22 +198,51 @@ struct LibraryView: View {
         }
     }
 
-    private var shouldShowLoadingView: Bool {
-        return self.viewModel.isShowingSourceLoading
+    private var isInteractionLocked: Bool {
+        // 中文注释：只有切源期间锁交互——那一刻屏上是上一个站点的数据。首屏加载和翻页都不锁：
+        // tab 条要保持可点（切走时 `refreshToken` 会把在途结果作废），更要紧的是 `.disabled`
+        // 会连 `.refreshable` 一起关掉，而下拉是空态和失败态唯一的重载入口。
+        if case .switchingSource = self.viewModel.bodyState {
+            return true
+        }
+
+        return false
     }
 
-    private var isInteractionLocked: Bool {
-        return self.viewModel.isRefreshing || self.viewModel.isLoadingNextPage
+    /// 中文注释：正文按 `bodyState` 一次只出一种版面，不再有第二条 if 链去叠第二块占位。
+    @ViewBuilder
+    private var libraryBody: some View {
+        switch self.viewModel.bodyState {
+        case .loadingFirstPage:
+            LibrarySkeletonGridView()
+
+        case .empty:
+            LibraryPlaceholderView(
+                systemImage: "square.grid.2x2",
+                title: NSLocalizedString("library_body_empty_title", comment: "库列表空态标题"),
+                message: NSLocalizedString("library_body_empty_message", comment: "库列表空态说明"),
+                pullHint: NSLocalizedString("library_body_pull_hint", comment: "空态下拉刷新提示")
+            )
+
+        case .failed(let message):
+            LibraryPlaceholderView(
+                systemImage: "exclamationmark.triangle",
+                title: NSLocalizedString("library_body_failed_title", comment: "库列表失败态标题"),
+                message: message,
+                pullHint: NSLocalizedString("library_body_retry_pull_hint", comment: "失败态下拉重试提示")
+            )
+
+        case .content, .switchingSource:
+            // 中文注释：切源时正文照旧渲染旧列表，由上面那层遮罩盖住。
+            self.libraryContent
+        }
     }
 
     @ViewBuilder
     private var libraryContent: some View {
-        if self.shouldShowLoadingView {
-            LibraryLoadingView(
-                title: self.viewModel.loadingTitle,
-                message: self.viewModel.loadingMessage
-            )
-        } else {
+        VStack(spacing: 0) {
+            // 中文注释：有内容时 tab 报的错走横幅；一条都没有时错误本身就是版面（`.failed`），
+            // 不会再和空态各占一块。
             if let selectedListTabErrorMessage: String = self.viewModel.selectedListTabErrorMessage {
                 LibraryTabErrorBanner(message: selectedListTabErrorMessage)
                     .padding(.horizontal, 16)
@@ -249,24 +277,9 @@ struct LibraryView: View {
         return self.viewModel.selectedSource?.name ?? "Library"
     }
 
-    private var emptyStateSystemImage: String {
-        return self.viewModel.selectedListTabErrorMessage == nil
-            ? "square.grid.2x2"
-            : "exclamationmark.triangle"
-    }
-
-    private var emptyStateTitle: String {
-        return self.viewModel.selectedListTabErrorMessage == nil
-            ? "No Items"
-            : "Tab Failed"
-    }
-
-    private var emptyStateMessage: String {
-        return self.viewModel.selectedListTabErrorMessage
-            ?? "Refresh the selected tab to fill your library."
-    }
-
-    private var loadingOverlay: some View {
+    /// 中文注释：source 切换期间遮盖旧列表，避免用户在半切换状态下操作上一站点的数据。
+    /// 这是全屏里唯一保留的遮罩：它挡的是旧数据，不是用来表示"正在加载"。
+    private func switchingSourceOverlay(sourceName: String) -> some View {
         ZStack {
             Color(.systemBackground)
                 .opacity(0.82)
@@ -276,21 +289,24 @@ struct LibraryView: View {
                 ProgressView()
                     .controlSize(.large)
 
-                // 中文注释：source 切换期间遮盖旧列表，避免用户在半切换状态下操作上一站点的数据。
-                Text("Loading Source")
+                Text(NSLocalizedString("library_switching_source_title", comment: "切换来源标题"))
                     .font(.headline)
-                    .foregroundColor(.secondary)
+
+                Text(
+                    String(
+                        format: NSLocalizedString("library_switching_source_message", comment: "切换来源说明"),
+                        sourceName
+                    )
+                )
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
             }
             .padding(24)
+            .frame(maxWidth: 260)
             .background(.regularMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
-    }
-
-    private var loadingInteractionBlocker: some View {
-        Color.clear
-            .contentShape(Rectangle())
-            .ignoresSafeArea()
     }
 
     private func openComicDestination(item: ContentItem, source: Source) {
