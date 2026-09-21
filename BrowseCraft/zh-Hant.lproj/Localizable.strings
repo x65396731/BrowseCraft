@@ -71,7 +71,7 @@
 "video_preflight_reason_capability" = "這個網站需要的能力，目前的產生器無法表達。";
 "video_preflight_reason_insufficient" = "頁面結構或 List family 的證據還沒有閉合，請稍後再試。";
 "video_preflight_reason_session" = "這個頁面需要個人登入狀態，隔離預檢無法完成判斷。";
-"video_preflight_reason_antibot" = "反爬驗證擋下了隔離預檢。";
+"video_preflight_reason_antibot" = "該網站有反爬驗證，App 無法預先檢查這個頁面。可以直接提交，由伺服器判斷能否生成。";
 "video_preflight_reason_budget" = "檢查已達時間或取樣上限，請稍後再試。";
 "video_preflight_reason_isolation" = "目前的頁面無法在要求的隔離環境中完成檢查。";
 "video_preflight_generate_button" = "生成規則";

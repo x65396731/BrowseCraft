@@ -180,9 +180,13 @@ private final class PreflightRenderedPageOperation: NSObject, WKNavigationDelega
             URLCredential?
         ) -> Void
     ) {
-        if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust {
+        switch challenge.protectionSpace.authenticationMethod {
+        case NSURLAuthenticationMethodServerTrust:
             completionHandler(.performDefaultHandling, nil)
-        } else {
+        case NSURLAuthenticationMethodClientCertificate:
+            // 中文注释：`BC-PREFLIGHT-064`，与 HTTP 取页器同一判据。
+            completionHandler(.rejectProtectionSpace, nil)
+        default:
             completionHandler(.cancelAuthenticationChallenge, nil)
             self.finish(.failure(PreflightPageAcquisitionError.authenticationRequired))
         }

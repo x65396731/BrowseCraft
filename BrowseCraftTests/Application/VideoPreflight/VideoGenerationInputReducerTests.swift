@@ -64,4 +64,17 @@ final class VideoGenerationInputReducerTests: XCTestCase {
         let deadline = VideoGenerationInputReducer().reduce(try self.input(.directListOwner, budgetExhausted: true))
         XCTAssertEqual(deadline.reason, .budgetExhausted)
     }
+
+    /// `BC-PREFLIGHT-063`：反爬只提示不拦提交；其余 inconclusive 原因仍不可提交。
+    func testAntiBotIsInconclusiveButSubmittableOthersAreNot() throws {
+        let antiBot = VideoGenerationInputReducer().reduce(try self.input(.ambiguous, acquisition: .antiBotChallenge))
+        XCTAssertEqual(antiBot.status, .inconclusive)
+        XCTAssertEqual(antiBot.reason, .antiBotChallenge)
+        XCTAssertTrue(antiBot.canSubmit)
+        for state: VideoGenerationPreflightAcquisitionState in [.requiresUserSession, .isolationUnavailable] {
+            XCTAssertFalse(VideoGenerationInputReducer().reduce(try self.input(.ambiguous, acquisition: state)).canSubmit)
+        }
+        XCTAssertFalse(VideoGenerationInputReducer().reduce(try self.input(.directListOwner, budgetExhausted: true)).canSubmit)
+        XCTAssertFalse(VideoGenerationInputReducer().reduce(try self.input(.ambiguous)).canSubmit)
+    }
 }

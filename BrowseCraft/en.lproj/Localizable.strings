@@ -71,7 +71,7 @@
 "video_preflight_reason_capability" = "A required website capability is not supported by the current generator.";
 "video_preflight_reason_insufficient" = "The page structure or List-family evidence is incomplete. Please retry later.";
 "video_preflight_reason_session" = "This page requires a personal session, so isolated preflight cannot decide.";
-"video_preflight_reason_antibot" = "An anti-bot challenge prevented isolated preflight.";
+"video_preflight_reason_antibot" = "This site uses an anti-bot check, so the app cannot inspect the page in advance. You can still submit, and the server will decide whether a rule can be generated.";
 "video_preflight_reason_budget" = "The bounded check reached its time or sampling limit. Please retry later.";
 "video_preflight_reason_isolation" = "The page could not be checked with the required isolation.";
 "video_preflight_generate_button" = "Generate Rule";

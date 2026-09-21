@@ -416,7 +416,7 @@ private struct VideoGenerationInputOutcomeView: View {
             Text(self.detail)
                 .foregroundStyle(.secondary)
 
-            if self.result.status == .accepted {
+            if self.result.canSubmit {
                 self.submissionRows
             } else if self.result.status == .inconclusive {
                 Button(NSLocalizedString("video_preflight_retry_button", comment: "")) {
@@ -426,7 +426,8 @@ private struct VideoGenerationInputOutcomeView: View {
         }
     }
 
-    /// 中文注释：任务客户端未接线时保持不可点（`BC-PREFLIGHT-048`）；接线后 accepted 才可提交。
+    /// 中文注释：任务客户端未接线时保持不可点（`BC-PREFLIGHT-048`）；接线后 `canSubmit` 才可提交
+    /// （accepted，或 `BC-PREFLIGHT-063` 的反爬提示放行）。
     @ViewBuilder
     private var submissionRows: some View {
         if self.canSubmit == false {

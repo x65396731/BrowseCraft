@@ -73,9 +73,7 @@ struct PreflightHTTPPageLoader: PreflightPageAcquiring {
             guard let httpResponse: HTTPURLResponse = response as? HTTPURLResponse else {
                 throw PreflightPageAcquisitionError.invalidResponse
             }
-            guard (200..<400).contains(httpResponse.statusCode) else {
-                throw PreflightPageAcquisitionError.rejectedStatus(httpResponse.statusCode)
-            }
+            let statusAccepted: Bool = (200..<400).contains(httpResponse.statusCode)
             var bodyBuffer: PreflightResponseBodyBuffer = try PreflightResponseBodyBuffer(
                 maximumResponseBytes: self.maximumResponseBytes,
                 expectedContentLength: httpResponse.expectedContentLength
@@ -84,6 +82,14 @@ struct PreflightHTTPPageLoader: PreflightPageAcquiring {
                 try bodyBuffer.append(byte)
             }
             let data: Data = bodyBuffer.data
+            // 中文注释：`BC-PREFLIGHT-063`——403/503 带挑战页正文时交给分类器判 `antiBotChallenge`
+            // （提示后放行提交）；其余被拒状态码仍按 `BC-PREFLIGHT-062` 抛 `rejectedStatus`。
+            if statusAccepted == false {
+                let html: String = String(decoding: data, as: UTF8.self)
+                guard HTMLChallengeInterstitialDetector.isChallengeInterstitial(html) else {
+                    throw PreflightPageAcquisitionError.rejectedStatus(httpResponse.statusCode)
+                }
+            }
             guard data.isEmpty == false else {
                 throw PreflightPageAcquisitionError.emptyContent
             }
@@ -206,9 +212,14 @@ final class PreflightURLSessionDelegate: NSObject, URLSessionTaskDelegate, @unch
         didReceive challenge: URLAuthenticationChallenge,
         completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
     ) {
-        if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust {
+        switch challenge.protectionSpace.authenticationMethod {
+        case NSURLAuthenticationMethodServerTrust:
             completionHandler(.performDefaultHandling, nil)
-        } else {
+        case NSURLAuthenticationMethodClientCertificate:
+            // 中文注释：`BC-PREFLIGHT-064`——TLS 客户端证书质询不是登录态（bakamh 握手里带
+            // `CertificateRequest`，不带证书照样给正文）。不提供证书、继续握手，不读任何凭据。
+            completionHandler(.rejectProtectionSpace, nil)
+        default:
             self.markRejectedAuthentication()
             completionHandler(.cancelAuthenticationChallenge, nil)
         }
