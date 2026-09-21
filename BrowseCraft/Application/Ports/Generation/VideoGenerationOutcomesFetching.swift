@@ -21,6 +21,26 @@ struct VideoGenerationOutcome: Hashable, Sendable {
     var source: VideoGenerationReusedCatalogSource? = nil
     var catalogSource: CatalogSource? = nil
 
+    /// 中文注释：服务端 `finishedAt`（ISO 8601，常带 6 位小数秒）。解析不了返回 nil——调用方按「不知道何时完成」处理。
+    var finishedDate: Date? {
+        guard let finishedAt: String = self.finishedAt else {
+            return nil
+        }
+        let fractional: ISO8601DateFormatter = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date: Date = fractional.date(from: finishedAt) {
+            return date
+        }
+        let plain: ISO8601DateFormatter = ISO8601DateFormatter()
+        plain.formatOptions = [.withInternetDateTime]
+        let withoutFraction: String = finishedAt.replacingOccurrences(
+            of: #"\.\d+"#,
+            with: "",
+            options: .regularExpression
+        )
+        return plain.date(from: withoutFraction)
+    }
+
     var didSucceed: Bool {
         return self.status == Self.succeededStatus
     }

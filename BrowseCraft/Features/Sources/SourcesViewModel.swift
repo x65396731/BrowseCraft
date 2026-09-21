@@ -578,8 +578,11 @@ final class SourcesViewModel {
     /// 告诉他成功了。`BC-CATALOG-071` 让第二个入口并进已有来源之后这条缝更明显——「成功」的
     /// 表现形式是已有来源多一个分类，而不是列表多一条，用户回到库里会觉得什么都没发生。
     ///
-    /// **只作用于 `origin == .personalGeneration` 的来源**：公共目录的官方规则保持手动更新是
-    /// 有意设计（`catalogSourceHasRuleUpdate` 那行注释的由来），不该在用户背后换掉别人维护的规则。
+    /// **判据是「这次变化是不是我触发的」**（用户 2026-09-22 裁定）：本地来源是个人生成的，**或者**这条成功结果
+    /// 完成于本地副本最后一次更新之后——即这次变化来自我自己的生成（例如我的新入口并进了一条从公共目录加的来源，
+    /// `BC-CATALOG-071`）。此前只认 `origin == .personalGeneration`，同样是「我点了生成」，重新生成自动更新、
+    /// 并进公共来源却要手动点「更新」，两种操作不一致。公共目录里**别人**造成的变化仍保持手动更新
+    /// （`catalogSourceHasRuleUpdate` 那行注释的由来），不在用户背后换掉别人维护的规则。
     @MainActor
     private func refreshPersonalSourcesFromOutcomes(_ outcomes: [VideoGenerationOutcome]) async {
         var refreshedCount: Int = 0
@@ -588,7 +591,8 @@ final class SourcesViewModel {
                   let existing: Source = self.sources.first(where: { source in
                       return source.id == catalogSource.id
                   }),
-                  existing.origin == .personalGeneration,
+                  existing.origin == .personalGeneration
+                      || (outcome.finishedDate.map { $0 > existing.updatedAt } ?? false),
                   self.catalogSourceHasRuleUpdate(catalogSource) else {
                 continue
             }
@@ -689,9 +693,14 @@ final class SourcesViewModel {
         self.catalogSourceAddFailureMessages.removeValue(forKey: catalogSource.id)
         // 中文注释：来自「我的生成」分组的规则记出身，之后服务器不再返回时本地副本随之删除；
         // 公共目录与「已生成过、直接复用」的规则不记——它们不在本人的 /outcomes 里，记了会被误删。
-        let origin: SourceOrigin? = self.catalogSourceGrouping.personalOutcomes[catalogSource.id] == nil
-            ? nil
-            : .personalGeneration
+        // **更新已有来源时保留它原来的出身**：我的新入口并进一条从公共目录加的来源后，它也会出现在我的
+        // /outcomes 里；若在这里改记成个人生成，7 天后那条结果过期，`removePersonalSourcesMissingFromOutcomes`
+        // 会把这条公共来源从本地删掉。
+        let existingSource: Source? = self.sources.first(where: { $0.id == catalogSource.id })
+        let origin: SourceOrigin? = existingSource.map { $0.origin }
+            ?? (self.catalogSourceGrouping.personalOutcomes[catalogSource.id] == nil
+                ? nil
+                : .personalGeneration)
         do {
             let result: AddCatalogSourceResult = try await self.catalogService.addSource(
                 catalogSource,
