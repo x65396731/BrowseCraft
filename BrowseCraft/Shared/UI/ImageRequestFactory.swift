@@ -17,9 +17,11 @@ enum ImageRequestFactory {
         browserRequestHeaderProvider: any BrowserRequestHeaderProviding = EmptyBrowserRequestHeaderProvider(),
         systemCookieHeaderProvider: any SystemCookieHeaderProviding = EmptySystemCookieHeaderProvider()
     ) -> ImageRequest? {
-        guard let url: URL = URL(string: urlString) else {
+        guard let parsedURL: URL = URL(string: urlString) else {
             return nil
         }
+        // 中文注释：图片地址是 http:// 时升成 https://，与页面请求同一纪律（ATS 拒绝明文 http，不开全局例外）。
+        let url: URL = HTTPSUpgrade.upgraded(parsedURL) ?? parsedURL
 
         var urlRequest: URLRequest = URLRequest(url: url)
         let refererURL: URL? = refererURLString.flatMap(URL.init(string:))

@@ -135,15 +135,7 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
 
     /// 中文注释：`http://` 地址升成 `https://`；本来就是 https 或不是 http(s) 即 nil（原样跟随）。
     static func httpsUpgraded(_ url: URL) -> URL? {
-        guard url.scheme?.lowercased() == "http",
-              var components: URLComponents = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            return nil
-        }
-        components.scheme = "https"
-        if components.port == 80 {
-            components.port = nil
-        }
-        return components.url
+        HTTPSUpgrade.upgraded(url)
     }
 
     /// 中文注释：API 等原始 bytes 请求也复用 callback bridge，继续保留 Alamofire 的请求能力。
@@ -245,6 +237,10 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
         context: SourceRequestContext?,
         cachePolicy: URLRequest.CachePolicy
     ) -> URLRequest {
+        // 中文注释：初始地址是 http:// 时同样升成 https://——跳转目标早已这样处理（`httpsUpgradingRedirector`），
+        // 初始请求却原样发出、被 ATS 当场拒绝（2026-09-21 sfacg 列表页抽出的作品地址是 `http://manhua.sfacg.com/...`，
+        // 站点 301 到 https；规则生成引擎的采集端同样先升级再取，两端到达同一页面）。不开全局 ATS 例外。
+        let url: URL = Self.httpsUpgraded(url) ?? url
         var urlRequest: URLRequest = URLRequest(url: url, cachePolicy: cachePolicy)
         urlRequest.httpMethod = request?.method?.rawValue ?? "GET"
 
