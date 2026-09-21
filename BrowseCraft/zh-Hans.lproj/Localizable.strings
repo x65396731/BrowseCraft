@@ -64,6 +64,7 @@
 "video_preflight_outcome_accepted" = "可以生成";
 "video_preflight_outcome_rejected" = "当前 URL 不可使用";
 "video_preflight_outcome_inconclusive" = "页面证据不足";
+"video_preflight_outcome_antibot" = "检测到反爬验证，可以直接生成";
 "video_preflight_reason_accepted" = "当前精确输入 URL 的页面恰好包含一个列表 family。";
 "video_preflight_reason_deeper" = "当前入口需要更深层发现，请输入更具体的分类或 List 页面。";
 "video_preflight_reason_multiple_families" = "当前页面包含多个独立列表，请改用具体分类页的 URL。";
@@ -71,7 +72,7 @@
 "video_preflight_reason_capability" = "网站存在当前生成器无法表达的必需能力。";
 "video_preflight_reason_insufficient" = "页面结构或 List family 证据尚未闭合，请稍后重试。";
 "video_preflight_reason_session" = "页面需要个人登录态，隔离预检无法完成判断。";
-"video_preflight_reason_antibot" = "该网站有反爬验证，App 无法预先检查这个页面。可以直接提交，由服务器判断能否生成。";
+"video_preflight_reason_antibot" = "该网站有反爬验证，App 无法预先检查这个页面。点「生成规则」直接提交，由服务器判断能否生成。";
 "video_preflight_reason_budget" = "检查已达到时间或采样上限，请稍后重试。";
 "video_preflight_reason_isolation" = "当前页面无法在要求的隔离环境中完成检查。";
 "video_preflight_generate_button" = "生成规则";

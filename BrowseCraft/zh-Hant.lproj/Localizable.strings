@@ -64,6 +64,7 @@
 "video_preflight_outcome_accepted" = "可以生成";
 "video_preflight_outcome_rejected" = "目前的 URL 不可使用";
 "video_preflight_outcome_inconclusive" = "頁面證據不足";
+"video_preflight_outcome_antibot" = "偵測到反爬驗證，可以直接生成";
 "video_preflight_reason_accepted" = "目前這個精確輸入的 URL，頁面上剛好只有一個列表 family。";
 "video_preflight_reason_deeper" = "目前的入口需要更深一層的探索，請輸入更具體的分類或 List 頁面。";
 "video_preflight_reason_multiple_families" = "目前的頁面有多組互相獨立的列表，請改用具體分類頁的 URL。";
@@ -71,7 +72,7 @@
 "video_preflight_reason_capability" = "這個網站需要的能力，目前的產生器無法表達。";
 "video_preflight_reason_insufficient" = "頁面結構或 List family 的證據還沒有閉合，請稍後再試。";
 "video_preflight_reason_session" = "這個頁面需要個人登入狀態，隔離預檢無法完成判斷。";
-"video_preflight_reason_antibot" = "該網站有反爬驗證，App 無法預先檢查這個頁面。可以直接提交，由伺服器判斷能否生成。";
+"video_preflight_reason_antibot" = "該網站有反爬驗證，App 無法預先檢查這個頁面。點「生成規則」直接提交，由伺服器判斷能否生成。";
 "video_preflight_reason_budget" = "檢查已達時間或取樣上限，請稍後再試。";
 "video_preflight_reason_isolation" = "目前的頁面無法在要求的隔離環境中完成檢查。";
 "video_preflight_generate_button" = "生成規則";

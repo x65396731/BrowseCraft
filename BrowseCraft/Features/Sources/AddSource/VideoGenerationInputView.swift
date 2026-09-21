@@ -543,6 +543,10 @@ private struct VideoGenerationInputOutcomeView: View {
     }
 
     private var title: String {
+        // 中文注释：`BC-PREFLIGHT-063`——反爬是「可以提交」的一格，标题不能再说「证据不足」。
+        if self.result.reason == .antiBotChallenge {
+            return NSLocalizedString("video_preflight_outcome_antibot", comment: "")
+        }
         switch self.result.status {
         case .accepted:
             return NSLocalizedString("video_preflight_outcome_accepted", comment: "")
