@@ -199,7 +199,6 @@
 "Done" = "完成";
 "Downloading and merging your saved data." = "正在下載並合併你儲存的資料。";
 "Edit JSON" = "編輯 JSON";
-"Email" = "電子郵件";
 "Enable Cloud Sync" = "啟用雲端同步";
 "Errors" = "錯誤";
 "Favorites" = "收藏";
@@ -263,7 +262,6 @@
 "Preparing Cloud Sync…" = "正在準備雲端同步…";
 "Previous" = "上一個";
 "Previous Episode" = "上一集";
-"Profile" = "個人資料";
 "Purchased" = "已購買";
 "Rate AnyPortal" = "為 AnyPortal 評分";
 "Read-only" = "唯讀";
