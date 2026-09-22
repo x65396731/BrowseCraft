@@ -463,3 +463,27 @@
 "iap_status_restored" = "购买已恢复。";
 "iap_status_restore_failed" = "无法恢复购买。";
 "iap_status_revoked" = "%@ 已被撤销或退款。";
+
+/* 设置页主页：分组标题、各行副标题、提示框标题与诊断说明。 */
+"Account" = "账号";
+"Storage" = "存储";
+"App" = "应用";
+"BrowseCraft Account" = "BrowseCraft 账号";
+"Sign in with Apple" = "通过 Apple 登录";
+"Sign Out of BrowseCraft" = "退出 BrowseCraft 登录";
+"BrowseCraft account connected" = "已连接 BrowseCraft 账号";
+"Required for purchases and Cloud Sync" = "购买和云同步需要登录";
+"Favorites and saved items" = "收藏与已保存的内容";
+"Unlock paid features" = "解锁付费功能";
+"Start Ad Service" = "启动广告服务";
+"Starting Ad Service" = "正在启动广告服务";
+"Loading" = "加载中";
+"On" = "开启";
+"Off" = "关闭";
+"Checking" = "检查中";
+"Sign In Required" = "需要登录";
+"Restricted" = "受限";
+"Temporarily Unavailable" = "暂时不可用";
+"Cache Settings" = "缓存设置";
+"Google Ads" = "Google 广告";
+"Diagnostic reports include the code above, app version, device model, current screen, source, stage, and selected non-crash errors. They do not include cookies, tokens, full HTML, or full URL query values." = "诊断报告包含上方的诊断码、App 版本、设备型号、当前页面、来源、所处阶段，以及部分非崩溃错误；不包含 Cookie、令牌、完整 HTML 或完整的网址查询参数。";

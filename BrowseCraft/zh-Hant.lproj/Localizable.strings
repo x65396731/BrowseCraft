@@ -463,3 +463,27 @@
 "iap_status_restored" = "購買項目已回復。";
 "iap_status_restore_failed" = "無法回復購買項目。";
 "iap_status_revoked" = "%@ 已被撤銷或退款。";
+
+/* 設定頁主頁：分組標題、各列副標題、提示框標題與診斷說明。 */
+"Account" = "帳號";
+"Storage" = "儲存空間";
+"App" = "App";
+"BrowseCraft Account" = "BrowseCraft 帳號";
+"Sign in with Apple" = "使用 Apple 登入";
+"Sign Out of BrowseCraft" = "登出 BrowseCraft";
+"BrowseCraft account connected" = "已連接 BrowseCraft 帳號";
+"Required for purchases and Cloud Sync" = "購買與雲端同步需要登入";
+"Favorites and saved items" = "收藏與已儲存的內容";
+"Unlock paid features" = "解鎖付費功能";
+"Start Ad Service" = "啟動廣告服務";
+"Starting Ad Service" = "正在啟動廣告服務";
+"Loading" = "載入中";
+"On" = "開啟";
+"Off" = "關閉";
+"Checking" = "檢查中";
+"Sign In Required" = "需要登入";
+"Restricted" = "受限制";
+"Temporarily Unavailable" = "暫時無法使用";
+"Cache Settings" = "快取設定";
+"Google Ads" = "Google 廣告";
+"Diagnostic reports include the code above, app version, device model, current screen, source, stage, and selected non-crash errors. They do not include cookies, tokens, full HTML, or full URL query values." = "診斷報告包含上方的診斷碼、App 版本、裝置型號、目前畫面、來源、所處階段，以及部分非當機錯誤；不包含 Cookie、權杖、完整 HTML 或完整的網址查詢參數。";

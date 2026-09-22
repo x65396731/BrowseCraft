@@ -463,3 +463,27 @@
 "iap_status_restored" = "Purchases restored.";
 "iap_status_restore_failed" = "Purchases could not be restored.";
 "iap_status_revoked" = "%@ was revoked or refunded.";
+
+/* Settings: main page section headers, row details, alerts and diagnostics footer. */
+"Account" = "Account";
+"Storage" = "Storage";
+"App" = "App";
+"BrowseCraft Account" = "BrowseCraft Account";
+"Sign in with Apple" = "Sign in with Apple";
+"Sign Out of BrowseCraft" = "Sign Out of BrowseCraft";
+"BrowseCraft account connected" = "BrowseCraft account connected";
+"Required for purchases and Cloud Sync" = "Required for purchases and Cloud Sync";
+"Favorites and saved items" = "Favorites and saved items";
+"Unlock paid features" = "Unlock paid features";
+"Start Ad Service" = "Start Ad Service";
+"Starting Ad Service" = "Starting Ad Service";
+"Loading" = "Loading";
+"On" = "On";
+"Off" = "Off";
+"Checking" = "Checking";
+"Sign In Required" = "Sign In Required";
+"Restricted" = "Restricted";
+"Temporarily Unavailable" = "Temporarily Unavailable";
+"Cache Settings" = "Cache Settings";
+"Google Ads" = "Google Ads";
+"Diagnostic reports include the code above, app version, device model, current screen, source, stage, and selected non-crash errors. They do not include cookies, tokens, full HTML, or full URL query values." = "Diagnostic reports include the code above, app version, device model, current screen, source, stage, and selected non-crash errors. They do not include cookies, tokens, full HTML, or full URL query values.";

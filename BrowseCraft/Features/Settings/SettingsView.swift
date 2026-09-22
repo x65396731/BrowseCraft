@@ -35,11 +35,11 @@ struct SettingsView: View {
                         SettingsRow(
                             image: "SettingsAccount",
                             title: self.viewModel.isPortalAuthenticated
-                                ? "Sign Out of BrowseCraft"
-                                : "Sign in with Apple",
+                                ? NSLocalizedString("Sign Out of BrowseCraft", comment: "")
+                                : NSLocalizedString("Sign in with Apple", comment: ""),
                             detail: self.viewModel.isPortalAuthenticated
-                                ? "BrowseCraft account connected"
-                                : "Required for purchases and Cloud Sync"
+                                ? NSLocalizedString("BrowseCraft account connected", comment: "")
+                                : NSLocalizedString("Required for purchases and Cloud Sync", comment: "")
                         )
                     }
                     .disabled(self.viewModel.isPortalAccountActionInFlight)
@@ -58,7 +58,7 @@ struct SettingsView: View {
                         SettingsRow(
                             image: "SettingsBookmarks",
                             title: NSLocalizedString("Bookmarks", comment: ""),
-                            detail: "Favorites and saved items"
+                            detail: NSLocalizedString("Favorites and saved items", comment: "")
                         )
                     }
 
@@ -74,7 +74,7 @@ struct SettingsView: View {
                             SettingsRow(
                                 image: "SettingsPremium",
                                 title: NSLocalizedString("Premium", comment: ""),
-                                detail: "Unlock paid features"
+                                detail: NSLocalizedString("Unlock paid features", comment: "")
                             )
                         }
                     )
@@ -89,8 +89,8 @@ struct SettingsView: View {
                         label: {
                             SettingsRow(
                                 image: "SettingsAdService",
-                                title: self.adPlaybackViewModel.isLoading ? "Starting Ad Service" : "Start Ad Service",
-                                detail: self.adPlaybackViewModel.isLoading ? "Loading" : nil
+                                title: self.adPlaybackViewModel.isLoading ? NSLocalizedString("Starting Ad Service", comment: "") : NSLocalizedString("Start Ad Service", comment: ""),
+                                detail: self.adPlaybackViewModel.isLoading ? NSLocalizedString("Loading", comment: "") : nil
                             )
                         }
                     )
@@ -118,7 +118,7 @@ struct SettingsView: View {
                             SettingsRow(
                                 image: "SettingsCrashDiagnostics",
                                 title: NSLocalizedString("Send Crash Diagnostics", comment: ""),
-                                detail: self.isDiagnosticsEnabled ? "On" : "Off"
+                                detail: self.isDiagnosticsEnabled ? NSLocalizedString("On", comment: "") : NSLocalizedString("Off", comment: "")
                             )
                         }
                         .onChange(of: self.isDiagnosticsEnabled) { _, newValue in
@@ -350,19 +350,19 @@ struct SettingsView: View {
     private var cloudSyncDetail: String {
         switch self.cloudSyncViewModel.accountAvailability {
         case .notChecked:
-            return "Off"
+            return NSLocalizedString("Off", comment: "")
         case .checking:
-            return "Checking"
+            return NSLocalizedString("Checking", comment: "")
         case .available:
-            return self.cloudSyncViewModel.isCloudSyncEnabled ? "On" : "Off"
+            return self.cloudSyncViewModel.isCloudSyncEnabled ? NSLocalizedString("On", comment: "") : NSLocalizedString("Off", comment: "")
         case .noAccount:
-            return "Sign In Required"
+            return NSLocalizedString("Sign In Required", comment: "")
         case .restricted:
-            return "Restricted"
+            return NSLocalizedString("Restricted", comment: "")
         case .temporarilyUnavailable:
-            return "Temporarily Unavailable"
+            return NSLocalizedString("Temporarily Unavailable", comment: "")
         case .couldNotDetermine:
-            return "Unavailable"
+            return NSLocalizedString("Unavailable", comment: "")
         }
     }
 }
