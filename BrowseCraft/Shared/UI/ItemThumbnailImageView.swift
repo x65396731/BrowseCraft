@@ -44,13 +44,18 @@ struct ItemThumbnailImageView: View {
                         // 中文注释：aspectFill 必须由中立容器承载并裁剪——直接放大图片会让它的
                         // 布局尺寸超出单元格，外层 clipShape 裁的是撑大后的边界，结果溢出到相邻 item。
                         // NukeUI 0.8 的 resizingMode(.aspectFill) 内部等价于 scaleAspectFill + clipsToBounds。
+                        // `.clipped()` 只裁绘制、不裁命中：横图放进竖格时溢出部分仍接点击，
+                        // 网格里后画的卡片压在上层，点第 N 张会进第 N+1 张（manmanapp 360×210 封面实测）。
+                        // 命中区域因此由中立容器自己的矩形给出，溢出的图片不参与命中。
                         Color.clear
                             .overlay {
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
+                                    .allowsHitTesting(false)
                             }
                             .clipped()
+                            .contentShape(Rectangle())
                     } else if let error: Error = state.error {
                         self.placeholder
                             .onAppear {
@@ -149,9 +154,16 @@ struct ItemThumbnailImageView: View {
     @ViewBuilder
     private var placeholder: some View {
         if let placeholderImageName: String = self.placeholderImageName {
-            SwiftUI.Image(placeholderImageName)
-                .resizable()
-                .scaledToFill()
+            // 中文注释：与成图分支同一口径——占位图也是 fill，溢出部分不得接点击。
+            Color.clear
+                .overlay {
+                    SwiftUI.Image(placeholderImageName)
+                        .resizable()
+                        .scaledToFill()
+                        .allowsHitTesting(false)
+                }
+                .clipped()
+                .contentShape(Rectangle())
         } else {
             ZStack {
                 Rectangle()
