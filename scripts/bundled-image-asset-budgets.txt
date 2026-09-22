@@ -48,6 +48,17 @@ TabFavorites            4200      25x25      multi-scale-png
 TabLibrary              5200      25x25      multi-scale-png
 TabHistory              5600      25x25      multi-scale-png
 TabSettings             5400      25x25      multi-scale-png
+SettingsAccount           3700      22x22      multi-scale-png
+SettingsCloudSync         2500      22x22      multi-scale-png
+SettingsBookmarks         2300      22x22      multi-scale-png
+SettingsPremium           2900      22x22      multi-scale-png
+SettingsAdService         2800      22x22      multi-scale-png
+SettingsCache             2300      22x22      multi-scale-png
+SettingsCrashDiagnostics  3900      22x22      multi-scale-png
+SettingsDiagnosticCode    3100      22x22      multi-scale-png
+SettingsCopy              2800      22x22      multi-scale-png
+SettingsVersion           2500      22x22      multi-scale-png
+SettingsRate              2700      22x22      multi-scale-png
 
 # 2026-09-20 两处改动的理由：
 #
@@ -101,3 +112,16 @@ TabSettings             5400      25x25      multi-scale-png
 # 所以改成书封设计；book 自己那两处比例几乎一样，因此不像另两种那样分列表与详情两张。
 # 登记 216x300（= 详情框 72x100pt 在 @3x 上的原生像素，也是它最大的使用尺寸），
 # 无损而非 lossy：它按接近原生的分辨率渲染，不属于「渲染宽度远小于原生」那一类。
+
+# 2026-09-22 设置页十一图标：22 / 44 / 66 三档（22pt），同样标 template-rendering-intent，
+# 做法与底栏五图标一致——纯黑剪影、按 pt 原生渲染、不经 .resizable()，着色交给 SettingsRow 的
+# .foregroundColor(.accentColor)。22pt 对应 SettingsRow 里 24pt 宽的图标槽，与原来 .body 字号
+# 的 SF Symbol 视觉尺寸相当。
+#
+# 源图是生成书第 23 条的一张 4:3 网格图（4693x3520，4 列 x 3 行，第 12 格空），按格均分后
+# 黑度转 alpha（>=200 视为背景、<=40 视为实心、中间线性保留抗锯齿），再按十一者中最大的
+# 那条边（588px）统一装进 637x637 的画布居中后缩到 66——与底栏同一个理由，保住相对大小。
+# 十一个包围盒边长在 431 到 588 之间，本来就接近；视觉重量最轻的是会员那组四角星
+# （103k 对最重广告服务 230k），那是星形面积本身小，不是画小了，所以不按面积单独放大。
+# 源字节上限按实际字节加约 15% 余量。
+

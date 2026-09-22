@@ -33,7 +33,7 @@ struct SettingsView: View {
                         }
                     } label: {
                         SettingsRow(
-                            systemImage: "person.crop.circle.badge.checkmark",
+                            image: "SettingsAccount",
                             title: self.viewModel.isPortalAuthenticated
                                 ? "Sign Out of BrowseCraft"
                                 : "Sign in with Apple",
@@ -48,7 +48,7 @@ struct SettingsView: View {
                         viewModel: self.cloudSyncViewModel
                     )) {
                         SettingsRow(
-                            systemImage: "icloud",
+                            image: "SettingsCloudSync",
                             title: NSLocalizedString("Cloud Sync", comment: ""),
                             detail: self.cloudSyncDetail
                         )
@@ -56,7 +56,7 @@ struct SettingsView: View {
 
                     NavigationLink(destination: BookmarksSettingsView()) {
                         SettingsRow(
-                            systemImage: "bookmark",
+                            image: "SettingsBookmarks",
                             title: NSLocalizedString("Bookmarks", comment: ""),
                             detail: "Favorites and saved items"
                         )
@@ -72,7 +72,7 @@ struct SettingsView: View {
                         },
                         label: {
                             SettingsRow(
-                                systemImage: "sparkles",
+                                image: "SettingsPremium",
                                 title: NSLocalizedString("Premium", comment: ""),
                                 detail: "Unlock paid features"
                             )
@@ -88,7 +88,7 @@ struct SettingsView: View {
                         },
                         label: {
                             SettingsRow(
-                                systemImage: "play.rectangle.on.rectangle",
+                                image: "SettingsAdService",
                                 title: self.adPlaybackViewModel.isLoading ? "Starting Ad Service" : "Start Ad Service",
                                 detail: self.adPlaybackViewModel.isLoading ? "Loading" : nil
                             )
@@ -105,7 +105,7 @@ struct SettingsView: View {
                         }
                     )) {
                         SettingsRow(
-                            systemImage: "externaldrive",
+                            image: "SettingsCache",
                             title: NSLocalizedString("Cache", comment: ""),
                             detail: self.viewModel.imageCacheSettings.displayTitle
                         )
@@ -116,7 +116,7 @@ struct SettingsView: View {
                     content: {
                         Toggle(isOn: self.$isDiagnosticsEnabled) {
                             SettingsRow(
-                                systemImage: "waveform.path.ecg",
+                                image: "SettingsCrashDiagnostics",
                                 title: NSLocalizedString("Send Crash Diagnostics", comment: ""),
                                 detail: self.isDiagnosticsEnabled ? "On" : "Off"
                             )
@@ -130,7 +130,7 @@ struct SettingsView: View {
                         }
 
                         SettingsRow(
-                            systemImage: "stethoscope",
+                            image: "SettingsDiagnosticCode",
                             title: NSLocalizedString("Diagnostic Code", comment: ""),
                             detail: self.viewModel.diagnosticCode
                         )
@@ -146,7 +146,7 @@ struct SettingsView: View {
                             },
                             label: {
                                 SettingsRow(
-                                    systemImage: "doc.on.doc",
+                                    image: "SettingsCopy",
                                     title: NSLocalizedString("Copy Diagnostic Code", comment: ""),
                                     detail: nil
                                 )
@@ -161,7 +161,7 @@ struct SettingsView: View {
 
                 Section("App") {
                     SettingsRow(
-                        systemImage: "number",
+                        image: "SettingsVersion",
                         title: NSLocalizedString("Version", comment: ""),
                         detail: Self.versionText
                     )
@@ -175,7 +175,7 @@ struct SettingsView: View {
                         },
                         label: {
                             SettingsRow(
-                                systemImage: "star",
+                                image: "SettingsRate",
                                 title: NSLocalizedString("Rate AnyPortal", comment: ""),
                                 detail: nil
                             )
