@@ -102,8 +102,8 @@ final class SettingsViewModel {
             await self.refreshPortalAccountStatus()
         } catch {
             self.portalAccountErrorMessage = self.isPortalAuthenticated
-                ? "BrowseCraft could not sign out. Try again."
-                : "Sign in with Apple could not be completed. Try again."
+                ? NSLocalizedString("BrowseCraft could not sign out. Try again.", comment: "")
+                : NSLocalizedString("Sign in with Apple could not be completed. Try again.", comment: "")
             await self.refreshPortalAccountStatus()
         }
     }
@@ -128,7 +128,7 @@ final class SettingsViewModel {
                 event: "image-cache-settings-update-failed",
                 metadata: ["error": AppLog.safeErrorCode(error)]
             )
-            self.cacheErrorMessage = "Image cache settings could not be updated."
+            self.cacheErrorMessage = NSLocalizedString("Image cache settings could not be updated.", comment: "")
         }
     }
 
@@ -137,7 +137,7 @@ final class SettingsViewModel {
         self.imageCacheManager.clearConfiguredCaches()
         self.cacheErrorMessage = nil
         // 中文注释：Nuke DataCache 的 removeAll 是异步写入队列动作，因此文案只承诺“已开始清理”。
-        self.cacheStatusMessage = "Image cache clearing has started."
+        self.cacheStatusMessage = NSLocalizedString("Image cache clearing has started.", comment: "")
 
         AppLog.notice(.cache, event: "image-cache-clear-requested")
     }

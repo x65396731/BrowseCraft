@@ -286,38 +286,38 @@ struct CloudSyncSettingsView: View {
     private var accountStatusTitle: String {
         switch self.viewModel.accountAvailability {
         case .notChecked:
-            return "iCloud Not Checked"
+            return NSLocalizedString("iCloud Not Checked", comment: "")
         case .checking:
-            return "Checking iCloud"
+            return NSLocalizedString("Checking iCloud", comment: "")
         case .available:
-            return "iCloud Available"
+            return NSLocalizedString("iCloud Available", comment: "")
         case .noAccount:
-            return "Not Signed In"
+            return NSLocalizedString("Not Signed In", comment: "")
         case .restricted:
-            return "iCloud Restricted"
+            return NSLocalizedString("iCloud Restricted", comment: "")
         case .temporarilyUnavailable:
-            return "Temporarily Unavailable"
+            return NSLocalizedString("Temporarily Unavailable", comment: "")
         case .couldNotDetermine:
-            return "Status Unavailable"
+            return NSLocalizedString("Status Unavailable", comment: "")
         }
     }
 
     private var accountStatusDetail: String {
         switch self.viewModel.accountAvailability {
         case .notChecked:
-            return "Turn on Cloud Sync to check the iCloud account on this device."
+            return NSLocalizedString("Turn on Cloud Sync to check the iCloud account on this device.", comment: "")
         case .checking:
-            return "Checking the iCloud account configured on this device."
+            return NSLocalizedString("Checking the iCloud account configured on this device.", comment: "")
         case .available:
-            return "Private CloudKit storage is available for this account."
+            return NSLocalizedString("Private CloudKit storage is available for this account.", comment: "")
         case .noAccount:
-            return "Sign in to iCloud in System Settings to use Cloud Sync."
+            return NSLocalizedString("Sign in to iCloud in System Settings to use Cloud Sync.", comment: "")
         case .restricted:
-            return "iCloud access may be limited by parental controls or device management."
+            return NSLocalizedString("iCloud access may be limited by parental controls or device management.", comment: "")
         case .temporarilyUnavailable:
-            return "Local data and pending changes are preserved until iCloud recovers."
+            return NSLocalizedString("Local data and pending changes are preserved until iCloud recovers.", comment: "")
         case .couldNotDetermine:
-            return "The iCloud account status could not be determined. Try refreshing."
+            return NSLocalizedString("The iCloud account status could not be determined. Try refreshing.", comment: "")
         }
     }
 
@@ -352,31 +352,31 @@ struct CloudSyncSettingsView: View {
     private var identityStatusTitle: String {
         switch self.viewModel.cloudIdentityAssociationState {
         case .notAssociated, .readyToCreate:
-            return "BrowseCraft Identity Not Checked"
+            return NSLocalizedString("BrowseCraft Identity Not Checked", comment: "")
         case .associated:
-            return "BrowseCraft Identity Linked"
+            return NSLocalizedString("BrowseCraft Identity Linked", comment: "")
         case .requiresUserDecision:
-            return "Different BrowseCraft Profile"
+            return NSLocalizedString("Different BrowseCraft Profile", comment: "")
         }
     }
 
     private var identityStatusDetail: String {
         switch self.viewModel.cloudIdentityAssociationState {
         case .notAssociated, .readyToCreate:
-            return "Use the link button to verify this profile with iCloud."
+            return NSLocalizedString("Use the link button to verify this profile with iCloud.", comment: "")
         case .associated:
-            return "This iCloud account is linked to the active BrowseCraft profile."
+            return NSLocalizedString("This iCloud account is linked to the active BrowseCraft profile.", comment: "")
         case .requiresUserDecision:
-            return "Cloud Sync remains off until the profile mismatch is resolved."
+            return NSLocalizedString("Cloud Sync remains off until the profile mismatch is resolved.", comment: "")
         }
     }
 
     private var identityLinkButtonTitle: String {
         switch self.viewModel.cloudIdentityAssociationState {
         case .associated:
-            return "Check BrowseCraft Identity Again"
+            return NSLocalizedString("Check BrowseCraft Identity Again", comment: "")
         case .notAssociated, .readyToCreate, .requiresUserDecision:
-            return "Link BrowseCraft Identity"
+            return NSLocalizedString("Link BrowseCraft Identity", comment: "")
         }
     }
 
@@ -405,19 +405,19 @@ struct CloudSyncSettingsView: View {
     private var syncPreferenceFooter: String {
         switch self.viewModel.accountAvailability {
         case .notChecked:
-            return "Turning on Cloud Sync starts an iCloud account check and shows what will be synchronized before any cloud data is loaded."
+            return NSLocalizedString("Turning on Cloud Sync starts an iCloud account check and shows what will be synchronized before any cloud data is loaded.", comment: "")
         case .checking:
-            return "Cloud Sync will be available after the iCloud account check completes."
+            return NSLocalizedString("Cloud Sync will be available after the iCloud account check completes.", comment: "")
         case .available:
-            return "When disabled, local data and pending upload tasks are retained. Nothing is deleted from iCloud."
+            return NSLocalizedString("When disabled, local data and pending upload tasks are retained. Nothing is deleted from iCloud.", comment: "")
         case .noAccount:
-            return "The app remains available offline in its local data space."
+            return NSLocalizedString("The app remains available offline in its local data space.", comment: "")
         case .restricted:
-            return "Cloud Sync cannot be enabled while iCloud access is restricted."
+            return NSLocalizedString("Cloud Sync cannot be enabled while iCloud access is restricted.", comment: "")
         case .temporarilyUnavailable:
-            return "Sync is paused. Local data and pending upload tasks remain unchanged."
+            return NSLocalizedString("Sync is paused. Local data and pending upload tasks remain unchanged.", comment: "")
         case .couldNotDetermine:
-            return "Refresh the iCloud status before enabling Cloud Sync."
+            return NSLocalizedString("Refresh the iCloud status before enabling Cloud Sync.", comment: "")
         }
     }
 
@@ -426,13 +426,13 @@ struct CloudSyncSettingsView: View {
     ) -> String {
         switch issue {
         case .signInRequired:
-            return "Sign In to iCloud"
+            return NSLocalizedString("Sign In to iCloud", comment: "")
         case .restricted:
-            return "iCloud Is Restricted"
+            return NSLocalizedString("iCloud Is Restricted", comment: "")
         case .temporarilyUnavailable:
-            return "iCloud Is Temporarily Unavailable"
+            return NSLocalizedString("iCloud Is Temporarily Unavailable", comment: "")
         case .statusUnavailable:
-            return "Unable to Check iCloud"
+            return NSLocalizedString("Unable to Check iCloud", comment: "")
         }
     }
 
@@ -441,13 +441,13 @@ struct CloudSyncSettingsView: View {
     ) -> String {
         switch issue {
         case .signInRequired:
-            return "Open the Settings app, sign in to your Apple Account, and enable iCloud Drive. Then return here and check again."
+            return NSLocalizedString("Open the Settings app, sign in to your Apple Account, and enable iCloud Drive. Then return here and check again.", comment: "")
         case .restricted:
-            return "iCloud access is limited by parental controls or device management settings."
+            return NSLocalizedString("iCloud access is limited by parental controls or device management settings.", comment: "")
         case .temporarilyUnavailable:
-            return "Your local data is unchanged. Wait for iCloud to recover, then check again."
+            return NSLocalizedString("Your local data is unchanged. Wait for iCloud to recover, then check again.", comment: "")
         case .statusUnavailable:
-            return "The iCloud account status could not be determined. Check your connection and try again."
+            return NSLocalizedString("The iCloud account status could not be determined. Check your connection and try again.", comment: "")
         }
     }
 }

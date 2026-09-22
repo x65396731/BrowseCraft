@@ -32,6 +32,24 @@ Pre-build gate for layer boundaries. It runs on every build and never modifies a
 - `BCA-BUILD-005` `scripts/architecture-boundary-exemptions.txt` 的豁免只允许收敛、不允许新增未经审阅的条目；
   删掉一行即恢复对该处的检查。
 
+## check-localization.py
+
+Post-compile gate for localization. It runs after the `BrowseCraft` target compiles its sources and never modifies anything.
+
+```sh
+./scripts/check-localization.py <Objects-normal 目录>
+```
+
+中文注释：不变量是「编译器认定要本地化的每一个键，en / zh-Hans / zh-Hant 三份 `Localizable.strings` 里都必须有」，
+另外三份文件的键集合必须完全一致。键从两处取：SwiftUI 的 `Text` / `Label` / `Section` / `String(localized:)`
+读 swiftc 在 `SWIFT_EMIT_LOC_STRINGS: YES` 下写出的 `.stringsdata`；`NSLocalizedString` swiftc 不提取，
+从源码取第一个字面量参数。
+
+- 闸门看不到的一类：字面量先放进 `String`，再交给 `Text(someString)`、`.accessibilityValue(someString)`——
+  SwiftUI 逐字显示、不查表。这类要在源头写成 `NSLocalizedString(...)`，写对了就自动进入闸门视野。
+- 上线当天已缺翻译的键登记在 `scripts/localization-missing-baseline.txt`，只许收敛：补上翻译后删掉那一行，
+  新写的文案直接三语补齐，不登记。
+
 ## check-swiftsoup-override.sh
 
 Verify that the local SwiftSoup override package (`../SwiftSoup`) sits at the exact commit

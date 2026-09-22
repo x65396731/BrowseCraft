@@ -344,7 +344,7 @@ struct InAppPurchasePlanSelectionView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(plan.title)
         .accessibilityValue(state.accessibilityValue)
-        .accessibilityHint(state.isPurchasable ? "Double tap to purchase" : state.accessibilityValue)
+        .accessibilityHint(state.isPurchasable ? NSLocalizedString("Double tap to purchase", comment: "") : state.accessibilityValue)
     }
 
     private func planButtonState(for plan: InAppPurchasePlan) -> InAppPurchasePlanButton.State {

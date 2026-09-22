@@ -13,19 +13,19 @@ struct InAppPurchasePlanButton: View {
         var accessibilityValue: String {
             switch self {
             case .loading:
-                return "Loading price"
+                return NSLocalizedString("Loading price", comment: "")
             case .unavailable:
-                return "Unavailable"
+                return NSLocalizedString("Unavailable", comment: "")
             case .available(let price):
                 return price
             case .purchasing:
-                return "Purchasing"
+                return NSLocalizedString("Purchasing", comment: "")
             case .pending:
-                return "Pending approval"
+                return NSLocalizedString("Pending approval", comment: "")
             case .purchased:
-                return "Purchased"
+                return NSLocalizedString("Purchased", comment: "")
             case .verificationRequired:
-                return "Verification required. Restore purchases to try again."
+                return NSLocalizedString("Verification required. Restore purchases to try again.", comment: "")
             }
         }
 

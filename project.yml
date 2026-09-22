@@ -31,6 +31,9 @@ settings:
     CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED: YES
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     STRING_CATALOG_GENERATE_SYMBOLS: YES
+    # 中文注释：让 swiftc 把 Text / Label / Section / String(localized:) 等要本地化的字面量写进
+    # Objects-normal/<arch>/*.stringsdata，本地化闸门（scripts/check-localization.py）读的就是它。
+    SWIFT_EMIT_LOC_STRINGS: YES
 
 packages:
   BrowseCraftCore:
@@ -195,6 +198,13 @@ targets:
         basedOnDependencyAnalysis: false
         script: |
           "${SRCROOT}/scripts/check-swiftsoup-override.sh"
+    # 中文注释：本地化闸门放在编译之后——它要读 swiftc 刚写出的 .stringsdata。编译器认定要本地化的键
+    # 三份 Localizable.strings 都必须有；闸门上线时已缺的键登记在 scripts/localization-missing-baseline.txt，只许收敛。
+    postCompileScripts:
+      - name: Check Localization
+        basedOnDependencyAnalysis: false
+        script: |
+          "${SRCROOT}/scripts/check-localization.py"
     postBuildScripts:
       - name: Upload Crashlytics Symbols
         basedOnDependencyAnalysis: false

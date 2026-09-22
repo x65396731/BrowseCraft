@@ -314,7 +314,7 @@ final class CloudSyncSettingsViewModel {
         guard snapshot.state.availability == .available,
               snapshot.state.synchronizationScope == request.cloudScope else {
             self.setupRequest = nil
-            self.actionErrorMessage = "The iCloud account changed before setup was completed."
+            self.actionErrorMessage = NSLocalizedString("The iCloud account changed before setup was completed.", comment: "")
             return
         }
 
@@ -330,7 +330,7 @@ final class CloudSyncSettingsViewModel {
             await self.enablePreparedCloudScope(request.cloudScope)
         } catch {
             await self.loadPartitionState(for: snapshot)
-            self.actionErrorMessage = "Cloud sync setup could not be saved."
+            self.actionErrorMessage = NSLocalizedString("Cloud sync setup could not be saved.", comment: "")
         }
     }
 
@@ -398,7 +398,7 @@ final class CloudSyncSettingsViewModel {
     private func enablePreparedCloudScope(_ cloudScope: CloudAccountScope) async {
         let snapshot: CloudAccountSessionSnapshot = await self.accountSession.snapshot()
         guard snapshot.state.synchronizationScope == cloudScope else {
-            self.actionErrorMessage = "The iCloud account changed before setup was completed."
+            self.actionErrorMessage = NSLocalizedString("The iCloud account changed before setup was completed.", comment: "")
             return
         }
 
@@ -464,8 +464,10 @@ final class CloudSyncSettingsViewModel {
                 cloudUserID: cloudIdentity.userID
             )
             self.actionErrorMessage =
-                "This iCloud data belongs to another BrowseCraft account. " +
-                "Sign in with the matching Apple account before enabling Cloud Sync."
+                NSLocalizedString(
+                    "This iCloud data belongs to another BrowseCraft account. Sign in with the matching Apple account before enabling Cloud Sync.",
+                    comment: ""
+                )
             return false
         case .notAssociated, .readyToCreate:
             throw CloudAppUserIdentityAssociationError.unexpectedState
@@ -517,7 +519,7 @@ final class CloudSyncSettingsViewModel {
                         for: checkpoint.accountScope
                     )
                 } catch {
-                    self.actionErrorMessage = "The initial iCloud restore status could not be saved."
+                    self.actionErrorMessage = NSLocalizedString("The initial iCloud restore status could not be saved.", comment: "")
                 }
                 self.contentRevision &+= 1
             }
@@ -544,7 +546,7 @@ final class CloudSyncSettingsViewModel {
         } catch {
             self.preparation = nil
             self.currentUserSummary = nil
-            self.actionErrorMessage = "Cloud sync setup could not be loaded."
+            self.actionErrorMessage = NSLocalizedString("Cloud sync setup could not be loaded.", comment: "")
         }
         self.updateInitialRestoreState()
     }
@@ -612,27 +614,27 @@ final class CloudSyncSettingsViewModel {
             error as? CloudAppUserIdentityStoreError {
             switch storeError {
             case .accountUnavailable:
-                return "The iCloud account is not available for identity linking."
+                return NSLocalizedString("The iCloud account is not available for identity linking.", comment: "")
             case .accessDenied:
-                return "BrowseCraft does not have permission to link this iCloud account."
+                return NSLocalizedString("BrowseCraft does not have permission to link this iCloud account.", comment: "")
             case .malformedRecord:
-                return "The iCloud BrowseCraft identity record is invalid."
+                return NSLocalizedString("The iCloud BrowseCraft identity record is invalid.", comment: "")
             case .unsupportedSchemaVersion:
-                return "This iCloud BrowseCraft identity requires a newer app version."
+                return NSLocalizedString("This iCloud BrowseCraft identity requires a newer app version.", comment: "")
             case .temporarilyUnavailable:
-                return "iCloud identity linking is temporarily unavailable. Try again later."
+                return NSLocalizedString("iCloud identity linking is temporarily unavailable. Try again later.", comment: "")
             case .operationFailed:
-                return "The iCloud BrowseCraft identity could not be linked."
+                return NSLocalizedString("The iCloud BrowseCraft identity could not be linked.", comment: "")
             }
         }
         if let associationError: CloudAppUserIdentityAssociationError =
             error as? CloudAppUserIdentityAssociationError {
             switch associationError {
             case .activeUserChanged, .unexpectedState:
-                return "The active BrowseCraft profile changed before iCloud linking completed."
+                return NSLocalizedString("The active BrowseCraft profile changed before iCloud linking completed.", comment: "")
             }
         }
-        return "Cloud sync setup could not be saved."
+        return NSLocalizedString("Cloud sync setup could not be saved.", comment: "")
     }
 
 }

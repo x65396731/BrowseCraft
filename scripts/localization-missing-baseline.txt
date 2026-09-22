@@ -1,0 +1,129 @@
+# 本地化闸门的待收敛基线（scripts/check-localization.py 读取）。
+#
+# 中文注释：每行一个键，键里的换行写成 \n；# 开头的行是注释，写着这个键第一次出现的位置。
+# 这里登记的是 2026-09-22 闸门上线当天就已经缺翻译的键——把「今天的取值」固化成基线，
+# 挡住新增，不在同一个改动里顺带去碰其它功能线的文案。
+#
+# 只许收敛：补上三语翻译之后必须把对应的行删掉（闸门会提示），不允许往这里新增条目。
+# 新写的文案直接三语补齐，不要登记到这里。
+
+# BrowseCraft/App/Startup/AppBootstrapFailureView.swift:28
+Copied
+# BrowseCraft/App/Startup/AppBootstrapFailureView.swift:29
+Copy Diagnostics
+# BrowseCraft/BrowseCraftApp.swift:201
+Opening BrowseCraft…
+# BrowseCraft/Features/History/Details/TemporaryHistoryDetailView.swift:8
+Resource
+# BrowseCraft/Features/History/Details/TemporaryHistoryDetailView.swift:23
+Type
+# BrowseCraft/Features/History/Details/TemporaryHistoryDetailView.swift:24
+Visited
+# BrowseCraft/Features/History/Details/TemporaryHistoryDetailView.swift:27
+Open
+# BrowseCraft/Features/History/Details/TemporaryHistoryDetailView.swift:60
+Temporary Detail
+# BrowseCraft/Features/History/Details/TemporaryHistoryDetailView.swift:63
+Source Page
+# BrowseCraft/Features/History/HistoryView.swift:14
+Reading
+# BrowseCraft/Features/Library/Book/BookShelfView.swift:117
+EPUB
+# BrowseCraft/Features/Library/Book/Site/BookSiteDetailView.swift:34
+Continue Listening
+# BrowseCraft/Features/Library/Book/Site/BookSiteDetailView.swift:34
+Start Listening
+# BrowseCraft/Features/Library/Book/Site/BookSiteDetailView.swift:113
+%lld chapters
+# BrowseCraft/Features/Library/Comic/Detail/ComicDetailChapterSection.swift:39
+No Chapters
+# BrowseCraft/Features/Library/Comic/Detail/ComicDetailSections.swift:115
+%lld Chapters
+# BrowseCraft/Features/Library/Comic/Reader/ReaderPageImageView.swift:110
+Page %lld
+# BrowseCraft/Features/Library/Comic/Reader/ReaderView.swift:149
+No Pages
+# BrowseCraft/Features/Library/SourceAccess/Login/SourceLoginView.swift:45
+Login Session
+# BrowseCraft/Features/Library/Video/Detail/VideoDetailView.swift:123
+No Episodes
+# BrowseCraft/Features/Library/Video/List/VideoContentGridView.swift:150
+Add Favorite
+# BrowseCraft/Features/Library/Video/List/VideoContentGridView.swift:150
+Remove Favorite
+# BrowseCraft/Features/Library/Video/Player/VideoPlayerHostView.swift:161
+Sign In to This Source
+# BrowseCraft/Features/Library/Video/Player/VideoWebPlayerView.swift:233
+💡 %@
+# BrowseCraft/Features/Shared/CloudSyncInitialRestoreView.swift:31
+Retrying…
+# BrowseCraft/Features/Sources/AddSource/AddSourceView.swift:20
+Source
+# BrowseCraft/Features/Sources/AddSource/AddSourceView.swift:63
+Source Type Unavailable
+# BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:32
+Website
+# BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:42
+Keyword Suggestions
+# BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:46
+Custom Keyword
+# BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:71
+Searching...
+# BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:84
+Results
+# BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:169
+Status
+# BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:175
+Found %lld temporary results.
+# BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:175
+No temporary results found.
+# BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:273
+Playback
+# BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:303
+Playback Type
+# BrowseCraft/Features/Sources/Catalog/CatalogSourceListView.swift:296
+Update %@
+# BrowseCraft/Features/Sources/Catalog/CatalogSourceListView.swift:308
+Add %@
+# BrowseCraft/Features/Sources/RuleSource/SourceDebugView.swift:56
+Source JSON is read-only.
+# BrowseCraft/Features/Sources/RuleSource/SourceDebugView.swift:66
+Name
+# BrowseCraft/Features/Sources/RuleSource/SourceDebugView.swift:68
+Runtime
+# BrowseCraft/Features/Sources/RuleSource/SourceDebugView.swift:70
+Ownership
+# BrowseCraft/Features/Sources/RuleSource/SourceDebugView.swift:75
+Tab Validation
+# BrowseCraft/Features/Sources/RuleSource/SourceDebugView.swift:112
+%lld items
+# BrowseCraft/Features/Sources/RuleSource/SourceDebugView.swift:137
+Comic Rule
+# BrowseCraft/Features/Sources/RuleSource/SourceDebugView.swift:147
+Pages
+# BrowseCraft/Features/Sources/RuleSource/SourceDebugView.swift:148
+Tabs
+# BrowseCraft/Features/Sources/RuleSource/SourceDebugView.swift:156
+RuleSets
+# BrowseCraft/Features/Sources/RuleSource/SourceDebugView.swift:170
+Request
+# BrowseCraft/Features/Sources/RuleSource/SourceDebugView.swift:181
+Strategy
+# BrowseCraft/Features/Sources/RuleSource/SourceDebugView.swift:185
+List Rules
+# BrowseCraft/Features/Sources/RuleSource/SourceDebugView.swift:191
+Plugin
+# BrowseCraft/Features/Sources/RuleSource/SourceDebugView.swift:192
+Plugin ID
+# BrowseCraft/Features/Sources/RuleSource/SourceDebugView.swift:195
+Entrypoint
+# BrowseCraft/Features/Sources/RuleSource/SourceDebugView.swift:200
+JSON Preview
+# BrowseCraft/Features/Sources/RuleSource/SourceDebugView.swift:289
+Book
+# BrowseCraft/Features/Sources/RuleSource/SourceDebugView.swift:294
+Reader variants
+# BrowseCraft/Features/Sources/SourcesView.swift:276
+This source was restored safely, but it is not currently part of your active source loadout.
+# BrowseCraft/Features/Sources/SourcesView.swift:311
+The replaced source remains safely stored and becomes locked. Purchase more source slots in Settings > Premium to keep more sources active.
