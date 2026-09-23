@@ -106,7 +106,7 @@
    The failed_* suffix is RuleGenerationOutcomeReason and must stay in sync. */
 "push_generation_title" = "规则生成";
 "push_generation_succeeded" = "%@ 的规则已生成，可以在来源列表中使用了。";
-"push_generation_merged" = "%@ 的规则已并入已有来源，新增了一个分类。";
+"push_generation_merged" = "%@ 的规则已更新到已有来源。";
 "push_generation_failed_siteRejectedFetcher" = "%@ 拒绝了我们的采集请求，请稍后或换个网络环境再试。";
 "push_generation_failed_siteNotSupported" = "暂不支持为 %@ 生成规则。";
 "push_generation_failed_siteUnreachable" = "无法访问 %@，请确认网站可用后再试。";
