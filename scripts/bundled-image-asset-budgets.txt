@@ -39,7 +39,7 @@ ComicKindBadge          12000     96x96      single-scale-png
 BookKindBadge           12000     96x96      single-scale-png
 EmptyStateSources       270000    390x540    single-scale-png
 EmptyStateFavorites     210000    447x540    single-scale-png
-EmptyStateHistory       220000    387x540    single-scale-png
+EmptyStateHistory       186000    256x540    single-scale-png
 EmptyStateSearch        215000    274x540    single-scale-png
 EmptyStateOffline       233000    506x540    single-scale-png
 EntryGuideUnsupportedPage 185000  395x450    single-scale-png
@@ -77,13 +77,18 @@ SettingsRate              2700      22x22      multi-scale-png
 # 2026-09-20 空状态插画五张：登记为单档、无损，像素高度统一 540（= 180pt @3x 的原生分辨率，
 # 版面里按 180pt 高渲染，所以不是「渲染宽度远小于原生」那一类，不走 lossy）。
 # 宽度各不相同是有意的：这些图是抠底后按不透明内容裁边得到的，宽高比由姿势决定
-# （0.51 到 0.94），版面用 .scaledToFit() 装进等高的框，窄的那几张左右留白多一些。
+# （0.47 到 0.94），版面用 .scaledToFit() 装进等高的框，窄的那几张左右留白多一些。
 # 不在图里预留空白边距——版面留白由 SwiftUI 的 padding 控制，写进图里既没法按场景调，
 # 透明像素还白占内存。
 #
 # 背景是用洪水填充从画面四边抠掉纯白得到的：只去掉与边界连通的白，
 # 角色身上被轮廓包住的白（过膝袜、胸甲护板、白色长摆）因此不受影响。
 # 这也是生成时要求「人物与道具不得接触画面四条边」的原因——一旦接触，白色会顺缺口漏进去。
+#
+# 2026-09-23 EmptyStateHistory 重做：初版是她坐在一只巨大的钟上，钟占了画面下半，
+# 人物只占 540px 里约 45% 的高度，与其余四张（站立全身、约 90%–100%）并排时小了一半。
+# 版面是等高框，人物显示多大只取决于她在图里占多高，所以只能改构图、不能为这一张调框。
+# 新版改成站立全身、手里拎一只小闹钟（2000×2000 原图抠底后 890×1879，缩到 256×540）。
 #
 # EntryGuideUnsupportedPage 是同一批里的第六张，登记 450px 高（= 150pt @3x）而不是 540：
 # 它是合格入口页引导屏的引题图，那一屏下面还有三段要读，引题图占掉半屏就本末倒置了。
