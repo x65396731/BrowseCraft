@@ -17,7 +17,8 @@ enum EntryPageGuide {
     /// 中文注释：读过的版本号存这里。文案实质改版时把 `currentVersion` +1，老用户再看一次；
     /// 只改错别字不要动它，否则每个人都被多拦一屏。
     static let seenVersionKey: String = "entryPageGuideSeenVersion"
-    static let currentVersion: Int = 1
+    /// 版本 2（2026-09-23，`BC-PAGE-061`）：分页说明改成「点到第 2 页地址会变」，并加一行「满足两条也可能生成不了」。
+    static let currentVersion: Int = 2
 
     /// 中文注释：判定单独拿出来是为了可测——视图里的那份是 `private` 计算属性，测不到。
     /// 本次已经点过「我找到了这样的页面」就不再拦（`didAcknowledge`），
@@ -73,7 +74,12 @@ struct EntryPageGuideView: View {
             } header: {
                 Text(NSLocalizedString("entry_guide_requirements_title", comment: ""))
             } footer: {
-                Text(NSLocalizedString("entry_guide_subtitle", comment: ""))
+                // 中文注释：`BC-PAGE-061` 全站直出拦的是作品页 / 阅读页里的额外接口与解密，
+                // 用户在列表页上看不出来——先说一句，免得照着两条做了却被拒时觉得被骗。
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(NSLocalizedString("entry_guide_subtitle", comment: ""))
+                    Text(NSLocalizedString("entry_guide_requirements_caveat", comment: ""))
+                }
             }
 
             Section(NSLocalizedString("entry_guide_examples_title", comment: "")) {

@@ -24,9 +24,10 @@
 "entry_guide_subtitle" = "Find a page like this in your browser, then paste its address.";
 "entry_guide_requirements_title" = "Two requirements";
 "entry_guide_rule_pagination_title" = "Page numbers at the bottom";
-"entry_guide_rule_pagination_detail" = "Scroll to the bottom and you see 1 2 3 … or a next-page link, and paging stays on the same address pattern.";
+"entry_guide_rule_pagination_detail" = "Scroll to the bottom and you see 1 2 3 … or a next-page link, and the address in the address bar changes when you go to page 2.";
 "entry_guide_rule_single_list_title" = "One list on the whole page";
 "entry_guide_rule_single_list_detail" = "One kind of card fills the page, not several blocks such as latest, popular and ranking stacked together.";
+"entry_guide_requirements_caveat" = "A page that meets both can still fail: some sites load their images or videos through separate requests or encrypt them. Those are not supported yet, and you will be told why after you submit.";
 "entry_guide_examples_title" = "Examples";
 "entry_guide_example_bad" = "A site's home page: usually several blocks, and no page numbers.";
 "entry_guide_example_good_video" = "A category or channel listing page with page numbers at the bottom.";
@@ -134,7 +135,8 @@
 "video_generation_outcome_detail_noPlaybackCarrier" = "No video playback was found on this site.";
 "video_generation_outcome_detail_episodeLayoutUnsupported" = "The site has video pages, but this episode layout isn't supported yet.";
 "video_generation_outcome_detail_terminalPagesWithoutCarrier" = "The reading or playback pages were reached, but their content is not a directly readable image or video (for example, canvas-drawn or encrypted images). This is not supported yet.";
-"video_generation_outcome_detail_entryPageWithoutPagination" = "We could not work out this page’s next-page address, so only the first screen is reachable. Try a category page whose paging stays on the same address.";
+"video_generation_outcome_detail_contentNotServerRendered" = "This site loads its content through separate data requests or encryption. Only sites that deliver content with the page itself are supported for now. Try a different site.";
+"video_generation_outcome_detail_entryPageWithoutPagination" = "We could not work out this page’s next-page address, so only the first screen is reachable. Try a category page whose address changes when you go to page 2.";
 "video_generation_outcome_detail_entryPageMultipleListFamilies" = "This page holds several unrelated lists. Try a category page that lists just one kind of content.";
 "video_generation_outcome_detail_entryPageNoListFamily" = "No content list was found on this page. Try a category or listing page.";
 "video_generation_outcome_detail_entryPageShapeAmbiguous" = "We could not read this page’s structure. Try a category page instead.";

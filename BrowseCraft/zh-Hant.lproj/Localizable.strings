@@ -24,9 +24,10 @@
 "entry_guide_subtitle" = "在瀏覽器裡找到這樣一頁，再把它的網址貼進來。";
 "entry_guide_requirements_title" = "兩條要求";
 "entry_guide_rule_pagination_title" = "頁底有頁碼";
-"entry_guide_rule_pagination_detail" = "滑到底能看到 1 2 3 … 或「下一頁」，而且翻頁停留在同一套網址上。";
+"entry_guide_rule_pagination_detail" = "滑到底能看到 1 2 3 … 或「下一頁」，點到第 2 頁時，網址列裡的網址會跟著變。";
 "entry_guide_rule_single_list_title" = "整頁只有一種列表";
 "entry_guide_rule_single_list_detail" = "一種卡片鋪滿整頁，不是「最新 / 熱門 / 排行」幾塊拼起來的。";
+"entry_guide_requirements_caveat" = "滿足這兩條也可能生成不了：有的網站的圖片或影片要另外請求、或經過加密，這類暫不支援，送出後會告訴你原因。";
 "entry_guide_examples_title" = "例子";
 "entry_guide_example_bad" = "網站首頁：多半是幾塊拼起來的，也沒有頁碼。";
 "entry_guide_example_good_video" = "某個分類或頻道的列表頁，底部帶頁碼。";
@@ -134,7 +135,8 @@
 "video_generation_outcome_detail_noPlaybackCarrier" = "這個網站上找不到影片播放。";
 "video_generation_outcome_detail_episodeLayoutUnsupported" = "這個網站有影片頁面，但這種劇集排版暫時不支援。";
 "video_generation_outcome_detail_terminalPagesWithoutCarrier" = "已經取到了閱讀或播放頁面，但頁面上的內容不是能直接讀取的圖片或影片（例如畫布繪製或加密的圖片），暫時不支援。";
-"video_generation_outcome_detail_entryPageWithoutPagination" = "這個頁面的翻頁網址推不出來，只能取到第一屏。請換一個翻頁停留在同一套網址上的分類頁。";
+"video_generation_outcome_detail_contentNotServerRendered" = "這個網站的內容要另外請求資料或經過加密才能取得，目前只支援內容隨頁面直接下發的網站，請換一個網站試試。";
+"video_generation_outcome_detail_entryPageWithoutPagination" = "這個頁面的翻頁網址推不出來，只能取到第一屏。請換一個翻到第 2 頁時網址會跟著變的分類頁。";
 "video_generation_outcome_detail_entryPageMultipleListFamilies" = "這個頁面上有好幾組互不相干的清單，請換一個只列一類內容的分類頁。";
 "video_generation_outcome_detail_entryPageNoListFamily" = "這個頁面上沒有找到內容清單，請換一個分類頁或清單頁。";
 "video_generation_outcome_detail_entryPageShapeAmbiguous" = "這個頁面的結構沒看清，請換一個分類頁再試一次。";

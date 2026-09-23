@@ -24,9 +24,10 @@
 "entry_guide_subtitle" = "在浏览器里找到这样一页，再把它的地址贴进来。";
 "entry_guide_requirements_title" = "两条要求";
 "entry_guide_rule_pagination_title" = "页底有页码";
-"entry_guide_rule_pagination_detail" = "拉到底能看到 1 2 3 … 或「下一页」，而且翻页停留在同一套地址上。";
+"entry_guide_rule_pagination_detail" = "拉到底能看到 1 2 3 … 或「下一页」，点到第 2 页时，地址栏里的地址会跟着变。";
 "entry_guide_rule_single_list_title" = "整页只有一种列表";
 "entry_guide_rule_single_list_detail" = "一种卡片铺满整页，不是「最新 / 热门 / 排行」几块拼起来的。";
+"entry_guide_requirements_caveat" = "满足这两条也可能生成不了：有的网站的图片或视频要另外请求、或经过加密，这类暂不支持，提交后会告诉你原因。";
 "entry_guide_examples_title" = "例子";
 "entry_guide_example_bad" = "网站首页：多半是几块拼起来的，也没有页码。";
 "entry_guide_example_good_video" = "某个分类或频道的列表页，底部带页码。";
@@ -134,7 +135,8 @@
 "video_generation_outcome_detail_noPlaybackCarrier" = "该网站上没有找到视频播放。";
 "video_generation_outcome_detail_episodeLayoutUnsupported" = "该网站有视频页面，但这种剧集布局暂不支持。";
 "video_generation_outcome_detail_terminalPagesWithoutCarrier" = "已经取到了阅读或播放页面，但页面上的内容不是能直接读取的图片或视频（例如画布绘制或加密的图片），暂不支持。";
-"video_generation_outcome_detail_entryPageWithoutPagination" = "这个页面的翻页地址推不出来，只能取到第一屏。请换一个翻页停留在同一套地址上的分类页。";
+"video_generation_outcome_detail_contentNotServerRendered" = "这个网站的内容要另外请求数据或经过加密才能取到，目前只支持内容随页面直接下发的网站，请换一个网站试试。";
+"video_generation_outcome_detail_entryPageWithoutPagination" = "这个页面的翻页地址推不出来，只能取到第一屏。请换一个翻到第 2 页时地址会跟着变的分类页。";
 "video_generation_outcome_detail_entryPageMultipleListFamilies" = "这个页面上有好几组互不相干的列表，请换一个只列一类内容的分类页。";
 "video_generation_outcome_detail_entryPageNoListFamily" = "这个页面上没有找到内容列表，请换一个分类页或列表页。";
 "video_generation_outcome_detail_entryPageShapeAmbiguous" = "这个页面的结构没看清，请换一个分类页再试一次。";

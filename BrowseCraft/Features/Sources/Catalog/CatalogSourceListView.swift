@@ -217,7 +217,9 @@ enum VideoGenerationOutcomeText {
     static let knownReasonDetails: Set<String> = Set<String>([
         "noPlaybackCarrier", "episodeLayoutUnsupported",
         // `BC-IMPL-139`：终端页已取到却没有可识别的内容载体（按 kind 中立措辞）。
-        "terminalPagesWithoutCarrier"
+        "terminalPagesWithoutCarrier",
+        // `BC-PAGE-061`：内容要额外请求数据接口或解密才能取到——换网站，不是换入口页。
+        "contentNotServerRendered"
     ]).union(Self.entryPageRejectionDetails)
 
     static func reasonText(for outcome: VideoGenerationOutcome) -> String {
