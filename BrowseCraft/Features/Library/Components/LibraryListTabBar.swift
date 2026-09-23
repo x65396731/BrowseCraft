@@ -15,7 +15,12 @@ struct LibraryListTabBar: View {
     private let videoTabStrokeColor: Color = Color(red: 233 / 255, green: 236 / 255, blue: 239 / 255)
 
     var body: some View {
-        if self.source?.configuration.kind == .comic {
+        // 中文注释：2026-09-23 用户裁定 video / comic 不再生成分类标签——入口只接受「全部」类列表页，
+        // 规则只有一个列表，其余内容靠搜索找到（与 book 现状一致）。只有一个列表时标签只是一个
+        // 不可切换的按钮，不显示；旧来源里仍有多个分类的照常显示。
+        if self.tabs.count <= 1 {
+            EmptyView()
+        } else if self.source?.configuration.kind == .comic {
             self.comicListTabBar
         } else if self.source?.configuration.kind == .video {
             self.videoListTabBar

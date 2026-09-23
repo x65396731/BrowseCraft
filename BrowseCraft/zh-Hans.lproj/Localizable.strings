@@ -29,14 +29,14 @@
 "entry_guide_rule_single_list_detail" = "一种卡片铺满整页，不是「最新 / 热门 / 排行」几块拼起来的。";
 "entry_guide_requirements_caveat" = "满足这两条也可能生成不了：有的网站的图片或视频要另外请求、或经过加密，这类暂不支持，提交后会告诉你原因。";
 "entry_guide_examples_title" = "例子";
-"entry_guide_example_bad" = "网站首页：多半是几块拼起来的，也没有页码。";
-"entry_guide_example_good_video" = "某个分类或频道的列表页，底部带页码。";
-"entry_guide_example_good_comic" = "某个分类或题材的列表页，底部带页码。";
-"entry_guide_example_good_book" = "分类页或排行榜页，底部带页码。";
-"entry_guide_example_good_generic" = "某个分类或排行榜的列表页，底部带页码。";
+"entry_guide_example_bad" = "网站首页：不支持。首页多半是几块拼起来的，也没有页码。";
+"entry_guide_example_good_video" = "「全部」影片的列表页（不筛分类），底部带页码；其它内容用搜索找。";
+"entry_guide_example_good_comic" = "「全部」漫画的列表页（不筛题材），底部带页码；其它内容用搜索找。";
+"entry_guide_example_good_book" = "「全部」作品页或排行榜页，底部带页码；其它内容用搜索找。";
+"entry_guide_example_good_generic" = "「全部」作品的列表页，底部带页码；其它内容用搜索找。";
 "entry_guide_steps_title" = "怎么找";
 "entry_guide_step_1" = "1. 在浏览器里打开这个网站";
-"entry_guide_step_2" = "2. 点进一个分类或排行榜";
+"entry_guide_step_2" = "2. 点进「全部」列表（没有「全部」就选一个分类或排行榜）";
 "entry_guide_step_3" = "3. 拉到底确认有页码，复制地址栏里的地址";
 "entry_guide_continue_button" = "我找到了这样的页面";
 "entry_guide_dismiss_button" = "知道了";
@@ -140,6 +140,7 @@
 "video_generation_outcome_detail_entryPageMultipleListFamilies" = "这个页面上有好几组互不相干的列表，请换一个只列一类内容的分类页。";
 "video_generation_outcome_detail_entryPageNoListFamily" = "这个页面上没有找到内容列表，请换一个分类页或列表页。";
 "video_generation_outcome_detail_entryPageShapeAmbiguous" = "这个页面的结构没看清，请换一个分类页再试一次。";
+"video_generation_outcome_detail_entryPageIsSiteRoot" = "暂不支持用网站首页生成。请打开网站上「全部」内容的列表页（没有就选一个分类页），用它的地址再试一次。";
 /* 个人规则本地保留 7 天；删除只在本地隐藏并移除已添加的来源。 */
 "catalog_personal_retention_hint" = "你生成的规则在本机保留 7 天（从收到时起算），左滑可提前删除。";
 "catalog_personal_delete" = "删除";

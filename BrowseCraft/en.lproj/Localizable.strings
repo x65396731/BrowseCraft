@@ -29,14 +29,14 @@
 "entry_guide_rule_single_list_detail" = "One kind of card fills the page, not several blocks such as latest, popular and ranking stacked together.";
 "entry_guide_requirements_caveat" = "A page that meets both can still fail: some sites load their images or videos through separate requests or encrypt them. Those are not supported yet, and you will be told why after you submit.";
 "entry_guide_examples_title" = "Examples";
-"entry_guide_example_bad" = "A site's home page: usually several blocks, and no page numbers.";
-"entry_guide_example_good_video" = "A category or channel listing page with page numbers at the bottom.";
-"entry_guide_example_good_comic" = "A category or genre listing page with page numbers at the bottom.";
-"entry_guide_example_good_book" = "A category or ranking page with page numbers at the bottom.";
-"entry_guide_example_good_generic" = "A category or ranking listing page with page numbers at the bottom.";
+"entry_guide_example_bad" = "A site's home page: not supported. It is usually several blocks, with no page numbers.";
+"entry_guide_example_good_video" = "The \"All\" videos listing (no category filter) with page numbers at the bottom; use search for the rest.";
+"entry_guide_example_good_comic" = "The \"All\" comics listing (no genre filter) with page numbers at the bottom; use search for the rest.";
+"entry_guide_example_good_book" = "The \"All\" works page or a ranking page with page numbers at the bottom; use search for the rest.";
+"entry_guide_example_good_generic" = "The \"All\" listing page with page numbers at the bottom; use search for the rest.";
 "entry_guide_steps_title" = "How to find one";
 "entry_guide_step_1" = "1. Open the site in your browser";
-"entry_guide_step_2" = "2. Go into a category or a ranking";
+"entry_guide_step_2" = "2. Open the \"All\" listing (if there is none, pick a category or a ranking)";
 "entry_guide_step_3" = "3. Scroll to the bottom, check for page numbers, then copy the address";
 "entry_guide_continue_button" = "I found a page like this";
 "entry_guide_dismiss_button" = "Got it";
@@ -140,6 +140,7 @@
 "video_generation_outcome_detail_entryPageMultipleListFamilies" = "This page holds several unrelated lists. Try a category page that lists just one kind of content.";
 "video_generation_outcome_detail_entryPageNoListFamily" = "No content list was found on this page. Try a category or listing page.";
 "video_generation_outcome_detail_entryPageShapeAmbiguous" = "We could not read this page’s structure. Try a category page instead.";
+"video_generation_outcome_detail_entryPageIsSiteRoot" = "Site home pages are not supported. Open the site's \"All\" listing page (or a category page if there is none) and try its address.";
 /* Personal rules are kept locally for 7 days after they are first received; deleting hides them locally and removes the added source. */
 "catalog_personal_retention_hint" = "Rules you generated are kept on this device for 7 days after they arrive. Swipe left to delete one earlier.";
 "catalog_personal_delete" = "Delete";

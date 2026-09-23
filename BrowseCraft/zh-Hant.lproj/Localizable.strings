@@ -29,14 +29,14 @@
 "entry_guide_rule_single_list_detail" = "一種卡片鋪滿整頁，不是「最新 / 熱門 / 排行」幾塊拼起來的。";
 "entry_guide_requirements_caveat" = "滿足這兩條也可能生成不了：有的網站的圖片或影片要另外請求、或經過加密，這類暫不支援，送出後會告訴你原因。";
 "entry_guide_examples_title" = "例子";
-"entry_guide_example_bad" = "網站首頁：多半是幾塊拼起來的，也沒有頁碼。";
-"entry_guide_example_good_video" = "某個分類或頻道的列表頁，底部帶頁碼。";
-"entry_guide_example_good_comic" = "某個分類或題材的列表頁，底部帶頁碼。";
-"entry_guide_example_good_book" = "分類頁或排行榜頁，底部帶頁碼。";
-"entry_guide_example_good_generic" = "某個分類或排行榜的列表頁，底部帶頁碼。";
+"entry_guide_example_bad" = "網站首頁：不支援。首頁多半是幾塊拼起來的，也沒有頁碼。";
+"entry_guide_example_good_video" = "「全部」影片的列表頁（不篩分類），底部帶頁碼；其它內容用搜尋找。";
+"entry_guide_example_good_comic" = "「全部」漫畫的列表頁（不篩題材），底部帶頁碼；其它內容用搜尋找。";
+"entry_guide_example_good_book" = "「全部」作品頁或排行榜頁，底部帶頁碼；其它內容用搜尋找。";
+"entry_guide_example_good_generic" = "「全部」作品的列表頁，底部帶頁碼；其它內容用搜尋找。";
 "entry_guide_steps_title" = "怎麼找";
 "entry_guide_step_1" = "1. 在瀏覽器裡打開這個網站";
-"entry_guide_step_2" = "2. 點進一個分類或排行榜";
+"entry_guide_step_2" = "2. 點進「全部」列表（沒有「全部」就選一個分類或排行榜）";
 "entry_guide_step_3" = "3. 滑到底確認有頁碼，複製網址列的網址";
 "entry_guide_continue_button" = "我找到了這樣的頁面";
 "entry_guide_dismiss_button" = "知道了";
@@ -140,6 +140,7 @@
 "video_generation_outcome_detail_entryPageMultipleListFamilies" = "這個頁面上有好幾組互不相干的清單，請換一個只列一類內容的分類頁。";
 "video_generation_outcome_detail_entryPageNoListFamily" = "這個頁面上沒有找到內容清單，請換一個分類頁或清單頁。";
 "video_generation_outcome_detail_entryPageShapeAmbiguous" = "這個頁面的結構沒看清，請換一個分類頁再試一次。";
+"video_generation_outcome_detail_entryPageIsSiteRoot" = "暫不支援用網站首頁生成。請打開網站上「全部」內容的列表頁（沒有就選一個分類頁），用它的網址再試一次。";
 /* 個人規則在本機保留 7 天；刪除只會在本機隱藏，並移除已加入的來源。 */
 "catalog_personal_retention_hint" = "你生成的規則會在本機保留 7 天（從收到時算起），向左滑可以提前刪除。";
 "catalog_personal_delete" = "刪除";
