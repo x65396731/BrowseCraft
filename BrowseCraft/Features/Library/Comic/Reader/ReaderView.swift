@@ -51,6 +51,8 @@ struct ReaderView: View {
             .background(Color(.systemBackground))
             .navigationTitle(self.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
+            // 中文注释：阅读时藏起底栏，与 BookReaderView 一致；返回详情页后系统自动恢复。
+            .toolbar(.hidden, for: .tabBar)
             .onAppear {
                 CrashDiagnostics.shared.setScreen(.comicReader)
                 AppAnalytics.shared.logScreenView(.comicReader)
