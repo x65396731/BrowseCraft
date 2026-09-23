@@ -136,9 +136,14 @@ private struct VideoLibraryCardView: View {
                 self.favoriteAction()
             },
             label: {
-                Image(systemName: self.isFavorite ? "star.fill" : "star")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(self.isFavorite ? .yellow : .white)
+                // 中文注释：与底栏「收藏」同一个心形——实心取 TabFavorites，空心是从同一剪影内缩出的
+                // TabFavoritesOutline，两者都是模板图，颜色由 foregroundColor 决定。
+                // 底栏按 25pt 原生渲染，这里缩到 18pt，与原来 16pt 字号的星形视觉尺寸相当。
+                Image(self.isFavorite ? "TabFavorites" : "TabFavoritesOutline")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 18, height: 18)
+                    .foregroundColor(self.isFavorite ? .pink : .white)
                     .frame(width: 32, height: 32)
                     .background(
                         Circle()

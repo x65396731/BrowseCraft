@@ -48,6 +48,7 @@ TabFavorites            4200      25x25      multi-scale-png
 TabLibrary              5200      25x25      multi-scale-png
 TabHistory              5600      25x25      multi-scale-png
 TabSettings             5400      25x25      multi-scale-png
+TabFavoritesOutline     4000      25x25      multi-scale-png
 SettingsAccount           3700      22x22      multi-scale-png
 SettingsCloudSync         2500      22x22      multi-scale-png
 SettingsBookmarks         2300      22x22      multi-scale-png
@@ -109,6 +110,14 @@ SettingsRate              2700      22x22      multi-scale-png
 # 五个图标先各自裁边，再按五者中最大的那条边（206px）统一装进 222x222 的画布居中，
 # 最后一起缩到 75。这样保住了它们在原图里的相对大小——那一版的视觉重量差是 1.27 倍
 # （最重历史、最轻设置），按各自包围盒分别缩放会把这个平衡破坏掉。
+#
+# 2026-09-23 TabFavoritesOutline：视频 / 漫画卡片右上角的收藏按钮原来是 SF Symbol 的星形，
+# 与底栏「收藏」的心形对不上，改成同一个心形。实心态直接复用 TabFavorites；空心态没有现成的图，
+# 从 TabFavorites@3x 的剪影派生——alpha 放大 4 倍到 300px 重新锐化边缘，内缩 28px（≈ 25pt 画布上的
+# 2.3pt）得到内轮廓，两者相减就是等宽描边，再缩回 25 / 50 / 75 三档。形状与实心版逐像素同源，
+# 不另画一张，所以两种状态切换时心形不会跳。同样标 template-rendering-intent，着色由按钮决定。
+# 按钮里经 .resizable() 缩到 18pt，与原来 16pt 字号的星形相当；三档仍保留，是为了将来放在
+# 底栏那种按 pt 原生渲染的位置时不必再补。
 #
 # BookCoverPlaceholder 与 video / comic 那四张占位图不同，是一张「书的封面」而不是场景插画，
 # 而且一张两处通用。2026-09-20 量过显示尺寸才定下来的：book 的封面框是书架行 44x60pt
