@@ -16,8 +16,8 @@ struct LibraryListTabBar: View {
 
     var body: some View {
         // 中文注释：2026-09-23 用户裁定 video / comic 不再生成分类标签——入口只接受「全部」类列表页，
-        // 规则只有一个列表，其余内容靠搜索找到（与 book 现状一致）。只有一个列表时标签只是一个
-        // 不可切换的按钮，不显示；旧来源里仍有多个分类的照常显示。
+        // 规则只有一个列表，其余内容靠搜索找到。只有一个列表时标签只是一个不可切换的按钮，不显示；
+        // 多个列表页（旧来源的分类，或 BC-PAGE-063 由入口页推导的同组标签）照常显示，book 走默认样式。
         if self.tabs.count <= 1 {
             EmptyView()
         } else if self.source?.configuration.kind == .comic {

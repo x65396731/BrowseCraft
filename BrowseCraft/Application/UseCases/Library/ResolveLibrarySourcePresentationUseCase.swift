@@ -13,6 +13,10 @@ struct ResolveLibrarySourcePresentationUseCase {
             return self.videoListTabs(for: configuration)
         }
 
+        if case .book(let configuration) = source.configuration {
+            return self.bookListTabs(for: configuration)
+        }
+
         guard let rule: SiteRule = source.ruleConfiguration?.rule else {
             return []
         }
@@ -79,6 +83,39 @@ struct ResolveLibrarySourcePresentationUseCase {
                     title: "",
                     link: "",
                     type: .video
+                ),
+                request: page.request,
+                context: ListContext(
+                    pageId: page.id,
+                    tabId: page.id,
+                    sectionId: nil,
+                    listRuleId: listRuleID,
+                    sectionRole: .main
+                )
+            )
+        }
+    }
+
+    /// 中文注释：book 规则是独立的 BookSiteRule，不走 SiteRule.availableListTabs——此前这里一律返回空，
+    /// 引擎推导出的多个列表页（BC-PAGE-063）在书架上看不到。每个 `type="list"` 页一个标签，搜索页不算；
+    /// 选中后 `pageId` 经 SourceRuntimeContext.pageID 交给 BookSourceRuntime 按页取列表。
+    private func bookListTabs(for configuration: BookSourceConfiguration) -> [ListTabRule] {
+        return configuration.rule.pages.compactMap { page in
+            guard page.type == "list",
+                  let listRuleID: String = page.ruleRefs.list,
+                  let pageURL: String = page.url else {
+                return nil
+            }
+            return ListTabRule(
+                id: page.id,
+                title: page.title ?? page.id,
+                list: ListRule(
+                    id: listRuleID,
+                    url: pageURL,
+                    item: "",
+                    title: "",
+                    link: "",
+                    type: .article
                 ),
                 request: page.request,
                 context: ListContext(
