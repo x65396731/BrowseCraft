@@ -37,6 +37,7 @@ struct VideoDetailView: View {
         .navigationBarBackButtonHidden(true)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button {

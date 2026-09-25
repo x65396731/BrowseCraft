@@ -73,6 +73,7 @@ struct ComicDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button(action: self.dismissDetail) {

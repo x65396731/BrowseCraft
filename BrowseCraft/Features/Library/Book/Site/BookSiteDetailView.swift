@@ -68,6 +68,7 @@ struct BookSiteDetailView: View {
         }
         .navigationTitle(self.viewModel.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
         .task {
             await self.viewModel.loadIfNeeded()
         }

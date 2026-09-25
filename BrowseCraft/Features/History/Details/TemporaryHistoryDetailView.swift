@@ -68,6 +68,7 @@ struct TemporaryHistoryDetailView: View {
             }
         }
         .navigationTitle("Temporary")
+        .toolbar(.hidden, for: .tabBar)
     }
 
     private static let dateFormatter: DateFormatter = {
