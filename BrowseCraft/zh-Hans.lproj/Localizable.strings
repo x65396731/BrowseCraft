@@ -141,6 +141,7 @@
 "video_generation_outcome_detail_entryPageNoListFamily" = "这个页面上没有找到内容列表，请换一个分类页或列表页。";
 "video_generation_outcome_detail_entryPageShapeAmbiguous" = "这个页面的结构没看清，请换一个分类页再试一次。";
 "video_generation_outcome_detail_entryPageIsSiteRoot" = "暂不支持用网站首页生成。请打开网站上「全部」内容的列表页（没有就选一个分类页），用它的地址再试一次。";
+"video_generation_outcome_detail_entryPagePaginationUnverified" = "这个页面的翻页地址核验不通过：第 2 页取不回，或取回的内容与第 1 页对不上。请换一个翻页正常的分类页地址再试一次。";
 /* 个人规则本地保留 7 天；删除只在本地隐藏并移除已添加的来源。 */
 "catalog_personal_retention_hint" = "你生成的规则在本机保留 7 天（从收到时起算），左滑可提前删除。";
 "catalog_personal_delete" = "删除";

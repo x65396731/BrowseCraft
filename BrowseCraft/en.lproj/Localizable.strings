@@ -141,6 +141,7 @@
 "video_generation_outcome_detail_entryPageNoListFamily" = "No content list was found on this page. Try a category or listing page.";
 "video_generation_outcome_detail_entryPageShapeAmbiguous" = "We could not read this page’s structure. Try a category page instead.";
 "video_generation_outcome_detail_entryPageIsSiteRoot" = "Site home pages are not supported. Open the site's \"All\" listing page (or a category page if there is none) and try its address.";
+"video_generation_outcome_detail_entryPagePaginationUnverified" = "The paging address on this page could not be verified: page 2 did not load, or its items did not differ from page 1. Try a category page whose paging works.";
 /* Personal rules are kept locally for 7 days after they are first received; deleting hides them locally and removes the added source. */
 "catalog_personal_retention_hint" = "Rules you generated are kept on this device for 7 days after they arrive. Swipe left to delete one earlier.";
 "catalog_personal_delete" = "Delete";

@@ -141,6 +141,7 @@
 "video_generation_outcome_detail_entryPageNoListFamily" = "這個頁面上沒有找到內容清單，請換一個分類頁或清單頁。";
 "video_generation_outcome_detail_entryPageShapeAmbiguous" = "這個頁面的結構沒看清，請換一個分類頁再試一次。";
 "video_generation_outcome_detail_entryPageIsSiteRoot" = "暫不支援用網站首頁生成。請打開網站上「全部」內容的列表頁（沒有就選一個分類頁），用它的網址再試一次。";
+"video_generation_outcome_detail_entryPagePaginationUnverified" = "這個頁面的翻頁地址核驗不通過：第 2 頁取不回，或取回的內容與第 1 頁對不上。請換一個翻頁正常的分類頁地址再試一次。";
 /* 個人規則在本機保留 7 天；刪除只會在本機隱藏，並移除已加入的來源。 */
 "catalog_personal_retention_hint" = "你生成的規則會在本機保留 7 天（從收到時算起），向左滑可以提前刪除。";
 "catalog_personal_delete" = "刪除";

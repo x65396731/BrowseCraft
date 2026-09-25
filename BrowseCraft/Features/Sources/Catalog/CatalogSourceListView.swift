@@ -231,10 +231,11 @@ enum VideoGenerationOutcomeText {
 
     /// `BC-PAGE-060` 的四种入口页拒因——它们都指向同一件事：换一个合格的入口页。
     /// `BC-PAGE-062` 追加 `entryPageIsSiteRoot`：首页入口不再支持，下一步同样是换入口页。
+    /// `BC-LIST-112` 追加 `entryPagePaginationUnverified`：翻页地址推得出但第 2 页核验不过，下一步仍是换入口页。
     static let entryPageRejectionDetails: Set<String> = [
         "entryPageWithoutPagination", "entryPageMultipleListFamilies",
         "entryPageNoListFamily", "entryPageShapeAmbiguous",
-        "entryPageIsSiteRoot"
+        "entryPageIsSiteRoot", "entryPagePaginationUnverified"
     ]
 
     static func isEntryPageRejection(_ outcome: VideoGenerationOutcome) -> Bool {
