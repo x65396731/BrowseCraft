@@ -139,11 +139,12 @@ struct VideoWebPlayerView: View {
                             )
                             #endif
                             self.coordinator.prepareCookies(for: self.request) {
-                                proxy.load(
-                                    request: self.request.urlRequest(
-                                        browserRequestHeaderProvider: self.browserRequestHeaderProvider
-                                    )
+                                let urlRequest: URLRequest = self.request.urlRequest(
+                                    browserRequestHeaderProvider: self.browserRequestHeaderProvider
                                 )
+                                // 中文注释：`APP-MEMO-018`——UA 要靠 customUserAgent 才生效，先记下再 load。
+                                self.coordinator.rememberDeclaredUserAgent(from: urlRequest)
+                                proxy.load(request: urlRequest)
                             }
                         }
                         .onChange(of: self.request) { _, newRequest in
@@ -155,11 +156,11 @@ struct VideoWebPlayerView: View {
                             )
                             #endif
                             self.coordinator.prepareCookies(for: newRequest) {
-                                proxy.load(
-                                    request: newRequest.urlRequest(
-                                        browserRequestHeaderProvider: self.browserRequestHeaderProvider
-                                    )
+                                let urlRequest: URLRequest = newRequest.urlRequest(
+                                    browserRequestHeaderProvider: self.browserRequestHeaderProvider
                                 )
+                                self.coordinator.rememberDeclaredUserAgent(from: urlRequest)
+                                proxy.load(request: urlRequest)
                             }
                         }
 

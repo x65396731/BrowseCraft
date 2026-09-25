@@ -25,6 +25,11 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
             }
 
             if navigationAction.targetFrame?.isMainFrame == true {
+                // 中文注释：`APP-MEMO-018`——声明的 UA 与 WebView 当前值不同时，设上并用同一请求重发。
+                if scheme == "http" || scheme == "https",
+                   self.applyDeclaredUserAgentIfNeeded(to: webView, reloading: navigationAction.request) {
+                    return (.cancel, preferences)
+                }
                 self.resetMobileAdaptation(in: webView)
             }
 

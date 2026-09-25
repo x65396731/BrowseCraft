@@ -60,6 +60,11 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
     private var mobileAdaptationTask: Task<Void, Never>?
     private var embedProbeTask: Task<Void, Never>?
     private var embedProbeCompletedURL: URL?
+    /// 中文注释：`APP-MEMO-018`——规则声明（经 `urlRequest(browserRequestHeaderProvider:)` 合成）的 UA。
+    /// WebKit 会用自己的 UA 覆盖 `URLRequest` 上的 `User-Agent`，只有 `customUserAgent` 能改（同
+    /// `WKWebViewHTMLLoader.applyUserAgent`，设计书 23.13）。播放器的 WKWebView 由 WebUI 创建、
+    /// App 拿不到实例，所以在这里记下要设的值，等首个主框架导航策略回调拿到 webView 再设。
+    private(set) var declaredUserAgent: String?
 
     init(
         request: VideoWebPlayerRequest,
@@ -82,6 +87,44 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
         self.configuration = configuration
         self.initialHost = request.url.host?.lowercased()
         super.init()
+    }
+
+    /// 中文注释：从即将 `load` 的 `URLRequest` 里解析 `User-Agent` 并记下；取不到就不动，
+    /// 保持 WKWebView 自己的 UA（与 `WKWebViewHTMLLoader.applyUserAgent` 同一取法）。
+    func rememberDeclaredUserAgent(from urlRequest: URLRequest) {
+        let userAgent: String? = urlRequest.allHTTPHeaderFields?.first { key, _ in
+            key.caseInsensitiveCompare("User-Agent") == .orderedSame
+        }?.value
+        guard let userAgent: String, userAgent.isEmpty == false else {
+            return
+        }
+        self.declaredUserAgent = userAgent
+    }
+
+    /// 中文注释：主框架导航策略回调是 App 第一次拿到 WebUI 创建的 WKWebView 的时点，但此时
+    /// 本次导航的请求头已经定了；所以设完 `customUserAgent` 后取消本次导航、用同一个请求重发，
+    /// 重发这一次才带声明的 UA。只在 UA 与当前值不同（首次、或规则换了 UA）时发生一次，
+    /// 之后 `customUserAgent` 已相等，不再进入。返回 true 表示调用方应 `.cancel`。
+    func applyDeclaredUserAgentIfNeeded(
+        to webView: WKWebView,
+        reloading request: URLRequest
+    ) -> Bool {
+        guard let userAgent: String = self.declaredUserAgent,
+              webView.customUserAgent != userAgent else {
+            return false
+        }
+        webView.customUserAgent = userAgent
+        self.markExpectedInterruptedMainFrameNavigation()
+        #if DEBUG
+        AppDebugLog.write(
+            "[BrowseCraftVideoWebPlayer] apply-user-agent " +
+            "url=\(self.safeLogURL(request.url)) userAgent=\(userAgent)"
+        )
+        #endif
+        Task { @MainActor [weak webView] in
+            webView?.load(request)
+        }
+        return true
     }
 
     /// 中文注释：每次主文档完成后重新开始适配，避免旧页面的延迟测量覆盖新导航。
@@ -236,7 +279,8 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
             }
             let failureKind: VideoPlaybackProviderFailure.Kind? =
                 await VideoWebPlayerEmbedProbe(
-                    configuration: self.configuration
+                    configuration: self.configuration,
+                    userAgent: self.declaredUserAgent
                 ).probe(url: candidateURL, referer: pageURL)
             guard Task.isCancelled == false, webView.url == pageURL else {
                 return
@@ -724,12 +768,16 @@ private final class VideoWebPlayerEmbedProbe: NSObject, WKNavigationDelegate {
     private let webView: WKWebView
     private var continuation: CheckedContinuation<VideoPlaybackProviderFailure.Kind?, Never>?
 
-    init(configuration: WKWebViewConfiguration) {
+    init(configuration: WKWebViewConfiguration, userAgent: String?) {
         self.webView = WKWebView(
             frame: CGRect(x: 0, y: 0, width: 1, height: 1),
             configuration: configuration
         )
         super.init()
+        // 中文注释：`APP-MEMO-018`——探针与播放 WebView 同一个 UA，判决才与真实播放一致。
+        if let userAgent: String, userAgent.isEmpty == false {
+            self.webView.customUserAgent = userAgent
+        }
         self.webView.navigationDelegate = self
     }
 
