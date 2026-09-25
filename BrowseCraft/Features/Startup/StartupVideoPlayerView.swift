@@ -210,15 +210,19 @@ struct StartupVideoPlayerView: UIViewRepresentable {
         }
 
         private func activateAmbientAudioSession() {
-            let audioSession: AVAudioSession = AVAudioSession.sharedInstance()
-            do {
-                try audioSession.setCategory(.ambient, mode: .default)
-                try audioSession.setActive(true)
-                self.didActivateAudioSession = true
-            } catch {
-                #if DEBUG
-                AppDebugLog.write("[BrowseCraftStartup] ambient audio session activation failed: \(error.localizedDescription)")
-                #endif
+            // setActive 会同步等待系统音频服务，放在主线程会有卡顿风险；统一交给串行队列，
+            // 保证与后续的 deactivate 保持先后顺序。
+            self.didActivateAudioSession = true
+            StartupAudioSessionQueue.queue.async {
+                let audioSession: AVAudioSession = AVAudioSession.sharedInstance()
+                do {
+                    try audioSession.setCategory(.ambient, mode: .default)
+                    try audioSession.setActive(true)
+                } catch {
+                    #if DEBUG
+                    AppDebugLog.write("[BrowseCraftStartup] ambient audio session activation failed: \(error.localizedDescription)")
+                    #endif
+                }
             }
         }
 
@@ -228,15 +232,17 @@ struct StartupVideoPlayerView: UIViewRepresentable {
             }
 
             self.didActivateAudioSession = false
-            do {
-                try AVAudioSession.sharedInstance().setActive(
-                    false,
-                    options: .notifyOthersOnDeactivation
-                )
-            } catch {
-                #if DEBUG
-                AppDebugLog.write("[BrowseCraftStartup] audio session deactivation failed: \(error.localizedDescription)")
-                #endif
+            StartupAudioSessionQueue.queue.async {
+                do {
+                    try AVAudioSession.sharedInstance().setActive(
+                        false,
+                        options: .notifyOthersOnDeactivation
+                    )
+                } catch {
+                    #if DEBUG
+                    AppDebugLog.write("[BrowseCraftStartup] audio session deactivation failed: \(error.localizedDescription)")
+                    #endif
+                }
             }
         }
 
@@ -252,6 +258,13 @@ struct StartupVideoPlayerView: UIViewRepresentable {
             self.videoURL = nil
         }
     }
+}
+
+private enum StartupAudioSessionQueue {
+    static let queue: DispatchQueue = DispatchQueue(
+        label: "BrowseCraft.StartupAudioSession",
+        qos: .userInitiated
+    )
 }
 
 final class StartupPlayerUIView: UIView {
