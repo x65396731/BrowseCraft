@@ -9,7 +9,7 @@ struct SourcesFeatureFactory {
     private let pageContentLoader: PageContentLoader
     private let pageDataLoader: PageDataLoader
     private let urlResolver: URLResolvingService
-    private let sourceRuntimeFactory: SourceRuntimeFactory
+    private let sourceRuntimeResolver: any SourceRuntimeResolving
     private let sourceSelectionStore: SourceSelectionStore
     private let videoGenerationTaskClient: any VideoGenerationTaskCreating
     private let portalAccessTokenProvider: any PortalAccessTokenProviding
@@ -24,7 +24,7 @@ struct SourcesFeatureFactory {
         pageContentLoader: PageContentLoader,
         pageDataLoader: PageDataLoader,
         urlResolver: URLResolvingService,
-        sourceRuntimeFactory: SourceRuntimeFactory,
+        sourceRuntimeResolver: any SourceRuntimeResolving,
         sourceSelectionStore: SourceSelectionStore,
         videoGenerationTaskClient: any VideoGenerationTaskCreating,
         portalAccessTokenProvider: any PortalAccessTokenProviding,
@@ -43,7 +43,7 @@ struct SourcesFeatureFactory {
         self.pageContentLoader = pageContentLoader
         self.pageDataLoader = pageDataLoader
         self.urlResolver = urlResolver
-        self.sourceRuntimeFactory = sourceRuntimeFactory
+        self.sourceRuntimeResolver = sourceRuntimeResolver
         self.sourceSelectionStore = sourceSelectionStore
     }
 
@@ -53,7 +53,7 @@ struct SourcesFeatureFactory {
             database: self.database
         )
         let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase = RefreshSourceRuntimeUseCase(
-            runtimeResolver: self.sourceRuntimeFactory
+            runtimeResolver: self.sourceRuntimeResolver
         )
         let publicURLPolicy: PublicURLPolicy = PublicURLPolicy()
         let assessVideoGenerationInputUseCase: AssessVideoGenerationInputUseCase =

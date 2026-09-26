@@ -55,6 +55,15 @@ final class AppContainer {
         )
 
         #if DEBUG
+        if DemoMode.isEnabled {
+            try DemoDataSeeder(
+                sourceRepository: account.sourceRepository,
+                videoHistoryRepository: GRDBVideoWatchHistoryRepository(database: bootstrap.database),
+                comicHistoryRepository: GRDBComicChapterHistoryRepository(database: bootstrap.database),
+                bookHistoryRepository: GRDBBookReadingHistoryRepository(database: bootstrap.database),
+                userID: bootstrap.activeUserID.uuidString
+            ).seed()
+        }
         // 中文注释：audit launcher 与正常视频链共用同一 pageLoader/parser/credential 组件，
         // 不建第二套装配（BC-EVIDENCE-076.1）。
         let videoRuntimeAuditWebUIPresenter: VideoRuntimeAuditWebUIPresenter =
@@ -87,6 +96,10 @@ final class AppContainer {
         Task {
             await videoRuntimeAuditLauncher.runIfRequested()
         }
+        // 中文注释：演示模式不登录、不同步、不注册推送，截图期间不发任何账户请求。
+        if DemoMode.isEnabled {
+            return
+        }
         #endif
         async let portalSession: Void = self.account.portalSessionCoordinator.start()
         async let cloudAccount: Void = self.account.startCloudAccountMonitoring()
@@ -96,6 +109,11 @@ final class AppContainer {
     }
 
     func handleAppBecameActive() async {
+        #if DEBUG
+        if DemoMode.isEnabled {
+            return
+        }
+        #endif
         async let portalSession: Void = self.account.portalSessionCoordinator.handleAppBecameActive()
         async let cloudSync: Void = self.account.cloudSyncCoordinator.requestSync(trigger: .foreground)
         _ = await (portalSession, cloudSync)

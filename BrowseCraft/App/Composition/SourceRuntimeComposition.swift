@@ -12,7 +12,7 @@ final class SourceRuntimeComposition {
     let sourceCredentialStore: SourceCredentialStoring
     let urlResolver: URLResolvingService
     let pageLoader: DefaultPageLoader
-    let sourceRuntimeFactory: SourceRuntimeFactory
+    let sourceRuntimeResolver: any SourceRuntimeResolving
     let protectedResourceLoader: ReaderProtectedResourceLoader
 
     init(sourceRepository: SourceRepository) {
@@ -47,7 +47,7 @@ final class SourceRuntimeComposition {
         )
         self.pageLoader = pageLoader
 
-        self.sourceRuntimeFactory = SourceRuntimeFactory(
+        let sourceRuntimeFactory: SourceRuntimeFactory = SourceRuntimeFactory(
             comicSourceRuntimeFactory: ComicSourceRuntimeFactory(
                 pageContentLoader: pageLoader,
                 comicRuleParser: CoreComicRuleSourceParser(),
@@ -83,6 +83,14 @@ final class SourceRuntimeComposition {
                 }
             }
         )
+        #if DEBUG
+        // 中文注释：演示模式（`-BrowseCraftDemoMode`）下演示来源换成自造内容，其余来源照常走真实 runtime。
+        self.sourceRuntimeResolver = DemoMode.isEnabled
+            ? DemoSourceRuntimeResolver(base: sourceRuntimeFactory)
+            : sourceRuntimeFactory
+        #else
+        self.sourceRuntimeResolver = sourceRuntimeFactory
+        #endif
 
         self.protectedResourceLoader = ReaderProtectedResourceLoader(
             legacyLoader: ProtectedResourceLoader(

@@ -8,7 +8,7 @@ struct LibraryFeatureFactory {
     private let favoriteRepository: FavoriteRepository
     private let sourceCredentialStore: SourceCredentialStoring
     private let protectedResourceLoader: ReaderProtectedResourceLoader
-    private let sourceRuntimeFactory: SourceRuntimeFactory
+    private let sourceRuntimeResolver: any SourceRuntimeResolving
     private let sourceSelectionStore: SourceSelectionStore
     private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
     private let prepareReaderHistoryRestoreUseCase: PrepareReaderHistoryRestoreUseCase
@@ -21,7 +21,7 @@ struct LibraryFeatureFactory {
         favoriteRepository: FavoriteRepository,
         sourceCredentialStore: SourceCredentialStoring,
         protectedResourceLoader: ReaderProtectedResourceLoader,
-        sourceRuntimeFactory: SourceRuntimeFactory,
+        sourceRuntimeResolver: any SourceRuntimeResolving,
         sourceSelectionStore: SourceSelectionStore,
         systemCookieHeaderProvider: any SystemCookieHeaderProviding,
         prepareReaderHistoryRestoreUseCase: PrepareReaderHistoryRestoreUseCase
@@ -32,7 +32,7 @@ struct LibraryFeatureFactory {
         self.favoriteRepository = favoriteRepository
         self.sourceCredentialStore = sourceCredentialStore
         self.protectedResourceLoader = protectedResourceLoader
-        self.sourceRuntimeFactory = sourceRuntimeFactory
+        self.sourceRuntimeResolver = sourceRuntimeResolver
         self.sourceSelectionStore = sourceSelectionStore
         self.systemCookieHeaderProvider = systemCookieHeaderProvider
         self.prepareReaderHistoryRestoreUseCase = prepareReaderHistoryRestoreUseCase
@@ -69,14 +69,14 @@ struct LibraryFeatureFactory {
                 )
             ),
             refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase(
-                runtimeResolver: self.sourceRuntimeFactory
+                runtimeResolver: self.sourceRuntimeResolver
             ),
             resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase(),
             sourceCredentialStore: self.sourceCredentialStore,
             sourceSelectionStore: self.sourceSelectionStore,
             activeAppUser: self.activeAppUser,
             searchSourceContentUseCase: SearchSourceContentUseCase(
-                runtimeResolver: self.sourceRuntimeFactory
+                runtimeResolver: self.sourceRuntimeResolver
             )
         )
     }
@@ -87,7 +87,7 @@ struct LibraryFeatureFactory {
             item: item,
             source: source,
             loadComicDetailUseCase: LoadComicDetailUseCase(
-                runtimeResolver: self.sourceRuntimeFactory
+                runtimeResolver: self.sourceRuntimeResolver
             ),
             persistenceCoordinator: self.readingActivityPersistenceCoordinator,
             resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase(),
@@ -109,7 +109,7 @@ struct LibraryFeatureFactory {
             selectedChapter: selectedChapter,
             restoreContext: restoreContext,
             loadReaderChapterUseCase: LoadReaderChapterUseCase(
-                runtimeResolver: self.sourceRuntimeFactory
+                runtimeResolver: self.sourceRuntimeResolver
             ),
             protectedResourceLoader: self.protectedResourceLoader,
             sourceCredentialProvider: self.sourceCredentialStore,
@@ -145,7 +145,7 @@ struct LibraryFeatureFactory {
             detailURL: history.detailURL,
             coverURL: history.coverURL,
             persistenceCoordinator: self.readingActivityPersistenceCoordinator,
-            runtimeResolver: self.sourceRuntimeFactory,
+            runtimeResolver: self.sourceRuntimeResolver,
             credentialProvider: self.sourceCredentialStore,
             systemCookieHeaderProvider: self.systemCookieHeaderProvider,
             activeAppUser: self.activeAppUser,
@@ -159,7 +159,7 @@ struct LibraryFeatureFactory {
         return VideoDetailViewModel(
             item: item,
             source: source,
-            runtimeResolver: self.sourceRuntimeFactory,
+            runtimeResolver: self.sourceRuntimeResolver,
             persistenceCoordinator: self.readingActivityPersistenceCoordinator,
             credentialProvider: self.sourceCredentialStore,
             systemCookieHeaderProvider: self.systemCookieHeaderProvider,

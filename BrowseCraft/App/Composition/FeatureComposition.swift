@@ -31,7 +31,7 @@ final class FeatureComposition {
             favoriteRepository: account.favoriteRepository,
             sourceCredentialStore: runtime.sourceCredentialStore,
             protectedResourceLoader: runtime.protectedResourceLoader,
-            sourceRuntimeFactory: runtime.sourceRuntimeFactory,
+            sourceRuntimeResolver: runtime.sourceRuntimeResolver,
             sourceSelectionStore: sourceSelectionStore,
             systemCookieHeaderProvider: runtime.systemCookieHeaderProvider,
             prepareReaderHistoryRestoreUseCase: PrepareReaderHistoryRestoreUseCase(
@@ -42,7 +42,7 @@ final class FeatureComposition {
         self.bookFeatureFactory = BookFeatureFactory(
             database: database,
             activeAppUser: account.activeAppUserStore,
-            runtimeResolver: runtime.sourceRuntimeFactory
+            runtimeResolver: runtime.sourceRuntimeResolver
         )
 
         self.sourcesFeatureFactory = SourcesFeatureFactory(
@@ -52,7 +52,7 @@ final class FeatureComposition {
             pageContentLoader: runtime.pageLoader,
             pageDataLoader: runtime.pageLoader,
             urlResolver: runtime.urlResolver,
-            sourceRuntimeFactory: runtime.sourceRuntimeFactory,
+            sourceRuntimeResolver: runtime.sourceRuntimeResolver,
             sourceSelectionStore: sourceSelectionStore,
             // 中文注释：APIKit 只在组合根出现；Feature 工厂只见 Application 端口（架构边界脚本）。
             videoGenerationTaskClient: APIKitVideoGenerationTaskClient(
