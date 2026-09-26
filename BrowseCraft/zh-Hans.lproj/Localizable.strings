@@ -474,9 +474,9 @@
 "Storage" = "存储";
 "App" = "应用";
 "BrowseCraft Account" = "BrowseCraft 账号";
-"Sign in with Apple" = "通过 Apple 登录";
-"Sign Out of BrowseCraft" = "退出 BrowseCraft 登录";
-"BrowseCraft account connected" = "已连接 BrowseCraft 账号";
+"Sign in with Apple" = "登录";
+"Sign Out of BrowseCraft" = "退出登录";
+"BrowseCraft account connected" = "已连接 AnyPortal 账号";
 "Required for purchases and Cloud Sync" = "购买和云同步需要登录";
 "Favorites and saved items" = "收藏与已保存的内容";
 "Unlock paid features" = "解锁付费功能";

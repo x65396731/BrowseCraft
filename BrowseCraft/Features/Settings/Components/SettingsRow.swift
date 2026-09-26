@@ -13,6 +13,7 @@ struct SettingsRow: View {
                 .frame(width: 24)
 
             Text(self.title)
+                .fixedSize(horizontal: true, vertical: false)
 
             Spacer()
 

@@ -474,9 +474,9 @@
 "Storage" = "Storage";
 "App" = "App";
 "BrowseCraft Account" = "BrowseCraft Account";
-"Sign in with Apple" = "Sign in with Apple";
-"Sign Out of BrowseCraft" = "Sign Out of BrowseCraft";
-"BrowseCraft account connected" = "BrowseCraft account connected";
+"Sign in with Apple" = "Sign In";
+"Sign Out of BrowseCraft" = "Sign Out";
+"BrowseCraft account connected" = "AnyPortal account connected";
 "Required for purchases and Cloud Sync" = "Required for purchases and Cloud Sync";
 "Favorites and saved items" = "Favorites and saved items";
 "Unlock paid features" = "Unlock paid features";
