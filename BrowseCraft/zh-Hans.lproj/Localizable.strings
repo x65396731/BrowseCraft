@@ -61,17 +61,17 @@
 "video_preflight_progress_observing" = "正在检查入口结构…";
 "video_preflight_progress_one_hop" = "正在检查直接 List 结构（%d/%d）…";
 "video_preflight_progress_detail" = "正在检查代表 Detail 页面（%d/%d）…";
-"video_preflight_progress_reducing" = "正在归约 List family 证据…";
+"video_preflight_progress_reducing" = "正在确认页面上的列表…";
 "video_preflight_outcome_accepted" = "可以生成";
 "video_preflight_outcome_rejected" = "当前 URL 不可使用";
 "video_preflight_outcome_inconclusive" = "页面证据不足";
 "video_preflight_outcome_antibot" = "检测到反爬验证，可以直接生成";
-"video_preflight_reason_accepted" = "当前精确输入 URL 的页面恰好包含一个列表 family。";
+"video_preflight_reason_accepted" = "这一页刚好只有一种列表，可以生成规则。";
 "video_preflight_reason_deeper" = "当前入口需要更深层发现，请输入更具体的分类或 List 页面。";
 "video_preflight_reason_multiple_families" = "当前页面包含多个独立列表，请改用具体分类页的 URL。";
 "video_preflight_reason_no_family" = "当前页面没有可用的列表。";
 "video_preflight_reason_capability" = "网站存在当前生成器无法表达的必需能力。";
-"video_preflight_reason_insufficient" = "页面结构或 List family 证据尚未闭合，请稍后重试。";
+"video_preflight_reason_insufficient" = "还没能看清这一页的列表结构，请稍后重试。";
 "video_preflight_reason_session" = "页面需要个人登录态，隔离预检无法完成判断。";
 "video_preflight_reason_antibot" = "该网站有反爬验证，App 无法预先检查这个页面。点「生成规则」直接提交，由服务器判断能否生成。";
 "video_preflight_reason_budget" = "检查已达到时间或采样上限，请稍后重试。";
@@ -573,3 +573,11 @@
 "Sign in with Apple could not be completed. Try again." = "无法完成通过 Apple 登录，请重试。";
 "Image cache settings could not be updated." = "无法更新图片缓存设置。";
 "Image cache clearing has started." = "已开始清理图片缓存。";
+
+/* 来源行的状态标签、名额锁定提示与纪录页分组标题（2026-09-26 补齐，此前显示英文）。 */
+"Built-in source" = "内置来源";
+"Locked by source limit" = "已达名额上限，暂停使用";
+"Active user source" = "使用中";
+"Reading" = "最近看过";
+"sources_locked_restored_one" = "有 %d 个恢复的来源因名额上限被锁定。点一下锁定的来源，即可替换当前使用中的来源。";
+"sources_locked_restored_other" = "有 %d 个恢复的来源因名额上限被锁定。点一下锁定的来源，即可替换当前使用中的来源。";

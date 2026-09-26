@@ -25,8 +25,6 @@ Open
 Temporary Detail
 # BrowseCraft/Features/History/Details/TemporaryHistoryDetailView.swift:63
 Source Page
-# BrowseCraft/Features/History/HistoryView.swift:14
-Reading
 # BrowseCraft/Features/Library/Book/BookShelfView.swift:117
 EPUB
 # BrowseCraft/Features/Library/Book/Site/BookSiteDetailView.swift:34
@@ -57,8 +55,6 @@ Sign In to This Source
 💡 %@
 # BrowseCraft/Features/Shared/CloudSyncInitialRestoreView.swift:31
 Retrying…
-# BrowseCraft/Features/Sources/AddSource/AddSourceView.swift:20
-Source
 # BrowseCraft/Features/Sources/AddSource/AddSourceView.swift:63
 Source Type Unavailable
 # BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:32

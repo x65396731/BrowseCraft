@@ -59,12 +59,12 @@ struct SourceRowView: View {
 
     private var sourceStatusText: String {
         if self.source.isBuiltIn {
-            return "Built-in source"
+            return NSLocalizedString("Built-in source", comment: "")
         }
         if self.source.accessState == .lockedBySlotLimit {
-            return "Locked by source limit"
+            return NSLocalizedString("Locked by source limit", comment: "")
         }
-        return "Active user source"
+        return NSLocalizedString("Active user source", comment: "")
     }
 
     private var sourceStatusColor: Color {

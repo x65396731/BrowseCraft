@@ -61,17 +61,17 @@
 "video_preflight_progress_observing" = "Checking the entry structure…";
 "video_preflight_progress_one_hop" = "Checking direct List structure (%d/%d)…";
 "video_preflight_progress_detail" = "Checking representative Detail pages (%d/%d)…";
-"video_preflight_progress_reducing" = "Reducing List family evidence…";
+"video_preflight_progress_reducing" = "Checking the lists on this page…";
 "video_preflight_outcome_accepted" = "Can Generate";
 "video_preflight_outcome_rejected" = "This URL Cannot Be Used";
 "video_preflight_outcome_inconclusive" = "Not Enough Evidence";
 "video_preflight_outcome_antibot" = "Anti-bot check detected; you can still generate";
-"video_preflight_reason_accepted" = "This exact input URL contains exactly one list family.";
+"video_preflight_reason_accepted" = "This page has exactly one kind of list, so a rule can be generated.";
 "video_preflight_reason_deeper" = "This entry needs deeper discovery. Enter a more specific category or List page.";
 "video_preflight_reason_multiple_families" = "This page contains several independent lists. Enter the URL of a specific category page instead.";
 "video_preflight_reason_no_family" = "No usable list was found on this page.";
 "video_preflight_reason_capability" = "A required website capability is not supported by the current generator.";
-"video_preflight_reason_insufficient" = "The page structure or List-family evidence is incomplete. Please retry later.";
+"video_preflight_reason_insufficient" = "Couldn't make out this page's list structure yet. Please try again later.";
 "video_preflight_reason_session" = "This page requires a personal session, so isolated preflight cannot decide.";
 "video_preflight_reason_antibot" = "This site uses an anti-bot check, so the app cannot inspect the page in advance. Tap Generate Rule to submit anyway; the server will decide whether a rule can be generated.";
 "video_preflight_reason_budget" = "The bounded check reached its time or sampling limit. Please retry later.";
@@ -573,3 +573,11 @@
 "Sign in with Apple could not be completed. Try again." = "Sign in with Apple could not be completed. Try again.";
 "Image cache settings could not be updated." = "Image cache settings could not be updated.";
 "Image cache clearing has started." = "Image cache clearing has started.";
+
+/* 来源行的状态标签、名额锁定提示与纪录页分组标题（2026-09-26 补齐，此前显示英文）。 */
+"Built-in source" = "Built-in source";
+"Locked by source limit" = "Locked by source limit";
+"Active user source" = "Active source";
+"Reading" = "Recently Viewed";
+"sources_locked_restored_one" = "%d restored source is locked by the current source limit. Tap a locked source to replace an active source.";
+"sources_locked_restored_other" = "%d restored sources are locked by the current source limit. Tap a locked source to replace an active source.";

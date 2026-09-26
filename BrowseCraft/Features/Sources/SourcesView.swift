@@ -173,9 +173,15 @@ struct SourcesView: View {
 
             if self.viewModel.lockedSourceCount > 0 {
                 Text(
-                    "\(self.viewModel.lockedSourceCount) restored " +
-                        "\(self.viewModel.lockedSourceCount == 1 ? "source is" : "sources are") " +
-                        "locked by the current source limit. Tap a locked source to replace an active source."
+                    String(
+                        format: NSLocalizedString(
+                            self.viewModel.lockedSourceCount == 1
+                                ? "sources_locked_restored_one"
+                                : "sources_locked_restored_other",
+                            comment: ""
+                        ),
+                        self.viewModel.lockedSourceCount
+                    )
                 )
                 .foregroundStyle(.orange)
             }
