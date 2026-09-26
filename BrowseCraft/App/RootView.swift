@@ -18,6 +18,7 @@ struct RootView: View {
     private let libraryContentViewModelFactory: LibraryContentViewModelFactory
     private let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
     private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
+    private let coinWalletStore: CoinWalletStore
     #if DEBUG
     private let videoRuntimeAuditWebUIPresenter: VideoRuntimeAuditWebUIPresenter
     /// 中文注释：仅 DEBUG——模拟器注入的 tap 打不到开屏「跳过」按钮；带启动参数
@@ -54,6 +55,7 @@ struct RootView: View {
 
         self.browserRequestHeaderProvider = container.browserRequestHeaderProvider
         self.systemCookieHeaderProvider = container.systemCookieHeaderProvider
+        self.coinWalletStore = container.coinWalletStore
         #if DEBUG
         self.videoRuntimeAuditWebUIPresenter = container.videoRuntimeAuditWebUIPresenter
         #endif
@@ -106,6 +108,7 @@ struct RootView: View {
         .environment(\.browserRequestHeaderProvider, self.browserRequestHeaderProvider)
         .environment(\.itemThumbnailImagePipeline, ItemThumbnailImageCachePlugin.shared)
         .environment(\.systemCookieHeaderProvider, self.systemCookieHeaderProvider)
+        .environment(\.rewardedAdRewardCoordinator, self.coinWalletStore)
         .task {
             self.startupCoordinator.start()
         }

@@ -581,3 +581,14 @@
 "Reading" = "最近看過";
 "sources_locked_restored_one" = "有 %d 個還原的來源因名額上限被鎖定。點一下鎖定的來源，即可替換目前使用中的來源。";
 "sources_locked_restored_other" = "有 %d 個還原的來源因名額上限被鎖定。點一下鎖定的來源，即可替換目前使用中的來源。";
+
+/* coin（設計書第 30 節） */
+"coin_balance_row_title" = "coin 餘額";
+"coin_balance_detail" = "%d coin";
+"coin_balance_unknown" = "餘額尚未同步";
+"coin_earn_detail" = "看完一次獎勵廣告 +%d";
+"coin_ad_hint_sign_in" = "登入後看廣告可領 coin。";
+"video_preflight_coin_cost" = "本次生成消耗 %1$d coin，目前餘額 %2$d。";
+"video_preflight_coin_cost_unknown" = "本次生成消耗 %d coin。";
+"video_preflight_coin_declaration" = "生成可能失敗，失敗也會扣 coin；只有伺服器未產生任何費用的失敗才會退回。";
+"video_preflight_submit_insufficient_coins" = "coin 不足：需要 %1$d，目前 %2$d。在播放器或閱讀頁看完獎勵廣告可獲得 coin。";

@@ -5,6 +5,9 @@ import Foundation
 struct VideoGenerationTaskReceipt: Hashable, Sendable {
     let jobID: UUID
     let submittedEntryURL: String
+    /// 设计书 30.6：提交扣费后的余额与版本号（旧服务端不带则为 nil）。
+    var coinBalance: Int? = nil
+    var coinRevision: Int? = nil
 }
 
 /// 服务端直接返回的已生成规则（`200 cached`，`BC-PREFLIGHT-055`）：仍是密文，由用例走 Catalog 同一解密路径。
@@ -38,6 +41,8 @@ enum VideoGenerationTaskSubmissionOutcome: Hashable, Sendable {
     case activeJobLimit
     case previousJobActive(entryURL: String?)
     case rateLimited
+    /// coin 余额不足，任务未入队（设计书 30.6）；`balance` 是服务端当前余额。
+    case insufficientCoins(balance: Int, required: Int)
     case failed(code: String)
 }
 

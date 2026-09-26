@@ -63,7 +63,8 @@ final class FeatureComposition {
             videoGenerationOutcomesClient: APIKitVideoGenerationOutcomesClient(
                 api: PortalRuleGenerationAPI(client: account.portalAPIClient)
             ),
-            outcomeRefreshRequests: account.ruleGenerationOutcomeRefreshRequests
+            outcomeRefreshRequests: account.ruleGenerationOutcomeRefreshRequests,
+            coinWalletStore: account.coinWalletStore
         )
 
         self.favoritesFeatureFactory = FavoritesFeatureFactory(
@@ -93,7 +94,8 @@ final class FeatureComposition {
             portalPurchaseEntitlementRefreshCoordinator: account.portalPurchaseEntitlementRefreshCoordinator,
             portalAppleSignInCoordinator: account.portalAppleSignInCoordinator,
             portalSessionCoordinator: account.portalSessionCoordinator,
-            pushDeviceRegistrationCoordinator: account.pushDeviceRegistrationCoordinator
+            pushDeviceRegistrationCoordinator: account.pushDeviceRegistrationCoordinator,
+            coinWalletStore: account.coinWalletStore
         )
         self.settingsFeatureFactory = settingsFeatureFactory
         self.settingsViewModel = settingsFeatureFactory.makeViewModel()

@@ -16,6 +16,7 @@ struct SourcesFeatureFactory {
     private let pushNotificationAuthorizer: any PushNotificationAuthorizing
     private let videoGenerationOutcomesClient: any VideoGenerationOutcomesFetching
     private let outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests
+    private let coinWalletStore: CoinWalletStore
 
     init(
         database: AppDatabase,
@@ -30,13 +31,15 @@ struct SourcesFeatureFactory {
         portalAccessTokenProvider: any PortalAccessTokenProviding,
         pushNotificationAuthorizer: any PushNotificationAuthorizing,
         videoGenerationOutcomesClient: any VideoGenerationOutcomesFetching,
-        outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests
+        outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests,
+        coinWalletStore: CoinWalletStore
     ) {
         self.videoGenerationTaskClient = videoGenerationTaskClient
         self.portalAccessTokenProvider = portalAccessTokenProvider
         self.pushNotificationAuthorizer = pushNotificationAuthorizer
         self.videoGenerationOutcomesClient = videoGenerationOutcomesClient
         self.outcomeRefreshRequests = outcomeRefreshRequests
+        self.coinWalletStore = coinWalletStore
         self.database = database
         self.activeAppUser = activeAppUser
         self.sourceRepository = sourceRepository
@@ -141,6 +144,7 @@ struct SourcesFeatureFactory {
                 accessTokenProvider: self.portalAccessTokenProvider
             ),
             outcomeRefreshRequests: self.outcomeRefreshRequests,
+            coinWalletStore: self.coinWalletStore,
             catalogService: sourceCatalogService,
             ruleDebugJSONFormatter: sourceRuleDebugJSONFormatter,
             recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase(),

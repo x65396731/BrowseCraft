@@ -13,7 +13,8 @@ enum AppDatabaseMigrations {
         Self.localBooksIdentifier,
         Self.bookProgressDetachedIdentifier,
         Self.bookReadingHistoryIdentifier,
-        Self.removeRSSIdentifier
+        Self.removeRSSIdentifier,
+        Self.usersAddCoinIdentifier
     ]
 
     /// 中文注释：v2——sources 增加 `origin` 列，记「来自个人生成」等出身，本地副本才能随服务器裁决清理。
@@ -37,6 +38,10 @@ enum AppDatabaseMigrations {
     /// 不给云端排删除：旧版设备上的 RSS 数据不动；新版下行时按 kind 跳过（SourceCloudPayload / FavoriteItemSyncService）。
     /// favorites 聚合表的 rssFavoritesJSON 列从未写入过值，留作死列，不为它重建表。
     static let removeRSSIdentifier: String = "v6.remove-rss"
+
+    /// 中文注释：v7——users 加 `coinBalance` / `coinRevision`（设计书 `video-pending-and-frozen-designs.md` 30.6）：
+    /// 只是服务端余额的显示缓存，按 `coinRevision` 只进不退；余额唯一权威在服务端，不进 iCloud。
+    static let usersAddCoinIdentifier: String = "v7.users-add-coin"
 
     static func makeMigrator() -> DatabaseMigrator {
         var migrator: DatabaseMigrator = DatabaseMigrator()
@@ -224,6 +229,13 @@ enum AppDatabaseMigrations {
             let favoriteUserIDs: [String] = try String.fetchAll(database, sql: "SELECT userID FROM favorites")
             for userID: String in favoriteUserIDs {
                 try FavoriteAggregateBuilder.rebuild(userID: userID, in: database)
+            }
+        }
+
+        migrator.registerMigration(Self.usersAddCoinIdentifier) { database in
+            try database.alter(table: "users") { table in
+                table.add(column: "coinBalance", .integer).notNull().defaults(to: 0)
+                table.add(column: "coinRevision", .integer).notNull().defaults(to: 0)
             }
         }
 

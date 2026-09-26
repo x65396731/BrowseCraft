@@ -20,6 +20,8 @@ extension AppUserRecord {
         static let lastStoreKitPurchaseDate: Column = Column("lastStoreKitPurchaseDate")
         static let lastStoreKitExpirationDate: Column = Column("lastStoreKitExpirationDate")
         static let lastStoreKitRevocationDate: Column = Column("lastStoreKitRevocationDate")
+        static let coinBalance: Column = Column("coinBalance")
+        static let coinRevision: Column = Column("coinRevision")
         static let createdAt: Column = Column("createdAt")
         static let updatedAt: Column = Column("updatedAt")
     }

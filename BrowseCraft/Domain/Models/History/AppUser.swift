@@ -26,6 +26,9 @@ struct AppUser: Identifiable, Hashable, Sendable {
     var lastStoreKitPurchaseDate: Date? = nil
     var lastStoreKitExpirationDate: Date? = nil
     var lastStoreKitRevocationDate: Date? = nil
+    /// 中文注释：服务端 coin 余额的显示缓存（设计书 30.6）；`coinRevision` 只进不退，登出清零。
+    var coinBalance: Int = 0
+    var coinRevision: Int = 0
     var createdAt: Date
     var updatedAt: Date
 }

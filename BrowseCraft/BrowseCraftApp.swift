@@ -16,9 +16,9 @@ import UserNotifications
 final class AppDelegate: NSObject, UIApplicationDelegate {
     private var cloudRemoteNotificationHandler: (() async -> UIBackgroundFetchResult)?
     private var pushDeviceTokenHandler: ((String) async -> Void)?
-    private var ruleGenerationPushHandler: ((Bool) -> Void)?
+    private var ruleGenerationPushHandler: ((RuleGenerationPushOutcome, Bool) -> Void)?
     /// 中文注释：推送可能在容器装配前就被点开（冷启动）；先记下，handler 接上时补发一次。
-    private var pendingRuleGenerationPushOpened: Bool?
+    private var pendingRuleGenerationPush: (outcome: RuleGenerationPushOutcome, opened: Bool)?
     /// 中文注释：APNs 通常在容器装配完成前就交回 token；先暂存，handler 接上时补发一次。
     private var latestPushDeviceToken: String?
 
@@ -28,11 +28,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         self.cloudRemoteNotificationHandler = handler
     }
 
-    func setRuleGenerationPushHandler(_ handler: @escaping (Bool) -> Void) {
+    func setRuleGenerationPushHandler(_ handler: @escaping (RuleGenerationPushOutcome, Bool) -> Void) {
         self.ruleGenerationPushHandler = handler
-        if let opened: Bool = self.pendingRuleGenerationPushOpened {
-            self.pendingRuleGenerationPushOpened = nil
-            handler(opened)
+        if let pending = self.pendingRuleGenerationPush {
+            self.pendingRuleGenerationPush = nil
+            handler(pending.outcome, pending.opened)
         }
     }
 
@@ -45,12 +45,13 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             event: opened ? "outcome-push-opened" : "outcome-push-presented",
             metadata: ["status": outcome.status ?? "unknown"]
         )
-        guard let handler: (Bool) -> Void = self.ruleGenerationPushHandler else {
+        guard let handler: (RuleGenerationPushOutcome, Bool) -> Void = self.ruleGenerationPushHandler else {
             // 中文注释：点开优先于到达——冷启动时两者都可能先于装配到来。
-            self.pendingRuleGenerationPushOpened = (self.pendingRuleGenerationPushOpened ?? false) || opened
+            let previouslyOpened: Bool = self.pendingRuleGenerationPush?.opened ?? false
+            self.pendingRuleGenerationPush = (outcome, previouslyOpened || opened)
             return
         }
-        handler(opened)
+        handler(outcome, opened)
     }
 
     func setPushDeviceTokenHandler(_ handler: @escaping (String) async -> Void) {
@@ -225,8 +226,8 @@ struct BrowseCraftApp: App {
                         self.delegate.setPushDeviceTokenHandler { deviceToken in
                             await container.handlePushDeviceToken(deviceToken)
                         }
-                        self.delegate.setRuleGenerationPushHandler { opened in
-                            container.handleRuleGenerationPushNotification(opened: opened)
+                        self.delegate.setRuleGenerationPushHandler { outcome, opened in
+                            container.handleRuleGenerationPushNotification(outcome, opened: opened)
                         }
                         await container.startApplicationServices()
                     }

@@ -44,6 +44,15 @@ struct SettingsView: View {
                     }
                     .disabled(self.viewModel.isPortalAccountActionInFlight)
 
+                    if self.viewModel.isPortalAuthenticated,
+                       let wallet: CoinWalletStore = self.viewModel.coinWalletStore {
+                        SettingsRow(
+                            image: "SettingsPremium",
+                            title: NSLocalizedString("coin_balance_row_title", comment: ""),
+                            detail: Self.coinDetail(wallet)
+                        )
+                    }
+
                     NavigationLink(destination: CloudSyncSettingsView(
                         viewModel: self.cloudSyncViewModel
                     )) {
@@ -296,6 +305,21 @@ struct SettingsView: View {
                 }
             }
         )
+    }
+
+    /// 中文注释：余额与「看一次广告 +N」并排；价格由服务端下发。
+    private static func coinDetail(_ wallet: CoinWalletStore) -> String {
+        let balance: String
+        if let value: Int = wallet.balance {
+            balance = String(format: NSLocalizedString("coin_balance_detail", comment: ""), value)
+        } else {
+            balance = NSLocalizedString("coin_balance_unknown", comment: "")
+        }
+        let earn: String = String(
+            format: NSLocalizedString("coin_earn_detail", comment: ""),
+            wallet.pricing.adReward
+        )
+        return balance + " · " + earn
     }
 
     private var portalAccountErrorAlertBinding: Binding<Bool> {

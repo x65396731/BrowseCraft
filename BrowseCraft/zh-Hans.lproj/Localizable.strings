@@ -581,3 +581,14 @@
 "Reading" = "最近看过";
 "sources_locked_restored_one" = "有 %d 个恢复的来源因名额上限被锁定。点一下锁定的来源，即可替换当前使用中的来源。";
 "sources_locked_restored_other" = "有 %d 个恢复的来源因名额上限被锁定。点一下锁定的来源，即可替换当前使用中的来源。";
+
+/* coin（设计书第 30 节） */
+"coin_balance_row_title" = "coin 余额";
+"coin_balance_detail" = "%d coin";
+"coin_balance_unknown" = "余额尚未同步";
+"coin_earn_detail" = "看完一次激励广告 +%d";
+"coin_ad_hint_sign_in" = "登录后看广告可领 coin。";
+"video_preflight_coin_cost" = "本次生成消耗 %1$d coin，当前余额 %2$d。";
+"video_preflight_coin_cost_unknown" = "本次生成消耗 %d coin。";
+"video_preflight_coin_declaration" = "生成可能失败，失败也会扣 coin；只有服务器未产生任何费用的失败才会退回。";
+"video_preflight_submit_insufficient_coins" = "coin 不足：需要 %1$d，当前 %2$d。在播放器或阅读页看完激励广告可获得 coin。";

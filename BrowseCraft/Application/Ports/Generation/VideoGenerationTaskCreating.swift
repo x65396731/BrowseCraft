@@ -9,6 +9,8 @@ enum VideoGenerationTaskClientError: Error, Hashable, Sendable {
     case previousJobActive(entryURL: String?)
     /// 每小时提交次数已达上限。
     case rateLimited
+    /// coin 余额不足（402）；任务未入队。
+    case insufficientCoins(balance: Int, required: Int)
     case server(code: String)
     case transport
 }

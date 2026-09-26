@@ -97,6 +97,7 @@ struct VideoGenerationInputView: View {
                         submissionState: self.submissionState,
                         reusedRuleImportFailed: self.reusedRuleImportFailed,
                         canSubmit: self.viewModel.canSubmitVideoGenerationTasks,
+                        wallet: self.viewModel.coinWalletStore,
                         retry: {
                             self.startAssessment()
                         },
@@ -401,6 +402,8 @@ private struct VideoGenerationInputOutcomeView: View {
     let submissionState: VideoGenerationTaskSubmissionState
     let reusedRuleImportFailed: Bool
     let canSubmit: Bool
+    /// 设计书 30.6：提交前显示本次消耗、余额与「可能失败、失败也扣」声明。
+    let wallet: CoinWalletStore?
     let retry: () -> Void
     let submit: () -> Void
     /// 中文注释：命中服务端已生成的规则时，让用户能强制重来一次。
@@ -439,6 +442,7 @@ private struct VideoGenerationInputOutcomeView: View {
         } else {
             switch self.submissionState {
             case .idle:
+                self.coinRows
                 Button(NSLocalizedString("video_preflight_generate_button", comment: "")) {
                     self.submit()
                 }
@@ -526,6 +530,17 @@ private struct VideoGenerationInputOutcomeView: View {
             )
             .foregroundStyle(.orange)
             .listRowSeparatorAlignedToRowLeading()
+        case .insufficientCoins(let balance, let required):
+            Label(
+                String(
+                    format: NSLocalizedString("video_preflight_submit_insufficient_coins", comment: ""),
+                    required,
+                    balance
+                ),
+                systemImage: "bitcoinsign.circle"
+            )
+            .foregroundStyle(.orange)
+            .listRowSeparatorAlignedToRowLeading()
         case .failed(let code):
             Label(
                 String(
@@ -539,6 +554,30 @@ private struct VideoGenerationInputOutcomeView: View {
             Button(NSLocalizedString("video_preflight_generate_button", comment: "")) {
                 self.submit()
             }
+        }
+    }
+
+    /// 中文注释：价格由服务端下发（`wallet.pricing`）；余额还没同步到时只说消耗，不猜余额。
+    @ViewBuilder
+    private var coinRows: some View {
+        if let wallet: CoinWalletStore = self.wallet {
+            let cost: Int = wallet.pricing.normal
+            Text(
+                wallet.balance.map { balance in
+                    String(
+                        format: NSLocalizedString("video_preflight_coin_cost", comment: ""),
+                        cost,
+                        balance
+                    )
+                } ?? String(
+                    format: NSLocalizedString("video_preflight_coin_cost_unknown", comment: ""),
+                    cost
+                )
+            )
+            .font(.footnote)
+            Text(NSLocalizedString("video_preflight_coin_declaration", comment: ""))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
     }
 

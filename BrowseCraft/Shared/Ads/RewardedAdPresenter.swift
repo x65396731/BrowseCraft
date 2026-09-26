@@ -31,7 +31,9 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
     private var continuation: CheckedContinuation<RewardedAdPresentationResult, Never>?
     private var didEarnReward: Bool = false
 
-    func present() async -> RewardedAdPresentationResult {
+    /// `userIdentifier`：已登录用户的标识，写进 AdMob 服务端验证（设计书 30.5）；未登录传 nil，
+    /// 看完的广告不计 coin。
+    func present(userIdentifier: String? = nil) async -> RewardedAdPresentationResult {
         guard self.isPresenting == false else {
             #if DEBUG
             AppDebugLog.write("[BrowseCraftAdPlayback] presenter skipped because isPresenting=true")
@@ -74,6 +76,11 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
                 request: Request()
             )
             ad.fullScreenContentDelegate = self
+            if let userIdentifier: String = userIdentifier {
+                let options: ServerSideVerificationOptions = ServerSideVerificationOptions()
+                options.userIdentifier = userIdentifier
+                ad.serverSideVerificationOptions = options
+            }
             self.rewardedAd = ad
             #if DEBUG
             AppDebugLog.write("[BrowseCraftAdPlayback] presenter loaded, presenting")

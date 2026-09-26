@@ -18,6 +18,7 @@ struct SettingsFeatureFactory {
     private let portalAppleSignInCoordinator: PortalAppleSignInCoordinator
     private let portalSessionCoordinator: PortalSessionCoordinator
     private let pushDeviceRegistrationCoordinator: PushDeviceRegistrationCoordinator
+    private let coinWalletStore: CoinWalletStore
 
     init(
         database: AppDatabase,
@@ -34,7 +35,8 @@ struct SettingsFeatureFactory {
             PortalPurchaseEntitlementRefreshCoordinator,
         portalAppleSignInCoordinator: PortalAppleSignInCoordinator,
         portalSessionCoordinator: PortalSessionCoordinator,
-        pushDeviceRegistrationCoordinator: PushDeviceRegistrationCoordinator
+        pushDeviceRegistrationCoordinator: PushDeviceRegistrationCoordinator,
+        coinWalletStore: CoinWalletStore
     ) {
         self.database = database
         self.activeAppUser = activeAppUser
@@ -52,6 +54,7 @@ struct SettingsFeatureFactory {
         self.portalAppleSignInCoordinator = portalAppleSignInCoordinator
         self.portalSessionCoordinator = portalSessionCoordinator
         self.pushDeviceRegistrationCoordinator = pushDeviceRegistrationCoordinator
+        self.coinWalletStore = coinWalletStore
     }
 
     @MainActor
@@ -69,16 +72,21 @@ struct SettingsFeatureFactory {
                 let userID: UUID = try await self.portalAppleSignInCoordinator.signIn()
                 // 中文注释：登录成功后把已缓存的 device token 挂到新用户名下。
                 await self.pushDeviceRegistrationCoordinator.synchronizeRegistration()
+                // 设计书 30.6：登录即拉一次余额（新账户此时已有赠送）。
+                await self.coinWalletStore.refresh()
                 return userID
             },
             portalSignOutAction: {
                 // 中文注释：必须在 logout 之前——注销设备要用还没被撤销的 access token。
                 await self.pushDeviceRegistrationCoordinator.unregisterCurrentDevice()
                 try await self.portalSessionCoordinator.logout()
+                // 设计书 30.6：登出清掉本地余额缓存，不迁移、不合并。
+                self.coinWalletStore.markSignedOut()
             },
             portalSessionSnapshotAction: {
                 return await self.portalSessionCoordinator.snapshot()
-            }
+            },
+            coinWalletStore: self.coinWalletStore
         )
     }
 

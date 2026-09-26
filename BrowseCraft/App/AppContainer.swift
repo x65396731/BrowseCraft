@@ -106,6 +106,8 @@ final class AppContainer {
         _ = await (portalSession, cloudAccount)
         // 中文注释：会话就绪后再对齐推送设备注册；无 token 或未登录时它自行跳过。
         await self.account.pushDeviceRegistrationCoordinator.synchronizeRegistration()
+        // 设计书 30.6：启动是四个余额刷新时机之一。
+        await self.account.coinWalletStore.refresh()
     }
 
     func handleAppBecameActive() async {
@@ -118,6 +120,8 @@ final class AppContainer {
         async let cloudSync: Void = self.account.cloudSyncCoordinator.requestSync(trigger: .foreground)
         _ = await (portalSession, cloudSync)
         await self.account.pushDeviceRegistrationCoordinator.synchronizeRegistration()
+        // 设计书 30.6：回到前台刷新余额。
+        await self.account.coinWalletStore.refresh()
     }
 
     /// APNs 交回 device token；注册与否由协调器按会话状态决定。
@@ -126,8 +130,16 @@ final class AppContainer {
     }
 
     /// 规则生成推送到达或被点开：让目录列表刷新默认数据与个人生成结果；点开时还要导航到结果。
-    func handleRuleGenerationPushNotification(opened: Bool) {
+    func handleRuleGenerationPushNotification(_ outcome: RuleGenerationPushOutcome, opened: Bool) {
         self.account.ruleGenerationOutcomeRefreshRequests.request(opened ? .opened : .presented)
+        // 设计书 30.6：终态推送带余额（含 0 成本退回后的值），收到即更新。
+        if let balance: Int = outcome.coinBalance, let revision: Int = outcome.coinRevision {
+            self.account.coinWalletStore.apply(balance: balance, revision: revision)
+        }
+    }
+
+    var coinWalletStore: CoinWalletStore {
+        return self.account.coinWalletStore
     }
 
     func handleCloudRemoteNotification() async throws -> CloudSyncRunResult {

@@ -55,6 +55,8 @@ final class SourcesViewModel {
     private let pushNotificationAuthorizer: (any PushNotificationAuthorizing)?
     private let loadVideoGenerationOutcomesUseCase: LoadVideoGenerationOutcomesUseCase?
     private let outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests?
+    /// 设计书第 30 节：提交页显示消耗与余额；提交响应带回的余额写回这里。
+    let coinWalletStore: CoinWalletStore?
     private let hideVideoGenerationOutcomeUseCase: HideVideoGenerationOutcomeUseCase?
     private var outcomeRefreshTask: Task<Void, Never>?
     private let catalogService: SourceCatalogService
@@ -220,6 +222,7 @@ final class SourcesViewModel {
         loadVideoGenerationOutcomesUseCase: LoadVideoGenerationOutcomesUseCase? = nil,
         hideVideoGenerationOutcomeUseCase: HideVideoGenerationOutcomeUseCase? = nil,
         outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests? = nil,
+        coinWalletStore: CoinWalletStore? = nil,
         catalogService: SourceCatalogService,
         ruleDebugJSONFormatter: SourceRuleDebugJSONFormatter,
         recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase,
@@ -238,6 +241,7 @@ final class SourcesViewModel {
         self.loadVideoGenerationOutcomesUseCase = loadVideoGenerationOutcomesUseCase
         self.outcomeRefreshRequests = outcomeRefreshRequests
         self.hideVideoGenerationOutcomeUseCase = hideVideoGenerationOutcomeUseCase
+        self.coinWalletStore = coinWalletStore
         self.catalogService = catalogService
         self.ruleDebugJSONFormatter = ruleDebugJSONFormatter
         self.recommendSourceImportOptionUseCase = recommendSourceImportOptionUseCase
@@ -415,6 +419,19 @@ final class SourcesViewModel {
             sourceKind: sourceKind,
             refresh: refresh
         )
+        // 设计书 30.6：提交响应带扣后的余额；余额不足时服务端给的是当前余额，重新拉一次对齐。
+        switch outcome {
+        case .submitted(let receipt):
+            if let balance: Int = receipt.coinBalance, let revision: Int = receipt.coinRevision {
+                self.coinWalletStore?.apply(balance: balance, revision: revision)
+            }
+        case .insufficientCoins:
+            if let store: CoinWalletStore = self.coinWalletStore {
+                Task { await store.refresh() }
+            }
+        default:
+            break
+        }
         // 中文注释：任务排队成功是用户最能理解「为什么要通知权限」的时刻——终态靠推送告知。
         // 只在这一刻请求，且不阻塞提交结果的展示；已决定过的系统不会再弹。
         if case .submitted = outcome,

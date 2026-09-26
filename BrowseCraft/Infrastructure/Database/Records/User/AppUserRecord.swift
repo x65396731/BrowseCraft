@@ -24,6 +24,8 @@ struct AppUserRecord: Codable, FetchableRecord, MutablePersistableRecord {
     var lastStoreKitPurchaseDate: Date?
     var lastStoreKitExpirationDate: Date?
     var lastStoreKitRevocationDate: Date?
+    var coinBalance: Int
+    var coinRevision: Int
     var createdAt: Date
     var updatedAt: Date
 
@@ -45,6 +47,8 @@ struct AppUserRecord: Codable, FetchableRecord, MutablePersistableRecord {
         self.lastStoreKitPurchaseDate = user.lastStoreKitPurchaseDate
         self.lastStoreKitExpirationDate = user.lastStoreKitExpirationDate
         self.lastStoreKitRevocationDate = user.lastStoreKitRevocationDate
+        self.coinBalance = user.coinBalance
+        self.coinRevision = user.coinRevision
         self.createdAt = user.createdAt
         self.updatedAt = user.updatedAt
     }
@@ -68,6 +72,8 @@ struct AppUserRecord: Codable, FetchableRecord, MutablePersistableRecord {
             lastStoreKitPurchaseDate: self.lastStoreKitPurchaseDate,
             lastStoreKitExpirationDate: self.lastStoreKitExpirationDate,
             lastStoreKitRevocationDate: self.lastStoreKitRevocationDate,
+            coinBalance: self.coinBalance,
+            coinRevision: self.coinRevision,
             createdAt: self.createdAt,
             updatedAt: self.updatedAt
         )

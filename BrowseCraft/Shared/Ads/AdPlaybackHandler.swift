@@ -6,6 +6,7 @@ struct AdPlaybackHandler: ViewModifier {
     let markHandled: () -> Void
 
     @StateObject private var presenter: RewardedAdPresenter = RewardedAdPresenter()
+    @Environment(\.rewardedAdRewardCoordinator) private var rewardCoordinator
 
     func body(content: Content) -> some View {
         content
@@ -26,10 +27,14 @@ struct AdPlaybackHandler: ViewModifier {
                     return
                 }
 
-                let result: RewardedAdPresentationResult = await self.presenter.present()
+                let userIdentifier: String? = await self.rewardCoordinator?.rewardedAdUserIdentifier()
+                let result: RewardedAdPresentationResult = await self.presenter.present(userIdentifier: userIdentifier)
                 #if DEBUG
                 AppDebugLog.write("[BrowseCraftAdPlayback] handler presentation finished result=\(result.debugDescription)")
                 #endif
+                if case .completed = result {
+                    self.rewardCoordinator?.rewardedAdCompleted(userIdentifier: userIdentifier)
+                }
                 self.markHandled()
             }
     }

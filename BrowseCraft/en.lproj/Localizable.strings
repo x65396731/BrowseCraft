@@ -581,3 +581,14 @@
 "Reading" = "Recently Viewed";
 "sources_locked_restored_one" = "%d restored source is locked by the current source limit. Tap a locked source to replace an active source.";
 "sources_locked_restored_other" = "%d restored sources are locked by the current source limit. Tap a locked source to replace an active source.";
+
+/* coin（设计书第 30 节） */
+"coin_balance_row_title" = "Coins";
+"coin_balance_detail" = "%d coins";
+"coin_balance_unknown" = "Balance not synced yet";
+"coin_earn_detail" = "+%d per rewarded ad";
+"coin_ad_hint_sign_in" = "Sign in to earn coins from rewarded ads.";
+"video_preflight_coin_cost" = "This generation costs %1$d coins. Your balance: %2$d.";
+"video_preflight_coin_cost_unknown" = "This generation costs %d coins.";
+"video_preflight_coin_declaration" = "Generation may fail, and coins are charged even when it fails. Coins are refunded only when the server spent nothing.";
+"video_preflight_submit_insufficient_coins" = "Not enough coins: %1$d needed, you have %2$d. Watch a rewarded ad in the player or reader to earn more.";

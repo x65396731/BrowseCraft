@@ -44,6 +44,8 @@ final class SettingsViewModel {
     private let portalSignInAction: @MainActor () async throws -> UUID
     private let portalSignOutAction: () async throws -> Void
     private let portalSessionSnapshotAction: () async -> PortalSessionSnapshot?
+    /// 设计书第 30 节：账号区显示 coin 余额；nil 即未接线（测试替身）。
+    let coinWalletStore: CoinWalletStore?
 
     init(
         imageCacheManager: any ImageCacheManaging,
@@ -55,7 +57,8 @@ final class SettingsViewModel {
         portalSignOutAction: @escaping () async throws -> Void = {},
         portalSessionSnapshotAction: @escaping () async -> PortalSessionSnapshot? = {
             return nil
-        }
+        },
+        coinWalletStore: CoinWalletStore? = nil
     ) {
         self.imageCacheManager = imageCacheManager
         self.purchaseCoordinator = purchaseCoordinator
@@ -63,6 +66,7 @@ final class SettingsViewModel {
         self.portalSignInAction = portalSignInAction
         self.portalSignOutAction = portalSignOutAction
         self.portalSessionSnapshotAction = portalSessionSnapshotAction
+        self.coinWalletStore = coinWalletStore
         self.imageCacheSettings = ImageCacheSettings.load()
         self.diagnosticCode = diagnosticIdentityStore.identity.diagnosticCode
     }

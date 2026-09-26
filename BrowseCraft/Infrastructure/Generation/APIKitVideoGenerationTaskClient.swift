@@ -48,7 +48,9 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
                 return .queued(
                     VideoGenerationTaskReceipt(
                         jobID: response.jobID,
-                        submittedEntryURL: entryURL
+                        submittedEntryURL: entryURL,
+                        coinBalance: response.coinBalance,
+                        coinRevision: response.coinRevision
                     )
                 )
             case .cached(let response):
@@ -99,6 +101,17 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
         }
     }
 
+    private static func integer(_ value: PortalJSONValue?) -> Int? {
+        switch value {
+        case .integer(let number)?:
+            return number
+        case .number(let number)?:
+            return Int(number)
+        default:
+            return nil
+        }
+    }
+
     private static func map(_ error: PortalAPIError) -> VideoGenerationTaskClientError {
         switch error {
         case .server(let statusCode, let body):
@@ -112,6 +125,12 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
             }
             if body.code == PortalRuleGenerationErrorCode.submitRateLimit {
                 return .rateLimited
+            }
+            if body.code == PortalRuleGenerationErrorCode.insufficientCoins || statusCode == 402 {
+                return .insufficientCoins(
+                    balance: Self.integer(body.details["coinBalance"]) ?? 0,
+                    required: Self.integer(body.details["required"]) ?? 0
+                )
             }
             if statusCode == 429 || body.code == PortalRuleGenerationErrorCode.activeJobLimit {
                 return .activeJobLimit
