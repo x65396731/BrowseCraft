@@ -55,16 +55,18 @@ struct HistoryEntryRowView: View {
         }
     }
 
+    /// 中文注释：第三行显示来自哪个来源，不显示章节 / 播放页的完整网址——网址对用户没有信息量，
+    /// 长网址还会把一行撑成三行。临时资源没有来源，退一步只显示域名。
     private var detailText: String? {
         switch self.entry.kind {
         case .comic:
-            return self.entry.comicHistory?.chapterURL?.absoluteString
+            return self.entry.comicHistory?.sourceSnapshot?.name
         case .video:
-            return self.entry.videoHistory?.playPageURL.absoluteString
+            return self.entry.videoHistory.flatMap { $0.sourceName ?? $0.sourceSnapshot?.name }
         case .book:
-            return self.entry.bookHistory.map { $0.chapterURL?.absoluteString ?? $0.detailURL }
+            return self.entry.bookHistory?.sourceSnapshot?.name
         case .temporary:
-            return self.entry.temporaryHistory?.resourceURL.absoluteString
+            return self.entry.temporaryHistory?.resourceURL.host
         }
     }
 }
