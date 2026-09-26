@@ -21,7 +21,8 @@ struct SettingsRow: View {
                 Text(detail)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                    .multilineTextAlignment(.trailing)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
         }
     }

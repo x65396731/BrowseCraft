@@ -102,7 +102,7 @@ struct SettingsView: View {
                             SettingsRow(
                                 image: "SettingsAdService",
                                 title: self.adPlaybackViewModel.isLoading ? NSLocalizedString("Starting Ad Service", comment: "") : NSLocalizedString("Start Ad Service", comment: ""),
-                                detail: self.adPlaybackViewModel.isLoading ? NSLocalizedString("Loading", comment: "") : nil
+                                detail: self.adServiceDetail
                             )
                         }
                     )
@@ -311,18 +311,23 @@ struct SettingsView: View {
     }
 
     /// 中文注释：余额与「看一次广告 +N」并排；价格由服务端下发。
+    /// 中文注释：余额行只显示余额；「看完一次广告 +N」放在「啟動廣告服務」那一行后面（用户 2026-09-27）。
     private static func coinDetail(_ wallet: CoinWalletStore) -> String {
-        let balance: String
         if let value: Int = wallet.balance {
-            balance = String(format: NSLocalizedString("coin_balance_detail", comment: ""), value)
-        } else {
-            balance = NSLocalizedString("coin_balance_unknown", comment: "")
+            return String(format: NSLocalizedString("coin_balance_detail", comment: ""), value)
         }
-        let earn: String = String(
-            format: NSLocalizedString("coin_earn_detail", comment: ""),
-            wallet.pricing.adReward
-        )
-        return balance + " · " + earn
+        return NSLocalizedString("coin_balance_unknown", comment: "")
+    }
+
+    private var adServiceDetail: String? {
+        if self.adPlaybackViewModel.isLoading {
+            return NSLocalizedString("Loading", comment: "")
+        }
+        guard self.viewModel.isPortalAuthenticated,
+              let wallet: CoinWalletStore = self.viewModel.coinWalletStore else {
+            return nil
+        }
+        return String(format: NSLocalizedString("coin_earn_detail", comment: ""), wallet.pricing.adReward)
     }
 
     private var portalAccountErrorAlertBinding: Binding<Bool> {
