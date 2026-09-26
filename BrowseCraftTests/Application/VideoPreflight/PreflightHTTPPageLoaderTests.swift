@@ -139,6 +139,45 @@ final class PreflightHTTPPageLoaderTests: XCTestCase {
         XCTAssertEqual(delegate.redirectChain.first?.sourceURL, sourceURL)
         XCTAssertEqual(delegate.redirectChain.first?.targetURL, targetURL)
     }
+
+    /// `BC-PREFLIGHT-065`：跳转目标是 http 时升成 https 再跟随（Movieffm `mvffm.net` → `http://www.` 形状）。
+    func testHTTPRedirectTargetIsUpgradedToHTTPSBeforeFollowing() throws {
+        let sourceURL: URL = try XCTUnwrap(URL(string: "https://example.com/drama/"))
+        let httpTargetURL: URL = try XCTUnwrap(URL(string: "http://www.example.com:80/drama/"))
+        let upgradedURL: URL = try XCTUnwrap(URL(string: "https://www.example.com/drama/"))
+        let delegate: PreflightURLSessionDelegate = PreflightURLSessionDelegate(
+            publicURLPolicy: RedirectTestPublicURLPolicy(rejectedHost: nil)
+        )
+        let session: URLSession = URLSession(
+            configuration: .ephemeral,
+            delegate: delegate,
+            delegateQueue: nil
+        )
+        defer { session.invalidateAndCancel() }
+        let task: URLSessionDataTask = session.dataTask(with: sourceURL)
+        let response: HTTPURLResponse = try XCTUnwrap(
+            HTTPURLResponse(
+                url: sourceURL,
+                statusCode: 301,
+                httpVersion: "HTTP/1.1",
+                headerFields: ["Location": httpTargetURL.absoluteString]
+            )
+        )
+        let recorder: RedirectRequestRecorder = RedirectRequestRecorder()
+
+        delegate.urlSession(
+            session,
+            task: task,
+            willPerformHTTPRedirection: response,
+            newRequest: URLRequest(url: httpTargetURL)
+        ) { request in
+            recorder.record(request)
+        }
+
+        XCTAssertEqual(recorder.request?.url, upgradedURL)
+        XCTAssertFalse(delegate.didRejectRedirect)
+        XCTAssertEqual(delegate.redirectChain.first?.targetURL, upgradedURL)
+    }
 }
 
 private final class RedirectRequestRecorder: @unchecked Sendable {

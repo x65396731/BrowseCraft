@@ -25,7 +25,9 @@ struct PreflightHTTPPageLoader: PreflightPageAcquiring {
     }
 
     func acquire(_ request: PreflightPageRequest) async throws -> PreflightAcquiredPage {
-        try self.publicURLPolicy.validate(request.url)
+        // 中文注释：`BC-PREFLIGHT-065`——与运行时同一 https 升级（`BC-ACQ-065`）；`requestedURL` 仍是输入原样。
+        let fetchURL: URL = HTTPSUpgrade.upgraded(request.url) ?? request.url
+        try self.publicURLPolicy.validate(fetchURL)
 
         let configuration: URLSessionConfiguration = URLSessionConfiguration.ephemeral
         configuration.httpShouldSetCookies = false
@@ -50,14 +52,14 @@ struct PreflightHTTPPageLoader: PreflightPageAcquiring {
         }
 
         var urlRequest: URLRequest = URLRequest(
-            url: request.url,
+            url: fetchURL,
             cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
             timeoutInterval: request.timeoutSeconds
         )
         urlRequest.httpMethod = "GET"
         // `BC-ACQ-060`：整套头取自运行时同一个提供者，不在这里另写一份。
         for (field, value): (String, String) in self.browserRequestHeaderProvider.defaultHeaders(
-            for: request.url,
+            for: fetchURL,
             referer: nil,
             includeOrigin: false
         ) {
@@ -93,7 +95,7 @@ struct PreflightHTTPPageLoader: PreflightPageAcquiring {
             guard data.isEmpty == false else {
                 throw PreflightPageAcquisitionError.emptyContent
             }
-            let finalURL: URL = httpResponse.url ?? request.url
+            let finalURL: URL = httpResponse.url ?? fetchURL
             try self.publicURLPolicy.validate(finalURL)
             return PreflightAcquiredPage(
                 requestedURL: request.url,
@@ -185,11 +187,16 @@ final class PreflightURLSessionDelegate: NSObject, URLSessionTaskDelegate, @unch
         newRequest request: URLRequest,
         completionHandler: @escaping (URLRequest?) -> Void
     ) {
-        guard let redirectURL: URL = request.url else {
+        guard let targetURL: URL = request.url else {
             self.markRejectedRedirect()
             completionHandler(nil)
             return
         }
+        // 中文注释：`BC-PREFLIGHT-065`——跳转目标是 http 时先升 https（运行时 `httpsUpgradingRedirector` 同一纪律），
+        // 否则 ATS 在这一跳拒绝（`-1022`），预检落「暂时无法检查」而引擎与运行时都跟得过去。
+        let redirectURL: URL = HTTPSUpgrade.upgraded(targetURL) ?? targetURL
+        var redirected: URLRequest = request
+        redirected.url = redirectURL
         do {
             try self.publicURLPolicy.validate(redirectURL)
             self.recordRedirect(
@@ -199,7 +206,7 @@ final class PreflightURLSessionDelegate: NSObject, URLSessionTaskDelegate, @unch
                     targetURL: redirectURL
                 )
             )
-            completionHandler(request)
+            completionHandler(redirected)
         } catch {
             self.markRejectedRedirect()
             completionHandler(nil)
