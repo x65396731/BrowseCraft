@@ -5,13 +5,13 @@ import Foundation
 /// 中文注释：这是**地区取值的单一定义点**。三处读同一个值，三端因此到达同一个页面：
 ///
 /// 1. 预检取页（`PreflightHTTPPageLoader` / `PreflightRenderedPageLoader` 经
-///    `ChromeRequestHeaderProvider`）；
+///    `SafariRequestHeaderProvider`）；
 /// 2. 提交生成任务时随请求发给服务端（`PortalRuleGenerationRequest.acceptLanguage`），
 ///    引擎拿它作语言头候选表的第一项并写进规则；
 /// 3. 运行时执行规则——规则自带的 `Accept-Language` 会覆盖默认值，没声明时才用这里的。
 ///
 /// **地区是用户属性，不是站点属性**：服务端的引擎量得出「哪个语言版本拿得到内容」，
-/// 量不出「用户想要哪个」。此前这一格在 `ChromeRequestHeaderProvider` 里写死成
+/// 量不出「用户想要哪个」。此前这一格在 `SafariRequestHeaderProvider` 里写死成
 /// `zh-CN,zh;q=0.9,zh-TW;q=0.8,en;q=0.7`，于是繁中用户也会被按简中对待——
 /// WEBTOON 对简中返回的是 `Error Language` 页，对繁中才返回正文。
 struct DeviceAcceptLanguage {

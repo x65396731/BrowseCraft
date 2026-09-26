@@ -5,7 +5,7 @@ import XCTest
 /// `BC-ACQ-062`：地区取值的单一定义点（fwq 设计书 §24）。
 ///
 /// 反向植入这四处之一，本文件必须失败：
-///   ① 把 `ChromeRequestHeaderProvider` 的语言头改回写死的常量；
+///   ① 把 `SafariRequestHeaderProvider` 的语言头改回写死的常量；
 ///   ② 去掉 BCP-47 前缀降级链，直接发 `Locale.preferredLanguages`；
 ///   ③ 让设备给不出标签时编一个地区出来，而不是回落到「未指定」；
 ///   ④ 把不合 `Accept-Language` 文法的标签照发给服务端（服务端会 400）。
@@ -86,7 +86,7 @@ final class DeviceAcceptLanguageTests: XCTestCase {
     }
 
     func testProviderHeaderUsesTheDeviceLocaleNotAHardCodedOne() throws {
-        let provider = ChromeRequestHeaderProvider(
+        let provider = SafariRequestHeaderProvider(
             deviceAcceptLanguage: DeviceAcceptLanguage(
                 preferredLanguages: ["zh-Hant-TW"]
             )
@@ -100,17 +100,17 @@ final class DeviceAcceptLanguageTests: XCTestCase {
         XCTAssertEqual(provider.acceptLanguage, headers["Accept-Language"])
         XCTAssertNotEqual(
             headers["Accept-Language"],
-            ChromeRequestHeaderProvider.unspecifiedLocaleAcceptLanguage
+            SafariRequestHeaderProvider.unspecifiedLocaleAcceptLanguage
         )
     }
 
     func testProviderFallsBackToTheUnspecifiedLocaleValue() throws {
-        let provider = ChromeRequestHeaderProvider(
+        let provider = SafariRequestHeaderProvider(
             deviceAcceptLanguage: DeviceAcceptLanguage(preferredLanguages: [])
         )
         XCTAssertEqual(
             provider.acceptLanguage,
-            ChromeRequestHeaderProvider.unspecifiedLocaleAcceptLanguage
+            SafariRequestHeaderProvider.unspecifiedLocaleAcceptLanguage
         )
     }
 }

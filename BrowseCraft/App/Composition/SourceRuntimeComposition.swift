@@ -22,7 +22,7 @@ final class SourceRuntimeComposition {
         let sourceCredentialStore: SourceCredentialStoring = InMemorySourceCredentialStore()
         self.sourceCredentialStore = sourceCredentialStore
 
-        let browserRequestHeaderProvider: any BrowserRequestHeaderProviding = ChromeRequestHeaderProvider()
+        let browserRequestHeaderProvider: any BrowserRequestHeaderProviding = SafariRequestHeaderProvider()
         self.browserRequestHeaderProvider = browserRequestHeaderProvider
 
         let systemCookieHeaderProvider: any SystemCookieHeaderProviding = SharedHTTPCookieHeaderProvider()

@@ -51,7 +51,7 @@ final class PreflightHTTPPageLoaderTests: XCTestCase {
 
     /// 默认提供者就是运行时那一个——三端同源的落点在这里。
     func testDefaultHeaderProviderIsTheRuntimeOne() throws {
-        let runtime = ChromeRequestHeaderProvider()
+        let runtime = SafariRequestHeaderProvider()
         let headers: [String: String] = runtime.defaultHeaders(
             for: try XCTUnwrap(URL(string: "https://example.com/")),
             referer: nil,
@@ -59,6 +59,9 @@ final class PreflightHTTPPageLoaderTests: XCTestCase {
         )
         XCTAssertEqual(headers["User-Agent"], runtime.userAgent)
         XCTAssertFalse(runtime.userAgent.contains("iPhone"), "运行时默认头不是移动 UA")
+        // `BC-ACQ-070`：App 用自己的真实身份（桌面 Safari），不发 Chrome 专有的客户端提示头。
+        XCTAssertEqual(runtime.userAgent, ClientUserAgent.desktopSafari)
+        XCTAssertFalse(headers.keys.contains { $0.lowercased().hasPrefix("sec-ch-ua") }, "Safari 不发 Sec-CH-UA")
     }
 
     func testUnsafeRedirectIsCancelledBeforeURLSessionFollowsIt() throws {

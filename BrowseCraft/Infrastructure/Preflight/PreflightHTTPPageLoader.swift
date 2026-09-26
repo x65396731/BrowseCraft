@@ -17,7 +17,7 @@ struct PreflightHTTPPageLoader: PreflightPageAcquiring {
         publicURLPolicy: any PublicURLChecking,
         maximumResponseBytes: Int = 5_000_000,
         browserRequestHeaderProvider: any BrowserRequestHeaderProviding =
-            ChromeRequestHeaderProvider()
+            SafariRequestHeaderProvider()
     ) {
         self.publicURLPolicy = publicURLPolicy
         self.maximumResponseBytes = maximumResponseBytes

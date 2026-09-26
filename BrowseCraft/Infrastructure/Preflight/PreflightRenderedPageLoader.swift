@@ -76,7 +76,7 @@ private final class PreflightRenderedPageOperation: NSObject, WKNavigationDelega
                 )
                 urlRequest.httpMethod = "GET"
                 // `BC-ACQ-060`：与 HTTP 路径同一套头，取自运行时的提供者。
-                for (field, value): (String, String) in ChromeRequestHeaderProvider().defaultHeaders(
+                for (field, value): (String, String) in SafariRequestHeaderProvider().defaultHeaders(
                     for: request.url,
                     referer: nil,
                     includeOrigin: false

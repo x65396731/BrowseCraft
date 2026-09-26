@@ -1,10 +1,15 @@
 import BrowseCraftDomain
 import Foundation
 
-struct ChromeRequestHeaderProvider: BrowserRequestHeaderProviding {
-    let userAgent: String = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
-
-    private let chromeMajorVersion: String = "150"
+/// 中文注释：`BC-ACQ-070`——App 默认请求头是 App 自己的真实身份：苹果网络栈（URLSession / WKWebView），即 Safari。
+///
+/// 此前这里是一整套**桌面 Chrome** 请求头（`BC-ACQ-059`，2026-09-19）。2026-09-26 模拟器实测：WKWebView
+/// 自称 Chrome 时多数 Cloudflare 挑战站过不去，改用 Safari UA 后多数能自动通过；线上九个来源换成桌面 Safari
+/// 不换模板。因此 UA 取桌面 Safari（单一定义点 `ClientUserAgent.desktopSafari`），并去掉 Chrome 专有、
+/// Safari 不会发的头：`Sec-CH-UA` 三件、`Priority`、`Sec-Fetch-User`。`Accept` 取 Safari 的取值，
+/// 引擎第十二闸门从本文件核对它与引擎 `RUNTIME_DEFAULT_ACCEPT` 逐字相同。
+struct SafariRequestHeaderProvider: BrowserRequestHeaderProviding {
+    let userAgent: String = ClientUserAgent.desktopSafari
 
     /// `BC-ACQ-062`：语言这一格按**设备/用户的实际地区**来，不写死。
     ///
@@ -35,18 +40,13 @@ struct ChromeRequestHeaderProvider: BrowserRequestHeaderProviding {
     ) -> [String: String] {
         var headers: [String: String] = [
             "User-Agent": self.userAgent,
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": self.acceptLanguage,
             "Cache-Control": "no-cache",
             "Pragma": "no-cache",
-            "Priority": "u=0, i",
-            "Sec-CH-UA": "\"Not;A=Brand\";v=\"8\", \"Chromium\";v=\"\(self.chromeMajorVersion)\", \"Google Chrome\";v=\"\(self.chromeMajorVersion)\"",
-            "Sec-CH-UA-Mobile": "?0",
-            "Sec-CH-UA-Platform": "\"macOS\"",
             "Sec-Fetch-Dest": "document",
             "Sec-Fetch-Mode": "navigate",
             "Sec-Fetch-Site": "none",
-            "Sec-Fetch-User": "?1",
             "Upgrade-Insecure-Requests": "1"
         ]
         if let referer: URL {
