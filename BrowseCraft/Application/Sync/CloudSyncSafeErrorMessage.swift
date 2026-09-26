@@ -268,9 +268,9 @@ enum CloudSyncSessionError: Error, Hashable, Sendable, CustomStringConvertible {
         case .accountChanged:
             return "Cloud account changed during synchronization"
         case .identityNotAssociated:
-            return "The iCloud account is not linked to the active BrowseCraft profile"
+            return "The iCloud account is not linked to the active AnyPortal profile"
         case .activeUserChanged:
-            return "The active BrowseCraft profile changed during synchronization"
+            return "The active AnyPortal profile changed during synchronization"
         case .alreadyRunning:
             return "Cloud synchronization is already running"
         }
