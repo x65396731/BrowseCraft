@@ -10,6 +10,7 @@ struct SettingsView: View {
     @Bindable var viewModel: SettingsViewModel
     @Bindable private var cloudSyncViewModel: CloudSyncSettingsViewModel
     @State private var adPlaybackViewModel: AdPlaybackViewModel = AdPlaybackViewModel()
+    @Environment(\.rewardedAdRewardCoordinator) private var rewardedAdRewardCoordinator
     @AppStorage(CrashDiagnostics.collectionEnabledDefaultsKey) private var isDiagnosticsEnabled: Bool = CrashDiagnostics.isCollectionEnabled
 
     @State private var isShowingInAppPurchase: Bool = false
@@ -92,7 +93,9 @@ struct SettingsView: View {
                     Button(
                         action: {
                             Task {
-                                await self.adPlaybackViewModel.loadAndShow()
+                                await self.adPlaybackViewModel.loadAndShow(
+                                    rewardCoordinator: self.rewardedAdRewardCoordinator
+                                )
                             }
                         },
                         label: {

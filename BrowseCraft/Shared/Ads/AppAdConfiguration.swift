@@ -26,6 +26,15 @@ enum AppAdConfiguration {
         return self.rewardedAdUnitID.isEmpty == false
     }
 
+    /// 中文注释：AdMob 测试设备哈希（project.yml `BROWSECRAFT_AD_TEST_DEVICE_IDS`，逗号分隔）。
+    /// 真实广告单元 + 测试设备：看到的仍是测试广告、不算无效流量，但 SSV 回调照发——验证 coin 到账靠它。
+    static var testDeviceIdentifiers: [String] {
+        return self.infoString(forKey: "BrowseCraftAdTestDeviceIdentifiers")
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { $0.isEmpty == false }
+    }
+
     private static func infoString(forKey key: String) -> String {
         return (Bundle.main.object(forInfoDictionaryKey: key) as? String) ?? ""
     }

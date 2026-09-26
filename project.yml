@@ -162,7 +162,12 @@ targets:
         Debug:
           APS_ENVIRONMENT: development
           BROWSECRAFT_ENVIRONMENT_NAME: TEST
-          BROWSECRAFT_REWARDED_AD_UNIT_ID: ca-app-pub-3940256099942544/1712485313
+          # 中文注释：2026-09-27 起 Debug / TestFlight 用真实激励广告单元（用户裁定）：Google 示例单元
+          # 从不发 SSV 回调，coin 到账验不了；真机须在 AdMob「测试设备」登记，仍看到测试广告、不算无效流量。
+          BROWSECRAFT_REWARDED_AD_UNIT_ID: ca-app-pub-4351001986548416/2887798038
+          # 中文注释：AdMob 测试设备（逗号分隔的 SDK 设备哈希）。App 没接 ATT，IDFA 全零，网页后台按 IDFA
+          # 登记走不通；首次在真机上请求广告时 SDK 会在控制台打印本机哈希，填到这里即可。Release 不设。
+          BROWSECRAFT_AD_TEST_DEVICE_IDS: ""
           DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
           "DEBUG_INFORMATION_FORMAT[sdk=iphonesimulator*]": dwarf
         Release:
@@ -176,7 +181,8 @@ targets:
           # production APNs entitlement while retaining the TEST environment.
           APS_ENVIRONMENT: production
           BROWSECRAFT_ENVIRONMENT_NAME: TEST
-          BROWSECRAFT_REWARDED_AD_UNIT_ID: ca-app-pub-3940256099942544/1712485313
+          BROWSECRAFT_REWARDED_AD_UNIT_ID: ca-app-pub-4351001986548416/2887798038
+          BROWSECRAFT_AD_TEST_DEVICE_IDS: ""
           DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
           ENABLE_DEBUG_DYLIB: NO
     preBuildScripts:

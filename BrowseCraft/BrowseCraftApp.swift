@@ -187,6 +187,10 @@ struct BrowseCraftApp: App {
     /// 因此不把它延后到主界面出现之后。
     private static func startMobileAdsIfConfigured() {
         if AppAdConfiguration.hasAdMobApplicationID {
+            let testDevices: [String] = AppAdConfiguration.testDeviceIdentifiers
+            if testDevices.isEmpty == false {
+                MobileAds.shared.requestConfiguration.testDeviceIdentifiers = testDevices
+            }
             MobileAds.shared.start()
         } else {
             #if DEBUG

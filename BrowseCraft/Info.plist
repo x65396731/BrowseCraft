@@ -8,6 +8,8 @@
 	<string>$(BROWSECRAFT_ENVIRONMENT_NAME)</string>
 	<key>BrowseCraftRewardedAdUnitID</key>
 	<string>$(BROWSECRAFT_REWARDED_AD_UNIT_ID)</string>
+	<key>BrowseCraftAdTestDeviceIdentifiers</key>
+	<string>$(BROWSECRAFT_AD_TEST_DEVICE_IDS)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

@@ -10,14 +10,20 @@ final class AdPlaybackViewModel {
 
     private let presenter: RewardedAdPresenter = RewardedAdPresenter()
 
-    func loadAndShow() async {
+    /// `rewardCoordinator`：设置页的手动入口也要走 coin 链路（设计书 30.5）——已登录时广告请求带用户标识，
+    /// 看完后由协调器去刷新余额；不传即只放广告、不计 coin。
+    func loadAndShow(rewardCoordinator: (any RewardedAdRewardCoordinating)? = nil) async {
         guard self.isLoading == false else {
             return
         }
 
         self.isLoading = true
         self.message = nil
-        let result: RewardedAdPresentationResult = await self.presenter.present()
+        let userIdentifier: String? = await rewardCoordinator?.rewardedAdUserIdentifier()
+        let result: RewardedAdPresentationResult = await self.presenter.present(userIdentifier: userIdentifier)
+        if case .completed = result {
+            rewardCoordinator?.rewardedAdCompleted(userIdentifier: userIdentifier)
+        }
         self.isLoading = false
         self.message = self.message(for: result)
     }
