@@ -78,7 +78,7 @@ private struct VideoLibraryCardView: View {
     let openAction: () -> Void
     let imageRequestConfig: RequestConfig?
 
-    private let titleColor: Color = Color(red: 21 / 255, green: 30 / 255, blue: 71 / 255)
+    private let titleColor: Color = .libraryTitleText
     private let chapterColor: Color = Color(red: 133 / 255, green: 153 / 255, blue: 255 / 255)
 
     var body: some View {
