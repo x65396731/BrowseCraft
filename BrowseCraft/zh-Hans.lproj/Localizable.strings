@@ -309,6 +309,7 @@
 "Source Not Found" = "未找到来源";
 "Source was not found." = "未找到该来源。";
 "Sources" = "来源";
+"Source" = "来源";
 "Sources Used" = "已用来源位置";
 "Sync downloads and merges iCloud changes before uploading pending local changes." = "同步会先下载并合并 iCloud 的变更，再上传待处理的本地变更。";
 "Temporary" = "临时";

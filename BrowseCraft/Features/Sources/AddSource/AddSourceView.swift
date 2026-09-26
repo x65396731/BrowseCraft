@@ -165,11 +165,11 @@ private extension SourceImportOptionKind {
     var displayTitle: String {
         switch self {
         case .comicSource:
-            return "Comics"
+            return NSLocalizedString("Comics", comment: "")
         case .videoSource:
-            return "Video"
+            return NSLocalizedString("Video", comment: "")
         case .bookSource:
-            return "Books"
+            return NSLocalizedString("Books", comment: "")
         case .scriptSource:
             return "Script Source"
         }
