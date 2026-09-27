@@ -72,7 +72,13 @@ struct CloudSyncSettingsViewModelTests {
 
         await viewModel.setCloudSyncEnabled(true)
 
-        #expect(viewModel.actionErrorMessage?.contains("another AnyPortal account") == true)
+        // 中文注释：按同一个本地化键比对，不依赖模拟器语言（此前硬写英文，设置页三语补齐后在中文环境必失败）。
+        #expect(
+            viewModel.actionErrorMessage == NSLocalizedString(
+                "This iCloud data belongs to another BrowseCraft account. Sign in with the matching Apple account before enabling Cloud Sync.",
+                comment: ""
+            )
+        )
         #expect(viewModel.firstEnableRequest == nil)
         #expect(viewModel.isCloudSyncEnabled == false)
         let createCallCount: Int = await context.identityStore.createCallCount()
