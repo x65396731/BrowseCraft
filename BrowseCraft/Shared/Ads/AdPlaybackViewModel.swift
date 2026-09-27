@@ -21,6 +21,11 @@ final class AdPlaybackViewModel {
         self.message = nil
         let userIdentifier: String? = await rewardCoordinator?.rewardedAdUserIdentifier()
         let result: RewardedAdPresentationResult = await self.presenter.present(userIdentifier: userIdentifier)
+        AppAnalytics.shared.logRewardedAdResult(
+            trigger: .manual,
+            result: result,
+            signedIn: userIdentifier != nil
+        )
         if case .completed = result {
             rewardCoordinator?.rewardedAdCompleted(userIdentifier: userIdentifier)
         }

@@ -24,6 +24,10 @@ final class AppAnalytics: @unchecked Sendable {
         case networkRequestFailed = "network_request_failed"
         case parseFailed = "parse_failed"
         case settingChanged = "setting_changed"
+        /// 积分满 100、页面要弹激励广告（设计书 30.8）。
+        case adPointsThreshold = "ad_points_threshold"
+        /// 一次激励广告的结局，自动唤起与设置页手动入口共用。
+        case rewardedAdResult = "rewarded_ad_result"
     }
 
     enum Parameter {
@@ -39,6 +43,12 @@ final class AppAnalytics: @unchecked Sendable {
         static let appVersion: String = "app_version"
         static let buildNumber: String = "build_number"
         static let diagnosticCode: String = "diagnostic_code"
+        /// 谁触发的广告：comic / video / book / audiobook / manual。
+        static let adTrigger: String = "ad_trigger"
+        /// completed / skipped / unavailable / failed。
+        static let adResult: String = "ad_result"
+        /// 看广告时是否已登录（未登录看完不计 coin）。
+        static let signedIn: String = "signed_in"
     }
 
     private enum UserProperty {
@@ -160,6 +170,45 @@ final class AppAnalytics: @unchecked Sendable {
         )
     }
 
+    /// 中文注释：积分满额、页面即将弹广告。去广告用户不累计积分，所以不会产生这个事件。
+    func logAdPointsThreshold(trigger: RewardedAdPlaybackTrigger) {
+        self.log(
+            .adPointsThreshold,
+            parameters: Self.baseParameters([
+                Parameter.adTrigger: trigger.rawValue
+            ])
+        )
+    }
+
+    /// 中文注释：一次激励广告的结局。只报类别，不报余额与用户标识。
+    func logRewardedAdResult(
+        trigger: RewardedAdPlaybackTrigger,
+        result: RewardedAdPresentationResult,
+        signedIn: Bool
+    ) {
+        self.log(
+            .rewardedAdResult,
+            parameters: Self.baseParameters([
+                Parameter.adTrigger: trigger.rawValue,
+                Parameter.adResult: Self.adResultBucket(result),
+                Parameter.signedIn: signedIn ? "true" : "false"
+            ])
+        )
+    }
+
+    static func adResultBucket(_ result: RewardedAdPresentationResult) -> String {
+        switch result {
+        case .completed:
+            return "completed"
+        case .skipped:
+            return "skipped"
+        case .unavailable:
+            return "unavailable"
+        case .failed:
+            return "failed"
+        }
+    }
+
     func logSettingChanged(name: String, value: String) {
         self.log(
             .settingChanged,
@@ -199,7 +248,10 @@ final class AppAnalytics: @unchecked Sendable {
             Parameter.settingValue,
             Parameter.appVersion,
             Parameter.buildNumber,
-            Parameter.diagnosticCode
+            Parameter.diagnosticCode,
+            Parameter.adTrigger,
+            Parameter.adResult,
+            Parameter.signedIn
         ]
 
         return parameters.filter { key, _ in

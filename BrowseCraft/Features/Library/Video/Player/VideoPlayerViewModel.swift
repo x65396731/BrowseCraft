@@ -481,6 +481,7 @@ final class VideoPlayerViewModel {
                 let result: AdPointAccumulationResult = try await persistenceCoordinator
                     .accumulateAdPoints(points)
                 if result.shouldPlayAd {
+                    AppAnalytics.shared.logAdPointsThreshold(trigger: .video)
                     self.shouldPlayAd = true
                 }
             } catch {

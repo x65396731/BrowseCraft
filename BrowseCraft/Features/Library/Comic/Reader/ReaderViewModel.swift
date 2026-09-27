@@ -490,6 +490,7 @@ final class ReaderViewModel {
                     adPoints: shouldAccumulateAdPoints ? AdPointRule.comicPoints : nil
                 )
                 if result?.shouldPlayAd == true {
+                    AppAnalytics.shared.logAdPointsThreshold(trigger: .comic)
                     self.shouldPlayAd = true
                 }
                 AppLog.debug(

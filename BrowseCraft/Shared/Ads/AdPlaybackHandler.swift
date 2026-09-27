@@ -71,6 +71,11 @@ struct AdPlaybackHandler: ViewModifier {
                 #if DEBUG
                 AppDebugLog.write("[BrowseCraftAdPlayback] handler presentation finished result=\(result.debugDescription)")
                 #endif
+                AppAnalytics.shared.logRewardedAdResult(
+                    trigger: self.trigger,
+                    result: result,
+                    signedIn: userIdentifier != nil
+                )
                 if case .completed = result {
                     self.rewardCoordinator?.rewardedAdCompleted(userIdentifier: userIdentifier)
                 }
