@@ -599,3 +599,7 @@
 "ad_test_idfa_copied" = "Copied %@";
 "ad_test_idfa_denied" = "Tracking not allowed. Enable it in Settings → Privacy → Tracking";
 "ad_test_idfa_restricted" = "Tracking is restricted. Turn on \"Allow Apps to Request to Track\" in Settings → Privacy → Tracking";
+
+/* 设置页账户 ID 行：点击复制，报给运营手动调整 coin */
+"account_id_row_title" = "Account ID";
+"account_id_copied" = "Account ID copied";

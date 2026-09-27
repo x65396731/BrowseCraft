@@ -14,6 +14,7 @@ struct SettingsView: View {
     @AppStorage(CrashDiagnostics.collectionEnabledDefaultsKey) private var isDiagnosticsEnabled: Bool = CrashDiagnostics.isCollectionEnabled
 
     @State private var isShowingInAppPurchase: Bool = false
+    @State private var didCopyAccountIdentifier: Bool = false
     #if BROWSECRAFT_AD_TEST_TOOLS
     @State private var adTestIDFADetail: String?
     #endif
@@ -55,6 +56,24 @@ struct SettingsView: View {
                             title: NSLocalizedString("coin_balance_row_title", comment: ""),
                             detail: Self.coinDetail(wallet)
                         )
+
+                        // 中文注释：账户 ID，点一下复制；用户报给运营后可在服务器上手动加减 coin（用户 2026-09-27）。
+                        Button(
+                            action: {
+                                UIPasteboard.general.string = wallet.accountIdentifier
+                                self.didCopyAccountIdentifier = true
+                            },
+                            label: {
+                                SettingsRow(
+                                    image: "SettingsAccount",
+                                    title: NSLocalizedString("account_id_row_title", comment: ""),
+                                    detail: self.didCopyAccountIdentifier
+                                        ? NSLocalizedString("account_id_copied", comment: "")
+                                        : wallet.accountIdentifier
+                                )
+                            }
+                        )
+                        .buttonStyle(.plain)
                     }
 
                     NavigationLink(destination: CloudSyncSettingsView(

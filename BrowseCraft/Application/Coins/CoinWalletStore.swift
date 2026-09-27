@@ -48,6 +48,12 @@ final class CoinWalletStore: RewardedAdRewardCoordinating {
         return self.activeAppUser.currentUserID.uuidString
     }
 
+    /// 中文注释：服务端账户 ID（小写 UUID），设置页展示给用户，运营用 `scripts/adjust_coins.py --user` 手动加减 coin。
+    /// 登录态下活动用户与服务端会话同一个 ID（`refresh` 按此校验），所以这就是服务端的 app_user_id。
+    var accountIdentifier: String {
+        return self.activeAppUser.currentUserID.uuidString.lowercased()
+    }
+
     /// 启动时先用本地缓存显示，再等服务端。
     func loadCached() {
         guard let user: AppUser = try? self.appUserRepository.fetchUser(id: self.userID),

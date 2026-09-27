@@ -599,3 +599,7 @@
 "ad_test_idfa_copied" = "已複製 %@";
 "ad_test_idfa_denied" = "未允許追蹤，請到 設定 → 隱私權 → 追蹤 開啟";
 "ad_test_idfa_restricted" = "系統限制追蹤，請到 設定 → 隱私權 → 追蹤 開啟「允許 App 要求追蹤」";
+
+/* 设置页账户 ID 行：点击复制，报给运营手动调整 coin */
+"account_id_row_title" = "帳號 ID";
+"account_id_copied" = "已複製帳號 ID";
