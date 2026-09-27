@@ -180,9 +180,10 @@ targets:
         Release:
           APS_ENVIRONMENT: production
           BROWSECRAFT_ENVIRONMENT_NAME: PROD
-          # 仍是 Google 官方测试广告；scripts/check-ad-configuration.sh 会在 PROD archive 时拒绝
-          # 这个值，App Store 正式发布前必须替换为正式广告单元。
-          BROWSECRAFT_REWARDED_AD_UNIT_ID: ca-app-pub-3940256099942544/1712485313
+          # 中文注释：2026-09-27 起 Release 复用 Debug / TestFlight 的真实激励广告单元（用户裁定）：
+          # SSV 回调地址配在这个单元上、真机已验 +20，换新单元要重配 SSV。App 上架并在 AdMob 关联商店、
+          # 审核通过（通常 2～3 天）之前是「有限投放」，审核员大概率看到「无广告可播」、积分保留。
+          BROWSECRAFT_REWARDED_AD_UNIT_ID: ca-app-pub-4351001986548416/2887798038
         TestFlight:
           # Store-distributed test builds need Release-style linking and the
           # production APNs entitlement while retaining the TEST environment.

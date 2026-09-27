@@ -43,7 +43,7 @@ python3 scripts/check-docs.py
   本仓库只能按文档引用，是否请 fwq 分配 ID。
 - **无语料、等样本**：读书 kind 的四个接口变体（list / detail / reader 的 API 形态）。
 - **由规则生成引出、流水在 fwq `HANDOFF.md` 第 1 节**（2026-09-27）：激励广告积分链路补全五批（设计书 30.8）、coin 流水页、困难模式提交页——
-  真机还欠积分五批的清单与「0 成本失败退回」；Release 发布前 `BROWSECRAFT_REWARDED_AD_UNIT_ID` 的 Release 值要换成正式单元。
+  真机还欠积分五批的清单（「0 成本失败退回」09-27 已真机验完）；Release 的激励广告单元 09-27 已换成与 Debug / TestFlight 同一个真实单元（用户裁定复用，SSV 已配在该单元上）——上架后要在 AdMob 后台把 App 关联到 App Store 商店页，审核通过前是有限投放。
 - **明确不做**（`rejected` / `superseded`，按名字跳过，不是待办）：本地书 B3 有声书播放器、PDF 与 CBZ、
   目录刷新时静默覆盖本地规则、jable.tv 播放根因（已由 fwq `BC-PLAYBACK-049` 承接）、
   CloudKit 门禁的字面量全面扫描（有意收窄，见 `BCA-SYNC-008`）、iOS 18.5 模拟器运行时、
