@@ -134,7 +134,14 @@ struct BookReaderView: View {
             }
         }
         .task {
+            // 中文注释：打开前不知道是文字书还是有声书，先记阅读页；有声作品打开后再记一次播放器页。
+            CrashDiagnostics.shared.setScreen(.bookReader)
+            AppAnalytics.shared.logScreenView(.bookReader)
             await self.viewModel.open()
+            if self.viewModel.isAudiobook {
+                CrashDiagnostics.shared.setScreen(.audiobookPlayer)
+                AppAnalytics.shared.logScreenView(.audiobookPlayer)
+            }
         }
         .onDisappear {
             self.viewModel.flush()

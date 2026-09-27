@@ -76,6 +76,7 @@ final class BookSiteDetailViewModel {
             self.manifest = loaded.manifest
             self.lastReadChapterURL = self.resolveLastReadChapter(in: loaded.manifest)
         } catch {
+            AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .detail, errorCode: "book-detail-error")
             self.errorMessage = error.localizedDescription
         }
     }

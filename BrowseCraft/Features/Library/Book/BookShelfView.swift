@@ -78,6 +78,8 @@ struct BookShelfView: View {
             Text(self.viewModel.errorMessage ?? "")
         }
         .task {
+            CrashDiagnostics.shared.setScreen(.bookShelf)
+            AppAnalytics.shared.logScreenView(.bookShelf)
             await self.viewModel.load()
         }
     }

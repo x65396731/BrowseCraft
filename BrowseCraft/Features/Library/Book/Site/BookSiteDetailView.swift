@@ -70,6 +70,8 @@ struct BookSiteDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .task {
+            CrashDiagnostics.shared.setScreen(.bookDetail)
+            AppAnalytics.shared.logScreenView(.bookDetail)
             await self.viewModel.loadIfNeeded()
         }
         .navigationDestination(item: self.$selectedChapter) { selection in

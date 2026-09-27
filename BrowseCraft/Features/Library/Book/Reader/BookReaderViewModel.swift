@@ -113,6 +113,7 @@ final class BookReaderViewModel {
             case .site(let selection):
                 try await self.openSite(selection)
                 self.recordSiteHistory()
+                AppAnalytics.shared.logReaderOpened(source: selection.source)
                 self.awardChapterAdPointsIfNeeded()
             }
             if let publication: Publication = self.publication, case .success(let links) = await publication.tableOfContents() {
@@ -121,6 +122,9 @@ final class BookReaderViewModel {
             await self.loadBookmarks()
             self.state = .ready
         } catch {
+            if case .site = self.subject {
+                AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .reader, errorCode: "book-reader-open-error")
+            }
             self.state = .failed(error.localizedDescription)
         }
     }
@@ -348,6 +352,10 @@ final class BookReaderViewModel {
         let chapterKey: String = self.siteChapter(forHref: locator.href.string)?.chapterURL.absoluteString ?? locator.href.string
         guard self.adPointAwardedChapterKeys.insert(chapterKey).inserted else {
             return
+        }
+        // 中文注释：与积分同一个「换章」判定：同一实例里每进入一个新章记一次 chapter_opened（漫画阅读页同名事件）。
+        if case .site(let selection) = self.subject {
+            AppAnalytics.shared.logChapterOpened(source: selection.source)
         }
         self.accumulateAdPoints(AdPointRule.bookChapterPoints, trigger: .book, using: adPoints)
     }

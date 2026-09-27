@@ -15,6 +15,10 @@ enum DiagnosticScreen: String {
     case comicReader
     case videoDetail
     case videoPlayer
+    case bookShelf
+    case bookDetail
+    case bookReader
+    case audiobookPlayer
 }
 
 enum DiagnosticSourceType: String {

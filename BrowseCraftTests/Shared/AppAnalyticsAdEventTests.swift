@@ -18,4 +18,17 @@ struct AppAnalyticsAdEventTests {
         #expect(RewardedAdPlaybackTrigger.audiobook.rawValue == "audiobook")
         #expect(RewardedAdPlaybackTrigger.manual.rawValue == "manual")
     }
+
+    @Test func generationKindsMapToAnalyticsSourceType() {
+        #expect(DiagnosticSourceType(generationKind: .video) == .video)
+        #expect(DiagnosticSourceType(generationKind: .comic) == .comic)
+        #expect(DiagnosticSourceType(generationKind: .book) == .book)
+    }
+
+    @Test func bookScreensAreEnumerated() {
+        #expect(DiagnosticScreen.bookShelf.rawValue == "bookShelf")
+        #expect(DiagnosticScreen.bookDetail.rawValue == "bookDetail")
+        #expect(DiagnosticScreen.bookReader.rawValue == "bookReader")
+        #expect(DiagnosticScreen.audiobookPlayer.rawValue == "audiobookPlayer")
+    }
 }

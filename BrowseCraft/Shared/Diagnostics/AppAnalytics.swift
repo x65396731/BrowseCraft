@@ -28,6 +28,10 @@ final class AppAnalytics: @unchecked Sendable {
         case adPointsThreshold = "ad_points_threshold"
         /// 一次激励广告的结局，自动唤起与设置页手动入口共用。
         case rewardedAdResult = "rewarded_ad_result"
+        /// 规则生成提交被服务端受理（扣过 coin）。
+        case generationSubmitted = "generation_submitted"
+        /// 规则生成提交因余额不足被拒（402）。
+        case generationInsufficientCoins = "generation_insufficient_coins"
     }
 
     enum Parameter {
@@ -192,6 +196,25 @@ final class AppAnalytics: @unchecked Sendable {
                 Parameter.adTrigger: trigger.rawValue,
                 Parameter.adResult: Self.adResultBucket(result),
                 Parameter.signedIn: signedIn ? "true" : "false"
+            ])
+        )
+    }
+
+    /// 中文注释：生成提交的两个结局（设计书 30.8）。只报 kind，不报余额数值与用户标识；困难模式未实施、暂无该参数。
+    func logGenerationSubmitted(sourceType: DiagnosticSourceType) {
+        self.log(
+            .generationSubmitted,
+            parameters: Self.baseParameters([
+                Parameter.sourceType: sourceType.rawValue
+            ])
+        )
+    }
+
+    func logGenerationInsufficientCoins(sourceType: DiagnosticSourceType) {
+        self.log(
+            .generationInsufficientCoins,
+            parameters: Self.baseParameters([
+                Parameter.sourceType: sourceType.rawValue
             ])
         )
     }
