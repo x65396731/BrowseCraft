@@ -42,14 +42,49 @@ struct CoinLedgerViewModelTests {
         #expect(broken.state == .failed)
     }
 
+    /// 下拉刷新：已加载时不回到 loading（否则列表被拆、刷新控件报警）；刷新失败或被取消都保留原列表。
+    @Test func refreshKeepsTheListWhenItFailsOrIsCancelled() async throws {
+        let fetcher: PagedLedgerFetcher = PagedLedgerFetcher(pages: [
+            nil: CoinLedgerPage(entries: [Self.entry("e1", delta: 100)], nextCursor: nil),
+        ])
+        let viewModel: CoinLedgerViewModel = CoinLedgerViewModel(accountClient: fetcher, accessTokenProvider: TokenProvider(token: "t"))
+        await viewModel.load()
+        #expect(viewModel.state == .loaded)
+
+        fetcher.failNext = .transport
+        await viewModel.load()
+        #expect(viewModel.state == .loaded, "刷新失败不换成「無法載入」")
+        #expect(viewModel.entries.map(\.id) == ["e1"])
+
+        fetcher.failNext = .cancelled
+        await viewModel.load()
+        #expect(viewModel.state == .loaded, "刷新被取消不算失败")
+        #expect(viewModel.entries.map(\.id) == ["e1"])
+    }
+
+    @Test func firstLoadCancellationGoesBackToIdleNotFailed() async throws {
+        let fetcher: PagedLedgerFetcher = PagedLedgerFetcher(pages: [:])
+        fetcher.failNext = .cancelled
+        let viewModel: CoinLedgerViewModel = CoinLedgerViewModel(accountClient: fetcher, accessTokenProvider: TokenProvider(token: "t"))
+        await viewModel.load()
+        #expect(viewModel.state == .idle)
+    }
+
     private static func entry(_ id: String, delta: Int) -> CoinLedgerEntry {
         return CoinLedgerEntry(id: id, delta: delta, reason: .adReward, balanceAfter: 0, createdAt: Date(timeIntervalSince1970: 1_000))
     }
 }
 
 private final class PagedLedgerFetcher: PortalAccountFetching, @unchecked Sendable {
+    enum Failure {
+        case transport
+        case cancelled
+    }
+
     private let pages: [String?: CoinLedgerPage]
     private(set) var cursors: [String?] = []
+    /// 下一次 fetchLedger 以此失败（用后即清）。
+    var failNext: Failure?
 
     init(pages: [String?: CoinLedgerPage]) {
         self.pages = pages
@@ -61,6 +96,15 @@ private final class PagedLedgerFetcher: PortalAccountFetching, @unchecked Sendab
 
     func fetchLedger(accessToken: String, cursor: String?) async throws -> CoinLedgerPage {
         self.cursors.append(cursor)
+        if let failure: Failure = self.failNext {
+            self.failNext = nil
+            switch failure {
+            case .transport:
+                throw PortalAccountClientError.transport
+            case .cancelled:
+                throw CancellationError()
+            }
+        }
         guard let page: CoinLedgerPage = self.pages[cursor] else {
             throw PortalAccountClientError.transport
         }

@@ -30,15 +30,29 @@ final class CoinLedgerViewModel {
     }
 
     /// 从最新一页重新加载。
+    ///
+    /// 中文注释：已经加载过（下拉刷新）时**不回到 `.loading`**——那会把列表换成转圈视图、拆掉刷新控件
+    /// （系统警告「Attempting to change the refresh control while it is not idle」），刷新任务随之被取消。
+    /// 取消不算失败；刷新失败时保留原列表，只有首次加载失败才显示「無法載入紀錄」。
     func load() async {
-        self.state = .loading
-        guard let page: CoinLedgerPage = await self.fetch(cursor: nil) else {
-            self.state = .failed
-            return
+        let wasLoaded: Bool = self.state == .loaded
+        if wasLoaded == false {
+            self.state = .loading
         }
-        self.entries = page.entries
-        self.nextCursor = page.nextCursor
-        self.state = .loaded
+        switch await self.fetch(cursor: nil) {
+        case .page(let page):
+            self.entries = page.entries
+            self.nextCursor = page.nextCursor
+            self.state = .loaded
+        case .cancelled:
+            if wasLoaded == false {
+                self.state = .idle
+            }
+        case .failed:
+            if wasLoaded == false {
+                self.state = .failed
+            }
+        }
     }
 
     /// 列表滚到末尾时再取一页；没有更多或正在取时不动。
@@ -52,7 +66,7 @@ final class CoinLedgerViewModel {
         defer {
             self.isLoadingMore = false
         }
-        guard let page: CoinLedgerPage = await self.fetch(cursor: cursor) else {
+        guard case .page(let page) = await self.fetch(cursor: cursor) else {
             return
         }
         let known: Set<String> = Set(self.entries.map(\.id))
@@ -60,10 +74,22 @@ final class CoinLedgerViewModel {
         self.nextCursor = page.nextCursor
     }
 
-    private func fetch(cursor: String?) async -> CoinLedgerPage? {
+    private enum Fetch {
+        case page(CoinLedgerPage)
+        case cancelled
+        case failed
+    }
+
+    private func fetch(cursor: String?) async -> Fetch {
         guard let accessToken: String = await self.accessTokenProvider.validAccessToken() else {
-            return nil
+            return .failed
         }
-        return try? await self.accountClient.fetchLedger(accessToken: accessToken, cursor: cursor)
+        do {
+            return .page(try await self.accountClient.fetchLedger(accessToken: accessToken, cursor: cursor))
+        } catch is CancellationError {
+            return .cancelled
+        } catch {
+            return Task.isCancelled ? .cancelled : .failed
+        }
     }
 }
