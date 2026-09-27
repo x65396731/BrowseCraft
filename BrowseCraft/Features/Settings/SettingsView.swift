@@ -52,7 +52,13 @@ struct SettingsView: View {
                     if self.viewModel.isPortalAuthenticated,
                        let wallet: CoinWalletStore = self.viewModel.coinWalletStore {
                         // 中文注释：余额行点进去看流水（设计书 30.8）；服务端为准。
-                        NavigationLink(destination: CoinLedgerView(viewModel: wallet.makeLedgerViewModel())) {
+                        NavigationLink(
+                            destination: CoinLedgerView(viewModel: wallet.makeLedgerViewModel())
+                                .task {
+                                    // 中文注释：进流水页时余额行一起对齐服务端。
+                                    await wallet.refresh()
+                                }
+                        ) {
                             SettingsRow(
                                 image: "SettingsPremium",
                                 title: NSLocalizedString("coin_balance_row_title", comment: ""),
@@ -278,6 +284,11 @@ struct SettingsView: View {
                 self.viewModel.refreshDiagnosticCode()
                 Task {
                     await self.viewModel.refreshPortalAccountStatus()
+                }
+                // 中文注释：余额以服务端为准，运营手动加减 coin 不会推送到 App——设置页每次出现都拉一次，
+                // 不然只能等下次启动或回到前台（用户 2026-09-27：加了 10000 后设置页没刷新）。
+                Task {
+                    await self.viewModel.coinWalletStore?.refresh()
                 }
                 CrashDiagnostics.shared.setScreen(.settings)
                 AppAnalytics.shared.logScreenView(.settings)
