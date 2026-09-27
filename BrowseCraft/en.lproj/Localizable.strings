@@ -586,7 +586,6 @@
 "coin_balance_detail" = "%d coins";
 "coin_balance_unknown" = "Balance not synced yet";
 "coin_earn_detail" = "+%d per rewarded ad";
-"coin_ad_hint_sign_in" = "Sign in to earn coins from rewarded ads.";
 "video_preflight_coin_cost" = "This generation costs %1$d coins. Your balance: %2$d.";
 "video_preflight_coin_cost_unknown" = "This generation costs %d coins.";
 "video_preflight_coin_declaration" = "Generation may fail, and coins are charged even when it fails. Coins are refunded only when the server spent nothing.";

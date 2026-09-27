@@ -586,7 +586,6 @@
 "coin_balance_detail" = "%d coin";
 "coin_balance_unknown" = "余额尚未同步";
 "coin_earn_detail" = "看完一次激励广告 +%d";
-"coin_ad_hint_sign_in" = "登录后看广告可领 coin。";
 "video_preflight_coin_cost" = "本次生成消耗 %1$d coin，当前余额 %2$d。";
 "video_preflight_coin_cost_unknown" = "本次生成消耗 %d coin。";
 "video_preflight_coin_declaration" = "生成可能失败，失败也会扣 coin；只有服务器未产生任何费用的失败才会退回。";

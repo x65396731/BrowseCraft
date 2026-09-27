@@ -242,8 +242,18 @@ struct ReaderViewModelTests {
         let requested: Bool = await Harness.waitUntil { viewModel.shouldPlayAd }
         #expect(requested)
 
-        viewModel.markAdPlaybackHandled()
+        viewModel.markAdPlaybackHandled(outcome: .presented(.failed("no fill")))
 
         #expect(viewModel.shouldPlayAd == false)
+        let retained: Bool = await Harness.waitUntil {
+            ((try? appUserRepository.fetchUser(id: fixture.userID.uuidString))?.pendingAdPoints ?? -1) == AdPointRule.threshold
+        }
+        #expect(retained, "广告没播出来，积分保留")
+
+        viewModel.markAdPlaybackHandled(outcome: .presented(.completed))
+        let consumed: Bool = await Harness.waitUntil {
+            ((try? appUserRepository.fetchUser(id: fixture.userID.uuidString))?.pendingAdPoints ?? -1) == 0
+        }
+        #expect(consumed, "广告播过，积分清零")
     }
 }

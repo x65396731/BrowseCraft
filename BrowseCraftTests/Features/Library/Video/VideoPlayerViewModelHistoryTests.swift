@@ -93,9 +93,9 @@ struct VideoPlayerViewModelHistoryTests {
         database: AppDatabase,
         source: Source,
         runtime: ScriptedVideoPlaybackRuntime,
-        resolvesPlaybackOnPrepare: Bool
+        resolvesPlaybackOnPrepare: Bool,
+        activeAppUser: ActiveAppUserStore = ActiveAppUserStore(initialUserID: UUID())
     ) -> VideoPlayerViewModel {
-        let activeAppUser: ActiveAppUserStore = ActiveAppUserStore(initialUserID: UUID())
         let resolver: TestSourceRuntimeResolver = TestSourceRuntimeResolver(
             videoRuntimeFactory: { _ in runtime },
             comicRuntimeFactory: { source in ScriptedSourceRuntime(source: source) }
@@ -171,5 +171,41 @@ struct VideoPlayerViewModelHistoryTests {
         await viewModel.handleNativePlaybackFailure(URLError(.cannotFindHost))
         #expect(runtime.inputs.count == 1)
         #expect(viewModel.errorMessage != nil)
+    }
+
+    /// 视频积分只计实际播放（30.8）：按进度差累计，拖动的大跳变不计；满 600 秒 +50。
+    @Test func playedIntervalFromProgressStepsAccumulatesAdPoints() async throws {
+        let database: AppDatabase = try Harness.makeDatabase()
+        let source: Source = Self.videoSource()
+        try GRDBSourceRepository(database: database).saveSource(source)
+        let runtime = ScriptedVideoPlaybackRuntime(source: source) { _ in Self.output(media: "https://fresh.cdn.invalid/index.m3u8") }
+        let activeAppUser: ActiveAppUserStore = ActiveAppUserStore(initialUserID: UUID())
+        let viewModel: VideoPlayerViewModel = Self.makeViewModel(
+            database: database, source: source, runtime: runtime, resolvesPlaybackOnPrepare: false,
+            activeAppUser: activeAppUser
+        )
+        let appUserRepository: GRDBAppUserRepository = GRDBAppUserRepository(database: database)
+        let userID: String = activeAppUser.currentUserID.uuidString
+
+        // 第一次上报只定基准；之后 599 秒逐秒播放 + 一次 300 秒的拖动：拖动那一步不计，所以还差 1 秒
+        var progress: TimeInterval = 0
+        viewModel.recordPlaybackProgress(currentTime: progress, totalTime: 3_600)
+        for _ in 0..<599 {
+            progress += 1
+            viewModel.recordPlaybackProgress(currentTime: progress, totalTime: 3_600)
+        }
+        progress += 300
+        viewModel.recordPlaybackProgress(currentTime: progress, totalTime: 3_600)
+        try await Task.sleep(nanoseconds: 50_000_000)
+        #expect((try appUserRepository.fetchUser(id: userID)?.pendingAdPoints ?? 0) == 0)
+
+        progress += 1
+        viewModel.recordPlaybackProgress(currentTime: progress, totalTime: 3_600)
+        let awarded: Bool = await Harness.waitUntil {
+            (try? appUserRepository.fetchUser(id: userID))?.pendingAdPoints == AdPointRule.videoPoints
+        }
+        #expect(awarded)
+        #expect(viewModel.shouldPlayAd == false)
+        viewModel.saveOnDisappear()
     }
 }

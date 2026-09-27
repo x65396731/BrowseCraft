@@ -53,8 +53,9 @@ struct VideoPlayerHostView: View {
         }
         .handlesRewardedAdPlayback(
             shouldPlayAd: self.viewModel.shouldPlayAd,
-            markHandled: {
-                self.viewModel.markAdPlaybackHandled()
+            trigger: .video,
+            markHandled: { outcome in
+                self.viewModel.markAdPlaybackHandled(outcome: outcome)
             }
         )
         .requestsAppReviewAfterSuccessfulContentOpen(

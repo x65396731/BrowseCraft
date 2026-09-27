@@ -118,8 +118,9 @@ struct ReaderView: View {
         }
         .handlesRewardedAdPlayback(
             shouldPlayAd: self.viewModel.shouldPlayAd,
-            markHandled: {
-                self.viewModel.markAdPlaybackHandled()
+            trigger: .comic,
+            markHandled: { outcome in
+                self.viewModel.markAdPlaybackHandled(outcome: outcome)
             }
         )
         .requestsAppReviewAfterSuccessfulContentOpen(

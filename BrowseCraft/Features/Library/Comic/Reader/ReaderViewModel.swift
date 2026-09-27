@@ -60,6 +60,8 @@ final class ReaderViewModel {
     private let fallbackUserID: String
     private let now: () -> Date
     private var savedChapterHistoryKeys: Set<String> = []
+    /// 中文注释：同一阅读器实例里同一章只计一次积分（30.8）；退出再进是新实例、算新会话。
+    private var adPointAwardedChapterKeys: Set<String> = []
     private var pendingAccessChapterURLString: String?
     private var pendingAccessShouldRestoreInitialPage: Bool = false
 
@@ -217,15 +219,31 @@ final class ReaderViewModel {
         self.pendingChapterNavigationDirection = nil
     }
 
+    /// 中文注释：广告播过（看完 / 提前关闭）才清零积分；没播出来积分保留、下个计分点再试（30.8）。
     @MainActor
-    func markAdPlaybackHandled() {
+    func markAdPlaybackHandled(outcome: RewardedAdPlaybackOutcome) {
         #if DEBUG
         AppDebugLog.write(
             "[BrowseCraftAdPlayback] comic mark handled " +
-            "sourceID=\(self.source.id) comicItemID=\(self.item.id) previousShouldPlayAd=\(self.shouldPlayAd)"
+            "sourceID=\(self.source.id) comicItemID=\(self.item.id) previousShouldPlayAd=\(self.shouldPlayAd) " +
+            "consumesAdPoints=\(outcome.consumesAdPoints)"
         )
         #endif
         self.shouldPlayAd = false
+        guard outcome.consumesAdPoints else {
+            return
+        }
+        Task { [persistenceCoordinator] in
+            do {
+                try await persistenceCoordinator.consumeAdPoints()
+            } catch {
+                AppLog.error(
+                    .sync,
+                    event: "comic-ad-points-consume-failed",
+                    metadata: ["error": AppLog.safeErrorCode(error)]
+                )
+            }
+        }
     }
 
     @MainActor
@@ -438,12 +456,13 @@ final class ReaderViewModel {
     }
 
     private func saveComicChapterHistoryIfNeeded(chapter: ReaderChapter) {
+        let chapterKey: String = self.chapterKey(for: chapter)
         self.saveComicChapterHistory(
             chapter: chapter,
-            chapterKey: self.chapterKey(for: chapter),
+            chapterKey: chapterKey,
             reason: "initial-chapter-load",
             shouldSkipIfSaved: false,
-            shouldAccumulateAdPoints: true
+            shouldAccumulateAdPoints: self.adPointAwardedChapterKeys.insert(chapterKey).inserted
         )
     }
 

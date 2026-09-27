@@ -15,6 +15,7 @@ actor ReadingActivityPersistenceCoordinator {
     private let saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase
     private let loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase
     private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase
+    private let consumeAdPointsUseCase: ConsumeAdPointsUseCase
 
     init(
         comicRepository: ComicChapterHistoryRepository,
@@ -29,6 +30,10 @@ actor ReadingActivityPersistenceCoordinator {
         self.saveVideoWatchHistoryUseCase = SaveVideoWatchHistoryUseCase(repository: videoRepository)
         self.loadVideoWatchHistoryUseCase = LoadVideoWatchHistoryUseCase(repository: videoRepository)
         self.accumulateAdPointsUseCase = AccumulateAdPointsUseCase(
+            repository: appUserRepository,
+            activeAppUser: activeAppUser
+        )
+        self.consumeAdPointsUseCase = ConsumeAdPointsUseCase(
             repository: appUserRepository,
             activeAppUser: activeAppUser
         )
@@ -78,5 +83,10 @@ actor ReadingActivityPersistenceCoordinator {
 
     func accumulateAdPoints(_ points: Int) throws -> AdPointAccumulationResult {
         return try self.accumulateAdPointsUseCase.execute(points: points)
+    }
+
+    /// 广告播过（看完或提前关闭）后清零累计积分；没播出来不调、积分保留（30.8）。
+    func consumeAdPoints() throws {
+        try self.consumeAdPointsUseCase.execute()
     }
 }

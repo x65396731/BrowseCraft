@@ -41,8 +41,10 @@ final class VideoPlayerViewModel {
     private var credentialRevision: Int = 0
     /// 中文注释：异步保存可能乱序返回；只有最新一轮保存可以更新 ViewModel 的已保存位置。
     private var progressSaveRevision: UInt64 = 0
-    private var lastVideoAdPointCheckAt: Date?
-    private var accumulatedVideoAdPointInterval: TimeInterval = 0
+    /// 中文注释：视频积分只计实际播放（30.8）：按播放器上报的进度差累计，暂停、错误页、后台挂起都不动；
+    /// 进度跳变（拖动、换集）超过 `maxProgressStepForAdPoints` 的那一段不计。
+    private var lastProgressTimeForAdPoints: TimeInterval?
+    private var playedIntervalForAdPoints: TimeInterval = 0
 
     init(
         source: Source,
@@ -205,6 +207,7 @@ final class VideoPlayerViewModel {
             self.duration = totalTime
         }
         self.startAutosaveIfNeeded()
+        self.accumulatePlayedInterval(progressTime: self.currentPlaybackTime)
     }
 
     func markReadyToPlay(seek: (TimeInterval) -> Void) {
@@ -220,7 +223,7 @@ final class VideoPlayerViewModel {
     func saveOnDisappear() {
         self.autosaveTask?.cancel()
         self.autosaveTask = nil
-        self.resetVideoAdPointTimer()
+        self.resetPlayedIntervalForAdPoints()
         self.saveCurrentProgress(force: true)
     }
 
@@ -244,15 +247,31 @@ final class VideoPlayerViewModel {
         await self.reloadPlaybackAfterLogin()
     }
 
-    func markAdPlaybackHandled() {
+    /// 中文注释：广告播过（看完 / 提前关闭）才清零积分；没播出来积分保留、下个计分点再试（30.8）。
+    func markAdPlaybackHandled(outcome: RewardedAdPlaybackOutcome) {
         #if DEBUG
         AppDebugLog.write(
             "[BrowseCraftAdPlayback] video mark handled " +
             "sourceID=\(self.source.id) vodID=\(self.reference.vodID) " +
-            "episodeKey=\(self.reference.episodeKey) previousShouldPlayAd=\(self.shouldPlayAd)"
+            "episodeKey=\(self.reference.episodeKey) previousShouldPlayAd=\(self.shouldPlayAd) " +
+            "consumesAdPoints=\(outcome.consumesAdPoints)"
         )
         #endif
         self.shouldPlayAd = false
+        guard outcome.consumesAdPoints else {
+            return
+        }
+        Task { [persistenceCoordinator] in
+            do {
+                try await persistenceCoordinator.consumeAdPoints()
+            } catch {
+                AppLog.error(
+                    .sync,
+                    event: "video-ad-points-consume-failed",
+                    metadata: ["error": AppLog.safeErrorCode(error)]
+                )
+            }
+        }
     }
 
     /// 中文注释：直链播放失败（DNS、404、被拒）时按播放页规则重新解析一次；只重试一次，仍失败才报错。
@@ -346,7 +365,7 @@ final class VideoPlayerViewModel {
             self.isPrepared = false
             self.didSeekToRestoredTime = false
             self.lastSavedPlaybackTime = nil
-            self.resetVideoAdPointTimer()
+            self.resetPlayedIntervalForAdPoints()
             await self.prepareForPlayback()
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .playback, event: failureEvent)
@@ -380,7 +399,6 @@ final class VideoPlayerViewModel {
             return
         }
 
-        self.lastVideoAdPointCheckAt = self.now()
         self.autosaveTask = Task { [weak self] in
             while Task.isCancelled == false {
                 try? await Task.sleep(nanoseconds: Self.autosaveIntervalNanoseconds)
@@ -391,7 +409,6 @@ final class VideoPlayerViewModel {
 
     private func handleAutosaveTick() {
         self.saveCurrentProgress(force: false)
-        self.accumulateVideoAdPointsIfNeeded()
     }
 
     private func saveCurrentProgress(force: Bool) {
@@ -423,40 +440,39 @@ final class VideoPlayerViewModel {
         }
     }
 
-    private func accumulateVideoAdPointsIfNeeded() {
-        let currentDate: Date = self.now()
-        guard let lastVideoAdPointCheckAt: Date = self.lastVideoAdPointCheckAt else {
-            self.lastVideoAdPointCheckAt = currentDate
+    /// 中文注释：按播放器上报的进度差累计实际播放时长；差值为负或超过一步上限视为拖动 / 换集，只重置基准不计。
+    private func accumulatePlayedInterval(progressTime: TimeInterval) {
+        defer {
+            self.lastProgressTimeForAdPoints = progressTime
+        }
+        guard let lastProgressTime: TimeInterval = self.lastProgressTimeForAdPoints else {
             return
         }
 
-        let elapsed: TimeInterval = currentDate.timeIntervalSince(lastVideoAdPointCheckAt)
-        guard elapsed > 0 else {
+        let step: TimeInterval = progressTime - lastProgressTime
+        guard step > 0, step <= Self.maxProgressStepForAdPoints else {
             return
         }
 
-        self.lastVideoAdPointCheckAt = currentDate
-        self.accumulatedVideoAdPointInterval += elapsed
+        self.playedIntervalForAdPoints += step
+        guard self.playedIntervalForAdPoints >= AdPointRule.videoPlaybackInterval else {
+            return
+        }
+
+        self.playedIntervalForAdPoints -= AdPointRule.videoPlaybackInterval
         #if DEBUG
         AppDebugLog.write(
-            "[BrowseCraftAdPoints] video timer tick " +
+            "[BrowseCraftAdPoints] video played interval reached " +
             "sourceID=\(self.source.id) vodID=\(self.reference.vodID) " +
-            "episodeKey=\(self.reference.episodeKey) elapsed=\(elapsed) " +
-            "accumulatedInterval=\(self.accumulatedVideoAdPointInterval) " +
-            "requiredInterval=\(Self.videoAdPointInterval)"
+            "episodeKey=\(self.reference.episodeKey) requiredInterval=\(AdPointRule.videoPlaybackInterval)"
         )
         #endif
-        guard self.accumulatedVideoAdPointInterval >= Self.videoAdPointInterval else {
-            return
-        }
-
-        self.accumulatedVideoAdPointInterval -= Self.videoAdPointInterval
         self.accumulateAdPoints(points: AdPointRule.videoPoints)
     }
 
-    private func resetVideoAdPointTimer() {
-        self.lastVideoAdPointCheckAt = nil
-        self.accumulatedVideoAdPointInterval = 0
+    private func resetPlayedIntervalForAdPoints() {
+        self.lastProgressTimeForAdPoints = nil
+        self.playedIntervalForAdPoints = 0
     }
 
     private func accumulateAdPoints(points: Int) {
@@ -540,7 +556,8 @@ final class VideoPlayerViewModel {
     }
 
     private static let autosaveIntervalNanoseconds: UInt64 = 30_000_000_000
-    private static let videoAdPointInterval: TimeInterval = 600
+    /// 播放器约每秒上报一次进度；一步超过这个值就是拖动或换集，不算播放。
+    private static let maxProgressStepForAdPoints: TimeInterval = 5
 }
 
 enum VideoPlaybackDestination: Equatable {

@@ -5,7 +5,8 @@ import Observation
 ///
 /// 中文注释：余额唯一权威在服务端，这里只是显示缓存——本地 `users` 行存一份，按 `revision`
 /// 只进不退；四个刷新时机（启动、回到前台、看完广告后短轮询、收到生成推送 / 提交响应）都
-/// 汇到 `apply` 这一处。未登录时不显示余额、看完广告不算 coin（30.6 已定），只给一句提示。
+/// 汇到 `apply` 这一处。未登录时不显示余额、看完广告不算 coin（30.6 已定）；那句「登入後才能獲得 coin」的提示
+/// 由广告修饰器与设置页手动入口按结果显示（`AdPlaybackViewModel.message`），这里不管。
 @MainActor
 @Observable
 final class CoinWalletStore: RewardedAdRewardCoordinating {
@@ -17,9 +18,6 @@ final class CoinWalletStore: RewardedAdRewardCoordinating {
     private(set) var revision: Int = 0
     private(set) var pricing: CoinPricing = .placeholder
     private(set) var isSignedIn: Bool = false
-    /// 中文注释：未登录看完广告后的轻提示；显示一次即清。
-    var signInToEarnHint: Bool = false
-
     private let accountClient: any PortalAccountFetching
     private let accessTokenProvider: any PortalAccessTokenProviding
     private let appUserRepository: any AppUserRepository
@@ -140,7 +138,6 @@ final class CoinWalletStore: RewardedAdRewardCoordinating {
 
     func rewardedAdCompleted(userIdentifier: String?) {
         guard userIdentifier != nil else {
-            self.signInToEarnHint = true
             return
         }
         self.refreshTask?.cancel()

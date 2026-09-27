@@ -55,10 +55,14 @@ enum AdPointAccumulationResult: Equatable, Sendable {
     }
 }
 
+/// 中文注释：积分取值的单一定义点（设计书第 30 节 30.8，用户 2026-09-27 裁定）：
+/// 漫画每换一章 +50；视频只计实际播放、每 600 秒 +50；满 100 弹一次激励广告。
 enum AdPointRule {
     static let threshold: Int = 100
-    static let comicPoints: Int = 20
+    static let comicPoints: Int = 50
     static let videoPoints: Int = 50
+    /// 视频累计多少秒实际播放记一次 `videoPoints`。
+    static let videoPlaybackInterval: TimeInterval = 600
 }
 
 // 中文注释：AccumulateAdPointsUseCase 集中处理广告积分阈值和去广告状态。
@@ -118,12 +122,11 @@ struct AccumulateAdPointsUseCase {
             )
         }
 
+        // 中文注释：满额不在这里清零（30.8）——广告加载失败 / 无填充时积分要留到下个计分点再试，
+        // 只有广告真的播过（看完或用户提前关闭）才由 `ConsumeAdPointsUseCase` 清零。
         user.pendingAdPoints = max(0, user.pendingAdPoints + addedPoints)
         let accumulatedPoints: Int = user.pendingAdPoints
         let shouldPlayAd: Bool = user.pendingAdPoints >= AdPointRule.threshold
-        if shouldPlayAd {
-            user.pendingAdPoints = 0
-        }
         user.updatedAt = now
         try self.repository.saveUser(user)
 
@@ -153,5 +156,40 @@ struct AccumulateAdPointsUseCase {
             threshold: AdPointRule.threshold,
             hasRemovedAds: false
         )
+    }
+}
+
+// 中文注释：广告真的播过之后（看完，或用户主动提前关闭）清掉累计积分；加载失败 / 无填充不调它，积分保留。
+struct ConsumeAdPointsUseCase {
+    private let repository: AppUserRepository
+    private let activeAppUser: (any ActiveAppUserProviding)?
+    private let now: () -> Date
+
+    init(
+        repository: AppUserRepository,
+        activeAppUser: (any ActiveAppUserProviding)? = nil,
+        now: @escaping () -> Date = Date.init
+    ) {
+        self.repository = repository
+        self.activeAppUser = activeAppUser
+        self.now = now
+    }
+
+    func execute(userID: String? = nil) throws {
+        let userID: String = userID ?? self.activeAppUser?.currentUserID.uuidString ??
+            AppUser.localDefaultID
+        guard var user: AppUser = try self.repository.fetchUser(id: userID),
+              user.pendingAdPoints != 0 else {
+            return
+        }
+
+        #if DEBUG
+        AppDebugLog.write(
+            "[BrowseCraftAdPoints] consumed userID=\(userID) previous=\(user.pendingAdPoints) pending=0"
+        )
+        #endif
+        user.pendingAdPoints = 0
+        user.updatedAt = self.now()
+        try self.repository.saveUser(user)
     }
 }

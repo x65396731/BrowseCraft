@@ -40,7 +40,6 @@ struct CoinWalletStoreTests {
         fixture.tokenProvider.token = nil
         #expect(await fixture.store.rewardedAdUserIdentifier() == nil)
         fixture.store.rewardedAdCompleted(userIdentifier: nil)
-        #expect(fixture.store.signInToEarnHint)
         #expect(fixture.fetcher.calls == 1, "未登录看完广告不去拉余额")
     }
 
