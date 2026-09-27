@@ -36,6 +36,8 @@ final class VideoPlayerViewModel {
     /// 中文注释：任务句柄不是界面状态，且 deinit 需要直接触碰存储属性——排除观察。
     @ObservationIgnored
     private var autosaveTask: Task<Void, Never>?
+    /// 中文注释：原生播放器把暂停 / 继续挂在这里（30.8）：广告盖上前暂停，广告结束后继续。web 播放页没有这个能力。
+    let playbackControl: VideoPlaybackControlProxy = VideoPlaybackControlProxy()
     private var didSeekToRestoredTime: Bool = false
     private var lastSavedPlaybackTime: TimeInterval?
     private var credentialRevision: Int = 0
@@ -258,6 +260,7 @@ final class VideoPlayerViewModel {
         )
         #endif
         self.shouldPlayAd = false
+        self.playbackControl.play()
         guard outcome.consumesAdPoints else {
             return
         }
@@ -450,7 +453,7 @@ final class VideoPlayerViewModel {
         }
 
         let step: TimeInterval = progressTime - lastProgressTime
-        guard step > 0, step <= Self.maxProgressStepForAdPoints else {
+        guard step > 0, step <= AdPointRule.maxPlaybackProgressStep else {
             return
         }
 
@@ -482,6 +485,8 @@ final class VideoPlayerViewModel {
                     .accumulateAdPoints(points)
                 if result.shouldPlayAd {
                     AppAnalytics.shared.logAdPointsThreshold(trigger: .video)
+                    // 中文注释：积分只在播放中累计，所以触发时一定在播；广告结束后 `markAdPlaybackHandled` 恢复播放。
+                    self.playbackControl.pause()
                     self.shouldPlayAd = true
                 }
             } catch {
@@ -557,8 +562,6 @@ final class VideoPlayerViewModel {
     }
 
     private static let autosaveIntervalNanoseconds: UInt64 = 30_000_000_000
-    /// 播放器约每秒上报一次进度；一步超过这个值就是拖动或换集，不算播放。
-    private static let maxProgressStepForAdPoints: TimeInterval = 5
 }
 
 enum VideoPlaybackDestination: Equatable {

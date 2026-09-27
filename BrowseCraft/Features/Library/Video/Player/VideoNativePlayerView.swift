@@ -7,12 +7,28 @@ import UIKit
 
 // 中文注释：VideoNativePlayerView 使用 KSPlayer 的 UIKit 播放器承载原生直链，避免上游 SwiftUI
 // Coordinator 在视图更新事务中同步发布状态。
+/// 中文注释：原生播放器的弱引用代理（同 BookNavigatorProxy 的形状）：Representable 建好播放器后挂上来，
+/// 视图模型通过它在弹广告前暂停、广告结束后继续。没挂上（web 播放页）时调用无效果。
+@MainActor
+final class VideoPlaybackControlProxy {
+    weak var playerView: IOSVideoPlayerView?
+
+    func pause() {
+        self.playerView?.pause()
+    }
+
+    func play() {
+        self.playerView?.play()
+    }
+}
+
 struct VideoNativePlayerView: View {
     @Environment(\.browserRequestHeaderProvider) private var browserRequestHeaderProvider
 
     let mediaURL: URL
     let requestConfig: SourcePlaybackRequestConfig?
     let title: String
+    let controlProxy: VideoPlaybackControlProxy?
     let onProgress: (TimeInterval, TimeInterval) -> Void
     let onReadyToPlay: (@escaping (TimeInterval) -> Void) -> Void
     let onPlaybackFailure: (Error) -> Void
@@ -22,6 +38,7 @@ struct VideoNativePlayerView: View {
         mediaURL: URL,
         requestConfig: SourcePlaybackRequestConfig?,
         title: String,
+        controlProxy: VideoPlaybackControlProxy? = nil,
         onProgress: @escaping (TimeInterval, TimeInterval) -> Void,
         onReadyToPlay: @escaping (@escaping (TimeInterval) -> Void) -> Void,
         onPlaybackFailure: @escaping (Error) -> Void = { _ in },
@@ -30,6 +47,7 @@ struct VideoNativePlayerView: View {
         self.mediaURL = mediaURL
         self.requestConfig = requestConfig
         self.title = title
+        self.controlProxy = controlProxy
         self.onProgress = onProgress
         self.onReadyToPlay = onReadyToPlay
         self.onPlaybackFailure = onPlaybackFailure
@@ -42,6 +60,7 @@ struct VideoNativePlayerView: View {
             requestConfig: self.requestConfig,
             browserRequestHeaderProvider: self.browserRequestHeaderProvider,
             title: self.title,
+            controlProxy: self.controlProxy,
             onProgress: self.onProgress,
             onReadyToPlay: self.onReadyToPlay,
             onPlaybackFailure: self.onPlaybackFailure,
@@ -61,6 +80,7 @@ private struct NativePlayerRepresentable: UIViewRepresentable {
     let requestConfig: SourcePlaybackRequestConfig?
     let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
     let title: String
+    let controlProxy: VideoPlaybackControlProxy?
     let onProgress: (TimeInterval, TimeInterval) -> Void
     let onReadyToPlay: (@escaping (TimeInterval) -> Void) -> Void
     let onPlaybackFailure: (Error) -> Void
@@ -78,11 +98,13 @@ private struct NativePlayerRepresentable: UIViewRepresentable {
     func makeUIView(context: Context) -> IOSVideoPlayerView {
         let playerView: IOSVideoPlayerView = BrowseCraftNativePlayerView()
         context.coordinator.attach(to: playerView)
+        self.controlProxy?.playerView = playerView
         self.configure(playerView, coordinator: context.coordinator)
         return playerView
     }
 
     func updateUIView(_ playerView: IOSVideoPlayerView, context: Context) {
+        self.controlProxy?.playerView = playerView
         context.coordinator.updateCallbacks(
             onProgress: self.onProgress,
             onReadyToPlay: self.onReadyToPlay,

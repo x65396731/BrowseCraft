@@ -56,13 +56,19 @@ enum AdPointAccumulationResult: Equatable, Sendable {
 }
 
 /// 中文注释：积分取值的单一定义点（设计书第 30 节 30.8，用户 2026-09-27 裁定）：
-/// 漫画每换一章 +50；视频只计实际播放、每 600 秒 +50；满 100 弹一次激励广告。
+/// 漫画 / 站点书每换一章 +50；视频 / 有声书只计实际播放、每 600 秒 +50；满 100 弹一次激励广告。
+/// 本地导入书不计分（入口不对用户暴露）。
 enum AdPointRule {
     static let threshold: Int = 100
     static let comicPoints: Int = 50
+    static let bookChapterPoints: Int = 50
     static let videoPoints: Int = 50
-    /// 视频累计多少秒实际播放记一次 `videoPoints`。
+    static let audiobookPoints: Int = 50
+    /// 视频 / 有声书累计多少秒实际播放记一次。
     static let videoPlaybackInterval: TimeInterval = 600
+    static let audiobookPlaybackInterval: TimeInterval = 600
+    /// 播放器约每秒上报一次进度；一步超过这个值就是拖动或换集 / 换章，不算播放。
+    static let maxPlaybackProgressStep: TimeInterval = 5
 }
 
 // 中文注释：AccumulateAdPointsUseCase 集中处理广告积分阈值和去广告状态。

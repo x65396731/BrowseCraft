@@ -34,9 +34,17 @@ final class BookReaderViewModel {
     private let persistence: BookReaderPersistenceCoordinator
     private let saveProgressUseCase: SaveBookReadingProgressUseCase
     private let saveHistoryUseCase: SaveBookReadingHistoryUseCase?
+    /// 中文注释：广告积分（设计书 30.8）：站点书每换一章 +50、有声书实际播放每 600 秒 +50；本地书不计、测试里不注入。
+    private let adPoints: ReadingActivityPersistenceCoordinator?
     private let userID: String
     private let throttleNanoseconds: UInt64
     private var pendingSave: Task<Void, Never>?
+    /// 中文注释：积分满额、页面要弹激励广告；由 `BookReaderView` 的修饰器消费。
+    private(set) var shouldPlayAd: Bool = false
+    /// 同一阅读器实例里同一章只计一次积分；退出再进算新会话。
+    private var adPointAwardedChapterKeys: Set<String> = []
+    private var lastAudioTimeForAdPoints: Double?
+    private var audioPlayedIntervalForAdPoints: Double = 0
 
     /// 中文注释：站点书加载出版物后的标题，与详情页同一条规则 `SiteBookTitle`：列表标题与 manifest 标题一个包含另一个时取较短的
     ///（biquhua 列表「[玄幻]普罗之主」→ 取详情「普罗之主」；sfacg 详情「大傩目录列表 - 小说频道 - SF轻小说」→ 取列表「大傩」）。
@@ -74,6 +82,7 @@ final class BookReaderViewModel {
         listBookmarksUseCase: ListBookBookmarksUseCase,
         removeBookmarkUseCase: RemoveBookBookmarkUseCase,
         saveHistoryUseCase: SaveBookReadingHistoryUseCase? = nil,
+        adPoints: ReadingActivityPersistenceCoordinator? = nil,
         throttleNanoseconds: UInt64 = 1_000_000_000
     ) {
         self.subject = subject
@@ -89,6 +98,7 @@ final class BookReaderViewModel {
         )
         self.saveProgressUseCase = saveProgressUseCase
         self.saveHistoryUseCase = saveHistoryUseCase
+        self.adPoints = adPoints
         self.throttleNanoseconds = throttleNanoseconds
     }
 
@@ -103,6 +113,7 @@ final class BookReaderViewModel {
             case .site(let selection):
                 try await self.openSite(selection)
                 self.recordSiteHistory()
+                self.awardChapterAdPointsIfNeeded()
             }
             if let publication: Publication = self.publication, case .success(let links) = await publication.tableOfContents() {
                 self.tableOfContents = links
@@ -156,8 +167,7 @@ final class BookReaderViewModel {
             let navigator: AudioNavigator = AudioNavigator(publication: publication, initialLocation: self.initialLocator)
             let bridge: AudioNavigatorBridge = AudioNavigatorBridge(
                 onPlaybackChange: { [weak self] info in
-                    self?.audioPlayback = info
-                    self?.remoteControls?.update(info: info)
+                    self?.audioPlaybackDidChange(info)
                 },
                 onLocationChange: { [weak self] locator in
                     self?.navigatorDidChangeLocation(locator)
@@ -216,6 +226,9 @@ final class BookReaderViewModel {
     /// 中文注释：Navigator 每翻一页都会报位置；这里只记最新的，1 秒后写一次库。
     func navigatorDidChangeLocation(_ locator: Locator) {
         self.currentLocator = locator
+        if self.isAudiobook == false {
+            self.awardChapterAdPointsIfNeeded()
+        }
         guard self.pendingSave == nil else {
             return
         }
@@ -320,6 +333,98 @@ final class BookReaderViewModel {
     private func siteChapter(forHref href: String) -> BookPublicationItem? {
         return self.siteManifest?.items.first { item in
             return item.href == href || "/" + item.href == href || item.chapterURL.absoluteString == href
+        }
+    }
+
+    // MARK: - 广告积分（设计书 30.8）
+
+    /// 中文注释：站点文字书按「当前位置所在章」计分，同一章只计一次；不挂在每次翻页的落库上。本地书不计。
+    private func awardChapterAdPointsIfNeeded() {
+        guard case .site = self.subject,
+              let adPoints: ReadingActivityPersistenceCoordinator = self.adPoints,
+              let locator: Locator = self.currentLocator else {
+            return
+        }
+        let chapterKey: String = self.siteChapter(forHref: locator.href.string)?.chapterURL.absoluteString ?? locator.href.string
+        guard self.adPointAwardedChapterKeys.insert(chapterKey).inserted else {
+            return
+        }
+        self.accumulateAdPoints(AdPointRule.bookChapterPoints, trigger: .book, using: adPoints)
+    }
+
+    /// 中文注释：AudioNavigator 报来的播放状态：更新界面与锁屏控制，并累计广告积分。
+    func audioPlaybackDidChange(_ info: MediaPlaybackInfo) {
+        self.audioPlayback = info
+        self.remoteControls?.update(info: info)
+        self.accumulateAudioPlayedInterval(info)
+    }
+
+    /// 中文注释：有声书只计实际播放：按 AudioNavigator 上报的时间差累计，暂停不动；换章 / 拖动的大跳变不计。
+    private func accumulateAudioPlayedInterval(_ info: MediaPlaybackInfo) {
+        guard let adPoints: ReadingActivityPersistenceCoordinator = self.adPoints else {
+            return
+        }
+        defer {
+            self.lastAudioTimeForAdPoints = info.time
+        }
+        guard info.state == .playing,
+              let lastTime: Double = self.lastAudioTimeForAdPoints else {
+            return
+        }
+        let step: Double = info.time - lastTime
+        guard step > 0, step <= AdPointRule.maxPlaybackProgressStep else {
+            return
+        }
+        self.audioPlayedIntervalForAdPoints += step
+        guard self.audioPlayedIntervalForAdPoints >= AdPointRule.audiobookPlaybackInterval else {
+            return
+        }
+        self.audioPlayedIntervalForAdPoints -= AdPointRule.audiobookPlaybackInterval
+        self.accumulateAdPoints(AdPointRule.audiobookPoints, trigger: .audiobook, using: adPoints)
+    }
+
+    private func accumulateAdPoints(
+        _ points: Int,
+        trigger: RewardedAdPlaybackTrigger,
+        using adPoints: ReadingActivityPersistenceCoordinator
+    ) {
+        Task {
+            do {
+                let result: AdPointAccumulationResult = try await adPoints.accumulateAdPoints(points)
+                guard result.shouldPlayAd else {
+                    return
+                }
+                AppAnalytics.shared.logAdPointsThreshold(trigger: trigger)
+                // 中文注释：有声书积分只在播放中累计，触发时一定在播；广告结束后 `markAdPlaybackHandled` 继续播。
+                self.audioNavigator?.pause()
+                self.shouldPlayAd = true
+            } catch {
+                AppLog.error(
+                    .sync,
+                    event: "book-ad-points-save-failed",
+                    metadata: ["error": AppLog.safeErrorCode(error)]
+                )
+            }
+        }
+    }
+
+    /// 中文注释：广告播过（看完 / 提前关闭）才清零积分；没播出来积分保留、下个计分点再试（30.8）。有声书恢复播放。
+    func markAdPlaybackHandled(outcome: RewardedAdPlaybackOutcome) {
+        self.shouldPlayAd = false
+        self.audioNavigator?.play()
+        guard outcome.consumesAdPoints, let adPoints: ReadingActivityPersistenceCoordinator = self.adPoints else {
+            return
+        }
+        Task {
+            do {
+                try await adPoints.consumeAdPoints()
+            } catch {
+                AppLog.error(
+                    .sync,
+                    event: "book-ad-points-consume-failed",
+                    metadata: ["error": AppLog.safeErrorCode(error)]
+                )
+            }
         }
     }
 

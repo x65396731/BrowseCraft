@@ -80,6 +80,7 @@ struct VideoPlayerHostView: View {
                 mediaURL: mediaURL,
                 requestConfig: self.viewModel.resolvedPlaybackRequestConfig,
                 title: self.viewModel.displayTitle,
+                controlProxy: self.viewModel.playbackControl,
                 onProgress: { currentTime, totalTime in
                     self.viewModel.recordPlaybackProgress(
                         currentTime: currentTime,

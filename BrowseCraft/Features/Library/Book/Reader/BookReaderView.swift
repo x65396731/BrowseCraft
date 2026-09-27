@@ -139,6 +139,13 @@ struct BookReaderView: View {
         .onDisappear {
             self.viewModel.flush()
         }
+        .handlesRewardedAdPlayback(
+            shouldPlayAd: self.viewModel.shouldPlayAd,
+            trigger: self.viewModel.isAudiobook ? .audiobook : .book,
+            markHandled: { outcome in
+                self.viewModel.markAdPlaybackHandled(outcome: outcome)
+            }
+        )
     }
 
     private static let dateFormatter: DateFormatter = {

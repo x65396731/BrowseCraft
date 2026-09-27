@@ -96,7 +96,13 @@ struct BookFeatureFactory {
             addBookmarkUseCase: AddBookBookmarkUseCase(repository: bookmarks),
             listBookmarksUseCase: ListBookBookmarksUseCase(repository: bookmarks),
             removeBookmarkUseCase: RemoveBookBookmarkUseCase(repository: bookmarks),
-            saveHistoryUseCase: SaveBookReadingHistoryUseCase(repository: GRDBBookReadingHistoryRepository(database: self.database))
+            saveHistoryUseCase: SaveBookReadingHistoryUseCase(repository: GRDBBookReadingHistoryRepository(database: self.database)),
+            adPoints: ReadingActivityPersistenceCoordinator(
+                comicRepository: GRDBComicChapterHistoryRepository(database: self.database),
+                videoRepository: GRDBVideoWatchHistoryRepository(database: self.database),
+                appUserRepository: GRDBAppUserRepository(database: self.database),
+                activeAppUser: self.activeAppUser
+            )
         )
     }
 }

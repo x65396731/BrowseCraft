@@ -1,6 +1,7 @@
 import BrowseCraftDomain
 import BrowseCraftRuntime
 import Foundation
+import ReadiumNavigator
 import ReadiumShared
 import Testing
 @testable import BrowseCraft
@@ -198,7 +199,141 @@ struct BookReaderViewModelTests {
         #expect(BookReaderSubject.site(reopened).bookID == viewModel.bookID)
     }
 
+    // 中文注释：站点文字书的广告积分（30.8）：按当前位置所在章计分、同一章只计一次；两章 +100 满额、广告没播出来积分保留。
+    @Test func siteTextBookAwardsAdPointsOncePerChapter() async throws {
+        let loader: FixturePageContentLoader = FixturePageContentLoader(fixtures: [
+            "https://www.biquhua.com/book/0/110/": "biquhua-detail-110",
+        ])
+        let source: Source = try BookRuntimeFixtures.source(fixture: "biquhua-catalog")
+        let runtime: BookSourceRuntime = try BookSourceRuntimeFactory(pageContentLoader: loader).makeRuntime(source: source)
+        let item: ContentItem = ContentItem(
+            id: "110", sourceId: source.id, title: "迷魂阵", detailURL: "https://www.biquhua.com/book/0/110/",
+            coverURL: nil, type: .article, latestText: nil
+        )
+        let points: AdPointsFixture = try AdPointsFixture()
+        let viewModel: BookReaderViewModel = Self.makeSiteViewModel(source: source, item: item, runtime: runtime, adPoints: points.coordinator)
+
+        await viewModel.open()
+        #expect(viewModel.state == .ready)
+        #expect(viewModel.isAudiobook == false)
+        let readingOrder: [Link] = try #require(viewModel.publication?.readingOrder)
+        #expect(readingOrder.count >= 2)
+        // 没点具体章节：打开时还没有位置，不计
+        try await Task.sleep(nanoseconds: 50_000_000)
+        #expect(try points.pendingPoints() == 0)
+
+        let first: URL = readingOrder[0].url().url
+        viewModel.navigatorDidChangeLocation(Locator(href: AnyURL(url: first), mediaType: .xhtml, title: nil))
+        #expect(await ViewModelTestHarness.waitUntil { (try? points.pendingPoints()) == AdPointRule.bookChapterPoints })
+
+        // 同一章翻页不再计
+        viewModel.navigatorDidChangeLocation(Locator(href: AnyURL(url: first), mediaType: .xhtml, title: nil, locations: Locator.Locations(progression: 0.5)))
+        try await Task.sleep(nanoseconds: 50_000_000)
+        #expect(try points.pendingPoints() == AdPointRule.bookChapterPoints)
+        #expect(viewModel.shouldPlayAd == false)
+
+        let second: URL = readingOrder[1].url().url
+        viewModel.navigatorDidChangeLocation(Locator(href: AnyURL(url: second), mediaType: .xhtml, title: nil))
+        #expect(await ViewModelTestHarness.waitUntil { viewModel.shouldPlayAd })
+        #expect(try points.pendingPoints() == AdPointRule.threshold)
+
+        viewModel.markAdPlaybackHandled(outcome: .presented(.failed("no fill")))
+        #expect(viewModel.shouldPlayAd == false)
+        try await Task.sleep(nanoseconds: 50_000_000)
+        #expect(try points.pendingPoints() == AdPointRule.threshold, "广告没播出来，积分保留")
+
+        viewModel.markAdPlaybackHandled(outcome: .presented(.completed))
+        #expect(await ViewModelTestHarness.waitUntil { (try? points.pendingPoints()) == 0 })
+    }
+
+    // 中文注释：有声书只计实际播放（30.8）：按 AudioNavigator 上报的时间差累计，暂停与大跳变不计；满 600 秒 +50。
+    @Test func audiobookAwardsAdPointsByPlayedTime() async throws {
+        let loader: FixturePageContentLoader = FixturePageContentLoader(fixtures: [
+            "https://www.loyalbooks.com/book/tom-sawyer-by-mark-twain": "loyalbooks-detail-tom-sawyer",
+        ])
+        let source: Source = try BookRuntimeFixtures.source(fixture: "loyalbooks-catalog")
+        let runtime: BookSourceRuntime = try BookSourceRuntimeFactory(pageContentLoader: loader).makeRuntime(source: source)
+        let item: ContentItem = ContentItem(
+            id: "tom-sawyer", sourceId: source.id, title: "Tom Sawyer", detailURL: "https://www.loyalbooks.com/book/tom-sawyer-by-mark-twain",
+            coverURL: nil, type: .article, latestText: nil
+        )
+        let points: AdPointsFixture = try AdPointsFixture()
+        let viewModel: BookReaderViewModel = Self.makeSiteViewModel(source: source, item: item, runtime: runtime, adPoints: points.coordinator)
+
+        await viewModel.open()
+        #expect(viewModel.isAudiobook)
+
+        // 第一次上报只定基准；暂停时的上报不计；拖动 200 秒的一步不计
+        viewModel.audioPlaybackDidChange(MediaPlaybackInfo(resourceIndex: 0, state: .playing, time: 0, duration: 3_600))
+        var time: Double = 0
+        for _ in 0..<599 {
+            time += 1
+            viewModel.audioPlaybackDidChange(MediaPlaybackInfo(resourceIndex: 0, state: .playing, time: time, duration: 3_600))
+        }
+        time += 200
+        viewModel.audioPlaybackDidChange(MediaPlaybackInfo(resourceIndex: 0, state: .playing, time: time, duration: 3_600))
+        time += 1
+        viewModel.audioPlaybackDidChange(MediaPlaybackInfo(resourceIndex: 0, state: .paused, time: time, duration: 3_600))
+        try await Task.sleep(nanoseconds: 50_000_000)
+        #expect(try points.pendingPoints() == 0)
+
+        time += 1
+        viewModel.audioPlaybackDidChange(MediaPlaybackInfo(resourceIndex: 0, state: .playing, time: time, duration: 3_600))
+        #expect(await ViewModelTestHarness.waitUntil { (try? points.pendingPoints()) == AdPointRule.audiobookPoints })
+        #expect(viewModel.shouldPlayAd == false)
+    }
+
     // MARK: - Helpers
+
+    /// 中文注释：真实 GRDB 库上的积分协调器；活动用户是随机 UUID、行已插好。
+    private struct AdPointsFixture {
+        let coordinator: ReadingActivityPersistenceCoordinator
+        private let repository: GRDBAppUserRepository
+        private let userID: String
+
+        init() throws {
+            let database: AppDatabase = try ViewModelTestHarness.makeDatabase()
+            let userID: UUID = UUID()
+            try ViewModelTestHarness.insertUser(userID, into: database)
+            let activeAppUser: ActiveAppUserStore = ActiveAppUserStore(initialUserID: userID)
+            self.repository = GRDBAppUserRepository(database: database)
+            self.userID = userID.uuidString
+            self.coordinator = ReadingActivityPersistenceCoordinator(
+                comicRepository: GRDBComicChapterHistoryRepository(database: database),
+                videoRepository: GRDBVideoWatchHistoryRepository(database: database),
+                appUserRepository: self.repository,
+                activeAppUser: activeAppUser
+            )
+        }
+
+        func pendingPoints() throws -> Int {
+            return try self.repository.fetchUser(id: self.userID)?.pendingAdPoints ?? -1
+        }
+    }
+
+    private static func makeSiteViewModel(
+        source: Source,
+        item: ContentItem,
+        runtime: BookSourceRuntime,
+        adPoints: ReadingActivityPersistenceCoordinator
+    ) -> BookReaderViewModel {
+        let progress: ReaderInMemoryProgressRepository = ReaderInMemoryProgressRepository()
+        let bookmarks: ReaderInMemoryBookmarkRepository = ReaderInMemoryBookmarkRepository()
+        return BookReaderViewModel(
+            subject: .site(SiteBookChapterSelection(source: source, item: item, chapterURL: nil, chapterTitle: nil)),
+            userID: "u1",
+            openLocalUseCase: nil,
+            loadSitePublicationUseCase: LoadBookPublicationUseCase(runtimeResolver: SingleRuntimeResolver(runtime: runtime)),
+            sitePublicationBuilder: ReadiumSitePublicationBuilderAdapter(),
+            loadProgressUseCase: LoadBookReadingProgressUseCase(progressRepository: progress),
+            saveProgressUseCase: SaveBookReadingProgressUseCase(progressRepository: progress),
+            addBookmarkUseCase: AddBookBookmarkUseCase(repository: bookmarks),
+            listBookmarksUseCase: ListBookBookmarksUseCase(repository: bookmarks),
+            removeBookmarkUseCase: RemoveBookBookmarkUseCase(repository: bookmarks),
+            adPoints: adPoints,
+            throttleNanoseconds: 60_000_000_000
+        )
+    }
 
     private static func makeViewModel(progress: ReaderInMemoryProgressRepository, throttleNanoseconds: UInt64) -> BookReaderViewModel {
         let book: LocalBook = LocalBook(
