@@ -72,7 +72,7 @@ struct CloudSyncSettingsViewModelTests {
 
         await viewModel.setCloudSyncEnabled(true)
 
-        #expect(viewModel.actionErrorMessage?.contains("another BrowseCraft account") == true)
+        #expect(viewModel.actionErrorMessage?.contains("another AnyPortal account") == true)
         #expect(viewModel.firstEnableRequest == nil)
         #expect(viewModel.isCloudSyncEnabled == false)
         let createCallCount: Int = await context.identityStore.createCallCount()
