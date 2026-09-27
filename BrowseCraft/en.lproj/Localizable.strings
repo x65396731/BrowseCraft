@@ -592,3 +592,10 @@
 "video_preflight_coin_cost_unknown" = "This generation costs %d coins.";
 "video_preflight_coin_declaration" = "Generation may fail, and coins are charged even when it fails. Coins are refunded only when the server spent nothing.";
 "video_preflight_submit_insufficient_coins" = "Not enough coins: %1$d needed, you have %2$d. Watch a rewarded ad in the player or reader to earn more.";
+
+/* 仅测试版：取本机 IDFA 登记 AdMob 测试设备 */
+"ad_test_idfa_title" = "Test Device IDFA";
+"ad_test_idfa_hint" = "Tap to get and copy (test builds only)";
+"ad_test_idfa_copied" = "Copied %@";
+"ad_test_idfa_denied" = "Tracking not allowed. Enable it in Settings → Privacy → Tracking";
+"ad_test_idfa_restricted" = "Tracking is restricted. Turn on \"Allow Apps to Request to Track\" in Settings → Privacy → Tracking";

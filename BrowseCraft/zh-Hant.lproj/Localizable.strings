@@ -592,3 +592,10 @@
 "video_preflight_coin_cost_unknown" = "本次生成消耗 %d coin。";
 "video_preflight_coin_declaration" = "生成可能失敗，失敗也會扣 coin；只有伺服器未產生任何費用的失敗才會退回。";
 "video_preflight_submit_insufficient_coins" = "coin 不足：需要 %1$d，目前 %2$d。在播放器或閱讀頁看完獎勵廣告可獲得 coin。";
+
+/* 仅测试版：取本机 IDFA 登记 AdMob 测试设备 */
+"ad_test_idfa_title" = "測試裝置 IDFA";
+"ad_test_idfa_hint" = "點擊取得並複製（僅測試版）";
+"ad_test_idfa_copied" = "已複製 %@";
+"ad_test_idfa_denied" = "未允許追蹤，請到 設定 → 隱私權 → 追蹤 開啟";
+"ad_test_idfa_restricted" = "系統限制追蹤，請到 設定 → 隱私權 → 追蹤 開啟「允許 App 要求追蹤」";

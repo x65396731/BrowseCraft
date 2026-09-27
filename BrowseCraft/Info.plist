@@ -281,5 +281,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+#if BROWSECRAFT_AD_TEST_TOOLS
+	<key>NSUserTrackingUsageDescription</key>
+	<string>僅測試版使用：讀取本機廣告識別碼，用於在 AdMob 登記測試裝置。</string>
+#endif
 </dict>
 </plist>

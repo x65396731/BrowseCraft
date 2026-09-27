@@ -144,6 +144,8 @@ targets:
         PRODUCT_MODULE_NAME: BrowseCraft
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: BrowseCraft/Info.plist
+        # 中文注释：Info.plist 走预处理，只为用 #if 把跟踪用途说明限定在 Debug / TestFlight（见 Info.plist 末尾）。
+        INFOPLIST_PREPROCESS: YES
         CODE_SIGN_ENTITLEMENTS: BrowseCraft/BrowseCraft.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # 中文注释：这一行设的是 UIKit 的 window tintColor 与 IB 预览，对纯 SwiftUI 的
@@ -168,6 +170,11 @@ targets:
           # 中文注释：AdMob 测试设备（逗号分隔的 SDK 设备哈希）。App 没接 ATT，IDFA 全零，网页后台按 IDFA
           # 登记走不通；首次在真机上请求广告时 SDK 会在控制台打印本机哈希，填到这里即可。Release 不设。
           BROWSECRAFT_AD_TEST_DEVICE_IDS: ""
+          # 中文注释：AdMob 文档登记测试设备要填 IDFA；App 正式版不申请跟踪授权，SDK 读到的 IDFA 全零，
+          # 登记对不上。所以只在 Debug / TestFlight 编入「设置页取本机 IDFA」工具并带跟踪用途说明（用户 2026-09-27）。
+          # Release 两者都没有（Info.plist 用 INFOPLIST_PREPROCESSOR_DEFINITIONS 控制）。
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) BROWSECRAFT_AD_TEST_TOOLS"
+          INFOPLIST_PREPROCESSOR_DEFINITIONS: "BROWSECRAFT_AD_TEST_TOOLS=1"
           DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
           "DEBUG_INFORMATION_FORMAT[sdk=iphonesimulator*]": dwarf
         Release:
@@ -183,6 +190,8 @@ targets:
           BROWSECRAFT_ENVIRONMENT_NAME: TEST
           BROWSECRAFT_REWARDED_AD_UNIT_ID: ca-app-pub-4351001986548416/2887798038
           BROWSECRAFT_AD_TEST_DEVICE_IDS: ""
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) BROWSECRAFT_AD_TEST_TOOLS"
+          INFOPLIST_PREPROCESSOR_DEFINITIONS: "BROWSECRAFT_AD_TEST_TOOLS=1"
           DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
           ENABLE_DEBUG_DYLIB: NO
     preBuildScripts:

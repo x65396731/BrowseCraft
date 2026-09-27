@@ -14,6 +14,9 @@ struct SettingsView: View {
     @AppStorage(CrashDiagnostics.collectionEnabledDefaultsKey) private var isDiagnosticsEnabled: Bool = CrashDiagnostics.isCollectionEnabled
 
     @State private var isShowingInAppPurchase: Bool = false
+    #if BROWSECRAFT_AD_TEST_TOOLS
+    @State private var adTestIDFADetail: String?
+    #endif
 
     init(
         viewModel: SettingsViewModel,
@@ -107,6 +110,37 @@ struct SettingsView: View {
                         }
                     )
                     .disabled(self.adPlaybackViewModel.isLoading)
+
+                    #if BROWSECRAFT_AD_TEST_TOOLS
+                    // 中文注释：仅测试版。点一下申请跟踪授权、显示并复制本机 IDFA，拿去 AdMob「测试设备」登记。
+                    Button(
+                        action: {
+                            Task {
+                                let result = await AdTestDeviceTools.requestIDFA()
+                                switch result {
+                                case .available(let idfa):
+                                    UIPasteboard.general.string = idfa
+                                    self.adTestIDFADetail = String(
+                                        format: NSLocalizedString("ad_test_idfa_copied", comment: ""),
+                                        idfa
+                                    )
+                                case .denied:
+                                    self.adTestIDFADetail = NSLocalizedString("ad_test_idfa_denied", comment: "")
+                                case .trackingRestricted:
+                                    self.adTestIDFADetail = NSLocalizedString("ad_test_idfa_restricted", comment: "")
+                                }
+                            }
+                        },
+                        label: {
+                            SettingsRow(
+                                image: "SettingsAdService",
+                                title: NSLocalizedString("ad_test_idfa_title", comment: ""),
+                                detail: self.adTestIDFADetail ?? NSLocalizedString("ad_test_idfa_hint", comment: "")
+                            )
+                        }
+                    )
+                    .buttonStyle(.plain)
+                    #endif
                 }
 
                 Section("Storage") {
