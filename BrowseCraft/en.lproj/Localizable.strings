@@ -607,3 +607,17 @@
 "ad_reward_requires_sign_in" = "Ad finished. Sign in to earn coins from ads.";
 "ad_playback_unavailable" = "The ad service is currently unavailable.";
 "ad_playback_failed" = "No ads are available right now. Please try again later.";
+
+/* coin 流水页（设计书 30.8） */
+"coin_ledger_title" = "Coin History";
+"coin_ledger_balance_after" = "Balance %d";
+"coin_ledger_empty_title" = "No History Yet";
+"coin_ledger_empty_message" = "Every coin change from rewarded ads and rule generation will be listed here.";
+"coin_ledger_load_failed_title" = "Could Not Load History";
+"coin_ledger_load_failed_message" = "Check your connection and pull to retry.";
+"coin_ledger_reason_signup_grant" = "Welcome bonus";
+"coin_ledger_reason_ad_reward" = "Rewarded ad";
+"coin_ledger_reason_generation_normal" = "Rule generation";
+"coin_ledger_reason_generation_hard" = "Rule generation (hard mode)";
+"coin_ledger_reason_zero_cost_refund" = "Refund for failed generation";
+"coin_ledger_reason_manual_adjustment" = "Support adjustment";

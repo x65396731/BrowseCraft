@@ -51,11 +51,14 @@ struct SettingsView: View {
 
                     if self.viewModel.isPortalAuthenticated,
                        let wallet: CoinWalletStore = self.viewModel.coinWalletStore {
-                        SettingsRow(
-                            image: "SettingsPremium",
-                            title: NSLocalizedString("coin_balance_row_title", comment: ""),
-                            detail: Self.coinDetail(wallet)
-                        )
+                        // 中文注释：余额行点进去看流水（设计书 30.8）；服务端为准。
+                        NavigationLink(destination: CoinLedgerView(viewModel: wallet.makeLedgerViewModel())) {
+                            SettingsRow(
+                                image: "SettingsPremium",
+                                title: NSLocalizedString("coin_balance_row_title", comment: ""),
+                                detail: Self.coinDetail(wallet)
+                            )
+                        }
 
                         // 中文注释：账户 ID，点一下复制；用户报给运营后可在服务器上手动加减 coin（用户 2026-09-27）。
                         Button(

@@ -23,7 +23,34 @@ enum PortalAccountClientError: Error, Hashable, Sendable {
     case server(code: String)
 }
 
-/// 读账户快照的 Application 端口；实现是 APIKit 适配器，只在组合根出现。
+/// coin 流水一条（设计书 30.8）：服务端只下发原因、增减、记账后余额与时间。
+struct CoinLedgerEntry: Hashable, Sendable, Identifiable {
+    let id: String
+    let delta: Int
+    let reason: CoinLedgerReason
+    let balanceAfter: Int
+    let createdAt: Date
+}
+
+/// 流水原因；服务端新增取值时旧 App 落到 `.unknown`。
+enum CoinLedgerReason: Hashable, Sendable {
+    case signupGrant
+    case adReward
+    case generationNormal
+    case generationHard
+    case zeroCostRefund
+    case manualAdjustment
+    case unknown(String)
+}
+
+struct CoinLedgerPage: Hashable, Sendable {
+    let entries: [CoinLedgerEntry]
+    let nextCursor: String?
+}
+
+/// 读账户快照与流水的 Application 端口；实现是 APIKit 适配器，只在组合根出现。
 protocol PortalAccountFetching: Sendable {
     func fetchAccount(accessToken: String) async throws -> PortalAccountSnapshot
+    /// 时间倒序一页；`cursor` 为上一页的 `nextCursor`，nil 从最新开始。
+    func fetchLedger(accessToken: String, cursor: String?) async throws -> CoinLedgerPage
 }

@@ -607,3 +607,17 @@
 "ad_reward_requires_sign_in" = "已看完廣告。登入後觀看廣告才能獲得 coin。";
 "ad_playback_unavailable" = "廣告服務目前無法使用。";
 "ad_playback_failed" = "目前沒有可播放的廣告，請稍後再試。";
+
+/* coin 流水页（设计书 30.8） */
+"coin_ledger_title" = "coin 紀錄";
+"coin_ledger_balance_after" = "餘額 %d";
+"coin_ledger_empty_title" = "還沒有紀錄";
+"coin_ledger_empty_message" = "看完獎勵廣告、提交規則生成後，這裡會列出每一筆 coin 變動。";
+"coin_ledger_load_failed_title" = "無法載入紀錄";
+"coin_ledger_load_failed_message" = "請檢查網路後下拉重試。";
+"coin_ledger_reason_signup_grant" = "新帳號贈送";
+"coin_ledger_reason_ad_reward" = "觀看獎勵廣告";
+"coin_ledger_reason_generation_normal" = "規則生成";
+"coin_ledger_reason_generation_hard" = "規則生成（困難模式）";
+"coin_ledger_reason_zero_cost_refund" = "生成失敗退回";
+"coin_ledger_reason_manual_adjustment" = "客服調整";

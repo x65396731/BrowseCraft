@@ -122,6 +122,11 @@ final class CoinWalletStore: RewardedAdRewardCoordinating {
         }
     }
 
+    /// 中文注释：设置页余额行点进去的流水页（30.8）；用同一个账户客户端与会话。
+    func makeLedgerViewModel() -> CoinLedgerViewModel {
+        return CoinLedgerViewModel(accountClient: self.accountClient, accessTokenProvider: self.accessTokenProvider)
+    }
+
     // MARK: - RewardedAdRewardCoordinating
 
     var rewardedAdCoinAmount: Int {

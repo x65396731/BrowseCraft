@@ -133,6 +133,10 @@ private final class FakeAccountFetcher: PortalAccountFetching, @unchecked Sendab
         }
         return self.snapshots.removeFirst()
     }
+
+    func fetchLedger(accessToken: String, cursor: String?) async throws -> CoinLedgerPage {
+        throw PortalAccountClientError.transport
+    }
 }
 
 private final class FakeTokenProvider: PortalAccessTokenProviding, @unchecked Sendable {
