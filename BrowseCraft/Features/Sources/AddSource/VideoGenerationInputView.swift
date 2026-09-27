@@ -17,6 +17,8 @@ struct VideoGenerationInputView: View {
     @State private var assessmentTask: Task<Void, Never>?
     @State private var assessmentID: UUID?
     @State private var isChecking: Bool = false
+    /// 中文注释：取页档位（`BC-ACQ-071`）：用户在提交前自选，缺省普通档。
+    @State private var acquisitionTier: GenerationAcquisitionTier = .normal
     @State private var submissionState: VideoGenerationTaskSubmissionState = .idle
     @State private var submissionTask: Task<Void, Never>?
     @State private var reusedRuleImportFailed: Bool = false
@@ -98,6 +100,7 @@ struct VideoGenerationInputView: View {
                         reusedRuleImportFailed: self.reusedRuleImportFailed,
                         canSubmit: self.viewModel.canSubmitVideoGenerationTasks,
                         wallet: self.viewModel.coinWalletStore,
+                        acquisitionTier: self.$acquisitionTier,
                         retry: {
                             self.startAssessment()
                         },
@@ -266,7 +269,8 @@ struct VideoGenerationInputView: View {
                     .submitVideoGenerationTask(
                         preflight: preflight,
                         sourceKind: self.sourceKind,
-                        refresh: refresh
+                        refresh: refresh,
+                        acquisitionTier: self.acquisitionTier
                     )
                 guard Task.isCancelled == false else {
                     return
@@ -404,6 +408,8 @@ private struct VideoGenerationInputOutcomeView: View {
     let canSubmit: Bool
     /// 设计书 30.6：提交前显示本次消耗、余额与「可能失败、失败也扣」声明。
     let wallet: CoinWalletStore?
+    /// `BC-ACQ-071`：普通 / 困难由用户自选；价格取服务端 `pricing.normal` / `pricing.hard`。
+    @Binding var acquisitionTier: GenerationAcquisitionTier
     let retry: () -> Void
     let submit: () -> Void
     /// 中文注释：命中服务端已生成的规则时，让用户能强制重来一次。
@@ -442,6 +448,7 @@ private struct VideoGenerationInputOutcomeView: View {
         } else {
             switch self.submissionState {
             case .idle:
+                self.tierRows
                 self.coinRows
                 Button(NSLocalizedString("video_preflight_generate_button", comment: "")) {
                     self.submit()
@@ -557,11 +564,38 @@ private struct VideoGenerationInputOutcomeView: View {
         }
     }
 
+    /// 中文注释：`BC-ACQ-071` ①②：档位由用户自选；预检在手机上被挑战时照样可选困难模式，但要提示
+    /// 「该站在你的手机上也被拦，生成出来可能读不了」。
+    @ViewBuilder
+    private var tierRows: some View {
+        let pricing: CoinPricing = self.wallet?.pricing ?? .placeholder
+        Picker(
+            NSLocalizedString("video_preflight_tier_title", comment: "取页档位"),
+            selection: self.$acquisitionTier
+        ) {
+            Text(String(format: NSLocalizedString("video_preflight_tier_normal", comment: "普通"), pricing.normal))
+                .tag(GenerationAcquisitionTier.normal)
+            Text(String(format: NSLocalizedString("video_preflight_tier_hard", comment: "困难"), pricing.hard))
+                .tag(GenerationAcquisitionTier.hard)
+        }
+        .pickerStyle(.segmented)
+        if self.acquisitionTier == .hard {
+            Text(NSLocalizedString("video_preflight_tier_hard_footer", comment: "困难模式说明"))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            if self.result.reason == .antiBotChallenge {
+                Text(NSLocalizedString("video_preflight_tier_hard_antibot_hint", comment: "手机上也被拦的提示"))
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+            }
+        }
+    }
+
     /// 中文注释：价格由服务端下发（`wallet.pricing`）；余额还没同步到时只说消耗，不猜余额。
     @ViewBuilder
     private var coinRows: some View {
         if let wallet: CoinWalletStore = self.wallet {
-            let cost: Int = wallet.pricing.normal
+            let cost: Int = self.acquisitionTier == .hard ? wallet.pricing.hard : wallet.pricing.normal
             Text(
                 wallet.balance.map { balance in
                     String(

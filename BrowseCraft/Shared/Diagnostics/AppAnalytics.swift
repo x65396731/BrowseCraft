@@ -53,6 +53,8 @@ final class AppAnalytics: @unchecked Sendable {
         static let adResult: String = "ad_result"
         /// 看广告时是否已登录（未登录看完不计 coin）。
         static let signedIn: String = "signed_in"
+        /// 规则生成提交是否选了困难模式（`BC-ACQ-071`）。
+        static let hardMode: String = "hard_mode"
     }
 
     private enum UserProperty {
@@ -200,21 +202,23 @@ final class AppAnalytics: @unchecked Sendable {
         )
     }
 
-    /// 中文注释：生成提交的两个结局（设计书 30.8）。只报 kind，不报余额数值与用户标识；困难模式未实施、暂无该参数。
-    func logGenerationSubmitted(sourceType: DiagnosticSourceType) {
+    /// 中文注释：生成提交的两个结局（设计书 30.8）。只报 kind 与是否困难模式，不报余额数值与用户标识。
+    func logGenerationSubmitted(sourceType: DiagnosticSourceType, hardMode: Bool) {
         self.log(
             .generationSubmitted,
             parameters: Self.baseParameters([
-                Parameter.sourceType: sourceType.rawValue
+                Parameter.sourceType: sourceType.rawValue,
+                Parameter.hardMode: hardMode ? "true" : "false"
             ])
         )
     }
 
-    func logGenerationInsufficientCoins(sourceType: DiagnosticSourceType) {
+    func logGenerationInsufficientCoins(sourceType: DiagnosticSourceType, hardMode: Bool) {
         self.log(
             .generationInsufficientCoins,
             parameters: Self.baseParameters([
-                Parameter.sourceType: sourceType.rawValue
+                Parameter.sourceType: sourceType.rawValue,
+                Parameter.hardMode: hardMode ? "true" : "false"
             ])
         )
     }
@@ -274,7 +278,8 @@ final class AppAnalytics: @unchecked Sendable {
             Parameter.diagnosticCode,
             Parameter.adTrigger,
             Parameter.adResult,
-            Parameter.signedIn
+            Parameter.signedIn,
+            Parameter.hardMode
         ]
 
         return parameters.filter { key, _ in

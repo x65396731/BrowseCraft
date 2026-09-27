@@ -621,3 +621,12 @@
 "coin_ledger_reason_generation_hard" = "規則生成（困難模式）";
 "coin_ledger_reason_zero_cost_refund" = "生成失敗退回";
 "coin_ledger_reason_manual_adjustment" = "客服調整";
+
+/* 困难模式（设计书第 29 节，BC-ACQ-071） */
+"video_preflight_tier_title" = "取頁方式";
+"video_preflight_tier_normal" = "普通 · %d coin";
+"video_preflight_tier_hard" = "困難 · %d coin";
+"video_preflight_tier_hard_footer" = "困難模式會經雲端取頁，適合普通模式被網站拒絕的情況；費用較高，失敗同樣扣除。";
+"video_preflight_tier_hard_antibot_hint" = "這個網站在你的手機上也被攔下，即使生成成功也可能讀不到內容。";
+"video_generation_outcome_failed_hardModeSiteTooStrong" = "這個網站在困難模式下也無法處理：雲端對它按最高檔計費，目前不支援。請換一個網站。";
+"push_generation_failed_hardModeSiteTooStrong" = "%@ 在困難模式下也無法處理，目前不支援這個網站。";

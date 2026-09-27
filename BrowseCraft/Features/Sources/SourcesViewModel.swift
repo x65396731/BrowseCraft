@@ -408,7 +408,8 @@ final class SourcesViewModel {
     func submitVideoGenerationTask(
         preflight: VideoGenerationInputPreflight,
         sourceKind: RuleGenerationSourceKind,
-        refresh: Bool = false
+        refresh: Bool = false,
+        acquisitionTier: GenerationAcquisitionTier = .normal
     ) async throws -> VideoGenerationTaskSubmissionOutcome {
         guard let useCase: CreateVideoGenerationTaskUseCase =
             self.createVideoGenerationTaskUseCase else {
@@ -417,17 +418,23 @@ final class SourcesViewModel {
         let outcome: VideoGenerationTaskSubmissionOutcome = try await useCase.execute(
             preflight: preflight,
             sourceKind: sourceKind,
-            refresh: refresh
+            refresh: refresh,
+            acquisitionTier: acquisitionTier
         )
+        let hardMode: Bool = acquisitionTier == .hard
         // 设计书 30.6：提交响应带扣后的余额；余额不足时服务端给的是当前余额，重新拉一次对齐。
         switch outcome {
         case .submitted(let receipt):
-            AppAnalytics.shared.logGenerationSubmitted(sourceType: DiagnosticSourceType(generationKind: sourceKind))
+            AppAnalytics.shared.logGenerationSubmitted(
+                sourceType: DiagnosticSourceType(generationKind: sourceKind), hardMode: hardMode
+            )
             if let balance: Int = receipt.coinBalance, let revision: Int = receipt.coinRevision {
                 self.coinWalletStore?.apply(balance: balance, revision: revision)
             }
         case .insufficientCoins:
-            AppAnalytics.shared.logGenerationInsufficientCoins(sourceType: DiagnosticSourceType(generationKind: sourceKind))
+            AppAnalytics.shared.logGenerationInsufficientCoins(
+                sourceType: DiagnosticSourceType(generationKind: sourceKind), hardMode: hardMode
+            )
             if let store: CoinWalletStore = self.coinWalletStore {
                 Task { await store.refresh() }
             }

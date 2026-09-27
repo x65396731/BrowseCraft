@@ -23,13 +23,14 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
         sourceKind: RuleGenerationSourceKind,
         entryURL: String,
         refresh: Bool,
+        acquisitionTier: GenerationAcquisitionTier,
         accessToken: String
     ) async throws -> VideoGenerationTaskCreation {
         let acceptLanguage: String? = self.acceptLanguage()
         PortalSessionDiagnostics.notice(
             "event=request-start operation=rule-generation-submit " +
                 "path=\(PortalAPIPath.ruleGenerations) sourceKind=\(sourceKind.rawValue) " +
-                "refresh=\(refresh) acceptLanguage=\(acceptLanguage ?? "-")"
+                "refresh=\(refresh) acceptLanguage=\(acceptLanguage ?? "-") tier=\(acquisitionTier.rawValue)"
         )
         do {
             let submit: PortalRuleGenerationSubmitResponse = try await self.api.submit(
@@ -37,6 +38,7 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
                 entryURL: entryURL,
                 refresh: refresh,
                 acceptLanguage: acceptLanguage,
+                acquisitionTier: acquisitionTier.requestValue,
                 accessToken: accessToken
             )
             switch submit {

@@ -24,11 +24,13 @@ enum VideoGenerationTaskClientError: Error, Hashable, Sendable {
 /// 中文注释：服务端一直支持它，此前是 APIKit 的请求模型没有表达，于是规则生成是
 /// **单向的**——同一入口的规则在服务端复用窗口（30 天）内怎么提都直返旧规则，
 /// 站点改版、规则生成错了、或引擎修好了都没有办法让它重来。
+/// `acquisitionTier`（`BC-ACQ-071`）：用户选的取页档位，随请求发给服务端；普通档不发字段。
 protocol VideoGenerationTaskCreating: Sendable {
     func createVideoTask(
         sourceKind: RuleGenerationSourceKind,
         entryURL: String,
         refresh: Bool,
+        acquisitionTier: GenerationAcquisitionTier,
         accessToken: String
     ) async throws -> VideoGenerationTaskCreation
 }

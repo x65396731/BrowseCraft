@@ -11,6 +11,7 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
             let sourceKind: RuleGenerationSourceKind
             let entryURL: String
             let refresh: Bool
+            var acquisitionTier: GenerationAcquisitionTier = .normal
             let accessToken: String
         }
 
@@ -41,6 +42,7 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
             sourceKind: RuleGenerationSourceKind,
             entryURL: String,
             refresh: Bool,
+            acquisitionTier: GenerationAcquisitionTier,
             accessToken: String
         ) async throws -> VideoGenerationTaskCreation {
             self.calls.append(
@@ -48,6 +50,7 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
                     sourceKind: sourceKind,
                     entryURL: entryURL,
                     refresh: refresh,
+                    acquisitionTier: acquisitionTier,
                     accessToken: accessToken
                 )
             )

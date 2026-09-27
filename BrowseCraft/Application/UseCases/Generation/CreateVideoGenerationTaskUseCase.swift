@@ -29,7 +29,8 @@ struct CreateVideoGenerationTaskUseCase: Sendable {
     func execute(
         preflight: VideoGenerationInputPreflight,
         sourceKind: RuleGenerationSourceKind,
-        refresh: Bool = false
+        refresh: Bool = false,
+        acquisitionTier: GenerationAcquisitionTier = .normal
     ) async throws -> VideoGenerationTaskSubmissionOutcome {
         guard preflight.canSubmit else {
             throw VideoGenerationTaskSubmissionRejection.preflightNotAccepted(preflight.status)
@@ -50,6 +51,7 @@ struct CreateVideoGenerationTaskUseCase: Sendable {
                 sourceKind: sourceKind,
                 entryURL: preflight.submissionString,
                 refresh: refresh,
+                acquisitionTier: acquisitionTier,
                 accessToken: accessToken
             )
             switch creation {
