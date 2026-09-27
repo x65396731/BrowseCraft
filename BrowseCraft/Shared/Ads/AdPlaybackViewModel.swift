@@ -25,17 +25,35 @@ final class AdPlaybackViewModel {
             rewardCoordinator?.rewardedAdCompleted(userIdentifier: userIdentifier)
         }
         self.isLoading = false
-        self.message = self.message(for: result)
+        self.message = Self.message(
+            for: result,
+            signedIn: userIdentifier != nil,
+            rewardAmount: rewardCoordinator?.rewardedAdCoinAmount
+        )
     }
 
-    private func message(for result: RewardedAdPresentationResult) -> String {
+    /// 中文注释：看完广告后给用户的提示（三语本地化，用户 2026-09-27）。不再直接显示 SDK 的英文原文
+    /// （「Reward earned: 20 coin」、加载失败的错误串）——那些照旧写进调试日志。未登录看完不计 coin，文案要说清楚。
+    static func message(
+        for result: RewardedAdPresentationResult,
+        signedIn: Bool,
+        rewardAmount: Int?
+    ) -> String {
         switch result {
         case .completed:
-            return self.presenter.lastMessage ?? NSLocalizedString("ad_playback_completed", comment: "广告播放完成")
+            guard signedIn, let rewardAmount: Int = rewardAmount else {
+                return NSLocalizedString("ad_reward_requires_sign_in", comment: "看完广告但未登录，不计 coin")
+            }
+            return String(
+                format: NSLocalizedString("ad_reward_granted", comment: "看完广告，获得 N coin"),
+                rewardAmount
+            )
         case .skipped:
-            return NSLocalizedString("ad_playback_dismissed", comment: "广告播放被关闭")
-        case .unavailable(let message), .failed(let message):
-            return message
+            return NSLocalizedString("ad_playback_dismissed", comment: "广告未看完就关闭")
+        case .unavailable:
+            return NSLocalizedString("ad_playback_unavailable", comment: "广告服务不可用")
+        case .failed:
+            return NSLocalizedString("ad_playback_failed", comment: "广告加载或播放失败")
         }
     }
 }

@@ -434,8 +434,7 @@
 "source_login_error_invalid_storage" = "登入頁面回傳了無法讀取的儲存結果。";
 "book_reader_error_subject_not_supported" = "這本書無法在這裡開啟。";
 "book_reader_error_unexpected_handle" = "出版品 handle 異常。";
-"ad_playback_completed" = "廣告播放完成。";
-"ad_playback_dismissed" = "廣告播放已關閉。";
+"ad_playback_dismissed" = "廣告未看完，這次沒有獲得 coin。";
 "iap_status_loading_products" = "正在載入 StoreKit 商品…";
 "iap_status_products_unavailable" = "目前沒有可用的 StoreKit 商品。";
 "iap_status_some_products_unavailable" = "部分 StoreKit 商品目前無法使用。";
@@ -603,3 +602,9 @@
 /* 设置页账户 ID 行：点击复制，报给运营手动调整 coin */
 "account_id_row_title" = "帳號 ID";
 "account_id_copied" = "已複製帳號 ID";
+
+/* 看完广告后的提示（按是否登录区分；不显示 SDK 英文原文） */
+"ad_reward_granted" = "已看完廣告，獲得 %d coin。餘額稍後更新。";
+"ad_reward_requires_sign_in" = "已看完廣告。登入後觀看廣告才能獲得 coin。";
+"ad_playback_unavailable" = "廣告服務目前無法使用。";
+"ad_playback_failed" = "目前沒有可播放的廣告，請稍後再試。";

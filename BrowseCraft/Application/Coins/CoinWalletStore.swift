@@ -126,6 +126,10 @@ final class CoinWalletStore: RewardedAdRewardCoordinating {
 
     // MARK: - RewardedAdRewardCoordinating
 
+    var rewardedAdCoinAmount: Int {
+        return self.pricing.adReward
+    }
+
     /// 广告请求里带的用户标识：只有已登录才带（未登录看的广告不算 coin）。
     func rewardedAdUserIdentifier() async -> String? {
         guard await self.accessTokenProvider.validAccessToken() != nil else {

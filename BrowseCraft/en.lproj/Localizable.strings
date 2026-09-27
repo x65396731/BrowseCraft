@@ -434,8 +434,7 @@
 "source_login_error_invalid_storage" = "The login page returned an unreadable storage result.";
 "book_reader_error_subject_not_supported" = "This book cannot be opened here.";
 "book_reader_error_unexpected_handle" = "Unexpected publication handle.";
-"ad_playback_completed" = "Ad playback completed.";
-"ad_playback_dismissed" = "Ad playback dismissed.";
+"ad_playback_dismissed" = "The ad was closed early, so no coins were earned.";
 "iap_status_loading_products" = "Loading StoreKit products…";
 "iap_status_products_unavailable" = "No StoreKit products are currently available.";
 "iap_status_some_products_unavailable" = "Some StoreKit products are currently unavailable.";
@@ -603,3 +602,9 @@
 /* 设置页账户 ID 行：点击复制，报给运营手动调整 coin */
 "account_id_row_title" = "Account ID";
 "account_id_copied" = "Account ID copied";
+
+/* 看完广告后的提示（按是否登录区分；不显示 SDK 英文原文） */
+"ad_reward_granted" = "Ad finished. You earned %d coins; your balance will update shortly.";
+"ad_reward_requires_sign_in" = "Ad finished. Sign in to earn coins from ads.";
+"ad_playback_unavailable" = "The ad service is currently unavailable.";
+"ad_playback_failed" = "No ads are available right now. Please try again later.";

@@ -9,6 +9,8 @@ protocol RewardedAdRewardCoordinating: AnyObject, Sendable {
     func rewardedAdUserIdentifier() async -> String?
     /// 广告已获得奖励；`userIdentifier` 是本次请求带上的那个（nil 即未登录看的）。
     func rewardedAdCompleted(userIdentifier: String?)
+    /// 看完一次广告发放的 coin 数（服务端 `pricing.adReward`），用于看完后的提示文案。
+    var rewardedAdCoinAmount: Int { get }
 }
 
 private struct RewardedAdRewardCoordinatorKey: EnvironmentKey {
