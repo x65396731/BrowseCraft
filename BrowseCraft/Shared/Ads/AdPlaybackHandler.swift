@@ -58,6 +58,14 @@ struct AdPlaybackHandler: ViewModifier {
                 AppDebugLog.write("[BrowseCraftAdPlayback] handler received shouldPlayAd=true trigger=\(self.trigger.rawValue)")
                 #endif
 
+                #if DEBUG
+                // 中文注释：演示模式（拍商城截图）不弹广告；按「已有广告在播」处理，积分保留。
+                if ProcessInfo.processInfo.arguments.contains("-BrowseCraftDemoMode") {
+                    self.markHandled(.skippedBecauseAlreadyPresenting)
+                    return
+                }
+                #endif
+
                 if self.presenter.isPresenting {
                     #if DEBUG
                     AppDebugLog.write("[BrowseCraftAdPlayback] handler skipped because ad is already presenting")

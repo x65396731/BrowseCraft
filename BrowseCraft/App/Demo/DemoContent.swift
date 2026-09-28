@@ -257,6 +257,36 @@ enum DemoContent {
             hant: "風忽然停了。雲海像被誰輕輕撥開一道縫，縫的那頭，有一座他從沒見過的山。",
             hans: "风忽然停了。云海像被谁轻轻拨开一道缝，缝的那头，有一座他从没见过的山。",
             en: "The wind stopped. The clouds parted as if brushed aside by an unseen hand, and through the gap stood a mountain he had never seen before."
+        ),
+        DemoText(
+            hant: "那座山沒有名字。山腰上懸著一道石階，一級一級伸進雲裡，看不見盡頭。",
+            hans: "那座山没有名字。山腰上悬着一道石阶，一级一级伸进云里，看不见尽头。",
+            en: "The mountain had no name. A stone stair hung from its side, climbing step by step into the clouds until it vanished."
+        ),
+        DemoText(
+            hant: "沈青回頭看了一眼。身後的人已經不笑了，只是靜靜地看著那道縫，像在看一扇等了很久的門。",
+            hans: "沈青回头看了一眼。身后的人已经不笑了，只是静静地看着那道缝，像在看一扇等了很久的门。",
+            en: "Shen Qing glanced back. The one behind him was no longer laughing, only watching the gap in silence, like someone looking at a door they had waited on for years."
+        ),
+        DemoText(
+            hant: "「你去吧。」那人說，「師父當年，也是從這裡走的。」",
+            hans: "「你去吧。」那人说，「师父当年，也是从这里走的。」",
+            en: "\"Go,\" they said. \"This is where the master left from, all those years ago.\""
+        ),
+        DemoText(
+            hant: "他把劍收回鞘裡，深吸一口氣，一腳踏上了第一級石階。石面冰涼，卻比他想的還要穩。",
+            hans: "他把剑收回鞘里，深吸一口气，一脚踏上了第一级石阶。石面冰凉，却比他想的还要稳。",
+            en: "He sheathed his sword, drew a long breath and set his foot on the first step. The stone was cold, but steadier than he had expected."
+        ),
+        DemoText(
+            hant: "第二級、第三級……雲從腳邊漫上來，漸漸沒過了膝蓋、腰際、肩頭。",
+            hans: "第二级、第三级……云从脚边漫上来，渐渐没过了膝盖、腰际、肩头。",
+            en: "The second step, the third... the clouds rose around his feet, then his knees, his waist, his shoulders."
+        ),
+        DemoText(
+            hant: "等他再抬起頭時，四周只剩一片白。而在那片白的正中央，隱隱約約地，亮起了一線劍光。",
+            hans: "等他再抬起头时，四周只剩一片白。而在那片白的正中央，隐隐约约地，亮起了一线剑光。",
+            en: "When he looked up again, there was only white all around. And at the very heart of it, faint but certain, a thin line of sword-light began to glow."
         )
     ]
 
