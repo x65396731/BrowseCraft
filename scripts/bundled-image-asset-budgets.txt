@@ -31,7 +31,7 @@ ComicListPlaceholder    962000    600x900    single-scale-lossy-png
 VideoListPlaceholder    943000    600x900    single-scale-lossy-png
 ComicDetailPlaceholder  310000    354x504    single-scale-lossy-png
 BookCoverPlaceholder    95000     216x300    single-scale-png
-VideoDetailPlaceholder  2399000   1320x1386  single-scale-png
+VideoDetailPlaceholder  826000    1320x1386  single-scale-png
 LaunchSplash            854000    720x1280   keep-as-is
 AppIcon                 950000    1024x1024  keep-as-is
 VideoKindBadge          12000     96x96      single-scale-png
