@@ -25,8 +25,9 @@ struct CatalogSourceListView: View {
                 }
             }
             .navigationTitle(NSLocalizedString("catalog_title", comment: ""))
+            // `BC-PREFLIGHT-066`：每次打开都重新拉取，不再「已加载过即跳过」。
             .task {
-                await self.viewModel.loadCatalogSourcesIfNeeded()
+                await self.viewModel.refreshCatalogSources()
             }
             .refreshable {
                 await self.viewModel.refreshCatalogSources()

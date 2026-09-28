@@ -79,11 +79,6 @@ struct SourcesView: View {
                 }
             )
             .navigationTitle("Sources")
-            // 中文注释：RootView 确认主界面就绪并切到本 tab 后才递增 → 打开「规则目录」。
-            .onChange(of: self.viewModel.catalogSheetRevision) { _, _ in
-                self.isShowingAddSourceView = false
-                self.isShowingCatalogSourceListView = true
-            }
             .toolbar {
                 ToolbarItemGroup(placement: .navigationBarLeading) {
                     Button(

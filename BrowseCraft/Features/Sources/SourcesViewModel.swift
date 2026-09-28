@@ -33,14 +33,6 @@ final class SourcesViewModel {
     private(set) var isLoadingCatalogSources: Bool = false
     /// 当前用户的生成终态；nil 表示尚未读取。
     private(set) var videoGenerationOutcomesLoad: VideoGenerationOutcomesLoad?
-    /// 用户点开生成推送的次数（请求信号）。
-    private(set) var catalogPresentationRevision: Int = 0
-    /// 中文注释：点开推送 → 待处理的导航。冷启动时主界面还在启动动画后面，`onChange` 没有
-    /// 观察者、tab 也会被启动目的地覆盖，所以不能在收到时直接导航；RootView 在启动动画
-    /// 结束后再消费这个标记（09-05 真机反馈）。
-    private(set) var pendingCatalogPresentation: Bool = false
-    /// 「规则目录」应当打开的次数；只在主界面就绪、RootView 已切到 Sources 之后递增。
-    private(set) var catalogSheetRevision: Int = 0
     /// 目录里某条规则添加失败的具体原因（按 catalogSourceId），成功或刷新后清除。
     private(set) var catalogSourceAddFailureMessages: [String: String] = [:]
     private(set) var requestedSlotActivationSource: Source?
@@ -54,11 +46,9 @@ final class SourcesViewModel {
     private let createVideoGenerationTaskUseCase: CreateVideoGenerationTaskUseCase?
     private let pushNotificationAuthorizer: (any PushNotificationAuthorizing)?
     private let loadVideoGenerationOutcomesUseCase: LoadVideoGenerationOutcomesUseCase?
-    private let outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests?
     /// 设计书第 30 节：提交页显示消耗与余额；提交响应带回的余额写回这里。
     let coinWalletStore: CoinWalletStore?
     private let hideVideoGenerationOutcomeUseCase: HideVideoGenerationOutcomeUseCase?
-    private var outcomeRefreshTask: Task<Void, Never>?
     private let catalogService: SourceCatalogService
     private let ruleDebugJSONFormatter: SourceRuleDebugJSONFormatter
     private let recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase
@@ -113,17 +103,6 @@ final class SourcesViewModel {
             catalogSources: self.catalogSources,
             outcomes: outcomes
         )
-    }
-
-    /// RootView 在主界面就绪且已切到 Sources 后调用：消费待处理导航，让「规则目录」打开。
-    @discardableResult
-    func presentCatalogSheetIfPending() -> Bool {
-        guard self.pendingCatalogPresentation else {
-            return false
-        }
-        self.pendingCatalogPresentation = false
-        self.catalogSheetRevision += 1
-        return true
     }
 
     /// 个人规则的剩余可见时间（服务端 `expiresAt`）；没有截止信息时返回 nil，视图不显示。
@@ -221,7 +200,6 @@ final class SourcesViewModel {
         pushNotificationAuthorizer: (any PushNotificationAuthorizing)? = nil,
         loadVideoGenerationOutcomesUseCase: LoadVideoGenerationOutcomesUseCase? = nil,
         hideVideoGenerationOutcomeUseCase: HideVideoGenerationOutcomeUseCase? = nil,
-        outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests? = nil,
         coinWalletStore: CoinWalletStore? = nil,
         catalogService: SourceCatalogService,
         ruleDebugJSONFormatter: SourceRuleDebugJSONFormatter,
@@ -239,7 +217,6 @@ final class SourcesViewModel {
         self.createVideoGenerationTaskUseCase = createVideoGenerationTaskUseCase
         self.pushNotificationAuthorizer = pushNotificationAuthorizer
         self.loadVideoGenerationOutcomesUseCase = loadVideoGenerationOutcomesUseCase
-        self.outcomeRefreshRequests = outcomeRefreshRequests
         self.hideVideoGenerationOutcomeUseCase = hideVideoGenerationOutcomeUseCase
         self.coinWalletStore = coinWalletStore
         self.catalogService = catalogService
@@ -254,32 +231,6 @@ final class SourcesViewModel {
         self.now = now
         self.selectedSourceID = sourceSelectionStore.selectedSourceID
         self.bindSourceSelection()
-        self.observeOutcomeRefreshRequests()
-    }
-
-    /// 中文注释：推送到达或被点开 → 刷新目录与个人生成结果（`BC-PREFLIGHT-058` App 侧）。
-    private func observeOutcomeRefreshRequests() {
-        guard let outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests =
-            self.outcomeRefreshRequests else {
-            return
-        }
-        self.outcomeRefreshTask = Task { [weak self] in
-            for await trigger in outcomeRefreshRequests.requests {
-                guard let self else {
-                    return
-                }
-                AppLog.notice(
-                    .push,
-                    event: "outcome-refresh-requested",
-                    metadata: ["trigger": trigger.rawValue]
-                )
-                if trigger == .opened {
-                    self.pendingCatalogPresentation = true
-                    self.catalogPresentationRevision += 1
-                }
-                await self.refreshCatalogSources()
-            }
-        }
     }
 
     @MainActor
@@ -514,32 +465,8 @@ final class SourcesViewModel {
         }
     }
 
-    @MainActor
-    func loadCatalogSourcesIfNeeded() async {
-        CrashDiagnostics.shared.setRuleStage(.list)
-        if self.catalogSources.isEmpty == false || self.isLoadingCatalogSources {
-            if self.videoGenerationOutcomesLoad == nil {
-                await self.loadVideoGenerationOutcomes()
-            }
-            return
-        }
-
-        self.isLoadingCatalogSources = true
-        defer {
-            self.isLoadingCatalogSources = false
-        }
-
-        // 中文注释：目录与个人终态并行读取；个人终态失败不影响默认分组的展示。
-        async let outcomes: Void = self.loadVideoGenerationOutcomes()
-        do {
-            self.catalogSources = try await self.catalogService.loadSources()
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-source-load-error")
-            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
-        }
-        await outcomes
-    }
-
+    /// `BC-PREFLIGHT-066`：「规则目录」每次呈现与下拉刷新都走这里——新生成的规则不依赖推送刷新。
+    /// 目录与个人终态并行读取；个人终态失败不影响默认分组的展示。
     @MainActor
     func refreshCatalogSources() async {
         CrashDiagnostics.shared.setRuleStage(.list)

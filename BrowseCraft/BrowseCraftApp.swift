@@ -126,8 +126,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 }
 
 extension AppDelegate: UNUserNotificationCenterDelegate {
-    /// 中文注释：App 在前台时系统默认不显示横幅；规则生成完成的通知在前台同样要可见，
-    /// 且到达即刷新目录（用户不必再点横幅）。
+    /// 中文注释：App 在前台时系统默认不显示横幅；规则生成完成的通知在前台同样要可见。
+    /// `BC-PREFLIGHT-066`：推送只做通知，到达时不刷新目录、不导航，只同步余额。
     ///
     /// 用 completionHandler 形式而不是 async：async 形式在 `await MainActor.run` 之后回到
     /// 后台执行器结束，系统桥接的 completion 便在后台线程被调，UIKit 随即以
@@ -151,7 +151,8 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         }
     }
 
-    /// 中文注释：用户点开推送（后台或已退出）→ 刷新目录，让新规则出现在「我的生成」里。
+    /// 中文注释：用户点开推送（后台或已退出）→ 只把 App 带到前台、停在原页面（`BC-PREFLIGHT-066`）；
+    /// 规则目录每次打开都会重新拉取，新规则不依赖这里。
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,

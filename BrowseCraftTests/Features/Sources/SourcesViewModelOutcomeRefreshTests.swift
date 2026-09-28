@@ -4,7 +4,8 @@ import BrowseCraftCore
 @testable import BrowseCraft
 import BrowseCraftDomain
 
-/// 推送到达/点开 → SourcesViewModel 刷新目录并读取个人生成终态；分组按 outcomes 计算。
+/// 「规则目录」每次打开 → SourcesViewModel 刷新目录并读取个人生成终态；分组按 outcomes 计算。
+/// `BC-PREFLIGHT-066`：推送只做通知，不再驱动这里的刷新。
 @MainActor
 struct SourcesViewModelOutcomeRefreshTests {
     private typealias Harness = ViewModelTestHarness
@@ -45,51 +46,27 @@ struct SourcesViewModelOutcomeRefreshTests {
         reasonDetail: "episodeLayoutUnsupported"
     )
 
-    @Test func pushRefreshRequestLoadsOutcomesAndExposesFailedGeneration() async throws {
+    @Test func everyCatalogRefreshLoadsOutcomesAndExposesFailedGeneration() async throws {
         let database: AppDatabase = try Harness.makeDatabase()
         let client: ScriptedOutcomesClient = ScriptedOutcomesClient(outcomes: [Self.failedOutcome])
-        let requests: RuleGenerationOutcomeRefreshRequests = RuleGenerationOutcomeRefreshRequests()
         let viewModel: SourcesViewModel = Harness.makeSourcesViewModel(
             database: database,
             resolver: Harness.resolver(),
             loadVideoGenerationOutcomesUseCase: LoadVideoGenerationOutcomesUseCase(
                 outcomesClient: client,
                 accessTokenProvider: StubTokenProvider(token: "access")
-            ),
-            outcomeRefreshRequests: requests
+            )
         )
         #expect(viewModel.videoGenerationOutcomesLoad == nil)
 
-        requests.request(.presented)
+        await viewModel.refreshCatalogSources()
 
-        let refreshed: Bool = await Harness.waitUntil {
-            viewModel.failedGenerationOutcomes.count == 1
-        }
-        #expect(refreshed)
-        // 中文注释：前台到达只刷新，不导航。
-        #expect(viewModel.catalogPresentationRevision == 0)
-
-        requests.request(.opened)
-        let navigated: Bool = await Harness.waitUntil {
-            viewModel.catalogPresentationRevision == 1
-        }
-        #expect(navigated)
-        // 中文注释：点开只记「待处理」，表单要等 RootView 确认主界面就绪后才打开。
-        #expect(viewModel.pendingCatalogPresentation)
-        #expect(viewModel.catalogSheetRevision == 0)
-        #expect(viewModel.presentCatalogSheetIfPending())
-        #expect(viewModel.pendingCatalogPresentation == false)
-        #expect(viewModel.catalogSheetRevision == 1)
-        #expect(viewModel.presentCatalogSheetIfPending() == false)
+        #expect(viewModel.failedGenerationOutcomes.count == 1)
         #expect(viewModel.failedGenerationOutcomes.first?.reasonDetail == "episodeLayoutUnsupported")
         #expect(viewModel.personalCatalogSources.isEmpty)
         #expect(viewModel.isPersonalCatalogSignInRequired == false)
-        // 中文注释：到达一次 + 点开一次 = 两次刷新。点开时导航标记同步 +1，第二次刷新随后才异步发出，
-        // 所以要等到请求真正到达替身再断言次数，否则会偶发读到 1。
-        let refreshedTwice: Bool = await Harness.waitUntilAsync {
-            await client.callCount >= 2
-        }
-        #expect(refreshedTwice)
+        // 中文注释：`BC-PREFLIGHT-066`——目录已加载过，再次打开仍要重新拉取，不能「已加载即跳过」。
+        await viewModel.refreshCatalogSources()
         #expect(await client.callCount == 2)
     }
 
@@ -213,8 +190,7 @@ struct SourcesViewModelOutcomeRefreshTests {
 
     private static func makeViewModel(
         database: AppDatabase,
-        client: any VideoGenerationOutcomesFetching,
-        requests: RuleGenerationOutcomeRefreshRequests
+        client: any VideoGenerationOutcomesFetching
     ) -> SourcesViewModel {
         return Harness.makeSourcesViewModel(
             database: database,
@@ -222,23 +198,20 @@ struct SourcesViewModelOutcomeRefreshTests {
             loadVideoGenerationOutcomesUseCase: LoadVideoGenerationOutcomesUseCase(
                 outcomesClient: client,
                 accessTokenProvider: StubTokenProvider(token: "access")
-            ),
-            outcomeRefreshRequests: requests
+            )
         )
     }
 
     @Test func personalSourceMissingFromOutcomesIsRemovedLocally() async throws {
         let database: AppDatabase = try Self.seedSources(personalID: "kpkuang-org--vodtype-1", plainID: "plain.one")
-        let requests: RuleGenerationOutcomeRefreshRequests = RuleGenerationOutcomeRefreshRequests()
         let viewModel: SourcesViewModel = Self.makeViewModel(
             database: database,
-            client: ScriptedOutcomesClient(outcomes: []),
-            requests: requests
+            client: ScriptedOutcomesClient(outcomes: [])
         )
         await viewModel.load()
         #expect(viewModel.sources.contains(where: { $0.id == "kpkuang-org--vodtype-1" }))
 
-        requests.request(.presented)
+        await viewModel.refreshCatalogSources()
 
         let removed: Bool = await Harness.waitUntil {
             viewModel.sources.contains(where: { $0.id == "kpkuang-org--vodtype-1" }) == false
@@ -253,15 +226,13 @@ struct SourcesViewModelOutcomeRefreshTests {
 
     @Test func personalSourceStillListedInOutcomesIsKept() async throws {
         let database: AppDatabase = try Self.seedSources(personalID: "kpkuang-org--vodtype-1", plainID: "plain.one")
-        let requests: RuleGenerationOutcomeRefreshRequests = RuleGenerationOutcomeRefreshRequests()
         let viewModel: SourcesViewModel = Self.makeViewModel(
             database: database,
-            client: ScriptedOutcomesClient(outcomes: [Self.succeededOutcome(catalogSourceID: "kpkuang-org--vodtype-1")]),
-            requests: requests
+            client: ScriptedOutcomesClient(outcomes: [Self.succeededOutcome(catalogSourceID: "kpkuang-org--vodtype-1")])
         )
         await viewModel.load()
 
-        requests.request(.presented)
+        await viewModel.refreshCatalogSources()
 
         let loaded: Bool = await Harness.waitUntil {
             if case .loaded = viewModel.videoGenerationOutcomesLoad { return true }
@@ -274,15 +245,13 @@ struct SourcesViewModelOutcomeRefreshTests {
 
     @Test func outcomesLoadFailureNeverRemovesPersonalSources() async throws {
         let database: AppDatabase = try Self.seedSources(personalID: "kpkuang-org--vodtype-1", plainID: "plain.one")
-        let requests: RuleGenerationOutcomeRefreshRequests = RuleGenerationOutcomeRefreshRequests()
         let viewModel: SourcesViewModel = Self.makeViewModel(
             database: database,
-            client: FailingOutcomesClient(),
-            requests: requests
+            client: FailingOutcomesClient()
         )
         await viewModel.load()
 
-        requests.request(.presented)
+        await viewModel.refreshCatalogSources()
 
         let failed: Bool = await Harness.waitUntil {
             if case .failed = viewModel.videoGenerationOutcomesLoad { return true }

@@ -124,16 +124,6 @@ struct RootView: View {
                 self.selectedTab = .library
             }
         }
-        // 中文注释：点开生成推送 → 只有主界面就绪（启动动画已结束）才切到 Sources 并打开
-        // 「规则目录」；冷启动时先留作待处理，启动动画结束那一刻再消费。
-        .onChange(of: self.sourcesViewModel.catalogPresentationRevision) { _, _ in
-            self.navigateToCatalogIfPending()
-        }
-        .onChange(of: self.startupCoordinator.phase.isDismissed) { _, dismissed in
-            if dismissed {
-                self.navigateToCatalogIfPending()
-            }
-        }
         #if DEBUG
         .onChange(of: self.startupCoordinator.phase.canSkip) { _, canSkip in
             if canSkip && Self.skipsStartupAnimationWhenUnlocked {
@@ -225,19 +215,6 @@ struct RootView: View {
                 self.selectedTab = initialTab
             }
             #endif
-        }
-        self.navigateToCatalogIfPending()
-    }
-
-    private func navigateToCatalogIfPending() {
-        guard self.startupCoordinator.phase.isDismissed,
-              self.sourcesViewModel.pendingCatalogPresentation else {
-            return
-        }
-        self.selectedTab = .sources
-        // 中文注释：等 tab 切换提交后再弹表单，否则 sheet 会挂在还没显示的 tab 上。
-        DispatchQueue.main.async {
-            self.sourcesViewModel.presentCatalogSheetIfPending()
         }
     }
 }

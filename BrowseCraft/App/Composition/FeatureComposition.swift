@@ -63,7 +63,6 @@ final class FeatureComposition {
             videoGenerationOutcomesClient: APIKitVideoGenerationOutcomesClient(
                 api: PortalRuleGenerationAPI(client: account.portalAPIClient)
             ),
-            outcomeRefreshRequests: account.ruleGenerationOutcomeRefreshRequests,
             coinWalletStore: account.coinWalletStore
         )
 

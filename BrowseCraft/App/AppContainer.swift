@@ -129,10 +129,10 @@ final class AppContainer {
         await self.account.pushDeviceRegistrationCoordinator.updateDeviceToken(deviceToken)
     }
 
-    /// 规则生成推送到达或被点开：让目录列表刷新默认数据与个人生成结果；点开时还要导航到结果。
+    /// 规则生成推送到达或被点开：`BC-PREFLIGHT-066`——推送只做通知，不刷新、不导航；
+    /// 唯一的数据动作是设计书 30.6：终态推送带余额（含 0 成本退回后的值），收到即更新。
     func handleRuleGenerationPushNotification(_ outcome: RuleGenerationPushOutcome, opened: Bool) {
-        self.account.ruleGenerationOutcomeRefreshRequests.request(opened ? .opened : .presented)
-        // 设计书 30.6：终态推送带余额（含 0 成本退回后的值），收到即更新。
+        _ = opened
         if let balance: Int = outcome.coinBalance, let revision: Int = outcome.coinRevision {
             self.account.coinWalletStore.apply(balance: balance, revision: revision)
         }

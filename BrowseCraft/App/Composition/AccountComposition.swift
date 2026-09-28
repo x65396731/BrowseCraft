@@ -20,7 +20,6 @@ final class AccountComposition {
     let portalPurchaseEntitlementRefreshCoordinator: PortalPurchaseEntitlementRefreshCoordinator
     let portalAppleSignInCoordinator: PortalAppleSignInCoordinator
     let pushDeviceRegistrationCoordinator: PushDeviceRegistrationCoordinator
-    let ruleGenerationOutcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests
     /// 设计书第 30 节：coin 余额的显示缓存与刷新入口。
     let coinWalletStore: CoinWalletStore
     let appUserIdentityAdoptionCoordinator: AppUserIdentityAdoptionCoordinator
@@ -85,7 +84,6 @@ final class AccountComposition {
             ),
             sessionCoordinator: portalSessionCoordinator
         )
-        self.ruleGenerationOutcomeRefreshRequests = RuleGenerationOutcomeRefreshRequests()
         self.coinWalletStore = CoinWalletStore(
             accountClient: APIKitPortalAccountService(api: PortalAccountAPI(client: portalAPIClient)),
             accessTokenProvider: portalSessionCoordinator,

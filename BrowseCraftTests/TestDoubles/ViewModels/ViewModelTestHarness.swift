@@ -185,7 +185,6 @@ enum ViewModelTestHarness {
         resolver: any SourceRuntimeResolving,
         selectionStore: SourceSelectionStore = SourceSelectionStore(),
         loadVideoGenerationOutcomesUseCase: LoadVideoGenerationOutcomesUseCase? = nil,
-        outcomeRefreshRequests: RuleGenerationOutcomeRefreshRequests? = nil,
         hideVideoGenerationOutcomeUseCase: HideVideoGenerationOutcomeUseCase? = nil,
         now: @escaping () -> Date = { Self.fixedNow }
     ) -> SourcesViewModel {
@@ -236,7 +235,6 @@ enum ViewModelTestHarness {
             createVideoGenerationTaskUseCase: nil,
             loadVideoGenerationOutcomesUseCase: loadVideoGenerationOutcomesUseCase,
             hideVideoGenerationOutcomeUseCase: hideVideoGenerationOutcomeUseCase,
-            outcomeRefreshRequests: outcomeRefreshRequests,
             catalogService: SourceCatalogService(
                 addCatalogSourceUseCase: AddCatalogSourceUseCase(
                     sourceRepository: sourceRepository,
