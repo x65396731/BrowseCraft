@@ -630,3 +630,6 @@
 "video_preflight_tier_hard_antibot_hint" = "This site also blocked your phone. Even if generation succeeds, the content may not load.";
 "video_generation_outcome_failed_hardModeSiteTooStrong" = "This site cannot be handled even in hard mode: the cloud service bills it at the highest tier, which is not supported. Try a different site.";
 "push_generation_failed_hardModeSiteTooStrong" = "%@ cannot be handled even in hard mode. This site is not supported yet.";
+
+/* BC-EVIDENCE-082：片源拒绝、整页兜底也会卡住时的提示 */
+"video_playback_media_source_rejected" = "This source is unavailable. Please try another source.";

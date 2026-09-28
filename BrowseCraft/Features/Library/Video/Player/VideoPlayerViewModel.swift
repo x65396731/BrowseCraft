@@ -558,6 +558,9 @@ final class VideoPlayerViewModel {
             return "The iframe player exceeded the supported resolution depth."
         case .iframePlayerLoopDetected:
             return "The iframe player redirected in a loop."
+        case .mediaSourceRejected:
+            // 中文注释：`BC-EVIDENCE-082`——片源拒绝了这个地址，整页兜底也会卡住；提示用户换一个片源。
+            return NSLocalizedString("video_playback_media_source_rejected", comment: "")
         }
     }
 

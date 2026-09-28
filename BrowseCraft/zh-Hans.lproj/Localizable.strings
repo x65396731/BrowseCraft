@@ -630,3 +630,6 @@
 "video_preflight_tier_hard_antibot_hint" = "这个网站在你的手机上也被拦下，即使生成成功也可能读不到内容。";
 "video_generation_outcome_failed_hardModeSiteTooStrong" = "这个网站在困难模式下也无法处理：云端对它按最高档计费，目前不支持。请换一个网站。";
 "push_generation_failed_hardModeSiteTooStrong" = "%@ 在困难模式下也无法处理，目前不支持这个网站。";
+
+/* BC-EVIDENCE-082：片源拒绝、整页兜底也会卡住时的提示 */
+"video_playback_media_source_rejected" = "这个片源不可用，请换一个片源试试。";

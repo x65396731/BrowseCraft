@@ -497,6 +497,110 @@ struct VideoSourcePlaybackLoaderTests {
         #expect(inspection?.message.contains("body=shape=html") == true)
     }
 
+    // 中文注释：`BC-EVIDENCE-082`（2026-09-29 小宝影院《非你之物》）：媒体地址取自站内播放器 iframe
+    // `…/player/?url=<m3u8>`，该 m3u8 被 CDN 403 拒绝。iframe 与整页兜底都会让站内播放器请求同一个被拒地址、
+    // 真机一直卡在「连接中」——两条都不选，直接判片源不可用，也不再发任何请求。
+    @Test func rejectedMediaEmbeddedInIframeSkipsIframeAndWebUIFallback() async throws {
+        let pageURL: URL = try #require(URL(string: "https://video.example.invalid/watch/1"))
+        let mediaURL: URL = try #require(URL(string: "https://cdn.example.invalid/v/index.m3u8"))
+        let pageLoader = RoutedPlaybackPageContentLoader(
+            responses: [
+                pageURL.absoluteString: PageContentResponse(
+                    content: #"<iframe id="iframe" src="https://video.example.invalid/player/?url=https://cdn.example.invalid/v/index.m3u8&amp;next=/watch/2"></iframe>"#,
+                    finalURL: pageURL
+                ),
+                mediaURL.absoluteString: PageContentResponse(
+                    content: "<!DOCTYPE html><html><head><title>403 Forbidden</title></head><body>403</body></html>",
+                    finalURL: mediaURL
+                )
+            ]
+        )
+        let rule: VideoSiteRule = Self.iframeEmbeddedMediaRule()
+        let loader = VideoSourcePlaybackLoader(
+            pageContentLoader: pageLoader,
+            parser: CoreVideoRuleSourceParser()
+        )
+        let session: VideoPreparedPlaybackExecutionSession = try loader.prepare(
+            source: Self.source(rule: rule),
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            input: Self.input()
+        )
+
+        let result: VideoPreparedPlaybackExecutionResult = try await loader.executeWithRouteFacts(session)
+
+        #expect(result.output.reference.status == .failed(.mediaSourceRejected))
+        #expect(result.output.reference.candidateMediaURL == nil)
+        let reasons: [VideoRuntimeEvidenceRouteSlot: VideoPreparedPlaybackRouteReason?] = Dictionary(
+            uniqueKeysWithValues: result.routeFacts.map { ($0.routeSlot, $0.reason) }
+        )
+        #expect(reasons[.media] == .manifestNotHLS)
+        #expect(reasons[.iframe] == .sameRejectedMediaSource)
+        #expect(reasons[.fallback] == .sameRejectedMediaSource)
+        #expect(pageLoader.requestedURLs == [pageURL, mediaURL])
+        #expect(result.output.diagnostics.issues.contains { $0.id == "video.v2.playbackMediaSourceRejected" })
+    }
+
+    // 中文注释：`BC-EVIDENCE-082` 对照：iframe 是另一个播放器、地址里不含被拒的媒体地址时，既有 iframe 兜底不变。
+    @Test func rejectedMediaWithUnrelatedIframeKeepsIframeFallback() async throws {
+        let pageURL: URL = try #require(URL(string: "https://video.example.invalid/watch/1"))
+        let mediaURL: URL = try #require(URL(string: "https://video.example.invalid/media/master.m3u8"))
+        let iframeURL: URL = try #require(URL(string: "https://player.example.invalid/embed/42"))
+        let pageLoader = RoutedPlaybackPageContentLoader(
+            responses: [
+                pageURL.absoluteString: PageContentResponse(
+                    content: #"<video><source src="/media/master.m3u8"></video><iframe src="https://player.example.invalid/embed/42"></iframe>"#,
+                    finalURL: pageURL
+                ),
+                mediaURL.absoluteString: PageContentResponse(
+                    content: "<html><body>403 Forbidden</body></html>",
+                    finalURL: mediaURL
+                )
+            ]
+        )
+        var rule: VideoSiteRule = Self.playbackRule()
+        rule.ruleSets.playbackRules?[0].iframe = Self.iframeRule(strategy: .webUI)
+        rule.ruleSets.playbackRules?[0].fallback = .webUI
+        let loader = VideoSourcePlaybackLoader(
+            pageContentLoader: pageLoader,
+            parser: CoreVideoRuleSourceParser()
+        )
+        let session: VideoPreparedPlaybackExecutionSession = try loader.prepare(
+            source: Self.source(rule: rule),
+            resolvedRule: try ResolvedVideoSiteRule(validating: rule),
+            input: Self.input()
+        )
+
+        let result: VideoPreparedPlaybackExecutionResult = try await loader.executeWithRouteFacts(session)
+
+        #expect(result.output.reference.status == .pageOnly)
+        #expect(result.output.reference.candidateMediaURL == iframeURL)
+    }
+
+    static func iframeEmbeddedMediaRule() -> VideoSiteRule {
+        var rule: VideoSiteRule = Self.playbackRule()
+        rule.ruleSets.playbackRules?[0].media = VideoDirectMediaRule(
+            url: ExtractRule(
+                selector: "iframe#iframe[src]",
+                selectorKind: .css,
+                function: .attr,
+                param: "src",
+                regex: #"(https?://cdn\.example\.invalid/[^?&#=\s]*\.m3u8)"#
+            ),
+            kind: .hls
+        )
+        rule.ruleSets.playbackRules?[0].iframe = VideoIframePlaybackRule(
+            url: ExtractRule(
+                selector: "iframe#iframe[src]",
+                selectorKind: .css,
+                function: .attr,
+                param: "src"
+            ),
+            strategy: .webUI
+        )
+        rule.ruleSets.playbackRules?[0].fallback = .webUI
+        return rule
+    }
+
     @Test func nonManifestBodyWithoutFallbackFailsInsteadOfHandingPlayerAnHTMLPage() async throws {
         let pageURL: URL = try #require(URL(string: "https://video.example.invalid/watch/1"))
         let mediaURL: URL = try #require(URL(string: "https://video.example.invalid/media/master.m3u8"))

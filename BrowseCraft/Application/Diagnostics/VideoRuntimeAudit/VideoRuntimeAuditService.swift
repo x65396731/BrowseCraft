@@ -1118,6 +1118,8 @@ struct VideoRuntimeAuditService {
             return "known-encrypted-media"
         case .finalMediaObservationUnavailable:
             return "final-media-observation-unavailable"
+        case .sameRejectedMediaSource:
+            return "same-rejected-media-source"
         case .iframeDepthExceeded:
             return "iframe-depth-exceeded"
         case .iframeLoopDetected:
