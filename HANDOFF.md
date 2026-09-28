@@ -42,7 +42,7 @@ python3 scripts/check-docs.py
 - **等用户裁决**：fwq 的 `protectedResource` 与 `executionPolicy` 两条约束只有正文没有稳定 ID，
   本仓库只能按文档引用，是否请 fwq 分配 ID。
 - **无语料、等样本**：读书 kind 的四个接口变体（list / detail / reader 的 API 形态）。
-- **由规则生成引出、流水在 fwq `HANDOFF.md` 第 1 节**（2026-09-28；上一轮 09-27 的积分五批 / coin 流水页 / 困难模式提交页已迁入 fwq 归档第 17 卷）：本轮 App 侧无代码改动，真机欠项是三个新生成来源（全本繁体、嗶哩輕小說、台灣小說網）与积分五批的清单。Release 的激励广告单元 09-27 已换成与 Debug / TestFlight 同一个真实单元（`257e5b3`）——上架后要在 AdMob 后台把 App 关联到 App Store 商店页，审核通过前是有限投放。
+- **由规则生成引出、流水在 fwq `HANDOFF.md` 第 1 节**（2026-09-28 傍晚；上一次指向的内容已迁入 fwq 归档第 18、19 卷）：本轮 App 侧改动 `BC-PREFLIGHT-066`——规则生成推送只做通知（前台只出横幅、点开停在原页面，不刷新、不切「來源」、不弹「规则目录」；coin 余额照常同步），规则目录每次打开都重新拉取（`4d8b9b9`，`build-for-testing` 通过）。真机欠项：点推送停在原页、生成后打开目录直接看到新规则。Release 激励广告单元与 AdMob 商店页关联事项照旧（`257e5b3`）。
 - **明确不做**（`rejected` / `superseded`，按名字跳过，不是待办）：本地书 B3 有声书播放器、PDF 与 CBZ、
   目录刷新时静默覆盖本地规则、jable.tv 播放根因（已由 fwq `BC-PLAYBACK-049` 承接）、
   CloudKit 门禁的字面量全面扫描（有意收窄，见 `BCA-SYNC-008`）、iOS 18.5 模拟器运行时、
