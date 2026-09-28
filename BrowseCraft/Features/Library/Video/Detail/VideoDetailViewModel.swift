@@ -92,7 +92,7 @@ final class VideoDetailViewModel {
     ) -> [SourceChapter] {
         let groups: [VideoEpisodeDisplayGroup] = self.displayGroups(from: chapters)
         guard groups.count > 1 else {
-            return chapters
+            return self.labelingRepeatedRoutes(chapters)
         }
 
         return groups
@@ -100,6 +100,31 @@ final class VideoDetailViewModel {
                 self.shouldKeepEpisodeGroup(candidate, among: groups)
             }
             .flatMap(\.chapters)
+    }
+
+    /// 中文注释：用户 2026-09-29「选集按片源分组显示」（选「App 按重复集号切线路」）。整份选集都没有线路名、
+    /// 而第一集的标题在后面又出现时，说明规则把几条线路的选集接成了一份扁平列表（小宝影院两组「第01集…」）：
+    /// 从每次重新出现处切开，依次标「线路 1 / 线路 2 …」。只改显示、不增删选集；规则带了线路名的站原样不动。
+    static func labelingRepeatedRoutes(_ chapters: [SourceChapter]) -> [SourceChapter] {
+        guard chapters.count >= 2,
+              chapters.allSatisfy({ self.trimmedSubtitle($0.subtitle) == nil }),
+              let firstTitle: String = chapters.first.flatMap({ self.normalizedEpisodeTitle($0.title) }) else {
+            return chapters
+        }
+        var routeIndex: Int = 0
+        var labeled: [SourceChapter] = []
+        for (index, chapter) in chapters.enumerated() {
+            if index == 0 || self.normalizedEpisodeTitle(chapter.title) == firstTitle {
+                routeIndex += 1
+            }
+            var copy: SourceChapter = chapter
+            copy.subtitle = String(
+                format: NSLocalizedString("video_episode_route_label", comment: ""),
+                routeIndex
+            )
+            labeled.append(copy)
+        }
+        return routeIndex >= 2 ? labeled : chapters
     }
 
     private static func displayGroups(

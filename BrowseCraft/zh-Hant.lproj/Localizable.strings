@@ -633,3 +633,6 @@
 
 /* BC-EVIDENCE-082：片源拒绝、整页兜底也会卡住时的提示 */
 "video_playback_media_source_rejected" = "這個片源無法使用，請換一個片源試試。";
+
+/* 选集按重复集号切出的线路名（规则没有线路名时） */
+"video_episode_route_label" = "線路 %d";
