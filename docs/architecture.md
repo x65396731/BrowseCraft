@@ -168,8 +168,8 @@ phases next to the boundary script; `scripts/check-localization.py` runs after c
   moved or removed source files, run `scripts/regenerate-project.sh` before continuing with
   whatever test or build was asked for.
 - `BCA-BUILD-002` SwiftSoup is pinned to the in-house fork `x65396731/SwiftSoup` (branch
-  `browsecraft/upstream-dup-attr`: upstream master plus one change so that a repeated attribute on
-  the same tag keeps its first value, fwq `BC-ACQ-074`): BrowseCraftCore pins it by commit and the project overrides
+  `browsecraft/text-whitespace-fix`: the in-house inline-whitespace fix plus one change so that a repeated
+  attribute on the same tag keeps its first value, fwq `BC-ACQ-074`, merged with upstream master): BrowseCraftCore pins it by commit and the project overrides
   the whole dependency graph with the local `../SwiftSoup` package to resolve the identity clash
   with Readium. Both must sit on the same commit.
   `scripts/check-swiftsoup-override.sh` runs next to the boundary script and fails the build when
@@ -283,8 +283,9 @@ later drop the whitespace between adjacent inline elements after non-ASCII text,
 together tag/cast lists on CJK sites; upstream master has fixed this but not released it. Upstream
 also keeps the *last* value of a repeated attribute on one tag, while the HTML5 tokenizer rules,
 WebKit and the rule engine's `html5lib` keep the *first* (fwq `BC-ACQ-074`). BrowseCraftCore
-therefore pins `x65396731/SwiftSoup` by commit on branch `browsecraft/upstream-dup-attr`: upstream
-master plus that one tokenizer change, which is meant to go upstream as a pull request. Because Readium refers to
+therefore pins `x65396731/SwiftSoup` by commit on branch `browsecraft/text-whitespace-fix`: the in-house
+whitespace fix and that one tokenizer change, merged with upstream master. These changes stay in the fork and are not
+submitted upstream. Because Readium refers to
 `scinfu/SwiftSoup` by URL and SwiftPM refuses two URLs for the same package identity, `project.yml`
 also adds `../SwiftSoup` as a local package: Xcode lets a local package override every remote
 reference to the same identity, so Readium is served by the fork too. The local checkout must sit
