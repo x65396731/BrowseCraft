@@ -47,7 +47,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 工作项 | 条款 | 决策 | 设计 | 实施 | 验证 | 检查点 | 更新日期 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 已添加来源的「更新规则」入口——被「已添加来源跟随目录自动更新」取代 | 未编号 | rejected | superseded | reverted | not-run | 175847d | 2026-09-30 |
-| 已添加来源跟随目录自动更新（目录页读取、启动与回到前台时静默覆盖本地副本） | 未编号 | required | approved | implemented | not-run | 175847d | 2026-09-30 |
+| 已添加来源跟随目录自动更新（目录页读取、启动与回到前台时静默覆盖本地副本） | 未编号 | required | approved | implemented | targeted-passed | 3646c2e | 2026-09-30 |
 | 同站多条来源的副标题显示各自入口地址 | 未编号 | required | approved | implemented | device-passed | 1513a0f | 2026-09-15 |
 | 规则目录页重设计：推荐 / 我的生成分栏，推荐按类型分区，我的生成按时间线（方案 A） | 未编号 | required | draft | not-started | not-run | 175847d | 2026-09-30 |
 

@@ -260,3 +260,16 @@ XCTest 的 66 项不受影响——不是回归。测试期间有一条 QoS 优�
 
 实施只做到代码与单测改写：按 `AGENTS.md` 的会话纪律未 build、未跑测试，验证列记 `not-run`。
 检查点列记改动所基于的提交。
+
+## 2026-09-30：公共目录来源自动更新的验证
+
+`STATUS.md` 第 2 节「已添加来源跟随目录自动更新」：验证 not-run / 检查点 175847d → targeted-passed / 3646c2e。
+
+原因：用户要求 build 与测试。`xcodebuild build`（iPhone 17 Pro / iOS 26.5）`BUILD SUCCEEDED`，0 error，
+构建阶段的本地化检查通过（删掉的 `catalog_update_rule` 没有残留引用）。
+`xcodebuild test -only-testing:BrowseCraftTests`：Swift Testing 522 项 / 90 套全过，
+含 `catalogSourceWithNewerRuleOffersAnUpdateAndAppliesItInPlace` 与新增的 `addedSourcesFollowTheCatalogWithoutATap`；
+XCTest 81 项中 17 处断言失败，全部来自同一个 `BundledImageAssetTests.testEveryDeclaredImageAssetDecodesAtItsDeclaredPixelSize`——
+声明为 `multi-scale-png` 的底栏与设置图标在 3x 模拟器上解出 3 倍像素（如 75x75 对声明的 25x25），
+测试按单档资产 scale 为 1 计算像素。本次改动不涉及任何资产与该测试，失败与本次无关，
+因此验证列记 `targeted-passed` 而非 `full-suite-passed`。xcodebuild 在两套测试跑完后卡在收尾，手动终止。
