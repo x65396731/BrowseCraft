@@ -19,7 +19,9 @@ enum EntryPageGuide {
     static let seenVersionKey: String = "entryPageGuideSeenVersion"
     /// 版本 2（2026-09-23，`BC-PAGE-061`）：分页说明改成「点到第 2 页地址会变」，并加一行「满足两条也可能生成不了」。
     /// 版本 3（2026-09-23）：首页入口不再支持；例子改成「全部」类列表页，其余内容靠搜索找到。
-    static let currentVersion: Int = 3
+    /// 版本 4（2026-09-29，`BC-PAGE-063` ⑥）：版本 3 教的「全部」页每排筛选都打头，引擎不推导分类；
+    /// 改成只在一排筛选里选一个不是「全部」的选项，这一排连同「全部」一起生成为分类。
+    static let currentVersion: Int = 4
 
     /// 中文注释：判定单独拿出来是为了可测——视图里的那份是 `private` 计算属性，测不到。
     /// 本次已经点过「我找到了这样的页面」就不再拦（`didAcknowledge`），
