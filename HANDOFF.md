@@ -42,7 +42,12 @@ python3 scripts/check-docs.py
 - **等用户裁决**：fwq 的 `protectedResource` 与 `executionPolicy` 两条约束只有正文没有稳定 ID，
   本仓库只能按文档引用，是否请 fwq 分配 ID。
 - **无语料、等样本**：读书 kind 的四个接口变体（list / detail / reader 的 API 形态）。
-- **由规则生成引出、流水在 fwq `HANDOFF.md` 第 1 节**（2026-09-28 傍晚；上一次指向的内容已迁入 fwq 归档第 18、19 卷）：本轮 App 侧改动 `BC-PREFLIGHT-066`——规则生成推送只做通知（前台只出横幅、点开停在原页面，不刷新、不切「來源」、不弹「规则目录」；coin 余额照常同步），规则目录每次打开都重新拉取（`4d8b9b9`，`build-for-testing` 通过）。真机欠项：点推送停在原页、生成后打开目录直接看到新规则。Release 激励广告单元与 AdMob 商店页关联事项照旧（`257e5b3`）。
+- **由规则生成引出、流水在 fwq `HANDOFF.md` 第 1 节**（2026-09-29 一轮；上一次指向的 09-28 傍晚一节已迁入 fwq 归档第 20 卷）：
+  本轮 App 侧改动有 `BC-EVIDENCE-082`（片源拒绝且 iframe 内嵌同一地址时不走兜底、提示换片源）、选集无线路名时按重复集号标「线路 N」、
+  `BC-PREFLIGHT-067`（App 预检认懒加载封面，改在 Core）；引导屏 v4（`BC-PAGE-063` ⑥）记在 fwq `docs/rules/STATUS.md`。
+  真机欠项以 fwq 第 1 节为准：上面三项，加上一轮遗留的 `BC-PREFLIGHT-066`（点推送停在原页、生成后打开目录直接看到新规则）。
+  同期的纯 App 侧改动（DEBUG 演示模式补足正文并且不弹激励广告、影视详情头图占位换图）不属规则生成，fwq 不记。
+  Release 激励广告单元与 AdMob 商店页关联事项照旧。
 - **明确不做**（`rejected` / `superseded`，按名字跳过，不是待办）：本地书 B3 有声书播放器、PDF 与 CBZ、
   目录刷新时静默覆盖本地规则、jable.tv 播放根因（已由 fwq `BC-PLAYBACK-049` 承接）、
   CloudKit 门禁的字面量全面扫描（有意收窄，见 `BCA-SYNC-008`）、iOS 18.5 模拟器运行时、
@@ -69,12 +74,14 @@ Homebrew 从源码编译要求独立的 Command Line Tools 与 Xcode 同版本�
 # 所以纯文档改动不需要跑这条。
 scripts/regenerate-project.sh
 
-# 四个代码闸门 + 一个文档闸门。前两个也作为 pre-build 阶段跑。
+# 四个代码闸门 + 一个本地化闸门 + 一个文档闸门。四个代码闸门都作为 pre-build 阶段跑，
+# 本地化闸门在编译之后跑（单独跑要传 Objects-normal 目录）。
 scripts/check-architecture-boundaries.sh     # BCA-ARCH-001 ~ 005
 scripts/check-swiftsoup-override.sh          # BCA-BUILD-002
 scripts/check-ad-configuration.sh            # BCA-BUILD-003
-scripts/check-bundled-image-assets.sh
-python3 scripts/check-docs.py                # BCA-DOC-010
+scripts/check-bundled-image-assets.sh        # BCA-BUILD-006 ~ 007
+scripts/check-localization.py <Objects-normal 目录>
+python3 scripts/check-docs.py                # BCA-DOC-010；fwq 不在 ~/Desktop/fwq 时加 --fwq <路径>
 
 # build 与测试（AGENTS.md：只有用户明确要求时才跑）。destination 按「OS + 名字」指定：
 # 不写 UDID（换机器就失效），也不能只写 name——裸 name 解析不到，必须带 OS。
@@ -93,7 +100,7 @@ done
 
 三个 scheme 的归档目标不同：`TEST BrowseCraft` 归档 `TestFlight` 配置（环境 TEST），
 `BrowseCraft` 与 `PROD BrowseCraft` 归档 `Release` 作 PROD，后两者在广告单元还是 Google 示例值时拒绝构建
-（`BCA-BUILD-003`）。`project.pbxproj` 是生成的且已 git-ignore，在 Xcode 的 Signing & Capabilities 里改的东西
+（`BCA-BUILD-003`）；目前三套配置都已是真实激励广告单元，这道检查不会拦。`project.pbxproj` 是生成的且已 git-ignore，在 Xcode 的 Signing & Capabilities 里改的东西
 会被下次 `regenerate-project.sh` 冲掉（`BCA-BUILD-004`）。
 
 ## 3. 归档索引

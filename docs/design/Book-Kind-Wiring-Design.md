@@ -11,7 +11,7 @@
 1. `BCA-RUNTIME-002` book 是 App 里的第四种 `SourceRuntimeKind`（comic / video / plugin 之后），按现有 comic 的分流模式扩展，不在通用执行器里加 kind 特判。
 2. 规则合同以规则仓库 `docs/rules/book-catalog-profile.md`（`BC-BOOK-001` ~ `BC-BOOK-012`）为准：外层 `id / name / baseURL / kind="book" / ruleJSON`，内层**只有原生 V2**（`version=2`、`site`、`sharedRequest`、`pages[]`、`ruleSets{listRules, detailRules, readerRules, searchRules?}`），没有 V1 兼容层，Core 不得为它虚构 `list / detail / gallery` 顶层字段。
 3. 终端层与漫画不同：reader 规则每条恰好一个 `variant`（`text-dom | text-api | audio-media`）与 `contentType`（`text | audio`）。App 把一部作品装成一份 RWPM（`BC-BOOK-012`）喂 Readium：文字走 EPUB Navigator（`readingOrder[].type = text/html`，正文由 App 按 reader 规则取容器内段落装成 XHTML），有声走 Audio Navigator（远程 mp3 href）。CBZ 分支不接。
-4. `BCA-RUNTIME-004` **目录解码必须宽容**：`BrowseCraftCatalogSourceKind`（`Catalog/BrowseCraftCatalogAPI.swift`）与 App Domain 的 `CatalogSourceKind` 都是封闭枚举，因此公共目录列表**不得整表解码**——遇到本版本不认得的 kind 必须逐条跳过并记下被跳过的 id 与 kind，不得让整个目录请求失败；请求同时显式声明本版本认得的 kind 集合。本条的由来是旧版 App 确实整表解码，目录里只要出现一条 `kind: book` 就会让整个列表解码失败，book catalog 因此一度被禁止发布到 `/catalog/sources`；宽容解码上线后该禁令解除，服务器另以 `kinds` 缺省不回 book 作保险丝（第五节）。
+4. `BCA-RUNTIME-004` **目录解码必须宽容**：`BrowseCraftCatalogSourceKind`（`Catalog/BrowseCraftCatalogAPI.swift`）与 BrowseCraftDomain 包的 `CatalogSourceKind` 都是封闭枚举，因此公共目录列表**不得整表解码**——遇到本版本不认得的 kind 必须逐条跳过并记下被跳过的 id 与 kind，不得让整个目录请求失败；请求同时显式声明本版本认得的 kind 集合。本条的由来是旧版 App 确实整表解码，目录里只要出现一条 `kind: book` 就会让整个列表解码失败，book catalog 因此一度被禁止发布到 `/catalog/sources`；宽容解码上线后该禁令解除，服务器另以 `kinds` 缺省不回 book 作保险丝（第五节）。
 
 ## 二、已核对的现状
 
@@ -29,7 +29,7 @@
 
 **批次 B：Runtime 与 RWPM 装配（首次整包 build 在此批之前）**
 - Runtime：`Book/` 包——`BookSourceRuntimeFactory`（`guard case .book`）、list / detail / search loader 复用 comic 的 DOM 取值原语（`ExtractRule` 投影与 comic 同源）；`BookSourceReaderLoader` 按 `variant` 分派：`text-dom` 取容器 + `segmentation`（`elements` 取段落元素、`lineBreaks` 取 `<br>` 间文本节点），`text-api` 取 `textPath` 或 `itemPath`，`audio-media` 取 `media.item` 作用域内的 `media.url`（或 `mediaAPI`）；章内 `content.next` 拼成一份资源。
-- Application：`BookPublicationAssembler`——detail → `metadata`，章节 → `readingOrder[]`（`title / order / href`），`text` 资源装成 XHTML、`audio` 资源按 `media.format` 映射 `type`；输出给 Readium `Publication`。**待核实**：文字资源如何喂 EPUB Navigator（本地 HTTP 服务 `ReadiumAdapterGCDWebServer` 已链接，或 data URL），在 build 通过后用 biquhua 章节做一次离线验证再定。
+- Application：`BookPublicationAssembler`——detail → `metadata`，章节 → `readingOrder[]`（`title / order / href`），`text` 资源装成 XHTML、`audio` 资源按 `media.format` 映射 `type`；输出给 Readium `Publication`。**待核实**：文字资源如何喂 EPUB Navigator（EPUB Navigator 已改用不带 `httpServer` 的初始化，App 不再链接 `ReadiumAdapterGCDWebServer`），在 build 通过后用 biquhua 章节做一次离线验证再定。
 - 验收：两份真实 catalog 走 Runtime 出「段落 ≥ 12、17 条 mp3」的固定输入；build 后真机复核影视线与漫画线没被 Readium 波及（交接单第五节第 5 条）。
 
 **批次 C：Features**
@@ -72,7 +72,7 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
 
 - 规则合同：规则仓库 `docs/rules/book-catalog-profile.md`（App 消费的接口定稿）、`docs/rules/book-generation-design.md` `BC-BOOK-048`（本文即其 App 部分的立项）。
 - 服务器接线：PortalCore `docs/architecture/rule-generation-migration-plan.md` §14。
-- Readium 依赖与 SwiftSoup fork：本目录 `Readium-Integration-Handoff.md`。
+- Readium 依赖与 SwiftSoup fork：[history/Readium-Integration-Handoff.md](../history/Readium-Integration-Handoff.md)（H 类归档，只说明来龙去脉）。
 
 ## 八~十一、批次 A / B / C 落地记录与模拟器全流程走查
 

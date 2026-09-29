@@ -4,7 +4,7 @@
 
 - `BCA-UI-001` 书架与阅读器的两级目的地必须合成一个路由枚举在 Library 栈根声明一次（`LibraryBookRoute`）——书架用 `isPresented` 推入后在内部再声明第二级 `navigationDestination`，SwiftUI 报「declared earlier on the stack」并把推入弹回。
 
-- B1 备注：嗅探器保留原文件扩展名（m4a / m4b 不改成 Readium 的规范名 mp4）；`ReadiumBookEnvironment.shared` 持有 HTTP 客户端、资产取回器、打开器与懒建的 `GCDHTTPServer`；夹具在 `BrowseCraftTests/Resources/Book/`（最小 EPUB、2 秒 mp3、带元数据 m4a）。
+- B1 备注：嗅探器保留原文件扩展名（m4a / m4b 不改成 Readium 的规范名 mp4）；`ReadiumBookEnvironment.shared` 持有 HTTP 客户端、资产取回器与打开器（不再持有本地 HTTP 服务）；夹具在 `BrowseCraftTests/Resources/Book/`（最小 EPUB、2 秒 mp3、带元数据 m4a）。
 
 > 实施与验证状态见 [STATUS.md](../STATUS.md)；分批落地与裁决的叙事事实见 [status-log.md](../history/status-log.md)。
 
@@ -22,7 +22,7 @@
 |---|---|---|
 | 打开文件 | `PublicationOpener(parser:contentProtections:)` + `open(asset:allowUserInteraction:credentials:…) async -> Result<Publication, PublicationOpenError>` | `parser` 用 `DefaultPublicationParser(httpClient:assetRetriever:pdfFactory:)`；`asset` 由 `AssetRetriever(formatSniffer:resourceFactory:archiveOpener:).retrieve(url:hints:)` 得到 |
 | 音频书 | `AudioParser`：ZAB / 普通 ZIP 音频包，**也支持单个音频文件**；嗅探认 `mp3`、`m4a / m4b / mp4`、`aac / flac / ogg …` | 单个 `m4b` 就是一本书；章节由 `AVAudioPublicationManifestAugmentor` 从音频元数据补 |
-| EPUB 阅读 | `EPUBNavigatorViewController(publication:initialLocation:readingOrder:config:httpServer:)`（`throws`；`publication.isRestricted` 时抛 `publicationRestricted`） | `httpServer` 用 `GCDHTTPServer`（`ReadiumAdapterGCDWebServer` 已链接） |
+| EPUB 阅读 | `EPUBNavigatorViewController(publication:initialLocation:readingOrder:config:httpServer:)`（`throws`；`publication.isRestricted` 时抛 `publicationRestricted`） | 用不带 `httpServer` 的初始化；App 不链接 `ReadiumAdapterGCDWebServer` |
 | 有声播放 | `AudioNavigator(publication:initialLocation:config:audioSession:)`：`play / pause / playPause / seek(to:) / seek(by:) / go(to:) / goForward / goBackward`、`playbackInfo`、`currentLocation` | **无 UI**，播放器界面自建；`audioSession` 缺省 `AudioSession.shared` |
 | 位置 | `Navigator.currentLocation: Locator?`；`Locator` 是 `JSONObjectEncodable`（`jsonString()` / `jsonObject`），可从 JSON 还原 | 续读与书签都存 JSON |
 
@@ -55,7 +55,7 @@ BookBookmark         id: UUID, bookID: UUID, userID: String, locatorJSON: String
 
 ### 3.3 Infrastructure
 
-- `ReadiumBookPublicationOpener`：持有一个 `AssetRetriever`、`DefaultPublicationParser`、`PublicationOpener` 与一个进程级 `GCDHTTPServer`（EPUB Navigator 需要）；`open` 走 `allowUserInteraction: false`。
+- `ReadiumBookPublicationOpener`：持有一个 `AssetRetriever`、`DefaultPublicationParser`、`PublicationOpener`，EPUB Navigator 不需要本地 HTTP 服务；`open` 走 `allowUserInteraction: false`。
 - `ReadiumBookFileInspector`：用 Readium 的格式嗅探（`FormatSniffer` + 文件扩展名 / 媒体类型提示）。
 - `FileSystemBookFileStore`：`Application Support/Books/`，文件名用 `LocalBook.id`。
 - GRDB：`local_books`、`book_reading_progress`、`book_bookmarks` 三张表，一条迁移 `v3.local-books`（在 `sourcesAddOriginIdentifier` 之后追加），`AppDatabaseSchemaSnapshotTests` 快照同步更新；Record 只做行映射。
@@ -103,7 +103,7 @@ xcodebuild -project BrowseCraft.xcodeproj -scheme BrowseCraft -destination 'plat
 
 ## 七、风险
 
-- `GCDHTTPServer` 监听本机端口，与 App 既有的 Alamofire / WebKit 层无冲突，但要确认 App Transport Security 对 `http://127.0.0.1` 的例外（Readium 自带处理，build 后核）。
+- 本地 HTTP 服务的端口与 App Transport Security 例外问题已不存在：EPUB Navigator 用不带 `httpServer` 的初始化，App 不监听本机端口。
 - 后台音频需要新的 capability（`UIBackgroundModes`），按 `BCA-BUILD-004` 写在 `project.yml`。
 - iCloud Drive 里未下载的文件：`fileImporter` 给的 URL 可能是占位，复制前要 `startDownloadingUbiquitousItem` 或提示用户。
 - 大文件（数百 MB 的 m4b）：复制与 SHA-256 要在后台任务里做，书架显示「导入中」。

@@ -9,9 +9,9 @@
 
 | 类 | 位置 | 在闭包内 | 时态 |
 | --- | --- | --- | --- |
-| **C 合同** | `AGENTS.md`、`docs/README.md`、`docs/architecture.md`、`docs/design/*.md`、包内 `README.md` | **是** | 只用现在时陈述 |
+| **C 合同** | `AGENTS.md`（本地文件，不被 git 跟踪）、根 `README.md`、`docs/README.md`、`docs/architecture.md`、`docs/design/*.md`、`scripts/README.md`、包内 `README.md`、`../BrowseCraftCore/docs/README.md` 与其 `docs/design/*.md` | **是** | 只用现在时陈述 |
 | **S 状态** | `docs/STATUS.md` | **仅该工作项对应的行** | 受控枚举 |
-| H 历史 | `docs/history/*.md` | 否 | 只追加，不修改 |
+| H 历史 | `docs/history/*.md`、`../BrowseCraftCore/docs/history/*.md` | 否 | 只追加，不修改 |
 | E 证据 | 真机日志、构建日志、测试产物 | 否 | 只追加 |
 
 - `BCA-DOC-011` 仓库根的 [`HANDOFF.md`](../HANDOFF.md) 是会话入口，属 H 类。它只承载四样东西：
@@ -141,7 +141,8 @@ App 侧的验证事实主要分「离线测试通过」「模拟器走通」「�
 
 - 模块划分、层与依赖方向、被 `scripts/check-architecture-boundaries.sh` 执行的不变量、并发、持久化、测试、构建：[architecture.md](architecture.md)
 - 维护脚本的用途与用法：[../scripts/README.md](../scripts/README.md)
-- 会话纪律、SwiftSoup 与 Readium 边界、规则执行边界：[../AGENTS.md](../AGENTS.md)
+- 规则执行语义（`responsePolicy`、itemPath、legacy 隔离、凭据与账号语义、执行边界）：[design/RuleExecutionSemantics.md](design/RuleExecutionSemantics.md)
+- 会话纪律：仓库根的 `AGENTS.md`。它被 git 忽略、只存在于本地，只写引用点（`BCA-DOC-015`）；SwiftSoup 与 Readium 边界的定义点在 architecture.md 第 3 节与读书 kind 接线文档
 
 ### 按领域
 
@@ -152,8 +153,9 @@ App 侧的验证事实主要分「离线测试通过」「模拟器走通」「�
 - 规则目录：同站多条来源的副标题：[design/Catalog-Same-Site-Entry-Subtitle-Design.md](design/Catalog-Same-Site-Entry-Subtitle-Design.md)
 - 运行期广告过滤承接规则匹配结果：[design/RuntimeAdFilter-Design.md](design/RuntimeAdFilter-Design.md)
 
-`design/Book-Kind-Wiring-Design.md`、`design/Local-Book-Import-Design.md` 与 `design/RuntimeAdFilter-Design.md`
-当前仍混装了合同与批次记录，拆分属 D3。读它们时以现在时陈述的章节为合同，带日期的落地/倒查章节按 H 类看待。
+`design/Book-Kind-Wiring-Design.md` 的批次记录已拆到 [history/Book-Kind-Wiring-batch-records.md](history/Book-Kind-Wiring-batch-records.md)。
+`design/Local-Book-Import-Design.md` 与 `design/RuntimeAdFilter-Design.md` 仍带有分批与实施纪事的章节：读它们时以现在时陈述的章节为合同，
+落地/倒查性质的章节按 H 类看待。
 
 ## 7. 归档索引
 
@@ -162,6 +164,7 @@ App 侧的验证事实主要分「离线测试通过」「模拟器走通」「�
 | [history/status-log.md](history/status-log.md) | 状态变更流水：被 STATUS.md 覆盖的旧值，与三分法从 C 类搬出的叙事事实 |
 | [history/2026-09-19-docs-architecture-audit.md](history/2026-09-19-docs-architecture-audit.md) | 本文档架构的审计与迁移提案，含迁移前的量化基线 |
 | [history/2026-09-18-code-audit.md](history/2026-09-18-code-audit.md) | 五仓代码审计：警告清单、架构、性能热点与逐项修正纪事 |
+| [history/Book-Kind-Wiring-batch-records.md](history/Book-Kind-Wiring-batch-records.md) | 读书 kind 分批落地记录与模拟器 / 真机实测纪事 |
 | [history/RSS-Removal.md](history/RSS-Removal.md) | RSS 从 App 五仓整体下线的执行记录与保留清单 |
 | [history/Readium-Integration-Handoff.md](history/Readium-Integration-Handoff.md) | Readium 选型与 SwiftSoup fork 的来龙去脉（推进顺序已由 book 接线执行完） |
 | [history/JablePlaybackRule-Handoff.md](history/JablePlaybackRule-Handoff.md) | jable.tv M3U8 抽取失败的根因交接（结论已由 fwq `BC-PLAYBACK-049` 承接） |

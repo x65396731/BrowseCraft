@@ -6,14 +6,16 @@
 
 ## 文件组织
 
-- `AppDatabase.swift` 只负责数据库路径、表创建顺序和索引创建顺序。
-- 每张表的字段、主键、唯一键和索引放在对应的 `*Record+Schema.swift`。
-- `Records/User` 保存用户、权益和用户级 UI 状态。
+- `AppDatabase.swift` 只负责数据库路径与执行迁移。
+- 表、主键、唯一键和索引由 `Migrations/`（`AppDatabaseSchemaV1` 与 `AppDatabaseMigrations`）创建；`*Record+Schema.swift` 只保留列名 `Columns`。
+- `Records/User` 保存用户（含 coin 余额与版本号）、权益和用户级 UI 状态。
 - `Records/Source` 保存站点来源配置。
 - `Records/Favorite` 保存收藏快照。
-- `Records/History` 保存 RSS、漫画、视频历史快照。
+- `Records/History` 保存漫画、视频、书籍历史快照。
+- `Records/Book` 保存本地书籍、阅读进度和书签。
 - `Records/Sync` 保存 iCloud 同步游标和本地待上传队列。
 - `Records/Temporary` 保存临时发现资源历史。
+- `Repositories/`、`Sync/`、`Identity/` 分别放 GRDB 仓储实现、同步存储与身份存储。
 
 ## 当前规则
 

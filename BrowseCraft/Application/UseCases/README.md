@@ -1,11 +1,14 @@
 # Application UseCases
 
 UseCases are grouped by the app feature boundary that owns the user action.
-Do not group this layer by runtime/source type such as `Book/Video/Comic`; those folders belong under runtime implementations.
+Prefer that grouping over runtime/source type; `Book/` and `Comic/` exist because those user actions (local books, comic detail) have no other owning feature.
 
-- `Source/`: source creation, loading, synchronization, import recommendation, and source runtime refresh.
-- `Rule/`: rule editing and package import/export workflows.
-- `Library/`: library state, favorites, and library source presentation.
+- `Source/`: adding catalog sources, loading, synchronization, import recommendation, discovery, generation-input assessment, source runtime refresh, and the read-only rule debug formatter.
+- `Generation/`: rule-generation submission, outcomes, catalog grouping, and personal-rule retention.
+- `Ads/`: rewarded-ad points.
+- `Favorites/`: favorites persistence.
+- `Comic/`: comic detail loading.
+- `Library/`: library state, favorite toggling, and library source presentation.
 - `Reader/`: reader chapter loading and reader source presentation.
 - `History/`: comic, video, and book history save/load workflows.
 - `Book/`: local book import, opening, reading progress, and bookmarks (ports live in `Application/Ports/Book/`).

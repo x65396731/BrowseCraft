@@ -9,11 +9,11 @@ interpret a rule, and who may touch the network.
 
 | Module | Kind | Size | Role |
 | --- | --- | --- | --- |
-| `BrowseCraft` | app target | ~62k lines | Everything in §2 |
-| `BrowseCraftCore` | sibling SwiftPM package | ~29k lines | Rule models, validation, resolved graphs, deterministic parsing |
-| `BrowseCraftAPIKit` | sibling SwiftPM package | ~1.3k lines | The BrowseCraft backend contract (endpoints, DTOs, transport) |
-| `BrowseCraftDomain` | sibling SwiftPM package | ~2.1k lines | Domain kernel: values, ports, policies and diagnostics shared by the app and the rule runtime |
-| `BrowseCraftRuntime` | sibling SwiftPM package | ~13k lines | The whole rule runtime: Book, Comic, Video and the shared dispatch |
+| `BrowseCraft` | app target | ~53k lines | Everything in §2 |
+| `BrowseCraftCore` | sibling SwiftPM package | ~30k lines | Rule models, validation, resolved graphs, deterministic parsing |
+| `BrowseCraftAPIKit` | sibling SwiftPM package | ~1.9k lines | The BrowseCraft backend contract (endpoints, DTOs, transport) |
+| `BrowseCraftDomain` | sibling SwiftPM package | ~2.3k lines | Domain kernel: values, ports, policies and diagnostics shared by the app and the rule runtime |
+| `BrowseCraftRuntime` | sibling SwiftPM package | ~14k lines | The whole rule runtime: Book, Comic, Video and the shared dispatch |
 
 **Core's rule models are this app's domain model.** `SiteRule`, `VideoSiteRule`, `ListContext`,
 `RequestConfig` and the resolved graphs are used directly by `Domain`, `Application` and
@@ -22,23 +22,26 @@ compiler and to the boundary checks. There is no re-export shim and no parallel 
 the rule model — a parallel copy would also have to be persisted, since a rule's `Codable` form is
 what lands in `sources.configJSON` and syncs through CloudKit.
 
-Dependency direction is `App → Core` and `App → APIKit`; Core and APIKit never reference each
-other. `BrowseCraftCore/docs/design/CoreParsingBoundary.md` is the authoritative statement of
+Dependency direction is `App → Core`, `App → APIKit`, `App → Domain` and `App → Runtime`;
+`Runtime → Core` / `Domain`, and `Domain → BrowseCraftRuleModels` (a target of the Core package).
+Core and APIKit never reference each other. `BrowseCraftCore/docs/design/CoreParsingBoundary.md` is the authoritative statement of
 what Core may do. The short version: Core is a deterministic function from (bytes + rule +
 context) to normalised output, and never performs requests, holds cookies, creates a `WKWebView`,
 or knows about the current user.
 
 All four packages are consumed as **path dependencies on sibling checkouts** and carry no version
 tags. This is known debt: the app's `main` only builds against the sibling repos' `main`, and a
-fresh machine has to clone all five repositories side by side:
+fresh machine has to clone all five repositories side by side under one parent directory, plus the
+SwiftSoup fork that overrides the dependency graph (§8):
 
 ```
-Desktop/
+<parent>/
   BrowseCraft/            # the app
   BrowseCraftCore/
   BrowseCraftDomain/
   BrowseCraftRuntime/
   BrowseCraftAPIKit/
+  SwiftSoup/              # local override package (BCA-BUILD-002)
 ```
 
 ## 2. Layers inside the app target
@@ -47,12 +50,12 @@ Dependency arrows point inward. Nothing below may reference anything above it.
 
 | Layer | Size | Owns |
 | --- | --- | --- |
-| `Domain` | 2.4k / 46 files | Entities, 10 repository protocols, pure domain services |
-| `Application` | ~25.9k / 136 files | 42 use cases, the remaining ports, coordinators, and the rule runtime |
-| `Infrastructure` | 9.7k / 79 files | GRDB, CloudKit, StoreKit, Alamofire, WebKit, Keychain adapters |
-| `Features` | 20.7k / 101 files | `@MainActor` view models and SwiftUI views |
-| `Shared` | 1.7k / 18 files | Logging, diagnostics, ads, common image views |
-| `App` | 1.8k / 12 files | Composition root, feature factories, startup |
+| `Domain` | 1.5k / 43 files | Entities, 13 repository protocols, pure domain services |
+| `Application` | ~13.2k / 104 files | 48 use cases, the remaining ports, coordinators, the coin wallet and push handling |
+| `Infrastructure` | 11.7k / 95 files | GRDB, CloudKit, StoreKit, Alamofire, WebKit, Keychain adapters |
+| `Features` | 20.8k / 97 files | `@MainActor` view models and SwiftUI views |
+| `Shared` | 2.6k / 27 files | Logging, diagnostics, ads, common image views |
+| `App` | 2.8k / 21 files | Composition root, feature factories, startup, the Debug-only demo mode (`App/Demo`) |
 
 `App/Composition` is the composition root: the only place allowed to assemble concrete adapters,
 and — besides `Infrastructure` — the only place allowed to see `BrowseCraftAPIKit`. It is split by
@@ -67,7 +70,9 @@ what owns the objects rather than by layer:
   the app's concrete adapters onto the kernel ports the runtime consumes.
 - `FeatureComposition` — the per-screen factories, the only place that knows which screen needs what.
 - `AppContainer` holds those three and keeps what is genuinely app-lifecycle: the StoreKit
-  transaction listener, image-cache configuration, and the Debug-only audit entry point.
+  transaction listener, image-cache configuration, the push and remote-notification entry points
+  (device token, rule-generation push, CloudKit notification), foreground refresh of the coin
+  balance, and the Debug-only audit entry point.
 
 ### The domain kernel
 
@@ -114,8 +119,10 @@ collaborators (`PageContentLoader`, `SourceCredentialProviding`, …) are Founda
 Slot-limit decisions are not runtime semantics: `SourceRuntimeFactory` takes an injected
 `validateSourceAccess` closure, and its own fallback raises a plain `SourceRuntimeError`.
 
-`SourceRuntime` and its capability protocols are declared in **Core**; the app implements them.
-Contract in the package, implementation in the app — preserve this shape.
+`SourceRuntime` and its capability protocols are declared in **Core**; `BrowseCraftRuntime`
+implements them (`ComicSourceRuntime`, `VideoSourceRuntime`, `BookSourceRuntime`). The app only adds
+the Debug-only `DemoSourceRuntime`. Contract in Core, implementation in the runtime package —
+preserve this shape.
 
 ## 3. Enforced invariants
 
@@ -140,7 +147,7 @@ and the design documents reference them by ID and do not restate the text.
   `ReadiumAdapterGCDWebServer`), or APIKit. Readium `Locator` values cross those layers only as
   opaque JSON strings.
 - `BCA-ARCH-003` **No APIKit escape.** `import BrowseCraftAPIKit` is allowed only under
-  `Infrastructure/` and in `AppContainer.swift`.
+  `Infrastructure/` and in the composition root `App/Composition/`.
 - `BCA-ARCH-004` **No cross-layer type references.** Every layer lives in one module, so import
   checks are blind to them. The script also searches each layer's top-level type names in the
   layers that must not depend on it: `Domain` may reference no other layer; `Application` may not
@@ -153,7 +160,9 @@ and the design documents reference them by ID and do not restate the text.
   `SourceDebugView` shows them read-only. Rule generation, normalisation and catalog publication
   contracts therefore live entirely in the fwq repository and are neither defined nor referenced here.
 
-Three more scripts guard the build:
+Further build rules (the SwiftSoup, ad-configuration and bundled-asset scripts run as pre-build
+phases next to the boundary script; `scripts/check-localization.py` runs after compilation; see
+`scripts/README.md`):
 
 - `BCA-BUILD-001` The project is managed with XcodeGen. When `.xcodeproj` errors come from added,
   moved or removed source files, run `scripts/regenerate-project.sh` before continuing with
@@ -167,46 +176,45 @@ Three more scripts guard the build:
   upgrading or moving back to the official package, run the inline-whitespace gate case in
   `RuleExtractionEngineTests`.
 - `BCA-BUILD-003` `scripts/check-ad-configuration.sh` fails a PROD archive that still carries
-  Google's sample rewarded ad unit, and only warns elsewhere. Archiving for TestFlight therefore
-  uses the **TEST BrowseCraft** scheme (archive config `TestFlight`, environment TEST); the plain
-  **BrowseCraft** and **PROD BrowseCraft** schemes archive `Release` as PROD and will refuse to
-  build until `BROWSECRAFT_REWARDED_AD_UNIT_ID` is a real ad unit.
+  Google's sample rewarded ad unit, and only warns elsewhere. The **TEST BrowseCraft** scheme
+  archives config `TestFlight` (environment TEST); the plain **BrowseCraft** and **PROD BrowseCraft**
+  schemes archive `Release` as PROD. Debug, TestFlight and Release all carry the real rewarded ad
+  unit in `BROWSECRAFT_REWARDED_AD_UNIT_ID`, so the check currently passes for every configuration.
 - `BCA-BUILD-004` Project settings must live in `project.yml` — signing (including
   `DEVELOPMENT_TEAM`) and capabilities such as `UIBackgroundModes` alike. `project.pbxproj` is
   generated and git-ignored, so anything set through Xcode's editors is wiped by the next
   `scripts/regenerate-project.sh`.
 
-`project.pbxproj` is generated and git-ignored, so anything set through Xcode's Signing &
-Capabilities editor is wiped by the next `scripts/regenerate-project.sh`.
+The app target is iPhone-only (`TARGETED_DEVICE_FAMILY: "1"`) until the iPad layout is done.
 
 ## 4. Concurrency
 
-The target builds with `SWIFT_STRICT_CONCURRENCY: complete`.
+The target builds in the Swift 6 language mode (`SWIFT_VERSION: "6.0"`) with
+`SWIFT_STRICT_CONCURRENCY: complete`; the four packages declare `.swiftLanguageMode(.v6)`.
 
 Every port protocol in `Application/Ports`, every repository in `Domain/Repositories`, and every
 Domain value type is `Sendable`; `BrowseCraftCore`'s rule models are `Sendable` too. Use cases and
 transfer structs therefore conform without escape hatches. Closures stored by `Sendable` types are
 declared `@Sendable`.
 
-`@unchecked Sendable` (20 remaining, all final classes) is reserved for state protected by a lock,
+`@unchecked Sendable` (29 remaining) is reserved for state protected by a lock,
 an actor hop, or a serial queue — `AppDatabase`, the identity and account-scope stores, the sync
 services, the WebKit and URLSession delegates. A new `@unchecked` needs a comment naming the
 synchronisation it relies on.
 
-Synchronous persistence is owned by 22 actors (the `*PersistenceCoordinator` family). View models
+Synchronous persistence is owned by the seven `*PersistenceCoordinator` actors. View models
 await immutable snapshots and mutate observable state only on `MainActor`.
 
 View models are `@Observable` (iOS 17 Observation), observed by views with `@State` for ownership
-and `@Bindable` where a binding projection is needed. Six types deliberately stay
+and `@Bindable` where a binding projection is needed. Five types deliberately stay
 `ObservableObject`: `SourceSelectionStore`, because `LibraryViewModel` and `SourcesViewModel`
-subscribe to its `$` publishers to coordinate across tabs, and the five `NSObject`-based WebView /
+subscribe to its `$` publishers to coordinate across tabs, and the four `NSObject`-based WebView /
 ad-presenter coordinators that also serve as UIKit delegates. The macro turns stored properties into computed ones, which a
 nonisolated `deinit` may not read:
 
 - `BCA-ARCH-008` Task handles touched in `deinit` must be marked `@ObservationIgnored`.
 
- StoreKit transactions
-become `StoreTransactionSnapshot` before Portal validation or database writes.
+StoreKit transactions become `StoreTransactionSnapshot` before Portal validation or database writes.
 
 ## 5. Persistence
 
@@ -225,7 +233,7 @@ mapping; they no longer create tables.
 
 ## 6. Tests
 
-`BrowseCraftTests` is ~19.7k lines / 82 files, mostly Swift Testing with some XCTest.
+`BrowseCraftTests` is ~24.4k lines / 117 files, mostly Swift Testing with some XCTest.
 
 ViewModel tests are assembled by `BrowseCraftTests/TestDoubles/ViewModels/ViewModelTestHarness.swift`:
 real use cases and persistence coordinators on top of real GRDB repositories against a temporary
@@ -238,12 +246,17 @@ subdirectories.
 
 ## 7. Build-time slicing
 
-The explicit video runtime audit — `Application/Runtime/Video/Audit`, the
+The explicit video runtime audit — `Application/Diagnostics/VideoRuntimeAudit`, the
 `VideoRuntimeAuditWebUIPresenter` overlay, and the WebKit media-event handler in
 `Features/Library/Video/Player` — compiles **only in Debug**. Release and TestFlight builds contain
 none of it, and its plumbing in `AppContainer` and `RootView` is `#if DEBUG` too. The evidence
 value types (`VideoRuntimeEvidenceV2`, `VideoRuntimeEvidenceFingerprint`) ship in every build
 because the playback loader uses them for route facts.
+
+The demo mode (`App/Demo`, launched with `-BrowseCraftDemoMode`) is `#if DEBUG` as well: it runs on a
+separate demo database and a `DemoSourceRuntime` with made-up content. The AdMob test-device tools
+(`Shared/Ads/AdTestDeviceTools.swift`) compile only under `BROWSECRAFT_AD_TEST_TOOLS`, which Debug and
+TestFlight set and Release does not.
 
 ## 8. Dependencies
 
@@ -254,14 +267,14 @@ Every third-party dependency is a Swift package. There is no CocoaPods step,
 `project.yml` declares the packages;
 `BrowseCraft.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` is the committed
 lock file, and the rest of the generated project stays ignored. Everything is pinned to an exact
-version except KSPlayer, which is pinned to a commit because that repository publishes no tags,
-and SwiftSoup, which is pinned to a commit of our own fork (below).
+version except KSPlayer, which is pinned to a commit because that repository publishes no tags;
+GoogleMobileAds and Firebase, which `project.yml` declares as `from: 12.0.0` and only
+`Package.resolved` locks; and SwiftSoup, which is pinned to a commit of our own fork (below).
 
 **Readium** (`readium/swift-toolkit`, exact 3.x tag) serves the book kind only: EPUB/PDF/audiobook
 navigators and the `Locator` model for bookmarks and resume positions. The comic reader stays the
 in-house SwiftUI reader; Readium's CBZ navigator is not wired. The app links `ReadiumShared`,
-`ReadiumStreamer`, `ReadiumNavigator` and `ReadiumAdapterGCDWebServer` (the local HTTP server the
-EPUB navigator needs).
+`ReadiumStreamer` and `ReadiumNavigator`.
 
 **SwiftSoup fork and local override.** Readium requires SwiftSoup ≥ 2.13.5, but upstream 2.13.5
 through master (as of 2026-09-13) drops the whitespace between adjacent inline elements whenever the
@@ -282,7 +295,7 @@ occur for them.
 
 ## 9. Known debt
 
-- **`Features` touches Core rule models in 24 files.** Now that the dependency is explicit (§1)
+- **`Features` imports `BrowseCraftCore` in 15 files.** Now that the dependency is explicit (§1)
   it is at least visible, but the UI layer reading `SiteRule` directly means a rule-format change
   can ripple into views. Narrowing this to presentation values resolved in `Application` is worth
   doing incrementally; it is not a blocker for anything.

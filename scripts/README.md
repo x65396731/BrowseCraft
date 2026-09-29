@@ -27,6 +27,14 @@ Pre-build gate for layer boundaries. It runs on every build and never modifies a
 - import 检查匹配所有写法：`import X`、`@preconcurrency import X`、`@_exported import X`、`import struct X.Y`、`import X.Sub`。
 - 类型引用方向新增 Features→Infrastructure、Shared→Application、Shared→Infrastructure；`declared_types` 识别 `@Observable`、`nonisolated`、`package`、`open` 等修饰。
 - `print(` 与 `try!` 禁用扩展到 App 与四个包（Core / Domain / Runtime / APIKit）的 Sources。
+- `BrowseCraftRuleModels` 不得依赖 SwiftSoup 与解析目标。
+- Swift 6 语言模式：`project.yml` 的 `SWIFT_VERSION` 必须是 `6.0`，四个包的 manifest 必须是 `swift-tools-version: 6.0`
+  并显式声明 `.swiftLanguageMode(.v6)`。
+
+它拒绝的内容：`Domain` 与 `Application` 里的禁用框架 import、`Infrastructure/` 与 `App/Composition/` 之外的 APIKit import、
+裸 `print`、SwiftSoup 越出 Core 的具名适配器，以及逆着层方向的顶层类型引用（例如 `Application` 用了 `Features` 的类型，
+`Features` 用了 `App` 的类型）。同一模块内 import 检查看不见跨层类型引用，所以脚本会把每层顶层声明的类型名拿去别的层搜索；
+注释和字符串字面量会先被剥掉。
 
 已存在的命中登记在 `scripts/architecture-boundary-exemptions.txt`，每行「路径 标识」（路径相对仓库根，包用 `../BrowseCraftXxx/...`）。
 - `BCA-BUILD-005` `scripts/architecture-boundary-exemptions.txt` 的豁免只允许收敛、不允许新增未经审阅的条目；
@@ -37,8 +45,10 @@ Pre-build gate for layer boundaries. It runs on every build and never modifies a
 Post-compile gate for localization. It runs after the `BrowseCraft` target compiles its sources and never modifies anything.
 
 ```sh
-./scripts/check-localization.py <Objects-normal 目录>
+./scripts/check-localization.py [<Objects-normal 目录>]
 ```
+
+中文注释：不带参数时读构建阶段提供的 `$OBJECT_FILE_DIR_normal`；两者都没有时报错退出，所以在命令行单独跑要先构建一次，再把目录传进去。
 
 中文注释：不变量是「编译器认定要本地化的每一个键，en / zh-Hans / zh-Hant 三份 `Localizable.strings` 里都必须有」，
 另外三份文件的键集合必须完全一致。键从两处取：SwiftUI 的 `Text` / `Label` / `Section` / `String(localized:)`
@@ -48,7 +58,7 @@ Post-compile gate for localization. It runs after the `BrowseCraft` target compi
 - 闸门看不到的一类：字面量先放进 `String`，再交给 `Text(someString)`、`.accessibilityValue(someString)`——
   SwiftUI 逐字显示、不查表。这类要在源头写成 `NSLocalizedString(...)`，写对了就自动进入闸门视野。
 - 上线当天已缺翻译的键登记在 `scripts/localization-missing-baseline.txt`，只许收敛：补上翻译后删掉那一行，
-  新写的文案直接三语补齐，不登记。
+  新写的文案直接三语补齐，不登记。基线里某个键已经三语齐全却没删，闸门同样失败。
 
 ## check-swiftsoup-override.sh
 
@@ -68,21 +78,6 @@ and only checks; it never modifies anything.
 git clone --branch browsecraft/text-whitespace-fix git@github.com:x65396731/SwiftSoup.git ../SwiftSoup
 ```
 
-## check-architecture-boundaries.sh
-
-Runs as a pre-build phase of the `BrowseCraft` target. It rejects forbidden
-framework imports in `Domain` and `Application`, APIKit imports outside
-`Infrastructure`/`AppContainer`, raw `print` logging, SwiftSoup outside its named
-Core adapters, and top-level type references that point against the layer
-direction (for example a `Features` type used from `Application`, or an `App`
-type used from `Features`).
-
-中文注释：同一模块内 import 检查看不见跨层类型引用，所以脚本会把每层顶层声明的类型名拿去别的层搜索；注释和字符串字面量会先被剥掉。
-
-```sh
-./scripts/check-architecture-boundaries.sh
-```
-
 ## check-bundled-image-assets.sh
 
 Pre-build gate for bundled bitmap assets. It runs on every build and never modifies anything.
@@ -99,6 +94,9 @@ scale 槽位的表现是包体悄悄变大而没人发现。闸门按 `scripts/b
 - `BCA-BUILD-007` 单档形态还要求恰好一张 `.png`、`Contents.json` 不带 scale 槽位，并且
   `compression-type: lossy` 标记与声明的形态双向一致——声明为 lossy 的必须标，声明为无损的不许标。
 
+声明文件里另有两种形态：`multi-scale-png`（1x / 2x / 3x 三档，用于按 pt 尺寸原生渲染、不经缩放的图，例如底栏图标）
+与 `keep-as-is`（维持现状）。形态取值的定义写在声明文件头部。
+
 形态怎么选有实测依据，逐项数据在审计报告 5.4.1：占位图一律被缩放到版面框，多档槽位无收益；
 渲染宽度远小于原生分辨率的图标 lossy 后在真实渲染宽度上的 SSIM 仍有 0.990 以上，
 而按接近原生分辨率铺满屏幕的图（视频详情占位图）只剩 0.964，因此保持无损。
@@ -110,7 +108,8 @@ scale 槽位的表现是包体悄悄变大而没人发现。闸门按 `scripts/b
 
 Runs as a pre-build phase of the `BrowseCraft` target. A PROD archive
 (`ACTION=install`) that still uses Google's sample rewarded ad unit fails; every
-other build only prints a warning.
+other build only prints a warning. Debug, TestFlight and Release all carry the
+real rewarded ad unit in `project.yml`, so it currently reports clean everywhere.
 
 ```sh
 BROWSECRAFT_ENVIRONMENT_NAME=PROD ACTION=install ./scripts/check-ad-configuration.sh
