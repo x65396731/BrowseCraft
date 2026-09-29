@@ -17,12 +17,18 @@ final class BundledImageAssetTests: XCTestCase {
             let unwrapped: UIImage = try XCTUnwrap(image, "资产 \(declaration.name) 加载不出来")
 
             // 中文注释：`size` 是点，乘 `scale` 才是像素。单档资产的 scale 为 1，像素即声明值。
-            let pixelWidth: Int = Int((unwrapped.size.width * unwrapped.scale).rounded())
-            let pixelHeight: Int = Int((unwrapped.size.height * unwrapped.scale).rounded())
+            // 多档资产（`multi-scale-png`）的声明列写的是 @1x 的像素，也就是 pt 尺寸；运行期按设备 scale
+            // 取 @2x / @3x 那一档，像素是声明的 2 / 3 倍——所以它比的是 pt，而不是像素。
+            let measuresPoints: Bool = declaration.form == "multi-scale-png"
+            let factor: CGFloat = measuresPoints ? 1 : unwrapped.scale
+            let width: Int = Int((unwrapped.size.width * factor).rounded())
+            let height: Int = Int((unwrapped.size.height * factor).rounded())
             XCTAssertEqual(
-                "\(pixelWidth)x\(pixelHeight)",
+                "\(width)x\(height)",
                 declaration.pixelSize,
-                "资产 \(declaration.name) 解出的像素尺寸与声明不一致"
+                measuresPoints
+                    ? "资产 \(declaration.name) 的 pt 尺寸与声明的 @1x 尺寸不一致"
+                    : "资产 \(declaration.name) 解出的像素尺寸与声明不一致"
             )
 
             // 中文注释：只判 UIImage 非 nil 不够——要真拿到 CGImage 才能说明解码器给出了画面。
@@ -37,6 +43,8 @@ final class BundledImageAssetTests: XCTestCase {
     private struct Declaration {
         let name: String
         let pixelSize: String
+        /// 第四列的形态；缺省视为单档。
+        let form: String
     }
 
     private static func declarations() throws -> [Declaration] {
@@ -50,7 +58,11 @@ final class BundledImageAssetTests: XCTestCase {
             guard columns.count >= 3 else {
                 return nil
             }
-            return Declaration(name: String(columns[0]), pixelSize: String(columns[2]))
+            return Declaration(
+                name: String(columns[0]),
+                pixelSize: String(columns[2]),
+                form: columns.count >= 4 ? String(columns[3]) : "single-scale-png"
+            )
         }
     }
 

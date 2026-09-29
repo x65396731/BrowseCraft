@@ -108,7 +108,8 @@ scale 槽位的表现是包体悄悄变大而没人发现。闸门按 `scripts/b
 而按接近原生分辨率铺满屏幕的图（视频详情占位图）只剩 0.964，因此保持无损。
 
 运行期那一半由 `BrowseCraftTests/Shared/Resources/BundledImageAssetTests.swift` 把关：它读同一份声明，
-验证编译进 App 之后每张资产还能解出 `CGImage` 且像素尺寸与声明一致。两处共用一份声明，不会互相漂移。
+验证编译进 App 之后每张资产还能解出 `CGImage` 且尺寸与声明一致：单档资产比像素，`multi-scale-png` 比 pt——
+它的声明列写的是 @1x 像素，运行期按设备 scale 取 @2x / @3x 那一档。两处共用一份声明，不会互相漂移。
 
 ## check-ad-configuration.sh
 
