@@ -36,7 +36,7 @@ fi
 
 if [[ ! -d "$OVERRIDE_ROOT/.git" ]]; then
   echo "check-swiftsoup-override: 缺少本地覆盖包 $OVERRIDE_ROOT。" >&2
-  echo "  执行：git clone --branch browsecraft/text-whitespace-fix git@github.com:x65396731/SwiftSoup.git \"$OVERRIDE_ROOT\"" >&2
+  echo "  执行：git clone --branch browsecraft/upstream-dup-attr git@github.com:x65396731/SwiftSoup.git \"$OVERRIDE_ROOT\"" >&2
   exit 1
 fi
 
