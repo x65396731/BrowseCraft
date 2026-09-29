@@ -116,7 +116,6 @@
 
 /* 目錄清單的兩個分組：網站預設資料，以及登入使用者自己的生成結果。 */
 "catalog_title" = "規則目錄";
-"catalog_update_rule" = "更新";
 "catalog_loading" = "載入中…";
 "catalog_empty" = "目前沒有目錄資料";
 "catalog_section_default" = "預設資料";

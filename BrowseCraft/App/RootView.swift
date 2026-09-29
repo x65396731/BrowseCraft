@@ -15,6 +15,7 @@ struct RootView: View {
         case settings
     }
 
+    @Environment(\.scenePhase) private var scenePhase
     private let libraryContentViewModelFactory: LibraryContentViewModelFactory
     private let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
     private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
@@ -72,7 +73,12 @@ struct RootView: View {
             wrappedValue: StartupCoordinator(
                 dependencies: StartupCoordinator.Dependencies(
                     hasSources: {
-                        return try await sourcesViewModel.loadForStartup()
+                        let hasSources: Bool = try await sourcesViewModel.loadForStartup()
+                        // 中文注释：已添加的来源跟随公共目录；不阻塞启动，读完在后台静默覆盖。
+                        Task { @MainActor in
+                            await sourcesViewModel.syncAddedSourcesWithCatalog()
+                        }
+                        return hasSources
                     },
                     loadSelectedSource: {
                         return await libraryViewModel.loadIfNeeded()
@@ -114,6 +120,15 @@ struct RootView: View {
         }
         .task {
             await self.cloudSyncSettingsViewModel.start()
+        }
+        .onChange(of: self.scenePhase) { _, phase in
+            // 中文注释：回到前台时让已添加的来源跟上公共目录；间隔节流在 `syncAddedSourcesWithCatalog` 里。
+            guard phase == .active else {
+                return
+            }
+            Task {
+                await self.sourcesViewModel.syncAddedSourcesWithCatalog()
+            }
         }
         .onChange(of: self.sourcesViewModel.latestSourceAddID) { _, sourceID in
             guard sourceID != nil else {

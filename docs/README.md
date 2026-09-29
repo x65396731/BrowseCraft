@@ -149,8 +149,9 @@ App 侧的验证事实主要分「离线测试通过」「模拟器走通」「�
 - 身份归属与数据库策略、CloudKit 作用域：[design/AccountScopedDatabaseMigration-Memo.md](design/AccountScopedDatabaseMigration-Memo.md)
 - 读书 kind 的 App 侧接线（五仓改动、Readium 装配、章节与分页）：[design/Book-Kind-Wiring-Design.md](design/Book-Kind-Wiring-Design.md)
 - 本地书籍导入与阅读器（入口已藏，代码由站点书复用）：[design/Local-Book-Import-Design.md](design/Local-Book-Import-Design.md)
-- 规则目录：已添加来源的更新入口：[design/Catalog-Rule-Update-Design.md](design/Catalog-Rule-Update-Design.md)
+- 规则目录：已添加来源跟随目录自动更新：[design/Catalog-Rule-Update-Design.md](design/Catalog-Rule-Update-Design.md)
 - 规则目录：同站多条来源的副标题：[design/Catalog-Same-Site-Entry-Subtitle-Design.md](design/Catalog-Same-Site-Entry-Subtitle-Design.md)
+- 规则目录：页面的视觉与信息结构重设计（推荐按类型、我的生成按时间）：[design/Catalog-Page-Redesign-Design.md](design/Catalog-Page-Redesign-Design.md)
 - 运行期广告过滤承接规则匹配结果：[design/RuntimeAdFilter-Design.md](design/RuntimeAdFilter-Design.md)
 
 `design/Book-Kind-Wiring-Design.md` 的批次记录已拆到 [history/Book-Kind-Wiring-batch-records.md](history/Book-Kind-Wiring-batch-records.md)。

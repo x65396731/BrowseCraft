@@ -39,6 +39,9 @@ final class SourcesViewModel {
     private(set) var videoGenerationInputProgress: VideoGenerationInputPreflightProgress?
     private(set) var sourceSlotLimit: Int =
         SourceSlotPolicy.includedSiteSlotCount
+    /// 启动与回到前台时的目录跟随（`syncAddedSourcesWithCatalog`）：进行中标记与上次成功读取的时刻。
+    @ObservationIgnored private var isSyncingAddedSourcesWithCatalog: Bool = false
+    @ObservationIgnored private var lastCatalogSyncDate: Date?
 
     private let persistenceCoordinator: SourcesPersistenceCoordinator
     private let addComicRuleSourceUseCase: AddComicRuleSourceUseCase
@@ -483,11 +486,72 @@ final class SourcesViewModel {
         async let outcomes: Void = self.loadVideoGenerationOutcomes()
         do {
             self.catalogSources = try await self.catalogService.loadSources()
+            self.lastCatalogSyncDate = self.now()
+            await self.applyCatalogRuleUpdates(self.catalogSources)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-source-refresh-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
         await outcomes
+    }
+
+    /// 启动与回到前台时调用：读一次公共目录，让已添加的来源跟上服务器上的规则。
+    ///
+    /// 中文注释：规则目录页不开也要跟——只在目录页里跟随的话，平时只用书架的用户会一直跑旧规则。
+    /// 与目录页的读取不同，这里静默进行：不置 `isLoadingCatalogSources`、失败只记日志不弹错；
+    /// 距上次成功读取不足 `catalogSyncMinimumInterval` 时跳过，免得来回切 App 反复拉整份目录。
+    @MainActor
+    func syncAddedSourcesWithCatalog() async {
+        guard self.isSyncingAddedSourcesWithCatalog == false,
+              self.sources.isEmpty == false else {
+            return
+        }
+        if let lastCatalogSyncDate: Date = self.lastCatalogSyncDate,
+           self.now().timeIntervalSince(lastCatalogSyncDate) < Self.catalogSyncMinimumInterval {
+            return
+        }
+        self.isSyncingAddedSourcesWithCatalog = true
+        defer {
+            self.isSyncingAddedSourcesWithCatalog = false
+        }
+        do {
+            let catalogSources: [CatalogSource] = try await self.catalogService.loadSources()
+            self.catalogSources = catalogSources
+            self.lastCatalogSyncDate = self.now()
+            await self.applyCatalogRuleUpdates(catalogSources)
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-sync-error")
+        }
+    }
+
+    /// 两次后台目录跟随之间的最短间隔。目录页的打开与下拉刷新不受它限制。
+    static let catalogSyncMinimumInterval: TimeInterval = 15 * 60
+
+    /// 已添加的来源一律跟随目录：目录里同 id 的规则与本地不同，就用目录版覆盖本地副本。
+    ///
+    /// 中文注释：规则在 App 内只读（`BCA-UI-003`），本地副本不可能被用户改过，覆盖不会丢任何用户数据；
+    /// 覆盖走同一条添加路径，`createdAt` / `enabled` / `origin` 与阅读历史都不动。
+    /// 与个人规则的 `refreshPersonalSourcesFromOutcomes` 是同一条原则：规则内容由服务器裁决。
+    @MainActor
+    func applyCatalogRuleUpdates(_ catalogSources: [CatalogSource]) async {
+        var updatedCount: Int = 0
+        for catalogSource: CatalogSource in catalogSources
+        where self.catalogSourceHasRuleUpdate(catalogSource) {
+            let updated: Bool = await self.addCatalogSource(
+                catalogSource,
+                shouldPresentError: false,
+                preserveSelection: true
+            )
+            if updated {
+                updatedCount += 1
+            } else {
+                AppLog.error(.rule, event: "catalog-source-update-failed", metadata: ["sourceID": catalogSource.id])
+            }
+        }
+        guard updatedCount > 0 else {
+            return
+        }
+        AppLog.notice(.rule, event: "catalog-sources-updated", metadata: ["count": String(updatedCount)])
     }
 
     /// 读取当前用户的生成终态；失败只记日志，不覆盖目录的错误提示。
@@ -534,8 +598,8 @@ final class SourcesViewModel {
     /// **判据是「这次变化是不是我触发的」**（用户 2026-09-22 裁定）：本地来源是个人生成的，**或者**这条成功结果
     /// 完成于本地副本最后一次更新之后——即这次变化来自我自己的生成（例如我的新入口并进了一条从公共目录加的来源，
     /// `BC-CATALOG-071`）。此前只认 `origin == .personalGeneration`，同样是「我点了生成」，重新生成自动更新、
-    /// 并进公共来源却要手动点「更新」，两种操作不一致。公共目录里**别人**造成的变化仍保持手动更新
-    /// （`catalogSourceHasRuleUpdate` 那行注释的由来），不在用户背后换掉别人维护的规则。
+    /// 并进公共来源却要手动点「更新」，两种操作不一致。公共目录里的变化由 `applyCatalogRuleUpdates`
+    /// 在读取目录时同样自动覆盖（2026-09-30 用户裁定：推荐由服务器给，本地副本跟随服务器，不再设手动更新）。
     @MainActor
     private func refreshPersonalSourcesFromOutcomes(_ outcomes: [VideoGenerationOutcome]) async {
         var refreshedCount: Int = 0
@@ -614,6 +678,7 @@ final class SourcesViewModel {
 
     /// 中文注释：已添加的来源，目录里的规则是否比本地新（2026-09-14 biquhua 复验倒查：服务器替换了规则，
     /// 目录刷新只重拉列表、「已添加」行没有动作，老用户只能删掉重加、连历史一起丢）。
+    /// 为真时由 `applyCatalogRuleUpdates` / `refreshPersonalSourcesFromOutcomes` 自动覆盖本地副本，界面不再有「更新」按钮。
     /// 判据是**规则本体不同**：把目录条目按本地来源的 createdAt / updatedAt / enabled / origin 物化后，
     /// 比较名称、站点地址与配置；物化失败（规则不合法）按「无更新」处理，交给添加路径报错。
     func catalogSourceHasRuleUpdate(_ catalogSource: CatalogSource) -> Bool {

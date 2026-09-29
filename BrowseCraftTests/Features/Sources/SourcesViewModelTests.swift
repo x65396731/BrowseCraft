@@ -84,6 +84,41 @@ struct SourcesViewModelTests {
         #expect(configuration.rule.ruleSets.readerRules.first?.content?.next != nil)
     }
 
+    // 中文注释：2026-09-30 用户裁定——推荐由服务器给，已添加的来源跟随目录自动覆盖，不再有手动「更新」。
+    // 目录里同 id 的新版规则直接覆盖本地（createdAt 不动）；目录里未添加的条目不会被顺手加进来。
+    @Test func addedSourcesFollowTheCatalogWithoutATap() async throws {
+        let database: AppDatabase = try Harness.makeDatabase()
+        let existing: Source = try Harness.makeBookSource()
+        try GRDBSourceRepository(database: database).saveSource(existing)
+        let viewModel: SourcesViewModel = Harness.makeSourcesViewModel(
+            database: database,
+            resolver: Harness.resolver()
+        )
+        _ = try await viewModel.loadForStartup()
+
+        let newer: CatalogSource = try Harness.makeBookCatalogSource(fixture: "biquhua-catalog-next")
+        let notAdded: CatalogSource = CatalogSource(
+            id: "\(newer.id)-not-added",
+            name: newer.name,
+            baseURL: newer.baseURL,
+            kind: newer.kind,
+            ruleJSON: newer.ruleJSON
+        )
+        #expect(viewModel.isCatalogSourceAdded(notAdded) == false)
+
+        await viewModel.applyCatalogRuleUpdates([newer, notAdded])
+
+        #expect(viewModel.catalogSourceHasRuleUpdate(newer) == false)
+        #expect(viewModel.isCatalogSourceAdded(notAdded) == false)
+        let stored: Source = try #require(try GRDBSourceRepository(database: database).fetchSources().first { $0.id == existing.id })
+        #expect(stored.createdAt == existing.createdAt)
+        guard case .book(let configuration) = stored.configuration else {
+            Issue.record("expected .book configuration")
+            return
+        }
+        #expect(configuration.rule.ruleSets.readerRules.first?.content?.next != nil)
+    }
+
     @Test func deletingTheSelectedSourceMovesSelectionToTheRemainingOne() async throws {
         let database: AppDatabase = try Harness.makeDatabase()
         let comic: Source = try Harness.makeComicSource(id: "built-in.comic")
