@@ -30,17 +30,25 @@ struct CatalogSourceListView: View {
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {
-                CatalogTabPicker(
-                    selection: self.$selectedTab,
-                    personalCount: self.viewModel.personalCatalogItemCount
-                )
+                // 中文注释：标题按设计稿自己画——「关闭」一行在上，下面是靠左的大标题，再下面是分段控件。
+                // 系统导航栏标题在 sheet 里的位置与样式由系统决定，和稿子对不上，所以不用 navigationTitle。
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(NSLocalizedString("catalog_title", comment: ""))
+                        .font(.largeTitle.weight(.heavy))
+                        .accessibilityAddTraits(.isHeader)
+                    CatalogTabPicker(
+                        selection: self.$selectedTab,
+                        personalCount: self.viewModel.personalCatalogItemCount
+                    )
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20)
-                .padding(.top, 4)
+                .padding(.top, 6)
                 .padding(.bottom, 12)
                 .background(CatalogPalette.pageBackground)
             }
             .background(CatalogPalette.pageBackground)
-            .navigationTitle(NSLocalizedString("catalog_title", comment: ""))
+            .navigationBarTitleDisplayMode(.inline)
             // `BC-PREFLIGHT-066`：每次打开都重新拉取，不再「已加载过即跳过」。
             .task {
                 await self.viewModel.refreshCatalogSources()
@@ -66,6 +74,9 @@ struct CatalogSourceListView: View {
                 }
             }
         }
+        // 中文注释：目录页固定深色，与设计稿一致（2026-09-30 用户裁定；先例是内购页 `InAppPurchaseSheetView`）。
+        // 浅色模式下从来源页弹出也是深色页；`CatalogPalette` 里的浅色取值因此只在这之外的地方复用时才生效。
+        .preferredColorScheme(.dark)
     }
 
     private func refresh() async {
@@ -128,6 +139,8 @@ struct CatalogSourceListView: View {
                                 baseURL: catalogSource.baseURL,
                                 entryURL: self.viewModel.catalogEntryURL(for: catalogSource)
                             ),
+                            facts: self.viewModel.catalogRuleFacts[catalogSource.id],
+                            appLanguage: CatalogLanguage.appLanguage,
                             action: self.actionState(for: catalogSource),
                             failureMessage: self.failureMessage(for: catalogSource),
                             addAction: {
@@ -454,37 +467,97 @@ private struct CatalogRecommendationCardView: View {
     let catalogSource: CatalogSource
     let accent: Color
     let subtitle: String
+    /// 规则里给用户看的信息；解析不了时为 nil，卡片只显示名称与地址。
+    let facts: CatalogRuleFacts?
+    let appLanguage: String
     let action: CatalogAddActionState
     let failureMessage: String?
     let addAction: () -> Void
 
+    private var languageTag: String? {
+        guard let language: String = self.facts?.language else {
+            return nil
+        }
+        return CatalogLanguage.tag(for: language, appLanguage: self.appLanguage)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            CatalogMonogramView(name: self.catalogSource.name, accent: self.accent, size: 44)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(self.catalogSource.name)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                if let failureMessage: String = self.failureMessage {
-                    Text(failureMessage)
-                        .font(.caption)
-                        .foregroundStyle(CatalogPalette.warning)
-                        .lineLimit(2)
-                } else {
+            HStack(spacing: 10) {
+                CatalogMonogramView(name: self.catalogSource.name, accent: self.accent, size: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(self.catalogSource.name)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
                     Text(self.subtitle)
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
             }
+            if let failureMessage: String = self.failureMessage {
+                Text(failureMessage)
+                    .font(.caption)
+                    .foregroundStyle(CatalogPalette.warning)
+                    .lineLimit(2)
+            }
+            if let facts: CatalogRuleFacts = self.facts, let summary: String = facts.categorySummary() {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(
+                        facts.categoryTitles.count >= 2
+                            ? String(
+                                format: NSLocalizedString("catalog_card_category_count", comment: ""),
+                                facts.categoryTitles.count
+                            )
+                            : NSLocalizedString("catalog_card_category_single", comment: "")
+                    )
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    Text(summary)
+                        .font(.footnote)
+                        .foregroundStyle(.primary.opacity(0.85))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            self.tagRow
             Spacer(minLength: 0)
             self.actionView
         }
         .padding(14)
-        .frame(width: 148, alignment: .topLeading)
-        .frame(minHeight: 188, alignment: .topLeading)
+        .frame(width: 168, alignment: .topLeading)
+        .frame(minHeight: 236, alignment: .topLeading)
         .background(CatalogPalette.cardBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    /// 「可搜索」与语言标签；两个一行放不下时竖排。
+    @ViewBuilder
+    private var tagRow: some View {
+        let searchable: Bool = self.facts?.supportsSearch ?? false
+        let language: String? = self.languageTag
+        if searchable || language != nil {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 6) {
+                    self.tags(searchable: searchable, language: language)
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    self.tags(searchable: searchable, language: language)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func tags(searchable: Bool, language: String?) -> some View {
+        if searchable {
+            CatalogTagView(
+                title: NSLocalizedString("catalog_card_searchable", comment: ""),
+                systemImage: "magnifyingglass"
+            )
+        }
+        if let language: String = language {
+            CatalogTagView(title: language, systemImage: nil)
+        }
     }
 
     @ViewBuilder
@@ -513,6 +586,28 @@ private struct CatalogRecommendationCardView: View {
                 String(format: NSLocalizedString("catalog_add_accessibility", comment: ""), self.catalogSource.name)
             )
         }
+    }
+}
+
+private struct CatalogTagView: View {
+    let title: String
+    let systemImage: String?
+
+    var body: some View {
+        HStack(spacing: 3) {
+            if let systemImage: String = self.systemImage {
+                Image(systemName: systemImage)
+                    .font(.system(size: 9, weight: .semibold))
+                    .accessibilityHidden(true)
+            }
+            Text(self.title)
+                .lineLimit(1)
+        }
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 8)
+        .frame(minHeight: 22)
+        .background(CatalogPalette.fillBackground, in: Capsule())
     }
 }
 
@@ -545,7 +640,7 @@ private struct CatalogRecommendedSkeletonView: View {
                         ForEach(0 ..< 3, id: \.self) { _ in
                             RoundedRectangle(cornerRadius: 18, style: .continuous)
                                 .fill(CatalogPalette.cardBackground)
-                                .frame(width: 148, height: 188)
+                                .frame(width: 168, height: 236)
                         }
                     }
                     .padding(.horizontal, 20)

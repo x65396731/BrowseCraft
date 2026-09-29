@@ -157,6 +157,11 @@
 "catalog_personal_sign_in_title" = "Sign in to view";
 "catalog_personal_sign_in_where" = "Sign in with Apple in Settings.";
 "catalog_generation_failed_badge" = "Generation failed";
+"catalog_card_category_count" = "%d categories";
+"catalog_card_category_single" = "Category";
+"catalog_card_searchable" = "Searchable";
+"catalog_language_simplified_chinese" = "Simplified Chinese";
+"catalog_language_traditional_chinese" = "Traditional Chinese";
 "catalog_personal_remaining_days_hours" = "%d days %d hours left";
 "catalog_personal_remaining_hours" = "%d hours left";
 "catalog_personal_remaining_none" = "Expiring";

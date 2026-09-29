@@ -157,6 +157,11 @@
 "catalog_personal_sign_in_title" = "登入後查看";
 "catalog_personal_sign_in_where" = "到「設定」裡用 Apple 登入。";
 "catalog_generation_failed_badge" = "生成失敗";
+"catalog_card_category_count" = "%d 個分類";
+"catalog_card_category_single" = "分類";
+"catalog_card_searchable" = "可搜尋";
+"catalog_language_simplified_chinese" = "簡中";
+"catalog_language_traditional_chinese" = "繁中";
 "catalog_personal_remaining_days_hours" = "剩餘 %d 天 %d 小時";
 "catalog_personal_remaining_hours" = "剩餘 %d 小時";
 "catalog_personal_remaining_none" = "即將到期";

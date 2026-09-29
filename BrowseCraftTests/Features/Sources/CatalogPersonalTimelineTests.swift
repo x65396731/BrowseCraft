@@ -94,6 +94,80 @@ struct CatalogPersonalTimelineTests {
         #expect(parts.rest == "/index.php/vod/show/area/台湾/id/2.html")
     }
 
+    @Test("规则展示信息：真实书籍规则取到分类与语言，带搜索页的规则算可搜索、搜索页不算分类")
+    func ruleFactsFromRealBookFixtures() throws {
+        let plain: CatalogSource = try ViewModelTestHarness.makeBookCatalogSource(fixture: "biquhua-catalog")
+        let withSearch: CatalogSource = try ViewModelTestHarness.makeBookCatalogSource(fixture: "biquhua-catalog-search")
+
+        let plainFacts: CatalogRuleFacts = try #require(CatalogRuleFacts.make(ruleJSON: plain.ruleJSON))
+        #expect(plainFacts.categoryTitles == ["最新小说总榜"])
+        #expect(plainFacts.supportsSearch == false)
+        #expect(plainFacts.language == "zh-Hans")
+
+        let searchFacts: CatalogRuleFacts = try #require(CatalogRuleFacts.make(ruleJSON: withSearch.ruleJSON))
+        #expect(searchFacts.categoryTitles == ["最新小说总榜"])
+        #expect(searchFacts.supportsSearch)
+    }
+
+    @Test("规则展示信息与 kind 无关：多个列表页按顺序去重去空，非列表页不算分类；解析不了返回 nil")
+    func ruleFactsAreKindNeutral() throws {
+        let ruleJSON: String = """
+        {"site": {"language": " ja ", "iconURL": "https://x.example/favicon.ico"},
+         "pages": [
+           {"type": "list", "title": "全部"},
+           {"type": "category", "title": "动作"},
+           {"type": "list", "title": "全部"},
+           {"type": "list", "title": "  "},
+           {"type": "detail", "title": "详情"}
+         ],
+         "ruleSets": {"searchRules": []}}
+        """
+        let facts: CatalogRuleFacts = try #require(CatalogRuleFacts.make(ruleJSON: ruleJSON))
+        #expect(facts.categoryTitles == ["全部", "动作"])
+        #expect(facts.supportsSearch == false)
+        #expect(facts.language == "ja")
+        #expect(CatalogRuleFacts.make(ruleJSON: "not json") == nil)
+
+        let index: [String: CatalogRuleFacts] = CatalogRuleFacts.makeIndex([
+            CatalogSource(id: "a", name: "a", baseURL: "https://a.example/", kind: .comic, ruleJSON: ruleJSON),
+            CatalogSource(id: "b", name: "b", baseURL: "https://b.example/", kind: .video, ruleJSON: "not json")
+        ])
+        #expect(index.keys.sorted() == ["a"])
+    }
+
+    @Test("分类行：前三个用 · 连接，其余写 +N；没有分类时为 nil")
+    func categorySummary() {
+        let many: CatalogRuleFacts = CatalogRuleFacts(
+            categoryTitles: ["全部", "动作", "喜剧", "爱情", "科幻"],
+            supportsSearch: true,
+            language: nil
+        )
+        #expect(many.categorySummary() == "全部 · 动作 · 喜剧 +2")
+        #expect(CatalogRuleFacts(categoryTitles: ["最新小说总榜"], supportsSearch: false, language: nil)
+            .categorySummary() == "最新小说总榜")
+        #expect(CatalogRuleFacts(categoryTitles: [], supportsSearch: false, language: nil).categorySummary() == nil)
+    }
+
+    @Test("语言归一：zh / cmn 按显式文字或台港澳地区分简繁，其余只看语言代码")
+    func languageNormalization() {
+        #expect(CatalogLanguage(identifier: "zh-Hans") == .chinese(traditional: false))
+        #expect(CatalogLanguage(identifier: "cmn-Hans-HK") == .chinese(traditional: false))
+        #expect(CatalogLanguage(identifier: "zh-Hant") == .chinese(traditional: true))
+        #expect(CatalogLanguage(identifier: "cmn-Hant-TW") == .chinese(traditional: true))
+        #expect(CatalogLanguage(identifier: "zh-TW") == .chinese(traditional: true))
+        #expect(CatalogLanguage(identifier: "zh_CN") == .chinese(traditional: false))
+        #expect(CatalogLanguage(identifier: "en-US") == .other(code: "en"))
+        #expect(CatalogLanguage(identifier: "") == nil)
+    }
+
+    @Test("语言标签：与 App 界面语言相同时不标，其余给出本地化名称")
+    func languageTagHidesTheAppLanguage() {
+        #expect(CatalogLanguage.tag(for: "cmn-Hans-HK", appLanguage: "zh-Hans") == nil)
+        #expect(CatalogLanguage.tag(for: "en", appLanguage: "en") == nil)
+        #expect(CatalogLanguage.tag(for: "cmn-Hant-TW", appLanguage: "zh-Hans") != nil)
+        #expect(CatalogLanguage.tag(for: "ja", appLanguage: "en") == "Japanese")
+    }
+
     @Test("保留期比例夹在 0...1")
     func remainingFractionIsClamped() {
         let now: Date = Self.now

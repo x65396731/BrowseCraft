@@ -30,6 +30,9 @@ final class SourcesViewModel {
     private(set) var latestSourceAddID: String?
     private(set) var latestCatalogSourceAddID: String?
     private(set) var catalogSources: [CatalogSource] = []
+    /// 目录条目 id → 规则里给用户看的信息；解析不了的条目不在表里，卡片只显示名称与地址。
+    /// 与 `catalogSources` 一起由 `setCatalogSources` 写入：目录到手时解析一次，不在滚动时反复解析规则 JSON。
+    private(set) var catalogRuleFacts: [String: CatalogRuleFacts] = [:]
     private(set) var isLoadingCatalogSources: Bool = false
     /// 当前用户的生成终态；nil 表示尚未读取。
     private(set) var videoGenerationOutcomesLoad: VideoGenerationOutcomesLoad?
@@ -508,7 +511,7 @@ final class SourcesViewModel {
 
         async let outcomes: Void = self.loadVideoGenerationOutcomes()
         do {
-            self.catalogSources = try await self.catalogService.loadSources()
+            self.setCatalogSources(try await self.catalogService.loadSources())
             self.lastCatalogSyncDate = self.now()
             await self.applyCatalogRuleUpdates(self.catalogSources)
         } catch {
@@ -539,12 +542,17 @@ final class SourcesViewModel {
         }
         do {
             let catalogSources: [CatalogSource] = try await self.catalogService.loadSources()
-            self.catalogSources = catalogSources
+            self.setCatalogSources(catalogSources)
             self.lastCatalogSyncDate = self.now()
             await self.applyCatalogRuleUpdates(catalogSources)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-sync-error")
         }
+    }
+
+    private func setCatalogSources(_ catalogSources: [CatalogSource]) {
+        self.catalogSources = catalogSources
+        self.catalogRuleFacts = CatalogRuleFacts.makeIndex(catalogSources)
     }
 
     /// 两次后台目录跟随之间的最短间隔。目录页的打开与下拉刷新不受它限制。

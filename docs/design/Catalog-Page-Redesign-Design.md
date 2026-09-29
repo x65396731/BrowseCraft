@@ -31,10 +31,18 @@
 - 每个分区由两部分组成：
   - **类型横幅**：350×112、圆角 22，底色为该类型的深色底，左下是类型图标圆 + 类型名 + 「左右滑动查看全部」，
     右侧是该类型的插画（第四节）。
-  - **横滑卡片带**：卡片 148×188、圆角 18，内容为首字徽标（44×44，类型色 16% 底 + 类型色字）、站点名（最多两行）、
-    副标题地址，底部一个通栏按钮。卡片带左右留 20pt，最后一张露出半张，提示可以横滑。
+  - **横滑卡片带**：卡片 168×236、圆角 18。自上而下：首字徽标（40×40，类型色 16% 底 + 类型色字）与站点名、
+    副标题地址并排；分类行；标签行；底部一个通栏按钮。卡片带左右留 20pt，最后一张露出一截，提示可以横滑。
 - 副标题地址沿用 `catalogEntryURL(for:)` 的取值规则（同站多条取各自入口，否则 `baseURL`），但只显示主机名；
   同站多条时显示主机名 + 路径的尾段，保证能区分。
+- 分类行与标签行来自规则本体（`CatalogRuleFacts`，目录读到时逐条解析一次）。目录接口只给
+  id / name / baseURL / kind / ruleJSON，其余信息只能取自规则；三种 kind 用同一套 JSON 路径，不按 kind 分支。
+  - **分类**：可浏览列表页（`list` / `category` / `series`）的 `title`，去重去空。两个及以上写「N 个分类」+ 前三个名称，
+    其余写「+N」；只有一个时写「分类」+ 该名称；没有时整行不出现。
+  - **可搜索**：`ruleSets.searchRules` 非空时显示。
+  - **语言**：`site.language` 归一后与 App 当前界面语言不同才显示。中文按文字分简繁——显式 script 优先，
+    没有时台港澳地区视为繁体，`zh` 与 `cmn` 同属中文；简繁用「简中 / 繁中」，其他语言用系统本地化的语言名。
+  - 不展示：站点图标（线上规则 `site.iconURL` 全部为空）、登录需求（用户裁定不展示）。
 
 ### 2.3 我的生成：按时间的时间线
 
@@ -76,9 +84,9 @@
 
 ## 三、视觉规范
 
-- **基调**：深色优先。背景 #0E0E11，卡片 #18181D，次级填充 #212128，分段控件底 #1B1B21、选中段 #2E2E37，
-  分隔线为白色 8% 透明度。实现里页面与卡片底色直接取系统分组背景，深浅色自动跟随；类型色、动作色与警示色的浅色取值
-  是同色相、压低明度的一组，唯一声明点在 `CatalogKindStyle` 与 `CatalogPalette`。
+- **基调**：目录页固定深色，不跟随系统外观（与内购页同一做法），浅色模式下弹出的也是深色页。背景 #0E0E11，卡片 #18181D，次级填充 #212128，分段控件底 #1B1B21、选中段 #2E2E37，
+  分隔线为白色 8% 透明度。实现里页面与卡片底色取系统分组背景在深色下的值；类型色、动作色与警示色的唯一声明点
+  在 `CatalogKindStyle` 与 `CatalogPalette`，其中备有的浅色取值在目录页不生效。
 - **文字**：主文字 #F4F3EF，次文字 #A9A8B0，三级文字 #86858E（在卡片底上对比度不低于 4.5:1）。字体用系统字体。
 - **类型色**：视频 #F2A65A（琥珀）、漫画 #B79CFF（淡紫）、书籍 #5CC8B0（青绿）。类型之间同时用图标区分，
   不只靠颜色：视频为播放三角、漫画为对话气泡、书籍为书本。
@@ -121,7 +129,8 @@
 - `BrowseCraft/Features/Sources/Catalog/CatalogSourceListView.swift`：分段控件、两个标签的内容、卡片、骨架与状态页。
 - `BrowseCraft/Features/Sources/Catalog/CatalogPersonalTimeline.swift`：个人时间线的合并排序与按日分组（`CatalogPersonalTimeline`），推荐按类型分区（`CatalogKindSection`）。
 - `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift`：配色、类型样式、首字徽标与地址的显示取值。
-- `BrowseCraft/Features/Sources/SourcesViewModel.swift`：`personalCatalogTimeline`、`personalCatalogItemCount`、`personalRuleRemainingFraction(for:)`。
+- `BrowseCraft/Features/Sources/Catalog/CatalogRuleFacts.swift`：推荐卡片的分类 / 可搜索 / 语言取值与语言归一（`CatalogLanguage`）。
+- `BrowseCraft/Features/Sources/SourcesViewModel.swift`：`personalCatalogTimeline`、`personalCatalogItemCount`、`personalRuleRemainingFraction(for:)`、`catalogRuleFacts`。
 - `BrowseCraft/Features/Sources/SourcesView.swift`：「去添加来源」在目录页收起后打开添加来源。
 - `Localizable.strings`：标签名、类型横幅、日期分组、空状态与未登录的文案键。
 - 固定输入：`BrowseCraftTests/Features/Sources/CatalogPersonalTimelineTests.swift`。
