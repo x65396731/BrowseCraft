@@ -118,7 +118,6 @@
 "catalog_title" = "規則目錄";
 "catalog_loading" = "載入中…";
 "catalog_empty" = "目前沒有目錄資料";
-"catalog_section_default" = "預設資料";
 "catalog_section_personal" = "我的生成";
 "catalog_personal_sign_in_hint" = "登入後可以看到你提交生成的規則。";
 
@@ -144,6 +143,20 @@
 /* 個人規則在本機保留 7 天；刪除只會在本機隱藏，並移除已加入的來源。 */
 "catalog_personal_retention_hint" = "你生成的規則會在本機保留 7 天（從收到時算起），向左滑可以提前刪除。";
 "catalog_personal_delete" = "刪除";
+"catalog_tab_recommended" = "推薦";
+"catalog_kind_swipe_hint" = "左右滑動查看全部";
+"catalog_add_accessibility" = "加入 %@";
+"catalog_empty_message" = "可能是網路不穩，或目錄暫時無法取得。檢查網路後再試一次。";
+"catalog_pull_to_reload" = "下拉可重新載入";
+"catalog_personal_day_today" = "今天";
+"catalog_personal_day_yesterday" = "昨天";
+"catalog_personal_day_earlier" = "更早";
+"catalog_personal_empty_title" = "還沒有生成過規則";
+"catalog_personal_empty_message" = "在「加入來源」裡提交一個帶頁碼的分類或列表頁網址，生成完成後規則會出現在這裡。";
+"catalog_personal_empty_add_source" = "前往加入來源";
+"catalog_personal_sign_in_title" = "登入後查看";
+"catalog_personal_sign_in_where" = "到「設定」裡用 Apple 登入。";
+"catalog_generation_failed_badge" = "生成失敗";
 "catalog_personal_remaining_days_hours" = "剩餘 %d 天 %d 小時";
 "catalog_personal_remaining_hours" = "剩餘 %d 小時";
 "catalog_personal_remaining_none" = "即將到期";

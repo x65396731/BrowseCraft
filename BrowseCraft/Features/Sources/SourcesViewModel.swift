@@ -116,6 +116,29 @@ final class SourcesViewModel {
         return PersonalRuleRetentionPolicy.remainingComponents(expiresAt: expiresAt, now: self.now())
     }
 
+    /// 个人规则剩余可见时间占 7 天的比例（进度条用）；没有截止信息时返回 nil。
+    func personalRuleRemainingFraction(for catalogSource: CatalogSource) -> Double? {
+        guard let expiresAt: Date = self.catalogSourceGrouping.personalOutcomes[catalogSource.id]?.expiresAt else {
+            return nil
+        }
+        return PersonalRuleRetentionPolicy.remainingFraction(expiresAt: expiresAt, now: self.now())
+    }
+
+    /// 「我的生成」时间线：成功规则与失败记录合并，按终结时间倒序、按自然日分组。
+    var personalCatalogTimeline: CatalogPersonalTimeline {
+        return CatalogPersonalTimeline.make(
+            grouping: self.catalogSourceGrouping,
+            now: self.now(),
+            calendar: .current
+        )
+    }
+
+    /// 「我的生成」标签上的数量角标：个人成功规则与失败记录之和。
+    var personalCatalogItemCount: Int {
+        let grouping: CatalogSourceGrouping = self.catalogSourceGrouping
+        return grouping.personalSources.count + grouping.failedOutcomes.count
+    }
+
     /// 用户删除个人规则：服务端软删除 + 删掉已添加的本地副本，然后重新读取终态。
     @MainActor
     func deletePersonalRule(catalogSourceID: String) async {

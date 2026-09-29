@@ -10,6 +10,7 @@ struct SourcesView: View {
     @Bindable var cloudSyncViewModel: CloudSyncSettingsViewModel
     @State private var isShowingAddSourceView: Bool = false
     @State private var isShowingCatalogSourceListView: Bool = false
+    @State private var opensAddSourceAfterCatalog: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -139,8 +140,23 @@ struct SourcesView: View {
             .sheet(isPresented: self.$isShowingAddSourceView) {
                 AddSourceView(viewModel: self.viewModel)
             }
-            .sheet(isPresented: self.$isShowingCatalogSourceListView) {
-                CatalogSourceListView(viewModel: self.viewModel)
+            .sheet(
+                isPresented: self.$isShowingCatalogSourceListView,
+                onDismiss: {
+                    // 中文注释：目录页「我的生成」空状态点了「去添加来源」——等目录页收起后再弹添加来源，
+                    // 两个 sheet 不能同时呈现。
+                    if self.opensAddSourceAfterCatalog {
+                        self.opensAddSourceAfterCatalog = false
+                        self.isShowingAddSourceView = true
+                    }
+                }
+            ) {
+                CatalogSourceListView(
+                    viewModel: self.viewModel,
+                    openAddSource: {
+                        self.opensAddSourceAfterCatalog = true
+                    }
+                )
             }
             .sheet(item: self.slotActivationBinding) { source in
                 SourceSlotActivationView(

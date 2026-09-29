@@ -50,7 +50,7 @@
 
 ### 2.4 条目动作的三种状态
 
-与 `CatalogSourceRowView` 现有的判断一一对应，只换外观：
+由 `CatalogAddActionState` 表达，判据与原目录行一致（添加中 → 已添加 → 未添加）：
 
 | 状态 | 推荐卡片（通栏按钮） | 我的生成卡片（右上） |
 | --- | --- | --- |
@@ -69,15 +69,16 @@
 | --- | --- | --- |
 | 推荐 · 加载中 | `isLoadingCatalogSources` 且目录为空 | 与正式页同形的骨架（横幅 + 三张卡片 × 两个分区），底部「加载中…」 |
 | 推荐 · 空 | 加载结束且 `defaultCatalogSources` 为空 | 空书架插画 + 「暂无目录数据」+ 一句说明 + 向下箭头与「下拉可重新加载」 |
-| 我的生成 · 未登录 | `isPersonalCatalogSignInRequired` | 上锁书箱插画 + 「登录后查看」+ `catalog_personal_sign_in_hint` + 「登录」按钮 |
-| 我的生成 · 空 | 已登录，成功与失败都为空 | 空白画布插画 + 「还没有生成过规则」+ 指向「添加来源」的说明，主按钮「去添加来源」，次链接「怎样的页面能生成？」，底部保留期说明 |
+| 我的生成 · 未登录 | `isPersonalCatalogSignInRequired` | 上锁书箱插画 + 「登录后查看」+ `catalog_personal_sign_in_hint` + 「到「设置」里用 Apple 登录」的指引（登录入口在设置页，目录页不另设登录按钮） |
+| 我的生成 · 空 | 已登录，成功与失败都为空 | 空白画布插画 + 「还没有生成过规则」+ 指向「添加来源」的说明，主按钮「去添加来源」（目录页收起后由来源页打开添加来源），次链接「怎样的页面能生成？」 |
 
 现状在「已登录但没有任何任务」时整个个人分组不显示；改为分栏后该标签必须有内容，因此改为显示上表的空状态。
 
 ## 三、视觉规范
 
 - **基调**：深色优先。背景 #0E0E11，卡片 #18181D，次级填充 #212128，分段控件底 #1B1B21、选中段 #2E2E37，
-  分隔线为白色 8% 透明度。浅色模式按同一套层级另出一版色值，不在本文定义。
+  分隔线为白色 8% 透明度。实现里页面与卡片底色直接取系统分组背景，深浅色自动跟随；类型色、动作色与警示色的浅色取值
+  是同色相、压低明度的一组，唯一声明点在 `CatalogKindStyle` 与 `CatalogPalette`。
 - **文字**：主文字 #F4F3EF，次文字 #A9A8B0，三级文字 #86858E（在卡片底上对比度不低于 4.5:1）。字体用系统字体。
 - **类型色**：视频 #F2A65A（琥珀）、漫画 #B79CFF（淡紫）、书籍 #5CC8B0（青绿）。类型之间同时用图标区分，
   不只靠颜色：视频为播放三角、漫画为对话气泡、书籍为书本。
@@ -88,16 +89,17 @@
 ## 四、插画资产
 
 插画由极梦生成，统一风格：深色底、扁平插画、细颗粒质感、画面内不含文字，右侧或居中构图，给文字留空。
-按 3 倍图出，进资源目录，不从网络加载。
+按 3 倍图出，进资源目录，不从网络加载。资产名固定如下；资源目录里还没有这张图时，横幅退回纯色底 + 图标，空状态退回系统符号，
+不需要改代码。
 
 | 用途 | 尺寸（3x 像素） | 主体 |
 | --- | --- | --- |
-| 视频横幅 | 1050×336 | 复古放映机与琥珀色光束、飘散的胶片，底色 #2B2117 |
-| 漫画横幅 | 1050×336 | 散落的分镜格与对话气泡，淡紫高光，底色 #221E33 |
-| 书籍横幅 | 1050×336 | 翻开的书页化作纸鸟飞起，青绿高光，底色 #152A26 |
-| 推荐 · 空 | 660×510 | 空的木质书架与一缕微光 |
-| 我的生成 · 空 | 660×510 | 空白卡片旁悬着发光的笔，洒出三种类型色的星点 |
-| 我的生成 · 未登录 | 660×510 | 带小锁的复古书箱，锁孔透出暖光 |
+| 视频横幅 `CatalogBannerVideo` | 1050×336 | 复古放映机与琥珀色光束、飘散的胶片，底色 #2B2117 |
+| 漫画横幅 `CatalogBannerComic` | 1050×336 | 散落的分镜格与对话气泡，淡紫高光，底色 #221E33 |
+| 书籍横幅 `CatalogBannerBook` | 1050×336 | 翻开的书页化作纸鸟飞起，青绿高光，底色 #152A26 |
+| 推荐 · 空 `CatalogEmptyRecommended` | 660×510 | 空的木质书架与一缕微光 |
+| 我的生成 · 空 `CatalogEmptyPersonal` | 660×510 | 空白卡片旁悬着发光的笔，洒出三种类型色的星点 |
+| 我的生成 · 未登录 `CatalogPersonalSignIn` | 660×510 | 带小锁的复古书箱，锁孔透出暖光 |
 
 插画缺失时横幅退回纯色底 + 图标，页面不依赖插画才能成立。
 
@@ -116,6 +118,10 @@
 
 ## 七、实现位置
 
-- `BrowseCraft/Features/Sources/Catalog/CatalogSourceListView.swift`：分段控件、两个标签的内容、卡片与状态页。
-- `BrowseCraft/Features/Sources/SourcesViewModel.swift`：推荐按 `kind` 分区、个人时间线的合并排序与按日分组（纯函数，可在 `CatalogSourceGrouping` 旁实现）。
-- `Localizable.strings`：新增标签名、空状态与骨架的文案键。
+- `BrowseCraft/Features/Sources/Catalog/CatalogSourceListView.swift`：分段控件、两个标签的内容、卡片、骨架与状态页。
+- `BrowseCraft/Features/Sources/Catalog/CatalogPersonalTimeline.swift`：个人时间线的合并排序与按日分组（`CatalogPersonalTimeline`），推荐按类型分区（`CatalogKindSection`）。
+- `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift`：配色、类型样式、首字徽标与地址的显示取值。
+- `BrowseCraft/Features/Sources/SourcesViewModel.swift`：`personalCatalogTimeline`、`personalCatalogItemCount`、`personalRuleRemainingFraction(for:)`。
+- `BrowseCraft/Features/Sources/SourcesView.swift`：「去添加来源」在目录页收起后打开添加来源。
+- `Localizable.strings`：标签名、类型横幅、日期分组、空状态与未登录的文案键。
+- 固定输入：`BrowseCraftTests/Features/Sources/CatalogPersonalTimelineTests.swift`。

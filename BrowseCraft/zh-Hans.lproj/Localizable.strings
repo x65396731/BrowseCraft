@@ -118,7 +118,6 @@
 "catalog_title" = "规则目录";
 "catalog_loading" = "加载中…";
 "catalog_empty" = "暂无目录数据";
-"catalog_section_default" = "默认数据";
 "catalog_section_personal" = "我的生成";
 "catalog_personal_sign_in_hint" = "登录后可查看你提交生成的规则。";
 
@@ -144,6 +143,20 @@
 /* 个人规则本地保留 7 天；删除只在本地隐藏并移除已添加的来源。 */
 "catalog_personal_retention_hint" = "你生成的规则在本机保留 7 天（从收到时起算），左滑可提前删除。";
 "catalog_personal_delete" = "删除";
+"catalog_tab_recommended" = "推荐";
+"catalog_kind_swipe_hint" = "左右滑动查看全部";
+"catalog_add_accessibility" = "添加 %@";
+"catalog_empty_message" = "可能是网络不好，或目录暂时拿不到。检查网络后再试一次。";
+"catalog_pull_to_reload" = "下拉可重新加载";
+"catalog_personal_day_today" = "今天";
+"catalog_personal_day_yesterday" = "昨天";
+"catalog_personal_day_earlier" = "更早";
+"catalog_personal_empty_title" = "还没有生成过规则";
+"catalog_personal_empty_message" = "在「添加来源」里提交一个带页码的分类或列表页地址，生成完成后规则会出现在这里。";
+"catalog_personal_empty_add_source" = "去添加来源";
+"catalog_personal_sign_in_title" = "登录后查看";
+"catalog_personal_sign_in_where" = "到「设置」里用 Apple 登录。";
+"catalog_generation_failed_badge" = "生成失败";
 "catalog_personal_remaining_days_hours" = "剩余 %d 天 %d 小时";
 "catalog_personal_remaining_hours" = "剩余 %d 小时";
 "catalog_personal_remaining_none" = "即将到期";

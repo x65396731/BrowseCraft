@@ -1,37 +1,49 @@
 import SwiftUI
 import BrowseCraftDomain
 
+/// 规则目录页（`docs/design/Catalog-Page-Redesign-Design.md` 方案 A）：顶部分段切换「推荐 / 我的生成」。
+/// 推荐 = 公共目录按类型分区、横滑卡片；我的生成 = 成功规则与失败记录合并的时间线，按天分组。
 struct CatalogSourceListView: View {
+    enum Tab: Hashable {
+        case recommended
+        case personal
+    }
+
     @Bindable var viewModel: SourcesViewModel
+    /// 我的生成空状态里「去添加来源」：宿主在目录页关闭后打开添加来源；为 nil 时不显示该按钮。
+    var openAddSource: (() -> Void)?
+
     @Environment(\.dismiss) private var dismiss
+    @State private var selectedTab: Tab = .recommended
     @State private var addingSourceIDs: Set<String> = []
     @State private var failedSourceIDs: Set<String> = []
+    @State private var isShowingEntryGuide: Bool = false
 
     var body: some View {
         NavigationStack {
-            List {
-                if self.viewModel.isLoadingCatalogSources && self.viewModel.catalogSources.isEmpty {
-                    ProgressView(NSLocalizedString("catalog_loading", comment: ""))
-                } else if self.viewModel.catalogSources.isEmpty {
-                    Text(NSLocalizedString("catalog_empty", comment: ""))
-                        .foregroundColor(.secondary)
-                } else {
-                    self.personalSection
-                    Section(header: Text(NSLocalizedString("catalog_section_default", comment: ""))) {
-                        ForEach(self.viewModel.defaultCatalogSources, id: \.id) { catalogSource in
-                            self.row(for: catalogSource)
-                        }
-                    }
+            Group {
+                switch self.selectedTab {
+                case .recommended:
+                    self.recommendedContent
+                case .personal:
+                    self.personalContent
                 }
             }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                CatalogTabPicker(
+                    selection: self.$selectedTab,
+                    personalCount: self.viewModel.personalCatalogItemCount
+                )
+                .padding(.horizontal, 20)
+                .padding(.top, 4)
+                .padding(.bottom, 12)
+                .background(CatalogPalette.pageBackground)
+            }
+            .background(CatalogPalette.pageBackground)
             .navigationTitle(NSLocalizedString("catalog_title", comment: ""))
             // `BC-PREFLIGHT-066`：每次打开都重新拉取，不再「已加载过即跳过」。
             .task {
                 await self.viewModel.refreshCatalogSources()
-            }
-            .refreshable {
-                await self.viewModel.refreshCatalogSources()
-                self.failedSourceIDs.removeAll()
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -40,57 +52,233 @@ struct CatalogSourceListView: View {
                     }
                 }
             }
+            .sheet(isPresented: self.$isShowingEntryGuide) {
+                NavigationStack {
+                    // 中文注释：空状态里的教程入口不知道用户要生成哪种 kind，传 nil 走 kind 中性的举例。
+                    EntryPageGuideView(
+                        sourceKind: nil,
+                        primaryTitleKey: "entry_guide_dismiss_button",
+                        primaryAction: {
+                            self.isShowingEntryGuide = false
+                        },
+                        cancelAction: nil
+                    )
+                }
+            }
         }
     }
 
-    /// 中文注释：个人分组 = 当前用户成功生成的规则（按 `/outcomes` 的 catalogSourceId 挑出）
-    /// + 失败任务的成因说明；未登录时给登录提示，登录了但没有任务时不显示该分组。
+    private func refresh() async {
+        await self.viewModel.refreshCatalogSources()
+        self.failedSourceIDs.removeAll()
+    }
+
+    // MARK: - 推荐
+
     @ViewBuilder
-    private var personalSection: some View {
+    private var recommendedContent: some View {
+        let sections: [CatalogKindSection] = CatalogKindSection.make(self.viewModel.defaultCatalogSources)
+        ScrollView {
+            if sections.isEmpty && self.viewModel.isLoadingCatalogSources {
+                CatalogRecommendedSkeletonView()
+            } else if sections.isEmpty {
+                CatalogStateView(
+                    systemImage: "books.vertical",
+                    illustration: CatalogIllustration.named("CatalogEmptyRecommended"),
+                    title: NSLocalizedString("catalog_empty", comment: ""),
+                    message: NSLocalizedString("catalog_empty_message", comment: "")
+                ) {
+                    // 中文注释：刷新只靠下拉手势，不放重试按钮；可发现性做在这句示意上。
+                    VStack(spacing: 6) {
+                        Image(systemName: "arrow.down")
+                            .font(.title3)
+                        Text(NSLocalizedString("catalog_pull_to_reload", comment: ""))
+                            .font(.footnote)
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 8)
+                }
+                .containerRelativeFrame(.vertical)
+            } else {
+                LazyVStack(alignment: .leading, spacing: 30) {
+                    ForEach(sections) { section in
+                        self.kindSection(section)
+                    }
+                }
+                .padding(.bottom, 24)
+            }
+        }
+        .refreshable {
+            await self.refresh()
+        }
+    }
+
+    private func kindSection(_ section: CatalogKindSection) -> some View {
+        let style: CatalogKindStyle = CatalogKindStyle.of(section.kind)
+        return VStack(alignment: .leading, spacing: 14) {
+            CatalogKindBannerView(style: style)
+                .padding(.horizontal, 20)
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(alignment: .top, spacing: 12) {
+                    ForEach(section.sources, id: \.id) { catalogSource in
+                        CatalogRecommendationCardView(
+                            catalogSource: catalogSource,
+                            accent: style.accent,
+                            subtitle: CatalogDisplayText.recommendationSubtitle(
+                                baseURL: catalogSource.baseURL,
+                                entryURL: self.viewModel.catalogEntryURL(for: catalogSource)
+                            ),
+                            action: self.actionState(for: catalogSource),
+                            failureMessage: self.failureMessage(for: catalogSource),
+                            addAction: {
+                                self.add(catalogSource)
+                            }
+                        )
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
+        }
+    }
+
+    // MARK: - 我的生成
+
+    @ViewBuilder
+    private var personalContent: some View {
+        let timeline: CatalogPersonalTimeline = self.viewModel.personalCatalogTimeline
         if self.viewModel.isPersonalCatalogSignInRequired {
-            Section(header: Text(NSLocalizedString("catalog_section_personal", comment: ""))) {
-                Text(NSLocalizedString("catalog_personal_sign_in_hint", comment: ""))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+            ScrollView {
+                CatalogStateView(
+                    systemImage: "lock",
+                    illustration: CatalogIllustration.named("CatalogPersonalSignIn"),
+                    title: NSLocalizedString("catalog_personal_sign_in_title", comment: ""),
+                    message: NSLocalizedString("catalog_personal_sign_in_hint", comment: "")
+                ) {
+                    Text(NSLocalizedString("catalog_personal_sign_in_where", comment: ""))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .containerRelativeFrame(.vertical)
             }
-        } else if self.viewModel.personalCatalogSources.isEmpty == false
-            || self.viewModel.failedGenerationOutcomes.isEmpty == false {
-            Section(
-                header: Text(NSLocalizedString("catalog_section_personal", comment: "")),
-                footer: Text(NSLocalizedString("catalog_personal_retention_hint", comment: ""))
-            ) {
-                ForEach(self.viewModel.personalCatalogSources, id: \.id) { catalogSource in
-                    VStack(alignment: .leading, spacing: 4) {
-                        self.row(for: catalogSource)
-                        if let remainingText: String = self.remainingText(for: catalogSource) {
-                            Text(remainingText)
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
+            .refreshable {
+                await self.refresh()
+            }
+        } else if timeline.isEmpty && self.viewModel.isLoadingCatalogSources {
+            ProgressView(NSLocalizedString("catalog_loading", comment: ""))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if timeline.isEmpty {
+            ScrollView {
+                self.personalEmptyState
+                    .containerRelativeFrame(.vertical)
+            }
+            .refreshable {
+                await self.refresh()
+            }
+        } else {
+            List {
+                CatalogRetentionNoticeView()
+                    .catalogCardRow()
+                ForEach(timeline.groups) { group in
+                    Section {
+                        ForEach(group.entries) { entry in
+                            self.personalRow(entry)
+                                .catalogCardRow()
                         }
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) {
-                            Task {
-                                await self.viewModel.deletePersonalRule(catalogSourceID: catalogSource.id)
-                            }
-                        } label: {
-                            Label(NSLocalizedString("catalog_personal_delete", comment: ""), systemImage: "trash")
-                        }
+                    } header: {
+                        Text(Self.dayTitle(group.day))
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .textCase(nil)
                     }
                 }
-                ForEach(self.viewModel.failedGenerationOutcomes, id: \.jobID) { outcome in
-                    FailedGenerationOutcomeRowView(outcome: outcome)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                Task {
-                                    await self.viewModel.deleteFailedGenerationOutcome(jobID: outcome.jobID)
-                                }
-                            } label: {
-                                Label(NSLocalizedString("catalog_personal_delete", comment: ""), systemImage: "trash")
-                            }
-                        }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .refreshable {
+                await self.refresh()
+            }
+        }
+    }
+
+    private var personalEmptyState: some View {
+        CatalogStateView(
+            systemImage: "wand.and.stars",
+            illustration: CatalogIllustration.named("CatalogEmptyPersonal"),
+            title: NSLocalizedString("catalog_personal_empty_title", comment: ""),
+            message: NSLocalizedString("catalog_personal_empty_message", comment: "")
+        ) {
+            VStack(spacing: 14) {
+                if let openAddSource: () -> Void = self.openAddSource {
+                    Button {
+                        openAddSource()
+                        self.dismiss()
+                    } label: {
+                        Label(NSLocalizedString("catalog_personal_empty_add_source", comment: ""), systemImage: "plus")
+                            .font(.body.weight(.semibold))
+                            .padding(.horizontal, 24)
+                            .frame(minHeight: 46)
+                            .foregroundStyle(.white)
+                            .background(CatalogPalette.addAction, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+                Button(NSLocalizedString("entry_guide_reopen_link", comment: "")) {
+                    self.isShowingEntryGuide = true
+                }
+                .font(.subheadline.weight(.semibold))
+            }
+            .padding(.top, 6)
+        }
+    }
+
+    @ViewBuilder
+    private func personalRow(_ entry: CatalogPersonalTimeline.Entry) -> some View {
+        switch entry {
+        case .rule(let catalogSource):
+            CatalogPersonalRuleCardView(
+                catalogSource: catalogSource,
+                entryURL: self.viewModel.catalogEntryURL(for: catalogSource) ?? catalogSource.baseURL,
+                remainingText: self.remainingText(for: catalogSource),
+                remainingFraction: self.viewModel.personalRuleRemainingFraction(for: catalogSource),
+                action: self.actionState(for: catalogSource),
+                failureMessage: self.failureMessage(for: catalogSource),
+                addAction: {
+                    self.add(catalogSource)
+                }
+            )
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                Button(role: .destructive) {
+                    Task {
+                        await self.viewModel.deletePersonalRule(catalogSourceID: catalogSource.id)
+                    }
+                } label: {
+                    Label(NSLocalizedString("catalog_personal_delete", comment: ""), systemImage: "trash")
                 }
             }
+        case .failure(let outcome):
+            FailedGenerationOutcomeCardView(outcome: outcome)
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button(role: .destructive) {
+                        Task {
+                            await self.viewModel.deleteFailedGenerationOutcome(jobID: outcome.jobID)
+                        }
+                    } label: {
+                        Label(NSLocalizedString("catalog_personal_delete", comment: ""), systemImage: "trash")
+                    }
+                }
+        }
+    }
+
+    static func dayTitle(_ day: CatalogPersonalTimeline.Day) -> String {
+        switch day {
+        case .today:
+            return NSLocalizedString("catalog_personal_day_today", comment: "")
+        case .yesterday:
+            return NSLocalizedString("catalog_personal_day_yesterday", comment: "")
+        case .date(let date):
+            return date.formatted(.dateTime.month().day())
+        case .unknown:
+            return NSLocalizedString("catalog_personal_day_earlier", comment: "")
         }
     }
 
@@ -112,20 +300,24 @@ struct CatalogSourceListView: View {
         )
     }
 
-    private func row(for catalogSource: CatalogSource) -> some View {
-        return CatalogSourceRowView(
-            catalogSource: catalogSource,
-            subtitleURL: self.viewModel.catalogEntryURL(for: catalogSource) ?? catalogSource.baseURL,
-            isAdded: self.viewModel.isCatalogSourceAdded(catalogSource),
-            isAdding: self.addingSourceIDs.contains(catalogSource.id),
-            failureMessage: self.failedSourceIDs.contains(catalogSource.id)
-                ? (self.viewModel.catalogSourceAddFailureMessages[catalogSource.id]
-                    ?? NSLocalizedString("catalog_add_failed", comment: ""))
-                : nil,
-            addAction: {
-                self.add(catalogSource)
-            }
-        )
+    // MARK: - 添加
+
+    private func actionState(for catalogSource: CatalogSource) -> CatalogAddActionState {
+        if self.addingSourceIDs.contains(catalogSource.id) {
+            return .adding
+        }
+        if self.viewModel.isCatalogSourceAdded(catalogSource) {
+            return .added
+        }
+        return .add
+    }
+
+    private func failureMessage(for catalogSource: CatalogSource) -> String? {
+        guard self.failedSourceIDs.contains(catalogSource.id) else {
+            return nil
+        }
+        return self.viewModel.catalogSourceAddFailureMessages[catalogSource.id]
+            ?? NSLocalizedString("catalog_add_failed", comment: "")
     }
 
     private func add(_ catalogSource: CatalogSource) {
@@ -155,36 +347,415 @@ struct CatalogSourceListView: View {
     }
 }
 
-/// 失败的生成任务：入口 URL + 面向用户的成因（`reason`），有细分时再补一句（`reasonDetail`）。
-private struct FailedGenerationOutcomeRowView: View {
+// MARK: - 分段控件
+
+/// 「推荐 / 我的生成」两段。「我的生成」段带数量角标，为 0 时不显示。
+private struct CatalogTabPicker: View {
+    @Binding var selection: CatalogSourceListView.Tab
+    let personalCount: Int
+
+    var body: some View {
+        HStack(spacing: 3) {
+            self.segment(.recommended) {
+                Label(NSLocalizedString("catalog_tab_recommended", comment: ""), systemImage: "sparkles")
+            }
+            self.segment(.personal) {
+                HStack(spacing: 6) {
+                    Text(NSLocalizedString("catalog_section_personal", comment: ""))
+                    if self.personalCount > 0 {
+                        Text(self.personalCount, format: .number)
+                            .font(.caption.weight(.bold))
+                            .monospacedDigit()
+                            .padding(.horizontal, 6)
+                            .frame(minWidth: 20, minHeight: 20)
+                            .foregroundStyle(self.selection == .personal ? Color(uiColor: .systemBackground) : .primary)
+                            .background(
+                                self.selection == .personal ? Color.primary : CatalogPalette.fillBackground,
+                                in: Capsule()
+                            )
+                    }
+                }
+            }
+        }
+        .padding(3)
+        .background(CatalogPalette.segmentBackground, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+    }
+
+    private func segment<Content: View>(
+        _ tab: CatalogSourceListView.Tab,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        let isSelected: Bool = self.selection == tab
+        return Button {
+            self.selection = tab
+        } label: {
+            content()
+                .font(.subheadline.weight(isSelected ? .semibold : .regular))
+                .foregroundStyle(isSelected ? .primary : .secondary)
+                .frame(maxWidth: .infinity, minHeight: 38)
+                .background(
+                    isSelected ? CatalogPalette.segmentSelected : Color.clear,
+                    in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+// MARK: - 推荐：横幅与卡片
+
+private struct CatalogKindBannerView: View {
+    let style: CatalogKindStyle
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            self.style.bannerBackground
+            if let image: UIImage = self.style.bannerImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .accessibilityHidden(true)
+            }
+            HStack(spacing: 12) {
+                Image(systemName: self.style.symbolName)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Color(uiColor: .systemBackground))
+                    .frame(width: 40, height: 40)
+                    .background(self.style.accent, in: Circle())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(self.style.title)
+                        .font(.title2.weight(.heavy))
+                        .foregroundStyle(.primary)
+                    Text(NSLocalizedString("catalog_kind_swipe_hint", comment: ""))
+                        .font(.caption)
+                        .foregroundStyle(self.style.bannerSecondaryText)
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+        }
+        .frame(height: 112)
+        .frame(maxWidth: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
+enum CatalogAddActionState: Hashable {
+    case add
+    case adding
+    case added
+}
+
+private struct CatalogRecommendationCardView: View {
+    let catalogSource: CatalogSource
+    let accent: Color
+    let subtitle: String
+    let action: CatalogAddActionState
+    let failureMessage: String?
+    let addAction: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            CatalogMonogramView(name: self.catalogSource.name, accent: self.accent, size: 44)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(self.catalogSource.name)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let failureMessage: String = self.failureMessage {
+                    Text(failureMessage)
+                        .font(.caption)
+                        .foregroundStyle(CatalogPalette.warning)
+                        .lineLimit(2)
+                } else {
+                    Text(self.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: 0)
+            self.actionView
+        }
+        .padding(14)
+        .frame(width: 148, alignment: .topLeading)
+        .frame(minHeight: 188, alignment: .topLeading)
+        .background(CatalogPalette.cardBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var actionView: some View {
+        switch self.action {
+        case .adding:
+            ProgressView()
+                .frame(maxWidth: .infinity, minHeight: 36)
+                .background(CatalogPalette.fillBackground, in: Capsule())
+        case .added:
+            Label("Added", systemImage: "checkmark")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, minHeight: 36)
+                .background(CatalogPalette.fillBackground, in: Capsule())
+        case .add:
+            Button(action: self.addAction) {
+                Label("Add", systemImage: "plus")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, minHeight: 36)
+                    .background(CatalogPalette.addAction, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(
+                String(format: NSLocalizedString("catalog_add_accessibility", comment: ""), self.catalogSource.name)
+            )
+        }
+    }
+}
+
+private struct CatalogMonogramView: View {
+    let name: String
+    let accent: Color
+    let size: CGFloat
+
+    var body: some View {
+        Text(CatalogDisplayText.monogram(for: self.name))
+            .font(.system(size: self.size * 0.45, weight: .bold))
+            .foregroundStyle(self.accent)
+            .frame(width: self.size, height: self.size)
+            .background(self.accent.opacity(0.16), in: RoundedRectangle(cornerRadius: self.size * 0.29, style: .continuous))
+            .accessibilityHidden(true)
+    }
+}
+
+/// 推荐的加载骨架：与正式页同形（横幅 + 三张卡片 × 两个分区），加载完成后页面不跳动。
+private struct CatalogRecommendedSkeletonView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 30) {
+            ForEach(0 ..< 2, id: \.self) { _ in
+                VStack(alignment: .leading, spacing: 14) {
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(CatalogPalette.cardBackground)
+                        .frame(height: 112)
+                        .padding(.horizontal, 20)
+                    HStack(spacing: 12) {
+                        ForEach(0 ..< 3, id: \.self) { _ in
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .fill(CatalogPalette.cardBackground)
+                                .frame(width: 148, height: 188)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .clipped()
+                }
+            }
+            HStack(spacing: 8) {
+                ProgressView()
+                Text(NSLocalizedString("catalog_loading", comment: ""))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(NSLocalizedString("catalog_loading", comment: ""))
+    }
+}
+
+// MARK: - 我的生成：卡片
+
+private extension View {
+    /// 时间线里的卡片行：去掉分隔线与行底色，左右留 20pt，卡片之间留 10pt。
+    func catalogCardRow() -> some View {
+        return self
+            .listRowInsets(EdgeInsets(top: 5, leading: 20, bottom: 5, trailing: 20))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+    }
+}
+
+private struct CatalogRetentionNoticeView: View {
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "clock")
+                .accessibilityHidden(true)
+            Text(NSLocalizedString("catalog_personal_retention_hint", comment: ""))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CatalogPalette.cardBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+private struct CatalogPersonalRuleCardView: View {
+    let catalogSource: CatalogSource
+    let entryURL: String
+    let remainingText: String?
+    let remainingFraction: Double?
+    let action: CatalogAddActionState
+    let failureMessage: String?
+    let addAction: () -> Void
+
+    /// 剩余不足 1 天时进度条与文案改用警示色。
+    private var isExpiringSoon: Bool {
+        guard let remainingFraction: Double = self.remainingFraction else {
+            return false
+        }
+        return remainingFraction < 1.0 / 7.0
+    }
+
+    var body: some View {
+        let style: CatalogKindStyle = CatalogKindStyle.of(self.catalogSource.kind)
+        let address: (host: String, rest: String) = CatalogDisplayText.addressParts(of: self.entryURL)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                CatalogMonogramView(name: self.catalogSource.name, accent: style.accent, size: 42)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(self.catalogSource.name)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(2)
+                    Text(Self.addressText(address))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    if let failureMessage: String = self.failureMessage {
+                        Text(failureMessage)
+                            .font(.caption)
+                            .foregroundStyle(CatalogPalette.warning)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                self.trailingControl
+            }
+            if let remainingText: String = self.remainingText {
+                HStack(spacing: 10) {
+                    ProgressView(value: self.remainingFraction ?? 0)
+                        .progressViewStyle(.linear)
+                        .tint(self.isExpiringSoon ? CatalogPalette.warning : Color(uiColor: .label).opacity(0.8))
+                    Text(remainingText)
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(self.isExpiringSoon ? CatalogPalette.warning : .secondary)
+                }
+                .padding(.leading, 54)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(remainingText)
+            }
+        }
+        .padding(14)
+        .background(CatalogPalette.cardBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    /// 主机名用次级色，路径用更浅的三级色，一行截断。
+    private static func addressText(_ address: (host: String, rest: String)) -> AttributedString {
+        let host: AttributedString = AttributedString(address.host)
+        var rest: AttributedString = AttributedString(address.rest)
+        rest.foregroundColor = Color(uiColor: .tertiaryLabel)
+        return host + rest
+    }
+
+    @ViewBuilder
+    private var trailingControl: some View {
+        switch self.action {
+        case .adding:
+            ProgressView()
+                .frame(width: 36, height: 36)
+        case .added:
+            Label("Added", systemImage: "checkmark")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 10)
+                .frame(minHeight: 28)
+                .background(CatalogPalette.fillBackground, in: Capsule())
+        case .add:
+            Button(action: self.addAction) {
+                Image(systemName: "plus")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 36, height: 36)
+                    .background(CatalogPalette.addAction, in: Circle())
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(-4)
+            .accessibilityLabel(
+                String(format: NSLocalizedString("catalog_add_accessibility", comment: ""), self.catalogSource.name)
+            )
+        }
+    }
+}
+
+/// 失败的生成任务：「生成失败」标签 + 入口 URL，下面是面向用户的成因（`reason`），有细分时再补一句（`reasonDetail`）。
+private struct FailedGenerationOutcomeCardView: View {
     let outcome: VideoGenerationOutcome
 
     @State private var isShowingGuide: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(self.outcome.entryURL ?? self.outcome.jobID.uuidString)
-                .font(.body)
-                .lineLimit(1)
-            Text(VideoGenerationOutcomeText.reasonText(for: self.outcome))
-                .font(.caption)
-                .foregroundColor(.secondary)
-            if let detail: String = VideoGenerationOutcomeText.reasonDetailText(for: self.outcome) {
-                Text(detail)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            // 中文注释：入口页资格拒因（`BC-PAGE-060` 的四种）说的就是「这一页不合格」，
-            // 下一步是换一个合格的页面——把教程接在这里，用户不必自己去添加来源里翻。
-            if VideoGenerationOutcomeText.isEntryPageRejection(self.outcome) {
-                Button(NSLocalizedString("entry_guide_open_from_failure", comment: "")) {
-                    self.isShowingGuide = true
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "exclamationmark.circle")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(CatalogPalette.warning)
+                .frame(width: 42, height: 42)
+                .background(CatalogPalette.warningFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Text(NSLocalizedString("catalog_generation_failed_badge", comment: ""))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(CatalogPalette.warning)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(CatalogPalette.warningFill, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    Text(self.outcome.entryURL ?? self.outcome.jobID.uuidString)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
-                .font(.caption)
-                .buttonStyle(.borderless)
+                Text(VideoGenerationOutcomeText.reasonText(for: self.outcome))
+                    .font(.footnote)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let detail: String = VideoGenerationOutcomeText.reasonDetailText(for: self.outcome) {
+                    Text(detail)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                // 中文注释：入口页资格拒因（`BC-PAGE-060` 的四种）说的就是「这一页不合格」，
+                // 下一步是换一个合格的页面——把教程接在这里，用户不必自己去添加来源里翻。
+                if VideoGenerationOutcomeText.isEntryPageRejection(self.outcome) {
+                    Button {
+                        self.isShowingGuide = true
+                    } label: {
+                        HStack(spacing: 2) {
+                            Text(NSLocalizedString("entry_guide_open_from_failure", comment: ""))
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                        }
+                        .font(.footnote.weight(.semibold))
+                    }
+                    .buttonStyle(.borderless)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .listRowSeparatorAlignedToRowLeading()
+        .padding(14)
+        .background(CatalogPalette.cardBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(CatalogPalette.warning.opacity(0.3), lineWidth: 1)
+        )
         .sheet(isPresented: self.$isShowingGuide) {
             NavigationStack {
                 // 中文注释：`/outcomes` 不带 sourceKind，这里只能传 nil，举例走 kind 中性那句。
@@ -198,6 +769,42 @@ private struct FailedGenerationOutcomeRowView: View {
                 )
             }
         }
+    }
+}
+
+// MARK: - 空状态
+
+/// 目录页的空 / 未登录状态：插画（缺失时退回系统符号）+ 标题 + 说明 + 各自的下一步。
+private struct CatalogStateView<Accessory: View>: View {
+    let systemImage: String
+    let illustration: String?
+    let title: String
+    let message: String
+    @ViewBuilder let accessory: () -> Accessory
+
+    var body: some View {
+        VStack(spacing: 12) {
+            EmptyStateIconView(systemImage: self.systemImage, illustration: self.illustration, height: 170)
+            Text(self.title)
+                .font(.title3.weight(.bold))
+                .multilineTextAlignment(.center)
+            Text(self.message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            self.accessory()
+        }
+        .padding(.horizontal, 36)
+        .padding(.bottom, 60)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// 极梦插画的资产名 → 资源目录里有才返回，没有时空状态退回系统符号。
+enum CatalogIllustration {
+    static func named(_ name: String) -> String? {
+        return UIImage(named: name) == nil ? nil : name
     }
 }
 
@@ -248,73 +855,5 @@ enum VideoGenerationOutcomeText {
             return nil
         }
         return NSLocalizedString("video_generation_outcome_detail_\(detail)", comment: "")
-    }
-}
-
-private struct CatalogSourceRowView: View {
-    let catalogSource: CatalogSource
-    let subtitleURL: String
-    let isAdded: Bool
-    let isAdding: Bool
-    let failureMessage: String?
-    let addAction: () -> Void
-
-    var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(self.catalogSource.name)
-                    .font(.body)
-                Text(self.subtitle)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                if let failureMessage: String = self.failureMessage {
-                    Text(failureMessage)
-                        .font(.caption)
-                        .foregroundColor(.red)
-                }
-            }
-
-            Spacer(minLength: 12)
-
-            self.trailingControl
-        }
-        // 中文注释：「已添加」那行的 Label 会把分隔线推到右侧只剩一小截（09-05 真机截图），
-        // 钉到行的 leading 让分隔线通栏；取值点在 `ListRowSeparatorAlignment.swift`。
-        .listRowSeparatorAlignedToRowLeading()
-    }
-
-    @ViewBuilder
-    private var trailingControl: some View {
-        if self.isAdding {
-            ProgressView()
-        } else if self.isAdded {
-            Label("Added", systemImage: "checkmark.circle")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        } else {
-            Button(
-                action: self.addAction,
-                label: {
-                    Image(systemName: "plus.circle")
-                }
-            )
-            .accessibilityLabel("Add \(self.catalogSource.name)")
-        }
-    }
-
-    private var subtitle: String {
-        return "\(self.kindTitle) · \(self.subtitleURL)"
-    }
-
-    private var kindTitle: String {
-        switch self.catalogSource.kind {
-        case .comic:
-            return NSLocalizedString("Comics", comment: "")
-        case .video:
-            return NSLocalizedString("Video", comment: "")
-        case .book:
-            return NSLocalizedString("Books", comment: "")
-        }
     }
 }

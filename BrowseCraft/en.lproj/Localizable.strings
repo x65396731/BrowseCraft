@@ -118,7 +118,6 @@
 "catalog_title" = "Catalog";
 "catalog_loading" = "Loading…";
 "catalog_empty" = "No catalog data yet";
-"catalog_section_default" = "Default";
 "catalog_section_personal" = "My Generations";
 "catalog_personal_sign_in_hint" = "Sign in to see the rules generated from your submissions.";
 
@@ -144,6 +143,20 @@
 /* Personal rules are kept locally for 7 days after they are first received; deleting hides them locally and removes the added source. */
 "catalog_personal_retention_hint" = "Rules you generated are kept on this device for 7 days after they arrive. Swipe left to delete one earlier.";
 "catalog_personal_delete" = "Delete";
+"catalog_tab_recommended" = "Recommended";
+"catalog_kind_swipe_hint" = "Swipe to see all";
+"catalog_add_accessibility" = "Add %@";
+"catalog_empty_message" = "The network may be unavailable, or the catalog can't be reached right now. Check your connection and try again.";
+"catalog_pull_to_reload" = "Pull down to reload";
+"catalog_personal_day_today" = "Today";
+"catalog_personal_day_yesterday" = "Yesterday";
+"catalog_personal_day_earlier" = "Earlier";
+"catalog_personal_empty_title" = "No generated rules yet";
+"catalog_personal_empty_message" = "Submit a paginated category or list page URL in Add Source. Finished rules show up here.";
+"catalog_personal_empty_add_source" = "Go to Add Source";
+"catalog_personal_sign_in_title" = "Sign in to view";
+"catalog_personal_sign_in_where" = "Sign in with Apple in Settings.";
+"catalog_generation_failed_badge" = "Generation failed";
 "catalog_personal_remaining_days_hours" = "%d days %d hours left";
 "catalog_personal_remaining_hours" = "%d hours left";
 "catalog_personal_remaining_none" = "Expiring";

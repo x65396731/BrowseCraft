@@ -273,3 +273,24 @@ XCTest 81 项中 17 处断言失败，全部来自同一个 `BundledImageAssetTe
 声明为 `multi-scale-png` 的底栏与设置图标在 3x 模拟器上解出 3 倍像素（如 75x75 对声明的 25x25），
 测试按单档资产 scale 为 1 计算像素。本次改动不涉及任何资产与该测试，失败与本次无关，
 因此验证列记 `targeted-passed` 而非 `full-suite-passed`。xcodebuild 在两套测试跑完后卡在收尾，手动终止。
+
+## 2026-09-30：规则目录页方案 A 开始实施
+
+`STATUS.md` 第 2 节「规则目录页重设计」：设计 draft / 实施 not-started / 检查点 175847d
+→ approved / implemented / 9c03d27。
+
+原因：用户选定方案 A 并要求实施。实现与设计稿的两处出入已改回设计文档：未登录页不另设登录按钮，
+改为指向设置页的一句指引（登录入口在设置页，目录页不跨功能导航）；「我的生成」空状态不再附保留期说明。
+按 `AGENTS.md` 的会话纪律未 build、未跑测试，验证列记 `not-run`；检查点列记改动所基于的提交。
+
+## 2026-09-30：规则目录页方案 A 的验证，与随包图标尺寸测试的修正
+
+`STATUS.md` 第 2 节「规则目录页重设计」：验证 not-run → full-suite-passed（检查点仍记改动所基于的 9c03d27，
+本次改动与该行在同一次提交里落地）。
+
+原因：用户要求 build 与测试并修正 XCTest。`xcodebuild build`（iPhone 17 Pro / iOS 26.5）`BUILD SUCCEEDED`，
+构建阶段的本地化检查通过。第一次跑 `-only-testing:BrowseCraftTests`：Swift Testing 527 项 / 91 套全过
+（含新增的 `CatalogPersonalTimelineTests` 5 项），XCTest 仍是既有的 17 处失败，全部来自
+`BundledImageAssetTests`——声明为 `multi-scale-png` 的图标，声明列写的是 @1x 像素（即 pt 尺寸），
+测试却一律按「size × scale」比像素，3x 模拟器上必差 3 倍。修正为按形态比较：单档比像素，多档比 pt；
+`scripts/README.md` 的对应说明同步改写。修正后整套重跑：Swift Testing 527 项全过，XCTest 81 项 0 失败，`TEST SUCCEEDED`。
