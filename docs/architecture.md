@@ -167,14 +167,16 @@ phases next to the boundary script; `scripts/check-localization.py` runs after c
 - `BCA-BUILD-001` The project is managed with XcodeGen. When `.xcodeproj` errors come from added,
   moved or removed source files, run `scripts/regenerate-project.sh` before continuing with
   whatever test or build was asked for.
-- `BCA-BUILD-002` SwiftSoup is pinned to the in-house fork `x65396731/SwiftSoup` (upstream 2.13.5+
-  carries a `text()` whitespace bug): BrowseCraftCore pins it by commit and the project overrides
+- `BCA-BUILD-002` SwiftSoup is pinned to the in-house fork `x65396731/SwiftSoup` (branch
+  `browsecraft/upstream-dup-attr`: upstream master plus one change so that a repeated attribute on
+  the same tag keeps its first value, fwq `BC-ACQ-074`): BrowseCraftCore pins it by commit and the project overrides
   the whole dependency graph with the local `../SwiftSoup` package to resolve the identity clash
   with Readium. Both must sit on the same commit.
   `scripts/check-swiftsoup-override.sh` runs next to the boundary script and fails the build when
-  the local override is missing, dirty, or not at the commit BrowseCraftCore pins (§8). Before
-  upgrading or moving back to the official package, run the inline-whitespace gate case in
-  `RuleExtractionEngineTests`.
+  the local override is missing, dirty, or not at the commit BrowseCraftCore pins (§8). When Core
+  moves its pin, fetch in `../SwiftSoup` and check out the same commit. Before upgrading or moving
+  back to the official package, run the inline-whitespace gate case in `RuleExtractionEngineTests`
+  and the fork's `BrowserParityTest`.
 - `BCA-BUILD-003` `scripts/check-ad-configuration.sh` fails a PROD archive that still carries
   Google's sample rewarded ad unit, and only warns elsewhere. The **TEST BrowseCraft** scheme
   archives config `TestFlight` (environment TEST); the plain **BrowseCraft** and **PROD BrowseCraft**
@@ -276,18 +278,21 @@ navigators and the `Locator` model for bookmarks and resume positions. The comic
 in-house SwiftUI reader; Readium's CBZ navigator is not wired. The app links `ReadiumShared`,
 `ReadiumStreamer` and `ReadiumNavigator`.
 
-**SwiftSoup fork and local override.** Readium requires SwiftSoup ≥ 2.13.5, but upstream 2.13.5
-through master (as of 2026-09-13) drops the whitespace between adjacent inline elements whenever the
-preceding text is non-ASCII (`appendNormalisedWhitespaceBytes` returns early without resetting
-`lastWasWhite`), which glues together tag/cast lists on every CJK site. BrowseCraftCore therefore
-pins `x65396731/SwiftSoup` (upstream master + a three-line fix) by commit. Because Readium refers to
+**SwiftSoup fork and local override.** Readium requires SwiftSoup ≥ 2.13.5. Released 2.13.5 and
+later drop the whitespace between adjacent inline elements after non-ASCII text, which glues
+together tag/cast lists on CJK sites; upstream master has fixed this but not released it. Upstream
+also keeps the *last* value of a repeated attribute on one tag, while the HTML5 tokenizer rules,
+WebKit and the rule engine's `html5lib` keep the *first* (fwq `BC-ACQ-074`). BrowseCraftCore
+therefore pins `x65396731/SwiftSoup` by commit on branch `browsecraft/upstream-dup-attr`: upstream
+master plus that one tokenizer change, which is meant to go upstream as a pull request. Because Readium refers to
 `scinfu/SwiftSoup` by URL and SwiftPM refuses two URLs for the same package identity, `project.yml`
 also adds `../SwiftSoup` as a local package: Xcode lets a local package override every remote
 reference to the same identity, so Readium is served by the fork too. The local checkout must sit
 at the commit Core pins; `scripts/check-swiftsoup-override.sh` verifies that (and a clean working
-tree) as a pre-build phase. When upstream ships the fix, switch Core back to the official URL,
-remove the local package and the script; the inline-whitespace gate test in
-`RuleExtractionEngineTests` guards the behaviour either way.
+tree) as a pre-build phase. When upstream releases both the whitespace fix and the repeated-attribute
+change, switch Core back to the official URL and remove the local package and the script; the
+inline-whitespace gate test in `RuleExtractionEngineTests` and the fork's `BrowserParityTest` guard
+the behaviour either way.
 
 Alamofire, GRDB and Nuke link statically into the app binary, so no `@rpath` framework embedding is
 involved — the "linked but not embedded" failure mode (ITMS-90863, dyld crash on launch) cannot

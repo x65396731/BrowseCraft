@@ -75,7 +75,13 @@ and only checks; it never modifies anything.
 `swift test` 和 Xcode 看到的解析器不是同一份。首次拉取本地覆盖包：
 
 ```sh
-git clone --branch browsecraft/text-whitespace-fix git@github.com:x65396731/SwiftSoup.git ../SwiftSoup
+git clone --branch browsecraft/upstream-dup-attr git@github.com:x65396731/SwiftSoup.git ../SwiftSoup
+```
+
+中文注释：Core 改锁定的 commit 后，本地覆盖包要跟着切，否则这道闸门会失败：
+
+```sh
+git -C ../SwiftSoup fetch origin && git -C ../SwiftSoup checkout <Core 锁定的 commit>
 ```
 
 ## check-bundled-image-assets.sh
