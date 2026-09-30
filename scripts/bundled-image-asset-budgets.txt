@@ -44,6 +44,7 @@ EmptyStateSearch        215000    274x540    single-scale-png
 EmptyStateOffline       233000    506x540    single-scale-png
 EntryGuideUnsupportedPage 185000  395x450    single-scale-png
 CatalogEmptyRecommended 260000    350x540    single-scale-png
+CatalogEmptyPersonal    280000    396x540    single-scale-png
 TabSources              5000      25x25      multi-scale-png
 TabFavorites            4200      25x25      multi-scale-png
 TabLibrary              5200      25x25      multi-scale-png
