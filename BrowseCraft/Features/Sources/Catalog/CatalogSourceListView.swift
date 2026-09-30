@@ -884,7 +884,7 @@ private struct CatalogStateView<Accessory: View>: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            EmptyStateIconView(systemImage: self.systemImage, illustration: self.illustration, height: 170)
+            EmptyStateIconView(systemImage: self.systemImage, illustration: self.illustration)
             Text(self.title)
                 .font(.title3.weight(.bold))
                 .multilineTextAlignment(.center)
