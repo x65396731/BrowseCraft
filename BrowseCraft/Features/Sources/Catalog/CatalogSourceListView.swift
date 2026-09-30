@@ -482,18 +482,24 @@ private struct CatalogRecommendationCardView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                CatalogMonogramView(name: self.catalogSource.name, accent: self.accent, size: 40)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(self.catalogSource.name)
-                        .font(.subheadline.weight(.semibold))
-                        .lineLimit(1)
-                    Text(self.subtitle)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
+        // 中文注释：徽标单独一行、标签靠右；站点名与主机名各占整行——180pt 宽的卡片里，
+        // 名字若与徽标并排只剩约 90pt，「站名 · 分类」这类名字一截就看不全（09-30 真机截图）。
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
+                CatalogMonogramView(name: self.catalogSource.name, accent: self.accent, size: 36)
+                Spacer(minLength: 0)
+                self.tagGroup
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(self.catalogSource.name)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(self.subtitle)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
             if let failureMessage: String = self.failureMessage {
                 Text(failureMessage)
@@ -502,7 +508,7 @@ private struct CatalogRecommendationCardView: View {
                     .lineLimit(2)
             }
             if let facts: CatalogRuleFacts = self.facts, let summary: String = facts.categorySummary() {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(
                         facts.categoryTitles.count >= 2
                             ? String(
@@ -520,27 +526,26 @@ private struct CatalogRecommendationCardView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            self.tagRow
             Spacer(minLength: 0)
             self.actionView
         }
         .padding(14)
-        .frame(width: 168, alignment: .topLeading)
-        .frame(minHeight: 236, alignment: .topLeading)
+        .frame(width: 180, alignment: .topLeading)
+        .frame(minHeight: 244, alignment: .topLeading)
         .background(CatalogPalette.cardBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    /// 「可搜索」与语言标签；两个一行放不下时竖排。
+    /// 「可搜索」与语言标签，放在徽标右侧；一行放不下时靠右竖排。
     @ViewBuilder
-    private var tagRow: some View {
+    private var tagGroup: some View {
         let searchable: Bool = self.facts?.supportsSearch ?? false
         let language: String? = self.languageTag
         if searchable || language != nil {
             ViewThatFits(in: .horizontal) {
-                HStack(spacing: 6) {
+                HStack(spacing: 4) {
                     self.tags(searchable: searchable, language: language)
                 }
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .trailing, spacing: 4) {
                     self.tags(searchable: searchable, language: language)
                 }
             }
@@ -605,8 +610,8 @@ private struct CatalogTagView: View {
         }
         .font(.caption2)
         .foregroundStyle(.secondary)
-        .padding(.horizontal, 8)
-        .frame(minHeight: 22)
+        .padding(.horizontal, 7)
+        .frame(minHeight: 20)
         .background(CatalogPalette.fillBackground, in: Capsule())
     }
 }
@@ -640,7 +645,7 @@ private struct CatalogRecommendedSkeletonView: View {
                         ForEach(0 ..< 3, id: \.self) { _ in
                             RoundedRectangle(cornerRadius: 18, style: .continuous)
                                 .fill(CatalogPalette.cardBackground)
-                                .frame(width: 168, height: 236)
+                                .frame(width: 180, height: 244)
                         }
                     }
                     .padding(.horizontal, 20)

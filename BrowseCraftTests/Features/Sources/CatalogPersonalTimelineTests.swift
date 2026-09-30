@@ -82,6 +82,10 @@ struct CatalogPersonalTimelineTests {
         #expect(CatalogDisplayText.monogram(for: "威视 TV") == "威")
         #expect(CatalogDisplayText.recommendationSubtitle(baseURL: "https://book.sfacg.com/", entryURL: nil) == "book.sfacg.com")
         #expect(
+            CatalogDisplayText.recommendationSubtitle(baseURL: "https://www.patternrecognition.example/", entryURL: nil)
+                == "patternrecognition.example"
+        )
+        #expect(
             CatalogDisplayText.recommendationSubtitle(
                 baseURL: "https://book.sfacg.com/",
                 entryURL: "https://book.sfacg.com/List/?tid=21"

@@ -96,18 +96,20 @@ enum CatalogDisplayText {
         return (host: host, rest: decoded == "/" ? "" : decoded)
     }
 
-    /// 推荐卡片的副标题：只显示主机名；同站多条（有各自入口）时补上路径的最后一段以便区分。
+    /// 推荐卡片的副标题：只显示主机名（去掉 `www.`，卡片窄）；同站多条（有各自入口）时补上路径的最后一段以便区分。
     static func recommendationSubtitle(baseURL: String, entryURL: String?) -> String {
-        guard let entryURL: String = entryURL else {
-            return Self.addressParts(of: baseURL).host
-        }
-        guard let components: URLComponents = URLComponents(string: entryURL),
+        guard let entryURL: String = entryURL,
+              let components: URLComponents = URLComponents(string: entryURL),
               let host: String = components.host, host.isEmpty == false else {
-            return Self.addressParts(of: baseURL).host
+            return Self.displayHost(Self.addressParts(of: baseURL).host)
         }
         let lastPathComponent: String = components.path.split(separator: "/").last.map(String.init) ?? ""
         let tail: String = lastPathComponent + (components.query.map { "?\($0)" } ?? "")
-        return tail.isEmpty ? host : "\(host) · \(tail)"
+        return tail.isEmpty ? Self.displayHost(host) : "\(Self.displayHost(host)) · \(tail)"
+    }
+
+    static func displayHost(_ host: String) -> String {
+        return host.lowercased().hasPrefix("www.") ? String(host.dropFirst(4)) : host
     }
 }
 
