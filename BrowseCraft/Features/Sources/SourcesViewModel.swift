@@ -341,8 +341,11 @@ final class SourcesViewModel {
 
     @MainActor
     func assessVideoGenerationInput(
-        siteURLString: String
+        siteURLString: String,
+        sourceKind: RuleGenerationSourceKind? = nil
     ) async throws -> VideoGenerationInputPreflight {
+        let diagnosticSourceType: DiagnosticSourceType = sourceKind
+            .map(DiagnosticSourceType.init(generationKind:)) ?? .unknown
         let assessmentID: UUID = UUID()
         self.videoGenerationAssessmentID = assessmentID
         self.errorMessage = nil
@@ -362,6 +365,9 @@ final class SourcesViewModel {
                 self.videoGenerationInputProgress = nil
                 self.videoGenerationAssessmentID = nil
             }
+            AppAnalytics.shared.logGenerationPreflightResult(
+                sourceType: diagnosticSourceType, preflight: result
+            )
             return result
         } catch is CancellationError {
             if self.videoGenerationAssessmentID == assessmentID {
@@ -374,6 +380,11 @@ final class SourcesViewModel {
                 self.videoGenerationInputProgress = nil
                 self.videoGenerationAssessmentID = nil
                 self.errorMessage = error.localizedDescription
+            }
+            if (error as? VideoGenerationInputPreflightExecutionIssue) != .cancelled {
+                AppAnalytics.shared.logGenerationPreflightError(
+                    sourceType: diagnosticSourceType, siteURLString: siteURLString, error: error
+                )
             }
             throw error
         }

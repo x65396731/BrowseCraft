@@ -218,7 +218,7 @@ struct VideoGenerationInputView: View {
         self.assessmentTask = Task { @MainActor in
             do {
                 let result: VideoGenerationInputPreflight = try await self.viewModel
-                    .assessVideoGenerationInput(siteURLString: input)
+                    .assessVideoGenerationInput(siteURLString: input, sourceKind: self.sourceKind)
                 guard Task.isCancelled == false, self.assessmentID == assessmentID else {
                     return
                 }

@@ -32,6 +32,9 @@ final class AppAnalytics: @unchecked Sendable {
         case generationSubmitted = "generation_submitted"
         /// 规则生成提交因余额不足被拒（402）。
         case generationInsufficientCoins = "generation_insufficient_coins"
+        /// 生成前的 App 端预检得出结论（通过 / 拒绝 / 不确定 / 执行出错）。App 挡下的入口不会到服务器，
+        /// 上线后算预检通过率只能靠它（设计书 30.8「预检结果埋点」）。
+        case generationPreflightResult = "generation_preflight_result"
     }
 
     enum Parameter {
@@ -55,6 +58,8 @@ final class AppAnalytics: @unchecked Sendable {
         static let signedIn: String = "signed_in"
         /// 规则生成提交是否选了困难模式（`BC-ACQ-071`）。
         static let hardMode: String = "hard_mode"
+        /// 预检结论：accepted / rejected / inconclusive / error。
+        static let preflightStatus: String = "preflight_status"
     }
 
     private enum UserProperty {
@@ -223,6 +228,72 @@ final class AppAnalytics: @unchecked Sendable {
         )
     }
 
+    /// 中文注释：预检得出结论时报一次。只报类别、原因码与入口主机名的哈希——不报网址、路径与查询串。
+    func logGenerationPreflightResult(
+        sourceType: DiagnosticSourceType,
+        preflight: VideoGenerationInputPreflight
+    ) {
+        var parameters: [String: Any] = [
+            Parameter.sourceType: sourceType.rawValue,
+            Parameter.preflightStatus: preflight.status.rawValue
+        ]
+        if let reason: VideoGenerationInputPreflightReason = preflight.reason {
+            parameters[Parameter.errorCode] = reason.rawValue
+        }
+        if let hostHash: String = Self.hostHash(preflight.evaluatedInputURL.host) {
+            parameters[Parameter.sourceIdHash] = hostHash
+        }
+        self.log(.generationPreflightResult, parameters: Self.baseParameters(parameters))
+    }
+
+    /// 中文注释：预检没得出结论而是抛错（输入不合法、请求失败等）时报一次；用户取消不报，由调用方过滤。
+    func logGenerationPreflightError(
+        sourceType: DiagnosticSourceType,
+        siteURLString: String,
+        error: Error
+    ) {
+        var parameters: [String: Any] = [
+            Parameter.sourceType: sourceType.rawValue,
+            Parameter.preflightStatus: "error",
+            Parameter.errorCode: Self.preflightErrorCode(for: error)
+        ]
+        if let hostHash: String = Self.hostHash(URL(string: siteURLString)?.host) {
+            parameters[Parameter.sourceIdHash] = hostHash
+        }
+        self.log(.generationPreflightResult, parameters: Self.baseParameters(parameters))
+    }
+
+    static func preflightErrorCode(for error: Error) -> String {
+        if error is VideoGenerationInputURLValidationError {
+            return "invalidInput"
+        }
+        if let issue: VideoGenerationInputPreflightExecutionIssue =
+            error as? VideoGenerationInputPreflightExecutionIssue {
+            switch issue {
+            case .unsafeURL:
+                return "unsafeURL"
+            case .unsupportedContent:
+                return "unsupportedContent"
+            case .requestFailed:
+                return "requestFailed"
+            case .cancelled:
+                return "cancelled"
+            }
+        }
+        if error is PreflightPageAcquisitionError {
+            return "acquisitionFailed"
+        }
+        return "unknown"
+    }
+
+    /// 中文注释：主机名小写后取哈希；与 `source_id_hash` 同一哈希函数，按站去重用。
+    static func hostHash(_ host: String?) -> String? {
+        guard let host: String, host.isEmpty == false else {
+            return nil
+        }
+        return Self.hashIdentifier(host.lowercased())
+    }
+
     static func adResultBucket(_ result: RewardedAdPresentationResult) -> String {
         switch result {
         case .completed:
@@ -279,7 +350,8 @@ final class AppAnalytics: @unchecked Sendable {
             Parameter.adTrigger,
             Parameter.adResult,
             Parameter.signedIn,
-            Parameter.hardMode
+            Parameter.hardMode,
+            Parameter.preflightStatus
         ]
 
         return parameters.filter { key, _ in
