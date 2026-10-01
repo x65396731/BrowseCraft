@@ -74,9 +74,6 @@ struct CatalogSourceListView: View {
                 }
             }
         }
-        // 中文注释：目录页固定深色，与设计稿一致（2026-09-30 用户裁定；先例是内购页 `InAppPurchaseSheetView`）。
-        // 浅色模式下从来源页弹出也是深色页；`CatalogPalette` 里的浅色取值因此只在这之外的地方复用时才生效。
-        .preferredColorScheme(.dark)
     }
 
     private func refresh() async {
@@ -434,13 +431,13 @@ private struct CatalogKindBannerView: View {
             HStack(spacing: 12) {
                 Image(systemName: self.style.symbolName)
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Color(uiColor: .systemBackground))
+                    .foregroundStyle(CatalogKindStyle.bannerIconInk)
                     .frame(width: 40, height: 40)
-                    .background(self.style.accent, in: Circle())
+                    .background(self.style.bannerAccent, in: Circle())
                 VStack(alignment: .leading, spacing: 2) {
                     Text(self.style.title)
                         .font(.title2.weight(.heavy))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(CatalogKindStyle.bannerTitle)
                     Text(NSLocalizedString("catalog_kind_swipe_hint", comment: ""))
                         .font(.caption)
                         .foregroundStyle(self.style.bannerSecondaryText)
