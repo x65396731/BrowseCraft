@@ -51,6 +51,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 同站多条来源的副标题显示各自入口地址 | 未编号 | required | approved | implemented | device-passed | 1513a0f | 2026-09-15 |
 | 规则目录页重设计：推荐 / 我的生成分栏，推荐按类型分区，我的生成按时间线（方案 A） | 未编号 | required | approved | implemented | full-suite-passed | 9c03d27 | 2026-09-30 |
 | 来源页重设计：正在使用置顶、点来源即打开库、已暂停区与启用窗口、长按菜单（方案 A） | 未编号 | required | approved | implemented | full-suite-passed | 2c0908a | 2026-10-01 |
+| 来源页重设计的模拟器走查：切换成功跳库 / 失败留在原页、「更多位置」打开购买页、iCloud 恢复失败下拉重试（来源页与收藏页） | 未编号 | required | approved | implemented | simulator-passed | 448615c | 2026-10-01 |
 
 ## 3. 影视线运行期
 

@@ -37,11 +37,12 @@ python3 scripts/check-docs.py
 
 以下都在 `docs/STATUS.md` 里有行；挑活前按该文件第 0 节的三步核对，不要只看名字就开工。
 
-**`required` 未完成：0 条。** 来源页重设计已实施并离线测试全过，剩真机观感与空状态插画。
+**`required` 未完成：0 条。** 来源页重设计已实施，离线测试与模拟器走查通过，剩真机观感与空状态插画。
 
 - **来源页重设计**（已实施，合同 [`docs/design/Sources-Page-Redesign-Design.md`](docs/design/Sources-Page-Redesign-Design.md)，
-  设计稿画布链接在文档开头）：状态见 `docs/STATUS.md` 第 2 节那一行。模拟器与真机都还没走查，重点看三处行为：
-  点其他来源切换成功后跳库、失败留在原页；「更多位置」切到设置页并打开购买页；iCloud 首次恢复失败时来源页与收藏页都能下拉重试。
+  设计稿画布链接在文档开头）：状态见 `docs/STATUS.md` 第 2 节那两行。三处行为已在模拟器走查通过
+  （点其他来源切换成功后跳库、失败留在原页；「更多位置」切到设置页并打开购买页；iCloud 首次恢复失败时来源页与收藏页都能下拉重试），
+  走查方法与临时注入记在 `docs/history/status-log.md`；真机还没看。
   与设计稿的出入（已暂停一组没有虚线外框、启用窗口里启用后不跳库）记在 `docs/history/status-log.md` 当日一节。
   空状态插画 `EmptyStateSources` 仍是旧图：等用户按画布里「来源空状态插画 · 即梦设定」出图，用 `scripts/illustration-cutout.swift` 处理再替换，
   并同步资源登记里的尺寸与字节上限。
