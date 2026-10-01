@@ -189,6 +189,11 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
             if let string: String = String(data: data, encoding: encoding) {
                 return string
             }
+            // 中文注释：`BC-ACQ-075`——声明的是 UTF-8（规则字符集或响应头）却有坏字节时，按 UTF-8 宽松解码
+            // （坏字节换成替换字符），与浏览器、引擎一致；不再往后落到 Latin-1 把整页中文解成乱码。
+            if encoding == .utf8, (requestedEncoding ?? responseEncoding) == .utf8 {
+                return String(decoding: data, as: UTF8.self)
+            }
         }
 
         return String(decoding: data, as: UTF8.self)
