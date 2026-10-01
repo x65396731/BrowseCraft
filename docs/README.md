@@ -152,6 +152,7 @@ App 侧的验证事实主要分「离线测试通过」「模拟器走通」「�
 - 规则目录：已添加来源跟随目录自动更新：[design/Catalog-Rule-Update-Design.md](design/Catalog-Rule-Update-Design.md)
 - 规则目录：同站多条来源的副标题：[design/Catalog-Same-Site-Entry-Subtitle-Design.md](design/Catalog-Same-Site-Entry-Subtitle-Design.md)
 - 规则目录：页面的视觉与信息结构重设计（推荐按类型、我的生成按时间）：[design/Catalog-Page-Redesign-Design.md](design/Catalog-Page-Redesign-Design.md)
+- 来源页：视觉与信息结构重设计（正在使用置顶、点来源即打开库、已暂停与启用窗口）：[design/Sources-Page-Redesign-Design.md](design/Sources-Page-Redesign-Design.md)
 - 运行期广告过滤承接规则匹配结果：[design/RuntimeAdFilter-Design.md](design/RuntimeAdFilter-Design.md)
 
 `design/Book-Kind-Wiring-Design.md` 的批次记录已拆到 [history/Book-Kind-Wiring-batch-records.md](history/Book-Kind-Wiring-batch-records.md)。
