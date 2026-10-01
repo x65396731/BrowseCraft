@@ -653,3 +653,45 @@
 
 /* 选集按重复集号切出的线路名（规则没有线路名时） */
 "video_episode_route_label" = "線路 %d";
+
+/* 来源页重设计（docs/design/Sources-Page-Redesign-Design.md 方案 A） */
+"sources_action_catalog" = "目錄";
+"sources_action_add" = "新增";
+"sources_slots_used" = "已用來源位置";
+"sources_slots_short" = "來源位置";
+"sources_slots_more" = "更多位置";
+"sources_get_more_slots" = "取得更多位置";
+"sources_in_use_badge" = "正在使用";
+"sources_in_use_open_hint" = "點卡片打開庫";
+"sources_in_use_accessibility" = "正在使用：%@，點開打開庫";
+"sources_origin_catalog" = "來自目錄";
+"sources_kind_other" = "其他";
+"sources_section_others" = "其他來源";
+"sources_section_others_hint" = "點任意來源 = 切換並打開庫";
+"sources_section_others_switching" = "切換中，其他來源暫不可點";
+"sources_switching_message" = "正在載入第一頁，完成後自動打開庫…";
+"sources_section_paused" = "已暫停 · 位置不夠";
+"sources_paused_activate" = "啟用";
+"sources_paused_replace" = "替換使用";
+"sources_full_hint_title" = "想再加一個網站？";
+"sources_full_hint_message" = "位置已用滿。可以先長按目前來源刪除再新增，或取得更多位置。";
+"sources_footer_hint" = "長按來源可查看詳情或刪除；向左滑動也可刪除。刪除來源會同時刪除相關的閱讀 / 觀看歷史和庫狀態。";
+"sources_menu_open_library" = "打開庫";
+"sources_menu_switch_and_open" = "切換並打開庫";
+"sources_menu_details" = "來源詳情";
+"sources_menu_delete" = "刪除來源";
+"sources_delete_confirm_title" = "刪除「%@」？";
+"sources_empty_title" = "還沒有來源";
+"sources_empty_message" = "來源就是一個網站。加一個進來，庫裡就有可看的內容了。";
+"sources_empty_catalog_title" = "從規則目錄挑一個";
+"sources_empty_catalog_message" = "按影片、漫畫、書籍分好類，點一下就能新增";
+"sources_empty_generate_title" = "用網址生成";
+"sources_empty_generate_message" = "貼一個帶頁碼的分類或列表頁，自動生成規則";
+"sources_activation_badge" = "已暫停 · %@";
+"sources_activation_saved" = "這個來源已經安全儲存，只是暫時沒有佔用位置。";
+"sources_activation_activate" = "啟用這個來源";
+"sources_activation_free_slots" = "還有 %d 個空閒的來源位置";
+"sources_activation_full_title" = "位置已滿 · 選一個來源讓出位置";
+"sources_activation_swap_out" = "換下";
+"sources_activation_full_footer" = "被換下的來源不會刪除，會移到「已暫停」，以後隨時可以換回來。想同時保留更多來源，可以取得更多位置。";
+"cloud_restore_pull_to_retry" = "下拉可重試";

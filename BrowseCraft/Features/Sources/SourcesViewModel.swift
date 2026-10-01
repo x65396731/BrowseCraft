@@ -810,10 +810,22 @@ final class SourcesViewModel {
     @MainActor
     /// 中文注释：deleteSources 方法封装当前类型的一段业务或界面行为。
     func deleteSources(at offsets: IndexSet) async {
+        let sourceIDs: [String] = offsets.map { offset in
+            return self.sources[offset].id
+        }
+        await self.deleteSources(ids: sourceIDs)
+    }
+
+    /// 中文注释：来源页的左滑与长按菜单按来源删除（`docs/design/Sources-Page-Redesign-Design.md` 2.5）；
+    /// 连带清理与按下标删除同一条路径。
+    @MainActor
+    func deleteSource(id sourceID: String) async {
+        await self.deleteSources(ids: [sourceID])
+    }
+
+    @MainActor
+    private func deleteSources(ids sourceIDs: [String]) async {
         do {
-            let sourceIDs: [String] = offsets.map { offset in
-                return self.sources[offset].id
-            }
             let snapshot: SourcesPersistenceSnapshot = try await self.persistenceCoordinator.delete(
                 sourceIDs: sourceIDs,
                 userID: self.currentUserID
@@ -854,15 +866,29 @@ final class SourcesViewModel {
         self.saveLibraryStateForSelectedSource(lastRefreshAt: nil)
     }
 
-    @MainActor
-    func selectSourceAfterRefresh(_ source: Source) async {
-        guard source.accessState == .active else {
-            self.requestedSlotActivationSource = source
+    /// 中文注释：已暂停的来源请求启用：打开启用来源窗口（2.4 / 2.6）。
+    func requestSlotActivation(for source: Source) {
+        guard source.accessState == .lockedBySlotLimit else {
             return
         }
+        self.requestedSlotActivationSource = source
+    }
 
-        if self.selectedSourceID == source.id || self.isRefreshing {
-            return
+    /// 返回调用结束时这个来源是否是当前来源——来源页据此决定是否跳到库（`docs/design/Sources-Page-Redesign-Design.md` 2.3）：
+    /// 已是当前来源为 true；切换成功为 true；被锁定、另一次切换进行中或加载第一页失败为 false。
+    @MainActor
+    @discardableResult
+    func selectSourceAfterRefresh(_ source: Source) async -> Bool {
+        guard source.accessState == .active else {
+            self.requestedSlotActivationSource = source
+            return false
+        }
+
+        if self.selectedSourceID == source.id {
+            return true
+        }
+        if self.isRefreshing {
+            return false
         }
 
         self.isRefreshing = true
@@ -893,6 +919,7 @@ final class SourcesViewModel {
 
         self.refreshingSourceID = nil
         self.isRefreshing = false
+        return self.selectedSourceID == source.id
     }
 
     @MainActor
@@ -937,28 +964,31 @@ final class SourcesViewModel {
         self.requestedSlotActivationSource = nil
     }
 
+    /// 返回重试的是不是一次切换、并且这次切换成功了——来源页据此在重试成功后打开库。
     @MainActor
-    func retryFailedRefresh() async {
+    @discardableResult
+    func retryFailedRefresh() async -> Bool {
         let failedRefreshAction: FailedRefreshAction? = self.failedRefreshAction
         self.errorMessage = nil
 
         guard let failedRefreshAction: FailedRefreshAction = failedRefreshAction else {
-            return
+            return false
         }
 
         switch failedRefreshAction {
         case .select(let sourceID):
             guard let source: Source = self.source(id: sourceID) else {
-                return
+                return false
             }
 
-            await self.selectSourceAfterRefresh(source)
+            return await self.selectSourceAfterRefresh(source)
         case .refresh(let sourceID):
             guard let source: Source = self.source(id: sourceID) else {
-                return
+                return false
             }
 
             await self.refreshSource(source)
+            return false
         }
     }
 

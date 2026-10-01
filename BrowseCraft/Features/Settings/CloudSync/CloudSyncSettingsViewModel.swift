@@ -370,6 +370,14 @@ final class CloudSyncSettingsViewModel {
         await self.runSynchronization(trigger: .retry)
     }
 
+    /// 首次恢复失败后的下拉重试（来源页与收藏页共用，不放重试按钮）；等待或恢复中下拉不触发任何事。
+    func retryInitialRestoreIfFailed() async {
+        guard case .failed = self.initialRestoreState else {
+            return
+        }
+        await self.retrySynchronization()
+    }
+
     private func runSynchronization(trigger: CloudSyncTrigger) async {
         guard self.isSynchronizing == false else {
             return

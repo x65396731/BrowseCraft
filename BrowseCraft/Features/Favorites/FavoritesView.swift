@@ -39,12 +39,11 @@ struct FavoritesView: View {
                 Group {
                     if self.viewModel.favoriteItems.isEmpty &&
                         self.cloudSyncViewModel.initialRestoreState.shouldReplaceEmptyState {
-                        CloudSyncInitialRestoreView(
-                            state: self.cloudSyncViewModel.initialRestoreState,
-                            retryAction: {
-                                await self.cloudSyncViewModel.retrySynchronization()
-                            }
-                        )
+                        // 中文注释：卡片里没有可点的控件，关掉命中测试让拖拽落到下面的列表——失败时靠下拉重试。
+                        CloudSyncInitialRestoreView(state: self.cloudSyncViewModel.initialRestoreState)
+                            .padding(.horizontal, 20)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .allowsHitTesting(false)
                     } else if self.viewModel.favoriteItems.isEmpty {
                         EmptyStateView(
                             systemImage: "heart",
@@ -56,6 +55,14 @@ struct FavoritesView: View {
                 }
             )
             .navigationTitle("Favorites")
+            .refreshable {
+                // 中文注释：iCloud 首次恢复失败时下拉即重试；其余时候下拉重新读本地收藏。
+                if case .failed = self.cloudSyncViewModel.initialRestoreState {
+                    await self.cloudSyncViewModel.retryInitialRestoreIfFailed()
+                } else {
+                    await self.viewModel.load()
+                }
+            }
             .onAppear {
                 CrashDiagnostics.shared.setScreen(.favorite)
                 AppAnalytics.shared.logScreenView(.favorite)

@@ -653,3 +653,45 @@
 
 /* 选集按重复集号切出的线路名（规则没有线路名时） */
 "video_episode_route_label" = "Source %d";
+
+/* 来源页重设计（docs/design/Sources-Page-Redesign-Design.md 方案 A） */
+"sources_action_catalog" = "Catalog";
+"sources_action_add" = "Add";
+"sources_slots_used" = "Source slots used";
+"sources_slots_short" = "source slots";
+"sources_slots_more" = "More Slots";
+"sources_get_more_slots" = "Get More Slots";
+"sources_in_use_badge" = "In Use";
+"sources_in_use_open_hint" = "Tap the card to open Library";
+"sources_in_use_accessibility" = "In use: %@. Opens Library.";
+"sources_origin_catalog" = "From Catalog";
+"sources_kind_other" = "Other";
+"sources_section_others" = "Other Sources";
+"sources_section_others_hint" = "Tap a source to switch and open Library";
+"sources_section_others_switching" = "Switching — other sources are unavailable";
+"sources_switching_message" = "Loading the first page; Library opens when it's done…";
+"sources_section_paused" = "Paused · Not Enough Slots";
+"sources_paused_activate" = "Activate";
+"sources_paused_replace" = "Swap In";
+"sources_full_hint_title" = "Want to add another site?";
+"sources_full_hint_message" = "All slots are in use. Long-press the current source to delete it first, or get more slots.";
+"sources_footer_hint" = "Long-press a source to see its details or delete it; you can also swipe left to delete. Deleting a source also removes its related reading/watch history and library state.";
+"sources_menu_open_library" = "Open Library";
+"sources_menu_switch_and_open" = "Switch and Open Library";
+"sources_menu_details" = "Source Details";
+"sources_menu_delete" = "Delete Source";
+"sources_delete_confirm_title" = "Delete “%@”?";
+"sources_empty_title" = "No Sources Yet";
+"sources_empty_message" = "A source is a website. Add one and your Library will have something to read or watch.";
+"sources_empty_catalog_title" = "Pick One from the Catalog";
+"sources_empty_catalog_message" = "Sorted into video, comics and books — add one with a tap";
+"sources_empty_generate_title" = "Generate from a URL";
+"sources_empty_generate_message" = "Paste a category or list page with page numbers to generate a rule";
+"sources_activation_badge" = "Paused · %@";
+"sources_activation_saved" = "This source is saved safely; it just isn't using a slot right now.";
+"sources_activation_activate" = "Activate This Source";
+"sources_activation_free_slots" = "Free source slots: %d";
+"sources_activation_full_title" = "Slots Full · Pick a Source to Make Room";
+"sources_activation_swap_out" = "Swap Out";
+"sources_activation_full_footer" = "A swapped-out source isn't deleted. It moves to Paused, and you can swap it back any time. To keep more sources at once, get more slots.";
+"cloud_restore_pull_to_retry" = "Pull down to retry";

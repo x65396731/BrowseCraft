@@ -91,6 +91,31 @@ struct CatalogKindStyle {
     }
 }
 
+extension CatalogKindStyle {
+    /// 来源页按已添加来源的配置取类型样式，与目录同一套取值（`docs/design/Sources-Page-Redesign-Design.md` 第三节）。
+    /// 没有对应目录类型的配置（plugin）退回中性灰，不借用任何一种类型色。
+    static func of(_ source: Source) -> CatalogKindStyle {
+        switch source.configuration {
+        case .video:
+            return Self.of(CatalogSourceKind.video)
+        case .comic:
+            return Self.of(CatalogSourceKind.comic)
+        case .book:
+            return Self.of(CatalogSourceKind.book)
+        case .plugin:
+            return CatalogKindStyle(
+                title: NSLocalizedString("sources_kind_other", comment: ""),
+                symbolName: "puzzlepiece.extension.fill",
+                accent: CatalogPalette.dynamic(light: 0x6B6B70, dark: 0xAEAEB2),
+                bannerBackground: CatalogPalette.fixed(0x232326),
+                bannerAccent: CatalogPalette.fixed(0xAEAEB2),
+                bannerSecondaryText: CatalogPalette.fixed(0xC7C7CC),
+                bannerAssetName: ""
+            )
+        }
+    }
+}
+
 /// 目录卡片上的文字取值：首字徽标与地址。
 enum CatalogDisplayText {
     /// 站点名的第一个字符；拉丁字母取大写。

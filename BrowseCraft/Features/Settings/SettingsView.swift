@@ -351,6 +351,18 @@ struct SettingsView: View {
             self.isShowingInAppPurchase ? .hidden : .visible,
             for: .tabBar
         )
+        .onChange(of: self.viewModel.isInAppPurchaseRequested, initial: true) { _, isRequested in
+            // 中文注释：来源页「更多位置」切到本页并请求打开购买入口；`initial` 覆盖本页首次出现的情形。
+            guard isRequested else {
+                return
+            }
+            self.viewModel.consumeInAppPurchaseRequest()
+            var transaction: SwiftUI.Transaction = SwiftUI.Transaction(animation: nil)
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                self.isShowingInAppPurchase = true
+            }
+        }
     }
 
     private var imageCacheLimitBinding: Binding<ImageCacheLimitOption> {

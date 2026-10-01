@@ -37,6 +37,8 @@ final class SettingsViewModel {
     private(set) var isPortalAuthenticated: Bool = false
     private(set) var isPortalAccountActionInFlight: Bool = false
     var portalAccountErrorMessage: String?
+    /// 其他页面（来源页「更多位置」）请求打开高级版购买入口；设置页出现时消费。
+    private(set) var isInAppPurchaseRequested: Bool = false
 
     private let imageCacheManager: any ImageCacheManaging
     private let purchaseCoordinator: PortalPurchaseCoordinator
@@ -72,6 +74,14 @@ final class SettingsViewModel {
     }
 
     @MainActor
+    func requestInAppPurchase() {
+        self.isInAppPurchaseRequested = true
+    }
+
+    func consumeInAppPurchaseRequest() {
+        self.isInAppPurchaseRequested = false
+    }
+
     func refreshDiagnosticCode() {
         self.diagnosticCode = self.diagnosticIdentityStore.identity.diagnosticCode
     }

@@ -169,8 +169,10 @@ struct SourcesViewModelTests {
         let target: Source = try #require(viewModel.sources.first { source in source.id != initialID })
         let targetRuntime: ScriptedSourceRuntime = target.id == comic.id ? comicRuntime : customRuntime
 
-        await viewModel.selectSourceAfterRefresh(target)
+        // 中文注释：来源页据返回值决定是否跳到库——加载第一页失败时不跳（`Sources-Page-Redesign-Design.md` 2.3）。
+        let firstAttemptSelected: Bool = await viewModel.selectSourceAfterRefresh(target)
 
+        #expect(firstAttemptSelected == false)
         #expect(viewModel.errorMessage != nil)
         #expect(viewModel.selectedSourceID == initialID)
         #expect(viewModel.isRefreshing == false)
@@ -180,13 +182,19 @@ struct SourcesViewModelTests {
         targetRuntime.setListHandler { _ in
             ScriptedSourceRuntime.listOutput(ids: ["retry-1"])
         }
-        await viewModel.retryFailedRefresh()
+        let retrySelected: Bool = await viewModel.retryFailedRefresh()
 
+        #expect(retrySelected)
         #expect(viewModel.errorMessage == nil)
         #expect(viewModel.selectedSourceID == target.id)
         #expect(store.selectedSourceID == target.id)
         #expect(store.preparedLibrarySnapshot?.sourceID == target.id)
         #expect(store.preparedLibrarySnapshot?.items.map(\.id) == ["retry-1"])
+        #expect(targetRuntime.listInputs.count == 2)
+
+        // 中文注释：点当前来源直接打开库：返回 true，不再加载第一页。
+        let currentSelected: Bool = await viewModel.selectSourceAfterRefresh(target)
+        #expect(currentSelected)
         #expect(targetRuntime.listInputs.count == 2)
     }
 
@@ -218,10 +226,19 @@ struct SourcesViewModelTests {
         viewModel.selectSource(id: active.id)
         #expect(viewModel.selectedSourceID == active.id)
 
-        viewModel.selectSource(id: locked.id)
+        // 中文注释：正在使用的来源不会被「请求启用」打开启用窗口。
+        viewModel.requestSlotActivation(for: active)
+        #expect(viewModel.requestedSlotActivationSource == nil)
 
+        // 中文注释：点已暂停的来源不切换、不跳库，而是打开启用窗口。
+        let lockedSelected: Bool = await viewModel.selectSourceAfterRefresh(locked)
+
+        #expect(lockedSelected == false)
         #expect(viewModel.requestedSlotActivationSource?.id == locked.id)
         #expect(viewModel.selectedSourceID == active.id)
+        viewModel.dismissRequestedSlotActivation()
+        viewModel.requestSlotActivation(for: locked)
+        #expect(viewModel.requestedSlotActivationSource?.id == locked.id)
 
         let activated: Bool = await viewModel.activateRequestedSource(replacingSourceID: active.id)
 
@@ -233,5 +250,137 @@ struct SourcesViewModelTests {
         let persisted: [Source] = try sourceRepository.fetchSources()
         #expect(persisted.first { source in source.id == locked.id }?.enabled == true)
         #expect(persisted.first { source in source.id == active.id }?.enabled == false)
+    }
+
+    // 中文注释：「已暂停」的来历之一——启用的来源比位置多（iCloud 合并进来的来源、或本机读到的位置额度变少）。
+    // 每次读列表时按「启用在前、最近更新在前」只留前 N 个占位置，其余暂停；当前来源被暂停时选中挪到仍在用的来源。
+    @Test func sourcesBeyondTheSlotLimitArePausedKeepingTheMostRecentlyUpdated() async throws {
+        let database: AppDatabase = try Harness.makeDatabase()
+        let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
+        let oldest: Source = try Harness.makeComicSource(id: "custom.oldest", name: "Oldest")
+        let middle: Source = try Harness.makeComicSource(id: "custom.middle", name: "Middle")
+        let newest: Source = try Harness.makeComicSource(id: "custom.newest", name: "Newest")
+        try sourceRepository.saveSource(oldest)
+        try Self.setSiteSlotLimit(3, in: database)
+        try sourceRepository.saveSource(middle)
+        try sourceRepository.saveSource(newest)
+        try Self.setUpdatedAt(
+            [oldest.id: Harness.fixedNow.addingTimeInterval(-300),
+             middle.id: Harness.fixedNow.addingTimeInterval(-200),
+             newest.id: Harness.fixedNow.addingTimeInterval(-100)],
+            in: database
+        )
+        let viewModel: SourcesViewModel = Harness.makeSourcesViewModel(
+            database: database,
+            resolver: Harness.resolver()
+        )
+        _ = try await viewModel.loadForStartup()
+        #expect(viewModel.occupiedSourceSlotCount == 3)
+        #expect(viewModel.lockedSourceCount == 0)
+        viewModel.selectSource(id: middle.id)
+
+        try Self.setSiteSlotLimit(1, in: database)
+        await viewModel.load()
+
+        #expect(viewModel.sourceSlotLimit == 1)
+        #expect(viewModel.occupiedSourceSlotCount == 1)
+        #expect(viewModel.lockedSourceCount == 2)
+        #expect(viewModel.source(id: newest.id)?.accessState == .active)
+        #expect(viewModel.source(id: middle.id)?.accessState == .lockedBySlotLimit)
+        #expect(viewModel.source(id: oldest.id)?.accessState == .lockedBySlotLimit)
+        #expect(viewModel.selectedSourceID == newest.id)
+        #expect(viewModel.canActivateRequestedSourceWithoutReplacement == false)
+        let persisted: [Source] = try sourceRepository.fetchSources()
+        #expect(persisted.filter(\.enabled).map(\.id) == [newest.id])
+
+        // 中文注释：位置额度回来后（买了位置），暂停的来源在下一次读列表时自动恢复。
+        try Self.setSiteSlotLimit(3, in: database)
+        await viewModel.load()
+
+        #expect(viewModel.occupiedSourceSlotCount == 3)
+        #expect(viewModel.lockedSourceCount == 0)
+    }
+
+    // 中文注释：iCloud 同步直接写进来的启用记录不经过 `saveSource` 的位置检查；读列表时同样归置成暂停。
+    @Test func syncedSourceArrivingOverTheLimitIsPaused() async throws {
+        let database: AppDatabase = try Harness.makeDatabase()
+        let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
+        let local: Source = try Harness.makeComicSource(id: "custom.local", name: "Local")
+        var synced: Source = try Harness.makeComicSource(id: "custom.synced", name: "Synced")
+        try sourceRepository.saveSource(local)
+        synced.enabled = false
+        try sourceRepository.saveSource(synced)
+        try Self.markEnabled(synced.id, in: database)
+        try Self.setUpdatedAt(
+            [synced.id: Harness.fixedNow.addingTimeInterval(-500),
+             local.id: Harness.fixedNow.addingTimeInterval(-100)],
+            in: database
+        )
+        let viewModel: SourcesViewModel = Harness.makeSourcesViewModel(
+            database: database,
+            resolver: Harness.resolver()
+        )
+
+        _ = try await viewModel.loadForStartup()
+
+        #expect(viewModel.occupiedSourceSlotCount == 1)
+        #expect(viewModel.source(id: local.id)?.accessState == .active)
+        #expect(viewModel.source(id: synced.id)?.accessState == .lockedBySlotLimit)
+    }
+
+    // 中文注释：长按 / 左滑按来源删除；删掉正在用的来源后位置空出，暂停的来源在同一次归置里补上。
+    @Test func deletingTheActiveSourceByIDLetsAPausedSourceTakeTheSlot() async throws {
+        let database: AppDatabase = try Harness.makeDatabase()
+        let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
+        let active: Source = try Harness.makeComicSource(id: "custom.active", name: "Active")
+        var paused: Source = try Harness.makeComicSource(id: "custom.paused", name: "Paused")
+        try sourceRepository.saveSource(active)
+        paused.enabled = false
+        try sourceRepository.saveSource(paused)
+        let viewModel: SourcesViewModel = Harness.makeSourcesViewModel(
+            database: database,
+            resolver: Harness.resolver()
+        )
+        _ = try await viewModel.loadForStartup()
+        viewModel.selectSource(id: active.id)
+        #expect(viewModel.source(id: paused.id)?.accessState == .lockedBySlotLimit)
+
+        await viewModel.deleteSource(id: active.id)
+
+        #expect(viewModel.errorMessage == nil)
+        #expect(viewModel.sources.map(\.id) == [paused.id])
+        #expect(viewModel.source(id: paused.id)?.accessState == .active)
+        #expect(viewModel.selectedSourceID == paused.id)
+        #expect(try sourceRepository.fetchSources().map(\.id) == [paused.id])
+    }
+
+    private static func setSiteSlotLimit(_ limit: Int, in database: AppDatabase) throws {
+        try database.queue.write { database in
+            try database.execute(
+                sql: "UPDATE \(AppUserRecord.databaseTableName) SET siteSlotLimit = ?",
+                arguments: [limit]
+            )
+        }
+    }
+
+    /// 模拟同步直接写入一条启用记录，绕过 `saveSource` 的位置检查。
+    private static func markEnabled(_ sourceID: String, in database: AppDatabase) throws {
+        try database.queue.write { database in
+            try database.execute(
+                sql: "UPDATE \(SourceRecord.databaseTableName) SET enabled = 1 WHERE id = ?",
+                arguments: [sourceID]
+            )
+        }
+    }
+
+    private static func setUpdatedAt(_ dates: [String: Date], in database: AppDatabase) throws {
+        try database.queue.write { database in
+            for (sourceID, date) in dates {
+                try database.execute(
+                    sql: "UPDATE \(SourceRecord.databaseTableName) SET updatedAt = ? WHERE id = ?",
+                    arguments: [date, sourceID]
+                )
+            }
+        }
     }
 }

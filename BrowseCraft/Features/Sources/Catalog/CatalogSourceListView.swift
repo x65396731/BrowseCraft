@@ -613,7 +613,8 @@ private struct CatalogTagView: View {
     }
 }
 
-private struct CatalogMonogramView: View {
+/// 首字徽标：目录卡片与来源页的来源行、正在使用卡片共用。
+struct CatalogMonogramView: View {
     let name: String
     let accent: Color
     let size: CGFloat

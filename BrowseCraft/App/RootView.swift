@@ -162,7 +162,17 @@ struct RootView: View {
         TabView(selection: self.$selectedTab) {
             SourcesView(
                 viewModel: self.sourcesViewModel,
-                cloudSyncViewModel: self.cloudSyncSettingsViewModel
+                cloudSyncViewModel: self.cloudSyncSettingsViewModel,
+                // 中文注释：点来源即打开库（`docs/design/Sources-Page-Redesign-Design.md` 2.3），
+                // 与 `latestSourceAddID` 触发的跳转同一处切标签。
+                openLibrary: {
+                    self.selectedTab = .library
+                },
+                // 中文注释：来源位置不够时的「更多位置」进入设置页既有的高级版购买入口。
+                openPremium: {
+                    self.settingsViewModel.requestInAppPurchase()
+                    self.selectedTab = .settings
+                }
             )
                 .tabItem {
                     Image("TabSources")
