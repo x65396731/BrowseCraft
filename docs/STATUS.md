@@ -50,7 +50,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 已添加来源跟随目录自动更新（目录页读取、启动与回到前台时静默覆盖本地副本） | 未编号 | required | approved | implemented | targeted-passed | 3646c2e | 2026-09-30 |
 | 同站多条来源的副标题显示各自入口地址 | 未编号 | required | approved | implemented | device-passed | 1513a0f | 2026-09-15 |
 | 规则目录页重设计：推荐 / 我的生成分栏，推荐按类型分区，我的生成按时间线（方案 A） | 未编号 | required | approved | implemented | full-suite-passed | 9c03d27 | 2026-09-30 |
-| 来源页重设计：正在使用置顶、点来源即打开库、已暂停区与启用窗口、长按菜单（方案 A） | 未编号 | required | approved | not-started | not-run | aeff48e | 2026-10-01 |
+| 来源页重设计：正在使用置顶、点来源即打开库、已暂停区与启用窗口、长按菜单（方案 A） | 未编号 | required | approved | implemented | full-suite-passed | 2c0908a | 2026-10-01 |
 
 ## 3. 影视线运行期
 

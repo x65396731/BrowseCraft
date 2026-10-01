@@ -314,3 +314,21 @@ XCTest 81 项中 17 处断言失败，全部来自同一个 `BundledImageAssetTe
 2026-09-30 应用户要求把目录页固定为深色（与设计稿一致）。真机上它从跟随系统的来源页以 sheet 弹出，浅色模式下反差过大；
 用户裁定页面之间的主题色不能差异过大，改回跟随系统。类型横幅保持深色色块（底色、图标圆、标题与说明取固定深色值），
 与来源页重设计中「正在使用」的深色类型瓷砖同一种做法。未 build、未跑测试。
+
+## 2026-10-01：来源页方案 A 的实施与验证
+
+`STATUS.md` 第 2 节「来源页重设计」：实施 not-started / 验证 not-run / 检查点 aeff48e
+→ implemented / full-suite-passed / 2c0908a。
+
+原因：用户要求按设计文档实施，并 build 与测试后提交。实现按 `docs/design/Sources-Page-Redesign-Design.md` 第六节的文件清单，
+另动了设置页（「更多位置」经 `SettingsViewModel.requestInAppPurchase()` 打开既有购买入口）与收藏页
+（共用的 iCloud 恢复卡片改为下拉重试，收藏页随之加了下拉，已写回设计文档 2.7）。与设计稿的出入：
+「已暂停」一组没有画橙色虚线外框——为保留逐行左滑删除，每行是独立卡片，虚线框会在行间断开；
+在启用窗口里启用后不自动跳库（文档要求该处逻辑不变）。空状态插画 `EmptyStateSources` 仍是旧图，等用户出图。
+
+`xcodebuild build`（iPhone 17 Pro / iOS 26.5）`BUILD SUCCEEDED`，构建阶段的本地化检查通过。
+`-only-testing:BrowseCraftTests` 第一次因新测试在 async 函数里直接调 `database.queue.write`（选中异步重载、捕获 `var`）编译失败，
+改为同步的静态帮手后重跑：Swift Testing 538 项 / 92 套全过，XCTest 81 项 0 失败，`TEST SUCCEEDED`。
+新增三条测试覆盖「已暂停」的来历：位置额度变少时按「启用在前、最近更新在前」只留前 N 个、额度恢复后自动解除暂停；
+同步直接写入的启用记录超出上限时被归置为暂停；按 ID 删除正在用的来源后暂停的来源补位。
+另在两条既有测试里断言了 `selectSourceAfterRefresh` / `retryFailedRefresh` 的新返回值。模拟器与真机均未走查。
