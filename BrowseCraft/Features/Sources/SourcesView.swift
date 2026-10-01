@@ -603,12 +603,20 @@ private struct SourcesActionCapsule: View {
 
     private func segment(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
-                .padding(.horizontal, 14)
-                .frame(height: 44)
-                .contentShape(Rectangle())
+            // 中文注释：单行且不被压缩——标题与胶囊同一行，宽度不够时让标题缩字号，而不是把「目录」挤成竖排。
+            // 不用 `Label`：它在列表行里加 `fixedSize` 后会退化成只显示图标。
+            HStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .accessibilityHidden(true)
+                Text(title)
+            }
+            .font(.subheadline.weight(.semibold))
+            .lineLimit(1)
+            .fixedSize()
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 14)
+            .frame(height: 44)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
