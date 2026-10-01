@@ -37,7 +37,17 @@ python3 scripts/check-docs.py
 
 以下都在 `docs/STATUS.md` 里有行；挑活前按该文件第 0 节的三步核对，不要只看名字就开工。
 
-**`required` 未完成：0 条。** 剩下的全是 `optional` 或已裁决不做。
+**`required` 未完成：1 条——来源页重设计（方案 A），下一个会话从这里接着做。**
+
+- **来源页重设计**：合同是 [`docs/design/Sources-Page-Redesign-Design.md`](docs/design/Sources-Page-Redesign-Design.md)，
+  开头有设计稿画布链接；状态见 `docs/STATUS.md` 第 2 节那一行。要做的是按文档第六节的文件清单实现，
+  其中「点来源即打开库」是行为变化（切换成功后跳库标签，失败留在原页），`CloudSyncInitialRestoreView` 由来源页与收藏页共用。
+  空状态插画 `EmptyStateSources` 等用户按画布里「来源空状态插画 · 即梦设定」出图，出图后用 `scripts/illustration-cutout.swift` 处理再替换。
+- **规则目录页重设计**（已实施，合同 [`docs/design/Catalog-Page-Redesign-Design.md`](docs/design/Catalog-Page-Redesign-Design.md)）：
+  设计稿与即梦提示词在文档开头链接的画布上；目录页跟随系统外观、类型横幅固定为深色色块。浅色模式与六张插画的真机观感未在本仓库记录验证。
+- 设计约定：页面之间主题色不能差异过大；类型色只有 `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift` 一处取值，新页面复用。
+
+剩下的全是 `optional` 或已裁决不做。
 
 - **等用户裁决**：fwq 的 `protectedResource` 与 `executionPolicy` 两条约束只有正文没有稳定 ID，
   本仓库只能按文档引用，是否请 fwq 分配 ID。
