@@ -132,7 +132,7 @@
 "video_generation_outcome_failed_unknown" = "生成失败，请稍后重试。";
 "video_generation_outcome_detail_noPlaybackCarrier" = "该网站上没有找到视频播放。";
 "video_generation_outcome_detail_episodeLayoutUnsupported" = "该网站有视频页面，但这种剧集布局暂不支持。";
-"video_generation_outcome_detail_terminalPagesWithoutCarrier" = "已经取到了阅读或播放页面，但页面上的内容不是能直接读取的图片或视频（例如画布绘制或加密的图片），暂不支持。";
+"video_generation_outcome_detail_terminalPagesWithoutCarrier" = "已经取到了阅读、播放或正文页面，但页面上认不出可以直接读取的内容（例如画布绘制、加密或需要脚本加载的内容），暂不支持。";
 "video_generation_outcome_detail_contentNotServerRendered" = "这个网站的内容要另外请求数据或经过加密才能取到，目前只支持内容随页面直接下发的网站，请换一个网站试试。";
 "video_generation_outcome_detail_entryPageWithoutPagination" = "这个页面的翻页地址推不出来，只能取到第一屏。请换一个翻到第 2 页时地址会跟着变的分类页。";
 "video_generation_outcome_detail_entryPageMultipleListFamilies" = "这个页面上有好几组互不相干的列表，请换一个只列一类内容的分类页。";

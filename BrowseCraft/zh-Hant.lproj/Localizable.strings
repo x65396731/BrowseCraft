@@ -132,7 +132,7 @@
 "video_generation_outcome_failed_unknown" = "生成失敗，請稍後再試。";
 "video_generation_outcome_detail_noPlaybackCarrier" = "這個網站上找不到影片播放。";
 "video_generation_outcome_detail_episodeLayoutUnsupported" = "這個網站有影片頁面，但這種劇集排版暫時不支援。";
-"video_generation_outcome_detail_terminalPagesWithoutCarrier" = "已經取到了閱讀或播放頁面，但頁面上的內容不是能直接讀取的圖片或影片（例如畫布繪製或加密的圖片），暫時不支援。";
+"video_generation_outcome_detail_terminalPagesWithoutCarrier" = "已經取到了閱讀、播放或正文頁面，但頁面上認不出可以直接讀取的內容（例如畫布繪製、加密或需要腳本載入的內容），暫時不支援。";
 "video_generation_outcome_detail_contentNotServerRendered" = "這個網站的內容要另外請求資料或經過加密才能取得，目前只支援內容隨頁面直接下發的網站，請換一個網站試試。";
 "video_generation_outcome_detail_entryPageWithoutPagination" = "這個頁面的翻頁網址推不出來，只能取到第一屏。請換一個翻到第 2 頁時網址會跟著變的分類頁。";
 "video_generation_outcome_detail_entryPageMultipleListFamilies" = "這個頁面上有好幾組互不相干的清單，請換一個只列一類內容的分類頁。";
