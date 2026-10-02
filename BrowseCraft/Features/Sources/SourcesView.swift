@@ -19,7 +19,6 @@ struct SourcesView: View {
     @State private var opensAddSourceAfterCatalog: Bool = false
     @State private var opensPremiumAfterSlotActivation: Bool = false
     @State private var debugSourceID: String?
-    @State private var pendingDeletion: Source?
 
     var body: some View {
         NavigationStack {
@@ -92,23 +91,6 @@ struct SourcesView: View {
                         }
                     )
                 }
-                .confirmationDialog(
-                    self.pendingDeletion.map { source in
-                        String(format: NSLocalizedString("sources_delete_confirm_title", comment: ""), source.name)
-                    } ?? "",
-                    isPresented: self.deletionConfirmationBinding,
-                    titleVisibility: .visible,
-                    presenting: self.pendingDeletion
-                ) { source in
-                    Button(NSLocalizedString("sources_menu_delete", comment: ""), role: .destructive) {
-                        Task {
-                            await self.viewModel.deleteSource(id: source.id)
-                        }
-                    }
-                    Button("Cancel", role: .cancel) {}
-                } message: { _ in
-                    Text("Deleting a source also removes its related reading/watch history and library state.")
-                }
                 .alert(isPresented: self.errorAlertBinding) {
                     self.errorAlert()
                 }
@@ -154,7 +136,7 @@ struct SourcesView: View {
                         self.menu(for: currentSource)
                     }
                     .swipeToDelete(currentSource, disabled: isSwitching) { source in
-                        self.pendingDeletion = source
+                        self.delete(source)
                     }
                     .sourcesPageRow(top: 18)
             }
@@ -187,7 +169,7 @@ struct SourcesView: View {
                         self.menu(for: source)
                     }
                     .swipeToDelete(source, disabled: isSwitching) { source in
-                        self.pendingDeletion = source
+                        self.delete(source)
                     }
                     .sourcesPageRow()
                 }
@@ -225,7 +207,7 @@ struct SourcesView: View {
                         self.menu(for: source)
                     }
                     .swipeToDelete(source, disabled: isSwitching) { source in
-                        self.pendingDeletion = source
+                        self.delete(source)
                     }
                     .sourcesPageRow()
                 }
@@ -319,11 +301,18 @@ struct SourcesView: View {
         Divider()
 
         Button(role: .destructive) {
-            self.pendingDeletion = source
+            self.delete(source)
         } label: {
             Label(NSLocalizedString("sources_menu_delete", comment: ""), systemImage: "trash")
         }
         .disabled(isSwitching)
+    }
+
+    /// 删除来源不弹确认（2026-10-03 用户裁定），左滑与长按「删除来源」都直接删；连带清理历史与库状态的逻辑不变。
+    private func delete(_ source: Source) {
+        Task {
+            await self.viewModel.deleteSource(id: source.id)
+        }
     }
 
     /// 点其他来源：先切换（加载第一页、发布库快照），成功后再切到库；失败时 ViewModel 已给出错误，留在本页。
@@ -486,19 +475,6 @@ struct SourcesView: View {
         )
     }
 
-    private var deletionConfirmationBinding: Binding<Bool> {
-        return Binding<Bool>(
-            get: {
-                return self.pendingDeletion != nil
-            },
-            set: { isPresented in
-                if isPresented == false {
-                    self.pendingDeletion = nil
-                }
-            }
-        )
-    }
-
     private func errorAlert() -> Alert {
         if self.viewModel.canRetryFailedRefresh {
             return Alert(
@@ -559,8 +535,7 @@ private extension View {
             .listRowBackground(Color.clear)
     }
 
-    /// 左滑删除：只打开确认，不直接删（删除会连带清理历史与库状态）。不用 destructive 角色，
-    /// 否则系统会在确认之前先把这一行动画移走。
+    /// 左滑删除：直接删，不弹确认。不用 destructive 角色，行的移除由数据变化驱动。
     func swipeToDelete(_ source: Source, disabled: Bool, action: @escaping (Source) -> Void) -> some View {
         return self.swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button {
