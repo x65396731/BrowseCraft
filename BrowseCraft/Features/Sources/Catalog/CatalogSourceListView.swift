@@ -36,9 +36,23 @@ struct CatalogSourceListView: View {
                     Text(NSLocalizedString("catalog_title", comment: ""))
                         .font(.largeTitle.weight(.heavy))
                         .accessibilityAddTraits(.isHeader)
-                    CatalogTabPicker(
+                    CatalogSegmentedPicker(
                         selection: self.$selectedTab,
-                        personalCount: self.viewModel.personalCatalogItemCount
+                        segments: [
+                            CatalogSegmentedPicker<Tab>.Segment(
+                                value: Tab.recommended,
+                                title: NSLocalizedString("catalog_tab_recommended", comment: ""),
+                                systemImage: "sparkles"
+                            ),
+                            CatalogSegmentedPicker<Tab>.Segment(
+                                value: Tab.personal,
+                                title: NSLocalizedString("catalog_section_personal", comment: ""),
+                                // 中文注释：目录页「我的生成」只在有条目时显示计数。
+                                count: self.viewModel.personalCatalogItemCount > 0
+                                    ? self.viewModel.personalCatalogItemCount
+                                    : nil
+                            )
+                        ]
                     )
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -280,16 +294,7 @@ struct CatalogSourceListView: View {
     }
 
     static func dayTitle(_ day: CatalogPersonalTimeline.Day) -> String {
-        switch day {
-        case .today:
-            return NSLocalizedString("catalog_personal_day_today", comment: "")
-        case .yesterday:
-            return NSLocalizedString("catalog_personal_day_yesterday", comment: "")
-        case .date(let date):
-            return date.formatted(.dateTime.month().day())
-        case .unknown:
-            return NSLocalizedString("catalog_personal_day_earlier", comment: "")
-        }
+        return CatalogDayTitle.text(for: day)
     }
 
     private func remainingText(for catalogSource: CatalogSource) -> String? {
@@ -360,60 +365,6 @@ struct CatalogSourceListView: View {
 // MARK: - 分段控件
 
 /// 「推荐 / 我的生成」两段。「我的生成」段带数量角标，为 0 时不显示。
-private struct CatalogTabPicker: View {
-    @Binding var selection: CatalogSourceListView.Tab
-    let personalCount: Int
-
-    var body: some View {
-        HStack(spacing: 3) {
-            self.segment(.recommended) {
-                Label(NSLocalizedString("catalog_tab_recommended", comment: ""), systemImage: "sparkles")
-            }
-            self.segment(.personal) {
-                HStack(spacing: 6) {
-                    Text(NSLocalizedString("catalog_section_personal", comment: ""))
-                    if self.personalCount > 0 {
-                        Text(self.personalCount, format: .number)
-                            .font(.caption.weight(.bold))
-                            .monospacedDigit()
-                            .padding(.horizontal, 6)
-                            .frame(minWidth: 20, minHeight: 20)
-                            .foregroundStyle(self.selection == .personal ? Color(uiColor: .systemBackground) : .primary)
-                            .background(
-                                self.selection == .personal ? Color.primary : CatalogPalette.fillBackground,
-                                in: Capsule()
-                            )
-                    }
-                }
-            }
-        }
-        .padding(3)
-        .background(CatalogPalette.segmentBackground, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-    }
-
-    private func segment<Content: View>(
-        _ tab: CatalogSourceListView.Tab,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        let isSelected: Bool = self.selection == tab
-        return Button {
-            self.selection = tab
-        } label: {
-            content()
-                .font(.subheadline.weight(isSelected ? .semibold : .regular))
-                .foregroundStyle(isSelected ? .primary : .secondary)
-                .frame(maxWidth: .infinity, minHeight: 38)
-                .background(
-                    isSelected ? CatalogPalette.segmentSelected : Color.clear,
-                    in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-                )
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-}
-
 // MARK: - 推荐：横幅与卡片
 
 private struct CatalogKindBannerView: View {

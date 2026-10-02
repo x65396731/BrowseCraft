@@ -695,3 +695,21 @@
 "sources_activation_swap_out" = "Swap Out";
 "sources_activation_full_footer" = "A swapped-out source isn't deleted. It moves to Paused, and you can swap it back any time. To keep more sources at once, get more slots.";
 "cloud_restore_pull_to_retry" = "Pull down to retry";
+
+/* 收藏页重设计（docs/design/Favorites-Page-Redesign-Design.md） */
+"favorites_count" = "%d favorites";
+"favorites_filter_all" = "All";
+"favorites_unfavorite" = "Unfavorite";
+"favorites_menu_open" = "Open";
+"favorites_menu_open_source" = "View Source in Library";
+"favorites_kind_empty_title" = "No favorites in %@ yet";
+"favorites_kind_empty_message" = "Tap the heart on a cover in Library to favorite it.";
+"favorites_empty_title" = "No Favorites Yet";
+"favorites_empty_message" = "Tap the heart on a cover in Library to favorite it. Your favorites are listed here by the day you saved them.";
+"favorites_empty_browse_title" = "Browse the Library";
+"favorites_empty_browse_message" = "See what the current source has to favorite";
+"favorites_unknown_source" = "Unknown Source";
+"favorites_source_paused_suffix" = " · Paused";
+"favorites_source_deleted_suffix" = " · Source deleted";
+"favorites_undo_message" = "Unfavorited “%@”";
+"favorites_undo_action" = "Undo";

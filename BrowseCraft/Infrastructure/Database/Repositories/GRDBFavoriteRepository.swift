@@ -49,6 +49,14 @@ final class GRDBFavoriteRepository: FavoriteRepository {
     }
 
     func setFavorite(item: FavoriteContentItem, isFavorite: Bool) throws {
+        try self.writeFavorite(item: item, isFavorite: isFavorite, keepsFavoritedAt: false)
+    }
+
+    func restoreFavorite(item: FavoriteContentItem) throws {
+        try self.writeFavorite(item: item, isFavorite: true, keepsFavoritedAt: true)
+    }
+
+    private func writeFavorite(item: FavoriteContentItem, isFavorite: Bool, keepsFavoritedAt: Bool) throws {
         let userID: String = self.currentUserID
         let accountScope: CloudAccountScope = self.accountScopeProvider.currentScope
         try self.database.queue.write { database in
@@ -61,7 +69,7 @@ final class GRDBFavoriteRepository: FavoriteRepository {
             ]
             if isFavorite {
                 var itemWithFavoriteDate: FavoriteContentItem = item
-                itemWithFavoriteDate.favoritedAt = now
+                itemWithFavoriteDate.favoritedAt = keepsFavoritedAt ? (item.favoritedAt ?? now) : now
                 var itemRecord: FavoriteItemRecord = try FavoriteItemRecord(
                     userID: userID,
                     item: itemWithFavoriteDate,

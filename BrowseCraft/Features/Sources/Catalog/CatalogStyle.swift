@@ -17,6 +17,8 @@ enum CatalogPalette {
     static let addAction: Color = Color(red: 0x25 / 255, green: 0x63 / 255, blue: 0xEB / 255)
     static let warning: Color = Self.dynamic(light: 0xC2410C, dark: 0xFF8A70)
     static let warningFill: Color = Self.dynamic(light: 0xC2410C, dark: 0xFF8A70).opacity(0.14)
+    /// 反色提示条（深底浅字、浅底深字）上的动作色，例如收藏页「撤销」：浅色模式提示条是深底，用浅蓝；深色模式提示条是浅底，用添加蓝。
+    static let inverseAction: Color = Self.dynamic(light: 0x8AB6FF, dark: 0x2563EB)
     /// 删除色，深浅同值（页面设计索引裁定 #E5484D）；长按菜单与确认框里的删除项由系统按 destructive 角色着色。
     static let destructive: Color = Self.fixed(0xE5484D)
 
@@ -115,6 +117,72 @@ extension CatalogKindStyle {
                 bannerAssetName: ""
             )
         }
+    }
+}
+
+/// 分段切换：胶囊底上几段，选中段为卡片色底、文字加粗，可带计数徽标。目录页「推荐 | 我的生成」与收藏页类型筛选共用。
+struct CatalogSegmentedPicker<Value: Hashable>: View {
+    struct Segment: Identifiable {
+        let value: Value
+        let title: String
+        var systemImage: String? = nil
+        /// 为 nil 时不显示计数徽标；0 也显示。
+        var count: Int? = nil
+
+        var id: Value {
+            return self.value
+        }
+    }
+
+    @Binding var selection: Value
+    let segments: [Segment]
+
+    var body: some View {
+        HStack(spacing: 3) {
+            ForEach(self.segments) { segment in
+                self.button(segment)
+            }
+        }
+        .padding(3)
+        .background(CatalogPalette.segmentBackground, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+    }
+
+    private func button(_ segment: Segment) -> some View {
+        let isSelected: Bool = self.selection == segment.value
+        return Button {
+            self.selection = segment.value
+        } label: {
+            HStack(spacing: 6) {
+                if let systemImage: String = segment.systemImage {
+                    Image(systemName: systemImage)
+                        .accessibilityHidden(true)
+                }
+                Text(segment.title)
+                    .lineLimit(1)
+                if let count: Int = segment.count {
+                    Text(count, format: .number)
+                        .font(.caption.weight(.bold))
+                        .monospacedDigit()
+                        .padding(.horizontal, 6)
+                        .frame(minWidth: 20, minHeight: 20)
+                        .foregroundStyle(isSelected ? Color(uiColor: .systemBackground) : .primary)
+                        .background(
+                            isSelected ? Color.primary : CatalogPalette.fillBackground,
+                            in: Capsule()
+                        )
+                }
+            }
+            .font(.subheadline.weight(isSelected ? .semibold : .regular))
+            .foregroundStyle(isSelected ? .primary : .secondary)
+            .frame(maxWidth: .infinity, minHeight: 38)
+            .background(
+                isSelected ? CatalogPalette.segmentSelected : Color.clear,
+                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 

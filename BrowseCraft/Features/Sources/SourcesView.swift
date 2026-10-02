@@ -659,8 +659,8 @@ private struct SourceSlotsFullHintView: View {
     }
 }
 
-/// 没有来源时的两张入口卡片。
-private struct SourcesEntryCardView: View {
+/// 空状态里的入口卡片：彩色方图标 + 标题 + 一句说明 + ›。来源页与收藏页的空状态共用。
+struct SourcesEntryCardView: View {
     let title: String
     let message: String
     let systemImage: String

@@ -20,6 +20,16 @@ struct ToggleFavoriteUseCase: Sendable {
         return try self.favoriteRepository.fetchFavoriteItems()
     }
 
+    /// 中文注释：收藏页上直接取消收藏（`docs/design/Favorites-Page-Redesign-Design.md`）。
+    func removeFavorite(_ item: FavoriteContentItem) throws {
+        try self.favoriteRepository.setFavorite(item: item, isFavorite: false)
+    }
+
+    /// 中文注释：撤销取消收藏，按原收藏时间恢复。
+    func restoreFavorite(_ item: FavoriteContentItem) throws {
+        try self.favoriteRepository.restoreFavorite(item: item)
+    }
+
     /// 中文注释：收藏快照的物化属于收藏用例，不由 LibraryViewModel 或 runtime mapping 承担。
     func execute(
         item: ContentItem,

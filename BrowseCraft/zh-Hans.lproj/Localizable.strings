@@ -695,3 +695,21 @@
 "sources_activation_swap_out" = "换下";
 "sources_activation_full_footer" = "被换下的来源不会删除，会移到「已暂停」，以后随时可以换回来。想同时保留更多来源，可以获取更多位置。";
 "cloud_restore_pull_to_retry" = "下拉可重试";
+
+/* 收藏页重设计（docs/design/Favorites-Page-Redesign-Design.md） */
+"favorites_count" = "%d 个收藏";
+"favorites_filter_all" = "全部";
+"favorites_unfavorite" = "取消收藏";
+"favorites_menu_open" = "打开";
+"favorites_menu_open_source" = "在库中查看来源";
+"favorites_kind_empty_title" = "还没有收藏的%@";
+"favorites_kind_empty_message" = "在库里点封面右上角的爱心就能收藏。";
+"favorites_empty_title" = "还没有收藏";
+"favorites_empty_message" = "在库里点封面右上角的爱心就能收藏，喜欢的作品会按收藏日期列在这里。";
+"favorites_empty_browse_title" = "去库里逛逛";
+"favorites_empty_browse_message" = "看看当前来源里有什么可以收藏";
+"favorites_unknown_source" = "未知来源";
+"favorites_source_paused_suffix" = " · 已暂停";
+"favorites_source_deleted_suffix" = " · 来源已删除";
+"favorites_undo_message" = "已取消收藏「%@」";
+"favorites_undo_action" = "撤销";

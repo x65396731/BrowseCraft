@@ -1110,6 +1110,11 @@ final class LibraryViewModel {
         }
     }
 
+    /// 中文注释：收藏集合在别的页面被改动（收藏页取消 / 撤销收藏）后，让封面上的爱心状态跟上。
+    func refreshFavoriteItemIDs() {
+        self.reloadFavoriteItemIDs(event: "favorites-page-change")
+    }
+
     private func reloadFavoriteItemIDs(event: String) {
         let expectedSourceID: String? = self.selectedSourceID
         Task {

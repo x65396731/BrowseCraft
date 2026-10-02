@@ -85,7 +85,8 @@ struct CatalogPersonalTimeline: Hashable {
         return CatalogPersonalTimeline(groups: groups)
     }
 
-    private static func day(for date: Date?, now: Date, calendar: Calendar) -> Day {
+    /// 中文注释：按天归组的判定，收藏页按收藏日期分组时共用（`docs/design/Favorites-Page-Redesign-Design.md`）。
+    static func day(for date: Date?, now: Date, calendar: Calendar) -> Day {
         guard let date: Date = date else {
             return .unknown
         }
@@ -115,6 +116,25 @@ struct CatalogKindSection: Identifiable, Hashable {
         return Self.order.compactMap { kind in
             let sources: [CatalogSource] = catalogSources.filter { $0.kind == kind }
             return sources.isEmpty ? nil : CatalogKindSection(kind: kind, sources: sources)
+        }
+    }
+}
+
+/// 按天分组的组头文字：今天 / 昨天 / 「M月D日」，跨年时带年份。目录页「我的生成」与收藏页共用。
+enum CatalogDayTitle {
+    static func text(for day: CatalogPersonalTimeline.Day, now: Date = Date(), calendar: Calendar = .current) -> String {
+        switch day {
+        case .today:
+            return NSLocalizedString("catalog_personal_day_today", comment: "")
+        case .yesterday:
+            return NSLocalizedString("catalog_personal_day_yesterday", comment: "")
+        case .date(let date):
+            if calendar.component(.year, from: date) != calendar.component(.year, from: now) {
+                return date.formatted(.dateTime.year().month().day())
+            }
+            return date.formatted(.dateTime.month().day())
+        case .unknown:
+            return NSLocalizedString("catalog_personal_day_earlier", comment: "")
         }
     }
 }
