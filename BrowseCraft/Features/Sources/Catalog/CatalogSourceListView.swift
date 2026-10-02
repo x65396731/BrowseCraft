@@ -598,7 +598,10 @@ private struct CatalogRecommendedSkeletonView: View {
                         }
                     }
                     .padding(.horizontal, 20)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // 中文注释：三张 180pt 卡片加边距共 604pt，比手机屏宽。只给 maxWidth 时 frame 会取子视图的宽度，
+                    // 整页内容被撑到 604pt 再居中，标题与分段控件一起向左溢出；同时给 minWidth: 0，frame 才采用父视图给的宽度，
+                    // 多出的卡片由 clipped() 裁掉。
+                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                     .clipped()
                 }
             }
