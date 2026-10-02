@@ -37,8 +37,10 @@ python3 scripts/check-docs.py
 
 以下都在 `docs/STATUS.md` 里有行；挑活前按该文件第 0 节的三步核对，不要只看名字就开工。
 
-**`required` 未完成：0 条。** 来源页重设计已实施，离线测试与模拟器走查通过，剩真机观感。
+**`required` 未完成：0 条。** 收藏页与来源页重设计都已实施，离线测试与模拟器走查通过，剩真机观感。
 
+- **收藏页重设计**：合同是 [`docs/design/Favorites-Page-Redesign-Design.md`](docs/design/Favorites-Page-Redesign-Design.md)，
+  开头有设计稿画布链接；状态见 `docs/STATUS.md` 第 2 节那两行，走查方法与临时注入记在 `docs/history/status-log.md`。
 - **来源页重设计**（已实施，合同 [`docs/design/Sources-Page-Redesign-Design.md`](docs/design/Sources-Page-Redesign-Design.md)，
   设计稿画布链接在文档开头）：状态见 `docs/STATUS.md` 第 2 节那两行。三处行为已在模拟器走查通过
   （点其他来源切换成功后跳库、失败留在原页；「更多位置」切到设置页并打开购买页；iCloud 首次恢复失败时来源页与收藏页都能下拉重试），

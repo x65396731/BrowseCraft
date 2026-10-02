@@ -52,6 +52,8 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 规则目录页重设计：推荐 / 我的生成分栏，推荐按类型分区，我的生成按时间线（方案 A） | 未编号 | required | approved | implemented | full-suite-passed | 9c03d27 | 2026-09-30 |
 | 来源页重设计：正在使用置顶、点来源即打开库、已暂停区与启用窗口、长按菜单（方案 A） | 未编号 | required | approved | implemented | full-suite-passed | 2c0908a | 2026-10-01 |
 | 来源页重设计的模拟器走查：切换成功跳库 / 失败留在原页、「更多位置」打开购买页、iCloud 恢复失败下拉重试（来源页与收藏页） | 未编号 | required | approved | implemented | simulator-passed | 448615c | 2026-10-01 |
+| 收藏页重设计：封面卡片行、类型筛选（全部与三类一直显示）、按天分组、左滑取消收藏与撤销、来源状态 | 未编号 | required | approved | implemented | full-suite-passed | a5dc313 | 2026-10-03 |
+| 收藏页重设计的模拟器走查：筛选与某类为 0、按天分组、左滑与长按取消收藏及撤销、在库中查看来源、三种来源状态、空状态与恢复失败下拉重试、深色、库页爱心同步 | 未编号 | required | approved | implemented | simulator-passed | a5dc313 | 2026-10-03 |
 
 ## 3. 影视线运行期
 

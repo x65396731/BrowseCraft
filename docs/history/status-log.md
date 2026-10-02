@@ -358,3 +358,22 @@ XCTest 81 项中 17 处断言失败，全部来自同一个 `BundledImageAssetTe
 资产闸门通过。模拟器（iPhone 18 Pro Max，新装空库）上空状态显示正常；同时在已有一个生成来源的 iPhone 18 Pro 上看到
 「位置已满且只有一个来源」的提示卡，与设计稿 2.7 一致。STATUS 两行不变。
 
+## 2026-10-03：收藏页重设计的实施、测试与模拟器走查
+
+`STATUS.md` 第 2 节「收藏页重设计」：验证 not-run / 检查点 7414abf → full-suite-passed / a5dc313；
+新增一行「收藏页重设计的模拟器走查」：simulator-passed / a5dc313（按 `BCA-DOC-005` 分开记）。
+
+原因：用户要求 build、测试并用模拟器跑所有修改。`xcodebuild build`（iPhone 18 Pro / iOS 27.0）一次通过。
+新增 `FavoritesViewModelTests` 三项（类型计数与按天分组、来源状态、取消后按原收藏时间撤销）。
+`-only-testing:BrowseCraftTests`：Swift Testing 541 项 / 93 套全过；XCTest 81 项中 1 项失败——
+`ReadinessSelectorContentSemanticsTests.testWeakSelectorReturnsBeforeTheContentArrives` 测得 1523 ms、断言上限 1300 ms，
+是 WebView 就绪的计时断言，与本次改动无关，单独重跑该套三项全过（1339 ms），按偶发超时记，验证列仍记 `full-suite-passed`。
+
+模拟器走查用 DEBUG 演示模式加一段临时注入（写入三类、不同日期的收藏，以及挂在已暂停 / 已删除 / 未知来源上的收藏），
+另一段临时注入固定 iCloud 首次恢复为失败态；两段测完已撤回、未提交。走查通过的行为：筛选计数与「书籍 0」小空状态；
+今天 / 昨天 / 9月28日分组；左滑取消收藏不弹确认、底部撤销提示、撤销后回到原日期分组；长按菜单三项；
+「在库中查看来源」切到该来源并打开库；点已暂停来源的收藏打开来源页启用窗口；已删除来源变淡仍可打开详情；
+未知来源变淡不可点；取消收藏后库页爱心同步变空；收藏清空后的空状态与「去库里逛逛」；恢复失败卡片与下拉重试；
+深色模式（类型色、「已暂停」、反色撤销提示）。顺带回归：目录页分段切换换成共用组件后外观不变，来源页左滑删除为 #E5484D。
+真机未走查。
+
