@@ -713,3 +713,28 @@
 "favorites_source_deleted_suffix" = " · 來源已刪除";
 "favorites_undo_message" = "已取消收藏「%@」";
 "favorites_undo_action" = "復原";
+
+/* 历史页重设计（docs/design/History-Page-Redesign-Design.md） */
+"history_count" = "%ld 條";
+"history_continue_watched" = "上次看到";
+"history_continue_read" = "上次讀到";
+"history_progress_watched_of" = "看到 %@ / %@";
+"history_progress_watched" = "看到 %@";
+"history_progress_finished" = "已看完";
+"history_progress_page" = "第 %ld 頁";
+"history_progress_read_to" = "讀到 %@";
+"history_temporary_video" = "臨時影片";
+"history_temporary_comic" = "臨時漫畫";
+"history_delete" = "刪除";
+"history_menu_continue_watching" = "繼續看";
+"history_menu_continue_reading" = "繼續讀";
+"history_menu_delete" = "刪除紀錄";
+"history_undo_message" = "已刪除「%@」的紀錄";
+"history_kind_empty_title_video" = "還沒有看過的影片";
+"history_kind_empty_title_comic" = "還沒有讀過的漫畫";
+"history_kind_empty_title_book" = "還沒有讀過的書";
+"history_kind_empty_message" = "在庫裡打開作品，看過的會出現在這裡。";
+"history_empty_title" = "還沒有紀錄";
+"history_empty_message" = "看過的影片、讀過的漫畫和書會出現在這裡，點一下就能接著看。";
+"history_empty_browse_message" = "看看目前來源裡有什麼可看的";
+"history_error_missing_video_source" = "找不到這部影片的來源。";

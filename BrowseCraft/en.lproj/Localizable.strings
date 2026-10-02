@@ -713,3 +713,28 @@
 "favorites_source_deleted_suffix" = " · Source deleted";
 "favorites_undo_message" = "Unfavorited “%@”";
 "favorites_undo_action" = "Undo";
+
+/* 历史页重设计（docs/design/History-Page-Redesign-Design.md） */
+"history_count" = "%ld items";
+"history_continue_watched" = "Last watched";
+"history_continue_read" = "Last read";
+"history_progress_watched_of" = "At %@ of %@";
+"history_progress_watched" = "At %@";
+"history_progress_finished" = "Finished";
+"history_progress_page" = "Page %ld";
+"history_progress_read_to" = "Up to %@";
+"history_temporary_video" = "Temporary video";
+"history_temporary_comic" = "Temporary comic";
+"history_delete" = "Delete";
+"history_menu_continue_watching" = "Continue Watching";
+"history_menu_continue_reading" = "Continue Reading";
+"history_menu_delete" = "Remove from History";
+"history_undo_message" = "Removed “%@” from history";
+"history_kind_empty_title_video" = "No videos watched yet";
+"history_kind_empty_title_comic" = "No comics read yet";
+"history_kind_empty_title_book" = "No books read yet";
+"history_kind_empty_message" = "Open something in Library and it will show up here.";
+"history_empty_title" = "No history yet";
+"history_empty_message" = "Videos you watch and comics and books you read show up here. Tap one to pick up where you left off.";
+"history_empty_browse_message" = "See what the current source has";
+"history_error_missing_video_source" = "Missing video source.";

@@ -31,8 +31,9 @@ struct FavoritesView: View {
                 }
                 .overlay(alignment: .bottom) {
                     if let item: FavoriteContentItem = self.viewModel.undoableItem {
-                        FavoriteUndoBanner(
-                            title: item.title,
+                        ContentUndoBanner(
+                            message: String(format: NSLocalizedString("favorites_undo_message", comment: ""), item.title),
+                            actionTitle: NSLocalizedString("favorites_undo_action", comment: ""),
                             undoAction: {
                                 Task {
                                     await self.viewModel.undoUnfavorite()
@@ -94,24 +95,24 @@ struct FavoritesView: View {
         // 中文注释：用 List 是为了左滑取消收藏；行底色与分隔线关掉，卡片在行内容里自己画。
         return List {
             self.header(showsCount: true)
-                .favoritesPageRow(top: 8)
+                .contentListPageRow(top: 8)
 
             CatalogSegmentedPicker(
                 selection: self.$viewModel.kindFilter,
                 segments: self.filterSegments
             )
-            .favoritesPageRow(top: 16)
+            .contentListPageRow(top: 16)
 
             if groups.isEmpty {
                 self.kindEmptyState
-                    .favoritesPageRow(top: 72)
+                    .contentListPageRow(top: 72)
             } else {
                 ForEach(groups) { group in
                     Text(CatalogDayTitle.text(for: group.day))
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.primary)
                         .accessibilityAddTraits(.isHeader)
-                        .favoritesPageRow(top: 20, bottom: 8, horizontal: 24)
+                        .contentListPageRow(top: 20, bottom: 8, horizontal: 24)
 
                     ForEach(Array(group.items.enumerated()), id: \.element.identity) { index, item in
                         self.row(item, isFirst: index == 0, isLast: index == group.items.count - 1)
@@ -121,7 +122,7 @@ struct FavoritesView: View {
 
             Color.clear
                 .frame(height: 24)
-                .favoritesPageRow()
+                .contentListPageRow()
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
@@ -156,7 +157,7 @@ struct FavoritesView: View {
             }
             .tint(CatalogPalette.destructive)
         }
-        .favoritesPageRow()
+        .contentListPageRow()
     }
 
     @ViewBuilder
@@ -393,16 +394,6 @@ private struct FavoriteDestination: Hashable {
     let source: Source
 }
 
-private extension View {
-    /// 收藏页列表里的一行：去掉系统行底色与分隔线，左右留白、上下间距由调用处给。
-    func favoritesPageRow(top: CGFloat = 0, bottom: CGFloat = 0, horizontal: CGFloat = 20) -> some View {
-        return self
-            .listRowInsets(EdgeInsets(top: top, leading: horizontal, bottom: bottom, trailing: horizontal))
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
-    }
-}
-
 /// 收藏卡片行：封面（左下角类型徽标）+ 作品名 / 来源名 / 最新状态 + ›。同一天的行拼成一张圆角 18 的卡片。
 private struct FavoriteEntryRowView: View {
     let item: FavoriteContentItem
@@ -412,8 +403,6 @@ private struct FavoriteEntryRowView: View {
     let isFirst: Bool
     let isLast: Bool
     let action: () -> Void
-
-    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         Button(action: self.action) {
@@ -444,21 +433,7 @@ private struct FavoriteEntryRowView: View {
                 }
             }
             .opacity(self.isDimmed ? 0.5 : 1)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(CatalogPalette.cardBackground)
-            .overlay(alignment: .top) {
-                if self.isFirst == false {
-                    Rectangle()
-                        .fill(Color(uiColor: .separator))
-                        .frame(height: 1 / self.displayScale)
-                        .padding(.leading, 82)
-                }
-            }
-            .clipShape(self.shape)
-            .contentShape(.interaction, self.shape)
-            .contentShape(.contextMenuPreview, self.shape)
+            .contentCardGroupRow(isFirst: self.isFirst, isLast: self.isLast)
         }
         .buttonStyle(.plain)
     }
@@ -467,40 +442,13 @@ private struct FavoriteEntryRowView: View {
         return self.sourceState == .deleted || self.sourceState == .unknown
     }
 
-    private var shape: UnevenRoundedRectangle {
-        let top: CGFloat = self.isFirst ? 18 : 0
-        let bottom: CGFloat = self.isLast ? 18 : 0
-        return UnevenRoundedRectangle(
-            topLeadingRadius: top,
-            bottomLeadingRadius: bottom,
-            bottomTrailingRadius: bottom,
-            topTrailingRadius: top,
-            style: .continuous
-        )
-    }
-
     private var cover: some View {
-        let kind: CatalogSourceKind = FavoritesViewModel.catalogKind(of: self.item)
-        let style: CatalogKindStyle = CatalogKindStyle.of(kind)
-        return ItemThumbnailImageView(
+        return ContentCoverView(
             urlString: self.item.coverURL,
             refererURLString: self.item.detailURL,
             requestConfig: self.imageRequestConfig,
-            placeholderImageName: Self.placeholderName(for: kind)
+            kind: FavoritesViewModel.catalogKind(of: self.item)
         )
-        .frame(width: 56, height: 78)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(alignment: .bottomLeading) {
-            // 中文注释：类型徽标同时用类型色与类型图标区分，不只靠颜色。
-            Image(systemName: style.symbolName)
-                .font(.system(size: 8, weight: .bold))
-                .foregroundStyle(Color(uiColor: .systemBackground))
-                .frame(width: 18, height: 18)
-                .background(style.accent, in: Circle())
-                .padding(4)
-                .accessibilityHidden(true)
-        }
-        .accessibilityHidden(true)
     }
 
     @ViewBuilder
@@ -516,44 +464,5 @@ private struct FavoriteEntryRowView: View {
             Text(self.sourceName + NSLocalizedString("favorites_source_deleted_suffix", comment: ""))
                 .foregroundStyle(.secondary)
         }
-    }
-
-    private static func placeholderName(for kind: CatalogSourceKind) -> String {
-        switch kind {
-        case .video:
-            return "VideoListPlaceholder"
-        case .comic:
-            return "ComicListPlaceholder"
-        case .book:
-            return "BookCoverPlaceholder"
-        }
-    }
-}
-
-/// 取消收藏后的底部提示：「已取消收藏「作品名」 · 撤销」，几秒后自动消失。反色胶囊，与页面明暗相反。
-private struct FavoriteUndoBanner: View {
-    let title: String
-    let undoAction: () -> Void
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Text(String(format: NSLocalizedString("favorites_undo_message", comment: ""), self.title))
-                .font(.subheadline)
-                .foregroundStyle(Color(uiColor: .systemBackground))
-                .lineLimit(1)
-            Spacer(minLength: 0)
-            Button(NSLocalizedString("favorites_undo_action", comment: ""), action: self.undoAction)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(CatalogPalette.inverseAction)
-                .frame(minWidth: 44, minHeight: 44)
-                .contentShape(Rectangle())
-                .buttonStyle(.plain)
-        }
-        .padding(.leading, 20)
-        .padding(.trailing, 10)
-        .frame(height: 52)
-        .background(Color.primary, in: Capsule())
-        .shadow(color: .black.opacity(0.18), radius: 12, y: 6)
-        .accessibilityElement(children: .combine)
     }
 }

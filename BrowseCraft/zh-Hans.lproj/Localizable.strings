@@ -713,3 +713,28 @@
 "favorites_source_deleted_suffix" = " · 来源已删除";
 "favorites_undo_message" = "已取消收藏「%@」";
 "favorites_undo_action" = "撤销";
+
+/* 历史页重设计（docs/design/History-Page-Redesign-Design.md） */
+"history_count" = "%ld 条";
+"history_continue_watched" = "上次看到";
+"history_continue_read" = "上次读到";
+"history_progress_watched_of" = "看到 %@ / %@";
+"history_progress_watched" = "看到 %@";
+"history_progress_finished" = "已看完";
+"history_progress_page" = "第 %ld 页";
+"history_progress_read_to" = "读到 %@";
+"history_temporary_video" = "临时视频";
+"history_temporary_comic" = "临时漫画";
+"history_delete" = "删除";
+"history_menu_continue_watching" = "继续看";
+"history_menu_continue_reading" = "继续读";
+"history_menu_delete" = "删除记录";
+"history_undo_message" = "已删除「%@」的记录";
+"history_kind_empty_title_video" = "还没有看过的视频";
+"history_kind_empty_title_comic" = "还没有读过的漫画";
+"history_kind_empty_title_book" = "还没有读过的书";
+"history_kind_empty_message" = "在库里打开作品，看过的会出现在这里。";
+"history_empty_title" = "还没有历史";
+"history_empty_message" = "看过的视频、读过的漫画和书会出现在这里，点一下就能接着看。";
+"history_empty_browse_message" = "看看当前来源里有什么可看的";
+"history_error_missing_video_source" = "找不到这个视频的来源。";

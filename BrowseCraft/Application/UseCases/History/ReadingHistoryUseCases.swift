@@ -195,7 +195,7 @@ struct LoadReadingHistoryEntriesUseCase {
         var latestByComicID: [String: ComicChapterHistory] = [:]
 
         for history: ComicChapterHistory in histories {
-            let comicID: String = self.comicHistoryGroupID(history)
+            let comicID: String = history.comicWorkKey
             if let existingHistory: ComicChapterHistory = latestByComicID[comicID],
                existingHistory.visitedAt >= history.visitedAt {
                 continue
@@ -208,17 +208,19 @@ struct LoadReadingHistoryEntriesUseCase {
             return lhs.visitedAt > rhs.visitedAt
         }
     }
-
-    private func comicHistoryGroupID(_ history: ComicChapterHistory) -> String {
-        return [
-            history.userID,
-            history.sourceID,
-            history.comicItemID
-        ].joined(separator: "::")
-    }
 }
 
-/// 中文注释：删除单条历史记录，只影响该记录所在历史表，不删除 Source。
+/// 中文注释：一次删除从历史表里拿走的全部记录；撤销时由 `RestoreReadingHistoryUseCase` 原样写回。
+struct ReadingHistoryRemoval: Sendable {
+    var comicHistories: [ComicChapterHistory] = []
+    var videoHistories: [VideoWatchHistory] = []
+    var bookHistories: [BookReadingHistory] = []
+    var temporaryHistories: [TemporaryResourceHistory] = []
+}
+
+/// 中文注释：删除历史记录，只影响记录所在的历史表，不删除 Source、收藏与站点书续读位置。
+/// 历史页一行是一部作品（`docs/design/History-Page-Redesign-Design.md`），所以按作品删：
+/// 漫画删掉这部漫画的全部章节记录、视频删掉这部作品的全部剧集记录，刷新后不会冒出上一章 / 上一集。
 struct DeleteReadingHistoryEntryUseCase {
     private let comicRepository: ComicChapterHistoryRepository
     private let videoRepository: VideoWatchHistoryRepository
@@ -237,28 +239,103 @@ struct DeleteReadingHistoryEntryUseCase {
         self.temporaryRepository = temporaryRepository
     }
 
-    func execute(_ entry: ReadingHistoryEntry) throws {
-        try self.execute([entry])
+    @discardableResult
+    func execute(_ entry: ReadingHistoryEntry) throws -> ReadingHistoryRemoval {
+        return try self.execute([entry])
     }
 
     /// 中文注释：按历史表分组后批量删除，每张表最多一个写事务；单条删除只是它的特例。
-    func execute(_ entries: [ReadingHistoryEntry]) throws {
-        let comicHistories: [ComicChapterHistory] = entries.compactMap { $0.kind == .comic ? $0.comicHistory : nil }
-        let videoHistories: [VideoWatchHistory] = entries.compactMap { $0.kind == .video ? $0.videoHistory : nil }
-        let bookHistories: [BookReadingHistory] = entries.compactMap { $0.kind == .book ? $0.bookHistory : nil }
-        let temporaryHistories: [TemporaryResourceHistory] = entries.compactMap { $0.kind == .temporary ? $0.temporaryHistory : nil }
-        if comicHistories.isEmpty == false {
-            try self.comicRepository.delete(comicHistories)
+    /// 返回被删的全部记录，供撤销原样写回。
+    @discardableResult
+    func execute(_ entries: [ReadingHistoryEntry]) throws -> ReadingHistoryRemoval {
+        let comicTargets: [ComicChapterHistory] = entries.compactMap { $0.kind == .comic ? $0.comicHistory : nil }
+        let videoTargets: [VideoWatchHistory] = entries.compactMap { $0.kind == .video ? $0.videoHistory : nil }
+        var removal: ReadingHistoryRemoval = ReadingHistoryRemoval(
+            bookHistories: entries.compactMap { $0.kind == .book ? $0.bookHistory : nil },
+            temporaryHistories: entries.compactMap { $0.kind == .temporary ? $0.temporaryHistory : nil }
+        )
+
+        if comicTargets.isEmpty == false {
+            let workKeys: Set<String> = Set(comicTargets.map(\.comicWorkKey))
+            let siblings: [ComicChapterHistory] = try Set(comicTargets.map(\.userID)).flatMap { userID in
+                return try self.comicRepository.fetchHistory(userID: userID).filter { workKeys.contains($0.comicWorkKey) }
+            }
+            removal.comicHistories = Self.merging(siblings, comicTargets, id: \.id)
+            try self.comicRepository.delete(removal.comicHistories)
         }
-        if videoHistories.isEmpty == false {
-            try self.videoRepository.delete(videoHistories)
+        if videoTargets.isEmpty == false {
+            let workKeys: Set<String> = Set(videoTargets.map(\.workHistoryKey))
+            let siblings: [VideoWatchHistory] = try Set(videoTargets.map(\.userID)).flatMap { userID in
+                return try self.videoRepository.fetchHistory(userID: userID).filter { workKeys.contains($0.workHistoryKey) }
+            }
+            removal.videoHistories = Self.merging(siblings, videoTargets, id: \.id)
+            try self.videoRepository.delete(removal.videoHistories)
         }
-        if bookHistories.isEmpty == false {
-            try self.bookRepository.delete(bookHistories)
+        if removal.bookHistories.isEmpty == false {
+            try self.bookRepository.delete(removal.bookHistories)
         }
-        if temporaryHistories.isEmpty == false {
-            try self.temporaryRepository.delete(temporaryHistories)
+        if removal.temporaryHistories.isEmpty == false {
+            try self.temporaryRepository.delete(removal.temporaryHistories)
         }
+        return removal
+    }
+
+    /// 中文注释：仓储里查到的同作品记录，补上调用方传进来却没查到的那几条（不重复）。
+    private static func merging<Value>(_ stored: [Value], _ targets: [Value], id: KeyPath<Value, String>) -> [Value] {
+        var seen: Set<String> = Set(stored.map { $0[keyPath: id] })
+        var merged: [Value] = stored
+        for target: Value in targets where seen.insert(target[keyPath: id]).inserted {
+            merged.append(target)
+        }
+        return merged
+    }
+}
+
+/// 中文注释：撤销删除，把 `DeleteReadingHistoryEntryUseCase` 拿走的记录原样写回（含原访问时间），
+/// 条目因此回到历史页原来的日期分组。
+struct RestoreReadingHistoryUseCase {
+    private let comicRepository: ComicChapterHistoryRepository
+    private let videoRepository: VideoWatchHistoryRepository
+    private let bookRepository: BookReadingHistoryRepository
+    private let temporaryRepository: TemporaryResourceHistoryRepository
+
+    init(
+        comicRepository: ComicChapterHistoryRepository,
+        videoRepository: VideoWatchHistoryRepository,
+        bookRepository: BookReadingHistoryRepository,
+        temporaryRepository: TemporaryResourceHistoryRepository
+    ) {
+        self.comicRepository = comicRepository
+        self.videoRepository = videoRepository
+        self.bookRepository = bookRepository
+        self.temporaryRepository = temporaryRepository
+    }
+
+    func execute(_ removal: ReadingHistoryRemoval) throws {
+        for history: ComicChapterHistory in removal.comicHistories {
+            try self.comicRepository.save(history)
+        }
+        // 中文注释：视频仓储保存时按作品覆盖旧记录；先写旧的、后写新的，留下的是最近一条。
+        for history: VideoWatchHistory in removal.videoHistories.sorted(by: { $0.updatedAt < $1.updatedAt }) {
+            try self.videoRepository.save(history)
+        }
+        for history: BookReadingHistory in removal.bookHistories {
+            try self.bookRepository.save(history)
+        }
+        for history: TemporaryResourceHistory in removal.temporaryHistories {
+            try self.temporaryRepository.save(history)
+        }
+    }
+}
+
+private extension ComicChapterHistory {
+    /// 中文注释：同一部漫画的全部章节记录共用的作品键；历史页按它聚合，也按它整部删除。
+    var comicWorkKey: String {
+        return [
+            self.userID,
+            self.sourceID,
+            self.comicItemID
+        ].joined(separator: "::")
     }
 }
 

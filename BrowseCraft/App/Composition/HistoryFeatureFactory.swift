@@ -46,6 +46,12 @@ struct HistoryFeatureFactory {
                 bookRepository: bookRepository,
                 temporaryRepository: temporaryRepository
             ),
+            restoreReadingHistoryUseCase: RestoreReadingHistoryUseCase(
+                comicRepository: comicRepository,
+                videoRepository: videoRepository,
+                bookRepository: bookRepository,
+                temporaryRepository: temporaryRepository
+            ),
             reconcileSourceSlotAssignmentsUseCase:
                 ReconcileSourceSlotAssignmentsUseCase(
                 sourceRepository: self.sourceRepository

@@ -211,7 +211,12 @@ struct RootView: View {
 
             HistoryView(
                 viewModel: self.historyViewModel,
-                contentViewModelFactory: self.libraryContentViewModelFactory
+                contentViewModelFactory: self.libraryContentViewModelFactory,
+                openLibrary: {
+                    self.selectedTab = .library
+                },
+                openSourceInLibrary: self.openSourceInLibrary,
+                requestSourceActivation: self.requestSourceActivation
             )
                 .tabItem {
                     Image("TabHistory")
@@ -231,7 +236,7 @@ struct RootView: View {
         }
     }
 
-    /// 中文注释：收藏页长按「在库中查看来源」——与来源页「点来源即打开库」同一条路径：
+    /// 中文注释：收藏页与历史页长按「在库中查看来源」——与来源页「点来源即打开库」同一条路径：
     /// 已暂停的来源转到来源页的启用窗口；切换成功切到库；切换失败切到来源页，错误弹窗与重试在那里。
     private func openSourceInLibrary(_ source: Source) {
         let current: Source = self.sourcesViewModel.source(id: source.id) ?? source
@@ -248,7 +253,7 @@ struct RootView: View {
         }
     }
 
-    /// 中文注释：点已暂停来源的收藏——启用来源窗口挂在来源页上，所以先切到来源页再请求。
+    /// 中文注释：点已暂停来源的收藏或历史——启用来源窗口挂在来源页上，所以先切到来源页再请求。
     private func requestSourceActivation(_ source: Source) {
         let current: Source = self.sourcesViewModel.source(id: source.id) ?? source
         self.sourcesViewModel.requestSlotActivation(for: current)

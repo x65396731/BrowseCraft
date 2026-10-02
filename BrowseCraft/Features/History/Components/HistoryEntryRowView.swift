@@ -1,72 +1,165 @@
+import BrowseCraftCore
+import BrowseCraftDomain
 import SwiftUI
 
+/// 历史卡片行：封面（左下角类型徽标，视频底边进度条）+ 作品名 / 看到哪里 / 「来源 · 时刻」+ ›。
+/// 同一天的行拼成一张圆角 18 的卡片；日期由分组头承担，行内只写时刻。
 struct HistoryEntryRowView: View {
     let entry: ReadingHistoryEntry
-    let dateText: String
+    let progressText: String?
+    let playbackProgress: Double?
+    let sourceName: String
+    let sourceState: HistoryViewModel.SourceState
+    let coverURL: String?
+    let refererURL: String?
+    let imageRequestConfig: RequestConfig?
+    let isFirst: Bool
+    let isLast: Bool
+    let action: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Image(systemName: self.iconName)
-                    .foregroundColor(.secondary)
-                    .frame(width: 18)
-
-                Text(self.entry.title)
-                    .font(.body.weight(.semibold))
-                    .foregroundColor(.primary)
-                    .lineLimit(2)
+        Button(action: self.action) {
+            HStack(spacing: 12) {
+                ContentCoverView(
+                    urlString: self.coverURL,
+                    refererURLString: self.refererURL,
+                    requestConfig: self.imageRequestConfig,
+                    kind: HistoryViewModel.catalogKind(of: self.entry),
+                    progress: self.playbackProgress
+                )
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(self.entry.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    if let progressText: String = self.progressText {
+                        Text(progressText)
+                            .font(.footnote)
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                    }
+                    self.metaLine
+                        .font(.caption)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                if self.sourceState != .unknown {
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                        .accessibilityHidden(true)
+                }
             }
-
-            if let subtitle: String = self.entry.subtitle {
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .lineLimit(2)
-            }
-
-            if let detail: String = self.detailText {
-                Text(detail)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(3)
-            }
-
-            Text(self.dateText)
-                .font(.caption)
-                .foregroundColor(.secondary)
+            .opacity(self.isDimmed ? 0.5 : 1)
+            .contentCardGroupRow(isFirst: self.isFirst, isLast: self.isLast)
         }
-        .padding(.vertical, 4)
+        .buttonStyle(.plain)
     }
 
-    private var iconName: String {
-        switch self.entry.kind {
-        case .comic:
-            return "book.pages"
-        case .video:
-            return "play.rectangle"
-        case .book:
-            return "book"
-        case .temporary:
-            if self.entry.temporaryHistory?.kind == .comic {
-                return "book.pages"
-            }
-
-            return "play.rectangle"
-        }
+    private var isDimmed: Bool {
+        return self.sourceState == .deleted || self.sourceState == .unknown
     }
 
-    /// 中文注释：第三行显示来自哪个来源，不显示章节 / 播放页的完整网址——网址对用户没有信息量，
-    /// 长网址还会把一行撑成三行。临时资源没有来源，退一步只显示域名。
-    private var detailText: String? {
-        switch self.entry.kind {
-        case .comic:
-            return self.entry.comicHistory?.sourceSnapshot?.name
-        case .video:
-            return self.entry.videoHistory.flatMap { $0.sourceName ?? $0.sourceSnapshot?.name }
-        case .book:
-            return self.entry.bookHistory?.sourceSnapshot?.name
-        case .temporary:
-            return self.entry.temporaryHistory?.resourceURL.host
+    @ViewBuilder
+    private var metaLine: some View {
+        let time: String = " · " + self.entry.visitedAt.formatted(date: .omitted, time: .shortened)
+        switch self.sourceState {
+        case .paused:
+            Text(self.sourceName).foregroundStyle(.secondary)
+                + Text(NSLocalizedString("favorites_source_paused_suffix", comment: "")).foregroundStyle(CatalogPalette.warning)
+                + Text(time).foregroundStyle(.secondary)
+        case .deleted:
+            Text(self.sourceName + NSLocalizedString("favorites_source_deleted_suffix", comment: "") + time)
+                .foregroundStyle(.secondary)
+        case .available, .unknown, .temporary:
+            Text(self.sourceName + time)
+                .foregroundStyle(.secondary)
         }
+    }
+}
+
+/// 继续卡片：当前筛选下最近的一条，放大成该条类型的深色色块（与来源页「正在使用」瓷砖同一种语言）。
+/// 顶部一行强调色小字「上次看到 / 上次读到」，不放按钮——整张卡片就是点击区，与点列表行同一条路径。
+struct HistoryContinueTileView: View {
+    let entry: ReadingHistoryEntry
+    let progressText: String?
+    let playbackProgress: Double?
+    let sourceName: String
+    let sourceState: HistoryViewModel.SourceState
+    let coverURL: String?
+    let refererURL: String?
+    let imageRequestConfig: RequestConfig?
+    let action: () -> Void
+
+    var body: some View {
+        let kind: CatalogSourceKind = HistoryViewModel.catalogKind(of: self.entry)
+        let style: CatalogKindStyle = CatalogKindStyle.of(kind)
+        Button(action: self.action) {
+            HStack(spacing: 14) {
+                ContentCoverView(
+                    urlString: self.coverURL,
+                    refererURLString: self.refererURL,
+                    requestConfig: self.imageRequestConfig,
+                    kind: kind,
+                    width: 72,
+                    height: 100,
+                    cornerRadius: 12,
+                    badge: .tile
+                )
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(kind == .video
+                        ? NSLocalizedString("history_continue_watched", comment: "")
+                        : NSLocalizedString("history_continue_read", comment: ""))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(style.bannerAccent)
+                    Text(self.entry.title)
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(CatalogKindStyle.bannerTitle)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    if let progressText: String = self.progressText {
+                        Text(progressText)
+                            .font(.footnote)
+                            .foregroundStyle(style.bannerSecondaryText)
+                            .lineLimit(1)
+                    }
+                    if let progress: Double = self.playbackProgress {
+                        GeometryReader { proxy in
+                            ZStack(alignment: .leading) {
+                                Capsule()
+                                    .fill(Color.white.opacity(0.16))
+                                Capsule()
+                                    .fill(style.bannerAccent)
+                                    .frame(width: proxy.size.width * progress)
+                            }
+                        }
+                        .frame(height: 4)
+                        .accessibilityHidden(true)
+                    }
+                    Text(self.metaText)
+                        .font(.caption)
+                        .foregroundStyle(style.bannerSecondaryText)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+            }
+            .opacity(self.sourceState == .deleted || self.sourceState == .unknown ? 0.6 : 1)
+            .sourceTile(style: style)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var metaText: String {
+        var text: String = self.sourceName
+        switch self.sourceState {
+        case .paused:
+            text += NSLocalizedString("favorites_source_paused_suffix", comment: "")
+        case .deleted:
+            text += NSLocalizedString("favorites_source_deleted_suffix", comment: "")
+        case .available, .unknown, .temporary:
+            break
+        }
+        return text + " · " + self.entry.visitedAt.formatted(date: .omitted, time: .shortened)
     }
 }
