@@ -111,9 +111,9 @@ scale 槽位的表现是包体悄悄变大而没人发现。闸门按 `scripts/b
 验证编译进 App 之后每张资产还能解出 `CGImage` 且尺寸与声明一致：单档资产比像素，`multi-scale-png` 比 pt——
 它的声明列写的是 @1x 像素，运行期按设备 scale 取 @2x / @3x 那一档。两处共用一份声明，不会互相漂移。
 
-## illustration-cutout.swift / illustration-banner.swift
+## illustration-cutout.swift / illustration-banner.swift / illustration-despeckle.swift
 
-即梦插画入库前的两步处理，产物再按上一节登记进 `bundled-image-asset-budgets.txt`。都是本机手动工具，不进构建、不进闸门。
+即梦插画入库前的处理，产物再按上一节登记进 `bundled-image-asset-budgets.txt`。都是本机手动工具，不进构建、不进闸门。
 
 ```bash
 # 空状态：Vision 前景蒙版抠成透明底、裁掉透明边、缩到 540px 高（按 180pt 显示）
@@ -122,6 +122,10 @@ swift scripts/illustration-cutout.swift <原图> <输出.png> 540
 # 类型横幅：整张缩到 336px 高靠右放，左侧用原图左缘平均色补齐并渐变过渡，得 1200×336；
 # 物件离右缘不足一成时用第 6 个参数整体左移（右侧同样补齐）
 swift scripts/illustration-banner.swift <原图> <输出.png> 1200 336 140 [右侧留白px]
+
+# 去噪点：抠图后清掉与主体不相连的小色块（面积 < 200px），再裁掉左右透明边；高度不变。
+# 画面里故意画的火花、光点用第 4 个参数圈出保留区域（像素坐标，左上为原点）
+swift scripts/illustration-despeckle.swift <抠图结果.png> <输出.png> 200 [x0,y0,x1,y1]
 ```
 
 抠图把所有前景实例一起保留，但与人物离得远的悬浮小物件（钥匙、卡片）可能被当成背景去掉，画在白背景上的光点也会一起去掉；

@@ -40,9 +40,9 @@ BookKindBadge           12000     96x96      single-scale-png
 EmptyStateSources       300000    399x540    single-scale-png
 EmptyStateFavorites     200000    283x540    single-scale-png
 EmptyStateHistory       186000    256x540    single-scale-png
-EmptyStateSearch        215000    274x540    single-scale-png
-EmptyStateOffline       233000    506x540    single-scale-png
-EntryGuideUnsupportedPage 185000  395x450    single-scale-png
+EmptyStateSearch        210000    274x540    single-scale-png
+EmptyStateOffline       225000    444x540    single-scale-png
+EntryGuideUnsupportedPage 180000  335x450    single-scale-png
 CatalogEmptyRecommended 260000    350x540    single-scale-png
 CatalogEmptyPersonal    280000    396x540    single-scale-png
 CatalogPersonalSignIn   240000    330x540    single-scale-png
