@@ -38,7 +38,7 @@ VideoKindBadge          12000     96x96      single-scale-png
 ComicKindBadge          12000     96x96      single-scale-png
 BookKindBadge           12000     96x96      single-scale-png
 EmptyStateSources       300000    399x540    single-scale-png
-EmptyStateFavorites     210000    447x540    single-scale-png
+EmptyStateFavorites     200000    283x540    single-scale-png
 EmptyStateHistory       186000    256x540    single-scale-png
 EmptyStateSearch        215000    274x540    single-scale-png
 EmptyStateOffline       233000    506x540    single-scale-png
