@@ -568,7 +568,7 @@ private extension View {
             } label: {
                 Label(NSLocalizedString("Delete", comment: ""), systemImage: "trash")
             }
-            .tint(.red)
+            .tint(CatalogPalette.destructive)
             .disabled(disabled)
         }
     }

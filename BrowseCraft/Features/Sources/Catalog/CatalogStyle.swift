@@ -17,6 +17,8 @@ enum CatalogPalette {
     static let addAction: Color = Color(red: 0x25 / 255, green: 0x63 / 255, blue: 0xEB / 255)
     static let warning: Color = Self.dynamic(light: 0xC2410C, dark: 0xFF8A70)
     static let warningFill: Color = Self.dynamic(light: 0xC2410C, dark: 0xFF8A70).opacity(0.14)
+    /// 删除色，深浅同值（页面设计索引裁定 #E5484D）；长按菜单与确认框里的删除项由系统按 destructive 角色着色。
+    static let destructive: Color = Self.fixed(0xE5484D)
 
     /// 不随系统深浅色变化的固定色。
     static func fixed(_ hex: UInt32) -> Color {
