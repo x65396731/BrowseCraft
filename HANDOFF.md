@@ -37,19 +37,31 @@ python3 scripts/check-docs.py
 
 以下都在 `docs/STATUS.md` 里有行；挑活前按该文件第 0 节的三步核对，不要只看名字就开工。
 
-**`required` 未完成：0 条。** 收藏页与来源页重设计都已实施，离线测试与模拟器走查通过，剩真机观感。
+**`required` 未完成：0 条。** 来源页、收藏页、规则目录页三页重设计都已实施，离线测试与模拟器走查通过；
+三页共同欠真机验收，下一会话从这里接。
 
-- **收藏页重设计**：合同是 [`docs/design/Favorites-Page-Redesign-Design.md`](docs/design/Favorites-Page-Redesign-Design.md)，
-  开头有设计稿画布链接；状态见 `docs/STATUS.md` 第 2 节那两行，走查方法与临时注入记在 `docs/history/status-log.md`。
-- **来源页重设计**（已实施，合同 [`docs/design/Sources-Page-Redesign-Design.md`](docs/design/Sources-Page-Redesign-Design.md)，
-  设计稿画布链接在文档开头）：状态见 `docs/STATUS.md` 第 2 节那两行。三处行为已在模拟器走查通过
-  （点其他来源切换成功后跳库、失败留在原页；「更多位置」切到设置页并打开购买页；iCloud 首次恢复失败时来源页与收藏页都能下拉重试），
-  走查方法与临时注入记在 `docs/history/status-log.md`；真机还没看。
-  与设计稿的出入（已暂停一组没有虚线外框、启用窗口里启用后不跳库）记在 `docs/history/status-log.md` 当日一节。
-  空状态插画 `EmptyStateSources` 已换成「传送门」构思的新图。
-- **规则目录页重设计**（已实施，合同 [`docs/design/Catalog-Page-Redesign-Design.md`](docs/design/Catalog-Page-Redesign-Design.md)）：
-  设计稿与即梦提示词在文档开头链接的画布上；目录页跟随系统外观、类型横幅固定为深色色块。浅色模式与六张插画的真机观感未在本仓库记录验证。
-- 设计约定：页面之间主题色不能差异过大；类型色只有 `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift` 一处取值，新页面复用。
+- **下一步：三页真机验收**（用户在真机上走，结果记回 `docs/STATUS.md` 第 2 节，新增 `device-passed` 行，不改模拟器那几行）：
+  - 来源页：点其他来源切换成功后跳库、失败留在原页；「更多位置」切到设置页并打开购买页；正在使用的深色瓷砖与类型色；
+    已暂停一组与启用窗口；长按菜单与左滑删除（删除色 `#E5484D`）。
+  - 收藏页：「全部 | 视频 | 漫画 | 书籍」一直显示、某类为 0 的小空状态；按天分组；左滑与长按取消收藏不弹确认、底部撤销按原日期恢复；
+    「在库中查看来源」；已暂停 / 已删除 / 未知来源三种行；取消后库页爱心同步。
+  - 规则目录页：**第一次打开**（目录还没加载完）时标题与分段控件不再向左溢出——这是 2026-10-03 用户真机发现、已修的问题，
+    只在加载骨架出现时触发，冷启动后直接打开目录最容易看到；浅色模式与六张插画观感。
+  - 三页都要在深色模式下各看一遍；iCloud 首次恢复失败的下拉重试在真机上不易触发，可不强求。
+- **合同与走查记录**：来源页 [`Sources-Page-Redesign-Design.md`](docs/design/Sources-Page-Redesign-Design.md)、
+  收藏页 [`Favorites-Page-Redesign-Design.md`](docs/design/Favorites-Page-Redesign-Design.md)、
+  规则目录页 [`Catalog-Page-Redesign-Design.md`](docs/design/Catalog-Page-Redesign-Design.md)，设计稿画布链接都在各自开头；
+  模拟器走查用的临时注入与结果记在 `docs/history/status-log.md` 对应日期一节，注入都已撤回、未提交。
+  与设计稿的已知出入：来源页已暂停一组没有虚线外框、启用窗口里启用后不跳库；iOS 27 上左滑按钮是系统圆形样式。
+- **新页面设计的入口**：Claude 文档「BrowseCraft 页面设计索引」（https://claude.ai/code/artifact/5c5f0bd7-543e-40af-bb70-b5c3f9d1edaf）
+  收录已完成三页的合同、画布、颜色与尺寸、可复用组件、交互约定和新页面检查清单。设计任何新页面前先读它，
+  完成后把新页面加进它的页面表。用户裁定：页面之间主题色不能差异过大；颜色只有
+  `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift` 一处取值；删除色 `#E5484D`。
+  尚未按这套语言重做的页面：库、历史、设置（未立项，等用户点名）。
+- **插画**：空状态插画都是即梦出图 → `scripts/illustration-cutout.swift` 抠图 → `scripts/illustration-despeckle.swift` 去游离小点
+  → 登记 `scripts/bundled-image-asset-budgets.txt`。已有插画的游离小点已清；人物轮廓上的浅色毛边是白底抠图留下的，未处理（optional）。
+- **偶发失败的测试**：`ReadinessSelectorContentSemanticsTests.testWeakSelectorReturnsBeforeTheContentArrives` 是 WebView 就绪的计时断言
+  （上限 1300 ms），2026-10-03 整套跑时测得 1523 ms 失败、单独重跑通过；整套测试看到它红时先单独重跑再下结论。
 
 剩下的全是 `optional` 或已裁决不做。
 
