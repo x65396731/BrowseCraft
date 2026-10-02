@@ -147,6 +147,7 @@ App 侧的验证事实主要分「离线测试通过」「模拟器走通」「�
 ### 按领域
 
 - 身份归属与数据库策略、CloudKit 作用域：[design/AccountScopedDatabaseMigration-Memo.md](design/AccountScopedDatabaseMigration-Memo.md)
+- 删除来源时连带删除历史与收藏（各条删除路径的处理、界面刷新、实现清单）：[design/Source-Deletion-Cascade-Design.md](design/Source-Deletion-Cascade-Design.md)
 - 读书 kind 的 App 侧接线（五仓改动、Readium 装配、章节与分页）：[design/Book-Kind-Wiring-Design.md](design/Book-Kind-Wiring-Design.md)
 - 本地书籍导入与阅读器（入口已藏，代码由站点书复用）：[design/Local-Book-Import-Design.md](design/Local-Book-Import-Design.md)
 - 规则目录：已添加来源跟随目录自动更新：[design/Catalog-Rule-Update-Design.md](design/Catalog-Rule-Update-Design.md)

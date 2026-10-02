@@ -21,7 +21,7 @@
 
 - `favorites` 是用户级聚合表：每个 `userID` 一行，内部用 JSON 保存 RSS / 漫画 / 视频收藏快照，并保存一份派生 ID 列表用于快速判断收藏状态。
 - `favorite_items` 是收藏同步明细表：每个 `userID + sourceID + itemID` 一行，取消收藏通过 `deletedAt` tombstone 表示。
-- `favorites` 和阅读历史只关联 `users`，不直接外键关联 `sources`，避免删除来源时误删独立用户快照。
+- `favorites` 和阅读历史只关联 `users`，不直接外键关联 `sources`；删除来源时的连带删除由仓储在同一事务里显式执行（`BCA-DB-005`），不依赖外键级联。
 - `sources` 使用 `userID + id` 复合主键，允许 `local.default` 和多个 cloud scope 保存相同 Source ID。
 - `sync_queue` 使用 `accountScope + entityType + entityID` 唯一键，队列 ID 也包含 account scope；CloudKit 返回的 `retryAfter` 持久化为 `nextRetryAt`，协调器按账户恢复最早重试任务。
 - Cloud 同步采用单一调度模型：`CloudSyncCoordinator` 统一处理账户恢复、本地变更、前台、远程通知、手动及定时重试；`CKSyncEngine.automaticallySync` 固定关闭，只执行协调器明确发起的 fetch/send。
@@ -36,9 +36,12 @@
 
 ## Source 删除规则
 
-- `sources.userID + sources.id` 只拥有来源自身配置，以及同一用户空间的 Library 当前选择状态。
-- 删除 Source 使用软删除：写入 `sources.deletedAt`，并把删除动作写入 `sync_queue`。
-- 删除 Source 不删除 `comic_chapter_history`、`video_watch_history`、`book_reading_history`。（`rss_reading_history` 已由 `v6.remove-rss` 删表。）
-- `BCA-DB-004` 删除 Source 必须在当前选择匹配时清空 `user_library_state.selectedSourceID`、`listContextJSON`、`lastRefreshAt`。
-- 不删除 `users`。
-- 不删除 `favorites` 或阅读历史；这些用户快照独立于来源生命周期。
+设计与各条删除路径的处理见 [删除来源时连带删除历史与收藏](../../../docs/design/Source-Deletion-Cascade-Design.md)。
+
+- `sources.userID + sources.id` 拥有来源自身配置、同一用户空间的 Library 当前选择状态，以及该来源下的阅读历史与收藏。
+- 删除 Source 使用软删除：写入 `sources.deletedAt`，并把删除动作写入 `sync_queue`（内置来源不入队）。
+- `BCA-DB-004` 删除 Source 必须在当前选择匹配时清空 `user_library_state.selectedSourceID`、`listContextJSON`、`lastRefreshAt`；应用 iCloud 下载的来源删除时同样适用。
+- `BCA-DB-005` 用户删除 Source 时，必须在同一写事务里删除该用户、该来源在 `comic_chapter_history`、`video_watch_history`、`book_reading_history` 的全部记录，并给该用户、该来源每条在册的 `favorite_items` 写删除标记、逐条把收藏删除写入 `sync_queue`，再重建 `favorites` 汇总；内置来源同样适用。应用 iCloud 下载的来源删除时，只删本机该来源的三张历史表记录，收藏由删除方设备的收藏删除标记经同步到达。
+- 用户删除可在短暂窗口内撤销：撤销在一个写事务里把被删的来源、三张历史表记录与收藏原样写回，并把来源（非内置）与收藏以当前时间重新写入 `sync_queue` 为更新，覆盖尚未上传的删除。
+- 不删除 `users`、`temporary_resource_history`、`book_reading_progress` 与 `book_bookmarks`。
+- iCloud 区域被清除与「只用 iCloud 数据」两条账户级路径按各自规则硬删来源与收藏，不删阅读历史。
