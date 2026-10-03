@@ -24,27 +24,6 @@ struct VideoGenerationInputView: View {
     @State private var returnTask: Task<Void, Never>?
     @State private var isShowingGuide: Bool = false
 
-    /// 中文注释：`BC-PREFLIGHT-056` 2026-10-03 修订——从失败行「用困难模式重试」打开时带着原入口、预选困难档，
-    /// 打开即预检一次；档位与 coin 仍由用户在提交前确认。走 `@State` 初值而不是 `onAppear` 赋值：
-    /// 后者会触发 `onChange(of: siteURL)` 把刚开始的预检取消掉。
-    private let startsAssessmentOnAppear: Bool
-
-    init(
-        viewModel: SourcesViewModel,
-        sourceKind: RuleGenerationSourceKind,
-        initialURL: String? = nil,
-        initialAcquisitionTier: GenerationAcquisitionTier = .normal,
-        onFinished: @escaping () -> Void
-    ) {
-        self.viewModel = viewModel
-        self.sourceKind = sourceKind
-        self.onFinished = onFinished
-        let prefilled: String = initialURL?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        self._siteURL = State(initialValue: prefilled)
-        self._acquisitionTier = State(initialValue: initialAcquisitionTier)
-        self.startsAssessmentOnAppear = prefilled.isEmpty == false
-    }
-
     /// 中文注释：提交成功后停留这么久再回来源页——让「生成任务已提交」这句确认被看见，
     /// 又不必让用户自己点两层关闭。
     private static let submittedReturnDelay: Duration = .milliseconds(1200)
@@ -161,11 +140,6 @@ struct VideoGenerationInputView: View {
                 self.cancelAssessment()
                 self.cancelSubmission()
                 self.onFinished()
-            }
-            .task {
-                if self.startsAssessmentOnAppear, self.result == nil, self.isChecking == false {
-                    self.startAssessment()
-                }
             }
             .sheet(isPresented: self.$isShowingGuide) {
                 NavigationStack {

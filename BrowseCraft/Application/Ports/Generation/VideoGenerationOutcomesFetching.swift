@@ -19,7 +19,7 @@ struct VideoGenerationOutcome: Hashable, Sendable {
     let reasonDetail: String?
     var expiresAt: Date? = nil
     /// 中文注释：`BC-PREFLIGHT-056` 2026-10-03 修订——任务提交时的来源类型与服务端建议的取页档位
-    /// （只有普通档被站点拦下时为 `hard`）。两者齐全时失败行给「用困难模式重试」；旧服务端不给即 nil。
+    /// （只有普通档被站点拦下时为 `hard`）。旧服务端不给即 nil。2026-10-03 再修订：失败行不再据此给重试动作，建议只经推送文案告知。
     var sourceKind: String? = nil
     var suggestedAcquisitionTier: String? = nil
     var source: VideoGenerationReusedCatalogSource? = nil

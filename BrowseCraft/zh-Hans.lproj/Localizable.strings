@@ -739,6 +739,5 @@
 "history_error_missing_video_source" = "找不到这个视频的来源。";
 
 /* BC-PREFLIGHT-056 2026-10-03：普通模式被网站拦下时建议改用困难模式；BC-BOOK-058：作品页只列最新几章 */
-"catalog_generation_retry_hard_mode" = "用困难模式重试";
 "push_generation_failed_siteRejectedFetcher_tryHard" = "%@ 拒绝了我们的采集请求，可以改用困难模式重新生成。";
 "video_generation_outcome_detail_chapterListLatestOnly" = "这个网站的作品页只列出最新几章，完整目录要另外请求数据才能取到，目前不支持，请换一个网站试试。";

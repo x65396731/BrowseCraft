@@ -18,8 +18,6 @@ struct CatalogSourceListView: View {
     @State private var addingSourceIDs: Set<String> = []
     @State private var failedSourceIDs: Set<String> = []
     @State private var isShowingEntryGuide: Bool = false
-    /// 中文注释：`BC-PREFLIGHT-056` 2026-10-03 修订——失败行「用困难模式重试」打开的输入页（带原入口、预选困难档）。
-    @State private var hardModeRetry: HardModeRetryTarget?
 
     var body: some View {
         NavigationStack {
@@ -75,17 +73,6 @@ struct CatalogSourceListView: View {
                         self.dismiss()
                     }
                 }
-            }
-            .sheet(item: self.$hardModeRetry) { target in
-                VideoGenerationInputView(
-                    viewModel: self.viewModel,
-                    sourceKind: target.sourceKind,
-                    initialURL: target.entryURL,
-                    initialAcquisitionTier: .hard,
-                    onFinished: {
-                        self.hardModeRetry = nil
-                    }
-                )
             }
             .sheet(isPresented: self.$isShowingEntryGuide) {
                 NavigationStack {
@@ -293,9 +280,7 @@ struct CatalogSourceListView: View {
                 }
             }
         case .failure(let outcome):
-            FailedGenerationOutcomeCardView(outcome: outcome, retryWithHardMode: { target in
-                self.hardModeRetry = target
-            })
+            FailedGenerationOutcomeCardView(outcome: outcome)
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) {
                         Task {
@@ -762,31 +747,9 @@ private struct CatalogPersonalRuleCardView: View {
     }
 }
 
-/// 中文注释：「用困难模式重试」要重新提交的那一条：来源类型 + 原入口地址。
-struct HardModeRetryTarget: Identifiable, Hashable {
-    let id: UUID
-    let sourceKind: RuleGenerationSourceKind
-    let entryURL: String
-
-    /// 只有服务端建议困难档（`suggestedAcquisitionTier == "hard"`，即普通档被站点拦下）、且来源类型与入口地址都在时才给。
-    init?(outcome: VideoGenerationOutcome) {
-        guard outcome.suggestedAcquisitionTier == GenerationAcquisitionTier.hard.rawValue,
-              let rawKind: String = outcome.sourceKind,
-              let kind: RuleGenerationSourceKind = RuleGenerationSourceKind(rawValue: rawKind),
-              let entryURL: String = outcome.entryURL,
-              entryURL.isEmpty == false else {
-            return nil
-        }
-        self.id = outcome.jobID
-        self.sourceKind = kind
-        self.entryURL = entryURL
-    }
-}
-
 /// 失败的生成任务：「生成失败」标签 + 入口 URL，下面是面向用户的成因（`reason`），有细分时再补一句（`reasonDetail`）。
 private struct FailedGenerationOutcomeCardView: View {
     let outcome: VideoGenerationOutcome
-    var retryWithHardMode: ((HardModeRetryTarget) -> Void)?
 
     @State private var isShowingGuide: Bool = false
 
@@ -820,21 +783,6 @@ private struct FailedGenerationOutcomeCardView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
-                }
-                // 中文注释：普通档被站点拦下时服务端建议困难档——给一个重试入口，档位与 coin 仍由用户在输入页确认。
-                if let target: HardModeRetryTarget = HardModeRetryTarget(outcome: self.outcome),
-                   let retry = self.retryWithHardMode {
-                    Button {
-                        retry(target)
-                    } label: {
-                        HStack(spacing: 2) {
-                            Text(NSLocalizedString("catalog_generation_retry_hard_mode", comment: ""))
-                            Image(systemName: "chevron.right")
-                                .font(.caption.weight(.semibold))
-                        }
-                        .font(.footnote.weight(.semibold))
-                    }
-                    .buttonStyle(.borderless)
                 }
                 // 中文注释：入口页资格拒因（`BC-PAGE-060` 的四种）说的就是「这一页不合格」，
                 // 下一步是换一个合格的页面——把教程接在这里，用户不必自己去添加来源里翻。
