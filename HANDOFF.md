@@ -51,9 +51,9 @@ python3 scripts/check-docs.py
     所以列表位置只在下次启动恢复时体现——这是已知出入，不是 bug。
   - 解不出配置的来源照样删（历史与收藏一并删），只是拿不到留底、不能撤销。
 
-来源页、收藏页、规则目录页、历史页四页重设计都已实施，离线测试与模拟器走查通过，共同欠真机验收。
+来源页、收藏页、规则目录页、历史页、设置页、coin 记录页、缓存页七页重设计都已实施，离线测试与模拟器走查通过，共同欠真机验收。
 
-- **下一步二：四页真机验收**（用户在真机上走，结果记回 `docs/STATUS.md` 第 2 节，新增 `device-passed` 行，不改模拟器那几行）：
+- **下一步二：七页真机验收**（用户在真机上走，结果记回 `docs/STATUS.md` 第 2 节，新增 `device-passed` 行，不改模拟器那几行）：
   - 来源页：点其他来源切换成功后跳库、失败留在原页；「更多位置」切到设置页并打开购买页；正在使用的深色瓷砖与类型色；
     已暂停一组与启用窗口；长按菜单与左滑删除（删除色 `#E5484D`，不弹确认；连带删除做完后确认历史与收藏一并消失、撤销后都回来）。
   - 收藏页：「全部 | 视频 | 漫画 | 书籍」一直显示、某类为 0 的小空状态；按天分组；左滑与长按取消收藏不弹确认、底部撤销按原日期恢复；
@@ -63,24 +63,34 @@ python3 scripts/check-docs.py
     顺带做 fwq `BC-PREFLIGHT-066`：生成一条规则 → 点推送应停在原页不跳转 → 打开目录应直接看到新规则、不用下拉。
   - 历史页：继续卡片三种色块与「上次看到 / 上次读到」、视频进度条与「已看完」、左滑与长按删除及撤销（漫画删一行后上一章不再冒出来、撤销回到原日期分组）、
     在库中查看来源、点已暂停来源的行打开启用窗口、空状态；收藏页同一批封面与撤销提示条已改为共用组件，顺带回归。
+  - 设置页：已登录账号卡的余额、「看广告 +N」看完后余额变化、「coin 记录 ›」；未登录卡的插画 `SettingsSignIn`、系统 Apple 登录按钮、
+    不计奖励的看广告；诊断码与账号 ID 点一下复制；退出登录弹居中确认框（取消 / 红色退出登录）；「高级版」打开购买页且底栏隐藏。
+  - coin 记录页：进入后底栏隐藏只留返回、返回后底栏恢复；余额卡与价格说明；按天分组翻页到底；获得色绿；加载失败与没有记录两种状态（模拟器没触发到）。
+  - 缓存页：进入后底栏隐藏；用量卡与「最多」合计；改上限后合计跟着变；清除后用量归零、显示释放多少，来源登录状态不受影响。
   - 库页 / 播放顺带看两条 fwq 项：片源 403 的作品应提示换片源而不是整页兜底（`BC-EVIDENCE-082`）；选集无线路名的站应按重复集号分「线路 1 / 2」。
-  - 四页都要在深色模式下各看一遍；iCloud 首次恢复失败的下拉重试在真机上不易触发，可不强求。
+  - 七页都要在深色模式下各看一遍；iCloud 首次恢复失败的下拉重试在真机上不易触发，可不强求。
+- **下一步三：云同步页重设计**——设置页最后一个没按新样式重做的子页（`BrowseCraft/Features/Settings/CloudSync/CloudSyncSettingsView.swift`）。
+  等用户点名再开工，按这几页同一流程：先把它加进下面的页面设计索引 → 生成 Claude 设计文档（背景、现状、待裁定问题各给建议）→ 用户裁定
+  → 画 Design 画布 → 用户确认后实施（进入后隐藏底栏只留返回）→ 用户要求时 build、整套测试、模拟器走查 → 用户要求时提交推送。
+  合同入库到 `docs/design/`，登记 `docs/README.md` 第 6 节、本地 `AGENTS.md`「按任务读取」与 STATUS 第 2 节。库页仍未立项，等用户点名。
 - **合同与走查记录**：来源页 [`Sources-Page-Redesign-Design.md`](docs/design/Sources-Page-Redesign-Design.md)、
   收藏页 [`Favorites-Page-Redesign-Design.md`](docs/design/Favorites-Page-Redesign-Design.md)、
   规则目录页 [`Catalog-Page-Redesign-Design.md`](docs/design/Catalog-Page-Redesign-Design.md)、
-  历史页 [`History-Page-Redesign-Design.md`](docs/design/History-Page-Redesign-Design.md)，设计稿画布链接都在各自开头；
-  模拟器走查用的临时注入与结果记在 `docs/history/status-log.md` 对应日期一节，注入都已撤回、未提交。
+  历史页 [`History-Page-Redesign-Design.md`](docs/design/History-Page-Redesign-Design.md)、
+  设置页 [`Settings-Page-Redesign-Design.md`](docs/design/Settings-Page-Redesign-Design.md)、
+  coin 记录页 [`Coin-Ledger-Page-Redesign-Design.md`](docs/design/Coin-Ledger-Page-Redesign-Design.md)、
+  缓存页 [`Cache-Page-Redesign-Design.md`](docs/design/Cache-Page-Redesign-Design.md)，设计稿画布与设计文档链接都在各自开头；
+  模拟器走查的方法、临时注入与结果记在 `docs/history/status-log.md` 对应日期一节，注入都已撤回、未提交。
   与设计稿的已知出入：来源页已暂停一组没有虚线外框、启用窗口里启用后不跳库；iOS 26 / 27 上左滑按钮是系统圆形样式。
 - **新页面设计的入口**：Claude 文档「BrowseCraft 页面设计索引」（https://claude.ai/code/artifact/5c5f0bd7-543e-40af-bb70-b5c3f9d1edaf）
   收录已完成各页的合同、画布、颜色与尺寸、可复用组件、交互约定和新页面检查清单。设计任何新页面前先读它，
-  完成后把新页面加进它的页面表。用户裁定：页面之间主题色不能差异过大；颜色只有
-  `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift` 一处取值；删除色 `#E5484D`。
-  尚未按这套语言重做的页面：库（未立项，等用户点名）。设置页已按合同 [`Settings-Page-Redesign-Design.md`](docs/design/Settings-Page-Redesign-Design.md)
-  实施，离线测试全过、模拟器走查通过（STATUS 第 2 节两行），欠真机；真机上要用真实账号看已登录态的余额与看广告后余额变化，
-  模拟器里已登录态是临时注入的、余额为「—」。它的三个子页里 coin 记录页已按合同 [`Coin-Ledger-Page-Redesign-Design.md`](docs/design/Coin-Ledger-Page-Redesign-Design.md)
-  实施，离线测试全过、模拟器上用真实登录账号走查通过（STATUS 第 2 节两行），欠真机；加载失败、没有记录两种状态模拟器里没有触发。
-  缓存页已按合同 [`Cache-Page-Redesign-Design.md`](docs/design/Cache-Page-Redesign-Design.md) 实施，离线测试全过、模拟器上用真实登录账号走查通过（STATUS 第 2 节两行），欠真机；
-  云同步子页下一轮再做。
+  开工时先把新页面加进它的页面表，完成后更新那一行。用户裁定：页面之间主题色不能差异过大；颜色只有
+  `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift` 一处取值；删除色 `#E5484D`；获得色绿（`CatalogPalette.gain`）。
+  推入的二级页隐藏底栏只留返回；标签页若要控制底栏，只能挂在 `NavigationStack` 里的根页上、平时取 `.automatic`
+  （挂在栈外或写显式 `.visible` 会盖过二级页的隐藏，设置页为此改过一次）。
+- **模拟器走查环境**：用户指定 iPhone 18 Pro（iOS 27.0）模拟器，已登录真实账号，可直接看已登录态；该账号的来源在 10-02 已全部删除，
+  所以 App 打开在来源页空状态，要切到设置标签再进子页。启动有一段开场视频，点右下「跳过」。整套测试放在另一台 iPhone 17（iOS 26.5）
+  模拟器上后台跑，互不干扰。模拟器面板的截图偶尔是旧帧，以 `xcrun simctl io <设备> screenshot` 为准。
 - **插画**：空状态插画都是即梦出图 → `scripts/illustration-cutout.swift` 抠图 → `scripts/illustration-despeckle.swift` 去游离小点
   → 登记 `scripts/bundled-image-asset-budgets.txt`。已有插画的游离小点已清；人物轮廓上的浅色毛边是白底抠图留下的，未处理（optional）。
 - **偶发失败的测试**：`ReadinessSelectorContentSemanticsTests.testWeakSelectorReturnsBeforeTheContentArrives` 是 WebView 就绪的计时断言
