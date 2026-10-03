@@ -164,9 +164,15 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
     ) -> String {
         let charset: String = request?.charset?.rawValue ?? "auto"
         let requestedEncoding: String.Encoding? = self.stringEncoding(for: charset)
+        // 中文注释：`BC-ACQ-076`——响应头编码名按与引擎、Core 同一张表归并（big5 系 → Big5-HKSCS、gbk 系 → GB18030）；
+        // 规则与响应头都没给出编码时，按 BOM → `<meta charset>` 读页面自述编码（与引擎同一顺序）。
         let responseEncoding: String.Encoding? = response
             .flatMap { self.responseCharset(from: $0) }
-            .flatMap { self.stringEncoding(for: $0) }
+            .flatMap { HTMLTextEncoding.encoding(forLabel: $0) }
+        let sniffedEncoding: String.Encoding? = (requestedEncoding ?? responseEncoding) == nil
+            ? HTMLTextEncoding.sniffedEncoding(data)
+            : nil
+        let primaryEncoding: String.Encoding? = requestedEncoding ?? responseEncoding ?? sniffedEncoding
         let fallbackEncodings: [String.Encoding] = [
             .utf8,
             .shiftJIS,
@@ -181,6 +187,10 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
            encodings.contains(responseEncoding) == false {
             encodings.append(responseEncoding)
         }
+        if let sniffedEncoding: String.Encoding,
+           encodings.contains(sniffedEncoding) == false {
+            encodings.append(sniffedEncoding)
+        }
         for encoding: String.Encoding in fallbackEncodings where encodings.contains(encoding) == false {
             encodings.append(encoding)
         }
@@ -191,8 +201,10 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
             }
             // 中文注释：`BC-ACQ-075`——声明的是 UTF-8（规则字符集或响应头）却有坏字节时，按 UTF-8 宽松解码
             // （坏字节换成替换字符），与浏览器、引擎一致；不再往后落到 Latin-1 把整页中文解成乱码。
-            if encoding == .utf8, (requestedEncoding ?? responseEncoding) == .utf8 {
-                return String(decoding: data, as: UTF8.self)
+            // `BC-ACQ-076`：页面自述的其它编码（big5 / gb18030 …）有坏字节时同此，宽松解码、不往后试。
+            if encoding == primaryEncoding,
+               let string: String = HTMLTextEncoding.lossyDecode(data, encoding: encoding) {
+                return string
             }
         }
 
