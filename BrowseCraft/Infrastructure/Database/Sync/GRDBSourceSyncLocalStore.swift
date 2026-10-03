@@ -72,8 +72,29 @@ final class GRDBSourceSyncLocalStore: SourceSyncLocalStore {
             for payload: SourceCloudPayload in plan.acceptedPayloads {
                 var scopedPayload: SourceCloudPayload = payload
                 scopedPayload.userID = userID
+                // 中文注释：iCloud 应用远端删除：本地来源由在册变为已删除时，同一事务里删本机该来源的三张历史表记录
+                // 并清空库的当前选择（`BCA-DB-004`、`BCA-DB-005`）。收藏不在这里处理——删除的那台设备已把收藏
+                // 删除标记入队，会经收藏同步到达。远端删除不给撤销。
+                let wasLive: Bool = try SourceRecord.fetchOne(
+                    database,
+                    key: ["userID": userID, "id": payload.sourceID]
+                ).map { record in
+                    return record.deletedAt == nil
+                } ?? false
                 var record: SourceRecord = SourceRecord(payload: scopedPayload)
                 try record.save(database)
+                if wasLive && payload.isDeleted {
+                    try GRDBSourceRepository.deleteHistories(
+                        userID: userID,
+                        sourceID: payload.sourceID,
+                        in: database
+                    )
+                    try GRDBSourceRepository.clearSourceSelection(
+                        userID: userID,
+                        sourceID: payload.sourceID,
+                        in: database
+                    )
+                }
             }
 
             for change: SourceSyncLocalChange in plan.requeuedLocalChanges {

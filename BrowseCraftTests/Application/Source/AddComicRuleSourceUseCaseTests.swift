@@ -85,8 +85,23 @@ private final class ComicRuleInMemorySourceRepository: SourceRepository, @unchec
         self.savedSources[source.id] = source
     }
 
-    func deleteSource(id: String) throws {
-        self.savedSources.removeValue(forKey: id)
+    func deleteSource(id: String) throws -> SourceDeletionReceipt? {
+        guard let source: Source = self.savedSources.removeValue(forKey: id) else {
+            return nil
+        }
+        return SourceDeletionReceipt(
+            source: source,
+            librarySelection: nil,
+            comicHistories: [],
+            videoHistories: [],
+            bookHistories: [],
+            favoriteItems: [],
+            enqueuedSyncChanges: false
+        )
+    }
+
+    func restoreDeletedSource(_ receipt: SourceDeletionReceipt) throws {
+        self.savedSources[receipt.source.id] = receipt.source
     }
 }
 

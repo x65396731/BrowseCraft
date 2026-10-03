@@ -675,12 +675,12 @@
 "sources_paused_replace" = "替换使用";
 "sources_full_hint_title" = "想再加一个网站？";
 "sources_full_hint_message" = "位置已用满。可以先长按当前来源删除再添加，或获取更多位置。";
-"sources_footer_hint" = "长按来源可查看详情或删除；向左滑动也可删除。删除来源会同时删除相关的阅读 / 观看历史和库状态。";
+"sources_footer_hint" = "长按来源可查看详情或删除；向左滑动也可删除。删除来源会同时删除它的阅读 / 观看历史和收藏。";
 "sources_menu_open_library" = "打开库";
 "sources_menu_switch_and_open" = "切换并打开库";
 "sources_menu_details" = "来源详情";
 "sources_menu_delete" = "删除来源";
-"sources_delete_confirm_title" = "删除「%@」？";
+"sources_undo_message" = "已删除「%@」";
 "sources_empty_title" = "还没有来源";
 "sources_empty_message" = "来源就是一个网站。加一个进来，库里就有可看的内容了。";
 "sources_empty_catalog_title" = "从规则目录挑一个";

@@ -4,11 +4,19 @@ import Foundation
 // 中文注释：SourceRepository 提供 Source 的读取、保存和删除入口。
 
 /// 中文注释：面向领域层的源仓储协议，负责源规则的读取、保存和删除。
-/// 中文注释：删除 Source 时只清理当前选择等运行状态；历史和收藏快照独立保留。
+/// 中文注释：删除 Source 时在同一写事务里连带删除它的三张历史表记录与收藏（`BCA-DB-005`），并交回被删内容供撤销；
+/// 库的当前选择正好是它时清空（`BCA-DB-004`）。
 protocol SourceRepository: Sendable {
     func fetchSources() throws -> [Source]
     func saveSource(_ source: Source) throws
-    func deleteSource(id: String) throws
+    /// 中文注释：删除来源并连带删除历史与收藏，交回被删内容；来源不在册时仍做清理但返回 nil。
+    /// 不发本地变更通知——调用方在撤销窗口结束后调 `notifyLocalChanges()`（见 `docs/design/Source-Deletion-Cascade-Design.md` 第四节）。
+    @discardableResult
+    func deleteSource(id: String) throws -> SourceDeletionReceipt?
+    /// 中文注释：撤销删除——把被删的来源、历史与收藏原样写回，并以当前时间重新入队为更新。
+    func restoreDeletedSource(_ receipt: SourceDeletionReceipt) throws
+    /// 中文注释：把 `deleteSource` 攒下的本地变更告知同步协调器；没有同步的仓储不必实现。
+    func notifyLocalChanges()
     func reconcileSourceSlotAssignments() throws -> [Source]
     func activateSource(
         id: String,
@@ -17,6 +25,8 @@ protocol SourceRepository: Sendable {
 }
 
 extension SourceRepository {
+    func notifyLocalChanges() {}
+
     func reconcileSourceSlotAssignments() throws -> [Source] {
         return try self.fetchSources()
     }
@@ -35,6 +45,21 @@ extension SourceRepository {
         try self.saveSource(source)
         return try self.fetchSources()
     }
+}
+
+/// 中文注释：删除来源时的留底——撤销时按这里的内容原样写回（`docs/design/Source-Deletion-Cascade-Design.md` 第四节）。
+struct SourceDeletionReceipt: Sendable {
+    /// 删除前的来源记录原样（含启用状态；`deletedAt` 为 nil）。
+    let source: Source
+    /// 删除前库的当前选择正好是它时的库状态（来源 ID 与列表位置）；它不是当前来源时为 nil。
+    let librarySelection: UserLibraryState?
+    let comicHistories: [ComicChapterHistory]
+    let videoHistories: [VideoWatchHistory]
+    let bookHistories: [BookReadingHistory]
+    /// 删除前在册、这次被写了删除标记的收藏条目（带原收藏时间）。
+    let favoriteItems: [FavoriteContentItem]
+    /// 这次删除是否往同步队列写了东西（非内置来源，或有收藏）；为真时撤销窗口结束后要发本地变更通知。
+    let enqueuedSyncChanges: Bool
 }
 
 /// 中文注释：站点位置只约束用户添加的 Source；内置 Source 不消耗购买位置。

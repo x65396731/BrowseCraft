@@ -42,9 +42,17 @@ final class SourcesViewModel {
     private(set) var videoGenerationInputProgress: VideoGenerationInputPreflightProgress?
     private(set) var sourceSlotLimit: Int =
         SourceSlotPolicy.includedSiteSlotCount
+    /// 刚删除、还能撤销的来源及其被删内容；底部提示随它出现和消失（`docs/design/Source-Deletion-Cascade-Design.md` 第四节）。
+    private(set) var undoableDeletion: SourceDeletionReceipt?
+    /// 本页每删除或撤销成功一次就加一；宿主据此重新载入历史与收藏，并让库页刷新当前来源的收藏标记。
+    private(set) var sourceContentRevision: Int = 0
+    @ObservationIgnored private var undoDismissTask: Task<Void, Never>?
     /// 启动与回到前台时的目录跟随（`syncAddedSourcesWithCatalog`）：进行中标记与上次成功读取的时刻。
     @ObservationIgnored private var isSyncingAddedSourcesWithCatalog: Bool = false
     @ObservationIgnored private var lastCatalogSyncDate: Date?
+
+    /// 撤销提示停留的时长，与收藏页、历史页相同。
+    static let undoDuration: Duration = .seconds(4)
 
     private let persistenceCoordinator: SourcesPersistenceCoordinator
     private let addComicRuleSourceUseCase: AddComicRuleSourceUseCase
@@ -177,15 +185,8 @@ final class SourcesViewModel {
         if let localSourceID: String = localSourceID,
            self.sources.contains(where: { source in source.id == localSourceID }) {
             do {
-                let snapshot: SourcesPersistenceSnapshot = try await self.persistenceCoordinator.delete(
-                    sourceIDs: [localSourceID],
-                    userID: self.currentUserID
-                )
-                self.sources = snapshot.sources
-                self.sourceSlotLimit = snapshot.sourceSlotLimit
-                if self.selectedSourceID == localSourceID {
-                    self.selectSource(id: snapshot.sources.first(where: { $0.accessState == .active })?.id)
-                }
+                // 中文注释：服务端已软删除，本地副本的删除不给撤销。
+                try await self.deleteSourcesWithoutUndo(ids: [localSourceID])
             } catch {
                 RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "personal-rule-delete-error")
                 self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
@@ -692,16 +693,7 @@ final class SourcesViewModel {
             return
         }
         do {
-            let snapshot: SourcesPersistenceSnapshot = try await self.persistenceCoordinator.delete(
-                sourceIDs: expiredSourceIDs,
-                userID: self.currentUserID
-            )
-            self.sources = snapshot.sources
-            self.sourceSlotLimit = snapshot.sourceSlotLimit
-            if let selectedSourceID: String = self.selectedSourceID,
-               expiredSourceIDs.contains(selectedSourceID) {
-                self.selectSource(id: snapshot.sources.first(where: { $0.accessState == .active })?.id)
-            }
+            try await self.deleteSourcesWithoutUndo(ids: expiredSourceIDs)
             AppLog.notice(
                 .push,
                 event: "personal-sources-expired",
@@ -808,7 +800,7 @@ final class SourcesViewModel {
     }
 
     @MainActor
-    /// 中文注释：deleteSources 方法封装当前类型的一段业务或界面行为。
+    /// 中文注释：按下标删除；与按 id 删除同一条路径，只删一个时同样可撤销。
     func deleteSources(at offsets: IndexSet) async {
         let sourceIDs: [String] = offsets.map { offset in
             return self.sources[offset].id
@@ -816,34 +808,28 @@ final class SourcesViewModel {
         await self.deleteSources(ids: sourceIDs)
     }
 
-    /// 中文注释：来源页的左滑与长按菜单按来源删除（`docs/design/Sources-Page-Redesign-Design.md` 2.5）；
-    /// 连带清理与按下标删除同一条路径。
+    /// 中文注释：来源页的左滑与长按菜单按来源删除（`docs/design/Sources-Page-Redesign-Design.md` 2.5）：
+    /// 不弹确认，删除后连带删掉它的历史与收藏（`BCA-DB-005`），底部给出可撤销提示。
     @MainActor
     func deleteSource(id sourceID: String) async {
         await self.deleteSources(ids: [sourceID])
     }
 
+    /// 中文注释：用户发起的删除。新删除开始前先结束上一个撤销窗口（提示被替换）；只删一个且拿到留底时可撤销，
+    /// 同步通知推迟到窗口结束；其余情况删完立刻通知。
     @MainActor
     private func deleteSources(ids sourceIDs: [String]) async {
+        self.finishUndoableDeletion()
         do {
-            let snapshot: SourcesPersistenceSnapshot = try await self.persistenceCoordinator.delete(
+            let result: SourcesDeletionResult = try await self.persistenceCoordinator.delete(
                 sourceIDs: sourceIDs,
                 userID: self.currentUserID
             )
-            let loadedSources: [Source] = snapshot.sources
-            self.sources = loadedSources
-            self.sourceSlotLimit = snapshot.sourceSlotLimit
-
-            if let selectedSourceID: String = self.selectedSourceID,
-               loadedSources.contains(where: { source in
-                   return source.id == selectedSourceID
-                       && source.accessState == .active
-               }) == false {
-                self.selectSource(
-                    id: loadedSources.first(where: { source in
-                        return source.accessState == .active
-                    })?.id
-                )
+            self.applyDeletion(result)
+            if sourceIDs.count == 1, let receipt: SourceDeletionReceipt = result.receipts.first {
+                self.showUndo(for: receipt)
+            } else {
+                await self.notifyDeletionChanges(for: result.receipts)
             }
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-delete-error")
@@ -851,7 +837,109 @@ final class SourcesViewModel {
         }
     }
 
+    /// 中文注释：不可撤销的删除（删除个人规则、个人规则过期）：删完立刻把变更告知同步。
+    @MainActor
+    private func deleteSourcesWithoutUndo(ids sourceIDs: [String]) async throws {
+        self.finishUndoableDeletion()
+        let result: SourcesDeletionResult = try await self.persistenceCoordinator.delete(
+            sourceIDs: sourceIDs,
+            userID: self.currentUserID
+        )
+        self.applyDeletion(result)
+        await self.notifyDeletionChanges(for: result.receipts)
+    }
+
+    /// 中文注释：删除成功后的共同收尾：换上归置后的列表，当前来源不在了就选第一个在用的，并记一次内容变更。
+    @MainActor
+    private func applyDeletion(_ result: SourcesDeletionResult) {
+        let loadedSources: [Source] = result.snapshot.sources
+        self.sources = loadedSources
+        self.sourceSlotLimit = result.snapshot.sourceSlotLimit
+
+        if let selectedSourceID: String = self.selectedSourceID,
+           loadedSources.contains(where: { source in
+               return source.id == selectedSourceID
+                   && source.accessState == .active
+           }) == false {
+            self.selectSource(
+                id: loadedSources.first(where: { source in
+                    return source.accessState == .active
+                })?.id
+            )
+        }
+        self.sourceContentRevision += 1
+    }
+
+    private func notifyDeletionChanges(for receipts: [SourceDeletionReceipt]) async {
+        guard receipts.contains(where: \.enqueuedSyncChanges) else {
+            return
+        }
+        await self.persistenceCoordinator.notifyDeletionChanges()
+    }
+
+    /// 中文注释：撤销删除：来源回到在册、历史与收藏原样回来；删除前它是当前来源的，撤销后改回当前来源
+    /// （库状态已由仓储连同列表位置一起写回，这里不再覆盖）。撤销不发删除的通知，写回后仓储照常通知。
+    @MainActor
+    func undoDeletion() async {
+        guard let receipt: SourceDeletionReceipt = self.undoableDeletion else {
+            return
+        }
+        self.undoDismissTask?.cancel()
+        self.undoDismissTask = nil
+        self.undoableDeletion = nil
+        do {
+            let snapshot: SourcesPersistenceSnapshot = try await self.persistenceCoordinator.restore(
+                receipt,
+                userID: self.currentUserID
+            )
+            self.sources = snapshot.sources
+            self.sourceSlotLimit = snapshot.sourceSlotLimit
+            if receipt.librarySelection != nil {
+                self.selectSource(id: receipt.source.id, savesLibraryState: false)
+            }
+            self.sourceContentRevision += 1
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-undo-delete-error")
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+        }
+    }
+
+    /// 中文注释：结束撤销窗口：提示消失，攒下的删除这才告知同步。提示超时、被新删除替换、离开来源页或 App 切走时调用。
+    func finishUndoableDeletion() {
+        self.undoDismissTask?.cancel()
+        self.undoDismissTask = nil
+        guard let receipt: SourceDeletionReceipt = self.undoableDeletion else {
+            return
+        }
+        self.undoableDeletion = nil
+        guard receipt.enqueuedSyncChanges else {
+            return
+        }
+        Task { [persistenceCoordinator] in
+            await persistenceCoordinator.notifyDeletionChanges()
+        }
+    }
+
+    private func showUndo(for receipt: SourceDeletionReceipt) {
+        self.undoDismissTask?.cancel()
+        self.undoableDeletion = receipt
+        self.undoDismissTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.undoDuration)
+            guard Task.isCancelled == false,
+                  let self = self,
+                  self.undoableDeletion?.source.id == receipt.source.id else {
+                return
+            }
+            self.finishUndoableDeletion()
+        }
+    }
+
     func selectSource(id: String?) {
+        self.selectSource(id: id, savesLibraryState: true)
+    }
+
+    /// - Parameter savesLibraryState: 为假时只切换当前来源、不写库状态——撤销删除时库状态已由仓储原样写回。
+    private func selectSource(id: String?, savesLibraryState: Bool) {
         if let source: Source = self.source(id: id),
            source.accessState == .lockedBySlotLimit {
             self.requestedSlotActivationSource = source
@@ -863,7 +951,9 @@ final class SourcesViewModel {
         let selectedSource: Source? = self.source(id: id)
         CrashDiagnostics.shared.setSource(selectedSource)
         AppAnalytics.shared.logSourceSelected(selectedSource)
-        self.saveLibraryStateForSelectedSource(lastRefreshAt: nil)
+        if savesLibraryState {
+            self.saveLibraryStateForSelectedSource(lastRefreshAt: nil)
+        }
     }
 
     /// 中文注释：已暂停的来源请求启用：打开启用来源窗口（2.4 / 2.6）。

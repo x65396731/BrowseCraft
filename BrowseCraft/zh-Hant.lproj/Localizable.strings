@@ -675,12 +675,12 @@
 "sources_paused_replace" = "替換使用";
 "sources_full_hint_title" = "想再加一個網站？";
 "sources_full_hint_message" = "位置已用滿。可以先長按目前來源刪除再新增，或取得更多位置。";
-"sources_footer_hint" = "長按來源可查看詳情或刪除；向左滑動也可刪除。刪除來源會同時刪除相關的閱讀 / 觀看歷史和庫狀態。";
+"sources_footer_hint" = "長按來源可查看詳情或刪除；向左滑動也可刪除。刪除來源會同時刪除它的閱讀 / 觀看歷史和收藏。";
 "sources_menu_open_library" = "打開庫";
 "sources_menu_switch_and_open" = "切換並打開庫";
 "sources_menu_details" = "來源詳情";
 "sources_menu_delete" = "刪除來源";
-"sources_delete_confirm_title" = "刪除「%@」？";
+"sources_undo_message" = "已刪除「%@」";
 "sources_empty_title" = "還沒有來源";
 "sources_empty_message" = "來源就是一個網站。加一個進來，庫裡就有可看的內容了。";
 "sources_empty_catalog_title" = "從規則目錄挑一個";

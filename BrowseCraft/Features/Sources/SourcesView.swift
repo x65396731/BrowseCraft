@@ -14,6 +14,7 @@ struct SourcesView: View {
     /// 宿主打开既有的高级版购买入口（来源位置不够时）。
     let openPremium: () -> Void
 
+    @Environment(\.scenePhase) private var scenePhase
     @State private var isShowingAddSourceView: Bool = false
     @State private var isShowingCatalogSourceListView: Bool = false
     @State private var opensAddSourceAfterCatalog: Bool = false
@@ -31,11 +32,43 @@ struct SourcesView: View {
                 .navigationDestination(item: self.$debugSourceID) { sourceID in
                     SourceDebugView(viewModel: self.viewModel, sourceID: sourceID)
                 }
+                // 中文注释：删除来源后底部「已删除「来源名」 · 撤销」，与收藏页、历史页同一个提示条
+                // （`docs/design/Source-Deletion-Cascade-Design.md` 第四节）。
+                .overlay(alignment: .bottom) {
+                    if let receipt: SourceDeletionReceipt = self.viewModel.undoableDeletion {
+                        ContentUndoBanner(
+                            message: String(
+                                format: NSLocalizedString("sources_undo_message", comment: ""),
+                                receipt.source.name
+                            ),
+                            actionTitle: NSLocalizedString("favorites_undo_action", comment: ""),
+                            undoAction: {
+                                Task {
+                                    await self.viewModel.undoDeletion()
+                                }
+                            }
+                        )
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 12)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
+                .animation(.easeOut(duration: 0.2), value: self.viewModel.undoableDeletion?.source.id)
                 .onAppear {
                     CrashDiagnostics.shared.setScreen(.sourceList)
                     AppAnalytics.shared.logScreenView(.sourceList)
                     Task {
                         await self.viewModel.load()
+                    }
+                }
+                .onDisappear {
+                    // 中文注释：离开来源页就结束撤销窗口，攒下的删除这才告知同步。
+                    self.viewModel.finishUndoableDeletion()
+                }
+                .onChange(of: self.scenePhase) { _, phase in
+                    // 中文注释：App 切走后不能再撤销。
+                    if phase != .active {
+                        self.viewModel.finishUndoableDeletion()
                     }
                 }
                 .onChange(of: self.cloudSyncViewModel.contentRevision) { _, _ in
@@ -308,7 +341,8 @@ struct SourcesView: View {
         .disabled(isSwitching)
     }
 
-    /// 删除来源不弹确认（2026-10-03 用户裁定），左滑与长按「删除来源」都直接删；连带清理历史与库状态的逻辑不变。
+    /// 删除来源不弹确认（2026-10-03 用户裁定），左滑与长按「删除来源」都直接删；
+    /// 连带删除它的历史与收藏（`BCA-DB-005`），删完底部可撤销。
     private func delete(_ source: Source) {
         Task {
             await self.viewModel.deleteSource(id: source.id)

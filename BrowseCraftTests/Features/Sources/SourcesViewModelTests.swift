@@ -354,6 +354,95 @@ struct SourcesViewModelTests {
         #expect(try sourceRepository.fetchSources().map(\.id) == [paused.id])
     }
 
+    // 中文注释：删除来源连带删除它的历史与收藏并可撤销（`docs/design/Source-Deletion-Cascade-Design.md`）：
+    // 删除后历史与收藏仓储里看不到该来源的条目、内容变更计数加一、底部可撤销；撤销后都回来，当前来源也改回它。
+    @Test func deletingASourceRemovesItsHistoryAndFavoritesUntilUndone() async throws {
+        let database: AppDatabase = try Harness.makeDatabase()
+        let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
+        let comic: Source = try Harness.makeComicSource(id: "built-in.comic")
+        let custom: Source = try Harness.makeComicSource(id: "comic.custom", name: "Custom")
+        try sourceRepository.saveSource(comic)
+        try sourceRepository.saveSource(custom)
+        let comics: GRDBComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(database: database)
+        try comics.save(Self.comicHistory(sourceID: custom.id))
+        try comics.save(Self.comicHistory(sourceID: comic.id))
+        let favorites: GRDBFavoriteRepository = GRDBFavoriteRepository(database: database)
+        try favorites.restoreFavorite(item: Self.favoriteItem(id: "kept", sourceID: comic.id))
+        try favorites.restoreFavorite(item: Self.favoriteItem(id: "gone", sourceID: custom.id))
+        // 中文注释：库状态直接写进去（更新时间晚于 ViewModel 的固定时钟，不会被它异步保存的状态覆盖），撤销后要改回当前来源。
+        try GRDBUserLibraryStateRepository(database: database).save(
+            UserLibraryState(
+                userID: AppUser.localDefaultID,
+                selectedSourceID: custom.id,
+                listContext: nil,
+                lastRefreshAt: nil,
+                updatedAt: Harness.fixedNow.addingTimeInterval(1_000)
+            )
+        )
+        let viewModel: SourcesViewModel = Harness.makeSourcesViewModel(
+            database: database,
+            resolver: Harness.resolver()
+        )
+        _ = try await viewModel.loadForStartup()
+        viewModel.selectSource(id: custom.id)
+
+        await viewModel.deleteSource(id: custom.id)
+
+        #expect(viewModel.errorMessage == nil)
+        #expect(viewModel.sources.map(\.id) == [comic.id])
+        #expect(viewModel.selectedSourceID == comic.id)
+        #expect(viewModel.sourceContentRevision == 1)
+        #expect(viewModel.undoableDeletion?.source.id == custom.id)
+        #expect(try comics.fetchHistory(userID: AppUser.localDefaultID).map(\.sourceID) == [comic.id])
+        #expect(try favorites.fetchFavoriteItems().map(\.id) == ["kept"])
+
+        await viewModel.undoDeletion()
+
+        #expect(viewModel.errorMessage == nil)
+        #expect(viewModel.undoableDeletion == nil)
+        #expect(viewModel.sourceContentRevision == 2)
+        #expect(Set(viewModel.sources.map(\.id)) == [comic.id, custom.id])
+        #expect(viewModel.source(id: custom.id)?.accessState == .active)
+        #expect(viewModel.selectedSourceID == custom.id)
+        #expect(Set(try comics.fetchHistory(userID: AppUser.localDefaultID).map(\.sourceID)) == [comic.id, custom.id])
+        #expect(Set(try favorites.fetchFavoriteItems().map(\.id)) == ["gone", "kept"])
+    }
+
+    private static func comicHistory(sourceID: String) -> ComicChapterHistory {
+        let detailURL: URL = URL(string: "https://comic.example.test/dragon")!
+        return ComicChapterHistory(
+            userID: AppUser.localDefaultID,
+            sourceID: sourceID,
+            comicItemID: "dragon",
+            comicTitle: "Dragon",
+            chapterID: "chapter-1",
+            chapterKey: "chapter-1",
+            chapterURL: detailURL.appendingPathComponent("chapter-1"),
+            chapterTitle: "#1",
+            visitedAt: Harness.fixedNow,
+            coverURL: nil,
+            lastPageIndex: nil,
+            sourceSnapshot: nil
+        )
+    }
+
+    private static func favoriteItem(id: String, sourceID: String) -> FavoriteContentItem {
+        return FavoriteContentItem(
+            id: id,
+            sourceID: sourceID,
+            title: id,
+            detailURL: "https://comic.example.test/\(id)",
+            coverURL: nil,
+            kind: .comic,
+            latestText: nil,
+            updatedAt: Harness.fixedNow,
+            favoritedAt: Harness.fixedNow,
+            listOrder: nil,
+            listContext: nil,
+            sourceSnapshot: nil
+        )
+    }
+
     private static func setSiteSlotLimit(_ limit: Int, in database: AppDatabase) throws {
         try database.queue.write { database in
             try database.execute(

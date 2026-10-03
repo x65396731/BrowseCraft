@@ -148,6 +148,50 @@ struct SourceSyncServiceTests {
         #expect(deletedAt == Date(timeIntervalSince1970: 200))
     }
 
+    // 中文注释：`BCA-DB-004` / `BCA-DB-005`——应用远端来源删除后，本机该来源的历史被删、库的当前选择被清空；
+    // 收藏不在这里处理（删除方设备的收藏删除标记经收藏同步到达）。
+    @Test func cloudDeleteRemovesLocalHistoryAndClearsSelectionButKeepsFavorites() async throws {
+        let database: AppDatabase = try Self.makeDatabase()
+        try Self.insertSource(Self.makePluginSource(id: "source-1", name: "Local Source", updatedAt: 100), into: database)
+        let comics: GRDBComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(database: database)
+        try comics.save(Self.comicHistory(sourceID: "source-1"))
+        try comics.save(Self.comicHistory(sourceID: "source-2"))
+        let favorites: GRDBFavoriteRepository = GRDBFavoriteRepository(database: database)
+        try favorites.setFavorite(item: Self.favoriteItem(sourceID: "source-1"), isFavorite: true)
+        let libraryStates: GRDBUserLibraryStateRepository = GRDBUserLibraryStateRepository(database: database)
+        try libraryStates.save(
+            UserLibraryState(
+                userID: AppUser.localDefaultID,
+                selectedSourceID: "source-1",
+                listContext: nil,
+                lastRefreshAt: nil,
+                updatedAt: Date(timeIntervalSince1970: 150)
+            )
+        )
+        let cloudStore: MockCloudRecordStore = MockCloudRecordStore(
+            sourceRecords: [
+                SourceCloudRecord(
+                    payload: try Self.payload(
+                        id: "source-1",
+                        name: "Cloud Tombstone",
+                        updatedAt: 100,
+                        deletedAt: 200
+                    ),
+                    serverUpdatedAt: Date(timeIntervalSince1970: 210),
+                    version: 1
+                )
+            ]
+        )
+        let service: SourceSyncService = Self.makeService(database: database, cloudStore: cloudStore)
+
+        let result: SourceSyncResult = try await service.syncSources(limit: 10)
+
+        #expect(result.deletedCount == 1)
+        #expect(try comics.fetchHistory(userID: AppUser.localDefaultID).map(\.sourceID) == ["source-2"])
+        #expect(try favorites.fetchFavoriteItems().map(\.sourceID) == ["source-1"])
+        #expect(try libraryStates.fetch(userID: AppUser.localDefaultID)?.selectedSourceID == nil)
+    }
+
     @Test func newerLocalSourceWinsOverOlderCloudSource() async throws {
         let database: AppDatabase = try Self.makeDatabase()
         try Self.insertSource(Self.makePluginSource(id: "source-1", name: "Local New", updatedAt: 200), into: database)
@@ -355,6 +399,41 @@ struct SourceSyncServiceTests {
             enabled: true,
             createdAt: Date(timeIntervalSince1970: 50),
             updatedAt: Date(timeIntervalSince1970: updatedAt)
+        )
+    }
+
+    private static func comicHistory(sourceID: String) -> ComicChapterHistory {
+        let detailURL: URL = URL(string: "https://example.test/comic/dragon")!
+        return ComicChapterHistory(
+            userID: AppUser.localDefaultID,
+            sourceID: sourceID,
+            comicItemID: "dragon",
+            comicTitle: "Dragon",
+            chapterID: "chapter-1",
+            chapterKey: "chapter-1",
+            chapterURL: detailURL.appendingPathComponent("chapter-1"),
+            chapterTitle: "#1",
+            visitedAt: Date(timeIntervalSince1970: 100),
+            coverURL: nil,
+            lastPageIndex: nil,
+            sourceSnapshot: nil
+        )
+    }
+
+    private static func favoriteItem(sourceID: String) -> FavoriteContentItem {
+        return FavoriteContentItem(
+            id: "favorite-1",
+            sourceID: sourceID,
+            title: "Favorite Item",
+            detailURL: "https://example.test/item/1",
+            coverURL: nil,
+            kind: .comic,
+            latestText: nil,
+            updatedAt: Date(timeIntervalSince1970: 100),
+            favoritedAt: nil,
+            listOrder: nil,
+            listContext: nil,
+            sourceSnapshot: nil
         )
     }
 }

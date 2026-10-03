@@ -372,6 +372,125 @@ struct SyncRepositoryTests {
         #expect(pending[0].operation == .upsert)
     }
 
+    // 中文注释：`BCA-DB-004` / `BCA-DB-005`——删除来源在同一事务里删掉该用户该来源的三张历史表记录、给收藏写删除标记并入队、
+    // 清空指向它的库当前选择；其他来源的记录不动。撤销把这些原样写回（含原访问时间、原收藏时间），队列里留下的是更新。
+    @Test func sourceRepositoryCascadesHistoryAndFavoritesAndUndoRestoresThem() throws {
+        let database: AppDatabase = try Self.makeDatabase()
+        let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
+        let favoriteRepository: GRDBFavoriteRepository = GRDBFavoriteRepository(database: database)
+        let queueRepository: GRDBSyncQueueRepository = GRDBSyncQueueRepository(database: database)
+        let comics: GRDBComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(database: database)
+        let videos: GRDBVideoWatchHistoryRepository = GRDBVideoWatchHistoryRepository(database: database)
+        let books: GRDBBookReadingHistoryRepository = GRDBBookReadingHistoryRepository(database: database)
+        let libraryStates: GRDBUserLibraryStateRepository = GRDBUserLibraryStateRepository(database: database)
+        let userID: String = AppUser.localDefaultID
+
+        try sourceRepository.saveSource(Self.makePluginSource(id: "source-1"))
+        try sourceRepository.saveSource(Self.makePluginSource(id: "built-in.keep"))
+        let chapter1: ComicChapterHistory = Self.comicHistory(sourceID: "source-1", chapter: 1, pageIndex: 4)
+        let chapter2: ComicChapterHistory = Self.comicHistory(sourceID: "source-1", chapter: 2, pageIndex: 17)
+        try comics.save(chapter1)
+        try comics.save(chapter2)
+        try comics.save(Self.comicHistory(sourceID: "built-in.keep", chapter: 9))
+        try videos.save(Self.videoHistory(sourceID: "source-1"))
+        try books.save(Self.bookHistory(sourceID: "source-1"))
+        let favoritedAt: Date = Date(timeIntervalSince1970: 60)
+        try favoriteRepository.restoreFavorite(
+            item: Self.favoriteItem(id: "favorite-1", sourceID: "source-1", favoritedAt: favoritedAt)
+        )
+        try favoriteRepository.restoreFavorite(
+            item: Self.favoriteItem(id: "favorite-2", sourceID: "built-in.keep", favoritedAt: favoritedAt)
+        )
+        try libraryStates.save(
+            UserLibraryState(
+                userID: userID,
+                selectedSourceID: "source-1",
+                listContext: nil,
+                lastRefreshAt: Date(timeIntervalSince1970: 90),
+                updatedAt: Date(timeIntervalSince1970: 90)
+            )
+        )
+
+        let receipt: SourceDeletionReceipt = try #require(try sourceRepository.deleteSource(id: "source-1"))
+
+        #expect(try sourceRepository.fetchSources().map(\.id) == ["built-in.keep"])
+        #expect(try comics.fetchHistory(userID: userID).map(\.sourceID) == ["built-in.keep"])
+        #expect(try videos.fetchHistory(userID: userID).isEmpty)
+        #expect(try books.fetchHistory(userID: userID).isEmpty)
+        #expect(try favoriteRepository.fetchFavoriteItems().map(\.id) == ["favorite-2"])
+        #expect(try favoriteRepository.fetchFavoriteItemIDs(sourceID: "source-1").isEmpty)
+        #expect(try libraryStates.fetch(userID: userID)?.selectedSourceID == nil)
+        // 中文注释：队列里是来源的删除、favorite-1 的删除（覆盖了收藏时的更新），加上 favorite-2 收藏时留下的更新。
+        let favoriteEntityID: String = FavoriteItemIdentity(sourceID: "source-1", itemID: "favorite-1").syncEntityID
+        let keptFavoriteEntityID: String = FavoriteItemIdentity(sourceID: "built-in.keep", itemID: "favorite-2").syncEntityID
+        var pending: [SyncQueueItem] = try queueRepository.fetchPending(limit: 10)
+        #expect(pending.count == 3)
+        #expect(pending.first { $0.entityType == .source }?.operation == .delete)
+        #expect(pending.first { $0.entityID == favoriteEntityID }?.operation == .delete)
+        #expect(pending.first { $0.entityID == keptFavoriteEntityID }?.operation == .upsert)
+        // 中文注释：留底里是被删的全部内容，供撤销写回。
+        #expect(receipt.source.id == "source-1")
+        #expect(receipt.source.enabled)
+        #expect(receipt.librarySelection?.selectedSourceID == "source-1")
+        #expect(receipt.comicHistories.count == 2)
+        #expect(receipt.videoHistories.count == 1)
+        #expect(receipt.bookHistories.count == 1)
+        #expect(receipt.favoriteItems.map(\.id) == ["favorite-1"])
+        #expect(receipt.enqueuedSyncChanges)
+
+        try sourceRepository.restoreDeletedSource(receipt)
+
+        let restoredSource: Source = try #require(try sourceRepository.fetchSources().first { $0.id == "source-1" })
+        #expect(restoredSource.enabled)
+        #expect(restoredSource.deletedAt == nil)
+        let restoredChapters: [ComicChapterHistory] = try comics.fetchHistory(userID: userID)
+            .filter { $0.sourceID == "source-1" }
+            .sorted { $0.visitedAt < $1.visitedAt }
+        #expect(restoredChapters.map(\.chapterKey) == [chapter1.chapterKey, chapter2.chapterKey])
+        #expect(restoredChapters.map(\.lastPageIndex) == [4, 17])
+        #expect(abs((restoredChapters.last?.visitedAt ?? .distantPast).timeIntervalSince(chapter2.visitedAt)) < 0.001)
+        #expect(try videos.fetchHistory(userID: userID).map(\.sourceID) == ["source-1"])
+        #expect(try books.fetchHistory(userID: userID).map(\.sourceID) == ["source-1"])
+        let restoredFavorites: [FavoriteContentItem] = try favoriteRepository.fetchFavoriteItems()
+        #expect(Set(restoredFavorites.map(\.id)) == ["favorite-1", "favorite-2"])
+        let restoredFavorite: FavoriteContentItem = try #require(restoredFavorites.first { $0.id == "favorite-1" })
+        #expect(abs((restoredFavorite.favoritedAt ?? .distantPast).timeIntervalSince(favoritedAt)) < 0.001)
+        #expect(try libraryStates.fetch(userID: userID)?.selectedSourceID == "source-1")
+        pending = try queueRepository.fetchPending(limit: 10)
+        #expect(pending.count == 3)
+        #expect(pending.first { $0.entityType == .source }?.operation == .upsert)
+        #expect(pending.first { $0.entityID == favoriteEntityID }?.operation == .upsert)
+    }
+
+    // 中文注释：内置来源同样连带删除历史与收藏；它本身不入队，但收藏删除标记照常入队（否则其他设备会把收藏同步回来）。
+    @Test func sourceRepositoryCascadesBuiltInSourceWithoutEnqueueingTheSource() throws {
+        let database: AppDatabase = try Self.makeDatabase()
+        let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
+        let favoriteRepository: GRDBFavoriteRepository = GRDBFavoriteRepository(database: database)
+        let queueRepository: GRDBSyncQueueRepository = GRDBSyncQueueRepository(database: database)
+        let comics: GRDBComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(database: database)
+        let userID: String = AppUser.localDefaultID
+
+        try sourceRepository.saveSource(Self.makePluginSource(id: "built-in.comic"))
+        try sourceRepository.saveSource(Self.makePluginSource(id: "built-in.empty"))
+        try comics.save(Self.comicHistory(sourceID: "built-in.comic", chapter: 1))
+        try favoriteRepository.restoreFavorite(
+            item: Self.favoriteItem(id: "favorite-1", sourceID: "built-in.comic", favoritedAt: Date(timeIntervalSince1970: 60))
+        )
+
+        let receipt: SourceDeletionReceipt = try #require(try sourceRepository.deleteSource(id: "built-in.comic"))
+        let emptyReceipt: SourceDeletionReceipt = try #require(try sourceRepository.deleteSource(id: "built-in.empty"))
+
+        #expect(try comics.fetchHistory(userID: userID).isEmpty)
+        #expect(try favoriteRepository.fetchFavoriteItems().isEmpty)
+        let pending: [SyncQueueItem] = try queueRepository.fetchPending(limit: 10)
+        #expect(pending.count == 1)
+        #expect(pending.first?.entityType == .favoriteItem)
+        #expect(pending.first?.operation == .delete)
+        #expect(receipt.enqueuedSyncChanges)
+        #expect(emptyReceipt.enqueuedSyncChanges == false)
+    }
+
     private static func makeDatabase() throws -> AppDatabase {
         let path: String = FileManager.default.temporaryDirectory
             .appendingPathComponent("BrowseCraftTests-\(UUID().uuidString).sqlite")
@@ -411,6 +530,72 @@ struct SyncRepositoryTests {
             listOrder: nil,
             listContext: nil,
             sourceSnapshot: nil
+        )
+    }
+
+    private static func favoriteItem(id: String, sourceID: String, favoritedAt: Date) -> FavoriteContentItem {
+        var item: FavoriteContentItem = Self.favoriteItem()
+        item.id = id
+        item.sourceID = sourceID
+        item.detailURL = "https://example.test/item/\(id)"
+        item.favoritedAt = favoritedAt
+        return item
+    }
+
+    private static func comicHistory(sourceID: String, chapter: Int, pageIndex: Int? = nil) -> ComicChapterHistory {
+        let detailURL: URL = URL(string: "https://example.test/comic/dragon")!
+        return ComicChapterHistory(
+            userID: AppUser.localDefaultID,
+            sourceID: sourceID,
+            comicItemID: "dragon",
+            comicTitle: "Dragon",
+            chapterID: "chapter-\(chapter)",
+            chapterKey: "chapter-\(chapter)",
+            chapterURL: detailURL.appendingPathComponent("chapter-\(chapter)"),
+            chapterTitle: "#\(chapter)",
+            visitedAt: Date(timeIntervalSince1970: 100 + TimeInterval(chapter)),
+            coverURL: nil,
+            lastPageIndex: pageIndex,
+            sourceSnapshot: nil
+        )
+    }
+
+    private static func videoHistory(sourceID: String) -> VideoWatchHistory {
+        let detailURL: URL = URL(string: "https://example.test/video/show")!
+        let visitedAt: Date = Date(timeIntervalSince1970: 100)
+        return VideoWatchHistory(
+            userID: AppUser.localDefaultID,
+            sourceID: sourceID,
+            vodID: "show",
+            videoTitle: "Show",
+            episodeTitle: "Episode 1",
+            episodeKey: "episode-1",
+            sourceIndex: 0,
+            episodeIndex: 0,
+            detailURL: detailURL,
+            playPageURL: detailURL.appendingPathComponent("episode-1"),
+            candidateMediaKind: .unknown,
+            playbackStatus: .pageOnly,
+            coverURL: nil,
+            sourceName: "Example",
+            lastPlaybackTime: 30,
+            duration: 600,
+            visitedAt: visitedAt,
+            updatedAt: visitedAt
+        )
+    }
+
+    private static func bookHistory(sourceID: String) -> BookReadingHistory {
+        return BookReadingHistory(
+            userID: AppUser.localDefaultID,
+            sourceID: sourceID,
+            detailURL: "https://example.test/book",
+            bookItemID: "https://example.test/book",
+            bookTitle: "Book",
+            coverURL: nil,
+            chapterTitle: "Chapter 1",
+            chapterURL: nil,
+            visitedAt: Date(timeIntervalSince1970: 100)
         )
     }
 

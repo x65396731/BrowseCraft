@@ -150,6 +150,15 @@ struct RootView: View {
             // 中文注释：收藏页取消 / 撤销收藏后，库页封面上的爱心状态跟着刷新。
             self.libraryViewModel.refreshFavoriteItemIDs()
         }
+        .onChange(of: self.sourcesViewModel.sourceContentRevision) { _, _ in
+            // 中文注释：来源页删除 / 撤销删除来源连带了历史与收藏（`BCA-DB-005`）：历史页、收藏页重新载入，
+            // 库页封面上的爱心状态跟着刷新（与收藏页取消收藏后的做法相同）。
+            self.libraryViewModel.refreshFavoriteItemIDs()
+            Task {
+                await self.historyViewModel.load()
+                await self.favoritesViewModel.load()
+            }
+        }
         .onChange(of: self.cloudSyncSettingsViewModel.identityRevision) { _, _ in
             Task {
                 await self.historyViewModel.load()

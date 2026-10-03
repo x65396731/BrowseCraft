@@ -675,12 +675,12 @@
 "sources_paused_replace" = "Swap In";
 "sources_full_hint_title" = "Want to add another site?";
 "sources_full_hint_message" = "All slots are in use. Long-press the current source to delete it first, or get more slots.";
-"sources_footer_hint" = "Long-press a source to see its details or delete it; you can also swipe left to delete. Deleting a source also removes its related reading/watch history and library state.";
+"sources_footer_hint" = "Long-press a source to see its details or delete it; you can also swipe left to delete. Deleting a source also removes its reading/watch history and favorites.";
 "sources_menu_open_library" = "Open Library";
 "sources_menu_switch_and_open" = "Switch and Open Library";
 "sources_menu_details" = "Source Details";
 "sources_menu_delete" = "Delete Source";
-"sources_delete_confirm_title" = "Delete “%@”?";
+"sources_undo_message" = "Deleted “%@”";
 "sources_empty_title" = "No Sources Yet";
 "sources_empty_message" = "A source is a website. Add one and your Library will have something to read or watch.";
 "sources_empty_catalog_title" = "Pick One from the Catalog";
