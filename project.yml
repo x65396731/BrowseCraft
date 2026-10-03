@@ -147,6 +147,9 @@ targets:
         INFOPLIST_FILE: BrowseCraft/Info.plist
         # 中文注释：Info.plist 走预处理，只为用 #if 把跟踪用途说明限定在 Debug / TestFlight（见 Info.plist 末尾）。
         INFOPLIST_PREPROCESS: YES
+        # 中文注释：预处理器把 Info.plist 当 C 源码扫，注释和用途说明里的全角「：」「，」会被报成
+        # -Wunicode-homoglyph（把全角标点当成了标识符字符）。这些是给人看的中文文案，不是代码，关掉这一项。
+        INFOPLIST_OTHER_PREPROCESSOR_FLAGS: "-Wno-unicode-homoglyph"
         CODE_SIGN_ENTITLEMENTS: BrowseCraft/BrowseCraft.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # 中文注释：这一行设的是 UIKit 的 window tintColor 与 IB 预览，对纯 SwiftUI 的
