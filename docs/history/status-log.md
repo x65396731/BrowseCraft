@@ -483,3 +483,26 @@ App 侧设计文档一处都没引用，App 执行两种形态的合同由自己
 `HANDOFF.md`：删掉「等用户裁决」这条；「由规则生成引出的真机欠项」不再指向 fwq `HANDOFF.md` 第 1 节（已翻轮），改为指向 fwq `STATUS.md` 对应行——
 查实 `BC-PREFLIGHT-066` 为 `not-run`，`BC-EVIDENCE-082` 与「线路 N」为 `fresh-passed`，`BC-PREFLIGHT-067` 为 `regression-passed`；
 把前三项并进「下一步二」四页真机验收的清单，一次走完，结果记回 fwq STATUS。
+
+## 2026-10-03 设置页重设计：实施、测试与模拟器走查
+
+- 设置页重设计 `实施=implemented` / `验证=not-run` → `验证=full-suite-passed`：`BrowseCraftTests` 在 iPhone 17（iOS 26.5）上整套跑过，
+  Swift Testing 548 项 / 94 suites 与 XCTest 81 项全过（这次运行编译于两处纯外观修正之前：看广告按钮禁用时去掉叠加的透明度、行右侧说明改为末尾省略；修正后 build 通过）。
+- 新增「设置页重设计的模拟器走查」一行 `simulator-passed`：iPhone 17 Pro（iOS 26.5），浅色与深色。未登录态用真实状态看；已登录态用临时注入
+  （`SettingsView` 里三处 `isPortalAuthenticated` 换成 `true`），看完已撤回、未提交，所以余额显示「—」、coin 记录页加载失败属预期。
+  走查结果：系统登录按钮浅黑深白；未登录看广告出现「加载中」、播完提示登录后才计 coin；诊断码与账号 ID 点一下写入剪贴板（`simctl pbpaste` 核对）并显示「已复制」；
+  退出登录弹确认框，iOS 26 上以气泡指向按钮，点框外取消、未退出；coin 记录子页能推入与返回。
+  走查中发现并修正：深色下禁用的「加载中」按钮因双重压暗几乎看不见；测试设备 IDFA 的说明被中间省略成「点击获取…仅测试版）」。
+
+## 2026-10-03 设置页账号卡未登录插画换成 SettingsSignIn
+
+- 用户指出账号卡借用的 `CatalogPersonalSignIn`（捧上锁宝箱）已是规则目录「我的生成·未登录」的插画。按设置页画布「账号卡未登录插画 · 即梦设定」
+  的构思 1「递出通行证」出图四张（1500×2000），选第二张：正面站姿、卡片举在身前，轮廓最窄，放进 66×108pt 最清楚；
+  第一张脚被裁掉、胸甲与设定不符，第三、四张手臂外伸，画面偏宽。
+- 经 `illustration-cutout.swift`（540 高，1 个前景实例）与 `illustration-despeckle.swift`（保留卡片一带，去掉 0 个小点）得 297×540、约 216 KB，
+  入库为 `SettingsSignIn` 并登记预算；`BundledImageAssetTests` 单独跑过；模拟器浅色下看过账号卡。
+
+## 2026-10-03 设置页退出确认改为居中提示框
+
+- 用户看了走查截图，觉得 iOS 26 上 `confirmationDialog` 变成的指向按钮气泡奇怪，要求用最普通的。改为系统 `alert`（取消 + 红色退出登录），
+  模拟器上用同样的临时注入看过并点了取消、未退出，注入已撤回；build 通过。

@@ -46,6 +46,7 @@ EntryGuideUnsupportedPage 180000  335x450    single-scale-png
 CatalogEmptyRecommended 260000    350x540    single-scale-png
 CatalogEmptyPersonal    280000    396x540    single-scale-png
 CatalogPersonalSignIn   240000    330x540    single-scale-png
+SettingsSignIn          230000    297x540    single-scale-png
 CatalogBannerVideo      190000    1200x336   single-scale-png
 CatalogBannerComic      185000    1200x336   single-scale-png
 CatalogBannerBook       200000    1200x336   single-scale-png
@@ -57,13 +58,11 @@ TabSettings             5400      25x25      multi-scale-png
 TabFavoritesOutline     4000      25x25      multi-scale-png
 SettingsAccount           3700      22x22      multi-scale-png
 SettingsCloudSync         2500      22x22      multi-scale-png
-SettingsBookmarks         2300      22x22      multi-scale-png
 SettingsPremium           2900      22x22      multi-scale-png
 SettingsAdService         2800      22x22      multi-scale-png
 SettingsCache             2300      22x22      multi-scale-png
 SettingsCrashDiagnostics  3900      22x22      multi-scale-png
 SettingsDiagnosticCode    3100      22x22      multi-scale-png
-SettingsCopy              2800      22x22      multi-scale-png
 SettingsVersion           2500      22x22      multi-scale-png
 SettingsRate              2700      22x22      multi-scale-png
 
@@ -134,9 +133,9 @@ SettingsRate              2700      22x22      multi-scale-png
 # 无损而非 lossy：它按接近原生的分辨率渲染，不属于「渲染宽度远小于原生」那一类。
 
 # 2026-09-22 设置页十一图标：22 / 44 / 66 三档（22pt），同样标 template-rendering-intent，
-# 做法与底栏五图标一致——纯黑剪影、按 pt 原生渲染、不经 .resizable()，着色交给 SettingsRow 的
-# .foregroundColor(.accentColor)。22pt 对应 SettingsRow 里 24pt 宽的图标槽，与原来 .body 字号
-# 的 SF Symbol 视觉尺寸相当。
+# 做法与底栏五图标一致——纯黑剪影、按 pt 原生渲染、不经 .resizable()，着色交给 SettingsIconTile 的
+# CatalogPalette.settingsIcon。22pt 放在 SettingsIconTile 32pt 的图标方块里。
+# 2026-10-03 设置页重设计下线了书签与「复制诊断码」两行，SettingsBookmarks、SettingsCopy 两图随之删除，现存九个。
 #
 # 源图是生成书第 23 条的一张 4:3 网格图（4693x3520，4 列 x 3 行，第 12 格空），按格均分后
 # 黑度转 alpha（>=200 视为背景、<=40 视为实心、中间线性保留抗锯齿），再按十一者中最大的
@@ -145,3 +144,7 @@ SettingsRate              2700      22x22      multi-scale-png
 # （103k 对最重广告服务 230k），那是星形面积本身小，不是画小了，所以不按面积单独放大。
 # 源字节上限按实际字节加约 15% 余量。
 
+# 2026-10-03 SettingsSignIn：设置页账号卡未登录插画（递出发光的空白通行证）。原先借用 CatalogPersonalSignIn，
+# 那张已是规则目录「我的生成·未登录」的插画，设置页另出一张。即梦 2K 原图（1500×2000）经 illustration-cutout
+# 抠透明缩到 540px 高、illustration-despeckle 去游离小点（保留卡片一带）后裁掉左右透明边得 297×540；
+# 账号卡里按 66×108pt 显示。

@@ -14,7 +14,9 @@ struct SettingsView: View {
     @AppStorage(CrashDiagnostics.collectionEnabledDefaultsKey) private var isDiagnosticsEnabled: Bool = CrashDiagnostics.isCollectionEnabled
 
     @State private var isShowingInAppPurchase: Bool = false
-    @State private var didCopyAccountIdentifier: Bool = false
+    @State private var isConfirmingSignOut: Bool = false
+    /// 刚复制的是哪一行；说明换成「已复制」约 2 秒后恢复。
+    @State private var copiedField: CopiedField?
     #if BROWSECRAFT_AD_TEST_TOOLS
     @State private var adTestIDFADetail: String?
     #endif
@@ -30,279 +32,130 @@ struct SettingsView: View {
     var body: some View {
         ZStack {
             NavigationStack {
-                Form {
-                Section("Account") {
-                    Button {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Settings")
+                            .font(.largeTitle.weight(.heavy))
+                            .lineLimit(1)
+                            .accessibilityAddTraits(.isHeader)
+                            .padding(.horizontal, 20)
+                            .padding(.top, 8)
+
+                        SettingsAccountCardView(
+                            isSignedIn: self.viewModel.isPortalAuthenticated,
+                            isAccountActionInFlight: self.viewModel.isPortalAccountActionInFlight,
+                            wallet: self.viewModel.coinWalletStore,
+                            isAdLoading: self.adPlaybackViewModel.isLoading,
+                            signInAction: {
+                                Task {
+                                    await self.viewModel.togglePortalAccount()
+                                }
+                            },
+                            watchAdAction: {
+                                Task {
+                                    await self.adPlaybackViewModel.loadAndShow(
+                                        rewardCoordinator: self.rewardedAdRewardCoordinator
+                                    )
+                                }
+                            }
+                        )
+                        .padding(.horizontal, 20)
+                        .padding(.top, 16)
+
+                        // 中文注释：高级版入口卡与来源页「更多位置」打开的是同一个购买页。
+                        SourcesEntryCardView(
+                            title: NSLocalizedString("Premium", comment: ""),
+                            message: NSLocalizedString("settings_premium_detail", comment: "高级版说明"),
+                            systemImage: "sparkles",
+                            iconForeground: .white,
+                            iconBackground: CatalogPalette.addAction,
+                            action: {
+                                self.presentInAppPurchase()
+                            }
+                        )
+                        .padding(.horizontal, 20)
+                        .padding(.top, 12)
+
+                        self.syncAndStorageGroup
+                        self.privacyAndDiagnosticsGroup
+                        self.aboutGroup
+
+                        #if BROWSECRAFT_AD_TEST_TOOLS
+                        self.testToolsGroup
+                        #endif
+
+                        if self.viewModel.isPortalAuthenticated {
+                            self.signOutButton
+                                .padding(.horizontal, 20)
+                                .padding(.top, 24)
+                        }
+                    }
+                    .padding(.bottom, 24)
+                }
+                .background(CatalogPalette.pageBackground)
+                .toolbar(.hidden, for: .navigationBar)
+                .refreshable {
+                    await self.viewModel.refreshPortalAccountStatus()
+                    await self.viewModel.coinWalletStore?.refresh()
+                }
+                // 中文注释：用系统居中提示框，不用 confirmationDialog——iOS 26 上后者变成指向按钮的气泡，用户觉得奇怪（2026-10-03 裁定）。
+                .alert(
+                    NSLocalizedString("settings_sign_out_confirm_title", comment: "退出确认框标题"),
+                    isPresented: self.$isConfirmingSignOut
+                ) {
+                    Button(NSLocalizedString("Cancel", comment: ""), role: .cancel) {}
+                    Button(NSLocalizedString("Sign Out of BrowseCraft", comment: ""), role: .destructive) {
                         Task {
                             await self.viewModel.togglePortalAccount()
                         }
-                    } label: {
-                        SettingsRow(
-                            image: "SettingsAccount",
-                            title: self.viewModel.isPortalAuthenticated
-                                ? NSLocalizedString("Sign Out of BrowseCraft", comment: "")
-                                : NSLocalizedString("Sign in with Apple", comment: ""),
-                            detail: self.viewModel.isPortalAuthenticated
-                                ? NSLocalizedString("BrowseCraft account connected", comment: "")
-                                : NSLocalizedString("Required for purchases and Cloud Sync", comment: "")
-                        )
                     }
-                    .disabled(self.viewModel.isPortalAccountActionInFlight)
-
-                    if self.viewModel.isPortalAuthenticated,
-                       let wallet: CoinWalletStore = self.viewModel.coinWalletStore {
-                        // 中文注释：余额行点进去看流水（设计书 30.8）；服务端为准。
-                        NavigationLink(
-                            destination: CoinLedgerView(viewModel: wallet.makeLedgerViewModel())
-                                .task {
-                                    // 中文注释：进流水页时余额行一起对齐服务端。
-                                    await wallet.refresh()
-                                }
-                        ) {
-                            SettingsRow(
-                                image: "SettingsPremium",
-                                title: NSLocalizedString("coin_balance_row_title", comment: ""),
-                                detail: Self.coinDetail(wallet)
-                            )
-                        }
-
-                        // 中文注释：账户 ID，点一下复制；用户报给运营后可在服务器上手动加减 coin（用户 2026-09-27）。
-                        Button(
-                            action: {
-                                UIPasteboard.general.string = wallet.accountIdentifier
-                                self.didCopyAccountIdentifier = true
-                            },
-                            label: {
-                                SettingsRow(
-                                    image: "SettingsAccount",
-                                    title: NSLocalizedString("account_id_row_title", comment: ""),
-                                    detail: self.didCopyAccountIdentifier
-                                        ? NSLocalizedString("account_id_copied", comment: "")
-                                        : wallet.accountIdentifier
-                                )
-                            }
-                        )
-                        .buttonStyle(.plain)
+                } message: {
+                    Text(NSLocalizedString("settings_sign_out_confirm_message", comment: "退出确认框说明"))
+                }
+                .alert("Cache", isPresented: self.cacheStatusAlertBinding) {
+                    Button("OK", role: .cancel) {
+                        self.viewModel.cacheStatusMessage = nil
                     }
-
-                    NavigationLink(destination: CloudSyncSettingsView(
-                        viewModel: self.cloudSyncViewModel
-                    )) {
-                        SettingsRow(
-                            image: "SettingsCloudSync",
-                            title: NSLocalizedString("Cloud Sync", comment: ""),
-                            detail: self.cloudSyncDetail
-                        )
+                } message: {
+                    Text(self.viewModel.cacheStatusMessage ?? "")
+                }
+                .alert("Cache Settings", isPresented: self.cacheErrorAlertBinding) {
+                    Button("OK", role: .cancel) {
+                        self.viewModel.cacheErrorMessage = nil
                     }
-
-                    NavigationLink(destination: BookmarksSettingsView()) {
-                        SettingsRow(
-                            image: "SettingsBookmarks",
-                            title: NSLocalizedString("Bookmarks", comment: ""),
-                            detail: NSLocalizedString("Favorites and saved items", comment: "")
-                        )
+                } message: {
+                    Text(self.viewModel.cacheErrorMessage ?? "")
+                }
+                .alert("Google Ads", isPresented: self.adAlertBinding) {
+                    Button("OK") {
+                        self.adPlaybackViewModel.message = nil
                     }
-
-                    Button(
-                        action: {
-                            var transaction: SwiftUI.Transaction = SwiftUI.Transaction(animation: nil)
-                            transaction.disablesAnimations = true
-                            withTransaction(transaction) {
-                                self.isShowingInAppPurchase = true
-                            }
-                        },
-                        label: {
-                            SettingsRow(
-                                image: "SettingsPremium",
-                                title: NSLocalizedString("Premium", comment: ""),
-                                detail: NSLocalizedString("Unlock paid features", comment: "")
-                            )
-                        }
-                    )
-                    .buttonStyle(.plain)
-
-                    Button(
-                        action: {
-                            Task {
-                                await self.adPlaybackViewModel.loadAndShow(
-                                    rewardCoordinator: self.rewardedAdRewardCoordinator
-                                )
-                            }
-                        },
-                        label: {
-                            SettingsRow(
-                                image: "SettingsAdService",
-                                title: self.adPlaybackViewModel.isLoading ? NSLocalizedString("Starting Ad Service", comment: "") : NSLocalizedString("Start Ad Service", comment: ""),
-                                detail: self.adServiceDetail
-                            )
-                        }
-                    )
-                    .disabled(self.adPlaybackViewModel.isLoading)
-
-                    #if BROWSECRAFT_AD_TEST_TOOLS
-                    // 中文注释：仅测试版。点一下申请跟踪授权、显示并复制本机 IDFA，拿去 AdMob「测试设备」登记。
-                    Button(
-                        action: {
-                            Task {
-                                let result = await AdTestDeviceTools.requestIDFA()
-                                switch result {
-                                case .available(let idfa):
-                                    UIPasteboard.general.string = idfa
-                                    self.adTestIDFADetail = String(
-                                        format: NSLocalizedString("ad_test_idfa_copied", comment: ""),
-                                        idfa
-                                    )
-                                case .denied:
-                                    self.adTestIDFADetail = NSLocalizedString("ad_test_idfa_denied", comment: "")
-                                case .trackingRestricted:
-                                    self.adTestIDFADetail = NSLocalizedString("ad_test_idfa_restricted", comment: "")
-                                }
-                            }
-                        },
-                        label: {
-                            SettingsRow(
-                                image: "SettingsAdService",
-                                title: NSLocalizedString("ad_test_idfa_title", comment: ""),
-                                detail: self.adTestIDFADetail ?? NSLocalizedString("ad_test_idfa_hint", comment: "")
-                            )
-                        }
-                    )
-                    .buttonStyle(.plain)
-                    #endif
+                } message: {
+                    Text(self.adPlaybackViewModel.message ?? "")
                 }
-
-                Section("Storage") {
-                    NavigationLink(destination: CacheSettingsView(
-                        selectedImageCacheLimit: self.imageCacheLimitBinding,
-                        clearCacheAction: {
-                            self.viewModel.clearImageCache()
-                        }
-                    )) {
-                        SettingsRow(
-                            image: "SettingsCache",
-                            title: NSLocalizedString("Cache", comment: ""),
-                            detail: self.viewModel.imageCacheSettings.displayTitle
-                        )
+                .onAppear {
+                    self.viewModel.refreshDiagnosticCode()
+                    Task {
+                        await self.viewModel.refreshPortalAccountStatus()
                     }
-                }
-
-                Section(
-                    content: {
-                        Toggle(isOn: self.$isDiagnosticsEnabled) {
-                            SettingsRow(
-                                image: "SettingsCrashDiagnostics",
-                                title: NSLocalizedString("Send Crash Diagnostics", comment: ""),
-                                detail: self.isDiagnosticsEnabled ? NSLocalizedString("On", comment: "") : NSLocalizedString("Off", comment: "")
-                            )
-                        }
-                        .onChange(of: self.isDiagnosticsEnabled) { _, newValue in
-                            CrashDiagnostics.shared.setCollectionEnabled(newValue)
-                            AppAnalytics.shared.logSettingChanged(
-                                name: "crash_diagnostics",
-                                value: String(newValue)
-                            )
-                        }
-
-                        SettingsRow(
-                            image: "SettingsDiagnosticCode",
-                            title: NSLocalizedString("Diagnostic Code", comment: ""),
-                            detail: self.viewModel.diagnosticCode
-                        )
-                        .contextMenu {
-                            Button("Copy") {
-                                UIPasteboard.general.string = self.viewModel.diagnosticCode
-                            }
-                        }
-
-                        Button(
-                            action: {
-                                UIPasteboard.general.string = self.viewModel.diagnosticCode
-                            },
-                            label: {
-                                SettingsRow(
-                                    image: "SettingsCopy",
-                                    title: NSLocalizedString("Copy Diagnostic Code", comment: ""),
-                                    detail: nil
-                                )
-                            }
-                        )
-                        .buttonStyle(.plain)
-                    },
-                    footer: {
-                        Text("Diagnostic reports include the code above, app version, device model, current screen, source, stage, and selected non-crash errors. They do not include cookies, tokens, full HTML, or full URL query values.")
+                    // 中文注释：余额以服务端为准，运营手动加减 coin 不会推送到 App——设置页每次出现都拉一次，
+                    // 不然只能等下次启动或回到前台（用户 2026-09-27：加了 10000 后设置页没刷新）。
+                    Task {
+                        await self.viewModel.coinWalletStore?.refresh()
                     }
-                )
-
-                Section("App") {
-                    SettingsRow(
-                        image: "SettingsVersion",
-                        title: NSLocalizedString("Version", comment: ""),
-                        detail: Self.versionText
-                    )
-
-                    Button(
-                        action: {
-                            guard let writeReviewURL: URL = Self.writeReviewURL else {
-                                return
-                            }
-                            self.openURL(writeReviewURL)
-                        },
-                        label: {
-                            SettingsRow(
-                                image: "SettingsRate",
-                                title: NSLocalizedString("Rate AnyPortal", comment: ""),
-                                detail: nil
-                            )
-                        }
-                    )
-                    .buttonStyle(.plain)
+                    CrashDiagnostics.shared.setScreen(.settings)
+                    AppAnalytics.shared.logScreenView(.settings)
                 }
-            }
-            .navigationTitle("Settings")
-            .alert("Cache", isPresented: self.cacheStatusAlertBinding) {
-                Button("OK", role: .cancel) {
-                    self.viewModel.cacheStatusMessage = nil
+                .alert(
+                    "BrowseCraft Account",
+                    isPresented: self.portalAccountErrorAlertBinding
+                ) {
+                    Button("OK", role: .cancel) {
+                        self.viewModel.portalAccountErrorMessage = nil
+                    }
+                } message: {
+                    Text(self.viewModel.portalAccountErrorMessage ?? "")
                 }
-            } message: {
-                Text(self.viewModel.cacheStatusMessage ?? "")
-            }
-            .alert("Cache Settings", isPresented: self.cacheErrorAlertBinding) {
-                Button("OK", role: .cancel) {
-                    self.viewModel.cacheErrorMessage = nil
-                }
-            } message: {
-                Text(self.viewModel.cacheErrorMessage ?? "")
-            }
-            .alert("Google Ads", isPresented: self.adAlertBinding) {
-                Button("OK") {
-                    self.adPlaybackViewModel.message = nil
-                }
-            } message: {
-                Text(self.adPlaybackViewModel.message ?? "")
-            }
-            .onAppear {
-                self.viewModel.refreshDiagnosticCode()
-                Task {
-                    await self.viewModel.refreshPortalAccountStatus()
-                }
-                // 中文注释：余额以服务端为准，运营手动加减 coin 不会推送到 App——设置页每次出现都拉一次，
-                // 不然只能等下次启动或回到前台（用户 2026-09-27：加了 10000 后设置页没刷新）。
-                Task {
-                    await self.viewModel.coinWalletStore?.refresh()
-                }
-                CrashDiagnostics.shared.setScreen(.settings)
-                AppAnalytics.shared.logScreenView(.settings)
-            }
-            .alert(
-                "BrowseCraft Account",
-                isPresented: self.portalAccountErrorAlertBinding
-            ) {
-                Button("OK", role: .cancel) {
-                    self.viewModel.portalAccountErrorMessage = nil
-                }
-            } message: {
-                Text(self.viewModel.portalAccountErrorMessage ?? "")
-            }
             }
             .allowsHitTesting(self.isShowingInAppPurchase == false)
             .accessibilityHidden(self.isShowingInAppPurchase)
@@ -357,12 +210,229 @@ struct SettingsView: View {
                 return
             }
             self.viewModel.consumeInAppPurchaseRequest()
-            var transaction: SwiftUI.Transaction = SwiftUI.Transaction(animation: nil)
-            transaction.disablesAnimations = true
-            withTransaction(transaction) {
-                self.isShowingInAppPurchase = true
+            self.presentInAppPurchase()
+        }
+    }
+
+    // MARK: - 分组（设计文档第二节）
+
+    private var syncAndStorageGroup: some View {
+        SettingsCardGroup(title: NSLocalizedString("settings_section_sync_storage", comment: "分组：同步与存储")) {
+            NavigationLink(destination: CloudSyncSettingsView(
+                viewModel: self.cloudSyncViewModel
+            )) {
+                SettingsRow(
+                    image: "SettingsCloudSync",
+                    title: NSLocalizedString("Cloud Sync", comment: ""),
+                    detail: self.cloudSyncDetail,
+                    accessory: .chevron
+                )
+            }
+            .buttonStyle(SettingsRowButtonStyle())
+
+            SettingsRowSeparator()
+
+            NavigationLink(destination: CacheSettingsView(
+                selectedImageCacheLimit: self.imageCacheLimitBinding,
+                clearCacheAction: {
+                    self.viewModel.clearImageCache()
+                }
+            )) {
+                SettingsRow(
+                    image: "SettingsCache",
+                    title: NSLocalizedString("Cache", comment: ""),
+                    detail: self.viewModel.imageCacheSettings.displayTitle,
+                    accessory: .chevron
+                )
+            }
+            .buttonStyle(SettingsRowButtonStyle())
+        }
+    }
+
+    private var privacyAndDiagnosticsGroup: some View {
+        SettingsCardGroup(
+            title: NSLocalizedString("settings_section_privacy_diagnostics", comment: "分组：隐私与诊断"),
+            footer: NSLocalizedString("Diagnostic reports include the code above, app version, device model, current screen, source, stage, and selected non-crash errors. They do not include cookies, tokens, full HTML, or full URL query values.", comment: "")
+        ) {
+            SettingsToggleRow(
+                image: "SettingsCrashDiagnostics",
+                title: NSLocalizedString("Send Crash Diagnostics", comment: ""),
+                isOn: self.$isDiagnosticsEnabled
+            )
+            .onChange(of: self.isDiagnosticsEnabled) { _, newValue in
+                CrashDiagnostics.shared.setCollectionEnabled(newValue)
+                AppAnalytics.shared.logSettingChanged(
+                    name: "crash_diagnostics",
+                    value: String(newValue)
+                )
+            }
+
+            SettingsRowSeparator()
+
+            // 中文注释：点一下即复制；原来单独的「复制诊断码」行并进这里。
+            Button(
+                action: {
+                    self.copy(self.viewModel.diagnosticCode, field: .diagnosticCode)
+                },
+                label: {
+                    SettingsRow(
+                        image: "SettingsDiagnosticCode",
+                        title: NSLocalizedString("Diagnostic Code", comment: ""),
+                        detail: self.copiedField == .diagnosticCode
+                            ? NSLocalizedString("settings_copied", comment: "已复制")
+                            : self.viewModel.diagnosticCode,
+                        isDetailHighlighted: self.copiedField == .diagnosticCode
+                    )
+                }
+            )
+            .buttonStyle(SettingsRowButtonStyle())
+        }
+    }
+
+    private var aboutGroup: some View {
+        SettingsCardGroup(title: NSLocalizedString("settings_section_about", comment: "分组：关于")) {
+            SettingsRow(
+                image: "SettingsVersion",
+                title: NSLocalizedString("Version", comment: ""),
+                detail: Self.versionText
+            )
+
+            SettingsRowSeparator()
+
+            Button(
+                action: {
+                    guard let writeReviewURL: URL = Self.writeReviewURL else {
+                        return
+                    }
+                    self.openURL(writeReviewURL)
+                },
+                label: {
+                    SettingsRow(
+                        image: "SettingsRate",
+                        title: NSLocalizedString("Rate AnyPortal", comment: ""),
+                        accessory: .chevron
+                    )
+                }
+            )
+            .buttonStyle(SettingsRowButtonStyle())
+
+            // 中文注释：账号 ID 只在报给运营时用（运营据此在服务器上手动加减 coin），所以放在「关于」，
+            // 只显示前 8 位，点一下复制完整 ID。
+            if self.viewModel.isPortalAuthenticated,
+               let wallet: CoinWalletStore = self.viewModel.coinWalletStore {
+                SettingsRowSeparator()
+
+                Button(
+                    action: {
+                        self.copy(wallet.accountIdentifier, field: .accountIdentifier)
+                    },
+                    label: {
+                        SettingsRow(
+                            image: "SettingsAccount",
+                            title: NSLocalizedString("account_id_row_title", comment: ""),
+                            detail: self.copiedField == .accountIdentifier
+                                ? NSLocalizedString("settings_copied", comment: "已复制")
+                                : Self.shortIdentifier(wallet.accountIdentifier),
+                            isDetailHighlighted: self.copiedField == .accountIdentifier
+                        )
+                    }
+                )
+                .buttonStyle(SettingsRowButtonStyle())
             }
         }
+    }
+
+    #if BROWSECRAFT_AD_TEST_TOOLS
+    // 中文注释：仅测试版。点一下申请跟踪授权、显示并复制本机 IDFA，拿去 AdMob「测试设备」登记。
+    private var testToolsGroup: some View {
+        SettingsCardGroup(title: NSLocalizedString("settings_section_test_tools", comment: "分组：测试工具")) {
+            Button(
+                action: {
+                    Task {
+                        let result = await AdTestDeviceTools.requestIDFA()
+                        switch result {
+                        case .available(let idfa):
+                            UIPasteboard.general.string = idfa
+                            self.adTestIDFADetail = String(
+                                format: NSLocalizedString("ad_test_idfa_copied", comment: ""),
+                                idfa
+                            )
+                        case .denied:
+                            self.adTestIDFADetail = NSLocalizedString("ad_test_idfa_denied", comment: "")
+                        case .trackingRestricted:
+                            self.adTestIDFADetail = NSLocalizedString("ad_test_idfa_restricted", comment: "")
+                        }
+                    }
+                },
+                label: {
+                    SettingsRow(
+                        image: "SettingsAdService",
+                        title: NSLocalizedString("ad_test_idfa_title", comment: ""),
+                        detail: self.adTestIDFADetail ?? NSLocalizedString("ad_test_idfa_hint", comment: "")
+                    )
+                }
+            )
+            .buttonStyle(SettingsRowButtonStyle())
+        }
+    }
+    #endif
+
+    /// 退出登录单独一张卡片放最下，红字；点后先弹确认框（用户裁定：退出后购买、云同步与 coin 都不可用，没法用撤销恢复）。
+    private var signOutButton: some View {
+        Button(
+            action: {
+                self.isConfirmingSignOut = true
+            },
+            label: {
+                HStack(spacing: 8) {
+                    if self.viewModel.isPortalAccountActionInFlight {
+                        ProgressView()
+                    }
+                    Text(NSLocalizedString("Sign Out of BrowseCraft", comment: ""))
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(CatalogPalette.destructive)
+                }
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .background(CatalogPalette.cardBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+        )
+        .buttonStyle(.plain)
+        .disabled(self.viewModel.isPortalAccountActionInFlight)
+    }
+
+    // MARK: - 动作
+
+    private enum CopiedField: Equatable {
+        case diagnosticCode
+        case accountIdentifier
+    }
+
+    private func copy(_ value: String, field: CopiedField) {
+        UIPasteboard.general.string = value
+        self.copiedField = field
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            if self.copiedField == field {
+                self.copiedField = nil
+            }
+        }
+    }
+
+    private func presentInAppPurchase() {
+        var transaction: SwiftUI.Transaction = SwiftUI.Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            self.isShowingInAppPurchase = true
+        }
+    }
+
+    /// 账号 ID 是小写 UUID，行上只显示前 8 位。
+    private static func shortIdentifier(_ identifier: String) -> String {
+        guard identifier.count > 8 else {
+            return identifier
+        }
+        return String(identifier.prefix(8)) + "…"
     }
 
     private var imageCacheLimitBinding: Binding<ImageCacheLimitOption> {
@@ -387,26 +457,6 @@ struct SettingsView: View {
                 }
             }
         )
-    }
-
-    /// 中文注释：余额与「看一次广告 +N」并排；价格由服务端下发。
-    /// 中文注释：余额行只显示余额；「看完一次广告 +N」放在「啟動廣告服務」那一行后面（用户 2026-09-27）。
-    private static func coinDetail(_ wallet: CoinWalletStore) -> String {
-        if let value: Int = wallet.balance {
-            return String(format: NSLocalizedString("coin_balance_detail", comment: ""), value)
-        }
-        return NSLocalizedString("coin_balance_unknown", comment: "")
-    }
-
-    private var adServiceDetail: String? {
-        if self.adPlaybackViewModel.isLoading {
-            return NSLocalizedString("Loading", comment: "")
-        }
-        guard self.viewModel.isPortalAuthenticated,
-              let wallet: CoinWalletStore = self.viewModel.coinWalletStore else {
-            return nil
-        }
-        return String(format: NSLocalizedString("coin_earn_detail", comment: ""), wallet.pricing.adReward)
     }
 
     private var portalAccountErrorAlertBinding: Binding<Bool> {

@@ -75,7 +75,9 @@ python3 scripts/check-docs.py
   收录已完成各页的合同、画布、颜色与尺寸、可复用组件、交互约定和新页面检查清单。设计任何新页面前先读它，
   完成后把新页面加进它的页面表。用户裁定：页面之间主题色不能差异过大；颜色只有
   `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift` 一处取值；删除色 `#E5484D`。
-  尚未按这套语言重做的页面：库、设置（未立项，等用户点名）；历史页已立项实施，画布与设计文档链接在其合同开头。
+  尚未按这套语言重做的页面：库（未立项，等用户点名）。设置页已按合同 [`Settings-Page-Redesign-Design.md`](docs/design/Settings-Page-Redesign-Design.md)
+  实施，离线测试全过、模拟器走查通过（STATUS 第 2 节两行），欠真机；真机上要用真实账号看已登录态的余额与看广告后余额变化，
+  模拟器里已登录态是临时注入的、余额为「—」。它的三个子页（云同步、缓存、coin 流水）下一轮再做。
 - **插画**：空状态插画都是即梦出图 → `scripts/illustration-cutout.swift` 抠图 → `scripts/illustration-despeckle.swift` 去游离小点
   → 登记 `scripts/bundled-image-asset-budgets.txt`。已有插画的游离小点已清；人物轮廓上的浅色毛边是白底抠图留下的，未处理（optional）。
 - **偶发失败的测试**：`ReadinessSelectorContentSemanticsTests.testWeakSelectorReturnsBeforeTheContentArrives` 是 WebView 就绪的计时断言

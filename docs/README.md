@@ -156,6 +156,7 @@ App 侧的验证事实主要分「离线测试通过」「模拟器走通」「�
 - 来源页：视觉与信息结构重设计（正在使用置顶、点来源即打开库、已暂停与启用窗口）：[design/Sources-Page-Redesign-Design.md](design/Sources-Page-Redesign-Design.md)
 - 收藏页：视觉与信息结构重设计（封面卡片行、类型筛选、按天分组、取消收藏与撤销）：[design/Favorites-Page-Redesign-Design.md](design/Favorites-Page-Redesign-Design.md)
 - 历史页：视觉与信息结构重设计（继续卡片、看到哪里、按天分组、按作品删除与撤销）：[design/History-Page-Redesign-Design.md](design/History-Page-Redesign-Design.md)
+- 设置页：视觉与信息结构重设计（账号卡与看广告、四组卡片行、退出登录确认、下线书签）：[design/Settings-Page-Redesign-Design.md](design/Settings-Page-Redesign-Design.md)
 - 运行期广告过滤承接规则匹配结果：[design/RuntimeAdFilter-Design.md](design/RuntimeAdFilter-Design.md)
 
 `design/Book-Kind-Wiring-Design.md` 的批次记录已拆到 [history/Book-Kind-Wiring-batch-records.md](history/Book-Kind-Wiring-batch-records.md)。

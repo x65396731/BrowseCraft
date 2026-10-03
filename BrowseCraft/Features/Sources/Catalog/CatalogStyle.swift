@@ -21,6 +21,12 @@ enum CatalogPalette {
     static let inverseAction: Color = Self.dynamic(light: 0x8AB6FF, dark: 0x2563EB)
     /// 删除色，深浅同值（页面设计索引裁定 #E5484D）；长按菜单与确认框里的删除项由系统按 destructive 角色着色。
     static let destructive: Color = Self.fixed(0xE5484D)
+    /// 设置页行图标（`docs/design/Settings-Page-Redesign-Design.md` 第四节）：浅色取添加蓝；深色底上添加蓝看不清，取 `inverseAction` 的浅蓝。
+    static let settingsIcon: Color = Self.dynamic(light: 0x2563EB, dark: 0x8AB6FF)
+    /// 设置页行图标方块的底：添加蓝，浅色 12%、深色 24%。
+    static let settingsIconFill: Color = Color(uiColor: UIColor { traits in
+        return UIColor(hex: 0x2563EB).withAlphaComponent(traits.userInterfaceStyle == .dark ? 0.24 : 0.12)
+    })
 
     /// 不随系统深浅色变化的固定色。
     static func fixed(_ hex: UInt32) -> Color {
