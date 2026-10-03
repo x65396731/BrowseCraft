@@ -3,6 +3,8 @@ import Foundation
 /// 中文注释：首次绑定只决定当前 AppUser 数据如何进入选定 CloudAccountScope；scope 不是业务 userID。
 protocol CloudAccountPartitioning: Sendable {
     func currentUserSummary() throws -> CloudAccountPartitionSummary
+    /// 中文注释：云同步页「同步的内容」显示的条数——只数当前仍在的记录：不含删除标记，也不含内置来源。
+    func syncedContentSummary() throws -> CloudAccountPartitionSummary
     func preparation(
         for cloudScope: CloudAccountScope
     ) throws -> CloudAccountPartitionPreparation?

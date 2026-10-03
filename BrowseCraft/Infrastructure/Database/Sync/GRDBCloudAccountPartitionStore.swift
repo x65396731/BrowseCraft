@@ -35,6 +35,25 @@ final class GRDBCloudAccountPartitionStore:
         }
     }
 
+    func syncedContentSummary() throws -> CloudAccountPartitionSummary {
+        let userID: String = self.currentUserID
+        return try self.database.queue.read { database in
+            let sourceCount: Int = try SourceRecord
+                .filter(SourceRecord.Columns.userID == userID)
+                .filter(SourceRecord.Columns.deletedAt == nil)
+                .filter(SourceRecord.Columns.id.like("built-in.%") == false)
+                .fetchCount(database)
+            let favoriteItemCount: Int = try FavoriteItemRecord
+                .filter(FavoriteItemRecord.Columns.userID == userID)
+                .filter(FavoriteItemRecord.Columns.deletedAt == nil)
+                .fetchCount(database)
+            return CloudAccountPartitionSummary(
+                sourceCount: sourceCount,
+                favoriteItemCount: favoriteItemCount
+            )
+        }
+    }
+
     func associatedUserID(for cloudScope: CloudAccountScope) throws -> UUID? {
         guard cloudScope.isCloud else {
             throw CloudAccountPartitionError.invalidCloudScope

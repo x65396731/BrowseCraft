@@ -69,10 +69,12 @@ python3 scripts/check-docs.py
   - 缓存页：进入后底栏隐藏；用量卡与「最多」合计；改上限后合计跟着变；清除后用量归零、显示释放多少，来源登录状态不受影响。
   - 库页 / 播放顺带看两条 fwq 项：片源 403 的作品应提示换片源而不是整页兜底（`BC-EVIDENCE-082`）；选集无线路名的站应按重复集号分「线路 1 / 2」。
   - 七页都要在深色模式下各看一遍；iCloud 首次恢复失败的下拉重试在真机上不易触发，可不强求。
-- **下一步三：云同步页重设计**——设置页最后一个没按新样式重做的子页（`BrowseCraft/Features/Settings/CloudSync/CloudSyncSettingsView.swift`）。
-  等用户点名再开工，按这几页同一流程：先把它加进下面的页面设计索引 → 生成 Claude 设计文档（背景、现状、待裁定问题各给建议）→ 用户裁定
-  → 画 Design 画布 → 用户确认后实施（进入后隐藏底栏只留返回）→ 用户要求时 build、整套测试、模拟器走查 → 用户要求时提交推送。
-  合同入库到 `docs/design/`，登记 `docs/README.md` 第 6 节、本地 `AGENTS.md`「按任务读取」与 STATUS 第 2 节。库页仍未立项，等用户点名。
+- **云同步页重设计**已实施（合同 [`Cloud-Sync-Page-Redesign-Design.md`](docs/design/Cloud-Sync-Page-Redesign-Design.md)），整套测试与模拟器走查已过，
+  并进真机验收：底栏隐藏、状态卡各状态、下拉同步、首次开启窗口、深色；未登录 iCloud 与出错卡的小字版式模拟器没看到，真机顺带看。
+  走查细节见 `docs/history/status-log.md` 2026-10-04 两节。18 Pro 模拟器的云同步现在是开启的；模拟器面板点不动系统开关，要在开关上横向拖。
+  库页仍未立项，等用户点名。
+- **已立项待设计：续看位置同步到 iCloud**（STATUS 第 4 节，`optional`）。只同步每部作品看到哪里，不传整张历史表；
+  动工前要先裁决改写 `BCA-SYNC-009`。新页面仍按同一流程：页面设计索引 → 设计文档 → 裁定 → 画布 → 实施。
 - **合同与走查记录**：来源页 [`Sources-Page-Redesign-Design.md`](docs/design/Sources-Page-Redesign-Design.md)、
   收藏页 [`Favorites-Page-Redesign-Design.md`](docs/design/Favorites-Page-Redesign-Design.md)、
   规则目录页 [`Catalog-Page-Redesign-Design.md`](docs/design/Catalog-Page-Redesign-Design.md)、

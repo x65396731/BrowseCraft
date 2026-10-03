@@ -159,6 +159,7 @@ App 侧的验证事实主要分「离线测试通过」「模拟器走通」「�
 - 设置页：视觉与信息结构重设计（账号卡与看广告、四组卡片行、退出登录确认、下线书签）：[design/Settings-Page-Redesign-Design.md](design/Settings-Page-Redesign-Design.md)
 - coin 记录页：视觉与信息结构重设计（隐藏底栏只留返回、余额卡与价格说明、按天分组、获得色）：[design/Coin-Ledger-Page-Redesign-Design.md](design/Coin-Ledger-Page-Redesign-Design.md)
 - 缓存页：视觉与信息结构重设计（隐藏底栏、用量卡、封面与漫画页上限、清除也清缩略图与网页缓存）：[design/Cache-Page-Redesign-Design.md](design/Cache-Page-Redesign-Design.md)
+- 云同步页：视觉与信息结构重设计（隐藏底栏、状态卡、同步的内容与只在本机的内容、下拉代替按钮、首次开启窗口）：[design/Cloud-Sync-Page-Redesign-Design.md](design/Cloud-Sync-Page-Redesign-Design.md)
 - 运行期广告过滤承接规则匹配结果：[design/RuntimeAdFilter-Design.md](design/RuntimeAdFilter-Design.md)
 
 `design/Book-Kind-Wiring-Design.md` 的批次记录已拆到 [history/Book-Kind-Wiring-batch-records.md](history/Book-Kind-Wiring-batch-records.md)。

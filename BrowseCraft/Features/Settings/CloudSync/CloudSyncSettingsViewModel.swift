@@ -15,6 +15,33 @@ final class CloudSyncSettingsViewModel {
         }
     }
 
+    /// 中文注释：状态卡显示哪一种状态（`docs/design/Cloud-Sync-Page-Redesign-Design.md` 第三节），按优先级只取一种。
+    enum StatusCard: Hashable {
+        case checking
+        case signInRequired
+        case restricted
+        case temporarilyUnavailable
+        case statusUnavailable
+        case accountMismatch
+        case verificationRequired
+        case synchronizing
+        /// `detail` 是协调器给的脱敏技术文字（英文、供排查），不为空时卡片用通用说明、把它放在小字里。
+        case failed(message: String?, detail: String?)
+        case synchronized
+        case off
+
+        /// 异常状态用警示色，并提示「下拉可重试」。
+        var isWarning: Bool {
+            switch self {
+            case .signInRequired, .restricted, .temporarilyUnavailable, .statusUnavailable,
+                 .accountMismatch, .verificationRequired, .failed:
+                return true
+            case .checking, .synchronizing, .synchronized, .off:
+                return false
+            }
+        }
+    }
+
     private enum ActivationIntent: Equatable {
         case linkIdentity
         case enableCloudSync
@@ -63,6 +90,8 @@ final class CloudSyncSettingsViewModel {
     private(set) var contentRevision: UInt64 = 0
     private(set) var identityRevision: UInt64 = 0
     private(set) var hasAttestedIdentityAssociation: Bool = false
+    /// 中文注释：「同步的内容」两行右侧的条数；读不到时为 nil，行上不显示数字。
+    private(set) var syncedContentSummary: CloudAccountPartitionSummary?
 
     private let accountSession: CloudAccountSession
     private let partitionStore: any CloudAccountPartitioning
@@ -157,6 +186,71 @@ final class CloudSyncSettingsViewModel {
             return nil
         }
         return self.coordinatorSnapshot.lastErrorMessage
+    }
+
+    var statusCard: StatusCard {
+        if self.accountAvailability == .checking ||
+            self.isRefreshingAccount ||
+            self.isChangingCloudSyncEnabled {
+            return .checking
+        }
+        switch self.accountAvailability {
+        case .noAccount:
+            return .signInRequired
+        case .restricted:
+            return .restricted
+        case .temporarilyUnavailable:
+            return .temporarilyUnavailable
+        case .couldNotDetermine:
+            return .statusUnavailable
+        case .notChecked, .checking, .available:
+            break
+        }
+        if self.activationIssue == .statusUnavailable {
+            return .statusUnavailable
+        }
+        if case .requiresUserDecision = self.cloudIdentityAssociationState {
+            return .accountMismatch
+        }
+        if self.isCloudSyncEnabled && self.hasAttestedIdentityAssociation == false {
+            return .verificationRequired
+        }
+        if self.isSynchronizing {
+            return .synchronizing
+        }
+        if let actionErrorMessage: String = self.actionErrorMessage {
+            return .failed(message: actionErrorMessage, detail: nil)
+        }
+        if let errorMessage: String = self.errorMessage {
+            return .failed(message: nil, detail: errorMessage)
+        }
+        return self.isCloudSyncEnabled ? .synchronized : .off
+    }
+
+    func refreshSyncedContentSummary() {
+        self.syncedContentSummary = try? self.partitionStore.syncedContentSummary()
+    }
+
+    /// 中文注释：页面上不放按钮（用户裁定），下拉承担三件事：重新检查 iCloud；
+    /// 开关开着但身份没有核实时重新关联；开关开着且可同步时同步一次（上次出错则按重试触发）。
+    func refreshFromPull() async {
+        self.dismissActivationIssue()
+        await self.refreshAccount()
+        defer {
+            self.refreshSyncedContentSummary()
+        }
+        guard self.isCloudSyncEnabled,
+              self.accountAvailability == .available else {
+            return
+        }
+        if self.hasAttestedIdentityAssociation == false {
+            await self.linkCloudIdentity()
+        }
+        guard self.canSynchronizeNow else {
+            return
+        }
+        let hadError: Bool = self.coordinatorSnapshot.lastErrorMessage != nil
+        await self.runSynchronization(trigger: hadError ? .retry : .manual)
     }
 
     func start() async {
@@ -534,6 +628,9 @@ final class CloudSyncSettingsViewModel {
         }
 
         self.updateInitialRestoreState()
+        if snapshot.isSynchronizing == false {
+            self.refreshSyncedContentSummary()
+        }
     }
 
     private func loadPartitionState(for snapshot: CloudAccountSessionSnapshot) async {
