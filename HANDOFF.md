@@ -37,17 +37,19 @@ python3 scripts/check-docs.py
 
 以下都在 `docs/STATUS.md` 里有行；挑活前按该文件第 0 节的三步核对，不要只看名字就开工。
 
-**`required` 未完成：1 条——删除来源连带删除历史与收藏，并可撤销（设计已定稿，代码未动）。下一会话先做这一条，再做四页真机验收。**
+**`required` 未完成：1 条——删除来源连带删除历史与收藏，并可撤销（build、整套测试与模拟器走查都已过，只欠真机）。下一会话把它并进真机验收一起做。**
 
-- **下一步一：实施删除来源的连带删除**。合同：[`Source-Deletion-Cascade-Design.md`](docs/design/Source-Deletion-Cascade-Design.md)
-  （第五节实现位置、第六节测试与验收）与数据库说明「Source 删除规则」（`BCA-DB-004`、`BCA-DB-005`）；STATUS 在第 4 节。开工前已查实的事实：
-  - 来源、收藏、三张历史表用的是同一个用户 ID（都取自 `ActiveAppUserStore`），按「用户 + 来源」删即可；三张历史表的唯一键 / 主键都以这两列开头，不需要新索引和迁移。
-  - 用户删除只有一条路径：来源页与删除「我的生成」规则都汇到 `GRDBSourceRepository.deleteSource`；iCloud 远端删除走 `GRDBSourceSyncLocalStore.commit`，现在既不清历史也不清当前选择。
-  - 收藏没有按来源批量删的方法：照取消收藏的写法逐条写删除标记、按 `FavoriteItemIdentity` 的同步实体 ID 入队，最后重建一次 `FavoriteAggregateBuilder` 汇总；参考迁移 `removeRSSIdentifier` 里同类的批量清理。
-  - 现有测试 `SyncRepositoryTests` 的「删除来源后队列恰有一条」在没有收藏时仍成立；历史页、收藏页「来源已删除」的测试不经删除路径，不受影响。
-  - 撤销（设计第四节）：删除要交回被删内容、撤销原样写回并重新入队为更新；`SyncQueueRecord.enqueue` 已是「时间更新的更新覆盖较旧的删除」，不用改。
-    删除后的同步通知要推迟到撤销窗口结束，`GRDBSourceRepository.deleteSource` 现在是在事务后立刻通知，这一点要挪到调用方。撤销提示条与计时照 `FavoritesViewModel` 的写法。
-  - 改完按惯例：build、整套 `BrowseCraftTests`、模拟器删一个有历史和收藏的来源（含内置来源）并撤销，再记 STATUS 与状态流水。
+- **下一步一：删除来源连带删除的真机验收**。合同：[`Source-Deletion-Cascade-Design.md`](docs/design/Source-Deletion-Cascade-Design.md)
+  （第六节实现位置、第七节测试与验收）与数据库说明「Source 删除规则」（`BCA-DB-004`、`BCA-DB-005`）；STATUS 在第 4 节两行（`full-suite-passed` 与 `simulator-passed`），
+  改了什么、测试与走查怎么做的见 `docs/history/status-log.md` 2026-10-03 最后三节。剩下的验证：
+  真机按第 54 行起的来源页条目验收（实施提交 c2b2437）。读代码时要知道的几点：
+  - 删除的留底是 `SourceDeletionReceipt`（`SourceRepository.swift`）；删除路径不再在事务后发同步通知，由 `SourcesViewModel.finishUndoableDeletion`
+    在撤销窗口结束（4 秒超时、被新删除替换、离开来源页、App 切走）时经 `SourcesPersistenceCoordinator.notifyDeletionChanges` 补发；
+    撤销不发删除的通知，`restoreDeletedSource` 写回后自己通知。
+  - 只有用户在来源页删一个来源可撤销；删除「我的生成」规则与个人规则过期走 `deleteSourcesWithoutUndo`，删完立刻通知。按下标批量删多个也不给撤销。
+  - 撤销时仓储把删除前的库状态（含列表位置）原样写回，ViewModel 改回当前来源时不再覆盖库状态；库页切换来源本来就会重置分段，
+    所以列表位置只在下次启动恢复时体现——这是已知出入，不是 bug。
+  - 解不出配置的来源照样删（历史与收藏一并删），只是拿不到留底、不能撤销。
 
 来源页、收藏页、规则目录页、历史页四页重设计都已实施，离线测试与模拟器走查通过，共同欠真机验收。
 

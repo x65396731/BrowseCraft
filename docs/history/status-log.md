@@ -412,3 +412,53 @@ XCTest 81 项中 1 项失败——`ReadinessSelectorContentSemanticsTests.testWe
 深色模式（色块、类型色、「已暂停」深色档）。顺带回归收藏页：卡片行外观、左滑取消收藏与清空后的空状态不变。
 走查中看到的既有问题（本次未改）：临时资源详情页的「Resource / Type / Visited / Open」与漫画阅读器的「No Pages」仍是英文。
 下拉刷新未能用模拟器合成手势触发，未单独验证；从阅读器返回与切回标签时页面会重读。真机未走查。
+
+
+## 2026-10-03：删除来源连带删除历史与收藏的实施（未 build、未测试）
+
+`STATUS.md` 第 4 节「删除来源连带删除历史与收藏」：实施 not-started → implemented；验证 not-run 不变；检查点 32b01bd → 9a34629
+（代码写在 9a34629 之上，提交后应把检查点改成实际的实施提交）。
+
+原因：按 `Source-Deletion-Cascade-Design.md` 第五、六节实施完毕，按 `AGENTS.md` 的会话纪律没有 build、没有跑测试、没有模拟器走查。
+改动：`SourceRepository.deleteSource` 改为交回 `SourceDeletionReceipt`（来源原样、删除前的库状态、三张历史表记录、被标删的收藏、是否入过队），
+新增 `restoreDeletedSource` 与 `notifyLocalChanges`；`GRDBSourceRepository` 在删除事务里删三张历史表、给收藏写删除标记逐条入队并重建汇总，
+不再在事务后立刻发同步通知；`GRDBSourceSyncLocalStore.commit` 在本地在册、远端带删除时间时删本机历史并清空当前选择；
+`DeleteSourceUseCase` / `SourcesPersistenceCoordinator` 交回留底、新增写回与补发通知；`SourcesViewModel` 保存可撤销删除与 4 秒计时
+（`undoableDeletion` / `undoDeletion` / `finishUndoableDeletion`），删除个人规则与个人规则过期两条路径删完立刻通知、不可撤销，
+每次删除或撤销成功递增 `sourceContentRevision`；`SourcesView` 底部 `ContentUndoBanner`、离开页面或 App 切走时结束撤销窗口；
+`RootView` 观察计数重新载入历史、收藏并刷新库页爱心；三语 `sources_footer_hint` 改写、删掉无引用的 `sources_delete_confirm_title`、新增 `sources_undo_message`
+（原确认框只剩这一条文案，设计里说的「两条」实际只有一条）。
+测试已写未跑：`SyncRepositoryTests` 两项（连带删除与撤销写回、内置来源不入队但收藏入队）、`SourceSyncServiceTests` 一项（远端删除删本机历史、
+收藏不动、清空当前选择）、`SourcesViewModelTests` 一项（删除后历史与收藏仓储看不到、撤销后回来且当前来源改回）；
+`AddComicRuleSourceUseCaseTests` 的内存仓储替身按新协议补了两个方法。
+
+
+## 2026-10-03：删除来源连带删除的 build 与整套测试
+
+`STATUS.md` 第 4 节「删除来源连带删除历史与收藏」：验证 not-run → full-suite-passed；检查点仍为 9a34629（代码尚未提交，提交后改成实施提交的哈希）。
+
+原因：用户要求 build 并跑整套测试。`xcodebuild build`（iPhone 17 Pro / iOS 26.5）一次通过，改动文件无新警告，本地化闸门作为 build 阶段通过。
+第一次 `-only-testing:BrowseCraftTests`：Swift Testing 548 项 / 94 套里只有新写的 `sourceRepositoryCascadesHistoryAndFavoritesAndUndoRestoresThem` 红
+（4 条断言），XCTest 81 项全过。根因是测试夹具的账算错了：夹具用 `restoreFavorite` 收藏了两条、各自入队一条更新，所以删除后队列是 3 条
+（来源删除、favorite-1 的删除覆盖了它的更新、favorite-2 的更新还在），不是 2 条，`first { .favoriteItem }` 又会取到 favorite-2；实现没有问题。
+改为按同步实体 ID 取条目、按 3 条计数后，单套重跑通过，随后整套重跑：Swift Testing 548 项 / 94 套全过，XCTest 81 项全过
+（HANDOFF 记过的 `ReadinessSelectorContentSemanticsTests` 计时断言本次两轮都通过）。模拟器走查与真机未做。
+
+
+## 2026-10-03：删除来源连带删除的模拟器走查
+
+`STATUS.md` 第 4 节新增一行「删除来源连带删除的模拟器走查」：simulator-passed / 9a34629（按 `BCA-DOC-005` 与整套测试分开记）。
+
+原因：用户要求做模拟器走查。方法与历史页那次相同：DEBUG 演示模式（`-BrowseCraftDemoMode -BrowseCraftSkipStartupAnimation -BrowseCraftInitialTab sources`，
+iPhone 17 Pro / iOS 26.5）加一段临时注入——`DemoDataSeeder` 多写一份非内置漫画来源「我的漫画站」（复用示例漫画站的规则、改名）、
+它名下同一部漫画的两章记录（第 3、4 话，第 17 页）与一条收藏，示例漫画站再加一条昨天的收藏；`DemoSourceRuntimeResolver` 临时按 baseURL 也认演示站；
+撤销提示停留临时改成 30 秒。三处注入与计时测完已撤回、未提交，撤回后 build 通过。
+途中踩到两件事：机器上同时开着 iPhone 17 Pro 与 iPhone 18 Pro 两台模拟器，`simctl ... booted` 与截图工具各取了一台，之后一律按 UDID 指定；
+`xcodebuild build` 不带 `-derivedDataPath` 时产物在 `~/Library/Developer/Xcode/DerivedData`，仓库里 `.derivedData/` 下的是陈旧包。
+另外自定义 CatalogSource 的名字与规则 JSON 里的 `name` 不一致会被 `CatalogSourceMaterializer` 判为规则无效（启动即报 `BOOT-` 诊断码），注入里把 JSON 的名字一并替换。
+走查通过的行为：删除前历史 4 条、收藏 2 条、库页「我的漫画站」里「龙骨与罗盘」带红心；左滑正在使用的「我的漫画站」→ 直接删除、底部「已删除「我的漫画站」 · 撤销」、
+当前来源切到示例影视站、位置 0/1；点撤销 → 来源回到正在使用、位置 1/1，历史 4 条（第 4 话 · 第 17 页 · 8:23 原样）、收藏 2 条（仍在「今天」分组）、库页爱心仍在；
+再删一次不撤销、切到历史页 → 3 条、收藏页 → 1 条；长按「示例漫画站」菜单「删除来源」→ 内置来源同样删除并出提示条，点撤销 → 历史「放学后的天文部」与昨天的收藏都回来。
+未覆盖：撤销窗口超时后的同步补发（演示模式不启动 iCloud 同步，观察不到）；深色模式未单独看；真机未走。
+
+同日补记：实施已提交为 c2b2437（代码、三语文案与测试一笔），`STATUS.md` 第 4 节两行的检查点由 9a34629 改为 c2b2437；三处临时注入未入库。

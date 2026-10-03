@@ -73,7 +73,8 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | CloudKit 门禁的 Header 名称拦截与 `context.*` / Request Body / `keyHex` / `ivHex` / constant value 字面量扫描——实现有意收窄为「不推测站点规则常量是否敏感」，13 例固定输入钉住该取值 | `BCA-SYNC-008` | optional | superseded | not-started | full-suite-passed | bed4ab3 | 2026-07-25 |
 | Phase0 审计的安全结论已提升为 C：排除数据、冲突与删除、凭据引用三条成 `BCA-SYNC-009` ~ `011`，未实施的全面扫描部分显式声明为有意收窄 | `BCA-SYNC-009` `BCA-SYNC-010` `BCA-SYNC-011` | required | approved | implemented | static-audit-passed | 69779bb | 2026-09-19 |
 | RSS 整体下线：删功能、迁移 v6 清存量、同步跳过 rss、书籍收藏改记 book | 未编号 | required | approved | implemented | full-suite-passed | f263274 | 2026-09-16 |
-| 删除来源连带删除历史与收藏：用户删除时删三张历史表、给收藏写删除标记并入队；iCloud 应用远端删除时删本机历史并清空当前选择；删除后底部可撤销并原样写回；删除与撤销后刷新历史、收藏与库页；底部文案改写 | `BCA-DB-004` `BCA-DB-005` | required | approved | not-started | not-run | 32b01bd | 2026-10-03 |
+| 删除来源连带删除历史与收藏：用户删除时删三张历史表、给收藏写删除标记并入队；iCloud 应用远端删除时删本机历史并清空当前选择；删除后底部可撤销并原样写回；删除与撤销后刷新历史、收藏与库页；底部文案改写 | `BCA-DB-004` `BCA-DB-005` | required | approved | implemented | full-suite-passed | c2b2437 | 2026-10-03 |
+| 删除来源连带删除的模拟器走查：左滑删除非内置来源与长按删除内置来源，历史、收藏、库页爱心随删除消失、随撤销回来，撤销后改回当前来源 | `BCA-DB-004` `BCA-DB-005` | required | approved | implemented | simulator-passed | c2b2437 | 2026-10-03 |
 
 ## 5. 文档架构迁移
 
