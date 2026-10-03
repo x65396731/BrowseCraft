@@ -741,3 +741,4 @@
 /* BC-PREFLIGHT-056 2026-10-03: suggest Hard mode when the normal tier was blocked; BC-BOOK-058: work pages list only the latest chapters */
 "push_generation_failed_siteRejectedFetcher_tryHard" = "%@ rejected our fetcher. You can try generating it again in Hard mode.";
 "video_generation_outcome_detail_chapterListLatestOnly" = "This site's work pages list only the latest chapters, and the full table of contents needs a separate data request. It isn't supported for now. Try another site.";
+"video_generation_outcome_detail_detailPagesUnrecognized" = "This site's list pages are fine, but we can't recognize the structure of its work pages yet (no title with a chapter or episode list). Try another site.";

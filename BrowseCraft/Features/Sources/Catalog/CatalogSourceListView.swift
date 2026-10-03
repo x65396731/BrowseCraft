@@ -878,7 +878,9 @@ enum VideoGenerationOutcomeText {
         // `BC-PAGE-061`：内容要额外请求数据接口或解密才能取到——换网站，不是换入口页。
         "contentNotServerRendered",
         // `BC-BOOK-058`：作品页只列最新几章、完整目录要另经接口取得——换一个网站。
-        "chapterListLatestOnly"
+        "chapterListLatestOnly",
+        // `BC-IMPL-127` 第六种情况 / `BC-IMPL-142`：列表没问题，点进去的作品页认不出结构——换一个网站。
+        "detailPagesUnrecognized"
     ]).union(Self.entryPageRejectionDetails)
 
     static func reasonText(for outcome: VideoGenerationOutcome) -> String {

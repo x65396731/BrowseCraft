@@ -741,3 +741,4 @@
 /* BC-PREFLIGHT-056 2026-10-03：普通模式被網站攔下時推送建議改用困難模式；BC-BOOK-058：作品頁只列最新幾章 */
 "push_generation_failed_siteRejectedFetcher_tryHard" = "%@ 拒絕了我們的擷取請求，可以改用困難模式重新生成。";
 "video_generation_outcome_detail_chapterListLatestOnly" = "這個網站的作品頁只列出最新幾章，完整目錄要另外請求資料才能取得，目前不支援，請換一個網站試試。";
+"video_generation_outcome_detail_detailPagesUnrecognized" = "這個網站的列表沒有問題，但點進去的作品頁暫時認不出結構（找不到作品標題與章節或劇集列表），請換一個網站試試。";
