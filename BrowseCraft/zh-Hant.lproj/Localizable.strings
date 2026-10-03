@@ -82,9 +82,8 @@
 "video_preflight_submitted" = "生成工作已提交";
 "video_preflight_submitted_job" = "工作 %@。生成完成後，規則會出現在目錄裡。";
 "video_preflight_reused" = "規則已存在";
-"video_preflight_reused_detail" = "%@ 先前已經生成過，已直接加入你的來源。";
+"video_preflight_reused_detail" = "%@ 先前已經生成過，規則已在目錄「我的生成」裡，可從那裡加入。";
 "video_preflight_regenerate" = "重新生成這條規則";
-"video_preflight_reused_import_failed" = "%@ 先前已經生成過，但這次沒能加入。請到來源清單檢查後再試。";
 "video_preflight_submit_auth_required" = "請先登入再提交生成工作。";
 "video_preflight_submit_active_job_limit" = "進行中的生成工作已達上限，請等它完成後再試。";
 "video_preflight_submit_failed" = "提交失敗（%@），請稍後再試。";

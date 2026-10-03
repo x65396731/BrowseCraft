@@ -462,3 +462,13 @@ iPhone 17 Pro / iOS 26.5）加一段临时注入——`DemoDataSeeder` 多写一
 未覆盖：撤销窗口超时后的同步补发（演示模式不启动 iCloud 同步，观察不到）；深色模式未单独看；真机未走。
 
 同日补记：实施已提交为 c2b2437（代码、三语文案与测试一笔），`STATUS.md` 第 4 节两行的检查点由 9a34629 改为 c2b2437；三处临时注入未入库。
+
+
+## 2026-10-03：「规则已存在」不再自动添加来源
+
+用户在添加来源页（书籍）发现：提交生成命中服务端已有规则（`.reused`）时，App 会自动把该规则 `addCatalogSource` 落成来源、选中它并跳到库，
+裁定这不是预期行为。`VideoGenerationInputView` 的 `.reused` 分支去掉自动添加与随之无用的 `reusedRuleImportFailed` 状态，
+那一屏只提示「规则已存在」并保留「重新生成这条规则」；`video_preflight_reused_detail` 三语改为「规则已在目录「我的生成」里，可从那里添加」，
+删掉 `video_preflight_reused_import_failed`。按会话纪律未 build、未跑测试。
+**与 fwq 的出入**：fwq `BC-PREFLIGHT-055` 的正文写的是「落入本地 Catalog 并以 reused 呈现『规则已存在，已直接添加』」，
+本改动后 App 只呈现「规则已存在」、不落地成来源（规则本身仍在目录里）；该条款的定义点在 fwq，要改请在 fwq 侧改正文并由其 HANDOFF 记这次 App 改动。

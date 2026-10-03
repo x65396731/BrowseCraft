@@ -21,7 +21,6 @@ struct VideoGenerationInputView: View {
     @State private var acquisitionTier: GenerationAcquisitionTier = .normal
     @State private var submissionState: VideoGenerationTaskSubmissionState = .idle
     @State private var submissionTask: Task<Void, Never>?
-    @State private var reusedRuleImportFailed: Bool = false
     @State private var returnTask: Task<Void, Never>?
     @State private var isShowingGuide: Bool = false
 
@@ -97,7 +96,6 @@ struct VideoGenerationInputView: View {
                     VideoGenerationInputOutcomeView(
                         result: result,
                         submissionState: self.submissionState,
-                        reusedRuleImportFailed: self.reusedRuleImportFailed,
                         canSubmit: self.viewModel.canSubmitVideoGenerationTasks,
                         wallet: self.viewModel.coinWalletStore,
                         acquisitionTier: self.$acquisitionTier,
@@ -262,7 +260,6 @@ struct VideoGenerationInputView: View {
         }
         self.submissionTask?.cancel()
         self.submissionState = .submitting
-        self.reusedRuleImportFailed = false
         self.submissionTask = Task { @MainActor in
             do {
                 let outcome: VideoGenerationTaskSubmissionOutcome = try await self.viewModel
@@ -275,14 +272,8 @@ struct VideoGenerationInputView: View {
                 guard Task.isCancelled == false else {
                     return
                 }
-                // 中文注释：服务端复用的规则按 Catalog 同一落地路径直接添加（`BC-PREFLIGHT-055`）。
-                if case .reused(let rule) = outcome {
-                    let added: Bool = await self.viewModel.addCatalogSource(rule.catalogSource)
-                    guard Task.isCancelled == false else {
-                        return
-                    }
-                    self.reusedRuleImportFailed = (added == false)
-                }
+                // 中文注释：服务端复用的规则（`.reused`）只在这一屏提示「规则已存在」，不再自动添加成来源——
+                // 自动添加会顺带选中它并跳到库（2026-10-03 用户裁定不要）；规则已在目录「我的生成」里，由用户自己添加。
                 self.submissionState = .finished(outcome)
                 if case .submitted = outcome {
                     self.scheduleReturnToSources()
@@ -304,7 +295,6 @@ struct VideoGenerationInputView: View {
         self.submissionTask = nil
         self.cancelPendingReturn()
         self.submissionState = .idle
-        self.reusedRuleImportFailed = false
     }
 
     /// 中文注释：自动返回那 1.2 秒里这一屏仍然可点，用户的任何新动作都优先——
@@ -404,7 +394,6 @@ enum VideoGenerationTaskSubmissionState: Equatable {
 private struct VideoGenerationInputOutcomeView: View {
     let result: VideoGenerationInputPreflight
     let submissionState: VideoGenerationTaskSubmissionState
-    let reusedRuleImportFailed: Bool
     let canSubmit: Bool
     /// 设计书 30.6：提交前显示本次消耗、余额与「可能失败、失败也扣」声明。
     let wallet: CoinWalletStore?
@@ -493,17 +482,12 @@ private struct VideoGenerationInputOutcomeView: View {
             .listRowSeparatorAlignedToRowLeading()
             Text(
                 String(
-                    format: NSLocalizedString(
-                        self.reusedRuleImportFailed
-                            ? "video_preflight_reused_import_failed"
-                            : "video_preflight_reused_detail",
-                        comment: ""
-                    ),
+                    format: NSLocalizedString("video_preflight_reused_detail", comment: ""),
                     rule.catalogSource.name
                 )
             )
             .font(.footnote)
-            .foregroundStyle(self.reusedRuleImportFailed ? .orange : .secondary)
+            .foregroundStyle(.secondary)
             Button(
                 NSLocalizedString("video_preflight_regenerate", comment: ""),
                 action: self.regenerate
