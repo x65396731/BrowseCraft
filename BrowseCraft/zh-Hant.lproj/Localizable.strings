@@ -742,3 +742,8 @@
 "settings_copied" = "已複製";
 "settings_sign_out_confirm_title" = "登出 AnyPortal 帳號？";
 "settings_sign_out_confirm_message" = "登出後購買、雲端同步和 coin 都無法使用，需要重新透過 Apple 登入。";
+
+/* coin 记录页重设计（docs/design/Coin-Ledger-Page-Redesign-Design.md） */
+"coin_ledger_current_balance" = "目前餘額";
+"coin_ledger_pricing" = "規則生成 −%1$d · 困難模式 −%2$d · 看完廣告 +%3$d";
+"coin_ledger_end" = "沒有更早的紀錄了";

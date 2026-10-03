@@ -742,3 +742,8 @@
 "settings_copied" = "Copied";
 "settings_sign_out_confirm_title" = "Sign out of AnyPortal?";
 "settings_sign_out_confirm_message" = "Purchases, Cloud Sync, and coins stay unavailable until you sign in with Apple again.";
+
+/* coin 记录页重设计（docs/design/Coin-Ledger-Page-Redesign-Design.md） */
+"coin_ledger_current_balance" = "Current Balance";
+"coin_ledger_pricing" = "Rule generation −%1$d · Hard mode −%2$d · Ad watched +%3$d";
+"coin_ledger_end" = "No earlier records";

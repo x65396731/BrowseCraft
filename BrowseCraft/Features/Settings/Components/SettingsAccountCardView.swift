@@ -83,7 +83,7 @@ struct SettingsAccountCardView: View {
                     .padding(.horizontal, 16)
 
                 NavigationLink(
-                    destination: CoinLedgerView(viewModel: wallet.makeLedgerViewModel())
+                    destination: CoinLedgerView(viewModel: wallet.makeLedgerViewModel(), wallet: wallet)
                         .task {
                             // 中文注释：进流水页时余额一起对齐服务端。
                             await wallet.refresh()

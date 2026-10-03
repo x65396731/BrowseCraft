@@ -94,6 +94,9 @@ struct SettingsView: View {
                 }
                 .background(CatalogPalette.pageBackground)
                 .toolbar(.hidden, for: .navigationBar)
+                // 中文注释：打开内购页时藏底栏。这条必须挂在 NavigationStack 里的根页上、且不显式写 `.visible`：
+                // 挂在栈外面会盖过推入页（coin 记录页）自己的 `.toolbar(.hidden, for: .tabBar)`，底栏藏不掉（模拟器走查）。
+                .toolbar(self.isShowingInAppPurchase ? .hidden : .automatic, for: .tabBar)
                 .refreshable {
                     await self.viewModel.refreshPortalAccountStatus()
                     await self.viewModel.coinWalletStore?.refresh()
@@ -200,10 +203,6 @@ struct SettingsView: View {
                 .zIndex(1)
             }
         }
-        .toolbar(
-            self.isShowingInAppPurchase ? .hidden : .visible,
-            for: .tabBar
-        )
         .onChange(of: self.viewModel.isInAppPurchaseRequested, initial: true) { _, isRequested in
             // 中文注释：来源页「更多位置」切到本页并请求打开购买入口；`initial` 覆盖本页首次出现的情形。
             guard isRequested else {

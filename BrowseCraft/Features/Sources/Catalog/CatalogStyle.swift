@@ -21,6 +21,9 @@ enum CatalogPalette {
     static let inverseAction: Color = Self.dynamic(light: 0x8AB6FF, dark: 0x2563EB)
     /// 删除色，深浅同值（页面设计索引裁定 #E5484D）；长按菜单与确认框里的删除项由系统按 destructive 角色着色。
     static let destructive: Color = Self.fixed(0xE5484D)
+    /// 获得色：coin 记录里的 +N（`docs/design/Coin-Ledger-Page-Redesign-Design.md`，用户裁定用绿）。
+    /// 浅色不取系统绿 #34C759——它在白底上做文字对比度不到 4.5:1。
+    static let gain: Color = Self.dynamic(light: 0x248A3D, dark: 0x30D158)
     /// 设置页行图标（`docs/design/Settings-Page-Redesign-Design.md` 第四节）：浅色取添加蓝；深色底上添加蓝看不清，取 `inverseAction` 的浅蓝。
     static let settingsIcon: Color = Self.dynamic(light: 0x2563EB, dark: 0x8AB6FF)
     /// 设置页行图标方块的底：添加蓝，浅色 12%、深色 24%。

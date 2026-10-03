@@ -77,7 +77,9 @@ python3 scripts/check-docs.py
   `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift` 一处取值；删除色 `#E5484D`。
   尚未按这套语言重做的页面：库（未立项，等用户点名）。设置页已按合同 [`Settings-Page-Redesign-Design.md`](docs/design/Settings-Page-Redesign-Design.md)
   实施，离线测试全过、模拟器走查通过（STATUS 第 2 节两行），欠真机；真机上要用真实账号看已登录态的余额与看广告后余额变化，
-  模拟器里已登录态是临时注入的、余额为「—」。它的三个子页（云同步、缓存、coin 流水）下一轮再做。
+  模拟器里已登录态是临时注入的、余额为「—」。它的三个子页里 coin 记录页已按合同 [`Coin-Ledger-Page-Redesign-Design.md`](docs/design/Coin-Ledger-Page-Redesign-Design.md)
+  实施，离线测试全过、模拟器上用真实登录账号走查通过（STATUS 第 2 节两行），欠真机；加载失败、没有记录两种状态模拟器里没有触发。
+  云同步与缓存两个子页下一轮再做。
 - **插画**：空状态插画都是即梦出图 → `scripts/illustration-cutout.swift` 抠图 → `scripts/illustration-despeckle.swift` 去游离小点
   → 登记 `scripts/bundled-image-asset-budgets.txt`。已有插画的游离小点已清；人物轮廓上的浅色毛边是白底抠图留下的，未处理（optional）。
 - **偶发失败的测试**：`ReadinessSelectorContentSemanticsTests.testWeakSelectorReturnsBeforeTheContentArrives` 是 WebView 就绪的计时断言
