@@ -83,8 +83,8 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | RSS 整体下线：删功能、迁移 v6 清存量、同步跳过 rss、书籍收藏改记 book | 未编号 | required | approved | implemented | full-suite-passed | f263274 | 2026-09-16 |
 | 删除来源连带删除历史与收藏：用户删除时删三张历史表、给收藏写删除标记并入队；iCloud 应用远端删除时删本机历史并清空当前选择；删除后底部可撤销并原样写回；删除与撤销后刷新历史、收藏与库页；底部文案改写 | `BCA-DB-004` `BCA-DB-005` | required | approved | implemented | full-suite-passed | c2b2437 | 2026-10-03 |
 | 删除来源连带删除的模拟器走查：左滑删除非内置来源与长按删除内置来源，历史、收藏、库页爱心随删除消失、随撤销回来，撤销后改回当前来源 | `BCA-DB-004` `BCA-DB-005` | required | approved | implemented | simulator-passed | c2b2437 | 2026-10-03 |
-| 续看位置同步到 iCloud：每部作品一条续看记录（云端 `HistoryEntry` 21 个字段，已部署到 Production）、本机账本对比找改动、来源先于历史下载、删除与恢复、退到后台时同步、云同步页第三行改为作品数 | `BCA-SYNC-009` | required | approved | implemented | full-suite-passed | 7f42ed9 | 2026-10-04 |
-| 续看位置同步的模拟器走查（真实账号，Development 环境，单台设备）：迁移后正常启动、新增来源并产生一条视频历史、退到后台触发同步并上传、云同步页第三行显示作品数、来源已删除的历史不计入也不上传、删除历史后退到后台上传删除标记；两台设备互相接续与书的阅读位置未走到 | `BCA-SYNC-009` | required | approved | implemented | simulator-passed | 7f42ed9 | 2026-10-04 |
+| 续看位置同步到 iCloud：每部作品一条续看记录（云端 `HistoryEntry` 21 个字段，已部署到 Production）、本机账本对比找改动、来源先于历史下载、删除与恢复、退到后台时同步、云同步页第三行改为作品数 | `BCA-SYNC-009` | required | approved | implemented | full-suite-passed | 7102bba | 2026-10-04 |
+| 续看位置同步的模拟器走查（真实账号，Development 环境，单台设备）：迁移后正常启动、新增来源并产生一条视频历史、退到后台触发同步并上传、云同步页第三行显示作品数、来源已删除的历史不计入也不上传、删除历史后退到后台上传删除标记；两台设备互相接续与书的阅读位置未走到 | `BCA-SYNC-009` | required | approved | implemented | simulator-passed | 7102bba | 2026-10-04 |
 
 ## 5. 文档架构迁移
 
