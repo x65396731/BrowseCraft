@@ -115,20 +115,6 @@ struct SettingsView: View {
                 } message: {
                     Text(NSLocalizedString("settings_sign_out_confirm_message", comment: "退出确认框说明"))
                 }
-                .alert("Cache", isPresented: self.cacheStatusAlertBinding) {
-                    Button("OK", role: .cancel) {
-                        self.viewModel.cacheStatusMessage = nil
-                    }
-                } message: {
-                    Text(self.viewModel.cacheStatusMessage ?? "")
-                }
-                .alert("Cache Settings", isPresented: self.cacheErrorAlertBinding) {
-                    Button("OK", role: .cancel) {
-                        self.viewModel.cacheErrorMessage = nil
-                    }
-                } message: {
-                    Text(self.viewModel.cacheErrorMessage ?? "")
-                }
                 .alert("Google Ads", isPresented: self.adAlertBinding) {
                     Button("OK") {
                         self.adPlaybackViewModel.message = nil
@@ -231,12 +217,7 @@ struct SettingsView: View {
 
             SettingsRowSeparator()
 
-            NavigationLink(destination: CacheSettingsView(
-                selectedImageCacheLimit: self.imageCacheLimitBinding,
-                clearCacheAction: {
-                    self.viewModel.clearImageCache()
-                }
-            )) {
+            NavigationLink(destination: CacheSettingsView(viewModel: self.viewModel)) {
                 SettingsRow(
                     image: "SettingsCache",
                     title: NSLocalizedString("Cache", comment: ""),
@@ -434,30 +415,6 @@ struct SettingsView: View {
         return String(identifier.prefix(8)) + "…"
     }
 
-    private var imageCacheLimitBinding: Binding<ImageCacheLimitOption> {
-        return Binding<ImageCacheLimitOption>(
-            get: {
-                return self.viewModel.imageCacheSettings.limit
-            },
-            set: { newLimit in
-                self.viewModel.selectImageCacheLimit(newLimit)
-            }
-        )
-    }
-
-    private var cacheErrorAlertBinding: Binding<Bool> {
-        return Binding<Bool>(
-            get: {
-                return self.viewModel.cacheErrorMessage != nil
-            },
-            set: { newValue in
-                if newValue == false {
-                    self.viewModel.cacheErrorMessage = nil
-                }
-            }
-        )
-    }
-
     private var portalAccountErrorAlertBinding: Binding<Bool> {
         return Binding<Bool>(
             get: {
@@ -466,19 +423,6 @@ struct SettingsView: View {
             set: { newValue in
                 if newValue == false {
                     self.viewModel.portalAccountErrorMessage = nil
-                }
-            }
-        )
-    }
-
-    private var cacheStatusAlertBinding: Binding<Bool> {
-        return Binding<Bool>(
-            get: {
-                return self.viewModel.cacheStatusMessage != nil
-            },
-            set: { newValue in
-                if newValue == false {
-                    self.viewModel.cacheStatusMessage = nil
                 }
             }
         )

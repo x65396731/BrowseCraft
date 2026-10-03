@@ -495,8 +495,6 @@
 "Diagnostic reports include the code above, app version, device model, current screen, source, stage, and selected non-crash errors. They do not include cookies, tokens, full HTML, or full URL query values." = "診斷報告包含上方的診斷碼、App 版本、裝置型號、目前畫面、來源、所處階段，以及部分非當機錯誤；不包含 Cookie、權杖、完整 HTML 或完整的網址查詢參數。";
 
 /* 設定頁子頁面：快取、雲端同步、購買頁與帳號提示。 */
-"Image Cache Limit" = "圖片快取上限";
-"When the cache exceeds the selected limit, older image cache will be removed automatically. Recently used images are kept first." = "快取超過所選上限時，較早的圖片快取會自動清除，最近用過的圖片優先保留。";
 "iCloud Account" = "iCloud 帳號";
 "Synced Content" = "同步的內容";
 "Sync Now" = "立即同步";
@@ -573,7 +571,6 @@
 "BrowseCraft could not sign out. Try again." = "AnyPortal 無法登出，請再試一次。";
 "Sign in with Apple could not be completed. Try again." = "無法完成使用 Apple 登入，請再試一次。";
 "Image cache settings could not be updated." = "無法更新圖片快取設定。";
-"Image cache clearing has started." = "已開始清除圖片快取。";
 
 /* 来源行的状态标签、名额锁定提示与纪录页分组标题（2026-09-26 补齐，此前显示英文）。 */
 "Built-in source" = "內建來源";
@@ -747,3 +744,17 @@
 "coin_ledger_current_balance" = "目前餘額";
 "coin_ledger_pricing" = "規則生成 −%1$d · 困難模式 −%2$d · 看完廣告 +%3$d";
 "coin_ledger_end" = "沒有更早的紀錄了";
+
+/* 缓存页重设计（docs/design/Cache-Page-Redesign-Design.md） */
+"cache_usage_title" = "圖片快取已用";
+"cache_usage_max" = "/ 最多 %@";
+"cache_usage_covers" = "封面與漫畫頁";
+"cache_usage_thumbnails" = "列表縮圖";
+"cache_usage_fixed" = "固定";
+"cache_calculating" = "正在計算";
+"cache_limit_section" = "封面與漫畫頁上限";
+"cache_limit_total" = "共最多 %@";
+"cache_limit_footer" = "上限只管封面與漫畫頁，列表縮圖另有固定的 256 MB。快取超過所選上限時，較早的圖片快取會被自動清除，最近用過的圖片優先保留。";
+"cache_clearing" = "正在清除";
+"cache_cleared_freed" = "已清除，釋放 %@";
+"cache_clear_keeps" = "不會刪除來源、收藏、歷史、閱讀進度、匯入的書和登入狀態。";

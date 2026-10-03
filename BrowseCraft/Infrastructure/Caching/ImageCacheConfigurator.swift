@@ -53,9 +53,56 @@ final class ImageCacheConfigurator: ImageCacheManaging {
         )
     }
 
-    func clearConfiguredCaches() {
-        self.dataCache?.removeAll()
+    @MainActor
+    func usage() async -> ImageCacheUsage {
+        let coverBytes: Int = await Self.diskBytes(of: self.dataCache)
+        let thumbnailBytes: Int = await Self.diskBytes(of: ItemThumbnailImageCachePlugin.shared.dataCache)
+        return ImageCacheUsage(
+            coverBytes: coverBytes,
+            thumbnailBytes: thumbnailBytes,
+            thumbnailLimitBytes: ItemThumbnailImageCachePlugin.diskLimitBytes
+        )
+    }
+
+    /// 中文注释：封面与漫画页、列表缩略图两块一起清（此前只清了前一块，缩略图漏清）；
+    /// 网页与系统网络缓存也一起清，但只清缓存类数据，登录状态所在的 Cookie 与本地存储不动。
+    @MainActor
+    func clearAllCaches() async {
         ImageCache.shared.removeAll()
+        ItemThumbnailImageCachePlugin.shared.removeAllFromMemory()
+        await Self.removeAll(from: self.dataCache)
+        await Self.removeAll(from: ItemThumbnailImageCachePlugin.shared.dataCache)
+        URLCache.shared.removeAllCachedResponses()
+        await WebsiteCacheCleaner.removeCachedResources()
+    }
+
+    /// 中文注释：DataCache 的 removeAll 是排进它自己串行队列的异步动作；再排一个空任务等它跑完，才算真的清完。
+    private static func removeAll(from dataCache: DataCache?) async {
+        guard let dataCache: DataCache = dataCache else {
+            return
+        }
+        dataCache.removeAll()
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            dataCache.queue.async {
+                continuation.resume()
+            }
+        }
+    }
+
+    /// 中文注释：在 DataCache 的串行队列上数目录里文件的占用，排在已提交的写入与裁剪之后，不占主线程。
+    private static func diskBytes(of dataCache: DataCache?) async -> Int {
+        guard let dataCache: DataCache = dataCache else {
+            return 0
+        }
+        dataCache.flush()
+        return await withCheckedContinuation { (continuation: CheckedContinuation<Int, Never>) in
+            dataCache.queue.async {
+                let bytes: Int = Self.diskEntries(in: dataCache.path).reduce(0) { partialResult, entry in
+                    return partialResult + entry.allocatedBytes
+                }
+                continuation.resume(returning: bytes)
+            }
+        }
     }
 
     private func makeDataCache(settings: ImageCacheSettings) throws -> DataCache {

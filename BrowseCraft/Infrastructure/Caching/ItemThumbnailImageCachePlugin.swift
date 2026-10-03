@@ -6,6 +6,9 @@ import Foundation
 final class ItemThumbnailImageCachePlugin: ImagePipelineDelegate, ItemThumbnailImagePipelineProviding, @unchecked Sendable {
     static let shared: ItemThumbnailImageCachePlugin = ItemThumbnailImageCachePlugin()
 
+    /// 中文注释：磁盘固定上限，不受设置页所选上限控制（缓存页把它单独列一条用量，用户裁定保持固定）。
+    static let diskLimitBytes: Int = Constants.diskLimitBytes
+
     private enum Constants {
         static let dataCacheName: String = "BrowseCraft.ItemThumbnailDataCache"
         static let diskLimitBytes: Int = 256 * 1024 * 1024
@@ -32,6 +35,16 @@ final class ItemThumbnailImageCachePlugin: ImagePipelineDelegate, ItemThumbnailI
     }()
 
     private init() {}
+
+    /// 中文注释：缩略图的磁盘缓存，供缓存页算用量与清除。
+    var dataCache: DataCache? {
+        return self.pipeline.configuration.dataCache as? DataCache
+    }
+
+    /// 中文注释：清掉缩略图的内存缓存；磁盘部分由调用方经 `dataCache` 清并等待完成。
+    func removeAllFromMemory() {
+        self.pipeline.cache.removeAll(caches: .memory)
+    }
 
     func cacheKey(for request: ImageRequest, pipeline: ImagePipeline) -> String? {
         guard let url: URL = request.url else {

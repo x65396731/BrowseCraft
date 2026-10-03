@@ -495,8 +495,6 @@
 "Diagnostic reports include the code above, app version, device model, current screen, source, stage, and selected non-crash errors. They do not include cookies, tokens, full HTML, or full URL query values." = "诊断报告包含上方的诊断码、App 版本、设备型号、当前页面、来源、所处阶段，以及部分非崩溃错误；不包含 Cookie、令牌、完整 HTML 或完整的网址查询参数。";
 
 /* 设置页子页面：缓存、云同步、购买页与账号提示。 */
-"Image Cache Limit" = "图片缓存上限";
-"When the cache exceeds the selected limit, older image cache will be removed automatically. Recently used images are kept first." = "缓存超过所选上限时，较早的图片缓存会被自动清除，最近用过的图片优先保留。";
 "iCloud Account" = "iCloud 账户";
 "Synced Content" = "同步的内容";
 "Sync Now" = "立即同步";
@@ -573,7 +571,6 @@
 "BrowseCraft could not sign out. Try again." = "AnyPortal 无法退出登录，请重试。";
 "Sign in with Apple could not be completed. Try again." = "无法完成通过 Apple 登录，请重试。";
 "Image cache settings could not be updated." = "无法更新图片缓存设置。";
-"Image cache clearing has started." = "已开始清理图片缓存。";
 
 /* 来源行的状态标签、名额锁定提示与纪录页分组标题（2026-09-26 补齐，此前显示英文）。 */
 "Built-in source" = "内置来源";
@@ -747,3 +744,17 @@
 "coin_ledger_current_balance" = "当前余额";
 "coin_ledger_pricing" = "规则生成 −%1$d · 困难模式 −%2$d · 看完广告 +%3$d";
 "coin_ledger_end" = "没有更早的记录了";
+
+/* 缓存页重设计（docs/design/Cache-Page-Redesign-Design.md） */
+"cache_usage_title" = "图片缓存已用";
+"cache_usage_max" = "/ 最多 %@";
+"cache_usage_covers" = "封面与漫画页";
+"cache_usage_thumbnails" = "列表缩略图";
+"cache_usage_fixed" = "固定";
+"cache_calculating" = "正在计算";
+"cache_limit_section" = "封面与漫画页上限";
+"cache_limit_total" = "共最多 %@";
+"cache_limit_footer" = "上限只管封面与漫画页，列表缩略图另有固定的 256 MB。缓存超过所选上限时，较早的图片缓存会被自动清除，最近用过的图片优先保留。";
+"cache_clearing" = "正在清除";
+"cache_cleared_freed" = "已清除，释放 %@";
+"cache_clear_keeps" = "不会删除来源、收藏、历史、阅读进度、导入的书和登录状态。";

@@ -72,3 +72,17 @@ struct ImageCacheSettings: Equatable, Sendable {
         userDefaults.set(self.limit.megabytes, forKey: Self.userDefaultsKey)
     }
 }
+
+/// 中文注释：两块图片缓存当前占用的磁盘字节数（`docs/design/Cache-Page-Redesign-Design.md` 用量卡）。
+/// 封面与漫画页受用户所选上限约束；列表缩略图是固定上限，两块分开计（用户裁定）。
+struct ImageCacheUsage: Equatable, Sendable {
+    let coverBytes: Int
+    let thumbnailBytes: Int
+    let thumbnailLimitBytes: Int
+
+    var totalBytes: Int {
+        return self.coverBytes + self.thumbnailBytes
+    }
+
+    static let empty: ImageCacheUsage = ImageCacheUsage(coverBytes: 0, thumbnailBytes: 0, thumbnailLimitBytes: 0)
+}

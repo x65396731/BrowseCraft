@@ -495,8 +495,6 @@
 "Diagnostic reports include the code above, app version, device model, current screen, source, stage, and selected non-crash errors. They do not include cookies, tokens, full HTML, or full URL query values." = "Diagnostic reports include the code above, app version, device model, current screen, source, stage, and selected non-crash errors. They do not include cookies, tokens, full HTML, or full URL query values.";
 
 /* Settings: cache, Cloud Sync, purchase screen and account messages. */
-"Image Cache Limit" = "Image Cache Limit";
-"When the cache exceeds the selected limit, older image cache will be removed automatically. Recently used images are kept first." = "When the cache exceeds the selected limit, older image cache will be removed automatically. Recently used images are kept first.";
 "iCloud Account" = "iCloud Account";
 "Synced Content" = "Synced Content";
 "Sync Now" = "Sync Now";
@@ -573,7 +571,6 @@
 "BrowseCraft could not sign out. Try again." = "AnyPortal could not sign out. Try again.";
 "Sign in with Apple could not be completed. Try again." = "Sign in with Apple could not be completed. Try again.";
 "Image cache settings could not be updated." = "Image cache settings could not be updated.";
-"Image cache clearing has started." = "Image cache clearing has started.";
 
 /* 来源行的状态标签、名额锁定提示与纪录页分组标题（2026-09-26 补齐，此前显示英文）。 */
 "Built-in source" = "Built-in source";
@@ -747,3 +744,17 @@
 "coin_ledger_current_balance" = "Current Balance";
 "coin_ledger_pricing" = "Rule generation −%1$d · Hard mode −%2$d · Ad watched +%3$d";
 "coin_ledger_end" = "No earlier records";
+
+/* 缓存页重设计（docs/design/Cache-Page-Redesign-Design.md） */
+"cache_usage_title" = "Image Cache Used";
+"cache_usage_max" = "/ up to %@";
+"cache_usage_covers" = "Covers & Comic Pages";
+"cache_usage_thumbnails" = "List Thumbnails";
+"cache_usage_fixed" = "Fixed";
+"cache_calculating" = "Calculating";
+"cache_limit_section" = "Cover & Comic Page Limit";
+"cache_limit_total" = "Up to %@ total";
+"cache_limit_footer" = "The limit covers covers and comic pages; list thumbnails have a fixed 256 MB of their own. When the cache exceeds the limit, older images are removed automatically and recently used ones are kept first.";
+"cache_clearing" = "Clearing";
+"cache_cleared_freed" = "Cleared · %@ freed";
+"cache_clear_keeps" = "Sources, favorites, history, reading progress, imported books and sign-ins are kept.";

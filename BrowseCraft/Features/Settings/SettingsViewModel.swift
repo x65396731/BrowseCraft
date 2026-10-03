@@ -29,7 +29,12 @@ struct StoreKitPortalEnvironmentMapper {
 final class SettingsViewModel {
     private(set) var imageCacheSettings: ImageCacheSettings
     var cacheErrorMessage: String?
-    var cacheStatusMessage: String?
+    /// 缓存页用量卡；nil = 正在计算。
+    private(set) var imageCacheUsage: ImageCacheUsage?
+    private(set) var isClearingCache: Bool = false
+    /// 刚清除释放的字节数，缓存页显示「已清除，释放 N」约 3 秒。
+    private(set) var lastClearedBytes: Int?
+    private var clearResultToken: Int = 0
     private(set) var diagnosticCode: String
     private(set) var storeKitTransactionUpdateRevision: UInt64 = 0
     private(set) var storeKitTransactionUpdateActiveProductIDs:
@@ -131,7 +136,6 @@ final class SettingsViewModel {
             self.imageCacheManager.trimConfiguredDataCacheIfNeeded(settings: settings)
             self.imageCacheSettings = settings
             self.cacheErrorMessage = nil
-            self.cacheStatusMessage = nil
             AppAnalytics.shared.logSettingChanged(
                 name: "image_cache_limit",
                 value: String(limit.megabytes)
@@ -146,14 +150,45 @@ final class SettingsViewModel {
         }
     }
 
+    /// 中文注释：缓存页出现、改上限、清除之后重算用量；磁盘读取在缓存自己的队列上，不占主线程。
     @MainActor
-    func clearImageCache() {
-        self.imageCacheManager.clearConfiguredCaches()
-        self.cacheErrorMessage = nil
-        // 中文注释：Nuke DataCache 的 removeAll 是异步写入队列动作，因此文案只承诺“已开始清理”。
-        self.cacheStatusMessage = NSLocalizedString("Image cache clearing has started.", comment: "")
+    func refreshImageCacheUsage() async {
+        self.imageCacheUsage = await self.imageCacheManager.usage()
+    }
 
-        AppLog.notice(.cache, event: "image-cache-clear-requested")
+    /// 中文注释：不弹确认（用户裁定），等磁盘真正清完后重算用量，并显示释放了多少（只算图片部分，网页缓存大小拿不到）。
+    @MainActor
+    func clearImageCache() async {
+        guard self.isClearingCache == false else {
+            return
+        }
+        self.isClearingCache = true
+        self.cacheErrorMessage = nil
+        let before: ImageCacheUsage
+        if let usage: ImageCacheUsage = self.imageCacheUsage {
+            before = usage
+        } else {
+            before = await self.imageCacheManager.usage()
+        }
+
+        await self.imageCacheManager.clearAllCaches()
+        let after: ImageCacheUsage = await self.imageCacheManager.usage()
+        self.imageCacheUsage = after
+        self.isClearingCache = false
+
+        let freedBytes: Int = max(0, before.totalBytes - after.totalBytes)
+        self.clearResultToken += 1
+        let token: Int = self.clearResultToken
+        self.lastClearedBytes = freedBytes
+        AppLog.notice(.cache, event: "image-cache-cleared", metadata: ["freedBytes": String(freedBytes)])
+
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard let self, self.clearResultToken == token else {
+                return
+            }
+            self.lastClearedBytes = nil
+        }
     }
 
     @MainActor
