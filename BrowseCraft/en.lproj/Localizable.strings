@@ -737,3 +737,8 @@
 "history_empty_message" = "Videos you watch and comics and books you read show up here. Tap one to pick up where you left off.";
 "history_empty_browse_message" = "See what the current source has";
 "history_error_missing_video_source" = "Missing video source.";
+
+/* BC-PREFLIGHT-056 2026-10-03: suggest Hard mode when the normal tier was blocked; BC-BOOK-058: work pages list only the latest chapters */
+"catalog_generation_retry_hard_mode" = "Retry in Hard mode";
+"push_generation_failed_siteRejectedFetcher_tryHard" = "%@ rejected our fetcher. You can try generating it again in Hard mode.";
+"video_generation_outcome_detail_chapterListLatestOnly" = "This site's work pages list only the latest chapters, and the full table of contents needs a separate data request. It isn't supported for now. Try another site.";

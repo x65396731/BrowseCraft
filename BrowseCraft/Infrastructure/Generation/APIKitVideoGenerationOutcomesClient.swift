@@ -59,6 +59,8 @@ struct APIKitVideoGenerationOutcomesClient: VideoGenerationOutcomesFetching {
             reason: outcome.reason?.rawValue,
             reasonDetail: outcome.reasonDetail?.rawValue,
             expiresAt: Self.date(from: outcome.expiresAt),
+            sourceKind: outcome.sourceKind,
+            suggestedAcquisitionTier: outcome.suggestedAcquisitionTier,
             source: outcome.source.map { stored in
                 return VideoGenerationReusedCatalogSource(
                     catalogSourceID: stored.id,
