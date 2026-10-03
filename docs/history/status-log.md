@@ -472,3 +472,14 @@ iPhone 17 Pro / iOS 26.5）加一段临时注入——`DemoDataSeeder` 多写一
 删掉 `video_preflight_reused_import_failed`。按会话纪律未 build、未跑测试。
 **与 fwq 的出入**：fwq `BC-PREFLIGHT-055` 的正文写的是「落入本地 Catalog 并以 reused 呈现『规则已存在，已直接添加』」，
 本改动后 App 只呈现「规则已存在」、不落地成来源（规则本身仍在目录里）；该条款的定义点在 fwq，要改请在 fwq 侧改正文并由其 HANDOFF 记这次 App 改动。
+
+
+## 2026-10-03：两条挂账的裁决
+
+`STATUS.md` 第 5 节「fwq 的 `protectedResource` 与 `executionPolicy` 两条约束只有稳定 ID 问题」行：`optional | draft | not-started | not-run | 812fde5 | 2026-09-19`
+→ `rejected | superseded | not-started | not-run | a4433eb | 2026-10-03`。原因：查实那两句在 fwq `comic-catalog-profile.md` 里是生成器发布新规则时的偏好与默认值
+（「优先使用 V2 `resourcePipeline`、不重新生成 legacy `protectedResource`」「`executionPolicy` 默认 `pipelineOnly`」），不是 App 执行规则的约束；
+App 侧设计文档一处都没引用，App 执行两种形态的合同由自己的 `BCA-PARSE-*` 承载。fwq 自己的架构也只给硬约束编 ID。
+`HANDOFF.md`：删掉「等用户裁决」这条；「由规则生成引出的真机欠项」不再指向 fwq `HANDOFF.md` 第 1 节（已翻轮），改为指向 fwq `STATUS.md` 对应行——
+查实 `BC-PREFLIGHT-066` 为 `not-run`，`BC-EVIDENCE-082` 与「线路 N」为 `fresh-passed`，`BC-PREFLIGHT-067` 为 `regression-passed`；
+把前三项并进「下一步二」四页真机验收的清单，一次走完，结果记回 fwq STATUS。

@@ -84,7 +84,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | D1 建索引 + 只移动文件：12 份迁入 `docs/`，新建索引，修五处 RSS 漂移 | `BCA-DOC-002` `BCA-DOC-003` | required | approved | implemented | static-audit-passed | 2ce6b99 | 2026-09-19 |
 | D2 状态出设计文档：四份 C 类的状态头与两处验证节按三分法分流 | `BCA-DOC-007` `BCA-DOC-008` | required | approved | implemented | static-audit-passed | 812fde5 | 2026-09-19 |
 | D3 条款编号与混装拆分：分配 `BCA-*` ID，fwq 已定义的改引用点，拆混装文档 | `BCA-DOC-001` `BCA-DOC-002` | required | approved | implemented | static-audit-passed | 812fde5 | 2026-09-19 |
-| fwq 的 `protectedResource` 与 `executionPolicy` 两条约束只有正文没有稳定 ID，本仓库只能按文档引用——是否请 fwq 分配 ID | `BCA-DOC-001` | optional | draft | not-started | not-run | 812fde5 | 2026-09-19 |
+| fwq 的 `protectedResource` 与 `executionPolicy` 两句只有正文没有稳定 ID——2026-10-03 裁定不请 fwq 分配：它们是生成器的发布偏好与默认值，不是 App 的执行约束，App 侧文档本就未引用 | `BCA-DOC-001` | rejected | superseded | not-started | not-run | a4433eb | 2026-10-03 |
 | C 类里的散文硬条款一次扫完编号：逐行分类后确认真条款 22 条，其余是描述句、章节标题与已编号条款的续行 | `BCA-DOC-002` | required | approved | implemented | static-audit-passed | c0a72fe | 2026-09-19 |
 | D4 机器闸门 `scripts/check-docs.py`：A1–A10 十项，每项经反向植入验证会红 | `BCA-DOC-010` | required | approved | implemented | targeted-passed | a330927 | 2026-09-19 |
 | D5 `HANDOFF.md` 会话入口：四样内容，只记现查口径不记数字，只记纯 App 侧的工作 | `BCA-DOC-011` | required | approved | implemented | targeted-passed | a2adece | 2026-09-19 |

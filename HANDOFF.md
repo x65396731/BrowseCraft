@@ -60,8 +60,10 @@ python3 scripts/check-docs.py
     「在库中查看来源」；已暂停 / 已删除 / 未知来源三种行；取消后库页爱心同步。
   - 规则目录页：**第一次打开**（目录还没加载完）时标题与分段控件不再向左溢出——这是 2026-10-03 用户真机发现、已修的问题，
     只在加载骨架出现时触发，冷启动后直接打开目录最容易看到；浅色模式与六张插画观感。
+    顺带做 fwq `BC-PREFLIGHT-066`：生成一条规则 → 点推送应停在原页不跳转 → 打开目录应直接看到新规则、不用下拉。
   - 历史页：继续卡片三种色块与「上次看到 / 上次读到」、视频进度条与「已看完」、左滑与长按删除及撤销（漫画删一行后上一章不再冒出来、撤销回到原日期分组）、
     在库中查看来源、点已暂停来源的行打开启用窗口、空状态；收藏页同一批封面与撤销提示条已改为共用组件，顺带回归。
+  - 库页 / 播放顺带看两条 fwq 项：片源 403 的作品应提示换片源而不是整页兜底（`BC-EVIDENCE-082`）；选集无线路名的站应按重复集号分「线路 1 / 2」。
   - 四页都要在深色模式下各看一遍；iCloud 首次恢复失败的下拉重试在真机上不易触发，可不强求。
 - **合同与走查记录**：来源页 [`Sources-Page-Redesign-Design.md`](docs/design/Sources-Page-Redesign-Design.md)、
   收藏页 [`Favorites-Page-Redesign-Design.md`](docs/design/Favorites-Page-Redesign-Design.md)、
@@ -81,13 +83,11 @@ python3 scripts/check-docs.py
 
 剩下的全是 `optional` 或已裁决不做。
 
-- **等用户裁决**：fwq 的 `protectedResource` 与 `executionPolicy` 两条约束只有正文没有稳定 ID，
-  本仓库只能按文档引用，是否请 fwq 分配 ID。
 - **无语料、等样本**：读书 kind 的四个接口变体（list / detail / reader 的 API 形态）。
-- **由规则生成引出、流水在 fwq `HANDOFF.md` 第 1 节**（2026-09-29 一轮；上一次指向的 09-28 傍晚一节已迁入 fwq 归档第 20 卷）：
-  本轮 App 侧改动有 `BC-EVIDENCE-082`（片源拒绝且 iframe 内嵌同一地址时不走兜底、提示换片源）、选集无线路名时按重复集号标「线路 N」、
-  `BC-PREFLIGHT-067`（App 预检认懒加载封面，改在 Core）；引导屏 v4（`BC-PAGE-063` ⑥）记在 fwq `docs/rules/STATUS.md`。
-  真机欠项以 fwq 第 1 节为准：上面三项，加上一轮遗留的 `BC-PREFLIGHT-066`（点推送停在原页、生成后打开目录直接看到新规则）。
+- **由规则生成引出的 App 侧改动，定义点与验证状态都在 fwq `docs/rules/STATUS.md`**（不再指向 fwq `HANDOFF.md` 第 1 节——那一节已翻到后面的轮次）：
+  `BC-PREFLIGHT-066`（点推送停在原页、生成后打开目录直接看到新规则）在 fwq 为 `not-run`，是唯一什么验证都没跑的，已并进上面「下一步二」的规则目录页条目；
+  `BC-EVIDENCE-082`（片源拒绝不走兜底、提示换片源）与「选集无线路名时标线路 N」为 `fresh-passed`，真机顺带看；`BC-PREFLIGHT-067`（懒加载封面，改在 Core）已 `regression-passed`，不必再看。
+  真机结果记回 fwq STATUS 对应行（fwq 的验证枚举没有 `device-passed`，用 `fresh-passed` 并在其状态流水写明是真机）。
   同期的纯 App 侧改动（DEBUG 演示模式补足正文并且不弹激励广告、影视详情头图占位换图）不属规则生成，fwq 不记。
   Release 激励广告单元与 AdMob 商店页关联事项照旧。
 - **明确不做**（`rejected` / `superseded`，按名字跳过，不是待办）：本地书 B3 有声书播放器、PDF 与 CBZ、
