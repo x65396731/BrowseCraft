@@ -13,6 +13,7 @@ final class AccountComposition {
     let activeAccountScopeStore: ActiveAccountScopeStore
     let cloudAccountSession: CloudAccountSession
     let cloudAccountPartitionStore: GRDBCloudAccountPartitionStore
+    let historyEntrySyncLocalStore: GRDBHistoryEntrySyncLocalStore
     let cloudSyncCoordinator: CloudSyncCoordinator
     let cloudIdentityAssociationCoordinator: CloudAppUserIdentityAssociationCoordinator
     let portalSessionCoordinator: PortalSessionCoordinator
@@ -142,6 +143,12 @@ final class AccountComposition {
             userContext: cloudSyncUserContext,
             accountScopeProvider: activeAccountScopeStore
         )
+        let historyEntrySyncLocalStore: GRDBHistoryEntrySyncLocalStore = GRDBHistoryEntrySyncLocalStore(
+            database: database,
+            activeAppUser: activeAppUserStore,
+            userContext: cloudSyncUserContext
+        )
+        self.historyEntrySyncLocalStore = historyEntrySyncLocalStore
         let cloudSyncCoordinator: CloudSyncCoordinator = CloudSyncCoordinator(
             accountSession: cloudAccountSession,
             sourceService: SourceSyncService(
@@ -162,6 +169,11 @@ final class AccountComposition {
                 cloudStore: cloudRecordStore,
                 activeAppUser: activeAppUserStore,
                 userContext: cloudSyncUserContext,
+                accountScopeProvider: activeAccountScopeStore
+            ),
+            historyEntryService: HistoryEntrySyncService(
+                localStore: historyEntrySyncLocalStore,
+                cloudStore: cloudRecordStore,
                 accountScopeProvider: activeAccountScopeStore
             ),
             cloudStore: cloudRecordStore,

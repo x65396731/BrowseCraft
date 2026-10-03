@@ -5,6 +5,7 @@ enum SyncEntityType: String, Codable, Hashable, Sendable {
     case source
     case favorite
     case favoriteItem
+    case historyEntry
 }
 
 enum SyncQueueOperation: String, Codable, Hashable, Sendable {

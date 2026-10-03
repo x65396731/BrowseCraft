@@ -237,6 +237,9 @@ struct BrowseCraftApp: App {
                         await container.startApplicationServices()
                     }
                     .onChange(of: self.scenePhase) { _, phase in
+                        if phase == .background {
+                            container.handleAppEnteredBackground()
+                        }
                         guard phase == .active else {
                             return
                         }

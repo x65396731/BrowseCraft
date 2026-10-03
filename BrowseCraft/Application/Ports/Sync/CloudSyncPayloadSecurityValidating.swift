@@ -3,6 +3,7 @@ import Foundation
 protocol CloudSyncPayloadSecurityValidating: Sendable {
     func validate(_ payload: SourceCloudPayload) throws
     func validate(_ payload: FavoriteItemCloudPayload) throws
+    func validate(_ payload: HistoryEntryCloudPayload) throws
 }
 
 enum CloudSyncPayloadSecurityIssue: String, Hashable, Sendable {

@@ -6,6 +6,7 @@ struct SettingsFeatureFactory {
     private let imageCacheConfigurator: ImageCacheConfigurator
     private let cloudAccountSession: CloudAccountSession
     private let cloudAccountPartitionStore: any CloudAccountPartitioning
+    private let historyEntrySyncLocalStore: any HistoryEntrySyncLocalStore
     private let cloudAssociationAttestationStore:
         any CloudAppUserAssociationAttestationStoring
     private let cloudSyncCoordinator: CloudSyncCoordinator
@@ -26,6 +27,7 @@ struct SettingsFeatureFactory {
         imageCacheConfigurator: ImageCacheConfigurator,
         cloudAccountSession: CloudAccountSession,
         cloudAccountPartitionStore: any CloudAccountPartitioning,
+        historyEntrySyncLocalStore: any HistoryEntrySyncLocalStore,
         cloudAssociationAttestationStore:
             any CloudAppUserAssociationAttestationStoring,
         cloudSyncCoordinator: CloudSyncCoordinator,
@@ -43,6 +45,7 @@ struct SettingsFeatureFactory {
         self.imageCacheConfigurator = imageCacheConfigurator
         self.cloudAccountSession = cloudAccountSession
         self.cloudAccountPartitionStore = cloudAccountPartitionStore
+        self.historyEntrySyncLocalStore = historyEntrySyncLocalStore
         self.cloudAssociationAttestationStore =
             cloudAssociationAttestationStore
         self.cloudSyncCoordinator = cloudSyncCoordinator
@@ -95,6 +98,7 @@ struct SettingsFeatureFactory {
         return CloudSyncSettingsViewModel(
             accountSession: self.cloudAccountSession,
             partitionStore: self.cloudAccountPartitionStore,
+            historyEntryStore: self.historyEntrySyncLocalStore,
             coordinator: self.cloudSyncCoordinator,
             identityAssociationCoordinator: self.cloudIdentityAssociationCoordinator,
             associationAttestationStore:

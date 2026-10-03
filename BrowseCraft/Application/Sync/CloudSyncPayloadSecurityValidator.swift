@@ -64,6 +64,43 @@ struct CloudSyncPayloadSecurityValidator: CloudSyncPayloadSecurityValidating {
         }
     }
 
+    /// 中文注释：续看记录不带规则与请求配置，只查大小、地址里的用户名密码，以及阅读位置 JSON 的合法性。
+    func validate(_ payload: HistoryEntryCloudPayload) throws {
+        try self.validateRecordSize(
+            fields: [
+                payload.kind,
+                payload.sourceID,
+                payload.workKey,
+                payload.itemID,
+                payload.title,
+                payload.coverURL,
+                payload.detailURL,
+                payload.unitKey,
+                payload.unitTitle,
+                payload.unitURL,
+                payload.locatorJSON
+            ],
+            rootPath: "history"
+        )
+        let urlFields: [(String, String?)] = [
+            ("sourceID", payload.sourceID),
+            ("workKey", payload.workKey),
+            ("itemID", payload.itemID),
+            ("coverURL", payload.coverURL),
+            ("detailURL", payload.detailURL),
+            ("unitKey", payload.unitKey),
+            ("unitURL", payload.unitURL)
+        ]
+        for (name, value): (String, String?) in urlFields {
+            if let value: String {
+                try self.validateNoURLUserInfo(value, path: "history.\(name)")
+            }
+        }
+        if let locatorJSON: String = payload.locatorJSON {
+            try self.validateJSON(locatorJSON, rootPath: "history.locatorJSON")
+        }
+    }
+
     private func validateRecordSize(fields: [String?], rootPath: String) throws {
         var byteCount: Int = Self.estimatedCloudKitOverheadBytes
         for field: String in fields.compactMap({ $0 }) {

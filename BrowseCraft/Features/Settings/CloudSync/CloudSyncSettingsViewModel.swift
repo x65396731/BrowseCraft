@@ -92,9 +92,12 @@ final class CloudSyncSettingsViewModel {
     private(set) var hasAttestedIdentityAssociation: Bool = false
     /// 中文注释：「同步的内容」两行右侧的条数；读不到时为 nil，行上不显示数字。
     private(set) var syncedContentSummary: CloudAccountPartitionSummary?
+    /// 中文注释：「历史与阅读进度」一行右侧的作品数；读不到时为 nil。
+    private(set) var syncedHistoryWorkCount: Int?
 
     private let accountSession: CloudAccountSession
     private let partitionStore: any CloudAccountPartitioning
+    private let historyEntryStore: (any HistoryEntrySyncLocalStore)?
     private let coordinator: CloudSyncCoordinator
     private let identityAssociationCoordinator: CloudAppUserIdentityAssociationCoordinator
     private let associationAttestationStore:
@@ -114,6 +117,7 @@ final class CloudSyncSettingsViewModel {
     init(
         accountSession: CloudAccountSession,
         partitionStore: any CloudAccountPartitioning,
+        historyEntryStore: (any HistoryEntrySyncLocalStore)? = nil,
         coordinator: CloudSyncCoordinator,
         identityAssociationCoordinator: CloudAppUserIdentityAssociationCoordinator,
         associationAttestationStore:
@@ -122,6 +126,7 @@ final class CloudSyncSettingsViewModel {
     ) {
         self.accountSession = accountSession
         self.partitionStore = partitionStore
+        self.historyEntryStore = historyEntryStore
         self.coordinator = coordinator
         self.identityAssociationCoordinator = identityAssociationCoordinator
         self.associationAttestationStore = associationAttestationStore
@@ -229,6 +234,7 @@ final class CloudSyncSettingsViewModel {
 
     func refreshSyncedContentSummary() {
         self.syncedContentSummary = try? self.partitionStore.syncedContentSummary()
+        self.syncedHistoryWorkCount = try? self.historyEntryStore?.syncedWorkCount()
     }
 
     /// 中文注释：页面上不放按钮（用户裁定），下拉承担三件事：重新检查 iCloud；

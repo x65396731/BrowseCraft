@@ -26,8 +26,10 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
 
     private var fetchedSourcesByID: [String: SourceCloudPayload] = [:]
     private var fetchedFavoriteItemsByID: [FavoriteItemIdentity: FavoriteItemCloudPayload] = [:]
+    private var fetchedHistoryEntriesByID: [HistoryEntryIdentity: HistoryEntryCloudPayload] = [:]
     private var sourceFetchPending: Bool = false
     private var favoriteFetchPending: Bool = false
+    private var historyFetchPending: Bool = false
     private var fetchedBatchHasInvalidRecord: Bool = false
     private var rawFetchedSourceCount: Int = 0
     private var mappedFetchedSourceCount: Int = 0
@@ -71,6 +73,7 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
             }
             self.sourceFetchPending = true
             self.favoriteFetchPending = true
+            self.historyFetchPending = true
         }
         try self.requireCurrentAccount(accountScope)
 
@@ -95,6 +98,7 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
             }
             self.sourceFetchPending = true
             self.favoriteFetchPending = true
+            self.historyFetchPending = true
         }
         try self.requireCurrentAccount(accountScope)
 
@@ -208,6 +212,81 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
         )
     }
 
+    /// 中文注释：三种记录共用一次 zone 拉取；谁先来谁触发，另外两种取缓冲里的结果。
+    func fetchChangedHistoryEntryRecords(
+        since token: Data?
+    ) async throws -> HistoryEntryCloudChangeSet {
+        _ = token
+        let accountScope: CloudAccountScope = try self.currentCloudScope()
+        if self.historyFetchPending == false {
+            do {
+                try await self.fetchChanges(for: accountScope)
+            } catch {
+                throw Self.mapCloudOperationError(error)
+            }
+            self.sourceFetchPending = true
+            self.favoriteFetchPending = true
+            self.historyFetchPending = true
+        }
+        try self.requireCurrentAccount(accountScope)
+
+        let records: [HistoryEntryCloudPayload] = self.fetchedHistoryEntriesByID.values.sorted {
+            $0.identity.syncEntityID < $1.identity.syncEntityID
+        }
+        self.fetchedHistoryEntriesByID.removeAll()
+        self.historyFetchPending = false
+        return HistoryEntryCloudChangeSet(records: records, changeToken: nil)
+    }
+
+    func saveHistoryEntryRecords(
+        _ records: [HistoryEntryCloudPayload]
+    ) async throws -> CloudRecordBatchSaveResult {
+        let accountScope: CloudAccountScope = try self.currentCloudScope()
+        var prepared: [(entityID: String, record: CKRecord)] = []
+        var failures: [CloudRecordSaveFailure] = []
+
+        for payload: HistoryEntryCloudPayload in records {
+            let entityID: String = payload.identity.syncEntityID
+            do {
+                try self.securityValidator.validate(payload)
+                let recordID: CKRecord.ID = self.mapper.recordID(forHistoryEntry: payload.identity)
+                let record: CKRecord = try self.makeRecord(
+                    recordType: CloudKitRecordMapper.historyEntryRecordType,
+                    recordID: recordID,
+                    accountScope: accountScope
+                )
+                try self.mapper.apply(payload, to: record)
+                prepared.append((entityID, record))
+            } catch {
+                let code: String = Self.safeCode(for: error)
+                CloudSyncDiagnostics.logLocalRecordRejection(
+                    entityType: .historyEntry,
+                    entityID: entityID,
+                    code: code,
+                    error: error
+                )
+                failures.append(
+                    CloudRecordSaveFailure(
+                        entityID: entityID,
+                        code: code,
+                        retryAfter: nil
+                    )
+                )
+            }
+        }
+
+        let result: CloudRecordBatchSaveResult
+        do {
+            result = try await self.send(prepared, accountScope: accountScope)
+        } catch {
+            throw Self.mapCloudOperationError(error)
+        }
+        return CloudRecordBatchSaveResult(
+            savedEntityIDs: result.savedEntityIDs,
+            failures: failures + result.failures
+        )
+    }
+
     func commitState(for accountScope: CloudAccountScope) async throws {
         try self.requireCurrentAccount(accountScope)
         guard self.engineAccountScope == accountScope,
@@ -228,8 +307,10 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
         self.failedRecordSaves.removeAll()
         self.fetchedSourcesByID.removeAll()
         self.fetchedFavoriteItemsByID.removeAll()
+        self.fetchedHistoryEntriesByID.removeAll()
         self.sourceFetchPending = false
         self.favoriteFetchPending = false
+        self.historyFetchPending = false
         self.fetchedBatchHasInvalidRecord = false
         self.resetFetchDiagnostics()
         self.zoneReadyScopes.removeAll()
@@ -443,8 +524,10 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
         self.accountWasInvalidated = false
         self.fetchedSourcesByID.removeAll()
         self.fetchedFavoriteItemsByID.removeAll()
+        self.fetchedHistoryEntriesByID.removeAll()
         self.sourceFetchPending = false
         self.favoriteFetchPending = false
+        self.historyFetchPending = false
         try await self.ensureZone(for: accountScope)
         return syncEngine
     }
@@ -510,8 +593,10 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
         self.failedRecordSaves.removeAll()
         self.fetchedSourcesByID.removeAll()
         self.fetchedFavoriteItemsByID.removeAll()
+        self.fetchedHistoryEntriesByID.removeAll()
         self.sourceFetchPending = false
         self.favoriteFetchPending = false
+        self.historyFetchPending = false
         self.fetchedBatchHasInvalidRecord = false
         self.resetFetchDiagnostics()
     }
@@ -570,6 +655,8 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
                 self.rawFetchedSourceCount += 1
             case CloudKitRecordMapper.favoriteItemRecordType:
                 self.rawFetchedFavoriteItemCount += 1
+            case CloudKitRecordMapper.historyEntryRecordType:
+                break
             default:
                 self.unknownFetchedRecordCount += 1
             }
@@ -591,6 +678,9 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
                         )
                     self.fetchedFavoriteItemsByID[payload.identity] = payload
                     self.mappedFetchedFavoriteItemCount += 1
+                case CloudKitRecordMapper.historyEntryRecordType:
+                    let payload: HistoryEntryCloudPayload = try self.mapper.historyEntryPayload(from: record)
+                    self.fetchedHistoryEntriesByID[payload.identity] = payload
                 default:
                     continue
                 }
@@ -671,6 +761,9 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
                 userID: self.currentUserID
             )
             self.fetchedFavoriteItemsByID[payload.identity] = payload
+        case CloudKitRecordMapper.historyEntryRecordType:
+            let payload: HistoryEntryCloudPayload = try self.mapper.historyEntryPayload(from: record)
+            self.fetchedHistoryEntriesByID[payload.identity] = payload
         default:
             throw CloudKitRecordMappingError.unexpectedRecordType
         }

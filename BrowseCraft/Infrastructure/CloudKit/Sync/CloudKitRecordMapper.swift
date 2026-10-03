@@ -6,6 +6,7 @@ struct CloudKitRecordMapper: Sendable {
     static let zoneName: String = "BrowseCraftSync"
     static let sourceRecordType: String = "Source"
     static let favoriteItemRecordType: String = "FavoriteItem"
+    static let historyEntryRecordType: String = "HistoryEntry"
 
     let zoneID: CKRecordZone.ID
 
@@ -27,6 +28,80 @@ struct CloudKitRecordMapper: Sendable {
                 components: [sourceID, itemID]
             ),
             zoneID: self.zoneID
+        )
+    }
+
+    func recordID(forHistoryEntry identity: HistoryEntryIdentity) -> CKRecord.ID {
+        return CKRecord.ID(
+            recordName: Self.hashedRecordName(
+                prefix: "history",
+                components: [identity.kind, identity.sourceID, identity.workKey]
+            ),
+            zoneID: self.zoneID
+        )
+    }
+
+    /// 中文注释：字段与 CloudKit 控制台里 `HistoryEntry` 的 21 个字段一一对应；可空字段写 nil 即清掉云端旧值。
+    func apply(_ payload: HistoryEntryCloudPayload, to record: CKRecord) throws {
+        guard record.recordID == self.recordID(forHistoryEntry: payload.identity) else {
+            throw CloudKitRecordMappingError.recordIDMismatch
+        }
+        record["schemaVersion"] = NSNumber(value: payload.schemaVersion)
+        record["kind"] = payload.kind as CKRecordValue
+        record["sourceID"] = payload.sourceID as CKRecordValue
+        record["workKey"] = payload.workKey as CKRecordValue
+        record["itemID"] = payload.itemID as CKRecordValue?
+        record["title"] = payload.title as CKRecordValue?
+        record["coverURL"] = payload.coverURL as CKRecordValue?
+        record["detailURL"] = payload.detailURL as CKRecordValue?
+        record["unitKey"] = payload.unitKey as CKRecordValue?
+        record["unitTitle"] = payload.unitTitle as CKRecordValue?
+        record["unitURL"] = payload.unitURL as CKRecordValue?
+        record["pageIndex"] = payload.pageIndex.map { NSNumber(value: $0) } as CKRecordValue?
+        record["sourceIndex"] = payload.sourceIndex.map { NSNumber(value: $0) } as CKRecordValue?
+        record["episodeIndex"] = payload.episodeIndex.map { NSNumber(value: $0) } as CKRecordValue?
+        record["playbackTime"] = payload.playbackTime.map { NSNumber(value: $0) } as CKRecordValue?
+        record["duration"] = payload.duration.map { NSNumber(value: $0) } as CKRecordValue?
+        record["locatorJSON"] = payload.locatorJSON as CKRecordValue?
+        record["totalProgression"] = payload.totalProgression.map { NSNumber(value: $0) } as CKRecordValue?
+        record["visitedAt"] = payload.visitedAt as CKRecordValue?
+        record["updatedAt"] = payload.updatedAt as CKRecordValue
+        record["deletedAt"] = payload.deletedAt as CKRecordValue?
+    }
+
+    func historyEntryPayload(from record: CKRecord) throws -> HistoryEntryCloudPayload {
+        guard record.recordType == Self.historyEntryRecordType else {
+            throw CloudKitRecordMappingError.unexpectedRecordType
+        }
+        let kind: String = try Self.required(record, key: "kind")
+        let sourceID: String = try Self.required(record, key: "sourceID")
+        let workKey: String = try Self.required(record, key: "workKey")
+        let identity: HistoryEntryIdentity = HistoryEntryIdentity(kind: kind, sourceID: sourceID, workKey: workKey)
+        guard record.recordID == self.recordID(forHistoryEntry: identity) else {
+            throw CloudKitRecordMappingError.recordIDMismatch
+        }
+        return HistoryEntryCloudPayload(
+            schemaVersion: try Self.requiredInt(record, key: "schemaVersion"),
+            kind: kind,
+            sourceID: sourceID,
+            workKey: workKey,
+            itemID: record["itemID"] as? String,
+            title: record["title"] as? String,
+            coverURL: record["coverURL"] as? String,
+            detailURL: record["detailURL"] as? String,
+            unitKey: record["unitKey"] as? String,
+            unitTitle: record["unitTitle"] as? String,
+            unitURL: record["unitURL"] as? String,
+            pageIndex: (record["pageIndex"] as? NSNumber)?.intValue,
+            sourceIndex: (record["sourceIndex"] as? NSNumber)?.intValue,
+            episodeIndex: (record["episodeIndex"] as? NSNumber)?.intValue,
+            playbackTime: (record["playbackTime"] as? NSNumber)?.doubleValue,
+            duration: (record["duration"] as? NSNumber)?.doubleValue,
+            locatorJSON: record["locatorJSON"] as? String,
+            totalProgression: (record["totalProgression"] as? NSNumber)?.doubleValue,
+            visitedAt: record["visitedAt"] as? Date,
+            updatedAt: try Self.required(record, key: "updatedAt"),
+            deletedAt: record["deletedAt"] as? Date
         )
     }
 

@@ -26,6 +26,9 @@ final class MockCloudRecordStore: CloudRecordStore, @unchecked Sendable {
     var failNextSave: Bool
     var nextSourceSaveFailureIDs: Set<String>
     var nextFavoriteItemSaveFailureIDs: Set<String>
+    /// 中文注释：续看记录不模拟 token：`pendingHistoryEntries` 是「其他设备写上来、本机还没拉过」的记录，拉一次就清空。
+    var pendingHistoryEntries: [HistoryEntryCloudPayload] = []
+    private(set) var savedHistoryEntriesByID: [HistoryEntryIdentity: HistoryEntryCloudPayload] = [:]
 
     init(
         sourceRecords: [SourceCloudRecord] = [],
@@ -172,6 +175,32 @@ final class MockCloudRecordStore: CloudRecordStore, @unchecked Sendable {
                 )
             }
         )
+    }
+
+    func fetchChangedHistoryEntryRecords(since token: Data?) async throws -> HistoryEntryCloudChangeSet {
+        _ = token
+        self.recordEvent("historyFetch")
+        if self.failNextFetch {
+            self.failNextFetch = false
+            throw MockCloudRecordStoreError.fetchFailed
+        }
+        let records: [HistoryEntryCloudPayload] = self.pendingHistoryEntries
+        self.pendingHistoryEntries = []
+        return HistoryEntryCloudChangeSet(records: records, changeToken: nil)
+    }
+
+    func saveHistoryEntryRecords(
+        _ records: [HistoryEntryCloudPayload]
+    ) async throws -> CloudRecordBatchSaveResult {
+        self.recordEvent("historySave")
+        if self.failNextSave {
+            self.failNextSave = false
+            throw MockCloudRecordStoreError.saveFailed
+        }
+        for payload: HistoryEntryCloudPayload in records {
+            self.savedHistoryEntriesByID[payload.identity] = payload
+        }
+        return CloudRecordBatchSaveResult.saved(records.map { $0.identity.syncEntityID })
     }
 
     func sourceRecord(id: String) -> SourceCloudRecord? {

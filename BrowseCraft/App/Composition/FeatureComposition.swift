@@ -86,6 +86,7 @@ final class FeatureComposition {
             imageCacheConfigurator: imageCacheConfigurator,
             cloudAccountSession: account.cloudAccountSession,
             cloudAccountPartitionStore: account.cloudAccountPartitionStore,
+            historyEntrySyncLocalStore: account.historyEntrySyncLocalStore,
             cloudAssociationAttestationStore: account.cloudAccountPartitionStore,
             cloudSyncCoordinator: account.cloudSyncCoordinator,
             cloudIdentityAssociationCoordinator: account.cloudIdentityAssociationCoordinator,

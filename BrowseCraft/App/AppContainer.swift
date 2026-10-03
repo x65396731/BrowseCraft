@@ -2,6 +2,7 @@ import BrowseCraftDomain
 import CloudKit
 import Foundation
 import StoreKit
+import UIKit
 
 /// 中文注释：应用 Composition Root。它自身不再逐个装配对象，只组合三个子容器
 /// （账户 / 规则运行时 / Feature），并持有跨页面的 App 生命周期职责：
@@ -122,6 +123,28 @@ final class AppContainer {
         await self.account.pushDeviceRegistrationCoordinator.synchronizeRegistration()
         // 设计书 30.6：回到前台刷新余额。
         await self.account.coinWalletStore.refresh()
+    }
+
+    /// 中文注释：退到后台时同步一次（`docs/design/History-Resume-Sync-Design.md` 第三节）：刚看到哪里要在放下这台设备时就传上去，
+    /// 另一台设备打开时才接得上。向系统要一小段后台时间等它跑完；云同步没开时协调器自己直接返回。
+    func handleAppEnteredBackground() {
+        #if DEBUG
+        if DemoMode.isEnabled {
+            return
+        }
+        #endif
+        let application: UIApplication = UIApplication.shared
+        let box: BackgroundTaskBox = BackgroundTaskBox()
+        box.identifier = application.beginBackgroundTask(withName: "cloud-sync-on-background") {
+            application.endBackgroundTask(box.identifier)
+            box.identifier = .invalid
+        }
+        let coordinator: CloudSyncCoordinator = self.account.cloudSyncCoordinator
+        Task { @MainActor in
+            _ = try? await coordinator.synchronize(trigger: .localChange)
+            application.endBackgroundTask(box.identifier)
+            box.identifier = .invalid
+        }
     }
 
     /// APNs 交回 device token；注册与否由协调器按会话状态决定。
@@ -283,4 +306,10 @@ final class AppContainer {
             #endif
         }
     }
+}
+
+/// 中文注释：后台任务标识要在过期回调与同步结束两处读写，放进主 actor 上的盒子里。
+@MainActor
+private final class BackgroundTaskBox {
+    var identifier: UIBackgroundTaskIdentifier = .invalid
 }

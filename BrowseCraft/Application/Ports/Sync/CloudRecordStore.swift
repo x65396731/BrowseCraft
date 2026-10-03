@@ -6,6 +6,8 @@ protocol CloudRecordStore: Sendable {
     func saveSourceRecords(_ records: [SourceCloudPayload]) async throws -> CloudRecordBatchSaveResult
     func fetchChangedFavoriteItemRecords(since token: Data?) async throws -> FavoriteItemCloudChangeSet
     func saveFavoriteItemRecords(_ records: [FavoriteItemCloudPayload]) async throws -> CloudRecordBatchSaveResult
+    func fetchChangedHistoryEntryRecords(since token: Data?) async throws -> HistoryEntryCloudChangeSet
+    func saveHistoryEntryRecords(_ records: [HistoryEntryCloudPayload]) async throws -> CloudRecordBatchSaveResult
     func commitState(for accountScope: CloudAccountScope) async throws
     func cancelOperations() async
 }
@@ -65,6 +67,11 @@ struct SourceCloudChangeSet: Hashable, Sendable {
 
 struct FavoriteItemCloudChangeSet: Hashable, Sendable {
     var records: [FavoriteItemCloudPayload]
+    var changeToken: Data?
+}
+
+struct HistoryEntryCloudChangeSet: Hashable, Sendable {
+    var records: [HistoryEntryCloudPayload]
     var changeToken: Data?
 }
 

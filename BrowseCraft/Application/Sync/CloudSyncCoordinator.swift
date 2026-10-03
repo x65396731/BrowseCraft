@@ -14,27 +14,33 @@ struct CloudSyncRunResult: Hashable, Sendable {
     var trigger: CloudSyncTrigger
     var sourceResult: SourceSyncResult
     var favoriteItemResult: FavoriteItemSyncResult
+    var historyEntryResult: HistoryEntrySyncResult = .zero
     var startedAt: Date
     var finishedAt: Date
 
     var uploadedCount: Int {
-        return self.sourceResult.uploadedCount + self.favoriteItemResult.uploadedCount
+        return self.sourceResult.uploadedCount + self.favoriteItemResult.uploadedCount +
+            self.historyEntryResult.uploadedCount
     }
 
     var downloadedCount: Int {
-        return self.sourceResult.downloadedCount + self.favoriteItemResult.downloadedCount
+        return self.sourceResult.downloadedCount + self.favoriteItemResult.downloadedCount +
+            self.historyEntryResult.downloadedCount
     }
 
     var deletedCount: Int {
-        return self.sourceResult.deletedCount + self.favoriteItemResult.deletedCount
+        return self.sourceResult.deletedCount + self.favoriteItemResult.deletedCount +
+            self.historyEntryResult.deletedCount
     }
 
     var failedCount: Int {
-        return self.sourceResult.failedCount + self.favoriteItemResult.failedCount
+        return self.sourceResult.failedCount + self.favoriteItemResult.failedCount +
+            self.historyEntryResult.failedCount
     }
 
     var skippedCount: Int {
-        return self.sourceResult.skippedCount + self.favoriteItemResult.skippedCount
+        return self.sourceResult.skippedCount + self.favoriteItemResult.skippedCount +
+            self.historyEntryResult.skippedCount
     }
 }
 
@@ -70,6 +76,8 @@ actor CloudSyncCoordinator {
     private let accountSession: CloudAccountSession
     private let sourceService: SourceSyncService
     private let favoriteItemService: FavoriteItemSyncService
+    /// 中文注释：续看位置同步；nil 只留给不涉及历史的既有测试。
+    private let historyEntryService: HistoryEntrySyncService?
     private let cloudStore: any CloudRecordStore
     private let changeNotifier: any CloudSyncChangeNotifying
     private let partitionStore: any CloudAccountPartitioning
@@ -105,6 +113,7 @@ actor CloudSyncCoordinator {
         accountSession: CloudAccountSession,
         sourceService: SourceSyncService,
         favoriteItemService: FavoriteItemSyncService,
+        historyEntryService: HistoryEntrySyncService? = nil,
         cloudStore: any CloudRecordStore,
         changeNotifier: any CloudSyncChangeNotifying,
         partitionStore: any CloudAccountPartitioning,
@@ -121,6 +130,7 @@ actor CloudSyncCoordinator {
         self.accountSession = accountSession
         self.sourceService = sourceService
         self.favoriteItemService = favoriteItemService
+        self.historyEntryService = historyEntryService
         self.cloudStore = cloudStore
         self.changeNotifier = changeNotifier
         self.partitionStore = partitionStore
@@ -291,6 +301,20 @@ actor CloudSyncCoordinator {
             )
             try await self.requireCurrentSession(initialSnapshot)
 
+            // 中文注释：来源先于历史落地——续看记录指向的来源不在本机时不写入。
+            var historyResult: HistoryEntrySyncResult = .zero
+            if let historyEntryService: HistoryEntrySyncService = self.historyEntryService {
+                historyResult = try await historyEntryService.downloadHistoryEntries(
+                    accountScope: accountScope
+                )
+                CloudSyncDiagnostics.logSyncPhase(
+                    "history-download-completed",
+                    trigger: trigger,
+                    accountScope: accountScope
+                )
+                try await self.requireCurrentSession(initialSnapshot)
+            }
+
             try await self.cloudStore.commitState(for: accountScope)
             CloudSyncDiagnostics.logSyncPhase(
                 "download-checkpoint-committed",
@@ -331,6 +355,18 @@ actor CloudSyncCoordinator {
             )
             try await self.requireCurrentSession(initialSnapshot)
 
+            if let historyEntryService: HistoryEntrySyncService = self.historyEntryService {
+                let historyUpload: HistoryEntrySyncResult = try await historyEntryService
+                    .uploadHistoryEntries(accountScope: accountScope, limit: limit)
+                historyResult.add(historyUpload)
+                CloudSyncDiagnostics.logSyncPhase(
+                    "history-upload-completed",
+                    trigger: trigger,
+                    accountScope: accountScope
+                )
+                try await self.requireCurrentSession(initialSnapshot)
+            }
+
             try await self.cloudStore.commitState(for: accountScope)
             CloudSyncDiagnostics.logSyncPhase(
                 "upload-checkpoint-committed",
@@ -348,6 +384,7 @@ actor CloudSyncCoordinator {
                 trigger: trigger,
                 sourceResult: sourceResult,
                 favoriteItemResult: favoriteResult,
+                historyEntryResult: historyResult,
                 startedAt: startedAt,
                 finishedAt: Date()
             )

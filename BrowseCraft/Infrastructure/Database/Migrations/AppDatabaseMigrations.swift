@@ -14,7 +14,8 @@ enum AppDatabaseMigrations {
         Self.bookProgressDetachedIdentifier,
         Self.bookReadingHistoryIdentifier,
         Self.removeRSSIdentifier,
-        Self.usersAddCoinIdentifier
+        Self.usersAddCoinIdentifier,
+        Self.historySyncLedgerIdentifier
     ]
 
     /// 中文注释：v2——sources 增加 `origin` 列，记「来自个人生成」等出身，本地副本才能随服务器裁决清理。
@@ -42,6 +43,10 @@ enum AppDatabaseMigrations {
     /// 中文注释：v7——users 加 `coinBalance` / `coinRevision`（设计书 `video-pending-and-frozen-designs.md` 30.6）：
     /// 只是服务端余额的显示缓存，按 `coinRevision` 只进不退；余额唯一权威在服务端，不进 iCloud。
     static let usersAddCoinIdentifier: String = "v7.users-add-coin"
+
+    /// 中文注释：v8——续看位置同步的本机账本（`docs/design/History-Resume-Sync-Design.md` 第四节）：每部作品一行，
+    /// 记上次与云端对齐时的改动时间与删除标记。三张历史表是直接删行的，没有这张表就没法把「删除」传给其他设备。
+    static let historySyncLedgerIdentifier: String = "v8.history-sync-ledger"
 
     static func makeMigrator() -> DatabaseMigrator {
         var migrator: DatabaseMigrator = DatabaseMigrator()
@@ -236,6 +241,20 @@ enum AppDatabaseMigrations {
             try database.alter(table: "users") { table in
                 table.add(column: "coinBalance", .integer).notNull().defaults(to: 0)
                 table.add(column: "coinRevision", .integer).notNull().defaults(to: 0)
+            }
+        }
+
+        migrator.registerMigration(Self.historySyncLedgerIdentifier) { database in
+            try database.create(table: "history_sync_ledger") { table in
+                table.column("userID", .text)
+                    .notNull()
+                    .references("users", column: "id", onDelete: .cascade)
+                table.column("kind", .text).notNull()
+                table.column("sourceID", .text).notNull()
+                table.column("workKey", .text).notNull()
+                table.column("changedAt", .datetime).notNull()
+                table.column("deletedAt", .datetime)
+                table.primaryKey(["userID", "kind", "sourceID", "workKey"])
             }
         }
 

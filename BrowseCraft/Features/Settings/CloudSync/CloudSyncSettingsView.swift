@@ -70,7 +70,7 @@ struct CloudSyncSettingsView: View {
 
     // MARK: - 同步的内容
 
-    /// 中文注释：历史与阅读进度 App 里有，但按 `BCA-SYNC-009` 不进 iCloud，所以写「只在本机」而不是「暂不支持」。
+    /// 中文注释：三行都同步；历史与阅读进度同步的是每部作品看到哪里（`docs/design/History-Resume-Sync-Design.md`），按作品计数。
     private var contentGroup: some View {
         SettingsCardGroup(
             title: NSLocalizedString("cloud_sync_content_section", comment: "同步的内容"),
@@ -79,22 +79,21 @@ struct CloudSyncSettingsView: View {
             CloudSyncContentRow(
                 systemImage: "rectangle.stack.fill",
                 title: NSLocalizedString("cloud_sync_content_sources", comment: "来源"),
-                detail: self.countText(self.viewModel.syncedContentSummary?.sourceCount),
-                isLocalOnly: false
+                detail: self.countText(self.viewModel.syncedContentSummary?.sourceCount)
             )
             SettingsRowSeparator()
             CloudSyncContentRow(
                 systemImage: "heart.fill",
                 title: NSLocalizedString("cloud_sync_content_favorites", comment: "收藏"),
-                detail: self.countText(self.viewModel.syncedContentSummary?.favoriteItemCount),
-                isLocalOnly: false
+                detail: self.countText(self.viewModel.syncedContentSummary?.favoriteItemCount)
             )
             SettingsRowSeparator()
             CloudSyncContentRow(
                 systemImage: "clock.fill",
                 title: NSLocalizedString("cloud_sync_content_history", comment: "历史与阅读进度"),
-                detail: NSLocalizedString("cloud_sync_content_local_only", comment: "只在本机"),
-                isLocalOnly: true
+                detail: self.viewModel.syncedHistoryWorkCount.map { count in
+                    String(format: NSLocalizedString("cloud_sync_content_work_count", comment: "%d 部"), count)
+                }
             )
         }
     }
@@ -342,21 +341,20 @@ private struct CloudSyncStatusCardView: View {
     }
 }
 
-/// 「同步的内容」里的一行：32pt 图标方块 + 标题 + 右侧条数或「只在本机」。不同步的那一行图标取次级灰。
+/// 「同步的内容」里的一行：32pt 图标方块 + 标题 + 右侧条数。
 private struct CloudSyncContentRow: View {
     let systemImage: String
     let title: String
     let detail: String?
-    let isLocalOnly: Bool
 
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: self.systemImage)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(self.isLocalOnly ? Color.secondary : CatalogPalette.settingsIcon)
+                .foregroundStyle(CatalogPalette.settingsIcon)
                 .frame(width: 32, height: 32)
                 .background(
-                    self.isLocalOnly ? CatalogPalette.fillBackground : CatalogPalette.settingsIconFill,
+                    CatalogPalette.settingsIconFill,
                     in: RoundedRectangle(cornerRadius: 9, style: .continuous)
                 )
                 .accessibilityHidden(true)

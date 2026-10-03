@@ -73,8 +73,11 @@ CloudKit `AppUserIdentity/default` 只能记录已经通过 Portal 登录的后�
 
 - `BCA-SYNC-009` 以下数据不得进入 CloudKit schema：Cookie、Authorization、token 与登录凭证；
   localStorage 与 sessionStorage；实际 AES key、IV 与其他密钥材料；图片、网页、音视频缓存；
-  阅读进度与历史记录；内置 Source；StoreKit 交易、购买凭证与权益状态；CloudKit opaque user
+  原样的历史行（三张历史表的整行，含会过期的播放地址、播放请求配置、本机图片缓存键与规则快照）；
+  内置 Source；StoreKit 交易、购买凭证与权益状态；CloudKit opaque user
   record ID 的原文；本地 account scope hash。新增 Cloud payload 字段前按本条逐项核对。
+  每部作品一条的精简续看记录（来源、作品、章节或剧集、页码或播放位置、标题与封面、时间）允许进入
+  CloudKit（2026-10-04 用户裁定），字段以续看位置同步的设计为准；临时资源历史与本地导入的书不在其内。
 - `BCA-SYNC-010` 上传用 `ifServerRecordUnchanged` 检测服务端并发修改。业务合并比较
   `max(updatedAt, deletedAt)`，时间相同时 tombstone 优先，不得只依赖设备时间判断冲突。
   只有服务端确认保存成功才移除对应 `sync_queue` 项；partial failure 按记录更新队列，

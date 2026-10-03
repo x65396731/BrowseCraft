@@ -554,3 +554,49 @@ App 侧设计文档一处都没引用，App 执行两种形态的合同由自己
 - 修正后重新 build，并在 iPhone 17（iOS 26.5）上重跑整套：Swift Testing 548 项 / 94 suites 与 XCTest 81 项全过。
 - 走查结束时该模拟器的云同步保持开启（用户的选择）；这个账号的 3 条本机收藏已并入 iCloud。
 
+## 2026-10-04 续看位置同步：裁决、云端字段与环境核对
+
+- 「续看位置同步到 iCloud」一行 `决策=optional` → `required`、`设计=draft` → `pending-review`：用户裁决开始做，并同意改写 `BCA-SYNC-009`
+  （「阅读进度与历史记录」一项改为禁止原样的历史行、允许每部作品一条的精简续看记录）。设计书为 Claude 文档，四项待裁定问题未定。
+- 在 CloudKit 控制台 Development 环境新建记录类型 `HistoryEntry` 并保存 20 个字段，均未建索引；Production 未动。
+- 同日在控制台核对现有字段：Development 的 `Source`、`FavoriteItem`、`AppUserIdentity` 与代码一致；Production 的 `Source` 缺 `origin`，`FavoriteItem` 一致。
+- 核对工程配置：权限文件与代码都没有指定 iCloud 环境，按签名方式走默认规则——Xcode 直接安装用 Development，TestFlight 与商店用 Production；
+  工程里的环境名 TEST / PROD 只查到用在广告配置上。
+
+## 2026-10-04 续看位置同步：设计确认与 schema 部署到 Production
+
+- 「续看位置同步到 iCloud」一行 `设计=pending-review` → `approved`、`实施=not-started` → `in-progress`：用户确认字段表，四项裁定全部按建议——
+  漫画只同步最近一章、删来源后清理云端续看记录、删历史跨设备生效、不设单独开关。
+- 用户同意后在 CloudKit 控制台执行「Deploy Schema Changes」：部署内容为 `Source` 新增 `origin` 字段及其 3 个索引、新建 `HistoryEntry` 类型（20 个字段、无索引）
+  与新类型的默认权限。部署后在 Production 核对：`HistoryEntry` 20 个字段齐全，`Source` 12 个字段含 `origin`。
+- 部署前补看了 Production 的 `AppUserIdentity`（4 个字段，与代码一致）与两个环境的 `Users`（只有系统字段）。
+- 用户问及模拟器上那次同步失败：日志只有 07:26:55 一次，`CancellationError`，是下拉任务被取消，与云端字段无关，当时已修。
+
+## 2026-10-04 续看位置同步：补字段、实施与定向测试
+
+- 实施前核实三件事：视频没有缓存播放地址时播放器会改用播放页地址重新解析，可续播；历史表只按用户区分、不按 iCloud 账户分区；
+  书的阅读位置能否跨设备直接用没有实测。核实中发现站点书从历史重开要用条目 ID，云端字段缺这一项。
+- 用户同意后在 CloudKit 控制台给 `HistoryEntry` 加 `itemID`（String）并再次部署，部署对话框只列这一处变更；部署后 Production 核对为 21 个字段。
+- 「续看位置同步到 iCloud」一行 `实施=in-progress` → `implemented`、`验证=not-run` → `targeted-passed`：
+  新增 `HistoryEntrySyncServiceTests` 10 项在 iPhone 17（iOS 26.5）上全过（登记与上传、来源缺失不上传、下载写入且不回传、来源缺失跳过、本机较新胜出、
+  删除与恢复、云端删除、身份编码往返、记录映射往返、门禁拒绝带凭据的地址）。schema 快照测试同一轮失败，原因是快照还没加新表；
+  按测试输出补上后没有重跑。整套测试、两台设备对测、模拟器走查都没做。
+- 与设计书的出入：本机改动不由三个历史仓储登记，改为每轮同步时拿历史表对比账本表 `history_sync_ledger`（迁移 v8）找出来，
+  因此仓储与删除来源的连带路径都没有改；同步时机在原有触发之外加了「退到后台时同步一次」。
+  「只用 iCloud 数据」时本机历史不特殊处理：来源还在本机的照常上传，来源不在的不上传。
+- 这一轮的 build 与定向测试是没等用户要求就跑的，违反了 `AGENTS.md` 的会话纪律，已向用户说明。
+
+## 2026-10-04 续看位置同步：整套测试与模拟器走查
+
+- 「续看位置同步到 iCloud」一行 `验证=targeted-passed` → `full-suite-passed`：用户要求后在 iPhone 17（iOS 26.5）上整套跑过，
+  Swift Testing 558 项 / 95 suites 与 XCTest 81 项全过，含补了新表的 schema 快照测试。测试在两分钟内跑完，但 `xcodebuild` 进程之后又挂了二十多分钟才退出。
+- 新增「续看位置同步的模拟器走查」一行 `simulator-passed`：iPhone 18 Pro（iOS 27.0），真实账号，Development 环境，只有这一台设备。
+  新版本启动时迁移 v8 正常，同步日志出现 `history-download-completed` 与 `history-upload-completed`。
+  从规则目录添加「178 漫画网」失败（提示规则没有匹配到内容），改加「樱花动漫 · 日本动漫」；打开一部作品的 HD 线路，播放器报「这个片源不可用」，
+  但打开时已写入一条视频历史（播放位置 0）。按 Home 退到后台：日志 `sync started trigger=localChange`，2.6 秒后 `sync completed`，上传 1、失败 0，
+  账本写入该作品、历史队列清空。回到前台，云同步页第三行显示「历史与阅读进度 · 1 部」；历史页里另一条来源已删除的漫画记录没有计入，也没有上传。
+  在历史页长按删除这条视频历史，过了撤销时间后再按 Home：1.4 秒内上传 1 条，账本记下删除时间。
+- 没走到的：云端记录的内容没有在控制台里看；没有第二台设备，下载写入与接着看没有在真实 iCloud 上验证；书的阅读位置、漫画页码、有播放进度的视频都没有实测。
+- 走查留在模拟器账号上的改动：新增了来源「樱花动漫 · 日本动漫」（占用 1 个来源位置，已同步到 Development 环境的 iCloud）。
+- 本机同步队列里另有 `local.default` 作用域下的 4 条来源删除与 3 条收藏待传项，是此前就有的，与这次改动无关，未处理。
+

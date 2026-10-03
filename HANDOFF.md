@@ -73,8 +73,9 @@ python3 scripts/check-docs.py
   并进真机验收：底栏隐藏、状态卡各状态、下拉同步、首次开启窗口、深色；未登录 iCloud 与出错卡的小字版式模拟器没看到，真机顺带看。
   走查细节见 `docs/history/status-log.md` 2026-10-04 两节。18 Pro 模拟器的云同步现在是开启的；模拟器面板点不动系统开关，要在开关上横向拖。
   库页仍未立项，等用户点名。
-- **已立项待设计：续看位置同步到 iCloud**（STATUS 第 4 节，`optional`）。只同步每部作品看到哪里，不传整张历史表；
-  动工前要先裁决改写 `BCA-SYNC-009`。新页面仍按同一流程：页面设计索引 → 设计文档 → 裁定 → 画布 → 实施。
+- **续看位置同步到 iCloud**已实施（合同 [`History-Resume-Sync-Design.md`](docs/design/History-Resume-Sync-Design.md)），只跑过定向测试；
+  欠整套测试、两台设备对测（同一 iCloud 账户，Xcode 直接安装走 Development）与真机验收，书的阅读位置跨设备是否可直接用也要在对测里确认。
+  改云端字段后必须先在 CloudKit 控制台部署到 Production 再发 TestFlight（合同第五节）；控制台要用户自己登录。
 - **合同与走查记录**：来源页 [`Sources-Page-Redesign-Design.md`](docs/design/Sources-Page-Redesign-Design.md)、
   收藏页 [`Favorites-Page-Redesign-Design.md`](docs/design/Favorites-Page-Redesign-Design.md)、
   规则目录页 [`Catalog-Page-Redesign-Design.md`](docs/design/Catalog-Page-Redesign-Design.md)、

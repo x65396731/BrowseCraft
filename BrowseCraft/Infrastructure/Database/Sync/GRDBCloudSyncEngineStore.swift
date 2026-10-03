@@ -83,6 +83,12 @@ final class GRDBCloudSyncEngineStore:
                 .filter(SyncQueueRecord.Columns.accountScope == accountScope.rawValue)
                 .deleteAll(database)
 
+            // 中文注释：续看位置的账本一并清空：重建时下一轮同步会把本机现有历史当作新增重新登记上传，
+            // 清除时账本里的对齐状态也已经没有意义。
+            _ = try HistorySyncLedgerRecord
+                .filter(HistorySyncLedgerRecord.Columns.userID == userID)
+                .deleteAll(database)
+
             switch strategy {
             case .rebuildFromLocalData:
                 let sources: [SourceRecord] = try SourceRecord
