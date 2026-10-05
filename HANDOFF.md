@@ -38,7 +38,7 @@ python3 scripts/check-docs.py
 以下都在 `docs/STATUS.md` 里有行；挑活前按该文件第 0 节的三步核对，不要只看名字就开工。
 
 **`required` 里验证还没走完的有两条：删除来源连带删除历史与收藏（只欠真机）；续看位置同步到 iCloud（单机已过，欠两台设备对测与真机）。
-其余 `required` 是八页重设计，共同欠真机验收。下一会话优先做下一步三的对测，真机验收等用户在真机上走。**
+其余 `required` 是九页重设计，共同欠真机验收。下一会话优先做下一步三的对测，真机验收等用户在真机上走。**
 
 - **下一步一：删除来源连带删除的真机验收**。合同：[`Source-Deletion-Cascade-Design.md`](docs/design/Source-Deletion-Cascade-Design.md)
   （第六节实现位置、第七节测试与验收）与数据库说明「Source 删除规则」（`BCA-DB-004`、`BCA-DB-005`）；STATUS 在第 4 节两行（`full-suite-passed` 与 `simulator-passed`），
@@ -52,10 +52,10 @@ python3 scripts/check-docs.py
     所以列表位置只在下次启动恢复时体现——这是已知出入，不是 bug。
   - 解不出配置的来源照样删（历史与收藏一并删），只是拿不到留底、不能撤销。
 
-来源页、收藏页、规则目录页、历史页、设置页、coin 记录页、缓存页、云同步页八页重设计都已实施，离线测试与模拟器走查通过，共同欠真机验收。
-设置页的子页已全部按新样式做完；库页仍未立项，等用户点名。
+来源页、收藏页、规则目录页、历史页、设置页、coin 记录页、缓存页、云同步页、添加来源页九页重设计都已实施，离线测试与模拟器走查通过，共同欠真机验收。
+设置页的子页已全部按新样式做完；添加来源之后的引导屏与网址输入页仍是系统表单，各自另立项、输入页优先；库页仍未立项，等用户点名。
 
-- **下一步二：八页真机验收**（用户在真机上走，结果记回 `docs/STATUS.md` 第 2 节，新增 `device-passed` 行，不改模拟器那几行）：
+- **下一步二：九页真机验收**（用户在真机上走，结果记回 `docs/STATUS.md` 第 2 节，新增 `device-passed` 行，不改模拟器那几行）：
   - 来源页：点其他来源切换成功后跳库、失败留在原页；「更多位置」切到设置页并打开购买页；正在使用的深色瓷砖与类型色；
     已暂停一组与启用窗口；长按菜单与左滑删除（删除色 `#E5484D`，不弹确认；连带删除做完后确认历史与收藏一并消失、撤销后都回来）。
   - 收藏页：「全部 | 视频 | 漫画 | 书籍」一直显示、某类为 0 的小空状态；按天分组；左滑与长按取消收藏不弹确认、底部撤销按原日期恢复；
@@ -73,7 +73,10 @@ python3 scripts/check-docs.py
   - 云同步页（合同 [`Cloud-Sync-Page-Redesign-Design.md`](docs/design/Cloud-Sync-Page-Redesign-Design.md)）：进入后底栏隐藏；
     状态卡各状态（未开启、正在检查、正在同步、已同步）；页面上没有按钮，下拉即同步；首次开启窗口两张入口卡；「同步的内容」三行的条数。
     模拟器没看到的三样真机顺带看：未登录 iCloud 的状态卡、同步出错卡下面的小字技术文字、首次开启窗口的提交中状态。
-  - 八页都要在深色模式下各看一遍；iCloud 首次恢复失败的下拉重试在真机上不易触发，可不强求。
+  - 添加来源页（合同 [`Add-Source-Page-Redesign-Design.md`](docs/design/Add-Source-Page-Redesign-Design.md)）：来源页「＋ 添加」弹出；三张类型横幅与目录页同一批插画；
+    「接下来」三行与 coin 一行（价格取服务端普通档）；点「从规则目录挑一个」本页先收起再弹目录；点类型卡在同一层 sheet 里进引导屏或输入页，不叠第二层；输入页「关闭」回来源页。
+    模拟器没走到的三样真机顺带看：未登录时 coin 一行换成警示色「提交生成需要登录」；余额还没同步到时只写价格；从目录「我的生成」空状态进入时没有目录入口卡。
+  - 九页都要在深色模式下各看一遍；iCloud 首次恢复失败的下拉重试在真机上不易触发，可不强求。
 - **下一步三：续看位置同步的两台设备对测**。合同 [`History-Resume-Sync-Design.md`](docs/design/History-Resume-Sync-Design.md)，
   STATUS 第 4 节两行（`full-suite-passed` 与 `simulator-passed`），做了什么与没做什么见 `docs/history/status-log.md` 2026-10-04 最后几节。
   已验证的只有单机：退到后台触发同步、上传、删除标记、云同步页条数。**没验证的**：
@@ -102,7 +105,8 @@ python3 scripts/check-docs.py
   设置页 [`Settings-Page-Redesign-Design.md`](docs/design/Settings-Page-Redesign-Design.md)、
   coin 记录页 [`Coin-Ledger-Page-Redesign-Design.md`](docs/design/Coin-Ledger-Page-Redesign-Design.md)、
   缓存页 [`Cache-Page-Redesign-Design.md`](docs/design/Cache-Page-Redesign-Design.md)、
-  云同步页 [`Cloud-Sync-Page-Redesign-Design.md`](docs/design/Cloud-Sync-Page-Redesign-Design.md)，设计稿画布与设计文档链接都在各自开头；
+  云同步页 [`Cloud-Sync-Page-Redesign-Design.md`](docs/design/Cloud-Sync-Page-Redesign-Design.md)、
+  添加来源页 [`Add-Source-Page-Redesign-Design.md`](docs/design/Add-Source-Page-Redesign-Design.md)，设计稿画布与设计文档链接都在各自开头；
   模拟器走查的方法、临时注入与结果记在 `docs/history/status-log.md` 对应日期一节，注入都已撤回、未提交。
   与设计稿的已知出入：来源页已暂停一组没有虚线外框、启用窗口里启用后不跳库；iOS 26 / 27 上左滑按钮是系统圆形样式。
 - **新页面设计的入口**：Claude 文档「BrowseCraft 页面设计索引」（https://claude.ai/code/artifact/5c5f0bd7-543e-40af-bb70-b5c3f9d1edaf）
