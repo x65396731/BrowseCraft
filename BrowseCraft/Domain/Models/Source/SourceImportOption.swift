@@ -23,11 +23,12 @@ struct SourceImportOption: Identifiable, Codable, Hashable, Sendable {
     }
 }
 
+/// 中文注释：只剩三种可生成的 kind。`scriptSource` 已随规则 JSON 导入一并下线（`BCA-UI-003`），
+/// 它在界面上早就到不了，只剩一个英文提示框。
 enum SourceImportOptionKind: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
     case comicSource
     case videoSource
     case bookSource
-    case scriptSource
 
     var id: String {
         return self.rawValue
@@ -35,16 +36,17 @@ enum SourceImportOptionKind: String, Codable, CaseIterable, Identifiable, Hashab
 }
 
 extension SourceImportOption {
+    /// 中文注释：顺序与添加来源页、收藏页、历史页一致：视频、漫画、书籍。
     static let defaultOptions: [SourceImportOption] = [
-        SourceImportOption(
-            kind: .comicSource,
-            defaultSourceType: .html,
-            defaultConfigurationKind: .comic
-        ),
         SourceImportOption(
             kind: .videoSource,
             defaultSourceType: .html,
             defaultConfigurationKind: .video
+        ),
+        SourceImportOption(
+            kind: .comicSource,
+            defaultSourceType: .html,
+            defaultConfigurationKind: .comic
         ),
         SourceImportOption(
             kind: .bookSource,
@@ -55,14 +57,14 @@ extension SourceImportOption {
 
     var requiresURLInput: Bool {
         switch self.kind {
-        case .comicSource, .videoSource, .bookSource, .scriptSource:
+        case .comicSource, .videoSource, .bookSource:
             return false
         }
     }
 
     var acceptsRuleJSONInput: Bool {
         switch self.kind {
-        case .comicSource, .videoSource, .bookSource, .scriptSource:
+        case .comicSource, .videoSource, .bookSource:
             return false
         }
     }

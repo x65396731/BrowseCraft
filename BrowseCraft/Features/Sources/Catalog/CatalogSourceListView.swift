@@ -138,8 +138,12 @@ struct CatalogSourceListView: View {
     private func kindSection(_ section: CatalogKindSection) -> some View {
         let style: CatalogKindStyle = CatalogKindStyle.of(section.kind)
         return VStack(alignment: .leading, spacing: 14) {
-            CatalogKindBannerView(style: style)
-                .padding(.horizontal, 20)
+            CatalogKindBannerView(
+                style: style,
+                subtitle: NSLocalizedString("catalog_kind_swipe_hint", comment: "")
+            )
+            .accessibilityAddTraits(.isHeader)
+            .padding(.horizontal, 20)
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .top, spacing: 12) {
                     ForEach(section.sources, id: \.id) { catalogSource in
@@ -366,44 +370,6 @@ struct CatalogSourceListView: View {
 
 /// 「推荐 / 我的生成」两段。「我的生成」段带数量角标，为 0 时不显示。
 // MARK: - 推荐：横幅与卡片
-
-private struct CatalogKindBannerView: View {
-    let style: CatalogKindStyle
-
-    var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            self.style.bannerBackground
-            if let image: UIImage = self.style.bannerImage {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .accessibilityHidden(true)
-            }
-            HStack(spacing: 12) {
-                Image(systemName: self.style.symbolName)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(CatalogKindStyle.bannerIconInk)
-                    .frame(width: 40, height: 40)
-                    .background(self.style.bannerAccent, in: Circle())
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(self.style.title)
-                        .font(.title2.weight(.heavy))
-                        .foregroundStyle(CatalogKindStyle.bannerTitle)
-                    Text(NSLocalizedString("catalog_kind_swipe_hint", comment: ""))
-                        .font(.caption)
-                        .foregroundStyle(self.style.bannerSecondaryText)
-                }
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
-        }
-        .frame(height: 112)
-        .frame(maxWidth: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isHeader)
-    }
-}
 
 enum CatalogAddActionState: Hashable {
     case add

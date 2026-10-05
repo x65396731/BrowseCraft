@@ -9,16 +9,17 @@ struct SourceImportRecommendationTests {
         let options: [SourceImportOption] = SourceImportOption.defaultOptions
 
         // 中文注释：读书 kind 2026-09-14 接入（批次 C），与漫画 / 视频同为服务端规则生成入口。
+        // 顺序与添加来源页、收藏页、历史页一致：视频、漫画、书籍（添加来源页重设计）。
         #expect(options.map(\.kind) == [
-            .comicSource,
             .videoSource,
+            .comicSource,
             .bookSource
         ])
 
         #expect(options[0].defaultSourceType == .html)
-        #expect(options[0].defaultConfigurationKind == .comic)
+        #expect(options[0].defaultConfigurationKind == .video)
         #expect(options[1].defaultSourceType == .html)
-        #expect(options[1].defaultConfigurationKind == .video)
+        #expect(options[1].defaultConfigurationKind == .comic)
         #expect(options[2].requiresURLInput == false)
         #expect(options[2].defaultSourceType == .html)
         #expect(options[2].defaultConfigurationKind == .book)

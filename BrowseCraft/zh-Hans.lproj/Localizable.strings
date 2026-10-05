@@ -415,7 +415,6 @@
 "Start Reading" = "开始阅读";
 "Continue Reading" = "继续阅读";
 "Loading chapters…" = "正在加载章节…";
-"Book sources can be added from the Book source form." = "书籍来源请从书籍来源表单添加。";
 "book_reader_chapter_no_web_content" = "这一章在网页上没有正文。站点可能只在自家 App 内提供这部作品的内容。";
 
 /* 从代码里搬进本地化的用户可见文案（启动失败、来源站登录、书籍阅读器、激励广告、内购状态）。 */
@@ -735,3 +734,17 @@
 "cloud_sync_first_keeps" = "两种选择都不会删除本机现有的数据。";
 "cloud_sync_first_enable" = "开启云同步";
 "cloud_sync_first_empty_footer" = "本机没有需要合并的来源或收藏。确认之前不会上传任何内容。";
+
+/* 添加来源页重设计（docs/design/Add-Source-Page-Redesign-Design.md） */
+"add_source_intro" = "贴一个网站列表页的地址，生成一条规则。先选这个网站属于哪一类。";
+"add_source_kind_example_video" = "影视、动漫、短片网站";
+"add_source_kind_example_comic" = "按章节看图的漫画网站";
+"add_source_kind_example_book" = "小说与有声书网站";
+"add_source_next_title" = "接下来";
+"add_source_next_step_url" = "贴上带页码的列表页地址";
+"add_source_next_step_check" = "检查通过后提交生成";
+"add_source_next_step_catalog" = "生成完出现在规则目录「我的生成」，从那里添加";
+"add_source_coin_price_balance" = "生成一次 %1$d coin 起 · 当前余额 %2$d";
+"add_source_coin_price" = "生成一次 %d coin 起";
+"add_source_sign_in_required" = "提交生成需要登录，可以在设置页登录。生成一次 %d coin 起。";
+"add_source_catalog_card_message" = "现成的规则，不用等生成";

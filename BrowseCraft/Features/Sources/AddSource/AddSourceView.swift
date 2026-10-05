@@ -1,74 +1,108 @@
+import BrowseCraftDomain
 import Foundation
 import SwiftUI
 
-// 中文注释：AddSourceView.swift 是中性的添加来源入口，具体导入能力由 SourceImportOption 决定。
+// 中文注释：AddSourceView.swift 是添加来源的入口页（`docs/design/Add-Source-Page-Redesign-Design.md`）：
+// 选类型 → 合格入口页引导屏（首次）→ 网址输入页，三屏在同一层 sheet 里依次出现，不叠第二层。
 
+/// 添加来源页：自绘大标题、一句说明、三张可点的类型横幅、「接下来」三行、coin 与登录提示、目录入口卡。
+///
+/// 中文注释：选了类型之后**不是再弹一层 sheet**，而是把这一层的内容换成 `EntryPageGuideFlowView`——
+/// 页面设计索引的约定是两个 sheet 不同时呈现。输入页的 `onDisappear` 绑着 `onFinished()`（三种关法一个落点），
+/// 条件渲染下它只在整个 sheet 关闭时 disappear，那条纪律原样成立。选类型页自己没有 `onDisappear`，
+/// 被换掉时不会触发任何关闭。
+@MainActor
 struct AddSourceView: View {
     @Bindable var viewModel: SourcesViewModel
+    /// 「从规则目录挑一个」：宿主在本页收起后打开目录；为 nil 时不显示这张卡（从目录页进来的那次）。
+    var openCatalog: (() -> Void)?
+
     @Environment(\.dismiss) private var dismiss
+    @State private var selectedKind: RuleGenerationSourceKind?
 
-    @State private var isShowingComicGeneration: Bool = false
-    @State private var isShowingVideoGeneration: Bool = false
-    @State private var isShowingBookGeneration: Bool = false
-    @State private var unavailableOption: SourceImportOptionKind?
-
-    private let options: [SourceImportOption] = SourceImportOption.defaultOptions
+    /// 中文注释：三张类型卡的顺序与收藏页、历史页的筛选一致（视频、漫画、书籍）。
+    private static let kinds: [RuleGenerationSourceKind] = [.video, .comic, .book]
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("Source") {
-                    self.optionButton(for: .comicSource)
-                    self.optionButton(for: .videoSource)
-                    self.optionButton(for: .bookSource)
-                }
+        Group {
+            if let kind: RuleGenerationSourceKind = self.selectedKind {
+                EntryPageGuideFlowView(
+                    viewModel: self.viewModel,
+                    sourceKind: kind,
+                    onFinished: self.returnToSources
+                )
+                .transition(.push(from: .trailing))
+            } else {
+                self.kindPicker
+                    .transition(.push(from: .leading))
             }
-            .navigationTitle("Add Source")
+        }
+        .animation(.easeInOut(duration: 0.25), value: self.selectedKind)
+    }
+
+    /// 中文注释：预检页无论怎么结束（提交成功自动返回、按「关闭」、下滑关掉）都回到来源页，
+    /// 三种关法一个落点。提交成功的那次用户已经拿到任务回执，规则生成完会自己出现在目录里，
+    /// 没有留在这一屏继续点的事。自动返回已经收掉这一层时，后到的那次 `dismiss()` 是空操作。
+    private func returnToSources() {
+        self.dismiss()
+    }
+
+    // MARK: - 选类型
+
+    private var kindPicker: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    // 中文注释：标题按设计稿自己画在内容里，与来源页、目录页同一做法；系统导航栏只留左上「关闭」。
+                    Text(NSLocalizedString("Add Source", comment: ""))
+                        .font(.largeTitle.weight(.heavy))
+                        .accessibilityAddTraits(.isHeader)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+                    Text(NSLocalizedString("add_source_intro", comment: ""))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+
+                    VStack(spacing: 12) {
+                        ForEach(Self.kinds, id: \.self) { kind in
+                            self.kindCard(for: kind)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+
+                    self.nextStepsGroup
+
+                    if let openCatalog: () -> Void = self.openCatalog {
+                        SourcesEntryCardView(
+                            title: NSLocalizedString("sources_empty_catalog_title", comment: ""),
+                            message: NSLocalizedString("add_source_catalog_card_message", comment: ""),
+                            systemImage: "sparkles",
+                            iconForeground: CatalogPalette.settingsIcon,
+                            iconBackground: CatalogPalette.settingsIconFill,
+                            action: {
+                                openCatalog()
+                                self.dismiss()
+                            }
+                        )
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
+                    }
+                }
+                .padding(.bottom, 24)
+            }
+            .background(CatalogPalette.pageBackground)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button("Close") {
                         self.dismiss()
                     }
                 }
             }
-            // 中文注释：三种 kind 都先进合格入口页引导屏（`EntryPageGuideFlowView`，首次必过一屏），
-            // 再进预检输入页——`BC-PAGE-060` 的两个要素此前在 App 里没有任何说明，
-            // 要素一还不在预检的判定范围内（只有服务端判），用户只能等生成失败才知道。
-            // 中文注释：漫画与视频都指向服务端规则生成入口，两种 kind 的交互完全对称。
-            // 本地关键词发现 `ComicDiscoveryView` 就此不再从这里进入，与视频侧的
-            // `VideoDiscoveryView` 同一处置。
-            .sheet(isPresented: self.$isShowingComicGeneration) {
-                EntryPageGuideFlowView(
-                    viewModel: self.viewModel,
-                    sourceKind: .comic,
-                    onFinished: self.returnToSources
-                )
-            }
-            .sheet(isPresented: self.$isShowingVideoGeneration) {
-                EntryPageGuideFlowView(
-                    viewModel: self.viewModel,
-                    sourceKind: .video,
-                    onFinished: self.returnToSources
-                )
-            }
-            // 中文注释：读书 kind 与漫画 / 视频同一条服务端规则生成入口（PortalCore 2026-09-13 起接受 sourceKind: book）。
-            .sheet(isPresented: self.$isShowingBookGeneration) {
-                EntryPageGuideFlowView(
-                    viewModel: self.viewModel,
-                    sourceKind: .book,
-                    onFinished: self.returnToSources
-                )
-            }
-            .alert(
-                "Source Type Unavailable",
-                isPresented: self.unavailableOptionBinding,
-                actions: {
-                    Button("OK", role: .cancel) {}
-                },
-                message: {
-                    Text(self.unavailableOptionMessage)
-                }
-            )
             .onAppear {
                 CrashDiagnostics.shared.setScreen(.addSource)
                 AppAnalytics.shared.logScreenView(.addSource)
@@ -76,130 +110,104 @@ struct AddSourceView: View {
         }
     }
 
-    /// 中文注释：预检页无论怎么结束（提交成功自动返回、按「关闭」、下滑关掉）都回到来源页，
-    /// 三种关法一个落点。提交成功的那次用户已经拿到任务回执，规则生成完会自己出现在目录里，
-    /// 没有留在这一屏继续点的事。关掉最外层的 `AddSourceView` 会连带收掉它呈现的预检 sheet；
-    /// 自动返回已经收掉这一层时，后到的那次 `dismiss()` 是空操作。
-    private func returnToSources() {
-        self.dismiss()
-    }
-
-    @ViewBuilder
-    private func optionButton(for kind: SourceImportOptionKind) -> some View {
-        if let option: SourceImportOption = self.options.first(where: { item in item.kind == kind }) {
-            Button(
-                action: {
-                    self.select(option)
-                },
-                label: {
-                    Label {
-                        Text(option.kind.displayTitle)
-                    } icon: {
-                        self.optionIcon(for: option.kind)
-                    }
-                }
+    /// 中文注释：类型卡就是规则目录页的类型横幅（固定深色底 + 现有插画），用户在目录页见过同一张图，
+    /// 到这里一眼认出类型；不另出一批插画（2026-10-06 用户裁定沿用）。
+    private func kindCard(for kind: RuleGenerationSourceKind) -> some View {
+        Button {
+            self.selectedKind = kind
+        } label: {
+            CatalogKindBannerView(
+                style: CatalogKindStyle.of(Self.catalogKind(of: kind)),
+                subtitle: NSLocalizedString(Self.exampleKey(for: kind), comment: ""),
+                showsChevron: true
             )
         }
+        .buttonStyle(AddSourceKindCardButtonStyle())
+        .accessibilityAddTraits(.isButton)
     }
 
-    /// 中文注释：三种可生成的 kind 改用自绘的圆形徽章——SF Symbols 里没有能把「漫画」和「图书」
-    /// 分开的符号，此前漫画用 `book.pages`、图书用 `text.book.closed`，两个都是书的形状，
-    /// 用户在这一屏选类型时分不出哪个是哪个。`scriptSource` 不是生成 kind，没有对应徽章，
-    /// 继续走系统符号。
-    @ViewBuilder
-    private func optionIcon(for kind: SourceImportOptionKind) -> some View {
-        if let assetName: String = kind.badgeAssetName {
-            Image(assetName)
-                .resizable()
-                .interpolation(.high)
-                .frame(width: 24, height: 24)
+    private static func catalogKind(of kind: RuleGenerationSourceKind) -> CatalogSourceKind {
+        switch kind {
+        case .video:
+            return .video
+        case .comic:
+            return .comic
+        case .book:
+            return .book
+        }
+    }
+
+    private static func exampleKey(for kind: RuleGenerationSourceKind) -> String {
+        switch kind {
+        case .video:
+            return "add_source_kind_example_video"
+        case .comic:
+            return "add_source_kind_example_comic"
+        case .book:
+            return "add_source_kind_example_book"
+        }
+    }
+
+    // MARK: - 接下来
+
+    /// 三行说明之后会怎样，行不可点；组下一行是 coin 与登录提示（只提示，不拦路）。
+    private var nextStepsGroup: some View {
+        SettingsCardGroup(
+            title: NSLocalizedString("add_source_next_title", comment: ""),
+            footer: self.coinFooter
+        ) {
+            self.nextStepRow(systemImage: "link", textKey: "add_source_next_step_url")
+            SettingsRowSeparator()
+            self.nextStepRow(systemImage: "checkmark.circle", textKey: "add_source_next_step_check")
+            SettingsRowSeparator()
+            self.nextStepRow(systemImage: "sparkles", textKey: "add_source_next_step_catalog")
+        }
+    }
+
+    private func nextStepRow(systemImage: String, textKey: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(CatalogPalette.settingsIcon)
+                .frame(width: 32, height: 32)
+                .background(CatalogPalette.settingsIconFill, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                 .accessibilityHidden(true)
-        } else {
-            Image(systemName: kind.systemImageName)
+            Text(NSLocalizedString(textKey, comment: ""))
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .frame(minHeight: 52)
     }
 
-    private func select(_ option: SourceImportOption) {
-        switch option.kind {
-        case .comicSource:
-            self.isShowingComicGeneration = true
-        case .videoSource:
-            self.isShowingVideoGeneration = true
-        case .bookSource:
-            self.isShowingBookGeneration = true
-        case .scriptSource:
-            self.unavailableOption = option.kind
+    /// 中文注释：价格取服务端下发的普通档价格，不写死。已登录写价格与余额，余额还没同步到时只写价格，
+    /// 未登录换成警示色的一句。没有钱包（测试替身）时整行不显示。
+    private var coinFooter: String? {
+        guard let wallet: CoinWalletStore = self.viewModel.coinWalletStore else {
+            return nil
         }
-    }
-
-    private var unavailableOptionBinding: Binding<Bool> {
-        return Binding<Bool>(
-            get: {
-                return self.unavailableOption != nil
-            },
-            set: { newValue in
-                if newValue == false {
-                    self.unavailableOption = nil
-                }
-            }
-        )
-    }
-
-    private var unavailableOptionMessage: String {
-        switch self.unavailableOption {
-        case .comicSource:
-            return "Comic sources can be added from the Comics source form."
-        case .videoSource:
-            return "Video sources can be added from the Video source form."
-        case .bookSource:
-            return "Book sources can be added from the Book source form."
-        case .scriptSource:
-            return "Script Source is closed. Use Website Rule JSON or URL-based source search instead."
-        case nil:
-            return "This source type is not available yet."
+        let price: Int = wallet.pricing.normal
+        if wallet.isSignedIn == false {
+            return String(format: NSLocalizedString("add_source_sign_in_required", comment: ""), price)
         }
+        if let balance: Int = wallet.balance {
+            return String(format: NSLocalizedString("add_source_coin_price_balance", comment: ""), price, balance)
+        }
+        return String(format: NSLocalizedString("add_source_coin_price", comment: ""), price)
     }
 }
 
-private extension SourceImportOptionKind {
-    var displayTitle: String {
-        switch self {
-        case .comicSource:
-            return NSLocalizedString("Comics", comment: "")
-        case .videoSource:
-            return NSLocalizedString("Video", comment: "")
-        case .bookSource:
-            return NSLocalizedString("Books", comment: "")
-        case .scriptSource:
-            return "Script Source"
-        }
-    }
-
-    /// 中文注释：三种生成 kind 各有一枚圆形徽章资源（青蓝=视频、紫=漫画、金=图书），
-    /// 颜色本身就是类型编码，因此不跟随 tintColor。没有徽章的 kind 返回 nil，回退到 `systemImageName`。
-    var badgeAssetName: String? {
-        switch self {
-        case .comicSource:
-            return "ComicKindBadge"
-        case .videoSource:
-            return "VideoKindBadge"
-        case .bookSource:
-            return "BookKindBadge"
-        case .scriptSource:
-            return nil
-        }
-    }
-
-    var systemImageName: String {
-        switch self {
-        case .comicSource:
-            return "book.pages"
-        case .videoSource:
-            return "play.rectangle"
-        case .bookSource:
-            return "text.book.closed"
-        case .scriptSource:
-            return "terminal"
-        }
+/// 类型卡按下时整张变暗。
+private struct AddSourceKindCardButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .overlay {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(Color.black.opacity(configuration.isPressed ? 0.25 : 0))
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 }

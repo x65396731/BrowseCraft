@@ -415,7 +415,6 @@
 "Start Reading" = "Start Reading";
 "Continue Reading" = "Continue Reading";
 "Loading chapters…" = "Loading chapters…";
-"Book sources can be added from the Book source form." = "Book sources can be added from the Book source form.";
 "book_reader_chapter_no_web_content" = "This chapter has no text on the website. The site may only provide this work inside its own app.";
 
 /* Hard-coded user-facing strings moved into localization (bootstrap failure, source login, book reader, rewarded ads, in-app purchase status). */
@@ -735,3 +734,17 @@
 "cloud_sync_first_keeps" = "Neither choice deletes the data already on this device.";
 "cloud_sync_first_enable" = "Turn On Cloud Sync";
 "cloud_sync_first_empty_footer" = "There are no sources or favorites on this device to merge. Nothing is uploaded until you confirm.";
+
+/* 添加来源页重设计（docs/design/Add-Source-Page-Redesign-Design.md） */
+"add_source_intro" = "Paste the address of a listing page on a website to generate a rule. First pick which kind of site it is.";
+"add_source_kind_example_video" = "Movies, anime and short video sites";
+"add_source_kind_example_comic" = "Comic sites read page by page, chapter by chapter";
+"add_source_kind_example_book" = "Novel and audiobook sites";
+"add_source_next_title" = "What Happens Next";
+"add_source_next_step_url" = "Paste a listing page address that has page numbers";
+"add_source_next_step_check" = "Submit for generation once the check passes";
+"add_source_next_step_catalog" = "The finished rule appears in the catalog under “Mine”; add it from there";
+"add_source_coin_price_balance" = "From %1$d coins per generation · Balance %2$d";
+"add_source_coin_price" = "From %d coins per generation";
+"add_source_sign_in_required" = "Sign in from Settings before submitting a generation. From %d coins per generation.";
+"add_source_catalog_card_message" = "Ready-made rules, no waiting for generation";

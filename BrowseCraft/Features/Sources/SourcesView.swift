@@ -18,6 +18,9 @@ struct SourcesView: View {
     @State private var isShowingAddSourceView: Bool = false
     @State private var isShowingCatalogSourceListView: Bool = false
     @State private var opensAddSourceAfterCatalog: Bool = false
+    @State private var opensCatalogAfterAddSource: Bool = false
+    /// 中文注释：从目录页「我的生成」空状态进来的那次添加来源页不显示「从规则目录挑一个」——用户刚从目录出来。
+    @State private var addSourceOpenedFromCatalog: Bool = false
     @State private var opensPremiumAfterSlotActivation: Bool = false
     @State private var debugSourceID: String?
 
@@ -76,8 +79,18 @@ struct SourcesView: View {
                         await self.viewModel.load()
                     }
                 }
-                .sheet(isPresented: self.$isShowingAddSourceView) {
-                    AddSourceView(viewModel: self.viewModel)
+                .sheet(
+                    isPresented: self.$isShowingAddSourceView,
+                    onDismiss: {
+                        // 中文注释：添加来源页点了「从规则目录挑一个」——等它收起后再弹目录，两个 sheet 不能同时呈现。
+                        self.addSourceOpenedFromCatalog = false
+                        if self.opensCatalogAfterAddSource {
+                            self.opensCatalogAfterAddSource = false
+                            self.isShowingCatalogSourceListView = true
+                        }
+                    }
+                ) {
+                    AddSourceView(viewModel: self.viewModel, openCatalog: self.addSourceCatalogAction)
                 }
                 .sheet(
                     isPresented: self.$isShowingCatalogSourceListView,
@@ -86,6 +99,7 @@ struct SourcesView: View {
                         // 两个 sheet 不能同时呈现。
                         if self.opensAddSourceAfterCatalog {
                             self.opensAddSourceAfterCatalog = false
+                            self.addSourceOpenedFromCatalog = true
                             self.isShowingAddSourceView = true
                         }
                     }
@@ -451,6 +465,16 @@ struct SourcesView: View {
                 .padding(.bottom, 24)
             }
             .padding(.horizontal, 20)
+        }
+    }
+
+    /// 添加来源页「从规则目录挑一个」的回调；从目录页进来的那次不给，卡片就不显示。
+    private var addSourceCatalogAction: (() -> Void)? {
+        if self.addSourceOpenedFromCatalog {
+            return nil
+        }
+        return {
+            self.opensCatalogAfterAddSource = true
         }
     }
 

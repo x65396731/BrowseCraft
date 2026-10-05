@@ -87,8 +87,6 @@ struct RecommendSourceImportOptionUseCase {
                 reasons: [.userSelectedOption],
                 warnings: ["Video sources must come from a validated VideoSiteRule V2 catalog entry."]
             )
-        case .scriptSource:
-            return self.execute(draft: draft, html: html, headers: headers)
         }
     }
 

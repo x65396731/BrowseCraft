@@ -236,6 +236,58 @@ enum CatalogDisplayText {
     }
 }
 
+/// 类型横幅：固定深色类型底 + 右侧横幅插画，左下图标圆 + 类型名 + 一句副标题；高 112，圆角 22。
+/// 规则目录页用它做每类的分区头（副标题「左右滑动查看全部」）；添加来源页用它做三张可点的类型卡
+/// （副标题是举例、类型名后带 ›，`docs/design/Add-Source-Page-Redesign-Design.md` 第三节）。
+/// 缺插画时退回纯色底 + 图标，页面不依赖插画才能成立。
+struct CatalogKindBannerView: View {
+    let style: CatalogKindStyle
+    let subtitle: String
+    /// 类型名后带 ›，表示整张横幅可点。
+    var showsChevron: Bool = false
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            self.style.bannerBackground
+            if let image: UIImage = self.style.bannerImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .accessibilityHidden(true)
+            }
+            HStack(spacing: 12) {
+                Image(systemName: self.style.symbolName)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(CatalogKindStyle.bannerIconInk)
+                    .frame(width: 40, height: 40)
+                    .background(self.style.bannerAccent, in: Circle())
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(self.style.title)
+                            .font(.title2.weight(.heavy))
+                            .foregroundStyle(CatalogKindStyle.bannerTitle)
+                        if self.showsChevron {
+                            Image(systemName: "chevron.right")
+                                .font(.footnote.weight(.bold))
+                                .foregroundStyle(self.style.bannerAccent)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    Text(self.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(self.style.bannerSecondaryText)
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+        }
+        .frame(height: 112)
+        .frame(maxWidth: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+}
+
 private extension UIColor {
     convenience init(hex: UInt32) {
         self.init(

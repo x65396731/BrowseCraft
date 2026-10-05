@@ -415,7 +415,6 @@
 "Start Reading" = "開始閱讀";
 "Continue Reading" = "繼續閱讀";
 "Loading chapters…" = "正在載入章節…";
-"Book sources can be added from the Book source form." = "書籍來源請從書籍來源表單加入。";
 "book_reader_chapter_no_web_content" = "這一章在網頁上沒有正文。這個網站可能只在自家 App 裡提供這部作品的內容。";
 
 /* 從程式碼搬進本地化的使用者可見文案（啟動失敗、來源網站登入、書籍閱讀器、獎勵廣告、內購狀態）。 */
@@ -735,3 +734,17 @@
 "cloud_sync_first_keeps" = "兩種選擇都不會刪除本機現有的資料。";
 "cloud_sync_first_enable" = "開啟雲端同步";
 "cloud_sync_first_empty_footer" = "本機沒有需要合併的來源或收藏。確認之前不會上傳任何內容。";
+
+/* 添加来源页重设计（docs/design/Add-Source-Page-Redesign-Design.md） */
+"add_source_intro" = "貼一個網站列表頁的網址，生成一條規則。先選這個網站屬於哪一類。";
+"add_source_kind_example_video" = "影視、動漫、短片網站";
+"add_source_kind_example_comic" = "按章節看圖的漫畫網站";
+"add_source_kind_example_book" = "小說與有聲書網站";
+"add_source_next_title" = "接下來";
+"add_source_next_step_url" = "貼上帶頁碼的列表頁網址";
+"add_source_next_step_check" = "檢查通過後提交生成";
+"add_source_next_step_catalog" = "生成完出現在規則目錄「我的生成」，從那裡加入";
+"add_source_coin_price_balance" = "生成一次 %1$d coin 起 · 目前餘額 %2$d";
+"add_source_coin_price" = "生成一次 %d coin 起";
+"add_source_sign_in_required" = "提交生成需要登入，可以在設定頁登入。生成一次 %d coin 起。";
+"add_source_catalog_card_message" = "現成的規則，不用等生成";
