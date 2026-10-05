@@ -618,3 +618,9 @@ App 侧设计文档一处都没引用，App 执行两种形态的合同由自己
   目录页横幅不带 ›；点「视频」在同一层 sheet 里换成网址输入页（引导屏之前看过，不再拦）；输入页「关闭」回来源页。
 - 没走到的：未登录、余额未同步、从目录「我的生成」空状态进入（该账号已有生成记录，空状态出不来）。
 - 与合同的一处出入已回写合同：`CatalogKindBannerView` 不是在目录页文件里放开，而是移到 `CatalogStyle.swift`。
+
+## 2026-10-06 添加来源页重设计：整套测试
+
+- 「添加来源页重设计」一行 `验证=simulator-passed` → `full-suite-passed`：用户要求后在 iPhone 17 Pro（iOS 26.5）上整套跑过，
+  Swift Testing 558 项 / 95 suites 与 XCTest 81 项全过，含改了顺序断言的 `SourceImportRecommendationTests` 与按新登记表核对资产的 `BundledImageAssetTests`；
+  偶发的 WebView 计时断言这次没红。模拟器走查按 `BCA-DOC-005` 拆成单独一行 `simulator-passed`。
