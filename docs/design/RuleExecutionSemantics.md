@@ -31,6 +31,12 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
 
 - `BCA-RUNTIME-001` API 规则执行边界固定为：沿用既有网络加载 → 沿用既有 JSON 解析 → 显式 `responsePolicy` 或
   legacy 二选一 → itemPath → 字段映射。网络层继续独立处理通用 HTTP/传输行为，规则语义层不得复制或改写网络策略。
+- `BCA-RUNTIME-005` 页面取页分流器（`DefaultPageLoader.loadContent`）在规则未声明 `needsWebView`、直接请求却收到
+  挑战页（`RuleExecutionError.antiBot`）时，用同一 `PageLoadRequest` 改走 WebView 通道再取一次；其它错误（网络、状态码）照旧抛出，
+  不把 WebView 变成万能兜底。依据：规则的「不需渲染」由引擎在**服务器出口**按影子取回判定（fwq `BC-COMIC-159`），而执行跑在**手机出口**，
+  两者对 Cloudflare 的处境不同（2026-10-06 toonily：章节页家用出口 403 `cf-mitigated: challenge`、服务器出口 200），引擎观察不到手机出口，
+  这一层只能在 App 处理；WebView 通道已有挑战页状态机（`BC-EVIDENCE-081`，`WKWebViewChallengeInterstitialGate`）。无反爬的站不会进入回退，取值逐字不变。
+  对应 fwq `APP-MEMO-026`。实现 `BrowseCraft/Infrastructure/Network/DefaultPageLoader.swift`；用例 `PageContentLoaderTests`（挑战页回退、其它错误不回退）。
 同域的另外三条不在本文：kind 分流纪律 `BCA-RUNTIME-002` 与目录解码兼容硬约束 `BCA-RUNTIME-004`
 在 [Book-Kind-Wiring-Design.md](Book-Kind-Wiring-Design.md)，播放候选过滤 `BCA-RUNTIME-003` 在
 [RuntimeAdFilter-Design.md](RuntimeAdFilter-Design.md)。

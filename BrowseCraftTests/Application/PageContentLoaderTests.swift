@@ -71,18 +71,74 @@ struct PageContentLoaderTests {
         #expect(renderedPageLoader.requests.first?.requestConfig?.needsWebView == true)
         #expect(renderedPageLoader.requests.first?.requestConfig?.autoScroll == true)
     }
+
+    @Test func defaultLoaderFallsBackToWebViewWhenHTTPPathHitsAntiBot() async throws {
+        // 中文注释：`BCA-RUNTIME-005`——规则没声明 needsWebView，但手机出口的直接请求收到挑战页
+        // （toonily 章节页 403 Cloudflare）：同一请求改走 WebView 再取一次。
+        let httpClient: RecordingPageHTTPClient = RecordingPageHTTPClient(html: "http-html", throwAntiBot: true)
+        let renderedPageLoader: RecordingRenderedPageContentLoader = RecordingRenderedPageContentLoader(html: "webview-html")
+        let loader: DefaultPageLoader = DefaultPageLoader(
+            httpContentLoader: httpClient,
+            httpDataLoader: httpClient,
+            renderedPageContentLoader: renderedPageLoader,
+            domStabilityPolicy: .baseline
+        )
+        let url: URL = try #require(URL(string: "https://example.test/serie/x/chapter-1/"))
+
+        let html: String = try await loader.loadContent(
+            PageLoadRequest(url: url, requestConfig: nil, sourceContext: nil)
+        ).content
+
+        #expect(html == "webview-html")
+        #expect(httpClient.requests.count == 1)
+        #expect(renderedPageLoader.requests.count == 1)
+        #expect(renderedPageLoader.requests.first?.url == url)
+    }
+
+    @Test func defaultLoaderDoesNotFallBackOnOtherHTTPErrors() async throws {
+        // 中文注释：只有挑战页回退；网络等其它错误照旧抛出，不把 WebView 变成万能兜底。
+        let httpClient: RecordingPageHTTPClient = RecordingPageHTTPClient(html: "http-html", throwNetwork: true)
+        let renderedPageLoader: RecordingRenderedPageContentLoader = RecordingRenderedPageContentLoader(html: "webview-html")
+        let loader: DefaultPageLoader = DefaultPageLoader(
+            httpContentLoader: httpClient,
+            httpDataLoader: httpClient,
+            renderedPageContentLoader: renderedPageLoader,
+            domStabilityPolicy: .baseline
+        )
+
+        await #expect(throws: RuleExecutionError.self) {
+            _ = try await loader.loadContent(
+                PageLoadRequest(
+                    url: try #require(URL(string: "https://example.test/list")),
+                    requestConfig: nil,
+                    sourceContext: nil
+                )
+            )
+        }
+        #expect(renderedPageLoader.requests.isEmpty)
+    }
 }
 
 private final class RecordingPageHTTPClient: PageContentLoader, PageDataLoader, @unchecked Sendable {
     private let html: String
+    private let throwAntiBot: Bool
+    private let throwNetwork: Bool
     private(set) var requests: [PageLoadRequest] = []
 
-    init(html: String) {
+    init(html: String, throwAntiBot: Bool = false, throwNetwork: Bool = false) {
         self.html = html
+        self.throwAntiBot = throwAntiBot
+        self.throwNetwork = throwNetwork
     }
 
     func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
         self.requests.append(request)
+        if self.throwAntiBot {
+            throw RuleExecutionError.antiBot(url: request.url.absoluteString)
+        }
+        if self.throwNetwork {
+            throw RuleExecutionError.network(url: request.url.absoluteString, underlyingDescription: "offline")
+        }
         return PageContentResponse(
             content: self.html,
             finalURL: request.url
