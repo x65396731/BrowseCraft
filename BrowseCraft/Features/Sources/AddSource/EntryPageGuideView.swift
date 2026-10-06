@@ -46,81 +46,101 @@ struct EntryPageGuideView: View {
     /// 中文注释：只有首屏形态有取消——回看形态是叠在别人上面的 sheet，关掉它用 `primaryAction` 就够。
     let cancelAction: (() -> Void)?
 
+    // 中文注释：外观按 `docs/design/Generation-Input-Page-Redesign-Design.md` 第三节：自绘大标题、插画、
+    // 「两条要求」「例子」「怎么找」三组卡片行、底部蓝色主按钮；文案、版本号与「首次必过」的判定不动。
     var body: some View {
-        Form {
-            // 中文注释：引题图。她指着的那块卡片画的就是反例——几块区块拼起来、底部没有页码，
-            // 与下面第一段「两条要求」说的是同一件事，所以它在最上面先把问题摆出来，
-            // 而不是当装饰挂在某处。行背景清掉，让它读起来像 Form 的页眉而不是又一张分组卡片。
-            Section {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                // 中文注释：回看形态没有左上「取消」，系统导航栏收成零高度，标题会贴到 sheet 顶边——
+                // 这时自己留出一段顶部空白（2026-10-07 用户指出上下间距太小）。
+                Text(NSLocalizedString("entry_guide_title", comment: ""))
+                    .font(.largeTitle.weight(.heavy))
+                    .accessibilityAddTraits(.isHeader)
+                    .padding(.horizontal, 20)
+                    .padding(.top, self.cancelAction == nil ? 28 : 8)
+                Text(NSLocalizedString("entry_guide_subtitle", comment: ""))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
+                // 中文注释：引题图。她指着的那块卡片画的就是反例——几块区块拼起来、底部没有页码，
+                // 与下面「两条要求」说的是同一件事，所以它在最上面先把问题摆出来。
                 EmptyStateIconView(
                     systemImage: "questionmark.circle",
                     illustration: "EntryGuideUnsupportedPage",
                     height: 150
                 )
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 4)
-            }
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
+                .padding(.top, 24)
+                .padding(.bottom, 4)
 
-            Section {
-                self.requirementRow(
-                    systemImage: "list.number",
-                    titleKey: "entry_guide_rule_pagination_title",
-                    detailKey: "entry_guide_rule_pagination_detail"
-                )
-                self.requirementRow(
-                    systemImage: "square.grid.2x2",
-                    titleKey: "entry_guide_rule_single_list_title",
-                    detailKey: "entry_guide_rule_single_list_detail"
-                )
-            } header: {
-                Text(NSLocalizedString("entry_guide_requirements_title", comment: ""))
-            } footer: {
-                // 中文注释：`BC-PAGE-061` 全站直出拦的是作品页 / 阅读页里的额外接口与解密，
-                // 用户在列表页上看不出来——先说一句，免得照着两条做了却被拒时觉得被骗。
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(NSLocalizedString("entry_guide_subtitle", comment: ""))
-                    Text(NSLocalizedString("entry_guide_requirements_caveat", comment: ""))
+                SettingsCardGroup(
+                    title: NSLocalizedString("entry_guide_requirements_title", comment: ""),
+                    // 中文注释：`BC-PAGE-061` 全站直出拦的是作品页 / 阅读页里的额外接口与解密，
+                    // 用户在列表页上看不出来——先说一句，免得照着两条做了却被拒时觉得被骗。
+                    footer: NSLocalizedString("entry_guide_requirements_caveat", comment: "")
+                ) {
+                    self.requirementRow(
+                        systemImage: "list.number",
+                        titleKey: "entry_guide_rule_pagination_title",
+                        detailKey: "entry_guide_rule_pagination_detail"
+                    )
+                    SettingsRowSeparator()
+                    self.requirementRow(
+                        systemImage: "square.grid.2x2",
+                        titleKey: "entry_guide_rule_single_list_title",
+                        detailKey: "entry_guide_rule_single_list_detail"
+                    )
                 }
-            }
 
-            Section(NSLocalizedString("entry_guide_examples_title", comment: "")) {
-                Label {
-                    Text(NSLocalizedString("entry_guide_example_bad", comment: ""))
-                } icon: {
-                    Image(systemName: "xmark.circle.fill").foregroundStyle(.red)
+                SettingsCardGroup(title: NSLocalizedString("entry_guide_examples_title", comment: "")) {
+                    self.exampleRow(
+                        systemImage: "xmark",
+                        tint: CatalogPalette.warning,
+                        fill: CatalogPalette.warningFill,
+                        textKey: "entry_guide_example_bad"
+                    )
+                    SettingsRowSeparator()
+                    self.exampleRow(
+                        systemImage: "checkmark",
+                        tint: CatalogPalette.settingsIcon,
+                        fill: CatalogPalette.settingsIconFill,
+                        textKey: self.goodExampleKey
+                    )
                 }
-                .listRowSeparatorAlignedToRowLeading()
-                Label {
-                    Text(NSLocalizedString(self.goodExampleKey, comment: ""))
-                } icon: {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                }
-                .listRowSeparatorAlignedToRowLeading()
-            }
 
-            Section(NSLocalizedString("entry_guide_steps_title", comment: "")) {
-                ForEach(Self.stepKeys, id: \.self) { key in
-                    Text(NSLocalizedString(key, comment: ""))
-                        .listRowSeparatorAlignedToRowLeading()
+                SettingsCardGroup(title: NSLocalizedString("entry_guide_steps_title", comment: "")) {
+                    ForEach(Array(Self.stepKeys.enumerated()), id: \.offset) { index, key in
+                        if index > 0 {
+                            SettingsRowSeparator(leadingInset: 52)
+                        }
+                        self.stepRow(number: index + 1, textKey: key)
+                    }
                 }
-            }
 
-            Section {
                 Button {
                     self.primaryAction()
                 } label: {
                     Text(NSLocalizedString(self.primaryTitleKey, comment: ""))
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(CatalogPalette.addAction, in: Capsule())
                 }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 20)
+                .padding(.top, 24)
             }
+            .padding(.bottom, 24)
         }
-        .navigationTitle(NSLocalizedString("entry_guide_title", comment: ""))
+        .background(CatalogPalette.pageBackground)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if let cancelAction: () -> Void = self.cancelAction {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(NSLocalizedString("video_preflight_close_button", comment: "")) {
+                    Button(NSLocalizedString("Cancel", comment: "")) {
                         cancelAction()
                     }
                 }
@@ -149,19 +169,62 @@ struct EntryPageGuideView: View {
         }
     }
 
-    @ViewBuilder
     private func requirementRow(
         systemImage: String,
         titleKey: String,
         detailKey: String
     ) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label(NSLocalizedString(titleKey, comment: ""), systemImage: systemImage)
-            Text(NSLocalizedString(detailKey, comment: ""))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+        HStack(alignment: .top, spacing: 12) {
+            self.iconTile(systemImage: systemImage, tint: CatalogPalette.settingsIcon, fill: CatalogPalette.settingsIconFill)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(NSLocalizedString(titleKey, comment: ""))
+                    .font(.subheadline.weight(.semibold))
+                Text(NSLocalizedString(detailKey, comment: ""))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
         }
-        .listRowSeparatorAlignedToRowLeading()
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+
+    private func exampleRow(systemImage: String, tint: Color, fill: Color, textKey: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            self.iconTile(systemImage: systemImage, tint: tint, fill: fill)
+            Text(NSLocalizedString(textKey, comment: ""))
+                .font(.subheadline)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+
+    private func stepRow(number: Int, textKey: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text(verbatim: "\(number)")
+                .font(.footnote.weight(.bold))
+                .frame(width: 24, height: 24)
+                .background(CatalogPalette.fillBackground, in: Circle())
+                .accessibilityHidden(true)
+            Text(NSLocalizedString(textKey, comment: ""))
+                .font(.subheadline)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 11)
+    }
+
+    private func iconTile(systemImage: String, tint: Color, fill: Color) -> some View {
+        Image(systemName: systemImage)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(tint)
+            .frame(width: 32, height: 32)
+            .background(fill, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .accessibilityHidden(true)
     }
 }
 

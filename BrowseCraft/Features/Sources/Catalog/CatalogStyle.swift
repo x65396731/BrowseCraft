@@ -31,6 +31,53 @@ enum CatalogPalette {
         return UIColor(hex: 0x2563EB).withAlphaComponent(traits.userInterfaceStyle == .dark ? 0.24 : 0.12)
     })
 
+    /// 流光点阵的多彩渐变（`docs/design/Generation-Input-Page-Redesign-Design.md` 第三节，用户 2026-10-07 裁定 A）：
+    /// 沿轨道浅蓝 → 薰衣草 → 浅粉 → 杏色的粉彩，深浅同值（用户 2026-10-07 看参考图后要求比饱和版淡）；
+    /// 右端落在困难档琥珀附近，所以档位滑杆拖到困难时自然变「暖」。
+    static let spectrumStops: [UInt32] = [0x7FA8F7, 0xB9A3F5, 0xF2A8C8, 0xF8C38F]
+
+    /// 渐变的四个色标，按顺序；给描边、文字、滑块用横向 `LinearGradient`（用户 2026-10-07 裁定：困难档不要黄色，用多彩）。
+    static var spectrumColors: [Color] {
+        return Self.spectrumStops.map { Self.fixed($0) }
+    }
+
+    static var spectrumGradient: LinearGradient {
+        return LinearGradient(colors: Self.spectrumColors, startPoint: .leading, endPoint: .trailing)
+    }
+
+    /// 饱和版渐变：给压在粉彩点阵上的文字、滑块与描边用——粉彩字压粉彩点读不清（2026-10-07 模拟器实测）。
+    static let spectrumVividStops: [UInt32] = [0x2563EB, 0x7C3AED, 0xE0457B, 0xF28C28]
+
+    static var spectrumVividColors: [Color] {
+        return Self.spectrumVividStops.map { Self.fixed($0) }
+    }
+
+    static var spectrumVividGradient: LinearGradient {
+        return LinearGradient(colors: Self.spectrumVividColors, startPoint: .leading, endPoint: .trailing)
+    }
+
+    /// 渐变的淡底（16%），给困难按钮与困难档滑动确认的底。
+    static var spectrumFill: LinearGradient {
+        return LinearGradient(colors: Self.spectrumColors.map { $0.opacity(0.16) }, startPoint: .leading, endPoint: .trailing)
+    }
+
+    /// 渐变上某一点的颜色，`position` 0 … 1 从左到右；在 RGB 里线性插值（iOS 17 没有 `Color.mix`）。
+    static func spectrumColor(at position: CGFloat) -> Color {
+        let stops: [UInt32] = Self.spectrumStops
+        let clamped: CGFloat = min(1, max(0, position))
+        let scaled: CGFloat = clamped * CGFloat(stops.count - 1)
+        let index: Int = min(stops.count - 2, Int(scaled))
+        let fraction: CGFloat = scaled - CGFloat(index)
+        let from: UInt32 = stops[index]
+        let to: UInt32 = stops[index + 1]
+        func channel(_ shift: UInt32) -> Double {
+            let a: CGFloat = CGFloat((from >> shift) & 0xFF)
+            let b: CGFloat = CGFloat((to >> shift) & 0xFF)
+            return Double(a + (b - a) * fraction) / 255
+        }
+        return Color(red: channel(16), green: channel(8), blue: channel(0))
+    }
+
     /// 不随系统深浅色变化的固定色。
     static func fixed(_ hex: UInt32) -> Color {
         return Color(uiColor: UIColor(hex: hex))

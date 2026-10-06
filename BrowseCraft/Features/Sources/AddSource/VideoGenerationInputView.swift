@@ -2,10 +2,12 @@ import BrowseCraftDomain
 import Foundation
 import SwiftUI
 
+// 中文注释：网址输入页（`docs/design/Generation-Input-Page-Redesign-Design.md`）：贴网址 → 本机检查 → 结论 → 选取页方式、滑动提交。
+// 一个阶段一张卡，任何时候页面上只有一个主控件；状态机（检查、提交、自动返回）与重设计前相同。
+
 struct VideoGenerationInputView: View {
     @Bindable var viewModel: SourcesViewModel
-    /// 中文注释：预检是中性的，两种 kind 走同一套输入与判定；`sourceKind` 只决定
-    /// 标题文案与提交给服务端的生成链。
+    /// 中文注释：预检是中性的，三种 kind 走同一套输入与判定；`sourceKind` 只决定标题文案与提交给服务端的生成链。
     let sourceKind: RuleGenerationSourceKind
     /// 中文注释：这一屏结束时交回宿主决定落点——提交成功自动返回、按「关闭」、下滑关掉，
     /// 三条出口共用这一个回调，三种关法落在同一页；关闭哪几层 sheet 是 `AddSourceView` 的事。
@@ -30,98 +32,59 @@ struct VideoGenerationInputView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    TextField(
-                        NSLocalizedString("video_preflight_url_placeholder", comment: ""),
-                        text: self.$siteURL
-                    )
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .keyboardType(.URL)
-                    .submitLabel(.go)
-                    .disabled(self.isChecking)
-                    .onSubmit {
-                        self.startAssessment()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    self.titleRow
+                    if self.showsIntro {
+                        Text(NSLocalizedString("generation_input_intro", comment: ""))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, 20)
+                            .padding(.top, 8)
                     }
-                } header: {
-                    Text(NSLocalizedString("video_preflight_website_title", comment: ""))
-                } footer: {
-                    Text(NSLocalizedString("video_preflight_scope_footer", comment: ""))
-                }
-
-                Section {
-                    Button {
-                        self.startAssessment()
-                    } label: {
-                        HStack {
-                            if self.isChecking {
-                                ProgressView()
-                            }
-                            Text(
-                                NSLocalizedString(
-                                    self.isChecking
-                                        ? "video_preflight_checking_button"
-                                        : "video_preflight_check_button",
-                                    comment: ""
-                                )
-                            )
-                            .frame(maxWidth: .infinity)
+                    self.urlCard
+                        .padding(.horizontal, 20)
+                        .padding(.top, self.showsIntro ? 16 : 12)
+                    if let errorMessage: String = self.errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(CatalogPalette.warning)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, 24)
+                            .padding(.top, 8)
+                    }
+                    if self.showsIntro {
+                        // 中文注释：引导屏首次必过之后就不再拦路（`EntryPageGuide.seenVersionKey`），这一行是它的常驻回看入口。
+                        // 叠一层 sheet 而不是退回上一页——退回会触发本视图的 `onDisappear`，那条绑着 `onFinished()`。
+                        Button(NSLocalizedString("entry_guide_reopen_link", comment: "")) {
+                            self.isShowingGuide = true
                         }
+                        .font(.subheadline)
+                        .foregroundStyle(CatalogPalette.addAction)
+                        .frame(minHeight: 44)
+                        .padding(.horizontal, 24)
                     }
-                    .disabled(self.canStartAssessment == false)
-                    .listRowSeparatorAlignedToRowLeading()
-
                     if self.isChecking {
-                        Button(
-                            NSLocalizedString("video_preflight_cancel_button", comment: ""),
-                            role: .cancel
-                        ) {
-                            self.cancelAssessment()
-                        }
+                        self.progressCard
+                            .padding(.horizontal, 20)
+                            .padding(.top, 16)
+                        Text(NSLocalizedString("generation_input_scope_footer", comment: ""))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 24)
+                            .padding(.top, 8)
+                    } else if let result: VideoGenerationInputPreflight = self.result {
+                        self.resultSection(result)
                     }
-
-                    // 中文注释：引导屏首次必过之后就不再拦路（`EntryPageGuide.seenVersionKey`），
-                    // 这一行是它唯一的常驻回看入口。叠一层 sheet 而不是退回上一页——
-                    // 退回会触发本视图的 `onDisappear`，那条绑着 `onFinished()`，整个流程会被关掉。
-                    Button(NSLocalizedString("entry_guide_reopen_link", comment: "")) {
-                        self.isShowingGuide = true
-                    }
+                    self.primaryControl
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
                 }
-
-                if self.isChecking {
-                    self.progressSection
-                }
-                if let result: VideoGenerationInputPreflight = self.result {
-                    VideoGenerationInputOutcomeView(
-                        result: result,
-                        submissionState: self.submissionState,
-                        canSubmit: self.viewModel.canSubmitVideoGenerationTasks,
-                        wallet: self.viewModel.coinWalletStore,
-                        acquisitionTier: self.$acquisitionTier,
-                        retry: {
-                            self.startAssessment()
-                        },
-                        submit: {
-                            self.startSubmission(result)
-                        },
-                        regenerate: {
-                            self.startSubmission(result, refresh: true)
-                        }
-                    )
-                }
-                if let errorMessage: String = self.errorMessage {
-                    Section(NSLocalizedString("video_preflight_status_title", comment: "")) {
-                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
-                            .listRowSeparatorAlignedToRowLeading()
-                        Button(NSLocalizedString("video_preflight_retry_button", comment: "")) {
-                            self.startAssessment()
-                        }
-                    }
-                }
+                .padding(.bottom, 24)
             }
-            .navigationTitle(NSLocalizedString(self.navigationTitleKey, comment: ""))
+            .background(CatalogPalette.pageBackground)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(NSLocalizedString("video_preflight_close_button", comment: "")) {
@@ -156,16 +119,372 @@ struct VideoGenerationInputView: View {
         }
     }
 
-    private var navigationTitleKey: String {
+    // MARK: - 顶部与网址卡
+
+    /// 出了结论或结果之后说明句与回看链接收起，省出空间给卡片。
+    private var showsIntro: Bool {
+        return self.result == nil && self.isChecking == false
+    }
+
+    private var kindStyle: CatalogKindStyle {
         switch self.sourceKind {
         case .video:
-            return "video_preflight_navigation_title"
+            return CatalogKindStyle.of(CatalogSourceKind.video)
         case .comic:
-            return "comic_preflight_navigation_title"
+            return CatalogKindStyle.of(CatalogSourceKind.comic)
         case .book:
-            return "book_preflight_navigation_title"
+            return CatalogKindStyle.of(CatalogSourceKind.book)
         }
     }
+
+    private var titleKey: String {
+        switch self.sourceKind {
+        case .video:
+            return "generation_input_title_video"
+        case .comic:
+            return "generation_input_title_comic"
+        case .book:
+            return "generation_input_title_book"
+        }
+    }
+
+    private var titleRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: self.kindStyle.symbolName)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(self.kindStyle.accent)
+                .frame(width: 28, height: 28)
+                .background(self.kindStyle.accent.opacity(0.16), in: Circle())
+                .accessibilityHidden(true)
+            Text(NSLocalizedString(self.titleKey, comment: ""))
+                .font(.largeTitle.weight(.heavy))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .accessibilityAddTraits(.isHeader)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+    }
+
+    /// 输入框被锁住的时候：检查中与提交中都不许改网址（改了会把当前状态清掉）。
+    private var isURLLocked: Bool {
+        return self.isChecking || self.submissionState.isSubmitting
+    }
+
+    private var urlCard: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "link")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(self.errorMessage == nil ? Color.secondary : CatalogPalette.warning)
+                .accessibilityHidden(true)
+            TextField(
+                NSLocalizedString("generation_input_url_placeholder", comment: ""),
+                text: self.$siteURL
+            )
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .keyboardType(.URL)
+            .submitLabel(.go)
+            .disabled(self.isURLLocked)
+            .onSubmit {
+                self.startAssessment()
+            }
+            if self.trimmedSiteURL.isEmpty {
+                // 中文注释：系统粘贴按钮不弹授权；点了即填入并开始检查（2026-10-06 用户裁定）。
+                PasteButton(payloadType: String.self) { strings in
+                    guard let pasted: String = strings.first else {
+                        return
+                    }
+                    self.siteURL = pasted.trimmingCharacters(in: .whitespacesAndNewlines)
+                    self.startAssessment()
+                }
+                .labelStyle(.titleOnly)
+                .buttonBorderShape(.capsule)
+                .controlSize(.small)
+                .tint(CatalogPalette.addAction)
+            } else if self.isURLLocked == false {
+                Button {
+                    self.siteURL = ""
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 28)
+                        .background(CatalogPalette.fillBackground, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(NSLocalizedString("generation_input_clear", comment: ""))
+            }
+        }
+        .padding(.leading, 16)
+        .padding(.trailing, 12)
+        .frame(minHeight: 56)
+        .background(CatalogPalette.cardBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(CatalogPalette.warning.opacity(self.errorMessage == nil ? 0 : 0.6), lineWidth: 1.5)
+        )
+        .opacity(self.isURLLocked ? 0.6 : 1)
+    }
+
+    // MARK: - 检查进度
+
+    private static let progressStepKeys: [String] = [
+        "generation_input_step_validate",
+        "generation_input_step_acquire",
+        "generation_input_step_observe",
+        "generation_input_step_reduce"
+    ]
+
+    private var currentProgressStep: Int {
+        switch self.viewModel.videoGenerationInputProgress {
+        case nil, .validatingInput?:
+            return 0
+        case .acquiringInput?:
+            return 1
+        case .observingEntryShape?:
+            return 2
+        case .reducingResult?:
+            return 3
+        }
+    }
+
+    /// 四步纵向清单：做完的打勾、当前的转圈、未到的灰。
+    private var progressCard: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(Self.progressStepKeys.enumerated()), id: \.offset) { index, key in
+                HStack(spacing: 12) {
+                    if index < self.currentProgressStep {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 22, height: 22)
+                            .background(CatalogPalette.addAction, in: Circle())
+                    } else if index == self.currentProgressStep {
+                        ProgressView()
+                            .tint(CatalogPalette.addAction)
+                            .frame(width: 22, height: 22)
+                    } else {
+                        Circle()
+                            .strokeBorder(Color(uiColor: .separator), lineWidth: 2)
+                            .frame(width: 22, height: 22)
+                    }
+                    Text(NSLocalizedString(key, comment: ""))
+                        .font(.subheadline.weight(index == self.currentProgressStep ? .semibold : .regular))
+                        .foregroundStyle(index <= self.currentProgressStep ? Color.primary : Color.secondary)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 16)
+                .frame(minHeight: 46)
+            }
+        }
+        .background(CatalogPalette.cardBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: - 结论与结果
+
+    @ViewBuilder
+    private func resultSection(_ result: VideoGenerationInputPreflight) -> some View {
+        switch self.submissionState {
+        case .finished(let outcome):
+            self.outcomeCard(outcome)
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+            if case .reused = outcome {
+                Text(NSLocalizedString("generation_input_reused_hint", comment: ""))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 10)
+            }
+        case .idle, .submitting:
+            self.preflightCard(result)
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+            if result.canSubmit {
+                // 中文注释：提交中的变淡由滑杆自己（`isEnabled`）处理，这里不再叠一层。
+                self.tierGroup(result)
+            } else if result.status == .rejected {
+                Text(NSLocalizedString("generation_input_rejected_hint", comment: ""))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 10)
+            }
+        }
+    }
+
+    private func preflightCard(_ result: VideoGenerationInputPreflight) -> some View {
+        // 中文注释：`BC-PREFLIGHT-063`——反爬是「可以提交」的一格，标题不能再说「证据不足」。
+        let isAntiBot: Bool = result.reason == .antiBotChallenge
+        let title: String
+        let systemImage: String
+        let tone: StatusCardTone
+        if isAntiBot {
+            title = NSLocalizedString("video_preflight_outcome_antibot", comment: "")
+            systemImage = "checkmark.shield"
+            tone = .action
+        } else {
+            switch result.status {
+            case .accepted:
+                title = NSLocalizedString("video_preflight_outcome_accepted", comment: "")
+                systemImage = "checkmark.circle"
+                tone = .action
+            case .rejected:
+                title = NSLocalizedString("video_preflight_outcome_rejected", comment: "")
+                systemImage = "xmark.circle"
+                tone = .warning
+            case .inconclusive:
+                title = NSLocalizedString("video_preflight_outcome_inconclusive", comment: "")
+                systemImage = "questionmark.circle"
+                tone = .warning
+            }
+        }
+        let message: String = result.reason?.localizedDescription
+            ?? NSLocalizedString("video_preflight_reason_accepted", comment: "")
+        return StatusCardView(systemImage: systemImage, title: title, message: message, tone: tone) {
+            if result.status == .rejected {
+                Button(NSLocalizedString("entry_guide_open_from_failure", comment: "")) {
+                    self.isShowingGuide = true
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(CatalogPalette.addAction)
+                .frame(minHeight: 44)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func outcomeCard(_ outcome: VideoGenerationTaskSubmissionOutcome) -> some View {
+        switch outcome {
+        case .submitted:
+            StatusCardView(
+                systemImage: "paperplane",
+                title: NSLocalizedString("video_preflight_submitted", comment: ""),
+                message: NSLocalizedString("generation_input_submitted_message", comment: "")
+            ) {
+                Text(NSLocalizedString("generation_input_returning", comment: ""))
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+        case .reused(let rule):
+            StatusCardView(
+                systemImage: "checkmark.seal",
+                title: NSLocalizedString("video_preflight_reused", comment: ""),
+                message: String(
+                    format: NSLocalizedString("video_preflight_reused_detail", comment: ""),
+                    rule.catalogSource.name
+                )
+            )
+        case .authRequired:
+            StatusCardView(
+                systemImage: "person.crop.circle.badge.exclamationmark",
+                title: NSLocalizedString("generation_input_auth_title", comment: ""),
+                message: NSLocalizedString("video_preflight_submit_auth_required", comment: ""),
+                tone: .warning
+            )
+        case .activeJobLimit:
+            StatusCardView(
+                systemImage: "hourglass",
+                title: NSLocalizedString("generation_input_job_limit_title", comment: ""),
+                message: NSLocalizedString("video_preflight_submit_active_job_limit", comment: ""),
+                tone: .warning
+            )
+        case .previousJobActive(let entryURL):
+            StatusCardView(
+                systemImage: "hourglass",
+                title: NSLocalizedString("generation_input_previous_job_title", comment: ""),
+                message: Self.previousJobActiveMessage(entryURL: entryURL),
+                tone: .warning
+            )
+        case .rateLimited:
+            StatusCardView(
+                systemImage: "clock.badge.exclamationmark",
+                title: NSLocalizedString("generation_input_rate_limited_title", comment: ""),
+                message: NSLocalizedString("video_preflight_submit_rate_limited", comment: ""),
+                tone: .warning
+            )
+        case .insufficientCoins(let balance, let required):
+            StatusCardView(
+                systemImage: "bitcoinsign.circle",
+                title: NSLocalizedString("generation_input_insufficient_title", comment: ""),
+                message: String(
+                    format: NSLocalizedString("video_preflight_submit_insufficient_coins", comment: ""),
+                    required,
+                    balance
+                ),
+                tone: .warning
+            )
+        case .failed(let code):
+            StatusCardView(
+                systemImage: "exclamationmark.triangle",
+                title: NSLocalizedString("generation_input_failed_title", comment: ""),
+                message: String(
+                    format: NSLocalizedString("video_preflight_submit_failed", comment: ""),
+                    code
+                ),
+                tone: .warning
+            )
+        }
+    }
+
+    // MARK: - 取页方式
+
+    private var pricing: CoinPricing {
+        return self.viewModel.coinWalletStore?.pricing ?? .placeholder
+    }
+
+    private var selectedPrice: Int {
+        return self.acquisitionTier == .hard ? self.pricing.hard : self.pricing.normal
+    }
+
+    /// 中文注释：价格由服务端下发（`wallet.pricing`）；余额还没同步到时只说声明，不猜余额。没有钱包时整行不显示。
+    private var balanceFooter: String? {
+        guard let wallet: CoinWalletStore = self.viewModel.coinWalletStore else {
+            return nil
+        }
+        if let balance: Int = wallet.balance {
+            return String(format: NSLocalizedString("generation_input_balance_footer", comment: ""), balance)
+        }
+        return NSLocalizedString("generation_input_balance_unknown_footer", comment: "")
+    }
+
+    /// 中文注释：`BC-ACQ-071` ①②：档位由用户自选；预检在手机上被挑战时照样可选困难模式，但要提示
+    /// 「该站在你的手机上也被拦，生成出来可能读不了」。
+    private func tierGroup(_ result: VideoGenerationInputPreflight) -> some View {
+        SettingsCardGroup(
+            title: NSLocalizedString("video_preflight_tier_title", comment: ""),
+            footer: self.balanceFooter
+        ) {
+            VStack(alignment: .leading, spacing: 10) {
+                GenerationTierPicker(
+                    tier: self.$acquisitionTier,
+                    normalPrice: self.pricing.normal,
+                    hardPrice: self.pricing.hard,
+                    isEnabled: self.submissionState.isSubmitting == false
+                )
+                Text(NSLocalizedString(
+                    self.acquisitionTier == .hard ? "video_preflight_tier_hard_footer" : "generation_input_tier_normal_footer",
+                    comment: ""
+                ))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                if self.acquisitionTier == .hard, result.reason == .antiBotChallenge {
+                    Text(NSLocalizedString("video_preflight_tier_hard_antibot_hint", comment: ""))
+                        .font(.footnote)
+                        .foregroundStyle(CatalogPalette.warning)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+            .padding(.bottom, 16)
+        }
+    }
+
+    // MARK: - 主控件
 
     private var trimmedSiteURL: String {
         return self.siteURL.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -175,31 +494,109 @@ struct VideoGenerationInputView: View {
         return self.trimmedSiteURL.isEmpty == false && self.isChecking == false
     }
 
+    /// 任何时候只有一个主控件：检查网站 / 取消检查 / 再检查一次 / 滑动生成；没有下一步的状态不显示。
     @ViewBuilder
-    private var progressSection: some View {
-        Section(NSLocalizedString("video_preflight_progress_title", comment: "")) {
-            Label(self.progressText, systemImage: "waveform.path.ecg")
-                .foregroundStyle(.secondary)
-                .listRowSeparatorAlignedToRowLeading()
+    private var primaryControl: some View {
+        if self.isChecking {
+            self.capsuleButton(
+                titleKey: "video_preflight_cancel_button",
+                isProminent: false,
+                action: self.cancelAssessment
+            )
+        } else if let result: VideoGenerationInputPreflight = self.result {
+            if result.canSubmit {
+                self.submissionControl(result)
+            } else if result.status == .inconclusive {
+                self.capsuleButton(
+                    titleKey: "generation_input_recheck_button",
+                    isProminent: true,
+                    action: self.startAssessment
+                )
+            }
+        } else {
+            self.capsuleButton(
+                titleKey: "video_preflight_check_button",
+                isProminent: true,
+                isEnabled: self.canStartAssessment,
+                action: self.startAssessment
+            )
         }
     }
 
-    private var progressText: String {
-        guard let progress: VideoGenerationInputPreflightProgress = self.viewModel
-            .videoGenerationInputProgress else {
-            return NSLocalizedString("video_preflight_progress_validating", comment: "")
-        }
-        switch progress {
-        case .validatingInput:
-            return NSLocalizedString("video_preflight_progress_validating", comment: "")
-        case .acquiringInput:
-            return NSLocalizedString("video_preflight_progress_acquiring", comment: "")
-        case .observingEntryShape:
-            return NSLocalizedString("video_preflight_progress_observing", comment: "")
-        case .reducingResult:
-            return NSLocalizedString("video_preflight_progress_reducing", comment: "")
+    /// 中文注释：任务客户端未接线时保持不可用（`BC-PREFLIGHT-048`）；接线后 `canSubmit` 才可提交
+    /// （accepted，或 `BC-PREFLIGHT-063` 的反爬提示放行）。只有扣 coin 的动作要滑。
+    @ViewBuilder
+    private func submissionControl(_ result: VideoGenerationInputPreflight) -> some View {
+        let tone: SlideToConfirmControl.Tone = self.acquisitionTier == .hard ? .spectrum : .action
+        if self.viewModel.canSubmitVideoGenerationTasks == false {
+            SlideToConfirmControl(
+                title: NSLocalizedString("video_preflight_generate_button", comment: ""),
+                busyTitle: NSLocalizedString("generation_input_submitting", comment: ""),
+                tone: tone,
+                isEnabled: false,
+                onConfirm: {}
+            )
+            Text(NSLocalizedString("video_preflight_transport_unavailable", comment: ""))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+                .padding(.top, 8)
+        } else {
+            switch self.submissionState {
+            case .idle, .submitting:
+                SlideToConfirmControl(
+                    title: String(format: NSLocalizedString("generation_input_slide_generate", comment: ""), self.selectedPrice),
+                    busyTitle: NSLocalizedString("generation_input_submitting", comment: ""),
+                    tone: tone,
+                    isBusy: self.submissionState.isSubmitting,
+                    onConfirm: {
+                        self.startSubmission(result)
+                    }
+                )
+            case .finished(.reused):
+                SlideToConfirmControl(
+                    title: String(format: NSLocalizedString("generation_input_slide_regenerate", comment: ""), self.selectedPrice),
+                    busyTitle: NSLocalizedString("generation_input_submitting", comment: ""),
+                    tone: tone,
+                    onConfirm: {
+                        self.startSubmission(result, refresh: true)
+                    }
+                )
+            case .finished(.failed):
+                SlideToConfirmControl(
+                    title: String(format: NSLocalizedString("generation_input_slide_retry", comment: ""), self.selectedPrice),
+                    busyTitle: NSLocalizedString("generation_input_submitting", comment: ""),
+                    tone: tone,
+                    onConfirm: {
+                        self.startSubmission(result)
+                    }
+                )
+            case .finished:
+                EmptyView()
+            }
         }
     }
+
+    private func capsuleButton(
+        titleKey: String,
+        isProminent: Bool,
+        isEnabled: Bool = true,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(NSLocalizedString(titleKey, comment: ""))
+                .font(.body.weight(.semibold))
+                .foregroundStyle(isProminent ? Color.white : Color.primary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(isProminent ? CatalogPalette.addAction : CatalogPalette.fillBackground, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(isEnabled == false)
+        .opacity(isEnabled ? 1 : 0.45)
+    }
+
+    // MARK: - 检查
 
     private func startAssessment() {
         let input: String = self.trimmedSiteURL
@@ -249,6 +646,8 @@ struct VideoGenerationInputView: View {
         self.assessmentID = nil
         self.isChecking = false
     }
+
+    // MARK: - 提交
 
     /// 中文注释：只有 accepted 结果能走到这里；提交串由用例从 `submissionString` 取（`BC-PREFLIGHT-047`）。
     private func startSubmission(
@@ -319,6 +718,8 @@ struct VideoGenerationInputView: View {
         }
     }
 
+    // MARK: - 错误文案
+
     private func message(for error: Error) -> String {
         if let validationError: VideoGenerationInputURLValidationError =
             error as? VideoGenerationInputURLValidationError {
@@ -388,259 +789,6 @@ enum VideoGenerationTaskSubmissionState: Equatable {
             return true
         }
         return false
-    }
-}
-
-private struct VideoGenerationInputOutcomeView: View {
-    let result: VideoGenerationInputPreflight
-    let submissionState: VideoGenerationTaskSubmissionState
-    let canSubmit: Bool
-    /// 设计书 30.6：提交前显示本次消耗、余额与「可能失败、失败也扣」声明。
-    let wallet: CoinWalletStore?
-    /// `BC-ACQ-071`：普通 / 困难由用户自选；价格取服务端 `pricing.normal` / `pricing.hard`。
-    @Binding var acquisitionTier: GenerationAcquisitionTier
-    let retry: () -> Void
-    let submit: () -> Void
-    /// 中文注释：命中服务端已生成的规则时，让用户能强制重来一次。
-    /// 没有这个入口，同一入口的规则在服务端复用窗口（30 天）内无法重新生成——
-    /// 站点改版或规则生成错了，用户只能干等。
-    let regenerate: () -> Void
-
-    var body: some View {
-        Section(NSLocalizedString("video_preflight_status_title", comment: "")) {
-            Label(self.title, systemImage: self.systemImage)
-                .foregroundStyle(self.color)
-                .listRowSeparatorAlignedToRowLeading()
-            Text(self.detail)
-                .foregroundStyle(.secondary)
-
-            if self.result.canSubmit {
-                self.submissionRows
-            } else if self.result.status == .inconclusive {
-                Button(NSLocalizedString("video_preflight_retry_button", comment: "")) {
-                    self.retry()
-                }
-            }
-        }
-    }
-
-    /// 中文注释：任务客户端未接线时保持不可点（`BC-PREFLIGHT-048`）；接线后 `canSubmit` 才可提交
-    /// （accepted，或 `BC-PREFLIGHT-063` 的反爬提示放行）。
-    @ViewBuilder
-    private var submissionRows: some View {
-        if self.canSubmit == false {
-            Button(NSLocalizedString("video_preflight_generate_button", comment: "")) {}
-                .disabled(true)
-            Text(NSLocalizedString("video_preflight_transport_unavailable", comment: ""))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        } else {
-            switch self.submissionState {
-            case .idle:
-                self.tierRows
-                self.coinRows
-                Button(NSLocalizedString("video_preflight_generate_button", comment: "")) {
-                    self.submit()
-                }
-            case .submitting:
-                HStack {
-                    ProgressView()
-                    Text(NSLocalizedString("video_preflight_submitting", comment: ""))
-                        .foregroundStyle(.secondary)
-                }
-                .listRowSeparatorAlignedToRowLeading()
-            case .finished(let outcome):
-                self.outcomeRows(outcome)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func outcomeRows(_ outcome: VideoGenerationTaskSubmissionOutcome) -> some View {
-        switch outcome {
-        case .submitted(let receipt):
-            Label(
-                NSLocalizedString("video_preflight_submitted", comment: ""),
-                systemImage: "paperplane.fill"
-            )
-            .foregroundStyle(.green)
-            .listRowSeparatorAlignedToRowLeading()
-            Text(
-                String(
-                    format: NSLocalizedString("video_preflight_submitted_job", comment: ""),
-                    receipt.jobID.uuidString
-                )
-            )
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-        case .reused(let rule):
-            Label(
-                NSLocalizedString("video_preflight_reused", comment: ""),
-                systemImage: "checkmark.seal.fill"
-            )
-            .foregroundStyle(.green)
-            .listRowSeparatorAlignedToRowLeading()
-            Text(
-                String(
-                    format: NSLocalizedString("video_preflight_reused_detail", comment: ""),
-                    rule.catalogSource.name
-                )
-            )
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            Button(
-                NSLocalizedString("video_preflight_regenerate", comment: ""),
-                action: self.regenerate
-            )
-            .disabled(self.submissionState.isSubmitting)
-        case .authRequired:
-            Label(
-                NSLocalizedString("video_preflight_submit_auth_required", comment: ""),
-                systemImage: "person.crop.circle.badge.exclamationmark"
-            )
-            .foregroundStyle(.orange)
-            .listRowSeparatorAlignedToRowLeading()
-        case .activeJobLimit:
-            Label(
-                NSLocalizedString("video_preflight_submit_active_job_limit", comment: ""),
-                systemImage: "hourglass"
-            )
-            .foregroundStyle(.orange)
-            .listRowSeparatorAlignedToRowLeading()
-        case .previousJobActive(let entryURL):
-            Label(
-                VideoGenerationInputView.previousJobActiveMessage(entryURL: entryURL),
-                systemImage: "hourglass"
-            )
-            .foregroundStyle(.orange)
-            .listRowSeparatorAlignedToRowLeading()
-        case .rateLimited:
-            Label(
-                NSLocalizedString("video_preflight_submit_rate_limited", comment: ""),
-                systemImage: "clock.badge.exclamationmark"
-            )
-            .foregroundStyle(.orange)
-            .listRowSeparatorAlignedToRowLeading()
-        case .insufficientCoins(let balance, let required):
-            Label(
-                String(
-                    format: NSLocalizedString("video_preflight_submit_insufficient_coins", comment: ""),
-                    required,
-                    balance
-                ),
-                systemImage: "bitcoinsign.circle"
-            )
-            .foregroundStyle(.orange)
-            .listRowSeparatorAlignedToRowLeading()
-        case .failed(let code):
-            Label(
-                String(
-                    format: NSLocalizedString("video_preflight_submit_failed", comment: ""),
-                    code
-                ),
-                systemImage: "exclamationmark.triangle.fill"
-            )
-            .foregroundStyle(.red)
-            .listRowSeparatorAlignedToRowLeading()
-            Button(NSLocalizedString("video_preflight_generate_button", comment: "")) {
-                self.submit()
-            }
-        }
-    }
-
-    /// 中文注释：`BC-ACQ-071` ①②：档位由用户自选；预检在手机上被挑战时照样可选困难模式，但要提示
-    /// 「该站在你的手机上也被拦，生成出来可能读不了」。
-    @ViewBuilder
-    private var tierRows: some View {
-        let pricing: CoinPricing = self.wallet?.pricing ?? .placeholder
-        Picker(
-            NSLocalizedString("video_preflight_tier_title", comment: "取页档位"),
-            selection: self.$acquisitionTier
-        ) {
-            Text(String(format: NSLocalizedString("video_preflight_tier_normal", comment: "普通"), pricing.normal))
-                .tag(GenerationAcquisitionTier.normal)
-            Text(String(format: NSLocalizedString("video_preflight_tier_hard", comment: "困难"), pricing.hard))
-                .tag(GenerationAcquisitionTier.hard)
-        }
-        .pickerStyle(.segmented)
-        if self.acquisitionTier == .hard {
-            Text(NSLocalizedString("video_preflight_tier_hard_footer", comment: "困难模式说明"))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            if self.result.reason == .antiBotChallenge {
-                Text(NSLocalizedString("video_preflight_tier_hard_antibot_hint", comment: "手机上也被拦的提示"))
-                    .font(.footnote)
-                    .foregroundStyle(.orange)
-            }
-        }
-    }
-
-    /// 中文注释：价格由服务端下发（`wallet.pricing`）；余额还没同步到时只说消耗，不猜余额。
-    @ViewBuilder
-    private var coinRows: some View {
-        if let wallet: CoinWalletStore = self.wallet {
-            let cost: Int = self.acquisitionTier == .hard ? wallet.pricing.hard : wallet.pricing.normal
-            Text(
-                wallet.balance.map { balance in
-                    String(
-                        format: NSLocalizedString("video_preflight_coin_cost", comment: ""),
-                        cost,
-                        balance
-                    )
-                } ?? String(
-                    format: NSLocalizedString("video_preflight_coin_cost_unknown", comment: ""),
-                    cost
-                )
-            )
-            .font(.footnote)
-            Text(NSLocalizedString("video_preflight_coin_declaration", comment: ""))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var title: String {
-        // 中文注释：`BC-PREFLIGHT-063`——反爬是「可以提交」的一格，标题不能再说「证据不足」。
-        if self.result.reason == .antiBotChallenge {
-            return NSLocalizedString("video_preflight_outcome_antibot", comment: "")
-        }
-        switch self.result.status {
-        case .accepted:
-            return NSLocalizedString("video_preflight_outcome_accepted", comment: "")
-        case .rejected:
-            return NSLocalizedString("video_preflight_outcome_rejected", comment: "")
-        case .inconclusive:
-            return NSLocalizedString("video_preflight_outcome_inconclusive", comment: "")
-        }
-    }
-
-    private var detail: String {
-        guard let reason: VideoGenerationInputPreflightReason = self.result.reason else {
-            return NSLocalizedString("video_preflight_reason_accepted", comment: "")
-        }
-        return reason.localizedDescription
-    }
-
-    private var systemImage: String {
-        switch self.result.status {
-        case .accepted:
-            return "checkmark.circle.fill"
-        case .rejected:
-            return "xmark.octagon.fill"
-        case .inconclusive:
-            return "questionmark.circle.fill"
-        }
-    }
-
-    private var color: Color {
-        switch self.result.status {
-        case .accepted:
-            return .green
-        case .rejected:
-            return .red
-        case .inconclusive:
-            return .orange
-        }
     }
 }
 

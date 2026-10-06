@@ -35,55 +35,37 @@
 "entry_guide_example_good_book" = "在一排分類或排行裡選一個的列表頁（例如「月榜」），底部帶頁碼；這一排會一起生成為分類，其它內容用搜尋找。";
 "entry_guide_example_good_generic" = "在一排篩選裡選一個分類的列表頁，底部帶頁碼；這一排會一起生成為分類，其它內容用搜尋找。";
 "entry_guide_steps_title" = "怎麼找";
-"entry_guide_step_1" = "1. 在瀏覽器裡打開這個網站";
-"entry_guide_step_2" = "2. 點進列表，只在其中一排篩選（類型、地區、排序…）選一個不是「全部」的選項；每排都停在「全部」就只有一頁、沒有分類。站上沒有篩選才用「全部」列表";
-"entry_guide_step_3" = "3. 滑到底確認有頁碼，複製網址列的網址";
+"entry_guide_step_1" = "在瀏覽器裡打開這個網站";
+"entry_guide_step_2" = "點進列表，只在其中一排篩選（類型、地區、排序…）選一個不是「全部」的選項；每排都停在「全部」就只有一頁、沒有分類。站上沒有篩選才用「全部」列表";
+"entry_guide_step_3" = "滑到底確認有頁碼，複製網址列的網址";
 "entry_guide_continue_button" = "我找到了這樣的頁面";
 "entry_guide_dismiss_button" = "知道了";
 "entry_guide_reopen_link" = "怎樣的頁面能生成？";
 "entry_guide_open_from_failure" = "看看怎樣的頁面能生成";
 
 /* Video generation input preflight */
-"video_preflight_navigation_title" = "影片";
-"comic_preflight_navigation_title" = "漫畫";
-"video_preflight_website_title" = "網站";
-"video_preflight_url_placeholder" = "帶頁碼的分類或列表頁網址";
-"video_preflight_scope_footer" = "這一頁要有頁碼，而且整頁只有一種列表。只檢查目前的 URL 及其有界的直接結構，不會搜尋或推薦其他 URL。";
 "video_preflight_check_button" = "檢查網站";
-"video_preflight_checking_button" = "正在檢查…";
 "video_preflight_cancel_button" = "取消檢查";
 "video_preflight_close_button" = "關閉";
-"video_preflight_retry_button" = "重試";
-"video_preflight_status_title" = "狀態";
-"video_preflight_progress_title" = "檢查進度";
-"video_preflight_progress_validating" = "正在驗證輸入的 URL…";
-"video_preflight_progress_acquiring" = "正在隔離載入輸入的頁面…";
-"video_preflight_progress_observing" = "正在檢查入口結構…";
-"video_preflight_progress_one_hop" = "正在檢查直接的 List 結構（%d/%d）…";
-"video_preflight_progress_detail" = "正在檢查代表性的 Detail 頁面（%d/%d）…";
-"video_preflight_progress_reducing" = "正在確認頁面上的列表…";
 "video_preflight_outcome_accepted" = "可以生成";
-"video_preflight_outcome_rejected" = "目前的 URL 不可使用";
-"video_preflight_outcome_inconclusive" = "頁面證據不足";
-"video_preflight_outcome_antibot" = "偵測到反爬驗證，可以直接生成";
+"video_preflight_outcome_rejected" = "這一頁不能用";
+"video_preflight_outcome_inconclusive" = "還沒看清這一頁";
+"video_preflight_outcome_antibot" = "有反爬驗證，可以直接提交";
 "video_preflight_reason_accepted" = "這一頁剛好只有一種列表，可以生成規則。";
 "video_preflight_reason_deeper" = "目前的入口需要更深一層的探索，請輸入更具體的分類或 List 頁面。";
 "video_preflight_reason_multiple_families" = "目前的頁面有多組互相獨立的列表，請改用具體分類頁的 URL。";
 "video_preflight_reason_no_family" = "目前的頁面沒有可用的列表。";
 "video_preflight_reason_capability" = "這個網站需要的能力，目前的產生器無法表達。";
-"video_preflight_reason_insufficient" = "還沒能看清這一頁的列表結構，請稍後再試。";
+"video_preflight_reason_insufficient" = "這次沒能看清這一頁的列表結構，再檢查一次通常就好。";
 "video_preflight_reason_session" = "這個頁面需要個人登入狀態，隔離預檢無法完成判斷。";
-"video_preflight_reason_antibot" = "該網站有反爬驗證，App 無法預先檢查這個頁面。點「生成規則」直接提交，由伺服器判斷能否生成。";
+"video_preflight_reason_antibot" = "這個網站有反爬驗證，App 無法預先檢查這個頁面。可以直接提交，由伺服器判斷能否生成。";
 "video_preflight_reason_budget" = "檢查已達時間或取樣上限，請稍後再試。";
 "video_preflight_reason_isolation" = "目前的頁面無法在要求的隔離環境中完成檢查。";
 "video_preflight_generate_button" = "生成規則";
 "video_preflight_transport_unavailable" = "本機預檢已通過，但生成工作的提交尚未接上。";
-"video_preflight_submitting" = "正在提交生成工作…";
 "video_preflight_submitted" = "生成工作已提交";
-"video_preflight_submitted_job" = "工作 %@。生成完成後，規則會出現在目錄裡。";
 "video_preflight_reused" = "規則已存在";
 "video_preflight_reused_detail" = "%@ 先前已經生成過，規則已在目錄「我的生成」裡，可從那裡加入。";
-"video_preflight_regenerate" = "重新生成這條規則";
 "video_preflight_submit_auth_required" = "請先登入再提交生成工作。";
 "video_preflight_submit_active_job_limit" = "進行中的生成工作已達上限，請等它完成後再試。";
 "video_preflight_submit_failed" = "提交失敗（%@），請稍後再試。";
@@ -91,7 +73,7 @@
 "video_preflight_submit_previous_job_active_generic" = "上一個生成工作還沒完成，等它成功或失敗後再提交新的。";
 "video_preflight_submit_rate_limited" = "這一小時內的提交次數已達上限，請稍後再試。";
 "video_preflight_error_invalid_url" = "請輸入有效的網站 URL。";
-"video_preflight_error_scheme" = "只支援公開的 HTTP 或 HTTPS URL。";
+"video_preflight_error_scheme" = "只支援公開的 HTTP 或 HTTPS 網址，請從瀏覽器網址列完整複製。";
 "video_preflight_error_unsafe_url" = "這個 URL 沒有通過公網安全政策。";
 "video_preflight_error_unsupported_content" = "這個 URL 沒有回傳支援的 HTML 頁面。";
 "video_preflight_error_request" = "頁面暫時無法檢查，請稍後再試。";
@@ -410,7 +392,6 @@
 "Add Bookmark" = "加入書籤";
 "Add a bookmark at the current page." = "在目前這一頁加入書籤。";
 "Delete" = "刪除";
-"book_preflight_navigation_title" = "書籍";
 "Chapters" = "章節";
 "Start Reading" = "開始閱讀";
 "Continue Reading" = "繼續閱讀";
@@ -514,10 +495,7 @@
 
 /* coin（設計書第 30 節） */
 "coin_balance_row_title" = "coin 餘額";
-"video_preflight_coin_cost" = "本次生成消耗 %1$d coin，目前餘額 %2$d。";
-"video_preflight_coin_cost_unknown" = "本次生成消耗 %d coin。";
-"video_preflight_coin_declaration" = "生成可能失敗，失敗也會扣 coin；只有伺服器未產生任何費用的失敗才會退回。";
-"video_preflight_submit_insufficient_coins" = "coin 不足：需要 %1$d，目前 %2$d。在播放器或閱讀頁看完獎勵廣告可獲得 coin。";
+"video_preflight_submit_insufficient_coins" = "這次生成需要 %1$d coin，目前只有 %2$d。在播放器或閱讀頁看完獎勵廣告可以獲得 coin。";
 
 /* 仅测试版：取本机 IDFA 登记 AdMob 测试设备 */
 "ad_test_idfa_title" = "測試裝置 IDFA";
@@ -551,8 +529,6 @@
 
 /* 困难模式（设计书第 29 节，BC-ACQ-071） */
 "video_preflight_tier_title" = "取頁方式";
-"video_preflight_tier_normal" = "普通 · %d coin";
-"video_preflight_tier_hard" = "困難 · %d coin";
 "video_preflight_tier_hard_footer" = "困難模式會經雲端取頁，適合普通模式被網站拒絕的情況；費用較高，失敗同樣扣除。";
 "video_preflight_tier_hard_antibot_hint" = "這個網站在你的手機上也被攔下，即使生成成功也可能讀不到內容。";
 "video_generation_outcome_failed_hardModeSiteTooStrong" = "這個網站在困難模式下也無法處理：雲端對它按最高檔計費，目前不支援。請換一個網站。";
@@ -748,3 +724,38 @@
 "add_source_coin_price" = "生成一次 %d coin 起";
 "add_source_sign_in_required" = "提交生成需要登入，可以在設定頁登入。生成一次 %d coin 起。";
 "add_source_catalog_card_message" = "現成的規則，不用等生成";
+
+/* 网址输入页与引导屏重设计（docs/design/Generation-Input-Page-Redesign-Design.md） */
+"generation_input_title_video" = "生成影片規則";
+"generation_input_title_comic" = "生成漫畫規則";
+"generation_input_title_book" = "生成書籍規則";
+"generation_input_intro" = "貼一個帶頁碼的列表頁網址，先在本機檢查，不花 coin。";
+"generation_input_url_placeholder" = "帶頁碼的列表頁網址";
+"generation_input_clear" = "清除";
+"generation_input_recheck_button" = "再檢查一次";
+"generation_input_step_validate" = "校驗網址";
+"generation_input_step_acquire" = "隔離載入頁面";
+"generation_input_step_observe" = "檢查列表結構";
+"generation_input_step_reduce" = "確認頁面上的列表";
+"generation_input_scope_footer" = "只檢查這一個網址，不搜尋、不推薦別的頁面。";
+"generation_input_rejected_hint" = "改一下上面的網址，就會回到「檢查網站」。";
+"generation_input_tier_normal" = "普通";
+"generation_input_tier_hard" = "困難";
+"generation_input_tier_price" = "%d coin";
+"generation_input_tier_normal_footer" = "普通模式在本機取頁；被網站拒絕時再換困難模式（經雲端取頁）。";
+"generation_input_balance_footer" = "目前餘額 %d · 生成可能失敗，失敗也會扣 coin。";
+"generation_input_balance_unknown_footer" = "生成可能失敗，失敗也會扣 coin。";
+"generation_input_slide_generate" = "滑動生成 · %d coin";
+"generation_input_slide_regenerate" = "滑動重新生成 · %d coin";
+"generation_input_slide_retry" = "滑動再試一次 · %d coin";
+"generation_input_submitting" = "正在提交…";
+"generation_input_submitted_message" = "生成完成後會出現在規則目錄「我的生成」裡，從那裡加入。";
+"generation_input_returning" = "正在回到來源頁…";
+"generation_input_reused_hint" = "網站改版或規則生成錯了，可以重新生成；重新生成照常消耗 coin。";
+"generation_input_auth_title" = "需要登入";
+"generation_input_job_limit_title" = "任務已達上限";
+"generation_input_previous_job_title" = "上一個任務還沒完成";
+"generation_input_rate_limited_title" = "提交太頻繁";
+"generation_input_insufficient_title" = "coin 不足";
+"generation_input_failed_title" = "提交沒有成功";
+"generation_input_control_unavailable" = "不可用";

@@ -35,55 +35,37 @@
 "entry_guide_example_good_book" = "A listing picked from one row of categories or rankings (e.g. Monthly) with page numbers at the bottom; that whole row becomes your categories. Use search for the rest.";
 "entry_guide_example_good_generic" = "A listing filtered to one category in a single filter row, with page numbers at the bottom; that whole row becomes your categories. Use search for the rest.";
 "entry_guide_steps_title" = "How to find one";
-"entry_guide_step_1" = "1. Open the site in your browser";
-"entry_guide_step_2" = "2. Open the listing and, in just one filter row (genre, region, sort…), pick an option other than \"All\". If every row stays on \"All\" you get a single page with no categories. Use the \"All\" listing only when the site has no filters";
-"entry_guide_step_3" = "3. Scroll to the bottom, check for page numbers, then copy the address";
+"entry_guide_step_1" = "Open the site in your browser";
+"entry_guide_step_2" = "Open the listing and, in just one filter row (genre, region, sort…), pick an option other than \"All\". If every row stays on \"All\" you get a single page with no categories. Use the \"All\" listing only when the site has no filters";
+"entry_guide_step_3" = "Scroll to the bottom, check for page numbers, then copy the address";
 "entry_guide_continue_button" = "I found a page like this";
 "entry_guide_dismiss_button" = "Got it";
 "entry_guide_reopen_link" = "What page works?";
 "entry_guide_open_from_failure" = "See what page works";
 
 /* Video generation input preflight */
-"video_preflight_navigation_title" = "Video";
-"comic_preflight_navigation_title" = "Comic";
-"video_preflight_website_title" = "Website";
-"video_preflight_url_placeholder" = "Category or list URL with page numbers";
-"video_preflight_scope_footer" = "This page needs page numbers and just one list. Checks only this URL and its bounded direct structure. No replacement URL will be searched for or recommended.";
 "video_preflight_check_button" = "Check Website";
-"video_preflight_checking_button" = "Checking…";
 "video_preflight_cancel_button" = "Cancel Check";
 "video_preflight_close_button" = "Close";
-"video_preflight_retry_button" = "Retry";
-"video_preflight_status_title" = "Status";
-"video_preflight_progress_title" = "Progress";
-"video_preflight_progress_validating" = "Validating the input URL…";
-"video_preflight_progress_acquiring" = "Loading the input page in isolation…";
-"video_preflight_progress_observing" = "Checking the entry structure…";
-"video_preflight_progress_one_hop" = "Checking direct List structure (%d/%d)…";
-"video_preflight_progress_detail" = "Checking representative Detail pages (%d/%d)…";
-"video_preflight_progress_reducing" = "Checking the lists on this page…";
 "video_preflight_outcome_accepted" = "Can Generate";
-"video_preflight_outcome_rejected" = "This URL Cannot Be Used";
-"video_preflight_outcome_inconclusive" = "Not Enough Evidence";
-"video_preflight_outcome_antibot" = "Anti-bot check detected; you can still generate";
+"video_preflight_outcome_rejected" = "This Page Can't Be Used";
+"video_preflight_outcome_inconclusive" = "Couldn't Read This Page Yet";
+"video_preflight_outcome_antibot" = "Anti-bot Check; You Can Submit Anyway";
 "video_preflight_reason_accepted" = "This page has exactly one kind of list, so a rule can be generated.";
 "video_preflight_reason_deeper" = "This entry needs deeper discovery. Enter a more specific category or List page.";
 "video_preflight_reason_multiple_families" = "This page contains several independent lists. Enter the URL of a specific category page instead.";
 "video_preflight_reason_no_family" = "No usable list was found on this page.";
 "video_preflight_reason_capability" = "A required website capability is not supported by the current generator.";
-"video_preflight_reason_insufficient" = "Couldn't make out this page's list structure yet. Please try again later.";
+"video_preflight_reason_insufficient" = "Couldn't make out this page's list structure this time; checking again usually works.";
 "video_preflight_reason_session" = "This page requires a personal session, so isolated preflight cannot decide.";
-"video_preflight_reason_antibot" = "This site uses an anti-bot check, so the app cannot inspect the page in advance. Tap Generate Rule to submit anyway; the server will decide whether a rule can be generated.";
+"video_preflight_reason_antibot" = "This site uses an anti-bot check, so the app cannot inspect the page in advance. You can submit anyway; the server will decide whether a rule can be generated.";
 "video_preflight_reason_budget" = "The bounded check reached its time or sampling limit. Please retry later.";
 "video_preflight_reason_isolation" = "The page could not be checked with the required isolation.";
 "video_preflight_generate_button" = "Generate Rule";
 "video_preflight_transport_unavailable" = "Local preflight passed. Generation submission is not connected yet.";
-"video_preflight_submitting" = "Submitting the generation task…";
 "video_preflight_submitted" = "Generation task submitted";
-"video_preflight_submitted_job" = "Job %@. The rule will appear in the catalog once generation finishes.";
 "video_preflight_reused" = "Rule already exists";
 "video_preflight_reused_detail" = "%@ was generated earlier. The rule is in the catalog under “My generations”; add it from there.";
-"video_preflight_regenerate" = "Regenerate this rule";
 "video_preflight_submit_auth_required" = "Sign in to submit a generation task.";
 "video_preflight_submit_active_job_limit" = "You already have the maximum number of active generation tasks. Wait for one to finish.";
 "video_preflight_submit_failed" = "Submission failed (%@). Please try again later.";
@@ -91,7 +73,7 @@
 "video_preflight_submit_previous_job_active_generic" = "Your previous generation task has not finished yet. Wait for it to succeed or fail before submitting another.";
 "video_preflight_submit_rate_limited" = "You have reached the hourly submission limit. Please try again later.";
 "video_preflight_error_invalid_url" = "Enter a valid website URL.";
-"video_preflight_error_scheme" = "Only public HTTP or HTTPS URLs are supported.";
+"video_preflight_error_scheme" = "Only public HTTP or HTTPS addresses are supported; copy the full address from the browser's address bar.";
 "video_preflight_error_unsafe_url" = "This URL is not allowed by the public-network safety policy.";
 "video_preflight_error_unsupported_content" = "The URL did not return a supported HTML page.";
 "video_preflight_error_request" = "The page could not be checked. Please try again later.";
@@ -410,7 +392,6 @@
 "Add Bookmark" = "Add Bookmark";
 "Add a bookmark at the current page." = "Add a bookmark at the current page.";
 "Delete" = "Delete";
-"book_preflight_navigation_title" = "Book";
 "Chapters" = "Chapters";
 "Start Reading" = "Start Reading";
 "Continue Reading" = "Continue Reading";
@@ -514,10 +495,7 @@
 
 /* coin（设计书第 30 节） */
 "coin_balance_row_title" = "Coins";
-"video_preflight_coin_cost" = "This generation costs %1$d coins. Your balance: %2$d.";
-"video_preflight_coin_cost_unknown" = "This generation costs %d coins.";
-"video_preflight_coin_declaration" = "Generation may fail, and coins are charged even when it fails. Coins are refunded only when the server spent nothing.";
-"video_preflight_submit_insufficient_coins" = "Not enough coins: %1$d needed, you have %2$d. Watch a rewarded ad in the player or reader to earn more.";
+"video_preflight_submit_insufficient_coins" = "This generation needs %1$d coins and you have %2$d. Watch a rewarded ad in the player or reader to earn coins.";
 
 /* 仅测试版：取本机 IDFA 登记 AdMob 测试设备 */
 "ad_test_idfa_title" = "Test Device IDFA";
@@ -551,8 +529,6 @@
 
 /* 困难模式（设计书第 29 节，BC-ACQ-071） */
 "video_preflight_tier_title" = "Fetch mode";
-"video_preflight_tier_normal" = "Normal · %d coins";
-"video_preflight_tier_hard" = "Hard · %d coins";
 "video_preflight_tier_hard_footer" = "Hard mode fetches pages through a cloud service. Use it when the site rejects normal mode. It costs more, and coins are charged even if generation fails.";
 "video_preflight_tier_hard_antibot_hint" = "This site also blocked your phone. Even if generation succeeds, the content may not load.";
 "video_generation_outcome_failed_hardModeSiteTooStrong" = "This site cannot be handled even in hard mode: the cloud service bills it at the highest tier, which is not supported. Try a different site.";
@@ -748,3 +724,38 @@
 "add_source_coin_price" = "From %d coins per generation";
 "add_source_sign_in_required" = "Sign in from Settings before submitting a generation. From %d coins per generation.";
 "add_source_catalog_card_message" = "Ready-made rules, no waiting for generation";
+
+/* 网址输入页与引导屏重设计（docs/design/Generation-Input-Page-Redesign-Design.md） */
+"generation_input_title_video" = "Generate a Video Rule";
+"generation_input_title_comic" = "Generate a Comic Rule";
+"generation_input_title_book" = "Generate a Book Rule";
+"generation_input_intro" = "Paste the address of a listing page with page numbers. It is checked on this device first, at no coin cost.";
+"generation_input_url_placeholder" = "Listing page address with page numbers";
+"generation_input_clear" = "Clear";
+"generation_input_recheck_button" = "Check Again";
+"generation_input_step_validate" = "Validate the address";
+"generation_input_step_acquire" = "Load the page in isolation";
+"generation_input_step_observe" = "Check the list structure";
+"generation_input_step_reduce" = "Confirm the lists on this page";
+"generation_input_scope_footer" = "Only this one address is checked; nothing is searched for or recommended.";
+"generation_input_rejected_hint" = "Change the address above and “Check Website” comes back.";
+"generation_input_tier_normal" = "Normal";
+"generation_input_tier_hard" = "Hard";
+"generation_input_tier_price" = "%d coins";
+"generation_input_tier_normal_footer" = "Normal mode fetches pages on this device; switch to hard mode (cloud fetching) when the site rejects it.";
+"generation_input_balance_footer" = "Balance %d · Generation may fail, and coins are charged even when it fails.";
+"generation_input_balance_unknown_footer" = "Generation may fail, and coins are charged even when it fails.";
+"generation_input_slide_generate" = "Slide to generate · %d coins";
+"generation_input_slide_regenerate" = "Slide to regenerate · %d coins";
+"generation_input_slide_retry" = "Slide to try again · %d coins";
+"generation_input_submitting" = "Submitting…";
+"generation_input_submitted_message" = "Once generation finishes the rule appears in the catalog under “Mine”; add it from there.";
+"generation_input_returning" = "Returning to Sources…";
+"generation_input_reused_hint" = "If the site changed or the rule came out wrong, regenerate it; that costs coins as usual.";
+"generation_input_auth_title" = "Sign-in Required";
+"generation_input_job_limit_title" = "Task Limit Reached";
+"generation_input_previous_job_title" = "Previous Task Still Running";
+"generation_input_rate_limited_title" = "Too Many Submissions";
+"generation_input_insufficient_title" = "Not Enough Coins";
+"generation_input_failed_title" = "Submission Failed";
+"generation_input_control_unavailable" = "Unavailable";

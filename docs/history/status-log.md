@@ -630,3 +630,37 @@ App 侧设计文档一处都没引用，App 执行两种形态的合同由自己
 - 用户在模拟器上发现添加来源页左右没有边距、标题贴左。根因在 `CatalogKindBannerView`：1200×336 的插画按 112pt 高 `scaledToFill` 后宽 400pt，
   比小屏上 362pt 的可用宽度大，作为 ZStack 的一层把横幅布局宽度撑到 400，整列内容随之比屏幕宽；目录页同一组件恰好没露出来。
   改为底色的 overlay（不参与布局尺寸），增量 build 后在 iPhone 18 Pro 上确认添加来源页左右各 20pt、目录页横幅不变。STATUS 行的值不变。
+
+## 2026-10-07 网址输入页与引导屏重设计：立项、裁定与设计稿
+
+- 用户要求重设计「搜索规则页」（网址输入页 `VideoGenerationInputView`）。先登记进页面设计索引，再写设计文档，列六项待裁定问题；用户裁定全取 A：
+  引导屏一起做（只改外观）、粘贴后自动开始检查、标题改「生成视频规则」+ 类型色图标圆、结论卡正常蓝异常橙、价格写进主控件、网址错误不出卡。
+- 画布 14 张。画稿过程中用户追加三项：取页方式改成点阵滑杆（照 Xcode 效果档位滑杆的样子）；「生成规则」按钮改成滑动确认；
+  普通 / 困难两档连同滑动确认各一套视觉（普通蓝、困难橙带发光）。
+- 合同写入 `docs/design/Generation-Input-Page-Redesign-Design.md`，STATUS 第 2 节新增一行 `approved / not-started / not-run`，检查点为当时的 HEAD。
+
+## 2026-10-07 网址输入页与引导屏重设计：实施、build 与模拟器走查
+
+- 「网址输入页与引导屏重设计」一行 `实施=not-started` → `implemented`：代码按合同第五节改完——`VideoGenerationInputView` 整页重写（状态机不动）、
+  `EntryPageGuideView` 视图主体重写、新组件 `StatusCardView`（云同步页改为复用）、`GenerationTierSlider`、`SlideToConfirmControl`，三份词条新增 32 条、改 7 条、删 24 条，
+  引导屏三步去掉序号前缀。三个新文件要先跑 `scripts/regenerate-project.sh` 才进工程（第一次 build 因此失败）。
+- 用户要求后 build（iPhone 18 Pro，iOS 27.0）成功、0 条代码警告；模拟器走查按 `BCA-DOC-005` 单独一行 `simulator-passed`，走到与没走到的都写在行里。
+  真实提交没做：会扣这个账号的 coin（余额 280），等用户决定。模拟器的 `simctl pbcopy` 没同步到 App 的剪贴板，粘贴按钮一直是禁用态，真机顺带看。
+- 用户看截图指出引导屏回看形态上下间距太小：没有「取消」时系统导航栏收成零高度，标题贴到 sheet 顶边。改为没有取消按钮时标题上方留 28pt、说明与插画的间距加大，增量 build 后在模拟器确认。
+- 用户看模拟器录屏后要点阵有动画：新增 `DotMatrixTrack`（`TimelineView` 驱动 `Canvas`，一道高斯光斑 1.8 秒扫一遍）；再裁定颜色用多彩渐变（A）：
+  `CatalogPalette.spectrumStops` 蓝 → 紫 → 粉 → 橙，亮起的点按位置取色，困难档发光；两个控件共用。
+- 用户看多彩渐变版录屏后指出困难档的警示橙太深、盖住流光：困难档整套改为淡琥珀（`CatalogPalette.hardTier` / `hardTierAccent` / `hardTierFill` / `hardTierInk`），
+  滑块与价格标签用渐变末端的琥珀配深墨字（与类型横幅徽章同一做法），发光减淡；`warning` 不动，仍只给异常状态。
+- 对动画代码跑了一组审查代理（性能 / 可访问性 / 设计一致性各一位，每条发现两位反驳者核实，47 个代理）。按确认的发现修：光斑首尾余量 1σ 改 3σ（接缝每轮跳一下）；
+  `DotMatrixTrack` 遵守 `Animatable`（松手吸附时点亮区域原来瞬间跳到终点）；两个控件的拖动量改 `@GestureState`（在 ScrollView 里手势被接管取消时 `onEnded` 不回调，原来会卡在半路）；
+  普通档停靠时亮区露出滑块右侧一截；滑杆命中区放到 44pt；VoiceOver 念档位加价格、禁用时不响应调节、滑动确认禁用时报「不可用」；提交中去掉叠加的第二层透明度；滑动确认文字限一行可缩。
+  驳回或不做的：静止帧不是动画里的某一帧、低电量模式不停、每帧逐点 fill 的开销（点数少，实测无感）。
+- 用户发来参考图（Claude Code 效果档位滑杆）说颜色比较淡：渐变改成粉彩版 #7FA8F7 → #B9A3F5 → #F2A8C8 → #F8C38F，亮区基础不透明度 0.7 → 0.6。
+- 用户看粉彩版后裁定：档位选择从点阵滑杆改回两个按钮，只有「困难」按钮带流光效果。`GenerationTierSlider` 删除，改为 `GenerationTierPicker`（困难按钮底上铺 `DotMatrixTrack`，选中时更亮并发光）；滑动确认不动。
+- 用户看按钮版后说不喜欢黄色、要多彩，并指着内购页套餐按钮说喜欢那种：困难按钮与困难档滑动确认改为粉彩渐变淡底 + 渐变发光描边（新 `SpectrumGlowBorder`，渐变方向来回摆动）+ 渐变文字 / 渐变滑块；
+  `CatalogPalette.hardTier*` 四个琥珀取值删除，换成 `spectrumColors` / `spectrumGradient` / `spectrumFill` / `spectrumInk`。
+- 多彩版模拟器实测：粉彩渐变字压在粉彩点阵上读不清，文字、滑块、描边改用饱和版渐变（`CatalogPalette.spectrumVividStops`），点阵、淡底与发光仍是粉彩。
+- 用户看多彩版后收口：只有困难按钮用那种渐变发光描边的样子，滑动确认不要多彩，按钮也不要点阵流光动画。`DotMatrixTrack` 删除，`SpectrumGlowBorder` 独立成文件；
+  困难按钮 = 粉彩渐变淡底 + 渐变发光描边 + 选中时饱和渐变字；滑动确认恢复单一蓝色（去掉 `Tone`），两档只差价格。
+- 用户纠正：「swich不用」是「别动滑动确认」，不是「滑动确认不要多彩」。恢复困难档滑动确认为用户认可的那版（粉彩淡底 + 流光点阵 + 渐变发光描边 + 饱和渐变字与滑块），`DotMatrixTrack` 重建、只给它用；按钮保持无点阵。用户能直接看模拟器，不再录屏。
+- 用户再纠正：滑动确认不要那圈渐变发光描边，描边只给困难按钮；滑动确认保留粉彩淡底 + 流光点阵 + 渐变字与滑块。

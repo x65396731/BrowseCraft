@@ -196,21 +196,14 @@ private struct CloudSyncStatusCardView: View {
     let status: CloudSyncSettingsViewModel.StatusCard
 
     var body: some View {
-        VStack(spacing: 10) {
-            Image(systemName: self.systemImage)
-                .font(.system(size: 24, weight: .medium))
-                .foregroundStyle(self.tint)
-                .frame(width: 56, height: 56)
-                .background(self.tintFill, in: Circle())
-                .accessibilityHidden(true)
-            Text(self.title)
-                .font(.headline)
-                .multilineTextAlignment(.center)
-            Text(self.message)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+        // 中文注释：卡片本体是共用的 `StatusCardView`（网址输入页的结论卡与结果卡同一套）；这里只提供取值与两段附加小字。
+        StatusCardView(
+            systemImage: self.systemImage,
+            title: self.title,
+            message: self.message,
+            tone: self.tone,
+            isInProgress: self.isInProgress
+        ) {
             if case .failed(_, let detail?) = self.status {
                 Text(verbatim: detail)
                     .font(.caption2)
@@ -219,25 +212,22 @@ private struct CloudSyncStatusCardView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
             }
-            if self.isInProgress {
-                ProgressView()
-                    .tint(CatalogPalette.settingsIcon)
-            }
             if self.status.isWarning {
                 Label(NSLocalizedString("cloud_restore_pull_to_retry", comment: ""), systemImage: "arrow.down")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 24)
-        .frame(maxWidth: .infinity)
-        .background(CatalogPalette.cardBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(CatalogPalette.warning.opacity(self.status.isWarning ? 0.3 : 0), lineWidth: 1)
-        )
-        .accessibilityElement(children: .combine)
+    }
+
+    private var tone: StatusCardTone {
+        if self.status.isWarning {
+            return .warning
+        }
+        if self.status == .off {
+            return .neutral
+        }
+        return .action
     }
 
     private var isInProgress: Bool {
@@ -247,26 +237,6 @@ private struct CloudSyncStatusCardView: View {
         default:
             return false
         }
-    }
-
-    private var tint: Color {
-        if self.status.isWarning {
-            return CatalogPalette.warning
-        }
-        if self.status == .off {
-            return .secondary
-        }
-        return CatalogPalette.settingsIcon
-    }
-
-    private var tintFill: Color {
-        if self.status.isWarning {
-            return CatalogPalette.warningFill
-        }
-        if self.status == .off {
-            return CatalogPalette.fillBackground
-        }
-        return CatalogPalette.settingsIconFill
     }
 
     private var systemImage: String {
