@@ -37,6 +37,12 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
   两者对 Cloudflare 的处境不同（2026-10-06 toonily：章节页家用出口 403 `cf-mitigated: challenge`、服务器出口 200），引擎观察不到手机出口，
   这一层只能在 App 处理；WebView 通道已有挑战页状态机（`BC-EVIDENCE-081`，`WKWebViewChallengeInterstitialGate`）。无反爬的站不会进入回退，取值逐字不变。
   对应 fwq `APP-MEMO-026`。实现 `BrowseCraft/Infrastructure/Network/DefaultPageLoader.swift`；用例 `PageContentLoaderTests`（挑战页回退、其它错误不回退）。
+- `BCA-RUNTIME-006` 列表分页的页码代入统一为 `startPage + N − 1`（N 为 1 起的页序号；`PaginationRule.startPage` 缺省 1，book 的 `BookListPagination.startPage` 同义）：
+  三 kind 的代入点（影视 `VideoRulePaginationResolver`、漫画 `ComicSourceListLoader` → `URLResolvingService.listURL(page:)`、书 `BookSourceRuntime.listURL`）都经它换算，
+  不带该键的规则行为逐字不变。依据 fwq `BC-LIST-124`：0 起页码站（rouman5、3kor）第 1 页在地址里写 0，引擎交付 `startPage: 0`。
+  **门控**：旧版 App 解码时忽略 `startPage`、把 N 原样代入会静默错一页，所以目录请求带 `features=startPage` 声明能力（`LoadCatalogSourcesUseCase.requestedFeatures`，与 `kinds` 同一机制），
+  服务端把需要未声明能力的来源过滤掉；新增规则能力时在同一处登记。对应 fwq `APP-MEMO-027`。
+  实现 `BrowseCraftCore/.../SiteRuleModels.swift`（`PaginationRule.startPage` / `sitePageNumber(forPage:)`）、`VideoSiteRuleValidationOperations` 放行键、`ComicSiteRuleV2ValidationOperations` 拒负数；用例 `PaginationStartPageTests`。
 同域的另外三条不在本文：kind 分流纪律 `BCA-RUNTIME-002` 与目录解码兼容硬约束 `BCA-RUNTIME-004`
 在 [Book-Kind-Wiring-Design.md](Book-Kind-Wiring-Design.md)，播放候选过滤 `BCA-RUNTIME-003` 在
 [RuntimeAdFilter-Design.md](RuntimeAdFilter-Design.md)。

@@ -44,8 +44,13 @@ struct LoadCatalogSourcesUseCase {
         }
     }
 
+    /// 中文注释：`BCA-RUNTIME-006`——本版本认得的规则能力；服务端把需要未声明能力的来源过滤掉（与 `kinds` 同一机制）。
+    /// `startPage`：0 起页码（`BC-LIST-124`），旧版不声明就拿不到这类来源，不会静默错一页。
+    static let requestedFeatures: [String] = ["startPage"]
+
     static let defaultCatalogAPIURL: URL? = URL(
         string: "https://anyportal.online/catalog/sources?kinds=" + Self.requestedKinds.map(\.rawValue).joined(separator: ",")
+            + "&features=" + Self.requestedFeatures.joined(separator: ",")
     )
 
     init(

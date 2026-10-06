@@ -74,6 +74,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 运行期广告过滤承接规则匹配结果（App 侧对规则匹配到的候选执行过滤） | `APP-MEMO-008` | required | approved | implemented | full-suite-passed | ff58d6a | 2026-08-29 |
 | jable.tv M3U8 播放规则的抽取根因（结论已由 fwq `BC-PLAYBACK-049` 承接） | `BC-PLAYBACK-049` | required | superseded | not-started | not-run | 4a3814b | 2026-08-21 |
 | 直接请求收到挑战页时回退 WebView 再取一次（toonily 重生成后规则不带 `needsWebView`，真机三部作品打不开：手机出口直接请求章节页 403 Cloudflare 挑战、服务器出口 200；`DefaultPageLoader.loadContent` 捕获 `antiBot` 后走 `renderedPageContentLoader`，其它错误不回退；fwq `APP-MEMO-026`） | `BCA-RUNTIME-005` | required | approved | implemented | targeted-passed | 9f328d0 | 2026-10-06 |
+| 列表分页页码按 `startPage + N − 1` 代入（0 起页码站 rouman5 / 3kor；fwq `BC-LIST-124` / `APP-MEMO-027`）：Core `PaginationRule.startPage` 与 `sitePageNumber(forPage:)`、影视 / 漫画 / 书三处代入点、目录请求 `features=startPage` 能力声明；Core 3 例 + Runtime 24 例过、App 构建过，未发版 | `BCA-RUNTIME-006` | required | approved | implemented | targeted-passed | 587a99c | 2026-10-06 |
 
 ## 4. 身份与同步
 
