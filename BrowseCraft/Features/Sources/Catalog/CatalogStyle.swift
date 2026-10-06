@@ -248,13 +248,18 @@ struct CatalogKindBannerView: View {
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
+            // 中文注释：插画挂成底色的 overlay 而不是 ZStack 的一层——1200×336 的图按 112pt 高 scaledToFill 后宽 400pt，
+            // 比小屏上 362pt 的可用宽度大；放进 ZStack 会把横幅的布局宽度撑到 400，整列内容随之比屏幕宽、左右边距消失
+            // （添加来源页 2026-10-06 真机截图）。overlay 不参与布局尺寸，溢出的部分由下面的圆角裁掉。
             self.style.bannerBackground
-            if let image: UIImage = self.style.bannerImage {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .accessibilityHidden(true)
-            }
+                .overlay {
+                    if let image: UIImage = self.style.bannerImage {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .accessibilityHidden(true)
+                    }
+                }
             HStack(spacing: 12) {
                 Image(systemName: self.style.symbolName)
                     .font(.system(size: 17, weight: .semibold))

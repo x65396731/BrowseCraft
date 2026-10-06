@@ -624,3 +624,9 @@ App 侧设计文档一处都没引用，App 执行两种形态的合同由自己
 - 「添加来源页重设计」一行 `验证=simulator-passed` → `full-suite-passed`：用户要求后在 iPhone 17 Pro（iOS 26.5）上整套跑过，
   Swift Testing 558 项 / 95 suites 与 XCTest 81 项全过，含改了顺序断言的 `SourceImportRecommendationTests` 与按新登记表核对资产的 `BundledImageAssetTests`；
   偶发的 WebView 计时断言这次没红。模拟器走查按 `BCA-DOC-005` 拆成单独一行 `simulator-passed`。
+
+## 2026-10-06 添加来源页重设计：横幅撑宽的修正
+
+- 用户在模拟器上发现添加来源页左右没有边距、标题贴左。根因在 `CatalogKindBannerView`：1200×336 的插画按 112pt 高 `scaledToFill` 后宽 400pt，
+  比小屏上 362pt 的可用宽度大，作为 ZStack 的一层把横幅布局宽度撑到 400，整列内容随之比屏幕宽；目录页同一组件恰好没露出来。
+  改为底色的 overlay（不参与布局尺寸），增量 build 后在 iPhone 18 Pro 上确认添加来源页左右各 20pt、目录页横幅不变。STATUS 行的值不变。
