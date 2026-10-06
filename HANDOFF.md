@@ -96,8 +96,8 @@ python3 scripts/check-docs.py
   与工程里的环境名 TEST / PROD 无关，两边数据不通。改了云端字段，发 TestFlight 之前必须先在控制台「Deploy Schema Changes」。
   现状：两个环境的 `Source`（12 个字段，含 `origin`）、`FavoriteItem`（13）、`AppUserIdentity`（4）、`HistoryEntry`（21）已一致，
   当前不欠部署。控制台要用户自己登录；用内置浏览器加字段时表单只能一个个填，字段名打进去后用页面文字核对，不要信截图。
-- **待确认的小项**：`project.yml` 给 `Info.plist` 预处理加了 `-Wno-unicode-homoglyph`（全角标点被报成四条警告），改后没有 build 验证，
-  下次编译时看警告是否消失。本机同步队列里有 `local.default` 作用域下的 4 条来源删除与 3 条收藏待传项，是早先留下的，未处理。
+- **待确认的小项**：`project.yml` 给 `Info.plist` 预处理加了 `-Wno-unicode-homoglyph`（全角标点被报成四条警告）——2026-10-06 构建（`587a99c`）已确认四条警告消失，
+  只剩 Firebase dSYM 与 AppIntents 两条无关警告，此项结掉。本机同步队列里有 `local.default` 作用域下的 4 条来源删除与 3 条收藏待传项，是早先留下的，未处理。
 - **合同与走查记录**：来源页 [`Sources-Page-Redesign-Design.md`](docs/design/Sources-Page-Redesign-Design.md)、
   收藏页 [`Favorites-Page-Redesign-Design.md`](docs/design/Favorites-Page-Redesign-Design.md)、
   规则目录页 [`Catalog-Page-Redesign-Design.md`](docs/design/Catalog-Page-Redesign-Design.md)、
@@ -128,6 +128,8 @@ python3 scripts/check-docs.py
 
 - **无语料、等样本**：读书 kind 的四个接口变体（list / detail / reader 的 API 形态）。
 - **由规则生成引出的 App 侧改动，定义点与验证状态都在 fwq `docs/rules/STATUS.md`**（不再指向 fwq `HANDOFF.md` 第 1 节——那一节已翻到后面的轮次）：
+  **未发版的一条**：`BCA-RUNTIME-005`（fwq `APP-MEMO-026`，BrowseCraft `587a99c`）——规则未声明 `needsWebView` 而直接请求收到挑战页时改走 WebView 再取一次，
+  合同在 [`RuleExecutionSemantics.md`](docs/design/RuleExecutionSemantics.md) 第三节；单测 4 例过、构建过、未真机。发版后由用户重交 toonily `/genre/action/` 验证；发版前 Cloudflare 站不要重生成（fwq `HANDOFF.md` 第 1 节）。
   `BC-PREFLIGHT-066`（点推送停在原页、生成后打开目录直接看到新规则）在 fwq 为 `not-run`，是唯一什么验证都没跑的，已并进上面「下一步二」的规则目录页条目；
   `BC-EVIDENCE-082`（片源拒绝不走兜底、提示换片源）与「选集无线路名时标线路 N」为 `fresh-passed`，真机顺带看；`BC-PREFLIGHT-067`（懒加载封面，改在 Core）已 `regression-passed`，不必再看。
   真机结果记回 fwq STATUS 对应行（fwq 的验证枚举没有 `device-passed`，用 `fresh-passed` 并在其状态流水写明是真机）。
