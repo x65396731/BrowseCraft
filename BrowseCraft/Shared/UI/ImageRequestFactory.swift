@@ -60,7 +60,9 @@ enum ImageRequestFactory {
                 "headerCount": headers.count,
                 "additionalHeaderCount": additionalHeaders?.count ?? 0,
                 "hasReferer": headers["Referer"] != nil,
-                "hasCookie": headers["Cookie"] != nil
+                "hasCookie": headers["Cookie"] != nil,
+                // 中文注释：只记 Cookie 名、不记值（2026-10-07 xbanxia 封面查因：看放行 Cookie 有没有带上）。
+                "cookieNames": Self.cookieNames(in: headers["Cookie"])
             ]
         )
 
@@ -75,7 +77,7 @@ enum ImageRequestFactory {
     /// 记的是 `BC-CATALOG-022` 要的那几样：脱敏 host/path、Nuke 的错误 case 名、
     /// 底层 URLSession 错误的 domain/code，以及是否为取消。
     /// 不记 Nuke 错误自身桥接出的 `NSError` domain/code——那是 Swift enum 的合成值、没有诊断价值。
-    /// **不记 query**（可能带签名或 token）、不记请求头、不记 Cookie。
+    /// **不记 query**（可能带签名或 token）、不记请求头、不记 Cookie 值（请求事件只记 Cookie 名，2026-10-07）。
     ///
     /// 分类器 `RuleExecutionErrorClassifier` 住在 Application 层，而本文件在 Shared、
     /// 不得反向引用（见该文件头注释），因此这里不经它——而 `BC-CATALOG-022` 要的本来就是
@@ -97,6 +99,7 @@ enum ImageRequestFactory {
                 "errorCase": Self.errorCaseName(error),
                 "underlyingDomain": underlyingError?.domain,
                 "underlyingCode": underlyingError?.code,
+                "httpStatus": Self.unacceptableStatusCode(of: error),
                 "isCancelled": underlyingError.map(Self.isCancellation) ?? false
             ]
         )
@@ -137,6 +140,29 @@ enum ImageRequestFactory {
     /// 中文注释：底层错误走 Nuke 公开的 `dataLoadingError`，不走 `NSUnderlyingErrorKey`——
     /// Swift enum 桥接成 `NSError` 时 userInfo 里没有它，那条路取到的恒为 nil。
     /// 取到的通常是 `URLError`，`BC-CATALOG-022` 要的 URLSession 错误码即在此。
+    /// 中文注释：Nuke `DataLoader.Error.statusCodeUnacceptable` 的状态码（其它错误为 nil）。
+    private static func unacceptableStatusCode(of error: Error) -> Int? {
+        guard case .statusCodeUnacceptable(let code)? = Self.underlyingError(of: error) as? DataLoader.Error else {
+            return nil
+        }
+        return code
+    }
+
+    /// 中文注释：`Cookie` 头里的名字（逗号分隔、按出现顺序），不含值；没有 Cookie 时为 nil。
+    private static func cookieNames(in header: String?) -> String? {
+        guard let header, header.isEmpty == false else {
+            return nil
+        }
+        return header
+            .split(separator: ";")
+            .compactMap { pair in
+                let name: Substring = pair.split(separator: "=", maxSplits: 1).first ?? ""
+                let trimmed: String = name.trimmingCharacters(in: .whitespaces)
+                return trimmed.isEmpty ? nil : trimmed
+            }
+            .joined(separator: ",")
+    }
+
     private static func underlyingError(of error: Error) -> Error? {
         guard let pipelineError: ImagePipeline.Error = error as? ImagePipeline.Error else {
             return error

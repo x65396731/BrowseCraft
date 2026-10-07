@@ -200,8 +200,12 @@ final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
                     }
                     let copied: Int = WebViewCookieSync.copy(cookies, applyingTo: documentURL)
                     #if DEBUG
+                    // 中文注释：诊断只记 Cookie 名与作用域，不记值（`BC-CATALOG-022`）。
+                    let names: String = WebViewCookieSync.cookiesApplying(to: documentURL.host ?? "", from: cookies)
+                        .map { "\($0.name)@\($0.domain)" }
+                        .joined(separator: ",")
                     AppDebugLog.write(
-                        "[BrowseCraftWebView] synced \(copied) cookie(s) to shared storage host=\(documentURL.host ?? "")"
+                        "[BrowseCraftWebView] synced \(copied) cookie(s) to shared storage host=\(documentURL.host ?? "") cookies=[\(names)]"
                     )
                     #endif
                     _ = copied
