@@ -39,8 +39,36 @@ enum WebViewCookieSync {
         }
         let matched: [HTTPCookie] = self.cookiesApplying(to: host, from: cookies)
         for cookie: HTTPCookie in matched {
-            storage.setCookie(cookie)
+            storage.setCookie(self.unpartitioned(cookie) ?? cookie)
         }
         return matched.count
+    }
+
+    /// 中文注释：只用公开属性重建一份 Cookie，丢掉分区（CHIPS `Partitioned`）等私有属性。
+    /// 2026-10-07 xbanxia 真机：回写的 `cf_clearance@.xbanxia.cc` 与 `TREK_SESSION@.xbanxia.cc` 同域，
+    /// 封面请求却只带出 `TREK_SESSION`——WebView 交出的放行 Cookie 带分区信息，
+    /// `HTTPCookieStorage.cookies(for:)` 只返回不分区的 Cookie，图床 403。
+    static func unpartitioned(_ cookie: HTTPCookie) -> HTTPCookie? {
+        var properties: [HTTPCookiePropertyKey: Any] = [
+            .name: cookie.name,
+            .value: cookie.value,
+            .domain: cookie.domain,
+            .path: cookie.path,
+        ]
+        if cookie.isSecure {
+            properties[.secure] = "TRUE"
+        }
+        if let expiresDate: Date = cookie.expiresDate {
+            properties[.expires] = expiresDate
+        } else {
+            properties[.discard] = "TRUE"
+        }
+        if cookie.isHTTPOnly {
+            properties[HTTPCookiePropertyKey("HttpOnly")] = "TRUE"
+        }
+        if let sameSite: HTTPCookieStringPolicy = cookie.sameSitePolicy {
+            properties[.sameSitePolicy] = sameSite.rawValue
+        }
+        return HTTPCookie(properties: properties)
     }
 }

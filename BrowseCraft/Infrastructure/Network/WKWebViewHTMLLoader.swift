@@ -204,8 +204,13 @@ final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
                     let names: String = WebViewCookieSync.cookiesApplying(to: documentURL.host ?? "", from: cookies)
                         .map { "\($0.name)@\($0.domain)" }
                         .joined(separator: ",")
+                    // 中文注释：回写后立刻按页面地址从系统存储取一遍，确认放行 Cookie 取得回来（只记名）。
+                    let readBack: String = (HTTPCookieStorage.shared.cookies(for: documentURL) ?? [])
+                        .map(\.name)
+                        .joined(separator: ",")
                     AppDebugLog.write(
-                        "[BrowseCraftWebView] synced \(copied) cookie(s) to shared storage host=\(documentURL.host ?? "") cookies=[\(names)]"
+                        "[BrowseCraftWebView] synced \(copied) cookie(s) to shared storage host=\(documentURL.host ?? "") " +
+                        "cookies=[\(names)] readBack=[\(readBack)]"
                     )
                     #endif
                     _ = copied

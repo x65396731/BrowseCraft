@@ -19,6 +19,22 @@ final class WebViewCookieSyncTests: XCTestCase {
         XCTAssertEqual(names, ["cf_clearance", "session"])
     }
 
+    func testUnpartitionedCopyKeepsPublicAttributes() throws {
+        let expires: Date = Date(timeIntervalSinceNow: 3600)
+        let original: HTTPCookie = try XCTUnwrap(HTTPCookie(properties: [
+            .name: "cf_clearance", .value: "v", .domain: ".xbanxia.cc", .path: "/",
+            .secure: "TRUE", .expires: expires, HTTPCookiePropertyKey("HttpOnly"): "TRUE",
+            .sameSitePolicy: HTTPCookieStringPolicy.sameSiteLax.rawValue,
+        ]))
+        let copy: HTTPCookie = try XCTUnwrap(WebViewCookieSync.unpartitioned(original))
+        XCTAssertEqual(copy.name, "cf_clearance")
+        XCTAssertEqual(copy.domain, ".xbanxia.cc")
+        XCTAssertTrue(copy.isSecure)
+        XCTAssertTrue(copy.isHTTPOnly)
+        XCTAssertEqual(copy.sameSitePolicy, .sameSiteLax)
+        XCTAssertEqual(copy.expiresDate?.timeIntervalSince1970 ?? 0, expires.timeIntervalSince1970, accuracy: 1)
+    }
+
     func testCopiedZoneCookieIsSentToTheImageHost() {
         let storage: HTTPCookieStorage = HTTPCookieStorage.sharedCookieStorage(forGroupContainerIdentifier: "WebViewCookieSyncTests")
         storage.cookies?.forEach(storage.deleteCookie)
