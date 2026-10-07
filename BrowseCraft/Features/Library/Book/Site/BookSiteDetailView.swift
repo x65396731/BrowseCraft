@@ -101,6 +101,7 @@ struct BookSiteDetailView: View {
             CoverImageView(
                 urlString: self.viewModel.manifest?.coverURL?.absoluteString ?? self.viewModel.item.coverURL,
                 refererURLString: self.viewModel.item.detailURL,
+                requestConfig: self.viewModel.coverRequestConfig,
                 placeholderImageName: "BookCoverPlaceholder"
             )
             .frame(width: 72, height: 100)

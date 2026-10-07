@@ -43,6 +43,11 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
   封面 `stage=image urlHost=image.xbanxia.cc hasCookie=false` 全部 `dataLoadingFailed`，图床同在 Cloudflare 挑战后。放行 Cookie 绑定 UA，两条路都用规则 `sharedRequest` 的 UA，不改 UA。
   每次 WebView 成功都回写（不以「本次看到挑战页」为条件：WebView 可能早已持有放行 Cookie、本次不再出现挑战页）。
   实现 `BrowseCraft/Infrastructure/Network/WebViewCookieSync.swift`、`WKWebViewHTMLLoader.swift`；用例 `WebViewCookieSyncTests`。
+  **同日第二处（真机复验仍 `hasCookie=false`，日志已见 `synced 3 cookie(s)`）**：书类来源的封面请求此前拿不到来源请求配置——
+  `ResolveLibrarySourcePresentationUseCase.imageRequestConfig` 只认 video 与漫画 V2 规则，书类规则过不了漫画校验、返回 nil，封面请求 `cookiePolicy` 为空，
+  `CookieHeaderResolver` 在策略为空时只带规则写死的 Cookie、系统 Cookie 一条不带（日志 `requestScope=default`）。补 book 分支：与 `BookSourceRuntime` 取列表同一继承
+  （`sharedRequest` → 页 `request` → 列表规则 `request`），书架 / 收藏 / 历史封面与作品页封面（`BookSiteDetailViewModel.coverRequestConfig`）同用。
+  半夏规则 `cookiePolicy=browserThenCustom`、`cookiePriority=browser`；封面请求默认 UA 与规则 UA 同为 `ClientUserAgent.desktopSafari`，放行 Cookie 可用。
 - `BCA-RUNTIME-006` 列表分页的页码代入统一为 `startPage + N − 1`（N 为 1 起的页序号；`PaginationRule.startPage` 缺省 1，book 的 `BookListPagination.startPage` 同义）：
   三 kind 的代入点（影视 `VideoRulePaginationResolver`、漫画 `ComicSourceListLoader` → `URLResolvingService.listURL(page:)`、书 `BookSourceRuntime.listURL`）都经它换算，
   不带该键的规则行为逐字不变。依据 fwq `BC-LIST-124`：0 起页码站（rouman5、3kor）第 1 页在地址里写 0，引擎交付 `startPage: 0`。

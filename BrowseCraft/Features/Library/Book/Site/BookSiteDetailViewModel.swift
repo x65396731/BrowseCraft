@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import BrowseCraftDomain
 import Foundation
 import Observation
@@ -10,6 +11,15 @@ import Observation
 final class BookSiteDetailViewModel {
     let item: ContentItem
     let source: Source
+
+    /// 中文注释：作品页封面与书架封面同一份请求配置（来源 `sharedRequest` 的 Cookie 策略等），见
+    /// `ResolveLibrarySourcePresentationUseCase.bookImageRequestConfig`（2026-10-07 半夏小說封面）。
+    var coverRequestConfig: RequestConfig? {
+        guard case .book(let configuration) = self.source.configuration else {
+            return nil
+        }
+        return ResolveLibrarySourcePresentationUseCase.bookImageRequestConfig(for: configuration.rule, listTab: nil)
+    }
     private(set) var manifest: BookPublicationManifest?
     private(set) var isLoading: Bool = false
     private(set) var errorMessage: String?

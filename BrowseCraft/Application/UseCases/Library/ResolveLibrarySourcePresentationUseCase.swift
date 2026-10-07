@@ -29,6 +29,10 @@ struct ResolveLibrarySourcePresentationUseCase {
             return self.videoImageRequestConfig(for: configuration, listTab: listTab)
         }
 
+        if case .book(let configuration) = source.configuration {
+            return Self.bookImageRequestConfig(for: configuration.rule, listTab: listTab)
+        }
+
         guard let rule: SiteRule = source.ruleConfiguration?.rule else {
             return nil
         }
@@ -68,6 +72,20 @@ struct ResolveLibrarySourcePresentationUseCase {
             return pageID == nil || entry.pageID == pageID
         }
         return entry?.effectiveRequest
+    }
+
+    /// 中文注释：book 规则此前在这里一律返回 nil（过不了漫画 V2 校验），书架封面请求拿不到来源的
+    /// `sharedRequest`——`cookiePolicy` 为空、系统 Cookie 一条不带。2026-10-07 半夏小說：列表经 WebView 过了
+    /// Cloudflare、放行 Cookie 已回写系统存储（`BCA-RUNTIME-005` 补充），封面仍 `hasCookie=false`、图床回挑战页。
+    /// 与 `BookSourceRuntime` 取列表同一继承：`sharedRequest` → 页 `request` → 列表规则 `request`。
+    static func bookImageRequestConfig(for rule: BookSiteRule, listTab: ListTabRule?) -> RequestConfig? {
+        let pageID: String? = listTab?.context?.pageId ?? listTab?.id
+        let listPages: [BookPageRule] = rule.pages.filter { $0.type == "list" }
+        let page: BookPageRule? = listPages.first { pageID != nil && $0.id == pageID } ?? listPages.first
+        let listRule: BookListRule? = page?.ruleRefs.list.flatMap { listRuleID in
+            rule.ruleSets.listRules.first { $0.id == listRuleID }
+        }
+        return RequestConfigResolver().resolve(rule.sharedRequest, page?.request, listRule?.request)
     }
 
     private func videoListTabs(for configuration: VideoSourceConfiguration) -> [ListTabRule] {
