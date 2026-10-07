@@ -701,3 +701,11 @@ App 侧设计文档一处都没引用，App 执行两种形态的合同由自己
   `VideoDetailViewModel` 加线路分组、集名数字解析、本作品历史与继续看、收藏、metadata 按 key 摆位；`LibraryListTabBar` 抽出 `LibraryChipBar` 共用；
   `LoadVideoWatchHistoryUseCase` 加按来源 + `detailURL` 取最近一条；BrowseCraftCore `SourceDetailAttribute.key` 与两处解析透传、测试断言补 key；
   BrowseCraftRuntime 转换时带上 key。三份词条新增 24 条、删 4 条。未 build、未跑测试。
+
+## 2026-10-08 影视详情与选集页重设计：build 与模拟器走查
+
+- 「影视详情与选集页重设计」一行检查点登记为实施提交 5545183（配套 BrowseCraftCore 060f775、BrowseCraftRuntime 3d42730）；模拟器走查按 `BCA-DOC-005` 单独一行 `simulator-passed`。
+- 用户要求后 build（iPhone 18 Pro，iOS 27.0）：第一次 Runtime 报 `VideoRuleParsedDetailAttribute` 没有 `key`——Runtime 有一层自己的中间模型，此前靠 label 反查规则 id、查不到退成 `metadata-N`，
+  改为直接带 Core 透传的 `key`；第二次本地化闸门拦下 `"%@ · %@"` 与 `"·"` 两处字面量，改 `Text(verbatim:)`；第三次成功，0 条代码警告。
+- 走查用的来源已换成低端影视（ddys.io，每部作品一条播放页、带 `latestText` 与登录配置）。走查中改两处并回写合同：标题改为列表项标题优先
+  （detail `title` 取到「危机13小时免费在线观看_高清网盘下载」这种带 SEO 后缀的页面标题）；单集作品的继续看按钮不带集名。测试时点的收藏已撤回。
