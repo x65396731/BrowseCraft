@@ -687,3 +687,17 @@ App 侧设计文档一处都没引用，App 执行两种形态的合同由自己
   走查发现一处：分类条贴顶时状态栏与芯片之间露出一截滚过的海报——分区头停在安全区顶边，上面那一截没有底色。
   改为分区头底色向上多铺 160pt、标题 zIndex 更高盖住它，增量 build 后在模拟器确认干净。
 - 樱花动漫没有 `latestText`，所以走查里一张徽章都没有；「上次看到」瓷砖靠点一集（片源不可用但历史已写入）触发，没有时长所以没有进度条。
+
+## 2026-10-08 影视详情与选集页重设计：立项、数据核对、裁定、设计稿与实施
+
+- 用户要求重设计视频的章节（选集）页，三种类型三种版式、先做视频，「显示的内容要根据数据来，必要时追加字段」。先登记进页面设计索引，再写设计文档。
+  按 Core 运行期模型与模拟器数据库里三条视频规则逐字段核对：详情只有 title / cover / description / `metadata[]`（label + value）与列表带来的 `latestText`；
+  选集有集名、播放页地址、线路名（group / titleStrip）、可选的 restriction / paid；年份、评分、导演、时长、总集数在规则 schema 里不存在。
+  规则 JSON 里 metadata 每条本来有 `id`（region / language / status），Core 转成 `SourceDetailAttribute` 时丢了——这是能自己补的字段。
+- 八项待裁定用户裁定全取 A：模糊海报深色头图区 + 小海报、集号网格、继续看主按钮、解析时格内转圈不盖遮罩、Core 加 `key` 透传、向 fwq 提两条需求、看过的全部集本轮不做、右上收藏按钮。
+- 画布 10 张（连续剧有历史、电影四线路、樱花实际效果、深色、取详情、没有选集、取失败、解析中、解析失败、尺寸与取值）。
+  fwq 需求文本另写成一份文档（metadata id 固定成 catalog 合同、多线路各一集的站要分组），由用户在 fwq 会话实施；BrowseCraft 侧只写引用点。
+- 合同写入 `docs/design/Video-Detail-Page-Redesign-Design.md`；代码按第十三节改完：`VideoDetailView` 整页重画（含非数字集名的流式布局 `VideoEpisodeFlowLayout`），
+  `VideoDetailViewModel` 加线路分组、集名数字解析、本作品历史与继续看、收藏、metadata 按 key 摆位；`LibraryListTabBar` 抽出 `LibraryChipBar` 共用；
+  `LoadVideoWatchHistoryUseCase` 加按来源 + `detailURL` 取最近一条；BrowseCraftCore `SourceDetailAttribute.key` 与两处解析透传、测试断言补 key；
+  BrowseCraftRuntime 转换时带上 key。三份词条新增 24 条、删 4 条。未 build、未跑测试。

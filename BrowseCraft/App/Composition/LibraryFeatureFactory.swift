@@ -165,7 +165,10 @@ struct LibraryFeatureFactory {
             persistenceCoordinator: self.readingActivityPersistenceCoordinator,
             credentialProvider: self.sourceCredentialStore,
             systemCookieHeaderProvider: self.systemCookieHeaderProvider,
-            activeAppUser: self.activeAppUser
+            activeAppUser: self.activeAppUser,
+            // 中文注释：详情页右上收藏与「继续看」直接开播放器（`docs/design/Video-Detail-Page-Redesign-Design.md` 第五、七节）。
+            toggleFavoriteUseCase: ToggleFavoriteUseCase(favoriteRepository: self.favoriteRepository),
+            videoPlayerViewModelFactory: self.makeVideoPlayerViewModel
         )
     }
 

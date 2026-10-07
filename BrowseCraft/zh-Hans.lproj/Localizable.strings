@@ -185,7 +185,6 @@
 "Comics" = "漫画";
 "Debug" = "调试";
 "Deleting a source also removes its related reading/watch history and library state." = "删除来源会同时删除相关的阅读/观看历史和库状态。";
-"Description" = "简介";
 "Detail Rule Ref" = "详情规则引用";
 "Diagnostic Code" = "诊断码";
 "Display" = "显示";
@@ -209,11 +208,9 @@
 "Items you favorite will appear here." = "你收藏的内容会显示在这里。";
 "Keyword" = "关键词";
 "Language" = "语言";
-"Last" = "最近";
 "Library" = "库";
 "List Rule Ref" = "列表规则引用";
 "Loading Details" = "正在加载详情";
-"Loading Playback" = "正在加载播放";
 "Loading Source" = "正在加载来源";
 "Log In" = "登录";
 "Log Out" = "退出登录";
@@ -297,7 +294,6 @@
 "This rule has no V2 pages. Use JSON editing to add page definitions." = "这条规则没有 V2 页面。请用 JSON 编辑添加页面定义。";
 "This site requires its own app or web player for playback." = "该网站需要用它自己的应用或网页播放器播放。";
 "This source did not return any chapter entries." = "该来源没有返回任何章节。";
-"This source did not return any episode entries." = "该来源没有返回任何剧集。";
 "Title" = "标题";
 "Try Again" = "再试一次";
 "Try premium features first" = "先试用高级功能";
@@ -765,3 +761,31 @@
 "library_card_favorite" = "收藏";
 "library_tile_open_work" = "打开作品";
 "library_account_button" = "账号";
+
+/* 影视详情与选集页重设计：继续看、分区标题、排序、空态与失败态、解析失败横幅、简介下的署名、收藏 */
+"video_detail_continue" = "继续看 · %@";
+"video_detail_next_episode" = "下一集 · %@";
+"video_detail_rewatch" = "再看一遍 · %@";
+"video_detail_start_from_first" = "从第 1 集开始看";
+"video_detail_start_with" = "开始看 · %@";
+"video_detail_play" = "播放";
+"video_detail_resolving" = "正在解析…";
+"video_detail_section_synopsis" = "简介";
+"video_detail_section_episodes" = "选集";
+"video_detail_expand" = "展开";
+"video_detail_collapse" = "收起";
+"video_detail_episode_count" = "%ld 集";
+"video_detail_order_ascending" = "正序";
+"video_detail_order_descending" = "倒序";
+"video_detail_empty_title" = "没有剧集";
+"video_detail_empty_message" = "这个来源没有给出任何剧集。";
+"video_detail_failed_title" = "详情没有取到";
+"video_detail_pull_retry" = "下拉重试";
+"video_detail_resolve_failed" = "%@ 的播放页没有解析出可用片源，换一条线路或换一集试试。";
+"video_detail_credits_director" = "导演";
+"video_detail_credits_cast" = "主演";
+"video_detail_credits_writer" = "编剧";
+"video_detail_credits_studio" = "制作";
+"video_detail_favorite" = "收藏";
+"video_detail_continue_single" = "继续看";
+"video_detail_rewatch_single" = "再看一遍";

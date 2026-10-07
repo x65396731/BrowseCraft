@@ -140,6 +140,32 @@ struct LoadVideoWatchHistoryUseCase {
             episodeIndex: episodeIndex
         )
     }
+
+    /// 中文注释：影视详情页「继续看」：本作品最近一条历史（`docs/design/Video-Detail-Page-Redesign-Design.md` 第七节）。
+    /// 同来源、详情页地址相同为准；详情页地址对不上时退到 `vodID`（规则换过取法时地址会变）。
+    func latest(
+        userID: String,
+        sourceID: String,
+        detailURL: URL?,
+        vodID: String?
+    ) throws -> VideoWatchHistory? {
+        let histories: [VideoWatchHistory] = try self.repository.fetchHistory(userID: userID)
+            .filter { history in history.sourceID == sourceID }
+        let byDetailURL: VideoWatchHistory? = detailURL.flatMap { url in
+            histories
+                .filter { history in history.detailURL == url }
+                .max { lhs, rhs in lhs.updatedAt < rhs.updatedAt }
+        }
+        if let byDetailURL {
+            return byDetailURL
+        }
+        guard let vodID: String = vodID?.trimmingCharacters(in: .whitespacesAndNewlines), vodID.isEmpty == false else {
+            return nil
+        }
+        return histories
+            .filter { history in history.vodID == vodID }
+            .max { lhs, rhs in lhs.updatedAt < rhs.updatedAt }
+    }
 }
 
 /// 中文注释：聚合漫画、视频和站点书历史，供 History 页面按访问时间倒序展示。

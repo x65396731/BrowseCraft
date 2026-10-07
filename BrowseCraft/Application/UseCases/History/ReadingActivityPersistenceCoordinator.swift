@@ -77,6 +77,21 @@ actor ReadingActivityPersistenceCoordinator {
         ).map(VideoWatchHistoryTransfer.init(value:))
     }
 
+    /// 本作品最近一条视频历史（影视详情页继续看）。
+    func loadLatestVideoHistory(
+        userID: String,
+        sourceID: String,
+        detailURL: URL?,
+        vodID: String?
+    ) throws -> VideoWatchHistoryTransfer? {
+        return try self.loadVideoWatchHistoryUseCase.latest(
+            userID: userID,
+            sourceID: sourceID,
+            detailURL: detailURL,
+            vodID: vodID
+        ).map(VideoWatchHistoryTransfer.init(value:))
+    }
+
     func saveVideoHistory(_ history: VideoWatchHistoryTransfer) throws {
         try self.saveVideoWatchHistoryUseCase.execute(history: history.value)
     }

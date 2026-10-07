@@ -185,7 +185,6 @@
 "Comics" = "Comics";
 "Debug" = "Debug";
 "Deleting a source also removes its related reading/watch history and library state." = "Deleting a source also removes its related reading/watch history and library state.";
-"Description" = "Description";
 "Detail Rule Ref" = "Detail Rule Ref";
 "Diagnostic Code" = "Diagnostic Code";
 "Display" = "Display";
@@ -209,11 +208,9 @@
 "Items you favorite will appear here." = "Items you favorite will appear here.";
 "Keyword" = "Keyword";
 "Language" = "Language";
-"Last" = "Last";
 "Library" = "Library";
 "List Rule Ref" = "List Rule Ref";
 "Loading Details" = "Loading Details";
-"Loading Playback" = "Loading Playback";
 "Loading Source" = "Loading Source";
 "Log In" = "Log In";
 "Log Out" = "Log Out";
@@ -297,7 +294,6 @@
 "This rule has no V2 pages. Use JSON editing to add page definitions." = "This rule has no V2 pages. Use JSON editing to add page definitions.";
 "This site requires its own app or web player for playback." = "This site requires its own app or web player for playback.";
 "This source did not return any chapter entries." = "This source did not return any chapter entries.";
-"This source did not return any episode entries." = "This source did not return any episode entries.";
 "Title" = "Title";
 "Try Again" = "Try Again";
 "Try premium features first" = "Try premium features first";
@@ -765,3 +761,31 @@
 "library_card_favorite" = "Favorite";
 "library_tile_open_work" = "Open Title";
 "library_account_button" = "Account";
+
+/* 影视详情与选集页重设计：继续看、分区标题、排序、空态与失败态、解析失败横幅、简介下的署名、收藏 */
+"video_detail_continue" = "Continue · %@";
+"video_detail_next_episode" = "Next · %@";
+"video_detail_rewatch" = "Watch again · %@";
+"video_detail_start_from_first" = "Start from episode 1";
+"video_detail_start_with" = "Start · %@";
+"video_detail_play" = "Play";
+"video_detail_resolving" = "Resolving…";
+"video_detail_section_synopsis" = "Synopsis";
+"video_detail_section_episodes" = "Episodes";
+"video_detail_expand" = "More";
+"video_detail_collapse" = "Less";
+"video_detail_episode_count" = "%ld episodes";
+"video_detail_order_ascending" = "Oldest first";
+"video_detail_order_descending" = "Newest first";
+"video_detail_empty_title" = "No episodes";
+"video_detail_empty_message" = "This source did not provide any episodes.";
+"video_detail_failed_title" = "Details not loaded";
+"video_detail_pull_retry" = "Pull down to retry";
+"video_detail_resolve_failed" = "%@ did not resolve a playable source. Try another line or episode.";
+"video_detail_credits_director" = "Director";
+"video_detail_credits_cast" = "Cast";
+"video_detail_credits_writer" = "Writer";
+"video_detail_credits_studio" = "Studio";
+"video_detail_favorite" = "Favorite";
+"video_detail_continue_single" = "Continue";
+"video_detail_rewatch_single" = "Watch again";

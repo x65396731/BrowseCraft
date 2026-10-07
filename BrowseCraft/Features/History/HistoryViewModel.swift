@@ -439,7 +439,7 @@ final class HistoryViewModel {
     }
 
     /// 「23:14」「1:02:30」：不足一小时不写小时。
-    private static func clockText(_ interval: TimeInterval) -> String {
+    static func clockText(_ interval: TimeInterval) -> String {
         let total: Int = max(Int(interval.rounded(.down)), 0)
         let hours: Int = total / 3600
         let minutes: Int = (total % 3600) / 60

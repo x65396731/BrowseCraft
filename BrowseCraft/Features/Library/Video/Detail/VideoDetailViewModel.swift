@@ -11,6 +11,16 @@ struct VideoEpisode: Identifiable, Hashable {
     var playPageURL: URL
     var sourceName: String? = nil
     var playbackHandoff: SourceVideoPlaybackHandoff? = nil
+    /// 中文注释：规则给了才有；nil 不标（`docs/design/Video-Detail-Page-Redesign-Design.md` 第六节）。
+    var isRestricted: Bool? = nil
+    var isPaid: Bool? = nil
+}
+
+/// 一条线路：同一 `sourceName`（group 标题 / titleStrip / App 切出来的「线路 N」）下连续的选集；没有线路名的站只有一条、`title` 为 nil。
+struct VideoEpisodeLine: Identifiable, Hashable {
+    let id: String
+    let title: String?
+    let episodes: [VideoEpisode]
 }
 
 private struct VideoEpisodeDisplayGroup: Hashable {
@@ -33,10 +43,27 @@ final class VideoDetailViewModel {
     private(set) var episodes: [VideoEpisode] = []
     private(set) var synopsis: String?
     private(set) var metadataRows: [String] = []
+    /// 规则给的元数据原样留着，页面按 `key` 决定摆哪（第五节、第九节）。
+    private(set) var metadataAttributes: [SourceDetailAttribute] = []
+    private(set) var detailTitle: String?
+    private(set) var detailCoverURL: URL?
     private(set) var isLoadingEpisodes: Bool = false
+    private(set) var hasLoadedEpisodes: Bool = false
     private(set) var isLoadingPlayback: Bool = false
+    /// 正在解析的那一集（格子里转圈）；继续看按钮解析时为 `continueResolving`。
+    private(set) var resolvingEpisodeID: String?
+    private(set) var isResolvingContinue: Bool = false
     var playbackRoute: VideoPlaybackRoute?
-    var errorMessage: String?
+    /// 详情取失败：网格位置的失败态，不弹警告框。
+    private(set) var detailErrorMessage: String?
+    /// 解析播放失败：网格上方的警示横幅，点别的集时清掉。
+    private(set) var playbackErrorMessage: String?
+    /// 本作品最近一条历史（继续看按钮与集号高亮）。
+    private(set) var continueWatchingHistory: VideoWatchHistory?
+    private(set) var isFavorite: Bool = false
+    /// 当前线路；nil 时取含上次看的那一集的线路，再没有取第一条。
+    var selectedLineID: String?
+    var isDescendingOrder: Bool = false
 
     let item: ContentItem
     let source: Source
@@ -48,6 +75,9 @@ final class VideoDetailViewModel {
     private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
     private let activeAppUser: (any ActiveAppUserProviding)?
     private let fallbackUserID: String
+    private let toggleFavoriteUseCase: ToggleFavoriteUseCase?
+    private let videoPlayerViewModelFactory: (@MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel)?
+    private let now: () -> Date
 
     init(
         item: ContentItem,
@@ -57,7 +87,10 @@ final class VideoDetailViewModel {
         credentialProvider: any SourceCredentialProviding = EmptySourceCredentialProvider(),
         systemCookieHeaderProvider: any SystemCookieHeaderProviding = EmptySystemCookieHeaderProvider(),
         activeAppUser: (any ActiveAppUserProviding)? = nil,
-        userID: String = AppUser.localDefaultID
+        userID: String = AppUser.localDefaultID,
+        toggleFavoriteUseCase: ToggleFavoriteUseCase? = nil,
+        videoPlayerViewModelFactory: (@MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel)? = nil,
+        now: @escaping () -> Date = Date.init
     ) {
         self.item = item
         self.source = source
@@ -67,6 +100,9 @@ final class VideoDetailViewModel {
         self.systemCookieHeaderProvider = systemCookieHeaderProvider
         self.activeAppUser = activeAppUser
         self.fallbackUserID = userID
+        self.toggleFavoriteUseCase = toggleFavoriteUseCase
+        self.videoPlayerViewModelFactory = videoPlayerViewModelFactory
+        self.now = now
 
         #if DEBUG
         AppDebugLog.write(
@@ -276,13 +312,16 @@ final class VideoDetailViewModel {
     func loadEpisodes() async {
         CrashDiagnostics.shared.setRuleStage(.detail)
         guard let detailURL: URL = URL(string: self.item.detailURL) else {
-            self.errorMessage = "Video detail URL is invalid."
+            self.detailErrorMessage = "Video detail URL is invalid."
+            self.hasLoadedEpisodes = true
             return
         }
 
         self.isLoadingEpisodes = true
+        self.detailErrorMessage = nil
         defer {
             self.isLoadingEpisodes = false
+            self.hasLoadedEpisodes = true
         }
 
         do {
@@ -321,7 +360,9 @@ final class VideoDetailViewModel {
                     title: chapter.title,
                     playPageURL: chapter.url,
                     sourceName: chapter.subtitle,
-                    playbackHandoff: chapter.videoPlaybackHandoff
+                    playbackHandoff: chapter.videoPlaybackHandoff,
+                    isRestricted: chapter.isRestricted,
+                    isPaid: chapter.isPaid
                 )
             }
             if self.episodes.isEmpty, let action: SourceVideoDetailPlaybackAction = output.videoPlaybackAction {
@@ -335,8 +376,12 @@ final class VideoDetailViewModel {
                     )
                 ]
             }
-            self.synopsis = output.metadata?.description
-            self.metadataRows = output.metadata?.attributes.map(\.displayText) ?? []
+            self.synopsis = Self.nonEmpty(output.metadata?.description)
+            self.metadataAttributes = output.metadata?.attributes ?? []
+            self.metadataRows = self.metadataAttributes.map(\.displayText)
+            self.detailTitle = Self.nonEmpty(output.metadata?.title)
+            self.detailCoverURL = output.metadata?.coverURL
+            self.ensureSelectedLine()
             #if DEBUG
             AppDebugLog.write(
                 "[BrowseCraftVideoDetail] loadEpisodes runtime-result " +
@@ -356,7 +401,7 @@ final class VideoDetailViewModel {
                 errorCode: "video-detail-error",
                 event: "video-detail-error"
             )
-            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+            self.detailErrorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
     }
 
@@ -439,8 +484,12 @@ final class VideoDetailViewModel {
         }
 
         self.isLoadingPlayback = true
+        self.resolvingEpisodeID = episode.id
+        self.playbackErrorMessage = nil
         defer {
             self.isLoadingPlayback = false
+            self.resolvingEpisodeID = nil
+            self.isResolvingContinue = false
         }
 
         do {
@@ -525,8 +574,320 @@ final class VideoDetailViewModel {
                 errorCode: "video-playback-error",
                 event: "video-playback-error"
             )
-            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+            // 中文注释：解析失败走网格上方的横幅，不弹警告框（第八节）；原因照 classifier 的用户文案。
+            self.playbackErrorMessage = String(
+                format: NSLocalizedString("video_detail_resolve_failed", comment: ""),
+                episode.title
+            ) + "\n" + RuleExecutionErrorClassifier.userMessage(for: error)
         }
+    }
+
+    // MARK: - 线路与集号（第六节）
+
+    /// 按 `sourceName` 把连续的选集归成线路；没有线路名的站只有一条。
+    var lines: [VideoEpisodeLine] {
+        var lines: [VideoEpisodeLine] = []
+        var currentTitle: String?? = nil
+        var current: [VideoEpisode] = []
+        func flush() {
+            guard current.isEmpty == false else {
+                return
+            }
+            let title: String? = currentTitle ?? nil
+            lines.append(VideoEpisodeLine(id: title ?? "line-\(lines.count)", title: title, episodes: current))
+            current = []
+        }
+        for episode: VideoEpisode in self.episodes {
+            let title: String? = Self.nonEmpty(episode.sourceName)
+            if current.isEmpty == false, (currentTitle ?? nil) != title {
+                flush()
+            }
+            currentTitle = .some(title)
+            current.append(episode)
+        }
+        flush()
+        return lines
+    }
+
+    var selectedLine: VideoEpisodeLine? {
+        let lines: [VideoEpisodeLine] = self.lines
+        if let selectedLineID: String = self.selectedLineID,
+           let line: VideoEpisodeLine = lines.first(where: { $0.id == selectedLineID }) {
+            return line
+        }
+        if let target: VideoEpisode = self.continueTargetEpisode,
+           let line: VideoEpisodeLine = lines.first(where: { $0.episodes.contains(target) }) {
+            return line
+        }
+        return lines.first
+    }
+
+    /// 当前线路的集，按正序 / 倒序。
+    var visibleEpisodes: [VideoEpisode] {
+        let episodes: [VideoEpisode] = self.selectedLine?.episodes ?? []
+        return self.isDescendingOrder ? episodes.reversed() : episodes
+    }
+
+    /// 当前线路的集名都解得出数字时用等宽网格，否则按内容宽排。
+    var usesNumericGrid: Bool {
+        let episodes: [VideoEpisode] = self.selectedLine?.episodes ?? []
+        guard episodes.isEmpty == false else {
+            return false
+        }
+        return episodes.allSatisfy { Self.compactEpisodeLabel($0.title) != nil }
+    }
+
+    func selectLine(_ lineID: String) {
+        self.selectedLineID = lineID
+        self.playbackErrorMessage = nil
+    }
+
+    private func ensureSelectedLine() {
+        guard let selectedLineID: String = self.selectedLineID,
+              self.lines.contains(where: { $0.id == selectedLineID }) == false else {
+            return
+        }
+        self.selectedLineID = nil
+    }
+
+    /// 格子里显示什么：「第01集」「01」「EP 12」「第 3 话」→「01」「12」「03」；解不出数字的显示原文。
+    /// 只影响显示，不改顺序、不进存储。
+    static func compactEpisodeLabel(_ title: String) -> String? {
+        let trimmed: String = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let numberRange: Range<String.Index> = trimmed.range(of: #"\d+"#, options: .regularExpression) else {
+            return nil
+        }
+        let rest: String = trimmed.replacingCharacters(in: numberRange, with: "")
+            .replacingOccurrences(of: #"(?i)^(第|ep|episode|e|#|话|話|集|回|期|\s|\.|-|_)*$"#, with: "", options: .regularExpression)
+        guard rest.isEmpty, let number: Int = Int(trimmed[numberRange]) else {
+            return nil
+        }
+        return number < 10 ? "0\(number)" : String(number)
+    }
+
+    func displayLabel(for episode: VideoEpisode) -> String {
+        return Self.compactEpisodeLabel(episode.title) ?? episode.title
+    }
+
+    // MARK: - 继续看（第七节）
+
+    /// 历史对上的那一集：先按播放页地址，再按集名。
+    var continueTargetEpisode: VideoEpisode? {
+        guard let history: VideoWatchHistory = self.continueWatchingHistory else {
+            return nil
+        }
+        if let byURL: VideoEpisode = self.episodes.first(where: { $0.playPageURL == history.playPageURL }) {
+            return byURL
+        }
+        guard let episodeTitle: String = Self.nonEmpty(history.episodeTitle) else {
+            return nil
+        }
+        return self.episodes.first { $0.title == episodeTitle }
+    }
+
+    /// 继续看按钮要开的集：看完了就是下一集；对不上任何一集为 nil（此时用历史记录直接开播放器）。
+    var continueActionEpisode: VideoEpisode? {
+        guard let history: VideoWatchHistory = self.continueWatchingHistory else {
+            return self.episodes.count == 1 ? self.episodes.first : self.lines.first?.episodes.first
+        }
+        guard let target: VideoEpisode = self.continueTargetEpisode else {
+            return nil
+        }
+        if self.isFinished(history), let next: VideoEpisode = self.nextEpisode(after: target) {
+            return next
+        }
+        return target
+    }
+
+    var continueButtonTitle: String {
+        if self.episodes.count == 1, self.continueWatchingHistory == nil {
+            return NSLocalizedString("video_detail_play", comment: "")
+        }
+        guard let history: VideoWatchHistory = self.continueWatchingHistory else {
+            guard let first: VideoEpisode = self.lines.first?.episodes.first else {
+                return NSLocalizedString("video_detail_play", comment: "")
+            }
+            if Self.compactEpisodeLabel(first.title) != nil {
+                return NSLocalizedString("video_detail_start_from_first", comment: "")
+            }
+            return String(format: NSLocalizedString("video_detail_start_with", comment: ""), first.title)
+        }
+        let target: VideoEpisode? = self.continueTargetEpisode
+        let targetTitle: String = target?.title ?? Self.nonEmpty(history.episodeTitle) ?? self.item.title
+        // 中文注释：只有一集时集名往往就是页面标题（电影站），按钮上不重复写它。
+        let isSingle: Bool = self.episodes.count == 1
+        if let target, self.isFinished(history) {
+            if let next: VideoEpisode = self.nextEpisode(after: target) {
+                return String(format: NSLocalizedString("video_detail_next_episode", comment: ""), next.title)
+            }
+            return isSingle
+                ? NSLocalizedString("video_detail_rewatch_single", comment: "")
+                : String(format: NSLocalizedString("video_detail_rewatch", comment: ""), targetTitle)
+        }
+        return isSingle
+            ? NSLocalizedString("video_detail_continue_single", comment: "")
+            : String(format: NSLocalizedString("video_detail_continue", comment: ""), targetTitle)
+    }
+
+    /// 按钮右侧小字「23:14 / 45:00」；看完或没播起来不写。
+    var continueButtonSubtitle: String? {
+        guard let history: VideoWatchHistory = self.continueWatchingHistory,
+              self.isFinished(history) == false,
+              history.lastPlaybackTime > 0 else {
+            return nil
+        }
+        if let duration: TimeInterval = history.duration, duration > 0 {
+            return HistoryViewModel.clockText(history.lastPlaybackTime) + " / " + HistoryViewModel.clockText(duration)
+        }
+        return HistoryViewModel.clockText(history.lastPlaybackTime)
+    }
+
+    private func isFinished(_ history: VideoWatchHistory) -> Bool {
+        guard let duration: TimeInterval = history.duration, duration > 0 else {
+            return false
+        }
+        return history.lastPlaybackTime >= duration * HistoryViewModel.finishedThreshold
+    }
+
+    private func nextEpisode(after episode: VideoEpisode) -> VideoEpisode? {
+        guard let line: VideoEpisodeLine = self.lines.first(where: { $0.episodes.contains(episode) }),
+              let index: Int = line.episodes.firstIndex(of: episode),
+              index + 1 < line.episodes.count else {
+            return nil
+        }
+        return line.episodes[index + 1]
+    }
+
+    @MainActor
+    func openContinue() async {
+        if let episode: VideoEpisode = self.continueActionEpisode {
+            self.isResolvingContinue = true
+            await self.openEpisode(episode)
+            return
+        }
+        // 中文注释：规则换过、站点改了地址，历史对不上任何一集：用历史记录直接开播放器，与历史页点行同一条路。
+        guard let history: VideoWatchHistory = self.continueWatchingHistory,
+              let factory: @MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel = self.videoPlayerViewModelFactory else {
+            return
+        }
+        self.playbackRoute = VideoPlaybackRoute(id: history.id, viewModel: factory(history, self.source))
+    }
+
+    /// 进页、下拉、播放器关闭后都重读一次本作品的历史。
+    func reloadContinueWatching() async {
+        do {
+            let transfer: VideoWatchHistoryTransfer? = try await self.persistenceCoordinator.loadLatestVideoHistory(
+                userID: self.currentUserID,
+                sourceID: self.source.id,
+                detailURL: URL(string: self.item.detailURL),
+                vodID: self.item.idCode
+            )
+            self.continueWatchingHistory = transfer?.value
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-detail-history-error")
+            self.continueWatchingHistory = nil
+        }
+    }
+
+    // MARK: - 收藏（第五节）
+
+    func reloadFavoriteState() async {
+        guard let useCase: ToggleFavoriteUseCase = self.toggleFavoriteUseCase else {
+            return
+        }
+        do {
+            self.isFavorite = try useCase.loadFavoriteItemIDs(sourceID: self.source.id).contains(self.item.id)
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-detail-favorite-error")
+        }
+    }
+
+    @MainActor
+    func toggleFavorite() async {
+        guard let useCase: ToggleFavoriteUseCase = self.toggleFavoriteUseCase else {
+            return
+        }
+        do {
+            let ids: Set<String> = try useCase.execute(item: self.item, source: self.source, favoritedAt: self.now())
+            let wasFavorite: Bool = self.isFavorite
+            self.isFavorite = ids.contains(self.item.id)
+            AppAnalytics.shared.logBookmarkChanged(isFavorite: wasFavorite == false, source: self.source)
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-detail-favorite-error")
+        }
+    }
+
+    // MARK: - 头图区取值（第五节）
+
+    /// 中文注释：列表项的标题优先——它是用户点进来时看到的那个名字；详情规则取到的常是带 SEO 后缀的页面标题
+    /// （低端影视：「危机13小时免费在线观看_高清网盘下载」，2026-10-08 模拟器），只在列表没给标题时才用。
+    var displayTitle: String {
+        return Self.nonEmpty(self.item.title) ?? self.detailTitle ?? self.item.title
+    }
+
+    var displayCoverURLString: String? {
+        return self.detailCoverURL?.absoluteString ?? self.item.coverURL
+    }
+
+    var imageRequestConfig: RequestConfig? {
+        return ResolveLibrarySourcePresentationUseCase().imageRequestConfig(for: self.source, listTab: nil)
+    }
+
+    var sourceHostText: String {
+        return CatalogDisplayText.displayHost(CatalogDisplayText.addressParts(of: self.source.baseURL).host)
+    }
+
+    /// 元数据行「2024 · 日本 · 动画 · 日语」：按 key 取，有几个写几个。
+    private static let headlineMetadataKeys: [String] = ["year", "releaseDate", "region", "genre", "language"]
+    private static let creditMetadataKeys: [(key: String, stringKey: String)] = [
+        ("director", "video_detail_credits_director"),
+        ("cast", "video_detail_credits_cast"),
+        ("writer", "video_detail_credits_writer"),
+        ("studio", "video_detail_credits_studio")
+    ]
+
+    var headlineMetadataText: String? {
+        let values: [String] = Self.headlineMetadataKeys.compactMap { key in
+            self.metadataAttributes.first { $0.key == key }.flatMap { Self.nonEmpty($0.value) }
+        }
+        return values.isEmpty ? nil : values.joined(separator: " · ")
+    }
+
+    /// 状态徽章：列表的 `latestText` 优先，没有用 metadata 的 status。
+    var statusBadgeText: String? {
+        if let latestText: String = Self.nonEmpty(self.item.latestText) {
+            return latestText
+        }
+        return self.metadataAttributes.first { $0.key == "status" }.flatMap { Self.nonEmpty($0.value) }
+    }
+
+    /// 简介下的署名行：「导演 · xxx」。
+    var creditLines: [String] {
+        return Self.creditMetadataKeys.compactMap { entry in
+            guard let value: String = self.metadataAttributes.first(where: { $0.key == entry.key }).flatMap({ Self.nonEmpty($0.value) }) else {
+                return nil
+            }
+            return NSLocalizedString(entry.stringKey, comment: "") + " · " + value
+        }
+    }
+
+    /// 没落在元数据行、徽章、署名里的其余条目，照旧 label: value。
+    var otherMetadataLines: [String] {
+        let used: Set<String> = Set(Self.headlineMetadataKeys + Self.creditMetadataKeys.map(\.key) + ["status"])
+        return self.metadataAttributes
+            .filter { attribute in attribute.key.map { used.contains($0) == false } ?? true }
+            .map(\.displayText)
+    }
+
+    var hasSynopsisSection: Bool {
+        return self.synopsis != nil || self.creditLines.isEmpty == false || self.otherMetadataLines.isEmpty == false
+    }
+
+    private static func nonEmpty(_ text: String?) -> String? {
+        guard let text: String = text?.trimmingCharacters(in: .whitespacesAndNewlines), text.isEmpty == false else {
+            return nil
+        }
+        return text
     }
 
     private func runtimeContext(operation: SourceRuntimeOperation?) -> SourceRuntimeContext {

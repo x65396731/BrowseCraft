@@ -147,7 +147,9 @@ struct LibraryView: View {
                 CrashDiagnostics.shared.setScreen(.library)
                 AppAnalytics.shared.logScreenView(.library)
                 // 中文注释：从详情 / 播放回到库页、从别的标签切回来，都重读一次本地历史——读取便宜，不等网络。
+                // 详情页右上也能收藏，封面上的爱心一并对齐。
                 self.viewModel.refreshContinueWatching()
+                self.viewModel.refreshFavoriteItemIDs()
             }
             .task {
                 _ = await self.viewModel.loadIfNeeded()
