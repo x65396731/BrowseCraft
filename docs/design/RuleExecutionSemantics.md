@@ -50,7 +50,7 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
   半夏规则 `cookiePolicy=browserThenCustom`、`cookiePriority=browser`；封面请求默认 UA 与规则 UA 同为 `ClientUserAgent.desktopSafari`，放行 Cookie 可用。
   **同日第三处（诊断日志）**：回写 `TREK_SESSION@www.xbanxia.cc`、`TREK_SESSION@.xbanxia.cc`、`cf_clearance@.xbanxia.cc` 三条，封面请求却只带出 `TREK_SESSION`、图床 `httpStatus=403`——
   同域的 `cf_clearance` 没被 `HTTPCookieStorage.cookies(for:)` 取回。**推测**是 WebView 交出的放行 Cookie 带分区（CHIPS `Partitioned`）等私有属性，系统存储按网址只返回不分区的 Cookie；
-  回写改为只用公开属性重建（名 / 值 / 域 / 路径 / Secure / HttpOnly / 过期 / SameSite，`WebViewCookieSync.unpartitioned`），回写日志加 `readBack` 当场核对。待真机证实。
+  回写改为只用公开属性重建（名 / 值 / 域 / 路径 / Secure / HttpOnly / 过期 / SameSite，`WebViewCookieSync.unpartitioned`），回写日志加 `readBack` 当场核对。**2026-10-07 真机证实修好**（用户确认封面显示）——重建后 `cf_clearance` 取得回、图床放行；分区是推测成因，未单独证明。
 - `BCA-RUNTIME-006` 列表分页的页码代入统一为 `startPage + N − 1`（N 为 1 起的页序号；`PaginationRule.startPage` 缺省 1，book 的 `BookListPagination.startPage` 同义）：
   三 kind 的代入点（影视 `VideoRulePaginationResolver`、漫画 `ComicSourceListLoader` → `URLResolvingService.listURL(page:)`、书 `BookSourceRuntime.listURL`）都经它换算，
   不带该键的规则行为逐字不变。依据 fwq `BC-LIST-124`：0 起页码站（rouman5、3kor）第 1 页在地址里写 0，引擎交付 `startPage: 0`。

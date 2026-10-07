@@ -67,6 +67,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 添加来源页重设计的模拟器走查（真实登录账号）：已登录浅色与深色、点目录入口卡先收起本页再弹目录、点类型卡在同一层进输入页、输入页关闭回来源页；未登录、余额未同步、从目录空状态进入三种未走到 | `BCA-UI-003` | required | approved | implemented | simulator-passed | c856a0c | 2026-10-06 |
 | 网址输入页与引导屏重设计：网址卡带系统粘贴按钮、四步进度卡、结论卡与结果卡共用状态卡、取页方式两个按钮（困难按钮渐变发光描边）、滑动确认代替生成按钮（困难档粉彩流光点阵 + 渐变字与滑块）、网址错误不出卡、引导屏卡片化（六项裁定全取 A，动画与颜色经多轮裁定） | `BC-PAGE-060` | required | approved | implemented | not-run | 7b05a0e | 2026-10-07 |
 | 网址输入页与引导屏重设计的模拟器走查（真实登录账号）：空输入、已输入与清除、网址错误（5xx 与 scheme）不出卡、首页检查得「这一页不能用」卡、分类页检查得「可以生成」+ 取页方式按钮 + 余额 + 滑动确认、点困难换成渐变描边与多彩流光一套、滑动确认拖一半弹回、引导屏回看形态、深色、云同步页状态卡复用后不变；检查中的四步进度卡（检查太快没抓到）、真实提交的各结果态（要扣 coin）、粘贴按钮（模拟器剪贴板没同步）未走到 | `BC-PAGE-060` | required | approved | implemented | simulator-passed | 7b05a0e | 2026-10-07 |
+| 库页视频库重设计：自绘眉行与大标题、搜索与账号两个圆形按钮、视频类型色胶囊分类芯片贴顶、「上次看到」瓷砖（新增按来源取最近视频历史的只读查询）、两列海报墙（集数徽章压封面、爱心用视频强调色）、分页脚代替悬浮胶囊、骨架改两列、横幅与切换来源遮罩换统一取值（七项裁定全取 A） | 未编号 | required | approved | not-started | not-run | c39224b | 2026-10-07 |
 | 历史页重设计的模拟器走查：继续卡片三种类型色、看到哪里与进度条、筛选与某类为 0、只有一条、按天分组、左滑与长按删除及撤销（漫画整部删除与整部写回）、在库中查看来源、已暂停 / 已删除 / 未知 / 临时资源、空状态与去库里逛逛、深色、收藏页回归 | 未编号 | required | approved | implemented | simulator-passed | 9ebb107 | 2026-10-03 |
 
 ## 3. 影视线运行期
@@ -76,7 +77,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 运行期广告过滤承接规则匹配结果（App 侧对规则匹配到的候选执行过滤） | `APP-MEMO-008` | required | approved | implemented | full-suite-passed | ff58d6a | 2026-08-29 |
 | jable.tv M3U8 播放规则的抽取根因（结论已由 fwq `BC-PLAYBACK-049` 承接） | `BC-PLAYBACK-049` | required | superseded | not-started | not-run | 4a3814b | 2026-08-21 |
 | 直接请求收到挑战页时回退 WebView 再取一次（toonily 重生成后规则不带 `needsWebView`，真机三部作品打不开：手机出口直接请求章节页 403 Cloudflare 挑战、服务器出口 200；`DefaultPageLoader.loadContent` 捕获 `antiBot` 后走 `renderedPageContentLoader`，其它错误不回退；fwq `APP-MEMO-026`） | `BCA-RUNTIME-005` | required | approved | implemented | targeted-passed | 9f328d0 | 2026-10-06 |
-| WebView 过挑战后把站点 Cookie 回写系统存储 + 书类封面请求带上来源请求配置（`BCA-RUNTIME-005` 2026-10-07 补充两处；xbanxia 真机封面全失败：列表经 WebView 过 Cloudflare，封面请求 `hasCookie=false`、图床回挑战页；第一处上线后复验仍失败，查出书类封面请求配置为空、Cookie 策略缺省不带系统 Cookie；用户「修，现在实施」） | `BCA-RUNTIME-005` | required | approved | implemented | static-audit-passed | d2a4b52 | 2026-10-07 |
+| WebView 过挑战后把站点 Cookie 回写系统存储 + 书类封面请求带上来源请求配置（`BCA-RUNTIME-005` 2026-10-07 补充两处；xbanxia 真机封面全失败：列表经 WebView 过 Cloudflare，封面请求 `hasCookie=false`、图床回挑战页；第一处上线后复验仍失败，查出书类封面请求配置为空、Cookie 策略缺省不带系统 Cookie；第三处：回写的 `cf_clearance` 按图床地址取不回，改为只用公开属性重建再写入；用户「修，现在实施」，真机确认封面显示） | `BCA-RUNTIME-005` | required | approved | implemented | device-passed | 11c4949 | 2026-10-07 |
 | 列表分页页码按 `startPage + N − 1` 代入（0 起页码站 rouman5 / 3kor；fwq `BC-LIST-124` / `APP-MEMO-027`）：Core `PaginationRule.startPage` 与 `sitePageNumber(forPage:)`、影视 / 漫画 / 书三处代入点、目录请求 `features=startPage` 能力声明；Core 3 例 + Runtime 24 例过、App 构建过，未发版 | `BCA-RUNTIME-006` | required | approved | implemented | targeted-passed | 587a99c | 2026-10-06 |
 
 ## 4. 身份与同步

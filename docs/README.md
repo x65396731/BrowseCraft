@@ -163,6 +163,7 @@ App 侧的验证事实主要分「离线测试通过」「模拟器走通」「�
 - 云同步页：视觉与信息结构重设计（隐藏底栏、状态卡、同步的内容与只在本机的内容、下拉代替按钮、首次开启窗口）：[design/Cloud-Sync-Page-Redesign-Design.md](design/Cloud-Sync-Page-Redesign-Design.md)
 - 添加来源页：视觉与信息结构重设计（三张类型横幅、「接下来」三行、coin 与登录提示、目录入口卡、三屏同一层 sheet）：[design/Add-Source-Page-Redesign-Design.md](design/Add-Source-Page-Redesign-Design.md)
 - 网址输入页与引导屏：视觉与信息结构重设计（网址卡带粘贴、四步进度卡、结论卡、两档点阵滑杆、滑动确认、引导屏卡片化）：[design/Generation-Input-Page-Redesign-Design.md](design/Generation-Input-Page-Redesign-Design.md)
+- 库页视频库：视觉与信息结构重设计（眉行与大标题、类型色分类芯片、「上次看到」瓷砖、两列海报墙与集数徽章、分页脚、各元素的数据来源与缺省）：[design/Library-Video-Page-Redesign-Design.md](design/Library-Video-Page-Redesign-Design.md)
 - 运行期广告过滤承接规则匹配结果：[design/RuntimeAdFilter-Design.md](design/RuntimeAdFilter-Design.md)
 
 `design/Book-Kind-Wiring-Design.md` 的批次记录已拆到 [history/Book-Kind-Wiring-batch-records.md](history/Book-Kind-Wiring-batch-records.md)。
