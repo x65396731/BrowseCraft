@@ -39,6 +39,7 @@ EmptyStateFavorites     200000    283x540    single-scale-png
 EmptyStateHistory       186000    256x540    single-scale-png
 EmptyStateSearch        210000    274x540    single-scale-png
 EmptyStateOffline       225000    444x540    single-scale-png
+EmptyStateLibraryVideo  255000    357x540    single-scale-png
 EntryGuideUnsupportedPage 180000  335x450    single-scale-png
 CatalogEmptyRecommended 260000    350x540    single-scale-png
 CatalogEmptyPersonal    280000    396x540    single-scale-png
@@ -139,3 +140,9 @@ SettingsRate              2700      22x22      multi-scale-png
 # 那张已是规则目录「我的生成·未登录」的插画，设置页另出一张。即梦 2K 原图（1500×2000）经 illustration-cutout
 # 抠透明缩到 540px 高、illustration-despeckle 去游离小点（保留卡片一带）后裁掉左右透明边得 297×540；
 # 账号卡里按 66×108pt 显示。
+
+# 2026-10-08 EmptyStateLibraryVideo：库页视频库空状态插画（举遥控器对着一块只有播放三角的空白银幕）。
+# 库页「取回来是空的」原先借用搜索页的放大镜 EmptyStateSearch，与「这个分类没有取到条目」对不上，本页另出一张；
+# 失败态仍用各页共用的 EmptyStateOffline。即梦 2K 原图（1500×2000）经 illustration-cutout 抠透明缩到 540px 高
+# （悬浮的银幕被 Vision 当作同一前景保留，没有丢），illustration-despeckle 未清掉任何小块、裁掉左右透明边后得 357×540。
+# 源字节上限按实际字节加约 15% 余量。

@@ -41,6 +41,11 @@ final class LibraryViewModel {
     private(set) var currentListPage: Int = 1
     private(set) var canLoadNextPage: Bool = false
     private var credentialRevision: Int = 0
+    /// 中文注释：「上次看到」瓷砖——当前来源最近一条视频历史（`docs/design/Library-Video-Page-Redesign-Design.md` 第六节）。
+    /// 属于来源、不属于分类：切来源时重取，切分类不动；没有记录就不出瓷砖。
+    private(set) var continueWatchingHistory: VideoWatchHistory?
+    /// 点瓷砖直接开全屏播放器，与历史页点行同一条路径。
+    var videoPlaybackRoute: VideoPlaybackRoute?
 
     private let persistenceCoordinator: LibraryPersistenceCoordinator
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
@@ -53,6 +58,7 @@ final class LibraryViewModel {
     private let activeAppUser: (any ActiveAppUserProviding)?
     private let fallbackUserID: String
     private let now: () -> Date
+    private let videoPlayerViewModelFactory: (@MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel)?
     private var cancellables: Set<AnyCancellable> = Set<AnyCancellable>()
     private var listStateStore: LibraryListStateStore = LibraryListStateStore()
     /// 中文注释：启动加载使用共享 Task 合并并发调用，动画层消失不会取消实际网络加载。
@@ -70,11 +76,13 @@ final class LibraryViewModel {
         activeAppUser: (any ActiveAppUserProviding)? = nil,
         searchSourceContentUseCase: SearchSourceContentUseCase? = nil,
         userID: String = AppUser.localDefaultID,
-        now: @escaping () -> Date = Date.init
+        now: @escaping () -> Date = Date.init,
+        videoPlayerViewModelFactory: (@MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel)? = nil
     ) {
         self.persistenceCoordinator = persistenceCoordinator
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
         self.searchSourceContentUseCase = searchSourceContentUseCase
+        self.videoPlayerViewModelFactory = videoPlayerViewModelFactory
         self.resolveLibrarySourcePresentationUseCase = resolveLibrarySourcePresentationUseCase
         self.contentItemMapper = SourceListContentItemMapper()
         self.sourceCredentialStore = sourceCredentialStore
@@ -157,6 +165,8 @@ final class LibraryViewModel {
             self.favoriteItemIDs = snapshot.favoriteItemIDs
 
             self.restoreStartupLibraryState(snapshot.libraryState)
+            // 中文注释：本地读取，不等网络——列表取不到时还能接着看。
+            self.refreshContinueWatching()
             if self.applyPreparedSnapshotIfAvailable() == false {
                 self.items = []
                 self.logLibraryItems(
@@ -884,6 +894,86 @@ final class LibraryViewModel {
             )
         }
         self.reloadFavoriteItemIDs(event: "switch-source-error")
+        self.refreshContinueWatching()
+    }
+
+    // MARK: - 「上次看到」瓷砖
+
+    /// 中文注释：重读当前来源最近一条视频历史。只有视频来源才有瓷砖；来源没了、换了、历史被删了都会把它清掉。
+    /// 调用时机：首次加载、切来源、从播放器回来、回到库标签、来源页连带删除历史之后。
+    func refreshContinueWatching() {
+        guard let source: Source = self.selectedSource,
+              source.configuration.kind == .video else {
+            self.continueWatchingHistory = nil
+            return
+        }
+        let expectedSourceID: String = source.id
+        let userID: String = self.currentUserID
+        Task {
+            do {
+                let history: VideoWatchHistory? = try await self.persistenceCoordinator.latestVideoHistory(
+                    userID: userID,
+                    sourceID: expectedSourceID
+                )
+                guard self.selectedSourceID == expectedSourceID else {
+                    return
+                }
+                self.continueWatchingHistory = history
+            } catch {
+                // 中文注释：瓷砖是附加信息，读不到就不出，不弹错。
+                RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "library-continue-watching-error")
+                self.continueWatchingHistory = nil
+            }
+        }
+    }
+
+    /// 点瓷砖：用历史记录直接开播放器，与历史页 `openVideoHistory` 同一条路径。
+    @MainActor
+    func openContinueWatching() {
+        guard let history: VideoWatchHistory = self.continueWatchingHistory,
+              let source: Source = self.selectedSource,
+              let factory: @MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel = self.videoPlayerViewModelFactory else {
+            return
+        }
+        self.videoPlaybackRoute = VideoPlaybackRoute(
+            id: history.id,
+            viewModel: factory(history, source)
+        )
+    }
+
+    /// 瓷砖第三行「第 12 集 · 看到 23:14 / 45:00」，与历史页同一套取法。
+    var continueWatchingProgressText: String? {
+        return self.continueWatchingHistory.flatMap { HistoryViewModel.videoProgressText(for: $0) }
+    }
+
+    /// 瓷砖进度条（知道时长时）。
+    var continueWatchingProgress: Double? {
+        return self.continueWatchingHistory.flatMap { HistoryViewModel.playbackProgress(for: $0) }
+    }
+
+    /// 瓷砖底行只写时刻：「今天 21:30」「昨天 09:12」，更早的只写日期——来源名已是大标题，不重复。
+    var continueWatchingTimeText: String? {
+        guard let history: VideoWatchHistory = self.continueWatchingHistory else {
+            return nil
+        }
+        let now: Date = self.now()
+        let calendar: Calendar = .current
+        let day: CatalogPersonalTimeline.Day = CatalogPersonalTimeline.day(for: history.updatedAt, now: now, calendar: calendar)
+        let dayText: String = CatalogDayTitle.text(for: day, now: now, calendar: calendar)
+        switch day {
+        case .today, .yesterday:
+            return dayText + " " + history.updatedAt.formatted(date: .omitted, time: .shortened)
+        case .date, .unknown:
+            return dayText
+        }
+    }
+
+    /// 眉行里的主机名：去掉 `www.`，与目录卡片同一取法。
+    var selectedSourceHostText: String? {
+        guard let source: Source = self.selectedSource else {
+            return nil
+        }
+        return CatalogDisplayText.displayHost(CatalogDisplayText.addressParts(of: source.baseURL).host)
     }
 
     private func applyPreparedLibrarySnapshot(_ snapshot: SourceLibrarySnapshot?) {

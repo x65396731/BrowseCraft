@@ -90,6 +90,9 @@ struct HistoryContinueTileView: View {
     let coverURL: String?
     let refererURL: String?
     let imageRequestConfig: RequestConfig?
+    /// 中文注释：底行文字；nil 时按历史页的写法「来源 · 时刻」。库页的「上次看到」瓷砖只写时刻——来源名已是大标题
+    /// （`docs/design/Library-Video-Page-Redesign-Design.md` 第六节）。
+    var metaTextOverride: String? = nil
     let action: () -> Void
 
     var body: some View {
@@ -151,6 +154,9 @@ struct HistoryContinueTileView: View {
     }
 
     private var metaText: String {
+        if let override: String = self.metaTextOverride {
+            return override
+        }
         var text: String = self.sourceName
         switch self.sourceState {
         case .paused:

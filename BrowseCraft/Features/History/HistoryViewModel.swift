@@ -173,26 +173,7 @@ final class HistoryViewModel {
             guard let history: VideoWatchHistory = entry.videoHistory else {
                 return nil
             }
-            var parts: [String] = []
-            if let episode: String = Self.nonEmpty(history.episodeTitle) {
-                parts.append(episode)
-            }
-            if let duration: TimeInterval = history.duration, duration > 0,
-               history.lastPlaybackTime >= duration * Self.finishedThreshold {
-                parts.append(NSLocalizedString("history_progress_finished", comment: ""))
-            } else if let duration: TimeInterval = history.duration, duration > 0 {
-                parts.append(String(
-                    format: NSLocalizedString("history_progress_watched_of", comment: ""),
-                    Self.clockText(history.lastPlaybackTime),
-                    Self.clockText(duration)
-                ))
-            } else if history.lastPlaybackTime > 0 {
-                parts.append(String(
-                    format: NSLocalizedString("history_progress_watched", comment: ""),
-                    Self.clockText(history.lastPlaybackTime)
-                ))
-            }
-            return parts.isEmpty ? nil : parts.joined(separator: " · ")
+            return Self.videoProgressText(for: history)
         case .comic:
             guard let history: ComicChapterHistory = entry.comicHistory else {
                 return nil
@@ -219,9 +200,38 @@ final class HistoryViewModel {
 
     /// 视频知道时长时的播放进度（0...1），用来在封面底边画进度条；其余为 nil。
     func playbackProgress(for entry: ReadingHistoryEntry) -> Double? {
-        guard let history: VideoWatchHistory = entry.videoHistory,
-              let duration: TimeInterval = history.duration,
-              duration > 0 else {
+        guard let history: VideoWatchHistory = entry.videoHistory else {
+            return nil
+        }
+        return Self.playbackProgress(for: history)
+    }
+
+    /// 视频「看到哪里」：「第12集 · 看到 23:14 / 45:00」；库页「上次看到」瓷砖共用（`docs/design/Library-Video-Page-Redesign-Design.md` 第六节）。
+    static func videoProgressText(for history: VideoWatchHistory) -> String? {
+        var parts: [String] = []
+        if let episode: String = Self.nonEmpty(history.episodeTitle) {
+            parts.append(episode)
+        }
+        if let duration: TimeInterval = history.duration, duration > 0,
+           history.lastPlaybackTime >= duration * Self.finishedThreshold {
+            parts.append(NSLocalizedString("history_progress_finished", comment: ""))
+        } else if let duration: TimeInterval = history.duration, duration > 0 {
+            parts.append(String(
+                format: NSLocalizedString("history_progress_watched_of", comment: ""),
+                Self.clockText(history.lastPlaybackTime),
+                Self.clockText(duration)
+            ))
+        } else if history.lastPlaybackTime > 0 {
+            parts.append(String(
+                format: NSLocalizedString("history_progress_watched", comment: ""),
+                Self.clockText(history.lastPlaybackTime)
+            ))
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    static func playbackProgress(for history: VideoWatchHistory) -> Double? {
+        guard let duration: TimeInterval = history.duration, duration > 0 else {
             return nil
         }
         return min(max(history.lastPlaybackTime / duration, 0), 1)

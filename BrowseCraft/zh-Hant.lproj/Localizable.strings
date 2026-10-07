@@ -759,3 +759,9 @@
 "generation_input_insufficient_title" = "coin 不足";
 "generation_input_failed_title" = "提交沒有成功";
 "generation_input_control_unavailable" = "不可用";
+
+/* 库页视频库重设计：海报长按菜单、「上次看到」瓷砖长按菜单、顶部账号按钮 */
+"library_card_open" = "開啟";
+"library_card_favorite" = "收藏";
+"library_tile_open_work" = "開啟作品";
+"library_account_button" = "帳號";

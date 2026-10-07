@@ -2,7 +2,8 @@ import BrowseCraftCore
 import BrowseCraftDomain
 import SwiftUI
 
-// 中文注释：VideoContentGridView 是 Library 的视频源列表，不复用漫画卡片入口。
+// 中文注释：VideoContentGridView 是 Library 的视频源列表——两列海报墙（`docs/design/Library-Video-Page-Redesign-Design.md` 第四节），
+// 不复用漫画卡片入口。集数与收藏态都压在封面上，标题下不再有第二行。
 struct VideoContentGridView: View {
     let items: [ContentItem]
     let source: Source
@@ -12,17 +13,19 @@ struct VideoContentGridView: View {
     let loadNextPage: () -> Void
     let contentViewModelFactory: LibraryContentViewModelFactory
     let imageRequestConfig: RequestConfig?
+    /// 中文注释：分页脚的文字；nil 时不画分页脚（规则不支持分页、搜索结果）。
+    var paginationStatusText: String? = nil
+    var isLoadingNextPage: Bool = false
     @State private var selectedItem: ContentItem?
 
+    /// 中文注释：两列、列距 14；iPad 与横屏按最小宽 160 自适应成更多列。
     private let gridColumns: [GridItem] = [
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12)
+        GridItem(.adaptive(minimum: 160), spacing: 14)
     ]
 
     var body: some View {
         VStack(spacing: 0) {
-            LazyVGrid(columns: self.gridColumns, spacing: 16) {
+            LazyVGrid(columns: self.gridColumns, spacing: 20) {
                 ForEach(self.items, id: \.id) { item in
                     VideoLibraryCardView(
                         item: item,
@@ -47,8 +50,16 @@ struct VideoContentGridView: View {
                         }
                 }
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+
+            if let paginationStatusText: String = self.paginationStatusText {
+                LibraryPaginationFooterView(
+                    statusText: paginationStatusText,
+                    isLoading: self.isLoadingNextPage
+                )
+            }
         }
-        .padding(16)
         .navigationDestination(item: self.$selectedItem) { item in
             VideoDetailView(
                 item: item,
@@ -70,6 +81,7 @@ struct VideoContentGridView: View {
     }
 }
 
+/// 海报卡片：封面 2:3 圆角 14，集数徽章压左下、爱心压右上，标题两行定高。点 = 进影视详情；长按「打开」「收藏 / 取消收藏」。
 private struct VideoLibraryCardView: View {
     let item: ContentItem
     let primaryActionTitle: String
@@ -78,14 +90,13 @@ private struct VideoLibraryCardView: View {
     let openAction: () -> Void
     let imageRequestConfig: RequestConfig?
 
-    private let titleColor: Color = .libraryTitleText
-    private let chapterColor: Color = Color(red: 133 / 255, green: 153 / 255, blue: 255 / 255)
-
-    var body: some View {
-        self.cardContent
+    private static let coverCornerRadius: CGFloat = 14
+    /// 视频类型样式：徽章与已收藏爱心取它的固定强调色。
+    private var style: CatalogKindStyle {
+        return CatalogKindStyle.of(CatalogSourceKind.video)
     }
 
-    private var cardContent: some View {
+    var body: some View {
         ZStack(alignment: .topTrailing) {
             Button(
                 action: {
@@ -96,9 +107,24 @@ private struct VideoLibraryCardView: View {
                 }
             )
             .buttonStyle(.plain)
+            .contextMenu {
+                Button {
+                    self.openDetailDestination()
+                } label: {
+                    Label(NSLocalizedString("library_card_open", comment: ""), systemImage: "play.rectangle")
+                }
+                Button {
+                    self.favoriteAction()
+                } label: {
+                    Label(
+                        NSLocalizedString(self.isFavorite ? "favorites_unfavorite" : "library_card_favorite", comment: ""),
+                        systemImage: self.isFavorite ? "heart.slash" : "heart"
+                    )
+                }
+            }
 
             self.favoriteButton
-                .padding(6)
+                .padding(8)
         }
     }
 
@@ -110,23 +136,30 @@ private struct VideoLibraryCardView: View {
                 requestConfig: self.imageRequestConfig,
                 placeholderImageName: "VideoListPlaceholder"
             )
-            .aspectRatio(129.0 / 194.0, contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(self.item.title)
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(self.titleColor)
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30, alignment: .topLeading)
-
-                if let latestText: String = self.item.latestText {
+            .aspectRatio(2.0 / 3.0, contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: Self.coverCornerRadius, style: .continuous))
+            .overlay(alignment: .bottomLeading) {
+                // 中文注释：集数徽章取类型横幅图标圆的固定深色取值——压在任何封面上都读得清；没有 latestText 就不出。
+                if let latestText: String = self.item.latestText?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   latestText.isEmpty == false {
                     Text(latestText)
-                        .font(.system(size: 12, weight: .regular))
-                        .foregroundStyle(self.chapterColor)
+                        .font(.caption2.weight(.bold))
                         .lineLimit(1)
+                        .foregroundStyle(CatalogKindStyle.bannerIconInk)
+                        .padding(.horizontal, 8)
+                        .frame(height: 20)
+                        .background(self.style.bannerAccent, in: Capsule())
+                        .padding(8)
                 }
             }
+            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Self.coverCornerRadius, style: .continuous))
+
+            Text(self.item.title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.leading)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40, alignment: .topLeading)
         }
     }
 
@@ -138,21 +171,25 @@ private struct VideoLibraryCardView: View {
             label: {
                 // 中文注释：与底栏「收藏」同一个心形——实心取 TabFavorites，空心是从同一剪影内缩出的
                 // TabFavoritesOutline，两者都是模板图，颜色由 foregroundColor 决定。
-                // 底栏按 25pt 原生渲染，这里缩到 18pt，与原来 16pt 字号的星形视觉尺寸相当。
+                // 已收藏用视频强调色（与集数徽章同色），不再用粉色。
                 Image(self.isFavorite ? "TabFavorites" : "TabFavoritesOutline")
                     .resizable()
                     .scaledToFit()
                     .frame(width: 18, height: 18)
-                    .foregroundColor(self.isFavorite ? .pink : .white)
+                    .foregroundColor(self.isFavorite ? self.style.bannerAccent : .white)
                     .frame(width: 32, height: 32)
                     .background(
                         Circle()
-                            .fill(Color.black.opacity(0.45))
+                            .fill(Color.black.opacity(0.4))
                     )
+                    .frame(width: 44, height: 44)
+                    .contentShape(Circle())
             }
         )
         .buttonStyle(.plain)
-        .accessibilityLabel(self.isFavorite ? "Remove Favorite" : "Add Favorite")
+        .accessibilityLabel(
+            NSLocalizedString(self.isFavorite ? "favorites_unfavorite" : "library_card_favorite", comment: "")
+        )
     }
 
     private func openDetailDestination() {

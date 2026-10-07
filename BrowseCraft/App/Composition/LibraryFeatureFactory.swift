@@ -66,7 +66,8 @@ struct LibraryFeatureFactory {
                 ),
                 saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase(
                     repository: userLibraryStateRepository
-                )
+                ),
+                videoWatchHistoryRepository: GRDBVideoWatchHistoryRepository(database: self.database)
             ),
             refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase(
                 runtimeResolver: self.sourceRuntimeResolver
@@ -77,7 +78,8 @@ struct LibraryFeatureFactory {
             activeAppUser: self.activeAppUser,
             searchSourceContentUseCase: SearchSourceContentUseCase(
                 runtimeResolver: self.sourceRuntimeResolver
-            )
+            ),
+            videoPlayerViewModelFactory: self.makeVideoPlayerViewModel
         )
     }
 
