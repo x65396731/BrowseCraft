@@ -675,3 +675,15 @@ App 侧设计文档一处都没引用，App 执行两种形态的合同由自己
   视频历史表有集名 / 播放位置 / 时长 / 封面（当前 0 条）；分类条与搜索按钮按规则有无；三个来源都没有登录配置。结论写进设计书第八节与合同第八节，
   画布补一张「樱花动漫实际效果」。
 - 合同写入 `docs/design/Library-Video-Page-Redesign-Design.md`，STATUS 第 2 节新增一行 `approved / not-started / not-run`，检查点为当时的 HEAD。未实施。
+
+## 2026-10-08 库页视频库重设计：插画、实施、build 与模拟器走查
+
+- 用户用即梦按画板「视频库空状态插画 · 即梦设定」出了 4 张「举遥控器对着空白银幕」，选第 3 张（遥控器射出光束、笑着托腮）；
+  `illustration-cutout` 抠透明缩到 540px 高（悬浮的银幕被 Vision 当作同一前景保留）、`illustration-despeckle` 0 个小块、裁边后 357×540，
+  新增资产 `EmptyStateLibraryVideo`，预算 255000，资产闸门过；库页空状态改用它，合同第七节「插画不换」改为新插画说明。
+- 「库页视频库重设计」一行 `实施=not-started` → `implemented`：代码按合同第十二节改完（15 个文件，没有新建 Swift 文件），
+  `LibraryViewModel` 与 `LibraryPersistenceCoordinator` 的新依赖都带默认值，测试里的 14 处 / 2 处构造不受影响。
+- 用户要求后 build（iPhone 18 Pro，iOS 27.0）成功，0 条代码警告；模拟器走查按 `BCA-DOC-005` 单独一行 `simulator-passed`。
+  走查发现一处：分类条贴顶时状态栏与芯片之间露出一截滚过的海报——分区头停在安全区顶边，上面那一截没有底色。
+  改为分区头底色向上多铺 160pt、标题 zIndex 更高盖住它，增量 build 后在模拟器确认干净。
+- 樱花动漫没有 `latestText`，所以走查里一张徽章都没有；「上次看到」瓷砖靠点一集（片源不可用但历史已写入）触发，没有时长所以没有进度条。
