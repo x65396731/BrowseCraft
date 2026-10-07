@@ -37,6 +37,12 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
   两者对 Cloudflare 的处境不同（2026-10-06 toonily：章节页家用出口 403 `cf-mitigated: challenge`、服务器出口 200），引擎观察不到手机出口，
   这一层只能在 App 处理；WebView 通道已有挑战页状态机（`BC-EVIDENCE-081`，`WKWebViewChallengeInterstitialGate`）。无反爬的站不会进入回退，取值逐字不变。
   对应 fwq `APP-MEMO-026`。实现 `BrowseCraft/Infrastructure/Network/DefaultPageLoader.swift`；用例 `PageContentLoaderTests`（挑战页回退、其它错误不回退）。
+  **2026-10-07 补充（Cookie 回写）**：WebView 通道判定拿到真文档（挑战状态机 `.document`）时，把 `WKHTTPCookieStore` 里对该页主机生效的 Cookie
+  （域名等于主机或主机是其子域，`.xbanxia.cc` 覆盖 `www.` 与 `image.`）写回 `HTTPCookieStorage.shared`——封面 / 图片请求（`SharedHTTPCookieHeaderProvider`）与之后的直接请求才带得上过挑战得到的放行 Cookie。
+  此前只有「系统 → WebView」一个方向（`prepareCookieStore`）。依据：半夏小說（xbanxia）真机日志——列表 `antiBot=true` → 回退 WebView 后列表正常，
+  封面 `stage=image urlHost=image.xbanxia.cc hasCookie=false` 全部 `dataLoadingFailed`，图床同在 Cloudflare 挑战后。放行 Cookie 绑定 UA，两条路都用规则 `sharedRequest` 的 UA，不改 UA。
+  每次 WebView 成功都回写（不以「本次看到挑战页」为条件：WebView 可能早已持有放行 Cookie、本次不再出现挑战页）。
+  实现 `BrowseCraft/Infrastructure/Network/WebViewCookieSync.swift`、`WKWebViewHTMLLoader.swift`；用例 `WebViewCookieSyncTests`。
 - `BCA-RUNTIME-006` 列表分页的页码代入统一为 `startPage + N − 1`（N 为 1 起的页序号；`PaginationRule.startPage` 缺省 1，book 的 `BookListPagination.startPage` 同义）：
   三 kind 的代入点（影视 `VideoRulePaginationResolver`、漫画 `ComicSourceListLoader` → `URLResolvingService.listURL(page:)`、书 `BookSourceRuntime.listURL`）都经它换算，
   不带该键的规则行为逐字不变。依据 fwq `BC-LIST-124`：0 起页码站（rouman5、3kor）第 1 页在地址里写 0，引擎交付 `startPage: 0`。

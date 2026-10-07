@@ -191,6 +191,20 @@ final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
                 // 只在首次检测时把时限一次性延长，然后等待下一次 didFinish 复判。
                 switch self.challengeGate.evaluate(renderedHTML: html) {
                 case .document:
+                    // 中文注释：WebView 里拿到的站点 Cookie（含过挑战得到的放行 Cookie）同步回系统存储，
+                    // 封面 / 图片请求与后续直接请求才带得上（`WebViewCookieSync`，2026-10-07 xbanxia）。
+                    let documentURL: URL = webView.url ?? self.url
+                    let cookies: [HTTPCookie] = await webView.configuration.websiteDataStore.httpCookieStore.allCookies()
+                    guard self.hasCompleted == false else {
+                        return
+                    }
+                    let copied: Int = WebViewCookieSync.copy(cookies, applyingTo: documentURL)
+                    #if DEBUG
+                    AppDebugLog.write(
+                        "[BrowseCraftWebView] synced \(copied) cookie(s) to shared storage host=\(documentURL.host ?? "")"
+                    )
+                    #endif
+                    _ = copied
                     self.finish(.success(self.response(for: html)))
                 case .waitForNextNavigation(let extendTimeoutSeconds):
                     if let seconds: Double = extendTimeoutSeconds {
