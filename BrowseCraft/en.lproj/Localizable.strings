@@ -749,6 +749,9 @@
 "library_card_open" = "Open";
 "library_card_favorite" = "Favorite";
 "library_tile_open_work" = "Open Title";
+"library_comic_read_to" = "Read to %@";
+"library_card_continue_reading" = "Continue Reading · %@";
+"library_card_favorited" = "Favorited";
 "library_account_button" = "Account";
 
 /* 影视详情与选集页重设计：继续看、分区标题、排序、空态与失败态、解析失败横幅、简介下的署名、收藏 */

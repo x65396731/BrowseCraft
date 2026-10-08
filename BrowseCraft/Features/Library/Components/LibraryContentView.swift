@@ -11,7 +11,7 @@ struct LibraryContentView: View {
     let openComic: (ContentItem, Source) -> Void
     let primaryActionTitle: (Source) -> String
     let imageRequestConfig: (Source) -> RequestConfig?
-    /// 中文注释：列表下一页由 ViewModel 按 Runtime 报出的 `pagination.nextPage` 给出；影视与漫画共用。
+    /// 中文注释：列表下一页由 ViewModel 按 Runtime 报出的 `pagination.nextPage` 给出；三种类型共用。
     let nextPage: Int?
     let loadNextPage: () -> Void
     let contentViewModelFactory: LibraryContentViewModelFactory
@@ -19,8 +19,19 @@ struct LibraryContentView: View {
     /// nil 时不画（规则不支持分页、搜索结果）。
     var paginationStatusText: String? = nil
     var isLoadingNextPage: Bool = false
+    /// 中文注释：漫画封面左下的「读到 4-2」（`docs/design/Library-Comic-Page-Redesign-Design.md` 第五节）；没读过为 nil。
+    var comicProgressBadgeText: (ContentItem) -> String? = { _ in nil }
+    /// 中文注释：漫画长按菜单「继续读 · 4-2」的编号；nil 时不出这一项。搜索页不接阅读器入口，留默认。
+    var comicContinueChapterLabel: (ContentItem) -> String? = { _ in nil }
+    var continueComicReading: (ContentItem) -> Void = { _ in }
 
-    private let gridColumns: [GridItem] = [
+    /// 中文注释：漫画三列、列距 12；iPad 与横屏按最小宽 104 自适应成更多列。
+    private let comicGridColumns: [GridItem] = [
+        GridItem(.adaptive(minimum: 104), spacing: 12)
+    ]
+
+    /// 中文注释：书籍继续用重设计前的三列卡片，到书籍库立项再改。
+    private let bookGridColumns: [GridItem] = [
         GridItem(.flexible(), spacing: 12),
         GridItem(.flexible(), spacing: 12),
         GridItem(.flexible(), spacing: 12)
@@ -42,47 +53,98 @@ struct LibraryContentView: View {
                 paginationStatusText: self.paginationStatusText,
                 isLoadingNextPage: self.isLoadingNextPage
             )
+        } else if let selectedSource: Source = self.selectedSource,
+                  selectedSource.configuration.kind == .book {
+            self.bookGrid
         } else {
-            VStack(spacing: 0) {
-                LazyVGrid(columns: self.gridColumns, spacing: 16) {
-                    ForEach(self.items, id: \.id) { item in
-                        if let source: Source = self.sourceForID(item.sourceId) {
-                            ComicLibraryCardView(
-                                item: item,
-                                primaryActionTitle: self.primaryActionTitle(source),
-                                isFavorite: self.favoriteItemIDs.contains(item.id),
-                                favoriteAction: {
-                                    self.toggleFavorite(item)
-                                },
-                                readAction: {
-                                    self.openComic(item, source)
-                                },
-                                imageRequestConfig: self.imageRequestConfig(source)
-                            )
-                        }
-                    }
+            self.comicGrid
+        }
+    }
 
-                    // 中文注释：触底哨兵与影视网格同形——只有 ViewModel 报出下一页时才挂上，
-                    // 出现在视口即请求下一页；`id` 绑定页码，翻页后哨兵换新才会再次触发。
-                    if let nextPage: Int = self.nextPage,
-                       let selectedSource: Source = self.selectedSource {
-                        Color.clear
-                            .frame(height: 1)
-                            .id("comic-pagination-\(selectedSource.id)-\(nextPage)")
-                            .onAppear {
-                                self.loadNextPage()
+    /// 漫画封面墙：三列、列距 12、行距 18、页边距 20（第四、五节）。
+    private var comicGrid: some View {
+        VStack(spacing: 0) {
+            LazyVGrid(columns: self.comicGridColumns, spacing: 18) {
+                ForEach(self.items, id: \.id) { item in
+                    if let source: Source = self.sourceForID(item.sourceId) {
+                        ComicLibraryCardView(
+                            item: item,
+                            isFavorite: self.favoriteItemIDs.contains(item.id),
+                            progressBadgeText: self.comicProgressBadgeText(item),
+                            continueChapterLabel: self.comicContinueChapterLabel(item),
+                            imageRequestConfig: self.imageRequestConfig(source),
+                            openAction: {
+                                self.openComic(item, source)
+                            },
+                            favoriteAction: {
+                                self.toggleFavorite(item)
+                            },
+                            continueReadingAction: {
+                                self.continueComicReading(item)
                             }
+                        )
                     }
                 }
-                .padding(16)
 
-                if let paginationStatusText: String = self.paginationStatusText {
-                    LibraryPaginationFooterView(
-                        statusText: paginationStatusText,
-                        isLoading: self.isLoadingNextPage
-                    )
-                }
+                self.paginationSentinel(prefix: "comic")
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+
+            self.paginationFooter
+        }
+    }
+
+    private var bookGrid: some View {
+        VStack(spacing: 0) {
+            LazyVGrid(columns: self.bookGridColumns, spacing: 16) {
+                ForEach(self.items, id: \.id) { item in
+                    if let source: Source = self.sourceForID(item.sourceId) {
+                        BookLibraryCardView(
+                            item: item,
+                            primaryActionTitle: self.primaryActionTitle(source),
+                            isFavorite: self.favoriteItemIDs.contains(item.id),
+                            favoriteAction: {
+                                self.toggleFavorite(item)
+                            },
+                            readAction: {
+                                self.openComic(item, source)
+                            },
+                            imageRequestConfig: self.imageRequestConfig(source)
+                        )
+                    }
+                }
+
+                self.paginationSentinel(prefix: "book")
+            }
+            .padding(16)
+
+            self.paginationFooter
+        }
+    }
+
+    /// 中文注释：触底哨兵与影视网格同形——只有 ViewModel 报出下一页时才挂上，
+    /// 出现在视口即请求下一页；`id` 绑定页码，翻页后哨兵换新才会再次触发。
+    @ViewBuilder
+    private func paginationSentinel(prefix: String) -> some View {
+        if let nextPage: Int = self.nextPage,
+           let selectedSource: Source = self.selectedSource {
+            Color.clear
+                .frame(height: 1)
+                .id("\(prefix)-pagination-\(selectedSource.id)-\(nextPage)")
+                .onAppear {
+                    self.loadNextPage()
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var paginationFooter: some View {
+        if let paginationStatusText: String = self.paginationStatusText {
+            LibraryPaginationFooterView(
+                statusText: paginationStatusText,
+                isLoading: self.isLoadingNextPage
+            )
         }
     }
 }

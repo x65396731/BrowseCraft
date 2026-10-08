@@ -46,6 +46,11 @@ final class LibraryViewModel {
     private(set) var continueWatchingHistory: VideoWatchHistory?
     /// 点瓷砖直接开全屏播放器，与历史页点行同一条路径。
     var videoPlaybackRoute: VideoPlaybackRoute?
+    /// 中文注释：漫画来源的「上次读到」瓷砖——当前来源访问时间最近的一条章节历史
+    /// （`docs/design/Library-Comic-Page-Redesign-Design.md` 第六节）。与视频瓷砖同一组刷新时机，两者不会同时有值。
+    private(set) var continueReadingHistory: ComicChapterHistory?
+    /// 中文注释：封面进度角标「读到 4-2」——按 `comicItemID`（= 列表条目 `item.id`）各取最近一条；与瓷砖同一次读出。
+    private(set) var comicReadingProgressByItemID: [String: ComicChapterHistory] = [:]
 
     private let persistenceCoordinator: LibraryPersistenceCoordinator
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
@@ -899,12 +904,25 @@ final class LibraryViewModel {
 
     // MARK: - 「上次看到」瓷砖
 
-    /// 中文注释：重读当前来源最近一条视频历史。只有视频来源才有瓷砖；来源没了、换了、历史被删了都会把它清掉。
-    /// 调用时机：首次加载、切来源、从播放器回来、回到库标签、来源页连带删除历史之后。
+    /// 中文注释：重读当前来源的本地历史：视频来源读最近一条视频历史（「上次看到」），漫画来源读全部章节历史
+    /// （「上次读到」与封面进度角标）；来源没了、换了、历史被删了都会把它们清掉。
+    /// 调用时机：首次加载、切来源、从播放器 / 阅读器 / 详情回来、回到库标签、来源页连带删除历史之后。
     func refreshContinueWatching() {
-        guard let source: Source = self.selectedSource,
-              source.configuration.kind == .video else {
+        guard let source: Source = self.selectedSource else {
             self.continueWatchingHistory = nil
+            self.clearComicReadingState()
+            return
+        }
+        switch source.configuration.kind {
+        case .video:
+            self.clearComicReadingState()
+        case .comic:
+            self.continueWatchingHistory = nil
+            self.refreshComicReading(sourceID: source.id)
+            return
+        default:
+            self.continueWatchingHistory = nil
+            self.clearComicReadingState()
             return
         }
         let expectedSourceID: String = source.id
@@ -925,6 +943,101 @@ final class LibraryViewModel {
                 self.continueWatchingHistory = nil
             }
         }
+    }
+
+    private func refreshComicReading(sourceID expectedSourceID: String) {
+        let userID: String = self.currentUserID
+        Task {
+            do {
+                let histories: [ComicChapterHistory] = try await self.persistenceCoordinator.comicChapterHistories(
+                    userID: userID,
+                    sourceID: expectedSourceID
+                )
+                guard self.selectedSourceID == expectedSourceID else {
+                    return
+                }
+                // 中文注释：仓储已按访问时间倒序，第一次见到的作品就是它最近读的那一章。
+                var latestByItemID: [String: ComicChapterHistory] = [:]
+                for history in histories where latestByItemID[history.comicItemID] == nil {
+                    latestByItemID[history.comicItemID] = history
+                }
+                self.continueReadingHistory = histories.first
+                self.comicReadingProgressByItemID = latestByItemID
+            } catch {
+                // 中文注释：瓷砖与角标是附加信息，读不到就不出，不弹错。
+                RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "library-continue-reading-error")
+                self.clearComicReadingState()
+            }
+        }
+    }
+
+    private func clearComicReadingState() {
+        self.continueReadingHistory = nil
+        self.comicReadingProgressByItemID = [:]
+    }
+
+    /// 章节名缩成编号：「第4話(2) 真夜中の逢瀬」→「4-2」；解不出数字就用原章节名。
+    static func comicChapterLabel(for history: ComicChapterHistory) -> String {
+        let title: String = history.chapterTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        return ComicChapterTitleParser.parse(title).numberLabel ?? title
+    }
+
+    /// 封面角标「读到 4-2」；这部没读过为 nil。
+    func comicProgressBadgeText(for item: ContentItem) -> String? {
+        guard let history: ComicChapterHistory = self.comicReadingProgressByItemID[item.id] else {
+            return nil
+        }
+        let label: String = Self.comicChapterLabel(for: history)
+        guard label.isEmpty == false else {
+            return nil
+        }
+        return String(format: NSLocalizedString("library_comic_read_to", comment: ""), label)
+    }
+
+    /// 长按菜单「继续读」用的那条历史；这部没读过或历史里没有能打开的地址为 nil。
+    func comicContinueHistory(for item: ContentItem) -> ComicChapterHistory? {
+        guard let history: ComicChapterHistory = self.comicReadingProgressByItemID[item.id],
+              history.lastReaderPageURL != nil || history.chapterURL != nil else {
+            return nil
+        }
+        return history
+    }
+
+    /// 瓷砖第三行「4-2 真夜中の逢瀬 · 6 / 58 页」；没有页数时「第 6 页」。
+    var continueReadingProgressText: String? {
+        guard let history: ComicChapterHistory = self.continueReadingHistory else {
+            return nil
+        }
+        var parts: [String] = []
+        let title: String = history.chapterTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parsed: ComicChapterTitleParser.ParsedTitle = ComicChapterTitleParser.parse(title)
+        if let numberLabel: String = parsed.numberLabel {
+            parts.append(parsed.name.isEmpty ? numberLabel : "\(numberLabel) \(parsed.name)")
+        } else if title.isEmpty == false {
+            parts.append(title)
+        }
+        if let progress: String = ComicDetailViewModel.pageProgressText(
+            pageIndex: history.lastPageIndex,
+            pageCount: history.pageCount
+        ) {
+            parts.append(progress)
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// 瓷砖进度条（有页数时）。
+    var continueReadingProgress: Double? {
+        guard let history: ComicChapterHistory = self.continueReadingHistory,
+              let pageIndex: Int = history.lastPageIndex, pageIndex >= 0,
+              let pageCount: Int = history.pageCount, pageCount > 0 else {
+            return nil
+        }
+        return min(1, max(0, Double(pageIndex + 1) / Double(pageCount)))
+    }
+
+    /// 瓷砖底行只写时刻，与视频瓷砖同一取法。
+    var continueReadingTimeText: String? {
+        return self.continueReadingHistory.map { self.tileTimeText(for: $0.visitedAt) }
     }
 
     /// 点瓷砖：用历史记录直接开播放器，与历史页 `openVideoHistory` 同一条路径。
@@ -953,16 +1066,17 @@ final class LibraryViewModel {
 
     /// 瓷砖底行只写时刻：「今天 21:30」「昨天 09:12」，更早的只写日期——来源名已是大标题，不重复。
     var continueWatchingTimeText: String? {
-        guard let history: VideoWatchHistory = self.continueWatchingHistory else {
-            return nil
-        }
+        return self.continueWatchingHistory.map { self.tileTimeText(for: $0.updatedAt) }
+    }
+
+    private func tileTimeText(for date: Date) -> String {
         let now: Date = self.now()
         let calendar: Calendar = .current
-        let day: CatalogPersonalTimeline.Day = CatalogPersonalTimeline.day(for: history.updatedAt, now: now, calendar: calendar)
+        let day: CatalogPersonalTimeline.Day = CatalogPersonalTimeline.day(for: date, now: now, calendar: calendar)
         let dayText: String = CatalogDayTitle.text(for: day, now: now, calendar: calendar)
         switch day {
         case .today, .yesterday:
-            return dayText + " " + history.updatedAt.formatted(date: .omitted, time: .shortened)
+            return dayText + " " + date.formatted(date: .omitted, time: .shortened)
         case .date, .unknown:
             return dayText
         }

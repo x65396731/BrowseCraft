@@ -40,6 +40,12 @@ python3 scripts/check-docs.py
 **`required` 里验证还没走完的有两条：删除来源连带删除历史与收藏（只欠真机）；续看位置同步到 iCloud（单机已过，欠两台设备对测与真机）。
 其余 `required` 是十页重设计，共同欠真机验收。下一会话优先做下一步三的对测，真机验收等用户在真机上走。**
 
+**2026-10-09 库页漫画库重设计已实施、build 过、模拟器走查过（改动未提交）。**
+
+- **下一步零：提交库页漫画库重设计，并把 STATUS 两行的检查点改成实施提交**。合同：[`Library-Comic-Page-Redesign-Design.md`](docs/design/Library-Comic-Page-Redesign-Design.md)；
+  STATUS 第 2 节两行（`implemented / not-run` 与 `simulator-passed`），检查点暂填实施前的 HEAD。走查没走到的：骨架、空状态插画、分类芯片、
+  瓷砖「打开作品」在作品不在当前列表时的 `stableID` 反解（`LibraryView.comicDetailItem`）、视频库回归——要有视频来源或空列表的来源才看得到，与真机验收一起补。
+
 - **下一步一：删除来源连带删除的真机验收**。合同：[`Source-Deletion-Cascade-Design.md`](docs/design/Source-Deletion-Cascade-Design.md)
   （第六节实现位置、第七节测试与验收）与数据库说明「Source 删除规则」（`BCA-DB-004`、`BCA-DB-005`）；STATUS 在第 4 节两行（`full-suite-passed` 与 `simulator-passed`），
   改了什么、测试与走查怎么做的见 `docs/history/status-log.md` 2026-10-03 最后三节。剩下的验证：

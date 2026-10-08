@@ -67,7 +67,8 @@ struct LibraryFeatureFactory {
                 saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase(
                     repository: userLibraryStateRepository
                 ),
-                videoWatchHistoryRepository: GRDBVideoWatchHistoryRepository(database: self.database)
+                videoWatchHistoryRepository: GRDBVideoWatchHistoryRepository(database: self.database),
+                comicChapterHistoryRepository: GRDBComicChapterHistoryRepository(database: self.database)
             ),
             refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase(
                 runtimeResolver: self.sourceRuntimeResolver

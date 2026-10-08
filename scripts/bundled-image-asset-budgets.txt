@@ -40,6 +40,7 @@ EmptyStateHistory       186000    256x540    single-scale-png
 EmptyStateSearch        210000    274x540    single-scale-png
 EmptyStateOffline       225000    444x540    single-scale-png
 EmptyStateLibraryVideo  255000    357x540    single-scale-png
+EmptyStateLibraryComic  240000    291x540    single-scale-png
 EntryGuideUnsupportedPage 180000  335x450    single-scale-png
 CatalogEmptyRecommended 260000    350x540    single-scale-png
 CatalogEmptyPersonal    280000    396x540    single-scale-png
@@ -146,3 +147,10 @@ SettingsRate              2700      22x22      multi-scale-png
 # 失败态仍用各页共用的 EmptyStateOffline。即梦 2K 原图（1500×2000）经 illustration-cutout 抠透明缩到 540px 高
 # （悬浮的银幕被 Vision 当作同一前景保留，没有丢），illustration-despeckle 未清掉任何小块、裁掉左右透明边后得 357×540。
 # 源字节上限按实际字节加约 15% 余量。
+
+# 2026-10-08 EmptyStateLibraryComic：库页漫画库空状态插画（把一叠淡色空白封面的单行本抱在胸前、下巴搁在书上眨眼）。
+# 漫画来源上原先显示视频库那张空白银幕，类型对不上。即梦 2K 原图（1500×2000）四选一；illustration-cutout 的
+# Vision 蒙版把右侧发丝外沿夹住的一条白底当成了前景（深色底下是一条带黑洞的白边），所以 cutout 带第 4 个参数 236：
+# 从透明像素出发向相连的近白像素（三通道都 ≥ 236、色差 ≤ 14）洪水填充清成透明，角色身上的白色都有深色轮廓线围着、
+# 不受影响；发梢之间被发丝完全围住的细白缝够不着，按 180pt 显示时读作发丝高光，留着。
+# 之后照常缩到 540px 高、illustration-despeckle 0 个小块、裁掉左右透明边得 291×540；源字节上限按实际字节加约 15% 余量。

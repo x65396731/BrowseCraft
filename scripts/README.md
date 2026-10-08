@@ -118,6 +118,8 @@ scale 槽位的表现是包体悄悄变大而没人发现。闸门按 `scripts/b
 ```bash
 # 空状态：Vision 前景蒙版抠成透明底、裁掉透明边、缩到 540px 高（按 180pt 显示）
 swift scripts/illustration-cutout.swift <原图> <输出.png> 540
+# 发丝外沿留了白底（深色底下是一条白边）时加第 4 个参数：从透明处向相连的近白像素洪水填充清掉
+swift scripts/illustration-cutout.swift <原图> <输出.png> 540 236
 
 # 类型横幅：整张缩到 336px 高靠右放，左侧用原图左缘平均色补齐并渐变过渡，得 1200×336；
 # 物件离右缘不足一成时用第 6 个参数整体左移（右侧同样补齐）

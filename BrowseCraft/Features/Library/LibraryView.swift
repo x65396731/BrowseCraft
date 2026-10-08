@@ -4,6 +4,7 @@ import SwiftUI
 // 中文注释：LibraryView 根据当前 SourceRuntimeKind 选择视频、漫画或书籍展示层。
 // 外壳（眉行与大标题、搜索与账号按钮、贴顶分类条、「上次看到」瓷砖、状态页、切换来源遮罩）三种类型共用，
 // 按 `docs/design/Library-Video-Page-Redesign-Design.md` 第三、五、六、七节画；视频网格在 `VideoContentGridView`。
+// 漫画来源的「上次读到」瓷砖、封面墙与长按「继续读」按 `docs/design/Library-Comic-Page-Redesign-Design.md` 第五、六节画。
 
 /// 中文注释：LibraryView 只负责展示 Library 状态，数据加载与切源逻辑在 LibraryViewModel。
 struct LibraryView: View {
@@ -16,6 +17,8 @@ struct LibraryView: View {
     @State private var selectedSiteBookDestination: LibrarySiteBookDestination?
     /// 中文注释：「上次看到」瓷砖长按「打开作品」：用历史里的作品身份进影视详情（选集）。
     @State private var continueWatchingDetailItem: ContentItem?
+    /// 中文注释：「上次读到」瓷砖与漫画卡片长按「继续读」：用章节历史直接开阅读器，与历史页点行同一条路径。
+    @State private var comicReaderHistory: ComicChapterHistory?
 
     var body: some View {
         NavigationStack {
@@ -31,6 +34,10 @@ struct LibraryView: View {
                     Section {
                         if self.viewModel.continueWatchingHistory != nil {
                             self.continueWatchingTile
+                                .padding(.horizontal, 20)
+                                .padding(.top, 8)
+                        } else if self.viewModel.continueReadingHistory != nil {
+                            self.continueReadingTile
                                 .padding(.horizontal, 20)
                                 .padding(.top, 8)
                         }
@@ -110,6 +117,16 @@ struct LibraryView: View {
                         factory: self.contentViewModelFactory
                     )
                     .id(item.id)
+                }
+            }
+            .navigationDestination(item: self.$comicReaderHistory) { history in
+                if let source: Source = self.viewModel.source(for: history.sourceID) {
+                    ReaderView(
+                        history: history,
+                        source: source,
+                        factory: self.contentViewModelFactory
+                    )
+                    .id(history.id)
                 }
             }
             // 中文注释：本地书架入口按用户 2026-09-14 裁决不对用户暴露（docs/design/Local-Book-Import-Design.md 第八节）；
@@ -339,6 +356,78 @@ struct LibraryView: View {
         )
     }
 
+    // MARK: - 「上次读到」瓷砖
+
+    /// 漫画来源的瓷砖：同一个 `HistoryContinueTileView`，第三行「4-2 话名 · 6 / 58 页」、底行只写时刻；
+    /// 整张瓷砖 = 用历史直接开阅读器，长按「继续读」「打开作品」。不在这里删历史。
+    @ViewBuilder
+    private var continueReadingTile: some View {
+        if let history: ComicChapterHistory = self.viewModel.continueReadingHistory,
+           let source: Source = self.viewModel.selectedSource {
+            HistoryContinueTileView(
+                entry: ReadingHistoryEntry(comicHistory: history),
+                progressText: self.viewModel.continueReadingProgressText,
+                playbackProgress: self.viewModel.continueReadingProgress,
+                sourceName: source.name,
+                sourceState: .available,
+                coverURL: history.coverURL?.absoluteString,
+                refererURL: (history.chapterURL ?? history.lastReaderPageURL)?.absoluteString,
+                imageRequestConfig: self.viewModel.imageRequestConfig(for: source),
+                metaTextOverride: self.viewModel.continueReadingTimeText,
+                action: {
+                    self.openComicReader(history: history)
+                }
+            )
+            .contextMenu {
+                Button {
+                    self.openComicReader(history: history)
+                } label: {
+                    Label(NSLocalizedString("history_menu_continue_reading", comment: ""), systemImage: "book")
+                }
+                if let item: ContentItem = self.comicDetailItem(for: history, source: source) {
+                    Button {
+                        self.selectedComicDestination = LibraryComicDestination(item: item, source: source)
+                    } label: {
+                        Label(NSLocalizedString("library_tile_open_work", comment: ""), systemImage: "list.bullet.rectangle")
+                    }
+                }
+            }
+        }
+    }
+
+    /// 中文注释：历史里没有能打开的地址（极旧的记录）时不开阅读器，与历史页的守卫一致。
+    private func openComicReader(history: ComicChapterHistory) {
+        guard history.lastReaderPageURL != nil || history.chapterURL != nil else {
+            return
+        }
+        self.comicReaderHistory = history
+    }
+
+    /// 中文注释：「打开作品」要一个列表条目进漫画详情。先在当前分类已取到的条目里按 `id` 找（封面、最新话都齐）；
+    /// 找不到时按 Core 漫画列表解析器的 `stableID` 形状（`base64("<sourceID>:<详情地址>")`）解出详情地址，
+    /// 用历史里的标题与封面拼一个——这样详情页的收藏与已读标记仍对得上同一部作品。解不出就不出这一项。
+    private func comicDetailItem(for history: ComicChapterHistory, source: Source) -> ContentItem? {
+        if let item: ContentItem = self.viewModel.items.first(where: { $0.id == history.comicItemID }) {
+            return item
+        }
+        let prefix: String = "\(source.id):"
+        guard let data: Data = Data(base64Encoded: history.comicItemID),
+              let decoded: String = String(data: data, encoding: .utf8),
+              decoded.hasPrefix(prefix),
+              let detailURL: URL = URL(string: String(decoded.dropFirst(prefix.count))),
+              detailURL.scheme != nil else {
+            return nil
+        }
+        return ContentItem(
+            id: history.comicItemID,
+            sourceId: source.id,
+            title: history.comicTitle,
+            detailURL: detailURL.absoluteString,
+            coverURL: history.coverURL?.absoluteString,
+            type: .comic
+        )
+    }
+
     // MARK: - 正文
 
     private var isInteractionLocked: Bool {
@@ -357,7 +446,7 @@ struct LibraryView: View {
     private var libraryBody: some View {
         switch self.viewModel.bodyState {
         case .loadingFirstPage:
-            LibrarySkeletonGridView()
+            LibrarySkeletonGridView(layout: self.isComicSource ? .comicWall : .posterWall)
 
         case .empty:
             LibraryPlaceholderView(
@@ -365,8 +454,8 @@ struct LibraryView: View {
                 title: NSLocalizedString("library_body_empty_title", comment: "库列表空态标题"),
                 message: NSLocalizedString("library_body_empty_message", comment: "库列表空态说明"),
                 pullHint: NSLocalizedString("library_body_pull_hint", comment: "空态下拉刷新提示"),
-                // 中文注释：视频库自己的空状态插画（举遥控器对着空白银幕）；此前借用搜索页的放大镜。
-                illustration: "EmptyStateLibraryVideo"
+                // 中文注释：按来源类型选插画：漫画是抱一叠空白封面的单行本，视频（书籍暂同）是举遥控器对着空白银幕。
+                illustration: self.isComicSource ? "EmptyStateLibraryComic" : "EmptyStateLibraryVideo"
             )
 
         case .failed(let message):
@@ -418,9 +507,22 @@ struct LibraryView: View {
                 paginationStatusText: self.viewModel.shouldShowPaginationStatus
                     ? self.viewModel.paginationStatusText
                     : nil,
-                isLoadingNextPage: self.viewModel.isLoadingNextPage
+                isLoadingNextPage: self.viewModel.isLoadingNextPage,
+                comicProgressBadgeText: self.viewModel.comicProgressBadgeText(for:),
+                comicContinueChapterLabel: { item in
+                    self.viewModel.comicContinueHistory(for: item).map(LibraryViewModel.comicChapterLabel(for:))
+                },
+                continueComicReading: { item in
+                    if let history: ComicChapterHistory = self.viewModel.comicContinueHistory(for: item) {
+                        self.openComicReader(history: history)
+                    }
+                }
             )
         }
+    }
+
+    private var isComicSource: Bool {
+        return self.viewModel.selectedSource?.configuration.kind == .comic
     }
 
     private var libraryNavigationTitle: String {

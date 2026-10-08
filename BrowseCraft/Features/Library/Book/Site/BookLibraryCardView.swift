@@ -1,0 +1,107 @@
+import BrowseCraftCore
+import BrowseCraftDomain
+import SwiftUI
+
+// 中文注释：BookLibraryCardView 是读书 kind 在 Library 中的封面卡片——库页漫画库重设计之前漫画与书籍共用的那张，
+// 漫画换新卡片后原样留给书籍（`docs/design/Library-Comic-Page-Redesign-Design.md` 第三、十二节），书籍库立项时再改。
+
+/// 中文注释：三列封面卡：封面 + 两行标题 + 最新话，右上收藏按钮。
+struct BookLibraryCardView: View {
+    let item: ContentItem
+    let primaryActionTitle: String
+    let isFavorite: Bool
+    let favoriteAction: () -> Void
+    let readAction: () -> Void
+    let imageRequestConfig: RequestConfig?
+
+    private let titleColor: Color = .libraryTitleText
+    private let chapterColor: Color = Color(red: 133 / 255, green: 153 / 255, blue: 255 / 255)
+
+    var body: some View {
+        self.cardContent
+    }
+
+    private var cardContent: some View {
+        ZStack(alignment: .topTrailing) {
+            Button(
+                action: {
+                    self.openReaderDestination()
+                },
+                label: {
+                    self.itemContent
+                }
+            )
+            .buttonStyle(.plain)
+
+            self.favoriteButton
+                .padding(6)
+        }
+    }
+
+    private var itemContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ItemThumbnailImageView(
+                urlString: self.item.coverURL,
+                refererURLString: self.item.detailURL,
+                requestConfig: self.imageRequestConfig,
+                placeholderImageName: "ComicListPlaceholder"
+            )
+            .aspectRatio(129.0 / 194.0, contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(self.item.title)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(self.titleColor)
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30, alignment: .topLeading)
+
+                if let latestText: String = self.item.latestText {
+                    Text(latestText)
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundStyle(self.chapterColor)
+                        .lineLimit(1)
+                }
+            }
+        }
+    }
+
+    private var favoriteButton: some View {
+        Button(
+            action: {
+                self.favoriteAction()
+            },
+            label: {
+                // 中文注释：与底栏「收藏」同一个心形——实心取 TabFavorites，空心是从同一剪影内缩出的
+                // TabFavoritesOutline，两者都是模板图，颜色由 foregroundColor 决定。
+                // 底栏按 25pt 原生渲染，这里缩到 18pt，与原来 16pt 字号的星形视觉尺寸相当。
+                Image(self.isFavorite ? "TabFavorites" : "TabFavoritesOutline")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 18, height: 18)
+                    .foregroundColor(self.isFavorite ? .pink : .white)
+                    .frame(width: 32, height: 32)
+                    .background(
+                        Circle()
+                            .fill(Color.black.opacity(0.45))
+                    )
+            }
+        )
+        .buttonStyle(.plain)
+        .accessibilityLabel(self.isFavorite ? "Remove Favorite" : "Add Favorite")
+    }
+
+    private func openReaderDestination() {
+        #if DEBUG
+        AppDebugLog.write(
+            "[BrowseCraftNavigation] Tap \(self.primaryActionTitle) " +
+            "itemId=\(self.item.id) " +
+            "title=\(self.item.title) " +
+            "detailURL=\(self.item.detailURL) " +
+            "latestText=\(self.item.latestText ?? "nil")"
+        )
+        #endif
+
+        self.readAction()
+    }
+}
