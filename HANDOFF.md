@@ -40,16 +40,23 @@ python3 scripts/check-docs.py
 **`required` 里验证还没走完的有两条：删除来源连带删除历史与收藏（只欠真机）；续看位置同步到 iCloud（单机已过，欠两台设备对测与真机）。
 其余 `required` 是十页重设计，共同欠真机验收。下一会话优先做下一步三的对测，真机验收等用户在真机上走。**
 
-**2026-10-09 库页漫画库重设计已实施、build 过、模拟器走查过并已提交。**
+**2026-10-09 一天做完三页重设计：库页漫画库、库页书籍库（含有声书）、站点书详情页（含有声书），都已实施、build 过、模拟器走查过并已提交。**
+三份合同：[`Library-Comic-Page-Redesign-Design.md`](docs/design/Library-Comic-Page-Redesign-Design.md)、
+[`Library-Book-Page-Redesign-Design.md`](docs/design/Library-Book-Page-Redesign-Design.md)、[`Book-Detail-Page-Redesign-Design.md`](docs/design/Book-Detail-Page-Redesign-Design.md)；
+STATUS 第 2 节各两行（`implemented / not-run` 与 `simulator-passed`），每条 `simulator-passed` 行的末尾写了哪些没走到。至此库页三种类型与三种详情页都按统一语言重做完。
 
-**2026-10-09 库页书籍库重设计已实施、build 过、模拟器走查过并已提交。**
-
-**2026-10-09 站点书详情页重设计已实施、build 过、模拟器走查过并已提交。**
-
-- **下一步零：站点书详情页重设计的补充走查**。合同：[`Book-Detail-Page-Redesign-Design.md`](docs/design/Book-Detail-Page-Redesign-Design.md)；
-  STATUS 第 2 节两行（`implemented / not-run` 与 `simulator-passed`），没走到的：有声书、失败 / 登录横幅、没有章节、简介——与真机验收一起补。
-  - 走查里修了分段芯片落点（锚点按分区头高度换算）；漫画详情的分段芯片是同一写法，可能也被分区头盖住两行，值得顺手改成同一做法。
-  - 给 fwq 的需求文本还没写：作者 / 简介、章节 order、Royal Road「ago」、笔趣阁目录分页、书的 `latestText` 裸章节名，外加小說狂人目录头上的「錯誤章」占位。
+- **下一步零：三页的补充走查与两处顺手改**。
+  - 没走到的看点（都要有对应的来源才看得到，与真机验收一起补）：漫画库的骨架 / 空状态插画 / 分类芯片 / 瓷砖「打开作品」的 `stableID` 反解；
+    书籍库与详情页的整站有声（线上没有有声来源，只有 Loyal Books 测试夹具）、骨架、空状态插画、失败 / 登录横幅、没有章节、简介（规则都不给）。
+  - 顺手改一：漫画详情的分段芯片与书籍详情是同一写法，书籍那边走查发现 `scrollTo(anchor: .top)` 会让段首两行压在贴顶分区头底下，已改为按分区头高度换算锚点
+    （`BookSiteDetailView.segmentScrollAnchor`）；漫画详情 `ComicDetailView` 还是 `.top`，大概率有同样问题，改成同一做法即可（漫画线上来源没有 60 章以上的作品，没复现过）。
+  - 顺手改二：章节 `order` 的 App 侧接线——Core 会读，`BookSourceRuntime.loadDetail` 把它丢了、也不按它排；等 fwq 交付需求二再做。
+- **给 fwq 的需求文档已写**：Claude 文档「读书 kind 规则生成覆盖需求」（https://claude.ai/artifact/HnYM71goMZveUVJQQ4vhgk ，用户转给 fwq 频道），
+  六条：详情 author / description、章节 order、书的 `latestText` 裸章节名、Royal Road「ago」（推断，待复核）、笔趣阁目录分页与页顶最新章节块、小說狂人目录头的「錯誤章」占位。
+  都不改合同、不加字段；fwq 交付后在文档对应条下留言，App 侧按各条「验收」在模拟器上重新生成来源复核。
+- **模拟器现状**（iPhone 18 Pro，iOS 27.0）：来源是小說狂人（czbooks.net，20 个分类、可搜索），有《元始法則》第 3 章与《都重生了誰還正經創業啊》第 101 章两条读书历史，后者已收藏；
+  めちゃコミック为腾来源位置删了（连带其历史与收藏），要看漫画再从目录加。进阅读器前 App 的广告门会播两段测试广告，等「奖励已发放」后用广告自带的关闭按钮关，不要点广告内容。
+- **页面设计索引**：Claude 文档「BrowseCraft 页面设计索引」里三页的立项说明与表格行都已更新到「已实施并提交」；已用构思加了「抱一叠空白单行本」「坐在书堆上翻开空白的书」。
 
 - **下一步一：删除来源连带删除的真机验收**。合同：[`Source-Deletion-Cascade-Design.md`](docs/design/Source-Deletion-Cascade-Design.md)
   （第六节实现位置、第七节测试与验收）与数据库说明「Source 删除规则」（`BCA-DB-004`、`BCA-DB-005`）；STATUS 在第 4 节两行（`full-suite-passed` 与 `simulator-passed`），
