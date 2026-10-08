@@ -159,7 +159,7 @@
 | 收藏 | `ComicDetailViewModel` 注入 `ToggleFavoriteUseCase`（`LibraryFeatureFactory`） | 右上爱心，与库页 / 影视详情同一条 |
 | 上次页面缩略图 | 读现有 `lastPageImageURL`（带 `lastReaderPageURL` 作 referer）走阅读器同一条图片管线 | 继续卡片左侧；不加字段 |
 
-**向 fwq 提的**（定义点在 fwq，这里只写引用点；正文在上面链接的 fwq 需求文本，2026-10-08 已实施并部署 PortalCore `7c80a3e`，App 侧对应 `APP-MEMO-030`）：
+**向 fwq 提的**（定义点在 fwq，这里只写引用点；正文在上面链接的 fwq 需求文本，App 侧对应 `APP-MEMO-030`，实施与部署状态见 fwq 的状态表）：
 detail 的 author / status / category / tags / description / updatedAt → `BC-COMIC-160`（Core `DetailFields`，Core 不改）；
 sfacg 链接内的受限标记 → `BC-COMIC-147` 2026-10-08 修订（交付 `restriction`，**章节标题保留「VIP第N话」原样**——用户 10-08 裁定 VIP 是「要登录才能看」的证明；App 的标题解析要容忍编号前的前缀，按 `BC-COMIC-121` 不按字样猜受限）；
 列表 `latestText` → `BC-LIST-128`（不是「更新到哪」的不交付，没有就不出更新行）；
