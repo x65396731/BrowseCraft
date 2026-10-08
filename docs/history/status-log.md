@@ -877,3 +877,4 @@ App 侧设计文档一处都没引用，App 执行两种形态的合同由自己
   「删了又冒一条」是两个机制：软删除后第 21 条补位；同一入口更早的失败在最新那条删掉后浮上来。
 - 用户采纳建议：PortalCore `OUTCOME_LIMIT` 20 → 200（条数由 7 天可见期限住）并补测试；App 侧 `deleteFailedGenerationOutcome` 改为同一入口的全部失败一起软删除（`hideOutcomes(jobIDs:)` 逐条调用、首个失败即停、不回滚）。
   去重与角标语义不动。合同 `Catalog-Page-Redesign-Design.md` 第 2.3 节补一句；STATUS 新增一行 `implemented / not-run`。未 build、未跑测试。
+- 两项一起提交为 `26d1b3e`（检查点由 `6c40b32` 改登记）；PortalCore 侧提交为 `0db2715`，未部署。
