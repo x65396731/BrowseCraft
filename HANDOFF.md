@@ -44,9 +44,9 @@ python3 scripts/check-docs.py
 
 **2026-10-09 库页书籍库重设计已实施、build 过、模拟器走查过并已提交。**
 
-**2026-10-09 站点书详情页重设计已实施、build 过、模拟器走查过（改动未提交）。**
+**2026-10-09 站点书详情页重设计已实施、build 过、模拟器走查过并已提交。**
 
-- **下一步零：提交站点书详情页重设计，并把 STATUS 两行的检查点改成实施提交**。合同：[`Book-Detail-Page-Redesign-Design.md`](docs/design/Book-Detail-Page-Redesign-Design.md)；
+- **下一步零：站点书详情页重设计的补充走查**。合同：[`Book-Detail-Page-Redesign-Design.md`](docs/design/Book-Detail-Page-Redesign-Design.md)；
   STATUS 第 2 节两行（`implemented / not-run` 与 `simulator-passed`），检查点暂填实施前的 HEAD。没走到的：有声书、失败 / 登录横幅、没有章节、简介——与真机验收一起补。
   - 走查里修了分段芯片落点（锚点按分区头高度换算）；漫画详情的分段芯片是同一写法，可能也被分区头盖住两行，值得顺手改成同一做法。
   - 给 fwq 的需求文本还没写：作者 / 简介、章节 order、Royal Road「ago」、笔趣阁目录分页、书的 `latestText` 裸章节名，外加小說狂人目录头上的「錯誤章」占位。
