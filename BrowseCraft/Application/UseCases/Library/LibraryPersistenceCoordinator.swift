@@ -31,6 +31,10 @@ actor LibraryPersistenceCoordinator {
     /// 中文注释：漫画来源的「上次读到」瓷砖与封面进度角标读漫画章节历史（`docs/design/Library-Comic-Page-Redesign-Design.md`
     /// 第六、九节）；测试替身不给时两者都不出现。
     private let comicChapterHistoryRepository: ComicChapterHistoryRepository?
+    /// 中文注释：读书来源的「上次读到」瓷砖与行的「读到哪」读读书历史，瓷砖进度条读进度表
+    /// （`docs/design/Library-Book-Page-Redesign-Design.md` 第六、九节）；测试替身不给时都不出现。
+    private let bookReadingHistoryRepository: BookReadingHistoryRepository?
+    private let bookReadingProgressRepository: BookReadingProgressRepository?
 
     init(
         syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase,
@@ -39,7 +43,9 @@ actor LibraryPersistenceCoordinator {
         loadUserLibraryStateUseCase: LoadUserLibraryStateUseCase,
         saveUserLibraryStateUseCase: SaveUserLibraryStateUseCase,
         videoWatchHistoryRepository: VideoWatchHistoryRepository? = nil,
-        comicChapterHistoryRepository: ComicChapterHistoryRepository? = nil
+        comicChapterHistoryRepository: ComicChapterHistoryRepository? = nil,
+        bookReadingHistoryRepository: BookReadingHistoryRepository? = nil,
+        bookReadingProgressRepository: BookReadingProgressRepository? = nil
     ) {
         self.syncBuiltInSourcesUseCase = syncBuiltInSourcesUseCase
         self.reconcileSourceSlotAssignmentsUseCase = reconcileSourceSlotAssignmentsUseCase
@@ -48,6 +54,8 @@ actor LibraryPersistenceCoordinator {
         self.saveUserLibraryStateUseCase = saveUserLibraryStateUseCase
         self.videoWatchHistoryRepository = videoWatchHistoryRepository
         self.comicChapterHistoryRepository = comicChapterHistoryRepository
+        self.bookReadingHistoryRepository = bookReadingHistoryRepository
+        self.bookReadingProgressRepository = bookReadingProgressRepository
     }
 
     /// 当前来源最近一条视频历史：按来源过滤、取更新时间最晚的一条。没有仓储或没有记录为 nil。
@@ -68,6 +76,25 @@ actor LibraryPersistenceCoordinator {
         return try repository.fetchHistory(userID: userID)
             .filter { history in history.sourceID == sourceID }
             .sorted { lhs, rhs in lhs.visitedAt > rhs.visitedAt }
+    }
+
+    /// 当前来源读过的全部书，访问时间最近的在前（一本书一条）。瓷砖取第一条，行的「读到哪」按 `bookItemID` 对上。
+    func bookReadingHistories(userID: String, sourceID: String) throws -> [BookReadingHistory] {
+        guard let repository: BookReadingHistoryRepository = self.bookReadingHistoryRepository else {
+            return []
+        }
+        return try repository.fetchHistory(userID: userID)
+            .filter { history in history.sourceID == sourceID }
+            .sorted { lhs, rhs in lhs.visitedAt > rhs.visitedAt }
+    }
+
+    /// 一本书的全书进度（0…1，Readium 写的 `totalProgression`）；只给瓷砖那一本用，没有仓储或没有记录为 nil。
+    func bookReadingProgression(userID: String, sourceID: String, detailURL: String) throws -> Double? {
+        guard let repository: BookReadingProgressRepository = self.bookReadingProgressRepository else {
+            return nil
+        }
+        let bookID: UUID = SiteBookIdentity.bookID(sourceID: sourceID, detailURL: detailURL)
+        return try repository.fetchProgress(bookID: bookID, userID: userID)?.totalProgression
     }
 
     func load(userID: String, selectedSourceID: String?) throws -> LibraryPersistenceSnapshot {

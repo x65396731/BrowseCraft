@@ -42,9 +42,12 @@ python3 scripts/check-docs.py
 
 **2026-10-09 库页漫画库重设计已实施、build 过、模拟器走查过并已提交。**
 
-- **下一步零：库页漫画库重设计的补充走查**。合同：[`Library-Comic-Page-Redesign-Design.md`](docs/design/Library-Comic-Page-Redesign-Design.md)；STATUS 第 2 节两行。
-  没走到的：骨架、空状态插画、分类芯片、瓷砖「打开作品」在作品不在当前列表时的 `stableID` 反解（`LibraryView.comicDetailItem`）、视频库回归——
-  要有视频来源或空列表的来源才看得到，与真机验收一起补。
+**2026-10-09 库页书籍库重设计已实施、build 过、模拟器走查过并已提交。**
+
+- **下一步零：库页书籍库重设计的补充走查**。合同：[`Library-Book-Page-Redesign-Design.md`](docs/design/Library-Book-Page-Redesign-Design.md)；STATUS 第 2 节两行。
+  没走到的：骨架、空状态插画、整站有声（线上没有有声来源，只能用 Loyal Books 夹具）、失败态——与真机验收一起补。
+  模拟器上的来源现在是小說狂人（czbooks.net），有一条《元始法則》第 3 章的历史；めちゃコミック已删，要用再从目录加。
+  小說狂人的 `latestText` 是「416 93164」这种数字串，是规则取值问题，可向 fwq 提「书的 `latestText` 统一为裸章节名」。
 
 - **下一步一：删除来源连带删除的真机验收**。合同：[`Source-Deletion-Cascade-Design.md`](docs/design/Source-Deletion-Cascade-Design.md)
   （第六节实现位置、第七节测试与验收）与数据库说明「Source 删除规则」（`BCA-DB-004`、`BCA-DB-005`）；STATUS 在第 4 节两行（`full-suite-passed` 与 `simulator-passed`），

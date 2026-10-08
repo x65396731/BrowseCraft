@@ -11,13 +11,22 @@ struct LibrarySkeletonGridView: View {
     enum Layout {
         case posterWall
         case comicWall
+        /// 书脊列表：单列 7 行，左 60×80 色块 + 右三条（`docs/design/Library-Book-Page-Redesign-Design.md` 第七节）。
+        case bookList
     }
 
     var layout: Layout = .posterWall
 
     /// 中文注释：铺满一屏即可：两列 × 3 行 6 张、三列 × 3 行 9 张；再多只是白耗布局。
     private var placeholderCount: Int {
-        return self.layout == .comicWall ? 9 : 6
+        switch self.layout {
+        case .posterWall:
+            return 6
+        case .comicWall:
+            return 9
+        case .bookList:
+            return 7
+        }
     }
 
     private var gridColumns: [GridItem] {
@@ -26,11 +35,20 @@ struct LibrarySkeletonGridView: View {
             return [GridItem(.adaptive(minimum: 160), spacing: 14)]
         case .comicWall:
             return [GridItem(.adaptive(minimum: 104), spacing: 12)]
+        case .bookList:
+            return [GridItem(.adaptive(minimum: 340), spacing: 24)]
         }
     }
 
     private var rowSpacing: CGFloat {
-        return self.layout == .comicWall ? 18 : 20
+        switch self.layout {
+        case .posterWall:
+            return 20
+        case .comicWall:
+            return 18
+        case .bookList:
+            return 0
+        }
     }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion: Bool
@@ -43,7 +61,7 @@ struct LibrarySkeletonGridView: View {
             }
         }
         .padding(.horizontal, 20)
-        .padding(.top, 16)
+        .padding(.top, self.layout == .bookList ? 12 : 16)
         .opacity(self.isDimmed ? 0.45 : 1)
         .animation(self.breathingAnimation, value: self.isDimmed)
         .onAppear {
@@ -80,6 +98,18 @@ struct LibrarySkeletonGridView: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40, alignment: .topLeading)
             }
+        case .bookList:
+            HStack(spacing: 12) {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(self.placeholderFill)
+                    .frame(width: 60, height: 80)
+                VStack(alignment: .leading, spacing: 8) {
+                    self.bar(widthRatio: 0.82, height: 14)
+                    self.bar(widthRatio: 0.56)
+                    self.bar(widthRatio: 0.38)
+                }
+            }
+            .padding(.vertical, 10)
         case .comicWall:
             VStack(alignment: .leading, spacing: 6) {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -97,13 +127,13 @@ struct LibrarySkeletonGridView: View {
     }
 
     /// 中文注释：占位条按卡片宽度取比例，不写死点数——iPad 上列宽不一样。
-    private func bar(widthRatio: CGFloat) -> some View {
+    private func bar(widthRatio: CGFloat, height: CGFloat = 12) -> some View {
         GeometryReader { proxy in
             RoundedRectangle(cornerRadius: 3, style: .continuous)
                 .fill(self.placeholderFill)
-                .frame(width: proxy.size.width * widthRatio, height: 12)
+                .frame(width: proxy.size.width * widthRatio, height: height)
         }
-        .frame(height: 12)
+        .frame(height: height)
     }
 
     private var placeholderFill: Color {

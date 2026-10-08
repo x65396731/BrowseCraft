@@ -24,17 +24,21 @@ struct LibraryContentView: View {
     /// 中文注释：漫画长按菜单「继续读 · 4-2」的编号；nil 时不出这一项。搜索页不接阅读器入口，留默认。
     var comicContinueChapterLabel: (ContentItem) -> String? = { _ in nil }
     var continueComicReading: (ContentItem) -> Void = { _ in }
+    /// 中文注释：书籍行（`docs/design/Library-Book-Page-Redesign-Design.md` 第五节）：整站有声、第三行「读到 · 章节名」、
+    /// 长按「继续读 / 继续听」的整句与回调；搜索页不接阅读器入口，留默认。
+    var isAudiobookSource: Bool = false
+    var bookReadToText: (ContentItem) -> String? = { _ in nil }
+    var bookContinueMenuTitle: (ContentItem) -> String? = { _ in nil }
+    var continueBookReading: (ContentItem) -> Void = { _ in }
 
     /// 中文注释：漫画三列、列距 12；iPad 与横屏按最小宽 104 自适应成更多列。
     private let comicGridColumns: [GridItem] = [
         GridItem(.adaptive(minimum: 104), spacing: 12)
     ]
 
-    /// 中文注释：书籍继续用重设计前的三列卡片，到书籍库立项再改。
-    private let bookGridColumns: [GridItem] = [
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12)
+    /// 中文注释：书脊列表单列；iPad 与横屏按最小宽 340 自适应成两列，行构造不变。
+    private let bookListColumns: [GridItem] = [
+        GridItem(.adaptive(minimum: 340), spacing: 24)
     ]
 
     @ViewBuilder
@@ -55,7 +59,7 @@ struct LibraryContentView: View {
             )
         } else if let selectedSource: Source = self.selectedSource,
                   selectedSource.configuration.kind == .book {
-            self.bookGrid
+            self.bookList
         } else {
             self.comicGrid
         }
@@ -95,29 +99,42 @@ struct LibraryContentView: View {
         }
     }
 
-    private var bookGrid: some View {
+    /// 书脊列表：一行一本，行间分隔线从文字左缘起（缩进 72），最后一行没有（第四、五节）。
+    private var bookList: some View {
         VStack(spacing: 0) {
-            LazyVGrid(columns: self.bookGridColumns, spacing: 16) {
-                ForEach(self.items, id: \.id) { item in
+            LazyVGrid(columns: self.bookListColumns, spacing: 0) {
+                ForEach(Array(self.items.enumerated()), id: \.element.id) { index, item in
                     if let source: Source = self.sourceForID(item.sourceId) {
-                        BookLibraryCardView(
-                            item: item,
-                            primaryActionTitle: self.primaryActionTitle(source),
-                            isFavorite: self.favoriteItemIDs.contains(item.id),
-                            favoriteAction: {
-                                self.toggleFavorite(item)
-                            },
-                            readAction: {
-                                self.openComic(item, source)
-                            },
-                            imageRequestConfig: self.imageRequestConfig(source)
-                        )
+                        VStack(spacing: 0) {
+                            BookLibraryRowView(
+                                item: item,
+                                isFavorite: self.favoriteItemIDs.contains(item.id),
+                                isAudiobook: self.isAudiobookSource,
+                                readToText: self.bookReadToText(item),
+                                continueMenuTitle: self.bookContinueMenuTitle(item),
+                                imageRequestConfig: self.imageRequestConfig(source),
+                                openAction: {
+                                    self.openComic(item, source)
+                                },
+                                favoriteAction: {
+                                    self.toggleFavorite(item)
+                                },
+                                continueReadingAction: {
+                                    self.continueBookReading(item)
+                                }
+                            )
+                            if index < self.items.count - 1 {
+                                Divider()
+                                    .padding(.leading, 72)
+                            }
+                        }
                     }
                 }
 
                 self.paginationSentinel(prefix: "book")
             }
-            .padding(16)
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
 
             self.paginationFooter
         }

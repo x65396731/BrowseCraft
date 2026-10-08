@@ -599,6 +599,7 @@
 "history_delete" = "刪除";
 "history_menu_continue_watching" = "繼續看";
 "history_menu_continue_reading" = "繼續讀";
+"history_menu_continue_listening" = "繼續聽";
 "history_menu_delete" = "刪除紀錄";
 "history_undo_message" = "已刪除「%@」的紀錄";
 "history_kind_empty_title_video" = "還沒有看過的影片";
@@ -752,6 +753,12 @@
 "library_comic_read_to" = "讀到 %@";
 "library_card_continue_reading" = "繼續讀 · %@";
 "library_card_favorited" = "已收藏";
+"library_book_latest" = "最新 · %@";
+"library_book_read_to" = "讀到 · %@";
+"library_book_listened_to" = "聽到 · %@";
+"history_continue_listened" = "上次聽到";
+"library_card_continue_listening" = "繼續聽 · %@";
+"library_kind_audiobook" = "有聲書";
 "library_account_button" = "帳號";
 
 /* 影视详情与选集页重设计：继续看、分区标题、排序、空态与失败态、解析失败横幅、简介下的署名、收藏 */

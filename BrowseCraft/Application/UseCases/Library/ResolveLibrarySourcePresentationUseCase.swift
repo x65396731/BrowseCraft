@@ -24,6 +24,16 @@ struct ResolveLibrarySourcePresentationUseCase {
         return rule.availableListTabs
     }
 
+    /// 中文注释：整站是否有声——reader 规则全是 `audio` 才算（`docs/design/Library-Book-Page-Redesign-Design.md` 第二节）。
+    /// 规则合同允许一个来源同时有 text 与 audio 两种 reader 规则，那种站列表层判不出，按文字书措辞；是不是有声要进详情按章节判。
+    func isAudiobookSource(for source: Source) -> Bool {
+        guard case .book(let configuration) = source.configuration else {
+            return false
+        }
+        let readers: [BookReaderRule] = configuration.rule.ruleSets.readerRules
+        return readers.isEmpty == false && readers.allSatisfy { reader in reader.contentType == .audio }
+    }
+
     func imageRequestConfig(for source: Source, listTab: ListTabRule?) -> RequestConfig? {
         if case .video(let configuration) = source.configuration {
             return self.videoImageRequestConfig(for: configuration, listTab: listTab)

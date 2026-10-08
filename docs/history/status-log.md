@@ -788,3 +788,30 @@ App 侧设计文档一处都没引用，App 执行两种形态的合同由自己
   骨架、空状态插画、分类芯片、「打开作品」的 `stableID` 反解路径（这次作品就在当前列表里，走的是列表查找）、视频库回归没走到。
   走查中一次迟到的点击在设置页误触了「高级版」并点到「5 个站点位置」，系统弹出 Apple 账户登录框，当场取消，App 提示「购买已取消，没有任何权益生效」。
 - 实施、合同、插画与两行 STATUS 一起提交为 `fa57f00`；两行检查点由实施前的 HEAD 改登记为 `fa57f00`。
+
+## 2026-10-09 库页书籍库重设计：立项、裁定、设计稿、插画与合同
+
+- 用户要求继续重设计 book 列表页，三种类型各一种版式，且 book 还包含有声书。先登记页面设计索引，再写设计文档：外壳沿用视频库那轮，正文换成单列书脊行
+ （小封面 + 书名 / 最新章 / 读到哪三行），有声书同一版式、靠标记与措辞区分，加「上次读到 / 上次听到」瓷砖。
+- 数据逐字段核过七份真实读书规则：列表只有标题 / 详情地址 / 封面 / 最新章，没有一份声明作者；有声书在列表层没有标记，来源级可按 reader 规则 `contentType` 判（Loyal Books 全 audio）；
+  读书历史只记到章节，全书进度在进度表 `totalProgression`。不加表、不加列、没有新的 fwq 需求（作者列为候选）。
+- 十项待裁定用户裁定全取 A。画布 10 张（台灣小說網、Royal Road 多分类、Loyal Books 整站有声、深色、长按菜单、骨架、空、失败、尺寸与取值、即梦设定）；
+  画稿时把「读到哪」改为章节名原文一行截断、不缩编号（各站编号形式不一），记入设计文档裁定段。
+- 用户按即梦设定构思 A 出了 4 张，选第 2 张；`illustration-cutout` 近白阈值 236、despeckle 1 个小块、裁边后 332×540，新增资产 `EmptyStateLibraryBook`，
+  预算先按估计写 245000 被资产闸门拦下（实际 272583），改成 315000 后过。
+- 合同写入 `docs/design/Library-Book-Page-Redesign-Design.md`，STATUS 第 2 节新增一行 `approved / not-started / not-run`，检查点为当时的 HEAD；随后在同一会话实施。
+
+## 2026-10-09 库页书籍库重设计：实施
+
+- 「库页书籍库重设计」一行 `实施=not-started` → `implemented`，验证仍 `not-run`（未 build、未走查）。代码按合同第十三节：
+  - `LibraryPersistenceCoordinator` 加可选的读书历史仓储与进度仓储：按来源取全部读书历史（访问时间倒序）、按 `SiteBookIdentity` 取瓷砖那一本的 `totalProgression`；`LibraryFeatureFactory` 接 GRDB 仓储。
+  - `ResolveLibrarySourcePresentationUseCase.isAudiobookSource`：reader 规则全 `audio` 才算整站有声。
+  - `LibraryViewModel.refreshContinueWatching` 加 `.book` 分支：最近一条、按 `bookItemID` 的字典、瓷砖进度；「读到 · 章节名」「继续读 / 继续听 · 章节名」的文案按整站有声切换。
+  - 新建 `BookLibraryRowView`（封面 60×80 带书脊线 + 耳机 + 书名 / 最新章 / 读到哪 + 行尾爱心 + 长按菜单）；删 `BookLibraryCardView` 与 `LibraryTitleColor`（最后一个引用随之消失）。
+  - `LibraryContentView` 书籍分支换成自适应单列（iPad 两列）的书脊列表 + 分隔线；`LibrarySkeletonGridView` 加 `.bookList`；`LibraryView` 加书籍瓷砖、用历史开 `BookReaderView` 的导航、眉行「有声书」、骨架与空态按类型选；
+    `HistoryContinueTileView` 加 `titleTextOverride`。
+  - 三份 `Localizable.strings` 新增七个键。架构边界闸门过；本地化闸门要构建产物，未跑。
+- 用户要求后 build（iPhone 18 Pro，iOS 27.0；先 `scripts/regenerate-project.sh`）成功，App 代码 0 条警告。模拟器只有 1 个来源位置，经用户确认删了めちゃコミック（连带其走查用历史与收藏），
+  从目录加小說狂人（czbooks.net，20 个分类、可搜索）。走查按 `BCA-DOC-005` 单独一行 `simulator-passed`：外壳、书脊行、瓷砖、长按两套菜单、收藏爱心、「继续读」进阅读器、回来刷新、深色都与合同一致；
+  骨架、空状态插画、整站有声、失败态没走到。两处现场观察：这个站列表不给封面（多数是占位图，言情分类有真封面）；`latestText` 抓到的是「416 93164」这种数字串（章数 + 字数？），属于规则取值问题，App 照原文显示，待 fwq 侧看。
+  进阅读器前 App 的广告门播了两段测试广告，等「奖励已发放」后用广告自己的关闭按钮关掉，没点广告内容。

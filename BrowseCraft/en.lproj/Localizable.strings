@@ -599,6 +599,7 @@
 "history_delete" = "Delete";
 "history_menu_continue_watching" = "Continue Watching";
 "history_menu_continue_reading" = "Continue Reading";
+"history_menu_continue_listening" = "Continue Listening";
 "history_menu_delete" = "Remove from History";
 "history_undo_message" = "Removed “%@” from history";
 "history_kind_empty_title_video" = "No videos watched yet";
@@ -752,6 +753,12 @@
 "library_comic_read_to" = "Read to %@";
 "library_card_continue_reading" = "Continue Reading · %@";
 "library_card_favorited" = "Favorited";
+"library_book_latest" = "Latest · %@";
+"library_book_read_to" = "Read to %@";
+"library_book_listened_to" = "Listened to %@";
+"history_continue_listened" = "Last listened";
+"library_card_continue_listening" = "Continue Listening · %@";
+"library_kind_audiobook" = "Audiobooks";
 "library_account_button" = "Account";
 
 /* 影视详情与选集页重设计：继续看、分区标题、排序、空态与失败态、解析失败横幅、简介下的署名、收藏 */

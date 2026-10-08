@@ -4,7 +4,8 @@ import SwiftUI
 // 中文注释：LibraryView 根据当前 SourceRuntimeKind 选择视频、漫画或书籍展示层。
 // 外壳（眉行与大标题、搜索与账号按钮、贴顶分类条、「上次看到」瓷砖、状态页、切换来源遮罩）三种类型共用，
 // 按 `docs/design/Library-Video-Page-Redesign-Design.md` 第三、五、六、七节画；视频网格在 `VideoContentGridView`。
-// 漫画来源的「上次读到」瓷砖、封面墙与长按「继续读」按 `docs/design/Library-Comic-Page-Redesign-Design.md` 第五、六节画。
+// 漫画来源的「上次读到」瓷砖、封面墙与长按「继续读」按 `docs/design/Library-Comic-Page-Redesign-Design.md` 第五、六节画；
+// 读书来源的书脊列表、「上次读到 / 上次听到」瓷砖与整站有声的措辞按 `docs/design/Library-Book-Page-Redesign-Design.md` 第四到六节画。
 
 /// 中文注释：LibraryView 只负责展示 Library 状态，数据加载与切源逻辑在 LibraryViewModel。
 struct LibraryView: View {
@@ -19,6 +20,8 @@ struct LibraryView: View {
     @State private var continueWatchingDetailItem: ContentItem?
     /// 中文注释：「上次读到」瓷砖与漫画卡片长按「继续读」：用章节历史直接开阅读器，与历史页点行同一条路径。
     @State private var comicReaderHistory: ComicChapterHistory?
+    /// 中文注释：「上次读到」瓷砖与书籍行长按「继续读」：用读书历史直接开阅读器 / 播放器（不带章节，按续读位置接着），与历史页点行同一条路径。
+    @State private var bookReaderSelection: SiteBookChapterSelection?
 
     var body: some View {
         NavigationStack {
@@ -38,6 +41,10 @@ struct LibraryView: View {
                                 .padding(.top, 8)
                         } else if self.viewModel.continueReadingHistory != nil {
                             self.continueReadingTile
+                                .padding(.horizontal, 20)
+                                .padding(.top, 8)
+                        } else if self.viewModel.continueReadingBook != nil {
+                            self.continueReadingBookTile
                                 .padding(.horizontal, 20)
                                 .padding(.top, 8)
                         }
@@ -119,6 +126,10 @@ struct LibraryView: View {
                     .id(item.id)
                 }
             }
+            .navigationDestination(item: self.$bookReaderSelection) { selection in
+                BookReaderView(viewModel: self.contentViewModelFactory.makeBookSiteReader(selection))
+                    .id(selection)
+            }
             .navigationDestination(item: self.$comicReaderHistory) { history in
                 if let source: Source = self.viewModel.source(for: history.sourceID) {
                     ReaderView(
@@ -194,7 +205,7 @@ struct LibraryView: View {
             if let source: Source = self.viewModel.selectedSource {
                 let style: CatalogKindStyle = CatalogKindStyle.of(source)
                 HStack(spacing: 5) {
-                    Image(systemName: style.symbolName)
+                    Image(systemName: self.viewModel.isAudiobookSource ? "headphones" : style.symbolName)
                         .font(.caption2.weight(.bold))
                         .foregroundStyle(style.accent)
                         .accessibilityHidden(true)
@@ -232,11 +243,15 @@ struct LibraryView: View {
         }
     }
 
+    /// 眉行标题：整站有声写「有声书」（书籍库合同第四节），其余按类型。
     private func eyebrowText(style: CatalogKindStyle) -> String {
+        let title: String = self.viewModel.isAudiobookSource
+            ? NSLocalizedString("library_kind_audiobook", comment: "")
+            : style.title
         guard let host: String = self.viewModel.selectedSourceHostText, host.isEmpty == false else {
-            return style.title
+            return title
         }
-        return "\(style.title) · \(host)"
+        return "\(title) · \(host)"
     }
 
     /// 40pt 圆、卡片底色、headline 图标；热区补到 44。
@@ -428,6 +443,56 @@ struct LibraryView: View {
         )
     }
 
+    // MARK: - 「上次读到 / 上次听到」瓷砖（书籍）
+
+    /// 读书来源的瓷砖：同一个 `HistoryContinueTileView`，第三行是章节名原文、进度条是全书进度、底行只写时刻；
+    /// 整站有声写「上次听到」。整张瓷砖 = 用历史直接开阅读器 / 播放器，长按「继续读 / 继续听」「打开作品」。不在这里删历史。
+    @ViewBuilder
+    private var continueReadingBookTile: some View {
+        if let history: BookReadingHistory = self.viewModel.continueReadingBook,
+           let source: Source = self.viewModel.selectedSource {
+            let isAudio: Bool = self.viewModel.isAudiobookSource
+            HistoryContinueTileView(
+                entry: ReadingHistoryEntry(bookHistory: history),
+                progressText: self.viewModel.continueReadingBookChapterText,
+                playbackProgress: self.viewModel.continueReadingBookProgress,
+                sourceName: source.name,
+                sourceState: .available,
+                coverURL: history.coverURL?.absoluteString,
+                refererURL: history.detailURL,
+                imageRequestConfig: self.viewModel.imageRequestConfig(for: source),
+                metaTextOverride: self.viewModel.continueReadingBookTimeText,
+                titleTextOverride: isAudio ? NSLocalizedString("history_continue_listened", comment: "") : nil,
+                action: {
+                    self.openBookReader(history: history, source: source)
+                }
+            )
+            .contextMenu {
+                Button {
+                    self.openBookReader(history: history, source: source)
+                } label: {
+                    Label(
+                        NSLocalizedString(isAudio ? "history_menu_continue_listening" : "history_menu_continue_reading", comment: ""),
+                        systemImage: isAudio ? "headphones" : "book"
+                    )
+                }
+                Button {
+                    // 中文注释：书的 `item.id` 就是详情地址，直接用历史拼列表条目进详情，收藏与续读对得上同一本。
+                    self.selectedSiteBookDestination = LibrarySiteBookDestination(
+                        item: SiteBookChapterSelection(history: history, source: source).item,
+                        source: source
+                    )
+                } label: {
+                    Label(NSLocalizedString("library_tile_open_work", comment: ""), systemImage: "list.bullet.rectangle")
+                }
+            }
+        }
+    }
+
+    private func openBookReader(history: BookReadingHistory, source: Source) {
+        self.bookReaderSelection = SiteBookChapterSelection(history: history, source: source)
+    }
+
     // MARK: - 正文
 
     private var isInteractionLocked: Bool {
@@ -446,7 +511,7 @@ struct LibraryView: View {
     private var libraryBody: some View {
         switch self.viewModel.bodyState {
         case .loadingFirstPage:
-            LibrarySkeletonGridView(layout: self.isComicSource ? .comicWall : .posterWall)
+            LibrarySkeletonGridView(layout: self.skeletonLayout)
 
         case .empty:
             LibraryPlaceholderView(
@@ -454,8 +519,8 @@ struct LibraryView: View {
                 title: NSLocalizedString("library_body_empty_title", comment: "库列表空态标题"),
                 message: NSLocalizedString("library_body_empty_message", comment: "库列表空态说明"),
                 pullHint: NSLocalizedString("library_body_pull_hint", comment: "空态下拉刷新提示"),
-                // 中文注释：按来源类型选插画：漫画是抱一叠空白封面的单行本，视频（书籍暂同）是举遥控器对着空白银幕。
-                illustration: self.isComicSource ? "EmptyStateLibraryComic" : "EmptyStateLibraryVideo"
+                // 中文注释：按来源类型选插画：漫画是抱一叠空白封面的单行本，书是坐在书堆上翻开空白的书，视频是举遥控器对着空白银幕。
+                illustration: self.emptyIllustrationName
             )
 
         case .failed(let message):
@@ -516,6 +581,17 @@ struct LibraryView: View {
                     if let history: ComicChapterHistory = self.viewModel.comicContinueHistory(for: item) {
                         self.openComicReader(history: history)
                     }
+                },
+                isAudiobookSource: self.viewModel.isAudiobookSource,
+                bookReadToText: self.viewModel.bookReadToText(for:),
+                bookContinueMenuTitle: { item in
+                    self.viewModel.bookContinueHistory(for: item).map(self.viewModel.bookContinueMenuTitle(for:))
+                },
+                continueBookReading: { item in
+                    if let history: BookReadingHistory = self.viewModel.bookContinueHistory(for: item),
+                       let source: Source = self.viewModel.selectedSource {
+                        self.openBookReader(history: history, source: source)
+                    }
                 }
             )
         }
@@ -523,6 +599,24 @@ struct LibraryView: View {
 
     private var isComicSource: Bool {
         return self.viewModel.selectedSource?.configuration.kind == .comic
+    }
+
+    private var isBookSource: Bool {
+        return self.viewModel.selectedSource?.configuration.kind == .book
+    }
+
+    private var skeletonLayout: LibrarySkeletonGridView.Layout {
+        if self.isComicSource {
+            return .comicWall
+        }
+        return self.isBookSource ? .bookList : .posterWall
+    }
+
+    private var emptyIllustrationName: String {
+        if self.isComicSource {
+            return "EmptyStateLibraryComic"
+        }
+        return self.isBookSource ? "EmptyStateLibraryBook" : "EmptyStateLibraryVideo"
     }
 
     private var libraryNavigationTitle: String {

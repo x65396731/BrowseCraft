@@ -51,6 +51,13 @@ final class LibraryViewModel {
     private(set) var continueReadingHistory: ComicChapterHistory?
     /// 中文注释：封面进度角标「读到 4-2」——按 `comicItemID`（= 列表条目 `item.id`）各取最近一条；与瓷砖同一次读出。
     private(set) var comicReadingProgressByItemID: [String: ComicChapterHistory] = [:]
+    /// 中文注释：读书来源的「上次读到 / 上次听到」瓷砖——当前来源访问时间最近的一条读书历史（一书一条）
+    /// （`docs/design/Library-Book-Page-Redesign-Design.md` 第六节）；与视频 / 漫画瓷砖同一组刷新时机，三者不会同时有值。
+    private(set) var continueReadingBook: BookReadingHistory?
+    /// 瓷砖那一本的全书进度（进度表 `totalProgression`）；没有不画进度条。
+    private(set) var continueReadingBookProgress: Double?
+    /// 行的「读到 · 章节名」——按 `bookItemID`（= 详情地址 = 列表条目 `item.id`）查；与瓷砖同一次读出。
+    private(set) var bookReadingHistoryByItemID: [String: BookReadingHistory] = [:]
 
     private let persistenceCoordinator: LibraryPersistenceCoordinator
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
@@ -911,18 +918,27 @@ final class LibraryViewModel {
         guard let source: Source = self.selectedSource else {
             self.continueWatchingHistory = nil
             self.clearComicReadingState()
+            self.clearBookReadingState()
             return
         }
         switch source.configuration.kind {
         case .video:
             self.clearComicReadingState()
+            self.clearBookReadingState()
         case .comic:
             self.continueWatchingHistory = nil
+            self.clearBookReadingState()
             self.refreshComicReading(sourceID: source.id)
+            return
+        case .book:
+            self.continueWatchingHistory = nil
+            self.clearComicReadingState()
+            self.refreshBookReading(sourceID: source.id)
             return
         default:
             self.continueWatchingHistory = nil
             self.clearComicReadingState()
+            self.clearBookReadingState()
             return
         }
         let expectedSourceID: String = source.id
@@ -974,6 +990,101 @@ final class LibraryViewModel {
     private func clearComicReadingState() {
         self.continueReadingHistory = nil
         self.comicReadingProgressByItemID = [:]
+    }
+
+    private func refreshBookReading(sourceID expectedSourceID: String) {
+        let userID: String = self.currentUserID
+        Task {
+            do {
+                let histories: [BookReadingHistory] = try await self.persistenceCoordinator.bookReadingHistories(
+                    userID: userID,
+                    sourceID: expectedSourceID
+                )
+                // 中文注释：进度条只给瓷砖那一本读一次，不逐行查。
+                var progression: Double? = nil
+                if let latest: BookReadingHistory = histories.first {
+                    progression = try await self.persistenceCoordinator.bookReadingProgression(
+                        userID: userID,
+                        sourceID: expectedSourceID,
+                        detailURL: latest.detailURL
+                    )
+                }
+                guard self.selectedSourceID == expectedSourceID else {
+                    return
+                }
+                var byItemID: [String: BookReadingHistory] = [:]
+                for history in histories where byItemID[history.bookItemID] == nil {
+                    byItemID[history.bookItemID] = history
+                }
+                self.continueReadingBook = histories.first
+                self.continueReadingBookProgress = progression.map { min(1, max(0, $0)) }
+                self.bookReadingHistoryByItemID = byItemID
+            } catch {
+                // 中文注释：瓷砖与「读到哪」是附加信息，读不到就不出，不弹错。
+                RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "library-continue-reading-book-error")
+                self.clearBookReadingState()
+            }
+        }
+    }
+
+    private func clearBookReadingState() {
+        self.continueReadingBook = nil
+        self.continueReadingBookProgress = nil
+        self.bookReadingHistoryByItemID = [:]
+    }
+
+    /// 整站是否有声：reader 规则全是 audio（书籍库合同第二节）；眉行、封面耳机与「听」措辞都看它。
+    var isAudiobookSource: Bool {
+        guard let source: Source = self.selectedSource else {
+            return false
+        }
+        return self.resolveLibrarySourcePresentationUseCase.isAudiobookSource(for: source)
+    }
+
+    /// 历史里的章节名照原文（去首尾空白），空为 nil——各站编号形式不一，不缩成「第 N 章」。
+    static func bookChapterTitle(of history: BookReadingHistory) -> String? {
+        guard let title: String = history.chapterTitle?.trimmingCharacters(in: .whitespacesAndNewlines),
+              title.isEmpty == false else {
+            return nil
+        }
+        return title
+    }
+
+    /// 行的第三行「读到 · 章节名」（整站有声「听到 · 章节名」）；没读过或历史里没有章节名为 nil。
+    func bookReadToText(for item: ContentItem) -> String? {
+        guard let history: BookReadingHistory = self.bookReadingHistoryByItemID[item.id],
+              let chapter: String = Self.bookChapterTitle(of: history) else {
+            return nil
+        }
+        let key: String = self.isAudiobookSource ? "library_book_listened_to" : "library_book_read_to"
+        return String(format: NSLocalizedString(key, comment: ""), chapter)
+    }
+
+    /// 长按「继续读 / 继续听」用的历史；这本没读过为 nil。没有章节名也能开——阅读器按续读位置接着。
+    func bookContinueHistory(for item: ContentItem) -> BookReadingHistory? {
+        return self.bookReadingHistoryByItemID[item.id]
+    }
+
+    /// 长按菜单文案：「继续读 · 第312章 山雨欲來」，历史里没有章节名时只写「继续读」；整站有声换「听」。
+    func bookContinueMenuTitle(for history: BookReadingHistory) -> String {
+        let audio: Bool = self.isAudiobookSource
+        if let chapter: String = Self.bookChapterTitle(of: history) {
+            return String(
+                format: NSLocalizedString(audio ? "library_card_continue_listening" : "library_card_continue_reading", comment: ""),
+                chapter
+            )
+        }
+        return NSLocalizedString(audio ? "history_menu_continue_listening" : "history_menu_continue_reading", comment: "")
+    }
+
+    /// 瓷砖第三行：章节名原文；没有这行不出。
+    var continueReadingBookChapterText: String? {
+        return self.continueReadingBook.flatMap(Self.bookChapterTitle(of:))
+    }
+
+    /// 瓷砖底行只写时刻，与视频、漫画瓷砖同一取法。
+    var continueReadingBookTimeText: String? {
+        return self.continueReadingBook.map { self.tileTimeText(for: $0.visitedAt) }
     }
 
     /// 章节名缩成编号：「第4話(2) 真夜中の逢瀬」→「4-2」；解不出数字就用原章节名。

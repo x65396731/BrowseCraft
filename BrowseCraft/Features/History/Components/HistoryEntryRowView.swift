@@ -93,6 +93,9 @@ struct HistoryContinueTileView: View {
     /// 中文注释：底行文字；nil 时按历史页的写法「来源 · 时刻」。库页的「上次看到」瓷砖只写时刻——来源名已是大标题
     /// （`docs/design/Library-Video-Page-Redesign-Design.md` 第六节）。
     var metaTextOverride: String? = nil
+    /// 中文注释：第一行小字；nil 时按类型写「上次看到」/「上次读到」。库页整站有声的来源传「上次听到」
+    /// （`docs/design/Library-Book-Page-Redesign-Design.md` 第六节）。
+    var titleTextOverride: String? = nil
     let action: () -> Void
 
     var body: some View {
@@ -111,9 +114,9 @@ struct HistoryContinueTileView: View {
                     badge: .tile
                 )
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(kind == .video
+                    Text(self.titleTextOverride ?? (kind == .video
                         ? NSLocalizedString("history_continue_watched", comment: "")
-                        : NSLocalizedString("history_continue_read", comment: ""))
+                        : NSLocalizedString("history_continue_read", comment: "")))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(style.bannerAccent)
                     Text(self.entry.title)
