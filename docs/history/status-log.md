@@ -863,3 +863,17 @@ App 侧设计文档一处都没引用，App 执行两种形态的合同由自己
 - 没走到的：搜索中骨架（czbooks 响应太快）、无结果（czbooks 对任意关键词包括「9999999」「zxquzxqu」都返回 40 条，像是无匹配时退回站内榜单，属站点行为，可并入给 fwq 的观察）、
   失败 / 登录横幅、分页脚、视频与漫画来源的结果版式。工具限制：模拟器的软件键盘被硬件键盘顶掉、输入工具不能送中文，关键词用的是数字与字母。
 - 实施、合同、走查记录与 HANDOFF 一起提交为 `25f754b`；两行检查点由实施前的 HEAD `552a9f1` 改登记为 `25f754b`。
+
+## 2026-10-09 规则目录页：我的生成有条目时优先显示
+
+- 用户要求：规则目录里「我的生成」有值就优先显示它。合同 `Catalog-Page-Redesign-Design.md` 第 2.1 节「默认落在推荐」改为「有条目落在我的生成，否则推荐」。
+- `CatalogSourceListView`：`selectedTab` 初值按 `personalCatalogItemCount` 定；`.task` 首次 `refreshCatalogSources` 完成后按同一规则再定一次；分段控件的绑定记下用户是否点过，点过就不再替用户改段。
+  STATUS 第 2 节新增一行 `implemented / not-run`，检查点为当时的 HEAD。未 build、未走查。
+
+## 2026-10-09 我的生成：角标与 cell 数、删失败记录又冒一条
+
+- 用户问角标与 cell 数对不上、失败记录算不算、删掉的失败提示为什么又插回来。查明：角标与时间线用同一份 `CatalogSourceGrouping`，客户端里永远相等；对不上的是服务端条数——
+  服务端每次只给最新 20 条（`OUTCOME_LIMIT`，模拟器日志 `count=20 succeeded=16`），客户端再把成功按 `catalogSourceId`、失败按 `entryURL` 去重，20 → 14。
+  「删了又冒一条」是两个机制：软删除后第 21 条补位；同一入口更早的失败在最新那条删掉后浮上来。
+- 用户采纳建议：PortalCore `OUTCOME_LIMIT` 20 → 200（条数由 7 天可见期限住）并补测试；App 侧 `deleteFailedGenerationOutcome` 改为同一入口的全部失败一起软删除（`hideOutcomes(jobIDs:)` 逐条调用、首个失败即停、不回滚）。
+  去重与角标语义不动。合同 `Catalog-Page-Redesign-Design.md` 第 2.3 节补一句；STATUS 新增一行 `implemented / not-run`。未 build、未跑测试。

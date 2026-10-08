@@ -14,10 +14,34 @@ struct CatalogSourceListView: View {
     var openAddSource: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
-    @State private var selectedTab: Tab = .recommended
+    /// 中文注释：打开时「我的生成」有条目就落在「我的生成」，否则「推荐」（合同第 2.1 节）。
+    /// 条目数要等首次拉取回来才准，所以 `.task` 拉完再按同一规则纠正一次；用户已经自己点过分段就不再动。
+    @State private var selectedTab: Tab
+    @State private var hasUserPickedTab: Bool = false
     @State private var addingSourceIDs: Set<String> = []
     @State private var failedSourceIDs: Set<String> = []
     @State private var isShowingEntryGuide: Bool = false
+
+    init(viewModel: SourcesViewModel, openAddSource: (() -> Void)? = nil) {
+        self.viewModel = viewModel
+        self.openAddSource = openAddSource
+        self._selectedTab = State(initialValue: Self.preferredTab(personalItemCount: viewModel.personalCatalogItemCount))
+    }
+
+    private static func preferredTab(personalItemCount: Int) -> Tab {
+        return personalItemCount > 0 ? .personal : .recommended
+    }
+
+    /// 分段控件的绑定：用户点过就记下来，首次拉取回来后不再替用户改段。
+    private var tabSelection: Binding<Tab> {
+        return Binding<Tab>(
+            get: { self.selectedTab },
+            set: { newValue in
+                self.hasUserPickedTab = true
+                self.selectedTab = newValue
+            }
+        )
+    }
 
     var body: some View {
         NavigationStack {
@@ -37,7 +61,7 @@ struct CatalogSourceListView: View {
                         .font(.largeTitle.weight(.heavy))
                         .accessibilityAddTraits(.isHeader)
                     CatalogSegmentedPicker(
-                        selection: self.$selectedTab,
+                        selection: self.tabSelection,
                         segments: [
                             CatalogSegmentedPicker<Tab>.Segment(
                                 value: Tab.recommended,
@@ -66,6 +90,11 @@ struct CatalogSourceListView: View {
             // `BC-PREFLIGHT-066`：每次打开都重新拉取，不再「已加载过即跳过」。
             .task {
                 await self.viewModel.refreshCatalogSources()
+                // 中文注释：首次拉取回来后再按「我的生成有条目就优先」纠正一次；用户已经点过分段就尊重用户。
+                guard self.hasUserPickedTab == false else {
+                    return
+                }
+                self.selectedTab = Self.preferredTab(personalItemCount: self.viewModel.personalCatalogItemCount)
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

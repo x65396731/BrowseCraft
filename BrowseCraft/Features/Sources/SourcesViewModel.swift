@@ -160,27 +160,52 @@ final class SourcesViewModel {
     }
 
     /// 用户删除失败记录：服务端软删除。
+    ///
+    /// 中文注释：时间线对同一入口只显示最近一次失败（`CatalogSourceGrouping` 按 `entryURL` 去重），用户删的是
+    /// 「这个入口的失败」而不是「这一次」——只删最新那条，被盖住的更早一条会立刻浮上来，看起来像删不掉
+    /// （2026-10-09 用户反馈）。所以同一入口的全部失败一起软删除，再重拉一次。
     @MainActor
     func deleteFailedGenerationOutcome(jobID: UUID) async {
-        await self.hideOutcome(jobID: jobID, localSourceID: nil)
+        await self.hideOutcomes(jobIDs: self.failedOutcomeJobIDs(sharingEntryURLWith: jobID), localSourceID: nil)
+    }
+
+    /// 与给定失败记录同一入口的全部失败（含它自己）；找不到入口 URL 时只删它自己。
+    private func failedOutcomeJobIDs(sharingEntryURLWith jobID: UUID) -> [UUID] {
+        guard case .loaded(let outcomes) = self.videoGenerationOutcomesLoad,
+              let target: VideoGenerationOutcome = outcomes.first(where: { $0.jobID == jobID }),
+              let entryURL: String = target.entryURL else {
+            return [jobID]
+        }
+        let sameEntry: [UUID] = outcomes
+            .filter { $0.didSucceed == false && $0.entryURL == entryURL }
+            .map(\.jobID)
+        return sameEntry.isEmpty ? [jobID] : sameEntry
     }
 
     @MainActor
     private func hideOutcome(jobID: UUID, localSourceID: String?) async {
+        await self.hideOutcomes(jobIDs: [jobID], localSourceID: localSourceID)
+    }
+
+    /// 逐条软删除；第一条失败就停下来报错，已删掉的不回滚（服务端幂等，下次重试照样可删）。
+    @MainActor
+    private func hideOutcomes(jobIDs: [UUID], localSourceID: String?) async {
         guard let useCase: HideVideoGenerationOutcomeUseCase = self.hideVideoGenerationOutcomeUseCase else {
             return
         }
-        let result: HideVideoGenerationOutcomeUseCase.Result = await useCase.execute(jobID: jobID)
-        switch result {
-        case .hidden:
-            AppLog.notice(.push, event: "outcome-hidden")
-        case .authRequired:
-            self.errorMessage = NSLocalizedString("catalog_personal_sign_in_hint", comment: "")
-            return
-        case .failed(let code):
-            AppLog.error(.push, event: "outcome-hide-failed", metadata: ["code": code])
-            self.errorMessage = NSLocalizedString("rule_error_unknown", comment: "")
-            return
+        for jobID: UUID in jobIDs {
+            let result: HideVideoGenerationOutcomeUseCase.Result = await useCase.execute(jobID: jobID)
+            switch result {
+            case .hidden:
+                AppLog.notice(.push, event: "outcome-hidden")
+            case .authRequired:
+                self.errorMessage = NSLocalizedString("catalog_personal_sign_in_hint", comment: "")
+                return
+            case .failed(let code):
+                AppLog.error(.push, event: "outcome-hide-failed", metadata: ["code": code])
+                self.errorMessage = NSLocalizedString("rule_error_unknown", comment: "")
+                return
+            }
         }
         if let localSourceID: String = localSourceID,
            self.sources.contains(where: { source in source.id == localSourceID }) {
