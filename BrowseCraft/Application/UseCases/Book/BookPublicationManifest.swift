@@ -27,6 +27,8 @@ struct BookPublicationManifest: Hashable, Sendable {
     let language: String?
     let coverURL: URL?
     let items: [BookPublicationItem]
+    /// 中文注释：简介——Runtime 的 `metadata.description`，详情页有才出（`docs/design/Book-Detail-Page-Redesign-Design.md` 第五节）。
+    var description: String? = nil
 
     var isAudiobook: Bool {
         return self.items.contains { if case .audio = $0.kind { return true } else { return false } }

@@ -38,6 +38,21 @@ struct ComicChapterTitleParserTests {
         #expect(parsed.name == "The End")
     }
 
+    @Test func parsesChineseNumerals() {
+        let biquhua = ComicChapterTitleParser.parse("第八百六十二章 普罗万修！（大结局）")
+        #expect(biquhua.numberLabel == "862")
+        #expect(biquhua.name == "普罗万修！（大结局）")
+
+        let first = ComicChapterTitleParser.parse("第一章 大唐亡了？")
+        #expect(first.numberLabel == "1")
+        #expect(first.name == "大唐亡了？")
+
+        #expect(ComicChapterTitleParser.chineseNumber("十二") == 12)
+        #expect(ComicChapterTitleParser.chineseNumber("一千零一") == 1001)
+        #expect(ComicChapterTitleParser.chineseNumber("二零一") == 201)
+        #expect(ComicChapterTitleParser.chineseNumber("两万三千") == 23000)
+    }
+
     @Test func leavesTitlesWithoutNumberUntouched() {
         let parsed = ComicChapterTitleParser.parse("短篇 [完]")
         #expect(parsed.numberLabel == nil)

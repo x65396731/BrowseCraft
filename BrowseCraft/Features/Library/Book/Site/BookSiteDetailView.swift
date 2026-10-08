@@ -1,14 +1,20 @@
 import BrowseCraftDomain
 import SwiftUI
 
-// 中文注释：BookSiteDetailView：站点作品的详情页——头部、开始 / 继续阅读、章节列表；章节推入共用的 EPUB 阅读器。
-// 章节用本视图自己的 navigationDestination(item:) 推入（与 ComicDetailView 同款），不能用 NavigationLink(value:)
-// 走栈根的 LibraryBookRoute：详情本身是 item 式推入的，两种推入混用时栈序会变成「库 → 阅读器 → 详情」
-// （2026-09-14 模拟器实测，见 docs/design/Book-Kind-Wiring-Design.md 第十二节）。
+// 中文注释：站点书详情页（`docs/design/Book-Detail-Page-Redesign-Design.md`）：页面底色头部（小封面 + 书名 / 作者 / 来源 · 分类 / 章数）
+// → 继续卡片或开始按钮 → 简介（有才出）→ 贴顶的章节分区头（章数、正序 / 倒序、分段芯片）→ 编号柱行列表的目录。
+// 文字书与有声书同一张页，有声只换措辞与图标。章节用本视图自己的 navigationDestination(item:) 推入阅读器（与 ComicDetailView 同款），
+// 不能用 NavigationLink(value:) 走栈根的 LibraryBookRoute：两种推入混用时栈序会变成「库 → 阅读器 → 详情」
+//（2026-09-14 模拟器实测，见 docs/design/Book-Kind-Wiring-Design.md 第十二节）。
 
 struct BookSiteDetailView: View {
+    @Environment(\.dismiss) private var dismiss
     @State private var viewModel: BookSiteDetailViewModel
     @State private var selectedChapter: SiteBookChapterSelection?
+    /// 中文注释：点分段芯片滚到段首时，段首要落在贴顶分区头下面而不是被它盖住（2026-10-09 模拟器实测：点「101–150」停在 103）。
+    /// 记下滚动区可见高度与分区头高度，换算成 `scrollTo` 的锚点。
+    @State private var scrollViewportHeight: CGFloat = 0
+    @State private var chapterHeaderHeight: CGFloat = 0
     private let makeReaderViewModel: @MainActor (SiteBookChapterSelection) -> BookReaderViewModel
 
     init(
@@ -19,105 +25,169 @@ struct BookSiteDetailView: View {
         self.makeReaderViewModel = makeReaderViewModel
     }
 
+    private var style: CatalogKindStyle {
+        return CatalogKindStyle.of(CatalogSourceKind.book)
+    }
+
     var body: some View {
-        List {
-            Section {
-                self.header
-            }
-            Section {
-                if let primary: BookPublicationItem = self.viewModel.primaryChapter {
-                    Button {
-                        self.selectedChapter = self.viewModel.selection(for: self.viewModel.hasReadingProgress ? nil : primary)
-                    } label: {
-                        self.chevronRow {
-                            if self.viewModel.isAudiobook {
-                                Label(self.viewModel.hasReadingProgress ? "Continue Listening" : "Start Listening", systemImage: "headphones")
-                            } else {
-                                Label(self.viewModel.hasReadingProgress ? "Continue Reading" : "Start Reading", systemImage: "book")
+        ScrollViewReader { scrollProxy in
+            ScrollView {
+                LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                    BookSiteDetailHeaderSection(
+                        viewModel: self.viewModel,
+                        style: self.style,
+                        openSelection: self.open(_:)
+                    )
+                    .zIndex(2)
+
+                    Section {
+                        BookSiteDetailChapterSection(
+                            viewModel: self.viewModel,
+                            style: self.style,
+                            selectChapter: { chapter in
+                                self.open(self.viewModel.selection(for: chapter))
                             }
-                        }
+                        )
+                    } header: {
+                        BookSiteDetailChapterHeader(viewModel: self.viewModel, style: self.style)
+                            .onGeometryChange(for: CGFloat.self) { proxy in
+                                proxy.size.height
+                            } action: { height in
+                                self.chapterHeaderHeight = height
+                            }
+                            // 中文注释：贴顶时分区头停在安全区顶边，状态栏与芯片之间那一截会露出滚过的内容；
+                            // 底色向上多铺一段盖住，静止时藏在头部后面（头部 zIndex 更高）。
+                            .background(alignment: .top) {
+                                CatalogPalette.pageBackground
+                                    .frame(height: 160)
+                                    .offset(y: -160)
+                            }
+                            .zIndex(1)
                     }
                 }
+                .padding(.bottom, 32)
             }
-            Section("Chapters") {
-                if self.viewModel.isLoading && self.viewModel.chapters.isEmpty {
-                    ProgressView("Loading chapters…")
-                } else if let message: String = self.viewModel.errorMessage, self.viewModel.chapters.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(message).foregroundStyle(.secondary)
-                        Button("Retry") {
-                            Task { await self.viewModel.load() }
-                        }
-                    }
-                } else {
-                    ForEach(self.viewModel.chapters, id: \.href) { chapter in
-                        Button {
-                            self.selectedChapter = self.viewModel.selection(for: chapter)
-                        } label: {
-                            self.chevronRow {
-                                Text(chapter.title).lineLimit(2)
-                                if chapter.chapterURL == self.viewModel.lastReadChapterURL {
-                                    Spacer()
-                                    Image(systemName: "bookmark.fill").foregroundStyle(.tint)
-                                }
-                            }
-                        }
-                    }
+            .scrollBounceBehavior(.always)
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.height
+            } action: { height in
+                self.scrollViewportHeight = height
+            }
+            .onChange(of: self.viewModel.pendingScrollChapterURL) { _, chapterURL in
+                guard let chapterURL: String = chapterURL else {
+                    return
                 }
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    scrollProxy.scrollTo(chapterURL, anchor: self.segmentScrollAnchor)
+                }
+                self.viewModel.didFinishProgrammaticScroll()
             }
+        }
+        .background(CatalogPalette.pageBackground)
+        // 中文注释：返回与收藏固定在安全区顶、不随内容滚走；做成安全区 inset 而不是 overlay，贴顶的分区头才会停在按钮下面。
+        .safeAreaInset(edge: .top, spacing: 0) {
+            self.topButtons
         }
         .navigationTitle(self.viewModel.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         .task {
             CrashDiagnostics.shared.setScreen(.bookDetail)
             AppAnalytics.shared.logScreenView(.bookDetail)
+            // 中文注释：收藏是本地读取，先于网络详情到位。
+            await self.viewModel.reloadFavoriteState()
             await self.viewModel.loadIfNeeded()
         }
         .navigationDestination(item: self.$selectedChapter) { selection in
             BookReaderView(viewModel: self.makeReaderViewModel(selection))
                 .id(selection)
         }
-    }
-
-    /// 中文注释：Button 行没有 NavigationLink 自带的箭头，手动补一个，保持与系统列表一致的观感。
-    private func chevronRow<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        HStack {
-            content()
-            Spacer(minLength: 8)
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tertiary)
-        }
-        .contentShape(Rectangle())
-        // 中文注释：List 里的 Button 会把标签染成 tint 色；用 Color.primary（而不是 .primary 层级样式）压回正文色。
-        .foregroundStyle(Color.primary)
-    }
-
-    private var header: some View {
-        HStack(alignment: .top, spacing: 12) {
-            // 中文注释：封面走共享的 CoverImageView（http → https 候选、带 Referer），不用系统 AsyncImage——sfacg 列表页封面是
-            // `http://rs.sfacg.com/…`，AsyncImage 直连被 ATS 拒（2026-09-14 真机 -1022）；列表网格本就走共享组件，所以列表有图。
-            CoverImageView(
-                urlString: self.viewModel.manifest?.coverURL?.absoluteString ?? self.viewModel.item.coverURL,
-                refererURLString: self.viewModel.item.detailURL,
-                requestConfig: self.viewModel.coverRequestConfig,
-                placeholderImageName: "BookCoverPlaceholder"
+        .fullScreenCover(item: self.requestedSourceLoginBinding) { loginState in
+            SourceLoginView(
+                state: loginState,
+                cancelAction: {
+                    self.viewModel.dismissRequestedSourceLogin()
+                },
+                completeAction: { credential in
+                    Task {
+                        await self.viewModel.completeRequestedSourceLogin(credential: credential)
+                    }
+                }
             )
-            .frame(width: 72, height: 100)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-            VStack(alignment: .leading, spacing: 6) {
-                Text(self.viewModel.displayTitle)
-                    .font(.headline)
-                if let author: String = self.viewModel.manifest?.author, author.isEmpty == false {
-                    Text(author).font(.subheadline).foregroundStyle(.secondary)
+        }
+    }
+
+    /// 锚点 y = 分区头高度 / 可见高度：`scrollTo` 让行上同一比例的点对齐到可见区同一比例处，
+    /// 行高（48）远小于可见高度，段首就停在分区头正下方。量不到时退回 `.top`。
+    private var segmentScrollAnchor: UnitPoint {
+        guard self.scrollViewportHeight > 0, self.chapterHeaderHeight > 0 else {
+            return .top
+        }
+        return UnitPoint(x: 0.5, y: min(0.8, (self.chapterHeaderHeight + 4) / self.scrollViewportHeight))
+    }
+
+    private func open(_ selection: SiteBookChapterSelection) {
+        self.selectedChapter = selection
+    }
+
+    // MARK: - 固定的返回与收藏
+
+    private var topButtons: some View {
+        HStack {
+            Button {
+                self.dismiss()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .frame(width: 40, height: 40)
+                    .background(CatalogPalette.cardBackground, in: Circle())
+                    .frame(width: 44, height: 44)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(NSLocalizedString("Back", comment: ""))
+
+            Spacer(minLength: 0)
+
+            if self.viewModel.canToggleFavorite {
+                Button {
+                    Task {
+                        await self.viewModel.toggleFavorite()
+                    }
+                } label: {
+                    // 中文注释：与库页行尾爱心同一对图；已收藏实心用书籍类型色。
+                    Image(self.viewModel.isFavorite ? "TabFavorites" : "TabFavoritesOutline")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 18, height: 18)
+                        .foregroundColor(self.viewModel.isFavorite ? self.style.accent : Color.primary)
+                        .frame(width: 40, height: 40)
+                        .background(CatalogPalette.cardBackground, in: Circle())
+                        .frame(width: 44, height: 44)
+                        .contentShape(Circle())
                 }
-                Text(self.viewModel.source.name).font(.caption).foregroundStyle(.secondary)
-                if self.viewModel.chapters.isEmpty == false {
-                    Text("\(self.viewModel.chapters.count) chapters").font(.caption).foregroundStyle(.secondary)
-                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(
+                    NSLocalizedString(self.viewModel.isFavorite ? "favorites_unfavorite" : "library_card_favorite", comment: "")
+                )
             }
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+    }
+
+    private var requestedSourceLoginBinding: Binding<LibrarySourceLoginState?> {
+        return Binding<LibrarySourceLoginState?>(
+            get: { self.viewModel.requestedSourceLogin },
+            set: { newValue in
+                if newValue == nil {
+                    self.viewModel.dismissRequestedSourceLogin()
+                }
+            }
+        )
     }
 }

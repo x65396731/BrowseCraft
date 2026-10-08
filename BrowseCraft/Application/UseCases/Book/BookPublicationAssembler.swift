@@ -47,7 +47,11 @@ struct BookPublicationAssembler: Sendable {
             author: detail.metadata?.author,
             language: detail.metadata?.language.flatMap { $0.isEmpty ? nil : $0 },
             coverURL: detail.metadata?.coverURL,
-            items: items
+            items: items,
+            description: detail.metadata?.description.flatMap { text in
+                let trimmed: String = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed.isEmpty ? nil : trimmed
+            }
         )
     }
 

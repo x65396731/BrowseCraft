@@ -9,16 +9,27 @@ struct BookFeatureFactory {
     private let database: AppDatabase
     private let activeAppUser: any ActiveAppUserProviding
     private let runtimeResolver: any SourceRuntimeResolving
+    /// 中文注释：站点书详情页的收藏与登录入口（`docs/design/Book-Detail-Page-Redesign-Design.md` 第八节）。
+    private let favoriteRepository: FavoriteRepository?
+    private let sourceCredentialStore: (any SourceCredentialStoring)?
     private let fileStore: any BookFileStoring
     private let inspector: any BookFileInspecting
     private let opener: any BookPublicationOpening
     /// 中文注释：站点书出版物缓存——详情页与阅读器共用，开书不再把作品页 + 目录页各取两遍（2026-09-15 真机日志）。
     private let publicationCache: BookPublicationCache = BookPublicationCache()
 
-    init(database: AppDatabase, activeAppUser: any ActiveAppUserProviding, runtimeResolver: any SourceRuntimeResolving) {
+    init(
+        database: AppDatabase,
+        activeAppUser: any ActiveAppUserProviding,
+        runtimeResolver: any SourceRuntimeResolving,
+        favoriteRepository: FavoriteRepository? = nil,
+        sourceCredentialStore: (any SourceCredentialStoring)? = nil
+    ) {
         self.database = database
         self.activeAppUser = activeAppUser
         self.runtimeResolver = runtimeResolver
+        self.favoriteRepository = favoriteRepository
+        self.sourceCredentialStore = sourceCredentialStore
         // 中文注释：Application Support 拿不到时退回临时目录，只影响本地书，不影响其它功能。
         self.fileStore = (try? FileSystemBookFileStore.makeDefault())
             ?? FileSystemBookFileStore(rootDirectory: FileManager.default.temporaryDirectory.appendingPathComponent("Books", isDirectory: true))
@@ -66,7 +77,11 @@ struct BookFeatureFactory {
             source: source,
             loadPublicationUseCase: LoadBookPublicationUseCase(runtimeResolver: self.runtimeResolver, cache: self.publicationCache),
             loadProgressUseCase: LoadBookReadingProgressUseCase(progressRepository: GRDBBookReadingProgressRepository(database: self.database)),
-            userID: self.userID
+            userID: self.userID,
+            readingHistoryRepository: GRDBBookReadingHistoryRepository(database: self.database),
+            toggleFavoriteUseCase: self.favoriteRepository.map { ToggleFavoriteUseCase(favoriteRepository: $0) },
+            sourceCredentialStore: self.sourceCredentialStore,
+            presentationUseCase: ResolveLibrarySourcePresentationUseCase()
         )
     }
 

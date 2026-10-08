@@ -759,6 +759,23 @@
 "history_continue_listened" = "Last listened";
 "library_card_continue_listening" = "Continue Listening · %@";
 "library_kind_audiobook" = "Audiobooks";
+"book_detail_continue_reading" = "Continue Reading";
+"book_detail_continue_listening" = "Continue Listening";
+"book_detail_start_from_first" = "Start from Chapter 1";
+"book_detail_start_listening_from_first" = "Listen from Chapter 1";
+"book_detail_start_with" = "Start · %@";
+"book_detail_start_listening_with" = "Listen · %@";
+"book_detail_start_reading" = "Start Reading";
+"book_detail_start_listening" = "Start Listening";
+"book_detail_progress_total" = "Book %@";
+"book_detail_just_started" = "Just started";
+"book_detail_chapter_count" = "%@ chapters";
+"book_detail_audiobook_chapter_count" = "Audiobook · %@ chapters";
+"book_detail_chapter_number" = "Chapter %@";
+"book_detail_read_to_percent" = "Read to %@";
+"book_detail_empty" = "This book has no chapters yet";
+"book_detail_retry" = "Retry";
+"book_detail_login_hint" = "Log in to this source to see its chapters.";
 "library_account_button" = "Account";
 
 /* 影视详情与选集页重设计：继续看、分区标题、排序、空态与失败态、解析失败横幅、简介下的署名、收藏 */

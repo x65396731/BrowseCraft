@@ -1,0 +1,504 @@
+import BrowseCraftDomain
+import SwiftUI
+
+// 中文注释：站点书详情页的各块（`docs/design/Book-Detail-Page-Redesign-Design.md` 第五到七节）：
+// 头部（页面底色上的小封面 + 文字）、继续卡片 / 开始按钮 / 骨架 / 失败横幅、简介；贴顶的章节分区头（章数、正序倒序、分段芯片）；
+// 编号柱行列表的目录（上次读到竖条、之前的行变淡）、骨架、没有章节。每一块都是有数据才出。
+
+/// 头部 + 继续卡片 / 开始按钮 + 简介。
+struct BookSiteDetailHeaderSection: View {
+    let viewModel: BookSiteDetailViewModel
+    let style: CatalogKindStyle
+    let openSelection: (SiteBookChapterSelection) -> Void
+    @Environment(\.colorScheme) private var colorScheme: ColorScheme
+    @State private var isSynopsisExpanded: Bool = false
+
+    private var onAccent: Color {
+        return self.colorScheme == .dark ? CatalogKindStyle.bannerIconInk : .white
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            self.header
+            self.continueBlock
+            self.synopsisSection
+        }
+        .background(CatalogPalette.pageBackground)
+    }
+
+    // MARK: - 头部（第五节）
+
+    private var header: some View {
+        HStack(alignment: .top, spacing: 14) {
+            self.cover(width: 72, height: 96, cornerRadius: 8)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(self.viewModel.displayTitle)
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(3)
+                    .multilineTextAlignment(.leading)
+                    .accessibilityAddTraits(.isHeader)
+
+                if let author: String = self.viewModel.authorText {
+                    Text(author)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Text(self.viewModel.sourceLine)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                if let countText: String = self.viewModel.chapterCountText {
+                    HStack(spacing: 4) {
+                        if self.viewModel.isAudiobook {
+                            Image(systemName: "headphones")
+                                .font(.caption2.weight(.bold))
+                                .accessibilityHidden(true)
+                        }
+                        Text(countText)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(self.viewModel.isAudiobook ? self.style.accent : Color.secondary)
+                } else if self.viewModel.isLoading {
+                    self.skeletonBar(width: 72)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+    }
+
+    /// 封面：manifest 封面 → 列表封面 → 占位图；左缘压 2pt 书脊线，与库页书脊行同一种形状。
+    private func cover(width: CGFloat, height: CGFloat, cornerRadius: CGFloat) -> some View {
+        CoverImageView(
+            urlString: self.viewModel.coverURLString,
+            refererURLString: self.viewModel.item.detailURL,
+            requestConfig: self.viewModel.coverRequestConfig,
+            placeholderImageName: "BookCoverPlaceholder"
+        )
+        .frame(width: width, height: height)
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(Color.black.opacity(0.18))
+                .frame(width: 2)
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if self.viewModel.isAudiobook, width < 60 {
+                Image(systemName: "headphones")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 18, height: 18)
+                    .background(Circle().fill(Color.black.opacity(0.4)))
+                    .padding(3)
+                    .accessibilityHidden(true)
+            }
+        }
+    }
+
+    // MARK: - 继续卡片 / 开始按钮 / 骨架 / 横幅
+
+    @ViewBuilder
+    private var continueBlock: some View {
+        if let message: String = self.viewModel.errorMessage, self.viewModel.didLoad == false {
+            self.failureBanner(message: message)
+        } else if self.viewModel.didLoad == false {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(CatalogPalette.fillBackground)
+                .frame(height: 88)
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .accessibilityHidden(true)
+        } else if self.viewModel.hasContinueCard, let title: String = self.viewModel.continueChapterTitle {
+            self.continueCard(title: title)
+        } else if self.viewModel.chapters.isEmpty == false {
+            self.startButton
+        }
+    }
+
+    /// 有续读位置：卡片——小封面 + 「继续阅读 / 继续收听」+ 章名 + 「全书 12% · 昨天 21:40」（有声「12:34 · 昨天 21:40」）+ 进度条。
+    private func continueCard(title: String) -> some View {
+        Button {
+            self.openSelection(self.viewModel.selection(for: nil))
+        } label: {
+            HStack(spacing: 12) {
+                self.cover(width: 48, height: 64, cornerRadius: 6)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(self.viewModel.continueLabel)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(self.style.accent)
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    if let meta: String = self.viewModel.continueMetaText {
+                        Text(meta)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Image(systemName: self.viewModel.isAudiobook ? "play.fill" : "book.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(self.onAccent)
+                    .frame(width: 36, height: 36)
+                    .background(self.style.accent, in: Circle())
+                    .accessibilityHidden(true)
+            }
+            .padding(.leading, 20)
+            .padding(.trailing, 14)
+            .frame(height: 88)
+            .frame(maxWidth: .infinity)
+            .background(CatalogPalette.cardBackground)
+            .overlay(alignment: .leading) {
+                self.style.accent.frame(width: 4)
+            }
+            .overlay(alignment: .bottom) {
+                if let progress: Double = self.viewModel.continueProgress {
+                    GeometryReader { proxy in
+                        ZStack(alignment: .leading) {
+                            CatalogPalette.fillBackground
+                            self.style.accent.frame(width: proxy.size.width * progress)
+                        }
+                    }
+                    .frame(height: 3)
+                    .accessibilityHidden(true)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+    }
+
+    /// 没有续读位置：通栏胶囊「从第 1 章开始读 / 听」。
+    private var startButton: some View {
+        Button {
+            self.openSelection(self.viewModel.selection(for: self.viewModel.primaryChapter))
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: self.viewModel.isAudiobook ? "headphones" : "book.fill")
+                    .font(.subheadline.weight(.bold))
+                Text(self.viewModel.startButtonTitle)
+            }
+            .font(.callout.weight(.semibold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .foregroundStyle(self.onAccent)
+            .frame(maxWidth: .infinity, minHeight: 50)
+            .background(self.style.accent, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+    }
+
+    /// 取详情失败：警示色淡底横幅 + 「重试」；来源有登录页时多一个「登录」（第七节）。
+    private func failureBanner(message: String) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(CatalogPalette.warning)
+                .accessibilityHidden(true)
+
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if self.viewModel.sourceLoginState != nil {
+                self.bannerButton(NSLocalizedString("comic_detail_restricted_login", comment: ""), filled: false) {
+                    self.viewModel.requestSourceLogin()
+                }
+            }
+            self.bannerButton(NSLocalizedString("book_detail_retry", comment: ""), filled: true) {
+                Task {
+                    await self.viewModel.load()
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(CatalogPalette.warningFill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+    }
+
+    private func bannerButton(_ title: String, filled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(filled ? Color.white : CatalogPalette.warning)
+                .padding(.horizontal, 12)
+                .frame(minHeight: 30)
+                .background(filled ? CatalogPalette.warning : Color.clear, in: Capsule())
+                .overlay(Capsule().strokeBorder(CatalogPalette.warning, lineWidth: filled ? 0 : 1))
+                .frame(minHeight: 44)
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - 简介（有才出）
+
+    @ViewBuilder
+    private var synopsisSection: some View {
+        if let description: String = self.viewModel.descriptionText {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(NSLocalizedString("video_detail_section_synopsis", comment: ""))
+                    .font(.footnote.weight(.bold))
+                    .foregroundStyle(.secondary)
+                Text(description)
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+                    .lineLimit(self.isSynopsisExpanded ? nil : 3)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button(NSLocalizedString(self.isSynopsisExpanded ? "video_detail_collapse" : "video_detail_expand", comment: "")) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        self.isSynopsisExpanded.toggle()
+                    }
+                }
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(self.style.accent)
+                .frame(minHeight: 44, alignment: .leading)
+                .contentShape(Rectangle())
+                .buttonStyle(.plain)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+        }
+    }
+
+    private func skeletonBar(width: CGFloat?) -> some View {
+        RoundedRectangle(cornerRadius: 3, style: .continuous)
+            .fill(CatalogPalette.fillBackground)
+            .frame(width: width, height: 12)
+            .accessibilityHidden(true)
+    }
+}
+
+/// 贴顶的分区头：「章节 · N 章」+ 正序 / 倒序 + 分段芯片（第六节）。
+struct BookSiteDetailChapterHeader: View {
+    let viewModel: BookSiteDetailViewModel
+    let style: CatalogKindStyle
+
+    var body: some View {
+        if self.viewModel.didLoad {
+            VStack(spacing: 0) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(NSLocalizedString("comic_detail_section_chapters", comment: ""))
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text(verbatim: "·")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Text(String(format: NSLocalizedString("book_detail_chapter_count", comment: ""), self.viewModel.chapterCountNumberText))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 8)
+                    if self.viewModel.showsOrderToggle {
+                        Button {
+                            self.viewModel.toggleDisplayOrder()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(NSLocalizedString(
+                                    self.viewModel.isDisplayDescending ? "video_detail_order_descending" : "video_detail_order_ascending",
+                                    comment: ""
+                                ))
+                                Image(systemName: "arrow.up.arrow.down")
+                                    .font(.caption2.weight(.bold))
+                            }
+                            .font(.footnote)
+                            .foregroundStyle(.primary)
+                            .padding(.horizontal, 10)
+                            .frame(height: 28)
+                            .background(CatalogPalette.fillBackground, in: Capsule())
+                            .frame(minHeight: 44)
+                            .contentShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .frame(minHeight: 44)
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+
+                let segments: [ComicChapterSegment] = self.viewModel.segments
+                if segments.isEmpty == false {
+                    LibraryChipBar(
+                        chips: segments.map { segment in
+                            LibraryChipBar<String>.Chip(
+                                id: segment.id,
+                                title: segment.title,
+                                isSelected: segment.id == self.viewModel.effectiveSelectedSegmentID
+                            )
+                        },
+                        style: self.style,
+                        selectAction: { segmentID in
+                            self.viewModel.selectSegment(segmentID)
+                        }
+                    )
+                    .padding(.top, -8)
+                }
+            }
+            .background(CatalogPalette.pageBackground)
+        }
+    }
+}
+
+/// 目录主体：骨架 / 没有章节 / 行列表。
+struct BookSiteDetailChapterSection: View {
+    let viewModel: BookSiteDetailViewModel
+    let style: CatalogKindStyle
+    let selectChapter: (BookPublicationItem) -> Void
+
+    var body: some View {
+        if self.viewModel.didLoad == false, self.viewModel.errorMessage == nil {
+            self.skeletonRows
+        } else if self.viewModel.didLoad, self.viewModel.chapters.isEmpty {
+            Text(NSLocalizedString("book_detail_empty", comment: ""))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, minHeight: 84)
+                .background(CatalogPalette.cardBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+        } else if self.viewModel.didLoad {
+            self.rows
+        }
+    }
+
+    // MARK: - 行列表
+
+    private var rows: some View {
+        // 中文注释：网文上千章，行必须懒创建，避免详情回来后主线程一次性构建全部按钮。
+        LazyVStack(spacing: 0) {
+            ForEach(Array(self.viewModel.displayEntries.enumerated()), id: \.element.id) { index, entry in
+                self.row(entry, showsDivider: index > 0)
+                    .id(entry.id)
+                    .onAppear {
+                        self.viewModel.chapterDidAppear(entry)
+                    }
+            }
+        }
+        .background(CatalogPalette.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(.horizontal, 20)
+        .padding(.top, 12)
+    }
+
+    /// 行：编号柱 48（解不出不占位）+ 章名两行 + 上次读到的行尾小字；上次读到左缘 3pt 竖条 + 类型色章名；之前的行变淡。
+    private func row(_ entry: BookChapterEntry, showsDivider: Bool) -> some View {
+        let isCurrent: Bool = self.viewModel.isCurrent(entry)
+        let isRead: Bool = isCurrent == false && self.viewModel.isRead(entry)
+        let titleColor: Color = isCurrent ? self.style.accent : (isRead ? Color.secondary : Color.primary)
+        return Button {
+            self.selectChapter(entry.item)
+        } label: {
+            VStack(spacing: 0) {
+                if showsDivider {
+                    Divider()
+                        .padding(.leading, 16)
+                }
+                HStack(alignment: .center, spacing: 0) {
+                    if let numberLabel: String = entry.numberLabel {
+                        Text(numberLabel)
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                            .frame(width: 48, alignment: .leading)
+                    }
+
+                    Text(entry.rowTitle)
+                        .font(.body.weight(isCurrent ? .semibold : .regular))
+                        .foregroundStyle(titleColor)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    if isCurrent, let trailingText: String = self.viewModel.currentChapterTrailingText {
+                        Text(trailingText)
+                            .font(.caption)
+                            .foregroundStyle(self.style.accent)
+                            .lineLimit(1)
+                            .padding(.leading, 8)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .frame(minHeight: 48)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .overlay(alignment: .leading) {
+                if isCurrent {
+                    RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                        .fill(self.style.accent)
+                        .frame(width: 3)
+                        .padding(.vertical, 8)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(BookSiteDetailRowButtonStyle())
+        .accessibilityLabel(self.accessibilityLabel(entry: entry, isRead: isRead, isCurrent: isCurrent))
+        .accessibilityAddTraits(isCurrent ? .isSelected : [])
+    }
+
+    private func accessibilityLabel(entry: BookChapterEntry, isRead: Bool, isCurrent: Bool) -> String {
+        var parts: [String] = [entry.item.title]
+        if isCurrent {
+            parts.append(self.viewModel.continueLabel)
+        } else if isRead {
+            parts.append(NSLocalizedString("comic_detail_read", comment: ""))
+        }
+        return parts.joined(separator: ", ")
+    }
+
+    // MARK: - 骨架
+
+    private var skeletonRows: some View {
+        VStack(spacing: 0) {
+            ForEach(0..<8, id: \.self) { index in
+                HStack(spacing: 12) {
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .fill(CatalogPalette.fillBackground)
+                        .frame(width: 28, height: 12)
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .fill(CatalogPalette.fillBackground)
+                        .frame(width: [0.7, 0.52, 0.64, 0.46, 0.58, 0.72, 0.5, 0.6][index] * 240, height: 12)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 16)
+                .frame(height: 48)
+            }
+        }
+        .background(CatalogPalette.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(.horizontal, 20)
+        .padding(.top, 12)
+        .opacity(0.8)
+        .accessibilityHidden(true)
+    }
+}
+
+/// 按下整行底色变 `fillBackground`。
+private struct BookSiteDetailRowButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(configuration.isPressed ? CatalogPalette.fillBackground : Color.clear)
+    }
+}

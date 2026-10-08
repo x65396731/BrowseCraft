@@ -42,7 +42,9 @@ final class FeatureComposition {
         self.bookFeatureFactory = BookFeatureFactory(
             database: database,
             activeAppUser: account.activeAppUserStore,
-            runtimeResolver: runtime.sourceRuntimeResolver
+            runtimeResolver: runtime.sourceRuntimeResolver,
+            favoriteRepository: account.favoriteRepository,
+            sourceCredentialStore: runtime.sourceCredentialStore
         )
 
         self.sourcesFeatureFactory = SourcesFeatureFactory(

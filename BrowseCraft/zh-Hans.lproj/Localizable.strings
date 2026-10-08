@@ -759,6 +759,23 @@
 "history_continue_listened" = "上次听到";
 "library_card_continue_listening" = "继续听 · %@";
 "library_kind_audiobook" = "有声书";
+"book_detail_continue_reading" = "继续阅读";
+"book_detail_continue_listening" = "继续收听";
+"book_detail_start_from_first" = "从第 1 章开始读";
+"book_detail_start_listening_from_first" = "从第 1 章开始听";
+"book_detail_start_with" = "开始读 · %@";
+"book_detail_start_listening_with" = "开始听 · %@";
+"book_detail_start_reading" = "开始阅读";
+"book_detail_start_listening" = "开始收听";
+"book_detail_progress_total" = "全书 %@";
+"book_detail_just_started" = "刚开始";
+"book_detail_chapter_count" = "%@ 章";
+"book_detail_audiobook_chapter_count" = "有声书 · %@ 章";
+"book_detail_chapter_number" = "第 %@ 章";
+"book_detail_read_to_percent" = "读到 %@";
+"book_detail_empty" = "这本书还没有章节";
+"book_detail_retry" = "重试";
+"book_detail_login_hint" = "这个来源需要登录后才能看章节。";
 "library_account_button" = "账号";
 
 /* 影视详情与选集页重设计：继续看、分区标题、排序、空态与失败态、解析失败横幅、简介下的署名、收藏 */

@@ -96,6 +96,10 @@ enum ComicChapterTitleParser {
         return titles.map { Self.parse($0, pattern: pattern) }
     }
 
+    /// 中文注释：「第八百六十二章 普罗万修」这类中文数字编号（笔趣阁、SF 桌面版整本都是）：`第` + 中文数字 + 单位；
+    /// 书籍详情页那轮加的，漫画一起受益（`docs/design/Book-Detail-Page-Redesign-Design.md` 第八节）。
+    private static let chinesePatternSource: String = #"^\s*第\s*([零〇一二三四五六七八九十百千万萬两兩]+)\s*(?:章|话|話|回|集|卷|节|節|页|頁)?"#
+
     private static func parse(_ title: String, pattern: NSRegularExpression?) -> ParsedTitle {
         let trimmed: String = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let range: NSRange = NSRange(trimmed.startIndex..<trimmed.endIndex, in: trimmed)
@@ -103,7 +107,7 @@ enum ComicChapterTitleParser {
               let match: NSTextCheckingResult = pattern.firstMatch(in: trimmed, options: [], range: range),
               let numberRange: Range<String.Index> = Range(match.range(at: 1), in: trimmed),
               let number: Int = Int(trimmed[numberRange]) else {
-            return ParsedTitle(numberLabel: nil, name: trimmed)
+            return Self.parseChineseNumeral(trimmed)
         }
         var label: String = String(number)
         if let partRange: Range<String.Index> = Range(match.range(at: 2), in: trimmed), let part: Int = Int(trimmed[partRange]) {
@@ -117,6 +121,55 @@ enum ComicChapterTitleParser {
         let remainder: String = String(trimmed[matchedRange.upperBound...])
             .trimmingCharacters(in: Self.leadingSeparators)
         return ParsedTitle(numberLabel: label, name: remainder)
+    }
+
+    private static func parseChineseNumeral(_ trimmed: String) -> ParsedTitle {
+        let range: NSRange = NSRange(trimmed.startIndex..<trimmed.endIndex, in: trimmed)
+        guard let pattern: NSRegularExpression = try? NSRegularExpression(pattern: Self.chinesePatternSource, options: []),
+              let match: NSTextCheckingResult = pattern.firstMatch(in: trimmed, options: [], range: range),
+              let numberRange: Range<String.Index> = Range(match.range(at: 1), in: trimmed),
+              let number: Int = Self.chineseNumber(String(trimmed[numberRange])),
+              let matchedRange: Range<String.Index> = Range(match.range, in: trimmed) else {
+            return ParsedTitle(numberLabel: nil, name: trimmed)
+        }
+        let remainder: String = String(trimmed[matchedRange.upperBound...])
+            .trimmingCharacters(in: Self.leadingSeparators)
+        return ParsedTitle(numberLabel: String(number), name: remainder)
+    }
+
+    /// 中文数字转整数：「八百六十二」→ 862、「十二」→ 12、「一千零一」→ 1001；「二零一」这种逐位写法也认。
+    static func chineseNumber(_ text: String) -> Int? {
+        let digits: [Character: Int] = ["零": 0, "〇": 0, "一": 1, "二": 2, "两": 2, "兩": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9]
+        let units: [Character: Int] = ["十": 10, "百": 100, "千": 1000, "万": 10000, "萬": 10000]
+        guard text.isEmpty == false else {
+            return nil
+        }
+        if text.allSatisfy({ digits[$0] != nil }) && text.count > 1 && text.contains(where: { $0 == "零" || $0 == "〇" }) {
+            // 逐位写法：「二零一」
+            return text.reduce(0) { $0 * 10 + digits[$1]! }
+        }
+        var total: Int = 0
+        var section: Int = 0
+        var current: Int = 0
+        for character in text {
+            if let digit: Int = digits[character] {
+                current = digit
+            } else if let unit: Int = units[character] {
+                if unit == 10000 {
+                    section += current == 0 && section == 0 ? 0 : current
+                    total += (section == 0 ? 1 : section) * unit
+                    section = 0
+                    current = 0
+                } else {
+                    section += (current == 0 ? 1 : current) * unit
+                    current = 0
+                }
+            } else {
+                return nil
+            }
+        }
+        let value: Int = total + section + current
+        return value > 0 ? value : nil
     }
 
     /// 纯编号目录：所有章节的话名都为空（允许少于 10% 的例外，如「番外」「预告」）。

@@ -816,3 +816,28 @@ App 侧设计文档一处都没引用，App 执行两种形态的合同由自己
   骨架、空状态插画、整站有声、失败态没走到。两处现场观察：这个站列表不给封面（多数是占位图，言情分类有真封面）；`latestText` 抓到的是「416 93164」这种数字串（章数 + 字数？），属于规则取值问题，App 照原文显示，待 fwq 侧看。
   进阅读器前 App 的广告门播了两段测试广告，等「奖励已发放」后用广告自己的关闭按钮关掉，没点广告内容。
 - 实施、合同、插画与两行 STATUS 一起提交为 `a045eab`；两行检查点由实施前的 HEAD 改登记为 `a045eab`。
+
+## 2026-10-09 站点书详情页重设计：立项、裁定、设计稿与合同
+
+- 用户要求接着重设计 book 详情页。先登记页面设计索引，再写设计文档：页面底色头部 + 继续卡片（章节与全书进度）+ 贴顶分区头 + 编号柱行列表目录，文字书与有声书同一版式。
+- 核对：详情链三层只给标题 / 封面 / 作者 / 简介 / 语言，三十四份真实规则 detail 只声明 title（部分 cover），装配器把 Runtime 已给的 description 丢了；章节只有 title + url，order / group 不生成也不接；
+  续读章原先按 Locator `href` 下标对、目录一变就错位，读书历史的 `chapterURL` 是稳定键；站点有声书没有时长、算不出全书进度；`ComicChapterTitleParser` 解不出中文数字（笔趣阁整本失败）；
+  疑似规则 bug 两处（Royal Road「ago」、笔趣阁目录分页与页顶最新章节块）。用户问是否要 fwq 加字段：结论是不用，合同已允许的字段生成器没覆盖 + 两处抓取问题。
+- 十三项待裁定用户裁定全取 A。画布 9 张（主稿、没读过、有声书、深色、加载、失败、登录、没有章节、尺寸与取值）。
+- 合同写入 `docs/design/Book-Detail-Page-Redesign-Design.md`，STATUS 第 2 节新增一行 `approved / not-started / not-run`，检查点为当时的 HEAD；随后在同一会话实施。
+
+## 2026-10-09 站点书详情页重设计：实施
+
+- 「站点书详情页重设计」一行 `实施=not-started` → `implemented`，验证仍 `not-run`（未 build、未走查）。代码按合同第十二节：
+  - `BookPublicationManifest` 加 `description`，装配器从 `metadata.description` 透传；`ComicChapterTitleParser` 加中文数字分支（`chineseNumber` 转换「八百六十二」「一千零一」「二零一」「两万三千」），单测补笔趣阁样例。
+  - `BookFeatureFactory` 接收收藏仓储与凭据存储（`FeatureComposition` 传入），`makeSiteDetailViewModel` 注入读书历史仓储、收藏用例、凭据存储与来源展示用例。
+  - `BookSiteDetailViewModel` 重写：读书历史做续读章的稳定键（退回 Locator `href`）、收藏、整站有声、登录态与登录后重取、目录派生状态（解析 / 显示顺序 / 分段 / 上次读到 / 已读推定）、
+    继续卡片文案（全书 % 或「刚开始」、有声 `t=` 时间点）、行尾章内进度；原有 `lastReadChapterURL` / `hasReadingProgress` / `primaryChapter` / `selection(for:)` 保留，现有单测的构造不受影响。
+  - `BookSiteDetailView` 由系统 `List` 改成 `ScrollView` + 贴顶分区头，固定返回 / 收藏；新建 `BookSiteDetailSections.swift`（头部、继续卡片 / 开始按钮 / 骨架 / 失败横幅、简介、分区头与分段芯片、行列表目录、没有章节）。
+  - 三份 `Localizable.strings` 新增十七个键。架构边界闸门过，工程已重生成。
+- 用户要求后 build（iPhone 18 Pro，iOS 27.0）成功，App 代码 0 条警告。模拟器走查（小說狂人）发现一处并当场修好：点分段芯片滚到段首时 `scrollTo(anchor: .top)` 让段首两行压在贴顶分区头底下（点「101–150」停在 103）；
+  改为按分区头高度 / 滚动区可见高度换算锚点（`onGeometryChange` 量两者），重 build 后点「96–145」段首正好在分区头下；合同第六节补了一句。漫画详情的分段芯片是同一写法，可能有同样问题（漫画线上来源没有 60 章以上的作品，没走到）。
+  走查按 `BCA-DOC-005` 单独一行 `simulator-passed`：头部、收藏、继续卡片、分区头与正序倒序、分段芯片、编号柱目录、上次读到竖条与章内进度、已读变淡、开始按钮、点行进阅读器、回来刷新、继续卡片回到上次位置、深色都与合同一致；
+  有声书、失败 / 登录横幅、没有章节、简介没走到。现场观察：《都重生了誰還正經創業啊》目录头上是 5 条站点占位的「錯誤章」，开始按钮按合同写成「开始读 · 錯誤章」，属于规则抓取（可并入给 fwq 的需求）。
+  点行进阅读器前 App 的广告门播了两段测试广告，等「奖励已发放」后用广告自己的关闭按钮关掉，没点广告内容。
+

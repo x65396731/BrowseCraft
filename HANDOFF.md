@@ -44,10 +44,12 @@ python3 scripts/check-docs.py
 
 **2026-10-09 库页书籍库重设计已实施、build 过、模拟器走查过并已提交。**
 
-- **下一步零：库页书籍库重设计的补充走查**。合同：[`Library-Book-Page-Redesign-Design.md`](docs/design/Library-Book-Page-Redesign-Design.md)；STATUS 第 2 节两行。
-  没走到的：骨架、空状态插画、整站有声（线上没有有声来源，只能用 Loyal Books 夹具）、失败态——与真机验收一起补。
-  模拟器上的来源现在是小說狂人（czbooks.net），有一条《元始法則》第 3 章的历史；めちゃコミック已删，要用再从目录加。
-  小說狂人的 `latestText` 是「416 93164」这种数字串，是规则取值问题，可向 fwq 提「书的 `latestText` 统一为裸章节名」。
+**2026-10-09 站点书详情页重设计已实施、build 过、模拟器走查过（改动未提交）。**
+
+- **下一步零：提交站点书详情页重设计，并把 STATUS 两行的检查点改成实施提交**。合同：[`Book-Detail-Page-Redesign-Design.md`](docs/design/Book-Detail-Page-Redesign-Design.md)；
+  STATUS 第 2 节两行（`implemented / not-run` 与 `simulator-passed`），检查点暂填实施前的 HEAD。没走到的：有声书、失败 / 登录横幅、没有章节、简介——与真机验收一起补。
+  - 走查里修了分段芯片落点（锚点按分区头高度换算）；漫画详情的分段芯片是同一写法，可能也被分区头盖住两行，值得顺手改成同一做法。
+  - 给 fwq 的需求文本还没写：作者 / 简介、章节 order、Royal Road「ago」、笔趣阁目录分页、书的 `latestText` 裸章节名，外加小說狂人目录头上的「錯誤章」占位。
 
 - **下一步一：删除来源连带删除的真机验收**。合同：[`Source-Deletion-Cascade-Design.md`](docs/design/Source-Deletion-Cascade-Design.md)
   （第六节实现位置、第七节测试与验收）与数据库说明「Source 删除规则」（`BCA-DB-004`、`BCA-DB-005`）；STATUS 在第 4 节两行（`full-suite-passed` 与 `simulator-passed`），
