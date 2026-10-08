@@ -156,8 +156,6 @@
 "3 Months Premium" = "3 個月進階版";
 "30 Site Slots" = "30 個網站名額";
 "5 Site Slots" = "5 個網站名額";
-"About" = "關於";
-"Access Required" = "需要存取權限";
 "Activate Source" = "啟用來源";
 "Add" = "加入";
 "Add a source before refreshing content." = "請先加入來源，再重新整理內容。";
@@ -202,15 +200,11 @@
 "Hide rewarded ad prompts permanently" = "永久隱藏獎勵廣告提示";
 "History" = "紀錄";
 "iCloud Restore Failed" = "iCloud 還原失敗";
-"ID" = "ID";
-"Info" = "資訊";
-"Information" = "資訊";
 "Items you favorite will appear here." = "你收藏的內容會顯示在這裡。";
 "Keyword" = "關鍵字";
 "Language" = "語言";
 "Library" = "書庫";
 "List Rule Ref" = "列表規則參照";
-"Loading Details" = "正在載入詳細資訊";
 "Loading Source" = "正在載入來源";
 "Log In" = "登入";
 "Log Out" = "登出";
@@ -238,9 +232,7 @@
 "Open Resource" = "開啟資源";
 "Open the original page to continue." = "開啟原始頁面以繼續。";
 "Read chapters, books and watched videos will appear here." = "讀過的漫畫、書和看過的影片會顯示在這裡。";
-"Paid" = "已付費";
 "Permanent upgrades for your BrowseCraft loadout" = "為你的 AnyPortal 配備做永久升級";
-"Photo Album" = "圖集";
 "Playback Restricted" = "播放受限";
 "Playback Unavailable" = "無法播放";
 "Premium" = "進階版";
@@ -253,7 +245,6 @@
 "Really buying it?" = "啊？兄弟你真的要買喔";
 "Refresh Selected Source" = "重新整理選取的來源";
 "Refresh Selected Tab" = "重新整理目前的分頁";
-"Related Page" = "相關頁面";
 "Reload" = "重新載入";
 "Remove Ads" = "移除廣告";
 "Replace an active source" = "替換一個已啟用的來源";
@@ -293,9 +284,7 @@
 "This episode did not expose a direct mp4 or m3u8 URL." = "這一集沒有提供 mp4 或 m3u8 的直連網址。";
 "This rule has no V2 pages. Use JSON editing to add page definitions." = "這條規則沒有 V2 頁面。請用 JSON 編輯加入頁面定義。";
 "This site requires its own app or web player for playback." = "這個網站需要用它自己的 App 或網頁播放器才能播放。";
-"This source did not return any chapter entries." = "這個來源沒有回傳任何章節。";
 "Title" = "標題";
-"Try Again" = "再試一次";
 "Try premium features first" = "先試用進階功能";
 "Unavailable" = "無法使用";
 "Unset" = "未設定";
@@ -789,3 +778,24 @@
 "video_detail_favorite" = "收藏";
 "video_detail_continue_single" = "繼續看";
 "video_detail_rewatch_single" = "再看一遍";
+
+/* 漫畫詳情與章節頁重設計：繼續閱讀、章節分區頭、排序、空態與失敗態、受限橫幅、屬性小字 */
+"comic_detail_continue" = "繼續閱讀";
+"comic_detail_page_of_total" = "%ld / %ld 頁";
+"comic_detail_start_from_first" = "從第 1 話開始讀";
+"comic_detail_start_with" = "開始讀 · %@";
+"comic_detail_start_reading" = "開始閱讀";
+"comic_detail_section_chapters" = "章節";
+"comic_detail_chapter_count" = "%ld 章";
+"comic_detail_read_count" = "已讀 %ld";
+"comic_detail_read" = "已讀";
+"comic_detail_empty_title" = "沒有章節";
+"comic_detail_empty_message" = "這個來源沒有給出任何章節。";
+"comic_detail_restricted_login" = "登入";
+"comic_detail_banner_dismiss" = "關閉";
+"comic_detail_attr_published" = "發佈";
+"comic_detail_attr_license" = "許可";
+"comic_detail_attr_id" = "編號";
+"comic_detail_attr_images" = "共 %ld 張";
+"comic_detail_link_photo_album" = "相簿";
+"comic_detail_link_related_page" = "相關頁面";

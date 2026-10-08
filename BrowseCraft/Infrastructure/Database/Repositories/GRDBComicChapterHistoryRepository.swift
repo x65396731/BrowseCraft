@@ -49,6 +49,26 @@ final class GRDBComicChapterHistoryRepository: ComicChapterHistoryRepository {
         }
     }
 
+    /// 中文注释：本作品读过的每一章，最近的在前；详情页据此标已读与「上次读到」（设计第六、七节）。走现有唯一键的前三列。
+    func fetchHistory(
+        userID: String,
+        sourceID: String,
+        comicItemID: String
+    ) throws -> [ComicChapterHistory] {
+        return try self.database.queue.read { database in
+            let records: [ComicChapterHistoryRecord] = try ComicChapterHistoryRecord
+                .filter(ComicChapterHistoryRecord.Columns.userID == userID)
+                .filter(ComicChapterHistoryRecord.Columns.sourceID == sourceID)
+                .filter(ComicChapterHistoryRecord.Columns.comicItemID == comicItemID)
+                .order(ComicChapterHistoryRecord.Columns.visitedAt.desc)
+                .fetchAll(database)
+
+            return records.map { record in
+                return record.domainModel()
+            }
+        }
+    }
+
     func delete(_ history: ComicChapterHistory) throws {
         try self.delete([history])
     }
@@ -82,8 +102,8 @@ final class GRDBComicChapterHistoryRepository: ComicChapterHistoryRepository {
         try database.execute(
             sql: """
             INSERT INTO \(ComicChapterHistoryRecord.databaseTableName)
-                (userID, sourceID, comicItemID, comicTitle, chapterID, chapterKey, chapterURL, chapterTitle, visitedAt, coverURL, lastReaderPageURL, lastPageImageURL, lastPageImageCacheKey, lastPageIndex, previousChapterURL, nextChapterURL, previousChapterTitle, nextChapterTitle, sourceSnapshotJSON)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (userID, sourceID, comicItemID, comicTitle, chapterID, chapterKey, chapterURL, chapterTitle, visitedAt, coverURL, lastReaderPageURL, lastPageImageURL, lastPageImageCacheKey, lastPageIndex, pageCount, previousChapterURL, nextChapterURL, previousChapterTitle, nextChapterTitle, sourceSnapshotJSON)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(userID, sourceID, comicItemID, chapterKey) DO UPDATE SET
                 comicTitle = excluded.comicTitle,
                 chapterID = excluded.chapterID,
@@ -95,6 +115,7 @@ final class GRDBComicChapterHistoryRepository: ComicChapterHistoryRepository {
                 lastPageImageURL = excluded.lastPageImageURL,
                 lastPageImageCacheKey = excluded.lastPageImageCacheKey,
                 lastPageIndex = excluded.lastPageIndex,
+                pageCount = excluded.pageCount,
                 previousChapterURL = excluded.previousChapterURL,
                 nextChapterURL = excluded.nextChapterURL,
                 previousChapterTitle = excluded.previousChapterTitle,
@@ -116,6 +137,7 @@ final class GRDBComicChapterHistoryRepository: ComicChapterHistoryRepository {
                 record.lastPageImageURL,
                 record.lastPageImageCacheKey,
                 record.lastPageIndex,
+                record.pageCount,
                 record.previousChapterURL,
                 record.nextChapterURL,
                 record.previousChapterTitle,

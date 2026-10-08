@@ -11,12 +11,28 @@ protocol ComicChapterHistoryRepository: Sendable {
         sourceID: String,
         comicItemID: String
     ) throws -> ComicChapterHistory?
+    /// 中文注释：本作品读过的全部章节，最近的在前；默认实现从全量历史里筛，GRDB 实现按唯一键前三列查。
+    func fetchHistory(
+        userID: String,
+        sourceID: String,
+        comicItemID: String
+    ) throws -> [ComicChapterHistory]
     func delete(_ history: ComicChapterHistory) throws
     /// 中文注释：批量删除；实现应在一个事务内完成，默认实现逐条调用 delete。
     func delete(_ histories: [ComicChapterHistory]) throws
 }
 
 extension ComicChapterHistoryRepository {
+    func fetchHistory(
+        userID: String,
+        sourceID: String,
+        comicItemID: String
+    ) throws -> [ComicChapterHistory] {
+        return try self.fetchHistory(userID: userID).filter { history in
+            return history.sourceID == sourceID && history.comicItemID == comicItemID
+        }
+    }
+
     func delete(_ histories: [ComicChapterHistory]) throws {
         for history: ComicChapterHistory in histories {
             try self.delete(history)

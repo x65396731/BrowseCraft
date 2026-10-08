@@ -31,6 +31,9 @@ struct ComicChapterHistory: Identifiable, Hashable, Sendable {
     var lastPageImageURL: URL?
     var lastPageImageCacheKey: String?
     var lastPageIndex: Int?
+    /// 中文注释：这一章一共几页，阅读器解析出页面列表时写入；只在本机用（详情页「13 / 45 页」），不进云同步
+    /// （`docs/design/Comic-Detail-Page-Redesign-Design.md` 第九节）。nil 表示旧记录或阅读器没解析出页面。
+    var pageCount: Int? = nil
     /// 中文注释：上一话/下一话 URL 是上次阅读时已知的导航状态，重新解析章节后应以最新结果为准。
     var previousChapterURL: URL?
     var nextChapterURL: URL?

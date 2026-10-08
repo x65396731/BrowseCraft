@@ -22,6 +22,7 @@ struct ComicChapterHistoryRecord: Codable, FetchableRecord, MutablePersistableRe
     var lastPageImageURL: String?
     var lastPageImageCacheKey: String?
     var lastPageIndex: Int?
+    var pageCount: Int?
     var previousChapterURL: String?
     var nextChapterURL: String?
     var previousChapterTitle: String?
@@ -43,6 +44,7 @@ struct ComicChapterHistoryRecord: Codable, FetchableRecord, MutablePersistableRe
         self.lastPageImageURL = history.lastPageImageURL?.absoluteString
         self.lastPageImageCacheKey = history.lastPageImageCacheKey
         self.lastPageIndex = history.lastPageIndex
+        self.pageCount = history.pageCount
         self.previousChapterURL = history.previousChapterURL?.absoluteString
         self.nextChapterURL = history.nextChapterURL?.absoluteString
         self.previousChapterTitle = history.previousChapterTitle
@@ -66,6 +68,7 @@ struct ComicChapterHistoryRecord: Codable, FetchableRecord, MutablePersistableRe
             lastPageImageURL: self.lastPageImageURL.flatMap(URL.init(string:)),
             lastPageImageCacheKey: self.lastPageImageCacheKey,
             lastPageIndex: self.lastPageIndex,
+            pageCount: self.pageCount,
             previousChapterURL: self.previousChapterURL.flatMap(URL.init(string:)),
             nextChapterURL: self.nextChapterURL.flatMap(URL.init(string:)),
             previousChapterTitle: self.previousChapterTitle,

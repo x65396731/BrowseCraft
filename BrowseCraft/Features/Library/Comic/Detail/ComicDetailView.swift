@@ -1,7 +1,10 @@
 import BrowseCraftDomain
 import SwiftUI
 
-/// 中文注释：漫画详情页展示作品信息和章节目录；只有章节选择后才创建 Reader。
+// 中文注释：漫画详情与章节页（`docs/design/Comic-Detail-Page-Redesign-Design.md`）：
+// 漫画类型色淡底头部（封面 + 标题 / 作者 / 徽章 / 更新行 / 来源行）→ 标签条 → 继续阅读（卡片或按钮）→ 简介
+// → 贴顶的章节分区头（计数、已读、正序 / 倒序、分段芯片）→ 三列网格或行列表。每一块都是有数据才出。
+// 只有章节选择后才创建 Reader。
 struct ComicDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: ComicDetailViewModel
@@ -20,99 +23,68 @@ struct ComicDetailView: View {
         self.contentViewModelFactory = factory
     }
 
+    private var style: CatalogKindStyle {
+        return CatalogKindStyle.of(CatalogSourceKind.comic)
+    }
+
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                ComicDetailHeroSection(
-                    title: self.viewModel.displayTitle,
-                    author: self.viewModel.authorText,
-                    status: self.viewModel.statusText,
-                    category: self.viewModel.categoryText,
-                    sourceName: self.viewModel.source.name,
-                    coverURLString: self.viewModel.coverURLString,
-                    detailURLString: self.viewModel.item.detailURL,
-                    requestConfig: self.viewModel.detailCoverRequestConfig
-                )
-
-                ComicDetailActionSection(
-                    chapterCount: self.viewModel.chapters.count,
-                    latestText: self.viewModel.item.latestText,
-                    readingTitle: self.primaryReadingButtonTitle,
-                    isEnabled: self.viewModel.primaryReadingTarget != nil,
-                    startReading: self.startReading
-                )
-
-                if self.viewModel.tags.isEmpty == false {
-                    ComicDetailTagsSection(tags: self.viewModel.tags)
-                }
-
-                if let description: String = self.viewModel.descriptionText {
-                    ComicDetailDescriptionSection(description: description)
-                }
-
-                if self.viewModel.metadataRows.isEmpty == false || self.viewModel.relatedLinks.isEmpty == false {
-                    ComicDetailInformationSection(
-                        rows: self.viewModel.metadataRows,
-                        links: self.viewModel.relatedLinks
+        ScrollViewReader { scrollProxy in
+            ScrollView {
+                // 中文注释：头部与继续阅读随内容滚走；章节分区头是 pinned 分区头，滚到顶时留在顶部（第四节）。
+                LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                    ComicDetailHeaderSection(
+                        viewModel: self.viewModel,
+                        style: self.style,
+                        openReaderDestination: self.openReaderDestination
                     )
-                }
+                    .zIndex(2)
 
-                ComicDetailChapterSection(
-                    chapters: self.viewModel.chapters,
-                    isLoading: self.viewModel.isLoading,
-                    didLoad: self.viewModel.didLoad,
-                    errorMessage: self.viewModel.errorMessage,
-                    selectChapter: self.openReaderDestination,
-                    retry: self.retry
-                )
+                    Section {
+                        ComicDetailChapterSection(
+                            viewModel: self.viewModel,
+                            style: self.style,
+                            selectChapter: self.openChapter
+                        )
+                    } header: {
+                        ComicDetailChapterHeader(viewModel: self.viewModel, style: self.style)
+                            // 中文注释：贴顶时分区头停在安全区顶边，状态栏与芯片之间那一截会露出滚过的内容；
+                            // 底色向上多铺一段盖住，静止时藏在头部后面（头部 zIndex 更高）。
+                            .background(alignment: .top) {
+                                CatalogPalette.pageBackground
+                                    .frame(height: 160)
+                                    .offset(y: -160)
+                            }
+                            .zIndex(1)
+                    }
+                }
+                .padding(.bottom, 32)
+            }
+            .scrollBounceBehavior(.always)
+            .onChange(of: self.viewModel.pendingScrollChapterURL) { _, chapterURL in
+                guard let chapterURL: String = chapterURL else {
+                    return
+                }
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    scrollProxy.scrollTo(chapterURL, anchor: .top)
+                }
+                self.viewModel.didFinishProgrammaticScroll()
             }
         }
-        .background(Color(.systemGroupedBackground))
-        .ignoresSafeArea(edges: .top)
+        .background(CatalogPalette.pageBackground)
+        // 中文注释：返回与收藏固定在安全区顶、不随内容滚走（第五节）；做成安全区 inset 而不是 overlay，
+        // 贴顶的章节分区头才会停在按钮下面而不是被按钮盖住（2026-10-08 模拟器实测）。
+        .safeAreaInset(edge: .top, spacing: 0) {
+            self.topButtons
+        }
         .navigationTitle(self.viewModel.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
-        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button(action: self.dismissDetail) {
-                    Image(systemName: "chevron.left")
-                        .font(.headline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .frame(width: 36, height: 36)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Back")
-            }
-        }
         .navigationDestination(isPresented: self.readerDestinationPresentedBinding) {
             if let destination: ComicReaderDestination = self.selectedReaderDestination {
                 self.readerDestination(for: destination)
             }
-        }
-        .alert(isPresented: self.accessAlertBinding) {
-            Alert(
-                title: Text("Access Required"),
-                message: Text(self.viewModel.accessMessage ?? ""),
-                dismissButton: .default(Text("OK")) {
-                    self.viewModel.accessMessage = nil
-                }
-            )
-        }
-        .alert(item: self.sourceLoginPromptBinding) { prompt in
-            Alert(
-                title: Text("Access Required"),
-                message: Text(self.loginPromptMessage(isPaid: prompt.isPaid)),
-                primaryButton: .default(Text("Log In")) {
-                    self.viewModel.requestSourceLogin(state: prompt.state)
-                },
-                secondaryButton: .cancel(Text("Not Now")) {
-                    self.viewModel.dismissSourceLoginPrompt()
-                }
-            )
         }
         .fullScreenCover(item: self.requestedSourceLoginBinding) { loginState in
             SourceLoginView(
@@ -123,13 +95,15 @@ struct ComicDetailView: View {
                 completeAction: { credential in
                     Task {
                         if let chapter = await self.viewModel.completeRequestedSourceLogin(credential: credential) {
-                            self.openReaderDestination(chapter)
+                            self.openChapter(chapter)
                         }
                     }
                 }
             )
         }
         .task {
+            // 中文注释：收藏与历史是本地读取，先于网络详情到位。
+            await self.viewModel.reloadFavoriteState()
             await self.viewModel.loadIfNeeded()
         }
         .refreshable {
@@ -137,6 +111,54 @@ struct ComicDetailView: View {
         }
         .onAppear(perform: self.recordAppearance)
     }
+
+    // MARK: - 固定的返回与收藏
+
+    private var topButtons: some View {
+        HStack {
+            Button {
+                self.dismiss()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .frame(width: 40, height: 40)
+                    .background(CatalogPalette.cardBackground, in: Circle())
+                    .frame(width: 44, height: 44)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(NSLocalizedString("Back", comment: ""))
+
+            Spacer(minLength: 0)
+
+            Button {
+                Task {
+                    await self.viewModel.toggleFavorite()
+                }
+            } label: {
+                // 中文注释：与库页封面爱心同一对图；已收藏实心用漫画类型色。
+                Image(self.viewModel.isFavorite ? "TabFavorites" : "TabFavoritesOutline")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 20, height: 20)
+                    .foregroundColor(self.viewModel.isFavorite ? self.style.accent : Color.primary)
+                    .frame(width: 40, height: 40)
+                    .background(CatalogPalette.cardBackground, in: Circle())
+                    .frame(width: 44, height: 44)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(
+                NSLocalizedString(self.viewModel.isFavorite ? "favorites_unfavorite" : "video_detail_favorite", comment: "")
+            )
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 6)
+        .padding(.bottom, 2)
+    }
+
+    // MARK: - 绑定
 
     private var readerDestinationPresentedBinding: Binding<Bool> {
         return Binding<Bool>(
@@ -146,28 +168,8 @@ struct ComicDetailView: View {
             set: { newValue in
                 if newValue == false {
                     self.selectedReaderDestination = nil
-                }
-            }
-        )
-    }
-
-    private var accessAlertBinding: Binding<Bool> {
-        return Binding<Bool>(
-            get: { self.viewModel.accessMessage != nil },
-            set: { isPresented in
-                if isPresented == false {
-                    self.viewModel.accessMessage = nil
-                }
-            }
-        )
-    }
-
-    private var sourceLoginPromptBinding: Binding<ComicDetailSourceLoginPrompt?> {
-        return Binding<ComicDetailSourceLoginPrompt?>(
-            get: { self.viewModel.sourceLoginPrompt },
-            set: { prompt in
-                if prompt == nil {
-                    self.viewModel.hideSourceLoginPrompt()
+                    // 中文注释：阅读器返回后重读历史，继续卡片与已读 / 上次读到标记跟着换（第六节）。
+                    self.reloadHistoriesAfterReader()
                 }
             }
         )
@@ -184,35 +186,18 @@ struct ComicDetailView: View {
         )
     }
 
-    private var primaryReadingButtonTitle: String {
-        guard let target: ComicReaderDestination = self.viewModel.primaryReadingTarget else {
-            return "Read Latest"
-        }
-        switch target {
+    // MARK: - 打开阅读器
+
+    private func openReaderDestination(_ destination: ComicReaderDestination) {
+        switch destination {
         case .chapter(let chapter):
-            return "Read Latest · \(chapter.title)"
-        case .history(let history):
-            return "Continue Reading · \(history.chapterTitle)"
+            self.openChapter(chapter)
+        case .history:
+            self.selectedReaderDestination = destination
         }
     }
 
-    private func startReading() {
-        guard let target: ComicReaderDestination = self.viewModel.primaryReadingTarget else {
-            return
-        }
-        switch target {
-        case .chapter(let chapter):
-            self.openReaderDestination(chapter)
-        case .history(let history):
-            self.selectedReaderDestination = .history(history)
-        }
-    }
-
-    private func dismissDetail() {
-        self.dismiss()
-    }
-
-    private func openReaderDestination(_ chapter: ChapterLink) {
+    private func openChapter(_ chapter: ChapterLink) {
         guard self.viewModel.prepareToOpen(chapter) else {
             return
         }
@@ -228,13 +213,6 @@ struct ComicDetailView: View {
             "itemId=\(self.viewModel.item.id) chapterTitle=\(chapter.title) chapterURL=\(chapter.url)"
         )
         #endif
-    }
-
-    private func loginPromptMessage(isPaid: Bool?) -> String {
-        if isPaid == true {
-            return "This paid chapter is currently restricted. Log in to check whether your account has access. Purchase or VIP membership may still be required."
-        }
-        return "This chapter is currently restricted. Log in to check whether your account has access."
     }
 
     @ViewBuilder
@@ -277,15 +255,19 @@ struct ComicDetailView: View {
         }
     }
 
-    private func retry() {
+    /// 中文注释：阅读器是在消失时异步落历史的，详情页回到屏上那一刻可能还没写完（模拟器实测拿到的是旧进度）；
+    /// 立刻读一次，稍后再读一次兜底。
+    private func reloadHistoriesAfterReader() {
         Task {
-            await self.viewModel.reload()
+            await self.viewModel.reloadChapterHistories()
+            try? await Task.sleep(for: .milliseconds(800))
+            await self.viewModel.reloadChapterHistories()
         }
     }
 
     private func recordAppearance() {
         if self.viewModel.didLoad {
-            self.viewModel.refreshLatestReadingHistory()
+            self.reloadHistoriesAfterReader()
         }
         CrashDiagnostics.shared.setScreen(.sourceDetail)
         AppAnalytics.shared.logScreenView(.sourceDetail)

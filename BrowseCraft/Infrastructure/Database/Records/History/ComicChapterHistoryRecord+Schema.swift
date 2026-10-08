@@ -16,6 +16,7 @@ extension ComicChapterHistoryRecord {
         static let lastPageImageURL: Column = Column("lastPageImageURL")
         static let lastPageImageCacheKey: Column = Column("lastPageImageCacheKey")
         static let lastPageIndex: Column = Column("lastPageIndex")
+        static let pageCount: Column = Column("pageCount")
         static let previousChapterURL: Column = Column("previousChapterURL")
         static let nextChapterURL: Column = Column("nextChapterURL")
         static let previousChapterTitle: Column = Column("previousChapterTitle")

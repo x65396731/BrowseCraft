@@ -12,6 +12,7 @@ struct VideoWatchHistoryTransfer: Sendable {
 actor ReadingActivityPersistenceCoordinator {
     private let saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase
     private let loadLatestComicChapterHistoryUseCase: LoadLatestComicChapterHistoryUseCase
+    private let loadComicChapterHistoriesUseCase: LoadComicChapterHistoriesUseCase
     private let saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase
     private let loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase
     private let accumulateAdPointsUseCase: AccumulateAdPointsUseCase
@@ -25,6 +26,9 @@ actor ReadingActivityPersistenceCoordinator {
     ) {
         self.saveComicChapterHistoryUseCase = SaveComicChapterHistoryUseCase(repository: comicRepository)
         self.loadLatestComicChapterHistoryUseCase = LoadLatestComicChapterHistoryUseCase(
+            repository: comicRepository
+        )
+        self.loadComicChapterHistoriesUseCase = LoadComicChapterHistoriesUseCase(
             repository: comicRepository
         )
         self.saveVideoWatchHistoryUseCase = SaveVideoWatchHistoryUseCase(repository: videoRepository)
@@ -45,6 +49,19 @@ actor ReadingActivityPersistenceCoordinator {
         comicItemID: String
     ) throws -> ComicChapterHistoryTransfer? {
         return try self.loadLatestComicChapterHistoryUseCase.execute(
+            userID: userID,
+            sourceID: sourceID,
+            comicItemID: comicItemID
+        ).map(ComicChapterHistoryTransfer.init(value:))
+    }
+
+    /// 本作品读过的全部章节，最近的在前（漫画详情页的已读标记与继续卡片）。
+    func loadComicHistories(
+        userID: String,
+        sourceID: String,
+        comicItemID: String
+    ) throws -> [ComicChapterHistoryTransfer] {
+        return try self.loadComicChapterHistoriesUseCase.execute(
             userID: userID,
             sourceID: sourceID,
             comicItemID: comicItemID

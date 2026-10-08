@@ -527,12 +527,19 @@ final class ReaderViewModel {
             lastPageImageURL: self.currentPageImageURL ?? chapter.pageImageURLs.first.flatMap(URL.init(string:)),
             lastPageImageCacheKey: nil,
             lastPageIndex: self.currentPageIndex ?? (chapter.pageImageURLs.isEmpty ? nil : 0),
+            // 中文注释：这一章一共几页——pipeline 站走 pageResources，普通站走 pageImageURLs；没解析出页面时不写。
+            pageCount: Self.pageCount(of: chapter),
             previousChapterURL: chapter.previousChapterURL.flatMap(URL.init(string:)),
             nextChapterURL: chapter.nextChapterURL.flatMap(URL.init(string:)),
             previousChapterTitle: self.navigationTitle(for: chapter.previousChapterURL),
             nextChapterTitle: self.navigationTitle(for: chapter.nextChapterURL),
             sourceSnapshot: SourceSnapshot(source: self.source)
         )
+    }
+
+    private static func pageCount(of chapter: ReaderChapter) -> Int? {
+        let count: Int = max(chapter.pageResources.count, chapter.pageImageURLs.count)
+        return count > 0 ? count : nil
     }
 
     private func navigationTitle(for chapterURL: String?) -> String? {

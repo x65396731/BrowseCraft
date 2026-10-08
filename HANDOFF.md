@@ -38,7 +38,7 @@ python3 scripts/check-docs.py
 以下都在 `docs/STATUS.md` 里有行；挑活前按该文件第 0 节的三步核对，不要只看名字就开工。
 
 **`required` 里验证还没走完的有两条：删除来源连带删除历史与收藏（只欠真机）；续看位置同步到 iCloud（单机已过，欠两台设备对测与真机）。
-其余 `required` 是九页重设计，共同欠真机验收。下一会话优先做下一步三的对测，真机验收等用户在真机上走。**
+其余 `required` 是十页重设计，共同欠真机验收。下一会话优先做下一步三的对测，真机验收等用户在真机上走。**
 
 - **下一步一：删除来源连带删除的真机验收**。合同：[`Source-Deletion-Cascade-Design.md`](docs/design/Source-Deletion-Cascade-Design.md)
   （第六节实现位置、第七节测试与验收）与数据库说明「Source 删除规则」（`BCA-DB-004`、`BCA-DB-005`）；STATUS 在第 4 节两行（`full-suite-passed` 与 `simulator-passed`），

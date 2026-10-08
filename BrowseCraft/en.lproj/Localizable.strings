@@ -156,8 +156,6 @@
 "3 Months Premium" = "3 Months Premium";
 "30 Site Slots" = "30 Site Slots";
 "5 Site Slots" = "5 Site Slots";
-"About" = "About";
-"Access Required" = "Access Required";
 "Activate Source" = "Activate Source";
 "Add" = "Add";
 "Add a source before refreshing content." = "Add a source before refreshing content.";
@@ -202,15 +200,11 @@
 "Hide rewarded ad prompts permanently" = "Hide rewarded ad prompts permanently";
 "History" = "History";
 "iCloud Restore Failed" = "iCloud Restore Failed";
-"ID" = "ID";
-"Info" = "Info";
-"Information" = "Information";
 "Items you favorite will appear here." = "Items you favorite will appear here.";
 "Keyword" = "Keyword";
 "Language" = "Language";
 "Library" = "Library";
 "List Rule Ref" = "List Rule Ref";
-"Loading Details" = "Loading Details";
 "Loading Source" = "Loading Source";
 "Log In" = "Log In";
 "Log Out" = "Log Out";
@@ -238,9 +232,7 @@
 "Open Resource" = "Open Resource";
 "Open the original page to continue." = "Open the original page to continue.";
 "Read chapters, books and watched videos will appear here." = "Read chapters, books and watched videos will appear here.";
-"Paid" = "Paid";
 "Permanent upgrades for your BrowseCraft loadout" = "Permanent upgrades for your AnyPortal loadout";
-"Photo Album" = "Photo Album";
 "Playback Restricted" = "Playback Restricted";
 "Playback Unavailable" = "Playback Unavailable";
 "Premium" = "Premium";
@@ -253,7 +245,6 @@
 "Really buying it?" = "Really buying it?";
 "Refresh Selected Source" = "Refresh Selected Source";
 "Refresh Selected Tab" = "Refresh Selected Tab";
-"Related Page" = "Related Page";
 "Reload" = "Reload";
 "Remove Ads" = "Remove Ads";
 "Replace an active source" = "Replace an active source";
@@ -293,9 +284,7 @@
 "This episode did not expose a direct mp4 or m3u8 URL." = "This episode did not expose a direct mp4 or m3u8 URL.";
 "This rule has no V2 pages. Use JSON editing to add page definitions." = "This rule has no V2 pages. Use JSON editing to add page definitions.";
 "This site requires its own app or web player for playback." = "This site requires its own app or web player for playback.";
-"This source did not return any chapter entries." = "This source did not return any chapter entries.";
 "Title" = "Title";
-"Try Again" = "Try Again";
 "Try premium features first" = "Try premium features first";
 "Unavailable" = "Unavailable";
 "Unset" = "Unset";
@@ -789,3 +778,24 @@
 "video_detail_favorite" = "Favorite";
 "video_detail_continue_single" = "Continue";
 "video_detail_rewatch_single" = "Watch again";
+
+/* Comic detail & chapter page redesign: continue card, chapter header, order, empty & failed states, restricted banner, attributes */
+"comic_detail_continue" = "Continue reading";
+"comic_detail_page_of_total" = "Page %ld / %ld";
+"comic_detail_start_from_first" = "Start from chapter 1";
+"comic_detail_start_with" = "Start · %@";
+"comic_detail_start_reading" = "Start reading";
+"comic_detail_section_chapters" = "Chapters";
+"comic_detail_chapter_count" = "%ld chapters";
+"comic_detail_read_count" = "%ld read";
+"comic_detail_read" = "Read";
+"comic_detail_empty_title" = "No chapters";
+"comic_detail_empty_message" = "This source did not provide any chapters.";
+"comic_detail_restricted_login" = "Log in";
+"comic_detail_banner_dismiss" = "Dismiss";
+"comic_detail_attr_published" = "Published";
+"comic_detail_attr_license" = "License";
+"comic_detail_attr_id" = "ID";
+"comic_detail_attr_images" = "%ld images";
+"comic_detail_link_photo_album" = "Photo album";
+"comic_detail_link_related_page" = "Related page";

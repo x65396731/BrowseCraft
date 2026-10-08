@@ -1,237 +1,385 @@
 import BrowseCraftCore
+import BrowseCraftDomain
 import SwiftUI
 
-struct ComicDetailHeroSection: View {
-    let title: String
-    let author: String?
-    let status: String?
-    let category: String?
-    let sourceName: String
-    let coverURLString: String?
-    let detailURLString: String
-    let requestConfig: RequestConfig?
+// 中文注释：漫画详情页目录之外的各块（`docs/design/Comic-Detail-Page-Redesign-Design.md` 第五、六、八节）：
+// 头部、标签条、继续阅读、受限横幅、简介。颜色全部取 `CatalogStyle.swift`，本页不新增色值。
+
+/// 头部 + 标签条 + 继续阅读 + 受限横幅 + 简介；它们都随内容滚走。
+struct ComicDetailHeaderSection: View {
+    let viewModel: ComicDetailViewModel
+    let style: CatalogKindStyle
+    /// 点继续卡片 / 按钮要开的目的地，由外层打开阅读器。
+    let openReaderDestination: (ComicReaderDestination) -> Void
+    @State private var isSynopsisExpanded: Bool = false
+    @Environment(\.colorScheme) private var colorScheme: ColorScheme
+
+    private static let coverSize: CGSize = CGSize(width: 112, height: 150)
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            CoverImageView(
-                urlString: self.coverURLString,
-                refererURLString: self.detailURLString,
-                requestConfig: self.requestConfig,
+        VStack(spacing: 0) {
+            self.header
+            self.tagsRow
+            self.continueSection
+            self.synopsisSection
+        }
+    }
+
+    // MARK: - 头部（第五节）
+
+    /// 类型色底上的字：浅色白、深色墨。
+    private var onAccent: Color {
+        return self.colorScheme == .dark ? CatalogKindStyle.bannerIconInk : .white
+    }
+
+    /// 漫画类型色 8% 淡底（深色 10%），顶到状态栏：底色向上多铺一段盖住安全区。
+    private var tint: Color {
+        return self.style.accent.opacity(self.colorScheme == .dark ? 0.10 : 0.08)
+    }
+
+    private var header: some View {
+        HStack(alignment: .top, spacing: 16) {
+            ItemThumbnailImageView(
+                urlString: self.viewModel.coverURLString,
+                refererURLString: self.viewModel.item.detailURL,
+                requestConfig: self.viewModel.detailCoverRequestConfig,
                 placeholderImageName: "ComicDetailPlaceholder"
             )
-            .frame(maxWidth: .infinity)
-            .frame(height: 330)
-            .blur(radius: 18)
-            .scaleEffect(1.12)
-            .overlay(Color.black.opacity(0.34))
+            .frame(width: Self.coverSize.width, height: Self.coverSize.height)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .shadow(color: .black.opacity(0.18), radius: 9, y: 6)
 
-            LinearGradient(
-                colors: [.clear, Color(.systemGroupedBackground).opacity(0.34), Color(.systemGroupedBackground)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+            VStack(alignment: .leading, spacing: 6) {
+                Text(self.viewModel.displayTitle)
+                    .font(.title2.weight(.heavy))
+                    .foregroundStyle(.primary)
+                    .lineLimit(3)
+                    .multilineTextAlignment(.leading)
+                    .accessibilityAddTraits(.isHeader)
 
-            HStack(alignment: .bottom, spacing: 18) {
-                CoverImageView(
-                    urlString: self.coverURLString,
-                    refererURLString: self.detailURLString,
-                    requestConfig: self.requestConfig,
-                    placeholderImageName: "ComicDetailPlaceholder"
-                )
-                .frame(width: 118, height: 168)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(.white.opacity(0.3), lineWidth: 1)
-                }
-                .shadow(color: .black.opacity(0.24), radius: 14, y: 8)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(self.title)
-                        .font(.title2.weight(.bold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(3)
-
-                    Text(self.author ?? self.sourceName)
+                if let author: String = self.viewModel.authorText {
+                    Text(author)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .lineLimit(1)
+                }
 
-                    HStack(spacing: 6) {
-                        if let status: String = self.status {
-                            ComicDetailBadge(text: status, tint: .indigo)
-                        }
-                        if let category: String = self.category {
-                            ComicDetailBadge(text: category, tint: .gray)
-                        }
+                self.badgeRow
+
+                if let updateLine: String = self.viewModel.updateLineText {
+                    HStack(spacing: 5) {
+                        Image(systemName: "sparkle")
+                            .font(.system(size: 10, weight: .bold))
+                            .accessibilityHidden(true)
+                        Text(updateLine)
+                            .lineLimit(1)
+                    }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(self.style.accent)
+                }
+
+                Text(verbatim: "\(self.viewModel.source.name) · \(self.viewModel.sourceHostText)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 20)
+        // 中文注释：返回 / 收藏按钮是安全区 inset，内容从它们下面开始；淡底向上多铺一段盖住 inset 与状态栏。
+        .padding(.top, 8)
+        .padding(.bottom, 18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(alignment: .top) {
+            self.tint
+                .padding(.top, -300)
+        }
+    }
+
+    /// 徽章行：状态用类型色淡底 + 类型色字，分类与语言次级填充底；一个都没有不出这行。
+    @ViewBuilder
+    private var badgeRow: some View {
+        let status: String? = self.viewModel.statusText
+        let others: [String] = [self.viewModel.categoryText, self.viewModel.languageText].compactMap { $0 }
+        if status != nil || others.isEmpty == false {
+            HStack(spacing: 6) {
+                if let status: String = status {
+                    self.badge(status, foreground: self.style.accent, background: self.style.accent.opacity(0.12))
+                }
+                ForEach(others, id: \.self) { text in
+                    self.badge(text, foreground: .secondary, background: CatalogPalette.fillBackground)
+                }
+            }
+        }
+    }
+
+    private func badge(_ text: String, foreground: Color, background: Color) -> some View {
+        Text(text)
+            .font(.caption.weight(.semibold))
+            .lineLimit(1)
+            .foregroundStyle(foreground)
+            .padding(.horizontal, 9)
+            .frame(height: 22)
+            .background(background, in: Capsule())
+    }
+
+    @ViewBuilder
+    private var tagsRow: some View {
+        let tags: [String] = self.viewModel.tags
+        if tags.isEmpty == false {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(tags, id: \.self) { tag in
+                        Text(tag)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .padding(.horizontal, 10)
+                            .frame(height: 26)
+                            .background(CatalogPalette.fillBackground, in: Capsule())
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
+            .padding(.top, 12)
+        }
+    }
+
+    // MARK: - 继续阅读（第六节）
+
+    @ViewBuilder
+    private var continueSection: some View {
+        if self.viewModel.didLoad == false, self.viewModel.isLoading {
+            Capsule()
+                .fill(CatalogPalette.fillBackground)
+                .frame(height: 50)
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .accessibilityHidden(true)
+        } else if self.viewModel.chapters.isEmpty == false, let destination: ComicReaderDestination = self.viewModel.continueDestination {
+            if let title: String = self.viewModel.continueCardTitle {
+                self.continueCard(title: title, destination: destination)
+            } else {
+                self.startButton(destination: destination)
+            }
+        }
+    }
+
+    /// 有历史：通栏卡片——上次页面缩略图 + 「继续阅读」+ 章节名 + 「13 / 45 页 · 昨天 21:40」+ 进度条。
+    private func continueCard(title: String, destination: ComicReaderDestination) -> some View {
+        Button {
+            self.openDestination(destination)
+        } label: {
+            HStack(spacing: 14) {
+                // 中文注释：上次页面的图走 pipeline 解密的站（めちゃコミック）直接请求不出来，退到封面再退到占位图。
+                ItemThumbnailImageView(
+                    urlString: self.viewModel.continueThumbnailURLString,
+                    refererURLString: self.viewModel.continueThumbnailRefererURLString,
+                    requestConfig: self.viewModel.detailCoverRequestConfig,
+                    placeholderImageName: "ComicDetailPlaceholder",
+                    fallbackURLString: self.viewModel.coverURLString
+                )
+                .frame(width: 56, height: 72)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(NSLocalizedString("comic_detail_continue", comment: ""))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(self.style.accent)
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    if let subtitle: String = self.viewModel.continueCardSubtitle {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom, 4)
+
+                Image(systemName: "book.pages.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(self.onAccent)
+                    .frame(width: 36, height: 36)
+                    .background(self.style.accent, in: Circle())
+                    .accessibilityHidden(true)
+            }
+            .padding(.leading, 20)
+            .padding(.trailing, 16)
+            .frame(height: 88)
+            .frame(maxWidth: .infinity)
+            .background(CatalogPalette.cardBackground)
+            .overlay(alignment: .leading) {
+                self.style.accent.frame(width: 4)
+            }
+            .overlay(alignment: .bottom) {
+                if let progress: Double = self.viewModel.continueProgress {
+                    GeometryReader { proxy in
+                        ZStack(alignment: .leading) {
+                            CatalogPalette.fillBackground
+                            self.style.accent.frame(width: proxy.size.width * progress)
+                        }
+                    }
+                    .frame(height: 3)
+                    .accessibilityHidden(true)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 20)
+        .padding(.top, 16)
+    }
+
+    /// 没有历史：通栏胶囊「从第 1 话开始读」。
+    private func startButton(destination: ComicReaderDestination) -> some View {
+        Button {
+            self.openDestination(destination)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "book.pages.fill")
+                    .font(.subheadline.weight(.bold))
+                Text(self.viewModel.startButtonTitle)
+            }
+            .font(.callout.weight(.semibold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .foregroundStyle(self.onAccent)
+            .frame(maxWidth: .infinity, minHeight: 50)
+            .background(self.style.accent, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 20)
+        .padding(.top, 16)
+    }
+
+    private func openDestination(_ destination: ComicReaderDestination) {
+        self.openReaderDestination(destination)
+    }
+
+    // MARK: - 简介（第五节）
+
+    @ViewBuilder
+    private var synopsisSection: some View {
+        if self.viewModel.didLoad == false, self.viewModel.isLoading {
+            VStack(alignment: .leading, spacing: 10) {
+                self.skeletonBar(width: 36)
+                self.skeletonBar(width: nil)
+                self.skeletonBar(width: 240)
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 18)
-        }
-        .frame(height: 350)
-        .clipped()
-    }
-}
-
-struct ComicDetailBadge: View {
-    let text: String
-    let tint: Color
-
-    var body: some View {
-        Text(self.text)
-            .font(.caption.weight(.semibold))
-            .lineLimit(1)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
-            .foregroundStyle(self.tint)
-            .background(self.tint.opacity(0.12))
-            .clipShape(Capsule())
-    }
-}
-
-struct ComicDetailActionSection: View {
-    let chapterCount: Int
-    let latestText: String?
-    let readingTitle: String
-    let isEnabled: Bool
-    let startReading: () -> Void
-
-    var body: some View {
-        VStack(spacing: 12) {
-            Button(action: self.startReading) {
-                Label(self.readingTitle, systemImage: "book.pages.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(self.isEnabled == false)
-
-            HStack(spacing: 18) {
-                Label("\(self.chapterCount) Chapters", systemImage: "list.bullet.rectangle")
-                if let latestText: String = self.latestText {
-                    Label(latestText, systemImage: "sparkles")
-                        .lineLimit(1)
+            .padding(.top, 20)
+            .accessibilityHidden(true)
+        } else if self.viewModel.hasSynopsisSection {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(NSLocalizedString("video_detail_section_synopsis", comment: ""))
+                    .font(.footnote.weight(.bold))
+                    .foregroundStyle(.secondary)
+                if let description: String = self.viewModel.descriptionText {
+                    Text(description)
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                        .lineLimit(self.isSynopsisExpanded ? nil : 3)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(16)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .padding(.horizontal, 16)
-        .padding(.bottom, 12)
-    }
-}
-
-struct ComicDetailTagsSection: View {
-    let tags: [String]
-
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(self.tags, id: \.self) { tag in
-                    Text(tag)
-                        .font(.caption.weight(.medium))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Color(.tertiarySystemGroupedBackground))
-                        .clipShape(Capsule())
+                ForEach(self.viewModel.attributeLines, id: \.self) { line in
+                    Text(line)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-            }
-            .padding(.horizontal, 16)
-        }
-        .padding(.bottom, 12)
-    }
-}
-
-struct ComicDetailDescriptionSection: View {
-    let description: String
-
-    var body: some View {
-        ComicDetailCard(title: NSLocalizedString("About", comment: ""), systemImage: "text.alignleft") {
-            Text(self.description)
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-}
-
-struct ComicDetailInformationSection: View {
-    let rows: [ComicDetailMetadataRow]
-    let links: [ComicDetailRelatedLink]
-
-    var body: some View {
-        ComicDetailCard(title: NSLocalizedString("Information", comment: ""), systemImage: "info.circle") {
-            VStack(spacing: 0) {
-                ForEach(Array(self.rows.enumerated()), id: \.offset) { index, row in
-                    HStack(alignment: .top, spacing: 16) {
-                        Text(row.label)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 82, alignment: .leading)
-
-                        Text(row.value)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .font(.subheadline)
-                    .padding(.vertical, 9)
-
-                    if index < self.rows.count - 1 || self.links.isEmpty == false {
-                        Divider()
-                    }
-                }
-
-                ForEach(self.links) { link in
+                ForEach(self.viewModel.relatedLinks) { link in
                     Link(destination: link.url) {
-                        HStack {
+                        HStack(spacing: 4) {
                             Text(link.title)
-                            Spacer()
                             Image(systemName: "arrow.up.right")
                         }
-                        .font(.subheadline.weight(.semibold))
-                        .padding(.vertical, 10)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(self.style.accent)
+                        .frame(minHeight: 44, alignment: .leading)
                     }
                 }
+                if self.viewModel.descriptionText != nil {
+                    Button(
+                        NSLocalizedString(self.isSynopsisExpanded ? "video_detail_collapse" : "video_detail_expand", comment: "")
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            self.isSynopsisExpanded.toggle()
+                        }
+                    }
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(self.style.accent)
+                    .frame(minHeight: 44, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
         }
+    }
+
+    private func skeletonBar(width: CGFloat?) -> some View {
+        RoundedRectangle(cornerRadius: 3, style: .continuous)
+            .fill(CatalogPalette.fillBackground)
+            .frame(width: width, height: 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-
-struct ComicDetailCard<Content: View>: View {
-    let title: String
-    let systemImage: String
-    let content: Content
-
-    init(
-        title: String,
-        systemImage: String,
-        @ViewBuilder content: () -> Content
-    ) {
-        self.title = title
-        self.systemImage = systemImage
-        self.content = content()
-    }
+/// 受限章节的页内横幅：警示色淡底，一句说明，可带「登录」按钮；代替原来的系统警告框（第八节）。
+struct ComicDetailRestrictedBanner: View {
+    let message: String
+    let style: CatalogKindStyle
+    let loginAction: (() -> Void)?
+    let dismissAction: () -> Void
+    @Environment(\.colorScheme) private var colorScheme: ColorScheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label(self.title, systemImage: self.systemImage)
-                .font(.headline)
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: "lock.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(CatalogPalette.warning)
+                .accessibilityHidden(true)
 
-            self.content
+            Text(self.message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if let loginAction: () -> Void = self.loginAction {
+                Button(action: loginAction) {
+                    Text(NSLocalizedString("comic_detail_restricted_login", comment: ""))
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(self.colorScheme == .dark ? CatalogKindStyle.bannerIconInk : .white)
+                        .padding(.horizontal, 12)
+                        .frame(minHeight: 30)
+                        .background(self.style.accent, in: Capsule())
+                        .frame(minHeight: 44)
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+
+            Button(action: self.dismissAction) {
+                Image(systemName: "xmark")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 32, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(NSLocalizedString("comic_detail_banner_dismiss", comment: ""))
         }
-        .padding(16)
+        .padding(.leading, 14)
+        .padding(.trailing, 4)
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .padding(.horizontal, 16)
-        .padding(.bottom, 12)
+        .background(CatalogPalette.warningFill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }

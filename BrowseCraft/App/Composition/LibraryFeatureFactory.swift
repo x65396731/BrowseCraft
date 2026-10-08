@@ -94,7 +94,9 @@ struct LibraryFeatureFactory {
             persistenceCoordinator: self.readingActivityPersistenceCoordinator,
             resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase(),
             sourceCredentialStore: self.sourceCredentialStore,
-            activeAppUser: self.activeAppUser
+            activeAppUser: self.activeAppUser,
+            // 中文注释：详情页右上收藏（`docs/design/Comic-Detail-Page-Redesign-Design.md` 第五节），与库页同一条用例。
+            toggleFavoriteUseCase: ToggleFavoriteUseCase(favoriteRepository: self.favoriteRepository)
         )
     }
 

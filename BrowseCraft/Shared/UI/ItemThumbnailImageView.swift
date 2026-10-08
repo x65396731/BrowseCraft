@@ -14,6 +14,8 @@ struct ItemThumbnailImageView: View {
     let refererURLString: String?
     let requestConfig: RequestConfig?
     let placeholderImageName: String?
+    /// 中文注释：首选地址的候选都失败后再试的地址（漫画详情页继续卡片：上次页面的图加载不出来退到封面）；nil 即只有首选。
+    let fallbackURLString: String?
     // 中文注释：诊断用——`@State` 的初值只在视图身份首次建立时被采用，
     // 因此同一个视图实例恒为同一个 ID，视图一旦被重建就换一个。只进日志。
     @State private var diagnosticViewID: String = String(UUID().uuidString.prefix(8))
@@ -25,16 +27,19 @@ struct ItemThumbnailImageView: View {
         urlString: String?,
         refererURLString: String? = nil,
         requestConfig: RequestConfig? = nil,
-        placeholderImageName: String? = nil
+        placeholderImageName: String? = nil,
+        fallbackURLString: String? = nil
     ) {
         self.urlString = urlString
         self.refererURLString = refererURLString
         self.requestConfig = requestConfig
         self.placeholderImageName = placeholderImageName
+        self.fallbackURLString = fallbackURLString
     }
 
     var body: some View {
         let urlCandidates: [String] = Self.urlCandidates(from: self.urlString)
+            + (self.fallbackURLString == self.urlString ? [] : Self.urlCandidates(from: self.fallbackURLString))
         let candidate: String? = Self.urlCandidate(at: self.candidateIndex, in: urlCandidates)
         Group {
             if let urlString: String = candidate,

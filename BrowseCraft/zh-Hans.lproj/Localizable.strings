@@ -156,8 +156,6 @@
 "3 Months Premium" = "3 个月高级版";
 "30 Site Slots" = "30 个站点位置";
 "5 Site Slots" = "5 个站点位置";
-"About" = "关于";
-"Access Required" = "需要访问权限";
 "Activate Source" = "启用来源";
 "Add" = "添加";
 "Add a source before refreshing content." = "请先添加来源，再刷新内容。";
@@ -202,15 +200,11 @@
 "Hide rewarded ad prompts permanently" = "永久隐藏激励广告提示";
 "History" = "历史";
 "iCloud Restore Failed" = "iCloud 恢复失败";
-"ID" = "ID";
-"Info" = "信息";
-"Information" = "信息";
 "Items you favorite will appear here." = "你收藏的内容会显示在这里。";
 "Keyword" = "关键词";
 "Language" = "语言";
 "Library" = "库";
 "List Rule Ref" = "列表规则引用";
-"Loading Details" = "正在加载详情";
 "Loading Source" = "正在加载来源";
 "Log In" = "登录";
 "Log Out" = "退出登录";
@@ -238,9 +232,7 @@
 "Open Resource" = "打开资源";
 "Open the original page to continue." = "打开原始页面以继续。";
 "Read chapters, books and watched videos will appear here." = "读过的漫画、书和看过的视频会显示在这里。";
-"Paid" = "已付费";
 "Permanent upgrades for your BrowseCraft loadout" = "为你的 AnyPortal 配置永久升级";
-"Photo Album" = "图集";
 "Playback Restricted" = "播放受限";
 "Playback Unavailable" = "无法播放";
 "Premium" = "高级版";
@@ -253,7 +245,6 @@
 "Really buying it?" = "啊？哥们你真买啊";
 "Refresh Selected Source" = "刷新选中的来源";
 "Refresh Selected Tab" = "刷新当前标签";
-"Related Page" = "相关页面";
 "Reload" = "重新加载";
 "Remove Ads" = "去除广告";
 "Replace an active source" = "替换一个已启用的来源";
@@ -293,9 +284,7 @@
 "This episode did not expose a direct mp4 or m3u8 URL." = "这一集没有提供直连的 mp4 或 m3u8 地址。";
 "This rule has no V2 pages. Use JSON editing to add page definitions." = "这条规则没有 V2 页面。请用 JSON 编辑添加页面定义。";
 "This site requires its own app or web player for playback." = "该网站需要用它自己的应用或网页播放器播放。";
-"This source did not return any chapter entries." = "该来源没有返回任何章节。";
 "Title" = "标题";
-"Try Again" = "再试一次";
 "Try premium features first" = "先试用高级功能";
 "Unavailable" = "不可用";
 "Unset" = "未设置";
@@ -789,3 +778,24 @@
 "video_detail_favorite" = "收藏";
 "video_detail_continue_single" = "继续看";
 "video_detail_rewatch_single" = "再看一遍";
+
+/* 漫画详情与章节页重设计：继续阅读、章节分区头、排序、空态与失败态、受限横幅、属性小字 */
+"comic_detail_continue" = "继续阅读";
+"comic_detail_page_of_total" = "%ld / %ld 页";
+"comic_detail_start_from_first" = "从第 1 话开始读";
+"comic_detail_start_with" = "开始读 · %@";
+"comic_detail_start_reading" = "开始阅读";
+"comic_detail_section_chapters" = "章节";
+"comic_detail_chapter_count" = "%ld 章";
+"comic_detail_read_count" = "已读 %ld";
+"comic_detail_read" = "已读";
+"comic_detail_empty_title" = "没有章节";
+"comic_detail_empty_message" = "这个来源没有给出任何章节。";
+"comic_detail_restricted_login" = "登录";
+"comic_detail_banner_dismiss" = "关闭";
+"comic_detail_attr_published" = "发布";
+"comic_detail_attr_license" = "许可";
+"comic_detail_attr_id" = "编号";
+"comic_detail_attr_images" = "共 %ld 张";
+"comic_detail_link_photo_album" = "相册";
+"comic_detail_link_related_page" = "相关页面";
