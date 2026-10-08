@@ -359,6 +359,14 @@
 "No results" = "No results";
 "Try another keyword." = "Try another keyword.";
 "Enter a keyword to search this source." = "Enter a keyword to search this source.";
+/* Library: in-source search sheet redesign (docs/design/Search-Page-Redesign-Design.md). */
+"library_search_placeholder" = "Search %@";
+"library_search_close" = "Close search";
+"library_search_clear" = "Clear";
+"library_search_idle_message" = "Type a keyword and tap Search on the keyboard. Results come from this source’s own search.";
+"library_search_searching" = "Searching “%@”";
+"library_search_result_count" = "“%@” · %ld results";
+"library_search_no_results" = "No results for “%@”";
 "Clear" = "Clear";
 
 /* 本地书籍（书架、导入、EPUB 阅读器） */

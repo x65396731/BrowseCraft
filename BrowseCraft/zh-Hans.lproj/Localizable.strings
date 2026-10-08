@@ -359,6 +359,14 @@
 "No results" = "没有找到结果";
 "Try another keyword." = "换个关键词试试。";
 "Enter a keyword to search this source." = "输入关键词，在这个来源里搜索。";
+/* Library: in-source search sheet redesign (docs/design/Search-Page-Redesign-Design.md). */
+"library_search_placeholder" = "搜索 %@";
+"library_search_close" = "关闭搜索";
+"library_search_clear" = "清空";
+"library_search_idle_message" = "输入关键词，按键盘上的搜索。结果来自这个来源自己的搜索。";
+"library_search_searching" = "正在搜索 “%@”";
+"library_search_result_count" = "“%@” · %ld 个结果";
+"library_search_no_results" = "没有找到 “%@”";
 "Clear" = "清除";
 
 /* 本地书籍（书架、导入、EPUB 阅读器） */

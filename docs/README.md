@@ -169,6 +169,7 @@ App 侧的验证事实主要分「离线测试通过」「模拟器走通」「�
 - 库页漫画库：视觉与信息结构重设计（三列封面墙、封面上压本机阅读进度、最新话放封面下、只在已收藏时显示爱心、「上次读到」瓷砖、各元素的数据来源与缺省）：[design/Library-Comic-Page-Redesign-Design.md](design/Library-Comic-Page-Redesign-Design.md)
 - 库页书籍库：视觉与信息结构重设计（单列书脊行、最新章与读到哪放文字里、来源级判整站有声、「上次读到 / 上次听到」瓷砖、各元素的数据来源与缺省）：[design/Library-Book-Page-Redesign-Design.md](design/Library-Book-Page-Redesign-Design.md)
 - 站点书详情页：视觉与信息结构重设计（页面底色头部、继续卡片写章节与全书进度、编号柱行列表目录、分段芯片、续读章按读书历史对、有声书措辞、规则实际给的数据与追加的接线）：[design/Book-Detail-Page-Redesign-Design.md](design/Book-Detail-Page-Redesign-Design.md)
+- 来源内搜索页：视觉与信息结构重设计（自绘眉行与圆形关闭、卡片底搜索框与聚焦类型色描边、结果眉行、结果区按 kind 原样复用三种库页版式、未搜索 / 搜索中 / 无结果 / 失败四种状态、分页与登录接线）：[design/Search-Page-Redesign-Design.md](design/Search-Page-Redesign-Design.md)
 - 运行期广告过滤承接规则匹配结果：[design/RuntimeAdFilter-Design.md](design/RuntimeAdFilter-Design.md)
 
 `design/Book-Kind-Wiring-Design.md` 的批次记录已拆到 [history/Book-Kind-Wiring-batch-records.md](history/Book-Kind-Wiring-batch-records.md)。

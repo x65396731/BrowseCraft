@@ -45,6 +45,11 @@ python3 scripts/check-docs.py
 [`Library-Book-Page-Redesign-Design.md`](docs/design/Library-Book-Page-Redesign-Design.md)、[`Book-Detail-Page-Redesign-Design.md`](docs/design/Book-Detail-Page-Redesign-Design.md)；
 STATUS 第 2 节各两行（`implemented / not-run` 与 `simulator-passed`），每条 `simulator-passed` 行的末尾写了哪些没走到。至此库页三种类型与三种详情页都按统一语言重做完。
 
+**2026-10-09 来源内搜索页重设计已实施、build 过、模拟器走查过并提交。** 合同 [`Search-Page-Redesign-Design.md`](docs/design/Search-Page-Redesign-Design.md)，
+STATUS 第 2 节两行（`implemented / not-run` 与 `simulator-passed`）。没走到的：搜索中骨架、无结果（czbooks 对任意关键词都回 40 条）、失败 / 登录横幅、分页脚（线上搜索规则都不带分页）、
+视频与漫画来源的结果版式；与真机验收一起补。读代码时要知道的两点：搜索状态都在 `LibraryViewModel` 上（`submittedSearchKeyword`、`searchNextPage`、可取消的 `searchTask`），
+切换来源时 `switchToSource` 调 `clearSearch()`；登录页由 `LibrarySearchView` 自己的 `fullScreenCover` 挂（库页那个被 sheet 盖着弹不出来），登录成功后 `completeRequestedSourceLogin` 自动重搜。
+
 - **下一步零：三页的补充走查与两处顺手改**。
   - 没走到的看点（都要有对应的来源才看得到，与真机验收一起补）：漫画库的骨架 / 空状态插画 / 分类芯片 / 瓷砖「打开作品」的 `stableID` 反解；
     书籍库与详情页的整站有声（线上没有有声来源，只有 Loyal Books 测试夹具）、骨架、空状态插画、失败 / 登录横幅、没有章节、简介（规则都不给）。

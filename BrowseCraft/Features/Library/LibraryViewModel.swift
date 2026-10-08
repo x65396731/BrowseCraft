@@ -38,6 +38,15 @@ final class LibraryViewModel {
     private(set) var isSearching: Bool = false
     private(set) var searchErrorMessage: String?
     private(set) var hasSearched: Bool = false
+    /// 中文注释：提交时定格的关键词（`docs/design/Search-Page-Redesign-Design.md` 第八节）：眉行、无结果、重试都用它，不跟输入框走。
+    private(set) var submittedSearchKeyword: String = ""
+    /// 搜索结果的下一页：`searchRules[].pagination` 声明、Runtime 报出才有；当前线上规则都不带。
+    private(set) var searchNextPage: Int?
+    private(set) var searchCurrentPage: Int = 1
+    private(set) var isLoadingNextSearchPage: Bool = false
+    /// 失败归类为登录墙（`accessRequired` / `protectedResource`）时横幅多一个「登录」。
+    private(set) var searchFailureNeedsLogin: Bool = false
+    @ObservationIgnored private var searchTask: Task<Void, Never>?
     private(set) var currentListPage: Int = 1
     private(set) var canLoadNextPage: Bool = false
     private var credentialRevision: Int = 0
@@ -586,29 +595,133 @@ final class LibraryViewModel {
         self.isPresentingSearch = false
     }
 
+    /// 中文注释：提交搜索。连续回车不叠请求——上一次还没回来就取消它、发新的（合同第七节）。
+    /// `keyword` 不传就用输入框的字；重试与登录后重搜传定格的 `submittedSearchKeyword`。
     @MainActor
-    func performSearch() async {
+    func performSearch(keyword overrideKeyword: String? = nil) async {
         guard let source: Source = self.selectedSource,
               let useCase: SearchSourceContentUseCase = self.searchSourceContentUseCase else {
             return
         }
-        let keyword: String = self.searchKeyword.trimmingCharacters(in: .whitespacesAndNewlines)
+        let keyword: String = (overrideKeyword ?? self.searchKeyword).trimmingCharacters(in: .whitespacesAndNewlines)
         guard keyword.isEmpty == false else {
             return
         }
+        self.searchTask?.cancel()
+        let task: Task<Void, Never> = Task { @MainActor in
+            await self.runSearch(source: source, useCase: useCase, keyword: keyword)
+        }
+        self.searchTask = task
+        await task.value
+    }
+
+    @MainActor
+    private func runSearch(source: Source, useCase: SearchSourceContentUseCase, keyword: String) async {
+        self.submittedSearchKeyword = keyword
         self.isSearching = true
         self.searchErrorMessage = nil
-        defer {
-            self.isSearching = false
-            self.hasSearched = true
-        }
+        self.searchFailureNeedsLogin = false
+        self.searchNextPage = nil
+        self.searchCurrentPage = 1
         do {
             let output: SourceListOutput = try await useCase.execute(source: source, keyword: keyword)
+            guard Task.isCancelled == false else {
+                return
+            }
             self.searchResults = self.contentItemMapper.map(output: output, source: source, context: nil)
+            self.searchNextPage = output.pagination?.nextPage
+        } catch is CancellationError {
+            return
         } catch {
+            guard Task.isCancelled == false else {
+                return
+            }
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-search-error")
             self.searchResults = []
             self.searchErrorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+            self.searchFailureNeedsLogin = Self.isLoginWall(error)
+        }
+        self.isSearching = false
+        self.hasSearched = true
+    }
+
+    /// 失败横幅的「重试」：用定格的关键词重搜。
+    @MainActor
+    func retrySearch() async {
+        await self.performSearch(keyword: self.submittedSearchKeyword)
+    }
+
+    /// 中文注释：搜索结果的下一页（合同第六节）：与列表分页同一个触底哨兵，只有 Runtime 报出 `nextPage` 才会被调到。
+    @MainActor
+    func loadNextSearchPage() async {
+        guard let page: Int = self.searchNextPage,
+              self.isSearching == false,
+              self.isLoadingNextSearchPage == false,
+              let source: Source = self.selectedSource,
+              let useCase: SearchSourceContentUseCase = self.searchSourceContentUseCase else {
+            return
+        }
+        let keyword: String = self.submittedSearchKeyword
+        guard keyword.isEmpty == false else {
+            return
+        }
+        self.isLoadingNextSearchPage = true
+        defer {
+            self.isLoadingNextSearchPage = false
+        }
+        do {
+            let output: SourceListOutput = try await useCase.execute(source: source, keyword: keyword, page: page)
+            let appended: [ContentItem] = self.contentItemMapper.map(output: output, source: source, context: nil)
+            let existingIDs: Set<String> = Set(self.searchResults.map(\.id))
+            self.searchResults.append(contentsOf: appended.filter { existingIDs.contains($0.id) == false })
+            self.searchCurrentPage = page
+            self.searchNextPage = output.pagination?.nextPage
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-search-next-page-error")
+            self.searchNextPage = nil
+        }
+    }
+
+    /// 分页脚文案：与列表同一组词条；没有翻过页、也没有下一页时不出脚（返回 nil）。
+    var searchPaginationStatusText: String? {
+        guard self.searchCurrentPage > 1 || self.searchNextPage != nil || self.isLoadingNextSearchPage else {
+            return nil
+        }
+        let base: String = String(
+            format: NSLocalizedString("library_pagination_page", comment: ""),
+            self.searchCurrentPage
+        )
+        if self.isLoadingNextSearchPage {
+            return String(format: NSLocalizedString("library_pagination_loading_next", comment: ""), base)
+        }
+        if self.searchNextPage != nil {
+            return String(format: NSLocalizedString("library_pagination_scroll_for_more", comment: ""), base)
+        }
+        return String(format: NSLocalizedString("library_pagination_end", comment: ""), base)
+    }
+
+    /// 中文注释：清空叉与换来源都走这里：回未搜索态，正在飞的请求一并取消。
+    @MainActor
+    func clearSearch() {
+        self.searchTask?.cancel()
+        self.searchTask = nil
+        self.searchKeyword = ""
+        self.submittedSearchKeyword = ""
+        self.searchResults = []
+        self.isSearching = false
+        self.searchErrorMessage = nil
+        self.searchFailureNeedsLogin = false
+        self.hasSearched = false
+        self.searchNextPage = nil
+        self.searchCurrentPage = 1
+    }
+
+    private static func isLoginWall(_ error: Error) -> Bool {
+        switch RuleExecutionErrorClassifier.classified(error) {
+        case .accessRequired, .protectedResource:
+            return true
+        default:
+            return false
         }
     }
 
@@ -621,6 +734,13 @@ final class LibraryViewModel {
         self.sourceCredentialStore.save(credential)
         self.credentialRevision += 1
         self.requestedSourceLogin = nil
+
+        // 中文注释：搜索页的登录墙（合同第七节）：登录成功后用定格的关键词自动重搜。
+        if self.isPresentingSearch && self.searchFailureNeedsLogin {
+            Task { @MainActor in
+                await self.retrySearch()
+            }
+        }
     }
 
     @MainActor
@@ -890,6 +1010,8 @@ final class LibraryViewModel {
         self.errorMessage = nil
         self.selectedListTabErrorMessage = nil
         self.requestedSourceLogin = nil
+        // 中文注释：上个来源的搜索结果不能留到下个来源的搜索页里（搜索页合同第七节）。
+        self.clearSearch()
         self.items = []
         self.ensureSelectedListTab()
         self.applyListCacheEntry(nil)

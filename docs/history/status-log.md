@@ -841,3 +841,25 @@ App 侧设计文档一处都没引用，App 执行两种形态的合同由自己
   有声书、失败 / 登录横幅、没有章节、简介没走到。现场观察：《都重生了誰還正經創業啊》目录头上是 5 条站点占位的「錯誤章」，开始按钮按合同写成「开始读 · 錯誤章」，属于规则抓取（可并入给 fwq 的需求）。
   点行进阅读器前 App 的广告门播了两段测试广告，等「奖励已发放」后用广告自己的关闭按钮关掉，没点广告内容。
 - 实施、合同与两行 STATUS 一起提交为 `6ba8846`；两行检查点由实施前的 HEAD 改登记为 `6ba8846`。
+
+## 2026-10-09 来源内搜索页重设计：立项、裁定、设计稿、合同与实施
+
+- 用户要求接着重设计来源内搜索页（库页左上搜索按钮弹出的 sheet，三种类型共用）。先登记页面设计索引，再写设计文档。
+- 核对：搜索链三层（Core 三条 kind 的搜索规则模型、Runtime `SourceSearchRuntime.search`、App 用例与 ViewModel）都已接好，页面只是壳；本机五个模拟器库里 14 条真实搜索规则全部 GET、`percentEncoded`、恰一个 `{keyword}`、
+  一个来源恰一条、没有一条带 `pagination`；结果条目字段与该来源列表一致，所以结果区原样复用三种库页版式。App 原先固定搜第 1 页、`nextPage: nil`；视频 Runtime `executeSearch` 不读 `page`（记一笔不在本页做）；
+  App 没有关键词存储；资产 `EmptyStateSearch` 已登记但当前无人使用。
+- 十四项待裁定用户裁定全取 A。画布 10 张（视频 / 书籍 / 漫画结果、未搜索、搜索中、无结果、失败、登录、深色、尺寸与取值），插画直接用 `EmptyStateSearch`。
+- 合同写入 `docs/design/Search-Page-Redesign-Design.md`，STATUS 第 2 节新增一行 `implemented / not-run`，检查点先登记为实施前的 HEAD `552a9f1`，提交后改登记为实施提交；在同一会话实施。代码按合同第十二节：
+  - `LibraryViewModel`：`submittedSearchKeyword`、`searchNextPage` / `loadNextSearchPage()`、可取消的 `searchTask`、`clearSearch()`（切换来源时调）、`searchFailureNeedsLogin`（按 `RuleExecutionErrorClassifier` 归类）、登录成功后若失败是登录墙则自动重搜。
+  - `LibrarySearchView`：隐藏系统导航栏，自绘眉行 + 「搜索」+ 圆形关闭、卡片底搜索框、结果眉行、四种状态、警示横幅 + 重试 / 登录、`fullScreenCover` 挂 `SourceLoginView`、分页接线、`scrollDismissesKeyboard`；`NavigationStack` 与两个 `navigationDestination` 不动。
+  - 三份 `Localizable.strings` 新增七个键。未 build、未走查。
+
+## 2026-10-09 来源内搜索页重设计：build 与模拟器走查
+
+- 用户要求后 build（iPhone 18 Pro，iOS 27.0）成功，App 代码 0 条警告（只剩 Firebase dSYM 与 AppIntents 两条无关警告）。
+- 模拟器走查（小說狂人）按 `BCA-DOC-005` 单独一行 `simulator-passed`：眉行与类型色图标、「搜索」与圆形关闭、进页聚焦与描边、插画与说明顶对齐、清空叉、提交收描边、结果眉行与条数、书脊行结果、
+  点行推入站点书详情且导航栏仍隐藏、返回结果保留、滚到底没有分页脚、关闭再打开结果保留且不弹键盘、清空回未搜索态并重新聚焦、深色都与合同一致。
+- 与合同的一处出入已改进合同第七节：关闭再打开时滚动位置回到顶部（sheet 关闭即销毁视图），关键词与结果照样保留。
+- 没走到的：搜索中骨架（czbooks 响应太快）、无结果（czbooks 对任意关键词包括「9999999」「zxquzxqu」都返回 40 条，像是无匹配时退回站内榜单，属站点行为，可并入给 fwq 的观察）、
+  失败 / 登录横幅、分页脚、视频与漫画来源的结果版式。工具限制：模拟器的软件键盘被硬件键盘顶掉、输入工具不能送中文，关键词用的是数字与字母。
+- 检查点两行仍登记为实施前的 HEAD `552a9f1`，提交后改登记为实施提交。

@@ -359,6 +359,14 @@
 "No results" = "找不到結果";
 "Try another keyword." = "換個關鍵字試試。";
 "Enter a keyword to search this source." = "輸入關鍵字，在這個來源裡搜尋。";
+/* Library: in-source search sheet redesign (docs/design/Search-Page-Redesign-Design.md). */
+"library_search_placeholder" = "搜尋 %@";
+"library_search_close" = "關閉搜尋";
+"library_search_clear" = "清空";
+"library_search_idle_message" = "輸入關鍵字，按鍵盤上的搜尋。結果來自這個來源自己的搜尋。";
+"library_search_searching" = "正在搜尋「%@」";
+"library_search_result_count" = "「%@」· %ld 個結果";
+"library_search_no_results" = "找不到「%@」";
 "Clear" = "清除";
 
 /* 本機書籍（書架、匯入、EPUB 閱讀器） */
