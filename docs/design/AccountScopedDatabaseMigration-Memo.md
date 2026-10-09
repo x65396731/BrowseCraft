@@ -77,7 +77,9 @@ CloudKit `AppUserIdentity/default` 只能记录已经通过 Portal 登录的后�
   record ID 的原文；本地 account scope hash。新增 Cloud payload 字段前按本条逐项核对。
   每部作品一条的精简续看记录（来源、作品、章节或剧集、页码或播放位置、标题与封面、时间）允许进入
   CloudKit，字段以续看位置同步的设计为准；临时资源历史与本地导入的书不在其内。
-- `BCA-SYNC-010` 上传用 `ifServerRecordUnchanged` 检测服务端并发修改。业务合并比较
+- `BCA-SYNC-010` 上传按服务端 change tag 检测并发修改：身份记录经 `modifyRecords` 显式传 `.ifServerRecordUnchanged`；
+  Source / Favorite / HistoryEntry 经 CKSyncEngine 发送，引擎不暴露保存策略、固定按 change tag 比对，冲突以 `serverRecordChanged` 携带服务端记录
+  交回 `failedRecordSaves`，`CKSyncEngineCloudRecordStore` 把该服务端记录缓冲进下一轮业务合并，不得只更新 system fields 后盲目覆盖。业务合并比较
   `max(updatedAt, deletedAt)`，时间相同时 tombstone 优先，不得只依赖设备时间判断冲突。
   只有服务端确认保存成功才移除对应 `sync_queue` 项；partial failure 按记录更新队列，
   不得整批删除。同步调度以 `CloudSyncCoordinator` 为唯一入口，CKSyncEngine 的自动调度保持关闭。
