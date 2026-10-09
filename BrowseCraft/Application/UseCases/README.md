@@ -11,6 +11,6 @@ Prefer that grouping over runtime/source type; `Book/` and `Comic/` exist becaus
 - `Library/`: library state, favorite toggling, and library source presentation.
 - `Reader/`: reader chapter loading and reader source presentation.
 - `History/`: comic, video, and book history save/load workflows.
-- `Book/`: local book import, opening, reading progress, and bookmarks (ports live in `Application/Ports/Book/`).
+- `Book/`: local book import, opening, reading progress, bookmarks, and site-book publication assembly (`BookPublicationAssembler`, `LoadBookPublicationUseCase`); ports live in `Application/Ports/Book/`.
 
 When adding a new use case, place it beside the view model or feature flow that calls it most directly. For example, a comic history use case belongs in `History/`, while a comic source import use case belongs in `Source/`.

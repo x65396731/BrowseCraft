@@ -1041,3 +1041,134 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
 - **现状**：批次 C 时用户裁决 B2「History 页不纳入书籍」（第十节）。站点书只有续读位置表 `book_reading_progress`（作品标识 + Locator + 时间），
   没有书名、来源、封面、章节，History 页拼不出一行，也重建不出阅读器的打开参数。本节按用户新裁决推翻 B2。
 ```
+
+## 2026-10-10 第三批：七份合同的三分法与页面合同的轻微漂移修正
+
+按 `BCA-DOC-007` 从六份 C 类搬出 14 段叙事（6853 字节，逐段原文如下）；被搬出的段落里仍然有效的判据另以现在时重写回原处（RuntimeAdFilter 四之三落点表、Local-Book-Import 第四、六节、RuleExecutionSemantics `BCA-RUNTIME-005` 的 Cookie 回写与书类封面请求配置两条），重写句不计入守恒。同批修正的轻微漂移：RuntimeAdFilter 五处路径改到 Runtime 包、词表读取改 `Bundle.module`；Catalog 合同删去与「跟随系统」矛盾的深色设计值表与「更新」色、徽标圆角改按边长比例、实现位置补 `CatalogMonogramView` / `CatalogKindBannerView`；Settings「coin 流水」→「coin 记录」；History 第一节「历史不走 iCloud」改口；Cloud-Sync 实现位置补 `syncedWorkCount()`；Add-Source `scriptSource` 已删；Library-Video 分页脚文案按词条、刷新时机按实现、`libraryTitleText` 一句改口；Comic-Detail 淡底深色 10%、`ItemThumbnailImageView`、`reloadChapterHistories`、对勾 8pt、模拟器状态句删去；Library-Comic 三处「等书籍库立项」改口；Library-Book 模拟器状态句删去、两列阈值按实现；Book-Detail 芯片高 36；Video-Detail `key` 已透传、横幅不自动消失；Favorites 与 Generation-Input 措辞；数据库 README 的 RSS 与 Record 组织描述、Domain / UseCases README 的 `Book/` 范围、Core 文档索引漏登的两份归档。闸门 A5 的测试计数正则加「N 条通过 / N 条跳过 / N 例固定输入 / N 个用例」，A6 的日期标题正则扩到 H1。A10 白名单撤回 `AudioPreferences`（C 类不再点名）。
+
+### RuntimeAdFilter-Design.md 原四之二·导语
+
+```text
+写代码前先用仓库里已落盘的 **1381 条真实 media URL** 复算了一遍判定，得到两条
+本文第三节没有覆盖的事实。两条都改变了实施方式。
+```
+
+### RuntimeAdFilter-Design.md 原四之二·F1 实测
+
+```text
+实测 1381 条中丢弃 **0** 条；
+`https://adserver.example.test/vast/preroll-ad.m3u8` 判 keep。
+```
+
+### RuntimeAdFilter-Design.md 原四之二·F2 实测
+
+```text
+关掉豁免后 1381 条中丢弃 4 条：2 条是真广告（`s1.kwai.net/bs2/ad-i18n-dsp/…`），
+2 条是假阳性——签名 token `…QAD-55w` 命中了 `ad-` 这个两字符标记。
+```
+
+### RuntimeAdFilter-Design.md 原四之二·F2 收窄结果
+
+```text
+收窄后：真阳性 2 条不变，假阳性归零。
+```
+
+### RuntimeAdFilter-Design.md 原四之三 全节
+
+```text
+## 四之三、实际落点
+
+| 位置 | 改动 |
+| --- | --- |
+| `Application/Runtime/Common/Filtering/SourceContentNoiseFilter.swift` | 新增 `SourceContentPlaybackAssurance`；`hasPlaybackSignal` 改为读该事实并删去一处两分支同值的死 `switch`；URL 证据收窄到 `scheme://host/path` |
+| `Application/Runtime/Video/Loading/VideoSourcePlaybackLoader.swift` | 唯一过滤挂载点，位于 `validateParsedPlayback` 之后、任何路线判定之前；`VideoPlaybackNoiseAdmission` 承载准入结果与审计 |
+| `Application/Runtime/Video/Playback/VideoPreparedPlaybackExecutionSession.swift` | 新增 route reason `allCandidatesFilteredAsNoise` |
+
+`media → iframe → fallback` 决策树**一行未改**——它读到的候选集已是过滤后的集合。
+route facts 仍只留内存，未触碰 evidence 导出 schema。
+```
+
+### RuntimeAdFilter-Design.md 原七·末条
+
+```text
+- 未修改 BrowseCraftCore 的任何代码；BrowseCraft 侧只改上表三个文件与两个测试文件，
+  未新增源码文件，因此不需要重新生成 XcodeGen 工程。
+```
+
+### Local-Book-Import-Design.md 原二·末段
+
+```text
+2026-09-13 立项前核对的 App 现状已归档，见 [history/status-log.md](../history/status-log.md)——
+其中「全仓无 `fileImporter`」与 `RSSReadingHistoryRecord` 两处**现已不成立**。
+```
+
+### Local-Book-Import-Design.md 原四 全节
+
+```text
+## 四、分批（每批单独拍板、提交、推送）
+
+| 批 | 内容 | 验收 |
+|---|---|---|
+| B0 | 边界脚本 + Domain 模型与仓储协议 + Application 端口与用例（用测试替身）+ 迁移 `v3.local-books` + 快照更新 | `BrowseCraftTests` 全过；快照测试过；build 过 |
+| B1 | Infrastructure：Readium 打开器 / 嗅探器 / 文件存储 / GRDB 仓储；用固定输入（一本无 DRM 的小 EPUB、一个 10 秒 mp3、一个两文件 zip）测「导入 → 落库 → 打开 → 元数据正确」 | 单元测试过；导入失败回滚文件的用例过 |
+| B2 | 书架 + EPUB 阅读器 + 续读进度 + 书签 | **用户真机**：导入 EPUB、读几页、退出再进回到原位、书签跳转 |
+| B3 | 有声书播放器 UI + 后台播放 + 锁屏控制 + 章节 / 倍速 | **用户真机**：导入 m4b，锁屏继续播，退出再进回到原位 |
+
+B2 之后再回到 [读书 kind App 侧接线](Book-Kind-Wiring-Design.md) 的批次 A（站点抓取路），届时 RWPM 装配的产物就是同一个 `BookPublicationHandle`。
+```
+
+### Local-Book-Import-Design.md 原六 全节
+
+```text
+## 六、待裁决
+
+1. **History 页是否纳入本地书**：**用户裁决 B2 不纳入**，站点路接上时一起做（`ReadingHistoryEntry.Kind` 加 `.book` 会牵动 `HistoryView` / `HistoryEntryRowView` 等既有分流点）。
+2. **进度与书签是否上 CloudKit**：**用户裁决首批不上**（第 3.3 节的理由）。
+3. **站点书与本地书的作品标识**：站点书没有 `LocalBook`，进度表的外键要从 `bookID: UUID` 扩为「本地 UUID 或 `sourceID + itemID`」——建议在批次 A 时改，本文先按本地 UUID。
+4. **PDF**：本地 PDF 用 `PDFNavigatorViewController` 成本很低，但读书规范把 PDF 排除在站点路之外；是否作为本地专属格式接，由用户定。
+```
+
+### RuleExecutionSemantics.md 原BCA-RUNTIME-005 三段补充
+
+```text
+  **2026-10-07 补充（Cookie 回写）**：WebView 通道判定拿到真文档（挑战状态机 `.document`）时，把 `WKHTTPCookieStore` 里对该页主机生效的 Cookie
+  （域名等于主机或主机是其子域，`.xbanxia.cc` 覆盖 `www.` 与 `image.`）写回 `HTTPCookieStorage.shared`——封面 / 图片请求（`SharedHTTPCookieHeaderProvider`）与之后的直接请求才带得上过挑战得到的放行 Cookie。
+  此前只有「系统 → WebView」一个方向（`prepareCookieStore`）。依据：半夏小說（xbanxia）真机日志——列表 `antiBot=true` → 回退 WebView 后列表正常，
+  封面 `stage=image urlHost=image.xbanxia.cc hasCookie=false` 全部 `dataLoadingFailed`，图床同在 Cloudflare 挑战后。放行 Cookie 绑定 UA，两条路都用规则 `sharedRequest` 的 UA，不改 UA。
+  每次 WebView 成功都回写（不以「本次看到挑战页」为条件：WebView 可能早已持有放行 Cookie、本次不再出现挑战页）。
+  实现 `BrowseCraft/Infrastructure/Network/WebViewCookieSync.swift`、`WKWebViewHTMLLoader.swift`；用例 `WebViewCookieSyncTests`。
+  **同日第二处（真机复验仍 `hasCookie=false`，日志已见 `synced 3 cookie(s)`）**：书类来源的封面请求此前拿不到来源请求配置——
+  `ResolveLibrarySourcePresentationUseCase.imageRequestConfig` 只认 video 与漫画 V2 规则，书类规则过不了漫画校验、返回 nil，封面请求 `cookiePolicy` 为空，
+  `CookieHeaderResolver` 在策略为空时只带规则写死的 Cookie、系统 Cookie 一条不带（日志 `requestScope=default`）。补 book 分支：与 `BookSourceRuntime` 取列表同一继承
+  （`sharedRequest` → 页 `request` → 列表规则 `request`），书架 / 收藏 / 历史封面与作品页封面（`BookSiteDetailViewModel.coverRequestConfig`）同用。
+  半夏规则 `cookiePolicy=browserThenCustom`、`cookiePriority=browser`；封面请求默认 UA 与规则 UA 同为 `ClientUserAgent.desktopSafari`，放行 Cookie 可用。
+  **同日第三处（诊断日志）**：回写 `TREK_SESSION@www.xbanxia.cc`、`TREK_SESSION@.xbanxia.cc`、`cf_clearance@.xbanxia.cc` 三条，封面请求却只带出 `TREK_SESSION`、图床 `httpStatus=403`——
+  同域的 `cf_clearance` 没被 `HTTPCookieStorage.cookies(for:)` 取回。**推测**是 WebView 交出的放行 Cookie 带分区（CHIPS `Partitioned`）等私有属性，系统存储按网址只返回不分区的 Cookie；
+  回写改为只用公开属性重建（名 / 值 / 域 / 路径 / Secure / HttpOnly / 过期 / SameSite，`WebViewCookieSync.unpartitioned`），回写日志加 `readBack` 当场核对。**2026-10-07 真机证实修好**（用户确认封面显示）——重建后 `cf_clearance` 取得回、图床放行；分区是推测成因，未单独证明。
+```
+
+### Catalog-Same-Site-Entry-Subtitle-Design.md 原一·裁决句
+
+```text
+用户 09-15 裁决在 App 侧处理：同站多条时副标题显示入口地址。
+```
+
+### AccountScopedDatabaseMigration-Memo.md 原云同步数据合同·来源句
+
+```text
+以下三条由 2026-07-22 的 CloudKit 阶段 0 审计提出，实现已落地，2026-09-19 逐条对照代码核实后
+提升为合同。
+```
+
+### AccountScopedDatabaseMigration-Memo.md 原BCA-SYNC-009 裁定日期
+
+```text
+（2026-10-04 用户裁定）
+```
+
+### Source-Deletion-Cascade-Design.md 原一·两句日期叙事
+
+```text
+2026-10-03 用户裁定改为真正连带删除，并把收藏也算进去。
+来源页的删除同日已改为不弹确认（[来源页](Sources-Page-Redesign-Design.md) 2.5）；
+```

@@ -81,7 +81,8 @@
 - `BrowseCraft/Features/Settings/CloudSync/CloudSyncSettingsView.swift`：隐藏底栏、状态卡、开关、同步的内容、上次同步、下拉、首次开启窗口。
 - `BrowseCraft/Features/Settings/CloudSync/CloudSyncSettingsViewModel.swift`：`statusCard`、条数（`syncedContentSummary`）与下拉入口 `refreshFromPull`。
 - `BrowseCraft/Application/Ports/Sync/CloudAccountPartitioning.swift` 与
-  `BrowseCraft/Infrastructure/Database/Sync/GRDBCloudAccountPartitionStore.swift`：读「同步的内容」条数。
+  `BrowseCraft/Infrastructure/Database/Sync/GRDBCloudAccountPartitionStore.swift`：读「同步的内容」前两行的条数。
+- `BrowseCraft/Application/Ports/Sync/HistoryEntrySyncLocalStore.swift` 与 `BrowseCraft/Infrastructure/Database/Sync/GRDBHistoryEntrySyncLocalStore.swift`：第三行「历史与阅读进度」的作品数（`syncedWorkCount()`）。
 - 入口卡复用来源页的 `SourcesEntryCardView`，卡片组与行间线复用 `SettingsCardGroup`、`SettingsRowSeparator`。
 - 三份 `Localizable.strings` 末尾「云同步页重设计」一段；原页面不再使用的词条已删除。
 

@@ -47,7 +47,7 @@
 - 上半：44pt 圆形图标（添加蓝底 + `person.fill`）、「AnyPortal 账号」、小字「已通过 Apple 登录」。
 - 中间：小字「coin 余额」，下面大数字余额 + 小字「coin」；余额未知时大数字写「—」。右侧实心添加蓝胶囊「看广告 +N」，高 44pt，
   +N 取服务端下发的 `CoinPricing` 的 `adReward`，拿不到正数时只写「看广告」。
-- 底部：「coin 流水 ›」推入 `CoinLedgerView`，进入时余额一并向服务端对齐。
+- 底部：「coin 记录 ›」推入 `CoinLedgerView`，进入时余额一并向服务端对齐。
 
 「看广告」就是原来的「启动广告服务」，动作不变（`AdPlaybackViewModel` 带奖励协调器播放）；它和余额放在一起，看完就在旁边看到数字变化。
 
@@ -89,7 +89,7 @@
 | 行 | 右侧说明 | 点了 |
 | --- | --- | --- |
 | 看广告 +N | — | 加载并播放激励广告 |
-| coin 流水 | — | 推入 `CoinLedgerView` |
+| coin 记录 | — | 推入 `CoinLedgerView` |
 | 高级版 | 更多来源位置与付费功能 | 打开内购页 |
 | 云同步 | 同步状态 | 推入 `CloudSyncSettingsView` |
 | 缓存 | 上限 | 推入 `CacheSettingsView` |

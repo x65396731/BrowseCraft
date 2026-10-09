@@ -1,6 +1,6 @@
 # 本地书籍导入与 Readium 阅读器
 
-影响范围：BrowseCraft 五层（Domain / Application / Infrastructure / Features / App）与 `scripts/check-architecture-boundaries.sh`；BrowseCraftCore、Domain 包、Runtime、APIKit **零改动**；漫画线与影视线代码零改动。书架 / 阅读器 / 书签 / 三张表与仓储保留给站点抓取路（[读书 kind App 侧接线](Book-Kind-Wiring-Design.md) 批次 A ~ C）复用；B3（有声书播放器）不做。
+影响范围：BrowseCraft 五层（Domain / Application / Infrastructure / Features / App）与 `scripts/check-architecture-boundaries.sh`；BrowseCraftCore、Domain 包、Runtime、APIKit **零改动**；漫画线与影视线代码零改动。书架 / 阅读器 / 书签 / 三张表与仓储保留给站点抓取路（[读书 kind App 侧接线](Book-Kind-Wiring-Design.md) 批次 A ~ C）复用；B3（本地有声书播放器）按裁决不做，站点有声作品的播放器见 [读书 kind App 侧接线](Book-Kind-Wiring-Design.md) 第十六节。
 
 - `BCA-UI-001` 书架与阅读器的两级目的地必须合成一个路由枚举在 Library 栈根声明一次（`LibraryBookRoute`）——书架用 `isPresented` 推入后在内部再声明第二级 `navigationDestination`，SwiftUI 报「declared earlier on the stack」并把推入弹回。
 
@@ -25,9 +25,6 @@
 | EPUB 阅读 | `EPUBNavigatorViewController(publication:initialLocation:readingOrder:config:httpServer:)`（`throws`；`publication.isRestricted` 时抛 `publicationRestricted`） | 用不带 `httpServer` 的初始化；App 不链接 `ReadiumAdapterGCDWebServer` |
 | 有声播放 | `AudioNavigator(publication:initialLocation:config:audioSession:)`：`play / pause / playPause / seek(to:) / seek(by:) / go(to:) / goForward / goBackward`、`playbackInfo`、`currentLocation` | **无 UI**，播放器界面自建；`audioSession` 缺省 `AudioSession.shared` |
 | 位置 | `Navigator.currentLocation: Locator?`；`Locator` 是 `JSONObjectEncodable`（`jsonString()` / `jsonObject`），可从 JSON 还原 | 续读与书签都存 JSON |
-
-2026-09-13 立项前核对的 App 现状已归档，见 [history/status-log.md](../history/status-log.md)——
-其中「全仓无 `fileImporter`」与 `RSSReadingHistoryRecord` 两处**现已不成立**。
 
 ## 三、设计
 
@@ -57,15 +54,15 @@ BookBookmark         id: UUID, bookID: UUID, userID: String, locatorJSON: String
 
 - `ReadiumBookPublicationOpener`：持有一个 `AssetRetriever`、`DefaultPublicationParser`、`PublicationOpener`，EPUB Navigator 不需要本地 HTTP 服务；`open` 走 `allowUserInteraction: false`。
 - `ReadiumBookFileInspector`：用 Readium 的格式嗅探（`FormatSniffer` + 文件扩展名 / 媒体类型提示）。
-- `FileSystemBookFileStore`：`Application Support/Books/`，文件名用 `LocalBook.id`。
+- `FileSystemBookFileStore`：`Application Support/BrowseCraft/Books/`（`BCA-BOOK-002`），文件名用 `LocalBook.id`。
 - GRDB：`local_books`、`book_reading_progress`、`book_bookmarks` 三张表，一条迁移 `v3.local-books`（在 `sourcesAddOriginIdentifier` 之后追加），`AppDatabaseSchemaSnapshotTests` 快照同步更新；Record 只做行映射。
 - 不进 CloudKit（首批）：文件本身不同步，进度与书签也先不同步，避免「云端有进度、本机无文件」的半状态。
 
 ### 3.4 Features
 
-- `Features/Library/Book/`：`BookShelfView`（从 Library 工具栏的「Books」进入；`fileImporter` 允许的 `UTType`：`epub`、`mp3`、`mpeg4Audio`（`m4a / m4b`）、`zip`，多选）、`BookShelfViewModel`、`LibraryBookRoute`（书架 / 某本书两级路由，只在 `LibraryView` 栈根声明）。
+- `Features/Library/Book/`：`BookShelfView`（入口已藏，见第八节；`fileImporter` 允许的 `UTType`：`epub`、`mp3`、`mpeg4Audio`（`m4a / m4b`）、`zip`，多选）、`BookShelfViewModel`、`LibraryBookRoute`（书架 / 某本书两级路由，只在 `LibraryView` 栈根声明）。
 - `Features/Library/Book/Reader/BookReaderView`：`UIViewControllerRepresentable` 承载 `EPUBNavigatorViewController`；`navigator(_:locationDidChange:)` 节流（1 秒）后调保存用例，退出时再保存一次；工具栏：目录、书签、字号 / 主题（`EPUBPreferences`）。
-- `Features/Library/Book/Player/AudiobookPlayerView`：自建 UI 包 `AudioNavigator`——播放 / 暂停、进度条（`playbackInfo`）、±15 秒、章节列表（`readingOrder`）、倍速（`AudioPreferences`）；后台播放要在手写的 `BrowseCraft/Info.plist` 加 `UIBackgroundModes: audio`，并接 `MPRemoteCommandCenter` / Now Playing（Infrastructure 适配，AVFoundation 只许在 Infrastructure / Features）。
+- `Features/Library/Book/Reader/AudiobookPlayerView`：自建 UI 包 `AudioNavigator`，控件、锁屏与后台播放的做法见读书接线合同第十六节（`AudiobookRemoteControls`、手写 `Info.plist` 的 `UIBackgroundModes: audio`）；本地导入的音频书不路由到它（入口已藏）。
 - 书签：两种阅读器共用同一张书签表与同一组用例（`BookBookmark`、`AddBookBookmarkUseCase` /
   `ListBookBookmarksUseCase` / `RemoveBookBookmarkUseCase`），点选即 `go(to:)`；
   呈现层内联在 `BookReaderView` 的 `.sheet` 里，没有独立的 sheet 类型。
@@ -75,16 +72,9 @@ BookBookmark         id: UUID, bookID: UUID, userID: String, locatorJSON: String
 
 `scripts/check-architecture-boundaries.sh` 的 Domain / Application 禁用清单加 `ReadiumShared|ReadiumStreamer|ReadiumNavigator|ReadiumAdapterGCDWebServer|MediaPlayer`；`docs/architecture.md` §3 同步一句。
 
-## 四、分批（每批单独拍板、提交、推送）
+## 四、分批
 
-| 批 | 内容 | 验收 |
-|---|---|---|
-| B0 | 边界脚本 + Domain 模型与仓储协议 + Application 端口与用例（用测试替身）+ 迁移 `v3.local-books` + 快照更新 | `BrowseCraftTests` 全过；快照测试过；build 过 |
-| B1 | Infrastructure：Readium 打开器 / 嗅探器 / 文件存储 / GRDB 仓储；用固定输入（一本无 DRM 的小 EPUB、一个 10 秒 mp3、一个两文件 zip）测「导入 → 落库 → 打开 → 元数据正确」 | 单元测试过；导入失败回滚文件的用例过 |
-| B2 | 书架 + EPUB 阅读器 + 续读进度 + 书签 | **用户真机**：导入 EPUB、读几页、退出再进回到原位、书签跳转 |
-| B3 | 有声书播放器 UI + 后台播放 + 锁屏控制 + 章节 / 倍速 | **用户真机**：导入 m4b，锁屏继续播，退出再进回到原位 |
-
-B2 之后再回到 [读书 kind App 侧接线](Book-Kind-Wiring-Design.md) 的批次 A（站点抓取路），届时 RWPM 装配的产物就是同一个 `BookPublicationHandle`。
+B0、B1、B2 已落地，B3 按裁决不做，状态见 [STATUS.md](../STATUS.md) 第 1 节；当年的分批表与验收口径见 [status-log.md](../history/status-log.md)。
 
 ## 五、验证命令
 
@@ -94,12 +84,12 @@ scripts/regenerate-project.sh && xcodebuild -project BrowseCraft.xcodeproj -sche
 xcodebuild -project BrowseCraft.xcodeproj -scheme BrowseCraft -destination 'platform=iOS Simulator,OS=26.5,name=iPhone 17 Pro' test -only-testing:BrowseCraftTests
 ```
 
-## 六、待裁决
+## 六、裁决与现状
 
-1. **History 页是否纳入本地书**：**用户裁决 B2 不纳入**，站点路接上时一起做（`ReadingHistoryEntry.Kind` 加 `.book` 会牵动 `HistoryView` / `HistoryEntryRowView` 等既有分流点）。
-2. **进度与书签是否上 CloudKit**：**用户裁决首批不上**（第 3.3 节的理由）。
-3. **站点书与本地书的作品标识**：站点书没有 `LocalBook`，进度表的外键要从 `bookID: UUID` 扩为「本地 UUID 或 `sourceID + itemID`」——建议在批次 A 时改，本文先按本地 UUID。
-4. **PDF**：本地 PDF 用 `PDFNavigatorViewController` 成本很低，但读书规范把 PDF 排除在站点路之外；是否作为本地专属格式接，由用户定。
+1. **History 页**：本地书不进 History（入口已藏）；站点书已进 History，接线见 [读书 kind App 侧接线](Book-Kind-Wiring-Design.md) 第二十三节。
+2. **进度与书签上 CloudKit**：本地书的进度与书签不上云（第 3.3 节的理由）；站点书的续读位置随 `HistoryEntry` 同步，见 [续看位置同步](History-Resume-Sync-Design.md)。
+3. **作品标识**：进度表与书签表的外键已由迁移 `v4.book-progress-detached-from-local-books` 从本地 UUID 扩为作品标识（`SiteBookIdentity`），站点书与本地书共用同一张表。
+4. **PDF**（仍待裁决）：本地 PDF 用 `PDFNavigatorViewController` 成本很低，但读书规范把 PDF 排除在站点路之外；是否作为本地专属格式接，由用户定。
 
 ## 七、风险
 
@@ -113,6 +103,6 @@ xcodebuild -project BrowseCraft.xcodeproj -scheme BrowseCraft -destination 'plat
 - 去掉：`LibraryView` 工具栏的「Books」`NavigationLink`；`RootView` 不再创建 `BookShelfViewModel` 与阅读器工厂闭包（`LibraryView` 的两个可选参数缺省为 nil）。
 - 保留：`BookShelfView` / `BookShelfViewModel`（含 `fileImporter`，不可达）、`BookReaderView` / `BookReaderViewModel` / `EPUBNavigatorRepresentable`、`LibraryBookRoute` 与 `LibraryView.bookDestination`、
   Domain / Application / Infrastructure 的全部本地书模型、用例、适配器、三张表与仓储、`BookFeatureFactory`。站点抓取路接线时，`.book` 路由与阅读器直接复用；
-  `LocalBook` 届时按第六节第 3 条扩为「本地 UUID 或 sourceID + itemID」的作品标识。
+  作品标识已按第六节第 3 条扩为「本地 UUID 或 sourceID + itemID」。
 - 不做：B3 有声书播放器；本地 PDF。
 - 迁移 `v3.local-books` 已入库存，不回退（表空着不影响任何功能；回退迁移会改动已发布设备的账本）。

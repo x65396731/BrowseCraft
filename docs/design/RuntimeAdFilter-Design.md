@@ -7,7 +7,7 @@
 
 ## 一、结论
 
-后端生成器将**停止**把运行期广告策略编译进规则 regex。规则今后只声明
+后端生成器**不**把运行期广告策略编译进规则 regex。规则只声明
 「从哪里取媒体地址」，不再携带广告排除的负向前瞻。相应地，
 **App 需要对规则匹配到的结果执行广告过滤**。
 
@@ -33,20 +33,20 @@
 同一个站今天失败、明天不失败，得到的规则就不同。而且四种 loading 变体里，
 `WEBUI_PAGE` 完全不受该要求约束，另外三种受约束，没有统一理由。
 
-## 三、App 侧现状（只读核对，未改动）
+## 三、既有的导航过滤
 
-需要的机制**已经存在，并且已在播放时生效**：
+对**导航 URL** 的过滤在播放时生效：
 
-- `BrowseCraft/Application/Runtime/Common/Filtering/SourceContentNoiseFilter.swift`
+- `BrowseCraftRuntime/Sources/BrowseCraftRuntime/Common/Filtering/SourceContentNoiseFilter.swift`
   - `SourceContentNoiseContext` 含 `playbackCandidate`
   - `SourceContentNoiseReason` 含 `advertising`、`popupOrOverlay`、`tracking`、
     `externalPromotion`
-- `BrowseCraft/Features/Library/Video/Player/VideoWebPlayerCoordinator.swift:108`
-  `shouldBlockLikelyNoiseNavigation(_:)` 在播放时对**主框架导航**调用该过滤器，
+- `BrowseCraft/Features/Library/Video/Player/VideoWebPlayerCoordinator.swift` 的 `shouldBlockLikelyNoiseNavigation(_:)`
+  在播放时对**主框架导航**调用该过滤器（调用点在 `VideoWebPlayerCoordinator+NavigationDelegate.swift`），
   `action == .discard` 即拦截。
 - 词表 `SourceDetectionLexicon`：`advertising` 12 条、`tracking` 9 条、
-  `externalPromotion` 7 条、`popupOrOverlay` 5 条，另有 `zh-Hans` 分表，
-  经 `SourceDetectionLexicon.load(bundle:)` 从 App Bundle 读取。
+  `externalPromotion` 7 条、`popupOrOverlay` 5 条（base 表），另有 en / ja / zh-Hans 分表；
+  词表随 Runtime 包发布，经 `Bundle.module` 读取（`BCA-ARCH-006`）。
 
 ## 四、需要新增的部分
 
@@ -65,45 +65,38 @@
 - `BCA-RUNTIME-003` `discard` 的候选不得进入播放；若全部候选被 discard，按既有 `fallback` 语义处理，
   不得静默播放被判为广告的地址。
 
-## 四之二、实施时被测量推翻的两条默认假设
+## 四之二、两条判定细则
 
-写代码前先用仓库里已落盘的 **1381 条真实 media URL** 复算了一遍判定，得到两条
-本文第三节没有覆盖的事实。两条都改变了实施方式。
-
-### F1：按字面复用过滤器，对媒体候选完全惰性
+### 播放身份的豁免只给推断出来的候选
 
 `SourceContentNoiseFilter` 对广告类理由设有豁免：候选看起来属于播放结构就不判广告。
 `.playbackCandidate` 形态下该豁免只看 `url.path`，判据词表 `playbackStructure`
 里就有 `m3u8`、`mp4`——**规则匹配到的媒体候选，其 path 必然含这两者**，
-于是豁免恒成立。实测 1381 条中丢弃 **0** 条；
-`https://adserver.example.test/vast/preroll-ad.m3u8` 判 keep。
+于是豁免恒成立。
 
-修法（`BC-EVIDENCE-071`）：候选携带一个已声明事实
+判据（`BC-EVIDENCE-071`）：候选携带一个已声明事实
 （`SourceContentPlaybackAssurance.inferred` / `.ruleDeclared`）区分「播放身份是猜的」
 与「播放身份是规则声明的」，后者不取得该豁免。既有调用方不传该字段，行为逐字不变。
 
-### F2：原始 query 子串匹配在签名 token 上产生假阳性
+### 词表匹配只看 `scheme://host/path`
 
-关掉豁免后 1381 条中丢弃 4 条：2 条是真广告（`s1.kwai.net/bs2/ad-i18n-dsp/…`），
-2 条是假阳性——签名 token `…QAD-55w` 命中了 `ad-` 这个两字符标记。
-
-修法（`BC-EVIDENCE-072`）：URL 参与词表子串匹配时只取 `scheme://host/path`。
+判据（`BC-EVIDENCE-072`）：URL 参与词表子串匹配时只取 `scheme://host/path`。
 query 的判别本来就由 `hasSuspiciousNavigationURLSignals` 的结构化计分承担，
-原始子串匹配是重复的第二种解释。收窄后：真阳性 2 条不变，假阳性归零。
+原始子串匹配是重复的第二种解释。签名 token 里的 `ad-` 这类两字符片段因此不再误判。
 
 `source id`、规则 id 与 selector 只作为**审计上下文**记录，不进入词表匹配——
 它们是规则自身的文字，不是候选的身份证据；否则同一个候选会因规则写法不同而得到不同裁决。
 
-## 四之三、实际落点
+## 四之三、落点
 
-| 位置 | 改动 |
+| 位置 | 职责 |
 | --- | --- |
-| `Application/Runtime/Common/Filtering/SourceContentNoiseFilter.swift` | 新增 `SourceContentPlaybackAssurance`；`hasPlaybackSignal` 改为读该事实并删去一处两分支同值的死 `switch`；URL 证据收窄到 `scheme://host/path` |
-| `Application/Runtime/Video/Loading/VideoSourcePlaybackLoader.swift` | 唯一过滤挂载点，位于 `validateParsedPlayback` 之后、任何路线判定之前；`VideoPlaybackNoiseAdmission` 承载准入结果与审计 |
-| `Application/Runtime/Video/Playback/VideoPreparedPlaybackExecutionSession.swift` | 新增 route reason `allCandidatesFilteredAsNoise` |
+| `BrowseCraftRuntime/Sources/BrowseCraftRuntime/Common/Filtering/SourceContentNoiseFilter.swift` | `SourceContentPlaybackAssurance`；`hasPlaybackSignal` 读该事实；URL 证据只取 `scheme://host/path` |
+| `BrowseCraftRuntime/Sources/BrowseCraftRuntime/Video/Loading/VideoSourcePlaybackLoader.swift` | 唯一过滤挂载点，位于 `validateParsedPlayback` 之后、任何路线判定之前；`VideoPlaybackNoiseAdmission` 承载准入结果与审计 |
+| `BrowseCraftRuntime/Sources/BrowseCraftRuntime/Video/Playback/VideoPreparedPlaybackExecutionSession.swift` | route reason `allCandidatesFilteredAsNoise` |
 
-`media → iframe → fallback` 决策树**一行未改**——它读到的候选集已是过滤后的集合。
-route facts 仍只留内存，未触碰 evidence 导出 schema。
+`media → iframe → fallback` 决策树不感知过滤——它读到的候选集已是过滤后的集合。
+route facts 只留内存，不进 evidence 导出 schema。
 
 ## 五、必须一并决定的两件事
 
@@ -131,5 +124,3 @@ route facts 仍只留内存，未触碰 evidence 导出 schema。
 
 - 本文不改变候选级广告 assessment 的职责——那仍在生成期，由后端负责。
 - 本文不涉及 App 自身的广告投放模块（`BrowseCraft/Shared/Ads/`），二者无关。
-- 未修改 BrowseCraftCore 的任何代码；BrowseCraft 侧只改上表三个文件与两个测试文件，
-  未新增源码文件，因此不需要重新生成 XcodeGen 工程。

@@ -42,7 +42,7 @@
 **其他外壳数据**（与视频库同）：分类芯片看列表规则个数（めちゃコミック 1 个，不出）；搜索按钮看规则是否声明 search（有）；
 账号按钮看有无登录配置（めちゃコミック有 `loginURL`，出）；分页脚看规则是否分页（有）。
 
-线上目录里漫画只有めちゃコミック一条；模拟器上已加它，并有一条《青い瞳の花嫁》第 4-2 话第 6 / 58 页的历史，足够看到瓷砖与进度角标。
+线上目录里漫画只有めちゃコミック一条；读过它的一章就足够看到瓷砖与进度角标。
 
 ## 三、入口、相邻页面与范围
 
@@ -173,19 +173,19 @@
 ## 十二、不改的东西
 
 - 列表数据、分页、分类缓存、切换来源、收藏切换、搜索、登录与凭据；`LibraryBodyState` 五种状态与优先级；下拉刷新与触底加载两条路。
-- 视频库与书籍库（书籍继续用旧卡片到它自己立项）；漫画详情页与阅读器；搜索页外壳；底栏（系统 `TabView`，不随来源类型变）。
+- 视频库与书籍库（各有自己的合同）；漫画详情页与阅读器；搜索页外壳；底栏（系统 `TabView`，不随来源类型变）。
 - App 不提供规则创建或编辑入口（`BCA-UI-003`）；`latestText` 等字段有无由规则决定。
 
 ## 十三、实现位置
 
 - `BrowseCraft/Features/Library/Comic/List/ComicLibraryCardView.swift`：重画卡片（封面 + 进度角标 + 已收藏爱心 + 标题 + 最新话 + 长按菜单），删 `libraryTitleText` 与写死的蓝紫色。
-- `BrowseCraft/Features/Library/Book/Site/BookLibraryCardView.swift`：重设计前漫画与书籍共用的旧卡片原样挪来、改名，书籍继续用到书籍库立项。
+- `BrowseCraft/Features/Library/Book/Site/BookLibraryCardView.swift`：重设计前漫画与书籍共用的旧卡片，书籍库重设计后已删除。
 - `BrowseCraft/Features/Library/Components/LibraryContentView.swift`：分成视频 / 漫画 / 书籍三个分支，漫画是三列封面墙，书籍留旧网格；给漫画卡片传进度角标与「继续读」回调。
 - `BrowseCraft/Features/Library/LibraryView.swift`：「上次读到」瓷砖分支与用历史开阅读器的导航。
 - `BrowseCraft/Features/Library/LibraryViewModel.swift` 与 `LibraryPersistenceCoordinator`：按来源读漫画章节历史的只读查询、最近一条与按作品的进度字典、刷新时机。
 - `BrowseCraft/Features/Library/Components/LibrarySkeletonGridView.swift`：按类型选两列 / 三列。
 - `BrowseCraft/Features/History/Components/HistoryEntryRowView.swift`：`HistoryContinueTileView` 不改，换漫画样式即可。
-- `BrowseCraft/Shared/UI/LibraryTitleColor.swift`：漫画卡片不再引用；书籍旧卡片还在用，随书籍库立项再删。
+- `BrowseCraft/Shared/UI/LibraryTitleColor.swift`：已随书籍库重设计删除。
 - 三份 `Localizable.strings`：新增「读到 %@」「继续读 · %@」「已收藏」（爱心的读屏标签）；「上次读到」「继续读」「打开作品」沿用历史页与视频库的键。
 - `LibraryView` 的空态：按当前来源类型选插画，漫画用 `EmptyStateLibraryComic`（资产已入库并登记预算）。
 

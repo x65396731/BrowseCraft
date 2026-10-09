@@ -1,4 +1,4 @@
-# 规则目录：同站多条来源的副标题显示入口地址（2026-09-15）
+# 规则目录：同站多条来源的副标题显示入口地址
 
 ## 一、背景
 
@@ -8,7 +8,7 @@ sfacg 桌面分类 `tid=21` 作为新来源 `sfacg-com--list-tid-21` 发布进�
 
 名字来自引擎：sfacg 书站没有 `og:site_name`，跨文档公共标题段被一份下载页（标题「下载菠萝包APP」）打断，退回主机名；
 即使取到「SF轻小说」，同站两条仍然同名——能区分两者的分类名「魔幻」只在 `javascript:redirect('tid',21)` 按钮上，
-引擎没有通用办法把它与入口对应。用户 09-15 裁决在 App 侧处理：同站多条时副标题显示入口地址。
+引擎没有通用办法把它与入口对应。App 侧处理：同站多条时副标题显示入口地址。
 
 ## 二、设计
 
@@ -28,6 +28,6 @@ sfacg 桌面分类 `tid=21` 作为新来源 `sfacg-com--list-tid-21` 发布进�
 
 - `BrowseCraft/Application/UseCases/Generation/CatalogSourceGrouping.swift`：`defaultEntryURLs`、`sameHostEntryURLs`、`ruleEntryURL`。
 - `BrowseCraft/Features/Sources/SourcesViewModel.swift`：`catalogEntryURL(for:)`（个人入口优先，其次同站多条入口）。
-- `BrowseCraft/Features/Sources/Catalog/CatalogSourceListView.swift`：目录行 `subtitleURL` 改用 `catalogEntryURL(for:)`。
+- `BrowseCraft/Features/Sources/Catalog/CatalogSourceListView.swift`：目录行把 `catalogEntryURL(for:)` 作为入口地址交给 `CatalogDisplayText.recommendationSubtitle`。
 
 > 真机验证状态见 [STATUS.md](../STATUS.md)；验证当日的读数见 [status-log.md](../history/status-log.md)。

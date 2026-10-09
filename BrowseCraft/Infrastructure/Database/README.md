@@ -7,7 +7,7 @@
 ## 文件组织
 
 - `AppDatabase.swift` 只负责数据库路径与执行迁移。
-- 表、主键、唯一键和索引由 `Migrations/`（`AppDatabaseSchemaV1` 与 `AppDatabaseMigrations`）创建；`*Record+Schema.swift` 只保留列名 `Columns`。
+- 表、主键、唯一键和索引由 `Migrations/`（`AppDatabaseSchemaV1` 与 `AppDatabaseMigrations`）创建；Record 类型（`*Record+Schema.swift` 伴随文件或 Record 本体）只保留列名 `Columns`，不建表。
 - `Records/User` 保存用户（含 coin 余额与版本号）、权益和用户级 UI 状态。
 - `Records/Source` 保存站点来源配置。
 - `Records/Favorite` 保存收藏快照。
@@ -19,7 +19,7 @@
 
 ## 当前规则
 
-- `favorites` 是用户级聚合表：每个 `userID` 一行，内部用 JSON 保存 RSS / 漫画 / 视频收藏快照，并保存一份派生 ID 列表用于快速判断收藏状态。
+- `favorites` 是用户级聚合表：每个 `userID` 一行，内部用 JSON 保存漫画 / 视频 / 书籍收藏快照（`rssFavoritesJSON` 列随 RSS 下线留作死列），并保存一份派生 ID 列表用于快速判断收藏状态。
 - `favorite_items` 是收藏同步明细表：每个 `userID + sourceID + itemID` 一行，取消收藏通过 `deletedAt` tombstone 表示。
 - `favorites` 和阅读历史只关联 `users`，不直接外键关联 `sources`；删除来源时的连带删除由仓储在同一事务里显式执行（`BCA-DB-005`），不依赖外键级联。
 - `sources` 使用 `userID + id` 复合主键，允许 `local.default` 和多个 cloud scope 保存相同 Source ID。

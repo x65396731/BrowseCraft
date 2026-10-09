@@ -37,20 +37,14 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
   两者对 Cloudflare 的处境不同（2026-10-06 toonily：章节页家用出口 403 `cf-mitigated: challenge`、服务器出口 200），引擎观察不到手机出口，
   这一层只能在 App 处理；WebView 通道已有挑战页状态机（`BC-EVIDENCE-081`，`WKWebViewChallengeInterstitialGate`）。无反爬的站不会进入回退，取值逐字不变。
   对应 fwq `APP-MEMO-026`。实现 `BrowseCraft/Infrastructure/Network/DefaultPageLoader.swift`；用例 `PageContentLoaderTests`（挑战页回退、其它错误不回退）。
-  **2026-10-07 补充（Cookie 回写）**：WebView 通道判定拿到真文档（挑战状态机 `.document`）时，把 `WKHTTPCookieStore` 里对该页主机生效的 Cookie
-  （域名等于主机或主机是其子域，`.xbanxia.cc` 覆盖 `www.` 与 `image.`）写回 `HTTPCookieStorage.shared`——封面 / 图片请求（`SharedHTTPCookieHeaderProvider`）与之后的直接请求才带得上过挑战得到的放行 Cookie。
-  此前只有「系统 → WebView」一个方向（`prepareCookieStore`）。依据：半夏小說（xbanxia）真机日志——列表 `antiBot=true` → 回退 WebView 后列表正常，
-  封面 `stage=image urlHost=image.xbanxia.cc hasCookie=false` 全部 `dataLoadingFailed`，图床同在 Cloudflare 挑战后。放行 Cookie 绑定 UA，两条路都用规则 `sharedRequest` 的 UA，不改 UA。
-  每次 WebView 成功都回写（不以「本次看到挑战页」为条件：WebView 可能早已持有放行 Cookie、本次不再出现挑战页）。
-  实现 `BrowseCraft/Infrastructure/Network/WebViewCookieSync.swift`、`WKWebViewHTMLLoader.swift`；用例 `WebViewCookieSyncTests`。
-  **同日第二处（真机复验仍 `hasCookie=false`，日志已见 `synced 3 cookie(s)`）**：书类来源的封面请求此前拿不到来源请求配置——
-  `ResolveLibrarySourcePresentationUseCase.imageRequestConfig` 只认 video 与漫画 V2 规则，书类规则过不了漫画校验、返回 nil，封面请求 `cookiePolicy` 为空，
-  `CookieHeaderResolver` 在策略为空时只带规则写死的 Cookie、系统 Cookie 一条不带（日志 `requestScope=default`）。补 book 分支：与 `BookSourceRuntime` 取列表同一继承
-  （`sharedRequest` → 页 `request` → 列表规则 `request`），书架 / 收藏 / 历史封面与作品页封面（`BookSiteDetailViewModel.coverRequestConfig`）同用。
-  半夏规则 `cookiePolicy=browserThenCustom`、`cookiePriority=browser`；封面请求默认 UA 与规则 UA 同为 `ClientUserAgent.desktopSafari`，放行 Cookie 可用。
-  **同日第三处（诊断日志）**：回写 `TREK_SESSION@www.xbanxia.cc`、`TREK_SESSION@.xbanxia.cc`、`cf_clearance@.xbanxia.cc` 三条，封面请求却只带出 `TREK_SESSION`、图床 `httpStatus=403`——
-  同域的 `cf_clearance` 没被 `HTTPCookieStorage.cookies(for:)` 取回。**推测**是 WebView 交出的放行 Cookie 带分区（CHIPS `Partitioned`）等私有属性，系统存储按网址只返回不分区的 Cookie；
-  回写改为只用公开属性重建（名 / 值 / 域 / 路径 / Secure / HttpOnly / 过期 / SameSite，`WebViewCookieSync.unpartitioned`），回写日志加 `readBack` 当场核对。**2026-10-07 真机证实修好**（用户确认封面显示）——重建后 `cf_clearance` 取得回、图床放行；分区是推测成因，未单独证明。
+  **Cookie 回写**：WebView 通道判定拿到真文档（挑战状态机 `.document`）时，把 `WKHTTPCookieStore` 里对该页主机生效的 Cookie
+  （域名等于主机或主机是其子域）写回 `HTTPCookieStorage.shared`——封面 / 图片请求（`SharedHTTPCookieHeaderProvider`）与之后的直接请求才带得上过挑战得到的放行 Cookie；
+  放行 Cookie 绑定 UA，两条路都用规则 `sharedRequest` 的 UA。每次 WebView 成功都回写，不以「本次看到挑战页」为条件。
+  回写只用公开属性重建 Cookie（名 / 值 / 域 / 路径 / Secure / HttpOnly / 过期 / SameSite，`WebViewCookieSync.unpartitioned`）——带分区等私有属性的 Cookie，
+  `HTTPCookieStorage.cookies(for:)` 按网址取不回；回写日志带 `readBack` 当场核对。实现 `BrowseCraft/Infrastructure/Network/WebViewCookieSync.swift`、`WKWebViewHTMLLoader.swift`；用例 `WebViewCookieSyncTests`。
+  **书类封面的请求配置**：`ResolveLibrarySourcePresentationUseCase.imageRequestConfig` 对 book 规则按与 `BookSourceRuntime` 取列表同一继承
+  （`sharedRequest` → 页 `request` → 列表规则 `request`）给出请求配置，书架 / 收藏 / 历史封面与作品页封面（`BookSiteDetailViewModel.coverRequestConfig`）同用；
+  `cookiePolicy` 为空时 `CookieHeaderResolver` 只带规则写死的 Cookie、一条系统 Cookie 都不带，所以配置不能为空。真机证实与排查过程见 [status-log.md](../history/status-log.md)。
 - `BCA-RUNTIME-006` 列表分页的页码代入统一为 `startPage + N − 1`（N 为 1 起的页序号；`PaginationRule.startPage` 缺省 1，book 的 `BookListPagination.startPage` 同义）：
   三 kind 的代入点（影视 `VideoRulePaginationResolver`、漫画 `ComicSourceListLoader` → `URLResolvingService.listURL(page:)`、书 `BookSourceRuntime.listURL`）都经它换算，
   不带该键的规则行为逐字不变。依据 fwq `BC-LIST-124`：0 起页码站（rouman5、3kor）第 1 页在地址里写 0，引擎交付 `startPage: 0`。

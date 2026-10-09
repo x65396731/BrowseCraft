@@ -9,7 +9,7 @@ Domain models are grouped by the business area that owns the data shape.
 - `Favorites/`: favorite content snapshots.
 - `Sync/`: CloudKit account scope, partition and payload models.
 - `Settings/`: persisted or selectable app settings models.
-- `Book/`: locally imported books (EPUB / audiobook), their reading progress and bookmarks; positions are opaque Readium `Locator` JSON.
+- `Book/`: locally imported books (EPUB / audiobook), plus the reading-progress and bookmark models shared by local and site books; positions are opaque Readium `Locator` JSON.
 
 Naming rules:
 

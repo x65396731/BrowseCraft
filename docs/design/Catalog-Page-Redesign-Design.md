@@ -91,14 +91,14 @@
 
 - **基调**：目录页跟随系统外观，与弹出它的来源页一致——页面之间的主题色不能差异过大，浅色页面上弹出整张深色页反差过大。
   页面与卡片底色取系统分组背景，深浅色自动跟随；类型色、动作色与警示色的唯一声明点在 `CatalogKindStyle` 与 `CatalogPalette`，
-  深色取下列设计值，浅色取同色相、压低明度的一组。**类型横幅永远是深色色块**：插画本身是深底，横幅的底色、图标圆、标题与说明文字
+  两套取值都随系统。**类型横幅永远是深色色块**：插画本身是深底，横幅的底色、图标圆、标题与说明文字
   都取固定的深色取值、不随系统变；浅色页面上它就是三块深色类型色块，与来源页「正在使用」的深色类型瓷砖同一种做法。
-  深色设计值：背景 #0E0E11，卡片 #18181D，次级填充 #212128，分段控件底 #1B1B21、选中段 #2E2E37，分隔线为白色 8% 透明度。
-- **文字**：主文字 #F4F3EF，次文字 #A9A8B0，三级文字 #86858E（在卡片底上对比度不低于 4.5:1）。字体用系统字体。
+  页面、卡片、次级填充与分段控件全部取系统色（`systemGroupedBackground`、`secondarySystemGroupedBackground`、`tertiarySystemFill`），不另写深色值。
+- **文字**：随系统（`.primary` / `.secondary`）；横幅上的标题 #F4F3EF 是唯一固定的文字色。字体用系统字体。
 - **类型色**：视频 #F2A65A（琥珀）、漫画 #B79CFF（淡紫）、书籍 #5CC8B0（青绿）。类型之间同时用图标区分，
   不只靠颜色：视频为播放三角、漫画为对话气泡、书籍为书本。
-- **动作色**：添加 #2563EB（白字对比度满足 4.5:1）；更新为 #5B9BFF 描边加 #8AB6FF 字；警示 #FF8A70；删除 #E5484D。
-- **圆角**：横幅 22，卡片 18，徽标 12–13，胶囊按钮取高度的一半。触控目标不小于 44pt（通栏按钮与圆形按钮用外扩热区补足）。
+- **动作色**：添加 #2563EB（白字对比度满足 4.5:1）；警示 #FF8A70；删除 #E5484D。
+- **圆角**：横幅 22，卡片 18，首字徽标取边长的 0.29（36pt 徽标约 10、42pt 约 12），胶囊按钮取高度的一半。触控目标不小于 44pt（通栏按钮与圆形按钮用外扩热区补足）。
 - 首字徽标取站点名的第一个字符；是拉丁字母时取大写。
 
 ## 四、插画资产
@@ -140,9 +140,9 @@
 
 ## 七、实现位置
 
-- `BrowseCraft/Features/Sources/Catalog/CatalogSourceListView.swift`：分段控件、两个标签的内容、卡片、骨架与状态页。
+- `BrowseCraft/Features/Sources/Catalog/CatalogSourceListView.swift`：分段控件、两个标签的内容、卡片、首字徽标视图 `CatalogMonogramView`、骨架与状态页。
 - `BrowseCraft/Features/Sources/Catalog/CatalogPersonalTimeline.swift`：个人时间线的合并排序与按日分组（`CatalogPersonalTimeline`），推荐按类型分区（`CatalogKindSection`）。
-- `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift`：配色、类型样式、首字徽标与地址的显示取值。
+- `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift`：配色、类型样式、首字徽标与地址的显示取值，以及与添加来源页共用的类型横幅 `CatalogKindBannerView`。
 - `BrowseCraft/Features/Sources/Catalog/CatalogRuleFacts.swift`：推荐卡片的分类 / 可搜索 / 语言取值与语言归一（`CatalogLanguage`）。
 - `BrowseCraft/Features/Sources/SourcesViewModel.swift`：`personalCatalogTimeline`、`personalCatalogItemCount`、`personalRuleRemainingFraction(for:)`、`catalogRuleFacts`。
 - `BrowseCraft/Features/Sources/SourcesView.swift`：「去添加来源」在目录页收起后打开添加来源。

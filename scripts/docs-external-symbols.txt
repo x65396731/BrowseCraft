@@ -9,7 +9,6 @@
 
 # ---- Readium Swift Toolkit 3.11.0 的 SDK 符号 ----
 AVAudioPublicationManifestAugmentor  # Readium：从音频元数据补章节
-AudioPreferences                     # Readium：有声播放偏好
 EPUBPreferences                      # Readium：EPUB 阅读偏好
 FormatSniffer                        # Readium：格式嗅探
 GCDHTTPServer                        # ReadiumAdapterGCDWebServer：EPUB Navigator 的本地 HTTP 服务

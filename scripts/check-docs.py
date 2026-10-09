@@ -94,9 +94,9 @@ FWQ_DEF_RE = re.compile(r"^- `(BC-[A-Z]+-\d+(?:\.\d+)?)`")
 STATUS_HEADER_RE = re.compile(r"^(更新时间|状态|前置)[:：]")
 # A5：commit 哈希要求含至少一个数字，否则 a-f 组成的英文词会误报。
 HASH_RE = re.compile(r"\b(?=[0-9a-f]{7,40}\b)(?=[a-f]*\d)[0-9a-f]{7,40}\b")
-TESTCOUNT_RE = re.compile(r"\d+ 项 ?[/+] ?\d+|Swift Testing \d+|Ran \d+ tests|\d+ suites")
+TESTCOUNT_RE = re.compile(r"\d+ 项 ?[/+] ?\d+|Swift Testing \d+|Ran \d+ tests|\d+ suites|\d+ 条通过|\d+ 条跳过|\d+ 例固定输入|\d+ 个用例")
 # A6：日志式章节标题 = 标题里带日期。
-DATED_HEADING_RE = re.compile(r"^#{2,6} .*(20\d\d-\d\d-\d\d|20\d\d 年|20\d{5,6})")
+DATED_HEADING_RE = re.compile(r"^#{1,6} .*(20\d\d-\d\d-\d\d|20\d\d 年|20\d{5,6}|（20\d\d-\d\d-\d\d）)")
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 # 行内代码里的 `[...](...)` 是示例或正则，不是链接（归档里有一段 m3u8 正则会误报）。
 INLINE_CODE_RE = re.compile(r"`[^`]*`")

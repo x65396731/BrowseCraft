@@ -61,13 +61,12 @@ CloudKit `AppUserIdentity/default` 只能记录已经通过 Portal 登录的后�
   全部字符串字段合计校验大小预算、拒绝 URL userinfo、拒绝本地 `cloud:<64 hex>` account scope 泄漏。
   检出时只拒绝该条记录上传，保留 `sync_queue`；错误只含 JSON path 与问题类型，不含疑似敏感值。
   它**不推测站点规则常量是否敏感**——不扫描 Header 名称、`context.*` 取值、Request Body 字面量或
-  `keyHex` / `ivHex`。该取值由 `CloudSyncPayloadSecurityValidatorTests` 的 13 例固定输入钉住；
+  `keyHex` / `ivHex`。该取值由 `CloudSyncPayloadSecurityValidatorTests` 的固定输入钉住；
   要改成全面扫描须先过 `docs/STATUS.md` 第 4 节那一行的裁决。
 
 ## 云同步数据合同
 
-以下三条由 2026-07-22 的 CloudKit 阶段 0 审计提出，实现已落地，2026-09-19 逐条对照代码核实后
-提升为合同。该审计的其余部分（身份合同、PortalCore 接口只读审计、阶段 0 验收结果）仍留在
+以下三条源自 CloudKit 阶段 0 审计，经逐条对照代码核实后提升为合同。该审计的其余部分（身份合同、PortalCore 接口只读审计、阶段 0 验收结果）仍留在
 [history/Phase0-Data-Contract-and-Security-Audit.md](../history/Phase0-Data-Contract-and-Security-Audit.md)：
 前者已被本文首节取代，后两者带日期与 commit 哈希，属纪事。
 
@@ -77,7 +76,7 @@ CloudKit `AppUserIdentity/default` 只能记录已经通过 Portal 登录的后�
   内置 Source；StoreKit 交易、购买凭证与权益状态；CloudKit opaque user
   record ID 的原文；本地 account scope hash。新增 Cloud payload 字段前按本条逐项核对。
   每部作品一条的精简续看记录（来源、作品、章节或剧集、页码或播放位置、标题与封面、时间）允许进入
-  CloudKit（2026-10-04 用户裁定），字段以续看位置同步的设计为准；临时资源历史与本地导入的书不在其内。
+  CloudKit，字段以续看位置同步的设计为准；临时资源历史与本地导入的书不在其内。
 - `BCA-SYNC-010` 上传用 `ifServerRecordUnchanged` 检测服务端并发修改。业务合并比较
   `max(updatedAt, deletedAt)`，时间相同时 tombstone 优先，不得只依赖设备时间判断冲突。
   只有服务端确认保存成功才移除对应 `sync_queue` 项；partial failure 按记录更新队列，
@@ -91,6 +90,6 @@ CloudKit `AppUserIdentity/default` 只能记录已经通过 Portal 登录的后�
 
 阶段 0 审计第 3.2、3.3 节列出的 Header 名称拦截与 `context.*` / Request Body / `keyHex` / `ivHex` /
 constant value 的字面量扫描**没有实施**，并且这不是遗漏：实现有意收窄为「不推测站点规则常量是否
-敏感」，取值由 `BCA-SYNC-008` 声明、由 13 例固定输入钉住。收窄的依据是规则只经服务端目录下发
+敏感」，取值由 `BCA-SYNC-008` 声明、由同一组固定输入钉住。收窄的依据是规则只经服务端目录下发
 （`BCA-UI-003`），生成侧已由 fwq `BC-COMIC-016` 禁止把凭据写进 catalog。要改回全面扫描须先过
 `docs/STATUS.md` 里对应那一行的裁决，不得在实现里悄悄放宽或收紧。

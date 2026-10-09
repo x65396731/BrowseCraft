@@ -153,7 +153,7 @@ App 的 `BookPublicationAssembler` 再把 `description` 丢掉。三十四份真
 | 分隔线 | 系统 `separator` |
 | 警示 | `warning` / `warningFill`：失败 / 登录横幅 |
 | 圆角 | 封面 8、继续卡片 16、目录卡片 16、横幅 16、芯片与开始按钮胶囊 |
-| 尺寸 | 页边距 20；固定按钮圆 40；头部封面 72×96、与文字间距 14；继续卡片高 88、封面 48×64、竖条 4、进度条 3；开始按钮高 50；分区头高 44；芯片高 32；目录行最小高 48、编号柱宽 48、上次读到竖条 3 |
+| 尺寸 | 页边距 20；固定按钮圆 40；头部封面 72×96、与文字间距 14；继续卡片高 88、封面 48×64、竖条 4、进度条 3；开始按钮高 50；分区头高 44；芯片高 36（`LibraryChipBar`）；目录行最小高 48、编号柱宽 48、上次读到竖条 3 |
 | 字号 | 书名 `title2` bold；作者 `subheadline`；来源与章数 `caption`；继续卡片小字 `caption`、章名 `headline`；分区头 `headline`；编号柱 `subheadline` monospacedDigit；章名 `body`；简介 `subheadline` |
 
 ## 十、裁定
