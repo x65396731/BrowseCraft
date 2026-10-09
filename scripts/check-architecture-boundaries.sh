@@ -125,6 +125,21 @@ fail_if_imported \
   "$FORBIDDEN_FRAMEWORKS" \
   'Application must depend on ports and domain values, not UI or infrastructure frameworks.'
 
+# BCA-ARCH-001: SwiftSoup containment also binds the UI layer and the rule runtime package.
+# The source runtimes load through boundary protocols (HTMLDocumentParsing and friends),
+# never through the parser itself; Features never parses HTML at all.
+fail_if_imported \
+  "$APP_ROOT/Features" \
+  'SwiftSoup' \
+  'Features must not import SwiftSoup (BCA-ARCH-001).'
+
+if [[ -d "$RUNTIME_PACKAGE_ROOT" ]]; then
+fail_if_imported \
+  "$RUNTIME_PACKAGE_ROOT" \
+  'SwiftSoup' \
+  'BrowseCraftRuntime must load through boundary protocols and never import SwiftSoup (BCA-ARCH-001).'
+fi
+
 # Import checks cannot see references between layers of the same module, so the
 # type names declared at top level in one layer are also searched in layers that
 # may not depend on it. Comments and string literals are stripped before matching.

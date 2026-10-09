@@ -31,7 +31,7 @@
 | 简介 | detail `description` | 只有 MYCOMIC 有 | 简介块，没有不出 |
 | 作者 / 状态 / 分类 / 标签 / 语言 | detail `author` `status` `category` `tags` `language` | 三条都没生成 | 作者行、状态与分类徽章、标签条——有才出，现有来源上全部不出 |
 | 发布 / 更新时间、许可、编号、总图数、相册与二级页链接 | detail `publishedAt` `updatedAt` `license` `idCode` `totalImages` `photoAlbumURL` `secondLevelPageURL` | 三条都没生成 | 收进简介块下方的小字行；相册 / 二级页做成链接行；都没有就整块不出 |
-| 额外属性 | `attributes`（`SourceDetailAttribute`，含影视那轮透传的 `key`） | 三条都没生成 | 简介块下方「label · value」小字 |
+| 额外属性 | `attributes`（`SourceDetailAttribute`，含影视那轮透传的 `key`） | 漫画链路没有这个字段：Core 的漫画详情解析不产出它，Runtime `ComicSourceRuntimeMapper` 构造 `SourceDetailMetadata` 时也不传，规则生成了也到不了页面。等 fwq 量到有站点需要再立项接线 | 简介块下方「label · value」小字；当前恒为空、不出 |
 | 更新状态 | 列表项带进来的 `latestText` | 三条列表规则都取；めちゃコミック取到的是类型标签，sfacg 取到的是整条卡片文字 | 头部的更新行，照原文一行显示，没有不出 |
 
 **章节**（`SourceDetailOutput.chapters`，每条 `SourceChapter`；HTML 走 detail `ChapterRule`，接口走 `DetailChapterAPIRule`）：

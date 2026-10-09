@@ -40,7 +40,8 @@
 
 - `BCA-DOC-012` C 类文档不得出现：自由文本的状态串头部行（`状态：…`、`更新时间：…`）；带日期的日志式章节标题；
   commit 短哈希；`N 项 / N suites` 形态的测试计数。瞬时状态一律进 `docs/STATUS.md`，过程事实一律进 `docs/history/`。
-- `BCA-DOC-013` C 类文档内的链接必须使用仓库相对路径，禁止绝对主机路径。
+- `BCA-DOC-013` C 类文档之间的互链必须使用仓库相对路径，禁止写成本机绝对路径（`/Users/…`、`~/…`、`file://`）；
+  指向外部资源（设计稿画布、Claude 文档、上游 issue）的完整 `https://` 链接不受此限。闸门 A7 按此取值：只核对相对链接可解析。
 - `BCA-DOC-014` C 类文档反引号内点名的类型、协议与家族通配必须在源码里真的存在。确属外部 SDK、
   plist 键、占位记号或有意提及的已删符号时，登记到 `scripts/docs-external-symbols.txt`；
   该表**只允许收敛、不允许新增未经审阅的条目**。
@@ -91,7 +92,8 @@ App 侧的硬条款按**触发源**分属两个命名空间：
   而非代码形态，没有第二个定义点的风险；给它们编号只会让 ID 空间充满不可机检的条目。
 
 条款编号已在 D3 开始：`AGENTS.md` 与 `docs/architecture.md` 第 3 节的硬条款已全部编号，
-设计文档里编号的是各自最承重的几条。其余仍是无 ID 的散文，遇到就地补号，号段按本节的受控词表取。
+设计文档里编号的是各自最承重的几条；C 类里的散文硬条款已一次扫完编号（见 `STATUS.md` 第 5 节的归档指针）。
+新写的硬条款就地编号，号段按本节的受控词表取。
 
 ## 5. STATUS.md 的列与取值
 
@@ -113,6 +115,12 @@ App 侧的硬条款按**触发源**分属两个命名空间：
 - `BCA-DOC-005` 一个工作项同时存在多种验证事实时，必须拆成多行工作项，而不是拼接一格。
 - `BCA-DOC-006` 旧值不在 `STATUS.md` 中保留。每次变更把被覆盖的行追加到
   [history/status-log.md](history/status-log.md)，格式为「日期 + 工作项 + 旧值 → 新值 + 原因」。
+- `BCA-DOC-016` **已结案的工作项按节退休。** 一个章节内每一行都到了终态——`验证` 为 `static-audit-passed`、
+  `targeted-passed`、`full-suite-passed` 或 `device-passed`，或 `决策` 为 `rejected`——且该节最晚的 `更新日期`
+  距今超过 14 天时，整节的行原样搬入 [history/status-log.md](history/status-log.md) 的「已结案」节，
+  `STATUS.md` 里该节只留章节标题与一句指针。`simulator-passed`、`not-run`、`in-progress` 都不是终态，
+  有一行未到终态整节就留着。按节而不按行退休，是为了不让同一工作项的 `implemented` 行走了、
+  `simulator-passed` 行还在。闸门 A12 只提示可退休的节，不判失败——搬不搬由人决定。
 
 验证列比 fwq 多 `simulator-passed` 与 `device-passed` 两档，少 `fresh-passed` 与 `regression-passed`：
 App 侧的验证事实主要分「离线测试通过」「模拟器走通」「真机验收通过」三级，而模拟器通过**不等于**真机通过
@@ -173,8 +181,10 @@ App 侧的验证事实主要分「离线测试通过」「模拟器走通」「�
 - 运行期广告过滤承接规则匹配结果：[design/RuntimeAdFilter-Design.md](design/RuntimeAdFilter-Design.md)
 
 `design/Book-Kind-Wiring-Design.md` 的批次记录已拆到 [history/Book-Kind-Wiring-batch-records.md](history/Book-Kind-Wiring-batch-records.md)。
-`design/Local-Book-Import-Design.md` 与 `design/RuntimeAdFilter-Design.md` 仍带有分批与实施纪事的章节：读它们时以现在时陈述的章节为合同，
-落地/倒查性质的章节按 H 类看待。
+以下文档仍带有分批、实施或裁决纪事的章节，待按第 5.1 节三分法分流：`design/Book-Kind-Wiring-Design.md`（第二、四、五节的批注与第八节起）、
+`design/Local-Book-Import-Design.md`（第四、六、八节）、`design/RuntimeAdFilter-Design.md`（第三、四之二、四之三节）、
+`design/RuleExecutionSemantics.md`（`BCA-RUNTIME-005` 内的真机纪事）、`design/Catalog-Same-Site-Entry-Subtitle-Design.md`（第一节）。
+读它们时以现在时陈述的章节为合同，落地 / 倒查性质的章节按 H 类看待。
 
 ## 7. 归档索引
 
@@ -210,4 +220,4 @@ App 侧的验证事实主要分「离线测试通过」「模拟器走通」「�
 | `Documentation/Video/RuntimeAdFilter-Design.md` | `docs/design/RuntimeAdFilter-Design.md` |
 
 本仓库内引用这些路径的 Swift 注释已同步更新。fwq 仓库 `docs/history/` 的归档按只读归档处理，一行未改——
-那里出现的旧路径查本表。fwq `docs/rules/` 的两份 C 类文档与 `docs/rules/STATUS.md` 里也有旧路径，是否同步更正待裁决。
+那里出现的旧路径查本表。fwq 可写文件（`docs/rules/` 的 C 类文档与 `docs/rules/STATUS.md`）里指向本仓库的旧路径已更正。

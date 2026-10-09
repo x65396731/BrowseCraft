@@ -878,3 +878,24 @@ App 侧设计文档一处都没引用，App 执行两种形态的合同由自己
 - 用户采纳建议：PortalCore `OUTCOME_LIMIT` 20 → 200（条数由 7 天可见期限住）并补测试；App 侧 `deleteFailedGenerationOutcome` 改为同一入口的全部失败一起软删除（`hideOutcomes(jobIDs:)` 逐条调用、首个失败即停、不回滚）。
   去重与角标语义不动。合同 `Catalog-Page-Redesign-Design.md` 第 2.3 节补一句；STATUS 新增一行 `implemented / not-run`。未 build、未跑测试。
 - 两项一起提交为 `26d1b3e`（检查点由 `6c40b32` 改登记）；PortalCore 侧提交为 `0db2715`，未部署。
+
+## 2026-10-10 文档复审后的五项裁决落地
+
+- 复审结论与五项建议写在 Claude 文档「BrowseCraft 文档架构审计」2026-10-10 一节，用户同日全部同意。本次落地：
+  `check-architecture-boundaries.sh` 补查 `Features` 与 `BrowseCraftRuntime` 的 SwiftSoup import（`BCA-ARCH-001` 的条文此前超出脚本实查范围）；
+  `architecture.md` 第 3 节把 `BCA-ARCH-004` 漏写的三条方向、`BCA-ARCH-005` 的 `try!`、Swift 6 闸门补齐，`BCA-BUILD-004` 把手写 `Info.plist` 明确为合法落点，
+  第 1 / 2 / 4 / 6 / 9 节的规模数字按今天重新量过；`docs/README.md` 的 `BCA-DOC-013` 收窄为禁本机绝对路径、新增 `BCA-DOC-016`、三句过时陈述改掉；
+  `check-docs.py` 加 A12 提示可退休的节。退休阈值建议时写的是 30 天，落地改为 14 天：按 30 天今天没有任何一节可退休（第 7 节最晚更新 09-20），规则会空转到 10-19；第 5 节有一行更新于 10-03，按 14 天也要等到 10-18 才可退休，本次只退第 7 节。
+- 「云同步页重设计」行：工作项文字「历史与阅读进度只在本机」→「历史与阅读进度按作品计数——续看位置同步落地后改口」。原因：2026-10-04 续看位置同步落地后该句已与同表第 4 节相悖，属 `BCA-DOC-006` 该追加的旧句。
+
+### 已结案（`BCA-DOC-016`）
+
+按节退休的行原样抄录于此。退休不改变任何一格的取值；要恢复某行，把它搬回 `STATUS.md` 对应节并在此记一句。
+
+#### 2026-10-10 退休：第 7 节 规则生成入口
+
+| 工作项 | 条款 | 决策 | 设计 | 实施 | 验证 | 检查点 | 更新日期 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 合格入口页引导屏：两个要素做成添加来源的首次必过一屏，输入页留常驻回看入口，四种入口页拒因的失败行挂教程入口 | `BC-PAGE-060` | required | approved | implemented | static-audit-passed | 90bd347 | 2026-09-20 |
+| 引导屏做成输入页上的常驻折叠段（不拦路）——用户 2026-09-20 裁定用首次必过一屏，折叠态大概率没人展开 | `BC-PAGE-060` | rejected | superseded | not-started | not-run | 90bd347 | 2026-09-20 |
+| 输入框「这看起来是网站首页」的本地软提示——用户 2026-09-20 裁定不做：服务器真实提交 34 条里根入口只有 5 条，且单 list 带分页的首页本就合格，提示会对那类页面说错话 | 未编号 | rejected | approved | not-started | targeted-passed | 90bd347 | 2026-09-20 |

@@ -402,6 +402,44 @@ def check_status(rep):
     rep.note("A8", f"{rows} 行")
 
 
+RETIRE_TERMINAL_VERIFICATION = {"static-audit-passed", "targeted-passed", "full-suite-passed", "device-passed"}
+RETIRE_AFTER_DAYS = 14  # BCA-DOC-016 的阈值，唯一声明点在此；文档只说「超过 14 天」不另算。
+
+
+def check_retirable_sections(rep):
+    """A12：STATUS.md 里整节到终态且超期的节，只提示不判失败（BCA-DOC-016）。"""
+    import datetime as _dt
+    today = _dt.date.today()
+    hits = []
+    for rel in S_FILES:
+        section, rows = None, []
+        def flush():
+            if not section or not rows:
+                return
+            terminal = all(dec == "rejected" or ver in RETIRE_TERMINAL_VERIFICATION for dec, ver, _ in rows)
+            if not terminal:
+                return
+            try:
+                latest = max(_dt.date.fromisoformat(d) for _, _, d in rows)
+            except ValueError:
+                return
+            if (today - latest).days > RETIRE_AFTER_DAYS:
+                hits.append(f"{section}（{len(rows)} 行，最晚 {latest}）")
+        for line in read(rel).split("\n"):
+            if line.startswith("## "):
+                flush()
+                section, rows = line[3:].strip(), []
+                continue
+            if not line.startswith("| ") or line.startswith(("| ---", "| 工作项")):
+                continue
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            if len(cells) != len(STATUS_COLUMNS):
+                continue
+            rows.append((cells[2], cells[5], cells[7]))
+        flush()
+    rep.note("A12", "可退休：" + "；".join(hits) if hits else "无可退休的节")
+
+
 def load_fwq_definitions(path):
     if not path or not os.path.isdir(path):
         return None
@@ -434,6 +472,7 @@ def main():
     check_handoff(rep)
     check_symbols(rep)
     check_tracked(rep, defs)
+    check_retirable_sections(rep)
 
     titles = {
         "A1": "定义点唯一、域在词表内、H 类不承载定义点",
@@ -447,6 +486,7 @@ def main():
         "A9": "HANDOFF.md 只承载四样东西",
         "A10": "文档点名的代码符号都存在",
         "A11": "承载定义点的文档被 git 跟踪",
+        "A12": "STATUS.md 可退休的节（只提示，BCA-DOC-016）",
     }
     failed = {c for c, _, _ in rep.failures}
     skipped = {c for c, _ in rep.skipped}

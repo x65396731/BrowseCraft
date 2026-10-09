@@ -9,7 +9,7 @@ interpret a rule, and who may touch the network.
 
 | Module | Kind | Size | Role |
 | --- | --- | --- | --- |
-| `BrowseCraft` | app target | ~53k lines | Everything in §2 |
+| `BrowseCraft` | app target | ~65k lines | Everything in §2 |
 | `BrowseCraftCore` | sibling SwiftPM package | ~30k lines | Rule models, validation, resolved graphs, deterministic parsing |
 | `BrowseCraftAPIKit` | sibling SwiftPM package | ~1.9k lines | The BrowseCraft backend contract (endpoints, DTOs, transport) |
 | `BrowseCraftDomain` | sibling SwiftPM package | ~2.3k lines | Domain kernel: values, ports, policies and diagnostics shared by the app and the rule runtime |
@@ -50,12 +50,12 @@ Dependency arrows point inward. Nothing below may reference anything above it.
 
 | Layer | Size | Owns |
 | --- | --- | --- |
-| `Domain` | 1.5k / 43 files | Entities, 13 repository protocols, pure domain services |
-| `Application` | ~13.2k / 104 files | 48 use cases, the remaining ports, coordinators, the coin wallet and push handling |
-| `Infrastructure` | 11.7k / 95 files | GRDB, CloudKit, StoreKit, Alamofire, WebKit, Keychain adapters |
-| `Features` | 20.8k / 97 files | `@MainActor` view models and SwiftUI views |
-| `Shared` | 2.6k / 27 files | Logging, diagnostics, ads, common image views |
-| `App` | 2.8k / 21 files | Composition root, feature factories, startup, the Debug-only demo mode (`App/Demo`) |
+| `Domain` | 1.7k / 44 files | Entities, 13 repository protocols, pure domain services |
+| `Application` | ~13.9k / 106 files | 50 use cases, the remaining ports, coordinators, the coin wallet and push handling |
+| `Infrastructure` | 13.1k / 99 files | GRDB, CloudKit, StoreKit, Alamofire, WebKit, Keychain adapters |
+| `Features` | 29.9k / 109 files | `@MainActor` view models and SwiftUI views |
+| `Shared` | 2.7k / 26 files | Logging, diagnostics, ads, common image views |
+| `App` | 3.0k / 21 files | Composition root, feature factories, startup, the Debug-only demo mode (`App/Demo`) |
 
 `App/Composition` is the composition root: the only place allowed to assemble concrete adapters,
 and — besides `Infrastructure` — the only place allowed to see `BrowseCraftAPIKit`. It is split by
@@ -69,7 +69,7 @@ what owns the objects rather than by layer:
 - `SourceRuntimeComposition` — the network carriers and the three runtime factories, i.e. wiring
   the app's concrete adapters onto the kernel ports the runtime consumes.
 - `FeatureComposition` — the per-screen factories, the only place that knows which screen needs what.
-- `AppContainer` holds those three and keeps what is genuinely app-lifecycle: the StoreKit
+- `AppContainer` (one level up, in `App/`) holds those three and keeps what is genuinely app-lifecycle: the StoreKit
   transaction listener, image-cache configuration, the push and remote-notification entry points
   (device token, rule-generation push, CloudKit notification), foreground refresh of the coin
   balance, and the Debug-only audit entry point.
@@ -98,8 +98,8 @@ the runtime need it**, not merely because it feels domain-ish. Entities that onl
 ### The rule runtime
 
 The rule runtime turns a resolved rule plus fetched bytes into domain values, and now lives
-entirely in `BrowseCraftRuntime`. It imports nothing but Foundation, `BrowseCraftCore` and
-`BrowseCraftDomain`; the app supplies every loader, credential store and header provider through
+entirely in `BrowseCraftRuntime`. It imports nothing but Foundation, CryptoKit (only the audit
+evidence fingerprint, for `SHA256`), `BrowseCraftCore` and `BrowseCraftDomain`; the app supplies every loader, credential store and header provider through
 kernel ports. `SourceDetectionLexicon` reads its JSON from the package's resource bundle (`Bundle.module`,
 declared as `.process` in `Package.swift`). `Bundle(for:)` would resolve to the app bundle once the
 package links statically, find nothing, and silently fall back.
@@ -114,7 +114,7 @@ Extraction turns up two mechanical consequences worth knowing:
 
 - `BCA-ARCH-007` A `public` struct in a package no longer gets `Sendable` inferred, so it must
   declare the conformance explicitly; and members of a `private` extension must not carry `public`.
-It already imports nothing but Foundation, `BrowseCraftCore` and `BrowseCraftDomain`, and its
+Apart from that one CryptoKit import it depends on Foundation, `BrowseCraftCore` and `BrowseCraftDomain` only, and its
 collaborators (`PageContentLoader`, `SourceCredentialProviding`, …) are Foundation-only protocols.
 Slot-limit decisions are not runtime semantics: `SourceRuntimeFactory` takes an injected
 `validateSourceAccess` closure, and its own fallback raises a plain `SourceRuntimeError`.
@@ -152,9 +152,14 @@ and the design documents reference them by ID and do not restate the text.
   checks are blind to them. The script also searches each layer's top-level type names in the
   layers that must not depend on it: `Domain` may reference no other layer; `Application` may not
   reference `Features`/`Infrastructure`/`App`; `Infrastructure` and `Features` may not reference
-  `App`; `Shared` may not reference `App` or `Features`. When both sides need a contract (a port,
-  an error enum, a shared observable store), it belongs to the lower layer.
-- `BCA-ARCH-005` **No raw `print`.** Use `AppLog` / `AppDebugLog`.
+  `App`; `Features` may not construct `Infrastructure` types (inject them through `Application`
+  ports); `Shared` may not reference `App`, `Features`, `Application` or `Infrastructure`. When both
+  sides need a contract (a port, an error enum, a shared observable store), it belongs to the lower layer.
+- `BCA-ARCH-005` **No raw `print`, no `try!`.** Use `AppLog` / `AppDebugLog`; handle or propagate
+  errors. Both checks cover the app target and the `Sources/` of all four packages.
+- The same script also pins the language mode: `project.yml` must say `SWIFT_VERSION: "6.0"` and
+  every package manifest must be `swift-tools-version: 6.0` with an explicit `.swiftLanguageMode(.v6)`
+  (§4).
 - `BCA-UI-003` The app exposes no entry point that creates or edits a source rule. Rules arrive
   only through the server catalog (`PortalCatalogAPI`, stored encrypted in the snapshot);
   `SourceDebugView` shows them read-only. Rule generation, normalisation and catalog publication
@@ -182,10 +187,11 @@ phases next to the boundary script; `scripts/check-localization.py` runs after c
   archives config `TestFlight` (environment TEST); the plain **BrowseCraft** and **PROD BrowseCraft**
   schemes archive `Release` as PROD. Debug, TestFlight and Release all carry the real rewarded ad
   unit in `BROWSECRAFT_REWARDED_AD_UNIT_ID`, so the check currently passes for every configuration.
-- `BCA-BUILD-004` Project settings must live in `project.yml` — signing (including
-  `DEVELOPMENT_TEAM`) and capabilities such as `UIBackgroundModes` alike. `project.pbxproj` is
-  generated and git-ignored, so anything set through Xcode's editors is wiped by the next
-  `scripts/regenerate-project.sh`.
+- `BCA-BUILD-004` Project settings must live in tracked source files — `project.yml` for build
+  settings, signing (including `DEVELOPMENT_TEAM`), entitlements and capabilities, and the hand-written
+  `BrowseCraft/Info.plist` it points to (`GENERATE_INFOPLIST_FILE: NO`) for plist keys such as
+  `UIBackgroundModes`. `project.pbxproj` is generated and git-ignored, so anything set through Xcode's
+  editors is wiped by the next `scripts/regenerate-project.sh`.
 
 The app target is iPhone-only (`TARGETED_DEVICE_FAMILY: "1"`) until the iPad layout is done.
 
@@ -199,7 +205,7 @@ Domain value type is `Sendable`; `BrowseCraftCore`'s rule models are `Sendable` 
 transfer structs therefore conform without escape hatches. Closures stored by `Sendable` types are
 declared `@Sendable`.
 
-`@unchecked Sendable` (29 remaining) is reserved for state protected by a lock,
+`@unchecked Sendable` (30 remaining) is reserved for state protected by a lock,
 an actor hop, or a serial queue — `AppDatabase`, the identity and account-scope stores, the sync
 services, the WebKit and URLSession delegates. A new `@unchecked` needs a comment naming the
 synchronisation it relies on.
@@ -235,7 +241,7 @@ mapping; they no longer create tables.
 
 ## 6. Tests
 
-`BrowseCraftTests` is ~24.4k lines / 117 files, mostly Swift Testing with some XCTest.
+`BrowseCraftTests` is ~26.3k lines / 124 files, mostly Swift Testing with some XCTest.
 
 ViewModel tests are assembled by `BrowseCraftTests/TestDoubles/ViewModels/ViewModelTestHarness.swift`:
 real use cases and persistence coordinators on top of real GRDB repositories against a temporary
@@ -301,7 +307,7 @@ occur for them.
 
 ## 9. Known debt
 
-- **`Features` imports `BrowseCraftCore` in 15 files.** Now that the dependency is explicit (§1)
+- **`Features` imports `BrowseCraftCore` in 27 files.** Now that the dependency is explicit (§1)
   it is at least visible, but the UI layer reading `SiteRule` directly means a rule-format change
   can ripple into views. Narrowing this to presentation values resolved in `Application` is worth
   doing incrementally; it is not a blocker for anything.

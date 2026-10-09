@@ -65,7 +65,7 @@ BookBookmark         id: UUID, bookID: UUID, userID: String, locatorJSON: String
 
 - `Features/Library/Book/`：`BookShelfView`（从 Library 工具栏的「Books」进入；`fileImporter` 允许的 `UTType`：`epub`、`mp3`、`mpeg4Audio`（`m4a / m4b`）、`zip`，多选）、`BookShelfViewModel`、`LibraryBookRoute`（书架 / 某本书两级路由，只在 `LibraryView` 栈根声明）。
 - `Features/Library/Book/Reader/BookReaderView`：`UIViewControllerRepresentable` 承载 `EPUBNavigatorViewController`；`navigator(_:locationDidChange:)` 节流（1 秒）后调保存用例，退出时再保存一次；工具栏：目录、书签、字号 / 主题（`EPUBPreferences`）。
-- `Features/Library/Book/Player/AudiobookPlayerView`：自建 UI 包 `AudioNavigator`——播放 / 暂停、进度条（`playbackInfo`）、±15 秒、章节列表（`readingOrder`）、倍速（`AudioPreferences`）；后台播放要在 `project.yml` 加 `UIBackgroundModes: audio`，并接 `MPRemoteCommandCenter` / Now Playing（Infrastructure 适配，AVFoundation 只许在 Infrastructure / Features）。
+- `Features/Library/Book/Player/AudiobookPlayerView`：自建 UI 包 `AudioNavigator`——播放 / 暂停、进度条（`playbackInfo`）、±15 秒、章节列表（`readingOrder`）、倍速（`AudioPreferences`）；后台播放要在手写的 `BrowseCraft/Info.plist` 加 `UIBackgroundModes: audio`，并接 `MPRemoteCommandCenter` / Now Playing（Infrastructure 适配，AVFoundation 只许在 Infrastructure / Features）。
 - 书签：两种阅读器共用同一张书签表与同一组用例（`BookBookmark`、`AddBookBookmarkUseCase` /
   `ListBookBookmarksUseCase` / `RemoveBookBookmarkUseCase`），点选即 `go(to:)`；
   呈现层内联在 `BookReaderView` 的 `.sheet` 里，没有独立的 sheet 类型。
@@ -104,7 +104,7 @@ xcodebuild -project BrowseCraft.xcodeproj -scheme BrowseCraft -destination 'plat
 ## 七、风险
 
 - 本地 HTTP 服务的端口与 App Transport Security 例外问题已不存在：EPUB Navigator 用不带 `httpServer` 的初始化，App 不监听本机端口。
-- 后台音频需要新的 capability（`UIBackgroundModes`），按 `BCA-BUILD-004` 写在 `project.yml`。
+- 后台音频需要 `UIBackgroundModes: audio`，按 `BCA-BUILD-004` 写在被跟踪的手写 `BrowseCraft/Info.plist`（`project.yml` 以 `INFOPLIST_FILE` 指向它），不在 Xcode 编辑器里勾。
 - iCloud Drive 里未下载的文件：`fileImporter` 给的 URL 可能是占位，复制前要 `startDownloadingUbiquitousItem` 或提示用户。
 - 大文件（数百 MB 的 m4b）：复制与 SHA-256 要在后台任务里做，书架显示「导入中」。
 
