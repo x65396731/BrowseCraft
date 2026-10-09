@@ -200,3 +200,9 @@ sfacg 链接内的受限标记 → `BC-COMIC-147` 2026-10-08 修订（交付 `re
 - `BrowseCraft/Domain/Models/History/ComicChapterHistory.swift`、`BrowseCraft/Infrastructure/Database/Records/History/ComicChapterHistoryRecord.swift` 与其 schema 扩展、`BrowseCraft/Infrastructure/Database/Migrations/AppDatabaseMigrations.swift`、`BrowseCraft/Features/Library/Comic/Reader/ReaderViewModel.swift`：`pageCount`。
 - `BrowseCraft/Features/Library/Components/LibraryListTabBar.swift`：`LibraryChipBar` 复用，不改。
 - 三份 `Localizable.strings`：继续阅读四种文案、「章节」「N 章」「已读 M」「N / M 页」「正序 / 倒序」「没有章节」、受限横幅；删去只剩本页在用的「Loading Details / Paid / About / Information / Try Again / Access Required / Photo Album / Related Page / ID / Info」与旧的空章节说明（「Continue Reading」「Chapters」「Log In」「Not Now」别处还在用，保留）。
+
+## 十四、真机验收清单与已知出入
+
+- 模拟器没走到（线上只有一条漫画来源，没有纯编号目录与 60 章以上的作品）：三列网格、分段芯片、作者 / 徽章 / 标签 / 日期、没有章节与取失败态。
+- **已知出入**：分段芯片点击后的滚动锚点仍是 `.top`，段首两行会压在贴顶分区头底下；站点书详情已改为按分区头高度换算锚点（`BookSiteDetailView.segmentScrollAnchor`），本页应改成同一做法。
+- 深色模式整页看一遍。

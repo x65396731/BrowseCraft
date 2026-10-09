@@ -92,3 +92,13 @@
 - `BrowseCraft/App/RootView.swift`：来源页请求打开库时切到库标签（与 `latestSourceAddID` 触发的跳转同一处）。
 - `BrowseCraft/Features/Shared/CloudSyncInitialRestoreView.swift`：失败态改为下拉重试。
 - 类型色复用 `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift`，不另起一套。
+
+## 七、真机验收清单
+
+模拟器已走通的流程见 [STATUS.md](../STATUS.md) 第 2 节；真机按下列看点验收，结果新增 `device-passed` 行、不改模拟器那行。
+
+- 点其他来源切换成功后跳库、失败留在原页；「更多位置」切到设置页并打开购买页。
+- 正在使用的深色瓷砖与类型色；已暂停一组与启用窗口。
+- 长按菜单与左滑删除：删除色、不弹确认；连带删除后历史与收藏一并消失，撤销后都回来。
+- 深色模式整页看一遍。
+- 与设计稿的已知出入，不算缺陷：已暂停一组没有虚线外框；启用窗口里启用后不跳库；iOS 26 / 27 上左滑按钮是系统圆形样式。

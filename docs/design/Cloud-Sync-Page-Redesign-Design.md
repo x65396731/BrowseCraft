@@ -84,3 +84,9 @@
   `BrowseCraft/Infrastructure/Database/Sync/GRDBCloudAccountPartitionStore.swift`：读「同步的内容」条数。
 - 入口卡复用来源页的 `SourcesEntryCardView`，卡片组与行间线复用 `SettingsCardGroup`、`SettingsRowSeparator`。
 - 三份 `Localizable.strings` 末尾「云同步页重设计」一段；原页面不再使用的词条已删除。
+
+## 七、真机验收清单
+
+- 进入后底栏隐藏；状态卡各状态（未开启、正在检查、正在同步、已同步）；页面上没有按钮，下拉即同步。
+- 首次开启窗口两张入口卡；「同步的内容」三行的条数。
+- 模拟器没看到、真机顺带看：未登录 iCloud 的状态卡、同步出错卡下面的小字技术文字、首次开启窗口的提交中状态。深色模式整页看一遍。

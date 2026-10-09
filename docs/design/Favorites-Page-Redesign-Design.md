@@ -74,3 +74,10 @@
 - `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift`：`CatalogSegmentedPicker` 与反色提示条上的动作色。
 - `BrowseCraft/Features/Sources/Catalog/CatalogPersonalTimeline.swift`：按天归组与 `CatalogDayTitle`，目录页与收藏页共用。
 - `BrowseCraft/App/RootView.swift`：收藏页请求「去库里逛逛」「在库中查看来源」「启用来源」时切标签；收藏页改动后让库页刷新爱心状态。
+
+## 六、真机验收清单
+
+- 「全部 | 视频 | 漫画 | 书籍」一直显示、某类为 0 的小空状态；按天分组。
+- 左滑与长按取消收藏不弹确认，底部撤销按原日期恢复；「在库中查看来源」。
+- 已暂停 / 已删除 / 未知来源三种行；取消收藏后库页爱心同步。
+- 深色模式整页看一遍。iCloud 首次恢复失败的下拉重试在真机上不易触发，可不强求。

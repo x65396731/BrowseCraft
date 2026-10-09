@@ -148,3 +148,10 @@
 - `BrowseCraft/Features/Sources/SourcesView.swift`：「去添加来源」在目录页收起后打开添加来源。
 - `Localizable.strings`：标签名、类型横幅、日期分组、空状态与未登录的文案键。
 - 固定输入：`BrowseCraftTests/Features/Sources/CatalogPersonalTimelineTests.swift`。
+
+## 八、真机验收清单
+
+- **第一次打开**（目录还没加载完）时标题与分段控件不向左溢出。这个问题只在加载骨架出现时触发，冷启动后直接打开目录最容易看到。
+- 浅色与深色下六张插画的观感。
+- 「我的生成」有条目时打开直接落在「我的生成」；删一条失败记录后同一入口不再冒出更早的失败。
+- 顺带做 fwq `BC-PREFLIGHT-066`：生成一条规则 → 点推送停在原页不跳转 → 打开目录直接看到新规则、不用下拉。

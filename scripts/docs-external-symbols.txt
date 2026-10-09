@@ -32,7 +32,6 @@ VideoPlaybackRuntimeCapability       # P2-3 阶段的计划名，未落地；合
 
 
 # ---- 未实现的计划名（设计留档，见 STATUS 对应行）----
-BookSourceReaderLoader               # 读书接线批次 B 的计划名；实际由 BookSourceRuntime 承担
 
 # ---- 文档里的占位记号 ----
 BrowseCraftXxx                       # scripts/README 里表示「四个兄弟包之一」的占位写法

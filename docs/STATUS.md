@@ -41,6 +41,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 本地导入入口已藏：去掉 Library 工具栏「书籍」与 RootView 书架装配，代码留给站点抓取路复用 | 未编号 | required | approved | implemented | full-suite-passed | 1c78bb2 | 2026-09-14 |
 | Readium Swift Toolkit 3.11.0 选型与 SwiftSoup fork 覆盖 | 未编号 | required | approved | implemented | full-suite-passed | 7ad2704 | 2026-09-13 |
 | PDF 与 CBZ 不接（PDF 见 `BC-BOOK-012`，CBZ 漫画线保持自研阅读器） | `BC-BOOK-012` | rejected | approved | not-started | not-run | f443602 | 2026-09-13 |
+| 站点有声播放器后续项：界面样式、倍速与偏好入口（SDK 有 `AudioPreferences`，界面没露）、`mediaAPI` 与带签名音频（无语料）——从读书接线合同第十六节搬出立行 | `BC-BOOK-012` | optional | draft | not-started | not-run | 1c7bc61 | 2026-10-10 |
 
 ## 2. 规则目录
 

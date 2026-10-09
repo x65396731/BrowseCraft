@@ -90,3 +90,9 @@
 - `BrowseCraft/Features/Settings/Components/SettingsAccountCardView.swift`：推入本页时把 `CoinWalletStore` 一并传入。
 - `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift`：获得色。
 - 三份 `Localizable.strings` 末尾「coin 记录页重设计」一段：当前余额、价格说明、到底提示；「下拉可重试」沿用来源页已有的字符串。
+
+## 七、真机验收清单
+
+- 进入后底栏隐藏只留返回、返回后底栏恢复；余额卡与价格说明。
+- 按天分组翻页到底；获得色绿。
+- 加载失败与没有记录两种状态（模拟器没触发到）。深色模式整页看一遍。

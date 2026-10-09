@@ -35,7 +35,7 @@ App 的 `BookPublicationAssembler` 再把 `description` 丢掉。三十四份真
 | 章数 | `manifest.items.count` | 都有 | 头部「N 章」与分区头 |
 | 状态 / 更新时间 / 标签 | 合同没有槽位 | 没有 | 不显示 |
 
-**章节**（`BookPublicationItem`）只有 `title`、`chapterURL`、`kind`（text / audio）；`order` 与 `group` 规则不生成、Runtime 也丢弃；没有时长、付费、限制标记。目录顺序就是规则抓到的顺序
+**章节**（`BookPublicationItem`）只有 `title`、`chapterURL`、`kind`（text / audio）；`order` 与 `group` 规则不生成；`order` 在 Runtime `BookSourceRuntime.loadDetail` 构造 `SourceChapter` 时丢弃，`group` 由 Runtime 映成 `SourceChapter.subtitle`、到 `BookPublicationAssembler` 才丢；没有时长、付费、限制标记。目录顺序就是规则抓到的顺序
 （笔趣阁页顶「最新章节」块排在前面、小說狂人夹着公告行，都是规则与 Runtime 的事，页面照列）。
 
 **章节标题的形状**：小说站几乎全是「编号 + 章名」，纯编号目录几乎没有（小說狂人 683 条解出 679、novels 1531 全解出、Royal Road 106/109）；解不出的是公告、Epilogue、「作品相關」。
@@ -178,3 +178,9 @@ App 的 `BookPublicationAssembler` 再把 `description` 丢掉。三十四份真
 - `BrowseCraft/Features/Library/Comic/Detail/ComicDetailViewModel.swift`：`ComicChapterTitleParser` 加中文数字；单测补笔趣阁样例。
 - 三份 `Localizable.strings`：「继续收听」「从第 1 章开始读 / 听」「全书 %@」「刚开始」「有声书 · %ld 章」「这本书还没有章节」「重试」；原英文字面换成键。
 - 资产：不新增。
+
+## 十三、真机验收清单与待接线
+
+- 模拟器没走到：有声书（线上没有有声来源）、失败与登录横幅、没有章节、简介（规则都不给）。
+- **待接线**：章节 `order` 到 Runtime 为止——Core 会读，`BookSourceRuntime.loadDetail` 构造 `SourceChapter` 时不带、也不按它排；等 fwq 交付「章节 `order`」需求后在 Runtime 接上并按它排序。
+- 深色模式整页看一遍。

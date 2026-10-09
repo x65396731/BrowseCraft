@@ -121,3 +121,10 @@
 - `BrowseCraft/Features/Settings/Components/AppleSignInButton.swift`：系统登录按钮的包装。
 - `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift`：行图标的两个颜色名。
 - 三份 `Localizable.strings` 末尾「设置页重设计」一段。
+
+## 八、真机验收清单
+
+- 已登录账号卡的余额、「看广告 +N」看完后余额变化、「coin 记录 ›」。
+- 未登录卡的插画 `SettingsSignIn`、系统 Apple 登录按钮、不计奖励的看广告。
+- 诊断码与账号 ID 点一下复制；退出登录弹居中确认框（取消 / 红色退出登录）。
+- 「高级版」打开购买页且底栏隐藏。深色模式整页看一遍。

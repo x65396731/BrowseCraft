@@ -107,3 +107,10 @@
   卡片组行与列表行修饰、`ContentUndoBanner`。
 - `BrowseCraft/Application/UseCases/History/ReadingHistoryUseCases.swift` 与 `HistoryPersistenceCoordinator.swift`：按作品删除、交回被删记录、撤销写回。
 - `BrowseCraft/App/RootView.swift`：历史页请求「去库里逛逛」「在库中查看来源」「启用来源」时切标签，与收藏页同一处。
+
+## 六、真机验收清单
+
+- 继续卡片三种类型色与「上次看到 / 上次读到」；视频进度条与「已看完」。
+- 左滑与长按删除及撤销：漫画删一行后上一章不再冒出来，撤销回到原日期分组。
+- 在库中查看来源；点已暂停来源的行打开启用窗口；空状态。
+- 收藏页同一批封面与撤销提示条是共用组件，顺带回归。深色模式整页看一遍。

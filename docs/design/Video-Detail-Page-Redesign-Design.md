@@ -167,3 +167,9 @@
 - BrowseCraftCore：`SourceDetailAttribute` 加 `key`，`DefaultVideoDetailRuleParser` 两处构造处传 `id`，测试补断言；BrowseCraftRuntime：`VideoSourceDetailLoader` 转换时带上 `key`。
 - `BrowseCraft/Features/Library/Components/LibraryListTabBar.swift`：芯片抽成可复用的 `LibraryChipBar`，库页分类条与本页线路芯片共用。
 - 三份 `Localizable.strings`：继续看四种文案、「选集」「简介」「展开」「收起」「正序 / 倒序」「N 集」「没有剧集」、解析失败横幅；删去「Description / Last / Loading Playback」。
+
+## 十四、真机验收清单
+
+- 模拟器没走到（需要多线路、多集的来源）：数字集号网格、线路芯片、正序 / 倒序、「下一集」/「再看一遍」、受限 / 付费角标、解析失败横幅、没有选集与取失败态。
+- 顺带看两条 fwq 项：片源 403 的作品应提示换片源而不是整页兜底（`BC-EVIDENCE-082`）；选集无线路名的站应按重复集号分「线路 1 / 2」。
+- 深色模式整页看一遍。

@@ -164,3 +164,8 @@ sheet 跟随系统深浅，底色取页面底，隐藏系统导航栏；顶行�
 - 三份 `Localizable.strings`（zh-Hans / zh-Hant / en）：第八节的词条。
 - 不改：`LibraryView.swift`（入口按钮与 sheet 不动）、`LibraryContentView.swift`、`SearchSourceContentUseCase.swift`、Core / Runtime。
 - 资产：不新增。
+
+## 十三、真机验收清单
+
+- 模拟器没走到：搜索中骨架（请求太快抓不到）、无结果（czbooks 对任意关键词都回 40 条）、失败 / 登录横幅、分页脚（线上搜索规则都不带分页）、视频与漫画来源的结果版式。
+- 深色模式整页看一遍。

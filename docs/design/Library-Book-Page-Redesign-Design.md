@@ -198,3 +198,8 @@
 - `BrowseCraft/Features/History/Components/HistoryEntryRowView.swift`：`HistoryContinueTileView` 加可选的标题文案，「上次听到」由调用方传。
 - 三份 `Localizable.strings`：「最新 · %@」「读到 · %@」「听到 · %@」「上次听到」「继续听 · %@」「有声书」；其余沿用。
 - 资产：`EmptyStateLibraryBook`（已入库并登记预算）。
+
+## 十四、真机验收清单
+
+- 模拟器没走到：骨架（切分类太快抓不到）、空状态插画、整站有声（线上没有有声来源，只有 Loyal Books 测试夹具）、失败态。
+- 深色模式整页看一遍。

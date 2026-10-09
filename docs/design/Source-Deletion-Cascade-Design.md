@@ -86,3 +86,12 @@
   同步队列里该来源与这些收藏的记录都是更新而不是删除；删除正在使用的来源让暂停来源补位后撤销，位置归置回原样。
 - ViewModel：来源页删除后，历史页与收藏页重新载入看不到该来源的条目；撤销后又能看到。
 - 模拟器：删除一个有历史和收藏的来源，历史页、收藏页、库页的爱心都跟着消失；点撤销后都回来；删除内置来源同样。
+
+## 八、读代码要点
+
+- 删除的留底是 `SourceDeletionReceipt`（`SourceRepository.swift`）。删除路径不在事务后发同步通知，由 `SourcesViewModel.finishUndoableDeletion`
+  在撤销窗口结束（超时、被新删除替换、离开来源页、App 切走）时经 `SourcesPersistenceCoordinator.notifyDeletionChanges` 补发；撤销不发删除的通知，`restoreDeletedSource` 写回后自己通知。
+- 只有用户在来源页删一个来源可撤销；删除「我的生成」规则与个人规则过期走 `deleteSourcesWithoutUndo`，删完立刻通知。按下标批量删多个也不给撤销。
+- 撤销时仓储把删除前的库状态（含列表位置）原样写回，ViewModel 改回当前来源时不再覆盖库状态；库页切换来源本来就会重置分段，
+  所以列表位置只在下次启动恢复时体现——这是已知出入，不是缺陷。
+- 解不出配置的来源照样删（历史与收藏一并删），只是拿不到留底、不能撤销。

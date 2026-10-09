@@ -180,9 +180,8 @@ App 侧的验证事实主要分「离线测试通过」「模拟器走通」「�
 - 来源内搜索页：视觉与信息结构重设计（自绘眉行与圆形关闭、卡片底搜索框与聚焦类型色描边、结果眉行、结果区按 kind 原样复用三种库页版式、未搜索 / 搜索中 / 无结果 / 失败四种状态、分页与登录接线）：[design/Search-Page-Redesign-Design.md](design/Search-Page-Redesign-Design.md)
 - 运行期广告过滤承接规则匹配结果：[design/RuntimeAdFilter-Design.md](design/RuntimeAdFilter-Design.md)
 
-`design/Book-Kind-Wiring-Design.md` 的批次记录已拆到 [history/Book-Kind-Wiring-batch-records.md](history/Book-Kind-Wiring-batch-records.md)。
-以下文档仍带有分批、实施或裁决纪事的章节，待按第 5.1 节三分法分流：`design/Book-Kind-Wiring-Design.md`（第二、四、五节的批注与第八节起）、
-`design/Local-Book-Import-Design.md`（第四、六、八节）、`design/RuntimeAdFilter-Design.md`（第三、四之二、四之三节）、
+`design/Book-Kind-Wiring-Design.md` 的批次记录已拆到 [history/Book-Kind-Wiring-batch-records.md](history/Book-Kind-Wiring-batch-records.md)，第十二节起各节的成因与裁决叙事已按三分法搬入 [history/status-log.md](history/status-log.md)。
+以下文档仍带有分批、实施或裁决纪事的章节，待按第 5.1 节三分法分流：`design/Local-Book-Import-Design.md`（第四、六、八节）、`design/RuntimeAdFilter-Design.md`（第三、四之二、四之三节）、
 `design/RuleExecutionSemantics.md`（`BCA-RUNTIME-005` 内的真机纪事）、`design/Catalog-Same-Site-Entry-Subtitle-Design.md`（第一节）。
 读它们时以现在时陈述的章节为合同，落地 / 倒查性质的章节按 H 类看待。
 

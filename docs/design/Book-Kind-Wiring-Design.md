@@ -20,41 +20,30 @@
 
 ## 三、范围与分批（每批单独拍板、单独提交、单独推送）
 
+三批都已落地（状态见 [STATUS.md](../STATUS.md) 第 1 节）；下列各条是落地后的合同形状，当年的验收口径与裁决叙事在 [status-log.md](../history/status-log.md)。
+
 **批次 A：合同与枚举（无 UI，可先于 build）**
 - APIKit：`PortalRuleGenerationSourceKind.book`；`BrowseCraftCatalogSourceKind.book` + 目录列表未知 kind 逐条跳过（记录被跳过的 id 与 kind，不静默）；用例覆盖「列表里混入未知 kind 时其余条目仍可用」。
 - Domain：`CatalogSourceKind.book`、`SourceConfiguration.book(BookSourceConfiguration)`（`rule: BookSiteRule`、`schemaVersion`、`packageMetadata`、`isEditable`，与 comic 同形）。
 - Core：`SourceRuntimeKind.book`；`BookSiteRule` 模型（`site / sharedRequest / pages / ruleSets`，reader 规则为三变体的封闭枚举）与校验器（键集、枚举、`variant` ↔ `contentType` 配对、页引用可解析、`BC-BOOK-003` 字段归属）；两份真实 catalog 作解码固定输入。
 - App：`RuleGenerationSourceKind.book`、`APIKitVideoGenerationTaskClient` 映射、`CatalogSourceMaterializer` 的 book 分支（把 catalog 装成 `SourceConfiguration.book`）；其余 `case .comic` 分流点按编译器报缺补齐，UI 文案先用最小占位。
-- 验收：五仓各自测试全过；影视与漫画的既有用例零改动。
 
 **批次 B：Runtime 与 RWPM 装配（首次整包 build 在此批之前）**
-- Runtime：`Book/` 包——`BookSourceRuntimeFactory`（`guard case .book`）、list / detail / search loader 复用 comic 的 DOM 取值原语（`ExtractRule` 投影与 comic 同源）；`BookSourceReaderLoader` 按 `variant` 分派：`text-dom` 取容器 + `segmentation`（`elements` 取段落元素、`lineBreaks` 取 `<br>` 间文本节点），`text-api` 取 `textPath` 或 `itemPath`，`audio-media` 取 `media.item` 作用域内的 `media.url`（或 `mediaAPI`）；章内 `content.next` 拼成一份资源。
-- Application：`BookPublicationAssembler`——detail → `metadata`，章节 → `readingOrder[]`（`title / order / href`），`text` 资源装成 XHTML、`audio` 资源按 `media.format` 映射 `type`；输出给 Readium `Publication`。**待核实**：文字资源如何喂 EPUB Navigator（EPUB Navigator 已改用不带 `httpServer` 的初始化，App 不再链接 `ReadiumAdapterGCDWebServer`），在 build 通过后用 biquhua 章节做一次离线验证再定。
-- 验收：两份真实 catalog 走 Runtime 出「段落 ≥ 12、17 条 mp3」的固定输入；build 后真机复核影视线与漫画线没被 Readium 波及（交接单第五节第 5 条）。
+- Runtime：`Book/` 包——`BookSourceRuntimeFactory`（`guard case .book`）、list / detail / search loader 复用 comic 的 DOM 取值原语（`ExtractRule` 投影与 comic 同源）；reader 路径（在 `BookSourceRuntime` 内）按 `variant` 分派：`text-dom` 取容器 + `segmentation`（`elements` 取段落元素、`lineBreaks` 取 `<br>` 间文本节点），`text-api` 取 `textPath` 或 `itemPath`，`audio-media` 取 `media.item` 作用域内的 `media.url`（或 `mediaAPI`）；章内 `content.next` 拼成一份资源。
+- Application：`BookPublicationAssembler`——detail → `metadata`，章节 → `readingOrder[]`（`title / order / href`），`text` 资源装成 XHTML、`audio` 资源按 `media.format` 映射 `type`；输出给 Readium `Publication`。文字资源由 `ReadiumSitePublicationBuilder` 装成 `Publication` 直接喂 EPUB Navigator（不带 `httpServer`，App 不链接 `ReadiumAdapterGCDWebServer`）。
 
 **批次 C：Features**
-- `AddSourceView` 加 `bookSource` 入口（复用 `VideoGenerationInputView(sourceKind: .book)`）；Library 按 kind 显示书籍卡；阅读器：EPUB Navigator 与 Audio Navigator（Audio 无 UI，自建播放器界面）；书签用 `Locator` 序列化落库，与漫画、视频进度模型互不干扰；`Localizable.strings` 两种语言各加键（写完核对包内键数，`plutil -lint` 不可靠）。
-- 验收：**用户真机**在 biquhua 读到正文、在 loyalbooks 听到音频才算交付；此前只能说「已接线、未验证」。
+- `AddSourceView` 加 `bookSource` 入口（复用 `VideoGenerationInputView(sourceKind: .book)`）；Library 按 kind 显示书籍卡；阅读器：EPUB Navigator 与 Audio Navigator（Audio 无 UI，自建播放器界面）；书签用 `Locator` 序列化落库，与漫画、视频进度模型互不干扰；三份 `Localizable.strings`（en / zh-Hans / zh-Hant）各加键（`scripts/check-localization.py` 在编译后核对键集一致）。
 
 **不在范围**：本地文件导入（EPUB / PDF / M4B）、PDF Navigator、`text-api` 站（生成侧只有合成固定输入）、带签名音频、VIP 章正文为空的处理（`BC-BOOK-039` 无正例）。
 
 ## 四、顺序：先本地文件导入闭合阅读器
 
-交接单第五节建议**先做本地文件导入把阅读器与书签闭合，再接站点抓取**。**用户裁决按交接单的顺序：先用本地 EPUB / M4B 把 Readium 阅读器与 `Locator` 书签跑通，站点抓取路后补。**因此实施顺序改为：① 首次整包 build（Readium 链接进来后从未 build 过）→ ② 本地文件导入（另出设计节：文件来源、`Publication` 打开、EPUB 与 Audio Navigator、书签落库）→ ③ 本文批次 A → B → C。批次 B 的装配器先接本地 `Publication`，站点路复用同一个 Navigator 与书签模型。
+结果：本地 EPUB 导入先把 Readium 阅读器与 `Locator` 书签闭合，站点路复用同一个 Navigator 与书签模型；入口随后按裁决藏起（[本地书籍导入](Local-Book-Import-Design.md) 第八节）。顺序裁决的叙事见 [status-log.md](../history/status-log.md)。
 
-## 五、兼容与发布策略：不发布 + 服务器加 `kinds` 过滤
+## 五、兼容与发布策略：服务器 `kinds` 过滤
 
-目录列表接口在旧版 App 里整表解码、kind 封闭，book 一旦发布即让旧版目录整体失效。三条路：
-
-1. **不发布**：book catalog 只经生成任务的 `/outcomes` 与 200 cached 响应到达提交它的用户（那两条路 kind 是字符串，旧版不崩），目录接口不放 book，直到批次 A 的宽容解码版本上线并稳定。
-2. **服务器过滤**：PortalCore 目录接口加 `kinds` 查询参数，缺省只返回 `video, comic`；新版 App 显式带 `kinds=video,comic,book`。改动在 PortalCore（无鉴权端点，属用户有意设计，参数不改变这一点）。
-3. **两者都做**：先 1 后 2。
-
-> **本节第 1 条已被取代。** 2026-09-14 用户裁决把 biquhua 的 book catalog 发布进公共目录，随后 loyalbooks 与 sfacg
-> 同样发布（记录在第十六、十七节与 fwq `HANDOFF.md`）。当前策略是第 2 条单独生效：服务器 `kinds` 缺省不回 book，
-> 新版 App 显式声明。状态见 [STATUS.md](../STATUS.md) 第 1 节。
-
-**用户裁决第 3 条**：1 与 2 都做。1 曾立即生效（book catalog 先不发布进目录），**现已按上方批注被取代**；2 由 PortalCore 实施并且是当前唯一生效的策略——目录接口加 `kinds` 查询参数，缺省只返回 `video, comic`，新版 App 显式声明自己认得的 kind 集合（设计与实施记录在 PortalCore `docs/architecture/rule-generation-migration-plan.md` §14）。
+`BCA-RUNTIME-004` 的服务器端保险丝：PortalCore 目录接口带 `kinds` 查询参数，缺省只返回 `video, comic`；新版 App 显式声明自己认得的 kind 集合。book catalog 已发布进公共目录，「不发布」一路已被取代，叙事见 [status-log.md](../history/status-log.md)；服务器侧设计见 PortalCore `docs/architecture/rule-generation-migration-plan.md` §14。
 
 ## 六、验证命令
 
@@ -66,7 +55,7 @@ cd ../BrowseCraftRuntime && swift test
 scripts/regenerate-project.sh && xcodebuild -project BrowseCraft.xcodeproj -scheme BrowseCraft -destination 'generic/platform=iOS Simulator' build
 ```
 
-Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build 已通过一次（2026-09-13，Debug / 模拟器），Readium 与 KSPlayer、Firebase 同目标链接没有符号或资源冲突；每批实施后重跑。
+改动后重跑；运行时口径见 `HANDOFF.md` 第 2 节。
 
 ## 七、与其它文档的关系
 
@@ -81,22 +70,18 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
 
 ## 十二、章节推入的栈序修正
 
-- **成因**：`LibraryView` 用 `navigationDestination(item:)` 推详情（与漫画同款），详情里的章节却用 `NavigationLink(value:)` 走栈根的 `navigationDestination(for: LibraryBookRoute.self)`。栈上没有显式 path 绑定时，value 式推入进的是栈的内部 path，item 式推入是独立的呈现元素，两者混用后 SwiftUI 把 item 式的详情重新排到了最上面。
 - **修法**：与 `ComicDetailView` 同款——`BookSiteDetailView` 自己持有 `selectedChapter` 并声明 `navigationDestination(item:)`，章节行改成 Button 设值；`LibraryBookRoute.siteChapter` 删除，`LibraryView` 把 `makeBookSiteReader` 作为闭包传给详情页。行字用 `Color.primary` 压回正文色（List 里的 Button 标签缺省染 tint）。
 - `BCA-UI-002` **对第八节结论的补充**：「多级 `navigationDestination(for:)` 必须在栈根声明一次」仍成立；本节补的是另一条——**同一条推入链上不要混用 value 式与 item 式**，一条链选定一种。
 
 ## 十三、章内分页的停止判据
 
-- **缺口**：`BookSourceRuntime.loadText` 按 `content.next` 逐页拼接，停止条件只有「指回已取过的页」与上限 50 页。biquhua 章内页与下一章共用同一个 `a#next`（文字一律「下一章」），末页的 `next` 指向下一章 `129024.html`——规则一给值，第 1 章会把后续章节一路吞到上限。
 - **修法**：加第三条停止条件 `isInChapterPage(candidate, chapterURL:)`——候选地址必须是本章地址的**兄弟页**：同主机、同目录、同扩展名，末段 = 本章词干 + 非字母数字分隔符 + 页码（≥ 2）；本章地址自己已带页码时词干去掉「分隔符 + 页码」后算。与引擎 `_FUSED_PAGE_SEGMENT`（`BC-LIST-093`）同一形状。只看 URL 形状，不看链接文字。
 - **不覆盖**：query 形的章内分页（`?page=2`）——首批语料没有样本，量到再加。
 - **固定输入**：`BookSourceRuntimeEndToEndTests.biquhuaInChapterPagesAreJoinedAndStopAtNextChapter`（三页夹具 `biquhua-reader-110-129023{,-p2,-p3}.html` + 带 `next` 的 `biquhua-catalog-next.json`：拼接后段落多于单页、取页序列恰为三页、不取 `129024.html`）与 `inChapterPageGuardOnlyAcceptsSiblingPagesOfTheChapter`（十个形状用例）。
 
 ## 十四、book 列表分页在 ViewModel 被 kind 门挡住
 
-- **成因**：`LibraryViewModel.selectedSourceSupportsListPagination` 写的是 `kind == .video || kind == .comic`——09-12 从只认影视放宽到漫画时的形状，book 后来接入没跟上。
 - **修法**：加 `.book`。固定输入 `LibraryViewModelTests.bookListAdvancesToTheNextPageWhenRuntimeReportsOne`（与漫画同款：第 1 页报 nextPage=2 → 触底取第 2 页 → 报 nil 即停）；`TestSourceRuntimeResolver` 补 `bookRuntimeFactory`，`Harness.makeBookSource()` 用 biquhua-catalog 夹具物化。
-- **待补的缺口**：规则目录里「已添加」的来源没有任何动作，服务器上更新了规则的用户拿不到新版本，只能删掉重加；应给已添加来源提供「更新规则」（同 id 再添加即覆盖本地规则，`AddCatalogSourceUseCase` 已支持）。
 
 ## 十五、页码标记清洗与阅读器标题
 
@@ -124,12 +109,9 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
   详情页从阅读器 / 播放页退回时只重读续读位置、不重取详情（此前 manifest 已在就直接返回，「Continue Listening」出不来）。
 - **固定输入**：`BookReaderViewModelTests.openingSiteAudiobookBuildsAnAudioNavigator`、`BookSourceRuntimeEndToEndTests`（音频 href 有资源、第 1 页用入口地址）、
   `SiteBookAudioHTTPClientTests`、`BookSiteDetailViewModelTests.returningToDetailRefreshesReadingProgressWithoutReloading`。
-- **后面再改的**：界面样式；倍速与偏好入口（SDK 有 `AudioPreferences`，界面没露）；`mediaAPI` 与带签名音频仍无语料。
 
 ## 十七、`chapterListURL`：章节列表在从作品页单跳到达的目录页
 
-- **背景**：sfacg 的作品页只带「点击阅读」（指向 `MainIndex/`）与最新一章，完整章节在目录页。规则合同 `detailRules[]` 只有 `chapterRule` / `chapterAPI`，
-  表达不了这一跳。规则仓库设计书 6.1 节定了合同：`detailRules[].chapterListURL`（可选 `ExtractRule`，`url`），在作品页上取目录页地址。
 - **合同语义（实施时定下，与立项文字不同处以本条为准）**：给了 `chapterListURL`，**`fields` 与 `chapterRule` 都在目录页上应用**——规则生成侧把目录页当作这次
   列表交接的详情文档（以作品页为 `requested_url` 取回，与重定向同一表达），标题等字段的选择器是在目录页上学到的（sfacg：`h1.story-title`）。
   作品页只用来取 `chapterListURL`。只与 `chapterRule` 搭配（Core 校验 `detail.chapterListURL`）。
@@ -143,21 +125,11 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
   抄了容器路径的答法归一为 `p`、重放改在脱离副本上 select（规则仓库设计书 6.1 更正 9）——这条差异是 Core 夹具测试先逮到的，App 侧不改语义。
 ## 十八、站点书打开一章就把全书逐章取页 + 作品页封面被 ATS 拒
 
-- **成因一（Readium 预加载永不停止）**：`ReadiumSitePublicationBuilder` 手建的 `Publication` 没有 positions 服务，`positionsByReadingOrder()` 退到
-  `positionsFromManifest` → 每章一个**空**数组；`EPUBNavigatorViewController` 用 `!positionsByReadingOrder.isEmpty` 判 `hasPositions`，外层非空即真；
-  `PaginationView.scheduleLoadPages` 按「后 6 前 2 个 position」递减，每个 spread 贡献 0，永远凑不满，直到书头书尾——每章一个 WebView、一次取页。
-  所有站点文字书都受影响（biquhua 同样）；本地 EPUB 走 Streamer 自带 positions，不受影响。
 - **修法一**：文字书出版物带 `InMemoryPositionsService`，每章 1 个 position（`position = i + 1`、`totalProgression = i / 章数`）；预加载回到前 2 章、后 6 章。
   有声作品走 `AudioNavigator`，不加。固定输入：`BookSourceRuntimeEndToEndTests.biquhuaTextBookFlowsFromListToPublication` 断言 112 章各 1 个 position。
-- **成因二（封面绕过共享图片通道）**：sfacg 桌面列表页封面是 `http://`；列表网格走共享 `CoverImageView`（http → https 候选、带 Referer）所以有图，
-  `BookSiteDetailView` 头部与 `AudiobookPlayerView` 用系统 `AsyncImage` 直连，被 ATS 拒。
 - **修法二**：两处改用 `CoverImageView`，不开全局 ATS 例外（与第十七节跳转升级、第十六节 mp3 同一纪律）。
 ## 十九、站点书展示标题：列表标题与详情标题互相包含时取较短的
 
-- **成因**：`BC-BOOK-050` 合同下详情字段在**目录页**（`m.sfacg.com/i/N/`）上取，而目录页上**没有任何元素的文字是书名**（无 h1–h3、无 og:title），
-  引擎只能学到 `<title>`（run9 / run10 同为 `title` 选择器）。干净书名只在作品页 `ul.book_info span.book_newtitle` 与列表条目里。
-- **为什么不是「优先用列表条目标题」**：第十五节已按用户裁决改为用 manifest 标题——biquhua 列表条目带分类前缀「[玄幻]普罗之主」、详情是「普罗之主」。
-  两个站方向相反，单边优先必然弄坏另一个。
 - **判据**：`SiteBookTitle.preferred(itemTitle:detailTitle:)`（`Application/UseCases/Book/BookPublicationAssembler.swift`）——两串去空白后，
   一个包含另一个取较短的；互不包含用详情标题；任一边为空取另一边。三站实际形状：biquhua → 「普罗之主」、sfacg → 「大傩」、loyalbooks 两边相同。
   不认站点、不认后缀词表。代价：详情标题比列表多出有用信息（如「大傩（第二部）」）时会取到较短的列表标题。
@@ -175,7 +147,6 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
   固定输入：App `emptyChapterContentRendersANoticeInsteadOfATitleOnlyPage`。
 ## 二十一、开书时作品页与目录页各取两遍
 
-- **成因**：`BookFeatureFactory` 给详情页与阅读器各建一个 `LoadBookPublicationUseCase`，两边互不知情。
 - **为什么不把出版物塞进 `SiteBookChapterSelection` 往下传**：它是 `navigationDestination(item:)` 与 `.id(selection)` 的键，必须 Hashable；
   出版物带内容取数闭包，不可 Hashable。
 - **修法**：`BookPublicationCache`（`Application/UseCases/Book/LoadBookPublicationUseCase.swift`）——工厂持有一份、传给两处用例；
@@ -185,7 +156,6 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
   `publicationCacheExpiresAndSkipsOtherBooks`（同书二次命中、他源不命中、过期后重取）。
 ## 二十二、站点书搜索：由规则声明、与漫画 / 影视同一条合同
 
-- **引擎侧**（fwq，同日）：核验关键词按条目取「列表标题与详情标题互相包含取较短」（`BC-SEARCH-004` 续，与第十九节同一条规则），零 token 测量 17 份真跑无误伤后落地。
 - **Core**：`BookPageRule.url` 改可选；`BookSearchRule` 按引擎交付形状建模（`url` 带 `{keyword}`、`method`、`keywordEncoding`、`item`（引擎键名，不是 `itemRule`）、`fields`、`listRuleRef`、`pagination`、`request`）；
   校验器认 `type="search"` 页（只要求 `ruleRefs.search` 可解析），并校验搜索规则（`url` 含 `{keyword}`；`listRuleRef` 可解析，或自带 `item + fields.title/detailURL`）。
 - **Runtime**：`BookSourceRuntime: SourceSearchRuntime`。`supportsSearch` = 存在 `type="search"` 页且其引用可解析；`search()` 把关键词按 `keywordEncoding` 编进 `{keyword}`
@@ -197,8 +167,6 @@ Core 预期 218 条通过、4 条跳过（交接单第四节）；整包 build �
   列表仍落列表页；未声明搜索的 catalog 不支持；第 2 页无模板抛错）。
 ## 二十三、站点书进 History 页：与漫画、视频同列
 
-- **现状**：批次 C 时用户裁决 B2「History 页不纳入书籍」（第十节）。站点书只有续读位置表 `book_reading_progress`（作品标识 + Locator + 时间），
-  没有书名、来源、封面、章节，History 页拼不出一行，也重建不出阅读器的打开参数。本节按用户新裁决推翻 B2。
 - **写入点**：`BookReaderViewModel`（注入 `SaveBookReadingHistoryUseCase`，缺省 nil）。站点书打开成功写一次；之后每次落进度（节流 1 秒、离开阅读器 `flush`）同步 upsert，
   章节取当前 Locator 所在的那一章（对法与详情页找续读章节相同：相对 href、补前导斜杠、或有声章节的远程地址），还没有位置时记第一章。**本地导入书不写**（入口已藏）。
 - **展示与重开**：`ReadingHistoryEntry.Kind.book`，行标题 = 书名、副标题 = 最后读到的章节、图标 `book`。点开进与 Library 相同的 `BookReaderView`，

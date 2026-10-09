@@ -175,3 +175,8 @@
 - `BrowseCraft/Features/History/Components/HistoryEntryRowView.swift`：`HistoryContinueTileView` 底行允许只写时刻。
 - 三份 `Localizable.strings`：眉行「视频」、「上次看到」、分页脚三条都沿用现有词条；新增长按菜单「打开」「收藏」「取消收藏」「继续看」「打开作品」。
 - 页面设计索引：实施后把「海报卡片」「分类芯片」补进可复用组件表。
+
+## 十三、真机验收清单
+
+- 模拟器没走到：分页脚、分类出错横幅、切换来源遮罩、账号按钮、点「上次看到」瓷砖进播放器、搜索结果页、空状态插画的实际显示。
+- 有 `latestText` 的来源看集数徽章；有时长的历史看瓷砖进度条。深色模式整页看一遍。

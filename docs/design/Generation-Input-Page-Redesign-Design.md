@@ -62,3 +62,8 @@
 - `BrowseCraft/Features/Shared/DotMatrixTrack.swift`：流光点阵（`TimelineView` 驱动 `Canvas`），只给困难档滑动确认用。
 - `BrowseCraft/Features/Shared/GenerationTierPicker.swift`、`BrowseCraft/Features/Shared/SlideToConfirmControl.swift`：两个新组件，实施后补进页面设计索引的可复用组件表。
 - 三份 `Localizable.strings`：标题三句、说明、四步名、结论标题改词、档位与余额、滑动文案、结果标题；引导屏步骤去掉序号前缀；删去不再使用的词条。
+
+## 六、真机验收清单
+
+- 模拟器没走到：检查中的四步进度卡（检查太快抓不到）、真实提交的各结果态（要扣 coin）、粘贴按钮（模拟器剪贴板不同步）、coin 不足。
+- 网址错误不出卡；困难档的渐变描边与流光点阵；滑动确认拖一半弹回；引导屏回看形态。深色模式整页看一遍。

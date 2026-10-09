@@ -62,3 +62,9 @@
 - `BrowseCraft/Features/Sources/SourcesView.swift`：本页请求打开目录时，等本页收起后再弹目录；从目录页进入时告诉本页不显示目录入口卡。
 - 资源：删 ComicKindBadge、VideoKindBadge、BookKindBadge 三份图并撤掉 `scripts/bundled-image-asset-budgets.txt` 里的登记。
 - 三份 `Localizable.strings`：新增说明、三句举例、「接下来」三行、coin 与登录两句、目录入口卡两句；删去不再使用的词条。
+
+## 六、真机验收清单
+
+- 来源页「＋ 添加」弹出；三张类型横幅与目录页同一批插画；「接下来」三行与 coin 一行（价格取服务端普通档）。
+- 点「从规则目录挑一个」本页先收起再弹目录；点类型卡在同一层 sheet 里进引导屏或输入页，不叠第二层；输入页「关闭」回来源页。
+- 模拟器没走到、真机顺带看：未登录时 coin 一行换成警示色「提交生成需要登录」；余额还没同步到时只写价格；从目录「我的生成」空状态进入时没有目录入口卡。深色模式整页看一遍。

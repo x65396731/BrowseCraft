@@ -60,3 +60,8 @@
 - `BrowseCraft/Infrastructure/Caching/ItemThumbnailImageCachePlugin.swift`：暴露缩略图磁盘缓存与固定上限，补清内存。
 - `BrowseCraft/Infrastructure/Caching/WebsiteCacheCleaner.swift`：只清 WebKit 的缓存类数据。
 - 三份 `Localizable.strings` 末尾「缓存页重设计」一段。
+
+## 六、真机验收清单
+
+- 进入后底栏隐藏；用量卡与「最多」合计；改上限后合计跟着变。
+- 清除后用量归零、显示释放多少，来源登录状态不受影响。深色模式整页看一遍。
