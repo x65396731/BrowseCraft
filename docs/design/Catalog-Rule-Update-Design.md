@@ -12,12 +12,18 @@
 
 ## 二、设计
 
-- **判据**：`SourcesViewModel.catalogSourceHasRuleUpdate(_:)`——把目录条目按本地来源的 `createdAt / updatedAt / enabled / origin`
-  物化，比较名称、站点地址与 `configuration`；不同即「有更新」。不比较时间戳：目录接口的 `updatedAt` 没进 `CatalogSource` 模型，
+- **判据**：`AddCatalogSourceUseCase.ruleUpdates(in:existingSources:)`——先比指纹：来源行的 `catalogRuleFingerprint`
+  记着上次应用的目录规则原文（`ruleJSON`）的 SHA-256，与目录条目现在的指纹相同就不再看这条。指纹不同或没记过的，
+  把目录条目按本地来源的 `createdAt / updatedAt / enabled / origin` 物化，比较名称、站点地址与 `configuration`；不同即「有更新」，
+  相等则只给来源行盖上指纹。不比较时间戳：目录接口的 `updatedAt` 没进 `CatalogSource` 模型，
   且本地 `updatedAt` 是保存时刻，两者不可比；规则本体相等才是「没变」的唯一可靠判据。物化失败按无更新处理。
-- **动作**：`SourcesViewModel.applyCatalogRuleUpdates(_:)` 对目录里每条「已添加且有更新」的条目走**同一条添加路径**
-  （`AddCatalogSourceUseCase` 同 id 分支：保存新规则，`createdAt / enabled / origin` 与阅读历史不动，不重新验证列表），
-  `preserveSelection` 为真——不把用户从正在看的来源上拽走。目录里未添加的条目不会被顺手加进来。
+  比较在用例里、离开主线程。指纹是仓储层的比较缓存，不在 `Source` 模型上，也不进云同步；来源行经任何别的路径
+  （用户改启用、撤销删除、云端下行）整行重写时回到 NULL，下次照旧物化一次。
+  `SourcesViewModel.catalogSourceHasRuleUpdate(_:)` 保留为单条同步判据，只供固定输入用例使用。
+- **动作**：`AddCatalogSourceUseCase.applyRuleUpdates(_:existingSources:)` 把目录里每条「已添加且有更新」的条目按本地的
+  `createdAt / enabled / origin` 物化（`updatedAt` 取当前时间，阅读历史不动，不重新验证列表），**合成一个写事务**连同指纹写入，
+  `SourcesViewModel` 最后只重读一次来源表。这条路径不经过 `addCatalogSource`：不碰当前选择，也不触发切到库页的
+  `latestSourceAddID`。目录里未添加的条目不会被顺手加进来。个人生成的规则跟随（`refreshPersonalSourcesFromOutcomes`）走同一条路径。
 - **时机**：
   - 规则目录页每次呈现与下拉刷新（`refreshCatalogSources`），读完目录立即应用；
   - App 启动读完本地来源后，与每次回到前台时，`syncAddedSourcesWithCatalog` 在后台静默读一次目录再应用。
@@ -32,9 +38,11 @@
 - `SourcesViewModelTests.catalogSourceWithNewerRuleOffersAnUpdateAndAppliesItInPlace`：本地为 `biquhua-catalog`，
   目录同形 → 无更新；目录为 `biquhua-catalog-next`（多 `content.next`）→ 有更新；覆盖后本地规则含 `next`、`createdAt` 不变。
 - `SourcesViewModelTests.addedSourcesFollowTheCatalogWithoutATap`：`applyCatalogRuleUpdates` 对已添加的来源直接覆盖，
-  对未添加的目录条目不做任何事。
+  对未添加的目录条目不做任何事；覆盖后来源行记下指纹，再读同一份目录不写行、`updatedAt` 不动，按 `Source` 整行重存后指纹失效。
+- `SourcesCatalogRuleFingerprintMigrationTests`：v10 迁移从 v9 库升级与全新创建两条路都到位，旧行原样、指纹为 NULL、外键检查干净。
 
 ## 四、实现位置
 
-`BrowseCraft/Features/Sources/SourcesViewModel.swift`（判据、应用与后台跟随）、`BrowseCraft/App/RootView.swift`（启动与回到前台的触发）、
+`BrowseCraft/Application/UseCases/Source/AddCatalogSourceUseCase.swift`（指纹、判据与批量覆盖）、`BrowseCraft/Infrastructure/Database/Repositories/GRDBSourceRepository.swift`（指纹列的读写）、
+`BrowseCraft/Features/Sources/SourcesViewModel.swift`（两条自动跟随路径）、`BrowseCraft/App/RootView.swift`（启动与回到前台的触发）、
 `BrowseCraft/Features/Sources/Catalog/CatalogSourceListView.swift`（目录行只剩添加 / 添加中 / 已添加 / 添加失败）。

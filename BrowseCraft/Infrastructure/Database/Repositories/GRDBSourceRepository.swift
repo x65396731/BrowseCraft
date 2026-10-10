@@ -75,66 +75,131 @@ final class GRDBSourceRepository: SourceRepository {
     }
 
     func saveSource(_ source: Source) throws {
+        try self.saveCatalogSources([source], fingerprintsBySourceID: [:])
+    }
+
+    /// 中文注释：一个写事务里逐条保存；指纹表里有的来源把 `catalogRuleFingerprint` 一起写上（复审 B-4）。
+    func saveCatalogSources(_ sources: [Source], fingerprintsBySourceID: [String: String]) throws {
+        guard sources.isEmpty == false else {
+            return
+        }
         let userID: String = self.currentUserID
         let accountScope: CloudAccountScope = self.accountScopeProvider.currentScope
         try self.database.queue.write { database in
             try AppUserRecord.insertUser(id: userID, in: database)
-
-            let existingRecord: SourceRecord? = try SourceRecord.fetchOne(
-                database,
-                key: ["userID": userID, "id": source.id]
-            )
-            let existingSourceConsumesSlot: Bool = existingRecord.map { record in
-                return record.deletedAt == nil
-                    && record.id.hasPrefix("built-in.") == false
-                    && record.enabled
-            } ?? false
-            if SourceSlotPolicy.consumesNewSlot(
-                source: source,
-                existingSourceConsumesSlot: existingSourceConsumesSlot
-            ) {
-                let entitlementUser: AppUserRecord? = try AppUserRecord.fetchOne(
-                    database,
-                    key: userID
-                )
-                let siteSlotLimit: Int = SourceSlotPolicy.effectiveLimit(
-                    storedLimit: entitlementUser?.siteSlotLimit ?? SourceSlotPolicy.includedSiteSlotCount
-                )
-                let occupiedSiteSlotCount: Int = try Int.fetchOne(
-                    database,
-                    sql: """
-                    SELECT COUNT(*)
-                    FROM \(SourceRecord.databaseTableName)
-                    WHERE userID = ?
-                      AND deletedAt IS NULL
-                      AND id NOT LIKE 'built-in.%'
-                      AND enabled = 1
-                    """,
-                    arguments: [userID]
-                ) ?? 0
-
-                guard occupiedSiteSlotCount < siteSlotLimit else {
-                    throw SourceRepositoryError.siteSlotLimitReached(limit: siteSlotLimit)
-                }
-            }
-
-            var record: SourceRecord = try SourceRecord(source: source)
-            record.userID = userID
-            try record.save(database)
-
-            if source.isBuiltIn == false {
-                try SyncQueueRecord.enqueue(
+            for source: Source in sources {
+                try Self.save(
+                    source,
+                    catalogRuleFingerprint: fingerprintsBySourceID[source.id],
+                    userID: userID,
                     accountScope: accountScope,
-                    entityType: .source,
-                    entityID: source.id,
-                    operation: .upsert,
-                    updatedAt: source.updatedAt,
                     in: database
                 )
             }
         }
-        if source.isBuiltIn == false {
+        if sources.contains(where: { $0.isBuiltIn == false }) {
             self.changeNotifier?.notifyLocalChange()
+        }
+    }
+
+    func catalogRuleFingerprints() throws -> [String: String] {
+        let userID: String = self.currentUserID
+        return try self.database.queue.read { database in
+            let rows: [Row] = try Row.fetchAll(
+                database,
+                sql: """
+                SELECT id, catalogRuleFingerprint
+                FROM \(SourceRecord.databaseTableName)
+                WHERE userID = ? AND deletedAt IS NULL AND catalogRuleFingerprint IS NOT NULL
+                """,
+                arguments: [userID]
+            )
+            var fingerprints: [String: String] = [:]
+            for row: Row in rows {
+                fingerprints[row["id"]] = row["catalogRuleFingerprint"]
+            }
+            return fingerprints
+        }
+    }
+
+    func stampCatalogRuleFingerprints(_ fingerprintsBySourceID: [String: String]) throws {
+        guard fingerprintsBySourceID.isEmpty == false else {
+            return
+        }
+        let userID: String = self.currentUserID
+        try self.database.queue.write { database in
+            for (sourceID, fingerprint) in fingerprintsBySourceID {
+                try database.execute(
+                    sql: """
+                    UPDATE \(SourceRecord.databaseTableName)
+                    SET catalogRuleFingerprint = ?
+                    WHERE userID = ? AND id = ?
+                    """,
+                    arguments: [fingerprint, userID, sourceID]
+                )
+            }
+        }
+    }
+
+    private static func save(
+        _ source: Source,
+        catalogRuleFingerprint: String?,
+        userID: String,
+        accountScope: CloudAccountScope,
+        in database: Database
+    ) throws {
+        let existingRecord: SourceRecord? = try SourceRecord.fetchOne(
+            database,
+            key: ["userID": userID, "id": source.id]
+        )
+        let existingSourceConsumesSlot: Bool = existingRecord.map { record in
+            return record.deletedAt == nil
+                && record.id.hasPrefix("built-in.") == false
+                && record.enabled
+        } ?? false
+        if SourceSlotPolicy.consumesNewSlot(
+            source: source,
+            existingSourceConsumesSlot: existingSourceConsumesSlot
+        ) {
+            let entitlementUser: AppUserRecord? = try AppUserRecord.fetchOne(
+                database,
+                key: userID
+            )
+            let siteSlotLimit: Int = SourceSlotPolicy.effectiveLimit(
+                storedLimit: entitlementUser?.siteSlotLimit ?? SourceSlotPolicy.includedSiteSlotCount
+            )
+            let occupiedSiteSlotCount: Int = try Int.fetchOne(
+                database,
+                sql: """
+                SELECT COUNT(*)
+                FROM \(SourceRecord.databaseTableName)
+                WHERE userID = ?
+                  AND deletedAt IS NULL
+                  AND id NOT LIKE 'built-in.%'
+                  AND enabled = 1
+                """,
+                arguments: [userID]
+            ) ?? 0
+
+            guard occupiedSiteSlotCount < siteSlotLimit else {
+                throw SourceRepositoryError.siteSlotLimitReached(limit: siteSlotLimit)
+            }
+        }
+
+        var record: SourceRecord = try SourceRecord(source: source)
+        record.userID = userID
+        record.catalogRuleFingerprint = catalogRuleFingerprint
+        try record.save(database)
+
+        if source.isBuiltIn == false {
+            try SyncQueueRecord.enqueue(
+                accountScope: accountScope,
+                entityType: .source,
+                entityID: source.id,
+                operation: .upsert,
+                updatedAt: source.updatedAt,
+                in: database
+            )
         }
     }
 

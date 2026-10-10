@@ -22,6 +22,9 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
     var deletedAt: Date?
     /// 中文注释：`SourceOrigin.rawValue`；v2 迁移新增列，旧行为 NULL。
     var origin: String?
+    /// 中文注释：上次应用的目录规则原文指纹（v10）。不在 `Source` 模型上：它是仓储层的比较缓存，
+    /// 只有目录应用路径写值，任何按 `Source` 重建的整行保存都把它写回 NULL（即失效）。
+    var catalogRuleFingerprint: String? = nil
 
     init(
         userID: String,

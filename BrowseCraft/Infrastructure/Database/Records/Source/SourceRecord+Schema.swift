@@ -14,5 +14,6 @@ extension SourceRecord {
         static let updatedAt: Column = Column("updatedAt")
         static let deletedAt: Column = Column("deletedAt")
         static let origin: Column = Column("origin")
+        static let catalogRuleFingerprint: Column = Column("catalogRuleFingerprint")
     }
 }

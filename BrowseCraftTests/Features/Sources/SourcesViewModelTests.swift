@@ -110,13 +110,23 @@ struct SourcesViewModelTests {
 
         #expect(viewModel.catalogSourceHasRuleUpdate(newer) == false)
         #expect(viewModel.isCatalogSourceAdded(notAdded) == false)
-        let stored: Source = try #require(try GRDBSourceRepository(database: database).fetchSources().first { $0.id == existing.id })
+        let repository: GRDBSourceRepository = GRDBSourceRepository(database: database)
+        let stored: Source = try #require(try repository.fetchSources().first { $0.id == existing.id })
         #expect(stored.createdAt == existing.createdAt)
         guard case .book(let configuration) = stored.configuration else {
             Issue.record("expected .book configuration")
             return
         }
         #expect(configuration.rule.ruleSets.readerRules.first?.content?.next != nil)
+
+        // 中文注释：复审 B-4——覆盖后来源行记下目录规则原文的指纹；再读一次同一份目录先比指纹、不再物化也不再写行，
+        // `updatedAt` 原样不动。来源行经别的路径整行重写（这里按 Source 再存一次）后指纹失效，下次照旧物化一次。
+        #expect(try repository.catalogRuleFingerprints()[existing.id] == AddCatalogSourceUseCase.ruleFingerprint(of: newer))
+        await viewModel.applyCatalogRuleUpdates([newer])
+        let storedAgain: Source = try #require(try repository.fetchSources().first { $0.id == existing.id })
+        #expect(storedAgain.updatedAt == stored.updatedAt)
+        try repository.saveSource(storedAgain)
+        #expect(try repository.catalogRuleFingerprints()[existing.id] == nil)
     }
 
     @Test func deletingTheSelectedSourceMovesSelectionToTheRemainingOne() async throws {

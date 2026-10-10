@@ -16,7 +16,8 @@ enum AppDatabaseMigrations {
         Self.removeRSSIdentifier,
         Self.usersAddCoinIdentifier,
         Self.historySyncLedgerIdentifier,
-        Self.comicHistoryAddPageCountIdentifier
+        Self.comicHistoryAddPageCountIdentifier,
+        Self.sourcesAddCatalogRuleFingerprintIdentifier
     ]
 
     /// 中文注释：v2——sources 增加 `origin` 列，记「来自个人生成」等出身，本地副本才能随服务器裁决清理。
@@ -53,6 +54,12 @@ enum AppDatabaseMigrations {
     /// 只给详情页「13 / 45 页」与进度条用（`docs/design/Comic-Detail-Page-Redesign-Design.md` 第九节），不进云同步；
     /// 云端下行的 upsert 不碰这一列，本机值得以保留。旧记录为 NULL，页面只写「第 N 页」。
     static let comicHistoryAddPageCountIdentifier: String = "v9.comic-chapter-history-add-page-count"
+
+    /// 中文注释：v10——sources 加 `catalogRuleFingerprint`：已添加来源上次应用的目录规则原文（`ruleJSON`）的 SHA-256。
+    /// 目录跟随（`docs/design/Catalog-Rule-Update-Design.md` 第二节）先比指纹，相同就不再物化校验整条规则（2026-10-10 复审 B-4）。
+    /// 只有目录应用路径写它；来源行经其它路径（用户改启用、撤销删除、云端下行）整行重写时回到 NULL，下次比较照旧物化一次。
+    /// 本机派生值，不进云同步。
+    static let sourcesAddCatalogRuleFingerprintIdentifier: String = "v10.sources-add-catalog-rule-fingerprint"
 
     static func makeMigrator() -> DatabaseMigrator {
         var migrator: DatabaseMigrator = DatabaseMigrator()
@@ -267,6 +274,12 @@ enum AppDatabaseMigrations {
         migrator.registerMigration(Self.comicHistoryAddPageCountIdentifier) { database in
             try database.alter(table: "comic_chapter_history") { table in
                 table.add(column: "pageCount", .integer)
+            }
+        }
+
+        migrator.registerMigration(Self.sourcesAddCatalogRuleFingerprintIdentifier) { database in
+            try database.alter(table: "sources") { table in
+                table.add(column: "catalogRuleFingerprint", .text)
             }
         }
 

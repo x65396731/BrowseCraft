@@ -558,24 +558,47 @@ final class SourcesViewModel {
     /// 与个人规则的 `refreshPersonalSourcesFromOutcomes` 是同一条原则：规则内容由服务器裁决。
     @MainActor
     func applyCatalogRuleUpdates(_ catalogSources: [CatalogSource]) async {
-        var updatedCount: Int = 0
-        for catalogSource: CatalogSource in catalogSources
-        where self.catalogSourceHasRuleUpdate(catalogSource) {
-            let updated: Bool = await self.addCatalogSource(
-                catalogSource,
-                shouldPresentError: false,
-                preserveSelection: true
-            )
-            if updated {
-                updatedCount += 1
-            } else {
-                AppLog.error(.rule, event: "catalog-source-update-failed", metadata: ["sourceID": catalogSource.id])
-            }
-        }
-        guard updatedCount > 0 else {
+        await self.applyRuleUpdatesFollowingServer(catalogSources, event: "catalog-sources-updated")
+    }
+
+    /// 中文注释：目录跟随的共同路径（复审 B-4）：比较与物化在用例里、离开主线程，先比指纹再物化；
+    /// 有更新的条目合成一个写事务写入，最后只重读一次来源表。不走 `addCatalogSource`——
+    /// 后台自动覆盖不该碰当前选择，也不该触发 `latestSourceAddID` 的切标签。
+    @MainActor
+    private func applyRuleUpdatesFollowingServer(_ catalogSources: [CatalogSource], event: String) async {
+        let existingSources: [Source] = self.sources
+        let plan: CatalogRuleUpdatePlan
+        do {
+            plan = try await self.catalogService.ruleUpdates(in: catalogSources, existingSources: existingSources)
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-rule-update-plan-error")
             return
         }
-        AppLog.notice(.rule, event: "catalog-sources-updated", metadata: ["count": String(updatedCount)])
+        if plan.unchangedFingerprintsBySourceID.isEmpty == false {
+            do {
+                try await self.catalogService.stampCatalogRuleFingerprints(plan.unchangedFingerprintsBySourceID)
+            } catch {
+                RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-rule-fingerprint-stamp-error")
+            }
+        }
+        guard plan.updates.isEmpty == false else {
+            return
+        }
+        let applied: AppliedCatalogRuleUpdates
+        do {
+            applied = try await self.catalogService.applyRuleUpdates(plan.updates, existingSources: existingSources)
+        } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-source-update-failed")
+            return
+        }
+        for (sourceID, reason) in applied.failuresBySourceID {
+            AppLog.error(.rule, event: "catalog-source-update-failed", metadata: ["sourceID": sourceID, "reason": reason])
+        }
+        guard applied.sources.isEmpty == false else {
+            return
+        }
+        await self.load()
+        AppLog.notice(.rule, event: event, metadata: ["count": String(applied.sources.count)])
     }
 
     /// 读取当前用户的生成终态；失败只记日志，不覆盖目录的错误提示。
@@ -626,34 +649,22 @@ final class SourcesViewModel {
     /// 在读取目录时同样自动覆盖（2026-09-30 用户裁定：推荐由服务器给，本地副本跟随服务器，不再设手动更新）。
     @MainActor
     private func refreshPersonalSourcesFromOutcomes(_ outcomes: [VideoGenerationOutcome]) async {
-        var refreshedCount: Int = 0
+        var candidates: [CatalogSource] = []
         for outcome: VideoGenerationOutcome in outcomes where outcome.didSucceed {
             guard let catalogSource: CatalogSource = outcome.catalogSource,
                   let existing: Source = self.sources.first(where: { source in
                       return source.id == catalogSource.id
                   }),
                   existing.origin == .personalGeneration
-                      || (outcome.finishedDate.map { $0 > existing.updatedAt } ?? false),
-                  self.catalogSourceHasRuleUpdate(catalogSource) else {
+                      || (outcome.finishedDate.map { $0 > existing.updatedAt } ?? false) else {
                 continue
             }
-            let updated: Bool = await self.addCatalogSource(
-                catalogSource,
-                shouldPresentError: false,
-                preserveSelection: true
-            )
-            if updated {
-                refreshedCount += 1
-            }
+            candidates.append(catalogSource)
         }
-        guard refreshedCount > 0 else {
+        guard candidates.isEmpty == false else {
             return
         }
-        AppLog.notice(
-            .push,
-            event: "personal-sources-refreshed",
-            metadata: ["count": String(refreshedCount)]
-        )
+        await self.applyRuleUpdatesFollowingServer(candidates, event: "personal-sources-refreshed")
     }
 
     /// 中文注释：个人规则的存活由服务器裁决（7 天可见期、软删除）。标记为「来自个人生成」的本地来源

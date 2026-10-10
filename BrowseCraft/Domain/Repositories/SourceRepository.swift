@@ -9,6 +9,13 @@ import Foundation
 protocol SourceRepository: Sendable {
     func fetchSources() throws -> [Source]
     func saveSource(_ source: Source) throws
+    /// 中文注释：已添加来源上次应用的目录规则原文指纹（sourceID → 指纹）；没记过的来源不在表里。
+    /// 目录跟随先比它，相同就不物化整条规则（`docs/design/Catalog-Rule-Update-Design.md` 第二节）。
+    func catalogRuleFingerprints() throws -> [String: String]
+    /// 中文注释：目录物化出的来源连同各自的指纹一次写入，一个写事务；语义与逐条 `saveSource` 相同（含位置额度与同步入队）。
+    func saveCatalogSources(_ sources: [Source], fingerprintsBySourceID: [String: String]) throws
+    /// 中文注释：只给来源行盖指纹——规则与本地相等、只是还没记过指纹时用；不改规则、不动 `updatedAt`、不入同步队列。
+    func stampCatalogRuleFingerprints(_ fingerprintsBySourceID: [String: String]) throws
     /// 中文注释：删除来源并连带删除历史与收藏，交回被删内容；来源不在册时仍做清理但返回 nil。
     /// 不发本地变更通知——调用方在撤销窗口结束后调 `notifyLocalChanges()`（见 `docs/design/Source-Deletion-Cascade-Design.md` 第四节）。
     @discardableResult
@@ -26,6 +33,21 @@ protocol SourceRepository: Sendable {
 
 extension SourceRepository {
     func notifyLocalChanges() {}
+
+    func catalogRuleFingerprints() throws -> [String: String] {
+        return [:]
+    }
+
+    func saveCatalogSources(_ sources: [Source], fingerprintsBySourceID: [String: String]) throws {
+        _ = fingerprintsBySourceID
+        for source: Source in sources {
+            try self.saveSource(source)
+        }
+    }
+
+    func stampCatalogRuleFingerprints(_ fingerprintsBySourceID: [String: String]) throws {
+        _ = fingerprintsBySourceID
+    }
 
     func reconcileSourceSlotAssignments() throws -> [Source] {
         return try self.fetchSources()

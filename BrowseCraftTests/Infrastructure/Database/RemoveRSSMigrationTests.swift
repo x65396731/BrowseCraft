@@ -28,8 +28,8 @@ struct RemoveRSSMigrationTests {
 
         try queue.write { database in
             try AppUserRecord.insertUser(id: Self.userID, in: database)
-            var bookRecord: SourceRecord = try SourceRecord(source: bookSource)
-            try bookRecord.insert(database)
+            // 中文注释：v5 的 sources 还没有 v10 加的指纹列，按当时的列插行（助手在 SourcesCatalogRuleFingerprintMigrationTests）。
+            try insertSourceRowAsOfV9(bookSource, in: database)
             try database.execute(
                 sql: """
                 INSERT INTO sources (userID, id, name, baseURL, type, kind, configJSON, enabled, createdAt, updatedAt)

@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import BrowseCraftCore
 import BrowseCraftDomain
@@ -25,6 +26,18 @@ enum CatalogSourceImportError: LocalizedError {
 struct AddCatalogSourceResult {
     let source: Source
     let listOutput: SourceListOutput?
+}
+
+/// 目录跟随的比较结果（复审 B-4）：要覆盖的条目，以及规则相等但本地还没记指纹的来源（只盖指纹）。
+struct CatalogRuleUpdatePlan: Sendable {
+    let updates: [CatalogSource]
+    let unchangedFingerprintsBySourceID: [String: String]
+}
+
+/// 一批目录覆盖的结果：一个写事务里写入的来源，以及物化失败、保留旧规则的条目（按来源 id 记错误）。
+struct AppliedCatalogRuleUpdates: Sendable {
+    let sources: [Source]
+    let failuresBySourceID: [String: String]
 }
 
 struct LoadCatalogSourcesUseCase {
@@ -330,11 +343,95 @@ struct AddCatalogSourceUseCase: Sendable {
         self.now = now
     }
 
+    /// 目录条目规则原文（`ruleJSON`）的 SHA-256，记在来源行上作为「上次应用的目录规则」指纹。
+    static func ruleFingerprint(of catalogSource: CatalogSource) -> String {
+        let digest: SHA256.Digest = SHA256.hash(data: Data(catalogSource.ruleJSON.utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// 中文注释：目录跟随的判据（复审 B-4）：先比指纹，相同的条目不再物化；指纹不同或没记过的才物化并比较
+    /// 名称、站点地址与整棵 `configuration`。相等的记下指纹（调用方盖上去），下次就不用再物化；物化失败按无更新处理。
+    /// 非隔离的 async 方法，调用方 `await` 时离开主线程。
+    func ruleUpdates(
+        in catalogSources: [CatalogSource],
+        existingSources: [Source]
+    ) async throws -> CatalogRuleUpdatePlan {
+        let existingByID: [String: Source] = Dictionary(existingSources.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let knownFingerprints: [String: String] = try self.sourceRepository.catalogRuleFingerprints()
+        var updates: [CatalogSource] = []
+        var unchanged: [String: String] = [:]
+        for catalogSource: CatalogSource in catalogSources {
+            guard let existing: Source = existingByID[catalogSource.id] else {
+                continue
+            }
+            let fingerprint: String = Self.ruleFingerprint(of: catalogSource)
+            if knownFingerprints[catalogSource.id] == fingerprint {
+                continue
+            }
+            guard let candidate: Source = try? self.catalogSourceMaterializer.source(
+                from: catalogSource,
+                createdAt: existing.createdAt,
+                updatedAt: existing.updatedAt,
+                enabled: existing.enabled,
+                origin: existing.origin
+            ) else {
+                continue
+            }
+            if candidate.name != existing.name
+                || candidate.baseURL != existing.baseURL
+                || candidate.configuration != existing.configuration {
+                updates.append(catalogSource)
+            } else {
+                unchanged[catalogSource.id] = fingerprint
+            }
+        }
+        return CatalogRuleUpdatePlan(updates: updates, unchangedFingerprintsBySourceID: unchanged)
+    }
+
+    /// 中文注释：一批已添加来源的覆盖：按本地的 `createdAt / enabled / origin` 物化、`updatedAt` 取当前时间，
+    /// 全部在一个写事务里写入并盖上指纹（复审 B-4：之前每条各一个事务、各重读一次来源表）。
+    /// 物化失败的条目保留旧规则，按 id 交回错误；不重新验证列表，与同 id 的添加路径一致。
+    func applyRuleUpdates(
+        _ catalogSources: [CatalogSource],
+        existingSources: [Source]
+    ) async throws -> AppliedCatalogRuleUpdates {
+        let existingByID: [String: Source] = Dictionary(existingSources.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let updatedAt: Date = self.now()
+        var materialized: [Source] = []
+        var fingerprints: [String: String] = [:]
+        var failures: [String: String] = [:]
+        for catalogSource: CatalogSource in catalogSources {
+            guard let existing: Source = existingByID[catalogSource.id] else {
+                continue
+            }
+            do {
+                let source: Source = try self.catalogSourceMaterializer.source(
+                    from: catalogSource,
+                    createdAt: existing.createdAt,
+                    updatedAt: updatedAt,
+                    enabled: existing.enabled,
+                    origin: existing.origin
+                )
+                materialized.append(source)
+                fingerprints[source.id] = Self.ruleFingerprint(of: catalogSource)
+            } catch {
+                failures[catalogSource.id] = String(describing: error)
+            }
+        }
+        try self.sourceRepository.saveCatalogSources(materialized, fingerprintsBySourceID: fingerprints)
+        return AppliedCatalogRuleUpdates(sources: materialized, failuresBySourceID: failures)
+    }
+
+    func stampCatalogRuleFingerprints(_ fingerprintsBySourceID: [String: String]) async throws {
+        try self.sourceRepository.stampCatalogRuleFingerprints(fingerprintsBySourceID)
+    }
+
     /// - Parameter origin: 来源出身；从「我的生成」添加时传 `.personalGeneration`，本地副本才会随服务器裁决清理。
     func execute(
         _ catalogSource: CatalogSource,
         origin: SourceOrigin? = nil
     ) async throws -> AddCatalogSourceResult {
+        let fingerprint: String = Self.ruleFingerprint(of: catalogSource)
         if let existingSource: Source = try self.sourceRepository.fetchSources().first(where: { source in
             return source.id == catalogSource.id
         }) {
@@ -346,7 +443,12 @@ struct AddCatalogSourceUseCase: Sendable {
                 origin: origin ?? existingSource.origin
             )
             if currentCatalogSource != existingSource {
-                try self.sourceRepository.saveSource(currentCatalogSource)
+                try self.sourceRepository.saveCatalogSources(
+                    [currentCatalogSource],
+                    fingerprintsBySourceID: [currentCatalogSource.id: fingerprint]
+                )
+            } else {
+                try self.sourceRepository.stampCatalogRuleFingerprints([currentCatalogSource.id: fingerprint])
             }
 
             return AddCatalogSourceResult(source: currentCatalogSource, listOutput: nil)
@@ -366,7 +468,7 @@ struct AddCatalogSourceUseCase: Sendable {
             listContext: ListContextTransfer(value: defaultListContext)
         )
         try self.validateSourceListLoadUseCase.execute(listOutput)
-        try self.sourceRepository.saveSource(source)
+        try self.sourceRepository.saveCatalogSources([source], fingerprintsBySourceID: [source.id: fingerprint])
         return AddCatalogSourceResult(source: source, listOutput: listOutput)
     }
 }

@@ -23,4 +23,17 @@ struct SourceCatalogService: Sendable {
     ) async throws -> AddCatalogSourceResult {
         return try await self.addCatalogSourceUseCase.execute(catalogSource, origin: origin)
     }
+
+    /// 目录跟随：先比指纹再物化（复审 B-4）。
+    func ruleUpdates(in catalogSources: [CatalogSource], existingSources: [Source]) async throws -> CatalogRuleUpdatePlan {
+        return try await self.addCatalogSourceUseCase.ruleUpdates(in: catalogSources, existingSources: existingSources)
+    }
+
+    func applyRuleUpdates(_ catalogSources: [CatalogSource], existingSources: [Source]) async throws -> AppliedCatalogRuleUpdates {
+        return try await self.addCatalogSourceUseCase.applyRuleUpdates(catalogSources, existingSources: existingSources)
+    }
+
+    func stampCatalogRuleFingerprints(_ fingerprintsBySourceID: [String: String]) async throws {
+        try await self.addCatalogSourceUseCase.stampCatalogRuleFingerprints(fingerprintsBySourceID)
+    }
 }
