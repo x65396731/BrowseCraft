@@ -38,10 +38,19 @@ final class FavoritesViewModel {
         }
     }
 
-    private(set) var favoriteItems: [FavoriteContentItem] = []
+    /// 中文注释：条目或筛选一变就把计数与按天分组算一次存起来（2026-10-10 复审 B-8）：之前是计算属性，
+    /// 一次 body 把 1000 条过滤五遍再排序一次，10 ms。
+    private(set) var favoriteItems: [FavoriteContentItem] = [] {
+        didSet { self.rebuildDerivedState() }
+    }
     private(set) var sources: [Source] = []
     var errorMessage: String?
-    var kindFilter: KindFilter = .all
+    var kindFilter: KindFilter = .all {
+        didSet { self.rebuildDerivedState() }
+    }
+    /// 当前筛选下的条目，按收藏时间倒序、按天分组。
+    private(set) var dayGroups: [DayGroup] = []
+    private var countsByFilter: [KindFilter: Int] = [:]
     /// 刚在本页取消收藏、还能撤销的条目；底部提示随它出现和消失。
     private(set) var undoableItem: FavoriteContentItem?
     /// 本页每改动一次收藏集合（取消或撤销）就加一；宿主据此让库页刷新封面上的爱心状态。
@@ -82,18 +91,27 @@ final class FavoritesViewModel {
     // MARK: - 筛选与分组
 
     func count(for filter: KindFilter) -> Int {
-        return self.favoriteItems.filter { item in
-            return Self.matches(item, filter)
-        }.count
+        return self.countsByFilter[filter] ?? 0
     }
 
-    /// 当前筛选下的条目，按收藏时间倒序、按天分组。
-    var dayGroups: [DayGroup] {
-        let now: Date = self.now()
-        let calendar: Calendar = .current
-        let sorted: [FavoriteContentItem] = self.favoriteItems
-            .enumerated()
-            .filter { Self.matches($0.element, self.kindFilter) }
+    /// 条目或筛选变了：一遍过数四类计数，再把当前筛选下的条目按收藏时间倒序、按天分组。
+    private func rebuildDerivedState() {
+        var counts: [KindFilter: Int] = [:]
+        for filter: KindFilter in KindFilter.allCases {
+            counts[filter] = 0
+        }
+        var matched: [(offset: Int, element: FavoriteContentItem)] = []
+        for (offset, item) in self.favoriteItems.enumerated() {
+            for filter: KindFilter in KindFilter.allCases where Self.matches(item, filter) {
+                counts[filter, default: 0] += 1
+            }
+            if Self.matches(item, self.kindFilter) {
+                matched.append((offset: offset, element: item))
+            }
+        }
+        self.countsByFilter = counts
+
+        let sorted: [FavoriteContentItem] = matched
             .sorted { left, right in
                 switch (Self.sortDate(left.element), Self.sortDate(right.element)) {
                 case (let leftDate?, let rightDate?) where leftDate != rightDate:
@@ -108,20 +126,30 @@ final class FavoritesViewModel {
             }
             .map { $0.element }
 
+        let now: Date = self.now()
+        let calendar: Calendar = .current
         var groups: [DayGroup] = []
-        for item in sorted {
+        var currentDay: CatalogPersonalTimeline.Day?
+        var currentItems: [FavoriteContentItem] = []
+        for item: FavoriteContentItem in sorted {
             let day: CatalogPersonalTimeline.Day = CatalogPersonalTimeline.day(
                 for: Self.sortDate(item),
                 now: now,
                 calendar: calendar
             )
-            if let last: DayGroup = groups.last, last.day == day {
-                groups[groups.count - 1] = DayGroup(day: day, items: last.items + [item])
-            } else {
-                groups.append(DayGroup(day: day, items: [item]))
+            if day != currentDay {
+                if let finishedDay: CatalogPersonalTimeline.Day = currentDay {
+                    groups.append(DayGroup(day: finishedDay, items: currentItems))
+                }
+                currentDay = day
+                currentItems = []
             }
+            currentItems.append(item)
         }
-        return groups
+        if let finishedDay: CatalogPersonalTimeline.Day = currentDay {
+            groups.append(DayGroup(day: finishedDay, items: currentItems))
+        }
+        self.dayGroups = groups
     }
 
     static func catalogKind(of item: FavoriteContentItem) -> CatalogSourceKind {

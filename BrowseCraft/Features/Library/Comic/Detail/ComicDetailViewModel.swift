@@ -194,8 +194,15 @@ enum ComicChapterTitleParser {
 final class ComicDetailViewModel {
     private(set) var metadata: SourceDetailMetadata?
     private(set) var chapters: [ChapterLink] = []
-    /// 本作品读过的全部章节，最近的在前（第六、七节）。
-    private(set) var chapterHistories: [ComicChapterHistory] = []
+    /// 本作品读过的全部章节，最近的在前（第六、七节）。历史一变就重算已读集合、最近一条与「上次读到」的章
+    ///（2026-10-10 复审 B-7：之前每行 `isCurrent` 都对全部历史求 max 再对全部章节 `first(where:)`）。
+    private(set) var chapterHistories: [ComicChapterHistory] = [] {
+        didSet { self.rebuildHistoryDerivedState() }
+    }
+    private(set) var readCount: Int = 0
+    private(set) var latestReadingHistory: ComicChapterHistory?
+    /// 历史对上的那一章：先按阅读页地址，再按章节名；都对不上为 nil（此时用历史记录直接开阅读器）。
+    private(set) var continueChapter: ChapterLink?
     /// 章节变了或翻转顺序时重算的派生状态：目录解析结果、显示顺序、版式、分段；上千章的目录不在每次渲染时重算。
     private(set) var displayEntries: [ComicChapterEntry] = []
     private(set) var segments: [ComicChapterSegment] = []
@@ -413,6 +420,24 @@ final class ComicDetailViewModel {
         } else if self.selectedSegmentID == nil {
             self.selectedSegmentID = self.segments.first?.id
         }
+        self.rebuildHistoryDerivedState()
+    }
+
+    /// 章节或历史变了：已读键集合、目录里读过的章数、最近一条历史、历史对上的那一章。
+    private func rebuildHistoryDerivedState() {
+        self.readChapterKeys = Self.readChapterKeys(of: self.chapterHistories)
+        self.readCount = self.chapters.filter { self.readChapterKeys.contains($0.url) }.count
+        let latest: ComicChapterHistory? = self.chapterHistories.max { $0.visitedAt < $1.visitedAt }
+        self.latestReadingHistory = latest
+        self.continueChapter = latest.flatMap { history in
+            if let byURL: ChapterLink = self.chapters.first(where: { $0.url == history.chapterURL?.absoluteString || $0.url == history.chapterKey }) {
+                return byURL
+            }
+            guard let title: String = self.nonEmpty(history.chapterTitle) else {
+                return nil
+            }
+            return self.chapters.first { $0.title == title }
+        }
     }
 
     /// 首尾两章的话数都解得出且不相等时才下结论。
@@ -518,29 +543,6 @@ final class ComicDetailViewModel {
 
     func isRead(_ entry: ComicChapterEntry) -> Bool {
         return self.readChapterKeys.contains(entry.chapter.url)
-    }
-
-    /// 目录里读过的章数（只数还在目录里的）。
-    var readCount: Int {
-        return self.chapters.filter { self.readChapterKeys.contains($0.url) }.count
-    }
-
-    var latestReadingHistory: ComicChapterHistory? {
-        return self.chapterHistories.max { $0.visitedAt < $1.visitedAt }
-    }
-
-    /// 历史对上的那一章：先按阅读页地址，再按章节名；都对不上为 nil（此时用历史记录直接开阅读器）。
-    var continueChapter: ChapterLink? {
-        guard let history: ComicChapterHistory = self.latestReadingHistory else {
-            return nil
-        }
-        if let byURL: ChapterLink = self.chapters.first(where: { $0.url == history.chapterURL?.absoluteString || $0.url == history.chapterKey }) {
-            return byURL
-        }
-        guard let title: String = self.nonEmpty(history.chapterTitle) else {
-            return nil
-        }
-        return self.chapters.first { $0.title == title }
     }
 
     func isCurrent(_ entry: ComicChapterEntry) -> Bool {
@@ -829,7 +831,6 @@ final class ComicDetailViewModel {
                 comicItemID: comicItemID
             )
             self.chapterHistories = transfers.map(\.value)
-            self.readChapterKeys = Self.readChapterKeys(of: self.chapterHistories)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "comic-detail-history-error")
         }

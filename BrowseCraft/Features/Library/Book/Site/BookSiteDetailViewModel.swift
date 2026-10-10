@@ -48,7 +48,12 @@ final class BookSiteDetailViewModel {
     private(set) var isLoading: Bool = false
     private(set) var didLoad: Bool = false
     private(set) var errorMessage: String?
-    private(set) var lastReadChapterURL: URL?
+    private(set) var lastReadChapterURL: URL? {
+        didSet { self.rebuildReadingPositionDerivedState() }
+    }
+    /// 中文注释：续读位置一变就算一次（2026-10-10 复审 B-7）：上次读到那一行，以及 manifest 顺序里排在它之前的章（已读推定）。
+    private(set) var currentEntry: BookChapterEntry?
+    private var readChapterURLs: Set<URL> = []
     /// 中文注释：读书历史（一书一条）——续读章的稳定键，继续卡片的章名与时刻从这来（第五、八节）。
     private(set) var readingHistory: BookReadingHistory?
     /// 中文注释：进度表那一条：全书进度 `totalProgression`，Locator 里的章内 `progression` 与有声 `t=`。
@@ -163,12 +168,17 @@ final class BookSiteDetailViewModel {
 
     // MARK: - 继续卡片 / 开始按钮（第五节）
 
-    /// 上次读到的章节：先按读书历史的 `chapterURL`（稳定键），没有再退回 Locator `href` 的下标对法。
-    var currentEntry: BookChapterEntry? {
-        guard let url: URL = self.lastReadChapterURL else {
-            return nil
+    /// 上次读到的章节：先按读书历史的 `chapterURL`（稳定键），没有再退回 Locator `href` 的下标对法；
+    /// 结果存在 `currentEntry`，续读位置或目录变了重算。
+    private func rebuildReadingPositionDerivedState() {
+        guard let url: URL = self.lastReadChapterURL,
+              let currentIndex: Int = self.chapters.firstIndex(where: { $0.chapterURL == url }) else {
+            self.currentEntry = nil
+            self.readChapterURLs = []
+            return
         }
-        return self.displayEntries.first { $0.item.chapterURL == url }
+        self.currentEntry = self.displayEntries.first { $0.item.chapterURL == url }
+        self.readChapterURLs = Set(self.chapters[..<currentIndex].map(\.chapterURL))
     }
 
     /// 有续读位置就出继续卡片，否则出开始按钮。
@@ -256,12 +266,7 @@ final class BookSiteDetailViewModel {
 
     /// 已读推定：manifest 顺序里排在上次读到之前的章（倒序显示时同样按这个位置算）。
     func isRead(_ entry: BookChapterEntry) -> Bool {
-        guard let url: URL = self.lastReadChapterURL,
-              let currentIndex: Int = self.chapters.firstIndex(where: { $0.chapterURL == url }),
-              let index: Int = self.chapters.firstIndex(where: { $0.chapterURL == entry.item.chapterURL }) else {
-            return false
-        }
-        return index < currentIndex
+        return self.readChapterURLs.contains(entry.item.chapterURL)
     }
 
     /// 上次读到那一行的行尾：文字书「读到 12%」（章内 `progression`）、有声书「12:34」。
@@ -333,6 +338,7 @@ final class BookSiteDetailViewModel {
         } else if self.selectedSegmentID == nil {
             self.selectedSegmentID = self.segments.first?.id
         }
+        self.rebuildReadingPositionDerivedState()
     }
 
     /// ≥ 60 章时按显示顺序每 50 章一段；芯片文字是段首与段尾的编号（解不出编号用序号）。与漫画详情同一规则。

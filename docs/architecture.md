@@ -87,8 +87,11 @@ what owns the objects rather than by layer:
   protected-resource references, `ChapterLink`, `URLResolvingService`, the video-generation
   preflight values, and `AppUserIdentity.localDefaultID`.
 - **Ports** (`BrowseCraftDomain/Ports`) — the contracts the runtime consumes and the app
-  implements: content and data loading, credentials, cryptography, request headers. The
-  `Preflight` ports live here too although only the app consumes them today (see §9).
+  implements: content and data loading, credential reading, cryptography, request headers, plus
+  the `PreflightAcquiredPage` value the runtime's preflight classifier consumes (and its error
+  enum, which `Shared` analytics classify by type). The acquiring ports, `PublicURLChecking`, `SourceCredentialStoring`, `CatalogSource` and `SourceSnapshot`
+  are app-only and live in the app (`Application/Ports/Preflight`,
+  `Application/Ports/Credentials`, `Domain/Models/Source`).
 - **Diagnostics** (`BrowseCraftDomain/Diagnostics`) — `RuleExecutionStage`, `RuleExecutionError`,
   `RuleExecutionLogger`, and `RuleRuntimeDebugLog`. The app installs the log sink at startup and
   maps each record back to its `AppLog` category, so packaged code never depends on the app's
@@ -327,10 +330,14 @@ occur for them.
   drive runtime services from view models instead of through `Application` use cases. Narrowing
   both to presentation values resolved in `Application` is worth doing incrementally; it is not a
   blocker for anything.
-- **`BrowseCraftDomain` holds types only the app uses.** The kernel rule in §2 is "both the app
-  and the runtime need it", yet `Ports/Preflight/`, `CatalogSource`, `SourceSnapshot` and
-  `SourceCredentialStoring` have no Runtime caller, and six public types have no caller at all.
-  Moving them back into `BrowseCraft/Domain` or `Application/Ports` is a mechanical cleanup.
+- **`BrowseCraftDomain` still holds a few app-only types.** The acquiring ports, catalog entry,
+  snapshot and credential store moved back on 2026-10-10 (`Source.accessState` stays: the runtime
+  factory gates on it). What remains app-only is
+  entangled with kernel values and was left: `SourceType` / `SourceOrigin` (fields of `Source`),
+  `ClientUserAgent`, `PageDataResponse`, `RenderedPageContentLoader`,
+  `PageContentSettleCondition`, `EmptyBrowserRequestHeaderProvider`,
+  `VideoGenerationInputPreflight` and `VideoGenerationInputURL`. The 2026-10-10 audit's "six types with no caller" did not hold
+  up: each is a field type or payload of a kernel value and is referenced from its own file.
 - **Core and APIKit are unversioned path dependencies** (see §1).
 - **`Shared` mixes concerns** — Firebase, AdMob, logging, image views and review prompts, with four
   `.shared` singletons that have no port and cannot be substituted in tests. `Infrastructure` adds

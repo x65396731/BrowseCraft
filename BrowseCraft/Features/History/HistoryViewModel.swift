@@ -40,9 +40,22 @@ final class HistoryViewModel {
         }
     }
 
-    private(set) var readingHistoryEntries: [ReadingHistoryEntry] = []
+    /// 中文注释：条目或筛选一变就把计数、筛选结果、继续条目、按天分组算一次存起来（2026-10-10 复审 B-8）：
+    /// 之前都是计算属性，一次 body 把 1000 条过滤七遍、取日 1000 次，19 ms。
+    private(set) var readingHistoryEntries: [ReadingHistoryEntry] = [] {
+        didSet { self.rebuildDerivedState() }
+    }
     private(set) var sources: [Source] = []
-    var kindFilter: KindFilter = .all
+    var kindFilter: KindFilter = .all {
+        didSet { self.rebuildDerivedState() }
+    }
+    /// 当前筛选下的条目，按访问时间倒序。
+    private(set) var filteredEntries: [ReadingHistoryEntry] = []
+    /// 继续卡片：当前筛选下最近的一条；它不再在下方列表重复出现。
+    private(set) var continueEntry: ReadingHistoryEntry?
+    /// 继续卡片以外的条目，按访问时间倒序、按天分组。
+    private(set) var dayGroups: [DayGroup] = []
+    private var countsByFilter: [KindFilter: Int] = [:]
     var videoPlaybackRoute: VideoPlaybackRoute?
     var errorMessage: String?
     /// 刚在本页删除、还能撤销的条目；底部提示随它出现和消失。
@@ -101,41 +114,52 @@ final class HistoryViewModel {
     // MARK: - 筛选、继续条目与分组
 
     func count(for filter: KindFilter) -> Int {
-        return self.readingHistoryEntries.filter { entry in
-            return Self.matches(entry, filter)
-        }.count
+        return self.countsByFilter[filter] ?? 0
     }
 
-    /// 当前筛选下的条目，按访问时间倒序。
-    var filteredEntries: [ReadingHistoryEntry] {
-        return self.readingHistoryEntries.filter { entry in
-            return Self.matches(entry, self.kindFilter)
+    /// 条目或筛选变了：一遍过数四类计数，再算筛选结果、继续条目与按天分组。
+    private func rebuildDerivedState() {
+        var counts: [KindFilter: Int] = [:]
+        for filter: KindFilter in KindFilter.allCases {
+            counts[filter] = 0
         }
-    }
+        var filtered: [ReadingHistoryEntry] = []
+        for entry: ReadingHistoryEntry in self.readingHistoryEntries {
+            for filter: KindFilter in KindFilter.allCases where Self.matches(entry, filter) {
+                counts[filter, default: 0] += 1
+            }
+            if Self.matches(entry, self.kindFilter) {
+                filtered.append(entry)
+            }
+        }
+        self.countsByFilter = counts
+        self.filteredEntries = filtered
+        self.continueEntry = filtered.first
 
-    /// 继续卡片：当前筛选下最近的一条；它不再在下方列表重复出现。
-    var continueEntry: ReadingHistoryEntry? {
-        return self.filteredEntries.first
-    }
-
-    /// 继续卡片以外的条目，按访问时间倒序、按天分组。
-    var dayGroups: [DayGroup] {
         let now: Date = self.now()
         let calendar: Calendar = .current
         var groups: [DayGroup] = []
-        for entry: ReadingHistoryEntry in self.filteredEntries.dropFirst() {
+        var currentDay: CatalogPersonalTimeline.Day?
+        var currentEntries: [ReadingHistoryEntry] = []
+        for entry: ReadingHistoryEntry in filtered.dropFirst() {
             let day: CatalogPersonalTimeline.Day = CatalogPersonalTimeline.day(
                 for: entry.visitedAt,
                 now: now,
                 calendar: calendar
             )
-            if let last: DayGroup = groups.last, last.day == day {
-                groups[groups.count - 1] = DayGroup(day: day, entries: last.entries + [entry])
-            } else {
-                groups.append(DayGroup(day: day, entries: [entry]))
+            if day != currentDay {
+                if let finishedDay: CatalogPersonalTimeline.Day = currentDay {
+                    groups.append(DayGroup(day: finishedDay, entries: currentEntries))
+                }
+                currentDay = day
+                currentEntries = []
             }
+            currentEntries.append(entry)
         }
-        return groups
+        if let finishedDay: CatalogPersonalTimeline.Day = currentDay {
+            groups.append(DayGroup(day: finishedDay, entries: currentEntries))
+        }
+        self.dayGroups = groups
     }
 
     static func catalogKind(of entry: ReadingHistoryEntry) -> CatalogSourceKind {

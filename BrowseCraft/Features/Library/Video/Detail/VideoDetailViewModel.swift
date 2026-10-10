@@ -40,7 +40,11 @@ struct VideoPlaybackRoute: Identifiable {
 final class VideoDetailViewModel {
     private static let sourceDetectionLexicon: SourceDetectionLexicon = .default
 
-    private(set) var episodes: [VideoEpisode] = []
+    /// 中文注释：集表、历史、线路选择一变就把派生状态算一次存起来（2026-10-10 复审 B-6）：之前 `lines` 等都是计算属性，
+    /// 一次 body 重新分组 5 到 6 次，每个格子再对全表 `first(where:)` 找「上次看的那一集」——500 集的页面一次渲染 33 ms。
+    private(set) var episodes: [VideoEpisode] = [] {
+        didSet { self.rebuildEpisodeDerivedState() }
+    }
     private(set) var synopsis: String?
     private(set) var metadataRows: [String] = []
     /// 规则给的元数据原样留着，页面按 `key` 决定摆哪（第五节、第九节）。
@@ -59,11 +63,25 @@ final class VideoDetailViewModel {
     /// 解析播放失败：网格上方的警示横幅，点别的集时清掉。
     private(set) var playbackErrorMessage: String?
     /// 本作品最近一条历史（继续看按钮与集号高亮）。
-    private(set) var continueWatchingHistory: VideoWatchHistory?
+    private(set) var continueWatchingHistory: VideoWatchHistory? {
+        didSet { self.rebuildContinueDerivedState() }
+    }
     private(set) var isFavorite: Bool = false
     /// 当前线路；nil 时取含上次看的那一集的线路，再没有取第一条。
-    var selectedLineID: String?
-    var isDescendingOrder: Bool = false
+    private(set) var selectedLineID: String? {
+        didSet { self.rebuildSelectionDerivedState() }
+    }
+    var isDescendingOrder: Bool = false {
+        didSet { self.rebuildSelectionDerivedState() }
+    }
+    /// 派生状态：按 `sourceName` 分出的线路、当前线路、当前线路按顺序的集、是否等宽网格、历史对上的那一集、格子文字。
+    private(set) var lines: [VideoEpisodeLine] = []
+    private(set) var selectedLine: VideoEpisodeLine?
+    private(set) var visibleEpisodes: [VideoEpisode] = []
+    private(set) var usesNumericGrid: Bool = false
+    private(set) var continueTargetEpisode: VideoEpisode?
+    /// 集名 → 紧凑集号；解不出数字的集不在表里。
+    private var compactLabelsByTitle: [String: String] = [:]
 
     let item: ContentItem
     let source: Source
@@ -588,7 +606,7 @@ final class VideoDetailViewModel {
     // MARK: - 线路与集号（第六节）
 
     /// 按 `sourceName` 把连续的选集归成线路；没有线路名的站只有一条。
-    var lines: [VideoEpisodeLine] {
+    private static func makeLines(from episodes: [VideoEpisode]) -> [VideoEpisodeLine] {
         var lines: [VideoEpisodeLine] = []
         var currentTitle: String?? = nil
         var current: [VideoEpisode] = []
@@ -600,7 +618,7 @@ final class VideoDetailViewModel {
             lines.append(VideoEpisodeLine(id: title ?? "line-\(lines.count)", title: title, episodes: current))
             current = []
         }
-        for episode: VideoEpisode in self.episodes {
+        for episode: VideoEpisode in episodes {
             let title: String? = Self.nonEmpty(episode.sourceName)
             if current.isEmpty == false, (currentTitle ?? nil) != title {
                 flush()
@@ -612,32 +630,44 @@ final class VideoDetailViewModel {
         return lines
     }
 
-    var selectedLine: VideoEpisodeLine? {
+    /// 集表变了：重新分线路、重算每个集名的紧凑集号，再往下算历史与线路选择。
+    private func rebuildEpisodeDerivedState() {
+        self.lines = Self.makeLines(from: self.episodes)
+        var labels: [String: String] = [:]
+        for episode: VideoEpisode in self.episodes where labels[episode.title] == nil {
+            if let label: String = Self.compactEpisodeLabel(episode.title) {
+                labels[episode.title] = label
+            }
+        }
+        self.compactLabelsByTitle = labels
+        self.rebuildContinueDerivedState()
+    }
+
+    /// 历史变了：重新对「上次看的那一集」，它会影响默认选中的线路。
+    private func rebuildContinueDerivedState() {
+        self.continueTargetEpisode = Self.continueTarget(in: self.episodes, history: self.continueWatchingHistory)
+        self.rebuildSelectionDerivedState()
+    }
+
+    /// 线路选择或顺序变了：当前线路、可见的集、是否等宽网格。
+    private func rebuildSelectionDerivedState() {
         let lines: [VideoEpisodeLine] = self.lines
+        let selected: VideoEpisodeLine?
         if let selectedLineID: String = self.selectedLineID,
            let line: VideoEpisodeLine = lines.first(where: { $0.id == selectedLineID }) {
-            return line
+            selected = line
+        } else if let target: VideoEpisode = self.continueTargetEpisode,
+                  let line: VideoEpisodeLine = lines.first(where: { $0.episodes.contains(target) }) {
+            selected = line
+        } else {
+            selected = lines.first
         }
-        if let target: VideoEpisode = self.continueTargetEpisode,
-           let line: VideoEpisodeLine = lines.first(where: { $0.episodes.contains(target) }) {
-            return line
-        }
-        return lines.first
-    }
-
-    /// 当前线路的集，按正序 / 倒序。
-    var visibleEpisodes: [VideoEpisode] {
-        let episodes: [VideoEpisode] = self.selectedLine?.episodes ?? []
-        return self.isDescendingOrder ? episodes.reversed() : episodes
-    }
-
-    /// 当前线路的集名都解得出数字时用等宽网格，否则按内容宽排。
-    var usesNumericGrid: Bool {
-        let episodes: [VideoEpisode] = self.selectedLine?.episodes ?? []
-        guard episodes.isEmpty == false else {
-            return false
-        }
-        return episodes.allSatisfy { Self.compactEpisodeLabel($0.title) != nil }
+        self.selectedLine = selected
+        let episodes: [VideoEpisode] = selected?.episodes ?? []
+        self.visibleEpisodes = self.isDescendingOrder ? episodes.reversed() : episodes
+        // 当前线路的集名都解得出数字时用等宽网格，否则按内容宽排。
+        self.usesNumericGrid = episodes.isEmpty == false
+            && episodes.allSatisfy { self.compactLabelsByTitle[$0.title] != nil }
     }
 
     func selectLine(_ lineID: String) {
@@ -685,23 +715,23 @@ final class VideoDetailViewModel {
     }
 
     func displayLabel(for episode: VideoEpisode) -> String {
-        return Self.compactEpisodeLabel(episode.title) ?? episode.title
+        return self.compactLabelsByTitle[episode.title] ?? episode.title
     }
 
     // MARK: - 继续看（第七节）
 
     /// 历史对上的那一集：先按播放页地址，再按集名。
-    var continueTargetEpisode: VideoEpisode? {
-        guard let history: VideoWatchHistory = self.continueWatchingHistory else {
+    private static func continueTarget(in episodes: [VideoEpisode], history: VideoWatchHistory?) -> VideoEpisode? {
+        guard let history: VideoWatchHistory = history else {
             return nil
         }
-        if let byURL: VideoEpisode = self.episodes.first(where: { $0.playPageURL == history.playPageURL }) {
+        if let byURL: VideoEpisode = episodes.first(where: { $0.playPageURL == history.playPageURL }) {
             return byURL
         }
         guard let episodeTitle: String = Self.nonEmpty(history.episodeTitle) else {
             return nil
         }
-        return self.episodes.first { $0.title == episodeTitle }
+        return episodes.first { $0.title == episodeTitle }
     }
 
     /// 继续看按钮要开的集：看完了就是下一集；对不上任何一集为 nil（此时用历史记录直接开播放器）。
