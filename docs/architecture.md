@@ -340,10 +340,6 @@ occur for them.
   `VideoGenerationInputPreflight` and `VideoGenerationInputURL`. The 2026-10-10 audit's "six types with no caller" did not hold
   up: each is a field type or payload of a kernel value and is referenced from its own file.
 - **Core and APIKit are unversioned path dependencies** (see §1).
-- **APIKit's `PortalCatalogAPI` has no caller in the app.** The catalog is fetched by
-  `AddCatalogSourceUseCase` through the shared HTTP client with the `kinds=` and `features=` query
-  (`BCA-RUNTIME-006`); the APIKit type sends `kinds=` only and would silently drop sources that need
-  a declared feature. Delete it in the APIKit repository rather than wire it in (noted 2026-10-10).
 - **`Shared` mixes concerns** — Firebase, AdMob, logging, image views and review prompts, with four
   `.shared` singletons that have no port and cannot be substituted in tests. `Infrastructure` adds
   three more (`ReadiumBookEnvironment`, `ItemThumbnailImageCachePlugin`, `SourceConfigurationDecodingCache`).

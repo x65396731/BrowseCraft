@@ -59,7 +59,7 @@ python3 scripts/check-docs.py
 | 站点有声播放器后续：界面样式、倍速入口、`mediaAPI` 无语料 | 立项 | [Book-Kind-Wiring](docs/design/Book-Kind-Wiring-Design.md) 第十六节 | 第 1 节 optional 行 |
 | 给 fwq 的六条读书 kind 生成需求 | 需求一 / 三 / 四 / 五前半 fwq 已交付并真机通过（小說狂人最新章节 10-10 再修、待部署）；需求二记账、两端都不做；五后半目录分页 fwq 未定立场；六 fwq 不做 | Claude 文档「读书 kind 规则生成覆盖需求」（https://claude.ai/artifact/HnYM71goMZveUVJQQ4vhgk） | fwq STATUS |
 
-下一会话建议顺序：真机验收（STATUS 里 not-run 与 simulator-passed 各行）；APIKit 仓删零引用的 `PortalCatalogAPI` → 真机验收；APIKit 仓删零引用的 `PortalCatalogAPI`→ 续看同步两机对测 → 真机验收（用户在真机上走，结果新增 `device-passed` 行、不改模拟器那几行）。
+下一会话建议顺序：真机验收（STATUS 里 not-run 与 simulator-passed 各行，十四批看点都在上表）→ 续看同步两机对测；代码侧复审项已全部收尾 → 真机验收；APIKit 仓删零引用的 `PortalCatalogAPI`→ 续看同步两机对测 → 真机验收（用户在真机上走，结果新增 `device-passed` 行、不改模拟器那几行）。
 
 - **fwq 侧指针**（定义点与验证状态都在 fwq `docs/rules/STATUS.md`）：`BCA-RUNTIME-005`（fwq `APP-MEMO-026`）里「直接请求收到挑战页回退 WebView」一处仍欠真机，
   发版后由用户重交 toonily 验证，发版前 Cloudflare 站不要重生成；`BC-PREFLIGHT-066`（点推送停在原页、打开目录直接看到新规则）在 fwq 为 `not-run`，随规则目录页真机一起看；
