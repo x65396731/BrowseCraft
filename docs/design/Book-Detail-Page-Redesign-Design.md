@@ -182,5 +182,5 @@ App 的 `BookPublicationAssembler` 再把 `description` 丢掉。三十四份真
 ## 十三、真机验收清单与待接线
 
 - 模拟器没走到：有声书（线上没有有声来源）、失败与登录横幅、没有章节、简介（规则都不给）。
-- **待接线**：章节 `order` 到 Runtime 为止——Core 会读，`BookSourceRuntime.loadDetail` 构造 `SourceChapter` 时不带、也不按它排；等 fwq 交付「章节 `order`」需求后在 Runtime 接上并按它排序。
+- **待接线**：章节 `order` 到 Runtime 为止——Core 会读，`BookSourceRuntime.loadDetail` 构造 `SourceChapter` 时不带、也不按它排；2026-10-10 用户裁定需求二并入 fwq「书类章节按列写、按行读」一行**记账**（需求五的倒序最新章块已由 fwq `BC-EPISODE-018` 修掉，剩下只有一套多列目录模板），两端都不做；同形站多了再立项时两端一起排期（引擎按地址编号交付 `order`，App 照漫画做法排序）。
 - 深色模式整页看一遍。

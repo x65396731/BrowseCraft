@@ -9,6 +9,8 @@ struct ComicDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: ComicDetailViewModel
     @State private var selectedReaderDestination: ComicReaderDestination?
+    @State private var scrollViewportHeight: CGFloat = 0
+    @State private var chapterHeaderHeight: CGFloat = 0
 
     let contentViewModelFactory: LibraryContentViewModelFactory
 
@@ -47,6 +49,11 @@ struct ComicDetailView: View {
                         )
                     } header: {
                         ComicDetailChapterHeader(viewModel: self.viewModel, style: self.style)
+                            .onGeometryChange(for: CGFloat.self) { proxy in
+                                proxy.size.height
+                            } action: { height in
+                                self.chapterHeaderHeight = height
+                            }
                             // 中文注释：贴顶时分区头停在安全区顶边，状态栏与芯片之间那一截会露出滚过的内容；
                             // 底色向上多铺一段盖住，静止时藏在头部后面（头部 zIndex 更高）。
                             .background(alignment: .top) {
@@ -60,12 +67,17 @@ struct ComicDetailView: View {
                 .padding(.bottom, 32)
             }
             .scrollBounceBehavior(.always)
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.height
+            } action: { height in
+                self.scrollViewportHeight = height
+            }
             .onChange(of: self.viewModel.pendingScrollChapterURL) { _, chapterURL in
                 guard let chapterURL: String = chapterURL else {
                     return
                 }
                 withAnimation(.easeInOut(duration: 0.25)) {
-                    scrollProxy.scrollTo(chapterURL, anchor: .top)
+                    scrollProxy.scrollTo(chapterURL, anchor: self.segmentScrollAnchor)
                 }
                 self.viewModel.didFinishProgrammaticScroll()
             }
@@ -110,6 +122,15 @@ struct ComicDetailView: View {
             await self.viewModel.reload()
         }
         .onAppear(perform: self.recordAppearance)
+    }
+
+    /// 中文注释：分段芯片滚动的落点让出贴顶分区头的高度（与站点书详情 `BookSiteDetailView.segmentScrollAnchor` 同一做法），
+    /// 段首不被分区头盖住；尺寸还没量到时退回 `.top`。
+    private var segmentScrollAnchor: UnitPoint {
+        guard self.scrollViewportHeight > 0, self.chapterHeaderHeight > 0 else {
+            return .top
+        }
+        return UnitPoint(x: 0.5, y: min(0.8, (self.chapterHeaderHeight + 4) / self.scrollViewportHeight))
     }
 
     // MARK: - 固定的返回与收藏

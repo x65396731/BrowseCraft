@@ -40,7 +40,7 @@ python3 scripts/check-docs.py
 | 17 页重设计：来源、收藏、规则目录、历史、设置、coin 记录、缓存、云同步、添加来源、网址输入与引导屏、库页三种、详情三种、来源内搜索 | 真机验收（含深色）；各页清单列了模拟器没走到的状态 | 各页合同末节 | 第 2 节 |
 | 规则目录：「我的生成」优先落段；删失败记录整入口软删除 | 任何验证 | [Catalog-Page-Redesign](docs/design/Catalog-Page-Redesign-Design.md) 第 2.1 / 2.3 节 | 第 2 节末两行 |
 | F2-5 / F2-6：进列表先读后写、读书线读库经 actor | 验证 | — | 第 6 节 |
-| 漫画详情分段芯片锚点仍 `.top`；章节 `order` 的 Runtime 接线 | 实施（后者等 fwq 交付需求二） | [Comic-Detail](docs/design/Comic-Detail-Page-Redesign-Design.md) 第十四节、[Book-Detail](docs/design/Book-Detail-Page-Redesign-Design.md) 第十三节 | 未立行 |
+| 漫画详情分段芯片锚点（2026-10-10 已改为按分区头高度换算） | 模拟器或真机看一眼段首不被盖住；章节 `order` 接线已裁定记账、不做 | [Comic-Detail](docs/design/Comic-Detail-Page-Redesign-Design.md) 第十四节、[Book-Detail](docs/design/Book-Detail-Page-Redesign-Design.md) 第十三节 | 第 2 节 |
 | 站点有声播放器后续：界面样式、倍速入口、`mediaAPI` 无语料 | 立项 | [Book-Kind-Wiring](docs/design/Book-Kind-Wiring-Design.md) 第十六节 | 第 1 节 optional 行 |
 | 给 fwq 的六条读书 kind 生成需求 | fwq 交付后按各条「验收」在模拟器重新生成来源复核 | Claude 文档「读书 kind 规则生成覆盖需求」（https://claude.ai/artifact/HnYM71goMZveUVJQQ4vhgk） | fwq STATUS |
 
