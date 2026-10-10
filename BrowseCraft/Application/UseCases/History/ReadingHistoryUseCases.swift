@@ -210,8 +210,9 @@ struct LoadReadingHistoryEntriesUseCase {
     }
 
     func execute(userID: String) throws -> [ReadingHistoryEntry] {
+        // 中文注释：仓储只交回每部作品最近的那一章（GRDB 用子查询，不读整张表）；再过一遍聚合只为 `visitedAt` 并列时去重。
         let comicEntries: [ReadingHistoryEntry] = self.latestComicHistoriesByComic(
-            try self.comicRepository.fetchHistory(userID: userID)
+            try self.comicRepository.fetchLatestPerWork(userID: userID)
         )
             .map { history in
                 return ReadingHistoryEntry(comicHistory: history)

@@ -32,6 +32,35 @@ final class GRDBBookReadingHistoryRepository: BookReadingHistoryRepository {
         }
     }
 
+    /// 中文注释：当前来源读过的全部书，最近的在前（库页瓷砖与行的「读到哪」）。
+    func fetchHistory(userID: String, sourceID: String) throws -> [BookReadingHistory] {
+        return try self.database.queue.read { database in
+            let records: [BookReadingHistoryRecord] = try BookReadingHistoryRecord
+                .filter(BookReadingHistoryRecord.Columns.userID == userID)
+                .filter(BookReadingHistoryRecord.Columns.sourceID == sourceID)
+                .order(BookReadingHistoryRecord.Columns.visitedAt.desc)
+                .fetchAll(database)
+
+            return records.map { record in
+                return record.domainModel()
+            }
+        }
+    }
+
+    /// 中文注释：某一本书的那一条（站点书详情的续读章），不再读全表再在内存里找。
+    func fetchHistory(userID: String, sourceID: String, bookItemID: String) throws -> BookReadingHistory? {
+        return try self.database.queue.read { database in
+            let record: BookReadingHistoryRecord? = try BookReadingHistoryRecord
+                .filter(BookReadingHistoryRecord.Columns.userID == userID)
+                .filter(BookReadingHistoryRecord.Columns.sourceID == sourceID)
+                .filter(BookReadingHistoryRecord.Columns.bookItemID == bookItemID)
+                .order(BookReadingHistoryRecord.Columns.visitedAt.desc)
+                .fetchOne(database)
+
+            return record?.domainModel()
+        }
+    }
+
     func delete(_ history: BookReadingHistory) throws {
         try self.delete([history])
     }

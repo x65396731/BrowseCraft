@@ -76,6 +76,8 @@ final class VideoDetailViewModel {
     private let activeAppUser: (any ActiveAppUserProviding)?
     private let fallbackUserID: String
     private let toggleFavoriteUseCase: ToggleFavoriteUseCase?
+    /// 中文注释：收藏读写走 actor，不在主线程跑 GRDB（复审 B-3）。
+    private let favoritePersistence: FavoriteStatePersistenceCoordinator?
     private let videoPlayerViewModelFactory: (@MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel)?
     private let now: () -> Date
 
@@ -101,6 +103,7 @@ final class VideoDetailViewModel {
         self.activeAppUser = activeAppUser
         self.fallbackUserID = userID
         self.toggleFavoriteUseCase = toggleFavoriteUseCase
+        self.favoritePersistence = toggleFavoriteUseCase.map(FavoriteStatePersistenceCoordinator.init(useCase:))
         self.videoPlayerViewModelFactory = videoPlayerViewModelFactory
         self.now = now
 
@@ -312,7 +315,7 @@ final class VideoDetailViewModel {
     func loadEpisodes() async {
         CrashDiagnostics.shared.setRuleStage(.detail)
         guard let detailURL: URL = URL(string: self.item.detailURL) else {
-            self.detailErrorMessage = "Video detail URL is invalid."
+            self.detailErrorMessage = NSLocalizedString("video_detail_invalid_url", comment: "详情地址无效")
             self.hasLoadedEpisodes = true
             return
         }
@@ -792,11 +795,11 @@ final class VideoDetailViewModel {
     // MARK: - 收藏（第五节）
 
     func reloadFavoriteState() async {
-        guard let useCase: ToggleFavoriteUseCase = self.toggleFavoriteUseCase else {
+        guard let persistence: FavoriteStatePersistenceCoordinator = self.favoritePersistence else {
             return
         }
         do {
-            self.isFavorite = try useCase.loadFavoriteItemIDs(sourceID: self.source.id).contains(self.item.id)
+            self.isFavorite = try await persistence.isFavorite(itemID: self.item.id, sourceID: self.source.id)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-detail-favorite-error")
         }
@@ -804,13 +807,12 @@ final class VideoDetailViewModel {
 
     @MainActor
     func toggleFavorite() async {
-        guard let useCase: ToggleFavoriteUseCase = self.toggleFavoriteUseCase else {
+        guard let persistence: FavoriteStatePersistenceCoordinator = self.favoritePersistence else {
             return
         }
         do {
-            let ids: Set<String> = try useCase.execute(item: self.item, source: self.source, favoritedAt: self.now())
             let wasFavorite: Bool = self.isFavorite
-            self.isFavorite = ids.contains(self.item.id)
+            self.isFavorite = try await persistence.toggle(item: self.item, source: self.source, favoritedAt: self.now())
             AppAnalytics.shared.logBookmarkChanged(isFavorite: wasFavorite == false, source: self.source)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-detail-favorite-error")

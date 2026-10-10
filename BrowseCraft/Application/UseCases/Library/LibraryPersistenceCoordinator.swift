@@ -63,8 +63,7 @@ actor LibraryPersistenceCoordinator {
         guard let repository: VideoWatchHistoryRepository = self.videoWatchHistoryRepository else {
             return nil
         }
-        return try repository.fetchHistory(userID: userID)
-            .filter { history in history.sourceID == sourceID }
+        return try repository.fetchHistory(userID: userID, sourceID: sourceID)
             .max { lhs, rhs in lhs.updatedAt < rhs.updatedAt }
     }
 
@@ -73,8 +72,7 @@ actor LibraryPersistenceCoordinator {
         guard let repository: ComicChapterHistoryRepository = self.comicChapterHistoryRepository else {
             return []
         }
-        return try repository.fetchHistory(userID: userID)
-            .filter { history in history.sourceID == sourceID }
+        return try repository.fetchHistory(userID: userID, sourceID: sourceID)
             .sorted { lhs, rhs in lhs.visitedAt > rhs.visitedAt }
     }
 
@@ -83,8 +81,7 @@ actor LibraryPersistenceCoordinator {
         guard let repository: BookReadingHistoryRepository = self.bookReadingHistoryRepository else {
             return []
         }
-        return try repository.fetchHistory(userID: userID)
-            .filter { history in history.sourceID == sourceID }
+        return try repository.fetchHistory(userID: userID, sourceID: sourceID)
             .sorted { lhs, rhs in lhs.visitedAt > rhs.visitedAt }
     }
 

@@ -22,6 +22,7 @@ struct BookReadingHistoryRecord: Codable, FetchableRecord, MutablePersistableRec
         static let userID: Column = Column("userID")
         static let sourceID: Column = Column("sourceID")
         static let detailURL: Column = Column("detailURL")
+        static let bookItemID: Column = Column("bookItemID")
         static let visitedAt: Column = Column("visitedAt")
     }
 

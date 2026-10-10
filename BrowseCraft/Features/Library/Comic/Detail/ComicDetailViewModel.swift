@@ -221,6 +221,8 @@ final class ComicDetailViewModel {
     private let sourceCredentialStore: (any SourceCredentialStoring)?
     private let activeAppUser: (any ActiveAppUserProviding)?
     private let toggleFavoriteUseCase: ToggleFavoriteUseCase?
+    /// 中文注释：收藏读写走 actor，不在主线程跑 GRDB（复审 B-3）。
+    private let favoritePersistence: FavoriteStatePersistenceCoordinator?
     private let fallbackUserID: String
     private let now: () -> Date
     private var pendingRestrictedChapterURL: String?
@@ -247,6 +249,7 @@ final class ComicDetailViewModel {
         self.sourceCredentialStore = sourceCredentialStore
         self.activeAppUser = activeAppUser
         self.toggleFavoriteUseCase = toggleFavoriteUseCase
+        self.favoritePersistence = toggleFavoriteUseCase.map(FavoriteStatePersistenceCoordinator.init(useCase:))
         self.fallbackUserID = userID
         self.now = now
 
@@ -630,24 +633,23 @@ final class ComicDetailViewModel {
     // MARK: - 收藏（第五节）
 
     func reloadFavoriteState() async {
-        guard let useCase: ToggleFavoriteUseCase = self.toggleFavoriteUseCase else {
+        guard let persistence: FavoriteStatePersistenceCoordinator = self.favoritePersistence else {
             return
         }
         do {
-            self.isFavorite = try useCase.loadFavoriteItemIDs(sourceID: self.source.id).contains(self.item.id)
+            self.isFavorite = try await persistence.isFavorite(itemID: self.item.id, sourceID: self.source.id)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "comic-detail-favorite-error")
         }
     }
 
     func toggleFavorite() async {
-        guard let useCase: ToggleFavoriteUseCase = self.toggleFavoriteUseCase else {
+        guard let persistence: FavoriteStatePersistenceCoordinator = self.favoritePersistence else {
             return
         }
         do {
-            let ids: Set<String> = try useCase.execute(item: self.item, source: self.source, favoritedAt: self.now())
             let wasFavorite: Bool = self.isFavorite
-            self.isFavorite = ids.contains(self.item.id)
+            self.isFavorite = try await persistence.toggle(item: self.item, source: self.source, favoritedAt: self.now())
             AppAnalytics.shared.logBookmarkChanged(isFavorite: wasFavorite == false, source: self.source)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "comic-detail-favorite-error")
@@ -679,7 +681,7 @@ final class ComicDetailViewModel {
               let loginState = LibrarySourceLoginStateResolver(
                 credentialStore: sourceCredentialStore
               ).resolve(source: self.source) else {
-            self.accessMessage = "This chapter is currently restricted, but this source has no available login page."
+            self.accessMessage = NSLocalizedString("comic_detail_access_no_login_page", comment: "受限且来源没有登录页")
             return false
         }
 
@@ -722,9 +724,9 @@ final class ComicDetailViewModel {
     /// 受限章节的登录提示文案（页内横幅，第八节；文案沿用原来的提示框）。
     func loginPromptMessage(isPaid: Bool?) -> String {
         if isPaid == true {
-            return "This paid chapter is currently restricted. Log in to check whether your account has access. Purchase or VIP membership may still be required."
+            return NSLocalizedString("comic_detail_login_prompt_paid", comment: "付费章受限，登录看看")
         }
-        return "This chapter is currently restricted. Log in to check whether your account has access."
+        return NSLocalizedString("comic_detail_login_prompt", comment: "受限，登录看看")
     }
 
     /// 中文注释：登录后必须刷新详情 API 并重新读取源站逐章状态，不能假设登录必然解锁。
@@ -742,14 +744,14 @@ final class ComicDetailViewModel {
 
         guard let pendingURL,
               let refreshedChapter = self.chapters.first(where: { $0.url == pendingURL }) else {
-            self.accessMessage = "The selected chapter is no longer available after refreshing the source."
+            self.accessMessage = NSLocalizedString("comic_detail_access_chapter_unavailable", comment: "刷新后这一章没了")
             return nil
         }
         guard refreshedChapter.isRestricted == false else {
             if refreshedChapter.isRestricted == true {
                 self.accessMessage = self.restrictedMessage(isPaid: refreshedChapter.isPaid)
             } else {
-                self.accessMessage = "The source did not return a readable access status for this chapter after login."
+                self.accessMessage = NSLocalizedString("comic_detail_access_status_unknown", comment: "登录后读不到访问状态")
             }
             return nil
         }
@@ -837,9 +839,9 @@ final class ComicDetailViewModel {
 
     private func restrictedMessage(isPaid: Bool?) -> String {
         if isPaid == true {
-            return "This account cannot access this paid chapter. Purchase or VIP membership may be required."
+            return NSLocalizedString("comic_detail_access_denied_paid", comment: "已登录仍看不了付费章")
         }
-        return "This account cannot access this chapter. The source may require additional permission."
+        return NSLocalizedString("comic_detail_access_denied", comment: "已登录仍看不了这一章")
     }
 
     private var currentUserID: String {

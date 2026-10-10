@@ -32,6 +32,46 @@ final class GRDBComicChapterHistoryRepository: ComicChapterHistoryRepository {
         }
     }
 
+    /// 中文注释：当前来源读过的全部章节，最近的在前；走 `idx_comic_chapter_history_source`（库页瓷砖与进度角标一次读齐）。
+    func fetchHistory(userID: String, sourceID: String) throws -> [ComicChapterHistory] {
+        return try self.database.queue.read { database in
+            let records: [ComicChapterHistoryRecord] = try ComicChapterHistoryRecord
+                .filter(ComicChapterHistoryRecord.Columns.userID == userID)
+                .filter(ComicChapterHistoryRecord.Columns.sourceID == sourceID)
+                .order(ComicChapterHistoryRecord.Columns.visitedAt.desc)
+                .fetchAll(database)
+
+            return records.map { record in
+                return record.domainModel()
+            }
+        }
+    }
+
+    /// 中文注释：每部作品最近读的那一章——子查询取每个 (userID, sourceID, comicItemID) 的最大 `visitedAt`，
+    /// 只把这些行读进内存；历史页一部作品一行，不必先读全部章节再在内存里挑（2026-10-10 复审 B-2）。
+    /// `visitedAt` 并列时会多出同作品的行，调用方按作品再去一次重。
+    func fetchLatestPerWork(userID: String) throws -> [ComicChapterHistory] {
+        return try self.database.queue.read { database in
+            let records: [ComicChapterHistoryRecord] = try ComicChapterHistoryRecord.fetchAll(
+                database,
+                sql: """
+                SELECT h.* FROM \(ComicChapterHistoryRecord.databaseTableName) h
+                WHERE h.userID = ?
+                  AND h.visitedAt = (
+                    SELECT MAX(visitedAt) FROM \(ComicChapterHistoryRecord.databaseTableName)
+                    WHERE userID = h.userID AND sourceID = h.sourceID AND comicItemID = h.comicItemID
+                  )
+                ORDER BY h.visitedAt DESC
+                """,
+                arguments: [userID]
+            )
+
+            return records.map { record in
+                return record.domainModel()
+            }
+        }
+    }
+
     func fetchLatest(
         userID: String,
         sourceID: String,

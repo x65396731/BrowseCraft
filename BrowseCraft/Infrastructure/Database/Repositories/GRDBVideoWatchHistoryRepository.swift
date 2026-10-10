@@ -36,6 +36,24 @@ final class GRDBVideoWatchHistoryRepository: VideoWatchHistoryRepository {
         }
     }
 
+    /// 中文注释：当前来源的观看历史（一部作品一行），更新时间最近的在前；库页「上次看到」瓷砖只要第一条。
+    func fetchHistory(userID: String, sourceID: String) throws -> [VideoWatchHistory] {
+        return try self.database.queue.read { database in
+            let records: [VideoWatchHistoryRecord] = try VideoWatchHistoryRecord
+                .filter(VideoWatchHistoryRecord.Columns.userID == userID)
+                .filter(VideoWatchHistoryRecord.Columns.sourceID == sourceID)
+                .order(
+                    VideoWatchHistoryRecord.Columns.updatedAt.desc,
+                    VideoWatchHistoryRecord.Columns.visitedAt.desc
+                )
+                .fetchAll(database)
+
+            return records.map { record in
+                return record.domainModel()
+            }
+        }
+    }
+
     func delete(_ history: VideoWatchHistory) throws {
         try self.delete([history])
     }

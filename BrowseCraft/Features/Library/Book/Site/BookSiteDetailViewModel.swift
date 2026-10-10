@@ -65,10 +65,12 @@ final class BookSiteDetailViewModel {
     private var isProgrammaticScrolling: Bool = false
 
     private let loadPublicationUseCase: LoadBookPublicationUseCase
-    private let loadProgressUseCase: LoadBookReadingProgressUseCase
+    /// 中文注释：进度与历史的读取走 actor，不在主线程跑 GRDB（复审 B-3）。
+    private let detailPersistence: BookDetailPersistenceCoordinator
     private let userID: String
-    private let readingHistoryRepository: (any BookReadingHistoryRepository)?
     private let toggleFavoriteUseCase: ToggleFavoriteUseCase?
+    /// 中文注释：收藏读写走 actor，不在主线程跑 GRDB（复审 B-3）。
+    private let favoritePersistence: FavoriteStatePersistenceCoordinator?
     private let sourceCredentialStore: (any SourceCredentialStoring)?
     private let presentationUseCase: ResolveLibrarySourcePresentationUseCase
     private let now: () -> Date
@@ -88,10 +90,13 @@ final class BookSiteDetailViewModel {
         self.item = item
         self.source = source
         self.loadPublicationUseCase = loadPublicationUseCase
-        self.loadProgressUseCase = loadProgressUseCase
+        self.detailPersistence = BookDetailPersistenceCoordinator(
+            loadProgressUseCase: loadProgressUseCase,
+            readingHistoryRepository: readingHistoryRepository
+        )
         self.userID = userID
-        self.readingHistoryRepository = readingHistoryRepository
         self.toggleFavoriteUseCase = toggleFavoriteUseCase
+        self.favoritePersistence = toggleFavoriteUseCase.map(FavoriteStatePersistenceCoordinator.init(useCase:))
         self.sourceCredentialStore = sourceCredentialStore
         self.presentationUseCase = presentationUseCase
         self.now = now
@@ -353,24 +358,23 @@ final class BookSiteDetailViewModel {
     // MARK: - 收藏
 
     func reloadFavoriteState() async {
-        guard let useCase: ToggleFavoriteUseCase = self.toggleFavoriteUseCase else {
+        guard let persistence: FavoriteStatePersistenceCoordinator = self.favoritePersistence else {
             return
         }
         do {
-            self.isFavorite = try useCase.loadFavoriteItemIDs(sourceID: self.source.id).contains(self.item.id)
+            self.isFavorite = try await persistence.isFavorite(itemID: self.item.id, sourceID: self.source.id)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "book-detail-favorite-error")
         }
     }
 
     func toggleFavorite() async {
-        guard let useCase: ToggleFavoriteUseCase = self.toggleFavoriteUseCase else {
+        guard let persistence: FavoriteStatePersistenceCoordinator = self.favoritePersistence else {
             return
         }
         do {
-            let ids: Set<String> = try useCase.execute(item: self.item, source: self.source, favoritedAt: self.now())
             let wasFavorite: Bool = self.isFavorite
-            self.isFavorite = ids.contains(self.item.id)
+            self.isFavorite = try await persistence.toggle(item: self.item, source: self.source, favoritedAt: self.now())
             AppAnalytics.shared.logBookmarkChanged(isFavorite: wasFavorite == false, source: self.source)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "book-detail-favorite-error")
@@ -419,7 +423,7 @@ final class BookSiteDetailViewModel {
         if let manifest: BookPublicationManifest = self.manifest {
             // 中文注释：从阅读器 / 播放页退回来时 manifest 还在，但续读位置已经变了——只重读进度与历史，不重取详情
             //（2026-09-14 loyalbooks 模拟器复验：播到第 03–04 章退回详情页仍显示「Start Listening」）。
-            self.reloadReadingPosition(in: manifest)
+            await self.reloadReadingPosition(in: manifest)
             return
         }
         await self.load()
@@ -427,7 +431,7 @@ final class BookSiteDetailViewModel {
 
     func load() async {
         guard let detailURL: URL = URL(string: self.item.detailURL) else {
-            self.errorMessage = "Invalid detail URL."
+            self.errorMessage = NSLocalizedString("book_detail_invalid_url", comment: "详情地址无效")
             return
         }
         CrashDiagnostics.shared.setRuleStage(.detail)
@@ -439,32 +443,34 @@ final class BookSiteDetailViewModel {
             self.manifest = loaded.manifest
             self.didLoad = true
             self.rebuildChapterDerivedState()
-            self.reloadReadingPosition(in: loaded.manifest)
+            await self.reloadReadingPosition(in: loaded.manifest)
+        } catch is CancellationError {
+            return
         } catch {
+            RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "book-detail-error")
             AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .detail, errorCode: "book-detail-error")
-            self.errorMessage = error.localizedDescription
+            // 中文注释：与漫画 / 影视详情同一套用户文案（合同第七节「文案是错误原因」），不再直接露 `localizedDescription`。
+            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
     }
 
     /// 重读进度表与读书历史，再定上次读到的章：先按历史的 `chapterURL`，没有再按 Locator 的 `href`。
-    private func reloadReadingPosition(in manifest: BookPublicationManifest) {
-        self.readingProgress = try? self.loadProgressUseCase.execute(bookID: self.bookID, userID: self.userID)
-        self.readingHistory = self.fetchReadingHistory()
-        self.lastReadChapterURL = self.resolveLastReadChapter(in: manifest)
-    }
-
-    private func fetchReadingHistory() -> BookReadingHistory? {
-        guard let repository: any BookReadingHistoryRepository = self.readingHistoryRepository else {
-            return nil
-        }
+    private func reloadReadingPosition(in manifest: BookPublicationManifest) async {
         do {
-            return try repository.fetchHistory(userID: self.userID).first { history in
-                history.sourceID == self.source.id && history.bookItemID == self.item.id
-            }
+            let snapshot: BookReadingPositionSnapshot = try await self.detailPersistence.loadReadingPosition(
+                bookID: self.bookID,
+                userID: self.userID,
+                sourceID: self.source.id,
+                bookItemID: self.item.id
+            )
+            self.readingProgress = snapshot.progress
+            self.readingHistory = snapshot.history
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "book-detail-history-error")
-            return nil
+            self.readingProgress = nil
+            self.readingHistory = nil
         }
+        self.lastReadChapterURL = self.resolveLastReadChapter(in: manifest)
     }
 
     private func resolveLastReadChapter(in manifest: BookPublicationManifest) -> URL? {

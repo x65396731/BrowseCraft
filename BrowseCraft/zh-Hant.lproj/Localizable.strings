@@ -832,6 +832,17 @@
 "comic_detail_empty_title" = "沒有章節";
 "comic_detail_empty_message" = "這個來源沒有給出任何章節。";
 "comic_detail_restricted_login" = "登入";
+"video_detail_invalid_url" = "影視詳情網址無效。";
+"book_detail_invalid_url" = "書籍詳情網址無效。";
+"comic_detail_access_no_login_page" = "這一章受限，而這個來源沒有登入頁。";
+"comic_detail_login_prompt_paid" = "這是付費章節，目前受限。登入後看看你的帳號能不能看；可能還需要購買或 VIP。";
+"comic_detail_login_prompt" = "這一章目前受限。登入後看看你的帳號能不能看。";
+"comic_detail_access_chapter_unavailable" = "重新整理來源後，這一章已經不在了。";
+"comic_detail_access_status_unknown" = "登入後來源沒有給出這一章的存取狀態。";
+"comic_detail_access_denied_paid" = "這個帳號看不了這一付費章節，可能需要購買或 VIP。";
+"comic_detail_access_denied" = "這個帳號看不了這一章，來源可能還需要別的權限。";
+"library_account_guest" = "訪客帳號";
+"library_account_signed_in" = "已登入帳號";
 "comic_detail_banner_dismiss" = "關閉";
 "comic_detail_attr_published" = "發佈";
 "comic_detail_attr_license" = "許可";

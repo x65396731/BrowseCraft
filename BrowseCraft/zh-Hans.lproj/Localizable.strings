@@ -832,6 +832,17 @@
 "comic_detail_empty_title" = "没有章节";
 "comic_detail_empty_message" = "这个来源没有给出任何章节。";
 "comic_detail_restricted_login" = "登录";
+"video_detail_invalid_url" = "影视详情地址无效。";
+"book_detail_invalid_url" = "书籍详情地址无效。";
+"comic_detail_access_no_login_page" = "这一章受限，而这个来源没有登录页。";
+"comic_detail_login_prompt_paid" = "这是付费章节，目前受限。登录后看看你的账号能不能看；可能还需要购买或 VIP。";
+"comic_detail_login_prompt" = "这一章目前受限。登录后看看你的账号能不能看。";
+"comic_detail_access_chapter_unavailable" = "刷新来源后，这一章已经不在了。";
+"comic_detail_access_status_unknown" = "登录后来源没有给出这一章的访问状态。";
+"comic_detail_access_denied_paid" = "这个账号看不了这一付费章节，可能需要购买或 VIP。";
+"comic_detail_access_denied" = "这个账号看不了这一章，来源可能还需要别的权限。";
+"library_account_guest" = "游客账号";
+"library_account_signed_in" = "已登录账号";
 "comic_detail_banner_dismiss" = "关闭";
 "comic_detail_attr_published" = "发布";
 "comic_detail_attr_license" = "许可";

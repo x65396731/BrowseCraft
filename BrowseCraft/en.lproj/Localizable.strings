@@ -832,6 +832,17 @@
 "comic_detail_empty_title" = "No chapters";
 "comic_detail_empty_message" = "This source did not provide any chapters.";
 "comic_detail_restricted_login" = "Log in";
+"video_detail_invalid_url" = "The video detail address is invalid.";
+"book_detail_invalid_url" = "The book detail address is invalid.";
+"comic_detail_access_no_login_page" = "This chapter is restricted, and this source has no login page.";
+"comic_detail_login_prompt_paid" = "This paid chapter is restricted. Log in to check whether your account has access; purchase or VIP membership may still be required.";
+"comic_detail_login_prompt" = "This chapter is restricted. Log in to check whether your account has access.";
+"comic_detail_access_chapter_unavailable" = "This chapter is no longer available after refreshing the source.";
+"comic_detail_access_status_unknown" = "The source did not return a readable access status for this chapter after login.";
+"comic_detail_access_denied_paid" = "This account cannot access this paid chapter. Purchase or VIP membership may be required.";
+"comic_detail_access_denied" = "This account cannot access this chapter. The source may require additional permission.";
+"library_account_guest" = "Guest account";
+"library_account_signed_in" = "Signed in account";
 "comic_detail_banner_dismiss" = "Dismiss";
 "comic_detail_attr_published" = "Published";
 "comic_detail_attr_license" = "License";

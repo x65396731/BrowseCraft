@@ -154,7 +154,8 @@ struct AddSourceView: View {
     private var nextStepsGroup: some View {
         SettingsCardGroup(
             title: NSLocalizedString("add_source_next_title", comment: ""),
-            footer: self.coinFooter
+            footer: self.coinFooter,
+            footerColor: self.coinFooterIsWarning ? CatalogPalette.warning : nil
         ) {
             self.nextStepRow(systemImage: "link", textKey: "add_source_next_step_url")
             SettingsRowSeparator()
@@ -185,6 +186,14 @@ struct AddSourceView: View {
 
     /// 中文注释：价格取服务端下发的普通档价格，不写死。已登录写价格与余额，余额还没同步到时只写价格，
     /// 未登录换成警示色的一句。没有钱包（测试替身）时整行不显示。
+    /// 未登录那句用警示色（合同第三节、第六节验收项）。
+    private var coinFooterIsWarning: Bool {
+        guard let wallet: CoinWalletStore = self.viewModel.coinWalletStore else {
+            return false
+        }
+        return wallet.isSignedIn == false
+    }
+
     private var coinFooter: String? {
         guard let wallet: CoinWalletStore = self.viewModel.coinWalletStore else {
             return nil

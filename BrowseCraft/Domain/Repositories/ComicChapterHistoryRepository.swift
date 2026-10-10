@@ -17,12 +17,35 @@ protocol ComicChapterHistoryRepository: Sendable {
         sourceID: String,
         comicItemID: String
     ) throws -> [ComicChapterHistory]
+    /// 中文注释：当前来源读过的全部章节，最近的在前；默认实现从全量历史里筛，GRDB 实现按 (userID, sourceID) 索引查。
+    func fetchHistory(userID: String, sourceID: String) throws -> [ComicChapterHistory]
+    /// 中文注释：每部作品最近读的那一章（历史页一部作品一行）；默认实现读全量再按作品取最近，
+    /// GRDB 实现用子查询只取每部作品 `visitedAt` 最大的行，不把整张表读进内存（2026-10-10 复审 B-2）。
+    func fetchLatestPerWork(userID: String) throws -> [ComicChapterHistory]
     func delete(_ history: ComicChapterHistory) throws
     /// 中文注释：批量删除；实现应在一个事务内完成，默认实现逐条调用 delete。
     func delete(_ histories: [ComicChapterHistory]) throws
 }
 
 extension ComicChapterHistoryRepository {
+    func fetchHistory(userID: String, sourceID: String) throws -> [ComicChapterHistory] {
+        return try self.fetchHistory(userID: userID).filter { history in
+            return history.sourceID == sourceID
+        }
+    }
+
+    func fetchLatestPerWork(userID: String) throws -> [ComicChapterHistory] {
+        var latestByWork: [String: ComicChapterHistory] = [:]
+        for history: ComicChapterHistory in try self.fetchHistory(userID: userID) {
+            let key: String = "\(history.sourceID)\u{1F}\(history.comicItemID)"
+            if let existing: ComicChapterHistory = latestByWork[key], existing.visitedAt >= history.visitedAt {
+                continue
+            }
+            latestByWork[key] = history
+        }
+        return latestByWork.values.sorted { lhs, rhs in lhs.visitedAt > rhs.visitedAt }
+    }
+
     func fetchHistory(
         userID: String,
         sourceID: String,

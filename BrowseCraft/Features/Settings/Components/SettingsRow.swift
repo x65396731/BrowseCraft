@@ -88,6 +88,8 @@ struct SettingsToggleRow: View {
 struct SettingsCardGroup<Content: View>: View {
     let title: String?
     var footer: String? = nil
+    /// 中文注释：组下说明的颜色；默认次级灰，添加来源页未登录那句用警示色（合同第三节）。
+    var footerColor: Color? = nil
     @ViewBuilder let content: Content
 
     var body: some View {
@@ -112,7 +114,7 @@ struct SettingsCardGroup<Content: View>: View {
             if let footer: String = self.footer {
                 Text(footer)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(self.footerColor ?? Color.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 24)
                     .padding(.top, 8)

@@ -7,6 +7,8 @@ struct LibraryContentView: View {
     let selectedSource: Source?
     let favoriteItemIDs: Set<String>
     let sourceForID: (String) -> Source?
+    /// 中文注释：书脊列表在宽屏（iPad / 横屏）变两列时页边距 40，窄屏 20（`docs/design/Library-Book-Page-Redesign-Design.md` 第五节）。
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let toggleFavorite: (ContentItem) -> Void
     let openComic: (ContentItem, Source) -> Void
     let primaryActionTitle: (Source) -> String
@@ -133,7 +135,7 @@ struct LibraryContentView: View {
 
                 self.paginationSentinel(prefix: "book")
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, self.horizontalSizeClass == .regular ? 40 : 20)
             .padding(.top, 12)
 
             self.paginationFooter

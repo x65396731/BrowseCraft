@@ -312,9 +312,9 @@ struct LibraryView: View {
     private func accountAccessibilityLabel(for status: LibrarySourceLoginStatus) -> String {
         switch status {
         case .guest:
-            return "Guest account"
+            return NSLocalizedString("library_account_guest", comment: "读屏：游客")
         case .authenticated:
-            return "Signed in account"
+            return NSLocalizedString("library_account_signed_in", comment: "读屏：已登录")
         }
     }
 
