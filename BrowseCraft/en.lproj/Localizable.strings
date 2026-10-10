@@ -303,6 +303,10 @@
 /* User-facing failure reasons (rule execution categories, catalog import/decryption, source slots). Diagnostic detail stays in logs. */
 "rule_error_network" = "The network request failed.";
 "rule_error_anti_bot" = "The site returned an anti-bot verification page.";
+"rule_error_http_refused" = "The site refused this request (HTTP %ld).";
+"rule_error_http_not_found" = "The page was not found on the site (HTTP %ld).";
+"rule_error_http_rate_limited" = "The site is limiting requests. Try again later (HTTP %ld).";
+"rule_error_http_server" = "The site is temporarily unavailable. Try again later (HTTP %ld).";
 "rule_error_access_required" = "This content requires a site account.";
 "rule_error_selector_empty" = "The rule did not match any content.";
 "rule_error_rule_configuration" = "The rule is misconfigured.";

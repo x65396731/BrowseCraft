@@ -303,6 +303,10 @@
 /* User-facing failure reasons (rule execution categories, catalog import/decryption, source slots). Diagnostic detail stays in logs. */
 "rule_error_network" = "网络请求失败。";
 "rule_error_anti_bot" = "源站返回了反爬验证页面。";
+"rule_error_http_refused" = "源站拒绝了这次访问（HTTP %ld）。";
+"rule_error_http_not_found" = "源站上找不到这个页面（HTTP %ld）。";
+"rule_error_http_rate_limited" = "源站限制了访问频率，请稍后再试（HTTP %ld）。";
+"rule_error_http_server" = "源站暂时无法访问，请稍后再试（HTTP %ld）。";
 "rule_error_access_required" = "此内容需要源站账号才能访问。";
 "rule_error_selector_empty" = "规则没有匹配到内容。";
 "rule_error_rule_configuration" = "规则配置错误。";

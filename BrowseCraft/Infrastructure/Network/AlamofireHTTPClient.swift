@@ -52,7 +52,8 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
             )
         }
 
-        let cloudflareBlocked: Bool = self.isAntiBotHTML(html)
+        let cloudflareBlocked: Bool = Self.isAntiBotHTML(html)
+        let statusCode: Int? = dataResponse.response?.statusCode
 
         AppLog.debug(
             .network,
@@ -63,12 +64,13 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
                 "purpose": context?.purpose.rawValue ?? "none",
                 "needsWebView": requestConfig?.needsWebView?.description ?? "nil",
                 "bytes": String(dataResponse.data.count),
-                "antiBot": cloudflareBlocked.description
+                "antiBot": cloudflareBlocked.description,
+                "status": statusCode.map(String.init) ?? "nil"
             ]
         )
 
-        if cloudflareBlocked {
-            throw RuleExecutionError.antiBot(url: url.absoluteString)
+        if let failure: RuleExecutionError = Self.contentFailure(statusCode: statusCode, html: html, url: url) {
+            throw failure
         }
 
         return PageContentResponse(
@@ -362,6 +364,19 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
         return self.usesExplicitHeadersOnly(url: url, request: request) ? "explicit" : "browser"
     }
 
+    /// 中文注释：`BCA-RUNTIME-007`——HTML 直接请求的失败判定，与 App 预检同口径（`BC-PREFLIGHT-062` / `063`）：
+    /// 挑战页先认（任何状态码都抛 `antiBot`，交 `BCA-RUNTIME-005` 回退 WebView）；其余状态码 ≥ 400 抛 `httpStatus`，
+    /// 拒绝页正文不交给规则解析（xjortho 403 曾被报成「规则解析出错」）。200..<400 与拿不到状态码时返回 nil、照旧解析。
+    static func contentFailure(statusCode: Int?, html: String, url: URL) -> RuleExecutionError? {
+        if Self.isAntiBotHTML(html) {
+            return .antiBot(url: url.absoluteString)
+        }
+        if let statusCode: Int, statusCode >= 400 {
+            return .httpStatus(url: url.absoluteString, statusCode: statusCode)
+        }
+        return nil
+    }
+
     private func isAntiBotData(_ data: Data) -> Bool {
         let text: String
         if let string: String = String(data: data.prefix(8_192), encoding: .utf8) {
@@ -370,10 +385,10 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
             text = String(decoding: data.prefix(8_192), as: UTF8.self)
         }
 
-        return self.isAntiBotHTML(text)
+        return Self.isAntiBotHTML(text)
     }
 
-    private func isAntiBotHTML(_ html: String) -> Bool {
+    private static func isAntiBotHTML(_ html: String) -> Bool {
         let blockingMarkers: [String] = [
             "Attention Required",
             "Just a moment",

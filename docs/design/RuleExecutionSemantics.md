@@ -51,6 +51,18 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
   **门控**：旧版 App 解码时忽略 `startPage`、把 N 原样代入会静默错一页，所以目录请求带 `features=startPage` 声明能力（`LoadCatalogSourcesUseCase.requestedFeatures`，与 `kinds` 同一机制），
   服务端把需要未声明能力的来源过滤掉；新增规则能力时在同一处登记。对应 fwq `APP-MEMO-027`。
   实现 `BrowseCraftCore/.../SiteRuleModels.swift`（`PaginationRule.startPage` / `sitePageNumber(forPage:)`）、`VideoSiteRuleValidationOperations` 放行键、`ComicSiteRuleV2ValidationOperations` 拒负数；用例 `PaginationStartPageTests`。
+- `BCA-RUNTIME-007` 直接请求通道（`AlamofireHTTPClient.loadContent`）的状态码判定与 App 预检同口径（fwq `BC-PREFLIGHT-062` / `063`；引擎采集同样把非 2xx 当失败）：
+  最终响应状态码在 200..<400 内照旧交给规则解析；400 及以上时先判挑战页——是挑战页仍抛 `antiBot`，由 `BCA-RUNTIME-005` 回退 WebView；
+  不是挑战页抛 `RuleExecutionError.httpStatus(url:statusCode:)`，**拒绝页的正文不再交给规则解析**。
+  依据：2026-09-29 xjortho 拦桌面 UA 返回 403，正文被当成列表页解析，用户看到「规则解析出错」、以为规则坏了（fwq `MEMO-App-请求被拒显示成规则解析出错`）；
+  失败必须按成因说清楚，站点拒绝与规则出错是两种成因。
+  **用户文案**按状态码分四类、都带状态码：404 / 410「找不到这个页面」，429「限制了访问频率」，5xx「暂时无法访问」，其余 4xx（含 401 / 403 / 451）「拒绝了这次访问」；
+  诊断类别记 `network`，不记 `parse`（与 `antiBot` 同类：都是站点没给出可解析的页面）。分类与文案只在 `RuleExecutionErrorClassifier` 一处。
+  **范围**：只管 HTML 直接请求。`loadData`（API / XML 原始字节）不在内——接口的业务失败由 `responsePolicy` 判（`BCA-PARSE-001`），401 这类在那里可能映射成登录提示，
+  网络层先拦会盖掉更具体的说明；WebView 通道（`needsWebView` 与挑战页回退）拿不到状态码，仍按解析结果报错。
+  **已知边界**：搜索无结果时以 404 回应的站，用户看到的会从「没有结果」变为「找不到这个页面」；到 2026-10-10 无实例，出现时再按搜索场景单独处理。
+  实现 `BrowseCraft/Infrastructure/Network/AlamofireHTTPClient.swift`（`contentFailure(statusCode:html:url:)`）、`BrowseCraftDomain/.../RuleExecutionError.swift`；
+  用例 `AlamofireHTTPClientTests`（状态码与挑战页判定）、`PageContentLoaderTests`（状态码错误不回退 WebView）、`RuleExecutionErrorClassifierTests`（四类文案与诊断类别）。
 同域的另外三条不在本文：kind 分流纪律 `BCA-RUNTIME-002` 与目录解码兼容硬约束 `BCA-RUNTIME-004`
 在 [Book-Kind-Wiring-Design.md](Book-Kind-Wiring-Design.md)，播放候选过滤 `BCA-RUNTIME-003` 在
 [RuntimeAdFilter-Design.md](RuntimeAdFilter-Design.md)。

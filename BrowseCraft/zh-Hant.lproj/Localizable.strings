@@ -303,6 +303,10 @@
 /* User-facing failure reasons (rule execution categories, catalog import/decryption, source slots). Diagnostic detail stays in logs. */
 "rule_error_network" = "網路請求失敗。";
 "rule_error_anti_bot" = "來源網站回傳了反爬驗證頁面。";
+"rule_error_http_refused" = "來源網站拒絕了這次存取（HTTP %ld）。";
+"rule_error_http_not_found" = "來源網站上找不到這個頁面（HTTP %ld）。";
+"rule_error_http_rate_limited" = "來源網站限制了存取頻率，請稍後再試（HTTP %ld）。";
+"rule_error_http_server" = "來源網站暫時無法存取，請稍後再試（HTTP %ld）。";
 "rule_error_access_required" = "這個內容需要來源網站的帳戶才能看。";
 "rule_error_selector_empty" = "規則沒有比對到內容。";
 "rule_error_rule_configuration" = "規則設定有誤。";

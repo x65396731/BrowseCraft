@@ -81,6 +81,8 @@ enum RuleExecutionErrorClassifier {
             return withReason("rule_error_network", underlyingDescription)
         case .antiBot:
             return localized("rule_error_anti_bot")
+        case .httpStatus(_, let statusCode):
+            return String(format: localized(Self.httpStatusMessageKey(statusCode)), statusCode)
         case .accessRequired:
             return localized("rule_error_access_required")
         case .selectorEmpty:
@@ -105,7 +107,7 @@ enum RuleExecutionErrorClassifier {
     /// 中文注释：诊断上报的类别判定。分类逻辑只此一处，Shared 的上报入口只接收结果。
     static func diagnosticFailureKind(for error: Error) -> DiagnosticFailureKind {
         switch Self.classified(error) {
-        case .network, .antiBot:
+        case .network, .antiBot, .httpStatus:
             return .network
         case .accessRequired, .selectorEmpty, .ruleConfiguration, .responseContract,
              .apiResponseContract, .sourceAPI, .protectedResource, .parserDiagnostics, .unknown:
@@ -132,6 +134,8 @@ enum RuleExecutionErrorClassifier {
             return "network"
         case .antiBot:
             return "antiBot"
+        case .httpStatus:
+            return "httpStatus"
         case .accessRequired:
             return "accessRequired"
         case .selectorEmpty:
@@ -150,6 +154,20 @@ enum RuleExecutionErrorClassifier {
             return "parserDiagnostics"
         case .unknown:
             return "unknown"
+        }
+    }
+
+    /// 中文注释：`BCA-RUNTIME-007`——站点拒绝按状态码分四类文案（都带状态码），不再落到「规则解析出错」。
+    static func httpStatusMessageKey(_ statusCode: Int) -> String {
+        switch statusCode {
+        case 404, 410:
+            return "rule_error_http_not_found"
+        case 429:
+            return "rule_error_http_rate_limited"
+        case 500...:
+            return "rule_error_http_server"
+        default:
+            return "rule_error_http_refused"
         }
     }
 

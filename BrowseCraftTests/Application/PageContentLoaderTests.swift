@@ -117,18 +117,39 @@ struct PageContentLoaderTests {
         }
         #expect(renderedPageLoader.requests.isEmpty)
     }
+
+    // 中文注释：`BCA-RUNTIME-007`——站点按状态码拒绝不是挑战页，不回退 WebView，原样抛给分类器。
+    @Test func defaultLoaderDoesNotRetryHTTPStatusRefusalViaWebView() async throws {
+        let httpClient: RecordingPageHTTPClient = RecordingPageHTTPClient(html: "http-html", throwHTTPStatus: 403)
+        let renderedPageLoader: RecordingRenderedPageContentLoader = RecordingRenderedPageContentLoader(html: "webview-html")
+        let loader: DefaultPageLoader = DefaultPageLoader(
+            httpContentLoader: httpClient,
+            httpDataLoader: httpClient,
+            renderedPageContentLoader: renderedPageLoader,
+            domStabilityPolicy: .baseline
+        )
+        let url: URL = try #require(URL(string: "https://example.test/vodtype/1.html"))
+
+        await #expect(throws: RuleExecutionError.httpStatus(url: url.absoluteString, statusCode: 403)) {
+            _ = try await loader.loadContent(PageLoadRequest(url: url, requestConfig: nil, sourceContext: nil))
+        }
+        #expect(httpClient.requests.count == 1)
+        #expect(renderedPageLoader.requests.isEmpty)
+    }
 }
 
 private final class RecordingPageHTTPClient: PageContentLoader, PageDataLoader, @unchecked Sendable {
     private let html: String
     private let throwAntiBot: Bool
     private let throwNetwork: Bool
+    private let throwHTTPStatus: Int?
     private(set) var requests: [PageLoadRequest] = []
 
-    init(html: String, throwAntiBot: Bool = false, throwNetwork: Bool = false) {
+    init(html: String, throwAntiBot: Bool = false, throwNetwork: Bool = false, throwHTTPStatus: Int? = nil) {
         self.html = html
         self.throwAntiBot = throwAntiBot
         self.throwNetwork = throwNetwork
+        self.throwHTTPStatus = throwHTTPStatus
     }
 
     func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
@@ -138,6 +159,9 @@ private final class RecordingPageHTTPClient: PageContentLoader, PageDataLoader, 
         }
         if self.throwNetwork {
             throw RuleExecutionError.network(url: request.url.absoluteString, underlyingDescription: "offline")
+        }
+        if let throwHTTPStatus: Int = self.throwHTTPStatus {
+            throw RuleExecutionError.httpStatus(url: request.url.absoluteString, statusCode: throwHTTPStatus)
         }
         return PageContentResponse(
             content: self.html,
