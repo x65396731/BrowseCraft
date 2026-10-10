@@ -40,7 +40,7 @@ python3 scripts/check-docs.py
 | 17 页重设计：来源、收藏、规则目录、历史、设置、coin 记录、缓存、云同步、添加来源、网址输入与引导屏、库页三种、详情三种、来源内搜索 | 真机验收（含深色）；各页清单列了模拟器没走到的状态 | 各页合同末节 | 第 2 节 |
 | 规则目录：「我的生成」优先落段；删失败记录整入口软删除 | 任何验证 | [Catalog-Page-Redesign](docs/design/Catalog-Page-Redesign-Design.md) 第 2.1 / 2.3 节 | 第 2 节末两行 |
 | F2-5 / F2-6：进列表先读后写、读书线读库经 actor | 验证 | — | 第 6 节 |
-| 漫画详情分段芯片锚点（2026-10-10 已改为按分区头高度换算） | 模拟器或真机看一眼段首不被盖住；章节 `order` 接线已裁定记账、不做 | [Comic-Detail](docs/design/Comic-Detail-Page-Redesign-Design.md) 第十四节、[Book-Detail](docs/design/Book-Detail-Page-Redesign-Design.md) 第十三节 | 第 2 节 |
+| 漫画详情分段芯片锚点（2026-10-10 已改为按分区头高度换算；2026-10-11 模拟器上书详情同一公式已看过，段首落在分区头下不被盖住） | 漫画详情再看一眼（线上没有漫画来源时跳过）；章节 `order` 接线已裁定记账、不做 | [Comic-Detail](docs/design/Comic-Detail-Page-Redesign-Design.md) 第十四节、[Book-Detail](docs/design/Book-Detail-Page-Redesign-Design.md) 第十三节 | 第 2 节 |
 | 2026-10-11 复审第十三批（跨页复制第二组）：分段状态机、收藏切换、简介与骨架、`nonEmpty` 四组收敛（App 与测试目标构建 0 警告，BrowseCraftTests 578 + 84 例全过；模拟器走过书详情的分段芯片、收藏切换、简介展开） | 真机或模拟器：漫画详情与影视详情同样三件（线上没有漫画来源时跳过） | 三份详情合同「实现位置」首条 | 第 8 节末行 |
 | 2026-10-11 复审第十二批：Features 层 58 处颜色收回 `CatalogPalette`（App 构建 0 警告，BrowseCraftTests 578 + 84 例全过，模拟器浅深各走过库页、来源页、目录页、书详情） | 真机：影视 / 漫画的库页、详情页与阅读器、设置与云同步页浅深各看一眼 | [Catalog-Page](docs/design/Catalog-Page-Redesign-Design.md) 第三节 | 第 8 节末行 |
 | 2026-10-10 复审第十一批（两件裁定）：库页翻页失败走分页脚、目录单条规则解不开逐条跳过（App 与测试目标构建 0 警告，BrowseCraftTests 578 + 84 例全过） | 真机：库页翻到底遇站点出错看分页脚文案与再次触底重试 | [Library-Video](docs/design/Library-Video-Page-Redesign-Design.md) 第七节、[Book-Kind-Wiring](docs/design/Book-Kind-Wiring-Design.md) `BCA-RUNTIME-004` | 第 8 节末两行 |
