@@ -19,7 +19,6 @@ struct LibraryChipBar<ID: Hashable>: View {
     var background: Color = CatalogPalette.pageBackground
     let selectAction: (ID) -> Void
 
-    @Environment(\.colorScheme) private var colorScheme: ColorScheme
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -63,9 +62,9 @@ struct LibraryChipBar<ID: Hashable>: View {
             return .primary
         }
         guard self.style != nil else {
-            return Color(uiColor: .systemBackground)
+            return CatalogPalette.plainBackground
         }
-        return self.colorScheme == .dark ? CatalogKindStyle.bannerIconInk : .white
+        return CatalogPalette.onAccent
     }
 }
 

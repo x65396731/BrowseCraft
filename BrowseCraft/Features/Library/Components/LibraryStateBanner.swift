@@ -87,7 +87,7 @@ struct LibraryStateBanner: View {
         Button(action: action) {
             Text(title)
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(filled ? Color.white : CatalogPalette.warning)
+                .foregroundStyle(filled ? CatalogPalette.onAction : CatalogPalette.warning)
                 .padding(.horizontal, 12)
                 .frame(minHeight: 30)
                 .background(filled ? CatalogPalette.warning : Color.clear, in: Capsule())

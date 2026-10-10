@@ -39,7 +39,7 @@ struct SourceLoginView: View {
                     }
                     .ignoresSafeArea(edges: .bottom)
             }
-            .background(Color(.systemBackground))
+            .background(CatalogPalette.plainBackground)
         }
         .interactiveDismissDisabled()
         .alert("Login Session", isPresented: self.captureErrorBinding) {

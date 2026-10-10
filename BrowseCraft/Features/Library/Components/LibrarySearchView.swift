@@ -124,7 +124,7 @@ struct LibrarySearchView: View {
                 .foregroundStyle(.primary)
                 .frame(width: 40, height: 40)
                 .background(CatalogPalette.cardBackground, in: Circle())
-                .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
+                .shadow(color: CatalogPalette.shadow, radius: 3, y: 1)
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
         }

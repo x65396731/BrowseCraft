@@ -274,7 +274,7 @@ struct CatalogSourceListView: View {
                             .font(.body.weight(.semibold))
                             .padding(.horizontal, 24)
                             .frame(minHeight: 46)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(CatalogPalette.onAction)
                             .background(CatalogPalette.addAction, in: Capsule())
                     }
                     .buttonStyle(.plain)
@@ -525,7 +525,7 @@ private struct CatalogRecommendationCardView: View {
             Button(action: self.addAction) {
                 Label("Add", systemImage: "plus")
                     .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(CatalogPalette.onAction)
                     .frame(maxWidth: .infinity, minHeight: 36)
                     .background(CatalogPalette.addAction, in: Capsule())
             }
@@ -687,7 +687,7 @@ private struct CatalogPersonalRuleCardView: View {
                 HStack(spacing: 10) {
                     ProgressView(value: self.remainingFraction ?? 0)
                         .progressViewStyle(.linear)
-                        .tint(self.isExpiringSoon ? CatalogPalette.warning : Color(uiColor: .label).opacity(0.8))
+                        .tint(self.isExpiringSoon ? CatalogPalette.warning : Color.primary.opacity(0.8))
                     Text(remainingText)
                         .font(.caption)
                         .monospacedDigit()
@@ -706,7 +706,7 @@ private struct CatalogPersonalRuleCardView: View {
     private static func addressText(_ address: (host: String, rest: String)) -> AttributedString {
         let host: AttributedString = AttributedString(address.host)
         var rest: AttributedString = AttributedString(address.rest)
-        rest.foregroundColor = Color(uiColor: .tertiaryLabel)
+        rest.foregroundColor = CatalogPalette.tertiaryText
         return host + rest
     }
 
@@ -727,7 +727,7 @@ private struct CatalogPersonalRuleCardView: View {
             Button(action: self.addAction) {
                 Image(systemName: "plus")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(CatalogPalette.onAction)
                     .frame(width: 36, height: 36)
                     .background(CatalogPalette.addAction, in: Circle())
                     .frame(width: 44, height: 44)

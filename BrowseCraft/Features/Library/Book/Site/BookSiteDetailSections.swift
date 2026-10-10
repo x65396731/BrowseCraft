@@ -10,11 +10,10 @@ struct BookSiteDetailHeaderSection: View {
     let viewModel: BookSiteDetailViewModel
     let style: CatalogKindStyle
     let openSelection: (SiteBookChapterSelection) -> Void
-    @Environment(\.colorScheme) private var colorScheme: ColorScheme
     @State private var isSynopsisExpanded: Bool = false
 
     private var onAccent: Color {
-        return self.colorScheme == .dark ? CatalogKindStyle.bannerIconInk : .white
+        return CatalogPalette.onAccent
     }
 
     var body: some View {
@@ -85,7 +84,7 @@ struct BookSiteDetailHeaderSection: View {
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay(alignment: .leading) {
             Rectangle()
-                .fill(Color.black.opacity(0.18))
+                .fill(CatalogPalette.coverShade)
                 .frame(width: 2)
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         }
@@ -93,9 +92,9 @@ struct BookSiteDetailHeaderSection: View {
             if self.viewModel.isAudiobook, width < 60 {
                 Image(systemName: "headphones")
                     .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(CatalogPalette.onAction)
                     .frame(width: 18, height: 18)
-                    .background(Circle().fill(Color.black.opacity(0.4)))
+                    .background(Circle().fill(CatalogPalette.coverScrim))
                     .padding(3)
                     .accessibilityHidden(true)
             }

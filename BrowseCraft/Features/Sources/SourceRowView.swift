@@ -79,7 +79,7 @@ struct SourceRowView: View {
             .overlay(alignment: .top) {
                 if self.isFirst == false {
                     Rectangle()
-                        .fill(Color(uiColor: .separator))
+                        .fill(CatalogPalette.separator)
                         .frame(height: 1 / self.displayScale)
                         .padding(.leading, 68)
                 }

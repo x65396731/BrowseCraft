@@ -257,7 +257,7 @@ struct VideoGenerationInputView: View {
                     if index < self.currentProgressStep {
                         Image(systemName: "checkmark")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(CatalogPalette.onAction)
                             .frame(width: 22, height: 22)
                             .background(CatalogPalette.addAction, in: Circle())
                     } else if index == self.currentProgressStep {
@@ -266,7 +266,7 @@ struct VideoGenerationInputView: View {
                             .frame(width: 22, height: 22)
                     } else {
                         Circle()
-                            .strokeBorder(Color(uiColor: .separator), lineWidth: 2)
+                            .strokeBorder(CatalogPalette.separator, lineWidth: 2)
                             .frame(width: 22, height: 22)
                     }
                     Text(NSLocalizedString(key, comment: ""))
@@ -586,7 +586,7 @@ struct VideoGenerationInputView: View {
         Button(action: action) {
             Text(NSLocalizedString(titleKey, comment: ""))
                 .font(.body.weight(.semibold))
-                .foregroundStyle(isProminent ? Color.white : Color.primary)
+                .foregroundStyle(isProminent ? CatalogPalette.onAction : Color.primary)
                 .frame(maxWidth: .infinity)
                 .frame(height: 50)
                 .background(isProminent ? CatalogPalette.addAction : CatalogPalette.fillBackground, in: Capsule())

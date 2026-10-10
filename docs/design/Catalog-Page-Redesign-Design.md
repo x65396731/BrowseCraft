@@ -93,7 +93,7 @@
 
 - **基调**：目录页跟随系统外观，与弹出它的来源页一致——页面之间的主题色不能差异过大，浅色页面上弹出整张深色页反差过大。
   页面与卡片底色取系统分组背景，深浅色自动跟随；类型色、动作色与警示色的唯一声明点在 `CatalogKindStyle` 与 `CatalogPalette`，
-  两套取值都随系统。**类型横幅永远是深色色块**：插画本身是深底，横幅的底色、图标圆、标题与说明文字
+  两套取值都随系统。2026-10-11 起 Features 层不再直接写 `.white` / `.black` / `Color(uiColor:)`：实心按钮上的字用 `onAction`，类型色底上的字用 `onAccent`（浅色白、深色墨），反色元素上的字用 `onPrimary`，非分组页面底 `plainBackground`，分隔线 `separator`，按下态 `pressedFill` / `pressedScrim`，阴影 `shadow` / `cardShadow` / `posterShadow`，封面上的黑 `coverScrim` / `coverShade` / `badgeScrim` / `headerScrim`，固定深色瓷砖上的半透明白 `onDarkFill`（统一 16%）。仍允许直接写颜色的只有功能性取值，在 `CatalogPalette` 的注释里登记：阅读器页面底、播放器黑底、启动动画、调试页、Apple 登录按钮样式、设置页全屏广告位黑底、流光描边两端的白光，加上内购页的固定深色。**类型横幅永远是深色色块**：插画本身是深底，横幅的底色、图标圆、标题与说明文字
   都取固定的深色取值、不随系统变；浅色页面上它就是三块深色类型色块，与来源页「正在使用」的深色类型瓷砖同一种做法。
   页面、卡片、次级填充与分段控件全部取系统色（`systemGroupedBackground`、`secondarySystemGroupedBackground`、`tertiarySystemFill`），不另写深色值。
 - **文字**：随系统（`.primary` / `.secondary`）；横幅上的标题 #F4F3EF 是唯一固定的文字色。字体用系统字体。

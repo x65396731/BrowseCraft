@@ -312,7 +312,7 @@ struct HistoryView: View {
                     title: NSLocalizedString("favorites_empty_browse_title", comment: ""),
                     message: NSLocalizedString("history_empty_browse_message", comment: ""),
                     systemImage: "square.grid.2x2.fill",
-                    iconForeground: .white,
+                    iconForeground: CatalogPalette.onAction,
                     iconBackground: CatalogPalette.addAction,
                     action: self.openLibrary
                 )

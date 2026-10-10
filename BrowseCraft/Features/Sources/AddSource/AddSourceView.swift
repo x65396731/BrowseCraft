@@ -215,7 +215,7 @@ private struct AddSourceKindCardButtonStyle: ButtonStyle {
         configuration.label
             .overlay {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(Color.black.opacity(configuration.isPressed ? 0.25 : 0))
+                    .fill(CatalogPalette.pressedScrim.opacity(configuration.isPressed ? 1 : 0))
             }
             .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }

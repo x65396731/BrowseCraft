@@ -78,6 +78,44 @@ enum CatalogPalette {
         return Color(red: channel(16), green: channel(8), blue: channel(0))
     }
 
+    // MARK: - 2026-10-11 颜色收敛（复审「Features 层约 60 处颜色绕过 CatalogStyle」）：下面这组按角色命名，页面里不再直接写 .white / .black / Color(uiColor:)。
+    // 仍允许直接写颜色的只有功能性取值，与内购页固定深色同一类，逐处有注释：漫画阅读器页面底（ReaderPageImageView）、
+    // 播放器黑底（Video/Player）、启动动画（StartupAnimationView）、调试页（SourceDebugView）、Apple 登录按钮的系统样式、
+    // 设置页全屏广告位的黑底、流光描边两端夹的白光。
+
+    /// 实心动作按钮（添加蓝、警示色实心、固定深色底）上的文字与图标：白，深浅同值。
+    static let onAction: Color = .white
+    /// 类型色 `accent` 底上的文字与图标：浅色白、深色墨——accent 在深色里是浅色调（原各页 `colorScheme == .dark ? bannerIconInk : .white`）。
+    static let onAccent: Color = Self.dynamic(light: 0xFFFFFF, dark: 0x141210)
+    /// 以 `.primary` 为底的反色元素（反色提示条、卡片徽章、来源页空状态的「用网址生成」图标圆）上的文字：系统背景色。
+    static let onPrimary: Color = Color(uiColor: .systemBackground)
+    /// 非分组的页面底：登录页、阅读器、临时资源页、库页分类条贴顶时的底。
+    static let plainBackground: Color = Color(uiColor: .systemBackground)
+    /// 分隔线。
+    static let separator: Color = Color(uiColor: .separator)
+    /// 三级文字：目录卡片地址的路径部分。
+    static let tertiaryText: Color = Color(uiColor: .tertiaryLabel)
+    /// 行按下态的底（设置页行）。
+    static let pressedFill: Color = Color(uiColor: .systemFill)
+    /// 彩色卡片按下时盖的一层（黑 25%）；不按时用 `.opacity(0)`。
+    static let pressedScrim: Color = Color.black.opacity(0.25)
+    /// 圆按钮的轻阴影（黑 8%，半径 3、偏移 1）。
+    static let shadow: Color = Color.black.opacity(0.08)
+    /// 卡片与封面的重阴影（黑 18%）。
+    static let cardShadow: Color = Color.black.opacity(0.18)
+    /// 固定深色头图上海报的投影（黑 35%）。
+    static let posterShadow: Color = Color.black.opacity(0.35)
+    /// 封面上爱心 / 耳机小圆的底（黑 40%）。
+    static let coverScrim: Color = Color.black.opacity(0.4)
+    /// 封面底边或书脊的渐暗（黑 18%）。
+    static let coverShade: Color = Color.black.opacity(0.18)
+    /// 封面角上类型徽章的底（黑 28%）。
+    static let badgeScrim: Color = Color.black.opacity(0.28)
+    /// 影视详情模糊海报头图上压的一层（黑 45%）。
+    static let headerScrim: Color = Color.black.opacity(0.45)
+    /// 固定深色瓷砖 / 头图上的半透明白：进度条轨道、圆按钮底、徽章底，统一 16%（原各处 14% / 16% / 18%）。
+    static let onDarkFill: Color = Color.white.opacity(0.16)
+
     /// 不随系统深浅色变化的固定色。
     static func fixed(_ hex: UInt32) -> Color {
         return Color(uiColor: UIColor(hex: hex))

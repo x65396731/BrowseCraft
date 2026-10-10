@@ -137,6 +137,6 @@ struct SettingsRowSeparator: View {
 struct SettingsRowButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .background(configuration.isPressed ? Color(uiColor: .systemFill) : Color.clear)
+            .background(configuration.isPressed ? CatalogPalette.pressedFill : Color.clear)
     }
 }

@@ -29,7 +29,7 @@ struct ComicDetailHeaderSection: View {
 
     /// 类型色底上的字：浅色白、深色墨。
     private var onAccent: Color {
-        return self.colorScheme == .dark ? CatalogKindStyle.bannerIconInk : .white
+        return CatalogPalette.onAccent
     }
 
     /// 漫画类型色 8% 淡底（深色 10%），顶到状态栏：底色向上多铺一段盖住安全区。
@@ -47,7 +47,7 @@ struct ComicDetailHeaderSection: View {
             )
             .frame(width: Self.coverSize.width, height: Self.coverSize.height)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .shadow(color: .black.opacity(0.18), radius: 9, y: 6)
+            .shadow(color: CatalogPalette.cardShadow, radius: 9, y: 6)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(self.viewModel.displayTitle)

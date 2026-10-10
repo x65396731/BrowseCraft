@@ -93,7 +93,7 @@ struct ComicLibraryCardView: View {
                         .frame(width: 14, height: 14)
                         .foregroundColor(self.style.bannerAccent)
                         .frame(width: 26, height: 26)
-                        .background(Circle().fill(Color.black.opacity(0.4)))
+                        .background(Circle().fill(CatalogPalette.coverScrim))
                         .padding(6)
                         .accessibilityLabel(NSLocalizedString("library_card_favorited", comment: ""))
                 }

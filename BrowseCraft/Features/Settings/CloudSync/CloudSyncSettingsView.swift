@@ -474,7 +474,7 @@ private struct CloudSyncFirstEnableSheet: View {
             title: title,
             message: message,
             systemImage: systemImage,
-            iconForeground: .white,
+            iconForeground: CatalogPalette.onAction,
             iconBackground: CatalogPalette.addAction,
             action: {
                 self.submit(decision: decision)
@@ -502,12 +502,12 @@ private struct CloudSyncFirstEnableSheet: View {
                     HStack(spacing: 8) {
                         if self.isSubmitting {
                             ProgressView()
-                                .tint(.white)
+                                .tint(CatalogPalette.onAction)
                         }
                         Text(NSLocalizedString("cloud_sync_first_enable", comment: "开启云同步"))
                     }
                     .font(.body.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(CatalogPalette.onAction)
                     .frame(maxWidth: .infinity, minHeight: 52)
                     .background(CatalogPalette.addAction, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                     .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))

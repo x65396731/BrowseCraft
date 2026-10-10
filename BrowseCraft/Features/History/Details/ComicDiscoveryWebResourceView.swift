@@ -34,7 +34,7 @@ struct ComicDiscoveryWebResourceView: View {
                     }
                     .ignoresSafeArea(edges: .bottom)
             }
-            .background(Color(.systemBackground))
+            .background(CatalogPalette.plainBackground)
         }
         .navigationTitle(self.title)
         .navigationBarTitleDisplayMode(.inline)

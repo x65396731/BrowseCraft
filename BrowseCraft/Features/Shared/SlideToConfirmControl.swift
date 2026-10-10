@@ -61,11 +61,11 @@ struct SlideToConfirmControl: View {
                     .overlay {
                         if self.isBusy {
                             ProgressView()
-                                .tint(.white)
+                                .tint(CatalogPalette.onAction)
                         } else {
                             Image(systemName: "arrow.right")
                                 .font(.system(size: 18, weight: .bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(CatalogPalette.onAction)
                         }
                     }
                     .offset(x: Self.inset + offset)

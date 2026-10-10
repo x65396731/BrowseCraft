@@ -48,7 +48,7 @@ struct ReaderView: View {
             .onDisappear {
                 self.viewModel.saveCurrentChapterProgress(reason: "reader-disappear")
             }
-            .background(Color(.systemBackground))
+            .background(CatalogPalette.plainBackground)
             .navigationTitle(self.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             // 中文注释：阅读时藏起底栏，与 BookReaderView 一致；返回详情页后系统自动恢复。

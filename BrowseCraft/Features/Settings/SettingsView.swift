@@ -67,7 +67,7 @@ struct SettingsView: View {
                             title: NSLocalizedString("Premium", comment: ""),
                             message: NSLocalizedString("settings_premium_detail", comment: "高级版说明"),
                             systemImage: "sparkles",
-                            iconForeground: .white,
+                            iconForeground: CatalogPalette.onAction,
                             iconBackground: CatalogPalette.addAction,
                             action: {
                                 self.presentInAppPurchase()
@@ -184,6 +184,7 @@ struct SettingsView: View {
                         }
                     }
                 )
+                // 中文注释：全屏广告位的黑底，功能性取值（调色板登记的例外）。
                 .background(Color.black.ignoresSafeArea())
                 .transition(.identity)
                 .zIndex(1)

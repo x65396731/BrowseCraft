@@ -108,7 +108,7 @@ struct BookLibraryRowView: View {
         .clipShape(RoundedRectangle(cornerRadius: Self.coverCornerRadius, style: .continuous))
         .overlay(alignment: .leading) {
             Rectangle()
-                .fill(Color.black.opacity(0.18))
+                .fill(CatalogPalette.coverShade)
                 .frame(width: 2)
                 .clipShape(RoundedRectangle(cornerRadius: Self.coverCornerRadius, style: .continuous))
         }
@@ -116,9 +116,9 @@ struct BookLibraryRowView: View {
             if self.isAudiobook {
                 Image(systemName: "headphones")
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(CatalogPalette.onAction)
                     .frame(width: 20, height: 20)
-                    .background(Circle().fill(Color.black.opacity(0.4)))
+                    .background(Circle().fill(CatalogPalette.coverScrim))
                     .padding(4)
                     .accessibilityHidden(true)
             }

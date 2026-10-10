@@ -144,6 +144,7 @@ struct SettingsAccountCardView: View {
                         }
                         .frame(height: 44)
                     } else {
+                        // 中文注释：Apple 登录按钮只有系统给的黑 / 白两种样式，功能性取值（调色板登记的例外）。
                         AppleSignInButton(
                             style: self.colorScheme == .dark ? .white : .black,
                             action: self.signInAction
@@ -180,7 +181,7 @@ struct SettingsAccountCardView: View {
 
     /// 已登录是实心添加蓝「看广告 +N」，未登录是描边「看广告」。加载中换成转圈 +「加载中」并禁用。
     private func watchAdButton(isProminent: Bool) -> some View {
-        let foreground: Color = isProminent ? Color.white : CatalogPalette.settingsIcon
+        let foreground: Color = isProminent ? CatalogPalette.onAction : CatalogPalette.settingsIcon
         return Button(action: self.watchAdAction) {
             HStack(spacing: 6) {
                 if self.isAdLoading {

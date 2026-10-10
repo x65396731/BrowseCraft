@@ -444,7 +444,7 @@ struct SourcesView: View {
                         title: NSLocalizedString("sources_empty_catalog_title", comment: ""),
                         message: NSLocalizedString("sources_empty_catalog_message", comment: ""),
                         systemImage: "sparkles",
-                        iconForeground: .white,
+                        iconForeground: CatalogPalette.onAction,
                         iconBackground: CatalogPalette.addAction,
                         action: {
                             self.isShowingCatalogSourceListView = true
@@ -454,7 +454,7 @@ struct SourcesView: View {
                         title: NSLocalizedString("sources_empty_generate_title", comment: ""),
                         message: NSLocalizedString("sources_empty_generate_message", comment: ""),
                         systemImage: "link",
-                        iconForeground: Color(uiColor: .systemBackground),
+                        iconForeground: CatalogPalette.onPrimary,
                         iconBackground: .primary,
                         action: {
                             self.isShowingAddSourceView = true
@@ -621,7 +621,7 @@ private struct SourcesActionCapsule: View {
                 action: self.catalogAction
             )
             Rectangle()
-                .fill(Color(uiColor: .separator))
+                .fill(CatalogPalette.separator)
                 .frame(width: 1, height: 20)
                 .accessibilityHidden(true)
             self.segment(
@@ -631,7 +631,7 @@ private struct SourcesActionCapsule: View {
             )
         }
         .background(CatalogPalette.cardBackground, in: Capsule())
-        .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
+        .shadow(color: CatalogPalette.shadow, radius: 3, y: 1)
     }
 
     private func segment(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
@@ -799,7 +799,7 @@ private struct SourceSlotActivationView: View {
                 title: String(format: NSLocalizedString("sources_activation_badge", comment: ""), style.title),
                 systemImage: "lock",
                 foreground: CatalogKindStyle.bannerTitle,
-                background: Color.white.opacity(0.14)
+                background: CatalogPalette.onDarkFill
             )
             SourceTileIdentityView(
                 name: self.lockedSource.name,
@@ -819,7 +819,7 @@ private struct SourceSlotActivationView: View {
             } label: {
                 Text(NSLocalizedString("sources_activation_activate", comment: ""))
                     .font(.headline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(CatalogPalette.onAction)
                     .frame(maxWidth: .infinity, minHeight: 48)
                     .background(CatalogPalette.addAction, in: Capsule())
             }

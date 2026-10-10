@@ -35,6 +35,7 @@ struct SpectrumGlowBorder<S: InsettableShape>: View {
     }
 
     /// 描边用饱和版渐变才看得出轮廓；选中时两端夹白，光扫过去像亮边在走。
+    /// 中文注释：两端的白是光效的一部分，不是界面取值，功能性颜色（调色板登记的例外）。
     private var colors: [Color] {
         let stops: [Color] = CatalogPalette.spectrumVividColors
         return self.isActive ? [.white] + stops + [.white] : stops.map { $0.opacity(0.55) }

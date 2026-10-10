@@ -124,7 +124,7 @@ struct EntryPageGuideView: View {
                 } label: {
                     Text(NSLocalizedString(self.primaryTitleKey, comment: ""))
                         .font(.body.weight(.semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(CatalogPalette.onAction)
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
                         .background(CatalogPalette.addAction, in: Capsule())

@@ -134,7 +134,7 @@ struct HistoryContinueTileView: View {
                         GeometryReader { proxy in
                             ZStack(alignment: .leading) {
                                 Capsule()
-                                    .fill(Color.white.opacity(0.16))
+                                    .fill(CatalogPalette.onDarkFill)
                                 Capsule()
                                     .fill(style.bannerAccent)
                                     .frame(width: proxy.size.width * progress)

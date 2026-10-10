@@ -43,7 +43,7 @@ struct ContentCoverView: View {
                 GeometryReader { proxy in
                     ZStack(alignment: .leading) {
                         Rectangle()
-                            .fill(Color.black.opacity(0.28))
+                            .fill(CatalogPalette.badgeScrim)
                         Rectangle()
                             .fill(style.accent)
                             .frame(width: proxy.size.width * min(max(progress, 0), 1))
@@ -56,7 +56,7 @@ struct ContentCoverView: View {
         .overlay(alignment: .bottomLeading) {
             Image(systemName: style.symbolName)
                 .font(.system(size: 8, weight: .bold))
-                .foregroundStyle(self.badge == .tile ? CatalogKindStyle.bannerIconInk : Color(uiColor: .systemBackground))
+                .foregroundStyle(self.badge == .tile ? CatalogKindStyle.bannerIconInk : CatalogPalette.onPrimary)
                 .frame(width: 18, height: 18)
                 .background(self.badge == .tile ? style.bannerAccent : style.accent, in: Circle())
                 .padding(4)
@@ -108,7 +108,7 @@ private struct ContentCardGroupRowModifier: ViewModifier {
             .overlay(alignment: .top) {
                 if self.isFirst == false {
                     Rectangle()
-                        .fill(Color(uiColor: .separator))
+                        .fill(CatalogPalette.separator)
                         .frame(height: 1 / self.displayScale)
                         .padding(.leading, 82)
                 }
@@ -141,7 +141,7 @@ struct ContentUndoBanner: View {
         HStack(spacing: 8) {
             Text(self.message)
                 .font(.subheadline)
-                .foregroundStyle(Color(uiColor: .systemBackground))
+                .foregroundStyle(CatalogPalette.onPrimary)
                 .lineLimit(1)
             Spacer(minLength: 0)
             Button(self.actionTitle, action: self.undoAction)
@@ -155,7 +155,7 @@ struct ContentUndoBanner: View {
         .padding(.trailing, 10)
         .frame(height: 52)
         .background(Color.primary, in: Capsule())
-        .shadow(color: .black.opacity(0.18), radius: 12, y: 6)
+        .shadow(color: CatalogPalette.cardShadow, radius: 12, y: 6)
         .accessibilityElement(children: .combine)
     }
 }

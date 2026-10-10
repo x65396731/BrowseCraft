@@ -7,7 +7,6 @@ import UIKit
 // → 通栏「继续看」→ 简介折叠 → 线路芯片 → 集号网格。每一块都是规则真给了数据才出，没有的不留空位。
 struct VideoDetailView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var colorScheme: ColorScheme
     @State private var viewModel: VideoDetailViewModel
     @State private var isSynopsisExpanded: Bool = false
 
@@ -96,7 +95,7 @@ struct VideoDetailView: View {
 
     /// 类型色底上的字：浅色白、深色墨。
     private var onAccent: Color {
-        return self.colorScheme == .dark ? CatalogKindStyle.bannerIconInk : .white
+        return CatalogPalette.onAccent
     }
 
     private func header(safeAreaTop: CGFloat) -> some View {
@@ -114,7 +113,7 @@ struct VideoDetailView: View {
                     .blur(radius: 30)
                     .opacity(0.9)
                 }
-                .overlay(Color.black.opacity(0.45))
+                .overlay(CatalogPalette.headerScrim)
                 .overlay(alignment: .bottom) {
                     LinearGradient(
                         colors: [Color.clear, CatalogPalette.pageBackground],
@@ -147,7 +146,7 @@ struct VideoDetailView: View {
                     )
                     .frame(width: Self.posterSize.width, height: Self.posterSize.height)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .shadow(color: .black.opacity(0.35), radius: 12, y: 8)
+                    .shadow(color: CatalogPalette.posterShadow, radius: 12, y: 8)
 
                     VStack(alignment: .leading, spacing: 6) {
                         Text(self.viewModel.displayTitle)
@@ -192,7 +191,7 @@ struct VideoDetailView: View {
                 .font(.headline.weight(.semibold))
                 .foregroundStyle(CatalogKindStyle.bannerTitle)
                 .frame(width: 40, height: 40)
-                .background(Color.white.opacity(0.18), in: Circle())
+                .background(CatalogPalette.onDarkFill, in: Circle())
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
         }
@@ -213,7 +212,7 @@ struct VideoDetailView: View {
                 .frame(width: 20, height: 20)
                 .foregroundColor(self.viewModel.isFavorite ? self.style.bannerAccent : CatalogKindStyle.bannerTitle)
                 .frame(width: 40, height: 40)
-                .background(Color.white.opacity(0.18), in: Circle())
+                .background(CatalogPalette.onDarkFill, in: Circle())
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
         }

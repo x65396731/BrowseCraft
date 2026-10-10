@@ -178,11 +178,11 @@ private struct VideoLibraryCardView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 18, height: 18)
-                    .foregroundColor(self.isFavorite ? self.style.bannerAccent : .white)
+                    .foregroundColor(self.isFavorite ? self.style.bannerAccent : CatalogPalette.onAction)
                     .frame(width: 32, height: 32)
                     .background(
                         Circle()
-                            .fill(Color.black.opacity(0.4))
+                            .fill(CatalogPalette.coverScrim)
                     )
                     .frame(width: 44, height: 44)
                     .contentShape(Circle())
