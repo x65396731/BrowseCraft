@@ -20,6 +20,8 @@ struct LibraryContentView: View {
     /// 中文注释：分页脚（`docs/design/Library-Video-Page-Redesign-Design.md` 第三节）：网格下方一行小字代替此前悬浮在底栏上的胶囊；
     /// nil 时不画（规则不支持分页、搜索结果）。
     var paginationStatusText: String? = nil
+    /// 中文注释：翻页失败时的原因，分页脚第二行小字；nil 即没失败。
+    var paginationFailureDetail: String? = nil
     var isLoadingNextPage: Bool = false
     /// 中文注释：漫画封面左下的「读到 4-2」（`docs/design/Library-Comic-Page-Redesign-Design.md` 第五节）；没读过为 nil。
     var comicProgressBadgeText: (ContentItem) -> String? = { _ in nil }
@@ -57,6 +59,7 @@ struct LibraryContentView: View {
                 contentViewModelFactory: self.contentViewModelFactory,
                 imageRequestConfig: self.imageRequestConfig(selectedSource),
                 paginationStatusText: self.paginationStatusText,
+                paginationFailureDetail: self.paginationFailureDetail,
                 isLoadingNextPage: self.isLoadingNextPage
             )
         } else if let selectedSource: Source = self.selectedSource,
@@ -162,29 +165,43 @@ struct LibraryContentView: View {
         if let paginationStatusText: String = self.paginationStatusText {
             LibraryPaginationFooterView(
                 statusText: paginationStatusText,
+                failureDetail: self.paginationFailureDetail,
                 isLoading: self.isLoadingNextPage
             )
         }
     }
 }
 
-/// 分页脚：网格下方一行居中小字——加载中转圈 +「第 2 页 · 正在加载下一页」、还有下一页、已加载到底。
+/// 分页脚：网格下方一行居中小字——加载中转圈 +「第 2 页 · 正在加载下一页」、还有下一页、已加载到底；
+/// 翻页失败时这一行换警示色「第 N 页 · 加载失败，再滑到底重试」，下面一行小字写原因（2026-10-10 裁定：不弹框、不出横幅，重试仍是触底手势）。
 struct LibraryPaginationFooterView: View {
     let statusText: String
+    var failureDetail: String? = nil
     let isLoading: Bool
 
     var body: some View {
-        HStack(spacing: 8) {
-            if self.isLoading {
-                ProgressView()
-                    .controlSize(.small)
+        VStack(spacing: 4) {
+            HStack(spacing: 8) {
+                if self.isLoading {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+                Text(self.statusText)
+                    .font(.footnote)
+                    .foregroundStyle(self.failureDetail == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(CatalogPalette.warning))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
             }
-            Text(self.statusText)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+            if let failureDetail: String = self.failureDetail {
+                Text(failureDetail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+            }
         }
         .frame(maxWidth: .infinity, minHeight: 44)
+        .padding(.horizontal, 20)
         .padding(.top, 8)
         .padding(.bottom, 16)
         .accessibilityElement(children: .combine)

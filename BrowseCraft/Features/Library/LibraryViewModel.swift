@@ -28,6 +28,8 @@ final class LibraryViewModel {
     private(set) var selectedListTabErrorMessage: String?
     private(set) var isRefreshing: Bool = false
     private(set) var isLoadingNextPage: Bool = false
+    /// 中文注释：翻页失败的原因，只进分页脚（2026-10-10 裁定：不弹框、不出横幅）；下一次触底重试或换来源 / 换分类时清掉。
+    private(set) var nextPageErrorMessage: String?
     private(set) var preparingSource: SourceLoadingState?
     private(set) var preparedLibrarySnapshot: SourceLibrarySnapshot?
     private(set) var requestedSourceLogin: LibrarySourceLoginState?
@@ -160,6 +162,7 @@ final class LibraryViewModel {
         self.refreshToken += 1
         self.isRefreshing = false
         self.isLoadingNextPage = false
+        self.nextPageErrorMessage = nil
         self.items = []
         self.sources = []
         self.favoriteItemIDs = []
@@ -311,7 +314,7 @@ final class LibraryViewModel {
             return false
         }
 
-        return self.currentListPage > 1 || self.canLoadNextPage || self.isLoadingNextPage
+        return self.currentListPage > 1 || self.canLoadNextPage || self.isLoadingNextPage || self.nextPageErrorMessage != nil
     }
 
     var paginationStatusText: String {
@@ -319,6 +322,9 @@ final class LibraryViewModel {
             format: NSLocalizedString("library_pagination_page", comment: ""),
             self.currentListPage
         )
+        if self.nextPageErrorMessage != nil {
+            return String(format: NSLocalizedString("library_pagination_failed", comment: ""), base)
+        }
         if self.isLoadingNextPage {
             return String(format: NSLocalizedString("library_pagination_loading_next", comment: ""), base)
         }
@@ -370,6 +376,7 @@ final class LibraryViewModel {
             context: expectedListContext
         )
         self.setListTabError(nil, sourceID: expectedSourceID, context: expectedListContext)
+        self.nextPageErrorMessage = nil
         self.refreshToken += 1
         let currentRefreshToken: Int = self.refreshToken
         let requestID: Int = currentRefreshToken
@@ -487,7 +494,7 @@ final class LibraryViewModel {
                 RuleExecutionErrorClassifier.log(error: error, stage: .list, event: event)
                 AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .list, errorCode: event)
                 if mode == .append {
-                    self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+                    self.nextPageErrorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
                 } else {
                     self.setListTabError(
                         RuleExecutionErrorClassifier.userMessage(for: error),
@@ -1004,6 +1011,7 @@ final class LibraryViewModel {
         self.refreshToken += 1
         self.isRefreshing = false
         self.isLoadingNextPage = false
+        self.nextPageErrorMessage = nil
         self.selectedSourceID = selectedSourceID
         CrashDiagnostics.shared.setSource(selectedSourceID.flatMap { self.source(for: $0) })
         self.selectedListTabID = nil

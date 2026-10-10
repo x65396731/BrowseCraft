@@ -15,6 +15,7 @@ struct VideoContentGridView: View {
     let imageRequestConfig: RequestConfig?
     /// 中文注释：分页脚的文字；nil 时不画分页脚（规则不支持分页、搜索结果）。
     var paginationStatusText: String? = nil
+    var paginationFailureDetail: String? = nil
     var isLoadingNextPage: Bool = false
     @State private var selectedItem: ContentItem?
 
@@ -56,6 +57,7 @@ struct VideoContentGridView: View {
             if let paginationStatusText: String = self.paginationStatusText {
                 LibraryPaginationFooterView(
                     statusText: paginationStatusText,
+                    failureDetail: self.paginationFailureDetail,
                     isLoading: self.isLoadingNextPage
                 )
             }

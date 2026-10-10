@@ -11,7 +11,7 @@
 1. `BCA-RUNTIME-002` book 是 App 里的第四种 `SourceRuntimeKind`（comic / video / plugin 之后），按现有 comic 的分流模式扩展，不在通用执行器里加 kind 特判。
 2. 规则合同以规则仓库 `docs/rules/book-catalog-profile.md`（`BC-BOOK-001` ~ `BC-BOOK-012`）为准：外层 `id / name / baseURL / kind="book" / ruleJSON`，内层**只有原生 V2**（`version=2`、`site`、`sharedRequest`、`pages[]`、`ruleSets{listRules, detailRules, readerRules, searchRules?}`），没有 V1 兼容层，Core 不得为它虚构 `list / detail / gallery` 顶层字段。
 3. 终端层与漫画不同：reader 规则每条恰好一个 `variant`（`text-dom | text-api | audio-media`）与 `contentType`（`text | audio`）。App 把一部作品装成一份 RWPM（`BC-BOOK-012`）喂 Readium：文字走 EPUB Navigator（`readingOrder[].type = text/html`，正文由 App 按 reader 规则取容器内段落装成 XHTML），有声走 Audio Navigator（远程 mp3 href）。CBZ 分支不接。
-4. `BCA-RUNTIME-004` **目录解码必须宽容**：`BrowseCraftCatalogSourceKind`（`Catalog/BrowseCraftCatalogAPI.swift`）与 BrowseCraftDomain 包的 `CatalogSourceKind` 都是封闭枚举，因此公共目录列表**不得整表解码**——遇到本版本不认得的 kind 必须逐条跳过并记下被跳过的 id 与 kind，不得让整个目录请求失败；请求同时显式声明本版本认得的 kind 集合。本条的由来是旧版 App 确实整表解码，目录里只要出现一条 `kind: book` 就会让整个列表解码失败，book catalog 因此一度被禁止发布到 `/catalog/sources`；宽容解码上线后该禁令解除，服务器另以 `kinds` 缺省不回 book 作保险丝（第五节）。
+4. `BCA-RUNTIME-004` **目录解码必须宽容**：`BrowseCraftCatalogSourceKind`（`Catalog/BrowseCraftCatalogAPI.swift`）与 BrowseCraftDomain 包的 `CatalogSourceKind` 都是封闭枚举，因此公共目录列表**不得整表解码**——遇到本版本不认得的 kind 必须逐条跳过并记下被跳过的 id 与 kind，不得让整个目录请求失败；单条规则解不开（没带密文、密钥不认得、解密或解码失败）同样逐条跳过并记下 id、kind 与错误码，只有整表一条都解不开时才整表失败（多半是密钥问题，要让用户看到错误而不是一张空目录；2026-10-10 裁定）；两类跳过都记 notice 级，Release 的日志也留得下。请求同时显式声明本版本认得的 kind 集合。本条的由来是旧版 App 确实整表解码，目录里只要出现一条 `kind: book` 就会让整个列表解码失败，book catalog 因此一度被禁止发布到 `/catalog/sources`；宽容解码上线后该禁令解除，服务器另以 `kinds` 缺省不回 book 作保险丝（第五节）。
 
 ## 二、已核对的现状
 

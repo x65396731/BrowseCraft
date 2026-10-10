@@ -348,6 +348,7 @@
 "library_pagination_loading_next" = "%@ · Loading next page";
 "library_pagination_scroll_for_more" = "%@ · Scroll to the bottom to load more";
 "library_pagination_end" = "%@ · No more pages";
+"library_pagination_failed" = "%@ · Couldn’t load more. Scroll to the bottom to retry";
 "library_body_empty_title" = "Nothing here yet";
 "library_body_empty_message" = "This tab returned no items.";
 "library_body_pull_hint" = "Pull down to reload";

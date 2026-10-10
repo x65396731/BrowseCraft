@@ -139,19 +139,37 @@ struct LoadCatalogSourcesUseCase {
             return data
         }
 
-        let plainSources: [PlainCatalogSourcePayload] = try encryptedSources.map { source in
-            guard let encryptedRule: EncryptedCatalogRule = source.encryptedRule else {
-                throw CatalogRuleDecryptionError.invalidPlaintext
+        // 中文注释：`BCA-RUNTIME-004`——单条解不开（没带密文、密钥不认得、解密或解码失败）逐条跳过并记 notice，
+        // 与未知 kind 同一个纪律，不让一条坏条目拖垮整个目录；全部都解不开才整表失败（多半是密钥问题，该让用户看到错误而不是空目录）。
+        var plainSources: [PlainCatalogSourcePayload] = []
+        var firstFailure: (any Error)?
+        for source: EncryptedCatalogSourcePayload in encryptedSources {
+            do {
+                guard let encryptedRule: EncryptedCatalogRule = source.encryptedRule else {
+                    throw CatalogRuleDecryptionError.invalidPlaintext
+                }
+                let decryptedRule: CatalogRuleJSONValue = try self.catalogRuleDecryptor.decrypt(encryptedRule)
+                plainSources.append(
+                    PlainCatalogSourcePayload(
+                        id: source.id,
+                        name: source.name,
+                        baseURL: source.baseURL,
+                        kind: source.kind,
+                        ruleJSON: decryptedRule.importRuleJSON
+                    )
+                )
+            } catch {
+                firstFailure = firstFailure ?? error
+                AppLog.notice(
+                    .app,
+                    event: "catalog-skipped-undecryptable-rule",
+                    metadata: ["id": source.id, "kind": source.kind, "error": AppLog.safeErrorCode(error)]
+                )
             }
+        }
 
-            let decryptedRule: CatalogRuleJSONValue = try self.catalogRuleDecryptor.decrypt(encryptedRule)
-            return PlainCatalogSourcePayload(
-                id: source.id,
-                name: source.name,
-                baseURL: source.baseURL,
-                kind: source.kind,
-                ruleJSON: decryptedRule.importRuleJSON
-            )
+        if plainSources.isEmpty, let failure: any Error = firstFailure {
+            throw failure
         }
 
         return try self.jsonEncoder.encode(plainSources)
@@ -177,7 +195,8 @@ private struct CatalogSourcePayloadDecoder {
     func decode(from data: Data) throws -> [CatalogSource] {
         return try JSONDecoder().decode([CatalogSourcePayload].self, from: data).compactMap { payload in
             guard let kind: CatalogSourceKind = CatalogSourceKind(rawValue: payload.kind) else {
-                AppLog.debug(.app, event: "catalog-skipped-unknown-kind", metadata: ["id": payload.id, "kind": payload.kind])
+                // 中文注释：notice 级——Release 的日志也留得下，条款要求「记下被跳过的 id 与 kind」在线上才成立。
+                AppLog.notice(.app, event: "catalog-skipped-unknown-kind", metadata: ["id": payload.id, "kind": payload.kind])
                 return nil
             }
             return CatalogSource(

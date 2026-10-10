@@ -182,9 +182,10 @@ struct LibraryView: View {
             .task {
                 _ = await self.viewModel.loadIfNeeded()
             }
+            // 中文注释：这个弹框只剩收藏切换失败在用；翻页失败走分页脚（2026-10-10 裁定）。
             .alert(isPresented: self.errorAlertBinding) {
                 Alert(
-                    title: Text("Library"),
+                    title: Text(verbatim: self.libraryNavigationTitle),
                     message: Text(self.viewModel.errorMessage ?? ""),
                     dismissButton: .default(
                         Text("OK"),
@@ -572,6 +573,7 @@ struct LibraryView: View {
                 paginationStatusText: self.viewModel.shouldShowPaginationStatus
                     ? self.viewModel.paginationStatusText
                     : nil,
+                paginationFailureDetail: self.viewModel.nextPageErrorMessage,
                 isLoadingNextPage: self.viewModel.isLoadingNextPage,
                 comicProgressBadgeText: self.viewModel.comicProgressBadgeText(for:),
                 comicContinueChapterLabel: { item in
@@ -620,7 +622,7 @@ struct LibraryView: View {
     }
 
     private var libraryNavigationTitle: String {
-        return self.viewModel.selectedSource?.name ?? "Library"
+        return self.viewModel.selectedSource?.name ?? NSLocalizedString("Library", comment: "")
     }
 
     /// 中文注释：source 切换期间遮盖旧列表，避免用户在半切换状态下操作上一站点的数据。

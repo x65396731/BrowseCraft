@@ -42,7 +42,7 @@
 | 3 | 上次看到 | 视频类型色的深色瓷砖：封面 72×100、「上次看到」、作品名、「第 N 集 · 看到 23:14 / 45:00」、进度条、时刻；点了直接进播放器 | 当前来源有视频历史时；在滚动内容里，随内容滚走 |
 | 4 | 分类出错横幅 | 警示色淡底一行：图标 + 错误原因 | 有内容但当前分类报错时 |
 | 5 | 海报墙 | 两列、列距 14、行距 20；封面 2:3、圆角 14；集数徽章压封面左下、爱心压右上；标题两行在封面下 | 有内容时 |
-| 6 | 分页脚 | 网格下方一行居中小字：转圈 +「第 N 页 · 正在加载下一页」/「第 N 页 · 滑到底部继续加载」/「第 N 页 · 已加载到底」 | 规则支持分页且有内容时 |
+| 6 | 分页脚 | 网格下方一行居中小字：转圈 +「第 N 页 · 正在加载下一页」/「第 N 页 · 滑到底部继续加载」/「第 N 页 · 已加载到底」/ 警示色「第 N 页 · 加载失败，再滑到底重试」+ 原因小字 | 规则支持分页且有内容时 |
 | — | 骨架 / 空 / 失败 / 切换来源 | 见第七节 | 对应状态时整页只出一种 |
 
 下拉刷新当前分类第 1 页、滑到底加载下一页，两条路都不变。页边距左右 20pt。
@@ -109,6 +109,7 @@
 | 翻页中 | 分页脚：转圈 +「第 N 页 · 正在加载下一页」 |
 | 还有下一页 | 分页脚：「第 2 页 · 滑到底部继续加载」次级色 |
 | 已到底 | 分页脚：「第 N 页 · 已加载到底」 |
+| 翻页失败 | 分页脚那一行换警示色「第 N 页 · 加载失败，再滑到底重试」，下面一行小字写 `RuleExecutionErrorClassifier.userMessage` 的原因；不弹框、不出横幅；已加载的内容照留；再次触底就重试（2026-10-10 裁定） |
 | 下拉刷新 | 系统下拉控件；刷新中网格不换骨架 |
 | 来源需要登录 | 账号按钮空心；列表照规则给的结果显示，不另画「请登录」卡（现状） |
 
@@ -171,7 +172,7 @@
 - `BrowseCraft/Features/Library/Components/LibraryListTabBar.swift`：三份芯片代码合成一份，按 `CatalogKindStyle` 取色。
 - `BrowseCraft/Features/Library/Components/LibrarySkeletonGridView.swift`：改两列同形。
 - `BrowseCraft/Features/Library/Components/LibraryStateBanner.swift`（原 `LibraryTabErrorBanner`，2026-10-10 复审第七批与详情页、搜索页的带按钮横幅合为一个）：警示色淡底。
-- `BrowseCraft/Features/Library/LibraryViewModel.swift`：最近视频历史的只读查询与刷新时机；分页脚沿用现有三条词条。
+- `BrowseCraft/Features/Library/LibraryViewModel.swift`：最近视频历史的只读查询与刷新时机；分页脚沿用现有三条词条，翻页失败另加 `nextPageErrorMessage` 与第四条词条 `library_pagination_failed`（`LibraryPaginationFooterView` 的 `failureDetail`），库页的系统弹框只剩收藏切换失败在用。
 - `BrowseCraft/Features/History/Components/HistoryEntryRowView.swift`：`HistoryContinueTileView` 底行允许只写时刻。
 - 三份 `Localizable.strings`：眉行「视频」、「上次看到」、分页脚三条都沿用现有词条；新增长按菜单「打开」「收藏」「取消收藏」「继续看」「打开作品」。
 - 页面设计索引：实施后把「海报卡片」「分类芯片」补进可复用组件表。

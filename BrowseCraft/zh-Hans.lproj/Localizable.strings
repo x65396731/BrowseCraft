@@ -348,6 +348,7 @@
 "library_pagination_loading_next" = "%@ · 正在加载下一页";
 "library_pagination_scroll_for_more" = "%@ · 滑到底部继续加载";
 "library_pagination_end" = "%@ · 已加载到底";
+"library_pagination_failed" = "%@ · 加载失败，再滑到底重试";
 "library_body_empty_title" = "还没有内容";
 "library_body_empty_message" = "这个分类这次没有取到任何条目。";
 "library_body_pull_hint" = "下拉可重新载入";
