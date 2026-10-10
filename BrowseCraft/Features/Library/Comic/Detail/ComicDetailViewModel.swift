@@ -76,9 +76,13 @@ enum ComicChapterTitleParser {
 
     /// 开头可跳过的非数字前缀（sfacg 的「VIP」、「Chapter 」「Ch.」），再「第N话 / N話 / 纯数字 N」，
     /// 紧跟的「(n)」「（n）」「上 / 中 / 下」「前半 / 后半」是分节。
-    /// 中文注释：与仓库里其他地方一样按次编译、`try?` 兜底（Swift 6 下不留非隔离的静态实例）；
-    /// 编译失败就当所有标题都解不出数字（退到序号与原标题）。
-    private static let patternSource: String = #"^\s*[^\d第]{0,8}?\s*(?:第\s*)?(\d+)\s*(?:话|話|章|回|集|卷|节|節|页|頁)?\s*(?:[(（]\s*(\d+)\s*[)）]|(上|中|下|前半|后半|後半|前编|前編|后编|後編|前篇|后篇|後篇))?"#
+    /// 中文注释：`NSRegularExpression` 编译后不可变且 Sendable，进程内只编译一次（2026-10-10 复审 B-9：
+    /// 之前每次 `parse` 都重编译，库页瓷砖的计算属性每次访问一次、中文数字一支每个标题一次）。
+    /// 编译失败用可选值兜底、不强制解包（`BCA-ARCH-005`），此时所有标题都解不出数字（退到序号与原标题）。
+    private static let pattern: NSRegularExpression? = try? NSRegularExpression(
+        pattern: #"^\s*[^\d第]{0,8}?\s*(?:第\s*)?(\d+)\s*(?:话|話|章|回|集|卷|节|節|页|頁)?\s*(?:[(（]\s*(\d+)\s*[)）]|(上|中|下|前半|后半|後半|前编|前編|后编|後編|前篇|后篇|後篇))?"#,
+        options: []
+    )
 
     private static let leadingSeparators: CharacterSet = {
         var set: CharacterSet = CharacterSet.whitespacesAndNewlines
@@ -90,15 +94,17 @@ enum ComicChapterTitleParser {
         return Self.parse([title])[0]
     }
 
-    /// 整个目录一起解析，正则只编译一次。
+    /// 整个目录一起解析。
     static func parse(_ titles: [String]) -> [ParsedTitle] {
-        let pattern: NSRegularExpression? = try? NSRegularExpression(pattern: Self.patternSource, options: [])
-        return titles.map { Self.parse($0, pattern: pattern) }
+        return titles.map { Self.parse($0, pattern: Self.pattern) }
     }
 
     /// 中文注释：「第八百六十二章 普罗万修」这类中文数字编号（笔趣阁、SF 桌面版整本都是）：`第` + 中文数字 + 单位；
     /// 书籍详情页那轮加的，漫画一起受益（`docs/design/Book-Detail-Page-Redesign-Design.md` 第八节）。
-    private static let chinesePatternSource: String = #"^\s*第\s*([零〇一二三四五六七八九十百千万萬两兩]+)\s*(?:章|话|話|回|集|卷|节|節|页|頁)?"#
+    private static let chinesePattern: NSRegularExpression? = try? NSRegularExpression(
+        pattern: #"^\s*第\s*([零〇一二三四五六七八九十百千万萬两兩]+)\s*(?:章|话|話|回|集|卷|节|節|页|頁)?"#,
+        options: []
+    )
 
     private static func parse(_ title: String, pattern: NSRegularExpression?) -> ParsedTitle {
         let trimmed: String = title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -125,7 +131,7 @@ enum ComicChapterTitleParser {
 
     private static func parseChineseNumeral(_ trimmed: String) -> ParsedTitle {
         let range: NSRange = NSRange(trimmed.startIndex..<trimmed.endIndex, in: trimmed)
-        guard let pattern: NSRegularExpression = try? NSRegularExpression(pattern: Self.chinesePatternSource, options: []),
+        guard let pattern: NSRegularExpression = Self.chinesePattern,
               let match: NSTextCheckingResult = pattern.firstMatch(in: trimmed, options: [], range: range),
               let numberRange: Range<String.Index> = Range(match.range(at: 1), in: trimmed),
               let number: Int = Self.chineseNumber(String(trimmed[numberRange])),

@@ -19,6 +19,11 @@ struct ReaderPageImageView: View {
     let additionalHeaders: [String: String]
     let loadProtectedImage: (ProtectedReaderImageReference, CGFloat) async throws -> UIImage
 
+    /// 中文注释：请求只在「地址 / Referer / 规则 / 附加头」变化时构造一次（2026-10-10 复审 B-5）：
+    /// 阅读页是 `LazyVStack`，翻页时每次 `@Observable` 状态变化都让已实例化的页格重求 body，
+    /// 之前每次都重新扫 Cookie 存储、合并三层请求头、写日志。与 `CoverImageView` 同一做法。
+    @State private var request: ImageRequest?
+
     init(
         resource: ReaderPageResource,
         pageNumber: Int,
@@ -75,7 +80,21 @@ struct ReaderPageImageView: View {
     @MainActor
     @ViewBuilder
     private func remoteImage(pageURLString: String) -> some View {
-        if let request: ImageRequest = self.makeImageRequest(pageURLString: pageURLString) {
+        Group {
+            if let request: ImageRequest = self.request {
+                self.remoteImage(pageURLString: pageURLString, request: request)
+            } else {
+                // 中文注释：请求在 `.task(id:)` 里构造，首帧先占位；LazyImage 自己的加载态也是这张占位。
+                self.loadingView
+            }
+        }
+        .task(id: self.requestIdentity(pageURLString: pageURLString)) {
+            self.request = self.makeImageRequest(pageURLString: pageURLString)
+        }
+    }
+
+    @MainActor
+    private func remoteImage(pageURLString: String, request: ImageRequest) -> some View {
             LazyImage(request: request) { state in
                 if let image = state.image {
                     // 中文注释：阅读页按图片真实宽高比排版，避免固定比例把特殊长条页压成窄条。
@@ -108,9 +127,15 @@ struct ReaderPageImageView: View {
             .frame(maxWidth: .infinity)
             .background(Color(.systemBackground))
             .accessibilityLabel("Page \(self.pageNumber)")
-        } else {
-            self.errorView
-        }
+    }
+
+    private func requestIdentity(pageURLString: String) -> ReaderImageRequestIdentity {
+        return ReaderImageRequestIdentity(
+            urlString: pageURLString,
+            refererURLString: self.refererURLString,
+            requestConfig: self.requestConfig,
+            additionalHeaders: self.additionalHeaders
+        )
     }
 
     @MainActor
@@ -168,6 +193,14 @@ struct ReaderPageImageView: View {
             .foregroundColor(.secondary)
         }
     }
+}
+
+/// 中文注释：阅读页请求的身份——变了才重建请求。解码宽度固定（`ReaderImageSizing.targetPixelWidth`），不进身份。
+private struct ReaderImageRequestIdentity: Hashable {
+    let urlString: String
+    let refererURLString: String?
+    let requestConfig: RequestConfig?
+    let additionalHeaders: [String: String]
 }
 
 private struct ProtectedReaderPageImageView: View {

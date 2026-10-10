@@ -653,16 +653,32 @@ final class VideoDetailViewModel {
         self.selectedLineID = nil
     }
 
+    /// 中文注释：两条正则进程内只编译一次（2026-10-10 复审 B-9：`range(of:options:.regularExpression)` 每次调用都重编译，
+    /// 500 集的页面一次渲染上千次）。编译失败用可选值兜底，不强制解包（`BCA-ARCH-005`）。
+    private static let episodeNumberPattern: NSRegularExpression? = try? NSRegularExpression(pattern: #"\d+"#, options: [])
+    private static let episodeLabelNoisePattern: NSRegularExpression? = try? NSRegularExpression(
+        pattern: #"^(第|ep|episode|e|#|话|話|集|回|期|\s|\.|-|_)*$"#,
+        options: [.caseInsensitive]
+    )
+
     /// 格子里显示什么：「第01集」「01」「EP 12」「第 3 话」→「01」「12」「03」；解不出数字的显示原文。
     /// 只影响显示，不改顺序、不进存储。
     static func compactEpisodeLabel(_ title: String) -> String? {
         let trimmed: String = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let numberRange: Range<String.Index> = trimmed.range(of: #"\d+"#, options: .regularExpression) else {
+        guard let numberPattern: NSRegularExpression = Self.episodeNumberPattern,
+              let noisePattern: NSRegularExpression = Self.episodeLabelNoisePattern,
+              let numberMatch: NSTextCheckingResult = numberPattern.firstMatch(
+                in: trimmed,
+                options: [],
+                range: NSRange(trimmed.startIndex..., in: trimmed)
+              ),
+              let numberRange: Range<String.Index> = Range(numberMatch.range, in: trimmed) else {
             return nil
         }
         let rest: String = trimmed.replacingCharacters(in: numberRange, with: "")
-            .replacingOccurrences(of: #"(?i)^(第|ep|episode|e|#|话|話|集|回|期|\s|\.|-|_)*$"#, with: "", options: .regularExpression)
-        guard rest.isEmpty, let number: Int = Int(trimmed[numberRange]) else {
+        // 中文注释：去掉数字后只剩「第 / EP / 集 / 分隔符」这类噪音才算纯编号；整串匹配即为噪音。
+        guard noisePattern.firstMatch(in: rest, options: [], range: NSRange(rest.startIndex..., in: rest)) != nil,
+              let number: Int = Int(trimmed[numberRange]) else {
             return nil
         }
         return number < 10 ? "0\(number)" : String(number)
