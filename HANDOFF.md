@@ -41,7 +41,7 @@ python3 scripts/check-docs.py
 | 规则目录：「我的生成」优先落段；删失败记录整入口软删除 | 任何验证 | [Catalog-Page-Redesign](docs/design/Catalog-Page-Redesign-Design.md) 第 2.1 / 2.3 节 | 第 2 节末两行 |
 | F2-5 / F2-6：进列表先读后写、读书线读库经 actor | 验证 | — | 第 6 节 |
 | 漫画详情分段芯片锚点（2026-10-10 已改为按分区头高度换算） | 模拟器或真机看一眼段首不被盖住；章节 `order` 接线已裁定记账、不做 | [Comic-Detail](docs/design/Comic-Detail-Page-Redesign-Design.md) 第十四节、[Book-Detail](docs/design/Book-Detail-Page-Redesign-Design.md) 第十三节 | 第 2 节 |
-| 2026-10-11 复审第十三批（跨页复制第二组）：分段状态机、收藏切换、简介与骨架、`nonEmpty` 四组收敛（App 与测试目标构建 0 警告，BrowseCraftTests 578 + 84 例全过；模拟器走过书详情的分段芯片、收藏切换、简介展开；未提交） | 提交；真机或模拟器：漫画详情与影视详情同样三件（线上没有漫画来源时跳过） | 三份详情合同「实现位置」首条 | 第 8 节末行 |
+| 2026-10-11 复审第十三批（跨页复制第二组）：分段状态机、收藏切换、简介与骨架、`nonEmpty` 四组收敛（App 与测试目标构建 0 警告，BrowseCraftTests 578 + 84 例全过；模拟器走过书详情的分段芯片、收藏切换、简介展开） | 真机或模拟器：漫画详情与影视详情同样三件（线上没有漫画来源时跳过） | 三份详情合同「实现位置」首条 | 第 8 节末行 |
 | 2026-10-11 复审第十二批：Features 层 58 处颜色收回 `CatalogPalette`（App 构建 0 警告，BrowseCraftTests 578 + 84 例全过，模拟器浅深各走过库页、来源页、目录页、书详情） | 真机：影视 / 漫画的库页、详情页与阅读器、设置与云同步页浅深各看一眼 | [Catalog-Page](docs/design/Catalog-Page-Redesign-Design.md) 第三节 | 第 8 节末行 |
 | 2026-10-10 复审第十一批（两件裁定）：库页翻页失败走分页脚、目录单条规则解不开逐条跳过（App 与测试目标构建 0 警告，BrowseCraftTests 578 + 84 例全过） | 真机：库页翻到底遇站点出错看分页脚文案与再次触底重试 | [Library-Video](docs/design/Library-Video-Page-Redesign-Design.md) 第七节、[Book-Kind-Wiring](docs/design/Book-Kind-Wiring-Design.md) `BCA-RUNTIME-004` | 第 8 节末两行 |
 | 2026-10-10 复审第十批（B-10）：共享图片内存缓存上限 256 MB、单张 20%（App 与测试目标构建 0 警告，BrowseCraftTests 574 + 84 例全过） | 真机：Instruments 看长条漫画连读 100 页的驻留是否在 256 MB 附近封顶、往回翻页有没有变卡（模拟器量不到驻留） | [Cache-Page](docs/design/Cache-Page-Redesign-Design.md) 第二节 | 第 8 节末行 |
@@ -58,7 +58,7 @@ python3 scripts/check-docs.py
 | 站点有声播放器后续：界面样式、倍速入口、`mediaAPI` 无语料 | 立项 | [Book-Kind-Wiring](docs/design/Book-Kind-Wiring-Design.md) 第十六节 | 第 1 节 optional 行 |
 | 给 fwq 的六条读书 kind 生成需求 | 需求一 / 三 / 四 / 五前半 fwq 已交付并真机通过（小說狂人最新章节 10-10 再修、待部署）；需求二记账、两端都不做；五后半目录分页 fwq 未定立场；六 fwq 不做 | Claude 文档「读书 kind 规则生成覆盖需求」（https://claude.ai/artifact/HnYM71goMZveUVJQQ4vhgk） | fwq STATUS |
 
-下一会话建议顺序：提交复审第十三批（已构建、全量测试已过、模拟器已走） → 跨页复制剩下的视觉组（继续卡片、贴顶分区头、开始按钮、顶部圆按钮、眉行，先裁定统一取哪边） → 真机验收；APIKit 仓删零引用的 `PortalCatalogAPI`→ 续看同步两机对测 → 真机验收（用户在真机上走，结果新增 `device-passed` 行、不改模拟器那几行）。
+下一会话建议顺序：跨页复制剩下的视觉组（继续卡片、贴顶分区头、开始按钮、顶部圆按钮、眉行，先裁定统一取哪边） → 真机验收；APIKit 仓删零引用的 `PortalCatalogAPI`→ 续看同步两机对测 → 真机验收（用户在真机上走，结果新增 `device-passed` 行、不改模拟器那几行）。
 
 - **fwq 侧指针**（定义点与验证状态都在 fwq `docs/rules/STATUS.md`）：`BCA-RUNTIME-005`（fwq `APP-MEMO-026`）里「直接请求收到挑战页回退 WebView」一处仍欠真机，
   发版后由用户重交 toonily 验证，发版前 Cloudflare 站不要重生成；`BC-PREFLIGHT-066`（点推送停在原页、打开目录直接看到新规则）在 fwq 为 `not-run`，随规则目录页真机一起看；
