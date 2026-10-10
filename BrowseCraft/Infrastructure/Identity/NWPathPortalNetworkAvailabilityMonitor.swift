@@ -4,7 +4,7 @@ import Network
 /// 中文注释：只在网络从不可用恢复为可用时唤醒 Portal Session，不执行周期性后台请求。
 final class NWPathPortalNetworkAvailabilityMonitor:
     PortalNetworkAvailabilityMonitoring,
-    @unchecked Sendable {
+    Sendable {
     private let queue: DispatchQueue
 
     init(queue: DispatchQueue = DispatchQueue(label: "BrowseCraft.PortalNetworkAvailability")) {

@@ -7,6 +7,7 @@ import ReadiumStreamer
 // 中文注释：ReadiumBookEnvironment 是进程里唯一的一组 Readium 基础对象：HTTP 客户端、资产取回器与
 // 出版物打开器。嗅探器、打开器、以后的阅读器都从这里拿，避免各建一份。Readium 3.x 的 Navigator 不再需要本地 HTTP 服务。
 
+/// 中文注释：`@unchecked` 的依据（architecture.md 第 4 节）：成员全不可变；Readium 的 `DefaultHTTPClient` / `AssetRetriever` / `PublicationOpener` 未标 Sendable，构造后只读。
 final class ReadiumBookEnvironment: @unchecked Sendable {
     static let shared: ReadiumBookEnvironment = ReadiumBookEnvironment()
 

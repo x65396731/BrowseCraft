@@ -73,6 +73,7 @@ struct ReadiumSitePublicationBuilder: Sendable {
 }
 
 /// 中文注释：只承载正文章节的容器；每个 href 对应一个按需取内容的 `DataResource`（首次读取后 Readium 自己缓存）。
+/// 中文注释：`@unchecked` 的依据（architecture.md 第 4 节）：`entries` 只在 init 里写完；其余成员不可变，Readium `Container` 协议要求的类型未标 Sendable。
 final class SiteBookChapterContainer: Container, @unchecked Sendable {
     let sourceURL: AbsoluteURL? = nil
     private(set) var entries: Set<AnyURL> = []

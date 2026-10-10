@@ -5,7 +5,7 @@ import GRDB
 
 /// 中文注释：数据库基础设施只暴露 GRDB 队列给基础设施层仓储使用。
 /// 中文注释：业务用户由 Keychain 身份 bootstrap 幂等写入；schema 只能通过 AppDatabaseMigrations 追加迁移演进。
-final class AppDatabase: @unchecked Sendable {
+final class AppDatabase: Sendable {
     /// 中文注释：最新一次迁移的标识；schema 只能通过 AppDatabaseMigrations 追加迁移演进。
     static var currentSchemaMigrationIdentifier: String {
         return AppDatabaseMigrations.identifiers.last ?? ""

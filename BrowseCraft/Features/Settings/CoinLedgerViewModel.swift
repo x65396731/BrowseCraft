@@ -2,6 +2,8 @@ import Foundation
 import Observation
 
 /// coin 流水页的状态（设计书 30.8）：服务端为准、时间倒序、按游标翻页；本地不缓存。
+/// 中文注释：`@MainActor` 的界面状态属于 Features（architecture.md 第 2 节），2026-10-10 从 Application/Coins 搬来；
+/// 只依赖两个 Application 端口。
 @MainActor
 @Observable
 final class CoinLedgerViewModel {
@@ -91,5 +93,13 @@ final class CoinLedgerViewModel {
         } catch {
             return Task.isCancelled ? .cancelled : .failed
         }
+    }
+}
+
+extension CoinWalletStore {
+    /// 中文注释：设置页余额行点进去的流水页（30.8）；用同一个账户客户端与会话。放在 Features 里是因为
+    /// Application 不得引用 Features 的类型（`BCA-ARCH-004`）。
+    func makeLedgerViewModel() -> CoinLedgerViewModel {
+        return CoinLedgerViewModel(accountClient: self.accountClient, accessTokenProvider: self.accessTokenProvider)
     }
 }

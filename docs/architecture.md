@@ -23,7 +23,9 @@ the rule model — a parallel copy would also have to be persisted, since a rule
 what lands in `sources.configJSON` and syncs through CloudKit.
 
 Dependency direction is `App → Core`, `App → APIKit`, `App → Domain` and `App → Runtime`;
-`Runtime → Core` / `Domain`, and `Domain → BrowseCraftRuleModels` (a target of the Core package).
+`Runtime → Core` / `Domain` / `BrowseCraftRuleModels`, and `Domain → BrowseCraftRuleModels`
+(`BrowseCraftRuleModels` is the rule-model target of the Core package; the app and the test target
+link its product explicitly in `project.yml`, and two Runtime files import it directly).
 Core and APIKit never reference each other. `BrowseCraftCore/docs/design/CoreParsingBoundary.md` is the authoritative statement of
 what Core may do. The short version: Core is a deterministic function from (bytes + rule +
 context) to normalised output, and never performs requests, holds cookies, creates a `WKWebView`,
@@ -69,6 +71,9 @@ what owns the objects rather than by layer:
 - `SourceRuntimeComposition` — the network carriers and the three runtime factories, i.e. wiring
   the app's concrete adapters onto the kernel ports the runtime consumes.
 - `FeatureComposition` — the per-screen factories, the only place that knows which screen needs what.
+  The factories themselves are one file per feature next to it (`Book`, `Favorites`, `History`,
+  `Library`, `Settings`, `Sources`); `ReadiumPublicationCompositionAdapters` holds the Readium
+  conformances the book reader's ports need.
 - `AppContainer` (one level up, in `App/`) holds those three and keeps what is genuinely app-lifecycle: the StoreKit
   transaction listener, image-cache configuration, the push and remote-notification entry points
   (device token, rule-generation push, CloudKit notification), foreground refresh of the coin
@@ -82,7 +87,8 @@ what owns the objects rather than by layer:
   protected-resource references, `ChapterLink`, `URLResolvingService`, the video-generation
   preflight values, and `AppUserIdentity.localDefaultID`.
 - **Ports** (`BrowseCraftDomain/Ports`) — the contracts the runtime consumes and the app
-  implements: content and data loading, credentials, cryptography, request headers.
+  implements: content and data loading, credentials, cryptography, request headers. The
+  `Preflight` ports live here too although only the app consumes them today (see §9).
 - **Diagnostics** (`BrowseCraftDomain/Diagnostics`) — `RuleExecutionStage`, `RuleExecutionError`,
   `RuleExecutionLogger`, and `RuleRuntimeDebugLog`. The app installs the log sink at startup and
   maps each record back to its `AppLog` category, so packaged code never depends on the app's
@@ -156,7 +162,9 @@ and the design documents reference them by ID and do not restate the text.
   ports); `Shared` may not reference `App`, `Features`, `Application` or `Infrastructure`. When both
   sides need a contract (a port, an error enum, a shared observable store), it belongs to the lower layer.
 - `BCA-ARCH-005` **No raw `print`, no `try!`.** Use `AppLog` / `AppDebugLog`; handle or propagate
-  errors. Both checks cover the app target and the `Sources/` of all four packages.
+  errors. Both checks cover the app target and the `Sources/` of all four packages. The script
+  honours `scripts/architecture-boundary-exemptions.txt` (`BCA-BUILD-005`, converge-only); the list
+  has been empty since 2026-10-10, so any hit is a genuine new violation.
 - The same script also pins the language mode: `project.yml` must say `SWIFT_VERSION: "6.0"` and
   every package manifest must be `swift-tools-version: 6.0` with an explicit `.swiftLanguageMode(.v6)`
   (§4).
@@ -200,15 +208,19 @@ The app target is iPhone-only (`TARGETED_DEVICE_FAMILY: "1"`) until the iPad lay
 The target builds in the Swift 6 language mode (`SWIFT_VERSION: "6.0"`) with
 `SWIFT_STRICT_CONCURRENCY: complete`; the four packages declare `.swiftLanguageMode(.v6)`.
 
-Every port protocol in `Application/Ports`, every repository in `Domain/Repositories`, and every
+Every port protocol in `Application/Ports` (one deliberate exception: `ImageCacheManaging` is
+`AnyObject`-only, see its comment), every repository in `Domain/Repositories`, and every
 Domain value type is `Sendable`; `BrowseCraftCore`'s rule models are `Sendable` too. Use cases and
 transfer structs therefore conform without escape hatches. Closures stored by `Sendable` types are
 declared `@Sendable`.
 
-`@unchecked Sendable` (30 remaining) is reserved for state protected by a lock,
-an actor hop, or a serial queue — `AppDatabase`, the identity and account-scope stores, the sync
-services, the WebKit and URLSession delegates. A new `@unchecked` needs a comment naming the
-synchronisation it relies on.
+`@unchecked Sendable` (16 remaining) is reserved for state protected by a lock
+(the identity, account-scope and credential stores, the two caches, the change notifier, the
+preflight URLSession delegate, the diagnostic identity store) or for immutable members whose types
+Readium / Foundation / Nuke do not mark `Sendable`. Every one carries a comment that starts with
+「`@unchecked` 的依据」 naming the synchronisation it relies on; classes whose members are all
+immutable and `Sendable` (`AppDatabase`, the GRDB stores, the sync services, the WebKit loader)
+declare plain `Sendable` so the compiler guards any mutable state added later.
 
 Synchronous persistence is owned by the seven `*PersistenceCoordinator` actors. View models
 await immutable snapshots and mutate observable state only on `MainActor`.
@@ -241,7 +253,7 @@ mapping; they no longer create tables.
 
 ## 6. Tests
 
-`BrowseCraftTests` is ~26.3k lines / 124 files, mostly Swift Testing with some XCTest.
+`BrowseCraftTests` is ~25.8k lines / 122 files, mostly Swift Testing with some XCTest.
 
 ViewModel tests are assembled by `BrowseCraftTests/TestDoubles/ViewModels/ViewModelTestHarness.swift`:
 real use cases and persistence coordinators on top of real GRDB repositories against a temporary
@@ -278,6 +290,7 @@ lock file, and the rest of the generated project stays ignored. Everything is pi
 version except KSPlayer, which is pinned to a commit because that repository publishes no tags;
 GoogleMobileAds and Firebase, which `project.yml` declares as `from: 12.0.0` and only
 `Package.resolved` locks; and SwiftSoup, which is pinned to a commit of our own fork (below).
+`WebUI` (cybozu, exact version) wraps `WKWebView` for the SwiftUI web screens.
 
 **Readium** (`readium/swift-toolkit`, exact 3.x tag) serves the book kind only: EPUB/PDF/audiobook
 navigators and the `Locator` model for bookmarks and resume positions. The comic reader stays the
@@ -307,13 +320,21 @@ occur for them.
 
 ## 9. Known debt
 
-- **`Features` imports `BrowseCraftCore` in 27 files.** Now that the dependency is explicit (§1)
-  it is at least visible, but the UI layer reading `SiteRule` directly means a rule-format change
-  can ripple into views. Narrowing this to presentation values resolved in `Application` is worth
-  doing incrementally; it is not a blocker for anything.
+- **`Features` imports `BrowseCraftCore` in 21 files and `BrowseCraftRuntime` in 7.** Now that the
+  dependency is explicit (§1) it is at least visible, but the UI layer reading `SiteRule` directly
+  means a rule-format change can ripple into views, and the seven Runtime imports (content-item and
+  item-reference mappers, the playback request resolver, the noise filter, the detection lexicon)
+  drive runtime services from view models instead of through `Application` use cases. Narrowing
+  both to presentation values resolved in `Application` is worth doing incrementally; it is not a
+  blocker for anything.
+- **`BrowseCraftDomain` holds types only the app uses.** The kernel rule in §2 is "both the app
+  and the runtime need it", yet `Ports/Preflight/`, `CatalogSource`, `SourceSnapshot` and
+  `SourceCredentialStoring` have no Runtime caller, and six public types have no caller at all.
+  Moving them back into `BrowseCraft/Domain` or `Application/Ports` is a mechanical cleanup.
 - **Core and APIKit are unversioned path dependencies** (see §1).
 - **`Shared` mixes concerns** — Firebase, AdMob, logging, image views and review prompts, with four
-  `.shared` singletons that have no port and cannot be substituted in tests.
+  `.shared` singletons that have no port and cannot be substituted in tests. `Infrastructure` adds
+  three more (`ReadiumBookEnvironment`, `ItemThumbnailImageCachePlugin`, `SourceConfigurationDecodingCache`).
 - **StoreKit is adapted in `Features`, not `Infrastructure`.** `InAppPurchaseStore`
   (`Features/Settings/Premium`) holds `StoreKit.Product` / `Transaction` directly, the
   `StoreTransactionSnapshot` mapping lives in `SettingsViewModel`, and the transaction listener in

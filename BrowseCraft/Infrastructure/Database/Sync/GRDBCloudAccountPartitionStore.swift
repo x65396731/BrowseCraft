@@ -4,7 +4,7 @@ import Foundation
 final class GRDBCloudAccountPartitionStore:
     CloudAccountPartitioning,
     CloudAppUserAssociationAttestationStoring,
-    @unchecked Sendable {
+    Sendable {
     private let database: AppDatabase
     private let activeAppUser: (any ActiveAppUserProviding)?
 

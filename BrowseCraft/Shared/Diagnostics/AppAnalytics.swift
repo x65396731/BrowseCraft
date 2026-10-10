@@ -5,7 +5,7 @@ import Foundation
 
 // 中文注释：AppAnalytics 专门封装用户行为采集，避免与 Crashlytics 诊断职责混在一起。
 
-final class AppAnalytics: @unchecked Sendable {
+final class AppAnalytics: Sendable {
     static let shared: AppAnalytics = AppAnalytics()
     static let collectionEnabledDefaultsKey: String = "settings.analyticsEnabled"
 

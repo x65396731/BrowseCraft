@@ -1,6 +1,7 @@
 import Foundation
 
 /// 中文注释：活动业务用户与 CloudAccountScope 独立，后续可在确认云端身份后原子切换。
+/// 中文注释：`@unchecked` 的依据（architecture.md 第 4 节）：`userID` 由 `lock` 保护，读写都在锁内。
 final class ActiveAppUserStore: ActiveAppUserProviding, @unchecked Sendable {
     private let lock: NSLock = NSLock()
     private var userID: UUID
@@ -23,6 +24,7 @@ final class ActiveAppUserStore: ActiveAppUserProviding, @unchecked Sendable {
 }
 
 /// 中文注释：每轮 Cloud Sync 固定业务 UUID；底层异步回调不得重新读取可能已切换的活动用户。
+/// 中文注释：`@unchecked` 的依据（architecture.md 第 4 节）：`synchronizedUserID` 由 `lock` 保护。
 final class CloudSyncUserContext: @unchecked Sendable {
     private let lock: NSLock = NSLock()
     private var synchronizedUserID: UUID?

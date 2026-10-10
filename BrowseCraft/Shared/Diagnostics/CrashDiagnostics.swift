@@ -4,7 +4,7 @@ import Foundation
 
 // 中文注释：CrashDiagnostics 封装 Crashlytics 写入点，业务层只更新诊断上下文。
 
-final class CrashDiagnostics: @unchecked Sendable {
+final class CrashDiagnostics: Sendable {
     static let shared: CrashDiagnostics = CrashDiagnostics()
     static let collectionEnabledDefaultsKey: String = "settings.diagnosticsEnabled"
 

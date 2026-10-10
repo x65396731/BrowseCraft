@@ -1,6 +1,7 @@
 import Foundation
 
 /// 中文注释：CloudAccountSession 更新此快照，GRDB Repository 在每次事务开始前捕获一次 scope。
+/// 中文注释：`@unchecked` 的依据（architecture.md 第 4 节）：`scope` 由 `lock` 保护。
 final class ActiveAccountScopeStore: ActiveAccountScopeProviding, @unchecked Sendable {
     private let lock: NSLock = NSLock()
     private var scope: CloudAccountScope

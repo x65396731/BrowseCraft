@@ -8,6 +8,7 @@ enum BookFileStoreError: Error, Equatable, Sendable {
     case sourceUnreadable
 }
 
+/// 中文注释：`@unchecked` 的依据（architecture.md 第 4 节）：成员全不可变；`FileManager` 未标 Sendable，但 Apple 文档保证其线程安全，这里只做文件操作。
 final class FileSystemBookFileStore: BookFileStoring, @unchecked Sendable {
     private let rootDirectory: URL
     private let fileManager: FileManager

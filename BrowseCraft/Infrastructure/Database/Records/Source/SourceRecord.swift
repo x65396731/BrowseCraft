@@ -119,6 +119,7 @@ enum SourceRecordDecodingError: Error {
 
 /// 中文注释：SourceConfiguration 的解码缓存。键是用户 + 来源 id，命中条件是 JSON 原文逐字相等
 /// （字符串比较远比解码便宜，也不会像哈希那样有碰撞风险）；有界，超限整体清空。
+/// 中文注释：`@unchecked` 的依据（architecture.md 第 4 节）：`entries` 由 `lock` 保护。
 final class SourceConfigurationDecodingCache: @unchecked Sendable {
     static let shared: SourceConfigurationDecodingCache = SourceConfigurationDecodingCache()
 

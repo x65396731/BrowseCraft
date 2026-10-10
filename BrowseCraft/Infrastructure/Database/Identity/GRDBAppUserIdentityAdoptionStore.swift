@@ -4,7 +4,7 @@ import GRDB
 /// 中文注释：采用 B 时复制 A 的本地业务内容并保留 A；不复制 AppUser 权益字段或 StoreKit 交易。
 final class GRDBAppUserIdentityAdoptionStore:
     AppUserIdentityAdoptionStoring,
-    @unchecked Sendable {
+    Sendable {
     private let database: AppDatabase
 
     init(database: AppDatabase) {

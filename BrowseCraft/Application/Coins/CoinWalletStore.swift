@@ -18,8 +18,9 @@ final class CoinWalletStore: RewardedAdRewardCoordinating {
     private(set) var revision: Int = 0
     private(set) var pricing: CoinPricing = .placeholder
     private(set) var isSignedIn: Bool = false
-    private let accountClient: any PortalAccountFetching
-    private let accessTokenProvider: any PortalAccessTokenProviding
+    /// 中文注释：两个端口对 Features 可见，供 `CoinLedgerViewModel` 的工厂扩展（在 Features）取用。
+    let accountClient: any PortalAccountFetching
+    let accessTokenProvider: any PortalAccessTokenProviding
     private let appUserRepository: any AppUserRepository
     private let activeAppUser: any ActiveAppUserProviding
     private let sleep: @Sendable (Duration) async throws -> Void
@@ -120,11 +121,6 @@ final class CoinWalletStore: RewardedAdRewardCoordinating {
                 return
             }
         }
-    }
-
-    /// 中文注释：设置页余额行点进去的流水页（30.8）；用同一个账户客户端与会话。
-    func makeLedgerViewModel() -> CoinLedgerViewModel {
-        return CoinLedgerViewModel(accountClient: self.accountClient, accessTokenProvider: self.accessTokenProvider)
     }
 
     // MARK: - RewardedAdRewardCoordinating

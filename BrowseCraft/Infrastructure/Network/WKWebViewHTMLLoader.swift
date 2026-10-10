@@ -27,7 +27,7 @@ enum WKWebViewHTMLLoaderError: LocalizedError {
 }
 
 /// 中文注释：真实 WKWebView 实现；仅用于规则标记 needsWebView 的页面内容获取。
-final class WKWebViewHTMLLoader: RenderedPageContentLoader, @unchecked Sendable {
+final class WKWebViewHTMLLoader: RenderedPageContentLoader, Sendable {
     private let credentialProvider: any SourceCredentialProviding
     private let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
     private let systemCookieHeaderProvider: any SystemCookieHeaderProviding

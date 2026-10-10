@@ -2,7 +2,7 @@ import Foundation
 
 // 中文注释：续看位置同步（`docs/design/History-Resume-Sync-Design.md`）：每部作品一条「看到哪里」，
 // 合并规则与来源、收藏一致（`BCA-SYNC-010`）；本机改动不靠写入方登记，而是每轮下载前对比账本找出来。
-final class HistoryEntrySyncService: @unchecked Sendable {
+final class HistoryEntrySyncService: Sendable {
     private let localStore: HistoryEntrySyncLocalStore
     private let cloudStore: CloudRecordStore
     private let accountScopeProvider: any ActiveAccountScopeProviding

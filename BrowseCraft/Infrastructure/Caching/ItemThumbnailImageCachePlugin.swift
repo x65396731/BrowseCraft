@@ -3,6 +3,7 @@ import Foundation
 
 // 中文注释：ItemThumbnailImageCachePlugin 为 Library item 缩略图提供独立于漫画阅读图的缓存池。
 // 界面层经 `ItemThumbnailImagePipelineProviding` 使用它，不直接引用本类型。
+/// 中文注释：`@unchecked` 的依据（architecture.md 第 4 节）：`pipeline` 是 lazy，首次访问在主线程（RootView 注入）后只读；Nuke `ImagePipeline` 自身线程安全。
 final class ItemThumbnailImageCachePlugin: ImagePipelineDelegate, ItemThumbnailImagePipelineProviding, @unchecked Sendable {
     static let shared: ItemThumbnailImageCachePlugin = ItemThumbnailImageCachePlugin()
 

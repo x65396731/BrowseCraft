@@ -3,7 +3,7 @@ import ReadiumShared
 
 // 中文注释：ReadiumBookFileInspector 用 Readium 的格式嗅探判断一个文件是 EPUB、音频书还是不支持；不解析出版物。
 
-final class ReadiumBookFileInspector: BookFileInspecting, @unchecked Sendable {
+final class ReadiumBookFileInspector: BookFileInspecting, Sendable {
     private let environment: ReadiumBookEnvironment
 
     init(environment: ReadiumBookEnvironment = .shared) {

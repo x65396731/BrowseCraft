@@ -6,7 +6,7 @@ final class GRDBCloudSyncEngineStore:
     CloudRecordMetadataStoring,
     CloudRecordZoneRecoveryStoring,
     CloudSyncRetryScheduleProviding,
-    @unchecked Sendable
+    Sendable
 {
     private static let stateScope: String = "private"
     private static let stateZoneName: String = "BrowseCraftSyncEngine"

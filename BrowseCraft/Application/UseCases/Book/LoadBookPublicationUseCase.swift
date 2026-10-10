@@ -17,6 +17,7 @@ enum LoadBookPublicationError: Error, Equatable, Sendable {
 /// 中文注释：站点书出版物的短时缓存，由组装层持有一份、详情页与阅读器共用。
 /// 2026-09-15 真机日志：每次开书，详情页取一遍作品页 + 目录页，进阅读器又原样取一遍——两边各建一个用例、互不知情。
 /// 只缓存成功结果（失败不入缓存，「重试」照常重取），按「来源 id + 作品地址」为键，过期后重取以跟上站点新增章节。
+/// 中文注释：`@unchecked` 的依据（architecture.md 第 4 节）：`entries` 由 `lock` 保护。
 final class BookPublicationCache: @unchecked Sendable {
     private struct Entry {
         let publication: LoadedBookPublication

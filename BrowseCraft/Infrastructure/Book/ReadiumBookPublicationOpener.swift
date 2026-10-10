@@ -5,6 +5,7 @@ import UIKit
 
 // 中文注释：ReadiumBookPublicationOpener 打开容器内的书；句柄里包着 Readium `Publication`，Features 建 Navigator 时取用。
 
+/// 中文注释：`@unchecked` 的依据（architecture.md 第 4 节）：成员全不可变；Readium `Publication` 未标 Sendable，只在阅读器建 Navigator 时取用。
 final class ReadiumBookPublicationHandle: BookPublicationHandle, @unchecked Sendable {
     let publication: Publication
     let metadata: BookPublicationMetadata
@@ -15,7 +16,7 @@ final class ReadiumBookPublicationHandle: BookPublicationHandle, @unchecked Send
     }
 }
 
-final class ReadiumBookPublicationOpener: BookPublicationOpening, @unchecked Sendable {
+final class ReadiumBookPublicationOpener: BookPublicationOpening, Sendable {
     private let environment: ReadiumBookEnvironment
 
     init(environment: ReadiumBookEnvironment = .shared) {

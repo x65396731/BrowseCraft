@@ -151,6 +151,7 @@ struct PreflightResponseBodyBuffer {
 
 /// URLSession may invoke delegate callbacks concurrently. Every mutable field is
 /// protected by `lock`; the injected policy is itself Sendable and immutable.
+/// 中文注释：`@unchecked` 的依据（architecture.md 第 4 节）：三个可变字段由 `lock` 保护，URLSession 回调与读取方可在不同线程。
 final class PreflightURLSessionDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
     private let publicURLPolicy: any PublicURLChecking
     private let lock: NSLock = NSLock()

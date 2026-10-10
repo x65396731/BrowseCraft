@@ -1,5 +1,6 @@
 import Foundation
 
+/// 中文注释：`@unchecked` 的依据（architecture.md 第 4 节）：`continuations` 由 `lock` 保护。
 final class CloudSyncChangeNotifier: CloudSyncChangeNotifying, @unchecked Sendable {
     private let lock: NSLock = NSLock()
     private var continuations: [UUID: AsyncStream<Void>.Continuation] = [:]

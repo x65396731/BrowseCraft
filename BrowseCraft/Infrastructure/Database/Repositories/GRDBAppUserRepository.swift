@@ -5,7 +5,7 @@ import GRDB
 final class GRDBAppUserRepository:
     AppUserRepository,
     PortalEntitlementCacheResetting,
-    @unchecked Sendable {
+    Sendable {
     private let database: AppDatabase
 
     init(database: AppDatabase) {

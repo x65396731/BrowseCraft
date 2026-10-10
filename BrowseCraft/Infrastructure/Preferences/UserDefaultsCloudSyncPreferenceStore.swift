@@ -1,6 +1,7 @@
 import Foundation
 
 /// 中文注释：只保存用户对某个 Cloud account scope 的同步选择，不保存 CloudKit 原始账户标识。
+/// 中文注释：`@unchecked` 的依据（architecture.md 第 4 节）：成员全不可变；`UserDefaults` 自身线程安全。
 final class UserDefaultsCloudSyncPreferenceStore: CloudSyncPreferenceStoring, @unchecked Sendable {
     private let userDefaults: UserDefaults
     private let keyPrefix: String

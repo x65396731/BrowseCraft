@@ -15,6 +15,5 @@
 # 缩略图缓存池改经 Environment 注入（池子带 Nuke 类型，进不了 Application 端口）。
 # 这两个方向已无豁免，若再出现命中说明是新引入的，应当失败而不是登记豁免。
 
-
-# try!：字面量正则的 static let，模式固定不会失败；保留登记以防新增。
-../BrowseCraftRuntime/Sources/BrowseCraftRuntime/Book/BookSourceRuntime.swift try!
+# try!：2026-10-10 已收敛——Runtime `BookSourceRuntime` 两处字面量正则改为可选值 + 正则缓存，清单归零。
+# 从此任何新命中都是真正的新违规，不得再登记。

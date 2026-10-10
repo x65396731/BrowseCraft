@@ -9,6 +9,7 @@ struct DiagnosticIdentity {
     let sessionId: String
 }
 
+/// 中文注释：`@unchecked` 的依据（architecture.md 第 4 节）：`stableValue` 的读写由 `lock` 保护；其余成员不可变。
 final class DiagnosticIdentityStore: @unchecked Sendable {
     static let shared: DiagnosticIdentityStore = DiagnosticIdentityStore()
 

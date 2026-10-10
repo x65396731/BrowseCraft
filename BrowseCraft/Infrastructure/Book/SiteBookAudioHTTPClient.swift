@@ -6,6 +6,7 @@ import ReadiumShared
 //（2026-09-14 loyalbooks 模拟器复验：规则产出的 mp3 是 http://www.archive.org/…，URLSession 报 -1022 被 ATS 拦下）。
 // DefaultHTTPClient 对代理是弱引用，本对象由出版物容器持有。
 
+/// 中文注释：`@unchecked` 的依据（architecture.md 第 4 节）：成员全不可变；Readium `DefaultHTTPClient` 未标 Sendable，代理回调由 URLSession 串行调用。
 final class SiteBookAudioHTTPClient: DefaultHTTPClientDelegate, @unchecked Sendable {
     let client: DefaultHTTPClient
 
