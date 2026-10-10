@@ -382,7 +382,7 @@ struct VideoDetailView: View {
             }
 
             if let message: String = self.viewModel.playbackErrorMessage {
-                LibraryTabErrorBanner(message: message)
+                LibraryStateBanner(kind: .failure, message: message)
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
             }
@@ -390,7 +390,7 @@ struct VideoDetailView: View {
             // 中文注释：已有选集再下拉刷新失败——选集留着，错误用横幅（合同第八节，2026-10-10 裁定），不换成失败占位。
             if let message: String = self.viewModel.detailErrorMessage,
                self.viewModel.episodes.isEmpty == false {
-                LibraryTabErrorBanner(message: message)
+                LibraryStateBanner(kind: .failure, message: message)
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
             }

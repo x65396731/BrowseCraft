@@ -97,7 +97,7 @@
 ## 六、继续阅读
 
 - **数据**：进页读本作品的全部章节历史（同来源、同 `comicItemID`），`visitedAt` 最近的一条是「上次读到」。它的 `chapterURL` 与哪一章相同就是那一章；对不上用章节名；都对不上（规则换过、站点改了地址）卡片仍写历史里的章节名，点了用历史记录直接开阅读器（`ReaderView` 的历史入口，与历史页点行同一条路）。
-- **有历史 → 卡片**：通栏、高 88、圆角 18、卡片底、左侧 4pt 漫画类型色竖条。左：`lastPageImageURL` 的缩略图 56×72 圆角 8（阅读器已存过这张图，走同一条缓存；没有就用封面）。中：「继续阅读」`caption` bold 类型色；章节名 `subheadline` semibold；第三行 `caption` 次级「第 13 页 · 昨天 21:40」，有 `pageCount` 时「13 / 45 页 · 昨天 21:40」并在卡片底边画 3pt 进度条（类型色）。右：36pt 圆里一个书页图标，类型色底。整张卡可点。
+- **有历史 → 卡片**：通栏、高 88、圆角 18、卡片底、左侧 4pt 漫画类型色竖条。左：`lastPageImageURL` 的缩略图 56×72 圆角 8（阅读器已存过这张图，走同一条缓存；没有就用封面）。中：「继续阅读」`caption` bold 类型色；章节名 `subheadline` semibold；第三行 `caption` 次级「第 13 页 · 昨天 21:40」，有 `pageCount` 时「13 / 45 页 · 昨天 21:40」并在卡片底边画 3pt 进度条（类型色）。时刻写法与库页「上次读到」瓷砖同一套 `LibraryHistoryTimeText`：今天 / 昨天带时刻，更早只写日期（2026-10-10 复审第七批统一，此前详情页自带一份 `DateFormatter`）。右：36pt 圆里一个书页图标，类型色底。整张卡可点。
 - **没有历史 → 按钮**：通栏胶囊、高 50，漫画类型色底（浅 #6D4FD6 白字 / 深 #B79CFF 墨字 #141210）。文案「从第 1 话开始读」——起始章是按规则排序方向取的那一头（现有 `startingChapter`），数字从起始章标题解出，解不出写「开始读 · 章节名」；只有一章写「开始阅读」。
 - **最新一话**：不再单设「Read Latest」按钮——倒序时最新一话就在目录第一格，正序时由分段芯片最后一段或「倒序」一点到达。
 - **回来**：阅读器返回后重读本作品的全部章节历史（`reloadChapterHistories`），卡片文案、进度与目录的已读 / 上次读到标记跟着换。
@@ -141,8 +141,8 @@
 | 正在取详情 | 头部先用列表项的标题、封面、`latestText` 画出来；继续阅读位置一条骨架胶囊；目录位置 8 行骨架（不知道版式前一律用行） |
 | 取到了但没有章节 | 目录位置小空状态：列表图标 +「没有章节」+「这个来源没有给出任何章节」+「下拉重试」；没有继续阅读；头部、简介照常 |
 | 取失败 | 同上，文案是错误原因，警示色三角；头部仍用列表项数据；不再弹系统警告框，也不再放「Try Again」按钮（刷新一律下拉） |
-| 已有目录后下拉刷新失败 | 目录留着不动，贴顶分区头里一条警示色淡底横幅写原因（与库页分类出错横幅同一个）；再次下拉成功即消失 |
-| 受限章节 | 点了走现有流程：没有登录页 / 已登录仍受限 → 说明文字；未登录 → 登录提示 → `SourceLoginView`。本轮只把两个系统 alert 换成页内横幅（警示色淡底，带「登录」按钮），文案与判断不动 |
+| 已有目录后下拉刷新失败 | 目录留着不动，贴顶分区头里一条警示色淡底横幅写原因（共享 `LibraryStateBanner` 的纯文字失败态，与库页分类出错横幅同一个）；再次下拉成功即消失 |
+| 受限章节 | 点了走现有流程：没有登录页 / 已登录仍受限 → 说明文字；未登录 → 登录提示 → `SourceLoginView`。本轮只把两个系统 alert 换成页内横幅，文案与判断不动。横幅是共享 `LibraryStateBanner` 的受限态：锁图标 + 一句说明 + 「登录」警示色实心胶囊（没有登录页时不出）+ 关闭叉；按钮不用类型色，三种 kind 的横幅长得一样（2026-10-10 复审第七批收敛，此前本页自带一份类型色按钮的横幅） |
 | 下拉刷新 | 重取详情，历史一并重读 |
 | 很长的目录 | sfacg 近 1000 章：三列网格约 28 屏，分段芯片 20 段横向滚动；懒加载，不预建按钮 |
 | 深色模式 | 头部淡底、卡片、芯片、格子都随系统；继续按钮与选中芯片换深色取值（#B79CFF 底墨字） |
@@ -178,7 +178,7 @@ sfacg 链接内的受限标记 → `BC-COMIC-147` 2026-10-08 修订（交付 `re
 | 继续按钮、选中分段芯片、上次读到、继续卡片竖条与进度条、更新行、已收藏爱心 | 漫画类型色：浅 #6D4FD6 / 深 #B79CFF；底上的字浅色白、深色 #141210（`bannerIconInk`） |
 | 状态徽章 | `accent` 12% 底 + `accent` 字；分类 / 语言徽章与标签 `fillBackground` 底 + 次级字 |
 | 页面底 / 卡片底（目录卡、格子、继续卡片、圆按钮）/ 次级填充（已读格子、未选芯片） | `pageBackground` / `cardBackground` / `fillBackground` |
-| 受限横幅、取失败 | `warning` / `warningFill`，圆角 16 |
+| 受限横幅、取失败 | `warning` / `warningFill`，圆角 16；横幅上的按钮也只用 `warning`（最右一个实心、其余描边），共享 `LibraryStateBanner` |
 | 尺寸 | 封面 112×150 圆角 12；圆按钮 40（热区 44）；继续卡片高 88 圆角 18、缩略图 56×72；继续按钮 50 胶囊；芯片高 36；网格三列、格高 44、圆角 12、间距 10；行最小高 52、编号柱宽 44；页边距 20 |
 | 字号 | 标题 `title2` heavy；作者 `subheadline`；徽章 / 更新行 / 来源行 / 日期 `caption`；分区标题 `footnote` bold；格子与行标题 `subheadline` semibold；简介 `subheadline` |
 
@@ -193,14 +193,14 @@ sfacg 链接内的受限标记 → `BC-COMIC-147` 2026-10-08 修订（交付 `re
 
 ## 十三、实现位置
 
-- `BrowseCraft/Features/Library/Comic/Detail/ComicDetailView.swift` 与 `ComicDetailSections.swift`：头部、标签条、继续卡片 / 按钮、简介折叠与属性小字、受限横幅、骨架与空 / 失败态；原来的动作卡、信息卡与共用卡片容器三个视图随之删去。
+- `BrowseCraft/Features/Library/Comic/Detail/ComicDetailView.swift` 与 `ComicDetailSections.swift`：头部、标签条、继续卡片 / 按钮、简介折叠与属性小字、骨架与空 / 失败态；原来的动作卡、信息卡与共用卡片容器三个视图随之删去。受限横幅与刷新失败横幅调 `Features/Library/Components/LibraryStateBanner.swift`，继续卡片的时刻调 `Features/Library/Components/LibraryHistoryTimeText.swift`（两者与书详情、搜索页、库页共用）。
 - `BrowseCraft/Features/Library/Comic/Detail/ComicDetailChapterSection.swift`：贴顶分区头（计数、已读、正序 / 倒序、分段芯片）、三列网格与行列表两种版式、已读 / 上次读到 / 受限 / 付费标记。
 - `BrowseCraft/Features/Library/Comic/Detail/ComicDetailViewModel.swift`：标题解析、版式判断、显示顺序、分段、本作品全部历史与继续目标、已读集合、收藏切换、属性摆位。
 - `BrowseCraft/App/Composition/LibraryFeatureFactory.swift`：注入收藏用例。
 - `BrowseCraft/Domain/Repositories/ComicChapterHistoryRepository.swift`、`BrowseCraft/Infrastructure/Database/Repositories/GRDBComicChapterHistoryRepository.swift`、`BrowseCraft/Application/UseCases/History/ReadingActivityPersistenceCoordinator.swift`：按作品取全部章节历史。
 - `BrowseCraft/Domain/Models/History/ComicChapterHistory.swift`、`BrowseCraft/Infrastructure/Database/Records/History/ComicChapterHistoryRecord.swift` 与其 schema 扩展、`BrowseCraft/Infrastructure/Database/Migrations/AppDatabaseMigrations.swift`、`BrowseCraft/Features/Library/Comic/Reader/ReaderViewModel.swift`：`pageCount`。
 - `BrowseCraft/Features/Library/Components/LibraryListTabBar.swift`：`LibraryChipBar` 复用，不改。
-- 三份 `Localizable.strings`：继续阅读四种文案、「章节」「N 章」「已读 M」「N / M 页」「正序 / 倒序」「没有章节」、受限横幅；删去只剩本页在用的「Loading Details / Paid / About / Information / Try Again / Access Required / Photo Album / Related Page / ID / Info」与旧的空章节说明（「Continue Reading」「Chapters」「Log In」「Not Now」别处还在用，保留）。
+- 三份 `Localizable.strings`：继续阅读四种文案、「章节」「N 章」「已读 M」「N / M 页」「正序 / 倒序」「没有章节」、受限横幅（「登录」「关闭」后改为三页共用的 `library_banner_login` / `library_banner_dismiss`）；删去只剩本页在用的「Loading Details / Paid / About / Information / Try Again / Access Required / Photo Album / Related Page / ID / Info」与旧的空章节说明（「Continue Reading」「Chapters」「Log In」「Not Now」别处还在用，保留）。
 
 ## 十四、真机验收清单与已知出入
 

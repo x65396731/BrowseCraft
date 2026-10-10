@@ -88,7 +88,7 @@ App 的 `BookPublicationAssembler` 再把 `description` 丢掉。三十四份真
 **继续卡片**（有续读位置时）：卡片底、圆角 16、高 88，左缘 4pt 类型色竖条；小封面 48×64（有声书上压耳机小圆）；三行：「继续阅读」/「继续收听」`caption` 类型色 → 章名 `headline` 一行 →
 文字书「全书 12% · 昨天 21:40」/ 有声书「12:34 · 昨天 21:40」`caption` 次级色；底边 3pt 进度条写 `totalProgression`（有声书没有就不画）；行尾 36pt 类型色圆底图标。点 = 不带章节开阅读器。
 
-- 章名与时刻从读书历史来（`chapterTitle`、`visitedAt`），历史没有时退回 Locator `href` 对法。
+- 章名与时刻从读书历史来（`chapterTitle`、`visitedAt`），历史没有时退回 Locator `href` 对法。时刻写法与库页「上次读到」瓷砖、漫画详情同一套 `LibraryHistoryTimeText`：今天 / 昨天带时刻，更早只写日期（2026-10-10 复审第七批统一）。
 - 「全书 12%」就是 `totalProgression`，小于 1% 写「刚开始」。
 - 有声书的「12:34」解 `locatorJSON` 里 `locations.fragments` 的 `t=秒`。
 
@@ -118,8 +118,8 @@ App 的 `BookPublicationAssembler` 再把 `description` 丢掉。三十四份真
 | --- | --- |
 | 进页加载中 | 头部先用列表的书名与封面画好，章数行、继续卡片位、分区头与 8 行目录都是骨架 |
 | 从阅读器 / 播放器回来 | 不重取详情，只重读续读位置与读书历史 |
-| 取详情失败 | 头部照留；继续卡片位换成警示色淡底横幅：图标 + 错误原因 + 右侧「重试」；目录不出 |
-| 来源需要登录 | 来源有登录页时横幅右侧多一个「登录」（打开来源登录页，与漫画详情同一套横幅） |
+| 取详情失败 | 头部照留；继续卡片位换成警示色淡底横幅（共享 `LibraryStateBanner` 失败态）：三角图标 + 错误原因 + 右侧「重试」警示色实心；目录不出 |
+| 来源需要登录 | 来源有登录页时横幅在「重试」左边多一个「登录」警示色描边（打开来源登录页；与搜索页同一个失败态横幅，与漫画详情的受限态横幅同一个组件） |
 | 有详情但没有章节 | 分区头「章节 · 0 章」下一张卡片「这本书还没有章节」；没有开始按钮 |
 | 公告行 | 照列、没有编号柱，点了照样进阅读器 |
 | 深色模式 | 页面底、卡片底、分隔线随系统；类型色切到 #5CC8B0；没有固定深色块 |
@@ -151,7 +151,7 @@ App 的 `BookPublicationAssembler` 再把 `description` 丢掉。三十四份真
 | 书籍类型色（随系统） | 浅 #1E7D68 / 深 #5CC8B0：继续卡片小字与竖条、进度条、开始按钮底、上次读到的竖条与章名、选中分段芯片、已收藏爱心、有声书小图标 |
 | 页面底 / 卡片底 / 按下底 | `pageBackground` / `cardBackground` / `fillBackground` |
 | 分隔线 | 系统 `separator` |
-| 警示 | `warning` / `warningFill`：失败 / 登录横幅 |
+| 警示 | `warning` / `warningFill`：失败 / 登录横幅，横幅上的按钮也只用 `warning`（实心 / 描边），不用类型色 |
 | 圆角 | 封面 8、继续卡片 16、目录卡片 16、横幅 16、芯片与开始按钮胶囊 |
 | 尺寸 | 页边距 20；固定按钮圆 40；头部封面 72×96、与文字间距 14；继续卡片高 88、封面 48×64、竖条 4、进度条 3；开始按钮高 50；分区头高 44；芯片高 36（`LibraryChipBar`）；目录行最小高 48、编号柱宽 48、上次读到竖条 3 |
 | 字号 | 书名 `title2` bold；作者 `subheadline`；来源与章数 `caption`；继续卡片小字 `caption`、章名 `headline`；分区头 `headline`；编号柱 `subheadline` monospacedDigit；章名 `body`；简介 `subheadline` |
@@ -170,7 +170,7 @@ App 的 `BookPublicationAssembler` 再把 `description` 丢掉。三十四份真
 
 ## 十二、实现位置
 
-- `BrowseCraft/Features/Library/Book/Site/BookSiteDetailView.swift`：系统 `List` 换成 `ScrollView` + `LazyVStack(pinnedViews:)`，固定按钮、头部、继续卡片 / 开始按钮、简介、贴顶分区头与分段芯片、目录、横幅、骨架；
+- `BrowseCraft/Features/Library/Book/Site/BookSiteDetailView.swift`：系统 `List` 换成 `ScrollView` + `LazyVStack(pinnedViews:)`，固定按钮、头部、继续卡片 / 开始按钮、简介、贴顶分区头与分段芯片、目录、骨架；横幅调 `Features/Library/Components/LibraryStateBanner.swift`、继续卡片的时刻调 `LibraryHistoryTimeText.swift`（与漫画详情、搜索页、库页共用）；
   小块拆到 `BookSiteDetailSections.swift`。
 - `BrowseCraft/Features/Library/Book/Site/BookSiteDetailViewModel.swift`：读书历史、收藏、整站有声、登录态、目录派生状态（解析、显示顺序、分段、上次读到下标）、继续卡片文案、Locator 解析。
 - `BrowseCraft/App/Composition/BookFeatureFactory.swift`：注入收藏用例、读书历史仓储、凭据存储。

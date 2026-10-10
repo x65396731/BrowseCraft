@@ -544,7 +544,7 @@ struct LibraryView: View {
             // 中文注释：有内容时 tab 报的错走横幅；一条都没有时错误本身就是版面（`.failed`），
             // 不会再和空态各占一块。
             if let selectedListTabErrorMessage: String = self.viewModel.selectedListTabErrorMessage {
-                LibraryTabErrorBanner(message: selectedListTabErrorMessage)
+                LibraryStateBanner(kind: .failure, message: selectedListTabErrorMessage)
                     .padding(.horizontal, 20)
                     .padding(.top, 12)
             }

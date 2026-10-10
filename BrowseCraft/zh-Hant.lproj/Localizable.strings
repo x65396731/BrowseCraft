@@ -371,6 +371,9 @@
 "library_search_searching" = "正在搜尋「%@」";
 "library_search_result_count" = "「%@」· %ld 個結果";
 "library_search_no_results" = "找不到「%@」";
+"library_banner_login" = "登入";
+"library_banner_retry" = "重試";
+"library_banner_dismiss" = "關閉";
 "Clear" = "清除";
 
 /* 本機書籍（書架、匯入、EPUB 閱讀器） */
@@ -787,7 +790,6 @@
 "book_detail_chapter_number" = "第 %@ 章";
 "book_detail_read_to_percent" = "讀到 %@";
 "book_detail_empty" = "這本書還沒有章節";
-"book_detail_retry" = "重試";
 "book_detail_login_hint" = "這個來源需要登入後才能看章節。";
 "library_account_button" = "帳號";
 
@@ -831,7 +833,6 @@
 "comic_detail_read" = "已讀";
 "comic_detail_empty_title" = "沒有章節";
 "comic_detail_empty_message" = "這個來源沒有給出任何章節。";
-"comic_detail_restricted_login" = "登入";
 "video_detail_invalid_url" = "影視詳情網址無效。";
 "book_detail_invalid_url" = "書籍詳情網址無效。";
 "comic_detail_access_no_login_page" = "這一章受限，而這個來源沒有登入頁。";
@@ -843,7 +844,6 @@
 "comic_detail_access_denied" = "這個帳號看不了這一章，來源可能還需要別的權限。";
 "library_account_guest" = "訪客帳號";
 "library_account_signed_in" = "已登入帳號";
-"comic_detail_banner_dismiss" = "關閉";
 "comic_detail_attr_published" = "發佈";
 "comic_detail_attr_license" = "許可";
 "comic_detail_attr_id" = "編號";

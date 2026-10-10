@@ -198,7 +198,7 @@ final class BookSiteDetailViewModel {
         return self.currentEntry?.item.title
     }
 
-    /// 第三行：文字书「全书 12% · 昨天 21:40」、有声书「12:34 · 昨天 21:40」；没有进度只写时刻。
+    /// 第三行：文字书「全书 12% · 昨天 21:40」、有声书「12:34 · 昨天 21:40」；没有进度只写时刻。时刻写法与库页瓷砖同一套（`LibraryHistoryTimeText`）。
     var continueMetaText: String? {
         var parts: [String] = []
         if self.isAudiobook {
@@ -209,7 +209,7 @@ final class BookSiteDetailViewModel {
             parts.append(String(format: NSLocalizedString("book_detail_progress_total", comment: ""), Self.percentOrJustStarted(progression)))
         }
         if let date: Date = self.readingHistory?.visitedAt ?? self.readingProgress?.updatedAt {
-            parts.append(Self.relativeDateFormatter.string(from: date))
+            parts.append(LibraryHistoryTimeText.text(for: date, now: self.now()))
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
@@ -557,14 +557,6 @@ final class BookSiteDetailViewModel {
     private static let integerFormatter: NumberFormatter = {
         let formatter: NumberFormatter = NumberFormatter()
         formatter.numberStyle = .decimal
-        return formatter
-    }()
-
-    private static let relativeDateFormatter: DateFormatter = {
-        let formatter: DateFormatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .short
-        formatter.doesRelativeDateFormatting = true
         return formatter
     }()
 }

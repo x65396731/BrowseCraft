@@ -371,6 +371,9 @@
 "library_search_searching" = "正在搜索 “%@”";
 "library_search_result_count" = "“%@” · %ld 个结果";
 "library_search_no_results" = "没有找到 “%@”";
+"library_banner_login" = "登录";
+"library_banner_retry" = "重试";
+"library_banner_dismiss" = "关闭";
 "Clear" = "清除";
 
 /* 本地书籍（书架、导入、EPUB 阅读器） */
@@ -787,7 +790,6 @@
 "book_detail_chapter_number" = "第 %@ 章";
 "book_detail_read_to_percent" = "读到 %@";
 "book_detail_empty" = "这本书还没有章节";
-"book_detail_retry" = "重试";
 "book_detail_login_hint" = "这个来源需要登录后才能看章节。";
 "library_account_button" = "账号";
 
@@ -831,7 +833,6 @@
 "comic_detail_read" = "已读";
 "comic_detail_empty_title" = "没有章节";
 "comic_detail_empty_message" = "这个来源没有给出任何章节。";
-"comic_detail_restricted_login" = "登录";
 "video_detail_invalid_url" = "影视详情地址无效。";
 "book_detail_invalid_url" = "书籍详情地址无效。";
 "comic_detail_access_no_login_page" = "这一章受限，而这个来源没有登录页。";
@@ -843,7 +844,6 @@
 "comic_detail_access_denied" = "这个账号看不了这一章，来源可能还需要别的权限。";
 "library_account_guest" = "游客账号";
 "library_account_signed_in" = "已登录账号";
-"comic_detail_banner_dismiss" = "关闭";
 "comic_detail_attr_published" = "发布";
 "comic_detail_attr_license" = "许可";
 "comic_detail_attr_id" = "编号";

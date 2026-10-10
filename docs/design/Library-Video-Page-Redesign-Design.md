@@ -170,7 +170,7 @@
 - `BrowseCraft/Features/Library/Video/List/VideoContentGridView.swift`：两列海报墙与海报卡片（集数徽章、爱心、长按菜单）。
 - `BrowseCraft/Features/Library/Components/LibraryListTabBar.swift`：三份芯片代码合成一份，按 `CatalogKindStyle` 取色。
 - `BrowseCraft/Features/Library/Components/LibrarySkeletonGridView.swift`：改两列同形。
-- `BrowseCraft/Features/Library/Components/LibraryTabErrorBanner.swift`：警示色淡底。
+- `BrowseCraft/Features/Library/Components/LibraryStateBanner.swift`（原 `LibraryTabErrorBanner`，2026-10-10 复审第七批与详情页、搜索页的带按钮横幅合为一个）：警示色淡底。
 - `BrowseCraft/Features/Library/LibraryViewModel.swift`：最近视频历史的只读查询与刷新时机；分页脚沿用现有三条词条。
 - `BrowseCraft/Features/History/Components/HistoryEntryRowView.swift`：`HistoryContinueTileView` 底行允许只写时刻。
 - 三份 `Localizable.strings`：眉行「视频」、「上次看到」、分页脚三条都沿用现有词条；新增长按菜单「打开」「收藏」「取消收藏」「继续看」「打开作品」。

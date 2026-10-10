@@ -567,7 +567,7 @@ final class ComicDetailViewModel {
         return self.continueChapter?.title ?? self.nonEmpty(history.chapterTitle)
     }
 
-    /// 「第 13 页 · 昨天 21:40」，有页数时「13 / 45 页 · 昨天 21:40」。
+    /// 「第 13 页 · 昨天 21:40」，有页数时「13 / 45 页 · 昨天 21:40」；时刻写法与库页瓷砖同一套（`LibraryHistoryTimeText`）。
     var continueCardSubtitle: String? {
         guard let history: ComicChapterHistory = self.latestReadingHistory else {
             return nil
@@ -576,7 +576,7 @@ final class ComicDetailViewModel {
         if let progress: String = Self.pageProgressText(pageIndex: history.lastPageIndex, pageCount: history.pageCount) {
             parts.append(progress)
         }
-        parts.append(Self.relativeDateFormatter.string(from: history.visitedAt))
+        parts.append(LibraryHistoryTimeText.text(for: history.visitedAt, now: self.now()))
         return parts.joined(separator: " · ")
     }
 
@@ -629,14 +629,6 @@ final class ComicDetailViewModel {
         }
         return String(format: NSLocalizedString("history_progress_page", comment: ""), pageIndex + 1)
     }
-
-    private static let relativeDateFormatter: DateFormatter = {
-        let formatter: DateFormatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .short
-        formatter.doesRelativeDateFormatting = true
-        return formatter
-    }()
 
     // MARK: - 收藏（第五节）
 

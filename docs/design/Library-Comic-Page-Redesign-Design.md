@@ -107,7 +107,7 @@
 | 首屏加载 | 骨架与封面墙同形：三列封面色块（圆角 10）+ 两行标题条，呼吸动画；`LibrarySkeletonGridView` 按类型选列数，漫画 9 张 |
 | 取回来是空的 | `LibraryPlaceholderView`：插画 `EmptyStateLibraryComic`（看板娘把一叠淡色空白封面的单行本抱在胸前，本页自己的图；库页空态按来源类型选插画，视频仍是 `EmptyStateLibraryVideo`）+「还没有内容」+ 一句说明 +「下拉可重新载入」 |
 | 第 1 页失败 | 同上，插画 `EmptyStateOffline` +「载入失败」+ 错误原因 +「下拉重试」 |
-| 有内容但本分类报错 | 警示色淡底横幅，在网格上方（现有 `LibraryTabErrorBanner`） |
+| 有内容但本分类报错 | 警示色淡底横幅，在网格上方（共享 `LibraryStateBanner` 的纯文字失败态，原 `LibraryTabErrorBanner`） |
 | 切换来源 | 旧列表留在屏上盖页面底 82% + 居中状态卡（现有） |
 | 翻页中 / 还有下一页 / 已到底 | 分页脚三条文案（现有） |
 | 下拉刷新 | 系统下拉控件；刷新中网格不换骨架 |

@@ -205,50 +205,22 @@ struct BookSiteDetailHeaderSection: View {
     }
 
     /// 取详情失败：警示色淡底横幅 + 「重试」；来源有登录页时多一个「登录」（第七节）。
+    /// 取失败：共享横幅的失败态，来源有登录页时多「登录」（第七节；横幅本身见 `LibraryStateBanner`）。
     private func failureBanner(message: String) -> some View {
-        HStack(alignment: .center, spacing: 10) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(CatalogPalette.warning)
-                .accessibilityHidden(true)
-
-            Text(message)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            if self.viewModel.sourceLoginState != nil {
-                self.bannerButton(NSLocalizedString("comic_detail_restricted_login", comment: ""), filled: false) {
-                    self.viewModel.requestSourceLogin()
-                }
-            }
-            self.bannerButton(NSLocalizedString("book_detail_retry", comment: ""), filled: true) {
+        LibraryStateBanner(
+            kind: .failure,
+            message: message,
+            loginAction: self.viewModel.sourceLoginState == nil ? nil : {
+                self.viewModel.requestSourceLogin()
+            },
+            retryAction: {
                 Task {
                     await self.viewModel.load()
                 }
             }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(CatalogPalette.warningFill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        )
         .padding(.horizontal, 20)
         .padding(.top, 20)
-    }
-
-    private func bannerButton(_ title: String, filled: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(filled ? Color.white : CatalogPalette.warning)
-                .padding(.horizontal, 12)
-                .frame(minHeight: 30)
-                .background(filled ? CatalogPalette.warning : Color.clear, in: Capsule())
-                .overlay(Capsule().strokeBorder(CatalogPalette.warning, lineWidth: filled ? 0 : 1))
-                .frame(minHeight: 44)
-                .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
     }
 
     // MARK: - 简介（有才出）

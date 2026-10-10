@@ -371,6 +371,9 @@
 "library_search_searching" = "Searching “%@”";
 "library_search_result_count" = "“%@” · %ld results";
 "library_search_no_results" = "No results for “%@”";
+"library_banner_login" = "Log in";
+"library_banner_retry" = "Retry";
+"library_banner_dismiss" = "Dismiss";
 "Clear" = "Clear";
 
 /* 本地书籍（书架、导入、EPUB 阅读器） */
@@ -787,7 +790,6 @@
 "book_detail_chapter_number" = "Chapter %@";
 "book_detail_read_to_percent" = "Read to %@";
 "book_detail_empty" = "This book has no chapters yet";
-"book_detail_retry" = "Retry";
 "book_detail_login_hint" = "Log in to this source to see its chapters.";
 "library_account_button" = "Account";
 
@@ -831,7 +833,6 @@
 "comic_detail_read" = "Read";
 "comic_detail_empty_title" = "No chapters";
 "comic_detail_empty_message" = "This source did not provide any chapters.";
-"comic_detail_restricted_login" = "Log in";
 "video_detail_invalid_url" = "The video detail address is invalid.";
 "book_detail_invalid_url" = "The book detail address is invalid.";
 "comic_detail_access_no_login_page" = "This chapter is restricted, and this source has no login page.";
@@ -843,7 +844,6 @@
 "comic_detail_access_denied" = "This account cannot access this chapter. The source may require additional permission.";
 "library_account_guest" = "Guest account";
 "library_account_signed_in" = "Signed in account";
-"comic_detail_banner_dismiss" = "Dismiss";
 "comic_detail_attr_published" = "Published";
 "comic_detail_attr_license" = "License";
 "comic_detail_attr_id" = "ID";

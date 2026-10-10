@@ -114,7 +114,7 @@
 | 首屏加载 | 骨架与书脊行同形：左 60×80 色块 + 右三条（长、中、短），呼吸动画；`LibrarySkeletonGridView` 加 `.bookList` 形态，7 行 |
 | 取回来是空的 | `LibraryPlaceholderView`：插画 `EmptyStateLibraryBook`（看板娘坐在三本淡色精装书上、膝上翻开一本空白的书；文字书与有声书共用）+「还没有内容」+ 一句说明 +「下拉可重新载入」 |
 | 第 1 页失败 | 同上，插画 `EmptyStateOffline` +「载入失败」+ 错误原因 +「下拉重试」 |
-| 有内容但本分类报错 | 警示色淡底横幅，在列表上方（现有 `LibraryTabErrorBanner`） |
+| 有内容但本分类报错 | 警示色淡底横幅，在列表上方（共享 `LibraryStateBanner` 的纯文字失败态，原 `LibraryTabErrorBanner`） |
 | 切换来源 | 旧列表留在屏上盖页面底 82% + 居中状态卡（现有） |
 | 翻页中 / 还有下一页 / 已到底 | 分页脚三条文案（现有） |
 | 下拉刷新 | 系统下拉控件；刷新中列表不换骨架 |

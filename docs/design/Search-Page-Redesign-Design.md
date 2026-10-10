@@ -102,8 +102,8 @@ sheet 跟随系统深浅，底色取页面底，隐藏系统导航栏；顶行�
 | 未搜索 | 插画 `EmptyStateSearch`（看板娘双手举着一面空镜片的大放大镜；已登记资产 274×540，库页视频库改用自己的图后当前没有页面在用它）按高 150 画，下面「搜索 樱花动漫」`headline` 与一句说明；整块顶对齐，搜索框下 24pt，键盘弹起的半屏里插画与两行字都看得全 |
 | 搜索中 | 眉行「正在搜索 “关键词”」+ 按 kind 的骨架网格；搜索框照常可编辑，再次回车取消上一次、发新请求（`performSearch` 走可取消的 Task） |
 | 无结果 | 同一张插画 +「没有找到 “关键词”」+「换个关键词试试。」，顶对齐；搜索框里的字保留、不自动聚焦 |
-| 失败 | 警示淡底横幅（`warningFill` 底、圆角 16，左三角感叹号 `warning`，中间 `RuleExecutionErrorClassifier.userMessage` 的一句话 `caption` 次级色，右侧「重试」胶囊）；与漫画 / 书详情的页内横幅同一套；重试 = 用上次关键词重搜 |
-| 需要登录 | 错误归类为 `accessRequired` / `protectedResource` 且 `selectedSourceLoginState != nil` 时，横幅右侧多一个「登录」；点了在 sheet 内 `fullScreenCover` 开 `SourceLoginView`（与书详情同一写法），登录成功后自动用上次关键词重搜 |
+| 失败 | 警示淡底横幅（共享 `LibraryStateBanner` 失败态：`warningFill` 底、圆角 16，左三角感叹号 `warning`，中间 `RuleExecutionErrorClassifier.userMessage` 的一句话 `caption` 次级色，右侧「重试」警示色实心胶囊）；与漫画 / 书详情、库页的页内横幅同一个组件；重试 = 用上次关键词重搜 |
+| 需要登录 | 错误归类为 `accessRequired` / `protectedResource` 且 `selectedSourceLoginState != nil` 时，横幅在「重试」左边多一个「登录」警示色描边；点了在 sheet 内 `fullScreenCover` 开 `SourceLoginView`（与书详情同一写法），登录成功后自动用上次关键词重搜 |
 | 结果里有封面取不到 | 卡片自己的占位，与库页同 |
 | 结果里的只读信息 | 与库页同一张卡片、同一行给同一信息：漫画封面上的「读到 4-2」角标、整站有声来源的耳机与「听」措辞；长按「继续读」不接（搜索页不接阅读器） |
 | 关闭再打开 | 关键词与结果保留（状态本来就在 `LibraryViewModel` 上），滚动位置回到顶部（sheet 关闭即销毁视图，不为此另存滚动位置）；重新打开时有结果就不自动聚焦、不弹键盘，没有结果才聚焦；上次失败留着横幅时也不聚焦（键盘会盖住横幅上的「重试」「登录」） |
@@ -125,7 +125,7 @@ sheet 跟随系统深浅，底色取页面底，隐藏系统导航栏；顶行�
 | `LibraryViewModel` | `searchFailureNeedsLogin: Bool`（按 `RuleExecutionErrorClassifier` 的归类） | 横幅要不要出「登录」 |
 | `LibrarySearchView` | 自绘顶行、搜索框、眉行、四种状态；`fullScreenCover` 挂 `SourceLoginView`；`scrollDismissesKeyboard` | 本页主体 |
 | `LibraryContentView` | 不改；`nextPage` / `loadNextPage` 从 ViewModel 的搜索字段传 | 分页脚复用 |
-| 字符串 | 三份 `Localizable.strings` 新增：「搜索 %@」占位与标题、「输入关键词，按键盘上的搜索。结果来自这个来源自己的搜索。」、「正在搜索 “%@”」、「“%@” · %ld 个结果」、「没有找到 “%@”」、「关闭搜索」、「清空」；「换个关键词试试。」「重试」「登录」沿用现有 | — |
+| 字符串 | 三份 `Localizable.strings` 新增：「搜索 %@」占位与标题、「输入关键词，按键盘上的搜索。结果来自这个来源自己的搜索。」、「正在搜索 “%@”」、「“%@” · %ld 个结果」、「没有找到 “%@”」、「关闭搜索」、「清空」；「换个关键词试试。」沿用现有；横幅上的「重试」「登录」用三页共用的 `library_banner_retry` / `library_banner_login`（2026-10-10 复审第七批，之前借用旧键「Retry」「Log In」） | — |
 | 资产 | `EmptyStateSearch` 已在 `bundled-image-asset-budgets.txt` 登记，不新增 | — |
 
 **不在本页做、但记一笔**：视频 Runtime `VideoSourceListLoader.executeSearch` 不读 `input.page`、也不解析搜索结果页的分页；漫画与书都会。等哪天 fwq 给视频搜索规则写了 `pagination`，Runtime 那一层要补；到那时本页什么都不用改。
@@ -159,7 +159,7 @@ sheet 跟随系统深浅，底色取页面底，隐藏系统导航栏；顶行�
 
 ## 十二、实现位置
 
-- `BrowseCraft/Features/Library/Components/LibrarySearchView.swift`：去掉系统导航栏标题与「完成」，自绘顶行、搜索框、结果眉行、四种状态、横幅、登录 `fullScreenCover`、分页接线、键盘行为；
+- `BrowseCraft/Features/Library/Components/LibrarySearchView.swift`：去掉系统导航栏标题与「完成」，自绘顶行、搜索框、结果眉行、四种状态、登录 `fullScreenCover`、分页接线、键盘行为；失败横幅调 `LibraryStateBanner.swift`；
   `NavigationStack` 与两个 `navigationDestination(item:)` 原样保留。
 - `BrowseCraft/Features/Library/LibraryViewModel.swift`：第八节的字段与方法；切换来源处调 `clearSearch()`；登录成功后若搜索页正开着且失败是登录墙，自动重搜。
 - 三份 `Localizable.strings`（zh-Hans / zh-Hant / en）：第八节的词条。

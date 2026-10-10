@@ -1206,7 +1206,7 @@ final class LibraryViewModel {
 
     /// 瓷砖底行只写时刻，与视频、漫画瓷砖同一取法。
     var continueReadingBookTimeText: String? {
-        return self.continueReadingBook.map { self.tileTimeText(for: $0.visitedAt) }
+        return self.continueReadingBook.map { LibraryHistoryTimeText.text(for: $0.visitedAt, now: self.now()) }
     }
 
     /// 章节名缩成编号：「第4話(2) 真夜中の逢瀬」→「4-2」；解不出数字就用原章节名。
@@ -1270,7 +1270,7 @@ final class LibraryViewModel {
 
     /// 瓷砖底行只写时刻，与视频瓷砖同一取法。
     var continueReadingTimeText: String? {
-        return self.continueReadingHistory.map { self.tileTimeText(for: $0.visitedAt) }
+        return self.continueReadingHistory.map { LibraryHistoryTimeText.text(for: $0.visitedAt, now: self.now()) }
     }
 
     /// 点瓷砖：用历史记录直接开播放器，与历史页 `openVideoHistory` 同一条路径。
@@ -1297,22 +1297,9 @@ final class LibraryViewModel {
         return self.continueWatchingHistory.flatMap { HistoryViewModel.playbackProgress(for: $0) }
     }
 
-    /// 瓷砖底行只写时刻：「今天 21:30」「昨天 09:12」，更早的只写日期——来源名已是大标题，不重复。
+    /// 瓷砖底行只写时刻（`LibraryHistoryTimeText`，与两个详情页的继续卡片同一写法）——来源名已是大标题，不重复。
     var continueWatchingTimeText: String? {
-        return self.continueWatchingHistory.map { self.tileTimeText(for: $0.updatedAt) }
-    }
-
-    private func tileTimeText(for date: Date) -> String {
-        let now: Date = self.now()
-        let calendar: Calendar = .current
-        let day: CatalogPersonalTimeline.Day = CatalogPersonalTimeline.day(for: date, now: now, calendar: calendar)
-        let dayText: String = CatalogDayTitle.text(for: day, now: now, calendar: calendar)
-        switch day {
-        case .today, .yesterday:
-            return dayText + " " + date.formatted(date: .omitted, time: .shortened)
-        case .date, .unknown:
-            return dayText
-        }
+        return self.continueWatchingHistory.map { LibraryHistoryTimeText.text(for: $0.updatedAt, now: self.now()) }
     }
 
     /// 眉行里的主机名：去掉 `www.`，与目录卡片同一取法。

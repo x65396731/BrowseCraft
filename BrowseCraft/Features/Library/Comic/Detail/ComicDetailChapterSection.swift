@@ -80,7 +80,7 @@ struct ComicDetailChapterHeader: View {
             // 目录为空时的失败态由 `ComicDetailChapterSection` 的占位承担。
             if let message: String = self.viewModel.errorMessage,
                self.viewModel.chapters.isEmpty == false {
-                LibraryTabErrorBanner(message: message)
+                LibraryStateBanner(kind: .failure, message: message)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 10)
             }
@@ -93,9 +93,9 @@ struct ComicDetailChapterHeader: View {
     @ViewBuilder
     private var accessBanners: some View {
         if let prompt: ComicDetailSourceLoginPrompt = self.viewModel.sourceLoginPrompt {
-            ComicDetailRestrictedBanner(
+            LibraryStateBanner(
+                kind: .restricted,
                 message: self.viewModel.loginPromptMessage(isPaid: prompt.isPaid),
-                style: self.style,
                 loginAction: {
                     self.viewModel.requestSourceLogin(state: prompt.state)
                 },
@@ -106,10 +106,9 @@ struct ComicDetailChapterHeader: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 10)
         } else if let message: String = self.viewModel.accessMessage {
-            ComicDetailRestrictedBanner(
+            LibraryStateBanner(
+                kind: .restricted,
                 message: message,
-                style: self.style,
-                loginAction: nil,
                 dismissAction: {
                     self.viewModel.dismissAccessMessage()
                 }
