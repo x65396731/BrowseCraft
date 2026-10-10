@@ -183,7 +183,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 影视 / 漫画详情已有内容时刷新失败改走横幅；搜索页失败态重开不聚焦；搜索结果带漫画进度角标与整站有声措辞 | 未编号 | required | approved | implemented | full-suite-passed | a6eed01 | 2026-10-10 |
 | 规则导入死代码栈（`addRuleSource` 与候选分析）与两个 Discovery 视图删除，装配与测试替身随之收口；临时资源页仍用的 `ComicDiscoveryWebResourceView` 搬到 `Features/History/Details` 保留 | `BCA-UI-003` | required | approved | implemented | full-suite-passed | a6eed01 | 2026-10-10 |
 | 三处过期用例跟上已提交的代码：目录请求带 `features=startPage`、视频详情属性带 `key`、v9 后的 schema 快照列序 | `BCA-RUNTIME-006` `BCA-DB-003` | required | approved | implemented | full-suite-passed | a6eed01 | 2026-10-10 |
-| 复审 B-2 / B-3：三个历史仓储加按来源与按作品（子查询取每部最近一章）查询，历史页与库页瓷砖不再读全表；三个详情页的收藏与站点书详情的进度 / 历史经 actor 离开主线程（`FavoriteStatePersistenceCoordinator`、`BookDetailPersistenceCoordinator`） | 未编号 | required | approved | implemented | full-suite-passed | 490f1ad | 2026-10-10 |
-| 页面缺口：添加来源页未登录提示警示色、书脊列表宽屏页边距 40、书详情失败文案走分类器；影视 / 书 / 漫画详情与库页读屏标签的 11 条裸英文进三语词条 | 未编号 | required | approved | implemented | full-suite-passed | 490f1ad | 2026-10-10 |
-| Runtime README 的 `Bundle(for:)` 改为 `Bundle.module`；APIKit README 补三个目录与五条端点 | `BCA-ARCH-006` | required | approved | implemented | static-audit-passed | 490f1ad | 2026-10-10 |
+| 复审 B-2 / B-3：三个历史仓储加按来源与按作品（子查询取每部最近一章）查询，历史页与库页瓷砖不再读全表；三个详情页的收藏与站点书详情的进度 / 历史经 actor 离开主线程（`FavoriteStatePersistenceCoordinator`、`BookDetailPersistenceCoordinator`） | 未编号 | required | approved | implemented | full-suite-passed | 2780b7a | 2026-10-10 |
+| 页面缺口：添加来源页未登录提示警示色、书脊列表宽屏页边距 40、书详情失败文案走分类器；影视 / 书 / 漫画详情与库页读屏标签的 11 条裸英文进三语词条 | 未编号 | required | approved | implemented | full-suite-passed | 2780b7a | 2026-10-10 |
+| Runtime README 的 `Bundle(for:)` 改为 `Bundle.module`；APIKit README 补三个目录与五条端点 | `BCA-ARCH-006` | required | approved | implemented | static-audit-passed | 2780b7a | 2026-10-10 |
 | `BCA-PARSE-006` 补写 fwq `BC-COMIC-147` 例外；StoreKit 适配落点按现状写进 architecture.md 第 9 节 | `BCA-PARSE-006` | required | approved | implemented | static-audit-passed | a6eed01 | 2026-10-10 |
