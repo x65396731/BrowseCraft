@@ -41,7 +41,7 @@ python3 scripts/check-docs.py
 | 规则目录：「我的生成」优先落段；删失败记录整入口软删除 | 任何验证 | [Catalog-Page-Redesign](docs/design/Catalog-Page-Redesign-Design.md) 第 2.1 / 2.3 节 | 第 2 节末两行 |
 | F2-5 / F2-6：进列表先读后写、读书线读库经 actor | 验证 | — | 第 6 节 |
 | 漫画详情分段芯片锚点（2026-10-10 已改为按分区头高度换算） | 模拟器或真机看一眼段首不被盖住；章节 `order` 接线已裁定记账、不做 | [Comic-Detail](docs/design/Comic-Detail-Page-Redesign-Design.md) 第十四节、[Book-Detail](docs/design/Book-Detail-Page-Redesign-Design.md) 第十三节 | 第 2 节 |
-| 2026-10-10 复审第五批：Domain 包瘦身（四组类型搬回 App，Domain 仓一笔未提交）与 B-6 到 B-8 计算属性改存储 | 真机：影视详情 500 集单线路页滚动、历史页 1000 条切筛选 | [architecture.md](docs/architecture.md) 第 2 节 domain kernel | 第 8 节末行 |
+| 2026-10-10 复审第五批：Domain 包瘦身（四组类型搬回 App）与 B-6 到 B-8 计算属性改存储 | 真机：影视详情 500 集单线路页滚动、历史页 1000 条切筛选 | [architecture.md](docs/architecture.md) 第 2 节 domain kernel | 第 8 节末行 |
 | 2026-10-10 复审第四批（架构清理）：`@unchecked Sendable` 30 → 16、`try!` 豁免归零、`CoinLedgerViewModel` 归位、architecture.md 与 Core 依赖图回写 | 无欠账 | [architecture.md](docs/architecture.md) 第 4 节 | 第 8 节末行 |
 | 2026-10-10 复审第三批：七处正则绕过缓存、阅读页请求按身份构造一次（Core / Runtime 各有一笔未提交） | 真机：长目录漫画详情切正倒序、阅读页翻页流畅度 | [STATUS 第 8 节](docs/STATUS.md) 末行 | 第 8 节 |
 | 2026-10-10 复审第二批：历史 / 库页按来源与按作品查询、三个详情页收藏与书详情进度经 actor、页面缺口与 11 条裸英文、两份包内 README | 真机：历史页与库页进页耗时、三个详情页收藏切换 | [STATUS 第 8 节](docs/STATUS.md) 末三行 | 第 8 节 |
