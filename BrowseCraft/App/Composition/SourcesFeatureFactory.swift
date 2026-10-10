@@ -125,10 +125,6 @@ struct SourcesFeatureFactory {
 
         return SourcesViewModel(
             persistenceCoordinator: persistenceCoordinator,
-            addComicRuleSourceUseCase: AddComicRuleSourceUseCase(
-                sourceRepository: self.sourceRepository,
-                refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
-            ),
             discoveryService: sourceDiscoveryService,
             createVideoGenerationTaskUseCase: createVideoGenerationTaskUseCase,
             pushNotificationAuthorizer: self.pushNotificationAuthorizer,

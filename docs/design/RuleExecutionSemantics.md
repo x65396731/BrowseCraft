@@ -26,6 +26,9 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
   或 `default`；登录值只放在 `userValue`，并使用受支持的 `{credentialStore.*}` 引用。
 - `BCA-PARSE-006` `ReaderImageAPIRule.emptyResultPolicy="requiresAccount"` 只能用于已验证的成功响应中原始 `itemPath`
   数组确实为空的账号权限语义，不能根据 selectorEmpty、标题、错误字符串或最终映射空结果猜测登录需求。
+  第二条允许路径（定义点 fwq `BC-COMIC-147`，本层只引用）：规则显式声明了 `requiresAccount`，且章节页最终地址
+  缺少规则模板引用的 `{chapter.finalURL.*}` token——这是规则作者的显式声明加一个确定性事实，不是猜测；
+  落点 `ComicSourceReaderLoader`。
 
 ## 三、执行边界
 

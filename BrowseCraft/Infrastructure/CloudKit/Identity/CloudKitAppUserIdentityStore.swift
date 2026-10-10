@@ -148,6 +148,36 @@ actor CloudKitAppUserIdentityStore: CloudAppUserIdentityStoring {
         }
     }
 
+    func replaceIdentity(
+        _ identity: CloudAppUserIdentity,
+        replacing existing: CloudAppUserIdentity
+    ) async throws -> CloudAppUserIdentity {
+        guard identity.usesSupportedSchema else {
+            throw CloudAppUserIdentityStoreError.unsupportedSchemaVersion(
+                identity.schemaVersion
+            )
+        }
+
+        do {
+            // 中文注释：拿服务端现有记录改字段再存，change tag 跟着记录走，`.ifServerRecordUnchanged` 才有比对对象；
+            // 记录已不在、或记录里的 userID 已不是调用方判定过的那个，都不覆盖。
+            guard let serverRecord: CKRecord = try await self.database.fetchRecord(
+                withID: self.mapper.recordID
+            ) else {
+                throw CloudAppUserIdentityStoreError.operationFailed
+            }
+            let serverIdentity: CloudAppUserIdentity = try self.mapper.identity(from: serverRecord)
+            guard serverIdentity.userID == existing.userID else {
+                throw CloudAppUserIdentityStoreError.operationFailed
+            }
+            self.mapper.apply(identity, to: serverRecord)
+            let savedRecord: CKRecord = try await self.database.createRecord(serverRecord)
+            return try self.mapper.identity(from: savedRecord)
+        } catch {
+            throw Self.storeError(for: error)
+        }
+    }
+
     private static func shouldResolveCreateFromServer(_ error: any Error) -> Bool {
         switch Self.cloudErrorCode(for: error) {
         case .serverRecordChanged, .serverResponseLost:
@@ -224,6 +254,12 @@ struct CloudKitAppUserIdentityRecordMapper: Sendable {
             recordType: CloudAppUserIdentityRecordContract.recordType,
             recordID: self.recordID
         )
+        self.apply(identity, to: record)
+        return record
+    }
+
+    /// 中文注释：把身份字段写到一条记录上；新建与覆盖共用，覆盖时记录带着服务端 change tag。
+    func apply(_ identity: CloudAppUserIdentity, to record: CKRecord) {
         record[CloudAppUserIdentityRecordContract.Field.userID] =
             identity.userID.uuidString as CKRecordValue
         record[CloudAppUserIdentityRecordContract.Field.schemaVersion] =
@@ -232,7 +268,6 @@ struct CloudKitAppUserIdentityRecordMapper: Sendable {
             identity.createdAt as CKRecordValue
         record[CloudAppUserIdentityRecordContract.Field.updatedAt] =
             identity.updatedAt as CKRecordValue
-        return record
     }
 
     func identity(from record: CKRecord) throws -> CloudAppUserIdentity {

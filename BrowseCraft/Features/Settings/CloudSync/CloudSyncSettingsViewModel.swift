@@ -741,6 +741,8 @@ final class CloudSyncSettingsViewModel {
         if let associationError: CloudAppUserIdentityAssociationError =
             error as? CloudAppUserIdentityAssociationError {
             switch associationError {
+            case .signInRequired:
+                return NSLocalizedString("cloud_sync_portal_sign_in_required", comment: "开启云同步需要先登录账号")
             case .activeUserChanged, .unexpectedState:
                 return NSLocalizedString("The active BrowseCraft profile changed before iCloud linking completed.", comment: "")
             }

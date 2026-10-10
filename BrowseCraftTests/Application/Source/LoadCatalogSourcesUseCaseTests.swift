@@ -4,11 +4,11 @@ import Foundation
 import Testing
 @testable import BrowseCraft
 
-// 中文注释：App 取公共目录的用例：请求显式带本版本认得的 kinds；解码时未知 kind 逐条跳过、book 照常进入。
+// 中文注释：App 取公共目录的用例：请求显式带本版本认得的 kinds 与 features（`BCA-RUNTIME-006`）；解码时未知 kind 逐条跳过、book 照常进入。
 
 struct LoadCatalogSourcesUseCaseTests {
     @Test func defaultURLDeclaresEveryKnownKind() {
-        #expect(LoadCatalogSourcesUseCase.defaultCatalogAPIURL?.absoluteString == "https://anyportal.online/catalog/sources?kinds=comic,video,book")
+        #expect(LoadCatalogSourcesUseCase.defaultCatalogAPIURL?.absoluteString == "https://anyportal.online/catalog/sources?kinds=comic,video,book&features=startPage")
     }
 
     @Test func unknownKindIsSkippedAndBookDecodes() async throws {
@@ -27,7 +27,7 @@ struct LoadCatalogSourcesUseCaseTests {
 
         #expect(sources.map(\.id) == ["c1", "b1"])
         #expect(sources.map(\.kind) == [.comic, .book])
-        #expect(loader.requestedURL?.query == "kinds=comic,video,book")
+        #expect(loader.requestedURL?.query == "kinds=comic,video,book&features=startPage")
     }
 }
 

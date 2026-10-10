@@ -139,8 +139,9 @@ struct VideoSourceRuntimeTests {
         #expect(result.metadata.title == "Movie Seven")
         #expect(result.metadata.coverURL?.absoluteString == "https://video.example.invalid/covers/movie-7.jpg")
         #expect(result.metadata.description == "A structured detail description.")
+        // 中文注释：规则 `metadata[].id` 经 Core 透传到 `key`，Runtime 原样带过去。
         #expect(result.metadata.attributes == [
-            VideoRuleParsedDetailAttribute(id: "director", label: "Director", value: "Director Seven")
+            VideoRuleParsedDetailAttribute(id: "director", key: "director", label: "Director", value: "Director Seven")
         ])
     }
 

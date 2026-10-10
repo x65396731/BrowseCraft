@@ -55,7 +55,6 @@ final class SourcesViewModel {
     static let undoDuration: Duration = .seconds(4)
 
     private let persistenceCoordinator: SourcesPersistenceCoordinator
-    private let addComicRuleSourceUseCase: AddComicRuleSourceUseCase
     private let discoveryService: SourceDiscoveryService
     private let createVideoGenerationTaskUseCase: CreateVideoGenerationTaskUseCase?
     private let pushNotificationAuthorizer: (any PushNotificationAuthorizing)?
@@ -249,7 +248,6 @@ final class SourcesViewModel {
 
     init(
         persistenceCoordinator: SourcesPersistenceCoordinator,
-        addComicRuleSourceUseCase: AddComicRuleSourceUseCase,
         discoveryService: SourceDiscoveryService,
         createVideoGenerationTaskUseCase: CreateVideoGenerationTaskUseCase? = nil,
         pushNotificationAuthorizer: (any PushNotificationAuthorizing)? = nil,
@@ -267,7 +265,6 @@ final class SourcesViewModel {
         now: @escaping () -> Date = Date.init
     ) {
         self.persistenceCoordinator = persistenceCoordinator
-        self.addComicRuleSourceUseCase = addComicRuleSourceUseCase
         self.discoveryService = discoveryService
         self.createVideoGenerationTaskUseCase = createVideoGenerationTaskUseCase
         self.pushNotificationAuthorizer = pushNotificationAuthorizer
@@ -487,47 +484,6 @@ final class SourcesViewModel {
                 )
                 self.errorMessage = error.localizedDescription
             }
-        }
-    }
-
-    @MainActor
-    /// 中文注释：addRuleSource 方法封装网站规则导入路径。
-    func addRuleSource(name: String, baseURL: String, ruleJSON: String) async -> Bool {
-        CrashDiagnostics.shared.setRuleStage(.list)
-        AppAnalytics.shared.logRuleImportStarted(sourceType: .comic)
-        do {
-            let result: AddComicRuleSourceResult = try await self.addComicRuleSourceUseCase.execute(
-                name: name,
-                baseURL: baseURL,
-                ruleJSON: ruleJSON
-            )
-            var source: Source = result.source
-            source.userID = self.currentUserID
-
-            await self.load()
-            let items: [ContentItem] = self.contentItemMapper.map(
-                output: result.listOutput,
-                source: source,
-                context: nil
-            )
-            self.sourceSelectionStore.publishLibrarySnapshot(
-                source: source,
-                items: items,
-                listContext: nil,
-                nextPage: result.listOutput.pagination?.nextPage
-            )
-            self.logPublishedLibrarySnapshot(source: source, items: items, origin: "rule-source-add")
-            self.selectSource(id: source.id)
-            self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
-            self.latestSourceAddID = source.id
-            AppAnalytics.shared.logRuleImportSucceeded(source: source)
-            return true
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "rule-source-add-error")
-            AppAnalytics.shared.logRuleImportFailed(sourceType: .comic, errorCode: "rule-source-add-error")
-            AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .list, errorCode: "rule-source-add-error")
-            self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
-            return false
         }
     }
 

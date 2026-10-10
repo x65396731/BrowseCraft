@@ -92,9 +92,14 @@ final class AccountComposition {
             activeAppUser: activeAppUserStore
         )
 
+        // 中文注释：关联前查 Portal 会话（备忘录「未登录不能创建或关联 AppUserIdentity/default」）；
+        // 仓储与来源标记只用于判定云端记录是不是本机早先未登录时写上去的临时 UUID。
         self.cloudIdentityAssociationCoordinator = CloudAppUserIdentityAssociationCoordinator(
             identityStore: CloudKitAppUserIdentityStore(container: cloudKitContainer),
-            activeAppUser: activeAppUserStore
+            activeAppUser: activeAppUserStore,
+            portalSessionCoordinator: portalSessionCoordinator,
+            appUserRepository: appUserRepository,
+            identityOriginStore: portalIdentityOriginStore
         )
 
         let portalIAPService: APIKitPortalIAPService = APIKitPortalIAPService(

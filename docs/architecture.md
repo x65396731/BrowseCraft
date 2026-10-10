@@ -52,7 +52,7 @@ Dependency arrows point inward. Nothing below may reference anything above it.
 | --- | --- | --- |
 | `Domain` | 1.7k / 44 files | Entities, 13 repository protocols, pure domain services |
 | `Application` | ~13.9k / 106 files | 50 use cases, the remaining ports, coordinators, the coin wallet and push handling |
-| `Infrastructure` | 13.1k / 99 files | GRDB, CloudKit, StoreKit, Alamofire, WebKit, Keychain adapters |
+| `Infrastructure` | 13.1k / 99 files | GRDB, CloudKit, Alamofire, WebKit, Keychain adapters (StoreKit stays in `Features`, see §9) |
 | `Features` | 29.9k / 109 files | `@MainActor` view models and SwiftUI views |
 | `Shared` | 2.7k / 26 files | Logging, diagnostics, ads, common image views |
 | `App` | 3.0k / 21 files | Composition root, feature factories, startup, the Debug-only demo mode (`App/Demo`) |
@@ -314,3 +314,10 @@ occur for them.
 - **Core and APIKit are unversioned path dependencies** (see §1).
 - **`Shared` mixes concerns** — Firebase, AdMob, logging, image views and review prompts, with four
   `.shared` singletons that have no port and cannot be substituted in tests.
+- **StoreKit is adapted in `Features`, not `Infrastructure`.** `InAppPurchaseStore`
+  (`Features/Settings/Premium`) holds `StoreKit.Product` / `Transaction` directly, the
+  `StoreTransactionSnapshot` mapping lives in `SettingsViewModel`, and the transaction listener in
+  `AppContainer`. Ruled on 2026-10-10 to leave as is: StoreKit 2 types are `Sendable` values rather
+  than SDK handles needing a wrapper, the store is UI state with no second implementation to swap,
+  and the testability the layering is meant to buy is already provided by `StoreTransactionSnapshot`
+  before Portal validation.

@@ -5,6 +5,8 @@ import SwiftUI
 @MainActor
 struct CloudSyncSettingsView: View {
     @Bindable var viewModel: CloudSyncSettingsViewModel
+    /// 中文注释：设置页传入的 Portal 登录态。未登录时开关只能关不能开（关联协调器里还有一道同样的门禁，这里只是不让用户白点）。
+    var isPortalSignedIn: Bool = true
 
     var body: some View {
         ScrollView {
@@ -44,10 +46,17 @@ struct CloudSyncSettingsView: View {
 
     // MARK: - 开关
 
+    /// 中文注释：未登录且同步还没开才拦；已开着的开关要留给用户关掉。
+    private var requiresPortalSignIn: Bool {
+        return self.isPortalSignedIn == false && self.viewModel.isCloudSyncEnabled == false
+    }
+
     private var toggleGroup: some View {
         SettingsCardGroup(
             title: nil,
-            footer: NSLocalizedString("cloud_sync_toggle_footer", comment: "关闭后不会删除任何数据")
+            footer: self.requiresPortalSignIn
+                ? NSLocalizedString("cloud_sync_portal_sign_in_required", comment: "开启云同步需要先登录账号")
+                : NSLocalizedString("cloud_sync_toggle_footer", comment: "关闭后不会删除任何数据")
         ) {
             Toggle(isOn: self.cloudSyncEnabledBinding) {
                 Text(NSLocalizedString("Cloud Sync", comment: ""))
@@ -57,7 +66,7 @@ struct CloudSyncSettingsView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .frame(minHeight: 52)
-            .disabled(self.viewModel.canChangeCloudSyncEnabled == false)
+            .disabled(self.viewModel.canChangeCloudSyncEnabled == false || self.requiresPortalSignIn)
             .onChange(of: self.viewModel.isCloudSyncEnabled) { _, newValue in
                 AppAnalytics.shared.logSettingChanged(
                     name: "cloud_sync",

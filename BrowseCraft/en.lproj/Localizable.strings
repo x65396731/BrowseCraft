@@ -689,6 +689,7 @@
 "cloud_sync_status_off_title" = "Cloud Sync is off";
 "cloud_sync_status_off_message" = "Turn it on to keep your sources, favorites and where you left off in your iCloud.";
 "cloud_sync_toggle_footer" = "Turning it off deletes nothing. Everything on this device and in iCloud is kept.";
+"cloud_sync_portal_sign_in_required" = "Sign in to your AnyPortal account before turning on Cloud Sync.";
 "cloud_sync_content_section" = "What syncs";
 "cloud_sync_content_sources" = "Sources";
 "cloud_sync_content_favorites" = "Favorites";

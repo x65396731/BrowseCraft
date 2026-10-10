@@ -689,6 +689,7 @@
 "cloud_sync_status_off_title" = "云同步未开启";
 "cloud_sync_status_off_message" = "打开后，来源、收藏与看到哪里会存进你的 iCloud。";
 "cloud_sync_toggle_footer" = "关闭后不会删除任何数据，本机和 iCloud 里的内容都保留。";
+"cloud_sync_portal_sign_in_required" = "打开云同步前，请先登录 AnyPortal 账号。";
 "cloud_sync_content_section" = "同步的内容";
 "cloud_sync_content_sources" = "来源";
 "cloud_sync_content_favorites" = "收藏";

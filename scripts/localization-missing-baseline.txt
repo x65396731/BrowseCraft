@@ -57,26 +57,6 @@ Sign In to This Source
 Retrying…
 # BrowseCraft/Features/Sources/AddSource/AddSourceView.swift:63
 Source Type Unavailable
-# BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:32
-Website
-# BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:42
-Keyword Suggestions
-# BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:46
-Custom Keyword
-# BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:71
-Searching...
-# BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:84
-Results
-# BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:169
-Status
-# BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:175
-Found %lld temporary results.
-# BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:175
-No temporary results found.
-# BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:273
-Playback
-# BrowseCraft/Features/Sources/AddSource/VideoDiscoveryView.swift:303
-Playback Type
 # BrowseCraft/Features/Sources/Catalog/CatalogSourceListView.swift:296
 Update %@
 # BrowseCraft/Features/Sources/Catalog/CatalogSourceListView.swift:308

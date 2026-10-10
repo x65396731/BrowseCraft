@@ -66,7 +66,7 @@ BookBookmark         id: UUID, bookID: UUID, userID: String, locatorJSON: String
 - 书签：两种阅读器共用同一张书签表与同一组用例（`BookBookmark`、`AddBookBookmarkUseCase` /
   `ListBookBookmarksUseCase` / `RemoveBookBookmarkUseCase`），点选即 `go(to:)`；
   呈现层内联在 `BookReaderView` 的 `.sheet` 里，没有独立的 sheet 类型。
-- `App/Composition/FeatureComposition` 加 `makeBookShelf`，`SourceRuntimeComposition` 不动。
+- 书架的装配入口是 `AppContainer` 的 `makeBookShelfViewModel`，没有调用点（入口已藏，第八节）；`SourceRuntimeComposition` 不动。
 
 ### 3.5 边界脚本
 

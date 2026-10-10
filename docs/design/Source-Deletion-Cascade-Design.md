@@ -65,7 +65,7 @@
 - `BrowseCraft/Infrastructure/Database/Repositories/GRDBSourceRepository.swift`：删除来源的写事务里加上删三张历史表、
   逐条给收藏写删除标记并入队（实体 ID 用 `FavoriteItemIdentity` 的同步实体 ID）、调用 `FavoriteAggregateBuilder` 重建汇总；
   删除方法交回被删内容（供撤销），新增按被删内容写回的方法；本地变更通知改由调用方在撤销窗口结束后发（第四节），内置来源只要有收藏变化也要发。
-  文件开头与清空选择处两段注释改成新规则。仓储协议 `SourceRepository` 随之调整，测试替身（`ViewModelTestHarness`、`AddComicRuleSourceUseCaseTests` 里的实现）跟着改。
+  文件开头与清空选择处两段注释改成新规则。仓储协议 `SourceRepository` 随之调整，测试替身（`ViewModelTestHarness` 里的实现）跟着改。
 - `BrowseCraft/Infrastructure/Database/Sync/GRDBSourceSyncLocalStore.swift`：写入远端来源记录时，若本地原为在册、远端带删除时间，
   在同一事务里删本机该来源的历史并清空库的当前选择。
 - `BrowseCraft/Application/UseCases/Source/` 与 `SourcesPersistenceCoordinator.swift`：删除交回被删内容，新增撤销写回。

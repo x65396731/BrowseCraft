@@ -7,7 +7,7 @@ import BrowseCraftDomain
 @MainActor
 struct CloudSyncSettingsViewModelTests {
     @Test func openingSettingsDoesNotReadOrCreateCloudIdentity() async throws {
-        let context: TestContext = try Self.makeContext()
+        let context: TestContext = try await Self.makeContext()
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
 
         await viewModel.start()
@@ -20,7 +20,7 @@ struct CloudSyncSettingsViewModelTests {
     }
 
     @Test func identityLinkButtonDoesNotEnableContentSync() async throws {
-        let context: TestContext = try Self.makeContext()
+        let context: TestContext = try await Self.makeContext()
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
         await viewModel.start()
 
@@ -36,7 +36,7 @@ struct CloudSyncSettingsViewModelTests {
     }
 
     @Test func firstToggleStartsAccountAccessAndThenRequestsConfirmation() async throws {
-        let context: TestContext = try Self.makeContext()
+        let context: TestContext = try await Self.makeContext()
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
         await viewModel.start()
 
@@ -61,7 +61,7 @@ struct CloudSyncSettingsViewModelTests {
     }
 
     @Test func differentCloudIdentityBlocksSyncWithoutOverwrite() async throws {
-        let context: TestContext = try Self.makeContext()
+        let context: TestContext = try await Self.makeContext()
         let cloudIdentity: CloudAppUserIdentity = .proposed(
             userID: UUID(),
             at: Date(timeIntervalSince1970: 1)
@@ -89,7 +89,7 @@ struct CloudSyncSettingsViewModelTests {
     }
 
     @Test func cloudConflictCannotAdoptAnUnauthenticatedUUID() async throws {
-        let context: TestContext = try Self.makeContext()
+        let context: TestContext = try await Self.makeContext()
         let cloudIdentity: CloudAppUserIdentity = .proposed(
             userID: UUID(),
             at: Date(timeIntervalSince1970: 1)
@@ -109,8 +109,79 @@ struct CloudSyncSettingsViewModelTests {
         #expect(viewModel.isCloudSyncEnabled == false)
     }
 
+    /// 中文注释：备忘录「未登录不能创建或关联 AppUserIdentity/default」——没有 Portal 会话时不读、不建云端身份记录，开关保持关闭。
+    @Test func enablingCloudSyncWithoutPortalSessionIsRefused() async throws {
+        let context: TestContext = try await Self.makeContext(portalSignedIn: false)
+        let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
+        await viewModel.start()
+        await viewModel.setCloudSyncEnabled(true)
+
+        let createCallCount: Int = await context.identityStore.createCallCount()
+        let storedIdentity: CloudAppUserIdentity? = await context.identityStore.storedIdentity()
+        #expect(createCallCount == 0)
+        #expect(storedIdentity == nil)
+        #expect(viewModel.isCloudSyncEnabled == false)
+        #expect(viewModel.cloudIdentityAssociationState == .notAssociated)
+        #expect(viewModel.actionErrorMessage != nil)
+    }
+
+    /// 中文注释：清理路径——云端记录是本机早先未登录时写上去的临时 UUID（本机 `app_users` 有行、从未作为 Portal 用户出现），
+    /// 登录后开同步用当前后端 UUID 覆盖它，不再要求用户「换账户登录」。
+    @Test func formerLocalIdentityInCloudIsReplacedByThePortalUser() async throws {
+        let context: TestContext = try await Self.makeContext()
+        let formerLocalUserID: UUID = UUID()
+        try await context.database.queue.write { database in
+            try AppUserRecord.insertUser(id: formerLocalUserID.uuidString, in: database)
+        }
+        let staleIdentity: CloudAppUserIdentity = .proposed(
+            userID: formerLocalUserID,
+            at: Date(timeIntervalSince1970: 1)
+        )
+        await context.identityStore.setIdentity(staleIdentity)
+        let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
+        await viewModel.start()
+        await viewModel.setCloudSyncEnabled(true)
+
+        let replaceCallCount: Int = await context.identityStore.replaceCallCount()
+        let storedIdentity: CloudAppUserIdentity? = await context.identityStore.storedIdentity()
+        #expect(replaceCallCount == 1)
+        #expect(storedIdentity?.userID == context.activeAppUser.currentUserID)
+        #expect(storedIdentity?.createdAt == staleIdentity.createdAt)
+        if case .associated(let identity) = viewModel.cloudIdentityAssociationState {
+            #expect(identity.userID == context.activeAppUser.currentUserID)
+        } else {
+            Issue.record("expected associated state, got \(viewModel.cloudIdentityAssociationState)")
+        }
+    }
+
+    /// 中文注释：本机登录过的另一个 Portal 账户：`app_users` 有行但来源标记为 Portal，不走覆盖，仍交用户裁定。
+    @Test func anotherPortalUserSeenOnThisDeviceIsNotReplaced() async throws {
+        let context: TestContext = try await Self.makeContext()
+        let otherPortalUserID: UUID = UUID()
+        try await context.database.queue.write { database in
+            try AppUserRecord.insertUser(id: otherPortalUserID.uuidString, in: database)
+        }
+        try context.identityOriginStore.markPortalUserID(otherPortalUserID)
+        let cloudIdentity: CloudAppUserIdentity = .proposed(
+            userID: otherPortalUserID,
+            at: Date(timeIntervalSince1970: 1)
+        )
+        await context.identityStore.setIdentity(cloudIdentity)
+        let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
+        await viewModel.start()
+        await viewModel.setCloudSyncEnabled(true)
+
+        let replaceCallCount: Int = await context.identityStore.replaceCallCount()
+        #expect(replaceCallCount == 0)
+        #expect(viewModel.cloudIdentityAssociationState == .requiresUserDecision(
+            localUserID: context.activeAppUser.currentUserID,
+            cloudIdentity: cloudIdentity
+        ))
+        #expect(viewModel.isCloudSyncEnabled == false)
+    }
+
     @Test func enablingWithLocalDataWaitsForAFirstEnableDecision() async throws {
-        let context: TestContext = try Self.makeContext()
+        let context: TestContext = try await Self.makeContext()
         try context.sourceRepository.saveSource(Self.makeSource())
         await context.accountSession.start()
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
@@ -126,7 +197,7 @@ struct CloudSyncSettingsViewModelTests {
     }
 
     @Test func confirmingMergePreparesTheScopeBeforeEnablingSync() async throws {
-        let context: TestContext = try Self.makeContext()
+        let context: TestContext = try await Self.makeContext()
         try context.sourceRepository.saveSource(Self.makeSource())
         await context.accountSession.start()
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
@@ -145,7 +216,7 @@ struct CloudSyncSettingsViewModelTests {
     }
 
     @Test func enablingWithoutLocalDataStillWaitsForExplicitConfirmation() async throws {
-        let context: TestContext = try Self.makeContext()
+        let context: TestContext = try await Self.makeContext()
         await context.accountSession.start()
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
         await viewModel.start()
@@ -164,7 +235,7 @@ struct CloudSyncSettingsViewModelTests {
     }
 
     @Test func successfulInitialSyncPersistsRestoreCompletionAndPublishesContentRevision() async throws {
-        let context: TestContext = try Self.makeContext()
+        let context: TestContext = try await Self.makeContext()
         await context.accountSession.start()
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
         await viewModel.start()
@@ -183,7 +254,7 @@ struct CloudSyncSettingsViewModelTests {
     }
 
     @Test func cancelingFirstEnableLeavesSyncDisabledAndDoesNotPrepareTheCloudScope() async throws {
-        let context: TestContext = try Self.makeContext()
+        let context: TestContext = try await Self.makeContext()
         try context.sourceRepository.saveSource(Self.makeSource())
         await context.accountSession.start()
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
@@ -199,7 +270,7 @@ struct CloudSyncSettingsViewModelTests {
     }
 
     @Test func choosingCloudOnlyClearsCurrentIdentityDataAcrossSyncScopes() async throws {
-        let context: TestContext = try Self.makeContext()
+        let context: TestContext = try await Self.makeContext()
         try context.sourceRepository.saveSource(Self.makeSource())
         await context.accountSession.start()
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
@@ -216,7 +287,7 @@ struct CloudSyncSettingsViewModelTests {
     }
 
     @Test func unavailableAccountCannotEnableOrStartSynchronization() async throws {
-        let context: TestContext = try Self.makeContext()
+        let context: TestContext = try await Self.makeContext()
         await context.accountSession.start()
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
         await viewModel.start()
@@ -237,7 +308,7 @@ struct CloudSyncSettingsViewModelTests {
     }
 
     @Test func temporaryAccountOutagePausesSyncButRetainsPreferenceAndPreparation() async throws {
-        let context: TestContext = try Self.makeContext()
+        let context: TestContext = try await Self.makeContext()
         await context.accountSession.start()
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
         await viewModel.start()
@@ -261,7 +332,7 @@ struct CloudSyncSettingsViewModelTests {
     }
 
     @Test func disablingSyncRetainsPreparationAndPendingUploads() async throws {
-        let context: TestContext = try Self.makeContext()
+        let context: TestContext = try await Self.makeContext()
         await context.accountSession.start()
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
         await viewModel.start()
@@ -283,7 +354,7 @@ struct CloudSyncSettingsViewModelTests {
     }
 
     @Test func failedInitialRestoreCanRetryAndBecomeRestored() async throws {
-        let context: TestContext = try Self.makeContext()
+        let context: TestContext = try await Self.makeContext()
         await context.accountSession.start()
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
         await viewModel.start()
@@ -315,7 +386,7 @@ struct CloudSyncSettingsViewModelTests {
     }
 
     @Test func uploadFailureAfterDownloadStillCompletesInitialRestore() async throws {
-        let context: TestContext = try Self.makeContext()
+        let context: TestContext = try await Self.makeContext()
         await context.accountSession.start()
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
         await viewModel.start()
@@ -339,7 +410,7 @@ struct CloudSyncSettingsViewModelTests {
     }
 
     @Test func previousAccountResultAndErrorAreHiddenAfterAccountSwitch() async throws {
-        let context: TestContext = try Self.makeContext()
+        let context: TestContext = try await Self.makeContext()
         let accountB: CloudAccountScope = .cloud(hash: "account-b")
         await context.accountSession.start()
         let viewModel: CloudSyncSettingsViewModel = context.makeViewModel()
@@ -376,12 +447,12 @@ struct CloudSyncSettingsViewModelTests {
         #expect(CloudSyncInitialRestoreState.restored.shouldReplaceEmptyState == false)
     }
 
-    private static func makeContext() throws -> TestContext {
+    private static func makeContext(portalSignedIn: Bool = true) async throws -> TestContext {
         let databasePath: String = FileManager.default.temporaryDirectory
             .appendingPathComponent("BrowseCraftCloudSyncSettingsTests-\(UUID().uuidString).sqlite")
             .path
         let database: AppDatabase = try AppDatabase(path: databasePath)
-        try database.queue.write { database in
+        try await database.queue.write { database in
             try AppUserRecord.insertLocalDefaultUser(in: database)
         }
         let cloudScope: CloudAccountScope = .cloud(hash: "account-a")
@@ -399,7 +470,7 @@ struct CloudSyncSettingsViewModelTests {
         let activeAppUser: ActiveAppUserStore = ActiveAppUserStore(
             initialUserID: UUID()
         )
-        try database.queue.write { database in
+        try await database.queue.write { database in
             try AppUserRecord.insertUser(
                 id: activeAppUser.currentUserID.uuidString,
                 in: database
@@ -411,32 +482,40 @@ struct CloudSyncSettingsViewModelTests {
             CloudSyncTestAppUserIdentityStore(
                 userID: activeAppUser.currentUserID
             )
-        let portalSessionStore: CloudSyncTestPortalSessionStore =
-            CloudSyncTestPortalSessionStore(
-                session: PortalSessionPersistence(
+        // 中文注释：缺省是已登录 Portal 的会话（用户 = 活动用户）；`portalSignedIn: false` 模拟未登录开同步。
+        let portalSession: PortalSessionPersistence? = portalSignedIn
+            ? PortalSessionPersistence(
+                userID: activeAppUser.currentUserID,
+                credentials: PortalAuthenticationTokens(
                     userID: activeAppUser.currentUserID,
-                    credentials: PortalAuthenticationTokens(
-                        userID: activeAppUser.currentUserID,
-                        accessToken: "access-token",
-                        refreshToken: "refresh-token",
-                        accessTokenExpiresAt: Date().addingTimeInterval(3_600),
-                        refreshTokenExpiresAt: Date().addingTimeInterval(86_400)
-                    )
+                    accessToken: "access-token",
+                    refreshToken: "refresh-token",
+                    accessTokenExpiresAt: Date().addingTimeInterval(3_600),
+                    refreshTokenExpiresAt: Date().addingTimeInterval(86_400)
                 )
             )
+            : nil
+        let portalSessionStore: CloudSyncTestPortalSessionStore =
+            CloudSyncTestPortalSessionStore(session: portalSession)
         let portalAuthenticator: CloudSyncTestPortalAuthenticator =
             CloudSyncTestPortalAuthenticator()
-        // 中文注释：该用例不经过 Portal 会话协调器；保留构造以覆盖装配路径，但不持有引用。
-        _ = PortalSessionCoordinator(
+        let identityOriginStore: CloudSyncTestIdentityOriginStore = CloudSyncTestIdentityOriginStore()
+        // 中文注释：关联协调器的 Portal 门禁读的是会话协调器已加载的会话，所以这里要 `start()` 一次。
+        let portalSessionCoordinator: PortalSessionCoordinator = PortalSessionCoordinator(
             activeAppUser: activeAppUser,
             sessionStore: portalSessionStore,
-            authenticator: portalAuthenticator
+            authenticator: portalAuthenticator,
+            identityOriginStore: identityOriginStore
         )
+        await portalSessionCoordinator.start()
         let identityAssociationCoordinator:
             CloudAppUserIdentityAssociationCoordinator =
             CloudAppUserIdentityAssociationCoordinator(
                 identityStore: identityStore,
                 activeAppUser: activeAppUser,
+                portalSessionCoordinator: portalSessionCoordinator,
+                appUserRepository: GRDBAppUserRepository(database: database),
+                identityOriginStore: identityOriginStore,
                 now: {
                     return Date(timeIntervalSince1970: 10)
                 }
@@ -477,10 +556,12 @@ struct CloudSyncSettingsViewModelTests {
             userContext: userContext
         )
         return TestContext(
+            database: database,
             cloudScope: cloudScope,
             activeScope: activeScope,
             activeAppUser: activeAppUser,
             identityStore: identityStore,
+            identityOriginStore: identityOriginStore,
             identityAssociationCoordinator: identityAssociationCoordinator,
             localIdentityStore: localIdentityStore,
             portalSessionStore: portalSessionStore,
@@ -516,10 +597,12 @@ struct CloudSyncSettingsViewModelTests {
 }
 
 private struct TestContext {
+    var database: AppDatabase
     var cloudScope: CloudAccountScope
     var activeScope: ActiveAccountScopeStore
     var activeAppUser: ActiveAppUserStore
     var identityStore: MockCloudAppUserIdentityStore
+    var identityOriginStore: CloudSyncTestIdentityOriginStore
     var identityAssociationCoordinator: CloudAppUserIdentityAssociationCoordinator
     var localIdentityStore: CloudSyncTestAppUserIdentityStore
     var portalSessionStore: CloudSyncTestPortalSessionStore
@@ -561,6 +644,26 @@ private final class CloudSyncTestAppUserIdentityStore:
 
     func saveUserID(_ userID: UUID) throws {
         self.userID = userID
+    }
+}
+
+/// 中文注释：本机见过的 Portal 用户集合；关联协调器据此区分「本机旧本地 UUID」与「别的账户的后端 UUID」。
+private final class CloudSyncTestIdentityOriginStore:
+    PortalAppUserIdentityOriginStoring,
+    @unchecked Sendable {
+    private let lock: NSLock = NSLock()
+    private var portalUserIDs: Set<UUID> = []
+
+    func containsPortalUserID(_ userID: UUID) throws -> Bool {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.portalUserIDs.contains(userID)
+    }
+
+    func markPortalUserID(_ userID: UUID) throws {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        self.portalUserIDs.insert(userID)
     }
 }
 
@@ -621,6 +724,7 @@ private actor MockCloudAppUserIdentityStore: CloudAppUserIdentityStoring {
     private var identity: CloudAppUserIdentity?
     private var fetchCalls: Int = 0
     private var createCalls: Int = 0
+    private var replaceCalls: Int = 0
 
     func fetchIdentity() async throws -> CloudAppUserIdentity? {
         self.fetchCalls += 1
@@ -636,6 +740,22 @@ private actor MockCloudAppUserIdentityStore: CloudAppUserIdentityStoring {
         }
         self.identity = proposedIdentity
         return proposedIdentity
+    }
+
+    func replaceIdentity(
+        _ identity: CloudAppUserIdentity,
+        replacing existing: CloudAppUserIdentity
+    ) async throws -> CloudAppUserIdentity {
+        self.replaceCalls += 1
+        guard self.identity?.userID == existing.userID else {
+            throw CloudAppUserIdentityStoreError.operationFailed
+        }
+        self.identity = identity
+        return identity
+    }
+
+    func replaceCallCount() -> Int {
+        return self.replaceCalls
     }
 
     func setIdentity(_ identity: CloudAppUserIdentity?) {

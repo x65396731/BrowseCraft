@@ -222,6 +222,8 @@ enum CloudSyncSafeErrorMessage {
         if let associationError: CloudAppUserIdentityAssociationError =
             error as? CloudAppUserIdentityAssociationError {
             switch associationError {
+            case .signInRequired:
+                return "Portal sign-in required before iCloud identity association"
             case .activeUserChanged:
                 return "Active user changed during iCloud identity association"
             case .unexpectedState:

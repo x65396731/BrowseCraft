@@ -75,6 +75,15 @@ struct ComicDetailChapterHeader: View {
             // 中文注释：受限横幅放在贴顶的分区头里——点的是目录里的某一行，横幅得在目录旁边出现；
             // 放在简介下面时目录滚过头部就看不见（2026-10-08 模拟器实测）。
             self.accessBanners
+
+            // 中文注释：已有目录再下拉刷新失败——目录留着，错误用横幅（合同第八节，2026-10-10 裁定）；
+            // 目录为空时的失败态由 `ComicDetailChapterSection` 的占位承担。
+            if let message: String = self.viewModel.errorMessage,
+               self.viewModel.chapters.isEmpty == false {
+                LibraryTabErrorBanner(message: message)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 10)
+            }
         }
         .background(CatalogPalette.pageBackground)
     }

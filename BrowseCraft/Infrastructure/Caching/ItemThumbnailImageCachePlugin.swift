@@ -46,17 +46,13 @@ final class ItemThumbnailImageCachePlugin: ImagePipelineDelegate, ItemThumbnailI
         self.pipeline.cache.removeAll(caches: .memory)
     }
 
-    func cacheKey(for request: ImageRequest, pipeline: ImagePipeline) -> String? {
-        guard let url: URL = request.url else {
-            return nil
-        }
+    // 中文注释：这里有意不实现 `ImagePipelineDelegate.cacheKey(for:pipeline:)`。Nuke 对自定义键会同时用作内存键与磁盘键，
+    // 且不再拼 `thumbnail.identifier`——同一封面在库页大格与历史行小格就会互相串用解码结果（2026-10-10 复审 B-1）。
+    // 只把 `cacheKey(url:request:)` 放进 `userInfo[.imageIdKey]`（见 `thumbnailRequest(from:)`），内存键与磁盘键仍由 Nuke
+    // 按「imageId + 解码尺寸 + processors」组装，按尺寸各存一份。
 
-        return Self.cacheKey(
-            url: url,
-            request: request.urlRequest
-        )
-    }
-
+    /// 中文注释：图片身份：去掉 fragment 的地址 + Accept + Cookie 名集合。Referer 不进键（同一张图被多个详情页引用）；
+    /// Cookie 只看名字——值进键的话站点会话 Cookie 一轮换，该站全部缩略图的内存与磁盘缓存一起失效。
     static func cacheKey(
         url: URL,
         request: URLRequest?
@@ -65,14 +61,14 @@ final class ItemThumbnailImageCachePlugin: ImagePipelineDelegate, ItemThumbnailI
         let acceptHeader: String = Self.normalizedHeader(
             request?.value(forHTTPHeaderField: "Accept")
         )
-        let cookieHeader: String = Self.normalizedHeader(
+        let cookieNames: String = Self.normalizedCookieNames(
             request?.value(forHTTPHeaderField: "Cookie")
         )
         return [
             Constants.cacheKeyPrefix,
             urlKey,
             "accept=\(acceptHeader)",
-            "cookie=\(cookieHeader)"
+            "cookie=\(cookieNames)"
         ].joined(separator: "|")
     }
 
@@ -113,6 +109,21 @@ final class ItemThumbnailImageCachePlugin: ImagePipelineDelegate, ItemThumbnailI
         return value?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased() ?? ""
+    }
+
+    /// 中文注释：`a=1; b=2` → `a,b`（排序去重、小写）；没有 Cookie 头为空串。
+    private static func normalizedCookieNames(_ value: String?) -> String {
+        guard let value: String = value else {
+            return ""
+        }
+        let names: Set<String> = Set(
+            value.split(separator: ";").compactMap { pair in
+                let name: Substring = pair.split(separator: "=", maxSplits: 1).first ?? ""
+                let trimmed: String = name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                return trimmed.isEmpty ? nil : trimmed
+            }
+        )
+        return names.sorted().joined(separator: ",")
     }
 
     private static func trimIfNeeded(dataCache: DataCache) {

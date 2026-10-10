@@ -149,4 +149,24 @@ struct ImageRequestFactoryTests {
                 != ItemThumbnailImageCachePlugin.cacheKey(url: url, request: cookieRequest)
         )
     }
+
+    /// 中文注释：Cookie 只按名字进键——会话值轮换不能让该站的缩略图缓存整体失效（2026-10-10 复审 B-1）。
+    @Test func itemThumbnailCacheKeyIgnoresCookieValuesButKeepsCookieNames() throws {
+        let url: URL = try #require(URL(string: "https://image.example/item.jpg"))
+        var firstRequest: URLRequest = URLRequest(url: url)
+        firstRequest.setValue("session=abc; theme=dark", forHTTPHeaderField: "Cookie")
+        var rotatedRequest: URLRequest = URLRequest(url: url)
+        rotatedRequest.setValue("theme=light; session=xyz", forHTTPHeaderField: "Cookie")
+        var differentNamesRequest: URLRequest = URLRequest(url: url)
+        differentNamesRequest.setValue("session=abc", forHTTPHeaderField: "Cookie")
+
+        #expect(
+            ItemThumbnailImageCachePlugin.cacheKey(url: url, request: firstRequest)
+                == ItemThumbnailImageCachePlugin.cacheKey(url: url, request: rotatedRequest)
+        )
+        #expect(
+            ItemThumbnailImageCachePlugin.cacheKey(url: url, request: firstRequest)
+                != ItemThumbnailImageCachePlugin.cacheKey(url: url, request: differentNamesRequest)
+        )
+    }
 }

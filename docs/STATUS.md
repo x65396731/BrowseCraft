@@ -96,7 +96,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 直接请求收到挑战页时回退 WebView 再取一次（toonily 重生成后规则不带 `needsWebView`，真机三部作品打不开：手机出口直接请求章节页 403 Cloudflare 挑战、服务器出口 200；`DefaultPageLoader.loadContent` 捕获 `antiBot` 后走 `renderedPageContentLoader`，其它错误不回退；fwq `APP-MEMO-026`） | `BCA-RUNTIME-005` | required | approved | implemented | targeted-passed | 9f328d0 | 2026-10-06 |
 | WebView 过挑战后把站点 Cookie 回写系统存储 + 书类封面请求带上来源请求配置（`BCA-RUNTIME-005` 2026-10-07 补充两处；xbanxia 真机封面全失败：列表经 WebView 过 Cloudflare，封面请求 `hasCookie=false`、图床回挑战页；第一处上线后复验仍失败，查出书类封面请求配置为空、Cookie 策略缺省不带系统 Cookie；第三处：回写的 `cf_clearance` 按图床地址取不回，改为只用公开属性重建再写入；用户「修，现在实施」，真机确认封面显示） | `BCA-RUNTIME-005` | required | approved | implemented | device-passed | 11c4949 | 2026-10-07 |
 | 列表分页页码按 `startPage + N − 1` 代入（0 起页码站 rouman5 / 3kor；fwq `BC-LIST-124` / `APP-MEMO-027`）：Core `PaginationRule.startPage` 与 `sitePageNumber(forPage:)`、影视 / 漫画 / 书三处代入点、目录请求 `features=startPage` 能力声明；Core 3 例 + Runtime 24 例过、App 构建过，未发版 | `BCA-RUNTIME-006` | required | approved | implemented | targeted-passed | 587a99c | 2026-10-06 |
-| 站点按状态码拒绝不再报成「规则解析出错」（xjortho 拦桌面 UA 返回 403，正文被当成列表页解析；fwq `MEMO-App-请求被拒显示成规则解析出错`）：直接请求最终状态码 ≥ 400 时先认挑战页、其余抛 `RuleExecutionError.httpStatus`（Domain `d1d5dac`），分类器按状态码四类文案、诊断记 `network`；`loadData` 与 WebView 通道不在范围；按 AGENTS 未 build、未跑测试，用例已写（7 例），四道代码闸门过，未发版 | `BCA-RUNTIME-007` | required | approved | implemented | not-run | 07a0231 | 2026-10-10 |
+| 站点按状态码拒绝不再报成「规则解析出错」（xjortho 拦桌面 UA 返回 403，正文被当成列表页解析；fwq `MEMO-App-请求被拒显示成规则解析出错`）：直接请求最终状态码 ≥ 400 时先认挑战页、其余抛 `RuleExecutionError.httpStatus`（Domain `d1d5dac`），分类器按状态码四类文案、诊断记 `network`；`loadData` 与 WebView 通道不在范围；用例已写（7 例），四道代码闸门过，未发版 | `BCA-RUNTIME-007` | required | approved | implemented | full-suite-passed | 07a0231 | 2026-10-10 |
 
 ## 4. 身份与同步
 
@@ -170,3 +170,17 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 ## 7. 规则生成入口
 
 本节全部行已到终态，2026-10-10 按 `BCA-DOC-016` 整节退休，原样见 [history/status-log.md](history/status-log.md)「已结案」节。
+
+## 8. 代码复审（2026-10-10）
+
+复审报告与八条裁定见 Claude 文档「BrowseCraft 代码复审报告 2026-10-10」（https://claude.ai/code/artifact/fa99d4cf-3497-46de-94f5-923f89930335）。
+检查点暂填实施前的 HEAD，提交后改为实施提交。
+
+| 工作项 | 条款 | 决策 | 设计 | 实施 | 验证 | 检查点 | 更新日期 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 开启云同步前的 Portal 登录门禁（关联协调器 + 设置页开关禁用），以及云端记录为本机旧本地 UUID 时用当前账号覆盖的清理路径；用例 3 条 | `BCA-SYNC-004` `BCA-SYNC-010` | required | approved | implemented | full-suite-passed | 821d5dc | 2026-10-10 |
+| 缩略图管线缓存键：去掉自定义管线键让内存 / 磁盘键回到带解码尺寸的默认形态，Cookie 只按名进键；用例 1 条 | 未编号 | required | approved | implemented | full-suite-passed | 821d5dc | 2026-10-10 |
+| 影视 / 漫画详情已有内容时刷新失败改走横幅；搜索页失败态重开不聚焦；搜索结果带漫画进度角标与整站有声措辞 | 未编号 | required | approved | implemented | full-suite-passed | 821d5dc | 2026-10-10 |
+| 规则导入死代码栈（`addRuleSource` 与候选分析）与两个 Discovery 视图删除，装配与测试替身随之收口；临时资源页仍用的 `ComicDiscoveryWebResourceView` 搬到 `Features/History/Details` 保留 | `BCA-UI-003` | required | approved | implemented | full-suite-passed | 821d5dc | 2026-10-10 |
+| 三处过期用例跟上已提交的代码：目录请求带 `features=startPage`、视频详情属性带 `key`、v9 后的 schema 快照列序 | `BCA-RUNTIME-006` `BCA-DB-003` | required | approved | implemented | full-suite-passed | 821d5dc | 2026-10-10 |
+| `BCA-PARSE-006` 补写 fwq `BC-COMIC-147` 例外；StoreKit 适配落点按现状写进 architecture.md 第 9 节 | `BCA-PARSE-006` | required | approved | implemented | static-audit-passed | 821d5dc | 2026-10-10 |

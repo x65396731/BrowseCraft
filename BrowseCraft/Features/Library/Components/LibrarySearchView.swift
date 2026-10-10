@@ -36,8 +36,11 @@ struct LibrarySearchView: View {
             .background(CatalogPalette.pageBackground.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
             .onAppear {
-                // 中文注释：合同第七节——重新打开时有结果就不弹键盘，没有结果才聚焦。
-                if self.viewModel.searchResults.isEmpty && self.viewModel.isSearching == false {
+                // 中文注释：合同第七节——重新打开时有结果就不弹键盘，没有结果才聚焦；
+                // 失败横幅在时也不聚焦，键盘会盖住横幅上的「重试」「登录」（2026-10-10 裁定）。
+                if self.viewModel.searchResults.isEmpty,
+                   self.viewModel.isSearching == false,
+                   self.viewModel.searchErrorMessage == nil {
                     self.isKeywordFocused = true
                 }
             }
@@ -267,7 +270,11 @@ struct LibrarySearchView: View {
                     },
                     contentViewModelFactory: self.contentViewModelFactory,
                     paginationStatusText: self.viewModel.searchPaginationStatusText,
-                    isLoadingNextPage: self.viewModel.isLoadingNextSearchPage
+                    isLoadingNextPage: self.viewModel.isLoadingNextSearchPage,
+                    // 中文注释：搜索结果与库页同一张卡片、同一行，只读信息照库页给（2026-10-10 裁定）：
+                    // 漫画封面上的「读到 4-2」角标、整站有声的耳机与「听」措辞。长按「继续读」仍不接——搜索页不接阅读器。
+                    comicProgressBadgeText: self.viewModel.comicProgressBadgeText(for:),
+                    isAudiobookSource: self.viewModel.isAudiobookSource
                 )
             }
         } else if self.viewModel.hasSearched {

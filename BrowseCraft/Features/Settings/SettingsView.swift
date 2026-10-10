@@ -204,7 +204,8 @@ struct SettingsView: View {
     private var syncAndStorageGroup: some View {
         SettingsCardGroup(title: NSLocalizedString("settings_section_sync_storage", comment: "分组：同步与存储")) {
             NavigationLink(destination: CloudSyncSettingsView(
-                viewModel: self.cloudSyncViewModel
+                viewModel: self.cloudSyncViewModel,
+                isPortalSignedIn: self.viewModel.isPortalAuthenticated
             )) {
                 SettingsRow(
                     image: "SettingsCloudSync",

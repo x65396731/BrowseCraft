@@ -227,10 +227,6 @@ enum ViewModelTestHarness {
         )
         return SourcesViewModel(
             persistenceCoordinator: persistenceCoordinator,
-            addComicRuleSourceUseCase: AddComicRuleSourceUseCase(
-                sourceRepository: sourceRepository,
-                refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase
-            ),
             discoveryService: discoveryService,
             createVideoGenerationTaskUseCase: nil,
             loadVideoGenerationOutcomesUseCase: loadVideoGenerationOutcomesUseCase,

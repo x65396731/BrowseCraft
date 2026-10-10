@@ -18,4 +18,12 @@ protocol CloudAppUserIdentityStoring: Sendable {
     func createIdentityIfAbsent(
         _ proposedIdentity: CloudAppUserIdentity
     ) async throws -> CloudAppUserIdentity
+
+    /// 中文注释：唯一允许覆盖既有 userID 的路径——调用方已判定 `existing` 是本机未登录时写上去的临时 UUID
+    /// （`CloudAppUserIdentityAssociationCoordinator.isFormerLocalUser`）。实现仍按 `BCA-SYNC-010`
+    /// 显式 `.ifServerRecordUnchanged` 保存；服务端在此期间变过就抛错，由用户重试。
+    func replaceIdentity(
+        _ identity: CloudAppUserIdentity,
+        replacing existing: CloudAppUserIdentity
+    ) async throws -> CloudAppUserIdentity
 }
