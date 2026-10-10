@@ -13,7 +13,7 @@
 - `Records/Favorite` 保存收藏快照。
 - `Records/History` 保存漫画、视频、书籍历史快照。
 - `Records/Book` 保存本地书籍、阅读进度和书签。
-- `Records/Sync` 保存 iCloud 同步游标和本地待上传队列。
+- `Records/Sync` 保存 iCloud 同步游标、本地待上传队列、CKRecord system fields，以及历史同步账本 `HistorySyncLedgerRecord`（`history_sync_ledger`，v8 迁移；三张历史表不入队列，每轮同步拿历史表与账本对比得出新增 / 改动 / 删除 / 恢复，见 [History-Resume-Sync-Design.md](../../../docs/design/History-Resume-Sync-Design.md)）。
 - `Records/Temporary` 保存临时发现资源历史。
 - `Repositories/`、`Sync/`、`Identity/` 分别放 GRDB 仓储实现、同步存储与身份存储。
 
@@ -26,7 +26,7 @@
 - `sync_queue` 使用 `accountScope + entityType + entityID` 唯一键，队列 ID 也包含 account scope；CloudKit 返回的 `retryAfter` 持久化为 `nextRetryAt`，协调器按账户恢复最早重试任务。
 - Cloud 同步采用单一调度模型：`CloudSyncCoordinator` 统一处理账户恢复、本地变更、前台、远程通知、手动及定时重试；`CKSyncEngine.automaticallySync` 固定关闭，只执行协调器明确发起的 fetch/send。
 - 每轮上传先冻结待处理队列快照，再按固定批大小排空；partial failure 保留到下一轮，不在同一轮立即重试。
-- Zone 意外删除或账户加密数据重置时清理 engine state/system fields，并把仍有效的本地 Source、Favorite 重新入队；用户从 iCloud 存储管理执行 purge 时删除该 cloud scope 的本地缓存且不重新上传。
+- Zone 意外删除或账户加密数据重置时清理 engine state/system fields，并把仍有效的本地 Source、Favorite 重新入队，同时清空该账户的 `history_sync_ledger`，下一轮把本机现有历史当作新增重新登记上传；用户从 iCloud 存储管理执行 purge 时删除该 cloud scope 的本地缓存且不重新上传。
 - `sync_state` 使用 `accountScope + scope + zoneName` 复合主键，账户之间不共享 CloudKit 游标。
 - `cloud_record_metadata` 保存 CKRecord system fields/change tag，并按账户与 record name 隔离。
 - Source、Favorite 和同步账本 Repository 在每次事务开始前捕获活动 account scope。

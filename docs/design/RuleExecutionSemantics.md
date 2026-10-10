@@ -66,6 +66,9 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
   **已知边界**：搜索无结果时以 404 回应的站，用户看到的会从「没有结果」变为「找不到这个页面」；到 2026-10-10 无实例，出现时再按搜索场景单独处理。
   实现 `BrowseCraft/Infrastructure/Network/AlamofireHTTPClient.swift`（`contentFailure(statusCode:html:url:)`）、`BrowseCraftDomain/.../RuleExecutionError.swift`；
   用例 `AlamofireHTTPClientTests`（状态码与挑战页判定）、`PageContentLoaderTests`（状态码错误不回退 WebView）、`RuleExecutionErrorClassifierTests`（四类文案与诊断类别）。
+- 直接请求通道跟随重定向时，跳转目标是 `http://` 的一律升成 `https://` 再跟（`AlamofireHTTPClient.httpsUpgradingRedirector`，`HTTPSUpgrade.upgraded`），HTML 取页与 `loadData` 原始字节请求同一个重定向器；不开全局 ATS 例外。
+  引用点：fwq `BC-BOOK-050`（sfacg 作品页 302 到 http 的移动站再 301 回 https，URLSession 在 http 那一跳被 ATS 拒，而规则生成引擎的客户端无 ATS 跟得过去）；与有声书 mp3 地址的处置同一纪律。
+  本来就是 https 或不是 http(s) 的地址原样跟随。
 同域的另外三条不在本文：kind 分流纪律 `BCA-RUNTIME-002` 与目录解码兼容硬约束 `BCA-RUNTIME-004`
 在 [Book-Kind-Wiring-Design.md](Book-Kind-Wiring-Design.md)，播放候选过滤 `BCA-RUNTIME-003` 在
 [RuntimeAdFilter-Design.md](RuntimeAdFilter-Design.md)。

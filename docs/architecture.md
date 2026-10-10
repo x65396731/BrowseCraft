@@ -172,7 +172,8 @@ and the design documents reference them by ID and do not restate the text.
   every package manifest must be `swift-tools-version: 6.0` with an explicit `.swiftLanguageMode(.v6)`
   (§4).
 - `BCA-UI-003` The app exposes no entry point that creates or edits a source rule. Rules arrive
-  only through the server catalog (`PortalCatalogAPI`, stored encrypted in the snapshot);
+  only through the server catalog (`AddCatalogSourceUseCase` fetching `/catalog/sources` with the
+  `kinds=` and `features=` it supports, stored encrypted in the snapshot);
   `SourceDebugView` shows them read-only. Rule generation, normalisation and catalog publication
   contracts therefore live entirely in the fwq repository and are neither defined nor referenced here.
 
@@ -339,6 +340,10 @@ occur for them.
   `VideoGenerationInputPreflight` and `VideoGenerationInputURL`. The 2026-10-10 audit's "six types with no caller" did not hold
   up: each is a field type or payload of a kernel value and is referenced from its own file.
 - **Core and APIKit are unversioned path dependencies** (see §1).
+- **APIKit's `PortalCatalogAPI` has no caller in the app.** The catalog is fetched by
+  `AddCatalogSourceUseCase` through the shared HTTP client with the `kinds=` and `features=` query
+  (`BCA-RUNTIME-006`); the APIKit type sends `kinds=` only and would silently drop sources that need
+  a declared feature. Delete it in the APIKit repository rather than wire it in (noted 2026-10-10).
 - **`Shared` mixes concerns** — Firebase, AdMob, logging, image views and review prompts, with four
   `.shared` singletons that have no port and cannot be substituted in tests. `Infrastructure` adds
   three more (`ReadiumBookEnvironment`, `ItemThumbnailImageCachePlugin`, `SourceConfigurationDecodingCache`).

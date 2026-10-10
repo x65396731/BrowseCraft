@@ -57,7 +57,7 @@
 ## 五、实现位置
 
 - `BrowseCraft/Features/Sources/AddSource/AddSourceView.swift`：整页重画；选类型后在同一层里换成 `EntryPageGuideFlowView`；删去 scriptSource 分支、不可用提示框与徽章图取值。
-- `BrowseCraft/Domain/Models/Source/SourceImportOption.swift`：默认顺序改为视频、漫画、书籍；`scriptSource` 已随规则 JSON 导入一并下线，只剩 comic / video / book 三项。
+- 类型顺序（视频、漫画、书籍）由 `AddSourceView` 自持的 `kinds` 决定，不再从 `SourceImportOption` 取；`SourceImportOption`（`BrowseCraft/Domain/Models/Source/`）只剩 `RecommendSourceImportOptionUseCase` 在用，`scriptSource` 已随规则 JSON 导入一并下线，只剩 comic / video / book 三项。
 - `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift`：`CatalogKindBannerView` 从目录页文件移到这里供两页复用，副标题可传入，可选在类型名后带 ›。
 - `BrowseCraft/Features/Sources/SourcesView.swift`：本页请求打开目录时，等本页收起后再弹目录；从目录页进入时告诉本页不显示目录入口卡。
 - 资源：删 ComicKindBadge、VideoKindBadge、BookKindBadge 三份图并撤掉 `scripts/bundled-image-asset-budgets.txt` 里的登记。
