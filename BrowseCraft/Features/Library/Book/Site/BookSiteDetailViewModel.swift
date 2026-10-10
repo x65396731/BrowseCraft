@@ -58,16 +58,14 @@ final class BookSiteDetailViewModel {
     private(set) var readingHistory: BookReadingHistory?
     /// 中文注释：进度表那一条：全书进度 `totalProgression`，Locator 里的章内 `progression` 与有声 `t=`。
     private(set) var readingProgress: BookReadingProgress?
-    private(set) var isFavorite: Bool = false
+    var isFavorite: Bool = false
     private(set) var requestedSourceLogin: LibrarySourceLoginState?
 
     /// 目录派生状态：章节变化或翻转顺序时算一次（第六节）。
     private(set) var displayEntries: [BookChapterEntry] = []
-    private(set) var segments: [ComicChapterSegment] = []
+    /// 分段芯片的选中与滚动锚点（与漫画详情同一个状态机 `ChapterSegmentSelection`）；视图经下面的转发属性读。
+    let segmentSelection: ChapterSegmentSelection = ChapterSegmentSelection()
     private var isDisplayOrderFlipped: Bool = false
-    private var selectedSegmentID: String?
-    private(set) var pendingScrollChapterURL: String?
-    private var isProgrammaticScrolling: Bool = false
 
     private let loadPublicationUseCase: LoadBookPublicationUseCase
     /// 中文注释：进度与历史的读取走 actor，不在主线程跑 GRDB（复审 B-3）。
@@ -75,10 +73,10 @@ final class BookSiteDetailViewModel {
     private let userID: String
     private let toggleFavoriteUseCase: ToggleFavoriteUseCase?
     /// 中文注释：收藏读写走 actor，不在主线程跑 GRDB（复审 B-3）。
-    private let favoritePersistence: FavoriteStatePersistenceCoordinator?
+    let favoritePersistence: FavoriteStatePersistenceCoordinator?
     private let sourceCredentialStore: (any SourceCredentialStoring)?
     private let presentationUseCase: ResolveLibrarySourcePresentationUseCase
-    private let now: () -> Date
+    let now: () -> Date
 
     init(
         item: ContentItem,
@@ -127,11 +125,11 @@ final class BookSiteDetailViewModel {
     }
 
     var authorText: String? {
-        return Self.nonEmpty(self.manifest?.author)
+        return TrimmedText.nonEmpty(self.manifest?.author)
     }
 
     var descriptionText: String? {
-        return Self.nonEmpty(self.manifest?.description)
+        return TrimmedText.nonEmpty(self.manifest?.description)
     }
 
     /// 「来源 · 分类」：分类是列表项所属的列表页标题（规则有两个以上列表页时才有意义）。
@@ -192,7 +190,7 @@ final class BookSiteDetailViewModel {
 
     /// 继续卡片的章名：读书历史的章节名，没有用目录里那一章的标题。
     var continueChapterTitle: String? {
-        if let title: String = Self.nonEmpty(self.readingHistory?.chapterTitle) {
+        if let title: String = TrimmedText.nonEmpty(self.readingHistory?.chapterTitle) {
             return title
         }
         return self.currentEntry?.item.title
@@ -290,36 +288,34 @@ final class BookSiteDetailViewModel {
 
     func toggleDisplayOrder() {
         self.isDisplayOrderFlipped.toggle()
-        self.selectedSegmentID = nil
+        self.segmentSelection.clearSelection()
         self.rebuildChapterDerivedState()
     }
 
+    // MARK: - 分段芯片（转发到 `segmentSelection`）
+
+    var segments: [ChapterSegment] {
+        return self.segmentSelection.segments
+    }
+
     var effectiveSelectedSegmentID: String? {
-        guard let selected: String = self.selectedSegmentID, self.segments.contains(where: { $0.id == selected }) else {
-            return self.segments.first?.id
-        }
-        return selected
+        return self.segmentSelection.effectiveSelectedSegmentID
+    }
+
+    var pendingScrollChapterURL: String? {
+        return self.segmentSelection.pendingScrollChapterURL
     }
 
     func selectSegment(_ segmentID: String) {
-        self.selectedSegmentID = segmentID
-        self.isProgrammaticScrolling = true
-        self.pendingScrollChapterURL = segmentID
+        self.segmentSelection.select(segmentID)
     }
 
     func didFinishProgrammaticScroll() {
-        self.pendingScrollChapterURL = nil
-        self.isProgrammaticScrolling = false
+        self.segmentSelection.didFinishProgrammaticScroll()
     }
 
-    /// 行滚进视口时把分段芯片跟到它所在的段；点芯片滚动期间不反过来改。
     func chapterDidAppear(_ entry: BookChapterEntry) {
-        guard self.isProgrammaticScrolling == false,
-              let segment: ComicChapterSegment = self.segments.first(where: { $0.chapterURLs.contains(entry.id) }),
-              segment.id != self.selectedSegmentID else {
-            return
-        }
-        self.selectedSegmentID = segment.id
+        self.segmentSelection.chapterDidAppear(chapterURL: entry.id)
     }
 
     private func rebuildChapterDerivedState() {
@@ -332,60 +328,11 @@ final class BookSiteDetailViewModel {
             BookChapterEntry(item: pair.item, numberLabel: pair.parsed.numberLabel, name: pair.parsed.name, ordinal: index + 1)
         }
         self.displayEntries = entries
-        self.segments = Self.makeSegments(entries)
-        if let selected: String = self.selectedSegmentID, self.segments.contains(where: { $0.id == selected }) == false {
-            self.selectedSegmentID = self.segments.first?.id
-        } else if self.selectedSegmentID == nil {
-            self.selectedSegmentID = self.segments.first?.id
-        }
+        self.segmentSelection.update(segments: ChapterSegmentation.makeSegments(entries))
         self.rebuildReadingPositionDerivedState()
     }
 
-    /// ≥ 60 章时按显示顺序每 50 章一段；芯片文字是段首与段尾的编号（解不出编号用序号）。与漫画详情同一规则。
-    private static func makeSegments(_ entries: [BookChapterEntry]) -> [ComicChapterSegment] {
-        guard entries.count >= ComicChapterTitleParser.segmentThreshold else {
-            return []
-        }
-        return stride(from: 0, to: entries.count, by: ComicChapterTitleParser.segmentSize).map { start in
-            let end: Int = min(start + ComicChapterTitleParser.segmentSize, entries.count)
-            let slice: ArraySlice<BookChapterEntry> = entries[start..<end]
-            let first: BookChapterEntry = slice.first!
-            let last: BookChapterEntry = slice.last!
-            let firstLabel: String = first.numberLabel ?? String(first.ordinal)
-            let lastLabel: String = last.numberLabel ?? String(last.ordinal)
-            return ComicChapterSegment(
-                id: first.id,
-                title: slice.count == 1 ? firstLabel : "\(firstLabel)–\(lastLabel)",
-                chapterURLs: Set(slice.map(\.id))
-            )
-        }
-    }
-
     // MARK: - 收藏
-
-    func reloadFavoriteState() async {
-        guard let persistence: FavoriteStatePersistenceCoordinator = self.favoritePersistence else {
-            return
-        }
-        do {
-            self.isFavorite = try await persistence.isFavorite(itemID: self.item.id, sourceID: self.source.id)
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "book-detail-favorite-error")
-        }
-    }
-
-    func toggleFavorite() async {
-        guard let persistence: FavoriteStatePersistenceCoordinator = self.favoritePersistence else {
-            return
-        }
-        do {
-            let wasFavorite: Bool = self.isFavorite
-            self.isFavorite = try await persistence.toggle(item: self.item, source: self.source, favoritedAt: self.now())
-            AppAnalytics.shared.logBookmarkChanged(isFavorite: wasFavorite == false, source: self.source)
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "book-detail-favorite-error")
-        }
-    }
 
     var canToggleFavorite: Bool {
         return self.toggleFavoriteUseCase != nil
@@ -547,16 +494,13 @@ final class BookSiteDetailViewModel {
         return String(format: "%d:%02d", minutes, secs)
     }
 
-    private static func nonEmpty(_ text: String?) -> String? {
-        guard let trimmed: String = text?.trimmingCharacters(in: .whitespacesAndNewlines), trimmed.isEmpty == false else {
-            return nil
-        }
-        return trimmed
-    }
-
     private static let integerFormatter: NumberFormatter = {
         let formatter: NumberFormatter = NumberFormatter()
         formatter.numberStyle = .decimal
         return formatter
     }()
+}
+
+extension BookSiteDetailViewModel: DetailFavoriteToggling {
+    static let favoriteLogEvent: String = "book-detail-favorite-error"
 }

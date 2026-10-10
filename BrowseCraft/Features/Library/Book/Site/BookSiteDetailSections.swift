@@ -63,7 +63,7 @@ struct BookSiteDetailHeaderSection: View {
                     .font(.caption)
                     .foregroundStyle(self.viewModel.isAudiobook ? self.style.accent : Color.secondary)
                 } else if self.viewModel.isLoading {
-                    self.skeletonBar(width: 72)
+                    DetailSkeletonBar(width: 72)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -227,37 +227,8 @@ struct BookSiteDetailHeaderSection: View {
     @ViewBuilder
     private var synopsisSection: some View {
         if let description: String = self.viewModel.descriptionText {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(NSLocalizedString("video_detail_section_synopsis", comment: ""))
-                    .font(.footnote.weight(.bold))
-                    .foregroundStyle(.secondary)
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundStyle(.primary)
-                    .lineLimit(self.isSynopsisExpanded ? nil : 3)
-                    .fixedSize(horizontal: false, vertical: true)
-                Button(NSLocalizedString(self.isSynopsisExpanded ? "video_detail_collapse" : "video_detail_expand", comment: "")) {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        self.isSynopsisExpanded.toggle()
-                    }
-                }
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(self.style.accent)
-                .frame(minHeight: 44, alignment: .leading)
-                .contentShape(Rectangle())
-                .buttonStyle(.plain)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
+            DetailSynopsisSection(description: description, accent: self.style.accent, isExpanded: self.$isSynopsisExpanded)
         }
-    }
-
-    private func skeletonBar(width: CGFloat?) -> some View {
-        RoundedRectangle(cornerRadius: 3, style: .continuous)
-            .fill(CatalogPalette.fillBackground)
-            .frame(width: width, height: 12)
-            .accessibilityHidden(true)
     }
 }
 
@@ -307,7 +278,7 @@ struct BookSiteDetailChapterHeader: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
 
-                let segments: [ComicChapterSegment] = self.viewModel.segments
+                let segments: [ChapterSegment] = self.viewModel.segments
                 if segments.isEmpty == false {
                     LibraryChipBar(
                         chips: segments.map { segment in

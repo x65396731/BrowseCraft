@@ -203,7 +203,7 @@ final class HistoryViewModel {
                 return nil
             }
             var parts: [String] = []
-            if let chapter: String = Self.nonEmpty(history.chapterTitle) {
+            if let chapter: String = TrimmedText.nonEmpty(history.chapterTitle) {
                 parts.append(chapter)
             }
             if let pageIndex: Int = history.lastPageIndex, pageIndex >= 0 {
@@ -211,7 +211,7 @@ final class HistoryViewModel {
             }
             return parts.isEmpty ? nil : parts.joined(separator: " · ")
         case .book:
-            guard let chapter: String = Self.nonEmpty(entry.bookHistory?.chapterTitle) else {
+            guard let chapter: String = TrimmedText.nonEmpty(entry.bookHistory?.chapterTitle) else {
                 return nil
             }
             return String(format: NSLocalizedString("history_progress_read_to", comment: ""), chapter)
@@ -233,7 +233,7 @@ final class HistoryViewModel {
     /// 视频「看到哪里」：「第12集 · 看到 23:14 / 45:00」；库页「上次看到」瓷砖共用（`docs/design/Library-Video-Page-Redesign-Design.md` 第六节）。
     static func videoProgressText(for history: VideoWatchHistory) -> String? {
         var parts: [String] = []
-        if let episode: String = Self.nonEmpty(history.episodeTitle) {
+        if let episode: String = TrimmedText.nonEmpty(history.episodeTitle) {
             parts.append(episode)
         }
         if let duration: TimeInterval = history.duration, duration > 0,
@@ -284,7 +284,7 @@ final class HistoryViewModel {
         case .comic:
             return entry.comicHistory?.chapterURL?.absoluteString
         case .book:
-            return Self.nonEmpty(entry.bookHistory?.detailURL)
+            return TrimmedText.nonEmpty(entry.bookHistory?.detailURL)
         case .temporary:
             return (entry.temporaryHistory?.sourcePageURL ?? entry.temporaryHistory?.resourceURL)?.absoluteString
         }
@@ -345,7 +345,7 @@ final class HistoryViewModel {
             return entry.temporaryHistory?.resourceURL.host ?? ""
         }
         return self.source(for: entry)?.name
-            ?? Self.nonEmpty(entry.videoHistory?.sourceName)
+            ?? TrimmedText.nonEmpty(entry.videoHistory?.sourceName)
             ?? NSLocalizedString("favorites_unknown_source", comment: "")
     }
 
@@ -472,13 +472,6 @@ final class HistoryViewModel {
             return String(format: "%ld:%02ld:%02ld", hours, minutes, seconds)
         }
         return String(format: "%02ld:%02ld", minutes, seconds)
-    }
-
-    private static func nonEmpty(_ text: String?) -> String? {
-        guard let trimmed: String = text?.trimmingCharacters(in: .whitespacesAndNewlines), trimmed.isEmpty == false else {
-            return nil
-        }
-        return trimmed
     }
 
     private var currentUserID: String {

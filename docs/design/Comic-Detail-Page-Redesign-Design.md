@@ -195,6 +195,7 @@ sfacg 链接内的受限标记 → `BC-COMIC-147` 2026-10-08 修订（交付 `re
 
 ## 十三、实现位置
 
+- 三个详情页共用（2026-10-11 跨页复制收敛）：`Features/Library/Components/ChapterSegmentation.swift`（`ChapterSegment`、分段算法与选中 / 滚动锚点状态机 `ChapterSegmentSelection`，点芯片滚完后延迟 600 ms 再放开行的回写）、`DetailFavoriteToggling.swift`（右上收藏的读与切换）、`DetailSynopsisSection.swift`（简介块、骨架条、相关链接）、`Features/Shared/TrimmedText.swift`（`nonEmpty`）。
 - `BrowseCraft/Features/Library/Comic/Detail/ComicDetailView.swift` 与 `ComicDetailSections.swift`：头部、标签条、继续卡片 / 按钮、简介折叠与属性小字、骨架与空 / 失败态；原来的动作卡、信息卡与共用卡片容器三个视图随之删去。受限横幅与刷新失败横幅调 `Features/Library/Components/LibraryStateBanner.swift`，继续卡片的时刻调 `Features/Library/Components/LibraryHistoryTimeText.swift`（两者与书详情、搜索页、库页共用）。
 - `BrowseCraft/Features/Library/Comic/Detail/ComicDetailChapterSection.swift`：贴顶分区头（计数、已读、正序 / 倒序、分段芯片）、三列网格与行列表两种版式、已读 / 上次读到 / 受限 / 付费标记。
 - `BrowseCraft/Features/Library/Comic/Detail/ComicDetailViewModel.swift`：标题解析、版式判断、显示顺序、分段、本作品全部历史与继续目标、已读集合、收藏切换、属性摆位。

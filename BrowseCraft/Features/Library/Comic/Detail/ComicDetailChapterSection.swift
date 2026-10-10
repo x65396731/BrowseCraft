@@ -54,7 +54,7 @@ struct ComicDetailChapterHeader: View {
             .padding(.horizontal, 20)
             .padding(.top, 8)
 
-            let segments: [ComicChapterSegment] = self.viewModel.segments
+            let segments: [ChapterSegment] = self.viewModel.segments
             if segments.isEmpty == false {
                 LibraryChipBar(
                     chips: segments.map { segment in
@@ -257,7 +257,7 @@ struct ComicDetailChapterSection: View {
         let isCurrent: Bool = self.viewModel.isCurrent(entry)
         let isRead: Bool = isCurrent == false && self.viewModel.isRead(entry)
         let titleColor: Color = isCurrent ? self.style.accent : (isRead ? Color.secondary : Color.primary)
-        let trailingText: String? = isCurrent ? self.viewModel.currentChapterProgressText : self.nonEmpty(entry.chapter.subtitle)
+        let trailingText: String? = isCurrent ? self.viewModel.currentChapterProgressText : TrimmedText.nonEmpty(entry.chapter.subtitle)
         return Button {
             self.selectChapter(entry.chapter)
         } label: {
@@ -329,13 +329,6 @@ struct ComicDetailChapterSection: View {
             parts.append(NSLocalizedString("comic_detail_read", comment: ""))
         }
         return parts.joined(separator: ", ")
-    }
-
-    private func nonEmpty(_ text: String?) -> String? {
-        guard let text: String = text?.trimmingCharacters(in: .whitespacesAndNewlines), text.isEmpty == false else {
-            return nil
-        }
-        return text
     }
 
     // MARK: - 骨架与占位（第八节）

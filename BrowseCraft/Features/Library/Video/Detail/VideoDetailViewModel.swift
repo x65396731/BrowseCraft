@@ -66,7 +66,7 @@ final class VideoDetailViewModel {
     private(set) var continueWatchingHistory: VideoWatchHistory? {
         didSet { self.rebuildContinueDerivedState() }
     }
-    private(set) var isFavorite: Bool = false
+    var isFavorite: Bool = false
     /// 当前线路；nil 时取含上次看的那一集的线路，再没有取第一条。
     private(set) var selectedLineID: String? {
         didSet { self.rebuildSelectionDerivedState() }
@@ -95,9 +95,9 @@ final class VideoDetailViewModel {
     private let fallbackUserID: String
     private let toggleFavoriteUseCase: ToggleFavoriteUseCase?
     /// 中文注释：收藏读写走 actor，不在主线程跑 GRDB（复审 B-3）。
-    private let favoritePersistence: FavoriteStatePersistenceCoordinator?
+    let favoritePersistence: FavoriteStatePersistenceCoordinator?
     private let videoPlayerViewModelFactory: (@MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel)?
-    private let now: () -> Date
+    let now: () -> Date
 
     init(
         item: ContentItem,
@@ -397,10 +397,10 @@ final class VideoDetailViewModel {
                     )
                 ]
             }
-            self.synopsis = Self.nonEmpty(output.metadata?.description)
+            self.synopsis = TrimmedText.nonEmpty(output.metadata?.description)
             self.metadataAttributes = output.metadata?.attributes ?? []
             self.metadataRows = self.metadataAttributes.map(\.displayText)
-            self.detailTitle = Self.nonEmpty(output.metadata?.title)
+            self.detailTitle = TrimmedText.nonEmpty(output.metadata?.title)
             self.detailCoverURL = output.metadata?.coverURL
             self.ensureSelectedLine()
             #if DEBUG
@@ -619,7 +619,7 @@ final class VideoDetailViewModel {
             current = []
         }
         for episode: VideoEpisode in episodes {
-            let title: String? = Self.nonEmpty(episode.sourceName)
+            let title: String? = TrimmedText.nonEmpty(episode.sourceName)
             if current.isEmpty == false, (currentTitle ?? nil) != title {
                 flush()
             }
@@ -728,7 +728,7 @@ final class VideoDetailViewModel {
         if let byURL: VideoEpisode = episodes.first(where: { $0.playPageURL == history.playPageURL }) {
             return byURL
         }
-        guard let episodeTitle: String = Self.nonEmpty(history.episodeTitle) else {
+        guard let episodeTitle: String = TrimmedText.nonEmpty(history.episodeTitle) else {
             return nil
         }
         return episodes.first { $0.title == episodeTitle }
@@ -762,7 +762,7 @@ final class VideoDetailViewModel {
             return String(format: NSLocalizedString("video_detail_start_with", comment: ""), first.title)
         }
         let target: VideoEpisode? = self.continueTargetEpisode
-        let targetTitle: String = target?.title ?? Self.nonEmpty(history.episodeTitle) ?? self.item.title
+        let targetTitle: String = target?.title ?? TrimmedText.nonEmpty(history.episodeTitle) ?? self.item.title
         // 中文注释：只有一集时集名往往就是页面标题（电影站），按钮上不重复写它。
         let isSingle: Bool = self.episodes.count == 1
         if let target, self.isFinished(history) {
@@ -840,37 +840,12 @@ final class VideoDetailViewModel {
 
     // MARK: - 收藏（第五节）
 
-    func reloadFavoriteState() async {
-        guard let persistence: FavoriteStatePersistenceCoordinator = self.favoritePersistence else {
-            return
-        }
-        do {
-            self.isFavorite = try await persistence.isFavorite(itemID: self.item.id, sourceID: self.source.id)
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-detail-favorite-error")
-        }
-    }
-
-    @MainActor
-    func toggleFavorite() async {
-        guard let persistence: FavoriteStatePersistenceCoordinator = self.favoritePersistence else {
-            return
-        }
-        do {
-            let wasFavorite: Bool = self.isFavorite
-            self.isFavorite = try await persistence.toggle(item: self.item, source: self.source, favoritedAt: self.now())
-            AppAnalytics.shared.logBookmarkChanged(isFavorite: wasFavorite == false, source: self.source)
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-detail-favorite-error")
-        }
-    }
-
     // MARK: - 头图区取值（第五节）
 
     /// 中文注释：列表项的标题优先——它是用户点进来时看到的那个名字；详情规则取到的常是带 SEO 后缀的页面标题
     /// （低端影视：「危机13小时免费在线观看_高清网盘下载」，2026-10-08 模拟器），只在列表没给标题时才用。
     var displayTitle: String {
-        return Self.nonEmpty(self.item.title) ?? self.detailTitle ?? self.item.title
+        return TrimmedText.nonEmpty(self.item.title) ?? self.detailTitle ?? self.item.title
     }
 
     var displayCoverURLString: String? {
@@ -896,23 +871,23 @@ final class VideoDetailViewModel {
 
     var headlineMetadataText: String? {
         let values: [String] = Self.headlineMetadataKeys.compactMap { key in
-            self.metadataAttributes.first { $0.key == key }.flatMap { Self.nonEmpty($0.value) }
+            self.metadataAttributes.first { $0.key == key }.flatMap { TrimmedText.nonEmpty($0.value) }
         }
         return values.isEmpty ? nil : values.joined(separator: " · ")
     }
 
     /// 状态徽章：列表的 `latestText` 优先，没有用 metadata 的 status。
     var statusBadgeText: String? {
-        if let latestText: String = Self.nonEmpty(self.item.latestText) {
+        if let latestText: String = TrimmedText.nonEmpty(self.item.latestText) {
             return latestText
         }
-        return self.metadataAttributes.first { $0.key == "status" }.flatMap { Self.nonEmpty($0.value) }
+        return self.metadataAttributes.first { $0.key == "status" }.flatMap { TrimmedText.nonEmpty($0.value) }
     }
 
     /// 简介下的署名行：「导演 · xxx」。
     var creditLines: [String] {
         return Self.creditMetadataKeys.compactMap { entry in
-            guard let value: String = self.metadataAttributes.first(where: { $0.key == entry.key }).flatMap({ Self.nonEmpty($0.value) }) else {
+            guard let value: String = self.metadataAttributes.first(where: { $0.key == entry.key }).flatMap({ TrimmedText.nonEmpty($0.value) }) else {
                 return nil
             }
             return NSLocalizedString(entry.stringKey, comment: "") + " · " + value
@@ -929,13 +904,6 @@ final class VideoDetailViewModel {
 
     var hasSynopsisSection: Bool {
         return self.synopsis != nil || self.creditLines.isEmpty == false || self.otherMetadataLines.isEmpty == false
-    }
-
-    private static func nonEmpty(_ text: String?) -> String? {
-        guard let text: String = text?.trimmingCharacters(in: .whitespacesAndNewlines), text.isEmpty == false else {
-            return nil
-        }
-        return text
     }
 
     private func runtimeContext(operation: SourceRuntimeOperation?) -> SourceRuntimeContext {
@@ -956,4 +924,8 @@ final class VideoDetailViewModel {
     private var currentUserID: String {
         return self.activeAppUser?.currentUserID.uuidString ?? self.fallbackUserID
     }
+}
+
+extension VideoDetailViewModel: DetailFavoriteToggling {
+    static let favoriteLogEvent: String = "video-detail-favorite-error"
 }

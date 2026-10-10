@@ -265,68 +265,15 @@ struct ComicDetailHeaderSection: View {
     @ViewBuilder
     private var synopsisSection: some View {
         if self.viewModel.didLoad == false, self.viewModel.isLoading {
-            VStack(alignment: .leading, spacing: 10) {
-                self.skeletonBar(width: 36)
-                self.skeletonBar(width: nil)
-                self.skeletonBar(width: 240)
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .accessibilityHidden(true)
+            DetailSynopsisSkeleton()
         } else if self.viewModel.hasSynopsisSection {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(NSLocalizedString("video_detail_section_synopsis", comment: ""))
-                    .font(.footnote.weight(.bold))
-                    .foregroundStyle(.secondary)
-                if let description: String = self.viewModel.descriptionText {
-                    Text(description)
-                        .font(.subheadline)
-                        .foregroundStyle(.primary)
-                        .lineLimit(self.isSynopsisExpanded ? nil : 3)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                ForEach(self.viewModel.attributeLines, id: \.self) { line in
-                    Text(line)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                ForEach(self.viewModel.relatedLinks) { link in
-                    Link(destination: link.url) {
-                        HStack(spacing: 4) {
-                            Text(link.title)
-                            Image(systemName: "arrow.up.right")
-                        }
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(self.style.accent)
-                        .frame(minHeight: 44, alignment: .leading)
-                    }
-                }
-                if self.viewModel.descriptionText != nil {
-                    Button(
-                        NSLocalizedString(self.isSynopsisExpanded ? "video_detail_collapse" : "video_detail_expand", comment: "")
-                    ) {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            self.isSynopsisExpanded.toggle()
-                        }
-                    }
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(self.style.accent)
-                    .frame(minHeight: 44, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .buttonStyle(.plain)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
+            DetailSynopsisSection(
+                description: self.viewModel.descriptionText,
+                lines: self.viewModel.attributeLines,
+                links: self.viewModel.relatedLinks,
+                accent: self.style.accent,
+                isExpanded: self.$isSynopsisExpanded
+            )
         }
-    }
-
-    private func skeletonBar(width: CGFloat?) -> some View {
-        RoundedRectangle(cornerRadius: 3, style: .continuous)
-            .fill(CatalogPalette.fillBackground)
-            .frame(width: width, height: 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

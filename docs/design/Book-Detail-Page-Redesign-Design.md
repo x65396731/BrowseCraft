@@ -109,7 +109,7 @@ App 的 `BookPublicationAssembler` 再把 `description` 丢掉。三十四份真
 | 点行 | 带章节推入阅读器 / 播放器 | 按下行底 `fillBackground` |
 
 - 贴顶分区头：「章节 · 1,297 章」+「正序 / 倒序」；切换只翻显示顺序，不进存储；默认照规则抓到的顺序。
-- 分段芯片：≥ 60 章时每 50 章一段，芯片写段首–段尾编号（解得出时）或序号；点了滚到段首，不是筛选；逻辑复用 `ComicChapterSegment`。段首要落在贴顶分区头下面：`scrollTo` 的锚点按分区头高度 / 滚动区可见高度换算，不用 `.top`（`.top` 会让段首两行压在分区头底下）。
+- 分段芯片：≥ 60 章时每 50 章一段，芯片写段首–段尾编号（解得出时）或序号；点了滚到段首，不是筛选；逻辑复用 `ChapterSegment`。段首要落在贴顶分区头下面：`scrollTo` 的锚点按分区头高度 / 滚动区可见高度换算，不用 `.top`（`.top` 会让段首两行压在分区头底下）。
 - 解析结果、显示顺序、分段在章节变化或翻转时算一次，千章目录不在每次渲染时重算。
 
 ## 七、其余状态
@@ -170,6 +170,7 @@ App 的 `BookPublicationAssembler` 再把 `description` 丢掉。三十四份真
 
 ## 十二、实现位置
 
+- 三个详情页共用（2026-10-11 跨页复制收敛）：`Features/Library/Components/ChapterSegmentation.swift`（`ChapterSegment`、分段算法与选中 / 滚动锚点状态机 `ChapterSegmentSelection`，点芯片滚完后延迟 600 ms 再放开行的回写）、`DetailFavoriteToggling.swift`（右上收藏的读与切换）、`DetailSynopsisSection.swift`（简介块、骨架条、相关链接）、`Features/Shared/TrimmedText.swift`（`nonEmpty`）。
 - `BrowseCraft/Features/Library/Book/Site/BookSiteDetailView.swift`：系统 `List` 换成 `ScrollView` + `LazyVStack(pinnedViews:)`，固定按钮、头部、继续卡片 / 开始按钮、简介、贴顶分区头与分段芯片、目录、骨架；横幅调 `Features/Library/Components/LibraryStateBanner.swift`、继续卡片的时刻调 `LibraryHistoryTimeText.swift`（与漫画详情、搜索页、库页共用）；
   小块拆到 `BookSiteDetailSections.swift`。
 - `BrowseCraft/Features/Library/Book/Site/BookSiteDetailViewModel.swift`：读书历史、收藏、整站有声、登录态、目录派生状态（解析、显示顺序、分段、上次读到下标）、继续卡片文案、Locator 解析。

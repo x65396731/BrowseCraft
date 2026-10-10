@@ -273,57 +273,15 @@ struct VideoDetailView: View {
     @ViewBuilder
     private var synopsisSection: some View {
         if self.viewModel.hasLoadedEpisodes == false, self.viewModel.isLoadingEpisodes {
-            VStack(alignment: .leading, spacing: 10) {
-                self.skeletonBar(width: 36)
-                self.skeletonBar(width: nil)
-                self.skeletonBar(width: 240)
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
+            DetailSynopsisSkeleton()
         } else if self.viewModel.hasSynopsisSection {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(NSLocalizedString("video_detail_section_synopsis", comment: ""))
-                    .font(.footnote.weight(.bold))
-                    .foregroundStyle(.secondary)
-                if let synopsis: String = self.viewModel.synopsis {
-                    Text(synopsis)
-                        .font(.subheadline)
-                        .foregroundStyle(.primary)
-                        .lineLimit(self.isSynopsisExpanded ? nil : 3)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                ForEach(self.viewModel.creditLines + self.viewModel.otherMetadataLines, id: \.self) { line in
-                    Text(line)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                if self.viewModel.synopsis != nil {
-                    Button(
-                        NSLocalizedString(self.isSynopsisExpanded ? "video_detail_collapse" : "video_detail_expand", comment: "")
-                    ) {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            self.isSynopsisExpanded.toggle()
-                        }
-                    }
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(self.style.accent)
-                    .frame(minHeight: 44, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .buttonStyle(.plain)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
+            DetailSynopsisSection(
+                description: self.viewModel.synopsis,
+                lines: self.viewModel.creditLines + self.viewModel.otherMetadataLines,
+                accent: self.style.accent,
+                isExpanded: self.$isSynopsisExpanded
+            )
         }
-    }
-
-    private func skeletonBar(width: CGFloat?) -> some View {
-        RoundedRectangle(cornerRadius: 3, style: .continuous)
-            .fill(CatalogPalette.fillBackground)
-            .frame(width: width, height: 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - 线路与选集（第六节）

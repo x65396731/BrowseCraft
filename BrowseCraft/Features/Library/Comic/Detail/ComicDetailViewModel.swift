@@ -7,15 +7,6 @@ import BrowseCraftDomain
 // 页上每一块只在规则或本机历史给了数据时出现：头部按 `SourceDetailMetadata` 有什么出什么，
 // 目录版式按章节标题的形状二选一，已读 / 上次读到按本作品的全部章节历史标。
 
-struct ComicDetailRelatedLink: Identifiable, Hashable {
-    let title: String
-    let url: URL
-
-    var id: String {
-        return "\(self.title)|\(self.url.absoluteString)"
-    }
-}
-
 enum ComicReaderDestination: Hashable {
     case chapter(ChapterLink)
     case history(ComicChapterHistory)
@@ -55,13 +46,6 @@ struct ComicChapterEntry: Identifiable, Hashable {
         }
         return self.chapter.title
     }
-}
-
-/// 分段芯片：按显示顺序每 50 章一段，`id` 是段首章节 URL，点了滚到那一行。
-struct ComicChapterSegment: Identifiable, Hashable {
-    let id: String
-    let title: String
-    let chapterURLs: Set<String>
 }
 
 /// 章节标题解析（第七节）：只影响显示，不改顺序、不进存储。
@@ -205,7 +189,8 @@ final class ComicDetailViewModel {
     private(set) var continueChapter: ChapterLink?
     /// 章节变了或翻转顺序时重算的派生状态：目录解析结果、显示顺序、版式、分段；上千章的目录不在每次渲染时重算。
     private(set) var displayEntries: [ComicChapterEntry] = []
-    private(set) var segments: [ComicChapterSegment] = []
+    /// 分段芯片的选中与滚动锚点（与书详情同一个状态机 `ChapterSegmentSelection`）；视图经下面的转发属性读。
+    let segmentSelection: ChapterSegmentSelection = ChapterSegmentSelection()
     private(set) var usesGrid: Bool = false
     /// Core 给的顺序是不是正序：按首尾两章解出的话数推断；解不出时为 nil，退到规则声明的方向。
     /// めちゃコミック的规则没声明 `sort`，页面顺序是正序，只按规则会把「第 1 话」认成最后一章（2026-10-08 模拟器实测）。
@@ -213,15 +198,11 @@ final class ComicDetailViewModel {
     private var readChapterKeys: Set<String> = []
     private(set) var isLoading: Bool = false
     private(set) var didLoad: Bool = false
-    private(set) var isFavorite: Bool = false
+    var isFavorite: Bool = false
     private(set) var sourceLoginPrompt: ComicDetailSourceLoginPrompt?
     private(set) var requestedSourceLogin: LibrarySourceLoginState?
     /// 目录的显示顺序是否相对 Core 给的顺序翻转；不改进阅读器的导航顺序。
     private(set) var isDisplayOrderFlipped: Bool = false
-    /// 当前选中的分段（段首章节 URL）。
-    private(set) var selectedSegmentID: String?
-    /// 点分段芯片后要滚到的那一行；视图滚完后清掉。
-    private(set) var pendingScrollChapterURL: String?
     var accessMessage: String?
     var errorMessage: String?
 
@@ -235,12 +216,10 @@ final class ComicDetailViewModel {
     private let activeAppUser: (any ActiveAppUserProviding)?
     private let toggleFavoriteUseCase: ToggleFavoriteUseCase?
     /// 中文注释：收藏读写走 actor，不在主线程跑 GRDB（复审 B-3）。
-    private let favoritePersistence: FavoriteStatePersistenceCoordinator?
+    let favoritePersistence: FavoriteStatePersistenceCoordinator?
     private let fallbackUserID: String
-    private let now: () -> Date
+    let now: () -> Date
     private var pendingRestrictedChapterURL: String?
-    /// 点芯片滚动期间不让行的 onAppear 反过来改选中段。
-    private var isProgrammaticScrolling: Bool = false
 
     init(
         item: ContentItem,
@@ -279,7 +258,7 @@ final class ComicDetailViewModel {
 
     /// 列表项的标题优先——它是用户点进来时看到的那个名字；detail `title` 常是带站名前后缀的页面标题。
     var displayTitle: String {
-        return self.nonEmpty(self.item.title) ?? self.nonEmpty(self.metadata?.title) ?? self.item.title
+        return TrimmedText.nonEmpty(self.item.title) ?? TrimmedText.nonEmpty(self.metadata?.title) ?? self.item.title
     }
 
     var coverURLString: String? {
@@ -287,32 +266,32 @@ final class ComicDetailViewModel {
     }
 
     var descriptionText: String? {
-        return self.nonEmpty(self.metadata?.description)
+        return TrimmedText.nonEmpty(self.metadata?.description)
     }
 
     var authorText: String? {
-        return self.nonEmpty(self.metadata?.author)
+        return TrimmedText.nonEmpty(self.metadata?.author)
     }
 
     var statusText: String? {
-        return self.nonEmpty(self.metadata?.status)
+        return TrimmedText.nonEmpty(self.metadata?.status)
     }
 
     var categoryText: String? {
-        return self.nonEmpty(self.metadata?.category)
+        return TrimmedText.nonEmpty(self.metadata?.category)
     }
 
     var languageText: String? {
-        return self.nonEmpty(self.metadata?.language)
+        return TrimmedText.nonEmpty(self.metadata?.language)
     }
 
     var tags: [String] {
-        return self.metadata?.tags.compactMap { self.nonEmpty($0) } ?? []
+        return self.metadata?.tags.compactMap { TrimmedText.nonEmpty($0) } ?? []
     }
 
     /// 更新行「更新至第94话 · 2026-10-01」：列表 `latestText` + detail `updatedAt`，有哪个写哪个；都没有为 nil。
     var updateLineText: String? {
-        let parts: [String] = [self.nonEmpty(self.item.latestText), self.nonEmpty(self.metadata?.updatedAt)].compactMap { $0 }
+        let parts: [String] = [TrimmedText.nonEmpty(self.item.latestText), TrimmedText.nonEmpty(self.metadata?.updatedAt)].compactMap { $0 }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
@@ -326,23 +305,23 @@ final class ComicDetailViewModel {
             return []
         }
         var lines: [String] = []
-        if let value: String = self.nonEmpty(metadata.publishedAt) {
+        if let value: String = TrimmedText.nonEmpty(metadata.publishedAt) {
             lines.append(NSLocalizedString("comic_detail_attr_published", comment: "") + " · " + value)
         }
-        if let value: String = self.nonEmpty(metadata.license) {
+        if let value: String = TrimmedText.nonEmpty(metadata.license) {
             lines.append(NSLocalizedString("comic_detail_attr_license", comment: "") + " · " + value)
         }
-        if let value: String = self.nonEmpty(metadata.idCode) {
+        if let value: String = TrimmedText.nonEmpty(metadata.idCode) {
             lines.append(NSLocalizedString("comic_detail_attr_id", comment: "") + " · " + value)
         }
         if let totalImages: Int = metadata.totalImages {
             lines.append(String(format: NSLocalizedString("comic_detail_attr_images", comment: ""), totalImages))
         }
         for attribute: SourceDetailAttribute in metadata.attributes {
-            guard let value: String = self.nonEmpty(attribute.value) else {
+            guard let value: String = TrimmedText.nonEmpty(attribute.value) else {
                 continue
             }
-            if let label: String = self.nonEmpty(attribute.label) {
+            if let label: String = TrimmedText.nonEmpty(attribute.label) {
                 lines.append(label + " · " + value)
             } else {
                 lines.append(value)
@@ -351,17 +330,17 @@ final class ComicDetailViewModel {
         return lines
     }
 
-    var relatedLinks: [ComicDetailRelatedLink] {
+    var relatedLinks: [DetailRelatedLink] {
         guard let metadata: SourceDetailMetadata = self.metadata else {
             return []
         }
-        var links: [ComicDetailRelatedLink] = []
+        var links: [DetailRelatedLink] = []
         if let photoAlbumURL: URL = metadata.photoAlbumURL {
-            links.append(ComicDetailRelatedLink(title: NSLocalizedString("comic_detail_link_photo_album", comment: ""), url: photoAlbumURL))
+            links.append(DetailRelatedLink(title: NSLocalizedString("comic_detail_link_photo_album", comment: ""), url: photoAlbumURL))
         }
         if let secondLevelPageURL: URL = metadata.secondLevelPageURL,
            secondLevelPageURL != metadata.photoAlbumURL {
-            links.append(ComicDetailRelatedLink(title: NSLocalizedString("comic_detail_link_related_page", comment: ""), url: secondLevelPageURL))
+            links.append(DetailRelatedLink(title: NSLocalizedString("comic_detail_link_related_page", comment: ""), url: secondLevelPageURL))
         }
         return links
     }
@@ -414,12 +393,7 @@ final class ComicDetailViewModel {
             )
         }
         self.displayEntries = entries
-        self.segments = Self.makeSegments(entries)
-        if let selected: String = self.selectedSegmentID, self.segments.contains(where: { $0.id == selected }) == false {
-            self.selectedSegmentID = self.segments.first?.id
-        } else if self.selectedSegmentID == nil {
-            self.selectedSegmentID = self.segments.first?.id
-        }
+        self.segmentSelection.update(segments: ChapterSegmentation.makeSegments(entries))
         self.rebuildHistoryDerivedState()
     }
 
@@ -433,7 +407,7 @@ final class ComicDetailViewModel {
             if let byURL: ChapterLink = self.chapters.first(where: { $0.url == history.chapterURL?.absoluteString || $0.url == history.chapterKey }) {
                 return byURL
             }
-            guard let title: String = self.nonEmpty(history.chapterTitle) else {
+            guard let title: String = TrimmedText.nonEmpty(history.chapterTitle) else {
                 return nil
             }
             return self.chapters.first { $0.title == title }
@@ -458,26 +432,6 @@ final class ComicDetailViewModel {
         return Int(label.prefix { $0.isNumber })
     }
 
-    /// ≥ 60 章时按显示顺序每 50 章一段；芯片文字是段首与段尾的编号（解不出编号用序号）。
-    private static func makeSegments(_ entries: [ComicChapterEntry]) -> [ComicChapterSegment] {
-        guard entries.count >= ComicChapterTitleParser.segmentThreshold else {
-            return []
-        }
-        return stride(from: 0, to: entries.count, by: ComicChapterTitleParser.segmentSize).map { start in
-            let end: Int = min(start + ComicChapterTitleParser.segmentSize, entries.count)
-            let slice: ArraySlice<ComicChapterEntry> = entries[start..<end]
-            let first: ComicChapterEntry = slice.first!
-            let last: ComicChapterEntry = slice.last!
-            let firstLabel: String = first.numberLabel ?? String(first.ordinal)
-            let lastLabel: String = last.numberLabel ?? String(last.ordinal)
-            return ComicChapterSegment(
-                id: first.id,
-                title: slice.count == 1 ? firstLabel : "\(firstLabel)–\(lastLabel)",
-                chapterURLs: Set(slice.map(\.id))
-            )
-        }
-    }
-
     /// 正序 / 倒序的当前文案：Core 给的顺序按规则方向算，翻转后反过来。
     var isDisplayDescending: Bool {
         let baseDescending: Bool = self.coreOrderIsAscending.map { $0 == false } ?? (self.chapterNavigationOrder == .descending)
@@ -490,42 +444,34 @@ final class ComicDetailViewModel {
 
     func toggleDisplayOrder() {
         self.isDisplayOrderFlipped.toggle()
-        self.selectedSegmentID = nil
+        self.segmentSelection.clearSelection()
         self.rebuildChapterDerivedState()
     }
 
+    // MARK: - 分段芯片（转发到 `segmentSelection`）
+
+    var segments: [ChapterSegment] {
+        return self.segmentSelection.segments
+    }
+
     var effectiveSelectedSegmentID: String? {
-        guard let selected: String = self.selectedSegmentID, self.segments.contains(where: { $0.id == selected }) else {
-            return self.segments.first?.id
-        }
-        return selected
+        return self.segmentSelection.effectiveSelectedSegmentID
+    }
+
+    var pendingScrollChapterURL: String? {
+        return self.segmentSelection.pendingScrollChapterURL
     }
 
     func selectSegment(_ segmentID: String) {
-        self.selectedSegmentID = segmentID
-        self.isProgrammaticScrolling = true
-        self.pendingScrollChapterURL = segmentID
+        self.segmentSelection.select(segmentID)
     }
 
-    /// 视图滚到段首之后调用；之后行的出现才再驱动芯片选中。
     func didFinishProgrammaticScroll() {
-        self.pendingScrollChapterURL = nil
-        Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(600))
-            self?.isProgrammaticScrolling = false
-        }
+        self.segmentSelection.didFinishProgrammaticScroll()
     }
 
-    /// 行或格子出现在屏上：当前滚到哪一段哪个芯片选中。
     func chapterDidAppear(_ entry: ComicChapterEntry) {
-        guard self.isProgrammaticScrolling == false, self.segments.isEmpty == false else {
-            return
-        }
-        guard let segment: ComicChapterSegment = self.segments.first(where: { $0.chapterURLs.contains(entry.id) }),
-              segment.id != self.selectedSegmentID else {
-            return
-        }
-        self.selectedSegmentID = segment.id
+        self.segmentSelection.chapterDidAppear(chapterURL: entry.id)
     }
 
     // MARK: - 已读与继续阅读（第六、七节）
@@ -564,7 +510,7 @@ final class ComicDetailViewModel {
         guard let history: ComicChapterHistory = self.latestReadingHistory else {
             return nil
         }
-        return self.continueChapter?.title ?? self.nonEmpty(history.chapterTitle)
+        return self.continueChapter?.title ?? TrimmedText.nonEmpty(history.chapterTitle)
     }
 
     /// 「第 13 页 · 昨天 21:40」，有页数时「13 / 45 页 · 昨天 21:40」；时刻写法与库页瓷砖同一套（`LibraryHistoryTimeText`）。
@@ -630,31 +576,7 @@ final class ComicDetailViewModel {
         return String(format: NSLocalizedString("history_progress_page", comment: ""), pageIndex + 1)
     }
 
-    // MARK: - 收藏（第五节）
-
-    func reloadFavoriteState() async {
-        guard let persistence: FavoriteStatePersistenceCoordinator = self.favoritePersistence else {
-            return
-        }
-        do {
-            self.isFavorite = try await persistence.isFavorite(itemID: self.item.id, sourceID: self.source.id)
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "comic-detail-favorite-error")
-        }
-    }
-
-    func toggleFavorite() async {
-        guard let persistence: FavoriteStatePersistenceCoordinator = self.favoritePersistence else {
-            return
-        }
-        do {
-            let wasFavorite: Bool = self.isFavorite
-            self.isFavorite = try await persistence.toggle(item: self.item, source: self.source, favoritedAt: self.now())
-            AppAnalytics.shared.logBookmarkChanged(isFavorite: wasFavorite == false, source: self.source)
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "comic-detail-favorite-error")
-        }
-    }
+    // MARK: - 收藏（第五节）：`DetailFavoriteToggling` 的默认实现，见文件末尾的 extension
 
     // MARK: - 加载
 
@@ -828,14 +750,6 @@ final class ComicDetailViewModel {
         }
     }
 
-    private func nonEmpty(_ value: String?) -> String? {
-        guard let value: String = value?.trimmingCharacters(in: .whitespacesAndNewlines),
-              value.isEmpty == false else {
-            return nil
-        }
-        return value
-    }
-
     private func restrictedMessage(isPaid: Bool?) -> String {
         if isPaid == true {
             return NSLocalizedString("comic_detail_access_denied_paid", comment: "已登录仍看不了付费章")
@@ -846,4 +760,8 @@ final class ComicDetailViewModel {
     private var currentUserID: String {
         return self.activeAppUser?.currentUserID.uuidString ?? self.fallbackUserID
     }
+}
+
+extension ComicDetailViewModel: DetailFavoriteToggling {
+    static let favoriteLogEvent: String = "comic-detail-favorite-error"
 }
