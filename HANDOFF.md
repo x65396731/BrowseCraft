@@ -41,6 +41,7 @@ python3 scripts/check-docs.py
 | 规则目录：「我的生成」优先落段；删失败记录整入口软删除 | 任何验证 | [Catalog-Page-Redesign](docs/design/Catalog-Page-Redesign-Design.md) 第 2.1 / 2.3 节 | 第 2 节末两行 |
 | F2-5 / F2-6：进列表先读后写、读书线读库经 actor | 验证 | — | 第 6 节 |
 | 漫画详情分段芯片锚点（2026-10-10 已改为按分区头高度换算） | 模拟器或真机看一眼段首不被盖住；章节 `order` 接线已裁定记账、不做 | [Comic-Detail](docs/design/Comic-Detail-Page-Redesign-Design.md) 第十四节、[Book-Detail](docs/design/Book-Detail-Page-Redesign-Design.md) 第十三节 | 第 2 节 |
+| 2026-10-10 复审第九批：`BCA-DB-003` 给 v7 到 v9 补上一版库升级用例（三条；App 与测试目标构建 0 警告，BrowseCraftTests 573 + 84 例全过；未提交） | 提交后把 STATUS 第 8 节末行检查点改成实施提交 | [Database README](BrowseCraft/Infrastructure/Database/README.md) `BCA-DB-003` | 第 8 节末行 |
 | 2026-10-10 复审第七批（跨页复制第一组）：横幅三套收成 `LibraryStateBanner`、时刻写法收成 `LibraryHistoryTimeText`、横幅词条改 `library_banner_*`（App 构建 0 警告、BrowseCraftTests 570 + 84 例全过、五道闸门干净） | 真机：书详情 / 搜索页失败横幅的「登录」「重试」、漫画详情受限横幅、三处继续卡片与瓷砖时刻一致 | [Book-Detail](docs/design/Book-Detail-Page-Redesign-Design.md) 第七节、[Comic-Detail](docs/design/Comic-Detail-Page-Redesign-Design.md) 第八节、[Search](docs/design/Search-Page-Redesign-Design.md) 第五节 | 第 8 节末行 |
 | 2026-10-10 复审第六批（B-4）：目录跟随先比指纹、批量一个写事务、不再经 addCatalogSource；v10 迁移 | 真机：打开规则目录页的耗时、回前台静默跟随不切标签 | [Catalog-Rule-Update](docs/design/Catalog-Rule-Update-Design.md) 第二节 | 第 8 节末行 |
 | 2026-10-10 复审第五批：Domain 包瘦身（四组类型搬回 App）与 B-6 到 B-8 计算属性改存储 | 真机：影视详情 500 集单线路页滚动、历史页 1000 条切筛选 | [architecture.md](docs/architecture.md) 第 2 节 domain kernel | 第 8 节末行 |
@@ -53,7 +54,7 @@ python3 scripts/check-docs.py
 | 站点有声播放器后续：界面样式、倍速入口、`mediaAPI` 无语料 | 立项 | [Book-Kind-Wiring](docs/design/Book-Kind-Wiring-Design.md) 第十六节 | 第 1 节 optional 行 |
 | 给 fwq 的六条读书 kind 生成需求 | 需求一 / 三 / 四 / 五前半 fwq 已交付并真机通过（小說狂人最新章节 10-10 再修、待部署）；需求二记账、两端都不做；五后半目录分页 fwq 未定立场；六 fwq 不做 | Claude 文档「读书 kind 规则生成覆盖需求」（https://claude.ai/artifact/HnYM71goMZveUVJQQ4vhgk） | fwq STATUS |
 
-下一会话建议顺序：复审剩余项（BCA-DB-003 给 v7 到 v9 补升级夹具、B-10 驻留测量、约 60 处颜色绕过 CatalogStyle、两件裁定：库页翻页失败走分页脚还是横幅、目录未知 kind 只记 debug 与密文混装整表失败要不要扩条款）→ 真机验收；APIKit 仓删零引用的 `PortalCatalogAPI`→ 续看同步两机对测 → 真机验收（用户在真机上走，结果新增 `device-passed` 行、不改模拟器那几行）。
+下一会话建议顺序：提交复审第九批（已构建、全量测试已过） → 复审剩余项（B-10 驻留测量、约 60 处颜色绕过 CatalogStyle、两件裁定：库页翻页失败走分页脚还是横幅、目录未知 kind 只记 debug 与密文混装整表失败要不要扩条款）→ 真机验收；APIKit 仓删零引用的 `PortalCatalogAPI`→ 续看同步两机对测 → 真机验收（用户在真机上走，结果新增 `device-passed` 行、不改模拟器那几行）。
 
 - **fwq 侧指针**（定义点与验证状态都在 fwq `docs/rules/STATUS.md`）：`BCA-RUNTIME-005`（fwq `APP-MEMO-026`）里「直接请求收到挑战页回退 WebView」一处仍欠真机，
   发版后由用户重交 toonily 验证，发版前 Cloudflare 站不要重生成；`BC-PREFLIGHT-066`（点推送停在原页、打开目录直接看到新规则）在 fwq 为 `not-run`，随规则目录页真机一起看；
