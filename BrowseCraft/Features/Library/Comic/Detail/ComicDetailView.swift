@@ -54,13 +54,7 @@ struct ComicDetailView: View {
                             } action: { height in
                                 self.chapterHeaderHeight = height
                             }
-                            // 中文注释：贴顶时分区头停在安全区顶边，状态栏与芯片之间那一截会露出滚过的内容；
-                            // 底色向上多铺一段盖住，静止时藏在头部后面（头部 zIndex 更高）。
-                            .background(alignment: .top) {
-                                CatalogPalette.pageBackground
-                                    .frame(height: 160)
-                                    .offset(y: -160)
-                            }
+                            .detailPinnedHeaderBackground()
                             .zIndex(1)
                     }
                 }
@@ -136,47 +130,19 @@ struct ComicDetailView: View {
     // MARK: - 固定的返回与收藏
 
     private var topButtons: some View {
-        HStack {
-            Button {
+        DetailTopButtons(
+            isFavorite: self.viewModel.isFavorite,
+            showsFavorite: true,
+            accent: self.style.accent,
+            backAction: {
                 self.dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .frame(width: 40, height: 40)
-                    .background(CatalogPalette.cardBackground, in: Circle())
-                    .frame(width: 44, height: 44)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(NSLocalizedString("Back", comment: ""))
-
-            Spacer(minLength: 0)
-
-            Button {
+            },
+            favoriteAction: {
                 Task {
                     await self.viewModel.toggleFavorite()
                 }
-            } label: {
-                // 中文注释：与库页封面爱心同一对图；已收藏实心用漫画类型色。
-                Image(self.viewModel.isFavorite ? "TabFavorites" : "TabFavoritesOutline")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 20, height: 20)
-                    .foregroundColor(self.viewModel.isFavorite ? self.style.accent : Color.primary)
-                    .frame(width: 40, height: 40)
-                    .background(CatalogPalette.cardBackground, in: Circle())
-                    .frame(width: 44, height: 44)
-                    .contentShape(Circle())
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(
-                NSLocalizedString(self.viewModel.isFavorite ? "favorites_unfavorite" : "video_detail_favorite", comment: "")
-            )
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 6)
-        .padding(.bottom, 2)
+        )
     }
 
     // MARK: - 绑定

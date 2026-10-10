@@ -85,7 +85,7 @@ App 的 `BookPublicationAssembler` 再把 `description` 丢掉。三十四份真
 | 章数 | 「1,297 章」`caption` 次级色；有声书「耳机 有声书 · 17 章」类型色 | 章节取回来后；取回前骨架条 |
 | 右上 · 收藏 | `TabFavorites` / `TabFavoritesOutline` 18pt 在 40pt 卡片色圆里，已收藏实心类型色 | 点了即收藏 / 取消 |
 
-**继续卡片**（有续读位置时）：卡片底、圆角 16、高 88，左缘 4pt 类型色竖条；小封面 48×64 圆角 6（有声书上压耳机小圆）；三行：「继续阅读」/「继续收听」`caption` 类型色 → 章名 `headline` 一行 →
+**继续卡片**（有续读位置时；共享 `DetailContinueCard`，2026-10-11 与漫画详情统一取值）：卡片底、圆角 16、高 88，左缘 4pt 类型色竖条；小封面 56×72 圆角 8 带书脊线（有声书上压耳机小圆）；三行：「继续阅读」/「继续收听」`caption` semibold 类型色 → 章名 `headline` 一行 →
 文字书「全书 12% · 昨天 21:40」/ 有声书「12:34 · 昨天 21:40」`caption` 次级色；底边 3pt 进度条写 `totalProgression`（有声书没有就不画）；行尾 36pt 类型色圆底图标。点 = 不带章节开阅读器。
 
 - 章名与时刻从读书历史来（`chapterTitle`、`visitedAt`），历史没有时退回 Locator `href` 对法。时刻写法与库页「上次读到」瓷砖、漫画详情同一套 `LibraryHistoryTimeText`：今天 / 昨天带时刻，更早只写日期（2026-10-10 复审第七批统一）。
@@ -153,8 +153,8 @@ App 的 `BookPublicationAssembler` 再把 `description` 丢掉。三十四份真
 | 分隔线 | 系统 `separator` |
 | 警示 | `warning` / `warningFill`：失败 / 登录横幅，横幅上的按钮也只用 `warning`（实心 / 描边），不用类型色 |
 | 圆角 | 封面 8、继续卡片 16、目录卡片 16、横幅 16、芯片与开始按钮胶囊 |
-| 尺寸 | 页边距 20；固定按钮圆 40；头部封面 72×96、与文字间距 14；继续卡片高 88、封面 48×64、竖条 4、进度条 3；开始按钮高 50；分区头高 44；芯片高 36（`LibraryChipBar`）；目录行最小高 48、编号柱宽 48、上次读到竖条 3 |
-| 字号 | 书名 `title2` bold；作者 `subheadline`；来源与章数 `caption`；继续卡片小字 `caption`、章名 `headline`；分区头 `headline`；编号柱 `subheadline` monospacedDigit；章名 `body`；简介 `subheadline` |
+| 尺寸 | 页边距 20；固定按钮圆 40（热区 44，卡片底 + 黑 8% 轻阴影，爱心 20；共享 `DetailTopButtons`）；头部封面 72×96、与文字间距 14；继续卡片高 88、封面 56×72、竖条 4、进度条 3；开始按钮高 50；分区头高 44；芯片高 36（`LibraryChipBar`）；目录行最小高 48、编号柱宽 48、上次读到竖条 3 |
+| 字号 | 书名 `title2` bold；作者 `subheadline`；来源与章数 `caption`；继续卡片标签 `caption` semibold、小字 `caption`、章名 `headline`；分区头 `headline`（共享 `DetailChapterHeader`）；编号柱 `subheadline` monospacedDigit；章名 `body`；简介 `subheadline` |
 
 ## 十、裁定
 
@@ -170,7 +170,7 @@ App 的 `BookPublicationAssembler` 再把 `description` 丢掉。三十四份真
 
 ## 十二、实现位置
 
-- 三个详情页共用（2026-10-11 跨页复制收敛）：`Features/Library/Components/ChapterSegmentation.swift`（`ChapterSegment`、分段算法与选中 / 滚动锚点状态机 `ChapterSegmentSelection`，点芯片滚完后延迟 600 ms 再放开行的回写）、`DetailFavoriteToggling.swift`（右上收藏的读与切换）、`DetailSynopsisSection.swift`（简介块、骨架条、相关链接）、`Features/Shared/TrimmedText.swift`（`nonEmpty`）。
+- 三个详情页共用（2026-10-11 跨页复制收敛）：`Features/Library/Components/ChapterSegmentation.swift`（`ChapterSegment`、分段算法与选中 / 滚动锚点状态机 `ChapterSegmentSelection`，点芯片滚完后延迟 600 ms 再放开行的回写）、`DetailFavoriteToggling.swift`（右上收藏的读与切换）、`DetailSynopsisSection.swift`（简介块、骨架条、相关链接）、`Features/Library/Components/DetailPageComponents.swift`（继续卡片 `DetailContinueCard`、开始按钮 `DetailStartButton`、固定返回 / 收藏 `DetailTopButtons`、贴顶章节分区头 `DetailChapterHeader`、分区头上方底色补铺 `detailPinnedHeaderBackground`；第三组，2026-10-11 用户裁定统一取值）、`Features/Shared/TrimmedText.swift`（`nonEmpty`）。
 - `BrowseCraft/Features/Library/Book/Site/BookSiteDetailView.swift`：系统 `List` 换成 `ScrollView` + `LazyVStack(pinnedViews:)`，固定按钮、头部、继续卡片 / 开始按钮、简介、贴顶分区头与分段芯片、目录、骨架；横幅调 `Features/Library/Components/LibraryStateBanner.swift`、继续卡片的时刻调 `LibraryHistoryTimeText.swift`（与漫画详情、搜索页、库页共用）；
   小块拆到 `BookSiteDetailSections.swift`。
 - `BrowseCraft/Features/Library/Book/Site/BookSiteDetailViewModel.swift`：读书历史、收藏、整站有声、登录态、目录派生状态（解析、显示顺序、分段、上次读到下标）、继续卡片文案、Locator 解析。

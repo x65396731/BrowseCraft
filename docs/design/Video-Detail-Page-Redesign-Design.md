@@ -161,7 +161,7 @@
 
 ## 十三、实现位置
 
-- 三个详情页共用（2026-10-11 跨页复制收敛）：`Features/Library/Components/ChapterSegmentation.swift`（`ChapterSegment`、分段算法与选中 / 滚动锚点状态机 `ChapterSegmentSelection`，点芯片滚完后延迟 600 ms 再放开行的回写）、`DetailFavoriteToggling.swift`（右上收藏的读与切换）、`DetailSynopsisSection.swift`（简介块、骨架条、相关链接）、`Features/Shared/TrimmedText.swift`（`nonEmpty`）。
+- 三个详情页共用（2026-10-11 跨页复制收敛）：`Features/Library/Components/ChapterSegmentation.swift`（`ChapterSegment`、分段算法与选中 / 滚动锚点状态机 `ChapterSegmentSelection`，点芯片滚完后延迟 600 ms 再放开行的回写）、`DetailFavoriteToggling.swift`（右上收藏的读与切换）、`DetailSynopsisSection.swift`（简介块、骨架条、相关链接）、`Features/Library/Components/DetailPageComponents.swift`（继续卡片 `DetailContinueCard`、开始按钮 `DetailStartButton`、固定返回 / 收藏 `DetailTopButtons`、贴顶章节分区头 `DetailChapterHeader`、分区头上方底色补铺 `detailPinnedHeaderBackground`；第三组，2026-10-11 用户裁定统一取值）、`Features/Shared/TrimmedText.swift`（`nonEmpty`）。
 - `BrowseCraft/Features/Library/Video/Detail/VideoDetailView.swift`：整页重画——头图区、继续看、简介折叠、线路芯片、集号网格、骨架与空 / 失败态、解析失败横幅。
 - `BrowseCraft/Features/Library/Video/Detail/VideoDetailViewModel.swift`：按线路分组、当前线路、排序、集名数字解析、本作品历史与继续看目标、收藏切换、metadata 按 key 摆位。
 - `BrowseCraft/App/Composition/LibraryFeatureFactory.swift`：给详情 ViewModel 注入收藏用例。

@@ -11,67 +11,28 @@ struct ComicDetailChapterHeader: View {
     let style: CatalogKindStyle
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(NSLocalizedString("comic_detail_section_chapters", comment: ""))
-                    .font(.footnote.weight(.bold))
-                    .foregroundStyle(.secondary)
-                if self.viewModel.didLoad, self.viewModel.chapters.isEmpty == false {
-                    Text(String(format: NSLocalizedString("comic_detail_chapter_count", comment: ""), self.viewModel.chapters.count))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                    if self.viewModel.readCount > 0 {
-                        Text(verbatim: "·")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                        Text(String(format: NSLocalizedString("comic_detail_read_count", comment: ""), self.viewModel.readCount))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Spacer(minLength: 8)
-                if self.viewModel.didLoad, self.viewModel.showsOrderToggle {
-                    Button {
-                        self.viewModel.toggleDisplayOrder()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(NSLocalizedString(
-                                self.viewModel.isDisplayDescending ? "video_detail_order_descending" : "video_detail_order_ascending",
-                                comment: ""
-                            ))
-                            Image(systemName: "arrow.up.arrow.down")
-                                .font(.caption2.weight(.bold))
-                        }
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                }
+        var infoTexts: [String] = []
+        if self.viewModel.didLoad, self.viewModel.chapters.isEmpty == false {
+            infoTexts.append(String(format: NSLocalizedString("comic_detail_chapter_count", comment: ""), self.viewModel.chapters.count))
+            if self.viewModel.readCount > 0 {
+                infoTexts.append(String(format: NSLocalizedString("comic_detail_read_count", comment: ""), self.viewModel.readCount))
             }
-            .frame(minHeight: 44)
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
-
-            let segments: [ChapterSegment] = self.viewModel.segments
-            if segments.isEmpty == false {
-                LibraryChipBar(
-                    chips: segments.map { segment in
-                        LibraryChipBar<String>.Chip(
-                            id: segment.id,
-                            title: segment.title,
-                            isSelected: segment.id == self.viewModel.effectiveSelectedSegmentID
-                        )
-                    },
-                    style: self.style,
-                    selectAction: { segmentID in
-                        self.viewModel.selectSegment(segmentID)
-                    }
-                )
-                .padding(.top, -8)
+        }
+        return DetailChapterHeader(
+            title: NSLocalizedString("comic_detail_section_chapters", comment: ""),
+            infoTexts: infoTexts,
+            showsOrderToggle: self.viewModel.didLoad && self.viewModel.showsOrderToggle,
+            isDescending: self.viewModel.isDisplayDescending,
+            toggleOrder: {
+                self.viewModel.toggleDisplayOrder()
+            },
+            segments: self.viewModel.segments,
+            selectedSegmentID: self.viewModel.effectiveSelectedSegmentID,
+            style: self.style,
+            selectSegment: { segmentID in
+                self.viewModel.selectSegment(segmentID)
             }
-
+        ) {
             // 中文注释：受限横幅放在贴顶的分区头里——点的是目录里的某一行，横幅得在目录旁边出现；
             // 放在简介下面时目录滚过头部就看不见（2026-10-08 模拟器实测）。
             self.accessBanners
@@ -85,7 +46,6 @@ struct ComicDetailChapterHeader: View {
                     .padding(.bottom, 10)
             }
         }
-        .background(CatalogPalette.pageBackground)
     }
 
     // MARK: - 受限横幅（第八节）

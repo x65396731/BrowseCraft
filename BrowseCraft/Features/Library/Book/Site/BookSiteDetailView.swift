@@ -55,13 +55,7 @@ struct BookSiteDetailView: View {
                             } action: { height in
                                 self.chapterHeaderHeight = height
                             }
-                            // 中文注释：贴顶时分区头停在安全区顶边，状态栏与芯片之间那一截会露出滚过的内容；
-                            // 底色向上多铺一段盖住，静止时藏在头部后面（头部 zIndex 更高）。
-                            .background(alignment: .top) {
-                                CatalogPalette.pageBackground
-                                    .frame(height: 160)
-                                    .offset(y: -160)
-                            }
+                            .detailPinnedHeaderBackground()
                             .zIndex(1)
                     }
                 }
@@ -135,49 +129,19 @@ struct BookSiteDetailView: View {
     // MARK: - 固定的返回与收藏
 
     private var topButtons: some View {
-        HStack {
-            Button {
+        DetailTopButtons(
+            isFavorite: self.viewModel.isFavorite,
+            showsFavorite: self.viewModel.canToggleFavorite,
+            accent: self.style.accent,
+            backAction: {
                 self.dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .frame(width: 40, height: 40)
-                    .background(CatalogPalette.cardBackground, in: Circle())
-                    .frame(width: 44, height: 44)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(NSLocalizedString("Back", comment: ""))
-
-            Spacer(minLength: 0)
-
-            if self.viewModel.canToggleFavorite {
-                Button {
-                    Task {
-                        await self.viewModel.toggleFavorite()
-                    }
-                } label: {
-                    // 中文注释：与库页行尾爱心同一对图；已收藏实心用书籍类型色。
-                    Image(self.viewModel.isFavorite ? "TabFavorites" : "TabFavoritesOutline")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 18, height: 18)
-                        .foregroundColor(self.viewModel.isFavorite ? self.style.accent : Color.primary)
-                        .frame(width: 40, height: 40)
-                        .background(CatalogPalette.cardBackground, in: Circle())
-                        .frame(width: 44, height: 44)
-                        .contentShape(Circle())
+            },
+            favoriteAction: {
+                Task {
+                    await self.viewModel.toggleFavorite()
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(
-                    NSLocalizedString(self.viewModel.isFavorite ? "favorites_unfavorite" : "library_card_favorite", comment: "")
-                )
             }
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 8)
-        .padding(.bottom, 4)
+        )
     }
 
     private var requestedSourceLoginBinding: Binding<LibrarySourceLoginState?> {

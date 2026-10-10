@@ -27,11 +27,6 @@ struct ComicDetailHeaderSection: View {
 
     // MARK: - 头部（第五节）
 
-    /// 类型色底上的字：浅色白、深色墨。
-    private var onAccent: Color {
-        return CatalogPalette.onAccent
-    }
-
     /// 漫画类型色 8% 淡底（深色 10%），顶到状态栏：底色向上多铺一段盖住安全区。
     private var tint: Color {
         return self.style.accent.opacity(self.colorScheme == .dark ? 0.10 : 0.08)
@@ -165,93 +160,36 @@ struct ComicDetailHeaderSection: View {
         }
     }
 
-    /// 有历史：通栏卡片——上次页面缩略图 + 「继续阅读」+ 章节名 + 「13 / 45 页 · 昨天 21:40」+ 进度条。
+    /// 有历史：通栏卡片——上次页面缩略图 + 「继续阅读」+ 章节名 + 「13 / 45 页 · 昨天 21:40」+ 进度条（共享 `DetailContinueCard`）。
     private func continueCard(title: String, destination: ComicReaderDestination) -> some View {
-        Button {
-            self.openDestination(destination)
-        } label: {
-            HStack(spacing: 14) {
-                // 中文注释：上次页面的图走 pipeline 解密的站（めちゃコミック）直接请求不出来，退到封面再退到占位图。
-                ItemThumbnailImageView(
-                    urlString: self.viewModel.continueThumbnailURLString,
-                    refererURLString: self.viewModel.continueThumbnailRefererURLString,
-                    requestConfig: self.viewModel.detailCoverRequestConfig,
-                    placeholderImageName: "ComicDetailPlaceholder",
-                    fallbackURLString: self.viewModel.coverURLString
-                )
-                .frame(width: 56, height: 72)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(NSLocalizedString("comic_detail_continue", comment: ""))
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(self.style.accent)
-                    Text(title)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    if let subtitle: String = self.viewModel.continueCardSubtitle {
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                Image(systemName: "book.pages.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(self.onAccent)
-                    .frame(width: 36, height: 36)
-                    .background(self.style.accent, in: Circle())
-                    .accessibilityHidden(true)
+        DetailContinueCard(
+            label: NSLocalizedString("comic_detail_continue", comment: ""),
+            title: title,
+            subtitle: self.viewModel.continueCardSubtitle,
+            progress: self.viewModel.continueProgress,
+            iconName: "book.pages.fill",
+            accent: self.style.accent,
+            action: {
+                self.openDestination(destination)
             }
-            .padding(.leading, 20)
-            .padding(.trailing, 16)
-            .frame(height: 88)
-            .frame(maxWidth: .infinity)
-            .background(CatalogPalette.cardBackground)
-            .overlay(alignment: .leading) {
-                self.style.accent.frame(width: 4)
-            }
-            .overlay(alignment: .bottom) {
-                if let progress: Double = self.viewModel.continueProgress {
-                    GeometryReader { proxy in
-                        ZStack(alignment: .leading) {
-                            CatalogPalette.fillBackground
-                            self.style.accent.frame(width: proxy.size.width * progress)
-                        }
-                    }
-                    .frame(height: 3)
-                    .accessibilityHidden(true)
-                }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        ) {
+            // 中文注释：上次页面的图走 pipeline 解密的站（めちゃコミック）直接请求不出来，退到封面再退到占位图。
+            ItemThumbnailImageView(
+                urlString: self.viewModel.continueThumbnailURLString,
+                refererURLString: self.viewModel.continueThumbnailRefererURLString,
+                requestConfig: self.viewModel.detailCoverRequestConfig,
+                placeholderImageName: "ComicDetailPlaceholder",
+                fallbackURLString: self.viewModel.coverURLString
+            )
         }
-        .buttonStyle(.plain)
         .padding(.horizontal, 20)
         .padding(.top, 16)
     }
 
-    /// 没有历史：通栏胶囊「从第 1 话开始读」。
     private func startButton(destination: ComicReaderDestination) -> some View {
-        Button {
+        DetailStartButton(iconName: "book.pages.fill", title: self.viewModel.startButtonTitle, accent: self.style.accent) {
             self.openDestination(destination)
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "book.pages.fill")
-                    .font(.subheadline.weight(.bold))
-                Text(self.viewModel.startButtonTitle)
-            }
-            .font(.callout.weight(.semibold))
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
-            .foregroundStyle(self.onAccent)
-            .frame(maxWidth: .infinity, minHeight: 50)
-            .background(self.style.accent, in: Capsule())
         }
-        .buttonStyle(.plain)
         .padding(.horizontal, 20)
         .padding(.top, 16)
     }

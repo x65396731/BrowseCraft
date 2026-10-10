@@ -12,10 +12,6 @@ struct BookSiteDetailHeaderSection: View {
     let openSelection: (SiteBookChapterSelection) -> Void
     @State private var isSynopsisExpanded: Bool = false
 
-    private var onAccent: Color {
-        return CatalogPalette.onAccent
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             self.header
@@ -121,84 +117,33 @@ struct BookSiteDetailHeaderSection: View {
         }
     }
 
-    /// 有续读位置：卡片——小封面 + 「继续阅读 / 继续收听」+ 章名 + 「全书 12% · 昨天 21:40」（有声「12:34 · 昨天 21:40」）+ 进度条。
+    /// 继续卡片（共享 `DetailContinueCard`）：小封面带书脊线与有声小圆；文字书「全书 12% · 昨天 21:40」、有声书「12:34 · 昨天 21:40」。
     private func continueCard(title: String) -> some View {
-        Button {
-            self.openSelection(self.viewModel.selection(for: nil))
-        } label: {
-            HStack(spacing: 12) {
-                self.cover(width: 48, height: 64, cornerRadius: 6)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(self.viewModel.continueLabel)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(self.style.accent)
-                    Text(title)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    if let meta: String = self.viewModel.continueMetaText {
-                        Text(meta)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                Image(systemName: self.viewModel.isAudiobook ? "play.fill" : "book.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(self.onAccent)
-                    .frame(width: 36, height: 36)
-                    .background(self.style.accent, in: Circle())
-                    .accessibilityHidden(true)
+        DetailContinueCard(
+            label: self.viewModel.continueLabel,
+            title: title,
+            subtitle: self.viewModel.continueMetaText,
+            progress: self.viewModel.continueProgress,
+            iconName: self.viewModel.isAudiobook ? "play.fill" : "book.fill",
+            accent: self.style.accent,
+            action: {
+                self.openSelection(self.viewModel.selection(for: nil))
             }
-            .padding(.leading, 20)
-            .padding(.trailing, 14)
-            .frame(height: 88)
-            .frame(maxWidth: .infinity)
-            .background(CatalogPalette.cardBackground)
-            .overlay(alignment: .leading) {
-                self.style.accent.frame(width: 4)
-            }
-            .overlay(alignment: .bottom) {
-                if let progress: Double = self.viewModel.continueProgress {
-                    GeometryReader { proxy in
-                        ZStack(alignment: .leading) {
-                            CatalogPalette.fillBackground
-                            self.style.accent.frame(width: proxy.size.width * progress)
-                        }
-                    }
-                    .frame(height: 3)
-                    .accessibilityHidden(true)
-                }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        ) {
+            self.cover(width: 56, height: 72, cornerRadius: 8)
         }
-        .buttonStyle(.plain)
         .padding(.horizontal, 20)
         .padding(.top, 20)
     }
 
-    /// 没有续读位置：通栏胶囊「从第 1 章开始读 / 听」。
     private var startButton: some View {
-        Button {
+        DetailStartButton(
+            iconName: self.viewModel.isAudiobook ? "headphones" : "book.fill",
+            title: self.viewModel.startButtonTitle,
+            accent: self.style.accent
+        ) {
             self.openSelection(self.viewModel.selection(for: self.viewModel.primaryChapter))
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: self.viewModel.isAudiobook ? "headphones" : "book.fill")
-                    .font(.subheadline.weight(.bold))
-                Text(self.viewModel.startButtonTitle)
-            }
-            .font(.callout.weight(.semibold))
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
-            .foregroundStyle(self.onAccent)
-            .frame(maxWidth: .infinity, minHeight: 50)
-            .background(self.style.accent, in: Capsule())
         }
-        .buttonStyle(.plain)
         .padding(.horizontal, 20)
         .padding(.top, 20)
     }
@@ -239,64 +184,21 @@ struct BookSiteDetailChapterHeader: View {
 
     var body: some View {
         if self.viewModel.didLoad {
-            VStack(spacing: 0) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(NSLocalizedString("comic_detail_section_chapters", comment: ""))
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    Text(verbatim: "·")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Text(String(format: NSLocalizedString("book_detail_chapter_count", comment: ""), self.viewModel.chapterCountNumberText))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Spacer(minLength: 8)
-                    if self.viewModel.showsOrderToggle {
-                        Button {
-                            self.viewModel.toggleDisplayOrder()
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(NSLocalizedString(
-                                    self.viewModel.isDisplayDescending ? "video_detail_order_descending" : "video_detail_order_ascending",
-                                    comment: ""
-                                ))
-                                Image(systemName: "arrow.up.arrow.down")
-                                    .font(.caption2.weight(.bold))
-                            }
-                            .font(.footnote)
-                            .foregroundStyle(.primary)
-                            .padding(.horizontal, 10)
-                            .frame(height: 28)
-                            .background(CatalogPalette.fillBackground, in: Capsule())
-                            .frame(minHeight: 44)
-                            .contentShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-                    }
+            DetailChapterHeader(
+                title: NSLocalizedString("comic_detail_section_chapters", comment: ""),
+                infoTexts: [String(format: NSLocalizedString("book_detail_chapter_count", comment: ""), self.viewModel.chapterCountNumberText)],
+                showsOrderToggle: self.viewModel.showsOrderToggle,
+                isDescending: self.viewModel.isDisplayDescending,
+                toggleOrder: {
+                    self.viewModel.toggleDisplayOrder()
+                },
+                segments: self.viewModel.segments,
+                selectedSegmentID: self.viewModel.effectiveSelectedSegmentID,
+                style: self.style,
+                selectSegment: { segmentID in
+                    self.viewModel.selectSegment(segmentID)
                 }
-                .frame(minHeight: 44)
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
-
-                let segments: [ChapterSegment] = self.viewModel.segments
-                if segments.isEmpty == false {
-                    LibraryChipBar(
-                        chips: segments.map { segment in
-                            LibraryChipBar<String>.Chip(
-                                id: segment.id,
-                                title: segment.title,
-                                isSelected: segment.id == self.viewModel.effectiveSelectedSegmentID
-                            )
-                        },
-                        style: self.style,
-                        selectAction: { segmentID in
-                            self.viewModel.selectSegment(segmentID)
-                        }
-                    )
-                    .padding(.top, -8)
-                }
-            }
-            .background(CatalogPalette.pageBackground)
+            )
         }
     }
 }
