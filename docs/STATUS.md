@@ -174,13 +174,13 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 ## 8. 代码复审（2026-10-10）
 
 复审报告与八条裁定见 Claude 文档「BrowseCraft 代码复审报告 2026-10-10」（https://claude.ai/code/artifact/fa99d4cf-3497-46de-94f5-923f89930335）。
-检查点暂填实施前的 HEAD，提交后改为实施提交。
+检查点为实施提交。
 
 | 工作项 | 条款 | 决策 | 设计 | 实施 | 验证 | 检查点 | 更新日期 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 开启云同步前的 Portal 登录门禁（关联协调器 + 设置页开关禁用），以及云端记录为本机旧本地 UUID 时用当前账号覆盖的清理路径；用例 3 条 | `BCA-SYNC-004` `BCA-SYNC-010` | required | approved | implemented | full-suite-passed | 821d5dc | 2026-10-10 |
-| 缩略图管线缓存键：去掉自定义管线键让内存 / 磁盘键回到带解码尺寸的默认形态，Cookie 只按名进键；用例 1 条 | 未编号 | required | approved | implemented | full-suite-passed | 821d5dc | 2026-10-10 |
-| 影视 / 漫画详情已有内容时刷新失败改走横幅；搜索页失败态重开不聚焦；搜索结果带漫画进度角标与整站有声措辞 | 未编号 | required | approved | implemented | full-suite-passed | 821d5dc | 2026-10-10 |
-| 规则导入死代码栈（`addRuleSource` 与候选分析）与两个 Discovery 视图删除，装配与测试替身随之收口；临时资源页仍用的 `ComicDiscoveryWebResourceView` 搬到 `Features/History/Details` 保留 | `BCA-UI-003` | required | approved | implemented | full-suite-passed | 821d5dc | 2026-10-10 |
-| 三处过期用例跟上已提交的代码：目录请求带 `features=startPage`、视频详情属性带 `key`、v9 后的 schema 快照列序 | `BCA-RUNTIME-006` `BCA-DB-003` | required | approved | implemented | full-suite-passed | 821d5dc | 2026-10-10 |
-| `BCA-PARSE-006` 补写 fwq `BC-COMIC-147` 例外；StoreKit 适配落点按现状写进 architecture.md 第 9 节 | `BCA-PARSE-006` | required | approved | implemented | static-audit-passed | 821d5dc | 2026-10-10 |
+| 开启云同步前的 Portal 登录门禁（关联协调器 + 设置页开关禁用），以及云端记录为本机旧本地 UUID 时用当前账号覆盖的清理路径；用例 3 条 | `BCA-SYNC-004` `BCA-SYNC-010` | required | approved | implemented | full-suite-passed | a6eed01 | 2026-10-10 |
+| 缩略图管线缓存键：去掉自定义管线键让内存 / 磁盘键回到带解码尺寸的默认形态，Cookie 只按名进键；用例 1 条 | 未编号 | required | approved | implemented | full-suite-passed | a6eed01 | 2026-10-10 |
+| 影视 / 漫画详情已有内容时刷新失败改走横幅；搜索页失败态重开不聚焦；搜索结果带漫画进度角标与整站有声措辞 | 未编号 | required | approved | implemented | full-suite-passed | a6eed01 | 2026-10-10 |
+| 规则导入死代码栈（`addRuleSource` 与候选分析）与两个 Discovery 视图删除，装配与测试替身随之收口；临时资源页仍用的 `ComicDiscoveryWebResourceView` 搬到 `Features/History/Details` 保留 | `BCA-UI-003` | required | approved | implemented | full-suite-passed | a6eed01 | 2026-10-10 |
+| 三处过期用例跟上已提交的代码：目录请求带 `features=startPage`、视频详情属性带 `key`、v9 后的 schema 快照列序 | `BCA-RUNTIME-006` `BCA-DB-003` | required | approved | implemented | full-suite-passed | a6eed01 | 2026-10-10 |
+| `BCA-PARSE-006` 补写 fwq `BC-COMIC-147` 例外；StoreKit 适配落点按现状写进 architecture.md 第 9 节 | `BCA-PARSE-006` | required | approved | implemented | static-audit-passed | a6eed01 | 2026-10-10 |
