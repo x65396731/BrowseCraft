@@ -6,6 +6,14 @@ import Foundation
 /// 中文注释：对外保持 ImageCache 命名，内部才接触 Nuke 的 ImagePipeline/DataCache 细节。
 /// 界面层经 `ImageCacheManaging` 端口使用它，不直接持有本类型。
 final class ImageCacheConfigurator: ImageCacheManaging {
+    /// 中文注释：共享管线（封面、详情头图、漫画阅读页）内存缓存的显式上限（2026-10-10 复审 B-10）。
+    /// Nuke 的缺省是 min(512 MB, 物理内存 20%)，iOS 26 能跑的机器一律落到 512 MB；按阅读器目标宽度解码后一张普通页约 3.7 MB、
+    /// 一张 800×6000 的长条约 18 MB，缺省上限会让 27 张长条（约 494 MB）常驻。256 MB 仍装得下一整章普通页（69 张）或 13 张长条（量得的数），
+    /// 残留减半；小内存机器仍取 Nuke 缺省值中更小的那个。列表缩略图另有自己的 64 MB（`ItemThumbnailImageCachePlugin`）。
+    static let sharedMemoryLimitBytes: Int = 256 * 1024 * 1024
+    /// 中文注释：单张图最多占上限的多少——保持与缺省（512 MB × 0.1）同一个绝对值约 51 MB，长条页不会因为总上限减半而进不了缓存。
+    static let sharedMemoryEntryCostLimit: Double = 0.2
+
     private let userDefaults: UserDefaults
     private let dataCacheName: String
     private(set) var dataCache: DataCache?
@@ -31,6 +39,9 @@ final class ImageCacheConfigurator: ImageCacheManaging {
         configuration.dataCache = dataCache
         // 中文注释：请求声明了目标像素宽度就按宽度降采样解码，否则走 Nuke 默认解码器。
         configuration.makeImageDecoder = DownsamplingImageDecoding.makeDecoder
+        // 中文注释：`withDataCache` 的内存缓存就是 `ImageCache.shared`；上限在这里显式定，不再吃 Nuke 按物理内存算的缺省。
+        ImageCache.shared.costLimit = min(ImageCache.defaultCostLimit(), Self.sharedMemoryLimitBytes)
+        ImageCache.shared.entryCostLimit = Self.sharedMemoryEntryCostLimit
         ImagePipeline.shared = ImagePipeline(configuration: configuration)
         self.dataCache = dataCache
     }
