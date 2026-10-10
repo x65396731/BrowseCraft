@@ -41,10 +41,12 @@ python3 scripts/check-docs.py
 | 规则目录：「我的生成」优先落段；删失败记录整入口软删除 | 任何验证 | [Catalog-Page-Redesign](docs/design/Catalog-Page-Redesign-Design.md) 第 2.1 / 2.3 节 | 第 2 节末两行 |
 | F2-5 / F2-6：进列表先读后写、读书线读库经 actor | 验证 | — | 第 6 节 |
 | 漫画详情分段芯片锚点（2026-10-10 已改为按分区头高度换算） | 模拟器或真机看一眼段首不被盖住；章节 `order` 接线已裁定记账、不做 | [Comic-Detail](docs/design/Comic-Detail-Page-Redesign-Design.md) 第十四节、[Book-Detail](docs/design/Book-Detail-Page-Redesign-Design.md) 第十三节 | 第 2 节 |
+| 站点按状态码拒绝不再报成「规则解析出错」（`BCA-RUNTIME-007`，2026-10-10） | 构建 + 用例 7 条（未 build、未跑）；真机找一个回 403 的来源看提示文案 | [RuleExecutionSemantics](docs/design/RuleExecutionSemantics.md) 第三节 | 第 3 节 |
+| POST 搜索与非 UTF-8 关键词（fwq `APP-MEMO-031`，Core `f9db1ab` / Runtime `648e615`） | 真机：fwq 三站搜索复测通过后，从 App 重交 piaotia 搜「剑帝」 | fwq `BC-SEARCH-022` | fwq STATUS |
 | 站点有声播放器后续：界面样式、倍速入口、`mediaAPI` 无语料 | 立项 | [Book-Kind-Wiring](docs/design/Book-Kind-Wiring-Design.md) 第十六节 | 第 1 节 optional 行 |
-| 给 fwq 的六条读书 kind 生成需求 | fwq 交付后按各条「验收」在模拟器重新生成来源复核 | Claude 文档「读书 kind 规则生成覆盖需求」（https://claude.ai/artifact/HnYM71goMZveUVJQQ4vhgk） | fwq STATUS |
+| 给 fwq 的六条读书 kind 生成需求 | 需求一 / 三 / 四 / 五前半 fwq 已交付并真机通过（小說狂人最新章节 10-10 再修、待部署）；需求二记账、两端都不做；五后半目录分页 fwq 未定立场；六 fwq 不做 | Claude 文档「读书 kind 规则生成覆盖需求」（https://claude.ai/artifact/HnYM71goMZveUVJQQ4vhgk） | fwq STATUS |
 
-下一会话建议顺序：续看同步两机对测 → 真机验收（用户在真机上走，结果新增 `device-passed` 行、不改模拟器那几行）→ 两处顺手改。
+下一会话建议顺序：构建一次（10-10 晚的 `07a0231`、`2f37a46` 未 build，Domain `d1d5dac` 只做过包构建）→ 续看同步两机对测 → 真机验收（用户在真机上走，结果新增 `device-passed` 行、不改模拟器那几行）。
 
 - **fwq 侧指针**（定义点与验证状态都在 fwq `docs/rules/STATUS.md`）：`BCA-RUNTIME-005`（fwq `APP-MEMO-026`）里「直接请求收到挑战页回退 WebView」一处仍欠真机，
   发版后由用户重交 toonily 验证，发版前 Cloudflare 站不要重生成；`BC-PREFLIGHT-066`（点推送停在原页、打开目录直接看到新规则）在 fwq 为 `not-run`，随规则目录页真机一起看；
