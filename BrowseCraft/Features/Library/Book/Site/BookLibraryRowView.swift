@@ -62,8 +62,8 @@ struct BookLibraryRowView: View {
                     .multilineTextAlignment(.leading)
                     .lineLimit(2)
 
-                if let latestText: String = self.latestText {
-                    Text(String(format: NSLocalizedString("library_book_latest", comment: ""), latestText))
+                if let latestLine: String = self.latestLineText {
+                    Text(latestLine)
                         .font(.footnote)
                         .foregroundStyle(self.style.accent)
                         .lineLimit(1)
@@ -131,6 +131,19 @@ struct BookLibraryRowView: View {
             return nil
         }
         return text
+    }
+
+    /// 中文注释：最新章一行。站点原文已以「最新」开头（小說狂人「最新: 第1200章 …」）时照原文显示，
+    /// 不再叠加「最新 · 」前缀——否则成「最新 · 最新: 第1200章」（2026-10-11 用户裁定由 App 侧处理：
+    /// 前缀是 App 自己的标签，规则照站点原文交付、不剥字样）。其余站照旧「最新 · 原文」。
+    private var latestLineText: String? {
+        guard let latestText: String = self.latestText else {
+            return nil
+        }
+        if latestText.hasPrefix("最新") {
+            return latestText
+        }
+        return String(format: NSLocalizedString("library_book_latest", comment: ""), latestText)
     }
 }
 
