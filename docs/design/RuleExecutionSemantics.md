@@ -78,6 +78,15 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
   漫画按作品页取页链路重取一次落地地址（POST 搜索站的落地页是可直接 GET 的作品页）。对应 fwq `APP-MEMO-032`。
   实现 `BrowseCraftRuntime/.../Book/BookSourceRuntime.swift`（`search` → `redirectedDetailItem`）、`.../Comic/ComicSourceRuntime.swift`（`search` → `redirectedDetailItem`）与
   `.../Comic/Loading/ComicSourceSearchLoader.swift`（`SearchSourceResult.redirectedLandingURL`）；用例 BrowseCraftRuntime 包 `SearchRedirectLandingRuntimeTests`（书：直跳成一条且不重取落地页、落地无章节不兜底、没跳转不进兜底、跳转判定只忽略片段与末尾斜杠）；漫画一路无固定输入（归档只 mangakatana 1 例）。
+- `BCA-RUNTIME-009` 书类目录自身分页（fwq `BC-BOOK-061` / `APP-MEMO-033`）：详情规则带 `chapterPagination` 时，`urlTemplate` 是**相对引用**，
+  以 `chapterRule` 所应用的那份文档（作品页；有 `chapterListURL` 时是目录页）的最终地址为基址解析；第 1 页就是已取回的文档、不重取，
+  第 N 页写 `startPage + N − 1`（`BCA-RUNTIME-006` 同一换算）。从第 2 页起逐页取（同一请求配置，referer 为上一页），同一 `chapterRule` 解析、按阅读地址去重追加；
+  **这一页没有新章节、取页或解析失败、达到 `maxPages` 即停**，已取到的章节保留、不整体报错。`maxPages` 不超过 `BookSiteRuleValidator.maxChapterPaginationPages = 100`（用户 2026-10-11 定）。
+  只在 DOM 章节、非片段目录（`chapterFragmentURL`）分支生效；搜索直跳兜底（`BCA-RUNTIME-008`）只确认落地页有章节，不翻目录页。不带该键时逐字不变；旧版 App 忽略该键、只列第一页（与此前相同，不门控）。
+  Core 校验：`urlTemplate` 必须含占位符且是相对引用（不以 `/` 开头、不带协议），只与 `chapterRule` 搭配、不与 `chapterAPI` / `chapterFragmentURL` 同现。
+  依据：fwq 量面 3 主机目录自身分页（笔趣阁 `index_{page}.html` 每页约 100 章、oop.tw `?p={page}` 每页 30 章、ffppt），此前目录截在第一页却报成功（读书需求文档需求五后半）。
+  实现 `BrowseCraftCore/.../BookSiteRuleModels.swift`（`BookDetailRule.chapterPagination`）、`BookSiteRuleValidationOperations.swift`；`BrowseCraftRuntime/.../Book/BookSourceRuntime.swift`（`appendingChapterPages`）；
+  用例 BrowseCraftRuntime 包 `BookChapterPaginationRuntimeTests`（逐页到无新章节、中途失败保留、`maxPages` 与 0 起页码、不带键只取一页、Core 校验）。
 - 直接请求通道跟随重定向时，跳转目标是 `http://` 的一律升成 `https://` 再跟（`AlamofireHTTPClient.httpsUpgradingRedirector`，`HTTPSUpgrade.upgraded`），HTML 取页与 `loadData` 原始字节请求同一个重定向器；不开全局 ATS 例外。
   引用点：fwq `BC-BOOK-050`（sfacg 作品页 302 到 http 的移动站再 301 回 https，URLSession 在 http 那一跳被 ATS 拒，而规则生成引擎的客户端无 ATS 跟得过去）；与有声书 mp3 地址的处置同一纪律。
   本来就是 https 或不是 http(s) 的地址原样跟随。

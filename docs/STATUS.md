@@ -100,6 +100,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 列表分页页码按 `startPage + N − 1` 代入（0 起页码站 rouman5 / 3kor；fwq `BC-LIST-124` / `APP-MEMO-027`）：Core `PaginationRule.startPage` 与 `sitePageNumber(forPage:)`、影视 / 漫画 / 书三处代入点、目录请求 `features=startPage` 能力声明；Core 3 例 + Runtime 24 例过、App 构建过，未发版 | `BCA-RUNTIME-006` | required | approved | implemented | targeted-passed | 587a99c | 2026-10-06 |
 | 站点按状态码拒绝不再报成「规则解析出错」（xjortho 拦桌面 UA 返回 403，正文被当成列表页解析；fwq `MEMO-App-请求被拒显示成规则解析出错`）：直接请求最终状态码 ≥ 400 时先认挑战页、其余抛 `RuleExecutionError.httpStatus`（Domain `d1d5dac`），分类器按状态码四类文案、诊断记 `network`；`loadData` 与 WebView 通道不在范围；用例已写（7 例），四道代码闸门过，未发版 | `BCA-RUNTIME-007` | required | approved | implemented | full-suite-passed | 07a0231 | 2026-10-10 |
 | 搜索关键词恰为作品全名时站点直跳作品页、App 显示「没有结果」（fwq `BC-SEARCH-022` ⑤ / `APP-MEMO-032`；piaotia「龙藏」；fwq 量面 5 主机全部交付了搜索：sto55、piaotia、uukanshu、23qb、mangakatana）：书 / 漫画搜索第 1 页 0 条且取页发生过跳转时，落地地址按作品页规则加载，取到标题与至少 1 章即当一条结果（Runtime `ae9a7f0`）；书在落地文档上直接解析不重取、`loadDetail` 逐字不变，漫画重取一次；Runtime `swift test` 32 例过（新增 4 例，书一路），漫画一路无固定输入，四道代码闸门过，未发版 | `BCA-RUNTIME-008` | required | approved | implemented | targeted-passed | ae9a7f0 | 2026-10-11 |
+| 书类目录自身分页逐页取（fwq `BC-BOOK-061` / `APP-MEMO-033`；读书需求文档需求五后半，用户 10-11「批准，两端同批」、上限 100）：Core `BookDetailRule.chapterPagination` 与校验（Core `491b28f`，swift test 282 例过）、Runtime 从第 2 页起按相对模板逐页取、无新章节 / 失败 / 到上限即停（Runtime `d08756b`，swift test 37 例过、新增 5 例）；搜索直跳兜底不翻页；四道代码闸门过；引擎已部署，未发版 | `BCA-RUNTIME-009` | required | approved | implemented | targeted-passed | d08756b | 2026-10-11 |
 
 ## 4. 身份与同步
 
