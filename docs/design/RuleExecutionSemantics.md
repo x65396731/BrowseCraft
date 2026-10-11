@@ -66,6 +66,18 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
   **已知边界**：搜索无结果时以 404 回应的站，用户看到的会从「没有结果」变为「找不到这个页面」；到 2026-10-10 无实例，出现时再按搜索场景单独处理。
   实现 `BrowseCraft/Infrastructure/Network/AlamofireHTTPClient.swift`（`contentFailure(statusCode:html:url:)`）、`BrowseCraftDomain/.../RuleExecutionError.swift`；
   用例 `AlamofireHTTPClientTests`（状态码与挑战页判定）、`PageContentLoaderTests`（状态码错误不回退 WebView）、`RuleExecutionErrorClassifierTests`（四类文案与诊断类别）。
+- `BCA-RUNTIME-008` 搜索第 1 页按规则解析出 0 条、而这次取页**发生过跳转**（落地地址与请求地址不同）时，把落地地址当作品页，
+  按用户点开作品时的同一条路径（书：`pageID` 为空时取第一个列表页的作品页规则；漫画：`primaryDetailEntry`）加载一次；
+  取到非空标题**且**至少 1 个章节，就把它作为唯一一条结果返回（`detailURL` = 落地地址，标题 / 封面取作品页的），否则照旧（书返回空列表，漫画抛 `selectorEmpty`）。
+  兜底那次加载的任何错误都不外抛，按原结果报。第 2 页起、有结果、没跳转都不进兜底，取值逐字不变。
+  依据：fwq `BC-SEARCH-022` ⑤ 已知边界——关键词恰为某部作品全名时，站点从搜索直接跳进作品页（piaotia「龙藏」），按结果列表解析为空，用户看到「没有结果」。
+  量面（fwq `scripts/measure_search_fullname_redirect.py`，零网络，1,091 份搜索核实报告 / 129 主机）：首查用全名直跳作品页的 5 主机全部交付了搜索——
+  sto55、piaotia、uukanshu、23qb（书）、mangakatana（漫画）；影视 0 例，本条不覆盖影视，出现实例再加。结果页靠 meta refresh / 脚本跳到作品页的 0 例。
+  **判据只用「跳转 + 作品页规则取得到标题和章节」**，不认站、不认地址形状；站点把空结果跳回首页 / 搜索页时作品页规则取不到章节，落回原结果。
+  代价：只在「0 条 + 跳转」时多一次取页。书在已取回的落地文档上直接解析，只有作品页规则要一跳目录（`chapterListURL` / `chapterFragmentURL`）时才多取；
+  漫画按作品页取页链路重取一次落地地址（POST 搜索站的落地页是可直接 GET 的作品页）。对应 fwq `APP-MEMO-032`。
+  实现 `BrowseCraftRuntime/.../Book/BookSourceRuntime.swift`（`search` → `redirectedDetailItem`）、`.../Comic/ComicSourceRuntime.swift`（`search` → `redirectedDetailItem`）与
+  `.../Comic/Loading/ComicSourceSearchLoader.swift`（`SearchSourceResult.redirectedLandingURL`）；用例 BrowseCraftRuntime 包 `SearchRedirectLandingRuntimeTests`（书：直跳成一条且不重取落地页、落地无章节不兜底、没跳转不进兜底、跳转判定只忽略片段与末尾斜杠）；漫画一路无固定输入（归档只 mangakatana 1 例）。
 - 直接请求通道跟随重定向时，跳转目标是 `http://` 的一律升成 `https://` 再跟（`AlamofireHTTPClient.httpsUpgradingRedirector`，`HTTPSUpgrade.upgraded`），HTML 取页与 `loadData` 原始字节请求同一个重定向器；不开全局 ATS 例外。
   引用点：fwq `BC-BOOK-050`（sfacg 作品页 302 到 http 的移动站再 301 回 https，URLSession 在 http 那一跳被 ATS 拒，而规则生成引擎的客户端无 ATS 跟得过去）；与有声书 mp3 地址的处置同一纪律。
   本来就是 https 或不是 http(s) 的地址原样跟随。

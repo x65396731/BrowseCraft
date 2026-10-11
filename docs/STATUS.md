@@ -99,6 +99,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | WebView 过挑战后把站点 Cookie 回写系统存储 + 书类封面请求带上来源请求配置（`BCA-RUNTIME-005` 2026-10-07 补充两处；xbanxia 真机封面全失败：列表经 WebView 过 Cloudflare，封面请求 `hasCookie=false`、图床回挑战页；第一处上线后复验仍失败，查出书类封面请求配置为空、Cookie 策略缺省不带系统 Cookie；第三处：回写的 `cf_clearance` 按图床地址取不回，改为只用公开属性重建再写入；用户「修，现在实施」，真机确认封面显示） | `BCA-RUNTIME-005` | required | approved | implemented | device-passed | 11c4949 | 2026-10-07 |
 | 列表分页页码按 `startPage + N − 1` 代入（0 起页码站 rouman5 / 3kor；fwq `BC-LIST-124` / `APP-MEMO-027`）：Core `PaginationRule.startPage` 与 `sitePageNumber(forPage:)`、影视 / 漫画 / 书三处代入点、目录请求 `features=startPage` 能力声明；Core 3 例 + Runtime 24 例过、App 构建过，未发版 | `BCA-RUNTIME-006` | required | approved | implemented | targeted-passed | 587a99c | 2026-10-06 |
 | 站点按状态码拒绝不再报成「规则解析出错」（xjortho 拦桌面 UA 返回 403，正文被当成列表页解析；fwq `MEMO-App-请求被拒显示成规则解析出错`）：直接请求最终状态码 ≥ 400 时先认挑战页、其余抛 `RuleExecutionError.httpStatus`（Domain `d1d5dac`），分类器按状态码四类文案、诊断记 `network`；`loadData` 与 WebView 通道不在范围；用例已写（7 例），四道代码闸门过，未发版 | `BCA-RUNTIME-007` | required | approved | implemented | full-suite-passed | 07a0231 | 2026-10-10 |
+| 搜索关键词恰为作品全名时站点直跳作品页、App 显示「没有结果」（fwq `BC-SEARCH-022` ⑤ / `APP-MEMO-032`；piaotia「龙藏」；fwq 量面 5 主机全部交付了搜索：sto55、piaotia、uukanshu、23qb、mangakatana）：书 / 漫画搜索第 1 页 0 条且取页发生过跳转时，落地地址按作品页规则加载，取到标题与至少 1 章即当一条结果（Runtime `ae9a7f0`）；书在落地文档上直接解析不重取、`loadDetail` 逐字不变，漫画重取一次；Runtime `swift test` 32 例过（新增 4 例，书一路），漫画一路无固定输入，四道代码闸门过，未发版 | `BCA-RUNTIME-008` | required | approved | implemented | targeted-passed | ae9a7f0 | 2026-10-11 |
 
 ## 4. 身份与同步
 

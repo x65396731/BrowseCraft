@@ -55,6 +55,7 @@ python3 scripts/check-docs.py
 | 2026-10-10 复审第二批：历史 / 库页按来源与按作品查询、三个详情页收藏与书详情进度经 actor、页面缺口与 11 条裸英文、两份包内 README | 真机：历史页与库页进页耗时、三个详情页收藏切换 | [STATUS 第 8 节](docs/STATUS.md) 末三行 | 第 8 节 |
 | 2026-10-10 代码复审八条裁定的实施：云同步 Portal 门禁与旧本地 UUID 覆盖、缩略图缓存键、详情刷新失败横幅、搜索页三处、死代码删除 | 真机：未登录进云同步页看开关禁用与说明、登录后开同步看 `former-local-identity-replaced` 日志 | [STATUS 第 8 节](docs/STATUS.md) 指向的复审报告 | 第 8 节五行 |
 | 站点按状态码拒绝不再报成「规则解析出错」（`BCA-RUNTIME-007`，2026-10-10） | 真机找一个回 403 的来源看提示文案 | [RuleExecutionSemantics](docs/design/RuleExecutionSemantics.md) 第三节 | 第 3 节 |
+| 搜索全名直跳作品页的兜底（`BCA-RUNTIME-008`，Runtime `ae9a7f0`，2026-10-11，不在 build 19 里） | 下次打包后真机：piaotia 或 sto55 搜一部书的**完整书名**，应出现一条结果、点进去是这本书；搜书名的一部分照旧出列表 | [RuleExecutionSemantics](docs/design/RuleExecutionSemantics.md) 第三节 | 第 3 节 |
 | POST 搜索与非 UTF-8 关键词（fwq `APP-MEMO-031`，Core 与 Runtime 已推送） | 真机：fwq 三站搜索复测通过后，从 App 重交 piaotia 搜「剑帝」 | fwq `BC-SEARCH-022` | fwq STATUS |
 | 站点有声播放器后续：界面样式、倍速入口、`mediaAPI` 无语料 | 立项 | [Book-Kind-Wiring](docs/design/Book-Kind-Wiring-Design.md) 第十六节 | 第 1 节 optional 行 |
 | 给 fwq 的六条读书 kind 生成需求 | 需求一 / 三 / 四 / 五前半 fwq 已交付并真机通过（小說狂人最新章节 10-10 再修、待部署）；需求二记账、两端都不做；五后半目录分页 fwq 未定立场；六 fwq 不做 | Claude 文档「读书 kind 规则生成覆盖需求」（https://claude.ai/artifact/HnYM71goMZveUVJQQ4vhgk） | fwq STATUS |
