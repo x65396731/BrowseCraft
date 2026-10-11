@@ -86,7 +86,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 来源内搜索页重设计的模拟器走查（小說狂人 czbooks.net，iPhone 18 Pro / iOS 27.0）：眉行「书籍 · 小說狂人 · 玄幻奇幻」青绿图标、「搜索」+ 圆形关闭、进页聚焦且搜索框青绿描边、占位「搜索 来源名」、插画 + 两行说明顶对齐、有字出清空叉、回车提交后描边消失、结果眉行「“100” · 40 个结果」、书脊行结果、点行推入站点书详情（导航栏仍隐藏）再返回结果保留、滚到底没有分页脚、关闭再打开结果保留且不弹键盘、清空回未搜索态并重新聚焦、深色（结果与未搜索）；搜索中骨架（请求太快没抓到）、无结果（czbooks 对任意关键词都回 40 条）、失败 / 登录横幅、分页脚、视频与漫画来源的结果版式未走到；模拟器软件键盘被硬件键盘顶掉、工具不能输入中文，关键词用的是数字与字母 | 未编号 | required | approved | implemented | simulator-passed | 25f754b | 2026-10-09 |
 | 规则目录页打开时「我的生成」有条目就优先落在「我的生成」（打开时按已有数据定段、首次拉取完成后再定一次、用户点过分段就不再改） | 未编号 | required | approved | implemented | not-run | 26d1b3e | 2026-10-09 |
 | 我的生成「删一条失败记录又冒一条」：App 侧删失败记录时把同一入口的全部失败一起软删除（`SourcesViewModel.hideOutcomes`）；PortalCore `OUTCOME_LIMIT` 20 → 200 并补测试（服务端那半在 PortalCore 仓） | 未编号 | required | approved | implemented | not-run | 26d1b3e | 2026-10-09 |
-| App 侧显示每次生成的 `aiTokens` / `cloudCost`（PortalCore 自 9827e30 起推送负载与 `/outcomes` 每条都带这两个数，App 现版本忽略未知字段）——2026-10-11 裁定不显示：用户付的是固定价 coin，这两个数是 Provider 用量与云端实扣（普通档 `cloudCost` 为 null），不改变用户任何决定，且 `cloudCost` 是经营侧成本不宜面向用户；重开条件：定价改为按 token 或按实际成本计费，或失败记录要给用户「试了多少」的诊断说明（届时只展示 `aiTokens`） | 未编号 | rejected | superseded | not-started | not-run | d08c401 | 2026-10-11 |
+| App 侧显示每次生成的 `aiTokens` / `cloudCost`（PortalCore 自 9827e30 起推送负载与 `/outcomes` 每条都带这两个数，App 现版本忽略未知字段）——2026-10-11 裁定不显示：用户付的是固定价 coin，这两个数是 Provider 用量与云端实扣（普通档 `cloudCost` 为 null），不改变用户任何决定，且 `cloudCost` 是经营侧成本不宜面向用户；重开条件：定价改为按 token 或按实际成本计费，或失败记录要给用户「试了多少」的诊断说明（届时只展示 `aiTokens`） | 未编号 | rejected | superseded | not-started | not-run | f691278 | 2026-10-11 |
 
 ## 3. 影视线运行期
 
