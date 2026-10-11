@@ -68,6 +68,8 @@ python3 scripts/check-docs.py
   开工时把新页面加进它的页面表，完成后更新那一行。颜色只在 `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift` 一处取值；
   底栏可见性只能挂在 `NavigationStack` 根页的规则见 [Coin-Ledger](docs/design/Coin-Ledger-Page-Redesign-Design.md) 第二节。
 - **明确不做**：`决策 = rejected` 的 STATUS 行按名字跳过，不是待办。
+  2026-10-11 新增一条：App 侧不显示每次生成的 `aiTokens` / `cloudCost`（服务端已随推送与 `/outcomes` 下发，App 忽略未知字段即可），
+  理由与重开条件在 STATUS 第 2 节该行、目录页合同 2.3 末条；该行检查点暂填 d08c401，提交本次文档后改成这次提交的哈希。
 - **遗留小项**：本机同步队列里 `local.default` 作用域下有几条早先留下的来源删除与收藏待传项，未处理。
 
 ## 2. 环境与命令速查
