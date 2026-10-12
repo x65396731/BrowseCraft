@@ -81,8 +81,8 @@ final class SiteBookChapterContainer: Container, @unchecked Sendable {
     private let language: String?
     private let renderer: BookXHTMLRenderer
     private let contentProvider: BookChapterContentProvider
-    /// 中文注释：音频请求客户端（含 http → https 升级代理）；DefaultHTTPClient 对代理是弱引用，由本容器持有。
-    let audioHTTPClient: SiteBookAudioHTTPClient = SiteBookAudioHTTPClient()
+    /// 中文注释：音频请求客户端（含 http → https 升级代理、播放页型章节的取页解析）；DefaultHTTPClient 对代理是弱引用，由本容器持有。
+    let audioHTTPClient: SiteBookAudioHTTPClient
 
     init(manifest: BookPublicationManifest, renderer: BookXHTMLRenderer, contentProvider: @escaping BookChapterContentProvider) {
         var byHref: [String: BookPublicationItem] = [:]
@@ -98,6 +98,11 @@ final class SiteBookChapterContainer: Container, @unchecked Sendable {
         }
         self.itemsByHref = byHref
         self.entries = entries
+        // 中文注释：fwq 设计稿第 46 节 A1：播放页型有声章节的 href 是播放页，播放器请求它时先取页解析出音频地址再改写请求。
+        let pageAudioChapters: [URL] = manifest.items.filter(\.audioResolvedFromPage).map(\.chapterURL)
+        self.audioHTTPClient = SiteBookAudioHTTPClient(
+            pageAudioResolver: pageAudioChapters.isEmpty ? nil : SiteBookPageAudioResolver(chapters: pageAudioChapters, provider: contentProvider)
+        )
         self.language = manifest.language
         self.renderer = renderer
         self.contentProvider = contentProvider

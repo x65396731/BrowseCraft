@@ -18,6 +18,9 @@ struct BookPublicationItem: Hashable, Sendable {
     /// 中文注释：站点上的章节地址；正文章节取内容时用它，音频章节它就是 href。
     let chapterURL: URL
     let kind: Kind
+    /// 中文注释：播放页型有声章节（fwq 设计稿第 46 节 A1）：href 是章节播放页，真正的音频地址要等播放时取页解析
+    /// （`SiteBookPageAudioResolver`）；章节地址本身是音频文件时为 false。
+    var audioResolvedFromPage: Bool = false
 }
 
 struct BookPublicationManifest: Hashable, Sendable {

@@ -32,8 +32,20 @@ enum SiteBookTitle {
 struct BookPublicationAssembler: Sendable {
     func assemble(source: Source, detailURL: URL, detail: SourceDetailOutput) -> BookPublicationManifest {
         let audioExtensions: Set<String> = ["mp3", "m4a", "m4b", "mp4", "aac", "m3u8"]
+        let pageAudio: BookMediaRule? = Self.pageAudioMedia(of: source)
         let items: [BookPublicationItem] = detail.chapters.enumerated().map { index, chapter in
             let isAudio: Bool = audioExtensions.contains(chapter.url.pathExtension.lowercased())
+            if isAudio == false, let media: BookMediaRule = pageAudio {
+                // 中文注释：fwq 设计稿第 46 节 A1：规则是有声（`audio-media` 的 DOM 支）、章节地址却是播放页——仍是音频章节，
+                // 地址等播放时取页解析；不再按扩展名判成正文（那样 Runtime 回来 `.audio` 会报 `unexpectedContent`）。
+                return BookPublicationItem(
+                    href: chapter.url.absoluteString,
+                    title: chapter.title,
+                    chapterURL: chapter.url,
+                    kind: .audio(mediaType: media.format?.rwpmMediaType, durationSeconds: nil),
+                    audioResolvedFromPage: true
+                )
+            }
             return BookPublicationItem(
                 href: isAudio ? chapter.url.absoluteString : String(format: "chapters/%04d.xhtml", index + 1),
                 title: chapter.title,
@@ -53,6 +65,18 @@ struct BookPublicationAssembler: Sendable {
                 return trimmed.isEmpty ? nil : trimmed
             }
         )
+    }
+
+    /// 中文注释：书源的阅读规则全是有声、且带 DOM 取址（`media`）时返回它——与 `isAudiobookSource` 同一口径（全部 reader 为有声）。
+    static func pageAudioMedia(of source: Source) -> BookMediaRule? {
+        guard case .book(let configuration) = source.configuration else {
+            return nil
+        }
+        let readers: [BookReaderRule] = configuration.rule.ruleSets.readerRules
+        guard readers.isEmpty == false, readers.allSatisfy({ reader in reader.contentType == .audio }) else {
+            return nil
+        }
+        return readers.first(where: { reader in reader.media != nil })?.media
     }
 
     private static func audioMediaType(for url: URL) -> String? {
