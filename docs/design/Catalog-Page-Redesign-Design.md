@@ -1,7 +1,7 @@
 # 规则目录页的视觉与信息结构重设计
 
 设计稿（画布，含三个方向与方案 A 的全部状态页）：[规则目录重设计](https://claude.ai/artifact/MB3FwJqXykiuWbMj3ZA2aS)；
-「发现」标签（站点示例）的设计稿：[规则目录推荐区改版](https://claude.ai/artifact/SrrBgFvcPSbwsnZdY4PxFg)，
+「发现」标签的设计稿：[规则目录推荐区改版](https://claude.ai/artifact/SrrBgFvcPSbwsnZdY4PxFg)，
 设计书：[规则目录推荐区改版：站点示例与用户分享](https://claude.ai/artifact/Mv6Qq1JTHRTtNHbd8aN72y)。
 本文以方案 A 为推荐方向陈述；方案 B、C 作为备选列在第五节。设计与实施状态见 [STATUS.md](../STATUS.md)。
 
@@ -17,36 +17,51 @@
   `failedGenerationOutcomes` 在后），用户看不出哪条是刚生成的；剩余时间只是一行小字。
 
 公共目录原本是开发者下发、所有用户都能看到的影视 / 漫画 / 小说站。App 以「网站是用户自己选的」工具姿态送审，
-开发者不预置这类站点：原「推荐」标签改为「发现」，只展示内容版权没有疑问的站点示例（2.2）；用户分享另行上线（2.6）。
+对外不预置这类站点：原「推荐」标签改名「发现」，版式不变，Release 构建只展示内容版权没有疑问的站点示例（2.2）；用户分享另行上线（2.6）。
 
 ## 二、信息结构（方案 A）
 
 ### 2.1 两个标签
 
-- 页面顶部是大标题「规则目录」，其下一个两段的分段控件：**✦ 发现** | **我的生成**（分段切换沿用 `CatalogSegmentedPicker`，图标仍是原「推荐」的 ✦）。
+- 页面顶部是大标题「规则目录」，其下一个两段的分段控件：**✦ 发现** | **我的生成**（即原「推荐」，只改名，图标仍是 ✦）。
   「我的生成」段带数量角标，数值为个人成功规则与失败记录之和；为 0 时不显示角标。
 - 打开目录页时「我的生成」有条目就落在「我的生成」，否则落在「发现」（2026-10-09 用户裁定：自己的生成优先）。
   条目数要等首次拉取回来才准：打开时先按已有数据定段，首次拉取完成后按同一规则再定一次；用户在此之前已经自己点过分段的，不再替用户改段。
   两个标签共用一个 `refreshCatalogSources`：每次呈现与下拉刷新都重新拉取，不因切换标签而单独拉取。
 - 刷新与重试一律用下拉手势，不加刷新按钮；空状态与失败状态的可发现性做在文案与下拉示意上。
 
-### 2.2 发现：站点示例
+### 2.2 发现：站点示例与内部测试
 
-- 数据取公共目录中 `section` 为 `example` 的条目，保持服务端返回顺序，最多 6 条，不按类型分区。
-  没有 `section` 字段或取值不认得的条目一律不展示：服务端还没清出旧的预置站点时，它们也不会被当成示例。
-- 示例只收内容版权没有疑问的站点：公有领域作品、政府公开作品、自建演示站，或使用条款明确允许转载与聚合的站点。
-  站点的挑选与配置在服务端目录侧，本文不列站名；每个示例都要先实测能生成可用规则。
-- 版式沿用来源页与收藏页已有的组件，不另做卡片样式：
+「发现」自上而下两块，数据都取公共目录、按 `section` 分开；没有 `section` 字段或取值不认得的条目一律不展示。
+
+- **站点示例**（Release 与 Debug 都有）：取 `section` 为 `example` 的条目，保持服务端返回顺序，最多 6 条，不按类型分区。
+  - 示例只收内容版权没有疑问的站点（公有领域作品、政府公开作品，或使用条款明确允许转载与聚合的站点），
+    由服务端目录侧经 fwq 生成后配置，本文不列站名；不另建演示站。
   - 分区标题「站点示例」按统一分区标题（`footnote` 粗体次级色，左右 24pt），右侧写条数「N 个」。
-  - 示例列表是一组「卡片行组」：同组的行拼成一张圆角 18 的卡片，行间细线从 68pt 起；
-    每行 42pt 首字徽标 + 站点名（`subheadline` semibold，单行截断）+「类型 · 主机名」（`caption` 次级色），行尾是添加动作（2.4），不放 ›。
-  - 卡片组下方一句组下说明（`caption` 次级色）：「示范怎样的网站能生成规则。规则只会在你添加后出现在来源里。」
-  - 再下方一张「入口卡片」（与来源页空状态同一个 `SourcesEntryCardView`：48pt 彩色方图标 + 标题 + 一句说明 + ›），
-    标题「用自己的网址生成」、说明「贴上网站的列表页地址，生成后出现在「我的生成」」；点按收起目录页后打开添加来源，
-    与「我的生成 · 空」的主按钮同一条路。
-- 主机名沿用 `catalogEntryURL(for:)` 的取值规则（同站多条取各自入口，否则 `baseURL`），只显示主机名并去掉 `www.` 前缀；
-  同站多条时显示主机名 + 路径的尾段。
-- 示例行不显示分类行与「可搜索」「语言」标签：示例只有几条，读者要的是「这类网站能用」，不是挑站。
+  - 列表是一组「卡片行组」：同组的行拼成一张圆角 18 的卡片，行间细线从 68pt 起；每行 42pt 首字徽标 + 站点名
+    （`subheadline` semibold，单行截断）+「类型 · 主机名」（`caption` 次级色），行尾是添加动作（2.4），不放 ›。不显示分类行与标签。
+- **内部测试**（只在 Debug 构建）：取 `section` 为 `internal` 的条目（原预置站点，服务端只返回给白名单账号）。
+  分区标题「内部测试」，下方一行 `caption`「仅 Debug 构建，仅白名单账号」；内容沿用原「推荐」的版式，规则如下。
+  Release 构建里没有取用 `internal` 的代码路径。
+- 内部测试的条目按 `kind` 分区，分区顺序固定为 视频 → 漫画 → 书籍；
+  某类型没有条目时整个分区不出现。区内保持服务端返回顺序。
+- 每个分区由两部分组成：
+  - **类型横幅**：通栏（宽随屏，左右页边距内撑满）× 高 112、圆角 22，底色为该类型的深色底，左下是类型图标圆 + 类型名 + 「左右滑动查看全部」，
+    右侧是该类型的插画（第四节）。
+  - **横滑卡片带**：卡片 180×244、圆角 18。自上而下：首字徽标（36×36，类型色 16% 底 + 类型色字）一行、
+    标签靠右（放不下时靠右竖排）；站点名独占整行、最多两行；副标题地址独占一行；分类行；底部一个通栏按钮。
+    站点名不与徽标并排——并排时名字只剩约 90pt，「站名 · 分类」这类名字一截就看不全。
+    卡片带左右留 20pt，最后一张露出一截，提示可以横滑。
+- 副标题地址沿用 `catalogEntryURL(for:)` 的取值规则（同站多条取各自入口，否则 `baseURL`），但只显示主机名，
+  并去掉 `www.` 前缀；同站多条时显示主机名 + 路径的尾段，保证能区分。
+- 分类行与标签行来自规则本体（`CatalogRuleFacts`，目录读到时逐条解析一次）。目录接口只给
+  id / name / baseURL / kind / ruleJSON，其余信息只能取自规则；三种 kind 用同一套 JSON 路径，不按 kind 分支。
+  - **分类**：可浏览列表页（`list` / `category` / `series`）的 `title`，去重去空。两个及以上写「N 个分类」+ 前三个名称，
+    其余写「+N」；只有一个时写「分类」+ 该名称；没有时整行不出现。
+  - **可搜索**：`ruleSets.searchRules` 非空时显示。
+  - **语言**：`site.language` 归一后与 App 当前界面语言不同才显示。中文按文字分简繁——显式 script 优先，
+    没有时台港澳地区视为繁体，`zh` 与 `cmn` 同属中文；简繁用「简中 / 繁中」，其他语言用系统本地化的语言名。
+  - 不展示：站点图标（线上规则 `site.iconURL` 全部为空）、登录需求（用户裁定不展示）。
 
 ### 2.3 我的生成：按时间的时间线
 
@@ -68,11 +83,11 @@
 
 由 `CatalogAddActionState` 表达，判据与原目录行一致（添加中 → 已添加 → 未添加）：
 
-| 状态 | 示例行与我的生成卡片（行尾 / 右上） |
-| --- | --- |
-| 未添加 | 36pt 实心蓝圆形「+」 |
-| 添加中 | 圆形按钮内 ProgressView |
-| 已添加 | 灰底小胶囊「✓ 已添加」，不可点 |
+| 状态 | 内部测试卡片（通栏按钮） | 站点示例行（行尾）与我的生成卡片（右上） |
+| --- | --- | --- |
+| 未添加 | 实心蓝「+ 添加」 | 36pt 实心蓝圆形「+」 |
+| 添加中 | 按钮内 ProgressView | 同左 |
+| 已添加 | 灰底「✓ 已添加」，不可点 | 灰底小胶囊「✓ 已添加」 |
 
 添加成功即关闭目录页并切到库标签选中新来源（`CatalogSourceListView` 在 `addCatalogSource` 返回成功后 `dismiss()`），用户在那一刻看不到「✓ 已添加」；这一态只在重新打开目录、条目已在库里时出现。失败则留在页上，由下一段的失败文案承担。
 
@@ -85,8 +100,8 @@
 
 | 场景 | 判定 | 显示 |
 | --- | --- | --- |
-| 发现 · 加载中 | `isLoadingCatalogSources` 且目录为空 | 分区标题照常显示，下面一张三行的卡片行组骨架（徽标、两行字、圆形按钮的色块），底部「加载中…」 |
-| 发现 · 空 | 加载结束且没有任何示例条目 | 空书架插画 + 「暂无目录数据」+ 一句说明 + 向下箭头与「下拉可重新加载」 |
+| 发现 · 加载中 | `isLoadingCatalogSources` 且目录为空 | 「站点示例」标题照常显示，下面一张三行的卡片行组骨架（徽标、两行字、圆形按钮的色块），底部「加载中…」 |
+| 发现 · 空 | 加载结束且没有示例（Debug 下也没有内部测试条目） | 空书架插画 + 「暂无目录数据」+ 一句说明 + 向下箭头与「下拉可重新加载」 |
 | 我的生成 · 未登录 | `isPersonalCatalogSignInRequired` | 上锁书箱插画 + 「登录后查看」+ `catalog_personal_sign_in_hint` + 「到「设置」里用 Apple 登录」的指引（登录入口在设置页，目录页不另设登录按钮） |
 | 我的生成 · 空 | 已登录，成功与失败都为空 | 空白画布插画 + 「还没有生成过规则」+ 指向「添加来源」的说明，主按钮「去添加来源」（目录页收起后由来源页打开添加来源），次链接「怎样的页面能生成？」 |
 
@@ -94,9 +109,9 @@
 
 ### 2.6 用户分享（不在本版）
 
-让用户把自己生成的规则公开给所有人的「用户分享」不在本版。上线时在「发现」的站点示例下方另起一个分区，已定的约束：
+让用户把自己生成的规则公开给所有人的「用户分享」不在本版。上线时在「发现」里另起分区，已定的约束：
 
-- 分区标题写明「其他用户分享的站点规则」，并有一句说明：由用户分享，App 不提供也不审查网站内容，发现侵权可举报。
+- 分区写明「其他用户分享的站点规则」，并有一句说明：由用户分享，App 不提供也不审查网站内容，发现侵权可举报。
 - 不显示分享者身份。
 - 举报（侵权 / 色情或违法 / 已失效）与「屏蔽此分享者」放在每张分享卡片右上的「···」菜单；举报后该卡片在本机立即隐藏。
 - 上线前必须同时具备：服务端的发布前过滤与人工复核、举报处理与版权投诉下架、按账号的屏蔽名单、公开的投诉联系方式
@@ -107,7 +122,7 @@
 - **基调**：目录页跟随系统外观，与弹出它的来源页一致——页面之间的主题色不能差异过大，浅色页面上弹出整张深色页反差过大。
   页面与卡片底色取系统分组背景，深浅色自动跟随；类型色、动作色与警示色的唯一声明点在 `CatalogKindStyle` 与 `CatalogPalette`，
   两套取值都随系统。2026-10-11 起 Features 层不再直接写 `.white` / `.black` / `Color(uiColor:)`：实心按钮上的字用 `onAction`，类型色底上的字用 `onAccent`（浅色白、深色墨），反色元素上的字用 `onPrimary`，非分组页面底 `plainBackground`，分隔线 `separator`，按下态 `pressedFill` / `pressedScrim`，阴影 `shadow` / `cardShadow` / `posterShadow`，封面上的黑 `coverScrim` / `coverShade` / `badgeScrim` / `headerScrim`，固定深色瓷砖上的半透明白 `onDarkFill`（统一 16%）。仍允许直接写颜色的只有功能性取值，在 `CatalogPalette` 的注释里登记：阅读器页面底、播放器黑底、启动动画、调试页、Apple 登录按钮样式、设置页全屏广告位黑底、流光描边两端的白光，加上内购页的固定深色。**类型横幅永远是深色色块**：插画本身是深底，横幅的底色、图标圆、标题与说明文字
-  都取固定的深色取值、不随系统变；浅色页面上它就是三块深色类型色块，与来源页「正在使用」的深色类型瓷砖同一种做法。类型横幅已不出现在目录页，组件仍用于添加来源页。
+  都取固定的深色取值、不随系统变；浅色页面上它就是三块深色类型色块，与来源页「正在使用」的深色类型瓷砖同一种做法。
   页面、卡片、次级填充与分段控件全部取系统色（`systemGroupedBackground`、`secondarySystemGroupedBackground`、`tertiarySystemFill`），不另写深色值。
 - **文字**：随系统（`.primary` / `.secondary`）；横幅上的标题 #F4F3EF 是唯一固定的文字色。字体用系统字体。
 - **类型色**：视频 #F2A65A（琥珀）、漫画 #B79CFF（淡紫）、书籍 #5CC8B0（青绿）。类型之间同时用图标区分，
@@ -150,19 +165,19 @@
 ## 六、不变的部分
 
 - 添加、删除、失败记录与入口页教程的行为与判据全部不变，本设计只改信息组织与外观；规则更新是自动的，界面上没有入口。
-- 两个分组的数据来源：`CatalogSourceGrouping` 的 `defaultSources`（只取 `section` 为 `example` 的条目）/ `personalSources` / `failedOutcomes`；目录请求与解码之外，公共目录条目多读一个 `section` 字段。
+- 两个分组的数据来源：`CatalogSourceGrouping` 的 `defaultSources`（按 2.2 的 `section` 规则筛过）/ `personalSources` / `failedOutcomes`；公共目录条目的解码多读一个 `section` 字段。
 - 终态里的用量字段（`aiTokens` / `cloudCost`）不进 App 的端口模型，也不进任何页面（见 2.3 末条）。
 - App 不提供规则创建或编辑入口（`BCA-UI-003`）；「去添加来源」只是跳到既有的添加来源流程。
 
 ## 七、实现位置
 
 - `BrowseCraft/Features/Sources/Catalog/CatalogSourceListView.swift`：分段控件、两个标签的内容、卡片、首字徽标视图 `CatalogMonogramView`、骨架与状态页。
-- `BrowseCraft/Features/Sources/Catalog/CatalogPersonalTimeline.swift`：个人时间线的合并排序与按日分组（`CatalogPersonalTimeline`）。
+- `BrowseCraft/Features/Sources/Catalog/CatalogPersonalTimeline.swift`：个人时间线的合并排序与按日分组（`CatalogPersonalTimeline`），推荐按类型分区（`CatalogKindSection`）。
 - `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift`：配色、类型样式、首字徽标与地址的显示取值，以及与添加来源页共用的类型横幅 `CatalogKindBannerView`。
-- `BrowseCraft/Features/Sources/Catalog/CatalogRuleFacts.swift`：规则事实的分类 / 可搜索 / 语言取值与语言归一（`CatalogLanguage`）；「发现」的示例行不展示这些取值。
+- `BrowseCraft/Features/Sources/Catalog/CatalogRuleFacts.swift`：推荐卡片的分类 / 可搜索 / 语言取值与语言归一（`CatalogLanguage`）。
 - `BrowseCraft/Features/Sources/SourcesViewModel.swift`：`personalCatalogTimeline`、`personalCatalogItemCount`、`personalRuleRemainingFraction(for:)`、`catalogRuleFacts`。
-- `BrowseCraft/Features/Sources/SourcesView.swift`：「去添加来源」与「用自己的网址生成」在目录页收起后打开添加来源。
-- `BrowseCraft/Application/UseCases/Generation/CatalogSourceGrouping.swift`、`BrowseCraft/Domain/Models/Source/CatalogSource.swift`、`BrowseCraft/Application/UseCases/Source/AddCatalogSourceUseCase.swift`：`section` 的解码与按 `section` 过滤。
+- `BrowseCraft/Features/Sources/SourcesView.swift`：「去添加来源」在目录页收起后打开添加来源。
+- `BrowseCraft/Application/UseCases/Generation/CatalogSourceGrouping.swift`、`BrowseCraft/Domain/Models/Source/CatalogSource.swift`、`BrowseCraft/Application/UseCases/Source/AddCatalogSourceUseCase.swift`：`section` 的解码与按构建筛选。
 - `Localizable.strings`：标签名、类型横幅、日期分组、空状态与未登录的文案键。
 - 固定输入：`BrowseCraftTests/Features/Sources/CatalogPersonalTimelineTests.swift`。
 
@@ -170,6 +185,6 @@
 
 - **第一次打开**（目录还没加载完）时标题与分段控件不向左溢出。这个问题只在加载骨架出现时触发，冷启动后直接打开目录最容易看到。
 - 浅色与深色下六张插画的观感。
-- 「发现」只出现服务端标为示例的条目，旧的预置影视 / 漫画 / 小说站不出现；「用自己的网址生成」收起目录后打开添加来源。
+- Release 构建的「发现」只有「站点示例」列表；Debug 构建登录白名单账号后，下方另有「内部测试」横幅分区；旧的预置站点不出现在示例里。
 - 「我的生成」有条目时打开直接落在「我的生成」；删一条失败记录后同一入口不再冒出更早的失败。
 - 顺带做 fwq `BC-PREFLIGHT-066`：生成一条规则 → 点推送停在原页不跳转 → 打开目录直接看到新规则、不用下拉。
