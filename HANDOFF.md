@@ -59,9 +59,11 @@ python3 scripts/check-docs.py
 | 搜索全名直跳作品页的兜底（`BCA-RUNTIME-008`，Runtime `ae9a7f0`，2026-10-11，不在 build 19 里） | 下次打包后真机：piaotia 或 sto55 搜一部书的**完整书名**，应出现一条结果、点进去是这本书；搜书名的一部分照旧出列表 | [RuleExecutionSemantics](docs/design/RuleExecutionSemantics.md) 第三节 | 第 3 节 |
 | POST 搜索与非 UTF-8 关键词（fwq `APP-MEMO-031`，Core 与 Runtime 已推送） | 真机：fwq 三站搜索复测通过后，从 App 重交 piaotia 搜「剑帝」 | fwq `BC-SEARCH-022` | fwq STATUS |
 | 站点有声播放器后续：界面样式、倍速入口、`mediaAPI` 无语料 | 立项 | [Book-Kind-Wiring](docs/design/Book-Kind-Wiring-Design.md) 第十六节 | 第 1 节 optional 行 |
+| 规则目录「推荐」改为「发现」：上方「站点示例」列表、Debug 下方「内部测试」沿用原横幅版式（2026-10-12 裁定，合同已入库、代码未动） | 先等服务端：fwq 发布器字段白名单放行 `section`（PortalCore 那份发布器由同步带过去）、PortalCore `schemas.py` / `rule_store.py` / 加列迁移 / `userId` 白名单只给开发者返回 `internal`、原预置站点标 `internal`、3～6 个示例经 fwq 生成后标 `example`；之后 App 实施（模型与解码加 `section`、分组按构建筛选、示例列表、标签改名） | [Catalog-Page-Redesign](docs/design/Catalog-Page-Redesign-Design.md) 2.2 / 2.6；需求文档「fwq 需求：公共目录区分站点示例」（https://claude.ai/artifact/1qKBLaB16tzi8WRVByJZVr）；设计书（https://claude.ai/artifact/Mv6Qq1JTHRTtNHbd8aN72y）；画布（https://claude.ai/artifact/SrrBgFvcPSbwsnZdY4PxFg） | 第 2 节该行 |
+| App Store 首发（AnyPortal，香港与台湾，免费）：价格、销售地区、5 个内购的繁中本地化 / 审核截屏 / 推广图、类别（娱乐 / 图书）、年龄分级已在 App Store Connect 填好 | 内容版权一题等「发现」上线后按工具姿态再勾；调试完选正式构建后把 5 个内购加进 1.0 版本一起送审，送审前考虑「版本发布」改手动；「在 App Store 上推广」不开（App 未处理 `PurchaseIntent`，要开先补代码） | Claude 文档「BrowseCraft 页面设计索引」的「App Store 内购项目图像」一节（勾选清单与即梦设定） | — |
 | 给 fwq 的六条读书 kind 生成需求 | 需求一 / 三 / 四 / 五前半 fwq 已交付并真机通过（小說狂人最新章节 10-10 再修、待部署）；需求二记账、两端都不做；五后半目录分页 fwq 未定立场；六 fwq 不做 | Claude 文档「读书 kind 规则生成覆盖需求」（https://claude.ai/artifact/HnYM71goMZveUVJQQ4vhgk） | fwq STATUS |
 
-下一会话建议顺序：真机验收（STATUS 里 `not-run` 与 `simulator-passed` 的各行，十四批的看点都在上表；用户在真机上走，结果新增 `device-passed` 行、不改模拟器那几行）→ 续看同步两机对测。代码侧的复审项已全部收尾。
+下一会话建议顺序：真机验收（STATUS 里 `not-run` 与 `simulator-passed` 的各行，十四批的看点都在上表；用户在真机上走，结果新增 `device-passed` 行、不改模拟器那几行）→ 续看同步两机对测。代码侧的复审项已全部收尾。首发送审前的硬前置是上表「发现」一行（服务端 `section` → App 实施）。
 
 - **fwq 侧指针**（定义点与验证状态都在 fwq `docs/rules/STATUS.md`）：`BCA-RUNTIME-005`（fwq `APP-MEMO-026`）里「直接请求收到挑战页回退 WebView」一处仍欠真机，
   发版后由用户重交 toonily 验证，发版前 Cloudflare 站不要重生成；`BC-PREFLIGHT-066`（点推送停在原页、打开目录直接看到新规则）在 fwq 为 `not-run`，随规则目录页真机一起看；
