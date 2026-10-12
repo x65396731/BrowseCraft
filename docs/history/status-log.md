@@ -1196,3 +1196,11 @@ B2 之后再回到 [读书 kind App 侧接线](Book-Kind-Wiring-Design.md) 的�
 按 `AGENTS.md` 的会话纪律未 build、未跑测试。
 
 用户随后指出「站点示例没了」并选定：上方恢复「站点示例」卡片行组列表（两种构建都有），Debug 构建在下方接「内部测试」分区、沿用原「推荐」横幅版式放原预置站点。合同 2.2 / 2.4 / 2.5 / 第八节与 STATUS 行按此改写。
+
+## 2026-10-12：「发现」实施
+
+`STATUS.md` 第 2 节「规则目录「推荐」改为「发现」」一行：实施 not-started → implemented，检查点 7899211 → bd9a497，验证仍 not-run。
+
+服务端前置同日上线：fwq `BC-IMPL-170`（发布带 `?section=`，缺省 `internal`）、PortalCore 迁移 v17（原 15 个公共来源回填 `internal`）
+与 `CATALOG_INTERNAL_USER_IDS` 白名单（接口实测白名单账号 15 条、其余 0 条）。App 侧按合同 2.2 / 2.4 / 2.5 实施；示例站尚未发布，
+所以此刻 Release 的「发现」是空状态，Debug 白名单账号只看到「内部测试」。按 `AGENTS.md` 的会话纪律未 build、未跑测试。
