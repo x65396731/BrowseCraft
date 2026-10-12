@@ -631,6 +631,7 @@
 "push_generation_failed_siteRejectedFetcher_tryHard" = "%@ rejected our fetcher. You can try generating it again in Hard mode.";
 "video_generation_outcome_detail_chapterListLatestOnly" = "This site's work pages list only the latest chapters, and the full table of contents needs a separate data request. It isn't supported for now. Try another site.";
 "video_generation_outcome_detail_detailPagesUnrecognized" = "This site's list pages are fine, but we can't recognize the structure of its work pages yet (no title with a chapter or episode list). Try another site.";
+"video_generation_outcome_detail_listItemsNotWorks" = "The items in this page's list don't lead to work pages (they are this page's own sort or filter links). Try a category page that lists works directly.";
 
 /* 设置页重设计（docs/design/Settings-Page-Redesign-Design.md 第七节） */
 "settings_account_title" = "AnyPortal Account";

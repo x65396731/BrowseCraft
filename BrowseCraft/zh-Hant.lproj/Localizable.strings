@@ -631,6 +631,7 @@
 "push_generation_failed_siteRejectedFetcher_tryHard" = "%@ 拒絕了我們的擷取請求，可以改用困難模式重新生成。";
 "video_generation_outcome_detail_chapterListLatestOnly" = "這個網站的作品頁只列出最新幾章，完整目錄要另外請求資料才能取得，目前不支援，請換一個網站試試。";
 "video_generation_outcome_detail_detailPagesUnrecognized" = "這個網站的列表沒有問題，但點進去的作品頁暫時認不出結構（找不到作品標題與章節或劇集列表），請換一個網站試試。";
+"video_generation_outcome_detail_listItemsNotWorks" = "這個頁面的列表條目指向的不是作品頁（是本頁的排序或篩選連結），請換一個直接列出作品的分類頁再試一次。";
 
 /* 设置页重设计（docs/design/Settings-Page-Redesign-Design.md 第七节） */
 "settings_account_title" = "AnyPortal 帳號";
