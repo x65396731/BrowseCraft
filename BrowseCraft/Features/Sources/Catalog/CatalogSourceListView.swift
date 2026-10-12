@@ -1,11 +1,12 @@
 import SwiftUI
 import BrowseCraftDomain
 
-/// 规则目录页（`docs/design/Catalog-Page-Redesign-Design.md` 方案 A）：顶部分段切换「推荐 / 我的生成」。
-/// 推荐 = 公共目录按类型分区、横滑卡片；我的生成 = 成功规则与失败记录合并的时间线，按天分组。
+/// 规则目录页（`docs/design/Catalog-Page-Redesign-Design.md` 方案 A）：顶部分段切换「发现 / 我的生成」。
+/// 发现 = 站点示例的卡片行组，Debug 构建下方另有内部测试（按类型分区、横滑卡片）；
+/// 我的生成 = 成功规则与失败记录合并的时间线，按天分组。
 struct CatalogSourceListView: View {
     enum Tab: Hashable {
-        case recommended
+        case discover
         case personal
     }
 
@@ -14,7 +15,7 @@ struct CatalogSourceListView: View {
     var openAddSource: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
-    /// 中文注释：打开时「我的生成」有条目就落在「我的生成」，否则「推荐」（合同第 2.1 节）。
+    /// 中文注释：打开时「我的生成」有条目就落在「我的生成」，否则「发现」（合同第 2.1 节）。
     /// 条目数要等首次拉取回来才准，所以 `.task` 拉完再按同一规则纠正一次；用户已经自己点过分段就不再动。
     @State private var selectedTab: Tab
     @State private var hasUserPickedTab: Bool = false
@@ -29,7 +30,7 @@ struct CatalogSourceListView: View {
     }
 
     private static func preferredTab(personalItemCount: Int) -> Tab {
-        return personalItemCount > 0 ? .personal : .recommended
+        return personalItemCount > 0 ? .personal : .discover
     }
 
     /// 分段控件的绑定：用户点过就记下来，首次拉取回来后不再替用户改段。
@@ -47,8 +48,8 @@ struct CatalogSourceListView: View {
         NavigationStack {
             Group {
                 switch self.selectedTab {
-                case .recommended:
-                    self.recommendedContent
+                case .discover:
+                    self.discoverContent
                 case .personal:
                     self.personalContent
                 }
@@ -64,8 +65,8 @@ struct CatalogSourceListView: View {
                         selection: self.tabSelection,
                         segments: [
                             CatalogSegmentedPicker<Tab>.Segment(
-                                value: Tab.recommended,
-                                title: NSLocalizedString("catalog_tab_recommended", comment: ""),
+                                value: Tab.discover,
+                                title: NSLocalizedString("catalog_tab_discover", comment: ""),
                                 systemImage: "sparkles"
                             ),
                             CatalogSegmentedPicker<Tab>.Segment(
@@ -124,15 +125,18 @@ struct CatalogSourceListView: View {
         self.failedSourceIDs.removeAll()
     }
 
-    // MARK: - 推荐
+    // MARK: - 发现
 
     @ViewBuilder
-    private var recommendedContent: some View {
-        let sections: [CatalogKindSection] = CatalogKindSection.make(self.viewModel.defaultCatalogSources)
+    private var discoverContent: some View {
+        let examples: [CatalogSource] = self.viewModel.exampleCatalogSources
+        let internalSections: [CatalogKindSection] = CatalogKindSection.make(self.viewModel.internalCatalogSources)
+        let isEmpty: Bool = examples.isEmpty && internalSections.isEmpty
         ScrollView {
-            if sections.isEmpty && self.viewModel.isLoadingCatalogSources {
-                CatalogRecommendedSkeletonView()
-            } else if sections.isEmpty {
+            if isEmpty && self.viewModel.isLoadingCatalogSources {
+                CatalogDiscoverSkeletonView()
+                    .padding(.top, 8)
+            } else if isEmpty {
                 CatalogStateView(
                     systemImage: "books.vertical",
                     illustration: CatalogIllustration.named("CatalogEmptyRecommended"),
@@ -152,15 +156,73 @@ struct CatalogSourceListView: View {
                 .containerRelativeFrame(.vertical)
             } else {
                 LazyVStack(alignment: .leading, spacing: 30) {
-                    ForEach(sections) { section in
-                        self.kindSection(section)
+                    if examples.isEmpty == false {
+                        self.exampleSection(examples)
                     }
+                    #if DEBUG
+                    if internalSections.isEmpty == false {
+                        self.internalTestSection(internalSections)
+                    }
+                    #endif
                 }
+                .padding(.top, 8)
                 .padding(.bottom, 24)
             }
         }
         .refreshable {
             await self.refresh()
+        }
+    }
+
+    /// 站点示例：一组卡片行组，不按类型分区，行尾是添加动作（合同 2.2 / 2.4）。
+    private func exampleSection(_ examples: [CatalogSource]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            CatalogSectionHeaderView(
+                title: NSLocalizedString("catalog_section_examples", comment: ""),
+                trailing: String(format: NSLocalizedString("catalog_section_examples_count", comment: ""), examples.count)
+            )
+            .padding(.horizontal, 24)
+            VStack(spacing: 0) {
+                ForEach(Array(examples.enumerated()), id: \.element.id) { index, catalogSource in
+                    CatalogExampleRowView(
+                        catalogSource: catalogSource,
+                        subtitle: CatalogKindStyle.of(catalogSource.kind).title + " · " + CatalogDisplayText.recommendationSubtitle(
+                            baseURL: catalogSource.baseURL,
+                            entryURL: self.viewModel.catalogEntryURL(for: catalogSource)
+                        ),
+                        action: self.actionState(for: catalogSource),
+                        failureMessage: self.failureMessage(for: catalogSource),
+                        showsSeparator: index > 0,
+                        addAction: {
+                            self.add(catalogSource)
+                        }
+                    )
+                }
+            }
+            .background(CatalogPalette.cardBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .padding(.horizontal, 20)
+        }
+    }
+
+    #if DEBUG
+    /// 内部测试：原预置站点（服务端只返回给白名单账号），沿用原「推荐」的类型横幅 + 横滑卡片。Release 构建没有这段代码。
+    private func internalTestSection(_ sections: [CatalogKindSection]) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 2) {
+                CatalogSectionHeaderView(
+                    title: NSLocalizedString("catalog_section_internal", comment: ""),
+                    trailing: nil
+                )
+                Text(NSLocalizedString("catalog_section_internal_hint", comment: ""))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 24)
+            VStack(alignment: .leading, spacing: 30) {
+                ForEach(sections) { section in
+                    self.kindSection(section)
+                }
+            }
         }
     }
 
@@ -197,6 +259,7 @@ struct CatalogSourceListView: View {
             }
         }
     }
+    #endif
 
     // MARK: - 我的生成
 
@@ -397,13 +460,117 @@ struct CatalogSourceListView: View {
 
 // MARK: - 分段控件
 
-/// 「推荐 / 我的生成」两段。「我的生成」段带数量角标，为 0 时不显示。
-// MARK: - 推荐：横幅与卡片
+/// 「发现 / 我的生成」两段。「我的生成」段带数量角标，为 0 时不显示。
+// MARK: - 发现：分区标题、示例行、内部测试卡片
 
 enum CatalogAddActionState: Hashable {
     case add
     case adding
     case added
+}
+
+/// 统一分区标题：`footnote` 粗体次级色，右侧可带条数（与来源页同一写法）。
+private struct CatalogSectionHeaderView: View {
+    let title: String
+    let trailing: String?
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(self.title)
+                .fontWeight(.bold)
+            Spacer(minLength: 8)
+            if let trailing: String = self.trailing {
+                Text(trailing)
+            }
+        }
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// 站点示例里的一行：卡片行组的一员，行间细线从 68pt 起；42pt 首字徽标 + 站点名 +「类型 · 主机名」，行尾添加动作。
+private struct CatalogExampleRowView: View {
+    let catalogSource: CatalogSource
+    let subtitle: String
+    let action: CatalogAddActionState
+    let failureMessage: String?
+    let showsSeparator: Bool
+    let addAction: () -> Void
+
+    @Environment(\.displayScale) private var displayScale
+
+    var body: some View {
+        let style: CatalogKindStyle = CatalogKindStyle.of(self.catalogSource.kind)
+        HStack(spacing: 12) {
+            CatalogMonogramView(name: self.catalogSource.name, accent: style.accent, size: 42)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(self.catalogSource.name)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                Text(self.subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                if let failureMessage: String = self.failureMessage {
+                    Text(failureMessage)
+                        .font(.caption)
+                        .foregroundStyle(CatalogPalette.warning)
+                        .lineLimit(2)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            CatalogRowAddControl(state: self.action, name: self.catalogSource.name, addAction: self.addAction)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .overlay(alignment: .top) {
+            if self.showsSeparator {
+                Rectangle()
+                    .fill(CatalogPalette.separator)
+                    .frame(height: 1 / self.displayScale)
+                    .padding(.leading, 68)
+            }
+        }
+    }
+}
+
+/// 行尾的添加动作（合同 2.4 右列）：36pt 实心蓝圆形「+」/ 转圈 / 灰底小胶囊「✓ 已添加」。站点示例行与我的生成卡片共用。
+private struct CatalogRowAddControl: View {
+    let state: CatalogAddActionState
+    let name: String
+    let addAction: () -> Void
+
+    var body: some View {
+        switch self.state {
+        case .adding:
+            ProgressView()
+                .frame(width: 36, height: 36)
+        case .added:
+            Label("Added", systemImage: "checkmark")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 10)
+                .frame(minHeight: 28)
+                .background(CatalogPalette.fillBackground, in: Capsule())
+        case .add:
+            Button(action: self.addAction) {
+                Image(systemName: "plus")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(CatalogPalette.onAction)
+                    .frame(width: 36, height: 36)
+                    .background(CatalogPalette.addAction, in: Circle())
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(-4)
+            .accessibilityLabel(
+                String(format: NSLocalizedString("catalog_add_accessibility", comment: ""), self.name)
+            )
+        }
+    }
 }
 
 private struct CatalogRecommendationCardView: View {
@@ -575,31 +742,50 @@ struct CatalogMonogramView: View {
     }
 }
 
-/// 推荐的加载骨架：与正式页同形（横幅 + 三张卡片 × 两个分区），加载完成后页面不跳动。
-private struct CatalogRecommendedSkeletonView: View {
+/// 发现的加载骨架（合同 2.5）：「站点示例」标题照常显示，下面一张三行的卡片行组骨架，底部「加载中…」。
+private struct CatalogDiscoverSkeletonView: View {
+    private static let titleWidths: [CGFloat] = [150, 118, 170]
+    private static let subtitleWidths: [CGFloat] = [100, 84, 70]
+
+    @Environment(\.displayScale) private var displayScale
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 30) {
-            ForEach(0 ..< 2, id: \.self) { _ in
-                VStack(alignment: .leading, spacing: 14) {
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(CatalogPalette.cardBackground)
-                        .frame(height: 112)
-                        .padding(.horizontal, 20)
+        VStack(alignment: .leading, spacing: 8) {
+            CatalogSectionHeaderView(title: NSLocalizedString("catalog_section_examples", comment: ""), trailing: nil)
+                .padding(.horizontal, 24)
+            VStack(spacing: 0) {
+                ForEach(0 ..< 3, id: \.self) { index in
                     HStack(spacing: 12) {
-                        ForEach(0 ..< 3, id: \.self) { _ in
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .fill(CatalogPalette.cardBackground)
-                                .frame(width: 180, height: 244)
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(CatalogPalette.fillBackground)
+                            .frame(width: 42, height: 42)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Capsule()
+                                .fill(CatalogPalette.fillBackground)
+                                .frame(width: Self.titleWidths[index], height: 12)
+                            Capsule()
+                                .fill(CatalogPalette.fillBackground)
+                                .frame(width: Self.subtitleWidths[index], height: 10)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        Circle()
+                            .fill(CatalogPalette.fillBackground)
+                            .frame(width: 36, height: 36)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .overlay(alignment: .top) {
+                        if index > 0 {
+                            Rectangle()
+                                .fill(CatalogPalette.separator)
+                                .frame(height: 1 / self.displayScale)
+                                .padding(.leading, 68)
                         }
                     }
-                    .padding(.horizontal, 20)
-                    // 中文注释：三张 180pt 卡片加边距共 604pt，比手机屏宽。只给 maxWidth 时 frame 会取子视图的宽度，
-                    // 整页内容被撑到 604pt 再居中，标题与分段控件一起向左溢出；同时给 minWidth: 0，frame 才采用父视图给的宽度，
-                    // 多出的卡片由 clipped() 裁掉。
-                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
-                    .clipped()
                 }
             }
+            .background(CatalogPalette.cardBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .padding(.horizontal, 20)
             HStack(spacing: 8) {
                 ProgressView()
                 Text(NSLocalizedString("catalog_loading", comment: ""))
@@ -607,6 +793,7 @@ private struct CatalogRecommendedSkeletonView: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)
+            .padding(.top, 14)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(NSLocalizedString("catalog_loading", comment: ""))
@@ -681,7 +868,7 @@ private struct CatalogPersonalRuleCardView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                self.trailingControl
+                CatalogRowAddControl(state: self.action, name: self.catalogSource.name, addAction: self.addAction)
             }
             if let remainingText: String = self.remainingText {
                 HStack(spacing: 10) {
@@ -708,37 +895,6 @@ private struct CatalogPersonalRuleCardView: View {
         var rest: AttributedString = AttributedString(address.rest)
         rest.foregroundColor = CatalogPalette.tertiaryText
         return host + rest
-    }
-
-    @ViewBuilder
-    private var trailingControl: some View {
-        switch self.action {
-        case .adding:
-            ProgressView()
-                .frame(width: 36, height: 36)
-        case .added:
-            Label("Added", systemImage: "checkmark")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 10)
-                .frame(minHeight: 28)
-                .background(CatalogPalette.fillBackground, in: Capsule())
-        case .add:
-            Button(action: self.addAction) {
-                Image(systemName: "plus")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(CatalogPalette.onAction)
-                    .frame(width: 36, height: 36)
-                    .background(CatalogPalette.addAction, in: Circle())
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .padding(-4)
-            .accessibilityLabel(
-                String(format: NSLocalizedString("catalog_add_accessibility", comment: ""), self.catalogSource.name)
-            )
-        }
     }
 }
 

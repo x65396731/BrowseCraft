@@ -124,7 +124,11 @@
 /* 個人規則在本機保留 7 天；刪除只會在本機隱藏，並移除已加入的來源。 */
 "catalog_personal_retention_hint" = "你生成的規則會在本機保留 7 天（從收到時算起），向左滑可以提前刪除。";
 "catalog_personal_delete" = "刪除";
-"catalog_tab_recommended" = "推薦";
+"catalog_tab_discover" = "發現";
+"catalog_section_examples" = "站點範例";
+"catalog_section_examples_count" = "%d 個";
+"catalog_section_internal" = "內部測試";
+"catalog_section_internal_hint" = "僅 Debug 建置，僅白名單帳號";
 "catalog_kind_swipe_hint" = "左右滑動查看全部";
 "catalog_add_accessibility" = "加入 %@";
 "catalog_empty_message" = "可能是網路不穩，或目錄暫時無法取得。檢查網路後再試一次。";

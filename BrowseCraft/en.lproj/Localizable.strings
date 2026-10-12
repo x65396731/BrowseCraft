@@ -124,7 +124,11 @@
 /* Personal rules are kept locally for 7 days after they are first received; deleting hides them locally and removes the added source. */
 "catalog_personal_retention_hint" = "Rules you generated are kept on this device for 7 days after they arrive. Swipe left to delete one earlier.";
 "catalog_personal_delete" = "Delete";
-"catalog_tab_recommended" = "Recommended";
+"catalog_tab_discover" = "Discover";
+"catalog_section_examples" = "Site examples";
+"catalog_section_examples_count" = "%d";
+"catalog_section_internal" = "Internal testing";
+"catalog_section_internal_hint" = "Debug builds and allowlisted accounts only";
 "catalog_kind_swipe_hint" = "Swipe to see all";
 "catalog_add_accessibility" = "Add %@";
 "catalog_empty_message" = "The network may be unavailable, or the catalog can't be reached right now. Check your connection and try again.";

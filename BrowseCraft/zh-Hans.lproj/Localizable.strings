@@ -124,7 +124,11 @@
 /* 个人规则本地保留 7 天；删除只在本地隐藏并移除已添加的来源。 */
 "catalog_personal_retention_hint" = "你生成的规则在本机保留 7 天（从收到时起算），左滑可提前删除。";
 "catalog_personal_delete" = "删除";
-"catalog_tab_recommended" = "推荐";
+"catalog_tab_discover" = "发现";
+"catalog_section_examples" = "站点示例";
+"catalog_section_examples_count" = "%d 个";
+"catalog_section_internal" = "内部测试";
+"catalog_section_internal_hint" = "仅 Debug 构建，仅白名单账号";
 "catalog_kind_swipe_hint" = "左右滑动查看全部";
 "catalog_add_accessibility" = "添加 %@";
 "catalog_empty_message" = "可能是网络不好，或目录暂时拿不到。检查网络后再试一次。";

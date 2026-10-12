@@ -4,8 +4,8 @@ import Testing
 @testable import BrowseCraft
 
 struct CatalogSourceGroupingTests {
-    private static func source(_ id: String) -> CatalogSource {
-        return CatalogSource(id: id, name: id, baseURL: "https://\(id).invalid", kind: .video, ruleJSON: "{}")
+    private static func source(_ id: String, section: CatalogSourceSection? = .example) -> CatalogSource {
+        return CatalogSource(id: id, name: id, baseURL: "https://\(id).invalid", kind: .video, ruleJSON: "{}", section: section)
     }
 
     private static func outcome(
@@ -49,6 +49,26 @@ struct CatalogSourceGroupingTests {
         #expect(grouping.personalSources.isEmpty)
     }
 
+    @Test("发现只收 example 与（Debug）internal；没有 section 或用户分享的不展示，示例最多 6 条、保持服务端顺序")
+    func discoverKeepsOnlyKnownSectionsAndCapsExamples() {
+        let examples: [CatalogSource] = (1 ... 7).map { index in Self.source("example-\(index)") }
+        let grouping: CatalogSourceGrouping = CatalogSourceGrouping.make(
+            catalogSources: [
+                Self.source("preset", section: .internalTest),
+                Self.source("legacy", section: nil),
+                Self.source("shared", section: .shared)
+            ] + examples,
+            outcomes: []
+        )
+
+        #expect(grouping.exampleSources.map(\.id) == (1 ... 6).map { index in "example-\(index)" })
+        #if DEBUG
+        #expect(grouping.internalSources.map(\.id) == ["preset"])
+        #else
+        #expect(grouping.internalSources.isEmpty)
+        #endif
+    }
+
     @Test func failedOutcomesAreListedOncePerEntryURLKeepingTheNewest() {
         let grouping: CatalogSourceGrouping = CatalogSourceGrouping.make(
             catalogSources: [],
@@ -64,7 +84,9 @@ struct CatalogSourceGroupingTests {
     }
 
     private static func publicSource(_ id: String, baseURL: String, pagesJSON: String) -> CatalogSource {
-        return CatalogSource(id: id, name: "book.sfacg.com", baseURL: baseURL, kind: .book, ruleJSON: "{\"pages\":\(pagesJSON)}")
+        return CatalogSource(
+            id: id, name: "book.sfacg.com", baseURL: baseURL, kind: .book, ruleJSON: "{\"pages\":\(pagesJSON)}", section: .example
+        )
     }
 
     @Test func sameHostPublicSourcesExposeTheirOwnEntryURLs() {

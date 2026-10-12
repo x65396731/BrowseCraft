@@ -219,8 +219,14 @@ final class SourcesViewModel {
         await self.loadVideoGenerationOutcomes()
     }
 
-    var defaultCatalogSources: [CatalogSource] {
-        return self.catalogSourceGrouping.defaultSources
+    /// 「发现」的站点示例（`section=example`，最多 6 条）。
+    var exampleCatalogSources: [CatalogSource] {
+        return self.catalogSourceGrouping.exampleSources
+    }
+
+    /// 「发现」的内部测试站点（`section=internal`）；Release 构建恒为空。
+    var internalCatalogSources: [CatalogSource] {
+        return self.catalogSourceGrouping.internalSources
     }
 
     var personalCatalogSources: [CatalogSource] {

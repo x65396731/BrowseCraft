@@ -33,6 +33,30 @@ struct LoadCatalogSourcesUndecryptableRuleTests {
         #expect(sources.first?.ruleJSON.contains("\"name\":\"Good\"") == true)
     }
 
+    /// 合同 2.2：`section` 是密文外的明文字段，解密后要带到 `CatalogSource` 上；没带或取值不认得时为 nil。
+    @Test func plaintextSectionSurvivesDecryption() async throws {
+        let rule: EncryptedCatalogRule = try Self.encryptedRule(keyId: "test-key", payload: ["version": 2, "name": "R"])
+        let loader: RecordingCatalogDataLoader = RecordingCatalogDataLoader(
+            payload: """
+            [
+              {"id": "e1", "name": "E", "baseURL": "https://e/", "kind": "book", "section": "example", "encryptedRule": \(Self.json(rule))},
+              {"id": "i1", "name": "I", "baseURL": "https://i/", "kind": "video", "section": "internal", "encryptedRule": \(Self.json(rule))},
+              {"id": "n1", "name": "N", "baseURL": "https://n/", "kind": "comic", "section": null, "encryptedRule": \(Self.json(rule))},
+              {"id": "u1", "name": "U", "baseURL": "https://u/", "kind": "comic", "section": "featured", "encryptedRule": \(Self.json(rule))}
+            ]
+            """
+        )
+        let useCase: LoadCatalogSourcesUseCase = LoadCatalogSourcesUseCase(
+            pageDataLoader: loader,
+            catalogRuleDecryptor: Self.decryptor()
+        )
+
+        let sources: [CatalogSource] = try await useCase.execute()
+
+        #expect(sources.map(\.id) == ["e1", "i1", "n1", "u1"])
+        #expect(sources.map(\.section) == [.example, .internalTest, nil, nil])
+    }
+
     @Test func aCatalogWhereNothingDecryptsStillFailsAsAWhole() async throws {
         let unknownKey: EncryptedCatalogRule = try Self.encryptedRule(keyId: "rotated-key", payload: ["version": 2, "name": "Rotated"])
         let loader: RecordingCatalogDataLoader = RecordingCatalogDataLoader(

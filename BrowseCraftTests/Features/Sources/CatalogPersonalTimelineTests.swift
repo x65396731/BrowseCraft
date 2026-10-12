@@ -21,7 +21,8 @@ struct CatalogPersonalTimelineTests {
         let undated: CatalogSource = Self.source(id: "undated")
         let failedYesterday: VideoGenerationOutcome = Self.outcome(status: "failed", finishedAt: "2026-09-29T10:00:00Z")
         let grouping: CatalogSourceGrouping = CatalogSourceGrouping(
-            defaultSources: [],
+            exampleSources: [],
+            internalSources: [],
             personalSources: [older, undated, today],
             failedOutcomes: [failedYesterday],
             personalOutcomes: [
@@ -54,7 +55,8 @@ struct CatalogPersonalTimelineTests {
     @Test("没有任何个人条目时时间线为空")
     func emptyGroupingGivesEmptyTimeline() {
         let grouping: CatalogSourceGrouping = CatalogSourceGrouping(
-            defaultSources: [Self.source(id: "public")],
+            exampleSources: [Self.source(id: "public")],
+            internalSources: [],
             personalSources: [],
             failedOutcomes: [],
             personalOutcomes: [:]
@@ -63,7 +65,7 @@ struct CatalogPersonalTimelineTests {
         #expect(CatalogPersonalTimeline.make(grouping: grouping, now: Self.now, calendar: Self.calendar).isEmpty)
     }
 
-    @Test("推荐按 视频 → 漫画 → 书籍 分区，空类型不出现，区内保持服务端顺序")
+    @Test("内部测试按 视频 → 漫画 → 书籍 分区，空类型不出现，区内保持服务端顺序")
     func recommendationsAreSectionedByKindInFixedOrder() {
         let sections: [CatalogKindSection] = CatalogKindSection.make([
             Self.source(id: "book-1", kind: .book),

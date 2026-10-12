@@ -155,7 +155,8 @@ struct LoadCatalogSourcesUseCase {
                         name: source.name,
                         baseURL: source.baseURL,
                         kind: source.kind,
-                        ruleJSON: decryptedRule.importRuleJSON
+                        ruleJSON: decryptedRule.importRuleJSON,
+                        section: source.section
                     )
                 )
             } catch {
@@ -204,7 +205,8 @@ private struct CatalogSourcePayloadDecoder {
                 name: payload.name,
                 baseURL: payload.baseURL,
                 kind: kind,
-                ruleJSON: payload.ruleJSON.jsonString
+                ruleJSON: payload.ruleJSON.jsonString,
+                section: payload.section.flatMap(CatalogSourceSection.init(rawValue:))
             )
         }
     }
@@ -216,6 +218,8 @@ private struct CatalogSourcePayload: Decodable {
     let baseURL: String
     let kind: String
     let ruleJSON: CatalogSourceJSONValue
+    /// 明文分区（不在密文里）；类型不对时当作没有，不让一条坏字段拖垮整条。
+    let section: String?
 
     private enum CodingKeys: String, CodingKey {
         case id
@@ -224,6 +228,7 @@ private struct CatalogSourcePayload: Decodable {
         case kind
         case ruleJSON
         case payload
+        case section
     }
 
     private enum PayloadCodingKeys: String, CodingKey {
@@ -236,6 +241,7 @@ private struct CatalogSourcePayload: Decodable {
         self.name = try container.decode(String.self, forKey: .name)
         self.baseURL = try container.decode(String.self, forKey: .baseURL)
         self.kind = try container.decode(String.self, forKey: .kind)
+        self.section = (try? container.decodeIfPresent(String.self, forKey: .section)) ?? nil
 
         if container.contains(.payload) {
             let payloadDecoder: Decoder = try container.superDecoder(forKey: .payload)
@@ -330,6 +336,7 @@ private struct EncryptedCatalogSourcePayload: Decodable {
     let baseURL: String
     let kind: String
     let encryptedRule: EncryptedCatalogRule?
+    let section: String?
 }
 
 private struct PlainCatalogSourcePayload: Encodable {
@@ -338,6 +345,7 @@ private struct PlainCatalogSourcePayload: Encodable {
     let baseURL: String
     let kind: String
     let ruleJSON: CatalogRuleJSONValue
+    let section: String?
 }
 
 // 中文注释：Catalog 来源必须先通过既存 runtime 加载流程，加载成功后才写入本地 DB。

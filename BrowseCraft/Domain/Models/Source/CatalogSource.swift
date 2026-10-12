@@ -8,20 +8,32 @@ struct CatalogSource: Identifiable, Hashable, Sendable {
     let baseURL: String
     let kind: CatalogSourceKind
     let ruleJSON: String
+    /// 公共目录分区；个人规则、没带 `section` 或取值不认得的条目为 nil，「发现」里不展示（合同 2.2）。
+    let section: CatalogSourceSection?
 
     init(
         id: String,
         name: String,
         baseURL: String,
         kind: CatalogSourceKind,
-        ruleJSON: String
+        ruleJSON: String,
+        section: CatalogSourceSection? = nil
     ) {
         self.id = id
         self.name = name
         self.baseURL = baseURL
         self.kind = kind
         self.ruleJSON = ruleJSON
+        self.section = section
     }
+}
+
+/// 公共目录分区（PortalCore `section`，`docs/design/Catalog-Page-Redesign-Design.md` 2.2）。
+/// `internal` 只返回给白名单账号，App 只在 Debug 构建展示；`shared` 是用户分享的占位，本版不展示。
+enum CatalogSourceSection: String, Hashable, Sendable {
+    case example
+    case internalTest = "internal"
+    case shared
 }
 
 enum CatalogSourceKind: String, Codable, Hashable, Sendable {

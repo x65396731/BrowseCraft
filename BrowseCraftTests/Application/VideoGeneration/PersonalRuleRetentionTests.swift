@@ -18,7 +18,9 @@ struct PersonalRuleRetentionTests {
 
     @Test func personalSourcesComeFromDecryptedOutcomesNotThePublicCatalog() {
         let mine: CatalogSource = CatalogSource(id: "mine", name: "mine", baseURL: "https://m.invalid", kind: .video, ruleJSON: "{}")
-        let shared: CatalogSource = CatalogSource(id: "shared", name: "shared", baseURL: "https://s.invalid", kind: .video, ruleJSON: "{}")
+        let shared: CatalogSource = CatalogSource(
+            id: "shared", name: "shared", baseURL: "https://s.invalid", kind: .video, ruleJSON: "{}", section: .example
+        )
         var succeeded: VideoGenerationOutcome = VideoGenerationOutcome(
             jobID: UUID(), entryURL: "https://m.invalid/list", status: "succeeded", finishedAt: nil,
             catalogSourceID: "mine", reason: nil, reasonDetail: nil

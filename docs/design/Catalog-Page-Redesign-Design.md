@@ -171,13 +171,13 @@
 
 ## 七、实现位置
 
-- `BrowseCraft/Features/Sources/Catalog/CatalogSourceListView.swift`：分段控件、两个标签的内容、卡片、首字徽标视图 `CatalogMonogramView`、骨架与状态页。
-- `BrowseCraft/Features/Sources/Catalog/CatalogPersonalTimeline.swift`：个人时间线的合并排序与按日分组（`CatalogPersonalTimeline`），推荐按类型分区（`CatalogKindSection`）。
+- `BrowseCraft/Features/Sources/Catalog/CatalogSourceListView.swift`：分段控件、两个标签的内容、统一分区标题 `CatalogSectionHeaderView`、站点示例行 `CatalogExampleRowView`、行尾添加动作 `CatalogRowAddControl`（示例行与我的生成卡片共用）、内部测试卡片、首字徽标视图 `CatalogMonogramView`、骨架与状态页；内部测试分区的视图只在 `#if DEBUG` 里。
+- `BrowseCraft/Features/Sources/Catalog/CatalogPersonalTimeline.swift`：个人时间线的合并排序与按日分组（`CatalogPersonalTimeline`），内部测试按类型分区（`CatalogKindSection`）。
 - `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift`：配色、类型样式、首字徽标与地址的显示取值，以及与添加来源页共用的类型横幅 `CatalogKindBannerView`。
 - `BrowseCraft/Features/Sources/Catalog/CatalogRuleFacts.swift`：推荐卡片的分类 / 可搜索 / 语言取值与语言归一（`CatalogLanguage`）。
 - `BrowseCraft/Features/Sources/SourcesViewModel.swift`：`personalCatalogTimeline`、`personalCatalogItemCount`、`personalRuleRemainingFraction(for:)`、`catalogRuleFacts`。
 - `BrowseCraft/Features/Sources/SourcesView.swift`：「去添加来源」在目录页收起后打开添加来源。
-- `BrowseCraft/Application/UseCases/Generation/CatalogSourceGrouping.swift`、`BrowseCraft/Domain/Models/Source/CatalogSource.swift`、`BrowseCraft/Application/UseCases/Source/AddCatalogSourceUseCase.swift`：`section` 的解码与按构建筛选。
+- `BrowseCraft/Application/UseCases/Generation/CatalogSourceGrouping.swift`、`BrowseCraft/Domain/Models/Source/CatalogSource.swift`、`BrowseCraft/Application/UseCases/Source/AddCatalogSourceUseCase.swift`：`section` 的解码（明文字段，解密后带到 `CatalogSource.section`，不认得的取值为 nil）与按构建筛选（`CatalogSourceGrouping.exampleSources` 最多 6 条、`internalSources` 只在 Debug 收）。
 - `Localizable.strings`：标签名、类型横幅、日期分组、空状态与未登录的文案键。
 - 固定输入：`BrowseCraftTests/Features/Sources/CatalogPersonalTimelineTests.swift`。
 

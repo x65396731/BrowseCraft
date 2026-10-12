@@ -1,13 +1,20 @@
 import BrowseCraftDomain
 import Foundation
 
-/// 目录列表的两个分组：网站默认数据（公共目录），与本人的生成结果（`/outcomes` 附带的规则）。
+/// 目录列表的两个分组：「发现」（公共目录按 `section` 筛过），与本人的生成结果（`/outcomes` 附带的规则）。
 ///
 /// 中文注释：服务器的公共目录已经不含个人规则；个人规则来自 `/outcomes` 里成功任务的 `source`
 /// （用例已解密为 `catalogSource`）。失败任务没有 source，但要说明原因（`reason` / `reasonDetail`）。
 /// 到期与删除都由服务器裁决（7 天可见期、软删除），这里不再有本地隐藏集合。
+///
+/// 「发现」只收两种分区（`docs/design/Catalog-Page-Redesign-Design.md` 2.2）：`example` 最多 6 条、保持服务端顺序；
+/// `internal` 只在 Debug 构建收进来，Release 构建没有取用它的代码路径。没有 `section` 或取值不认得的条目不展示。
 struct CatalogSourceGrouping: Hashable, Sendable {
-    let defaultSources: [CatalogSource]
+    static let maximumExampleCount: Int = 6
+
+    let exampleSources: [CatalogSource]
+    /// 内部测试站点；Release 构建恒为空。
+    let internalSources: [CatalogSource]
     let personalSources: [CatalogSource]
     let failedOutcomes: [VideoGenerationOutcome]
     /// catalogSourceId → 该规则对应的成功终态（入口 URL、到期时间）。
@@ -17,6 +24,11 @@ struct CatalogSourceGrouping: Hashable, Sendable {
     /// 中文注释：同站多入口（sfacg「全部小说」与分类 tid=21、动漫嗨手写与生成）名字与 `baseURL` 都相同，
     /// 目录行无从区分；只对这种来源给出入口，单独一条的站保持显示 `baseURL`。
     var defaultEntryURLs: [String: String] = [:]
+
+    /// 「发现」里展示的全部公共条目。
+    var defaultSources: [CatalogSource] {
+        return self.exampleSources + self.internalSources
+    }
 
     var personalEntryURLs: [String: String] {
         return self.personalOutcomes.compactMapValues { $0.entryURL }
@@ -38,9 +50,17 @@ struct CatalogSourceGrouping: Hashable, Sendable {
         }
         let personalIDs: Set<String> = Set(personalOutcomes.keys)
         // 中文注释：公共目录理论上不含个人规则；万一服务端旧版本还带着，也不在两组里重复显示。
-        let defaultSources: [CatalogSource] = catalogSources.filter { source in
+        let publicSources: [CatalogSource] = catalogSources.filter { source in
             return personalIDs.contains(source.id) == false
         }
+        let exampleSources: [CatalogSource] = Array(
+            publicSources.filter { source in source.section == .example }.prefix(Self.maximumExampleCount)
+        )
+        #if DEBUG
+        let internalSources: [CatalogSource] = publicSources.filter { source in source.section == .internalTest }
+        #else
+        let internalSources: [CatalogSource] = []
+        #endif
         // 中文注释：同一入口 URL 只保留最近一次失败——服务端按终结时间倒序返回，取首个。
         var seenEntryURLs: Set<String> = []
         var failedOutcomes: [VideoGenerationOutcome] = []
@@ -51,11 +71,12 @@ struct CatalogSourceGrouping: Hashable, Sendable {
             }
         }
         return CatalogSourceGrouping(
-            defaultSources: defaultSources,
+            exampleSources: exampleSources,
+            internalSources: internalSources,
             personalSources: personalSources,
             failedOutcomes: failedOutcomes,
             personalOutcomes: personalOutcomes,
-            defaultEntryURLs: Self.sameHostEntryURLs(defaultSources)
+            defaultEntryURLs: Self.sameHostEntryURLs(exampleSources + internalSources)
         )
     }
 
