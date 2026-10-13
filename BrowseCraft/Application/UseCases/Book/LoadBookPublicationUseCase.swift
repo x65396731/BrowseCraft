@@ -97,10 +97,18 @@ struct LoadBookPublicationUseCase: Sendable {
             requestOverride: nil,
             debugMode: false
         )
-        let detail: SourceDetailOutput = try await detailRuntime.loadDetail(SourceDetailInput(detailURL: detailURL, context: context, itemReference: nil))
+        // 中文注释：`BCA-RUNTIME-010`——目录为空或匹配不到内容时换手机 UA 重做一次；正文只认「匹配不到内容」的错误。
+        let detail: SourceDetailOutput = try await SourceUserAgentFallback.shared.perform(
+            source: source,
+            isEmpty: { (output: SourceDetailOutput) in output.chapters.isEmpty }
+        ) {
+            try await detailRuntime.loadDetail(SourceDetailInput(detailURL: detailURL, context: context, itemReference: nil))
+        }
         let manifest: BookPublicationManifest = self.assembler.assemble(source: source, detailURL: detailURL, detail: detail)
         let provider: BookChapterContentProvider = { chapterURL in
-            return try await contentRuntime.loadBookContent(SourceBookContentInput(chapterURL: chapterURL, context: context)).content
+            return try await SourceUserAgentFallback.shared.perform(source: source) {
+                try await contentRuntime.loadBookContent(SourceBookContentInput(chapterURL: chapterURL, context: context))
+            }.content
         }
         return LoadedBookPublication(manifest: manifest, contentProvider: provider)
     }

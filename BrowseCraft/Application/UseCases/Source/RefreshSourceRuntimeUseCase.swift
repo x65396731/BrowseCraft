@@ -31,7 +31,13 @@ struct RefreshSourceRuntimeUseCase: Sendable {
             page: page,
             debugMode: debugMode
         )
-        let output: SourceListOutput = try await runtime.loadList(input)
+        // 中文注释：`BCA-RUNTIME-010`——第 1 页一条都没有或匹配不到内容时，换手机 UA 重做一次。
+        let output: SourceListOutput = try await SourceUserAgentFallback.shared.perform(
+            source: source,
+            isEmpty: { (output: SourceListOutput) in page == 1 && output.items.isEmpty }
+        ) {
+            try await runtime.loadList(input)
+        }
         #if DEBUG
         AppDebugLog.write(
             "[BrowseCraftRuntime] refresh output source=\(source.id) " +

@@ -23,22 +23,24 @@ struct LoadComicDetailUseCase: Sendable {
                 .custom("Selected source does not expose detail runtime capability.")
             )
         }
-        return try await detailRuntime.loadDetail(
-            SourceDetailInput(
-                detailURL: detailURL,
-                context: SourceRuntimeContext(
-                    sourceID: source.id,
-                    pageID: item.listContext?.pageId,
-                    tabID: item.listContext?.tabId,
-                    sectionID: item.listContext?.sectionId,
-                    sectionRole: item.listContext?.sectionRole?.rawValue,
-                    ruleID: item.listContext?.listRuleId,
-                    requestOverride: nil,
-                    debugMode: false,
-                    operation: .detail
-                ),
-                itemReference: self.itemReferenceMapper.reference(from: item, intent: .detail)
-            )
+        // 中文注释：`BCA-RUNTIME-010`——匹配不到内容时换手机 UA 重做一次。
+        let input: SourceDetailInput = SourceDetailInput(
+            detailURL: detailURL,
+            context: SourceRuntimeContext(
+                sourceID: source.id,
+                pageID: item.listContext?.pageId,
+                tabID: item.listContext?.tabId,
+                sectionID: item.listContext?.sectionId,
+                sectionRole: item.listContext?.sectionRole?.rawValue,
+                ruleID: item.listContext?.listRuleId,
+                requestOverride: nil,
+                debugMode: false,
+                operation: .detail
+            ),
+            itemReference: self.itemReferenceMapper.reference(from: item, intent: .detail)
         )
+        return try await SourceUserAgentFallback.shared.perform(source: source) {
+            try await detailRuntime.loadDetail(input)
+        }
     }
 }

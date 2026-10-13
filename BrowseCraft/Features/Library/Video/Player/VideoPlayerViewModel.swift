@@ -319,13 +319,15 @@ final class VideoPlayerViewModel {
                     .custom("Selected source does not expose video playback runtime.")
                 )
             }
-            let output: SourceVideoPlaybackOutput = try await playbackRuntime.loadPlayback(
-                SourceVideoPlaybackInput(
-                    playPageURL: self.reference.playPageURL,
-                    context: self.runtimeContext(),
-                    handoff: self.reference.handoff
-                )
+            let input: SourceVideoPlaybackInput = SourceVideoPlaybackInput(
+                playPageURL: self.reference.playPageURL,
+                context: self.runtimeContext(),
+                handoff: self.reference.handoff
             )
+            // 中文注释：`BCA-RUNTIME-010`——匹配不到内容时换手机 UA 重做一次。
+            let output: SourceVideoPlaybackOutput = try await SourceUserAgentFallback.shared.perform(source: self.source) {
+                try await playbackRuntime.loadPlayback(input)
+            }
             self.reference = output.reference
             return true
         } catch {
@@ -352,13 +354,15 @@ final class VideoPlayerViewModel {
                 )
             }
 
-            let output: SourceVideoPlaybackOutput = try await playbackRuntime.loadPlayback(
-                SourceVideoPlaybackInput(
-                    playPageURL: playPageURL,
-                    context: self.runtimeContext(),
-                    handoff: handoff
-                )
+            let input: SourceVideoPlaybackInput = SourceVideoPlaybackInput(
+                playPageURL: playPageURL,
+                context: self.runtimeContext(),
+                handoff: handoff
             )
+            // 中文注释：`BCA-RUNTIME-010`——匹配不到内容时换手机 UA 重做一次。
+            let output: SourceVideoPlaybackOutput = try await SourceUserAgentFallback.shared.perform(source: self.source) {
+                try await playbackRuntime.loadPlayback(input)
+            }
 
             self.autosaveTask?.cancel()
             self.autosaveTask = nil

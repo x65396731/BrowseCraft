@@ -28,27 +28,29 @@ struct LoadReaderChapterUseCase: Sendable {
                 .custom("Selected source does not expose reader runtime capability.")
             )
         }
-        let output: SourceReaderOutput = try await readerRuntime.loadReader(
-            SourceReaderInput(
+        // 中文注释：`BCA-RUNTIME-010`——匹配不到内容时换手机 UA 重做一次。
+        let readerInput: SourceReaderInput = SourceReaderInput(
+            chapterURL: chapterURL,
+            context: SourceRuntimeContext(
+                sourceID: source.id,
+                pageID: item.listContext?.pageId,
+                tabID: item.listContext?.tabId,
+                sectionID: item.listContext?.sectionId,
+                sectionRole: item.listContext?.sectionRole?.rawValue,
+                ruleID: item.listContext?.listRuleId,
+                requestOverride: nil,
+                debugMode: false,
+                operation: .reader
+            ),
+            itemReference: self.itemReferenceMapper.reference(
+                from: item,
                 chapterURL: chapterURL,
-                context: SourceRuntimeContext(
-                    sourceID: source.id,
-                    pageID: item.listContext?.pageId,
-                    tabID: item.listContext?.tabId,
-                    sectionID: item.listContext?.sectionId,
-                    sectionRole: item.listContext?.sectionRole?.rawValue,
-                    ruleID: item.listContext?.listRuleId,
-                    requestOverride: nil,
-                    debugMode: false,
-                    operation: .reader
-                ),
-                itemReference: self.itemReferenceMapper.reference(
-                    from: item,
-                    chapterURL: chapterURL,
-                    intent: .directReader
-                )
+                intent: .directReader
             )
         )
+        let output: SourceReaderOutput = try await SourceUserAgentFallback.shared.perform(source: source) {
+            try await readerRuntime.loadReader(readerInput)
+        }
         return self.readerChapter(from: output.chapter)
     }
 

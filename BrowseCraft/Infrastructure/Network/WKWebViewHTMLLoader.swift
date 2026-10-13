@@ -362,9 +362,13 @@ final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
         var urlRequest: URLRequest = URLRequest(url: url)
         urlRequest.httpMethod = self.request?.method?.rawValue ?? "GET"
 
-        let headers: [String: String] = RequestHeaderFields.applyingOverrides(
-            self.request?.headers,
-            to: self.browserRequestHeaderProvider.defaultHeaders(for: url)
+        // 中文注释：`BCA-RUNTIME-010`——来源判定要手机模板时换 UA；经 `applyUserAgent` 落到 `customUserAgent`。
+        let headers: [String: String] = SourceUserAgentFallback.shared.applying(
+            to: RequestHeaderFields.applyingOverrides(
+                self.request?.headers,
+                to: self.browserRequestHeaderProvider.defaultHeaders(for: url)
+            ),
+            sourceID: self.context?.sourceID
         )
         headers.forEach { key, value in
             urlRequest.setValue(value, forHTTPHeaderField: key)

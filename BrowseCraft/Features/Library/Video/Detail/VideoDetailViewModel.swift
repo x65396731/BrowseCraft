@@ -370,7 +370,10 @@ final class VideoDetailViewModel {
                     .custom("Selected source does not expose detail runtime capability.")
                 )
             }
-            let output: SourceDetailOutput = try await detailRuntime.loadDetail(input)
+            // 中文注释：`BCA-RUNTIME-010`——匹配不到内容时换手机 UA 重做一次。
+            let output: SourceDetailOutput = try await SourceUserAgentFallback.shared.perform(source: self.source) {
+                try await detailRuntime.loadDetail(input)
+            }
             #if DEBUG
             self.logEpisodeGroupDiagnostics(chapters: output.chapters)
             #endif
@@ -529,13 +532,15 @@ final class VideoDetailViewModel {
                     .custom("Selected source does not expose video playback runtime.")
                 )
             }
-            let output: SourceVideoPlaybackOutput = try await playbackRuntime.loadPlayback(
-                SourceVideoPlaybackInput(
-                    playPageURL: episode.playPageURL,
-                    context: self.runtimeContext(operation: .playback),
-                    handoff: episode.playbackHandoff
-                )
+            let playbackInput: SourceVideoPlaybackInput = SourceVideoPlaybackInput(
+                playPageURL: episode.playPageURL,
+                context: self.runtimeContext(operation: .playback),
+                handoff: episode.playbackHandoff
             )
+            // 中文注释：`BCA-RUNTIME-010`——匹配不到内容时换手机 UA 重做一次。
+            let output: SourceVideoPlaybackOutput = try await SourceUserAgentFallback.shared.perform(source: self.source) {
+                try await playbackRuntime.loadPlayback(playbackInput)
+            }
             reference = output.reference
 
             let playerViewModel: VideoPlayerViewModel = VideoPlayerViewModel(

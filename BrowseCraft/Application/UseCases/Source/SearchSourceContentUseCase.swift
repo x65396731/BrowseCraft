@@ -40,6 +40,9 @@ struct SearchSourceContentUseCase: Sendable {
                 operation: .search
             )
         )
-        return try await searchRuntime.search(input)
+        // 中文注释：`BCA-RUNTIME-010`——只认「匹配不到内容」的错误；搜索 0 条可能就是没搜到，不算触发。
+        return try await SourceUserAgentFallback.shared.perform(source: source) {
+            try await searchRuntime.search(input)
+        }
     }
 }

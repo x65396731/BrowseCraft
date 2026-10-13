@@ -87,6 +87,18 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
   依据：fwq 量面 3 主机目录自身分页（笔趣阁 `index_{page}.html` 每页约 100 章、oop.tw `?p={page}` 每页 30 章、ffppt），此前目录截在第一页却报成功（读书需求文档需求五后半）。
   实现 `BrowseCraftCore/.../BookSiteRuleModels.swift`（`BookDetailRule.chapterPagination`）、`BookSiteRuleValidationOperations.swift`；`BrowseCraftRuntime/.../Book/BookSourceRuntime.swift`（`appendingChapterPages`）；
   用例 BrowseCraftRuntime 包 `BookChapterPaginationRuntimeTests`（逐页到无新章节、中途失败保留、`maxPages` 与 0 起页码、不带键只取一页、Core 校验）。
+- `BCA-RUNTIME-010` 规则在取到的页面上**匹配不到内容**时，同一运行时操作换手机 Safari UA（`ClientUserAgent.mobileSafari`）重做**一次**（fwq `APP-MEMO-037`，设计稿第 54 节；
+  用户 2026-10-13「App 端兜底或许可行，因为规则只会在手机端使用」→「所有来源都开，App 单端改」）。
+  触发只认「匹配不到内容」：`RuleExecutionErrorClassifier` 归为 `selectorEmpty` 的错误，或调用方声明的空结果（列表第 1 页 0 条、书类目录 0 章）；
+  网络、状态码、挑战未过、规则配置等错误不触发，搜索 0 条不算（可能就是没搜到）——不把换 UA 变成万能兜底（同 `BCA-RUNTIME-005`）。
+  重做成功即按来源记「用手机 UA」（`UserDefaults`，键为来源 id，版本取 `Source.updatedAt`，规则更新后重新判），之后该来源的取页一律带手机 UA；
+  重做仍匹配不到则照旧抛原错误、记「手机 UA 也不行」不再重试。UA 在两条取页路径的组头处统一套用（`AlamofireHTTPClient.urlRequest` 规则头与上下文头之后、
+  `WKWebViewHTMLLoader.urlRequest` 组头时，后者经 `customUserAgent` 生效）；重做期间同一来源的其它取页也带手机 UA。
+  依据：站点按 UA 分桌面 / 手机两套模板（seyouxiaoshuo 同一分类页桌面 UA `common-list` 0、iPhone UA 16）；困难档云端 `/scrape` 官方文档不能指定 UA，
+  挑战站被升到实体机浏览器、拿回手机模板（huanmengacg `common-list` 52），规则按手机模板写成，App 用规则桌面 UA 取到桌面模板 →「规则没有匹配到内容」。
+  放行 Cookie 绑 UA（本文 `BCA-RUNTIME-005` 回写说明），换 UA 后遇挑战照旧走 WebView 挑战状态机，首次会慢一次。不改 App 预检、不改引擎交付 UA、不对图片 / 媒体请求换 UA。
+  实现 `BrowseCraft/Application/UseCases/Source/SourceUserAgentFallback.swift`（调用点：列表刷新、搜索、漫画详情、阅读章节、书类详情与正文、影视详情与播放）、
+  `BrowseCraftDomain/.../ClientUserAgent.swift`（`mobileSafari`）；用例 `SourceUserAgentFallbackTests`（重做并记住、其它错误不触发、重做仍空报原错误且不再重试、空结果触发、规则更新重判、只换 UA）。
 - 直接请求通道跟随重定向时，跳转目标是 `http://` 的一律升成 `https://` 再跟（`AlamofireHTTPClient.httpsUpgradingRedirector`，`HTTPSUpgrade.upgraded`），HTML 取页与 `loadData` 原始字节请求同一个重定向器；不开全局 ATS 例外。
   引用点：fwq `BC-BOOK-050`（sfacg 作品页 302 到 http 的移动站再 301 回 https，URLSession 在 http 那一跳被 ATS 拒，而规则生成引擎的客户端无 ATS 跟得过去）；与有声书 mp3 地址的处置同一纪律。
   本来就是 https 或不是 http(s) 的地址原样跟随。

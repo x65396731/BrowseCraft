@@ -277,6 +277,8 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
                 context: context
             )
             headers = RequestHeaderFields.applyingOverrides(context.additionalHeaders, to: headers)
+            // 中文注释：`BCA-RUNTIME-010`——该来源已判定要手机模板（或正在用手机 UA 重做）时换 UA。
+            headers = SourceUserAgentFallback.shared.applying(to: headers, sourceID: context.sourceID)
         }
         let credentialCookieHeader: String? = context.flatMap {
             self.credentialProvider.cookieHeader(for: $0, url: url)
