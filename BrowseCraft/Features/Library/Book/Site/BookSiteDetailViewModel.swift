@@ -39,10 +39,11 @@ final class BookSiteDetailViewModel {
     /// 中文注释：作品页封面与书架封面同一份请求配置（来源 `sharedRequest` 的 Cookie 策略等），见
     /// `ResolveLibrarySourcePresentationUseCase.bookImageRequestConfig`（2026-10-07 半夏小說封面）。
     var coverRequestConfig: RequestConfig? {
-        guard case .book(let configuration) = self.source.configuration else {
+        guard case .book = self.source.configuration else {
             return nil
         }
-        return ResolveLibrarySourcePresentationUseCase.bookImageRequestConfig(for: configuration.rule, listTab: nil)
+        // 中文注释：走 `imageRequestConfig` 出口——封面跟随来源的 UA 选择（`BCA-RUNTIME-010` 修订；此前直接调静态函数，绕过了它）。
+        return ResolveLibrarySourcePresentationUseCase().imageRequestConfig(for: self.source, listTab: nil)
     }
     private(set) var manifest: BookPublicationManifest?
     private(set) var isLoading: Bool = false

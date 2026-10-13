@@ -38,16 +38,7 @@ struct ResolveLibrarySourcePresentationUseCase {
         let ruleConfig: RequestConfig? = self.ruleImageRequestConfig(for: source, listTab: listTab)
         // 中文注释：`BCA-RUNTIME-010` 修订（2026-10-13 huanmengacg 封面）——来源已判定用手机 UA 时，封面也用同一 UA：
         // 图床与页面同在 Cloudflare 后面，放行 Cookie 绑定过挑战时的 UA，图片换了身份就对不上、回挑战页。
-        guard let userAgent: String = SourceUserAgentFallback.shared.overridingUserAgent(forSourceID: source.id) else {
-            return ruleConfig
-        }
-        var config: RequestConfig = ruleConfig ?? RequestConfig()
-        config.imageHeaders = RequestHeaderFields.applyingOverrides(["User-Agent": userAgent], to: config.imageHeaders ?? [:])
-        if var imageRequest: ImageRequestConfig = config.imageRequest, let headers: [String: String] = imageRequest.headers {
-            imageRequest.headers = RequestHeaderFields.applyingOverrides(["User-Agent": userAgent], to: headers)
-            config.imageRequest = imageRequest
-        }
-        return config
+        return SourceUserAgentFallback.shared.applyingImageUserAgent(to: ruleConfig, sourceID: source.id)
     }
 
     private func ruleImageRequestConfig(for source: Source, listTab: ListTabRule?) -> RequestConfig? {

@@ -96,9 +96,9 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
   `WKWebViewHTMLLoader.urlRequest` 组头时，后者经 `customUserAgent` 生效）；重做期间同一来源的其它取页也带手机 UA。
   依据：站点按 UA 分桌面 / 手机两套模板（seyouxiaoshuo 同一分类页桌面 UA `common-list` 0、iPhone UA 16）；困难档云端 `/scrape` 官方文档不能指定 UA，
   挑战站被升到实体机浏览器、拿回手机模板（huanmengacg `common-list` 52），规则按手机模板写成，App 用规则桌面 UA 取到桌面模板 →「规则没有匹配到内容」。
-  放行 Cookie 绑 UA（本文 `BCA-RUNTIME-005` 回写说明），换 UA 后遇挑战照旧走 WebView 挑战状态机，首次会慢一次。不改 App 预检、不改引擎交付 UA。**2026-10-13 修订（用户「要，图片跟随来源的身份」）**：封面 / 列表图跟随来源的 UA 选择——`ResolveLibrarySourcePresentationUseCase.imageRequestConfig` 在来源已判定用手机 UA 时把 `imageHeaders`（及 `imageRequest.headers`）的 `User-Agent` 换成手机 Safari；依据 huanmengacg 封面与页面同在 Cloudflare 后面（直接请求 403 `cf-mitigated: challenge`），放行 Cookie 绑过挑战时的 UA，图片换了身份就回挑战页。还没打开过来源（未过挑战、没有放行 Cookie）时的预览封面仍取不到，不在本条内。
+  放行 Cookie 绑 UA（本文 `BCA-RUNTIME-005` 回写说明），换 UA 后遇挑战照旧走 WebView 挑战状态机，首次会慢一次。不改 App 预检、不改引擎交付 UA。**2026-10-13 修订（用户「要，图片跟随来源的身份」）**：封面 / 列表图跟随来源的 UA 选择——图片配置的全部出口——`ResolveLibrarySourcePresentationUseCase.imageRequestConfig`（书库 / 书架 / 收藏 / 历史 / 影视详情，及书籍目录页封面 `BookSiteDetailViewModel.coverRequestConfig`，后者此前直接调静态 `bookImageRequestConfig` 绕过出口，同日真机「目录里的预览没处理」后改走出口）、`ResolveReaderSourcePresentationUseCase` 的漫画详情封面与阅读页图片——经 `SourceUserAgentFallback.applyingImageUserAgent` 在来源已判定用手机 UA 时把 `imageHeaders`（及 `imageRequest.headers`）的 `User-Agent` 换成手机 Safari；依据 huanmengacg 封面与页面同在 Cloudflare 后面（直接请求 403 `cf-mitigated: challenge`），放行 Cookie 绑过挑战时的 UA，图片换了身份就回挑战页。还没打开过来源（未过挑战、没有放行 Cookie）时的预览封面仍取不到，不在本条内。
   实现 `BrowseCraft/Application/UseCases/Source/SourceUserAgentFallback.swift`（调用点：列表刷新、搜索、漫画详情、阅读章节、书类详情与正文、影视详情与播放）、
-  `BrowseCraftDomain/.../ClientUserAgent.swift`（`mobileSafari`）；用例 `SourceUserAgentFallbackTests`（重做并记住、其它错误不触发、重做仍空报原错误且不再重试、空结果触发、规则更新重判、只换 UA、封面跟随来源 UA）。
+  `BrowseCraftDomain/.../ClientUserAgent.swift`（`mobileSafari`）；用例 `SourceUserAgentFallbackTests`（重做并记住、其它错误不触发、重做仍空报原错误且不再重试、空结果触发、规则更新重判、只换 UA、封面跟随来源 UA、各图片出口都跟随）。
 - 直接请求通道跟随重定向时，跳转目标是 `http://` 的一律升成 `https://` 再跟（`AlamofireHTTPClient.httpsUpgradingRedirector`，`HTTPSUpgrade.upgraded`），HTML 取页与 `loadData` 原始字节请求同一个重定向器；不开全局 ATS 例外。
   引用点：fwq `BC-BOOK-050`（sfacg 作品页 302 到 http 的移动站再 301 回 https，URLSession 在 http 那一跳被 ATS 拒，而规则生成引擎的客户端无 ATS 跟得过去）；与有声书 mp3 地址的处置同一纪律。
   本来就是 https 或不是 http(s) 的地址原样跟随。

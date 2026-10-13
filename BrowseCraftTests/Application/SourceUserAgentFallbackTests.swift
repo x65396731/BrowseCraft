@@ -144,6 +144,27 @@ struct SourceUserAgentFallbackTests {
         #expect(after?.imageHeaders?["User-Agent"] == ClientUserAgent.mobileSafari)
     }
 
+    @Test func everyImageConfigExitFollowsTheSourceUserAgent() async throws {
+        // 中文注释：书库封面、漫画详情封面、漫画阅读页图片三个出口（书籍目录页封面经书库出口）都跟随来源的 UA 选择。
+        var source: Source = Self.makeSource()
+        source.id = "source-ua-exits-\(UUID().uuidString)"
+        _ = try await SourceUserAgentFallback.shared.perform(source: source) {
+            if SourceUserAgentFallback.shared.overridingUserAgent(forSourceID: source.id) == nil {
+                throw Self.selectorEmpty(source: source)
+            }
+            return "mobile"
+        }
+        let reader: ResolveReaderSourcePresentationUseCase = ResolveReaderSourcePresentationUseCase()
+        #expect(reader.readerImageRequestConfig(for: source)?.imageHeaders?["User-Agent"] == ClientUserAgent.mobileSafari)
+        #expect(reader.detailCoverRequestConfig(for: source)?.imageHeaders?["User-Agent"] == ClientUserAgent.mobileSafari)
+        let preserved: RequestConfig? = SourceUserAgentFallback.shared.applyingImageUserAgent(
+            to: RequestConfig(cookiePolicy: .browserThenCustom, imageHeaders: ["Referer": "https://example.test/"]),
+            sourceID: source.id
+        )
+        #expect(preserved?.imageHeaders == ["Referer": "https://example.test/", "User-Agent": ClientUserAgent.mobileSafari])
+        #expect(preserved?.cookiePolicy == .browserThenCustom)
+    }
+
     private static func makeFallback() -> SourceUserAgentFallback {
         let suite: String = "SourceUserAgentFallbackTests.\(UUID().uuidString)"
         return SourceUserAgentFallback(defaults: UserDefaults(suiteName: suite) ?? .standard)

@@ -1,4 +1,5 @@
 import Foundation
+import BrowseCraftCore
 import BrowseCraftDomain
 
 /// 中文注释：`BCA-RUNTIME-010`（fwq `APP-MEMO-037`，设计稿第 54 节）——规则在桌面模板上匹配不到内容时，
@@ -63,6 +64,21 @@ final class SourceUserAgentFallback: @unchecked Sendable {
             key.caseInsensitiveCompare("User-Agent") != .orderedSame
         }
         resolved["User-Agent"] = userAgent
+        return resolved
+    }
+
+    /// 图片请求配置跟随来源的 UA 选择（修订：图床与页面同在 Cloudflare 后时，放行 Cookie 绑过挑战的 UA）。
+    /// 改 `imageHeaders`（`ImageRequestFactory` 用它覆盖默认 UA），规则另声明了 `imageRequest.headers` 时一并改。
+    func applyingImageUserAgent(to config: RequestConfig?, sourceID: String) -> RequestConfig? {
+        guard let userAgent: String = self.overridingUserAgent(forSourceID: sourceID) else {
+            return config
+        }
+        var resolved: RequestConfig = config ?? RequestConfig()
+        resolved.imageHeaders = RequestHeaderFields.applyingOverrides(["User-Agent": userAgent], to: resolved.imageHeaders ?? [:])
+        if var imageRequest: ImageRequestConfig = resolved.imageRequest, let headers: [String: String] = imageRequest.headers {
+            imageRequest.headers = RequestHeaderFields.applyingOverrides(["User-Agent": userAgent], to: headers)
+            resolved.imageRequest = imageRequest
+        }
         return resolved
     }
 
