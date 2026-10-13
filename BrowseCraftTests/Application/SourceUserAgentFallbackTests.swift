@@ -126,6 +126,24 @@ struct SourceUserAgentFallbackTests {
         #expect(fallback.applying(to: ["User-Agent": "x"], sourceID: "other") == ["User-Agent": "x"])
     }
 
+    @Test func coverRequestsFollowTheSourceUserAgent() async throws {
+        // 中文注释：封面走共享实例（`imageRequestConfig` 的出口）；来源 id 每次唯一，不串到别的用例。
+        var source: Source = Self.makeSource()
+        source.id = "source-ua-cover-\(UUID().uuidString)"
+        let presentation: ResolveLibrarySourcePresentationUseCase = ResolveLibrarySourcePresentationUseCase()
+        let before: RequestConfig? = presentation.imageRequestConfig(for: source, listTab: nil)
+        #expect(before?.imageHeaders?["User-Agent"] == nil)
+
+        _ = try await SourceUserAgentFallback.shared.perform(source: source) {
+            if SourceUserAgentFallback.shared.overridingUserAgent(forSourceID: source.id) == nil {
+                throw Self.selectorEmpty(source: source)
+            }
+            return "mobile"
+        }
+        let after: RequestConfig? = presentation.imageRequestConfig(for: source, listTab: nil)
+        #expect(after?.imageHeaders?["User-Agent"] == ClientUserAgent.mobileSafari)
+    }
+
     private static func makeFallback() -> SourceUserAgentFallback {
         let suite: String = "SourceUserAgentFallbackTests.\(UUID().uuidString)"
         return SourceUserAgentFallback(defaults: UserDefaults(suiteName: suite) ?? .standard)
