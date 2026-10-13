@@ -521,7 +521,12 @@ struct VideoEpisodeFlowLayout: Layout {
         var rowHeight: CGFloat = 0
         var maxWidth: CGFloat = 0
         for subview in subviews {
-            let size: CGSize = subview.sizeThatFits(.unspecified)
+            // 中文注释：集名单行排开比可用宽度还宽时（avjoy 每片一集、集名即整条片名），按可用宽度量——格内截断，
+            // 不能把自然宽度报上去，否则整个详情页被撑出屏幕（2026-10-13 真机：标题、播放按钮、简介都被截在右边）。
+            let ideal: CGSize = subview.sizeThatFits(.unspecified)
+            let size: CGSize = ideal.width > width
+                ? CGSize(width: width, height: subview.sizeThatFits(ProposedViewSize(width: width, height: nil)).height)
+                : ideal
             if x > 0, x + size.width > width {
                 x = 0
                 y += rowHeight + self.spacing
