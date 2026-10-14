@@ -9,6 +9,8 @@ struct InAppPurchasePlanButton: View {
         case pending
         case purchased
         case verificationRequired
+        /// 中文注释：这个 App Store 账户买过、当前账号还没认领（删除账号设计第 9.2 节）。
+        case restoreRequired
 
         var accessibilityValue: String {
             switch self {
@@ -26,6 +28,8 @@ struct InAppPurchasePlanButton: View {
                 return NSLocalizedString("Purchased", comment: "")
             case .verificationRequired:
                 return NSLocalizedString("Verification required. Restore purchases to try again.", comment: "")
+            case .restoreRequired:
+                return NSLocalizedString("iap_plan_restore_to_claim", comment: "已买过但当前账号未认领，点恢复购买")
             }
         }
 
@@ -135,7 +139,7 @@ struct InAppPurchasePlanButton: View {
                 .font(.title2)
                 .foregroundStyle(.green)
                 .frame(width: 62)
-        case .verificationRequired:
+        case .verificationRequired, .restoreRequired:
             Text("Restore Required")
                 .font(.caption.weight(.bold))
                 .multilineTextAlignment(.center)

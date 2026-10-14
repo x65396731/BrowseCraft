@@ -356,6 +356,10 @@ struct InAppPurchasePlanSelectionView: View {
             return .pending
         }
 
+        if self.store.needsRestoreToClaim(plan) {
+            return .restoreRequired
+        }
+
         if self.store.isPurchased(plan) {
             return .purchased
         }

@@ -182,6 +182,12 @@ struct SettingsView: View {
                             for: userID
                         )
                     },
+                    isTransactionClaimed: { transactionID, appAccountToken in
+                        await self.viewModel.isStoreKitTransactionClaimed(
+                            transactionID: transactionID,
+                            appAccountToken: appAccountToken
+                        )
+                    },
                     transactionUpdateRevision:
                         self.viewModel.storeKitTransactionUpdateRevision,
                     transactionUpdateActiveProductIDs:

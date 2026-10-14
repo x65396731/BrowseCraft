@@ -14,6 +14,8 @@ final class InAppPurchaseStore {
     private(set) var storeKitOwnedProductIDs: Set<String> = []
     private(set) var unverifiedStoreKitProductIDs: Set<String> = []
     private(set) var portalEntitledProductIDs: Set<String> = []
+    /// 中文注释：StoreKit 拥有、但还没被当前账号认领的商品（删除账号设计第 9.2 节）；显示「需要恢复」。
+    private(set) var unclaimedStoreKitProductIDs: Set<String> = []
     private(set) var status: Status = .idle {
         didSet {
             guard oldValue != self.status else {
@@ -34,6 +36,7 @@ final class InAppPurchaseStore {
         String,
         InAppPurchasePlan
     ) async throws -> Set<String>
+    private let isTransactionClaimed: @MainActor (String, UUID?) async -> Bool
     private let restorePurchasesAction: @MainActor (
         UUID
     ) async throws -> Set<String>?
@@ -58,12 +61,14 @@ final class InAppPurchaseStore {
         ) async throws -> Set<String>? = { _ in
             try await AppStore.sync()
             return nil
-        }
+        },
+        isTransactionClaimed: @escaping @MainActor (String, UUID?) async -> Bool = { _, _ in true }
     ) {
         self.authorizeStoreKitAction = authorizeStoreKitAction
         self.validateAuthorizedUser = validateAuthorizedUser
         self.applyPurchaseAction = applyPurchaseAction
         self.restorePurchasesAction = restorePurchasesAction
+        self.isTransactionClaimed = isTransactionClaimed
     }
 
     func loadProducts() async {
@@ -399,9 +404,19 @@ final class InAppPurchaseStore {
         }
     }
 
+    /// 中文注释：已被当前账号认领的拥有才算「已购买」；未认领的走 `needsRestoreToClaim`。
     func isPurchased(_ plan: InAppPurchasePlan) -> Bool {
         return plan.productKind == .nonConsumable
             && self.storeKitOwnedProductIDs.contains(plan.productID)
+            && self.needsRestoreToClaim(plan) == false
+    }
+
+    /// 中文注释：这个 App Store 账户买过、但当前账号还没认领——点「恢复购买」认领（删除账号设计第 9.2 节）。
+    func needsRestoreToClaim(_ plan: InAppPurchasePlan) -> Bool {
+        return plan.productKind == .nonConsumable
+            && self.storeKitOwnedProductIDs.contains(plan.productID)
+            && self.unclaimedStoreKitProductIDs.contains(plan.productID)
+            && self.portalEntitledProductIDs.contains(plan.productID) == false
     }
 
     func hasPortalEntitlement(_ plan: InAppPurchasePlan) -> Bool {
@@ -490,6 +505,7 @@ final class InAppPurchaseStore {
         IAPDiagnostics.notice("event=storekit-entitlements-refresh-started")
         var ownedProductIDs: Set<String> = []
         var unverifiedProductIDs: Set<String> = []
+        var unclaimedProductIDs: Set<String> = []
         var hasIdentityMismatch: Bool = false
 
         for await verification in StoreKit.Transaction.currentEntitlements {
@@ -517,6 +533,9 @@ final class InAppPurchaseStore {
                     hasIdentityMismatch = true
                 }
                 ownedProductIDs.insert(transaction.productID)
+                if await self.isTransactionClaimed(String(transaction.id), transaction.appAccountToken) == false {
+                    unclaimedProductIDs.insert(transaction.productID)
+                }
             case .unverified(let transaction, _):
                 guard let plan: InAppPurchasePlan =
                         InAppPurchasePlan.plansByProductID[transaction.productID],
@@ -539,9 +558,11 @@ final class InAppPurchaseStore {
         unverifiedProductIDs.subtract(ownedProductIDs)
         self.storeKitOwnedProductIDs = ownedProductIDs
         self.unverifiedStoreKitProductIDs = unverifiedProductIDs
+        self.unclaimedStoreKitProductIDs = unclaimedProductIDs
         IAPDiagnostics.notice(
             "event=storekit-entitlements-refresh-completed " +
                 "ownedCount=\(ownedProductIDs.count) " +
+                "unclaimedCount=\(unclaimedProductIDs.count) " +
                 "unverifiedCount=\(unverifiedProductIDs.count) " +
                 "hasIdentityMismatch=\(hasIdentityMismatch)"
         )
@@ -559,6 +580,7 @@ final class InAppPurchaseStore {
     ) async throws -> PurchaseEligibility {
         var ownedProductIDs: Set<String> = []
         var unverifiedProductIDs: Set<String> = []
+        var unclaimedProductIDs: Set<String> = []
         var targetTransaction: StoreKit.Transaction?
 
         for await verification in StoreKit.Transaction.currentEntitlements {
@@ -574,6 +596,9 @@ final class InAppPurchaseStore {
                 }
 
                 ownedProductIDs.insert(transaction.productID)
+                if await self.isTransactionClaimed(String(transaction.id), transaction.appAccountToken) == false {
+                    unclaimedProductIDs.insert(transaction.productID)
+                }
                 if transaction.productID == targetPlan.productID {
                     targetTransaction = transaction
                 }
@@ -592,6 +617,7 @@ final class InAppPurchaseStore {
         unverifiedProductIDs.subtract(ownedProductIDs)
         self.storeKitOwnedProductIDs = ownedProductIDs
         self.unverifiedStoreKitProductIDs = unverifiedProductIDs
+        self.unclaimedStoreKitProductIDs = unclaimedProductIDs
 
         if let targetTransaction {
             return .owned(

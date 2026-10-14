@@ -210,6 +210,17 @@ final class SettingsViewModel {
     }
 
     @MainActor
+    func isStoreKitTransactionClaimed(
+        transactionID: String,
+        appAccountToken: UUID?
+    ) async -> Bool {
+        return await self.purchaseCoordinator.isClaimedByActiveUser(
+            transactionID: transactionID,
+            appAccountToken: appAccountToken
+        )
+    }
+
+    @MainActor
     func validateAuthorizedStoreKitUser(_ userID: UUID) async throws {
         try await self.purchaseCoordinator.validateAuthorizedUser(userID)
     }

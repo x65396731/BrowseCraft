@@ -858,6 +858,7 @@
 "comic_detail_link_related_page" = "Related page";
 
 /* 删除账号（docs/design/Account-Deletion-Design.md） */
+"iap_plan_restore_to_claim" = "Purchased with this App Store account. Restore purchases to use it with this account.";
 "account_deletion_entry" = "Delete Account";
 "account_deletion_intro" = "Deleting your AnyPortal account takes effect right away and can't be undone.";
 "account_deletion_section_deleted" = "Will Be Deleted";

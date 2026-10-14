@@ -1224,3 +1224,14 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 先试 10 分钟宽限（不够），改为「这次授权后见过 authorized 才认撤销」，复测不再误退。恢复购买两次都卡在系统沙盒登录
 （AMSErrorDomain 100「Password reuse not available」），模拟器 StoreKit 看不到任何购买，D4 留待真机验证。
 
+2026-10-15 删号后恢复购买的真机走查（iPhone 15 / iOS 26.7.1，Xcode 直装，系统设置里登录沙盒账户，真机日志用 pymobiledevice3 读取）：
+未登录时 StoreKit 已列出 1 笔拥有（属于 App Store 账户，不代表权益）；点「恢复购买」先走 Apple 登录，再同步 App Store，
+分批结果 batchCount=1 hasOwnBatch=false，服务端 `/v1/iap/entitlements/refresh` 200，交易 2000001212615464（token 为已删账号）
+认领到当前账号，权益快照 site.unlock.v2.1、站点位置上限 2，外键检查为空。真机上该账号授权后 getCredentialState 回 authorized，
+模拟器上一直回 revoked 的现象只在模拟器出现。模拟器上恢复失败的原因是模拟器登录的不是买这笔的沙盒账户（StoreKit 拥有数为 0）且沙盒登录被系统拒绝。
+
+`STATUS.md` 第 4 节「购买页：未认领的购买显示『需要恢复』」一行新立，同日 实施 in-progress → implemented、验证 not-run → targeted-passed：
+新增 `StoreKitPurchaseClaimRule`（token 等于当前账号、本机当前账号有处理记录、本次会话服务端权益含该商品，任一满足即算已认领），
+`PortalPurchaseCoordinator.isClaimedByActiveUser` 查本机记录，购买页刷新 StoreKit 拥有时算出未认领集合，按钮新增「需要恢复」状态并禁用购买；
+构建通过，认领规则与分批器 8 例过；文档、架构边界、本地化闸门过。真机复看由用户做。
+

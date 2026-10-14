@@ -858,6 +858,7 @@
 "comic_detail_link_related_page" = "相關頁面";
 
 /* 删除账号（docs/design/Account-Deletion-Design.md） */
+"iap_plan_restore_to_claim" = "這個 App Store 帳號買過，點「回復購買項目」即可在目前帳號使用。";
 "account_deletion_entry" = "刪除帳號";
 "account_deletion_intro" = "刪除 AnyPortal 帳號會立即生效，無法復原。";
 "account_deletion_section_deleted" = "將刪除";

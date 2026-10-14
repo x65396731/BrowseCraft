@@ -118,6 +118,8 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 续看位置同步的模拟器走查（真实账号，Development 环境，单台设备）：迁移后正常启动、新增来源并产生一条视频历史、退到后台触发同步并上传、云同步页第三行显示作品数、来源已删除的历史不计入也不上传、删除历史后退到后台上传删除标记；两台设备互相接续与书的阅读位置未走到 | `BCA-SYNC-009` | required | approved | implemented | simulator-passed | 7102bba | 2026-10-04 |
 | 删除账号 App 侧（审核指南 5.1.1(v)；服务端 PortalCore 设计稿第 12 节第 5 步）：设置页入口与说明页、重新验证 Apple 后调删号接口、本机与 iCloud 清理、换访客身份、待清 iCloud 标记、凭据状态监听、三语文案 | 未编号 | required | pending-review | implemented | targeted-passed | fda3bb6 | 2026-10-15 |
 | 删号后恢复购买：恢复路径按 appAccountToken 分批、外来 token 遇 accountMismatch 跳过，购买页已拥有判断放宽（删除账号设计第九节，D4 在 App 侧的落点） | 未编号 | required | pending-review | implemented | targeted-passed | a06be2d | 2026-10-15 |
+| 删号后恢复购买的真机走查（iPhone 15，iOS 26.7.1，Xcode 直装、沙盒账户）：被删账号名下的 Sandbox 交易单独成批提交，服务端认领到当前账号，权益快照站点位置上限 2，界面显示已恢复且不提示属于别的账号 | 未编号 | required | approved | implemented | device-passed | b0e2a0d | 2026-10-15 |
+| 购买页：StoreKit 拥有但未被当前账号认领的购买显示「需要恢复」而非「已购买」（删除账号设计第 9.2 节） | 未编号 | required | pending-review | implemented | targeted-passed | b0e2a0d | 2026-10-15 |
 | 删除账号的模拟器走查（iPhone 18 Pro，iOS 27.0，生产服务器真实账号）：入口、说明页显示余额、居中确认框、Apple 重新验证、不可取消遮罩、完成页；服务端账号与个人数据清空、254 个任务转挂占位用户、Apple 授权撤销成功；本机换访客身份、来源清空；iCloud 不可用时留待清标记并在启动与回到前台重试；重新登录为新账号且不发注册赠送；凭据检查不再误退。恢复购买因模拟器沙盒登录被系统拒绝未走到 | 未编号 | required | approved | implemented | simulator-passed | a8d9ccb | 2026-10-15 |
 
 ## 5. 文档架构迁移

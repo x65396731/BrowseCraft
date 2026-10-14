@@ -45,6 +45,21 @@ actor PortalPurchaseCoordinator {
         try await self.identityAuthorizer.validateAuthorizedUser(userID)
     }
 
+    /// 中文注释：购买页判断一笔 StoreKit 拥有是否已被当前账号认领（删除账号设计第 9.2 节）；本次会话的服务端权益由调用方另行合并。
+    func isClaimedByActiveUser(transactionID: String, appAccountToken: UUID?) -> Bool {
+        let userID: UUID = self.activeAppUser.currentUserID
+        let hasLocalRecord: Bool = (try? self.appUserRepository.hasProcessedStoreKitTransaction(
+            userID: userID.uuidString,
+            transactionID: transactionID
+        )) ?? false
+        return StoreKitPurchaseClaimRule.isClaimed(
+            appAccountToken: appAccountToken,
+            activeUserID: userID,
+            hasLocalRecord: hasLocalRecord,
+            isPortalEntitled: false
+        )
+    }
+
     func submitPurchase(
         transaction: StoreTransactionSnapshot,
         signedTransaction: String,

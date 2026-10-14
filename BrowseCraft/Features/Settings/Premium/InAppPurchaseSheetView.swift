@@ -29,6 +29,7 @@ struct InAppPurchaseSheetView: View {
             try await AppStore.sync()
             return nil
         },
+        isTransactionClaimed: @escaping @MainActor (String, UUID?) async -> Bool = { _, _ in true },
         transactionUpdateRevision: UInt64 = 0,
         transactionUpdateActiveProductIDs: Set<String>? = nil,
         closeAction: @escaping () -> Void = {},
@@ -44,7 +45,8 @@ struct InAppPurchaseSheetView: View {
                 authorizeStoreKitAction: authorizeStoreKitAction,
                 validateAuthorizedUser: validateAuthorizedUser,
                 applyPurchaseAction: applyPurchaseAction,
-                restorePurchasesAction: restorePurchasesAction
+                restorePurchasesAction: restorePurchasesAction,
+                isTransactionClaimed: isTransactionClaimed
             )
         )
     }
