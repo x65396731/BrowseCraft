@@ -484,6 +484,16 @@ private final class InMemoryAppleUserIdentifierStore: AppleUserIdentifierStoring
         return self.identifier
     }
 
+    func lastAuthorizedAt() throws -> Date? {
+        return nil
+    }
+
+    func hasObservedAuthorized() throws -> Bool {
+        return false
+    }
+
+    func markObservedAuthorized() throws {}
+
     func saveUserIdentifier(_ userIdentifier: String) throws {
         self.identifier = userIdentifier
     }

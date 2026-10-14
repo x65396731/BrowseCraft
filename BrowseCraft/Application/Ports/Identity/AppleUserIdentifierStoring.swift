@@ -4,6 +4,12 @@ import Foundation
 /// 它不是业务身份，也不随 iCloud 同步；读不到就跳过凭据检查。
 protocol AppleUserIdentifierStoring: Sendable {
     func loadUserIdentifier() throws -> String?
+    /// 中文注释：最近一次保存（即最近一次 Apple 授权成功）的时间；旧格式或没存过返回 nil。只用于诊断日志。
+    func lastAuthorizedAt() throws -> Date?
+    /// 中文注释：这次授权之后，系统是否至少回过一次 authorized（删除账号设计第十节）。
+    func hasObservedAuthorized() throws -> Bool
+    func markObservedAuthorized() throws
+    /// 中文注释：保存新标识即开始新一轮授权，「见过 authorized」随之清零。
     func saveUserIdentifier(_ userIdentifier: String) throws
     func clearUserIdentifier() throws
 }

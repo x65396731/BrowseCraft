@@ -191,6 +191,13 @@ D4 依赖服务端放行「appAccountToken 指向的账号已不存在」的交�
   `CoinWalletStore.markSignedOut()`，**不删任何本地数据**（`AppleCredentialRevocationCoordinator`）。
 - 存量已登录用户没有存过 Apple user 标识，跳过检查，下次登录后生效。
 - 查询失败、或状态为 authorized / transferred 时不做任何事。
+- **只认「见过正常之后的撤销」**：每次 Apple 授权成功（保存 Apple user 标识）都把「这次授权后见过 authorized」清零；
+  之后系统回过一次 authorized 才记为见过。revoked / notFound（无论来自状态查询还是撤销通知）只有在见过之后才按退出处理，否则只记日志。
+  依据是模拟器实测：删号撤销授权后用同一 Apple ID 重新登录，授权后 1 秒、133 秒、154 秒、775 秒 getCredentialState 一直回 revoked；
+  直接按状态退出会把刚登录的新账号反复退出去，10 分钟宽限也挡不住。代价是状态一直卡在 revoked 的用户真被撤销时不会被 App 自动退出，
+  服务端会话照旧受控。标记与授权时间同 Apple user 标识一起存在 Keychain（`KeychainAppleUserIdentifierStore`，
+  值为「标识|保存时的 Unix 秒|0 或 1」）；每次检查都记下系统回的状态与距授权的秒数。
+- 自动退出后通知设置页刷新登录状态（`AppleCredentialRevocationCoordinator` 的 `didSignOut`，由 `AppContainer` 接上）。
 
 ## 十一、实现落点
 

@@ -1218,3 +1218,9 @@ Sign in with Apple Key 未配。恢复购买的本地筛选（设计第九节）
 accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢复路径改用它；购买页已拥有统一引导恢复、购买后外来 token 交服务端判定、
 恢复后「属于别的账号」只计未被认领的；构建通过，分批器新增 5 例过；文档、架构边界、本地化闸门过。真机与 Sandbox 恢复由用户做。
 
+2026-10-15 删除账号模拟器走查（iPhone 18 Pro / iOS 27.0，服务端 6cb93a0 已部署、Sign in with Apple Key RQCX3NG4P8 已配）：真删一个生产账号，
+服务端账号行与个人数据全删、254 个任务转挂占位用户、D3 表写入一行、外键检查为空；App 换访客身份、iCloud 因模拟器 iCloud 不可用留待清标记。
+走查发现：撤销授权后用同一 Apple ID 重新登录，getCredentialState 在授权后 1 秒到 775 秒一直回 revoked，原凭据检查把新账号退出；
+先试 10 分钟宽限（不够），改为「这次授权后见过 authorized 才认撤销」，复测不再误退。恢复购买两次都卡在系统沙盒登录
+（AMSErrorDomain 100「Password reuse not available」），模拟器 StoreKit 看不到任何购买，D4 留待真机验证。
+

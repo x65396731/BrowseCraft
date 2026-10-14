@@ -109,6 +109,10 @@ final class AppContainer {
         _ = await (portalSession, cloudAccount)
         // 中文注释：删号没做完的收尾（docs/design/Account-Deletion-Design.md 第七节）与 Apple 凭据状态（第十节）都要等会话就绪。
         await self.account.accountDeletionCoordinator.resumePendingWork()
+        let settingsViewModel: SettingsViewModel = self.features.settingsViewModel
+        self.account.appleCredentialRevocationCoordinator.didSignOut = {
+            await settingsViewModel.refreshPortalAccountStatus()
+        }
         await self.account.appleCredentialRevocationCoordinator.start()
         self.startAccountDeletionNetworkRetry()
         // 中文注释：会话就绪后再对齐推送设备注册；无 token 或未登录时它自行跳过。

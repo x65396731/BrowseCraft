@@ -44,6 +44,41 @@ struct AppleCredentialRevocationCoordinatorTests {
         #expect(missingChecker.queriedIdentifiers.isEmpty)
     }
 
+    /// 中文注释：模拟器实测——撤销后重新登录，系统一直回 revoked：没见过 authorized 之前的 revoked 一律不作数；
+    /// 见过 authorized 之后再回 revoked 才退出。
+    @Test func revokedBeforeAnyAuthorizedObservationIsIgnoredAfterwardsSignsOut() async {
+        let store: StubAppleUserIdentifierStore = StubAppleUserIdentifierStore(identifier: "apple-user")
+        let checker: StubCredentialStateChecker = StubCredentialStateChecker(state: .revoked)
+        let probe: SignOutProbe = SignOutProbe()
+        var refreshCount: Int = 0
+        let coordinator: AppleCredentialRevocationCoordinator = AppleCredentialRevocationCoordinator(
+            checker: checker,
+            userIdentifierStore: store,
+            isSignedIn: { true },
+            signOut: { probe.signOutCount += 1 }
+        )
+        coordinator.didSignOut = { refreshCount += 1 }
+
+        await coordinator.checkCredentialState()
+        await coordinator.checkCredentialState()
+        #expect(probe.signOutCount == 0)
+
+        checker.state = .authorized
+        await coordinator.checkCredentialState()
+        #expect(store.observedAuthorized)
+
+        checker.state = .revoked
+        await coordinator.checkCredentialState()
+        #expect(probe.signOutCount == 1)
+        #expect(refreshCount == 1)
+    }
+
+    @Test func newAuthorizationResetsObservation() throws {
+        let store: StubAppleUserIdentifierStore = StubAppleUserIdentifierStore(identifier: "apple-user", observedAuthorized: true)
+        try store.saveUserIdentifier("apple-user")
+        #expect(try store.hasObservedAuthorized() == false)
+    }
+
     private static func coordinator(
         state: AppleCredentialState,
         storedIdentifier: String?,
@@ -52,7 +87,7 @@ struct AppleCredentialRevocationCoordinatorTests {
     ) -> AppleCredentialRevocationCoordinator {
         return AppleCredentialRevocationCoordinator(
             checker: StubCredentialStateChecker(state: state),
-            userIdentifierStore: StubAppleUserIdentifierStore(identifier: storedIdentifier),
+            userIdentifierStore: StubAppleUserIdentifierStore(identifier: storedIdentifier, observedAuthorized: true),
             isSignedIn: { isSignedIn },
             signOut: { probe.signOutCount += 1 }
         )
@@ -65,7 +100,7 @@ private final class SignOutProbe {
 }
 
 private final class StubCredentialStateChecker: AppleCredentialStateChecking, @unchecked Sendable {
-    let state: AppleCredentialState
+    var state: AppleCredentialState
     private(set) var queriedIdentifiers: [String] = []
 
     init(state: AppleCredentialState) {
@@ -82,14 +117,37 @@ private final class StubCredentialStateChecker: AppleCredentialStateChecking, @u
     }
 }
 
-private struct StubAppleUserIdentifierStore: AppleUserIdentifierStoring {
-    let identifier: String?
+private final class StubAppleUserIdentifierStore: AppleUserIdentifierStoring, @unchecked Sendable {
+    var identifier: String?
+    var observedAuthorized: Bool
+
+    init(identifier: String?, observedAuthorized: Bool = false) {
+        self.identifier = identifier
+        self.observedAuthorized = observedAuthorized
+    }
 
     func loadUserIdentifier() throws -> String? {
         return self.identifier
     }
 
-    func saveUserIdentifier(_ userIdentifier: String) throws {}
+    func lastAuthorizedAt() throws -> Date? {
+        return nil
+    }
 
-    func clearUserIdentifier() throws {}
+    func hasObservedAuthorized() throws -> Bool {
+        return self.observedAuthorized
+    }
+
+    func markObservedAuthorized() throws {
+        self.observedAuthorized = true
+    }
+
+    func saveUserIdentifier(_ userIdentifier: String) throws {
+        self.identifier = userIdentifier
+        self.observedAuthorized = false
+    }
+
+    func clearUserIdentifier() throws {
+        self.identifier = nil
+    }
 }
