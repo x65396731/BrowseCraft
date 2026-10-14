@@ -371,7 +371,26 @@ actor PortalSessionCoordinator {
         }
     }
 
-    private func refreshIfNeeded() async {
+    /// 中文注释：Bearer 接口回 401 时调用（删除账号设计第 7.1 节）：本机看来没过期的 access token 也强制刷新一次。
+    /// 刷新被拒按现有逻辑清会话；网络错误不清。
+    func handleAuthorizationRejected() async -> PortalAuthorizationRejectionOutcome {
+        guard self.persistedSession != nil else {
+            return .unchanged
+        }
+        PortalSessionDiagnostics.notice("event=authorization-rejected action=force-refresh")
+        await self.refreshIfNeeded(force: true)
+        switch self.currentSnapshot.status {
+        case .authenticated where self.persistedSession != nil:
+            return .refreshed
+        case .signedOut, .userDisabled, .accountConflict:
+            PortalSessionDiagnostics.notice("event=authorization-rejected result=signed-out")
+            return .signedOut
+        case .authenticated, .authenticating, .temporarilyUnavailable:
+            return .unchanged
+        }
+    }
+
+    private func refreshIfNeeded(force: Bool = false) async {
         guard self.operationInFlight == false,
               var session: PortalSessionPersistence = self.persistedSession else {
             return
@@ -393,7 +412,7 @@ actor PortalSessionCoordinator {
             try? self.clearLocalSession()
             return
         }
-        guard credentials.accessTokenExpiresAt <=
+        guard force || credentials.accessTokenExpiresAt <=
                 currentDate.addingTimeInterval(self.refreshLeeway) else {
             self.publish(status: .authenticated)
             return
@@ -548,3 +567,5 @@ enum PortalSessionDiagnostics {
 extension PortalSessionCoordinator: PortalAccessTokenProviding {}
 
 extension PortalSessionCoordinator: AccountDeletionSessionControlling {}
+
+extension PortalSessionCoordinator: PortalAuthorizationRejectionHandling {}

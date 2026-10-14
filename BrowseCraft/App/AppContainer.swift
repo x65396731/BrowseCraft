@@ -113,6 +113,10 @@ final class AppContainer {
         self.account.appleCredentialRevocationCoordinator.didSignOut = {
             await settingsViewModel.refreshPortalAccountStatus()
         }
+        // 中文注释：余额接口 401 → 会话强制刷新被拒 → 回到未登录（删除账号设计第 7.1 节），设置页跟着刷新。
+        self.account.coinWalletStore.didEndSession = {
+            await settingsViewModel.refreshPortalAccountStatus()
+        }
         await self.account.appleCredentialRevocationCoordinator.start()
         self.startAccountDeletionNetworkRetry()
         // 中文注释：会话就绪后再对齐推送设备注册；无 token 或未登录时它自行跳过。

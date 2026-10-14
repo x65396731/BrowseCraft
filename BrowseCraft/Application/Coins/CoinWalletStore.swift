@@ -24,13 +24,18 @@ final class CoinWalletStore: RewardedAdRewardCoordinating {
     private let appUserRepository: any AppUserRepository
     private let activeAppUser: any ActiveAppUserProviding
     private let sleep: @Sendable (Duration) async throws -> Void
+    /// 中文注释：余额接口回 401 时交给会话强制刷新一次（删除账号设计第 7.1 节）；nil 即只清余额显示（测试替身）。
+    private let authorizationRejectionHandler: (any PortalAuthorizationRejectionHandling)?
     private var refreshTask: Task<Void, Never>?
+    /// 中文注释：会话因 401 被清掉后通知界面刷新登录状态；组合根在 Features 装好后设置。
+    @ObservationIgnored var didEndSession: (@MainActor () async -> Void)?
 
     init(
         accountClient: any PortalAccountFetching,
         accessTokenProvider: any PortalAccessTokenProviding,
         appUserRepository: any AppUserRepository,
         activeAppUser: any ActiveAppUserProviding,
+        authorizationRejectionHandler: (any PortalAuthorizationRejectionHandling)? = nil,
         sleep: @escaping @Sendable (Duration) async throws -> Void = { duration in
             try await Task.sleep(for: duration)
         }
@@ -39,6 +44,7 @@ final class CoinWalletStore: RewardedAdRewardCoordinating {
         self.accessTokenProvider = accessTokenProvider
         self.appUserRepository = appUserRepository
         self.activeAppUser = activeAppUser
+        self.authorizationRejectionHandler = authorizationRejectionHandler
         self.sleep = sleep
         self.loadCached()
     }
@@ -67,6 +73,10 @@ final class CoinWalletStore: RewardedAdRewardCoordinating {
     /// 返回是否拿到了新读数。
     @discardableResult
     func refresh() async -> Bool {
+        return await self.refresh(retryingAfterRejection: true)
+    }
+
+    private func refresh(retryingAfterRejection: Bool) async -> Bool {
         guard let accessToken: String = await self.accessTokenProvider.validAccessToken() else {
             self.markSignedOut()
             return false
@@ -80,8 +90,23 @@ final class CoinWalletStore: RewardedAdRewardCoordinating {
             self.pricing = snapshot.pricing
             return self.apply(balance: snapshot.coinBalance, revision: snapshot.revision)
         } catch PortalAccountClientError.authRequired {
-            self.markSignedOut()
-            return false
+            // 中文注释：本机看来有效的 token 被服务端拒了（例如账号已在另一台设备删除）：让会话强制刷新一次再决定。
+            guard retryingAfterRejection,
+                  let handler: any PortalAuthorizationRejectionHandling = self.authorizationRejectionHandler else {
+                self.markSignedOut()
+                return false
+            }
+            switch await handler.handleAuthorizationRejected() {
+            case .refreshed:
+                return await self.refresh(retryingAfterRejection: false)
+            case .signedOut:
+                self.markSignedOut()
+                await self.didEndSession?()
+                return false
+            case .unchanged:
+                self.markSignedOut()
+                return false
+            }
         } catch {
             return false
         }

@@ -94,7 +94,8 @@ final class AccountComposition {
             accountClient: APIKitPortalAccountService(api: PortalAccountAPI(client: portalAPIClient)),
             accessTokenProvider: portalSessionCoordinator,
             appUserRepository: appUserRepository,
-            activeAppUser: activeAppUserStore
+            activeAppUser: activeAppUserStore,
+            authorizationRejectionHandler: portalSessionCoordinator
         )
         self.coinWalletStore = coinWalletStore
 

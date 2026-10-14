@@ -70,6 +70,46 @@ struct CoinWalletStoreTests {
         #expect(fixture.store.revision == 5)
     }
 
+    // MARK: - 401（删除账号设计第 7.1 节）
+
+    @Test func rejectedTokenWithRejectedRefreshEndsSessionAndNotifies() async {
+        let handler: FakeRejectionHandler = FakeRejectionHandler(outcomes: [.signedOut])
+        let fixture: Fixture = Fixture(snapshots: [], handler: handler)
+        fixture.fetcher.rejectionsBeforeSuccess = 1
+        var notified: Int = 0
+        fixture.store.didEndSession = { notified += 1 }
+
+        #expect(await fixture.store.refresh() == false)
+
+        #expect(handler.calls == 1)
+        #expect(fixture.store.isSignedIn == false)
+        #expect(notified == 1)
+        #expect(fixture.fetcher.calls == 1)
+    }
+
+    @Test func rejectedTokenWithSuccessfulRefreshRetriesOnce() async {
+        let handler: FakeRejectionHandler = FakeRejectionHandler(outcomes: [.refreshed])
+        let fixture: Fixture = Fixture(snapshots: [Fixture.snapshot(balance: 80, revision: 2)], handler: handler)
+        fixture.fetcher.rejectionsBeforeSuccess = 1
+
+        #expect(await fixture.store.refresh())
+
+        #expect(fixture.store.balance == 80)
+        #expect(fixture.fetcher.calls == 2)
+    }
+
+    @Test func secondRejectionAfterRefreshDoesNotLoop() async {
+        let handler: FakeRejectionHandler = FakeRejectionHandler(outcomes: [.refreshed, .refreshed])
+        let fixture: Fixture = Fixture(snapshots: [], handler: handler)
+        fixture.fetcher.rejectionsBeforeSuccess = 5
+
+        #expect(await fixture.store.refresh() == false)
+
+        #expect(handler.calls == 1)
+        #expect(fixture.fetcher.calls == 2)
+        #expect(fixture.store.isSignedIn == false)
+    }
+
     // MARK: - fixture
 
     @MainActor
@@ -79,7 +119,11 @@ struct CoinWalletStoreTests {
         let repository: InMemoryAppUserRepository
         let store: CoinWalletStore
 
-        init(snapshots: [PortalAccountSnapshot], repository: InMemoryAppUserRepository = InMemoryAppUserRepository()) {
+        init(
+            snapshots: [PortalAccountSnapshot],
+            repository: InMemoryAppUserRepository = InMemoryAppUserRepository(),
+            handler: FakeRejectionHandler? = nil
+        ) {
             self.fetcher = FakeAccountFetcher(snapshots: snapshots)
             self.tokenProvider = FakeTokenProvider()
             self.repository = repository
@@ -91,6 +135,7 @@ struct CoinWalletStoreTests {
                 accessTokenProvider: self.tokenProvider,
                 appUserRepository: self.repository,
                 activeAppUser: FakeActiveAppUser(currentUserID: CoinWalletStoreTests.userID),
+                authorizationRejectionHandler: handler,
                 sleep: { _ in }
             )
         }
@@ -121,6 +166,7 @@ struct CoinWalletStoreTests {
 private final class FakeAccountFetcher: PortalAccountFetching, @unchecked Sendable {
     private var snapshots: [PortalAccountSnapshot]
     private(set) var calls: Int = 0
+    var rejectionsBeforeSuccess: Int = 0
 
     init(snapshots: [PortalAccountSnapshot]) {
         self.snapshots = snapshots
@@ -128,6 +174,10 @@ private final class FakeAccountFetcher: PortalAccountFetching, @unchecked Sendab
 
     func fetchAccount(accessToken: String) async throws -> PortalAccountSnapshot {
         self.calls += 1
+        if self.rejectionsBeforeSuccess > 0 {
+            self.rejectionsBeforeSuccess -= 1
+            throw PortalAccountClientError.authRequired
+        }
         guard self.snapshots.isEmpty == false else {
             throw PortalAccountClientError.transport
         }
@@ -172,5 +222,19 @@ private final class InMemoryAppUserRepository: AppUserRepository, @unchecked Sen
 
     func saveUser(_ user: AppUser, storeKitTransactions: [UserStoreKitTransaction]) throws {
         self.users[user.id] = user
+    }
+}
+
+private final class FakeRejectionHandler: PortalAuthorizationRejectionHandling, @unchecked Sendable {
+    private var outcomes: [PortalAuthorizationRejectionOutcome]
+    private(set) var calls: Int = 0
+
+    init(outcomes: [PortalAuthorizationRejectionOutcome]) {
+        self.outcomes = outcomes
+    }
+
+    func handleAuthorizationRejected() async -> PortalAuthorizationRejectionOutcome {
+        self.calls += 1
+        return self.outcomes.isEmpty ? .unchanged : self.outcomes.removeFirst()
     }
 }

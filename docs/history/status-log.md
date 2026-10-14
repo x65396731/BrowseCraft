@@ -1235,3 +1235,8 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 `PortalPurchaseCoordinator.isClaimedByActiveUser` 查本机记录，购买页刷新 StoreKit 拥有时算出未认领集合，按钮新增「需要恢复」状态并禁用购买；
 构建通过，认领规则与分批器 8 例过；文档、架构边界、本地化闸门过。真机复看由用户做。
 
+`STATUS.md` 第 4 节「账号接口回 401 时强制刷新会话」一行新立，同日 实施 in-progress → implemented、验证 not-run → targeted-passed：
+`PortalSessionCoordinator.handleAuthorizationRejected()` 对本机看来未过期的 token 也强制刷新一次（刷新被拒清会话、网络错误不清），
+`CoinWalletStore` 余额接口 401 时调用它，刷新成功重试一次、被拒则清余额并经 `didEndSession` 刷新设置页；构建通过，余额与会话协调器 17 例过；
+架构边界、本地化、文档闸门过。真机复看由用户做。
+

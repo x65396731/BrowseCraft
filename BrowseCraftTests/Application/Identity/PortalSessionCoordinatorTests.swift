@@ -182,6 +182,90 @@ struct PortalSessionCoordinatorTests {
         #expect(await coordinator.validAccessToken() == nil)
     }
 
+    // MARK: - 401 后强制刷新（删除账号设计第 7.1 节）
+
+    @Test(arguments: [
+        (PortalIdentityAuthenticationError.refreshRejected, PortalAuthorizationRejectionOutcome.signedOut, true),
+        (PortalIdentityAuthenticationError.temporarilyUnavailable, PortalAuthorizationRejectionOutcome.unchanged, false)
+    ])
+    func authorizationRejectionForcesRefreshEvenWhenTokenLooksValid(
+        refreshError: PortalIdentityAuthenticationError,
+        expected: PortalAuthorizationRejectionOutcome,
+        expectsCleared: Bool
+    ) async {
+        let userID: UUID = UUID()
+        let credentials: PortalAuthenticationTokens = Self.tokens(
+            userID: userID,
+            accessToken: "access",
+            refreshToken: "refresh",
+            accessExpiresAt: Self.now.addingTimeInterval(3_600)
+        )
+        let store: InMemoryPortalSessionStore = InMemoryPortalSessionStore(
+            session: PortalSessionPersistence(userID: userID, credentials: credentials)
+        )
+        let authenticator: MockPortalIdentityAuthenticator = MockPortalIdentityAuthenticator(
+            refreshResult: .failure(refreshError)
+        )
+        let coordinator: PortalSessionCoordinator = Self.coordinator(
+            userID: userID,
+            store: store,
+            authenticator: authenticator
+        )
+        await coordinator.start()
+        #expect(await authenticator.refreshCallCount == 0)
+
+        let outcome: PortalAuthorizationRejectionOutcome = await coordinator.handleAuthorizationRejected()
+
+        #expect(outcome == expected)
+        #expect(await authenticator.refreshCallCount == 1)
+        #expect((store.session == nil) == expectsCleared)
+    }
+
+    @Test func authorizationRejectionWithSuccessfulRefreshRotatesToken() async {
+        let userID: UUID = UUID()
+        let store: InMemoryPortalSessionStore = InMemoryPortalSessionStore(
+            session: PortalSessionPersistence(
+                userID: userID,
+                credentials: Self.tokens(
+                    userID: userID,
+                    accessToken: "old-access",
+                    refreshToken: "old-refresh",
+                    accessExpiresAt: Self.now.addingTimeInterval(3_600)
+                )
+            )
+        )
+        let authenticator: MockPortalIdentityAuthenticator = MockPortalIdentityAuthenticator(
+            refreshResult: .success(
+                Self.tokens(
+                    userID: userID,
+                    accessToken: "new-access",
+                    refreshToken: "new-refresh",
+                    accessExpiresAt: Self.now.addingTimeInterval(3_600)
+                )
+            )
+        )
+        let coordinator: PortalSessionCoordinator = Self.coordinator(
+            userID: userID,
+            store: store,
+            authenticator: authenticator
+        )
+        await coordinator.start()
+
+        #expect(await coordinator.handleAuthorizationRejected() == .refreshed)
+        #expect(await coordinator.validAccessToken() == "new-access")
+    }
+
+    @Test func authorizationRejectionWithoutSessionIsNoOp() async {
+        let coordinator: PortalSessionCoordinator = Self.coordinator(
+            userID: UUID(),
+            store: InMemoryPortalSessionStore(),
+            authenticator: MockPortalIdentityAuthenticator()
+        )
+        await coordinator.start()
+
+        #expect(await coordinator.handleAuthorizationRejected() == .unchanged)
+    }
+
     private static func coordinator(
         userID: UUID,
         store: InMemoryPortalSessionStore,
