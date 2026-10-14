@@ -2,21 +2,21 @@ import AuthenticationServices
 import Foundation
 import UIKit
 
-/// 中文注释：只负责原生 Apple 授权 UI；不读取 Apple user 字段，也不持久化 Identity Token。
+/// 中文注释：只负责原生 Apple 授权 UI；交回 identityToken、authorizationCode 与 Apple user 标识，自己不持久化任何一样。
 @MainActor
 final class AuthenticationServicesAppleSignInAuthorizer:
     NSObject,
     AppleSignInAuthorizing,
     ASAuthorizationControllerDelegate,
     ASAuthorizationControllerPresentationContextProviding {
-    private var continuation: CheckedContinuation<String, any Error>?
+    private var continuation: CheckedContinuation<AppleSignInAuthorization, any Error>?
     private var authorizationController: ASAuthorizationController?
 
     nonisolated override init() {
         super.init()
     }
 
-    func authorize(nonce: String) async throws -> String {
+    func authorize(nonce: String) async throws -> AppleSignInAuthorization {
         guard Task.isCancelled == false else {
             throw AppleSignInAuthorizationError.cancelled
         }
@@ -74,7 +74,21 @@ final class AuthenticationServicesAppleSignInAuthorizer:
             )
             return
         }
-        self.resume(returning: identityToken)
+        guard let authorizationCodeData: Data = credential.authorizationCode,
+              let authorizationCode: String = String(
+                data: authorizationCodeData,
+                encoding: .utf8
+              ), authorizationCode.isEmpty == false else {
+            self.resume(throwing: AppleSignInAuthorizationError.missingAuthorizationCode)
+            return
+        }
+        self.resume(
+            returning: AppleSignInAuthorization(
+                identityToken: identityToken,
+                authorizationCode: authorizationCode,
+                userIdentifier: credential.user
+            )
+        )
     }
 
     func authorizationController(
@@ -115,15 +129,15 @@ final class AuthenticationServicesAppleSignInAuthorizer:
         return nil
     }
 
-    private func resume(returning identityToken: String) {
-        let continuation: CheckedContinuation<String, any Error>? = self.continuation
+    private func resume(returning authorization: AppleSignInAuthorization) {
+        let continuation: CheckedContinuation<AppleSignInAuthorization, any Error>? = self.continuation
         self.continuation = nil
         self.authorizationController = nil
-        continuation?.resume(returning: identityToken)
+        continuation?.resume(returning: authorization)
     }
 
     private func resume(throwing error: any Error) {
-        let continuation: CheckedContinuation<String, any Error>? = self.continuation
+        let continuation: CheckedContinuation<AppleSignInAuthorization, any Error>? = self.continuation
         self.continuation = nil
         self.authorizationController = nil
         continuation?.resume(throwing: error)

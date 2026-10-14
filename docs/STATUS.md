@@ -116,6 +116,8 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 删除来源连带删除的模拟器走查：左滑删除非内置来源与长按删除内置来源，历史、收藏、库页爱心随删除消失、随撤销回来，撤销后改回当前来源 | `BCA-DB-004` `BCA-DB-005` | required | approved | implemented | simulator-passed | c2b2437 | 2026-10-03 |
 | 续看位置同步到 iCloud：每部作品一条续看记录（云端 `HistoryEntry` 21 个字段，已部署到 Production）、本机账本对比找改动、来源先于历史下载、删除与恢复、退到后台时同步、云同步页第三行改为作品数 | `BCA-SYNC-009` | required | approved | implemented | full-suite-passed | 7102bba | 2026-10-04 |
 | 续看位置同步的模拟器走查（真实账号，Development 环境，单台设备）：迁移后正常启动、新增来源并产生一条视频历史、退到后台触发同步并上传、云同步页第三行显示作品数、来源已删除的历史不计入也不上传、删除历史后退到后台上传删除标记；两台设备互相接续与书的阅读位置未走到 | `BCA-SYNC-009` | required | approved | implemented | simulator-passed | 7102bba | 2026-10-04 |
+| 删除账号 App 侧（审核指南 5.1.1(v)；服务端 PortalCore 设计稿第 12 节第 5 步）：设置页入口与说明页、重新验证 Apple 后调删号接口、本机与 iCloud 清理、换访客身份、待清 iCloud 标记、凭据状态监听、三语文案 | 未编号 | required | pending-review | implemented | targeted-passed | fda3bb6 | 2026-10-15 |
+| 删号后恢复购买：恢复路径按 appAccountToken 分批、外来 token 遇 accountMismatch 跳过，购买页已拥有判断放宽（删除账号设计第九节，D4 在 App 侧的落点） | 未编号 | required | draft | not-started | not-run | fda3bb6 | 2026-10-15 |
 
 ## 5. 文档架构迁移
 

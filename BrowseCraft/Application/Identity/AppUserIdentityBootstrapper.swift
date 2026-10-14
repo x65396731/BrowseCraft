@@ -1,7 +1,7 @@
 import Foundation
 
 /// 中文注释：启动时先固定 Keychain 身份，再幂等补齐数据库用户；数据库失败后可在下次启动重试。
-struct AppUserIdentityBootstrapper {
+struct AppUserIdentityBootstrapper: GuestIdentityProvisioning {
     private let identityStore: any AppUserIdentityStoring
     private let appUserRepository: any AppUserRepository
     private let makeUserID: () -> UUID
@@ -31,6 +31,15 @@ struct AppUserIdentityBootstrapper {
         }
 
         try self.ensureAppUserExists(userID: userID)
+        return userID
+    }
+
+    /// 中文注释：删除账号后换身份（docs/design/Account-Deletion-Design.md 第五节）：与首次安装相同，
+    /// 先补数据库用户行，再写 Keychain——写 Keychain 失败时数据库里多一行空用户，无害。
+    func provisionNewGuest() throws -> UUID {
+        let userID: UUID = self.makeUserID()
+        try self.ensureAppUserExists(userID: userID)
+        try self.identityStore.saveUserID(userID)
         return userID
     }
 

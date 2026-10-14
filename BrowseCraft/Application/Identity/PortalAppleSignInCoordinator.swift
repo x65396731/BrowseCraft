@@ -14,6 +14,7 @@ actor PortalAppleSignInCoordinator {
     private let appleAuthorizer: any AppleSignInAuthorizing
     private let identityAdoptionCoordinator: AppUserIdentityAdoptionCoordinator
     private let identityOriginStore: any PortalAppUserIdentityOriginStoring
+    private let appleUserIdentifierStore: (any AppleUserIdentifierStoring)?
     private var operationInFlight: Bool = false
 
     init(
@@ -21,13 +22,15 @@ actor PortalAppleSignInCoordinator {
         portalSessionCoordinator: PortalSessionCoordinator,
         appleAuthorizer: any AppleSignInAuthorizing,
         identityAdoptionCoordinator: AppUserIdentityAdoptionCoordinator,
-        identityOriginStore: any PortalAppUserIdentityOriginStoring
+        identityOriginStore: any PortalAppUserIdentityOriginStoring,
+        appleUserIdentifierStore: (any AppleUserIdentifierStoring)? = nil
     ) {
         self.activeAppUser = activeAppUser
         self.portalSessionCoordinator = portalSessionCoordinator
         self.appleAuthorizer = appleAuthorizer
         self.identityAdoptionCoordinator = identityAdoptionCoordinator
         self.identityOriginStore = identityOriginStore
+        self.appleUserIdentifierStore = appleUserIdentifierStore
     }
 
     @discardableResult
@@ -43,12 +46,12 @@ actor PortalAppleSignInCoordinator {
         let startingUserID: UUID = self.activeAppUser.currentUserID
         let challenge: PortalAppleAuthenticationChallenge =
             try await self.portalSessionCoordinator.issueAppleChallenge()
-        let identityToken: String = try await self.appleAuthorizer.authorize(
+        let authorization: AppleSignInAuthorization = try await self.appleAuthorizer.authorize(
             nonce: challenge.nonce
         )
         let credentials: PortalAuthenticationTokens =
             try await self.portalSessionCoordinator.authenticateWithApple(
-                identityToken: identityToken,
+                identityToken: authorization.identityToken,
                 nonce: challenge.nonce
             )
 
@@ -113,6 +116,12 @@ actor PortalAppleSignInCoordinator {
                 )
                 throw PortalAppleSignInError.sessionInstallationFailed
             }
+        }
+        // 中文注释：登录成功后才记 Apple user 标识，供启动与回到前台时查凭据状态（删除账号设计第十节）；写失败只是少一次检查。
+        do {
+            try self.appleUserIdentifierStore?.saveUserIdentifier(authorization.userIdentifier)
+        } catch {
+            PortalSessionDiagnostics.error("event=apple-user-identifier-save result=failed")
         }
         return credentials.userID
     }

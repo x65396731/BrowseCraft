@@ -108,6 +108,30 @@ struct AppUserIdentityBootstrapperTests {
         #expect(retryRepository.user?.id == userID.uuidString)
     }
 
+    /// docs/design/Account-Deletion-Design.md 第五节：删号后换一个全新的访客 UUID，覆盖 Keychain 里旧的那个；先补用户行再写 Keychain。
+    @Test func provisionNewGuestReplacesStoredIdentityWithFreshUser() throws {
+        let deletedUserID: UUID = UUID()
+        let guestUserID: UUID = UUID()
+        let events: IdentityBootstrapEvents = IdentityBootstrapEvents()
+        let identityStore: MockAppUserIdentityStore = MockAppUserIdentityStore(
+            userID: deletedUserID,
+            events: events
+        )
+        let repository: IdentityBootstrapAppUserRepository = IdentityBootstrapAppUserRepository(events: events)
+        let bootstrapper: AppUserIdentityBootstrapper = AppUserIdentityBootstrapper(
+            identityStore: identityStore,
+            appUserRepository: repository,
+            makeUserID: { guestUserID }
+        )
+
+        let result: UUID = try bootstrapper.provisionNewGuest()
+
+        #expect(result == guestUserID)
+        #expect(identityStore.userID == guestUserID)
+        #expect(repository.user?.id == guestUserID.uuidString)
+        #expect(events.values == ["database.save", "keychain.save"])
+    }
+
     @Test func activeUserStorePublishesUpdatedIdentity() throws {
         let first: UUID = try #require(UUID(uuidString: "7e46f2b0-0516-474c-bad6-8561999f71e4"))
         let second: UUID = try #require(UUID(uuidString: "cc439366-c780-42e5-bc99-cfa2a8cabbd9"))

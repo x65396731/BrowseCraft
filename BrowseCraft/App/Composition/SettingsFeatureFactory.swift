@@ -20,6 +20,7 @@ struct SettingsFeatureFactory {
     private let portalSessionCoordinator: PortalSessionCoordinator
     private let pushDeviceRegistrationCoordinator: PushDeviceRegistrationCoordinator
     private let coinWalletStore: CoinWalletStore
+    private let accountDeletionCoordinator: AccountDeletionCoordinator
 
     init(
         database: AppDatabase,
@@ -38,7 +39,8 @@ struct SettingsFeatureFactory {
         portalAppleSignInCoordinator: PortalAppleSignInCoordinator,
         portalSessionCoordinator: PortalSessionCoordinator,
         pushDeviceRegistrationCoordinator: PushDeviceRegistrationCoordinator,
-        coinWalletStore: CoinWalletStore
+        coinWalletStore: CoinWalletStore,
+        accountDeletionCoordinator: AccountDeletionCoordinator
     ) {
         self.database = database
         self.activeAppUser = activeAppUser
@@ -58,6 +60,7 @@ struct SettingsFeatureFactory {
         self.portalSessionCoordinator = portalSessionCoordinator
         self.pushDeviceRegistrationCoordinator = pushDeviceRegistrationCoordinator
         self.coinWalletStore = coinWalletStore
+        self.accountDeletionCoordinator = accountDeletionCoordinator
     }
 
     @MainActor
@@ -89,7 +92,19 @@ struct SettingsFeatureFactory {
             portalSessionSnapshotAction: {
                 return await self.portalSessionCoordinator.snapshot()
             },
-            coinWalletStore: self.coinWalletStore
+            coinWalletStore: self.coinWalletStore,
+            accountDeletionViewModelFactory: {
+                let coinWalletStore: CoinWalletStore = self.coinWalletStore
+                let coordinator: AccountDeletionCoordinator = self.accountDeletionCoordinator
+                return AccountDeletionViewModel(
+                    coinBalance: {
+                        return coinWalletStore.balance
+                    },
+                    deleteAction: {
+                        return try await coordinator.deleteAccount()
+                    }
+                )
+            }
         )
     }
 

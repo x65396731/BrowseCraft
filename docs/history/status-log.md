@@ -1204,3 +1204,10 @@ B2 之后再回到 [读书 kind App 侧接线](Book-Kind-Wiring-Design.md) 的�
 服务端前置同日上线：fwq `BC-IMPL-170`（发布带 `?section=`，缺省 `internal`）、PortalCore 迁移 v17（原 15 个公共来源回填 `internal`）
 与 `CATALOG_INTERNAL_USER_IDS` 白名单（接口实测白名单账号 15 条、其余 0 条）。App 侧按合同 2.2 / 2.4 / 2.5 实施；示例站尚未发布，
 所以此刻 Release 的「发现」是空状态，Debug 白名单账号只看到「内部测试」。按 `AGENTS.md` 的会话纪律未 build、未跑测试。
+
+## 2026-10-15 删除账号 App 侧
+
+`STATUS.md` 第 4 节「删除账号 App 侧」一行：设计 draft → pending-review，实施 not-started → implemented，验证 not-run → targeted-passed。
+用户同日裁定 build 与跑本次新增单测：xcodebuild build-for-testing 通过；只跑新增的五个测试类（删号协调器、本机删除存储、凭据撤销、
+失败文案映射、身份引导器）全过；APIKit 新增删号接口测试全过；文档闸门、架构边界与本地化闸门全过。真机验证由用户做，服务端尚未部署、
+Sign in with Apple Key 未配。恢复购买的本地筛选（设计第九节）按用户裁定另立一行，未做。

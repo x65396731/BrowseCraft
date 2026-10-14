@@ -356,6 +356,21 @@ actor PortalSessionCoordinator {
         }
     }
 
+    /// 中文注释：删除账号成功后调用（docs/design/Account-Deletion-Design.md 第五节）：服务端会话已随账号删除，
+    /// 不再调注销接口，只清本机 Keychain 会话与当前活动用户的权益缓存。幂等，换身份前后各调一次，
+    /// 后一次让快照里的 userID 跟上新的访客身份。
+    func discardLocalSessionForDeletedAccount() {
+        self.pendingIdentityTransition = nil
+        self.operationInFlight = false
+        do {
+            try self.clearLocalSession()
+        } catch {
+            PortalSessionDiagnostics.error(
+                "event=account-deletion-session-clear result=failed"
+            )
+        }
+    }
+
     private func refreshIfNeeded() async {
         guard self.operationInFlight == false,
               var session: PortalSessionPersistence = self.persistedSession else {
@@ -531,3 +546,5 @@ enum PortalSessionDiagnostics {
 
 /// 中文注释：任务提交只借用已存在的 `validAccessToken()`，不新增凭据通道（`BC-PREFLIGHT-045`）。
 extension PortalSessionCoordinator: PortalAccessTokenProviding {}
+
+extension PortalSessionCoordinator: AccountDeletionSessionControlling {}

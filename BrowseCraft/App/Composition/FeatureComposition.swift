@@ -97,7 +97,8 @@ final class FeatureComposition {
             portalAppleSignInCoordinator: account.portalAppleSignInCoordinator,
             portalSessionCoordinator: account.portalSessionCoordinator,
             pushDeviceRegistrationCoordinator: account.pushDeviceRegistrationCoordinator,
-            coinWalletStore: account.coinWalletStore
+            coinWalletStore: account.coinWalletStore,
+            accountDeletionCoordinator: account.accountDeletionCoordinator
         )
         self.settingsFeatureFactory = settingsFeatureFactory
         self.settingsViewModel = settingsFeatureFactory.makeViewModel()

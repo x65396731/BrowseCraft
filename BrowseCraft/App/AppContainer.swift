@@ -16,6 +16,7 @@ final class AppContainer {
     private let features: FeatureComposition
     private let imageCacheConfigurator: ImageCacheConfigurator
     private var storeKitTransactionUpdatesTask: Task<Void, Never>?
+    private var accountDeletionNetworkRetryTask: Task<Void, Never>?
 
     #if DEBUG
     /// 中文注释：显式 runtime audit 入口（BC-EVIDENCE-076.2）；无 launch environment 时完全惰性。
@@ -85,6 +86,7 @@ final class AppContainer {
 
     deinit {
         self.storeKitTransactionUpdatesTask?.cancel()
+        self.accountDeletionNetworkRetryTask?.cancel()
     }
 
     @MainActor
@@ -105,6 +107,10 @@ final class AppContainer {
         async let portalSession: Void = self.account.portalSessionCoordinator.start()
         async let cloudAccount: Void = self.account.startCloudAccountMonitoring()
         _ = await (portalSession, cloudAccount)
+        // 中文注释：删号没做完的收尾（docs/design/Account-Deletion-Design.md 第七节）与 Apple 凭据状态（第十节）都要等会话就绪。
+        await self.account.accountDeletionCoordinator.resumePendingWork()
+        await self.account.appleCredentialRevocationCoordinator.start()
+        self.startAccountDeletionNetworkRetry()
         // 中文注释：会话就绪后再对齐推送设备注册；无 token 或未登录时它自行跳过。
         await self.account.pushDeviceRegistrationCoordinator.synchronizeRegistration()
         // 设计书 30.6：启动是四个余额刷新时机之一。
@@ -120,9 +126,29 @@ final class AppContainer {
         async let portalSession: Void = self.account.portalSessionCoordinator.handleAppBecameActive()
         async let cloudSync: Void = self.account.cloudSyncCoordinator.requestSync(trigger: .foreground)
         _ = await (portalSession, cloudSync)
+        await self.account.accountDeletionCoordinator.resumePendingWork()
+        await self.account.appleCredentialRevocationCoordinator.checkCredentialState()
         await self.account.pushDeviceRegistrationCoordinator.synchronizeRegistration()
         // 设计书 30.6：回到前台刷新余额。
         await self.account.coinWalletStore.refresh()
+    }
+
+    /// 中文注释：网络从不可用恢复为可用时续做删号收尾（待清 iCloud 最常见的成因是断网）。没有待办时只读一次 UserDefaults。
+    private func startAccountDeletionNetworkRetry() {
+        guard self.accountDeletionNetworkRetryTask == nil else {
+            return
+        }
+        let updates: AsyncStream<Bool> = NWPathPortalNetworkAvailabilityMonitor().statusUpdates()
+        let coordinator: AccountDeletionCoordinator = self.account.accountDeletionCoordinator
+        self.accountDeletionNetworkRetryTask = Task { @MainActor in
+            var previousAvailability: Bool?
+            for await isAvailable: Bool in updates {
+                if previousAvailability == false, isAvailable {
+                    await coordinator.resumePendingWork()
+                }
+                previousAvailability = isAvailable
+            }
+        }
     }
 
     /// 中文注释：退到后台时同步一次（`docs/design/History-Resume-Sync-Design.md` 第三节）：刚看到哪里要在放下这台设备时就传上去，

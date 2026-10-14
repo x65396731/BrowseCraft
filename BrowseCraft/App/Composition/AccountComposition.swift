@@ -25,6 +25,10 @@ final class AccountComposition {
     let coinWalletStore: CoinWalletStore
     let appUserIdentityAdoptionCoordinator: AppUserIdentityAdoptionCoordinator
     let storeKitPurchaseIdentityAuthorizer: StoreKitPurchaseIdentityAuthorizer
+    /// 删除账号（docs/design/Account-Deletion-Design.md）：流程、收尾与未完成工作的续做。
+    let accountDeletionCoordinator: AccountDeletionCoordinator
+    /// TN3194：Apple 凭据被撤销时按退出登录处理。
+    let appleCredentialRevocationCoordinator: AppleCredentialRevocationCoordinator
     let sourceRepository: SourceRepository
     let favoriteRepository: FavoriteRepository
     /// 中文注释：仅供组合根构造依赖后台 API 的 Feature 客户端；APIKit 不出组合根。
@@ -78,19 +82,21 @@ final class AccountComposition {
         #else
         let pushEnvironment: PushEnvironment = .production
         #endif
-        self.pushDeviceRegistrationCoordinator = PushDeviceRegistrationCoordinator(
+        let pushDeviceRegistrationCoordinator: PushDeviceRegistrationCoordinator = PushDeviceRegistrationCoordinator(
             environment: pushEnvironment,
             registrar: APIKitPushDeviceClient(
                 api: PortalPushAPI(client: portalAPIClient)
             ),
             sessionCoordinator: portalSessionCoordinator
         )
-        self.coinWalletStore = CoinWalletStore(
+        self.pushDeviceRegistrationCoordinator = pushDeviceRegistrationCoordinator
+        let coinWalletStore: CoinWalletStore = CoinWalletStore(
             accountClient: APIKitPortalAccountService(api: PortalAccountAPI(client: portalAPIClient)),
             accessTokenProvider: portalSessionCoordinator,
             appUserRepository: appUserRepository,
             activeAppUser: activeAppUserStore
         )
+        self.coinWalletStore = coinWalletStore
 
         // 中文注释：关联前查 Portal 会话（备忘录「未登录不能创建或关联 AppUserIdentity/default」）；
         // 仓储与来源标记只用于判定云端记录是不是本机早先未登录时写上去的临时 UUID。
@@ -201,18 +207,64 @@ final class AccountComposition {
             )
         self.appUserIdentityAdoptionCoordinator = appUserIdentityAdoptionCoordinator
 
+        let appleAuthorizer: AuthenticationServicesAppleSignInAuthorizer =
+            AuthenticationServicesAppleSignInAuthorizer()
+        let appleUserIdentifierStore: KeychainAppleUserIdentifierStore = KeychainAppleUserIdentifierStore()
         let portalAppleSignInCoordinator: PortalAppleSignInCoordinator = PortalAppleSignInCoordinator(
             activeAppUser: activeAppUserStore,
             portalSessionCoordinator: portalSessionCoordinator,
-            appleAuthorizer: AuthenticationServicesAppleSignInAuthorizer(),
+            appleAuthorizer: appleAuthorizer,
             identityAdoptionCoordinator: appUserIdentityAdoptionCoordinator,
-            identityOriginStore: portalIdentityOriginStore
+            identityOriginStore: portalIdentityOriginStore,
+            appleUserIdentifierStore: appleUserIdentifierStore
         )
         self.portalAppleSignInCoordinator = portalAppleSignInCoordinator
         self.storeKitPurchaseIdentityAuthorizer = StoreKitPurchaseIdentityAuthorizer(
             activeAppUser: activeAppUserStore,
             portalSessionCoordinator: portalSessionCoordinator,
             appleSignInCoordinator: portalAppleSignInCoordinator
+        )
+
+        self.accountDeletionCoordinator = AccountDeletionCoordinator(
+            activeAppUser: activeAppUserStore,
+            session: portalSessionCoordinator,
+            appleAuthorizer: appleAuthorizer,
+            deletionService: APIKitPortalAccountDeletionService(
+                api: PortalAccountAPI(client: portalAPIClient)
+            ),
+            guestProvisioner: AppUserIdentityBootstrapper(
+                identityStore: appUserIdentityStore,
+                appUserRepository: appUserRepository
+            ),
+            localDataStore: GRDBAccountDeletionLocalDataStore(database: database),
+            bookFileStore: try? FileSystemBookFileStore.makeDefault(),
+            cloudEraser: CloudKitAccountDeletionCloudEraser(
+                containerIdentifier: cloudKitContainerIdentifier
+            ),
+            pendingWorkStore: UserDefaultsAccountDeletionPendingWorkStore(),
+            appleUserIdentifierStore: appleUserIdentifierStore,
+            prepareForIdentityChange: {
+                await cloudSyncCoordinator.prepareForIdentityChange()
+            },
+            didResetIdentity: {
+                // 设计书 30.6：换了身份就清掉余额缓存；同步门禁按新的访客身份重判（会拒绝，访客不能同步）。
+                coinWalletStore.markSignedOut()
+                await cloudSyncCoordinator.identityAssociationDidChange()
+            }
+        )
+        self.appleCredentialRevocationCoordinator = AppleCredentialRevocationCoordinator(
+            checker: AuthenticationServicesAppleCredentialStateChecker(),
+            userIdentifierStore: appleUserIdentifierStore,
+            isSignedIn: {
+                let status: PortalSessionStatus = await portalSessionCoordinator.snapshot().status
+                return status == .authenticated || status == .temporarilyUnavailable
+            },
+            signOut: {
+                // 与设置页「退出登录」同一条路径（SettingsFeatureFactory），只清会话、不删数据。
+                await pushDeviceRegistrationCoordinator.unregisterCurrentDevice()
+                try? await portalSessionCoordinator.logout()
+                coinWalletStore.markSignedOut()
+            }
         )
     }
 

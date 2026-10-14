@@ -53,6 +53,8 @@ final class SettingsViewModel {
     private let portalSessionSnapshotAction: () async -> PortalSessionSnapshot?
     /// 设计书第 30 节：账号区显示 coin 余额；nil 即未接线（测试替身）。
     let coinWalletStore: CoinWalletStore?
+    /// 删除账号页（docs/design/Account-Deletion-Design.md）；nil 即未接线，设置页不显示入口。
+    private let accountDeletionViewModelFactory: (@MainActor () -> AccountDeletionViewModel)?
 
     init(
         imageCacheManager: any ImageCacheManaging,
@@ -65,7 +67,8 @@ final class SettingsViewModel {
         portalSessionSnapshotAction: @escaping () async -> PortalSessionSnapshot? = {
             return nil
         },
-        coinWalletStore: CoinWalletStore? = nil
+        coinWalletStore: CoinWalletStore? = nil,
+        accountDeletionViewModelFactory: (@MainActor () -> AccountDeletionViewModel)? = nil
     ) {
         self.imageCacheManager = imageCacheManager
         self.purchaseCoordinator = purchaseCoordinator
@@ -74,8 +77,18 @@ final class SettingsViewModel {
         self.portalSignOutAction = portalSignOutAction
         self.portalSessionSnapshotAction = portalSessionSnapshotAction
         self.coinWalletStore = coinWalletStore
+        self.accountDeletionViewModelFactory = accountDeletionViewModelFactory
         self.imageCacheSettings = ImageCacheSettings.load()
         self.diagnosticCode = diagnosticIdentityStore.identity.diagnosticCode
+    }
+
+    var canDeleteAccount: Bool {
+        return self.isPortalAuthenticated && self.accountDeletionViewModelFactory != nil
+    }
+
+    @MainActor
+    func makeAccountDeletionViewModel() -> AccountDeletionViewModel? {
+        return self.accountDeletionViewModelFactory?()
     }
 
     @MainActor

@@ -15,6 +15,7 @@ struct SettingsView: View {
 
     @State private var isShowingInAppPurchase: Bool = false
     @State private var isConfirmingSignOut: Bool = false
+    @State private var accountDeletionViewModel: AccountDeletionViewModel?
     /// 刚复制的是哪一行；说明换成「已复制」约 2 秒后恢复。
     @State private var copiedField: CopiedField?
     #if BROWSECRAFT_AD_TEST_TOOLS
@@ -89,11 +90,21 @@ struct SettingsView: View {
                                 .padding(.horizontal, 20)
                                 .padding(.top, 24)
                         }
+                        if self.viewModel.canDeleteAccount {
+                            self.deleteAccountButton
+                                .padding(.horizontal, 20)
+                                .padding(.top, 8)
+                        }
                     }
                     .padding(.bottom, 24)
                 }
                 .background(CatalogPalette.pageBackground)
                 .toolbar(.hidden, for: .navigationBar)
+                .navigationDestination(isPresented: self.accountDeletionPresentedBinding) {
+                    if let accountDeletionViewModel: AccountDeletionViewModel = self.accountDeletionViewModel {
+                        AccountDeletionView(viewModel: accountDeletionViewModel)
+                    }
+                }
                 // 中文注释：打开内购页时藏底栏。这条必须挂在 NavigationStack 里的根页上、且不显式写 `.visible`：
                 // 挂在栈外面会盖过推入页（coin 记录页）自己的 `.toolbar(.hidden, for: .tabBar)`，底栏藏不掉（模拟器走查）。
                 .toolbar(self.isShowingInAppPurchase ? .hidden : .automatic, for: .tabBar)
@@ -381,6 +392,37 @@ struct SettingsView: View {
         )
         .buttonStyle(.plain)
         .disabled(self.viewModel.isPortalAccountActionInFlight)
+    }
+
+    /// 删除账号：退出登录卡片下的一行次级红字，只在已登录时显示，点了推入说明页（docs/design/Account-Deletion-Design.md 第二节）。
+    private var deleteAccountButton: some View {
+        Button(
+            action: {
+                self.accountDeletionViewModel = self.viewModel.makeAccountDeletionViewModel()
+            },
+            label: {
+                Text(NSLocalizedString("account_deletion_entry", comment: "删除账号"))
+                    .font(.subheadline)
+                    .foregroundStyle(CatalogPalette.destructive)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+        )
+        .buttonStyle(.plain)
+        .disabled(self.viewModel.isPortalAccountActionInFlight)
+    }
+
+    private var accountDeletionPresentedBinding: Binding<Bool> {
+        return Binding<Bool>(
+            get: {
+                return self.accountDeletionViewModel != nil
+            },
+            set: { newValue in
+                if newValue == false {
+                    self.accountDeletionViewModel = nil
+                }
+            }
+        )
     }
 
     // MARK: - 动作
