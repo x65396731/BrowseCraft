@@ -1211,3 +1211,10 @@ B2 之后再回到 [读书 kind App 侧接线](Book-Kind-Wiring-Design.md) 的�
 用户同日裁定 build 与跑本次新增单测：xcodebuild build-for-testing 通过；只跑新增的五个测试类（删号协调器、本机删除存储、凭据撤销、
 失败文案映射、身份引导器）全过；APIKit 新增删号接口测试全过；文档闸门、架构边界与本地化闸门全过。真机验证由用户做，服务端尚未部署、
 Sign in with Apple Key 未配。恢复购买的本地筛选（设计第九节）按用户裁定另立一行，未做。
+
+`STATUS.md` 第 4 节「删号后恢复购买」一行：设计 draft → pending-review，实施 not-started → in-progress，检查点 fda3bb6 → a06be2d。
+用户同日要求在删号会话里接着做；设计第九节写成三小节（恢复按 token 分批、购买页放宽、交易更新路径不改）。
+同一行随后：实施 in-progress → implemented，验证 not-run → targeted-passed。新增 `StoreKitRestoreBatchPlanner`（恢复按 token 分批、外来批遇
+accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢复路径改用它；购买页已拥有统一引导恢复、购买后外来 token 交服务端判定、
+恢复后「属于别的账号」只计未被认领的；构建通过，分批器新增 5 例过；文档、架构边界、本地化闸门过。真机与 Sandbox 恢复由用户做。
+

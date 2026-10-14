@@ -194,9 +194,11 @@ final class InAppPurchaseStore {
                     "event=purchase-preflight-blocked " +
                         "reason=already-owned productID=\(plan.productID)"
                 )
-                self.status = appAccountToken == authorizedUserID
-                    ? .alreadyPurchased(title: plan.title)
-                    : .transactionIdentityMismatch(title: plan.title)
+                // 中文注释：这个 App Store 账户已经买过：不论记在哪个账号名下都引导去「恢复购买」——
+                // 原账号已删除时恢复会把它认领到当前账号（docs/design/Account-Deletion-Design.md 第 9.2 节）。
+                self.status = appAccountToken == nil
+                    ? .transactionIdentityMismatch(title: plan.title)
+                    : .alreadyPurchased(title: plan.title)
                 return
             case .unverified:
                 IAPDiagnostics.error(
@@ -235,7 +237,8 @@ final class InAppPurchaseStore {
 
                     self.storeKitOwnedProductIDs.insert(plan.productID)
                     self.unverifiedStoreKitProductIDs.remove(plan.productID)
-                    guard transaction.appAccountToken == authorizedUserID else {
+                    // 中文注释：外来 token（非消耗型重买时 App Store 交回原交易）不在本地拦截，交服务端判定（第 9.2 节）。
+                    guard transaction.appAccountToken != nil else {
                         self.status = .transactionIdentityMismatch(title: plan.title)
                         return
                     }
@@ -507,8 +510,10 @@ final class InAppPurchaseStore {
                     continue
                 }
 
+                // 中文注释：外来 token 的购买已被当前账号认领（服务端权益里有它）就不算别人的（第 9.1 节）。
                 if let userID,
-                   transaction.appAccountToken != userID {
+                   transaction.appAccountToken != userID,
+                   self.portalEntitledProductIDs.contains(transaction.productID) == false {
                     hasIdentityMismatch = true
                 }
                 ownedProductIDs.insert(transaction.productID)

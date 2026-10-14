@@ -268,7 +268,6 @@ final class SettingsViewModel {
         var unverifiedCount: Int = 0
         var unsupportedProductCount: Int = 0
         var revokedCount: Int = 0
-        var identityMismatchCount: Int = 0
         for await verification in StoreKit.Transaction.currentEntitlements {
             try Task.checkCancellation()
             guard case .verified(let transaction) = verification else {
@@ -285,15 +284,6 @@ final class SettingsViewModel {
                 revokedCount += 1
                 continue
             }
-            do {
-                try self.requireStoreKitTransactionOwner(
-                    transaction,
-                    userID: authorizedUserID
-                )
-            } catch is StoreKitTransactionIdentityError {
-                identityMismatchCount += 1
-                continue
-            }
 
             restorableTransactions.append(
                 RestorableStoreKitTransaction(
@@ -306,28 +296,41 @@ final class SettingsViewModel {
                 )
             )
         }
-        IAPDiagnostics.notice(
-            "event=restore-entitlements-collected " +
-                "acceptedCount=\(restorableTransactions.count) " +
-                "unverifiedCount=\(unverifiedCount) " +
-                "unsupportedProductCount=\(unsupportedProductCount) " +
-                "revokedCount=\(revokedCount) " +
-                "identityMismatchCount=\(identityMismatchCount)"
-        )
 
         restorableTransactions.sort { lhs, rhs in
             return lhs.transaction.purchaseDate < rhs.transaction.purchaseDate
         }
+        // 中文注释：按 appAccountToken 分批（docs/design/Account-Deletion-Design.md 第 9.1 节）：外来 token 的交易
+        // 只有在原账号已删除时服务端才放行，被判属于仍存在的账号时跳过该批，不连累本账号的恢复。
+        let restorePlan: StoreKitRestoreBatchPlanner.Plan<RestorableStoreKitTransaction> =
+            StoreKitRestoreBatchPlanner.plan(
+                restorableTransactions,
+                userID: authorizedUserID,
+                token: { candidate in
+                    return candidate.transaction.appAccountToken
+                }
+            )
+        IAPDiagnostics.notice(
+            "event=restore-entitlements-collected " +
+                "acceptedCount=\(restorableTransactions.count) " +
+                "batchCount=\(restorePlan.batches.count) " +
+                "hasOwnBatch=\(restorePlan.startsWithOwnBatch) " +
+                "missingTokenCount=\(restorePlan.missingTokenCount) " +
+                "unverifiedCount=\(unverifiedCount) " +
+                "unsupportedProductCount=\(unsupportedProductCount) " +
+                "revokedCount=\(revokedCount)"
+        )
 
         try await self.purchaseCoordinator.validateAuthorizedUser(authorizedUserID)
+        let submittable: [RestorableStoreKitTransaction] = restorePlan.batches.flatMap { $0 }
         guard let environment: PortalPurchaseEnvironment =
-            restorableTransactions.first?.environment else {
+            submittable.first?.environment else {
             IAPDiagnostics.notice(
                 "event=restore-completed outcome=no-restorable-transactions"
             )
             return nil
         }
-        guard restorableTransactions.allSatisfy({ candidate in
+        guard submittable.allSatisfy({ candidate in
             candidate.environment == environment
         }) else {
             IAPDiagnostics.error(
@@ -337,51 +340,42 @@ final class SettingsViewModel {
                 .snapshotContractMismatch
         }
 
-        let activeProductIDs: Set<String> = try await self.purchaseCoordinator.restore(
-            userID: authorizedUserID,
-            environment: environment,
-            signedTransactions: restorableTransactions.map(\.signedTransaction),
-            transactions: restorableTransactions.map { candidate in
-                self.snapshot(
-                    transaction: candidate.transaction,
-                    environment: candidate.environment
+        let purchaseCoordinator: PortalPurchaseCoordinator = self.purchaseCoordinator
+        let outcome: StoreKitRestoreBatchPlanner.Outcome = try await StoreKitRestoreBatchPlanner.run(
+            restorePlan,
+            submit: { batch in
+                return try await purchaseCoordinator.restore(
+                    userID: authorizedUserID,
+                    environment: environment,
+                    signedTransactions: batch.map(\.signedTransaction),
+                    transactions: batch.map { candidate in
+                        self.snapshot(
+                            transaction: candidate.transaction,
+                            environment: candidate.environment
+                        )
+                    }
                 )
+            },
+            isForeignOwnerRejection: { error in
+                guard let serviceError: PortalIAPServiceError = error as? PortalIAPServiceError else {
+                    return false
+                }
+                return serviceError == .accountMismatch || serviceError == .transactionAlreadyClaimed
             }
         )
-        for candidate: RestorableStoreKitTransaction in restorableTransactions {
-            await candidate.transaction.finish()
+        for index: Int in outcome.submittedBatchIndexes {
+            for candidate: RestorableStoreKitTransaction in restorePlan.batches[index] {
+                await candidate.transaction.finish()
+            }
         }
         IAPDiagnostics.notice(
             "event=restore-completed " +
                 "environment=\(environment.rawValue) " +
-                "transactionCount=\(restorableTransactions.count) " +
-                "activeProductCount=\(activeProductIDs.count)"
+                "submittedBatchCount=\(outcome.submittedBatchIndexes.count) " +
+                "foreignTransactionCount=\(outcome.foreignItemCount) " +
+                "activeProductCount=\(outcome.activeProductIDs?.count ?? 0)"
         )
-        return activeProductIDs
-    }
-
-    private func requireStoreKitTransactionOwner(
-        _ transaction: StoreKit.Transaction,
-        userID: UUID
-    ) throws {
-        guard let appAccountToken: UUID = transaction.appAccountToken else {
-            IAPDiagnostics.error(
-                "event=transaction-owner-check-failed " +
-                    "reason=app-account-token-missing " +
-                    "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id))"
-            )
-            throw StoreKitTransactionIdentityError.missingAppAccountToken
-        }
-        guard appAccountToken == userID else {
-            IAPDiagnostics.error(
-                "event=transaction-owner-check-failed " +
-                    "reason=app-account-token-mismatch " +
-                    "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id)) " +
-                    "expectedUserHash=\(IAPDiagnostics.hash(userID)) " +
-                    "actualUserHash=\(IAPDiagnostics.hash(appAccountToken))"
-            )
-            throw StoreKitTransactionIdentityError.accountMismatch
-        }
+        return outcome.activeProductIDs
     }
 
     private func snapshot(

@@ -74,9 +74,9 @@
 
 ## 六、iCloud 清理
 
-### 6.1 归属判定（与服务端设计稿第 7 节的差异）
+### 6.1 归属判定
 
-服务端设计稿与任务说明写的是「删 zone `BrowseCraftSync` 中 `userID` 等于被删 UUID 的记录」。核对代码：
+服务端设计稿第 7 节最初写的是「删 zone `BrowseCraftSync` 中 `userID` 等于被删 UUID 的记录」，已按本节改正。核对代码：
 云端 `Source` / `FavoriteItem` / `HistoryEntry` 记录**没有 userID 字段**（`CloudKitRecordMapper` 写入的字段里没有它，
 记录名也只由来源 ID、条目 ID 等算出），App 读回时把本地活动用户填进去。同一个 iCloud 账户只承载一个业务账号：
 `AppUserIdentity/default` 记着它，同步前 `CloudSyncCoordinator` 按本机关联证明核对活动用户与之相同才放行（`BCA-SYNC-004`）。
@@ -149,13 +149,38 @@ App 区分不了「没登录 iCloud」和「关了本 App 的 iCloud」（账户
 
 ## 九、恢复购买的本地筛选
 
-D4 依赖服务端放行「appAccountToken 指向的账号已不存在」的交易。核对 App：恢复购买在本地就把 appAccountToken 不等于当前账号的交易筛掉了
-（`SettingsViewModel` 的恢复路径，计入 identityMismatchCount），购买页的已拥有判断与 `PortalPurchaseCoordinator` 的提交路径也按同一条件拒绝。
-不改这些，删号后在新账号点「恢复购买」找不回任何东西，说明页第 3 组的承诺不成立。
-服务端的批量校验遇到「token 指向的账号仍然存在」的交易会整批拒绝，所以 App 侧不能简单地把外来 token 的交易并进同一批。
+D4 依赖服务端放行「appAccountToken 指向的账号已不存在」的交易（PortalCore 删号设计稿第 6.2 节与第 14 节第 3、4 条；
+购买、更新、恢复三条路径共用同一个权益刷新接口，例外对三条都生效）。App 原先在本地就按 appAccountToken 等于当前账号筛交易，
+删号后在新账号点「恢复购买」找不回任何东西。服务端的批量校验遇到「token 指向的账号仍然存在」的交易会整批拒绝，
+所以 App 侧不能把外来 token 的交易并进本账号那一批。用户裁定（2026-10-15）送审前做完，做法如下。
 
-用户裁定（2026-10-15）：另立一项单独做，送审前完成——恢复购买按 appAccountToken 分批提交，本账号一批、每个外来 token 各一批，
-外来批遇 accountMismatch 跳过（那个账号仍然存在）；购买页的已拥有判断同步放宽。本文其余各节不依赖它，说明页照 D4 写「可恢复」。
+### 9.1 恢复购买
+
+`SettingsViewModel` 的恢复路径收齐可恢复的已验证交易后，交给 `StoreKitRestoreBatchPlanner` 分批：
+
+| 批 | 内容 | 失败时 |
+| --- | --- | --- |
+| 本账号批 | appAccountToken 等于当前账号的交易 | 照旧整体报错 |
+| 外来批（每个 token 一批） | appAccountToken 是别的 UUID 的交易 | 服务端回 `IAP_ACCOUNT_MISMATCH`（那个账号仍然存在）或 `IAP_TRANSACTION_ALREADY_CLAIMED`（已被另一个账号认领）时跳过该批，计入「属于别的账号」；其他错误照旧整体报错 |
+| 不提交 | 没有 appAccountToken 的交易 | 计入「属于别的账号」 |
+
+先提交本账号批，再逐个提交外来批；只 finish 成功提交的交易。服务端每次回的都是当前账号的完整权益，取最后一次成功的结果。
+所有批都不同环境时照旧拒绝（同一次恢复只认一个 StoreKit 环境）。
+
+恢复后购买页提示「部分购买属于另一个账号」的判据，从「存在外来 token 的已拥有交易」改为「存在外来 token、且该商品不在服务端回的权益里的已拥有交易」——
+被新账号认领成功的旧账号购买不再算作别人的。
+
+### 9.2 购买页
+
+- 购买前发现该商品已被这个 App Store 账户拥有：不论交易的 token 是不是当前账号，都提示「已经购买过，请用『恢复购买』同步权益」；
+  没有 token 的仍提示没有绑定到当前账号。旧账号已删除时，恢复购买按 9.1 认领；旧账号仍在时，恢复后提示属于另一个账号。
+- 购买完成后 StoreKit 交回的交易若带外来 token（非消耗型重买时 App Store 交回原交易），不在本地拦截，提交给服务端判定；
+  `PortalPurchaseCoordinator` 的购买提交只要求 token 存在。
+
+### 9.3 不改的路径
+
+交易更新监听（`AppContainer` 收到的 StoreKit 交易更新，经 `PortalPurchaseCoordinator` 的更新提交）仍要求 token 等于当前账号：
+被认领的旧账号交易发生退款时，服务端经 App Store 服务器通知自行处理（服务端设计稿第 14 节第 3 条），App 不必为它多发请求。
 
 ## 十、Apple 凭据状态
 

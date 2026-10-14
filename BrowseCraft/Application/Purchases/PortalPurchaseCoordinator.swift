@@ -51,7 +51,9 @@ actor PortalPurchaseCoordinator {
         expectedProductID: String
     ) async throws -> Set<String> {
         let userID: UUID = self.activeAppUser.currentUserID
-        try self.requireOwner(transaction, userID: userID)
+        // 中文注释：购买提交只要求 token 存在；外来 token 是否属于已删除的账号由服务端判定
+        // （docs/design/Account-Deletion-Design.md 第 9.2 节）。
+        try self.requireOwner(transaction, userID: userID, allowsForeignToken: true)
         guard transaction.productID == expectedProductID else {
             throw StoreKitPortalPurchaseSubmissionError.transactionProductMismatch
         }
@@ -121,12 +123,13 @@ actor PortalPurchaseCoordinator {
 
     private func requireOwner(
         _ transaction: StoreTransactionSnapshot,
-        userID: UUID
+        userID: UUID,
+        allowsForeignToken: Bool = false
     ) throws {
         guard let appAccountToken: UUID = transaction.appAccountToken else {
             throw StoreKitTransactionIdentityError.missingAppAccountToken
         }
-        guard appAccountToken == userID else {
+        guard allowsForeignToken || appAccountToken == userID else {
             throw StoreKitTransactionIdentityError.accountMismatch
         }
     }
