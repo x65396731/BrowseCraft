@@ -66,6 +66,7 @@
 "video_preflight_submitted" = "Generation task submitted";
 "video_preflight_reused" = "Rule already exists";
 "video_preflight_reused_detail" = "%@ was generated earlier. The rule is in the catalog under “My generations”; add it from there.";
+"video_preflight_reused_charged" = "Using this ready-made rule cost %d coins.";
 "video_preflight_submit_auth_required" = "Sign in to submit a generation task.";
 "video_preflight_submit_active_job_limit" = "You already have the maximum number of active generation tasks. Wait for one to finish.";
 "video_preflight_submit_failed" = "Submission failed (%@). Please try again later.";
@@ -531,6 +532,7 @@
 "coin_ledger_reason_generation_hard" = "Rule generation (hard mode)";
 "coin_ledger_reason_zero_cost_refund" = "Refund for failed generation";
 "coin_ledger_reason_manual_adjustment" = "Support adjustment";
+"coin_ledger_reason_rule_reuse" = "Used a ready-made rule";
 
 /* 困难模式（设计书第 29 节，BC-ACQ-071） */
 "video_preflight_tier_title" = "Fetch mode";
@@ -657,7 +659,7 @@
 
 /* coin 记录页重设计（docs/design/Coin-Ledger-Page-Redesign-Design.md） */
 "coin_ledger_current_balance" = "Current Balance";
-"coin_ledger_pricing" = "Rule generation −%1$d · Hard mode −%2$d · Ad watched +%3$d";
+"coin_ledger_pricing" = "Rule generation −%1$d · Hard mode −%2$d · Ad watched +%3$d · Ready-made rule −%4$d";
 "coin_ledger_end" = "No earlier records";
 
 /* 缓存页重设计（docs/design/Cache-Page-Redesign-Design.md） */
@@ -751,8 +753,8 @@
 "generation_input_tier_hard" = "Hard";
 "generation_input_tier_price" = "%d coins";
 "generation_input_tier_normal_footer" = "Normal mode fetches pages on this device; switch to hard mode (cloud fetching) when the site rejects it.";
-"generation_input_balance_footer" = "Balance %d · Generation may fail, and coins are charged even when it fails.";
-"generation_input_balance_unknown_footer" = "Generation may fail, and coins are charged even when it fails.";
+"generation_input_balance_footer" = "Balance %1$d · Generation may fail, and coins are charged even when it fails. If this URL already has a ready-made rule, it is used directly for %2$d (free if you generated it within the last 7 days).";
+"generation_input_balance_unknown_footer" = "Generation may fail, and coins are charged even when it fails. If this URL already has a ready-made rule, it is used directly for %d (free if you generated it within the last 7 days).";
 "generation_input_slide_generate" = "Slide to generate · %d coins";
 "generation_input_slide_regenerate" = "Slide to regenerate · %d coins";
 "generation_input_slide_retry" = "Slide to try again · %d coins";

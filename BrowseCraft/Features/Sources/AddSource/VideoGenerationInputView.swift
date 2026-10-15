@@ -372,10 +372,7 @@ struct VideoGenerationInputView: View {
             StatusCardView(
                 systemImage: "checkmark.seal",
                 title: NSLocalizedString("video_preflight_reused", comment: ""),
-                message: String(
-                    format: NSLocalizedString("video_preflight_reused_detail", comment: ""),
-                    rule.catalogSource.name
-                )
+                message: Self.reusedMessage(rule)
             )
         case .authRequired:
             StatusCardView(
@@ -440,14 +437,37 @@ struct VideoGenerationInputView: View {
     }
 
     /// 中文注释：价格由服务端下发（`wallet.pricing`）；余额还没同步到时只说声明，不猜余额。没有钱包时整行不显示。
+    /// PortalCore 发布前检查清单第 9 项：命中现成规则时直接取用、只扣 `pricing.reuse`（本人 7 天内生成的不扣），提交前要说清。
     private var balanceFooter: String? {
         guard let wallet: CoinWalletStore = self.viewModel.coinWalletStore else {
             return nil
         }
         if let balance: Int = wallet.balance {
-            return String(format: NSLocalizedString("generation_input_balance_footer", comment: ""), balance)
+            return String(
+                format: NSLocalizedString("generation_input_balance_footer", comment: ""),
+                balance,
+                self.pricing.reuse
+            )
         }
-        return NSLocalizedString("generation_input_balance_unknown_footer", comment: "")
+        return String(
+            format: NSLocalizedString("generation_input_balance_unknown_footer", comment: ""),
+            self.pricing.reuse
+        )
+    }
+
+    /// 中文注释：取用扣了 coin 时在卡片里说出扣了多少；本人 7 天内免费取回（0 / 旧服务端不带）时只说规则在哪。
+    private static func reusedMessage(_ rule: VideoGenerationReusedRule) -> String {
+        let detail: String = String(
+            format: NSLocalizedString("video_preflight_reused_detail", comment: ""),
+            rule.catalogSource.name
+        )
+        guard let charged: Int = rule.coinCharged, charged > 0 else {
+            return detail
+        }
+        return detail + "\n" + String(
+            format: NSLocalizedString("video_preflight_reused_charged", comment: ""),
+            charged
+        )
     }
 
     /// 中文注释：`BC-ACQ-071` ①②：档位由用户自选；预检在手机上被挑战时照样可选困难模式，但要提示

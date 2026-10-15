@@ -11,6 +11,9 @@ struct VideoGenerationTaskReceipt: Hashable, Sendable {
 }
 
 /// 服务端直接返回的已生成规则（`200 cached`，`BC-PREFLIGHT-055`）：仍是密文，由用例走 Catalog 同一解密路径。
+///
+/// PortalCore 发布前检查清单第 9 项（2026-10-15）：命中不再一律免费——本人 7 天内生成的 0，现成的公共规则扣
+/// `pricing.reuse`。`coinCharged` 是这次扣的数，`coinBalance` / `coinRevision` 是扣后的余额（旧服务端不带则为 nil）。
 struct VideoGenerationReusedCatalogSource: Hashable, Sendable {
     let catalogSourceID: String
     let entryURL: String
@@ -18,6 +21,9 @@ struct VideoGenerationReusedCatalogSource: Hashable, Sendable {
     let baseURL: String
     let kind: String
     let encryptedRule: EncryptedCatalogRule
+    var coinCharged: Int? = nil
+    var coinBalance: Int? = nil
+    var coinRevision: Int? = nil
 }
 
 /// 任务客户端的两种成功结果：已排队，或复用库中规则。
@@ -26,11 +32,14 @@ enum VideoGenerationTaskCreation: Hashable, Sendable {
     case reused(VideoGenerationReusedCatalogSource)
 }
 
-/// 已解密、可直接走 `AddCatalogSourceUseCase` 的复用规则。
+/// 已解密、可直接走 `AddCatalogSourceUseCase` 的复用规则。扣费字段原样转自 `VideoGenerationReusedCatalogSource`。
 struct VideoGenerationReusedRule: Hashable, Sendable {
     let catalogSourceID: String
     let entryURL: String
     let catalogSource: CatalogSource
+    var coinCharged: Int? = nil
+    var coinBalance: Int? = nil
+    var coinRevision: Int? = nil
 }
 
 /// 任务创建的 typed 结果（`BC-PREFLIGHT-046`）。

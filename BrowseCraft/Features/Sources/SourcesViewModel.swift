@@ -442,13 +442,18 @@ final class SourcesViewModel {
             acquisitionTier: acquisitionTier
         )
         let hardMode: Bool = acquisitionTier == .hard
-        // 设计书 30.6：提交响应带扣后的余额；余额不足时服务端给的是当前余额，重新拉一次对齐。
+        // 设计书 30.6：提交响应（`202` 与 `200 cached`）带扣后的余额；余额不足时服务端给的是当前余额，重新拉一次对齐。
         switch outcome {
         case .submitted(let receipt):
             AppAnalytics.shared.logGenerationSubmitted(
                 sourceType: DiagnosticSourceType(generationKind: sourceKind), hardMode: hardMode
             )
             if let balance: Int = receipt.coinBalance, let revision: Int = receipt.coinRevision {
+                self.coinWalletStore?.apply(balance: balance, revision: revision)
+            }
+        case .reused(let rule):
+            // PortalCore 发布前检查清单第 9 项：取用现成的公共规则也扣 coin，响应带扣后的余额。
+            if let balance: Int = rule.coinBalance, let revision: Int = rule.coinRevision {
                 self.coinWalletStore?.apply(balance: balance, revision: revision)
             }
         case .insufficientCoins:

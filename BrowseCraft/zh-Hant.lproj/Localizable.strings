@@ -66,6 +66,7 @@
 "video_preflight_submitted" = "生成工作已提交";
 "video_preflight_reused" = "規則已存在";
 "video_preflight_reused_detail" = "%@ 先前已經生成過，規則已在目錄「我的生成」裡，可從那裡加入。";
+"video_preflight_reused_charged" = "取用現成規則扣了 %d coin。";
 "video_preflight_submit_auth_required" = "請先登入再提交生成工作。";
 "video_preflight_submit_active_job_limit" = "進行中的生成工作已達上限，請等它完成後再試。";
 "video_preflight_submit_failed" = "提交失敗（%@），請稍後再試。";
@@ -531,6 +532,7 @@
 "coin_ledger_reason_generation_hard" = "規則生成（困難模式）";
 "coin_ledger_reason_zero_cost_refund" = "生成失敗退回";
 "coin_ledger_reason_manual_adjustment" = "客服調整";
+"coin_ledger_reason_rule_reuse" = "取用現成規則";
 
 /* 困难模式（设计书第 29 节，BC-ACQ-071） */
 "video_preflight_tier_title" = "取頁方式";
@@ -657,7 +659,7 @@
 
 /* coin 记录页重设计（docs/design/Coin-Ledger-Page-Redesign-Design.md） */
 "coin_ledger_current_balance" = "目前餘額";
-"coin_ledger_pricing" = "規則生成 −%1$d · 困難模式 −%2$d · 看完廣告 +%3$d";
+"coin_ledger_pricing" = "規則生成 −%1$d · 困難模式 −%2$d · 看完廣告 +%3$d · 取用現成規則 −%4$d";
 "coin_ledger_end" = "沒有更早的紀錄了";
 
 /* 缓存页重设计（docs/design/Cache-Page-Redesign-Design.md） */
@@ -751,8 +753,8 @@
 "generation_input_tier_hard" = "困難";
 "generation_input_tier_price" = "%d coin";
 "generation_input_tier_normal_footer" = "普通模式在本機取頁；被網站拒絕時再換困難模式（經雲端取頁）。";
-"generation_input_balance_footer" = "目前餘額 %d · 生成可能失敗，失敗也會扣 coin。";
-"generation_input_balance_unknown_footer" = "生成可能失敗，失敗也會扣 coin。";
+"generation_input_balance_footer" = "目前餘額 %1$d · 生成可能失敗，失敗也會扣 coin。如果這個網址已有現成規則會直接取用，只扣 %2$d（自己 7 天內生成的不扣）。";
+"generation_input_balance_unknown_footer" = "生成可能失敗，失敗也會扣 coin。如果這個網址已有現成規則會直接取用，只扣 %d（自己 7 天內生成的不扣）。";
 "generation_input_slide_generate" = "滑動生成 · %d coin";
 "generation_input_slide_regenerate" = "滑動重新生成 · %d coin";
 "generation_input_slide_retry" = "滑動再試一次 · %d coin";

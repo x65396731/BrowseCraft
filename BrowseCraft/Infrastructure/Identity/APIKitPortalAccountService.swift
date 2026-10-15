@@ -19,7 +19,8 @@ struct APIKitPortalAccountService: PortalAccountFetching {
                 pricing: CoinPricing(
                     normal: response.pricing.normal,
                     hard: response.pricing.hard,
-                    adReward: response.pricing.adReward
+                    adReward: response.pricing.adReward,
+                    reuse: response.pricing.reuse ?? response.pricing.normal
                 )
             )
         }
@@ -57,6 +58,8 @@ struct APIKitPortalAccountService: PortalAccountFetching {
             return .zeroCostRefund
         case .manualAdjustment:
             return .manualAdjustment
+        case .ruleReuse:
+            return .ruleReuse
         case .unknown(let rawValue):
             return .unknown(rawValue)
         }

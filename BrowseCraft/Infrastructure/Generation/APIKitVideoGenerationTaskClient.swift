@@ -58,7 +58,8 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
             case .cached(let response):
                 PortalSessionDiagnostics.notice(
                     "event=request-success operation=rule-generation-submit " +
-                        "status=\(response.status) catalogSourceId=\(response.catalogSourceID)"
+                        "status=\(response.status) catalogSourceId=\(response.catalogSourceID) " +
+                        "coinCharged=\(response.coinCharged.map(String.init) ?? "-")"
                 )
                 return .reused(
                     VideoGenerationReusedCatalogSource(
@@ -72,7 +73,10 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
                             keyId: response.source.encryptedRule.keyID,
                             nonce: response.source.encryptedRule.nonce,
                             ciphertext: response.source.encryptedRule.ciphertext
-                        )
+                        ),
+                        coinCharged: response.coinCharged,
+                        coinBalance: response.coinBalance,
+                        coinRevision: response.coinRevision
                     )
                 )
             }

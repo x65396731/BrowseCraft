@@ -170,7 +170,8 @@ private struct CoinLedgerBalanceCard: View {
                 format: NSLocalizedString("coin_ledger_pricing", comment: "价格说明"),
                 self.pricing.normal,
                 self.pricing.hard,
-                self.pricing.adReward
+                self.pricing.adReward,
+                self.pricing.reuse
             ))
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -242,6 +243,8 @@ private struct CoinLedgerRow: View {
             return "person.fill"
         case .generationNormal, .generationHard:
             return "sparkles"
+        case .ruleReuse:
+            return "square.and.arrow.down"
         case .unknown:
             return "questionmark"
         }
@@ -262,6 +265,8 @@ private struct CoinLedgerRow: View {
             return NSLocalizedString("coin_ledger_reason_zero_cost_refund", comment: "零成本失败退回")
         case .manualAdjustment:
             return NSLocalizedString("coin_ledger_reason_manual_adjustment", comment: "客服调整")
+        case .ruleReuse:
+            return NSLocalizedString("coin_ledger_reason_rule_reuse", comment: "取用现成规则")
         case .unknown(let rawValue):
             return rawValue
         }

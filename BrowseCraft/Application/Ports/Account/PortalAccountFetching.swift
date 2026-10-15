@@ -13,8 +13,10 @@ struct CoinPricing: Hashable, Sendable {
     let normal: Int
     let hard: Int
     let adReward: Int
+    /// 提交时命中现成的公共规则、直接取用的价格（PortalCore 发布前检查清单第 9 项；旧服务端不下发时按普通价）。
+    var reuse: Int = 100
 
-    static let placeholder: CoinPricing = CoinPricing(normal: 100, hard: 300, adReward: 20)
+    static let placeholder: CoinPricing = CoinPricing(normal: 100, hard: 300, adReward: 20, reuse: 100)
 }
 
 enum PortalAccountClientError: Error, Hashable, Sendable {
@@ -40,6 +42,8 @@ enum CoinLedgerReason: Hashable, Sendable {
     case generationHard
     case zeroCostRefund
     case manualAdjustment
+    /// 取用现成的公共规则（PortalCore 2026-10-15 起）。
+    case ruleReuse
     case unknown(String)
 }
 
