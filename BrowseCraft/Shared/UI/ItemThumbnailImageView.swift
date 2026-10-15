@@ -138,22 +138,14 @@ struct ItemThumbnailImageView: View {
             return ["https:\(urlString)"]
         }
 
-        guard let url: URL = URL(string: urlString) else {
+        guard URL(string: urlString) != nil else {
             return []
         }
 
-        guard url.scheme?.lowercased() == "http",
-              var components: URLComponents = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            return [urlString]
-        }
-
-        components.scheme = "https"
-        guard let httpsURLString: String = components.url?.absoluteString,
-              httpsURLString != urlString else {
-            return [urlString]
-        }
-
-        return [httpsURLString, urlString]
+        // 中文注释：http 地址原样交给 `ImageRequestFactory`——那里统一升成 https，并按原地址判降级（`BCA-RUNTIME-011`）。
+        // 不在这里先升：先升会让工厂看到 https、照常带当前页面 Referer；而缩略图加载键不含 Referer，
+        // 后一个候选会被 Nuke 合并进前一个任务、拿到同一个 403（2026-10-15 umh5 真机日志）。
+        return [urlString]
     }
 
     @ViewBuilder

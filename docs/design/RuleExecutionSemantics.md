@@ -107,6 +107,9 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
   不再把当前页面作为默认 Referer——与浏览器默认 Referer 策略的降级语义一致（https → http 不带 Referer）。规则 `imageHeaders` / `imageRequest.headers`、调用方 `additionalHeaders` 显式给的 Referer 照旧；页面本身是 http 时不算降级。不按站点。
   依据：`oss.mkzcdn.com` 防盗链——`https://oss.mkzcdn.com/…` 不带 Referer 200、带 `https://umh5.com/…`（完整地址或只带源站根）403；网页上能显示正是因为降级不带。
   用例 `ImageRequestFactoryTests`（降级不带当前页面、规则 Referer 保留、http 页面不算降级）。
+  **2026-10-15 修订**（真机：漫画页恢复、预览图仍无）：`CoverImageView` / `ItemThumbnailImageView` 原先对 http 地址给两个候选「先自己升好的 https、再原地址」——
+  工厂看到的第一个候选已是 https，照常带当前页面 Referer 被 403；第二个候选经工厂升成同一个 https，而缩略图加载键不含 Referer，被 Nuke 合并进前一个任务、拿到同一个 403（真机日志：不带 Referer 的请求 0.1 ms 内即报 403）。
+  两个视图改为 http 地址原样交给工厂（只此一个候选），升级与降级判定只在 `ImageRequestFactory` 一处。
 同域的另外三条不在本文：kind 分流纪律 `BCA-RUNTIME-002` 与目录解码兼容硬约束 `BCA-RUNTIME-004`
 在 [Book-Kind-Wiring-Design.md](Book-Kind-Wiring-Design.md)，播放候选过滤 `BCA-RUNTIME-003` 在
 [RuntimeAdFilter-Design.md](RuntimeAdFilter-Design.md)。
