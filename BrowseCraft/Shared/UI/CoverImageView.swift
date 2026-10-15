@@ -36,7 +36,14 @@ struct CoverImageView: View {
 
     var body: some View {
         let urlCandidates: [String] = Self.urlCandidates(from: self.urlString)
-        let candidate: String? = Self.urlCandidate(at: self.candidateIndex, in: urlCandidates)
+        let attempts: [RemoteImageAttempt] = RemoteImageAttempt.attempts(
+            for: urlCandidates,
+            refererURLString: self.refererURLString
+        )
+        let attempt: RemoteImageAttempt? = attempts.indices.contains(self.candidateIndex)
+            ? attempts[self.candidateIndex]
+            : nil
+        let candidate: String? = attempt?.urlString
         Group {
             if let urlString: String = candidate,
                let request: ImageRequest = self.request {
@@ -66,21 +73,21 @@ struct CoverImageView: View {
                                     error: error,
                                     event: "cover-failure"
                                 )
-                                self.advanceToNextCandidateIfAvailable(candidateCount: urlCandidates.count)
+                                self.advanceToNextCandidateIfAvailable(candidateCount: attempts.count)
                             }
                     } else {
                         self.placeholder
                     }
                 }
-                .id(urlString)
+                .id(attempt)
             } else {
                 self.placeholder
             }
         }
         .measuringDisplaySize(into: self.$displaySize)
-        .task(id: self.requestIdentity(for: candidate)) {
+        .task(id: self.requestIdentity(for: attempt)) {
             // 中文注释：请求只在「地址 / Referer / 规则 / 显示尺寸」变化时构造一次，不在 body 里重复扫 Cookie 与合并请求头。
-            self.request = self.requestIdentity(for: candidate).flatMap { identity in
+            self.request = self.requestIdentity(for: attempt).flatMap { identity in
                 RemoteImageRequestBuilder.makeRequest(
                     identity,
                     browserRequestHeaderProvider: self.browserRequestHeaderProvider,
@@ -94,15 +101,16 @@ struct CoverImageView: View {
         }
     }
 
-    private func requestIdentity(for candidate: String?) -> RemoteImageRequestIdentity? {
-        guard let candidate else {
+    private func requestIdentity(for attempt: RemoteImageAttempt?) -> RemoteImageRequestIdentity? {
+        guard let attempt else {
             return nil
         }
         return RemoteImageRequestIdentity(
-            urlString: candidate,
+            urlString: attempt.urlString,
             refererURLString: self.refererURLString,
             requestConfig: self.requestConfig,
             additionalHeaders: nil,
+            omitPageReferer: attempt.omitPageReferer,
             displaySize: self.displaySize
         )
     }
@@ -111,14 +119,6 @@ struct CoverImageView: View {
         if self.candidateIndex + 1 < candidateCount {
             self.candidateIndex += 1
         }
-    }
-
-    private static func urlCandidate(at index: Int, in candidates: [String]) -> String? {
-        guard index >= 0, index < candidates.count else {
-            return nil
-        }
-
-        return candidates[index]
     }
 
     private static func urlCandidates(from urlString: String?) -> [String] {

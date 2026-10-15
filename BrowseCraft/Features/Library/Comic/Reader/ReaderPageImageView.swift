@@ -23,6 +23,8 @@ struct ReaderPageImageView: View {
     /// 阅读页是 `LazyVStack`，翻页时每次 `@Observable` 状态变化都让已实例化的页格重求 body，
     /// 之前每次都重新扫 Cookie 存储、合并三层请求头、写日志。与 `CoverImageView` 同一做法。
     @State private var request: ImageRequest?
+    /// 中文注释：`BCA-RUNTIME-011`——带当前页面 Referer 取失败后，不带 Referer 重试一次。
+    @State private var omitPageReferer: Bool = false
 
     init(
         resource: ReaderPageResource,
@@ -119,6 +121,10 @@ struct ReaderPageImageView: View {
                                 error: error,
                                 event: "reader-image-failure"
                             )
+                            // 中文注释：`BCA-RUNTIME-011`——先留错误，再不带当前页面 Referer 重试一次（只一次）。
+                            if self.omitPageReferer == false, self.refererURLString != nil {
+                                self.omitPageReferer = true
+                            }
                         }
                 } else {
                     self.loadingView
@@ -127,6 +133,7 @@ struct ReaderPageImageView: View {
             .frame(maxWidth: .infinity)
             .background(Color(.systemBackground))
             .accessibilityLabel("Page \(self.pageNumber)")
+            .id(self.omitPageReferer)
     }
 
     private func requestIdentity(pageURLString: String) -> ReaderImageRequestIdentity {
@@ -134,7 +141,8 @@ struct ReaderPageImageView: View {
             urlString: pageURLString,
             refererURLString: self.refererURLString,
             requestConfig: self.requestConfig,
-            additionalHeaders: self.additionalHeaders
+            additionalHeaders: self.additionalHeaders,
+            omitPageReferer: self.omitPageReferer
         )
     }
 
@@ -145,6 +153,7 @@ struct ReaderPageImageView: View {
             refererURLString: self.refererURLString,
             requestConfig: self.requestConfig,
             additionalHeaders: self.additionalHeaders,
+            omitPageReferer: self.omitPageReferer,
             browserRequestHeaderProvider: self.browserRequestHeaderProvider,
             systemCookieHeaderProvider: self.systemCookieHeaderProvider
         ) else {
@@ -201,6 +210,7 @@ private struct ReaderImageRequestIdentity: Hashable {
     let refererURLString: String?
     let requestConfig: RequestConfig?
     let additionalHeaders: [String: String]
+    let omitPageReferer: Bool
 }
 
 private struct ProtectedReaderPageImageView: View {

@@ -40,7 +40,14 @@ struct ItemThumbnailImageView: View {
     var body: some View {
         let urlCandidates: [String] = Self.urlCandidates(from: self.urlString)
             + (self.fallbackURLString == self.urlString ? [] : Self.urlCandidates(from: self.fallbackURLString))
-        let candidate: String? = Self.urlCandidate(at: self.candidateIndex, in: urlCandidates)
+        let attempts: [RemoteImageAttempt] = RemoteImageAttempt.attempts(
+            for: urlCandidates,
+            refererURLString: self.refererURLString
+        )
+        let attempt: RemoteImageAttempt? = attempts.indices.contains(self.candidateIndex)
+            ? attempts[self.candidateIndex]
+            : nil
+        let candidate: String? = attempt?.urlString
         Group {
             if let urlString: String = candidate,
                let request: ImageRequest = self.request {
@@ -71,22 +78,22 @@ struct ItemThumbnailImageView: View {
                                     error: error,
                                     event: "thumbnail-failure"
                                 )
-                                self.advanceToNextCandidateIfAvailable(candidateCount: urlCandidates.count)
+                                self.advanceToNextCandidateIfAvailable(candidateCount: attempts.count)
                             }
                     } else {
                         self.placeholder
                     }
                 }
                 .pipeline(self.thumbnailImagePipeline.pipeline)
-                .id(urlString)
+                .id(attempt)
             } else {
                 self.placeholder
             }
         }
         .measuringDisplaySize(into: self.$displaySize)
-        .task(id: self.requestIdentity(for: candidate)) {
+        .task(id: self.requestIdentity(for: attempt)) {
             // 中文注释：同 CoverImageView——请求只在标识变化时构造一次；缩略图池的缓存键与低优先级在 thumbnailRequest 里加。
-            self.request = self.requestIdentity(for: candidate).flatMap { identity in
+            self.request = self.requestIdentity(for: attempt).flatMap { identity in
                 RemoteImageRequestBuilder.makeRequest(
                     identity,
                     browserRequestHeaderProvider: self.browserRequestHeaderProvider,
@@ -101,15 +108,16 @@ struct ItemThumbnailImageView: View {
         }
     }
 
-    private func requestIdentity(for candidate: String?) -> RemoteImageRequestIdentity? {
-        guard let candidate else {
+    private func requestIdentity(for attempt: RemoteImageAttempt?) -> RemoteImageRequestIdentity? {
+        guard let attempt else {
             return nil
         }
         return RemoteImageRequestIdentity(
-            urlString: candidate,
+            urlString: attempt.urlString,
             refererURLString: self.refererURLString,
             requestConfig: self.requestConfig,
             additionalHeaders: nil,
+            omitPageReferer: attempt.omitPageReferer,
             displaySize: self.displaySize
         )
     }
@@ -118,14 +126,6 @@ struct ItemThumbnailImageView: View {
         if self.candidateIndex + 1 < candidateCount {
             self.candidateIndex += 1
         }
-    }
-
-    private static func urlCandidate(at index: Int, in candidates: [String]) -> String? {
-        guard index >= 0, index < candidates.count else {
-            return nil
-        }
-
-        return candidates[index]
     }
 
     private static func urlCandidates(from urlString: String?) -> [String] {

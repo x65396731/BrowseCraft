@@ -170,8 +170,8 @@ struct ImageRequestFactoryTests {
         )
     }
 
-    /// 中文注释：https 页面上的 http 图片，浏览器按降级不带 Referer；升成 https 后也不带当前页面（2026-10-15 umh5 防盗链）。
-    @Test func downgradedImageOmitsCurrentPageReferer() throws {
+    /// 中文注释：`BCA-RUNTIME-011`——默认按浏览器带当前页面 Referer（bhtv001 ← xz.kanrenao.cn 不带即 404），地址升成 https。
+    @Test func insecureImageKeepsPageRefererByDefault() throws {
         let imageRequest = try #require(
             ImageRequestFactory.makeRequest(
                 urlString: "http://oss.example/comic/page/1.jpg",
@@ -181,11 +181,25 @@ struct ImageRequestFactoryTests {
         let urlRequest = try #require(imageRequest.urlRequest)
 
         #expect(urlRequest.url?.absoluteString == "https://oss.example/comic/page/1.jpg")
+        #expect(urlRequest.value(forHTTPHeaderField: "Referer") == "https://current.example/chapter")
+    }
+
+    /// 中文注释：失败后的重试不带当前页面 Referer（umh5 ← oss.mkzcdn.com 带即 403）。
+    @Test func omitPageRefererDropsCurrentPageReferer() throws {
+        let imageRequest = try #require(
+            ImageRequestFactory.makeRequest(
+                urlString: "http://oss.example/comic/page/1.jpg",
+                refererURLString: "https://current.example/chapter",
+                omitPageReferer: true
+            )
+        )
+        let urlRequest = try #require(imageRequest.urlRequest)
+
         #expect(urlRequest.value(forHTTPHeaderField: "Referer") == nil)
     }
 
-    /// 中文注释：规则显式给的 Referer 不受降级语义影响。
-    @Test func downgradedImageKeepsRuleReferer() throws {
+    /// 中文注释：规则显式给的 Referer 不受重试开关影响。
+    @Test func omitPageRefererKeepsRuleReferer() throws {
         let requestConfig: RequestConfig = RequestConfig(
             scope: .image,
             mergePolicy: .mergeHeaders,
@@ -205,7 +219,8 @@ struct ImageRequestFactoryTests {
             ImageRequestFactory.makeRequest(
                 urlString: "http://oss.example/comic/page/1.jpg",
                 refererURLString: "https://current.example/chapter",
-                requestConfig: requestConfig
+                requestConfig: requestConfig,
+                omitPageReferer: true
             )
         )
         let urlRequest = try #require(imageRequest.urlRequest)
@@ -213,16 +228,34 @@ struct ImageRequestFactoryTests {
         #expect(urlRequest.value(forHTTPHeaderField: "Referer") == "https://rule.example/reader")
     }
 
-    /// 中文注释：页面本身是 http 时不算降级，照旧带当前页面。
-    @Test func insecurePageKeepsRefererForInsecureImage() throws {
-        let imageRequest = try #require(
-            ImageRequestFactory.makeRequest(
-                urlString: "http://oss.example/comic/page/1.jpg",
-                refererURLString: "http://current.example/chapter"
-            )
+    /// 中文注释：每个候选地址先带 Referer、再不带；没有当前页面时只留一次。
+    @Test func remoteImageAttemptsTryPageRefererFirst() {
+        let attempts: [RemoteImageAttempt] = RemoteImageAttempt.attempts(
+            for: ["https://a.example/1.jpg", "https://b.example/2.jpg"],
+            refererURLString: "https://site.example/detail"
         )
-        let urlRequest = try #require(imageRequest.urlRequest)
+        #expect(attempts == [
+            RemoteImageAttempt(urlString: "https://a.example/1.jpg", omitPageReferer: false),
+            RemoteImageAttempt(urlString: "https://a.example/1.jpg", omitPageReferer: true),
+            RemoteImageAttempt(urlString: "https://b.example/2.jpg", omitPageReferer: false),
+            RemoteImageAttempt(urlString: "https://b.example/2.jpg", omitPageReferer: true)
+        ])
+        #expect(
+            RemoteImageAttempt.attempts(for: ["https://a.example/1.jpg"], refererURLString: nil)
+                == [RemoteImageAttempt(urlString: "https://a.example/1.jpg", omitPageReferer: false)]
+        )
+    }
 
-        #expect(urlRequest.value(forHTTPHeaderField: "Referer") == "http://current.example/chapter")
+    /// 中文注释：缩略图键区分「带不带 Referer」，不带 Referer 的重试不会被 Nuke 合并进带 Referer 的任务。
+    @Test func itemThumbnailCacheKeySeparatesRefererPresence() throws {
+        let url: URL = try #require(URL(string: "https://image.example/item.jpg"))
+        var withReferer: URLRequest = URLRequest(url: url)
+        withReferer.setValue("https://site.example/detail-a", forHTTPHeaderField: "Referer")
+        let withoutReferer: URLRequest = URLRequest(url: url)
+
+        #expect(
+            ItemThumbnailImageCachePlugin.cacheKey(url: url, request: withReferer)
+                != ItemThumbnailImageCachePlugin.cacheKey(url: url, request: withoutReferer)
+        )
     }
 }

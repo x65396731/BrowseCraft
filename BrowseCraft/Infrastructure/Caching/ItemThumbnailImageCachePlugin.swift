@@ -52,7 +52,7 @@ final class ItemThumbnailImageCachePlugin: ImagePipelineDelegate, ItemThumbnailI
     // 只把 `cacheKey(url:request:)` 放进 `userInfo[.imageIdKey]`（见 `thumbnailRequest(from:)`），内存键与磁盘键仍由 Nuke
     // 按「imageId + 解码尺寸 + processors」组装，按尺寸各存一份。
 
-    /// 中文注释：图片身份：去掉 fragment 的地址 + Accept + Cookie 名集合。Referer 不进键（同一张图被多个详情页引用）；
+    /// 中文注释：图片身份：去掉 fragment 的地址 + Accept + Cookie 名集合 + 带不带 Referer。Referer 的值不进键（同一张图被多个详情页引用）；
     /// Cookie 只看名字——值进键的话站点会话 Cookie 一轮换，该站全部缩略图的内存与磁盘缓存一起失效。
     static func cacheKey(
         url: URL,
@@ -65,11 +65,15 @@ final class ItemThumbnailImageCachePlugin: ImagePipelineDelegate, ItemThumbnailI
         let cookieNames: String = Self.normalizedCookieNames(
             request?.value(forHTTPHeaderField: "Cookie")
         )
+        // 中文注释：`BCA-RUNTIME-011`——Referer 的值仍不进键，但「带不带」进键：不带 Referer 的重试与同一张图带 Referer 的
+        // 任务键相同时会被 Nuke 合并、拿到同一个 403（2026-10-15 umh5 真机日志）。
+        let refererPresence: String = request?.value(forHTTPHeaderField: "Referer") == nil ? "none" : "page"
         return [
             Constants.cacheKeyPrefix,
             urlKey,
             "accept=\(acceptHeader)",
-            "cookie=\(cookieNames)"
+            "cookie=\(cookieNames)",
+            "referer=\(refererPresence)"
         ].joined(separator: "|")
     }
 

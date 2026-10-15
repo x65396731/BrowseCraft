@@ -14,6 +14,7 @@ enum ImageRequestFactory {
         refererURLString: String? = nil,
         requestConfig: RequestConfig? = nil,
         additionalHeaders: [String: String]? = nil,
+        omitPageReferer: Bool = false,
         browserRequestHeaderProvider: any BrowserRequestHeaderProviding = EmptyBrowserRequestHeaderProvider(),
         systemCookieHeaderProvider: any SystemCookieHeaderProviding = EmptySystemCookieHeaderProvider()
     ) -> ImageRequest? {
@@ -25,22 +26,20 @@ enum ImageRequestFactory {
 
         var urlRequest: URLRequest = URLRequest(url: url)
         let refererURL: URL? = refererURLString.flatMap(URL.init(string:))
-        // 中文注释：页面是 https、规则给的图片原地址是 http 时，浏览器按降级不带 Referer（默认 Referer 策略）；
-        // 升成 https 之后照常带上当前页面会撞防盗链（2026-10-15 umh5：`oss.mkzcdn.com` 带 umh5 Referer 回 403、
-        // 不带回 200，网页上能显示正是因为降级不带）。只去掉「当前页面」这一份默认 Referer；规则
-        // `imageHeaders` / `imageRequest.headers` / 调用方显式给的 Referer 照旧。不按站点。
-        let downgradeOmitsReferer: Bool = parsedURL.scheme?.lowercased() == "http"
-            && refererURL?.scheme?.lowercased() == "https"
+        // 中文注释：`BCA-RUNTIME-011`——`omitPageReferer` 为真时不带「当前页面」这一份默认 Referer。调用方先按浏览器带着取，
+        // 失败（图片 4xx）再置真重试一次：有的图床要求本站 Referer（bhtv001 ← xz.kanrenao.cn，不带 404），
+        // 有的拒绝外站 Referer（umh5 ← oss.mkzcdn.com，带 403）。规则 `imageHeaders` / `imageRequest.headers` /
+        // 调用方 `additionalHeaders` 显式给的 Referer 照旧。不按站点。
         var headers: [String: String] = browserRequestHeaderProvider.defaultHeaders(
             for: url,
-            referer: downgradeOmitsReferer ? nil : refererURL,
+            referer: omitPageReferer ? nil : refererURL,
             includeOrigin: false
         )
         headers = RequestHeaderFields.applyingOverrides(requestConfig?.imageHeaders, to: headers)
         headers = RequestHeaderFields.applyingOverrides(requestConfig?.imageRequest?.headers, to: headers)
 
         if let refererURLString: String = refererURLString,
-           downgradeOmitsReferer == false,
+           omitPageReferer == false,
            headers["Referer"] == nil {
             headers["Referer"] = refererURLString
         }

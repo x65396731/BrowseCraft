@@ -14,6 +14,8 @@ struct RemoteImageRequestIdentity: Hashable {
     let refererURLString: String?
     let requestConfig: RequestConfig?
     let additionalHeaders: [String: String]?
+    /// 中文注释：`BCA-RUNTIME-011`——这一次不带当前页面 Referer（带着取失败后的重试）。
+    let omitPageReferer: Bool
     /// 中文注释：视图实际布局尺寸（pt），恒为正——见下面的可失败构造。
     let displaySize: CGSize
 
@@ -29,6 +31,7 @@ struct RemoteImageRequestIdentity: Hashable {
         refererURLString: String?,
         requestConfig: RequestConfig?,
         additionalHeaders: [String: String]?,
+        omitPageReferer: Bool = false,
         displaySize: CGSize
     ) {
         guard displaySize.width > 0, displaySize.height > 0 else {
@@ -38,6 +41,7 @@ struct RemoteImageRequestIdentity: Hashable {
         self.refererURLString = refererURLString
         self.requestConfig = requestConfig
         self.additionalHeaders = additionalHeaders
+        self.omitPageReferer = omitPageReferer
         self.displaySize = displaySize
     }
 
@@ -46,8 +50,26 @@ struct RemoteImageRequestIdentity: Hashable {
         hasher.combine(self.refererURLString)
         hasher.combine(self.requestConfig)
         hasher.combine(self.additionalHeaders)
+        hasher.combine(self.omitPageReferer)
         hasher.combine(self.displaySize.width)
         hasher.combine(self.displaySize.height)
+    }
+}
+
+/// 中文注释：`BCA-RUNTIME-011`——封面 / 缩略图对每个候选地址的尝试：先按浏览器带当前页面 Referer，
+/// 失败再不带 Referer 重试一次（没有当前页面时两次相同，只留一次）。
+struct RemoteImageAttempt: Hashable {
+    let urlString: String
+    let omitPageReferer: Bool
+
+    static func attempts(for urlStrings: [String], refererURLString: String?) -> [RemoteImageAttempt] {
+        return urlStrings.flatMap { urlString -> [RemoteImageAttempt] in
+            let withReferer: RemoteImageAttempt = RemoteImageAttempt(urlString: urlString, omitPageReferer: false)
+            guard refererURLString != nil else {
+                return [withReferer]
+            }
+            return [withReferer, RemoteImageAttempt(urlString: urlString, omitPageReferer: true)]
+        }
     }
 }
 
@@ -66,6 +88,7 @@ enum RemoteImageRequestBuilder {
             refererURLString: identity.refererURLString,
             requestConfig: identity.requestConfig,
             additionalHeaders: identity.additionalHeaders,
+            omitPageReferer: identity.omitPageReferer,
             browserRequestHeaderProvider: browserRequestHeaderProvider,
             systemCookieHeaderProvider: systemCookieHeaderProvider
         ) else {
