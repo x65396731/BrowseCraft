@@ -1247,3 +1247,6 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 （`completionNotes` 换成 `completionItems`，`AccountDeletionMessagingTests` 同步改断言）、三语 `Localizable.strings`（删号段替换，失败文案不动）。
 流程与 `AccountDeletionCoordinator` 不变。按 AGENTS.md 未 build、未跑测试；本地化键三语齐全与键集一致已用脚本核对，真机复看由用户做。
 - 实施、文档与测试断言一起提交为 `4131f24`；检查点由实施前的 HEAD `3925129` 改登记为 `4131f24`。
+
+2026-10-16 删除账号页重设计模拟器走查（用户要求自己看；iPhone 18 Pro / iOS 27.0，Debug 构建 69 秒）：说明页简体浅色、繁体深色（-AppleLanguages zh-Hant）与设计稿一致，
+确认框文案正确，「保留账号」返回设置页。为避免真删生产账号，未继续 Apple 验证，删除中遮罩与完成页未走查。`STATUS.md` 第 4 节新增一行 simulator-passed。
