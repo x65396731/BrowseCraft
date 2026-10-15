@@ -102,6 +102,11 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
 - 直接请求通道跟随重定向时，跳转目标是 `http://` 的一律升成 `https://` 再跟（`AlamofireHTTPClient.httpsUpgradingRedirector`，`HTTPSUpgrade.upgraded`），HTML 取页与 `loadData` 原始字节请求同一个重定向器；不开全局 ATS 例外。
   引用点：fwq `BC-BOOK-050`（sfacg 作品页 302 到 http 的移动站再 301 回 https，URLSession 在 http 那一跳被 ATS 拒，而规则生成引擎的客户端无 ATS 跟得过去）；与有声书 mp3 地址的处置同一纪律。
   本来就是 https 或不是 http(s) 的地址原样跟随。
+- `BCA-RUNTIME-011` **https 页面上的 http 图片不带当前页面 Referer**（2026-10-15，fwq 第七批真机抽验 umh5「列表缩略图、章节缩略图、漫画页都显示不出来」）：
+  图片地址仍按 `HTTPSUpgrade` 升成 https（`ImageRequestFactory.makeRequest`，图片请求唯一出口），但规则给的原地址是 `http://`、当前页面是 `https://` 时，
+  不再把当前页面作为默认 Referer——与浏览器默认 Referer 策略的降级语义一致（https → http 不带 Referer）。规则 `imageHeaders` / `imageRequest.headers`、调用方 `additionalHeaders` 显式给的 Referer 照旧；页面本身是 http 时不算降级。不按站点。
+  依据：`oss.mkzcdn.com` 防盗链——`https://oss.mkzcdn.com/…` 不带 Referer 200、带 `https://umh5.com/…`（完整地址或只带源站根）403；网页上能显示正是因为降级不带。
+  用例 `ImageRequestFactoryTests`（降级不带当前页面、规则 Referer 保留、http 页面不算降级）。
 同域的另外三条不在本文：kind 分流纪律 `BCA-RUNTIME-002` 与目录解码兼容硬约束 `BCA-RUNTIME-004`
 在 [Book-Kind-Wiring-Design.md](Book-Kind-Wiring-Design.md)，播放候选过滤 `BCA-RUNTIME-003` 在
 [RuntimeAdFilter-Design.md](RuntimeAdFilter-Design.md)。

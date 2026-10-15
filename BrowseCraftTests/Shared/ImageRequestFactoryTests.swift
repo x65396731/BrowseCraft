@@ -169,4 +169,60 @@ struct ImageRequestFactoryTests {
                 != ItemThumbnailImageCachePlugin.cacheKey(url: url, request: differentNamesRequest)
         )
     }
+
+    /// 中文注释：https 页面上的 http 图片，浏览器按降级不带 Referer；升成 https 后也不带当前页面（2026-10-15 umh5 防盗链）。
+    @Test func downgradedImageOmitsCurrentPageReferer() throws {
+        let imageRequest = try #require(
+            ImageRequestFactory.makeRequest(
+                urlString: "http://oss.example/comic/page/1.jpg",
+                refererURLString: "https://current.example/chapter"
+            )
+        )
+        let urlRequest = try #require(imageRequest.urlRequest)
+
+        #expect(urlRequest.url?.absoluteString == "https://oss.example/comic/page/1.jpg")
+        #expect(urlRequest.value(forHTTPHeaderField: "Referer") == nil)
+    }
+
+    /// 中文注释：规则显式给的 Referer 不受降级语义影响。
+    @Test func downgradedImageKeepsRuleReferer() throws {
+        let requestConfig: RequestConfig = RequestConfig(
+            scope: .image,
+            mergePolicy: .mergeHeaders,
+            method: nil,
+            headers: nil,
+            body: nil,
+            cookiePolicy: nil,
+            cookiePriority: nil,
+            cookieScope: nil,
+            charset: nil,
+            needsWebView: nil,
+            autoScroll: nil,
+            imageHeaders: ["Referer": "https://rule.example/reader"],
+            imageRequest: nil
+        )
+        let imageRequest = try #require(
+            ImageRequestFactory.makeRequest(
+                urlString: "http://oss.example/comic/page/1.jpg",
+                refererURLString: "https://current.example/chapter",
+                requestConfig: requestConfig
+            )
+        )
+        let urlRequest = try #require(imageRequest.urlRequest)
+
+        #expect(urlRequest.value(forHTTPHeaderField: "Referer") == "https://rule.example/reader")
+    }
+
+    /// 中文注释：页面本身是 http 时不算降级，照旧带当前页面。
+    @Test func insecurePageKeepsRefererForInsecureImage() throws {
+        let imageRequest = try #require(
+            ImageRequestFactory.makeRequest(
+                urlString: "http://oss.example/comic/page/1.jpg",
+                refererURLString: "http://current.example/chapter"
+            )
+        )
+        let urlRequest = try #require(imageRequest.urlRequest)
+
+        #expect(urlRequest.value(forHTTPHeaderField: "Referer") == "http://current.example/chapter")
+    }
 }
