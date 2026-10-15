@@ -38,7 +38,9 @@ struct ComicDetailHeaderSection: View {
                 urlString: self.viewModel.coverURLString,
                 refererURLString: self.viewModel.item.detailURL,
                 requestConfig: self.viewModel.detailCoverRequestConfig,
-                placeholderImageName: "ComicDetailPlaceholder"
+                placeholderImageName: "ComicDetailPlaceholder",
+                // 中文注释：作品页封面取不到时退回列表封面（2026-10-15 umh5：作品页规则取到推荐区另一部作品的图、403）。
+                fallbackURLString: self.viewModel.item.coverURL
             )
             .frame(width: Self.coverSize.width, height: Self.coverSize.height)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))

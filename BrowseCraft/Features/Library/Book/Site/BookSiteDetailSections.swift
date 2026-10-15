@@ -74,7 +74,8 @@ struct BookSiteDetailHeaderSection: View {
             urlString: self.viewModel.coverURLString,
             refererURLString: self.viewModel.item.detailURL,
             requestConfig: self.viewModel.coverRequestConfig,
-            placeholderImageName: "BookCoverPlaceholder"
+            placeholderImageName: "BookCoverPlaceholder",
+            fallbackURLString: self.viewModel.item.coverURL
         )
         .frame(width: width, height: height)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))

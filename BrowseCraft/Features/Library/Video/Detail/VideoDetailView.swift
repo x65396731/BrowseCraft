@@ -107,7 +107,8 @@ struct VideoDetailView: View {
                         urlString: self.viewModel.displayCoverURLString,
                         refererURLString: self.viewModel.item.detailURL,
                         requestConfig: self.viewModel.imageRequestConfig,
-                        placeholderImageName: nil
+                        placeholderImageName: nil,
+                        fallbackURLString: self.viewModel.item.coverURL
                     )
                     .scaledToFill()
                     .blur(radius: 30)
@@ -142,7 +143,8 @@ struct VideoDetailView: View {
                         urlString: self.viewModel.displayCoverURLString,
                         refererURLString: self.viewModel.item.detailURL,
                         requestConfig: self.viewModel.imageRequestConfig,
-                        placeholderImageName: "VideoDetailPlaceholder"
+                        placeholderImageName: "VideoDetailPlaceholder",
+                        fallbackURLString: self.viewModel.item.coverURL
                     )
                     .frame(width: Self.posterSize.width, height: Self.posterSize.height)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))

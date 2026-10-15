@@ -110,6 +110,7 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
   回归面（fwq `scripts/measure_downgraded_image_referer.py --probe`，https 页面上的 http 图片 37 站 / 47 组合）：两种都 200 34、只有不带才 200 2、只有带才 200 1、都失败 10（站点侧）——先带后不带同时满足三类。
   历史：两视图原先对 http 地址给「先自己升好的 https、再原地址」双候选（2026-07 RSS 时期），2026-09-21 工厂统一升级后两候选已相同，改为本条的 Referer 尝试序列。
   用例 `ImageRequestFactoryTests`（默认带当前页面、重试不带、规则 Referer 保留、尝试顺序、缓存键区分带不带 Referer）。
+  同日补：漫画 / 影视 / 书籍详情页头部封面把列表封面作为备用地址（`fallbackURLString`，`CoverImageView` 补同名参数）——作品页封面取不到（umh5：作品页规则取到推荐区另一部作品的图、403）时退回已显示过的列表封面，不再被占位图顶掉；尝试序列为「作品页封面带 / 不带 → 列表封面带 / 不带」。
 
 同域的另外三条不在本文：kind 分流纪律 `BCA-RUNTIME-002` 与目录解码兼容硬约束 `BCA-RUNTIME-004`
 在 [Book-Kind-Wiring-Design.md](Book-Kind-Wiring-Design.md)，播放候选过滤 `BCA-RUNTIME-003` 在
