@@ -65,6 +65,9 @@ SettingsCrashDiagnostics  3900      22x22      multi-scale-png
 SettingsDiagnosticCode    3100      22x22      multi-scale-png
 SettingsVersion           2500      22x22      multi-scale-png
 SettingsRate              2700      22x22      multi-scale-png
+# 2026-10-16 隐私权政策行：设置页剪影来自生成网格、没有隐私格，改由 SF Symbol hand.raised.fill 按同规格
+# （22/44/66、黑色剪影、高约占画布 85%）栅格化，模板渲染；三档合计 2,691 字节。
+SettingsPrivacy           2900      22x22      multi-scale-png
 
 # 2026-09-20 两处改动的理由：
 #

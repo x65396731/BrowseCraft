@@ -315,6 +315,26 @@ struct SettingsView: View {
             )
             .buttonStyle(SettingsRowButtonStyle())
 
+            SettingsRowSeparator()
+
+            // 中文注释：隐私权政策（审核指南 5.1.1(i)）：未登录也显示，用系统浏览器打开服务端页面。
+            Button(
+                action: {
+                    guard let privacyPolicyURL: URL = PortalAPIConfiguration.privacyPolicyURL else {
+                        return
+                    }
+                    self.openURL(privacyPolicyURL)
+                },
+                label: {
+                    SettingsRow(
+                        image: "SettingsPrivacy",
+                        title: NSLocalizedString("settings_privacy_policy", comment: "隐私权政策"),
+                        accessory: .chevron
+                    )
+                }
+            )
+            .buttonStyle(SettingsRowButtonStyle())
+
             // 中文注释：账号 ID 只在报给运营时用（运营据此在服务器上手动加减 coin），所以放在「关于」，
             // 只显示前 8 位，点一下复制完整 ID。
             if self.viewModel.isPortalAuthenticated,

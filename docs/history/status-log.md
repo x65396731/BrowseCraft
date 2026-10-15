@@ -1250,3 +1250,6 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 
 2026-10-16 删除账号页重设计模拟器走查（用户要求自己看；iPhone 18 Pro / iOS 27.0，Debug 构建 69 秒）：说明页简体浅色、繁体深色（-AppleLanguages zh-Hant）与设计稿一致，
 确认框文案正确，「保留账号」返回设置页。为避免真删生产账号，未继续 Apple 验证，删除中遮罩与完成页未走查。`STATUS.md` 第 4 节新增一行 simulator-passed。
+
+2026-10-16 隐私权政策：草稿 https://claude.ai/artifact/T1x64kd9T276QSEsicXAKA 经用户审定（去掉儿童条款里的「成人網站」、补「伺服器讀取網頁時不帶登入資訊」），PortalCore a77d69f 上 `GET /privacy`。
+设置页「关于」加一行打开该网址；`STATUS.md` 第 4 节新增一行 `implemented / not-run`，检查点先登记为实施前的 HEAD `a25fbae`。资产、架构边界、本地化闸门过。
