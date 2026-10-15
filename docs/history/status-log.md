@@ -1246,3 +1246,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 提交后改登记为实施提交。改 `AccountDeletionView`（三张卡、接下来三步、保留账号、完成页结果清单）、`AccountDeletionViewModel`
 （`completionNotes` 换成 `completionItems`，`AccountDeletionMessagingTests` 同步改断言）、三语 `Localizable.strings`（删号段替换，失败文案不动）。
 流程与 `AccountDeletionCoordinator` 不变。按 AGENTS.md 未 build、未跑测试；本地化键三语齐全与键集一致已用脚本核对，真机复看由用户做。
+- 实施、文档与测试断言一起提交为 `4131f24`；检查点由实施前的 HEAD `3925129` 改登记为 `4131f24`。
