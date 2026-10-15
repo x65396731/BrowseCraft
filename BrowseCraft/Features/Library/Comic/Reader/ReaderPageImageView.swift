@@ -97,6 +97,8 @@ struct ReaderPageImageView: View {
 
     @MainActor
     private func remoteImage(pageURLString: String, request: ImageRequest) -> some View {
+        // 中文注释：重试开关的 `.id` 只挂在里层图片上——挂在页格最外层会让 LazyVStack 里所有页格同 id（全是 false）。
+        ZStack {
             LazyImage(request: request) { state in
                 if let image = state.image {
                     // 中文注释：阅读页按图片真实宽高比排版，避免固定比例把特殊长条页压成窄条。
@@ -130,10 +132,11 @@ struct ReaderPageImageView: View {
                     self.loadingView
                 }
             }
-            .frame(maxWidth: .infinity)
-            .background(Color(.systemBackground))
-            .accessibilityLabel("Page \(self.pageNumber)")
             .id(self.omitPageReferer)
+        }
+        .frame(maxWidth: .infinity)
+        .background(Color(.systemBackground))
+        .accessibilityLabel("Page \(self.pageNumber)")
     }
 
     private func requestIdentity(pageURLString: String) -> ReaderImageRequestIdentity {

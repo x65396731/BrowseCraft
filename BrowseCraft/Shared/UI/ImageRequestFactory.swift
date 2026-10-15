@@ -72,7 +72,18 @@ enum ImageRequestFactory {
             ]
         )
 
-        return ImageRequest(urlRequest: urlRequest)
+        if omitPageReferer {
+            // 中文注释：Nuke 合并数据任务的键是「地址 + cachePolicy + allowsCellularAccess」，不看请求头也不看 `imageIdKey`；
+            // 不带 Referer 的重试与同一地址带 Referer 的任务同键会被合并、拿到同一个 403（2026-10-15 umh5 阅读页真机日志）。
+            // 重试换缓存策略单独成键，也不会读到本地缓存的失败响应。
+            urlRequest.cachePolicy = .reloadIgnoringLocalCacheData
+        }
+        var imageRequest: ImageRequest = ImageRequest(urlRequest: urlRequest)
+        if omitPageReferer {
+            // 中文注释：内存 / 磁盘缓存键也分开（`preferredImageId`），不带 Referer 取到的图不冒充带 Referer 的那份。
+            imageRequest.userInfo[.imageIdKey] = url.absoluteString + "#omit-page-referer"
+        }
+        return imageRequest
     }
 
     /// 中文注释：`BC-CATALOG-022`——图片加载失败必须留下**可区分**的结构化错误。

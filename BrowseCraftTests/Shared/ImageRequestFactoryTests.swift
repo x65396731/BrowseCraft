@@ -198,6 +198,27 @@ struct ImageRequestFactoryTests {
         #expect(urlRequest.value(forHTTPHeaderField: "Referer") == nil)
     }
 
+    /// 中文注释：不带 Referer 的重试单独成任务键（cachePolicy）与缓存键，不会被 Nuke 合并进同一地址带 Referer 的任务。
+    @Test func omitPageRefererUsesSeparateImageID() throws {
+        let withReferer = try #require(
+            ImageRequestFactory.makeRequest(
+                urlString: "https://oss.example/comic/page/1.jpg",
+                refererURLString: "https://current.example/chapter"
+            )
+        )
+        let retry = try #require(
+            ImageRequestFactory.makeRequest(
+                urlString: "https://oss.example/comic/page/1.jpg",
+                refererURLString: "https://current.example/chapter",
+                omitPageReferer: true
+            )
+        )
+
+        // 中文注释：Nuke 数据任务合并键含 cachePolicy——重试必须与带 Referer 的请求不同。
+        #expect(withReferer.urlRequest?.cachePolicy != retry.urlRequest?.cachePolicy)
+        #expect(retry.userInfo[.imageIdKey] as? String != withReferer.userInfo[.imageIdKey] as? String)
+    }
+
     /// 中文注释：规则显式给的 Referer 不受重试开关影响。
     @Test func omitPageRefererKeepsRuleReferer() throws {
         let requestConfig: RequestConfig = RequestConfig(
@@ -246,7 +267,7 @@ struct ImageRequestFactoryTests {
         )
     }
 
-    /// 中文注释：缩略图键区分「带不带 Referer」，不带 Referer 的重试不会被 Nuke 合并进带 Referer 的任务。
+    /// 中文注释：缩略图键区分「带不带 Referer」，不带 Referer 取到的图与带 Referer 的那份分开缓存。
     @Test func itemThumbnailCacheKeySeparatesRefererPresence() throws {
         let url: URL = try #require(URL(string: "https://image.example/item.jpg"))
         var withReferer: URLRequest = URLRequest(url: url)

@@ -105,7 +105,7 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
 - `BCA-RUNTIME-011` **图片先按浏览器带当前页面 Referer，失败再不带 Referer 重试一次**（2026-10-15，fwq 第七批真机抽验 umh5「列表缩略图、章节缩略图、漫画页都显示不出来」）：
   图片地址仍按 `HTTPSUpgrade` 升成 https（`ImageRequestFactory.makeRequest`，图片请求唯一出口）。调用方默认带当前页面 Referer（与浏览器一致）；图片加载失败时以 `omitPageReferer` 再取一次——
   封面 / 缩略图视图的尝试序列 `RemoteImageAttempt.attempts`（每个候选地址「带、不带」两次，没有当前页面时只一次），阅读页 `ReaderPageImageView` 失败后重试一次。
-  规则 `imageHeaders` / `imageRequest.headers`、调用方 `additionalHeaders` 显式给的 Referer 不受影响。缩略图加载键带上「带不带 Referer」（值仍不进键），避免重试被 Nuke 合并进带 Referer 的任务。不按站点。
+  规则 `imageHeaders` / `imageRequest.headers`、调用方 `additionalHeaders` 显式给的 Referer 不受影响。重试请求换 `cachePolicy = reloadIgnoringLocalCacheData`（Nuke 合并数据任务的键是「地址 + cachePolicy + allowsCellularAccess」，不看请求头与 `imageIdKey`，同键会被合并进带 Referer 的任务、拿到同一个 403），内存 / 磁盘缓存键也分开；阅读页重试的 `.id` 只挂在里层图片上（挂在页格外层会让 LazyVStack 各页同 id）。不按站点。
   依据：两类图床要求相反——`oss.mkzcdn.com` 带外站 Referer 403、不带 200（umh5、mhua5；内置浏览器里 umh5 自己的网页同样加载失败）；`xz.kanrenao.cn` 不带 404、带 200（bhtv001，浏览器里能加载）。
   回归面（fwq `scripts/measure_downgraded_image_referer.py --probe`，https 页面上的 http 图片 37 站 / 47 组合）：两种都 200 34、只有不带才 200 2、只有带才 200 1、都失败 10（站点侧）——先带后不带同时满足三类。
   历史：两视图原先对 http 地址给「先自己升好的 https、再原地址」双候选（2026-07 RSS 时期），2026-09-21 工厂统一升级后两候选已相同，改为本条的 Referer 尝试序列。

@@ -65,8 +65,8 @@ final class ItemThumbnailImageCachePlugin: ImagePipelineDelegate, ItemThumbnailI
         let cookieNames: String = Self.normalizedCookieNames(
             request?.value(forHTTPHeaderField: "Cookie")
         )
-        // 中文注释：`BCA-RUNTIME-011`——Referer 的值仍不进键，但「带不带」进键：不带 Referer 的重试与同一张图带 Referer 的
-        // 任务键相同时会被 Nuke 合并、拿到同一个 403（2026-10-15 umh5 真机日志）。
+        // 中文注释：`BCA-RUNTIME-011`——Referer 的值仍不进键，但「带不带」进键：不带 Referer 取到的图与带 Referer 的那份分开缓存。
+        // （数据任务合并另由 `ImageRequestFactory` 给重试换 cachePolicy 分开——Nuke 合并键不看 `imageIdKey`。）
         let refererPresence: String = request?.value(forHTTPHeaderField: "Referer") == nil ? "none" : "page"
         return [
             Constants.cacheKeyPrefix,
