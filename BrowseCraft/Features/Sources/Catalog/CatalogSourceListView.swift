@@ -1018,7 +1018,9 @@ enum VideoGenerationOutcomeText {
         "siteRejectedFetcher", "siteNotSupported", "siteUnreachable",
         "inputInvalid", "evidenceInsufficient", "temporaryFailure",
         // `BC-ACQ-072`：困难模式下云端对该站按最高档计费、产品不开这一档——下一步只能换站。
-        "hardModeSiteTooStrong"
+        "hardModeSiteTooStrong",
+        // 引擎 `BC-PROVIDER-040`：我们付费使用的上游服务额度用完——我们这边的问题，coin 已退，稍后重试。
+        "serviceQuotaExhausted"
     ]
     // `BC-PAGE-060` 的四种入口页拒因（服务端 `BC-PREFLIGHT-056` 2026-09-20 修订）并进这张表。
     // 不在表里的细分一律不显示，只留 `reason` 的通用文案——服务端先于 App 上线新值是常态。
