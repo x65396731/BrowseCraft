@@ -1240,3 +1240,9 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 `CoinWalletStore` 余额接口 401 时调用它，刷新成功重试一次、被拒则清余额并经 `didEndSession` 刷新设置页；构建通过，余额与会话协调器 17 例过；
 架构边界、本地化、文档闸门过。真机复看由用户做。
 
+
+2026-10-16 删除账号页重设计：设计稿 [删除账号页重设计](https://claude.ai/artifact/EQdkhkFug1fUxcppfGoxS9)（8 张画板）用户确认，三项待裁定全取推荐
+（页顶用图标不画插画、删除中不分步、已购项目不加退款链接）。`STATUS.md` 第 4 节新增一行 `implemented / not-run`，检查点先登记为实施前的 HEAD `3925129`，
+提交后改登记为实施提交。改 `AccountDeletionView`（三张卡、接下来三步、保留账号、完成页结果清单）、`AccountDeletionViewModel`
+（`completionNotes` 换成 `completionItems`，`AccountDeletionMessagingTests` 同步改断言）、三语 `Localizable.strings`（删号段替换，失败文案不动）。
+流程与 `AccountDeletionCoordinator` 不变。按 AGENTS.md 未 build、未跑测试；本地化键三语齐全与键集一致已用脚本核对，真机复看由用户做。

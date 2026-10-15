@@ -47,15 +47,20 @@ struct AccountDeletionMessagingTests {
     }
 
     @MainActor
-    @Test func completionNotesFollowOutcome() {
+    @Test func completionItemsFollowOutcome() {
         let clean: AccountDeletionOutcome = AccountDeletionOutcome(
             appleRevocationFailed: false, localCleanup: .done, cloudCleanup: .done
         )
         let messy: AccountDeletionOutcome = AccountDeletionOutcome(
             appleRevocationFailed: true, localCleanup: .reinstallRequired, cloudCleanup: .pending
         )
-        #expect(AccountDeletionViewModel.completionNotes(for: clean).isEmpty)
-        #expect(AccountDeletionViewModel.completionNotes(for: messy).count == 3)
+        let cleanItems: [AccountDeletionViewModel.CompletionItem] = AccountDeletionViewModel.completionItems(for: clean)
+        let messyItems: [AccountDeletionViewModel.CompletionItem] = AccountDeletionViewModel.completionItems(for: messy)
+        #expect(cleanItems.count == 4)
+        #expect(cleanItems.allSatisfy { $0.status == .done && $0.detail == nil })
+        #expect(messyItems.count == 4)
+        #expect(messyItems.map(\.status) == [.done, .needsAttention, .needsAttention, .waiting])
+        #expect(messyItems.dropFirst().allSatisfy { $0.detail != nil })
     }
 
     @MainActor

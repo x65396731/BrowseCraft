@@ -122,6 +122,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 购买页：StoreKit 拥有但未被当前账号认领的购买显示「需要恢复」而非「已购买」（删除账号设计第 9.2 节） | 未编号 | required | pending-review | implemented | targeted-passed | b0e2a0d | 2026-10-15 |
 | 账号接口回 401 时强制刷新会话：刷新被拒即回到未登录并刷新设置页，刷新成功则重试一次（删除账号设计第 7.1 节，另一台设备上的已删账号） | 未编号 | required | pending-review | implemented | targeted-passed | dda4378 | 2026-10-15 |
 | 删除账号的模拟器走查（iPhone 18 Pro，iOS 27.0，生产服务器真实账号）：入口、说明页显示余额、居中确认框、Apple 重新验证、不可取消遮罩、完成页；服务端账号与个人数据清空、254 个任务转挂占位用户、Apple 授权撤销成功；本机换访客身份、来源清空；iCloud 不可用时留待清标记并在启动与回到前台重试；重新登录为新账号且不发注册赠送；凭据检查不再误退。恢复购买因模拟器沙盒登录被系统拒绝未走到 | 未编号 | required | approved | implemented | simulator-passed | a8d9ccb | 2026-10-15 |
+| 删除账号页重设计（设计稿 2026-10-16 用户确认，删除账号设计第三、四、八节）：页顶删除色圆形图标 + 大标题；会删除 / 会保留 / 删除前请留意三张卡（32pt 图标块 + 标题 + 说明，coin 行尾删除色大数字），新增撤销 Apple 授权与「12 个月内同一 Apple ID 再登录不再送新账号 coin」两行；「接下来」三步事先说明 Apple 验证；「继续删除」+「保留账号」；进度遮罩补一句说明；完成页改为结果清单（账号与 coin、Apple 授权、本机、iCloud 四行，按 AccountDeletionOutcome 显示完成或附说明）；三语文案 | 未编号 | required | approved | implemented | not-run | 3925129 | 2026-10-16 |
 
 ## 5. 文档架构迁移
 

@@ -62,24 +62,84 @@ final class AccountDeletionViewModel {
         }
     }
 
-    /// 中文注释：完成页的附加说明，按需逐条显示（第八节表格的后三行）。
-    static func completionNotes(for outcome: AccountDeletionOutcome) -> [String] {
-        var notes: [String] = []
-        if outcome.appleRevocationFailed {
-            notes.append(NSLocalizedString("account_deletion_done_revoke_failed", comment: "Apple 撤销失败时的手动停用路径"))
+    /// 中文注释：完成页结果清单的一项。done 打绿勾；needsAttention 要用户自己动手；waiting 由 App 稍后自动续做。
+    struct CompletionItem: Equatable {
+        enum Status: Equatable {
+            case done
+            case needsAttention
+            case waiting
         }
+
+        let title: String
+        let status: Status
+        let statusText: String
+        let detail: String?
+    }
+
+    /// 中文注释：完成页的结果清单（第八节表格的后三行逐项落到这里）：服务端删除总是完成；
+    /// Apple 授权、本机数据、iCloud 数据按 `AccountDeletionOutcome` 显示完成或附上说明。
+    static func completionItems(for outcome: AccountDeletionOutcome) -> [CompletionItem] {
+        let cleared: String = NSLocalizedString("account_deletion_done_status_cleared", comment: "已清除")
+        let actionNeeded: String = NSLocalizedString("account_deletion_done_status_action_needed", comment: "需要你处理")
+        var items: [CompletionItem] = [
+            CompletionItem(
+                title: NSLocalizedString("account_deletion_done_item_account", comment: "账号与 coin"),
+                status: .done,
+                statusText: NSLocalizedString("account_deletion_done_status_deleted", comment: "已删除"),
+                detail: nil
+            )
+        ]
+
+        let appleTitle: String = NSLocalizedString("account_deletion_row_apple_title", comment: "通过 Apple 登录的授权")
+        if outcome.appleRevocationFailed {
+            items.append(CompletionItem(
+                title: appleTitle,
+                status: .needsAttention,
+                statusText: actionNeeded,
+                detail: NSLocalizedString("account_deletion_done_revoke_failed", comment: "Apple 撤销失败时的手动停用路径")
+            ))
+        } else {
+            items.append(CompletionItem(
+                title: appleTitle,
+                status: .done,
+                statusText: NSLocalizedString("account_deletion_done_status_revoked", comment: "已撤销"),
+                detail: nil
+            ))
+        }
+
+        let localTitle: String = NSLocalizedString("account_deletion_done_item_local", comment: "本机数据")
         switch outcome.localCleanup {
         case .done:
-            break
+            items.append(CompletionItem(title: localTitle, status: .done, statusText: cleared, detail: nil))
         case .pending:
-            notes.append(NSLocalizedString("account_deletion_done_local_pending", comment: "本机数据下次打开时清除"))
+            items.append(CompletionItem(
+                title: localTitle,
+                status: .waiting,
+                statusText: NSLocalizedString("account_deletion_done_status_next_launch", comment: "下次打开时清除"),
+                detail: NSLocalizedString("account_deletion_done_local_pending", comment: "本机数据下次打开时清除")
+            ))
         case .reinstallRequired:
-            notes.append(NSLocalizedString("account_deletion_done_local_reinstall", comment: "请删除并重新安装"))
+            items.append(CompletionItem(
+                title: localTitle,
+                status: .needsAttention,
+                statusText: actionNeeded,
+                detail: NSLocalizedString("account_deletion_done_local_reinstall", comment: "请删除并重新安装")
+            ))
         }
-        if outcome.cloudCleanup == .pending {
-            notes.append(NSLocalizedString("account_deletion_done_cloud_pending", comment: "iCloud 数据连上后清除与手动路径"))
+
+        let cloudTitle: String = NSLocalizedString("account_deletion_done_item_cloud", comment: "iCloud 数据")
+        switch outcome.cloudCleanup {
+        case .done:
+            items.append(CompletionItem(title: cloudTitle, status: .done, statusText: cleared, detail: nil))
+        case .pending:
+            items.append(CompletionItem(
+                title: cloudTitle,
+                status: .waiting,
+                statusText: NSLocalizedString("account_deletion_done_status_waiting_icloud", comment: "等待 iCloud"),
+                detail: NSLocalizedString("account_deletion_done_cloud_pending", comment: "iCloud 数据连上后清除与手动路径")
+            ))
         }
-        return notes
+        return items
     }
 
     /// 中文注释：除「结果未知」外都是「账号未删除」——标题就写这句（设计第八节的原则）。
