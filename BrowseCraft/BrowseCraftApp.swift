@@ -204,7 +204,7 @@ struct BrowseCraftApp: App {
         WindowGroup {
             switch self.bootstrapState {
             case .loading:
-                ProgressView("Opening BrowseCraft…")
+                ProgressView(NSLocalizedString("bootstrap_loading", comment: "启动加载提示"))
                     .task {
                         guard case .loading = self.bootstrapState else {
                             return

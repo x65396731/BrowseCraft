@@ -405,6 +405,7 @@
 "book_reader_chapter_no_web_content" = "这一章在网页上没有正文。站点可能只在自家 App 内提供这部作品的内容。";
 
 /* 从代码里搬进本地化的用户可见文案（启动失败、来源站登录、书籍阅读器、激励广告、内购状态）。 */
+"bootstrap_loading" = "正在打开 AnyPortal…";
 "bootstrap_failure_title" = "AnyPortal 无法启动";
 "bootstrap_failure_message" = "应用无法安全打开本地数据。你的数据没有被删除或重置。";
 "bootstrap_failure_recovery" = "请退出并重新打开应用。如果问题仍在，请在联系支持时附上诊断码。";

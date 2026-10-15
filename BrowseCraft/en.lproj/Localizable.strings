@@ -405,6 +405,7 @@
 "book_reader_chapter_no_web_content" = "This chapter has no text on the website. The site may only provide this work inside its own app.";
 
 /* Hard-coded user-facing strings moved into localization (bootstrap failure, source login, book reader, rewarded ads, in-app purchase status). */
+"bootstrap_loading" = "Opening AnyPortal…";
 "bootstrap_failure_title" = "AnyPortal couldn’t start";
 "bootstrap_failure_message" = "The app couldn’t open its local data safely. Your data was not deleted or reset.";
 "bootstrap_failure_recovery" = "Quit and reopen the app. If the problem continues, include the diagnostic code when requesting support.";
