@@ -1257,3 +1257,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 
 2026-10-16 设置页「隐私与诊断」加「发送使用统计」开关（用户裁定单独一行，不与崩溃诊断合并）：绑定 AppAnalytics 的 settings.analyticsEnabled；图标 SettingsAnalytics 由 SF Symbol chart.bar.fill 栅格化并登记预算；三语文案。
 模拟器上关 / 开各一次，偏好文件 settings.analyticsEnabled 随之 false / true，崩溃诊断不受影响。隐私权政策同步改为可分别关闭（PortalCore ad6289e）。`STATUS.md` 第 4 节新增一行 simulator-passed，检查点先登记为实施前的 HEAD `b0c450e`。
+- 实施与文档一起提交为 `2593f6e`；检查点由实施前的 HEAD `b0c450e` 改登记为 `2593f6e`。

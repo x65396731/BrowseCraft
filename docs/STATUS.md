@@ -125,7 +125,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 删除账号页重设计（设计稿 2026-10-16 用户确认，删除账号设计第三、四、八节）：页顶删除色圆形图标 + 大标题；会删除 / 会保留 / 删除前请留意三张卡（32pt 图标块 + 标题 + 说明，coin 行尾删除色大数字），新增撤销 Apple 授权与「12 个月内同一 Apple ID 再登录不再送新账号 coin」两行；「接下来」三步事先说明 Apple 验证；「继续删除」+「保留账号」；进度遮罩补一句说明；完成页改为结果清单（账号与 coin、Apple 授权、本机、iCloud 四行，按 AccountDeletionOutcome 显示完成或附说明）；三语文案 | 未编号 | required | approved | implemented | not-run | 4131f24 | 2026-10-16 |
 | 删除账号页重设计的模拟器走查（iPhone 18 Pro / iOS 27.0，Debug 构建，生产服务器已登录账号）：设置页入口、说明页简体浅色与繁体深色（页顶图标与大标题、三张卡、coin 行尾显示服务端余额 8800、接下来三步、继续删除 / 保留账号）、居中确认框文案、保留账号返回设置页；未走 Apple 验证与真删，删除中遮罩与完成页未走查 | 未编号 | required | approved | implemented | simulator-passed | f84e72c | 2026-10-16 |
 | 设置页「关于」加「隐私权政策」行（审核指南 5.1.1(i)）：图标 SettingsPrivacy（SF Symbol hand.raised.fill 按设置页剪影规格栅格化、登记资产预算），点开用系统浏览器打开 https://anyportal.online/privacy（PortalCore a77d69f 的 `GET /privacy`）；三语文案 | 未编号 | required | approved | implemented | not-run | 3fb8793 | 2026-10-16 |
-| 设置页「隐私与诊断」加「发送使用统计」开关：绑定 AppAnalytics 已有的 settings.analyticsEnabled，关闭即 Firebase Analytics 停收、log() 跳过，与崩溃诊断分开（用户 2026-10-16 裁定单独一行）；图标 SettingsAnalytics；三语文案；隐私权政策同步（PortalCore） | 未编号 | required | approved | implemented | simulator-passed | b0c450e | 2026-10-16 |
+| 设置页「隐私与诊断」加「发送使用统计」开关：绑定 AppAnalytics 已有的 settings.analyticsEnabled，关闭即 Firebase Analytics 停收、log() 跳过，与崩溃诊断分开（用户 2026-10-16 裁定单独一行）；图标 SettingsAnalytics；三语文案；隐私权政策同步（PortalCore） | 未编号 | required | approved | implemented | simulator-passed | 2593f6e | 2026-10-16 |
 
 ## 5. 文档架构迁移
 
