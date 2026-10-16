@@ -42,9 +42,9 @@ final class SourcesViewModel {
     private(set) var videoGenerationInputProgress: VideoGenerationInputPreflightProgress?
     private(set) var sourceSlotLimit: Int =
         SourceSlotPolicy.includedSiteSlotCount
-    /// 刚删除、还能撤销的来源及其被删内容；底部提示随它出现和消失（`docs/design/Source-Deletion-Cascade-Design.md` 第四节）。
+    /// 刚删除、还能撤销的来源与删除前的库状态；底部提示随它出现和消失（`docs/design/Source-Deletion-Cascade-Design.md` 第五节）。
     private(set) var undoableDeletion: SourceDeletionReceipt?
-    /// 本页每删除或撤销成功一次就加一；宿主据此重新载入历史与收藏，并让库页刷新当前来源的收藏标记。
+    /// 本页每删除或撤销成功一次就加一；宿主据此重新载入历史与收藏，让被删来源的行显示为「来源已删除」或恢复正常。
     private(set) var sourceContentRevision: Int = 0
     @ObservationIgnored private var undoDismissTask: Task<Void, Never>?
     /// 启动与回到前台时的目录跟随（`syncAddedSourcesWithCatalog`）：进行中标记与上次成功读取的时刻。
@@ -812,7 +812,7 @@ final class SourcesViewModel {
     }
 
     /// 中文注释：来源页的左滑与长按菜单按来源删除（`docs/design/Sources-Page-Redesign-Design.md` 2.5）：
-    /// 不弹确认，删除后连带删掉它的历史与收藏（`BCA-DB-005`），底部给出可撤销提示。
+    /// 不弹确认，删除后它的历史与收藏保留（`BCA-DB-005`），底部给出可撤销提示。
     @MainActor
     func deleteSource(id sourceID: String) async {
         await self.deleteSources(ids: [sourceID])
@@ -880,7 +880,7 @@ final class SourcesViewModel {
         await self.persistenceCoordinator.notifyDeletionChanges()
     }
 
-    /// 中文注释：撤销删除：来源回到在册、历史与收藏原样回来；删除前它是当前来源的，撤销后改回当前来源
+    /// 中文注释：撤销删除：来源回到在册；删除前它是当前来源的，撤销后改回当前来源
     /// （库状态已由仓储连同列表位置一起写回，这里不再覆盖）。撤销不发删除的通知，写回后仓储照常通知。
     @MainActor
     func undoDeletion() async {

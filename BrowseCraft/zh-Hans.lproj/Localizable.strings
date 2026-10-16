@@ -573,7 +573,7 @@
 "sources_paused_replace" = "替换使用";
 "sources_full_hint_title" = "想再加一个网站？";
 "sources_full_hint_message" = "位置已用满。可以先长按当前来源删除再添加，或获取更多位置。";
-"sources_footer_hint" = "长按来源可查看详情或删除；向左滑动也可删除。删除来源会同时删除它的阅读 / 观看历史和收藏。";
+"sources_footer_hint" = "长按来源可查看详情或删除；向左滑动也可删除。删除来源后，它的阅读 / 观看历史和收藏仍会保留。";
 "sources_menu_open_library" = "打开库";
 "sources_menu_switch_and_open" = "切换并打开库";
 "sources_menu_details" = "来源详情";

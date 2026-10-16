@@ -168,7 +168,7 @@ sfacg 链接内的受限标记 → `BC-COMIC-147` 2026-10-08 修订（交付 `re
 列表 `latestText` → `BC-LIST-128`（不是「更新到哪」的不交付，没有就不出更新行）；
 章节 `datetime` → 不生成（语料只约 3 个主机行内有日期，结论记在 `BC-COMIC-147` 2026-10-08 修订末段）。App 侧的实施不等 fwq。
 
-**候选、本轮不做**：Core 把 `ChapterRule.section` 的 `title` 透传成 `SourceChapter` 的分组名——现有规则的 section 都没有标题，等 fwq 生成带标题的分组再做（2026-10-08 用户裁定 fwq 本轮不做：归档漫画作品页多分组为零）；HTML `ChapterRule` 加 `paid` / `paidValues`——2026-10-08 用户裁定**不加**（匿名只能验证「打不开」，按 `BC-COMIC-121` 走 `restriction`）；「全部标记已读 / 清除记录」要进删除来源连带清理与云同步范围，单独立项。
+**候选、本轮不做**：Core 把 `ChapterRule.section` 的 `title` 透传成 `SourceChapter` 的分组名——现有规则的 section 都没有标题，等 fwq 生成带标题的分组再做（2026-10-08 用户裁定 fwq 本轮不做：归档漫画作品页多分组为零）；HTML `ChapterRule` 加 `paid` / `paidValues`——2026-10-08 用户裁定**不加**（匿名只能验证「打不开」，按 `BC-COMIC-121` 走 `restriction`）；「全部标记已读 / 清除记录」要进云同步范围，单独立项。
 
 ## 十、视觉取值
 

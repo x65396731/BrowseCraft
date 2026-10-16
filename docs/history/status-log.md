@@ -1264,3 +1264,11 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 模拟器（iPhone 18 Pro / iOS 27.0，Debug）构建通过，按 STATUS 第 4 节走查行的清单走过；面容 ID 用 BiometricKit_Sim 的 match / nomatch 通知模拟，没往系统密码界面输入。走查后模拟器恢复浅色、面容 ID 恢复未录入。
 `STATUS.md` 第 4 节新增两行（implemented / not-run 与 simulator-passed），检查点先登记为实施前的 HEAD `9f5ce7b`。架构边界、资产、本地化、文档闸门过。
 - 实施、文档与走查记录一起提交为 `a3750c6`；两行检查点由实施前的 HEAD `9f5ce7b` 改登记为 `a3750c6`。
+
+2026-10-17 删除来源时保留历史与收藏：收藏页与历史页有了面容 ID 锁定后，用户裁定删除来源不再连带删除历史与收藏，`BCA-DB-005` 正文改为「不得删除」。
+评估时指出被删来源的条目可用快照照常打开、会绕过来源位置，用户选择照旧可打开、接受该风险。设计文档 Source-Deletion-Cascade-Design.md 改写为保留（文件名不变），
+数据库说明、收藏页、历史页、续看同步、来源页、规则目录更新、两份库页与两份详情页设计里提到连带删除的句子同步改写。按 AGENTS.md 未 build、未跑测试。
+- `STATUS.md` 第 4 节「删除来源连带删除历史与收藏」一行：设计 approved → superseded，实施 implemented → reverted，更新日期 2026-10-03 → 2026-10-17（被本次裁定取代）。
+- 同节「删除来源连带删除的模拟器走查」一行：设计 approved → superseded，实施 implemented → reverted，更新日期 2026-10-03 → 2026-10-17（同上）。
+- 同节新增一行「删除来源时保留历史与收藏」implemented / not-run，检查点先登记为实施前的 HEAD `ee3afc2`。
+- 同节「删除来源时保留历史与收藏」一行：验证 not-run → targeted-passed（iPhone 17 Pro / iOS 26.5 跑 SyncRepositoryTests、SourceSyncServiceTests、SourcesViewModelTests 共 34 例全过；首跑仓储测试两处队列条数断言写错——保存来源时的更新被删除替换、条数不变——改断言后重跑通过）。

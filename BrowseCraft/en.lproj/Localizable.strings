@@ -573,7 +573,7 @@
 "sources_paused_replace" = "Swap In";
 "sources_full_hint_title" = "Want to add another site?";
 "sources_full_hint_message" = "All slots are in use. Long-press the current source to delete it first, or get more slots.";
-"sources_footer_hint" = "Long-press a source to see its details or delete it; you can also swipe left to delete. Deleting a source also removes its reading/watch history and favorites.";
+"sources_footer_hint" = "Long-press a source to see its details or delete it; you can also swipe left to delete. Deleting a source keeps its reading/watch history and favorites.";
 "sources_menu_open_library" = "Open Library";
 "sources_menu_switch_and_open" = "Switch and Open Library";
 "sources_menu_details" = "Source Details";

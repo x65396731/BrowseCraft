@@ -36,7 +36,7 @@ struct SourcesView: View {
                     SourceDebugView(viewModel: self.viewModel, sourceID: sourceID)
                 }
                 // 中文注释：删除来源后底部「已删除「来源名」 · 撤销」，与收藏页、历史页同一个提示条
-                // （`docs/design/Source-Deletion-Cascade-Design.md` 第四节）。
+                // （`docs/design/Source-Deletion-Cascade-Design.md` 第五节）。
                 .overlay(alignment: .bottom) {
                     if let receipt: SourceDeletionReceipt = self.viewModel.undoableDeletion {
                         ContentUndoBanner(
@@ -356,7 +356,7 @@ struct SourcesView: View {
     }
 
     /// 删除来源不弹确认（2026-10-03 用户裁定），左滑与长按「删除来源」都直接删；
-    /// 连带删除它的历史与收藏（`BCA-DB-005`），删完底部可撤销。
+    /// 它的历史与收藏保留（`BCA-DB-005`），删完底部可撤销。
     private func delete(_ source: Source) {
         Task {
             await self.viewModel.deleteSource(id: source.id)

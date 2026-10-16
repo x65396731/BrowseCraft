@@ -64,7 +64,7 @@ struct ActivateSourceSlotUseCase: Sendable {
     }
 }
 
-/// 中文注释：删除一个 Source 并连带删除它的历史与收藏（`BCA-DB-005`），交回被删内容供撤销；
+/// 中文注释：删除一个 Source（历史与收藏保留，`BCA-DB-005`），交回来源与库状态的留底供撤销；
 /// 由 Sources 页面的左滑 / 长按删除与删除个人规则触发。
 struct DeleteSourceUseCase: Sendable {
     private let sourceRepository: SourceRepository
@@ -79,7 +79,7 @@ struct DeleteSourceUseCase: Sendable {
         return try self.sourceRepository.deleteSource(id: sourceId)
     }
 
-    /// 中文注释：撤销删除，按被删内容原样写回。
+    /// 中文注释：撤销删除，按留底写回来源与库状态。
     func restore(_ receipt: SourceDeletionReceipt) throws {
         try self.sourceRepository.restoreDeletedSource(receipt)
     }

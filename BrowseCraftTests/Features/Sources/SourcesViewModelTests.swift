@@ -364,9 +364,9 @@ struct SourcesViewModelTests {
         #expect(try sourceRepository.fetchSources().map(\.id) == [paused.id])
     }
 
-    // 中文注释：删除来源连带删除它的历史与收藏并可撤销（`docs/design/Source-Deletion-Cascade-Design.md`）：
-    // 删除后历史与收藏仓储里看不到该来源的条目、内容变更计数加一、底部可撤销；撤销后都回来，当前来源也改回它。
-    @Test func deletingASourceRemovesItsHistoryAndFavoritesUntilUndone() async throws {
+    // 中文注释：删除来源保留它的历史与收藏并可撤销（`docs/design/Source-Deletion-Cascade-Design.md`）：
+    // 删除后历史与收藏仓储里该来源的条目还在、内容变更计数加一、底部可撤销；撤销后来源回来，当前来源也改回它。
+    @Test func deletingASourceKeepsItsHistoryAndFavoritesAndCanBeUndone() async throws {
         let database: AppDatabase = try Harness.makeDatabase()
         let sourceRepository: GRDBSourceRepository = GRDBSourceRepository(database: database)
         let comic: Source = try Harness.makeComicSource(id: "built-in.comic")
@@ -378,7 +378,7 @@ struct SourcesViewModelTests {
         try comics.save(Self.comicHistory(sourceID: comic.id))
         let favorites: GRDBFavoriteRepository = GRDBFavoriteRepository(database: database)
         try favorites.restoreFavorite(item: Self.favoriteItem(id: "kept", sourceID: comic.id))
-        try favorites.restoreFavorite(item: Self.favoriteItem(id: "gone", sourceID: custom.id))
+        try favorites.restoreFavorite(item: Self.favoriteItem(id: "deleted-source", sourceID: custom.id))
         // 中文注释：库状态直接写进去（更新时间晚于 ViewModel 的固定时钟，不会被它异步保存的状态覆盖），撤销后要改回当前来源。
         try GRDBUserLibraryStateRepository(database: database).save(
             UserLibraryState(
@@ -403,8 +403,8 @@ struct SourcesViewModelTests {
         #expect(viewModel.selectedSourceID == comic.id)
         #expect(viewModel.sourceContentRevision == 1)
         #expect(viewModel.undoableDeletion?.source.id == custom.id)
-        #expect(try comics.fetchHistory(userID: AppUser.localDefaultID).map(\.sourceID) == [comic.id])
-        #expect(try favorites.fetchFavoriteItems().map(\.id) == ["kept"])
+        #expect(Set(try comics.fetchHistory(userID: AppUser.localDefaultID).map(\.sourceID)) == [comic.id, custom.id])
+        #expect(Set(try favorites.fetchFavoriteItems().map(\.id)) == ["deleted-source", "kept"])
 
         await viewModel.undoDeletion()
 
@@ -415,7 +415,7 @@ struct SourcesViewModelTests {
         #expect(viewModel.source(id: custom.id)?.accessState == .active)
         #expect(viewModel.selectedSourceID == custom.id)
         #expect(Set(try comics.fetchHistory(userID: AppUser.localDefaultID).map(\.sourceID)) == [comic.id, custom.id])
-        #expect(Set(try favorites.fetchFavoriteItems().map(\.id)) == ["gone", "kept"])
+        #expect(Set(try favorites.fetchFavoriteItems().map(\.id)) == ["deleted-source", "kept"])
     }
 
     private static func comicHistory(sourceID: String) -> ComicChapterHistory {

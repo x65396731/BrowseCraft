@@ -148,9 +148,8 @@ struct SourceSyncServiceTests {
         #expect(deletedAt == Date(timeIntervalSince1970: 200))
     }
 
-    // 中文注释：`BCA-DB-004` / `BCA-DB-005`——应用远端来源删除后，本机该来源的历史被删、库的当前选择被清空；
-    // 收藏不在这里处理（删除方设备的收藏删除标记经收藏同步到达）。
-    @Test func cloudDeleteRemovesLocalHistoryAndClearsSelectionButKeepsFavorites() async throws {
+    // 中文注释：`BCA-DB-004` / `BCA-DB-005`——应用远端来源删除后，库的当前选择被清空；本机该来源的历史与收藏都保留。
+    @Test func cloudDeleteClearsSelectionAndKeepsHistoryAndFavorites() async throws {
         let database: AppDatabase = try Self.makeDatabase()
         try Self.insertSource(Self.makePluginSource(id: "source-1", name: "Local Source", updatedAt: 100), into: database)
         let comics: GRDBComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(database: database)
@@ -187,7 +186,7 @@ struct SourceSyncServiceTests {
         let result: SourceSyncResult = try await service.syncSources(limit: 10)
 
         #expect(result.deletedCount == 1)
-        #expect(try comics.fetchHistory(userID: AppUser.localDefaultID).map(\.sourceID) == ["source-2"])
+        #expect(Set(try comics.fetchHistory(userID: AppUser.localDefaultID).map(\.sourceID)) == ["source-1", "source-2"])
         #expect(try favorites.fetchFavoriteItems().map(\.sourceID) == ["source-1"])
         #expect(try libraryStates.fetch(userID: AppUser.localDefaultID)?.selectedSourceID == nil)
     }

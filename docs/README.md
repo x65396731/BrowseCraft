@@ -157,7 +157,7 @@ App 侧的验证事实主要分「离线测试通过」「模拟器走通」「�
 - 身份归属与数据库策略、CloudKit 作用域：[design/AccountScopedDatabaseMigration-Memo.md](design/AccountScopedDatabaseMigration-Memo.md)
 - 续看位置同步到 iCloud（云端记录字段、同步规则、本机账本、iCloud 环境与部署顺序）：[design/History-Resume-Sync-Design.md](design/History-Resume-Sync-Design.md)
 - 删除账号（设置页入口、说明页与确认、重新验证 Apple、服务端删除后的本机与 iCloud 清理、换访客身份、待清 iCloud 标记、Apple 凭据状态监听、失败文案）：[design/Account-Deletion-Design.md](design/Account-Deletion-Design.md)
-- 删除来源时连带删除历史与收藏（各条删除路径的处理、界面刷新、实现清单）：[design/Source-Deletion-Cascade-Design.md](design/Source-Deletion-Cascade-Design.md)
+- 删除来源时保留历史与收藏（各条删除路径的处理、被删来源的条目怎么显示与打开、撤销、实现清单）：[design/Source-Deletion-Cascade-Design.md](design/Source-Deletion-Cascade-Design.md)
 - 读书 kind 的 App 侧接线（五仓改动、Readium 装配、章节与分页）：[design/Book-Kind-Wiring-Design.md](design/Book-Kind-Wiring-Design.md)
 - 本地书籍导入与阅读器（入口已藏，代码由站点书复用）：[design/Local-Book-Import-Design.md](design/Local-Book-Import-Design.md)
 - 规则目录：已添加来源跟随目录自动更新：[design/Catalog-Rule-Update-Design.md](design/Catalog-Rule-Update-Design.md)

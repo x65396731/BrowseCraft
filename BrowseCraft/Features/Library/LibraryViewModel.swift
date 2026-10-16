@@ -1043,7 +1043,7 @@ final class LibraryViewModel {
 
     /// 中文注释：重读当前来源的本地历史：视频来源读最近一条视频历史（「上次看到」），漫画来源读全部章节历史
     /// （「上次读到」与封面进度角标）；来源没了、换了、历史被删了都会把它们清掉。
-    /// 调用时机：首次加载、切来源、从播放器 / 阅读器 / 详情回来、回到库标签、来源页连带删除历史之后。
+    /// 调用时机：首次加载、切来源、从播放器 / 阅读器 / 详情回来、回到库标签。
     func refreshContinueWatching() {
         guard let source: Source = self.selectedSource else {
             self.continueWatchingHistory = nil

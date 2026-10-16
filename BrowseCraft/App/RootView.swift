@@ -171,11 +171,8 @@ struct RootView: View {
             self.libraryViewModel.refreshFavoriteItemIDs()
         }
         .onChange(of: self.sourcesViewModel.sourceContentRevision) { _, _ in
-            // 中文注释：来源页删除 / 撤销删除来源连带了历史与收藏（`BCA-DB-005`）：历史页、收藏页重新载入，
-            // 库页封面上的爱心状态跟着刷新（与收藏页取消收藏后的做法相同）。
-            self.libraryViewModel.refreshFavoriteItemIDs()
-            // 中文注释：历史一并删了，库页「上次看到」瓷砖也要跟着消失 / 回来。
-            self.libraryViewModel.refreshContinueWatching()
+            // 中文注释：来源页删除 / 撤销删除来源后历史与收藏保留（`BCA-DB-005`），但被删来源的行要变成「来源已删除」或恢复正常，
+            // 历史页、收藏页重新载入。库页的爱心与「上次看到」只看当前来源，不受影响。
             Task {
                 await self.historyViewModel.load()
                 await self.favoritesViewModel.load()

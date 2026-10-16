@@ -56,7 +56,7 @@ actor SourcesPersistenceCoordinator {
         )
     }
 
-    /// 删除并连带删除历史与收藏；不发同步通知——撤销窗口结束后由 `notifyDeletionChanges()` 补发。
+    /// 删除来源（历史与收藏保留）；不发同步通知——撤销窗口结束后由 `notifyDeletionChanges()` 补发。
     func delete(sourceIDs: [String], userID: String) throws -> SourcesDeletionResult {
         var receipts: [SourceDeletionReceipt] = []
         for sourceID: String in sourceIDs {
@@ -73,7 +73,7 @@ actor SourcesPersistenceCoordinator {
         )
     }
 
-    /// 撤销删除：原样写回，再按位置规则归置（恢复的来源更新时间最新，回到在用；补位的来源回到已暂停）。
+    /// 撤销删除：写回来源与库状态，再按位置规则归置（恢复的来源更新时间最新，回到在用；补位的来源回到已暂停）。
     func restore(_ receipt: SourceDeletionReceipt, userID: String) throws -> SourcesPersistenceSnapshot {
         try self.deleteSourceUseCase.restore(receipt)
         return SourcesPersistenceSnapshot(

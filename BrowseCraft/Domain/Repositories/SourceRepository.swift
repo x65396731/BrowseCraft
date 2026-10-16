@@ -4,7 +4,7 @@ import Foundation
 // 中文注释：SourceRepository 提供 Source 的读取、保存和删除入口。
 
 /// 中文注释：面向领域层的源仓储协议，负责源规则的读取、保存和删除。
-/// 中文注释：删除 Source 时在同一写事务里连带删除它的三张历史表记录与收藏（`BCA-DB-005`），并交回被删内容供撤销；
+/// 中文注释：删除 Source 只软删来源，历史与收藏保留（`BCA-DB-005`），并交回来源与库状态的留底供撤销；
 /// 库的当前选择正好是它时清空（`BCA-DB-004`）。
 protocol SourceRepository: Sendable {
     func fetchSources() throws -> [Source]
@@ -16,11 +16,11 @@ protocol SourceRepository: Sendable {
     func saveCatalogSources(_ sources: [Source], fingerprintsBySourceID: [String: String]) throws
     /// 中文注释：只给来源行盖指纹——规则与本地相等、只是还没记过指纹时用；不改规则、不动 `updatedAt`、不入同步队列。
     func stampCatalogRuleFingerprints(_ fingerprintsBySourceID: [String: String]) throws
-    /// 中文注释：删除来源并连带删除历史与收藏，交回被删内容；来源不在册时仍做清理但返回 nil。
-    /// 不发本地变更通知——调用方在撤销窗口结束后调 `notifyLocalChanges()`（见 `docs/design/Source-Deletion-Cascade-Design.md` 第四节）。
+    /// 中文注释：删除来源（历史与收藏保留），交回来源与库状态的留底；来源不在册时仍做清理但返回 nil。
+    /// 不发本地变更通知——调用方在撤销窗口结束后调 `notifyLocalChanges()`（见 `docs/design/Source-Deletion-Cascade-Design.md` 第五节）。
     @discardableResult
     func deleteSource(id: String) throws -> SourceDeletionReceipt?
-    /// 中文注释：撤销删除——把被删的来源、历史与收藏原样写回，并以当前时间重新入队为更新。
+    /// 中文注释：撤销删除——把被删的来源与库状态写回，并以当前时间重新入队为更新。
     func restoreDeletedSource(_ receipt: SourceDeletionReceipt) throws
     /// 中文注释：把 `deleteSource` 攒下的本地变更告知同步协调器；没有同步的仓储不必实现。
     func notifyLocalChanges()
@@ -69,18 +69,13 @@ extension SourceRepository {
     }
 }
 
-/// 中文注释：删除来源时的留底——撤销时按这里的内容原样写回（`docs/design/Source-Deletion-Cascade-Design.md` 第四节）。
+/// 中文注释：删除来源时的留底——撤销时按这里的内容原样写回（`docs/design/Source-Deletion-Cascade-Design.md` 第五节）。
 struct SourceDeletionReceipt: Sendable {
     /// 删除前的来源记录原样（含启用状态；`deletedAt` 为 nil）。
     let source: Source
     /// 删除前库的当前选择正好是它时的库状态（来源 ID 与列表位置）；它不是当前来源时为 nil。
     let librarySelection: UserLibraryState?
-    let comicHistories: [ComicChapterHistory]
-    let videoHistories: [VideoWatchHistory]
-    let bookHistories: [BookReadingHistory]
-    /// 删除前在册、这次被写了删除标记的收藏条目（带原收藏时间）。
-    let favoriteItems: [FavoriteContentItem]
-    /// 这次删除是否往同步队列写了东西（非内置来源，或有收藏）；为真时撤销窗口结束后要发本地变更通知。
+    /// 这次删除是否往同步队列写了东西（非内置来源）；为真时撤销窗口结束后要发本地变更通知。
     let enqueuedSyncChanges: Bool
 }
 
