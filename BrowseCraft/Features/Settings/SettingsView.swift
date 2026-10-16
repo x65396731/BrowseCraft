@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var adPlaybackViewModel: AdPlaybackViewModel = AdPlaybackViewModel()
     @Environment(\.rewardedAdRewardCoordinator) private var rewardedAdRewardCoordinator
     @AppStorage(CrashDiagnostics.collectionEnabledDefaultsKey) private var isDiagnosticsEnabled: Bool = CrashDiagnostics.isCollectionEnabled
+    @AppStorage(AppAnalytics.collectionEnabledDefaultsKey) private var isAnalyticsEnabled: Bool = AppAnalytics.isCollectionEnabled
 
     @State private var isShowingInAppPurchase: Bool = false
     @State private var isConfirmingSignOut: Bool = false
@@ -264,6 +265,19 @@ struct SettingsView: View {
                     name: "crash_diagnostics",
                     value: String(newValue)
                 )
+            }
+
+            SettingsRowSeparator()
+
+            // 中文注释：使用统计（Firebase Analytics）与当机诊断分开控制（2026-10-16 用户裁定），隐私权政策第 1、6 节同步写明。
+            // 开关与 AppAnalytics 共用同一个 UserDefaults 键；关闭后 log() 直接跳过，Firebase 也停止收集。
+            SettingsToggleRow(
+                image: "SettingsAnalytics",
+                title: NSLocalizedString("settings_send_usage_statistics", comment: "传送使用统计"),
+                isOn: self.$isAnalyticsEnabled
+            )
+            .onChange(of: self.isAnalyticsEnabled) { _, newValue in
+                AppAnalytics.shared.setCollectionEnabled(newValue)
             }
 
             SettingsRowSeparator()

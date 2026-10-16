@@ -269,6 +269,7 @@
 "Searching comic-like resources on this website..." = "Searching comic-like resources on this website...";
 "Searching video-like resources on this website..." = "Searching video-like resources on this website...";
 "Send Crash Diagnostics" = "Send Crash Diagnostics";
+"settings_send_usage_statistics" = "Send Usage Statistics";
 "Settings" = "Settings";
 "Sign in to this source" = "Sign in to this source";
 "Site Base URL" = "Site Base URL";

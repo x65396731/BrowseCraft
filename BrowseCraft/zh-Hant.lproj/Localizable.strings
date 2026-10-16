@@ -269,6 +269,7 @@
 "Searching comic-like resources on this website..." = "正在這個網站上尋找漫畫類的資源…";
 "Searching video-like resources on this website..." = "正在這個網站上尋找影片類的資源…";
 "Send Crash Diagnostics" = "傳送當機診斷";
+"settings_send_usage_statistics" = "傳送使用統計";
 "Settings" = "設定";
 "Sign in to this source" = "登入這個來源";
 "Site Base URL" = "網站位址";

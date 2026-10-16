@@ -1254,3 +1254,6 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 2026-10-16 隐私权政策：草稿 https://claude.ai/artifact/T1x64kd9T276QSEsicXAKA 经用户审定（去掉儿童条款里的「成人網站」、补「伺服器讀取網頁時不帶登入資訊」），PortalCore a77d69f 上 `GET /privacy`。
 设置页「关于」加一行打开该网址；`STATUS.md` 第 4 节新增一行 `implemented / not-run`，检查点先登记为实施前的 HEAD `a25fbae`。资产、架构边界、本地化闸门过。
 - 实施与文档一起提交为 `3fb8793`；检查点由实施前的 HEAD `a25fbae` 改登记为 `3fb8793`。
+
+2026-10-16 设置页「隐私与诊断」加「发送使用统计」开关（用户裁定单独一行，不与崩溃诊断合并）：绑定 AppAnalytics 的 settings.analyticsEnabled；图标 SettingsAnalytics 由 SF Symbol chart.bar.fill 栅格化并登记预算；三语文案。
+模拟器上关 / 开各一次，偏好文件 settings.analyticsEnabled 随之 false / true，崩溃诊断不受影响。隐私权政策同步改为可分别关闭（PortalCore ad6289e）。`STATUS.md` 第 4 节新增一行 simulator-passed，检查点先登记为实施前的 HEAD `b0c450e`。
