@@ -1263,3 +1263,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 新增设计文档 Content-Lock-Design.md；设置页「安全」分组一行开关，两页共用锁定态，RootView 转场景状态。图标四张由 SF Symbol 栅格化并登记预算；三语文案与 InfoPlist.strings。
 模拟器（iPhone 18 Pro / iOS 27.0，Debug）构建通过，按 STATUS 第 4 节走查行的清单走过；面容 ID 用 BiometricKit_Sim 的 match / nomatch 通知模拟，没往系统密码界面输入。走查后模拟器恢复浅色、面容 ID 恢复未录入。
 `STATUS.md` 第 4 节新增两行（implemented / not-run 与 simulator-passed），检查点先登记为实施前的 HEAD `9f5ce7b`。架构边界、资产、本地化、文档闸门过。
+- 实施、文档与走查记录一起提交为 `a3750c6`；两行检查点由实施前的 HEAD `9f5ce7b` 改登记为 `a3750c6`。
