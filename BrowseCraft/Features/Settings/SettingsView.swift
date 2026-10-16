@@ -9,6 +9,7 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
     @Bindable var viewModel: SettingsViewModel
     @Bindable private var cloudSyncViewModel: CloudSyncSettingsViewModel
+    private let contentLockStore: ContentLockStore
     @State private var adPlaybackViewModel: AdPlaybackViewModel = AdPlaybackViewModel()
     @Environment(\.rewardedAdRewardCoordinator) private var rewardedAdRewardCoordinator
     @AppStorage(CrashDiagnostics.collectionEnabledDefaultsKey) private var isDiagnosticsEnabled: Bool = CrashDiagnostics.isCollectionEnabled
@@ -25,10 +26,12 @@ struct SettingsView: View {
 
     init(
         viewModel: SettingsViewModel,
-        cloudSyncViewModel: CloudSyncSettingsViewModel
+        cloudSyncViewModel: CloudSyncSettingsViewModel,
+        contentLockStore: ContentLockStore
     ) {
         self.viewModel = viewModel
         self.cloudSyncViewModel = cloudSyncViewModel
+        self.contentLockStore = contentLockStore
     }
 
     var body: some View {
@@ -79,6 +82,7 @@ struct SettingsView: View {
                         .padding(.top, 12)
 
                         self.syncAndStorageGroup
+                        self.securityGroup
                         self.privacyAndDiagnosticsGroup
                         self.aboutGroup
 
@@ -136,6 +140,7 @@ struct SettingsView: View {
                 }
                 .onAppear {
                     self.viewModel.refreshDiagnosticCode()
+                    self.contentLockStore.refreshAvailableMethod()
                     Task {
                         await self.viewModel.refreshPortalAccountStatus()
                     }
@@ -247,6 +252,49 @@ struct SettingsView: View {
             }
             .buttonStyle(SettingsRowButtonStyle())
         }
+    }
+
+    /// 收藏与历史锁定（`docs/design/Content-Lock-Design.md` 第二节）：一行开关，标题、图标与说明随设备能用的验证方式变。
+    private var securityGroup: some View {
+        let method: DeviceOwnerAuthenticationMethod = self.contentLockStore.method
+        return SettingsCardGroup(
+            title: NSLocalizedString("content_lock_section", comment: "分组：安全"),
+            footer: method.settingsFooter
+        ) {
+            SettingsToggleRow(
+                image: method.settingsImage,
+                title: method.settingsRowTitle,
+                isOn: self.contentLockBinding,
+                isUnavailable: self.contentLockStore.isAvailable == false
+            )
+            .disabled(self.contentLockStore.isAvailable == false || self.contentLockStore.isAuthenticating)
+        }
+    }
+
+    /// 开关先验证再改：读的是 store 的状态，写只发起验证，通过后 store 才变，取消时开关弹回原状态。
+    private var contentLockBinding: Binding<Bool> {
+        return Binding<Bool>(
+            get: {
+                return self.contentLockStore.isEnabled
+            },
+            set: { newValue in
+                let store: ContentLockStore = self.contentLockStore
+                Task {
+                    await store.setEnabled(
+                        newValue,
+                        reason: newValue
+                            ? NSLocalizedString("content_lock_reason_enable", comment: "打开锁定时的验证说明")
+                            : NSLocalizedString("content_lock_reason_disable", comment: "关闭锁定时的验证说明")
+                    )
+                    if store.isEnabled == newValue {
+                        AppAnalytics.shared.logSettingChanged(
+                            name: "content_lock",
+                            value: String(newValue)
+                        )
+                    }
+                }
+            }
+        )
     }
 
     private var privacyAndDiagnosticsGroup: some View {

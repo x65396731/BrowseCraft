@@ -1258,3 +1258,8 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 2026-10-16 设置页「隐私与诊断」加「发送使用统计」开关（用户裁定单独一行，不与崩溃诊断合并）：绑定 AppAnalytics 的 settings.analyticsEnabled；图标 SettingsAnalytics 由 SF Symbol chart.bar.fill 栅格化并登记预算；三语文案。
 模拟器上关 / 开各一次，偏好文件 settings.analyticsEnabled 随之 false / true，崩溃诊断不受影响。隐私权政策同步改为可分别关闭（PortalCore ad6289e）。`STATUS.md` 第 4 节新增一行 simulator-passed，检查点先登记为实施前的 HEAD `b0c450e`。
 - 实施与文档一起提交为 `2593f6e`；检查点由实施前的 HEAD `b0c450e` 改登记为 `2593f6e`。
+
+2026-10-17 收藏与历史的面容 ID 锁定：设计稿 https://claude.ai/artifact/YLh1CUu4QBxrPYvkmnTN43 经用户确认（说明一律写「验证身份后查看…」、按钮随设备写主要验证方式；补画三种设备变体与只有锁屏密码的锁定态；用户问过「面容 ID / 密码」二选一，因系统没有只用锁屏密码的策略而不做，App 独立密码另议）。
+新增设计文档 Content-Lock-Design.md；设置页「安全」分组一行开关，两页共用锁定态，RootView 转场景状态。图标四张由 SF Symbol 栅格化并登记预算；三语文案与 InfoPlist.strings。
+模拟器（iPhone 18 Pro / iOS 27.0，Debug）构建通过，按 STATUS 第 4 节走查行的清单走过；面容 ID 用 BiometricKit_Sim 的 match / nomatch 通知模拟，没往系统密码界面输入。走查后模拟器恢复浅色、面容 ID 恢复未录入。
+`STATUS.md` 第 4 节新增两行（implemented / not-run 与 simulator-passed），检查点先登记为实施前的 HEAD `9f5ce7b`。架构边界、资产、本地化、文档闸门过。

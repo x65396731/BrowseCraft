@@ -1,0 +1,2 @@
+/* 收藏与历史锁定（docs/design/Content-Lock-Design.md） */
+"NSFaceIDUsageDescription" = "AnyPortal 使用面容 ID 锁定收藏与历史。";

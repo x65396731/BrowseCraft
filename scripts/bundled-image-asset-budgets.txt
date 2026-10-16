@@ -70,6 +70,12 @@ SettingsRate              2700      22x22      multi-scale-png
 SettingsPrivacy           2900      22x22      multi-scale-png
 # 2026-10-16 使用统计开关：同上做法，SF Symbol chart.bar.fill；三档合计 1,963 字节。
 SettingsAnalytics         2200      22x22      multi-scale-png
+# 2026-10-17 收藏与历史锁定（docs/design/Content-Lock-Design.md 第 2.2 节）：行图标随设备能用的验证方式变，
+# 同上做法，SF Symbol faceid / touchid / opticid / lock.fill；三档合计 3,665 / 5,619 / 4,358 / 2,197 字节。
+SettingsFaceID            4000      22x22      multi-scale-png
+SettingsTouchID           6200      22x22      multi-scale-png
+SettingsOpticID           4800      22x22      multi-scale-png
+SettingsPasscode          2500      22x22      multi-scale-png
 
 # 2026-09-20 两处改动的理由：
 #

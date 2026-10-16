@@ -932,3 +932,25 @@
 "account_deletion_error_rate_limited" = "Too many attempts. Try again later.";
 "account_deletion_error_network" = "Couldn't connect. Check your network and try again.";
 "account_deletion_error_generic" = "Deletion didn't complete. Try again later.";
+
+/* 收藏与历史锁定（docs/design/Content-Lock-Design.md） */
+"content_lock_section" = "Security";
+"content_lock_method_face_id" = "Face ID";
+"content_lock_method_touch_id" = "Touch ID";
+"content_lock_method_optic_id" = "Optic ID";
+"content_lock_row_title_biometric" = "%@ Lock";
+"content_lock_row_title_passcode" = "Passcode Lock";
+"content_lock_footer_biometric" = "When on, Favorites and History ask for %@ before they open, and you can use your device passcode if it doesn’t work. They lock again when you leave AnyPortal.";
+"content_lock_footer_passcode" = "When on, Favorites and History ask for your device passcode before they open. They lock again when you leave AnyPortal.";
+"content_lock_footer_unavailable" = "This device has no passcode, so this can’t be turned on yet. Set a passcode in the Settings app, then come back to turn it on.";
+"content_lock_favorites_title" = "Favorites Locked";
+"content_lock_favorites_message" = "Verify it’s you to see your favorites.";
+"content_lock_history_title" = "History Locked";
+"content_lock_history_message" = "Verify it’s you to see what you’ve watched and read.";
+"content_lock_unlock_biometric" = "Unlock with %@";
+"content_lock_unlock_passcode" = "Unlock with Passcode";
+"content_lock_authenticating" = "Verifying";
+"content_lock_failed" = "Couldn’t verify. Try again.";
+"content_lock_reason_unlock" = "Verify to view Favorites and History.";
+"content_lock_reason_enable" = "Verify to lock Favorites and History.";
+"content_lock_reason_disable" = "Verify to stop locking Favorites and History.";

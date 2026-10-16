@@ -276,6 +276,8 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSFaceIDUsageDescription</key>
+	<string>AnyPortal uses Face ID to lock Favorites and History.</string>
 #if BROWSECRAFT_AD_TEST_TOOLS
 	<key>NSUserTrackingUsageDescription</key>
 	<string>僅測試版使用：讀取本機廣告識別碼，用於在 AdMob 登記測試裝置。</string>

@@ -9,6 +9,8 @@ import SwiftUI
 struct FavoritesView: View {
     @Bindable var viewModel: FavoritesViewModel
     @Bindable var cloudSyncViewModel: CloudSyncSettingsViewModel
+    /// 收藏与历史锁定（`docs/design/Content-Lock-Design.md`）：锁着时整页（含推入的详情）盖上锁定态。
+    let contentLockStore: ContentLockStore
     let contentViewModelFactory: LibraryContentViewModelFactory
     /// 宿主切到库标签（空状态「去库里逛逛」）。
     let openLibrary: () -> Void
@@ -73,6 +75,23 @@ struct FavoritesView: View {
                         )
                     )
                 }
+        }
+        .accessibilityHidden(self.contentLockStore.isContentHidden)
+        .overlay {
+            if self.contentLockStore.isContentHidden {
+                ContentLockedView(
+                    store: self.contentLockStore,
+                    pageTitle: "Favorites",
+                    title: NSLocalizedString("content_lock_favorites_title", comment: "收藏已锁定"),
+                    message: NSLocalizedString("content_lock_favorites_message", comment: "锁定态说明")
+                )
+            }
+        }
+        .onChange(of: self.contentLockStore.isContentHidden) { _, isHidden in
+            // 中文注释：撤销提示条写着作品名，盖上锁定态时一并收起。
+            if isHidden {
+                self.viewModel.dismissUndo()
+            }
         }
     }
 

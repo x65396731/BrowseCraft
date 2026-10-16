@@ -15,6 +15,8 @@ final class AppContainer {
     private let runtime: SourceRuntimeComposition
     private let features: FeatureComposition
     private let imageCacheConfigurator: ImageCacheConfigurator
+    /// 中文注释：收藏与历史锁定（`docs/design/Content-Lock-Design.md`），两页与设置页共用一份。
+    let contentLockStore: ContentLockStore
     private var storeKitTransactionUpdatesTask: Task<Void, Never>?
     private var accountDeletionNetworkRetryTask: Task<Void, Never>?
 
@@ -36,6 +38,10 @@ final class AppContainer {
     init(bootstrap: AppBootstrapDependencies) throws {
         let imageCacheConfigurator: ImageCacheConfigurator = ImageCacheConfigurator()
         self.imageCacheConfigurator = imageCacheConfigurator
+        self.contentLockStore = ContentLockStore(
+            authenticator: LocalAuthenticationDeviceOwnerAuthenticator(),
+            preferenceStore: UserDefaultsContentLockPreferenceStore()
+        )
 
         let account: AccountComposition = AccountComposition(
             database: bootstrap.database,

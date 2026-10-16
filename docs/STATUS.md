@@ -126,6 +126,8 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 删除账号页重设计的模拟器走查（iPhone 18 Pro / iOS 27.0，Debug 构建，生产服务器已登录账号）：设置页入口、说明页简体浅色与繁体深色（页顶图标与大标题、三张卡、coin 行尾显示服务端余额 8800、接下来三步、继续删除 / 保留账号）、居中确认框文案、保留账号返回设置页；未走 Apple 验证与真删，删除中遮罩与完成页未走查 | 未编号 | required | approved | implemented | simulator-passed | f84e72c | 2026-10-16 |
 | 设置页「关于」加「隐私权政策」行（审核指南 5.1.1(i)）：图标 SettingsPrivacy（SF Symbol hand.raised.fill 按设置页剪影规格栅格化、登记资产预算），点开用系统浏览器打开 https://anyportal.online/privacy（PortalCore a77d69f 的 `GET /privacy`）；三语文案 | 未编号 | required | approved | implemented | not-run | 3fb8793 | 2026-10-16 |
 | 设置页「隐私与诊断」加「发送使用统计」开关：绑定 AppAnalytics 已有的 settings.analyticsEnabled，关闭即 Firebase Analytics 停收、log() 跳过，与崩溃诊断分开（用户 2026-10-16 裁定单独一行）；图标 SettingsAnalytics；三语文案；隐私权政策同步（PortalCore） | 未编号 | required | approved | implemented | simulator-passed | 2593f6e | 2026-10-16 |
+| 收藏与历史的面容 ID 锁定（设计稿 2026-10-17 用户确认）：设置页「安全」分组一行开关（标题与图标随面容 ID / 触控 ID / Optic ID / 只有密码变，没有锁屏密码时禁用），打开与关闭都先验证；收藏页与历史页共用锁定态盖在整页之上，两页共用解锁状态，切进来与回到前台自动拉起验证，非活跃时盖上、进入后台重新锁定；图标 SettingsFaceID / SettingsTouchID / SettingsOpticID / SettingsPasscode 登记资产预算；面容 ID 用途说明与三语文案 | 未编号 | required | approved | implemented | not-run | 9f5ce7b | 2026-10-17 |
+| 收藏与历史锁定的模拟器走查（iPhone 18 Pro / iOS 27.0，Debug 构建）：未录入面容 ID 时为「密码锁定」，打开开关弹系统密码界面、取消后开关不变；录入后为「面容 ID 锁定」，打开与关闭都先验证；打开后直接进收藏；回桌面再回来重新锁定并自动拉起面容 ID；不匹配后取消停在锁定态、显示警示小字且不再循环拉起；点按钮解锁后切到历史不再验证；锁着时切到库不拉起、切到收藏自动拉起；多任务切换器缩略图为锁定态、从切换器回来不要求验证；关闭后回到前台两页直接可看；历史锁定态与设置分组深色。没有锁屏密码的禁用态模拟器造不出来，未走查；两页在该账号下都为空，未看有列表时的遮盖 | 未编号 | required | approved | implemented | simulator-passed | 9f5ce7b | 2026-10-17 |
 
 ## 5. 文档架构迁移
 

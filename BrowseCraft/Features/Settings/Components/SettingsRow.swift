@@ -7,12 +7,17 @@ import SwiftUI
 struct SettingsIconTile: View {
     /// 资产目录里的模板图名（Settings*.imageset，22pt 纯黑剪影），按 pt 原生渲染、不经 `.resizable()`。
     let image: String
+    /// 这一行在本机用不了（如没有锁屏密码时的锁定开关）：灰底灰图标（`docs/design/Content-Lock-Design.md` 第 2.2 节）。
+    var isUnavailable: Bool = false
 
     var body: some View {
         Image(self.image)
-            .foregroundStyle(CatalogPalette.settingsIcon)
+            .foregroundStyle(self.isUnavailable ? CatalogPalette.tertiaryText : CatalogPalette.settingsIcon)
             .frame(width: 32, height: 32)
-            .background(CatalogPalette.settingsIconFill, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .background(
+                self.isUnavailable ? CatalogPalette.fillBackground : CatalogPalette.settingsIconFill,
+                in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+            )
             .accessibilityHidden(true)
     }
 }
@@ -68,13 +73,16 @@ struct SettingsToggleRow: View {
     let image: String
     let title: String
     @Binding var isOn: Bool
+    /// 本机用不了：图标块与标题变灰。只表达「用不了」，验证进行中这类暂时禁用不变灰；开关本身仍由调用方 `.disabled` 压暗。
+    var isUnavailable: Bool = false
 
     var body: some View {
         Toggle(isOn: self.$isOn) {
             HStack(spacing: 12) {
-                SettingsIconTile(image: self.image)
+                SettingsIconTile(image: self.image, isUnavailable: self.isUnavailable)
                 Text(self.title)
                     .font(.body)
+                    .foregroundStyle(self.isUnavailable ? Color.secondary : Color.primary)
                     .lineLimit(1)
             }
         }

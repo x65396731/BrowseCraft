@@ -20,6 +20,7 @@ struct RootView: View {
     private let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
     private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
     private let coinWalletStore: CoinWalletStore
+    private let contentLockStore: ContentLockStore
     #if DEBUG
     private let videoRuntimeAuditWebUIPresenter: VideoRuntimeAuditWebUIPresenter
     /// 中文注释：仅 DEBUG——模拟器注入的 tap 打不到开屏「跳过」按钮；带启动参数
@@ -57,6 +58,7 @@ struct RootView: View {
         self.browserRequestHeaderProvider = container.browserRequestHeaderProvider
         self.systemCookieHeaderProvider = container.systemCookieHeaderProvider
         self.coinWalletStore = container.coinWalletStore
+        self.contentLockStore = container.contentLockStore
         #if DEBUG
         self.videoRuntimeAuditWebUIPresenter = container.videoRuntimeAuditWebUIPresenter
         #endif
@@ -122,6 +124,20 @@ struct RootView: View {
             await self.cloudSyncSettingsViewModel.start()
         }
         .onChange(of: self.scenePhase) { _, phase in
+            // 中文注释：收藏与历史锁定（`docs/design/Content-Lock-Design.md` 第四节）：非活跃时盖上、进入后台即重新锁定，
+            // 回到前台且停在这两页之一时自动拉起一次验证（验证本身引起的那次活跃除外）。
+            switch phase {
+            case .inactive:
+                self.contentLockStore.sceneDidBecomeInactive()
+            case .background:
+                self.contentLockStore.sceneDidEnterBackground()
+            case .active:
+                if self.contentLockStore.sceneDidBecomeActive() {
+                    self.promptContentUnlockIfNeeded()
+                }
+            @unknown default:
+                break
+            }
             // 中文注释：回到前台时让已添加的来源跟上公共目录；间隔节流在 `syncAddedSourcesWithCatalog` 里。
             guard phase == .active else {
                 return
@@ -129,6 +145,10 @@ struct RootView: View {
             Task {
                 await self.sourcesViewModel.syncAddedSourcesWithCatalog()
             }
+        }
+        .onChange(of: self.selectedTab) { _, _ in
+            // 中文注释：切到锁着的收藏或历史时自动拉起一次验证；取消后停在锁定态，等下次切进来或回到前台。
+            self.promptContentUnlockIfNeeded()
         }
         .onChange(of: self.sourcesViewModel.latestSourceAddID) { _, sourceID in
             guard sourceID != nil else {
@@ -198,6 +218,7 @@ struct RootView: View {
             FavoritesView(
                 viewModel: self.favoritesViewModel,
                 cloudSyncViewModel: self.cloudSyncSettingsViewModel,
+                contentLockStore: self.contentLockStore,
                 contentViewModelFactory: self.libraryContentViewModelFactory,
                 openLibrary: {
                     self.selectedTab = .library
@@ -222,6 +243,7 @@ struct RootView: View {
 
             HistoryView(
                 viewModel: self.historyViewModel,
+                contentLockStore: self.contentLockStore,
                 contentViewModelFactory: self.libraryContentViewModelFactory,
                 openLibrary: {
                     self.selectedTab = .library
@@ -237,13 +259,28 @@ struct RootView: View {
 
             SettingsView(
                 viewModel: self.settingsViewModel,
-                cloudSyncViewModel: self.cloudSyncSettingsViewModel
+                cloudSyncViewModel: self.cloudSyncSettingsViewModel,
+                contentLockStore: self.contentLockStore
             )
                 .tabItem {
                     Image("TabSettings")
                     Text("Settings")
                 }
                 .tag(RootTab.settings)
+        }
+    }
+
+    /// 中文注释：当前停在收藏或历史、且这两页锁着时拉起一次验证；开屏动画还在时不拉。
+    private func promptContentUnlockIfNeeded() {
+        guard self.startupCoordinator.phase.isDismissed,
+              self.selectedTab == .favorites || self.selectedTab == .history,
+              self.contentLockStore.isContentHidden else {
+            return
+        }
+        Task {
+            await self.contentLockStore.unlock(
+                reason: NSLocalizedString("content_lock_reason_unlock", comment: "解锁时的验证说明")
+            )
         }
     }
 

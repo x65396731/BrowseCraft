@@ -932,3 +932,25 @@
 "account_deletion_error_rate_limited" = "操作太頻繁，請稍後再試。";
 "account_deletion_error_network" = "網路連線失敗，請檢查網路後再試。";
 "account_deletion_error_generic" = "刪除未完成，請稍後再試。";
+
+/* 收藏与历史锁定（docs/design/Content-Lock-Design.md） */
+"content_lock_section" = "安全性";
+"content_lock_method_face_id" = "Face ID";
+"content_lock_method_touch_id" = "Touch ID";
+"content_lock_method_optic_id" = "Optic ID";
+"content_lock_row_title_biometric" = "%@ 鎖定";
+"content_lock_row_title_passcode" = "密碼鎖定";
+"content_lock_footer_biometric" = "開啟後，進入「收藏」和「紀錄」前要先通過 %@ 驗證，無法驗證時可以輸入裝置密碼。離開 AnyPortal 後會重新鎖定。";
+"content_lock_footer_passcode" = "開啟後，進入「收藏」和「紀錄」前要先輸入裝置密碼。離開 AnyPortal 後會重新鎖定。";
+"content_lock_footer_unavailable" = "這部裝置沒有設定密碼，暫時無法開啟。請先在系統「設定」中設定密碼，再回來開啟。";
+"content_lock_favorites_title" = "收藏已鎖定";
+"content_lock_favorites_message" = "驗證身分後查看你的收藏";
+"content_lock_history_title" = "紀錄已鎖定";
+"content_lock_history_message" = "驗證身分後查看最近看過的內容";
+"content_lock_unlock_biometric" = "使用 %@ 解鎖";
+"content_lock_unlock_passcode" = "使用密碼解鎖";
+"content_lock_authenticating" = "正在驗證";
+"content_lock_failed" = "未通過驗證，可以再試一次";
+"content_lock_reason_unlock" = "驗證身分後查看收藏與紀錄";
+"content_lock_reason_enable" = "驗證身分以鎖定收藏與紀錄";
+"content_lock_reason_disable" = "驗證身分以關閉收藏與紀錄鎖定";
