@@ -1272,3 +1272,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 同节「删除来源连带删除的模拟器走查」一行：设计 approved → superseded，实施 implemented → reverted，更新日期 2026-10-03 → 2026-10-17（同上）。
 - 同节新增一行「删除来源时保留历史与收藏」implemented / not-run，检查点先登记为实施前的 HEAD `ee3afc2`。
 - 同节「删除来源时保留历史与收藏」一行：验证 not-run → targeted-passed（iPhone 17 Pro / iOS 26.5 跑 SyncRepositoryTests、SourceSyncServiceTests、SourcesViewModelTests 共 34 例全过；首跑仓储测试两处队列条数断言写错——保存来源时的更新被删除替换、条数不变——改断言后重跑通过）。
+- 实施、文档与测试一起提交为 `c44934a`；「删除来源时保留历史与收藏」一行检查点由实施前的 HEAD `ee3afc2` 改登记为 `c44934a`。
