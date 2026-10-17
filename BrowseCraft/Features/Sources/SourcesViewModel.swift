@@ -331,44 +331,6 @@ final class SourcesViewModel {
     }
 
     @MainActor
-    func discoverComicResources(siteURLString: String, keyword: String) async -> [TransientComicDiscoveryItem] {
-        CrashDiagnostics.shared.setRuleStage(.search)
-        do {
-            let results: [TransientComicDiscoveryItem] = try await self.discoveryService.discoverComicResources(
-                siteURLString: siteURLString,
-                keyword: keyword
-            )
-            AppAnalytics.shared.logSearchSubmitted(sourceType: .comic, resultCount: results.count)
-            return results
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "comic-discovery-error")
-            AppAnalytics.shared.logSearchSubmitted(sourceType: .comic, resultCount: 0)
-            AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .search, errorCode: "comic-discovery-error")
-            self.errorMessage = error.localizedDescription
-            return []
-        }
-    }
-
-    @MainActor
-    func discoverVideoResources(siteURLString: String, keyword: String) async -> [TransientVideoDiscoveryItem] {
-        CrashDiagnostics.shared.setRuleStage(.search)
-        do {
-            let results: [TransientVideoDiscoveryItem] = try await self.discoveryService.discoverVideoResources(
-                siteURLString: siteURLString,
-                keyword: keyword
-            )
-            AppAnalytics.shared.logSearchSubmitted(sourceType: .video, resultCount: results.count)
-            return results
-        } catch {
-            RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "video-discovery-error")
-            AppAnalytics.shared.logSearchSubmitted(sourceType: .video, resultCount: 0)
-            AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .search, errorCode: "video-discovery-error")
-            self.errorMessage = error.localizedDescription
-            return []
-        }
-    }
-
-    @MainActor
     func assessVideoGenerationInput(
         siteURLString: String,
         sourceKind: RuleGenerationSourceKind? = nil

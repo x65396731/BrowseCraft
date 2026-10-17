@@ -209,14 +209,6 @@ enum ViewModelTestHarness {
             )
         )
         let discoveryService: SourceDiscoveryService = SourceDiscoveryService(
-            discoverComicResourcesUseCase: DiscoverComicResourcesUseCase(
-                pageContentLoader: StubPageContentLoader(),
-                htmlParser: CoreHTMLDiscoveryParser()
-            ),
-            discoverVideoResourcesUseCase: DiscoverVideoResourcesUseCase(
-                pageContentLoader: StubPageContentLoader(),
-                htmlParser: CoreHTMLDiscoveryParser()
-            ),
             assessVideoGenerationInputUseCase: AssessVideoGenerationInputUseCase(
                 publicURLPolicy: StubPublicURLPolicy(),
                 httpLoader: StubPreflightPageLoader(),

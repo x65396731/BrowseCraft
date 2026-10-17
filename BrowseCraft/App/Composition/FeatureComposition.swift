@@ -51,9 +51,7 @@ final class FeatureComposition {
             database: database,
             activeAppUser: account.activeAppUserStore,
             sourceRepository: account.sourceRepository,
-            pageContentLoader: runtime.pageLoader,
             pageDataLoader: runtime.pageLoader,
-            urlResolver: runtime.urlResolver,
             sourceRuntimeResolver: runtime.sourceRuntimeResolver,
             sourceSelectionStore: sourceSelectionStore,
             // 中文注释：APIKit 只在组合根出现；Feature 工厂只见 Application 端口（架构边界脚本）。

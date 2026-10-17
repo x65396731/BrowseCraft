@@ -15,12 +15,6 @@ struct StubPageDataLoader: PageDataLoader {
     }
 }
 
-struct StubPageContentLoader: PageContentLoader {
-    func loadContent(_ request: PageLoadRequest) async throws -> PageContentResponse {
-        throw TestPortError(reason: "No network for \(request.url.absoluteString)")
-    }
-}
-
 struct StubPublicURLPolicy: PublicURLChecking {
     func validate(_ url: URL) throws {}
 

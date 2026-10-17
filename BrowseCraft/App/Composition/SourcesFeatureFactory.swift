@@ -6,9 +6,7 @@ struct SourcesFeatureFactory {
     private let database: AppDatabase
     private let activeAppUser: any ActiveAppUserProviding
     private let sourceRepository: SourceRepository
-    private let pageContentLoader: PageContentLoader
     private let pageDataLoader: PageDataLoader
-    private let urlResolver: URLResolvingService
     private let sourceRuntimeResolver: any SourceRuntimeResolving
     private let sourceSelectionStore: SourceSelectionStore
     private let videoGenerationTaskClient: any VideoGenerationTaskCreating
@@ -21,9 +19,7 @@ struct SourcesFeatureFactory {
         database: AppDatabase,
         activeAppUser: any ActiveAppUserProviding,
         sourceRepository: SourceRepository,
-        pageContentLoader: PageContentLoader,
         pageDataLoader: PageDataLoader,
-        urlResolver: URLResolvingService,
         sourceRuntimeResolver: any SourceRuntimeResolving,
         sourceSelectionStore: SourceSelectionStore,
         videoGenerationTaskClient: any VideoGenerationTaskCreating,
@@ -40,9 +36,7 @@ struct SourcesFeatureFactory {
         self.database = database
         self.activeAppUser = activeAppUser
         self.sourceRepository = sourceRepository
-        self.pageContentLoader = pageContentLoader
         self.pageDataLoader = pageDataLoader
-        self.urlResolver = urlResolver
         self.sourceRuntimeResolver = sourceRuntimeResolver
         self.sourceSelectionStore = sourceSelectionStore
     }
@@ -65,16 +59,6 @@ struct SourcesFeatureFactory {
                 entryFamilyAssessor: DefaultSourceListEntryFamilyAssessor()
             )
         let sourceDiscoveryService: SourceDiscoveryService = SourceDiscoveryService(
-            discoverComicResourcesUseCase: DiscoverComicResourcesUseCase(
-                pageContentLoader: self.pageContentLoader,
-                htmlParser: CoreHTMLDiscoveryParser(),
-                urlResolver: self.urlResolver
-            ),
-            discoverVideoResourcesUseCase: DiscoverVideoResourcesUseCase(
-                pageContentLoader: self.pageContentLoader,
-                htmlParser: CoreHTMLDiscoveryParser(),
-                urlResolver: self.urlResolver
-            ),
             assessVideoGenerationInputUseCase: assessVideoGenerationInputUseCase
         )
         // 中文注释：任务提交是独立用例，预检 use case 不持有它（`BC-PREFLIGHT-048`）。
