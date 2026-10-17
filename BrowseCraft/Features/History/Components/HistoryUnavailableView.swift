@@ -11,5 +11,6 @@ struct HistoryUnavailableView: View {
         )
         .navigationTitle("History")
         .navigationBarTitleDisplayMode(.inline)
+        .analyticsScreen(.historyUnavailable)
     }
 }

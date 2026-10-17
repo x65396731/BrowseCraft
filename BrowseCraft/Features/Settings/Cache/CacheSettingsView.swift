@@ -26,6 +26,7 @@ struct CacheSettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         // 中文注释：二级页隐藏底栏，左上返回是唯一出口（用户裁定，与 coin 记录页同一做法）。
         .toolbar(.hidden, for: .tabBar)
+        .analyticsScreen(.cacheSettings)
         .task {
             await self.viewModel.refreshImageCacheUsage()
         }

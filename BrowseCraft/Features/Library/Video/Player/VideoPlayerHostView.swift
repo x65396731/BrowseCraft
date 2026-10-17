@@ -12,9 +12,8 @@ struct VideoPlayerHostView: View {
 
     var body: some View {
         self.playerContent
+        .analyticsScreen(.videoPlayer)
         .task {
-            CrashDiagnostics.shared.setScreen(.videoPlayer)
-            AppAnalytics.shared.logScreenView(.videoPlayer)
             CrashDiagnostics.shared.setSource(self.viewModel.source)
             CrashDiagnostics.shared.setRuleStage(.videoPlayback)
             await self.viewModel.prepareForPlayback()
@@ -22,9 +21,11 @@ struct VideoPlayerHostView: View {
                 return
             }
             self.didOpenContentSuccessfully = self.hasPlayableContent
+            self.viewModel.reportPlaybackUnavailableIfNeeded()
         }
         .onDisappear {
             self.viewModel.saveOnDisappear()
+            self.viewModel.reportPlaybackClosedIfNeeded()
         }
         .alert(isPresented: self.errorAlertBinding) {
             Alert(
@@ -41,6 +42,8 @@ struct VideoPlayerHostView: View {
         .fullScreenCover(item: self.requestedSourceLoginBinding) { loginState in
             SourceLoginView(
                 state: loginState,
+                entry: .player,
+                source: self.viewModel.source,
                 cancelAction: {
                     self.viewModel.dismissRequestedSourceLogin()
                 },
@@ -95,6 +98,9 @@ struct VideoPlayerHostView: View {
                         await self.viewModel.handleNativePlaybackFailure(error)
                     }
                 },
+                onPlaybackCompleted: {
+                    self.viewModel.reportPlaybackCompleted()
+                },
                 onClose: {
                     self.closePlayer()
                 }
@@ -103,6 +109,12 @@ struct VideoPlayerHostView: View {
             VideoWebPlayerView(
                 request: request,
                 title: self.viewModel.displayTitle,
+                onPageLoaded: {
+                    self.viewModel.reportPlaybackStartedIfNeeded(playerType: .web)
+                },
+                onProviderFailure: { failure in
+                    self.viewModel.reportPlaybackFailed(playerType: .web, failure: failure)
+                },
                 onClose: {
                     self.closePlayer()
                 }
@@ -170,6 +182,9 @@ struct VideoPlayerHostView: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            self.viewModel.reportPlaybackUnavailableIfNeeded()
+        }
     }
 
     private var errorAlertBinding: Binding<Bool> {

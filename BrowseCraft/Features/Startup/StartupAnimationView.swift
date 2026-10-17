@@ -89,6 +89,7 @@ struct StartupAnimationView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: self.phase.canSkip)
+        .analyticsScreen(.startup)
         .onAppear {
             if self.assets.videoURL == nil {
                 self.reportVideoFailureIfNeeded()

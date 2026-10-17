@@ -127,7 +127,7 @@ struct LibraryView: View {
                 }
             }
             .navigationDestination(item: self.$bookReaderSelection) { selection in
-                BookReaderView(viewModel: self.contentViewModelFactory.makeBookSiteReader(selection))
+                BookReaderView(viewModel: self.contentViewModelFactory.makeBookSiteReader(selection), entry: .continueTile)
                     .id(selection)
             }
             .navigationDestination(item: self.$comicReaderHistory) { history in
@@ -135,6 +135,7 @@ struct LibraryView: View {
                     ReaderView(
                         history: history,
                         source: source,
+                        entry: .continueTile,
                         factory: self.contentViewModelFactory
                     )
                     .id(history.id)
@@ -145,6 +146,8 @@ struct LibraryView: View {
             .fullScreenCover(item: self.requestedSourceLoginBinding) { loginState in
                 SourceLoginView(
                     state: loginState,
+                    entry: .library,
+                    source: self.viewModel.selectedSource,
                     cancelAction: {
                         self.viewModel.dismissRequestedSourceLogin()
                     },
@@ -171,9 +174,8 @@ struct LibraryView: View {
                     contentViewModelFactory: self.contentViewModelFactory
                 )
             }
+            .analyticsScreen(.library)
             .onAppear {
-                CrashDiagnostics.shared.setScreen(.library)
-                AppAnalytics.shared.logScreenView(.library)
                 // 中文注释：从详情 / 播放回到库页、从别的标签切回来，都重读一次本地历史——读取便宜，不等网络。
                 // 详情页右上也能收藏，封面上的爱心一并对齐。
                 self.viewModel.refreshContinueWatching()
@@ -289,6 +291,7 @@ struct LibraryView: View {
             }
             if loginState.status == .authenticated {
                 Button(role: .destructive) {
+                    AppAnalytics.shared.logSourceLogout(source: self.viewModel.selectedSource)
                     Task {
                         await SourceLoginSessionCleaner().clear(state: loginState)
                         self.viewModel.removeSelectedSourceCredential()
@@ -348,6 +351,7 @@ struct LibraryView: View {
                 }
                 if let detailURL: URL = history.detailURL {
                     Button {
+                        AppAnalytics.shared.logContentOpened(source: source, kind: .video, entry: .continueTile)
                         self.continueWatchingDetailItem = Self.detailItem(for: history, source: source, detailURL: detailURL)
                     } label: {
                         Label(NSLocalizedString("library_tile_open_work", comment: ""), systemImage: "list.bullet.rectangle")
@@ -402,6 +406,7 @@ struct LibraryView: View {
                 }
                 if let item: ContentItem = self.comicDetailItem(for: history, source: source) {
                     Button {
+                        AppAnalytics.shared.logContentOpened(source: source, kind: .comic, entry: .continueTile)
                         self.selectedComicDestination = LibraryComicDestination(item: item, source: source)
                     } label: {
                         Label(NSLocalizedString("library_tile_open_work", comment: ""), systemImage: "list.bullet.rectangle")
@@ -478,6 +483,7 @@ struct LibraryView: View {
                     )
                 }
                 Button {
+                    AppAnalytics.shared.logContentOpened(source: source, kind: isAudio ? .audiobook : .book, entry: .continueTile)
                     // 中文注释：书的 `item.id` 就是详情地址，直接用历史拼列表条目进详情，收藏与续读对得上同一本。
                     self.selectedSiteBookDestination = LibrarySiteBookDestination(
                         item: SiteBookChapterSelection(history: history, source: source).item,

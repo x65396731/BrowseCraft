@@ -121,10 +121,13 @@ final class InAppPurchaseStore {
 
             if products.isEmpty {
                 self.status = .productsUnavailable
+                AppAnalytics.shared.logPaywallProductsLoaded(.unavailable)
             } else if products.count < activePlans.count {
                 self.status = .someProductsUnavailable
+                AppAnalytics.shared.logPaywallProductsLoaded(.partial)
             } else {
                 self.status = .idle
+                AppAnalytics.shared.logPaywallProductsLoaded(.available)
             }
         } catch is CancellationError {
             IAPDiagnostics.notice("event=product-load-cancelled")
@@ -135,6 +138,7 @@ final class InAppPurchaseStore {
                     "error=\(IAPDiagnostics.safeErrorCode(error))"
             )
             self.status = .productLoadFailed
+            AppAnalytics.shared.logPaywallProductsLoaded(.failed)
         }
     }
 
@@ -172,6 +176,15 @@ final class InAppPurchaseStore {
         defer {
             self.activeProductID = nil
         }
+        // 中文注释：App Store 账户已买过、被预检挡下时，`transactionIdentityMismatch` 也算 already_owned。
+        var isBlockedAsAlreadyOwned: Bool = false
+        defer {
+            Self.logPurchaseResult(
+                productID: plan.productID,
+                status: self.status,
+                isBlockedAsAlreadyOwned: isBlockedAsAlreadyOwned
+            )
+        }
 
         if self.hasLoadedProducts == false {
             await self.loadProducts()
@@ -201,6 +214,7 @@ final class InAppPurchaseStore {
                 )
                 // 中文注释：这个 App Store 账户已经买过：不论记在哪个账号名下都引导去「恢复购买」——
                 // 原账号已删除时恢复会把它认领到当前账号（docs/design/Account-Deletion-Design.md 第 9.2 节）。
+                isBlockedAsAlreadyOwned = true
                 self.status = appAccountToken == nil
                     ? .transactionIdentityMismatch(title: plan.title)
                     : .alreadyPurchased(title: plan.title)
@@ -215,6 +229,7 @@ final class InAppPurchaseStore {
             }
 
             self.status = .purchasing(productID: plan.productID, title: plan.title)
+            AppAnalytics.shared.logPurchaseStarted(productID: plan.productID)
             let result: Product.PurchaseResult = try await product.purchase(
                 options: [.appAccountToken(authorizedUserID)]
             )
@@ -334,6 +349,14 @@ final class InAppPurchaseStore {
         defer {
             self.isLoading = false
         }
+        // 中文注释：恢复动作交回 nil 表示没有可恢复的交易（`restore-completed outcome=no-restorable-transactions`）。
+        var hasNothingToRestore: Bool = false
+        var isRestoreCancelled: Bool = false
+        defer {
+            if isRestoreCancelled == false {
+                Self.logRestoreResult(status: self.status, hasNothingToRestore: hasNothingToRestore)
+            }
+        }
 
         do {
             self.status = .checkingIdentity
@@ -343,6 +366,7 @@ final class InAppPurchaseStore {
             self.status = .restoring
             let activeProductIDs: Set<String>? =
                 try await self.restorePurchasesAction(authorizedUserID)
+            hasNothingToRestore = activeProductIDs == nil
             try await self.validateAuthorizedUser(authorizedUserID)
             if let activeProductIDs {
                 self.portalEntitledProductIDs =
@@ -367,6 +391,7 @@ final class InAppPurchaseStore {
             }
         } catch let error as CancellationError {
             Self.logFailure(error, flow: "restore")
+            isRestoreCancelled = true
             return
         } catch let error as StoreKitPurchaseIdentityAuthorizationError {
             Self.logFailure(error, flow: "restore")
@@ -723,6 +748,39 @@ final class InAppPurchaseStore {
                 return plan.productID
             }
         )
+    }
+
+    // MARK: - 埋点
+
+    /// 中文注释：一次购买走到终态后报 `purchase_result`；仍在进行中（被取消的任务等）不报。
+    private static func logPurchaseResult(
+        productID: String,
+        status: Status,
+        isBlockedAsAlreadyOwned: Bool
+    ) {
+        if isBlockedAsAlreadyOwned {
+            AppAnalytics.shared.logPurchaseResult(productID: productID, result: .alreadyOwned)
+            return
+        }
+        guard let result: PurchaseResult = status.purchaseAnalyticsResult else {
+            return
+        }
+        AppAnalytics.shared.logPurchaseResult(
+            productID: productID,
+            result: result,
+            errorCode: result == .failed ? status.analyticsFailureCode : nil
+        )
+    }
+
+    private static func logRestoreResult(status: Status, hasNothingToRestore: Bool) {
+        guard let result: RestoreResult = status.restoreAnalyticsResult else {
+            return
+        }
+        if result == .success && hasNothingToRestore {
+            AppAnalytics.shared.logRestoreResult(.nothingToRestore)
+        } else {
+            AppAnalytics.shared.logRestoreResult(result)
+        }
     }
 
     private static func logFailure(_ error: any Error, flow: String) {

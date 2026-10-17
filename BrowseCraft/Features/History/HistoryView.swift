@@ -41,9 +41,8 @@ struct HistoryView: View {
                             .padding(.bottom, 8)
                     }
                 }
+                .analyticsScreen(.history)
                 .onAppear {
-                    CrashDiagnostics.shared.setScreen(.history)
-                    AppAnalytics.shared.logScreenView(.history)
                     Task {
                         await self.viewModel.load()
                     }
@@ -51,6 +50,13 @@ struct HistoryView: View {
                 .onDisappear {
                     // 中文注释：切走标签就退出选择模式，不保留勾选。
                     self.viewModel.endSelection()
+                }
+                // 中文注释：筛选只由用户点分段改，ViewModel 不会程序性改它。
+                .onChange(of: self.viewModel.kindFilter) { _, newValue in
+                    AppAnalytics.shared.logContentFilterChanged(
+                        screen: .history,
+                        kind: HistoryViewModel.analyticsKind(of: newValue)
+                    )
                 }
                 .fullScreenCover(item: self.$viewModel.videoPlaybackRoute) { route in
                     VideoPlayerHostView(viewModel: route.viewModel)
@@ -164,7 +170,10 @@ struct HistoryView: View {
             Button(NSLocalizedString("Cancel", comment: ""), role: .cancel) {}
             Button(NSLocalizedString("history_delete", comment: ""), role: .destructive) {
                 Task {
-                    await self.viewModel.deleteSelected()
+                    let deletedCount: Int = await self.viewModel.deleteSelected()
+                    if deletedCount > 0 {
+                        AppAnalytics.shared.logHistoryDeleted(entry: .batch, count: deletedCount)
+                    }
                 }
             }
         } message: {
@@ -225,7 +234,7 @@ struct HistoryView: View {
             // 不用 destructive 角色，行的移除由数据变化驱动。
             if self.viewModel.isSelecting == false {
                 Button {
-                    self.delete(entry)
+                    self.delete(entry, from: .swipe)
                 } label: {
                     Label(NSLocalizedString("history_delete", comment: ""), systemImage: "trash")
                 }
@@ -250,6 +259,7 @@ struct HistoryView: View {
         }
         if state == .available || state == .paused, let source: Source = self.viewModel.source(for: entry) {
             Button {
+                AppAnalytics.shared.logOpenInLibraryTapped(screen: .history)
                 self.openSourceInLibrary(source)
             } label: {
                 Label(NSLocalizedString("favorites_menu_open_source", comment: ""), systemImage: "square.grid.2x2")
@@ -257,12 +267,13 @@ struct HistoryView: View {
         }
         Button {
             self.viewModel.beginSelection(preselecting: entry)
+            AppAnalytics.shared.logSelectionModeEntered(screen: .history, entry: .longPress)
         } label: {
             Label(NSLocalizedString("content_selection_select_multiple", comment: "选择多项"), systemImage: "checkmark.circle")
         }
         Divider()
         Button(role: .destructive) {
-            self.delete(entry)
+            self.delete(entry, from: .menu)
         } label: {
             Label(NSLocalizedString("history_menu_delete", comment: ""), systemImage: "trash")
         }
@@ -355,6 +366,7 @@ struct HistoryView: View {
                     title: NSLocalizedString("content_selection_select", comment: "选择"),
                     action: {
                         self.viewModel.beginSelection()
+                        AppAnalytics.shared.logSelectionModeEntered(screen: .history, entry: .headerButton)
                     }
                 )
                 .disabled(self.viewModel.filteredEntries.isEmpty)
@@ -435,8 +447,17 @@ struct HistoryView: View {
     // MARK: - 动作
 
     private func open(_ entry: ReadingHistoryEntry) {
-        switch self.viewModel.sourceState(for: entry) {
+        let state: HistoryViewModel.SourceState = self.viewModel.sourceState(for: entry)
+        switch state {
         case .available, .deleted, .temporary:
+            // 中文注释：临时资源由 TemporaryHistoryDetailView 以 entry=temporary 报一次，这里不重复报。
+            if state != .temporary {
+                AppAnalytics.shared.logContentOpened(
+                    source: self.viewModel.source(for: entry),
+                    kind: HistoryViewModel.analyticsKind(of: entry),
+                    entry: .history
+                )
+            }
             if entry.kind == .video, let history: VideoWatchHistory = entry.videoHistory {
                 self.viewModel.openVideoHistory(history)
             } else {
@@ -451,9 +472,11 @@ struct HistoryView: View {
         }
     }
 
-    private func delete(_ entry: ReadingHistoryEntry) {
+    private func delete(_ entry: ReadingHistoryEntry, from deleteEntry: HistoryDeleteEntry) {
         Task {
-            await self.viewModel.delete(entry)
+            if await self.viewModel.delete(entry) {
+                AppAnalytics.shared.logHistoryDeleted(entry: deleteEntry, count: 1)
+            }
         }
     }
 

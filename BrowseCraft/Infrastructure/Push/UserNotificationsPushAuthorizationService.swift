@@ -3,18 +3,18 @@ import UserNotifications
 
 /// `PushNotificationAuthorizing` 的 UserNotifications 适配器。
 struct UserNotificationsPushAuthorizationService: PushNotificationAuthorizing {
-    func requestAuthorizationIfNeeded() async -> PushNotificationAuthorizationStatus {
+    func requestAuthorizationIfNeeded() async -> PushNotificationAuthorizationOutcome {
         let center: UNUserNotificationCenter = UNUserNotificationCenter.current()
         let settings: UNNotificationSettings = await center.notificationSettings()
         switch settings.authorizationStatus {
         case .authorized, .provisional, .ephemeral:
-            return .authorized
+            return PushNotificationAuthorizationOutcome(status: .authorized, didPrompt: false)
         case .denied:
-            return .denied
+            return PushNotificationAuthorizationOutcome(status: .denied, didPrompt: false)
         case .notDetermined:
             break
         @unknown default:
-            return .denied
+            return PushNotificationAuthorizationOutcome(status: .denied, didPrompt: false)
         }
         do {
             let granted: Bool = try await center.requestAuthorization(
@@ -25,14 +25,14 @@ struct UserNotificationsPushAuthorizationService: PushNotificationAuthorizing {
                 event: "authorization-requested",
                 metadata: ["granted": granted ? "true" : "false"]
             )
-            return granted ? .authorized : .denied
+            return PushNotificationAuthorizationOutcome(status: granted ? .authorized : .denied, didPrompt: true)
         } catch {
             AppLog.error(
                 .push,
                 event: "authorization-request-failed",
                 metadata: ["error": AppLog.safeErrorCode(error)]
             )
-            return .denied
+            return PushNotificationAuthorizationOutcome(status: .denied, didPrompt: true)
         }
     }
 }

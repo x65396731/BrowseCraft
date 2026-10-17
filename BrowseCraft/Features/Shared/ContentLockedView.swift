@@ -57,6 +57,24 @@ struct ContentLockedView: View {
         .scrollBounceBehavior(.basedOnSize)
         // 中文注释：盖在整页之上，底色要铺到状态栏下面，否则下层列表会从顶部露出来。
         .background(CatalogPalette.pageBackground.ignoresSafeArea())
+        .analyticsScreen(.contentLocked)
+    }
+
+    /// 解锁结局埋点；锁定态按钮与 RootView 自动拉起的验证共用。没有真的发起验证（返回 nil）时不报。
+    static func logUnlockResult(_ result: DeviceOwnerAuthenticationResult?, trigger: ContentUnlockTrigger) {
+        guard let result: DeviceOwnerAuthenticationResult else {
+            return
+        }
+        let analyticsResult: AnalyticsResult
+        switch result {
+        case .succeeded:
+            analyticsResult = .success
+        case .failed:
+            analyticsResult = .failed
+        case .cancelled:
+            analyticsResult = .cancelled
+        }
+        AppAnalytics.shared.logContentUnlockResult(trigger: trigger, result: analyticsResult)
     }
 
     private var failureNotice: some View {
@@ -72,9 +90,10 @@ struct ContentLockedView: View {
         Button(
             action: {
                 Task {
-                    await self.store.unlock(
+                    let result: DeviceOwnerAuthenticationResult? = await self.store.unlock(
                         reason: NSLocalizedString("content_lock_reason_unlock", comment: "解锁时的验证说明")
                     )
+                    Self.logUnlockResult(result, trigger: .button)
                 }
             },
             label: {

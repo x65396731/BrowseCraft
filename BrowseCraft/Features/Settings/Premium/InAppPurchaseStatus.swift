@@ -129,3 +129,79 @@ enum InAppPurchaseStatus: Equatable {
         }
     }
 }
+
+// MARK: - 埋点
+
+extension InAppPurchaseStatus {
+    /// 中文注释：购买流程结束时的 `purchase_result`；进行中与跟购买无关的状态返回 nil。
+    var purchaseAnalyticsResult: PurchaseResult? {
+        switch self {
+        case .purchased:
+            return .success
+        case .cancelled:
+            return .cancelled
+        case .pending:
+            return .pending
+        case .alreadyPurchased:
+            return .alreadyOwned
+        case .revoked:
+            return .refunded
+        case .idle, .loadingProducts, .productsUnavailable, .someProductsUnavailable, .productLoadFailed,
+             .checkingIdentity, .purchasing, .submittingPurchase, .restoring, .restored, .restoreFailed,
+             .restoreAccountMismatch:
+            return nil
+        case .productUnavailable, .portalSignInRequired, .identityMismatch, .identityCheckFailed, .unverified,
+             .purchaseFailed, .transactionIdentityMismatch, .xcodeEnvironmentUnsupported,
+             .storeKitEnvironmentUnsupported, .portalSessionUnavailable, .portalTemporarilyUnavailable,
+             .portalAccountMismatch, .portalTransactionClaimed, .portalSubmissionRejected, .portalOutcomeUnknown,
+             .portalSubmissionInterrupted:
+            return .failed
+        }
+    }
+
+    /// 中文注释：恢复购买结束时的 `restore_result`；「没有可恢复」由调用方按恢复动作的返回值区分。
+    var restoreAnalyticsResult: RestoreResult? {
+        switch self {
+        case .restored:
+            return .success
+        case .restoreAccountMismatch:
+            return .accountMismatch
+        case .revoked:
+            return .refunded
+        case .idle, .loadingProducts, .checkingIdentity, .purchasing, .submittingPurchase, .restoring:
+            return nil
+        default:
+            return .failed
+        }
+    }
+
+    /// 中文注释：失败时的 `error_code`，取状态本身（有限取值），不带标题等文案。
+    var analyticsFailureCode: AnalyticsErrorCode? {
+        guard let code: PurchaseFailureCode = PurchaseFailureCode(rawValue: self.diagnosticCode) else {
+            return nil
+        }
+        return AnalyticsErrorCode(code)
+    }
+}
+
+/// 中文注释：`AnalyticsErrorCode` 只收字符串原始值的枚举；原始值与 `InAppPurchaseStatus.diagnosticCode` 一致，上报时转成 snake_case。
+private enum PurchaseFailureCode: String {
+    case productUnavailable = "product-unavailable"
+    case portalSignInRequired = "portal-sign-in-required"
+    case identityMismatch = "identity-mismatch"
+    case identityCheckFailed = "identity-check-failed"
+    case restoreAccountMismatch = "restore-account-mismatch"
+    case unverified
+    case purchaseFailed = "purchase-failed"
+    case transactionIdentityMismatch = "transaction-identity-mismatch"
+    case xcodeEnvironmentUnsupported = "xcode-environment-unsupported"
+    case storeKitEnvironmentUnsupported = "storekit-environment-unsupported"
+    case portalSessionUnavailable = "portal-session-unavailable"
+    case portalTemporarilyUnavailable = "portal-temporarily-unavailable"
+    case portalAccountMismatch = "portal-account-mismatch"
+    case portalTransactionClaimed = "portal-transaction-claimed"
+    case portalSubmissionRejected = "portal-submission-rejected"
+    case portalOutcomeUnknown = "portal-outcome-unknown"
+    case portalSubmissionInterrupted = "portal-submission-interrupted"
+    case restoreFailed = "restore-failed"
+}

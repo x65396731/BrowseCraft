@@ -402,7 +402,12 @@ final class BookSiteDetailViewModel {
             return
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "book-detail-error")
-            AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .detail, errorCode: "book-detail-error")
+            AppAnalytics.shared.logDiagnosticFailure(
+                kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
+                stage: .detail,
+                point: .bookDetail,
+                source: self.source
+            )
             // 中文注释：与漫画 / 影视详情同一套用户文案（合同第七节「文案是错误原因」），不再直接露 `localizedDescription`。
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }

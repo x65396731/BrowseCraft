@@ -18,8 +18,14 @@ final class SourcesViewModel {
     }
 
     private enum FailedRefreshAction {
-        case select(sourceID: String)
+        case select(sourceID: String, entry: SourceSelectionEntry)
         case refresh(sourceID: String)
+    }
+
+    /// 中文注释：一次目录规则跟随的结局，供 `catalog_rules_updated` 上报；没有可更新的条目时为 nil、不报。
+    private struct CatalogRuleUpdateSummary {
+        let updatedCount: Int
+        let result: AnalyticsResult
     }
 
     private(set) var sources: [Source] = []
@@ -47,6 +53,10 @@ final class SourcesViewModel {
     /// 本页每删除或撤销成功一次就加一；宿主据此重新载入历史与收藏，让被删来源的行显示为「来源已删除」或恢复正常。
     private(set) var sourceContentRevision: Int = 0
     @ObservationIgnored private var undoDismissTask: Task<Void, Never>?
+    /// 中文注释：撤销窗口里那次删除是从哪里发起的（左滑 / 长按菜单）；窗口结束、真正提交删除时随 `source_deleted` 上报。
+    @ObservationIgnored private var undoableDeletionEntry: SourceDeleteEntry?
+    /// 中文注释：启用来源窗口是从哪里拉起的；窗口出结局（启用、换下、失败、取消）时随 `source_activated` 上报一次后清空。
+    @ObservationIgnored private var requestedSlotActivationEntry: SourceActivationEntry?
     /// 启动与回到前台时的目录跟随（`syncAddedSourcesWithCatalog`）：进行中标记与上次成功读取的时刻。
     @ObservationIgnored private var isSyncingAddedSourcesWithCatalog: Bool = false
     @ObservationIgnored private var lastCatalogSyncDate: Date?
@@ -155,7 +165,8 @@ final class SourcesViewModel {
         guard let outcome: VideoGenerationOutcome = self.catalogSourceGrouping.personalOutcomes[catalogSourceID] else {
             return
         }
-        await self.hideOutcome(jobID: outcome.jobID, localSourceID: catalogSourceID)
+        let didHide: Bool = await self.hideOutcome(jobID: outcome.jobID, localSourceID: catalogSourceID)
+        AppAnalytics.shared.logCatalogItemDeleted(.personalRule, result: didHide ? .success : .failed)
     }
 
     /// 用户删除失败记录：服务端软删除。
@@ -165,7 +176,11 @@ final class SourcesViewModel {
     /// （2026-10-09 用户反馈）。所以同一入口的全部失败一起软删除，再重拉一次。
     @MainActor
     func deleteFailedGenerationOutcome(jobID: UUID) async {
-        await self.hideOutcomes(jobIDs: self.failedOutcomeJobIDs(sharingEntryURLWith: jobID), localSourceID: nil)
+        let didHide: Bool = await self.hideOutcomes(
+            jobIDs: self.failedOutcomeJobIDs(sharingEntryURLWith: jobID),
+            localSourceID: nil
+        )
+        AppAnalytics.shared.logCatalogItemDeleted(.failedOutcome, result: didHide ? .success : .failed)
     }
 
     /// 与给定失败记录同一入口的全部失败（含它自己）；找不到入口 URL 时只删它自己。
@@ -182,15 +197,16 @@ final class SourcesViewModel {
     }
 
     @MainActor
-    private func hideOutcome(jobID: UUID, localSourceID: String?) async {
-        await self.hideOutcomes(jobIDs: [jobID], localSourceID: localSourceID)
+    private func hideOutcome(jobID: UUID, localSourceID: String?) async -> Bool {
+        return await self.hideOutcomes(jobIDs: [jobID], localSourceID: localSourceID)
     }
 
     /// 逐条软删除；第一条失败就停下来报错，已删掉的不回滚（服务端幂等，下次重试照样可删）。
+    /// 返回服务端软删除是否全部成功；本地副本删除失败只报错，不算删除失败。
     @MainActor
-    private func hideOutcomes(jobIDs: [UUID], localSourceID: String?) async {
+    private func hideOutcomes(jobIDs: [UUID], localSourceID: String?) async -> Bool {
         guard let useCase: HideVideoGenerationOutcomeUseCase = self.hideVideoGenerationOutcomeUseCase else {
-            return
+            return false
         }
         for jobID: UUID in jobIDs {
             let result: HideVideoGenerationOutcomeUseCase.Result = await useCase.execute(jobID: jobID)
@@ -199,11 +215,11 @@ final class SourcesViewModel {
                 AppLog.notice(.push, event: "outcome-hidden")
             case .authRequired:
                 self.errorMessage = NSLocalizedString("catalog_personal_sign_in_hint", comment: "")
-                return
+                return false
             case .failed(let code):
                 AppLog.error(.push, event: "outcome-hide-failed", metadata: ["code": code])
                 self.errorMessage = NSLocalizedString("rule_error_unknown", comment: "")
-                return
+                return false
             }
         }
         if let localSourceID: String = localSourceID,
@@ -217,6 +233,7 @@ final class SourcesViewModel {
             }
         }
         await self.loadVideoGenerationOutcomes()
+        return true
     }
 
     /// 「发现」的站点示例（`section=example`，最多 6 条）。
@@ -333,10 +350,13 @@ final class SourcesViewModel {
     @MainActor
     func assessVideoGenerationInput(
         siteURLString: String,
-        sourceKind: RuleGenerationSourceKind? = nil
+        sourceKind: RuleGenerationSourceKind? = nil,
+        inputMethod: PreflightInputMethod
     ) async throws -> VideoGenerationInputPreflight {
-        let diagnosticSourceType: DiagnosticSourceType = sourceKind
-            .map(DiagnosticSourceType.init(generationKind:)) ?? .unknown
+        let analyticsKind: AnalyticsContentKind = sourceKind.map { kind in
+            return AnalyticsContentKind(ruleGenerationKind: kind)
+        } ?? .unknown
+        AppAnalytics.shared.logGenerationPreflightStarted(kind: analyticsKind, inputMethod: inputMethod)
         let assessmentID: UUID = UUID()
         self.videoGenerationAssessmentID = assessmentID
         self.errorMessage = nil
@@ -356,15 +376,14 @@ final class SourcesViewModel {
                 self.videoGenerationInputProgress = nil
                 self.videoGenerationAssessmentID = nil
             }
-            AppAnalytics.shared.logGenerationPreflightResult(
-                sourceType: diagnosticSourceType, preflight: result
-            )
+            AppAnalytics.shared.logGenerationPreflightResult(kind: analyticsKind, preflight: result)
             return result
         } catch is CancellationError {
             if self.videoGenerationAssessmentID == assessmentID {
                 self.videoGenerationInputProgress = nil
                 self.videoGenerationAssessmentID = nil
             }
+            AppAnalytics.shared.logGenerationPreflightCancelled(kind: analyticsKind, siteURLString: siteURLString)
             throw CancellationError()
         } catch {
             if self.videoGenerationAssessmentID == assessmentID {
@@ -372,9 +391,11 @@ final class SourcesViewModel {
                 self.videoGenerationAssessmentID = nil
                 self.errorMessage = error.localizedDescription
             }
-            if (error as? VideoGenerationInputPreflightExecutionIssue) != .cancelled {
+            if (error as? VideoGenerationInputPreflightExecutionIssue) == .cancelled {
+                AppAnalytics.shared.logGenerationPreflightCancelled(kind: analyticsKind, siteURLString: siteURLString)
+            } else {
                 AppAnalytics.shared.logGenerationPreflightError(
-                    sourceType: diagnosticSourceType, siteURLString: siteURLString, error: error
+                    kind: analyticsKind, siteURLString: siteURLString, error: error
                 )
             }
             throw error
@@ -393,23 +414,45 @@ final class SourcesViewModel {
         refresh: Bool = false,
         acquisitionTier: GenerationAcquisitionTier = .normal
     ) async throws -> VideoGenerationTaskSubmissionOutcome {
+        let analyticsKind: AnalyticsContentKind = AnalyticsContentKind(ruleGenerationKind: sourceKind)
+        let hardMode: Bool = acquisitionTier == .hard
         guard let useCase: CreateVideoGenerationTaskUseCase =
             self.createVideoGenerationTaskUseCase else {
+            AppAnalytics.shared.logGenerationSubmitted(
+                kind: analyticsKind, hardMode: hardMode, isRefresh: refresh, result: .localRejected
+            )
             throw VideoGenerationTaskSubmissionRejection.preflightNotAccepted(preflight.status)
         }
-        let outcome: VideoGenerationTaskSubmissionOutcome = try await useCase.execute(
-            preflight: preflight,
-            sourceKind: sourceKind,
-            refresh: refresh,
-            acquisitionTier: acquisitionTier
+        let outcome: VideoGenerationTaskSubmissionOutcome
+        do {
+            outcome = try await useCase.execute(
+                preflight: preflight,
+                sourceKind: sourceKind,
+                refresh: refresh,
+                acquisitionTier: acquisitionTier
+            )
+        } catch {
+            // 中文注释：本地拒绝（预检未通过、版本漂移）或异常，没到服务端；输入页把它显示成 `local-rejection`。
+            // 用户改网址或关页导致的取消不是提交结局，不报。
+            if (error is CancellationError) == false {
+                AppAnalytics.shared.logGenerationSubmitted(
+                    kind: analyticsKind, hardMode: hardMode, isRefresh: refresh, result: .localRejected
+                )
+            }
+            throw error
+        }
+        let submitResult: (result: GenerationSubmitResult, errorCode: AnalyticsErrorCode?) =
+            Self.generationSubmitResult(for: outcome)
+        AppAnalytics.shared.logGenerationSubmitted(
+            kind: analyticsKind,
+            hardMode: hardMode,
+            isRefresh: refresh,
+            result: submitResult.result,
+            errorCode: submitResult.errorCode
         )
-        let hardMode: Bool = acquisitionTier == .hard
         // 设计书 30.6：提交响应（`202` 与 `200 cached`）带扣后的余额；余额不足时服务端给的是当前余额，重新拉一次对齐。
         switch outcome {
         case .submitted(let receipt):
-            AppAnalytics.shared.logGenerationSubmitted(
-                sourceType: DiagnosticSourceType(generationKind: sourceKind), hardMode: hardMode
-            )
             if let balance: Int = receipt.coinBalance, let revision: Int = receipt.coinRevision {
                 self.coinWalletStore?.apply(balance: balance, revision: revision)
             }
@@ -419,9 +462,6 @@ final class SourcesViewModel {
                 self.coinWalletStore?.apply(balance: balance, revision: revision)
             }
         case .insufficientCoins:
-            AppAnalytics.shared.logGenerationInsufficientCoins(
-                sourceType: DiagnosticSourceType(generationKind: sourceKind), hardMode: hardMode
-            )
             if let store: CoinWalletStore = self.coinWalletStore {
                 Task { await store.refresh() }
             }
@@ -433,10 +473,42 @@ final class SourcesViewModel {
         if case .submitted = outcome,
            let authorizer: any PushNotificationAuthorizing = self.pushNotificationAuthorizer {
             Task {
-                _ = await authorizer.requestAuthorizationIfNeeded()
+                let authorizationOutcome: PushNotificationAuthorizationOutcome = await authorizer.requestAuthorizationIfNeeded()
+                let result: PushPermissionResult
+                if authorizationOutcome.didPrompt == false {
+                    result = .alreadyDecided
+                } else {
+                    result = authorizationOutcome.status == .authorized ? .granted : .denied
+                }
+                AppAnalytics.shared.logPushPermissionResult(result)
             }
         }
         return outcome
+    }
+
+    /// 中文注释：提交结局 → `generation_submitted` 的 result 与 error_code。服务端失败码是开放字符串，
+    /// 只按 `GenerationSubmitFailureCode` 归成有限几类再上报，不报原始码。
+    private static func generationSubmitResult(
+        for outcome: VideoGenerationTaskSubmissionOutcome
+    ) -> (result: GenerationSubmitResult, errorCode: AnalyticsErrorCode?) {
+        switch outcome {
+        case .submitted:
+            return (.submitted, nil)
+        case .reused:
+            return (.reused, nil)
+        case .insufficientCoins:
+            return (.insufficientCoins, nil)
+        case .authRequired:
+            return (.authRequired, nil)
+        case .activeJobLimit:
+            return (.activeJobLimit, nil)
+        case .previousJobActive:
+            return (.previousJobActive, nil)
+        case .rateLimited:
+            return (.rateLimited, nil)
+        case .failed(let code):
+            return (.failed, AnalyticsErrorCode(GenerationSubmitFailureCode(code: code)))
+        }
     }
 
     @MainActor
@@ -479,7 +551,7 @@ final class SourcesViewModel {
         do {
             self.setCatalogSources(try await self.catalogService.loadSources())
             self.lastCatalogSyncDate = self.now()
-            await self.applyCatalogRuleUpdates(self.catalogSources)
+            await self.applyCatalogRuleUpdates(self.catalogSources, trigger: .catalogOpen)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-source-refresh-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
@@ -510,7 +582,8 @@ final class SourcesViewModel {
             let catalogSources: [CatalogSource] = try await self.catalogService.loadSources()
             self.setCatalogSources(catalogSources)
             self.lastCatalogSyncDate = self.now()
-            await self.applyCatalogRuleUpdates(catalogSources)
+            // 中文注释：启动时的那次跟随也走这里，`CatalogUpdateTrigger` 没有单独的启动取值，一并记作 foreground。
+            await self.applyCatalogRuleUpdates(catalogSources, trigger: .foreground)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-sync-error")
         }
@@ -529,23 +602,41 @@ final class SourcesViewModel {
     /// 中文注释：规则在 App 内只读（`BCA-UI-003`），本地副本不可能被用户改过，覆盖不会丢任何用户数据；
     /// 覆盖走同一条添加路径，`createdAt` / `enabled` / `origin` 与阅读历史都不动。
     /// 与个人规则的 `refreshPersonalSourcesFromOutcomes` 是同一条原则：规则内容由服务器裁决。
+    /// - Parameter trigger: 为 nil 时不上报 `catalog_rules_updated`。
     @MainActor
-    func applyCatalogRuleUpdates(_ catalogSources: [CatalogSource]) async {
-        await self.applyRuleUpdatesFollowingServer(catalogSources, event: "catalog-sources-updated")
+    func applyCatalogRuleUpdates(_ catalogSources: [CatalogSource], trigger: CatalogUpdateTrigger? = nil) async {
+        let summary: CatalogRuleUpdateSummary? = await self.applyRuleUpdatesFollowingServer(
+            catalogSources,
+            event: "catalog-sources-updated"
+        )
+        guard let trigger: CatalogUpdateTrigger = trigger,
+              let summary: CatalogRuleUpdateSummary = summary else {
+            return
+        }
+        AppAnalytics.shared.logCatalogRulesUpdated(
+            trigger: trigger,
+            updatedCount: summary.updatedCount,
+            result: summary.result
+        )
     }
 
     /// 中文注释：目录跟随的共同路径（复审 B-4）：比较与物化在用例里、离开主线程，先比指纹再物化；
     /// 有更新的条目合成一个写事务写入，最后只重读一次来源表。不走 `addCatalogSource`——
     /// 后台自动覆盖不该碰当前选择，也不该触发 `latestSourceAddID` 的切标签。
+    /// 返回这次跟随的结局；没有可更新的条目时返回 nil。
     @MainActor
-    private func applyRuleUpdatesFollowingServer(_ catalogSources: [CatalogSource], event: String) async {
+    @discardableResult
+    private func applyRuleUpdatesFollowingServer(
+        _ catalogSources: [CatalogSource],
+        event: String
+    ) async -> CatalogRuleUpdateSummary? {
         let existingSources: [Source] = self.sources
         let plan: CatalogRuleUpdatePlan
         do {
             plan = try await self.catalogService.ruleUpdates(in: catalogSources, existingSources: existingSources)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-rule-update-plan-error")
-            return
+            return CatalogRuleUpdateSummary(updatedCount: 0, result: .failed)
         }
         if plan.unchangedFingerprintsBySourceID.isEmpty == false {
             do {
@@ -555,23 +646,29 @@ final class SourcesViewModel {
             }
         }
         guard plan.updates.isEmpty == false else {
-            return
+            return nil
         }
         let applied: AppliedCatalogRuleUpdates
         do {
             applied = try await self.catalogService.applyRuleUpdates(plan.updates, existingSources: existingSources)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-source-update-failed")
-            return
+            return CatalogRuleUpdateSummary(updatedCount: 0, result: .failed)
         }
         for (sourceID, reason) in applied.failuresBySourceID {
             AppLog.error(.rule, event: "catalog-source-update-failed", metadata: ["sourceID": sourceID, "reason": reason])
         }
+        // 中文注释：有条目物化失败、保留旧规则时整次记 failed，条数仍按实际写入的算。
+        let summary: CatalogRuleUpdateSummary = CatalogRuleUpdateSummary(
+            updatedCount: applied.sources.count,
+            result: applied.failuresBySourceID.isEmpty ? .success : .failed
+        )
         guard applied.sources.isEmpty == false else {
-            return
+            return applied.failuresBySourceID.isEmpty ? nil : summary
         }
         await self.load()
         AppLog.notice(.rule, event: event, metadata: ["count": String(applied.sources.count)])
+        return summary
     }
 
     /// 读取当前用户的生成终态；失败只记日志，不覆盖目录的错误提示。
@@ -701,11 +798,14 @@ final class SourcesViewModel {
     @MainActor
     /// - Parameter preserveSelection: 自动更新已添加来源时为真——**不得把用户从他正在看的来源上拽走**。
     ///   为真时只有当这条来源就是当前选中的那条，才重建库快照；其余情况只覆盖数据、不动界面。
+    /// - Parameter entry: 在规则目录的哪一块点的添加；为 nil 时不上报 `source_added`。
     func addCatalogSource(
         _ catalogSource: CatalogSource,
+        entry: SourceAddEntry? = nil,
         shouldPresentError: Bool = true,
         preserveSelection: Bool = false
     ) async -> Bool {
+        let analyticsKind: AnalyticsContentKind = AnalyticsContentKind(catalogSourceKind: catalogSource.kind)
         CrashDiagnostics.shared.setRuleStage(.list)
         self.catalogSourceAddFailureMessages.removeValue(forKey: catalogSource.id)
         // 中文注释：来自「我的生成」分组的规则记出身，之后服务器不再返回时本地副本随之删除；
@@ -727,6 +827,14 @@ final class SourcesViewModel {
             source.userID = self.currentUserID
             let wasSelected: Bool = self.selectedSourceID == source.id
             await self.load()
+            if let entry: SourceAddEntry = entry {
+                AppAnalytics.shared.logSourceAdded(
+                    source: self.source(id: source.id) ?? source,
+                    kind: analyticsKind,
+                    entry: entry,
+                    result: .success
+                )
+            }
             if preserveSelection && wasSelected == false {
                 // 中文注释：后台自动更新一条用户没在看的来源——数据已经覆盖，界面一个字不动。
                 return true
@@ -745,7 +853,7 @@ final class SourcesViewModel {
                 )
                 self.logPublishedLibrarySnapshot(source: source, items: items, origin: "catalog-source-add")
             }
-            self.selectSource(id: source.id)
+            self.selectSource(id: source.id, savesLibraryState: true, entry: wasSelected ? nil : .catalogAdd)
             if result.listOutput != nil {
                 self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
             }
@@ -754,6 +862,15 @@ final class SourcesViewModel {
             return true
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-source-add-error")
+            if let entry: SourceAddEntry = entry {
+                AppAnalytics.shared.logSourceAdded(
+                    source: nil,
+                    kind: analyticsKind,
+                    entry: entry,
+                    result: .failed,
+                    errorCode: AnalyticsErrorCode(RuleExecutionErrorClassifier.diagnosticFailureKind(for: error))
+                )
+            }
             let message: String = RuleExecutionErrorClassifier.userMessage(for: error)
             // 中文注释：不弹全局错误时也要把原因留在那一行——只写「加载失败」用户无从下手。
             self.catalogSourceAddFailureMessages[catalogSource.id] = message
@@ -770,20 +887,21 @@ final class SourcesViewModel {
         let sourceIDs: [String] = offsets.map { offset in
             return self.sources[offset].id
         }
-        await self.deleteSources(ids: sourceIDs)
+        await self.deleteSources(ids: sourceIDs, entry: .menu)
     }
 
     /// 中文注释：来源页的左滑与长按菜单按来源删除（`docs/design/Sources-Page-Redesign-Design.md` 2.5）：
     /// 不弹确认，删除后它的历史与收藏保留（`BCA-DB-005`），底部给出可撤销提示。
+    /// - Parameter entry: 左滑还是长按菜单；撤销窗口结束、真正提交删除时随 `source_deleted` 上报。
     @MainActor
-    func deleteSource(id sourceID: String) async {
-        await self.deleteSources(ids: [sourceID])
+    func deleteSource(id sourceID: String, entry: SourceDeleteEntry = .menu) async {
+        await self.deleteSources(ids: [sourceID], entry: entry)
     }
 
     /// 中文注释：用户发起的删除。新删除开始前先结束上一个撤销窗口（提示被替换）；只删一个且拿到留底时可撤销，
     /// 同步通知推迟到窗口结束；其余情况删完立刻通知。
     @MainActor
-    private func deleteSources(ids sourceIDs: [String]) async {
+    private func deleteSources(ids sourceIDs: [String], entry: SourceDeleteEntry) async {
         self.finishUndoableDeletion()
         do {
             let result: SourcesDeletionResult = try await self.persistenceCoordinator.delete(
@@ -792,8 +910,12 @@ final class SourcesViewModel {
             )
             self.applyDeletion(result)
             if sourceIDs.count == 1, let receipt: SourceDeletionReceipt = result.receipts.first {
-                self.showUndo(for: receipt)
+                self.showUndo(for: receipt, entry: entry)
             } else {
+                // 中文注释：没有撤销窗口的删除立刻算提交。
+                for receipt: SourceDeletionReceipt in result.receipts {
+                    AppAnalytics.shared.logSourceDeleted(receipt.source, entry: entry)
+                }
                 await self.notifyDeletionChanges(for: result.receipts)
             }
         } catch {
@@ -852,6 +974,7 @@ final class SourcesViewModel {
         self.undoDismissTask?.cancel()
         self.undoDismissTask = nil
         self.undoableDeletion = nil
+        self.undoableDeletionEntry = nil
         do {
             let snapshot: SourcesPersistenceSnapshot = try await self.persistenceCoordinator.restore(
                 receipt,
@@ -860,11 +983,13 @@ final class SourcesViewModel {
             self.sources = snapshot.sources
             self.sourceSlotLimit = snapshot.sourceSlotLimit
             if receipt.librarySelection != nil {
-                self.selectSource(id: receipt.source.id, savesLibraryState: false)
+                self.selectSource(id: receipt.source.id, savesLibraryState: false, entry: nil)
             }
             self.sourceContentRevision += 1
+            AppAnalytics.shared.logSourceDeletionUndone(receipt.source, result: .success)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-undo-delete-error")
+            AppAnalytics.shared.logSourceDeletionUndone(receipt.source, result: .failed)
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
     }
@@ -877,6 +1002,8 @@ final class SourcesViewModel {
             return
         }
         self.undoableDeletion = nil
+        AppAnalytics.shared.logSourceDeleted(receipt.source, entry: self.undoableDeletionEntry ?? .menu)
+        self.undoableDeletionEntry = nil
         guard receipt.enqueuedSyncChanges else {
             return
         }
@@ -885,9 +1012,10 @@ final class SourcesViewModel {
         }
     }
 
-    private func showUndo(for receipt: SourceDeletionReceipt) {
+    private func showUndo(for receipt: SourceDeletionReceipt, entry: SourceDeleteEntry) {
         self.undoDismissTask?.cancel()
         self.undoableDeletion = receipt
+        self.undoableDeletionEntry = entry
         self.undoDismissTask = Task { [weak self] in
             try? await Task.sleep(for: Self.undoDuration)
             guard Task.isCancelled == false,
@@ -899,43 +1027,53 @@ final class SourcesViewModel {
         }
     }
 
+    /// 中文注释：程序内的选择（启动兜底、删除后改选等），不上报 `source_selected`。
     func selectSource(id: String?) {
-        self.selectSource(id: id, savesLibraryState: true)
+        self.selectSource(id: id, savesLibraryState: true, entry: nil)
     }
 
     /// - Parameter savesLibraryState: 为假时只切换当前来源、不写库状态——撤销删除时库状态已由仓储原样写回。
-    private func selectSource(id: String?, savesLibraryState: Bool) {
+    /// - Parameter entry: 用户发起的切换从哪里来；为 nil（程序内的兜底选择）或当前来源没变时不上报 `source_selected`。
+    private func selectSource(id: String?, savesLibraryState: Bool, entry: SourceSelectionEntry?) {
         if let source: Source = self.source(id: id),
            source.accessState == .lockedBySlotLimit {
             self.requestedSlotActivationSource = source
+            self.requestedSlotActivationEntry = .sourcesList
             return
         }
 
+        let previousSourceID: String? = self.selectedSourceID
         self.selectedSourceID = id
         self.sourceSelectionStore.selectedSourceID = id
         let selectedSource: Source? = self.source(id: id)
         CrashDiagnostics.shared.setSource(selectedSource)
-        AppAnalytics.shared.logSourceSelected(selectedSource)
+        if let entry: SourceSelectionEntry = entry, previousSourceID != id {
+            AppAnalytics.shared.logSourceSelected(selectedSource, entry: entry)
+        }
         if savesLibraryState {
             self.saveLibraryStateForSelectedSource(lastRefreshAt: nil)
         }
     }
 
     /// 中文注释：已暂停的来源请求启用：打开启用来源窗口（2.4 / 2.6）。
-    func requestSlotActivation(for source: Source) {
+    /// - Parameter entry: 从哪里点到了暂停的来源；窗口出结局时随 `source_activated` 上报。
+    func requestSlotActivation(for source: Source, entry: SourceActivationEntry = .sourcesList) {
         guard source.accessState == .lockedBySlotLimit else {
             return
         }
         self.requestedSlotActivationSource = source
+        self.requestedSlotActivationEntry = entry
     }
 
     /// 返回调用结束时这个来源是否是当前来源——来源页据此决定是否跳到库（`docs/design/Sources-Page-Redesign-Design.md` 2.3）：
     /// 已是当前来源为 true；切换成功为 true；被锁定、另一次切换进行中或加载第一页失败为 false。
+    /// - Parameter entry: 切换从哪里发起，切换成功时随 `source_selected` 上报；失败后的重试沿用同一个入口。
     @MainActor
     @discardableResult
-    func selectSourceAfterRefresh(_ source: Source) async -> Bool {
+    func selectSourceAfterRefresh(_ source: Source, entry: SourceSelectionEntry = .sourcesList) async -> Bool {
         guard source.accessState == .active else {
             self.requestedSlotActivationSource = source
+            self.requestedSlotActivationEntry = .sourcesList
             return false
         }
 
@@ -963,12 +1101,17 @@ final class SourcesViewModel {
             )
             self.logPublishedLibrarySnapshot(source: source, items: page.items, origin: "select-source-refresh")
             self.failedRefreshAction = nil
-            self.selectSource(id: source.id)
+            self.selectSource(id: source.id, savesLibraryState: true, entry: entry)
             self.saveLibraryState(sourceID: source.id, lastRefreshAt: self.now())
         } catch {
-            self.failedRefreshAction = .select(sourceID: source.id)
+            self.failedRefreshAction = .select(sourceID: source.id, entry: entry)
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-select-refresh-error")
-            AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .list, errorCode: "source-select-refresh-error")
+            AppAnalytics.shared.logDiagnosticFailure(
+                kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
+                stage: .list,
+                point: .sourceSelectRefresh,
+                source: source
+            )
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
 
@@ -984,6 +1127,9 @@ final class SourcesViewModel {
         guard let requestedSource: Source = self.requestedSlotActivationSource else {
             return false
         }
+        let entry: SourceActivationEntry = self.requestedSlotActivationEntry ?? .sourcesList
+        // 中文注释：结局在这里报，先清掉入口，窗口随后收起时 `dismissRequestedSlotActivation` 就不会再报一次取消。
+        self.requestedSlotActivationEntry = nil
 
         do {
             let loadedSources: [Source] = try await self.persistenceCoordinator.activate(
@@ -1002,7 +1148,12 @@ final class SourcesViewModel {
                   activatedSource.accessState == .active else {
                 throw SourceRepositoryError.invalidSourceSlotReplacement
             }
-            await self.selectSourceAfterRefresh(activatedSource)
+            AppAnalytics.shared.logSourceActivated(
+                activatedSource,
+                entry: entry,
+                result: replacingSourceID == nil ? .success : .replaced
+            )
+            await self.selectSourceAfterRefresh(activatedSource, entry: .activation)
             return true
         } catch {
             RuleExecutionErrorClassifier.log(
@@ -1010,12 +1161,18 @@ final class SourcesViewModel {
                 stage: .list,
                 event: "source-slot-activation-error"
             )
+            AppAnalytics.shared.logSourceActivated(requestedSource, entry: entry, result: .failed)
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
             return false
         }
     }
 
+    /// 中文注释：窗口收起（取消、下滑、「获取更多位置」）。还没出结局的算取消；启用或失败已经报过，不再报。
     func dismissRequestedSlotActivation() {
+        if let entry: SourceActivationEntry = self.requestedSlotActivationEntry {
+            AppAnalytics.shared.logSourceActivated(self.requestedSlotActivationSource, entry: entry, result: .cancelled)
+        }
+        self.requestedSlotActivationEntry = nil
         self.requestedSlotActivationSource = nil
     }
 
@@ -1031,12 +1188,12 @@ final class SourcesViewModel {
         }
 
         switch failedRefreshAction {
-        case .select(let sourceID):
+        case .select(let sourceID, let entry):
             guard let source: Source = self.source(id: sourceID) else {
                 return false
             }
 
-            return await self.selectSourceAfterRefresh(source)
+            return await self.selectSourceAfterRefresh(source, entry: entry)
         case .refresh(let sourceID):
             guard let source: Source = self.source(id: sourceID) else {
                 return false
@@ -1136,7 +1293,12 @@ final class SourcesViewModel {
         } catch {
             self.failedRefreshAction = .refresh(sourceID: source.id)
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-refresh-error")
-            AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .list, errorCode: "source-refresh-error")
+            AppAnalytics.shared.logDiagnosticFailure(
+                kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
+                stage: .list,
+                point: .sourceRefresh,
+                source: source
+            )
             CrashDiagnostics.shared.record(
                 error: error,
                 category: .parser,
@@ -1228,9 +1390,37 @@ private extension String {
     }
 }
 
-extension DiagnosticSourceType {
-    /// 中文注释：三种 kind 与埋点的 source_type 同名；新 kind 没对上时落 unknown。放在 Features 层——Domain 不得引用 Shared。
-    init(generationKind: RuleGenerationSourceKind) {
-        self = DiagnosticSourceType(rawValue: generationKind.rawValue) ?? .unknown
+extension AnalyticsContentKind {
+    /// 中文注释：目录条目的 kind → 埋点 content_kind（`source_added` 失败时没有入库的来源，只能从目录条目取类型）。
+    init(catalogSourceKind: CatalogSourceKind) {
+        switch catalogSourceKind {
+        case .comic:
+            self = .comic
+        case .video:
+            self = .video
+        case .book:
+            self = .book
+        }
+    }
+}
+
+/// 中文注释：`generation_submitted` 失败时的 error_code。服务端失败码是开放字符串，这里归成有限几类，原始码不上报。
+private enum GenerationSubmitFailureCode: String {
+    case transport
+    case reusedRuleKindUnsupported = "reused_rule_kind_unsupported"
+    case reusedRuleDecryptionFailed = "reused_rule_decryption_failed"
+    case server
+
+    init(code: String) {
+        switch code {
+        case "transport":
+            self = .transport
+        case CreateVideoGenerationTaskUseCase.reusedRuleKindUnsupportedCode:
+            self = .reusedRuleKindUnsupported
+        case CreateVideoGenerationTaskUseCase.reusedRuleDecryptionFailedCode:
+            self = .reusedRuleDecryptionFailed
+        default:
+            self = .server
+        }
     }
 }

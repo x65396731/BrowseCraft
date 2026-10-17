@@ -26,11 +26,14 @@ struct AccountDeletionView: View {
         // 中文注释：删除中与完成后都不许返回：前者不可取消，后者只能点「好」回到访客状态的设置页。
         .navigationBarBackButtonHidden(self.viewModel.phase != .explaining)
         .toolbar(.hidden, for: .tabBar)
+        .analyticsScreen(.accountDeletion)
         .alert(
             NSLocalizedString("account_deletion_confirm_title", comment: "删除账号？"),
             isPresented: self.$viewModel.isConfirming
         ) {
-            Button(NSLocalizedString("Cancel", comment: ""), role: .cancel) {}
+            Button(NSLocalizedString("Cancel", comment: ""), role: .cancel) {
+                self.viewModel.reportDeclined()
+            }
             Button(NSLocalizedString("account_deletion_entry", comment: "删除账号"), role: .destructive) {
                 Task {
                     await self.viewModel.confirmDeletion()
@@ -157,6 +160,7 @@ struct AccountDeletionView: View {
 
                 Button(
                     action: {
+                        self.viewModel.reportDeclined()
                         self.dismiss()
                     },
                     label: {

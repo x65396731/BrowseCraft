@@ -103,10 +103,7 @@ struct AddSourceView: View {
                     }
                 }
             }
-            .onAppear {
-                CrashDiagnostics.shared.setScreen(.addSource)
-                AppAnalytics.shared.logScreenView(.addSource)
-            }
+            .analyticsScreen(.addSource)
         }
     }
 
@@ -114,6 +111,7 @@ struct AddSourceView: View {
     /// 到这里一眼认出类型；不另出一批插画（2026-10-06 用户裁定沿用）。
     private func kindCard(for kind: RuleGenerationSourceKind) -> some View {
         Button {
+            AppAnalytics.shared.logGenerationKindSelected(AnalyticsContentKind(ruleGenerationKind: kind))
             self.selectedKind = kind
         } label: {
             CatalogKindBannerView(

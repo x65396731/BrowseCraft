@@ -75,6 +75,7 @@ struct SettingsView: View {
                             iconForeground: CatalogPalette.onAction,
                             iconBackground: CatalogPalette.addAction,
                             action: {
+                                AppAnalytics.shared.logPremiumEntryTapped(.settingsCard)
                                 self.presentInAppPurchase()
                             }
                         )
@@ -149,9 +150,8 @@ struct SettingsView: View {
                     Task {
                         await self.viewModel.coinWalletStore?.refresh()
                     }
-                    CrashDiagnostics.shared.setScreen(.settings)
-                    AppAnalytics.shared.logScreenView(.settings)
                 }
+                .analyticsScreen(.settings)
                 .alert(
                     "BrowseCraft Account",
                     isPresented: self.portalAccountErrorAlertBinding
@@ -209,6 +209,7 @@ struct SettingsView: View {
                 )
                 // 中文注释：全屏广告位的黑底，功能性取值（调色板登记的例外）。
                 .background(Color.black.ignoresSafeArea())
+                .analyticsScreen(.purchase)
                 .transition(.identity)
                 .zIndex(1)
             }
@@ -287,10 +288,7 @@ struct SettingsView: View {
                             : NSLocalizedString("content_lock_reason_disable", comment: "关闭锁定时的验证说明")
                     )
                     if store.isEnabled == newValue {
-                        AppAnalytics.shared.logSettingChanged(
-                            name: "content_lock",
-                            value: String(newValue)
-                        )
+                        AppAnalytics.shared.logSettingChanged(.contentLock, isOn: newValue)
                     }
                 }
             }
@@ -309,10 +307,7 @@ struct SettingsView: View {
             )
             .onChange(of: self.isDiagnosticsEnabled) { _, newValue in
                 CrashDiagnostics.shared.setCollectionEnabled(newValue)
-                AppAnalytics.shared.logSettingChanged(
-                    name: "crash_diagnostics",
-                    value: String(newValue)
-                )
+                AppAnalytics.shared.logSettingChanged(.crashDiagnostics, isOn: newValue)
             }
 
             SettingsRowSeparator()
@@ -365,6 +360,7 @@ struct SettingsView: View {
                     guard let writeReviewURL: URL = Self.writeReviewURL else {
                         return
                     }
+                    AppAnalytics.shared.logSettingsLinkOpened(.rateApp)
                     self.openURL(writeReviewURL)
                 },
                 label: {
@@ -385,6 +381,7 @@ struct SettingsView: View {
                     guard let privacyPolicyURL: URL = PortalAPIConfiguration.privacyPolicyURL else {
                         return
                     }
+                    AppAnalytics.shared.logSettingsLinkOpened(.privacyPolicy)
                     self.openURL(privacyPolicyURL)
                 },
                 label: {
@@ -523,6 +520,12 @@ struct SettingsView: View {
     private func copy(_ value: String, field: CopiedField) {
         UIPasteboard.general.string = value
         self.copiedField = field
+        switch field {
+        case .diagnosticCode:
+            AppAnalytics.shared.logSupportInfoCopied(.diagnosticCode)
+        case .accountIdentifier:
+            AppAnalytics.shared.logSupportInfoCopied(.accountID)
+        }
         Task {
             try? await Task.sleep(for: .seconds(2))
             if self.copiedField == field {

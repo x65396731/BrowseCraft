@@ -70,18 +70,22 @@ final class ContentLockStore {
         }
     }
 
-    func unlock(reason: String) async {
+    /// 返回这次验证的结果；不需要验证（未开启、已解锁、正在验证）时返回 nil，调用方据此上报埋点。
+    @discardableResult
+    func unlock(reason: String) async -> DeviceOwnerAuthenticationResult? {
         guard self.isEnabled,
               self.isUnlocked == false,
               self.isAuthenticating == false else {
-            return
+            return nil
         }
-        if await self.authenticate(reason: reason) {
+        let result: DeviceOwnerAuthenticationResult = await self.authenticateResult(reason: reason)
+        if result == .succeeded {
             self.isUnlocked = true
             self.didLastUnlockFail = false
         } else {
             self.didLastUnlockFail = true
         }
+        return result
     }
 
     // MARK: - App 生命周期（由 RootView 转来）
@@ -113,10 +117,14 @@ final class ContentLockStore {
     }
 
     private func authenticate(reason: String) async -> Bool {
+        return await self.authenticateResult(reason: reason) == .succeeded
+    }
+
+    private func authenticateResult(reason: String) async -> DeviceOwnerAuthenticationResult {
         self.isAuthenticating = true
         defer {
             self.isAuthenticating = false
         }
-        return await self.authenticator.authenticate(reason: reason) == .succeeded
+        return await self.authenticator.authenticate(reason: reason)
     }
 }

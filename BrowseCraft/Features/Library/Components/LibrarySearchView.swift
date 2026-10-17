@@ -35,6 +35,7 @@ struct LibrarySearchView: View {
             }
             .background(CatalogPalette.pageBackground.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
+            .analyticsScreen(.librarySearch)
             .onAppear {
                 // 中文注释：合同第七节——重新打开时有结果就不弹键盘，没有结果才聚焦；
                 // 失败横幅在时也不聚焦，键盘会盖住横幅上的「重试」「登录」（2026-10-10 裁定）。
@@ -58,6 +59,8 @@ struct LibrarySearchView: View {
             .fullScreenCover(item: self.requestedSourceLoginBinding) { loginState in
                 SourceLoginView(
                     state: loginState,
+                    entry: .search,
+                    source: self.viewModel.selectedSource,
                     cancelAction: {
                         self.viewModel.dismissRequestedSourceLogin()
                     },
@@ -241,7 +244,7 @@ struct LibrarySearchView: View {
                     sourceForID: self.viewModel.source(for:),
                     toggleFavorite: { item in
                         Task {
-                            await self.viewModel.toggleFavorite(item: item)
+                            await self.viewModel.toggleFavorite(item: item, entry: .search)
                         }
                     },
                     openComic: { item, source in
@@ -274,7 +277,8 @@ struct LibrarySearchView: View {
                     // 中文注释：搜索结果与库页同一张卡片、同一行，只读信息照库页给（2026-10-10 裁定）：
                     // 漫画封面上的「读到 4-2」角标、整站有声的耳机与「听」措辞。长按「继续读」仍不接——搜索页不接阅读器。
                     comicProgressBadgeText: self.viewModel.comicProgressBadgeText(for:),
-                    isAudiobookSource: self.viewModel.isAudiobookSource
+                    isAudiobookSource: self.viewModel.isAudiobookSource,
+                    contentOpenEntry: .search
                 )
             }
         } else if self.viewModel.hasSearched {

@@ -53,12 +53,35 @@ final class AccountDeletionViewModel {
         do {
             let outcome: AccountDeletionOutcome = try await self.deleteAction()
             self.phase = .completed(outcome)
+            AppAnalytics.shared.logAccountDeletionResult(.success)
         } catch let error as AccountDeletionError {
             self.phase = .explaining
             self.failureAlert = Self.alert(for: error)
+            Self.logFailure(error)
         } catch {
             self.phase = .explaining
             self.failureAlert = Self.alert(for: .failed)
+            Self.logFailure(.failed)
+        }
+    }
+
+    /// 中文注释：确认框点「取消」或说明页点「保留账号」也报一次结局（设计文档 G 组）。
+    func reportDeclined() {
+        AppAnalytics.shared.logAccountDeletionResult(.cancelled)
+    }
+
+    /// 中文注释：取消 Apple 验证算 cancelled；已有一轮在跑（重复点）不是一次结局，不报。
+    private static func logFailure(_ error: AccountDeletionError) {
+        switch error {
+        case .operationInFlight:
+            return
+        case .reauthenticationCancelled:
+            AppAnalytics.shared.logAccountDeletionResult(.cancelled)
+        default:
+            AppAnalytics.shared.logAccountDeletionResult(
+                .failed,
+                errorCode: AnalyticsErrorCode(DeletionFailureCode(error))
+            )
         }
     }
 
@@ -176,5 +199,54 @@ final class AccountDeletionViewModel {
             message = NSLocalizedString("account_deletion_error_generic", comment: "删除未完成")
         }
         return FailureAlert(title: notDeleted, message: message)
+    }
+}
+
+/// 中文注释：埋点 `error_code` 只收字符串原始值的枚举；`AccountDeletionError` 在 Application 层、没有原始值，
+/// 这里逐个对应成有限取值（原始值即 case 名，上报时转 snake_case）。
+private enum DeletionFailureCode: String {
+    case operationInFlight
+    case reauthenticationCancelled
+    case reauthenticationFailed
+    case sessionExpired
+    case verificationExpired
+    case appleAccountMismatch
+    case appleUnavailable
+    case notConfigured
+    case persistenceFailed
+    case rateLimited
+    case network
+    case outcomeUnknown
+    case failed
+
+    init(_ error: AccountDeletionError) {
+        switch error {
+        case .operationInFlight:
+            self = .operationInFlight
+        case .reauthenticationCancelled:
+            self = .reauthenticationCancelled
+        case .reauthenticationFailed:
+            self = .reauthenticationFailed
+        case .sessionExpired:
+            self = .sessionExpired
+        case .verificationExpired:
+            self = .verificationExpired
+        case .appleAccountMismatch:
+            self = .appleAccountMismatch
+        case .appleUnavailable:
+            self = .appleUnavailable
+        case .notConfigured:
+            self = .notConfigured
+        case .persistenceFailed:
+            self = .persistenceFailed
+        case .rateLimited:
+            self = .rateLimited
+        case .network:
+            self = .network
+        case .outcomeUnknown:
+            self = .outcomeUnknown
+        case .failed:
+            self = .failed
+        }
     }
 }

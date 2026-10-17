@@ -45,6 +45,11 @@ struct EntryPageGuideView: View {
     let primaryAction: () -> Void
     /// 中文注释：只有首屏形态有取消——回看形态是叠在别人上面的 sheet，关掉它用 `primaryAction` 就够。
     let cancelAction: (() -> Void)?
+    /// 中文注释：`generation_guide_finished` 的入口：首次必过的那屏传 `.firstRun`，其余回看入口用缺省的 `.help`。
+    var analyticsEntry: GenerationGuideEntry = .help
+
+    /// 中文注释：本次显示是否已经报过结局；点按钮报过后，随之而来的 `onDisappear` 不再按「下滑关掉」补报取消。
+    @State private var hasReportedFinish: Bool = false
 
     // 中文注释：外观按 `docs/design/Generation-Input-Page-Redesign-Design.md` 第三节：自绘大标题、插画、
     // 「两条要求」「例子」「怎么找」三组卡片行、底部蓝色主按钮；文案、版本号与「首次必过」的判定不动。
@@ -120,6 +125,7 @@ struct EntryPageGuideView: View {
                 }
 
                 Button {
+                    self.reportFinish(.continued)
                     self.primaryAction()
                 } label: {
                     Text(NSLocalizedString(self.primaryTitleKey, comment: ""))
@@ -141,11 +147,28 @@ struct EntryPageGuideView: View {
             if let cancelAction: () -> Void = self.cancelAction {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(NSLocalizedString("Cancel", comment: "")) {
+                        self.reportFinish(.cancelled)
                         cancelAction()
                     }
                 }
             }
         }
+        .analyticsScreen(.entryGuide)
+        .onAppear {
+            self.hasReportedFinish = false
+        }
+        .onDisappear {
+            // 中文注释：没点任何按钮就消失的是下滑关掉 sheet，算取消。
+            self.reportFinish(.cancelled)
+        }
+    }
+
+    private func reportFinish(_ result: GenerationGuideResult) {
+        guard self.hasReportedFinish == false else {
+            return
+        }
+        self.hasReportedFinish = true
+        AppAnalytics.shared.logGenerationGuideFinished(entry: self.analyticsEntry, result: result)
     }
 
     private static let stepKeys: [String] = [
@@ -251,7 +274,8 @@ struct EntryPageGuideFlowView: View {
                     sourceKind: self.sourceKind,
                     primaryTitleKey: "entry_guide_continue_button",
                     primaryAction: self.acknowledge,
-                    cancelAction: self.onFinished
+                    cancelAction: self.onFinished,
+                    analyticsEntry: .firstRun
                 )
             }
         } else {

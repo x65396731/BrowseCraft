@@ -127,7 +127,18 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
         guard ATTrackingManager.trackingAuthorizationStatus == .notDetermined else {
             return
         }
-        _ = await ATTrackingManager.requestTrackingAuthorization()
+        let status: ATTrackingManager.AuthorizationStatus = await ATTrackingManager.requestTrackingAuthorization()
+        // 中文注释：真的弹过窗才报；仍是 notDetermined（系统没弹出来）不报，其余拒绝类状态归 restricted。
+        switch status {
+        case .authorized:
+            AppAnalytics.shared.logTrackingAuthorizationResult(.authorized)
+        case .denied:
+            AppAnalytics.shared.logTrackingAuthorizationResult(.denied)
+        case .notDetermined:
+            break
+        default:
+            AppAnalytics.shared.logTrackingAuthorizationResult(.restricted)
+        }
         #if DEBUG
         AppDebugLog.write(
             "[BrowseCraftAdPlayback] tracking authorization " +

@@ -50,6 +50,8 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
     /// 中文注释：外部播放源（embed 提供方）不可达/被拦截时的持久错误态；
     /// 主文档 commit 时清空，重试由视图层清空后 reload。
     @Published var providerFailure: VideoPlaybackProviderFailure?
+    /// 中文注释：第一份主文档加载完成后置真，只翻一次；网页播放器以此作为「开始播放」的埋点时机。
+    @Published private(set) var didFinishFirstDocument: Bool = false
 
     let configuration: WKWebViewConfiguration
     let initialHost: String?
@@ -87,6 +89,13 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
         self.configuration = configuration
         self.initialHost = request.url.host?.lowercased()
         super.init()
+    }
+
+    func markDocumentFinished() {
+        guard self.didFinishFirstDocument == false else {
+            return
+        }
+        self.didFinishFirstDocument = true
     }
 
     /// 中文注释：从即将 `load` 的 `URLRequest` 里解析 `User-Agent` 并记下；取不到就不动，

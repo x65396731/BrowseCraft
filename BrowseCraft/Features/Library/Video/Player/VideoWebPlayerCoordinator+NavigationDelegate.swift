@@ -140,6 +140,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
 
         self.scheduleMobileAdaptation(in: webView)
         self.scheduleEmbedProbe(in: webView)
+        self.markDocumentFinished()
     }
 
     #if DEBUG

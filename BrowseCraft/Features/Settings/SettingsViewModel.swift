@@ -122,17 +122,28 @@ final class SettingsViewModel {
             self.isPortalAccountActionInFlight = false
         }
 
+        let isSigningOut: Bool = self.isPortalAuthenticated
         do {
-            if self.isPortalAuthenticated {
+            if isSigningOut {
                 try await self.portalSignOutAction()
+                AppAnalytics.shared.logSignOutCompleted(trigger: .user)
             } else {
                 _ = try await self.portalSignInAction()
+                AppAnalytics.shared.logSignInResult(.success)
             }
             await self.refreshPortalAccountStatus()
         } catch let error as AppleSignInAuthorizationError
             where error == .cancelled {
+            if isSigningOut == false {
+                AppAnalytics.shared.logSignInResult(.cancelled)
+            }
             await self.refreshPortalAccountStatus()
         } catch {
+            if isSigningOut == false {
+                let errorCode: AnalyticsErrorCode? = (error as? AppleSignInAuthorizationError)
+                    .map { AnalyticsErrorCode(SignInFailureCode($0)) }
+                AppAnalytics.shared.logSignInResult(.failed, errorCode: errorCode)
+            }
             self.portalAccountErrorMessage = self.isPortalAuthenticated
                 ? NSLocalizedString("BrowseCraft could not sign out. Try again.", comment: "")
                 : NSLocalizedString("Sign in with Apple could not be completed. Try again.", comment: "")
@@ -149,10 +160,7 @@ final class SettingsViewModel {
             self.imageCacheManager.trimConfiguredDataCacheIfNeeded(settings: settings)
             self.imageCacheSettings = settings
             self.cacheErrorMessage = nil
-            AppAnalytics.shared.logSettingChanged(
-                name: "image_cache_limit",
-                value: String(limit.megabytes)
-            )
+            AppAnalytics.shared.logSettingChanged(.imageCacheLimit, value: String(limit.megabytes))
         } catch {
             AppLog.error(
                 .cache,
@@ -194,6 +202,7 @@ final class SettingsViewModel {
         let token: Int = self.clearResultToken
         self.lastClearedBytes = freedBytes
         AppLog.notice(.cache, event: "image-cache-cleared", metadata: ["freedBytes": String(freedBytes)])
+        AppAnalytics.shared.logCacheCleared(freedBytes: Int64(freedBytes))
 
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(3))
@@ -414,4 +423,35 @@ private struct RestorableStoreKitTransaction {
     let signedTransaction: String
     let plan: InAppPurchasePlan
     let environment: PortalPurchaseEnvironment
+}
+
+/// 中文注释：埋点 `error_code` 只收字符串原始值的枚举；`AppleSignInAuthorizationError` 在 Application 层、没有原始值，
+/// 这里逐个对应成有限取值（原始值即 case 名，上报时转 snake_case）。Portal 登录本身的失败没有可用的枚举，不带。
+private enum SignInFailureCode: String {
+    case operationInFlight
+    case cancelled
+    case missingIdentityToken
+    case invalidIdentityTokenEncoding
+    case missingAuthorizationCode
+    case authorizationFailed
+    case presentationUnavailable
+
+    init(_ error: AppleSignInAuthorizationError) {
+        switch error {
+        case .operationInFlight:
+            self = .operationInFlight
+        case .cancelled:
+            self = .cancelled
+        case .missingIdentityToken:
+            self = .missingIdentityToken
+        case .invalidIdentityTokenEncoding:
+            self = .invalidIdentityTokenEncoding
+        case .missingAuthorizationCode:
+            self = .missingAuthorizationCode
+        case .authorizationFailed:
+            self = .authorizationFailed
+        case .presentationUnavailable:
+            self = .presentationUnavailable
+        }
+    }
 }

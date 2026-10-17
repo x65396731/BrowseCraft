@@ -133,7 +133,7 @@ struct RootView: View {
                 self.contentLockStore.sceneDidEnterBackground()
             case .active:
                 if self.contentLockStore.sceneDidBecomeActive() {
-                    self.promptContentUnlockIfNeeded()
+                    self.promptContentUnlockIfNeeded(trigger: .foreground)
                 }
             @unknown default:
                 break
@@ -148,7 +148,7 @@ struct RootView: View {
         }
         .onChange(of: self.selectedTab) { _, _ in
             // 中文注释：切到锁着的收藏或历史时自动拉起一次验证；取消后停在锁定态，等下次切进来或回到前台。
-            self.promptContentUnlockIfNeeded()
+            self.promptContentUnlockIfNeeded(trigger: .tabSwitch)
         }
         .onChange(of: self.sourcesViewModel.latestSourceAddID) { _, sourceID in
             guard sourceID != nil else {
@@ -220,8 +220,12 @@ struct RootView: View {
                 openLibrary: {
                     self.selectedTab = .library
                 },
-                openSourceInLibrary: self.openSourceInLibrary,
-                requestSourceActivation: self.requestSourceActivation
+                openSourceInLibrary: { source in
+                    self.openSourceInLibrary(source, activationEntry: .favorites)
+                },
+                requestSourceActivation: { source in
+                    self.requestSourceActivation(source, entry: .favorites)
+                }
             )
                 .tabItem {
                     Image("TabFavorites")
@@ -245,8 +249,12 @@ struct RootView: View {
                 openLibrary: {
                     self.selectedTab = .library
                 },
-                openSourceInLibrary: self.openSourceInLibrary,
-                requestSourceActivation: self.requestSourceActivation
+                openSourceInLibrary: { source in
+                    self.openSourceInLibrary(source, activationEntry: .history)
+                },
+                requestSourceActivation: { source in
+                    self.requestSourceActivation(source, entry: .history)
+                }
             )
                 .tabItem {
                     Image("TabHistory")
@@ -268,29 +276,31 @@ struct RootView: View {
     }
 
     /// 中文注释：当前停在收藏或历史、且这两页锁着时拉起一次验证；开屏动画还在时不拉。
-    private func promptContentUnlockIfNeeded() {
+    private func promptContentUnlockIfNeeded(trigger: ContentUnlockTrigger) {
         guard self.startupCoordinator.phase.isDismissed,
               self.selectedTab == .favorites || self.selectedTab == .history,
               self.contentLockStore.isContentHidden else {
             return
         }
         Task {
-            await self.contentLockStore.unlock(
+            let result: DeviceOwnerAuthenticationResult? = await self.contentLockStore.unlock(
                 reason: NSLocalizedString("content_lock_reason_unlock", comment: "解锁时的验证说明")
             )
+            ContentLockedView.logUnlockResult(result, trigger: trigger)
         }
     }
 
     /// 中文注释：收藏页与历史页长按「在库中查看来源」——与来源页「点来源即打开库」同一条路径：
     /// 已暂停的来源转到来源页的启用窗口；切换成功切到库；切换失败切到来源页，错误弹窗与重试在那里。
-    private func openSourceInLibrary(_ source: Source) {
+    /// `open_in_library_tapped` 由收藏页 / 历史页在菜单里报；这里只给随后的来源切换与启用带上入口。
+    private func openSourceInLibrary(_ source: Source, activationEntry: SourceActivationEntry) {
         let current: Source = self.sourcesViewModel.source(id: source.id) ?? source
         if current.accessState == .lockedBySlotLimit {
-            self.requestSourceActivation(current)
+            self.requestSourceActivation(current, entry: activationEntry)
             return
         }
         Task {
-            if await self.sourcesViewModel.selectSourceAfterRefresh(current) {
+            if await self.sourcesViewModel.selectSourceAfterRefresh(current, entry: .openInLibrary) {
                 self.selectedTab = .library
             } else if self.sourcesViewModel.errorMessage != nil {
                 self.selectedTab = .sources
@@ -299,13 +309,20 @@ struct RootView: View {
     }
 
     /// 中文注释：点已暂停来源的收藏或历史——启用来源窗口挂在来源页上，所以先切到来源页再请求。
-    private func requestSourceActivation(_ source: Source) {
+    private func requestSourceActivation(_ source: Source, entry: SourceActivationEntry) {
         let current: Source = self.sourcesViewModel.source(id: source.id) ?? source
-        self.sourcesViewModel.requestSlotActivation(for: current)
+        self.sourcesViewModel.requestSlotActivation(for: current, entry: entry)
         self.selectedTab = .sources
     }
 
     private func skipStartupAnimation() {
+        // 中文注释：跳过按钮只在解锁后出现，开屏总是由它结束；解锁原因就是开屏为什么结束。
+        let unlockReason: StartupUnlockReason?
+        if case .unlocked(let reason, _) = self.startupCoordinator.phase {
+            unlockReason = reason
+        } else {
+            unlockReason = nil
+        }
         withAnimation(.easeOut(duration: 0.28)) {
             guard let destination: StartupDestination = self.startupCoordinator.skip() else {
                 return
@@ -323,6 +340,46 @@ struct RootView: View {
                 self.selectedTab = initialTab
             }
             #endif
+
+            AppAnalytics.shared.logStartupFinished(
+                outcome: Self.startupOutcome(for: unlockReason),
+                landingTab: Self.analyticsTab(for: self.selectedTab)
+            )
+        }
+    }
+
+    /// 中文注释：开屏只能在解锁后由用户点「跳过」结束，所以报解锁原因；拿不到解锁原因（理论上不会发生）时报 skipped。
+    private static func startupOutcome(for reason: StartupUnlockReason?) -> StartupOutcome {
+        switch reason {
+        case .sourceLoaded:
+            return .loaded
+        case .sourceLoadFailed:
+            return .sourceLoadFailed
+        case .noSources:
+            return .noSources
+        case .sourceCheckFailed:
+            return .sourceCheckFailed
+        case .sourceLoadTimedOut:
+            return .timedOut
+        case .videoPlaybackFailed:
+            return .videoFailed
+        case nil:
+            return .skipped
+        }
+    }
+
+    private static func analyticsTab(for tab: RootTab) -> AnalyticsTab {
+        switch tab {
+        case .sources:
+            return .sources
+        case .favorites:
+            return .favorites
+        case .library:
+            return .library
+        case .history:
+            return .history
+        case .settings:
+            return .settings
         }
     }
 }

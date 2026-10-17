@@ -9,8 +9,13 @@ struct SourceLoginView: View {
     @State private var didLoadInitialURL: Bool = false
     @State private var isCapturingCredential: Bool = false
     @State private var captureErrorMessage: String?
+    /// 中文注释：最近一次「完成」采集失败过；关闭时据此报 failed 而不是 cancelled。
+    @State private var didFailCapture: Bool = false
 
     let state: LibrarySourceLoginState
+    /// 中文注释：弹出登录页的页面，只用于 `source_login_result` 的 entry。
+    let entry: SourceLoginEntry
+    var source: Source? = nil
     let cancelAction: () -> Void
     let completeAction: (SourceCredential) -> Void
 
@@ -42,6 +47,7 @@ struct SourceLoginView: View {
             .background(CatalogPalette.plainBackground)
         }
         .interactiveDismissDisabled()
+        .analyticsScreen(.sourceLogin)
         .alert("Login Session", isPresented: self.captureErrorBinding) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -53,6 +59,11 @@ struct SourceLoginView: View {
         VStack(spacing: 8) {
             HStack(spacing: 12) {
                 Button("Close") {
+                    AppAnalytics.shared.logSourceLoginResult(
+                        source: self.source,
+                        entry: self.entry,
+                        result: self.didFailCapture ? .failed : .cancelled
+                    )
                     self.cancelAction()
                 }
                 .disabled(self.isCapturingCredential)
@@ -128,8 +139,10 @@ struct SourceLoginView: View {
 
         do {
             let credential: SourceCredential = try await self.coordinator.captureCredential(for: self.state)
+            AppAnalytics.shared.logSourceLoginResult(source: self.source, entry: self.entry, result: .success)
             self.completeAction(credential)
         } catch {
+            self.didFailCapture = true
             self.captureErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
     }

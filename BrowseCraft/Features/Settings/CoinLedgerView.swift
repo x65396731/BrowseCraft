@@ -30,6 +30,7 @@ struct CoinLedgerView: View {
         .navigationBarTitleDisplayMode(.inline)
         // 中文注释：二级页隐藏底栏，左上返回是唯一出口（用户裁定）；返回设置页时底栏自动回来。
         .toolbar(.hidden, for: .tabBar)
+        .analyticsScreen(.coinLedger)
         .refreshable {
             await self.viewModel.load()
             await self.wallet.refresh()

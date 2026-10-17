@@ -160,6 +160,31 @@ final class FavoritesViewModel {
         }
     }
 
+    /// 埋点的内容类型：收藏条目分不出有声书，书一律报 book。
+    static func analyticsKind(of item: FavoriteContentItem) -> AnalyticsContentKind {
+        switch Self.catalogKind(of: item) {
+        case .video:
+            return .video
+        case .comic:
+            return .comic
+        case .book:
+            return .book
+        }
+    }
+
+    static func analyticsKind(of filter: KindFilter) -> AnalyticsContentKind {
+        switch filter {
+        case .all:
+            return .all
+        case .video:
+            return .video
+        case .comic:
+            return .comic
+        case .book:
+            return .book
+        }
+    }
+
     private static func matches(_ item: FavoriteContentItem, _ filter: KindFilter) -> Bool {
         switch filter {
         case .all:
@@ -211,15 +236,18 @@ final class FavoritesViewModel {
 
     // MARK: - 取消收藏
 
-    /// 单条取消收藏（左滑、长按）：不弹确认，也没有撤销（2026-10-17 用户裁定）。
+    /// 单条取消收藏（左滑、长按）：不弹确认，也没有撤销（2026-10-17 用户裁定）。返回是否成功，页面据此上报埋点。
     @MainActor
-    func unfavorite(_ item: FavoriteContentItem) async {
+    @discardableResult
+    func unfavorite(_ item: FavoriteContentItem) async -> Bool {
         do {
             let snapshot: FavoritesPersistenceSnapshot = try await self.persistenceCoordinator.remove(item: item)
             self.apply(snapshot)
             self.changeRevision += 1
+            return true
         } catch {
             self.errorMessage = error.localizedDescription
+            return false
         }
     }
 
@@ -271,21 +299,24 @@ final class FavoritesViewModel {
         }
     }
 
-    /// 确认框里点了「取消收藏」：一次取消所选条目，然后退出选择模式。
+    /// 确认框里点了「取消收藏」：一次取消所选条目，然后退出选择模式。返回取消了几条（失败或没选为 0），页面据此上报埋点。
     @MainActor
-    func unfavoriteSelected() async {
+    @discardableResult
+    func unfavoriteSelected() async -> Int {
         let items: [FavoriteContentItem] = self.visibleItems.filter { self.selectedIdentities.contains($0.identity) }
         guard items.isEmpty == false else {
-            return
+            return 0
         }
         do {
             let snapshot: FavoritesPersistenceSnapshot = try await self.persistenceCoordinator.remove(items: items)
             self.apply(snapshot)
             self.changeRevision += 1
             self.endSelection()
+            return items.count
         } catch {
             self.errorMessage = error.localizedDescription
             await self.load()
+            return 0
         }
     }
 

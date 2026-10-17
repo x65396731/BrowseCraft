@@ -88,6 +88,7 @@ struct CatalogSourceListView: View {
             }
             .background(CatalogPalette.pageBackground)
             .navigationBarTitleDisplayMode(.inline)
+            .analyticsScreen(.catalog)
             // `BC-PREFLIGHT-066`：每次打开都重新拉取，不再「已加载过即跳过」。
             .task {
                 await self.viewModel.refreshCatalogSources()
@@ -194,7 +195,7 @@ struct CatalogSourceListView: View {
                         failureMessage: self.failureMessage(for: catalogSource),
                         showsSeparator: index > 0,
                         addAction: {
-                            self.add(catalogSource)
+                            self.add(catalogSource, entry: .recommended)
                         }
                     )
                 }
@@ -250,7 +251,7 @@ struct CatalogSourceListView: View {
                             action: self.actionState(for: catalogSource),
                             failureMessage: self.failureMessage(for: catalogSource),
                             addAction: {
-                                self.add(catalogSource)
+                                self.add(catalogSource, entry: .kindSection)
                             }
                         )
                     }
@@ -363,7 +364,7 @@ struct CatalogSourceListView: View {
                 action: self.actionState(for: catalogSource),
                 failureMessage: self.failureMessage(for: catalogSource),
                 addAction: {
-                    self.add(catalogSource)
+                    self.add(catalogSource, entry: .myGenerations)
                 }
             )
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -431,7 +432,7 @@ struct CatalogSourceListView: View {
             ?? NSLocalizedString("catalog_add_failed", comment: "")
     }
 
-    private func add(_ catalogSource: CatalogSource) {
+    private func add(_ catalogSource: CatalogSource, entry: SourceAddEntry) {
         // 中文注释：已添加的来源没有动作——规则变了由 `applyCatalogRuleUpdates` 在读取目录时自动覆盖。
         if self.addingSourceIDs.contains(catalogSource.id)
             || self.viewModel.isCatalogSourceAdded(catalogSource) {
@@ -444,6 +445,7 @@ struct CatalogSourceListView: View {
         Task {
             let didAdd: Bool = await self.viewModel.addCatalogSource(
                 catalogSource,
+                entry: entry,
                 shouldPresentError: false
             )
             await MainActor.run {

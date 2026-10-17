@@ -53,6 +53,10 @@ final class LocalAuthenticationDeviceOwnerAuthenticator: DeviceOwnerAuthenticati
                 event: "content-lock-authentication-failed",
                 metadata: ["error": AppLog.safeErrorCode(error)]
             )
+            if let laError: LAError = error as? LAError,
+               laError.code == .userCancel || laError.code == .appCancel || laError.code == .systemCancel {
+                return .cancelled
+            }
             return .failed
         }
     }

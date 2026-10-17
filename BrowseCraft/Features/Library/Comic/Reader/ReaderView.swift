@@ -7,26 +7,33 @@ struct ReaderView: View {
     @State private var viewModel: ReaderViewModel
     @State private var didApplyRestorePage: Bool = false
     @State private var didOpenContentSuccessfully: Bool = false
+    /// 中文注释：`reader_opened` 的入口，首次加载前写进 ViewModel。
+    private let entry: ReaderOpenEntry
 
     init(
         item: ContentItem,
         source: Source,
         selectedChapter: ChapterLink? = nil,
+        entry: ReaderOpenEntry = .chapterList,
         factory: LibraryContentViewModelFactory
     ) {
         self._viewModel = State(
             wrappedValue: factory.makeReader(item, source, selectedChapter)
         )
+        self.entry = entry
     }
 
+    /// 中文注释：用章节历史打开；默认按历史页点行算，库页「上次读到」瓷砖传 `.continueTile`。
     init(
         history: ComicChapterHistory,
         source: Source,
+        entry: ReaderOpenEntry = .history,
         factory: LibraryContentViewModelFactory
     ) {
         self._viewModel = State(
             wrappedValue: factory.makeHistoryReader(history, source)
         )
+        self.entry = entry
     }
 
     var body: some View {
@@ -47,19 +54,20 @@ struct ReaderView: View {
             }
             .onDisappear {
                 self.viewModel.saveCurrentChapterProgress(reason: "reader-disappear")
+                self.viewModel.reportReaderClosedIfNeeded()
             }
             .background(CatalogPalette.plainBackground)
             .navigationTitle(self.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             // 中文注释：阅读时藏起底栏，与 BookReaderView 一致；返回详情页后系统自动恢复。
             .toolbar(.hidden, for: .tabBar)
+            .analyticsScreen(.comicReader)
             .onAppear {
-                CrashDiagnostics.shared.setScreen(.comicReader)
-                AppAnalytics.shared.logScreenView(.comicReader)
                 CrashDiagnostics.shared.setSource(self.viewModel.diagnosticSource)
                 CrashDiagnostics.shared.setRuleStage(.reader)
             }
             .task {
+                self.viewModel.openEntry = self.entry
                 await self.viewModel.load()
                 guard Task.isCancelled == false else {
                     return
@@ -106,6 +114,8 @@ struct ReaderView: View {
         .fullScreenCover(item: self.requestedSourceLoginBinding) { loginState in
             SourceLoginView(
                 state: loginState,
+                entry: .reader,
+                source: self.viewModel.diagnosticSource,
                 cancelAction: {
                     self.viewModel.dismissRequestedSourceLogin()
                 },

@@ -38,6 +38,7 @@ struct ComicDiscoveryWebResourceView: View {
         }
         .navigationTitle(self.title)
         .navigationBarTitleDisplayMode(.inline)
+        .analyticsScreen(.comicResourceWeb)
     }
 
     private func toolbar(proxy: WebViewProxy) -> some View {

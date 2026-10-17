@@ -27,7 +27,9 @@ final class AdPlaybackViewModel {
             signedIn: userIdentifier != nil
         )
         if case .completed = result {
-            rewardCoordinator?.rewardedAdCompleted(userIdentifier: userIdentifier)
+            RewardedAdCreditReporter.observe(
+                rewardCoordinator?.rewardedAdCompleted(userIdentifier: userIdentifier)
+            )
         }
         self.isLoading = false
         self.message = Self.message(

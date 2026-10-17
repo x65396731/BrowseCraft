@@ -7,9 +7,12 @@ struct BookReaderView: View {
     @State private var viewModel: BookReaderViewModel
     @State private var isContentsPresented: Bool = false
     @State private var isBookmarksPresented: Bool = false
+    private let entry: ReaderOpenEntry
 
-    init(viewModel: BookReaderViewModel) {
+    /// 中文注释：`entry` 是埋点入口（`reader_opened` / 有声书 `playback_started`）；默认按历史页打开算。
+    init(viewModel: BookReaderViewModel, entry: ReaderOpenEntry = .history) {
         self._viewModel = State(wrappedValue: viewModel)
+        self.entry = entry
     }
 
     var body: some View {
@@ -134,17 +137,19 @@ struct BookReaderView: View {
             }
         }
         .task {
-            // 中文注释：打开前不知道是文字书还是有声书，先记阅读页；有声作品打开后再记一次播放器页。
+            // 中文注释：打开前不知道是文字书还是有声书：加载期间只给 Crashlytics 记阅读页，
+            // 打开后才按结果报一次页面曝光（有声书只报 audiobook_player，不先报 book_reader）。
             CrashDiagnostics.shared.setScreen(.bookReader)
-            AppAnalytics.shared.logScreenView(.bookReader)
+            self.viewModel.openEntry = self.entry
             await self.viewModel.open()
-            if self.viewModel.isAudiobook {
-                CrashDiagnostics.shared.setScreen(.audiobookPlayer)
-                AppAnalytics.shared.logScreenView(.audiobookPlayer)
+            guard Task.isCancelled == false else {
+                return
             }
+            AnalyticsScreenReporter.report(self.viewModel.isAudiobook ? .audiobookPlayer : .bookReader)
         }
         .onDisappear {
             self.viewModel.flush()
+            self.viewModel.reportClosedIfNeeded()
         }
         .handlesRewardedAdPlayback(
             shouldPlayAd: self.viewModel.shouldPlayAd,

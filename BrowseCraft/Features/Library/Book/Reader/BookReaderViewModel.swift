@@ -46,6 +46,21 @@ final class BookReaderViewModel {
     private var lastAudioTimeForAdPoints: Double?
     private var audioPlayedIntervalForAdPoints: Double = 0
 
+    // MARK: 埋点会话
+    /// 中文注释：从哪里打开的阅读器，由 `BookReaderView` 在打开前写入（`reader_opened` / 有声书 `playback_started` 的 entry）。
+    var openEntry: ReaderOpenEntry = .detailStart
+    private var openedAt: Date?
+    /// 中文注释：本次进入过的不同章节（`reader_closed` 的章节数）；第一章在打开时记入，不报 `chapter_opened`。
+    private var visitedChapterKeys: Set<String> = []
+    /// 中文注释：目录 / 书签跳转发出后、新章位置到达前置为 `.toc`，其余换章算阅读中自然进入（`.auto`）。
+    private var pendingChapterNavigation: ChapterNavigation?
+    private var isJumpInFlight: Bool = false
+    private var didReportClose: Bool = false
+    private var didReportAudioPlaybackStarted: Bool = false
+    private var lastAudioTimeForPlayedDuration: Double?
+    /// 中文注释：有声书本次实际播放时长（暂停与大跳变不计），`playback_closed` 用。
+    private var audioPlayedDuration: Double = 0
+
     /// 中文注释：站点书加载出版物后的标题，与详情页同一条规则 `SiteBookTitle`：列表标题与 manifest 标题一个包含另一个时取较短的
     ///（biquhua 列表「[玄幻]普罗之主」→ 取详情「普罗之主」；sfacg 详情「大傩目录列表 - 小说频道 - SF轻小说」→ 取列表「大傩」）。
     private(set) var loadedTitle: String?
@@ -113,7 +128,14 @@ final class BookReaderViewModel {
             case .site(let selection):
                 try await self.openSite(selection)
                 self.recordSiteHistory()
-                AppAnalytics.shared.logReaderOpened(source: selection.source)
+                self.openedAt = Date()
+                if let chapterKey: String = self.currentChapterKey() {
+                    self.visitedChapterKeys.insert(chapterKey)
+                }
+                // 中文注释：有声书不报 reader_opened，开始播放时报 playback_started（见 `startAudioPlayback`）。
+                if self.isAudiobook == false {
+                    AppAnalytics.shared.logReaderOpened(source: selection.source, kind: .book, entry: self.openEntry)
+                }
                 self.awardChapterAdPointsIfNeeded()
             }
             if let publication: Publication = self.publication, case .success(let links) = await publication.tableOfContents() {
@@ -122,8 +144,13 @@ final class BookReaderViewModel {
             await self.loadBookmarks()
             self.state = .ready
         } catch {
-            if case .site = self.subject {
-                AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .reader, errorCode: "book-reader-open-error")
+            if case .site(let selection) = self.subject {
+                AppAnalytics.shared.logDiagnosticFailure(
+                    kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
+                    stage: .reader,
+                    point: .bookReaderOpen,
+                    source: selection.source
+                )
             }
             self.state = .failed(error.localizedDescription)
         }
@@ -175,6 +202,9 @@ final class BookReaderViewModel {
                 },
                 onLocationChange: { [weak self] locator in
                     self?.navigatorDidChangeLocation(locator)
+                },
+                onResourceFinished: { [weak self] info in
+                    self?.audioResourceDidFinish(info)
                 }
             )
             navigator.delegate = bridge
@@ -206,6 +236,50 @@ final class BookReaderViewModel {
             self.remoteControls = controls
         }
         navigator.play()
+        if self.didReportAudioPlaybackStarted == false, case .site(let selection) = self.subject {
+            self.didReportAudioPlaybackStarted = true
+            AppAnalytics.shared.logPlaybackStarted(
+                source: selection.source,
+                kind: .audiobook,
+                playerType: .audio,
+                entry: Self.playbackEntry(for: self.openEntry)
+            )
+        }
+    }
+
+    /// 中文注释：有声书沿用阅读器的入口参数，映射到播放入口：从目录 / 开始收听算选集。
+    private static func playbackEntry(for entry: ReaderOpenEntry) -> PlaybackEntry {
+        switch entry {
+        case .detailStart, .chapterList:
+            return .episode
+        case .detailContinue:
+            return .continue
+        case .history:
+            return .history
+        case .continueTile:
+            return .continueTile
+        }
+    }
+
+    /// 中文注释：离开阅读器时报一次：文字书 `reader_closed`，有声书 `playback_closed`（时长为实际播放时长）。
+    /// 激励广告盖在上面时视图也会消失，那不算离开。
+    func reportClosedIfNeeded() {
+        guard self.didReportClose == false,
+              self.shouldPlayAd == false,
+              case .site = self.subject,
+              let openedAt: Date = self.openedAt else {
+            return
+        }
+        self.didReportClose = true
+        if self.isAudiobook {
+            AppAnalytics.shared.logPlaybackClosed(kind: .audiobook, playerType: .audio, duration: self.audioPlayedDuration)
+        } else {
+            AppAnalytics.shared.logReaderClosed(
+                kind: .book,
+                duration: Date().timeIntervalSince(openedAt),
+                chapterCount: self.visitedChapterKeys.count
+            )
+        }
     }
 
     func stopAudioPlayback() {
@@ -231,6 +305,7 @@ final class BookReaderViewModel {
     func navigatorDidChangeLocation(_ locator: Locator) {
         self.currentLocator = locator
         if self.isAudiobook == false {
+            self.trackChapterVisit()
             self.awardChapterAdPointsIfNeeded()
         }
         guard self.pendingSave == nil else {
@@ -265,6 +340,7 @@ final class BookReaderViewModel {
                 title: locator.title,
                 snippet: locator.text.highlight ?? locator.text.before
             )
+            AppAnalytics.shared.logReaderBookmarkChanged(isAdded: true, kind: self.analyticsKind)
             await self.loadBookmarks()
         } catch {
             self.state = .failed(error.localizedDescription)
@@ -274,6 +350,7 @@ final class BookReaderViewModel {
     func removeBookmark(_ bookmark: BookBookmark) async {
         do {
             try await self.persistence.removeBookmark(bookmarkID: bookmark.id, userID: self.userID)
+            AppAnalytics.shared.logReaderBookmarkChanged(isAdded: false, kind: self.analyticsKind)
             await self.loadBookmarks()
         } catch {
             self.state = .failed(error.localizedDescription)
@@ -284,11 +361,58 @@ final class BookReaderViewModel {
         guard let locator: Locator = Self.locator(fromJSON: bookmark.locatorJSON) else {
             return
         }
+        self.beginJump()
         _ = await self.navigatorProxy.go(to: locator)
+        self.isJumpInFlight = false
     }
 
     func jump(to link: Link) async {
+        self.beginJump()
         _ = await self.navigatorProxy.go(to: link)
+        self.isJumpInFlight = false
+    }
+
+    private func beginJump() {
+        self.pendingChapterNavigation = .toc
+        self.isJumpInFlight = true
+    }
+
+    private var analyticsKind: AnalyticsContentKind {
+        return self.isAudiobook ? .audiobook : .book
+    }
+
+    private func currentChapterKey() -> String? {
+        guard let locator: Locator = self.currentLocator else {
+            return nil
+        }
+        return self.siteChapter(forHref: locator.href.string)?.chapterURL.absoluteString ?? locator.href.string
+    }
+
+    /// 中文注释：站点文字书每进入一个本次没进过的章节报一次 `chapter_opened`；打开时那一章由 `reader_opened` 代表。
+    private func trackChapterVisit() {
+        guard case .site(let selection) = self.subject,
+              self.openedAt != nil,
+              let chapterKey: String = self.currentChapterKey() else {
+            return
+        }
+        // 中文注释：打开时还没有位置（无续读、未点章节）的话，第一次报来的位置就是首章，同样不报。
+        if self.visitedChapterKeys.isEmpty {
+            self.visitedChapterKeys.insert(chapterKey)
+            return
+        }
+        guard self.visitedChapterKeys.insert(chapterKey).inserted else {
+            // 中文注释：跳转已落地但仍在本章（或旧章），不把 `.toc` 留给之后的自然换章。
+            if self.isJumpInFlight == false {
+                self.pendingChapterNavigation = nil
+            }
+            return
+        }
+        AppAnalytics.shared.logChapterOpened(
+            source: selection.source,
+            kind: .book,
+            navigation: self.pendingChapterNavigation ?? .auto
+        )
+        self.pendingChapterNavigation = nil
     }
 
     private func loadBookmarks() async {
@@ -353,10 +477,6 @@ final class BookReaderViewModel {
         guard self.adPointAwardedChapterKeys.insert(chapterKey).inserted else {
             return
         }
-        // 中文注释：与积分同一个「换章」判定：同一实例里每进入一个新章记一次 chapter_opened（漫画阅读页同名事件）。
-        if case .site(let selection) = self.subject {
-            AppAnalytics.shared.logChapterOpened(source: selection.source)
-        }
         self.accumulateAdPoints(AdPointRule.bookChapterPoints, trigger: .book, using: adPoints)
     }
 
@@ -364,7 +484,33 @@ final class BookReaderViewModel {
     func audioPlaybackDidChange(_ info: MediaPlaybackInfo) {
         self.audioPlayback = info
         self.remoteControls?.update(info: info)
+        self.accumulateAudioPlayedDuration(info)
         self.accumulateAudioPlayedInterval(info)
+    }
+
+    /// 中文注释：AudioNavigator 播完一个章节要接下一章时回调；播完的是最后一章即整本播完。
+    func audioResourceDidFinish(_ info: MediaPlaybackInfo) {
+        guard let publication: Publication = self.publication,
+              info.resourceIndex >= publication.readingOrder.count - 1 else {
+            return
+        }
+        AppAnalytics.shared.logPlaybackCompleted(kind: .audiobook, playerType: .audio)
+    }
+
+    /// 中文注释：与广告积分同一种累计法（只计播放中的小步进），但不依赖积分是否注入。
+    private func accumulateAudioPlayedDuration(_ info: MediaPlaybackInfo) {
+        defer {
+            self.lastAudioTimeForPlayedDuration = info.time
+        }
+        guard info.state == .playing,
+              let lastTime: Double = self.lastAudioTimeForPlayedDuration else {
+            return
+        }
+        let step: Double = info.time - lastTime
+        guard step > 0, step <= AdPointRule.maxPlaybackProgressStep else {
+            return
+        }
+        self.audioPlayedDuration += step
     }
 
     /// 中文注释：有声书只计实际播放：按 AudioNavigator 上报的时间差累计，暂停不动；换章 / 拖动的大跳变不计。
@@ -467,10 +613,16 @@ enum BookReaderError: LocalizedError, Equatable {
 final class AudioNavigatorBridge: NSObject, AudioNavigatorDelegate {
     private let onPlaybackChange: @MainActor (MediaPlaybackInfo) -> Void
     private let onLocationChange: @MainActor (Locator) -> Void
+    private let onResourceFinished: @MainActor (MediaPlaybackInfo) -> Void
 
-    init(onPlaybackChange: @escaping @MainActor (MediaPlaybackInfo) -> Void, onLocationChange: @escaping @MainActor (Locator) -> Void) {
+    init(
+        onPlaybackChange: @escaping @MainActor (MediaPlaybackInfo) -> Void,
+        onLocationChange: @escaping @MainActor (Locator) -> Void,
+        onResourceFinished: @escaping @MainActor (MediaPlaybackInfo) -> Void = { _ in }
+    ) {
         self.onPlaybackChange = onPlaybackChange
         self.onLocationChange = onLocationChange
+        self.onResourceFinished = onResourceFinished
     }
 
     func navigator(_ navigator: AudioNavigator, playbackDidChange info: MediaPlaybackInfo) {
@@ -479,6 +631,11 @@ final class AudioNavigatorBridge: NSObject, AudioNavigatorDelegate {
 
     func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
         self.onLocationChange(locator)
+    }
+
+    func navigator(_ navigator: AudioNavigator, shouldPlayNextResource info: MediaPlaybackInfo) -> Bool {
+        self.onResourceFinished(info)
+        return true
     }
 
     func navigator(_ navigator: Navigator, presentError error: NavigatorError) {}

@@ -418,7 +418,12 @@ final class VideoDetailViewModel {
             #endif
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-detail-error")
-            AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .detail, errorCode: "video-detail-error")
+            AppAnalytics.shared.logDiagnosticFailure(
+                kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
+                stage: .detail,
+                point: .videoDetail,
+                source: self.source
+            )
             CrashDiagnostics.shared.record(
                 error: error,
                 category: .parser,
@@ -501,7 +506,8 @@ final class VideoDetailViewModel {
     }
     #endif
 
-    func openEpisode(_ episode: VideoEpisode) async {
+    /// 中文注释：`entry` 是播放器 `playback_started` 的入口：点集号 `.episode`，「继续观看」`.continue`。
+    func openEpisode(_ episode: VideoEpisode, entry: PlaybackEntry = .episode) async {
         CrashDiagnostics.shared.setRuleStage(.videoPlayback)
         if self.isLoadingPlayback {
             return
@@ -554,6 +560,7 @@ final class VideoDetailViewModel {
                 credentialProvider: self.credentialProvider,
                 systemCookieHeaderProvider: self.systemCookieHeaderProvider,
                 activeAppUser: self.activeAppUser,
+                playbackEntry: entry,
                 userID: self.currentUserID
             )
             self.playbackRoute = VideoPlaybackRoute(
@@ -593,7 +600,12 @@ final class VideoDetailViewModel {
             #endif
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .playback, event: "video-playback-error")
-            AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .videoPlayback, errorCode: "video-playback-error")
+            AppAnalytics.shared.logDiagnosticFailure(
+                kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
+                stage: .videoPlayback,
+                point: .videoEpisodeResolve,
+                source: self.source
+            )
             CrashDiagnostics.shared.record(
                 error: error,
                 category: .playback,
@@ -676,6 +688,9 @@ final class VideoDetailViewModel {
     }
 
     func selectLine(_ lineID: String) {
+        if self.selectedLine?.id != lineID {
+            AppAnalytics.shared.logVideoLineSwitched(source: self.source)
+        }
         self.selectedLineID = lineID
         self.playbackErrorMessage = nil
     }
@@ -816,7 +831,7 @@ final class VideoDetailViewModel {
     func openContinue() async {
         if let episode: VideoEpisode = self.continueActionEpisode {
             self.isResolvingContinue = true
-            await self.openEpisode(episode)
+            await self.openEpisode(episode, entry: .continue)
             return
         }
         // 中文注释：规则换过、站点改了地址，历史对不上任何一集：用历史记录直接开播放器，与历史页点行同一条路。
@@ -824,7 +839,9 @@ final class VideoDetailViewModel {
               let factory: @MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel = self.videoPlayerViewModelFactory else {
             return
         }
-        self.playbackRoute = VideoPlaybackRoute(id: history.id, viewModel: factory(history, self.source))
+        let playerViewModel: VideoPlayerViewModel = factory(history, self.source)
+        playerViewModel.playbackEntry = .continue
+        self.playbackRoute = VideoPlaybackRoute(id: history.id, viewModel: playerViewModel)
     }
 
     /// 进页、下拉、播放器关闭后都重读一次本作品的历史。

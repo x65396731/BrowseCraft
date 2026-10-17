@@ -9,7 +9,8 @@ import SwiftUI
 struct BookSiteDetailHeaderSection: View {
     let viewModel: BookSiteDetailViewModel
     let style: CatalogKindStyle
-    let openSelection: (SiteBookChapterSelection) -> Void
+    /// 中文注释：第二个参数是阅读器埋点入口：继续卡片 `.detailContinue`、开始按钮 `.detailStart`。
+    let openSelection: (SiteBookChapterSelection, ReaderOpenEntry) -> Void
     @State private var isSynopsisExpanded: Bool = false
 
     var body: some View {
@@ -128,7 +129,7 @@ struct BookSiteDetailHeaderSection: View {
             iconName: self.viewModel.isAudiobook ? "play.fill" : "book.fill",
             accent: self.style.accent,
             action: {
-                self.openSelection(self.viewModel.selection(for: nil))
+                self.openSelection(self.viewModel.selection(for: nil), .detailContinue)
             }
         ) {
             self.cover(width: 56, height: 72, cornerRadius: 8)
@@ -143,7 +144,7 @@ struct BookSiteDetailHeaderSection: View {
             title: self.viewModel.startButtonTitle,
             accent: self.style.accent
         ) {
-            self.openSelection(self.viewModel.selection(for: self.viewModel.primaryChapter))
+            self.openSelection(self.viewModel.selection(for: self.viewModel.primaryChapter), .detailStart)
         }
         .padding(.horizontal, 20)
         .padding(.top, 20)

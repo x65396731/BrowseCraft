@@ -24,9 +24,8 @@ struct SourceDebugView: View {
             }
         }
         .navigationTitle("Debug")
+        .analyticsScreen(.sourceDebug)
         .onAppear {
-            CrashDiagnostics.shared.setScreen(.ruleEditor)
-            AppAnalytics.shared.logScreenView(.ruleEditor)
             CrashDiagnostics.shared.setSource(self.viewModel.source(id: self.sourceID))
         }
     }

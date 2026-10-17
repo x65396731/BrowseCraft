@@ -6,10 +6,10 @@ import BrowseCraftDomain
 /// 预检结果埋点只报类别、原因码与主机名哈希（设计书 30.8「预检结果埋点」）。
 struct AppAnalyticsPreflightEventTests {
     @Test func executionErrorsMapToStableCodes() {
-        #expect(AppAnalytics.preflightErrorCode(for: VideoGenerationInputURLValidationError.invalidURL) == "invalidInput")
-        #expect(AppAnalytics.preflightErrorCode(for: VideoGenerationInputPreflightExecutionIssue.unsafeURL) == "unsafeURL")
-        #expect(AppAnalytics.preflightErrorCode(for: VideoGenerationInputPreflightExecutionIssue.unsupportedContent) == "unsupportedContent")
-        #expect(AppAnalytics.preflightErrorCode(for: VideoGenerationInputPreflightExecutionIssue.requestFailed) == "requestFailed")
+        #expect(AppAnalytics.preflightErrorCode(for: VideoGenerationInputURLValidationError.invalidURL) == "invalid_input")
+        #expect(AppAnalytics.preflightErrorCode(for: VideoGenerationInputPreflightExecutionIssue.unsafeURL) == "unsafe_url")
+        #expect(AppAnalytics.preflightErrorCode(for: VideoGenerationInputPreflightExecutionIssue.unsupportedContent) == "unsupported_content")
+        #expect(AppAnalytics.preflightErrorCode(for: VideoGenerationInputPreflightExecutionIssue.requestFailed) == "request_failed")
         #expect(AppAnalytics.preflightErrorCode(for: CocoaError(.fileNoSuchFile)) == "unknown")
     }
 

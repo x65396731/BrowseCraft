@@ -64,6 +64,12 @@ final class ReaderViewModel {
     private var adPointAwardedChapterKeys: Set<String> = []
     private var pendingAccessChapterURLString: String?
     private var pendingAccessShouldRestoreInitialPage: Bool = false
+    /// 中文注释：埋点会话。`openEntry` 由 `ReaderView` 在首次加载前写入；`reader_opened` 只在第一次加载成功时报，
+    /// 之后每次换章报 `chapter_opened`；离开时报 `reader_closed`（章节数为本次进入过的不同章节）。
+    var openEntry: ReaderOpenEntry = .chapterList
+    private var openedAt: Date?
+    private var visitedChapterURLs: Set<String> = []
+    private var didReportClose: Bool = false
 
     var diagnosticSource: Source {
         return self.source
@@ -313,10 +319,10 @@ final class ReaderViewModel {
             )
             let displayChapter: ReaderChapter = self.chapterByPreparingPageResources(for: loadedChapter)
             let navigableChapter: ReaderChapter = self.chapterByResolvingNavigation(for: displayChapter)
+            let previousChapterURL: String? = self.chapter?.chapterURL
             self.chapter = navigableChapter
             self.saveComicChapterHistoryIfNeeded(chapter: navigableChapter)
-            AppAnalytics.shared.logReaderOpened(source: self.source)
-            AppAnalytics.shared.logChapterOpened(source: self.source)
+            self.reportChapterLoaded(navigableChapter, previousChapterURL: previousChapterURL)
 
             #if DEBUG
             AppDebugLog.write(
@@ -334,7 +340,12 @@ final class ReaderViewModel {
                 // 中文注释：账号访问限制是预期业务状态，不作为解析失败上报 Crashlytics。
                 break
             default:
-                AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .reader, errorCode: "reader-load-error")
+                AppAnalytics.shared.logDiagnosticFailure(
+                    kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
+                    stage: .reader,
+                    point: .comicReader,
+                    source: self.source
+                )
                 CrashDiagnostics.shared.record(
                     error: error,
                     category: .parser,
@@ -361,6 +372,39 @@ final class ReaderViewModel {
         }
 
         self.isLoading = false
+    }
+
+    @MainActor
+    private func reportChapterLoaded(_ chapter: ReaderChapter, previousChapterURL: String?) {
+        self.visitedChapterURLs.insert(chapter.chapterURL)
+        guard self.openedAt != nil else {
+            self.openedAt = self.now()
+            AppAnalytics.shared.logReaderOpened(source: self.source, kind: .comic, entry: self.openEntry)
+            return
+        }
+        // 中文注释：登录后重载同一章不算换章。
+        guard chapter.chapterURL != previousChapterURL else {
+            return
+        }
+        let navigation: ChapterNavigation = self.pendingChapterNavigationDirection == .previous ? .previous : .next
+        AppAnalytics.shared.logChapterOpened(source: self.source, kind: .comic, navigation: navigation)
+    }
+
+    /// 中文注释：离开阅读器时报一次 `reader_closed`；弹登录页或激励广告盖住阅读器时视图也会消失，那不算离开。
+    @MainActor
+    func reportReaderClosedIfNeeded() {
+        guard self.didReportClose == false,
+              self.requestedSourceLogin == nil,
+              self.shouldPlayAd == false,
+              let openedAt: Date = self.openedAt else {
+            return
+        }
+        self.didReportClose = true
+        AppAnalytics.shared.logReaderClosed(
+            kind: .comic,
+            duration: self.now().timeIntervalSince(openedAt),
+            chapterCount: self.visitedChapterURLs.count
+        )
     }
 
     @MainActor

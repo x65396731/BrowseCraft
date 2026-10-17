@@ -9,6 +9,8 @@ struct ComicDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: ComicDetailViewModel
     @State private var selectedReaderDestination: ComicReaderDestination?
+    /// 中文注释：本次打开阅读器的埋点入口（开始阅读 / 继续卡片 / 章节列表），随目的地一起定。
+    @State private var readerOpenEntry: ReaderOpenEntry = .chapterList
     @State private var scrollViewportHeight: CGFloat = 0
     @State private var chapterHeaderHeight: CGFloat = 0
 
@@ -45,7 +47,9 @@ struct ComicDetailView: View {
                         ComicDetailChapterSection(
                             viewModel: self.viewModel,
                             style: self.style,
-                            selectChapter: self.openChapter
+                            selectChapter: { chapter in
+                                self.openChapter(chapter, entry: .chapterList)
+                            }
                         )
                     } header: {
                         ComicDetailChapterHeader(viewModel: self.viewModel, style: self.style)
@@ -95,13 +99,15 @@ struct ComicDetailView: View {
         .fullScreenCover(item: self.requestedSourceLoginBinding) { loginState in
             SourceLoginView(
                 state: loginState,
+                entry: .detail,
+                source: self.viewModel.source,
                 cancelAction: {
                     self.viewModel.dismissRequestedSourceLogin()
                 },
                 completeAction: { credential in
                     Task {
                         if let chapter = await self.viewModel.completeRequestedSourceLogin(credential: credential) {
-                            self.openChapter(chapter)
+                            self.openChapter(chapter, entry: self.readerOpenEntry)
                         }
                     }
                 }
@@ -115,6 +121,7 @@ struct ComicDetailView: View {
         .refreshable {
             await self.viewModel.reload()
         }
+        .analyticsScreen(.comicDetail)
         .onAppear(perform: self.recordAppearance)
     }
 
@@ -178,13 +185,16 @@ struct ComicDetailView: View {
     private func openReaderDestination(_ destination: ComicReaderDestination) {
         switch destination {
         case .chapter(let chapter):
-            self.openChapter(chapter)
+            self.openChapter(chapter, entry: .detailStart)
         case .history:
+            self.readerOpenEntry = .detailContinue
             self.selectedReaderDestination = destination
         }
     }
 
-    private func openChapter(_ chapter: ChapterLink) {
+    private func openChapter(_ chapter: ChapterLink, entry: ReaderOpenEntry) {
+        // 中文注释：先记入口：章节要登录时，登录完成后的重开沿用这个入口。
+        self.readerOpenEntry = entry
         guard self.viewModel.prepareToOpen(chapter) else {
             return
         }
@@ -210,6 +220,7 @@ struct ComicDetailView: View {
                 item: self.viewModel.item,
                 source: self.viewModel.source,
                 selectedChapter: chapter,
+                entry: self.readerOpenEntry,
                 factory: self.contentViewModelFactory
             )
             .id(self.readerDestinationID(for: destination))
@@ -217,6 +228,7 @@ struct ComicDetailView: View {
             ReaderView(
                 history: history,
                 source: self.viewModel.source,
+                entry: self.readerOpenEntry,
                 factory: self.contentViewModelFactory
             )
             .id(self.readerDestinationID(for: destination))
@@ -256,8 +268,6 @@ struct ComicDetailView: View {
         if self.viewModel.didLoad {
             self.reloadHistoriesAfterReader()
         }
-        CrashDiagnostics.shared.setScreen(.sourceDetail)
-        AppAnalytics.shared.logScreenView(.sourceDetail)
         CrashDiagnostics.shared.setSource(self.viewModel.source)
         CrashDiagnostics.shared.setRuleStage(.detail)
     }

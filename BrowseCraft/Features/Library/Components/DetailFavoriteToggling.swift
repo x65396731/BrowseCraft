@@ -33,7 +33,7 @@ extension DetailFavoriteToggling {
         do {
             let wasFavorite: Bool = self.isFavorite
             self.isFavorite = try await persistence.toggle(item: self.item, source: self.source, favoritedAt: self.now())
-            AppAnalytics.shared.logBookmarkChanged(isFavorite: wasFavorite == false, source: self.source)
+            AppAnalytics.shared.logFavoriteChanged(isFavorite: wasFavorite == false, source: self.source, entry: .detail)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: Self.favoriteLogEvent)
         }

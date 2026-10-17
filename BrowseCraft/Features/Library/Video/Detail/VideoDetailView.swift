@@ -43,9 +43,8 @@ struct VideoDetailView: View {
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
+        .analyticsScreen(.videoDetail)
         .onAppear {
-            CrashDiagnostics.shared.setScreen(.videoDetail)
-            AppAnalytics.shared.logScreenView(.videoDetail)
             CrashDiagnostics.shared.setSource(self.viewModel.source)
             CrashDiagnostics.shared.setRuleStage(.detail)
             #if DEBUG

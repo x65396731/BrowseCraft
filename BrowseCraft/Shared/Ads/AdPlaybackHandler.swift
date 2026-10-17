@@ -71,6 +71,13 @@ struct AdPlaybackHandler: ViewModifier {
                     AppDebugLog.write("[BrowseCraftAdPlayback] handler skipped because ad is already presenting")
                     #endif
                     self.markHandled(.skippedBecauseAlreadyPresenting)
+                    // 中文注释：登录态要异步取，放到标记处理之后，不拖延页面清掉 shouldPlayAd。
+                    let trigger: RewardedAdPlaybackTrigger = self.trigger
+                    let rewardCoordinator: (any RewardedAdRewardCoordinating)? = self.rewardCoordinator
+                    Task {
+                        let signedIn: Bool = await rewardCoordinator?.rewardedAdUserIdentifier() != nil
+                        AppAnalytics.shared.logRewardedAdSkippedBusy(trigger: trigger, signedIn: signedIn)
+                    }
                     return
                 }
 
@@ -85,7 +92,9 @@ struct AdPlaybackHandler: ViewModifier {
                     signedIn: userIdentifier != nil
                 )
                 if case .completed = result {
-                    self.rewardCoordinator?.rewardedAdCompleted(userIdentifier: userIdentifier)
+                    RewardedAdCreditReporter.observe(
+                        self.rewardCoordinator?.rewardedAdCompleted(userIdentifier: userIdentifier)
+                    )
                 }
                 self.showToast(
                     AdPlaybackViewModel.message(
@@ -107,6 +116,23 @@ struct AdPlaybackHandler: ViewModifier {
                 return
             }
             self.toastMessage = nil
+        }
+    }
+}
+
+/// 中文注释：已登录看完广告后，等余额轮询结束报 `ad_reward_credited`；轮询被取消（结果不明）不报。
+/// 轮询在 Application 层（`CoinWalletStore`），那一层不碰埋点，所以由这里接住结果上报。
+enum RewardedAdCreditReporter {
+    @MainActor
+    static func observe(_ pollTask: Task<Bool?, Never>?) {
+        guard let pollTask: Task<Bool?, Never> else {
+            return
+        }
+        Task {
+            guard let credited: Bool = await pollTask.value else {
+                return
+            }
+            AppAnalytics.shared.logAdRewardCredited(credited ? .credited : .timeout)
         }
     }
 }

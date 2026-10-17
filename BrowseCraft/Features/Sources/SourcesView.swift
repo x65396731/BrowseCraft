@@ -57,9 +57,8 @@ struct SourcesView: View {
                     }
                 }
                 .animation(.easeOut(duration: 0.2), value: self.viewModel.undoableDeletion?.source.id)
+                .analyticsScreen(.sources)
                 .onAppear {
-                    CrashDiagnostics.shared.setScreen(.sourceList)
-                    AppAnalytics.shared.logScreenView(.sourceList)
                     Task {
                         await self.viewModel.load()
                     }
@@ -134,6 +133,7 @@ struct SourcesView: View {
                             )
                         },
                         getMoreSlotsAction: {
+                            AppAnalytics.shared.logPremiumEntryTapped(.activationSheet)
                             self.opensPremiumAfterSlotActivation = true
                         }
                     )
@@ -171,7 +171,10 @@ struct SourcesView: View {
             SourceSlotBarView(
                 used: self.viewModel.occupiedSourceSlotCount,
                 limit: self.viewModel.sourceSlotLimit,
-                moreAction: self.openPremium
+                moreAction: {
+                    AppAnalytics.shared.logPremiumEntryTapped(.slotBar)
+                    self.openPremium()
+                }
             )
             .sourcesPageRow(top: 16)
 
@@ -183,7 +186,7 @@ struct SourcesView: View {
                         self.menu(for: currentSource)
                     }
                     .swipeToDelete(currentSource, disabled: isSwitching) { source in
-                        self.delete(source)
+                        self.delete(source, entry: .swipe)
                     }
                     .sourcesPageRow(top: 18)
             }
@@ -216,14 +219,17 @@ struct SourcesView: View {
                         self.menu(for: source)
                     }
                     .swipeToDelete(source, disabled: isSwitching) { source in
-                        self.delete(source)
+                        self.delete(source, entry: .swipe)
                     }
                     .sourcesPageRow()
                 }
             }
 
             if self.showsSlotsFullHint(otherSources: otherSources, pausedSources: pausedSources) {
-                SourceSlotsFullHintView(getMoreSlotsAction: self.openPremium)
+                SourceSlotsFullHintView(getMoreSlotsAction: {
+                    AppAnalytics.shared.logPremiumEntryTapped(.slotFull)
+                    self.openPremium()
+                })
                     .sourcesPageRow(top: 16)
             }
 
@@ -254,7 +260,7 @@ struct SourcesView: View {
                         self.menu(for: source)
                     }
                     .swipeToDelete(source, disabled: isSwitching) { source in
-                        self.delete(source)
+                        self.delete(source, entry: .swipe)
                     }
                     .sourcesPageRow()
                 }
@@ -348,7 +354,7 @@ struct SourcesView: View {
         Divider()
 
         Button(role: .destructive) {
-            self.delete(source)
+            self.delete(source, entry: .menu)
         } label: {
             Label(NSLocalizedString("sources_menu_delete", comment: ""), systemImage: "trash")
         }
@@ -357,9 +363,9 @@ struct SourcesView: View {
 
     /// 删除来源不弹确认（2026-10-03 用户裁定），左滑与长按「删除来源」都直接删；
     /// 它的历史与收藏保留（`BCA-DB-005`），删完底部可撤销。
-    private func delete(_ source: Source) {
+    private func delete(_ source: Source, entry: SourceDeleteEntry) {
         Task {
-            await self.viewModel.deleteSource(id: source.id)
+            await self.viewModel.deleteSource(id: source.id, entry: entry)
         }
     }
 
@@ -788,6 +794,7 @@ private struct SourceSlotActivationView: View {
                     }
                 }
             }
+            .analyticsScreen(.sourceActivation)
         }
     }
 

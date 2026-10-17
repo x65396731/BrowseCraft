@@ -12,6 +12,8 @@ struct VideoContentGridView: View {
     let nextPage: Int?
     let loadNextPage: () -> Void
     let contentViewModelFactory: LibraryContentViewModelFactory
+    /// 中文注释：点开海报进影视详情时 `content_opened` 的入口。
+    var contentOpenEntry: ContentOpenEntry = .library
     let imageRequestConfig: RequestConfig?
     /// 中文注释：分页脚的文字；nil 时不画分页脚（规则不支持分页、搜索结果）。
     var paginationStatusText: String? = nil
@@ -36,6 +38,7 @@ struct VideoContentGridView: View {
                             self.favoriteAction(item)
                         },
                         openAction: {
+                            AppAnalytics.shared.logContentOpened(source: self.source, kind: .video, entry: self.contentOpenEntry)
                             self.selectedItem = item
                         },
                         imageRequestConfig: self.imageRequestConfig

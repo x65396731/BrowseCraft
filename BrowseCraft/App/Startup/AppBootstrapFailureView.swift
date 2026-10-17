@@ -22,6 +22,7 @@ struct AppBootstrapFailureView: View {
             Button {
                 UIPasteboard.general.string = self.failure.copyableDiagnostics
                 self.hasCopiedDiagnostics = true
+                AppAnalytics.shared.logSupportInfoCopied(.bootstrapFailure)
             } label: {
                 Label(
                     self.hasCopiedDiagnostics
@@ -32,5 +33,6 @@ struct AppBootstrapFailureView: View {
             }
         }
         .padding()
+        .analyticsScreen(.bootstrapFailure)
     }
 }

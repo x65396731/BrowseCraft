@@ -45,6 +45,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             event: opened ? "outcome-push-opened" : "outcome-push-presented",
             metadata: ["status": outcome.status ?? "unknown"]
         )
+        // 中文注释：只报用户点开；前台到达（willPresent）不报。
+        if opened {
+            AppAnalytics.shared.logRuleGenerationPushOpened()
+        }
         guard let handler: (RuleGenerationPushOutcome, Bool) -> Void = self.ruleGenerationPushHandler else {
             // 中文注释：点开优先于到达——冷启动时两者都可能先于装配到来。
             let previouslyOpened: Bool = self.pendingRuleGenerationPush?.opened ?? false
@@ -176,6 +180,8 @@ struct BrowseCraftApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var bootstrapState: AppBootstrapState = .loading
+    /// 中文注释：进过后台才算「回到前台」；冷启动那次 inactive → active 不报 `app_foregrounded`。
+    @State private var hasEnteredBackground: Bool = false
 
     init() {
         Self.startMobileAdsIfConfigured()
@@ -218,6 +224,7 @@ struct BrowseCraftApp: App {
                             do {
                                 let result: CloudSyncRunResult = try await container
                                     .handleCloudRemoteNotification()
+                                AppAnalytics.shared.logCloudSyncRun(trigger: .silentPush, result: .success)
                                 return result.downloadedCount > 0 || result.deletedCount > 0
                                     ? .newData
                                     : .noData
@@ -225,6 +232,7 @@ struct BrowseCraftApp: App {
                                 where error == .synchronizationDisabled || error == .alreadyRunning {
                                 return .noData
                             } catch {
+                                AppAnalytics.shared.logCloudSyncRun(trigger: .silentPush, result: .failed)
                                 return .failed
                             }
                         }
@@ -238,10 +246,15 @@ struct BrowseCraftApp: App {
                     }
                     .onChange(of: self.scenePhase) { _, phase in
                         if phase == .background {
+                            self.hasEnteredBackground = true
                             container.handleAppEnteredBackground()
                         }
                         guard phase == .active else {
                             return
+                        }
+                        if self.hasEnteredBackground {
+                            self.hasEnteredBackground = false
+                            AppAnalytics.shared.logAppForegrounded()
                         }
                         Task {
                             await container.handleAppBecameActive()

@@ -48,6 +48,18 @@ final class VideoPlayerViewModel {
     private var lastProgressTimeForAdPoints: TimeInterval?
     private var playedIntervalForAdPoints: TimeInterval = 0
 
+    // MARK: 埋点会话
+    /// 中文注释：`playback_started` 的入口。工厂按历史建的实例默认算历史页；库页瓷砖、详情「继续观看」建好后改写。
+    var playbackEntry: PlaybackEntry
+    /// 中文注释：每次打开播放器只报一次开始与一次关闭；开始之后才有关闭。
+    private var startedPlayerType: PlayerType?
+    private var startedAt: Date?
+    private var didReportClose: Bool = false
+    private var didReportUnavailable: Bool = false
+    /// 中文注释：直链播放器按进度差累计的实际播放时长（与广告积分同一种累计法），`playback_closed` 用。
+    private var lastProgressTimeForPlayedDuration: TimeInterval?
+    private var playedDuration: TimeInterval = 0
+
     init(
         source: Source,
         reference: SourceVideoPlaybackReference,
@@ -60,10 +72,12 @@ final class VideoPlayerViewModel {
         systemCookieHeaderProvider: any SystemCookieHeaderProviding = EmptySystemCookieHeaderProvider(),
         activeAppUser: (any ActiveAppUserProviding)? = nil,
         resolvesPlaybackOnPrepare: Bool = false,
+        playbackEntry: PlaybackEntry = .history,
         userID: String = AppUser.localDefaultID,
         now: @escaping () -> Date = Date.init
     ) {
         self.source = source
+        self.playbackEntry = playbackEntry
         self.reference = reference
         self.resolvesPlaybackOnPrepare = resolvesPlaybackOnPrepare
         self.videoTitle = videoTitle
@@ -210,9 +224,11 @@ final class VideoPlayerViewModel {
         }
         self.startAutosaveIfNeeded()
         self.accumulatePlayedInterval(progressTime: self.currentPlaybackTime)
+        self.accumulatePlayedDuration(progressTime: self.currentPlaybackTime)
     }
 
     func markReadyToPlay(seek: (TimeInterval) -> Void) {
+        self.reportPlaybackStartedIfNeeded(playerType: .native)
         guard self.didSeekToRestoredTime == false,
               self.restoredPlaybackTime > 1 else {
             return
@@ -282,6 +298,7 @@ final class VideoPlayerViewModel {
     @MainActor
     func handleNativePlaybackFailure(_ error: Error) async {
         RuleExecutionErrorClassifier.log(error: error, stage: .playback, event: "video-native-playback-failed")
+        self.reportPlaybackFailed(playerType: .native, failure: .nativeFailed)
         guard self.didAttemptPlaybackRecovery == false, self.isLoadingEpisodeSwitch == false else {
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
             return
@@ -367,6 +384,7 @@ final class VideoPlayerViewModel {
             self.autosaveTask?.cancel()
             self.autosaveTask = nil
             self.reference = output.reference
+            self.didReportUnavailable = false
             self.currentPlaybackTime = 0
             self.duration = nil
             self.isPrepared = false
@@ -376,7 +394,12 @@ final class VideoPlayerViewModel {
             await self.prepareForPlayback()
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .playback, event: failureEvent)
-            AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .videoPlayback, errorCode: failureEvent)
+            AppAnalytics.shared.logDiagnosticFailure(
+                kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
+                stage: .videoPlayback,
+                point: .videoPlayback,
+                source: self.source
+            )
             CrashDiagnostics.shared.record(
                 error: error,
                 category: .playback,
@@ -475,6 +498,70 @@ final class VideoPlayerViewModel {
         )
         #endif
         self.accumulateAdPoints(points: AdPointRule.videoPoints)
+    }
+
+    // MARK: - 埋点
+
+    /// 中文注释：直链在 `markReadyToPlay`、网页播放器在首个页面加载完成时调用；每次打开播放器只报第一次。
+    func reportPlaybackStartedIfNeeded(playerType: PlayerType) {
+        guard self.startedPlayerType == nil else {
+            return
+        }
+        self.startedPlayerType = playerType
+        self.startedAt = self.now()
+        AppAnalytics.shared.logPlaybackStarted(source: self.source, kind: .video, playerType: playerType, entry: self.playbackEntry)
+    }
+
+    func reportPlaybackFailed(playerType: PlayerType, failure: PlaybackFailureCode) {
+        AppAnalytics.shared.logPlaybackFailed(source: self.source, kind: .video, playerType: playerType, failure: failure)
+    }
+
+    /// 中文注释：`.unavailable` 目的地（受限、解析失败、无直链）没有播放器可言，归到直链类型上报。
+    /// 从历史打开时会先按规则重新解析，解析完（`isPrepared` 且不在换集）仍不可播才报；同一份引用只报一次。
+    func reportPlaybackUnavailableIfNeeded() {
+        guard self.didReportUnavailable == false,
+              self.isPrepared,
+              self.isLoadingEpisodeSwitch == false,
+              case .unavailable = self.playbackDestination else {
+            return
+        }
+        self.didReportUnavailable = true
+        self.reportPlaybackFailed(playerType: .native, failure: .unavailable)
+    }
+
+    func reportPlaybackCompleted() {
+        AppAnalytics.shared.logPlaybackCompleted(kind: .video, playerType: .native)
+    }
+
+    /// 中文注释：离开播放器时报一次 `playback_closed`。直链用实际播放时长；网页播放器拿不到进度，用开始到关闭的时长。
+    /// 登录页或激励广告盖住播放器时视图也会消失，那不算关闭。
+    func reportPlaybackClosedIfNeeded() {
+        guard self.didReportClose == false,
+              self.requestedSourceLogin == nil,
+              self.shouldPlayAd == false,
+              let playerType: PlayerType = self.startedPlayerType,
+              let startedAt: Date = self.startedAt else {
+            return
+        }
+        self.didReportClose = true
+        let duration: TimeInterval = playerType == .native
+            ? self.playedDuration
+            : self.now().timeIntervalSince(startedAt)
+        AppAnalytics.shared.logPlaybackClosed(kind: .video, playerType: playerType, duration: duration)
+    }
+
+    private func accumulatePlayedDuration(progressTime: TimeInterval) {
+        defer {
+            self.lastProgressTimeForPlayedDuration = progressTime
+        }
+        guard let lastProgressTime: TimeInterval = self.lastProgressTimeForPlayedDuration else {
+            return
+        }
+        let step: TimeInterval = progressTime - lastProgressTime
+        guard step > 0, step <= AdPointRule.maxPlaybackProgressStep else {
+            return
+        }
+        self.playedDuration += step
     }
 
     private func resetPlayedIntervalForAdPoints() {

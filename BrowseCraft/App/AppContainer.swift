@@ -117,10 +117,13 @@ final class AppContainer {
         await self.account.accountDeletionCoordinator.resumePendingWork()
         let settingsViewModel: SettingsViewModel = self.features.settingsViewModel
         self.account.appleCredentialRevocationCoordinator.didSignOut = {
+            AppAnalytics.shared.logSignOutCompleted(trigger: .appleCredentialRevoked)
             await settingsViewModel.refreshPortalAccountStatus()
         }
         // 中文注释：余额接口 401 → 会话强制刷新被拒 → 回到未登录（删除账号设计第 7.1 节），设置页跟着刷新。
         self.account.coinWalletStore.didEndSession = {
+            // 中文注释：只有 token 被服务端拒绝、会话强制刷新也失败时才走到这里，即被动退出。
+            AppAnalytics.shared.logSignOutCompleted(trigger: .tokenRejected)
             await settingsViewModel.refreshPortalAccountStatus()
         }
         await self.account.appleCredentialRevocationCoordinator.start()
@@ -181,7 +184,15 @@ final class AppContainer {
         }
         let coordinator: CloudSyncCoordinator = self.account.cloudSyncCoordinator
         Task { @MainActor in
-            _ = try? await coordinator.synchronize(trigger: .localChange)
+            do {
+                _ = try await coordinator.synchronize(trigger: .localChange)
+                AppAnalytics.shared.logCloudSyncRun(trigger: .background, result: .success)
+            } catch let error as CloudSyncSessionError
+                where error == .synchronizationDisabled || error == .alreadyRunning {
+                // 中文注释：没开同步或已有一轮在跑，这次没有真的同步，不报。
+            } catch {
+                AppAnalytics.shared.logCloudSyncRun(trigger: .background, result: .failed)
+            }
             application.endBackgroundTask(box.identifier)
             box.identifier = .invalid
         }
@@ -317,6 +328,13 @@ final class AppContainer {
                 IAPDiagnostics.notice(
                     "event=transaction-update-finished " +
                         "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id))"
+                )
+                // 中文注释：用户在购买页点的支付由 `Product.purchase` 直接交回，不经过这里；走到这里的未撤销交易
+                // 多是待批准（家长同意等）转为已购，同一 Apple 账户在别的设备上买的也会到这里，一并按 pending_approved 计；
+                // 带撤销日期的即退款或家庭共享被收回。
+                AppAnalytics.shared.logEntitlementChanged(
+                    transaction.revocationDate == nil ? .pendingApproved : .revoked,
+                    productID: transaction.productID
                 )
             } catch {
                 IAPDiagnostics.error(

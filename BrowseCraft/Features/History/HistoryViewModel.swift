@@ -187,6 +187,31 @@ final class HistoryViewModel {
         }
     }
 
+    /// 埋点的内容类型：历史条目分不出有声书，书一律报 book；临时资源按自身类型。
+    static func analyticsKind(of entry: ReadingHistoryEntry) -> AnalyticsContentKind {
+        switch Self.catalogKind(of: entry) {
+        case .video:
+            return .video
+        case .comic:
+            return .comic
+        case .book:
+            return .book
+        }
+    }
+
+    static func analyticsKind(of filter: KindFilter) -> AnalyticsContentKind {
+        switch filter {
+        case .all:
+            return .all
+        case .video:
+            return .video
+        case .comic:
+            return .comic
+        case .book:
+            return .book
+        }
+    }
+
     private static func matches(_ entry: ReadingHistoryEntry, _ filter: KindFilter) -> Bool {
         switch filter {
         case .all:
@@ -379,23 +404,26 @@ final class HistoryViewModel {
 
     // MARK: - 删除
 
-    /// 单条删除（左滑、长按）：按作品删掉全部记录，不弹确认，也没有撤销（2026-10-17 用户裁定）。
+    /// 单条删除（左滑、长按）：按作品删掉全部记录，不弹确认，也没有撤销（2026-10-17 用户裁定）。返回是否成功，页面据此上报埋点。
     @MainActor
-    func delete(_ entry: ReadingHistoryEntry) async {
-        await self.delete([entry])
+    @discardableResult
+    func delete(_ entry: ReadingHistoryEntry) async -> Bool {
+        return await self.delete([entry])
     }
 
     @MainActor
-    private func delete(_ entries: [ReadingHistoryEntry]) async {
+    private func delete(_ entries: [ReadingHistoryEntry]) async -> Bool {
         do {
             _ = try await self.persistenceCoordinator.delete(
                 ReadingHistoryEntriesTransfer(values: entries)
             )
             let deletedIDs: Set<String> = Set(entries.map(\.id))
             self.readingHistoryEntries.removeAll { deletedIDs.contains($0.id) }
+            return true
         } catch {
             self.errorMessage = error.localizedDescription
             await self.load()
+            return false
         }
     }
 
@@ -442,15 +470,17 @@ final class HistoryViewModel {
         }
     }
 
-    /// 确认框里点了「删除」：一次删掉所选作品，然后退出选择模式。
+    /// 确认框里点了「删除」：一次删掉所选作品，然后退出选择模式。返回删了几条（失败或没选为 0），页面据此上报埋点。
     @MainActor
-    func deleteSelected() async {
+    @discardableResult
+    func deleteSelected() async -> Int {
         let entries: [ReadingHistoryEntry] = self.filteredEntries.filter { self.selectedIDs.contains($0.id) }
         guard entries.isEmpty == false else {
-            return
+            return 0
         }
-        await self.delete(entries)
+        let isDeleted: Bool = await self.delete(entries)
         self.endSelection()
+        return isDeleted ? entries.count : 0
     }
 
     // MARK: - 私有

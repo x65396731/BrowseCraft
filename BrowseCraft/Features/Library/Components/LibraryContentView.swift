@@ -34,6 +34,8 @@ struct LibraryContentView: View {
     var bookReadToText: (ContentItem) -> String? = { _ in nil }
     var bookContinueMenuTitle: (ContentItem) -> String? = { _ in nil }
     var continueBookReading: (ContentItem) -> Void = { _ in }
+    /// 中文注释：点开条目进详情时 `content_opened` 的入口：库页 `.library`，搜索页 `.search`。
+    var contentOpenEntry: ContentOpenEntry = .library
 
     /// 中文注释：漫画三列、列距 12；iPad 与横屏按最小宽 104 自适应成更多列。
     private let comicGridColumns: [GridItem] = [
@@ -57,6 +59,7 @@ struct LibraryContentView: View {
                 nextPage: self.nextPage,
                 loadNextPage: self.loadNextPage,
                 contentViewModelFactory: self.contentViewModelFactory,
+                contentOpenEntry: self.contentOpenEntry,
                 imageRequestConfig: self.imageRequestConfig(selectedSource),
                 paginationStatusText: self.paginationStatusText,
                 paginationFailureDetail: self.paginationFailureDetail,
@@ -83,7 +86,7 @@ struct LibraryContentView: View {
                             continueChapterLabel: self.comicContinueChapterLabel(item),
                             imageRequestConfig: self.imageRequestConfig(source),
                             openAction: {
-                                self.openComic(item, source)
+                                self.openItem(item, source: source)
                             },
                             favoriteAction: {
                                 self.toggleFavorite(item)
@@ -119,7 +122,7 @@ struct LibraryContentView: View {
                                 continueMenuTitle: self.bookContinueMenuTitle(item),
                                 imageRequestConfig: self.imageRequestConfig(source),
                                 openAction: {
-                                    self.openComic(item, source)
+                                    self.openItem(item, source: source)
                                 },
                                 favoriteAction: {
                                     self.toggleFavorite(item)
@@ -143,6 +146,15 @@ struct LibraryContentView: View {
 
             self.paginationFooter
         }
+    }
+
+    /// 中文注释：漫画 / 书的条目点开：先记 `content_opened`，再交给外层分流到详情。
+    private func openItem(_ item: ContentItem, source: Source) {
+        let kind: AnalyticsContentKind = source.configuration.kind == .book && self.isAudiobookSource
+            ? .audiobook
+            : AnalyticsContentKind(source: source)
+        AppAnalytics.shared.logContentOpened(source: source, kind: kind, entry: self.contentOpenEntry)
+        self.openComic(item, source)
     }
 
     /// 中文注释：触底哨兵与影视网格同形——只有 ViewModel 报出下一页时才挂上，

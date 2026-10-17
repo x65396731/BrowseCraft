@@ -95,16 +95,23 @@ struct VideoWebPlayerView: View {
 
     let request: VideoWebPlayerRequest
     let title: String
+    /// 中文注释：埋点回调——第一份页面加载完成（算开始播放）、外部播放源失败卡出现。
+    let onPageLoaded: () -> Void
+    let onProviderFailure: (PlaybackFailureCode) -> Void
     let onClose: () -> Void
 
     init(
         request: VideoWebPlayerRequest,
         title: String,
         auditMediaEventHandler: (any VideoWebPlayerUserContentAttaching)? = nil,
+        onPageLoaded: @escaping () -> Void = {},
+        onProviderFailure: @escaping (PlaybackFailureCode) -> Void = { _ in },
         onClose: @escaping () -> Void
     ) {
         self.request = request
         self.title = title
+        self.onPageLoaded = onPageLoaded
+        self.onProviderFailure = onProviderFailure
         self.onClose = onClose
         _coordinator = StateObject(
             wrappedValue: VideoWebPlayerCoordinator(
@@ -168,10 +175,12 @@ struct VideoWebPlayerView: View {
                         VideoPlaybackProviderFailureCard(
                             failure: failure,
                             retryAction: {
+                                AppAnalytics.shared.logPlaybackFallbackTapped(.retry)
                                 self.coordinator.providerFailure = nil
                                 proxy.reload()
                             },
                             openInBrowserAction: {
+                                AppAnalytics.shared.logPlaybackFallbackTapped(.openInBrowser)
                                 self.openURL(failure.url)
                             }
                         )
@@ -180,6 +189,16 @@ struct VideoWebPlayerView: View {
                 .ignoresSafeArea(edges: .bottom)
             }
             .background(Color(.systemBackground))
+        }
+        .onChange(of: self.coordinator.didFinishFirstDocument) { _, didFinish in
+            if didFinish {
+                self.onPageLoaded()
+            }
+        }
+        .onChange(of: self.coordinator.providerFailure) { _, failure in
+            if let failure: VideoPlaybackProviderFailure {
+                self.onProviderFailure(failure.kind.playbackFailureCode)
+            }
         }
         .alert(
             "",
@@ -211,6 +230,21 @@ struct VideoWebPlayerView: View {
 /// 中文注释：外部播放源失败的就地状态卡。持久展示（非 toast），
 /// 覆盖播放区但保留工具栏——用户可以重试、换网络后重试，或去系统浏览器
 /// 亲手验证"拦的是源站不是应用"。
+private extension VideoPlaybackProviderFailure.Kind {
+    var playbackFailureCode: PlaybackFailureCode {
+        switch self {
+        case .blocked:
+            return .blocked
+        case .unreachable:
+            return .unreachable
+        case .sourceInvalid:
+            return .sourceInvalid
+        case .providerError:
+            return .providerError
+        }
+    }
+}
+
 private struct VideoPlaybackProviderFailureCard: View {
     let failure: VideoPlaybackProviderFailure
     let retryAction: () -> Void

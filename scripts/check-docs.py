@@ -70,7 +70,7 @@ SOURCE_GLOBS = [
 SIBLING_PACKAGES = ["BrowseCraftCore", "BrowseCraftDomain", "BrowseCraftRuntime", "BrowseCraftAPIKit"]
 
 # ---- docs/README.md 第 4 节的受控词表。新增域必须先改那里，再改这里。----
-DOMAINS = {"ARCH", "BUILD", "RUNTIME", "PARSE", "DB", "SYNC", "BOOK", "UI", "DOC"}
+DOMAINS = {"ARCH", "BUILD", "RUNTIME", "PARSE", "DB", "SYNC", "BOOK", "UI", "DOC", "OBS"}
 
 # ---- docs/README.md 第 5 节的列规格。C9/C14/C15 由同一份声明驱动，不各写一处判断。----
 STATUS_COLUMNS = [
@@ -440,6 +440,102 @@ def check_retirable_sections(rep):
     rep.note("A12", "可退休：" + "；".join(hits) if hits else "无可退休的节")
 
 
+# ---- A13：埋点字典（BCA-OBS-001 / 003 / 004，定义点在 docs/design/Analytics-Events-Design.md）。----
+ANALYTICS_DOC = "docs/design/Analytics-Events-Design.md"
+ANALYTICS_SWIFT = "BrowseCraft/Shared/Diagnostics/AppAnalytics.swift"
+SCREEN_SWIFT = "BrowseCraft/Shared/Diagnostics/DiagnosticEnums.swift"
+# 这几层不得引用 AppAnalytics；页面曝光只许这两处发出。
+ANALYTICS_FORBIDDEN_LAYERS = ["BrowseCraft/Domain", "BrowseCraft/Application", "BrowseCraft/Infrastructure"]
+SCREEN_VIEW_ALLOWED = {"BrowseCraft/Shared/Diagnostics/AppAnalytics+Session.swift",
+                       "BrowseCraft/Shared/UI/AnalyticsScreenModifier.swift"}
+
+
+def swift_files(rel_dir):
+    """rel_dir 下全部 .swift（递归），仓库相对路径。"""
+    n = len(ROOT) + 1
+    return sorted(p[n:] for p in glob(os.path.join(ROOT, rel_dir, "**", "*.swift"), recursive=True))
+
+
+def swift_cases(text, start, end, case_re):
+    """取 text[start:end] 里的 case，返回 [(名字, 上一行是否 /// 注释)]。"""
+    body = text[text.index(start):text.index(end, text.index(start))]
+    found, prev = [], ""
+    for line in body.split("\n"):
+        stripped = line.strip()
+        m = case_re.match(stripped)
+        if m:
+            found.append((m.group(1), prev.startswith("///")))
+        if stripped:
+            prev = stripped
+    return found
+
+
+def doc_names(doc, heading, column):
+    """取设计文档某一节表格某一列反引号里的名字。"""
+    section = doc.split(heading, 1)[1].split("\n## ", 1)[0]
+    names = set()
+    for line in section.split("\n"):
+        if not line.startswith("| ") or line.startswith("| ---"):
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) > column:
+            m = re.fullmatch(r"`([a-z_]+)`", cells[column])
+            if m:
+                names.add(m.group(1))
+    return names
+
+
+def check_analytics(rep):
+    try:
+        code, screens, doc = read(ANALYTICS_SWIFT), read(SCREEN_SWIFT), read(ANALYTICS_DOC)
+    except OSError as err:
+        rep.fail("A13", ANALYTICS_DOC, f"读不到埋点字典或代码：{err}")
+        return
+    groups = [
+        ("事件", swift_cases(code, "enum Event", "enum Parameter",
+                             re.compile(r'case \w+ = "([a-z_]+)"')), doc_names(doc, "## 3.", 0)),
+        ("参数", swift_cases(code, "enum Parameter", "static let allowed",
+                             re.compile(r'static let \w+: String = "([a-z_]+)"')), doc_names(doc, "## 4.", 0)),
+    ]
+    # 页面 case 没写原始值时原始值即 case 名。
+    screen_cases = []
+    body = screens[screens.index("enum DiagnosticScreen"):]
+    body = body[:body.index("\n}\n")]
+    prev = ""
+    for line in body.split("\n"):
+        stripped = line.strip()
+        m = re.match(r'case (\w+)(?: = "([a-z_]+)")?$', stripped)
+        if m:
+            screen_cases.append((m.group(2) or m.group(1), prev.startswith("///")))
+        if stripped:
+            prev = stripped
+    groups.append(("页面", screen_cases, doc_names(doc, "## 5.", 1)))
+
+    counts = []
+    for label, cases, documented in groups:
+        names = {n for n, _ in cases}
+        for name, commented in cases:
+            if not commented:
+                rep.fail("A13", ANALYTICS_SWIFT if label != "页面" else SCREEN_SWIFT,
+                         f"{label} {name} 缺 /// 中文注释（BCA-OBS-001）")
+        for name in sorted(names - documented):
+            rep.fail("A13", ANALYTICS_DOC, f"{label} {name} 在代码里有、文档没登记（BCA-OBS-001）")
+        for name in sorted(documented - names):
+            rep.fail("A13", ANALYTICS_DOC, f"{label} {name} 文档登记了、代码里没有（BCA-OBS-001）")
+        counts.append(f"{len(names)} 个{label}")
+
+    for layer in ANALYTICS_FORBIDDEN_LAYERS:
+        for rel in swift_files(layer):
+            if re.search(r"\bAppAnalytics\b", read(rel)):
+                rep.fail("A13", rel, "Domain / Application / Infrastructure 不得引用 AppAnalytics（BCA-OBS-003）")
+    for rel in swift_files("BrowseCraft"):
+        if rel in SCREEN_VIEW_ALLOWED:
+            continue
+        if "logScreenView(" in read(rel):
+            rep.fail("A13", rel, "页面曝光只走 .analyticsScreen(_:) / AnalyticsScreenReporter（BCA-OBS-004）")
+    rep.note("A13", " / ".join(counts))
+
+
 def load_fwq_definitions(path):
     if not path or not os.path.isdir(path):
         return None
@@ -473,6 +569,7 @@ def main():
     check_symbols(rep)
     check_tracked(rep, defs)
     check_retirable_sections(rep)
+    check_analytics(rep)
 
     titles = {
         "A1": "定义点唯一、域在词表内、H 类不承载定义点",
@@ -487,6 +584,7 @@ def main():
         "A10": "文档点名的代码符号都存在",
         "A11": "承载定义点的文档被 git 跟踪",
         "A12": "STATUS.md 可退休的节（只提示，BCA-DOC-016）",
+        "A13": "埋点字典与代码一致、带注释、调用边界（BCA-OBS）",
     }
     failed = {c for c, _, _ in rep.failures}
     skipped = {c for c, _ in rep.skipped}

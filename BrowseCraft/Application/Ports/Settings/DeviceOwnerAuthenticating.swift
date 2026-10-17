@@ -16,9 +16,11 @@ enum DeviceOwnerAuthenticationMethod: Equatable, Sendable {
 }
 
 /// 验证结果。用户取消、未通过、被系统暂时锁住都算没有通过——重试与转密码由系统界面处理（设计文档第四节）。
+/// 取消单列只为埋点区分结局（`content_unlock_result`），界面上与 `failed` 同样处理。
 enum DeviceOwnerAuthenticationResult: Equatable, Sendable {
     case succeeded
     case failed
+    case cancelled
 }
 
 protocol DeviceOwnerAuthenticating: Sendable {

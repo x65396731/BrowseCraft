@@ -42,9 +42,8 @@ struct FavoritesView: View {
                             .padding(.bottom, 8)
                     }
                 }
+                .analyticsScreen(.favorites)
                 .onAppear {
-                    CrashDiagnostics.shared.setScreen(.favorite)
-                    AppAnalytics.shared.logScreenView(.favorite)
                     Task {
                         await self.viewModel.load()
                     }
@@ -57,6 +56,13 @@ struct FavoritesView: View {
                     Task {
                         await self.viewModel.load()
                     }
+                }
+                // 中文注释：筛选只由用户点分段改，ViewModel 不会程序性改它。
+                .onChange(of: self.viewModel.kindFilter) { _, newValue in
+                    AppAnalytics.shared.logContentFilterChanged(
+                        screen: .favorites,
+                        kind: FavoritesViewModel.analyticsKind(of: newValue)
+                    )
                 }
                 .alert(isPresented: self.errorAlertBinding) {
                     Alert(
@@ -154,8 +160,12 @@ struct FavoritesView: View {
         ) {
             Button(NSLocalizedString("favorites_batch_keep", comment: "保留"), role: .cancel) {}
             Button(NSLocalizedString("favorites_unfavorite", comment: ""), role: .destructive) {
+                let kind: AnalyticsContentKind = FavoritesViewModel.analyticsKind(of: self.viewModel.kindFilter)
                 Task {
-                    await self.viewModel.unfavoriteSelected()
+                    let removedCount: Int = await self.viewModel.unfavoriteSelected()
+                    if removedCount > 0 {
+                        AppAnalytics.shared.logFavoritesRemoved(count: removedCount, kind: kind)
+                    }
                 }
             }
         } message: {
@@ -191,7 +201,7 @@ struct FavoritesView: View {
             // 不用 destructive 角色，行的移除由数据变化驱动。
             if self.viewModel.isSelecting == false {
                 Button {
-                    self.unfavorite(item)
+                    self.unfavorite(item, entry: .favoritesSwipe)
                 } label: {
                     Label(NSLocalizedString("favorites_unfavorite", comment: ""), systemImage: "heart.slash")
                 }
@@ -212,6 +222,7 @@ struct FavoritesView: View {
         }
         if (state == .available || state == .paused), let source: Source = self.viewModel.source(for: item) {
             Button {
+                AppAnalytics.shared.logOpenInLibraryTapped(screen: .favorites)
                 self.openSourceInLibrary(source)
             } label: {
                 Label(NSLocalizedString("favorites_menu_open_source", comment: ""), systemImage: "square.grid.2x2")
@@ -219,12 +230,13 @@ struct FavoritesView: View {
         }
         Button {
             self.viewModel.beginSelection(preselecting: item)
+            AppAnalytics.shared.logSelectionModeEntered(screen: .favorites, entry: .longPress)
         } label: {
             Label(NSLocalizedString("content_selection_select_multiple", comment: "选择多项"), systemImage: "checkmark.circle")
         }
         Divider()
         Button(role: .destructive) {
-            self.unfavorite(item)
+            self.unfavorite(item, entry: .favoritesMenu)
         } label: {
             Label(NSLocalizedString("favorites_unfavorite", comment: ""), systemImage: "heart.slash")
         }
@@ -313,6 +325,7 @@ struct FavoritesView: View {
                     title: NSLocalizedString("content_selection_select", comment: "选择"),
                     action: {
                         self.viewModel.beginSelection()
+                        AppAnalytics.shared.logSelectionModeEntered(screen: .favorites, entry: .headerButton)
                     }
                 )
                 .disabled(self.viewModel.visibleItems.isEmpty)
@@ -429,6 +442,11 @@ struct FavoritesView: View {
             guard let source: Source = self.viewModel.source(for: item) else {
                 return
             }
+            AppAnalytics.shared.logContentOpened(
+                source: source,
+                kind: FavoritesViewModel.analyticsKind(of: item),
+                entry: .favorites
+            )
             self.path.append(FavoriteDestination(item: item, source: source))
         case .paused:
             if let source: Source = self.viewModel.source(for: item) {
@@ -439,9 +457,14 @@ struct FavoritesView: View {
         }
     }
 
-    private func unfavorite(_ item: FavoriteContentItem) {
+    private func unfavorite(_ item: FavoriteContentItem, entry: FavoriteEntry) {
+        // 中文注释：来源在取消前取，取消后快照里可能就没有这条了。
+        let source: Source? = self.viewModel.source(for: item)
+        let kind: AnalyticsContentKind = FavoritesViewModel.analyticsKind(of: item)
         Task {
-            await self.viewModel.unfavorite(item)
+            if await self.viewModel.unfavorite(item) {
+                AppAnalytics.shared.logFavoriteChanged(isFavorite: false, source: source, kind: kind, entry: entry)
+            }
         }
     }
 

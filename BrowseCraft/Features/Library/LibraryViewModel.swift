@@ -229,6 +229,7 @@ final class LibraryViewModel {
         }
 
         if self.selectedListTabID != tabID {
+            AppAnalytics.shared.logLibraryCategorySelected(source: self.selectedSource)
             self.refreshToken += 1
             self.selectedListTabID = tabID
             self.selectedListTabErrorMessage = self.currentListTabErrorMessage()
@@ -492,7 +493,12 @@ final class LibraryViewModel {
                self.isCurrentListState(sourceID: expectedSourceID, key: expectedListStateKey) {
                 let event: String = mode == .append ? "library-pagination-error" : "library-refresh-error"
                 RuleExecutionErrorClassifier.log(error: error, stage: .list, event: event)
-                AppAnalytics.shared.logDiagnosticFailure(kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error), stage: .list, errorCode: event)
+                AppAnalytics.shared.logDiagnosticFailure(
+                    kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
+                    stage: .list,
+                    point: mode == .append ? .libraryPagination : .libraryRefresh,
+                    source: refreshedSelectedSource
+                )
                 if mode == .append {
                     self.nextPageErrorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
                 } else {
@@ -526,7 +532,7 @@ final class LibraryViewModel {
 
     @MainActor
     /// 中文注释：toggleFavorite 方法封装当前类型的一段业务或界面行为。
-    func toggleFavorite(item: ContentItem) async {
+    func toggleFavorite(item: ContentItem, entry: FavoriteEntry = .library) async {
         do {
             let wasFavorite: Bool = self.favoriteItemIDs.contains(item.id)
             let source: Source? = self.source(for: item.sourceId)
@@ -537,7 +543,7 @@ final class LibraryViewModel {
                     favoritedAt: self.now()
                 )
             )
-            AppAnalytics.shared.logBookmarkChanged(isFavorite: wasFavorite == false, source: source)
+            AppAnalytics.shared.logFavoriteChanged(isFavorite: wasFavorite == false, source: source, entry: entry)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "favorite-error")
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
@@ -637,6 +643,7 @@ final class LibraryViewModel {
             }
             self.searchResults = self.contentItemMapper.map(output: output, source: source, context: nil)
             self.searchNextPage = output.pagination?.nextPage
+            AppAnalytics.shared.logSearchSubmitted(source: source, result: .success, resultCount: self.searchResults.count)
         } catch is CancellationError {
             return
         } catch {
@@ -647,6 +654,17 @@ final class LibraryViewModel {
             self.searchResults = []
             self.searchErrorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
             self.searchFailureNeedsLogin = Self.isLoginWall(error)
+            AppAnalytics.shared.logSearchSubmitted(
+                source: source,
+                result: self.searchFailureNeedsLogin ? .loginRequired : .failed,
+                resultCount: 0
+            )
+            AppAnalytics.shared.logDiagnosticFailure(
+                kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
+                stage: .search,
+                point: .librarySearch,
+                source: source
+            )
         }
         self.isSearching = false
         self.hasSearched = true
@@ -1289,9 +1307,11 @@ final class LibraryViewModel {
               let factory: @MainActor (VideoWatchHistory, Source) -> VideoPlayerViewModel = self.videoPlayerViewModelFactory else {
             return
         }
+        let playerViewModel: VideoPlayerViewModel = factory(history, source)
+        playerViewModel.playbackEntry = .continueTile
         self.videoPlaybackRoute = VideoPlaybackRoute(
             id: history.id,
-            viewModel: factory(history, source)
+            viewModel: playerViewModel
         )
     }
 
@@ -1549,6 +1569,7 @@ final class LibraryViewModel {
 
     private func reloadFavoriteItemIDs(event: String) {
         let expectedSourceID: String? = self.selectedSourceID
+        let expectedSource: Source? = self.selectedSource
         Task {
             do {
                 let favoriteItemIDs: Set<String> = try await self.persistenceCoordinator
@@ -1562,7 +1583,8 @@ final class LibraryViewModel {
                 AppAnalytics.shared.logDiagnosticFailure(
                     kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
                     stage: .list,
-                    errorCode: event
+                    point: .libraryFavoriteState,
+                    source: expectedSource
                 )
                 self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
             }

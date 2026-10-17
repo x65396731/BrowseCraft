@@ -26,7 +26,7 @@ final class CoinWalletStore: RewardedAdRewardCoordinating {
     private let sleep: @Sendable (Duration) async throws -> Void
     /// 中文注释：余额接口回 401 时交给会话强制刷新一次（删除账号设计第 7.1 节）；nil 即只清余额显示（测试替身）。
     private let authorizationRejectionHandler: (any PortalAuthorizationRejectionHandling)?
-    private var refreshTask: Task<Void, Never>?
+    private var refreshTask: Task<Bool?, Never>?
     /// 中文注释：会话因 401 被清掉后通知界面刷新登录状态；组合根在 Features 装好后设置。
     @ObservationIgnored var didEndSession: (@MainActor () async -> Void)?
 
@@ -135,17 +135,20 @@ final class CoinWalletStore: RewardedAdRewardCoordinating {
     }
 
     /// 看完广告后短轮询至多三次，版本号前进即停。
-    func pollAfterAdReward() async {
+    /// 返回是否到账：true 版本号前进了；false 三次都没前进（超时）；nil 轮询被取消（又看了一次广告等），结果不明。
+    @discardableResult
+    func pollAfterAdReward() async -> Bool? {
         let startRevision: Int = self.revision
         for delay: Duration in Self.adRewardPollDelays {
             guard (try? await self.sleep(delay)) != nil else {
-                return
+                return nil
             }
             await self.refresh()
             if self.revision > startRevision {
-                return
+                return true
             }
         }
+        return false
     }
 
     // MARK: - RewardedAdRewardCoordinating
@@ -162,14 +165,17 @@ final class CoinWalletStore: RewardedAdRewardCoordinating {
         return self.activeAppUser.currentUserID.uuidString.lowercased()
     }
 
-    func rewardedAdCompleted(userIdentifier: String?) {
+    @discardableResult
+    func rewardedAdCompleted(userIdentifier: String?) -> Task<Bool?, Never>? {
         guard userIdentifier != nil else {
-            return
+            return nil
         }
         self.refreshTask?.cancel()
-        self.refreshTask = Task { [weak self] in
-            await self?.pollAfterAdReward()
+        let task: Task<Bool?, Never> = Task { [weak self] in
+            return await self?.pollAfterAdReward() ?? nil
         }
+        self.refreshTask = task
+        return task
     }
 
     private func persist(balance: Int, revision: Int) {

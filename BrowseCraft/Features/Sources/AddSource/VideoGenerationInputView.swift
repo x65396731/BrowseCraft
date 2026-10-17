@@ -93,6 +93,7 @@ struct VideoGenerationInputView: View {
                     }
                 }
             }
+            .analyticsScreen(.generationInput)
             .onChange(of: self.siteURL) { _, _ in
                 self.cancelAssessment()
                 self.cancelSubmission()
@@ -187,7 +188,7 @@ struct VideoGenerationInputView: View {
             .submitLabel(.go)
             .disabled(self.isURLLocked)
             .onSubmit {
-                self.startAssessment()
+                self.startAssessment(inputMethod: .typed)
             }
             if self.trimmedSiteURL.isEmpty {
                 // 中文注释：系统粘贴按钮不弹授权；点了即填入并开始检查（2026-10-06 用户裁定）。
@@ -196,7 +197,7 @@ struct VideoGenerationInputView: View {
                         return
                     }
                     self.siteURL = pasted.trimmingCharacters(in: .whitespacesAndNewlines)
-                    self.startAssessment()
+                    self.startAssessment(inputMethod: .pasted)
                 }
                 .labelStyle(.titleOnly)
                 .buttonBorderShape(.capsule)
@@ -530,7 +531,9 @@ struct VideoGenerationInputView: View {
                 self.capsuleButton(
                     titleKey: "generation_input_recheck_button",
                     isProminent: true,
-                    action: self.startAssessment
+                    action: {
+                        self.startAssessment(inputMethod: .retry)
+                    }
                 )
             }
         } else {
@@ -538,7 +541,9 @@ struct VideoGenerationInputView: View {
                 titleKey: "video_preflight_check_button",
                 isProminent: true,
                 isEnabled: self.canStartAssessment,
-                action: self.startAssessment
+                action: {
+                    self.startAssessment(inputMethod: .typed)
+                }
             )
         }
     }
@@ -618,7 +623,7 @@ struct VideoGenerationInputView: View {
 
     // MARK: - 检查
 
-    private func startAssessment() {
+    private func startAssessment(inputMethod: PreflightInputMethod) {
         let input: String = self.trimmedSiteURL
         guard input.isEmpty == false, self.isChecking == false else {
             return
@@ -633,7 +638,11 @@ struct VideoGenerationInputView: View {
         self.assessmentTask = Task { @MainActor in
             do {
                 let result: VideoGenerationInputPreflight = try await self.viewModel
-                    .assessVideoGenerationInput(siteURLString: input, sourceKind: self.sourceKind)
+                    .assessVideoGenerationInput(
+                        siteURLString: input,
+                        sourceKind: self.sourceKind,
+                        inputMethod: inputMethod
+                    )
                 guard Task.isCancelled == false, self.assessmentID == assessmentID else {
                     return
                 }

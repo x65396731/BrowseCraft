@@ -11,6 +11,8 @@ struct BookSiteDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: BookSiteDetailViewModel
     @State private var selectedChapter: SiteBookChapterSelection?
+    /// 中文注释：本次打开阅读器的埋点入口，随 `selectedChapter` 一起定。
+    @State private var readerOpenEntry: ReaderOpenEntry = .chapterList
     /// 中文注释：点分段芯片滚到段首时，段首要落在贴顶分区头下面而不是被它盖住（2026-10-09 模拟器实测：点「101–150」停在 103）。
     /// 记下滚动区可见高度与分区头高度，换算成 `scrollTo` 的锚点。
     @State private var scrollViewportHeight: CGFloat = 0
@@ -36,7 +38,7 @@ struct BookSiteDetailView: View {
                     BookSiteDetailHeaderSection(
                         viewModel: self.viewModel,
                         style: self.style,
-                        openSelection: self.open(_:)
+                        openSelection: self.open(_:entry:)
                     )
                     .zIndex(2)
 
@@ -45,7 +47,7 @@ struct BookSiteDetailView: View {
                             viewModel: self.viewModel,
                             style: self.style,
                             selectChapter: { chapter in
-                                self.open(self.viewModel.selection(for: chapter))
+                                self.open(self.viewModel.selection(for: chapter), entry: .chapterList)
                             }
                         )
                     } header: {
@@ -87,20 +89,21 @@ struct BookSiteDetailView: View {
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
+        .analyticsScreen(.bookDetail)
         .task {
-            CrashDiagnostics.shared.setScreen(.bookDetail)
-            AppAnalytics.shared.logScreenView(.bookDetail)
             // 中文注释：收藏是本地读取，先于网络详情到位。
             await self.viewModel.reloadFavoriteState()
             await self.viewModel.loadIfNeeded()
         }
         .navigationDestination(item: self.$selectedChapter) { selection in
-            BookReaderView(viewModel: self.makeReaderViewModel(selection))
+            BookReaderView(viewModel: self.makeReaderViewModel(selection), entry: self.readerOpenEntry)
                 .id(selection)
         }
         .fullScreenCover(item: self.requestedSourceLoginBinding) { loginState in
             SourceLoginView(
                 state: loginState,
+                entry: .detail,
+                source: self.viewModel.source,
                 cancelAction: {
                     self.viewModel.dismissRequestedSourceLogin()
                 },
@@ -122,7 +125,8 @@ struct BookSiteDetailView: View {
         return UnitPoint(x: 0.5, y: min(0.8, (self.chapterHeaderHeight + 4) / self.scrollViewportHeight))
     }
 
-    private func open(_ selection: SiteBookChapterSelection) {
+    private func open(_ selection: SiteBookChapterSelection, entry: ReaderOpenEntry) {
+        self.readerOpenEntry = entry
         self.selectedChapter = selection
     }
 

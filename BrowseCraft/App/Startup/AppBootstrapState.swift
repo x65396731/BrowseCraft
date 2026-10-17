@@ -22,23 +22,35 @@ enum AppBootstrapState {
             AppLog.debug(.rule, event: record.event, metadata: metadata)
         }
 
+        // 中文注释：分两步捕获，只为埋点知道失败在哪一步（打开数据库与身份引导 / 组装容器）。
+        let dependencies: AppBootstrapDependencies
         do {
-            let dependencies: AppBootstrapDependencies = try await loader.load()
+            dependencies = try await loader.load()
+        } catch {
+            return Self.failedState(error, stage: .database)
+        }
+        do {
             return .ready(try AppContainer(bootstrap: dependencies))
         } catch {
-            let failure: AppBootstrapFailure = AppBootstrapFailure(error: error)
-            // 中文注释：诊断码对用户是稳定的引用，但它只由类型名哈希而来；真正的原因必须同时落日志，
-            // 否则拿到一个 BOOT-XXXX 也只能靠反推哈希去猜是哪个错误。
-            AppLog.error(
-                .startup,
-                event: "bootstrap-failed",
-                metadata: [
-                    "diagnosticCode": failure.diagnosticCode,
-                    "diagnostics": failure.diagnosticDetail
-                ]
-            )
-            return .failed(failure)
+            return Self.failedState(error, stage: .container)
         }
+    }
+
+    @MainActor
+    private static func failedState(_ error: any Error, stage: BootstrapFailureStage) -> AppBootstrapState {
+        let failure: AppBootstrapFailure = AppBootstrapFailure(error: error)
+        // 中文注释：诊断码对用户是稳定的引用，但它只由类型名哈希而来；真正的原因必须同时落日志，
+        // 否则拿到一个 BOOT-XXXX 也只能靠反推哈希去猜是哪个错误。
+        AppLog.error(
+            .startup,
+            event: "bootstrap-failed",
+            metadata: [
+                "diagnosticCode": failure.diagnosticCode,
+                "diagnostics": failure.diagnosticDetail
+            ]
+        )
+        AppAnalytics.shared.logAppBootstrapFailed(stage: stage)
+        return .failed(failure)
     }
 }
 

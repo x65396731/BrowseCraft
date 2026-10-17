@@ -2,6 +2,8 @@ import SwiftUI
 
 struct TemporaryHistoryDetailView: View {
     let history: TemporaryResourceHistory
+    /// 中文注释：`content_opened` 只在进入详情时报一次，从播放器返回不再报。
+    @State private var didReportOpen: Bool = false
 
     var body: some View {
         Form {
@@ -69,6 +71,18 @@ struct TemporaryHistoryDetailView: View {
         }
         .navigationTitle("Temporary")
         .toolbar(.hidden, for: .tabBar)
+        .analyticsScreen(.temporaryDetail)
+        .onAppear {
+            guard self.didReportOpen == false else {
+                return
+            }
+            self.didReportOpen = true
+            AppAnalytics.shared.logContentOpened(
+                source: nil,
+                kind: self.history.kind == .video ? .video : .comic,
+                entry: .temporary
+            )
+        }
     }
 
     private static let dateFormatter: DateFormatter = {

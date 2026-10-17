@@ -113,6 +113,9 @@ final class CloudSyncSettingsViewModel {
     private var coordinatorObservationTask: Task<Void, Never>?
     private var lastHandledDownloadCheckpoint: CloudSyncDownloadCheckpoint?
     private var activationIntent: ActivationIntent?
+    /// 中文注释：下拉重试首次恢复期间，结局由 `retryInitialRestoreIfFailed` 报 `pull_retry`，状态迁移处不再按 `auto` 报。
+    @ObservationIgnored
+    private var isRetryingInitialRestore: Bool = false
 
     init(
         accountSession: CloudAccountSession,
@@ -256,7 +259,9 @@ final class CloudSyncSettingsViewModel {
             return
         }
         let hadError: Bool = self.coordinatorSnapshot.lastErrorMessage != nil
-        await self.runSynchronization(trigger: hadError ? .retry : .manual)
+        if let isSynchronized: Bool = await self.runSynchronization(trigger: hadError ? .retry : .manual) {
+            AppAnalytics.shared.logCloudSyncRun(trigger: .pull, result: isSynchronized ? .success : .failed)
+        }
     }
 
     func start() async {
@@ -363,6 +368,9 @@ final class CloudSyncSettingsViewModel {
             self.setupRequest = nil
             await self.accountSession.setCloudSyncEnabled(false)
             await self.applyAccountSnapshot(self.accountSession.snapshot())
+            if self.isCloudSyncEnabled == false {
+                AppAnalytics.shared.logSettingChanged(.cloudSync, isOn: false)
+            }
             return
         }
 
@@ -382,6 +390,9 @@ final class CloudSyncSettingsViewModel {
             ) {
                 self.preparation = preparation
                 await self.enablePreparedCloudScope(cloudScope)
+                if self.isCloudSyncEnabled {
+                    AppAnalytics.shared.logSettingChanged(.cloudSync, isOn: true)
+                }
                 return
             }
 
@@ -409,12 +420,14 @@ final class CloudSyncSettingsViewModel {
             return
         }
         self.actionErrorMessage = nil
+        let choice: CloudSyncFirstEnableChoice = Self.firstEnableChoice(decision: decision, request: request)
 
         let snapshot: CloudAccountSessionSnapshot = await self.accountSession.snapshot()
         guard snapshot.state.availability == .available,
               snapshot.state.synchronizationScope == request.cloudScope else {
             self.setupRequest = nil
             self.actionErrorMessage = NSLocalizedString("The iCloud account changed before setup was completed.", comment: "")
+            AppAnalytics.shared.logCloudSyncFirstEnableResult(choice: choice, result: .failed)
             return
         }
 
@@ -428,18 +441,43 @@ final class CloudSyncSettingsViewModel {
             self.setupRequest = nil
             self.contentRevision &+= 1
             await self.enablePreparedCloudScope(request.cloudScope)
+            if self.isCloudSyncEnabled {
+                AppAnalytics.shared.logCloudSyncFirstEnableResult(choice: choice, result: .success)
+                AppAnalytics.shared.logSettingChanged(.cloudSync, isOn: true)
+            } else {
+                AppAnalytics.shared.logCloudSyncFirstEnableResult(choice: choice, result: .failed)
+            }
         } catch {
             await self.loadPartitionState(for: snapshot)
             self.actionErrorMessage = NSLocalizedString("Cloud sync setup could not be saved.", comment: "")
+            AppAnalytics.shared.logCloudSyncFirstEnableResult(choice: choice, result: .failed)
         }
     }
 
+    /// 中文注释：本机没有可合并的数据时窗口只有「开启云同步」一个按钮（提交的是只用 iCloud），单报 no_local_data。
+    private static func firstEnableChoice(
+        decision: CloudAccountLocalDataDecision,
+        request: FirstEnableRequest
+    ) -> CloudSyncFirstEnableChoice {
+        guard request.localDataSummary.hasMergeableData else {
+            return .noLocalData
+        }
+        switch decision {
+        case .mergeLocalData:
+            return .mergeLocal
+        case .useCloudDataOnly:
+            return .cloudOnly
+        }
+    }
+
+    /// 中文注释：窗口的「取消」与下滑关闭都走这里；确认成功后 `setupRequest` 已清空，关窗时不会误报取消。
     func cancelFirstEnable() {
         guard case .some(.firstEnable(_)) = self.setupRequest else {
             return
         }
         self.setupRequest = nil
         self.currentUserSummary = nil
+        AppAnalytics.shared.logCloudSyncFirstEnableResult(choice: nil, result: .cancelled)
     }
 
     func dismissSetupRequest() {
@@ -475,12 +513,27 @@ final class CloudSyncSettingsViewModel {
         guard case .failed = self.initialRestoreState else {
             return
         }
+        self.isRetryingInitialRestore = true
+        defer {
+            self.isRetryingInitialRestore = false
+        }
         await self.retrySynchronization()
+        switch self.initialRestoreState {
+        case .restored:
+            AppAnalytics.shared.logCloudInitialRestoreResult(trigger: .pullRetry, result: .success)
+        case .failed:
+            AppAnalytics.shared.logCloudInitialRestoreResult(trigger: .pullRetry, result: .failed)
+        case .notRequired, .waitingForCloud, .restoring:
+            // 中文注释：这次没跑出结论（同步被跳过或 iCloud 不可用），不报。
+            break
+        }
     }
 
-    private func runSynchronization(trigger: CloudSyncTrigger) async {
+    /// 返回这次同步是否成功；没有真的跑（已在同步、被取消）时返回 nil，调用方据此决定报不报埋点。
+    @discardableResult
+    private func runSynchronization(trigger: CloudSyncTrigger) async -> Bool? {
         guard self.isSynchronizing == false else {
-            return
+            return nil
         }
         self.isRequestingManualSync = true
         self.actionErrorMessage = nil
@@ -491,15 +544,21 @@ final class CloudSyncSettingsViewModel {
         do {
             _ = try await self.coordinator.synchronize(trigger: trigger)
             await self.applyCoordinatorSnapshot(self.coordinator.snapshot())
+            return true
         } catch {
             if error is CancellationError {
-                return
+                return nil
             }
             let snapshot: CloudSyncCoordinatorSnapshot = await self.coordinator.snapshot()
             await self.applyCoordinatorSnapshot(snapshot)
             if snapshot.lastErrorMessage == nil {
                 self.actionErrorMessage = CloudSyncSafeErrorMessage.describe(error)
             }
+            if let sessionError: CloudSyncSessionError = error as? CloudSyncSessionError,
+               sessionError == .synchronizationDisabled || sessionError == .alreadyRunning {
+                return nil
+            }
+            return false
         }
     }
 
@@ -662,7 +721,25 @@ final class CloudSyncSettingsViewModel {
         self.updateInitialRestoreState()
     }
 
+    /// 中文注释：首次恢复从「恢复中」自动走到「已恢复」或「失败」时报 `auto`；下拉重试的由重试方法自己报。
     private func updateInitialRestoreState() {
+        let previousState: CloudSyncInitialRestoreState = self.initialRestoreState
+        self.recomputeInitialRestoreState()
+        guard self.isRetryingInitialRestore == false,
+              previousState == .restoring else {
+            return
+        }
+        switch self.initialRestoreState {
+        case .restored:
+            AppAnalytics.shared.logCloudInitialRestoreResult(trigger: .auto, result: .success)
+        case .failed:
+            AppAnalytics.shared.logCloudInitialRestoreResult(trigger: .auto, result: .failed)
+        case .notRequired, .waitingForCloud, .restoring:
+            break
+        }
+    }
+
+    private func recomputeInitialRestoreState() {
         let scope: CloudAccountScope = self.accountSnapshot.state.scope
         guard scope.isCloud,
               self.accountSnapshot.accountPreferenceEnabled else {

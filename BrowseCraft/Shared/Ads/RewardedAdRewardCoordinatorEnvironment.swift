@@ -8,7 +8,9 @@ protocol RewardedAdRewardCoordinating: AnyObject, Sendable {
     /// 已登录时返回要写进 `ServerSideVerificationOptions.userIdentifier` 的标识；未登录返回 nil。
     func rewardedAdUserIdentifier() async -> String?
     /// 广告已获得奖励；`userIdentifier` 是本次请求带上的那个（nil 即未登录看的）。
-    func rewardedAdCompleted(userIdentifier: String?)
+    /// 已登录时返回余额轮询任务，其结果 true 到账、false 超时、nil 被取消；未登录返回 nil。
+    @discardableResult
+    func rewardedAdCompleted(userIdentifier: String?) -> Task<Bool?, Never>?
     /// 看完一次广告发放的 coin 数（服务端 `pricing.adReward`），用于看完后的提示文案。
     var rewardedAdCoinAmount: Int { get }
 }

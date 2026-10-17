@@ -28,6 +28,7 @@ struct CloudSyncSettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         // 中文注释：二级页隐藏底栏，左上返回是唯一出口（用户裁定，与 coin 记录页、缓存页同一做法）。
         .toolbar(.hidden, for: .tabBar)
+        .analyticsScreen(.cloudSync)
         .refreshable {
             // 中文注释：下拉的任务会在页面状态变化重绘时被系统取消，同步跟着被取消；
             // 放进独立任务里跑，下拉只等它结束。
@@ -66,13 +67,9 @@ struct CloudSyncSettingsView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .frame(minHeight: 52)
+            // 中文注释：`setting_changed` 由 ViewModel 在用户拨动开关且生效后报，不挂 onChange——
+            // 账号快照刷新等程序性变化也会改 isCloudSyncEnabled。
             .disabled(self.viewModel.canChangeCloudSyncEnabled == false || self.requiresPortalSignIn)
-            .onChange(of: self.viewModel.isCloudSyncEnabled) { _, newValue in
-                AppAnalytics.shared.logSettingChanged(
-                    name: "cloud_sync",
-                    value: String(newValue)
-                )
-            }
         }
         .padding(.top, 20)
     }
@@ -404,6 +401,7 @@ private struct CloudSyncFirstEnableSheet: View {
             .background(CatalogPalette.pageBackground)
             .navigationBarTitleDisplayMode(.inline)
             .interactiveDismissDisabled(self.isSubmitting)
+            .analyticsScreen(.cloudSyncFirstEnable)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(NSLocalizedString("Cancel", comment: "")) {
