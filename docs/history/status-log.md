@@ -1288,3 +1288,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 2026-10-17 埋点全覆盖。审计发现 19 个事件里 4 个是死代码、34 个页面只有 15 个报曝光；设计文档经用户裁定全部按推荐执行（时长分桶加两档），同日另一会话为 AdMob 接了 ATT，设计随之加 `tracking_authorization_result`。`STATUS.md` 新增第 9 节两行：实施 implemented / static-audit-passed（架构边界与文档闸门过，77 个改动的 Swift 文件 `swiftc -parse` 无语法错误；未 build、未跑测试），编译与走查一行 not-run，检查点先登记为实施前的 HEAD `890ecb7`。
 - 同节「埋点全覆盖」一行：验证 static-audit-passed → targeted-passed（iPhone 17 Pro / iOS 26.5 build 通过、改动文件无新增警告；AppAnalyticsBucketTests、AppAnalyticsAdEventTests、AppAnalyticsPreflightEventTests 与签名有变动的 SourcesViewModelTests、FavoritesViewModelTests、HistoryViewModelTests、CloudSyncSettingsViewModelTests、CoinWalletStoreTests 共 8 个套件 61 例全过；本地化闸门过）。
 - 同节「编译与走查」一行改名为「模拟器走查」，只留 DebugView 核对与 GA4 自定义维度注册，build 与测试的事实并入上一行；验证仍 not-run。
+- 实施、文档与测试一起提交为 `d6ff2cf`；第 9 节两行检查点由实施前的 HEAD `890ecb7` 改登记为 `d6ff2cf`。
