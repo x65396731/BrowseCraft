@@ -10,8 +10,13 @@ import Observation
 @MainActor
 @Observable
 final class CoinWalletStore: RewardedAdRewardCoordinating {
-    /// 看完广告后的短轮询：SSV 回调通常晚几秒到服务端。
-    static let adRewardPollDelays: [Duration] = [.seconds(2), .seconds(4), .seconds(6)]
+    /// 看完广告后的短轮询：SSV 回调通常晚几秒到服务端，但 Google 不给延迟上限（文档只说「可能有延迟」，
+    /// 失败时以 1 秒间隔重试至多 5 次）。原来 2 / 4 / 6 秒共约 12 秒，模拟器走查（2026-10-17）出现过窗口结束后才到账、
+    /// 设置页余额停在旧值等下拉刷新的情况；用户裁定加长到约 60 秒（2+3+5+10+10+15+15），前密后疏，版本号前进即停。
+    /// 埋点 `ad_reward_credited` 的 timeout 即「这个窗口内没到账」，窗口长度改了要同步合同。
+    static let adRewardPollDelays: [Duration] = [
+        .seconds(2), .seconds(3), .seconds(5), .seconds(10), .seconds(10), .seconds(15), .seconds(15),
+    ]
 
     /// nil = 未登录或还没同步过。
     private(set) var balance: Int?
@@ -134,8 +139,10 @@ final class CoinWalletStore: RewardedAdRewardCoordinating {
         self.persist(balance: 0, revision: 0)
     }
 
-    /// 看完广告后短轮询至多三次，版本号前进即停。
-    /// 返回是否到账：true 版本号前进了；false 三次都没前进（超时）；nil 轮询被取消（又看了一次广告等），结果不明。
+    /// 看完广告后按 `adRewardPollDelays` 短轮询，版本号前进即停。
+    /// 返回是否到账：true 版本号前进了；false 整个窗口都没前进（窗口内未到账，之后仍可能到账，
+    /// 由回到前台、设置页出现或下拉刷新补上来）；nil 轮询被取消（又看了一次广告等），结果不明。
+    /// 版本号前进不区分原因：窗口内恰好有生成退回、运营加减等其他余额变化，也按到账算。
     @discardableResult
     func pollAfterAdReward() async -> Bool? {
         let startRevision: Int = self.revision

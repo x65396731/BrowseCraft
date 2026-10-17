@@ -150,8 +150,8 @@ final class AppAnalytics: Sendable {
         /// 一次激励广告的结局，自动唤起与设置页手动入口共用。
         /// 参数：ad_trigger、ad_result（含 busy：已有广告在播而跳过）、signed_in。不报：余额与用户标识。
         case rewardedAdResult = "rewarded_ad_result"
-        /// 已登录看完广告后，轮询余额的结果。
-        /// 参数：result（AdRewardCreditResult）。不报：余额数值。
+        /// 已登录看完广告后报一次：余额版本号前进即报，约 60 秒的轮询窗口结束仍没前进也报；轮询被又一次广告打断不报。
+        /// 参数：result（AdRewardCreditResult：credited 窗口内版本号前进，timeout 窗口内没到账、之后仍可能到账）。不报：余额数值、迟到的到账。
         case adRewardCredited = "ad_reward_credited"
         /// 第一次播激励广告前弹出的跟踪授权（ATT）窗口关闭后报一次；状态已决定、不弹窗时不报。
         /// 参数：result（TrackingAuthorizationResult）。Analytics 本身不读 IDFA。

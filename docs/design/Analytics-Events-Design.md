@@ -110,7 +110,7 @@
 | `video_line_switched` | 影视详情切换播放线路时报。 | source_id_hash。不报：线路名。 |
 | `ad_points_threshold` | 积分满 100、页面要弹激励广告时报（设计书 30.8）；去广告用户不累计积分，不会产生。 | ad_trigger。 |
 | `rewarded_ad_result` | 一次激励广告的结局，自动唤起与设置页手动入口共用。 | ad_trigger、ad_result（含 busy：已有广告在播而跳过）、signed_in。不报：余额与用户标识。 |
-| `ad_reward_credited` | 已登录看完广告后，轮询余额的结果。 | result（AdRewardCreditResult）。不报：余额数值。 |
+| `ad_reward_credited` | 已登录看完广告后报一次：余额版本号前进即报，约 60 秒的轮询窗口结束仍没前进也报；轮询被又一次广告打断不报。 | result（AdRewardCreditResult：credited 窗口内版本号前进，timeout 窗口内没到账、之后仍可能到账）。不报：余额数值、迟到的到账。 |
 | `tracking_authorization_result` | 第一次播激励广告前弹出的跟踪授权（ATT）窗口关闭后报一次；状态已决定、不弹窗时不报。 | result（TrackingAuthorizationResult）。Analytics 本身不读 IDFA。 |
 
 ### F. 收藏、历史与内容锁定

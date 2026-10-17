@@ -349,9 +349,11 @@ enum PlaybackFallbackAction: String, Sendable {
     case openInBrowser = "open_in_browser"
 }
 
-/// 中文注释：`ad_reward_credited` 的 `result`。
+/// 中文注释：`ad_reward_credited` 的 `result`。窗口长度见 `CoinWalletStore.adRewardPollDelays`（约 60 秒）。
 enum AdRewardCreditResult: String, Sendable {
+    /// 轮询窗口内余额版本号前进了（不区分原因，窗口内其他余额变化也算）。
     case credited
+    /// 轮询窗口内版本号没前进。不等于没到账：SSV 回调晚于窗口时余额照样会到，只是这次轮询没看到，也不补报。
     case timeout
 }
 
