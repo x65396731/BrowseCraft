@@ -18,8 +18,9 @@
   参数键只能取第 4 节的表，`AppAnalytics.Parameter.allowed` 之外的键在上报前丢弃。
 - `BCA-OBS-003` 只有 `Features`、`App` 与 `Shared` 调用 `AppAnalytics`；`Domain`、`Application`、`Infrastructure` 不得引用它。
   需要 Application 层的结果时由它返回值、上层上报，Application 因此不会间接依赖 Firebase。闸门 A13 执行。
-- `BCA-OBS-004` 页面曝光只经 `.analyticsScreen(_:)` 修饰符或 `AnalyticsScreenReporter`（异步后才知道是哪一页时用）发出，
-  它们同时设置 Crashlytics 的当前页面；业务代码不得直接调用 `logScreenView`。Info.plist 关闭 Firebase 的自动屏幕报告。闸门 A13 执行。
+- `BCA-OBS-004` 页面曝光只经 `.analyticsScreen(_:)` 修饰符（异步后才知道是哪一页时用 `.analyticsScreen(resolving:)`）发出，
+  由修饰符背后的 `AnalyticsScreenReporter` 可见页栈统一上报，同时设置 Crashlytics 的当前页面（第 2 节）；
+  业务代码不得直接调用 `logScreenView`。Info.plist 关闭 Firebase 的自动屏幕报告。闸门 A13 执行。
 - `BCA-OBS-005` 设置页「发送使用统计」关闭时不上报任何事件，Firebase 自动事件（含 AdMob 写入的广告事件）一并停止；
   「关闭统计」这一动作本身也不上报，只有打开时补报一次 `setting_changed`。
 
@@ -29,6 +30,11 @@
   名称不超过 40 个字符、字母开头，不用 `firebase_`、`google_`、`ga_` 前缀；单个事件不超过 25 个参数，参数值不超过 100 个字符。
 - 一个流程的结局用一个事件加 `result` 参数，不拆成成功、失败两个事件。
 - 每个页面每次显示都报 `screen_view`，包括从下级页返回，这是 GA4 的标准口径。标签页、sheet、全屏播放与阅读都算页面，系统确认框不算。
+  sheet、全屏页或盖层关闭、下层页面重新露出来时也补报一次下层页面，之后事件的 `firebase_screen` 才回到它身上。
+  做法是 `.analyticsScreen` 维护一个可见页栈：页面 onAppear 入栈并上报，onDisappear 出栈；出栈的是栈顶时等一轮主线程，
+  新栈顶还没报过就补报（导航返回、切标签页时下层页面自己会 onAppear，不会重报）。弹 sheet 的宿主页不用写 `onDismiss` 补报，
+  sheet 里没挂 `.analyticsScreen` 的内容（例如阅读器的目录、书签）不入栈，关掉也不补报。异步才知道是哪一页的页面
+  在确定前就占住栈顶但不上报，避免它下面的页面被误补报。
 - 不报翻页、滚动、拖动进度条、有声书播放 / 暂停 / 快进这类高频动作；阅读与播放在关闭时报一次汇总。分页加载只在失败时报（走第 3 节 I 组）。
 - 来源调试页、本地书架（入口已藏）、漫画资源网页、coin 记录、历史不可用提示页只报曝光，不报行为。
 - Firebase 自己会报 `first_open`、`session_start`、`user_engagement` 等自动事件，AdMob 也会写广告曝光、点击一类事件。
@@ -47,7 +53,7 @@
 | `app_foregrounded` | 从后台回到前台（scenePhase 变为 active）时报；冷启动那次不报。 | 无。 |
 | `app_bootstrap_failed` | 启动装配失败、进入启动失败页时报。 | error_code（装配失败在哪一步）。不报：诊断码与错误文案。 |
 | `startup_finished` | 开屏动画结束、退到标签页时报，记录为什么结束。 | result（StartupOutcome）、entry（落到哪个标签页）。 |
-| `screen_view` | 任一页面显示时报，含从下级页返回；由 `.analyticsScreen(_:)` 统一发出。 | screen_name、screen_class（都取 DiagnosticScreen 的原始值）。 |
+| `screen_view` | 任一页面显示时报，含从下级页返回、盖在上面的 sheet / 全屏页关闭后重新露出；由 `.analyticsScreen(_:)` 统一发出。 | screen_name、screen_class（都取 DiagnosticScreen 的原始值）。 |
 | `push_opened` | 用户点开规则生成结果推送时报；推送在前台到达不报。 | entry（固定为 rule_generation）。不报：推送内容与任务 ID。 |
 | `support_info_copied` | 用户复制诊断码、账号 ID 或启动失败信息时报，用来估计求助量。 | entry（SupportInfoKind）。不报：复制的内容本身。 |
 

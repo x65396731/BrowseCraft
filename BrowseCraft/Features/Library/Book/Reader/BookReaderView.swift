@@ -7,6 +7,8 @@ struct BookReaderView: View {
     @State private var viewModel: BookReaderViewModel
     @State private var isContentsPresented: Bool = false
     @State private var isBookmarksPresented: Bool = false
+    /// 中文注释：打开后才知道是文字书还是有声书；在此之前为 nil，不报页面曝光。
+    @State private var resolvedScreen: DiagnosticScreen?
     private let entry: ReaderOpenEntry
 
     /// 中文注释：`entry` 是埋点入口（`reader_opened` / 有声书 `playback_started`）；默认按历史页打开算。
@@ -145,8 +147,9 @@ struct BookReaderView: View {
             guard Task.isCancelled == false else {
                 return
             }
-            AnalyticsScreenReporter.report(self.viewModel.isAudiobook ? .audiobookPlayer : .bookReader)
+            self.resolvedScreen = self.viewModel.isAudiobook ? .audiobookPlayer : .bookReader
         }
+        .analyticsScreen(resolving: self.resolvedScreen)
         .onDisappear {
             self.viewModel.flush()
             self.viewModel.reportClosedIfNeeded()
