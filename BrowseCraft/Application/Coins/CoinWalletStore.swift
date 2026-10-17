@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import Foundation
 import Observation
 
@@ -113,6 +114,7 @@ final class CoinWalletStore: RewardedAdRewardCoordinating {
                 return false
             }
         } catch {
+            AppLog.error(.coin, "coin-wallet-refresh-failed", ["error": .error(error)])
             return false
         }
     }

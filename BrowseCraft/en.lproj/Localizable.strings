@@ -269,6 +269,8 @@
 "Searching video-like resources on this website..." = "Searching video-like resources on this website...";
 "Send Crash Diagnostics" = "Send Crash Diagnostics";
 "settings_send_usage_statistics" = "Send Usage Statistics";
+"settings_export_logs" = "Export Diagnostic Logs";
+"settings_export_logs_failed" = "Diagnostic logs could not be exported.";
 "Settings" = "Settings";
 "Sign in to this source" = "Sign in to this source";
 "Site Base URL" = "Site Base URL";

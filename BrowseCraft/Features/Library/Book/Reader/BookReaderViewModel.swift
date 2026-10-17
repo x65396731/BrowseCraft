@@ -1,4 +1,5 @@
 import BrowseCraftDomain
+import BrowseCraftLog
 import Foundation
 import Observation
 @preconcurrency import ReadiumNavigator
@@ -346,6 +347,7 @@ final class BookReaderViewModel {
             AppAnalytics.shared.logReaderBookmarkChanged(isAdded: true, kind: self.analyticsKind)
             await self.loadBookmarks()
         } catch {
+            AppLog.error(.reader, "book-bookmark-add-failed", ["error": .error(error)])
             self.state = .failed(error.localizedDescription)
         }
     }
@@ -356,6 +358,7 @@ final class BookReaderViewModel {
             AppAnalytics.shared.logReaderBookmarkChanged(isAdded: false, kind: self.analyticsKind)
             await self.loadBookmarks()
         } catch {
+            AppLog.error(.reader, "book-bookmark-remove-failed", ["error": .error(error)])
             self.state = .failed(error.localizedDescription)
         }
     }
@@ -556,11 +559,7 @@ final class BookReaderViewModel {
                 self.audioNavigator?.pause()
                 self.shouldPlayAd = true
             } catch {
-                AppLog.error(
-                    .sync,
-                    event: "book-ad-points-save-failed",
-                    metadata: ["error": AppLog.safeErrorCode(error)]
-                )
+                AppLog.error(.sync, "book-ad-points-save-failed", ["error": .error(error)])
             }
         }
     }
@@ -576,11 +575,7 @@ final class BookReaderViewModel {
             do {
                 try await adPoints.consumeAdPoints()
             } catch {
-                AppLog.error(
-                    .sync,
-                    event: "book-ad-points-consume-failed",
-                    metadata: ["error": AppLog.safeErrorCode(error)]
-                )
+                AppLog.error(.sync, "book-ad-points-consume-failed", ["error": .error(error)])
             }
         }
     }

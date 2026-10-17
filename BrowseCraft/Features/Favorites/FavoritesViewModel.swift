@@ -1,6 +1,7 @@
 import Observation
 @preconcurrency import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftLog
 import Foundation
 
 // 中文注释：FavoritesViewModel 负责收藏页数据加载、类型筛选、按天分组、来源状态、取消收藏与选择模式下的批量取消
@@ -81,6 +82,7 @@ final class FavoritesViewModel {
             let snapshot: FavoritesPersistenceSnapshot = try await self.persistenceCoordinator.load()
             self.apply(snapshot)
         } catch {
+            AppLog.error(.database, "favorites-load-failed", ["error": .error(error)])
             self.errorMessage = error.localizedDescription
         }
     }
@@ -246,6 +248,7 @@ final class FavoritesViewModel {
             self.changeRevision += 1
             return true
         } catch {
+            AppLog.error(.database, "favorite-remove-failed", ["error": .error(error)])
             self.errorMessage = error.localizedDescription
             return false
         }
@@ -314,6 +317,7 @@ final class FavoritesViewModel {
             self.endSelection()
             return items.count
         } catch {
+            AppLog.error(.database, "favorites-batch-remove-failed", ["error": .error(error)])
             self.errorMessage = error.localizedDescription
             await self.load()
             return 0

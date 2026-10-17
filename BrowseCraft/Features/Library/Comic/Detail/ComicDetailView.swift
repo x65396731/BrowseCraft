@@ -1,4 +1,5 @@
 import BrowseCraftDomain
+import BrowseCraftLog
 import SwiftUI
 
 // 中文注释：漫画详情与章节页（`docs/design/Comic-Detail-Page-Redesign-Design.md`）：
@@ -207,10 +208,11 @@ struct ComicDetailView: View {
         self.selectedReaderRoute = ComicReaderRoute(destination: .chapter(selectedChapter), entry: entry)
 
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftNavigation] Select comic detail chapter " +
-            "itemId=\(self.viewModel.item.id) chapterTitle=\(chapter.title) chapterURL=\(chapter.url)"
-        )
+        AppLog.debug(.app, "navigation-select-comic-detail-chapter", [
+            "itemId": .text("\(self.viewModel.item.id)"),
+            "chapterTitle": .text("\(chapter.title)"),
+            "chapterURL": .text("\(chapter.url)")
+        ])
         #endif
     }
 

@@ -1,5 +1,6 @@
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftLog
 import SwiftUI
 
 // 中文注释：VideoContentGridView 是 Library 的视频源列表——两列海报墙（`docs/design/Library-Video-Page-Redesign-Design.md` 第四节），
@@ -74,13 +75,12 @@ struct VideoContentGridView: View {
         }
         .onAppear {
             #if DEBUG
-            AppDebugLog.write(
-                "[BrowseCraftVideoUI] grid appear " +
-                "source=\(self.source.id) " +
-                "kind=\(self.source.configuration.kind.rawValue) " +
-                "items=\(self.items.count) " +
-                "firstItem=\(self.items.first?.id ?? "nil")"
-            )
+            AppLog.debug(.playback, "video-ui-grid-appear", [
+                "source": .text("\(self.source.id)"),
+                "kind": .text("\(self.source.configuration.kind.rawValue)"),
+                "items": .text("\(self.items.count)"),
+                "firstItem": .text("\(self.items.first?.id ?? "nil")")
+            ])
             #endif
         }
     }
@@ -199,13 +199,13 @@ private struct VideoLibraryCardView: View {
 
     private func openDetailDestination() {
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftNavigation] Tap \(self.primaryActionTitle) " +
-            "itemId=\(self.item.id) " +
-            "title=\(self.item.title) " +
-            "detailURL=\(self.item.detailURL) " +
-            "latestText=\(self.item.latestText ?? "nil")"
-        )
+        AppLog.debug(.app, "navigation-tap", [
+            "itemId": .text("\(self.item.id)"),
+            "title": .text("\(self.item.title)"),
+            "detailURL": .text("\(self.item.detailURL)"),
+            "latestText": .text("\(self.item.latestText ?? "nil")"),
+            "message": .text("\(self.primaryActionTitle)")
+        ])
         #endif
 
         self.openAction()

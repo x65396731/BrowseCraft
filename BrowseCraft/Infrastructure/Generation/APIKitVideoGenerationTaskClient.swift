@@ -1,4 +1,5 @@
 import BrowseCraftAPIKit
+import BrowseCraftLog
 import Foundation
 
 /// `VideoGenerationTaskCreating` 的 PortalCore 适配器（`BC-PREFLIGHT-044`）。
@@ -27,11 +28,14 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
         accessToken: String
     ) async throws -> VideoGenerationTaskCreation {
         let acceptLanguage: String? = self.acceptLanguage()
-        PortalSessionDiagnostics.notice(
-            "event=request-start operation=rule-generation-submit " +
-                "path=\(PortalAPIPath.ruleGenerations) sourceKind=\(sourceKind.rawValue) " +
-                "refresh=\(refresh) acceptLanguage=\(acceptLanguage ?? "-") tier=\(acquisitionTier.rawValue)"
-        )
+        AppLog.notice(.generation, "request-start", [
+            "operation": .code("rule-generation-submit"),
+            "path": .code(PortalAPIPath.ruleGenerations),
+            "sourceKind": .code("\(sourceKind.rawValue)"),
+            "refresh": .bool(refresh),
+            "acceptLanguage": .code("\(acceptLanguage ?? "-")"),
+            "tier": .code("\(acquisitionTier.rawValue)")
+        ])
         do {
             let submit: PortalRuleGenerationSubmitResponse = try await self.api.submit(
                 sourceKind: Self.portalSourceKind(sourceKind),
@@ -43,10 +47,11 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
             )
             switch submit {
             case .accepted(let response):
-                PortalSessionDiagnostics.notice(
-                    "event=request-success operation=rule-generation-submit " +
-                        "jobId=\(response.jobID.uuidString) status=\(response.status)"
-                )
+                AppLog.notice(.generation, "request-success", [
+                    "operation": .code("rule-generation-submit"),
+                    "jobId": .id(response.jobID.uuidString),
+                    "status": .code("\(response.status)")
+                ])
                 return .queued(
                     VideoGenerationTaskReceipt(
                         jobID: response.jobID,
@@ -56,11 +61,12 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
                     )
                 )
             case .cached(let response):
-                PortalSessionDiagnostics.notice(
-                    "event=request-success operation=rule-generation-submit " +
-                        "status=\(response.status) catalogSourceId=\(response.catalogSourceID) " +
-                        "coinCharged=\(response.coinCharged.map(String.init) ?? "-")"
-                )
+                AppLog.notice(.generation, "request-success", [
+                    "operation": .code("rule-generation-submit"),
+                    "status": .code("\(response.status)"),
+                    "catalogSourceId": .id(response.catalogSourceID),
+                    "coinCharged": .code("\(response.coinCharged.map(String.init) ?? "-")")
+                ])
                 return .reused(
                     VideoGenerationReusedCatalogSource(
                         catalogSourceID: response.catalogSourceID,
@@ -83,9 +89,10 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
         } catch is CancellationError {
             throw CancellationError()
         } catch let error as PortalAPIError {
-            PortalSessionDiagnostics.notice(
-                "event=request-failure operation=rule-generation-submit error=\(error)"
-            )
+            AppLog.notice(.generation, "request-failure", [
+                "operation": .code("rule-generation-submit"),
+                "error": .error(error)
+            ])
             throw Self.map(error)
         } catch {
             throw VideoGenerationTaskClientError.transport

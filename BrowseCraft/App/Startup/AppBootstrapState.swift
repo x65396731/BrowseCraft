@@ -1,4 +1,5 @@
 import BrowseCraftDomain
+import BrowseCraftLog
 import Foundation
 
 enum AppBootstrapState {
@@ -10,17 +11,10 @@ enum AppBootstrapState {
     static func bootstrap(
         loader: AppBootstrapLoader = AppBootstrapLoader()
     ) async -> AppBootstrapState {
-        // 中文注释：内核/runtime 的调试日志经 sink 汇入 App 既有的 AppDebugLog，
-        // 让包内代码不必依赖 App 的日志分类。
-        RuleRuntimeDebugLog.shared.install { record in
-            guard let stage: RuleExecutionStage = record.stage else {
-                AppDebugLog.write(record.fields["message"] ?? record.event)
-                return
-            }
-            var metadata: [String: String] = record.fields
-            metadata["stage"] = stage.rawValue
-            AppLog.debug(.rule, event: record.event, metadata: metadata)
-        }
+        // 中文注释：启动公共钩子（BCA-OBS-014）：每一步记耗时，失败在 failedState 里记。
+        let clock: ContinuousClock = ContinuousClock()
+        let startedAt: ContinuousClock.Instant = clock.now
+        AppLog.info(.startup, "bootstrap-started")
 
         // 中文注释：分两步捕获，只为埋点知道失败在哪一步（打开数据库与身份引导 / 组装容器）。
         let dependencies: AppBootstrapDependencies
@@ -29,8 +23,11 @@ enum AppBootstrapState {
         } catch {
             return Self.failedState(error, stage: .database)
         }
+        AppLog.info(.startup, "bootstrap-dependencies-loaded", ["ms": .duration(clock.now - startedAt)])
         do {
-            return .ready(try AppContainer(bootstrap: dependencies))
+            let container: AppContainer = try AppContainer(bootstrap: dependencies)
+            AppLog.notice(.startup, "bootstrap-finished", ["ms": .duration(clock.now - startedAt)])
+            return .ready(container)
         } catch {
             return Self.failedState(error, stage: .container)
         }
@@ -41,14 +38,11 @@ enum AppBootstrapState {
         let failure: AppBootstrapFailure = AppBootstrapFailure(error: error)
         // 中文注释：诊断码对用户是稳定的引用，但它只由类型名哈希而来；真正的原因必须同时落日志，
         // 否则拿到一个 BOOT-XXXX 也只能靠反推哈希去猜是哪个错误。
-        AppLog.error(
-            .startup,
-            event: "bootstrap-failed",
-            metadata: [
-                "diagnosticCode": failure.diagnosticCode,
-                "diagnostics": failure.diagnosticDetail
-            ]
-        )
+        AppLog.error(.startup, "bootstrap-failed", [
+            "stage": .enumValue(stage),
+            "diagnosticCode": .code(failure.diagnosticCode),
+            "error": .error(error)
+        ])
         AppAnalytics.shared.logAppBootstrapFailed(stage: stage)
         CrashDiagnostics.shared.recordBootstrapFailure(error: error, stage: stage)
         return .failed(failure)

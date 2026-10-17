@@ -30,6 +30,7 @@ struct AppReviewRequestModifier: ViewModifier {
                 } catch is CancellationError {
                     return
                 } catch {
+                    // 不记：Task.sleep 只在任务取消时抛错
                     return
                 }
 

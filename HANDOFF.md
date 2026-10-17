@@ -11,8 +11,8 @@
 ## 0. 当前状态（现查口径）
 
 ```bash
-# 五仓 + SwiftSoup fork 的 HEAD、是否干净、是否有未推送
-for d in BrowseCraft BrowseCraftCore BrowseCraftDomain BrowseCraftRuntime BrowseCraftAPIKit SwiftSoup; do
+# 六仓 + SwiftSoup fork 的 HEAD、是否干净、是否有未推送
+for d in BrowseCraft BrowseCraftCore BrowseCraftDomain BrowseCraftRuntime BrowseCraftAPIKit BrowseCraftLog SwiftSoup; do
   printf '%-22s ' "$d"
   git -C ~/Desktop/$d log --oneline -1
   printf '%-22s   未提交 %s 处，未推送 %s 个\n' '' \
@@ -80,12 +80,12 @@ python3 scripts/check-docs.py
 
 ## 2. 环境与命令速查
 
-五个仓库是**同级 checkout 的 path 依赖**，没有版本 tag；App 的 `main` 只对得上兄弟仓的 `main`：
+六个仓库是**同级 checkout 的 path 依赖**，没有版本 tag；App 的 `main` 只对得上兄弟仓的 `main`：
 
 ```
 ~/Desktop/
   BrowseCraft/            # App
-  BrowseCraftCore/  BrowseCraftDomain/  BrowseCraftRuntime/  BrowseCraftAPIKit/
+  BrowseCraftCore/  BrowseCraftDomain/  BrowseCraftRuntime/  BrowseCraftAPIKit/  BrowseCraftLog/
   SwiftSoup/              # 自家 fork，整张依赖图的本地覆盖（BCA-BUILD-002）
   fwq/                    # 规则生成引擎，BC-* 与 APP-MEMO-* 的定义点在这里
 ```
@@ -112,7 +112,7 @@ xcodebuild -project BrowseCraft.xcodeproj -scheme BrowseCraft \
   -destination 'platform=iOS Simulator,OS=26.5,name=iPhone 17 Pro' test -only-testing:BrowseCraftTests
 
 # 包各自的测试
-for d in BrowseCraftCore BrowseCraftDomain BrowseCraftRuntime BrowseCraftAPIKit; do
+for d in BrowseCraftCore BrowseCraftDomain BrowseCraftRuntime BrowseCraftAPIKit BrowseCraftLog; do
   (cd ~/Desktop/$d && swift test)
 done
 ```

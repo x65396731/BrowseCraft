@@ -1,4 +1,5 @@
 import StoreKit
+import BrowseCraftLog
 import SwiftUI
 import UIKit
 
@@ -20,6 +21,9 @@ struct SettingsView: View {
     @State private var accountDeletionViewModel: AccountDeletionViewModel?
     /// 刚复制的是哪一行；说明换成「已复制」约 2 秒后恢复。
     @State private var copiedField: CopiedField?
+    /// 中文注释：导出的诊断日志文件，非 nil 时弹分享面板（Logging-Design.md BCA-OBS-016）。
+    @State private var exportedLog: ActivityShareItem?
+    @State private var isShowingLogExportFailure: Bool = false
     #if BROWSECRAFT_AD_TEST_TOOLS
     @State private var adTestIDFADetail: String?
     #endif
@@ -152,6 +156,15 @@ struct SettingsView: View {
                     }
                 }
                 .analyticsScreen(.settings)
+                .sheet(item: self.$exportedLog) { item in
+                    ActivityShareSheet(item: item)
+                }
+                .alert(
+                    NSLocalizedString("settings_export_logs_failed", comment: "导出诊断日志失败"),
+                    isPresented: self.$isShowingLogExportFailure
+                ) {
+                    Button("OK", role: .cancel) {}
+                }
                 .alert(
                     "BrowseCraft Account",
                     isPresented: self.portalAccountErrorAlertBinding
@@ -338,6 +351,23 @@ struct SettingsView: View {
                             ? NSLocalizedString("settings_copied", comment: "已复制")
                             : self.viewModel.diagnosticCode,
                         isDetailHighlighted: self.copiedField == .diagnosticCode
+                    )
+                }
+            )
+            .buttonStyle(SettingsRowButtonStyle())
+
+            SettingsRowSeparator()
+
+            // 中文注释：本机日志只在用户自己点这里时才离开手机（Logging-Design.md BCA-OBS-016）。
+            Button(
+                action: {
+                    self.exportLogs()
+                },
+                label: {
+                    SettingsRow(
+                        image: "SettingsDiagnosticCode",
+                        title: NSLocalizedString("settings_export_logs", comment: "导出诊断日志"),
+                        accessory: .chevron
                     )
                 }
             )
@@ -531,6 +561,16 @@ struct SettingsView: View {
             if self.copiedField == field {
                 self.copiedField = nil
             }
+        }
+    }
+
+    private func exportLogs() {
+        do {
+            self.exportedLog = ActivityShareItem(url: try AppLogging.makeExportFile())
+            AppAnalytics.shared.logSupportInfoCopied(.diagnosticLog)
+        } catch {
+            AppLog.error(.diagnostics, "log-export-failed", ["error": .error(error)])
+            self.isShowingLogExportFailure = true
         }
     }
 

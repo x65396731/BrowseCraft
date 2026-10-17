@@ -1,6 +1,7 @@
 import Alamofire
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftLog
 import Foundation
 
 // 中文注释：AlamofireHTTPClient.swift 属于网络实现层，用于说明本文件承载的核心职责。
@@ -55,19 +56,15 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
         let cloudflareBlocked: Bool = Self.isAntiBotHTML(html)
         let statusCode: Int? = dataResponse.response?.statusCode
 
-        AppLog.debug(
-            .network,
-            event: "content-loaded",
-            metadata: [
-                "url": AppLog.safeURL(url),
-                "requestScope": requestConfig?.scope?.rawValue ?? "default",
-                "purpose": context?.purpose.rawValue ?? "none",
-                "needsWebView": requestConfig?.needsWebView?.description ?? "nil",
-                "bytes": String(dataResponse.data.count),
-                "antiBot": cloudflareBlocked.description,
-                "status": statusCode.map(String.init) ?? "nil"
-            ]
-        )
+        AppLog.debug(.network, "content-loaded", [
+            "url": .path(url),
+            "requestScope": .code(requestConfig?.scope?.rawValue ?? "default"),
+            "purpose": .code(context?.purpose.rawValue ?? "none"),
+            "needsWebView": .code(requestConfig?.needsWebView?.description ?? "nil"),
+            "bytes": .bytes(dataResponse.data.count),
+            "antiBot": .bool(cloudflareBlocked),
+            "status": .code(statusCode.map(String.init) ?? "nil")
+        ])
 
         if let failure: RuleExecutionError = Self.contentFailure(statusCode: statusCode, html: html, url: url) {
             throw failure
@@ -100,18 +97,14 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
             )
         }
 
-        AppLog.debug(
-            .network,
-            event: "data-loaded",
-            metadata: [
-                "url": AppLog.safeURL(url),
-                "requestScope": requestConfig?.scope?.rawValue ?? "default",
-                "purpose": context?.purpose.rawValue ?? "none",
-                "headersMode": self.headersMode(for: url, request: requestConfig),
-                "contentType": dataResponse.response?.value(forHTTPHeaderField: "Content-Type") ?? "nil",
-                "bytes": String(dataResponse.data.count)
-            ]
-        )
+        AppLog.debug(.network, "data-loaded", [
+            "url": .path(url),
+            "requestScope": .code(requestConfig?.scope?.rawValue ?? "default"),
+            "purpose": .code(context?.purpose.rawValue ?? "none"),
+            "headersMode": .code(self.headersMode(for: url, request: requestConfig)),
+            "contentType": .code(dataResponse.response?.value(forHTTPHeaderField: "Content-Type") ?? "nil"),
+            "bytes": .bytes(dataResponse.data.count)
+        ])
 
         if self.isAntiBotData(dataResponse.data) {
             throw RuleExecutionError.antiBot(url: url.absoluteString)
@@ -141,7 +134,34 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
     }
 
     /// 中文注释：API 等原始 bytes 请求也复用 callback bridge，继续保留 Alamofire 的请求能力。
+    /// 规则请求的公共钩子（BCA-OBS-014）：每次请求在这里记一条完成或失败，调用点不再另写。
     private func performDataRequest(_ urlRequest: URLRequest) async throws -> HTTPDataResponse {
+        let clock: ContinuousClock = ContinuousClock()
+        let startedAt: ContinuousClock.Instant = clock.now
+        do {
+            let response: HTTPDataResponse = try await self.performAlamofireRequest(urlRequest)
+            AppLog.info(.network, "request-finished", [
+                "method": .code(urlRequest.httpMethod ?? "GET"),
+                "host": .host(urlRequest.url),
+                "path": .path(urlRequest.url),
+                "status": .int(response.response?.statusCode ?? 0),
+                "bytes": .bytes(response.data.count),
+                "ms": .duration(clock.now - startedAt)
+            ])
+            return response
+        } catch {
+            AppLog.error(.network, "request-failed", [
+                "method": .code(urlRequest.httpMethod ?? "GET"),
+                "host": .host(urlRequest.url),
+                "path": .path(urlRequest.url),
+                "ms": .duration(clock.now - startedAt),
+                "error": .error(error)
+            ])
+            throw error
+        }
+    }
+
+    private func performAlamofireRequest(_ urlRequest: URLRequest) async throws -> HTTPDataResponse {
         return try await withCheckedThrowingContinuation { continuation in
             AF.request(urlRequest).redirect(using: Self.httpsUpgradingRedirector).responseData { response in
                 switch response.result {
@@ -293,16 +313,15 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
         )
         if let context: SourceRequestContext {
             #if DEBUG
-            AppDebugLog.write(
-                "[BrowseCraftCredential] request context " +
-                "sourceID=\(context.sourceID ?? "nil") " +
-                "purpose=\(context.purpose.rawValue) " +
-                "host=\(url.host ?? "nil") " +
-                "credentialCookie=\((credentialCookieHeader != nil).description) " +
-                "customCookie=\(hadCustomCookieHeader.description) " +
-                "finalCookie=\(RequestHeaderFields.containsHeader("Cookie", in: headers).description) " +
-                "headerCount=\(headers.count)"
-            )
+            AppLog.debug(.credential, "credential-request-context", [
+                "sourceID": .text("\(context.sourceID ?? "nil")"),
+                "purpose": .text("\(context.purpose.rawValue)"),
+                "host": .text("\(url.host ?? "nil")"),
+                "credentialCookie": .text("\((credentialCookieHeader != nil).description)"),
+                "customCookie": .text("\(hadCustomCookieHeader.description)"),
+                "finalCookie": .text("\(RequestHeaderFields.containsHeader("Cookie", in: headers).description)"),
+                "headerCount": .text("\(headers.count)")
+            ])
             #endif
         }
 
@@ -344,14 +363,13 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
         }
 
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftCredential] fill headers " +
-            "sourceID=\(context.sourceID ?? "nil") " +
-            "purpose=\(context.purpose.rawValue) " +
-            "host=\(url.host ?? "nil") " +
-            "filled=\(filledHeaderNames.joined(separator: ",")) " +
-            "skippedExisting=\(skippedHeaderNames.joined(separator: ","))"
-        )
+        AppLog.debug(.credential, "credential-fill-headers", [
+            "sourceID": .text("\(context.sourceID ?? "nil")"),
+            "purpose": .text("\(context.purpose.rawValue)"),
+            "host": .text("\(url.host ?? "nil")"),
+            "filled": .text("\(filledHeaderNames.joined(separator: ","))"),
+            "skippedExisting": .text("\(skippedHeaderNames.joined(separator: ","))")
+        ])
         #endif
 
         return resolvedHeaders

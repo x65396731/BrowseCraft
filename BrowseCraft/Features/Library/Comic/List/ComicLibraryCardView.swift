@@ -1,5 +1,6 @@
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftLog
 import SwiftUI
 
 // 中文注释：ComicLibraryCardView 是库页漫画库的封面卡片（`docs/design/Library-Comic-Page-Redesign-Design.md` 第五节）：
@@ -130,13 +131,12 @@ struct ComicLibraryCardView: View {
 
     private func openDetail() {
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftNavigation] Tap comic card " +
-            "itemId=\(self.item.id) " +
-            "title=\(self.item.title) " +
-            "detailURL=\(self.item.detailURL) " +
-            "latestText=\(self.item.latestText ?? "nil")"
-        )
+        AppLog.debug(.app, "navigation-tap-comic-card", [
+            "itemId": .text("\(self.item.id)"),
+            "title": .text("\(self.item.title)"),
+            "detailURL": .text("\(self.item.detailURL)"),
+            "latestText": .text("\(self.item.latestText ?? "nil")")
+        ])
         #endif
 
         self.openAction()

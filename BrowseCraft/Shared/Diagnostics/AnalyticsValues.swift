@@ -137,6 +137,8 @@ enum SupportInfoKind: String, Sendable {
     case diagnosticCode = "diagnostic_code"
     case accountID = "account_id"
     case bootstrapFailure = "bootstrap_failure"
+    /// 设置页导出诊断日志（Logging-Design.md BCA-OBS-016）。
+    case diagnosticLog = "diagnostic_log"
 }
 
 /// 中文注释：`app_bootstrap_failed` 的 `error_code`——启动装配在哪一步失败。

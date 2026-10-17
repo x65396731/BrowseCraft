@@ -1,5 +1,6 @@
 @preconcurrency import ReadiumNavigator
 @preconcurrency import ReadiumShared
+import BrowseCraftLog
 import SwiftUI
 import UIKit
 
@@ -32,6 +33,7 @@ struct EPUBNavigatorRepresentable: UIViewControllerRepresentable {
             self.proxy.navigator = navigator
             return navigator
         } catch {
+            AppLog.error(.reader, "epub-navigator-create-failed", ["error": .error(error)])
             self.onError(String(describing: error))
             return UIViewController()
         }

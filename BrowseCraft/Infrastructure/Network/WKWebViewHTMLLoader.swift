@@ -1,5 +1,6 @@
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftLog
 import Foundation
 import WebKit
 
@@ -60,7 +61,27 @@ final class WKWebViewHTMLLoader: RenderedPageContentLoader, Sendable {
             domStabilityPolicy: self.domStabilityPolicy
         )
 
-        return try await operation.load()
+        // 中文注释：规则请求的公共钩子（BCA-OBS-014）：网页渲染加载在这里记一条完成或失败。
+        let clock: ContinuousClock = ContinuousClock()
+        let startedAt: ContinuousClock.Instant = clock.now
+        do {
+            let response: PageContentResponse = try await operation.load()
+            AppLog.info(.network, "web-render-finished", [
+                "host": .host(request.url),
+                "path": .path(request.url),
+                "bytes": .bytes(response.content.utf8.count),
+                "ms": .duration(clock.now - startedAt)
+            ])
+            return response
+        } catch {
+            AppLog.error(.network, "web-render-failed", [
+                "host": .host(request.url),
+                "path": .path(request.url),
+                "ms": .duration(clock.now - startedAt),
+                "error": .error(error)
+            ])
+            throw error
+        }
     }
 }
 
@@ -208,20 +229,22 @@ final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
                     let readBack: String = (HTTPCookieStorage.shared.cookies(for: documentURL) ?? [])
                         .map(\.name)
                         .joined(separator: ",")
-                    AppDebugLog.write(
-                        "[BrowseCraftWebView] synced \(copied) cookie(s) to shared storage host=\(documentURL.host ?? "") " +
-                        "cookies=[\(names)] readBack=[\(readBack)]"
-                    )
+                    AppLog.debug(.network, "web-view-synced-to-shared-storage", [
+                        "host": .text("\(documentURL.host ?? "")"),
+                        "cookies": .text("[\(names)]"),
+                        "readBack": .text("[\(readBack)]"),
+                        "message": .text("\(copied) cookie(s)")
+                    ])
                     #endif
                     _ = copied
                     self.finish(.success(self.response(for: html)))
                 case .waitForNextNavigation(let extendTimeoutSeconds):
                     if let seconds: Double = extendTimeoutSeconds {
                         #if DEBUG
-                        AppDebugLog.write(
-                            "[BrowseCraftWebView] challenge interstitial observed, waiting up to " +
-                            "\(seconds)s url=\(self.url.absoluteString)"
-                        )
+                        AppLog.debug(.network, "web-view-challenge-interstitial-waiting-up-to", [
+                            "url": .text("\(self.url.absoluteString)"),
+                            "message": .text("observed, \(seconds)s")
+                        ])
                         #endif
                         self.startTimeout(
                             nanoseconds: UInt64(seconds * 1_000_000_000),
@@ -265,6 +288,7 @@ final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
             do {
                 try await Task.sleep(nanoseconds: nanoseconds)
             } catch {
+                // 不记：Task.sleep 只在任务取消时抛错
                 return
             }
             guard let self else {
@@ -286,10 +310,11 @@ final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
            let html: String = try? await self.renderedHTML(),
            case .document = self.challengeGate.evaluate(renderedHTML: html) {
             #if DEBUG
-            AppDebugLog.write(
-                "[BrowseCraftWebView] timeout after \(seconds)s, using current DOM " +
-                "length=\(html.count) url=\(self.url.absoluteString)"
-            )
+            AppLog.debug(.network, "web-view-timeout-after-using-current-dom", [
+                "length": .text("\(html.count)"),
+                "url": .text("\(self.url.absoluteString)"),
+                "message": .text("\(seconds)s,")
+            ])
             #endif
             self.finish(.success(self.response(for: html)))
             return
@@ -529,14 +554,15 @@ final class WKWebViewHTMLLoadOperation: NSObject, WKNavigationDelegate {
             settleCondition: self.settleCondition
         )
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftWebView] dom-stability reason=\(outcome.reason.rawValue) " +
-            "waitedMs=\(outcome.waited.milliseconds) checks=\(outcome.observedChecks) " +
-            "selector=\(self.readinessSelector == nil ? "none" : "declared") " +
-            "settleCondition=\(self.settleCondition?.rawValue ?? "none") " +
-            "matched=\(outcome.matchedCount.map(String.init) ?? "-") " +
-            "url=\(self.url.absoluteString)"
-        )
+        AppLog.debug(.network, "web-view-dom-stability", [
+            "reason": .text("\(outcome.reason.rawValue)"),
+            "waitedMs": .text("\(outcome.waited.milliseconds)"),
+            "checks": .text("\(outcome.observedChecks)"),
+            "selector": .text("\(self.readinessSelector == nil ? "none" : "declared")"),
+            "settleCondition": .text("\(self.settleCondition?.rawValue ?? "none")"),
+            "matched": .text("\(outcome.matchedCount.map(String.init) ?? "-")"),
+            "url": .text("\(self.url.absoluteString)")
+        ])
         #endif
     }
 

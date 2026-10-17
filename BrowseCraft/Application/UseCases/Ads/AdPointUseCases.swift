@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import Foundation
 
 enum AdPointAccumulationResult: Equatable, Sendable {
@@ -113,10 +114,12 @@ struct AccumulateAdPointsUseCase {
             }
 
             #if DEBUG
-            AppDebugLog.write(
-                "[BrowseCraftAdPoints] skipped because ads removed " +
-                "userID=\(userID) previous=\(previousPoints) added=\(addedPoints) pending=0"
-            )
+            AppLog.debug(.coin, "ad-points-skipped-because-ads-removed", [
+                "userID": .text("\(userID)"),
+                "previous": .text("\(previousPoints)"),
+                "added": .text("\(addedPoints)"),
+                "pending": .text("0")
+            ])
             #endif
 
             return .noAdNeeded(
@@ -137,12 +140,15 @@ struct AccumulateAdPointsUseCase {
         try self.repository.saveUser(user)
 
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftAdPoints] accumulated " +
-            "userID=\(userID) previous=\(previousPoints) added=\(addedPoints) " +
-            "accumulated=\(accumulatedPoints) pending=\(user.pendingAdPoints) " +
-            "threshold=\(AdPointRule.threshold) shouldPlayAd=\(shouldPlayAd)"
-        )
+        AppLog.debug(.coin, "ad-points-accumulated", [
+            "userID": .text("\(userID)"),
+            "previous": .text("\(previousPoints)"),
+            "added": .text("\(addedPoints)"),
+            "accumulated": .text("\(accumulatedPoints)"),
+            "pending": .text("\(user.pendingAdPoints)"),
+            "threshold": .text("\(AdPointRule.threshold)"),
+            "shouldPlayAd": .text("\(shouldPlayAd)")
+        ])
         #endif
 
         if shouldPlayAd {
@@ -190,9 +196,11 @@ struct ConsumeAdPointsUseCase {
         }
 
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftAdPoints] consumed userID=\(userID) previous=\(user.pendingAdPoints) pending=0"
-        )
+        AppLog.debug(.coin, "ad-points-consumed", [
+            "userID": .text("\(userID)"),
+            "previous": .text("\(user.pendingAdPoints)"),
+            "pending": .text("0")
+        ])
         #endif
         user.pendingAdPoints = 0
         user.updatedAt = self.now()

@@ -9,6 +9,10 @@ RULE_MODELS_ROOT="$REPOSITORY_ROOT/../BrowseCraftCore/Sources/BrowseCraftRuleMod
 DOMAIN_PACKAGE_ROOT="$REPOSITORY_ROOT/../BrowseCraftDomain/Sources/BrowseCraftDomain"
 RUNTIME_PACKAGE_ROOT="$REPOSITORY_ROOT/../BrowseCraftRuntime/Sources/BrowseCraftRuntime"
 API_KIT_PACKAGE_ROOT="$REPOSITORY_ROOT/../BrowseCraftAPIKit/Sources/BrowseCraftAPIKit"
+LOG_PACKAGE_ROOT="$REPOSITORY_ROOT/../BrowseCraftLog/Sources/BrowseCraftLog"
+TRY_OPTIONAL_BASELINE_FILE="$REPOSITORY_ROOT/scripts/try-optional-baseline.txt"
+# 中文注释：全仓唯一一处 OSLog 出口（BCA-OBS-010）。
+OS_LOG_SINK_FILE="$APP_ROOT/Shared/Logging/OSLogSink.swift"
 EXEMPTIONS_FILE="$REPOSITORY_ROOT/scripts/architecture-boundary-exemptions.txt"
 
 # Every spelling of an import statement that brings module X into a file:
@@ -210,9 +214,9 @@ fail_if_token_used() {
   local label="$2"
   local directory matches all_matches=''
 
-  for directory in "$APP_ROOT" "$CORE_ROOT" "$RULE_MODELS_ROOT" "$DOMAIN_PACKAGE_ROOT" "$RUNTIME_PACKAGE_ROOT" "$API_KIT_PACKAGE_ROOT"; do
+  for directory in "$APP_ROOT" "$CORE_ROOT" "$RULE_MODELS_ROOT" "$DOMAIN_PACKAGE_ROOT" "$RUNTIME_PACKAGE_ROOT" "$API_KIT_PACKAGE_ROOT" "$LOG_PACKAGE_ROOT"; do
     [[ -d "$directory" ]] || continue
-    matches="$(search_swift "$directory" "$pattern" | apply_exemptions | /usr/bin/grep -E "$pattern" || true)"
+    matches="$(search_swift "$directory" "$pattern" | apply_exemptions | /usr/bin/grep -E "$pattern" | /usr/bin/grep -vF "$OS_LOG_SINK_FILE:" || true)"
     if [[ -n "$matches" ]]; then
       all_matches+="$matches"$'\n'
     fi
@@ -225,7 +229,22 @@ fail_if_token_used() {
   fi
 }
 
-fail_if_token_used '(^|[^[:alnum:]_])print[[:space:]]*\(' 'use AppLog/AppDebugLog instead of print.'
+fail_if_token_used '(^|[^[:alnum:]_])print[[:space:]]*\(' 'use AppLog instead of print (BCA-OBS-010).'
+# 中文注释：全仓只有一种日志（BCA-OBS-010）：其他日志出口一律禁用；OSLog 只许出现在 OSLogSink.swift（上面的过滤已排除它）。
+fail_if_token_used '(^|[^[:alnum:]_])(debugPrint|NSLog|os_log)[[:space:]]*\(' 'log through AppLog only (BCA-OBS-010).'
+fail_if_token_used '(^|[^[:alnum:]_])(AppDebugLog|RuleRuntimeDebugLog)([^[:alnum:]_]|$)' 'AppDebugLog / RuleRuntimeDebugLog were removed; log through AppLog (BCA-OBS-010).'
+fail_if_token_used '(^|[^[:alnum:]_])Logger[[:space:]]*\(' 'only Shared/Logging/OSLogSink.swift may create an OSLog Logger (BCA-OBS-010).'
+os_log_imports="$(
+  for directory in "$APP_ROOT" "$CORE_ROOT" "$RULE_MODELS_ROOT" "$DOMAIN_PACKAGE_ROOT" "$RUNTIME_PACKAGE_ROOT" "$API_KIT_PACKAGE_ROOT" "$LOG_PACKAGE_ROOT"; do
+    [[ -d "$directory" ]] || continue
+    search_swift "$directory" "${IMPORT_PREFIX}OSLog${IMPORT_SUFFIX}"
+  done | /usr/bin/grep -vF "$OS_LOG_SINK_FILE:" || true
+)"
+if [[ -n "$os_log_imports" ]]; then
+  echo 'Architecture boundary violation: only Shared/Logging/OSLogSink.swift may import OSLog (BCA-OBS-010).'
+  echo "$os_log_imports"
+  exit 1
+fi
 fail_if_token_used '(^|[^[:alnum:]_])try!' 'do not use try!; propagate or handle the error (register a reviewed literal-pattern exception in scripts/architecture-boundary-exemptions.txt).'
 
 api_kit_matches="$(search_swift "$APP_ROOT" "${IMPORT_PREFIX}BrowseCraftAPIKit${IMPORT_SUFFIX}")"
@@ -277,7 +296,36 @@ if [[ "$app_swift_version" != "6.0" ]]; then
   exit 1
 fi
 
-for package_name in BrowseCraftCore BrowseCraftDomain BrowseCraftRuntime BrowseCraftAPIKit; do
+# 中文注释：`try?` 只许收敛（BCA-OBS-015）。按文件计数，同一行带 `// try?:` 理由的不计；
+# 超过 scripts/try-optional-baseline.txt 登记数的文件失败。收敛后把基线里的数改小或删掉该行。
+try_optional_counts() {
+  local directory
+  for directory in "$APP_ROOT" "$CORE_ROOT" "$RULE_MODELS_ROOT" "$DOMAIN_PACKAGE_ROOT" "$RUNTIME_PACKAGE_ROOT" "$API_KIT_PACKAGE_ROOT" "$LOG_PACKAGE_ROOT"; do
+    [[ -d "$directory" ]] || continue
+    search_swift "$directory" '(^|[^[:alnum:]_])try\?' | /usr/bin/grep -vF '// try?:' || true
+  done | sed -E "s#^${REPOSITORY_ROOT}/##; s#^([^:]+):.*#\1#" | sort | uniq -c | awk '{print $2" "$1}'
+}
+if [[ -f "$TRY_OPTIONAL_BASELINE_FILE" ]]; then
+  try_optional_violations="$(
+    try_optional_counts | awk -v baseline="$TRY_OPTIONAL_BASELINE_FILE" '
+      BEGIN {
+        while ((getline line < baseline) > 0) {
+          if (line ~ /^#/ || line == "") continue
+          split(line, parts, " ")
+          allowed[parts[1]] = parts[2]
+        }
+      }
+      { limit = ($1 in allowed) ? allowed[$1] : 0; if ($2 > limit) print $1 ": " $2 " 处 try?，基线 " limit }
+    '
+  )"
+  if [[ -n "$try_optional_violations" ]]; then
+    echo 'Architecture boundary violation: new try? swallows errors (BCA-OBS-015). Use do/catch and log, or add `// try?: <reason>` on the same line.'
+    echo "$try_optional_violations"
+    exit 1
+  fi
+fi
+
+for package_name in BrowseCraftCore BrowseCraftDomain BrowseCraftRuntime BrowseCraftAPIKit BrowseCraftLog; do
   package_manifest="$REPOSITORY_ROOT/../$package_name/Package.swift"
   [[ -f "$package_manifest" ]] || continue
   if ! grep -q '^// swift-tools-version: 6\.0' "$package_manifest"; then

@@ -1,4 +1,5 @@
 import AVFoundation
+import BrowseCraftLog
 import SwiftUI
 import UIKit
 
@@ -188,7 +189,7 @@ struct StartupVideoPlayerView: UIViewRepresentable {
             }
 
             #if DEBUG
-            AppDebugLog.write("[BrowseCraftStartup] video playback failed: \(detail)")
+            AppLog.debug(.startup, "startup-video-playback-failed", ["message": .text("\(detail)")])
             #endif
 
             self.didReportFailure = true
@@ -220,7 +221,9 @@ struct StartupVideoPlayerView: UIViewRepresentable {
                     try audioSession.setActive(true)
                 } catch {
                     #if DEBUG
-                    AppDebugLog.write("[BrowseCraftStartup] ambient audio session activation failed: \(error.localizedDescription)")
+                    AppLog.debug(.startup, "startup-ambient-audio-session-activation-failed", [
+                        "message": .text("\(error.localizedDescription)")
+                    ])
                     #endif
                 }
             }
@@ -240,7 +243,9 @@ struct StartupVideoPlayerView: UIViewRepresentable {
                     )
                 } catch {
                     #if DEBUG
-                    AppDebugLog.write("[BrowseCraftStartup] audio session deactivation failed: \(error.localizedDescription)")
+                    AppLog.debug(.startup, "startup-audio-session-deactivation-failed", [
+                        "message": .text("\(error.localizedDescription)")
+                    ])
                     #endif
                 }
             }

@@ -1,4 +1,5 @@
 import BrowseCraftDomain
+import BrowseCraftLog
 import SwiftUI
 
 /// 中文注释：来源内搜索页（`docs/design/Search-Page-Redesign-Design.md`）。库页左上搜索圆按钮以 sheet 弹出，三种类型共用。
@@ -249,10 +250,12 @@ struct LibrarySearchView: View {
                     },
                     openComic: { item, source in
                         #if DEBUG
-                        AppDebugLog.write(
-                            "[BrowseCraftNavigation] Select Search comic destination " +
-                            "itemId=\(item.id) sourceId=\(source.id) title=\(item.title) detailURL=\(item.detailURL)"
-                        )
+                        AppLog.debug(.app, "navigation-select-search-comic-destination", [
+                            "itemId": .text("\(item.id)"),
+                            "sourceId": .text("\(source.id)"),
+                            "title": .text("\(item.title)"),
+                            "detailURL": .text("\(item.detailURL)")
+                        ])
                         #endif
                         // 中文注释：与 `LibraryView.openComicDestination` 同一分流——读书 kind 的搜索结果进站点书详情（2026-09-15 book 搜索接线）。
                         if source.configuration.kind == .book {

@@ -1,4 +1,5 @@
 import BrowseCraftAPIKit
+import BrowseCraftLog
 import Foundation
 
 /// `PortalAccountDeleting` 的 PortalCore 适配器（`POST /v1/account/deletion`、探测用的 `GET /v1/account`）。
@@ -42,6 +43,7 @@ struct APIKitPortalAccountDeletionService: PortalAccountDeleting {
         } catch PortalAPIError.unexpectedStatusCode(let statusCode) where statusCode == 401 {
             return .deleted
         } catch {
+            AppLog.error(.identity, "account-existence-probe-failed", ["error": .error(error)])
             return .unknown
         }
     }

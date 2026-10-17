@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import Observation
 import Foundation
 
@@ -73,6 +74,7 @@ final class StartupCoordinator {
             } catch is CancellationError {
                 return
             } catch {
+                AppLog.error(.startup, "source-check-failed", ["error": .error(error)])
                 self?.sourceCheckTask = nil
                 self?.phase = .sourceCheckFailed
             }
@@ -111,6 +113,7 @@ final class StartupCoordinator {
             do {
                 try await Task.sleep(for: timeout)
             } catch {
+                // 不记：Task.sleep 只在任务取消时抛错
                 return
             }
 

@@ -1,4 +1,5 @@
 import BrowseCraftAPIKit
+import BrowseCraftLog
 import Foundation
 
 struct APIKitPortalIdentityAuthenticator: PortalIdentityAuthenticating {
@@ -9,28 +10,28 @@ struct APIKitPortalIdentityAuthenticator: PortalIdentityAuthenticating {
     }
 
     func issueAppleChallenge() async throws -> PortalAppleAuthenticationChallenge {
-        PortalSessionDiagnostics.notice(
-            "event=request-start operation=apple-challenge " +
-                "path=\(PortalAPIPath.authAppleChallenge)"
-        )
+        AppLog.notice(.identity, "request-start", [
+            "operation": .code("apple-challenge"),
+            "path": .code(PortalAPIPath.authAppleChallenge)
+        ])
         do {
             let response: PortalAppleAuthChallengeResponse =
                 try await self.api.issueAppleChallenge()
-            PortalSessionDiagnostics.notice(
-                "event=request-success operation=apple-challenge " +
-                    "path=\(PortalAPIPath.authAppleChallenge) " +
-                    "expiresAt=\(response.expiresAt.ISO8601Format())"
-            )
+            AppLog.notice(.identity, "request-success", [
+                "operation": .code("apple-challenge"),
+                "path": .code(PortalAPIPath.authAppleChallenge),
+                "expiresAt": .code("\(response.expiresAt.ISO8601Format())")
+            ])
             return PortalAppleAuthenticationChallenge(
                 nonce: response.nonce,
                 expiresAt: response.expiresAt
             )
         } catch {
-            PortalSessionDiagnostics.error(
-                "event=request-failure operation=apple-challenge " +
-                    "path=\(PortalAPIPath.authAppleChallenge) " +
-                    Self.safeErrorDescription(error)
-            )
+            AppLog.error(.identity, "request-failure", [
+                "operation": .code("apple-challenge"),
+                "path": .code(PortalAPIPath.authAppleChallenge),
+                "message": .code("\(Self.safeErrorDescription(error))")
+            ])
             throw Self.map(error, operation: .appleChallenge)
         }
     }
@@ -39,52 +40,55 @@ struct APIKitPortalIdentityAuthenticator: PortalIdentityAuthenticating {
         identityToken: String,
         nonce: String
     ) async throws -> PortalAuthenticationTokens {
-        PortalSessionDiagnostics.notice(
-            "event=request-start operation=apple-authenticate " +
-                "path=\(PortalAPIPath.authApple)"
-        )
+        AppLog.notice(.identity, "request-start", [
+            "operation": .code("apple-authenticate"),
+            "path": .code(PortalAPIPath.authApple)
+        ])
         do {
             let response: PortalTokenResponse = try await self.api
                 .authenticateWithApple(
                     identityToken: identityToken,
                     nonce: nonce
                 )
-            PortalSessionDiagnostics.notice(
-                "event=request-success operation=apple-authenticate " +
-                    "path=\(PortalAPIPath.authApple) " +
-                    "accessExpiresAt=\(response.expiresAt.ISO8601Format()) " +
-                    "refreshExpiresAt=\(response.refreshExpiresAt.ISO8601Format())"
-            )
+            AppLog.notice(.identity, "request-success", [
+                "operation": .code("apple-authenticate"),
+                "path": .code(PortalAPIPath.authApple),
+                "accessExpiresAt": .code("\(response.expiresAt.ISO8601Format())"),
+                "refreshExpiresAt": .code("\(response.refreshExpiresAt.ISO8601Format())")
+            ])
             return Self.tokens(from: response)
         } catch {
-            PortalSessionDiagnostics.error(
-                "event=request-failure operation=apple-authenticate " +
-                    "path=\(PortalAPIPath.authApple) " +
-                    Self.safeErrorDescription(error)
-            )
+            AppLog.error(.identity, "request-failure", [
+                "operation": .code("apple-authenticate"),
+                "path": .code(PortalAPIPath.authApple),
+                "message": .code("\(Self.safeErrorDescription(error))")
+            ])
             throw Self.map(error, operation: .appleAuthenticate)
         }
     }
 
     func refresh(refreshToken: String) async throws -> PortalAuthenticationTokens {
-        PortalSessionDiagnostics.notice(
-            "event=request-start operation=refresh path=\(PortalAPIPath.authRefresh)"
-        )
+        AppLog.notice(.identity, "request-start", [
+            "operation": .code("refresh"),
+            "path": .code(PortalAPIPath.authRefresh)
+        ])
         do {
             let response: PortalTokenResponse = try await self.api.refresh(
                 refreshToken: refreshToken
             )
-            PortalSessionDiagnostics.notice(
-                "event=request-success operation=refresh path=\(PortalAPIPath.authRefresh) " +
-                    "accessExpiresAt=\(response.expiresAt.ISO8601Format()) " +
-                    "refreshExpiresAt=\(response.refreshExpiresAt.ISO8601Format())"
-            )
+            AppLog.notice(.identity, "request-success", [
+                "operation": .code("refresh"),
+                "path": .code(PortalAPIPath.authRefresh),
+                "accessExpiresAt": .code("\(response.expiresAt.ISO8601Format())"),
+                "refreshExpiresAt": .code("\(response.refreshExpiresAt.ISO8601Format())")
+            ])
             return Self.tokens(from: response)
         } catch {
-            PortalSessionDiagnostics.error(
-                "event=request-failure operation=refresh path=\(PortalAPIPath.authRefresh) " +
-                    Self.safeErrorDescription(error)
-            )
+            AppLog.error(.identity, "request-failure", [
+                "operation": .code("refresh"),
+                "path": .code(PortalAPIPath.authRefresh),
+                "message": .code("\(Self.safeErrorDescription(error))")
+            ])
             throw Self.map(error, operation: .refresh)
         }
     }

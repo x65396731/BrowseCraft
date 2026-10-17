@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import Foundation
 import Observation
 
@@ -41,6 +42,7 @@ final class BookShelfViewModel {
         do {
             self.items = try await self.persistence.shelfItems(userID: self.currentUserID)
         } catch {
+            AppLog.error(.reader, "book-shelf-load-failed", ["error": .error(error)])
             self.errorMessage = error.localizedDescription
         }
     }
@@ -73,6 +75,7 @@ final class BookShelfViewModel {
             try await self.deleteUseCase.execute(bookID: book.id, userID: self.currentUserID)
             await self.load()
         } catch {
+            AppLog.error(.reader, "local-book-delete-failed", ["error": .error(error)])
             self.errorMessage = error.localizedDescription
         }
     }

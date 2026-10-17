@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import Foundation
 
 /// 中文注释：TN3194 的客户端部分（docs/design/Account-Deletion-Design.md 第十节）：用户在系统设置里停用「通过 Apple 登录」后，
@@ -67,10 +68,10 @@ final class AppleCredentialRevocationCoordinator {
             return
         }
         let state: AppleCredentialState = await self.checker.credentialState(forUserIdentifier: userIdentifier)
-        PortalSessionDiagnostics.notice(
-            "event=apple-credential-state state=\(state) " +
-                "secondsSinceAuthorization=\(self.secondsSinceAuthorization().map { String(Int($0)) } ?? "unknown")"
-        )
+        AppLog.notice(.identity, "apple-credential-state", [
+            "state": .code("\(state)"),
+            "secondsSinceAuthorization": .code("\(self.secondsSinceAuthorization().map { String(Int($0)) } ?? "unknown")")
+        ])
         switch state {
         case .revoked:
             await self.handleRevocation(reason: "revoked")
@@ -80,7 +81,7 @@ final class AppleCredentialRevocationCoordinator {
             do {
                 try self.userIdentifierStore.markObservedAuthorized()
             } catch {
-                PortalSessionDiagnostics.error("event=apple-credential-observed-save result=failed")
+                AppLog.error(.identity, "apple-credential-observed-save-failed")
             }
         case .transferred, .unknown:
             return
@@ -92,15 +93,17 @@ final class AppleCredentialRevocationCoordinator {
             return
         }
         guard (try? self.userIdentifierStore.hasObservedAuthorized()) == true else {
-            PortalSessionDiagnostics.notice(
-                "event=apple-credential-revoked reason=\(reason) action=ignored-not-yet-authorized " +
-                    "secondsSinceAuthorization=\(self.secondsSinceAuthorization().map { String(Int($0)) } ?? "unknown")"
-            )
+            AppLog.notice(.identity, "apple-credential-revoked", [
+                "reason": .code("\(reason)"),
+                "action": .code("ignored-not-yet-authorized"),
+                "secondsSinceAuthorization": .code("\(self.secondsSinceAuthorization().map { String(Int($0)) } ?? "unknown")")
+            ])
             return
         }
-        PortalSessionDiagnostics.notice(
-            "event=apple-credential-revoked reason=\(reason) action=sign-out"
-        )
+        AppLog.notice(.identity, "apple-credential-revoked", [
+            "reason": .code("\(reason)"),
+            "action": .code("sign-out")
+        ])
         await self.signOut()
         await self.didSignOut?()
     }

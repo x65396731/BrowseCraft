@@ -1,4 +1,5 @@
 import BrowseCraftDomain
+import BrowseCraftLog
 import Foundation
 
 /// 预检 accepted → 创建生成任务（独立于 `AssessVideoGenerationInputUseCase`，`BC-PREFLIGHT-048`）。
@@ -93,6 +94,7 @@ struct CreateVideoGenerationTaskUseCase: Sendable {
             let data: Data = try JSONEncoder().encode(decrypted.importRuleJSON)
             ruleJSON = String(decoding: data, as: UTF8.self)
         } catch {
+            AppLog.error(.generation, "reused-rule-decrypt-failed", ["error": .error(error)])
             return .failed(code: Self.reusedRuleDecryptionFailedCode)
         }
         return .reused(

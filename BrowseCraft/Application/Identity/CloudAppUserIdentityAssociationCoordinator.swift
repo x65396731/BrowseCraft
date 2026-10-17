@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import Foundation
 
 enum CloudAppUserIdentityAssociationError: Error, Equatable, Sendable {
@@ -214,10 +215,7 @@ actor StoreKitPurchaseIdentityAuthorizer {
     /// 中文注释：仅由用户点击购买或恢复按钮触发，成功返回的 UUID 可安全传给 appAccountToken。
     func authorizeUserInitiatedStoreKitAction() async throws -> UUID {
         var localUserID: UUID = self.activeAppUser.currentUserID
-        IAPDiagnostics.notice(
-            "event=identity-authorization-started " +
-                "userHash=\(IAPDiagnostics.hash(localUserID))"
-        )
+        AppLog.notice(.identity, "identity-authorization-started", ["userHash": .id(localUserID)])
         var portalUserID: UUID? =
             await self.portalSessionCoordinator.authenticatedUserID()
         if portalUserID == nil {
@@ -236,16 +234,10 @@ actor StoreKitPurchaseIdentityAuthorizer {
 
         try self.requireActiveUser(localUserID)
         guard portalUserID == localUserID else {
-            IAPDiagnostics.error(
-                "event=identity-authorization-failed " +
-                    "reason=portal-account-mismatch"
-            )
+            AppLog.error(.identity, "identity-authorization-failed", ["reason": .code("portal-account-mismatch")])
             throw StoreKitPurchaseIdentityAuthorizationError.activeUserChanged
         }
-        IAPDiagnostics.notice(
-            "event=identity-authorization-succeeded " +
-                "userHash=\(IAPDiagnostics.hash(localUserID))"
-        )
+        AppLog.notice(.identity, "identity-authorization-succeeded", ["userHash": .id(localUserID)])
         return localUserID
     }
 
@@ -256,9 +248,7 @@ actor StoreKitPurchaseIdentityAuthorizer {
 
     private func requireActiveUser(_ expectedUserID: UUID) throws {
         guard self.activeAppUser.currentUserID == expectedUserID else {
-            IAPDiagnostics.error(
-                "event=identity-authorization-failed reason=active-user-changed"
-            )
+            AppLog.error(.identity, "identity-authorization-failed", ["reason": .code("active-user-changed")])
             throw StoreKitPurchaseIdentityAuthorizationError.activeUserChanged
         }
     }

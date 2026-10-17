@@ -1,4 +1,5 @@
 import BrowseCraftDomain
+import BrowseCraftLog
 import Foundation
 import SwiftUI
 
@@ -658,6 +659,7 @@ struct VideoGenerationInputView: View {
                 self.assessmentTask = nil
                 self.assessmentID = nil
             } catch {
+                AppLog.error(.generation, "generation-input-assessment-failed", ["error": .error(error)])
                 guard Task.isCancelled == false, self.assessmentID == assessmentID else {
                     return
                 }
@@ -709,6 +711,7 @@ struct VideoGenerationInputView: View {
             } catch is CancellationError {
                 self.submissionState = .idle
             } catch {
+                AppLog.error(.generation, "generation-submit-failed", ["error": .error(error)])
                 guard Task.isCancelled == false else {
                     return
                 }

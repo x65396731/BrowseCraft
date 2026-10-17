@@ -56,6 +56,7 @@ actor CloudKitAccountDeletionCloudEraser: AccountDeletionCloudDataErasing {
                 do {
                     _ = try await database.modifyRecords(saving: [], deleting: [self.identityRecordID])
                 } catch where Self.code(of: error) == .unknownItem {
+                    // 不记：记录本来就不存在，删除目标已达成
                 }
             }
             return .erased
@@ -87,6 +88,7 @@ actor CloudKitAccountDeletionCloudEraser: AccountDeletionCloudDataErasing {
                 return nil
             }
         } catch where Self.code(of: error) == .unknownItem {
+            // 不记：记录本来就不存在，按「没有」返回
             return nil
         }
     }

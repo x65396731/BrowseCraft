@@ -1,4 +1,5 @@
 import BrowseCraftDomain
+import BrowseCraftLog
 import SwiftUI
 import UIKit
 
@@ -48,21 +49,19 @@ struct VideoDetailView: View {
             CrashDiagnostics.shared.setSource(self.viewModel.source)
             CrashDiagnostics.shared.setRuleStage(.detail)
             #if DEBUG
-            AppDebugLog.write(
-                "[BrowseCraftVideoDetail] view appear " +
-                "source=\(self.viewModel.source.id) " +
-                "item=\(self.viewModel.item.id) " +
-                "episodes=\(self.viewModel.episodes.count)"
-            )
+            AppLog.debug(.playback, "video-detail-view-appear", [
+                "source": .text("\(self.viewModel.source.id)"),
+                "item": .text("\(self.viewModel.item.id)"),
+                "episodes": .text("\(self.viewModel.episodes.count)")
+            ])
             #endif
         }
         .task {
             #if DEBUG
-            AppDebugLog.write(
-                "[BrowseCraftVideoDetail] task start " +
-                "source=\(self.viewModel.source.id) " +
-                "item=\(self.viewModel.item.id)"
-            )
+            AppLog.debug(.playback, "video-detail-task-start", [
+                "source": .text("\(self.viewModel.source.id)"),
+                "item": .text("\(self.viewModel.item.id)")
+            ])
             #endif
             // 中文注释：历史与收藏是本地读取，先于网络详情到位——列表取不到时继续看按钮也不缺。
             await self.viewModel.reloadFavoriteState()

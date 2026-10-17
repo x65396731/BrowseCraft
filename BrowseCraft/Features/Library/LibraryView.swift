@@ -1,4 +1,5 @@
 import BrowseCraftDomain
+import BrowseCraftLog
 import SwiftUI
 
 // 中文注释：LibraryView 根据当前 SourceRuntimeKind 选择视频、漫画或书籍展示层。
@@ -654,13 +655,12 @@ struct LibraryView: View {
 
     private func openComicDestination(item: ContentItem, source: Source) {
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftNavigation] Select Library comic destination " +
-            "itemId=\(item.id) " +
-            "sourceId=\(source.id) " +
-            "title=\(item.title) " +
-            "detailURL=\(item.detailURL)"
-        )
+        AppLog.debug(.app, "navigation-select-library-comic-destination", [
+            "itemId": .text("\(item.id)"),
+            "sourceId": .text("\(source.id)"),
+            "title": .text("\(item.title)"),
+            "detailURL": .text("\(item.detailURL)")
+        ])
         #endif
 
         // 中文注释：读书 kind 的列表复用漫画网格；点开走站点书详情，不走漫画详情 / 阅读器。

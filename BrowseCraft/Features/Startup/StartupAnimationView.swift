@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import SwiftUI
 import UIKit
 
@@ -14,14 +15,16 @@ struct StartupAnimationView: View {
             } catch {
                 self.videoURL = nil
                 #if DEBUG
-                AppDebugLog.write("[BrowseCraftStartup] missing startup video: \(error.localizedDescription)")
+                AppLog.debug(.startup, "startup-missing-startup-video", [
+                    "message": .text("\(error.localizedDescription)")
+                ])
                 #endif
             }
 
             self.posterImage = UIImage(named: "LaunchSplash")
             if self.posterImage == nil {
                 #if DEBUG
-                AppDebugLog.write("[BrowseCraftStartup] missing LaunchSplash poster image")
+                AppLog.debug(.startup, "startup-missing-launch-splash-poster-image")
                 #endif
             }
         }

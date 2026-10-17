@@ -1,4 +1,5 @@
 import BrowseCraftDomain
+import BrowseCraftLog
 import Foundation
 import WebKit
 
@@ -23,7 +24,29 @@ struct PreflightRenderedPageLoader: PreflightRenderedPageAcquiring, Sendable {
             publicURLPolicy: self.publicURLPolicy,
             maximumResponseBytes: self.maximumResponseBytes
         )
-        return try await operation.acquire(request)
+        // 中文注释：规则请求的公共钩子（BCA-OBS-014）：预检取页在这里记一条完成或失败。
+        let clock: ContinuousClock = ContinuousClock()
+        let startedAt: ContinuousClock.Instant = clock.now
+        do {
+            let page: PreflightAcquiredPage = try await operation.acquire(request)
+            AppLog.info(.generation, "preflight-page-acquired", [
+                "loader": .code("rendered"),
+                "host": .host(request.url),
+                "status": .int(page.statusCode ?? 0),
+                "bytes": .bytes(page.byteCount),
+                "redirects": .int(page.redirectChain.count),
+                "ms": .duration(clock.now - startedAt)
+            ])
+            return page
+        } catch {
+            AppLog.error(.generation, "preflight-page-failed", [
+                "loader": .code("rendered"),
+                "host": .host(request.url),
+                "ms": .duration(clock.now - startedAt),
+                "error": .error(error)
+            ])
+            throw error
+        }
     }
 }
 

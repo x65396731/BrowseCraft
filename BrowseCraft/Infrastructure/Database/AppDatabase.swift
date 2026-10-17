@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import Foundation
 import GRDB
 
@@ -22,8 +23,34 @@ final class AppDatabase: Sendable {
             databasePath = try Self.defaultDatabasePath()
         }
 
-        self.queue = try DatabasePool(path: databasePath)
-        try Self.makeMigrator().migrate(self.queue)
+        // 中文注释：数据库的公共钩子（Logging-Design.md `BCA-OBS-014`）：打开与迁移失败记 error，
+        // 本次实际执行的迁移逐个记 notice（名字与总耗时），升级后第一次启动的问题因此有据可查。
+        let clock: ContinuousClock = ContinuousClock()
+        let startedAt: ContinuousClock.Instant = clock.now
+        do {
+            self.queue = try DatabasePool(path: databasePath)
+        } catch {
+            AppLog.error(.database, "database-open-failed", ["error": .error(error)])
+            throw error
+        }
+        let migrator: DatabaseMigrator = Self.makeMigrator()
+        do {
+            let appliedBefore: Set<String> = try self.queue.read { db in
+                try migrator.appliedIdentifiers(db)
+            }
+            try migrator.migrate(self.queue)
+            let pending: [String] = AppDatabaseMigrations.identifiers.filter { appliedBefore.contains($0) == false }
+            for identifier in pending {
+                AppLog.notice(.database, "migration-applied", ["migration": .code(identifier)])
+            }
+            AppLog.info(.database, "database-opened", [
+                "migrationsApplied": .int(pending.count),
+                "ms": .duration(clock.now - startedAt)
+            ])
+        } catch {
+            AppLog.error(.database, "migration-failed", ["error": .error(error)])
+            throw error
+        }
     }
 
     private static func defaultDatabasePath() throws -> String {

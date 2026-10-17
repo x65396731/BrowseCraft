@@ -3,6 +3,7 @@ import Combine
 import Foundation
 @preconcurrency import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftLog
 import BrowseCraftRuntime
 
 // 中文注释：LibraryViewModel 负责 Library 当前 source、runtime 刷新、当前快照和列表状态。
@@ -200,11 +201,11 @@ final class LibraryViewModel {
                 )
             }
             #if DEBUG
-            AppDebugLog.write(
-                "[BrowseCraftLibrary] load source=\(self.selectedSourceID ?? "nil") " +
-                "items=\(self.items.count) " +
-                "context=\(self.contextDescription(self.selectedListContext))"
-            )
+            AppLog.debug(.rule, "library-load", [
+                "source": .text("\(self.selectedSourceID ?? "nil")"),
+                "items": .text("\(self.items.count)"),
+                "context": .text("\(self.contextDescription(self.selectedListContext))")
+            ])
             #endif
 
             guard self.selectedSource != nil else {
@@ -288,12 +289,11 @@ final class LibraryViewModel {
         }
 
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftLibraryRefresh] event=load-next-page-if-needed " +
-            "source=\(self.selectedSourceID ?? "nil") " +
-            "currentPage=\(self.currentListPage) " +
-            "nextPage=\(self.nextPageForSelectedList.map(String.init) ?? "nil")"
-        )
+        AppLog.debug(.rule, "library-refresh-load-next-page-if-needed", [
+            "source": .text("\(self.selectedSourceID ?? "nil")"),
+            "currentPage": .text("\(self.currentListPage)"),
+            "nextPage": .text("\(self.nextPageForSelectedList.map(String.init) ?? "nil")")
+        ])
         #endif
 
         _ = await self.loadNextPage()
@@ -386,14 +386,13 @@ final class LibraryViewModel {
         self.isRefreshing = mode == .replace
         self.isLoadingNextPage = mode == .append
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftLibraryRefresh] event=start " +
-            "requestID=\(requestID) " +
-            "source=\(expectedSourceID) " +
-            "context=\(self.contextDescription(expectedListContext)) " +
-            "page=\(page) " +
-            "mode=\(mode == .append ? "append" : "replace")"
-        )
+        AppLog.debug(.rule, "library-refresh-start", [
+            "requestID": .text("\(requestID)"),
+            "source": .text("\(expectedSourceID)"),
+            "context": .text("\(self.contextDescription(expectedListContext))"),
+            "page": .text("\(page)"),
+            "mode": .text("\(mode == .append ? "append" : "replace")")
+        ])
         #endif
 
         do {
@@ -458,18 +457,18 @@ final class LibraryViewModel {
                 self.saveCurrentLibraryState(lastRefreshAt: self.now())
                 #if DEBUG
                 let pageState: LibraryListPageState? = entry.pages[page]
-                AppDebugLog.write(
-                    "[BrowseCraftLibrary] reload after refresh source=\(expectedSourceID) " +
-                    "requestID=\(requestID) " +
-                    "items=\(self.items.count) " +
-                    "pageRawItems=\(pageState?.items.count ?? loadedItems.count) " +
-                    "pageAcceptedItems=\(pageState?.visibleItems.count ?? loadedItems.count) " +
-                    "pageDuplicateItems=\(pageState?.duplicateCount ?? 0) " +
-                    "pageOutcome=\(pageState?.outcome.rawValue ?? "unknown") " +
-                    "resolvedPage=\(entry.currentPage) " +
-                    "nextPage=\(entry.nextPage.map(String.init) ?? "nil") " +
-                    "context=\(self.contextDescription(expectedListContext))"
-                )
+                AppLog.debug(.rule, "library-reload-after-refresh", [
+                    "source": .text("\(expectedSourceID)"),
+                    "requestID": .text("\(requestID)"),
+                    "items": .text("\(self.items.count)"),
+                    "pageRawItems": .text("\(pageState?.items.count ?? loadedItems.count)"),
+                    "pageAcceptedItems": .text("\(pageState?.visibleItems.count ?? loadedItems.count)"),
+                    "pageDuplicateItems": .text("\(pageState?.duplicateCount ?? 0)"),
+                    "pageOutcome": .text("\(pageState?.outcome.rawValue ?? "unknown")"),
+                    "resolvedPage": .text("\(entry.currentPage)"),
+                    "nextPage": .text("\(entry.nextPage.map(String.init) ?? "nil")"),
+                    "context": .text("\(self.contextDescription(expectedListContext))")
+                ])
                 #endif
                 self.favoriteItemIDs = try await self.persistenceCoordinator.favoriteItemIDs(
                     sourceID: self.selectedSourceID
@@ -477,13 +476,12 @@ final class LibraryViewModel {
                 outcome = .loaded
             } else {
                 #if DEBUG
-                AppDebugLog.write(
-                    "[BrowseCraftLibraryRefresh] event=stale-result " +
-                    "requestID=\(requestID) " +
-                    "source=\(expectedSourceID) " +
-                    "context=\(self.contextDescription(expectedListContext)) " +
-                    "current=\(self.currentListStateKey()?.description ?? "nil")"
-                )
+                AppLog.debug(.rule, "library-refresh-stale-result", [
+                    "requestID": .text("\(requestID)"),
+                    "source": .text("\(expectedSourceID)"),
+                    "context": .text("\(self.contextDescription(expectedListContext))"),
+                    "current": .text("\(self.currentListStateKey()?.description ?? "nil")")
+                ])
                 #endif
             }
         } catch is CancellationError {
@@ -979,14 +977,14 @@ final class LibraryViewModel {
         }
         .joined(separator: ", ")
 
-        AppDebugLog.write(
-            "[BrowseCraftLibraryTabs] origin=\(origin) " +
-            "source=\(source?.id ?? "nil") " +
-            "kind=\(source?.configuration.kind.rawValue ?? "nil") " +
-            "selected=\(self.selectedListTabID ?? "nil") " +
-            "count=\(tabs.count) " +
-            "tabs=[\(tabDescription)]"
-        )
+        AppLog.debug(.rule, "library-tabs", [
+            "origin": .text("\(origin)"),
+            "source": .text("\(source?.id ?? "nil")"),
+            "kind": .text("\(source?.configuration.kind.rawValue ?? "nil")"),
+            "selected": .text("\(self.selectedListTabID ?? "nil")"),
+            "count": .text("\(tabs.count)"),
+            "tabs": .text("[\(tabDescription)]")
+        ])
     }
     #endif
 
@@ -1562,14 +1560,7 @@ final class LibraryViewModel {
                     UserLibraryStateTransfer(value: state)
                 )
             } catch {
-                AppLog.error(
-                    .app,
-                    event: "library-state-save-failed",
-                    metadata: [
-                        "sourceID": selectedSourceID,
-                        "error": AppLog.safeErrorCode(error)
-                    ]
-                )
+                AppLog.error(.app, "library-state-save-failed", ["sourceID": .id(selectedSourceID), "error": .error(error)])
             }
         }
     }
@@ -1616,14 +1607,14 @@ final class LibraryViewModel {
     ) {
         #if DEBUG
         let requestDescription: String = requestID.map { " requestID=\($0)" } ?? ""
-        AppDebugLog.write(
-            "[BrowseCraftLibraryData] origin=\(origin) " +
-            "source=\(sourceID ?? "nil") " +
-            "\(requestDescription) " +
-            "items=\(self.items.count) " +
-            "firstItem=\(self.items.first?.id ?? "nil") " +
-            "context=\(self.contextDescription(context))"
-        )
+        AppLog.debug(.rule, "library-data", [
+            "origin": .text("\(origin)"),
+            "source": .text("\(sourceID ?? "nil")"),
+            "items": .text("\(self.items.count)"),
+            "firstItem": .text("\(self.items.first?.id ?? "nil")"),
+            "context": .text("\(self.contextDescription(context))"),
+            "message": .text("\(requestDescription)")
+        ])
         #endif
     }
 

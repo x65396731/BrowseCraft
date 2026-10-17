@@ -70,6 +70,7 @@ enum StoreKitRestoreBatchPlanner {
                 outcome.activeProductIDs = try await submit(batch)
                 outcome.submittedBatchIndexes.append(index)
             } catch where isOwnBatch == false && isForeignOwnerRejection(error) {
+                // 不记：别的账号的购买是预期结果，计入 foreignItemCount，由 restore-completed 一并记录
                 outcome.foreignItemCount += batch.count
             }
         }

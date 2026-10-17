@@ -1,6 +1,7 @@
 import Observation
 @preconcurrency import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftLog
 import Foundation
 
 // 中文注释：HistoryViewModel 负责历史页数据加载、类型筛选、继续条目、按天分组、看到哪里、来源状态、删除与选择模式下的批量删除
@@ -106,6 +107,7 @@ final class HistoryViewModel {
             )
             self.imageRequestConfigs = self.makeImageRequestConfigs()
         } catch {
+            AppLog.error(.database, "history-load-failed", ["error": .error(error)])
             self.errorMessage = error.localizedDescription
         }
     }
@@ -421,6 +423,7 @@ final class HistoryViewModel {
             self.readingHistoryEntries.removeAll { deletedIDs.contains($0.id) }
             return true
         } catch {
+            AppLog.error(.database, "history-delete-failed", ["error": .error(error)])
             self.errorMessage = error.localizedDescription
             await self.load()
             return false

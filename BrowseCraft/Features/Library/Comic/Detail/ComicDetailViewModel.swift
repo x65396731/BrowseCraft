@@ -2,6 +2,7 @@ import Observation
 import Foundation
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftLog
 
 // 中文注释：漫画详情与章节页的状态（`docs/design/Comic-Detail-Page-Redesign-Design.md`）。
 // 页上每一块只在规则或本机历史给了数据时出现：头部按 `SourceDetailMetadata` 有什么出什么，
@@ -246,11 +247,12 @@ final class ComicDetailViewModel {
         self.now = now
 
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftNavigation] Init ComicDetailViewModel " +
-            "itemId=\(item.id) title=\(item.title) " +
-            "detailURL=\(item.detailURL) sourceId=\(source.id)"
-        )
+        AppLog.debug(.app, "navigation-init-comic-detail-view-model", [
+            "itemId": .text("\(item.id)"),
+            "title": .text("\(item.title)"),
+            "detailURL": .text("\(item.detailURL)"),
+            "sourceId": .text("\(source.id)")
+        ])
         #endif
     }
 
@@ -711,12 +713,15 @@ final class ComicDetailViewModel {
             self.rebuildChapterDerivedState()
 
             #if DEBUG
-            AppDebugLog.write(
-                "[BrowseCraftNavigation] Loaded comic detail " +
-                "itemId=\(self.item.id) title=\(self.displayTitle) " +
-                "chapters=\(self.chapters.count) hasMetadata=\(self.metadata != nil) " +
-                "usesGrid=\(self.usesGrid) segments=\(self.segments.count) read=\(self.readCount)"
-            )
+            AppLog.debug(.app, "navigation-loaded-comic-detail", [
+                "itemId": .text("\(self.item.id)"),
+                "title": .text("\(self.displayTitle)"),
+                "chapters": .text("\(self.chapters.count)"),
+                "hasMetadata": .text("\(self.metadata != nil)"),
+                "usesGrid": .text("\(self.usesGrid)"),
+                "segments": .text("\(self.segments.count)"),
+                "read": .text("\(self.readCount)")
+            ])
             #endif
         } catch is CancellationError {
             return

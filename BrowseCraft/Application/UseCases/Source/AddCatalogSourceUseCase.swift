@@ -2,6 +2,7 @@ import CryptoKit
 import Foundation
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftLog
 
 enum CatalogSourceImportError: LocalizedError {
     case invalidBaseURL(String)
@@ -90,12 +91,11 @@ struct LoadCatalogSourcesUseCase {
         let requestConfig: RequestConfig = self.requestConfig
         #if DEBUG
         let headers: [String: String] = requestConfig.headers ?? [:]
-        AppDebugLog.write(
-            "[BrowseCraftCatalog] request " +
-            "url=\(catalogAPIURL.absoluteString) " +
-            "headerCount=\(headers.count) " +
-            "hasRequiredPortalHeaders=\(self.hasRequiredPortalHeaders(headers))"
-        )
+        AppLog.debug(.rule, "catalog-request", [
+            "url": .text("\(catalogAPIURL.absoluteString)"),
+            "headerCount": .text("\(headers.count)"),
+            "hasRequiredPortalHeaders": .text("\(self.hasRequiredPortalHeaders(headers))")
+        ])
         #endif
 
         let data: Data = try await self.pageDataLoader.loadData(
@@ -128,11 +128,10 @@ struct LoadCatalogSourcesUseCase {
         }.count
 
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftCatalog] payload " +
-            "sources=\(encryptedSources.count) " +
-            "encryptedRules=\(encryptedRuleCount)"
-        )
+        AppLog.debug(.rule, "catalog-payload", [
+            "sources": .text("\(encryptedSources.count)"),
+            "encryptedRules": .text("\(encryptedRuleCount)")
+        ])
         #endif
 
         guard encryptedRuleCount > 0 else {
@@ -161,11 +160,7 @@ struct LoadCatalogSourcesUseCase {
                 )
             } catch {
                 firstFailure = firstFailure ?? error
-                AppLog.notice(
-                    .app,
-                    event: "catalog-skipped-undecryptable-rule",
-                    metadata: ["id": source.id, "kind": source.kind, "error": AppLog.safeErrorCode(error)]
-                )
+                AppLog.notice(.app, "catalog-skipped-undecryptable-rule", ["id": .id(source.id), "kind": .code(source.kind), "error": .error(error)])
             }
         }
 
@@ -197,7 +192,7 @@ private struct CatalogSourcePayloadDecoder {
         return try JSONDecoder().decode([CatalogSourcePayload].self, from: data).compactMap { payload in
             guard let kind: CatalogSourceKind = CatalogSourceKind(rawValue: payload.kind) else {
                 // 中文注释：notice 级——Release 的日志也留得下，条款要求「记下被跳过的 id 与 kind」在线上才成立。
-                AppLog.notice(.app, event: "catalog-skipped-unknown-kind", metadata: ["id": payload.id, "kind": payload.kind])
+                AppLog.notice(.app, "catalog-skipped-unknown-kind", ["id": .id(payload.id), "kind": .code(payload.kind)])
                 return nil
             }
             return CatalogSource(
@@ -442,6 +437,7 @@ struct AddCatalogSourceUseCase: Sendable {
                 materialized.append(source)
                 fingerprints[source.id] = Self.ruleFingerprint(of: catalogSource)
             } catch {
+                // 不记：失败写进返回的 failures，由调用方记 catalog-source-update-failed
                 failures[catalogSource.id] = String(describing: error)
             }
         }

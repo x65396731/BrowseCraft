@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import Foundation
 
 /// 中文注释：APNs device token → PortalCore `/v1/push/devices` 的注册协调器（`BC-PREFLIGHT-057`）。
@@ -64,23 +65,12 @@ actor PushDeviceRegistrationCoordinator {
                 accessToken: accessToken
             )
             self.registration = target
-            AppLog.notice(
-                .push,
-                event: "device-registered",
-                metadata: ["environment": self.environment.rawValue]
-            )
+            AppLog.notice(.push, "device-registered", ["environment": .enumValue(self.environment)])
         } catch is CancellationError {
             return
         } catch {
             // 中文注释：只记分类，不记 token（AGENTS.md §2.6）。
-            AppLog.error(
-                .push,
-                event: "device-registration-failed",
-                metadata: [
-                    "environment": self.environment.rawValue,
-                    "error": Self.describe(error)
-                ]
-            )
+            AppLog.error(.push, "device-registration-failed", ["environment": .enumValue(self.environment), "error": .error(error)])
         }
     }
 
@@ -100,15 +90,11 @@ actor PushDeviceRegistrationCoordinator {
                 environment: self.environment,
                 accessToken: accessToken
             )
-            AppLog.notice(.push, event: "device-unregistered")
+            AppLog.notice(.push, "device-unregistered")
         } catch is CancellationError {
             return
         } catch {
-            AppLog.error(
-                .push,
-                event: "device-unregistration-failed",
-                metadata: ["error": Self.describe(error)]
-            )
+            AppLog.error(.push, "device-unregistration-failed", ["error": .error(error)])
         }
     }
 

@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import CloudKit
 import Foundation
 
@@ -75,6 +76,7 @@ actor CloudKitAccountStateService: CloudAccountStateProviding {
             let accountStatus: CKAccountStatus = try await self.loadAccountStatus()
             await self.resolve(accountStatus)
         } catch {
+            AppLog.error(.sync, "icloud-account-status-failed", ["error": .error(error)])
             self.updateState(
                 CloudAccountState(
                     availability: .couldNotDetermine,
@@ -98,6 +100,7 @@ actor CloudKitAccountStateService: CloudAccountStateProviding {
                     CloudAccountState(availability: .available, scope: scope)
                 )
             } catch {
+                AppLog.error(.sync, "icloud-account-scope-failed", ["error": .error(error)])
                 self.updateState(
                     CloudAccountState(
                         availability: .couldNotDetermine,

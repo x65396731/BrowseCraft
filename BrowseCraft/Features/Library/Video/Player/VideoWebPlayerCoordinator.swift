@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import BrowseCraftRuntime
 import Foundation
 import SwiftUI
@@ -125,10 +126,10 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
         webView.customUserAgent = userAgent
         self.markExpectedInterruptedMainFrameNavigation()
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftVideoWebPlayer] apply-user-agent " +
-            "url=\(self.safeLogURL(request.url)) userAgent=\(userAgent)"
-        )
+        AppLog.debug(.playback, "video-web-player-apply-user-agent", [
+            "url": .text("\(self.safeLogURL(request.url))"),
+            "userAgent": .text("\(userAgent)")
+        ])
         #endif
         Task { @MainActor [weak webView] in
             webView?.load(request)
@@ -258,10 +259,10 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
         }
         self.providerFailure = failure
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftVideoWebPlayer] provider-failure " +
-            "kind=\(failure.kind) url=\(self.safeLogURL(failure.url))"
-        )
+        AppLog.debug(.playback, "video-web-player-provider-failure", [
+            "kind": .text("\(failure.kind)"),
+            "url": .text("\(self.safeLogURL(failure.url))")
+        ])
         #endif
     }
 
@@ -301,11 +302,10 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
                 )
             }
             #if DEBUG
-            AppDebugLog.write(
-                "[BrowseCraftVideoWebPlayer] embed-probe " +
-                "url=\(self.safeLogURL(candidateURL)) " +
-                "result=\(failureKind.map { String(describing: $0) } ?? "ok")"
-            )
+            AppLog.debug(.playback, "video-web-player-embed-probe", [
+                "url": .text("\(self.safeLogURL(candidateURL))"),
+                "result": .text("\(failureKind.map { String(describing: $0) } ?? "ok")")
+            ])
             #endif
         }
     }
@@ -414,10 +414,10 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
         self.allowedMobileAlternateHosts.insert(alternateHost)
 
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftVideoWebPlayer] follow-mobile-alternate " +
-            "from=\(self.safeLogURL(currentURL)) to=\(self.safeLogURL(alternateURL))"
-        )
+        AppLog.debug(.playback, "video-web-player-follow-mobile-alternate", [
+            "from": .text("\(self.safeLogURL(currentURL))"),
+            "to": .text("\(self.safeLogURL(alternateURL))")
+        ])
         #endif
 
         guard let jsonData: Data = try? JSONSerialization.data(
@@ -434,6 +434,7 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
             )
             return true
         } catch {
+            AppLog.error(.playback, "video-web-player-redirect-script-failed", ["error": .error(error)])
             return false
         }
     }
@@ -495,13 +496,13 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
         webView.pageZoom = scale
 
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftVideoWebPlayer] fit-fixed-layout " +
-            "viewWidth=\(Int(webView.bounds.width)) " +
-            "visibleWidth=\(Int(measuredMetrics.visibleWidth)) " +
-            "contentWidth=\(Int(measuredMetrics.contentWidth)) zoom=\(scale) " +
-            "url=\(self.safeLogURL(expectedURL))"
-        )
+        AppLog.debug(.playback, "video-web-player-fit-fixed-layout", [
+            "viewWidth": .text("\(Int(webView.bounds.width))"),
+            "visibleWidth": .text("\(Int(measuredMetrics.visibleWidth))"),
+            "contentWidth": .text("\(Int(measuredMetrics.contentWidth))"),
+            "zoom": .text("\(scale)"),
+            "url": .text("\(self.safeLogURL(expectedURL))")
+        ])
         #endif
     }
 

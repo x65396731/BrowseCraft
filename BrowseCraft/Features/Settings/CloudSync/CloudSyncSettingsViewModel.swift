@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import Observation
 import Foundation
 
@@ -546,6 +547,7 @@ final class CloudSyncSettingsViewModel {
             await self.applyCoordinatorSnapshot(self.coordinator.snapshot())
             return true
         } catch {
+            AppLog.error(.sync, "cloud-sync-manual-run-failed", ["error": .error(error)])
             if error is CancellationError {
                 return nil
             }
@@ -686,6 +688,7 @@ final class CloudSyncSettingsViewModel {
                         for: checkpoint.accountScope
                     )
                 } catch {
+                    AppLog.error(.sync, "cloud-restore-preparation-load-failed", ["error": .error(error)])
                     self.actionErrorMessage = NSLocalizedString("The initial iCloud restore status could not be saved.", comment: "")
                 }
                 self.contentRevision &+= 1
@@ -714,6 +717,7 @@ final class CloudSyncSettingsViewModel {
                 : nil
             self.actionErrorMessage = nil
         } catch {
+            AppLog.error(.sync, "cloud-sync-setup-load-failed", ["error": .error(error)])
             self.preparation = nil
             self.currentUserSummary = nil
             self.actionErrorMessage = NSLocalizedString("Cloud sync setup could not be loaded.", comment: "")

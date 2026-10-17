@@ -1,6 +1,7 @@
 // 中文注释：显式 runtime audit 只随 Debug 构建编译；Release/TestFlight 不含审计代码。
 #if DEBUG
 import BrowseCraftDomain
+import BrowseCraftLog
 import BrowseCraftRuntime
 import Foundation
 
@@ -78,9 +79,10 @@ struct VideoRuntimeAuditLauncher {
                 options: .atomic
             )
             #if DEBUG
-            AppDebugLog.write(
-                "[BrowseCraftRuntimeAudit] succeeded catalogSHA256=\(catalogInput.catalogSHA256.rawValue) bytes=\(evidenceData.count)"
-            )
+            AppLog.debug(.rule, "runtime-audit-succeeded", [
+                "catalogSHA256": .text("\(catalogInput.catalogSHA256.rawValue)"),
+                "bytes": .text("\(evidenceData.count)")
+            ])
             #endif
         } catch {
             // 中文注释：失败标记只携带错误类型描述，不携带 URL、正文或凭据。
@@ -90,7 +92,7 @@ struct VideoRuntimeAuditLauncher {
                 options: .atomic
             )
             #if DEBUG
-            AppDebugLog.write("[BrowseCraftRuntimeAudit] \(failure)")
+            AppLog.debug(.rule, "runtime-audit", ["message": .text("\(failure)")])
             #endif
         }
     }

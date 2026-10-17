@@ -37,6 +37,15 @@ final class ItemThumbnailImageCachePlugin: ImagePipelineDelegate, ItemThumbnailI
 
     private init() {}
 
+    /// 中文注释：缩略图加载失败走同一个图片公共钩子（`ImagePipelineFailureLogger`）。
+    func imageTask(
+        _ task: ImageTask,
+        didCompleteWithResult result: Result<ImageResponse, ImagePipeline.Error>,
+        pipeline: ImagePipeline
+    ) {
+        ImagePipelineFailureLogger.log(task: task, result: result, pipeline: "thumbnail")
+    }
+
     /// 中文注释：缩略图的磁盘缓存，供缓存页算用量与清除。
     var dataCache: DataCache? {
         return self.pipeline.configuration.dataCache as? DataCache

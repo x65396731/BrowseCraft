@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import Foundation
 
 enum PortalAppleSignInError: Error, Equatable, Sendable {
@@ -121,7 +122,7 @@ actor PortalAppleSignInCoordinator {
         do {
             try self.appleUserIdentifierStore?.saveUserIdentifier(authorization.userIdentifier)
         } catch {
-            PortalSessionDiagnostics.error("event=apple-user-identifier-save result=failed")
+            AppLog.error(.identity, "apple-user-identifier-save-failed")
         }
         return credentials.userID
     }

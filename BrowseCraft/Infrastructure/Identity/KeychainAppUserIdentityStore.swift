@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import Foundation
 import Security
 

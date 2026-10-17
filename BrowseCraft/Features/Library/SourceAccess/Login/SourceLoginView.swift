@@ -1,4 +1,5 @@
 import BrowseCraftDomain
+import BrowseCraftLog
 import SwiftUI
 import WebKit
 import WebUI
@@ -142,6 +143,7 @@ struct SourceLoginView: View {
             AppAnalytics.shared.logSourceLoginResult(source: self.source, entry: self.entry, result: .success)
             self.completeAction(credential)
         } catch {
+            AppLog.error(.credential, "source-login-capture-failed", ["error": .error(error)])
             self.didFailCapture = true
             self.captureErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }

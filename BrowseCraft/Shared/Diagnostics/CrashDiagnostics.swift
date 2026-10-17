@@ -1,4 +1,5 @@
 import BrowseCraftDomain
+import BrowseCraftLog
 import FirebaseCrashlytics
 import Foundation
 
@@ -63,6 +64,14 @@ final class CrashDiagnostics: Sendable {
         let crashlytics: Crashlytics = Crashlytics.crashlytics()
         crashlytics.setCustomValue(screen.rawValue, forKey: Key.screen)
         crashlytics.log("screen=\(screen.rawValue)")
+    }
+
+    /// 中文注释：统一日志的 Crashlytics 出口只经这里写日志行（BCA-OBS-017）：只带类别与事件名，采集关闭时不写。
+    func logLine(category: String, event: String) {
+        guard Self.isCollectionEnabled else {
+            return
+        }
+        Crashlytics.crashlytics().log("\(category) \(event)")
     }
 
     func setSource(id: String?, type: DiagnosticSourceType) {

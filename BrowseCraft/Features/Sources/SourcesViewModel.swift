@@ -3,6 +3,7 @@ import Combine
 import Foundation
 @preconcurrency import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftLog
 import BrowseCraftRuntime
 
 // 中文注释：SourcesViewModel.swift 属于界面功能层，用于说明本文件承载的核心职责。
@@ -212,12 +213,12 @@ final class SourcesViewModel {
             let result: HideVideoGenerationOutcomeUseCase.Result = await useCase.execute(jobID: jobID)
             switch result {
             case .hidden:
-                AppLog.notice(.push, event: "outcome-hidden")
+                AppLog.notice(.push, "outcome-hidden")
             case .authRequired:
                 self.errorMessage = NSLocalizedString("catalog_personal_sign_in_hint", comment: "")
                 return false
             case .failed(let code):
-                AppLog.error(.push, event: "outcome-hide-failed", metadata: ["code": code])
+                AppLog.error(.push, "outcome-hide-failed", ["code": .code(code)])
                 self.errorMessage = NSLocalizedString("rule_error_unknown", comment: "")
                 return false
             }
@@ -656,7 +657,7 @@ final class SourcesViewModel {
             return CatalogRuleUpdateSummary(updatedCount: 0, result: .failed)
         }
         for (sourceID, reason) in applied.failuresBySourceID {
-            AppLog.error(.rule, event: "catalog-source-update-failed", metadata: ["sourceID": sourceID, "reason": reason])
+            AppLog.error(.rule, "catalog-source-update-failed", ["sourceID": .id(sourceID), "reason": .code(reason)])
         }
         // 中文注释：有条目物化失败、保留旧规则时整次记 failed，条数仍按实际写入的算。
         let summary: CatalogRuleUpdateSummary = CatalogRuleUpdateSummary(
@@ -667,7 +668,7 @@ final class SourcesViewModel {
             return applied.failuresBySourceID.isEmpty ? nil : summary
         }
         await self.load()
-        AppLog.notice(.rule, event: event, metadata: ["count": String(applied.sources.count)])
+        AppLog.notice(.rule, event, ["count": .int(applied.sources.count)])
         return summary
     }
 
@@ -679,7 +680,7 @@ final class SourcesViewModel {
         }
         let load: VideoGenerationOutcomesLoad = await useCase.execute()
         if case .failed(let code) = load {
-            AppLog.error(.push, event: "outcomes-load-failed", metadata: ["code": code])
+            AppLog.error(.push, "outcomes-load-failed", ["code": .code(code)])
             // 中文注释：读取失败时保留上一次的结果，不把个人分组清空。
             if self.videoGenerationOutcomesLoad == nil {
                 self.videoGenerationOutcomesLoad = load
@@ -687,16 +688,12 @@ final class SourcesViewModel {
             return
         }
         if case .loaded(let outcomes) = load {
-            AppLog.notice(
-                .push,
-                event: "outcomes-loaded",
-                metadata: [
-                    "count": String(outcomes.count),
-                    "succeeded": String(outcomes.filter(\.didSucceed).count)
-                ]
-            )
+            AppLog.notice(.push, "outcomes-loaded", [
+                "count": .int(outcomes.count),
+                "succeeded": .int(outcomes.filter(\.didSucceed).count)
+            ])
         } else {
-            AppLog.notice(.push, event: "outcomes-auth-required")
+            AppLog.notice(.push, "outcomes-auth-required")
         }
         self.videoGenerationOutcomesLoad = load
         if case .loaded(let outcomes) = load {
@@ -756,11 +753,7 @@ final class SourcesViewModel {
         }
         do {
             try await self.deleteSourcesWithoutUndo(ids: expiredSourceIDs)
-            AppLog.notice(
-                .push,
-                event: "personal-sources-expired",
-                metadata: ["count": String(expiredSourceIDs.count)]
-            )
+            AppLog.notice(.push, "personal-sources-expired", ["count": .int(expiredSourceIDs.count)])
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "personal-source-expire-error")
         }
@@ -1345,11 +1338,7 @@ final class SourcesViewModel {
                     UserLibraryStateTransfer(value: state)
                 )
             } catch {
-                AppLog.error(
-                    .sync,
-                    event: "source-library-state-save-failed",
-                    metadata: ["error": AppLog.safeErrorCode(error)]
-                )
+                AppLog.error(.sync, "source-library-state-save-failed", ["error": .error(error)])
             }
         }
     }
@@ -1360,13 +1349,13 @@ final class SourcesViewModel {
         origin: String
     ) {
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftLibraryData] origin=\(origin) " +
-            "source=\(source.id) " +
-            "kind=\(source.configuration.kind.rawValue) " +
-            "items=\(items.count) " +
-            "firstItem=\(items.first?.id ?? "nil")"
-        )
+        AppLog.debug(.rule, "library-data", [
+            "origin": .text("\(origin)"),
+            "source": .text("\(source.id)"),
+            "kind": .text("\(source.configuration.kind.rawValue)"),
+            "items": .text("\(items.count)"),
+            "firstItem": .text("\(items.first?.id ?? "nil")")
+        ])
         #endif
     }
 

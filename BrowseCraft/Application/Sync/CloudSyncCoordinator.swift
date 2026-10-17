@@ -229,7 +229,9 @@ actor CloudSyncCoordinator {
             }
             do {
                 _ = try await self.synchronize(trigger: trigger)
-            } catch {}
+            } catch {
+                // 不记：synchronize 自己记 sync-failed（CloudSyncDiagnostics）
+            }
             await self.finishRequest()
         }
         self.publishSnapshot()
@@ -525,6 +527,7 @@ actor CloudSyncCoordinator {
             do {
                 try await retrySleeper(delay)
             } catch {
+                // 不记：Task.sleep 只在任务取消时抛错
                 return
             }
             guard Task.isCancelled == false else {

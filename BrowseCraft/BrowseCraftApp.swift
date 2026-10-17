@@ -5,6 +5,7 @@
 //  Created by 谢飞 on 2026/07/02.
 //
 
+import BrowseCraftLog
 import SwiftUI
 import GoogleMobileAds
 import FirebaseCore
@@ -40,11 +41,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         guard let outcome else {
             return
         }
-        AppLog.notice(
-            .push,
-            event: opened ? "outcome-push-opened" : "outcome-push-presented",
-            metadata: ["status": outcome.status ?? "unknown"]
-        )
+        AppLog.notice(.push, opened ? "outcome-push-opened" : "outcome-push-presented", ["status": .code(outcome.status ?? "unknown")])
         // 中文注释：只报用户点开；前台到达（willPresent）不报。
         if opened {
             AppAnalytics.shared.logRuleGenerationPushOpened()
@@ -74,12 +71,21 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         FirebaseApp.configure()
         CrashDiagnostics.shared.configure()
+        // 中文注释：Crashlytics 出口要等采集开关设好之后才装（BCA-OBS-017）。
+        AppLogging.installCrashlyticsSink()
         AppAnalytics.shared.configure()
         AppAnalytics.shared.logAppOpen()
+        AppLog.info(.startup, "firebase-configured")
         // 中文注释：delegate 必须在启动完成前设好，否则前台收到的 alert 推送不会显示。
         UNUserNotificationCenter.current().delegate = self
         application.registerForRemoteNotifications()
         return true
+    }
+
+    /// 中文注释：生命周期公共钩子（BCA-OBS-014）：内存警告前后的记录最能说明随后的被杀或卡顿。
+    func applicationDidReceiveMemoryWarning(_ application: UIApplication) {
+        _ = application
+        AppLog.notice(.lifecycle, "memory-warning")
     }
 
     /// 中文注释：token 转小写十六进制，与 PortalCore `/v1/push/devices` 的校验形状一致；
@@ -104,11 +110,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didFailToRegisterForRemoteNotificationsWithError error: any Error
     ) {
         _ = application
-        AppLog.error(
-            .push,
-            event: "remote-notification-registration-failed",
-            metadata: ["error": AppLog.safeErrorCode(error)]
-        )
+        AppLog.error(.push, "remote-notification-registration-failed", ["error": .error(error)])
     }
 
     func application(
@@ -184,6 +186,8 @@ struct BrowseCraftApp: App {
     @State private var hasEnteredBackground: Bool = false
 
     init() {
+        // 中文注释：日志出口最先装，之后启动过程的每一步才有记录（BCA-OBS-014）。
+        AppLogging.installBaseSinks()
         Self.startMobileAdsIfConfigured()
     }
 
@@ -201,7 +205,7 @@ struct BrowseCraftApp: App {
             MobileAds.shared.start()
         } else {
             #if DEBUG
-            AppDebugLog.write("[BrowseCraftAds] skip MobileAds.start because GADApplicationIdentifier is missing")
+            AppLog.debug(.ad, "mobile-ads-start-skipped", ["reason": .text("missing GADApplicationIdentifier")])
             #endif
         }
     }
@@ -245,6 +249,7 @@ struct BrowseCraftApp: App {
                         await container.startApplicationServices()
                     }
                     .onChange(of: self.scenePhase) { _, phase in
+                        AppLogging.logScenePhase(phase)
                         if phase == .background {
                             self.hasEnteredBackground = true
                             container.handleAppEnteredBackground()

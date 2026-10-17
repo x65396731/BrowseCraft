@@ -685,6 +685,7 @@ actor CKSyncEngineCloudRecordStore: CloudRecordStore, CKSyncEngineDelegate {
                     continue
                 }
             } catch {
+                // 不记：计入 rejectedFetchedRecordCount，由 cloud-fetch-summary 记录
                 self.fetchedBatchHasInvalidRecord = true
                 self.rejectedFetchedRecordCount += 1
             }

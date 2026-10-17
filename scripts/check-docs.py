@@ -67,7 +67,7 @@ SOURCE_GLOBS = [
     "BrowseCraft/**/*.swift", "BrowseCraftTests/**/*.swift", "BrowseCraftUITests/**/*.swift",
     "project.yml",
 ]
-SIBLING_PACKAGES = ["BrowseCraftCore", "BrowseCraftDomain", "BrowseCraftRuntime", "BrowseCraftAPIKit"]
+SIBLING_PACKAGES = ["BrowseCraftCore", "BrowseCraftDomain", "BrowseCraftRuntime", "BrowseCraftAPIKit", "BrowseCraftLog"]
 
 # ---- docs/README.md 第 4 节的受控词表。新增域必须先改那里，再改这里。----
 DOMAINS = {"ARCH", "BUILD", "RUNTIME", "PARSE", "DB", "SYNC", "BOOK", "UI", "DOC", "OBS"}
@@ -296,7 +296,7 @@ def check_tracked(rep, defs):
 
 
 def load_source_symbols():
-    """本仓库与四个兄弟包里出现过的全部标识符。只读源码，不读构建产物。"""
+    """本仓库与五个兄弟包里出现过的全部标识符。只读源码，不读构建产物。"""
     files = []
     for pattern in SOURCE_GLOBS:
         files += sorted(glob(os.path.join(ROOT, pattern), recursive=True))
@@ -448,6 +448,8 @@ SCREEN_SWIFT = "BrowseCraft/Shared/Diagnostics/DiagnosticEnums.swift"
 ANALYTICS_FORBIDDEN_LAYERS = ["BrowseCraft/Domain", "BrowseCraft/Application", "BrowseCraft/Infrastructure"]
 SCREEN_VIEW_ALLOWED = {"BrowseCraft/Shared/Diagnostics/AppAnalytics+Session.swift",
                        "BrowseCraft/Shared/UI/AnalyticsScreenModifier.swift"}
+LOGGING_DOC = "docs/design/Logging-Design.md"
+LOG_CATEGORY_SWIFT = "BrowseCraftLog/Sources/BrowseCraftLog/LogCategory.swift"
 # 规则执行失败只经 RuleFailureDiagnostics.report 上报；Crashlytics 的非致命错误只许这几处记（BCA-OBS-007）。
 CRASH_DIAGNOSTICS_SWIFT = "BrowseCraft/Shared/Diagnostics/CrashDiagnostics.swift"
 RULE_FAILURE_SWIFT = "BrowseCraft/Shared/Diagnostics/RuleFailureDiagnostics.swift"
@@ -547,6 +549,25 @@ def check_analytics(rep):
         for needle, allowed in FAILURE_CALL_ALLOWED.items():
             if rel not in allowed and needle in text:
                 rep.fail("A13", rel, f"{needle.rstrip('(')} 只许 {'、'.join(sorted(allowed))} 使用（BCA-OBS-007）")
+
+    # 日志类别（BCA-OBS-011，定义点在 docs/design/Logging-Design.md 第 5 节）：LogCategory 的 case 带 /// 注释、与合同双向一致。
+    category_path = os.path.join(os.path.dirname(ROOT), LOG_CATEGORY_SWIFT)
+    if os.path.isfile(category_path):
+        with open(category_path, encoding="utf-8") as fh:
+            category_code = fh.read()
+        log_cases = swift_cases(category_code, "enum LogCategory", "\n}", re.compile(r"case (\w+)$"))
+        documented = doc_names(read(LOGGING_DOC), "## 5.", 0)
+        names = {n for n, _ in log_cases}
+        for name, commented in log_cases:
+            if not commented:
+                rep.fail("A13", LOG_CATEGORY_SWIFT, f"日志类别 {name} 缺 /// 中文注释（BCA-OBS-011）")
+        for name in sorted(names - documented):
+            rep.fail("A13", LOGGING_DOC, f"日志类别 {name} 在代码里有、文档没登记（BCA-OBS-011）")
+        for name in sorted(documented - names):
+            rep.fail("A13", LOGGING_DOC, f"日志类别 {name} 文档登记了、代码里没有（BCA-OBS-011）")
+        counts.append(f"{len(names)} 个日志类别")
+    else:
+        rep.fail("A13", LOG_CATEGORY_SWIFT, "读不到 BrowseCraftLog 包的 LogCategory.swift（兄弟仓库缺失）")
     rep.note("A13", " / ".join(counts))
 
 
@@ -598,7 +619,7 @@ def main():
         "A10": "文档点名的代码符号都存在",
         "A11": "承载定义点的文档被 git 跟踪",
         "A12": "STATUS.md 可退休的节（只提示，BCA-DOC-016）",
-        "A13": "埋点字典与代码一致、带注释、调用边界与崩溃诊断入口（BCA-OBS）",
+        "A13": "埋点字典与日志类别与代码一致、带注释、调用边界与崩溃诊断入口（BCA-OBS）",
     }
     failed = {c for c, _, _ in rep.failures}
     skipped = {c for c, _ in rep.skipped}

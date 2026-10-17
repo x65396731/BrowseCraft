@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import Foundation
 import UserNotifications
 
@@ -20,18 +21,10 @@ struct UserNotificationsPushAuthorizationService: PushNotificationAuthorizing {
             let granted: Bool = try await center.requestAuthorization(
                 options: [.alert, .sound, .badge]
             )
-            AppLog.notice(
-                .push,
-                event: "authorization-requested",
-                metadata: ["granted": granted ? "true" : "false"]
-            )
+            AppLog.notice(.push, "authorization-requested", ["granted": .bool(granted)])
             return PushNotificationAuthorizationOutcome(status: granted ? .authorized : .denied, didPrompt: true)
         } catch {
-            AppLog.error(
-                .push,
-                event: "authorization-request-failed",
-                metadata: ["error": AppLog.safeErrorCode(error)]
-            )
+            AppLog.error(.push, "authorization-request-failed", ["error": .error(error)])
             return PushNotificationAuthorizationOutcome(status: .denied, didPrompt: true)
         }
     }

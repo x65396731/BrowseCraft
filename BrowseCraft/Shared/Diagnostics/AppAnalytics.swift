@@ -33,8 +33,8 @@ final class AppAnalytics: Sendable {
         /// 用户点开规则生成结果推送时报；推送在前台到达不报。
         /// 参数：entry（固定为 rule_generation）。不报：推送内容与任务 ID。
         case pushOpened = "push_opened"
-        /// 用户复制诊断码、账号 ID 或启动失败信息时报，用来估计求助量。
-        /// 参数：entry（SupportInfoKind）。不报：复制的内容本身。
+        /// 用户复制诊断码、账号 ID、启动失败信息或导出诊断日志时报，用来估计求助量。
+        /// 参数：entry（SupportInfoKind）。不报：复制或导出的内容本身。
         case supportInfoCopied = "support_info_copied"
 
         // MARK: B. 来源与规则目录

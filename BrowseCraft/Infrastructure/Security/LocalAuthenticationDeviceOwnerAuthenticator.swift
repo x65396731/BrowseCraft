@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import Foundation
 import LocalAuthentication
 
@@ -48,11 +49,7 @@ final class LocalAuthenticationDeviceOwnerAuthenticator: DeviceOwnerAuthenticati
             return succeeded ? .succeeded : .failed
         } catch {
             // 中文注释：取消、未通过、被锁住都只算没有通过；界面不弹错，只显示「没有通过验证」。
-            AppLog.debug(
-                .app,
-                event: "content-lock-authentication-failed",
-                metadata: ["error": AppLog.safeErrorCode(error)]
-            )
+            AppLog.debug(.security, "content-lock-authentication-failed", ["error": .error(error)])
             if let laError: LAError = error as? LAError,
                laError.code == .userCancel || laError.code == .appCancel || laError.code == .systemCancel {
                 return .cancelled

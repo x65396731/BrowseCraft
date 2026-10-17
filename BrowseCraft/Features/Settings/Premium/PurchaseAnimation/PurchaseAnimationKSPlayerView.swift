@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import KSPlayer
 import SwiftUI
 import UIKit
@@ -158,7 +159,7 @@ struct PurchaseAnimationKSPlayerView: UIViewRepresentable {
             }
 
             #if DEBUG
-            AppDebugLog.write("[BrowseCraftPurchaseAnimation] playback failed: \(detail)")
+            AppLog.debug(.purchase, "purchase-animation-playback-failed", ["message": .text("\(detail)")])
             #endif
 
             self.didReportFailure = true

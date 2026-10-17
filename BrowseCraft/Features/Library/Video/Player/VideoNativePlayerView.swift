@@ -1,5 +1,6 @@
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftLog
 import BrowseCraftRuntime
 import KSPlayer
 import SwiftUI
@@ -184,13 +185,12 @@ private struct NativePlayerRepresentable: UIViewRepresentable {
 
         #if DEBUG
         let mediaLocation: String = (mediaURL.host ?? "unknown") + mediaURL.path
-        AppDebugLog.write(
-            "[BrowseCraftVideoPlayer] playback-options " +
-            "media=\(mediaLocation) " +
-            "hasReferer=\(options.referer != nil) " +
-            "hasUserAgent=\(options.userAgent != nil) " +
-            "headers=\(headers.keys.sorted().joined(separator: ","))"
-        )
+        AppLog.debug(.playback, "video-player-playback-options", [
+            "media": .text("\(mediaLocation)"),
+            "hasReferer": .text("\(options.referer != nil)"),
+            "hasUserAgent": .text("\(options.userAgent != nil)"),
+            "headers": .text("\(headers.keys.sorted().joined(separator: ","))")
+        ])
         #endif
 
         return options

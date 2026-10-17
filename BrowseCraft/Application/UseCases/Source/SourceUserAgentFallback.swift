@@ -1,6 +1,7 @@
 import Foundation
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftLog
 
 /// 中文注释：`BCA-RUNTIME-010`（fwq `APP-MEMO-037`，设计稿第 54 节）——规则在桌面模板上匹配不到内容时，
 /// 同一操作换手机 Safari UA 重做一次；成功就按来源记住，之后该来源的取页都带手机 UA。
@@ -119,7 +120,7 @@ final class SourceUserAgentFallback: @unchecked Sendable {
     ) async throws -> Output {
         self.beginTrying(sourceID: source.id)
         #if DEBUG
-        AppDebugLog.write("[BrowseCraftUserAgentFallback] retry with mobile UA source=\(source.id)")
+        AppLog.debug(.network, "user-agent-fallback-retry-with-mobile-ua", ["source": .text("\(source.id)")])
         #endif
         let retried: Output
         do {
@@ -161,7 +162,10 @@ final class SourceUserAgentFallback: @unchecked Sendable {
         self.lock.unlock()
         self.defaults.set(snapshot, forKey: Self.defaultsKey)
         #if DEBUG
-        AppDebugLog.write("[BrowseCraftUserAgentFallback] decided source=\(sourceID) state=\(state?.rawValue ?? "undecided")")
+        AppLog.debug(.network, "user-agent-fallback-decided", [
+            "source": .text("\(sourceID)"),
+            "state": .text("\(state?.rawValue ?? "undecided")")
+        ])
         #endif
     }
 

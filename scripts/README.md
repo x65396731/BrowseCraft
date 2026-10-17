@@ -26,9 +26,12 @@ Pre-build gate for layer boundaries. It runs on every build and never modifies a
 
 - import 检查匹配所有写法：`import X`、`@preconcurrency import X`、`@_exported import X`、`import struct X.Y`、`import X.Sub`。
 - 类型引用方向新增 Features→Infrastructure、Shared→Application、Shared→Infrastructure；`declared_types` 识别 `@Observable`、`nonisolated`、`package`、`open` 等修饰。
-- `print(` 与 `try!` 禁用扩展到 App 与四个包（Core / Domain / Runtime / APIKit）的 Sources。
+- `print(` 与 `try!` 禁用扩展到 App 与五个包（Core / Domain / Runtime / APIKit / Log）的 Sources。
+- 只有一种日志（`BCA-OBS-010`）：`debugPrint(`、`NSLog(`、`os_log(` 与已删除的 AppDebugLog、RuleRuntimeDebugLog 一律禁用，
+  `Logger(` 与 `import OSLog` 只许出现在 `BrowseCraft/Shared/Logging/OSLogSink.swift`。
+- `try?` 只许收敛（`BCA-OBS-015`）：按文件计数，超过 `scripts/try-optional-baseline.txt` 登记数即失败；同一行带 `// try?: <理由>` 的不计。
 - `BrowseCraftRuleModels` 不得依赖 SwiftSoup 与解析目标。
-- Swift 6 语言模式：`project.yml` 的 `SWIFT_VERSION` 必须是 `6.0`，四个包的 manifest 必须是 `swift-tools-version: 6.0`
+- Swift 6 语言模式：`project.yml` 的 `SWIFT_VERSION` 必须是 `6.0`，五个包的 manifest 必须是 `swift-tools-version: 6.0`
   并显式声明 `.swiftLanguageMode(.v6)`。
 
 它拒绝的内容：`Domain` 与 `Application` 里的禁用框架 import、`Infrastructure/` 与 `App/Composition/` 之外的 APIKit import、
@@ -160,16 +163,17 @@ A8 `docs/STATUS.md` 每格落枚举或形态；A9 根 `HANDOFF.md` 只承载四�
 阈值的唯一声明点在脚本里，文档不复述数值）；A10 文档点名的类型必须在源码里存在（`BCA-DOC-014`）；A11 承载定义点的文档必须被 git 跟踪（`BCA-DOC-015`）——
 不被跟踪的文档（如 `.gitignore` 掉的 `AGENTS.md`）只能写引用点，条款正文放进去等于那条合同不在仓库里；
 A12 `docs/STATUS.md` 里整节到终态且超期的节（`BCA-DOC-016`）——**只提示，不判失败**，阈值的唯一声明点在脚本里；
-A13 埋点字典与崩溃诊断入口（`BCA-OBS-001` / `003` / `004` / `007`）：`AppAnalytics.Event`、`AppAnalytics.Parameter` 与 `DiagnosticScreen` 的每个 case 带 `///` 注释，
+A13 埋点字典、日志类别与崩溃诊断入口（`BCA-OBS-001` / `003` / `004` / `007` / `011`）：`AppAnalytics.Event`、`AppAnalytics.Parameter` 与 `DiagnosticScreen` 的每个 case 带 `///` 注释，
 名字与 `docs/design/Analytics-Events-Design.md` 第 3–5 节双向一致；`Domain` / `Application` / `Infrastructure` 不引用 `AppAnalytics`；
 业务代码不直接调 `logScreenView`；规则执行失败只经 `RuleFailureDiagnostics.report`，`logDiagnosticFailure` 与
-Crashlytics 的记录方法不在别处出现，只有 `CrashDiagnostics` 引入 Crashlytics。
+Crashlytics 的记录方法不在别处出现，只有 `CrashDiagnostics` 引入 Crashlytics；BrowseCraftLog 包 `LogCategory` 的每个 case 带 `///` 注释，
+与 `docs/design/Logging-Design.md` 第 5 节双向一致。
 
 围栏代码块在 A1、A4–A7、A9 与 A10 前一律剥掉——里面的 ID 是语法示例、哈希是命令输出、`[](…)` 不会被渲染成链接。
-A2 与 A3 要读 fwq 仓库（缺省 `~/Desktop/fwq`，用 `--fwq` 改），A10 要读四个兄弟包的源码；
+A2 与 A3 要读 fwq 仓库（缺省 `~/Desktop/fwq`，用 `--fwq` 改），A10 与 A13 的日志类别要读五个兄弟包的源码；
 **这些仓库不可达时对应检查跳过并如实报告跳过，不静默通过**。
 
-A10 的语料含 App 与四个包的 `Sources/`、`Tests/`、`Package.swift`、`project.yml`，外加仓库树的
+A10 的语料含 App 与五个包的 `Sources/`、`Tests/`、`Package.swift`、`project.yml`，外加仓库树的
 目录名与文件名——文档引用 `TestDoubles/`、`UseCases/` 这类路径段是合法的。反引号内以 `*` 开头的
 记号按家族通配处理：源码里有任一以它结尾的符号即成立（`*PersistenceCoordinator` 实有 7 个）。
 外部符号白名单在 `scripts/docs-external-symbols.txt`。它不接进 pre-build 阶段：文档闸门失败不应阻断代码 build。

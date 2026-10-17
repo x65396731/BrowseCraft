@@ -1,4 +1,5 @@
 import BrowseCraftDomain
+import BrowseCraftLog
 import CloudKit
 import Foundation
 import StoreKit
@@ -265,7 +266,7 @@ final class AppContainer {
             return
         }
 
-        IAPDiagnostics.notice("event=transaction-updates-listener-started")
+        AppLog.notice(.purchase, "transaction-updates-listener-started")
         self.storeKitTransactionUpdatesTask = Task { @MainActor [weak self] in
             for await verification in StoreKit.Transaction.updates {
                 guard Task.isCancelled == false,
@@ -290,30 +291,29 @@ final class AppContainer {
 
         switch verification {
         case .unverified(let transaction, let error):
-            IAPDiagnostics.error(
-                "event=transaction-update-rejected reason=unverified " +
-                    "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id)) " +
-                    "error=\(IAPDiagnostics.safeErrorCode(error))"
-            )
+            AppLog.error(.purchase, "transaction-update-rejected", [
+                "reason": .code("unverified"),
+                "transactionHash": .id(String(transaction.id)),
+                "error": .code(IAPDiagnostics.safeErrorCode(error))
+            ])
         case .verified(let transaction):
             guard let plan: InAppPurchasePlan =
                 InAppPurchasePlan.plansByProductID[transaction.productID],
                   plan.isRestorable else {
-                IAPDiagnostics.error(
-                    "event=transaction-update-rejected reason=unsupported-product " +
-                        "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id)) " +
-                        "productID=\(transaction.productID)"
-                )
+                AppLog.error(.purchase, "transaction-update-rejected", [
+                    "reason": .code("unsupported-product"),
+                    "transactionHash": .id(String(transaction.id)),
+                    "productID": .code("\(transaction.productID)")
+                ])
                 return
             }
 
-            IAPDiagnostics.notice(
-                "event=transaction-update-received " +
-                    "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id)) " +
-                    "productID=\(transaction.productID) " +
-                    "environment=\(transaction.environment.rawValue) " +
-                    "isRevoked=\(transaction.revocationDate != nil)"
-            )
+            AppLog.notice(.purchase, "transaction-update-received", [
+                "transactionHash": .id(String(transaction.id)),
+                "productID": .code("\(transaction.productID)"),
+                "environment": .enumValue(transaction.environment),
+                "isRevoked": .bool(transaction.revocationDate != nil)
+            ])
             await self.account.portalSessionCoordinator.start()
 
             do {
@@ -325,10 +325,9 @@ final class AppContainer {
                             plan: plan
                         )
                 await transaction.finish()
-                IAPDiagnostics.notice(
-                    "event=transaction-update-finished " +
-                        "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id))"
-                )
+                AppLog.notice(.purchase, "transaction-update-finished", [
+                    "transactionHash": .id(String(transaction.id))
+                ])
                 // 中文注释：用户在购买页点的支付由 `Product.purchase` 直接交回，不经过这里；走到这里的未撤销交易
                 // 多是待批准（家长同意等）转为已购，同一 Apple 账户在别的设备上买的也会到这里，一并按 pending_approved 计；
                 // 带撤销日期的即退款或家庭共享被收回。
@@ -337,11 +336,10 @@ final class AppContainer {
                     productID: transaction.productID
                 )
             } catch {
-                IAPDiagnostics.error(
-                    "event=transaction-update-deferred " +
-                        "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id)) " +
-                        "error=\(IAPDiagnostics.safeErrorCode(error))"
-                )
+                AppLog.error(.purchase, "transaction-update-deferred", [
+                    "transactionHash": .id(String(transaction.id)),
+                    "error": .code(IAPDiagnostics.safeErrorCode(error))
+                ])
             }
         }
     }
@@ -351,16 +349,15 @@ final class AppContainer {
             let settings: ImageCacheSettings = try self.imageCacheConfigurator.configureSharedPipeline()
             self.imageCacheConfigurator.trimConfiguredDataCacheIfNeeded(settings: settings)
             #if DEBUG
-            AppDebugLog.write(
-                "[BrowseCraftImageCache] configured " +
-                "limit=\(settings.displayTitle) " +
-                "limitBytes=\(settings.limitBytes) " +
-                "trimTargetBytes=\(settings.trimTargetBytes)"
-            )
+            AppLog.debug(.cache, "image-cache-configured", [
+                "limit": .text("\(settings.displayTitle)"),
+                "limitBytes": .text("\(settings.limitBytes)"),
+                "trimTargetBytes": .text("\(settings.trimTargetBytes)")
+            ])
             #endif
         } catch {
             #if DEBUG
-            AppDebugLog.write("[BrowseCraftImageCache] configuration failed error=\(error)")
+            AppLog.debug(.cache, "image-cache-configuration-failed", ["error": .error(error)])
             #endif
         }
     }

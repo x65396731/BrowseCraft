@@ -46,6 +46,8 @@ packages:
     path: ../BrowseCraftRuntime
   BrowseCraftAPIKit:
     path: ../BrowseCraftAPIKit
+  BrowseCraftLog:
+    path: ../BrowseCraftLog
   KSPlayer:
     url: https://github.com/kingslay/KSPlayer.git
     # 中文注释：KSPlayer 不打 tag，锁定到具体 commit；升级时改这里并同步 Package.resolved。
@@ -102,6 +104,8 @@ targets:
         product: BrowseCraftRuleModels
       - package: BrowseCraftDomain
         product: BrowseCraftDomain
+      - package: BrowseCraftLog
+        product: BrowseCraftLog
       - package: BrowseCraftRuntime
         product: BrowseCraftRuntime
       - package: BrowseCraftAPIKit
@@ -283,6 +287,8 @@ targets:
         product: BrowseCraftRuleModels
       - package: BrowseCraftDomain
         product: BrowseCraftDomain
+      - package: BrowseCraftLog
+        product: BrowseCraftLog
       - package: BrowseCraftRuntime
         product: BrowseCraftRuntime
       - package: GRDB

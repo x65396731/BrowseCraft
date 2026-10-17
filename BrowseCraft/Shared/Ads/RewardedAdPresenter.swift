@@ -1,4 +1,5 @@
 import AppTrackingTransparency
+import BrowseCraftLog
 import Foundation
 import GoogleMobileAds
 
@@ -37,7 +38,7 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
     func present(userIdentifier: String? = nil) async -> RewardedAdPresentationResult {
         guard self.isPresenting == false else {
             #if DEBUG
-            AppDebugLog.write("[BrowseCraftAdPlayback] presenter skipped because isPresenting=true")
+            AppLog.debug(.ad, "ad-playback-presenter-skipped-because", ["isPresenting": .text("true")])
             #endif
             return .skipped
         }
@@ -46,7 +47,7 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
             let message: String = "GADApplicationIdentifier is missing."
             self.lastMessage = message
             #if DEBUG
-            AppDebugLog.write("[BrowseCraftAdPlayback] presenter unavailable \(message)")
+            AppLog.debug(.ad, "ad-playback-presenter-unavailable", ["message": .text("\(message)")])
             #endif
             return .unavailable(message)
         }
@@ -56,7 +57,7 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
             let message: String = "Rewarded ad unit ID is empty for \(AppAdConfiguration.environmentName)."
             self.lastMessage = message
             #if DEBUG
-            AppDebugLog.write("[BrowseCraftAdPlayback] presenter unavailable \(message)")
+            AppLog.debug(.ad, "ad-playback-presenter-unavailable", ["message": .text("\(message)")])
             #endif
             return .unavailable(message)
         }
@@ -69,10 +70,10 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
 
         do {
             #if DEBUG
-            AppDebugLog.write(
-                "[BrowseCraftAdPlayback] presenter loading " +
-                "environment=\(AppAdConfiguration.environmentName) adUnitID=\(adUnitID)"
-            )
+            AppLog.debug(.ad, "ad-playback-presenter-loading", [
+                "environment": .text("\(AppAdConfiguration.environmentName)"),
+                "adUnitID": .text("\(adUnitID)")
+            ])
             #endif
             let ad: RewardedAd = try await RewardedAd.load(
                 with: adUnitID,
@@ -86,7 +87,7 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
             }
             self.rewardedAd = ad
             #if DEBUG
-            AppDebugLog.write("[BrowseCraftAdPlayback] presenter loaded, presenting")
+            AppLog.debug(.ad, "ad-playback-presenter-presenting", ["message": .text("loaded,")])
             #endif
 
             return await withCheckedContinuation { continuation in
@@ -103,7 +104,7 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
                         self?.didEarnReward = true
                         self?.lastMessage = "Reward earned: \(rewardText)"
                         #if DEBUG
-                        AppDebugLog.write("[BrowseCraftAdPlayback] presenter reward earned \(rewardText)")
+                        AppLog.debug(.ad, "ad-playback-presenter-reward-earned", ["message": .text("\(rewardText)")])
                         #endif
                     }
                 }
@@ -114,7 +115,7 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
             let message: String = "Rewarded ad failed to load: \(error.localizedDescription)"
             self.lastMessage = message
             #if DEBUG
-            AppDebugLog.write("[BrowseCraftAdPlayback] presenter load failed \(message)")
+            AppLog.debug(.ad, "ad-playback-presenter-load-failed", ["message": .text("\(message)")])
             #endif
             return .failed(message)
         }
@@ -140,16 +141,15 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
             AppAnalytics.shared.logTrackingAuthorizationResult(.restricted)
         }
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftAdPlayback] tracking authorization " +
-            "status=\(ATTrackingManager.trackingAuthorizationStatus.rawValue)"
-        )
+        AppLog.debug(.ad, "ad-playback-tracking-authorization", [
+            "status": .text("\(ATTrackingManager.trackingAuthorizationStatus.rawValue)")
+        ])
         #endif
     }
 
     func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
         #if DEBUG
-        AppDebugLog.write("[BrowseCraftAdPlayback] presenter dismissed didEarnReward=\(self.didEarnReward)")
+        AppLog.debug(.ad, "ad-playback-presenter-dismissed", ["didEarnReward": .text("\(self.didEarnReward)")])
         #endif
         self.finish(result: self.didEarnReward ? .completed : .skipped)
     }
@@ -161,14 +161,14 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
         let message: String = "Rewarded ad failed to present: \(error.localizedDescription)"
         self.lastMessage = message
         #if DEBUG
-        AppDebugLog.write("[BrowseCraftAdPlayback] presenter present failed \(message)")
+        AppLog.debug(.ad, "ad-playback-presenter-present-failed", ["message": .text("\(message)")])
         #endif
         self.finish(result: .failed(message))
     }
 
     private func finish(result: RewardedAdPresentationResult) {
         #if DEBUG
-        AppDebugLog.write("[BrowseCraftAdPlayback] presenter finish result=\(result.debugDescription)")
+        AppLog.debug(.ad, "ad-playback-presenter-finish", ["result": .text("\(result.debugDescription)")])
         #endif
         self.rewardedAd = nil
         self.isPresenting = false

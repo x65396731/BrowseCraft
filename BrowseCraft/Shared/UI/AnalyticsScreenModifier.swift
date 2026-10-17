@@ -98,5 +98,6 @@ enum AnalyticsScreenReporter {
         self.reportedToken = token
         CrashDiagnostics.shared.setScreen(screen)
         AppAnalytics.shared.logScreenView(screen)
+        AppLogging.logScreenShown(screen)
     }
 }

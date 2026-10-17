@@ -42,7 +42,7 @@ final class ImageCacheConfigurator: ImageCacheManaging {
         // 中文注释：`withDataCache` 的内存缓存就是 `ImageCache.shared`；上限在这里显式定，不再吃 Nuke 按物理内存算的缺省。
         ImageCache.shared.costLimit = min(ImageCache.defaultCostLimit(), Self.sharedMemoryLimitBytes)
         ImageCache.shared.entryCostLimit = Self.sharedMemoryEntryCostLimit
-        ImagePipeline.shared = ImagePipeline(configuration: configuration)
+        ImagePipeline.shared = ImagePipeline(configuration: configuration, delegate: ImagePipelineFailureLogger.shared)
         self.dataCache = dataCache
     }
 

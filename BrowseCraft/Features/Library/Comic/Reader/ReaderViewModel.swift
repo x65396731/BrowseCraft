@@ -3,6 +3,7 @@ import Foundation
 import UIKit
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftLog
 import BrowseCraftRuntime
 
 // 中文注释：ReaderViewModel.swift 属于界面功能层，用于说明本文件承载的核心职责。
@@ -111,13 +112,12 @@ final class ReaderViewModel {
         self.pendingRestorePageIndex = restoreContext?.lastPageIndex
 
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftNavigation] Init ReaderViewModel " +
-            "itemId=\(item.id) " +
-            "title=\(item.title) " +
-            "detailURL=\(item.detailURL) " +
-            "selectedChapterURL=\(selectedChapter?.url ?? "nil")"
-        )
+        AppLog.debug(.app, "navigation-init-reader-view-model", [
+            "itemId": .text("\(item.id)"),
+            "title": .text("\(item.title)"),
+            "detailURL": .text("\(item.detailURL)"),
+            "selectedChapterURL": .text("\(selectedChapter?.url ?? "nil")")
+        ])
         #endif
     }
 
@@ -126,22 +126,21 @@ final class ReaderViewModel {
     func load() async {
         if self.chapter != nil {
             #if DEBUG
-            AppDebugLog.write(
-                "[BrowseCraftNavigation] Skip ReaderViewModel load because chapter already exists " +
-                "itemId=\(self.item.id) chapterURL=\(self.chapter?.chapterURL ?? "nil")"
-            )
+            AppLog.debug(.app, "navigation-reader-load-skipped-chapter-exists", [
+                "itemId": .text("\(self.item.id)"),
+                "chapterURL": .text("\(self.chapter?.chapterURL ?? "nil")")
+            ])
             #endif
             return
         }
 
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftNavigation] Load reader " +
-            "itemId=\(self.item.id) " +
-            "title=\(self.item.title) " +
-            "detailURL=\(self.item.detailURL) " +
-            "selectedChapterURL=\(self.selectedChapter?.url ?? "nil")"
-        )
+        AppLog.debug(.app, "navigation-load-reader", [
+            "itemId": .text("\(self.item.id)"),
+            "title": .text("\(self.item.title)"),
+            "detailURL": .text("\(self.item.detailURL)"),
+            "selectedChapterURL": .text("\(self.selectedChapter?.url ?? "nil")")
+        ])
         #endif
 
         self.isLoading = true
@@ -192,12 +191,11 @@ final class ReaderViewModel {
         self.currentPageImageURL = URL(string: imageURLString)
 
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftComicHistory] visible page " +
-            "sourceID=\(self.source.id) " +
-            "comicItemID=\(self.item.id) " +
-            "pageIndex=\(index)"
-        )
+        AppLog.debug(.reader, "comic-history-visible-page", [
+            "sourceID": .text("\(self.source.id)"),
+            "comicItemID": .text("\(self.item.id)"),
+            "pageIndex": .text("\(index)")
+        ])
         #endif
     }
 
@@ -229,11 +227,12 @@ final class ReaderViewModel {
     @MainActor
     func markAdPlaybackHandled(outcome: RewardedAdPlaybackOutcome) {
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftAdPlayback] comic mark handled " +
-            "sourceID=\(self.source.id) comicItemID=\(self.item.id) previousShouldPlayAd=\(self.shouldPlayAd) " +
-            "consumesAdPoints=\(outcome.consumesAdPoints)"
-        )
+        AppLog.debug(.ad, "ad-playback-comic-mark-handled", [
+            "sourceID": .text("\(self.source.id)"),
+            "comicItemID": .text("\(self.item.id)"),
+            "previousShouldPlayAd": .text("\(self.shouldPlayAd)"),
+            "consumesAdPoints": .text("\(outcome.consumesAdPoints)")
+        ])
         #endif
         self.shouldPlayAd = false
         guard outcome.consumesAdPoints else {
@@ -243,11 +242,7 @@ final class ReaderViewModel {
             do {
                 try await persistenceCoordinator.consumeAdPoints()
             } catch {
-                AppLog.error(
-                    .sync,
-                    event: "comic-ad-points-consume-failed",
-                    metadata: ["error": AppLog.safeErrorCode(error)]
-                )
+                AppLog.error(.sync, "comic-ad-points-consume-failed", ["error": .error(error)])
             }
         }
     }
@@ -325,12 +320,11 @@ final class ReaderViewModel {
             self.reportChapterLoaded(navigableChapter, previousChapterURL: previousChapterURL)
 
             #if DEBUG
-            AppDebugLog.write(
-                "[BrowseCraftNavigation] Loaded reader " +
-                "itemId=\(self.item.id) " +
-                "chapterURL=\(loadedChapter.chapterURL) " +
-                "pageCount=\(navigableChapter.pageResources.count)"
-            )
+            AppLog.debug(.app, "navigation-loaded-reader", [
+                "itemId": .text("\(self.item.id)"),
+                "chapterURL": .text("\(loadedChapter.chapterURL)"),
+                "pageCount": .text("\(navigableChapter.pageResources.count)")
+            ])
             #endif
         } catch {
             let classifiedError: RuleExecutionError = RuleExecutionErrorClassifier.classified(error)
@@ -356,13 +350,12 @@ final class ReaderViewModel {
             let classifiedMessage: String = RuleExecutionErrorClassifier.userMessage(for: classifiedError)
 
             #if DEBUG
-            AppDebugLog.write(
-                "[BrowseCraftNavigation] Reader error " +
-                "itemId=\(self.item.id) " +
-                "detailURL=\(self.item.detailURL) " +
-                "selectedChapterURL=\(self.selectedChapter?.url ?? "nil") " +
-                "error=\(classifiedMessage)"
-            )
+            AppLog.debug(.app, "navigation-reader-error", [
+                "itemId": .text("\(self.item.id)"),
+                "detailURL": .text("\(self.item.detailURL)"),
+                "selectedChapterURL": .text("\(self.selectedChapter?.url ?? "nil")"),
+                "error": .text("\(classifiedMessage)")
+            ])
             #endif
         }
 
@@ -532,17 +525,9 @@ final class ReaderViewModel {
                     AppAnalytics.shared.logAdPointsThreshold(trigger: .comic)
                     self.shouldPlayAd = true
                 }
-                AppLog.debug(
-                    .sync,
-                    event: "comic-history-saved",
-                    metadata: ["reason": reason, "chapterKey": chapterKey]
-                )
+                AppLog.debug(.sync, "comic-history-saved", ["reason": .code(reason), "chapterKey": .code(chapterKey)])
             } catch {
-                AppLog.error(
-                    .sync,
-                    event: "comic-history-save-failed",
-                    metadata: ["error": AppLog.safeErrorCode(error)]
-                )
+                AppLog.error(.sync, "comic-history-save-failed", ["error": .error(error)])
             }
         }
     }

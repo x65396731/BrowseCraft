@@ -2,6 +2,7 @@ import Observation
 import Foundation
 @preconcurrency import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftLog
 import BrowseCraftRuntime
 
 // 中文注释：VideoPlayerViewModel 管理单集播放历史的初始保存、自动保存和退出保存。
@@ -208,6 +209,7 @@ final class VideoPlayerViewModel {
             self.saveCurrentProgress(force: true)
             self.startAutosaveIfNeeded()
         } catch {
+            AppLog.error(.playback, "video-player-prepare-failed", ["error": .error(error)])
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
     }
@@ -268,12 +270,13 @@ final class VideoPlayerViewModel {
     /// 中文注释：广告播过（看完 / 提前关闭）才清零积分；没播出来积分保留、下个计分点再试（30.8）。
     func markAdPlaybackHandled(outcome: RewardedAdPlaybackOutcome) {
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftAdPlayback] video mark handled " +
-            "sourceID=\(self.source.id) vodID=\(self.reference.vodID) " +
-            "episodeKey=\(self.reference.episodeKey) previousShouldPlayAd=\(self.shouldPlayAd) " +
-            "consumesAdPoints=\(outcome.consumesAdPoints)"
-        )
+        AppLog.debug(.ad, "ad-playback-video-mark-handled", [
+            "sourceID": .text("\(self.source.id)"),
+            "vodID": .text("\(self.reference.vodID)"),
+            "episodeKey": .text("\(self.reference.episodeKey)"),
+            "previousShouldPlayAd": .text("\(self.shouldPlayAd)"),
+            "consumesAdPoints": .text("\(outcome.consumesAdPoints)")
+        ])
         #endif
         self.shouldPlayAd = false
         self.playbackControl.play()
@@ -284,11 +287,7 @@ final class VideoPlayerViewModel {
             do {
                 try await persistenceCoordinator.consumeAdPoints()
             } catch {
-                AppLog.error(
-                    .sync,
-                    event: "video-ad-points-consume-failed",
-                    metadata: ["error": AppLog.safeErrorCode(error)]
-                )
+                AppLog.error(.sync, "video-ad-points-consume-failed", ["error": .error(error)])
             }
         }
     }
@@ -457,6 +456,7 @@ final class VideoPlayerViewModel {
                 }
                 self.lastSavedPlaybackTime = playbackTime
             } catch {
+                AppLog.error(.database, "video-progress-save-failed", ["error": .error(error)])
                 guard self.progressSaveRevision == saveRevision else {
                     return
                 }
@@ -486,11 +486,12 @@ final class VideoPlayerViewModel {
 
         self.playedIntervalForAdPoints -= AdPointRule.videoPlaybackInterval
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftAdPoints] video played interval reached " +
-            "sourceID=\(self.source.id) vodID=\(self.reference.vodID) " +
-            "episodeKey=\(self.reference.episodeKey) requiredInterval=\(AdPointRule.videoPlaybackInterval)"
-        )
+        AppLog.debug(.coin, "ad-points-video-played-interval-reached", [
+            "sourceID": .text("\(self.source.id)"),
+            "vodID": .text("\(self.reference.vodID)"),
+            "episodeKey": .text("\(self.reference.episodeKey)"),
+            "requiredInterval": .text("\(AdPointRule.videoPlaybackInterval)")
+        ])
         #endif
         self.accumulateAdPoints(points: AdPointRule.videoPoints)
     }
@@ -576,11 +577,7 @@ final class VideoPlayerViewModel {
                     self.shouldPlayAd = true
                 }
             } catch {
-                AppLog.error(
-                    .sync,
-                    event: "video-ad-points-save-failed",
-                    metadata: ["error": AppLog.safeErrorCode(error)]
-                )
+                AppLog.error(.sync, "video-ad-points-save-failed", ["error": .error(error)])
             }
         }
     }

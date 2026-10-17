@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import Observation
 import StoreKit
 import SwiftUI
@@ -21,11 +22,10 @@ final class InAppPurchaseStore {
             guard oldValue != self.status else {
                 return
             }
-            IAPDiagnostics.notice(
-                "event=ui-status-changed " +
-                    "from=\(oldValue.diagnosticCode) " +
-                    "to=\(self.status.diagnosticCode)"
-            )
+            AppLog.notice(.purchase, "ui-status-changed", [
+                "from": .code("\(oldValue.diagnosticCode)"),
+                "to": .code("\(self.status.diagnosticCode)")
+            ])
         }
     }
 
@@ -79,7 +79,7 @@ final class InAppPurchaseStore {
         let shouldLoadProducts: Bool = self.hasLoadedProducts == false
         self.isLoading = true
         if shouldLoadProducts {
-            IAPDiagnostics.notice("event=product-load-started")
+            AppLog.notice(.purchase, "product-load-started")
             self.status = .loadingProducts
         }
         defer {
@@ -111,13 +111,12 @@ final class InAppPurchaseStore {
             )
             let missingProductIDs: Set<String> = requestedProductIDs
                 .subtracting(receivedProductIDs)
-            IAPDiagnostics.notice(
-                "event=product-load-completed " +
-                    "requestedCount=\(activePlans.count) " +
-                    "receivedCount=\(products.count) " +
-                    "receivedProductIDs=\(receivedProductIDs.sorted()) " +
-                    "missingProductIDs=\(missingProductIDs.sorted())"
-            )
+            AppLog.notice(.purchase, "product-load-completed", [
+                "requestedCount": .int(activePlans.count),
+                "receivedCount": .int(products.count),
+                "receivedProductIDs": .code("\(receivedProductIDs.sorted())"),
+                "missingProductIDs": .code("\(missingProductIDs.sorted())")
+            ])
 
             if products.isEmpty {
                 self.status = .productsUnavailable
@@ -130,13 +129,10 @@ final class InAppPurchaseStore {
                 AppAnalytics.shared.logPaywallProductsLoaded(.available)
             }
         } catch is CancellationError {
-            IAPDiagnostics.notice("event=product-load-cancelled")
+            AppLog.notice(.purchase, "product-load-cancelled")
             return
         } catch {
-            IAPDiagnostics.error(
-                "event=product-load-failed " +
-                    "error=\(IAPDiagnostics.safeErrorCode(error))"
-            )
+            AppLog.error(.purchase, "product-load-failed", ["error": .code(IAPDiagnostics.safeErrorCode(error))])
             self.status = .productLoadFailed
             AppAnalytics.shared.logPaywallProductsLoaded(.failed)
         }
@@ -156,9 +152,7 @@ final class InAppPurchaseStore {
 
     func purchase(_ plan: InAppPurchasePlan) async {
         var hasVerifiedStoreKitPurchase: Bool = false
-        IAPDiagnostics.notice(
-            "event=purchase-button-tapped productID=\(plan.productID)"
-        )
+        AppLog.notice(.purchase, "purchase-button-tapped", ["productID": .code("\(plan.productID)")])
 
         guard InAppPurchasePlan.activePlans.contains(where: { activePlan in
             return activePlan.productID == plan.productID
@@ -208,10 +202,10 @@ final class InAppPurchaseStore {
             case .purchasable:
                 break
             case .owned(let appAccountToken):
-                IAPDiagnostics.notice(
-                    "event=purchase-preflight-blocked " +
-                        "reason=already-owned productID=\(plan.productID)"
-                )
+                AppLog.notice(.purchase, "purchase-preflight-blocked", [
+                    "reason": .code("already-owned"),
+                    "productID": .code("\(plan.productID)")
+                ])
                 // 中文注释：这个 App Store 账户已经买过：不论记在哪个账号名下都引导去「恢复购买」——
                 // 原账号已删除时恢复会把它认领到当前账号（docs/design/Account-Deletion-Design.md 第 9.2 节）。
                 isBlockedAsAlreadyOwned = true
@@ -220,10 +214,10 @@ final class InAppPurchaseStore {
                     : .alreadyPurchased(title: plan.title)
                 return
             case .unverified:
-                IAPDiagnostics.error(
-                    "event=purchase-preflight-blocked " +
-                        "reason=unverified productID=\(plan.productID)"
-                )
+                AppLog.error(.purchase, "purchase-preflight-blocked", [
+                    "reason": .code("unverified"),
+                    "productID": .code("\(plan.productID)")
+                ])
                 self.status = .unverified(title: plan.title)
                 return
             }
@@ -238,13 +232,12 @@ final class InAppPurchaseStore {
                 switch verification {
                 case .verified(let transaction):
                     hasVerifiedStoreKitPurchase = true
-                    IAPDiagnostics.notice(
-                        "event=storekit-transaction-verified " +
-                            "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id)) " +
-                            "productID=\(transaction.productID) " +
-                            "environment=\(transaction.environment.rawValue) " +
-                            "hasAppAccountToken=\(transaction.appAccountToken != nil)"
-                    )
+                    AppLog.notice(.purchase, "storekit-transaction-verified", [
+                        "transactionHash": .id(String(transaction.id)),
+                        "productID": .code("\(transaction.productID)"),
+                        "environment": .enumValue(transaction.environment),
+                        "hasAppAccountToken": .bool(transaction.appAccountToken != nil)
+                    ])
 
                     if transaction.revocationDate != nil {
                         await transaction.finish()
@@ -275,43 +268,33 @@ final class InAppPurchaseStore {
                             plan
                         )
                     await transaction.finish()
-                    IAPDiagnostics.notice(
-                        "event=storekit-transaction-finished " +
-                            "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id))"
-                    )
+                    AppLog.notice(.purchase, "storekit-transaction-finished", [
+                        "transactionHash": .id(String(transaction.id))
+                    ])
                     self.portalEntitledProductIDs = Self.portalEntitledProductIDs(
                         from: activeProductIDs
                     )
                     self.status = .purchased(title: plan.title)
                 case .unverified:
-                    IAPDiagnostics.error(
-                        "event=storekit-purchase-failed reason=unverified"
-                    )
+                    AppLog.error(.purchase, "storekit-purchase-failed", ["reason": .code("unverified")])
                     self.unverifiedStoreKitProductIDs.insert(plan.productID)
                     self.status = .unverified(title: plan.title)
                 }
             case .pending:
-                IAPDiagnostics.notice(
-                    "event=storekit-purchase-pending productID=\(plan.productID)"
-                )
+                AppLog.notice(.purchase, "storekit-purchase-pending", ["productID": .code("\(plan.productID)")])
                 self.status = .pending(productID: plan.productID, title: plan.title)
             case .userCancelled:
-                IAPDiagnostics.notice(
-                    "event=storekit-purchase-cancelled productID=\(plan.productID)"
-                )
+                AppLog.notice(.purchase, "storekit-purchase-cancelled", ["productID": .code("\(plan.productID)")])
                 self.status = .cancelled
             @unknown default:
-                IAPDiagnostics.error(
-                    "event=storekit-purchase-failed reason=unknown-result"
-                )
+                AppLog.error(.purchase, "storekit-purchase-failed", ["reason": .code("unknown-result")])
                 self.status = .purchaseFailed(title: plan.title)
             }
         } catch let error as CancellationError {
-            IAPDiagnostics.error(
-                "event=purchase-flow-failed " +
-                    "error=\(IAPDiagnostics.safeErrorCode(error)) " +
-                    "storeKitVerified=\(hasVerifiedStoreKitPurchase)"
-            )
+            AppLog.error(.purchase, "purchase-flow-failed", [
+                "error": .code(IAPDiagnostics.safeErrorCode(error)),
+                "storeKitVerified": .bool(hasVerifiedStoreKitPurchase)
+            ])
             self.status = hasVerifiedStoreKitPurchase
                 ? .portalSubmissionInterrupted(title: plan.title)
                 : .cancelled
@@ -344,7 +327,7 @@ final class InAppPurchaseStore {
             return
         }
 
-        IAPDiagnostics.notice("event=restore-button-tapped")
+        AppLog.notice(.purchase, "restore-button-tapped")
         self.isLoading = true
         defer {
             self.isLoading = false
@@ -458,10 +441,9 @@ final class InAppPurchaseStore {
     func refundableSandboxTransactionID(
         for targetPlan: InAppPurchasePlan
     ) async throws -> StoreKit.Transaction.ID? {
-        IAPDiagnostics.notice(
-            "event=refund-test-transaction-search-started " +
-                "productID=\(targetPlan.productID)"
-        )
+        AppLog.notice(.purchase, "refund-test-transaction-search-started", [
+            "productID": .code("\(targetPlan.productID)")
+        ])
         let authorizedUserID: UUID = try await self.authorizeStoreKitAction()
 
         for await verification in StoreKit.Transaction.currentEntitlements {
@@ -474,18 +456,18 @@ final class InAppPurchaseStore {
                 continue
             }
 
-            IAPDiagnostics.notice(
-                "event=refund-test-transaction-search-completed " +
-                    "productID=\(targetPlan.productID) found=true " +
-                    "transactionHash=\(IAPDiagnostics.hash(transactionID: transaction.id))"
-            )
+            AppLog.notice(.purchase, "refund-test-transaction-search-completed", [
+                "productID": .code("\(targetPlan.productID)"),
+                "found": .code("true"),
+                "transactionHash": .id(String(transaction.id))
+            ])
             return transaction.id
         }
 
-        IAPDiagnostics.notice(
-            "event=refund-test-transaction-search-completed " +
-                "productID=\(targetPlan.productID) found=false"
-        )
+        AppLog.notice(.purchase, "refund-test-transaction-search-completed", [
+            "productID": .code("\(targetPlan.productID)"),
+            "found": .code("false")
+        ])
         return nil
     }
     #endif
@@ -527,7 +509,7 @@ final class InAppPurchaseStore {
     private func refreshStoreKitOwnedProductIDs(
         ownedBy userID: UUID? = nil
     ) async -> Bool {
-        IAPDiagnostics.notice("event=storekit-entitlements-refresh-started")
+        AppLog.notice(.purchase, "storekit-entitlements-refresh-started")
         var ownedProductIDs: Set<String> = []
         var unverifiedProductIDs: Set<String> = []
         var unclaimedProductIDs: Set<String> = []
@@ -535,9 +517,7 @@ final class InAppPurchaseStore {
 
         for await verification in StoreKit.Transaction.currentEntitlements {
             guard Task.isCancelled == false else {
-                IAPDiagnostics.notice(
-                    "event=storekit-entitlements-refresh-cancelled"
-                )
+                AppLog.notice(.purchase, "storekit-entitlements-refresh-cancelled")
                 return false
             }
 
@@ -574,9 +554,7 @@ final class InAppPurchaseStore {
         }
 
         guard Task.isCancelled == false else {
-            IAPDiagnostics.notice(
-                "event=storekit-entitlements-refresh-cancelled"
-            )
+            AppLog.notice(.purchase, "storekit-entitlements-refresh-cancelled")
             return false
         }
 
@@ -584,13 +562,12 @@ final class InAppPurchaseStore {
         self.storeKitOwnedProductIDs = ownedProductIDs
         self.unverifiedStoreKitProductIDs = unverifiedProductIDs
         self.unclaimedStoreKitProductIDs = unclaimedProductIDs
-        IAPDiagnostics.notice(
-            "event=storekit-entitlements-refresh-completed " +
-                "ownedCount=\(ownedProductIDs.count) " +
-                "unclaimedCount=\(unclaimedProductIDs.count) " +
-                "unverifiedCount=\(unverifiedProductIDs.count) " +
-                "hasIdentityMismatch=\(hasIdentityMismatch)"
-        )
+        AppLog.notice(.purchase, "storekit-entitlements-refresh-completed", [
+            "ownedCount": .int(ownedProductIDs.count),
+            "unclaimedCount": .int(unclaimedProductIDs.count),
+            "unverifiedCount": .int(unverifiedProductIDs.count),
+            "hasIdentityMismatch": .bool(hasIdentityMismatch)
+        ])
         return hasIdentityMismatch
     }
 
@@ -784,9 +761,6 @@ final class InAppPurchaseStore {
     }
 
     private static func logFailure(_ error: any Error, flow: String) {
-        IAPDiagnostics.error(
-            "event=\(flow)-flow-failed " +
-                "error=\(IAPDiagnostics.safeErrorCode(error))"
-        )
+        AppLog.error(.purchase, "\(flow)-flow-failed", ["error": .code(IAPDiagnostics.safeErrorCode(error))])
     }
 }

@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import Foundation
 
 /// 中文注释：删号失败的成因（docs/design/Account-Deletion-Design.md 第八节）。除 `outcomeUnknown` 外都表示「账号未删除」。
@@ -131,7 +132,7 @@ final class AccountDeletionCoordinator {
         self.updatePendingWork { work in
             work.inFlightUserID = userID
         }
-        AccountDeletionDiagnostics.notice("event=deletion-request-start")
+        AppLog.notice(.identity, "account-deletion-request-start")
         let result: AccountDeletionServerResult
         do {
             result = try await self.deletionService.deleteAccount(
@@ -144,7 +145,7 @@ final class AccountDeletionCoordinator {
             // 中文注释：服务端可能已经删了；当场探一次，探不出就把标记留给下次启动。
             switch await self.deletionService.probeAccount(accessToken: accessToken) {
             case .deleted:
-                AccountDeletionDiagnostics.notice("event=deletion-confirmed-by-probe")
+                AppLog.notice(.identity, "account-deletion-confirmed-by-probe")
                 return await self.completeDeletion(userID: userID, appleRevocationFailed: false)
             case .exists:
                 self.updatePendingWork { work in
@@ -158,15 +159,15 @@ final class AccountDeletionCoordinator {
             self.updatePendingWork { work in
                 work.inFlightUserID = nil
             }
-            AccountDeletionDiagnostics.error(
-                "event=deletion-request-failed reason=\(Self.safeCode(error))"
-            )
+            AppLog.error(.identity, "account-deletion-request-failed", [
+                "reason": .code("\(Self.safeCode(error))")
+            ])
             throw Self.map(error)
         }
 
-        AccountDeletionDiagnostics.notice(
-            "event=deletion-request-succeeded appleRevocationFailed=\(result.appleRevocationFailed)"
-        )
+        AppLog.notice(.identity, "account-deletion-request-succeeded", [
+            "appleRevocationFailed": .bool(result.appleRevocationFailed)
+        ])
         return await self.completeDeletion(
             userID: userID,
             appleRevocationFailed: result.appleRevocationFailed
@@ -189,11 +190,11 @@ final class AccountDeletionCoordinator {
         if let inFlightUserID: UUID = self.pendingWorkStore.load().inFlightUserID {
             switch await self.probeInFlightDeletion(userID: inFlightUserID) {
             case .deleted:
-                AccountDeletionDiagnostics.notice("event=resume-in-flight outcome=deleted")
+                AppLog.notice(.identity, "account-deletion-resume-in-flight", ["outcome": .code("deleted")])
                 _ = await self.completeDeletion(userID: inFlightUserID, appleRevocationFailed: false)
                 return
             case .exists:
-                AccountDeletionDiagnostics.notice("event=resume-in-flight outcome=exists")
+                AppLog.notice(.identity, "account-deletion-resume-in-flight", ["outcome": .code("exists")])
                 self.updatePendingWork { work in
                     work.inFlightUserID = nil
                 }
@@ -255,7 +256,7 @@ final class AccountDeletionCoordinator {
         do {
             try self.appleUserIdentifierStore?.clearUserIdentifier()
         } catch {
-            AccountDeletionDiagnostics.error("event=apple-user-identifier-clear-failed")
+            AppLog.error(.identity, "account-deletion-apple-user-identifier-clear-failed")
         }
 
         let localCleanup: AccountDeletionOutcome.LocalCleanup = await self.runLocalCleanup(userID: userID)
@@ -279,7 +280,7 @@ final class AccountDeletionCoordinator {
             if self.activeAppUser.currentUserID == userID {
                 let guestUserID: UUID = try self.guestProvisioner.provisionNewGuest()
                 self.activeAppUser.update(guestUserID)
-                AccountDeletionDiagnostics.notice("event=identity-reset-to-guest")
+                AppLog.notice(.identity, "account-deletion-identity-reset-to-guest")
                 await self.session.discardLocalSessionForDeletedAccount()
                 await self.didResetIdentity()
             }
@@ -292,9 +293,11 @@ final class AccountDeletionCoordinator {
             for relativePath: String in bookFilePaths {
                 try? await self.bookFileStore?.removeFile(relativePath: relativePath)
             }
-            AccountDeletionDiagnostics.notice(
-                "event=local-cleanup-completed bookFileCount=\(bookFilePaths.count)"
-            )
+            AppLog.notice(.identity, "account-deletion-local-cleanup-completed", [
+                "bookFileCount": .int(bookFilePaths.count)
+            ])
+            // 中文注释：本机日志随账号一起删（Logging-Design.md BCA-OBS-016）；之后的记录写进新文件。
+            AppLogging.removeLocalLogFiles()
             return .done
         } catch {
             var failureCount: Int = 0
@@ -302,9 +305,10 @@ final class AccountDeletionCoordinator {
                 work.localCleanupFailureCount += 1
                 failureCount = work.localCleanupFailureCount
             }
-            AccountDeletionDiagnostics.error(
-                "event=local-cleanup-failed attempt=\(failureCount) reason=\(Self.safeCode(error))"
-            )
+            AppLog.error(.identity, "account-deletion-local-cleanup-failed", [
+                "attempt": .int(failureCount),
+                "reason": .code("\(Self.safeCode(error))")
+            ])
             return failureCount >= Self.reinstallThreshold ? .reinstallRequired : .pending
         }
     }
@@ -320,14 +324,14 @@ final class AccountDeletionCoordinator {
             self.updatePendingWork { work in
                 work.cloudCleanups.removeAll { $0.userID == cleanup.userID }
             }
-            AccountDeletionDiagnostics.notice(
-                "event=cloud-cleanup-completed result=\(erasure == .erased ? "erased" : "not-owned")"
-            )
+            AppLog.notice(.identity, "account-deletion-cloud-cleanup-completed", [
+                "result": .code("\(erasure == .erased ? "erased" : "not-owned")")
+            ])
             return .done
         } catch {
-            AccountDeletionDiagnostics.notice(
-                "event=cloud-cleanup-deferred reason=\(Self.safeCode(error))"
-            )
+            AppLog.notice(.identity, "account-deletion-cloud-cleanup-deferred", [
+                "reason": .code("\(Self.safeCode(error))")
+            ])
             return .pending
         }
     }
@@ -380,15 +384,5 @@ final class AccountDeletionCoordinator {
             return diagnosable.diagnosticSummary
         }
         return String(reflecting: type(of: error))
-    }
-}
-
-enum AccountDeletionDiagnostics {
-    static func notice(_ message: String) {
-        PortalSessionDiagnostics.notice("[AccountDeletion] \(message)")
-    }
-
-    static func error(_ message: String) {
-        PortalSessionDiagnostics.error("[AccountDeletion] \(message)")
     }
 }

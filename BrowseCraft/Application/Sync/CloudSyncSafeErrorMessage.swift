@@ -1,33 +1,30 @@
-import CryptoKit
+import BrowseCraftLog
 import Foundation
-import OSLog
 
 /// 中文注释：云同步诊断只记录不可逆实体摘要和已脱敏错误，不记录业务 ID、URL、Header 或 JSON 内容。
+/// 记录走全仓唯一的日志类型 `AppLog`（Logging-Design.md）；账号与实体标识一律 `.id`，错误先过 `CloudSyncSafeErrorMessage`。
 enum CloudSyncDiagnostics {
-    private static let logger: Logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "BrowseCraft",
-        category: "CloudSync"
-    )
-
     static func logSyncStarted(
         trigger: CloudSyncTrigger,
         accountScope: CloudAccountScope
     ) {
-        let accountHash: String = Self.hashIdentifier(accountScope.rawValue)
-        Self.logger.notice(
-            "sync started trigger=\(trigger.rawValue, privacy: .public) accountHash=\(accountHash, privacy: .public)"
-        )
+        AppLog.notice(.sync, "sync-started", [
+            "trigger": .code("\(trigger.rawValue)"),
+            "accountHash": .id(accountScope.rawValue)
+        ])
     }
 
     static func logSyncCompleted(_ result: CloudSyncRunResult) {
-        let accountHash: String = Self.hashIdentifier(result.accountScope.rawValue)
-        let durationMilliseconds: Int = max(
-            0,
-            Int(result.finishedAt.timeIntervalSince(result.startedAt) * 1_000)
-        )
-        Self.logger.notice(
-            "sync completed trigger=\(result.trigger.rawValue, privacy: .public) accountHash=\(accountHash, privacy: .public) uploadedCount=\(result.uploadedCount, privacy: .public) downloadedCount=\(result.downloadedCount, privacy: .public) deletedCount=\(result.deletedCount, privacy: .public) skippedCount=\(result.skippedCount, privacy: .public) failedCount=\(result.failedCount, privacy: .public) durationMs=\(durationMilliseconds, privacy: .public)"
-        )
+        AppLog.notice(.sync, "sync-completed", [
+            "trigger": .code("\(result.trigger.rawValue)"),
+            "accountHash": .id(result.accountScope.rawValue),
+            "uploadedCount": .int(result.uploadedCount),
+            "downloadedCount": .int(result.downloadedCount),
+            "deletedCount": .int(result.deletedCount),
+            "skippedCount": .int(result.skippedCount),
+            "failedCount": .int(result.failedCount),
+            "ms": .duration(max(0, result.finishedAt.timeIntervalSince(result.startedAt)))
+        ])
     }
 
     static func logSyncFailed(
@@ -35,11 +32,12 @@ enum CloudSyncDiagnostics {
         accountScope: CloudAccountScope,
         error: any Error
     ) {
-        let accountHash: String = Self.hashIdentifier(accountScope.rawValue)
-        let safeError: String = CloudSyncSafeErrorMessage.describe(error)
-        Self.logger.error(
-            "sync failed trigger=\(trigger.rawValue, privacy: .public) accountHash=\(accountHash, privacy: .public) error=\(safeError, privacy: .public)"
-        )
+        AppLog.error(.sync, "sync-failed", [
+            "trigger": .code("\(trigger.rawValue)"),
+            "accountHash": .id(accountScope.rawValue),
+            "reason": .code(CloudSyncSafeErrorMessage.describe(error)),
+            "error": .error(error)
+        ])
     }
 
     static func logSyncPhase(
@@ -47,29 +45,31 @@ enum CloudSyncDiagnostics {
         trigger: CloudSyncTrigger,
         accountScope: CloudAccountScope
     ) {
-        let accountHash: String = Self.hashIdentifier(accountScope.rawValue)
-        Self.logger.notice(
-            "sync phase=\(phase, privacy: .public) trigger=\(trigger.rawValue, privacy: .public) accountHash=\(accountHash, privacy: .public)"
-        )
+        AppLog.info(.sync, "sync-phase", [
+            "phase": .code(phase),
+            "trigger": .code("\(trigger.rawValue)"),
+            "accountHash": .id(accountScope.rawValue)
+        ])
     }
 
     static func logSyncRequest(
         trigger: CloudSyncTrigger,
         outcome: String
     ) {
-        Self.logger.notice(
-            "sync request trigger=\(trigger.rawValue, privacy: .public) outcome=\(outcome, privacy: .public)"
-        )
+        AppLog.info(.sync, "sync-request", [
+            "trigger": .code("\(trigger.rawValue)"),
+            "outcome": .code(outcome)
+        ])
     }
 
     static func logIdentityGateRejected(
         accountScope: CloudAccountScope,
         reason: String
     ) {
-        let accountHash: String = Self.hashIdentifier(accountScope.rawValue)
-        Self.logger.error(
-            "identity gate rejected accountHash=\(accountHash, privacy: .public) reason=\(reason, privacy: .public)"
-        )
+        AppLog.error(.sync, "identity-gate-rejected", [
+            "accountHash": .id(accountScope.rawValue),
+            "reason": .code(reason)
+        ])
     }
 
     static func logIdentityAssociation(
@@ -77,40 +77,36 @@ enum CloudSyncDiagnostics {
         localUserID: UUID,
         cloudUserID: UUID? = nil
     ) {
-        let localUserHash: String =
-            Self.hashIdentifier(localUserID.uuidString)
-        let cloudUserHash: String = cloudUserID.map {
-            Self.hashIdentifier($0.uuidString)
-        } ?? "none"
-        Self.logger.notice(
-            "identity association event=\(event, privacy: .public) localUserHash=\(localUserHash, privacy: .public) cloudUserHash=\(cloudUserHash, privacy: .public)"
-        )
+        AppLog.notice(.identity, "identity-association", [
+            "event": .code(event),
+            "localUserHash": .id(localUserID),
+            "cloudUserHash": cloudUserID.map { LogValue.id($0) } ?? .code("none")
+        ])
     }
 
     static func logIdentityAssociationFailed(
         stage: String,
         error: any Error
     ) {
-        let safeError: String = CloudSyncSafeErrorMessage.describe(error)
-        Self.logger.error(
-            "identity association event=failed stage=\(stage, privacy: .public) error=\(safeError, privacy: .public)"
-        )
+        AppLog.error(.identity, "identity-association-failed", [
+            "stage": .code(stage),
+            "reason": .code(CloudSyncSafeErrorMessage.describe(error)),
+            "error": .error(error)
+        ])
     }
 
     static func logIdentityAttestation(
         accountScope: CloudAccountScope,
         outcome: String
     ) {
-        let accountHash: String = Self.hashIdentifier(accountScope.rawValue)
-        Self.logger.notice(
-            "identity attestation accountHash=\(accountHash, privacy: .public) outcome=\(outcome, privacy: .public)"
-        )
+        AppLog.notice(.identity, "identity-attestation", [
+            "accountHash": .id(accountScope.rawValue),
+            "outcome": .code(outcome)
+        ])
     }
 
     static func logIdentityChange(event: String) {
-        Self.logger.notice(
-            "identity change event=\(event, privacy: .public)"
-        )
+        AppLog.notice(.identity, "identity-change", ["event": .code(event)])
     }
 
     static func logRetry(
@@ -118,11 +114,11 @@ enum CloudSyncDiagnostics {
         outcome: String,
         delay: TimeInterval? = nil
     ) {
-        let accountHash: String = Self.hashIdentifier(accountScope.rawValue)
-        let delayMilliseconds: Int = max(0, Int((delay ?? 0) * 1_000))
-        Self.logger.notice(
-            "sync retry accountHash=\(accountHash, privacy: .public) outcome=\(outcome, privacy: .public) delayMs=\(delayMilliseconds, privacy: .public)"
-        )
+        AppLog.notice(.sync, "sync-retry", [
+            "accountHash": .id(accountScope.rawValue),
+            "outcome": .code(outcome),
+            "delayMs": .duration(max(0, delay ?? 0))
+        ])
     }
 
     static func logCloudFetchSummary(
@@ -134,10 +130,15 @@ enum CloudSyncDiagnostics {
         unknownRecordCount: Int,
         rejectedRecordCount: Int
     ) {
-        let accountHash: String = Self.hashIdentifier(accountScope.rawValue)
-        Self.logger.notice(
-            "cloud fetch summary accountHash=\(accountHash, privacy: .public) rawSourceCount=\(rawSourceCount, privacy: .public) mappedSourceCount=\(mappedSourceCount, privacy: .public) rawFavoriteItemCount=\(rawFavoriteItemCount, privacy: .public) mappedFavoriteItemCount=\(mappedFavoriteItemCount, privacy: .public) unknownRecordCount=\(unknownRecordCount, privacy: .public) rejectedRecordCount=\(rejectedRecordCount, privacy: .public)"
-        )
+        AppLog.info(.sync, "cloud-fetch-summary", [
+            "accountHash": .id(accountScope.rawValue),
+            "rawSourceCount": .int(rawSourceCount),
+            "mappedSourceCount": .int(mappedSourceCount),
+            "rawFavoriteItemCount": .int(rawFavoriteItemCount),
+            "mappedFavoriteItemCount": .int(mappedFavoriteItemCount),
+            "unknownRecordCount": .int(unknownRecordCount),
+            "rejectedRecordCount": .int(rejectedRecordCount)
+        ])
     }
 
     static func logDownloadMergeSummary(
@@ -148,10 +149,14 @@ enum CloudSyncDiagnostics {
         deletedCount: Int,
         skippedCount: Int
     ) {
-        let accountHash: String = Self.hashIdentifier(accountScope.rawValue)
-        Self.logger.notice(
-            "download merge summary entityType=\(entityType.rawValue, privacy: .public) accountHash=\(accountHash, privacy: .public) receivedCount=\(receivedCount, privacy: .public) downloadedCount=\(downloadedCount, privacy: .public) deletedCount=\(deletedCount, privacy: .public) skippedCount=\(skippedCount, privacy: .public)"
-        )
+        AppLog.info(.sync, "download-merge-summary", [
+            "entityType": .code("\(entityType.rawValue)"),
+            "accountHash": .id(accountScope.rawValue),
+            "receivedCount": .int(receivedCount),
+            "downloadedCount": .int(downloadedCount),
+            "deletedCount": .int(deletedCount),
+            "skippedCount": .int(skippedCount)
+        ])
     }
 
     static func logLocalPartitionSummary(
@@ -162,21 +167,28 @@ enum CloudSyncDiagnostics {
         liveCount: Int,
         tombstoneCount: Int
     ) {
-        let accountHash: String = Self.hashIdentifier(accountScope.rawValue)
-        Self.logger.notice(
-            "local partition summary entityType=\(entityType.rawValue, privacy: .public) accountHash=\(accountHash, privacy: .public) acceptedCount=\(acceptedCount, privacy: .public) requeuedCount=\(requeuedCount, privacy: .public) liveCount=\(liveCount, privacy: .public) tombstoneCount=\(tombstoneCount, privacy: .public)"
-        )
+        AppLog.info(.sync, "local-partition-summary", [
+            "entityType": .code("\(entityType.rawValue)"),
+            "accountHash": .id(accountScope.rawValue),
+            "acceptedCount": .int(acceptedCount),
+            "requeuedCount": .int(requeuedCount),
+            "liveCount": .int(liveCount),
+            "tombstoneCount": .int(tombstoneCount)
+        ])
     }
 
     static func logPendingUpload(_ item: SyncQueueItem) {
         guard let lastError: String = item.lastError else {
             return
         }
-        let entityHash: String = Self.hashIdentifier(item.entityID)
-        let nextRetryAt: String = item.nextRetryAt?.ISO8601Format() ?? "immediate"
-        Self.logger.error(
-            "sync_queue pending entityType=\(item.entityType.rawValue, privacy: .public) entityHash=\(entityHash, privacy: .public) operation=\(item.operation.rawValue, privacy: .public) retryCount=\(item.retryCount, privacy: .public) nextRetryAt=\(nextRetryAt, privacy: .public) lastError=\(lastError, privacy: .public)"
-        )
+        AppLog.error(.sync, "sync-queue-pending", [
+            "entityType": .code("\(item.entityType.rawValue)"),
+            "entityHash": .id(item.entityID),
+            "operation": .code("\(item.operation.rawValue)"),
+            "retryCount": .int(item.retryCount),
+            "nextRetryAt": .code(item.nextRetryAt?.ISO8601Format() ?? "immediate"),
+            "lastError": .code(lastError)
+        ])
     }
 
     static func logLocalRecordRejection(
@@ -185,18 +197,12 @@ enum CloudSyncDiagnostics {
         code: String,
         error: any Error
     ) {
-        let entityHash: String = Self.hashIdentifier(entityID)
-        let safeError: String = CloudSyncSafeErrorMessage.describe(error)
-        Self.logger.error(
-            "upload rejected before CloudKit entityType=\(entityType.rawValue, privacy: .public) entityHash=\(entityHash, privacy: .public) code=\(code, privacy: .public) detail=\(safeError, privacy: .public)"
-        )
-    }
-
-    private static func hashIdentifier(_ value: String) -> String {
-        let digest: SHA256.Digest = SHA256.hash(data: Data(value.utf8))
-        return digest.prefix(8).map { byte in
-            String(format: "%02x", byte)
-        }.joined()
+        AppLog.error(.sync, "upload-rejected-before-cloudkit", [
+            "entityType": .code("\(entityType.rawValue)"),
+            "entityHash": .id(entityID),
+            "code": .code(code),
+            "reason": .code(CloudSyncSafeErrorMessage.describe(error))
+        ])
     }
 }
 

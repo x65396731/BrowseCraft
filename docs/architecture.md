@@ -14,6 +14,7 @@ interpret a rule, and who may touch the network.
 | `BrowseCraftAPIKit` | sibling SwiftPM package | ~1.9k lines | The BrowseCraft backend contract (endpoints, DTOs, transport) |
 | `BrowseCraftDomain` | sibling SwiftPM package | ~2.3k lines | Domain kernel: values, ports, policies and diagnostics shared by the app and the rule runtime |
 | `BrowseCraftRuntime` | sibling SwiftPM package | ~14k lines | The whole rule runtime: Book, Comic, Video and the shared dispatch |
+| `BrowseCraftLog` | sibling SwiftPM package | <1k lines | The one logging type `AppLog`, its value types and sink protocol (`docs/design/Logging-Design.md`) |
 
 **Core's rule models are this app's domain model.** `SiteRule`, `VideoSiteRule`, `ListContext`,
 `RequestConfig` and the resolved graphs are used directly by `Domain`, `Application` and
@@ -26,14 +27,15 @@ Dependency direction is `App → Core`, `App → APIKit`, `App → Domain` and `
 `Runtime → Core` / `Domain` / `BrowseCraftRuleModels`, and `Domain → BrowseCraftRuleModels`
 (`BrowseCraftRuleModels` is the rule-model target of the Core package; the app and the test target
 link its product explicitly in `project.yml`, and two Runtime files import it directly).
-Core and APIKit never reference each other. `BrowseCraftCore/docs/design/CoreParsingBoundary.md` is the authoritative statement of
+Core and APIKit never reference each other. Every package and the app depend on `BrowseCraftLog`, which
+depends on nothing but Apple's system frameworks. `BrowseCraftCore/docs/design/CoreParsingBoundary.md` is the authoritative statement of
 what Core may do. The short version: Core is a deterministic function from (bytes + rule +
 context) to normalised output, and never performs requests, holds cookies, creates a `WKWebView`,
 or knows about the current user.
 
-All four packages are consumed as **path dependencies on sibling checkouts** and carry no version
+All five packages are consumed as **path dependencies on sibling checkouts** and carry no version
 tags. This is known debt: the app's `main` only builds against the sibling repos' `main`, and a
-fresh machine has to clone all five repositories side by side under one parent directory, plus the
+fresh machine has to clone all six repositories side by side under one parent directory, plus the
 SwiftSoup fork that overrides the dependency graph (§8):
 
 ```
@@ -43,6 +45,7 @@ SwiftSoup fork that overrides the dependency graph (§8):
   BrowseCraftDomain/
   BrowseCraftRuntime/
   BrowseCraftAPIKit/
+  BrowseCraftLog/
   SwiftSoup/              # local override package (BCA-BUILD-002)
 ```
 
@@ -93,9 +96,9 @@ what owns the objects rather than by layer:
   are app-only and live in the app (`Application/Ports/Preflight`,
   `Application/Ports/Credentials`, `Domain/Models/Source`).
 - **Diagnostics** (`BrowseCraftDomain/Diagnostics`) — `RuleExecutionStage`, `RuleExecutionError`,
-  `RuleExecutionLogger`, and `RuleRuntimeDebugLog`. The app installs the log sink at startup and
-  maps each record back to its `AppLog` category, so packaged code never depends on the app's
-  OSLog categories. `RuleExecutionErrorClassifier` (user-facing messages) stays in the app.
+  and `RuleExecutionLogger`, a thin wrapper that writes rule-stage debug records through `AppLog`
+  (BrowseCraftLog); packaged code never depends on OSLog, the app installs the sinks at startup
+  (`docs/design/Logging-Design.md`). `RuleExecutionErrorClassifier` (user-facing messages) stays in the app.
 - **Mapping** — `SourceDefinitionMapper`, which both the runtime and the app's use cases need.
 
 It depends on `BrowseCraftRuleModels` (the rule-model target of the `BrowseCraftCore` package; a `Source`'s configuration embeds a rule) and on nothing else, so it never links SwiftSoup.
@@ -164,8 +167,9 @@ and the design documents reference them by ID and do not restate the text.
   `App`; `Features` may not construct `Infrastructure` types (inject them through `Application`
   ports); `Shared` may not reference `App`, `Features`, `Application` or `Infrastructure`. When both
   sides need a contract (a port, an error enum, a shared observable store), it belongs to the lower layer.
-- `BCA-ARCH-005` **No raw `print`, no `try!`.** Use `AppLog` / `AppDebugLog`; handle or propagate
-  errors. Both checks cover the app target and the `Sources/` of all four packages. The script
+- `BCA-ARCH-005` **No raw `print`, no `try!`.** Log through `AppLog` only (`BCA-OBS-010`, which also
+  bans `debugPrint`, `NSLog`, `os_log` and stray `Logger(`); handle or propagate errors. Both checks cover
+  the app target and the `Sources/` of all five packages. The script
   honours `scripts/architecture-boundary-exemptions.txt` (`BCA-BUILD-005`, converge-only); the list
   has been empty since 2026-10-10, so any hit is a genuine new violation.
 - The same script also pins the language mode: `project.yml` must say `SWIFT_VERSION: "6.0"` and
@@ -210,7 +214,7 @@ The app target is iPhone-only (`TARGETED_DEVICE_FAMILY: "1"`) until the iPad lay
 ## 4. Concurrency
 
 The target builds in the Swift 6 language mode (`SWIFT_VERSION: "6.0"`) with
-`SWIFT_STRICT_CONCURRENCY: complete`; the four packages declare `.swiftLanguageMode(.v6)`.
+`SWIFT_STRICT_CONCURRENCY: complete`; the five packages declare `.swiftLanguageMode(.v6)`.
 
 Every port protocol in `Application/Ports` (one deliberate exception: `ImageCacheManaging` is
 `AnyObject`-only, see its comment), every repository in `Domain/Repositories`, and every

@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import SwiftUI
 import UIKit
 
@@ -29,7 +30,7 @@ struct PurchaseAnimationPlayerView: View {
         private static func logMissingResource(kind: String, error: Error?) {
             #if DEBUG
             let detail: String = error?.localizedDescription ?? "the image data could not be decoded"
-            AppDebugLog.write("[BrowseCraftPurchaseAnimation] missing \(kind): \(detail)")
+            AppLog.debug(.purchase, "purchase-animation-missing", ["message": .text("\(kind): \(detail)")])
             #endif
         }
     }

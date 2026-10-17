@@ -1,33 +1,8 @@
-import CryptoKit
+import BrowseCraftLog
 import Foundation
-import OSLog
 
+/// 中文注释：内购与身份流程的错误码映射。日志本身走 `AppLog`（Logging-Design.md），这里只把已知错误映射成有限取值的机器码。
 enum IAPDiagnostics {
-    private static let logger: Logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "BrowseCraft",
-        category: "IdentityIAP"
-    )
-
-    static func notice(_ message: String) {
-        Self.logger.notice(
-            "[BrowseCraftIdentityIAP] \(message, privacy: .public)"
-        )
-    }
-
-    static func error(_ message: String) {
-        Self.logger.error(
-            "[BrowseCraftIdentityIAP] \(message, privacy: .public)"
-        )
-    }
-
-    static func hash(_ userID: UUID) -> String {
-        return Self.hash(userID.uuidString)
-    }
-
-    static func hash(transactionID: UInt64) -> String {
-        return Self.hash(String(transactionID))
-    }
-
     static func safeErrorCode(_ error: any Error) -> String {
         if error is CancellationError {
             return "cancelled"
@@ -125,13 +100,6 @@ enum IAPDiagnostics {
             }
         }
         return String(reflecting: type(of: error))
-    }
-
-    private static func hash(_ value: String) -> String {
-        let digest: SHA256.Digest = SHA256.hash(data: Data(value.utf8))
-        return digest.prefix(8).map { byte in
-            String(format: "%02x", byte)
-        }.joined()
     }
 }
 
@@ -235,18 +203,15 @@ actor PortalPurchaseEntitlementRefreshCoordinator {
         signedTransaction: String,
         flow: String
     ) async throws -> PortalEntitlementSnapshot {
-        IAPDiagnostics.notice(
-            "event=\(flow)-refresh-started " +
-                "userHash=\(IAPDiagnostics.hash(userID)) " +
-                "environment=\(environment.rawValue)"
-        )
+        AppLog.notice(.purchase, "\(flow)-refresh-started", [
+            "userHash": .id(userID),
+            "environment": .enumValue(environment)
+        ])
         try self.requireActiveUser(userID)
         try await self.requireAuthenticatedPortalUser(userID)
         guard let accessToken: String =
             await self.portalSessionCoordinator.validAccessToken() else {
-            IAPDiagnostics.error(
-                "event=\(flow)-refresh-failed reason=portal-session-unavailable"
-            )
+            AppLog.error(.purchase, "\(flow)-refresh-failed", ["reason": .code("portal-session-unavailable")])
             throw PortalPurchaseEntitlementRefreshError.sessionUnavailable
         }
         try self.requireActiveUser(userID)
@@ -262,18 +227,17 @@ actor PortalPurchaseEntitlementRefreshCoordinator {
         try self.requireActiveUser(userID)
         guard snapshot.userID == userID,
               snapshot.environment == environment else {
-            IAPDiagnostics.error(
-                "event=\(flow)-refresh-failed reason=snapshot-mismatch " +
-                    "environment=\(environment.rawValue)"
-            )
+            AppLog.error(.purchase, "\(flow)-refresh-failed", [
+                "reason": .code("snapshot-mismatch"),
+                "environment": .enumValue(environment)
+            ])
             throw PortalPurchaseEntitlementRefreshError.snapshotMismatch
         }
-        IAPDiagnostics.notice(
-            "event=\(flow)-refresh-succeeded " +
-                "environment=\(environment.rawValue) " +
-                "revision=\(snapshot.revision) " +
-                "activeProductCount=\(snapshot.activeProductIDs.count)"
-        )
+        AppLog.notice(.purchase, "\(flow)-refresh-succeeded", [
+            "environment": .enumValue(environment),
+            "revision": .code("\(snapshot.revision)"),
+            "activeProductCount": .int(snapshot.activeProductIDs.count)
+        ])
         return snapshot
     }
 
@@ -283,18 +247,15 @@ actor PortalPurchaseEntitlementRefreshCoordinator {
         environment: PortalPurchaseEnvironment,
         signedTransactions: [String]
     ) async throws -> PortalEntitlementSnapshot {
-        IAPDiagnostics.notice(
-            "event=restore-refresh-started " +
-                "userHash=\(IAPDiagnostics.hash(userID)) " +
-                "environment=\(environment.rawValue) " +
-                "transactionCount=\(signedTransactions.count)"
-        )
+        AppLog.notice(.purchase, "restore-refresh-started", [
+            "userHash": .id(userID),
+            "environment": .enumValue(environment),
+            "transactionCount": .int(signedTransactions.count)
+        ])
         try self.requireActiveUser(userID)
         try await self.requireAuthenticatedPortalUser(userID)
         guard signedTransactions.isEmpty == false else {
-            IAPDiagnostics.error(
-                "event=restore-refresh-failed reason=empty-transactions"
-            )
+            AppLog.error(.purchase, "restore-refresh-failed", ["reason": .code("empty-transactions")])
             throw PortalIAPServiceError.invalidRequest
         }
 
@@ -314,26 +275,23 @@ actor PortalPurchaseEntitlementRefreshCoordinator {
         try self.requireActiveUser(userID)
         guard snapshot.userID == userID,
               snapshot.environment == environment else {
-            IAPDiagnostics.error(
-                "event=restore-refresh-failed reason=snapshot-mismatch " +
-                    "environment=\(environment.rawValue)"
-            )
+            AppLog.error(.purchase, "restore-refresh-failed", [
+                "reason": .code("snapshot-mismatch"),
+                "environment": .enumValue(environment)
+            ])
             throw PortalPurchaseEntitlementRefreshError.snapshotMismatch
         }
-        IAPDiagnostics.notice(
-            "event=restore-refresh-succeeded " +
-                "environment=\(environment.rawValue) " +
-                "revision=\(snapshot.revision) " +
-                "activeProductCount=\(snapshot.activeProductIDs.count)"
-        )
+        AppLog.notice(.purchase, "restore-refresh-succeeded", [
+            "environment": .enumValue(environment),
+            "revision": .code("\(snapshot.revision)"),
+            "activeProductCount": .int(snapshot.activeProductIDs.count)
+        ])
         return snapshot
     }
 
     private func requireActiveUser(_ expectedUserID: UUID) throws {
         guard self.activeAppUser.currentUserID == expectedUserID else {
-            IAPDiagnostics.error(
-                "event=portal-refresh-failed reason=active-user-changed"
-            )
+            AppLog.error(.purchase, "portal-refresh-failed", ["reason": .code("active-user-changed")])
             throw PortalPurchaseEntitlementRefreshError.activeUserChanged
         }
     }

@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import StoreKit
 import SwiftUI
 
@@ -226,17 +227,15 @@ struct InAppPurchasePlanSelectionView: View {
         } catch is CancellationError {
             return
         } catch let error as StoreKitPurchaseIdentityAuthorizationError {
-            IAPDiagnostics.error(
-                "event=refund-test-preparation-failed " +
-                    "error=\(IAPDiagnostics.safeErrorCode(error))"
-            )
+            AppLog.error(.purchase, "refund-test-preparation-failed", [
+                "error": .code(IAPDiagnostics.safeErrorCode(error))
+            ])
             self.refundTestMessage =
                 "Link and verify the current iCloud identity before requesting a refund."
         } catch {
-            IAPDiagnostics.error(
-                "event=refund-test-preparation-failed " +
-                    "error=\(IAPDiagnostics.safeErrorCode(error))"
-            )
+            AppLog.error(.purchase, "refund-test-preparation-failed", [
+                "error": .code(IAPDiagnostics.safeErrorCode(error))
+            ])
             self.refundTestMessage =
                 "The Sandbox refund request could not be prepared."
         }
@@ -251,27 +250,22 @@ struct InAppPurchasePlanSelectionView: View {
     ) {
         switch result {
         case .success(.success):
-            IAPDiagnostics.notice(
-                "event=refund-test-request-submitted productID=\(InAppPurchasePlan.removeAds.productID)"
-            )
+            AppLog.notice(.purchase, "refund-test-request-submitted", [
+                "productID": .code("\(InAppPurchasePlan.removeAds.productID)")
+            ])
             self.refundTestMessage =
                 "Apple received the refund request. Approval and entitlement revocation are still pending."
         case .success(.userCancelled):
-            IAPDiagnostics.notice(
-                "event=refund-test-request-cancelled productID=\(InAppPurchasePlan.removeAds.productID)"
-            )
+            AppLog.notice(.purchase, "refund-test-request-cancelled", [
+                "productID": .code("\(InAppPurchasePlan.removeAds.productID)")
+            ])
             self.refundTestMessage = "Refund request cancelled."
         case .failure(let error):
-            IAPDiagnostics.error(
-                "event=refund-test-request-failed " +
-                    "error=\(IAPDiagnostics.safeErrorCode(error))"
-            )
+            AppLog.error(.purchase, "refund-test-request-failed", ["error": .code(IAPDiagnostics.safeErrorCode(error))])
             self.refundTestMessage =
                 "Apple could not present or submit the refund request."
         @unknown default:
-            IAPDiagnostics.error(
-                "event=refund-test-request-failed reason=unknown-status"
-            )
+            AppLog.error(.purchase, "refund-test-request-failed", ["reason": .code("unknown-status")])
             self.refundTestMessage =
                 "The refund request returned an unknown status."
         }
@@ -461,6 +455,7 @@ struct InAppPurchasePlanSelectionView: View {
         do {
             try await Task.sleep(for: self.reduceMotion ? .milliseconds(100) : .milliseconds(300))
         } catch {
+            // 不记：Task.sleep 只在任务取消时抛错
             return
         }
 

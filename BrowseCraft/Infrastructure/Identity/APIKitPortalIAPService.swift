@@ -1,4 +1,5 @@
 import BrowseCraftAPIKit
+import BrowseCraftLog
 import Foundation
 
 struct APIKitPortalIAPService: PortalIAPServicing {
@@ -14,12 +15,12 @@ struct APIKitPortalIAPService: PortalIAPServicing {
         signedTransactions: [String],
         accessToken: String
     ) async throws -> PortalEntitlementSnapshot {
-        PortalSessionDiagnostics.notice(
-            "event=request-start operation=iap-entitlements-refresh " +
-                "path=\(PortalAPIPath.entitlementRefresh) " +
-                "environment=\(environment.rawValue) " +
-                "transactionCount=\(signedTransactions.count)"
-        )
+        AppLog.notice(.purchase, "request-start", [
+            "operation": .code("iap-entitlements-refresh"),
+            "path": .code(PortalAPIPath.entitlementRefresh),
+            "environment": .enumValue(environment),
+            "transactionCount": .int(signedTransactions.count)
+        ])
         do {
             let response: PortalEntitlementSnapshotResponse =
                 try await self.iapAPI.refreshEntitlements(
@@ -40,15 +41,15 @@ struct APIKitPortalIAPService: PortalIAPServicing {
                 throw PortalIAPServiceError.responseOutcomeUnknown
             }
 
-            PortalSessionDiagnostics.notice(
-                "event=request-success operation=iap-entitlements-refresh " +
-                    "path=\(PortalAPIPath.entitlementRefresh) " +
-                    "environment=\(response.environment.rawValue) " +
-                    "revision=\(response.revision) " +
-                    "activeProductCount=\(response.activeProductIDs.count) " +
-                    "siteSlotLimit=\(response.siteSlotLimit) " +
-                    "hasRemovedAds=\(response.hasRemovedAds)"
-            )
+            AppLog.notice(.purchase, "request-success", [
+                "operation": .code("iap-entitlements-refresh"),
+                "path": .code(PortalAPIPath.entitlementRefresh),
+                "environment": .code("\(response.environment.rawValue)"),
+                "revision": .code("\(response.revision)"),
+                "activeProductCount": .int(response.activeProductIDs.count),
+                "siteSlotLimit": .code("\(response.siteSlotLimit)"),
+                "hasRemovedAds": .bool(response.hasRemovedAds)
+            ])
             return PortalEntitlementSnapshot(
                 userID: response.userID,
                 environment: environment,
@@ -62,11 +63,11 @@ struct APIKitPortalIAPService: PortalIAPServicing {
             )
         } catch {
             let mappedError: any Error = Self.map(error)
-            PortalSessionDiagnostics.error(
-                "event=request-failure operation=iap-entitlements-refresh " +
-                    "path=\(PortalAPIPath.entitlementRefresh) " +
-                    Self.safeErrorDescription(mappedError)
-            )
+            AppLog.error(.purchase, "request-failure", [
+                "operation": .code("iap-entitlements-refresh"),
+                "path": .code(PortalAPIPath.entitlementRefresh),
+                "message": .code("\(Self.safeErrorDescription(mappedError))")
+            ])
             throw mappedError
         }
     }

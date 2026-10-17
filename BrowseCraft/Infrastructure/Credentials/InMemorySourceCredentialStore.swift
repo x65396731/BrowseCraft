@@ -1,4 +1,5 @@
 import BrowseCraftDomain
+import BrowseCraftLog
 import Foundation
 
 // 中文注释：站点登录态的内存实现，保留现有凭证匹配、Cookie 生成和调试行为。
@@ -14,20 +15,16 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring, @unchecked S
 
         self.credentialsBySourceID[credential.sourceID] = credential
 
-        AppLog.debug(
-            .credential,
-            event: "saved",
-            metadata: [
-                "sourceID": credential.sourceID,
-                "hasBaseURL": (credential.baseURL != nil).description,
-                "cookieCount": String(credential.cookies.count),
-                "headerCount": String(credential.headers.count),
-                "hasAccessToken": (credential.accessToken != nil).description,
-                "localStorageCount": String(credential.localStorage.count),
-                "sessionStorageCount": String(credential.sessionStorage.count),
-                "origin": credential.origin.rawValue
-            ]
-        )
+        AppLog.debug(.credential, "saved", [
+            "sourceID": .id(credential.sourceID),
+            "hasBaseURL": .bool(credential.baseURL != nil),
+            "cookieCount": .int(credential.cookies.count),
+            "headerCount": .int(credential.headers.count),
+            "hasAccessToken": .bool(credential.accessToken != nil),
+            "localStorageCount": .int(credential.localStorage.count),
+            "sessionStorageCount": .int(credential.sessionStorage.count),
+            "origin": .enumValue(credential.origin)
+        ])
     }
 
     func removeCredential(sourceID: String) {
@@ -36,14 +33,7 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring, @unchecked S
 
         let removedCredential: SourceCredential? = self.credentialsBySourceID.removeValue(forKey: sourceID)
 
-        AppLog.debug(
-            .credential,
-            event: "removed",
-            metadata: [
-                "sourceID": sourceID,
-                "removed": (removedCredential != nil).description
-            ]
-        )
+        AppLog.debug(.credential, "removed", ["sourceID": .id(sourceID), "removed": .bool(removedCredential != nil)])
     }
 
     func credential(sourceID: String) -> SourceCredential? {
@@ -66,25 +56,11 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring, @unchecked S
         }
 
         guard matchingCookies.isEmpty == false else {
-            AppLog.debug(
-                .credential,
-                event: "cookie-miss",
-                metadata: self.metadata(context: context, url: url).merging(
-                    ["reason": "noMatchingCookie"],
-                    uniquingKeysWith: { _, new in new }
-                )
-            )
+            AppLog.debug(.credential, "cookie-miss", self.metadata(context: context, url: url, extra: ["reason": .code("noMatchingCookie")]))
             return nil
         }
 
-        AppLog.debug(
-            .credential,
-            event: "cookie-hit",
-            metadata: self.metadata(context: context, url: url).merging(
-                ["matchedCookieCount": String(matchingCookies.count)],
-                uniquingKeysWith: { _, new in new }
-            )
-        )
+        AppLog.debug(.credential, "cookie-hit", self.metadata(context: context, url: url, extra: ["matchedCookieCount": .int(matchingCookies.count)]))
 
         return HTTPCookie
             .requestHeaderFields(with: matchingCookies)["Cookie"]
@@ -100,14 +76,7 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring, @unchecked S
             return key.caseInsensitiveCompare("Cookie") != .orderedSame
         }
 
-        AppLog.debug(
-            .credential,
-            event: "headers-hit",
-            metadata: self.metadata(context: context, url: url).merging(
-                ["headerCount": String(headers.count)],
-                uniquingKeysWith: { _, new in new }
-            )
-        )
+        AppLog.debug(.credential, "headers-hit", self.metadata(context: context, url: url, extra: ["headerCount": .int(headers.count)]))
 
         return headers
     }
@@ -115,11 +84,7 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring, @unchecked S
     func token(for sourceID: String, key: String) -> String? {
         guard let credential: SourceCredential = self.credential(sourceID: sourceID),
               self.isExpired(credential) == false else {
-            AppLog.debug(
-                .credential,
-                event: "token-miss",
-                metadata: ["sourceID": sourceID]
-            )
+            AppLog.debug(.credential, "token-miss", ["sourceID": .id(sourceID)])
             return nil
         }
 
@@ -133,14 +98,7 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring, @unchecked S
             value = nil
         }
 
-        AppLog.debug(
-            .credential,
-            event: "token-lookup",
-            metadata: [
-                "sourceID": sourceID,
-                "hit": (value != nil).description
-            ]
-        )
+        AppLog.debug(.credential, "token-lookup", ["sourceID": .id(sourceID), "hit": .bool(value != nil)])
 
         return value
     }
@@ -148,14 +106,7 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring, @unchecked S
     func storageValue(for sourceID: String, storage: SourceCredentialStorage, key: String) -> String? {
         guard let credential: SourceCredential = self.credential(sourceID: sourceID),
               self.isExpired(credential) == false else {
-            AppLog.debug(
-                .credential,
-                event: "storage-miss",
-                metadata: [
-                    "sourceID": sourceID,
-                    "storage": storage.rawValue
-                ]
-            )
+            AppLog.debug(.credential, "storage-miss", ["sourceID": .id(sourceID), "storage": .enumValue(storage)])
             return nil
         }
 
@@ -167,15 +118,11 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring, @unchecked S
             value = credential.sessionStorage[key]
         }
 
-        AppLog.debug(
-            .credential,
-            event: "storage-lookup",
-            metadata: [
-                "sourceID": sourceID,
-                "storage": storage.rawValue,
-                "hit": (value != nil).description
-            ]
-        )
+        AppLog.debug(.credential, "storage-lookup", [
+            "sourceID": .id(sourceID),
+            "storage": .enumValue(storage),
+            "hit": .bool(value != nil)
+        ])
 
         return value
     }
@@ -251,12 +198,14 @@ final class InMemorySourceCredentialStore: SourceCredentialStoring, @unchecked S
 
     private func metadata(
         context: SourceRequestContext,
-        url: URL
-    ) -> [String: String] {
-        return [
-            "sourceID": context.sourceID ?? "nil",
-            "purpose": context.purpose.rawValue,
-            "host": url.host ?? "nil"
+        url: URL,
+        extra: [String: LogValue]
+    ) -> [String: LogValue] {
+        let base: [String: LogValue] = [
+            "sourceID": .id(context.sourceID),
+            "purpose": .enumValue(context.purpose),
+            "host": .host(url)
         ]
+        return base.merging(extra, uniquingKeysWith: { _, new in new })
     }
 }

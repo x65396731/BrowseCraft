@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import Observation
 import Foundation
 import StoreKit
@@ -162,11 +163,7 @@ final class SettingsViewModel {
             self.cacheErrorMessage = nil
             AppAnalytics.shared.logSettingChanged(.imageCacheLimit, value: String(limit.megabytes))
         } catch {
-            AppLog.error(
-                .cache,
-                event: "image-cache-settings-update-failed",
-                metadata: ["error": AppLog.safeErrorCode(error)]
-            )
+            AppLog.error(.cache, "image-cache-settings-update-failed", ["error": .error(error)])
             self.cacheErrorMessage = NSLocalizedString("Image cache settings could not be updated.", comment: "")
         }
     }
@@ -201,7 +198,7 @@ final class SettingsViewModel {
         self.clearResultToken += 1
         let token: Int = self.clearResultToken
         self.lastClearedBytes = freedBytes
-        AppLog.notice(.cache, event: "image-cache-cleared", metadata: ["freedBytes": String(freedBytes)])
+        AppLog.notice(.cache, "image-cache-cleared", ["freedBytes": .bytes(freedBytes)])
         AppAnalytics.shared.logCacheCleared(freedBytes: Int64(freedBytes))
 
         Task { @MainActor [weak self] in
@@ -276,13 +273,10 @@ final class SettingsViewModel {
     func restoreStoreKitPurchases(
         for authorizedUserID: UUID
     ) async throws -> Set<String>? {
-        IAPDiagnostics.notice(
-            "event=restore-started " +
-                "userHash=\(IAPDiagnostics.hash(authorizedUserID))"
-        )
+        AppLog.notice(.purchase, "restore-started", ["userHash": .id(authorizedUserID)])
         try await self.purchaseCoordinator.validateAuthorizedUser(authorizedUserID)
         try await AppStore.sync()
-        IAPDiagnostics.notice("event=restore-app-store-sync-completed")
+        AppLog.notice(.purchase, "restore-app-store-sync-completed")
 
         var restorableTransactions: [RestorableStoreKitTransaction] = []
         var unverifiedCount: Int = 0
@@ -330,32 +324,27 @@ final class SettingsViewModel {
                     return candidate.transaction.appAccountToken
                 }
             )
-        IAPDiagnostics.notice(
-            "event=restore-entitlements-collected " +
-                "acceptedCount=\(restorableTransactions.count) " +
-                "batchCount=\(restorePlan.batches.count) " +
-                "hasOwnBatch=\(restorePlan.startsWithOwnBatch) " +
-                "missingTokenCount=\(restorePlan.missingTokenCount) " +
-                "unverifiedCount=\(unverifiedCount) " +
-                "unsupportedProductCount=\(unsupportedProductCount) " +
-                "revokedCount=\(revokedCount)"
-        )
+        AppLog.notice(.purchase, "restore-entitlements-collected", [
+            "acceptedCount": .int(restorableTransactions.count),
+            "batchCount": .int(restorePlan.batches.count),
+            "hasOwnBatch": .bool(restorePlan.startsWithOwnBatch),
+            "missingTokenCount": .int(restorePlan.missingTokenCount),
+            "unverifiedCount": .int(unverifiedCount),
+            "unsupportedProductCount": .int(unsupportedProductCount),
+            "revokedCount": .int(revokedCount)
+        ])
 
         try await self.purchaseCoordinator.validateAuthorizedUser(authorizedUserID)
         let submittable: [RestorableStoreKitTransaction] = restorePlan.batches.flatMap { $0 }
         guard let environment: PortalPurchaseEnvironment =
             submittable.first?.environment else {
-            IAPDiagnostics.notice(
-                "event=restore-completed outcome=no-restorable-transactions"
-            )
+            AppLog.notice(.purchase, "restore-completed", ["outcome": .code("no-restorable-transactions")])
             return nil
         }
         guard submittable.allSatisfy({ candidate in
             candidate.environment == environment
         }) else {
-            IAPDiagnostics.error(
-                "event=restore-failed reason=mixed-environments"
-            )
+            AppLog.error(.purchase, "restore-failed", ["reason": .code("mixed-environments")])
             throw StoreKitPortalPurchaseSubmissionError
                 .snapshotContractMismatch
         }
@@ -388,13 +377,12 @@ final class SettingsViewModel {
                 await candidate.transaction.finish()
             }
         }
-        IAPDiagnostics.notice(
-            "event=restore-completed " +
-                "environment=\(environment.rawValue) " +
-                "submittedBatchCount=\(outcome.submittedBatchIndexes.count) " +
-                "foreignTransactionCount=\(outcome.foreignItemCount) " +
-                "activeProductCount=\(outcome.activeProductIDs?.count ?? 0)"
-        )
+        AppLog.notice(.purchase, "restore-completed", [
+            "environment": .enumValue(environment),
+            "submittedBatchCount": .int(outcome.submittedBatchIndexes.count),
+            "foreignTransactionCount": .int(outcome.foreignItemCount),
+            "activeProductCount": .int(outcome.activeProductIDs?.count ?? 0)
+        ])
         return outcome.activeProductIDs
     }
 

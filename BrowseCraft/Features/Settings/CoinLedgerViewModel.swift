@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import Foundation
 import Observation
 
@@ -91,6 +92,7 @@ final class CoinLedgerViewModel {
         } catch is CancellationError {
             return .cancelled
         } catch {
+            AppLog.error(.coin, "coin-ledger-load-failed", ["error": .error(error)])
             return Task.isCancelled ? .cancelled : .failed
         }
     }

@@ -269,6 +269,8 @@
 "Searching video-like resources on this website..." = "正在這個網站上尋找影片類的資源…";
 "Send Crash Diagnostics" = "傳送當機診斷";
 "settings_send_usage_statistics" = "傳送使用統計";
+"settings_export_logs" = "匯出診斷日誌";
+"settings_export_logs_failed" = "無法匯出診斷日誌。";
 "Settings" = "設定";
 "Sign in to this source" = "登入這個來源";
 "Site Base URL" = "網站位址";

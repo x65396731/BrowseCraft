@@ -1,4 +1,5 @@
 import BrowseCraftCore
+import BrowseCraftLog
 import Foundation
 import ReadiumShared
 
@@ -32,6 +33,23 @@ final class SiteBookAudioHTTPClient: DefaultHTTPClientDelegate, @unchecked Senda
         } catch {
             return .failure(.other(error))
         }
+    }
+
+    /// 中文注释：规则请求的公共钩子（BCA-OBS-014）：有声书音频请求的响应与失败在这里记。
+    func httpClient(_ httpClient: DefaultHTTPClient, request: HTTPRequest, didReceiveResponse response: HTTPResponse) {
+        AppLog.info(.network, "audio-response", [
+            "host": .host(request.url.url),
+            "path": .path(request.url.url),
+            "status": .int(response.status.rawValue)
+        ])
+    }
+
+    func httpClient(_ httpClient: DefaultHTTPClient, request: HTTPRequest, didFailWithError error: HTTPError) {
+        AppLog.error(.network, "audio-request-failed", [
+            "host": .host(request.url.url),
+            "path": .path(request.url.url),
+            "error": .error(error)
+        ])
     }
 
     /// 中文注释：http → https，其余原样；升级后不再回退 http（回退也会被 ATS 拦，没有意义）。

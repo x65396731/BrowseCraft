@@ -1,5 +1,6 @@
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftLog
 import Foundation
 
 /// 中文注释：把已下发规则格式化成只读的调试 JSON，供 `SourceDebugView` 展示。
@@ -25,6 +26,7 @@ struct SourceRuleDebugJSONFormatter: Sendable {
                 return try self.formattedJSON(configuration.rule)
             }
         } catch {
+            AppLog.error(.rule, "source-rule-debug-format-failed", ["error": .error(error)])
             return "{}"
         }
     }

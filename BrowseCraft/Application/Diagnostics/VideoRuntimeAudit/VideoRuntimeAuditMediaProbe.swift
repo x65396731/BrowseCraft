@@ -2,6 +2,7 @@
 #if DEBUG
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftLog
 import BrowseCraftRuntime
 import Foundation
 
@@ -196,9 +197,9 @@ struct VideoRuntimeAuditMediaProbe {
         guard Self.contentTypeAllowsMP4(response.contentType) else {
             #if DEBUG
             // 中文注释：只记录 Content-Type 值用于归因，不记录 URL。
-            AppDebugLog.write(
-                "[BrowseCraftRuntimeAudit] mp4 probe content-type mismatch: \(response.contentType)"
-            )
+            AppLog.debug(.rule, "runtime-audit-mp4-probe-content-type-mismatch", [
+                "message": .text("\(response.contentType)")
+            ])
             #endif
             return .failure(.contentTypeMismatch)
         }
@@ -281,6 +282,7 @@ struct VideoRuntimeAuditMediaProbe {
                 finalURL: httpResponse.url ?? url
             )
         } catch {
+            AppLog.debug(.rule, "runtime-audit-media-probe-failed", ["error": .error(error)])
             return nil
         }
     }

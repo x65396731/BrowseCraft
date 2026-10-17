@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import WebKit
 
 extension VideoWebPlayerCoordinator: WKUIDelegate {
@@ -10,19 +11,17 @@ extension VideoWebPlayerCoordinator: WKUIDelegate {
         if navigationAction.targetFrame == nil {
             guard self.shouldAllowMainFrameNavigation(to: navigationAction.request.url) else {
                 #if DEBUG
-                AppDebugLog.write(
-                    "[BrowseCraftVideoWebPlayer] block-target-blank " +
-                    "url=\(self.safeLogURL(navigationAction.request.url))"
-                )
+                AppLog.debug(.playback, "video-web-player-block-target-blank", [
+                    "url": .text("\(self.safeLogURL(navigationAction.request.url))")
+                ])
                 #endif
                 return nil
             }
 
             #if DEBUG
-            AppDebugLog.write(
-                "[BrowseCraftVideoWebPlayer] target-blank " +
-                "url=\(self.safeLogURL(navigationAction.request.url))"
-            )
+            AppLog.debug(.playback, "video-web-player-target-blank", [
+                "url": .text("\(self.safeLogURL(navigationAction.request.url))")
+            ])
             #endif
             webView.load(navigationAction.request)
         }

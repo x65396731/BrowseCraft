@@ -1,5 +1,6 @@
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftLog
 import SwiftUI
 import WebKit
 import WebUI
@@ -139,11 +140,11 @@ struct VideoWebPlayerView: View {
                         .refreshable()
                         .onAppear {
                             #if DEBUG
-                            AppDebugLog.write(
-                                "[BrowseCraftVideoWebPlayer] appear/load " +
-                                "url=\(Self.safeLogURL(self.request.url)) " +
-                                "title=\(self.title)"
-                            )
+                            AppLog.debug(.playback, "video-web-player", [
+                                "url": .text("\(Self.safeLogURL(self.request.url))"),
+                                "title": .text("\(self.title)"),
+                                "message": .text("appear/load")
+                            ])
                             #endif
                             self.coordinator.prepareCookies(for: self.request) {
                                 let urlRequest: URLRequest = self.request.urlRequest(
@@ -156,11 +157,10 @@ struct VideoWebPlayerView: View {
                         }
                         .onChange(of: self.request) { _, newRequest in
                             #if DEBUG
-                            AppDebugLog.write(
-                                "[BrowseCraftVideoWebPlayer] reload " +
-                                "url=\(Self.safeLogURL(newRequest.url)) " +
-                                "title=\(self.title)"
-                            )
+                            AppLog.debug(.playback, "video-web-player-reload", [
+                                "url": .text("\(Self.safeLogURL(newRequest.url))"),
+                                "title": .text("\(self.title)")
+                            ])
                             #endif
                             self.coordinator.prepareCookies(for: newRequest) {
                                 let urlRequest: URLRequest = newRequest.urlRequest(

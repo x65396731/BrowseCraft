@@ -1,6 +1,7 @@
 import Foundation
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftLog
 import BrowseCraftRuntime
 
 // 中文注释：根据 Source 配置选择对应 runtime，并加载 Sources/Library 页面展示的列表内容。
@@ -39,12 +40,12 @@ struct RefreshSourceRuntimeUseCase: Sendable {
             try await runtime.loadList(input)
         }
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftRuntime] refresh output source=\(source.id) " +
-            "kind=\(source.configuration.kind.rawValue) " +
-            "items=\(output.items.count) " +
-            "context=\(self.contextDescription(context))"
-        )
+        AppLog.debug(.rule, "runtime-refresh-output", [
+            "source": .text("\(source.id)"),
+            "kind": .text("\(source.configuration.kind.rawValue)"),
+            "items": .text("\(output.items.count)"),
+            "context": .text("\(self.contextDescription(context))")
+        ])
         #endif
         return output
     }

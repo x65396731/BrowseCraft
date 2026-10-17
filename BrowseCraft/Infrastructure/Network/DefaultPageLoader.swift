@@ -1,4 +1,5 @@
 import BrowseCraftDomain
+import BrowseCraftLog
 import Foundation
 
 // 中文注释：DefaultPageLoader 是页面加载的生产分流器，统一选择 HTTP 或 WebView 路径。
@@ -36,22 +37,21 @@ final class DefaultPageLoader: PageContentLoader, PageDataLoader {
                 // （toonily 章节页 403 Cloudflare 挑战）；同一请求改走 WebView 再取一次，由
                 // `BC-EVIDENCE-081` 的挑战页状态机等它过去。无反爬的站不会进到这里。
                 #if DEBUG
-                AppDebugLog.write(
-                    "[BrowseCraftWebView] anti-bot on http path, retrying via webview " +
-                    "url=\(request.url.absoluteString)"
-                )
+                AppLog.debug(.network, "web-view-anti-bot-retry-via-webview", [
+                    "url": .text("\(request.url.absoluteString)"),
+                    "message": .text("path,")
+                ])
                 #endif
                 return try await self.renderedPageContentLoader.loadRenderedContent(request)
             }
         }
 
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftWebView] render html " +
-            "url=\(request.url.absoluteString) " +
-            "scope=\(request.requestConfig?.scope?.rawValue ?? "default") " +
-            "autoScroll=\(request.requestConfig?.autoScroll?.description ?? "nil")"
-        )
+        AppLog.debug(.network, "web-view-render-html", [
+            "url": .text("\(request.url.absoluteString)"),
+            "scope": .text("\(request.requestConfig?.scope?.rawValue ?? "default")"),
+            "autoScroll": .text("\(request.requestConfig?.autoScroll?.description ?? "nil")")
+        ])
         #endif
 
         return try await self.renderedPageContentLoader.loadRenderedContent(request)

@@ -1,4 +1,5 @@
 import BrowseCraftDomain
+import BrowseCraftLog
 import Foundation
 
 struct PreflightHTTPPageLoader: PreflightPageAcquiring {
@@ -25,6 +26,32 @@ struct PreflightHTTPPageLoader: PreflightPageAcquiring {
     }
 
     func acquire(_ request: PreflightPageRequest) async throws -> PreflightAcquiredPage {
+        // 中文注释：规则请求的公共钩子（BCA-OBS-014）：预检取页在这里记一条完成或失败。
+        let clock: ContinuousClock = ContinuousClock()
+        let startedAt: ContinuousClock.Instant = clock.now
+        do {
+            let page: PreflightAcquiredPage = try await self.performAcquire(request)
+            AppLog.info(.generation, "preflight-page-acquired", [
+                "loader": .code("http"),
+                "host": .host(request.url),
+                "status": .int(page.statusCode ?? 0),
+                "bytes": .bytes(page.byteCount),
+                "redirects": .int(page.redirectChain.count),
+                "ms": .duration(clock.now - startedAt)
+            ])
+            return page
+        } catch {
+            AppLog.error(.generation, "preflight-page-failed", [
+                "loader": .code("http"),
+                "host": .host(request.url),
+                "ms": .duration(clock.now - startedAt),
+                "error": .error(error)
+            ])
+            throw error
+        }
+    }
+
+    private func performAcquire(_ request: PreflightPageRequest) async throws -> PreflightAcquiredPage {
         // 中文注释：`BC-PREFLIGHT-065`——与运行时同一 https 升级（`BC-ACQ-065`）；`requestedURL` 仍是输入原样。
         let fetchURL: URL = HTTPSUpgrade.upgraded(request.url) ?? request.url
         try self.publicURLPolicy.validate(fetchURL)
@@ -209,6 +236,7 @@ final class PreflightURLSessionDelegate: NSObject, URLSessionTaskDelegate, @unch
             )
             completionHandler(redirected)
         } catch {
+            AppLog.notice(.generation, "preflight-redirect-rejected", ["error": .error(error)])
             self.markRejectedRedirect()
             completionHandler(nil)
         }

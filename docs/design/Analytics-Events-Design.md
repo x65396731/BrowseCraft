@@ -69,7 +69,7 @@ Crashlytics 的写入点只有 `CrashDiagnostics`，规则执行失败的上报�
 | `startup_finished` | 开屏动画结束、退到标签页时报，记录为什么结束。 | result（StartupOutcome）、entry（落到哪个标签页）。 |
 | `screen_view` | 任一页面显示时报，含从下级页返回、盖在上面的 sheet / 全屏页关闭后重新露出；由 `.analyticsScreen(_:)` 统一发出。 | screen_name、screen_class（都取 DiagnosticScreen 的原始值）。 |
 | `push_opened` | 用户点开规则生成结果推送时报；推送在前台到达不报。 | entry（固定为 rule_generation）。不报：推送内容与任务 ID。 |
-| `support_info_copied` | 用户复制诊断码、账号 ID 或启动失败信息时报，用来估计求助量。 | entry（SupportInfoKind）。不报：复制的内容本身。 |
+| `support_info_copied` | 用户复制诊断码、账号 ID、启动失败信息或导出诊断日志时报，用来估计求助量。 | entry（SupportInfoKind）。不报：复制或导出的内容本身。 |
 
 ### B. 来源与规则目录
 
@@ -297,7 +297,7 @@ GA4 每个项目只有 50 个事件级自定义维度名额。下表除 `screen_
 | `sourceType` | 最近进入的来源类型：comic / video / book / unknown；与 `sourceId` 同时写。 |
 | `ruleStage` | 最近开始执行的规则阶段，取 `DiagnosticRuleStage`；列表、搜索、详情、阅读、播放解析开始时写。 |
 
-页面曝光时另写一行日志 `screen=<screen_name>`，崩溃报告里的日志因此是一条页面轨迹。除此之外不写日志行。
+页面曝光时另写一行日志 `screen=<screen_name>`，崩溃报告里的日志因此是一条页面轨迹。其余日志行只由统一日志的 Crashlytics 出口写，只带类别与事件名（[Logging-Design.md](Logging-Design.md) `BCA-OBS-017`）。
 
 ### 6.3 非致命错误自带的键
 

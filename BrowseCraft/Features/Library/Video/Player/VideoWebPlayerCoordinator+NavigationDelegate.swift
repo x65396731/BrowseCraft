@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import WebKit
 
 extension VideoWebPlayerCoordinator: WKNavigationDelegate {
@@ -16,10 +17,9 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
                self.shouldAllowMainFrameNavigation(to: navigationAction.request.url) == false {
                 self.markExpectedInterruptedMainFrameNavigation()
                 #if DEBUG
-                AppDebugLog.write(
-                    "[BrowseCraftVideoWebPlayer] block-main-frame " +
-                    "url=\(self.safeLogURL(navigationAction.request.url))"
-                )
+                AppLog.debug(.playback, "video-web-player-block-main-frame", [
+                    "url": .text("\(self.safeLogURL(navigationAction.request.url))")
+                ])
                 #endif
                 return (.cancel, preferences)
             }
@@ -35,20 +35,19 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
 
             #if DEBUG
             if navigationAction.targetFrame == nil {
-                AppDebugLog.write(
-                    "[BrowseCraftVideoWebPlayer] allow-new-frame " +
-                    "url=\(self.safeLogURL(navigationAction.request.url))"
-                )
+                AppLog.debug(.playback, "video-web-player-allow-new-frame", [
+                    "url": .text("\(self.safeLogURL(navigationAction.request.url))")
+                ])
             }
             #endif
             return (.allow, preferences)
         }
 
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftVideoWebPlayer] cancel-navigation " +
-            "scheme=\(scheme) url=\(self.safeLogURL(navigationAction.request.url))"
-        )
+        AppLog.debug(.playback, "video-web-player-cancel-navigation", [
+            "scheme": .text("\(scheme)"),
+            "url": .text("\(self.safeLogURL(navigationAction.request.url))")
+        ])
         #endif
         if navigationAction.targetFrame?.isMainFrame != false {
             self.markExpectedInterruptedMainFrameNavigation()
@@ -105,12 +104,11 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
         decidePolicyFor navigationResponse: WKNavigationResponse
     ) async -> WKNavigationResponsePolicy {
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftVideoWebPlayer] nav-response " +
-            "mainFrame=\(navigationResponse.isForMainFrame) " +
-            "status=\((navigationResponse.response as? HTTPURLResponse)?.statusCode ?? -1) " +
-            "url=\(self.safeLogURL(navigationResponse.response.url))"
-        )
+        AppLog.debug(.playback, "video-web-player-nav-response", [
+            "mainFrame": .text("\(navigationResponse.isForMainFrame)"),
+            "status": .text("\((navigationResponse.response as? HTTPURLResponse)?.statusCode ?? -1)"),
+            "url": .text("\(self.safeLogURL(navigationResponse.response.url))")
+        ])
         #endif
         if let httpResponse: HTTPURLResponse = navigationResponse.response as? HTTPURLResponse,
            httpResponse.statusCode >= 400,
@@ -131,10 +129,10 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation?) {
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftVideoWebPlayer] did-finish " +
-            "url=\(self.safeLogURL(webView.url)) title=\(webView.title ?? "nil")"
-        )
+        AppLog.debug(.playback, "video-web-player-did-finish", [
+            "url": .text("\(self.safeLogURL(webView.url))"),
+            "title": .text("\(webView.title ?? "nil")")
+        ])
         self.logViewportMetrics(webView)
         #endif
 
@@ -168,20 +166,16 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
                 guard let metrics: [String: Any] = value as? [String: Any] else {
                     return
                 }
-                AppDebugLog.write(
-                    "[BrowseCraftVideoWebPlayer] viewport " +
-                    "innerWidth=\(String(describing: metrics["innerWidth"] ?? "nil")) " +
-                    "documentWidth=\(String(describing: metrics["documentWidth"] ?? "nil")) " +
-                    "scrollWidth=\(String(describing: metrics["scrollWidth"] ?? "nil")) " +
-                    "visualWidth=\(String(describing: metrics["visualWidth"] ?? "nil")) " +
-                    "pageZoom=\(webView.pageZoom) " +
-                    "meta=\(String(describing: metrics["viewport"] ?? "nil"))"
-                )
+                AppLog.debug(.playback, "video-web-player-viewport", [
+                    "innerWidth": .text("\(String(describing: metrics["innerWidth"] ?? "nil"))"),
+                    "documentWidth": .text("\(String(describing: metrics["documentWidth"] ?? "nil"))"),
+                    "scrollWidth": .text("\(String(describing: metrics["scrollWidth"] ?? "nil"))"),
+                    "visualWidth": .text("\(String(describing: metrics["visualWidth"] ?? "nil"))"),
+                    "pageZoom": .text("\(webView.pageZoom)"),
+                    "meta": .text("\(String(describing: metrics["viewport"] ?? "nil"))")
+                ])
             } catch {
-                AppDebugLog.write(
-                    "[BrowseCraftVideoWebPlayer] viewport-read-failed " +
-                    "error=\(error.localizedDescription)"
-                )
+                AppLog.debug(.playback, "video-web-player-viewport-read-failed", ["error": .error(error)])
             }
         }
     }
@@ -193,10 +187,10 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
         }
 
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftVideoWebPlayer] did-fail " +
-            "url=\(self.safeLogURL(webView.url)) error=\(error.localizedDescription)"
-        )
+        AppLog.debug(.playback, "video-web-player-did-fail", [
+            "url": .text("\(self.safeLogURL(webView.url))"),
+            "error": .error(error)
+        ])
         #endif
     }
 
@@ -209,19 +203,18 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
         self.reportConnectionFailure(error, fallbackURL: webView.url)
 
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftVideoWebPlayer] did-fail-provisional " +
-            "url=\(self.safeLogURL(webView.url)) error=\(error.localizedDescription)"
-        )
+        AppLog.debug(.playback, "video-web-player-did-fail-provisional", [
+            "url": .text("\(self.safeLogURL(webView.url))"),
+            "error": .error(error)
+        ])
         #endif
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftVideoWebPlayer] web-content-terminated " +
-            "url=\(self.safeLogURL(webView.url))"
-        )
+        AppLog.debug(.playback, "video-web-player-web-content-terminated", [
+            "url": .text("\(self.safeLogURL(webView.url))")
+        ])
         #endif
         webView.reload()
     }

@@ -1,5 +1,5 @@
+import BrowseCraftLog
 import Foundation
-import OSLog
 
 enum PortalSessionInstallationError: Error, Equatable, Sendable {
     case activeUserMismatch
@@ -102,9 +102,9 @@ actor PortalSessionCoordinator {
             try? self.entitlementCacheResetter?.resetPortalEntitlements(
                 for: self.activeAppUser.currentUserID
             )
-            PortalSessionDiagnostics.error(
-                "event=session-load result=failed action=require-apple-sign-in"
-            )
+            AppLog.error(.identity, "session-load-failed", [
+                "action": .code("require-apple-sign-in")
+            ])
             self.publish(status: .signedOut)
         }
     }
@@ -253,6 +253,7 @@ actor PortalSessionCoordinator {
             self.persistedSession = transition.previousSession
             self.currentSnapshot = transition.previousSnapshot
         } catch {
+            AppLog.error(.identity, "session-transition-rollback-failed", ["error": .error(error)])
             try? self.sessionStore.clear()
             self.persistedSession = nil
             self.publish(status: .signedOut)
@@ -321,9 +322,7 @@ actor PortalSessionCoordinator {
                 accessToken: session.credentials.accessToken
             )
         } catch {
-            PortalSessionDiagnostics.error(
-                "event=logout remote-revoke=failed action=clear-local-session"
-            )
+            AppLog.error(.identity, "logout-remote-revoke-failed", ["action": .code("clear-local-session")])
         }
         try self.clearLocalSession()
     }
@@ -348,6 +347,7 @@ actor PortalSessionCoordinator {
             )
             remoteError = nil
         } catch {
+            AppLog.error(.identity, "logout-remote-revoke-failed", ["error": .error(error)])
             remoteError = error
         }
         try self.clearLocalSession()
@@ -365,9 +365,7 @@ actor PortalSessionCoordinator {
         do {
             try self.clearLocalSession()
         } catch {
-            PortalSessionDiagnostics.error(
-                "event=account-deletion-session-clear result=failed"
-            )
+            AppLog.error(.identity, "account-deletion-session-clear-failed")
         }
     }
 
@@ -377,13 +375,13 @@ actor PortalSessionCoordinator {
         guard self.persistedSession != nil else {
             return .unchanged
         }
-        PortalSessionDiagnostics.notice("event=authorization-rejected action=force-refresh")
+        AppLog.notice(.identity, "authorization-rejected", ["action": .code("force-refresh")])
         await self.refreshIfNeeded(force: true)
         switch self.currentSnapshot.status {
         case .authenticated where self.persistedSession != nil:
             return .refreshed
         case .signedOut, .userDisabled, .accountConflict:
-            PortalSessionDiagnostics.notice("event=authorization-rejected result=signed-out")
+            AppLog.notice(.identity, "authorization-rejected", ["result": .code("signed-out")])
             return .signedOut
         case .authenticated, .authenticating, .temporarilyUnavailable:
             return .unchanged
@@ -463,6 +461,7 @@ actor PortalSessionCoordinator {
                 self.publish(status: .temporarilyUnavailable)
             }
         } catch {
+            AppLog.error(.identity, "session-refresh-failed", ["error": .error(error)])
             self.publish(status: .temporarilyUnavailable)
         }
     }
@@ -473,6 +472,7 @@ actor PortalSessionCoordinator {
         do {
             try self.sessionStore.clear()
         } catch {
+            AppLog.error(.identity, "session-reset-clear-failed", ["error": .error(error)])
             firstError = error
         }
         do {
@@ -480,6 +480,7 @@ actor PortalSessionCoordinator {
                 for: userID
             )
         } catch {
+            AppLog.error(.identity, "entitlement-cache-reset-failed", ["error": .error(error)])
             if firstError == nil {
                 firstError = error
             }
@@ -545,21 +546,6 @@ actor PortalSessionCoordinator {
             return
         }
         await self.refreshIfNeeded()
-    }
-}
-
-enum PortalSessionDiagnostics {
-    private static let logger: Logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "BrowseCraft",
-        category: "PortalSession"
-    )
-
-    static func notice(_ message: String) {
-        Self.logger.notice("[BrowseCraftPortalSession] \(message, privacy: .public)")
-    }
-
-    static func error(_ message: String) {
-        Self.logger.error("[BrowseCraftPortalSession] \(message, privacy: .public)")
     }
 }
 

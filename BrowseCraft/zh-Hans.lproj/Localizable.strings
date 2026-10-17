@@ -269,6 +269,8 @@
 "Searching video-like resources on this website..." = "正在该网站上查找视频类资源…";
 "Send Crash Diagnostics" = "发送崩溃诊断";
 "settings_send_usage_statistics" = "发送使用统计";
+"settings_export_logs" = "导出诊断日志";
+"settings_export_logs_failed" = "无法导出诊断日志。";
 "Settings" = "设置";
 "Sign in to this source" = "登录此来源";
 "Site Base URL" = "站点地址";

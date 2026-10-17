@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import SwiftUI
 
 /// 中文注释：谁触发了这次激励广告（设计书 30.8）。埋点参数 `ad_trigger` 取它的 rawValue。
@@ -55,7 +56,10 @@ struct AdPlaybackHandler: ViewModifier {
                 }
 
                 #if DEBUG
-                AppDebugLog.write("[BrowseCraftAdPlayback] handler received shouldPlayAd=true trigger=\(self.trigger.rawValue)")
+                AppLog.debug(.ad, "ad-playback-handler-received", [
+                    "shouldPlayAd": .text("true"),
+                    "trigger": .text("\(self.trigger.rawValue)")
+                ])
                 #endif
 
                 #if DEBUG
@@ -68,7 +72,7 @@ struct AdPlaybackHandler: ViewModifier {
 
                 if self.presenter.isPresenting {
                     #if DEBUG
-                    AppDebugLog.write("[BrowseCraftAdPlayback] handler skipped because ad is already presenting")
+                    AppLog.debug(.ad, "ad-playback-handler-skipped-already-presenting")
                     #endif
                     self.markHandled(.skippedBecauseAlreadyPresenting)
                     // 中文注释：登录态要异步取，放到标记处理之后，不拖延页面清掉 shouldPlayAd。
@@ -84,7 +88,9 @@ struct AdPlaybackHandler: ViewModifier {
                 let userIdentifier: String? = await self.rewardCoordinator?.rewardedAdUserIdentifier()
                 let result: RewardedAdPresentationResult = await self.presenter.present(userIdentifier: userIdentifier)
                 #if DEBUG
-                AppDebugLog.write("[BrowseCraftAdPlayback] handler presentation finished result=\(result.debugDescription)")
+                AppLog.debug(.ad, "ad-playback-handler-presentation-finished", [
+                    "result": .text("\(result.debugDescription)")
+                ])
                 #endif
                 AppAnalytics.shared.logRewardedAdResult(
                     trigger: self.trigger,

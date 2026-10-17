@@ -3,6 +3,7 @@
 import Foundation
 import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftLog
 import BrowseCraftRuntime
 
 // 中文注释：显式 runtime audit 的执行结果对（BC-EVIDENCE-076.1）：session 与路线事实都来自
@@ -180,6 +181,7 @@ struct VideoRuntimeAuditService {
             listItems = output.items
             listSucceeded = output.diagnostics.status == .succeeded && output.items.isEmpty == false
         } catch {
+            AppLog.debug(.rule, "runtime-audit-list-failed", ["error": .error(error)])
             listSucceeded = false
         }
         let listStage: VideoRuntimeStageEvidenceV2 = Self.dataStage(
@@ -426,6 +428,7 @@ struct VideoRuntimeAuditService {
                 )
             )
         } catch {
+            AppLog.debug(.rule, "runtime-audit-detail-failed", ["error": .error(error)])
             detailOutput = nil
         }
         let detailLoadSucceeded: Bool = detailOutput?.diagnostics.status == .succeeded

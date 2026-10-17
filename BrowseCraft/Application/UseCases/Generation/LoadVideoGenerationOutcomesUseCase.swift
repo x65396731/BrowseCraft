@@ -1,4 +1,5 @@
 import BrowseCraftDomain
+import BrowseCraftLog
 import Foundation
 
 /// 个人生成结果的读取结果：未登录与「登录了但为空」要分开呈现。
@@ -75,7 +76,7 @@ struct LoadVideoGenerationOutcomesUseCase: Sendable {
             )
             return resolved
         } catch {
-            AppLog.error(.push, event: "outcome-source-decrypt-failed", metadata: ["error": AppLog.safeErrorCode(error)])
+            AppLog.error(.push, "outcome-source-decrypt-failed", ["error": .error(error)])
             return outcome
         }
     }

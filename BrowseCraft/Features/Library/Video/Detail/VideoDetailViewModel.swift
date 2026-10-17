@@ -2,6 +2,7 @@ import Observation
 import Foundation
 @preconcurrency import BrowseCraftCore
 import BrowseCraftDomain
+import BrowseCraftLog
 import BrowseCraftRuntime
 
 // 中文注释：VideoEpisode 是 Video V2 详情页内部剧集模型，不属于已删除的 V1 runtime。
@@ -126,13 +127,12 @@ final class VideoDetailViewModel {
         self.now = now
 
         #if DEBUG
-        AppDebugLog.write(
-            "[BrowseCraftVideoDetail] init " +
-            "source=\(source.id) " +
-            "kind=\(source.configuration.kind.rawValue) " +
-            "item=\(item.id) " +
-            "detailURL=\(item.detailURL)"
-        )
+        AppLog.debug(.playback, "video-detail-init", [
+            "source": .text("\(source.id)"),
+            "kind": .text("\(source.configuration.kind.rawValue)"),
+            "item": .text("\(item.id)"),
+            "detailURL": .text("\(item.detailURL)")
+        ])
         #endif
     }
 
@@ -348,13 +348,12 @@ final class VideoDetailViewModel {
         do {
             let runtime: any SourceRuntime = try self.runtimeResolver.runtime(for: self.source)
             #if DEBUG
-            AppDebugLog.write(
-                "[BrowseCraftVideoDetail] loadEpisodes request " +
-                "source=\(self.source.id) " +
-                "item=\(self.item.id) " +
-                "detailURL=\(detailURL.absoluteString) " +
-                "runtime=\(type(of: runtime))"
-            )
+            AppLog.debug(.playback, "video-detail-load-episodes-request", [
+                "source": .text("\(self.source.id)"),
+                "item": .text("\(self.item.id)"),
+                "detailURL": .text("\(detailURL.absoluteString)"),
+                "runtime": .text("\(type(of: runtime))")
+            ])
             #endif
             let input: SourceDetailInput = SourceDetailInput(
                 detailURL: detailURL,
@@ -407,14 +406,13 @@ final class VideoDetailViewModel {
             self.detailCoverURL = output.metadata?.coverURL
             self.ensureSelectedLine()
             #if DEBUG
-            AppDebugLog.write(
-                "[BrowseCraftVideoDetail] loadEpisodes runtime-result " +
-                "source=\(self.source.id) " +
-                "episodes=\(self.episodes.count) " +
-                "firstEpisode=\(self.episodes.first?.id ?? "nil") " +
-                "hasSynopsis=\(self.synopsis?.isEmpty == false) " +
-                "metadataRows=\(self.metadataRows.count)"
-            )
+            AppLog.debug(.playback, "video-detail-load-episodes-runtime-result", [
+                "source": .text("\(self.source.id)"),
+                "episodes": .text("\(self.episodes.count)"),
+                "firstEpisode": .text("\(self.episodes.first?.id ?? "nil")"),
+                "hasSynopsis": .text("\(self.synopsis?.isEmpty == false)"),
+                "metadataRows": .text("\(self.metadataRows.count)")
+            ])
             #endif
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-detail-error")
@@ -436,12 +434,11 @@ final class VideoDetailViewModel {
             return
         }
 
-        AppDebugLog.write(
-            "[BrowseCraftVideoDetail] group-diagnostics " +
-            "source=\(self.source.id) " +
-            "item=\(self.item.id) " +
-            "groupCount=\(groups.count)"
-        )
+        AppLog.debug(.playback, "video-detail-group-diagnostics", [
+            "source": .text("\(self.source.id)"),
+            "item": .text("\(self.item.id)"),
+            "groupCount": .text("\(groups.count)")
+        ])
 
         for (index, group) in groups.prefix(4).enumerated() {
             let bestMatch: (index: Int, overlap: Double)? = self.bestOverlap(for: index, in: groups)
@@ -455,16 +452,16 @@ final class VideoDetailViewModel {
                 .map { $0.url.absoluteString }
                 .joined(separator: " | ")
 
-            AppDebugLog.write(
-                "[BrowseCraftVideoDetail] group[\(index)] " +
-                "subtitle=\(group.subtitle ?? "nil") " +
-                "chapterCount=\(group.chapters.count) " +
-                "kept=\(kept) " +
-                "bestMatchIndex=\(bestMatch?.index.description ?? "nil") " +
-                "bestOverlap=\(bestMatch.map { String(format: "%.2f", $0.overlap) } ?? "nil") " +
-                "titles=\(titlePreview) " +
-                "urls=\(urlPreview)"
-            )
+            AppLog.debug(.playback, "video-detail", [
+                "subtitle": .text("\(group.subtitle ?? "nil")"),
+                "chapterCount": .text("\(group.chapters.count)"),
+                "kept": .text("\(kept)"),
+                "bestMatchIndex": .text("\(bestMatch?.index.description ?? "nil")"),
+                "bestOverlap": .text("\(bestMatch.map { String(format: "%.2f", $0.overlap) } ?? "nil")"),
+                "titles": .text("\(titlePreview)"),
+                "urls": .text("\(urlPreview)"),
+                "message": .text("group[\(index)]")
+            ])
         }
     }
 
@@ -520,12 +517,11 @@ final class VideoDetailViewModel {
         do {
             let runtime: any SourceRuntime = try self.runtimeResolver.runtime(for: self.source)
             #if DEBUG
-            AppDebugLog.write(
-                "[BrowseCraftVideoDetail] openEpisode request " +
-                "source=\(self.source.id) " +
-                "episode=\(episode.id) " +
-                "playPageURL=\(episode.playPageURL.absoluteString)"
-            )
+            AppLog.debug(.playback, "video-detail-open-episode-request", [
+                "source": .text("\(self.source.id)"),
+                "episode": .text("\(episode.id)"),
+                "playPageURL": .text("\(episode.playPageURL.absoluteString)")
+            ])
             #endif
             let reference: SourceVideoPlaybackReference
             guard let playbackRuntime: any SourceVideoPlaybackRuntime = runtime as? any SourceVideoPlaybackRuntime else {
@@ -567,30 +563,29 @@ final class VideoDetailViewModel {
                 viewModel: playerViewModel
             )
             #if DEBUG
-            AppDebugLog.write(
-                "[BrowseCraftVideoDetail] openEpisode playback-result " +
-                "source=\(self.source.id) " +
-                "episodeKey=\(reference.episodeKey) " +
-                "mediaKind=\(reference.candidateMediaKind.rawValue) " +
-                "status=\(reference.status)"
-            )
+            AppLog.debug(.playback, "video-detail-open-episode-playback-result", [
+                "source": .text("\(self.source.id)"),
+                "episodeKey": .text("\(reference.episodeKey)"),
+                "mediaKind": .text("\(reference.candidateMediaKind.rawValue)"),
+                "status": .text("\(reference.status)")
+            ])
             // 中文注释：为什么没走直接媒体——把 Runtime 的抽取计数与诊断 issue 原样打出来，
             // 不在 App 里再做一遍判断（用户 2026-09-05 要求 HLS 探测原因可见）。
             let extractionSummary: String = output.diagnostics.extractionLogs.map { log in
                 "\(log.field)=\(log.candidateCount)/\(log.outputCount)"
             }.joined(separator: " ")
-            AppDebugLog.write(
-                "[BrowseCraftVideoDetail] openEpisode playback-diagnostics " +
-                "source=\(self.source.id) " +
-                "episodeKey=\(reference.episodeKey) " +
-                "extraction=[\(extractionSummary)]"
-            )
+            AppLog.debug(.playback, "video-detail-open-episode-playback-diagnostics", [
+                "source": .text("\(self.source.id)"),
+                "episodeKey": .text("\(reference.episodeKey)"),
+                "extraction": .text("[\(extractionSummary)]")
+            ])
             for issue in output.diagnostics.issues {
-                AppDebugLog.write(
-                    "[BrowseCraftVideoDetail] openEpisode playback-issue " +
-                    "source=\(self.source.id) " +
-                    "id=\(issue.id) severity=\(issue.severity.rawValue) message=\(issue.message)"
-                )
+                AppLog.debug(.playback, "video-detail-open-episode-playback-issue", [
+                    "source": .text("\(self.source.id)"),
+                    "id": .text("\(issue.id)"),
+                    "severity": .text("\(issue.severity.rawValue)"),
+                    "message": .text("\(issue.message)")
+                ])
             }
             #endif
         } catch {
