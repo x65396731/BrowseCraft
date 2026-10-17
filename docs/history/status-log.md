@@ -1292,3 +1292,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 同节「模拟器走查」一行 not-run → 拆成两行：走到的部分 simulator-passed（iPhone 18 Pro / iOS 27.0，GA4 注册 24 个自定义维度，DebugView 送达 26 种事件），走查中修了 `screen_view` 缺 `screen_class` 与书 / 漫画详情阅读器入口读到旧值两处；没走到的部分另起一行 not-run。另记两条观察：关掉 sheet 回到下层页面不会重报曝光，之后事件的 `firebase_screen` 停在 sheet 页；测试广告看完后 `ad_reward_credited` 报 timeout，但余额随后从 8020 变 8040，到账慢于轮询窗口。检查点先登记为 HEAD `f6eae50`。
 - 走查修正与文档一起提交为 `b54297b`；第 9 节走查两行检查点由 HEAD `f6eae50` 改登记为 `b54297b`。
 - 同节新增「关掉 sheet / 全屏页 / 盖层回到下层页面时补报曝光」一行（implemented / not-run，未 build、未跑测试）；检查点先登记为 HEAD `0a8ca70`。
+- 补报曝光的实施与文档一起提交为 `59780e4`；第 9 节该行检查点由 HEAD `0a8ca70` 改登记为 `59780e4`。
