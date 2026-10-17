@@ -595,7 +595,6 @@
 "cloud_restore_pull_to_retry" = "Pull down to retry";
 
 /* 收藏页重设计（docs/design/Favorites-Page-Redesign-Design.md） */
-"favorites_count" = "%d favorites";
 "favorites_filter_all" = "All";
 "favorites_unfavorite" = "Unfavorite";
 "favorites_menu_open" = "Open";
@@ -609,11 +608,9 @@
 "favorites_unknown_source" = "Unknown Source";
 "favorites_source_paused_suffix" = " · Paused";
 "favorites_source_deleted_suffix" = " · Source deleted";
-"favorites_undo_message" = "Unfavorited “%@”";
 "favorites_undo_action" = "Undo";
 
 /* 历史页重设计（docs/design/History-Page-Redesign-Design.md） */
-"history_count" = "%ld items";
 "history_continue_watched" = "Last watched";
 "history_continue_read" = "Last read";
 "history_progress_watched_of" = "At %@ of %@";
@@ -628,7 +625,6 @@
 "history_menu_continue_reading" = "Continue Reading";
 "history_menu_continue_listening" = "Continue Listening";
 "history_menu_delete" = "Remove from History";
-"history_undo_message" = "Removed “%@” from history";
 "history_kind_empty_title_video" = "No videos watched yet";
 "history_kind_empty_title_comic" = "No comics read yet";
 "history_kind_empty_title_book" = "No books read yet";
@@ -954,3 +950,19 @@
 "content_lock_reason_unlock" = "Verify to view Favorites and History.";
 "content_lock_reason_enable" = "Verify to lock Favorites and History.";
 "content_lock_reason_disable" = "Verify to stop locking Favorites and History.";
+
+/* 收藏页与历史页的选择模式与批量删除（2026-10-17） */
+"content_selection_select" = "Select";
+"content_selection_done" = "Done";
+"content_selection_select_all" = "Select All";
+"content_selection_deselect_all" = "Deselect All";
+"content_selection_select_multiple" = "Select Multiple";
+"favorites_selection_title" = "%d Selected";
+"favorites_selection_count" = "%d selected";
+"favorites_batch_confirm_title" = "Unfavorite %d Titles?";
+"favorites_batch_confirm_message" = "This can’t be undone. You can favorite them again from the Library.";
+"favorites_batch_keep" = "Keep";
+"history_selection_title" = "%d Selected";
+"history_selection_count" = "%d selected";
+"history_batch_confirm_title" = "Delete %d Records?";
+"history_batch_confirm_message" = "This can’t be undone. For comics, every chapter record of the title is deleted.";

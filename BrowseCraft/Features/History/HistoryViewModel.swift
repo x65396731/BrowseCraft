@@ -3,7 +3,7 @@ import Observation
 import BrowseCraftDomain
 import Foundation
 
-// 中文注释：HistoryViewModel 负责历史页数据加载、类型筛选、继续条目、按天分组、看到哪里、来源状态与删除 / 撤销
+// 中文注释：HistoryViewModel 负责历史页数据加载、类型筛选、继续条目、按天分组、看到哪里、来源状态、删除与选择模式下的批量删除
 // （`docs/design/History-Page-Redesign-Design.md`）。
 
 @MainActor
@@ -55,14 +55,15 @@ final class HistoryViewModel {
     private(set) var continueEntry: ReadingHistoryEntry?
     /// 继续卡片以外的条目，按访问时间倒序、按天分组。
     private(set) var dayGroups: [DayGroup] = []
+    /// 选择模式下继续卡片收回列表：当前筛选下的全部条目按天分组（设计文档 2.6）。
+    private(set) var selectionDayGroups: [DayGroup] = []
     private var countsByFilter: [KindFilter: Int] = [:]
     var videoPlaybackRoute: VideoPlaybackRoute?
     var errorMessage: String?
-    /// 刚在本页删除、还能撤销的条目；底部提示随它出现和消失。
-    private(set) var undoableEntry: ReadingHistoryEntry?
+    /// 选择模式（设计文档 2.6）：勾选的条目只在当前筛选范围内。
+    private(set) var isSelecting: Bool = false
+    private(set) var selectedIDs: Set<String> = []
 
-    @ObservationIgnored private var pendingRemoval: ReadingHistoryRemoval?
-    @ObservationIgnored private var undoDismissTask: Task<Void, Never>?
     @ObservationIgnored private var imageRequestConfigs: [String: RequestConfig] = [:]
 
     private let persistenceCoordinator: HistoryPersistenceCoordinator
@@ -72,8 +73,6 @@ final class HistoryViewModel {
     private let resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase
     private let now: () -> Date
 
-    /// 撤销提示停留的时长，与收藏页相同。
-    static let undoDuration: Duration = .seconds(4)
     /// 视频看到最后这一段就算看完。
     static let finishedThreshold: Double = 0.95
 
@@ -135,13 +134,26 @@ final class HistoryViewModel {
         self.countsByFilter = counts
         self.filteredEntries = filtered
         self.continueEntry = filtered.first
+        self.dayGroups = self.groupByDay(Array(filtered.dropFirst()))
+        self.selectionDayGroups = self.groupByDay(filtered)
 
+        // 中文注释：数据变了（同步、别处删除）时，勾选只留还在当前筛选里的条目；历史变空就退出选择模式。
+        if self.isSelecting {
+            if self.readingHistoryEntries.isEmpty {
+                self.endSelection()
+            } else {
+                self.selectedIDs.formIntersection(filtered.map(\.id))
+            }
+        }
+    }
+
+    private func groupByDay(_ entries: [ReadingHistoryEntry]) -> [DayGroup] {
         let now: Date = self.now()
         let calendar: Calendar = .current
         var groups: [DayGroup] = []
         var currentDay: CatalogPersonalTimeline.Day?
         var currentEntries: [ReadingHistoryEntry] = []
-        for entry: ReadingHistoryEntry in filtered.dropFirst() {
+        for entry: ReadingHistoryEntry in entries {
             let day: CatalogPersonalTimeline.Day = CatalogPersonalTimeline.day(
                 for: entry.visitedAt,
                 now: now,
@@ -159,7 +171,7 @@ final class HistoryViewModel {
         if let finishedDay: CatalogPersonalTimeline.Day = currentDay {
             groups.append(DayGroup(day: finishedDay, entries: currentEntries))
         }
-        self.dayGroups = groups
+        return groups
     }
 
     static func catalogKind(of entry: ReadingHistoryEntry) -> CatalogSourceKind {
@@ -365,59 +377,80 @@ final class HistoryViewModel {
         )
     }
 
-    // MARK: - 删除与撤销
+    // MARK: - 删除
 
-    /// 删除不弹确认（2026-10-03 用户裁定）：按作品删掉全部记录，底部给出可撤销提示。
+    /// 单条删除（左滑、长按）：按作品删掉全部记录，不弹确认，也没有撤销（2026-10-17 用户裁定）。
     @MainActor
     func delete(_ entry: ReadingHistoryEntry) async {
+        await self.delete([entry])
+    }
+
+    @MainActor
+    private func delete(_ entries: [ReadingHistoryEntry]) async {
         do {
-            let removal: ReadingHistoryRemoval = try await self.persistenceCoordinator.delete(
-                ReadingHistoryEntriesTransfer(values: [entry])
+            _ = try await self.persistenceCoordinator.delete(
+                ReadingHistoryEntriesTransfer(values: entries)
             )
-            self.readingHistoryEntries.removeAll { $0.id == entry.id }
-            self.showUndo(for: entry, removal: removal)
+            let deletedIDs: Set<String> = Set(entries.map(\.id))
+            self.readingHistoryEntries.removeAll { deletedIDs.contains($0.id) }
         } catch {
             self.errorMessage = error.localizedDescription
             await self.load()
         }
     }
 
-    /// 撤销：把删掉的记录原样写回，条目回到原来的日期分组。
+    // MARK: - 选择与批量删除（设计文档 2.6）
+
+    var selectedCount: Int {
+        return self.selectedIDs.count
+    }
+
+    var isAllVisibleSelected: Bool {
+        return self.filteredEntries.isEmpty == false
+            && self.filteredEntries.allSatisfy { self.selectedIDs.contains($0.id) }
+    }
+
+    func isSelected(_ entry: ReadingHistoryEntry) -> Bool {
+        return self.selectedIDs.contains(entry.id)
+    }
+
+    /// 进入选择模式；从长按菜单「选择多项」进来时预先选中那一条。
+    func beginSelection(preselecting entry: ReadingHistoryEntry? = nil) {
+        self.isSelecting = true
+        self.selectedIDs = entry.map { [$0.id] } ?? []
+    }
+
+    func endSelection() {
+        self.isSelecting = false
+        self.selectedIDs = []
+    }
+
+    func toggleSelection(_ entry: ReadingHistoryEntry) {
+        if self.selectedIDs.contains(entry.id) {
+            self.selectedIDs.remove(entry.id)
+        } else {
+            self.selectedIDs.insert(entry.id)
+        }
+    }
+
+    /// 「全选 / 全不选」：全部选中时清空，否则选中当前筛选下的全部条目（含继续卡片那一条）。
+    func toggleSelectAll() {
+        if self.isAllVisibleSelected {
+            self.selectedIDs = []
+        } else {
+            self.selectedIDs = Set(self.filteredEntries.map(\.id))
+        }
+    }
+
+    /// 确认框里点了「删除」：一次删掉所选作品，然后退出选择模式。
     @MainActor
-    func undoDelete() async {
-        guard let removal: ReadingHistoryRemoval = self.pendingRemoval else {
+    func deleteSelected() async {
+        let entries: [ReadingHistoryEntry] = self.filteredEntries.filter { self.selectedIDs.contains($0.id) }
+        guard entries.isEmpty == false else {
             return
         }
-        self.dismissUndo()
-        do {
-            try await self.persistenceCoordinator.restore(removal)
-        } catch {
-            self.errorMessage = error.localizedDescription
-        }
-        await self.load()
-    }
-
-    func dismissUndo() {
-        self.undoDismissTask?.cancel()
-        self.undoDismissTask = nil
-        self.undoableEntry = nil
-        self.pendingRemoval = nil
-    }
-
-    private func showUndo(for entry: ReadingHistoryEntry, removal: ReadingHistoryRemoval) {
-        self.undoDismissTask?.cancel()
-        self.undoableEntry = entry
-        self.pendingRemoval = removal
-        self.undoDismissTask = Task { [weak self] in
-            try? await Task.sleep(for: Self.undoDuration)
-            guard Task.isCancelled == false,
-                  let self = self,
-                  self.undoableEntry?.id == entry.id else {
-                return
-            }
-            self.undoableEntry = nil
-            self.pendingRemoval = nil
-        }
+        await self.delete(entries)
+        self.endSelection()
     }
 
     // MARK: - 私有

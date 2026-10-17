@@ -5,7 +5,7 @@ import BrowseCraftCore
 import BrowseCraftDomain
 
 // 中文注释：收藏页重设计（`docs/design/Favorites-Page-Redesign-Design.md`）的 ViewModel 测试——
-// 真实 GRDB 收藏与来源仓储，覆盖类型计数、按天分组、来源状态、取消收藏与按原收藏时间撤销。
+// 真实 GRDB 收藏与来源仓储，覆盖类型计数、按天分组、来源状态、取消收藏与选择模式下的批量取消收藏。
 @MainActor
 struct FavoritesViewModelTests {
     private typealias Harness = ViewModelTestHarness
@@ -80,11 +80,10 @@ struct FavoritesViewModelTests {
         #expect(viewModel.sourceName(for: onUnknown) == NSLocalizedString("favorites_unknown_source", comment: ""))
     }
 
-    @Test func undoRestoresTheFavoriteAtItsOriginalDate() async throws {
+    @Test func unfavoritingRemovesTheItemWithoutUndo() async throws {
         let database: AppDatabase = try Harness.makeDatabase()
         let favorites: GRDBFavoriteRepository = GRDBFavoriteRepository(database: database)
-        let original: FavoriteContentItem = Self.item(id: "comic", kind: .comic, hoursAgo: 24)
-        try favorites.restoreFavorite(item: original)
+        try favorites.restoreFavorite(item: Self.item(id: "comic", kind: .comic, hoursAgo: 24))
         let viewModel: FavoritesViewModel = Self.makeViewModel(database: database)
         await viewModel.load()
         let stored: FavoriteContentItem = try #require(viewModel.favoriteItems.first)
@@ -92,20 +91,54 @@ struct FavoritesViewModelTests {
         await viewModel.unfavorite(stored)
 
         #expect(viewModel.favoriteItems.isEmpty)
-        #expect(viewModel.undoableItem?.identity == stored.identity)
         #expect(viewModel.changeRevision == 1)
         #expect(try favorites.fetchFavoriteItemIDs().isEmpty)
+    }
 
-        await viewModel.undoUnfavorite()
+    // 中文注释：选择模式（设计文档 2.5）：「全选」只选当前筛选下的条目；批量取消收藏后退出选择模式。
+    @Test func selectionUnfavoritesOnlyTheChosenItemsInTheCurrentFilter() async throws {
+        let database: AppDatabase = try Harness.makeDatabase()
+        let favorites: GRDBFavoriteRepository = GRDBFavoriteRepository(database: database)
+        try favorites.restoreFavorite(item: Self.item(id: "video-a", kind: .videoNative, hoursAgo: 1))
+        try favorites.restoreFavorite(item: Self.item(id: "video-b", kind: .videoWeb, hoursAgo: 2))
+        try favorites.restoreFavorite(item: Self.item(id: "comic", kind: .comic, hoursAgo: 3))
+        let viewModel: FavoritesViewModel = Self.makeViewModel(database: database)
+        await viewModel.load()
 
-        #expect(viewModel.undoableItem == nil)
-        #expect(viewModel.changeRevision == 2)
-        let restored: FavoriteContentItem = try #require(viewModel.favoriteItems.first)
-        let originalDate: Date = try #require(original.favoritedAt)
-        let restoredDate: Date = try #require(restored.favoritedAt)
-        // 中文注释：撤销按原收藏时间恢复，条目回到原来的「昨天」分组，而不是跑到「今天」。
-        #expect(abs(restoredDate.timeIntervalSince(originalDate)) < 0.001)
-        #expect(viewModel.dayGroups.map(\.day) == [.yesterday])
+        viewModel.kindFilter = .video
+        let first: FavoriteContentItem = try #require(viewModel.visibleItems.first)
+        viewModel.beginSelection(preselecting: first)
+        #expect(viewModel.isSelecting)
+        #expect(viewModel.selectedCount == 1)
+        #expect(viewModel.isAllVisibleSelected == false)
+
+        viewModel.toggleSelectAll()
+        #expect(viewModel.selectedCount == 2)
+        #expect(viewModel.isAllVisibleSelected)
+        viewModel.toggleSelectAll()
+        #expect(viewModel.selectedCount == 0)
+
+        viewModel.toggleSelection(first)
+        await viewModel.unfavoriteSelected()
+
+        #expect(viewModel.isSelecting == false)
+        #expect(viewModel.selectedCount == 0)
+        #expect(viewModel.changeRevision == 1)
+        #expect(Set(viewModel.favoriteItems.map(\.id)) == Set(["video-a", "video-b", "comic"]).subtracting([first.id]))
+        #expect(try favorites.fetchFavoriteItemIDs().contains("comic"))
+    }
+
+    @Test func selectionEndsWhenTheLastFavoriteGoesAway() async throws {
+        let database: AppDatabase = try Harness.makeDatabase()
+        let favorites: GRDBFavoriteRepository = GRDBFavoriteRepository(database: database)
+        try favorites.restoreFavorite(item: Self.item(id: "comic", kind: .comic, hoursAgo: 1))
+        let viewModel: FavoritesViewModel = Self.makeViewModel(database: database)
+        await viewModel.load()
+        viewModel.beginSelection()
+
+        await viewModel.unfavorite(try #require(viewModel.favoriteItems.first))
+
+        #expect(viewModel.isSelecting == false)
     }
 
     // MARK: - Fixtures

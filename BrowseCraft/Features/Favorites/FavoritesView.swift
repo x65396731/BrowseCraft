@@ -3,7 +3,8 @@ import BrowseCraftDomain
 import SwiftUI
 
 // 中文注释：FavoritesView 是独立收藏页（`docs/design/Favorites-Page-Redesign-Design.md`）：
-// 自绘大标题 + 类型筛选，下面是按收藏日期分组的封面卡片行；点行进详情，左滑或长按取消收藏，取消后可撤销。
+// 自绘大标题 + 类型筛选，下面是按收藏日期分组的封面卡片行；点行进详情，左滑或长按取消收藏（没有撤销），
+// 标题行「选择」进入选择模式批量取消收藏。
 
 @MainActor
 struct FavoritesView: View {
@@ -20,6 +21,7 @@ struct FavoritesView: View {
     let requestSourceActivation: (Source) -> Void
 
     @State private var path: [FavoriteDestination] = []
+    @State private var isConfirmingBatchUnfavorite: Bool = false
 
     var body: some View {
         NavigationStack(path: self.$path) {
@@ -31,23 +33,15 @@ struct FavoritesView: View {
                 .navigationDestination(for: FavoriteDestination.self) { destination in
                     self.destination(for: destination.item, source: destination.source)
                 }
-                .overlay(alignment: .bottom) {
-                    if let item: FavoriteContentItem = self.viewModel.undoableItem {
-                        ContentUndoBanner(
-                            message: String(format: NSLocalizedString("favorites_undo_message", comment: ""), item.title),
-                            actionTitle: NSLocalizedString("favorites_undo_action", comment: ""),
-                            undoAction: {
-                                Task {
-                                    await self.viewModel.undoUnfavorite()
-                                }
-                            }
-                        )
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 12)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                // 中文注释：选择模式下底栏换成操作栏（设计文档 2.5）；挂在栈里的根页上，推入的详情页不受影响。
+                .toolbar(self.viewModel.isSelecting ? .hidden : .automatic, for: .tabBar)
+                .safeAreaInset(edge: .bottom) {
+                    if self.viewModel.isSelecting {
+                        self.selectionBar
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 8)
                     }
                 }
-                .animation(.easeOut(duration: 0.2), value: self.viewModel.undoableItem?.identity)
                 .onAppear {
                     CrashDiagnostics.shared.setScreen(.favorite)
                     AppAnalytics.shared.logScreenView(.favorite)
@@ -56,7 +50,8 @@ struct FavoritesView: View {
                     }
                 }
                 .onDisappear {
-                    self.viewModel.dismissUndo()
+                    // 中文注释：切走标签就退出选择模式，不保留勾选。
+                    self.viewModel.endSelection()
                 }
                 .onChange(of: self.cloudSyncViewModel.contentRevision) { _, _ in
                     Task {
@@ -88,9 +83,9 @@ struct FavoritesView: View {
             }
         }
         .onChange(of: self.contentLockStore.isContentHidden) { _, isHidden in
-            // 中文注释：撤销提示条写着作品名，盖上锁定态时一并收起。
+            // 中文注释：被锁定时退出选择模式，不保留勾选。
             if isHidden {
-                self.viewModel.dismissUndo()
+                self.viewModel.endSelection()
             }
         }
     }
@@ -113,13 +108,16 @@ struct FavoritesView: View {
         let groups: [FavoritesViewModel.DayGroup] = self.viewModel.dayGroups
         // 中文注释：用 List 是为了左滑取消收藏；行底色与分隔线关掉，卡片在行内容里自己画。
         return List {
-            self.header(showsCount: true)
+            self.listHeader
                 .contentListPageRow(top: 8)
 
+            // 中文注释：选择模式下筛选变淡、不可切换，「全选」只作用于当前筛选。
             CatalogSegmentedPicker(
                 selection: self.$viewModel.kindFilter,
                 segments: self.filterSegments
             )
+            .disabled(self.viewModel.isSelecting)
+            .opacity(self.viewModel.isSelecting ? 0.4 : 1)
             .contentListPageRow(top: 16)
 
             if groups.isEmpty {
@@ -149,6 +147,20 @@ struct FavoritesView: View {
         .refreshable {
             await self.viewModel.load()
         }
+        // 中文注释：批量确认框用系统居中提示框；按钮写「保留」而不是「取消」，免得和「取消收藏」挨在一起看混。
+        .alert(
+            String(format: NSLocalizedString("favorites_batch_confirm_title", comment: "取消收藏 N 部作品？"), self.viewModel.selectedCount),
+            isPresented: self.$isConfirmingBatchUnfavorite
+        ) {
+            Button(NSLocalizedString("favorites_batch_keep", comment: "保留"), role: .cancel) {}
+            Button(NSLocalizedString("favorites_unfavorite", comment: ""), role: .destructive) {
+                Task {
+                    await self.viewModel.unfavoriteSelected()
+                }
+            }
+        } message: {
+            Text(NSLocalizedString("favorites_batch_confirm_message", comment: "批量取消收藏的说明"))
+        }
     }
 
     private func row(_ item: FavoriteContentItem, isFirst: Bool, isLast: Bool) -> some View {
@@ -161,20 +173,30 @@ struct FavoritesView: View {
             isFirst: isFirst,
             isLast: isLast,
             action: {
-                self.open(item)
-            }
+                if self.viewModel.isSelecting {
+                    self.viewModel.toggleSelection(item)
+                } else {
+                    self.open(item)
+                }
+            },
+            selection: self.viewModel.isSelecting ? self.viewModel.isSelected(item) : nil
         )
         .contextMenu {
-            self.menu(for: item, state: state)
-        }
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            // 中文注释：取消收藏不弹确认（可撤销）；不用 destructive 角色，行的移除由数据变化驱动。
-            Button {
-                self.unfavorite(item)
-            } label: {
-                Label(NSLocalizedString("favorites_unfavorite", comment: ""), systemImage: "heart.slash")
+            if self.viewModel.isSelecting == false {
+                self.menu(for: item, state: state)
             }
-            .tint(CatalogPalette.destructive)
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            // 中文注释：没有撤销，所以不支持一滑到底，滑开后再点按钮才取消；不弹确认。选择模式下不能左滑。
+            // 不用 destructive 角色，行的移除由数据变化驱动。
+            if self.viewModel.isSelecting == false {
+                Button {
+                    self.unfavorite(item)
+                } label: {
+                    Label(NSLocalizedString("favorites_unfavorite", comment: ""), systemImage: "heart.slash")
+                }
+                .tint(CatalogPalette.destructive)
+            }
         }
         .contentListPageRow()
     }
@@ -194,6 +216,11 @@ struct FavoritesView: View {
             } label: {
                 Label(NSLocalizedString("favorites_menu_open_source", comment: ""), systemImage: "square.grid.2x2")
             }
+        }
+        Button {
+            self.viewModel.beginSelection(preselecting: item)
+        } label: {
+            Label(NSLocalizedString("content_selection_select_multiple", comment: "选择多项"), systemImage: "checkmark.circle")
         }
         Divider()
         Button(role: .destructive) {
@@ -258,20 +285,69 @@ struct FavoritesView: View {
         .padding(.horizontal, 20)
     }
 
-    private func header(showsCount: Bool) -> some View {
+    /// 有收藏时的标题行：右侧「选择」（当前筛选为空时变灰）；选择模式下标题换成「已选择 N 部」、右侧「完成」。
+    private var listHeader: some View {
         HStack(alignment: .bottom, spacing: 12) {
+            Group {
+                if self.viewModel.isSelecting {
+                    Text(String(format: NSLocalizedString("favorites_selection_title", comment: "已选择 N 部"), self.viewModel.selectedCount))
+                } else {
+                    Text("Favorites")
+                }
+            }
+            .font(.largeTitle.weight(.heavy))
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 0)
+            if self.viewModel.isSelecting {
+                ContentHeaderButton(
+                    title: NSLocalizedString("content_selection_done", comment: "完成"),
+                    style: .prominent,
+                    action: {
+                        self.viewModel.endSelection()
+                    }
+                )
+            } else {
+                ContentHeaderButton(
+                    title: NSLocalizedString("content_selection_select", comment: "选择"),
+                    action: {
+                        self.viewModel.beginSelection()
+                    }
+                )
+                .disabled(self.viewModel.visibleItems.isEmpty)
+            }
+        }
+    }
+
+    /// 没有收藏与首次恢复时的标题行：只有大标题。
+    private var titleHeader: some View {
+        HStack {
             Text("Favorites")
                 .font(.largeTitle.weight(.heavy))
                 .lineLimit(1)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 0)
-            if showsCount {
-                Text(String(format: NSLocalizedString("favorites_count", comment: ""), self.viewModel.count(for: .all)))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(.bottom, 6)
-            }
         }
+    }
+
+    /// 选择模式的操作栏：全选 / 全不选、已选数量、红色「取消收藏」（点了先弹确认框）。
+    private var selectionBar: some View {
+        ContentSelectionBar(
+            selectAllTitle: self.viewModel.isAllVisibleSelected
+                ? NSLocalizedString("content_selection_deselect_all", comment: "全不选")
+                : NSLocalizedString("content_selection_select_all", comment: "全选"),
+            countText: String(format: NSLocalizedString("favorites_selection_count", comment: "已选 N 部"), self.viewModel.selectedCount),
+            actionTitle: NSLocalizedString("favorites_unfavorite", comment: ""),
+            actionSystemImage: "heart.slash",
+            isActionEnabled: self.viewModel.selectedCount > 0,
+            selectAllAction: {
+                self.viewModel.toggleSelectAll()
+            },
+            action: {
+                self.isConfirmingBatchUnfavorite = true
+            }
+        )
     }
 
     // MARK: - 没有收藏
@@ -279,7 +355,7 @@ struct FavoritesView: View {
     private var emptyContent: some View {
         ScrollView {
             VStack(spacing: 0) {
-                self.header(showsCount: false)
+                self.titleHeader
                     .padding(.top, 8)
 
                 VStack(spacing: 10) {
@@ -320,7 +396,7 @@ struct FavoritesView: View {
     private var restoreContent: some View {
         ScrollView {
             VStack(spacing: 16) {
-                self.header(showsCount: false)
+                self.titleHeader
                     .padding(.top, 8)
                 CloudSyncInitialRestoreView(state: self.cloudSyncViewModel.initialRestoreState)
                 VStack(spacing: 10) {
@@ -422,10 +498,15 @@ private struct FavoriteEntryRowView: View {
     let isFirst: Bool
     let isLast: Bool
     let action: () -> Void
+    /// 选择模式下这一行是否选中；nil 表示不在选择模式（设计文档 2.5）。
+    var selection: Bool? = nil
 
     var body: some View {
         Button(action: self.action) {
             HStack(spacing: 12) {
+                if let isSelected: Bool = self.selection {
+                    ContentSelectionMark(isSelected: isSelected)
+                }
                 self.cover
                 VStack(alignment: .leading, spacing: 3) {
                     Text(self.item.title)
@@ -444,7 +525,7 @@ private struct FavoriteEntryRowView: View {
                     }
                 }
                 Spacer(minLength: 8)
-                if self.sourceState != .unknown {
+                if self.sourceState != .unknown && self.selection == nil {
                     Image(systemName: "chevron.right")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.tertiary)
@@ -452,9 +533,15 @@ private struct FavoriteEntryRowView: View {
                 }
             }
             .opacity(self.isDimmed ? 0.5 : 1)
-            .contentCardGroupRow(isFirst: self.isFirst, isLast: self.isLast)
+            .contentCardGroupRow(
+                isFirst: self.isFirst,
+                isLast: self.isLast,
+                separatorInset: self.selection == nil ? 82 : 118,
+                isHighlighted: self.selection == true
+            )
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(self.selection == true ? .isSelected : [])
     }
 
     private var isDimmed: Bool {

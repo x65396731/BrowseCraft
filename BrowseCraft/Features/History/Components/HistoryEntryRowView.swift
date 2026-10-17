@@ -16,10 +16,15 @@ struct HistoryEntryRowView: View {
     let isFirst: Bool
     let isLast: Bool
     let action: () -> Void
+    /// 选择模式下这一行是否选中；nil 表示不在选择模式（`docs/design/History-Page-Redesign-Design.md` 2.6）。
+    var selection: Bool? = nil
 
     var body: some View {
         Button(action: self.action) {
             HStack(spacing: 12) {
+                if let isSelected: Bool = self.selection {
+                    ContentSelectionMark(isSelected: isSelected)
+                }
                 ContentCoverView(
                     urlString: self.coverURL,
                     refererURLString: self.refererURL,
@@ -44,7 +49,7 @@ struct HistoryEntryRowView: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: 8)
-                if self.sourceState != .unknown {
+                if self.sourceState != .unknown && self.selection == nil {
                     Image(systemName: "chevron.right")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.tertiary)
@@ -52,9 +57,15 @@ struct HistoryEntryRowView: View {
                 }
             }
             .opacity(self.isDimmed ? 0.5 : 1)
-            .contentCardGroupRow(isFirst: self.isFirst, isLast: self.isLast)
+            .contentCardGroupRow(
+                isFirst: self.isFirst,
+                isLast: self.isLast,
+                separatorInset: self.selection == nil ? 82 : 118,
+                isHighlighted: self.selection == true
+            )
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(self.selection == true ? .isSelected : [])
     }
 
     private var isDimmed: Bool {

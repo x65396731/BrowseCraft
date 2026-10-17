@@ -19,6 +19,10 @@ enum CatalogPalette {
     static let warningFill: Color = Self.dynamic(light: 0xC2410C, dark: 0xFF8A70).opacity(0.14)
     /// 反色提示条（深底浅字、浅底深字）上的动作色，例如收藏页「撤销」：浅色模式提示条是深底，用浅蓝；深色模式提示条是浅底，用添加蓝。
     static let inverseAction: Color = Self.dynamic(light: 0x8AB6FF, dark: 0x2563EB)
+    /// 收藏页、历史页选择模式里选中行的底（`docs/design/Favorites-Page-Redesign-Design.md` 2.5）：添加蓝，浅色 6%、深色 16%。
+    static let selectionFill: Color = Color(uiColor: UIColor { traits in
+        return UIColor(hex: 0x2563EB).withAlphaComponent(traits.userInterfaceStyle == .dark ? 0.16 : 0.06)
+    })
     /// 删除色，深浅同值（页面设计索引裁定 #E5484D）；长按菜单与确认框里的删除项由系统按 destructive 角色着色。
     static let destructive: Color = Self.fixed(0xE5484D)
     /// 获得色：coin 记录里的 +N（`docs/design/Coin-Ledger-Page-Redesign-Design.md`，用户裁定用绿）。

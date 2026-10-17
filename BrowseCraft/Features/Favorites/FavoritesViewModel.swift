@@ -3,7 +3,7 @@ import Observation
 import BrowseCraftDomain
 import Foundation
 
-// 中文注释：FavoritesViewModel 负责收藏页数据加载、类型筛选、按天分组、来源状态与取消 / 撤销收藏
+// 中文注释：FavoritesViewModel 负责收藏页数据加载、类型筛选、按天分组、来源状态、取消收藏与选择模式下的批量取消
 // （`docs/design/Favorites-Page-Redesign-Design.md`）。
 
 @MainActor
@@ -51,20 +51,17 @@ final class FavoritesViewModel {
     /// 当前筛选下的条目，按收藏时间倒序、按天分组。
     private(set) var dayGroups: [DayGroup] = []
     private var countsByFilter: [KindFilter: Int] = [:]
-    /// 刚在本页取消收藏、还能撤销的条目；底部提示随它出现和消失。
-    private(set) var undoableItem: FavoriteContentItem?
-    /// 本页每改动一次收藏集合（取消或撤销）就加一；宿主据此让库页刷新封面上的爱心状态。
+    /// 本页每改动一次收藏集合就加一；宿主据此让库页刷新封面上的爱心状态。
     private(set) var changeRevision: Int = 0
+    /// 选择模式（设计文档 2.5）：勾选的条目只在当前筛选范围内。
+    private(set) var isSelecting: Bool = false
+    private(set) var selectedIdentities: Set<FavoriteItemIdentity> = []
 
     @ObservationIgnored private var imageRequestConfigs: [String: RequestConfig] = [:]
-    @ObservationIgnored private var undoDismissTask: Task<Void, Never>?
 
     private let persistenceCoordinator: FavoritesPersistenceCoordinator
     private let resolveLibrarySourcePresentationUseCase: ResolveLibrarySourcePresentationUseCase
     private let now: () -> Date
-
-    /// 撤销提示停留的时长。
-    static let undoDuration: Duration = .seconds(4)
 
     init(
         persistenceCoordinator: FavoritesPersistenceCoordinator,
@@ -212,54 +209,83 @@ final class FavoritesViewModel {
         return self.imageRequestConfigs[item.sourceID]
     }
 
-    // MARK: - 取消收藏与撤销
+    // MARK: - 取消收藏
 
-    /// 取消收藏不弹确认（2026-10-02 用户裁定），取消后底部给出可撤销提示。
+    /// 单条取消收藏（左滑、长按）：不弹确认，也没有撤销（2026-10-17 用户裁定）。
     @MainActor
     func unfavorite(_ item: FavoriteContentItem) async {
         do {
             let snapshot: FavoritesPersistenceSnapshot = try await self.persistenceCoordinator.remove(item: item)
             self.apply(snapshot)
             self.changeRevision += 1
-            self.showUndo(for: item)
         } catch {
             self.errorMessage = error.localizedDescription
         }
     }
 
-    /// 撤销：按原收藏时间恢复，条目回到原来的日期分组。
+    // MARK: - 选择与批量取消收藏（设计文档 2.5）
+
+    /// 当前筛选下、按显示顺序排的条目；「全选」只作用于它们。
+    var visibleItems: [FavoriteContentItem] {
+        return self.dayGroups.flatMap(\.items)
+    }
+
+    var selectedCount: Int {
+        return self.selectedIdentities.count
+    }
+
+    var isAllVisibleSelected: Bool {
+        let visible: [FavoriteContentItem] = self.visibleItems
+        return visible.isEmpty == false && visible.allSatisfy { self.selectedIdentities.contains($0.identity) }
+    }
+
+    func isSelected(_ item: FavoriteContentItem) -> Bool {
+        return self.selectedIdentities.contains(item.identity)
+    }
+
+    /// 进入选择模式；从长按菜单「选择多项」进来时预先选中那一条。
+    func beginSelection(preselecting item: FavoriteContentItem? = nil) {
+        self.isSelecting = true
+        self.selectedIdentities = item.map { [$0.identity] } ?? []
+    }
+
+    func endSelection() {
+        self.isSelecting = false
+        self.selectedIdentities = []
+    }
+
+    func toggleSelection(_ item: FavoriteContentItem) {
+        if self.selectedIdentities.contains(item.identity) {
+            self.selectedIdentities.remove(item.identity)
+        } else {
+            self.selectedIdentities.insert(item.identity)
+        }
+    }
+
+    /// 「全选 / 全不选」：全部选中时清空，否则选中当前筛选下的全部条目。
+    func toggleSelectAll() {
+        if self.isAllVisibleSelected {
+            self.selectedIdentities = []
+        } else {
+            self.selectedIdentities = Set(self.visibleItems.map(\.identity))
+        }
+    }
+
+    /// 确认框里点了「取消收藏」：一次取消所选条目，然后退出选择模式。
     @MainActor
-    func undoUnfavorite() async {
-        guard let item: FavoriteContentItem = self.undoableItem else {
+    func unfavoriteSelected() async {
+        let items: [FavoriteContentItem] = self.visibleItems.filter { self.selectedIdentities.contains($0.identity) }
+        guard items.isEmpty == false else {
             return
         }
-        self.dismissUndo()
         do {
-            let snapshot: FavoritesPersistenceSnapshot = try await self.persistenceCoordinator.restore(item: item)
+            let snapshot: FavoritesPersistenceSnapshot = try await self.persistenceCoordinator.remove(items: items)
             self.apply(snapshot)
             self.changeRevision += 1
+            self.endSelection()
         } catch {
             self.errorMessage = error.localizedDescription
-        }
-    }
-
-    func dismissUndo() {
-        self.undoDismissTask?.cancel()
-        self.undoDismissTask = nil
-        self.undoableItem = nil
-    }
-
-    private func showUndo(for item: FavoriteContentItem) {
-        self.undoDismissTask?.cancel()
-        self.undoableItem = item
-        self.undoDismissTask = Task { [weak self] in
-            try? await Task.sleep(for: Self.undoDuration)
-            guard Task.isCancelled == false,
-                  let self = self,
-                  self.undoableItem?.identity == item.identity else {
-                return
-            }
-            self.undoableItem = nil
+            await self.load()
         }
     }
 
@@ -281,5 +307,14 @@ final class FavoritesViewModel {
             configs[item.sourceID] = config
         }
         self.imageRequestConfigs = configs
+
+        // 中文注释：数据变了（同步、别处取消收藏）时，勾选只留还在当前筛选里的条目；收藏变空就退出选择模式。
+        if self.isSelecting {
+            if self.favoriteItems.isEmpty {
+                self.endSelection()
+            } else {
+                self.selectedIdentities.formIntersection(self.visibleItems.map(\.identity))
+            }
+        }
     }
 }

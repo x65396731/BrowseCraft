@@ -3,7 +3,7 @@ import BrowseCraftDomain
 import SwiftUI
 
 // 中文注释：收藏页与历史页共用的封面卡片行零件（`docs/design/Favorites-Page-Redesign-Design.md`、
-// `docs/design/History-Page-Redesign-Design.md`）：封面 + 类型徽标、卡片组里的一行、列表行留白、撤销提示条。
+// `docs/design/History-Page-Redesign-Design.md`）：封面 + 类型徽标、卡片组里的一行、列表行留白；撤销提示条现在只有来源页在用。
 // 取值都来自 `CatalogStyle.swift`，这里不声明颜色。
 
 /// 作品封面：走库页同一个封面管线，左下角压类型徽标（类型色 + 类型图标，不只靠颜色区分）。
@@ -80,8 +80,19 @@ struct ContentCoverView: View {
 
 extension View {
     /// 卡片组里的一行：同一组的行拼成一张圆角 18 的卡片——首行圆上角、末行圆下角，行间细线从 82pt 起。
-    func contentCardGroupRow(isFirst: Bool, isLast: Bool) -> some View {
-        return self.modifier(ContentCardGroupRowModifier(isFirst: isFirst, isLast: isLast))
+    /// 选择模式下行首多一个勾选框，细线起点后移到 118pt；选中的行铺一层浅添加蓝。
+    func contentCardGroupRow(
+        isFirst: Bool,
+        isLast: Bool,
+        separatorInset: CGFloat = 82,
+        isHighlighted: Bool = false
+    ) -> some View {
+        return self.modifier(ContentCardGroupRowModifier(
+            isFirst: isFirst,
+            isLast: isLast,
+            separatorInset: separatorInset,
+            isHighlighted: isHighlighted
+        ))
     }
 
     /// 自绘页面里 `List` 的一行：去掉系统行底色与分隔线，左右留白、上下间距由调用处给。
@@ -96,6 +107,8 @@ extension View {
 private struct ContentCardGroupRowModifier: ViewModifier {
     let isFirst: Bool
     let isLast: Bool
+    let separatorInset: CGFloat
+    let isHighlighted: Bool
 
     @Environment(\.displayScale) private var displayScale
 
@@ -104,13 +117,20 @@ private struct ContentCardGroupRowModifier: ViewModifier {
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(CatalogPalette.cardBackground)
+            .background {
+                ZStack {
+                    CatalogPalette.cardBackground
+                    if self.isHighlighted {
+                        CatalogPalette.selectionFill
+                    }
+                }
+            }
             .overlay(alignment: .top) {
                 if self.isFirst == false {
                     Rectangle()
                         .fill(CatalogPalette.separator)
                         .frame(height: 1 / self.displayScale)
-                        .padding(.leading, 82)
+                        .padding(.leading, self.separatorInset)
                 }
             }
             .clipShape(self.shape)

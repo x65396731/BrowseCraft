@@ -5,7 +5,7 @@ import BrowseCraftCore
 import BrowseCraftDomain
 
 // 中文注释：历史页重设计（`docs/design/History-Page-Redesign-Design.md`）的 ViewModel 测试——
-// 真实 GRDB 历史与来源仓储，覆盖按作品删除与撤销写回、「看到哪里」与视频进度、来源状态。
+// 真实 GRDB 历史与来源仓储，覆盖按作品删除、选择模式下的批量删除、「看到哪里」与视频进度、来源状态。
 @MainActor
 struct HistoryViewModelTests {
     private typealias Harness = ViewModelTestHarness
@@ -18,7 +18,7 @@ struct HistoryViewModelTests {
         of: Date()
     )!
 
-    @Test func deletingAComicRemovesEveryChapterAndUndoWritesThemBack() async throws {
+    @Test func deletingAComicRemovesEveryChapterWithoutUndo() async throws {
         let database: AppDatabase = try Harness.makeDatabase()
         let comics: GRDBComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(database: database)
         let chapter3: ComicChapterHistory = Self.comic(item: "dragon", chapter: 3, hoursAgo: 26, pageIndex: 4)
@@ -42,36 +42,45 @@ struct HistoryViewModelTests {
         await viewModel.delete(dragon)
 
         // 中文注释：删一行就删掉这部漫画的全部章节记录，重读后不会冒出上一章。
-        #expect(viewModel.undoableEntry?.id == dragon.id)
         #expect(try comics.fetchHistory(userID: AppUser.localDefaultID).map(\.comicItemID) == ["astronomy"])
         await viewModel.load()
         #expect(viewModel.count(for: .comic) == 1)
         #expect(viewModel.dayGroups.isEmpty)
+    }
 
-        await viewModel.delete(try #require(viewModel.continueEntry))
-        #expect(viewModel.undoableEntry?.comicHistory?.comicItemID == "astronomy")
-        // 中文注释：后一次删除的撤销只写回后一次的记录。
-        await viewModel.undoDelete()
-
-        #expect(viewModel.undoableEntry == nil)
-        #expect(try comics.fetchHistory(userID: AppUser.localDefaultID).map(\.comicItemID) == ["astronomy"])
-
-        // 中文注释：重新删 dragon 再撤销：两章原样写回，含原访问时间与页码，条目回到「昨天」分组。
-        try comics.save(chapter3)
-        try comics.save(chapter4)
+    // 中文注释：选择模式（设计文档 2.6）：继续卡片收回列表可选；「全选」只选当前筛选；批量删除按作品删、删完退出选择模式。
+    @Test func selectionDeletesTheChosenWorksIncludingTheContinueEntry() async throws {
+        let database: AppDatabase = try Harness.makeDatabase()
+        let comics: GRDBComicChapterHistoryRepository = GRDBComicChapterHistoryRepository(database: database)
+        try comics.save(Self.comic(item: "dragon", chapter: 3, hoursAgo: 26))
+        try comics.save(Self.comic(item: "dragon", chapter: 4, hoursAgo: 25))
+        try comics.save(Self.comic(item: "astronomy", chapter: 8, hoursAgo: 1))
+        let videos: GRDBVideoWatchHistoryRepository = GRDBVideoWatchHistoryRepository(database: database)
+        try videos.save(Self.video(vod: "watching", played: 60, duration: 600, hoursAgo: 2))
+        let viewModel: HistoryViewModel = Self.makeViewModel(database: database)
         await viewModel.load()
-        let reloaded: ReadingHistoryEntry = try #require(viewModel.dayGroups.first?.entries.first)
-        await viewModel.delete(reloaded)
-        await viewModel.undoDelete()
 
-        let restored: [ComicChapterHistory] = try comics.fetchHistory(userID: AppUser.localDefaultID)
-            .filter { $0.comicItemID == "dragon" }
-            .sorted { $0.visitedAt < $1.visitedAt }
-        #expect(restored.map(\.chapterKey) == [chapter3.chapterKey, chapter4.chapterKey])
-        #expect(restored.map(\.lastPageIndex) == [4, 17])
-        let latest: ComicChapterHistory = try #require(restored.last)
-        #expect(abs(latest.visitedAt.timeIntervalSince(chapter4.visitedAt)) < 0.001)
-        #expect(viewModel.dayGroups.map(\.day) == [.yesterday])
+        viewModel.kindFilter = .comic
+        let continueEntry: ReadingHistoryEntry = try #require(viewModel.continueEntry)
+        viewModel.beginSelection(preselecting: continueEntry)
+
+        // 中文注释：选择模式的分组包含继续卡片那一条。
+        let selectionIDs: [String] = viewModel.selectionDayGroups.flatMap(\.entries).map(\.id)
+        #expect(selectionIDs.contains(continueEntry.id))
+        #expect(selectionIDs.count == 2)
+
+        viewModel.toggleSelectAll()
+        #expect(viewModel.selectedCount == 2)
+        #expect(viewModel.isAllVisibleSelected)
+
+        await viewModel.deleteSelected()
+
+        #expect(viewModel.isSelecting == false)
+        #expect(try comics.fetchHistory(userID: AppUser.localDefaultID).isEmpty)
+        // 中文注释：「全选」只作用于漫画筛选，视频记录还在。
+        #expect(try videos.fetchHistory(userID: AppUser.localDefaultID).count == 1)
+        await viewModel.load()
+        #expect(viewModel.count(for: .all) == 1)
     }
 
     @Test func progressTextShowsWhereTheReaderLeftOff() async throws {

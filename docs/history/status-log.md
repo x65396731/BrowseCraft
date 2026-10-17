@@ -1273,3 +1273,10 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 同节新增一行「删除来源时保留历史与收藏」implemented / not-run，检查点先登记为实施前的 HEAD `ee3afc2`。
 - 同节「删除来源时保留历史与收藏」一行：验证 not-run → targeted-passed（iPhone 17 Pro / iOS 26.5 跑 SyncRepositoryTests、SourceSyncServiceTests、SourcesViewModelTests 共 34 例全过；首跑仓储测试两处队列条数断言写错——保存来源时的更新被删除替换、条数不变——改断言后重跑通过）。
 - 实施、文档与测试一起提交为 `c44934a`；「删除来源时保留历史与收藏」一行检查点由实施前的 HEAD `ee3afc2` 改登记为 `c44934a`。
+
+2026-10-17 收藏页与历史页：去掉撤销、左滑不再一滑到底、新增选择模式与批量删除。设计稿两张画布改过（收藏 https://claude.ai/artifact/BVUs1rspjfmcotrydftfxo、
+历史 https://claude.ai/artifact/BfAD7W4ovf5774BuM8PeTn），用户确认标题行只留「选择」、总数看「全部」段，批量删除先确认、全选只选当前筛选、
+历史全选删除即清空当前筛选（取代 2026-10-03「不提供清空历史」的裁定，不单独放清空按钮）。用户以为原来只有长按删除，实际代码与设计里左滑一直在。
+`STATUS.md` 新增一行 implemented / not-run，检查点先登记为实施前的 HEAD `b216348`。
+- 同节「收藏页与历史页的选择模式与批量删除」一行：验证 not-run → targeted-passed（iPhone 17 Pro / iOS 26.5 跑 FavoritesViewModelTests、HistoryViewModelTests 共 9 例全过）。
+- 新增一行该功能的模拟器走查（iPhone 18 Pro / iOS 27.0，演示模式；收藏数据在演示库页点爱心造出）simulator-passed，检查点同为实施前的 HEAD `b216348`。
