@@ -1290,3 +1290,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 同节「编译与走查」一行改名为「模拟器走查」，只留 DebugView 核对与 GA4 自定义维度注册，build 与测试的事实并入上一行；验证仍 not-run。
 - 实施、文档与测试一起提交为 `d6ff2cf`；第 9 节两行检查点由实施前的 HEAD `890ecb7` 改登记为 `d6ff2cf`。
 - 同节「模拟器走查」一行 not-run → 拆成两行：走到的部分 simulator-passed（iPhone 18 Pro / iOS 27.0，GA4 注册 24 个自定义维度，DebugView 送达 26 种事件），走查中修了 `screen_view` 缺 `screen_class` 与书 / 漫画详情阅读器入口读到旧值两处；没走到的部分另起一行 not-run。另记两条观察：关掉 sheet 回到下层页面不会重报曝光，之后事件的 `firebase_screen` 停在 sheet 页；测试广告看完后 `ad_reward_credited` 报 timeout，但余额随后从 8020 变 8040，到账慢于轮询窗口。检查点先登记为 HEAD `f6eae50`。
+- 走查修正与文档一起提交为 `b54297b`；第 9 节走查两行检查点由 HEAD `f6eae50` 改登记为 `b54297b`。
