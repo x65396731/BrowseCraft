@@ -104,23 +104,6 @@ enum DiagnosticRuleStage: String {
     case unknown
 }
 
-enum DiagnosticSeverity: String {
-    case info
-    case warning
-    case error
-    case fatal
-}
-
-enum DiagnosticLogCategory: String {
-    case network
-    case parser
-    case database
-    case playback
-    case sync
-    case ui
-    case unknown
-}
-
 extension Source {
     var diagnosticSourceType: DiagnosticSourceType {
         switch self.configuration.kind {

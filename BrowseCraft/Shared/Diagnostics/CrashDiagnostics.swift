@@ -3,6 +3,7 @@ import FirebaseCrashlytics
 import Foundation
 
 // 中文注释：CrashDiagnostics 封装 Crashlytics 写入点，业务层只更新诊断上下文。
+// 上报范围、全局键与非致命错误的键见 docs/design/Analytics-Events-Design.md 第 6 节（BCA-OBS-006 ~ 009）。
 
 final class CrashDiagnostics: Sendable {
     static let shared: CrashDiagnostics = CrashDiagnostics()
@@ -19,11 +20,20 @@ final class CrashDiagnostics: Sendable {
         static let sourceId: String = "sourceId"
         static let sourceType: String = "sourceType"
         static let ruleStage: String = "ruleStage"
-        static let severity: String = "severity"
-        static let category: String = "category"
-        static let errorCode: String = "errorCode"
-        static let errorEvent: String = "errorEvent"
     }
+
+    /// 中文注释：只描述一条非致命错误的键，随那条错误上报、不写成全局键（BCA-OBS-009）。
+    private enum FailureKey {
+        static let failurePoint: String = "failurePoint"
+        static let failureKind: String = "failureKind"
+        static let failureStage: String = "failureStage"
+        static let failureSourceId: String = "failureSourceId"
+        static let failureSourceType: String = "failureSourceType"
+        static let bootstrapStage: String = "bootstrapStage"
+        static let errorSummary: String = "errorSummary"
+    }
+
+    private static let bootstrapFailurePoint: String = "bootstrap"
 
     private init() {}
 
@@ -32,6 +42,10 @@ final class CrashDiagnostics: Sendable {
         let crashlytics: Crashlytics = Crashlytics.crashlytics()
 
         crashlytics.setCrashlyticsCollectionEnabled(Self.isCollectionEnabled)
+        if Self.isCollectionEnabled == false {
+            // 中文注释：关闭期间崩溃留下的报告不补发（BCA-OBS-006）。
+            crashlytics.deleteUnsentReports()
+        }
         crashlytics.setUserID(identity.supportUserId)
         crashlytics.setCustomValue(identity.diagnosticCode, forKey: Key.diagnosticCode)
         crashlytics.setCustomValue(identity.sessionId, forKey: Key.sessionId)
@@ -44,8 +58,11 @@ final class CrashDiagnostics: Sendable {
         )
     }
 
+    /// 中文注释：同时写一行日志，崩溃报告里的日志因此是一条页面轨迹（第 6.2 节）。
     func setScreen(_ screen: DiagnosticScreen) {
-        Crashlytics.crashlytics().setCustomValue(screen.rawValue, forKey: Key.screen)
+        let crashlytics: Crashlytics = Crashlytics.crashlytics()
+        crashlytics.setCustomValue(screen.rawValue, forKey: Key.screen)
+        crashlytics.log("screen=\(screen.rawValue)")
     }
 
     func setSource(id: String?, type: DiagnosticSourceType) {
@@ -68,26 +85,51 @@ final class CrashDiagnostics: Sendable {
 
     func setCollectionEnabled(_ isEnabled: Bool) {
         UserDefaults.standard.set(isEnabled, forKey: Self.collectionEnabledDefaultsKey)
-        Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(isEnabled)
+        let crashlytics: Crashlytics = Crashlytics.crashlytics()
+        crashlytics.setCrashlyticsCollectionEnabled(isEnabled)
+        if isEnabled == false {
+            // 中文注释：关闭前还没发出的报告也不再发（BCA-OBS-006）。
+            crashlytics.deleteUnsentReports()
+        }
     }
 
-    func record(
-        error: Error,
-        severity: DiagnosticSeverity = .error,
-        category: DiagnosticLogCategory = .unknown,
-        errorCode: String? = nil,
-        event: String? = nil
+    /// 中文注释：规则执行失败的非致命错误。只由 `RuleFailureDiagnostics.report` 调用（BCA-OBS-007）。
+    func recordRuleFailure(
+        error: any Error,
+        kind: DiagnosticFailureKind,
+        stage: DiagnosticRuleStage,
+        point: RuleFailurePoint,
+        source: Source?
     ) {
+        self.record(error: error, userInfo: [
+            FailureKey.failurePoint: point.rawValue,
+            FailureKey.failureKind: kind.rawValue,
+            FailureKey.failureStage: stage.rawValue,
+            FailureKey.failureSourceId: source?.id ?? "",
+            FailureKey.failureSourceType: (source?.diagnosticSourceType ?? .unknown).rawValue
+        ])
+    }
+
+    /// 中文注释：启动装配失败的非致命错误，规则执行之外唯一记录的一类（第 6.1 节）。
+    func recordBootstrapFailure(error: any Error, stage: BootstrapFailureStage) {
+        self.record(error: error, userInfo: [
+            FailureKey.failurePoint: Self.bootstrapFailurePoint,
+            FailureKey.bootstrapStage: stage.rawValue
+        ])
+    }
+
+    /// 中文注释：只上传原错误的 domain 与 code 和脱敏摘要。Crashlytics 会把错误的 userInfo 原样写进报告，
+    /// 系统网络错误的 userInfo 带完整网址与查询串，所以不能把原错误直接交给它（BCA-OBS-008）。
+    private func record(error: any Error, userInfo: [String: String]) {
         guard Self.isCollectionEnabled else {
             return
         }
 
-        let crashlytics: Crashlytics = Crashlytics.crashlytics()
-        crashlytics.setCustomValue(severity.rawValue, forKey: Key.severity)
-        crashlytics.setCustomValue(category.rawValue, forKey: Key.category)
-        crashlytics.setCustomValue(errorCode ?? "", forKey: Key.errorCode)
-        crashlytics.setCustomValue(event ?? "", forKey: Key.errorEvent)
-        crashlytics.record(error: error)
+        let original: NSError = error as NSError
+        let sanitized: NSError = NSError(domain: original.domain, code: original.code, userInfo: nil)
+        var info: [String: String] = userInfo
+        info[FailureKey.errorSummary] = ErrorDiagnostics.summary(for: error)
+        Crashlytics.crashlytics().record(error: sanitized, userInfo: info)
     }
 
     static var isCollectionEnabled: Bool {

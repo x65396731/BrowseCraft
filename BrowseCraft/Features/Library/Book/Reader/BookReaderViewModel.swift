@@ -126,6 +126,8 @@ final class BookReaderViewModel {
             case .local(let book):
                 try await self.openLocal(book)
             case .site(let selection):
+                CrashDiagnostics.shared.setSource(selection.source)
+                CrashDiagnostics.shared.setRuleStage(.reader)
                 try await self.openSite(selection)
                 self.recordSiteHistory()
                 self.openedAt = Date()
@@ -145,7 +147,8 @@ final class BookReaderViewModel {
             self.state = .ready
         } catch {
             if case .site(let selection) = self.subject {
-                AppAnalytics.shared.logDiagnosticFailure(
+                RuleFailureDiagnostics.report(
+                    error: error,
                     kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
                     stage: .reader,
                     point: .bookReaderOpen,

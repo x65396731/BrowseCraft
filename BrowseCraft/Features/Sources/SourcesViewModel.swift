@@ -1106,7 +1106,8 @@ final class SourcesViewModel {
         } catch {
             self.failedRefreshAction = .select(sourceID: source.id, entry: entry)
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-select-refresh-error")
-            AppAnalytics.shared.logDiagnosticFailure(
+            RuleFailureDiagnostics.report(
+                error: error,
                 kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
                 stage: .list,
                 point: .sourceSelectRefresh,
@@ -1293,17 +1294,12 @@ final class SourcesViewModel {
         } catch {
             self.failedRefreshAction = .refresh(sourceID: source.id)
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-refresh-error")
-            AppAnalytics.shared.logDiagnosticFailure(
+            RuleFailureDiagnostics.report(
+                error: error,
                 kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
                 stage: .list,
                 point: .sourceRefresh,
                 source: source
-            )
-            CrashDiagnostics.shared.record(
-                error: error,
-                category: .parser,
-                errorCode: "source-refresh-error",
-                event: "source-refresh-error"
             )
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }

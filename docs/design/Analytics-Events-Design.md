@@ -8,6 +8,9 @@
 参数白名单过滤 → Firebase `Analytics.logEvent`。SDK 是 FirebaseAnalyticsCore，不读 IDFA；事件按 SDK 生成的安装 ID 归并，
 另以诊断支持 ID 作为用户 ID，与 Crashlytics 对得上。App 为 AdMob 接的 ATT 与 Analytics 无关。
 
+本文也是 Firebase Crashlytics 崩溃诊断的上报范围（第 6 节）：哪些失败记非致命错误、报告带哪些键、开关关闭时怎么处理。
+Crashlytics 的写入点只有 `CrashDiagnostics`，规则执行失败的上报入口是 `RuleFailureDiagnostics`。
+
 ## 1. 条款
 
 - `BCA-OBS-001` 事件、参数与页面名的唯一定义点是本文。`AppAnalytics.Event` 与 `AppAnalytics.Parameter` 的每个 case、
@@ -23,6 +26,17 @@
   业务代码不得直接调用 `logScreenView`。Info.plist 关闭 Firebase 的自动屏幕报告。闸门 A13 执行。
 - `BCA-OBS-005` 设置页「发送使用统计」关闭时不上报任何事件，Firebase 自动事件（含 AdMob 写入的广告事件）一并停止；
   「关闭统计」这一动作本身也不上报，只有打开时补报一次 `setting_changed`。
+- `BCA-OBS-006` 设置页「发送崩溃诊断」关闭时不发出任何 Crashlytics 报告，致命与非致命都不发；关闭期间留在本机的、
+  以及关闭前还没发出的报告在本机删除，之后重新打开也不补发。默认开启。它与「发送使用统计」互不影响。
+- `BCA-OBS-007` 规则执行失败只经 `RuleFailureDiagnostics.report` 上报：一次调用同时发第 3 节 I 组的一个事件和一条
+  Crashlytics 非致命错误，两者一一对应，失败点取 `RuleFailurePoint`。业务代码不得直接调用 `logDiagnosticFailure`
+  或 `CrashDiagnostics` 的记录方法；启动装配失败是唯一另走的非致命错误（第 6 节）。闸门 A13 执行。
+- `BCA-OBS-008` 非致命错误不得带原始错误对象：只记错误的 domain 与 code，加上 `ErrorDiagnostics.summary` 给出的脱敏摘要。
+  原始错误的 userInfo 会被 Crashlytics 原样写进报告，系统网络错误的 userInfo 带完整网址与查询串，因此不得上传。
+  第 2 条约束同样适用于 Crashlytics 的自定义键与日志行：只取第 6 节登记的键，值不含网址、标题、搜索词与账号标识。
+- `BCA-OBS-009` 只描述某一条非致命错误的键（失败点、阶段、类别、摘要）随那条错误一起上报，不得写成 Crashlytics 全局键：
+  全局键会附到之后所有的崩溃与非致命报告上，让一次早先的失败冒充后来崩溃的原因。全局键只放会话、版本、设备与
+  「最近一次」的页面、来源和规则阶段。
 
 ## 2. 原则
 
@@ -229,3 +243,72 @@ GA4 每个项目只有 50 个事件级自定义维度名额。下表除 `screen_
 | 设置 | `cloud_sync_first_enable` | 首次启用云同步（sheet） |
 | 设置 | `coin_ledger` | coin 记录 |
 | 设置 | `account_deletion` | 删除账号 |
+
+## 6. 崩溃诊断
+
+上报链路：AppDelegate 启动时 Firebase 配置完成后，`CrashDiagnostics.configure` 按开关设置采集、以诊断支持 ID 设用户 ID、
+写入第 6.2 节的会话键；页面曝光、选择来源与规则执行时更新「最近一次」的键；失败时由 `RuleFailureDiagnostics` 或启动装配
+记一条非致命错误。报告在下次启动时由 SDK 发出。
+
+### 6.1 覆盖范围
+
+- 致命崩溃（未捕获的异常与信号）由 SDK 在进程级捕获，不分页面，第 5 节的全部页面都在覆盖内；崩溃发生在哪一页靠
+  全局键 `screen` 与页面轨迹日志判断。广告 SDK 必须在 Firebase 配置之前启动，否则它的信号处理器会盖掉 Crashlytics 的。
+- 符号化：真机 Debug、TestFlight 与 Release 都产出 dSYM，构建后脚本「Upload Crashlytics Symbols」上传；模拟器构建不产出 dSYM。
+- 非致命错误只记下表这些失败点。规则执行失败的十四个点与第 3 节 I 组一一对应（`BCA-OBS-007`），I 组不报的这里也不记。
+
+| 失败点 | 何时记 | 阶段 |
+| --- | --- | --- |
+| `library_refresh` | 库页刷新或首次加载列表失败。 | list |
+| `library_pagination` | 库页加载下一页失败。 | list |
+| `library_search` | 来源内搜索失败，含要登录的站点。 | search |
+| `library_search_pagination` | 来源内搜索加载下一页失败。 | search |
+| `library_favorite_state` | 库页读取本机收藏状态失败。 | list |
+| `source_select_refresh` | 来源页选中来源后首次拉列表失败。 | list |
+| `source_refresh` | 来源页刷新来源失败。 | list |
+| `comic_detail` | 漫画详情加载失败。 | detail |
+| `comic_reader` | 漫画阅读器加载章节失败；账号访问限制是预期状态，不记。 | reader |
+| `video_detail` | 影视详情加载失败。 | detail |
+| `video_episode_resolve` | 影视详情解析某一集的播放地址失败。 | videoPlayback |
+| `video_playback` | 播放器里换集、换线路时解析失败。 | videoPlayback |
+| `book_detail` | 站点书详情加载失败。 | detail |
+| `book_reader_open` | 站点书阅读器打开失败；本地书不记。 | reader |
+| `bootstrap` | 启动装配失败、进入启动失败页。 | 无，另带 `bootstrapStage` |
+
+- 刻意不记非致命错误的失败：用户取消与被新请求取代的请求；播放层失败（直链播不出、网页播放器报错，走 `playback_failed`）；
+  账号、购买、恢复购买、云同步、删除账号、规则生成、目录添加与推送注册这些流程的失败——它们的结局多是网络、用户取消或
+  StoreKit 的预期结果，不是 App 缺陷，结局与 `error_code` 已由第 3 节对应事件承载。要把其中某一类纳入，先改本表再改代码。
+
+### 6.2 全局键
+
+全局键附在之后的每一份报告上，只放会话级与「最近一次」的状态（`BCA-OBS-009`）。
+
+| 键 | 含义与何时写 |
+| --- | --- |
+| 用户 ID | 诊断支持 ID，与 Analytics 的用户 ID 相同；启动时写。 |
+| `diagnosticCode` | 设置页可复制的诊断码；启动时写。 |
+| `sessionId` | 本次启动的随机 ID；启动时写。 |
+| `appVersion` | 版本号；启动时写。 |
+| `buildNumber` | 构建号；启动时写。 |
+| `deviceModel` | 机型标识（如 iPhone18,1）；启动时写。 |
+| `systemVersion` | 系统版本串；启动时写。 |
+| `screen` | 当前页面，取第 5 节的 `screen_name`；与页面曝光同一处写（`BCA-OBS-004`），书阅读器确定是哪一页前先写 `book_reader`。 |
+| `sourceId` | 最近进入的来源 ID；选择来源、进入详情、阅读器与播放器时写。 |
+| `sourceType` | 最近进入的来源类型：comic / video / book / unknown；与 `sourceId` 同时写。 |
+| `ruleStage` | 最近开始执行的规则阶段，取 `DiagnosticRuleStage`；列表、搜索、详情、阅读、播放解析开始时写。 |
+
+页面曝光时另写一行日志 `screen=<screen_name>`，崩溃报告里的日志因此是一条页面轨迹。除此之外不写日志行。
+
+### 6.3 非致命错误自带的键
+
+| 键 | 含义 |
+| --- | --- |
+| `failurePoint` | 第 6.1 节表里的失败点。 |
+| `failureKind` | network / parse，由规则错误分类器判定；启动装配失败不带。 |
+| `failureStage` | 规则阶段，取 `DiagnosticRuleStage`；启动装配失败不带。 |
+| `failureSourceId` | 失败时的来源 ID；没有来源时为空。 |
+| `failureSourceType` | 失败时的来源类型。 |
+| `bootstrapStage` | 启动装配失败在哪一步，取 `BootstrapFailureStage`；只有启动装配失败带。 |
+| `errorSummary` | `ErrorDiagnostics.summary` 的脱敏摘要：类型名、domain:code 与错误自己声明的摘要。 |
+
+报告里的错误本身只保留原错误的 domain 与 code，Crashlytics 按它们和调用栈归组（`BCA-OBS-008`）。

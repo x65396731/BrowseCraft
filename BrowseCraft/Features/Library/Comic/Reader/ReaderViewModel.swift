@@ -337,20 +337,15 @@ final class ReaderViewModel {
             RuleExecutionErrorClassifier.log(error: classifiedError, stage: .reader, event: "reader-load-error")
             switch classifiedError {
             case .accessRequired:
-                // 中文注释：账号访问限制是预期业务状态，不作为解析失败上报 Crashlytics。
+                // 中文注释：账号访问限制是预期业务状态，不报诊断事件、也不记 Crashlytics 非致命错误。
                 break
             default:
-                AppAnalytics.shared.logDiagnosticFailure(
+                RuleFailureDiagnostics.report(
+                    error: error,
                     kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
                     stage: .reader,
                     point: .comicReader,
                     source: self.source
-                )
-                CrashDiagnostics.shared.record(
-                    error: error,
-                    category: .parser,
-                    errorCode: "reader-load-error",
-                    event: "reader-load-error"
                 )
             }
             self.handleReaderLoadError(

@@ -90,6 +90,7 @@ enum RuleFailurePoint: String, Sendable {
     case libraryRefresh = "library_refresh"
     case libraryPagination = "library_pagination"
     case librarySearch = "library_search"
+    case librarySearchPagination = "library_search_pagination"
     case libraryFavoriteState = "library_favorite_state"
     case sourceSelectRefresh = "source_select_refresh"
     case sourceRefresh = "source_refresh"

@@ -1294,3 +1294,6 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 同节新增「关掉 sheet / 全屏页 / 盖层回到下层页面时补报曝光」一行（implemented / not-run，未 build、未跑测试）；检查点先登记为 HEAD `0a8ca70`。
 - 补报曝光的实施与文档一起提交为 `59780e4`；第 9 节该行检查点由 HEAD `0a8ca70` 改登记为 `59780e4`。
 - 2026-10-17 两个修正合入 main（sheet 补报快进合入、保留 `59780e4` / `e5ce58e`；轮询修正挑到其后为 `b669a06`，HANDOFF 同一行冲突合成一句）。同节「关掉 sheet …补报曝光」一行：验证 not-run → simulator-passed（iPhone 18 Pro / iOS 27.0：关规则目录补报 `sources`、关来源内搜索补报 `library`，进出书详情各只报一次）；新增「激励广告到账轮询加长」一行 targeted-passed（iPhone 17 Pro / iOS 26.5 跑 CoinWalletStoreTests 与三个 AppAnalytics 套件共 20 例全过）。
+
+2026-10-18 Crashlytics 上报范围。检查崩溃诊断是否覆盖全部页面：致命崩溃由 SDK 进程级捕获、34 个页面名都写进 `screen` 键，但非致命错误只在 13 个规则失败点里的 6 个记录，书籍、库页列表与搜索全无；记录时原错误整个交给 SDK，`URLError` 的 userInfo 带完整网址会被上传；severity / category / errorCode / errorEvent 写成全局键，会附到之后的崩溃报告上；类别一律写 parser。用户裁定先把上报范围写进合同再补代码。
+- `STATUS.md` 第 9 节新增「Crashlytics 上报范围入合同并按合同补齐」一行 implemented / not-run，检查点先登记为实施前的 HEAD `8268939`。未 build、未跑测试；新增源文件 `RuleFailureDiagnostics.swift`，需重跑 XcodeGen。

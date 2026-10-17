@@ -440,7 +440,7 @@ def check_retirable_sections(rep):
     rep.note("A12", "可退休：" + "；".join(hits) if hits else "无可退休的节")
 
 
-# ---- A13：埋点字典（BCA-OBS-001 / 003 / 004，定义点在 docs/design/Analytics-Events-Design.md）。----
+# ---- A13：埋点字典与崩溃诊断入口（BCA-OBS-001 / 003 / 004 / 007，定义点在 docs/design/Analytics-Events-Design.md）。----
 ANALYTICS_DOC = "docs/design/Analytics-Events-Design.md"
 ANALYTICS_SWIFT = "BrowseCraft/Shared/Diagnostics/AppAnalytics.swift"
 SCREEN_SWIFT = "BrowseCraft/Shared/Diagnostics/DiagnosticEnums.swift"
@@ -448,6 +448,15 @@ SCREEN_SWIFT = "BrowseCraft/Shared/Diagnostics/DiagnosticEnums.swift"
 ANALYTICS_FORBIDDEN_LAYERS = ["BrowseCraft/Domain", "BrowseCraft/Application", "BrowseCraft/Infrastructure"]
 SCREEN_VIEW_ALLOWED = {"BrowseCraft/Shared/Diagnostics/AppAnalytics+Session.swift",
                        "BrowseCraft/Shared/UI/AnalyticsScreenModifier.swift"}
+# 规则执行失败只经 RuleFailureDiagnostics.report 上报；Crashlytics 的非致命错误只许这几处记（BCA-OBS-007）。
+CRASH_DIAGNOSTICS_SWIFT = "BrowseCraft/Shared/Diagnostics/CrashDiagnostics.swift"
+RULE_FAILURE_SWIFT = "BrowseCraft/Shared/Diagnostics/RuleFailureDiagnostics.swift"
+FAILURE_CALL_ALLOWED = {
+    "logDiagnosticFailure(": {"BrowseCraft/Shared/Diagnostics/AppAnalytics+Account.swift", RULE_FAILURE_SWIFT},
+    "recordRuleFailure(": {CRASH_DIAGNOSTICS_SWIFT, RULE_FAILURE_SWIFT},
+    "recordBootstrapFailure(": {CRASH_DIAGNOSTICS_SWIFT, "BrowseCraft/App/Startup/AppBootstrapState.swift"},
+    "FirebaseCrashlytics": {CRASH_DIAGNOSTICS_SWIFT},
+}
 
 
 def swift_files(rel_dir):
@@ -533,6 +542,11 @@ def check_analytics(rep):
             continue
         if "logScreenView(" in read(rel):
             rep.fail("A13", rel, "页面曝光只走 .analyticsScreen(_:) / AnalyticsScreenReporter（BCA-OBS-004）")
+    for rel in swift_files("BrowseCraft"):
+        text = read(rel)
+        for needle, allowed in FAILURE_CALL_ALLOWED.items():
+            if rel not in allowed and needle in text:
+                rep.fail("A13", rel, f"{needle.rstrip('(')} 只许 {'、'.join(sorted(allowed))} 使用（BCA-OBS-007）")
     rep.note("A13", " / ".join(counts))
 
 
@@ -584,7 +598,7 @@ def main():
         "A10": "文档点名的代码符号都存在",
         "A11": "承载定义点的文档被 git 跟踪",
         "A12": "STATUS.md 可退休的节（只提示，BCA-DOC-016）",
-        "A13": "埋点字典与代码一致、带注释、调用边界（BCA-OBS）",
+        "A13": "埋点字典与代码一致、带注释、调用边界与崩溃诊断入口（BCA-OBS）",
     }
     failed = {c for c, _, _ in rep.failures}
     skipped = {c for c, _ in rep.skipped}

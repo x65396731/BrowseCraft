@@ -160,9 +160,10 @@ A8 `docs/STATUS.md` 每格落枚举或形态；A9 根 `HANDOFF.md` 只承载四�
 阈值的唯一声明点在脚本里，文档不复述数值）；A10 文档点名的类型必须在源码里存在（`BCA-DOC-014`）；A11 承载定义点的文档必须被 git 跟踪（`BCA-DOC-015`）——
 不被跟踪的文档（如 `.gitignore` 掉的 `AGENTS.md`）只能写引用点，条款正文放进去等于那条合同不在仓库里；
 A12 `docs/STATUS.md` 里整节到终态且超期的节（`BCA-DOC-016`）——**只提示，不判失败**，阈值的唯一声明点在脚本里；
-A13 埋点字典（`BCA-OBS-001` / `003` / `004`）：`AppAnalytics.Event`、`AppAnalytics.Parameter` 与 `DiagnosticScreen` 的每个 case 带 `///` 注释，
+A13 埋点字典与崩溃诊断入口（`BCA-OBS-001` / `003` / `004` / `007`）：`AppAnalytics.Event`、`AppAnalytics.Parameter` 与 `DiagnosticScreen` 的每个 case 带 `///` 注释，
 名字与 `docs/design/Analytics-Events-Design.md` 第 3–5 节双向一致；`Domain` / `Application` / `Infrastructure` 不引用 `AppAnalytics`；
-业务代码不直接调 `logScreenView`。
+业务代码不直接调 `logScreenView`；规则执行失败只经 `RuleFailureDiagnostics.report`，`logDiagnosticFailure` 与
+Crashlytics 的记录方法不在别处出现，只有 `CrashDiagnostics` 引入 Crashlytics。
 
 围栏代码块在 A1、A4–A7、A9 与 A10 前一律剥掉——里面的 ID 是语法示例、哈希是命令输出、`[](…)` 不会被渲染成链接。
 A2 与 A3 要读 fwq 仓库（缺省 `~/Desktop/fwq`，用 `--fwq` 改），A10 要读四个兄弟包的源码；

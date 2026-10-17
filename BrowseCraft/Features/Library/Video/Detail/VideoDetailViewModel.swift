@@ -418,17 +418,12 @@ final class VideoDetailViewModel {
             #endif
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "video-detail-error")
-            AppAnalytics.shared.logDiagnosticFailure(
+            RuleFailureDiagnostics.report(
+                error: error,
                 kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
                 stage: .detail,
                 point: .videoDetail,
                 source: self.source
-            )
-            CrashDiagnostics.shared.record(
-                error: error,
-                category: .parser,
-                errorCode: "video-detail-error",
-                event: "video-detail-error"
             )
             self.detailErrorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }
@@ -600,17 +595,12 @@ final class VideoDetailViewModel {
             #endif
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .playback, event: "video-playback-error")
-            AppAnalytics.shared.logDiagnosticFailure(
+            RuleFailureDiagnostics.report(
+                error: error,
                 kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
                 stage: .videoPlayback,
                 point: .videoEpisodeResolve,
                 source: self.source
-            )
-            CrashDiagnostics.shared.record(
-                error: error,
-                category: .playback,
-                errorCode: "video-playback-error",
-                event: "video-playback-error"
             )
             // 中文注释：解析失败走网格上方的横幅，不弹警告框（第八节）；原因照 classifier 的用户文案。
             self.playbackErrorMessage = String(

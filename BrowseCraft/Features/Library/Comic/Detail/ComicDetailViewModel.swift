@@ -722,17 +722,12 @@ final class ComicDetailViewModel {
             return
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "comic-detail-error")
-            AppAnalytics.shared.logDiagnosticFailure(
+            RuleFailureDiagnostics.report(
+                error: error,
                 kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
                 stage: .detail,
                 point: .comicDetail,
                 source: self.source
-            )
-            CrashDiagnostics.shared.record(
-                error: error,
-                category: .parser,
-                errorCode: "comic-detail-error",
-                event: "comic-detail-error"
             )
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
         }

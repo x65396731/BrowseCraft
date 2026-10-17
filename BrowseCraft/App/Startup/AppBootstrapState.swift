@@ -50,6 +50,7 @@ enum AppBootstrapState {
             ]
         )
         AppAnalytics.shared.logAppBootstrapFailed(stage: stage)
+        CrashDiagnostics.shared.recordBootstrapFailure(error: error, stage: stage)
         return .failed(failure)
     }
 }

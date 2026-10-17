@@ -388,6 +388,7 @@ final class BookSiteDetailViewModel {
             self.errorMessage = NSLocalizedString("book_detail_invalid_url", comment: "详情地址无效")
             return
         }
+        CrashDiagnostics.shared.setSource(self.source)
         CrashDiagnostics.shared.setRuleStage(.detail)
         self.isLoading = true
         self.errorMessage = nil
@@ -402,7 +403,8 @@ final class BookSiteDetailViewModel {
             return
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .detail, event: "book-detail-error")
-            AppAnalytics.shared.logDiagnosticFailure(
+            RuleFailureDiagnostics.report(
+                error: error,
                 kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
                 stage: .detail,
                 point: .bookDetail,

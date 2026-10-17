@@ -493,7 +493,8 @@ final class LibraryViewModel {
                self.isCurrentListState(sourceID: expectedSourceID, key: expectedListStateKey) {
                 let event: String = mode == .append ? "library-pagination-error" : "library-refresh-error"
                 RuleExecutionErrorClassifier.log(error: error, stage: .list, event: event)
-                AppAnalytics.shared.logDiagnosticFailure(
+                RuleFailureDiagnostics.report(
+                    error: error,
                     kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
                     stage: .list,
                     point: mode == .append ? .libraryPagination : .libraryRefresh,
@@ -630,6 +631,7 @@ final class LibraryViewModel {
 
     @MainActor
     private func runSearch(source: Source, useCase: SearchSourceContentUseCase, keyword: String) async {
+        CrashDiagnostics.shared.setRuleStage(.search)
         self.submittedSearchKeyword = keyword
         self.isSearching = true
         self.searchErrorMessage = nil
@@ -659,7 +661,8 @@ final class LibraryViewModel {
                 result: self.searchFailureNeedsLogin ? .loginRequired : .failed,
                 resultCount: 0
             )
-            AppAnalytics.shared.logDiagnosticFailure(
+            RuleFailureDiagnostics.report(
+                error: error,
                 kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
                 stage: .search,
                 point: .librarySearch,
@@ -703,6 +706,15 @@ final class LibraryViewModel {
             self.searchNextPage = output.pagination?.nextPage
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-search-next-page-error")
+            if error is CancellationError == false {
+                RuleFailureDiagnostics.report(
+                    error: error,
+                    kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
+                    stage: .search,
+                    point: .librarySearchPagination,
+                    source: source
+                )
+            }
             self.searchNextPage = nil
         }
     }
@@ -1580,7 +1592,8 @@ final class LibraryViewModel {
                 self.favoriteItemIDs = favoriteItemIDs
             } catch {
                 RuleExecutionErrorClassifier.log(error: error, stage: .list, event: event)
-                AppAnalytics.shared.logDiagnosticFailure(
+                RuleFailureDiagnostics.report(
+                    error: error,
                     kind: RuleExecutionErrorClassifier.diagnosticFailureKind(for: error),
                     stage: .list,
                     point: .libraryFavoriteState,
