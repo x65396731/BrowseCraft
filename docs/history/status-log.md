@@ -1307,3 +1307,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 
 2026-10-18 在 Chrome 里核对 Crashlytics 控制台（项目 anyportal-88f57，过去 30 天）。非致命错误 56 次、4 位用户，最新版本 1.0 (46)，说明上报链路通畅；看到的都是统一日志之前的构建。最大的问题是 Swift.CancellationError（23 次，来自 `VideoDetailViewModel.loadEpisodes` 的旧 `record` 调用），其事件键里 ruleStage=videoPlayback、errorCode=video-detail-error、screen=videoPlayer 互相对不上，印证了 `BCA-OBS-009` 要解决的全局键串用；其余为 RuleExecutionError、SourceParsingError、SourceRuntimeError。崩溃 0 次，但提示 3 个崩溃因缺 2 个 dSYM 未处理，缺的两个 UUID 都属于 1.0 (19)，本机归档里找不到，之后的构建都已自动上传。
 - `STATUS.md` 第 9 节新增「规则失败上报挡掉取消」一行 implemented / not-run（未 build、未跑测试），检查点先登记为当前 HEAD `b327e94`。
+- 修正提交为 `dd7fd17`（`rule-failure-cancellation` 分支，未推送）；第 9 节「规则失败上报挡掉取消」一行：检查点由 HEAD `b327e94` 改登记为 `dd7fd17`，验证 not-run → static-audit-passed（模拟器增量 build 零错误零警告，未跑测试）。
