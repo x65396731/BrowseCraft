@@ -28,7 +28,7 @@ final class AppAnalytics: Sendable {
         /// 参数：result（StartupOutcome）、entry（落到哪个标签页）。
         case startupFinished = "startup_finished"
         /// 任一页面显示时报，含从下级页返回；由 `.analyticsScreen(_:)` 统一发出。
-        /// 参数：screen_name（DiagnosticScreen 的原始值）。
+        /// 参数：screen_name、screen_class（都取 DiagnosticScreen 的原始值）。
         case screenView = "screen_view"
         /// 用户点开规则生成结果推送时报；推送在前台到达不报。
         /// 参数：entry（固定为 rule_generation）。不报：推送内容与任务 ID。
@@ -236,6 +236,8 @@ final class AppAnalytics: Sendable {
     enum Parameter {
         /// 页面名，取 `DiagnosticScreen` 的原始值。
         static let screenName: String = "screen_name"
+        /// 页面类，与页面名同值。必须显式传：缺省时 Firebase 取当前 UIViewController 类名，SwiftUI 的类名超过 100 字符被判无效，连页面名一起丢掉。
+        static let screenClass: String = "screen_class"
         /// 内容类型，取 `AnalyticsContentKind`。
         static let contentKind: String = "content_kind"
         /// 来源 ID 的 SHA-256，只用来按来源去重。
@@ -292,6 +294,7 @@ final class AppAnalytics: Sendable {
         /// 参数白名单：不在表里的键一律丢弃（设计文档「参数字典」）。
         static let allowed: Set<String> = [
             Parameter.screenName,
+            Parameter.screenClass,
             Parameter.contentKind,
             Parameter.sourceIdHash,
             Parameter.siteHostHash,

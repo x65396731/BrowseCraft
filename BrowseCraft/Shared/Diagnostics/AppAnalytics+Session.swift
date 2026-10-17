@@ -30,7 +30,8 @@ extension AppAnalytics {
     /// 中文注释：页面曝光只由 `.analyticsScreen(_:)` 修饰符调用，业务代码不直接调。
     func logScreenView(_ screen: DiagnosticScreen) {
         self.log(.screenView, parameters: [
-            Parameter.screenName: screen.rawValue
+            Parameter.screenName: screen.rawValue,
+            Parameter.screenClass: screen.rawValue
         ])
     }
 

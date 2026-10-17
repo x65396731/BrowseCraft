@@ -8,7 +8,9 @@ import SwiftUI
 struct ComicDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: ComicDetailViewModel
-    @State private var selectedReaderDestination: ComicReaderDestination?
+    /// 中文注释：阅读器目标与埋点入口放在同一个值里。分开两个 @State 时，同一次更新里写入的入口
+    /// 在 navigationDestination 构造阅读器时还读不到新值（模拟器走查 `reader_opened` 报错入口）。
+    @State private var selectedReaderRoute: ComicReaderRoute?
     /// 中文注释：本次打开阅读器的埋点入口（开始阅读 / 继续卡片 / 章节列表），随目的地一起定。
     @State private var readerOpenEntry: ReaderOpenEntry = .chapterList
     @State private var scrollViewportHeight: CGFloat = 0
@@ -92,8 +94,8 @@ struct ComicDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         .navigationDestination(isPresented: self.readerDestinationPresentedBinding) {
-            if let destination: ComicReaderDestination = self.selectedReaderDestination {
-                self.readerDestination(for: destination)
+            if let route: ComicReaderRoute = self.selectedReaderRoute {
+                self.readerDestination(for: route.destination, entry: route.entry)
             }
         }
         .fullScreenCover(item: self.requestedSourceLoginBinding) { loginState in
@@ -157,11 +159,11 @@ struct ComicDetailView: View {
     private var readerDestinationPresentedBinding: Binding<Bool> {
         return Binding<Bool>(
             get: {
-                return self.selectedReaderDestination != nil
+                return self.selectedReaderRoute != nil
             },
             set: { newValue in
                 if newValue == false {
-                    self.selectedReaderDestination = nil
+                    self.selectedReaderRoute = nil
                     // 中文注释：阅读器返回后重读历史，继续卡片与已读 / 上次读到标记跟着换（第六节）。
                     self.reloadHistoriesAfterReader()
                 }
@@ -188,7 +190,7 @@ struct ComicDetailView: View {
             self.openChapter(chapter, entry: .detailStart)
         case .history:
             self.readerOpenEntry = .detailContinue
-            self.selectedReaderDestination = destination
+            self.selectedReaderRoute = ComicReaderRoute(destination: destination, entry: .detailContinue)
         }
     }
 
@@ -202,7 +204,7 @@ struct ComicDetailView: View {
         selectedChapter.navigationChapterURLs = self.viewModel.chapters.map(\.url)
         selectedChapter.navigationChapterTitles = self.viewModel.chapters.map(\.title)
         selectedChapter.navigationOrder = self.viewModel.chapterNavigationOrder
-        self.selectedReaderDestination = .chapter(selectedChapter)
+        self.selectedReaderRoute = ComicReaderRoute(destination: .chapter(selectedChapter), entry: entry)
 
         #if DEBUG
         AppDebugLog.write(
@@ -213,14 +215,14 @@ struct ComicDetailView: View {
     }
 
     @ViewBuilder
-    private func readerDestination(for destination: ComicReaderDestination) -> some View {
+    private func readerDestination(for destination: ComicReaderDestination, entry: ReaderOpenEntry) -> some View {
         switch destination {
         case .chapter(let chapter):
             ReaderView(
                 item: self.viewModel.item,
                 source: self.viewModel.source,
                 selectedChapter: chapter,
-                entry: self.readerOpenEntry,
+                entry: entry,
                 factory: self.contentViewModelFactory
             )
             .id(self.readerDestinationID(for: destination))
@@ -228,7 +230,7 @@ struct ComicDetailView: View {
             ReaderView(
                 history: history,
                 source: self.viewModel.source,
-                entry: self.readerOpenEntry,
+                entry: entry,
                 factory: self.contentViewModelFactory
             )
             .id(self.readerDestinationID(for: destination))
@@ -271,4 +273,10 @@ struct ComicDetailView: View {
         CrashDiagnostics.shared.setSource(self.viewModel.source)
         CrashDiagnostics.shared.setRuleStage(.detail)
     }
+}
+
+/// 中文注释：漫画阅读器的跳转目标连同埋点入口。
+private struct ComicReaderRoute: Hashable {
+    let destination: ComicReaderDestination
+    let entry: ReaderOpenEntry
 }

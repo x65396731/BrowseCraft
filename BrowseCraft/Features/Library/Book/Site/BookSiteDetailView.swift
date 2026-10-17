@@ -10,9 +10,9 @@ import SwiftUI
 struct BookSiteDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: BookSiteDetailViewModel
-    @State private var selectedChapter: SiteBookChapterSelection?
-    /// 中文注释：本次打开阅读器的埋点入口，随 `selectedChapter` 一起定。
-    @State private var readerOpenEntry: ReaderOpenEntry = .chapterList
+    /// 中文注释：要打开的章节连同埋点入口放在同一个值里。分开两个 @State 时，同一次更新里写入的入口
+    /// 在 navigationDestination 构造阅读器时还读不到新值（模拟器走查 `reader_opened` 报错入口）。
+    @State private var selectedReaderRoute: BookReaderRoute?
     /// 中文注释：点分段芯片滚到段首时，段首要落在贴顶分区头下面而不是被它盖住（2026-10-09 模拟器实测：点「101–150」停在 103）。
     /// 记下滚动区可见高度与分区头高度，换算成 `scrollTo` 的锚点。
     @State private var scrollViewportHeight: CGFloat = 0
@@ -95,9 +95,9 @@ struct BookSiteDetailView: View {
             await self.viewModel.reloadFavoriteState()
             await self.viewModel.loadIfNeeded()
         }
-        .navigationDestination(item: self.$selectedChapter) { selection in
-            BookReaderView(viewModel: self.makeReaderViewModel(selection), entry: self.readerOpenEntry)
-                .id(selection)
+        .navigationDestination(item: self.$selectedReaderRoute) { route in
+            BookReaderView(viewModel: self.makeReaderViewModel(route.selection), entry: route.entry)
+                .id(route.selection)
         }
         .fullScreenCover(item: self.requestedSourceLoginBinding) { loginState in
             SourceLoginView(
@@ -126,8 +126,7 @@ struct BookSiteDetailView: View {
     }
 
     private func open(_ selection: SiteBookChapterSelection, entry: ReaderOpenEntry) {
-        self.readerOpenEntry = entry
-        self.selectedChapter = selection
+        self.selectedReaderRoute = BookReaderRoute(selection: selection, entry: entry)
     }
 
     // MARK: - 固定的返回与收藏
@@ -158,4 +157,10 @@ struct BookSiteDetailView: View {
             }
         )
     }
+}
+
+/// 中文注释：站点书阅读器的跳转目标连同埋点入口。
+private struct BookReaderRoute: Hashable {
+    let selection: SiteBookChapterSelection
+    let entry: ReaderOpenEntry
 }

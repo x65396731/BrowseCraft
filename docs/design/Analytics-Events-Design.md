@@ -47,7 +47,7 @@
 | `app_foregrounded` | 从后台回到前台（scenePhase 变为 active）时报；冷启动那次不报。 | 无。 |
 | `app_bootstrap_failed` | 启动装配失败、进入启动失败页时报。 | error_code（装配失败在哪一步）。不报：诊断码与错误文案。 |
 | `startup_finished` | 开屏动画结束、退到标签页时报，记录为什么结束。 | result（StartupOutcome）、entry（落到哪个标签页）。 |
-| `screen_view` | 任一页面显示时报，含从下级页返回；由 `.analyticsScreen(_:)` 统一发出。 | screen_name（DiagnosticScreen 的原始值）。 |
+| `screen_view` | 任一页面显示时报，含从下级页返回；由 `.analyticsScreen(_:)` 统一发出。 | screen_name、screen_class（都取 DiagnosticScreen 的原始值）。 |
 | `push_opened` | 用户点开规则生成结果推送时报；推送在前台到达不报。 | entry（固定为 rule_generation）。不报：推送内容与任务 ID。 |
 | `support_info_copied` | 用户复制诊断码、账号 ID 或启动失败信息时报，用来估计求助量。 | entry（SupportInfoKind）。不报：复制的内容本身。 |
 
@@ -150,11 +150,12 @@
 
 ## 4. 参数
 
-GA4 每个项目只有 50 个事件级自定义维度名额；下表的参数都要在控制台注册为事件级自定义维度，新增参数先进本表。
+GA4 每个项目只有 50 个事件级自定义维度名额。下表除 `screen_name`、`screen_class`、`app_version`、`build_number` 四个由 GA4 内置维度承接外，其余都要在控制台注册为事件级自定义维度；新增参数先进本表。
 
 | 参数 | 含义与取值 |
 | --- | --- |
 | `screen_name` | 页面名，取 `DiagnosticScreen` 的原始值。 |
+| `screen_class` | 页面类，与页面名同值。必须显式传：缺省时 Firebase 取当前 UIViewController 类名，SwiftUI 的类名超过 100 字符被判无效，连页面名一起丢掉。 |
 | `content_kind` | 内容类型，取 `AnalyticsContentKind`。 |
 | `source_id_hash` | 来源 ID 的 SHA-256，只用来按来源去重。 |
 | `site_host_hash` | 入口主机名小写后的 SHA-256。 |
