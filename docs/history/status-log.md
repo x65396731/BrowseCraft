@@ -1297,3 +1297,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 
 2026-10-18 Crashlytics 上报范围。检查崩溃诊断是否覆盖全部页面：致命崩溃由 SDK 进程级捕获、34 个页面名都写进 `screen` 键，但非致命错误只在 13 个规则失败点里的 6 个记录，书籍、库页列表与搜索全无；记录时原错误整个交给 SDK，`URLError` 的 userInfo 带完整网址会被上传；severity / category / errorCode / errorEvent 写成全局键，会附到之后的崩溃报告上；类别一律写 parser。用户裁定先把上报范围写进合同再补代码。
 - `STATUS.md` 第 9 节新增「Crashlytics 上报范围入合同并按合同补齐」一行 implemented / not-run，检查点先登记为实施前的 HEAD `8268939`。未 build、未跑测试；新增源文件 `RuleFailureDiagnostics.swift`，需重跑 XcodeGen。
+- 实施与文档一起提交为 `bdd4dff`；第 9 节该行检查点由实施前的 HEAD `8268939` 改登记为 `bdd4dff`。
