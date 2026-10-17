@@ -1,2 +1,5 @@
 /* 收藏与历史锁定（docs/design/Content-Lock-Design.md） */
 "NSFaceIDUsageDescription" = "AnyPortal uses Face ID to lock Favorites and History.";
+
+/* 首次播激励广告前的跟踪授权（RewardedAdPresenter，2026-10-17） */
+"NSUserTrackingUsageDescription" = "If you allow this, the rewarded ads you watch for coins can be more relevant to you. Your choice doesn't change the coins you earn.";

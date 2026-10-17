@@ -117,8 +117,9 @@ targets:
       - package: Firebase
         product: FirebaseCrashlytics
       - package: Firebase
-        # 中文注释：应用未申请 ATT/IDFA；使用 Analytics Core，避免链接广告身份
-        # 支持后又缺少 IdentitySupport 所产生的启动警告。
+        # 中文注释：Analytics 不读 IDFA；使用 Analytics Core，避免链接广告身份
+        # 支持后又缺少 IdentitySupport 所产生的启动警告。2026-10-17 起 App 在首次播激励广告前申请 ATT，
+        # 那是给 AdMob 用的（RewardedAdPresenter），Analytics 不因此改用带广告身份的产品。
         product: FirebaseAnalyticsCore
       - package: Alamofire
         product: Alamofire
@@ -145,7 +146,9 @@ targets:
         PRODUCT_MODULE_NAME: BrowseCraft
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: BrowseCraft/Info.plist
-        # 中文注释：Info.plist 走预处理，只为用 #if 把跟踪用途说明限定在 Debug / TestFlight（见 Info.plist 末尾）。
+        # 中文注释：Info.plist 走预处理，原为用 #if 把跟踪用途说明限定在 Debug / TestFlight；2026-10-17 起跟踪用途说明
+        # 各配置都带，Info.plist 里已没有条件段，预处理暂留未动（去掉它与下面两项预处理设置要重新生成工程）。
+        # 文案里别写撇号：预处理器会把它当字符字面量。
         INFOPLIST_PREPROCESS: YES
         # 中文注释：预处理器把 Info.plist 当 C 源码扫，注释和用途说明里的全角「：」「，」会被报成
         # -Wunicode-homoglyph（把全角标点当成了标识符字符）。这些是给人看的中文文案，不是代码，关掉这一项。
@@ -171,12 +174,13 @@ targets:
           # 中文注释：2026-09-27 起 Debug / TestFlight 用真实激励广告单元（用户裁定）：Google 示例单元
           # 从不发 SSV 回调，coin 到账验不了；真机须在 AdMob「测试设备」登记，仍看到测试广告、不算无效流量。
           BROWSECRAFT_REWARDED_AD_UNIT_ID: ca-app-pub-4351001986548416/2887798038
-          # 中文注释：AdMob 测试设备（逗号分隔的 SDK 设备哈希）。App 没接 ATT，IDFA 全零，网页后台按 IDFA
+          # 中文注释：AdMob 测试设备（逗号分隔的 SDK 设备哈希）。拒绝跟踪授权时 IDFA 全零，网页后台按 IDFA
           # 登记走不通；首次在真机上请求广告时 SDK 会在控制台打印本机哈希，填到这里即可。Release 不设。
           BROWSECRAFT_AD_TEST_DEVICE_IDS: ""
-          # 中文注释：AdMob 文档登记测试设备要填 IDFA；App 正式版不申请跟踪授权，SDK 读到的 IDFA 全零，
-          # 登记对不上。所以只在 Debug / TestFlight 编入「设置页取本机 IDFA」工具并带跟踪用途说明（用户 2026-09-27）。
-          # Release 两者都没有（Info.plist 用 INFOPLIST_PREPROCESSOR_DEFINITIONS 控制）。
+          # 中文注释：AdMob 文档登记测试设备要填 IDFA，IDFA 要经跟踪授权才读得到。Debug / TestFlight 编入
+          # 「设置页取本机 IDFA」工具（用户 2026-09-27），Release 不编入。跟踪用途说明原先也只在这两个配置里，
+          # 2026-10-17 起 Release 也在首次播激励广告前申请授权，说明改为各配置都带；
+          # 下面的 INFOPLIST_PREPROCESSOR_DEFINITIONS 已无条件段使用，暂留未动。
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) BROWSECRAFT_AD_TEST_TOOLS"
           INFOPLIST_PREPROCESSOR_DEFINITIONS: "BROWSECRAFT_AD_TEST_TOOLS=1"
           DEBUG_INFORMATION_FORMAT: dwarf-with-dsym

@@ -1,3 +1,4 @@
+import AppTrackingTransparency
 import Foundation
 import GoogleMobileAds
 
@@ -64,6 +65,8 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
         self.lastMessage = nil
         self.didEarnReward = false
 
+        await Self.requestTrackingAuthorizationIfNeeded()
+
         do {
             #if DEBUG
             AppDebugLog.write(
@@ -115,6 +118,22 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
             #endif
             return .failed(message)
         }
+    }
+
+    /// 中文注释：AdMob 自带隐私清单把设备 ID 标成用于跟踪，App Store 隐私标签照此声明（用户 2026-10-17 裁定），
+    /// 所以第一次播广告前先问跟踪授权；Google 建议等授权回调结束再加载广告。允许与否都照常加载、照常发 coin
+    /// （审核指南 5.1.2(i)：不得拿奖励换跟踪授权）。系统只在 App 活跃时弹窗，这里由用户点击触发，天然满足。
+    private static func requestTrackingAuthorizationIfNeeded() async {
+        guard ATTrackingManager.trackingAuthorizationStatus == .notDetermined else {
+            return
+        }
+        _ = await ATTrackingManager.requestTrackingAuthorization()
+        #if DEBUG
+        AppDebugLog.write(
+            "[BrowseCraftAdPlayback] tracking authorization " +
+            "status=\(ATTrackingManager.trackingAuthorizationStatus.rawValue)"
+        )
+        #endif
     }
 
     func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {

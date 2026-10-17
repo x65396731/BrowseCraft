@@ -278,9 +278,8 @@
 	</array>
 	<key>NSFaceIDUsageDescription</key>
 	<string>AnyPortal uses Face ID to lock Favorites and History.</string>
-#if BROWSECRAFT_AD_TEST_TOOLS
+	<!-- 中文注释：首次播激励广告前申请跟踪授权（RewardedAdPresenter，用户 2026-10-17 裁定），各配置都带；三语文案在 InfoPlist.strings。 -->
 	<key>NSUserTrackingUsageDescription</key>
-	<string>僅測試版使用：讀取本機廣告識別碼，用於在 AdMob 登記測試裝置。</string>
-#endif
+	<string>If you allow this, the rewarded ads you watch for coins can be more relevant to you. Your choice does not change the coins you earn.</string>
 </dict>
 </plist>

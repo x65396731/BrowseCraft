@@ -1,2 +1,5 @@
 /* 收藏与历史锁定（docs/design/Content-Lock-Design.md） */
 "NSFaceIDUsageDescription" = "AnyPortal 使用 Face ID 鎖定收藏與紀錄。";
+
+/* 首次播激励广告前的跟踪授权（RewardedAdPresenter，2026-10-17） */
+"NSUserTrackingUsageDescription" = "允許後，看獎勵廣告領 coin 時顯示的廣告會更貼近你的興趣。是否允許都不影響領取 coin。";

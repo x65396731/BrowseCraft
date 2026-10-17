@@ -1,2 +1,5 @@
 /* 收藏与历史锁定（docs/design/Content-Lock-Design.md） */
 "NSFaceIDUsageDescription" = "AnyPortal 使用面容 ID 锁定收藏与历史。";
+
+/* 首次播激励广告前的跟踪授权（RewardedAdPresenter，2026-10-17） */
+"NSUserTrackingUsageDescription" = "允许后，看奖励广告领 coin 时展示的广告会更贴合你的兴趣。是否允许都不影响领取 coin。";
