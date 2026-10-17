@@ -14,6 +14,13 @@ enum RuleFailureDiagnostics {
         point: RuleFailurePoint,
         source: Source?
     ) {
+        // 中文注释：用户取消与被新请求取代的请求不算失败，I 组事件与非致命错误都不记（埋点合同第 6.1 节）。
+        // 2026-10-18 在 Crashlytics 控制台看到：影视详情加载被取消时报成 Swift.CancellationError，30 天 23 次，是最大的一个非致命问题。
+        // 在这个唯一入口统一挡掉，不靠每个调用点各自先接住 CancellationError。
+        if Self.isCancellation(error) {
+            AppLog.info(.rule, "rule-cancelled", ["point": .enumValue(point), "stage": .enumValue(stage)])
+            return
+        }
         AppLog.error(.rule, "rule-failure", [
             "point": .enumValue(point),
             "kind": .enumValue(kind),
@@ -23,5 +30,12 @@ enum RuleFailureDiagnostics {
         ])
         AppAnalytics.shared.logDiagnosticFailure(kind: kind, stage: stage, point: point, source: source)
         CrashDiagnostics.shared.recordRuleFailure(error: error, kind: kind, stage: stage, point: point, source: source)
+    }
+
+    static func isCancellation(_ error: any Error) -> Bool {
+        if error is CancellationError || Task.isCancelled {
+            return true
+        }
+        return (error as? URLError)?.code == .cancelled
     }
 }

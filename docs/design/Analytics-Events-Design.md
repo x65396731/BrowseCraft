@@ -275,7 +275,7 @@ GA4 每个项目只有 50 个事件级自定义维度名额。下表除 `screen_
 | `book_reader_open` | 站点书阅读器打开失败；本地书不记。 | reader |
 | `bootstrap` | 启动装配失败、进入启动失败页。 | 无，另带 `bootstrapStage` |
 
-- 刻意不记非致命错误的失败：用户取消与被新请求取代的请求；播放层失败（直链播不出、网页播放器报错，走 `playback_failed`）；
+- 刻意不记非致命错误的失败：用户取消与被新请求取代的请求（`RuleFailureDiagnostics.report` 统一挡掉 `CancellationError`、URL 取消与已取消任务里抛出的错误，只记一条 info 日志）；播放层失败（直链播不出、网页播放器报错，走 `playback_failed`）；
   账号、购买、恢复购买、云同步、删除账号、规则生成、目录添加与推送注册这些流程的失败——它们的结局多是网络、用户取消或
   StoreKit 的预期结果，不是 App 缺陷，结局与 `error_code` 已由第 3 节对应事件承载。要把其中某一类纳入，先改本表再改代码。
 
