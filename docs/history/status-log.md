@@ -1293,3 +1293,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 走查修正与文档一起提交为 `b54297b`；第 9 节走查两行检查点由 HEAD `f6eae50` 改登记为 `b54297b`。
 - 同节新增「关掉 sheet / 全屏页 / 盖层回到下层页面时补报曝光」一行（implemented / not-run，未 build、未跑测试）；检查点先登记为 HEAD `0a8ca70`。
 - 补报曝光的实施与文档一起提交为 `59780e4`；第 9 节该行检查点由 HEAD `0a8ca70` 改登记为 `59780e4`。
+- 2026-10-17 两个修正合入 main（sheet 补报快进合入、保留 `59780e4` / `e5ce58e`；轮询修正挑到其后为 `b669a06`，HANDOFF 同一行冲突合成一句）。同节「关掉 sheet …补报曝光」一行：验证 not-run → simulator-passed（iPhone 18 Pro / iOS 27.0：关规则目录补报 `sources`、关来源内搜索补报 `library`，进出书详情各只报一次）；新增「激励广告到账轮询加长」一行 targeted-passed（iPhone 17 Pro / iOS 26.5 跑 CoinWalletStoreTests 与三个 AppAnalytics 套件共 20 例全过）。
