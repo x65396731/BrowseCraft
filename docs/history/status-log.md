@@ -1281,3 +1281,6 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 同节「收藏页与历史页的选择模式与批量删除」一行：验证 not-run → targeted-passed（iPhone 17 Pro / iOS 26.5 跑 FavoritesViewModelTests、HistoryViewModelTests 共 9 例全过）。
 - 新增一行该功能的模拟器走查（iPhone 18 Pro / iOS 27.0，演示模式；收藏数据在演示库页点爱心造出）simulator-passed，检查点同为实施前的 HEAD `b216348`。
 - 实施、文档与测试一起提交为 `6a702af`；两行检查点由实施前的 HEAD `b216348` 改登记为 `6a702af`。
+
+2026-10-17 来源发现链路与更多方案页死代码删除。埋点审计（Claude 文档「BrowseCraft 埋点事件审计与全覆盖设计」）发现 `search_submitted` 挂在两个从未被界面调用的 discover 方法上，顺藤摸瓜整条发现链路与更多方案页都已无调用方，用户要求在本会话完成清理。`STATUS.md` 第 8 节新增一行 implemented / static-audit-passed（架构边界与文档闸门过，未 build、未跑测试），检查点先登记为实施前的 HEAD `92a6549`。
+- 实施与文档一起提交为 `217fbd8`；该行检查点由实施前的 HEAD `92a6549` 改登记为 `217fbd8`。
