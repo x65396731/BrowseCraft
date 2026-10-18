@@ -257,7 +257,8 @@ def load_tracked_files():
         for pkg in SIBLING_DOC_PACKAGES
     ]
     for base, prefix in repos:
-        if not os.path.isdir(os.path.join(base, ".git")):
+        # git worktree 里 .git 是指向主仓库的文件，不是目录，所以只看存在与否。
+        if not os.path.exists(os.path.join(base, ".git")):
             continue
         try:
             out = subprocess.run(
