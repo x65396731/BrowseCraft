@@ -93,7 +93,7 @@
 "push_generation_failed_siteNotSupported" = "Rules can't be generated for %@ yet.";
 "push_generation_failed_siteUnreachable" = "%@ could not be reached. Check that the site is up and try again.";
 "push_generation_failed_inputInvalid" = "%@ isn't a usable entry URL. Try a different page.";
-"push_generation_failed_evidenceInsufficient" = "Not enough could be learned from %@. Try a different entry page.";
+"push_generation_failed_evidenceInsufficient" = "Not enough could be learned from %@.";
 "push_generation_failed_temporaryFailure" = "Something went wrong while generating the rule for %@. Please try again later.";
 
 /* Catalog list: two groups — the site's default data and the signed-in user's own generation results. */
@@ -109,7 +109,7 @@
 "video_generation_outcome_failed_siteNotSupported" = "Rules can't be generated for this site yet.";
 "video_generation_outcome_failed_siteUnreachable" = "The site could not be reached. Check that it is up and try again.";
 "video_generation_outcome_failed_inputInvalid" = "This isn't a usable entry URL. Try a different page.";
-"video_generation_outcome_failed_evidenceInsufficient" = "Not enough could be learned from this page. Try a different entry page.";
+"video_generation_outcome_failed_evidenceInsufficient" = "Not enough could be learned from this page.";
 "video_generation_outcome_failed_temporaryFailure" = "Something went wrong on our side. Please try again later.";
 "video_generation_outcome_failed_unknown" = "Generation failed. Please try again later.";
 "video_generation_outcome_detail_noPlaybackCarrier" = "No video playback was found on this site.";
@@ -637,7 +637,12 @@
 
 /* BC-PREFLIGHT-056 2026-10-03: suggest Hard mode when the normal tier was blocked; BC-BOOK-058: work pages list only the latest chapters */
 "push_generation_failed_siteRejectedFetcher_tryHard" = "%@ rejected our fetcher. You can try generating it again in Hard mode.";
-"video_generation_outcome_detail_chapterListLatestOnly" = "This site's work pages list only the latest chapters, and the full table of contents needs a separate data request. It isn't supported for now. Try another site.";
+"video_generation_outcome_detail_chapterListLatestOnly" = "This site's work pages list only the latest chapters, and no full table of contents was found. It isn't supported yet.";
+"video_generation_outcome_detail_chapterListOnOtherSubdomain" = "This site's work pages list only the latest chapters. The full table of contents is on its mobile site (another subdomain), which isn't supported yet.";
+"video_generation_outcome_detail_chapterListPageNotAccepted" = "This site's work pages list only the latest chapters, and the linked table-of-contents page couldn't be recognized as the full list. It isn't supported yet.";
+"video_generation_outcome_detail_listItemsNotLinked" = "The list on this page was recognized, but its items don't lead to work pages. This page layout isn't supported yet.";
+"video_generation_outcome_detail_listItemsAmbiguous" = "Items in this page's list don't have a single clear title or link. This page layout isn't supported yet.";
+"video_generation_outcome_detail_entryNotLeafList" = "This page contains several categories rather than a single list, which isn't supported yet.";
 "video_generation_outcome_detail_detailPagesUnrecognized" = "This site's list pages are fine, but we can't recognize the structure of its work pages yet (no title with a chapter or episode list). Try another site.";
 "video_generation_outcome_detail_listItemsNotWorks" = "The items in this page's list don't lead to work pages (they are this page's own sort or filter links). Try a category page that lists works directly.";
 

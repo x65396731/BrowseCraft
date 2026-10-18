@@ -93,7 +93,7 @@
 "push_generation_failed_siteNotSupported" = "暫時無法為 %@ 生成規則。";
 "push_generation_failed_siteUnreachable" = "無法連上 %@，請確認網站可用後再試。";
 "push_generation_failed_inputInvalid" = "%@ 不是可用的入口網址，請換一個頁面再試。";
-"push_generation_failed_evidenceInsufficient" = "無法從 %@ 取得足夠的資訊，請換一個入口頁面再試。";
+"push_generation_failed_evidenceInsufficient" = "無法從 %@ 取得足夠的資訊。";
 "push_generation_failed_temporaryFailure" = "生成 %@ 的規則時出了點問題，請稍後再試。";
 
 /* 目錄清單的兩個分組：網站預設資料，以及登入使用者自己的生成結果。 */
@@ -109,7 +109,7 @@
 "video_generation_outcome_failed_siteNotSupported" = "暫時無法為這個網站生成規則。";
 "video_generation_outcome_failed_siteUnreachable" = "無法連上這個網站，請確認網站可用後再試。";
 "video_generation_outcome_failed_inputInvalid" = "這不是可用的入口網址，請換一個頁面再試。";
-"video_generation_outcome_failed_evidenceInsufficient" = "無法從這個頁面取得足夠的資訊，請換一個入口頁面再試。";
+"video_generation_outcome_failed_evidenceInsufficient" = "無法從這個頁面取得足夠的資訊。";
 "video_generation_outcome_failed_temporaryFailure" = "我們這邊出了點問題，請稍後再試。";
 "video_generation_outcome_failed_unknown" = "生成失敗，請稍後再試。";
 "video_generation_outcome_detail_noPlaybackCarrier" = "這個網站上找不到影片播放。";
@@ -637,7 +637,12 @@
 
 /* BC-PREFLIGHT-056 2026-10-03：普通模式被網站攔下時推送建議改用困難模式；BC-BOOK-058：作品頁只列最新幾章 */
 "push_generation_failed_siteRejectedFetcher_tryHard" = "%@ 拒絕了我們的擷取請求，可以改用困難模式重新生成。";
-"video_generation_outcome_detail_chapterListLatestOnly" = "這個網站的作品頁只列出最新幾章，完整目錄要另外請求資料才能取得，目前不支援，請換一個網站試試。";
+"video_generation_outcome_detail_chapterListLatestOnly" = "這個網站的作品頁只列出最新幾章，沒有找到可取得的完整目錄，目前不支援。";
+"video_generation_outcome_detail_chapterListOnOtherSubdomain" = "這個網站的作品頁只列出最新幾章，完整目錄在手機版（另一個子網域）上，目前不支援跨子網域取目錄。";
+"video_generation_outcome_detail_chapterListPageNotAccepted" = "這個網站的作品頁只列出最新幾章，頁上的目錄頁沒能辨識為完整目錄，目前不支援。";
+"video_generation_outcome_detail_listItemsNotLinked" = "這個頁面的列表辨識出來了，但列表裡的項目接不到作品頁，頁面結構暫不支援。";
+"video_generation_outcome_detail_listItemsAmbiguous" = "這個頁面的列表項目取不出唯一的標題或連結，頁面結構暫不支援。";
+"video_generation_outcome_detail_entryNotLeafList" = "這個頁面底下還套著多個分類，不是單一的列表頁，暫不支援。";
 "video_generation_outcome_detail_detailPagesUnrecognized" = "這個網站的列表沒有問題，但點進去的作品頁暫時認不出結構（找不到作品標題與章節或劇集列表），請換一個網站試試。";
 "video_generation_outcome_detail_listItemsNotWorks" = "這個頁面的列表條目指向的不是作品頁（是本頁的排序或篩選連結），請換一個直接列出作品的分類頁再試一次。";
 

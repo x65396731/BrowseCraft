@@ -1032,8 +1032,12 @@ enum VideoGenerationOutcomeText {
         "terminalPagesWithoutCarrier",
         // `BC-PAGE-061`：内容要额外请求数据接口或解密才能取到——换网站，不是换入口页。
         "contentNotServerRendered",
-        // `BC-BOOK-058`：作品页只列最新几章、完整目录要另经接口取得——换一个网站。
+        // `BC-BOOK-058`：作品页只列最新几章、没有找到可取的完整目录。
         "chapterListLatestOnly",
+        // fwq 设计稿第 76 节 ② / `APP-MEMO-042`：同上，按完整目录的去处细分（手机版子域名 / 页上目录页没认出）。
+        "chapterListOnOtherSubdomain", "chapterListPageNotAccepted",
+        // fwq 设计稿第 76 节 ④ / `APP-MEMO-042`：列表覆盖不到内容页的三种成因——只陈述成因，不叫用户换入口（同站分类页同模板，换了也一样）。
+        "listItemsNotLinked", "listItemsAmbiguous", "entryNotLeafList",
         // `BC-IMPL-127` 第六种情况 / `BC-IMPL-142`：列表没问题，点进去的作品页认不出结构——换一个网站。
         "detailPagesUnrecognized"
     ]).union(Self.entryPageRejectionDetails)

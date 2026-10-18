@@ -93,7 +93,7 @@
 "push_generation_failed_siteNotSupported" = "暂不支持为 %@ 生成规则。";
 "push_generation_failed_siteUnreachable" = "无法访问 %@，请确认网站可用后再试。";
 "push_generation_failed_inputInvalid" = "%@ 不是可用的入口地址，请换一个页面重试。";
-"push_generation_failed_evidenceInsufficient" = "无法从 %@ 提取到足够信息，请换一个入口页面重试。";
+"push_generation_failed_evidenceInsufficient" = "无法从 %@ 提取到足够信息。";
 "push_generation_failed_temporaryFailure" = "生成 %@ 的规则时出了点问题，请稍后重试。";
 
 /* 目录列表的两个分组：网站默认数据，与登录用户自己的生成结果。 */
@@ -109,7 +109,7 @@
 "video_generation_outcome_failed_siteNotSupported" = "暂不支持为该网站生成规则。";
 "video_generation_outcome_failed_siteUnreachable" = "无法访问该网站，请确认网站可用后再试。";
 "video_generation_outcome_failed_inputInvalid" = "这不是可用的入口地址，请换一个页面重试。";
-"video_generation_outcome_failed_evidenceInsufficient" = "无法从该页面提取到足够信息，请换一个入口页面重试。";
+"video_generation_outcome_failed_evidenceInsufficient" = "无法从该页面提取到足够信息。";
 "video_generation_outcome_failed_temporaryFailure" = "我们这边出了点问题，请稍后重试。";
 "video_generation_outcome_failed_unknown" = "生成失败，请稍后重试。";
 "video_generation_outcome_detail_noPlaybackCarrier" = "该网站上没有找到视频播放。";
@@ -637,7 +637,12 @@
 
 /* BC-PREFLIGHT-056 2026-10-03：普通模式被网站拦下时建议改用困难模式；BC-BOOK-058：作品页只列最新几章 */
 "push_generation_failed_siteRejectedFetcher_tryHard" = "%@ 拒绝了我们的采集请求，可以改用困难模式重新生成。";
-"video_generation_outcome_detail_chapterListLatestOnly" = "这个网站的作品页只列出最新几章，完整目录要另外请求数据才能取到，目前不支持，请换一个网站试试。";
+"video_generation_outcome_detail_chapterListLatestOnly" = "这个网站的作品页只列出最新几章，没有找到可取的完整目录，目前不支持。";
+"video_generation_outcome_detail_chapterListOnOtherSubdomain" = "这个网站的作品页只列出最新几章，完整目录在手机版（另一个子域名）上，目前不支持跨子域名取目录。";
+"video_generation_outcome_detail_chapterListPageNotAccepted" = "这个网站的作品页只列出最新几章，页上的目录页没能识别为完整目录，目前不支持。";
+"video_generation_outcome_detail_listItemsNotLinked" = "这个页面的列表认出来了，但列表里的条目接不到作品页，页面结构暂不支持。";
+"video_generation_outcome_detail_listItemsAmbiguous" = "这个页面的列表条目取不出唯一的标题或链接，页面结构暂不支持。";
+"video_generation_outcome_detail_entryNotLeafList" = "这个页面下面还套着多个分类，不是单一的列表页，暂不支持。";
 "video_generation_outcome_detail_detailPagesUnrecognized" = "这个网站的列表没有问题，但点进去的作品页暂时认不出结构（找不到作品标题与章节或剧集列表），请换一个网站试试。";
 "video_generation_outcome_detail_listItemsNotWorks" = "这个页面的列表条目指向的不是作品页（是本页的排序或筛选链接），请换一个直接列出作品的分类页再试一次。";
 
