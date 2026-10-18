@@ -99,6 +99,25 @@ struct PushDeviceRegistrationCoordinatorTests {
         #expect(await registrar.registrations.count == 2)
     }
 
+    /// 中文注释：拨动「活动推送」开关要带着新的同意标记重新登记（Campaign-And-Rate-Notices-Design.md 第四节）。
+    @Test func campaignPushToggleReregistersWithOptIn() async {
+        let userID: UUID = UUID()
+        let registrar: SpyPushDeviceRegistrar = SpyPushDeviceRegistrar()
+        let coordinator: PushDeviceRegistrationCoordinator = Self.coordinator(
+            registrar: registrar,
+            userID: userID,
+            session: Self.session(userID: userID),
+            preferenceStore: InMemoryCampaignPushPreferenceStore()
+        )
+
+        await coordinator.updateDeviceToken(Self.deviceToken)
+        await coordinator.setCampaignPushEnabled(true)
+        await coordinator.setCampaignPushEnabled(true)
+
+        #expect(await registrar.marketingOptIns == [false, true])
+        #expect(await coordinator.isCampaignPushEnabled())
+    }
+
     @Test func unregisterWithoutTokenDoesNothing() async {
         let userID: UUID = UUID()
         let registrar: SpyPushDeviceRegistrar = SpyPushDeviceRegistrar()
@@ -116,7 +135,8 @@ struct PushDeviceRegistrationCoordinatorTests {
     private static func coordinator(
         registrar: SpyPushDeviceRegistrar,
         userID: UUID,
-        session: PortalSessionPersistence?
+        session: PortalSessionPersistence?,
+        preferenceStore: (any CampaignPushPreferenceStoring)? = nil
     ) -> PushDeviceRegistrationCoordinator {
         let sessionCoordinator: PortalSessionCoordinator = PortalSessionCoordinator(
             activeAppUser: ActiveAppUserStore(initialUserID: userID),
@@ -127,7 +147,8 @@ struct PushDeviceRegistrationCoordinatorTests {
         return PushDeviceRegistrationCoordinator(
             environment: .sandbox,
             registrar: registrar,
-            sessionCoordinator: sessionCoordinator
+            sessionCoordinator: sessionCoordinator,
+            campaignPushPreferenceStore: preferenceStore
         )
     }
 
@@ -155,6 +176,7 @@ private actor SpyPushDeviceRegistrar: PushDeviceRegistering {
     private var registerResults: [Result<Void, any Error>]
     private let registerDelayNanoseconds: UInt64
     private(set) var registrations: [Call] = []
+    private(set) var marketingOptIns: [Bool] = []
     private(set) var unregistrations: [Call] = []
 
     init(
@@ -168,11 +190,14 @@ private actor SpyPushDeviceRegistrar: PushDeviceRegistering {
     func register(
         deviceToken: String,
         environment: PushEnvironment,
+        marketingOptIn: Bool,
+        language: String,
         accessToken: String
     ) async throws {
         self.registrations.append(
             Call(deviceToken: deviceToken, environment: environment, accessToken: accessToken)
         )
+        self.marketingOptIns.append(marketingOptIn)
         if self.registerDelayNanoseconds > 0 {
             try? await Task.sleep(nanoseconds: self.registerDelayNanoseconds)
         }
@@ -222,7 +247,7 @@ private struct StubPortalIdentityAuthenticator: PortalIdentityAuthenticating {
     func authenticateWithApple(
         identityToken: String,
         nonce: String
-    ) async throws -> PortalAuthenticationTokens {
+    ) async throws -> PortalAppleAuthentication {
         throw PortalIdentityAuthenticationError.temporarilyUnavailable
     }
 
@@ -233,4 +258,16 @@ private struct StubPortalIdentityAuthenticator: PortalIdentityAuthenticating {
     func logout(refreshToken: String, accessToken: String) async throws {}
 
     func logoutAll(accessToken: String) async throws {}
+}
+
+private final class InMemoryCampaignPushPreferenceStore: CampaignPushPreferenceStoring, @unchecked Sendable {
+    private var enabled: Bool = false
+
+    func isCampaignPushEnabled() -> Bool {
+        return self.enabled
+    }
+
+    func setCampaignPushEnabled(_ enabled: Bool) {
+        self.enabled = enabled
+    }
 }

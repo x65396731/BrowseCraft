@@ -161,7 +161,7 @@ private actor PortalIAPTestIdentityAuthenticator: PortalIdentityAuthenticating {
     func authenticateWithApple(
         identityToken: String,
         nonce: String
-    ) async throws -> PortalAuthenticationTokens {
+    ) async throws -> PortalAppleAuthentication {
         _ = identityToken
         _ = nonce
         throw PortalIdentityAuthenticationError.appleIdentityRejected

@@ -972,3 +972,14 @@
 "history_selection_count" = "%d selected";
 "history_batch_confirm_title" = "Delete %d Records?";
 "history_batch_confirm_message" = "This can’t be undone. For comics, every chapter record of the title is deleted.";
+
+/* Campaign and rate notices (docs/design/Campaign-And-Rate-Notices-Design.md): success-rate line on the URL input page, Settings "Notifications" group. */
+"generation_input_rate_normal" = "%1$@ · Normal mode success, last %2$d days: %3$@";
+"generation_input_rate_hard" = "%1$@ · Hard mode success, last %2$d days: %3$@";
+"generation_input_rate_region_global" = "All regions";
+"settings_section_notifications" = "Notifications";
+"settings_campaign_push" = "Promotions";
+"settings_campaign_push_footer" = "Get notified when a promotion starts, such as free coins. Rule generation result notifications are not affected; they follow the notification permission in system Settings.";
+"settings_campaign_push_denied_footer" = "Allow notifications for AnyPortal in system Settings first to receive promotion notifications. ";
+"settings_campaign_push_open_settings" = "Open Settings";
+"settings_campaign_push_signed_out_footer" = "Sign in to receive promotion notifications.";

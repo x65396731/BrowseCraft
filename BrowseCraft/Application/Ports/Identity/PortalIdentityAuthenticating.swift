@@ -21,7 +21,7 @@ protocol PortalIdentityAuthenticating: Sendable {
     func authenticateWithApple(
         identityToken: String,
         nonce: String
-    ) async throws -> PortalAuthenticationTokens
+    ) async throws -> PortalAppleAuthentication
     func refresh(refreshToken: String) async throws -> PortalAuthenticationTokens
     func logout(refreshToken: String, accessToken: String) async throws
     func logoutAll(accessToken: String) async throws

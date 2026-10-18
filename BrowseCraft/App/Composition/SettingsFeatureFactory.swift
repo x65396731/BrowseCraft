@@ -19,6 +19,7 @@ struct SettingsFeatureFactory {
     private let portalAppleSignInCoordinator: PortalAppleSignInCoordinator
     private let portalSessionCoordinator: PortalSessionCoordinator
     private let pushDeviceRegistrationCoordinator: PushDeviceRegistrationCoordinator
+    private let pushNotificationAuthorizer: any PushNotificationAuthorizing
     private let coinWalletStore: CoinWalletStore
     private let accountDeletionCoordinator: AccountDeletionCoordinator
 
@@ -39,6 +40,7 @@ struct SettingsFeatureFactory {
         portalAppleSignInCoordinator: PortalAppleSignInCoordinator,
         portalSessionCoordinator: PortalSessionCoordinator,
         pushDeviceRegistrationCoordinator: PushDeviceRegistrationCoordinator,
+        pushNotificationAuthorizer: any PushNotificationAuthorizing,
         coinWalletStore: CoinWalletStore,
         accountDeletionCoordinator: AccountDeletionCoordinator
     ) {
@@ -59,12 +61,15 @@ struct SettingsFeatureFactory {
         self.portalAppleSignInCoordinator = portalAppleSignInCoordinator
         self.portalSessionCoordinator = portalSessionCoordinator
         self.pushDeviceRegistrationCoordinator = pushDeviceRegistrationCoordinator
+        self.pushNotificationAuthorizer = pushNotificationAuthorizer
         self.coinWalletStore = coinWalletStore
         self.accountDeletionCoordinator = accountDeletionCoordinator
     }
 
     @MainActor
     func makeViewModel() -> SettingsViewModel {
+        let pushDeviceRegistrationCoordinator: PushDeviceRegistrationCoordinator = self.pushDeviceRegistrationCoordinator
+        let pushNotificationAuthorizer: any PushNotificationAuthorizing = self.pushNotificationAuthorizer
         return SettingsViewModel(
             imageCacheManager: self.imageCacheConfigurator,
             purchaseCoordinator: PortalPurchaseCoordinator(
@@ -104,7 +109,22 @@ struct SettingsFeatureFactory {
                         return try await coordinator.deleteAccount()
                     }
                 )
-            }
+            },
+            // 中文注释：「通知」分组（docs/design/Campaign-And-Rate-Notices-Design.md 第四节）。
+            campaignPushActions: CampaignPushSettingsActions(
+                isEnabled: {
+                    return await pushDeviceRegistrationCoordinator.isCampaignPushEnabled()
+                },
+                setEnabled: { enabled in
+                    await pushDeviceRegistrationCoordinator.setCampaignPushEnabled(enabled)
+                },
+                authorizationStatus: {
+                    return await pushNotificationAuthorizer.currentAuthorizationStatus()
+                },
+                requestAuthorizationIfNeeded: {
+                    return await pushNotificationAuthorizer.requestAuthorizationIfNeeded()
+                }
+            )
         )
     }
 

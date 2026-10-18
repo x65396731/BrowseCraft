@@ -28,4 +28,18 @@ struct UserNotificationsPushAuthorizationService: PushNotificationAuthorizing {
             return PushNotificationAuthorizationOutcome(status: .denied, didPrompt: true)
         }
     }
+
+    func currentAuthorizationStatus() async -> PushNotificationAuthorizationStatus {
+        let settings: UNNotificationSettings = await UNUserNotificationCenter.current().notificationSettings()
+        switch settings.authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            return .authorized
+        case .notDetermined:
+            return .notDetermined
+        case .denied:
+            return .denied
+        @unknown default:
+            return .denied
+        }
+    }
 }

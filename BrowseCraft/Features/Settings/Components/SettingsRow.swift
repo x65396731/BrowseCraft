@@ -98,6 +98,10 @@ struct SettingsCardGroup<Content: View>: View {
     var footer: String? = nil
     /// 中文注释：组下说明的颜色；默认次级灰，添加来源页未登录那句用警示色（合同第三节）。
     var footerColor: Color? = nil
+    /// 中文注释：接在说明句末的动作蓝链接（「活动推送」系统通知被关时的「前往设置」，Campaign-And-Rate-Notices-Design.md 第四节）；
+    /// 标题与网址都给才显示，点了经环境的 openURL 打开。
+    var footerLinkTitle: String? = nil
+    var footerLinkURL: URL? = nil
     @ViewBuilder let content: Content
 
     var body: some View {
@@ -120,7 +124,7 @@ struct SettingsCardGroup<Content: View>: View {
             .padding(.horizontal, 20)
 
             if let footer: String = self.footer {
-                Text(footer)
+                Text(self.footerText(footer))
                     .font(.footnote)
                     .foregroundStyle(self.footerColor ?? Color.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -128,6 +132,19 @@ struct SettingsCardGroup<Content: View>: View {
                     .padding(.top, 8)
             }
         }
+    }
+
+    private func footerText(_ footer: String) -> AttributedString {
+        var text: AttributedString = AttributedString(footer)
+        guard let linkTitle: String = self.footerLinkTitle, let linkURL: URL = self.footerLinkURL else {
+            return text
+        }
+        var link: AttributedString = AttributedString(linkTitle)
+        link.link = linkURL
+        link.foregroundColor = CatalogPalette.addAction
+        link.font = .footnote.weight(.semibold)
+        text.append(link)
+        return text
     }
 }
 

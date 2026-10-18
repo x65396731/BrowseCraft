@@ -63,6 +63,9 @@ final class FeatureComposition {
             videoGenerationOutcomesClient: APIKitVideoGenerationOutcomesClient(
                 api: PortalRuleGenerationAPI(client: account.portalAPIClient)
             ),
+            generationRatesClient: APIKitGenerationRatesClient(
+                api: PortalGenerationRatesAPI(client: account.portalAPIClient)
+            ),
             coinWalletStore: account.coinWalletStore
         )
 
@@ -95,6 +98,7 @@ final class FeatureComposition {
             portalAppleSignInCoordinator: account.portalAppleSignInCoordinator,
             portalSessionCoordinator: account.portalSessionCoordinator,
             pushDeviceRegistrationCoordinator: account.pushDeviceRegistrationCoordinator,
+            pushNotificationAuthorizer: UserNotificationsPushAuthorizationService(),
             coinWalletStore: account.coinWalletStore,
             accountDeletionCoordinator: account.accountDeletionCoordinator
         )

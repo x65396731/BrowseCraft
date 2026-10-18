@@ -1317,3 +1317,12 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 合同提交为 `5ba33bf`；第 11 节「合同」一行检查点由 HEAD `83b489e` 改登记为 `5ba33bf`。
 - 同日修订合同：用户指出设计书只写了接口名、没写 App 怎么取；合同第三节补成功率取数与显示的六步（时机、请求、返回示例、存放、显示、拿不到时），第七节的返回改为每档各带 `scope`（原写成整份一个，退回全部地区实际按档判断）。用户裁定窗口由 7 天改为 30 天、门槛由 30 条降为 20 条（近 28 天活跃约 60 人，7 天 30 条多半凑不够），文案随之写「近 30 天」；计数另外排除运营与测试账号、上游额度用完导致的失败、复用留下的记录。画布四张输入页与便签、设计书同步改。
 - 合同修订提交为 `00f6f70`；第 11 节「合同」一行检查点由 `5ba33bf` 改登记为 `00f6f70`。
+
+2026-10-18 活动与生成率提示 App 侧实施（按合同第八节）。
+- `project.yml` 链接 `FirebaseInAppMessaging-Beta`；Shared 新增 `CampaignMessaging`，只做 `welcome_new_account` 触发，不写自定义显示代码。
+- APIKit（兄弟仓库）：`PortalGenerationRatesAPI`（`GET /v1/generation-rates?kind=`，不带 Bearer，每档各带 `scope`）、`PortalTokenResponse` 解 `accountCreated` / `signupGrantCoins`（旧服务端与刷新接口缺省为 nil）、`PortalPushDeviceRequest` 加可选 `marketingOptIn` / `language`（nil 不编码，注销不带）；新增 2 例测试，未跑。
+- App：Application 端口 `GenerationRatesFetching` 与适配器 `APIKitGenerationRatesClient`；网址输入页出现时取一次、切档只换显示、取不到不显示并记 `error`；设置页「安全」与「隐私与诊断」之间加「通知」分组，开关值存本机（`UserDefaultsCampaignPushPreferenceStore`），打开时许可未决定先申请，再经 `PushDeviceRegistrationCoordinator` 带同意标记与界面语言重新登记；`PortalIdentityAuthenticating.authenticateWithApple` 改返回 `PortalAppleAuthentication`，`PortalAppleSignInCoordinator` 在会话装好后、新注册且赠送大于 0 时调组合根接的欢迎回调；`AppDelegate` 识别 `kind=campaign` 的点击，刷新 `CoinWalletStore`、不跳页；四个测试替身随协议签名更新，`PushDeviceRegistrationCoordinatorTests` 加一例开关重登记。
+- 埋点字典先登记：`push_opened` 的 `entry` 加 `campaign`（`PushOpenEntry`），`setting_changed` 的 `setting_name` 加 `campaign_push`，第 2 节注明 In-App Messaging 三个自动事件来自 SDK、`welcome_new_account` 不是 Analytics 事件。
+- 图标 `SettingsCampaignPush`：SF Symbol megaphone.fill 按设置页剪影规格栅格化，三档合计 2,756 字节，登记进资产预算；资产与架构边界闸门过。
+- 未 build、未跑测试；新增源文件与 SPM 产品需重跑 XcodeGen 并在 Xcode 里解析一次依赖。上线顺序：PortalCore 的设备登记接口必须先接受 `marketingOptIn` 与 `language`（服务端 `extra="forbid"`，否则新版 App 的设备登记会被 400 拒绝、生成结果推送也收不到）。
+- `STATUS.md` 第 11 节「App 侧实施」一行：not-started → implemented / not-run；原行里的「隐私说明」拆成单独一行 not-started（在 PortalCore 隐私权政策页与 App Store Connect 做）；检查点先登记为实施前的 HEAD `e2b916c`。

@@ -26,6 +26,10 @@ struct VideoGenerationInputView: View {
     @State private var submissionTask: Task<Void, Never>?
     @State private var returnTask: Task<Void, Never>?
     @State private var isShowingGuide: Bool = false
+    /// 中文注释：成功率一行的数据（`docs/design/Campaign-And-Rate-Notices-Design.md` 第三节）：整个 sheet 只取一次，
+    /// 切档只换显示；只在本次 sheet 的状态里，不落库、不缓存。取不到时为 nil，这一行不显示。
+    @State private var generationRates: GenerationRates?
+    @State private var hasRequestedGenerationRates: Bool = false
 
     /// 中文注释：提交成功后停留这么久再回来源页——让「生成任务已提交」这句确认被看见，
     /// 又不必让用户自己点两层关闭。
@@ -95,6 +99,14 @@ struct VideoGenerationInputView: View {
                 }
             }
             .analyticsScreen(.generationInput)
+            .task {
+                // 中文注释：页面出现时与输入网址、检查网站并行发一次，不等结果、不挡任何操作。
+                guard self.hasRequestedGenerationRates == false else {
+                    return
+                }
+                self.hasRequestedGenerationRates = true
+                self.generationRates = await self.viewModel.loadGenerationRates(kind: self.sourceKind)
+            }
             .onChange(of: self.siteURL) { _, _ in
                 self.cancelAssessment()
                 self.cancelSubmission()
@@ -499,11 +511,58 @@ struct VideoGenerationInputView: View {
                         .foregroundStyle(CatalogPalette.warning)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                if let rateLine: AttributedString = self.generationRateLine {
+                    Label {
+                        Text(rateLine)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } icon: {
+                        Image(systemName: "chart.bar.fill")
+                            .accessibilityHidden(true)
+                    }
+                    .labelStyle(GenerationRateLabelStyle())
+                    .font(.footnote)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                }
             }
             .padding(.horizontal, 16)
             .padding(.top, 14)
             .padding(.bottom, 16)
         }
+    }
+
+    /// 中文注释：成功率一行（合同第三节）：「{地区} · 近 {N} 天{普通 / 困难模式}生成成功 {百分比}」，百分比用主文字色 semibold。
+    /// 地区由 App 把服务端的两位国家码按系统语言本地化，`scope` 为 global 时写「全部地区」；当前档没有数（请求失败、
+    /// `rate` 为空、本地区判断不出）时返回 nil，这一行不显示。App 不估算、不写死数字。
+    private var generationRateLine: AttributedString? {
+        guard let rates: GenerationRates = self.generationRates,
+              let tierRate: GenerationTierRate = rates.rate(for: self.acquisitionTier),
+              let rate: Double = tierRate.rate else {
+            return nil
+        }
+        let regionName: String
+        switch tierRate.scope {
+        case .global:
+            regionName = NSLocalizedString("generation_input_rate_region_global", comment: "成功率一行：全部地区")
+        case .region:
+            guard let code: String = rates.region, code.isEmpty == false else {
+                return nil
+            }
+            regionName = Locale.current.localizedString(forRegionCode: code) ?? code
+        }
+        let percent: String = rate.formatted(
+            .percent.precision(.fractionLength(0)).rounded(rule: .toNearestOrAwayFromZero)
+        )
+        let format: String = NSLocalizedString(
+            self.acquisitionTier == .hard ? "generation_input_rate_hard" : "generation_input_rate_normal",
+            comment: "成功率一行"
+        )
+        var line: AttributedString = AttributedString(String(format: format, regionName, rates.windowDays, percent))
+        if let range: Range<AttributedString.Index> = line.range(of: percent, options: .backwards) {
+            line[range].foregroundColor = Color.primary
+            line[range].font = Font.footnote.weight(.semibold).monospacedDigit()
+        }
+        return line
     }
 
     // MARK: - 主控件
@@ -859,5 +918,15 @@ extension VideoGenerationInputView {
             format: NSLocalizedString("video_preflight_submit_previous_job_active", comment: ""),
             display
         )
+    }
+}
+
+/// 中文注释：成功率一行的图标与文字间距 6pt、图标与首行基线对齐（合同第三节的版式）；系统 Label 的默认间距偏大。
+private struct GenerationRateLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            configuration.icon
+            configuration.title
+        }
     }
 }

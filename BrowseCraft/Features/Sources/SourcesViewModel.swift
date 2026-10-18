@@ -73,6 +73,8 @@ final class SourcesViewModel {
     /// 设计书第 30 节：提交页显示消耗与余额；提交响应带回的余额写回这里。
     let coinWalletStore: CoinWalletStore?
     private let hideVideoGenerationOutcomeUseCase: HideVideoGenerationOutcomeUseCase?
+    /// 中文注释：网址输入页成功率一行（Campaign-And-Rate-Notices-Design.md 第三节）；nil 即未接线（测试替身），这一行不显示。
+    private let generationRatesClient: (any GenerationRatesFetching)?
     private let catalogService: SourceCatalogService
     private let ruleDebugJSONFormatter: SourceRuleDebugJSONFormatter
     private let recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase
@@ -277,6 +279,7 @@ final class SourcesViewModel {
         pushNotificationAuthorizer: (any PushNotificationAuthorizing)? = nil,
         loadVideoGenerationOutcomesUseCase: LoadVideoGenerationOutcomesUseCase? = nil,
         hideVideoGenerationOutcomeUseCase: HideVideoGenerationOutcomeUseCase? = nil,
+        generationRatesClient: (any GenerationRatesFetching)? = nil,
         coinWalletStore: CoinWalletStore? = nil,
         catalogService: SourceCatalogService,
         ruleDebugJSONFormatter: SourceRuleDebugJSONFormatter,
@@ -294,6 +297,7 @@ final class SourcesViewModel {
         self.pushNotificationAuthorizer = pushNotificationAuthorizer
         self.loadVideoGenerationOutcomesUseCase = loadVideoGenerationOutcomesUseCase
         self.hideVideoGenerationOutcomeUseCase = hideVideoGenerationOutcomeUseCase
+        self.generationRatesClient = generationRatesClient
         self.coinWalletStore = coinWalletStore
         self.catalogService = catalogService
         self.ruleDebugJSONFormatter = ruleDebugJSONFormatter
@@ -404,6 +408,27 @@ final class SourcesViewModel {
     }
 
     /// 中文注释：未接线任务客户端时 UI 不得出现可点的「生成」（`BC-PREFLIGHT-048`）。
+    /// 网址输入页出现时取一次成功率（Campaign-And-Rate-Notices-Design.md 第三节）：不要登录、不挡任何操作。
+    /// 失败、超时一律返回 nil——界面不显示这一行，不弹错、不重试；请求的完成与失败已由 PortalAPIClient 的公共钩子记网络日志，
+    /// 这里再记一条吞错（`BCA-OBS-015`）。
+    func loadGenerationRates(kind: RuleGenerationSourceKind) async -> GenerationRates? {
+        guard let client: any GenerationRatesFetching = self.generationRatesClient else {
+            return nil
+        }
+        do {
+            return try await client.fetchRates(kind: kind)
+        } catch is CancellationError {
+            // 中文注释：sheet 关掉时任务被取消，是预期内的，不记。
+            return nil
+        } catch {
+            AppLog.error(.generation, "generation-rates-unavailable", [
+                "kind": .enumValue(kind),
+                "error": .error(error)
+            ])
+            return nil
+        }
+    }
+
     var canSubmitVideoGenerationTasks: Bool {
         return self.createVideoGenerationTaskUseCase != nil
     }

@@ -13,6 +13,7 @@ struct SourcesFeatureFactory {
     private let portalAccessTokenProvider: any PortalAccessTokenProviding
     private let pushNotificationAuthorizer: any PushNotificationAuthorizing
     private let videoGenerationOutcomesClient: any VideoGenerationOutcomesFetching
+    private let generationRatesClient: any GenerationRatesFetching
     private let coinWalletStore: CoinWalletStore
 
     init(
@@ -26,12 +27,14 @@ struct SourcesFeatureFactory {
         portalAccessTokenProvider: any PortalAccessTokenProviding,
         pushNotificationAuthorizer: any PushNotificationAuthorizing,
         videoGenerationOutcomesClient: any VideoGenerationOutcomesFetching,
+        generationRatesClient: any GenerationRatesFetching,
         coinWalletStore: CoinWalletStore
     ) {
         self.videoGenerationTaskClient = videoGenerationTaskClient
         self.portalAccessTokenProvider = portalAccessTokenProvider
         self.pushNotificationAuthorizer = pushNotificationAuthorizer
         self.videoGenerationOutcomesClient = videoGenerationOutcomesClient
+        self.generationRatesClient = generationRatesClient
         self.coinWalletStore = coinWalletStore
         self.database = database
         self.activeAppUser = activeAppUser
@@ -120,6 +123,7 @@ struct SourcesFeatureFactory {
                 outcomesClient: self.videoGenerationOutcomesClient,
                 accessTokenProvider: self.portalAccessTokenProvider
             ),
+            generationRatesClient: self.generationRatesClient,
             coinWalletStore: self.coinWalletStore,
             catalogService: sourceCatalogService,
             ruleDebugJSONFormatter: sourceRuleDebugJSONFormatter,

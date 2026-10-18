@@ -3,13 +3,20 @@ import Foundation
 
 /// 中文注释：APNs device token → PortalCore `/v1/push/devices` 的注册协调器（`BC-PREFLIGHT-057`）。
 ///
-/// 只在「已拿到 token 且 Portal 会话有效」时注册；token 或登录用户任一变化都重新注册，
-/// 服务端按 token upsert 并改写归属用户。注册失败不重试、不冒泡——推送是附加能力，
+/// 只在「已拿到 token 且 Portal 会话有效」时注册；token、登录用户、「活动推送」开关或界面语言任一变化都重新注册，
+/// 服务端按 token upsert 并改写归属用户与同意标记。注册失败不重试、不冒泡——推送是附加能力，
 /// 下一次 app 激活或登录时 `synchronizeRegistration()` 会再试。
+///
+/// 「活动推送」开关（Campaign-And-Rate-Notices-Design.md 第四节，`BCA-UI-005`）只决定服务端发活动推送时是否包含这台设备，
+/// 不影响生成结果推送；值存在本机，登出时设备照旧注销，重新登录后按本机值重新同步。
 actor PushDeviceRegistrationCoordinator {
     private let environment: PushEnvironment
     private let registrar: any PushDeviceRegistering
     private let sessionCoordinator: PortalSessionCoordinator
+    /// 中文注释：nil 时（测试替身）按开关关处理。
+    private let campaignPushPreferenceStore: (any CampaignPushPreferenceStoring)?
+    /// 中文注释：App 当前界面语言（en / zh-Hans / zh-Hant），活动推送按它取三语文案之一；由组合根从主 bundle 读。
+    private let languageProvider: @Sendable () -> String
 
     private var deviceToken: String?
     private var registration: Registration?
@@ -20,16 +27,35 @@ actor PushDeviceRegistrationCoordinator {
     private struct Registration: Equatable, Sendable {
         let deviceToken: String
         let userID: UUID
+        let marketingOptIn: Bool
+        let language: String
     }
 
     init(
         environment: PushEnvironment,
         registrar: any PushDeviceRegistering,
-        sessionCoordinator: PortalSessionCoordinator
+        sessionCoordinator: PortalSessionCoordinator,
+        campaignPushPreferenceStore: (any CampaignPushPreferenceStoring)? = nil,
+        languageProvider: @escaping @Sendable () -> String = { "en" }
     ) {
         self.environment = environment
         self.registrar = registrar
         self.sessionCoordinator = sessionCoordinator
+        self.campaignPushPreferenceStore = campaignPushPreferenceStore
+        self.languageProvider = languageProvider
+    }
+
+    /// 设置页「活动推送」开关的当前值（本机）。
+    func isCampaignPushEnabled() -> Bool {
+        return self.campaignPushPreferenceStore?.isCampaignPushEnabled() ?? false
+    }
+
+    /// 用户拨动「活动推送」开关：先存本机，再随设备登记把同意标记同步到 PortalCore。
+    /// 未登录或还没拿到 token 时只存本机，之后登录或拿到 token 时自然带上。
+    func setCampaignPushEnabled(_ enabled: Bool) async {
+        self.campaignPushPreferenceStore?.setCampaignPushEnabled(enabled)
+        AppLog.notice(.push, "campaign-push-preference-changed", ["enabled": .bool(enabled)])
+        await self.synchronizeRegistration()
     }
 
     /// APNs 交回新 token 时调用。token 可能在重装、恢复备份后变化，相同值不重复注册。
@@ -50,7 +76,12 @@ actor PushDeviceRegistrationCoordinator {
               let accessToken: String = await self.sessionCoordinator.validAccessToken() else {
             return
         }
-        let target: Registration = Registration(deviceToken: deviceToken, userID: userID)
+        let target: Registration = Registration(
+            deviceToken: deviceToken,
+            userID: userID,
+            marketingOptIn: self.isCampaignPushEnabled(),
+            language: self.languageProvider()
+        )
         guard target != self.registration, target != self.inFlightRegistration else {
             return
         }
@@ -62,10 +93,16 @@ actor PushDeviceRegistrationCoordinator {
             try await self.registrar.register(
                 deviceToken: deviceToken,
                 environment: self.environment,
+                marketingOptIn: target.marketingOptIn,
+                language: target.language,
                 accessToken: accessToken
             )
             self.registration = target
-            AppLog.notice(.push, "device-registered", ["environment": .enumValue(self.environment)])
+            AppLog.notice(.push, "device-registered", [
+                "environment": .enumValue(self.environment),
+                "marketingOptIn": .bool(target.marketingOptIn),
+                "language": .code(target.language)
+            ])
         } catch is CancellationError {
             return
         } catch {

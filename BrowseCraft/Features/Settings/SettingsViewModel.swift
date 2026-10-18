@@ -24,6 +24,15 @@ struct StoreKitPortalEnvironmentMapper {
     }
 }
 
+/// 中文注释：设置页「通知」分组的四个动作（docs/design/Campaign-And-Rate-Notices-Design.md 第四节），由组合根接到
+/// `PushDeviceRegistrationCoordinator` 与系统通知许可；nil 即未接线（测试替身），分组照常显示、开关不生效。
+struct CampaignPushSettingsActions: Sendable {
+    let isEnabled: @Sendable () async -> Bool
+    let setEnabled: @Sendable (Bool) async -> Void
+    let authorizationStatus: @Sendable () async -> PushNotificationAuthorizationStatus
+    let requestAuthorizationIfNeeded: @Sendable () async -> PushNotificationAuthorizationOutcome
+}
+
 /// 中文注释：SettingsViewModel 把 Settings UI 与 Nuke 缓存配置隔离，View 不直接操作缓存服务。
 @MainActor
 @Observable
@@ -45,6 +54,10 @@ final class SettingsViewModel {
     var portalAccountErrorMessage: String?
     /// 其他页面（来源页「更多位置」）请求打开高级版购买入口；设置页出现时消费。
     private(set) var isInAppPurchaseRequested: Bool = false
+    /// 「活动推送」开关的本机值，默认关（Campaign-And-Rate-Notices-Design.md 第四节，`BCA-UI-005`）。
+    private(set) var isCampaignPushEnabled: Bool = false
+    /// 系统通知许可；nil = 还没读到。被关时组下说明换成警示句加「前往设置」。
+    private(set) var notificationAuthorizationStatus: PushNotificationAuthorizationStatus?
 
     private let imageCacheManager: any ImageCacheManaging
     private let purchaseCoordinator: PortalPurchaseCoordinator
@@ -56,6 +69,7 @@ final class SettingsViewModel {
     let coinWalletStore: CoinWalletStore?
     /// 删除账号页（docs/design/Account-Deletion-Design.md）；nil 即未接线，设置页不显示入口。
     private let accountDeletionViewModelFactory: (@MainActor () -> AccountDeletionViewModel)?
+    private let campaignPushActions: CampaignPushSettingsActions?
 
     init(
         imageCacheManager: any ImageCacheManaging,
@@ -69,7 +83,8 @@ final class SettingsViewModel {
             return nil
         },
         coinWalletStore: CoinWalletStore? = nil,
-        accountDeletionViewModelFactory: (@MainActor () -> AccountDeletionViewModel)? = nil
+        accountDeletionViewModelFactory: (@MainActor () -> AccountDeletionViewModel)? = nil,
+        campaignPushActions: CampaignPushSettingsActions? = nil
     ) {
         self.imageCacheManager = imageCacheManager
         self.purchaseCoordinator = purchaseCoordinator
@@ -79,6 +94,7 @@ final class SettingsViewModel {
         self.portalSessionSnapshotAction = portalSessionSnapshotAction
         self.coinWalletStore = coinWalletStore
         self.accountDeletionViewModelFactory = accountDeletionViewModelFactory
+        self.campaignPushActions = campaignPushActions
         self.imageCacheSettings = ImageCacheSettings.load()
         self.diagnosticCode = diagnosticIdentityStore.identity.diagnosticCode
     }
@@ -103,6 +119,34 @@ final class SettingsViewModel {
 
     func refreshDiagnosticCode() {
         self.diagnosticCode = self.diagnosticIdentityStore.identity.diagnosticCode
+    }
+
+    /// 设置页出现、回到前台时调用：重读本机开关值与系统通知许可（用户可能刚从系统设置回来）。
+    @MainActor
+    func refreshCampaignPushState() async {
+        guard let actions: CampaignPushSettingsActions = self.campaignPushActions else {
+            return
+        }
+        self.isCampaignPushEnabled = await actions.isEnabled()
+        self.notificationAuthorizationStatus = await actions.authorizationStatus()
+    }
+
+    /// 用户拨动「活动推送」：打开时系统通知许可尚未决定就先申请；无论许可结果，开关值照存，
+    /// 随后随设备登记同步同意标记。被拒时开关保持打开、组下说明换成「前往设置」那句。未登录时开关禁用，不会走到这里。
+    @MainActor
+    func setCampaignPushEnabled(_ enabled: Bool) async {
+        guard let actions: CampaignPushSettingsActions = self.campaignPushActions,
+              self.isPortalAuthenticated,
+              enabled != self.isCampaignPushEnabled else {
+            return
+        }
+        self.isCampaignPushEnabled = enabled
+        if enabled {
+            let outcome: PushNotificationAuthorizationOutcome = await actions.requestAuthorizationIfNeeded()
+            self.notificationAuthorizationStatus = outcome.status
+        }
+        await actions.setEnabled(enabled)
+        AppAnalytics.shared.logSettingChanged(.campaignPush, isOn: enabled)
     }
 
     @MainActor

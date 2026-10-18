@@ -12,12 +12,16 @@ struct APIKitPushDeviceClient: PushDeviceRegistering {
     func register(
         deviceToken: String,
         environment: PushEnvironment,
+        marketingOptIn: Bool,
+        language: String,
         accessToken: String
     ) async throws {
         do {
             _ = try await self.api.registerDevice(
                 deviceToken: deviceToken,
                 environment: Self.apiEnvironment(environment),
+                marketingOptIn: marketingOptIn,
+                language: language,
                 accessToken: accessToken
             )
         } catch is CancellationError {

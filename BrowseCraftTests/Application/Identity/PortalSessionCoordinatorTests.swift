@@ -147,7 +147,7 @@ struct PortalSessionCoordinatorTests {
             try await coordinator.authenticateWithApple(
                 identityToken: "identity-token",
                 nonce: challenge.nonce
-            )
+            ).tokens
         #expect(store.session == nil)
 
         try await coordinator.installAuthenticatedSession(exchanged)
@@ -365,11 +365,11 @@ private actor MockPortalIdentityAuthenticator: PortalIdentityAuthenticating {
     func authenticateWithApple(
         identityToken: String,
         nonce: String
-    ) async throws -> PortalAuthenticationTokens {
+    ) async throws -> PortalAppleAuthentication {
         _ = identityToken
         _ = nonce
         self.appleAuthenticationCallCount += 1
-        return try self.appleAuthenticationResult.get()
+        return PortalAppleAuthentication(tokens: try self.appleAuthenticationResult.get())
     }
 
     func refresh(refreshToken: String) async throws -> PortalAuthenticationTokens {

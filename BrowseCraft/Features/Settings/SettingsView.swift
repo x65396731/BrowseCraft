@@ -8,6 +8,7 @@ import UIKit
 /// 中文注释：SettingsView 是应用的用户设置页。
 struct SettingsView: View {
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     @Bindable var viewModel: SettingsViewModel
     @Bindable private var cloudSyncViewModel: CloudSyncSettingsViewModel
     private let contentLockStore: ContentLockStore
@@ -88,6 +89,7 @@ struct SettingsView: View {
 
                         self.syncAndStorageGroup
                         self.securityGroup
+                        self.notificationsGroup
                         self.privacyAndDiagnosticsGroup
                         self.aboutGroup
 
@@ -149,6 +151,9 @@ struct SettingsView: View {
                     Task {
                         await self.viewModel.refreshPortalAccountStatus()
                     }
+                    Task {
+                        await self.viewModel.refreshCampaignPushState()
+                    }
                     // 中文注释：余额以服务端为准，运营手动加减 coin 不会推送到 App——设置页每次出现都拉一次，
                     // 不然只能等下次启动或回到前台（用户 2026-09-27：加了 10000 后设置页没刷新）。
                     Task {
@@ -156,6 +161,15 @@ struct SettingsView: View {
                     }
                 }
                 .analyticsScreen(.settings)
+                .onChange(of: self.scenePhase) { _, phase in
+                    // 中文注释：用户可能刚从系统设置里改了通知许可回来，「通知」分组的说明要跟着换。
+                    guard phase == .active else {
+                        return
+                    }
+                    Task {
+                        await self.viewModel.refreshCampaignPushState()
+                    }
+                }
                 .sheet(item: self.$exportedLog) { item in
                     ActivityShareSheet(item: item)
                 }
@@ -303,6 +317,53 @@ struct SettingsView: View {
                     if store.isEnabled == newValue {
                         AppAnalytics.shared.logSettingChanged(.contentLock, isOn: newValue)
                     }
+                }
+            }
+        )
+    }
+
+    /// 「通知」分组（`docs/design/Campaign-And-Rate-Notices-Design.md` 第四节）：一行「活动推送」开关，默认关，
+    /// 只决定活动推送是否包含这台设备，不管生成结果推送与 In-App Messaging（`BCA-UI-005`）。
+    /// 组下说明三选一：未登录时行变灰、开关禁用；系统通知被关时警示句接「前往设置」，开关保持可用、值不变；其余为正常说明。
+    private var notificationsGroup: some View {
+        let isSignedIn: Bool = self.viewModel.isPortalAuthenticated
+        let isNotificationDenied: Bool = isSignedIn && self.viewModel.notificationAuthorizationStatus == .denied
+        let footer: String
+        if isSignedIn == false {
+            footer = NSLocalizedString("settings_campaign_push_signed_out_footer", comment: "活动推送：未登录时的组下说明")
+        } else if isNotificationDenied {
+            footer = NSLocalizedString("settings_campaign_push_denied_footer", comment: "活动推送：系统通知被关时的组下说明")
+        } else {
+            footer = NSLocalizedString("settings_campaign_push_footer", comment: "活动推送：组下说明")
+        }
+        return SettingsCardGroup(
+            title: NSLocalizedString("settings_section_notifications", comment: "分组：通知"),
+            footer: footer,
+            footerColor: isNotificationDenied ? CatalogPalette.warning : nil,
+            footerLinkTitle: isNotificationDenied
+                ? NSLocalizedString("settings_campaign_push_open_settings", comment: "活动推送：前往设置")
+                : nil,
+            footerLinkURL: isNotificationDenied ? URL(string: UIApplication.openSettingsURLString) : nil
+        ) {
+            SettingsToggleRow(
+                image: "SettingsCampaignPush",
+                title: NSLocalizedString("settings_campaign_push", comment: "活动推送"),
+                isOn: self.campaignPushBinding,
+                isUnavailable: isSignedIn == false
+            )
+            .disabled(isSignedIn == false)
+        }
+    }
+
+    /// 未登录时显示为关；写只发起同步，值由 view model 持有（打开时可能先弹系统通知许可）。
+    private var campaignPushBinding: Binding<Bool> {
+        return Binding<Bool>(
+            get: {
+                return self.viewModel.isPortalAuthenticated && self.viewModel.isCampaignPushEnabled
+            },
+            set: { newValue in
+                Task {
+                    await self.viewModel.setCampaignPushEnabled(newValue)
                 }
             }
         )

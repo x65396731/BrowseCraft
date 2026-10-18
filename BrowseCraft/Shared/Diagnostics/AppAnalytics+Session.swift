@@ -35,9 +35,9 @@ extension AppAnalytics {
         ])
     }
 
-    func logRuleGenerationPushOpened() {
+    func logPushOpened(_ entry: PushOpenEntry) {
         self.log(.pushOpened, parameters: [
-            Parameter.entry: "rule_generation"
+            Parameter.entry: entry.rawValue
         ])
     }
 

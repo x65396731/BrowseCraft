@@ -132,6 +132,12 @@ enum AnalyticsTab: String, Sendable {
     case settings
 }
 
+/// 中文注释：`push_opened` 的 `entry`——点开的是哪种推送（Campaign-And-Rate-Notices-Design.md 第六节）。
+enum PushOpenEntry: String, Sendable {
+    case ruleGeneration = "rule_generation"
+    case campaign
+}
+
 /// 中文注释：`support_info_copied` 的 `entry`——复制了哪种求助信息。
 enum SupportInfoKind: String, Sendable {
     case diagnosticCode = "diagnostic_code"
@@ -443,6 +449,8 @@ enum AnalyticsSettingName: String, Sendable {
     case usageStatistics = "usage_statistics"
     case imageCacheLimit = "image_cache_limit"
     case cloudSync = "cloud_sync"
+    /// 设置页「通知」分组的「活动推送」开关（Campaign-And-Rate-Notices-Design.md 第四节）。
+    case campaignPush = "campaign_push"
 }
 
 /// 中文注释：`settings_link_opened` 的 `entry`。

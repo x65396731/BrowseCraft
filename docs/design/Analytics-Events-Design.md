@@ -53,6 +53,11 @@ Crashlytics 的写入点只有 `CrashDiagnostics`，规则执行失败的上报�
 - 来源调试页、本地书架（入口已藏）、漫画资源网页、coin 记录、历史不可用提示页只报曝光，不报行为。
 - Firebase 自己会报 `first_open`、`session_start`、`user_engagement` 等自动事件，AdMob 也会写广告曝光、点击一类事件。
   它们不经过 `AppAnalytics`，不受参数白名单约束，也不在本文登记，只受统计开关控制；作为会话与留存的口径保留。
+- Firebase In-App Messaging（活动弹窗与新注册欢迎页，[Campaign-And-Rate-Notices-Design.md](Campaign-And-Rate-Notices-Design.md) 第五节）
+  自带三个自动事件：`firebase_in_app_message_impression`（弹窗显示）、`firebase_in_app_message_action`（点按钮）、
+  `firebase_in_app_message_dismiss`（关掉）。来源是 In-App Messaging SDK，不经过 `AppAnalytics`、App 里没有对应的 case，
+  只受统计开关控制：开关关闭时弹窗照常拉取与显示，只是这三个事件不报（`BCA-OBS-005`）。新注册后 App 调用的
+  `welcome_new_account` 是 In-App Messaging 的触发事件（`InAppMessaging.triggerEvent`），只在本机触发弹窗，不是 Analytics 事件，不上报。
 
 ## 3. 事件
 
@@ -68,7 +73,7 @@ Crashlytics 的写入点只有 `CrashDiagnostics`，规则执行失败的上报�
 | `app_bootstrap_failed` | 启动装配失败、进入启动失败页时报。 | error_code（装配失败在哪一步）。不报：诊断码与错误文案。 |
 | `startup_finished` | 开屏动画结束、退到标签页时报，记录为什么结束。 | result（StartupOutcome）、entry（落到哪个标签页）。 |
 | `screen_view` | 任一页面显示时报，含从下级页返回、盖在上面的 sheet / 全屏页关闭后重新露出；由 `.analyticsScreen(_:)` 统一发出。 | screen_name、screen_class（都取 DiagnosticScreen 的原始值）。 |
-| `push_opened` | 用户点开规则生成结果推送时报；推送在前台到达不报。 | entry（固定为 rule_generation）。不报：推送内容与任务 ID。 |
+| `push_opened` | 用户点开推送时报，规则生成结果推送与活动推送都算；推送在前台到达不报。 | entry（PushOpenEntry：rule_generation 生成结果、campaign 活动推送，后者 2026-10-18 起，[Campaign-And-Rate-Notices-Design.md](Campaign-And-Rate-Notices-Design.md) 第六节）。不报：推送内容、任务 ID 与活动标识。 |
 | `support_info_copied` | 用户复制诊断码、账号 ID、启动失败信息或导出诊断日志时报，用来估计求助量。 | entry（SupportInfoKind）。不报：复制或导出的内容本身。 |
 
 ### B. 来源与规则目录
@@ -154,7 +159,7 @@ Crashlytics 的写入点只有 `CrashDiagnostics`，规则执行失败的上报�
 
 | 事件 | 何时触发 | 参数与不报 |
 | --- | --- | --- |
-| `setting_changed` | 用户亲手改一项设置且生效时报；使用统计开关只报「打开」（关闭后什么都不报）。 | setting_name（AnalyticsSettingName）、setting_value。 |
+| `setting_changed` | 用户亲手改一项设置且生效时报；使用统计开关只报「打开」（关闭后什么都不报）。 | setting_name（AnalyticsSettingName：content_lock、crash_diagnostics、usage_statistics、image_cache_limit、cloud_sync，以及 2026-10-18 起的 campaign_push「活动推送」，[Campaign-And-Rate-Notices-Design.md](Campaign-And-Rate-Notices-Design.md) 第四节）、setting_value。 |
 | `settings_link_opened` | 设置页点「评分」或「隐私权政策」时报。 | entry（SettingsLink）。 |
 | `cache_cleared` | 清除图片缓存完成时报。 | size_bucket（释放的空间）。 |
 | `cloud_sync_first_enable_result` | 首次启用云同步弹窗的选择与结局。 | entry（CloudSyncFirstEnableChoice）、result。 |

@@ -213,6 +213,15 @@ final class AppContainer {
         }
     }
 
+    /// 活动推送被点开（docs/design/Campaign-And-Rate-Notices-Design.md 第六节）：不跳页，只刷新余额——
+    /// 活动 coin 在推送发出前已由服务端入账（`BCA-SYNC-012`），App 只把它显示出来。
+    func handleCampaignPushOpened() {
+        let coinWalletStore: CoinWalletStore = self.account.coinWalletStore
+        Task { @MainActor in
+            _ = await coinWalletStore.refresh()
+        }
+    }
+
     var coinWalletStore: CoinWalletStore {
         return self.account.coinWalletStore
     }

@@ -30,8 +30,8 @@ final class AppAnalytics: Sendable {
         /// 任一页面显示时报，含从下级页返回、盖在上面的 sheet / 全屏页关闭后重新露出；由 `.analyticsScreen(_:)` 统一发出。
         /// 参数：screen_name、screen_class（都取 DiagnosticScreen 的原始值）。
         case screenView = "screen_view"
-        /// 用户点开规则生成结果推送时报；推送在前台到达不报。
-        /// 参数：entry（固定为 rule_generation）。不报：推送内容与任务 ID。
+        /// 用户点开推送时报，规则生成结果推送与活动推送都算；推送在前台到达不报。
+        /// 参数：entry（PushOpenEntry：rule_generation / campaign）。不报：推送内容、任务 ID 与活动标识。
         case pushOpened = "push_opened"
         /// 用户复制诊断码、账号 ID、启动失败信息或导出诊断日志时报，用来估计求助量。
         /// 参数：entry（SupportInfoKind）。不报：复制或导出的内容本身。

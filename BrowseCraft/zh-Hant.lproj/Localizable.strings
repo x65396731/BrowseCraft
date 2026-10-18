@@ -972,3 +972,14 @@
 "history_selection_count" = "已選 %d 條";
 "history_batch_confirm_title" = "刪除 %d 條紀錄？";
 "history_batch_confirm_message" = "刪除後無法復原。漫畫會一起刪除這部作品的全部章節紀錄。";
+
+/* 活動與生成率提示（docs/design/Campaign-And-Rate-Notices-Design.md）：網址輸入頁成功率一行、設定頁「通知」分組 */
+"generation_input_rate_normal" = "%1$@ · 近 %2$d 天普通模式生成成功 %3$@";
+"generation_input_rate_hard" = "%1$@ · 近 %2$d 天困難模式生成成功 %3$@";
+"generation_input_rate_region_global" = "所有地區";
+"settings_section_notifications" = "通知";
+"settings_campaign_push" = "活動推播";
+"settings_campaign_push_footer" = "活動開始時提醒你，例如送 coin。生成結果的通知不受影響，由系統設定裡的通知權限決定。";
+"settings_campaign_push_denied_footer" = "需要先在系統設定裡允許 AnyPortal 的通知，才能收到活動推播。";
+"settings_campaign_push_open_settings" = "前往設定";
+"settings_campaign_push_signed_out_footer" = "登入後可以接收活動推播。";

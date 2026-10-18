@@ -132,7 +132,7 @@ actor PortalSessionCoordinator {
     func authenticateWithApple(
         identityToken: String,
         nonce: String
-    ) async throws -> PortalAuthenticationTokens {
+    ) async throws -> PortalAppleAuthentication {
         guard self.operationInFlight == false else {
             throw PortalSessionInstallationError.operationInFlight
         }
@@ -145,16 +145,16 @@ actor PortalSessionCoordinator {
         }
 
         do {
-            let credentials: PortalAuthenticationTokens = try await self.authenticator
+            let authentication: PortalAppleAuthentication = try await self.authenticator
                 .authenticateWithApple(
                     identityToken: identityToken,
                     nonce: nonce
                 )
-            guard self.credentialsAreUsable(credentials) else {
+            guard self.credentialsAreUsable(authentication.tokens) else {
                 self.publish(status: previousStatus)
                 throw PortalSessionInstallationError.credentialsInvalid
             }
-            return credentials
+            return authentication
         } catch let error as PortalIdentityAuthenticationError {
             self.publish(
                 status: error == .userDisabled

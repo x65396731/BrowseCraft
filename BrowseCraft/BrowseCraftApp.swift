@@ -22,6 +22,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     private var pendingRuleGenerationPush: (outcome: RuleGenerationPushOutcome, opened: Bool)?
     /// 中文注释：APNs 通常在容器装配完成前就交回 token；先暂存，handler 接上时补发一次。
     private var latestPushDeviceToken: String?
+    /// 中文注释：活动推送被点开（Campaign-And-Rate-Notices-Design.md 第六节）；冷启动时可能先于装配，先记下、接上时补发一次。
+    private var campaignPushOpenedHandler: (() -> Void)?
+    private var hasPendingCampaignPushOpen: Bool = false
 
     func setCloudRemoteNotificationHandler(
         _ handler: @escaping () async -> UIBackgroundFetchResult
@@ -44,7 +47,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         AppLog.notice(.push, opened ? "outcome-push-opened" : "outcome-push-presented", ["status": .code(outcome.status ?? "unknown")])
         // 中文注释：只报用户点开；前台到达（willPresent）不报。
         if opened {
-            AppAnalytics.shared.logRuleGenerationPushOpened()
+            AppAnalytics.shared.logPushOpened(.ruleGeneration)
         }
         guard let handler: (RuleGenerationPushOutcome, Bool) -> Void = self.ruleGenerationPushHandler else {
             // 中文注释：点开优先于到达——冷启动时两者都可能先于装配到来。
@@ -53,6 +56,25 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             return
         }
         handler(outcome, opened)
+    }
+
+    func setCampaignPushOpenedHandler(_ handler: @escaping () -> Void) {
+        self.campaignPushOpenedHandler = handler
+        if self.hasPendingCampaignPushOpen {
+            self.hasPendingCampaignPushOpen = false
+            handler()
+        }
+    }
+
+    /// 中文注释：只处理点开；前台到达照常显示横幅，不做数据动作、不报埋点。
+    private func handleCampaignPushOpened() {
+        AppLog.notice(.push, "campaign-push-opened")
+        AppAnalytics.shared.logPushOpened(.campaign)
+        guard let handler: () -> Void = self.campaignPushOpenedHandler else {
+            self.hasPendingCampaignPushOpen = true
+            return
+        }
+        handler()
     }
 
     func setPushDeviceTokenHandler(_ handler: @escaping (String) async -> Void) {
@@ -158,18 +180,23 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     }
 
     /// 中文注释：用户点开推送（后台或已退出）→ 只把 App 带到前台、停在原页面（`BC-PREFLIGHT-066`）；
-    /// 规则目录每次打开都会重新拉取，新规则不依赖这里。
+    /// 规则目录每次打开都会重新拉取，新规则不依赖这里。活动推送（`kind` 为 campaign）同样不跳页，只刷新 coin 余额
+    /// （Campaign-And-Rate-Notices-Design.md 第六节）。
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping @Sendable () -> Void
     ) {
         _ = center
-        let outcome: RuleGenerationPushOutcome? = RuleGenerationPushPayload.outcome(
-            from: response.notification.request.content.userInfo
-        )
+        let userInfo: [AnyHashable: Any] = response.notification.request.content.userInfo
+        let isCampaign: Bool = CampaignPushPayload.isCampaign(userInfo)
+        let outcome: RuleGenerationPushOutcome? = RuleGenerationPushPayload.outcome(from: userInfo)
         Task { @MainActor in
-            self.handleRuleGenerationPush(outcome, opened: true)
+            if isCampaign {
+                self.handleCampaignPushOpened()
+            } else {
+                self.handleRuleGenerationPush(outcome, opened: true)
+            }
             completionHandler()
         }
     }
@@ -245,6 +272,9 @@ struct BrowseCraftApp: App {
                         }
                         self.delegate.setRuleGenerationPushHandler { outcome, opened in
                             container.handleRuleGenerationPushNotification(outcome, opened: opened)
+                        }
+                        self.delegate.setCampaignPushOpenedHandler {
+                            container.handleCampaignPushOpened()
                         }
                         await container.startApplicationServices()
                     }

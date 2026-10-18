@@ -16,6 +16,9 @@ actor PortalAppleSignInCoordinator {
     private let identityAdoptionCoordinator: AppUserIdentityAdoptionCoordinator
     private let identityOriginStore: any PortalAppUserIdentityOriginStoring
     private let appleUserIdentifierStore: (any AppleUserIdentifierStoring)?
+    /// 中文注释：新注册且拿到赠送时调用一次（Campaign-And-Rate-Notices-Design.md 第五节）。由组合根接到
+    /// In-App Messaging 的 `welcome_new_account` 触发；Application 层不引用 Firebase。
+    private let newAccountWelcomeHandler: (@Sendable () async -> Void)?
     private var operationInFlight: Bool = false
 
     init(
@@ -24,7 +27,8 @@ actor PortalAppleSignInCoordinator {
         appleAuthorizer: any AppleSignInAuthorizing,
         identityAdoptionCoordinator: AppUserIdentityAdoptionCoordinator,
         identityOriginStore: any PortalAppUserIdentityOriginStoring,
-        appleUserIdentifierStore: (any AppleUserIdentifierStoring)? = nil
+        appleUserIdentifierStore: (any AppleUserIdentifierStoring)? = nil,
+        newAccountWelcomeHandler: (@Sendable () async -> Void)? = nil
     ) {
         self.activeAppUser = activeAppUser
         self.portalSessionCoordinator = portalSessionCoordinator
@@ -32,6 +36,7 @@ actor PortalAppleSignInCoordinator {
         self.identityAdoptionCoordinator = identityAdoptionCoordinator
         self.identityOriginStore = identityOriginStore
         self.appleUserIdentifierStore = appleUserIdentifierStore
+        self.newAccountWelcomeHandler = newAccountWelcomeHandler
     }
 
     @discardableResult
@@ -50,11 +55,12 @@ actor PortalAppleSignInCoordinator {
         let authorization: AppleSignInAuthorization = try await self.appleAuthorizer.authorize(
             nonce: challenge.nonce
         )
-        let credentials: PortalAuthenticationTokens =
+        let authentication: PortalAppleAuthentication =
             try await self.portalSessionCoordinator.authenticateWithApple(
                 identityToken: authorization.identityToken,
                 nonce: challenge.nonce
             )
+        let credentials: PortalAuthenticationTokens = authentication.tokens
 
         guard self.activeAppUser.currentUserID == startingUserID else {
             await self.portalSessionCoordinator.discardUninstalledCredentials(
@@ -123,6 +129,12 @@ actor PortalAppleSignInCoordinator {
             try self.appleUserIdentifierStore?.saveUserIdentifier(authorization.userIdentifier)
         } catch {
             AppLog.error(.identity, "apple-user-identifier-save-failed")
+        }
+        // 中文注释：走到这里 Apple 登录面板早已收起、会话也已装好；赠送在建号事务里已入账，
+        // 欢迎页只是告知（`BCA-SYNC-012`）。
+        if authentication.welcomesNewAccount, let handler = self.newAccountWelcomeHandler {
+            AppLog.notice(.identity, "new-account-welcome-triggered")
+            await handler()
         }
         return credentials.userID
     }

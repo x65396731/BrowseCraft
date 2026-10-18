@@ -76,6 +76,9 @@ SettingsFaceID            4000      22x22      multi-scale-png
 SettingsTouchID           6200      22x22      multi-scale-png
 SettingsOpticID           4800      22x22      multi-scale-png
 SettingsPasscode          2500      22x22      multi-scale-png
+# 2026-10-18 「通知」分组的「活动推送」开关（docs/design/Campaign-And-Rate-Notices-Design.md 第四节）：同上做法，
+# SF Symbol megaphone.fill 按 22/44/66、黑色剪影、高约占画布 85% 栅格化，模板渲染；三档合计 2,756 字节。
+SettingsCampaignPush      3000      22x22      multi-scale-png
 
 # 2026-09-20 两处改动的理由：
 #

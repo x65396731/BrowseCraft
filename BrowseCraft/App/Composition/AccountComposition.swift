@@ -87,7 +87,12 @@ final class AccountComposition {
             registrar: APIKitPushDeviceClient(
                 api: PortalPushAPI(client: portalAPIClient)
             ),
-            sessionCoordinator: portalSessionCoordinator
+            sessionCoordinator: portalSessionCoordinator,
+            campaignPushPreferenceStore: UserDefaultsCampaignPushPreferenceStore(),
+            languageProvider: {
+                // 中文注释：App 实际在用的本地化（en / zh-Hans / zh-Hant），活动推送按它取文案，与界面一致。
+                return Bundle.main.preferredLocalizations.first ?? "en"
+            }
         )
         self.pushDeviceRegistrationCoordinator = pushDeviceRegistrationCoordinator
         let coinWalletStore: CoinWalletStore = CoinWalletStore(
@@ -217,7 +222,11 @@ final class AccountComposition {
             appleAuthorizer: appleAuthorizer,
             identityAdoptionCoordinator: appUserIdentityAdoptionCoordinator,
             identityOriginStore: portalIdentityOriginStore,
-            appleUserIdentifierStore: appleUserIdentifierStore
+            appleUserIdentifierStore: appleUserIdentifierStore,
+            newAccountWelcomeHandler: {
+                // 中文注释：新注册欢迎页只由 In-App Messaging 呈现（Campaign-And-Rate-Notices-Design.md 第五节）。
+                await CampaignMessaging.triggerNewAccountWelcome()
+            }
         )
         self.portalAppleSignInCoordinator = portalAppleSignInCoordinator
         self.storeKitPurchaseIdentityAuthorizer = StoreKitPurchaseIdentityAuthorizer(

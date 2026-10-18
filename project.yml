@@ -125,6 +125,11 @@ targets:
         # 支持后又缺少 IdentitySupport 所产生的启动警告。2026-10-17 起 App 在首次播激励广告前申请 ATT，
         # 那是给 AdMob 用的（RewardedAdPresenter），Analytics 不因此改用带广告身份的产品。
         product: FirebaseAnalyticsCore
+      - package: Firebase
+        # 中文注释：活动弹窗与新注册欢迎页只由 In-App Messaging 呈现、在 Firebase 控制台制作
+        # （docs/design/Campaign-And-Rate-Notices-Design.md `BCA-UI-004`）。只用 SDK 的默认显示组件，
+        # App 不写自定义显示代码；SPM 产品名带 Beta 后缀，模块名是 FirebaseInAppMessaging。
+        product: FirebaseInAppMessaging-Beta
       - package: Alamofire
         product: Alamofire
       - package: GRDB

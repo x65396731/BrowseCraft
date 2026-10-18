@@ -39,7 +39,7 @@ struct APIKitPortalIdentityAuthenticator: PortalIdentityAuthenticating {
     func authenticateWithApple(
         identityToken: String,
         nonce: String
-    ) async throws -> PortalAuthenticationTokens {
+    ) async throws -> PortalAppleAuthentication {
         AppLog.notice(.identity, "request-start", [
             "operation": .code("apple-authenticate"),
             "path": .code(PortalAPIPath.authApple)
@@ -54,9 +54,14 @@ struct APIKitPortalIdentityAuthenticator: PortalIdentityAuthenticating {
                 "operation": .code("apple-authenticate"),
                 "path": .code(PortalAPIPath.authApple),
                 "accessExpiresAt": .code("\(response.expiresAt.ISO8601Format())"),
-                "refreshExpiresAt": .code("\(response.refreshExpiresAt.ISO8601Format())")
+                "refreshExpiresAt": .code("\(response.refreshExpiresAt.ISO8601Format())"),
+                "accountCreated": .bool(response.accountCreated ?? false)
             ])
-            return Self.tokens(from: response)
+            return PortalAppleAuthentication(
+                tokens: Self.tokens(from: response),
+                accountCreated: response.accountCreated ?? false,
+                signupGrantCoins: response.signupGrantCoins ?? 0
+            )
         } catch {
             AppLog.error(.identity, "request-failure", [
                 "operation": .code("apple-authenticate"),
