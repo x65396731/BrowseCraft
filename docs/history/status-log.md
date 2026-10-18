@@ -1326,3 +1326,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 图标 `SettingsCampaignPush`：SF Symbol megaphone.fill 按设置页剪影规格栅格化，三档合计 2,756 字节，登记进资产预算；资产与架构边界闸门过。
 - 未 build、未跑测试；新增源文件与 SPM 产品需重跑 XcodeGen 并在 Xcode 里解析一次依赖。上线顺序：PortalCore 的设备登记接口必须先接受 `marketingOptIn` 与 `language`（服务端 `extra="forbid"`，否则新版 App 的设备登记会被 400 拒绝、生成结果推送也收不到）。
 - `STATUS.md` 第 11 节「App 侧实施」一行：not-started → implemented / not-run；原行里的「隐私说明」拆成单独一行 not-started（在 PortalCore 隐私权政策页与 App Store Connect 做）；检查点先登记为实施前的 HEAD `e2b916c`。
+- 实施、文档与测试替身一起提交为 `78d2233`（原为 `606f56a`，rebase 到 `17d6deb` 之上后改为现哈希）（APIKit 在 `campaign-rate-notices` 分支 `f93e5f3`，均未推送）；第 11 节「App 侧实施」一行检查点由实施前的 HEAD `e2b916c` 改登记为 `78d2233`。
