@@ -40,8 +40,14 @@
 - 文案：「{地区} · 近 {N} 天{普通模式 / 困难模式}生成成功 {百分比}」，三语。{地区} 由 App 把服务端返回的两位国家码按系统语言
   本地化；服务端返回 `scope` 为 global 时写「全部地区」。{N} 取服务端返回的窗口天数。
 - 随档位切换：普通档与困难档各显示各的数，切档只换显示，不重新请求。
-- 取数：网址输入页出现时请求一次，结果在本次 sheet 内保留。请求失败、或当前档的 `rate` 为空时，这一行不显示；
-  App 不估算、不写死数字。
+- 取数与显示按以下顺序，App 不上报位置、不要定位权限，地区由服务器从请求 IP 判断：
+  1. `VideoGenerationInputView` 出现时发一次请求，与输入网址、检查网站并行，不等结果、不挡任何操作；整个 sheet 只取一次，切档不重新请求。
+  2. `BrowseCraftAPIKit` 的新客户端经 `PortalAPIClient` 与现有公共请求头请求 `GET /v1/generation-rates?kind=video`（按当前类型），不要登录。
+  3. 返回示例：`{"region":"JP","windowDays":30,"rates":{"normal":{"rate":0.64,"samples":52,"scope":"region"},"hard":{"rate":0.71,"samples":34,"scope":"region"}}}`。
+     `scope` 每档各带一个：某档样本不足时只有这一档变成 global 并换成全部地区的数；全部地区也不足时该档 `rate` 为空。
+  4. 解码成一个只在本次 sheet 状态里的小模型，不落库、不缓存。
+  5. 取当前档那一项拼成一行；百分比四舍五入到整数。
+  6. 请求失败、超时，或当前档 `rate` 为空时，这一行不显示，不弹错、不重试，只经 `AppLog` 记网络日志；App 不估算、不写死数字。
 - 组下的余额说明（`generation_input_balance_footer` 与 `generation_input_balance_unknown_footer`）已写明「生成可能失败，失败也会扣 coin」，
   档位说明文案不改。
 
@@ -84,11 +90,11 @@
 
 | 位置 | 内容 |
 | --- | --- |
-| `GET /v1/generation-rates` | 不要登录；按请求 IP 的 GeoIP 国家码返回 `region`、`scope`（region / global）、`windowDays`，以及按类型 × 档位的 `rate` 与 `samples`；某档近 7 天样本少于 30 次时该档退回全部地区；没有数据的档 `rate` 为空 |
+| `GET /v1/generation-rates` | 不要登录；参数 `kind`；按请求 IP 的 GeoIP 国家码返回 `region`、`windowDays`（30），以及普通 / 困难两档各自的 `rate`、`samples`、`scope`（region / global）；某档近 30 天样本少于 20 条时该档退回全部地区，全部地区也不足时 `rate` 为空 |
 | 登录接口 | `POST /v1/auth/apple` 的返回加 `accountCreated` 与 `signupGrantCoins` |
 | 设备登记 | `POST /v1/push/devices` 加 `marketingOptIn` 与 `language`；登记时记 GeoIP 国家码，只存两位国家码、不存 IP |
 | 生成记录 | 提交时记 GeoIP 国家码 |
-| 每日汇总 | 宿主机定时任务每天把近 7 天生成结局按国家 × 类型 × 档位写进汇总表；生成率 = 成功与合并 ÷ 全部结局，不含复用 |
+| 每日汇总 | 宿主机定时任务每天把近 30 天生成结局按国家 × 类型 × 档位写进汇总表；生成率 = 成功（含合并）÷ 已结束的全部结局；不计未结束的任务、复用现成规则留下的记录、运营与测试账号、上游额度用完导致的失败。历史记录没有国家码，按地区的数字从上线后开始积累，在此之前各档退回全部地区 |
 | 活动脚本 | 一次活动一条命令：先给所有已注册账号幂等入账（新记账原因 `campaign_grant`，同一活动同一账号只入一次），确认完成后再按 `--push` 发活动推送；支持只报人数的预演 |
 
 一次活动的顺序固定为：预演报人数 → 入账并报实际人数 → 控制台发布弹窗（先发测试设备确认）→ 发活动推送 → 活动结束时控制台停用。
