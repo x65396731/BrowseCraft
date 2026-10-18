@@ -181,6 +181,7 @@ App 侧的验证事实主要分「离线测试通过」「模拟器走通」「�
 - 库页书籍库：视觉与信息结构重设计（单列书脊行、最新章与读到哪放文字里、来源级判整站有声、「上次读到 / 上次听到」瓷砖、各元素的数据来源与缺省）：[design/Library-Book-Page-Redesign-Design.md](design/Library-Book-Page-Redesign-Design.md)
 - 站点书详情页：视觉与信息结构重设计（页面底色头部、继续卡片写章节与全书进度、编号柱行列表目录、分段芯片、续读章按读书历史对、有声书措辞、规则实际给的数据与追加的接线）：[design/Book-Detail-Page-Redesign-Design.md](design/Book-Detail-Page-Redesign-Design.md)
 - 来源内搜索页：视觉与信息结构重设计（自绘眉行与圆形关闭、卡片底搜索框与聚焦类型色描边、结果眉行、结果区按 kind 原样复用三种库页版式、未搜索 / 搜索中 / 无结果 / 失败四种状态、分页与登录接线）：[design/Search-Page-Redesign-Design.md](design/Search-Page-Redesign-Design.md)
+- 活动与生成率提示（活动弹窗与新注册欢迎页只经 In-App Messaging、网址输入页按地区的生成成功率一行、设置页「活动推送」开关管什么、锁屏活动推送走现有 APNs、coin 只在服务端入账、服务端依赖）：[design/Campaign-And-Rate-Notices-Design.md](design/Campaign-And-Rate-Notices-Design.md)
 - 统一日志（唯一日志类型、字段脱敏、级别与出口、公共钩子、吞错必记与 `try?` 基线、本机日志与导出）：[design/Logging-Design.md](design/Logging-Design.md)
 - 埋点事件与崩溃诊断（事件字典、参数与页面名、采集与隐私边界、页面曝光入口、Crashlytics 上报范围与键）：[design/Analytics-Events-Design.md](design/Analytics-Events-Design.md)
 - 运行期广告过滤承接规则匹配结果：[design/RuntimeAdFilter-Design.md](design/RuntimeAdFilter-Design.md)

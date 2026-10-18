@@ -256,3 +256,13 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 第 5 批·补空白与吞错：扫出 92 个不再抛出的 `catch`，真正吞掉的约 40 处补 `error`（收藏、历史、云同步页、内购会话、coin、阅读器书签、站点登录等），预期内不记的写明理由；Core 校验失败记 notice、条目被拒记 debug；`try?` 现存 230 处按文件登记进 `scripts/try-optional-baseline.txt`，只许收敛 | `BCA-OBS-015` | required | approved | implemented | full-suite-passed | 6d6b6e6 | 2026-10-18 |
 | 第 6 批·本机文件、导出与 Crashlytics 日志行：`LogFileSink`（Caches/Logs 两个 5 MB 文件轮换、info 及以上、每行 JSON）、`CrashlyticsLogSink`（notice 及以上只写类别与事件名，经 `CrashDiagnostics.logLine`，采集关闭不写）、设置页「隐私与诊断」加「导出诊断日志」行（系统分享面板，三语文案，暂用诊断码图标，`support_info_copied` 加 `diagnostic_log`）、删除账号本机清理时删日志文件 | `BCA-OBS-016` `BCA-OBS-017` | required | approved | implemented | full-suite-passed | 6d6b6e6 | 2026-10-18 |
 | 统一日志闸门：`check-architecture-boundaries.sh` 覆盖 BrowseCraftLog 包，禁 `debugPrint` / `NSLog` / `os_log` / `AppDebugLog` / `RuleRuntimeDebugLog`，`Logger(` 与 `import OSLog` 只许在 `OSLogSink.swift`，`try?` 按基线只许收敛；文档闸门 A10 读五个兄弟包，A13 加 `LogCategory` 与合同第 5 节双向核对 | `BCA-OBS-010` `BCA-OBS-011` `BCA-OBS-015` | required | approved | implemented | static-audit-passed | 6d6b6e6 | 2026-10-18 |
+
+## 11. 活动与生成率提示
+
+设计与裁定见 Claude 文档「BrowseCraft 活动与生成率提示框设计书」（https://claude.ai/artifact/J3NzxhSg1grTQmCgzq442M），画布见「活动与生成率提示」（https://claude.ai/artifact/6krDDFMgGhVrgLhFXRkDXP），合同见 [design/Campaign-And-Rate-Notices-Design.md](design/Campaign-And-Rate-Notices-Design.md)。
+
+| 工作项 | 条款 | 决策 | 设计 | 实施 | 验证 | 检查点 | 更新日期 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 合同（用户 2026-10-18 裁定十二项全取 A）：活动弹窗与新注册欢迎页只经 In-App Messaging、网址输入页「取页方式」卡片里按地区的生成成功率一行、设置页「通知」分组的「活动推送」开关（只管活动推送）、锁屏活动推送走现有 APNs、不接 FirebaseMessaging、coin 只在服务端入账、服务端依赖与一次活动的固定顺序 | `BCA-UI-004` `BCA-UI-005` `BCA-SYNC-012` | required | approved | implemented | static-audit-passed | 83b489e | 2026-10-18 |
+| App 侧实施：链接 In-App Messaging、成功率一行与取数、设置页「通知」分组与新图标、设备登记带同意标记与语言、新注册后触发欢迎页、活动推送点击刷新余额、埋点登记、隐私说明 | `BCA-UI-004` `BCA-UI-005` `BCA-SYNC-012` | required | approved | not-started | not-run | 83b489e | 2026-10-18 |
+| PortalCore 侧实施（在 PortalCore 仓）：`GET /v1/generation-rates` 与每日汇总、GeoIP 国家码、设备登记加同意标记与语言、登录返回加新户字段、活动脚本（幂等入账 `campaign_grant` 与活动推送） | `BCA-SYNC-012` | required | approved | not-started | not-run | 83b489e | 2026-10-18 |
