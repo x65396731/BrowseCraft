@@ -35,7 +35,7 @@ python3 scripts/check-docs.py
 
 | 挂账 | 欠什么 | 合同 | STATUS |
 | --- | --- | --- | --- |
-| 活动与生成率提示（2026-10-18，`BCA-UI-004` / `BCA-UI-005` / `BCA-SYNC-012`；设计书、画布链接在合同头部） | ① App 侧没 build、没跑测试，先 `scripts/regenerate-project.sh` 并解析 SPM（新增 In-App Messaging product；依赖的 APIKit 改动已在其 main）；② PortalCore 侧已上线：新户赠送 3000 coin、`/media/` 两张弹窗插画、设备登记接受 `marketingOptIn` / `language`（v0021）；**已提交未推送未部署**：成功率接口与 GeoIP 与每日汇总（PortalCore main 领先 origin 的那个提交，迁移 v0022；部署后宿主机加两行 crontab——见 PortalCore `scripts/generation_rates.py`、`scripts/update_geoip.sh` 头注释——并先各跑一次）；未做：登录返回 `accountCreated` / `signupGrantCoins`、活动入账脚本与新记账原因（要迁移）、隐私政策页；③ Firebase 控制台：「新账户欢迎页」已投放中；「限时活动 · 送 300 coin」是草稿，用户说发再发——先跑入账脚本并报人数，再按活动天数改「首次打开超过 N 天前」、填起止日期后发布 | [Campaign-And-Rate-Notices](docs/design/Campaign-And-Rate-Notices-Design.md) 第五、七、八节 | 第 11 节 |
+| 活动与生成率提示（2026-10-18，`BCA-UI-004` / `BCA-UI-005` / `BCA-SYNC-012`；设计书、画布链接在合同头部） | ① App 侧没 build、没跑测试，先 `scripts/regenerate-project.sh` 并解析 SPM（新增 In-App Messaging product；依赖的 APIKit 改动已在其 main）；② PortalCore 侧已上线：新户赠送 3000 coin、`/media/` 两张弹窗插画、设备登记接受 `marketingOptIn` / `language`（v0021）；成功率接口与 GeoIP 与每日汇总（迁移 v0022，宿主机 crontab 每日汇总、每月换库；旧任务不计，所以真实用户生成之前这一行不显示）；未做：登录返回 `accountCreated` / `signupGrantCoins`、活动入账脚本与新记账原因（要迁移）、隐私政策页；③ Firebase 控制台：「新账户欢迎页」已投放中；「限时活动 · 送 300 coin」是草稿，用户说发再发——先跑入账脚本并报人数，再按活动天数改「首次打开超过 N 天前」、填起止日期后发布 | [Campaign-And-Rate-Notices](docs/design/Campaign-And-Rate-Notices-Design.md) 第五、七、八节 | 第 11 节 |
 | 删除来源连带删除历史与收藏 | 真机 | [Source-Deletion-Cascade](docs/design/Source-Deletion-Cascade-Design.md) 第七、八节 | 第 4 节两行 |
 | 续看位置同步到 iCloud | 两台设备对测（同一 iCloud 账户、同一种安装方式、同一个来源；书的 `locatorJSON` 跨设备可用性未实测）+ 真机退后台的时间够不够 | [History-Resume-Sync](docs/design/History-Resume-Sync-Design.md) 第三、五节 | 第 4 节两行 |
 | 17 页重设计：来源、收藏、规则目录、历史、设置、coin 记录、缓存、云同步、添加来源、网址输入与引导屏、库页三种、详情三种、来源内搜索 | 真机验收（含深色）；各页清单列了模拟器没走到的状态 | 各页合同末节 | 第 2 节 |
@@ -66,7 +66,7 @@ python3 scripts/check-docs.py
 | 埋点全覆盖（2026-10-17，`BCA-OBS-001` ~ `005`）：GA4 已注册 24 个事件级自定义维度，模拟器走查确认 26 种事件送达 DebugView；视频 / 漫画链路、站点登录、来源增删启用、生成提交、购买结局与恢复、Apple 登录退出、删号、云同步、内容锁、推送、启动失败没走到。两条观察都已处理：关掉 sheet 回到下层页面不重报曝光，改为可见页栈补报（第 9 节，待模拟器复核）；测试广告看完后 `ad_reward_credited` 报 timeout、余额随后到账，用户 10-17 裁定把看完广告后的余额轮询从约 12 秒加长到约 60 秒，timeout 在合同里写成「窗口内没到账」、迟到的到账不补报，PortalCore 另开 PR 在 SSV 回调里记录延迟，量出分布后再看 60 秒是否合适 | 有视频 / 漫画来源的模拟器或真机上用 `-FIRDebugEnabled` 启动、开 `log stream` 过滤 `Event logged` 补走；PortalCore 的 SSV 延迟记录上线后回看轮询窗口 | [Analytics-Events](docs/design/Analytics-Events-Design.md) | 第 9 节 |
 | 给 fwq 的六条读书 kind 生成需求 | 需求一 / 三 / 四 / 五前半 fwq 已交付并真机通过（小說狂人最新章节 10-10 再修、待部署）；需求二记账、两端都不做；五后半目录分页 fwq 未定立场；六 fwq 不做 | Claude 文档「读书 kind 规则生成覆盖需求」（https://claude.ai/artifact/HnYM71goMZveUVJQQ4vhgk） | fwq STATUS |
 
-下一会话建议顺序：活动与生成率提示先部署 PortalCore 成功率接口并推送 APIKit main（每档加 `successes`，App 已依赖），再补登录新户字段、活动脚本、隐私政策页 → 真机验收（STATUS 里 `not-run` 与 `simulator-passed` 的各行，十四批的看点都在上表；用户在真机上走，结果新增 `device-passed` 行、不改模拟器那几行）→ 续看同步两机对测。代码侧的复审项已全部收尾。首发送审前的硬前置是上表「发现」一行（服务端与 App 都已改完，剩示例站发布与走查）。
+下一会话建议顺序：活动与生成率提示先补 PortalCore 登录新户字段、活动脚本、隐私政策页（含 DB-IP 署名） → 真机验收（STATUS 里 `not-run` 与 `simulator-passed` 的各行，十四批的看点都在上表；用户在真机上走，结果新增 `device-passed` 行、不改模拟器那几行）→ 续看同步两机对测。代码侧的复审项已全部收尾。首发送审前的硬前置是上表「发现」一行（服务端与 App 都已改完，剩示例站发布与走查）。
 
 - **fwq 侧指针**（定义点与验证状态都在 fwq `docs/rules/STATUS.md`）：`BCA-RUNTIME-005`（fwq `APP-MEMO-026`）里「直接请求收到挑战页回退 WebView」一处仍欠真机，
   发版后由用户重交 toonily 验证，发版前 Cloudflare 站不要重生成；`BC-PREFLIGHT-066`（点推送停在原页、打开目录直接看到新规则）在 fwq 为 `not-run`，随规则目录页真机一起看；
