@@ -61,8 +61,20 @@ struct SourcesFeatureFactory {
                 structureObserver: DefaultSourceListStructureObserver(),
                 entryFamilyAssessor: DefaultSourceListEntryFamilyAssessor()
             )
+        // 中文注释：DEBUG 演示模式（拍商城截图）下，本机检查直接判「可以生成」、规则目录换成虚构示例站，都不发请求。
+        var assessmentOverride: (@Sendable (String) async throws -> VideoGenerationInputPreflight)? = nil
+        var catalogSourcesOverride: [CatalogSource]? = nil
+        #if DEBUG
+        if DemoMode.isEnabled {
+            assessmentOverride = { siteURLString in
+                return try DemoContent.acceptedPreflight(for: siteURLString)
+            }
+            catalogSourcesOverride = DemoContent.catalogExamples
+        }
+        #endif
         let sourceDiscoveryService: SourceDiscoveryService = SourceDiscoveryService(
-            assessVideoGenerationInputUseCase: assessVideoGenerationInputUseCase
+            assessVideoGenerationInputUseCase: assessVideoGenerationInputUseCase,
+            assessmentOverride: assessmentOverride
         )
         // 中文注释：任务提交是独立用例，预检 use case 不持有它（`BC-PREFLIGHT-048`）。
         let createVideoGenerationTaskUseCase: CreateVideoGenerationTaskUseCase =
@@ -84,7 +96,8 @@ struct SourcesFeatureFactory {
                 requestHeaders: {
                     return portalRequestHeaderProvider.headers()
                 }
-            )
+            ),
+            catalogSourcesOverride: catalogSourcesOverride
         )
         let persistenceCoordinator: SourcesPersistenceCoordinator = SourcesPersistenceCoordinator(
             syncBuiltInSourcesUseCase: SyncBuiltInSourcesUseCase(

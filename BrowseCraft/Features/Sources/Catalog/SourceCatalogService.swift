@@ -4,16 +4,23 @@ import BrowseCraftDomain
 struct SourceCatalogService: Sendable {
     private let addCatalogSourceUseCase: AddCatalogSourceUseCase
     private let loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase
+    /// 中文注释：只有 DEBUG 演示模式（拍商城截图）传入，替代服务端目录；正式装配为 nil。
+    private let catalogSourcesOverride: [CatalogSource]?
 
     init(
         addCatalogSourceUseCase: AddCatalogSourceUseCase,
-        loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase
+        loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase,
+        catalogSourcesOverride: [CatalogSource]? = nil
     ) {
         self.addCatalogSourceUseCase = addCatalogSourceUseCase
         self.loadCatalogSourcesUseCase = loadCatalogSourcesUseCase
+        self.catalogSourcesOverride = catalogSourcesOverride
     }
 
     func loadSources() async throws -> [CatalogSource] {
+        if let catalogSourcesOverride: [CatalogSource] = self.catalogSourcesOverride {
+            return catalogSourcesOverride
+        }
         return try await self.loadCatalogSourcesUseCase.execute()
     }
 

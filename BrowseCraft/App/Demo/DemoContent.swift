@@ -175,6 +175,52 @@ enum DemoContent {
         )
     ]
 
+    /// 中文注释：规则目录「发现 · 站点示例」用的虚构站点（目录最多显示 6 条）。只给目录页展示，
+    /// 不在 `sites` 里，演示 runtime 不认它们；域名同样只用 example.com / .org / .net。
+    static let catalogExampleSites: [DemoSite] = [
+        DemoSite(id: "demo-catalog.cinema", kind: .video, host: "cinema.example.com",
+                 name: DemoText(hant: "星港放映廳", hans: "星港放映厅", en: "Starport Cinema")),
+        DemoSite(id: "demo-catalog.manga", kind: .comic, host: "manga.example.org",
+                 name: DemoText(hant: "放學後漫畫社", hans: "放学后漫画社", en: "After-School Manga Club")),
+        DemoSite(id: "demo-catalog.novel", kind: .book, host: "novel.example.net",
+                 name: DemoText(hant: "九霄文庫", hans: "九霄文库", en: "Nine Skies Library")),
+        DemoSite(id: "demo-catalog.anime", kind: .video, host: "anime.example.com",
+                 name: DemoText(hant: "夏日動畫館", hans: "夏日动画馆", en: "Summer Anime House")),
+        DemoSite(id: "demo-catalog.webtoon", kind: .comic, host: "webtoon.example.org",
+                 name: DemoText(hant: "龍骨條漫", hans: "龙骨条漫", en: "Dragonbone Webtoons")),
+        DemoSite(id: "demo-catalog.audio", kind: .book, host: "audio.example.com",
+                 name: DemoText(hant: "霧城有聲書", hans: "雾城有声书", en: "Fog City Audiobooks"))
+    ]
+
+    static var catalogExamples: [CatalogSource] {
+        return self.catalogExampleSites.map { site in
+            let source: CatalogSource = self.catalogSource(for: site)
+            return CatalogSource(
+                id: source.id,
+                name: source.name,
+                baseURL: source.baseURL,
+                kind: source.kind,
+                ruleJSON: source.ruleJSON,
+                section: .example
+            )
+        }
+    }
+
+    /// 中文注释：网址输入页的本机检查在演示模式下直接判「可以生成」——示例域名没有真实页面，真检查一定不过。
+    static func acceptedPreflight(for siteURLString: String) throws -> VideoGenerationInputPreflight {
+        guard let url: URL = URL(string: siteURLString.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+            throw URLError(.badURL)
+        }
+        return VideoGenerationInputPreflight(
+            status: .accepted,
+            reason: nil,
+            evaluatedInputURL: url,
+            submissionString: url.absoluteString,
+            entryShape: .directListOwner,
+            audit: VideoGenerationInputPreflightAudit(publicationGroupCount: 1, listCount: 1, familyCount: 1)
+        )
+    }
+
     static func site(id: String) -> DemoSite? {
         return self.sites.first { site in
             return site.id == id
