@@ -1,7 +1,7 @@
 # 活动与生成率提示
 
-设计稿（画布，含网址输入页普通档 / 困难档 / 退回全部地区 / 取不到成功率 / 深色、设置页「活动推送」关 / 深色开 / 系统通知被关 / 未登录、
-活动弹窗浅色与深色 App 上、新注册欢迎页、锁屏活动推送，共 13 张）：[活动与生成率提示](https://claude.ai/artifact/6krDDFMgGhVrgLhFXRkDXP)；
+设计稿（画布，含网址输入页普通档 / 困难档 / 退回全部地区 / 全部地区也不足只给次数 / 取不到成功率 / 深色、设置页「活动推送」关 / 深色开 / 系统通知被关 / 未登录、
+活动弹窗浅色与深色 App 上、新注册欢迎页（均为卡片模板）、锁屏活动推送，共 14 张）：[活动与生成率提示](https://claude.ai/artifact/6krDDFMgGhVrgLhFXRkDXP)；
 设计文档：[活动与生成率提示设计书](https://claude.ai/artifact/J3NzxhSg1grTQmCgzq442M)。
 设计与实施状态见 [STATUS.md](../STATUS.md)。颜色、圆角、字号与交互约定沿用网址输入页与设置页
 （[网址输入页](Generation-Input-Page-Redesign-Design.md)、[设置页](Settings-Page-Redesign-Design.md)），App 内不新增色值。
