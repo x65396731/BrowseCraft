@@ -1314,3 +1314,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 画布时核对代码发现：网址输入页「取页方式」组下的余额说明（`generation_input_balance_footer` 与未知余额的那一条）已写「生成可能失败，失败也会扣 coin」，设计书里「普通档说明补『失败同样扣除』」一条会重复，合同未收，档位说明文案不改。
 - 合同新增 docs/design/Campaign-And-Rate-Notices-Design.md 与 `BCA-UI-004`、`BCA-UI-005`、`BCA-SYNC-012`；docs/README.md 第 6 节与本地 AGENTS.md 加读取入口。
 - `STATUS.md` 新增第 11 节三行：合同 implemented / static-audit-passed（文档闸门全过），App 侧与 PortalCore 侧实施 not-started / not-run；检查点先登记为当前 HEAD `83b489e`。
+- 合同提交为 `5ba33bf`；第 11 节「合同」一行检查点由 HEAD `83b489e` 改登记为 `5ba33bf`。

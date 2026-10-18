@@ -263,6 +263,6 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 
 | 工作项 | 条款 | 决策 | 设计 | 实施 | 验证 | 检查点 | 更新日期 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 合同（用户 2026-10-18 裁定十二项全取 A）：活动弹窗与新注册欢迎页只经 In-App Messaging、网址输入页「取页方式」卡片里按地区的生成成功率一行、设置页「通知」分组的「活动推送」开关（只管活动推送）、锁屏活动推送走现有 APNs、不接 FirebaseMessaging、coin 只在服务端入账、服务端依赖与一次活动的固定顺序 | `BCA-UI-004` `BCA-UI-005` `BCA-SYNC-012` | required | approved | implemented | static-audit-passed | 83b489e | 2026-10-18 |
+| 合同（用户 2026-10-18 裁定十二项全取 A）：活动弹窗与新注册欢迎页只经 In-App Messaging、网址输入页「取页方式」卡片里按地区的生成成功率一行、设置页「通知」分组的「活动推送」开关（只管活动推送）、锁屏活动推送走现有 APNs、不接 FirebaseMessaging、coin 只在服务端入账、服务端依赖与一次活动的固定顺序 | `BCA-UI-004` `BCA-UI-005` `BCA-SYNC-012` | required | approved | implemented | static-audit-passed | 5ba33bf | 2026-10-18 |
 | App 侧实施：链接 In-App Messaging、成功率一行与取数、设置页「通知」分组与新图标、设备登记带同意标记与语言、新注册后触发欢迎页、活动推送点击刷新余额、埋点登记、隐私说明 | `BCA-UI-004` `BCA-UI-005` `BCA-SYNC-012` | required | approved | not-started | not-run | 83b489e | 2026-10-18 |
 | PortalCore 侧实施（在 PortalCore 仓）：`GET /v1/generation-rates` 与每日汇总、GeoIP 国家码、设备登记加同意标记与语言、登录返回加新户字段、活动脚本（幂等入账 `campaign_grant` 与活动推送） | `BCA-SYNC-012` | required | approved | not-started | not-run | 83b489e | 2026-10-18 |
