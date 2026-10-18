@@ -80,7 +80,9 @@ struct SourcesFeatureFactory {
         let createVideoGenerationTaskUseCase: CreateVideoGenerationTaskUseCase =
             CreateVideoGenerationTaskUseCase(
                 taskClient: self.videoGenerationTaskClient,
-                accessTokenProvider: self.portalAccessTokenProvider
+                accessTokenProvider: self.portalAccessTokenProvider,
+                // 中文注释：APIKit 适配器同时实现提交与预览，两者共用同一个地区来源（网址输入页「现成规则」）。
+                reusePreviewer: self.videoGenerationTaskClient as? any GenerationReusePreviewing
             )
         let sourceRuleDebugJSONFormatter: SourceRuleDebugJSONFormatter = SourceRuleDebugJSONFormatter()
         let portalRequestHeaderProvider: PortalRequestHeaderProvider = PortalRequestHeaderProvider(

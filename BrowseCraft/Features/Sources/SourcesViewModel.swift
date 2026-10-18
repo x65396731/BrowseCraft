@@ -429,6 +429,29 @@ final class SourcesViewModel {
         }
     }
 
+    /// 检查可提交后问一次这个网址能不能直接取用现成规则（Generation-Input-Page-Redesign-Design.md 第三节）。
+    /// 未接线、未登录、不可取用与失败一律返回 nil，输入页照常显示取页方式与「滑动生成」。
+    func loadReusePreview(
+        preflight: VideoGenerationInputPreflight,
+        sourceKind: RuleGenerationSourceKind
+    ) async -> GenerationReusePreview? {
+        guard let useCase: CreateVideoGenerationTaskUseCase = self.createVideoGenerationTaskUseCase else {
+            return nil
+        }
+        return await useCase.reusePreview(preflight: preflight, sourceKind: sourceKind)
+    }
+
+    /// 取用之后点「添加为来源」：与规则目录的「添加」同一条路径（`addCatalogSource`），由用户手动触发，
+    /// 不是 2026-10-03 裁定不要的自动添加。错误不弹窗，由输入页在按钮下说明。
+    @MainActor
+    func addReusedRule(_ rule: VideoGenerationReusedRule) async -> Bool {
+        return await self.addCatalogSource(
+            rule.catalogSource,
+            entry: .generationReuse,
+            shouldPresentError: false
+        )
+    }
+
     var canSubmitVideoGenerationTasks: Bool {
         return self.createVideoGenerationTaskUseCase != nil
     }

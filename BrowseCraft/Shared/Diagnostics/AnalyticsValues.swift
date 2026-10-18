@@ -173,6 +173,8 @@ enum SourceAddEntry: String, Sendable {
     case recommended
     case kindSection = "kind_section"
     case myGenerations = "my_generations"
+    /// 网址输入页取用现成规则后点「添加为来源」（Generation-Input-Page-Redesign-Design.md 第三节，2026-10-19）。
+    case generationReuse = "generation_reuse"
 }
 
 /// 中文注释：`source_deleted` 的 `entry`。

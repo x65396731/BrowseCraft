@@ -64,7 +64,7 @@
 - `BrowseCraft/Features/Shared/SpectrumGlowBorder.swift`：渐变发光描边，只给困难按钮。
 - `BrowseCraft/Features/Shared/DotMatrixTrack.swift`：流光点阵（`TimelineView` 驱动 `Canvas`），只给困难档滑动确认用。
 - `BrowseCraft/Features/Shared/GenerationTierPicker.swift`、`BrowseCraft/Features/Shared/SlideToConfirmControl.swift`：两个新组件，实施后补进页面设计索引的可复用组件表。
-- 现成规则（2026-10-19）：`BrowseCraftAPIKit` 新增 `GET /v1/rule-generations/reuse-preview` 客户端；App 新增一个只读端口与它的 APIKit 适配器（实施时在这里写明名字），`SourcesViewModel` 在预检可提交时查一次（与提交用同一个 `acceptLanguage`）；`VideoGenerationInputView` 按第三节加信息卡、取用滑杆、「添加为来源」按钮、两处重新生成链接与重新生成面板；`source_added` 的 `entry` 加 `generation_reuse`（先登记进埋点字典）。
+- 现成规则（2026-10-19）：`BrowseCraftAPIKit` 新增 `GET /v1/rule-generations/reuse-preview` 客户端；App 端口 `GenerationReusePreviewing`（`APIKitVideoGenerationTaskClient` 同时实现，提交与预览共用地区来源），`CreateVideoGenerationTaskUseCase.reusePreview`，`SourcesViewModel` 在预检可提交时查一次（与提交用同一个 `acceptLanguage`）；`VideoGenerationInputView` 按第三节加信息卡、取用滑杆、「添加为来源」按钮与两处重新生成链接，重新生成面板是新视图 `RegenerateRuleSheet`；`source_added` 的 `entry` 加 `generation_reuse`（先登记进埋点字典）。
 - 三份 `Localizable.strings`：标题三句、说明、四步名、结论标题改词、档位与余额、滑动文案、结果标题；引导屏步骤去掉序号前缀；删去不再使用的词条。
 
 ## 六、服务端依赖（PortalCore）

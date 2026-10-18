@@ -30,6 +30,14 @@ struct VideoGenerationInputView: View {
     /// 切档只换显示；只在本次 sheet 的状态里，不落库、不缓存。取不到时为 nil，这一行不显示。
     @State private var generationRates: GenerationRates?
     @State private var hasRequestedGenerationRates: Bool = false
+    /// 中文注释：现成规则（合同第三节「现成规则」，2026-10-19）：检查可提交后问一次服务端；nil = 没有、还没回来或查不到，
+    /// 都按「没有现成规则」显示。改网址、重新检查即清掉。
+    @State private var reusePreview: GenerationReusePreview?
+    @State private var reusePreviewTask: Task<Void, Never>?
+    @State private var isShowingRegenerateSheet: Bool = false
+    /// 中文注释：取用之后「添加为来源」的进行中与失败（失败只在按钮下说明，不弹窗）。
+    @State private var isAddingReusedRule: Bool = false
+    @State private var didFailToAddReusedRule: Bool = false
 
     /// 中文注释：提交成功后停留这么久再回来源页——让「生成任务已提交」这句确认被看见，
     /// 又不必让用户自己点两层关闭。
@@ -110,6 +118,7 @@ struct VideoGenerationInputView: View {
             .onChange(of: self.siteURL) { _, _ in
                 self.cancelAssessment()
                 self.cancelSubmission()
+                self.cancelReusePreview()
                 self.result = nil
                 self.errorMessage = nil
             }
@@ -117,6 +126,26 @@ struct VideoGenerationInputView: View {
                 self.cancelAssessment()
                 self.cancelSubmission()
                 self.onFinished()
+            }
+            .sheet(isPresented: self.$isShowingRegenerateSheet) {
+                RegenerateRuleSheet(
+                    tier: self.$acquisitionTier,
+                    normalPrice: self.pricing.normal,
+                    hardPrice: self.pricing.hard,
+                    rateLine: self.generationRateLine,
+                    balanceFooter: self.regenerateBalanceFooter,
+                    onConfirm: { tier in
+                        self.isShowingRegenerateSheet = false
+                        guard let result: VideoGenerationInputPreflight = self.result else {
+                            return
+                        }
+                        self.acquisitionTier = tier
+                        self.startSubmission(result, refresh: true)
+                    },
+                    onCancel: {
+                        self.isShowingRegenerateSheet = false
+                    }
+                )
             }
             .sheet(isPresented: self.$isShowingGuide) {
                 NavigationStack {
@@ -305,18 +334,24 @@ struct VideoGenerationInputView: View {
             self.outcomeCard(outcome)
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
-            if case .reused = outcome {
-                Text(NSLocalizedString("generation_input_reused_hint", comment: ""))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 24)
-                    .padding(.top, 10)
-            }
         case .idle, .submitting:
             self.preflightCard(result)
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
-            if result.canSubmit {
+            if result.canSubmit, let preview: GenerationReusePreview = self.reusePreview {
+                // 中文注释：有现成规则时取用与档位无关，不出取页方式卡（合同第三节「现成规则」）。
+                self.reuseAvailableCard(preview)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
+                if let balance: Int = self.viewModel.coinWalletStore?.balance {
+                    Text(String(format: NSLocalizedString("generation_input_reuse_balance", comment: "现成规则：余额"), balance))
+                        .font(.footnote)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 10)
+                }
+            } else if result.canSubmit {
                 // 中文注释：提交中的变淡由滑杆自己（`isEnabled`）处理，这里不再叠一层。
                 self.tierGroup(result)
             } else if result.status == .rejected {
@@ -642,24 +677,46 @@ struct VideoGenerationInputView: View {
         } else {
             switch self.submissionState {
             case .idle, .submitting:
-                SlideToConfirmControl(
-                    title: String(format: NSLocalizedString("generation_input_slide_generate", comment: ""), self.selectedPrice),
-                    busyTitle: NSLocalizedString("generation_input_submitting", comment: ""),
-                    tone: tone,
-                    isBusy: self.submissionState.isSubmitting,
-                    onConfirm: {
-                        self.startSubmission(result)
+                if let preview: GenerationReusePreview = self.reusePreview {
+                    // 中文注释：合同第三节「现成规则」：取用价由服务端报，本人 7 天内的为 0（免费取回）；取用与档位无关，用动作蓝。
+                    SlideToConfirmControl(
+                        title: preview.coinCost > 0
+                            ? String(format: NSLocalizedString("generation_input_slide_reuse", comment: ""), preview.coinCost)
+                            : NSLocalizedString("generation_input_slide_reuse_own", comment: ""),
+                        busyTitle: NSLocalizedString("generation_input_submitting", comment: ""),
+                        tone: .action,
+                        isBusy: self.submissionState.isSubmitting,
+                        onConfirm: {
+                            self.startSubmission(result)
+                        }
+                    )
+                    if self.submissionState.isSubmitting == false {
+                        self.regenerateLink(titleKey: "generation_input_reuse_regenerate_link")
                     }
-                )
-            case .finished(.reused):
-                SlideToConfirmControl(
-                    title: String(format: NSLocalizedString("generation_input_slide_regenerate", comment: ""), self.selectedPrice),
-                    busyTitle: NSLocalizedString("generation_input_submitting", comment: ""),
-                    tone: tone,
-                    onConfirm: {
-                        self.startSubmission(result, refresh: true)
-                    }
-                )
+                } else {
+                    SlideToConfirmControl(
+                        title: String(format: NSLocalizedString("generation_input_slide_generate", comment: ""), self.selectedPrice),
+                        busyTitle: NSLocalizedString("generation_input_submitting", comment: ""),
+                        tone: tone,
+                        isBusy: self.submissionState.isSubmitting,
+                        onConfirm: {
+                            self.startSubmission(result)
+                        }
+                    )
+                }
+            case .finished(.reused(let rule)):
+                // 中文注释：取用之后主控件是「添加为来源」（合同第三节「提交结果」，2026-10-19），重新生成降为带面板的小字链接，
+                // 不再有「滑动重新生成」主控件——用户还没试过这条规则，不该被引导再花一次 coin。
+                self.addReusedRuleButton(rule)
+                if self.didFailToAddReusedRule {
+                    Text(NSLocalizedString("generation_input_reused_add_failed", comment: ""))
+                        .font(.footnote)
+                        .foregroundStyle(CatalogPalette.warning)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 4)
+                        .padding(.top, 8)
+                }
+                self.regenerateLink(titleKey: "generation_input_reused_regenerate_link")
             case .finished(.failed):
                 SlideToConfirmControl(
                     title: String(format: NSLocalizedString("generation_input_slide_retry", comment: ""), self.selectedPrice),
@@ -694,6 +751,114 @@ struct VideoGenerationInputView: View {
         .opacity(isEnabled ? 1 : 0.45)
     }
 
+    // MARK: - 现成规则
+
+    /// 中文注释：结论卡下的信息卡（合同第三节「现成规则」）：小号蓝 ✓ + 标题 + 一句价格说明，本人 7 天内的写免费取回。
+    private func reuseAvailableCard(_ preview: GenerationReusePreview) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(CatalogPalette.settingsIcon)
+                .frame(width: 28, height: 28)
+                .background(CatalogPalette.settingsIconFill, in: Circle())
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(NSLocalizedString("generation_input_reuse_available_title", comment: ""))
+                    .font(.subheadline.weight(.semibold))
+                Text(preview.coinCost > 0
+                    ? String(format: NSLocalizedString("generation_input_reuse_available_detail", comment: ""), preview.coinCost)
+                    : NSLocalizedString("generation_input_reuse_available_own_detail", comment: ""))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(CatalogPalette.cardBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+
+    /// 中文注释：取用之后的主控件。已在来源里的写「已在来源里」并禁用；加好后收起整个 sheet，与规则目录的添加落点一致。
+    @ViewBuilder
+    private func addReusedRuleButton(_ rule: VideoGenerationReusedRule) -> some View {
+        let isAdded: Bool = self.viewModel.isCatalogSourceAdded(rule.catalogSource)
+        self.capsuleButton(
+            titleKey: isAdded
+                ? "generation_input_reused_added"
+                : (self.isAddingReusedRule ? "generation_input_reused_adding" : "generation_input_reused_add_button"),
+            isProminent: true,
+            isEnabled: isAdded == false && self.isAddingReusedRule == false,
+            action: {
+                self.addReusedRule(rule)
+            }
+        )
+    }
+
+    private func regenerateLink(titleKey: String) -> some View {
+        Button(NSLocalizedString(titleKey, comment: "")) {
+            self.isShowingRegenerateSheet = true
+        }
+        .font(.subheadline)
+        .foregroundStyle(CatalogPalette.addAction)
+        .frame(maxWidth: .infinity, minHeight: 44)
+        .padding(.top, 6)
+    }
+
+    private func addReusedRule(_ rule: VideoGenerationReusedRule) {
+        guard self.isAddingReusedRule == false else {
+            return
+        }
+        self.isAddingReusedRule = true
+        self.didFailToAddReusedRule = false
+        Task { @MainActor in
+            let didAdd: Bool = await self.viewModel.addReusedRule(rule)
+            self.isAddingReusedRule = false
+            if didAdd {
+                self.onFinished()
+            } else {
+                self.didFailToAddReusedRule = true
+            }
+        }
+    }
+
+    /// 中文注释：检查可提交后问一次；回来时网址或结论已变就丢弃，不覆盖新的状态。
+    private func startReusePreview(for result: VideoGenerationInputPreflight) {
+        self.cancelReusePreview()
+        guard result.canSubmit else {
+            return
+        }
+        self.reusePreviewTask = Task { @MainActor in
+            let preview: GenerationReusePreview? = await self.viewModel.loadReusePreview(
+                preflight: result,
+                sourceKind: self.sourceKind
+            )
+            guard Task.isCancelled == false, self.result == result else {
+                return
+            }
+            self.reusePreview = preview
+            self.reusePreviewTask = nil
+        }
+    }
+
+    private func cancelReusePreview() {
+        self.reusePreviewTask?.cancel()
+        self.reusePreviewTask = nil
+        self.reusePreview = nil
+    }
+
+    /// 中文注释：重新生成面板的余额说明：重新生成跳过复用，不提「现成规则只扣多少」那半句。
+    private var regenerateBalanceFooter: String? {
+        guard let wallet: CoinWalletStore = self.viewModel.coinWalletStore else {
+            return nil
+        }
+        if let balance: Int = wallet.balance {
+            return String(format: NSLocalizedString("generation_input_regenerate_balance", comment: ""), balance)
+        }
+        return NSLocalizedString("generation_input_regenerate_balance_unknown", comment: "")
+    }
+
     // MARK: - 检查
 
     private func startAssessment(inputMethod: PreflightInputMethod) {
@@ -703,6 +868,7 @@ struct VideoGenerationInputView: View {
         }
         self.assessmentTask?.cancel()
         self.cancelPendingReturn()
+        self.cancelReusePreview()
         self.result = nil
         self.errorMessage = nil
         self.isChecking = true
@@ -723,6 +889,7 @@ struct VideoGenerationInputView: View {
                 self.isChecking = false
                 self.assessmentTask = nil
                 self.assessmentID = nil
+                self.startReusePreview(for: result)
             } catch is CancellationError {
                 guard self.assessmentID == assessmentID else {
                     return
@@ -774,8 +941,8 @@ struct VideoGenerationInputView: View {
                 guard Task.isCancelled == false else {
                     return
                 }
-                // 中文注释：服务端复用的规则（`.reused`）只在这一屏提示「规则已存在」，不再自动添加成来源——
-                // 自动添加会顺带选中它并跳到库（2026-10-03 用户裁定不要）；规则已在目录「我的生成」里，由用户自己添加。
+                // 中文注释：服务端复用的规则（`.reused`）不自动添加成来源——自动添加会顺带选中它并跳到库
+                // （2026-10-03 用户裁定不要）；2026-10-19 起由用户在这一屏点「添加为来源」手动添加。
                 self.submissionState = .finished(outcome)
                 if case .submitted = outcome {
                     self.scheduleReturnToSources()
@@ -797,6 +964,8 @@ struct VideoGenerationInputView: View {
         self.submissionTask?.cancel()
         self.submissionTask = nil
         self.cancelPendingReturn()
+        self.isAddingReusedRule = false
+        self.didFailToAddReusedRule = false
         self.submissionState = .idle
     }
 
@@ -809,7 +978,7 @@ struct VideoGenerationInputView: View {
     }
 
     /// 中文注释：只有 `.submitted` 走自动返回——那一条是「生成请求成功」的唯一形态。
-    /// `.reused` 命中的是服务端已有的规则，那一屏还挂着「重新生成」入口，自动退出会把它吞掉。
+    /// `.reused` 命中的是服务端已有的规则，那一屏要等用户点「添加为来源」或重新生成，自动退出会把它们吞掉。
     private func scheduleReturnToSources() {
         self.cancelPendingReturn()
         self.returnTask = Task { @MainActor in
@@ -935,7 +1104,7 @@ extension VideoGenerationInputView {
 }
 
 /// 中文注释：成功率一行的图标与文字间距 6pt、图标与首行基线对齐（合同第三节的版式）；系统 Label 的默认间距偏大。
-private struct GenerationRateLabelStyle: LabelStyle {
+struct GenerationRateLabelStyle: LabelStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             configuration.icon

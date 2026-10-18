@@ -169,3 +169,24 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
         }
     }
 }
+
+/// 中文注释：提交前的只读预览放在同一个适配器上（docs/design/Generation-Input-Page-Redesign-Design.md 第三、六节）——
+/// 共用同一个 `acceptLanguage` 来源，预览与随后的提交才落到服务端同一个复用键上。
+extension APIKitVideoGenerationTaskClient: GenerationReusePreviewing {
+    func reusePreview(
+        sourceKind: RuleGenerationSourceKind,
+        entryURL: String,
+        accessToken: String
+    ) async throws -> GenerationReusePreview? {
+        let preview: PortalRuleReusePreview = try await self.api.reusePreview(
+            sourceKind: Self.portalSourceKind(sourceKind),
+            entryURL: entryURL,
+            acceptLanguage: self.acceptLanguage(),
+            accessToken: accessToken
+        )
+        guard preview.reusable else {
+            return nil
+        }
+        return GenerationReusePreview(coinCost: max(0, preview.coinCost))
+    }
+}

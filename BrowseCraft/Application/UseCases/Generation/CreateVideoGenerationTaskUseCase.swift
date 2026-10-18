@@ -11,15 +11,49 @@ struct CreateVideoGenerationTaskUseCase: Sendable {
     private let taskClient: any VideoGenerationTaskCreating
     private let accessTokenProvider: any PortalAccessTokenProviding
     private let catalogRuleDecryptor: CatalogRuleDecryptor
+    /// 提交前的只读预览（Generation-Input-Page-Redesign-Design.md 第三节）；nil = 未接线，输入页按「没有现成规则」显示。
+    private let reusePreviewer: (any GenerationReusePreviewing)?
 
     init(
         taskClient: any VideoGenerationTaskCreating,
         accessTokenProvider: any PortalAccessTokenProviding,
-        catalogRuleDecryptor: CatalogRuleDecryptor = CatalogRuleDecryptor()
+        catalogRuleDecryptor: CatalogRuleDecryptor = CatalogRuleDecryptor(),
+        reusePreviewer: (any GenerationReusePreviewing)? = nil
     ) {
         self.taskClient = taskClient
         self.accessTokenProvider = accessTokenProvider
         self.catalogRuleDecryptor = catalogRuleDecryptor
+        self.reusePreviewer = reusePreviewer
+    }
+
+    /// 检查可提交后问一次：这个网址此刻提交会不会直接取用现成规则、要多少 coin。
+    ///
+    /// 中文注释：与 `execute` 用同一个提交串（`submissionString`），服务端走同一个复用判定。未登录、未接线、
+    /// 不可取用与查询失败一律返回 nil——输入页照常显示取页方式与「滑动生成」，不弹错；失败记一条吞错日志（`BCA-OBS-015`）。
+    func reusePreview(
+        preflight: VideoGenerationInputPreflight,
+        sourceKind: RuleGenerationSourceKind
+    ) async -> GenerationReusePreview? {
+        guard preflight.canSubmit,
+              let previewer: any GenerationReusePreviewing = self.reusePreviewer,
+              let accessToken: String = await self.accessTokenProvider.validAccessToken() else {
+            return nil
+        }
+        do {
+            return try await previewer.reusePreview(
+                sourceKind: sourceKind,
+                entryURL: preflight.submissionString,
+                accessToken: accessToken
+            )
+        } catch is CancellationError {
+            return nil
+        } catch {
+            AppLog.error(.generation, "reuse-preview-unavailable", [
+                "kind": .enumValue(sourceKind),
+                "error": .error(error)
+            ])
+            return nil
+        }
     }
 
     /// 只接受 `canSubmit == true` 且版本未漂移的预检结果；提交串只取 `submissionString`。

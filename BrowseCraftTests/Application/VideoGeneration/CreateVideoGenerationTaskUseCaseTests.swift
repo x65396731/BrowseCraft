@@ -86,6 +86,70 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
         )
     }
 
+    /// 网址输入页「现成规则」（Generation-Input-Page-Redesign-Design.md 第三节）：预览用与提交同一个提交串与 token。
+    private actor RecordingReusePreviewer: GenerationReusePreviewing {
+        private(set) var calls: [(RuleGenerationSourceKind, String, String)] = []
+        let preview: GenerationReusePreview?
+
+        init(preview: GenerationReusePreview?) {
+            self.preview = preview
+        }
+
+        func reusePreview(
+            sourceKind: RuleGenerationSourceKind,
+            entryURL: String,
+            accessToken: String
+        ) async throws -> GenerationReusePreview? {
+            self.calls.append((sourceKind, entryURL, accessToken))
+            return self.preview
+        }
+
+        func callCount() -> Int {
+            return self.calls.count
+        }
+
+        func lastEntryURL() -> String? {
+            return self.calls.last?.1
+        }
+    }
+
+    func testReusePreviewUsesSubmissionStringAndToken() async throws {
+        let previewer = RecordingReusePreviewer(preview: GenerationReusePreview(coinCost: 100))
+        let useCase = CreateVideoGenerationTaskUseCase(
+            taskClient: RecordingTaskClient(result: .success(UUID())),
+            accessTokenProvider: StaticTokenProvider(token: "access-1"),
+            reusePreviewer: previewer
+        )
+
+        let preview = await useCase.reusePreview(preflight: self.preflight(status: .accepted), sourceKind: .comic)
+
+        XCTAssertEqual(preview, GenerationReusePreview(coinCost: 100))
+        let entryURL = await previewer.lastEntryURL()
+        XCTAssertEqual(entryURL, Self.watchURL)
+    }
+
+    func testReusePreviewIsNilWithoutTokenOrForUnsubmittablePreflight() async throws {
+        let previewer = RecordingReusePreviewer(preview: GenerationReusePreview(coinCost: 0))
+        let signedOut = CreateVideoGenerationTaskUseCase(
+            taskClient: RecordingTaskClient(result: .success(UUID())),
+            accessTokenProvider: StaticTokenProvider(token: nil),
+            reusePreviewer: previewer
+        )
+        let signedIn = CreateVideoGenerationTaskUseCase(
+            taskClient: RecordingTaskClient(result: .success(UUID())),
+            accessTokenProvider: StaticTokenProvider(token: "access-1"),
+            reusePreviewer: previewer
+        )
+
+        let withoutToken = await signedOut.reusePreview(preflight: self.preflight(status: .accepted), sourceKind: .video)
+        let rejected = await signedIn.reusePreview(preflight: self.preflight(status: .rejected), sourceKind: .video)
+
+        XCTAssertNil(withoutToken)
+        XCTAssertNil(rejected)
+        let calls = await previewer.callCount()
+        XCTAssertEqual(calls, 0)
+    }
+
     func testAcceptedSubmitsExactSubmissionStringWithBearerToken() async throws {
         let jobID: UUID = UUID()
         let client = RecordingTaskClient(result: .success(jobID))
