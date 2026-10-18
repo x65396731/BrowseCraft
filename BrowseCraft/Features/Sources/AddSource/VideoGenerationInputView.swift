@@ -531,13 +531,14 @@ struct VideoGenerationInputView: View {
         }
     }
 
-    /// 中文注释：成功率一行（合同第三节）：「{地区} · 近 {N} 天{普通 / 困难模式}生成成功 {百分比}」，百分比用主文字色 semibold。
-    /// 地区由 App 把服务端的两位国家码按系统语言本地化，`scope` 为 global 时写「全部地区」；当前档没有数（请求失败、
-    /// `rate` 为空、本地区判断不出）时返回 nil，这一行不显示。App 不估算、不写死数字。
+    /// 中文注释：成功率一行（合同第三节）两种文案：有百分比时「{地区} · 近 {N} 天{普通 / 困难模式}生成成功 {百分比}」；
+    /// 样本不足、`rate` 为空时「{地区} · 近 {N} 天{普通 / 困难模式}生成 {总次数} 次，成功 {成功次数} 次」。百分比或成功次数用
+    /// 主文字色 semibold。地区由 App 把服务端的两位国家码按系统语言本地化，`scope` 为 global 时写「全部地区」；当前档没有数
+    /// （请求失败、`samples` 为 0、本地区判断不出）时返回 nil，这一行不显示。App 不估算、不写死数字。
     private var generationRateLine: AttributedString? {
         guard let rates: GenerationRates = self.generationRates,
               let tierRate: GenerationTierRate = rates.rate(for: self.acquisitionTier),
-              let rate: Double = tierRate.rate else {
+              tierRate.rate != nil || tierRate.samples > 0 else {
             return nil
         }
         let regionName: String
@@ -550,15 +551,27 @@ struct VideoGenerationInputView: View {
             }
             regionName = Locale.current.localizedString(forRegionCode: code) ?? code
         }
-        let percent: String = rate.formatted(
-            .percent.precision(.fractionLength(0)).rounded(rule: .toNearestOrAwayFromZero)
-        )
-        let format: String = NSLocalizedString(
-            self.acquisitionTier == .hard ? "generation_input_rate_hard" : "generation_input_rate_normal",
-            comment: "成功率一行"
-        )
-        var line: AttributedString = AttributedString(String(format: format, regionName, rates.windowDays, percent))
-        if let range: Range<AttributedString.Index> = line.range(of: percent, options: .backwards) {
+        let text: String
+        let emphasized: String
+        if let rate: Double = tierRate.rate {
+            emphasized = rate.formatted(
+                .percent.precision(.fractionLength(0)).rounded(rule: .toNearestOrAwayFromZero)
+            )
+            let format: String = NSLocalizedString(
+                self.acquisitionTier == .hard ? "generation_input_rate_hard" : "generation_input_rate_normal",
+                comment: "成功率一行"
+            )
+            text = String(format: format, regionName, rates.windowDays, emphasized)
+        } else {
+            emphasized = String(tierRate.successes)
+            let format: String = NSLocalizedString(
+                self.acquisitionTier == .hard ? "generation_input_rate_counts_hard" : "generation_input_rate_counts_normal",
+                comment: "成功率一行：样本不足时只给次数"
+            )
+            text = String(format: format, regionName, rates.windowDays, tierRate.samples, tierRate.successes)
+        }
+        var line: AttributedString = AttributedString(text)
+        if let range: Range<AttributedString.Index> = line.range(of: emphasized, options: .backwards) {
             line[range].foregroundColor = Color.primary
             line[range].font = Font.footnote.weight(.semibold).monospacedDigit()
         }

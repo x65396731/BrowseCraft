@@ -6,9 +6,13 @@ enum GenerationRateScope: Hashable, Sendable {
     case global
 }
 
-/// 一档的生成成功率。`rate` 为 nil 表示全部地区样本也不足，这一档不显示。
+/// 一档的生成成功率。`rate` 为 nil 表示全部地区样本也不足：`samples` 大于 0 时显示次数，为 0 时这一档不显示。
+///
+/// 中文注释：`samples` 是已结束的次数、`successes` 是其中成功的次数（合同第三节第 3 步）。
 struct GenerationTierRate: Hashable, Sendable {
     let rate: Double?
+    let samples: Int
+    let successes: Int
     let scope: GenerationRateScope
 }
 

@@ -977,6 +977,8 @@
 "generation_input_rate_normal" = "%1$@ · 近 %2$d 天普通模式生成成功 %3$@";
 "generation_input_rate_hard" = "%1$@ · 近 %2$d 天困難模式生成成功 %3$@";
 "generation_input_rate_region_global" = "所有地區";
+"generation_input_rate_counts_normal" = "%1$@ · 近 %2$d 天普通模式生成 %3$d 次，成功 %4$d 次";
+"generation_input_rate_counts_hard" = "%1$@ · 近 %2$d 天困難模式生成 %3$d 次，成功 %4$d 次";
 "settings_section_notifications" = "通知";
 "settings_campaign_push" = "活動推播";
 "settings_campaign_push_footer" = "活動開始時提醒你，例如送 coin。生成結果的通知不受影響，由系統設定裡的通知權限決定。";

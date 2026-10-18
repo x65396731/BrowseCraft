@@ -977,6 +977,8 @@
 "generation_input_rate_normal" = "%1$@ · Normal mode success, last %2$d days: %3$@";
 "generation_input_rate_hard" = "%1$@ · Hard mode success, last %2$d days: %3$@";
 "generation_input_rate_region_global" = "All regions";
+"generation_input_rate_counts_normal" = "%1$@ · Normal mode, last %2$d days: generated %3$d, succeeded %4$d";
+"generation_input_rate_counts_hard" = "%1$@ · Hard mode, last %2$d days: generated %3$d, succeeded %4$d";
 "settings_section_notifications" = "Notifications";
 "settings_campaign_push" = "Promotions";
 "settings_campaign_push_footer" = "Get notified when a promotion starts, such as free coins. Rule generation result notifications are not affected; they follow the notification permission in system Settings.";

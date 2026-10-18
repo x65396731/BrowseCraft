@@ -27,14 +27,21 @@ struct APIKitGenerationRatesClient: GenerationRatesFetching {
         guard let rate: PortalGenerationTierRate else {
             return nil
         }
+        let scope: GenerationRateScope
         switch rate.scope {
         case "region":
-            return GenerationTierRate(rate: rate.rate, scope: .region)
+            scope = .region
         case "global":
-            return GenerationTierRate(rate: rate.rate, scope: .global)
+            scope = .global
         default:
             return nil
         }
+        return GenerationTierRate(
+            rate: rate.rate,
+            samples: rate.samples ?? 0,
+            successes: rate.successes ?? 0,
+            scope: scope
+        )
     }
 
     /// 中文注释：App 与 APIKit 各有一份 kind 枚举，`switch` 保证任一边新增取值时编译期报错。
