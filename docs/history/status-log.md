@@ -1438,3 +1438,6 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 素材：Seedream 5.0 Pro 3:4 1.5K 四张（20 分），参考图换成 `comic-list-placeholder.png`；按 60×80pt 缩小比较，七分身的两张脸与书清楚，选第 1 张，居中缩到 216×288。
 - 实施（未 build、测试未跑，改动在工作区未提交）：`VideoDetailView`、`ComicDetailSections` 改用列表图；删两个 imageset；`BookCoverPlaceholder` 换图；预算声明删两行、书籍一行改 216×288；影视详情、漫画详情、库页书籍三份合同的封面行同步。
 - `STATUS.md` 第 2 节新增一行 implemented / not-run，检查点暂记基线 `fed5d09`。
+
+2026-10-20 占位图收敛提交（用户：先把本地的提交上传）。
+- 实施提交为 `2fb6cb1`。`STATUS.md` 第 2 节占位图收敛一行检查点 fed5d09（基线）→ `2fb6cb1`，删去「改动在工作区未提交」的备注；随后与品牌等待标记的两个提交一起推送到 origin/main。
