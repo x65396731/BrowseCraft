@@ -1351,3 +1351,6 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 新增 `docs/design/Problem-Report-Design.md` 与 `BCA-OBS-018` ~ `BCA-OBS-022`、`BCA-UI-006`；`Analytics-Events-Design.md` 第 2 节加一条：报告不是埋点也不是 Crashlytics 报告、两个开关不管、面板事件在实施时同提交登记。面板的事件、参数、页面名与新失败点 `book_reader_chapter` 没有先登记进第 3–6 节：闸门 A13 双向核对字典与代码，先登记会失败，沿用活动提示合同的做法在实施提交里登记（合同第十节列出名字）。
 - `STATUS.md` 新增第 12 节六行：合同与隐私两行 implemented / static-audit-passed，前置、PortalCore 第一期、App 第一期、第二期四行 not-started / not-run；检查点先登记为当前 HEAD `7a2adbc`。docs/README.md 与本地 AGENTS.md 加读取入口。
 - 合同提交为 `9087d98`；第 12 节「合同」一行检查点由 HEAD `7a2adbc` 改登记为 `9087d98`。
+
+2026-10-19 预检单页超时与引擎对齐（fwq `APP-MEMO-044`）。
+- `STATUS.md` 第 2 节新增一行 implemented / not-run，检查点 `014b697`（代码：策略与取页请求的默认单页超时 12 → 25 秒，全局 deadline 30 秒不动）；fwq `docs/rules/STATUS.md` 的 `APP-MEMO-044` 行实施列 not-started → implemented。
