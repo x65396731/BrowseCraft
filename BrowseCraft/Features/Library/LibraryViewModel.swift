@@ -1191,7 +1191,6 @@ final class LibraryViewModel {
         self.bookReadingHistoryByItemID = [:]
     }
 
-    /// 整站是否有声：reader 规则全是 audio（书籍库合同第二节）；眉行、封面耳机与「听」措辞都看它。
     /// 中文注释：库页的报告上下文（Problem-Report-Design.md 第三节）：报当前来源的列表、当前分类与翻页。
     func problemReportContext(entry: ProblemReportEntry, failureMessage: String?) -> ProblemReportContext? {
         guard let source: Source = self.selectedSource else {
@@ -1203,7 +1202,7 @@ final class LibraryViewModel {
             screen: .library,
             source: source,
             entry: entry,
-            pageName: tab.map { "\(libraryName) · \($0.title)" } ?? libraryName,
+            pageName: Self.problemReportPageName(libraryName: libraryName, tabTitle: tab?.title, sourceName: source.name),
             failureMessage: failureMessage,
             primaryScope: .list,
             targetURL: ProblemReportContext.absoluteURL(tab?.list.url, baseURL: source.baseURL),
@@ -1219,6 +1218,21 @@ final class LibraryViewModel {
         )
     }
 
+    /// 中文注释：对象卡是「来源名 · 页面名」；来源名里已有这个分类名时（如「樱花动漫 · 日本动漫」的「日本动漫」分类）不再重复。
+    static func problemReportPageName(libraryName: String, tabTitle: String?, sourceName: String) -> String {
+        guard let tabTitle: String, tabTitle.isEmpty == false else {
+            return libraryName
+        }
+        let sourceNameParts: [String] = sourceName
+            .components(separatedBy: "·")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+        if sourceNameParts.contains(tabTitle.trimmingCharacters(in: .whitespaces)) {
+            return libraryName
+        }
+        return "\(libraryName) · \(tabTitle)"
+    }
+
+    /// 整站是否有声：reader 规则全是 audio（书籍库合同第二节）；眉行、封面耳机与「听」措辞都看它。
     var isAudiobookSource: Bool {
         guard let source: Source = self.selectedSource else {
             return false

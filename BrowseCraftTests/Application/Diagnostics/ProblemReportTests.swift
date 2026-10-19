@@ -57,6 +57,17 @@ struct ProblemReportOptionsTests {
     }
 }
 
+@MainActor
+struct ProblemReportLibraryPageNameTests {
+    /// 对象卡「来源名 · 页面名」：来源名里已有分类名时不再重复，其他分类照常带上。
+    @Test func tabTitleAlreadyInSourceNameIsNotRepeated() {
+        #expect(LibraryViewModel.problemReportPageName(libraryName: "库页", tabTitle: "日本动漫", sourceName: "樱花动漫 · 日本动漫") == "库页")
+        #expect(LibraryViewModel.problemReportPageName(libraryName: "库页", tabTitle: "国产动漫", sourceName: "樱花动漫 · 日本动漫") == "库页 · 国产动漫")
+        #expect(LibraryViewModel.problemReportPageName(libraryName: "库页", tabTitle: "动漫", sourceName: "樱花动漫 · 日本动漫") == "库页 · 动漫")
+        #expect(LibraryViewModel.problemReportPageName(libraryName: "库页", tabTitle: nil, sourceName: "樱花动漫") == "库页")
+    }
+}
+
 struct RuleFailureSnapshotStoreTests {
     @Test func returnsTheLatestSnapshotForPointAndSourceAndKeepsTwenty() {
         let store: RuleFailureSnapshotStore = RuleFailureSnapshotStore()
