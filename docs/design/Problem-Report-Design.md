@@ -154,7 +154,7 @@ detail（详情与目录）、content（某一集、话、章的内容，只从�
 | 规则错误摘要 | `RuleExecutionError` 实现 `DiagnosticSummaryProviding`：只写 case 名、状态码、阶段、ruleID、operation，不写网址；现有日志与 Crashlytics 的摘要随之变清楚 |
 | Shared/Logging | `AppLogging` 加一个取日志片段的方法，复用本机日志文件的读取逻辑；按会话、时间窗、类别、条数与字节上限取，取之前先 `AppLog.flush()` |
 | Application | 报告模型、发送端口与发送用例：拼报文、清洗网址、截断补充说明，已登录时带令牌；日志片段经一个端口取，由组合根装配（Shared 不得引用 Application） |
-| Application · 规则目录 | `AddCatalogSourceUseCase` 在添加来源与跟随更新时写 `catalogRevision`，「指纹相同、不物化」的分支也写，存量来源刷新一次目录即补齐 |
+| Application · 规则目录 | `AddCatalogSourceUseCase` 在添加来源与跟随更新时写 `catalogRevision`，「指纹相同、不物化」的分支也写，公共目录里的存量来源刷新一次目录即补齐；不在公共目录列表里的生成来源只在下次经生成结果写入时补上，此前的报告由服务端按时间对版本 |
 | Infrastructure | 报告发送的 APIKit 适配器，服务端错误码映射成「太频繁」「发送失败」两类；`sources` 追加 `catalogRevision` 列（只追加迁移），`GRDBSourceRepository` 读写它 |
 | BrowseCraftAPIKit | `PortalAPIConfiguration` 加 `/v1/problem-reports`；`PortalAPIClient` 加发送方法，令牌可选、经 `sendData` 发送；目录来源载荷解出明文 `catalogSHA256` |
 | Features/Shared | 报告面板（含「问题出在哪」两段选择与选集行）、页面上下文（screen + scope + 来源 + 对象 + 可空的失败点）、小字链接与「…」菜单两个小组件；`LibraryStateBanner` 加可选的报告动作 |

@@ -1376,3 +1376,10 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 部署前在服务器上用 `backup_database.py` 现取在线快照（`portalcore-20261019T174204Z.db`）拉到本机：预检 22 条通过；在副本上实际执行 v0023、v0024——106 个目录来源全部回填为第一版、无算不出指纹的行，`generated_rule_index` 的指纹在版本表里都有对应，`problem_reports` 建表为空，外键检查无违例、integrity ok，重跑幂等，再预检 24 条通过。
 - 推送 PortalCore `f079121`，check 通过后经 deploy 工作流部署，部署内预检 22 条通过、新应用 v0023 与 v0024。线上核对：`/health/ready` 200；迁移账本 24，`catalog_source_revisions` 106 行，`problem_reports` 0 行；公共目录 3 条全部带 `catalogSHA256`；`POST /v1/problem-reports` 对不合法的请求体回 400 `PROBLEM_REPORT_INVALID_REQUEST`，OpenAPI 含该路径（没有发真实报告，线上表保持为空）。
 - 推送 APIKit `b5a2fa5` 与 BrowseCraft。STATUS 第 12 节 PortalCore 一行注明已部署，App 一行注明 APIKit 已推送、build 通过（验证列仍 not-run：测试未跑、未在模拟器走查）。
+
+2026-10-20 页内问题报告模拟器走查（用户：用模拟器测试）。
+- iPhone 18 Pro 模拟器（iOS 27）跑 Debug 包，来源樱花动漫 · 日本动漫（yhdm.one）。库页「…」→「报告这一页的问题」打开面板（9 个列表问题码），选「其他」发送，回执 `R-4PQ9-3T68`；影视详情深色头图区「…」打开面板，「问题出在哪」切到「某一集的内容」，选集页列出「HD中字」，选「其他」发送，回执 `R-4KSY-X8AZ`。
+- 服务器只读核对 `problem_reports` 两行：scope 分别为 list / content，screen 为 library / video_detail，`problemType` other，entry page_menu；content 一行带 `targetURL`（`https://yhdm.one/vod-play/2026829702/hd.html`，无查询串）、`targetTitle`、`chapterTitle`「HD中字」、`chapterIndex` 1；日志片段 6 行与 11 行；诊断码与账号 ID 齐。
+- 两行 `ruleRevision` 都为空、`revisionMatch` 为 by_time 并对到 v0023 回填的那一版。原因：这个来源是本版之前从生成结果加的，不在公共目录列表里（公共目录只有 3 条），刷新目录不会给它补 `catalogRevision`；按合同降级为按时间对版本，行为正确。合同第四节「规则目录」一行原写「存量来源刷新一次目录即补齐」，改为只对公共目录里的来源成立、生成来源在下次经生成结果写入时补上。
+- 未走查：漫画详情、站点书详情（来源位置 1 / 1 已满，换来源要删现有来源）、失败态入口、发送失败重试；测试目标仍未跑。模拟器上设备型号显示 `arm64`（真机为机型标识）；面板对象卡在来源名已含分类名时会重复（「樱花动漫 · 日本动漫 · 库页 · 日本动漫」），记为待打磨。
+- `STATUS.md` 第 12 节「App 侧第一期」验证列 not-run → simulator-passed，更新日期 2026-10-19 → 2026-10-20，备注走查范围。
