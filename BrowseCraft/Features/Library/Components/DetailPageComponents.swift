@@ -106,9 +106,11 @@ struct DetailTopButtons: View {
     let accent: Color
     let backAction: () -> Void
     let favoriteAction: () -> Void
+    /// 中文注释：「…」圆按钮里的「报告这一页的问题」（Problem-Report-Design.md 第三节）；nil 时不出这个按钮。
+    var reportAction: (() -> Void)? = nil
 
     var body: some View {
-        HStack {
+        HStack(spacing: 8) {
             Button(action: self.backAction) {
                 Image(systemName: "chevron.left")
                     .font(.headline.weight(.semibold))
@@ -123,6 +125,10 @@ struct DetailTopButtons: View {
             .accessibilityLabel(NSLocalizedString("Back", comment: ""))
 
             Spacer(minLength: 0)
+
+            if let reportAction: () -> Void = self.reportAction {
+                ProblemReportMenuButton(action: reportAction)
+            }
 
             if self.showsFavorite {
                 Button(action: self.favoriteAction) {

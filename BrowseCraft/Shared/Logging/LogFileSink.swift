@@ -65,6 +65,50 @@ final class LogFileSink: LogSink, @unchecked Sendable {
         return exportURL
     }
 
+    /// 中文注释：问题报告的日志片段（Problem-Report-Design.md 第六节）：本次会话、时间窗内、指定类别的行原样，
+    /// 取最后 `maxLines` 行，再从前往后丢到不超过 `maxBytes`（越靠近发送时刻的越留）。调用方先 `AppLog.flush()`。
+    func recentLines(
+        sessionID: String,
+        since: Date,
+        categories: Set<String>,
+        maxLines: Int,
+        maxBytes: Int
+    ) -> [String] {
+        self.lock.lock()
+        let contents: [Data] = [self.previousFileURL, self.currentFileURL].compactMap { url in
+            guard self.fileManager.fileExists(atPath: url.path) else {
+                return nil
+            }
+            return try? Data(contentsOf: url) // try?: 读不到的文件当作没有，片段少几行不影响发送
+        }
+        self.lock.unlock()
+
+        let parser: Date.ISO8601FormatStyle = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+        var lines: [String] = []
+        for data: Data in contents {
+            for rawLine: Substring in String(decoding: data, as: UTF8.self).split(separator: "\n") {
+                let line: String = String(rawLine)
+                guard let object: [String: Any] = (try? JSONSerialization.jsonObject(with: Data(line.utf8))) as? [String: Any], // try?: 坏行跳过
+                      let category: String = object["category"] as? String,
+                      categories.contains(category),
+                      let context: [String: Any] = object["context"] as? [String: Any],
+                      context["session"] as? String == sessionID,
+                      let stamp: String = object["t"] as? String,
+                      let date: Date = try? parser.parse(stamp), // try?: 时间戳解析不了的行跳过
+                      date >= since else {
+                    continue
+                }
+                lines.append(line)
+            }
+        }
+        var kept: [String] = Array(lines.suffix(maxLines))
+        var total: Int = kept.reduce(0) { $0 + $1.utf8.count }
+        while total > maxBytes, kept.isEmpty == false {
+            total -= kept.removeFirst().utf8.count
+        }
+        return kept
+    }
+
     /// 中文注释：删除账号时清掉本机日志（BCA-OBS-016）；之后的记录写进新文件。
     func removeAllFiles() {
         self.lock.lock()

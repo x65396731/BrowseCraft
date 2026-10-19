@@ -117,6 +117,36 @@ final class BookSiteDetailViewModel {
     // MARK: - 头部（第五节）
 
     /// 中文注释：导航栏与头部标题，规则见 `SiteBookTitle`（与阅读器同一个）。
+    /// 中文注释：站点书详情的报告上下文（Problem-Report-Design.md 第三节）：报详情与目录，或某一章的正文或音频（有声书同此）；
+    /// 选集默认续读位置那一章，没有时取第一章。
+    func problemReportContext(entry: ProblemReportEntry, failureMessage: String?) -> ProblemReportContext {
+        let chapters: [BookPublicationItem] = self.chapters
+        let lines: [ProblemReportEpisodeLine] = ProblemReportContext.singleLine(
+            titlesAndURLs: chapters.map { (title: $0.title, url: Optional($0.chapterURL.absoluteString)) }
+        )
+        let continueIndex: Int? = self.lastReadChapterURL.flatMap { url in
+            return chapters.firstIndex { $0.chapterURL == url }
+        }
+        return ProblemReportContext(
+            screen: .bookDetail,
+            source: self.source,
+            entry: entry,
+            pageName: NSLocalizedString("problem_report_page_detail", comment: "问题报告：详情"),
+            failureMessage: failureMessage,
+            primaryScope: .detail,
+            targetURL: ProblemReportContext.absoluteURL(self.item.detailURL, baseURL: self.source.baseURL),
+            targetTitle: self.displayTitle,
+            categoryKey: nil,
+            primaryFailurePoints: [.bookDetail],
+            contentFailurePoints: [.bookReaderOpen],
+            lines: lines,
+            defaultLineID: lines.first?.id,
+            defaultEpisodeID: lines.isEmpty ? nil : "\(continueIndex ?? 0)",
+            defaultEpisodeIsFromHistory: continueIndex != nil,
+            isAudiobook: self.isAudiobook
+        )
+    }
+
     var displayTitle: String {
         return SiteBookTitle.preferred(itemTitle: self.item.title, detailTitle: self.manifest?.title)
     }

@@ -16,11 +16,27 @@ struct LibraryPlaceholderView: View {
     let pullHint: String
     /// 中文注释：同 `EmptyStateView`——给了插画就画插画，没给退回系统符号。
     var illustration: String?
+    /// 中文注释：失败态的「报告问题」小字链接（Problem-Report-Design.md 第三节）；空态不传。放在合并的读屏元素之外，单独可点。
+    var reportAction: (() -> Void)? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion: Bool
     @State private var isHintLowered: Bool = false
 
     var body: some View {
+        VStack(spacing: 8) {
+            self.placeholderContent
+            if let reportAction: () -> Void = self.reportAction {
+                ProblemReportLink(action: reportAction)
+            }
+        }
+        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity)
+        // 中文注释：撑满滚动视口再居中，一是让版面落在 tab 条与底部标签栏之间，
+        // 二是让整屏都属于滚动视图，随便哪里都能下拉。
+        .containerRelativeFrame(.vertical, alignment: .center)
+    }
+
+    private var placeholderContent: some View {
         VStack(spacing: 12) {
             EmptyStateIconView(systemImage: self.systemImage, illustration: self.illustration)
 
@@ -36,11 +52,6 @@ struct LibraryPlaceholderView: View {
             self.pullHintView
                 .padding(.top, 12)
         }
-        .padding(.horizontal, 24)
-        .frame(maxWidth: .infinity)
-        // 中文注释：撑满滚动视口再居中，一是让版面落在 tab 条与底部标签栏之间，
-        // 二是让整屏都属于滚动视图，随便哪里都能下拉。
-        .containerRelativeFrame(.vertical, alignment: .center)
         .accessibilityElement(children: .combine)
     }
 

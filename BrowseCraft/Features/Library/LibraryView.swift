@@ -23,6 +23,9 @@ struct LibraryView: View {
     @State private var comicReaderHistory: ComicChapterHistory?
     /// 中文注释：「上次读到」瓷砖与书籍行长按「继续读」：用读书历史直接开阅读器 / 播放器（不带章节，按续读位置接着），与历史页点行同一条路径。
     @State private var bookReaderSelection: SiteBookChapterSelection?
+    /// 中文注释：报告问题面板（Problem-Report-Design.md 第三、四节）；发送用例由根视图注入，未注入时不出入口。
+    @Environment(\.problemReportSubmitter) private var problemReportSubmitter: SubmitProblemReportUseCase?
+    @State private var problemReportContext: ProblemReportContext?
 
     var body: some View {
         NavigationStack {
@@ -175,6 +178,11 @@ struct LibraryView: View {
                     contentViewModelFactory: self.contentViewModelFactory
                 )
             }
+            .sheet(item: self.$problemReportContext) { context in
+                ProblemReportSheet(context: context) {
+                    self.problemReportContext = nil
+                }
+            }
             .analyticsScreen(.library)
             .onAppear {
                 // 中文注释：从详情 / 播放回到库页、从别的标签切回来，都重读一次本地历史——读取便宜，不等网络。
@@ -241,9 +249,35 @@ struct LibraryView: View {
                     if let loginState: LibrarySourceLoginState = self.viewModel.selectedSourceLoginState {
                         self.accountButton(loginState: loginState)
                     }
+                    if self.canReportProblems, self.viewModel.selectedSource != nil {
+                        ProblemReportMenuButton {
+                            self.presentProblemReport(entry: .pageMenu, failureMessage: nil)
+                        }
+                        .disabled(self.isInteractionLocked)
+                    }
                 }
                 .padding(.bottom, 2)
             }
+        }
+    }
+
+    // MARK: - 报告问题
+
+    private var canReportProblems: Bool {
+        return self.problemReportSubmitter != nil
+    }
+
+    private func presentProblemReport(entry: ProblemReportEntry, failureMessage: String?) {
+        self.problemReportContext = self.viewModel.problemReportContext(entry: entry, failureMessage: failureMessage)
+    }
+
+    /// 中文注释：失败态入口的动作；没有发送用例或没有失败文案时为 nil，组件不出链接。
+    private func reportAction(failureMessage: String?) -> (() -> Void)? {
+        guard self.canReportProblems, let failureMessage: String else {
+            return nil
+        }
+        return {
+            self.presentProblemReport(entry: .failureState, failureMessage: failureMessage)
         }
     }
 
@@ -537,7 +571,8 @@ struct LibraryView: View {
                 title: NSLocalizedString("library_body_failed_title", comment: "库列表失败态标题"),
                 message: message,
                 pullHint: NSLocalizedString("library_body_retry_pull_hint", comment: "失败态下拉重试提示"),
-                illustration: "EmptyStateOffline"
+                illustration: "EmptyStateOffline",
+                reportAction: self.reportAction(failureMessage: message)
             )
 
         case .content, .switchingSource:
@@ -552,7 +587,11 @@ struct LibraryView: View {
             // 中文注释：有内容时 tab 报的错走横幅；一条都没有时错误本身就是版面（`.failed`），
             // 不会再和空态各占一块。
             if let selectedListTabErrorMessage: String = self.viewModel.selectedListTabErrorMessage {
-                LibraryStateBanner(kind: .failure, message: selectedListTabErrorMessage)
+                LibraryStateBanner(
+                    kind: .failure,
+                    message: selectedListTabErrorMessage,
+                    reportAction: self.reportAction(failureMessage: selectedListTabErrorMessage)
+                )
                     .padding(.horizontal, 20)
                     .padding(.top, 12)
             }
@@ -582,6 +621,7 @@ struct LibraryView: View {
                     : nil,
                 paginationFailureDetail: self.viewModel.nextPageErrorMessage,
                 isLoadingNextPage: self.viewModel.isLoadingNextPage,
+                reportPaginationFailure: self.reportAction(failureMessage: self.viewModel.nextPageErrorMessage),
                 comicProgressBadgeText: self.viewModel.comicProgressBadgeText(for:),
                 comicContinueChapterLabel: { item in
                     self.viewModel.comicContinueHistory(for: item).map(LibraryViewModel.comicChapterLabel(for:))

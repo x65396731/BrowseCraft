@@ -10,6 +10,9 @@ struct VideoDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: VideoDetailViewModel
     @State private var isSynopsisExpanded: Bool = false
+    /// 中文注释：报告问题面板（Problem-Report-Design.md 第三、四节）；发送用例未注入时不出入口。
+    @Environment(\.problemReportSubmitter) private var problemReportSubmitter: SubmitProblemReportUseCase?
+    @State private var problemReportContext: ProblemReportContext?
 
     private static let headerContentHeight: CGFloat = 236
     private static let posterSize: CGSize = CGSize(width: 108, height: 162)
@@ -44,6 +47,11 @@ struct VideoDetailView: View {
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
+        .sheet(item: self.$problemReportContext) { context in
+            ProblemReportSheet(context: context) {
+                self.problemReportContext = nil
+            }
+        }
         .analyticsScreen(.videoDetail)
         .onAppear {
             CrashDiagnostics.shared.setSource(self.viewModel.source)
@@ -129,6 +137,11 @@ struct VideoDetailView: View {
                         self.dismiss()
                     }
                     Spacer(minLength: 0)
+                    if self.problemReportSubmitter != nil {
+                        ProblemReportMenuButton(onDark: true) {
+                            self.problemReportContext = self.viewModel.problemReportContext(entry: .pageMenu, failureMessage: nil)
+                        }
+                    }
                     self.favoriteButton
                 }
                 .padding(.top, safeAreaTop + 8)
@@ -339,7 +352,7 @@ struct VideoDetailView: View {
             }
 
             if let message: String = self.viewModel.playbackErrorMessage {
-                LibraryStateBanner(kind: .failure, message: message)
+                LibraryStateBanner(kind: .failure, message: message, reportAction: self.reportAction(failureMessage: message))
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
             }
@@ -347,7 +360,7 @@ struct VideoDetailView: View {
             // 中文注释：已有选集再下拉刷新失败——选集留着，错误用横幅（合同第八节，2026-10-10 裁定），不换成失败占位。
             if let message: String = self.viewModel.detailErrorMessage,
                self.viewModel.episodes.isEmpty == false {
-                LibraryStateBanner(kind: .failure, message: message)
+                LibraryStateBanner(kind: .failure, message: message, reportAction: self.reportAction(failureMessage: message))
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
             }
@@ -376,7 +389,8 @@ struct VideoDetailView: View {
                 tint: CatalogPalette.warning,
                 fill: CatalogPalette.warningFill,
                 title: NSLocalizedString("video_detail_failed_title", comment: ""),
-                message: message
+                message: message,
+                reportAction: self.reportAction(failureMessage: message)
             )
         } else if self.viewModel.episodes.isEmpty {
             self.placeholder(
@@ -464,7 +478,36 @@ struct VideoDetailView: View {
         .accessibilityAddTraits(isCurrent ? .isSelected : [])
     }
 
-    private func placeholder(systemImage: String, tint: Color, fill: Color, title: String, message: String) -> some View {
+    /// 中文注释：失败态入口（横幅与空选集占位）；没有发送用例时为 nil，组件不出链接。
+    private func reportAction(failureMessage: String) -> (() -> Void)? {
+        guard self.problemReportSubmitter != nil else {
+            return nil
+        }
+        return {
+            self.problemReportContext = self.viewModel.problemReportContext(entry: .failureState, failureMessage: failureMessage)
+        }
+    }
+
+    private func placeholder(
+        systemImage: String,
+        tint: Color,
+        fill: Color,
+        title: String,
+        message: String,
+        reportAction: (() -> Void)? = nil
+    ) -> some View {
+        VStack(spacing: 6) {
+            self.placeholderContent(systemImage: systemImage, tint: tint, fill: fill, title: title, message: message)
+            if let reportAction: () -> Void = reportAction {
+                ProblemReportLink(action: reportAction)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 24)
+        .padding(.top, 36)
+    }
+
+    private func placeholderContent(systemImage: String, tint: Color, fill: Color, title: String, message: String) -> some View {
         VStack(spacing: 10) {
             Image(systemName: systemImage)
                 .font(.system(size: 24, weight: .medium))
@@ -488,9 +531,6 @@ struct VideoDetailView: View {
             .foregroundStyle(.secondary)
             .padding(.top, 6)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 24)
-        .padding(.top, 36)
         .accessibilityElement(children: .combine)
     }
 }

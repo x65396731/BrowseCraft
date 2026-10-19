@@ -14,6 +14,8 @@ final class FeatureComposition {
     let historyFeatureFactory: HistoryFeatureFactory
     let settingsFeatureFactory: SettingsFeatureFactory
     let settingsViewModel: SettingsViewModel
+    /// 页内问题报告的发送用例（Problem-Report-Design.md 第七节），根视图注入环境，库页与三种详情页的面板取用。
+    let problemReportUseCase: SubmitProblemReportUseCase
 
     init(
         database: AppDatabase,
@@ -104,6 +106,26 @@ final class FeatureComposition {
         )
         self.settingsFeatureFactory = settingsFeatureFactory
         self.settingsViewModel = settingsFeatureFactory.makeViewModel()
+        self.problemReportUseCase = SubmitProblemReportUseCase(
+            submitter: APIKitProblemReportClient(
+                api: PortalProblemReportAPI(client: account.portalAPIClient)
+            ),
+            logProvider: AppLoggingProblemReportLogProvider(),
+            sourceRepository: account.sourceRepository,
+            accessTokenProvider: account.portalSessionCoordinator,
+            environment: {
+                let identity: DiagnosticIdentity = DiagnosticIdentityStore.shared.identity
+                return ProblemReportEnvironment(
+                    appVersion: DiagnosticDeviceInfo.appVersion,
+                    buildNumber: DiagnosticDeviceInfo.buildNumber,
+                    systemVersion: DiagnosticDeviceInfo.systemVersion,
+                    deviceModel: DiagnosticDeviceInfo.deviceModel,
+                    locale: DiagnosticDeviceInfo.interfaceLanguage,
+                    diagnosticCode: identity.diagnosticCode,
+                    sessionID: identity.sessionId
+                )
+            }
+        )
     }
 
     func makeLibraryContentViewModelFactory() -> LibraryContentViewModelFactory {

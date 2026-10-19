@@ -61,6 +61,11 @@ enum AppDatabaseMigrations {
     /// 本机派生值，不进云同步。
     static let sourcesAddCatalogRuleFingerprintIdentifier: String = "v10.sources-add-catalog-rule-fingerprint"
 
+    /// 中文注释：v11——sources 加 `catalogRevision`：目录下发的服务端规则指纹 `catalogSHA256`（`docs/design/Problem-Report-Design.md`
+    /// 第七、九节，`BCA-OBS-022`）。问题报告带它让服务端对到那一版规则；与 v10 的本机指纹不同，整行重写时保留原值，
+    /// 只有目录应用路径改写它。旧行为 NULL，下次刷新目录时补齐。本机派生值，不进云同步。
+    static let sourcesAddCatalogRevisionIdentifier: String = "v11.sources-add-catalog-revision"
+
     static func makeMigrator() -> DatabaseMigrator {
         var migrator: DatabaseMigrator = DatabaseMigrator()
 
@@ -280,6 +285,12 @@ enum AppDatabaseMigrations {
         migrator.registerMigration(Self.sourcesAddCatalogRuleFingerprintIdentifier) { database in
             try database.alter(table: "sources") { table in
                 table.add(column: "catalogRuleFingerprint", .text)
+            }
+        }
+
+        migrator.registerMigration(Self.sourcesAddCatalogRevisionIdentifier) { database in
+            try database.alter(table: "sources") { table in
+                table.add(column: "catalogRevision", .text)
             }
         }
 

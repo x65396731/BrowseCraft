@@ -150,25 +150,14 @@ final class CrashDiagnostics: Sendable {
     }
 
     private static var appVersion: String {
-        return Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
+        return DiagnosticDeviceInfo.appVersion
     }
 
     private static var buildNumber: String {
-        return Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
+        return DiagnosticDeviceInfo.buildNumber
     }
 
     private static var deviceModel: String {
-        var systemInfo: utsname = utsname()
-        uname(&systemInfo)
-
-        let mirror: Mirror = Mirror(reflecting: systemInfo.machine)
-        let identifier: String = mirror.children.reduce(into: "") { result, element in
-            guard let value: Int8 = element.value as? Int8, value != 0 else {
-                return
-            }
-            result.append(String(UnicodeScalar(UInt8(value))))
-        }
-
-        return identifier.isEmpty ? "unknown" : identifier
+        return DiagnosticDeviceInfo.deviceModel
     }
 }

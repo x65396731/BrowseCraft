@@ -17,6 +17,9 @@ struct BookSiteDetailView: View {
     /// 记下滚动区可见高度与分区头高度，换算成 `scrollTo` 的锚点。
     @State private var scrollViewportHeight: CGFloat = 0
     @State private var chapterHeaderHeight: CGFloat = 0
+    /// 中文注释：报告问题面板（Problem-Report-Design.md 第三、四节）；发送用例未注入时不出入口。
+    @Environment(\.problemReportSubmitter) private var problemReportSubmitter: SubmitProblemReportUseCase?
+    @State private var problemReportContext: ProblemReportContext?
     private let makeReaderViewModel: @MainActor (SiteBookChapterSelection) -> BookReaderViewModel
 
     init(
@@ -38,7 +41,8 @@ struct BookSiteDetailView: View {
                     BookSiteDetailHeaderSection(
                         viewModel: self.viewModel,
                         style: self.style,
-                        openSelection: self.open(_:entry:)
+                        openSelection: self.open(_:entry:),
+                        reportFailure: self.reportFailure
                     )
                     .zIndex(2)
 
@@ -89,6 +93,11 @@ struct BookSiteDetailView: View {
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
+        .sheet(item: self.$problemReportContext) { context in
+            ProblemReportSheet(context: context) {
+                self.problemReportContext = nil
+            }
+        }
         .analyticsScreen(.bookDetail)
         .task {
             // 中文注释：收藏是本地读取，先于网络详情到位。
@@ -143,8 +152,21 @@ struct BookSiteDetailView: View {
                 Task {
                     await self.viewModel.toggleFavorite()
                 }
+            },
+            reportAction: self.problemReportSubmitter == nil ? nil : {
+                self.problemReportContext = self.viewModel.problemReportContext(entry: .pageMenu, failureMessage: nil)
             }
         )
+    }
+
+    /// 中文注释：失败态入口；没有发送用例时为 nil，横幅不出链接。
+    private var reportFailure: ((String) -> Void)? {
+        guard self.problemReportSubmitter != nil else {
+            return nil
+        }
+        return { message in
+            self.problemReportContext = self.viewModel.problemReportContext(entry: .failureState, failureMessage: message)
+        }
     }
 
     private var requestedSourceLoginBinding: Binding<LibrarySourceLoginState?> {

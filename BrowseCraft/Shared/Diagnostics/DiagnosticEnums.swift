@@ -85,6 +85,8 @@ enum DiagnosticScreen: String {
     case coinLedger = "coin_ledger"
     /// 删除账号。
     case accountDeletion = "account_deletion"
+    /// 报告问题面板（sheet，Problem-Report-Design.md 第四节），从库页与三种详情页打开。
+    case problemReport = "problem_report"
 }
 
 enum DiagnosticSourceType: String {

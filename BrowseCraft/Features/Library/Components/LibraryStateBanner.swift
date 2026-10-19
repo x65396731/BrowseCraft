@@ -17,6 +17,9 @@ struct LibraryStateBanner: View {
     var loginAction: (() -> Void)? = nil
     var retryAction: (() -> Void)? = nil
     var dismissAction: (() -> Void)? = nil
+    /// 中文注释：失败态的「报告问题」小字链接（Problem-Report-Design.md 第三节，`BCA-UI-006`）：放在说明句下，
+    /// 不做成第三个胶囊按钮；受限态不加。
+    var reportAction: (() -> Void)? = nil
 
     var body: some View {
         if self.hasControls {
@@ -28,7 +31,11 @@ struct LibraryStateBanner: View {
     }
 
     private var hasControls: Bool {
-        return self.loginAction != nil || self.retryAction != nil || self.dismissAction != nil
+        return self.loginAction != nil || self.retryAction != nil || self.dismissAction != nil || self.showsReportLink
+    }
+
+    private var showsReportLink: Bool {
+        return self.kind == .failure && self.reportAction != nil
     }
 
     private var iconName: String {
@@ -47,11 +54,16 @@ struct LibraryStateBanner: View {
                 .foregroundStyle(CatalogPalette.warning)
                 .accessibilityHidden(true)
 
-            Text(self.message)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(self.message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if self.showsReportLink, let reportAction: () -> Void = self.reportAction {
+                    ProblemReportLink(action: reportAction)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             // 中文注释：最右边的那个动作按钮实心，其余描边——失败态是「登录（描边）重试（实心）」，受限态只有「登录（实心）」。
             if let loginAction: () -> Void = self.loginAction {

@@ -140,7 +140,8 @@ struct CreateVideoGenerationTaskUseCase: Sendable {
                     name: stored.name,
                     baseURL: stored.baseURL,
                     kind: kind,
-                    ruleJSON: ruleJSON
+                    ruleJSON: ruleJSON,
+                    catalogRevision: stored.catalogRevision
                 ),
                 coinCharged: stored.coinCharged,
                 coinBalance: stored.coinBalance,

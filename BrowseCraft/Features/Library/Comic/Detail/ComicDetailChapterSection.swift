@@ -9,6 +9,8 @@ import SwiftUI
 struct ComicDetailChapterHeader: View {
     let viewModel: ComicDetailViewModel
     let style: CatalogKindStyle
+    /// 中文注释：失败横幅上的「报告问题」（Problem-Report-Design.md 第三节）；参数是当时的失败文案。nil 时不出链接。
+    var reportFailure: ((String) -> Void)? = nil
 
     var body: some View {
         var infoTexts: [String] = []
@@ -41,7 +43,11 @@ struct ComicDetailChapterHeader: View {
             // 目录为空时的失败态由 `ComicDetailChapterSection` 的占位承担。
             if let message: String = self.viewModel.errorMessage,
                self.viewModel.chapters.isEmpty == false {
-                LibraryStateBanner(kind: .failure, message: message)
+                LibraryStateBanner(
+                    kind: .failure,
+                    message: message,
+                    reportAction: self.reportFailure.map { report in { report(message) } }
+                )
                     .padding(.horizontal, 20)
                     .padding(.bottom, 10)
             }
@@ -85,6 +91,8 @@ struct ComicDetailChapterSection: View {
     let viewModel: ComicDetailViewModel
     let style: CatalogKindStyle
     let selectChapter: (ChapterLink) -> Void
+    /// 中文注释：空目录失败占位上的「报告问题」（Problem-Report-Design.md 第三节）；参数是当时的失败文案。
+    var reportFailure: ((String) -> Void)? = nil
 
     var body: some View {
         if self.viewModel.didLoad == false, self.viewModel.isLoading {
@@ -95,7 +103,8 @@ struct ComicDetailChapterSection: View {
                 tint: CatalogPalette.warning,
                 fill: CatalogPalette.warningFill,
                 title: NSLocalizedString("video_detail_failed_title", comment: ""),
-                message: message
+                message: message,
+                reportAction: self.reportFailure.map { report in { report(message) } }
             )
         } else if self.viewModel.didLoad, self.viewModel.chapters.isEmpty {
             self.placeholder(
@@ -319,7 +328,26 @@ struct ComicDetailChapterSection: View {
         .accessibilityHidden(true)
     }
 
-    private func placeholder(systemImage: String, tint: Color, fill: Color, title: String, message: String) -> some View {
+    private func placeholder(
+        systemImage: String,
+        tint: Color,
+        fill: Color,
+        title: String,
+        message: String,
+        reportAction: (() -> Void)? = nil
+    ) -> some View {
+        VStack(spacing: 6) {
+            self.placeholderContent(systemImage: systemImage, tint: tint, fill: fill, title: title, message: message)
+            if let reportAction: () -> Void = reportAction {
+                ProblemReportLink(action: reportAction)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 24)
+        .padding(.top, 36)
+    }
+
+    private func placeholderContent(systemImage: String, tint: Color, fill: Color, title: String, message: String) -> some View {
         VStack(spacing: 10) {
             Image(systemName: systemImage)
                 .font(.system(size: 24, weight: .medium))
@@ -343,9 +371,6 @@ struct ComicDetailChapterSection: View {
             .foregroundStyle(.secondary)
             .padding(.top, 6)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 24)
-        .padding(.top, 36)
         .accessibilityElement(children: .combine)
     }
 }

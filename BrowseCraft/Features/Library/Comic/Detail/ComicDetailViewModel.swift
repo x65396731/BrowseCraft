@@ -259,6 +259,35 @@ final class ComicDetailViewModel {
     // MARK: - 头部取值（第五节）
 
     /// 列表项的标题优先——它是用户点进来时看到的那个名字；detail `title` 常是带站名前后缀的页面标题。
+    /// 中文注释：漫画详情的报告上下文（Problem-Report-Design.md 第三节）：报详情与章节目录，或某一话的内容；
+    /// 选集默认上次读到的那一话，没有时取第一话。
+    func problemReportContext(entry: ProblemReportEntry, failureMessage: String?) -> ProblemReportContext {
+        let lines: [ProblemReportEpisodeLine] = ProblemReportContext.singleLine(
+            titlesAndURLs: self.chapters.map { (title: $0.title, url: Optional($0.url)) }
+        )
+        let continueIndex: Int? = self.continueChapter.flatMap { chapter in
+            return self.chapters.firstIndex { $0.url == chapter.url }
+        }
+        return ProblemReportContext(
+            screen: .comicDetail,
+            source: self.source,
+            entry: entry,
+            pageName: NSLocalizedString("problem_report_page_detail", comment: "问题报告：详情"),
+            failureMessage: failureMessage,
+            primaryScope: .detail,
+            targetURL: ProblemReportContext.absoluteURL(self.item.detailURL, baseURL: self.source.baseURL),
+            targetTitle: self.displayTitle,
+            categoryKey: nil,
+            primaryFailurePoints: [.comicDetail],
+            contentFailurePoints: [.comicReader],
+            lines: lines,
+            defaultLineID: lines.first?.id,
+            defaultEpisodeID: lines.isEmpty ? nil : "\(continueIndex ?? 0)",
+            defaultEpisodeIsFromHistory: continueIndex != nil,
+            isAudiobook: false
+        )
+    }
+
     var displayTitle: String {
         return TrimmedText.nonEmpty(self.item.title) ?? TrimmedText.nonEmpty(self.metadata?.title) ?? self.item.title
     }

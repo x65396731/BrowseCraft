@@ -20,6 +20,7 @@ struct RootView: View {
     private let browserRequestHeaderProvider: any BrowserRequestHeaderProviding
     private let systemCookieHeaderProvider: any SystemCookieHeaderProviding
     private let coinWalletStore: CoinWalletStore
+    private let problemReportUseCase: SubmitProblemReportUseCase
     private let contentLockStore: ContentLockStore
     #if DEBUG
     private let videoRuntimeAuditWebUIPresenter: VideoRuntimeAuditWebUIPresenter
@@ -58,6 +59,7 @@ struct RootView: View {
         self.browserRequestHeaderProvider = container.browserRequestHeaderProvider
         self.systemCookieHeaderProvider = container.systemCookieHeaderProvider
         self.coinWalletStore = container.coinWalletStore
+        self.problemReportUseCase = container.problemReportUseCase
         self.contentLockStore = container.contentLockStore
         #if DEBUG
         self.videoRuntimeAuditWebUIPresenter = container.videoRuntimeAuditWebUIPresenter
@@ -117,6 +119,7 @@ struct RootView: View {
         .environment(\.itemThumbnailImagePipeline, ItemThumbnailImageCachePlugin.shared)
         .environment(\.systemCookieHeaderProvider, self.systemCookieHeaderProvider)
         .environment(\.rewardedAdRewardCoordinator, self.coinWalletStore)
+        .environment(\.problemReportSubmitter, self.problemReportUseCase)
         .task {
             self.startupCoordinator.start()
         }

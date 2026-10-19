@@ -82,7 +82,8 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
                         ),
                         coinCharged: response.coinCharged,
                         coinBalance: response.coinBalance,
-                        coinRevision: response.coinRevision
+                        coinRevision: response.coinRevision,
+                        catalogRevision: response.source.catalogSHA256 ?? response.catalogSHA256
                     )
                 )
             }

@@ -16,6 +16,9 @@ struct ComicDetailView: View {
     @State private var readerOpenEntry: ReaderOpenEntry = .chapterList
     @State private var scrollViewportHeight: CGFloat = 0
     @State private var chapterHeaderHeight: CGFloat = 0
+    /// 中文注释：报告问题面板（Problem-Report-Design.md 第三、四节）；发送用例未注入时不出入口。
+    @Environment(\.problemReportSubmitter) private var problemReportSubmitter: SubmitProblemReportUseCase?
+    @State private var problemReportContext: ProblemReportContext?
 
     let contentViewModelFactory: LibraryContentViewModelFactory
 
@@ -52,10 +55,11 @@ struct ComicDetailView: View {
                             style: self.style,
                             selectChapter: { chapter in
                                 self.openChapter(chapter, entry: .chapterList)
-                            }
+                            },
+                            reportFailure: self.reportFailure
                         )
                     } header: {
-                        ComicDetailChapterHeader(viewModel: self.viewModel, style: self.style)
+                        ComicDetailChapterHeader(viewModel: self.viewModel, style: self.style, reportFailure: self.reportFailure)
                             .onGeometryChange(for: CGFloat.self) { proxy in
                                 proxy.size.height
                             } action: { height in
@@ -124,6 +128,11 @@ struct ComicDetailView: View {
         .refreshable {
             await self.viewModel.reload()
         }
+        .sheet(item: self.$problemReportContext) { context in
+            ProblemReportSheet(context: context) {
+                self.problemReportContext = nil
+            }
+        }
         .analyticsScreen(.comicDetail)
         .onAppear(perform: self.recordAppearance)
     }
@@ -151,8 +160,21 @@ struct ComicDetailView: View {
                 Task {
                     await self.viewModel.toggleFavorite()
                 }
+            },
+            reportAction: self.problemReportSubmitter == nil ? nil : {
+                self.problemReportContext = self.viewModel.problemReportContext(entry: .pageMenu, failureMessage: nil)
             }
         )
+    }
+
+    /// 中文注释：失败态入口（横幅与空目录占位）；没有发送用例时为 nil，组件不出链接。
+    private var reportFailure: ((String) -> Void)? {
+        guard self.problemReportSubmitter != nil else {
+            return nil
+        }
+        return { message in
+            self.problemReportContext = self.viewModel.problemReportContext(entry: .failureState, failureMessage: message)
+        }
     }
 
     // MARK: - 绑定

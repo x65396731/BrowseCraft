@@ -11,6 +11,8 @@ struct BookSiteDetailHeaderSection: View {
     let style: CatalogKindStyle
     /// 中文注释：第二个参数是阅读器埋点入口：继续卡片 `.detailContinue`、开始按钮 `.detailStart`。
     let openSelection: (SiteBookChapterSelection, ReaderOpenEntry) -> Void
+    /// 中文注释：取失败横幅上的「报告问题」（Problem-Report-Design.md 第三节）；参数是当时的失败文案。nil 时不出链接。
+    var reportFailure: ((String) -> Void)? = nil
     @State private var isSynopsisExpanded: Bool = false
 
     var body: some View {
@@ -163,7 +165,8 @@ struct BookSiteDetailHeaderSection: View {
                 Task {
                     await self.viewModel.load()
                 }
-            }
+            },
+            reportAction: self.reportFailure.map { report in { report(message) } }
         )
         .padding(.horizontal, 20)
         .padding(.top, 20)

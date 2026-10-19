@@ -23,6 +23,8 @@ struct LibraryContentView: View {
     /// 中文注释：翻页失败时的原因，分页脚第二行小字；nil 即没失败。
     var paginationFailureDetail: String? = nil
     var isLoadingNextPage: Bool = false
+    /// 中文注释：翻页失败时分页脚上的「报告问题」（Problem-Report-Design.md 第三节）；nil 时不出链接。
+    var reportPaginationFailure: (() -> Void)? = nil
     /// 中文注释：漫画封面左下的「读到 4-2」（`docs/design/Library-Comic-Page-Redesign-Design.md` 第五节）；没读过为 nil。
     var comicProgressBadgeText: (ContentItem) -> String? = { _ in nil }
     /// 中文注释：漫画长按菜单「继续读 · 4-2」的编号；nil 时不出这一项。搜索页不接阅读器入口，留默认。
@@ -63,6 +65,7 @@ struct LibraryContentView: View {
                 imageRequestConfig: self.imageRequestConfig(selectedSource),
                 paginationStatusText: self.paginationStatusText,
                 paginationFailureDetail: self.paginationFailureDetail,
+                reportPaginationFailure: self.reportPaginationFailure,
                 isLoadingNextPage: self.isLoadingNextPage
             )
         } else if let selectedSource: Source = self.selectedSource,
@@ -178,7 +181,8 @@ struct LibraryContentView: View {
             LibraryPaginationFooterView(
                 statusText: paginationStatusText,
                 failureDetail: self.paginationFailureDetail,
-                isLoading: self.isLoadingNextPage
+                isLoading: self.isLoadingNextPage,
+                reportAction: self.reportPaginationFailure
             )
         }
     }
@@ -190,8 +194,23 @@ struct LibraryPaginationFooterView: View {
     let statusText: String
     var failureDetail: String? = nil
     let isLoading: Bool
+    /// 中文注释：翻页失败时失败文案后的「报告问题」小字链接（Problem-Report-Design.md 第三节）；只在有失败原因时出现。
+    var reportAction: (() -> Void)? = nil
 
     var body: some View {
+        VStack(spacing: 2) {
+            self.statusContent
+            if self.failureDetail != nil, let reportAction: () -> Void = self.reportAction {
+                ProblemReportLink(action: reportAction)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 44)
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .padding(.bottom, 16)
+    }
+
+    private var statusContent: some View {
         VStack(spacing: 4) {
             HStack(spacing: 8) {
                 if self.isLoading {
@@ -212,10 +231,6 @@ struct LibraryPaginationFooterView: View {
                     .multilineTextAlignment(.center)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 44)
-        .padding(.horizontal, 20)
-        .padding(.top, 8)
-        .padding(.bottom, 16)
         .accessibilityElement(children: .combine)
     }
 }

@@ -1192,6 +1192,33 @@ final class LibraryViewModel {
     }
 
     /// 整站是否有声：reader 规则全是 audio（书籍库合同第二节）；眉行、封面耳机与「听」措辞都看它。
+    /// 中文注释：库页的报告上下文（Problem-Report-Design.md 第三节）：报当前来源的列表、当前分类与翻页。
+    func problemReportContext(entry: ProblemReportEntry, failureMessage: String?) -> ProblemReportContext? {
+        guard let source: Source = self.selectedSource else {
+            return nil
+        }
+        let tab: ListTabRule? = self.selectedListTab
+        let libraryName: String = NSLocalizedString("problem_report_page_library", comment: "问题报告：库页")
+        return ProblemReportContext(
+            screen: .library,
+            source: source,
+            entry: entry,
+            pageName: tab.map { "\(libraryName) · \($0.title)" } ?? libraryName,
+            failureMessage: failureMessage,
+            primaryScope: .list,
+            targetURL: ProblemReportContext.absoluteURL(tab?.list.url, baseURL: source.baseURL),
+            targetTitle: nil,
+            categoryKey: tab?.id,
+            primaryFailurePoints: [.libraryRefresh, .libraryPagination],
+            contentFailurePoints: [],
+            lines: [],
+            defaultLineID: nil,
+            defaultEpisodeID: nil,
+            defaultEpisodeIsFromHistory: false,
+            isAudiobook: self.isAudiobookSource
+        )
+    }
+
     var isAudiobookSource: Bool {
         guard let source: Source = self.selectedSource else {
             return false

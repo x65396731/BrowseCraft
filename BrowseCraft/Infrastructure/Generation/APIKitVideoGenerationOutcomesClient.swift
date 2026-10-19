@@ -73,7 +73,8 @@ struct APIKitVideoGenerationOutcomesClient: VideoGenerationOutcomesFetching {
                         keyId: stored.encryptedRule.keyID,
                         nonce: stored.encryptedRule.nonce,
                         ciphertext: stored.encryptedRule.ciphertext
-                    )
+                    ),
+                    catalogRevision: stored.catalogSHA256
                 )
             }
         )

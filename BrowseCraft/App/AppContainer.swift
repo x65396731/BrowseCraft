@@ -230,6 +230,10 @@ final class AppContainer {
         return try await self.account.cloudSyncCoordinator.synchronize(trigger: .remoteNotification)
     }
 
+    var problemReportUseCase: SubmitProblemReportUseCase {
+        return self.features.problemReportUseCase
+    }
+
     func makeSourcesViewModel() -> SourcesViewModel {
         return self.features.sourcesFeatureFactory.makeViewModel()
     }

@@ -140,6 +140,40 @@ final class GRDBSourceRepository: SourceRepository {
         }
     }
 
+    func stampCatalogRevisions(_ revisionsBySourceID: [String: String]) throws {
+        guard revisionsBySourceID.isEmpty == false else {
+            return
+        }
+        let userID: String = self.currentUserID
+        try self.database.queue.write { database in
+            for (sourceID, revision) in revisionsBySourceID {
+                try database.execute(
+                    sql: """
+                    UPDATE \(SourceRecord.databaseTableName)
+                    SET catalogRevision = ?
+                    WHERE userID = ? AND id = ?
+                    """,
+                    arguments: [revision, userID, sourceID]
+                )
+            }
+        }
+    }
+
+    func catalogRevision(sourceID: String) throws -> String? {
+        let userID: String = self.currentUserID
+        return try self.database.queue.read { database in
+            return try String.fetchOne(
+                database,
+                sql: """
+                SELECT catalogRevision
+                FROM \(SourceRecord.databaseTableName)
+                WHERE userID = ? AND id = ?
+                """,
+                arguments: [userID, sourceID]
+            )
+        }
+    }
+
     private static func save(
         _ source: Source,
         catalogRuleFingerprint: String?,
@@ -188,6 +222,8 @@ final class GRDBSourceRepository: SourceRepository {
         var record: SourceRecord = try SourceRecord(source: source)
         record.userID = userID
         record.catalogRuleFingerprint = catalogRuleFingerprint
+        // 中文注释：规则版本只由目录应用路径改写（`stampCatalogRevisions`），其它整行保存保留旧值（`BCA-OBS-022`）。
+        record.catalogRevision = existingRecord?.catalogRevision
         try record.save(database)
 
         if source.isBuiltIn == false {

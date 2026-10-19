@@ -72,7 +72,8 @@ struct LoadVideoGenerationOutcomesUseCase: Sendable {
                 name: stored.name,
                 baseURL: stored.baseURL,
                 kind: kind,
-                ruleJSON: String(decoding: data, as: UTF8.self)
+                ruleJSON: String(decoding: data, as: UTF8.self),
+                catalogRevision: stored.catalogRevision
             )
             return resolved
         } catch {

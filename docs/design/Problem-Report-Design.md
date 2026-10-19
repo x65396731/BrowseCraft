@@ -185,12 +185,12 @@ detail（详情与目录）、content（某一集、话、章的内容，只从�
 | 位置 | 内容 |
 | --- | --- |
 | `POST /v1/problem-reports` | 新模块 problem_reports（router / schemas / repository / contracts 与一版迁移）。请求体为第六节的 JSON，不超过 256 KB，在应用层拒绝。带 Bearer 时归到账号，不带时按诊断码收。同一 `clientReportId` 再次提交返回同一编号。返回 `{"reportId": "R-7KQ2-M9XA", "receivedAt": "…"}`，错误体沿用 `{code, message, requestId}` |
-| 限流 | 计数直接查报告表：每个账号或诊断码每小时 10 条、每天 30 条；未登录另按 IP 每小时 20 条（IP 取已由 nginx 覆盖过的客户端地址），全站未登录每天 2000 条总闸。超出回 429 与 `report_rate_limited`。不用进程内存里的限流器：重启清零、多进程不共享 |
+| 限流 | 次数上限直接查报告表计数：每个账号或诊断码每小时 10 条、每天 30 条，全站未登录每天 2000 条总闸；不用进程内存里的限流器（重启清零、多进程不共享）。未登录另按 IP 每小时 20 条，IP 取已由 nginx 覆盖过的客户端地址，用进程内滑动窗口，只作粗粒度防刷。超出回 429 与 `PROBLEM_REPORT_RATE_LIMITED` |
 | 服务端清洗 | 按第六节的规则再洗一遍网址，截断日志条数与长度、补充说明长度 |
-| 报告表 | 报告编号、`clientReportId`（唯一）、账号 ID（可空）、诊断码、`sourceId`、`ruleRevision`、`revisionMatch`、`scope`、`problemType`、`screen`、失败点、站点侧标记、App 版本、整份报文、接收时间、处理状态（new / triaged / fixed / wontfix）。索引：诊断码、（`sourceId`, `ruleRevision`）、接收时间。保留 90 天，每日任务清理；删号流程一并删除 |
+| 报告表 | 报告编号、`clientReportId`（唯一）、账号 ID（可空）、诊断码、`sourceId`、`ruleRevision`、服务端对到的那一版指纹（`matched_revision`，按指纹或按时间）、`revisionMatch`、`scope`、`problemType`、`screen`、失败点、站点侧标记、App 版本、整份报文、接收时间、处理状态（new / triaged / fixed / wontfix）。索引：诊断码、（`sourceId`, `ruleRevision`）、接收时间。保留 90 天，收报告时顺带清理（一个进程里最多每 6 小时一次）；已登录的报告随账号外键级联删除 |
 | 站点侧标记 | 失败快照为网络失败、HTTP 429 / 5xx 或反爬页时记为站点侧；403 不记（UA 引起的 403 属于规则） |
 | 请求日志 | 只记报告编号、scope 与大小，不记报文 |
-| 规则版本表 | 只追加的 `catalog_source_revisions`：来源 ID、`catalog_sha256`、整份 `rule_json`、生效时间。写入挂在唯一写 `rule_json` 的仓储方法里，与索引指纹刷新同一事务，指纹变了才追加；迁移把现有来源回填为第一版。每个来源保留最近 20 版，被未过期报告引用的不删 |
+| 规则版本表 | 只追加的 `catalog_source_revisions`：来源 ID、`catalog_sha256`、整份 `rule_json`、生效时间。写入挂在唯一写 `rule_json` 的仓储方法里，与索引指纹刷新同一事务，指纹变了才追加；迁移把现有来源回填为第一版。每个来源保留最近 20 版，被未过期报告引用（`matched_revision`）的不删，与过期报告同一次清理 |
 | 目录接口 | 每个来源多返回明文 `catalogSHA256`（服务端现成的指纹，不含规则内容） |
 | 版本对照 | 先按（`sourceId`, `ruleRevision`）取版本，记 `revisionMatch` 为 exact；为空时取 `ruleAppliedAt` 之前最近的一版，记 by_time；版本表建立之前的记 unknown |
 
@@ -207,8 +207,7 @@ detail（详情与目录）、content（某一集、话、章的内容，只从�
 
 ## 十、埋点登记
 
-以下名字在实施时与代码同一提交登记进 [Analytics-Events-Design.md](Analytics-Events-Design.md)（`BCA-OBS-001`；闸门 A13 双向核对，
-不能先于代码登记）：
+以下名字登记在 [Analytics-Events-Design.md](Analytics-Events-Design.md)（`BCA-OBS-001`；闸门 A13 双向核对字典与代码）：
 
 | 登记处 | 内容 |
 | --- | --- |

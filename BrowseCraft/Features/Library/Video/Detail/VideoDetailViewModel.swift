@@ -851,6 +851,50 @@ final class VideoDetailViewModel {
 
     /// 中文注释：列表项的标题优先——它是用户点进来时看到的那个名字；详情规则取到的常是带 SEO 后缀的页面标题
     /// （低端影视：「危机13小时免费在线观看_高清网盘下载」，2026-10-08 模拟器），只在列表没给标题时才用。
+    /// 中文注释：影视详情的报告上下文（Problem-Report-Design.md 第三节）：报详情与选集，或某一集的播放；
+    /// 选集先选线路再选集，默认继续看的那一集（当前线路），没有时取当前线路第一集。
+    func problemReportContext(entry: ProblemReportEntry, failureMessage: String?) -> ProblemReportContext {
+        let lines: [ProblemReportEpisodeLine] = self.lines.compactMap { line in
+            guard line.episodes.isEmpty == false else {
+                return nil
+            }
+            return ProblemReportEpisodeLine(
+                id: line.id,
+                title: line.title,
+                episodes: line.episodes.enumerated().map { offset, episode in
+                    return ProblemReportEpisode(
+                        id: "\(offset)",
+                        title: episode.title,
+                        index: offset + 1,
+                        url: episode.playPageURL.absoluteString
+                    )
+                }
+            )
+        }
+        let defaultLine: VideoEpisodeLine? = self.selectedLine ?? self.lines.first
+        let continueIndex: Int? = self.continueTargetEpisode.flatMap { target in
+            return defaultLine?.episodes.firstIndex { $0.id == target.id }
+        }
+        return ProblemReportContext(
+            screen: .videoDetail,
+            source: self.source,
+            entry: entry,
+            pageName: NSLocalizedString("problem_report_page_detail", comment: "问题报告：详情"),
+            failureMessage: failureMessage,
+            primaryScope: .detail,
+            targetURL: ProblemReportContext.absoluteURL(self.item.detailURL, baseURL: self.source.baseURL),
+            targetTitle: self.displayTitle,
+            categoryKey: nil,
+            primaryFailurePoints: [.videoDetail, .videoEpisodeResolve],
+            contentFailurePoints: [.videoEpisodeResolve, .videoPlayback],
+            lines: lines,
+            defaultLineID: defaultLine?.id,
+            defaultEpisodeID: lines.isEmpty ? nil : "\(continueIndex ?? 0)",
+            defaultEpisodeIsFromHistory: continueIndex != nil,
+            isAudiobook: false
+        )
+    }
+
     var displayTitle: String {
         return TrimmedText.nonEmpty(self.item.title) ?? self.detailTitle ?? self.item.title
     }

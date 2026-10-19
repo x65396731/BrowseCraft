@@ -10,6 +10,9 @@ struct CatalogSource: Identifiable, Hashable, Sendable {
     let ruleJSON: String
     /// 公共目录分区；个人规则、没带 `section` 或取值不认得的条目为 nil，「发现」里不展示（合同 2.2）。
     let section: CatalogSourceSection?
+    /// 服务端规则指纹（PortalCore `catalogSHA256`，明文下发）；应用规则时记到来源行上，问题报告随报文带回（`BCA-OBS-022`）。
+    /// 旧服务端不带时为 nil。
+    let catalogRevision: String?
 
     init(
         id: String,
@@ -17,7 +20,8 @@ struct CatalogSource: Identifiable, Hashable, Sendable {
         baseURL: String,
         kind: CatalogSourceKind,
         ruleJSON: String,
-        section: CatalogSourceSection? = nil
+        section: CatalogSourceSection? = nil,
+        catalogRevision: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -25,6 +29,7 @@ struct CatalogSource: Identifiable, Hashable, Sendable {
         self.kind = kind
         self.ruleJSON = ruleJSON
         self.section = section
+        self.catalogRevision = catalogRevision
     }
 }
 

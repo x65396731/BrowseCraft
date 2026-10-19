@@ -34,6 +34,24 @@ enum AppLogging {
         return url
     }
 
+    /// 中文注释：问题报告的日志片段（Problem-Report-Design.md 第六节）：本次会话最近 `window` 秒、指定类别的本机日志行。
+    /// 只在用户点「发送」时读（`BCA-OBS-018`）；日志行本身已按 BCA-OBS-012 脱敏，这里不再处理。
+    static func recentLogLines(
+        window: TimeInterval,
+        categories: Set<String>,
+        maxLines: Int,
+        maxBytes: Int
+    ) -> [String] {
+        AppLog.flush()
+        return Self.fileSink.recentLines(
+            sessionID: DiagnosticIdentityStore.shared.identity.sessionId,
+            since: Date().addingTimeInterval(-window),
+            categories: categories,
+            maxLines: maxLines,
+            maxBytes: maxBytes
+        )
+    }
+
     /// 中文注释：删除账号时清掉本机日志文件（BCA-OBS-016）。
     static func removeLocalLogFiles() {
         AppLog.flush()

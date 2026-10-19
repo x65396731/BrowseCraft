@@ -155,7 +155,8 @@ struct LoadCatalogSourcesUseCase {
                         baseURL: source.baseURL,
                         kind: source.kind,
                         ruleJSON: decryptedRule.importRuleJSON,
-                        section: source.section
+                        section: source.section,
+                        catalogSHA256: source.catalogSHA256
                     )
                 )
             } catch {
@@ -201,7 +202,8 @@ private struct CatalogSourcePayloadDecoder {
                 baseURL: payload.baseURL,
                 kind: kind,
                 ruleJSON: payload.ruleJSON.jsonString,
-                section: payload.section.flatMap(CatalogSourceSection.init(rawValue:))
+                section: payload.section.flatMap(CatalogSourceSection.init(rawValue:)),
+                catalogRevision: payload.catalogSHA256
             )
         }
     }
@@ -215,6 +217,8 @@ private struct CatalogSourcePayload: Decodable {
     let ruleJSON: CatalogSourceJSONValue
     /// 明文分区（不在密文里）；类型不对时当作没有，不让一条坏字段拖垮整条。
     let section: String?
+    /// 明文的服务端规则指纹（`BCA-OBS-022`）；缺失或类型不对时为 nil。
+    let catalogSHA256: String?
 
     private enum CodingKeys: String, CodingKey {
         case id
@@ -224,6 +228,7 @@ private struct CatalogSourcePayload: Decodable {
         case ruleJSON
         case payload
         case section
+        case catalogSHA256
     }
 
     private enum PayloadCodingKeys: String, CodingKey {
@@ -237,6 +242,7 @@ private struct CatalogSourcePayload: Decodable {
         self.baseURL = try container.decode(String.self, forKey: .baseURL)
         self.kind = try container.decode(String.self, forKey: .kind)
         self.section = (try? container.decodeIfPresent(String.self, forKey: .section)) ?? nil
+        self.catalogSHA256 = (try? container.decodeIfPresent(String.self, forKey: .catalogSHA256)) ?? nil // try?: 类型不对当作没有，规则版本缺了只影响问题报告对版本
 
         if container.contains(.payload) {
             let payloadDecoder: Decoder = try container.superDecoder(forKey: .payload)
@@ -332,6 +338,7 @@ private struct EncryptedCatalogSourcePayload: Decodable {
     let kind: String
     let encryptedRule: EncryptedCatalogRule?
     let section: String?
+    let catalogSHA256: String?
 }
 
 private struct PlainCatalogSourcePayload: Encodable {
@@ -341,6 +348,7 @@ private struct PlainCatalogSourcePayload: Encodable {
     let kind: String
     let ruleJSON: CatalogRuleJSONValue
     let section: String?
+    let catalogSHA256: String?
 }
 
 // 中文注释：Catalog 来源必须先通过既存 runtime 加载流程，加载成功后才写入本地 DB。
@@ -382,9 +390,18 @@ struct AddCatalogSourceUseCase: Sendable {
         let knownFingerprints: [String: String] = try self.sourceRepository.catalogRuleFingerprints()
         var updates: [CatalogSource] = []
         var unchanged: [String: String] = [:]
+        var revisions: [String: String] = [:]
+        // 中文注释：每次跟随都给已添加来源记上服务端规则指纹（`BCA-OBS-022`），包括下面「指纹相同、不物化」的条目，
+        // 存量来源刷新一次目录就补齐。
+        defer {
+            self.stampCatalogRevisions(revisions)
+        }
         for catalogSource: CatalogSource in catalogSources {
             guard let existing: Source = existingByID[catalogSource.id] else {
                 continue
+            }
+            if let revision: String = catalogSource.catalogRevision {
+                revisions[catalogSource.id] = revision
             }
             let fingerprint: String = Self.ruleFingerprint(of: catalogSource)
             if knownFingerprints[catalogSource.id] == fingerprint {
@@ -442,6 +459,8 @@ struct AddCatalogSourceUseCase: Sendable {
             }
         }
         try self.sourceRepository.saveCatalogSources(materialized, fingerprintsBySourceID: fingerprints)
+        let appliedIDs: Set<String> = Set(materialized.map(\.id))
+        self.stampCatalogRevisions(Self.revisions(of: catalogSources.filter { appliedIDs.contains($0.id) }))
         return AppliedCatalogRuleUpdates(sources: materialized, failuresBySourceID: failures)
     }
 
@@ -473,6 +492,7 @@ struct AddCatalogSourceUseCase: Sendable {
             } else {
                 try self.sourceRepository.stampCatalogRuleFingerprints([currentCatalogSource.id: fingerprint])
             }
+            self.stampCatalogRevisions(Self.revisions(of: [catalogSource]))
 
             return AddCatalogSourceResult(source: currentCatalogSource, listOutput: nil)
         }
@@ -492,6 +512,29 @@ struct AddCatalogSourceUseCase: Sendable {
         )
         try self.validateSourceListLoadUseCase.execute(listOutput)
         try self.sourceRepository.saveCatalogSources([source], fingerprintsBySourceID: [source.id: fingerprint])
+        self.stampCatalogRevisions(Self.revisions(of: [catalogSource]))
         return AddCatalogSourceResult(source: source, listOutput: listOutput)
+    }
+
+    private static func revisions(of catalogSources: [CatalogSource]) -> [String: String] {
+        var revisions: [String: String] = [:]
+        for catalogSource: CatalogSource in catalogSources {
+            if let revision: String = catalogSource.catalogRevision {
+                revisions[catalogSource.id] = revision
+            }
+        }
+        return revisions
+    }
+
+    /// 中文注释：记规则版本失败不影响添加与跟随本身（问题报告退回按时间对版本），只记日志。
+    private func stampCatalogRevisions(_ revisionsBySourceID: [String: String]) {
+        guard revisionsBySourceID.isEmpty == false else {
+            return
+        }
+        do {
+            try self.sourceRepository.stampCatalogRevisions(revisionsBySourceID)
+        } catch {
+            AppLog.error(.database, "catalog-revision-stamp-failed", ["count": .int(revisionsBySourceID.count), "error": .error(error)])
+        }
     }
 }

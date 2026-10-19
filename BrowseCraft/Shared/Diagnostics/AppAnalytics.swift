@@ -36,6 +36,10 @@ final class AppAnalytics: Sendable {
         /// 用户复制诊断码、账号 ID、启动失败信息或导出诊断日志时报，用来估计求助量。
         /// 参数：entry（SupportInfoKind）。不报：复制或导出的内容本身。
         case supportInfoCopied = "support_info_copied"
+        /// 页内问题报告点「发送」后的结局报一次（docs/design/Problem-Report-Design.md 第十节）。
+        /// 参数：report_scope（ProblemReportScope）、problem_type（ProblemReportProblemType）、entry（ProblemReportEntry）、
+        /// result、error_code（ProblemReportFailureCode，仅失败）。不报：补充说明、报告编号、网址与标题。
+        case problemReportSubmitted = "problem_report_submitted"
 
         // MARK: B. 来源与规则目录
 
@@ -286,6 +290,10 @@ final class AppAnalytics: Sendable {
         static let settingName: String = "setting_name"
         /// 设置的新值：true / false / 缓存上限 MB。
         static let settingValue: String = "setting_value"
+        /// 问题报告的对象：list / detail / content（`ProblemReportScope`）。
+        static let reportScope: String = "report_scope"
+        /// 问题报告的问题码（`ProblemReportProblemType`，合同第五节的 30 个）。
+        static let problemType: String = "problem_type"
         /// 版本号，每个事件自动附带。
         static let appVersion: String = "app_version"
         /// 构建号，每个事件自动附带。
@@ -319,6 +327,8 @@ final class AppAnalytics: Sendable {
             Parameter.productId,
             Parameter.settingName,
             Parameter.settingValue,
+            Parameter.reportScope,
+            Parameter.problemType,
             Parameter.appVersion,
             Parameter.buildNumber
         ]

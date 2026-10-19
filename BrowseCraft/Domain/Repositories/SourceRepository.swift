@@ -16,6 +16,10 @@ protocol SourceRepository: Sendable {
     func saveCatalogSources(_ sources: [Source], fingerprintsBySourceID: [String: String]) throws
     /// 中文注释：只给来源行盖指纹——规则与本地相等、只是还没记过指纹时用；不改规则、不动 `updatedAt`、不入同步队列。
     func stampCatalogRuleFingerprints(_ fingerprintsBySourceID: [String: String]) throws
+    /// 中文注释：给来源行记目录下发的服务端规则指纹（`BCA-OBS-022`）；不改规则、不动 `updatedAt`、不入同步队列。
+    func stampCatalogRevisions(_ revisionsBySourceID: [String: String]) throws
+    /// 中文注释：来源上次应用的服务端规则指纹，问题报告的 `ruleRevision`；没记过时为 nil。
+    func catalogRevision(sourceID: String) throws -> String?
     /// 中文注释：删除来源（历史与收藏保留），交回来源与库状态的留底；来源不在册时仍做清理但返回 nil。
     /// 不发本地变更通知——调用方在撤销窗口结束后调 `notifyLocalChanges()`（见 `docs/design/Source-Deletion-Cascade-Design.md` 第五节）。
     @discardableResult
@@ -47,6 +51,15 @@ extension SourceRepository {
 
     func stampCatalogRuleFingerprints(_ fingerprintsBySourceID: [String: String]) throws {
         _ = fingerprintsBySourceID
+    }
+
+    func stampCatalogRevisions(_ revisionsBySourceID: [String: String]) throws {
+        _ = revisionsBySourceID
+    }
+
+    func catalogRevision(sourceID: String) throws -> String? {
+        _ = sourceID
+        return nil
     }
 
     func reconcileSourceSlotAssignments() throws -> [Source] {

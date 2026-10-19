@@ -30,6 +30,10 @@ enum RuleFailureDiagnostics {
         ])
         AppAnalytics.shared.logDiagnosticFailure(kind: kind, stage: stage, point: point, source: source)
         CrashDiagnostics.shared.recordRuleFailure(error: error, kind: kind, stage: stage, point: point, source: source)
+        // 中文注释：问题报告的失败快照只在这里写（`BCA-OBS-020`），取消在上面已挡掉、不进快照。
+        RuleFailureSnapshotStore.shared.record(
+            RuleFailureSnapshot(error: error, kind: kind, stage: stage, point: point, sourceID: source?.id)
+        )
     }
 
     static func isCancellation(_ error: any Error) -> Bool {

@@ -61,7 +61,7 @@ Crashlytics 的写入点只有 `CrashDiagnostics`，规则执行失败的上报�
 - 页内问题报告（[Problem-Report-Design.md](Problem-Report-Design.md)）是用户亲手点「发送」发给 PortalCore 的报告，既不是埋点也不是
   Crashlytics 报告：「发送使用统计」与「发送崩溃诊断」都不管它（`BCA-OBS-018`），报告面板自身的事件仍受使用统计开关管。
   报告里可以有网址路径与作品、章节标题，它们不因此进入任何事件参数或 Crashlytics 键，第 1 节的取值边界不变。
-  面板的事件、参数与页面名在实施时与代码同一提交登记进第 3–5 节（该文第十节列出要登记的名字）。
+  面板的事件、参数与页面名登记在第 3–5 节（`problem_report_submitted`、`report_scope`、`problem_type`、`problem_report`）。
 
 ## 3. 事件
 
@@ -79,6 +79,7 @@ Crashlytics 的写入点只有 `CrashDiagnostics`，规则执行失败的上报�
 | `screen_view` | 任一页面显示时报，含从下级页返回、盖在上面的 sheet / 全屏页关闭后重新露出；由 `.analyticsScreen(_:)` 统一发出。 | screen_name、screen_class（都取 DiagnosticScreen 的原始值）。 |
 | `push_opened` | 用户点开推送时报，规则生成结果推送与活动推送都算；推送在前台到达不报。 | entry（PushOpenEntry：rule_generation 生成结果、campaign 活动推送，后者 2026-10-18 起，[Campaign-And-Rate-Notices-Design.md](Campaign-And-Rate-Notices-Design.md) 第六节）。不报：推送内容、任务 ID 与活动标识。 |
 | `support_info_copied` | 用户复制诊断码、账号 ID、启动失败信息或导出诊断日志时报，用来估计求助量。 | entry（SupportInfoKind）。不报：复制或导出的内容本身。 |
+| `problem_report_submitted` | 页内问题报告点「发送」后的结局报一次（[Problem-Report-Design.md](Problem-Report-Design.md) 第十节）；关掉面板没发送不报。 | report_scope（ProblemReportScope）、problem_type（ProblemReportProblemType）、entry（ProblemReportEntry）、result、error_code（ProblemReportFailureCode，仅失败）。不报：补充说明、报告编号、网址与标题。 |
 
 ### B. 来源与规则目录
 
@@ -179,7 +180,7 @@ Crashlytics 的写入点只有 `CrashDiagnostics`，规则执行失败的上报�
 
 ## 4. 参数
 
-GA4 每个项目只有 50 个事件级自定义维度名额。下表除 `screen_name`、`screen_class`、`app_version`、`build_number` 四个由 GA4 内置维度承接外，其余都要在控制台注册为事件级自定义维度；新增参数先进本表。
+GA4 每个项目只有 50 个事件级自定义维度名额，本表登记 26 个。下表除 `screen_name`、`screen_class`、`app_version`、`build_number` 四个由 GA4 内置维度承接外，其余都要在控制台注册为事件级自定义维度；新增参数先进本表。
 
 | 参数 | 含义与取值 |
 | --- | --- |
@@ -209,6 +210,8 @@ GA4 每个项目只有 50 个事件级自定义维度名额。下表除 `screen_
 | `product_id` | App Store 商品 ID。 |
 | `setting_name` | 哪项设置，取 `AnalyticsSettingName`。 |
 | `setting_value` | 设置的新值：true / false / 缓存上限 MB。 |
+| `report_scope` | 问题报告的对象：list / detail / content（`ProblemReportScope`）。 |
+| `problem_type` | 问题报告的问题码（`ProblemReportProblemType`，Problem-Report-Design.md 第五节）。 |
 | `app_version` | 版本号，每个事件自动附带。 |
 | `build_number` | 构建号，每个事件自动附带。 |
 
@@ -252,6 +255,7 @@ GA4 每个项目只有 50 个事件级自定义维度名额。下表除 `screen_
 | 设置 | `cloud_sync_first_enable` | 首次启用云同步（sheet） |
 | 设置 | `coin_ledger` | coin 记录 |
 | 设置 | `account_deletion` | 删除账号 |
+| 通用 | `problem_report` | 报告问题面板（sheet），从库页与三种详情页打开 |
 
 ## 6. 崩溃诊断
 

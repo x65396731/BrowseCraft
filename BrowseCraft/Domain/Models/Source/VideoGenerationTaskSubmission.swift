@@ -24,6 +24,8 @@ struct VideoGenerationReusedCatalogSource: Hashable, Sendable {
     var coinCharged: Int? = nil
     var coinBalance: Int? = nil
     var coinRevision: Int? = nil
+    /// 服务端规则指纹（`catalogSHA256`，`BCA-OBS-022`）；解密后随 `CatalogSource` 记到来源行上。旧服务端不带时为 nil。
+    var catalogRevision: String? = nil
 }
 
 /// 任务客户端的两种成功结果：已排队，或复用库中规则。

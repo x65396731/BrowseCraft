@@ -25,6 +25,9 @@ struct SourceRecord: Codable, FetchableRecord, MutablePersistableRecord {
     /// 中文注释：上次应用的目录规则原文指纹（v10）。不在 `Source` 模型上：它是仓储层的比较缓存，
     /// 只有目录应用路径写值，任何按 `Source` 重建的整行保存都把它写回 NULL（即失效）。
     var catalogRuleFingerprint: String? = nil
+    /// 中文注释：目录下发的服务端规则指纹（v11，`BCA-OBS-022`）。不在 `Source` 模型上；整行保存时由仓储保留旧值，
+    /// 只有目录应用路径（`stampCatalogRevisions`）改写。
+    var catalogRevision: String? = nil
 
     init(
         userID: String,

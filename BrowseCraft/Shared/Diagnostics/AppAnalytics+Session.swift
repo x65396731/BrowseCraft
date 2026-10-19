@@ -47,6 +47,25 @@ extension AppAnalytics {
         ])
     }
 
+    /// 中文注释：问题报告点「发送」后的结局（Problem-Report-Design.md 第十节）；失败时带 error_code。
+    func logProblemReportSubmitted(
+        scope: ProblemReportScope,
+        problemType: ProblemReportProblemType,
+        entry: ProblemReportEntry,
+        failure: ProblemReportFailureCode?
+    ) {
+        var parameters: [String: Any] = [
+            Parameter.reportScope: scope.rawValue,
+            Parameter.problemType: problemType.rawValue,
+            Parameter.entry: entry.rawValue,
+            Parameter.result: failure == nil ? AnalyticsResult.success.rawValue : AnalyticsResult.failed.rawValue
+        ]
+        if let failure: ProblemReportFailureCode {
+            parameters[Parameter.errorCode] = failure.rawValue
+        }
+        self.log(.problemReportSubmitted, parameters: parameters)
+    }
+
     // MARK: - B. 来源与规则目录
 
     func logSourceSelected(_ source: Source?, entry: SourceSelectionEntry) {
