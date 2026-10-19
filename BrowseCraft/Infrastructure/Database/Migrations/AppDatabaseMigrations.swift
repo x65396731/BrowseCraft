@@ -17,7 +17,8 @@ enum AppDatabaseMigrations {
         Self.usersAddCoinIdentifier,
         Self.historySyncLedgerIdentifier,
         Self.comicHistoryAddPageCountIdentifier,
-        Self.sourcesAddCatalogRuleFingerprintIdentifier
+        Self.sourcesAddCatalogRuleFingerprintIdentifier,
+        Self.sourcesAddCatalogRevisionIdentifier
     ]
 
     /// 中文注释：v2——sources 增加 `origin` 列，记「来自个人生成」等出身，本地副本才能随服务器裁决清理。
