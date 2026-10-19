@@ -98,6 +98,7 @@ scripts/regenerate-project.sh && xcodebuild -project BrowseCraft.xcodeproj -sche
 - **内核**：Readium `AudioNavigator`（AVPlayer + Locator）——播放 / 暂停 / seek / 上一章下一章 / 倍速 / AudioSession 全在 SDK 里；
   SDK **不带界面**，界面照抄 Readium TestApp 的 `AudiobookReader`（封面、进度条、快退 10 秒 / 上一章 / 播放暂停 / 下一章 / 快进 30 秒），
   落在 `AudiobookPlayerView`；锁屏 / 控制中心 / 耳机命令照抄其命令中心部分，落在 `AudiobookRemoteControls`（Now Playing 用 SDK 的 `NowPlayingInfo`）。
+  2026-10-20 播放页已重设计（沉浸深色、倍速、目录 sheet、单集音频失效横条、锁屏封面），见 [有声书播放页](Audiobook-Player-Page-Redesign-Design.md)。
 - **接线**：`BookReaderViewModel.openSite` 遇到有声 manifest 不再抛错——建 `AudioNavigator`，代理桥 `AudioNavigatorBridge` 把播放状态与位置回给 VM，
   位置走文字书同一条进度 / 书签链路；`BookReaderView` 在 `isAudiobook` 时切到播放页，出现即播、离开即停并落进度；详情页「Start / Continue Listening」、章节可点。
   `Info.plist` 的 `UIBackgroundModes` 加 `audio`。

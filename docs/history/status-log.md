@@ -1397,3 +1397,10 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 重试：临时在 `APIKitProblemReportClient` 加一次性失败注入；库页「…」打开的面板默认不选类型、发送键置灰；选「其他」发送后显示「没有发送成功，请稍后再试一次」与「再试一次」，重试成功，回执 `R-TF54-DMXQ`。两处临时注入测完撤掉、未提交，重新 build 干净包装回模拟器。
 - 服务器只读核对：`R-6KMP-JUAM` entry failure_state、problem_type load_failed、failure_point library_refresh、site_side 1、失败快照 network / httpStatus / 503、摘要不含网址；两条 `ruleRevision` 都有值、`revisionMatch` exact（重新添加时写入了 `catalogRevision`）；日志片段各 6 行。线上 `problem_reports` 共 4 行（均为走查所发）。
 - 仍未走查：漫画与站点书详情（来源位置 1 / 1）。`STATUS.md` 第 12 节「App 侧第一期」检查点 173fe59 → `5142438`，备注改为四条走查。
+
+2026-10-20 有声书播放页重设计（用户：先出 Claude 文档、画稿子，确认后实施；设计时带上 APP-MEMO-043 的修正）。
+- 立项登记进 Claude 文档「BrowseCraft 页面设计索引」；设计文档 https://claude.ai/artifact/CLoksXiFNRAFvmhn85NNoS 列十一项待裁定。用户裁定：书签有声书去掉（第 8 项 C，书签只在本机、别处不显示，续听位置已自动保存）、不做睡眠定时（第 7 项 C）、其余取 A；看画布后把第 1 项改为「沉浸深色 + 封面取色流动背景」（要和内购页一样有动态，但不用视频：内购页的 KSPlayer 循环视频可能改音频会话、且要新素材），单集失败提示从状态卡改成一行横条（状态框太大挡住封面）。
+- 用户发现有声书广告计分时机不对（音频没加载就弹、地址失败也弹）：查得 `BookReaderViewModel.open` 打开后无条件按文字书「进一章 +50」计分，换章那处已排除有声书、打开这处漏了；修正随本页一起实施。
+- 画布 https://claude.ai/artifact/D6tba2Bdyrvhib5gPHSi1T（9 张）；合同 `docs/design/Audiobook-Player-Page-Redesign-Design.md` 入库，README 与本地 AGENTS 加指针，读书 kind 接线第十六节加指针。
+- 实施提交为 `4a83331`（未 build、测试未跑）：新增 `BookAudioResourceFailure`（Application）、`SiteBookAudioHTTPClient` 判定失效并经出版物装配回调给 VM、`AudiobookBackdrop` / `AudiobookContentsSheet` / `AudiobookPlaybackSpeed`、播放页重写、`CatalogPalette.immersive*`、三语十九条、`AudiobookPlayerTests` 三组。
+- `STATUS.md` 第 2 节新增一行 implemented / not-run，检查点 `4a83331`。fwq `docs/rules/STATUS.md` 的 `APP-MEMO-043` 实施列待 App 走查后再改。
