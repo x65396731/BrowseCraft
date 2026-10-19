@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import BrowseCraftDomain
 import BrowseCraftLog
 import Foundation
@@ -73,6 +74,15 @@ final class BookReaderViewModel {
     private var siteManifest: BookPublicationManifest?
     private var audioBridge: AudioNavigatorBridge?
     private var remoteControls: AudiobookRemoteControls?
+    /// 中文注释：单集取不到（`APP-MEMO-043`）：本次打开里按集序号记哪几集取不到；当前集在里面时播放页显示横条。
+    /// 已失效（gone）不会被之后的暂时性失败（unavailable）盖掉。
+    private(set) var audioChapterFailures: [Int: BookAudioResourceFailure.Kind] = [:]
+    /// 中文注释：最后一集播完（眉行「全部听完了」）；再次开始播放时清掉。
+    private(set) var didFinishAudiobook: Bool = false
+    /// 中文注释：倍速，全局一个值（裁定 6）。
+    private(set) var playbackSpeed: AudiobookPlaybackSpeed = AudiobookPlaybackSpeed.stored()
+    /// 中文注释：播放页取到的封面图，给锁屏 Now Playing 用；控制器挂上之前取到的先存着。
+    private var audioArtwork: UIImage?
 
     var isAudiobook: Bool {
         return self.audioNavigator != nil
@@ -118,6 +128,15 @@ final class BookReaderViewModel {
         self.throttleNanoseconds = throttleNanoseconds
     }
 
+    /// 中文注释：打开失败后下拉重试：回到加载中再开一次（两种阅读页共用失败态）。
+    func reopen() async {
+        guard case .failed = self.state else {
+            return
+        }
+        self.state = .loading
+        await self.open()
+    }
+
     func open() async {
         guard self.state == .loading else {
             return
@@ -139,7 +158,11 @@ final class BookReaderViewModel {
                 if self.isAudiobook == false {
                     AppAnalytics.shared.logReaderOpened(source: selection.source, kind: .book, entry: self.openEntry)
                 }
-                self.awardChapterAdPointsIfNeeded()
+                // 中文注释：按章计分只给文字书；有声书只按实际播放计分（`accumulateAudioPlayedInterval`）。
+                // 此前这里不分类型，有声书一打开就先记一次「进一章 +50」，音频还没加载、甚至取不到也会凑满弹广告（2026-10-20 用户发现）。
+                if self.isAudiobook == false {
+                    self.awardChapterAdPointsIfNeeded()
+                }
             }
             if let publication: Publication = self.publication, case .success(let links) = await publication.tableOfContents() {
                 self.tableOfContents = links
@@ -186,7 +209,15 @@ final class BookReaderViewModel {
         }
         self.coverURL = loaded.manifest.coverURL
         self.siteManifest = loaded.manifest
-        let publication: Publication = self.sitePublicationBuilder.build(manifest: loaded.manifest, contentProvider: loaded.contentProvider)
+        let publication: Publication = self.sitePublicationBuilder.build(
+            manifest: loaded.manifest,
+            contentProvider: loaded.contentProvider,
+            audioFailureHandler: { [weak self] failure in
+                Task { @MainActor in
+                    self?.audioResourceDidFail(failure)
+                }
+            }
+        )
         self.publication = publication
         let saved: Locator? = try await self.persistence.readingProgress(bookID: self.bookID, userID: self.userID)
             .flatMap { Self.locator(fromJSON: $0.locatorJSON) }
@@ -212,6 +243,7 @@ final class BookReaderViewModel {
                 }
             )
             navigator.delegate = bridge
+            navigator.submitPreferences(AudioPreferences(speed: self.playbackSpeed.rawValue))
             self.audioBridge = bridge
             self.audioNavigator = navigator
             self.navigatorProxy.navigator = navigator
@@ -235,7 +267,12 @@ final class BookReaderViewModel {
             return
         }
         if self.remoteControls == nil {
-            let controls: AudiobookRemoteControls = AudiobookRemoteControls(navigator: navigator, title: self.title, chapterCount: publication.readingOrder.count)
+            let controls: AudiobookRemoteControls = AudiobookRemoteControls(
+                navigator: navigator,
+                title: self.title,
+                chapterCount: publication.readingOrder.count,
+                artwork: self.audioArtwork
+            )
             controls.attach()
             self.remoteControls = controls
         }
@@ -291,6 +328,42 @@ final class BookReaderViewModel {
         self.remoteControls?.detach()
         self.remoteControls = nil
         self.flush()
+    }
+
+    /// 中文注释：当前集的序号（从 0 起，AudioNavigator 报的资源序号）与总集数，播放页眉行「第 N / M 集」用。
+    var audioChapterIndex: Int {
+        return self.audioPlayback.resourceIndex
+    }
+
+    var audioChapterCount: Int {
+        return self.publication?.readingOrder.count ?? 0
+    }
+
+    /// 中文注释：当前集取不到时是哪一类；nil 表示没有失败。
+    var currentAudioChapterFailure: BookAudioResourceFailure.Kind? {
+        return self.audioChapterFailures[self.audioChapterIndex]
+    }
+
+    /// 中文注释：目录 sheet 的集名（readingOrder 的标题，可能缺）。
+    var audioChapterTitles: [String?] {
+        return self.publication?.readingOrder.map(\.title) ?? []
+    }
+
+    /// 中文注释：打开前就判断「整站有声」（reader 规则全是 audio，与库页、详情页同一判据），打开中的骨架按播放页的样子画。
+    var expectsAudiobook: Bool {
+        guard case .site(let selection) = self.subject, case .book(let configuration) = selection.source.configuration else {
+            return false
+        }
+        let readers: [BookReaderRule] = configuration.rule.ruleSets.readerRules
+        return readers.isEmpty == false && readers.allSatisfy { reader in reader.contentType == .audio }
+    }
+
+    var canGoToPreviousAudioChapter: Bool {
+        return self.audioChapterIndex > 0
+    }
+
+    var canGoToNextAudioChapter: Bool {
+        return self.audioChapterIndex + 1 < self.audioChapterCount
     }
 
     /// 中文注释：当前正在播的章节标题（AudioNavigator 报的资源序号对应 readingOrder）。
@@ -489,6 +562,11 @@ final class BookReaderViewModel {
     /// 中文注释：AudioNavigator 报来的播放状态：更新界面与锁屏控制，并累计广告积分。
     func audioPlaybackDidChange(_ info: MediaPlaybackInfo) {
         self.audioPlayback = info
+        if info.state == .playing {
+            // 中文注释：真的在播，说明这一集取得到，也不再是「全部听完了」。
+            self.didFinishAudiobook = false
+            self.audioChapterFailures[info.resourceIndex] = nil
+        }
         self.remoteControls?.update(info: info)
         self.accumulateAudioPlayedDuration(info)
         self.accumulateAudioPlayedInterval(info)
@@ -500,7 +578,97 @@ final class BookReaderViewModel {
               info.resourceIndex >= publication.readingOrder.count - 1 else {
             return
         }
+        self.didFinishAudiobook = true
         AppAnalytics.shared.logPlaybackCompleted(kind: .audiobook, playerType: .audio)
+    }
+
+    /// 中文注释：音频客户端报来的单集失败（`APP-MEMO-043`）：按地址对回集序号记下。不自动跳下一集（裁定 9），由播放页的横条让用户决定。
+    func audioResourceDidFail(_ failure: BookAudioResourceFailure) {
+        guard let index: Int = self.audioChapterIndex(for: failure.chapterURL) else {
+            return
+        }
+        if self.audioChapterFailures[index] == .gone {
+            return
+        }
+        self.audioChapterFailures[index] = failure.kind
+        if index == self.audioChapterIndex {
+            self.audioNavigator?.pause()
+        }
+    }
+
+    /// 中文注释：出版物里登记的地址可能是 http（请求时才升 https），两种写法都认。
+    private func audioChapterIndex(for chapterURL: URL) -> Int? {
+        guard let items: [BookPublicationItem] = self.siteManifest?.items else {
+            return nil
+        }
+        let target: String = Self.schemeless(chapterURL.absoluteString)
+        return items.firstIndex { item in
+            return item.chapterURL == chapterURL
+                || Self.schemeless(item.chapterURL.absoluteString) == target
+                || Self.schemeless(item.href) == target
+        }
+    }
+
+    private static func schemeless(_ address: String) -> String {
+        guard let range: Range<String.Index> = address.range(of: "://") else {
+            return address
+        }
+        return String(address[range.upperBound...])
+    }
+
+    /// 中文注释：横条上的「重试」：清掉这一集的失败记录，从这一集开头重新取。
+    func retryCurrentAudioChapter() async {
+        let index: Int = self.audioChapterIndex
+        guard let navigator: AudioNavigator = self.audioNavigator,
+              let publication: Publication = self.publication,
+              publication.readingOrder.indices.contains(index) else {
+            return
+        }
+        self.audioChapterFailures[index] = nil
+        _ = await navigator.go(to: publication.readingOrder[index])
+        navigator.play()
+    }
+
+    /// 中文注释：横条上的「下一集」与主控件的下一集同一个动作。
+    func playNextAudioChapter() async {
+        guard let navigator: AudioNavigator = self.audioNavigator, self.canGoToNextAudioChapter else {
+            return
+        }
+        _ = await navigator.goForward()
+        navigator.play()
+    }
+
+    func playPreviousAudioChapter() async {
+        guard let navigator: AudioNavigator = self.audioNavigator, self.canGoToPreviousAudioChapter else {
+            return
+        }
+        _ = await navigator.goBackward()
+        navigator.play()
+    }
+
+    /// 中文注释：目录 sheet 点一集：从这一集开头播。
+    func playAudioChapter(at index: Int) async {
+        guard let navigator: AudioNavigator = self.audioNavigator,
+              let publication: Publication = self.publication,
+              publication.readingOrder.indices.contains(index) else {
+            return
+        }
+        _ = await navigator.go(to: publication.readingOrder[index])
+        navigator.play()
+    }
+
+    /// 中文注释：选倍速：记到全局，立即交给引擎（暂停中也生效，下次播放按它的速度）。
+    func setPlaybackSpeed(_ speed: AudiobookPlaybackSpeed) {
+        self.playbackSpeed = speed
+        speed.store()
+        self.audioNavigator?.submitPreferences(AudioPreferences(speed: speed.rawValue))
+        self.remoteControls?.update(info: self.audioPlayback)
+    }
+
+    /// 中文注释：播放页取到封面后交给锁屏 Now Playing。
+    func setAudioArtwork(_ image: UIImage) {
+        self.audioArtwork = image
+        self.remoteControls?.setArtwork(image)
     }
 
     /// 中文注释：与广告积分同一种累计法（只计播放中的小步进），但不依赖积分是否注入。

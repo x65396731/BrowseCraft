@@ -2,8 +2,10 @@ import ReadiumShared
 import SwiftUI
 
 // 中文注释：BookReaderView 是 EPUB 阅读器页：正文由 Readium Navigator 渲染，工具栏给目录与书签。
+// 有声作品走自绘的 `AudiobookPlayerView`（Audiobook-Player-Page-Redesign-Design.md）：隐藏系统导航栏，返回与目录在页面里，没有书签。
 
 struct BookReaderView: View {
+    @Environment(\.dismiss) private var dismiss
     @State private var viewModel: BookReaderViewModel
     @State private var isContentsPresented: Bool = false
     @State private var isBookmarksPresented: Bool = false
@@ -21,12 +23,28 @@ struct BookReaderView: View {
         Group {
             switch self.viewModel.state {
             case .loading:
-                ProgressView()
+                if self.viewModel.expectsAudiobook {
+                    AudiobookLoadingView(backAction: { self.dismiss() })
+                } else {
+                    ProgressView()
+                }
             case .failed(let message):
-                EmptyStateView(systemImage: "exclamationmark.triangle", title: NSLocalizedString("Open failed", comment: "打开失败"), message: message)
+                // 中文注释：打开失败：库页同一张「载入失败」插画 + 原因 + 下拉重试（交互约定：重试用下拉），两种阅读页共用。
+                ScrollView {
+                    LibraryPlaceholderView(
+                        systemImage: "exclamationmark.triangle",
+                        title: NSLocalizedString("Open failed", comment: "打开失败"),
+                        message: message,
+                        pullHint: NSLocalizedString("library_body_retry_pull_hint", comment: "失败态下拉重试提示"),
+                        illustration: "EmptyStateOffline"
+                    )
+                }
+                .refreshable {
+                    await self.viewModel.reopen()
+                }
             case .ready:
                 if self.viewModel.isAudiobook {
-                    AudiobookPlayerView(viewModel: self.viewModel)
+                    AudiobookPlayerView(viewModel: self.viewModel, backAction: { self.dismiss() })
                         .onAppear { self.viewModel.startAudioPlayback() }
                         .onDisappear { self.viewModel.stopAudioPlayback() }
                 } else if let publication: Publication = self.viewModel.publication {
@@ -46,18 +64,21 @@ struct BookReaderView: View {
         .navigationTitle(self.viewModel.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
+        .toolbar(self.showsAudiobookChrome ? .hidden : .automatic, for: .navigationBar)
         .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                Button {
-                    self.isContentsPresented = true
-                } label: {
-                    Label("Contents", systemImage: "list.bullet")
-                }
-                .disabled(self.viewModel.tableOfContents.isEmpty)
-                Button {
-                    self.isBookmarksPresented = true
-                } label: {
-                    Label("Bookmarks", systemImage: "bookmark")
+            if self.showsAudiobookChrome == false {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        self.isContentsPresented = true
+                    } label: {
+                        Label("Contents", systemImage: "list.bullet")
+                    }
+                    .disabled(self.viewModel.tableOfContents.isEmpty)
+                    Button {
+                        self.isBookmarksPresented = true
+                    } label: {
+                        Label("Bookmarks", systemImage: "bookmark")
+                    }
                 }
             }
         }
@@ -161,6 +182,18 @@ struct BookReaderView: View {
                 self.viewModel.markAdPlaybackHandled(outcome: outcome)
             }
         )
+    }
+
+    /// 中文注释：有声书（以及打开中的整站有声作品）用播放页自己的返回与目录，隐藏系统导航栏与工具栏按钮。
+    private var showsAudiobookChrome: Bool {
+        switch self.viewModel.state {
+        case .ready:
+            return self.viewModel.isAudiobook
+        case .loading:
+            return self.viewModel.expectsAudiobook
+        case .failed:
+            return false
+        }
     }
 
     private static let dateFormatter: DateFormatter = {

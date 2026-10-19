@@ -14,8 +14,9 @@ struct ReadiumSitePublicationBuilderAdapter: SiteReadiumPublicationBuilding {
 
     func build(
         manifest: BookPublicationManifest,
-        contentProvider: @escaping BookChapterContentProvider
+        contentProvider: @escaping BookChapterContentProvider,
+        audioFailureHandler: BookAudioResourceFailureHandler?
     ) -> Publication {
-        return self.builder.build(manifest: manifest, contentProvider: contentProvider)
+        return self.builder.build(manifest: manifest, contentProvider: contentProvider, audioFailureHandler: audioFailureHandler)
     }
 }

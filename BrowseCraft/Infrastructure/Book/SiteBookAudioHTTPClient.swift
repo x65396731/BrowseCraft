@@ -1,4 +1,5 @@
 import BrowseCraftCore
+import BrowseCraftDomain
 import BrowseCraftLog
 import Foundation
 import ReadiumShared
@@ -10,27 +11,41 @@ import ReadiumShared
 // 取页解析出真正的音频地址并改写请求，同时带上规则给的请求头，没给 Referer 时以章节页为 Referer（A2）。
 // DefaultHTTPClient 对代理是弱引用，本对象由出版物容器持有。
 
-/// 中文注释：`@unchecked` 的依据（architecture.md 第 4 节）：成员全不可变；Readium `DefaultHTTPClient` 未标 Sendable，代理回调由 URLSession 串行调用。
+/// 中文注释：`@unchecked` 的依据（architecture.md 第 4 节）：除 `requestedChapters` 外成员全不可变，`requestedChapters` 只在锁内读写；
+/// Readium `DefaultHTTPClient` 未标 Sendable，代理回调由 URLSession 串行调用。
 final class SiteBookAudioHTTPClient: DefaultHTTPClientDelegate, @unchecked Sendable {
     let client: DefaultHTTPClient
     private let pageAudioResolver: SiteBookPageAudioResolver?
+    /// 中文注释：单集音频取不到时告诉播放页（`APP-MEMO-043`）；nil 时只记日志。
+    private let failureHandler: BookAudioResourceFailureHandler?
+    /// 中文注释：发出去的请求地址（升级 https、改写成解析出的音频地址之后）→ 出版物里登记的这一集地址，失败时按它对回是哪一集。
+    private var requestedChapters: [String: URL] = [:]
+    private let lock: NSLock = NSLock()
 
-    init(configuration: URLSessionConfiguration = .default, pageAudioResolver: SiteBookPageAudioResolver? = nil) {
+    init(
+        configuration: URLSessionConfiguration = .default,
+        pageAudioResolver: SiteBookPageAudioResolver? = nil,
+        failureHandler: BookAudioResourceFailureHandler? = nil
+    ) {
         self.client = DefaultHTTPClient(configuration: configuration)
         self.pageAudioResolver = pageAudioResolver
+        self.failureHandler = failureHandler
         self.client.delegate = self
     }
 
     func httpClient(_ httpClient: DefaultHTTPClient, willStartRequest request: HTTPRequest) async -> HTTPResult<HTTPRequestConvertible> {
+        let chapterURL: URL = request.url.url
         guard let resolver: SiteBookPageAudioResolver = self.pageAudioResolver else {
-            return .success(Self.upgradedToHTTPS(request))
+            return .success(self.remembering(Self.upgradedToHTTPS(request), chapterURL: chapterURL))
         }
         do {
-            guard let resolved: SiteBookResolvedAudio = try await resolver.resolve(request.url.url) else {
-                return .success(Self.upgradedToHTTPS(request))
+            guard let resolved: SiteBookResolvedAudio = try await resolver.resolve(chapterURL) else {
+                return .success(self.remembering(Self.upgradedToHTTPS(request), chapterURL: chapterURL))
             }
-            return .success(Self.upgradedToHTTPS(Self.redirected(request, to: resolved)))
+            return .success(self.remembering(Self.upgradedToHTTPS(Self.redirected(request, to: resolved)), chapterURL: chapterURL))
         } catch {
+            // 中文注释：取播放页就失败了，请求不会发出，`didFailWithError` 也不会回调，在这里报。
+            self.reportFailure(chapterURL: chapterURL, kind: Self.failureKind(resolverError: error), statusCode: Self.statusCode(of: error))
             return .failure(.other(error))
         }
     }
@@ -50,6 +65,71 @@ final class SiteBookAudioHTTPClient: DefaultHTTPClientDelegate, @unchecked Senda
             "path": .path(request.url.url),
             "error": .error(error)
         ])
+        guard let kind: BookAudioResourceFailure.Kind = Self.failureKind(httpError: error) else {
+            return
+        }
+        let chapterURL: URL = self.chapterURL(forRequestURL: request.url.url) ?? request.url.url
+        self.reportFailure(chapterURL: chapterURL, kind: kind, statusCode: Self.statusCode(of: error))
+    }
+
+    /// 中文注释：HTTP 失败的分类：404 / 403 / 410 算站点上已失效，其余暂时性失败可重试；取消（AVPlayer 换 Range、换集）不算失败。
+    static func failureKind(httpError: HTTPError) -> BookAudioResourceFailure.Kind? {
+        switch httpError {
+        case .cancelled:
+            return nil
+        case .errorResponse(let response):
+            return BookAudioResourceFailure.kind(statusCode: response.status.rawValue)
+        case .other(let error):
+            return Self.failureKind(resolverError: error)
+        default:
+            return .unavailable
+        }
+    }
+
+    /// 中文注释：播放页型章节取页失败：页面上解不出音频算已失效；取页本身回 404 / 403 / 410 也算；其余可重试。
+    static func failureKind(resolverError: Error) -> BookAudioResourceFailure.Kind {
+        if resolverError is BookPublicationContentError {
+            return .gone
+        }
+        if case RuleExecutionError.httpStatus(_, let statusCode) = resolverError {
+            return BookAudioResourceFailure.kind(statusCode: statusCode)
+        }
+        return .unavailable
+    }
+
+    private static func statusCode(of error: Error) -> Int? {
+        if case HTTPError.errorResponse(let response) = error {
+            return response.status.rawValue
+        }
+        if case RuleExecutionError.httpStatus(_, let statusCode) = error {
+            return statusCode
+        }
+        return nil
+    }
+
+    private func remembering(_ request: HTTPRequest, chapterURL: URL) -> HTTPRequest {
+        self.lock.lock()
+        self.requestedChapters[request.url.url.absoluteString] = chapterURL
+        self.lock.unlock()
+        return request
+    }
+
+    private func chapterURL(forRequestURL url: URL) -> URL? {
+        self.lock.lock()
+        defer {
+            self.lock.unlock()
+        }
+        return self.requestedChapters[url.absoluteString]
+    }
+
+    private func reportFailure(chapterURL: URL, kind: BookAudioResourceFailure.Kind, statusCode: Int?) {
+        AppLog.notice(.network, "audio-chapter-unavailable", [
+            "host": .host(chapterURL),
+            "path": .path(chapterURL),
+            "kind": .code(kind == .gone ? "gone" : "unavailable"),
+            "status": .int(statusCode ?? 0)
+        ])
+        self.failureHandler?(BookAudioResourceFailure(chapterURL: chapterURL, kind: kind, statusCode: statusCode))
     }
 
     /// 中文注释：http → https，其余原样；升级后不再回退 http（回退也会被 ATS 拦，没有意义）。

@@ -86,6 +86,8 @@ enum CatalogPalette {
     // 仍允许直接写颜色的只有功能性取值，与内购页固定深色同一类，逐处有注释：漫画阅读器页面底（ReaderPageImageView）、
     // 播放器黑底（Video/Player）、启动动画（StartupAnimationView）、调试页（SourceDebugView）、Apple 登录按钮的系统样式、
     // 设置页全屏广告位的黑底、流光描边两端夹的白光。
+    // 2026-10-20 有声书播放页沉浸深色与播放器黑底同一类（Audiobook-Player-Page-Redesign-Design.md 第四节）：底色从封面取色
+    //（`AudiobookBackdropPalette`），前景取下面 `immersive*` 一组。
 
     /// 实心动作按钮（添加蓝、警示色实心、固定深色底）上的文字与图标：白，深浅同值。
     static let onAction: Color = .white
@@ -119,6 +121,20 @@ enum CatalogPalette {
     static let headerScrim: Color = Color.black.opacity(0.45)
     /// 固定深色瓷砖 / 头图上的半透明白：进度条轨道、圆按钮底、徽章底，统一 16%（原各处 14% / 16% / 18%）。
     static let onDarkFill: Color = Color.white.opacity(0.16)
+
+    // MARK: 有声书播放页（沉浸深色，不随系统；Audiobook-Player-Page-Redesign-Design.md 第八节）
+    /// 主字、播放键底、进度已听部分、滑块：白。
+    static let immersiveText: Color = .white
+    /// 书名、时间等次级字：白 68%。
+    static let immersiveSecondaryText: Color = Color.white.opacity(0.68)
+    /// 眉行「第 N / M 集」与波形：白 72%。
+    static let immersiveEyebrow: Color = Color.white.opacity(0.72)
+    /// 进度条轨道：白 22%。
+    static let immersiveTrack: Color = Color.white.opacity(0.22)
+    /// 毛玻璃圆与胶囊的描边：白 16%。
+    static let immersiveStroke: Color = Color.white.opacity(0.16)
+    /// 流动背景底部压暗：黑 45%。
+    static let immersiveScrim: Color = Color.black.opacity(0.45)
 
     /// 不随系统深浅色变化的固定色。
     static func fixed(_ hex: UInt32) -> Color {

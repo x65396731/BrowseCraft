@@ -1085,3 +1085,24 @@
 "problem_type_junk_text" = "夾著廣告或雜字";
 "problem_type_progress_wrong" = "時長或進度不對";
 "problem_type_other" = "其他";
+
+/* 有声书播放页（docs/design/Audiobook-Player-Page-Redesign-Design.md） */
+"audiobook_player_episode_position" = "第 %1$ld / %2$ld 集";
+"audiobook_player_episode_fallback" = "第 %ld 集";
+"audiobook_player_finished" = "全部聽完了";
+"audiobook_player_skip_back" = "後退 10 秒";
+"audiobook_player_skip_forward" = "前進 30 秒";
+"audiobook_player_previous" = "上一集";
+"audiobook_player_next" = "下一集";
+"audiobook_player_play" = "播放";
+"audiobook_player_pause" = "暫停";
+"audiobook_player_progress" = "播放進度";
+"audiobook_player_speed_title" = "播放速度";
+"audiobook_player_speed_label" = "播放速度 %@";
+"audiobook_player_gone_title" = "本集音訊在站點上已失效";
+"audiobook_player_gone_message" = "站點刪了這一集的檔案，可以先聽下一集";
+"audiobook_player_unavailable_title" = "這一集沒載入出來";
+"audiobook_player_unavailable_message" = "網路或站點暫時不穩";
+"audiobook_contents_count" = "%ld 集";
+"audiobook_contents_gone" = "已失效";
+"audiobook_contents_now_playing" = "正在聽";

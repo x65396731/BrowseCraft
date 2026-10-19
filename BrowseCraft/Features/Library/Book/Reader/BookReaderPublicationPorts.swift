@@ -13,9 +13,11 @@ protocol ReadiumPublicationProviding {
 }
 
 /// 中文注释：把站点书的 manifest 与按需取正文的 provider 装配成 Readium `Publication`。
+/// `audioFailureHandler`：有声章节音频取不到时回调（`APP-MEMO-043`，Audiobook-Player-Page-Redesign-Design.md 第六节）。
 protocol SiteReadiumPublicationBuilding: Sendable {
     func build(
         manifest: BookPublicationManifest,
-        contentProvider: @escaping BookChapterContentProvider
+        contentProvider: @escaping BookChapterContentProvider,
+        audioFailureHandler: BookAudioResourceFailureHandler?
     ) -> Publication
 }

@@ -12,7 +12,12 @@ struct ReadiumSitePublicationBuilder: Sendable {
         self.renderer = renderer
     }
 
-    func build(manifest: BookPublicationManifest, contentProvider: @escaping BookChapterContentProvider) -> Publication {
+    /// - Parameter audioFailureHandler: 有声章节音频取不到时回调（`APP-MEMO-043`）；文字书与测试传 nil。
+    func build(
+        manifest: BookPublicationManifest,
+        contentProvider: @escaping BookChapterContentProvider,
+        audioFailureHandler: BookAudioResourceFailureHandler? = nil
+    ) -> Publication {
         let readingOrder: [Link] = manifest.items.map { item in
             switch item.kind {
             case .text:
@@ -31,7 +36,8 @@ struct ReadiumSitePublicationBuilder: Sendable {
         let siteContainer: SiteBookChapterContainer = SiteBookChapterContainer(
             manifest: manifest,
             renderer: self.renderer,
-            contentProvider: contentProvider
+            contentProvider: contentProvider,
+            audioFailureHandler: audioFailureHandler
         )
         // 中文注释：AudioNavigator 的媒体加载器只播 `publication.get(link)` 给得出资源的 href；远程 mp3 由 Readium 自带的
         // HTTPContainer 按 Range 取（HTTPResource 的构造器不对外），正文容器与它组合，正文章节仍走前者。
@@ -84,7 +90,12 @@ final class SiteBookChapterContainer: Container, @unchecked Sendable {
     /// 中文注释：音频请求客户端（含 http → https 升级代理、播放页型章节的取页解析）；DefaultHTTPClient 对代理是弱引用，由本容器持有。
     let audioHTTPClient: SiteBookAudioHTTPClient
 
-    init(manifest: BookPublicationManifest, renderer: BookXHTMLRenderer, contentProvider: @escaping BookChapterContentProvider) {
+    init(
+        manifest: BookPublicationManifest,
+        renderer: BookXHTMLRenderer,
+        contentProvider: @escaping BookChapterContentProvider,
+        audioFailureHandler: BookAudioResourceFailureHandler? = nil
+    ) {
         var byHref: [String: BookPublicationItem] = [:]
         var entries: Set<AnyURL> = []
         for item: BookPublicationItem in manifest.items {
@@ -101,7 +112,8 @@ final class SiteBookChapterContainer: Container, @unchecked Sendable {
         // 中文注释：fwq 设计稿第 46 节 A1：播放页型有声章节的 href 是播放页，播放器请求它时先取页解析出音频地址再改写请求。
         let pageAudioChapters: [URL] = manifest.items.filter(\.audioResolvedFromPage).map(\.chapterURL)
         self.audioHTTPClient = SiteBookAudioHTTPClient(
-            pageAudioResolver: pageAudioChapters.isEmpty ? nil : SiteBookPageAudioResolver(chapters: pageAudioChapters, provider: contentProvider)
+            pageAudioResolver: pageAudioChapters.isEmpty ? nil : SiteBookPageAudioResolver(chapters: pageAudioChapters, provider: contentProvider),
+            failureHandler: audioFailureHandler
         )
         self.language = manifest.language
         self.renderer = renderer

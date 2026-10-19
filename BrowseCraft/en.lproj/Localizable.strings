@@ -1085,3 +1085,24 @@
 "problem_type_junk_text" = "Ads or Junk in Text";
 "problem_type_progress_wrong" = "Wrong Length or Progress";
 "problem_type_other" = "Other";
+
+/* 有声书播放页（docs/design/Audiobook-Player-Page-Redesign-Design.md） */
+"audiobook_player_episode_position" = "Episode %1$ld of %2$ld";
+"audiobook_player_episode_fallback" = "Episode %ld";
+"audiobook_player_finished" = "Finished";
+"audiobook_player_skip_back" = "Back 10 seconds";
+"audiobook_player_skip_forward" = "Forward 30 seconds";
+"audiobook_player_previous" = "Previous episode";
+"audiobook_player_next" = "Next episode";
+"audiobook_player_play" = "Play";
+"audiobook_player_pause" = "Pause";
+"audiobook_player_progress" = "Playback position";
+"audiobook_player_speed_title" = "Playback Speed";
+"audiobook_player_speed_label" = "Playback speed %@";
+"audiobook_player_gone_title" = "This episode is gone from the site";
+"audiobook_player_gone_message" = "The site removed this file. Try the next one.";
+"audiobook_player_unavailable_title" = "This episode didn't load";
+"audiobook_player_unavailable_message" = "The network or site may be unstable.";
+"audiobook_contents_count" = "%ld episodes";
+"audiobook_contents_gone" = "Unavailable";
+"audiobook_contents_now_playing" = "Now playing";

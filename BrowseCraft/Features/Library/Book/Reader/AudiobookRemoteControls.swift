@@ -1,5 +1,6 @@
 import Foundation
 import MediaPlayer
+import UIKit
 @preconcurrency import ReadiumNavigator
 @preconcurrency import ReadiumShared
 
@@ -11,16 +12,19 @@ final class AudiobookRemoteControls {
     private let navigator: AudioNavigator
     private let title: String
     private let chapterCount: Int
+    /// 中文注释：锁屏封面（Audiobook-Player-Page-Redesign-Design.md 第七节）；播放页取到封面图后补上。
+    private var artwork: UIImage?
     private var targets: [(MPRemoteCommand, Any)] = []
 
-    init(navigator: AudioNavigator, title: String, chapterCount: Int) {
+    init(navigator: AudioNavigator, title: String, chapterCount: Int, artwork: UIImage? = nil) {
         self.navigator = navigator
         self.title = title
         self.chapterCount = chapterCount
+        self.artwork = artwork
     }
 
     func attach() {
-        NowPlayingInfo.shared.media = NowPlayingInfo.Media(title: self.title, chapterCount: self.chapterCount)
+        NowPlayingInfo.shared.media = NowPlayingInfo.Media(title: self.title, artwork: self.artwork, chapterCount: self.chapterCount)
         let center: MPRemoteCommandCenter = MPRemoteCommandCenter.shared()
         self.on(center.playCommand) { navigator, _ in navigator.play() }
         self.on(center.pauseCommand) { navigator, _ in navigator.pause() }
@@ -37,6 +41,11 @@ final class AudiobookRemoteControls {
             }
             Task { await navigator.seek(to: event.positionTime) }
         }
+    }
+
+    func setArtwork(_ image: UIImage) {
+        self.artwork = image
+        NowPlayingInfo.shared.media?.artwork = image
     }
 
     func detach() {
