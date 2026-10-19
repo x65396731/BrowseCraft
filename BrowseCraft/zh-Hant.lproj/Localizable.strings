@@ -116,12 +116,12 @@
 "video_generation_outcome_detail_episodeLayoutUnsupported" = "這個網站有影片頁面，但這種劇集排版暫時不支援。";
 "video_generation_outcome_detail_terminalPagesWithoutCarrier" = "已經取到了閱讀、播放或正文頁面，但頁面上認不出可以直接讀取的內容（例如畫布繪製、加密或需要腳本載入的內容），暫時不支援。";
 "video_generation_outcome_detail_contentNotServerRendered" = "這個網站的內容要另外請求資料或經過加密才能取得，目前只支援內容隨頁面直接下發的網站，請換一個網站試試。";
-"video_generation_outcome_detail_entryPageWithoutPagination" = "這個頁面的翻頁網址推不出來，只能取到第一屏。請換一個翻到第 2 頁時網址會跟著變的分類頁。";
-"video_generation_outcome_detail_entryPageMultipleListFamilies" = "這個頁面上有好幾組互不相干的清單，請換一個只列一類內容的分類頁。";
-"video_generation_outcome_detail_entryPageNoListFamily" = "這個頁面上沒有找到內容清單，請換一個分類頁或清單頁。";
-"video_generation_outcome_detail_entryPageShapeAmbiguous" = "這個頁面的結構沒看清，請換一個分類頁再試一次。";
+"video_generation_outcome_detail_entryPageWithoutPagination" = "這個頁面的翻頁網址推不出來，只能取到第一屏，目前還生成不了。";
+"video_generation_outcome_detail_entryPageMultipleListFamilies" = "這個頁面上有好幾組互不相干的清單，分不出哪一組是要生成的內容。";
+"video_generation_outcome_detail_entryPageNoListFamily" = "這個頁面上沒有找到內容清單。";
+"video_generation_outcome_detail_entryPageShapeAmbiguous" = "這個頁面的結構暫時認不清，分不出哪裡是內容清單。";
 "video_generation_outcome_detail_entryPageIsSiteRoot" = "暫不支援用網站首頁生成。請打開網站上「全部」內容的列表頁（沒有就選一個分類頁），用它的網址再試一次。";
-"video_generation_outcome_detail_entryPagePaginationUnverified" = "這個頁面的翻頁地址核驗不通過：第 2 頁取不回，或取回的內容與第 1 頁對不上。請換一個翻頁正常的分類頁地址再試一次。";
+"video_generation_outcome_detail_entryPagePaginationUnverified" = "這個頁面的翻頁地址核驗不通過：第 2 頁取不回，或取回的內容與第 1 頁對不上。";
 /* 個人規則在本機保留 7 天；刪除只會在本機隱藏，並移除已加入的來源。 */
 "catalog_personal_retention_hint" = "你生成的規則會在本機保留 7 天（從收到時算起），向左滑可以提前刪除。";
 "catalog_personal_delete" = "刪除";
@@ -644,7 +644,7 @@
 "video_generation_outcome_detail_listItemsAmbiguous" = "這個頁面的列表項目取不出唯一的標題或連結，頁面結構暫不支援。";
 "video_generation_outcome_detail_entryNotLeafList" = "這個頁面底下還套著多個分類，不是單一的列表頁，暫不支援。";
 "video_generation_outcome_detail_detailPagesUnrecognized" = "這個網站的列表沒有問題，但點進去的作品頁暫時認不出結構（找不到作品標題與章節或劇集列表），請換一個網站試試。";
-"video_generation_outcome_detail_listItemsNotWorks" = "這個頁面的列表條目指向的不是作品頁（是本頁的排序或篩選連結），請換一個直接列出作品的分類頁再試一次。";
+"video_generation_outcome_detail_listItemsNotWorks" = "這個頁面的列表條目指向的不是作品頁（是本頁的排序或篩選連結）。";
 
 /* 设置页重设计（docs/design/Settings-Page-Redesign-Design.md 第七节） */
 "settings_account_title" = "AnyPortal 帳號";

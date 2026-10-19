@@ -116,12 +116,12 @@
 "video_generation_outcome_detail_episodeLayoutUnsupported" = "The site has video pages, but this episode layout isn't supported yet.";
 "video_generation_outcome_detail_terminalPagesWithoutCarrier" = "The reading, playback, or chapter pages were reached, but no directly readable content was found on them (for example, canvas-drawn, encrypted, or script-loaded content). This is not supported yet.";
 "video_generation_outcome_detail_contentNotServerRendered" = "This site loads its content through separate data requests or encryption. Only sites that deliver content with the page itself are supported for now. Try a different site.";
-"video_generation_outcome_detail_entryPageWithoutPagination" = "We could not work out this page’s next-page address, so only the first screen is reachable. Try a category page whose address changes when you go to page 2.";
-"video_generation_outcome_detail_entryPageMultipleListFamilies" = "This page holds several unrelated lists. Try a category page that lists just one kind of content.";
-"video_generation_outcome_detail_entryPageNoListFamily" = "No content list was found on this page. Try a category or listing page.";
-"video_generation_outcome_detail_entryPageShapeAmbiguous" = "We could not read this page’s structure. Try a category page instead.";
+"video_generation_outcome_detail_entryPageWithoutPagination" = "We could not work out this page’s next-page address, so only the first screen is reachable. This page can’t be generated yet.";
+"video_generation_outcome_detail_entryPageMultipleListFamilies" = "This page holds several unrelated lists, and we could not tell which one is the content to generate.";
+"video_generation_outcome_detail_entryPageNoListFamily" = "No content list was found on this page.";
+"video_generation_outcome_detail_entryPageShapeAmbiguous" = "We could not read this page’s structure well enough to tell where the content list is.";
 "video_generation_outcome_detail_entryPageIsSiteRoot" = "Site home pages are not supported. Open the site's \"All\" listing page (or a category page if there is none) and try its address.";
-"video_generation_outcome_detail_entryPagePaginationUnverified" = "The paging address on this page could not be verified: page 2 did not load, or its items did not differ from page 1. Try a category page whose paging works.";
+"video_generation_outcome_detail_entryPagePaginationUnverified" = "The paging address on this page could not be verified: page 2 did not load, or its items did not differ from page 1.";
 /* Personal rules are kept locally for 7 days after they are first received; deleting hides them locally and removes the added source. */
 "catalog_personal_retention_hint" = "Rules you generated are kept on this device for 7 days after they arrive. Swipe left to delete one earlier.";
 "catalog_personal_delete" = "Delete";
@@ -644,7 +644,7 @@
 "video_generation_outcome_detail_listItemsAmbiguous" = "Items in this page's list don't have a single clear title or link. This page layout isn't supported yet.";
 "video_generation_outcome_detail_entryNotLeafList" = "This page contains several categories rather than a single list, which isn't supported yet.";
 "video_generation_outcome_detail_detailPagesUnrecognized" = "This site's list pages are fine, but we can't recognize the structure of its work pages yet (no title with a chapter or episode list). Try another site.";
-"video_generation_outcome_detail_listItemsNotWorks" = "The items in this page's list don't lead to work pages (they are this page's own sort or filter links). Try a category page that lists works directly.";
+"video_generation_outcome_detail_listItemsNotWorks" = "The items in this page's list don't lead to work pages (they are this page's own sort or filter links).";
 
 /* 设置页重设计（docs/design/Settings-Page-Redesign-Design.md 第七节） */
 "settings_account_title" = "AnyPortal Account";

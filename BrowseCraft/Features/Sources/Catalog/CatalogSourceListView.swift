@@ -937,9 +937,9 @@ private struct FailedGenerationOutcomeCardView: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                // 中文注释：入口页资格拒因（`BC-PAGE-060` 的四种）说的就是「这一页不合格」，
-                // 下一步是换一个合格的页面——把教程接在这里，用户不必自己去添加来源里翻。
-                if VideoGenerationOutcomeText.isEntryPageRejection(self.outcome) {
+                // 中文注释：首页入口（`BC-PAGE-062`）的下一步是换成列表页——把教程接在这里，用户不必自己去添加来源里翻。
+                // 其余入口页拒因换页无效，不挂（fwq `APP-MEMO-045`）。
+                if VideoGenerationOutcomeText.showsEntryGuide(self.outcome) {
                     Button {
                         self.isShowingGuide = true
                     } label: {
@@ -1049,10 +1049,8 @@ enum VideoGenerationOutcomeText {
         return NSLocalizedString("video_generation_outcome_failed_\(reason)", comment: "")
     }
 
-    /// `BC-PAGE-060` 的四种入口页拒因——它们都指向同一件事：换一个合格的入口页。
-    /// `BC-PAGE-062` 追加 `entryPageIsSiteRoot`：首页入口不再支持，下一步同样是换入口页。
-    /// `BC-LIST-112` 追加 `entryPagePaginationUnverified`：翻页地址推得出但第 2 页核验不过，下一步仍是换入口页。
-    /// fwq `BC-IMPL-168` / `APP-MEMO-034` 追加 `listItemsNotWorks`：列表条目指向的是入口本身的排序 / 筛选链接，下一步是换一个直接列出作品的分类页。
+    /// 入口页资格拒因：`BC-PAGE-060` 四种、`BC-PAGE-062` 首页、`BC-LIST-112` 第 2 页核验不过、fwq `BC-IMPL-168` / `APP-MEMO-034` 条目不是作品。
+    /// 只负责并进 `knownReasonDetails`，让细分文案能显示。fwq `APP-MEMO-045`：除首页外文案只陈述成因、不叫用户换页（用户 10-18：同站同模板，换了也一样）。
     static let entryPageRejectionDetails: Set<String> = [
         "entryPageWithoutPagination", "entryPageMultipleListFamilies",
         "entryPageNoListFamily", "entryPageShapeAmbiguous",
@@ -1060,11 +1058,14 @@ enum VideoGenerationOutcomeText {
         "listItemsNotWorks"
     ]
 
-    static func isEntryPageRejection(_ outcome: VideoGenerationOutcome) -> Bool {
+    /// fwq `APP-MEMO-045`：失败卡片挂「看看怎样的页面能生成」只限首页入口——下一步确实是换成列表页；其余拒因换页无效，不再引导。
+    static let entryGuideDetails: Set<String> = ["entryPageIsSiteRoot"]
+
+    static func showsEntryGuide(_ outcome: VideoGenerationOutcome) -> Bool {
         guard let detail: String = outcome.reasonDetail else {
             return false
         }
-        return Self.entryPageRejectionDetails.contains(detail)
+        return Self.entryGuideDetails.contains(detail)
     }
 
     static func reasonDetailText(for outcome: VideoGenerationOutcome) -> String? {

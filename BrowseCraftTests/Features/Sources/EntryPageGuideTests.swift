@@ -36,19 +36,29 @@ struct EntryPageGuideTests {
         #expect(EntryPageGuide.shouldPresent(seenVersion: 0, didAcknowledge: true) == false)
     }
 
-    /// 中文注释：四种入口页拒因说的都是「换一个合格的页面」，失败行要挂教程入口。
-    @Test("四种入口页拒因都认成入口页问题")
-    func recognizesEntryPageRejections() {
-        for detail: String in VideoGenerationOutcomeText.entryPageRejectionDetails {
-            #expect(VideoGenerationOutcomeText.isEntryPageRejection(Self.outcome(detail: detail)) == true)
-        }
+    /// 中文注释：fwq `APP-MEMO-045`——只有首页入口的下一步是换页，失败行只给它挂教程入口。
+    @Test("首页入口拒因挂教程入口")
+    func showsGuideForSiteRoot() {
+        #expect(VideoGenerationOutcomeText.showsEntryGuide(Self.outcome(detail: "entryPageIsSiteRoot")) == true)
     }
 
-    @Test("其它细分与缺失细分都不挂教程入口")
+    @Test("其余入口页拒因、其它细分与缺失细分都不挂教程入口")
     func ignoresOtherReasonDetails() {
-        #expect(VideoGenerationOutcomeText.isEntryPageRejection(Self.outcome(detail: "noPlaybackCarrier")) == false)
-        #expect(VideoGenerationOutcomeText.isEntryPageRejection(Self.outcome(detail: nil)) == false)
-        #expect(VideoGenerationOutcomeText.isEntryPageRejection(Self.outcome(detail: "somethingNewFromServer")) == false)
+        for detail: String in VideoGenerationOutcomeText.entryPageRejectionDetails where detail != "entryPageIsSiteRoot" {
+            #expect(VideoGenerationOutcomeText.showsEntryGuide(Self.outcome(detail: detail)) == false)
+        }
+        #expect(VideoGenerationOutcomeText.showsEntryGuide(Self.outcome(detail: "noPlaybackCarrier")) == false)
+        #expect(VideoGenerationOutcomeText.showsEntryGuide(Self.outcome(detail: nil)) == false)
+        #expect(VideoGenerationOutcomeText.showsEntryGuide(Self.outcome(detail: "somethingNewFromServer")) == false)
+    }
+
+    /// 中文注释：fwq `APP-MEMO-045`——除首页外，入口页拒因的细分文案只陈述成因，不叫用户换页。
+    @Test("非首页入口页拒因的文案不叫用户换页")
+    func entryRejectionCopyDoesNotSuggestSwitching() {
+        for detail: String in VideoGenerationOutcomeText.entryPageRejectionDetails where detail != "entryPageIsSiteRoot" {
+            let text: String = VideoGenerationOutcomeText.reasonDetailText(for: Self.outcome(detail: detail)) ?? ""
+            #expect(text.contains("换一个") == false && text.contains("換一個") == false && text.contains("Try a") == false, "\(detail)：\(text)")
+        }
     }
 
     /// 中文注释：入口页拒因并进 `knownReasonDetails`，否则那一句细分文案会被整个吞掉。
