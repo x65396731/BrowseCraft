@@ -1428,3 +1428,6 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 减弱动态效果（`ReduceMotionEnabled`）打开时恢复卡只显示海报帧，测完改回关闭；外观测完改回浅色。
 - 未走：其他 App 放音乐时标记出现不打断音乐（模拟器上没有现成的音乐来源）、真机。观察项：深色下墨青圆在深灰卡片上的边界偏弱。
 - `STATUS.md` 第 2 节加一行走查记录 simulator-passed；改动仍在工作区未提交，检查点暂记基线 `7735eca`。
+
+2026-10-20 品牌等待标记提交（用户：提交工作树中的更改）。
+- 实施、合同与走查一并提交为 `854a09e`。`STATUS.md` 第 2 节品牌等待标记两行的检查点 7735eca（基线）→ `854a09e`，删去「改动在工作区未提交」的备注。
