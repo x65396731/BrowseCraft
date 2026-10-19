@@ -154,7 +154,7 @@ struct VideoDetailView: View {
                         urlString: self.viewModel.displayCoverURLString,
                         refererURLString: self.viewModel.item.detailURL,
                         requestConfig: self.viewModel.imageRequestConfig,
-                        placeholderImageName: "VideoDetailPlaceholder",
+                        placeholderImageName: "VideoListPlaceholder",
                         fallbackURLString: self.viewModel.item.coverURL
                     )
                     .frame(width: Self.posterSize.width, height: Self.posterSize.height)

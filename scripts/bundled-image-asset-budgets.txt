@@ -29,9 +29,7 @@
 
 ComicListPlaceholder    962000    600x900    single-scale-lossy-png
 VideoListPlaceholder    943000    600x900    single-scale-lossy-png
-ComicDetailPlaceholder  310000    354x504    single-scale-lossy-png
-BookCoverPlaceholder    95000     216x300    single-scale-png
-VideoDetailPlaceholder  826000    1320x1386  single-scale-png
+BookCoverPlaceholder    130000    216x288    single-scale-png
 LaunchSplash            854000    720x1280   keep-as-is
 AppIcon                 950000    1024x1024  keep-as-is
 EmptyStateSources       300000    399x540    single-scale-png
@@ -180,3 +178,11 @@ SettingsCampaignPush      3000      22x22      multi-scale-png
 # 即梦 Seedance 2.5 首尾帧 480P 4 秒的循环视频去掉第 1 帧（输入图本身）后的第 2 帧，缩到 288×288（96pt @3x），
 # 视频就绪前与开了「减弱动态效果」时显示；按 96 / 56pt 渲染，接近原生分辨率，所以不标 lossy。
 # 同一段视频压成 HEVC 放在 BrowseCraft/Resources/Waiting/brand-waiting.mp4（不在本闸门范围）。源字节上限按实际字节加约 15% 余量。
+
+# 2026-10-20 占位图收敛（docs/design/Library-Book-Page-Redesign-Design.md 等三份合同的封面行）：
+# ComicDetailPlaceholder、VideoDetailPlaceholder 删除——两张都是早期写实比例立绘，详情页重做后只剩小海报 / 小封面一处用处，
+# 改用同类型的 Q 版列表图（视频详情 108×162pt 与列表同为 2:3；漫画详情 112×150pt 是 3:4，2:3 的列表图居中铺满只裁掉上下各约 6%）。
+# BookCoverPlaceholder 换成 Q 版场景图（戴耳机、抱一本发光的书站在暖色书架前），与两张列表图同一套风格；书籍列表 60×80、
+# 详情 72×96、收藏与历史 56×78 都是 3:4 左右，仍是一张通用。即梦 Seedream 5.0 Pro 3:4 1.5K（1296×1728）四选一，
+# 参考图用 ComicListPlaceholder，选在 60×80pt 下脸和书最清楚的那张；居中缩到 216×288（详情 72×96pt @3x），无损。
+# 源字节上限按实际字节加约 15% 余量。

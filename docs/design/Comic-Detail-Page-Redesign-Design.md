@@ -27,7 +27,7 @@
 | 字段 | 规则里的来源 | 三条规则的现状 | 页面怎么用 |
 | --- | --- | --- | --- |
 | 标题 | detail `title` | 三条都有；めちゃコミック与 manga18 取的是页面 `<title>`，带站名前后缀 | 大标题用列表项标题（用户点进来时看到的名字），列表没给才用 detail `title` |
-| 封面 | detail `cover` | 三条都有（og:image 或正文图） | 头部封面；没有退到列表封面，再没有 `ComicDetailPlaceholder` |
+| 封面 | detail `cover` | 三条都有（og:image 或正文图） | 头部封面；没有退到列表封面，再没有用库页同一张 `ComicListPlaceholder` |
 | 简介 | detail `description` | 只有 MYCOMIC 有 | 简介块，没有不出 |
 | 作者 / 状态 / 分类 / 标签 / 语言 | detail `author` `status` `category` `tags` `language` | 三条都没生成 | 作者行、状态与分类徽章、标签条——有才出，现有来源上全部不出 |
 | 发布 / 更新时间、许可、编号、总图数、相册与二级页链接 | detail `publishedAt` `updatedAt` `license` `idCode` `totalImages` `photoAlbumURL` `secondLevelPageURL` | 三条都没生成 | 收进简介块下方的小字行；相册 / 二级页做成链接行；都没有就整块不出 |
@@ -83,7 +83,7 @@
 
 | 位置 | 内容 | 取值 |
 | --- | --- | --- |
-| 封面 | 112×150、圆角 12、轻投影；走 `ItemThumbnailImageView`（带退路地址）同一条封面管线，请求配置取规则的 detail 封面请求配置；detail `cover` 优先，没有用列表封面，再没有 `ComicDetailPlaceholder` | 左边距 20，上边距 = 安全区 + 56（给返回按钮留位） |
+| 封面 | 112×150、圆角 12、轻投影；走 `ItemThumbnailImageView`（带退路地址）同一条封面管线，请求配置取规则的 detail 封面请求配置；detail `cover` 优先，没有用列表封面，再没有 `ComicListPlaceholder`（与库页同一张，2:3 居中铺满 3:4 框） | 左边距 20，上边距 = 安全区 + 56（给返回按钮留位） |
 | 标题 | `title2` heavy 主文字色，最多三行 | 列表项标题优先，没有才用 detail `title` |
 | 作者行 | `subheadline` 次级色，一行 | `author`；没有不出，不再用来源名填空 |
 | 徽章行 | 状态（`status`）漫画类型色淡底 + 类型色字；分类（`category`）与语言（`language`）次级填充底 + 次级字 | 胶囊高 22、`caption` semibold；有几个出几个，一个都没有不出这行 |

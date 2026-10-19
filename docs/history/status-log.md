@@ -1431,3 +1431,10 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 
 2026-10-20 品牌等待标记提交（用户：提交工作树中的更改）。
 - 实施、合同与走查一并提交为 `854a09e`。`STATUS.md` 第 2 节品牌等待标记两行的检查点 7735eca（基线）→ `854a09e`，删去「改动在工作区未提交」的备注。
+
+2026-10-20 详情与书籍占位图重做（用户：BookCoverPlaceholder、ComicDetailPlaceholder、VideoDetailPlaceholder 重做，书籍列表没有占位图；即梦只剩 165 分，预计只能做 3 套）。
+- 现状：两张列表占位图是 Q 版场景图；两张详情占位图与书籍占位图是早期写实比例立绘，书籍各处借用 `BookCoverPlaceholder`。视频详情图原为整宽头图（1320 宽），详情页重做后只剩 108×162pt 小海报一处。
+- 设计文档 https://claude.ai/artifact/1Zx1GXzVhK4ks4MesqXygo 登记进页面设计索引，五项待裁定用户全取 A：只生成书籍一套，两张详情图改用同类型列表图并删旧图，书籍一张通用。
+- 素材：Seedream 5.0 Pro 3:4 1.5K 四张（20 分），参考图换成 `comic-list-placeholder.png`；按 60×80pt 缩小比较，七分身的两张脸与书清楚，选第 1 张，居中缩到 216×288。
+- 实施（未 build、测试未跑，改动在工作区未提交）：`VideoDetailView`、`ComicDetailSections` 改用列表图；删两个 imageset；`BookCoverPlaceholder` 换图；预算声明删两行、书籍一行改 216×288；影视详情、漫画详情、库页书籍三份合同的封面行同步。
+- `STATUS.md` 第 2 节新增一行 implemented / not-run，检查点暂记基线 `fed5d09`。
