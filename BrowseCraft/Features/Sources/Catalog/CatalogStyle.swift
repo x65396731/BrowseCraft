@@ -84,7 +84,7 @@ enum CatalogPalette {
 
     // MARK: - 2026-10-11 颜色收敛（复审「Features 层约 60 处颜色绕过 CatalogStyle」）：下面这组按角色命名，页面里不再直接写 .white / .black / Color(uiColor:)。
     // 仍允许直接写颜色的只有功能性取值，与内购页固定深色同一类，逐处有注释：漫画阅读器页面底（ReaderPageImageView）、
-    // 播放器黑底（Video/Player）、启动动画（StartupAnimationView）、调试页（SourceDebugView）、Apple 登录按钮的系统样式、
+    // 播放器黑底（Video/Player）、启动动画（StartupAnimationView）与启动建库段的黑底（BrowseCraftApp，同启动屏）、调试页（SourceDebugView）、Apple 登录按钮的系统样式、
     // 设置页全屏广告位的黑底、流光描边两端夹的白光。
     // 2026-10-20 有声书播放页沉浸深色与播放器黑底同一类（Audiobook-Player-Page-Redesign-Design.md 第四节）：底色从封面取色
     //（`AudiobookBackdropPalette`），前景取下面 `immersive*` 一组。
@@ -135,6 +135,10 @@ enum CatalogPalette {
     static let immersiveStroke: Color = Color.white.opacity(0.16)
     /// 流动背景底部压暗：黑 45%。
     static let immersiveScrim: Color = Color.black.opacity(0.45)
+
+    // MARK: 品牌等待标记（Brand-Waiting-Mark-Design.md 第七节）
+    /// 圆形底板：墨青，深浅同值，取自素材圆边的实际背景色；浅色卡片上读作一枚深色块，与深色类型瓷砖同一种语言。
+    static let brandWaitingFill: Color = Self.fixed(0x0E1D25)
 
     /// 不随系统深浅色变化的固定色。
     static func fixed(_ hex: UInt32) -> Color {

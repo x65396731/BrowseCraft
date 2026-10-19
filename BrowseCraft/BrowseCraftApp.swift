@@ -241,7 +241,18 @@ struct BrowseCraftApp: App {
         WindowGroup {
             switch self.bootstrapState {
             case .loading:
-                ProgressView(NSLocalizedString("bootstrap_loading", comment: "启动加载提示"))
+                // 中文注释：建库这一段铺与系统启动屏、启动视频封面同一张 LaunchSplash，不放文字与转圈，
+                // 三段看起来连成一张图接着播视频（Brand-Waiting-Mark-Design.md 第五节）。启动视频本身不动。
+                Color.black
+                    .overlay {
+                        Image("LaunchSplash")
+                            .resizable()
+                            .scaledToFill()
+                    }
+                    .clipped()
+                    .ignoresSafeArea()
+                    .accessibilityElement()
+                    .accessibilityLabel(NSLocalizedString("bootstrap_loading", comment: "启动加载提示"))
                     .task {
                         guard case .loading = self.bootstrapState else {
                             return

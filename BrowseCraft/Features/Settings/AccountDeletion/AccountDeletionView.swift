@@ -220,8 +220,8 @@ struct AccountDeletionView: View {
             CatalogPalette.pressedScrim
                 .ignoresSafeArea()
             VStack(spacing: 12) {
-                ProgressView()
-                    .controlSize(.large)
+                // 中文注释：品牌等待标记（Brand-Waiting-Mark-Design.md 第五节），只换指示器，遮罩与吞点击不变。
+                BrandWaitingMark(size: .large)
                 Text(NSLocalizedString("account_deletion_progress", comment: "正在删除账号…"))
                     .font(.body.weight(.semibold))
                     .foregroundStyle(.primary)

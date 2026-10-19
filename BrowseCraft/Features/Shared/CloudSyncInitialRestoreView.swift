@@ -13,14 +13,12 @@ struct CloudSyncInitialRestoreView: View {
         switch self.state {
         case .waitingForCloud:
             self.progressCard(
-                systemImage: "icloud",
                 title: NSLocalizedString("Waiting for iCloud", comment: ""),
                 message: NSLocalizedString("Your sources and favorites will appear after iCloud becomes available.", comment: "")
             )
 
         case .restoring:
             self.progressCard(
-                systemImage: "icloud.and.arrow.down",
                 title: NSLocalizedString("Restoring from iCloud", comment: ""),
                 message: NSLocalizedString("Downloading and merging your saved data.", comment: "")
             )
@@ -53,14 +51,10 @@ struct CloudSyncInitialRestoreView: View {
         }
     }
 
-    private func progressCard(systemImage: String, title: String, message: String) -> some View {
+    /// 中文注释：等待与恢复两态共用一枚 56pt 品牌等待标记，靠标题区分；不再另加小转圈（Brand-Waiting-Mark-Design.md 第五节）。
+    private func progressCard(title: String, message: String) -> some View {
         VStack(spacing: 10) {
-            Image(systemName: systemImage)
-                .font(.system(size: 24, weight: .medium))
-                .foregroundStyle(CatalogPalette.addAction)
-                .frame(width: 56, height: 56)
-                .background(CatalogPalette.addAction.opacity(0.1), in: Circle())
-                .accessibilityHidden(true)
+            BrandWaitingMark(size: .medium)
             Text(title)
                 .font(.headline)
             Text(message)
@@ -68,8 +62,6 @@ struct CloudSyncInitialRestoreView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            ProgressView()
-                .tint(CatalogPalette.addAction)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 28)

@@ -1411,3 +1411,20 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 模拟器走查（Loyal Books，来源位置里已是它）：见合同第十节。走查中发现并修了三处（提交 `3f451f3`）：① 背景按占比取色被平均成灰，改 5 簇、色块取最鲜艳三簇并提饱和度；② 从取不到音频的集点「下一集」页面不动——`AudioNavigator.go` 等 seek 不返回、也不再回调，改为先记请求的集序号；③ 「重试」不发新请求——Readium 按集缓存资源与首次请求结果，改为新建 `AudioNavigator`。
 - 单集失效用临时注入（DEBUG 下把第 2 集改到 archive.org 不存在的文件、第 3 集改到解析不了的域名，测完撤掉、未提交）验证：已失效走真实 404 → `audio-chapter-unavailable` kind=gone status=404；没加载出来 kind=unavailable。
 - `STATUS.md` 第 2 节加一行走查记录 simulator-passed，检查点 `3f451f3`。
+
+2026-10-20 品牌等待标记（用户：想用即梦剩下的 233 分做一个网络请求时的 HUD 动图，先确认项目怎么阻断交互、需不需要 HUD）。
+- 核对结论：网络等待都在原地处理（按钮内转圈 + `.disabled`、骨架、只锁局部、sheet 禁下滑），真正吞点击的全屏遮罩只有删除账号；通用 HUD 会推翻各页已定的加载态并挡住下拉重试，所以不做，改做共用的等待标记。
+- 立项登记进 Claude 文档「BrowseCraft 页面设计索引」；设计文档 https://claude.ai/code/artifact/01ce54fb-18b8-4c2e-afb9-54d8ded8bfd6 列八项待裁定，用户全取 A；其间用户问启动视频是否不合理——说明第 2 项只改启动视频之前的建库段白底转圈，启动视频本身就是品牌加载动画、不动。画布 https://claude.ai/artifact/A2iVyGsDyxvV52p3cxF3xX 确认。
+- 素材：即梦 Seedream 5.0 Pro 1.5K 出关键帧四张（20 分），选掌心捧光标、胸前只有一个三角的那张；Seedance 2.5 首尾帧 480P 4 秒出视频（48 分）。成片首尾 SSIM 0.982，第 1 帧是输入图本身、亮度与后续帧不同，去掉后第 2–97 帧循环接缝 0.983；试过 ffmpeg xfade 与逐帧混合首尾 6 帧，重影反而让接缝更差，未采用。压成 288×288 HEVC 53 KB、无音轨；海报帧取第 2 帧；圆边背景实测 #0E1D25（原提议 #13222B）。
+- 实施（未 build、测试未跑，改动在工作区未提交）：新增 `BrandWaitingMark`、`BundledWaitingAnimationResource`、`brand-waiting.mp4` 与 `BrandWaitingPoster`（预算登记）；`StartupVideoPlayerView` 加 `isMuted`；删除账号遮罩、恢复卡、`BrowseCraftApp` 建库段三处宿主；`CatalogPalette.brandWaitingFill`；合同 `docs/design/Brand-Waiting-Mark-Design.md` 新增 `BCA-UI-007`，README、本地 AGENTS、删除账号与来源页合同加指针。
+- `STATUS.md` 第 2 节新增一行 implemented / not-run，检查点暂记基线 `7735eca`，提交后改为实施提交。
+
+2026-10-20 品牌等待标记 build 与模拟器走查（用户：在这里完成 build 与模拟器走查）。
+- `scripts/regenerate-project.sh` 后 build 通过（iPhone 18 Pro / iOS 27），新增与改动的文件没有新警告；产物包内 `brand-waiting.mp4` 扁平复制在包根，`Assets.car` 含 `BrandWaitingPoster`。
+- 冷启动：`simctl io recordVideo` 录启动，15 帧 / 秒逐帧量亮度，没有白底帧；系统启动屏、建库段（LaunchSplash）与启动视频看起来是同一张图，启动视频照旧播放并出「跳过」。
+- 临时注入（DEBUG 启动参数 `-BrandWaitingRestore` / `-BrandWaitingRestoreWaiting` 让来源页显示恢复卡、`-BrandWaitingDeleting` 让删除账号页直接显示遮罩；测完撤掉、未提交）：恢复卡「正在从 iCloud 恢复」浅色、「正在等待 iCloud」深色，56pt 标记连续截图有差异（在播放），没有小转圈，卡片区域下拉照常；删除账号遮罩浅 / 深色 96pt 标记在播放，卡片未挤压文字。
+- 走查中途一次点击在设置页滚动回弹时落到「退出登录」，弹出退出确认框，已点「取消」，账号仍登录。
+- 发现并修正：删除账号页按 Home 再回来，标记停在暂停帧不再动。临时日志显示回前台后播放器只收到 `active=false`、没有再收到 active——推入页里 `scenePhase` 回前台时没把视图刷新回 active；恢复卡所在的标签页根视图则正常。改为 `StartupVideoPlayerView` 的协调器监听 `UIApplication` 将要失去活跃 / 变为活跃通知来暂停与续播，`BrandWaitingMark` 不再按 `scenePhase` 传播放状态；修正后同一路径回前台续播。合同第三节改为这一说法。
+- 减弱动态效果（`ReduceMotionEnabled`）打开时恢复卡只显示海报帧，测完改回关闭；外观测完改回浅色。
+- 未走：其他 App 放音乐时标记出现不打断音乐（模拟器上没有现成的音乐来源）、真机。观察项：深色下墨青圆在深灰卡片上的边界偏弱。
+- `STATUS.md` 第 2 节加一行走查记录 simulator-passed；改动仍在工作区未提交，检查点暂记基线 `7735eca`。

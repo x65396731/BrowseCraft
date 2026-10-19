@@ -183,6 +183,7 @@ App 侧的验证事实主要分「离线测试通过」「模拟器走通」「�
 - 有声书播放页：视觉与信息结构重设计（沉浸深色 + 封面取色流动背景、眉行第 N / M 集、自绘进度条与播放键、倍速、目录 sheet、单集音频失效横条 APP-MEMO-043、有声书广告计分只按实际播放）：[design/Audiobook-Player-Page-Redesign-Design.md](design/Audiobook-Player-Page-Redesign-Design.md)
 - 来源内搜索页：视觉与信息结构重设计（自绘眉行与圆形关闭、卡片底搜索框与聚焦类型色描边、结果眉行、结果区按 kind 原样复用三种库页版式、未搜索 / 搜索中 / 无结果 / 失败四种状态、分页与登录接线）：[design/Search-Page-Redesign-Design.md](design/Search-Page-Redesign-Design.md)
 - 活动与生成率提示（活动弹窗与新注册欢迎页只经 In-App Messaging、网址输入页按地区的生成成功率一行、设置页「活动推送」开关管什么、锁屏活动推送走现有 APNs、coin 只在服务端入账、服务端依赖）：[design/Campaign-And-Rate-Notices-Design.md](design/Campaign-And-Rate-Notices-Design.md)
+- 品牌等待标记（不做全局 HUD `BCA-UI-007`、圆形墨青底板 + 海报帧 + 静音循环视频、删除账号遮罩与 iCloud 首次恢复卡两处宿主、冷启动建库段换启动屏静图、素材规格）：[design/Brand-Waiting-Mark-Design.md](design/Brand-Waiting-Mark-Design.md)
 - 页内问题报告（失败态与「…」两个入口、共用报告面板、问题码、报告字段与清洗边界、失败快照、规则版本取目录指纹、书阅读器单章失败前置、PortalCore 报告接口与规则版本表、排查步骤）：[design/Problem-Report-Design.md](design/Problem-Report-Design.md)
 - 统一日志（唯一日志类型、字段脱敏、级别与出口、公共钩子、吞错必记与 `try?` 基线、本机日志与导出）：[design/Logging-Design.md](design/Logging-Design.md)
 - 埋点事件与崩溃诊断（事件字典、参数与页面名、采集与隐私边界、页面曝光入口、Crashlytics 上报范围与键）：[design/Analytics-Events-Design.md](design/Analytics-Events-Design.md)

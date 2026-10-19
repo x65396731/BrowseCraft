@@ -4,16 +4,20 @@ import SwiftUI
 import UIKit
 
 // 中文注释：启动视频使用系统 AVFoundation 播放本地资源，避免把完整业务播放器带入启动链路。
+// 中文注释：品牌等待标记（docs/design/Brand-Waiting-Mark-Design.md）复用同一个循环播放器，以静音方式播放。
 
 struct StartupVideoPlayerView: UIViewRepresentable {
     let videoURL: URL
     let isPlaybackActive: Bool
+    /// 静音播放且不碰音频会话：品牌等待标记出现时有声书或视频可能正在后台出声，不能把它们打断或改掉会话类别。
+    var isMuted: Bool = false
     let onReady: () -> Void
     let onFailure: () -> Void
 
     func makeCoordinator() -> Coordinator {
         return Coordinator(
             isPlaybackActive: self.isPlaybackActive,
+            isMuted: self.isMuted,
             onReady: self.onReady,
             onFailure: self.onFailure
         )
@@ -50,20 +54,51 @@ struct StartupVideoPlayerView: UIViewRepresentable {
         private var itemStatusObservation: NSKeyValueObservation?
         private var videoURL: URL?
         private var isPlaybackActive: Bool
+        private let isMuted: Bool
         private var didReportReady: Bool = false
         private var didReportFailure: Bool = false
         private var didActivateAudioSession: Bool = false
         private var onReady: () -> Void
         private var onFailure: () -> Void
+        private var lifecycleObservers: [NSObjectProtocol] = []
 
         init(
             isPlaybackActive: Bool,
+            isMuted: Bool,
             onReady: @escaping () -> Void,
             onFailure: @escaping () -> Void
         ) {
             self.isPlaybackActive = isPlaybackActive
+            self.isMuted = isMuted
             self.onReady = onReady
             self.onFailure = onFailure
+            self.observeApplicationActivity()
+        }
+
+        /// 中文注释：App 将要失去活跃时暂停、重新活跃时按 `isPlaybackActive` 续播。不只靠宿主传进来的 scenePhase——
+        /// 推入页（删除账号）回到前台时 scenePhase 不一定把视图刷新回 active，播放器会一直停在暂停时的那一帧（2026-10-20 模拟器走查）。
+        private func observeApplicationActivity() {
+            let center: NotificationCenter = NotificationCenter.default
+            self.lifecycleObservers = [
+                center.addObserver(
+                    forName: UIApplication.willResignActiveNotification,
+                    object: nil,
+                    queue: .main
+                ) { [weak self] _ in
+                    MainActor.assumeIsolated {
+                        self?.player?.pause()
+                    }
+                },
+                center.addObserver(
+                    forName: UIApplication.didBecomeActiveNotification,
+                    object: nil,
+                    queue: .main
+                ) { [weak self] _ in
+                    MainActor.assumeIsolated {
+                        self?.applyPlaybackState()
+                    }
+                }
+            ]
         }
 
         func update(
@@ -97,19 +132,25 @@ struct StartupVideoPlayerView: UIViewRepresentable {
             player.actionAtItemEnd = .advance
             player.allowsExternalPlayback = false
             player.automaticallyWaitsToMinimizeStalling = true
-            player.isMuted = false
-            player.volume = 1
+            player.isMuted = self.isMuted
+            player.volume = self.isMuted ? 0 : 1
 
             self.player = player
             self.playerLooper = AVPlayerLooper(player: player, templateItem: templateItem)
             playerView.player = player
             self.observeStatus(of: player)
             self.observeCurrentItem(of: player)
-            self.activateAmbientAudioSession()
+            if self.isMuted == false {
+                self.activateAmbientAudioSession()
+            }
             self.applyPlaybackState()
         }
 
         func tearDown() {
+            for observer in self.lifecycleObservers {
+                NotificationCenter.default.removeObserver(observer)
+            }
+            self.lifecycleObservers = []
             self.tearDownPlayer()
             self.deactivateAudioSession()
             self.onReady = {}
