@@ -279,7 +279,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 
 | 工作项 | 条款 | 决策 | 设计 | 实施 | 验证 | 检查点 | 更新日期 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 合同（用户 2026-10-19 裁定设计书 8.3 节九项与「分开收集、按规则合着看」）：十一个页面的失败态小字链接与「…」菜单两个入口、共用报告面板、32 个问题码、报告字段与清洗边界、失败快照单一入口、规则版本取目录下发的 `catalogSHA256`、书阅读器单章失败前置、PortalCore 报告接口与规则版本表、排查五步、埋点在实施时同提交登记 | `BCA-OBS-018` `BCA-OBS-019` `BCA-OBS-020` `BCA-OBS-021` `BCA-OBS-022` `BCA-UI-006` | required | approved | implemented | static-audit-passed | 7a2adbc | 2026-10-19 |
+| 合同（用户 2026-10-19 裁定设计书 8.3 节九项与「分开收集、按规则合着看」）：十一个页面的失败态小字链接与「…」菜单两个入口、共用报告面板、32 个问题码、报告字段与清洗边界、失败快照单一入口、规则版本取目录下发的 `catalogSHA256`、书阅读器单章失败前置、PortalCore 报告接口与规则版本表、排查五步、埋点在实施时同提交登记 | `BCA-OBS-018` `BCA-OBS-019` `BCA-OBS-020` `BCA-OBS-021` `BCA-OBS-022` `BCA-UI-006` | required | approved | implemented | static-audit-passed | 9087d98 | 2026-10-19 |
 | 隐私标签、隐私清单与政策页（政策页在 PortalCore 仓，2026-10-19 已部署）：App Store Connect 隐私标签新增客户支持、浏览历史记录、搜索历史记录（App 功能、关联、不追踪），其他诊断数据改为关联，共 13 类；`PrivacyInfo.xcprivacy` 同口径；隐私权政策页繁中与英文加「問題回報」一节，线上 `/privacy` 已核对 | `BCA-OBS-019` | required | approved | implemented | static-audit-passed | 7a2adbc | 2026-10-19 |
 | 前置：书阅读器单章失败接住并上报（合同第八节，新失败点 `book_reader_chapter`、其余失败渲染说明页、`onError` 记日志）与 `RuleExecutionError` 的脱敏摘要 | `BCA-OBS-020` | required | approved | not-started | not-run | 7a2adbc | 2026-10-19 |
 | PortalCore 侧第一期（在 PortalCore 仓）：`POST /v1/problem-reports` 与报告表、按表计数的限流、服务端清洗、`catalog_source_revisions` 规则版本表与回填、目录接口返回 `catalogSHA256` | `BCA-OBS-019` `BCA-OBS-022` | required | approved | not-started | not-run | 7a2adbc | 2026-10-19 |

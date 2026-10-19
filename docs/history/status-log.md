@@ -1350,3 +1350,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 隐私落地：App Store Connect 隐私标签在 Chrome 里改完并发布（数据类型 10 → 13）；`PrivacyInfo.xcprivacy` 同口径提交为 `7a2adbc`（plutil 校验通过，未 build）；PortalCore 隐私权政策页加「問題回報」一节（PortalCore `d063fa4`，繁中与英文，生效日期 2026-10-19），check 通过后经 deploy 工作流部署，迁移预检 22 条通过、无新迁移，线上 `/privacy` 已含新节。
 - 新增 `docs/design/Problem-Report-Design.md` 与 `BCA-OBS-018` ~ `BCA-OBS-022`、`BCA-UI-006`；`Analytics-Events-Design.md` 第 2 节加一条：报告不是埋点也不是 Crashlytics 报告、两个开关不管、面板事件在实施时同提交登记。面板的事件、参数、页面名与新失败点 `book_reader_chapter` 没有先登记进第 3–6 节：闸门 A13 双向核对字典与代码，先登记会失败，沿用活动提示合同的做法在实施提交里登记（合同第十节列出名字）。
 - `STATUS.md` 新增第 12 节六行：合同与隐私两行 implemented / static-audit-passed，前置、PortalCore 第一期、App 第一期、第二期四行 not-started / not-run；检查点先登记为当前 HEAD `7a2adbc`。docs/README.md 与本地 AGENTS.md 加读取入口。
+- 合同提交为 `9087d98`；第 12 节「合同」一行检查点由 HEAD `7a2adbc` 改登记为 `9087d98`。
