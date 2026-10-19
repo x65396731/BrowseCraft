@@ -1370,3 +1370,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - `STATUS.md` 第 12 节：PortalCore 第一期 not-started / not-run → implemented / full-suite-passed（检查点 PortalCore `f079121`）；App 第一期 not-started / not-run → implemented / not-run，检查点先登记为实施前的 HEAD `1bbae91`。
 - 上线顺序：PortalCore 先推送并部署（部署前用线上库副本跑迁移预检，v0023 回填、v0024 建表），再推送 APIKit，App 后发版。
 - 实施提交为 `d967196`；第 12 节「App 侧第一期」一行检查点由实施前的 HEAD `1bbae91` 改登记为 `d967196`。
+- 用户要求 build：`scripts/regenerate-project.sh` 后 xcodebuild Debug（iPhone 17 Pro 模拟器，iOS 26.5）。第一次被本地化闸门拦下：面板对象卡 `Text("\(…) · \(…)")` 被当成待翻译的键 `%@ · %@`，改为 `Text(verbatim:)` 后 BUILD SUCCEEDED，本次改动的文件无新警告。测试目标未编译、未跑测试；STATUS「App 侧第一期」验证列不改。

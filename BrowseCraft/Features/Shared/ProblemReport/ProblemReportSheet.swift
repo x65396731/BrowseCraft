@@ -144,7 +144,7 @@ struct ProblemReportSheet: View {
                     .font(.caption.weight(.bold))
                     .foregroundStyle(style.accent)
                     .accessibilityHidden(true)
-                Text("\(self.context.source.name) · \(self.context.pageName)")
+                Text(verbatim: "\(self.context.source.name) · \(self.context.pageName)")
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(2)
             }
