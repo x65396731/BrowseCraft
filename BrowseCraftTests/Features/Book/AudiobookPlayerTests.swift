@@ -64,10 +64,19 @@ struct AudiobookCoverColorTests {
             context.fill(CGRect(x: 0, y: 20, width: 40, height: 20))
         }
         let colors: [AudiobookCoverColor] = try #require(AudiobookCoverColor.dominantColors(of: image))
-        #expect(colors.count == 3)
+        #expect(colors.isEmpty == false)
         #expect(colors.contains { $0.hue < 0.05 || $0.hue > 0.95 })
         #expect(colors.contains { $0.hue > 0.6 && $0.hue < 0.7 })
         #expect(AudiobookBackdropPalette(image: image) != nil)
+    }
+
+    /// 色块取最鲜艳的簇：灰色不提饱和度，有色的提到 1.5 倍。
+    @Test func vividColorsAreBoostedButGraysAreNot() {
+        let gray: AudiobookCoverColor = AudiobookCoverColor(hue: 0.6, saturation: 0.05, brightness: 0.7)
+        let khaki: AudiobookCoverColor = AudiobookCoverColor(hue: 0.13, saturation: 0.4, brightness: 0.7)
+        #expect(gray.boosted() == gray)
+        #expect(abs(khaki.boosted().saturation - 0.6) < 0.0001)
+        #expect(khaki.vividness > gray.vividness)
     }
 
     /// 色块亮度压在 0.32–0.55、饱和度不超过上限；底色压到 0.11。

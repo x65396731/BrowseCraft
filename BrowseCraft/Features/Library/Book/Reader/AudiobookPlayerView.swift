@@ -1,3 +1,4 @@
+import BrowseCraftDomain
 import Nuke
 @preconcurrency import ReadiumNavigator
 import SwiftUI
@@ -44,8 +45,8 @@ struct AudiobookPlayerView: View {
                         )
                     } else {
                         AudiobookProgressBar(
-                            time: self.viewModel.audioPlayback.time,
-                            duration: self.viewModel.audioPlayback.duration,
+                            time: self.viewModel.displayedAudioPlayback.time,
+                            duration: self.viewModel.displayedAudioPlayback.duration,
                             isEnabled: self.isSeekable,
                             seekAction: { time in
                                 Task { await self.viewModel.audioNavigator?.seek(to: time) }
@@ -84,11 +85,11 @@ struct AudiobookPlayerView: View {
     }
 
     private var isPlaying: Bool {
-        return self.viewModel.audioPlayback.state == .playing
+        return self.viewModel.displayedAudioPlayback.state == .playing
     }
 
     private var isLoading: Bool {
-        return self.viewModel.audioPlayback.state == .loading
+        return self.viewModel.displayedAudioPlayback.state == .loading
     }
 
     private var isFailed: Bool {
@@ -96,7 +97,7 @@ struct AudiobookPlayerView: View {
     }
 
     private var isSeekable: Bool {
-        guard let duration: Double = self.viewModel.audioPlayback.duration else {
+        guard let duration: Double = self.viewModel.displayedAudioPlayback.duration else {
             return false
         }
         return duration > 0 && self.isLoading == false
@@ -249,7 +250,7 @@ struct AudiobookPlayerView: View {
                 }
             }
             .frame(width: 72, height: 72)
-            .shadow(color: self.isFailed ? Color.clear : CatalogPalette.posterShadow, radius: 12, y: 8)
+            .shadow(color: self.isFailed ? SwiftUI.Color.clear : CatalogPalette.posterShadow, radius: 12, y: 8)
             .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -561,7 +562,7 @@ struct AudiobookFailureStrip: View {
     let kind: BookAudioResourceFailure.Kind
     let canGoNext: Bool
     /// 白色「下一集」上的字取背景底色，与播放键图形同一个。
-    let nextInk: Color
+    let nextInk: SwiftUI.Color
     let retryAction: () -> Void
     let nextAction: () -> Void
 

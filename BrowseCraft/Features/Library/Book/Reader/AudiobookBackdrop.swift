@@ -22,11 +22,14 @@ struct AudiobookBackdropPalette: Equatable {
         guard let colors: [AudiobookCoverColor] = AudiobookCoverColor.dominantColors(of: image), colors.isEmpty == false else {
             return nil
         }
+        // 中文注释：底色取占比最大的一簇；三团色块取最鲜艳的三簇并提一点饱和度（2026-10-20 模拟器走查：按占比取，
+        // Tom Sawyer 封面的天空、白栅栏与衣服被平均成一片灰，色块看不出来）。灰色簇（饱和度很低）不提，免得凭空染色。
         let primary: AudiobookCoverColor = colors[0]
         self.base = primary.adjusted(saturationCap: 0.55, brightness: 0.11).color
+        let vivid: [AudiobookCoverColor] = colors.sorted { $0.vividness > $1.vividness }
         self.blobs = (0..<3).map { index in
-            let color: AudiobookCoverColor = colors[min(index, colors.count - 1)]
-            return color.adjusted(saturationCap: 0.6, brightnessRange: 0.32...0.55).color
+            let color: AudiobookCoverColor = vivid[min(index, vivid.count - 1)]
+            return color.boosted().adjusted(saturationCap: 0.65, brightnessRange: 0.38...0.62).color
         }
     }
 
@@ -42,6 +45,19 @@ struct AudiobookCoverColor: Equatable {
     let saturation: CGFloat
     let brightness: CGFloat
 
+    /// 中文注释：鲜艳程度：饱和度为主，太暗的打折扣。
+    var vividness: CGFloat {
+        return self.saturation * min(self.brightness + 0.3, 1)
+    }
+
+    /// 中文注释：饱和度提到 1.5 倍；本来近乎灰（< 0.08）的不提。
+    func boosted() -> AudiobookCoverColor {
+        guard self.saturation >= 0.08 else {
+            return self
+        }
+        return AudiobookCoverColor(hue: self.hue, saturation: min(self.saturation * 1.5, 1), brightness: self.brightness)
+    }
+
     var color: Color {
         return Color(hue: Double(self.hue), saturation: Double(self.saturation), brightness: Double(self.brightness))
     }
@@ -55,9 +71,9 @@ struct AudiobookCoverColor: Equatable {
         return AudiobookCoverColor(hue: self.hue, saturation: min(self.saturation, saturationCap), brightness: clamped)
     }
 
-    /// 中文注释：把封面画进 24×24 的位图，按亮度三分位取初值做 3 簇 k-means（6 轮），按簇大小从大到小返回。
+    /// 中文注释：把封面画进 24×24 的位图，按亮度分位取初值做 5 簇 k-means（6 轮），按簇大小从大到小返回（空簇去掉）。
     /// 576 个像素、6 轮，耗时可以忽略；只在拿到封面时调一次。
-    static func dominantColors(of image: UIImage, clusterCount: Int = 3) -> [AudiobookCoverColor]? {
+    static func dominantColors(of image: UIImage, clusterCount: Int = 5) -> [AudiobookCoverColor]? {
         guard let cgImage: CGImage = image.cgImage else {
             return nil
         }
@@ -117,7 +133,7 @@ struct AudiobookCoverColor: Equatable {
             }
         }
         let sizes: [Int] = centers.indices.map { centerIndex in assignments.filter { $0 == centerIndex }.count }
-        let order: [Int] = centers.indices.sorted { sizes[$0] > sizes[$1] }
+        let order: [Int] = centers.indices.filter { sizes[$0] > 0 }.sorted { sizes[$0] > sizes[$1] }
         return order.map { centerIndex in
             let rgb: SIMD3<Double> = centers[centerIndex]
             var hue: CGFloat = 0
