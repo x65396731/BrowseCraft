@@ -1361,3 +1361,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 隐私撤回「搜索历史记录」：App Store Connect 隐私标签在 Chrome 里取消勾选并发布（13 → 12 类）；`PrivacyInfo.xcprivacy` 删去 SearchHistory 一项（plutil 校验通过，未 build）；PortalCore `292bacd` 隐私权政策页繁中与英文删去搜尋頁的關鍵字、「不包含」一句补搜尋詞，check 通过后经 deploy 工作流部署。
 - `STATUS.md` 第 12 节被覆盖的旧值：合同 implemented / static-audit-passed / 9087d98 → 内容改写，检查点先登记为 HEAD `86539af`；隐私一行 13 类 / 7a2adbc → 12 类 / `86539af`；「前置：书阅读器单章失败…与脱敏摘要」required → optional（脱敏摘要并入 App 侧第一期一行）；App 侧第一期「库页 / 搜索 / 三种详情 / 两种阅读器七页」→ 库页与三种详情页并加「问题出在哪」与选集；「第二期」一行拆为「第一期之后：排查第 4、5 步」required / not-started 与「其余页面的入口」rejected / superseded。
 - PortalCore `292bacd` 部署成功（迁移预检 22 条通过、无新迁移），线上 `/privacy` 已无搜尋頁的關鍵字、含「回報不包含搜尋詞」。
+- 收窄提交为 `7b0429b`；第 12 节「合同」与「隐私」两行检查点由 HEAD `86539af` 改登记为 `7b0429b`。
