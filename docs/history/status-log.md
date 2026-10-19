@@ -1383,3 +1383,9 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 两行 `ruleRevision` 都为空、`revisionMatch` 为 by_time 并对到 v0023 回填的那一版。原因：这个来源是本版之前从生成结果加的，不在公共目录列表里（公共目录只有 3 条），刷新目录不会给它补 `catalogRevision`；按合同降级为按时间对版本，行为正确。合同第四节「规则目录」一行原写「存量来源刷新一次目录即补齐」，改为只对公共目录里的来源成立、生成来源在下次经生成结果写入时补上。
 - 未走查：漫画详情、站点书详情（来源位置 1 / 1 已满，换来源要删现有来源）、失败态入口、发送失败重试；测试目标仍未跑。模拟器上设备型号显示 `arm64`（真机为机型标识）；面板对象卡在来源名已含分类名时会重复（「樱花动漫 · 日本动漫 · 库页 · 日本动漫」），记为待打磨。
 - `STATUS.md` 第 12 节「App 侧第一期」验证列 not-run → simulator-passed，更新日期 2026-10-19 → 2026-10-20，备注走查范围。
+
+2026-10-20 页内问题报告跑单元测试（用户：模拟器都跑了，单元测试没跑很奇怪）。
+- iPhone 18 Pro 模拟器（iOS 27）先跑问题报告四组 7 个新测试，全过；测试目标整体编译通过。
+- 再跑整个 `BrowseCraftTests`：Swift Testing 657 个里 4 个失败，都在 `AppDatabaseMigrationTests` 与 `AppDatabaseSchemaSnapshotTests`。原因是实施时 v11 只注册了迁移、漏登记进 `AppDatabaseMigrations.identifiers`，生产侧的 `currentSchemaMigrationIdentifier` 停在 v10、打开库时 `migration-applied` 日志漏记 v11（迁移本身照常执行，模拟器库的账本里有 v11）。补登记并把 schema 冻结快照的 sources 表加上 `catalogRevision`，提交为 `173fe59`；重跑两组通过，再跑全量 657 个全过。
+- XCTest 86 个里每次有 1 个 WebView 计时测试超阈值，两次不是同一个：`WKWebViewDOMStabilityMeasurementTests.testRepeatedOuterHTMLSerialisationCost`（重跑通过）、`ReadinessSelectorContentSemanticsTests.testWeakSelectorReturnsBeforeTheContentArrives`（语义断言章节数 0 通过，耗时 1302 / 1352ms 对阈值 1300ms，单独重跑仍超）。本功能未改网络与 readiness 代码，记为既有的计时敏感测试，不在本项处理。
+- `STATUS.md` 第 12 节「App 侧第一期」检查点 d967196 → `173fe59`，备注测试结果；验证列仍为 simulator-passed（XCTest 未全绿，不登 full-suite-passed）。
