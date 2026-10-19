@@ -150,19 +150,6 @@ UMP、Alamofire、GRDB 等）由它们自己声明，这里不重复；下面兜
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
 			</array>
 		</dict>
-		<!-- 问题报告：来源内搜索页报告时带的搜索词 -->
-		<dict>
-			<key>NSPrivacyCollectedDataType</key>
-			<string>NSPrivacyCollectedDataTypeSearchHistory</string>
-			<key>NSPrivacyCollectedDataTypeLinked</key>
-			<true/>
-			<key>NSPrivacyCollectedDataTypeTracking</key>
-			<false/>
-			<key>NSPrivacyCollectedDataTypePurposes</key>
-			<array>
-				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
-			</array>
-		</dict>
 		<!-- Firebase Analytics 按 IP 推算的大致地区 -->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>

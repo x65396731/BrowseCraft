@@ -1354,3 +1354,10 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 
 2026-10-19 预检单页超时与引擎对齐（fwq `APP-MEMO-044`）。
 - `STATUS.md` 第 2 节新增一行 implemented / not-run，检查点 `014b697`（代码：策略与取页请求的默认单页超时 12 → 25 秒，全局 deadline 30 秒不动）；fwq `docs/rules/STATUS.md` 的 `APP-MEMO-044` 行实施列 not-started → implemented。
+
+2026-10-19 页内问题报告入口收窄（用户：范围过大，只在库页与三种详情页提交问题；阅读与播放的问题放在详情页一起报）。
+- 核对代码：漫画阅读器、来源页、规则目录是自己的 SwiftUI；书阅读器正文在 Readium 的 EPUB 导航器里（单章说明页渲染在正文中，App 接不到其中的链接）；原生视频播放器界面是 KSPlayer。改为阅读器、播放器与其他页面一律不放入口、不改界面，详情页报告面板加「问题出在哪」（详情与目录 / 某一集的内容）与选集行（默认历史里的上次看到 / 读到，目录取详情页已加载的数据）；阅读与播放失败仍经 `RuleFailureDiagnostics.report` 上报，content 报告取本次启动里同一来源最近一次 `comic_reader`、`book_reader_open`、`video_episode_resolve`、`video_playback` 的快照。
+- 合同 `docs/design/Problem-Report-Design.md` 改写：范围、`BCA-OBS-019`（不发搜索词）、`BCA-OBS-021`（每组不超过 9 个）、`BCA-UI-006`（只有四个页面有入口）、第三至七节、第八节改为可选、第十节去掉 `book_reader_chapter`、第十一节只剩一期；问题码由 32 个减为 30 个（去掉搜索专用的 `no_results`、`results_irrelevant`），scope 定为 list / detail / content。`Analytics-Events-Design.md` 第 2 节那一条同步。设计书第一至八节同步，8.3 节补第 10、11 项。
+- 隐私撤回「搜索历史记录」：App Store Connect 隐私标签在 Chrome 里取消勾选并发布（13 → 12 类）；`PrivacyInfo.xcprivacy` 删去 SearchHistory 一项（plutil 校验通过，未 build）；PortalCore `292bacd` 隐私权政策页繁中与英文删去搜尋頁的關鍵字、「不包含」一句补搜尋詞，check 通过后经 deploy 工作流部署。
+- `STATUS.md` 第 12 节被覆盖的旧值：合同 implemented / static-audit-passed / 9087d98 → 内容改写，检查点先登记为 HEAD `86539af`；隐私一行 13 类 / 7a2adbc → 12 类 / `86539af`；「前置：书阅读器单章失败…与脱敏摘要」required → optional（脱敏摘要并入 App 侧第一期一行）；App 侧第一期「库页 / 搜索 / 三种详情 / 两种阅读器七页」→ 库页与三种详情页并加「问题出在哪」与选集；「第二期」一行拆为「第一期之后：排查第 4、5 步」required / not-started 与「其余页面的入口」rejected / superseded。
+- PortalCore `292bacd` 部署成功（迁移预检 22 条通过、无新迁移），线上 `/privacy` 已无搜尋頁的關鍵字、含「回報不包含搜尋詞」。
