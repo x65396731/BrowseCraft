@@ -8,7 +8,7 @@ struct PreflightPageRequest: Hashable, Sendable {
     let url: URL
     let timeoutSeconds: TimeInterval
 
-    init(url: URL, timeoutSeconds: TimeInterval = 12) {
+    init(url: URL, timeoutSeconds: TimeInterval = 25) {
         self.url = url
         self.timeoutSeconds = timeoutSeconds
     }
