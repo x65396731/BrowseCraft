@@ -58,6 +58,10 @@ Crashlytics 的写入点只有 `CrashDiagnostics`，规则执行失败的上报�
   `firebase_in_app_message_dismiss`（关掉）。来源是 In-App Messaging SDK，不经过 `AppAnalytics`、App 里没有对应的 case，
   只受统计开关控制：开关关闭时弹窗照常拉取与显示，只是这三个事件不报（`BCA-OBS-005`）。新注册后 App 调用的
   `welcome_new_account` 是 In-App Messaging 的触发事件（`InAppMessaging.triggerEvent`），只在本机触发弹窗，不是 Analytics 事件，不上报。
+- 页内问题报告（[Problem-Report-Design.md](Problem-Report-Design.md)）是用户亲手点「发送」发给 PortalCore 的报告，既不是埋点也不是
+  Crashlytics 报告：「发送使用统计」与「发送崩溃诊断」都不管它（`BCA-OBS-018`），报告面板自身的事件仍受使用统计开关管。
+  报告里可以有网址路径与作品、章节标题，它们不因此进入任何事件参数或 Crashlytics 键，第 1 节的取值边界不变。
+  面板的事件、参数、页面名与新增的失败点在实施时与代码同一提交登记进第 3–6 节（该文第十节列出要登记的名字）。
 
 ## 3. 事件
 

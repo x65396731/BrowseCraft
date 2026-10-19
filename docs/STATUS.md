@@ -272,3 +272,16 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | PortalCore 侧实施之二（在 PortalCore 仓，检查点为 PortalCore 提交，2026-10-18 已部署）：`GET /v1/generation-rates`（D 方案：每档给 `rate` / `samples` / `successes` / `scope`）、DB-IP Lite 国家库与 `scripts/update_geoip.sh`、迁移 v0022（生成任务与设备的 `client_country`、汇总表 `generation_rate_summary`）、`scripts/generation_rates.py` 每日汇总；宿主机 crontab 已加每日汇总（03:30 UTC）与每月换库（每月 3 日），国家库 2026-10 版已就位，线上实测本机 IP 判为 JP | `BCA-UI-004` | required | approved | implemented | full-suite-passed | 8948944 | 2026-10-18 |
 | PortalCore 侧实施之三（在 PortalCore 仓，检查点为 PortalCore 提交，2026-10-19 已部署）：`POST /v1/auth/apple` 返回 `accountCreated` 与 `signupGrantCoins`（建号事务里实际入账的新户赠送，12 个月内删号重注册为 0），`/v1/auth/refresh` 不带 | `BCA-SYNC-012` | required | approved | implemented | full-suite-passed | a20f22e | 2026-10-19 |
 | PortalCore 侧实施其余（在 PortalCore 仓）：活动脚本（幂等入账 `campaign_grant` 与活动推送） | `BCA-SYNC-012` | required | approved | not-started | not-run | 83b489e | 2026-10-18 |
+
+## 12. 页内问题报告
+
+设计与裁定见 Claude 文档「BrowseCraft 页内问题报告入口设计书」（https://claude.ai/artifact/R1jd8HR8q6hKoSKh1vTjMB，含入口、面板与数据流三张图），合同见 [design/Problem-Report-Design.md](design/Problem-Report-Design.md)。
+
+| 工作项 | 条款 | 决策 | 设计 | 实施 | 验证 | 检查点 | 更新日期 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 合同（用户 2026-10-19 裁定设计书 8.3 节九项与「分开收集、按规则合着看」）：十一个页面的失败态小字链接与「…」菜单两个入口、共用报告面板、32 个问题码、报告字段与清洗边界、失败快照单一入口、规则版本取目录下发的 `catalogSHA256`、书阅读器单章失败前置、PortalCore 报告接口与规则版本表、排查五步、埋点在实施时同提交登记 | `BCA-OBS-018` `BCA-OBS-019` `BCA-OBS-020` `BCA-OBS-021` `BCA-OBS-022` `BCA-UI-006` | required | approved | implemented | static-audit-passed | 7a2adbc | 2026-10-19 |
+| 隐私标签、隐私清单与政策页（政策页在 PortalCore 仓，2026-10-19 已部署）：App Store Connect 隐私标签新增客户支持、浏览历史记录、搜索历史记录（App 功能、关联、不追踪），其他诊断数据改为关联，共 13 类；`PrivacyInfo.xcprivacy` 同口径；隐私权政策页繁中与英文加「問題回報」一节，线上 `/privacy` 已核对 | `BCA-OBS-019` | required | approved | implemented | static-audit-passed | 7a2adbc | 2026-10-19 |
+| 前置：书阅读器单章失败接住并上报（合同第八节，新失败点 `book_reader_chapter`、其余失败渲染说明页、`onError` 记日志）与 `RuleExecutionError` 的脱敏摘要 | `BCA-OBS-020` | required | approved | not-started | not-run | 7a2adbc | 2026-10-19 |
+| PortalCore 侧第一期（在 PortalCore 仓）：`POST /v1/problem-reports` 与报告表、按表计数的限流、服务端清洗、`catalog_source_revisions` 规则版本表与回填、目录接口返回 `catalogSHA256` | `BCA-OBS-019` `BCA-OBS-022` | required | approved | not-started | not-run | 7a2adbc | 2026-10-19 |
+| App 侧第一期：`catalogRevision` 迁移与写入、APIKit 发送与目录指纹解码、失败快照存储、报告面板与用例、库页 / 搜索 / 三种详情 / 两种阅读器七页的两个入口、埋点登记、三语文案 | `BCA-OBS-018` `BCA-OBS-019` `BCA-OBS-020` `BCA-OBS-021` `BCA-OBS-022` `BCA-UI-006` | required | approved | not-started | not-run | 7a2adbc | 2026-10-19 |
+| 第二期：有声书、视频播放器、来源页、规则目录四处的入口，排查第 4、5 步的查询脚本 | `BCA-UI-006` | required | approved | not-started | not-run | 7a2adbc | 2026-10-19 |
