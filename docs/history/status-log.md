@@ -1404,3 +1404,10 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 画布 https://claude.ai/artifact/D6tba2Bdyrvhib5gPHSi1T（9 张）；合同 `docs/design/Audiobook-Player-Page-Redesign-Design.md` 入库，README 与本地 AGENTS 加指针，读书 kind 接线第十六节加指针。
 - 实施提交为 `4a83331`（未 build、测试未跑）：新增 `BookAudioResourceFailure`（Application）、`SiteBookAudioHTTPClient` 判定失效并经出版物装配回调给 VM、`AudiobookBackdrop` / `AudiobookContentsSheet` / `AudiobookPlaybackSpeed`、播放页重写、`CatalogPalette.immersive*`、三语十九条、`AudiobookPlayerTests` 三组。
 - `STATUS.md` 第 2 节新增一行 implemented / not-run，检查点 `4a83331`。fwq `docs/rules/STATUS.md` 的 `APP-MEMO-043` 实施列待 App 走查后再改。
+
+2026-10-20 有声书播放页 build、测试与模拟器走查（用户：build 一次 App，先重跑 XcodeGen，有编译错误就修，然后跑新测试并在模拟器走查）。
+- XcodeGen 后 build 失败一次：ReadiumNavigator 也定义了 `Color`，播放页里写成 `SwiftUI.Color`；补 `import BrowseCraftDomain` 清掉两条警告。BUILD SUCCEEDED。
+- `AudiobookPlayerTests`（失效分类、倍速记忆、取色）与 `SiteBookAudioHTTPClientTests`、`BookReaderViewModelTests`、`BookSourceRuntimeEndToEndTests` 共 27 个通过（修正后加一个取色测试，28 个通过）。
+- 模拟器走查（Loyal Books，来源位置里已是它）：见合同第十节。走查中发现并修了三处（提交 `3f451f3`）：① 背景按占比取色被平均成灰，改 5 簇、色块取最鲜艳三簇并提饱和度；② 从取不到音频的集点「下一集」页面不动——`AudioNavigator.go` 等 seek 不返回、也不再回调，改为先记请求的集序号；③ 「重试」不发新请求——Readium 按集缓存资源与首次请求结果，改为新建 `AudioNavigator`。
+- 单集失效用临时注入（DEBUG 下把第 2 集改到 archive.org 不存在的文件、第 3 集改到解析不了的域名，测完撤掉、未提交）验证：已失效走真实 404 → `audio-chapter-unavailable` kind=gone status=404；没加载出来 kind=unavailable。
+- `STATUS.md` 第 2 节加一行走查记录 simulator-passed，检查点 `3f451f3`。
