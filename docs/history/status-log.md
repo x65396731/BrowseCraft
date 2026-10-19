@@ -1371,3 +1371,8 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 上线顺序：PortalCore 先推送并部署（部署前用线上库副本跑迁移预检，v0023 回填、v0024 建表），再推送 APIKit，App 后发版。
 - 实施提交为 `d967196`；第 12 节「App 侧第一期」一行检查点由实施前的 HEAD `1bbae91` 改登记为 `d967196`。
 - 用户要求 build：`scripts/regenerate-project.sh` 后 xcodebuild Debug（iPhone 17 Pro 模拟器，iOS 26.5）。第一次被本地化闸门拦下：面板对象卡 `Text("\(…) · \(…)")` 被当成待翻译的键 `%@ · %@`，改为 `Text(verbatim:)` 后 BUILD SUCCEEDED，本次改动的文件无新警告。测试目标未编译、未跑测试；STATUS「App 侧第一期」验证列不改。
+
+2026-10-20 页内问题报告服务端上线。
+- 部署前在服务器上用 `backup_database.py` 现取在线快照（`portalcore-20261019T174204Z.db`）拉到本机：预检 22 条通过；在副本上实际执行 v0023、v0024——106 个目录来源全部回填为第一版、无算不出指纹的行，`generated_rule_index` 的指纹在版本表里都有对应，`problem_reports` 建表为空，外键检查无违例、integrity ok，重跑幂等，再预检 24 条通过。
+- 推送 PortalCore `f079121`，check 通过后经 deploy 工作流部署，部署内预检 22 条通过、新应用 v0023 与 v0024。线上核对：`/health/ready` 200；迁移账本 24，`catalog_source_revisions` 106 行，`problem_reports` 0 行；公共目录 3 条全部带 `catalogSHA256`；`POST /v1/problem-reports` 对不合法的请求体回 400 `PROBLEM_REPORT_INVALID_REQUEST`，OpenAPI 含该路径（没有发真实报告，线上表保持为空）。
+- 推送 APIKit `b5a2fa5` 与 BrowseCraft。STATUS 第 12 节 PortalCore 一行注明已部署，App 一行注明 APIKit 已推送、build 通过（验证列仍 not-run：测试未跑、未在模拟器走查）。
