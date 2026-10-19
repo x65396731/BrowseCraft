@@ -1389,3 +1389,11 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 再跑整个 `BrowseCraftTests`：Swift Testing 657 个里 4 个失败，都在 `AppDatabaseMigrationTests` 与 `AppDatabaseSchemaSnapshotTests`。原因是实施时 v11 只注册了迁移、漏登记进 `AppDatabaseMigrations.identifiers`，生产侧的 `currentSchemaMigrationIdentifier` 停在 v10、打开库时 `migration-applied` 日志漏记 v11（迁移本身照常执行，模拟器库的账本里有 v11）。补登记并把 schema 冻结快照的 sources 表加上 `catalogRevision`，提交为 `173fe59`；重跑两组通过，再跑全量 657 个全过。
 - XCTest 86 个里每次有 1 个 WebView 计时测试超阈值，两次不是同一个：`WKWebViewDOMStabilityMeasurementTests.testRepeatedOuterHTMLSerialisationCost`（重跑通过）、`ReadinessSelectorContentSemanticsTests.testWeakSelectorReturnsBeforeTheContentArrives`（语义断言章节数 0 通过，耗时 1302 / 1352ms 对阈值 1300ms，单独重跑仍超）。本功能未改网络与 readiness 代码，记为既有的计时敏感测试，不在本项处理。
 - `STATUS.md` 第 12 节「App 侧第一期」检查点 d967196 → `173fe59`，备注测试结果；验证列仍为 simulator-passed（XCTest 未全绿，不登 full-suite-passed）。
+
+2026-10-20 页内问题报告失败态入口与重试走查、对象卡去重（用户：可以继续）。
+- 对象卡：来源名已含当前分类名时不再重复（`LibraryViewModel.problemReportPageName`，新测试通过），顺带把 `isAudiobookSource` 被隔开的文档注释归位，提交为 `5142438`。
+- 走查前发现模拟器的来源被删：樱花动漫（简中）`deletedAt` 03:04（JST）、个人生成的 umh5 03:39，用户表多一个身份。03:39 那次日志里是界面操作（来源页 → 添加来源 → 网址生成 hman83.com），与本项改动无关；03:04 那次无日志。经用户同意，从目录重新添加樱花动漫（繁中目录条目）继续。
+- 失败态：临时在 `DefaultPageLoader.loadContent` 加 DEBUG 启动参数注入（对 yhdm.one 抛 HTTP 503），库页显示「载入失败（HTTP 503）」与动作蓝「报告问题」；面板对象卡为「樱花动漫 · 日本动漫 · 库页」、带红字失败文案与「看起来是网站暂时打不开」提示、默认选中「加载失败」，详情里失败信息 `library_refresh · httpStatus`。发送回执 `R-6KMP-JUAM`。
+- 重试：临时在 `APIKitProblemReportClient` 加一次性失败注入；库页「…」打开的面板默认不选类型、发送键置灰；选「其他」发送后显示「没有发送成功，请稍后再试一次」与「再试一次」，重试成功，回执 `R-TF54-DMXQ`。两处临时注入测完撤掉、未提交，重新 build 干净包装回模拟器。
+- 服务器只读核对：`R-6KMP-JUAM` entry failure_state、problem_type load_failed、failure_point library_refresh、site_side 1、失败快照 network / httpStatus / 503、摘要不含网址；两条 `ruleRevision` 都有值、`revisionMatch` exact（重新添加时写入了 `catalogRevision`）；日志片段各 6 行。线上 `problem_reports` 共 4 行（均为走查所发）。
+- 仍未走查：漫画与站点书详情（来源位置 1 / 1）。`STATUS.md` 第 12 节「App 侧第一期」检查点 173fe59 → `5142438`，备注改为四条走查。
