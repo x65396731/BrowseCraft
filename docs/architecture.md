@@ -35,8 +35,7 @@ or knows about the current user.
 
 All five packages are consumed as **path dependencies on sibling checkouts** and carry no version
 tags. This is known debt: the app's `main` only builds against the sibling repos' `main`, and a
-fresh machine has to clone all six repositories side by side under one parent directory, plus the
-SwiftSoup fork that overrides the dependency graph (§8):
+fresh machine has to clone all six repositories side by side under one parent directory (§8):
 
 ```
 <parent>/
@@ -194,16 +193,15 @@ phases next to the boundary script; `scripts/check-localization.py` runs after c
 - `BCA-BUILD-001` The project is managed with XcodeGen. When `.xcodeproj` errors come from added,
   moved or removed source files, run `scripts/regenerate-project.sh` before continuing with
   whatever test or build was asked for.
-- `BCA-BUILD-002` SwiftSoup is pinned to the in-house fork `x65396731/SwiftSoup` (branch
-  `browsecraft/text-whitespace-fix`: the in-house inline-whitespace fix plus one change so that a repeated
-  attribute on the same tag keeps its first value, fwq `BC-ACQ-074`, merged with upstream master): BrowseCraftCore pins it by commit and the project overrides
-  the whole dependency graph with the local `../SwiftSoup` package to resolve the identity clash
-  with Readium. Both must sit on the same commit.
-  `scripts/check-swiftsoup-override.sh` runs next to the boundary script and fails the build when
-  the local override is missing, dirty, or not at the commit BrowseCraftCore pins (§8). When Core
-  moves its pin, fetch in `../SwiftSoup` and check out the same commit. Before upgrading or moving
-  back to the official package, run the inline-whitespace gate case in `RuleExtractionEngineTests`
-  and the fork's `BrowserParityTest`.
+- `BCA-BUILD-002` SwiftSoup is the official `scinfu/SwiftSoup`, pinned by BrowseCraftCore to an
+  exact tag (2.14.3 as of 2026-10-20); the app never references SwiftSoup itself, Readium and Core
+  resolve to the same package. Two behaviours the parser must keep, because the rule engine's
+  `html5lib` and WebKit have them: whitespace between adjacent inline elements after non-ASCII text
+  is preserved (upstream #461), and a repeated attribute on one start tag keeps its *first* value
+  (fwq `BC-ACQ-074`; our PR #462, merged upstream as #467 on 2026-10-10). Both shipped in 2.14.3,
+  which is why the in-house fork, the `../SwiftSoup` local override and
+  `scripts/check-swiftsoup-override.sh` were removed on 2026-10-20 (§8). Before moving the pin,
+  run the inline-whitespace gate case in `RuleExtractionEngineTests` and Core's full suite.
 - `BCA-BUILD-003` `scripts/check-ad-configuration.sh` fails a PROD archive that still carries
   Google's sample rewarded ad unit, and only warns elsewhere. The **TEST BrowseCraft** scheme
   archives config `TestFlight` (environment TEST); the plain **BrowseCraft** and **PROD BrowseCraft**
@@ -310,7 +308,7 @@ Every third-party dependency is a Swift package. There is no CocoaPods step,
 lock file, and the rest of the generated project stays ignored. Everything is pinned to an exact
 version except KSPlayer, which is pinned to a commit because that repository publishes no tags;
 GoogleMobileAds and Firebase, which `project.yml` declares as `from: 12.0.0` and only
-`Package.resolved` locks; and SwiftSoup, which is pinned to a commit of our own fork (below).
+`Package.resolved` locks; SwiftSoup is pinned by BrowseCraftCore (below).
 `WebUI` (cybozu, exact version) wraps `WKWebView` for the SwiftUI web screens.
 
 **Readium** (`readium/swift-toolkit`, exact 3.x tag) serves the book kind only: EPUB/PDF/audiobook
@@ -318,22 +316,18 @@ navigators and the `Locator` model for bookmarks and resume positions. The comic
 in-house SwiftUI reader; Readium's CBZ navigator is not wired. The app links `ReadiumShared`,
 `ReadiumStreamer` and `ReadiumNavigator`.
 
-**SwiftSoup fork and local override.** Readium requires SwiftSoup ≥ 2.13.5. Released 2.13.5 and
-later drop the whitespace between adjacent inline elements after non-ASCII text, which glues
-together tag/cast lists on CJK sites; upstream master has fixed this but not released it. Upstream
-also keeps the *last* value of a repeated attribute on one tag, while the HTML5 tokenizer rules,
-WebKit and the rule engine's `html5lib` keep the *first* (fwq `BC-ACQ-074`). BrowseCraftCore
-therefore pins `x65396731/SwiftSoup` by commit on branch `browsecraft/text-whitespace-fix`: the in-house
-whitespace fix and that one tokenizer change, merged with upstream master. These changes stay in the fork and are not
-submitted upstream. Because Readium refers to
-`scinfu/SwiftSoup` by URL and SwiftPM refuses two URLs for the same package identity, `project.yml`
-also adds `../SwiftSoup` as a local package: Xcode lets a local package override every remote
-reference to the same identity, so Readium is served by the fork too. The local checkout must sit
-at the commit Core pins; `scripts/check-swiftsoup-override.sh` verifies that (and a clean working
-tree) as a pre-build phase. When upstream releases both the whitespace fix and the repeated-attribute
-change, switch Core back to the official URL and remove the local package and the script; the
-inline-whitespace gate test in `RuleExtractionEngineTests` and the fork's `BrowserParityTest` guard
-the behaviour either way.
+**SwiftSoup.** Readium requires SwiftSoup ≥ 2.13.5. From 2026-09-13 to 2026-10-20 BrowseCraftCore
+pinned an in-house fork (`x65396731/SwiftSoup`, branch `browsecraft/text-whitespace-fix`) because
+released 2.13.5 dropped the whitespace between adjacent inline elements after non-ASCII text, which
+glued together tag/cast lists on CJK sites, and because upstream kept the *last* value of a repeated
+attribute while the HTML5 tokenizer, WebKit and the rule engine's `html5lib` keep the *first* (fwq
+`BC-ACQ-074`). Since Readium refers to `scinfu/SwiftSoup` by URL and SwiftPM refuses two URLs for
+one package identity, `project.yml` also carried `../SwiftSoup` as a local override package and a
+pre-build script kept it at Core's commit. Upstream fixed the whitespace case (#461) and merged our
+repeated-attribute change (#462 → #467, 2026-10-10); both are in 2.14.3 (2026-10-16), Core's full
+suite passes against it, so Core now pins the official tag and the override package and script are
+gone. The inline-whitespace gate test in `RuleExtractionEngineTests` guards the behaviour.
+(History: `docs/history/Readium-Integration-Handoff.md`.)
 
 Alamofire, GRDB and Nuke link statically into the app binary, so no `@rpath` framework embedding is
 involved — the "linked but not embedded" failure mode (ITMS-90863, dyld crash on launch) cannot

@@ -70,7 +70,7 @@ App 侧的硬条款按**触发源**分属两个命名空间：
 | 域 | 用于 |
 | --- | --- |
 | `ARCH` | 分层依赖方向、框架泄漏、跨层类型引用、SwiftSoup 容器、APIKit 逃逸 |
-| `BUILD` | XcodeGen、SwiftSoup fork 覆盖、广告配置、Swift 语言模式 |
+| `BUILD` | XcodeGen、SwiftSoup 官方版本锁定、广告配置、Swift 语言模式 |
 | `RUNTIME` | 规则执行边界、请求合并、WebView 加载与判稳、网络载体职责 |
 | `PARSE` | `responsePolicy` 的 App 侧职责边界、itemPath 语义、legacy 隔离 |
 | `DB` | GRDB 迁移纪律、表与索引的定义位置 |

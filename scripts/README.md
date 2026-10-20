@@ -63,30 +63,6 @@ Post-compile gate for localization. It runs after the `BrowseCraft` target compi
 - 上线当天已缺翻译的键登记在 `scripts/localization-missing-baseline.txt`，只许收敛：补上翻译后删掉那一行，
   新写的文案直接三语补齐，不登记。基线里某个键已经三语齐全却没删，闸门同样失败。
 
-## check-swiftsoup-override.sh
-
-Verify that the local SwiftSoup override package (`../SwiftSoup`) sits at the exact commit
-`BrowseCraftCore/Package.swift` pins, with a clean working tree. It runs as a pre-build phase
-and only checks; it never modifies anything.
-
-```sh
-./scripts/check-swiftsoup-override.sh
-```
-
-中文注释：SwiftSoup 走两条路——Core 按 commit 锁定自家 fork（`swift test` 用这条），工程用 `../SwiftSoup`
-本地包覆盖整张依赖图（Xcode 构建用这条，Readium 也被指到 fork）。两条路必须是同一个 commit（`BCA-BUILD-002`），否则
-`swift test` 和 Xcode 看到的解析器不是同一份。首次拉取本地覆盖包：
-
-```sh
-git clone --branch browsecraft/text-whitespace-fix git@github.com:x65396731/SwiftSoup.git ../SwiftSoup
-```
-
-中文注释：Core 改锁定的 commit 后，本地覆盖包要跟着切，否则这道闸门会失败：
-
-```sh
-git -C ../SwiftSoup fetch origin && git -C ../SwiftSoup checkout <Core 锁定的 commit>
-```
-
 ## check-bundled-image-assets.sh
 
 Pre-build gate for bundled bitmap assets. It runs on every build and never modifies anything.

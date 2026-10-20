@@ -11,8 +11,8 @@
 ## 0. 当前状态（现查口径）
 
 ```bash
-# 六仓 + SwiftSoup fork 的 HEAD、是否干净、是否有未推送（在 App 仓根目录运行；七个仓库是同级 checkout）
-for d in BrowseCraft BrowseCraftCore BrowseCraftDomain BrowseCraftRuntime BrowseCraftAPIKit BrowseCraftLog SwiftSoup; do
+# 六仓的 HEAD、是否干净、是否有未推送（在 App 仓根目录运行；六个仓库是同级 checkout）
+for d in BrowseCraft BrowseCraftCore BrowseCraftDomain BrowseCraftRuntime BrowseCraftAPIKit BrowseCraftLog; do
   printf '%-22s ' "$d"
   git -C ../$d log --oneline -1
   printf '%-22s   未提交 %s 处，未推送 %s 个\n' '' \
@@ -82,7 +82,6 @@ python3 scripts/check-docs.py
 <parent>/                 # 任意父目录，七个仓库并排放；命令都以 ../<仓库> 相对 App 仓根目录写
   BrowseCraft/            # App
   BrowseCraftCore/  BrowseCraftDomain/  BrowseCraftRuntime/  BrowseCraftAPIKit/  BrowseCraftLog/
-  SwiftSoup/              # 自家 fork，整张依赖图的本地覆盖（BCA-BUILD-002）
   fwq/                    # 规则生成引擎，BC-* 与 APP-MEMO-* 的定义点在这里
 ```
 
@@ -102,9 +101,8 @@ python3 scripts/check-docs.py
 # 工程文件不同步时先重新生成（BCA-BUILD-001）；纯文档改动不需要。
 scripts/regenerate-project.sh
 
-# 四个代码闸门（pre-build）+ 本地化闸门（编译后，单独跑要传 Objects-normal 目录）+ 文档闸门
+# 三个代码闸门（pre-build）+ 本地化闸门（编译后，单独跑要传 Objects-normal 目录）+ 文档闸门
 scripts/check-architecture-boundaries.sh     # BCA-ARCH-001 ~ 005
-scripts/check-swiftsoup-override.sh          # BCA-BUILD-002
 scripts/check-ad-configuration.sh            # BCA-BUILD-003
 scripts/check-bundled-image-assets.sh        # BCA-BUILD-006 ~ 007
 scripts/check-localization.py <Objects-normal 目录>

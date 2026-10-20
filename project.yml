@@ -54,7 +54,7 @@ packages:
     revision: 10a40a1c0001d75307ad5922d1d1bc0cb01c89b4
   WebUI:
     url: https://github.com/cybozu/WebUI.git
-    exactVersion: 4.4.0
+    exactVersion: 4.5.0
   GoogleMobileAds:
     url: https://github.com/googleads/swift-package-manager-google-mobile-ads.git
     from: 12.0.0
@@ -63,7 +63,7 @@ packages:
     from: 12.0.0
   Alamofire:
     url: https://github.com/Alamofire/Alamofire.git
-    exactVersion: 5.11.2
+    exactVersion: 5.12.2
   # 中文注释：6.24.1 的 SPM target 在当前工具链上缺 strcmp 声明（CocoaPods 变体没这问题）；
   # 6.29.3 显式 import Darwin/string_h 修复，仍在 6.x 内，API 兼容。
   GRDB:
@@ -77,14 +77,7 @@ packages:
   # 不接 ReadiumNavigator 的 CBZ 分支。锁定 3.x 稳定 tag，不跟 develop/4.0 alpha。
   Readium:
     url: https://github.com/readium/swift-toolkit.git
-    exactVersion: 3.11.0
-  # 中文注释：SwiftSoup 本地覆盖包。BrowseCraftCore 按 commit 锁定自家 fork 分支 `browsecraft/text-whitespace-fix`
-  # （自家 inline 空白修复 + 重复属性取第一个 `BC-ACQ-074`，合入上游 master；修改不向上游提交），
-  # 而 Readium 依赖官方 scinfu/SwiftSoup，两者同标识不同 URL 会让 SPM 报冲突；Xcode 对同标识的本地包
-  # 会覆盖整张依赖图里的远程引用，于是 Readium 也被指到 fork。本地 checkout 必须与 Core 锁定的 commit 一致，
-  # 由 scripts/check-swiftsoup-override.sh 把关。它不被任何目标 import，SwiftSoup 的边界规则不变。
-  SwiftSoup:
-    path: ../SwiftSoup
+    exactVersion: 3.11.1
 
 targets:
   BrowseCraft:
@@ -227,12 +220,6 @@ targets:
         basedOnDependencyAnalysis: false
         script: |
           "${SRCROOT}/scripts/check-bundled-image-assets.sh"
-      # 中文注释：../SwiftSoup 本地覆盖包必须与 BrowseCraftCore 锁定的 fork commit 一致，否则 Xcode 构建
-      # 与 swift test 用的不是同一份解析器。
-      - name: Check SwiftSoup Override
-        basedOnDependencyAnalysis: false
-        script: |
-          "${SRCROOT}/scripts/check-swiftsoup-override.sh"
     # 中文注释：本地化闸门放在编译之后——它要读 swiftc 刚写出的 .stringsdata。编译器认定要本地化的键
     # 三份 Localizable.strings 都必须有；闸门上线时已缺的键登记在 scripts/localization-missing-baseline.txt，只许收敛。
     postCompileScripts:
