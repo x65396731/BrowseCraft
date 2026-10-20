@@ -205,6 +205,8 @@ detail（详情与目录）、content（某一集、话、章的内容，只从�
 
 第 4、5 步只做脚本，不做自动告警。
 
+实施状态（2026-10-21，PortalCore 发布前审计 M3）：服务端表与接口已上线（迁移 v0023 规则版本表、v0024 报告表；`POST /v1/problem-reports` 的鉴权、限流、清洗、版本对照与清理均已实现并部署）。本节「开发者的排查与查询脚本」5 条与报告表的处理状态列（`triage_status`，目前只在迁移里出现、无读写者）属第二期、尚未实现；服务端落点见 PortalCore `docs/architecture/backend-module-layout.md` §4 Problem Reports。
+
 ## 十、埋点登记
 
 以下名字登记在 [Analytics-Events-Design.md](Analytics-Events-Design.md)（`BCA-OBS-001`；闸门 A13 双向核对字典与代码）：
