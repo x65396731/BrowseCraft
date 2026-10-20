@@ -5,12 +5,12 @@ import UIKit
 /// 品牌等待标记（docs/design/Brand-Waiting-Mark-Design.md）：圆形墨青底板 + 海报帧 + 静音循环视频。
 ///
 /// 中文注释：只管「在等」，没有文字、不可点；文字与是否挡点击由宿主决定，读屏只读宿主的文字。
-/// 只用在用户盯着等的地方（删除账号进度遮罩、iCloud 首次恢复卡），按钮内与行内的小转圈不换成它。
+/// 只用在用户盯着等的地方（删除账号进度遮罩、iCloud 首次恢复卡、漫画阅读器换话），按钮内与行内的小转圈不换成它。
 struct BrandWaitingMark: View {
     enum Size {
         /// 96pt：删除账号进度遮罩。
         case large
-        /// 56pt：iCloud 首次恢复卡，与原来的图标圈同大。
+        /// 56pt：iCloud 首次恢复卡（与原来的图标圈同大）、漫画阅读器换话的贴边浮层。
         case medium
 
         var side: CGFloat {

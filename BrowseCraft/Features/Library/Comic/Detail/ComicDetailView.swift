@@ -226,7 +226,7 @@ struct ComicDetailView: View {
         var selectedChapter: ChapterLink = chapter
         selectedChapter.navigationChapterURLs = self.viewModel.chapters.map(\.url)
         selectedChapter.navigationChapterTitles = self.viewModel.chapters.map(\.title)
-        selectedChapter.navigationOrder = self.viewModel.chapterNavigationOrder
+        selectedChapter.navigationOrder = self.viewModel.readerNavigationOrder
         self.selectedReaderRoute = ComicReaderRoute(destination: .chapter(selectedChapter), entry: entry)
 
         #if DEBUG

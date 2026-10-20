@@ -1747,3 +1747,12 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 网络失败的说明取 Alamofire 包着的底层错误（原来只有「URLSessionTask failed with error」）；网址输入页提交失败按原因分句。
 - 来源页底注改为「长按来源可打开库或删除」；清单 #10 的书详情重取失败横幅撤回：书详情按合同没有下拉刷新，横幅永远出不来。STATUS 第 13 节新增一行，清单 #10 那一行原样保留作为当时的事实。
 
+2026-10-21 漫画阅读器换话手势立项、裁定与入库（用户「底部上拉进下一话，顶部下拉回上一话」「提到 iOS 18……你可以用那个」「全部a，画稿子看看」「可以，稿子没问题」）。
+- 起因：TestFlight 1.0 (50) 真机走查，漫画阅读器第 1 话末页下方「上一個」可点、「下一個」灰掉。阅读器只看规则声明的章节排序、没声明一律当倒序，改为与详情页同一套首尾话数推断（`ComicDetailViewModel.readerNavigationOrder`）。
+- 用户要求不要按钮、改用手势。设计书 https://claude.ai/code/artifact/9d38bd6c-e387-49ee-991f-bec196d1d738 列九项待裁定，全取 A；另定 App 最低版本提到 iOS 18（滚动几何与滚动阶段接口）、换话等待用中号品牌等待标记。
+- 画布 https://claude.ai/artifact/6uk6Quc2b5kz8JoVS88HGi 16 张。画的时候改一处：等待标记从「拉出的空白里」改放贴边浮层，因为松手回弹停稳后空白已收回。
+- 用户追问等待期间是否锁页面，确认不锁：防止抢偏移量靠「等滚动静止」，新一话取到后同样等静止再换上，返回即取消。写成 `BCA-UI-008`。
+- 合同入库 `docs/design/Comic-Reader-Chapter-Swipe-Design.md`；品牌等待标记合同「放」行加阅读器换话；architecture.md 第 8 节写 iOS 18；docs/README 与 AGENTS 加指针；STATUS 第 2 节新增一行 implemented / not-run。
+- 代码：`ReaderView`、`ReaderViewModel`、新增 `Components/ReaderChapterSwipe.swift`、删 `ReaderChapterNavigationBar.swift`、三语词条（删只给按钮用的 Previous / Next）、`project.yml` 四处 17.0 → 18.0、`ReaderViewModelTests` 换话一例改为新接口并加取消一例。按 AGENTS 未 build、未跑测试、未重新生成工程。
+- 同日补读屏（用户问建议后「可以」）：删按钮后 VoiceOver 用户没有换话入口，每页漫画图挂「下一话」「上一话」两个读屏操作（能换时才出现，走同一个发起换话），开始换话时播报「正在打开 …」；不用三指滑动映射，免得接管整个滚动视图的读屏滚动。合同第六、七、八节与 STATUS 行同步，新增两条三语词条。未 build。
+- 同日 build、全量测试与模拟器走查（用户「开始 build 和跑全量测试」）：STATUS「漫画阅读器换话手势」行 验证 not-run → full-suite-passed（首轮 XCTest 86 中 `testWeakSelectorReturnsBeforeTheContentArrives` 计时偶红、单独重跑通过；走查修正后第二轮 86 + 671 全过）；另起一行 simulator-passed 记走查。走查发现并修三处：底部拉出距离公式（滚动几何可视高度 724 已扣内边距 116 / 34，原式重复扣）、空页说明撑满一屏、阅读器两个提示框改新写法（旧写法在推入页弹不出来，改动前首次加载失败就已经不弹）。演示阅读页的临时注入与临时日志已撤掉，未提交。合同第四、八节同步。

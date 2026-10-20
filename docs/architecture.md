@@ -303,6 +303,11 @@ Every third-party dependency is a Swift package. There is no CocoaPods step,
 `scripts/regenerate-project.sh` is just `xcodegen generate`, and the file to open is
 `BrowseCraft.xcodeproj`.
 
+The app, unit-test and UI-test targets require iOS 18 (`deploymentTarget` in `project.yml`): the
+comic reader's chapter swipe reads the scroll view's geometry and scroll phase through APIs that
+iOS 18 introduced ([Comic-Reader-Chapter-Swipe-Design.md](design/Comic-Reader-Chapter-Swipe-Design.md)).
+The five sibling packages still declare iOS 17 and build unchanged inside the iOS 18 app.
+
 `project.yml` declares the packages;
 `BrowseCraft.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` is the committed
 lock file, and the rest of the generated project stays ignored. Everything is pinned to an exact

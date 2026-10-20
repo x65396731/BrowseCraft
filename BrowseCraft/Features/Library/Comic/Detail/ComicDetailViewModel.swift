@@ -409,6 +409,17 @@ final class ComicDetailViewModel {
         return chapterSort == .ascending ? .ascending : .descending
     }
 
+    /// 交给阅读器的章节方向：与「第 1 话」同一口径，先按解出的话数推断，解不出才用规则声明的排序方向。
+    ///
+    /// 中文注释：此前阅读器只拿规则方向，规则没声明 `sort` 时一律当倒序；目录实际是正序（第 1 话在前）时，
+    /// 在第 1 话「上一話」指向了第 2 话、「下一話」反而没有（2026-10-21 TestFlight 1.0 (50) 真机走查）。
+    var readerNavigationOrder: ChapterNavigationOrder {
+        guard let ascending: Bool = self.coreOrderIsAscending else {
+            return self.chapterNavigationOrder
+        }
+        return ascending ? .ascending : .descending
+    }
+
     /// 「第 1 话」是哪一头：先按解出的话数推断，解不出按规则排序方向取。
     var startingChapter: ChapterLink? {
         let ascending: Bool = self.coreOrderIsAscending ?? (self.chapterNavigationOrder == .ascending)

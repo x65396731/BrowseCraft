@@ -219,7 +219,6 @@
 "Missing comic source or chapter URL." = "Missing comic source or chapter URL.";
 "Missing temporary history." = "Missing temporary history.";
 "Native Player needs a direct mp4/m3u8 URL" = "Native Player needs a direct mp4/m3u8 URL";
-"Next" = "Next";
 "Next Episode" = "Next Episode";
 "No Favorites" = "No Favorites";
 "No History" = "No History";
@@ -240,7 +239,6 @@
 "Playback Restricted" = "Playback Restricted";
 "Playback Unavailable" = "Playback Unavailable";
 "Premium" = "Premium";
-"Previous" = "Previous";
 "Previous Episode" = "Previous Episode";
 "Purchased" = "Purchased";
 "Rate AnyPortal" = "Rate AnyPortal";
@@ -1122,6 +1120,20 @@
 "video_playback_failure_iframe_loop" = "The embedded player redirected in a loop.";
 "reader_no_pages_title" = "No Pages";
 "reader_no_pages_message" = "This chapter did not return any readable pages.";
+"reader_swipe_next_hint" = "Pull up for the next chapter · %@";
+"reader_swipe_next_hint_plain" = "Pull up for the next chapter";
+"reader_swipe_next_release" = "Release for the next chapter";
+"reader_swipe_previous_hint" = "Pull down for the previous chapter · %@";
+"reader_swipe_previous_hint_plain" = "Pull down for the previous chapter";
+"reader_swipe_previous_release" = "Release for the previous chapter";
+"reader_swipe_opening" = "Opening %@";
+"reader_swipe_opening_next" = "Opening the next chapter";
+"reader_swipe_opening_previous" = "Opening the previous chapter";
+"reader_swipe_last_chapter" = "This is the last chapter";
+"reader_swipe_first_chapter" = "This is the first chapter";
+"reader_swipe_unavailable" = "Can’t switch here. Pick a chapter on the details page.";
+"reader_swipe_action_next" = "Next chapter";
+"reader_swipe_action_previous" = "Previous chapter";
 "reader_page_number" = "Page %ld";
 "source_login_sign_in_button" = "Sign In to This Source";
 "source_login_session_alert_title" = "Login Session";

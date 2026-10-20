@@ -121,21 +121,46 @@ struct ReaderViewModelTests {
         #expect(fixture.runtime.readerInputs.count == 1)
     }
 
-    @Test func loadNextChapterFollowsResolvedNavigation() async throws {
+    @Test func chapterSwitchHoldsTheNextChapterUntilShown() async throws {
         let fixture: Fixture = try Self.makeFixture()
         let viewModel: ReaderViewModel = Self.makeViewModel(fixture, selectedChapter: Self.chapterLink(fixture, index: 1))
         await viewModel.load()
+        let currentURL: String = try #require(viewModel.chapter?.chapterURL)
         let nextURL: String = try #require(viewModel.chapter?.nextChapterURL)
+        #expect(viewModel.chapterSwitchAvailability(.next) != .unavailable)
 
-        await viewModel.loadNextChapter()
+        viewModel.startChapterSwitch(.next)
+        #expect(viewModel.chapterSwitchDirection == .next)
 
-        #expect(viewModel.pendingChapterNavigationDirection == .next)
-        #expect(viewModel.chapter?.chapterURL == nextURL)
+        let loaded: Bool = await Harness.waitUntil {
+            viewModel.chapterAwaitingDisplay != nil
+        }
+        #expect(loaded)
+        // 中文注释：取到之后、换上之前，屏幕上仍是当前这一话。
+        #expect(viewModel.chapter?.chapterURL == currentURL)
         #expect(fixture.runtime.readerInputs.last?.chapterURL.absoluteString == nextURL)
-        #expect(viewModel.errorMessage == nil)
 
-        viewModel.markChapterNavigationScrollHandled()
+        viewModel.showLoadedChapter()
+        #expect(viewModel.chapter?.chapterURL == nextURL)
+        #expect(viewModel.chapterSwitchDirection == nil)
+        #expect(viewModel.chapterAwaitingDisplay == nil)
         #expect(viewModel.pendingChapterNavigationDirection == nil)
+        #expect(viewModel.errorMessage == nil)
+    }
+
+    @Test func cancellingAChapterSwitchKeepsTheCurrentChapter() async throws {
+        let fixture: Fixture = try Self.makeFixture()
+        let viewModel: ReaderViewModel = Self.makeViewModel(fixture, selectedChapter: Self.chapterLink(fixture, index: 1))
+        await viewModel.load()
+        let currentURL: String = try #require(viewModel.chapter?.chapterURL)
+
+        viewModel.startChapterSwitch(.previous)
+        viewModel.cancelChapterSwitch()
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        #expect(viewModel.chapterSwitchDirection == nil)
+        #expect(viewModel.chapterAwaitingDisplay == nil)
+        #expect(viewModel.chapter?.chapterURL == currentURL)
     }
 
     @Test func runtimeFailureSurfacesAnErrorMessage() async throws {

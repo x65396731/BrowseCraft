@@ -14,10 +14,18 @@ struct ReaderHistoryRestoreContext: Hashable {
     var lastPageImageURLString: String?
 }
 
-/// 中文注释：章节切换方向只用于阅读器滚动策略；下一章回顶部，上一章保留当前默认行为。
+/// 中文注释：换话方向。底部上拉是下一话、顶部下拉是上一话（docs/design/Comic-Reader-Chapter-Swipe-Design.md）。
 enum ReaderChapterNavigationDirection {
     case previous
     case next
+}
+
+/// 中文注释：某个方向能不能换话，决定拉动时的提示：能换带目标话名；目录里到头了是「已经是第一话 / 最后一话」；
+/// 从历史进来既没目录、规则也没给前后链接，就是「这里不能切换」。
+enum ReaderChapterSwitchAvailability: Equatable {
+    case available(title: String?)
+    case boundary
+    case unavailable
 }
 
 struct ReaderSourceLoginPrompt: Identifiable, Hashable {
@@ -38,8 +46,14 @@ final class ReaderViewModel {
     private var currentPageImageURL: URL?
     private(set) var pendingRestorePageIndex: Int?
     private(set) var shouldPlayAd: Bool = false
-    /// 中文注释：记录最近一次章节切换方向，让 View 在新章节加载完成后决定是否需要调整滚动位置。
+    /// 中文注释：最近一次换话的方向，只给 `chapter_opened` 埋点用；新的一话换上之后清掉。
     private(set) var pendingChapterNavigationDirection: ReaderChapterNavigationDirection?
+    /// 中文注释：正在换话的方向；非空时 View 显示贴边等待浮层、两个换话手势不响应。
+    private(set) var chapterSwitchDirection: ReaderChapterNavigationDirection?
+    /// 中文注释：已经取到、还没换上的新一话。View 等滚动静止再调 `showLoadedChapter()`，
+    /// 避免用户正在滑时手指下的页面突然换掉。
+    private(set) var chapterAwaitingDisplay: ReaderChapter?
+    @ObservationIgnored private var chapterSwitchTask: Task<Void, Never>?
     private(set) var sourceLoginPrompt: ReaderSourceLoginPrompt?
     private(set) var requestedSourceLogin: LibrarySourceLoginState?
     var errorMessage: String?
@@ -156,32 +170,102 @@ final class ReaderViewModel {
         )
     }
 
+    /// 中文注释：开始换话：先存当前这一话的进度，再在后台取新的一话；取到后挂起等 View 换上。
+    /// 换话进行中、首次加载中或这个方向没有地址时什么都不做。
     @MainActor
-    func loadPreviousChapter() async {
-        guard let previousChapterURL: String = self.nonEmptyURLString(self.chapter?.previousChapterURL) else {
+    func startChapterSwitch(_ direction: ReaderChapterNavigationDirection) {
+        guard self.chapterSwitchDirection == nil,
+              self.isLoading == false,
+              let chapterURL: String = self.neighborChapterURL(direction) else {
             return
         }
 
-        self.saveCurrentChapterProgress(reason: "before-previous-chapter")
-        self.pendingChapterNavigationDirection = .previous
+        self.saveCurrentChapterProgress(reason: direction == .next ? "before-next-chapter" : "before-previous-chapter")
+        self.pendingChapterNavigationDirection = direction
+        self.chapterSwitchDirection = direction
+        self.chapterSwitchTask = Task { [weak self] in
+            await self?.loadChapter(
+                chapterURLString: chapterURL,
+                shouldRestoreInitialPage: false,
+                holdsUntilShown: true
+            )
+        }
+    }
+
+    /// 中文注释：View 在滚动静止时调用，把挂起的新一话换上；当前页码与续读页码一并清掉，新的一话从第一页算起。
+    @MainActor
+    func showLoadedChapter() {
+        guard let loadedChapter: ReaderChapter = self.chapterAwaitingDisplay else {
+            return
+        }
+
+        // 中文注释：等待期间用户可能还在当前这一话里滑动，换走之前再存一次停在哪一页。
+        self.saveCurrentChapterProgress(reason: "before-chapter-shown")
+        self.chapterAwaitingDisplay = nil
+        self.chapterSwitchDirection = nil
+        self.chapterSwitchTask = nil
+        self.currentPageIndex = nil
+        self.currentPageImageURL = nil
+        self.pendingRestorePageIndex = nil
+        self.display(loadedChapter)
+    }
+
+    /// 中文注释：离开阅读器时取消正在进行的换话，离开后不会再跳到新的一话。
+    @MainActor
+    func cancelChapterSwitch() {
+        guard self.chapterSwitchDirection != nil else {
+            return
+        }
+
+        self.chapterSwitchTask?.cancel()
+        self.chapterSwitchTask = nil
+        self.chapterSwitchDirection = nil
+        self.chapterAwaitingDisplay = nil
+        self.pendingChapterNavigationDirection = nil
+        self.isLoading = false
+    }
+
+    /// 中文注释：本话加载失败或没有页面时，顶部下拉重试本话；没有当前话时按进入时的那一话重取。
+    @MainActor
+    func retryCurrentChapter() async {
+        guard self.chapterSwitchDirection == nil,
+              self.isLoading == false else {
+            return
+        }
+
+        let chapterURLString: String? = self.nonEmptyURLString(self.chapter?.chapterURL) ?? self.selectedChapter?.url
         await self.loadChapter(
-            chapterURLString: previousChapterURL,
-            shouldRestoreInitialPage: false
+            chapterURLString: chapterURLString,
+            shouldRestoreInitialPage: self.chapter == nil
         )
     }
 
-    @MainActor
-    func loadNextChapter() async {
-        guard let nextChapterURL: String = self.nonEmptyURLString(self.chapter?.nextChapterURL) else {
-            return
+    /// 中文注释：某个方向能不能换话。前后地址来自章节页自己给的链接，没有再用详情页目录推出来的。
+    func chapterSwitchAvailability(_ direction: ReaderChapterNavigationDirection) -> ReaderChapterSwitchAvailability {
+        guard let chapter: ReaderChapter = self.chapter else {
+            return .unavailable
         }
 
-        self.saveCurrentChapterProgress(reason: "before-next-chapter")
-        self.pendingChapterNavigationDirection = .next
-        await self.loadChapter(
-            chapterURLString: nextChapterURL,
-            shouldRestoreInitialPage: false
-        )
+        if let chapterURL: String = self.neighborChapterURL(direction) {
+            return .available(title: self.navigationTitle(for: chapterURL))
+        }
+
+        // 中文注释：带着目录进来，或者规则给了另一个方向的链接，说明只是到头了。
+        let oppositeURL: String? = direction == .next ? chapter.previousChapterURL : chapter.nextChapterURL
+        if self.navigationChapterURLs.isEmpty == false || self.nonEmptyURLString(oppositeURL) != nil {
+            return .boundary
+        }
+
+        return .unavailable
+    }
+
+    private func neighborChapterURL(_ direction: ReaderChapterNavigationDirection) -> String? {
+        switch direction {
+        case .previous:
+            return self.nonEmptyURLString(self.chapter?.previousChapterURL)
+        case .next:
+            return self.nonEmptyURLString(self.chapter?.nextChapterURL)
+        }
     }
 
     @MainActor
@@ -220,11 +304,6 @@ final class ReaderViewModel {
     @MainActor
     func markRestorePageApplied() {
         self.pendingRestorePageIndex = nil
-    }
-
-    @MainActor
-    func markChapterNavigationScrollHandled() {
-        self.pendingChapterNavigationDirection = nil
     }
 
     /// 中文注释：广告播过（看完 / 提前关闭）才清零积分；没播出来积分保留、下个计分点再试（30.8）。
@@ -294,20 +373,25 @@ final class ReaderViewModel {
     }
 
     @MainActor
+    /// 中文注释：`holdsUntilShown` 为真时是换话：取到的新一话先挂在 `chapterAwaitingDisplay`，当前这一话的
+    /// 页码与进度都不动，等 View 调 `showLoadedChapter()` 才换上、记历史与埋点。
     private func loadChapter(
         chapterURLString: String?,
-        shouldRestoreInitialPage: Bool
+        shouldRestoreInitialPage: Bool,
+        holdsUntilShown: Bool = false
     ) async {
         CrashDiagnostics.shared.setRuleStage(.reader)
         self.isLoading = true
         self.errorMessage = nil
-        if shouldRestoreInitialPage {
-            self.currentPageIndex = self.restoreContext?.lastPageIndex
-            self.currentPageImageURL = self.restoreContext?.lastPageImageURLString.flatMap(URL.init(string:))
-        } else {
-            self.currentPageIndex = nil
-            self.currentPageImageURL = nil
-            self.pendingRestorePageIndex = nil
+        if holdsUntilShown == false {
+            if shouldRestoreInitialPage {
+                self.currentPageIndex = self.restoreContext?.lastPageIndex
+                self.currentPageImageURL = self.restoreContext?.lastPageImageURLString.flatMap(URL.init(string:))
+            } else {
+                self.currentPageIndex = nil
+                self.currentPageImageURL = nil
+                self.pendingRestorePageIndex = nil
+            }
         }
 
         do {
@@ -316,12 +400,17 @@ final class ReaderViewModel {
                 item: self.item,
                 chapterURLString: chapterURLString
             )
+            // 中文注释：离开阅读器取消了换话，取到的结果直接丢掉；首次加载与重试不受影响。
+            guard holdsUntilShown == false || Task.isCancelled == false else {
+                return
+            }
             let displayChapter: ReaderChapter = self.chapterByPreparingPageResources(for: loadedChapter)
             let navigableChapter: ReaderChapter = self.chapterByResolvingNavigation(for: displayChapter)
-            let previousChapterURL: String? = self.chapter?.chapterURL
-            self.chapter = navigableChapter
-            self.saveComicChapterHistoryIfNeeded(chapter: navigableChapter)
-            self.reportChapterLoaded(navigableChapter, previousChapterURL: previousChapterURL)
+            if holdsUntilShown {
+                self.chapterAwaitingDisplay = navigableChapter
+            } else {
+                self.display(navigableChapter)
+            }
 
             #if DEBUG
             AppLog.debug(.app, "navigation-loaded-reader", [
@@ -331,6 +420,15 @@ final class ReaderViewModel {
             ])
             #endif
         } catch {
+            // 中文注释：离开阅读器取消的换话不算失败，不报诊断也不弹提示。
+            guard holdsUntilShown == false || Task.isCancelled == false else {
+                return
+            }
+            // 中文注释：换话失败留在原话：收起等待浮层，下面照常弹分类器的短句。
+            if holdsUntilShown {
+                self.chapterSwitchDirection = nil
+                self.chapterSwitchTask = nil
+            }
             let classifiedError: RuleExecutionError = RuleExecutionErrorClassifier.classified(error)
             RuleExecutionErrorClassifier.log(error: classifiedError, stage: .reader, event: "reader-load-error")
             switch classifiedError {
@@ -364,6 +462,16 @@ final class ReaderViewModel {
         }
 
         self.isLoading = false
+    }
+
+    /// 中文注释：把一话换上屏幕：记历史（含按话积分）与 `reader_opened` / `chapter_opened` 埋点。
+    @MainActor
+    private func display(_ chapter: ReaderChapter) {
+        let previousChapterURL: String? = self.chapter?.chapterURL
+        self.chapter = chapter
+        self.saveComicChapterHistoryIfNeeded(chapter: chapter)
+        self.reportChapterLoaded(chapter, previousChapterURL: previousChapterURL)
+        self.pendingChapterNavigationDirection = nil
     }
 
     @MainActor

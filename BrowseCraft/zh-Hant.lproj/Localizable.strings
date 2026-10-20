@@ -219,7 +219,6 @@
 "Missing comic source or chapter URL." = "缺少漫畫來源或章節網址。";
 "Missing temporary history." = "缺少暫時的瀏覽紀錄。";
 "Native Player needs a direct mp4/m3u8 URL" = "原生播放器需要 mp4／m3u8 的直連網址";
-"Next" = "下一個";
 "Next Episode" = "下一集";
 "No Favorites" = "沒有收藏";
 "No History" = "沒有紀錄";
@@ -240,7 +239,6 @@
 "Playback Restricted" = "播放受限";
 "Playback Unavailable" = "無法播放";
 "Premium" = "進階版";
-"Previous" = "上一個";
 "Previous Episode" = "上一集";
 "Purchased" = "已購買";
 "Rate AnyPortal" = "為 AnyPortal 評分";
@@ -1122,6 +1120,20 @@
 "video_playback_failure_iframe_loop" = "內嵌播放器陷入了循環跳轉。";
 "reader_no_pages_title" = "沒有頁面";
 "reader_no_pages_message" = "這一章沒有返回可閱讀的頁面。";
+"reader_swipe_next_hint" = "上拉進入下一話 · %@";
+"reader_swipe_next_hint_plain" = "上拉進入下一話";
+"reader_swipe_next_release" = "鬆手進入下一話";
+"reader_swipe_previous_hint" = "下拉回到上一話 · %@";
+"reader_swipe_previous_hint_plain" = "下拉回到上一話";
+"reader_swipe_previous_release" = "鬆手回到上一話";
+"reader_swipe_opening" = "正在打開 %@";
+"reader_swipe_opening_next" = "正在打開下一話";
+"reader_swipe_opening_previous" = "正在打開上一話";
+"reader_swipe_last_chapter" = "已經是最後一話";
+"reader_swipe_first_chapter" = "已經是第一話";
+"reader_swipe_unavailable" = "這裡不能切換，可以回詳情頁選話";
+"reader_swipe_action_next" = "下一話";
+"reader_swipe_action_previous" = "上一話";
 "reader_page_number" = "第 %ld 頁";
 "source_login_sign_in_button" = "登入這個來源";
 "source_login_session_alert_title" = "登入狀態";
