@@ -136,11 +136,9 @@ final class AppContainer {
     }
 
     func handleAppBecameActive() async {
-        #if DEBUG
-        if DemoMode.isEnabled {
+        if DemoModeFlag.isEnabled {
             return
         }
-        #endif
         async let portalSession: Void = self.account.portalSessionCoordinator.handleAppBecameActive()
         async let cloudSync: Void = self.account.cloudSyncCoordinator.requestSync(trigger: .foreground)
         _ = await (portalSession, cloudSync)
@@ -172,11 +170,9 @@ final class AppContainer {
     /// 中文注释：退到后台时同步一次（`docs/design/History-Resume-Sync-Design.md` 第三节）：刚看到哪里要在放下这台设备时就传上去，
     /// 另一台设备打开时才接得上。向系统要一小段后台时间等它跑完；云同步没开时协调器自己直接返回。
     func handleAppEnteredBackground() {
-        #if DEBUG
-        if DemoMode.isEnabled {
+        if DemoModeFlag.isEnabled {
             return
         }
-        #endif
         let application: UIApplication = UIApplication.shared
         let box: BackgroundTaskBox = BackgroundTaskBox()
         box.identifier = application.beginBackgroundTask(withName: "cloud-sync-on-background") {

@@ -11,7 +11,6 @@ struct VideoWatchHistoryTransfer: Sendable {
 /// Serializes reading-history and ad-point writes outside MainActor.
 actor ReadingActivityPersistenceCoordinator {
     private let saveComicChapterHistoryUseCase: SaveComicChapterHistoryUseCase
-    private let loadLatestComicChapterHistoryUseCase: LoadLatestComicChapterHistoryUseCase
     private let loadComicChapterHistoriesUseCase: LoadComicChapterHistoriesUseCase
     private let saveVideoWatchHistoryUseCase: SaveVideoWatchHistoryUseCase
     private let loadVideoWatchHistoryUseCase: LoadVideoWatchHistoryUseCase
@@ -25,9 +24,6 @@ actor ReadingActivityPersistenceCoordinator {
         activeAppUser: any ActiveAppUserProviding
     ) {
         self.saveComicChapterHistoryUseCase = SaveComicChapterHistoryUseCase(repository: comicRepository)
-        self.loadLatestComicChapterHistoryUseCase = LoadLatestComicChapterHistoryUseCase(
-            repository: comicRepository
-        )
         self.loadComicChapterHistoriesUseCase = LoadComicChapterHistoriesUseCase(
             repository: comicRepository
         )
@@ -41,18 +37,6 @@ actor ReadingActivityPersistenceCoordinator {
             repository: appUserRepository,
             activeAppUser: activeAppUser
         )
-    }
-
-    func loadLatestComicHistory(
-        userID: String,
-        sourceID: String,
-        comicItemID: String
-    ) throws -> ComicChapterHistoryTransfer? {
-        return try self.loadLatestComicChapterHistoryUseCase.execute(
-            userID: userID,
-            sourceID: sourceID,
-            comicItemID: comicItemID
-        ).map(ComicChapterHistoryTransfer.init(value:))
     }
 
     /// 本作品读过的全部章节，最近的在前（漫画详情页的已读标记与继续卡片）。

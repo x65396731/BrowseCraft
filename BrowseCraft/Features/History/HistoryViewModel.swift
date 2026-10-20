@@ -95,7 +95,7 @@ final class HistoryViewModel {
     }
 
     @MainActor
-    /// 中文注释：load 方法封装当前类型的一段业务或界面行为。
+    /// 中文注释：读取三类历史并按访问时间倒序合并；失败只给错误文案。
     func load() async {
         do {
             let snapshot: HistoryPersistenceSnapshot = try await self.persistenceCoordinator.load(

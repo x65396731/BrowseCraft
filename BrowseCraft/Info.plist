@@ -244,6 +244,10 @@
 			<string>3qcr597p9d.skadnetwork</string>
 		</dict>
 	</array>
+	<!-- 中文注释：加密只用 CryptoKit 的 OS 内置算法（目录规则解密、指纹），属豁免范围；声明 false 省掉每次提审的出口合规询问
+	     （2026-10-20 审计发布前清单第 12 项）。 -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSExceptionDomains</key>

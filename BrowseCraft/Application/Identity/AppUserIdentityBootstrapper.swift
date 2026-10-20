@@ -4,14 +4,14 @@ import Foundation
 struct AppUserIdentityBootstrapper: GuestIdentityProvisioning {
     private let identityStore: any AppUserIdentityStoring
     private let appUserRepository: any AppUserRepository
-    private let makeUserID: () -> UUID
-    private let now: () -> Date
+    private let makeUserID: @Sendable () -> UUID
+    private let now: @Sendable () -> Date
 
     init(
         identityStore: any AppUserIdentityStoring,
         appUserRepository: any AppUserRepository,
-        makeUserID: @escaping () -> UUID = UUID.init,
-        now: @escaping () -> Date = Date.init
+        makeUserID: @escaping @Sendable () -> UUID = UUID.init,
+        now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.identityStore = identityStore
         self.appUserRepository = appUserRepository

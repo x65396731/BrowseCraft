@@ -845,12 +845,8 @@ final class VideoDetailViewModel {
         }
     }
 
-    // MARK: - 收藏（第五节）
-
     // MARK: - 头图区取值（第五节）
 
-    /// 中文注释：列表项的标题优先——它是用户点进来时看到的那个名字；详情规则取到的常是带 SEO 后缀的页面标题
-    /// （低端影视：「危机13小时免费在线观看_高清网盘下载」，2026-10-08 模拟器），只在列表没给标题时才用。
     /// 中文注释：影视详情的报告上下文（Problem-Report-Design.md 第三节）：报详情与选集，或某一集的播放；
     /// 选集先选线路再选集，默认继续看的那一集（当前线路），没有时取当前线路第一集。
     func problemReportContext(entry: ProblemReportEntry, failureMessage: String?) -> ProblemReportContext {
@@ -895,6 +891,8 @@ final class VideoDetailViewModel {
         )
     }
 
+    /// 中文注释：列表项的标题优先——它是用户点进来时看到的那个名字；详情规则取到的常是带 SEO 后缀的页面标题
+    /// （低端影视：「危机13小时免费在线观看_高清网盘下载」，2026-10-08 模拟器），只在列表没给标题时才用。
     var displayTitle: String {
         return TrimmedText.nonEmpty(self.item.title) ?? self.detailTitle ?? self.item.title
     }

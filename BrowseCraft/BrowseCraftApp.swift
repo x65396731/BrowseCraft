@@ -203,7 +203,7 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
 }
 
 @main
-/// 中文注释：BrowseCraftApp 是 struct，负责本模块中的对应职责。
+/// 中文注释：App 入口：挂 AppDelegate、装配根视图，并把场景生命周期转给 AppContainer。
 struct BrowseCraftApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @Environment(\.scenePhase) private var scenePhase

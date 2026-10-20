@@ -7,7 +7,7 @@ import UIKit
 
 // 中文注释：ReaderPageImageView.swift 属于界面功能层，用于说明本文件承载的核心职责。
 
-/// 中文注释：ReaderPageImageView 是 struct，负责本模块中的对应职责。
+/// 中文注释：阅读器的单页图片视图：按来源的请求配置取图，失败时显示带页码的占位。
 struct ReaderPageImageView: View {
     @Environment(\.browserRequestHeaderProvider) private var browserRequestHeaderProvider
     @Environment(\.systemCookieHeaderProvider) private var systemCookieHeaderProvider
@@ -136,7 +136,7 @@ struct ReaderPageImageView: View {
         }
         .frame(maxWidth: .infinity)
         .background(Color(.systemBackground))
-        .accessibilityLabel("Page \(self.pageNumber)")
+        .accessibilityLabel(ReaderPageLabel.text(self.pageNumber))
     }
 
     private func requestIdentity(pageURLString: String) -> ReaderImageRequestIdentity {
@@ -199,7 +199,7 @@ struct ReaderPageImageView: View {
                 SwiftUI.Image(systemName: "exclamationmark.triangle")
                     .font(.title2)
 
-                Text("Page \(self.pageNumber)")
+                Text(ReaderPageLabel.text(self.pageNumber))
                     .font(.caption)
             }
             .foregroundColor(.secondary)
@@ -208,6 +208,14 @@ struct ReaderPageImageView: View {
 }
 
 /// 中文注释：阅读页请求的身份——变了才重建请求。解码宽度固定（`ReaderImageSizing.targetPixelWidth`），不进身份。
+/// 中文注释：页码文案走词条；`"Page \(n)"` 这种键在 zh-Hans 里不存在，中文界面会出英文
+/// （2026-10-20 审计发布前清单第 4 项）。两个页面视图共用。
+private enum ReaderPageLabel {
+    static func text(_ pageNumber: Int) -> String {
+        return String(format: NSLocalizedString("reader_page_number", comment: ""), pageNumber)
+    }
+}
+
 private struct ReaderImageRequestIdentity: Hashable {
     let urlString: String
     let refererURLString: String?
@@ -233,7 +241,7 @@ private struct ProtectedReaderPageImageView: View {
                     .aspectRatio(self.aspectRatio(for: image.size), contentMode: .fit)
                     .frame(maxWidth: .infinity)
                     .background(Color(.systemBackground))
-                    .accessibilityLabel("Page \(self.pageNumber)")
+                    .accessibilityLabel(ReaderPageLabel.text(self.pageNumber))
             } else if self.errorMessage != nil {
                 self.errorView
             } else {
@@ -297,7 +305,7 @@ private struct ProtectedReaderPageImageView: View {
                 SwiftUI.Image(systemName: "exclamationmark.triangle")
                     .font(.title2)
 
-                Text("Page \(self.pageNumber)")
+                Text(ReaderPageLabel.text(self.pageNumber))
                     .font(.caption)
             }
             .foregroundColor(.secondary)

@@ -37,6 +37,7 @@ python3 scripts/check-docs.py
 | --- | --- | --- | --- |
 | 活动与生成率提示（2026-10-18，`BCA-UI-004` / `BCA-UI-005` / `BCA-SYNC-012`；设计书、画布链接在合同头部） | ① App 侧 2026-10-19 已 build，真机验过设置页「通知」分组全部状态与新注册欢迎页（STATUS 第 11 节真机一行）；没看的：成功率一行有数据时的文案（用户 10-19 用新账号提交生成，次日 12:30 JST 汇总后看）、活动推送点击；② PortalCore 侧已上线：新户赠送 3000 coin、`/media/` 两张弹窗插画、设备登记接受 `marketingOptIn` / `language`（v0021）；成功率接口与 GeoIP 与每日汇总（迁移 v0022，宿主机 crontab 每日汇总、每月换库；旧任务不计，所以真实用户生成之前这一行不显示）、登录返回 `accountCreated` / `signupGrantCoins`、隐私政策页（含 DB-IP 署名）；未做：活动入账脚本与新记账原因（要迁移）；③ Firebase 控制台：「新账户欢迎页」已投放中；「限时活动 · 送 300 coin」是草稿，用户说发再发——先跑入账脚本并报人数，再按活动天数改「首次打开超过 N 天前」、填起止日期后发布 | [Campaign-And-Rate-Notices](docs/design/Campaign-And-Rate-Notices-Design.md) 第五、七、八节 | 第 11 节 |
 | 页内问题报告（2026-10-19 / 20，`BCA-OBS-018` ~ `022`、`BCA-UI-006`；设计书 https://claude.ai/artifact/R1jd8HR8q6hKoSKh1vTjMB） | **第二期挂账（用户 2026-10-20：目前做不了）**：合同第九节排查第 4、5 步的查询脚本，写在 PortalCore 仓——第 4 步按（`sourceId`, `ruleRevision`, scope）数最近 24 小时的报告，默认不计站点侧、另列一行看站点可用性；第 5 步输入 `sourceId`（可选 `ruleRevision`），经 `generated_rule_index` 按指纹对到当初的生成任务与结局（有花了 token 的失败归档一并列出），再列该站最近的生成成功 / 失败数与最近 24 小时的报告数（按问题码与站点侧分开）。只做脚本、不做自动告警。线上 `problem_reports` 现只有走查发的 4 条（`R-4PQ9-3T68`、`R-4KSY-X8AZ`、`R-6KMP-JUAM`、`R-TF54-DMXQ`，同一诊断码 `BC-DLCB-2S38`），写脚本时可当样本、统计时要排除。只读查线上库的方式：ssh 到服务器后在 `/home/ubuntu/portalcore/PortalCore` 下 `docker compose exec -T api python -`，脚本里用 `app.platform.config.DB_PATH` 以 `mode=ro` 打开。第一期另欠：漫画详情与站点书详情的模拟器走查（模拟器来源位置 1 / 1）、真机、App 发版（服务端已上线） | [Problem-Report](docs/design/Problem-Report-Design.md) 第九、十一节 | 第 12 节 |
+| 发布前清单（2026-10-20 全量代码审计，报告与七项裁决 https://claude.ai/artifact/RqbnQE2ZiEEtsQ3aLKbfPq） | 十二项里十一项代码与文档已改（工作树，未 build、未跑测试、未提交）；欠 build + 全量测试 + 四处模拟器一眼，以及 #12 控制台侧七件（ASC 取消 Mac、CloudKit Deploy、GMA 清单、内购对账、GCP key 限制、TestFlight 日志形态、ATS 例外） | 报告「发布前必做清单」 | [第 13 节](docs/STATUS.md#13-全量代码审计2026-10-20) |
 | 删除来源时保留历史与收藏（取代连带删除） | 真机 | [Source-Deletion-Cascade](docs/design/Source-Deletion-Cascade-Design.md) 第七、八节 | 第 4 节 targeted-passed 行 |
 | 续看位置同步到 iCloud | 两台设备对测（同一 iCloud 账户、同一种安装方式、同一个来源；书的 `locatorJSON` 跨设备可用性未实测）+ 真机退后台的时间够不够 | [History-Resume-Sync](docs/design/History-Resume-Sync-Design.md) 第三、五节 | 第 4 节两行 |
 | 19 页重设计：来源、收藏、规则目录、历史、设置、coin 记录、缓存、云同步、添加来源、网址输入与引导屏、库页三种、详情三种、来源内搜索、有声书播放页、删除账号页 | 真机验收（含深色）；模拟器没走到的状态见 STATUS 各页走查行 | 各页合同末节「真机验收清单」 | 第 2 节、第 4 节 |
@@ -88,11 +89,14 @@ python3 scripts/check-docs.py
 
 工具链：`xcodegen` 只保留 `/opt/homebrew` 下的 arm64 版；Homebrew 从源码编译要求独立的 Command Line Tools 与 Xcode 同版本。
 命令行 build / test 前先看 `xcode-select -p`：机器上装着多个 Xcode 时，指向旧版（16.x）包解析会报 WebUI「incompatible tools version」，
-不改系统设置的话给那条命令加 `DEVELOPER_DIR=<Xcode>.app/Contents/Developer`。Xcode 27 beta 能编；Xcode 26.0.1（Swift 6.2.0）对 `@MainActor` 里直接调
-`SourceUserAgentFallback.shared.perform`、`@MainActor` 方法引用转 `@Sendable`、长整数字面量算式转 `TimeInterval` 三种写法报编译器错，仓库不为它改代码——
-要在 26.0.1 上跑测试，先在本地做等价改写、不提交（改法见 `docs/history/status-log.md` 2026-10-20 的记录）。
-「不提交」的前提是打包机用 Xcode 27：beta 工具链的产物不能提审，发布前先核打包机版本再定（审计报告发布前清单第 3 项）。
-`/Users/trs/` 这台机器的工作区现留着这 4 个未提交文件（`LibraryFeatureFactory`、`VideoDetailViewModel`、`VideoPlayerViewModel`、`PersonalRuleRetentionTests`），没有任何保护，`git stash` / `checkout` 即丢。
+不改系统设置的话给那条命令加 `DEVELOPER_DIR=<Xcode>.app/Contents/Developer`。
+- **归档必须用 Xcode ≥ 27（硬约束，用户 2026-10-20 裁定）**：Xcode 26.0.1（Swift 6.2.0）对 `@MainActor` 里直接调
+  `SourceUserAgentFallback.shared.perform`、`@MainActor` 方法引用转 `@Sendable`、长整数字面量算式转 `TimeInterval` 三种写法报编译器错，
+  仓库不为它改代码；要在 26.0.1 上跑测试，先在本地做等价改写、不提交（改法见 `docs/history/status-log.md` 2026-10-20 的记录）。
+  `/Users/xiefei/` 这台机器已装 Xcode 27.0（27A266a），10-20 审计时留在 `/Users/trs/` 工作区的 4 个未提交改写文件已不存在。
+- **归档机必须有 `Config/CatalogEncryption.release.local.xcconfig`**：tracked 的 Release xcconfig 把目录解密密钥置空，只 `#include?` 这份
+  gitignore 的本机文件；`scripts/check-ad-configuration.sh` 在 PROD 归档时断言密钥非空且含 `prod-`，否则归档失败（`BCA-BUILD-003`）。
+  prod key 本身存进密码管理器，换机器时从那里取。
 
 ```bash
 # 工程文件不同步时先重新生成（BCA-BUILD-001）；纯文档改动不需要。

@@ -171,6 +171,8 @@ final class LibraryViewModel {
         self.errorMessage = nil
         self.selectedListTabErrorMessage = nil
         self.requestedSourceLogin = nil
+        // 中文注释：换账号时来源内搜索的关键字与结果也要清（`switchToSource` 有清，这里此前漏了；2026-10-20 审计发布前清单第 10 项）。
+        self.clearSearch()
         self.preparedLibrarySnapshot = nil
         self.sourceSelectionStore.preparingSource = nil
         self.sourceSelectionStore.preparedLibrarySnapshot = nil
@@ -530,7 +532,7 @@ final class LibraryViewModel {
     }
 
     @MainActor
-    /// 中文注释：toggleFavorite 方法封装当前类型的一段业务或界面行为。
+    /// 中文注释：切换一条内容的收藏状态并同步 `favoriteItemIDs`；写库经 actor，失败只给错误文案。
     func toggleFavorite(item: ContentItem, entry: FavoriteEntry = .library) async {
         do {
             let wasFavorite: Bool = self.favoriteItemIDs.contains(item.id)
@@ -549,12 +551,7 @@ final class LibraryViewModel {
         }
     }
 
-    /// 中文注释：sourceName 方法封装当前类型的一段业务或界面行为。
-    func sourceName(for sourceId: String) -> String {
-        return self.source(for: sourceId)?.name ?? "Unknown Source"
-    }
-
-    /// 中文注释：source 方法封装当前类型的一段业务或界面行为。
+    /// 中文注释：按 id 在当前已加载的来源里查找；找不到返回 nil。
     func source(for sourceId: String) -> Source? {
         return self.sources.first { source in
             return source.id == sourceId
@@ -839,22 +836,6 @@ final class LibraryViewModel {
             for: source,
             listTab: self.selectedListTab
         )
-    }
-
-    func primaryActionTitle(for source: Source) -> String {
-        if self.shouldOpenReaderDirectly(for: source) {
-            return "Read"
-        }
-
-        return "Chapters"
-    }
-
-    func primaryActionSystemImage(for source: Source) -> String {
-        if self.shouldOpenReaderDirectly(for: source) {
-            return "book"
-        }
-
-        return "list.bullet"
     }
 
     func shouldOpenReaderDirectly(for source: Source) -> Bool {

@@ -142,7 +142,6 @@ struct SourcesFeatureFactory {
             coinWalletStore: self.coinWalletStore,
             catalogService: sourceCatalogService,
             ruleDebugJSONFormatter: sourceRuleDebugJSONFormatter,
-            recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase(),
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
             validateSourceTabsUseCase: ValidateSourceTabsUseCase(
                 refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase

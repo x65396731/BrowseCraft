@@ -19,12 +19,11 @@ final class GRDBCloudAccountPartitionStore:
     func currentUserSummary() throws -> CloudAccountPartitionSummary {
         let userID: String = self.currentUserID
         return try self.database.queue.read { database in
-            let sourceRecords: [SourceRecord] = try SourceRecord
+            // 中文注释：只数个数，不把含 configJSON 的整行读出来（与下面 `syncedContentSummary` 同做法，2026-10-20 审计 C-4）。
+            let sourceCount: Int = try SourceRecord
                 .filter(SourceRecord.Columns.userID == userID)
-                .fetchAll(database)
-            let sourceCount: Int = sourceRecords.filter { record in
-                return record.id.hasPrefix("built-in.") == false
-            }.count
+                .filter(SourceRecord.Columns.id.like("built-in.%") == false)
+                .fetchCount(database)
             let favoriteItemCount: Int = try FavoriteItemRecord
                 .filter(FavoriteItemRecord.Columns.userID == userID)
                 .fetchCount(database)

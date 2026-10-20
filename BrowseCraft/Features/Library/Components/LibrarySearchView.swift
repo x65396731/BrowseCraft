@@ -264,7 +264,6 @@ struct LibrarySearchView: View {
                         }
                         self.selectedComicDestination = LibraryComicDestination(item: item, source: source)
                     },
-                    primaryActionTitle: self.viewModel.primaryActionTitle(for:),
                     imageRequestConfig: self.viewModel.imageRequestConfig(for:),
                     // 中文注释：搜索结果页的分页由 `searchRules[].pagination` 声明；Runtime 报出下一页才挂触底哨兵。
                     // 当前线上搜索规则都不带分页，所以看不见，但不留死路（合同第六节）。

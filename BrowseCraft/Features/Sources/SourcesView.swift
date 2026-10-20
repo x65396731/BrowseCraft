@@ -22,7 +22,11 @@ struct SourcesView: View {
     /// 中文注释：从目录页「我的生成」空状态进来的那次添加来源页不显示「从规则目录挑一个」——用户刚从目录出来。
     @State private var addSourceOpenedFromCatalog: Bool = false
     @State private var opensPremiumAfterSlotActivation: Bool = false
+    #if DEBUG
+    // 中文注释：来源调试页只在 Debug 构建可达——它标题写死「Debug」、19 条英文，并把解密后的整份规则
+    // 展示出来；服务端加密下发规则就是为了不外泄（2026-10-20 审计发布前清单第 2 项，用户裁定整页 #if DEBUG）。
     @State private var debugSourceID: String?
+    #endif
 
     var body: some View {
         NavigationStack {
@@ -32,11 +36,13 @@ struct SourcesView: View {
                 // 系统导航栏只在推入来源详情时出现；标题仍要设，作为详情页返回按钮的文字。
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationTitle("Sources")
+                #if DEBUG
                 .navigationDestination(item: self.$debugSourceID) { sourceID in
                     SourceDebugView(viewModel: self.viewModel, sourceID: sourceID)
                 }
-                // 中文注释：删除来源后底部「已删除「来源名」 · 撤销」，与收藏页、历史页同一个提示条
-                // （`docs/design/Source-Deletion-Cascade-Design.md` 第五节）。
+                #endif
+                // 中文注释：删除来源后底部「已删除「来源名」 · 撤销」（`docs/design/Source-Deletion-Cascade-Design.md` 第五节）。
+                // 这个提示条原与收藏页、历史页共用，两页 2026-10-17 改成选择模式后不再有撤销，现只剩来源页在用。
                 .overlay(alignment: .bottom) {
                     if let receipt: SourceDeletionReceipt = self.viewModel.undoableDeletion {
                         ContentUndoBanner(
@@ -345,11 +351,13 @@ struct SourcesView: View {
             .disabled(isSwitching)
         }
 
+        #if DEBUG
         Button {
             self.debugSourceID = source.id
         } label: {
             Label(NSLocalizedString("sources_menu_details", comment: ""), systemImage: "info.circle")
         }
+        #endif
 
         Divider()
 

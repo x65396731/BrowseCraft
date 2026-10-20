@@ -1106,3 +1106,32 @@
 "audiobook_contents_count" = "%ld episodes";
 "audiobook_contents_gone" = "Unavailable";
 "audiobook_contents_now_playing" = "Now playing";
+
+// 2026-10-20 审计发布前清单第 4 项：中文界面会出英文的裸字面量收进词条。
+"video_playback_restriction_requires_login" = "This episode requires account login.";
+"video_playback_restriction_vip_only" = "This episode is limited to VIP or paid users.";
+"video_playback_restriction_drm" = "This episode appears to use DRM-protected playback.";
+"video_playback_restriction_region_blocked" = "This episode appears to be region blocked.";
+"video_playback_restriction_captcha" = "This episode appears to be blocked by captcha or anti-bot protection.";
+"video_playback_failure_media_url_not_found" = "The playback page did not expose a playable media URL.";
+"video_playback_failure_unsupported_media_kind" = "The playback page exposed a media type that cannot be played yet.";
+"video_playback_failure_parsing_failed" = "This playback page could not be parsed.";
+"video_playback_failure_iframe_depth_exceeded" = "The embedded player is nested too deeply to resolve.";
+"video_playback_failure_iframe_loop" = "The embedded player redirected in a loop.";
+"reader_no_pages_title" = "No Pages";
+"reader_no_pages_message" = "This chapter did not return any readable pages.";
+"reader_page_number" = "Page %ld";
+"source_login_sign_in_button" = "Sign In to This Source";
+"source_login_session_alert_title" = "Login Session";
+"source_login_session_save_failed" = "Unable to save the login session.";
+"Copied" = "Copied";
+"Copy Diagnostics" = "Copy Diagnostics";
+"temporary_detail_section_resource" = "Resource";
+"temporary_detail_type" = "Type";
+"temporary_detail_type_video" = "Temporary video";
+"temporary_detail_type_comic" = "Temporary comic";
+"temporary_detail_visited" = "Visited";
+"temporary_detail_section_open" = "Open";
+"temporary_detail_section_detail" = "Temporary Detail";
+"temporary_detail_source_page" = "Source Page";
+"video_preflight_submit_failed_local" = "The submission did not go through. Check your network and try again.";

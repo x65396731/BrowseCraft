@@ -295,8 +295,8 @@ enum AppDatabaseMigrations {
             }
         }
 
-        // 中文注释：下一次 schema 变更从这里开始，例如：
-        // migrator.registerMigration("v2.sources-add-sort-order") { database in
+        // 中文注释：下一次 schema 变更从这里开始（标识符只追加不改名，`BCA-DB-001`；版本号接着当前最大的往下编），例如：
+        // migrator.registerMigration("v12.sources-add-sort-order") { database in
         //     try database.alter(table: "sources") { table in
         //         table.add(column: "sortOrder", .integer).notNull().defaults(to: 0)
         //     }

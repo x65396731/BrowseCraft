@@ -203,7 +203,23 @@ struct BookSiteDetailChapterHeader: View {
                 selectSegment: { segmentID in
                     self.viewModel.selectSegment(segmentID)
                 }
-            )
+            ) {
+                // 中文注释：已加载后再取失败（下拉刷新）——目录留着，错误用横幅，与漫画详情
+                // `ComicDetailChapterSection` 同做法；此前这种失败没有任何呈现（2026-10-20 审计发布前清单第 10 项）。
+                if let message: String = self.viewModel.errorMessage {
+                    LibraryStateBanner(
+                        kind: .failure,
+                        message: message,
+                        retryAction: {
+                            Task {
+                                await self.viewModel.load()
+                            }
+                        }
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 10)
+                }
+            }
         }
     }
 }

@@ -28,7 +28,7 @@ struct ReaderSourceLoginPrompt: Identifiable, Hashable {
     }
 }
 
-/// 中文注释：ReaderViewModel 是 final class，负责本模块中的对应职责。
+/// 中文注释：漫画阅读器的视图模型：加载章节页面、记录阅读历史与广告积分、处理受限章节的登录流。
 @MainActor
 @Observable
 final class ReaderViewModel {
@@ -56,6 +56,9 @@ final class ReaderViewModel {
     private let sourceCredentialProvider: any SourceCredentialProviding
     private let sourceCredentialStore: (any SourceCredentialStoring)?
     private let resolveReaderSourcePresentationUseCase: ResolveReaderSourcePresentationUseCase
+    /// 中文注释：规则声明的阅读页图片请求，按 source 在 init 算一次；此前是计算属性，每页 cell 渲染都跑一遍
+    /// 整张规则校验（2026-10-20 审计 C-1）。
+    private let readerRuleRequestConfig: RequestConfig?
     private let persistenceCoordinator: ReadingActivityPersistenceCoordinator
     private let activeAppUser: (any ActiveAppUserProviding)?
     private let fallbackUserID: String
@@ -103,6 +106,7 @@ final class ReaderViewModel {
         self.sourceCredentialProvider = sourceCredentialProvider
         self.sourceCredentialStore = sourceCredentialStore
         self.resolveReaderSourcePresentationUseCase = resolveReaderSourcePresentationUseCase
+        self.readerRuleRequestConfig = resolveReaderSourcePresentationUseCase.readerRuleRequestConfig(for: source)
         self.persistenceCoordinator = persistenceCoordinator
         self.activeAppUser = activeAppUser
         self.fallbackUserID = userID
@@ -122,7 +126,7 @@ final class ReaderViewModel {
     }
 
     @MainActor
-    /// 中文注释：load 方法封装当前类型的一段业务或界面行为。
+    /// 中文注释：加载当前章节；已有章节内容时直接复用，不重取。
     func load() async {
         if self.chapter != nil {
             #if DEBUG
@@ -411,12 +415,12 @@ final class ReaderViewModel {
                 credentialStore: sourceCredentialStore,
                 now: self.now
               ).resolve(source: self.source) else {
-            self.errorMessage = "This chapter requires a source account, but this source has no available login page."
+            self.errorMessage = NSLocalizedString("comic_detail_access_no_login_page", comment: "")
             return
         }
 
         guard loginState.status == .guest else {
-            self.errorMessage = "This account cannot access the chapter. Purchase or VIP membership may be required."
+            self.errorMessage = NSLocalizedString("comic_detail_access_denied", comment: "")
             return
         }
 
@@ -432,7 +436,10 @@ final class ReaderViewModel {
 
     /// 中文注释：阅读页图片加载使用 GalleryRule 的图片请求配置，避免 UI 直接理解规则选择细节。
     var readerImageRequestConfig: RequestConfig? {
-        return self.resolveReaderSourcePresentationUseCase.readerImageRequestConfig(for: self.source)
+        return self.resolveReaderSourcePresentationUseCase.imageRequestConfig(
+            for: self.source,
+            ruleRequestConfig: self.readerRuleRequestConfig
+        )
     }
 
     func loadProtectedImage(

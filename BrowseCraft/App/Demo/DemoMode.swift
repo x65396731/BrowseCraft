@@ -8,7 +8,7 @@ import Foundation
 /// `-BrowseCraftDemoAssets <目录>` 指向演示封面所在目录（cover-01.png … cover-12.png）。
 /// 模拟器进程能直接读宿主机路径，所以封面不必进包；未传参或文件缺失时封面走占位图。
 enum DemoMode {
-    static let isEnabled: Bool = ProcessInfo.processInfo.arguments.contains("-BrowseCraftDemoMode")
+    static let isEnabled: Bool = DemoModeFlag.isEnabled
 
     static let assetsDirectory: URL? = {
         let arguments: [String] = ProcessInfo.processInfo.arguments

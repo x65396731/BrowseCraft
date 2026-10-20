@@ -221,6 +221,11 @@ final class ComicDetailViewModel {
     private let fallbackUserID: String
     let now: () -> Date
     private var pendingRestrictedChapterURL: String?
+    /// 中文注释：规则声明的封面请求与章节顺序方向都要跑一遍整张规则校验，按 source 在 init 算一次；
+    /// 此前是计算属性，分区头与封面每次渲染都重算（2026-10-20 审计 C-1）。
+    private let detailCoverRuleRequestConfig: RequestConfig?
+    /// 规则声明的章节顺序方向（Core 已按它排好），阅读器的上一话 / 下一话按它走。
+    let chapterNavigationOrder: ChapterNavigationOrder
 
     init(
         item: ContentItem,
@@ -239,6 +244,8 @@ final class ComicDetailViewModel {
         self.loadComicDetailUseCase = loadComicDetailUseCase
         self.persistenceCoordinator = persistenceCoordinator
         self.resolveReaderSourcePresentationUseCase = resolveReaderSourcePresentationUseCase
+        self.detailCoverRuleRequestConfig = resolveReaderSourcePresentationUseCase.detailCoverRuleRequestConfig(for: source)
+        self.chapterNavigationOrder = Self.chapterNavigationOrder(for: source)
         self.sourceCredentialStore = sourceCredentialStore
         self.activeAppUser = activeAppUser
         self.toggleFavoriteUseCase = toggleFavoriteUseCase
@@ -258,7 +265,6 @@ final class ComicDetailViewModel {
 
     // MARK: - 头部取值（第五节）
 
-    /// 列表项的标题优先——它是用户点进来时看到的那个名字；detail `title` 常是带站名前后缀的页面标题。
     /// 中文注释：漫画详情的报告上下文（Problem-Report-Design.md 第三节）：报详情与章节目录，或某一话的内容；
     /// 选集默认上次读到的那一话，没有时取第一话。
     func problemReportContext(entry: ProblemReportEntry, failureMessage: String?) -> ProblemReportContext {
@@ -288,6 +294,7 @@ final class ComicDetailViewModel {
         )
     }
 
+    /// 列表项的标题优先——它是用户点进来时看到的那个名字；detail `title` 常是带站名前后缀的页面标题。
     var displayTitle: String {
         return TrimmedText.nonEmpty(self.item.title) ?? TrimmedText.nonEmpty(self.metadata?.title) ?? self.item.title
     }
@@ -381,15 +388,17 @@ final class ComicDetailViewModel {
     }
 
     var detailCoverRequestConfig: RequestConfig? {
-        return self.resolveReaderSourcePresentationUseCase.detailCoverRequestConfig(for: self.source)
+        return self.resolveReaderSourcePresentationUseCase.imageRequestConfig(
+            for: self.source,
+            ruleRequestConfig: self.detailCoverRuleRequestConfig
+        )
     }
 
     // MARK: - 目录（第七节）
 
-    /// 规则声明的章节顺序方向（Core 已按它排好），阅读器的上一话 / 下一话按它走。
-    var chapterNavigationOrder: ChapterNavigationOrder {
+    private static func chapterNavigationOrder(for source: Source) -> ChapterNavigationOrder {
         let resolvedRule: ResolvedComicSiteRuleV2? = ComicSiteRuleV2Validator()
-            .validate(rule: self.source.rule)
+            .validate(rule: source.rule)
             .resolvedRule
         let detailRule: ComicDetailRuleV2? = resolvedRule.flatMap { graph in
             graph.primaryDetailEntry.map { entry in

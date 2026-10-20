@@ -2,7 +2,7 @@ import BrowseCraftDomain
 import SwiftUI
 
 // 中文注释：ReaderView 只负责具体章节阅读；漫画作品信息和章节目录位于 Library/Comic/Detail。
-/// 中文注释：ReaderView 是 struct，负责本模块中的对应职责。
+/// 中文注释：漫画阅读器页：按章节逐页加载图片，带上一话 / 下一话、阅读进度记录与受限章节的登录墙。
 struct ReaderView: View {
     @State private var viewModel: ReaderViewModel
     @State private var didApplyRestorePage: Bool = false
@@ -159,9 +159,9 @@ struct ReaderView: View {
                 .padding(.top, 80)
         } else {
             ContentUnavailableView(
-                "No Pages",
+                NSLocalizedString("reader_no_pages_title", comment: ""),
                 systemImage: "photo.on.rectangle.angled",
-                description: Text("This chapter did not return any readable pages.")
+                description: Text(NSLocalizedString("reader_no_pages_message", comment: ""))
             )
             .frame(maxWidth: .infinity)
             .frame(minHeight: 260)

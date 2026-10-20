@@ -62,13 +62,11 @@ struct AdPlaybackHandler: ViewModifier {
                 ])
                 #endif
 
-                #if DEBUG
-                // 中文注释：演示模式（拍商城截图）不弹广告；按「已有广告在播」处理，积分保留。
-                if ProcessInfo.processInfo.arguments.contains("-BrowseCraftDemoMode") {
+                // 中文注释：演示模式（拍商城截图）不弹广告；按「已有广告在播」处理，积分保留。Release 下 `DemoModeFlag.isEnabled` 恒 false。
+                if DemoModeFlag.isEnabled {
                     self.markHandled(.skippedBecauseAlreadyPresenting)
                     return
                 }
-                #endif
 
                 if self.presenter.isPresenting {
                     #if DEBUG

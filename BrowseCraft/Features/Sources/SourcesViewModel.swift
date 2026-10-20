@@ -9,7 +9,7 @@ import BrowseCraftRuntime
 // 中文注释：SourcesViewModel.swift 属于界面功能层，用于说明本文件承载的核心职责。
 
 /// 中文注释：Sources 标签页的视图模型，管理源列表、选中源、刷新状态和错误信息。
-/// 中文注释：SwiftUI 会观察这里的 @Published 属性，并在变化时刷新对应界面。
+/// 中文注释：`@Observable`——SwiftUI 按视图实际读到的属性追踪变化并刷新。
 @MainActor
 @Observable
 final class SourcesViewModel {
@@ -36,13 +36,26 @@ final class SourcesViewModel {
     private(set) var refreshingSourceID: String?
     private(set) var latestSourceAddID: String?
     private(set) var latestCatalogSourceAddID: String?
-    private(set) var catalogSources: [CatalogSource] = []
+    private(set) var catalogSources: [CatalogSource] = [] {
+        didSet {
+            self.rebuildCatalogSourceGrouping()
+        }
+    }
     /// 目录条目 id → 规则里给用户看的信息；解析不了的条目不在表里，卡片只显示名称与地址。
     /// 与 `catalogSources` 一起由 `setCatalogSources` 写入：目录到手时解析一次，不在滚动时反复解析规则 JSON。
     private(set) var catalogRuleFacts: [String: CatalogRuleFacts] = [:]
     private(set) var isLoadingCatalogSources: Bool = false
     /// 当前用户的生成终态；nil 表示尚未读取。
-    private(set) var videoGenerationOutcomesLoad: VideoGenerationOutcomesLoad?
+    private(set) var videoGenerationOutcomesLoad: VideoGenerationOutcomesLoad? {
+        didSet {
+            self.rebuildCatalogSourceGrouping()
+        }
+    }
+    /// 目录两分组：网站默认数据 + 按当前用户生成结果挑出的个人数据。
+    ///
+    /// 中文注释：存储属性，只在 `catalogSources` / `videoGenerationOutcomesLoad` 变化时重建（与 `catalogRuleFacts` 同做法）；
+    /// 此前是计算属性，目录页每行每次 body 都重算，内含逐条规则的 JSONSerialization（2026-10-20 审计 C-6）。
+    private(set) var catalogSourceGrouping: CatalogSourceGrouping = CatalogSourceGrouping.make(catalogSources: [], outcomes: [])
     /// 目录里某条规则添加失败的具体原因（按 catalogSourceId），成功或刷新后清除。
     private(set) var catalogSourceAddFailureMessages: [String: String] = [:]
     private(set) var requestedSlotActivationSource: Source?
@@ -77,7 +90,6 @@ final class SourcesViewModel {
     private let generationRatesClient: (any GenerationRatesFetching)?
     private let catalogService: SourceCatalogService
     private let ruleDebugJSONFormatter: SourceRuleDebugJSONFormatter
-    private let recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase
     private let contentItemMapper: SourceListContentItemMapper
     private let refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase
     private let validateSourceTabsUseCase: ValidateSourceTabsUseCase
@@ -117,15 +129,14 @@ final class SourcesViewModel {
         return self.occupiedSourceSlotCount < self.sourceSlotLimit
     }
 
-    /// 目录两分组：网站默认数据 + 按当前用户生成结果挑出的个人数据。
-    var catalogSourceGrouping: CatalogSourceGrouping {
+    private func rebuildCatalogSourceGrouping() {
         let outcomes: [VideoGenerationOutcome]
         if case .loaded(let loaded) = self.videoGenerationOutcomesLoad {
             outcomes = loaded
         } else {
             outcomes = []
         }
-        return CatalogSourceGrouping.make(
+        self.catalogSourceGrouping = CatalogSourceGrouping.make(
             catalogSources: self.catalogSources,
             outcomes: outcomes
         )
@@ -283,7 +294,6 @@ final class SourcesViewModel {
         coinWalletStore: CoinWalletStore? = nil,
         catalogService: SourceCatalogService,
         ruleDebugJSONFormatter: SourceRuleDebugJSONFormatter,
-        recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase,
         refreshSourceRuntimeUseCase: RefreshSourceRuntimeUseCase,
         validateSourceTabsUseCase: ValidateSourceTabsUseCase,
         sourceSelectionStore: SourceSelectionStore,
@@ -301,7 +311,6 @@ final class SourcesViewModel {
         self.coinWalletStore = coinWalletStore
         self.catalogService = catalogService
         self.ruleDebugJSONFormatter = ruleDebugJSONFormatter
-        self.recommendSourceImportOptionUseCase = recommendSourceImportOptionUseCase
         self.contentItemMapper = SourceListContentItemMapper()
         self.refreshSourceRuntimeUseCase = refreshSourceRuntimeUseCase
         self.validateSourceTabsUseCase = validateSourceTabsUseCase
@@ -1250,20 +1259,6 @@ final class SourcesViewModel {
         self.errorMessage = nil
     }
 
-    func recommendSourceImport(
-        draft: SourceImportDraft,
-        selectedOptionKind: SourceImportOptionKind? = nil,
-        html: String? = nil,
-        headers: [String: String] = [:]
-    ) -> SourceImportRecommendation {
-        return self.recommendSourceImportOptionUseCase.execute(
-            draft: draft,
-            selectedOptionKind: selectedOptionKind,
-            html: html,
-            headers: headers
-        )
-    }
-
     func formattedDebugJSON(for source: Source) -> String {
         return self.ruleDebugJSONFormatter.formattedDebugJSON(for: source)
     }
@@ -1294,18 +1289,6 @@ final class SourcesViewModel {
         return self.sources.first { source in
             return source.id == id
         }
-    }
-
-    @MainActor
-    private func replaceSource(_ source: Source) {
-        guard let index: Array<Source>.Index = self.sources.firstIndex(where: { existingSource in
-            return existingSource.id == source.id
-        }) else {
-            self.sources.append(source)
-            return
-        }
-
-        self.sources[index] = source
     }
 
     @MainActor
@@ -1414,12 +1397,6 @@ final class SourcesViewModel {
                 self?.selectedSourceID = selectedSourceID
             }
             .store(in: &self.cancellables)
-    }
-}
-
-private extension String {
-    var nilIfEmpty: String? {
-        return self.isEmpty ? nil : self
     }
 }
 

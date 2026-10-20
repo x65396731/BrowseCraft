@@ -188,12 +188,19 @@ final class CoinWalletStore: RewardedAdRewardCoordinating {
     }
 
     private func persist(balance: Int, revision: Int) {
-        guard var user: AppUser = try? self.appUserRepository.fetchUser(id: self.userID) else {
-            return
+        // 中文注释：余额落库失败此前两处 `try?` 静默，冷启动余额回跳无痕；改记 error 级（`BCA-OBS-015`，
+        // 2026-10-20 审计发布前清单第 9 项）。内存里的余额仍以服务端为准，不因落库失败回退。
+        do {
+            guard var user: AppUser = try self.appUserRepository.fetchUser(id: self.userID) else {
+                AppLog.error(.database, "coin-balance-persist-user-missing", ["user": .id(self.userID)])
+                return
+            }
+            user.coinBalance = balance
+            user.coinRevision = revision
+            user.updatedAt = Date()
+            try self.appUserRepository.saveUser(user)
+        } catch {
+            AppLog.error(.database, "coin-balance-persist-failed", ["error": .error(error)])
         }
-        user.coinBalance = balance
-        user.coinRevision = revision
-        user.updatedAt = Date()
-        try? self.appUserRepository.saveUser(user)
     }
 }

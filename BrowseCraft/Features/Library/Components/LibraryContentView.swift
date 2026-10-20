@@ -11,7 +11,6 @@ struct LibraryContentView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let toggleFavorite: (ContentItem) -> Void
     let openComic: (ContentItem, Source) -> Void
-    let primaryActionTitle: (Source) -> String
     let imageRequestConfig: (Source) -> RequestConfig?
     /// 中文注释：列表下一页由 ViewModel 按 Runtime 报出的 `pagination.nextPage` 给出；三种类型共用。
     let nextPage: Int?

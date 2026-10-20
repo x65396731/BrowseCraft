@@ -116,7 +116,6 @@ final class BookSiteDetailViewModel {
 
     // MARK: - 头部（第五节）
 
-    /// 中文注释：导航栏与头部标题，规则见 `SiteBookTitle`（与阅读器同一个）。
     /// 中文注释：站点书详情的报告上下文（Problem-Report-Design.md 第三节）：报详情与目录，或某一章的正文或音频（有声书同此）；
     /// 选集默认续读位置那一章，没有时取第一章。
     func problemReportContext(entry: ProblemReportEntry, failureMessage: String?) -> ProblemReportContext {
@@ -147,6 +146,7 @@ final class BookSiteDetailViewModel {
         )
     }
 
+    /// 中文注释：导航栏与头部标题，规则见 `SiteBookTitle`（与阅读器同一个）。
     var displayTitle: String {
         return SiteBookTitle.preferred(itemTitle: self.item.title, detailTitle: self.manifest?.title)
     }

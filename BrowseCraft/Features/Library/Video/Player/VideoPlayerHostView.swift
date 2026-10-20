@@ -172,7 +172,11 @@ struct VideoPlayerHostView: View {
             }
 
             if let loginState: LibrarySourceLoginState = self.viewModel.restrictedLoginState {
-                Button(loginState.status == .authenticated ? "Open Login Page" : "Sign In to This Source") {
+                Button(
+                    loginState.status == .authenticated
+                        ? NSLocalizedString("Open Login Page", comment: "")
+                        : NSLocalizedString("source_login_sign_in_button", comment: "")
+                ) {
                     self.viewModel.requestSourceLogin()
                 }
                 .buttonStyle(.borderedProminent)

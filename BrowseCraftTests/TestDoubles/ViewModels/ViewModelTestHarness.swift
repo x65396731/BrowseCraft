@@ -231,7 +231,6 @@ enum ViewModelTestHarness {
                 loadCatalogSourcesUseCase: LoadCatalogSourcesUseCase(pageDataLoader: StubPageDataLoader())
             ),
             ruleDebugJSONFormatter: SourceRuleDebugJSONFormatter(),
-            recommendSourceImportOptionUseCase: RecommendSourceImportOptionUseCase(),
             refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase,
             validateSourceTabsUseCase: ValidateSourceTabsUseCase(
                 refreshSourceRuntimeUseCase: refreshSourceRuntimeUseCase

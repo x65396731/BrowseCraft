@@ -11,7 +11,7 @@ struct ToggleFavoriteUseCase: Sendable {
         self.favoriteRepository = favoriteRepository
     }
 
-    /// 中文注释：loadFavoriteItemIDs 方法封装当前类型的一段业务或界面行为。
+    /// 中文注释：当前用户已收藏条目的 id 集合；`sourceID` 为 nil 时跨全部来源。
     func loadFavoriteItemIDs(sourceID: String?) throws -> Set<String> {
         return try self.favoriteRepository.fetchFavoriteItemIDs(sourceID: sourceID)
     }

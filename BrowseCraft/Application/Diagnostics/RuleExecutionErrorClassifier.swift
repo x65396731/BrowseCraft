@@ -1,3 +1,4 @@
+import BrowseCraftCore
 import BrowseCraftDomain
 import Foundation
 
@@ -12,6 +13,28 @@ enum RuleExecutionErrorClassifier {
     static func classified(_ error: Error) -> RuleExecutionError {
         if let ruleExecutionError: RuleExecutionError = error as? RuleExecutionError {
             return ruleExecutionError
+        }
+
+        // 中文注释：Runtime 同时抛 Core 的 `SourceRuntimeError` 与 Domain 的 `RuleExecutionError`（Book 运行时
+        // 21 处全是前者，Video 三个 loader 两者混用），此前这里只认后者，前者落到 `.unknown`，用户看到
+        // 「加载失败。」加一句英文原句。按 2026-10-20 审计发布前清单第 5 项把它归到规则类别；Runtime 内
+        // 统一只抛一种归发布后。
+        if let sourceRuntimeError: SourceRuntimeError = error as? SourceRuntimeError {
+            switch sourceRuntimeError {
+            case .emptyContent(let chapterURL):
+                return .selectorEmpty(
+                    stage: .reader,
+                    sourceID: "unknown",
+                    url: chapterURL.absoluteString,
+                    ruleID: nil
+                )
+            case .unsupported, .invalidInput, .notConnected, .sourceMismatch:
+                return .ruleConfiguration(
+                    stage: .list,
+                    sourceID: "unknown",
+                    reason: sourceRuntimeError.localizedDescription
+                )
+            }
         }
 
         if let urlResolvingError: URLResolvingError = error as? URLResolvingError {

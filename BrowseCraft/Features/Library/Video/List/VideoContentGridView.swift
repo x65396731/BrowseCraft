@@ -34,7 +34,6 @@ struct VideoContentGridView: View {
                 ForEach(self.items, id: \.id) { item in
                     VideoLibraryCardView(
                         item: item,
-                        primaryActionTitle: "Episodes",
                         isFavorite: self.favoriteItemIDs.contains(item.id),
                         favoriteAction: {
                             self.favoriteAction(item)
@@ -91,7 +90,6 @@ struct VideoContentGridView: View {
 /// 海报卡片：封面 2:3 圆角 14，集数徽章压左下、爱心压右上，标题两行定高。点 = 进影视详情；长按「打开」「收藏 / 取消收藏」。
 private struct VideoLibraryCardView: View {
     let item: ContentItem
-    let primaryActionTitle: String
     let isFavorite: Bool
     let favoriteAction: () -> Void
     let openAction: () -> Void
@@ -205,8 +203,7 @@ private struct VideoLibraryCardView: View {
             "itemId": .text("\(self.item.id)"),
             "title": .text("\(self.item.title)"),
             "detailURL": .text("\(self.item.detailURL)"),
-            "latestText": .text("\(self.item.latestText ?? "nil")"),
-            "message": .text("\(self.primaryActionTitle)")
+            "latestText": .text("\(self.item.latestText ?? "nil")")
         ])
         #endif
 

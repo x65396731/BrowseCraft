@@ -209,6 +209,10 @@ phases next to the boundary script; `scripts/check-localization.py` runs after c
   archives config `TestFlight` (environment TEST); the plain **BrowseCraft** and **PROD BrowseCraft**
   schemes archive `Release` as PROD. Debug, TestFlight and Release all carry the real rewarded ad
   unit in `BROWSECRAFT_REWARDED_AD_UNIT_ID`, so the check currently passes for every configuration.
+  The same script also fails a PROD archive whose `BROWSECRAFT_CATALOG_ENCRYPTION_KEYS` is empty or
+  carries no `prod-` key: the tracked `Config/CatalogEncryption.release.xcconfig` leaves the key empty
+  and only `#include?`s the git-ignored `CatalogEncryption.release.local.xcconfig`, so an archive
+  machine without that file would otherwise ship a catalog that fails to decrypt every rule.
 - `BCA-BUILD-004` Project settings must live in tracked source files — `project.yml` for build
   settings, signing (including `DEVELOPMENT_TEAM`), entitlements and capabilities, and the hand-written
   `BrowseCraft/Info.plist` it points to (`GENERATE_INFOPLIST_FILE: NO`) for plist keys such as
@@ -337,7 +341,7 @@ occur for them.
 
 ## 9. Known debt
 
-- **`Features` imports `BrowseCraftCore` in 28 files and `BrowseCraftRuntime` in 7.** Now that the
+- **`Features` imports `BrowseCraftCore` in 22 files and `BrowseCraftRuntime` in 7.** Now that the
   dependency is explicit (§1) it is at least visible, but the UI layer reading `SiteRule` directly
   means a rule-format change can ripple into views, and the seven Runtime imports (content-item and
   item-reference mappers, the playback request resolver, the noise filter, the detection lexicon,

@@ -5,7 +5,6 @@ import Foundation
 
 enum VideoRuntimeAuditRecorderError: Error, Equatable {
     case duplicateStage(pageID: String, stage: VideoRuntimeEvidenceStage)
-    case duplicateBlockedCapability(VideoRuntimeEvidenceBlockedCapability)
 }
 
 // 中文注释：只有显式 audit session 才创建 recorder；正常播放不持久化或导出这些记录。
@@ -14,8 +13,6 @@ actor VideoRuntimeAuditRecorder {
     private var stages: [VideoRuntimeStageEvidenceV2] = []
     private var stageKeys: Set<StageKey> = []
     private var login: VideoRuntimeLoginEvidence?
-    private var blockedCapabilities: [VideoRuntimeEvidenceBlockedCapability] = []
-    private var blockedCapabilitySet: Set<VideoRuntimeEvidenceBlockedCapability> = []
 
     init(catalogInput: VideoRuntimeAuditCatalogInput) {
         self.catalogSHA256 = catalogInput.catalogSHA256
@@ -36,21 +33,13 @@ actor VideoRuntimeAuditRecorder {
         self.login = login
     }
 
-    func recordBlockedCapability(
-        _ capability: VideoRuntimeEvidenceBlockedCapability
-    ) throws {
-        guard self.blockedCapabilitySet.insert(capability).inserted else {
-            throw VideoRuntimeAuditRecorderError.duplicateBlockedCapability(capability)
-        }
-        self.blockedCapabilities.append(capability)
-    }
-
     func snapshot() -> VideoRuntimeEvidenceV2 {
         return VideoRuntimeEvidenceV2(
             catalogSHA256: self.catalogSHA256,
             stages: self.stages,
             login: self.login,
-            blockedCapabilities: self.blockedCapabilities
+            // 中文注释：没有任何调用方记录过被挡能力（`recordBlockedCapability` 零引用，2026-10-20 删除），证据里恒为空。
+            blockedCapabilities: []
         )
     }
 }

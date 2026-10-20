@@ -26,7 +26,7 @@ struct AccountDeletionMessagingTests {
     }
 
     @Test func responsesWithoutAReadableOutcomeAreUnknown() {
-        #expect(APIKitPortalAccountDeletionService.map(PortalAPIError.transportFailed) == .outcomeUnknown)
+        #expect(APIKitPortalAccountDeletionService.map(PortalAPIError.transportFailed(code: "NSURLErrorDomain.-1009")) == .outcomeUnknown)
         #expect(APIKitPortalAccountDeletionService.map(PortalAPIError.responseDecodingFailed) == .outcomeUnknown)
         #expect(APIKitPortalAccountDeletionService.map(PortalAPIError.unexpectedStatusCode(502)) == .outcomeUnknown)
         #expect(APIKitPortalAccountDeletionService.map(PortalAPIError.unexpectedStatusCode(404)) == .rejected(code: "HTTP_404"))

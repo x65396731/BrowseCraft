@@ -4,7 +4,7 @@ import Foundation
 // 中文注释：诊断枚举集中定义 Firebase 字段取值，避免散落字符串造成查询口径不一致。
 
 /// 中文注释：页面名，Crashlytics 的当前页面键与 Analytics 的 `screen_name` 共用（设计文档「界面覆盖盘点」）。
-/// 34 个用户可达页面各一个 case，原始值 snake_case；由 `.analyticsScreen(_:)` 统一上报。
+/// 35 个用户可达页面各一个 case，原始值 snake_case；由 `.analyticsScreen(_:)` 统一上报。
 enum DiagnosticScreen: String {
     // 启动
     /// 开屏动画。

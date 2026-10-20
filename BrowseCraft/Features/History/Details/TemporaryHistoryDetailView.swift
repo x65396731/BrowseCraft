@@ -7,7 +7,7 @@ struct TemporaryHistoryDetailView: View {
 
     var body: some View {
         Form {
-            Section("Resource") {
+            Section(NSLocalizedString("temporary_detail_section_resource", comment: "")) {
                 if let coverURL: URL = self.history.coverURL {
                     ItemThumbnailImageView(
                         urlString: coverURL.absoluteString,
@@ -22,11 +22,19 @@ struct TemporaryHistoryDetailView: View {
                 Text(self.history.title)
                     .font(.title3.weight(.semibold))
 
-                LabeledContent("Type", value: self.history.kind == .video ? "Temporary Video" : "Temporary Comic")
-                LabeledContent("Visited", value: Self.dateFormatter.string(from: self.history.visitedAt))
+                LabeledContent(
+                    NSLocalizedString("temporary_detail_type", comment: ""),
+                    value: self.history.kind == .video
+                        ? NSLocalizedString("temporary_detail_type_video", comment: "")
+                        : NSLocalizedString("temporary_detail_type_comic", comment: "")
+                )
+                LabeledContent(
+                    NSLocalizedString("temporary_detail_visited", comment: ""),
+                    value: Self.dateFormatter.string(from: self.history.visitedAt)
+                )
             }
 
-            Section("Open") {
+            Section(NSLocalizedString("temporary_detail_section_open", comment: "")) {
                 if self.history.kind == .video {
                     NavigationLink {
                         TemporaryHistoryWebPlayerScreen(
@@ -59,10 +67,10 @@ struct TemporaryHistoryDetailView: View {
                 }
             }
 
-            Section("Temporary Detail") {
+            Section(NSLocalizedString("temporary_detail_section_detail", comment: "")) {
                 LabeledContent("URL", value: self.history.resourceURL.absoluteString)
                 if let sourcePageURL: URL = self.history.sourcePageURL {
-                    LabeledContent("Source Page", value: sourcePageURL.absoluteString)
+                    LabeledContent(NSLocalizedString("temporary_detail_source_page", comment: ""), value: sourcePageURL.absoluteString)
                 }
                 if let matchedKeyword: String = self.history.matchedKeyword {
                     LabeledContent("Keyword", value: matchedKeyword)

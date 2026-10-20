@@ -265,7 +265,7 @@ private struct VideoPlaybackProviderFailureCard: View {
                 .multilineTextAlignment(.center)
 
             if let hint: String = self.failure.hint {
-                Text("💡 \(hint)")
+                Text(verbatim: "💡 \(hint)")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

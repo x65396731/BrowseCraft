@@ -8,11 +8,6 @@ enum RuleGenerationPushPayload {
     static let coinBalanceKey: String = "coinBalance"
     static let coinRevisionKey: String = "coinRevision"
 
-    /// 只认带 `jobId` 的负载；CloudKit 静默推送与其它通知不触发列表刷新。
-    static func isRuleGenerationOutcome(_ userInfo: [AnyHashable: Any]) -> Bool {
-        return Self.outcome(from: userInfo) != nil
-    }
-
     /// 中文注释：在系统回调所在的 nonisolated 上下文里把 `[AnyHashable: Any]` 解成 Sendable 值，
     /// 再切主线程；`userInfo` 本身不可跨隔离域传递。非生成结果负载返回 nil。
     static func outcome(from userInfo: [AnyHashable: Any]) -> RuleGenerationPushOutcome? {

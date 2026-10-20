@@ -1106,3 +1106,32 @@
 "audiobook_contents_count" = "%ld 集";
 "audiobook_contents_gone" = "已失效";
 "audiobook_contents_now_playing" = "正在聽";
+
+// 2026-10-20 审计发布前清单第 4 项：中文界面会出英文的裸字面量收进词条。
+"video_playback_restriction_requires_login" = "這一集需要登入帳號。";
+"video_playback_restriction_vip_only" = "這一集僅限 VIP 或付費用戶。";
+"video_playback_restriction_drm" = "這一集似乎有 DRM 保護，無法播放。";
+"video_playback_restriction_region_blocked" = "這一集似乎有地區限制。";
+"video_playback_restriction_captcha" = "這一集被驗證碼或反爬保護攔住了。";
+"video_playback_failure_media_url_not_found" = "播放頁裡沒有找到可播放的媒體位址。";
+"video_playback_failure_unsupported_media_kind" = "播放頁提供的媒體類型暫時還不能播放。";
+"video_playback_failure_parsing_failed" = "無法解析這個播放頁。";
+"video_playback_failure_iframe_depth_exceeded" = "內嵌播放器嵌套層數過多，無法解析。";
+"video_playback_failure_iframe_loop" = "內嵌播放器陷入了循環跳轉。";
+"reader_no_pages_title" = "沒有頁面";
+"reader_no_pages_message" = "這一章沒有返回可閱讀的頁面。";
+"reader_page_number" = "第 %ld 頁";
+"source_login_sign_in_button" = "登入這個來源";
+"source_login_session_alert_title" = "登入狀態";
+"source_login_session_save_failed" = "無法儲存登入狀態。";
+"Copied" = "已複製";
+"Copy Diagnostics" = "複製診斷資訊";
+"temporary_detail_section_resource" = "資源";
+"temporary_detail_type" = "類型";
+"temporary_detail_type_video" = "臨時影片";
+"temporary_detail_type_comic" = "臨時漫畫";
+"temporary_detail_visited" = "訪問時間";
+"temporary_detail_section_open" = "開啟";
+"temporary_detail_section_detail" = "臨時資源詳情";
+"temporary_detail_source_page" = "來源頁面";
+"video_preflight_submit_failed_local" = "提交沒有完成，請檢查網路後再試。";

@@ -57,7 +57,6 @@ TabSettings             5400      25x25      multi-scale-png
 TabFavoritesOutline     4000      25x25      multi-scale-png
 SettingsAccount           3700      22x22      multi-scale-png
 SettingsCloudSync         2500      22x22      multi-scale-png
-SettingsPremium           2900      22x22      multi-scale-png
 SettingsAdService         2800      22x22      multi-scale-png
 SettingsCache             2300      22x22      multi-scale-png
 SettingsCrashDiagnostics  3900      22x22      multi-scale-png

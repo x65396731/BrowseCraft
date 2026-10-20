@@ -30,7 +30,8 @@ final class GRDBFavoriteRepository: FavoriteRepository {
             if let sourceID: String {
                 request = request.filter(FavoriteItemRecord.Columns.sourceID == sourceID)
             }
-            return Set(try request.fetchAll(database).map(\.itemID))
+            // 中文注释：只取 itemID 列，不把 itemJSON / sourceSnapshotJSON 整行读出来（2026-10-20 审计 C-5）。
+            return try String.fetchSet(database, request.select(FavoriteItemRecord.Columns.itemID))
         }
     }
 

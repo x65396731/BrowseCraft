@@ -4,7 +4,7 @@ import SwiftUI
 // 中文注释：RootView.swift 属于应用装配和根导航，用于说明本文件承载的核心职责。
 
 /// 中文注释：RootView 持有应用主 Tab 导航。
-/// 中文注释：每个 Tab 的 ViewModel 都通过 AppContainer 创建，并用 @StateObject 保持生命周期。
+/// 中文注释：每个 Tab 的 ViewModel 都通过 AppContainer 创建，并用 `@State` 保持生命周期（`@Observable`，非 ObservableObject）。
 @MainActor
 struct RootView: View {
     private enum RootTab: String, Hashable {

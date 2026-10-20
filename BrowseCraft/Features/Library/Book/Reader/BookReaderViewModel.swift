@@ -181,8 +181,12 @@ final class BookReaderViewModel {
                     point: .bookReaderOpen,
                     source: selection.source
                 )
+                // 中文注释：站点书走分类器的三语短句；`RuleExecutionError.errorDescription` 是写死简体中文
+                // 加 `stage=… source=… url=…` 诊断字段，只进日志不给用户看（2026-10-20 审计发布前清单第 5 项）。
+                self.state = .failed(RuleExecutionErrorClassifier.userMessage(for: error))
+            } else {
+                self.state = .failed(error.localizedDescription)
             }
-            self.state = .failed(error.localizedDescription)
         }
     }
 
@@ -199,7 +203,7 @@ final class BookReaderViewModel {
         self.currentLocator = self.initialLocator
     }
 
-    /// 中文注释：站点书——详情 → manifest → Readium 出版物；起点优先续读位置，其次点开的章节，最后第一章。有声作品的播放器在后续批次。
+    /// 中文注释：站点书——详情 → manifest → Readium 出版物；起点优先续读位置，其次点开的章节，最后第一章；有声作品随后在 `load()` 里建 `AudioNavigator`。
     private func openSite(_ selection: SiteBookChapterSelection) async throws {
         guard let loadSitePublicationUseCase: LoadBookPublicationUseCase = self.loadSitePublicationUseCase,
               let detailURL: URL = URL(string: selection.item.detailURL) else {
@@ -436,8 +440,8 @@ final class BookReaderViewModel {
             AppAnalytics.shared.logReaderBookmarkChanged(isAdded: true, kind: self.analyticsKind)
             await self.loadBookmarks()
         } catch {
+            // 中文注释：书签增删失败只记日志，不把整个阅读器换成失败页——正文还在，用户仍可继续读。
             AppLog.error(.reader, "book-bookmark-add-failed", ["error": .error(error)])
-            self.state = .failed(error.localizedDescription)
         }
     }
 
@@ -448,7 +452,6 @@ final class BookReaderViewModel {
             await self.loadBookmarks()
         } catch {
             AppLog.error(.reader, "book-bookmark-remove-failed", ["error": .error(error)])
-            self.state = .failed(error.localizedDescription)
         }
     }
 

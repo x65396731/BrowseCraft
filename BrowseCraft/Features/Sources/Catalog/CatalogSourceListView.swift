@@ -460,9 +460,6 @@ struct CatalogSourceListView: View {
     }
 }
 
-// MARK: - 分段控件
-
-/// 「发现 / 我的生成」两段。「我的生成」段带数量角标，为 0 时不显示。
 // MARK: - 发现：分区标题、示例行、内部测试卡片
 
 enum CatalogAddActionState: Hashable {

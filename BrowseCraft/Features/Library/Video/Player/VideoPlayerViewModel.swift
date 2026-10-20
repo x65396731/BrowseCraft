@@ -614,33 +614,35 @@ final class VideoPlayerViewModel {
         return self.activeAppUser?.currentUserID.uuidString ?? self.fallbackUserID
     }
 
+    // 中文注释：「不可播放」页的文案全走三语词条——这里先进 String 再进 Text，本地化闸门看不见，
+    // 此前只有 `.mediaSourceRejected` 走了词条（2026-10-20 审计发布前清单第 4 项）。
     private func restrictionMessage(_ restriction: SourceVideoPlaybackRestriction) -> String {
         switch restriction {
         case .requiresLogin:
-            return "This episode requires account login."
+            return NSLocalizedString("video_playback_restriction_requires_login", comment: "")
         case .vipOnly:
-            return "This episode is limited to VIP or paid users."
+            return NSLocalizedString("video_playback_restriction_vip_only", comment: "")
         case .drm:
-            return "This episode appears to use DRM-protected playback."
+            return NSLocalizedString("video_playback_restriction_drm", comment: "")
         case .regionBlocked:
-            return "This episode appears to be region blocked."
+            return NSLocalizedString("video_playback_restriction_region_blocked", comment: "")
         case .captchaOrAntiBot:
-            return "This episode appears to be blocked by captcha or anti-bot protection."
+            return NSLocalizedString("video_playback_restriction_captcha", comment: "")
         }
     }
 
     private func failureMessage(_ failure: SourceVideoPlaybackFailure) -> String {
         switch failure {
         case .mediaURLNotFound:
-            return "The playback page did not expose a playable media URL."
+            return NSLocalizedString("video_playback_failure_media_url_not_found", comment: "")
         case .unsupportedMediaKind:
-            return "The playback page exposed a media type BrowseCraft cannot play yet."
+            return NSLocalizedString("video_playback_failure_unsupported_media_kind", comment: "")
         case .parsingFailed:
-            return "BrowseCraft could not parse this playback page."
+            return NSLocalizedString("video_playback_failure_parsing_failed", comment: "")
         case .iframePlayerDepthExceeded:
-            return "The iframe player exceeded the supported resolution depth."
+            return NSLocalizedString("video_playback_failure_iframe_depth_exceeded", comment: "")
         case .iframePlayerLoopDetected:
-            return "The iframe player redirected in a loop."
+            return NSLocalizedString("video_playback_failure_iframe_loop", comment: "")
         case .mediaSourceRejected:
             // 中文注释：`BC-EVIDENCE-082`——片源拒绝了这个地址，整页兜底也会卡住；提示用户换一个片源。
             return NSLocalizedString("video_playback_media_source_rejected", comment: "")

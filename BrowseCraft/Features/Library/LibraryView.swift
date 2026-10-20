@@ -80,8 +80,8 @@ struct LibraryView: View {
                 }
             }
             // 中文注释：内容不满屏时 ScrollView 默认也回弹，空态和失败态因此同样能下拉。
-            // 这里把它显式钉成 `.always`：下拉是这两种状态唯一的重载入口（导航栏刷新按钮已在
-            // 9d22cb2 删掉），谁要是改成 `.basedOnSize`，不满屏就不回弹，入口会静默失效。
+            // 这里把它显式钉成 `.always`：下拉是这两种状态唯一的重载入口（导航栏的刷新按钮已经
+            // 删掉），谁要是改成 `.basedOnSize`，不满屏就不回弹，入口会静默失效。
             .scrollBounceBehavior(.always)
             // 中文注释：顶部拉动刷新当前 tab 的第 1 页。切 tab 不再自动重取之后
             // （取过就一直沿用，不设过期时间），这是用户要新内容的唯一入口。
@@ -145,8 +145,6 @@ struct LibraryView: View {
                     .id(history.id)
                 }
             }
-            // 中文注释：本地书架入口按用户 2026-09-14 裁决不对用户暴露（docs/design/Local-Book-Import-Design.md 第八节）；
-            // LibraryBookRoute 与阅读器保留给站点抓取路复用，RootView 不再装配 bookShelfViewModel。
             .fullScreenCover(item: self.requestedSourceLoginBinding) { loginState in
                 SourceLoginView(
                     state: loginState,
@@ -607,7 +605,6 @@ struct LibraryView: View {
                     }
                 },
                 openComic: self.openComicDestination(item:source:),
-                primaryActionTitle: self.viewModel.primaryActionTitle(for:),
                 imageRequestConfig: self.viewModel.imageRequestConfig(for:),
                 nextPage: self.viewModel.nextListPage,
                 loadNextPage: {

@@ -3,7 +3,10 @@ import BrowseCraftCore
 import BrowseCraftDomain
 
 // 中文注释：SourceDebugView 是统一调试入口，规则一律只读——规则只经服务端目录下发，App 内不提供编辑。
-
+// 整页只编进 Debug 构建：它会把解密后的整份规则展示出来，Release 不可达（2026-10-20 审计发布前清单第 2 项）。
+// 页内英文字面量仍登记在 scripts/localization-missing-baseline.txt——本地化闸门按构建配置读编译产物，
+// Debug 构建仍会提取到它们，基线行不能删。
+#if DEBUG
 struct SourceDebugView: View {
     @Bindable var viewModel: SourcesViewModel
     let sourceID: String
@@ -336,3 +339,4 @@ struct SourceDebugView: View {
         return parts.isEmpty ? "Configured" : parts.joined(separator: " · ")
     }
 }
+#endif

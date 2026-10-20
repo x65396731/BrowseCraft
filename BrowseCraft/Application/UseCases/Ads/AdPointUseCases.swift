@@ -76,12 +76,12 @@ enum AdPointRule {
 struct AccumulateAdPointsUseCase {
     private let repository: AppUserRepository
     private let activeAppUser: (any ActiveAppUserProviding)?
-    private let now: () -> Date
+    private let now: @Sendable () -> Date
 
     init(
         repository: AppUserRepository,
         activeAppUser: (any ActiveAppUserProviding)? = nil,
-        now: @escaping () -> Date = Date.init
+        now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.repository = repository
         self.activeAppUser = activeAppUser
@@ -175,12 +175,12 @@ struct AccumulateAdPointsUseCase {
 struct ConsumeAdPointsUseCase {
     private let repository: AppUserRepository
     private let activeAppUser: (any ActiveAppUserProviding)?
-    private let now: () -> Date
+    private let now: @Sendable () -> Date
 
     init(
         repository: AppUserRepository,
         activeAppUser: (any ActiveAppUserProviding)? = nil,
-        now: @escaping () -> Date = Date.init
+        now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.repository = repository
         self.activeAppUser = activeAppUser

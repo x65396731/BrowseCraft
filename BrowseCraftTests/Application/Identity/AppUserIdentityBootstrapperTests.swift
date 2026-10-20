@@ -1,4 +1,5 @@
 import Foundation
+import os
 import Testing
 @testable import BrowseCraft
 
@@ -34,12 +35,13 @@ struct AppUserIdentityBootstrapperTests {
         )
         let identityStore: MockAppUserIdentityStore = MockAppUserIdentityStore(userID: storedUserID)
         let repository: IdentityBootstrapAppUserRepository = IdentityBootstrapAppUserRepository()
-        var generatorCallCount: Int = 0
+        // 中文注释：`makeUserID` 是 `@Sendable` 闭包（2026-10-20 补声明），不能直接改捕获的 var，计数放锁里。
+        let generatorCallCount: OSAllocatedUnfairLock<Int> = OSAllocatedUnfairLock(initialState: 0)
         let bootstrapper: AppUserIdentityBootstrapper = AppUserIdentityBootstrapper(
             identityStore: identityStore,
             appUserRepository: repository,
             makeUserID: {
-                generatorCallCount += 1
+                generatorCallCount.withLock { $0 += 1 }
                 return UUID()
             }
         )
@@ -47,7 +49,7 @@ struct AppUserIdentityBootstrapperTests {
         let result: UUID = try bootstrapper.bootstrap()
 
         #expect(result == storedUserID)
-        #expect(generatorCallCount == 0)
+        #expect(generatorCallCount.withLock { $0 } == 0)
         #expect(repository.user?.id == storedUserID.uuidString)
     }
 

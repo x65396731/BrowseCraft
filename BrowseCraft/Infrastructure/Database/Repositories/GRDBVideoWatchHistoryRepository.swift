@@ -133,10 +133,12 @@ final class GRDBVideoWatchHistoryRepository: VideoWatchHistoryRepository {
             )
         }
 
+        // 中文注释：按标题删只针对退到 `title::` 键的旧行（2026-07-06 开发库按作品收成一条时留下的清理），
+        // 限定 workKey 前缀后同来源两部同名作品不再互相覆盖历史（用户 2026-10-20 裁定）。
         try database.execute(
             sql: """
             DELETE FROM \(VideoWatchHistoryRecord.databaseTableName)
-            WHERE userID = ? AND sourceID = ? AND videoTitle = ?
+            WHERE userID = ? AND sourceID = ? AND videoTitle = ? AND workKey LIKE 'title::%'
             """,
             arguments: [
                 record.userID,

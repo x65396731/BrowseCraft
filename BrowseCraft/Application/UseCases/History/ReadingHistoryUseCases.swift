@@ -30,27 +30,6 @@ struct SaveBookReadingHistoryUseCase {
     }
 }
 
-/// 中文注释：读取指定漫画最近访问的章节历史，用于详情页恢复阅读进度。
-struct LoadLatestComicChapterHistoryUseCase {
-    private let repository: ComicChapterHistoryRepository
-
-    init(repository: ComicChapterHistoryRepository) {
-        self.repository = repository
-    }
-
-    func execute(
-        userID: String,
-        sourceID: String,
-        comicItemID: String
-    ) throws -> ComicChapterHistory? {
-        return try self.repository.fetchLatest(
-            userID: userID,
-            sourceID: sourceID,
-            comicItemID: comicItemID
-        )
-    }
-}
-
 /// 中文注释：读取指定漫画读过的全部章节（最近的在前）：详情页据此标已读章节与「上次读到」
 /// （`docs/design/Comic-Detail-Page-Redesign-Design.md` 第六、七节）。
 struct LoadComicChapterHistoriesUseCase {
@@ -171,8 +150,8 @@ struct LoadVideoWatchHistoryUseCase {
         detailURL: URL?,
         vodID: String?
     ) throws -> VideoWatchHistory? {
-        let histories: [VideoWatchHistory] = try self.repository.fetchHistory(userID: userID)
-            .filter { history in history.sourceID == sourceID }
+        // 中文注释：按来源查（走 `userID, sourceID` 索引），不再读全用户历史后内存过滤（2026-10-20 审计 C-2）。
+        let histories: [VideoWatchHistory] = try self.repository.fetchHistory(userID: userID, sourceID: sourceID)
         let byDetailURL: VideoWatchHistory? = detailURL.flatMap { url in
             histories
                 .filter { history in history.detailURL == url }

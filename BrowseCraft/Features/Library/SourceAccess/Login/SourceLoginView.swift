@@ -49,10 +49,10 @@ struct SourceLoginView: View {
         }
         .interactiveDismissDisabled()
         .analyticsScreen(.sourceLogin)
-        .alert("Login Session", isPresented: self.captureErrorBinding) {
-            Button("OK", role: .cancel) {}
+        .alert(NSLocalizedString("source_login_session_alert_title", comment: ""), isPresented: self.captureErrorBinding) {
+            Button(NSLocalizedString("OK", comment: ""), role: .cancel) {}
         } message: {
-            Text(self.captureErrorMessage ?? "Unable to save the login session.")
+            Text(self.captureErrorMessage ?? NSLocalizedString("source_login_session_save_failed", comment: ""))
         }
     }
 
