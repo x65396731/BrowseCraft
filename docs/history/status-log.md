@@ -1732,3 +1732,5 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 测试目标另有 `PersonalRuleRetentionTests.swift:10` 整段整数字面量算式直接传 `addingTimeInterval`，6.2.0 类型推断超时，本机临时拆成先算 Int 再转 `TimeInterval`（同样未提交）。
 - 结果：iPhone 17 Pro / iOS 26.0.1 模拟器，`LogFileSinkRecentLinesTests` 3 条 + `BookSiteDetailViewModelTests` 7 条全过（含新加的选集默认值一条）；四道代码闸门随 pre-build 跑过。STATUS 第 12 节该行 not-run → targeted-passed。
 - HANDOFF 第 2 节记下这三种写法在 26.0.1 下的报错与「本地等价改写、不提交」的做法。
+
+2026-10-20 「页面设计索引」组件表核对（用户「可以」）。复审第三轮删掉的三句「实施后补进页面设计索引的可复用组件表」所指的四项——取页档位按钮（`GenerationTierPicker`）、滑动确认（`SlideToConfirmControl`）、海报卡片（`VideoLibraryCardView`）、分类芯片条（`LibraryListTabBar`）——早已在该 Claude 文档的「可复用组件」表里，仓外待办实为合同句没回头删；顺手改了表里三格落后：「分段切换」出自「推荐」→「发现」；「封面卡片行与撤销提示」出自补「撤销条现只来源页」；「分类芯片条」出自补影视详情线路芯片、详情分段芯片与有声书目录 sheet。仓库无改动。
