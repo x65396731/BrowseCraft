@@ -511,6 +511,9 @@ struct AddCatalogSourceUseCase: Sendable {
             listContext: ListContextTransfer(value: defaultListContext)
         )
         try self.validateSourceListLoadUseCase.execute(listOutput)
+        // 中文注释：规则目录里点了「取消」或超过总时限，即使第一页已经取到也不入库——
+        // 否则用户以为取消了，来源却悄悄加上（docs/design/Catalog-Page-Redesign-Design.md 2.4）。
+        try Task.checkCancellation()
         try self.sourceRepository.saveCatalogSources([source], fingerprintsBySourceID: [source.id: fingerprint])
         self.stampCatalogRevisions(Self.revisions(of: [catalogSource]))
         return AddCatalogSourceResult(source: source, listOutput: listOutput)

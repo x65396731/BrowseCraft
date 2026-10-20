@@ -84,6 +84,69 @@ struct SourcesViewModelTests {
         #expect(configuration.rule.ruleSets.readerRules.first?.content?.next != nil)
     }
 
+    // 中文注释：2026-10-21 规则目录添加的「取消」与总时限（合同 Catalog-Page 2.4）：调用方取消任务后，
+    // 不入库、不写失败文案。第一条是取页本身响应取消；第二条是取页无视取消、照样把第一页交回来，靠存库前再查一次挡住。
+    @Test func cancellingACatalogAddWhileTheSiteLoadsAddsNothing() async throws {
+        let database: AppDatabase = try Harness.makeDatabase()
+        let catalogSource: CatalogSource = try Harness.makeBookCatalogSource(fixture: "biquhua-catalog")
+        let runtime: ScriptedSourceRuntime = ScriptedSourceRuntime(source: try Harness.makeBookSource()) { _ in
+            try await Task.sleep(for: .seconds(5))
+            return ScriptedSourceRuntime.listOutput(ids: ["late-1"])
+        }
+        let viewModel: SourcesViewModel = Harness.makeSourcesViewModel(
+            database: database,
+            resolver: Harness.resolver([catalogSource.id: runtime])
+        )
+        _ = try await viewModel.loadForStartup()
+
+        let addTask: Task<Bool, Never> = Task {
+            return await viewModel.addCatalogSource(catalogSource, shouldPresentError: false)
+        }
+        try await Task.sleep(for: .milliseconds(100))
+        addTask.cancel()
+        let didAdd: Bool = await addTask.value
+
+        #expect(didAdd == false)
+        #expect(viewModel.catalogSourceAddFailureMessages.isEmpty)
+        #expect(viewModel.isCatalogSourceAdded(catalogSource) == false)
+        #expect(try GRDBSourceRepository(database: database).fetchSources().contains { $0.id == catalogSource.id } == false)
+    }
+
+    @Test func aCancelledCatalogAddIsNotSavedEvenIfTheFirstPageArrives() async throws {
+        let database: AppDatabase = try Harness.makeDatabase()
+        let catalogSource: CatalogSource = try Harness.makeBookCatalogSource(fixture: "biquhua-catalog")
+        let runtime: ScriptedSourceRuntime = ScriptedSourceRuntime(source: try Harness.makeBookSource()) { _ in
+            try? await Task.sleep(for: .milliseconds(300)) // try?: 有意吞掉取消，模拟不响应取消的取页通道
+            return ScriptedSourceRuntime.listOutput(ids: ["arrived-1"])
+        }
+        let viewModel: SourcesViewModel = Harness.makeSourcesViewModel(
+            database: database,
+            resolver: Harness.resolver([catalogSource.id: runtime])
+        )
+        _ = try await viewModel.loadForStartup()
+
+        let addTask: Task<Bool, Never> = Task {
+            return await viewModel.addCatalogSource(catalogSource, shouldPresentError: false)
+        }
+        try await Task.sleep(for: .milliseconds(100))
+        addTask.cancel()
+        let didAdd: Bool = await addTask.value
+
+        #expect(didAdd == false)
+        #expect(viewModel.catalogSourceAddFailureMessages.isEmpty)
+        #expect(try GRDBSourceRepository(database: database).fetchSources().contains { $0.id == catalogSource.id } == false)
+    }
+
+    @Test func aTimedOutCatalogAddLeavesTheTimeoutMessage() async throws {
+        let database: AppDatabase = try Harness.makeDatabase()
+        let catalogSource: CatalogSource = try Harness.makeBookCatalogSource(fixture: "biquhua-catalog")
+        let viewModel: SourcesViewModel = Harness.makeSourcesViewModel(database: database, resolver: Harness.resolver())
+
+        viewModel.recordCatalogSourceAddTimeout(catalogSource)
+
+        #expect(viewModel.catalogSourceAddFailureMessages[catalogSource.id] == NSLocalizedString("catalog_add_timeout", comment: ""))
+    }
+
     // 中文注释：2026-09-30 用户裁定——推荐由服务器给，已添加的来源跟随目录自动覆盖，不再有手动「更新」。
     // 目录里同 id 的新版规则直接覆盖本地（createdAt 不动）；目录里未添加的条目不会被顺手加进来。
     @Test func addedSourcesFollowTheCatalogWithoutATap() async throws {

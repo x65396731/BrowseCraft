@@ -152,6 +152,8 @@
 "catalog_personal_remaining_hours" = "%d hours left";
 "catalog_personal_remaining_none" = "Expiring";
 "catalog_add_failed" = "Could not add";
+"catalog_adding_hint" = "Checking this site…";
+"catalog_add_timeout" = "This site took too long to respond. Please try again later.";
 
 /* App chrome: SwiftUI literal keys (LocalizedStringKey auto-lookup) and String parameters wrapped in NSLocalizedString. */
 "1 Month Premium" = "1 Month Premium";

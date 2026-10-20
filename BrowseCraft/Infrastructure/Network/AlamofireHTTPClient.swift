@@ -11,6 +11,35 @@ private struct HTTPDataResponse {
     let response: HTTPURLResponse?
 }
 
+/// 中文注释：把 Alamofire 请求与 Swift 任务取消接起来。取消可能早于请求创建，所以记下「已取消」，
+/// 请求一挂上就立刻取消。规则目录添加来源的「取消」与总时限靠它真正中断网络请求。
+private final class CancellableRequestBox: @unchecked Sendable {
+    private let lock: NSLock = NSLock()
+    private var request: Request?
+    private var isCancelled: Bool = false
+
+    func attach(_ request: Request) {
+        self.lock.lock()
+        let shouldCancel: Bool = self.isCancelled
+        if shouldCancel == false {
+            self.request = request
+        }
+        self.lock.unlock()
+        if shouldCancel {
+            request.cancel()
+        }
+    }
+
+    func cancel() {
+        self.lock.lock()
+        self.isCancelled = true
+        let request: Request? = self.request
+        self.request = nil
+        self.lock.unlock()
+        request?.cancel()
+    }
+}
+
 /// 中文注释：生产环境使用的 HTTP 客户端，底层由 Alamofire 实现。
 final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
     private let credentialProvider: SourceCredentialProviding
@@ -150,6 +179,15 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
             ])
             return response
         } catch {
+            // 中文注释：调用方取消（离开页面、目录添加点了取消或超时）不是请求失败，只记 info。
+            if Task.isCancelled {
+                AppLog.info(.network, "request-cancelled", [
+                    "method": .code(urlRequest.httpMethod ?? "GET"),
+                    "host": .host(urlRequest.url),
+                    "ms": .duration(clock.now - startedAt)
+                ])
+                throw error
+            }
             AppLog.error(.network, "request-failed", [
                 "method": .code(urlRequest.httpMethod ?? "GET"),
                 "host": .host(urlRequest.url),
@@ -161,21 +199,30 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
         }
     }
 
+    /// 中文注释：任务被取消时中断 Alamofire 请求（不再等到 60 秒超时自己结束）。
     private func performAlamofireRequest(_ urlRequest: URLRequest) async throws -> HTTPDataResponse {
-        return try await withCheckedThrowingContinuation { continuation in
-            AF.request(urlRequest).redirect(using: Self.httpsUpgradingRedirector).responseData { response in
-                switch response.result {
-                case .success(let data):
-                    continuation.resume(
-                        returning: HTTPDataResponse(
-                            data: data,
-                            response: response.response
-                        )
-                    )
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                }
+        let box: CancellableRequestBox = CancellableRequestBox()
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                let request: DataRequest = AF.request(urlRequest)
+                    .redirect(using: Self.httpsUpgradingRedirector)
+                    .responseData { response in
+                        switch response.result {
+                        case .success(let data):
+                            continuation.resume(
+                                returning: HTTPDataResponse(
+                                    data: data,
+                                    response: response.response
+                                )
+                            )
+                        case .failure(let error):
+                            continuation.resume(throwing: error)
+                        }
+                    }
+                box.attach(request)
             }
+        } onCancel: {
+            box.cancel()
         }
     }
 

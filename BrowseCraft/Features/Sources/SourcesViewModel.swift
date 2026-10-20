@@ -845,6 +845,23 @@ final class SourcesViewModel {
             || candidate.configuration != existing.configuration
     }
 
+    /// 中文注释：规则目录添加超过总时限时，在那一行留「这个网站太久没有响应，请稍后再试。」；
+    /// 超时算失败，报 `source_added` failed（error_code 按网络类）。用户自己点「取消」不报。
+    @MainActor
+    func recordCatalogSourceAddTimeout(_ catalogSource: CatalogSource, entry: SourceAddEntry? = nil) {
+        self.catalogSourceAddFailureMessages[catalogSource.id] = NSLocalizedString("catalog_add_timeout", comment: "")
+        AppLog.notice(.rule, "catalog-source-add-timed-out", ["source": .id(catalogSource.id)])
+        if let entry: SourceAddEntry = entry {
+            AppAnalytics.shared.logSourceAdded(
+                source: nil,
+                kind: AnalyticsContentKind(catalogSourceKind: catalogSource.kind),
+                entry: entry,
+                result: .failed,
+                errorCode: AnalyticsErrorCode(DiagnosticFailureKind.network)
+            )
+        }
+    }
+
     @MainActor
     /// - Parameter preserveSelection: 自动更新已添加来源时为真——**不得把用户从他正在看的来源上拽走**。
     ///   为真时只有当这条来源就是当前选中的那条，才重建库快照；其余情况只覆盖数据、不动界面。
@@ -911,6 +928,12 @@ final class SourcesViewModel {
             self.latestCatalogSourceAddID = source.id
             return true
         } catch {
+            // 中文注释：规则目录里点了「取消」或超过总时限（调用方取消了任务）：不是失败，不写失败文案、不报 `source_added`。
+            // 超时的文案由 `recordCatalogSourceAddTimeout` 另写。
+            if Task.isCancelled {
+                AppLog.info(.rule, "catalog-source-add-cancelled", ["source": .id(catalogSource.id)])
+                return false
+            }
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-source-add-error")
             if let entry: SourceAddEntry = entry {
                 AppAnalytics.shared.logSourceAdded(

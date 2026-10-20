@@ -20,6 +20,8 @@ struct CatalogSourceListView: View {
     @State private var selectedTab: Tab
     @State private var hasUserPickedTab: Bool = false
     @State private var addingSourceIDs: Set<String> = []
+    /// 中文注释：当前这次添加。同一时刻只允许一个；「取消」与总时限都是取消这个任务。
+    @State private var addAttempt: CatalogAddAttempt?
     @State private var failedSourceIDs: Set<String> = []
     @State private var isShowingEntryGuide: Bool = false
 
@@ -100,11 +102,14 @@ struct CatalogSourceListView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
+                    // 中文注释：添加中不能关闭目录，否则结果会在后台悄悄成功或失败（合同 2.4）。
                     Button("Close") {
                         self.dismiss()
                     }
+                    .disabled(self.isAdding)
                 }
             }
+            .interactiveDismissDisabled(self.isAdding)
             .sheet(isPresented: self.$isShowingEntryGuide) {
                 NavigationStack {
                     // 中文注释：空状态里的教程入口不知道用户要生成哪种 kind，传 nil 走 kind 中性的举例。
@@ -196,6 +201,9 @@ struct CatalogSourceListView: View {
                         showsSeparator: index > 0,
                         addAction: {
                             self.add(catalogSource, entry: .recommended)
+                        },
+                        cancelAction: {
+                            self.cancelAdd()
                         }
                     )
                 }
@@ -252,6 +260,9 @@ struct CatalogSourceListView: View {
                             failureMessage: self.failureMessage(for: catalogSource),
                             addAction: {
                                 self.add(catalogSource, entry: .kindSection)
+                            },
+                            cancelAction: {
+                                self.cancelAdd()
                             }
                         )
                     }
@@ -342,6 +353,9 @@ struct CatalogSourceListView: View {
                             .background(CatalogPalette.addAction, in: Capsule())
                     }
                     .buttonStyle(.plain)
+                    // 中文注释：这个按钮会收起目录，添加中与「关闭」一样不可用。
+                    .disabled(self.isAdding)
+                    .opacity(self.isAdding ? 0.4 : 1)
                 }
                 Button(NSLocalizedString("entry_guide_reopen_link", comment: "")) {
                     self.isShowingEntryGuide = true
@@ -365,6 +379,9 @@ struct CatalogSourceListView: View {
                 failureMessage: self.failureMessage(for: catalogSource),
                 addAction: {
                     self.add(catalogSource, entry: .myGenerations)
+                },
+                cancelAction: {
+                    self.cancelAdd()
                 }
             )
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -414,12 +431,20 @@ struct CatalogSourceListView: View {
 
     // MARK: - 添加
 
+    private var isAdding: Bool {
+        return self.addingSourceIDs.isEmpty == false
+    }
+
     private func actionState(for catalogSource: CatalogSource) -> CatalogAddActionState {
         if self.addingSourceIDs.contains(catalogSource.id) {
             return .adding
         }
         if self.viewModel.isCatalogSourceAdded(catalogSource) {
             return .added
+        }
+        // 中文注释：另一条正在添加时，其余「+」暂不可点，不排队（合同 2.4）。
+        if self.isAdding {
+            return .unavailable
         }
         return .add
     }
@@ -432,32 +457,87 @@ struct CatalogSourceListView: View {
             ?? NSLocalizedString("catalog_add_failed", comment: "")
     }
 
+    /// 中文注释：添加的总时限。到点取消这次添加，那一行写「这个网站太久没有响应」。
+    private static let addTimeLimit: Duration = .seconds(45)
+
     private func add(_ catalogSource: CatalogSource, entry: SourceAddEntry) {
         // 中文注释：已添加的来源没有动作——规则变了由 `applyCatalogRuleUpdates` 在读取目录时自动覆盖。
-        if self.addingSourceIDs.contains(catalogSource.id)
-            || self.viewModel.isCatalogSourceAdded(catalogSource) {
+        // 同一时刻只添加一个：另一个正在添加时这里不会被点到（按钮已禁用），守一道。
+        if self.isAdding || self.viewModel.isCatalogSourceAdded(catalogSource) {
             return
         }
 
+        let attemptID: UUID = UUID()
         self.addingSourceIDs.insert(catalogSource.id)
         self.failedSourceIDs.remove(catalogSource.id)
 
-        Task {
-            let didAdd: Bool = await self.viewModel.addCatalogSource(
+        let addTask: Task<Bool, Never> = Task {
+            return await self.viewModel.addCatalogSource(
                 catalogSource,
                 entry: entry,
                 shouldPresentError: false
             )
-            await MainActor.run {
-                self.addingSourceIDs.remove(catalogSource.id)
-                if didAdd {
-                    self.dismiss()
-                } else {
-                    self.failedSourceIDs.insert(catalogSource.id)
-                }
+        }
+        let timeoutTask: Task<Void, Never> = Task {
+            do {
+                try await Task.sleep(for: Self.addTimeLimit)
+            } catch {
+                // 不记：添加先结束、计时被取消是正常路径。
+                return
+            }
+            guard self.addAttempt?.id == attemptID else {
+                return
+            }
+            self.addAttempt?.didTimeOut = true
+            addTask.cancel()
+        }
+        self.addAttempt = CatalogAddAttempt(
+            id: attemptID,
+            sourceID: catalogSource.id,
+            task: addTask,
+            timeoutTask: timeoutTask
+        )
+
+        Task {
+            let didAdd: Bool = await addTask.value
+            timeoutTask.cancel()
+            // 中文注释：用户已经取消（或又开始了另一次添加）时，这次的结果一律不处理。
+            guard let attempt: CatalogAddAttempt = self.addAttempt, attempt.id == attemptID else {
+                return
+            }
+            self.addAttempt = nil
+            self.addingSourceIDs.remove(catalogSource.id)
+            if didAdd {
+                self.dismiss()
+            } else if attempt.didTimeOut {
+                self.viewModel.recordCatalogSourceAddTimeout(catalogSource, entry: entry)
+                self.failedSourceIDs.insert(catalogSource.id)
+            } else {
+                self.failedSourceIDs.insert(catalogSource.id)
             }
         }
     }
+
+    /// 中文注释：「取消」：停止这次添加（网络请求随任务取消而中断，存库前也会再查一次），
+    /// 这一行恢复「+」，不写失败文案。
+    private func cancelAdd() {
+        guard let attempt: CatalogAddAttempt = self.addAttempt else {
+            return
+        }
+        self.addAttempt = nil
+        attempt.timeoutTask.cancel()
+        attempt.task.cancel()
+        self.addingSourceIDs.remove(attempt.sourceID)
+    }
+}
+
+/// 中文注释：一次进行中的添加。`didTimeOut` 由计时任务写，结果回来时据此决定写不写超时文案。
+private struct CatalogAddAttempt {
+    let id: UUID
+    let sourceID: String
+    let task: Task<Bool, Never>
+    let timeoutTask: Task<Void, Never>
+    var didTimeOut: Bool = false
 }
 
 // MARK: - 发现：分区标题、示例行、内部测试卡片
@@ -466,6 +546,8 @@ enum CatalogAddActionState: Hashable {
     case add
     case adding
     case added
+    /// 另一条正在添加，这一条的「+」暂不可点。
+    case unavailable
 }
 
 /// 统一分区标题：`footnote` 粗体次级色，右侧可带条数（与来源页同一写法）。
@@ -496,6 +578,7 @@ private struct CatalogExampleRowView: View {
     let failureMessage: String?
     let showsSeparator: Bool
     let addAction: () -> Void
+    let cancelAction: () -> Void
 
     @Environment(\.displayScale) private var displayScale
 
@@ -512,6 +595,9 @@ private struct CatalogExampleRowView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
+                if self.action == .adding {
+                    CatalogAddingHint()
+                }
                 if let failureMessage: String = self.failureMessage {
                     Text(failureMessage)
                         .font(.caption)
@@ -520,7 +606,12 @@ private struct CatalogExampleRowView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            CatalogRowAddControl(state: self.action, name: self.catalogSource.name, addAction: self.addAction)
+            CatalogRowAddControl(
+                state: self.action,
+                name: self.catalogSource.name,
+                addAction: self.addAction,
+                cancelAction: self.cancelAction
+            )
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
@@ -540,12 +631,17 @@ private struct CatalogRowAddControl: View {
     let state: CatalogAddActionState
     let name: String
     let addAction: () -> Void
+    let cancelAction: () -> Void
 
     var body: some View {
         switch self.state {
         case .adding:
-            ProgressView()
-                .frame(width: 36, height: 36)
+            // 中文注释：系统小转圈 + 文字按钮「取消」（合同 2.4）；转圈不足 44pt，不换品牌等待标记（`BCA-UI-007`）。
+            HStack(spacing: 10) {
+                ProgressView()
+                CatalogAddCancelButton(action: self.cancelAction)
+            }
+            .frame(minHeight: 36)
         case .added:
             Label("Added", systemImage: "checkmark")
                 .font(.caption)
@@ -553,22 +649,50 @@ private struct CatalogRowAddControl: View {
                 .padding(.horizontal, 10)
                 .frame(minHeight: 28)
                 .background(CatalogPalette.fillBackground, in: Capsule())
-        case .add:
+        case .add, .unavailable:
+            let isAvailable: Bool = self.state == .add
             Button(action: self.addAction) {
                 Image(systemName: "plus")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(CatalogPalette.onAction)
+                    .foregroundStyle(isAvailable ? CatalogPalette.onAction : CatalogPalette.onDisabledAction)
                     .frame(width: 36, height: 36)
-                    .background(CatalogPalette.addAction, in: Circle())
+                    .background(isAvailable ? CatalogPalette.addAction : CatalogPalette.disabledAction, in: Circle())
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .disabled(isAvailable == false)
             .padding(-4)
             .accessibilityLabel(
                 String(format: NSLocalizedString("catalog_add_accessibility", comment: ""), self.name)
             )
         }
+    }
+}
+
+/// 中文注释：添加中那一行副标题下的「正在验证这个网站…」，与失败文案同一位置。
+private struct CatalogAddingHint: View {
+    var body: some View {
+        Text(NSLocalizedString("catalog_adding_hint", comment: "规则目录添加中"))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+    }
+}
+
+/// 中文注释：添加中的「取消」：添加蓝文字按钮，热区不小于 44pt。
+private struct CatalogAddCancelButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: self.action) {
+            Text("Cancel")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(CatalogPalette.addAction)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -582,6 +706,7 @@ private struct CatalogRecommendationCardView: View {
     let action: CatalogAddActionState
     let failureMessage: String?
     let addAction: () -> Void
+    let cancelAction: () -> Void
 
     private var languageTag: String? {
         guard let language: String = self.facts?.language else {
@@ -609,6 +734,9 @@ private struct CatalogRecommendationCardView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
+            }
+            if self.action == .adding {
+                CatalogAddingHint()
             }
             if let failureMessage: String = self.failureMessage {
                 Text(failureMessage)
@@ -678,24 +806,29 @@ private struct CatalogRecommendationCardView: View {
     private var actionView: some View {
         switch self.action {
         case .adding:
-            ProgressView()
-                .frame(maxWidth: .infinity, minHeight: 36)
-                .background(CatalogPalette.fillBackground, in: Capsule())
+            HStack(spacing: 10) {
+                ProgressView()
+                CatalogAddCancelButton(action: self.cancelAction)
+            }
+            .frame(maxWidth: .infinity, minHeight: 36)
+            .background(CatalogPalette.fillBackground, in: Capsule())
         case .added:
             Label("Added", systemImage: "checkmark")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, minHeight: 36)
                 .background(CatalogPalette.fillBackground, in: Capsule())
-        case .add:
+        case .add, .unavailable:
+            let isAvailable: Bool = self.action == .add
             Button(action: self.addAction) {
                 Label("Add", systemImage: "plus")
                     .font(.footnote.weight(.semibold))
-                    .foregroundStyle(CatalogPalette.onAction)
+                    .foregroundStyle(isAvailable ? CatalogPalette.onAction : CatalogPalette.onDisabledAction)
                     .frame(maxWidth: .infinity, minHeight: 36)
-                    .background(CatalogPalette.addAction, in: Capsule())
+                    .background(isAvailable ? CatalogPalette.addAction : CatalogPalette.disabledAction, in: Capsule())
             }
             .buttonStyle(.plain)
+            .disabled(isAvailable == false)
             .accessibilityLabel(
                 String(format: NSLocalizedString("catalog_add_accessibility", comment: ""), self.catalogSource.name)
             )
@@ -836,6 +969,7 @@ private struct CatalogPersonalRuleCardView: View {
     let action: CatalogAddActionState
     let failureMessage: String?
     let addAction: () -> Void
+    let cancelAction: () -> Void
 
     /// 剩余不足 1 天时进度条与文案改用警示色。
     private var isExpiringSoon: Bool {
@@ -860,6 +994,9 @@ private struct CatalogPersonalRuleCardView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.tail)
+                    if self.action == .adding {
+                        CatalogAddingHint()
+                    }
                     if let failureMessage: String = self.failureMessage {
                         Text(failureMessage)
                             .font(.caption)
@@ -867,7 +1004,12 @@ private struct CatalogPersonalRuleCardView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                CatalogRowAddControl(state: self.action, name: self.catalogSource.name, addAction: self.addAction)
+                CatalogRowAddControl(
+                    state: self.action,
+                    name: self.catalogSource.name,
+                    addAction: self.addAction,
+                    cancelAction: self.cancelAction
+                )
             }
             if let remainingText: String = self.remainingText {
                 HStack(spacing: 10) {

@@ -89,7 +89,7 @@ Crashlytics 的写入点只有 `CrashDiagnostics`，规则执行失败的上报�
 | 事件 | 何时触发 | 参数与不报 |
 | --- | --- | --- |
 | `source_selected` | 当前来源切换成功时报，不论从哪里发起。 | content_kind、source_id_hash、entry（SourceSelectionEntry）。不报：来源名与网址。 |
-| `source_added` | 从规则目录添加来源的结局：服务端返回、解密入库后报 success，任一步失败报 failed。 | content_kind、source_id_hash、entry（SourceAddEntry；`generation_reuse` 为网址输入页取用后添加）、result、error_code（仅失败）。不报：来源名与网址。 |
+| `source_added` | 从规则目录添加来源的结局：服务端返回、解密入库后报 success，任一步失败报 failed；超过 45 秒总时限也报 failed（error_code 为 network），用户点「取消」不报。 | content_kind、source_id_hash、entry（SourceAddEntry；`generation_reuse` 为网址输入页取用后添加）、result、error_code（仅失败）。不报：来源名与网址。 |
 | `source_deleted` | 删除来源的撤销窗口结束、真正提交删除时报；被撤销的不报。 | content_kind、source_id_hash、entry（SourceDeleteEntry）。 |
 | `source_deletion_undone` | 用户点底部「撤销」恢复刚删的来源时报。 | content_kind、result。 |
 | `source_activated` | 启用已暂停来源的结局；从收藏、历史点到暂停来源弹出的启用窗口也算。 | content_kind、entry（SourceActivationEntry）、result（SourceActivationResult）。 |

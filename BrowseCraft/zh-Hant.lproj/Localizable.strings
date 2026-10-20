@@ -152,6 +152,8 @@
 "catalog_personal_remaining_hours" = "剩餘 %d 小時";
 "catalog_personal_remaining_none" = "即將到期";
 "catalog_add_failed" = "加入失敗";
+"catalog_adding_hint" = "正在驗證這個網站…";
+"catalog_add_timeout" = "這個網站太久沒有回應，請稍後再試。";
 
 /* App chrome: SwiftUI literal keys (LocalizedStringKey auto-lookup) and String parameters wrapped in NSLocalizedString. */
 "1 Month Premium" = "1 個月進階版";

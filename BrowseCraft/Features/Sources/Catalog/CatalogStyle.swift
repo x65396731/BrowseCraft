@@ -16,6 +16,9 @@ enum CatalogPalette {
     /// 添加按钮底色，白字在上面对比度满足 4.5:1。
     static let addAction: Color = Color(red: 0x25 / 255, green: 0x63 / 255, blue: 0xEB / 255)
     static let warning: Color = Self.dynamic(light: 0xC2410C, dark: 0xFF8A70)
+    /// 另一条正在添加时，其余「+」的禁用底色与图标色（浅 #D1D1D6 底白字，深 #3A3A3C 底 #8E8E93）。
+    static let disabledAction: Color = Color(uiColor: .systemGray4)
+    static let onDisabledAction: Color = Self.dynamic(light: 0xFFFFFF, dark: 0x8E8E93)
     static let warningFill: Color = Self.dynamic(light: 0xC2410C, dark: 0xFF8A70).opacity(0.14)
     /// 反色提示条（深底浅字、浅底深字）上的动作色，例如收藏页「撤销」：浅色模式提示条是深底，用浅蓝；深色模式提示条是浅底，用添加蓝。
     static let inverseAction: Color = Self.dynamic(light: 0x8AB6FF, dark: 0x2563EB)
