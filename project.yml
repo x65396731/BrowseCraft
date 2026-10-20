@@ -20,7 +20,7 @@ settings:
     # 它把此前「complete 严格并发 + 警告为零」这一当下状态固化成编译错误，防止悄悄漂回去。
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
-    CURRENT_PROJECT_VERSION: "51"
+    CURRENT_PROJECT_VERSION: "52"
     MARKETING_VERSION: "1.0"
     CODE_SIGN_STYLE: Automatic
     # 中文注释：团队 ID 必须写在这里。XcodeGen 每次重新生成都会覆盖 project.pbxproj，

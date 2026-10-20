@@ -1757,3 +1757,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 同日补读屏（用户问建议后「可以」）：删按钮后 VoiceOver 用户没有换话入口，每页漫画图挂「下一话」「上一话」两个读屏操作（能换时才出现，走同一个发起换话），开始换话时播报「正在打开 …」；不用三指滑动映射，免得接管整个滚动视图的读屏滚动。合同第六、七、八节与 STATUS 行同步，新增两条三语词条。未 build。
 - 同日 build、全量测试与模拟器走查（用户「开始 build 和跑全量测试」）：STATUS「漫画阅读器换话手势」行 验证 not-run → full-suite-passed（首轮 XCTest 86 中 `testWeakSelectorReturnsBeforeTheContentArrives` 计时偶红、单独重跑通过；走查修正后第二轮 86 + 671 全过）；另起一行 simulator-passed 记走查。走查发现并修三处：底部拉出距离公式（滚动几何可视高度 724 已扣内边距 116 / 34，原式重复扣）、空页说明撑满一屏、阅读器两个提示框改新写法（旧写法在推入页弹不出来，改动前首次加载失败就已经不弹）。演示阅读页的临时注入与临时日志已撤掉，未提交。合同第四、八节同步。
 - 同日提交与打包（用户「提交并打包」）：真机走查修复提交 9342ee05、换话手势提交 409c5c5e，STATUS 三行检查点从 8b7b749 改为各自的实施提交；构建号 50 → 51（TestFlight 上已有 1.0 (50)，`BCA-BUILD-004`），TEST scheme 归档 1.0 (51)。
+- 同日 TestFlight 上 1.0 (51) 显示「已失效」，用户重新上传为 1.0 (52)（正在测试）；`project.yml` 构建号 51 → 52 与之对齐，下次归档从 53 起（`BCA-BUILD-004`）。
