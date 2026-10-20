@@ -7,11 +7,13 @@ UMP、Alamofire、GRDB 等）由它们自己声明，这里不重复；下面兜
 -->
 <plist version="1.0">
 <dict>
-	<!-- 中文注释：App 自己的代码不跟踪，但 App 主动申请 ATT、GoogleMobileAds 自带清单把 DeviceID 标成用于跟踪、
-	     App Store Connect 隐私标签也已声明「设备 ID 用于追踪」；三处与本清单对齐，写 true（用户 2026-10-20 裁定，
-	     改掉 10-17「App 清单保持 false」的记法）。 -->
+	<!-- 中文注释：顶层写 false、跟踪域名留空。Apple 要求 NSPrivacyTracking=true 时 NSPrivacyTrackingDomains 至少列一个域名，
+	     build 49 写 true 配空数组被 ITMS-91064 退回；列域名又会让 iOS 在用户拒绝 ATT 时直接拦截发往这些域名的请求
+	     （googleads.g.doubleclick.net 等），拒绝的用户连受限广告都拿不到（用户 2026-10-20 裁定改回 false）。
+	     跟踪的声明落在下面 DeviceID 的 NSPrivacyCollectedDataTypeTracking=true，与 App 主动申请 ATT、
+	     App Store Connect 隐私标签「设备 ID 用于追踪」对齐；GoogleMobileAds 自带清单同样不写 NSPrivacyTracking。 -->
 	<key>NSPrivacyTracking</key>
-	<true/>
+	<false/>
 	<key>NSPrivacyTrackingDomains</key>
 	<array/>
 	<key>NSPrivacyAccessedAPITypes</key>
