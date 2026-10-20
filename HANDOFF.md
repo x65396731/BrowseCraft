@@ -95,7 +95,8 @@ python3 scripts/check-docs.py
   `/Users/xiefei/` 这台机器已装 Xcode 27.0（27A266a），10-20 审计时留在 `/Users/trs/` 工作区的 4 个未提交改写文件已不存在。
 - **归档机必须有 `Config/CatalogEncryption.release.local.xcconfig`**：tracked 的 Release xcconfig 把目录解密密钥置空，只 `#include?` 这份
   gitignore 的本机文件；`scripts/check-ad-configuration.sh` 在 PROD 归档时断言密钥非空且含 `prod-`，否则归档失败（`BCA-BUILD-003`）。
-  prod key 本身存进密码管理器，换机器时从那里取。
+  prod key 本身已存进本机 macOS 登录钥匙串（2026-10-20；服务名「BrowseCraft catalog encryption key (BROWSECRAFT_CATALOG_ENCRYPTION_KEYS, Release)」、账户 `prod-v1`，
+  钥匙串访问里搜 BrowseCraft catalog 即得），换机器时取出写回那份 local xcconfig；登录钥匙串不随 iCloud 同步，要跨机器得自己再存一份。
 
 ```bash
 # 工程文件不同步时先重新生成（BCA-BUILD-001）；纯文档改动不需要。
