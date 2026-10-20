@@ -7,8 +7,11 @@ UMP、Alamofire、GRDB 等）由它们自己声明，这里不重复；下面兜
 -->
 <plist version="1.0">
 <dict>
+	<!-- 中文注释：App 自己的代码不跟踪，但 App 主动申请 ATT、GoogleMobileAds 自带清单把 DeviceID 标成用于跟踪、
+	     App Store Connect 隐私标签也已声明「设备 ID 用于追踪」；三处与本清单对齐，写 true（用户 2026-10-20 裁定，
+	     改掉 10-17「App 清单保持 false」的记法）。 -->
 	<key>NSPrivacyTracking</key>
-	<false/>
+	<true/>
 	<key>NSPrivacyTrackingDomains</key>
 	<array/>
 	<key>NSPrivacyAccessedAPITypes</key>
@@ -76,7 +79,7 @@ UMP、Alamofire、GRDB 等）由它们自己声明，这里不重复；下面兜
 			<key>NSPrivacyCollectedDataTypeLinked</key>
 			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
-			<false/>
+			<true/>
 			<key>NSPrivacyCollectedDataTypePurposes</key>
 			<array>
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
