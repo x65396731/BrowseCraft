@@ -86,6 +86,9 @@ python3 scripts/check-docs.py
 ```
 
 工具链：`xcodegen` 只保留 `/opt/homebrew` 下的 arm64 版；Homebrew 从源码编译要求独立的 Command Line Tools 与 Xcode 同版本。
+命令行 build / test 前先看 `xcode-select -p`：机器上装着多个 Xcode 时，指向旧版（16.x）包解析会报 WebUI「incompatible tools version」，
+不改系统设置的话给那条命令加 `DEVELOPER_DIR=<Xcode>.app/Contents/Developer`。编译 App 目标要能过 Swift 6 region isolation 检查的编译器：
+Xcode 27 beta 可以；Xcode 26.0.1 在 `VideoPlayerViewModel.swift` 两处 `SourceUserAgentFallback.shared.perform` 报「region based isolation checker」编译器错，不能用它跑测试。
 
 ```bash
 # 工程文件不同步时先重新生成（BCA-BUILD-001）；纯文档改动不需要。

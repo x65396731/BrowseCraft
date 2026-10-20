@@ -45,6 +45,42 @@ struct BookSiteDetailViewModelTests {
         #expect(selection.item.detailURL == item.detailURL)
     }
 
+    // 中文注释：问题报告的选集默认值（Problem-Report-Design.md 第四节）：有续读位置时默认那一章并标「来自历史」，没有时取第一章。
+    @Test func problemReportDefaultsToLastReadChapterOrTheFirstOne() async throws {
+        let (source, runtime): (Source, BookSourceRuntime) = try Self.biquhua()
+        let item: ContentItem = Self.item(source: source)
+        let progress: DetailInMemoryProgressRepository = DetailInMemoryProgressRepository()
+        let viewModel: BookSiteDetailViewModel = BookSiteDetailViewModel(
+            item: item,
+            source: source,
+            loadPublicationUseCase: LoadBookPublicationUseCase(runtimeResolver: DetailSingleRuntimeResolver(runtime: runtime)),
+            loadProgressUseCase: LoadBookReadingProgressUseCase(progressRepository: progress),
+            userID: "u1"
+        )
+        await viewModel.loadIfNeeded()
+
+        let fresh: ProblemReportContext = viewModel.problemReportContext(entry: .pageMenu, failureMessage: nil)
+        #expect(fresh.primaryScope == .detail)
+        #expect(fresh.supportsContent)
+        #expect(fresh.lines.count == 1)
+        #expect(fresh.lines.first?.episodes.count == 112)
+        #expect(fresh.defaultLineID == fresh.lines.first?.id)
+        #expect(fresh.defaultEpisodeID == "0", "没有历史时取第一章")
+        #expect(fresh.defaultEpisodeIsFromHistory == false)
+        #expect(fresh.lines.first?.episodes.first?.url == viewModel.chapters[0].chapterURL.absoluteString)
+
+        let bookID: UUID = SiteBookIdentity.bookID(sourceID: source.id, detailURL: item.detailURL)
+        try progress.saveProgress(BookReadingProgress(bookID: bookID, userID: "u1", locatorJSON: "{\"href\":\"chapters/0003.xhtml\",\"type\":\"application/xhtml+xml\"}", totalProgression: 0.02, updatedAt: Date()))
+        await viewModel.loadIfNeeded()
+
+        let resumed: ProblemReportContext = viewModel.problemReportContext(entry: .pageMenu, failureMessage: nil)
+        #expect(resumed.defaultEpisodeID == "2", "历史里读到第三章，选集默认它")
+        #expect(resumed.defaultEpisodeIsFromHistory)
+        let episode: ProblemReportEpisode = try #require(resumed.lines.first?.episodes.first { $0.id == resumed.defaultEpisodeID })
+        #expect(episode.index == 3)
+        #expect(episode.url == viewModel.lastReadChapterURL?.absoluteString)
+    }
+
     // 中文注释：从阅读器退回详情页时 manifest 已在，续读位置要重读（不重取详情）。
     @Test func returningToDetailRefreshesReadingProgressWithoutReloading() async throws {
         let (source, runtime): (Source, BookSourceRuntime) = try Self.biquhua()

@@ -1716,3 +1716,13 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - （三、执行边界 `BCA-RUNTIME-011` 四处片段）（2026-10-15，fwq 第七批真机抽验 umh5「列表缩略图、章节缩略图、漫画页都显示不出来」） ／ 回归面（fwq `scripts/measure_downgraded_image_referer.py --probe`，https 页面上的 http 图片 37 站 / 47 组合）：两种都 200 34、只有不带才 200 2、只有带才 200 1、都失败 10（站点侧）——先带后不带同时满足三类。 ／ 历史：两视图原先对 http 地址给「先自己升好的 https、再原地址」双候选（2026-07 RSS 时期），2026-09-21 工厂统一升级后两候选已相同，改为本条的 Referer 尝试序列。 ／ 同日补：
 
 为让留下的句子成句，各合同原处补的新字只有：「与漫画详情同一取值」「所有来源都开，App 单端改」「后者也走这个出口、不直接调静态 `bookImageRequestConfig`」「**封面 / 列表图跟随来源的 UA 选择**」、Favorites 2.5 与 History 2.6 的平述引语、Search 二 的三列新表；Local-Book-Import 六.4 的旧句本文 2026-10-10 节已有逐字副本，只改写、不另搬。
+
+## 2026-10-20 问题报告两项待补测试补齐（用户「可以做，列出下一项」）
+
+- 新增 `BrowseCraftTests/Application/Diagnostics/ProblemReportTests.swift` 的 `LogFileSinkRecentLinesTests` 三条（只留本会话、时间窗内、指定类别；取最后 N 行再按字节上限从前往后丢；旧文件在前、坏 JSON 行跳过），
+  与 `BrowseCraftTests/Features/Book/BookSiteDetailViewModelTests.swift` 的 `problemReportDefaultsToLastReadChapterOrTheFirstOne`（biquhua 夹具 112 章：无进度默认 `"0"`、不标来自历史；进度在第三章则默认 `"2"`、标来自历史、集的 index 为 3 且网址等于 `lastReadChapterURL`）。
+- 合同 Problem-Report 第七节「测试」行的「待补测试」改为现在时；STATUS 第 12 节该行 not-started / not-run → implemented / not-run，原因：用例已写但本机没编译运行。
+- 没跑成的原因：本机（`/Users/trs/` 下的六仓，不是 HANDOFF 原先写的 `~/Desktop` 那台）只有 Xcode 16.0 / 16.1 / 26.0.1，没有 iOS 27 与 iPhone 18 Pro 运行时；`xcode-select` 指向 16.1 时包解析报 WebUI tools 6.2 不兼容；
+  换 Xcode 26.0.1 后先撞上用户 DerivedData 里陈旧的 `BrowseCraftRuleModels` 模块（Core 单独 `swift build` 23 s 通过），改用全新 DerivedData 又发现 `BrowseCraft.xcodeproj` 还引用着 10-17 删掉的发现链路文件与搬进 Log 包的 `AppLog.swift`，按 `BCA-BUILD-001` 重新生成；
+  最后 App 目标在 26.0.1 的 Swift 编译器下 `VideoPlayerViewModel.swift:344` / `:379`（`SourceUserAgentFallback.shared.perform` 闭包）报「pattern that the region based isolation checker does not understand how to check」，这是编译器限制，Xcode 27 beta 能过。两组用例因此未在本机编译，等构建机跑。
+- HANDOFF 第 2 节补一句 `DEVELOPER_DIR` 与编译器版本要求。

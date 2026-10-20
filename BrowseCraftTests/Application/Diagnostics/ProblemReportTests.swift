@@ -1,4 +1,5 @@
 import BrowseCraftDomain
+import BrowseCraftLog
 import Foundation
 import Testing
 @testable import BrowseCraft
@@ -65,6 +66,97 @@ struct ProblemReportLibraryPageNameTests {
         #expect(LibraryViewModel.problemReportPageName(libraryName: "库页", tabTitle: "国产动漫", sourceName: "樱花动漫 · 日本动漫") == "库页 · 国产动漫")
         #expect(LibraryViewModel.problemReportPageName(libraryName: "库页", tabTitle: "动漫", sourceName: "樱花动漫 · 日本动漫") == "库页 · 动漫")
         #expect(LibraryViewModel.problemReportPageName(libraryName: "库页", tabTitle: nil, sourceName: "樱花动漫") == "库页")
+    }
+}
+
+// 中文注释：日志片段截取（Problem-Report-Design.md 第六节「日志片段」）：本次会话、时间窗内、指定类别的行原样，
+// 取最后 maxLines 行，再从前往后丢到不超过 maxBytes；旧文件在前、当前文件在后。
+struct LogFileSinkRecentLinesTests {
+    private static let now: Date = Date(timeIntervalSince1970: 1_800_000_000)
+
+    private static func record(
+        event: String,
+        category: LogCategory = .rule,
+        session: String = "S1",
+        secondsAgo: TimeInterval
+    ) -> LogRecord {
+        return LogRecord(
+            date: Self.now.addingTimeInterval(-secondsAgo),
+            level: .info,
+            category: category,
+            event: event,
+            fields: ["code": .code("x")],
+            isMainThread: false,
+            context: ["session": session]
+        )
+    }
+
+    private static func makeSink() -> (LogFileSink, URL) {
+        let directory: URL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LogFileSinkRecentLinesTests-\(UUID().uuidString)", isDirectory: true)
+        return (LogFileSink(directory: directory), directory)
+    }
+
+    private static func events(_ lines: [String]) -> [String] {
+        return lines.compactMap { line in
+            let object: [String: Any]? = (try? JSONSerialization.jsonObject(with: Data(line.utf8))) as? [String: Any]
+            return object?["event"] as? String
+        }
+    }
+
+    @Test func keepsOnlyThisSessionWithinTheWindowAndTheGivenCategories() {
+        let (sink, directory): (LogFileSink, URL) = Self.makeSink()
+        defer { sink.removeAllFiles(); try? FileManager.default.removeItem(at: directory) }
+        sink.write(Self.record(event: "too-old", secondsAgo: 700))
+        sink.write(Self.record(event: "other-session", session: "S2", secondsAgo: 10))
+        sink.write(Self.record(event: "wrong-category", category: .database, secondsAgo: 10))
+        sink.write(Self.record(event: "rule-1", secondsAgo: 300))
+        sink.write(Self.record(event: "parse-1", category: .parse, secondsAgo: 60))
+        sink.write(Self.record(event: "rule-2", secondsAgo: 5))
+
+        let lines: [String] = sink.recentLines(
+            sessionID: "S1",
+            since: Self.now.addingTimeInterval(-600),
+            categories: ["rule", "parse"],
+            maxLines: 300,
+            maxBytes: 128 * 1024
+        )
+
+        #expect(Self.events(lines) == ["rule-1", "parse-1", "rule-2"])
+        #expect(lines.allSatisfy { $0.contains("\"session\":\"S1\"") })
+    }
+
+    @Test func truncatesToTheLastLinesThenDropsOldestUntilUnderTheByteLimit() {
+        let (sink, directory): (LogFileSink, URL) = Self.makeSink()
+        defer { sink.removeAllFiles(); try? FileManager.default.removeItem(at: directory) }
+        for index in 0..<10 {
+            sink.write(Self.record(event: "e\(index)", secondsAgo: TimeInterval(100 - index)))
+        }
+        let since: Date = Self.now.addingTimeInterval(-600)
+
+        let lastThree: [String] = sink.recentLines(sessionID: "S1", since: since, categories: ["rule"], maxLines: 3, maxBytes: 128 * 1024)
+        #expect(Self.events(lastThree) == ["e7", "e8", "e9"])
+
+        let oneLineBytes: Int = lastThree[0].utf8.count
+        let underBudget: [String] = sink.recentLines(sessionID: "S1", since: since, categories: ["rule"], maxLines: 300, maxBytes: oneLineBytes * 2 + 1)
+        #expect(Self.events(underBudget) == ["e8", "e9"], "字节上限只装得下两行时留最新的两行")
+        #expect(underBudget.reduce(0) { $0 + $1.utf8.count } <= oneLineBytes * 2 + 1)
+
+        let nothingFits: [String] = sink.recentLines(sessionID: "S1", since: since, categories: ["rule"], maxLines: 300, maxBytes: 1)
+        #expect(nothingFits.isEmpty)
+    }
+
+    @Test func readsTheRotatedFileBeforeTheCurrentOneAndSkipsBrokenLines() throws {
+        let (sink, directory): (LogFileSink, URL) = Self.makeSink()
+        defer { sink.removeAllFiles(); try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let previous: String = Self.record(event: "from-previous-file", secondsAgo: 120).jsonLine + "\nnot json at all\n"
+        try previous.write(to: directory.appendingPathComponent("browsecraft-1.log"), atomically: true, encoding: .utf8)
+        sink.write(Self.record(event: "from-current-file", secondsAgo: 30))
+
+        let lines: [String] = sink.recentLines(sessionID: "S1", since: Self.now.addingTimeInterval(-600), categories: ["rule"], maxLines: 300, maxBytes: 128 * 1024)
+
+        #expect(Self.events(lines) == ["from-previous-file", "from-current-file"])
     }
 }
 
