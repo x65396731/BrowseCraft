@@ -463,17 +463,10 @@ struct VideoGenerationInputView: View {
                 tone: .warning
             )
         case .failed(let code):
-            // 中文注释：`local-rejection` 是本机提交链路自己抛错（不是服务端拒绝码），原码不该嵌进中文句里，
-            // 「稍后重试」也不对症——该检查的是网络（2026-10-20 审计发布前清单第 6 项）。
             StatusCardView(
                 systemImage: "exclamationmark.triangle",
                 title: NSLocalizedString("generation_input_failed_title", comment: ""),
-                message: code == Self.localRejectionCode
-                    ? NSLocalizedString("video_preflight_submit_failed_local", comment: "")
-                    : String(
-                        format: NSLocalizedString("video_preflight_submit_failed", comment: ""),
-                        code
-                    ),
+                message: Self.submissionFailureMessage(code: code),
                 tone: .warning
             )
         }
@@ -1059,6 +1052,20 @@ struct VideoGenerationInputView: View {
 extension VideoGenerationInputView {
     /// 中文注释：本机提交链路抛错时的占位码，只用来选文案，不展示给用户。
     static let localRejectionCode: String = "local-rejection"
+
+    /// 中文注释：提交失败的文案按「用户下一步该做什么」分（2026-10-20 审计发布前清单第 6 项，2026-10-21 真机走查补全）：
+    /// 请求没发出去（`transport`）该检查网络；本机拒绝（检查结果过期、预检未放行）该重新检查网址；
+    /// 这两种都不嵌原码、不说「稍后重试」。其余是服务端给的错误码，沿用原句。
+    static func submissionFailureMessage(code: String) -> String {
+        switch code {
+        case CreateVideoGenerationTaskUseCase.transportFailureCode:
+            return NSLocalizedString("video_preflight_submit_failed_local", comment: "")
+        case Self.localRejectionCode:
+            return NSLocalizedString("video_preflight_submit_failed_recheck", comment: "")
+        default:
+            return String(format: NSLocalizedString("video_preflight_submit_failed", comment: ""), code)
+        }
+    }
 }
 
 enum VideoGenerationTaskSubmissionState: Equatable {

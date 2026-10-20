@@ -406,6 +406,8 @@
 "Continue Reading" = "繼續閱讀";
 "Loading chapters…" = "正在載入章節…";
 "book_reader_chapter_no_web_content" = "這一章在網頁上沒有正文。這個網站可能只在自家 App 裡提供這部作品的內容。";
+"book_reader_chapter_load_failed" = "這一章沒有取到。";
+"book_reader_chapter_retry_hint" = "返回後再打開這一章即可重試。";
 
 /* 從程式碼搬進本地化的使用者可見文案（啟動失敗、來源網站登入、書籍閱讀器、獎勵廣告、內購狀態）。 */
 "bootstrap_loading" = "正在開啟 AnyPortal…";
@@ -574,7 +576,7 @@
 "sources_paused_replace" = "替換使用";
 "sources_full_hint_title" = "想再加一個網站？";
 "sources_full_hint_message" = "位置已用滿。可以先長按目前來源刪除再新增，或取得更多位置。";
-"sources_footer_hint" = "長按來源可查看詳情或刪除；向左滑動也可刪除。刪除來源後，它的閱讀 / 觀看歷史和收藏仍會保留。";
+"sources_footer_hint" = "長按來源可打開庫或刪除；向左滑動也可刪除。刪除來源後，它的閱讀 / 觀看歷史和收藏仍會保留。";
 "sources_menu_open_library" = "打開庫";
 "sources_menu_switch_and_open" = "切換並打開庫";
 "sources_menu_details" = "來源詳情";
@@ -1135,3 +1137,4 @@
 "temporary_detail_section_detail" = "臨時資源詳情";
 "temporary_detail_source_page" = "來源頁面";
 "video_preflight_submit_failed_local" = "提交沒有完成，請檢查網路後再試。";
+"video_preflight_submit_failed_recheck" = "提交沒有完成，請重新檢查網址後再提交。";

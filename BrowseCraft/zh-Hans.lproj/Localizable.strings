@@ -406,6 +406,8 @@
 "Continue Reading" = "继续阅读";
 "Loading chapters…" = "正在加载章节…";
 "book_reader_chapter_no_web_content" = "这一章在网页上没有正文。站点可能只在自家 App 内提供这部作品的内容。";
+"book_reader_chapter_load_failed" = "这一章没有取到。";
+"book_reader_chapter_retry_hint" = "返回后再打开这一章即可重试。";
 
 /* 从代码里搬进本地化的用户可见文案（启动失败、来源站登录、书籍阅读器、激励广告、内购状态）。 */
 "bootstrap_loading" = "正在打开 AnyPortal…";
@@ -574,7 +576,7 @@
 "sources_paused_replace" = "替换使用";
 "sources_full_hint_title" = "想再加一个网站？";
 "sources_full_hint_message" = "位置已用满。可以先长按当前来源删除再添加，或获取更多位置。";
-"sources_footer_hint" = "长按来源可查看详情或删除；向左滑动也可删除。删除来源后，它的阅读 / 观看历史和收藏仍会保留。";
+"sources_footer_hint" = "长按来源可打开库或删除；向左滑动也可删除。删除来源后，它的阅读 / 观看历史和收藏仍会保留。";
 "sources_menu_open_library" = "打开库";
 "sources_menu_switch_and_open" = "切换并打开库";
 "sources_menu_details" = "来源详情";
@@ -1135,3 +1137,4 @@
 "temporary_detail_section_detail" = "临时资源详情";
 "temporary_detail_source_page" = "来源页面";
 "video_preflight_submit_failed_local" = "提交没有完成，请检查网络后再试。";
+"video_preflight_submit_failed_recheck" = "提交没有完成，请重新检查网址后再提交。";

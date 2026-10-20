@@ -23,8 +23,11 @@ struct SettingsView: View {
     /// 刚复制的是哪一行；说明换成「已复制」约 2 秒后恢复。
     @State private var copiedField: CopiedField?
     /// 中文注释：导出的诊断日志文件，非 nil 时弹分享面板（Logging-Design.md BCA-OBS-016）。
+    #if DEBUG
+    // 中文注释：「导出诊断日志」只在 Debug 构建出现，TestFlight 与商店包不显示（用户 2026-10-21 裁定，`BCA-OBS-016`）。
     @State private var exportedLog: ActivityShareItem?
     @State private var isShowingLogExportFailure: Bool = false
+    #endif
     #if BROWSECRAFT_AD_TEST_TOOLS
     @State private var adTestIDFADetail: String?
     #endif
@@ -170,6 +173,7 @@ struct SettingsView: View {
                         await self.viewModel.refreshCampaignPushState()
                     }
                 }
+                #if DEBUG
                 .sheet(item: self.$exportedLog) { item in
                     ActivityShareSheet(item: item)
                 }
@@ -179,6 +183,7 @@ struct SettingsView: View {
                 ) {
                     Button("OK", role: .cancel) {}
                 }
+                #endif
                 .alert(
                     "BrowseCraft Account",
                     isPresented: self.portalAccountErrorAlertBinding
@@ -417,9 +422,10 @@ struct SettingsView: View {
             )
             .buttonStyle(SettingsRowButtonStyle())
 
+            #if DEBUG
             SettingsRowSeparator()
 
-            // 中文注释：本机日志只在用户自己点这里时才离开手机（Logging-Design.md BCA-OBS-016）。
+            // 中文注释：本机日志只在用户自己点这里时才离开手机（Logging-Design.md BCA-OBS-016）；只在 Debug 构建出现。
             Button(
                 action: {
                     self.exportLogs()
@@ -433,6 +439,7 @@ struct SettingsView: View {
                 }
             )
             .buttonStyle(SettingsRowButtonStyle())
+            #endif
         }
     }
 
@@ -625,6 +632,7 @@ struct SettingsView: View {
         }
     }
 
+    #if DEBUG
     private func exportLogs() {
         do {
             self.exportedLog = ActivityShareItem(url: try AppLogging.makeExportFile())
@@ -634,6 +642,7 @@ struct SettingsView: View {
             self.isShowingLogExportFailure = true
         }
     }
+    #endif
 
     private func presentInAppPurchase() {
         var transaction: SwiftUI.Transaction = SwiftUI.Transaction(animation: nil)

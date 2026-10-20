@@ -406,6 +406,8 @@
 "Continue Reading" = "Continue Reading";
 "Loading chapters…" = "Loading chapters…";
 "book_reader_chapter_no_web_content" = "This chapter has no text on the website. The site may only provide this work inside its own app.";
+"book_reader_chapter_load_failed" = "This chapter could not be loaded.";
+"book_reader_chapter_retry_hint" = "Go back and open this chapter again to retry.";
 
 /* Hard-coded user-facing strings moved into localization (bootstrap failure, source login, book reader, rewarded ads, in-app purchase status). */
 "bootstrap_loading" = "Opening AnyPortal…";
@@ -574,7 +576,7 @@
 "sources_paused_replace" = "Swap In";
 "sources_full_hint_title" = "Want to add another site?";
 "sources_full_hint_message" = "All slots are in use. Long-press the current source to delete it first, or get more slots.";
-"sources_footer_hint" = "Long-press a source to see its details or delete it; you can also swipe left to delete. Deleting a source keeps its reading/watch history and favorites.";
+"sources_footer_hint" = "Long-press a source to open its library or delete it; you can also swipe left to delete. Deleting a source keeps its reading/watch history and favorites.";
 "sources_menu_open_library" = "Open Library";
 "sources_menu_switch_and_open" = "Switch and Open Library";
 "sources_menu_details" = "Source Details";
@@ -1135,3 +1137,4 @@
 "temporary_detail_section_detail" = "Temporary Detail";
 "temporary_detail_source_page" = "Source Page";
 "video_preflight_submit_failed_local" = "The submission did not go through. Check your network and try again.";
+"video_preflight_submit_failed_recheck" = "The submission did not go through. Check the URL again before submitting.";

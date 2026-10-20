@@ -27,7 +27,7 @@ App 启动时由组合根安装三个出口：OSLog、本机滚动文件、Crash
   或在 `catch` 处写明为什么不记（用户取消、被新请求取代、预期内的「不存在」）。只改了界面文案就算吞掉，要记。
   `try?` 只许收敛：现存的登记在 `scripts/try-optional-baseline.txt`，新增的 `try?` 要么改 `do/catch`，要么在同一行写
   `// try?: <理由>` 说明丢掉错误是有意的。`scripts/check-architecture-boundaries.sh` 执行。
-- `BCA-OBS-016` 本机日志文件只记 `info` 及以上，放在 Caches/Logs，两个文件轮换、合计不超过 10 MB；设置页「导出诊断日志」用系统分享面板发出。
+- `BCA-OBS-016` 本机日志文件只记 `info` 及以上，放在 Caches/Logs，两个文件轮换、合计不超过 10 MB；设置页「导出诊断日志」只在 Debug 构建出现、用系统分享面板发出，TestFlight 与商店包不显示（用户 2026-10-21 裁定；线上问题靠页内问题报告带的日志片段）。
   删除账号时一并删除本机日志文件。日志文件不进 iCloud 备份，也不随云同步上传。
 - `BCA-OBS-017` Crashlytics 日志行只写 `notice` 及以上记录的类别与事件名，不带字段；崩溃诊断开关关闭时不写（`BCA-OBS-006`）。
   页面轨迹的 `screen=` 行仍由 `CrashDiagnostics.setScreen` 写（[Analytics-Events-Design.md](Analytics-Events-Design.md) 第 6.2 节）。

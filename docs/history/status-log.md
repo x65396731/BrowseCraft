@@ -1740,3 +1740,10 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 未改任何代码、未 build、未跑测试。仓库改动只有本条与 HANDOFF 第 1、2 节（挂账行、下一会话顺序、未提交文件的前提说明）。
 - 用户裁定两条：线上目录没有 version 1 的漫画（手写时期的没进目录），规则版本不统一，V1 迁移路径留到发布后作纯删除项；服务器 `internal` 区的漫画 version 分布由用户自己跑只读脚本现查（本会话的只读查库被权限策略拦下，脚本放到 fwq `site-research/server-queries/catalog_versions_ro.py`，未提交到 fwq 仓）。
 - 与 10-10 报告的关系：那份的发现已全部落地不重报；本次新发现里 B-2 漏覆盖影视详情继续看与阅读页历史恢复两条全表读、B-9 漏覆盖 `.regularExpression` 选项正则 20 处、第 13 批漏收漫画 / 书详情转发层与视图壳约 80 行；10-10 列出但当年未实施的架构 8 / 9（存储闭包 `@Sendable`、嵌套枚举 `Sendable`）至今未做。
+
+2026-10-21 TestFlight 1.0 (50) 真机走查后的修复（用户「先修改几个bug，第1 导出诊断日志的功能设置为debug模式，生成包不能显示」等）。
+- 设置页「导出诊断日志」改为只在 Debug 构建出现；`BCA-OBS-016` 与设置页合同同步改口。
+- 走查第 3 步站点书阅读器一直转圈：章节取失败改为一页说明（「这一章没有取到。」+ 分类器短句 + 「返回后再打开这一章即可重试。」），并记 `book-chapter-load-failed`；Readium 导航器错误记 `book-navigator-error`。
+- 网络失败的说明取 Alamofire 包着的底层错误（原来只有「URLSessionTask failed with error」）；网址输入页提交失败按原因分句。
+- 来源页底注改为「长按来源可打开库或删除」；清单 #10 的书详情重取失败横幅撤回：书详情按合同没有下拉刷新，横幅永远出不来。STATUS 第 13 节新增一行，清单 #10 那一行原样保留作为当时的事实。
+

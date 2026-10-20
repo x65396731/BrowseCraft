@@ -32,7 +32,7 @@
 | 3 | 高级版 | 一张入口卡片（`SourcesEntryCardView`：48pt 添加蓝方图标 + 「高级版」+「更多来源位置与付费功能」+ ›），点开内购页；与来源页「更多位置」打开的是同一页。不带来源位置用量条（2026-10-03 用户裁定） |
 | 4 | 同步与存储 | 云同步（右侧：开启 / 关闭 / 检查中 / 需要登录 iCloud 等）、缓存（右侧：上限） |
 | — | 安全、通知 | 夹在同步与存储与隐私与诊断之间：「安全」见 [Content-Lock-Design.md](Content-Lock-Design.md)；「通知」（2026-10-18 加）一行「活动推送」开关，图标 `SettingsCampaignPush`，见 [Campaign-And-Rate-Notices-Design.md](Campaign-And-Rate-Notices-Design.md) 第四节 |
-| 5 | 隐私与诊断 | 发送崩溃诊断（开关）、发送使用统计（开关，2026-10-16 加：控制 Firebase Analytics，与崩溃诊断分开，图标 `SettingsAnalytics`；隐私权政策第 1、6 节写明可分别关闭）、诊断码（点一下复制）、导出诊断日志（2026-10-18 加：本机日志合成一份交给系统分享面板，[Logging-Design.md](Logging-Design.md) `BCA-OBS-016`；暂用诊断码的图标）；组下保留诊断报告包含与不包含什么的说明 |
+| 5 | 隐私与诊断 | 发送崩溃诊断（开关）、发送使用统计（开关，2026-10-16 加：控制 Firebase Analytics，与崩溃诊断分开，图标 `SettingsAnalytics`；隐私权政策第 1、6 节写明可分别关闭）、诊断码（点一下复制）、导出诊断日志（仅 Debug 构建，2026-10-21 起；2026-10-18 加：本机日志合成一份交给系统分享面板，[Logging-Design.md](Logging-Design.md) `BCA-OBS-016`；暂用诊断码的图标）；组下保留诊断报告包含与不包含什么的说明 |
 | 6 | 关于 | 版本、给 AnyPortal 评分、隐私权政策（2026-10-16 加，审核指南 5.1.1(i)：图标 `SettingsPrivacy`，点开用系统浏览器打开 `PortalAPIConfiguration.privacyPolicyURL`，即 PortalCore `GET /privacy`；未登录也显示）、账号 ID（仅登录时） |
 | — | 测试工具 | 仅 `BROWSECRAFT_AD_TEST_TOOLS` 构建：「测试设备 IDFA」单独一组 |
 | 7 | 退出登录 | 单独一张卡片，未登录时不显示 |
@@ -100,7 +100,7 @@
 | 面容 ID 锁定（标题随设备变） | 开关 | 先验证再改开关，取消时弹回；见 [Content-Lock-Design.md](Content-Lock-Design.md) 第二节 |
 | 活动推送 | 开关 | 同步到服务端；未登录时禁用；见 [Campaign-And-Rate-Notices-Design.md](Campaign-And-Rate-Notices-Design.md) 第四节 |
 | 诊断码 | 码本身 | 复制；说明换成「已复制」约 2 秒后恢复 |
-| 导出诊断日志 | — | 合成本机日志文件，弹系统分享面板；失败弹提示 |
+| 导出诊断日志 | — | 只在 Debug 构建出现（2026-10-21 用户裁定）：合成本机日志文件，弹系统分享面板；失败弹提示 |
 | 版本 | 版本号与构建号 | 无 |
 | 给 AnyPortal 评分 | — | 打开 App Store 写评价页 |
 | 隐私权政策 | — | 用系统浏览器打开 `PortalAPIConfiguration.privacyPolicyURL` |

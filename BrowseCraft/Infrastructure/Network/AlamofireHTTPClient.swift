@@ -49,7 +49,7 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
         } catch {
             throw RuleExecutionError.network(
                 url: url.absoluteString,
-                underlyingDescription: error.localizedDescription
+                underlyingDescription: Self.transportFailureDescription(error)
             )
         }
 
@@ -93,7 +93,7 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
         } catch {
             throw RuleExecutionError.network(
                 url: url.absoluteString,
-                underlyingDescription: error.localizedDescription
+                underlyingDescription: Self.transportFailureDescription(error)
             )
         }
 
@@ -406,6 +406,16 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
         }
 
         return Self.isAntiBotHTML(text)
+    }
+
+    /// 中文注释：失败原因会进用户可见的「網路請求失敗。」第二行。`AFError` 的描述自带英文前缀
+    /// 「URLSessionTask failed with error: 」，这里剥掉 Alamofire 这层，取系统原生网络错误按手机语言给的描述
+    /// （例如「網際網路連線已斷開。」）；剥不出底层错误时才退回原描述（2026-10-21 TestFlight 1.0 (50) 真机走查）。
+    static func transportFailureDescription(_ error: Error) -> String {
+        if let afError: AFError = error.asAFError, let underlying: Error = afError.underlyingError {
+            return underlying.localizedDescription
+        }
+        return error.localizedDescription
     }
 
     private static func isAntiBotHTML(_ html: String) -> Bool {

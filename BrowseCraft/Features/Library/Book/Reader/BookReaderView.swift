@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import ReadiumShared
 import SwiftUI
 
@@ -55,7 +56,10 @@ struct BookReaderView: View {
                         onLocationChange: { locator in
                             self.viewModel.navigatorDidChangeLocation(locator)
                         },
-                        onError: { _ in }
+                        onError: { description in
+                            // 中文注释：吞错必记（`BCA-OBS-015`）；单章取不到已在内容提供方渲染成说明页，这里只兜 Readium 自己的错误。
+                            AppLog.error(.reader, "book-navigator-error", ["error": .text(description)])
+                        }
                     )
                     .ignoresSafeArea(edges: .bottom)
                 }

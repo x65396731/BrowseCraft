@@ -1,4 +1,5 @@
 import BrowseCraftCore
+import BrowseCraftLog
 import Foundation
 import ReadiumShared
 
@@ -141,7 +142,17 @@ final class SiteBookChapterContainer: Container, @unchecked Sendable {
                 let notice: String = NSLocalizedString("book_reader_chapter_no_web_content", comment: "")
                 return .success(Data(renderer.render(title: item.title, paragraphs: [notice], language: language).utf8))
             } catch {
-                return .failure(.access(.other(error)))
+                // 中文注释：其余失败（断网、站点 403 / 5xx、反爬页、规则取不到）也渲染一页说明，与 emptyContent 同一种渲染；
+                // 此前交回 Readium 的访问失败，阅读器出错回调为空，正文区一直转圈（Problem-Report-Design.md 第八节，
+                // 2026-10-21 TestFlight 1.0 (50) 真机飞行模式复现）。原因取分类器的三语短句，不带诊断串。
+                AppLog.error(.reader, "book-chapter-load-failed", ["error": .error(error)])
+                let reason: [String] = RuleExecutionErrorClassifier.userMessage(for: error)
+                    .split(separator: "\n")
+                    .map(String.init)
+                let notice: [String] = [NSLocalizedString("book_reader_chapter_load_failed", comment: "")]
+                    + reason
+                    + [NSLocalizedString("book_reader_chapter_retry_hint", comment: "")]
+                return .success(Data(renderer.render(title: item.title, paragraphs: notice, language: language).utf8))
             }
         }
     }

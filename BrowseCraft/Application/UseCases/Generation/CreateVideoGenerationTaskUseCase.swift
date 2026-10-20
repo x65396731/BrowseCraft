@@ -7,6 +7,8 @@ struct CreateVideoGenerationTaskUseCase: Sendable {
     /// 服务端复用规则无法按 Catalog 路径解密/落地时的稳定失败码（`BC-PREFLIGHT-055`）。
     static let reusedRuleDecryptionFailedCode: String = "REUSED_RULE_DECRYPTION_FAILED"
     static let reusedRuleKindUnsupportedCode: String = "REUSED_RULE_KIND_UNSUPPORTED"
+    /// 中文注释：提交请求没发出去或没收到响应（断网、超时、TLS 失败）；输入页按它显示「检查网络」，不嵌原码。
+    static let transportFailureCode: String = "transport"
 
     private let taskClient: any VideoGenerationTaskCreating
     private let accessTokenProvider: any PortalAccessTokenProviding
@@ -110,7 +112,7 @@ struct CreateVideoGenerationTaskUseCase: Sendable {
             case .server(let code):
                 return .failed(code: code)
             case .transport:
-                return .failed(code: "transport")
+                return .failed(code: Self.transportFailureCode)
             }
         }
     }

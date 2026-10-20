@@ -1423,7 +1423,7 @@ private enum GenerationSubmitFailureCode: String {
 
     init(code: String) {
         switch code {
-        case "transport":
+        case CreateVideoGenerationTaskUseCase.transportFailureCode:
             self = .transport
         case CreateVideoGenerationTaskUseCase.reusedRuleKindUnsupportedCode:
             self = .reusedRuleKindUnsupported
