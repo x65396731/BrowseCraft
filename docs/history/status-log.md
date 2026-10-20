@@ -1726,3 +1726,9 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
   换 Xcode 26.0.1 后先撞上用户 DerivedData 里陈旧的 `BrowseCraftRuleModels` 模块（Core 单独 `swift build` 23 s 通过），改用全新 DerivedData 又发现 `BrowseCraft.xcodeproj` 还引用着 10-17 删掉的发现链路文件与搬进 Log 包的 `AppLog.swift`，按 `BCA-BUILD-001` 重新生成；
   最后 App 目标在 26.0.1 的 Swift 编译器下 `VideoPlayerViewModel.swift:344` / `:379`（`SourceUserAgentFallback.shared.perform` 闭包）报「pattern that the region based isolation checker does not understand how to check」，这是编译器限制，Xcode 27 beta 能过。两组用例因此未在本机编译，等构建机跑。
 - HANDOFF 第 2 节补一句 `DEVELOPER_DIR` 与编译器版本要求。
+
+2026-10-20 两项测试在本机跑过（用户「要改代码，你再 build 一次试试」；改写只用于本机编译，用户裁定不入库）。
+- 为让 Xcode 26.0.1（Swift 6.2.0）编过 App 目标，本机工作区临时改三处（**未提交，构建机的 Xcode 27 不需要**）：`VideoPlayerViewModel` 两处与 `VideoDetailViewModel` 两处的 `SourceUserAgentFallback.shared.perform` 挪进 nonisolated 静态方法（`#isolation` 在 `@MainActor` 里取到 MainActor 时 region 隔离检查器报错）；`LibraryFeatureFactory` 两处 `videoPlayerViewModelFactory` 从方法引用改显式闭包（`@MainActor` 方法引用转 `@Sendable` 报数据竞争）。语义不变。
+- 测试目标另有 `PersonalRuleRetentionTests.swift:10` 整段整数字面量算式直接传 `addingTimeInterval`，6.2.0 类型推断超时，本机临时拆成先算 Int 再转 `TimeInterval`（同样未提交）。
+- 结果：iPhone 17 Pro / iOS 26.0.1 模拟器，`LogFileSinkRecentLinesTests` 3 条 + `BookSiteDetailViewModelTests` 7 条全过（含新加的选集默认值一条）；四道代码闸门随 pre-build 跑过。STATUS 第 12 节该行 not-run → targeted-passed。
+- HANDOFF 第 2 节记下这三种写法在 26.0.1 下的报错与「本地等价改写、不提交」的做法。
