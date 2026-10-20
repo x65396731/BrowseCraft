@@ -10,7 +10,7 @@ C 类设计文档不再承载 `implemented` / `pending` / `passed` 这类状态�
 
 ## 0. 读这张表的纪律
 
-**本表的行不会随条款落地自动退休。** 开工前的三步核对（都是零成本）：在 `BrowseCraft/` 与四个包里
+**本表的行不会随条款落地自动退休。** 开工前的三步核对（都是零成本）：在 `BrowseCraft/` 与五个包里
 grep 该行点名的类型或文件，看有没有实现；在本表里交叉查同一工作项有没有别的行标了 `implemented`；
 该项若有产物可查（真机日志、模拟器截图、测试产物），按产物时间线看症状还在不在。
 
@@ -42,6 +42,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | Readium Swift Toolkit 3.11.0 选型与 SwiftSoup fork 覆盖 | 未编号 | required | approved | implemented | full-suite-passed | 7ad2704 | 2026-09-13 |
 | PDF 与 CBZ 不接（PDF 见 `BC-BOOK-012`，CBZ 漫画线保持自研阅读器） | `BC-BOOK-012` | rejected | approved | not-started | not-run | f443602 | 2026-09-13 |
 | 站点有声播放器后续项：界面样式、倍速与偏好入口（SDK 有 `AudioPreferences`，界面没露）、`mediaAPI` 与带签名音频（无语料）——从读书接线合同第十六节搬出立行 | `BC-BOOK-012` | optional | draft | not-started | not-run | 1c7bc61 | 2026-10-10 |
+| 有声书后台续播与迷你播放条（播放页裁定 10：离开本页即停播，不做；另立项后再排期） | 未编号 | optional | draft | not-started | not-run | 4a83331 | 2026-10-20 |
 
 ## 2. 规则目录
 
@@ -79,7 +80,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 收藏页与历史页选择模式的模拟器走查（iPhone 18 Pro / iOS 27.0，Debug 构建，演示模式）：收藏页标题行只有「选择」、进入后标题「已选择 N 部」+「完成」、筛选变淡、勾选框与选中浅蓝底、底栏换操作栏且未选时按钮禁用；全选变全不选；批量取消 2 部弹「保留 / 取消收藏」确认框、确认后退出选择模式且无撤销提示；左滑一滑到底只露出按钮不删除；历史页长按「选择多项」预选该条、继续卡片收回列表、连同继续条目一起批量删除后剩余条目成为新的继续卡片；空筛选下「选择」变灰。深色与锁定时退出选择模式未走查 | 未编号 | required | approved | implemented | simulator-passed | 6a702af | 2026-10-17 |
 | 漫画详情与章节页重设计：漫画类型色淡底头部（封面 + 标题 / 作者 / 徽章 / 更新行 / 来源行）、右上收藏、继续卡片（上次页面缩略图、「13 / 45 页」与进度条）或「从第 1 话开始读」按钮、章节目录按标题形状选三列网格或行列表、≥ 60 章分段芯片滚到段首、按作品读全部章节历史做已读与上次读到标记、历史表追加 `pageCount`、受限与失败提示换页内横幅；向 fwq 提四条生成覆盖需求（九项裁定全取 A） | 未编号 | required | approved | implemented | not-run | a303af5 | 2026-10-08 |
 | 漫画详情与章节页重设计的模拟器走查（真实登录账号，めちゃコミック）：淡底头部与列表标题优先、更新行是类型标签、「从第 1 话开始读」、行列表「1-1」编号柱、第 9 话起小锁、开一章回来后继续卡片「6 / 58 页」与进度条、已读 1 与上次读到竖条、正序 / 倒序切换、贴顶分区头停在固定按钮下、受限横幅在分区头里出现且「登录」打开来源登录页、右上收藏实心、深色；三列网格、分段芯片、作者 / 徽章 / 标签 / 日期、没有章节与取失败态未走到（线上只有一条漫画来源，没有纯编号目录与 60 章以上的作品） | 未编号 | required | approved | implemented | simulator-passed | a303af5 | 2026-10-08 |
-| 漫画详情分段芯片的滚动锚点按分区头高度换算（合同第十四节原记的已知出入：锚点 `.top` 让段首两行压在贴顶分区头下；照站点书详情 `segmentScrollAnchor` 同一做法；按 AGENTS 未 build，未在模拟器看过） | 未编号 | required | approved | implemented | not-run | 2f37a46 | 2026-10-10 |
+| 漫画详情分段芯片的滚动锚点按分区头高度换算（合同原第十四节曾记为已知出入、现只在本行：锚点 `.top` 让段首两行压在贴顶分区头下；照站点书详情 `segmentScrollAnchor` 同一做法；按 AGENTS 未 build，未在模拟器看过） | 未编号 | required | approved | implemented | not-run | 2f37a46 | 2026-10-10 |
 | 库页漫画库重设计：三列封面墙（封面圆角 10、标题两行 + 最新话一行类型色）、读过的作品封面左下压「读到 4-2」进度角标、只在已收藏时压小爱心、长按菜单加「继续读」、「上次读到」瓷砖（按来源读全部漫画章节历史的只读查询，一次读供瓷砖与角标）、骨架按类型三列、空状态插画 `EmptyStateLibraryComic`；删漫画卡片的 `libraryTitleText` 与写死的蓝紫色（七项裁定全取 A） | 未编号 | required | approved | implemented | not-run | fa57f00 | 2026-10-09 |
 | 库页漫画库重设计的模拟器走查（めちゃコミック）：「上次读到」瓷砖（4-2 真夜中の逢瀬 · 6 / 58 页、进度条、时刻）、三列封面墙与「读到 4-2」角标、已收藏小爱心、最新话类型色一行、长按卡片「打开 / 继续读 · 4-2 / 取消收藏」且「继续读」直接进阅读器、从阅读器回来瓷砖时刻刷新、长按瓷砖「继续读 / 打开作品」且「打开作品」进详情（收藏与继续卡片对得上）、深色、底栏为系统原样；骨架、空状态插画、分类芯片、「打开作品」的反解路径、视频库回归未走到（线上只有一条漫画来源、模拟器上没有视频来源） | 未编号 | required | approved | implemented | simulator-passed | fa57f00 | 2026-10-09 |
 | 库页书籍库重设计：单列书脊行（封面 60×80 带书脊线、书名两行、「最新 · 原文」、「读到 · 章节名」、行尾已收藏爱心、分隔线）、整站有声按 reader 规则 `contentType` 判（眉行「有声书」、封面耳机、「听到 / 上次听到 / 继续听」措辞）、长按「继续读 / 继续听」直接进阅读器、「上次读到」瓷砖（按来源读全部读书历史 + 瓷砖那一本的 `totalProgression` 进度条）、骨架书脊行形态、空状态插画 `EmptyStateLibraryBook`；删旧卡片与 `libraryTitleText`（十项裁定全取 A） | 未编号 | required | approved | implemented | not-run | a045eab | 2026-10-09 |
@@ -98,6 +99,10 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 品牌等待标记：不做全局网络请求 HUD（`BCA-UI-007`）；`BrandWaitingMark` 圆形墨青底板 #0E1D25 + 海报帧 + 静音循环视频（即梦 4 秒 288×288 HEVC、无音轨，复用启动视频播放器的静音模式、不碰音频会话），减弱动态效果显示海报帧、素材缺失退回系统转圈；删除账号进度遮罩换 96pt、iCloud 首次恢复卡换 56pt 并去掉小转圈；冷启动建库段换 LaunchSplash 静图，启动视频不动；网址输入页不放（八项全取 A）。| `BCA-UI-007` | required | approved | implemented | not-run | 854a09e | 2026-10-20 |
 | 品牌等待标记的 build 与模拟器走查（iPhone 18 Pro / iOS 27，XcodeGen 后 build 通过、新文件无新增警告，包内有 brand-waiting.mp4 与 BrandWaitingPoster）：冷启动录屏逐帧看系统启动屏 → 建库段 → 启动视频是同一张图、无白底帧；临时注入（DEBUG 启动参数，测完撤掉未提交）看 iCloud 首次恢复卡两态浅 / 深色、标记在播放、卡片下拉照常；删除账号遮罩浅 / 深色、96pt 标记在播放；减弱动态效果只显示海报帧。走查中修了一处：删除账号这类推入页回前台时 scenePhase 不刷新回 active，标记停在暂停帧——改为播放器监听 App 活跃通知暂停与续播，修正后回前台续播。其他 App 放音乐时不被打断、真机未走；深色下墨青圆在深灰卡片上边界偏弱（观察项）。| `BCA-UI-007` | required | approved | implemented | simulator-passed | 854a09e | 2026-10-20 |
 | 占位图收敛：影视详情海报改用 `VideoListPlaceholder`、漫画详情封面改用 `ComicListPlaceholder`，删掉写实比例的 VideoDetailPlaceholder 与 ComicDetailPlaceholder；`BookCoverPlaceholder` 换成 Q 版场景图（戴耳机、抱发光的书站在暖色书架前，216×288 无损，即梦 Seedream 5.0 Pro 3:4 四选一），书籍列表、详情、收藏与历史共用；预算声明同步（五项全取 A） | 未编号 | required | approved | implemented | not-run | 2fb6cb1 | 2026-10-20 |
+| 漫画详情 `attributes` 接线：Core 漫画详情解析产出 `SourceDetailAttribute`、Runtime `ComicSourceRuntimeMapper` 构造 `SourceDetailMetadata` 时透传（等 fwq 量到有站点需要再做；合同 Comic-Detail 第二节） | 未编号 | optional | draft | not-started | not-run | d23f431 | 2026-10-20 |
+| 影视详情「看过的全部集」：每集一行的新表 + 云同步范围判断（合同 Video-Detail 第九节候选） | 未编号 | optional | draft | not-started | not-run | d23f431 | 2026-10-20 |
+| 漫画详情「全部标记已读 / 清除记录」：进云同步范围（合同 Comic-Detail 第九节候选） | 未编号 | optional | draft | not-started | not-run | d23f431 | 2026-10-20 |
+| 书类章节 `order`：Core 读、Runtime `loadDetail` 不带也不排序；需求二并入 fwq「书类章节按列写、按行读」记账，两端都不做，同形站多了再两端一起排期 | 未编号 | optional | draft | not-started | not-run | 6ba8846 | 2026-10-10 |
 
 ## 3. 影视线运行期
 
@@ -111,6 +116,8 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 站点按状态码拒绝不再报成「规则解析出错」（xjortho 拦桌面 UA 返回 403，正文被当成列表页解析；fwq `MEMO-App-请求被拒显示成规则解析出错`）：直接请求最终状态码 ≥ 400 时先认挑战页、其余抛 `RuleExecutionError.httpStatus`（Domain `d1d5dac`），分类器按状态码四类文案、诊断记 `network`；`loadData` 与 WebView 通道不在范围；用例已写（7 例），四道代码闸门过，未发版 | `BCA-RUNTIME-007` | required | approved | implemented | full-suite-passed | 07a0231 | 2026-10-10 |
 | 搜索关键词恰为作品全名时站点直跳作品页、App 显示「没有结果」（fwq `BC-SEARCH-022` ⑤ / `APP-MEMO-032`；piaotia「龙藏」；fwq 量面 5 主机全部交付了搜索：sto55、piaotia、uukanshu、23qb、mangakatana）：书 / 漫画搜索第 1 页 0 条且取页发生过跳转时，落地地址按作品页规则加载，取到标题与至少 1 章即当一条结果（Runtime `ae9a7f0`）；书在落地文档上直接解析不重取、`loadDetail` 逐字不变，漫画重取一次；Runtime `swift test` 32 例过（新增 4 例，书一路），漫画一路无固定输入，四道代码闸门过，未发版 | `BCA-RUNTIME-008` | required | approved | implemented | targeted-passed | ae9a7f0 | 2026-10-11 |
 | 书类目录自身分页逐页取（fwq `BC-BOOK-061` / `APP-MEMO-033`；读书需求文档需求五后半，用户 10-11「批准，两端同批」、上限 100）：Core `BookDetailRule.chapterPagination` 与校验（Core `491b28f`，swift test 282 例过）、Runtime 从第 2 页起按相对模板逐页取、无新章节 / 失败 / 到上限即停（Runtime `d08756b`，swift test 37 例过、新增 5 例）；搜索直跳兜底不翻页；四道代码闸门过；引擎已部署，未发版 | `BCA-RUNTIME-009` | required | approved | implemented | targeted-passed | d08756b | 2026-10-11 |
+| 运行期广告过滤词表下发：词表随 Runtime 包发布、新广告形态要发版，是否改为服务端下发（合同 RuntimeAdFilter 第五节） | `APP-MEMO-008` | optional | draft | not-started | not-run | d23f431 | 2026-10-20 |
+| Runtime 四笔运行期语义变更的 App 侧引用点：播放页型有声章节（fwq `APP-MEMO-035`）、整站单篇补一章（fwq `BC-BOOK-066`）、「仍在本章」认路径下页码续页（fwq `APP-MEMO-038`）、播放规则 `media` 只声明 `documentURL` 时不当网页取（fwq `BC-PLAYBACK-066`）；前三条已写进 Book-Kind-Wiring 第三 / 十三节与 RuleExecutionSemantics `BCA-RUNTIME-008`，状态在 fwq STATUS | 未编号 | required | approved | implemented | targeted-passed | 1a0f714 | 2026-10-17 |
 
 ## 4. 身份与同步
 
@@ -141,29 +148,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 
 ## 5. 文档架构迁移
 
-| 工作项 | 条款 | 决策 | 设计 | 实施 | 验证 | 检查点 | 更新日期 |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| D0 冻结基线：现状量化、逐份 C/S/H/E 判定、五处 RSS 漂移 | `BCA-DOC-001` | required | approved | implemented | static-audit-passed | 2ce6b99 | 2026-09-19 |
-| D1 建索引 + 只移动文件：12 份迁入 `docs/`，新建索引，修五处 RSS 漂移 | `BCA-DOC-002` `BCA-DOC-003` | required | approved | implemented | static-audit-passed | 2ce6b99 | 2026-09-19 |
-| D2 状态出设计文档：四份 C 类的状态头与两处验证节按三分法分流 | `BCA-DOC-007` `BCA-DOC-008` | required | approved | implemented | static-audit-passed | 812fde5 | 2026-09-19 |
-| D3 条款编号与混装拆分：分配 `BCA-*` ID，fwq 已定义的改引用点，拆混装文档 | `BCA-DOC-001` `BCA-DOC-002` | required | approved | implemented | static-audit-passed | 812fde5 | 2026-09-19 |
-| fwq 的 `protectedResource` 与 `executionPolicy` 两句只有正文没有稳定 ID——2026-10-03 裁定不请 fwq 分配：它们是生成器的发布偏好与默认值，不是 App 的执行约束，App 侧文档本就未引用 | `BCA-DOC-001` | rejected | superseded | not-started | not-run | a4433eb | 2026-10-03 |
-| C 类里的散文硬条款一次扫完编号：逐行分类后确认真条款 22 条，其余是描述句、章节标题与已编号条款的续行 | `BCA-DOC-002` | required | approved | implemented | static-audit-passed | c0a72fe | 2026-09-19 |
-| D4 机器闸门 `scripts/check-docs.py`：A1–A10 十项，每项经反向植入验证会红 | `BCA-DOC-010` | required | approved | implemented | targeted-passed | a330927 | 2026-09-19 |
-| D5 `HANDOFF.md` 会话入口：四样内容，只记现查口径不记数字，只记纯 App 侧的工作 | `BCA-DOC-011` | required | approved | implemented | targeted-passed | a2adece | 2026-09-19 |
-| fwq 可写文件里指向 App 文档的九处旧路径已更正；`docs/history/` 十一处按只读归档未动，查迁移对照表 | 未编号 | required | approved | implemented | static-audit-passed | 4fd6087 | 2026-09-19 |
-| `BrowseCraftCore` 文档迁移：十份进 `docs/design` 与 `docs/history`，建索引，三份混装按节三分 | `BCA-DOC-009` | required | approved | implemented | static-audit-passed | 69233d1 | 2026-09-19 |
-| Core 预检合同按 v3 收敛：一跳与 family coverage 归档，组件名对齐代码，白名单两条撤回 | `BC-PREFLIGHT-030` | required | approved | implemented | static-audit-passed | 6f6dc80 | 2026-09-19 |
-| A10 文档点名的代码符号必须存在（fwq `BC-DOC-028` 那类）：白名单只许收敛，识别家族通配与路径段 | `BCA-DOC-014` | required | approved | implemented | targeted-passed | 15394c2 | 2026-09-19 |
-| `scripts/update-rules-package.sh` 已确认是死脚本并删除：`BrowseCraftRulesKit` 仓库不存在、`project.yml` 零引用、`Package.resolved` 零命中 | 未编号 | required | approved | implemented | static-audit-passed | 2b4bd07 | 2026-09-19 |
-| `BookBookmarksSheet` 是设计里不存在的类型名——书签功能已实现，呈现层内联在 `BookReaderView`；文档已按实际改写，白名单撤回 | `BCA-DOC-014` | required | approved | implemented | static-audit-passed | 2b4bd07 | 2026-09-19 |
-| 规则编辑入口下线：`SourceDebugView` 的「Edit JSON」摘除、两个零引用编辑视图删除，规则一律只读 | `BCA-UI-003` | required | approved | implemented | static-audit-passed | 1b990b5 | 2026-09-19 |
-| 规则编辑下线遗留的死代码链已清：五个文件 207 行，含 Service 的两个注入依赖与组合根、测试替身的装配 | 未编号 | required | approved | implemented | full-suite-passed | 4527def | 2026-09-19 |
-| 规则编辑下线遗留死代码第二批：更新 / 复制 / 导入 / 导出四类用例、Coordinator 与两个测试文件整链删除 958 行，只读格式化独立为 `SourceRuleDebugJSONFormatter` | `BCA-UI-003` | required | approved | implemented | full-suite-passed | af2e331 | 2026-09-19 |
-| `scripts/regenerate-project.sh` 已恢复：CLT 升到 27.0、arm64 xcodegen 2.46.0 从源码装好，`/usr/local/bin` 的 x86_64 旧链接已移除，bash 与 zsh 下都命中 arm64 版 | `BCA-BUILD-001` | required | approved | implemented | targeted-passed | af931e1 | 2026-09-19 |
-| 模拟器 `build-for-testing` 链接失败已修：`BrowseCraftRuntime` 的 `Package.swift` 缺对 `BrowseCraftRuleModels` 的 product 声明，动态链接时符号解析不到；generic destination 静态链接下不暴露 | `BCA-ARCH-002` | required | approved | implemented | full-suite-passed | 4527def | 2026-09-19 |
-| iOS 18.5 模拟器运行时跑不了测试（缺 `libswiftWebKit.dylib`）——裁决不修，测试口径统一到 iOS 26 及以上；`HANDOFF.md` 与设计文档的命令已改 iPhone 17 Pro | 未编号 | rejected | approved | not-started | targeted-passed | af931e1 | 2026-09-19 |
-| 9 条 `BCA-*` 定义点曾只在被 `.gitignore` 的 `AGENTS.md` 里——已迁入跟踪的 C 类文档，`AGENTS.md` 收成纪律与指针（与 fwq 同构），闸门加 A11 守住 | `BCA-DOC-015` | required | approved | implemented | static-audit-passed | 30f9713 | 2026-09-19 |
+本节全部行已到终态，2026-10-20 按 `BCA-DOC-016` 整节退休，原样见 [history/status-log.md](history/status-log.md)「已结案」节。
 
 ## 6. 代码审计（2026-09-18）
 
@@ -258,7 +243,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 第 1 批·合同（用户 2026-10-18 裁定设计书第 7 节七项全按推荐）：新增 Logging-Design.md 与 `BCA-OBS-010` ~ `017`；`BCA-ARCH-005` 改为只经 `AppLog`；埋点合同第 6.2 节日志行一句改为指向 `BCA-OBS-017`；architecture.md 模块表加 BrowseCraftLog | `BCA-OBS-010` `BCA-OBS-011` `BCA-OBS-012` `BCA-OBS-013` `BCA-OBS-014` `BCA-OBS-015` `BCA-OBS-016` `BCA-OBS-017` `BCA-ARCH-005` | required | approved | implemented | static-audit-passed | 6d6b6e6 | 2026-10-18 |
 | 第 2 批·建包与换管道：新仓库 BrowseCraftLog（`AppLog`、`LogLevel`、`LogCategory`、`LogValue`、`LogRecord`、出口协议与 `InMemoryLogSink`，`ErrorDiagnostics` 随之搬入）；Core / Domain / Runtime / APIKit 与 `project.yml` 加依赖；App 的 `OSLogSink` 为全仓唯一 `Logger(`，`BrowseCraftApp.init` 第一件事装出口；Domain 删 `RuleRuntimeDebugLog`，`RuleExecutionLogger` 改为 `AppLog` 薄包装 | `BCA-OBS-010` `BCA-OBS-011` | required | approved | implemented | full-suite-passed | 6d6b6e6 | 2026-10-18 |
-| 第 3 批·收拢旧出口：旧 `AppLog` 43 处、`AppDebugLog` 99 处、`IAPDiagnostics` 与 `PortalSessionDiagnostics` 83 处、`AccountDeletionDiagnostics` 12 处、`CloudSyncDiagnostics` 15 个方法全部改成事件 + 类型化字段；`IAPDiagnostics` 只留错误码映射，其余三个类型删除；`AppDebugLog` 的自由文本改为 debug 级结构化事件，字段先用 `text` 过渡 | `BCA-OBS-010` `BCA-OBS-011` `BCA-OBS-012` | required | approved | implemented | full-suite-passed | 6d6b6e6 | 2026-10-18 |
+| 第 3 批·收拢旧出口：旧 `AppLog` 43 处、`AppDebugLog` 99 处、`IAPDiagnostics` 与 `PortalSessionDiagnostics` 83 处、`AccountDeletionDiagnostics` 12 处、`CloudSyncDiagnostics` 15 个方法全部改成事件 + 类型化字段；`IAPDiagnostics` 只留错误码映射，`PortalSessionDiagnostics` 与 `AccountDeletionDiagnostics` 删除，`CloudSyncDiagnostics` 保留为 `AppLog` 的薄包装；`AppDebugLog` 的自由文本改为 debug 级结构化事件，字段先用 `text` 过渡 | `BCA-OBS-010` `BCA-OBS-011` `BCA-OBS-012` | required | approved | implemented | full-suite-passed | 6d6b6e6 | 2026-10-18 |
 | 第 4 批·公共钩子：启动各步耗时、scenePhase 与内存警告、页面曝光（经 `AnalyticsScreenReporter`）、`AlamofireHTTPClient` / 网页渲染 / 两个预检取页 / 有声书音频、`PortalAPIClient.sendData`（路径模板）、`ImagePipelineFailureLogger`、`RuntimeStageLog.measure` 包住三个运行时 12 个公开入口与 `RuleFailureDiagnostics.report`、`AppDatabase` 打开与迁移 | `BCA-OBS-014` | required | approved | implemented | full-suite-passed | 6d6b6e6 | 2026-10-18 |
 | 第 5 批·补空白与吞错：扫出 92 个不再抛出的 `catch`，真正吞掉的约 40 处补 `error`（收藏、历史、云同步页、内购会话、coin、阅读器书签、站点登录等），预期内不记的写明理由；Core 校验失败记 notice、条目被拒记 debug；`try?` 现存 230 处按文件登记进 `scripts/try-optional-baseline.txt`，只许收敛 | `BCA-OBS-015` | required | approved | implemented | full-suite-passed | 6d6b6e6 | 2026-10-18 |
 | 第 6 批·本机文件、导出与 Crashlytics 日志行：`LogFileSink`（Caches/Logs 两个 5 MB 文件轮换、info 及以上、每行 JSON）、`CrashlyticsLogSink`（notice 及以上只写类别与事件名，经 `CrashDiagnostics.logLine`，采集关闭不写）、设置页「隐私与诊断」加「导出诊断日志」行（系统分享面板，三语文案，暂用诊断码图标，`support_info_copied` 加 `diagnostic_log`）、删除账号本机清理时删日志文件 | `BCA-OBS-016` `BCA-OBS-017` | required | approved | implemented | full-suite-passed | 6d6b6e6 | 2026-10-18 |
@@ -272,6 +257,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 合同（用户 2026-10-18 裁定十二项全取 A）：活动弹窗与新注册欢迎页只经 In-App Messaging、网址输入页「取页方式」卡片里按地区的生成成功率一行、设置页「通知」分组的「活动推送」开关（只管活动推送）、锁屏活动推送走现有 APNs、不接 FirebaseMessaging、coin 只在服务端入账、服务端依赖与一次活动的固定顺序 | `BCA-UI-004` `BCA-UI-005` `BCA-SYNC-012` | required | approved | implemented | static-audit-passed | 00f6f70 | 2026-10-18 |
 | App 侧实施：`project.yml` 链接 `FirebaseInAppMessaging-Beta`（默认显示组件）、网址输入页「取页方式」卡里的成功率一行与 APIKit `GET /v1/generation-rates` 客户端、设置页「通知」分组与图标 `SettingsCampaignPush`、`PushDeviceRegistrationCoordinator` 与 `POST /v1/push/devices` 带 `marketingOptIn` 与 `language`（App 界面语言 en / zh-Hans / zh-Hant）、登录返回解 `accountCreated` / `signupGrantCoins` 并在新注册拿到赠送时触发 `welcome_new_account`、活动推送点击刷新余额、埋点登记（`push_opened` 的 `campaign`、`setting_changed` 的 `campaign_push`、In-App Messaging 三个自动事件）、三语文案 | `BCA-UI-004` `BCA-UI-005` `BCA-SYNC-012` | required | approved | implemented | not-run | 78d2233 | 2026-10-18 |
+| App 侧实施的离线测试：随 2026-10-20 整个 `BrowseCraftTests` 测试目标跑过（问题报告那一轮，Swift Testing 657 个全过），本项没有单独的用例 | `BCA-UI-004` `BCA-UI-005` `BCA-SYNC-012` | required | approved | implemented | full-suite-passed | 5142438 | 2026-10-20 |
 | 真机验收（2026-10-19，iPhone 15、繁中系统、Debug 1.0 (20)）：设置页「通知」分组——未登录变灰、默认关、打开后服务端 `marketing_opt_in` 1 / `language` zh-Hant / `client_country` JP、系统通知被关时警示句与「前往設定」跳转、恢复后回到正常说明、退出时设备注销（DELETE 204）、重新登录开关恢复并重新登记、深色；新注册欢迎页——从没用过的 Apple ID 登录后弹卡片模板欢迎页（繁体系统显示简体，合同第五节预期），服务端同刻 `signup_grant` 3000，点「开始使用」后余额 3000，同账号重登不弹、不新建账号。未验：成功率一行有数据时的文案（等新账号的生成进次日汇总）、活动推送点击（活动脚本未做） | `BCA-UI-004` `BCA-UI-005` `BCA-SYNC-012` | required | approved | implemented | device-passed | de8fcae | 2026-10-19 |
 | 隐私说明（PortalCore 部分在 PortalCore 仓，检查点为 PortalCore 提交，2026-10-19 随 PortalCore `a20f22e` 部署）：隐私权政策页繁中与英文补「活動推播」开关与界面语言、按 IP 推估国家只存两位国家码不存 IP（网址输入页只查不存）、In-App Messaging 会传 Firebase 安装识别码、署名 IP Geolocation by DB-IP（CC BY 4.0），生效日期 2026-10-19；App Store Connect 隐私标签 2026-10-19 核对：已声明的「粗略位置」（与身份关联，含分析、App 功能、开发者营销）与「设备 ID」覆盖这次新增的国家码与 Firebase 安装识别码，不用改；标签里「设备 ID 用于追踪」与 App 一致（第一次播激励广告前请求 ATT），过时的是政策页 AdMob 一条，已随 PortalCore `9ea8f40` 改正并部署 | `BCA-UI-004` | required | approved | implemented | not-run | 4c857c6 | 2026-10-19 |
 | PortalCore 侧实施之一（在 PortalCore 仓，检查点为 PortalCore 提交）：`POST /v1/push/devices` 接受 `marketingOptIn` 与 `language`，迁移 v0021 给 `push_devices` 加两列；不带时同一用户保留原值、token 换了用户清零；2026-10-18 已部署，新版 App 的设备登记不再被 400 | `BCA-UI-005` | required | approved | implemented | full-suite-passed | 13db2a4 | 2026-10-18 |
@@ -291,4 +277,5 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | PortalCore 侧第一期（在 PortalCore 仓，检查点为 PortalCore 提交，2026-10-20 已部署）：迁移 v0023 `catalog_source_revisions`（写入挂在唯一写 `rule_json` 的仓储方法、回填现有来源）、目录与生成结果的来源明文带 `catalogSHA256`、迁移 v0024 与 `POST /v1/problem-reports`（可选 Bearer、`clientReportId` 去重、查表计数限流与 IP 窗口、256 KB、服务端清洗、按指纹再按时间对版本、站点侧标记、收报告时顺带清理过期报告与多余版本） | `BCA-OBS-019` `BCA-OBS-022` | required | approved | implemented | full-suite-passed | f079121 | 2026-10-19 |
 | App 侧第一期（APIKit 部分在 APIKit 仓 `b5a2fa5`，已推送；2026-10-20 build 通过）：v11 `catalogRevision` 迁移与添加 / 跟随更新时写入、APIKit 发送与目录指纹解码、`RuleExecutionError` 的脱敏摘要、失败快照存储、日志片段、发送用例与适配器、报告面板（含「问题出在哪」与选集）、库页与三种详情页的两个入口、埋点登记（`problem_report_submitted`、`report_scope`、`problem_type`、`problem_report`）、三语 82 条文案。2026-10-20 模拟器走查：库页「…」报 list、影视详情「…」报 content（含选集）、库页失败态「报告问题」（临时注入 HTTP 503，失败快照与站点侧标记齐、规则版本 exact）、发送失败后「再试一次」四条经线上落库核对通过；漫画与站点书详情未走查。同日跑测试目标：Swift Testing 657 个全过（含 7 个新测试；修了 v11 漏登记迁移标识），XCTest 86 个里 1 个与本功能无关的 WebView 计时测试超阈值 | `BCA-OBS-018` `BCA-OBS-019` `BCA-OBS-020` `BCA-OBS-021` `BCA-OBS-022` `BCA-UI-006` | required | approved | implemented | simulator-passed | 5142438 | 2026-10-20 |
 | 第一期之后：排查第 4、5 步的查询脚本（PortalCore 仓） | `BCA-OBS-022` | required | approved | not-started | not-run | 86539af | 2026-10-19 |
+| 合同第七节测试清单里两项还没有对应用例：`LogFileSink.recentLines` 的日志片段截取、面板「问题出在哪」的选集默认值（`defaultLineID` / `defaultEpisodeID`）；2026-10-20 文档复审查出，合同改为「待补」 | `BCA-OBS-020` | required | approved | not-started | not-run | d23f431 | 2026-10-20 |
 | 其余页面的入口（来源内搜索、两种阅读器、有声书、视频播放器、来源页、规则目录）：用户 2026-10-19 取消，阅读与播放的问题改从详情页报 | `BCA-UI-006` | rejected | superseded | not-started | not-run | 86539af | 2026-10-19 |

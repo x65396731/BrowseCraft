@@ -900,6 +900,32 @@ App 侧设计文档一处都没引用，App 执行两种形态的合同由自己
 | 引导屏做成输入页上的常驻折叠段（不拦路）——用户 2026-09-20 裁定用首次必过一屏，折叠态大概率没人展开 | `BC-PAGE-060` | rejected | superseded | not-started | not-run | 90bd347 | 2026-09-20 |
 | 输入框「这看起来是网站首页」的本地软提示——用户 2026-09-20 裁定不做：服务器真实提交 34 条里根入口只有 5 条，且单 list 带分页的首页本就合格，提示会对那类页面说错话 | 未编号 | rejected | approved | not-started | targeted-passed | 90bd347 | 2026-09-20 |
 
+#### 2026-10-20 退休：第 5 节 文档架构迁移
+
+| 工作项 | 条款 | 决策 | 设计 | 实施 | 验证 | 检查点 | 更新日期 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| D0 冻结基线：现状量化、逐份 C/S/H/E 判定、五处 RSS 漂移 | `BCA-DOC-001` | required | approved | implemented | static-audit-passed | 2ce6b99 | 2026-09-19 |
+| D1 建索引 + 只移动文件：12 份迁入 `docs/`，新建索引，修五处 RSS 漂移 | `BCA-DOC-002` `BCA-DOC-003` | required | approved | implemented | static-audit-passed | 2ce6b99 | 2026-09-19 |
+| D2 状态出设计文档：四份 C 类的状态头与两处验证节按三分法分流 | `BCA-DOC-007` `BCA-DOC-008` | required | approved | implemented | static-audit-passed | 812fde5 | 2026-09-19 |
+| D3 条款编号与混装拆分：分配 `BCA-*` ID，fwq 已定义的改引用点，拆混装文档 | `BCA-DOC-001` `BCA-DOC-002` | required | approved | implemented | static-audit-passed | 812fde5 | 2026-09-19 |
+| fwq 的 `protectedResource` 与 `executionPolicy` 两句只有正文没有稳定 ID——2026-10-03 裁定不请 fwq 分配：它们是生成器的发布偏好与默认值，不是 App 的执行约束，App 侧文档本就未引用 | `BCA-DOC-001` | rejected | superseded | not-started | not-run | a4433eb | 2026-10-03 |
+| C 类里的散文硬条款一次扫完编号：逐行分类后确认真条款 22 条，其余是描述句、章节标题与已编号条款的续行 | `BCA-DOC-002` | required | approved | implemented | static-audit-passed | c0a72fe | 2026-09-19 |
+| D4 机器闸门 `scripts/check-docs.py`：A1–A10 十项，每项经反向植入验证会红 | `BCA-DOC-010` | required | approved | implemented | targeted-passed | a330927 | 2026-09-19 |
+| D5 `HANDOFF.md` 会话入口：四样内容，只记现查口径不记数字，只记纯 App 侧的工作 | `BCA-DOC-011` | required | approved | implemented | targeted-passed | a2adece | 2026-09-19 |
+| fwq 可写文件里指向 App 文档的九处旧路径已更正；`docs/history/` 十一处按只读归档未动，查迁移对照表 | 未编号 | required | approved | implemented | static-audit-passed | 4fd6087 | 2026-09-19 |
+| `BrowseCraftCore` 文档迁移：十份进 `docs/design` 与 `docs/history`，建索引，三份混装按节三分 | `BCA-DOC-009` | required | approved | implemented | static-audit-passed | 69233d1 | 2026-09-19 |
+| Core 预检合同按 v3 收敛：一跳与 family coverage 归档，组件名对齐代码，白名单两条撤回 | `BC-PREFLIGHT-030` | required | approved | implemented | static-audit-passed | 6f6dc80 | 2026-09-19 |
+| A10 文档点名的代码符号必须存在（fwq `BC-DOC-028` 那类）：白名单只许收敛，识别家族通配与路径段 | `BCA-DOC-014` | required | approved | implemented | targeted-passed | 15394c2 | 2026-09-19 |
+| `scripts/update-rules-package.sh` 已确认是死脚本并删除：`BrowseCraftRulesKit` 仓库不存在、`project.yml` 零引用、`Package.resolved` 零命中 | 未编号 | required | approved | implemented | static-audit-passed | 2b4bd07 | 2026-09-19 |
+| `BookBookmarksSheet` 是设计里不存在的类型名——书签功能已实现，呈现层内联在 `BookReaderView`；文档已按实际改写，白名单撤回 | `BCA-DOC-014` | required | approved | implemented | static-audit-passed | 2b4bd07 | 2026-09-19 |
+| 规则编辑入口下线：`SourceDebugView` 的「Edit JSON」摘除、两个零引用编辑视图删除，规则一律只读 | `BCA-UI-003` | required | approved | implemented | static-audit-passed | 1b990b5 | 2026-09-19 |
+| 规则编辑下线遗留的死代码链已清：五个文件 207 行，含 Service 的两个注入依赖与组合根、测试替身的装配 | 未编号 | required | approved | implemented | full-suite-passed | 4527def | 2026-09-19 |
+| 规则编辑下线遗留死代码第二批：更新 / 复制 / 导入 / 导出四类用例、Coordinator 与两个测试文件整链删除 958 行，只读格式化独立为 `SourceRuleDebugJSONFormatter` | `BCA-UI-003` | required | approved | implemented | full-suite-passed | af2e331 | 2026-09-19 |
+| `scripts/regenerate-project.sh` 已恢复：CLT 升到 27.0、arm64 xcodegen 2.46.0 从源码装好，`/usr/local/bin` 的 x86_64 旧链接已移除，bash 与 zsh 下都命中 arm64 版 | `BCA-BUILD-001` | required | approved | implemented | targeted-passed | af931e1 | 2026-09-19 |
+| 模拟器 `build-for-testing` 链接失败已修：`BrowseCraftRuntime` 的 `Package.swift` 缺对 `BrowseCraftRuleModels` 的 product 声明，动态链接时符号解析不到；generic destination 静态链接下不暴露 | `BCA-ARCH-002` | required | approved | implemented | full-suite-passed | 4527def | 2026-09-19 |
+| iOS 18.5 模拟器运行时跑不了测试（缺 `libswiftWebKit.dylib`）——裁决不修，测试口径统一到 iOS 26 及以上；`HANDOFF.md` 与设计文档的命令已改 iPhone 17 Pro | 未编号 | rejected | approved | not-started | targeted-passed | af931e1 | 2026-09-19 |
+| 9 条 `BCA-*` 定义点曾只在被 `.gitignore` 的 `AGENTS.md` 里——已迁入跟踪的 C 类文档，`AGENTS.md` 收成纪律与指针（与 fwq 同构），闸门加 A11 守住 | `BCA-DOC-015` | required | approved | implemented | static-audit-passed | 30f9713 | 2026-09-19 |
+
 ## 2026-10-10 Book-Kind-Wiring 三分法：从 C 类搬出的叙事句
 
 按 `BCA-DOC-007` / `BCA-DOC-008` 逐句（按整条 bullet）搬出 `docs/design/Book-Kind-Wiring-Design.md` 的成因、背景、裁决与验收叙事，共 20 段 6990 字节，搬出前后 C 类文件字节差恰等于此数。留在 C 类的是判据、合同语义、落点与固定输入。搬出后在 C 类另加的现在时句（第三节导语与出版物装配一句、第四节结果一句、第五节标题与保险丝一句、第六节「改动后重跑」）是新增，不计入守恒。`BookSourceReaderLoader` 是计划名，C 类改写为「reader 路径（在 `BookSourceRuntime` 内）」并从 A10 白名单撤回；「两种语言」改为三份 `.lproj`。
@@ -1441,3 +1467,252 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 
 2026-10-20 占位图收敛提交（用户：先把本地的提交上传）。
 - 实施提交为 `2fb6cb1`。`STATUS.md` 第 2 节占位图收敛一行检查点 fed5d09（基线）→ `2fb6cb1`，删去「改动在工作区未提交」的备注；随后与品牌等待标记的两个提交一起推送到 origin/main。
+
+## 2026-10-20 第三轮文档复审：裁决与落地
+
+复审报告在 Claude 文档「BrowseCraft 文档架构审计」（https://claude.ai/code/artifact/4ef8e95c-d27f-498b-8611-696ad131d5bb）「2026-10-20 复审」节。
+50 份 C 类对照六仓代码：5 份明显、33 份轻微、12 份一致；用户裁决第 5 小节十项全按建议（有 A / B 取 A）：
+① Book-Kind-Wiring 第十三节改引用点、批次 B 的 text-api / mediaAPI 写明不支持，fwq 引出的包侧提交在本仓留指针（见下）；
+② 页面合同末节「真机验收清单」只留验收项，状态句搬出；③ `BCA-DOC-016` 终态加 `optional` 决策与 `superseded` 设计，第 5 节退休；
+④ 纯括注「（日期 用户裁定）」保留，实施 / 实测 / 变更日志句搬出；⑤ 闸门：`AGENTS.md` 缺省跳过并报告（A0）、`--fwq` 缺省 `../fwq`、
+五个包根 README 进闭包与 `C_FILES`、A13 加问题码双向核对；⑥ HANDOFF 七格改口、复审第六～十四批八行合并、`~/Desktop` 改相对写法；
+⑦ architecture.md 规模数字现算回写；⑧ 本机 fwq checkout 从 10-09 拉到 origin/main；⑨ STATUS 两行改口 / 加行；⑩ Problem-Report 第七节两项测试改「待补」并立行。
+全部为文档与脚本改动，未改代码、未 build、未跑测试。
+
+### HANDOFF.md 第 1 节合并前的八行（原文，含逐批真机看点）
+
+| 挂账 | 欠什么 | 合同 | STATUS |
+| --- | --- | --- | --- |
+| 2026-10-11 复审第十四批（跨页复制第三组，视觉组统一）：继续卡片、开始按钮、顶部圆按钮、贴顶分区头、底色补铺五件共享（App 与测试目标构建 0 警告，BrowseCraftTests 578 + 84 例全过，模拟器走过书详情两本） | 真机或模拟器：漫画详情同样三件（线上没有漫画来源时跳过） | 三份详情合同「实现位置」首条 | 第 8 节末行 |
+| 2026-10-11 复审第十三批（跨页复制第二组）：分段状态机、收藏切换、简介与骨架、`nonEmpty` 四组收敛（App 与测试目标构建 0 警告，BrowseCraftTests 578 + 84 例全过；模拟器走过书详情的分段芯片、收藏切换、简介展开） | 真机或模拟器：漫画详情与影视详情同样三件（线上没有漫画来源时跳过） | 三份详情合同「实现位置」首条 | 第 8 节末行 |
+| 2026-10-11 复审第十二批：Features 层 58 处颜色收回 `CatalogPalette`（App 构建 0 警告，BrowseCraftTests 578 + 84 例全过，模拟器浅深各走过库页、来源页、目录页、书详情） | 真机：影视 / 漫画的库页、详情页与阅读器、设置与云同步页浅深各看一眼 | [Catalog-Page](../design/Catalog-Page-Redesign-Design.md) 第三节 | 第 8 节末行 |
+| 2026-10-10 复审第十一批（两件裁定）：库页翻页失败走分页脚、目录单条规则解不开逐条跳过（App 与测试目标构建 0 警告，BrowseCraftTests 578 + 84 例全过） | 真机：库页翻到底遇站点出错看分页脚文案与再次触底重试 | [Library-Video](../design/Library-Video-Page-Redesign-Design.md) 第七节、[Book-Kind-Wiring](../design/Book-Kind-Wiring-Design.md) `BCA-RUNTIME-004` | 第 8 节末两行 |
+| 2026-10-10 复审第十批（B-10）：共享图片内存缓存上限 256 MB、单张 20%（App 与测试目标构建 0 警告，BrowseCraftTests 574 + 84 例全过） | 真机：Instruments 看长条漫画连读 100 页的驻留是否在 256 MB 附近封顶、往回翻页有没有变卡（模拟器量不到驻留） | [Cache-Page](../design/Cache-Page-Redesign-Design.md) 第二节 | 第 8 节末行 |
+| 2026-10-10 复审第九批：`BCA-DB-003` 给 v7 到 v9 补上一版库升级用例（三条；App 与测试目标构建 0 警告，BrowseCraftTests 573 + 84 例全过） | 无欠账 | [Database README](../../BrowseCraft/Infrastructure/Database/README.md) `BCA-DB-003` | 第 8 节末行 |
+| 2026-10-10 复审第七批（跨页复制第一组）：横幅三套收成 `LibraryStateBanner`、时刻写法收成 `LibraryHistoryTimeText`、横幅词条改 `library_banner_*`（App 构建 0 警告、BrowseCraftTests 570 + 84 例全过、五道闸门干净） | 真机：书详情 / 搜索页失败横幅的「登录」「重试」、漫画详情受限横幅、三处继续卡片与瓷砖时刻一致 | [Book-Detail](../design/Book-Detail-Page-Redesign-Design.md) 第七节、[Comic-Detail](../design/Comic-Detail-Page-Redesign-Design.md) 第八节、[Search](../design/Search-Page-Redesign-Design.md) 第五节 | 第 8 节末行 |
+| 2026-10-10 复审第六批（B-4）：目录跟随先比指纹、批量一个写事务、不再经 addCatalogSource；v10 迁移 | 真机：打开规则目录页的耗时、回前台静默跟随不切标签 | [Catalog-Rule-Update](../design/Catalog-Rule-Update-Design.md) 第二节 | 第 8 节末行 |
+
+### STATUS.md 被覆盖的旧值（`BCA-DOC-006`）
+
+- 第 10 节第 3 批行：「`IAPDiagnostics` 只留错误码映射，其余三个类型删除」→「`IAPDiagnostics` 只留错误码映射，`PortalSessionDiagnostics` 与 `AccountDeletionDiagnostics` 删除，`CloudSyncDiagnostics` 保留为 `AppLog` 的薄包装」。原因：复审查出 `CloudSyncDiagnostics` 仍在（`Application/Sync/CloudSyncSafeErrorMessage.swift`，10 个文件引用）。
+- 第 2 节漫画详情分段芯片锚点行：「合同第十四节原记的已知出入」→「合同原第十四节曾记为已知出入、现只在本行」。原因：Comic-Detail 合同验收节按裁决 ② 删掉了该条。
+- 第 0 节纪律句「四个包」→「五个包」（`BrowseCraftLog`）。
+- 第 5 节 21 行整节退休，原样见本文「已结案」节；第 11 节新增 App 侧离线测试 full-suite 一行、第 12 节新增两项待补测试一行、第 2 节新增三行 optional 候选、第 3 节新增一行 optional 候选——新增不覆盖。
+
+### 包侧提交在 App 仓的指针
+
+这些提交都由 fwq `APP-MEMO-*` / `BC-*` 引出，状态行在 fwq `docs/rules/STATUS.md`，本仓只留指针；其中 `0ec8e09` 推翻了 Book-Kind-Wiring 第十三节原正文，已按裁决 ① 改为引用点。
+
+| 仓库 | 提交 | 内容 | fwq 侧 |
+| --- | --- | --- | --- |
+| Runtime | `d8fc0c9`（10-12） | 书类播放页型有声章节：规则全为有声且 `media` 为 DOM 取址时章节地址可为播放页 | `APP-MEMO-035`、设计稿第 46 节 |
+| Runtime | `ae9a7f0`（10-11） | 搜索全名直跳作品页的兜底 | `APP-MEMO-032`（本仓 `BCA-RUNTIME-008`） |
+| Runtime | `d08756b`（10-11） | 书类目录自身分页逐页取 | `BC-BOOK-061` / `APP-MEMO-033`（本仓 `BCA-RUNTIME-009`） |
+| Runtime | `3aa4d1e`（10-16） | 书类单篇作品补一章：作品页无章节链接、全文写在作品页本身时 | 设计稿第 71 节 |
+| Runtime | `0ec8e09`（10-16） | 书类「仍在本章」判据认本章路径下的页码续页 | `APP-MEMO-038` / `BC-BOOK-066` |
+| Runtime | `1a0f714`（10-17） | 播放规则 `media` 只声明 `documentURL` 时本集地址不当网页取 | `BC-PLAYBACK-0xx`（见 fwq STATUS） |
+| Core | `491b28f`（10-11） | `BookDetailRule.chapterPagination` 与校验 | `BC-BOOK-061` |
+| Core | `2e0d1c5` / `ed567a2`（10-12） | 入口判族：主路由形状、书单首列同地址 | `BC-PREFLIGHT-*` |
+| Core | `729eba3`（10-14） | `BC-PREFLIGHT-051` 修订：富成员认多段文字卡片 | `BC-PREFLIGHT-051` |
+| Core | `1705705`（10-16） | 书 / 视频详情简介去掉残留 HTML 标签 | — |
+| Core | `5a8baa6`（10-17） | 入口观测器成员链接按 href 去重保留有字锚点 | `BC-PREFLIGHT-068` |
+| Core | `ffa3314`（10-17） | Next.js 流式数据块里的剧集列表与明文片源 | `BC-PLAYBACK-066` / `APP-MEMO-040` |
+| Core | `1c770e3`（10-18） | 页面变量还原认字符串字面量（E1） | 设计稿第 74 节 |
+
+### 从 C 类搬出的句子（`BCA-DOC-007` / `008` 三分法，逐字）
+
+搬出的是过程事实与状态句；仍有效的合同句以现在时留在原处。括号内「原节」是搬出时所在的章节。
+
+#### docs/architecture.md
+
+- （§3 `BCA-ARCH-005`）The script honours `scripts/architecture-boundary-exemptions.txt` (`BCA-BUILD-005`, converge-only); the list has been empty since 2026-10-10, so any hit is a genuine new violation.
+- （§9）The acquiring ports, catalog entry, snapshot and credential store moved back on 2026-10-10 (`Source.accessState` stays: the runtime factory gates on it).
+- （§9）The 2026-10-10 audit's "six types with no caller" did not hold up: each is a field type or payload of a kernel value and is referenced from its own file.
+- （§9）Ruled on 2026-10-10 to leave as is:（后半句原样保留在合同里）
+
+#### BrowseCraftCore/docs/design/CoreParsingBoundary.md
+
+- （§1）本文件冻结 Phase 0 的职责和依赖方向。Phase 1 之后新增能力必须符合这里的边界，不能因为迁移方便而把 App 服务整体搬入 Core。
+- （原 §8 标题）## 8. Phase 0 冻结项
+- （原 §8 正文）Phase 0 不实现新的 DOM 或 JSONPath parser（RSS 解析已于 2026-09-16 随 RSS kind 整体下线，Core 不再有 RSS parser），也不改变现有规则 JSON 结构。它只完成：
+  - 冻结职责和依赖方向。
+  - 登记 App 中待迁移的解析资产。
+  - 锁定现有 Core 合同测试。
+  - 增加禁止 App/平台基础设施反向依赖的自动检查。
+  具体迁移清单和验收顺序见 `Phase0ParsingMigrationBaseline.md`。
+
+#### BrowseCraftCore/docs/design/VideoGenerationInputPreflight.md
+
+- （§3.4）The earlier temporary keyword-based discovery view was deleted from the app on 2026-10-10 (it had no remaining entry point).
+- （风险表末行，被代码 3 / v3 推翻的原句）Bind every result to schema `2` and `video-input-preflight-v2`; invalidate on version/input change.
+
+#### docs/design/Settings-Page-Redesign-Design.md
+
+- （一、背景）云同步、缓存、coin 流水三个子页照旧，下一轮再按同一语言重做（2026-10-03 用户裁定）
+
+#### docs/design/Cache-Page-Redesign-Design.md
+
+- （二、本机有哪些缓存）2026-10-10 复审 B-10 前共享管线没有显式上限，iOS 26 能跑的机器一律落到 Nuke 缺省的 512 MB；按阅读器目标宽度解码后一张普通页约 3.7 MB、一张 800×6000 的长条约 18 MB，256 MB 装得下 69 张普通页或 13 张长条（量得的数）。
+
+#### docs/design/Account-Deletion-Design.md
+
+- （6.1 归属判定）服务端设计稿第 7 节最初写的是「删 zone `BrowseCraftSync` 中 `userID` 等于被删 UUID 的记录」，已按本节改正。
+- （7.1 已知局限）（真机实测：账号已在模拟器上删除，iPhone 上的 App 仍显示「已通过 Apple 登录」，`GET /v1/account` 反复回 401）
+- （十、Apple 凭据状态）依据是模拟器实测：删号撤销授权后用同一 Apple ID 重新登录，授权后 1 秒、133 秒、154 秒、775 秒 getCredentialState 一直回 revoked；直接按状态退出会把刚登录的新账号反复退出去，10 分钟宽限也挡不住。
+- （十一、实现落点）验证：构建通过加静态自核；`AccountDeletionCoordinator` 的清理顺序、换身份、续做标记，与 `GRDBAccountDeletionLocalDataStore` 的删除范围写单测。真机验证由用户做（服务端第 12 节第 6 步）。
+
+#### docs/design/Analytics-Events-Design.md
+
+- （3. 事件 › A `push_opened` 参数列）后者 2026-10-18 起，
+- （3. 事件 › B `source_added` 何时触发列）2026-10-19 起网址输入页取用现成规则后点「添加为来源」也报（Generation-Input-Page-Redesign-Design.md 第三节）。
+- （3. 事件 › H `setting_changed` 参数列）2026-10-18 起的
+
+#### docs/design/Problem-Report-Design.md
+
+- （十、埋点登记 第 4 节行）GA4 事件级自定义维度由 24 个增至 26 个
+- （十一、分期 整段）
+  - 第一期（唯一一期）：PortalCore 报告接口与表、规则版本表与目录指纹字段；App 的 `catalogRevision` 迁移与写入、`RuleExecutionError` 的脱敏摘要、快照存储、报告面板（含「问题出在哪」与选集）、用例与客户端；库页与三种详情页的两个入口；埋点登记。PortalCore 先上线，App 后发版。
+  - 第一期之后：第九节第 4、5 步的查询脚本。
+  - 可选：第八节书阅读器单章失败。
+  - 看数据再定：截图、处理进度回执、同一规则报告变多时自动告警、fwq 按报告编号重放。
+- （七、App 实施清单 测试行，两项改为「待补测试」）日志片段截取、选集默认值
+
+#### docs/design/Campaign-And-Rate-Notices-Design.md
+
+- （一、范围 首句从句）十二项待裁定用户 2026-10-18 裁定全取 A
+- （四、设置页「通知」分组 末条）- 开关变化沿用设置开关的埋点事件，新增取值在实施时先登记进 Analytics-Events-Design.md（`BCA-OBS-001`）。
+- （五、In-App Messaging「传送使用统计」条）In-App Messaging 自带的展示与点击事件在实施时登记进埋点字典，注明来源是 Firebase 自动事件。
+- （六、锁屏活动推送 第三条后半句）`push_opened` 增加区分生成结果与活动的枚举参数，实施时先登记。
+
+#### docs/design/Sources-Page-Redesign-Design.md
+
+- （七、真机验收清单 句内片段），结果新增 `device-passed` 行、不改模拟器那行
+
+#### docs/design/Generation-Input-Page-Redesign-Design.md
+
+- （头部 设计稿行），共 14 张；2026-10-19 加已有现成规则、本人免费取回、重新生成面板 3 张并重画取用之后那张，共 17 张）：
+- （三、取页方式卡行）（2026-10-07 用户裁定：从点阵滑杆改回按钮，只有困难按钮带效果，且不要点阵流光那种动画）
+- （三、取页方式卡行）2026-10-18 加，
+- （三、滑动确认行）用户 2026-10-07 认可的那版，
+- （三、提交结果行）2026-10-19 起
+- （四、不改的东西）；2026-10-19 起
+- （五、实现位置），实施后补进页面设计索引的可复用组件表
+- （五、实现位置）（2026-10-19）
+- （七、真机验收清单）2026-10-19 加：
+
+#### docs/design/Favorites-Page-Redesign-Design.md
+
+- （2.5 原句，改为平述）2026-10-17 用户确认设计稿新增：
+- （五、实现位置 片段）与反色提示条上的动作色
+
+#### docs/design/History-Page-Redesign-Design.md
+
+- （2.6 原句，改为平述）2026-10-17 用户确认设计稿新增，做法同收藏页 2.5：
+- （三、删除的语义 片段）取代 2026-10-03「不提供清空历史」的裁定，
+
+#### docs/design/Search-Page-Redesign-Design.md
+
+- （二、规则与本机实际给什么数据 导语）本机五个模拟器库里一共 14 条真实搜索规则（视频 7、漫画 3、书 4），逐条核对的结果：
+- （二、同节 原表，「14 条真实规则的现状」一列为时点快照；其余两列内容保留在新表）
+
+| 元素 | 规则 / Runtime 给什么 | 14 条真实规则的现状 | 页面怎么用 |
+| --- | --- | --- | --- |
+| 有没有搜索 | `runtime.capabilities.supportsSearch`：规则有一条可解析的 `searchRules[]` 才为真 | 樱花动漫、低端影视、gimytv、xiaoheimi、动漫MIKU、91porn 有；威视、看片狂人、jable、nunuju 没有。めちゃコミック、ho5ho、MYCOMIC 有；再漫画、LINE WEBTOON 带空数组，CCC、Komiic、快看、动漫嗨没有。小說狂人、quanben、思兔、笔趣阁有；飘天、半夏、茶香、Loyal Books、sfacg 没有 | 决定库页出不出搜索按钮；本页进来时一定为真 |
+| 请求形状 | `url` 模板 + `method` + `keywordEncoding` | 14 条全部 GET、全部 `percentEncoded`、恰一个 `{keyword}`；一个来源恰一条 | 页面不碰；关键词去首尾空白后交给用例 |
+| 结果条目 | `SourceContentItem`：`title`、`detailURL`、`coverURL`、`latestText`、`itemReference` | 字段与该来源的列表完全一致（7 条走 `listRuleRef` 直接借列表选择器，7 条自带 `fields` 但键集与列表相同）。视频站多半没有封面以外的东西；书站有 `latestText` | 结果卡片 = 库页同一张卡片，按 kind 分流 |
+| 分页 | `pagination`；Runtime 漫画与书会解析下一页，视频 `executeSearch` 不接 `page` | 14 条全部没有 `pagination`（fwq `BC-SEARCH-006`：只在结果页有可执行分页证据时写） | App 侧接 `nextPage` / `loadNextSearchPage`，规则声明分页时才出分页脚 |
+| 空结果 | 合法结果，不报错（视频 loader 明写「结果为空是合法的搜索结果」） | — | 无结果态 |
+| 失败 | `RuleExecutionErrorClassifier.userMessage(for:)` 一句话 | 网络、解析、渲染守卫、登录墙都走这一句 | 失败态 + 重试 |
+| 收藏 / 历史 | 结果条目与列表条目同 id，`favoriteItemIDs` 同一集合 | — | 卡片爱心与库页同步 |
+| 结果数 | `items.count` | 小說狂人一次返回整页（几十条）、视频站 10–30 条 | 眉行写「N 个结果」 |
+
+- （八、要追加的字段与接线 字符串行）（2026-10-10 复审第七批，之前借用旧键「Retry」「Log In」）
+
+#### docs/design/Brand-Waiting-Mark-Design.md
+
+- （八、裁定 第二行句尾）看画布后确认，素材由用户在即梦生成并确认。
+
+#### docs/design/Video-Detail-Page-Redesign-Design.md
+
+- （九、要追加的字段 句内片段）fwq 做完后由用户重生成樱花验收；
+- （原十一、裁定 整节；本文 2026-10-08 节已有同句）## 十一、裁定 / 2026-10-08 用户裁定八项全取 A：模糊海报深色头图区 + 左侧小海报；集号网格；加继续看主按钮；解析时格内转圈、不盖遮罩；Core 加 `key` 透传；向 fwq 提两条需求；看过的全部集本轮不做；右上收藏按钮。
+- （原十三、实现位置 第 1 条，已被改写的新句替代）- 三个详情页共用（2026-10-11 跨页复制收敛）：`Features/Library/Components/ChapterSegmentation.swift`（`ChapterSegment`、分段算法与选中 / 滚动锚点状态机 `ChapterSegmentSelection`，点芯片滚完后延迟 600 ms 再放开行的回写）、`DetailFavoriteToggling.swift`（右上收藏的读与切换）、`DetailSynopsisSection.swift`（简介块、骨架条、相关链接）、`Features/Library/Components/DetailPageComponents.swift`（继续卡片 `DetailContinueCard`、开始按钮 `DetailStartButton`、固定返回 / 收藏 `DetailTopButtons`、贴顶章节分区头 `DetailChapterHeader`、分区头上方底色补铺 `detailPinnedHeaderBackground`；第三组，2026-10-11 用户裁定统一取值）、`Features/Shared/TrimmedText.swift`（`nonEmpty`）。
+- （原十四、真机验收清单）- 模拟器没走到（需要多线路、多集的来源）：数字集号网格、线路芯片、正序 / 倒序、「下一集」/「再看一遍」、受限 / 付费角标、解析失败横幅、没有选集与取失败态。
+
+#### docs/design/Comic-Detail-Page-Redesign-Design.md
+
+- （四、页面结构 末段括号内片段）2026-10-11 与书详情统一，
+- （五、头部与作品信息 封面行取值列，已被改写替代）上边距 = 安全区 + 56（给返回按钮留位）
+- （六、继续阅读 两处片段），2026-10-11 与书详情统一取值 ／ （2026-10-10 复审第七批统一，此前详情页自带一份 `DateFormatter`）
+- （七、章节列表 括号）（2026-10-08 模拟器实测后加，当时未入文）
+- （八、其余状态 受限章节行 两处片段）；放在简介下面时目录滚过头部就看不见，2026-10-08 模拟器实测 ／ （2026-10-10 复审第七批收敛，此前本页自带一份类型色按钮的横幅）
+- （原十一、裁定 整节；本文 2026-10-08 节已有同句）## 十一、裁定 / 2026-10-08 用户裁定九项全取 A：浅色「封面 + 信息」头部；目录版式按标题形状自动选；≥ 60 章出分段芯片、点了滚到段首；读本作品全部章节历史做已读标记；历史表追加 `pageCount`；有历史用卡片、没历史用按钮；受限与失败提示换页内横幅；右上收藏；向 fwq 提生成覆盖需求。核对线上目录后补的一条：更新行照 `latestText` 原文显示一行，内容对不对由 fwq 修。
+- （原十三、实现位置 第 1 条 两处片段）三个详情页共用（2026-10-11 跨页复制收敛） ／ ；第三组，2026-10-11 用户裁定统一取值
+- （原十四、真机验收清单与已知出入 两条）- 模拟器没走到（线上只有一条漫画来源，没有纯编号目录与 60 章以上的作品）：三列网格、分段芯片、作者 / 徽章 / 标签 / 日期、没有章节与取失败态。 ／ - 分段芯片：点了之后段首行完整露在贴顶分区头下面、不被盖住（2026-10-10 锚点改为按分区头高度换算，未在模拟器或真机看过）。
+
+#### docs/design/Library-Video-Page-Redesign-Design.md
+
+- （原十、裁定 整节；本文 2026-10-07 节已有同句）## 十、裁定 / 2026-10-07 用户裁定七项全取 A：两列海报墙；加「上次看到」瓷砖；分页提示收进网格底部、去掉悬浮胶囊；横向滚动胶囊芯片贴顶；保留封面爱心、已收藏用视频强调色；搜索与账号拆成两个圆形按钮；不加来源切换（留在来源页）。
+- （原十二、实现位置 括号）（原 `LibraryTabErrorBanner`，2026-10-10 复审第七批与详情页、搜索页的带按钮横幅合为一个）
+- （原十二、实现位置 整条，仓外待办）- 页面设计索引：实施后把「海报卡片」「分类芯片」补进可复用组件表。
+- （原十三、真机验收清单）- 模拟器没走到：分页脚、分类出错横幅、切换来源遮罩、账号按钮、点「上次看到」瓷砖进播放器、搜索结果页、空状态插画的实际显示。
+
+#### docs/design/Library-Comic-Page-Redesign-Design.md
+
+- （七、其余状态 末段片段）；已出图入库（构思 A「抱在胸前」）
+- （原十一、裁定 整节；本文 2026-10-08 节已有同句）## 十一、裁定 / 2026-10-08 用户裁定七项全取 A：三列封面墙；封面上压本机阅读进度、最新话放封面下；只在已收藏时显示小爱心、收藏动作走长按菜单；加「上次读到」瓷砖；角标文字「读到 4-2」；长按菜单加「继续读 · 4-2」；本轮出空状态插画 EmptyStateLibraryComic（实施时新增的资产）。
+- （原十三、实现位置 括号）（资产已入库并登记预算）
+- （原十四、真机验收清单）- 模拟器没走到：骨架、空状态插画、分类芯片（需要有分类的漫画来源）、瓷砖「打开作品」的 `stableID` 反解路径、视频库回归。
+
+#### docs/design/Catalog-Page-Redesign-Design.md
+
+- （2.3 两处片段）（2026-10-09 用户反馈「删了又冒一条」后裁定） ／ 同日从 20 提到 200
+- （三、视觉规范 基调 两处片段）2026-10-11 起 ／ 在 `CatalogPalette` 的注释里登记：阅读器页面底、播放器黑底、启动动画、调试页、Apple 登录按钮样式、设置页全屏广告位黑底、流光描边两端的白光，加上内购页的固定深色。
+- （四、插画资产 片段与表头）按 3 倍图出， ／ 尺寸（3x 像素）
+- （八、真机验收清单 三条）
+  - Release 构建的「发现」只有「站点示例」列表；Debug 构建登录白名单账号后，下方另有「内部测试」横幅分区；旧的预置站点不出现在示例里。
+  - 「我的生成」有条目时打开直接落在「我的生成」；删一条失败记录后同一入口不再冒出更早的失败。
+  - 顺带做 fwq `BC-PREFLIGHT-066`：生成一条规则 → 点推送停在原页不跳转 → 打开目录直接看到新规则、不用下拉。
+
+### 删掉的仓外待办（不在仓库里安置）
+
+- Claude 文档「BrowseCraft 页面设计索引」的可复用组件表应补：`GenerationTierPicker`、`SlideToConfirmControl`（Generation-Input 原第五节）、「海报卡片」「分类芯片」（Library-Video 原第十二节）。
+- Video-Detail 原第九节「fwq 做完后由用户重生成樱花验收」——fwq 侧完成后的验收安排，记在 fwq。
+
+### 顺带发现、按裁决未动的代码处
+
+`BrowseCraft/Features/Sources/SourcesView.swift:38-39` 注释仍写「与收藏页、历史页同一个提示条」；`DiagnosticEnums.swift:7` 注释「34 个用户可达页面」（实 35）；`RuleFailureDiagnostics.swift:18` 带日期的 Crashlytics 观察；`SourceUserAgentFallback.swift:13` 的 `@unchecked` 注释没有「`@unchecked` 的依据」前缀；疑似死代码 `RestoreReadingHistoryUseCase` 与 `HistoryPersistenceCoordinator.restore`（撤销已去）；资产 `SettingsPremium` 零引用仍在预算表；`CloudSyncDiagnostics` 枚举仍在。
+
+#### docs/design/Book-Kind-Wiring-Design.md
+
+- （一、结论 第 4 条）本条的由来是旧版 App 确实整表解码，目录里只要出现一条 `kind: book` 就会让整个列表解码失败，book catalog 因此一度被禁止发布到 `/catalog/sources`；宽容解码上线后该禁令解除，服务器另以 `kinds` 缺省不回 book 作保险丝（第五节）。
+- （十六、站点有声作品的播放器）2026-10-20 播放页已重设计（沉浸深色、倍速、目录 sheet、单集音频失效横条、锁屏封面），见 [有声书播放页](../design/Audiobook-Player-Page-Redesign-Design.md)。
+- （二十二、站点书搜索）（此前无条件走漫画目的地，与 2026-09-13 漫画搜索的同型问题）
+
+#### docs/design/Book-Detail-Page-Redesign-Design.md
+
+- （五、头部与继续卡片 两处片段），2026-10-11 与漫画详情统一取值 ／ （2026-10-10 复审第七批统一）
+- （十二、实现位置）（2026-10-11 跨页复制收敛）
+- （十三、真机验收清单与待接线 两条）
+  - 模拟器没走到：有声书（线上没有有声来源）、失败与登录横幅、没有章节、简介（规则都不给）。
+  - **待接线**：章节 `order` 到 Runtime 为止——Core 会读，`BookSourceRuntime.loadDetail` 构造 `SourceChapter` 时不带、也不按它排；2026-10-10 用户裁定需求二并入 fwq「书类章节按列写、按行读」一行**记账**（需求五的倒序最新章块已由 fwq `BC-EPISODE-018` 修掉，剩下只有一套多列目录模板），两端都不做；同形站多了再立项时两端一起排期（引擎按地址编号交付 `order`，App 照漫画做法排序）。
+
+#### docs/design/Library-Book-Page-Redesign-Design.md
+
+- （八、每个元素的数据来源与缺省）2026-10-11 小說狂人真机显示成「最新 · 最新: 第1200章」→ 用户裁定由 App 侧处理：
+- （十四、真机验收清单）- 模拟器没走到：骨架（切分类太快抓不到）、空状态插画、整站有声（线上没有有声来源，只有 Loyal Books 测试夹具）、失败态。
+
+#### docs/design/Audiobook-Player-Page-Redesign-Design.md
+
+- （一、背景 两处片段），2026-10-19 leting8 真机 ／ （2026-10-20 用户发现）
+- （四、页面结构 括注前缀）2026-10-20 走查：
+- （六、其余状态）（2026-10-20 模拟器走查实测）
+- （八、裁定 整节正文）2026-10-20 用户裁定：第 1–6、9–11 项取 A，第 7、8 项取 C（不做睡眠定时、有声书去掉书签）；看画布后把第 1 项改为「沉浸深色 + 封面取色流动背景」（要和内购页一样有动态，但不用视频），单集失败提示从状态卡改成一行横条（状态框太大、挡住封面）；广告计分修正随本页一起实施。
+- （十、验收清单）2026-10-20 模拟器（iPhone 18 Pro，iOS 27）已走：Loyal Books《Tom Sawyer》《The Odyssey》——打开中骨架、取色背景（两本颜色不同）、状态栏白字与返回后恢复黑字、眉行与波形、倍速菜单与五档、换书与重开后倍速保留、+30、拖动跳转、上下集、首集 / 末集禁用、目录 sheet 当前集与点集、听完最后一集；临时注入（未提交）把第 2 集改到 archive.org 上不存在的文件（真实 404）、第 3 集改到解析不了的域名：已失效横条与「下一集」、没加载出来横条与「重试」（只失败一次时重试后正常播放）、从失败的集往前往后换集、重开时停在失败的集。没走：中文无封面站点、真实的 leting8 死链、广告计分（需要积分累到阈值）、锁屏封面与线控、深色背景在后台停住。
+
+#### docs/design/RuleExecutionSemantics.md
+
+- （三、执行边界 `BCA-RUNTIME-010` 三处片段）用户 2026-10-13「App 端兜底或许可行，因为规则只会在手机端使用」→「所有来源都开，App 单端改」 ／ **2026-10-13 修订（用户「要，图片跟随来源的身份」）**： ／ ，后者此前直接调静态 `bookImageRequestConfig` 绕过出口，同日真机「目录里的预览没处理」后改走出口
+- （三、执行边界 `BCA-RUNTIME-011` 四处片段）（2026-10-15，fwq 第七批真机抽验 umh5「列表缩略图、章节缩略图、漫画页都显示不出来」） ／ 回归面（fwq `scripts/measure_downgraded_image_referer.py --probe`，https 页面上的 http 图片 37 站 / 47 组合）：两种都 200 34、只有不带才 200 2、只有带才 200 1、都失败 10（站点侧）——先带后不带同时满足三类。 ／ 历史：两视图原先对 http 地址给「先自己升好的 https、再原地址」双候选（2026-07 RSS 时期），2026-09-21 工厂统一升级后两候选已相同，改为本条的 Referer 尝试序列。 ／ 同日补：
+
+为让留下的句子成句，各合同原处补的新字只有：「与漫画详情同一取值」「所有来源都开，App 单端改」「后者也走这个出口、不直接调静态 `bookImageRequestConfig`」「**封面 / 列表图跟随来源的 UA 选择**」、Favorites 2.5 与 History 2.6 的平述引语、Search 二 的三列新表；Local-Book-Import 六.4 的旧句本文 2026-10-10 节已有逐字副本，只改写、不另搬。

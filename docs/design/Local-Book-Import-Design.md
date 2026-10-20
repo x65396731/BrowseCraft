@@ -33,12 +33,12 @@
 ```
 LocalBook            id: UUID, userID: String, title: String, author: String?, format: LocalBookFormat (epub | audiobook),
                      fileRelativePath: String, coverRelativePath: String?, fileSHA256: String, byteCount: Int,
-                     importedAt: Date, lastOpenedAt: Date?, deletedAt: Date?
+                     importedAt: Date, lastOpenedAt: Date?
 BookReadingProgress  bookID: UUID, userID: String, locatorJSON: String, totalProgression: Double?, updatedAt: Date
 BookBookmark         id: UUID, bookID: UUID, userID: String, locatorJSON: String, title: String?, snippet: String?, createdAt: Date
 ```
 
-仓储协议：`LocalBookRepository`、`BookReadingProgressRepository`、`BookBookmarkRepository`（放在 App 目标的 `Domain/`，与既有 10 个仓储协议同处；不进 `BrowseCraftDomain` 包——那个包是 Source 与 Catalog 的合同，本地书与之无关）。
+仓储协议：`LocalBookRepository`、`BookReadingProgressRepository`、`BookBookmarkRepository`（放在 App 目标的 `Domain/Repositories/`，与其余仓储协议同处；不进 `BrowseCraftDomain` 包——那个包是 Source 与 Catalog 的合同，本地书与之无关）。
 
 ### 3.2 Application（用例与端口）
 
@@ -53,7 +53,7 @@ BookBookmark         id: UUID, bookID: UUID, userID: String, locatorJSON: String
 ### 3.3 Infrastructure
 
 - `ReadiumBookPublicationOpener`：持有一个 `AssetRetriever`、`DefaultPublicationParser`、`PublicationOpener`，EPUB Navigator 不需要本地 HTTP 服务；`open` 走 `allowUserInteraction: false`。
-- `ReadiumBookFileInspector`：用 Readium 的格式嗅探（`FormatSniffer` + 文件扩展名 / 媒体类型提示）。
+- `ReadiumBookFileInspector`：用 Readium 的格式嗅探（`AssetRetriever.sniffFormat(of:hints:)` + 文件扩展名 / 媒体类型提示）。
 - `FileSystemBookFileStore`：`Application Support/BrowseCraft/Books/`（`BCA-BOOK-002`），文件名用 `LocalBook.id`。
 - GRDB：`local_books`、`book_reading_progress`、`book_bookmarks` 三张表，一条迁移 `v3.local-books`（在 `sourcesAddOriginIdentifier` 之后追加），`AppDatabaseSchemaSnapshotTests` 快照同步更新；Record 只做行映射。
 - 不进 CloudKit（首批）：文件本身不同步，进度与书签也先不同步，避免「云端有进度、本机无文件」的半状态。
@@ -61,7 +61,7 @@ BookBookmark         id: UUID, bookID: UUID, userID: String, locatorJSON: String
 ### 3.4 Features
 
 - `Features/Library/Book/`：`BookShelfView`（入口已藏，见第八节；`fileImporter` 允许的 `UTType`：`epub`、`mp3`、`mpeg4Audio`（`m4a / m4b`）、`zip`，多选）、`BookShelfViewModel`、`LibraryBookRoute`（书架 / 某本书两级路由，只在 `LibraryView` 栈根声明）。
-- `Features/Library/Book/Reader/BookReaderView`：`UIViewControllerRepresentable` 承载 `EPUBNavigatorViewController`；`navigator(_:locationDidChange:)` 节流（1 秒）后调保存用例，退出时再保存一次；工具栏：目录、书签、字号 / 主题（`EPUBPreferences`）。
+- `Features/Library/Book/Reader/BookReaderView`：`UIViewControllerRepresentable` 承载 `EPUBNavigatorViewController`；`navigator(_:locationDidChange:)` 节流（1 秒）后调保存用例，退出时再保存一次；工具栏：目录、书签；主题随系统深浅（`EPUBPreferences`），不提供字号设置。
 - `Features/Library/Book/Reader/AudiobookPlayerView`：自建 UI 包 `AudioNavigator`，控件、锁屏与后台播放的做法见读书接线合同第十六节（`AudiobookRemoteControls`、手写 `Info.plist` 的 `UIBackgroundModes: audio`）；本地导入的音频书不路由到它（入口已藏）。
 - 书签：两种阅读器共用同一张书签表与同一组用例（`BookBookmark`、`AddBookBookmarkUseCase` /
   `ListBookBookmarksUseCase` / `RemoveBookBookmarkUseCase`），点选即 `go(to:)`；
@@ -89,7 +89,7 @@ xcodebuild -project BrowseCraft.xcodeproj -scheme BrowseCraft -destination 'plat
 1. **History 页**：本地书不进 History（入口已藏）；站点书已进 History，接线见 [读书 kind App 侧接线](Book-Kind-Wiring-Design.md) 第二十三节。
 2. **进度与书签上 CloudKit**：本地书的进度与书签不上云（第 3.3 节的理由）；站点书的续读位置随 `HistoryEntry` 同步，见 [续看位置同步](History-Resume-Sync-Design.md)。
 3. **作品标识**：进度表与书签表的外键已由迁移 `v4.book-progress-detached-from-local-books` 从本地 UUID 扩为作品标识（`SiteBookIdentity`），站点书与本地书共用同一张表。
-4. **PDF**（仍待裁决）：本地 PDF 用 `PDFNavigatorViewController` 成本很低，但读书规范把 PDF 排除在站点路之外；是否作为本地专属格式接，由用户定。
+4. **PDF**：本地 PDF 不接（已裁决，见 [STATUS.md](../STATUS.md)；读书规范 `BC-BOOK-012` 把 PDF 排除在站点路之外），`PDFNavigatorViewController` 不链接。
 
 ## 七、风险
 

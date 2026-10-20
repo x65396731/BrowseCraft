@@ -24,18 +24,18 @@
 的那九个：`id`、`url`（恰一个 `{keyword}` 槽位）、`method`、`keywordEncoding`、`request`、`listRuleRef` 或自带 `item + fields`、`pagination`。Runtime 三条 kind 都实现 `SourceSearchRuntime.search`，
 输出与列表同型的 `SourceListOutput`（`items` + `pagination`）；App 的 `SearchSourceContentUseCase` 只问能力、传关键词与页码，`LibraryViewModel` 把结果经同一个 `SourceListContentItemMapper` 映成 `ContentItem`。
 
-本机五个模拟器库里一共 14 条真实搜索规则（视频 7、漫画 3、书 4），逐条核对的结果：
+能力与形状由规则声明，页面只消费 Runtime 的输出：
 
-| 元素 | 规则 / Runtime 给什么 | 14 条真实规则的现状 | 页面怎么用 |
-| --- | --- | --- | --- |
-| 有没有搜索 | `runtime.capabilities.supportsSearch`：规则有一条可解析的 `searchRules[]` 才为真 | 樱花动漫、低端影视、gimytv、xiaoheimi、动漫MIKU、91porn 有；威视、看片狂人、jable、nunuju 没有。めちゃコミック、ho5ho、MYCOMIC 有；再漫画、LINE WEBTOON 带空数组，CCC、Komiic、快看、动漫嗨没有。小說狂人、quanben、思兔、笔趣阁有；飘天、半夏、茶香、Loyal Books、sfacg 没有 | 决定库页出不出搜索按钮；本页进来时一定为真 |
-| 请求形状 | `url` 模板 + `method` + `keywordEncoding` | 14 条全部 GET、全部 `percentEncoded`、恰一个 `{keyword}`；一个来源恰一条 | 页面不碰；关键词去首尾空白后交给用例 |
-| 结果条目 | `SourceContentItem`：`title`、`detailURL`、`coverURL`、`latestText`、`itemReference` | 字段与该来源的列表完全一致（7 条走 `listRuleRef` 直接借列表选择器，7 条自带 `fields` 但键集与列表相同）。视频站多半没有封面以外的东西；书站有 `latestText` | 结果卡片 = 库页同一张卡片，按 kind 分流 |
-| 分页 | `pagination`；Runtime 漫画与书会解析下一页，视频 `executeSearch` 不接 `page` | 14 条全部没有 `pagination`（fwq `BC-SEARCH-006`：只在结果页有可执行分页证据时写） | App 侧接 `nextPage` / `loadNextSearchPage`，规则声明分页时才出分页脚 |
-| 空结果 | 合法结果，不报错（视频 loader 明写「结果为空是合法的搜索结果」） | — | 无结果态 |
-| 失败 | `RuleExecutionErrorClassifier.userMessage(for:)` 一句话 | 网络、解析、渲染守卫、登录墙都走这一句 | 失败态 + 重试 |
-| 收藏 / 历史 | 结果条目与列表条目同 id，`favoriteItemIDs` 同一集合 | — | 卡片爱心与库页同步 |
-| 结果数 | `items.count` | 小說狂人一次返回整页（几十条）、视频站 10–30 条 | 眉行写「N 个结果」 |
+| 元素 | 规则 / Runtime 给什么 | 页面怎么用 |
+| --- | --- | --- |
+| 有没有搜索 | `runtime.capabilities.supportsSearch`：规则有一条可解析的 `searchRules[]` 才为真 | 决定库页出不出搜索按钮；本页进来时一定为真 |
+| 请求形状 | `url` 模板 + `method` + `keywordEncoding` | 页面不碰；关键词去首尾空白后交给用例 |
+| 结果条目 | `SourceContentItem`：`title`、`detailURL`、`coverURL`、`latestText`、`itemReference`，字段与该来源的列表同型 | 结果卡片 = 库页同一张卡片，按 kind 分流 |
+| 分页 | `pagination`；Runtime 漫画与书会解析下一页，视频 `executeSearch` 不接 `page` | App 侧接 `nextPage` / `loadNextSearchPage`，规则声明分页时才出分页脚 |
+| 空结果 | 合法结果，不报错；第 1 页 0 条且取页发生过跳转时的作品页兜底见 [RuleExecutionSemantics.md](RuleExecutionSemantics.md) `BCA-RUNTIME-008` | 无结果态 |
+| 失败 | `RuleExecutionErrorClassifier.userMessage(for:)` 一句话；网络、解析、渲染守卫、登录墙都走这一句 | 失败态 + 重试 |
+| 收藏 / 历史 | 结果条目与列表条目同 id，`favoriteItemIDs` 同一集合 | 卡片爱心与库页同步 |
+| 结果数 | `items.count` | 眉行写「N 个结果」 |
 
 **没有的东西**（合同里没有槽位，页面不画）：搜索建议 / 联想词、分类内搜索、排序、结果总数（只有本页条数）、站点的「热搜」。**本机也没有的**：搜索历史，App 没有任何关键词存储，裁定不做。
 
@@ -125,7 +125,7 @@ sheet 跟随系统深浅，底色取页面底，隐藏系统导航栏；顶行�
 | `LibraryViewModel` | `searchFailureNeedsLogin: Bool`（按 `RuleExecutionErrorClassifier` 的归类） | 横幅要不要出「登录」 |
 | `LibrarySearchView` | 自绘顶行、搜索框、眉行、四种状态；`fullScreenCover` 挂 `SourceLoginView`；`scrollDismissesKeyboard` | 本页主体 |
 | `LibraryContentView` | 不改；`nextPage` / `loadNextPage` 从 ViewModel 的搜索字段传 | 分页脚复用 |
-| 字符串 | 三份 `Localizable.strings` 新增：「搜索 %@」占位与标题、「输入关键词，按键盘上的搜索。结果来自这个来源自己的搜索。」、「正在搜索 “%@”」、「“%@” · %ld 个结果」、「没有找到 “%@”」、「关闭搜索」、「清空」；「换个关键词试试。」沿用现有；横幅上的「重试」「登录」用三页共用的 `library_banner_retry` / `library_banner_login`（2026-10-10 复审第七批，之前借用旧键「Retry」「Log In」） | — |
+| 字符串 | 三份 `Localizable.strings` 新增：「搜索 %@」占位与标题、「输入关键词，按键盘上的搜索。结果来自这个来源自己的搜索。」、「正在搜索 “%@”」、「“%@” · %ld 个结果」、「没有找到 “%@”」、「关闭搜索」、「清空」；「换个关键词试试。」沿用现有；横幅上的「重试」「登录」用三页共用的 `library_banner_retry` / `library_banner_login` | — |
 | 资产 | `EmptyStateSearch` 已在 `bundled-image-asset-budgets.txt` 登记，不新增 | — |
 
 **不在本页做、但记一笔**：视频 Runtime `VideoSourceListLoader.executeSearch` 不读 `input.page`、也不解析搜索结果页的分页；漫画与书都会。等哪天 fwq 给视频搜索规则写了 `pagination`，Runtime 那一层要补；到那时本页什么都不用改。

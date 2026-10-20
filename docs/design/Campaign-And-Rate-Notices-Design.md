@@ -8,7 +8,7 @@
 
 ## 一、范围
 
-本文定义四处提示，十二项待裁定用户 2026-10-18 裁定全取 A：
+本文定义四处提示：
 
 | 提示 | 通道 | 谁来发 | 内容从哪来 |
 | --- | --- | --- | --- |
@@ -51,7 +51,7 @@
      不满则换成全部地区，全部地区满 20 条给百分比；全部地区也不满但至少 1 条时 `rate` 为空、只给次数；一条都没有时 `samples` 为 0。
   4. 解码成一个只在本次 sheet 状态里的小模型，不落库、不缓存。
   5. 取当前档那一项拼成一行：`rate` 有值用百分比文案，四舍五入到整数；`rate` 为空而 `samples` 大于 0 用次数文案。
-  6. 请求失败、超时，或当前档 `samples` 为 0 时，这一行不显示，不弹错、不重试；请求失败只经 `AppLog` 记网络日志。
+  6. 请求失败、超时，或当前档 `samples` 为 0 时，这一行不显示，不弹错、不重试；请求失败只经 `AppLog` 记 `portal`（请求钩子）与 `generation`（吞错）两类日志。
      App 不估算、不写死数字。
 - 组下的余额说明（`generation_input_balance_footer` 与 `generation_input_balance_unknown_footer`）已写明「生成可能失败，失败也会扣 coin」，
   档位说明文案不改。
@@ -67,7 +67,7 @@
   - 未登录：行按「用不了」显示（图标块与标题变灰），开关禁用；说明「登录后可以接收活动推送。」
 - 打开开关：系统通知许可尚未决定时先申请；随后经 `PushDeviceRegistrationCoordinator` 把同意标记与设备语言随设备登记同步到 PortalCore。
   关闭开关同步不同意。开关值存在本机；登出时设备照旧注销，重新登录后按本机值重新同步。
-- 开关变化沿用设置开关的埋点事件，新增取值在实施时先登记进 [Analytics-Events-Design.md](Analytics-Events-Design.md)（`BCA-OBS-001`）。
+- 开关变化报 `setting_changed`，`setting_name` 为 `campaign_push`（[Analytics-Events-Design.md](Analytics-Events-Design.md) 第 3 节 H 组，`BCA-OBS-001`）。
 
 ## 五、In-App Messaging
 
@@ -84,7 +84,7 @@
   `signupGrantCoins` 大于 0 时，App 触发 In-App Messaging 事件 `welcome_new_account`；新注册但没拿到赠送（12 个月内删号重注册）
   与老用户重新登录都不触发。
 - 「传送使用统计」关闭时 In-App Messaging 照常拉取与显示，只是不报埋点（`BCA-OBS-005`）。关掉「活动推送」不影响弹窗。
-  In-App Messaging 自带的展示与点击事件在实施时登记进埋点字典，注明来源是 Firebase 自动事件。
+  In-App Messaging 自带的展示、点击与关闭三个事件已在 [Analytics-Events-Design.md](Analytics-Events-Design.md) 第 2 节登记为 Firebase 自动事件，不经 `AppAnalytics`。
 - 插画按设计索引的插画规格出图后上传到控制台。
 - 中国大陆不开 VPN 的设备连不上 Google，看不到弹窗与欢迎页；coin 照常入账，以 coin 记录与活动推送为准。
 
@@ -92,9 +92,11 @@
 
 - 由服务器上的活动脚本经现有 APNs 通道发送；负载带 `kind` 为 campaign，标题与正文按设备登记的语言取三语之一。
 - 只发给 `marketing_opt_in` 为真的设备；第一版不按地区筛选。
-- App 收到点击时识别活动推送，刷新 `CoinWalletStore` 的余额，不跳页；`push_opened` 增加区分生成结果与活动的枚举参数，实施时先登记。
+- App 收到点击时识别活动推送，刷新 `CoinWalletStore` 的余额，不跳页；报 `push_opened`，`entry` 为 `campaign`（[Analytics-Events-Design.md](Analytics-Events-Design.md) 第 3 节 A 组）。
 
 ## 七、服务端依赖（PortalCore）
+
+本节的服务端陈述以 PortalCore 仓为准，App 仓只核得到接口路径与字段名。
 
 | 位置 | 内容 |
 | --- | --- |

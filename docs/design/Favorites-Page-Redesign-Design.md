@@ -19,7 +19,7 @@
 ### 2.1 顶部
 
 - 大标题「收藏」靠左，在内容里自绘；右侧一个「选择」按钮（2026-10-17 用户选定，原来的「N 个收藏」去掉，总数看「全部」段）。当前筛选下没有收藏时按钮变灰不可点。
-- 标题下一个分段筛选「全部 | 视频 | 漫画 | 书籍」，样式与目录页「推荐 | 我的生成」相同（共用 `CatalogSegmentedPicker`），每段带计数。
+- 标题下一个分段筛选「全部 | 视频 | 漫画 | 书籍」，样式与目录页「发现 | 我的生成」相同（共用 `CatalogSegmentedPicker`），每段带计数。
   「全部」与三个类型标签一直显示，没有收藏的类型计数为 0（2026-10-03 用户裁定）。
 
 ### 2.2 列表
@@ -51,7 +51,7 @@
 
 ### 2.5 选择与批量取消收藏
 
-2026-10-17 用户确认设计稿新增：
+本节为设计稿新增的选择模式（2026-10-17 用户确认）：
 
 - **进入**：点标题行「选择」，或长按菜单「选择多项」（预先选中那一条）。
 - **标题行**：大标题换成「已选择 N 部」，右侧实心添加蓝「完成」退出。
@@ -83,7 +83,7 @@
 - `BrowseCraft/Features/Favorites/FavoritesView.swift`：顶部、类型筛选、按天分组的卡片行、左滑与长按、选择模式与操作栏、批量确认框、空状态与恢复态。
 - `BrowseCraft/Features/Favorites/FavoritesViewModel.swift`：筛选计数、按天分组、来源状态、封面请求配置缓存、取消收藏、选择与批量取消收藏。
 - `BrowseCraft/Features/Shared/ContentSelectionComponents.swift`：收藏页与历史页共用的勾选框、标题行按钮与选择操作栏。
-- `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift`：`CatalogSegmentedPicker` 与反色提示条上的动作色。
+- `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift`：`CatalogSegmentedPicker`。
 - `BrowseCraft/Features/Sources/Catalog/CatalogPersonalTimeline.swift`：按天归组与 `CatalogDayTitle`，目录页与收藏页共用。
 - `BrowseCraft/App/RootView.swift`：收藏页请求「去库里逛逛」「在库中查看来源」「启用来源」时切标签；收藏页改动后让库页刷新爱心状态。
 

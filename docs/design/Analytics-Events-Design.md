@@ -19,7 +19,8 @@ Crashlytics 的写入点只有 `CrashDiagnostics`，规则执行失败的上报�
 - `BCA-OBS-002` 参数取值只有三种：枚举（字符串原始值的 Swift 枚举，snake_case）、分桶（数量、时长、空间）、哈希（SHA-256）。
   不得上报网址、路径、查询串、作品标题、章节名、搜索词、来源名、Apple 或 Portal 账号标识、邮箱、coin 余额数值、订单号与交易 ID。
   参数键只能取第 4 节的表，`AppAnalytics.Parameter.allowed` 之外的键在上报前丢弃。
-- `BCA-OBS-003` 只有 `Features`、`App` 与 `Shared` 调用 `AppAnalytics`；`Domain`、`Application`、`Infrastructure` 不得引用它。
+- `BCA-OBS-003` 只有 `Features`、App 层（`App/` 目录，含目标根的 `BrowseCraftApp.swift`）与 `Shared` 调用 `AppAnalytics`；
+  `Domain`、`Application`、`Infrastructure` 不得引用它。
   需要 Application 层的结果时由它返回值、上层上报，Application 因此不会间接依赖 Firebase。闸门 A13 执行。
 - `BCA-OBS-004` 页面曝光只经 `.analyticsScreen(_:)` 修饰符（异步后才知道是哪一页时用 `.analyticsScreen(resolving:)`）发出，
   由修饰符背后的 `AnalyticsScreenReporter` 可见页栈统一上报，同时设置 Crashlytics 的当前页面（第 2 节）；
@@ -65,8 +66,10 @@ Crashlytics 的写入点只有 `CrashDiagnostics`，规则执行失败的上报�
 
 ## 3. 事件
 
-每个事件自动附带 `app_version` 与 `build_number`，下表不再重复。括号里的类型名是 `BrowseCraft/Shared/Diagnostics/AnalyticsValues.swift`
-里对应的取值枚举。
+每个事件自动附带 `app_version` 与 `build_number`，下表不再重复。括号里的类型名是对应的取值枚举：集中在
+`BrowseCraft/Shared/Diagnostics/AnalyticsValues.swift`；问题报告的四个（`ProblemReportScope`、`ProblemReportProblemType`、
+`ProblemReportEntry`、`ProblemReportFailureCode`）在同目录的 `ProblemReportValues.swift`；广告触发（`RewardedAdPlaybackTrigger`，
+`BrowseCraft/Shared/Ads/AdPlaybackHandler.swift`）与预检状态（`VideoGenerationInputPreflightStatus`，BrowseCraftDomain 包）取自其所属类型。
 
 ### A. 应用与会话
 
@@ -77,7 +80,7 @@ Crashlytics 的写入点只有 `CrashDiagnostics`，规则执行失败的上报�
 | `app_bootstrap_failed` | 启动装配失败、进入启动失败页时报。 | error_code（装配失败在哪一步）。不报：诊断码与错误文案。 |
 | `startup_finished` | 开屏动画结束、退到标签页时报，记录为什么结束。 | result（StartupOutcome）、entry（落到哪个标签页）。 |
 | `screen_view` | 任一页面显示时报，含从下级页返回、盖在上面的 sheet / 全屏页关闭后重新露出；由 `.analyticsScreen(_:)` 统一发出。 | screen_name、screen_class（都取 DiagnosticScreen 的原始值）。 |
-| `push_opened` | 用户点开推送时报，规则生成结果推送与活动推送都算；推送在前台到达不报。 | entry（PushOpenEntry：rule_generation 生成结果、campaign 活动推送，后者 2026-10-18 起，[Campaign-And-Rate-Notices-Design.md](Campaign-And-Rate-Notices-Design.md) 第六节）。不报：推送内容、任务 ID 与活动标识。 |
+| `push_opened` | 用户点开推送时报，规则生成结果推送与活动推送都算；推送在前台到达不报。 | entry（PushOpenEntry：rule_generation 生成结果、campaign 活动推送，[Campaign-And-Rate-Notices-Design.md](Campaign-And-Rate-Notices-Design.md) 第六节）。不报：推送内容、任务 ID 与活动标识。 |
 | `support_info_copied` | 用户复制诊断码、账号 ID、启动失败信息或导出诊断日志时报，用来估计求助量。 | entry（SupportInfoKind）。不报：复制或导出的内容本身。 |
 | `problem_report_submitted` | 页内问题报告点「发送」后的结局报一次（[Problem-Report-Design.md](Problem-Report-Design.md) 第十节）；关掉面板没发送不报。 | report_scope（ProblemReportScope）、problem_type（ProblemReportProblemType）、entry（ProblemReportEntry）、result、error_code（ProblemReportFailureCode，仅失败）。不报：补充说明、报告编号、网址与标题。 |
 
@@ -86,7 +89,7 @@ Crashlytics 的写入点只有 `CrashDiagnostics`，规则执行失败的上报�
 | 事件 | 何时触发 | 参数与不报 |
 | --- | --- | --- |
 | `source_selected` | 当前来源切换成功时报，不论从哪里发起。 | content_kind、source_id_hash、entry（SourceSelectionEntry）。不报：来源名与网址。 |
-| `source_added` | 从规则目录添加来源的结局：服务端返回、解密入库后报 success，任一步失败报 failed。2026-10-19 起网址输入页取用现成规则后点「添加为来源」也报（[Generation-Input-Page-Redesign-Design.md](Generation-Input-Page-Redesign-Design.md) 第三节）。 | content_kind、source_id_hash、entry（SourceAddEntry；`generation_reuse` 为网址输入页取用后添加）、result、error_code（仅失败）。不报：来源名与网址。 |
+| `source_added` | 从规则目录添加来源的结局：服务端返回、解密入库后报 success，任一步失败报 failed。 | content_kind、source_id_hash、entry（SourceAddEntry；`generation_reuse` 为网址输入页取用后添加）、result、error_code（仅失败）。不报：来源名与网址。 |
 | `source_deleted` | 删除来源的撤销窗口结束、真正提交删除时报；被撤销的不报。 | content_kind、source_id_hash、entry（SourceDeleteEntry）。 |
 | `source_deletion_undone` | 用户点底部「撤销」恢复刚删的来源时报。 | content_kind、result。 |
 | `source_activated` | 启用已暂停来源的结局；从收藏、历史点到暂停来源弹出的启用窗口也算。 | content_kind、entry（SourceActivationEntry）、result（SourceActivationResult）。 |
@@ -164,7 +167,7 @@ Crashlytics 的写入点只有 `CrashDiagnostics`，规则执行失败的上报�
 
 | 事件 | 何时触发 | 参数与不报 |
 | --- | --- | --- |
-| `setting_changed` | 用户亲手改一项设置且生效时报；使用统计开关只报「打开」（关闭后什么都不报）。 | setting_name（AnalyticsSettingName：content_lock、crash_diagnostics、usage_statistics、image_cache_limit、cloud_sync，以及 2026-10-18 起的 campaign_push「活动推送」，[Campaign-And-Rate-Notices-Design.md](Campaign-And-Rate-Notices-Design.md) 第四节）、setting_value。 |
+| `setting_changed` | 用户亲手改一项设置且生效时报；使用统计开关只报「打开」（关闭后什么都不报）。 | setting_name（AnalyticsSettingName：content_lock、crash_diagnostics、usage_statistics、image_cache_limit、cloud_sync，以及 campaign_push「活动推送」，[Campaign-And-Rate-Notices-Design.md](Campaign-And-Rate-Notices-Design.md) 第四节）、setting_value。 |
 | `settings_link_opened` | 设置页点「评分」或「隐私权政策」时报。 | entry（SettingsLink）。 |
 | `cache_cleared` | 清除图片缓存完成时报。 | size_bucket（释放的空间）。 |
 | `cloud_sync_first_enable_result` | 首次启用云同步弹窗的选择与结局。 | entry（CloudSyncFirstEnableChoice）、result。 |

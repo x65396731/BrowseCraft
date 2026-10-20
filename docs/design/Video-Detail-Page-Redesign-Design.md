@@ -78,7 +78,7 @@
 | 元数据行 | `caption` 次浅字 #D9C6B2，「2024 · 日本 · 动画 · 日语」：按 metadata 的 key 取 year / releaseDate / region / genre / language，有几个写几个，一个都没有就不出这行；最多两行 | 不写 label，只写 value |
 | 状态徽章 | `latestText` 做成胶囊，与库页集数徽章同一个；没有 `latestText` 而 metadata 有 status 时用 status | 底 #F2A65A 字 #141210，高 20 |
 | 来源行 | `caption` #D9C6B2「来源名 · 主机名」 | 主机名取法与库页眉行相同 |
-| 返回 | 左上 40pt 圆，白 18% 底 | 热区 44 |
+| 返回 | 左上 40pt 圆，`onDarkFill` 底（白 16%） | 热区 44 |
 | 收藏 | 右上 40pt 圆，心形与库页封面爱心同一对图，已收藏实心 #F2A65A；点了即收藏 / 取消，库页爱心跟着变 | 走 `ToggleFavoriteUseCase`，与库页同一条 |
 
 头图区里的文字都是固定浅色（与类型横幅、深色瓷砖同一组取值），不随系统变。
@@ -133,7 +133,7 @@
 | 本作品的历史 | App：`LoadVideoWatchHistoryUseCase` 加按来源 + `detailURL` 取最近一条，经 `ReadingActivityPersistenceCoordinator` 给详情页 | 继续看按钮与高亮；现有表，不加列 |
 | 收藏 | App：`VideoDetailViewModel` 注入 `ToggleFavoriteUseCase` | 右上爱心；与库页同一条 |
 
-**向 fwq 提的**（定义点在 fwq，这里只写引用点）：`metadata[].id` 固定成 catalog 合同（受控词表、不得省略），多条线路各一集、规则没分组的站要生成 group / `titleStrip`。fwq 做完后由用户重生成樱花验收；App 侧的 `key` 透传不等 fwq。
+**向 fwq 提的**（定义点在 fwq，这里只写引用点）：`metadata[].id` 固定成 catalog 合同（受控词表、不得省略），多条线路各一集、规则没分组的站要生成 group / `titleStrip`。App 侧的 `key` 透传不等 fwq。
 
 **候选、本轮不做**：「看过的全部集」要新表（每集一行），还要进云同步的范围判断，单独立项。
 
@@ -150,28 +150,24 @@
 | 尺寸 | 头图区高安全区 + 236；海报 108×162 圆角 14；圆按钮 40（热区 44）；继续看 50 胶囊；芯片高 36；格子高 44、最小宽 60、圆角 12、间距 10；页边距 20 |
 | 字号 | 标题 `title2` heavy；元数据、来源 `caption`；分区标题 `footnote` bold；格子 `subheadline` semibold；简介 `subheadline` |
 
-## 十一、裁定
-
-2026-10-08 用户裁定八项全取 A：模糊海报深色头图区 + 左侧小海报；集号网格；加继续看主按钮；解析时格内转圈、不盖遮罩；Core 加 `key` 透传；向 fwq 提两条需求；看过的全部集本轮不做；右上收藏按钮。
-
-## 十二、不改的东西
+## 十一、不改的东西
 
 - 选集的去重与切线路（`filteredEpisodeChapters`、`labelingRepeatedRoutes`）、`openEpisode` 的解析与播放器、历史的写入、规则与 Core 的解析语义（只加一个透传的 `key`）、三个入口。
 - App 不提供规则创建或编辑入口（`BCA-UI-003`）；metadata 有什么由规则决定。
 
-## 十三、实现位置
+## 十二、实现位置
 
-- 三个详情页共用（2026-10-11 跨页复制收敛）：`Features/Library/Components/ChapterSegmentation.swift`（`ChapterSegment`、分段算法与选中 / 滚动锚点状态机 `ChapterSegmentSelection`，点芯片滚完后延迟 600 ms 再放开行的回写）、`DetailFavoriteToggling.swift`（右上收藏的读与切换）、`DetailSynopsisSection.swift`（简介块、骨架条、相关链接）、`Features/Library/Components/DetailPageComponents.swift`（继续卡片 `DetailContinueCard`、开始按钮 `DetailStartButton`、固定返回 / 收藏 `DetailTopButtons`、贴顶章节分区头 `DetailChapterHeader`、分区头上方底色补铺 `detailPinnedHeaderBackground`；第三组，2026-10-11 用户裁定统一取值）、`Features/Shared/TrimmedText.swift`（`nonEmpty`）。
+- 与漫画 / 书详情共用：`Features/Library/Components/DetailFavoriteToggling.swift`（右上收藏的读与切换）、`DetailSynopsisSection.swift`（简介块、骨架条、相关链接）、`Features/Shared/TrimmedText.swift`（`nonEmpty`）。本页不用 `ChapterSegmentation` 与 `DetailPageComponents`（继续卡片、开始按钮、固定返回 / 收藏、贴顶章节分区头）——那组只给漫画与书详情；本页的返回 / 收藏在固定深色头图区上自画。
 - `BrowseCraft/Features/Library/Video/Detail/VideoDetailView.swift`：整页重画——头图区、继续看、简介折叠、线路芯片、集号网格、骨架与空 / 失败态、解析失败横幅。
 - `BrowseCraft/Features/Library/Video/Detail/VideoDetailViewModel.swift`：按线路分组、当前线路、排序、集名数字解析、本作品历史与继续看目标、收藏切换、metadata 按 key 摆位。
 - `BrowseCraft/App/Composition/LibraryFeatureFactory.swift`：给详情 ViewModel 注入收藏用例。
 - `BrowseCraft/Application/UseCases/History/ReadingHistoryUseCases.swift` 与 `ReadingActivityPersistenceCoordinator.swift`：按来源 + `detailURL` 取最近一条视频历史。
 - BrowseCraftCore：`SourceDetailAttribute` 加 `key`，`DefaultVideoDetailRuleParser` 两处构造处传 `id`，测试补断言；BrowseCraftRuntime：`VideoSourceDetailLoader` 转换时带上 `key`。
 - `BrowseCraft/Features/Library/Components/LibraryListTabBar.swift`：芯片抽成可复用的 `LibraryChipBar`，库页分类条与本页线路芯片共用。
-- 三份 `Localizable.strings`：继续看四种文案、「选集」「简介」「展开」「收起」「正序 / 倒序」「N 集」「没有剧集」、解析失败横幅；删去「Description / Last / Loading Playback」。
+- 三份 `Localizable.strings`：继续看八条文案（`video_detail_continue` / `_continue_single` / `_next_episode` / `_rewatch` / `_rewatch_single` / `_start_from_first` / `_start_with` / `_play`）、「选集」「简介」「展开」「收起」「正序 / 倒序」「N 集」「没有剧集」、解析失败横幅；删去「Description / Last / Loading Playback」。
 
-## 十四、真机验收清单
+## 十三、真机验收清单
 
-- 模拟器没走到（需要多线路、多集的来源）：数字集号网格、线路芯片、正序 / 倒序、「下一集」/「再看一遍」、受限 / 付费角标、解析失败横幅、没有选集与取失败态。
+- 需要多线路、多集的来源：数字集号网格、线路芯片、正序 / 倒序、「下一集」/「再看一遍」、受限 / 付费角标、解析失败横幅、没有选集与取失败态。
 - 顺带看两条 fwq 项：片源 403 的作品应提示换片源而不是整页兜底（`BC-EVIDENCE-082`）；选集无线路名的站应按重复集号分「线路 1 / 2」。
 - 深色模式整页看一遍。

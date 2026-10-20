@@ -23,7 +23,7 @@
 ## 二、规则与本机实际给什么数据
 
 详情这条链有三层：Core `DefaultBookRuleParser.parseDetail` 只读五个键（`title` 必有，`cover / author / description / language` 可选）；Runtime 只填这五项；
-App 的 `BookPublicationAssembler` 再把 `description` 丢掉。三十四份真实规则的 detail `fields` 只有 `title`，笔趣阁、嗶哩輕小說、Royal Road、Loyal Books 多一个 `cover`，没有一份声明作者或简介。
+App 的 `BookPublicationAssembler` 透传 `description`（`BookPublicationManifest.description`）。三十四份真实规则的 detail `fields` 只有 `title`，笔趣阁、嗶哩輕小說、Royal Road、Loyal Books 多一个 `cover`，没有一份声明作者或简介。
 
 | 元素 | 来源 | 现状 | 页面怎么用 |
 | --- | --- | --- | --- |
@@ -41,7 +41,7 @@ App 的 `BookPublicationAssembler` 再把 `description` 丢掉。三十四份真
 **章节标题的形状**：小说站几乎全是「编号 + 章名」，纯编号目录几乎没有（小說狂人 683 条解出 679、novels 1531 全解出、Royal Road 106/109）；解不出的是公告、Epilogue、「作品相關」。
 `ComicChapterTitleParser` 原来一条中文数字都解不出（笔趣阁「第八百六十二章」整本失败），本轮扩展它认中文数字。
 
-**是不是有声书**：`manifest.isAudiobook` = 章节里有 `.audio` 项，按章节地址扩展名判，要等章节装配完才知道；库页那轮的「整站有声」（reader 规则全 audio）进页就能算，加载中的措辞先用它。
+**是不是有声书**：`manifest.isAudiobook` = 章节里有 `.audio` 项——按章节地址扩展名判，或规则全为有声且 `media` 为 DOM 取址时整本按播放页型有声章节装（fwq `APP-MEMO-035`）——要等章节装配完才知道；库页那轮的「整站有声」（reader 规则全 audio）进页就能算，加载中的措辞先用它。
 站点有声书没有时长，Readium 算不出全书 `totalProgression`，只有章内进度和 Locator 里的 `t=秒`。
 
 **进度与历史**：`BookReadingProgress.locatorJSON` 是 Readium Locator，文字书 `totalProgression` = 章序 / 章数。原先详情页用 Locator 的 `href`（`chapters/000N.xhtml`，按下标编）反查续读章，
@@ -83,12 +83,12 @@ App 的 `BookPublicationAssembler` 再把 `description` 丢掉。三十四份真
 | 作者 | manifest `author`，`subheadline` 次级色 | 有才出 |
 | 来源 · 分类 | `source.name` + 当前分类名，`caption` 次级色 | 一直 |
 | 章数 | 「1,297 章」`caption` 次级色；有声书「耳机 有声书 · 17 章」类型色 | 章节取回来后；取回前骨架条 |
-| 右上 · 收藏 | `TabFavorites` / `TabFavoritesOutline` 18pt 在 40pt 卡片色圆里，已收藏实心类型色 | 点了即收藏 / 取消 |
+| 右上 · 收藏 | `TabFavorites` / `TabFavoritesOutline` 20pt 在 40pt 卡片色圆里，已收藏实心类型色 | 点了即收藏 / 取消 |
 
-**继续卡片**（有续读位置时；共享 `DetailContinueCard`，2026-10-11 与漫画详情统一取值）：卡片底、圆角 16、高 88，左缘 4pt 类型色竖条；小封面 56×72 圆角 8 带书脊线（有声书上压耳机小圆）；三行：「继续阅读」/「继续收听」`caption` semibold 类型色 → 章名 `headline` 一行 →
+**继续卡片**（有续读位置时；共享 `DetailContinueCard`，与漫画详情同一取值）：卡片底、圆角 16、高 88，左缘 4pt 类型色竖条；小封面 56×72 圆角 8 带书脊线（有声书上压耳机小圆）；三行：「继续阅读」/「继续收听」`caption` semibold 类型色 → 章名 `headline` 一行 →
 文字书「全书 12% · 昨天 21:40」/ 有声书「12:34 · 昨天 21:40」`caption` 次级色；底边 3pt 进度条写 `totalProgression`（有声书没有就不画）；行尾 36pt 类型色圆底图标。点 = 不带章节开阅读器。
 
-- 章名与时刻从读书历史来（`chapterTitle`、`visitedAt`），历史没有时退回 Locator `href` 对法。时刻写法与库页「上次读到」瓷砖、漫画详情同一套 `LibraryHistoryTimeText`：今天 / 昨天带时刻，更早只写日期（2026-10-10 复审第七批统一）。
+- 章名与时刻从读书历史来（`chapterTitle`、`visitedAt`），历史没有时退回 Locator `href` 对法。时刻写法与库页「上次读到」瓷砖、漫画详情同一套 `LibraryHistoryTimeText`：今天 / 昨天带时刻，更早只写日期。
 - 「全书 12%」就是 `totalProgression`，小于 1% 写「刚开始」。
 - 有声书的「12:34」解 `locatorJSON` 里 `locations.fragments` 的 `t=秒`。
 
@@ -170,18 +170,18 @@ App 的 `BookPublicationAssembler` 再把 `description` 丢掉。三十四份真
 
 ## 十二、实现位置
 
-- 三个详情页共用（2026-10-11 跨页复制收敛）：`Features/Library/Components/ChapterSegmentation.swift`（`ChapterSegment`、分段算法与选中 / 滚动锚点状态机 `ChapterSegmentSelection`，点芯片滚完后延迟 600 ms 再放开行的回写）、`DetailFavoriteToggling.swift`（右上收藏的读与切换）、`DetailSynopsisSection.swift`（简介块、骨架条、相关链接）、`Features/Library/Components/DetailPageComponents.swift`（继续卡片 `DetailContinueCard`、开始按钮 `DetailStartButton`、固定返回 / 收藏 `DetailTopButtons`、贴顶章节分区头 `DetailChapterHeader`、分区头上方底色补铺 `detailPinnedHeaderBackground`；第三组，2026-10-11 用户裁定统一取值）、`Features/Shared/TrimmedText.swift`（`nonEmpty`）。
+- 三个详情页共用：`Features/Library/Components/ChapterSegmentation.swift`（`ChapterSegment`、分段算法与选中 / 滚动锚点状态机 `ChapterSegmentSelection`，点芯片滚完后延迟 600 ms 再放开行的回写）、`DetailFavoriteToggling.swift`（右上收藏的读与切换）、`DetailSynopsisSection.swift`（简介块、骨架条、相关链接）、`Features/Library/Components/DetailPageComponents.swift`（继续卡片 `DetailContinueCard`、开始按钮 `DetailStartButton`、固定返回 / 收藏 `DetailTopButtons`、贴顶章节分区头 `DetailChapterHeader`、分区头上方底色补铺 `detailPinnedHeaderBackground`；第三组，2026-10-11 用户裁定统一取值）、`Features/Shared/TrimmedText.swift`（`nonEmpty`）。
 - `BrowseCraft/Features/Library/Book/Site/BookSiteDetailView.swift`：系统 `List` 换成 `ScrollView` + `LazyVStack(pinnedViews:)`，固定按钮、头部、继续卡片 / 开始按钮、简介、贴顶分区头与分段芯片、目录、骨架；横幅调 `Features/Library/Components/LibraryStateBanner.swift`、继续卡片的时刻调 `LibraryHistoryTimeText.swift`（与漫画详情、搜索页、库页共用）；
   小块拆到 `BookSiteDetailSections.swift`。
 - `BrowseCraft/Features/Library/Book/Site/BookSiteDetailViewModel.swift`：读书历史、收藏、整站有声、登录态、目录派生状态（解析、显示顺序、分段、上次读到下标）、继续卡片文案、Locator 解析。
 - `BrowseCraft/App/Composition/BookFeatureFactory.swift`：注入收藏用例、读书历史仓储、凭据存储。
 - `BrowseCraft/Application/UseCases/Book/BookPublicationManifest.swift` 与 `BookPublicationAssembler.swift`：透传 `description`。
 - `BrowseCraft/Features/Library/Comic/Detail/ComicDetailViewModel.swift`：`ComicChapterTitleParser` 加中文数字；单测补笔趣阁样例。
-- 三份 `Localizable.strings`：「继续收听」「从第 1 章开始读 / 听」「全书 %@」「刚开始」「有声书 · %ld 章」「这本书还没有章节」「重试」；原英文字面换成键。
+- 三份 `Localizable.strings`：「继续收听」「从第 1 章开始读 / 听」「全书 %@」「刚开始」「有声书 · %@ 章」「这本书还没有章节」「重试」；原英文字面换成键。
 - 资产：不新增。
 
-## 十三、真机验收清单与待接线
+## 十三、真机验收清单
 
-- 模拟器没走到：有声书（线上没有有声来源）、失败与登录横幅、没有章节、简介（规则都不给）。
-- **待接线**：章节 `order` 到 Runtime 为止——Core 会读，`BookSourceRuntime.loadDetail` 构造 `SourceChapter` 时不带、也不按它排；2026-10-10 用户裁定需求二并入 fwq「书类章节按列写、按行读」一行**记账**（需求五的倒序最新章块已由 fwq `BC-EPISODE-018` 修掉，剩下只有一套多列目录模板），两端都不做；同形站多了再立项时两端一起排期（引擎按地址编号交付 `order`，App 照漫画做法排序）。
+- 待走：有声书（开始 / 继续收听、章节进播放器）、失败与登录横幅、没有章节、简介（规则给时）。
+- 章节 `order` 不接：Core 会读，`BookSourceRuntime.loadDetail` 构造 `SourceChapter` 时不带、也不按它排。
 - 深色模式整页看一遍。

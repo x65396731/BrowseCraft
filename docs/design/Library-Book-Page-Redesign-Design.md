@@ -36,12 +36,12 @@
 | 编号 | `idCode` | 两份声明了，解析器不读 | 不显示 |
 | 作者 | 列表规则不给；详情合同允许 `author`，七份没有一份声明 | 没有 | 不显示，本轮不留位 |
 
-**有声书在列表层没有任何标记。** App 是进了详情、按章节地址扩展名判断出 `isAudiobook` 的。来源级有现成的事实：
+**有声书在列表层没有任何标记。** App 是进了详情、按章节地址扩展名（或整站有声且 reader 带 DOM 取址，fwq `APP-MEMO-035`）判断出 `isAudiobook` 的。来源级有现成的事实：
 `BookSourceConfiguration.rule.ruleSets.readerRules[].contentType`——Loyal Books 全是 `audio`，其余六份全是 `text`。
 规则合同允许一个来源同时有 text 与 audio 两种 reader 规则，那种站列表层判不出。所以列表页能知道的是三档：整站有声 / 整站文字 / 混合（不标）。
 
 **本机阅读历史**（`BookReadingHistory`，一本书一条）：书名、封面、`chapterTitle`、`chapterURL`、`visitedAt`、`bookItemID`（= 详情地址）。
-只记到章节一级，没有页数、百分比、播放时间；全书进度在 `book_reading_progress.totalProgression`（0…1，文字书与有声书都写），按 `bookID`
+只记到章节一级，没有页数、百分比、播放时间；全书进度在 `book_reading_progress.totalProgression`（0…1；有声书通常为空——站点有声书没有时长，Readium 算不出全书进度），按 `bookID`
 （`SiteBookIdentity` 由来源 ID 与详情地址生成）取。
 
 **收藏**：`favoriteItemIDs` 对书生效。**其他外壳数据**与视频库同一取法：分类芯片看列表页个数（嗶哩輕小說 5、Royal Road 7）；搜索按钮看有无搜索页
@@ -56,7 +56,7 @@
   不带章节、按续读位置接着），与历史页点行同一条路；文字书进 EPUB 阅读器、有声书进播放器，分流在阅读器里按 manifest 做；左上搜索弹出来源内搜索页（结果复用本页的行）；账号按钮打开来源登录页。
 - **相邻**：左邻收藏页、右邻历史页，历史页的书行就是「小封面 + 书名 + 读到哪」，本页的书脊行和它同一种形状。本页的绿色只用在眉行图标、最新章、读到哪、已收藏爱心、瓷砖和选中芯片上。
 - **范围**：只改当前来源是读书 kind 时的正文——书脊列表、行、「上次读到」瓷砖、骨架与空态插画，外加读书历史与进度的只读查询、来源级「整站有声」派生值。
-- **不在范围**：站点书详情页（另立项，仍是系统 `List`）、阅读器与播放器样式、本地书导入、搜索页外壳、列表数据与分页、底栏（系统 `TabView`，五页共用）。
+- **不在范围**：站点书详情页（见 [站点书详情页](Book-Detail-Page-Redesign-Design.md)）、阅读器与播放器样式、本地书导入、搜索页外壳、列表数据与分页、底栏（系统 `TabView`，五页共用）。
 
 ## 四、页面结构
 
@@ -142,7 +142,7 @@
 | 账号按钮 | 来源有 `loginURL` | 不出 |
 | 分页脚 | 规则支持分页 | 不出 |
 
-`latestText` 照原文显示：各站抓到的原文形式不一，有的自带「最新: 」「更新至」之类前缀。**原文已以「最新」开头时 App 不再加「最新 · 」前缀**（2026-10-11 小說狂人真机显示成「最新 · 最新: 第1200章」→ 用户裁定由 App 侧处理：前缀是 App 自己的标签；fwq `BC-LIST-128` 规定规则照站点原文交付、App 只截断不改内容，引擎不剥字样）。「更新至」等其它说法照旧叠前缀，量到再议。
+`latestText` 照原文显示：各站抓到的原文形式不一，有的自带「最新: 」「更新至」之类前缀。**原文已以「最新」开头时 App 不再加「最新 · 」前缀**（前缀是 App 自己的标签；fwq `BC-LIST-128` 规定规则照站点原文交付、App 只截断不改内容，引擎不剥字样）。「更新至」等其它说法照旧叠前缀，量到再议。
 
 ## 九、要追加的字段与查询
 
@@ -150,7 +150,7 @@
 
 | 项 | 在哪 | 为什么 |
 | --- | --- | --- |
-| 按来源取全部读书历史 | `LibraryPersistenceCoordinator` 加可选的 `BookReadingHistoryRepository`（现有 `fetchHistory(userID:)` 按 `sourceID` 筛，`visitedAt` 倒序）；`LibraryViewModel` 存「最近一条」与按 `bookItemID` 的字典，与视频 / 漫画瓷砖同一组刷新时机 | 瓷砖与行的「读到哪」；一次读全部，不按行逐条查 |
+| 按来源取全部读书历史 | `LibraryPersistenceCoordinator` 加可选的 `BookReadingHistoryRepository`（`fetchHistory(userID:sourceID:)` 按来源取，`visitedAt` 倒序）；`LibraryViewModel` 存「最近一条」与按 `bookItemID` 的字典，与视频 / 漫画瓷砖同一组刷新时机 | 瓷砖与行的「读到哪」；一次读全部，不按行逐条查 |
 | 瓷砖那一本的全书进度 | 同一个协调器加可选的 `BookReadingProgressRepository`，按 `SiteBookIdentity` 取一条的 `totalProgression` | 瓷砖进度条；只读一本 |
 | 整站是否有声 | `ResolveLibrarySourcePresentationUseCase` 按 `rule.ruleSets.readerRules` 算：全 `audio` → 有声；否则按文字措辞 | 眉行、封面耳机、「听到 / 上次听到 / 继续听」措辞 |
 | 阅读器入口 | `LibraryView` 加一条「用历史开 `BookReaderView`」的导航（`SiteBookChapterSelection(history:source:)`，历史页已在用） | 瓷砖与长按「继续读」 |
@@ -197,10 +197,10 @@
 - `BrowseCraft/Application/UseCases/Library/ResolveLibrarySourcePresentationUseCase.swift`：整站是否有声。
 - `BrowseCraft/Features/Library/Components/LibrarySkeletonGridView.swift`：加 `.bookList` 形态。
 - `BrowseCraft/Features/History/Components/HistoryEntryRowView.swift`：`HistoryContinueTileView` 加可选的标题文案，「上次听到」由调用方传。
-- 三份 `Localizable.strings`：「最新 · %@」「读到 · %@」「听到 · %@」「上次听到」「继续听 · %@」「有声书」；其余沿用。
+- 三份 `Localizable.strings`：「最新 · %@」（`library_book_latest`）「读到 · %@」（`library_book_read_to`）「听到 · %@」（`library_book_listened_to`）「上次听到」（`history_continue_listened`）「继续听 · %@」（`library_card_continue_listening`）「有声书」（`library_kind_audiobook`）；其余沿用。
 - 资产：`EmptyStateLibraryBook`（已入库并登记预算）。
 
 ## 十四、真机验收清单
 
-- 模拟器没走到：骨架（切分类太快抓不到）、空状态插画、整站有声（线上没有有声来源，只有 Loyal Books 测试夹具）、失败态。
+- 待走：骨架、空状态插画、整站有声（眉行、耳机、「听到 / 上次听到 / 继续听」措辞）、失败态。
 - 深色模式整页看一遍。

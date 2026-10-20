@@ -11,7 +11,7 @@
 1. `BCA-RUNTIME-002` book 是 App 里的第四种 `SourceRuntimeKind`（comic / video / plugin 之后），按现有 comic 的分流模式扩展，不在通用执行器里加 kind 特判。
 2. 规则合同以规则仓库 `docs/rules/book-catalog-profile.md`（`BC-BOOK-001` ~ `BC-BOOK-012`）为准：外层 `id / name / baseURL / kind="book" / ruleJSON`，内层**只有原生 V2**（`version=2`、`site`、`sharedRequest`、`pages[]`、`ruleSets{listRules, detailRules, readerRules, searchRules?}`），没有 V1 兼容层，Core 不得为它虚构 `list / detail / gallery` 顶层字段。
 3. 终端层与漫画不同：reader 规则每条恰好一个 `variant`（`text-dom | text-api | audio-media`）与 `contentType`（`text | audio`）。App 把一部作品装成一份 RWPM（`BC-BOOK-012`）喂 Readium：文字走 EPUB Navigator（`readingOrder[].type = text/html`，正文由 App 按 reader 规则取容器内段落装成 XHTML），有声走 Audio Navigator（远程 mp3 href）。CBZ 分支不接。
-4. `BCA-RUNTIME-004` **目录解码必须宽容**：`BrowseCraftCatalogSourceKind`（`Catalog/BrowseCraftCatalogAPI.swift`）与 BrowseCraftDomain 包的 `CatalogSourceKind` 都是封闭枚举，因此公共目录列表**不得整表解码**——遇到本版本不认得的 kind 必须逐条跳过并记下被跳过的 id 与 kind，不得让整个目录请求失败；单条规则解不开（没带密文、密钥不认得、解密或解码失败）同样逐条跳过并记下 id、kind 与错误码，只有整表一条都解不开时才整表失败（多半是密钥问题，要让用户看到错误而不是一张空目录；2026-10-10 裁定）；两类跳过都记 notice 级，Release 的日志也留得下。请求同时显式声明本版本认得的 kind 集合。本条的由来是旧版 App 确实整表解码，目录里只要出现一条 `kind: book` 就会让整个列表解码失败，book catalog 因此一度被禁止发布到 `/catalog/sources`；宽容解码上线后该禁令解除，服务器另以 `kinds` 缺省不回 book 作保险丝（第五节）。
+4. `BCA-RUNTIME-004` **目录解码必须宽容**：`BrowseCraftCatalogSourceKind`（`Catalog/BrowseCraftCatalogAPI.swift`）与 BrowseCraftDomain 包的 `CatalogSourceKind` 都是封闭枚举，因此公共目录列表**不得整表解码**——遇到本版本不认得的 kind 必须逐条跳过并记下被跳过的 id 与 kind，不得让整个目录请求失败；单条规则解不开（没带密文、密钥不认得、解密或解码失败）同样逐条跳过并记下 id、kind 与错误码，只有整表一条都解不开时才整表失败（多半是密钥问题，要让用户看到错误而不是一张空目录；2026-10-10 裁定）；两类跳过都记 notice 级，Release 的日志也留得下。请求同时显式声明本版本认得的 kind 集合；服务器以 `kinds` 缺省不回 book 作保险丝（第五节）。
 
 ## 二、已核对的现状
 
@@ -29,7 +29,7 @@
 - App：`RuleGenerationSourceKind.book`、`APIKitVideoGenerationTaskClient` 映射、`CatalogSourceMaterializer` 的 book 分支（把 catalog 装成 `SourceConfiguration.book`）；其余 `case .comic` 分流点按编译器报缺补齐，UI 文案先用最小占位。
 
 **批次 B：Runtime 与 RWPM 装配（首次整包 build 在此批之前）**
-- Runtime：`Book/` 包——`BookSourceRuntimeFactory`（`guard case .book`）、list / detail / search loader 复用 comic 的 DOM 取值原语（`ExtractRule` 投影与 comic 同源）；reader 路径（在 `BookSourceRuntime` 内）按 `variant` 分派：`text-dom` 取容器 + `segmentation`（`elements` 取段落元素、`lineBreaks` 取 `<br>` 间文本节点），`text-api` 取 `textPath` 或 `itemPath`，`audio-media` 取 `media.item` 作用域内的 `media.url`（或 `mediaAPI`）；章内 `content.next` 拼成一份资源。
+- Runtime：`Book/` 包——`BookSourceRuntimeFactory`（`guard case .book`）、list / detail / search loader 复用 comic 的 DOM 取值原语（`ExtractRule` 投影与 comic 同源）；reader 路径（在 `BookSourceRuntime` 内）按 `variant` 分派：`text-dom` 取容器 + `segmentation`（`elements` 取段落元素、`lineBreaks` 取 `<br>` 间文本节点），`audio-media` 取 `media.item` 作用域内的 `media.url`；`text-api` 与 `mediaAPI` 明确抛不支持（无语料）；章内 `content.next` 拼成一份资源。两条本层只引用：播放页型有声章节——规则全为有声且 `media` 为 DOM 取址时章节地址可为播放页，App 装成音频章节、播放时取页解析音频地址（fwq `APP-MEMO-035`）；单篇作品补一章——作品页没有章节链接、全文写在作品页本身时 Runtime 补一章指向作品页（fwq `BC-BOOK-066`）。
 - Application：`BookPublicationAssembler`——detail → `metadata`，章节 → `readingOrder[]`（`title / order / href`），`text` 资源装成 XHTML、`audio` 资源按 `media.format` 映射 `type`；输出给 Readium `Publication`。文字资源由 `ReadiumSitePublicationBuilder` 装成 `Publication` 直接喂 EPUB Navigator（不带 `httpServer`，App 不链接 `ReadiumAdapterGCDWebServer`）。
 
 **批次 C：Features**
@@ -75,7 +75,7 @@ scripts/regenerate-project.sh && xcodebuild -project BrowseCraft.xcodeproj -sche
 
 ## 十三、章内分页的停止判据
 
-- **修法**：加第三条停止条件 `isInChapterPage(candidate, chapterURL:)`——候选地址必须是本章地址的**兄弟页**：同主机、同目录、同扩展名，末段 = 本章词干 + 非字母数字分隔符 + 页码（≥ 2）；本章地址自己已带页码时词干去掉「分隔符 + 页码」后算。与引擎 `_FUSED_PAGE_SEGMENT`（`BC-LIST-093`）同一形状。只看 URL 形状，不看链接文字。
+- **判据（引用点）**：停止条件 `isInChapterPage(candidate, chapterURL:)` 只看 URL 形状、不看链接文字，认两种「仍在本章」形状——兄弟页（fwq `BC-BOOK-036`，与引擎 `_FUSED_PAGE_SEGMENT` / `BC-LIST-093` 同形）与本章路径下的页码续页（fwq `BC-BOOK-066` / `APP-MEMO-038`，`isOwnPathSubpage`）；判据正文以 fwq 定义点为准，本层不复述。一章最多取 50 页（`maximumContentPages`）。
 - **不覆盖**：query 形的章内分页（`?page=2`）——首批语料没有样本，量到再加。
 - **固定输入**：`BookSourceRuntimeEndToEndTests.biquhuaInChapterPagesAreJoinedAndStopAtNextChapter`（三页夹具 `biquhua-reader-110-129023{,-p2,-p3}.html` + 带 `next` 的 `biquhua-catalog-next.json`：拼接后段落多于单页、取页序列恰为三页、不取 `129024.html`）与 `inChapterPageGuardOnlyAcceptsSiblingPagesOfTheChapter`（十个形状用例）。
 
@@ -96,9 +96,8 @@ scripts/regenerate-project.sh && xcodebuild -project BrowseCraft.xcodeproj -sche
 ## 十六、站点有声作品的播放器
 
 - **内核**：Readium `AudioNavigator`（AVPlayer + Locator）——播放 / 暂停 / seek / 上一章下一章 / 倍速 / AudioSession 全在 SDK 里；
-  SDK **不带界面**，界面照抄 Readium TestApp 的 `AudiobookReader`（封面、进度条、快退 10 秒 / 上一章 / 播放暂停 / 下一章 / 快进 30 秒），
-  落在 `AudiobookPlayerView`；锁屏 / 控制中心 / 耳机命令照抄其命令中心部分，落在 `AudiobookRemoteControls`（Now Playing 用 SDK 的 `NowPlayingInfo`）。
-  2026-10-20 播放页已重设计（沉浸深色、倍速、目录 sheet、单集音频失效横条、锁屏封面），见 [有声书播放页](Audiobook-Player-Page-Redesign-Design.md)。
+  SDK **不带界面**，界面是本项目的 SwiftUI `AudiobookPlayerView`（沉浸深色、倍速、目录 sheet、单集音频失效横条，见 [有声书播放页](Audiobook-Player-Page-Redesign-Design.md)）；
+  锁屏 / 控制中心 / 耳机命令落在 `AudiobookRemoteControls`（Now Playing 用 SDK 的 `NowPlayingInfo`，带封面）。
 - **接线**：`BookReaderViewModel.openSite` 遇到有声 manifest 不再抛错——建 `AudioNavigator`，代理桥 `AudioNavigatorBridge` 把播放状态与位置回给 VM，
   位置走文字书同一条进度 / 书签链路；`BookReaderView` 在 `isAudiobook` 时切到播放页，出现即播、离开即停并落进度；详情页「Start / Continue Listening」、章节可点。
   `Info.plist` 的 `UIBackgroundModes` 加 `audio`。
@@ -157,12 +156,12 @@ scripts/regenerate-project.sh && xcodebuild -project BrowseCraft.xcodeproj -sche
   `publicationCacheExpiresAndSkipsOtherBooks`（同书二次命中、他源不命中、过期后重取）。
 ## 二十二、站点书搜索：由规则声明、与漫画 / 影视同一条合同
 
-- **Core**：`BookPageRule.url` 改可选；`BookSearchRule` 按引擎交付形状建模（`url` 带 `{keyword}`、`method`、`keywordEncoding`、`item`（引擎键名，不是 `itemRule`）、`fields`、`listRuleRef`、`pagination`、`request`）；
+- **Core**：`BookPageRule.url` 改可选；`BookSearchRule` 按引擎交付形状建模（`url` 带 `{keyword}`、`method`、`keywordEncoding`、`keywordCharset`、`item`（引擎键名，不是 `itemRule`）、`fields`、`listRuleRef`、`pagination`、`request`）；
   校验器认 `type="search"` 页（只要求 `ruleRefs.search` 可解析），并校验搜索规则（`url` 含 `{keyword}`；`listRuleRef` 可解析，或自带 `item + fields.title/detailURL`）。
 - **Runtime**：`BookSourceRuntime: SourceSearchRuntime`。`supportsSearch` = 存在 `type="search"` 页且其引用可解析；`search()` 把关键词按 `keywordEncoding` 编进 `{keyword}`
   （复用 `VideoSourceListLoader.searchURL`），第 N 页要 `pagination.urlTemplate`；条目取法借 `listRuleRef` 目标的 `itemRule / fields`（自带的覆盖），解析与输出映射复用 `loadList`。
   `page(for:)` 无 pageID 时取第一页**列表页**——搜索页与列表页并列写在 `pages[]`，不能拿到搜索页。
-- **App**：`LibrarySearchView` 的结果点击按 kind 分流——读书 kind 进 `BookSiteDetailView`（此前无条件走漫画目的地，与 2026-09-13 漫画搜索的同型问题）。
+- **App**：`LibrarySearchView` 的结果点击按 kind 分流——读书 kind 进 `BookSiteDetailView`。
 - **固定输入**：Core `testSearchPageAndSearchRulesImport` / `testSearchRuleWithoutKeywordPlaceholderOrDanglingRefsIsRejected`；
   App `biquhuaSearchIsDeclaredByRuleAndParsesTheResultPage`（夹具 `biquhua-catalog-search.json` 按引擎交付形状构造 + `biquhua-search-mihunzhen.html` 真实结果页：1 条「[历史]迷魂阵」→ `/book/130/130817/`；
   列表仍落列表页；未声明搜索的 catalog 不支持；第 2 页无模板抛错）。

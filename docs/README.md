@@ -9,7 +9,7 @@
 
 | 类 | 位置 | 在闭包内 | 时态 |
 | --- | --- | --- | --- |
-| **C 合同** | `AGENTS.md`（本地文件，不被 git 跟踪）、根 `README.md`、`docs/README.md`、`docs/architecture.md`、`docs/design/*.md`、`scripts/README.md`、包内 `README.md`、`../BrowseCraftCore/docs/README.md` 与其 `docs/design/*.md` | **是** | 只用现在时陈述 |
+| **C 合同** | `AGENTS.md`（本地文件，不被 git 跟踪，不在的机器上闸门跳过它）、根 `README.md`、`docs/README.md`、`docs/architecture.md`、`docs/design/*.md`、`scripts/README.md`、包内 `README.md`、五个兄弟包的根 `README.md`（`../BrowseCraftCore` 等）、`../BrowseCraftCore/docs/README.md` 与其 `docs/design/*.md` | **是** | 只用现在时陈述 |
 | **S 状态** | `docs/STATUS.md` | **仅该工作项对应的行** | 受控枚举 |
 | H 历史 | `docs/history/*.md`、`../BrowseCraftCore/docs/history/*.md` | 否 | 只追加，不修改 |
 | E 证据 | 真机日志、构建日志、测试产物 | 否 | 只追加 |
@@ -76,7 +76,7 @@ App 侧的硬条款按**触发源**分属两个命名空间：
 | `DB` | GRDB 迁移纪律、表与索引的定义位置 |
 | `SYNC` | CloudKit payload 安全门禁、账户作用域、身份边界 |
 | `BOOK` | Readium 边界、`Locator` 不透明性、本地书容器策略 |
-| `UI` | Features 层的路由与目的地声明纪律 |
+| `UI` | Features 层的路由与目的地声明纪律；页面入口与全局界面元素的取舍（规则不可编辑、问题报告入口只在哪几页、活动弹窗只经 In-App Messaging、不做全局等待 HUD） |
 | `DOC` | 本文定义的文档架构自身规则 |
 | `OBS` | 可观测性：埋点事件字典、采集与隐私边界、页面曝光入口、Crashlytics 诊断上下文 |
 
@@ -117,10 +117,11 @@ App 侧的硬条款按**触发源**分属两个命名空间：
 - `BCA-DOC-006` 旧值不在 `STATUS.md` 中保留。每次变更把被覆盖的行追加到
   [history/status-log.md](history/status-log.md)，格式为「日期 + 工作项 + 旧值 → 新值 + 原因」。
 - `BCA-DOC-016` **已结案的工作项按节退休。** 一个章节内每一行都到了终态——`验证` 为 `static-audit-passed`、
-  `targeted-passed`、`full-suite-passed` 或 `device-passed`，或 `决策` 为 `rejected`——且该节最晚的 `更新日期`
-  距今超过 14 天时，整节的行原样搬入 [history/status-log.md](history/status-log.md) 的「已结案」节，
+  `targeted-passed`、`full-suite-passed` 或 `device-passed`，或 `决策` 为 `rejected` / `optional`，或 `设计` 为
+  `superseded`——且该节最晚的 `更新日期` 距今超过 14 天时，整节的行原样搬入 [history/status-log.md](history/status-log.md) 的「已结案」节，
   `STATUS.md` 里该节只留章节标题与一句指针。`simulator-passed`、`not-run`、`in-progress` 都不是终态，
-  有一行未到终态整节就留着。按节而不按行退休，是为了不让同一工作项的 `implemented` 行走了、
+  有一行未到终态整节就留着。`optional` 的候选行与被 `superseded` 的行算终态，是因为它们不会再变：
+  候选项若被采纳会以新行立项，被取代的行只剩历史价值。按节而不按行退休，是为了不让同一工作项的 `implemented` 行走了、
   `simulator-passed` 行还在。闸门 A12 只提示可退休的节，不判失败——搬不搬由人决定。
 
 验证列比 fwq 多 `simulator-passed` 与 `device-passed` 两档，少 `fresh-passed` 与 `regression-passed`：
@@ -163,10 +164,10 @@ App 侧的验证事实主要分「离线测试通过」「模拟器走通」「�
 - 本地书籍导入与阅读器（入口已藏，代码由站点书复用）：[design/Local-Book-Import-Design.md](design/Local-Book-Import-Design.md)
 - 规则目录：已添加来源跟随目录自动更新：[design/Catalog-Rule-Update-Design.md](design/Catalog-Rule-Update-Design.md)
 - 规则目录：同站多条来源的副标题：[design/Catalog-Same-Site-Entry-Subtitle-Design.md](design/Catalog-Same-Site-Entry-Subtitle-Design.md)
-- 规则目录：页面的视觉与信息结构重设计（推荐按类型、我的生成按时间）：[design/Catalog-Page-Redesign-Design.md](design/Catalog-Page-Redesign-Design.md)
+- 规则目录：页面的视觉与信息结构重设计（「发现」分站点示例与 Debug 内部测试、我的生成按时间）：[design/Catalog-Page-Redesign-Design.md](design/Catalog-Page-Redesign-Design.md)
 - 来源页：视觉与信息结构重设计（正在使用置顶、点来源即打开库、已暂停与启用窗口）：[design/Sources-Page-Redesign-Design.md](design/Sources-Page-Redesign-Design.md)
-- 收藏页：视觉与信息结构重设计（封面卡片行、类型筛选、按天分组、取消收藏与撤销）：[design/Favorites-Page-Redesign-Design.md](design/Favorites-Page-Redesign-Design.md)
-- 历史页：视觉与信息结构重设计（继续卡片、看到哪里、按天分组、按作品删除与撤销）：[design/History-Page-Redesign-Design.md](design/History-Page-Redesign-Design.md)
+- 收藏页：视觉与信息结构重设计（封面卡片行、类型筛选、按天分组、选择模式与批量取消收藏）：[design/Favorites-Page-Redesign-Design.md](design/Favorites-Page-Redesign-Design.md)
+- 历史页：视觉与信息结构重设计（继续卡片、看到哪里、按天分组、按作品删除、选择模式与批量删除）：[design/History-Page-Redesign-Design.md](design/History-Page-Redesign-Design.md)
 - 设置页：视觉与信息结构重设计（账号卡与看广告、四组卡片行、退出登录确认、下线书签）：[design/Settings-Page-Redesign-Design.md](design/Settings-Page-Redesign-Design.md)
 - 收藏与历史的面容 ID 锁定（设置页「安全」分组的开关、打开与关闭都先验证、两页共用的锁定态、何时锁与解锁）：[design/Content-Lock-Design.md](design/Content-Lock-Design.md)
 - coin 记录页：视觉与信息结构重设计（隐藏底栏只留返回、余额卡与价格说明、按天分组、获得色）：[design/Coin-Ledger-Page-Redesign-Design.md](design/Coin-Ledger-Page-Redesign-Design.md)

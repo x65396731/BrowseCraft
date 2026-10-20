@@ -33,8 +33,10 @@
 - 下拉触发的动作放在独立任务里执行：下拉手势自己的任务会在页面重绘时被系统取消，直接在里面同步会被一并取消。
 - 页面上不放按钮（2026-10-04 用户裁定）。下拉承担三件事：重新检查 iCloud；开关开着但账号没有核实时重新关联；
   开关开着且可同步时同步一次，上次出错则按重试触发。
-- **状态卡**：56pt 圆形图标 + 标题 + 一句说明，圆角 22，样式与来源页「iCloud 首次恢复」卡（`CloudSyncInitialRestoreView`）一致。
-  进行中带转圈；异常时图标与描边换警示色，并写「↓ 下拉可重试」。正常用设置页图标蓝，未开启用次级灰；不用绿，不加插画（同日裁定）。
+- **状态卡**：56pt 圆形图标 + 标题 + 一句说明，圆角 22；卡片本体是共用的 `StatusCardView`（`BrowseCraft/Features/Shared/StatusCardView.swift`，
+  与网址输入页的结论卡、结果卡同一套），本页只提供取值与两段附加小字。进行中带转圈；异常时图标与描边换警示色，并写「↓ 下拉可重试」。
+  正常用设置页图标蓝，未开启用次级灰；不用绿，不加插画（同日裁定）。来源页「iCloud 首次恢复」卡（`CloudSyncInitialRestoreView`）
+  同是圆角 22 的卡片，但圆标处已换成 56pt 品牌等待标记、不带转圈，见 [品牌等待标记](Brand-Waiting-Mark-Design.md)；本页状态卡不换。
 - **开关**：一行「云同步」+ 系统开关，组下说明「关闭后不会删除任何数据，本机和 iCloud 里的内容都保留」。
 - **同步的内容**：第二节那三行，32pt 图标方块。
 - **上次同步**：一行小字「上次同步 时间 · 上传 N · 下载 N」，今天的只写时刻；云端删除在本机生效的条数并入「下载」。
@@ -85,6 +87,7 @@
 
 - `BrowseCraft/Features/Settings/CloudSync/CloudSyncSettingsView.swift`：隐藏底栏、状态卡、开关、同步的内容、上次同步、下拉、首次开启窗口。
 - `BrowseCraft/Features/Settings/CloudSync/CloudSyncSettingsViewModel.swift`：`statusCard`、条数（`syncedContentSummary`）与下拉入口 `refreshFromPull`。
+- `BrowseCraft/Features/Shared/StatusCardView.swift`：状态卡本体（56pt 圆标 + 标题 + 说明 + 可选转圈，圆角 22），与网址输入页共用。
 - `BrowseCraft/Application/Ports/Sync/CloudAccountPartitioning.swift` 与
   `BrowseCraft/Infrastructure/Database/Sync/GRDBCloudAccountPartitionStore.swift`：读「同步的内容」前两行的条数。
 - `BrowseCraft/Application/Ports/Sync/HistoryEntrySyncLocalStore.swift` 与 `BrowseCraft/Infrastructure/Database/Sync/GRDBHistoryEntrySyncLocalStore.swift`：第三行「历史与阅读进度」的作品数（`syncedWorkCount()`）。

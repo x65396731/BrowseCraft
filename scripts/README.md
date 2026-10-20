@@ -22,7 +22,7 @@ Pre-build gate for layer boundaries. It runs on every build and never modifies a
 ./scripts/check-architecture-boundaries.sh
 ```
 
-中文注释：2026-09-18 起闸门覆盖以下内容，以「今天的取值」为基线，阻止继续漂移：
+中文注释：闸门覆盖以下内容，以当前取值为基线，阻止继续漂移：
 
 - import 检查匹配所有写法：`import X`、`@preconcurrency import X`、`@_exported import X`、`import struct X.Y`、`import X.Sub`。
 - 类型引用方向新增 Features→Infrastructure、Shared→Application、Shared→Infrastructure；`declared_types` 识别 `@Observable`、`nonisolated`、`package`、`open` 等修饰。
@@ -162,18 +162,19 @@ A5 C 类无 commit 哈希与测试计数；A6 C 类无带日期的章节标题�
 A8 `docs/STATUS.md` 每格落枚举或形态；A9 根 `HANDOFF.md` 只承载四样东西（行数与 commit 哈希数是信号，
 阈值的唯一声明点在脚本里，文档不复述数值）；A10 文档点名的类型必须在源码里存在（`BCA-DOC-014`）；A11 承载定义点的文档必须被 git 跟踪（`BCA-DOC-015`）——
 不被跟踪的文档（如 `.gitignore` 掉的 `AGENTS.md`）只能写引用点，条款正文放进去等于那条合同不在仓库里；
-A12 `docs/STATUS.md` 里整节到终态且超期的节（`BCA-DOC-016`）——**只提示，不判失败**，阈值的唯一声明点在脚本里；
+A12 `docs/STATUS.md` 里整节到终态且超期的节（`BCA-DOC-016`；终态含 `optional` / `rejected` 决策与 `superseded` 设计）——**只提示，不判失败**，阈值的唯一声明点在脚本里；
 A13 埋点字典、日志类别与崩溃诊断入口（`BCA-OBS-001` / `003` / `004` / `007` / `011`）：`AppAnalytics.Event`、`AppAnalytics.Parameter` 与 `DiagnosticScreen` 的每个 case 带 `///` 注释，
 名字与 `docs/design/Analytics-Events-Design.md` 第 3–5 节双向一致；`Domain` / `Application` / `Infrastructure` 不引用 `AppAnalytics`；
 业务代码不直接调 `logScreenView`；规则执行失败只经 `RuleFailureDiagnostics.report`，`logDiagnosticFailure` 与
 Crashlytics 的记录方法不在别处出现，只有 `CrashDiagnostics` 引入 Crashlytics；BrowseCraftLog 包 `LogCategory` 的每个 case 带 `///` 注释，
-与 `docs/design/Logging-Design.md` 第 5 节双向一致。
+与 `docs/design/Logging-Design.md` 第 5 节双向一致；`ProblemReportProblemType` 的原始值与 `docs/design/Problem-Report-Design.md` 第五节的问题码表双向一致（`BCA-OBS-018`，不逐 case 要求注释）。
 
 围栏代码块在 A1、A4–A7、A9 与 A10 前一律剥掉——里面的 ID 是语法示例、哈希是命令输出、`[](…)` 不会被渲染成链接。
-A2 与 A3 要读 fwq 仓库（缺省 `~/Desktop/fwq`，用 `--fwq` 改），A10 与 A13 的日志类别要读五个兄弟包的源码；
-**这些仓库不可达时对应检查跳过并如实报告跳过，不静默通过**。
+A2 与 A3 要读 fwq 仓库（缺省同级目录 `../fwq`，用 `--fwq` 改），A10 与 A13 的日志类别要读五个兄弟包的源码；
+**这些仓库不可达时对应检查跳过并如实报告跳过，不静默通过**。本地没有 `AGENTS.md`（它被 `.gitignore`）时同样跳过并报告（A0），不抛错。
+扫描集含五个兄弟包的根 `README.md`——端点清单、依赖陈述只有它们承载，不扫就漏。
 
 A10 的语料含 App 与五个包的 `Sources/`、`Tests/`、`Package.swift`、`project.yml`，外加仓库树的
 目录名与文件名——文档引用 `TestDoubles/`、`UseCases/` 这类路径段是合法的。反引号内以 `*` 开头的
-记号按家族通配处理：源码里有任一以它结尾的符号即成立（`*PersistenceCoordinator` 实有 7 个）。
+记号按家族通配处理：源码里有任一以它结尾的符号即成立（`*PersistenceCoordinator` 实有 9 个）。
 外部符号白名单在 `scripts/docs-external-symbols.txt`。它不接进 pre-build 阶段：文档闸门失败不应阻断代码 build。

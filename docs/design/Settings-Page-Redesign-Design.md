@@ -18,8 +18,8 @@
 - 书签是空壳页，只有两句说明。
 - 诊断占三行，其中「诊断码」与「复制诊断码」做的是同一件事。
 
-本页只重做设置主页。云同步、缓存、coin 流水三个子页照旧，下一轮再按同一语言重做（2026-10-03 用户裁定）；
-内购页的固定深色是既有例外，不动。
+本页只重做设置主页。云同步、缓存、coin 记录三个子页各有自己的合同：[云同步页](Cloud-Sync-Page-Redesign-Design.md)、
+[缓存页](Cache-Page-Redesign-Design.md)、[coin 记录页](Coin-Ledger-Page-Redesign-Design.md)；内购页的固定深色是既有例外，不动。
 
 ## 二、信息结构
 
@@ -36,6 +36,7 @@
 | 6 | 关于 | 版本、给 AnyPortal 评分、隐私权政策（2026-10-16 加，审核指南 5.1.1(i)：图标 `SettingsPrivacy`，点开用系统浏览器打开 `PortalAPIConfiguration.privacyPolicyURL`，即 PortalCore `GET /privacy`；未登录也显示）、账号 ID（仅登录时） |
 | — | 测试工具 | 仅 `BROWSECRAFT_AD_TEST_TOOLS` 构建：「测试设备 IDFA」单独一组 |
 | 7 | 退出登录 | 单独一张卡片，未登录时不显示 |
+| — | 删除账号 | 退出登录卡片下一行居中的次级红字，不是卡片，只在已登录时显示，点了推入说明页；见 [Account-Deletion-Design.md](Account-Deletion-Design.md) 第二节 |
 
 分组标题 `footnote` semibold 次级色，左右页边距 20pt。账号 ID 放在「关于」：它与诊断码一样是报给运营时才用的标识。
 
@@ -95,10 +96,14 @@
 | 云同步 | 同步状态 | 推入 `CloudSyncSettingsView` |
 | 缓存 | 上限 | 推入 `CacheSettingsView` |
 | 发送崩溃诊断 | 开关 | 切换采集开关并记一次设置变更 |
+| 发送使用统计 | 开关 | 切换 `AppAnalytics` 的采集开关；关闭后 Firebase Analytics 停止收集 |
+| 面容 ID 锁定（标题随设备变） | 开关 | 先验证再改开关，取消时弹回；见 [Content-Lock-Design.md](Content-Lock-Design.md) 第二节 |
+| 活动推送 | 开关 | 同步到服务端；未登录时禁用；见 [Campaign-And-Rate-Notices-Design.md](Campaign-And-Rate-Notices-Design.md) 第四节 |
 | 诊断码 | 码本身 | 复制；说明换成「已复制」约 2 秒后恢复 |
 | 导出诊断日志 | — | 合成本机日志文件，弹系统分享面板；失败弹提示 |
 | 版本 | 版本号与构建号 | 无 |
 | 给 AnyPortal 评分 | — | 打开 App Store 写评价页 |
+| 隐私权政策 | — | 用系统浏览器打开 `PortalAPIConfiguration.privacyPolicyURL` |
 | 账号 ID | 前 8 位 + … | 复制完整 ID；说明换成「已复制」约 2 秒后恢复 |
 | 退出登录 | — | 弹系统居中提示框「退出 AnyPortal 账号？」，按钮「取消」与红色「退出登录」；确认才退出，取消什么都不发生 |
 
@@ -117,7 +122,8 @@
 
 ## 七、实现位置
 
-- `BrowseCraft/Features/Settings/SettingsView.swift`：滚动页、自绘大标题、账号卡与高级版卡、三个分组、测试工具组、退出登录与确认框、复制反馈、下拉刷新。
+- `BrowseCraft/Features/Settings/SettingsView.swift`：滚动页、自绘大标题、账号卡与高级版卡、五个分组（同步与存储、安全、通知、隐私与诊断、关于）、测试工具组、退出登录与确认框、删除账号入口、复制反馈、导出诊断日志、下拉刷新。
+- `BrowseCraft/Features/Settings/Components/ActivityShareSheet.swift`：导出诊断日志用的系统分享面板包装。
 - `BrowseCraft/Features/Settings/Components/SettingsRow.swift`：`SettingsIconTile`、`SettingsRow`、`SettingsToggleRow`、`SettingsCardGroup`、`SettingsRowSeparator`、`SettingsRowButtonStyle`。
 - `BrowseCraft/Features/Settings/Components/SettingsAccountCardView.swift`：账号卡的已登录、未登录与进行中。
 - `BrowseCraft/Features/Settings/Components/AppleSignInButton.swift`：系统登录按钮的包装。

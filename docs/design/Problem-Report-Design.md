@@ -141,7 +141,7 @@ detail（详情与目录）、content（某一集、话、章的内容，只从�
 - 网址清洗（App 与 PortalCore 同一套规则）：去掉 user:pass@、查询串与片段；路径段命中任一条即换成 :token——JWT 形状
   （eyJ 开头且含两个点）、前一段是 token / auth / session / sign / key 一类的段名、长度不小于 32 且同时含大写、小写与数字的
   base64url 串。只由十六进制组成、长度不超过 40 的段保留（多半是章节或图片 ID）。两边各写一份表驱动测试，用例逐条一致。
-- 日志片段不重新脱敏：Release 日志里的路径是哈希、标题只有长度（[Logging-Design.md](Logging-Design.md)），报告里的明文只来自「对象」组。
+- 日志片段不重新脱敏：Release 日志里的网址只剩主机名明文加路径哈希、标题只有长度（[Logging-Design.md](Logging-Design.md) 第 4 节），报告里的明文只来自「对象」组。
 - 不带截图。
 
 ## 七、App 实施清单
@@ -161,7 +161,7 @@ detail（详情与目录）、content（某一集、话、章的内容，只从�
 | Features 各页 | 库页与三种详情页各接两个入口，上下文从各自的 ViewModel 拼；详情页另提供目录（已加载的数据）与上次看到 / 读到（取自历史）给选集行；详情页的「…」在 `DetailTopButtons` 里加一个，影视详情另加 |
 | 日志 | `diagnostics` 类别记 notice `problem-report-submitted` 与 error `problem-report-failed`，字段为 scope、问题码、报告编号的 `.id` 哈希与耗时 |
 | 本地化 | 三份 Localizable.strings：问题类型、面板文案、结果与失败文案 |
-| 测试 | 快照存储、网址清洗（含带令牌的查询串、片段、user:pass@ 与路径令牌段）、报文拼装、日志片段截取、各组的问题类型表、选集默认值 |
+| 测试 | 快照存储、网址清洗（含带令牌的查询串、片段、user:pass@ 与路径令牌段）、报文拼装、各组的问题类型表；待补测试：日志片段截取（`LogFileSink.recentLines` 的会话、时间窗、类别、条数与字节上限）、选集默认值（历史里的上次看到 / 读到，没有历史时取第一集） |
 | 隐私 | `PrivacyInfo.xcprivacy` 的其他诊断数据为关联，并声明客户支持与浏览历史两类（用途 App 功能、不追踪），不声明搜索历史；App Store Connect 隐私标签与 PortalCore 隐私权政策页的「問題回報」一节同口径 |
 
 ## 八、书阅读器单章失败（可选）
@@ -180,7 +180,7 @@ detail（详情与目录）、content（某一集、话、章的内容，只从�
 
 问题报告与服务端的失败生成**分开收集、按规则合着看**：两者是规则在不同阶段的问题，证据与隐私口径不同，表、接口与保留期都不合并，
 只在第 5 步的查询里按规则汇合，最后进同一条 fwq 修复队列。两边各守现有纪律：诊断写入失败只记日志，不影响任务结局、coin、
-推送与报告的接收。
+推送与报告的接收。本节的服务端陈述以 PortalCore 仓为准，App 仓只核得到接口路径、字段名与错误码常量。
 
 | 位置 | 内容 |
 | --- | --- |
@@ -212,14 +212,9 @@ detail（详情与目录）、content（某一集、话、章的内容，只从�
 | 登记处 | 内容 |
 | --- | --- |
 | 第 3 节 A 组 | 事件 `problem_report_submitted`：点「发送」后的结局报一次，参数 `report_scope`、`problem_type`、`entry`（failure_state / page_menu）、`result`（success / failed）、`error_code`（仅失败）。不报：补充说明、报告编号、网址与标题 |
-| 第 4 节 | 参数 `report_scope`（第三节的 scope）、`problem_type`（第五节的问题码）；GA4 事件级自定义维度由 24 个增至 26 个 |
+| 第 4 节 | 参数 `report_scope`（第三节的 scope）、`problem_type`（第五节的问题码）；GA4 事件级自定义维度共 26 个（Analytics-Events-Design.md 第 4 节） |
 | 第 5 节 | 页面 `problem_report`：报告问题面板（sheet） |
 
 ## 十一、分期
 
-- 第一期（唯一一期）：PortalCore 报告接口与表、规则版本表与目录指纹字段；App 的 `catalogRevision` 迁移与写入、
-  `RuleExecutionError` 的脱敏摘要、快照存储、报告面板（含「问题出在哪」与选集）、用例与客户端；库页与三种详情页的两个入口；
-  埋点登记。PortalCore 先上线，App 后发版。
-- 第一期之后：第九节第 4、5 步的查询脚本。
-- 可选：第八节书阅读器单章失败。
-- 看数据再定：截图、处理进度回执、同一规则报告变多时自动告警、fwq 按报告编号重放。
+范围 = 第七节 + 第九节；查询脚本（第九节第 4、5 步）与第八节另记 [STATUS.md](../STATUS.md)。

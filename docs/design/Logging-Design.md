@@ -45,7 +45,7 @@ AppLog.error(.database, "favorite-write-failed", ["error": .error(error)])
 AppLog.debug(.rule, "page-image-resolved", ["index": .int(index), "title": .content(title)])
 ```
 
-每条记录由出口自动补上时间、是否主线程与当前页面；本次启动的 `sessionId` 与 Crashlytics 的同名键相同，两边对得上。
+每条记录由 `AppLog` 生成记录时补上时间、是否主线程与当前页面；上下文里的会话 ID 与 Crashlytics 的 `sessionId` 键同值，两边对得上。
 
 ## 3. 级别
 
@@ -65,7 +65,7 @@ AppLog.debug(.rule, "page-image-resolved", ["index": .int(index), "title": .cont
 | `enumValue` | 枚举的原始值 |
 | `code` | 有限取值的机器码（状态、原因、服务端错误码、阶段名），原样记录、最长 80 字符；调用点保证它不是用户内容、网址或标识 |
 | `host` | 只留主机名 |
-| `path` | Debug 构建明文；Release 构建为 SHA-256 前 8 位十六进制 |
+| `path` | Debug 构建为去掉认证、查询串与片段后的明文；Release 构建为主机名明文加路径的 SHA-256 前 8 位十六进制（`host#xxxxxxxx`） |
 | `id` | SHA-256 前 8 位十六进制，用于来源 ID、账号、交易号、实体 ID |
 | `content` | Debug 构建明文；Release 构建只记长度 |
 | `error` | `ErrorDiagnostics.summary` 的输出：类型名、domain:code、错误自己声明的摘要 |

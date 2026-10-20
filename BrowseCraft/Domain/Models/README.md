@@ -5,7 +5,6 @@ Domain models are grouped by the business area that owns the data shape.
 - `Source/`: built-in sources, encrypted catalog rules, source import drafts and recommendations, transient discovery items, and rule-generation submissions. `Source`, `ContentItem` and reader chapter models live in the `BrowseCraftDomain` package.
 - `History/`: persisted reading/watch history and local user identity used by history records.
 - `Library/`: persisted library state.
-- `Rule/`: rule analysis stages.
 - `Favorites/`: favorite content snapshots.
 - `Sync/`: CloudKit account scope, partition and payload models.
 - `Settings/`: persisted or selectable app settings models.

@@ -15,7 +15,7 @@
 - `Records/Book` 保存本地书籍、阅读进度和书签。
 - `Records/Sync` 保存 iCloud 同步游标、本地待上传队列、CKRecord system fields，以及历史同步账本 `HistorySyncLedgerRecord`（`history_sync_ledger`，v8 迁移；三张历史表不入队列，每轮同步拿历史表与账本对比得出新增 / 改动 / 删除 / 恢复，见 [History-Resume-Sync-Design.md](../../../docs/design/History-Resume-Sync-Design.md)）。
 - `Records/Temporary` 保存临时发现资源历史。
-- `Repositories/`、`Sync/`、`Identity/` 分别放 GRDB 仓储实现、同步存储与身份存储。
+- `Repositories/`、`Sync/`、`Identity/`、`AccountDeletion/` 分别放 GRDB 仓储实现、同步存储、身份存储与删除账号时清本机数据的存储（`GRDBAccountDeletionLocalDataStore`）。
 
 ## 当前规则
 

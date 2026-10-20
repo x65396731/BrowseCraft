@@ -75,7 +75,7 @@
 | 7 | 章节目录 | 按标题形状二选一：纯编号 → 三列网格（格高 44）；带名 → 行列表（编号柱 + 标题 + 日期）；已读变淡、上次读到类型色标记、受限小锁、付费小币 | 有章节时 |
 | — | 骨架 / 没有章节 / 取失败 | 见第八节 | 对应状态 |
 
-下拉刷新重取详情并重读历史。页边距左右 20pt，简介分区标题 `footnote` bold 次级色；章节分区头 `headline` 主色 + 次级小字（2026-10-11 与书详情统一，共享 `DetailChapterHeader`）。每一块都是有数据才出，没有的不留空位，也不用来源名或英文占位补空。
+下拉刷新重取详情并重读历史。页边距左右 20pt，简介分区标题 `footnote` bold 次级色；章节分区头 `headline` 主色 + 次级小字（共享 `DetailChapterHeader`）。每一块都是有数据才出，没有的不留空位，也不用来源名或英文占位补空。
 
 ## 五、头部与作品信息
 
@@ -83,7 +83,7 @@
 
 | 位置 | 内容 | 取值 |
 | --- | --- | --- |
-| 封面 | 112×150、圆角 12、轻投影；走 `ItemThumbnailImageView`（带退路地址）同一条封面管线，请求配置取规则的 detail 封面请求配置；detail `cover` 优先，没有用列表封面，再没有 `ComicListPlaceholder`（与库页同一张，2:3 居中铺满 3:4 框） | 左边距 20，上边距 = 安全区 + 56（给返回按钮留位） |
+| 封面 | 112×150、圆角 12、轻投影；走 `ItemThumbnailImageView`（带退路地址）同一条封面管线，请求配置取规则的 detail 封面请求配置；detail `cover` 优先，没有用列表封面，再没有 `ComicListPlaceholder`（与库页同一张，2:3 居中铺满 3:4 框） | 左边距 20；头部从固定返回 / 收藏按钮的安全区 inset 之下开始（上边距 8），淡底向上铺满 inset 与状态栏 |
 | 标题 | `title2` heavy 主文字色，最多三行 | 列表项标题优先，没有才用 detail `title` |
 | 作者行 | `subheadline` 次级色，一行 | `author`；没有不出，不再用来源名填空 |
 | 徽章行 | 状态（`status`）漫画类型色淡底 + 类型色字；分类（`category`）与语言（`language`）次级填充底 + 次级字 | 胶囊高 22、`caption` semibold；有几个出几个，一个都没有不出这行 |
@@ -97,7 +97,7 @@
 ## 六、继续阅读
 
 - **数据**：进页读本作品的全部章节历史（同来源、同 `comicItemID`），`visitedAt` 最近的一条是「上次读到」。它的 `chapterURL` 与哪一章相同就是那一章；对不上用章节名；都对不上（规则换过、站点改了地址）卡片仍写历史里的章节名，点了用历史记录直接开阅读器（`ReaderView` 的历史入口，与历史页点行同一条路）。
-- **有历史 → 卡片**（共享 `DetailContinueCard`，2026-10-11 与书详情统一取值）：通栏、高 88、圆角 16、卡片底、左侧 4pt 漫画类型色竖条。左：`lastPageImageURL` 的缩略图 56×72 圆角 8（阅读器已存过这张图，走同一条缓存；没有就用封面）。中：「继续阅读」`caption` semibold 类型色；章节名 `headline`；第三行 `caption` 次级「第 13 页 · 昨天 21:40」，有 `pageCount` 时「13 / 45 页 · 昨天 21:40」并在卡片底边画 3pt 进度条（类型色）。时刻写法与库页「上次读到」瓷砖同一套 `LibraryHistoryTimeText`：今天 / 昨天带时刻，更早只写日期（2026-10-10 复审第七批统一，此前详情页自带一份 `DateFormatter`）。右：36pt 圆里一个书页图标，类型色底。整张卡可点。
+- **有历史 → 卡片**（共享 `DetailContinueCard`）：通栏、高 88、圆角 16、卡片底、左侧 4pt 漫画类型色竖条。左：`lastPageImageURL` 的缩略图 56×72 圆角 8（阅读器已存过这张图，走同一条缓存；没有就用封面）。中：「继续阅读」`caption` semibold 类型色；章节名 `headline`；第三行 `caption` 次级「第 13 页 · 昨天 21:40」，有 `pageCount` 时「13 / 45 页 · 昨天 21:40」并在卡片底边画 3pt 进度条（类型色）。时刻写法与库页「上次读到」瓷砖同一套 `LibraryHistoryTimeText`：今天 / 昨天带时刻，更早只写日期。右：36pt 圆里一个书页图标，类型色底。整张卡可点。
 - **没有历史 → 按钮**：通栏胶囊、高 50，漫画类型色底（浅 #6D4FD6 白字 / 深 #B79CFF 墨字 #141210）。文案「从第 1 话开始读」——起始章是按规则排序方向取的那一头（现有 `startingChapter`），数字从起始章标题解出，解不出写「开始读 · 章节名」；只有一章写「开始阅读」。
 - **最新一话**：不再单设「Read Latest」按钮——倒序时最新一话就在目录第一格，正序时由分段芯片最后一段或「倒序」一点到达。
 - **回来**：阅读器返回后重读本作品的全部章节历史（`reloadChapterHistories`），卡片文案、进度与目录的已读 / 上次读到标记跟着换。
@@ -132,7 +132,7 @@
 
 - 默认显示顺序 = Core 给的顺序（规则 `sort` 已应用）。分区标题右侧「正序 / 倒序」点了翻转显示，不改进阅读器的导航顺序（`navigationOrder` 照旧）；不足 2 章不显示。
 - **Core 给的顺序是正序还是倒序**（决定「正序 / 倒序」的初始字样、「第 1 话」是哪一头、分段芯片的编号方向）：首尾两章的话数都解得出且不相等时按两者大小推断（`coreOrderIsAscending`），优先于规则声明的 `navigationOrder`；解不出才退到规则声明。
-  依据：めちゃコミック的规则没声明 `sort`、页面顺序是正序，只信规则会把「第 1 话」认成最后一章（2026-10-08 模拟器实测后加，当时未入文）。这是显示层的判断，不改 Core 的排序结果。
+  依据：めちゃコミック的规则没声明 `sort`、页面顺序是正序，只信规则会把「第 1 话」认成最后一章。这是显示层的判断，不改 Core 的排序结果。
 - ≥ 60 章时出分段芯片：按当前显示顺序每 50 章一段，芯片文字是段首与段尾的编号（「94–45」「44–1」，解不出编号用序号「1–50」）；点了滚到该段首行，列表仍是全量（不是筛选）；段首要落在贴顶分区头下面：`scrollTo` 的锚点按分区头高度 / 滚动区可见高度换算（`ComicDetailView.segmentScrollAnchor`，与站点书详情同一做法），不用 `.top`；当前滚到哪一段哪个芯片选中。芯片与分区标题一起做贴顶分区头，样子与库页分类芯片 / 影视线路芯片同一个（`LibraryChipBar`）。
 - 点一章：现有 `prepareToOpen`（受限 → 登录提示）再推入阅读器，不变。目录懒加载，不分页。
 
@@ -144,7 +144,7 @@
 | 取到了但没有章节 | 目录位置小空状态：列表图标 +「没有章节」+「这个来源没有给出任何章节」+「下拉重试」；没有继续阅读；头部、简介照常 |
 | 取失败 | 同上，文案是错误原因，警示色三角；头部仍用列表项数据；不再弹系统警告框，也不再放「Try Again」按钮（刷新一律下拉） |
 | 已有目录后下拉刷新失败 | 目录留着不动，贴顶分区头里一条警示色淡底横幅写原因（共享 `LibraryStateBanner` 的纯文字失败态，与库页分类出错横幅同一个）；再次下拉成功即消失 |
-| 受限章节 | 点了走现有流程：没有登录页 / 已登录仍受限 → 说明文字；未登录 → 登录提示 → `SourceLoginView`。本轮只把两个系统 alert 换成页内横幅，文案与判断不动。横幅放在贴顶分区头里、目录上方（点的是目录里的某一行，横幅得在目录旁边出现；放在简介下面时目录滚过头部就看不见，2026-10-08 模拟器实测）。横幅是共享 `LibraryStateBanner` 的受限态：锁图标 + 一句说明 + 「登录」警示色实心胶囊（没有登录页时不出）+ 关闭叉；按钮不用类型色，三种 kind 的横幅长得一样（2026-10-10 复审第七批收敛，此前本页自带一份类型色按钮的横幅） |
+| 受限章节 | 点了走现有流程：没有登录页 / 已登录仍受限 → 说明文字；未登录 → 登录提示 → `SourceLoginView`。本轮只把两个系统 alert 换成页内横幅，文案与判断不动。横幅放在贴顶分区头里、目录上方（点的是目录里的某一行，横幅得在目录旁边出现）。横幅是共享 `LibraryStateBanner` 的受限态：锁图标 + 一句说明 + 「登录」警示色实心胶囊（没有登录页时不出）+ 关闭叉；按钮不用类型色，三种 kind 的横幅长得一样 |
 | 下拉刷新 | 重取详情，历史一并重读 |
 | 很长的目录 | sfacg 近 1000 章：三列网格约 28 屏，分段芯片 20 段横向滚动；懒加载，不预建按钮 |
 | 深色模式 | 头部淡底、卡片、芯片、格子都随系统；继续按钮与选中芯片换深色取值（#B79CFF 底墨字） |
@@ -156,7 +156,7 @@
 | 字段 | 在哪 | 为什么 |
 | --- | --- | --- |
 | 本作品全部章节历史 | `ComicChapterHistoryRepository` 加按来源 + `comicItemID` 取全部的查询，`GRDBComicChapterHistoryRepository` 按现有唯一键的前三列查，经 `ReadingActivityPersistenceCoordinator` 给详情页 | 已读标记与「已读 M」计数；现有表、现有索引，不加列 |
-| `ComicChapterHistory` 的 `pageCount`（可空 Int） | 模型与 `ComicChapterHistoryRecord` 加字段；`AppDatabaseMigrations` 追加一次迁移加列（`BCA-DB-001` 只追加）；`ReaderViewModel` 写历史时写 `pageImageURLs` 的个数；云同步 payload 不带（本机字段，合并时保留本机值） | 继续卡片「13 / 45 页」与进度条；没有就只写「第 13 页」 |
+| `ComicChapterHistory` 的 `pageCount`（可空 Int） | 模型与 `ComicChapterHistoryRecord` 加字段；`AppDatabaseMigrations` 追加一次迁移加列（`BCA-DB-001` 只追加）；`ReaderViewModel` 写历史时取 `pageResources` 与 `pageImageURLs` 个数的较大者，0 为 nil；云同步 payload 不带（本机字段，合并时保留本机值） | 继续卡片「13 / 45 页」与进度条；没有就只写「第 13 页」 |
 | 章节标题解析与版式判断 | `ComicDetailViewModel` 两个纯函数（解编号 + 分节 + 话名；判纯编号 / 带名），补单元测试 | 编号柱、网格 / 行二选一、分段芯片文字、「从第 1 话开始读」的数字 |
 | 分段 | `ComicDetailViewModel` 按显示顺序每 50 章切段，段的 id 是段首章节 URL | 分段芯片与滚动目标 |
 | 收藏 | `ComicDetailViewModel` 注入 `ToggleFavoriteUseCase`（`LibraryFeatureFactory`） | 右上爱心，与库页 / 影视详情同一条 |
@@ -184,18 +184,14 @@ sfacg 链接内的受限标记 → `BC-COMIC-147` 2026-10-08 修订（交付 `re
 | 尺寸 | 封面 112×150 圆角 12；圆按钮 40（热区 44，卡片底 + 黑 8% 轻阴影，爱心 20；共享 `DetailTopButtons`）；继续卡片高 88 圆角 16、缩略图 56×72；继续按钮 50 胶囊；芯片高 36；网格三列、格高 44、圆角 12、间距 10；行最小高 52、编号柱宽 44；页边距 20 |
 | 字号 | 标题 `title2` heavy；作者 `subheadline`；徽章 / 更新行 / 来源行 / 日期 `caption`；简介分区标题 `footnote` bold；章节分区头 `headline` 主色、章数与已读 `subheadline` 次级、正序 / 倒序 `footnote` 胶囊；继续卡片标签 `caption` semibold、章名 `headline`；格子与行标题 `subheadline` semibold；简介 `subheadline` |
 
-## 十一、裁定
-
-2026-10-08 用户裁定九项全取 A：浅色「封面 + 信息」头部；目录版式按标题形状自动选；≥ 60 章出分段芯片、点了滚到段首；读本作品全部章节历史做已读标记；历史表追加 `pageCount`；有历史用卡片、没历史用按钮；受限与失败提示换页内横幅；右上收藏；向 fwq 提生成覆盖需求。核对线上目录后补的一条：更新行照 `latestText` 原文显示一行，内容对不对由 fwq 修。
-
-## 十二、不改的东西
+## 十一、不改的东西
 
 - 章节的解析与顺序（Core / Runtime，含章节自身分页的聚合）、`prepareToOpen` / 登录后刷新的判断、阅读器与历史写入的路径（只多写一个 `pageCount`）、`navigationChapterURLs` 的携带、四个入口。
 - App 不提供规则创建或编辑入口（`BCA-UI-003`）；页上有什么由规则决定。
 
-## 十三、实现位置
+## 十二、实现位置
 
-- 三个详情页共用（2026-10-11 跨页复制收敛）：`Features/Library/Components/ChapterSegmentation.swift`（`ChapterSegment`、分段算法与选中 / 滚动锚点状态机 `ChapterSegmentSelection`，点芯片滚完后延迟 600 ms 再放开行的回写）、`DetailFavoriteToggling.swift`（右上收藏的读与切换）、`DetailSynopsisSection.swift`（简介块、骨架条、相关链接）、`Features/Library/Components/DetailPageComponents.swift`（继续卡片 `DetailContinueCard`、开始按钮 `DetailStartButton`、固定返回 / 收藏 `DetailTopButtons`、贴顶章节分区头 `DetailChapterHeader`、分区头上方底色补铺 `detailPinnedHeaderBackground`；第三组，2026-10-11 用户裁定统一取值）、`Features/Shared/TrimmedText.swift`（`nonEmpty`）。
+- 与书详情共用（`DetailFavoriteToggling` / `DetailSynopsisSection` / `TrimmedText` 也给影视详情）：`Features/Library/Components/ChapterSegmentation.swift`（`ChapterSegment`、分段算法与选中 / 滚动锚点状态机 `ChapterSegmentSelection`，点芯片滚完后延迟 600 ms 再放开行的回写）、`DetailFavoriteToggling.swift`（右上收藏的读与切换）、`DetailSynopsisSection.swift`（简介块、骨架条、相关链接）、`Features/Library/Components/DetailPageComponents.swift`（继续卡片 `DetailContinueCard`、开始按钮 `DetailStartButton`、固定返回 / 收藏 `DetailTopButtons`、贴顶章节分区头 `DetailChapterHeader`、分区头上方底色补铺 `detailPinnedHeaderBackground`）、`Features/Shared/TrimmedText.swift`（`nonEmpty`）。
 - `BrowseCraft/Features/Library/Comic/Detail/ComicDetailView.swift` 与 `ComicDetailSections.swift`：头部、标签条、继续卡片 / 按钮、简介折叠与属性小字、骨架与空 / 失败态；原来的动作卡、信息卡与共用卡片容器三个视图随之删去。受限横幅与刷新失败横幅调 `Features/Library/Components/LibraryStateBanner.swift`，继续卡片的时刻调 `Features/Library/Components/LibraryHistoryTimeText.swift`（两者与书详情、搜索页、库页共用）。
 - `BrowseCraft/Features/Library/Comic/Detail/ComicDetailChapterSection.swift`：贴顶分区头（计数、已读、正序 / 倒序、分段芯片）、三列网格与行列表两种版式、已读 / 上次读到 / 受限 / 付费标记。
 - `BrowseCraft/Features/Library/Comic/Detail/ComicDetailViewModel.swift`：标题解析、版式判断、显示顺序、分段、本作品全部历史与继续目标、已读集合、收藏切换、属性摆位。
@@ -205,8 +201,7 @@ sfacg 链接内的受限标记 → `BC-COMIC-147` 2026-10-08 修订（交付 `re
 - `BrowseCraft/Features/Library/Components/LibraryListTabBar.swift`：`LibraryChipBar` 复用，不改。
 - 三份 `Localizable.strings`：继续阅读四种文案、「章节」「N 章」「已读 M」「N / M 页」「正序 / 倒序」「没有章节」、受限横幅（「登录」「关闭」后改为三页共用的 `library_banner_login` / `library_banner_dismiss`）；删去只剩本页在用的「Loading Details / Paid / About / Information / Try Again / Access Required / Photo Album / Related Page / ID / Info」与旧的空章节说明（「Continue Reading」「Chapters」「Log In」「Not Now」别处还在用，保留）。
 
-## 十四、真机验收清单与已知出入
+## 十三、真机验收清单
 
-- 模拟器没走到（线上只有一条漫画来源，没有纯编号目录与 60 章以上的作品）：三列网格、分段芯片、作者 / 徽章 / 标签 / 日期、没有章节与取失败态。
-- 分段芯片：点了之后段首行完整露在贴顶分区头下面、不被盖住（2026-10-10 锚点改为按分区头高度换算，未在模拟器或真机看过）。
+- 需要纯编号目录与 60 章以上的漫画来源：三列网格、分段芯片（点了之后段首行完整露在贴顶分区头下面、不被盖住）、作者 / 徽章 / 标签 / 日期、没有章节与取失败态。
 - 深色模式整页看一遍。

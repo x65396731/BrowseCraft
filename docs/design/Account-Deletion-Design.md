@@ -69,17 +69,18 @@
 
 1. `CloudSyncCoordinator.prepareForIdentityChange()`：取消进行中的 CloudKit 操作，等本轮固定 UUID 的同步退出。
 2. 清 Keychain 里的 Portal 会话（只清本地，不再调注销接口——服务端会话已随账号删除）；权益缓存随第 6 步的用户行删除。
-3. 生成新访客 UUID，在数据库补一行 `users`，写进 Keychain 身份存储（`KeychainAppUserIdentityStore`），再 `ActiveAppUserStore.update`。
+3. 删 Keychain 里保存的 Apple user 标识（第十节）。
+4. 生成新访客 UUID，在数据库补一行 `users`，写进 Keychain 身份存储（`KeychainAppUserIdentityStore`），再 `ActiveAppUserStore.update`。
    这与首次安装时 `AppUserIdentityBootstrapper` 做的事相同。
-4. `CoinWalletStore.markSignedOut()`。
-5. 删 Keychain 里保存的 Apple user 标识（第十节）。
+5. `CoinWalletStore.markSignedOut()`。
 6. 删旧 UUID 名下的本机数据（`GRDBAccountDeletionLocalDataStore`，一个写事务）：
    - 先读出该 UUID 关联过的 iCloud 分区（`cloud_app_user_association_attestations` 与 `cloud_account_partition_preparations`），
      删这些分区的 `sync_state`、`cloud_record_metadata`、`sync_queue`——即重置 CKSyncEngine 状态与同步队列；
    - 再删 `users` 里该 UUID 的行。来源、收藏、三张历史表、临时资源历史、库状态、续看账本、本地书、阅读进度、书签、
      StoreKit 交易明细与两张分区表都外键级联到 `users`（GRDB 默认开外键），随之删除；
    - 事务前读出该 UUID 的本地书文件与封面相对路径，事务提交后逐个删文件。文件删除失败不回滚：书已不在书架，残留文件只占空间，
-     与 `DeleteLocalBookUseCase` 的取舍相同。
+     与 `DeleteLocalBookUseCase` 的取舍相同；
+   - 本机日志文件一并删除（`AppLogging.removeLocalLogFiles()`，[Logging-Design.md](Logging-Design.md) `BCA-OBS-016`），之后的记录写进新文件。
 7. 第六节的 iCloud 清理。
 
 第 6 步失败（数据库错误）时保留「待清本机：UUID」标记，下次启动与回到前台时重试；完成页提示「账号已删除；本机数据将在下次打开 App 时自动清除」。
@@ -89,7 +90,7 @@
 
 ### 6.1 归属判定
 
-服务端设计稿第 7 节最初写的是「删 zone `BrowseCraftSync` 中 `userID` 等于被删 UUID 的记录」，已按本节改正。核对代码：
+核对代码：
 云端 `Source` / `FavoriteItem` / `HistoryEntry` 记录**没有 userID 字段**（`CloudKitRecordMapper` 写入的字段里没有它，
 记录名也只由来源 ID、条目 ID 等算出），App 读回时把本地活动用户填进去。同一个 iCloud 账户只承载一个业务账号：
 `AppUserIdentity/default` 记着它，同步前 `CloudSyncCoordinator` 按本机关联证明核对活动用户与之相同才放行（`BCA-SYNC-004`）。
@@ -135,8 +136,7 @@ App 区分不了「没登录 iCloud」和「关了本 App 的 iCloud」（账户
 同一账号同时登录在另一台设备上时，那台设备的本机数据不会被删，已开的云同步按本机关联证明仍可能把数据传回 iCloud。
 删号的承诺范围是「发起删除的这台设备与 iCloud」，完成页与说明页不对其他设备作承诺。
 
-那台设备回到未登录的时机：access token 在本机看来还没过期时，`PortalSessionCoordinator` 不会主动刷新，App 会一直显示已登录
-（真机实测：账号已在模拟器上删除，iPhone 上的 App 仍显示「已通过 Apple 登录」，`GET /v1/account` 反复回 401）。因此：
+那台设备回到未登录的时机：access token 在本机看来还没过期时，`PortalSessionCoordinator` 不会主动刷新，App 会一直显示已登录。因此：
 账号接口（`CoinWalletStore` 的余额刷新，在启动、回到前台、打开设置页时都会调）回 401 时，强制刷新一次会话
 （`PortalSessionCoordinator.handleAuthorizationRejected()`）——
 - 刷新被服务端拒绝（refresh token 无效 / 用户停用）：按现有逻辑清会话与权益缓存、回到未登录，并通知设置页刷新；
@@ -230,8 +230,7 @@ D4 依赖服务端放行「appAccountToken 指向的账号已不存在」的交�
 - 查询失败、或状态为 authorized / transferred 时不做任何事。
 - **只认「见过正常之后的撤销」**：每次 Apple 授权成功（保存 Apple user 标识）都把「这次授权后见过 authorized」清零；
   之后系统回过一次 authorized 才记为见过。revoked / notFound（无论来自状态查询还是撤销通知）只有在见过之后才按退出处理，否则只记日志。
-  依据是模拟器实测：删号撤销授权后用同一 Apple ID 重新登录，授权后 1 秒、133 秒、154 秒、775 秒 getCredentialState 一直回 revoked；
-  直接按状态退出会把刚登录的新账号反复退出去，10 分钟宽限也挡不住。代价是状态一直卡在 revoked 的用户真被撤销时不会被 App 自动退出，
+  代价是状态一直卡在 revoked 的用户真被撤销时不会被 App 自动退出，
   服务端会话照旧受控。标记与授权时间同 Apple user 标识一起存在 Keychain（`KeychainAppleUserIdentifierStore`，
   值为「标识|保存时的 Unix 秒|0 或 1」）；每次检查都记下系统回的状态与距授权的秒数。
 - 自动退出后通知设置页刷新登录状态（`AppleCredentialRevocationCoordinator` 的 `didSignOut`，由 `AppContainer` 接上）。
@@ -247,6 +246,6 @@ D4 依赖服务端放行「appAccountToken 指向的账号已不存在」的交�
 | Features | 设置页「删除账号」行；`AccountDeletionView` 与 `AccountDeletionViewModel`（说明页、确认框、进度遮罩、完成页） |
 | App | `AccountComposition` 装配；`AppContainer` 启动与回到前台时续做未完成工作、检查 Apple 凭据状态 |
 | 文案 | en / zh-Hans / zh-Hant 三语 |
+| 测试 | `AccountDeletionCoordinatorTests`（清理顺序、换身份、续做标记）、`GRDBAccountDeletionLocalDataStoreTests`（删除范围）、`AccountDeletionMessagingTests` |
 
-验证：构建通过加静态自核；`AccountDeletionCoordinator` 的清理顺序、换身份、续做标记，与 `GRDBAccountDeletionLocalDataStore` 的删除范围写单测。
-真机验证由用户做（服务端第 12 节第 6 步）。
+实施与验证状态见 [STATUS.md](../STATUS.md) 第 4 节。

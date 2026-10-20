@@ -2,11 +2,14 @@
 """BrowseCraft 文档闸门。
 
 形态与条款规则的定义点在 docs/README.md 第 3–5 节；本脚本只执行，不定义。
-十一项检查 A1–A11 的口径见 docs/history/2026-09-19-docs-architecture-audit.md 第 6 节 D4。
+A1–A11 的口径见 docs/history/2026-09-19-docs-architecture-audit.md 第 6 节 D4；A12 / A13 见 docs/README.md 第 5 节与
+docs/design/Analytics-Events-Design.md、Logging-Design.md。
 提交任何 C 类文档、docs/STATUS.md 或 AGENTS.md 的改动前跑一次；任一项失败即不得提交。
 
 用法：python3 scripts/check-docs.py [--fwq <path>]
 退出码：0 全过（跳过的跨仓检查会如实报告），1 有失败。
+本地不存在的文件（被 .gitignore 的 AGENTS.md、缺席的兄弟包）一律跳过并报告，不抛错——
+BCA-DOC-015 的前提就是 AGENTS.md 在别的机器上不存在，闸门不能把它当必需文件。
 """
 import argparse
 import os
@@ -32,17 +35,25 @@ def sibling(pkg, pattern):
     return sorted(os.path.relpath(x, ROOT) for x in glob(os.path.join(base, pattern)))
 
 
-# 五个仓库共用一套条款命名空间、一张状态表、一个闸门，不各建一份。
+# 六个仓库共用一套条款命名空间、一张状态表、一个闸门，不各建一份。
 # 兄弟包的 C 类文档进同一个扫描集；它们的条款定义点也在同一个 BCA-* 号段里。
 SIBLING_DOC_PACKAGES = ["BrowseCraftCore"]
+# 五个兄弟包的根 README 也是 C 类（docs/README.md 第 1 节）：端点清单、依赖陈述这类内容只有它们承载。
+SIBLING_README_PACKAGES = ["BrowseCraftCore", "BrowseCraftDomain", "BrowseCraftRuntime", "BrowseCraftAPIKit", "BrowseCraftLog"]
+
+# AGENTS.md 被 .gitignore，只存在于写它的机器上；不在就不扫，由 A0 如实报告。
+LOCAL_AGENTS = "AGENTS.md"
+AGENTS_PRESENT = os.path.isfile(os.path.join(ROOT, LOCAL_AGENTS))
 
 C_FILES = (
-    ["AGENTS.md", "README.md", "docs/README.md", "docs/architecture.md", "scripts/README.md"]
+    ([LOCAL_AGENTS] if AGENTS_PRESENT else [])
+    + ["README.md", "docs/README.md", "docs/architecture.md", "scripts/README.md"]
     + rglob("docs/design/*.md")
     + rglob("BrowseCraft/*/README.md")
     + rglob("BrowseCraft/*/*/README.md")
     + [f for pkg in SIBLING_DOC_PACKAGES
        for f in sibling(pkg, "docs/README.md") + sibling(pkg, "docs/design/*.md")]
+    + [f for pkg in SIBLING_README_PACKAGES for f in sibling(pkg, "README.md")]
 )
 S_FILES = ["docs/STATUS.md"]
 # HANDOFF.md 按 BCA-DOC-011 属 H 类：不适用 C 类形态约束，但参与 A1（不得承载定义点）、
@@ -254,7 +265,7 @@ def load_tracked_files():
     tracked = set()
     repos = [(ROOT, "")] + [
         (os.path.join(os.path.dirname(ROOT), pkg), os.path.join("..", pkg))
-        for pkg in SIBLING_DOC_PACKAGES
+        for pkg in sorted(set(SIBLING_DOC_PACKAGES + SIBLING_README_PACKAGES))
     ]
     for base, prefix in repos:
         # git worktree 里 .git 是指向主仓库的文件，不是目录，所以只看存在与否。
@@ -407,6 +418,16 @@ RETIRE_TERMINAL_VERIFICATION = {"static-audit-passed", "targeted-passed", "full-
 RETIRE_AFTER_DAYS = 14  # BCA-DOC-016 的阈值，唯一声明点在此；文档只说「超过 14 天」不另算。
 
 
+def row_is_terminal(decision, design, verification):
+    """BCA-DOC-016 的终态：验证到四种终值之一、决策为 rejected / optional，或设计已 superseded。
+
+    2026-10-20 复审前只认验证值与 rejected，于是 optional + draft 的候选行和 required + superseded 的
+    被取代行永远到不了终态，第 1、3、4、6 节永远退不了休。
+    """
+    return (decision in {"rejected", "optional"} or design == "superseded"
+            or verification in RETIRE_TERMINAL_VERIFICATION)
+
+
 def check_retirable_sections(rep):
     """A12：STATUS.md 里整节到终态且超期的节，只提示不判失败（BCA-DOC-016）。"""
     import datetime as _dt
@@ -417,11 +438,10 @@ def check_retirable_sections(rep):
         def flush():
             if not section or not rows:
                 return
-            terminal = all(dec == "rejected" or ver in RETIRE_TERMINAL_VERIFICATION for dec, ver, _ in rows)
-            if not terminal:
+            if not all(row_is_terminal(dec, des, ver) for dec, des, ver, _ in rows):
                 return
             try:
-                latest = max(_dt.date.fromisoformat(d) for _, _, d in rows)
+                latest = max(_dt.date.fromisoformat(d) for _, _, _, d in rows)
             except ValueError:
                 return
             if (today - latest).days > RETIRE_AFTER_DAYS:
@@ -436,7 +456,7 @@ def check_retirable_sections(rep):
             cells = [c.strip() for c in line.strip().strip("|").split("|")]
             if len(cells) != len(STATUS_COLUMNS):
                 continue
-            rows.append((cells[2], cells[5], cells[7]))
+            rows.append((cells[2], cells[3], cells[5], cells[7]))
         flush()
     rep.note("A12", "可退休：" + "；".join(hits) if hits else "无可退休的节")
 
@@ -451,6 +471,9 @@ SCREEN_VIEW_ALLOWED = {"BrowseCraft/Shared/Diagnostics/AppAnalytics+Session.swif
                        "BrowseCraft/Shared/UI/AnalyticsScreenModifier.swift"}
 LOGGING_DOC = "docs/design/Logging-Design.md"
 LOG_CATEGORY_SWIFT = "BrowseCraftLog/Sources/BrowseCraftLog/LogCategory.swift"
+# 问题码（BCA-OBS-018）：合同第五节「问题码」表第 0 列 ↔ ProblemReportProblemType 的原始值。
+PROBLEM_REPORT_DOC = "docs/design/Problem-Report-Design.md"
+PROBLEM_REPORT_SWIFT = "BrowseCraft/Shared/Diagnostics/ProblemReportValues.swift"
 # 规则执行失败只经 RuleFailureDiagnostics.report 上报；Crashlytics 的非致命错误只许这几处记（BCA-OBS-007）。
 CRASH_DIAGNOSTICS_SWIFT = "BrowseCraft/Shared/Diagnostics/CrashDiagnostics.swift"
 RULE_FAILURE_SWIFT = "BrowseCraft/Shared/Diagnostics/RuleFailureDiagnostics.swift"
@@ -522,6 +545,20 @@ def check_analytics(rep):
         if stripped:
             prev = stripped
     groups.append(("页面", screen_cases, doc_names(doc, "## 5.", 1)))
+    # 问题码：case 没写原始值时原始值即 case 名的 snake_case；注释写在枚举上方一句，不逐 case 要求。
+    try:
+        problem_doc, problem_code = read(PROBLEM_REPORT_DOC), read(PROBLEM_REPORT_SWIFT)
+        body = problem_code[problem_code.index("enum ProblemReportProblemType"):]
+        body = body[:body.index("\n}\n")]
+        problem_cases = []
+        for line in body.split("\n"):
+            m = re.match(r'case (\w+)(?: = "([a-z_]+)")?$', line.strip())
+            if m:
+                raw = m.group(2) or re.sub(r"(?<!^)(?=[A-Z])", "_", m.group(1)).lower()
+                problem_cases.append((raw, True))
+        groups.append(("问题码", problem_cases, doc_names(problem_doc, "## 五、", 0)))
+    except (OSError, ValueError) as err:
+        rep.fail("A13", PROBLEM_REPORT_DOC, f"读不到问题码表或 ProblemReportProblemType：{err}")
 
     counts = []
     for label, cases, documented in groups:
@@ -530,10 +567,11 @@ def check_analytics(rep):
             if not commented:
                 rep.fail("A13", ANALYTICS_SWIFT if label != "页面" else SCREEN_SWIFT,
                          f"{label} {name} 缺 /// 中文注释（BCA-OBS-001）")
+        doc_path, clause = (PROBLEM_REPORT_DOC, "BCA-OBS-018") if label == "问题码" else (ANALYTICS_DOC, "BCA-OBS-001")
         for name in sorted(names - documented):
-            rep.fail("A13", ANALYTICS_DOC, f"{label} {name} 在代码里有、文档没登记（BCA-OBS-001）")
+            rep.fail("A13", doc_path, f"{label} {name} 在代码里有、文档没登记（{clause}）")
         for name in sorted(documented - names):
-            rep.fail("A13", ANALYTICS_DOC, f"{label} {name} 文档登记了、代码里没有（BCA-OBS-001）")
+            rep.fail("A13", doc_path, f"{label} {name} 文档登记了、代码里没有（{clause}）")
         counts.append(f"{len(names)} 个{label}")
 
     for layer in ANALYTICS_FORBIDDEN_LAYERS:
@@ -590,11 +628,14 @@ def load_fwq_definitions(path):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--fwq", default=os.path.expanduser("~/Desktop/fwq"),
-                    help="fwq 仓库路径；不可达时 A2 的 BC-* 部分与 A3 跳过并如实报告")
+    # 六仓与 fwq 都是同级 checkout（architecture.md 第 1 节），缺省就按同级找，不写死某台机器的目录。
+    ap.add_argument("--fwq", default=os.path.join(os.path.dirname(ROOT), "fwq"),
+                    help="fwq 仓库路径（缺省 ../fwq）；不可达时 A2 的 BC-* 部分与 A3 跳过并如实报告")
     args = ap.parse_args()
 
     rep = Report()
+    if not AGENTS_PRESENT:
+        rep.skip("A0", f"本机没有 {LOCAL_AGENTS}（被 .gitignore，只在写它的机器上存在），未扫描它")
     fwq_defs = load_fwq_definitions(args.fwq)
     defs = collect_definitions(rep)
     check_references(rep, defs, fwq_defs)
@@ -608,6 +649,7 @@ def main():
     check_analytics(rep)
 
     titles = {
+        "A0": "本地 AGENTS.md 在扫描集内（不在就跳过并报告）",
         "A1": "定义点唯一、域在词表内、H 类不承载定义点",
         "A2": "引用到的 ID 都有定义点",
         "A3": "不为 fwq 已定义的 ID 另写定义点",
@@ -620,7 +662,7 @@ def main():
         "A10": "文档点名的代码符号都存在",
         "A11": "承载定义点的文档被 git 跟踪",
         "A12": "STATUS.md 可退休的节（只提示，BCA-DOC-016）",
-        "A13": "埋点字典与日志类别与代码一致、带注释、调用边界与崩溃诊断入口（BCA-OBS）",
+        "A13": "埋点字典、问题码、日志类别与代码一致、带注释、调用边界与崩溃诊断入口（BCA-OBS）",
     }
     failed = {c for c, _, _ in rep.failures}
     skipped = {c for c, _ in rep.skipped}

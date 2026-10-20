@@ -51,7 +51,7 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
 - `BCA-RUNTIME-006` 列表分页的页码代入统一为 `startPage + N − 1`（N 为 1 起的页序号；`PaginationRule.startPage` 缺省 1，book 的 `BookListPagination.startPage` 同义）：
   三 kind 的代入点（影视 `VideoRulePaginationResolver`、漫画 `ComicSourceListLoader` → `URLResolvingService.listURL(page:)`、书 `BookSourceRuntime.listURL`）都经它换算，
   不带该键的规则行为逐字不变。依据 fwq `BC-LIST-124`：0 起页码站（rouman5、3kor）第 1 页在地址里写 0，引擎交付 `startPage: 0`。
-  **门控**：旧版 App 解码时忽略 `startPage`、把 N 原样代入会静默错一页，所以目录请求带 `features=startPage` 声明能力（`LoadCatalogSourcesUseCase.requestedFeatures`，与 `kinds` 同一机制），
+  **门控**：旧版 App 解码时忽略 `startPage`、把 N 原样代入会静默错一页，所以目录请求带 `features=startPage` 声明能力（`AddCatalogSourceUseCase.requestedFeatures`，与 `kinds` 同一机制），
   服务端把需要未声明能力的来源过滤掉；新增规则能力时在同一处登记。对应 fwq `APP-MEMO-027`。
   实现 `BrowseCraftCore/.../SiteRuleModels.swift`（`PaginationRule.startPage` / `sitePageNumber(forPage:)`）、`VideoSiteRuleValidationOperations` 放行键、`ComicSiteRuleV2ValidationOperations` 拒负数；用例 `PaginationStartPageTests`。
 - `BCA-RUNTIME-007` 直接请求通道（`AlamofireHTTPClient.loadContent`）的状态码判定与 App 预检同口径（fwq `BC-PREFLIGHT-062` / `063`；引擎采集同样把非 2xx 当失败）：
@@ -75,6 +75,7 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
   sto55、piaotia、uukanshu、23qb（书）、mangakatana（漫画）；影视 0 例，本条不覆盖影视，出现实例再加。结果页靠 meta refresh / 脚本跳到作品页的 0 例。
   **判据只用「跳转 + 作品页规则取得到标题和章节」**，不认站、不认地址形状；站点把空结果跳回首页 / 搜索页时作品页规则取不到章节，落回原结果。
   代价：只在「0 条 + 跳转」时多一次取页。书在已取回的落地文档上直接解析，只有作品页规则要一跳目录（`chapterListURL` / `chapterFragmentURL`）时才多取；
+  单篇作品（作品页没有章节链接、全文写在作品页本身，fwq `BC-BOOK-066`）经 Runtime 补一章后同样过得了「至少 1 个章节」这道门；
   漫画按作品页取页链路重取一次落地地址（POST 搜索站的落地页是可直接 GET 的作品页）。对应 fwq `APP-MEMO-032`。
   实现 `BrowseCraftRuntime/.../Book/BookSourceRuntime.swift`（`search` → `redirectedDetailItem`）、`.../Comic/ComicSourceRuntime.swift`（`search` → `redirectedDetailItem`）与
   `.../Comic/Loading/ComicSourceSearchLoader.swift`（`SearchSourceResult.redirectedLandingURL`）；用例 BrowseCraftRuntime 包 `SearchRedirectLandingRuntimeTests`（书：直跳成一条且不重取落地页、落地无章节不兜底、没跳转不进兜底、跳转判定只忽略片段与末尾斜杠）；漫画一路无固定输入（归档只 mangakatana 1 例）。
@@ -87,8 +88,7 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
   依据：fwq 量面 3 主机目录自身分页（笔趣阁 `index_{page}.html` 每页约 100 章、oop.tw `?p={page}` 每页 30 章、ffppt），此前目录截在第一页却报成功（读书需求文档需求五后半）。
   实现 `BrowseCraftCore/.../BookSiteRuleModels.swift`（`BookDetailRule.chapterPagination`）、`BookSiteRuleValidationOperations.swift`；`BrowseCraftRuntime/.../Book/BookSourceRuntime.swift`（`appendingChapterPages`）；
   用例 BrowseCraftRuntime 包 `BookChapterPaginationRuntimeTests`（逐页到无新章节、中途失败保留、`maxPages` 与 0 起页码、不带键只取一页、Core 校验）。
-- `BCA-RUNTIME-010` 规则在取到的页面上**匹配不到内容**时，同一运行时操作换手机 Safari UA（`ClientUserAgent.mobileSafari`）重做**一次**（fwq `APP-MEMO-037`，设计稿第 54 节；
-  用户 2026-10-13「App 端兜底或许可行，因为规则只会在手机端使用」→「所有来源都开，App 单端改」）。
+- `BCA-RUNTIME-010` 规则在取到的页面上**匹配不到内容**时，同一运行时操作换手机 Safari UA（`ClientUserAgent.mobileSafari`）重做**一次**（fwq `APP-MEMO-037`，设计稿第 54 节；所有来源都开，App 单端改）。
   触发只认「匹配不到内容」：`RuleExecutionErrorClassifier` 归为 `selectorEmpty` 的错误，或调用方声明的空结果（列表第 1 页 0 条、书类目录 0 章）；
   网络、状态码、挑战未过、规则配置等错误不触发，搜索 0 条不算（可能就是没搜到）——不把换 UA 变成万能兜底（同 `BCA-RUNTIME-005`）。
   重做成功即按来源记「用手机 UA」（`UserDefaults`，键为来源 id，版本取 `Source.updatedAt`，规则更新后重新判），之后该来源的取页一律带手机 UA；
@@ -96,21 +96,19 @@ App 的网络载体。这些条款约束的是「拿到 JSON 之后怎么解释�
   `WKWebViewHTMLLoader.urlRequest` 组头时，后者经 `customUserAgent` 生效）；重做期间同一来源的其它取页也带手机 UA。
   依据：站点按 UA 分桌面 / 手机两套模板（seyouxiaoshuo 同一分类页桌面 UA `common-list` 0、iPhone UA 16）；困难档云端 `/scrape` 官方文档不能指定 UA，
   挑战站被升到实体机浏览器、拿回手机模板（huanmengacg `common-list` 52），规则按手机模板写成，App 用规则桌面 UA 取到桌面模板 →「规则没有匹配到内容」。
-  放行 Cookie 绑 UA（本文 `BCA-RUNTIME-005` 回写说明），换 UA 后遇挑战照旧走 WebView 挑战状态机，首次会慢一次。不改 App 预检、不改引擎交付 UA。**2026-10-13 修订（用户「要，图片跟随来源的身份」）**：封面 / 列表图跟随来源的 UA 选择——图片配置的全部出口——`ResolveLibrarySourcePresentationUseCase.imageRequestConfig`（书库 / 书架 / 收藏 / 历史 / 影视详情，及书籍目录页封面 `BookSiteDetailViewModel.coverRequestConfig`，后者此前直接调静态 `bookImageRequestConfig` 绕过出口，同日真机「目录里的预览没处理」后改走出口）、`ResolveReaderSourcePresentationUseCase` 的漫画详情封面与阅读页图片——经 `SourceUserAgentFallback.applyingImageUserAgent` 在来源已判定用手机 UA 时把 `imageHeaders`（及 `imageRequest.headers`）的 `User-Agent` 换成手机 Safari；依据 huanmengacg 封面与页面同在 Cloudflare 后面（直接请求 403 `cf-mitigated: challenge`），放行 Cookie 绑过挑战时的 UA，图片换了身份就回挑战页。还没打开过来源（未过挑战、没有放行 Cookie）时的预览封面仍取不到，不在本条内。
+  放行 Cookie 绑 UA（本文 `BCA-RUNTIME-005` 回写说明），换 UA 后遇挑战照旧走 WebView 挑战状态机，首次会慢一次。不改 App 预检、不改引擎交付 UA。**封面 / 列表图跟随来源的 UA 选择**——图片配置的全部出口——`ResolveLibrarySourcePresentationUseCase.imageRequestConfig`（书库 / 书架 / 收藏 / 历史 / 影视详情，及书籍目录页封面 `BookSiteDetailViewModel.coverRequestConfig`，后者也走这个出口、不直接调静态 `bookImageRequestConfig`）、`ResolveReaderSourcePresentationUseCase` 的漫画详情封面与阅读页图片——经 `SourceUserAgentFallback.applyingImageUserAgent` 在来源已判定用手机 UA 时把 `imageHeaders`（及 `imageRequest.headers`）的 `User-Agent` 换成手机 Safari；依据 huanmengacg 封面与页面同在 Cloudflare 后面（直接请求 403 `cf-mitigated: challenge`），放行 Cookie 绑过挑战时的 UA，图片换了身份就回挑战页。还没打开过来源（未过挑战、没有放行 Cookie）时的预览封面仍取不到，不在本条内。
   实现 `BrowseCraft/Application/UseCases/Source/SourceUserAgentFallback.swift`（调用点：列表刷新、搜索、漫画详情、阅读章节、书类详情与正文、影视详情与播放）、
   `BrowseCraftDomain/.../ClientUserAgent.swift`（`mobileSafari`）；用例 `SourceUserAgentFallbackTests`（重做并记住、其它错误不触发、重做仍空报原错误且不再重试、空结果触发、规则更新重判、只换 UA、封面跟随来源 UA、各图片出口都跟随）。
 - 直接请求通道跟随重定向时，跳转目标是 `http://` 的一律升成 `https://` 再跟（`AlamofireHTTPClient.httpsUpgradingRedirector`，`HTTPSUpgrade.upgraded`），HTML 取页与 `loadData` 原始字节请求同一个重定向器；不开全局 ATS 例外。
   引用点：fwq `BC-BOOK-050`（sfacg 作品页 302 到 http 的移动站再 301 回 https，URLSession 在 http 那一跳被 ATS 拒，而规则生成引擎的客户端无 ATS 跟得过去）；与有声书 mp3 地址的处置同一纪律。
   本来就是 https 或不是 http(s) 的地址原样跟随。
-- `BCA-RUNTIME-011` **图片先按浏览器带当前页面 Referer，失败再不带 Referer 重试一次**（2026-10-15，fwq 第七批真机抽验 umh5「列表缩略图、章节缩略图、漫画页都显示不出来」）：
+- `BCA-RUNTIME-011` **图片先按浏览器带当前页面 Referer，失败再不带 Referer 重试一次**：
   图片地址仍按 `HTTPSUpgrade` 升成 https（`ImageRequestFactory.makeRequest`，图片请求唯一出口）。调用方默认带当前页面 Referer（与浏览器一致）；图片加载失败时以 `omitPageReferer` 再取一次——
   封面 / 缩略图视图的尝试序列 `RemoteImageAttempt.attempts`（每个候选地址「带、不带」两次，没有当前页面时只一次），阅读页 `ReaderPageImageView` 失败后重试一次。
   规则 `imageHeaders` / `imageRequest.headers`、调用方 `additionalHeaders` 显式给的 Referer 不受影响。重试请求换 `cachePolicy = reloadIgnoringLocalCacheData`（Nuke 合并数据任务的键是「地址 + cachePolicy + allowsCellularAccess」，不看请求头与 `imageIdKey`，同键会被合并进带 Referer 的任务、拿到同一个 403），内存 / 磁盘缓存键也分开；阅读页重试的 `.id` 只挂在里层图片上（挂在页格外层会让 LazyVStack 各页同 id）。不按站点。
   依据：两类图床要求相反——`oss.mkzcdn.com` 带外站 Referer 403、不带 200（umh5、mhua5；内置浏览器里 umh5 自己的网页同样加载失败）；`xz.kanrenao.cn` 不带 404、带 200（bhtv001，浏览器里能加载）。
-  回归面（fwq `scripts/measure_downgraded_image_referer.py --probe`，https 页面上的 http 图片 37 站 / 47 组合）：两种都 200 34、只有不带才 200 2、只有带才 200 1、都失败 10（站点侧）——先带后不带同时满足三类。
-  历史：两视图原先对 http 地址给「先自己升好的 https、再原地址」双候选（2026-07 RSS 时期），2026-09-21 工厂统一升级后两候选已相同，改为本条的 Referer 尝试序列。
   用例 `ImageRequestFactoryTests`（默认带当前页面、重试不带、规则 Referer 保留、尝试顺序、缓存键区分带不带 Referer）。
-  同日补：漫画 / 影视 / 书籍详情页头部封面把列表封面作为备用地址（`fallbackURLString`，`CoverImageView` 补同名参数）——作品页封面取不到（umh5：作品页规则取到推荐区另一部作品的图、403）时退回已显示过的列表封面，不再被占位图顶掉；尝试序列为「作品页封面带 / 不带 → 列表封面带 / 不带」。
+  漫画 / 影视 / 书籍详情页头部封面把列表封面作为备用地址（`fallbackURLString`，`CoverImageView` 补同名参数）——作品页封面取不到（umh5：作品页规则取到推荐区另一部作品的图、403）时退回已显示过的列表封面，不再被占位图顶掉；尝试序列为「作品页封面带 / 不带 → 列表封面带 / 不带」。
 
 同域的另外三条不在本文：kind 分流纪律 `BCA-RUNTIME-002` 与目录解码兼容硬约束 `BCA-RUNTIME-004`
 在 [Book-Kind-Wiring-Design.md](Book-Kind-Wiring-Design.md)，播放候选过滤 `BCA-RUNTIME-003` 在

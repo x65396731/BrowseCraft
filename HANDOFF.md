@@ -11,13 +11,13 @@
 ## 0. 当前状态（现查口径）
 
 ```bash
-# 六仓 + SwiftSoup fork 的 HEAD、是否干净、是否有未推送
+# 六仓 + SwiftSoup fork 的 HEAD、是否干净、是否有未推送（在 App 仓根目录运行；七个仓库是同级 checkout）
 for d in BrowseCraft BrowseCraftCore BrowseCraftDomain BrowseCraftRuntime BrowseCraftAPIKit BrowseCraftLog SwiftSoup; do
   printf '%-22s ' "$d"
-  git -C ~/Desktop/$d log --oneline -1
+  git -C ../$d log --oneline -1
   printf '%-22s   未提交 %s 处，未推送 %s 个\n' '' \
-    "$(git -C ~/Desktop/$d status --porcelain | wc -l | tr -d ' ')" \
-    "$(git -C ~/Desktop/$d log --oneline @{u}.. 2>/dev/null | wc -l | tr -d ' ')"
+    "$(git -C ../$d status --porcelain | wc -l | tr -d ' ')" \
+    "$(git -C ../$d log --oneline @{u}.. 2>/dev/null | wc -l | tr -d ' ')"
 done
 
 # 文档闸门（改过 C 类文档 / STATUS / AGENTS 就跑，BCA-DOC-010）
@@ -35,35 +35,28 @@ python3 scripts/check-docs.py
 
 | 挂账 | 欠什么 | 合同 | STATUS |
 | --- | --- | --- | --- |
-| 活动与生成率提示（2026-10-18，`BCA-UI-004` / `BCA-UI-005` / `BCA-SYNC-012`；设计书、画布链接在合同头部） | ① App 侧 2026-10-19 已 build，真机验过设置页「通知」分组全部状态与新注册欢迎页（STATUS 第 11 节真机一行）；没看的：成功率一行有数据时的文案（用户 10-19 用新账号提交生成，次日 12:30 JST 汇总后看）、活动推送点击；没跑单元测试；② PortalCore 侧已上线：新户赠送 3000 coin、`/media/` 两张弹窗插画、设备登记接受 `marketingOptIn` / `language`（v0021）；成功率接口与 GeoIP 与每日汇总（迁移 v0022，宿主机 crontab 每日汇总、每月换库；旧任务不计，所以真实用户生成之前这一行不显示）、登录返回 `accountCreated` / `signupGrantCoins`、隐私政策页（含 DB-IP 署名）；未做：活动入账脚本与新记账原因（要迁移）；③ Firebase 控制台：「新账户欢迎页」已投放中；「限时活动 · 送 300 coin」是草稿，用户说发再发——先跑入账脚本并报人数，再按活动天数改「首次打开超过 N 天前」、填起止日期后发布 | [Campaign-And-Rate-Notices](docs/design/Campaign-And-Rate-Notices-Design.md) 第五、七、八节 | 第 11 节 |
+| 活动与生成率提示（2026-10-18，`BCA-UI-004` / `BCA-UI-005` / `BCA-SYNC-012`；设计书、画布链接在合同头部） | ① App 侧 2026-10-19 已 build，真机验过设置页「通知」分组全部状态与新注册欢迎页（STATUS 第 11 节真机一行）；没看的：成功率一行有数据时的文案（用户 10-19 用新账号提交生成，次日 12:30 JST 汇总后看）、活动推送点击；② PortalCore 侧已上线：新户赠送 3000 coin、`/media/` 两张弹窗插画、设备登记接受 `marketingOptIn` / `language`（v0021）；成功率接口与 GeoIP 与每日汇总（迁移 v0022，宿主机 crontab 每日汇总、每月换库；旧任务不计，所以真实用户生成之前这一行不显示）、登录返回 `accountCreated` / `signupGrantCoins`、隐私政策页（含 DB-IP 署名）；未做：活动入账脚本与新记账原因（要迁移）；③ Firebase 控制台：「新账户欢迎页」已投放中；「限时活动 · 送 300 coin」是草稿，用户说发再发——先跑入账脚本并报人数，再按活动天数改「首次打开超过 N 天前」、填起止日期后发布 | [Campaign-And-Rate-Notices](docs/design/Campaign-And-Rate-Notices-Design.md) 第五、七、八节 | 第 11 节 |
 | 页内问题报告（2026-10-19 / 20，`BCA-OBS-018` ~ `022`、`BCA-UI-006`；设计书 https://claude.ai/artifact/R1jd8HR8q6hKoSKh1vTjMB） | **第二期挂账（用户 2026-10-20：目前做不了）**：合同第九节排查第 4、5 步的查询脚本，写在 PortalCore 仓——第 4 步按（`sourceId`, `ruleRevision`, scope）数最近 24 小时的报告，默认不计站点侧、另列一行看站点可用性；第 5 步输入 `sourceId`（可选 `ruleRevision`），经 `generated_rule_index` 按指纹对到当初的生成任务与结局（有花了 token 的失败归档一并列出），再列该站最近的生成成功 / 失败数与最近 24 小时的报告数（按问题码与站点侧分开）。只做脚本、不做自动告警。线上 `problem_reports` 现只有走查发的 4 条（`R-4PQ9-3T68`、`R-4KSY-X8AZ`、`R-6KMP-JUAM`、`R-TF54-DMXQ`，同一诊断码 `BC-DLCB-2S38`），写脚本时可当样本、统计时要排除。只读查线上库的方式：ssh 到服务器后在 `/home/ubuntu/portalcore/PortalCore` 下 `docker compose exec -T api python -`，脚本里用 `app.platform.config.DB_PATH` 以 `mode=ro` 打开。第一期另欠：漫画详情与站点书详情的模拟器走查（模拟器来源位置 1 / 1）、真机、App 发版（服务端已上线） | [Problem-Report](docs/design/Problem-Report-Design.md) 第九、十一节 | 第 12 节 |
-| 删除来源连带删除历史与收藏 | 真机 | [Source-Deletion-Cascade](docs/design/Source-Deletion-Cascade-Design.md) 第七、八节 | 第 4 节两行 |
+| 删除来源时保留历史与收藏（取代连带删除） | 真机 | [Source-Deletion-Cascade](docs/design/Source-Deletion-Cascade-Design.md) 第七、八节 | 第 4 节 targeted-passed 行 |
 | 续看位置同步到 iCloud | 两台设备对测（同一 iCloud 账户、同一种安装方式、同一个来源；书的 `locatorJSON` 跨设备可用性未实测）+ 真机退后台的时间够不够 | [History-Resume-Sync](docs/design/History-Resume-Sync-Design.md) 第三、五节 | 第 4 节两行 |
-| 17 页重设计：来源、收藏、规则目录、历史、设置、coin 记录、缓存、云同步、添加来源、网址输入与引导屏、库页三种、详情三种、来源内搜索 | 真机验收（含深色）；各页清单列了模拟器没走到的状态 | 各页合同末节 | 第 2 节 |
+| 19 页重设计：来源、收藏、规则目录、历史、设置、coin 记录、缓存、云同步、添加来源、网址输入与引导屏、库页三种、详情三种、来源内搜索、有声书播放页、删除账号页 | 真机验收（含深色）；模拟器没走到的状态见 STATUS 各页走查行 | 各页合同末节「真机验收清单」 | 第 2 节、第 4 节 |
 | 规则目录：「我的生成」优先落段；删失败记录整入口软删除 | 任何验证 | [Catalog-Page-Redesign](docs/design/Catalog-Page-Redesign-Design.md) 第 2.1 / 2.3 节 | 第 2 节末两行 |
 | F2-5 / F2-6：进列表先读后写、读书线读库经 actor | 验证 | — | 第 6 节 |
 | 漫画详情分段芯片锚点（2026-10-10 已改为按分区头高度换算；2026-10-11 模拟器上书详情同一公式已看过，段首落在分区头下不被盖住） | 漫画详情再看一眼（线上没有漫画来源时跳过）；章节 `order` 接线已裁定记账、不做 | [Comic-Detail](docs/design/Comic-Detail-Page-Redesign-Design.md) 第十四节、[Book-Detail](docs/design/Book-Detail-Page-Redesign-Design.md) 第十三节 | 第 2 节 |
-| 2026-10-11 复审第十四批（跨页复制第三组，视觉组统一）：继续卡片、开始按钮、顶部圆按钮、贴顶分区头、底色补铺五件共享（App 与测试目标构建 0 警告，BrowseCraftTests 578 + 84 例全过，模拟器走过书详情两本） | 真机或模拟器：漫画详情同样三件（线上没有漫画来源时跳过） | 三份详情合同「实现位置」首条 | 第 8 节末行 |
-| 2026-10-11 复审第十三批（跨页复制第二组）：分段状态机、收藏切换、简介与骨架、`nonEmpty` 四组收敛（App 与测试目标构建 0 警告，BrowseCraftTests 578 + 84 例全过；模拟器走过书详情的分段芯片、收藏切换、简介展开） | 真机或模拟器：漫画详情与影视详情同样三件（线上没有漫画来源时跳过） | 三份详情合同「实现位置」首条 | 第 8 节末行 |
-| 2026-10-11 复审第十二批：Features 层 58 处颜色收回 `CatalogPalette`（App 构建 0 警告，BrowseCraftTests 578 + 84 例全过，模拟器浅深各走过库页、来源页、目录页、书详情） | 真机：影视 / 漫画的库页、详情页与阅读器、设置与云同步页浅深各看一眼 | [Catalog-Page](docs/design/Catalog-Page-Redesign-Design.md) 第三节 | 第 8 节末行 |
-| 2026-10-10 复审第十一批（两件裁定）：库页翻页失败走分页脚、目录单条规则解不开逐条跳过（App 与测试目标构建 0 警告，BrowseCraftTests 578 + 84 例全过） | 真机：库页翻到底遇站点出错看分页脚文案与再次触底重试 | [Library-Video](docs/design/Library-Video-Page-Redesign-Design.md) 第七节、[Book-Kind-Wiring](docs/design/Book-Kind-Wiring-Design.md) `BCA-RUNTIME-004` | 第 8 节末两行 |
-| 2026-10-10 复审第十批（B-10）：共享图片内存缓存上限 256 MB、单张 20%（App 与测试目标构建 0 警告，BrowseCraftTests 574 + 84 例全过） | 真机：Instruments 看长条漫画连读 100 页的驻留是否在 256 MB 附近封顶、往回翻页有没有变卡（模拟器量不到驻留） | [Cache-Page](docs/design/Cache-Page-Redesign-Design.md) 第二节 | 第 8 节末行 |
-| 2026-10-10 复审第九批：`BCA-DB-003` 给 v7 到 v9 补上一版库升级用例（三条；App 与测试目标构建 0 警告，BrowseCraftTests 573 + 84 例全过） | 无欠账 | [Database README](BrowseCraft/Infrastructure/Database/README.md) `BCA-DB-003` | 第 8 节末行 |
-| 2026-10-10 复审第七批（跨页复制第一组）：横幅三套收成 `LibraryStateBanner`、时刻写法收成 `LibraryHistoryTimeText`、横幅词条改 `library_banner_*`（App 构建 0 警告、BrowseCraftTests 570 + 84 例全过、五道闸门干净） | 真机：书详情 / 搜索页失败横幅的「登录」「重试」、漫画详情受限横幅、三处继续卡片与瓷砖时刻一致 | [Book-Detail](docs/design/Book-Detail-Page-Redesign-Design.md) 第七节、[Comic-Detail](docs/design/Comic-Detail-Page-Redesign-Design.md) 第八节、[Search](docs/design/Search-Page-Redesign-Design.md) 第五节 | 第 8 节末行 |
-| 2026-10-10 复审第六批（B-4）：目录跟随先比指纹、批量一个写事务、不再经 addCatalogSource；v10 迁移 | 真机：打开规则目录页的耗时、回前台静默跟随不切标签 | [Catalog-Rule-Update](docs/design/Catalog-Rule-Update-Design.md) 第二节 | 第 8 节末行 |
+| 代码复审第六～十四批（目录跟随指纹、横幅与时刻写法收敛、v7–v9 升级用例、图片内存缓存上限、翻页失败走分页脚与目录逐条跳过、颜色收回 `CatalogPalette`、跨页复制第二 / 三组） | 真机看点逐批列在 `docs/history/status-log.md`「2026-10-20 第三轮文档复审」节（原八行挂账）；要点：库页翻到底出错看分页脚、长条漫画连读 100 页看驻留、漫画 / 影视详情的共享件与浅深色各看一眼 | STATUS 第 8 节各行点名的合同 | 第 8 节 |
 | 2026-10-10 复审第五批：Domain 包瘦身（四组类型搬回 App）与 B-6 到 B-8 计算属性改存储 | 真机：影视详情 500 集单线路页滚动、历史页 1000 条切筛选 | [architecture.md](docs/architecture.md) 第 2 节 domain kernel | 第 8 节末行 |
 | 2026-10-10 复审第四批（架构清理）：`@unchecked Sendable` 30 → 16、`try!` 豁免归零、`CoinLedgerViewModel` 归位、architecture.md 与 Core 依赖图回写 | 无欠账 | [architecture.md](docs/architecture.md) 第 4 节 | 第 8 节末行 |
-| 2026-10-10 复审第三批：七处正则绕过缓存、阅读页请求按身份构造一次（Core / Runtime 各有一笔未提交） | 真机：长目录漫画详情切正倒序、阅读页翻页流畅度 | [STATUS 第 8 节](docs/STATUS.md) 末行 | 第 8 节 |
+| 2026-10-10 复审第三批：七处正则绕过缓存、阅读页请求按身份构造一次 | 真机：长目录漫画详情切正倒序、阅读页翻页流畅度 | [STATUS 第 8 节](docs/STATUS.md) 末行 | 第 8 节 |
 | 2026-10-10 复审第二批：历史 / 库页按来源与按作品查询、三个详情页收藏与书详情进度经 actor、页面缺口与 11 条裸英文、两份包内 README | 真机：历史页与库页进页耗时、三个详情页收藏切换 | [STATUS 第 8 节](docs/STATUS.md) 末三行 | 第 8 节 |
 | 2026-10-10 代码复审八条裁定的实施：云同步 Portal 门禁与旧本地 UUID 覆盖、缩略图缓存键、详情刷新失败横幅、搜索页三处、死代码删除 | 真机：未登录进云同步页看开关禁用与说明、登录后开同步看 `former-local-identity-replaced` 日志 | [STATUS 第 8 节](docs/STATUS.md) 指向的复审报告 | 第 8 节五行 |
 | 站点按状态码拒绝不再报成「规则解析出错」（`BCA-RUNTIME-007`，2026-10-10） | 真机找一个回 403 的来源看提示文案 | [RuleExecutionSemantics](docs/design/RuleExecutionSemantics.md) 第三节 | 第 3 节 |
-| 书类目录自身分页（`BCA-RUNTIME-009`，Core `491b28f` / Runtime `d08756b`，2026-10-11，不在 build 19 里；引擎 fwq `BC-BOOK-061` 已部署） | 下次打包后真机：从 App **重交笔趣阁**（旧规则不带分页），打开一本长书（如《普罗之主》），目录应到最后一章、「从第 1 章开始读」开第一章 | [RuleExecutionSemantics](docs/design/RuleExecutionSemantics.md) 第三节 | 第 3 节 |
-| 搜索全名直跳作品页的兜底（`BCA-RUNTIME-008`，Runtime `ae9a7f0`，2026-10-11，不在 build 19 里） | 下次打包后真机：piaotia 或 sto55 搜一部书的**完整书名**，应出现一条结果、点进去是这本书；搜书名的一部分照旧出列表 | [RuleExecutionSemantics](docs/design/RuleExecutionSemantics.md) 第三节 | 第 3 节 |
+| 书类目录自身分页（`BCA-RUNTIME-009`，Core `491b28f` / Runtime `d08756b`，2026-10-11，未随已发构建打包；引擎 fwq `BC-BOOK-061` 已部署） | 下次打包后真机：从 App **重交笔趣阁**（旧规则不带分页），打开一本长书（如《普罗之主》），目录应到最后一章、「从第 1 章开始读」开第一章 | [RuleExecutionSemantics](docs/design/RuleExecutionSemantics.md) 第三节 | 第 3 节 |
+| 搜索全名直跳作品页的兜底（`BCA-RUNTIME-008`，Runtime `ae9a7f0`，2026-10-11，未随已发构建打包） | 下次打包后真机：piaotia 或 sto55 搜一部书的**完整书名**，应出现一条结果、点进去是这本书；搜书名的一部分照旧出列表 | [RuleExecutionSemantics](docs/design/RuleExecutionSemantics.md) 第三节 | 第 3 节 |
 | POST 搜索与非 UTF-8 关键词（fwq `APP-MEMO-031`，Core 与 Runtime 已推送） | 真机：fwq 三站搜索复测通过后，从 App 重交 piaotia 搜「剑帝」 | fwq `BC-SEARCH-022` | fwq STATUS |
 | 站点有声播放器后续：界面样式、倍速入口、`mediaAPI` 无语料 | 立项 | [Book-Kind-Wiring](docs/design/Book-Kind-Wiring-Design.md) 第十六节 | 第 1 节 optional 行 |
-| 规则目录「推荐」改为「发现」：上方「站点示例」列表、Debug 下方「内部测试」沿用原横幅版式（2026-10-12 裁定，合同已入库、代码未动） | 服务端已上线（2026-10-12）：fwq `BC-IMPL-170` 发布带 `?section=`（缺省 `internal`，`--catalog-section example` 逐次显式给）；PortalCore 迁移 v17 把原 15 个公共来源回填 `internal`，`GET /catalog/sources` 只对 `CATALOG_INTERNAL_USER_IDS`（服务器 `.env`，现为开发者本人账号）返回 `internal`，其余账号此刻拿到空目录（接口实测 15 / 0 条）。欠：3～6 个示例站经 fwq 生成后以 `--catalog-section example` 发布（候选与条款核对表在需求文档第三节）；App 侧已实施（未 build、未跑测试），欠 build 与走查：Debug 白名单账号看到「内部测试」三类横幅、Release 在示例发布前是空状态 | [Catalog-Page-Redesign](docs/design/Catalog-Page-Redesign-Design.md) 2.2 / 2.6；需求文档「fwq 需求：公共目录区分站点示例」（https://claude.ai/artifact/1qKBLaB16tzi8WRVByJZVr）；设计书（https://claude.ai/artifact/Mv6Qq1JTHRTtNHbd8aN72y）；画布（https://claude.ai/artifact/SrrBgFvcPSbwsnZdY4PxFg） | 第 2 节该行 |
+| 规则目录「推荐」改为「发现」：上方「站点示例」列表、Debug 下方「内部测试」沿用原横幅版式（2026-10-12 裁定，合同已入库、代码未动） | 服务端已上线（2026-10-12）：fwq `BC-IMPL-170` 发布带 `?section=`（缺省 `internal`，`--catalog-section example` 逐次显式给）；PortalCore 迁移 v17 把原 15 个公共来源回填 `internal`，`GET /catalog/sources` 只对 `CATALOG_INTERNAL_USER_IDS`（服务器 `.env`，现为开发者本人账号）返回 `internal`，其余账号此刻拿到空目录（接口实测 15 / 0 条）。欠：3～6 个示例站经 fwq 生成后以 `--catalog-section example` 发布（候选与条款核对表在需求文档第三节）；App 侧已实施并随后续构建编译过，欠走查：Debug 白名单账号看到「内部测试」三类横幅、Release 在示例发布前是空状态 | [Catalog-Page-Redesign](docs/design/Catalog-Page-Redesign-Design.md) 2.2 / 2.6；需求文档「fwq 需求：公共目录区分站点示例」（https://claude.ai/artifact/1qKBLaB16tzi8WRVByJZVr）；设计书（https://claude.ai/artifact/Mv6Qq1JTHRTtNHbd8aN72y）；画布（https://claude.ai/artifact/SrrBgFvcPSbwsnZdY4PxFg） | 第 2 节该行 |
 | App Store 首发（AnyPortal，香港与台湾，免费）：价格、销售地区、5 个内购的繁中本地化 / 审核截屏 / 推广图、类别（娱乐 / 图书）、年龄分级已在 App Store Connect 填好 | 内容版权一题等「发现」上线后按工具姿态再勾；调试完选正式构建后把 5 个内购加进 1.0 版本一起送审，送审前考虑「版本发布」改手动；「在 App Store 上推广」不开（App 未处理 `PurchaseIntent`，要开先补代码） | Claude 文档「BrowseCraft 页面设计索引」的「App Store 内购项目图像」一节（勾选清单与即梦设定） | — |
-| 隐私清单（`BrowseCraft/PrivacyInfo.xcprivacy`，2026-10-15）留下的事，10-17 更新：Firebase Analytics 与 GoogleMobileAds 都保留；AdMob 跟踪姿态裁定为**接 ATT**（用户 10-17）。GoogleMobileAds 自带清单把 DeviceID 标成用于跟踪，App Store Connect 隐私标签已于 10-17 照此发布（设备 ID 用于追踪；粗略位置、产品交互、广告数据、性能数据、其他诊断数据的用途与 SDK 清单对齐）。代码已改、未提交、未 build：Release 也带跟踪用途说明（`Info.plist` 去掉 `#if`，三语在 `InfoPlist.strings`），`RewardedAdPresenter` 在首次加载激励广告前申请 ATT，允许与否都照常加载、照常发 coin；App 清单 `NSPrivacyTracking=false` 不变（App 自己的代码不跟踪） | ATT 真机已验（2026-10-19，iPhone 15 Debug）：首次看广告弹系统追踪框、繁中说明正确；拒绝后照常发广告请求（日志见 `googleads.g.doubleclick.net`），真实单元有限投放且拒绝时 IDFA 全零认不出测试设备，所以无广告可播、不发 coin；允许后测试广告播完、SSV 入账 +20（延迟 173 ms）。欧洲经济区 / 英国 / 瑞士是否接 UMP 的欧洲法规消息未定，不接则这三地只投受限广告。另一件仍挂着：GoogleAppMeasurement / FirebaseAnalytics 当前版本**不带自己的清单**，它们的收集（DeviceID 的 Analytics 用途、ProductInteraction、OtherDiagnosticData 的 Analytics 用途、CoarseLocation）由 App 清单代为声明，升级 Firebase 后看新版是否自带清单、自带了就删掉 App 清单里重复的 | `BrowseCraft/PrivacyInfo.xcprivacy` 内注释与其提交说明；`RewardedAdPresenter.requestTrackingAuthorizationIfNeeded` 注释 | — |
+| 隐私清单（`BrowseCraft/PrivacyInfo.xcprivacy`，2026-10-15）留下的事，10-17 更新：Firebase Analytics 与 GoogleMobileAds 都保留；AdMob 跟踪姿态裁定为**接 ATT**（用户 10-17）。GoogleMobileAds 自带清单把 DeviceID 标成用于跟踪，App Store Connect 隐私标签已于 10-17 照此发布（设备 ID 用于追踪；粗略位置、产品交互、广告数据、性能数据、其他诊断数据的用途与 SDK 清单对齐）。代码已落地：Release 也带跟踪用途说明（`Info.plist` 去掉 `#if`，三语在 `InfoPlist.strings`），`RewardedAdPresenter` 在首次加载激励广告前申请 ATT，允许与否都照常加载、照常发 coin；App 清单 `NSPrivacyTracking=false` 不变（App 自己的代码不跟踪） | ATT 真机已验（2026-10-19，iPhone 15 Debug）：首次看广告弹系统追踪框、繁中说明正确；拒绝后照常发广告请求（日志见 `googleads.g.doubleclick.net`），真实单元有限投放且拒绝时 IDFA 全零认不出测试设备，所以无广告可播、不发 coin；允许后测试广告播完、SSV 入账 +20（延迟 173 ms）。欧洲经济区 / 英国 / 瑞士是否接 UMP 的欧洲法规消息未定，不接则这三地只投受限广告。另一件仍挂着：GoogleAppMeasurement / FirebaseAnalytics 当前版本**不带自己的清单**，它们的收集（DeviceID 的 Analytics 用途、ProductInteraction、OtherDiagnosticData 的 Analytics 用途、CoarseLocation）由 App 清单代为声明，升级 Firebase 后看新版是否自带清单、自带了就删掉 App 清单里重复的 | `BrowseCraft/PrivacyInfo.xcprivacy` 内注释与其提交说明；`RewardedAdPresenter.requestTrackingAuthorizationIfNeeded` 注释 | — |
 | 埋点全覆盖（2026-10-17，`BCA-OBS-001` ~ `005`）：GA4 已注册 24 个事件级自定义维度，模拟器走查确认 26 种事件送达 DebugView；视频 / 漫画链路、站点登录、来源增删启用、生成提交、购买结局与恢复、Apple 登录退出、删号、云同步、内容锁、推送、启动失败没走到。两条观察都已处理：关掉 sheet 回到下层页面不重报曝光，改为可见页栈补报（第 9 节，待模拟器复核）；测试广告看完后 `ad_reward_credited` 报 timeout、余额随后到账，用户 10-17 裁定把看完广告后的余额轮询从约 12 秒加长到约 60 秒，timeout 在合同里写成「窗口内没到账」、迟到的到账不补报，PortalCore 另开 PR 在 SSV 回调里记录延迟，量出分布后再看 60 秒是否合适 | 有视频 / 漫画来源的模拟器或真机上用 `-FIRDebugEnabled` 启动、开 `log stream` 过滤 `Event logged` 补走；PortalCore 的 SSV 延迟记录上线后回看轮询窗口 | [Analytics-Events](docs/design/Analytics-Events-Design.md) | 第 9 节 |
 | 给 fwq 的六条读书 kind 生成需求 | 需求一 / 三 / 四 / 五前半 fwq 已交付并真机通过（小說狂人最新章节 10-10 再修、待部署）；需求二记账、两端都不做；五后半目录分页 fwq 未定立场；六 fwq 不做 | Claude 文档「读书 kind 规则生成覆盖需求」（https://claude.ai/artifact/HnYM71goMZveUVJQQ4vhgk） | fwq STATUS |
 
@@ -85,7 +78,7 @@ python3 scripts/check-docs.py
 六个仓库是**同级 checkout 的 path 依赖**，没有版本 tag；App 的 `main` 只对得上兄弟仓的 `main`：
 
 ```
-~/Desktop/
+<parent>/                 # 任意父目录，七个仓库并排放；命令都以 ../<仓库> 相对 App 仓根目录写
   BrowseCraft/            # App
   BrowseCraftCore/  BrowseCraftDomain/  BrowseCraftRuntime/  BrowseCraftAPIKit/  BrowseCraftLog/
   SwiftSoup/              # 自家 fork，整张依赖图的本地覆盖（BCA-BUILD-002）
@@ -104,7 +97,7 @@ scripts/check-swiftsoup-override.sh          # BCA-BUILD-002
 scripts/check-ad-configuration.sh            # BCA-BUILD-003
 scripts/check-bundled-image-assets.sh        # BCA-BUILD-006 ~ 007
 scripts/check-localization.py <Objects-normal 目录>
-python3 scripts/check-docs.py                # BCA-DOC-010；fwq 不在 ~/Desktop/fwq 时加 --fwq <路径>
+python3 scripts/check-docs.py                # BCA-DOC-010；fwq 不在同级 ../fwq 时加 --fwq <路径>；本机没有 AGENTS.md 时跳过它并报告
 
 # build 与测试（AGENTS.md：只有用户明确要求时才跑）。destination 写「OS + 名字」，不写 UDID；
 # 运行时用 iOS 26 及以上（iOS 18.5 跑不了测试）。
@@ -115,7 +108,7 @@ xcodebuild -project BrowseCraft.xcodeproj -scheme BrowseCraft \
 
 # 包各自的测试
 for d in BrowseCraftCore BrowseCraftDomain BrowseCraftRuntime BrowseCraftAPIKit BrowseCraftLog; do
-  (cd ~/Desktop/$d && swift test)
+  (cd ../$d && swift test)
 done
 ```
 

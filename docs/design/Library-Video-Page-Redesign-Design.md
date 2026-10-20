@@ -152,12 +152,7 @@
 
 删掉的取值：`libraryTitleText`（`Shared/UI/LibraryTitleColor.swift`）与 `LibraryListTabBar` 里六个写死的色值。漫画卡片与书籍旧卡片对它的引用已随各自的重设计删除，该文件已不存在。
 
-## 十、裁定
-
-2026-10-07 用户裁定七项全取 A：两列海报墙；加「上次看到」瓷砖；分页提示收进网格底部、去掉悬浮胶囊；横向滚动胶囊芯片贴顶；
-保留封面爱心、已收藏用视频强调色；搜索与账号拆成两个圆形按钮；不加来源切换（留在来源页）。
-
-## 十一、不改的东西
+## 十、不改的东西
 
 - 列表数据、分页（`startPage` 代入）、分类缓存、切换来源、收藏切换、搜索、登录与凭据——本设计只改信息组织与外观，外加「上次看到」一个只读查询。
 - `LibraryBodyState` 的五种状态与优先级；下拉刷新与触底加载两条路。
@@ -165,19 +160,18 @@
 - 漫画与书籍的网格与卡片（`ComicLibraryCardView`）本次不动。
 - App 不提供规则创建或编辑入口（`BCA-UI-003`）；`latestText` 等字段有无由规则决定。
 
-## 十二、实现位置
+## 十一、实现位置
 
 - `BrowseCraft/Features/Library/LibraryView.swift`：隐藏导航栏、眉行与大标题、两个圆形按钮、贴顶分类条、「上次看到」瓷砖、分页脚、切换来源遮罩换状态卡。
 - `BrowseCraft/Features/Library/Video/List/VideoContentGridView.swift`：两列海报墙与海报卡片（集数徽章、爱心、长按菜单）。
 - `BrowseCraft/Features/Library/Components/LibraryListTabBar.swift`：三份芯片代码合成一份，按 `CatalogKindStyle` 取色。
 - `BrowseCraft/Features/Library/Components/LibrarySkeletonGridView.swift`：改两列同形。
-- `BrowseCraft/Features/Library/Components/LibraryStateBanner.swift`（原 `LibraryTabErrorBanner`，2026-10-10 复审第七批与详情页、搜索页的带按钮横幅合为一个）：警示色淡底。
+- `BrowseCraft/Features/Library/Components/LibraryStateBanner.swift`：警示色淡底。
 - `BrowseCraft/Features/Library/LibraryViewModel.swift`：最近视频历史的只读查询与刷新时机；分页脚沿用现有三条词条，翻页失败另加 `nextPageErrorMessage` 与第四条词条 `library_pagination_failed`（`LibraryPaginationFooterView` 的 `failureDetail`），库页的系统弹框只剩收藏切换失败在用。
 - `BrowseCraft/Features/History/Components/HistoryEntryRowView.swift`：`HistoryContinueTileView` 底行允许只写时刻。
-- 三份 `Localizable.strings`：眉行「视频」、「上次看到」、分页脚三条都沿用现有词条；新增长按菜单「打开」「收藏」「取消收藏」「继续看」「打开作品」。
-- 页面设计索引：实施后把「海报卡片」「分类芯片」补进可复用组件表。
+- 三份 `Localizable.strings`：眉行「视频」、「上次看到」、分页脚三条、长按菜单的「取消收藏」（`favorites_unfavorite`）与「继续看」（`history_menu_continue_watching`）都沿用现有词条；新增长按菜单「打开」「收藏」「打开作品」（`library_card_open` / `library_card_favorite` / `library_tile_open_work`）。
 
-## 十三、真机验收清单
+## 十二、真机验收清单
 
-- 模拟器没走到：分页脚、分类出错横幅、切换来源遮罩、账号按钮、点「上次看到」瓷砖进播放器、搜索结果页、空状态插画的实际显示。
+- 分页脚、分类出错横幅、切换来源遮罩、账号按钮、点「上次看到」瓷砖进播放器、搜索结果页、空状态插画的实际显示。
 - 有 `latestText` 的来源看集数徽章；有时长的历史看瓷砖进度条。深色模式整页看一遍。

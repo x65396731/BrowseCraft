@@ -37,7 +37,9 @@ CloudKit `AppUserIdentity/default` 只能记录已经通过 Portal 登录的后�
 
 - 未登录不能创建或关联该记录。
 - 云端 UUID 与当前 Portal AppUser 一致时允许启用同步。
-- UUID 不一致时阻断同步，并要求用户通过 Sign in with Apple 切换到对应账户。
+- UUID 不一致时阻断同步，并要求用户通过 Sign in with Apple 切换到对应账户。唯一例外：云端记录的 UUID 是本机早先未登录时
+  写上去的临时本地 UUID（本机 `app_users` 有它的行、且本机从未见过它作为 Portal 会话用户，判据在
+  `CloudAppUserIdentityAssociationCoordinator.isFormerLocalUser`）时，直接用当前 Portal AppUser 覆盖该记录，不要求换账户登录。
 - `BCA-SYNC-004` 禁止通过“采用 CloudKit UUID”获得 Portal Session 或 IAP 权益；持有 UUID 不构成认证。
 
 ## StoreKit 与恢复购买
