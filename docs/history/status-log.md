@@ -1760,3 +1760,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 同日 TestFlight 上 1.0 (51) 显示「已失效」，用户重新上传为 1.0 (52)（正在测试）；`project.yml` 构建号 51 → 52 与之对齐，下次归档从 53 起（`BCA-BUILD-004`）。
 - 同日 TestFlight 1.0 (52) 真机实测（用户逐步执行第 1 ~ 7 步，第 8 步深色与读屏决定不测）：STATUS 第 2 节新增一行 device-passed。实测中用户发现规则目录添加来源时只有小转圈、等很久才报「网络失败，请求超时」，另立项「规则目录添加中的等待与锁定」（设计书 https://claude.ai/artifact/Fpv5cXHuTCBwPFJ6R92i1V 八项全取 A，画布 https://claude.ai/artifact/KYHi6jbr8H1CEfvtkXH6mJ 待定稿）。
 - 同日「规则目录添加中的等待与锁定」用户看稿「稿子没问题」后实施：Catalog-Page 合同 2.4 改为四种状态与锁定、取消、45 秒总时限；`AlamofireHTTPClient` 请求桥接随任务取消中断请求（公共通道，取消记 info `request-cancelled` 不记 error）；`AddCatalogSourceUseCase` 存库前查取消；埋点合同 `source_added` 写明超时报 failed、取消不报。STATUS 第 2 节两行（full-suite-passed、simulator-passed），检查点暂记 1ce73b62，提交后改为实施提交。
+- 同日提交与打包（用户「提交并打包吧」）：真机实测记录 88194e86、规则目录添加中的等待与锁定 957d4da0；STATUS 两行检查点 1ce73b62 → 957d4da0；构建号 52 → 53，TEST scheme 归档 1.0 (53)。
