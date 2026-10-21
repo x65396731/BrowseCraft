@@ -30,9 +30,29 @@ struct PersonalRuleRetentionTests {
         let grouping: CatalogSourceGrouping = CatalogSourceGrouping.make(catalogSources: [shared, mine], outcomes: [succeeded])
 
         #expect(grouping.personalSources == [mine])
-        // 中文注释：万一公共目录还带着这条，也不重复显示。
+        // 中文注释：没有 section 的个人规则即便出现在公共目录里也不进「发现」。
         #expect(grouping.defaultSources == [shared])
         #expect(grouping.personalEntryURLs["mine"] == "https://m.invalid/list")
         #expect(grouping.personalOutcomes["mine"]?.expiresAt == Self.expiresAt)
+    }
+
+    @Test func exampleGeneratedByMeStaysInDiscoverDuringTheVisibilityWindow() {
+        let promoted: CatalogSource = CatalogSource(
+            id: "promoted", name: "promoted", baseURL: "https://p.invalid", kind: .book, ruleJSON: "{}", section: .example
+        )
+        let other: CatalogSource = CatalogSource(
+            id: "other", name: "other", baseURL: "https://o.invalid", kind: .book, ruleJSON: "{}", section: .example
+        )
+        var succeeded: VideoGenerationOutcome = VideoGenerationOutcome(
+            jobID: UUID(), entryURL: "https://p.invalid/list", status: "succeeded", finishedAt: nil,
+            catalogSourceID: "promoted", reason: nil, reasonDetail: nil
+        )
+        succeeded.expiresAt = Self.expiresAt
+        succeeded.catalogSource = promoted
+        let grouping: CatalogSourceGrouping = CatalogSourceGrouping.make(catalogSources: [promoted, other], outcomes: [succeeded])
+
+        // 中文注释：本人生成后转成示例的规则，「发现」与「我的生成」两边都在。
+        #expect(grouping.exampleSources == [promoted, other])
+        #expect(grouping.personalSources == [promoted])
     }
 }

@@ -48,16 +48,13 @@ struct CatalogSourceGrouping: Hashable, Sendable {
             personalSources.append(source)
             personalOutcomes[source.id] = outcome
         }
-        let personalIDs: Set<String> = Set(personalOutcomes.keys)
-        // 中文注释：公共目录理论上不含个人规则；万一服务端旧版本还带着，也不在两组里重复显示。
-        let publicSources: [CatalogSource] = catalogSources.filter { source in
-            return personalIDs.contains(source.id) == false
-        }
+        // 中文注释：不按本人生成 id 剔除公共条目——「发现」只收带 section 的条目，个人规则没有 section 本就进不来；
+        // 而示例可以由用户生成的规则转来，剔除会让生成者本人在 7 天可见期内看不到这条示例（2026-10-22 真机：3 条只显示 1 条）。
         let exampleSources: [CatalogSource] = Array(
-            publicSources.filter { source in source.section == .example }.prefix(Self.maximumExampleCount)
+            catalogSources.filter { source in source.section == .example }.prefix(Self.maximumExampleCount)
         )
         #if DEBUG
-        let internalSources: [CatalogSource] = publicSources.filter { source in source.section == .internalTest }
+        let internalSources: [CatalogSource] = catalogSources.filter { source in source.section == .internalTest }
         #else
         let internalSources: [CatalogSource] = []
         #endif
