@@ -14,6 +14,13 @@ Regenerate the Xcode project after adding, moving or removing source files.
 
 It does not build the app.
 
+## ci_scripts/ci_post_clone.sh（Xcode Cloud）
+
+Xcode Cloud 克隆完仓库后自动执行，本机不用跑。它把五个包仓库克隆到上一级目录、从加密环境变量写出
+`Config/CatalogEncryption.*.local.xcconfig`、再用锁定版本的 XcodeGen 生成工程。工作流需配置两个 Secret：
+`BC_GITHUB_TOKEN`（五个包仓库的只读 fine-grained token）与 `BC_CATALOG_ENCRYPTION_KEYS`（生产目录密钥）。
+升级本机 XcodeGen 时同步改脚本里的 `XCODEGEN_VERSION`。
+
 ## check-architecture-boundaries.sh
 
 Pre-build gate for layer boundaries. It runs on every build and never modifies anything.
