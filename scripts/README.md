@@ -20,6 +20,7 @@ Xcode Cloud 克隆完仓库后自动执行，本机不用跑。它把五个包�
 `Config/CatalogEncryption.*.local.xcconfig`、再用锁定版本的 XcodeGen 生成工程。工作流需配置两个 Secret：
 `BC_GITHUB_TOKEN`（五个包仓库的只读 fine-grained token）与 `BC_CATALOG_ENCRYPTION_KEYS`（生产目录密钥）。
 升级本机 XcodeGen 时同步改脚本里的 `XCODEGEN_VERSION`。
+构建号分段：Xcode Cloud 从 1000 起自增，本机上传用 56–999（见 `project.yml` 的 `CURRENT_PROJECT_VERSION` 注释）。
 
 ## check-architecture-boundaries.sh
 
