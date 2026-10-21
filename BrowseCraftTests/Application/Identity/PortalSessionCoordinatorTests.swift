@@ -266,6 +266,62 @@ struct PortalSessionCoordinatorTests {
         #expect(await coordinator.handleAuthorizationRejected() == .unchanged)
     }
 
+    /// 中文注释：服务端 2026-10-21 起把「已轮换的 refresh token 再次使用」判为重放并撤销整条链（含赢家刚拿到的新 token），
+    /// 因此 App 侧对同一个 refresh token 只能发一次刷新请求。启动、回前台、网络恢复、取 access token、401 后强制刷新
+    /// 五条路都汇到 `refreshIfNeeded`，靠 actor 与 `operationInFlight` 跨挂起点串行；这里钉住：刷新挂着时再来的调用
+    /// 不发第二个请求、也不等它，拿仍然有效的旧 access token 走。
+    @Test func concurrentRefreshesSendOneRequestWithTheSameRefreshToken() async {
+        let userID: UUID = UUID()
+        let oldCredentials: PortalAuthenticationTokens = Self.tokens(
+            userID: userID,
+            accessToken: "old-access",
+            refreshToken: "old-refresh",
+            accessExpiresAt: Self.now.addingTimeInterval(60)
+        )
+        let newCredentials: PortalAuthenticationTokens = Self.tokens(
+            userID: userID,
+            accessToken: "new-access",
+            refreshToken: "new-refresh",
+            accessExpiresAt: Self.now.addingTimeInterval(86_400)
+        )
+        let store: InMemoryPortalSessionStore = InMemoryPortalSessionStore(
+            session: PortalSessionPersistence(userID: userID, credentials: oldCredentials)
+        )
+        let authenticator: MockPortalIdentityAuthenticator = MockPortalIdentityAuthenticator(
+            refreshResult: .success(newCredentials)
+        )
+        await authenticator.holdRefreshes()
+        let coordinator: PortalSessionCoordinator = Self.coordinator(
+            userID: userID,
+            store: store,
+            authenticator: authenticator
+        )
+
+        async let first: String? = coordinator.validAccessToken()
+        var attempts: Int = 0
+        while await authenticator.refreshCallCount == 0, attempts < 2_000 {
+            attempts += 1
+            try? await Task.sleep(for: .milliseconds(1))
+        }
+        #expect(await authenticator.refreshCallCount == 1)
+
+        // 刷新挂着：再取 token、回前台、401 强制刷新都不得再发请求。
+        let second: String? = await coordinator.validAccessToken()
+        await coordinator.handleAppBecameActive()
+        let rejection: PortalAuthorizationRejectionOutcome = await coordinator.handleAuthorizationRejected()
+        #expect(second == "old-access")
+        #expect(rejection != .refreshed)
+        #expect(await authenticator.refreshCallCount == 1)
+
+        await authenticator.releaseHeldRefreshes()
+        let firstToken: String? = await first
+        #expect(firstToken == "new-access")
+        #expect(await authenticator.refreshCallCount == 1)
+        #expect(await authenticator.receivedRefreshTokens == ["old-refresh"])
+        #expect(store.session?.credentials == newCredentials)
+        #expect(await coordinator.validAccessToken() == "new-access")
+    }
+
     private static func coordinator(
         userID: UUID,
         store: InMemoryPortalSessionStore,
@@ -333,6 +389,8 @@ private actor MockPortalIdentityAuthenticator: PortalIdentityAuthenticating {
     private(set) var appleAuthenticationCallCount: Int = 0
     private(set) var refreshCallCount: Int = 0
     private(set) var receivedRefreshTokens: [String] = []
+    private var holdsRefreshes: Bool = false
+    private var heldRefreshContinuations: [CheckedContinuation<Void, Never>] = []
 
     init(
         challengeResult: Result<
@@ -372,9 +430,28 @@ private actor MockPortalIdentityAuthenticator: PortalIdentityAuthenticating {
         return PortalAppleAuthentication(tokens: try self.appleAuthenticationResult.get())
     }
 
+    /// 中文注释：之后的 `refresh` 在计数之后挂起，直到 `releaseHeldRefreshes()`——用来制造「刷新在途」的窗口。
+    func holdRefreshes() {
+        self.holdsRefreshes = true
+    }
+
+    func releaseHeldRefreshes() {
+        let continuations: [CheckedContinuation<Void, Never>] = self.heldRefreshContinuations
+        self.heldRefreshContinuations = []
+        self.holdsRefreshes = false
+        for continuation: CheckedContinuation<Void, Never> in continuations {
+            continuation.resume()
+        }
+    }
+
     func refresh(refreshToken: String) async throws -> PortalAuthenticationTokens {
         self.refreshCallCount += 1
         self.receivedRefreshTokens.append(refreshToken)
+        if self.holdsRefreshes {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                self.heldRefreshContinuations.append(continuation)
+            }
+        }
         return try self.refreshResult.get()
     }
 
